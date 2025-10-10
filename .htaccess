@@ -1,0 +1,11 @@
+    RewriteEngine on
+    
+    # Redirigir a la carpeta public_html/public
+    RewriteCond %{HTTP_HOST} ^(www\.)?ryaie\.com$ [NC]
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ /public/$1 [L]
+    
+    # Manejar el controlador frontal de Laravel
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ public/index.php [L]

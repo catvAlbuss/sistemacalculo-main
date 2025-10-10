@@ -1,0 +1,67 @@
+@import "tailwindcss";
+@import "flowbite/src/themes/default";
+
+@plugin "flowbite/plugin";
+
+@source "../../node_modules/flowbite";
+
+@config "../../tailwind.config.js";
+
+.cad-bg {
+    @apply dark:bg-neutral-800 bg-gray-200;
+}
+
+.cad-border {
+    @apply dark:border-neutral-600 border-gray-300;
+}
+
+.cad-text-color {
+    @apply dark:text-neutral-400 text-black;
+}
+
+.cad-text-logo-color {
+    @apply dark:text-neutral-400 text-gray-700;
+}
+
+.cad-ribbon-button-hover-bg {
+    @apply dark:hover:bg-neutral-700 hover:bg-gray-300;
+}
+
+.cad-ribbon-button-bg {
+    @apply dark:bg-neutral-700 bg-gray-300;
+}
+
+.cad-panel-title {
+    @apply dark:bg-neutral-700 dark:border-neutral-500 bg-gray-300 border-gray-200 border-b text-sm font-semibold p-2;
+}
+
+.cad-panel-body {
+    @apply dark:bg-neutral-800 dark:border-neutral-600;
+}
+
+.cad-input-properties-header {
+    @extend .cad-border;
+    @apply rounded-t-md
+            dark:bg-neutral-800
+            bg-gray-300;
+}
+
+.tabulator .tabulator-tableholder {
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+}
+
+.js-plotly-plot .plotly .modebar svg {
+    display: inline;
+}
+
+.tabulator-cell:not(.tabulator-editable):not(
+        .tabulator-calcs > .tabulator-cell
+    ) {
+    background-color: #f2f2f2 !important;
+}
+
+.highlight-calc-output {
+    background-color: moccasin;
+    transition: background-color 1s;
+}
