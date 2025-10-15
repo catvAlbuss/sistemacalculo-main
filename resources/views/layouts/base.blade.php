@@ -10,6 +10,7 @@
     <title>{{ config('app.name', 'R&AIE') }}</title>
     <link rel="icon" type="image/x-icon" href="{{ Vite::asset('resources/img/logo_rizabalAsociados.png') }}">
     <!-- Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.bunny.net" rel="preconnect">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>

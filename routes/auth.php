@@ -11,6 +11,8 @@ Route::middleware('guest')->group(function () {
     Volt::route('login', 'pages.auth.login')
         ->name('login'); */
 
+    
+
     Route::view('login', 'welcome')->name("login");
 
     Volt::route('forgot-password', 'pages.auth.forgot-password')
@@ -19,8 +21,10 @@ Route::middleware('guest')->group(function () {
     Volt::route('reset-password/{token}', 'pages.auth.reset-password')
         ->name('password.reset');
 });
-
+//resources/views/livewire/subscription-plans-management.blade.php
 Route::middleware('auth')->group(function () {
+    //Route::view('register', 'livewire.subscription-plans-management')->name("register");
+
     Volt::route('verify-email', 'pages.auth.verify-email')
         ->name('verification.notice');
 

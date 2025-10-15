@@ -71,7 +71,7 @@
           </x-nav-link-sub-landing>
         </li>
         <li>
-          <x-nav-link-landing :href="route('landing.contact')" :active="request()->routeIs('landing.contact')">{{ __('Contáctanos') }}</x-nav-link-landing>
+          <x-nav-link-landing :href="route('contacto.index')" :active="request()->routeIs('contacto.index')">{{ __('Contáctanos') }}</x-nav-link-landing>
         </li>
         <li>
           <x-nav-link-landing {{-- :href="route('blogs')" --}} :active="request()->routeIs('blogs')">{{ __('Blog') }}</x-nav-link-landing>

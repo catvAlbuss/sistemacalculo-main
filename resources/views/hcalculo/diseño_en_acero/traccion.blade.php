@@ -3,7 +3,7 @@
 @endphp
 
 @pushOnce('initscripts')
-  @vite('resources/js/diseño_acero_data.js')
+  @vite('resources/js/diseno_acero_data.js')
 @endPushOnce
 
 <x-calc-layout title="Diseño En Acero | Traccion">

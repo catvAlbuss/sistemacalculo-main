@@ -13,11 +13,22 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // 1. Primero crear roles y permisos
+        $this->call(RolesAndPermissionsSeeder::class);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // 2. Luego crear planes de suscripción
+        $this->call(SubscriptionPlansSeeder::class);
+
+        // 3. Finalmente crear usuario root
+        $this->call(RootUserSeeder::class);
+
+        $this->command->info('============================================');
+        $this->command->info('¡Base de datos sembrada exitosamente!');
+        $this->command->info('============================================');
+        $this->command->info('Usuario ROOT creado:');
+        $this->command->info('Email: root@sistemacalculo.com');
+        $this->command->info('Password: password');
+        $this->command->warn('¡CAMBIA LA CONTRASEÑA INMEDIATAMENTE!');
+        $this->command->info('============================================');
     }
 }
