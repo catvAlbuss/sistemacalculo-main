@@ -72,6 +72,7 @@ Alpine.store('systemState', {
             }
         };
         localStorage.setItem('murosContencionData', JSON.stringify(data));
+        console.log(data.predimensionamiento);
     },
 
     cargarDeLocalStorage() {

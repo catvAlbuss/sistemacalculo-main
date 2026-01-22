@@ -91,7 +91,7 @@ class DashboardController extends Controller
         if ($planType === 'lifetime') {
             return [
                 'type' => 'success',
-                'message' => '¡Felicidades! Tienes un **Plan de por Vida** (Plan: **{$planName}**). Disfruta de acceso ilimitado.',
+                'message' => '¡Felicidades! Tienes un **Plan de por Vida**. Disfruta de acceso ilimitado.',
             ];
         }
 

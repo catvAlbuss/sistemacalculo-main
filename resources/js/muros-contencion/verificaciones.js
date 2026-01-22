@@ -1,5 +1,6 @@
 import { ValidationManager } from './utils/validation.js';
 import { NotificationManager } from './utils/notifications.js';
+import { event } from 'jquery';
 
 export function Verificaciones() {
     return {

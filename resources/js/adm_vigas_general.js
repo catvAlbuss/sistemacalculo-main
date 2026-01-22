@@ -98,6 +98,7 @@ $(document).ready(function () {
       let as_realNegativos = [];
       let Verifnevativos = [];
       let ds = []; // Definir array ds
+      let d = 0;
       let parfres = [];
       let As_maxs = [];
       let As_usars = [];
@@ -197,8 +198,8 @@ $(document).ready(function () {
                     <td class="py-2 px-4">𝐴𝑠=(0.85∗𝑓^′ 𝑐∗𝑏∗𝑎)/𝑓𝑦</td>
                     <td class="py-2 px-4"></td>
                     ${sumas
-                      .map((selectElement) => `<td class='py-2 px-4 text-center'>${selectElement.toFixed(2)} cm</td>`)
-                      .join("")}
+          .map((selectElement) => `<td class='py-2 px-4 text-center'>${selectElement.toFixed(2)} cm</td>`)
+          .join("")}
                 </tr>
                 <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                     <td class="py-2 px-4">momento resistente en "tonf-m"</td>
@@ -207,8 +208,8 @@ $(document).ready(function () {
                     <td class="py-2 px-4">\\(${momentoUltimo}\\)</td>
                     <td class="py-2 px-4"></td>
                     ${mnnegativos
-                      .map((mnnegativo) => `<td class='py-2 px-4 text-center'>${mnnegativo.toFixed(2)}</td>`)
-                      .join("")}
+          .map((mnnegativo) => `<td class='py-2 px-4 text-center'>${mnnegativo.toFixed(2)}</td>`)
+          .join("")}
                 </tr>
                 <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                     <td class="py-2 px-4">Verifificacion</td>
@@ -217,8 +218,8 @@ $(document).ready(function () {
                     <td class="py-2 px-4"></td>
                     <td class="py-2 px-4"></td>
                     ${Verifnevativos.map(
-                      (Verifnevativo) => `<td class='py-2 px-4 text-center'>${Verifnevativo}</td>`
-                    ).join("")}
+            (Verifnevativo) => `<td class='py-2 px-4 text-center'>${Verifnevativo}</td>`
+          ).join("")}
                 </tr>
                 </tbody>
               </table>
@@ -419,11 +420,11 @@ $(document).ready(function () {
                     <td class="py-2 px-4"></td>
                     <td class="py-2 px-4"></td>
                     ${sumaspos
-                      .map(
-                        (selectElementpost) =>
-                          `<td class='py-2 px-4 text-center'>${selectElementpost.toFixed(2)} cm</td>`
-                      )
-                      .join("")}
+          .map(
+            (selectElementpost) =>
+              `<td class='py-2 px-4 text-center'>${selectElementpost.toFixed(2)} cm</td>`
+          )
+          .join("")}
                 </tr>
                 <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                     <td class="py-2 px-4">momento resistente en "tonf-m"</td>
@@ -431,8 +432,8 @@ $(document).ready(function () {
                     <td class="py-2 px-4"></td>
                     <td class="py-2 px-4">\\(${momentoUltimo}\\)</td>
                     ${mnpositivos
-                      .map((mnpositivo) => `<td class='py-2 px-4 text-center'>${mnpositivo.toFixed(2)}</td>`)
-                      .join("")}
+          .map((mnpositivo) => `<td class='py-2 px-4 text-center'>${mnpositivo.toFixed(2)}</td>`)
+          .join("")}
                 </tr>
                 <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                     <td class="py-2 px-4">Verifificacion</td>
@@ -440,8 +441,8 @@ $(document).ready(function () {
                     <td class="py-2 px-4"></td>
                     <td class="py-2 px-4"></td>
                     ${Verifpositivos.map(
-                      (Verifpositivo) => `<td class='py-2 px-4 text-center'>${Verifpositivo}</td>`
-                    ).join("")}
+            (Verifpositivo) => `<td class='py-2 px-4 text-center'>${Verifpositivo}</td>`
+          ).join("")}
                 </tr>
                 </tbody>
               </table>
@@ -830,8 +831,8 @@ $(document).ready(function () {
                             <td class="py-2 px-4">𝜌𝑏</td>
                             <td class="py-2 px-4">\\(${AreaAceraBalanceado}\\)</td>
                             ${As_balanceados.map(
-                              (As_bal) => `<td class='text-center'>${As_bal} cm<sup>2</sup></td>`
-                            ).join("")}
+      (As_bal) => `<td class='text-center'>${As_bal} cm<sup>2</sup></td>`
+    ).join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4">Refuerzo máximo en "cm2"</td>
@@ -844,8 +845,8 @@ $(document).ready(function () {
                             <td class="py-2 px-4">𝐴𝑠_usar</td>
                             <td class="py-2 px-4"></td>
                             ${As_usars.map((As_usar) => `<td class='text-center'>${As_usar}cm<sup>2<sup></td>`).join(
-                              ""
-                            )}
+      ""
+    )}
                         </tr>
                     </tbody>`;
 
@@ -1088,32 +1089,32 @@ $(document).ready(function () {
                             <td class="py-2 px-4">𝐴𝑠_𝑚𝑖𝑛</td>
                             <td class="py-2 px-4">\\(${Acerominimo}\\)</td>
                             ${As_minpos.map(
-                              (As_minpo) => `<td class='text-center'>${As_minpo} cm<sup>2</sup></td>`
-                            ).join("")}
+      (As_minpo) => `<td class='text-center'>${As_minpo} cm<sup>2</sup></td>`
+    ).join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4">Area de acero balanceado</td>
                             <td class="py-2 px-4">𝜌𝑏</td>
                             <td class="py-2 px-4">\\(${AreaAceraBalanceado}\\)</td>
                             ${As_balpos.map(
-                              (As_balpo) => `<td class='text-center'>${As_balpo} cm<sup>2</sup></td>`
-                            ).join("")}
+      (As_balpo) => `<td class='text-center'>${As_balpo} cm<sup>2</sup></td>`
+    ).join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4">Refuerzo máximo en "cm2"</td>
                             <td class="py-2 px-4">𝐴𝑠_𝑚á𝑥 75%Asb</td>
                             <td class="py-2 px-4">\\(${Aceromaximo}\\)</td>
                             ${As_maxpos.map(
-                              (As_maxpo) => `<td class='text-center'>${As_maxpo}cm<sup>2</sup></td>`
-                            ).join("")}
+      (As_maxpo) => `<td class='text-center'>${As_maxpo}cm<sup>2</sup></td>`
+    ).join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4">Acero a Usar</td>
                             <td class="py-2 px-4">𝐴𝑠_usar</td>
                             <td class="py-2 px-4"></td>
                             ${As_usarpos.map(
-                              (As_usarpo) => `<td class='text-center'>${As_usarpo}cm<sup>2<sup></td>`
-                            ).join("")}
+      (As_usarpo) => `<td class='text-center'>${As_usarpo}cm<sup>2<sup></td>`
+    ).join("")}
                         </tr>
                     </tbody>
             `;
@@ -1318,8 +1319,8 @@ $(document).ready(function () {
                             <td class="py-2 px-4">𝐴𝑐𝑤</td>
                             <td class="py-2 px-4">\\(${acwdecorte}\\)</td>
                             ${acws
-                              .map((acw) => `<td class='py-2 px-4 text-center'>${acw.toFixed(2)} cm<sup>2</sup></td>`)
-                              .join("")}
+        .map((acw) => `<td class='py-2 px-4 text-center'>${acw.toFixed(2)} cm<sup>2</sup></td>`)
+        .join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4">Cortante nominal proporcionada por el concreto</td>
@@ -1332,8 +1333,8 @@ $(document).ready(function () {
                             <td class="py-2 px-4">Ø 𝑉𝑐</td>
                             <td class="py-2 px-4">\\(${paravccorte}\\)</td>
                             ${vcfrs
-                              .map((vcfr) => `<td class='py-2 px-4 text-center'>${vcfr.toFixed(2)}Tonf</td>`)
-                              .join("")}
+        .map((vcfr) => `<td class='py-2 px-4 text-center'>${vcfr.toFixed(2)}Tonf</td>`)
+        .join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4">Cortante nominal proporcionada por el refuerzo</td>
@@ -1346,8 +1347,8 @@ $(document).ready(function () {
                             <td class="py-2 px-4">𝑆</td>
                             <td class="py-2 px-4">\\(${espacimientoReq}\\)</td>
                             ${Espacioss.map(
-                              (Espacios) => `<td class='py-2 px-4 text-center'>${Espacios.toFixed(2)} cm</td>`
-                            ).join("")}
+          (Espacios) => `<td class='py-2 px-4 text-center'>${Espacios.toFixed(2)} cm</td>`
+        ).join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4">Peralte efectivo dividido entre 4</td>
@@ -1360,35 +1361,35 @@ $(document).ready(function () {
                             <td class="py-2 px-4">𝐿𝑐𝑜𝑛𝑓𝑖𝑔</td>
                             <td class="py-2 px-4">\\(${zonConfig}\\)</td>
                             ${Lconfis.map(
-                              (laconfigcorte) => `<td class='py-2 px-4 text-center'>${laconfigcorte} cm</td>`
-                            ).join("")}
+          (laconfigcorte) => `<td class='py-2 px-4 text-center'>${laconfigcorte} cm</td>`
+        ).join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4"></td>
                             <td class="py-2 px-4">𝑈𝑠𝑎𝑟</td>
                             <td class="py-2 px-4">\\(${acerusar}\\)</td>
                             ${usarSs
-                              .map((usarS) => `<td class='py-2 px-4 text-center'>${usarS.toFixed(2)} cm</td>`)
-                              .join("")}
+        .map((usarS) => `<td class='py-2 px-4 text-center'>${usarS.toFixed(2)} cm</td>`)
+        .join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4"></td>
                             <td class="py-2 px-4"># estribos zona conf.</td>
                             <td class="py-2 px-4"></td>
                             ${estriboss
-                              .map((estribos) => `<td class='py-2 px-4 text-center'>${estribos}</td>`)
-                              .join("")}
+        .map((estribos) => `<td class='py-2 px-4 text-center'>${estribos}</td>`)
+        .join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4"></td>
                             <td class="py-2 px-4">Estribado</td>
                             <th class="py-2 px-4" scope="col"></th>
                             ${estribadocortes
-                              .map(
-                                (estribadocorte) =>
-                                  `<td class='py-2 px-4 text-center' contenteditable="true">${estribadocorte} </td>`
-                              )
-                              .join("")}
+        .map(
+          (estribadocorte) =>
+            `<td class='py-2 px-4 text-center' contenteditable="true">${estribadocorte} </td>`
+        )
+        .join("")}
                         </tr>
                     </tbody>
                 </table>`;
@@ -1422,7 +1423,9 @@ $(document).ready(function () {
     // const muCvsPositivos = [];
 
     // Llamada a la función solo una vez
+    console.log(mnnegativos);
     const Mn_Izqs = calcularPrimerUltimoValorPorTramo(mnnegativos);
+    console.log(Mn_Izqs);
     // Replicar los resultados para cada tramo
     let replicatedResults = [];
     Mn_Izqs.forEach((result) => {
@@ -1484,6 +1487,7 @@ $(document).ready(function () {
       estribocapas.push(estribocapa);
       estribadoscapas.push(estribadoscapa);
 
+
       // acwcs.push(acwc);
       // var vc1 = ((mnpositivos ? mnpositivos[Math.floor((mnpositivos.length || 1) / 2)] : 0) / 0.9).toFixed(2);
       // vc1s.push(vc1);
@@ -1504,125 +1508,123 @@ $(document).ready(function () {
                             <td  class="py-2 px-4"></td>
                             <td class="py-2 px-4">𝑀𝑛_𝑖𝑧𝑞</td>
                             <td class="py-2 px-4">\\(${mn_izquierda}\\)</td>
-                            ${replicatedResults
-                              .map((Mn_Izq) => `<td class='py-2 px-4 text-center'>${Mn_Izq} Tonf</td>`)
-                              .join("")}
+                            ${replicatedResults.map((Mn_Izq) => `<td class='py-2 px-4 text-center'>${Mn_Izq} Tonf</td>`).join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4"></td>
                             <td class="py-2 px-4">𝑀𝑛_𝑑𝑒𝑟</td>
                             <td class="py-2 px-4">\\(${mn_derecha}\\)</td>
                             ${Mn_Derresult.map(
-                              (Mn_Der) => `<td class='py-2 px-4 text-center'>${Mn_Der} Tonf</td>`
-                            ).join("")}
+      (Mn_Der) => `<td class='py-2 px-4 text-center'>${Mn_Der} Tonf</td>`
+    ).join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4">Capacidad cortante</td>
                             <td class="py-2 px-4">𝑉𝑢</td>
                             <td class="py-2 px-4">\\(${cortanteForm}\\)</td>
                             ${vucortantes
-                              .map(
-                                (vucortante) => `<td class='py-2 px-4 text-center'>${vucortante.toFixed(2)} Tonf</td>`
-                              )
-                              .join("")}
+        .map(
+          (vucortante) => `<td class='py-2 px-4 text-center'>${vucortante.toFixed(2)} Tonf</td>`
+        )
+        .join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4">Area de corte</td>
                             <td class="py-2 px-4">Acw</td>
                             <td class="py-2 px-4">\\(${acwdecorte}\\)</td>
                             ${VscapacidadAcws.map(
-                              (VscapacidadAcw) => `<td class='py-2 px-4 text-center'>${VscapacidadAcw} Tonf</td>`
-                            ).join("")}
+          (VscapacidadAcw) => `<td class='py-2 px-4 text-center'>${VscapacidadAcw} Tonf</td>`
+        ).join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4">Cortante nominal proporcionada por el concreto</td>
                             <td class="py-2 px-4">Vc</td>
                             <td class="py-2 px-4">\\(${vcCorte}\\)</td>
                             ${vccapacidads
-                              .map(
-                                (vccapacidad) => `<td class='py-2 px-4 text-center'>${vccapacidad.toFixed(2)} Tonf</td>`
-                              )
-                              .join("")}
+        .map(
+          (vccapacidad) => `<td class='py-2 px-4 text-center'>${vccapacidad.toFixed(2)} Tonf</td>`
+        )
+        .join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4">Cortante resistente proporcionada por el concreto</td>
                             <td class="py-2 px-4">Ø Vc</td>
                             <td class="py-2 px-4">\\(${paravccorte}\\)</td>
                             ${vcresistentes
-                              .map(
-                                (vcresistente) =>
-                                  `<td class='py-2 px-4 text-center'>${vcresistente.toFixed(2)} Tonf</td>`
-                              )
-                              .join("")}
+        .map(
+          (vcresistente) =>
+            `<td class='py-2 px-4 text-center'>${vcresistente.toFixed(2)} Tonf</td>`
+        )
+        .join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4">Cortante nominal proporcionada por el refuerzo</td>
                             <td class="py-2 px-4">Vs</td>
                             <td class="py-2 px-4">\\(${cortnomProp}\\)</td>
                             ${cortanteNominalVSs
-                              .map(
-                                (cortanteNominalVS) =>
-                                  `<td class='py-2 px-4 text-center'>${cortanteNominalVS.toFixed(2)} Tonf</td>`
-                              )
-                              .join("")}
+        .map(
+          (cortanteNominalVS) =>
+            `<td class='py-2 px-4 text-center'>${cortanteNominalVS.toFixed(2)} Tonf</td>`
+        )
+        .join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4">Espaciamiento requerido</td>
                             <td class="py-2 px-4">𝑆(cm)</td>
                             <td class="py-2 px-4">\\(${Spaciado}\\)</td>
                             ${Espaciocapacidads.map(
-                              (Espaciocapacidad) =>
-                                `<td class='py-2 px-4 text-center'>${Espaciocapacidad.toFixed(2)} cm</td>`
-                            ).join("")}
+          (Espaciocapacidad) =>
+            `<td class='py-2 px-4 text-center'>${Espaciocapacidad.toFixed(2)} cm</td>`
+        ).join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4">Peralte efectivo dividido entre 4</td>
                             <td class="py-2 px-4">𝑆=𝑑/4 (cm)</td>
                             <td class="py-2 px-4">\\(${peralteEfectivodiv}\\)</td>
                             ${peralteEfectivocapacidads
-                              .map(
-                                (peralteEfectivocapacidad) =>
-                                  `<td class='py-2 px-4 text-center'>${peralteEfectivocapacidad.toFixed(2)} cm</td>`
-                              )
-                              .join("")}
+        .map(
+          (peralteEfectivocapacidad) =>
+            `<td class='py-2 px-4 text-center'>${peralteEfectivocapacidad.toFixed(2)} cm</td>`
+        )
+        .join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4"></td>
                             <td class="py-2 px-4">𝐿𝑐𝑜𝑛𝑓𝑖𝑔</td>
                             <td class="py-2 px-4">\\(${zonConfig}\\)</td>
                             ${laconfigCapacidads
-                              .map(
-                                (laconfigCapacidad) =>
-                                  `<td class='py-2 px-4 text-center'>${laconfigCapacidad.toFixed(2)} cm</td>`
-                              )
-                              .join("")}
+        .map(
+          (laconfigCapacidad) =>
+            `<td class='py-2 px-4 text-center'>${laconfigCapacidad.toFixed(2)} cm</td>`
+        )
+        .join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4"></td>
                             <td class="py-2 px-4">𝑈𝑠𝑎𝑟</td>
                             <td class="py-2 px-4">\\(${acerusar}\\)</td>
                             ${usarScapas
-                              .map((usarScapa) => `<td class='py-2 px-4 text-center'>${usarScapa} cm</td>`)
-                              .join("")}
+        .map((usarScapa) => `<td class='py-2 px-4 text-center'>${usarScapa} cm</td>`)
+        .join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4"></td>
                             <td class="py-2 px-4"># estribos zona conf.</td>
                             <td class="py-2 px-4"></td>
                             ${estribocapas
-                              .map((estribocapa) => `<td class='py-2 px-4 text-center'>${estribocapa} </td>`)
-                              .join("")}
+        .map((estribocapa) => `<td class='py-2 px-4 text-center'>${estribocapa} </td>`)
+        .join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class="py-2 px-4"></td>
                             <td class="py-2 px-4">Estribado</td>
                             <td class="py-2 px-4"></td>
                             ${estribadoscapas
-                              .map(
-                                (estribadoscapa) =>
-                                  `<td class='py-2 px-4 text-center' contenteditable="true">${estribadoscapa}</td>`
-                              )
-                              .join("")}
+        .map(
+          (estribadoscapa) =>
+            `<td class='py-2 px-4 text-center' contenteditable="true">${estribadoscapa}</td>`
+        )
+        .join("")}
                         </tr>
                     </tbody>
                 </table>
@@ -1784,16 +1786,16 @@ $(document).ready(function () {
                             <td class=" py-2 px-4">Ec</td>
                             <td class=" py-2 px-4">\\(${Ecdeflex}\\)</td>
                             ${ess
-                              .map((es) => `<td class='py-2 px-4 text-center'>${es} Kg/cm<sup>2</sup></td>`)
-                              .join("")}
+        .map((es) => `<td class='py-2 px-4 text-center'>${es} Kg/cm<sup>2</sup></td>`)
+        .join("")}
                         </tr>
                          <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class=" py-2 px-4">Modulo de elasticidad del concreto</td>
                             <td class=" py-2 px-4">Ns</td>
                             <td class=" py-2 px-4">\\(${nsdeflex}\\)</td>
                             ${ecs
-                              .map((ec) => `<td class='py-2 px-4 text-center'>${ec} Kg/cm<sup>2</sup></td>`)
-                              .join("")}
+        .map((ec) => `<td class='py-2 px-4 text-center'>${ec} Kg/cm<sup>2</sup></td>`)
+        .join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class=" py-2 px-4">Relacion acero/concreto</td>
@@ -1806,24 +1808,24 @@ $(document).ready(function () {
                             <td class=" py-2 px-4">Icr</td>
                             <td class=" py-2 px-4">\\(${Lcrsdeflex}\\)</td>
                             ${Lcrs.map((Lcr) => `<td class='py-2 px-4 text-center'>${Lcr} cm<sup>4</sup></td>`).join(
-                              ""
-                            )}
+          ""
+        )}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class=" py-2 px-4">Inercia critica en la seccion rectangular</td>
                             <td class=" py-2 px-4">Icr</td>
                             <td class=" py-2 px-4">\\(${Icrdeflex}\\)</td>
                             ${Lcrs1s.map(
-                              (Lcrs1) => `<td class='py-2 px-4 text-center'>${Lcrs1} cm<sup>4</sup></td>`
-                            ).join("")}
+          (Lcrs1) => `<td class='py-2 px-4 text-center'>${Lcrs1} cm<sup>4</sup></td>`
+        ).join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class=" py-2 px-4"></td>
                             <td class=" py-2 px-4">Lef</td>
                             <td class=" py-2 px-4">\\(${Lefdelfex}\\)</td>
                             ${lefs
-                              .map((lef) => `<td class='py-2 px-4 text-center'>${lef} cm<sup>4</sup></td>`)
-                              .join("")}
+        .map((lef) => `<td class='py-2 px-4 text-center'>${lef} cm<sup>4</sup></td>`)
+        .join("")}
                         </tr>
                         <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                             <td class=" py-2 px-4">Deflexión debido ala carga muerta</td>

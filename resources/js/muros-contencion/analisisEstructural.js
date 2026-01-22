@@ -145,6 +145,21 @@ export function AnalisisEstructural() {
                 U288: 0,
             }
         },
+        contentProcessor: null,
+        calculationData: {},
+        verificationResults: {},
+        reinforcementData: {},
+
+        //entradas
+        datosDimensionamiento: {},
+        datosCargas: {},
+        predimData: null,
+
+        //resultados
+        datosCargas: {},
+        datosCalculados: {},
+        predimData: null,
+        resultados: {},
 
         // Estado de la interfaz
         activeElement: 'pantalla',
@@ -153,8 +168,79 @@ export function AnalisisEstructural() {
 
         // Inicialización del componente
         init() {
+            //console.log('🔄 Inicializando módulo de vERIFICACIONES...');
+            this.configurarEventos();
+            // Si hay datos en el store global al iniciar, los procesamos.
+            const initialDimData = Alpine.store('systemState').resultadosDimensionamiento;
+            if (Alpine.store('systemState').dimensionamientoCompleto && initialDimData) {
+                this.handleDimensionamientoData({ detail: { resultados: initialDimData } });
+            }
+
             //console.log('🏗️ Análisis Estructural inicializado');
             this.validarDatos();
+        },
+
+
+        configurarEventos() {
+            document.addEventListener('dimensionamiento-calculated', (event) => this.handleDimensionamientoData(event));
+            document.addEventListener('cargas-updated', (event) => this.handlecargasData(event));
+            document.addEventListener('verificaciones-updated', (event) => this.handleVerificacionesData(event));
+        },
+
+        handleDimensionamientoData(event) {
+            if (!event.detail || !event.detail.resultados) {
+                console.error('❌ Evento "dimensionamiento-calculated" no contiene resultados.');
+                return;
+            }
+
+            try {
+                if (!event.detail) {
+                    console.warn('No se recibieron datos del dimensionamiento');
+                    return;
+                }
+
+                this.datosCargas = event.detail.inputValues || {};
+                this.datosDimensionamiento = event.detail.resultados || {};
+                this.predimData = event.detail.predimData || {};
+                this.datosCalculados = {};
+
+                console.log('Datos cargados:', {
+                    dim: this.datosCargas,
+                    datosDimensionamiento: this.datosDimensionamiento,
+                    predim: this.predimData.inputValues
+                });
+
+                // Actualizar el procesador de contenido con los nuevos datos
+                this.calcularPantalla();
+                // this.updateContentProcessor();
+                // this.calcularVerificaciones();
+            } catch (error) {
+                console.error('Error procesando datos del dimensionamiento:', error);
+                this.addError('procesamiento_datos', 'Error procesando datos del dimensionamiento: ' + error.message);
+            }
+        },
+
+        handlecargasData(event) {
+            if (event.detail) {
+                this.datosCargas = { ...this.datosCargas, ...event.detail };
+                this.updateContentProcessor();
+            }
+        },
+
+        handleVerificacionesData(event) {
+            if (event.detail) {
+                this.datosverificacion = { ...this.datosverificacion, ...event.detail };
+                this.updateContentProcessor();
+            }
+        },
+
+        updateContentProcessor() {
+            if (this.contentProcessor) {
+                this.contentProcessor.updateData(this.getStructuredData());
+                this.contentProcessor.updateCalculations(this.getCalculationMethods());
+                this.contentProcessor.updateVerifications(this.getVerificationMethods());
+                this.contentProcessor.updateReinforcement(this.getReinforcementMethods());
+            }
         },
 
         // Métodos de validación
@@ -205,25 +291,30 @@ export function AnalisisEstructural() {
         },
 
         calcularPantalla() {
+            const gv = this.datosCargas || {};
+            const materiales = this.predimData?.inputValues || {};
+            const resultados = this.datosDimensionamiento || {};
+            const D20 = materiales.B20 * Math.PI / 180;
+
             // --- Utilidades tipo Excel ---
             const ABS = Math.abs;
             const SUMA = (...nums) => nums.reduce((acc, n) => acc + (n || 0), 0);
             const SI = (cond, valSi, valNo) => cond ? valSi : valNo;
 
             // --- Constantes mapeadas desde Excel ---
-            const AQ279 = 0.16; // q1 SIN SISMO
-            const AQ280 = 5.03; // q2 SIN SISMO
-            const AR279 = 1.31; // q1 CON SISMO
-            const AR280 = 5.03; // q2 CON SISMO
+            const AQ279 = materiales.B25 * resultados.B99; // q1 SIN SISMO
+            const AQ280 = materiales.B11 * resultados.B99 * resultados.E79 * Math.cos(D20) + AQ279;//5.03; // q2 SIN SISMO
+            const AR279 = resultados.B136; // q1 CON SISMO
+            const AR280 = AQ280; // q2 CON SISMO
             const B280 = 0;
-            const C163 = 5.84;
+            const C163 = resultados.C160 * resultados.C162;
             // Geometría / propiedades
-            const I230 = 6.65;
+            const I230 = resultados.E79;
             const E306 = 0.3;
             const B349 = 4;
 
             // Variables de referencia
-            const O229 = 2.39;
+            const O229 = resultados?.C160 || 0;
 
             // --- Cálculos de máximos ---
             const AS279 = Math.max(AQ279, AR279);
@@ -244,7 +335,6 @@ export function AnalisisEstructural() {
             // --- Valores seleccionados ---
             const AT279 = buscarH("q1"); // q1 final
             const AT280 = buscarH("q2"); // q2 final
-
             // --- Diferencias y derivados ---
             const E280 = AT280 - AT279;
             const E281 = (B280 * E280) / I230; // 
@@ -281,6 +371,12 @@ export function AnalisisEstructural() {
         },
 
         calcularPunta() {
+            const gv = this.datosCargas || {};
+            const materiales = this.predimData?.inputValues || {};
+            const resultados = this.datosDimensionamiento || {};
+            const D20 = materiales.B20 * Math.PI / 180;
+
+
             const ABS = Math.abs;
             const SUMA = (...nums) => nums.reduce((acc, n) => acc + (n || 0), 0);
             const SI = (cond, valSi, valNo) => cond ? valSi : valNo;
@@ -288,11 +384,11 @@ export function AnalisisEstructural() {
             const res = this.punta.resultados;
 
             // --- Constantes mapeadas desde Excel ---
-            const AQ282 = 3.24;  // peso propio
-            const AQ283 = 13.50; // q1 SIN SISMO
+            const AQ282 = resultados.A89 * resultados.F86 * materiales.B6;//3.24;  // peso propio
+            const AQ283 = -1.67 * resultados.A89 + 16.51; // q1 SIN SISMO
             const AQ284 = 16.51; // q2 SIN SISMO
 
-            const AR282 = 3.24;  // peso propio
+            const AR282 = resultados.A89 * materiales.F86 * materiales.B6;  // peso propio
             const AR283 = 13.89; // q1 CON SISMO
             const AR284 = 17.59; // q2 CON SISMO
 
