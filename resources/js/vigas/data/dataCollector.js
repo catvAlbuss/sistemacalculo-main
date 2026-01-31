@@ -35,7 +35,8 @@ export const collectData = (tabulatorInstance) => {
         luz: {},
         base: {},
         altura: {},
-        fuerzas: { CM: {}, CV: {}, ENV: {} }
+        capas: { positivo: {}, negativo: {} },
+        fuerzas: { positivo: {}, negativo: {} }
     };
 
     tablaData.forEach(row => {
@@ -54,23 +55,43 @@ export const collectData = (tabulatorInstance) => {
                 datosEstructurados.altura[`tramo${i}`] = parseFloat(row[`b${i}_a`]) || 0;
             }
         }
-        else if (row._concepto && row._grupo) {
+        else if (row._isCapasRow && row._mainGroup) {
+            const mainGroup = row._mainGroup; // 'positivo' or 'negativo'
+            if (!datosEstructurados.capas[mainGroup]) {
+                datosEstructurados.capas[mainGroup] = {};
+            }
+            for (let i = 1; i <= numTramos; i++) {
+                datosEstructurados.capas[mainGroup][`tramo${i}`] = parseFloat(row[`b${i}_a`]) || 0;
+            }
+        }
+        else if (row._concepto && row._grupo && row._mainGroup) {
+            const mainGroup = row._mainGroup;
             const grupo = row._grupo;
             const concepto = row._concepto;
 
-            if (datosEstructurados.fuerzas[grupo]) {
-                if (!datosEstructurados.fuerzas[grupo][concepto]) {
-                    datosEstructurados.fuerzas[grupo][concepto] = {};
-                }
-
-                for (let i = 1; i <= numTramos; i++) {
-                    datosEstructurados.fuerzas[grupo][concepto][`tramo${i}`] = {
-                        a: parseFloat(row[`b${i}_a`]) || 0,
-                        b: parseFloat(row[`b${i}_b`]) || 0,
-                        c: parseFloat(row[`b${i}_c`]) || 0
-                    };
-                }
+            if (!datosEstructurados.fuerzas[mainGroup]) {
+                datosEstructurados.fuerzas[mainGroup] = {};
             }
+
+            if (!datosEstructurados.fuerzas[mainGroup][grupo]) {
+                datosEstructurados.fuerzas[mainGroup][grupo] = {};
+            }
+
+            if (!datosEstructurados.fuerzas[mainGroup][grupo][concepto]) {
+                datosEstructurados.fuerzas[mainGroup][grupo][concepto] = {};
+            }
+
+            for (let i = 1; i <= numTramos; i++) {
+                datosEstructurados.fuerzas[mainGroup][grupo][concepto][`tramo${i}`] = {
+                    a: parseFloat(row[`b${i}_a`]) || 0,
+                    b: parseFloat(row[`b${i}_b`]) || 0,
+                    c: parseFloat(row[`b${i}_c`]) || 0
+                };
+            }
+
+            // Compatibility: Allow access somewhat like before if needed, OR just stick to new structure.
+            // Old structure: fuerzas.ENV.M3 -> Now it is fuerzas.positivo['ENV max'].M3 etc.
+            // We only collect strictly what is in the table.
         }
     });
 

@@ -3,8 +3,8 @@
         <div class="flex gap-4">
             <!-- Formulario -->
             <div class="md:w-1/3">
-                <div class="rounded-lg bg-white p-6 shadow-md dark:bg-gray-800">
-                    <h3 class="mb-2 text-sm font-semibold text-gray-800 dark:text-gray-200">Datos Generales</h3>
+                <div class="rounded-lg bg-white p-2 shadow-md dark:bg-gray-800">
+                    <h3 class="mb-1 text-sm font-semibold text-gray-800 dark:text-gray-200">Datos Generales</h3>
                     <div class="overflow-auto">
                         <table class="w-full table-auto text-xs px-6 text-gray-800 dark:text-white">
                             <thead class="bg-white dark:bg-gray-800">

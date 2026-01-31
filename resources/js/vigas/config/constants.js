@@ -7,17 +7,23 @@ export const DEFAULT_VALUES = {
 };
 
 export const TABLE_CONFIG = {
-    GROUPS: [
-        { grupo: "CM", conceptos: ["P", "V2", "V3", "T", "M2", "M3"] },
-        { grupo: "CV", conceptos: ["P", "V2", "V3", "T", "M2", "M3"] },
-        { grupo: "ENV", conceptos: ["P", "V2", "V3", "T", "M2", "M3"] }
-    ],
+    GROUPS: {
+        negativo: [
+            { grupo: "CM", conceptos: ["M3"] },
+            { grupo: "CV", conceptos: ["M3"] },
+            { grupo: "ENV max", conceptos: ["V3", "T", "M3"] },
+            { grupo: "ENV min", conceptos: ["V3", "T", "M3"] }
+        ],
+        positivo: [
+            { grupo: "CM", conceptos: ["M3"] },
+            { grupo: "CV", conceptos: ["M3"] },
+            { grupo: "ENV max", conceptos: ["V3", "T", "M3"] },
+            { grupo: "ENV min", conceptos: ["V3", "T", "M3"] }
+        ]
+    },
     UNITS: {
-        "P": "tonf",
-        "V2": "tonf",
         "V3": "tonf",
         "T": "tonf",
-        "M2": "tonf-m",
         "M3": "tonf-m"
     },
     STYLES: {
