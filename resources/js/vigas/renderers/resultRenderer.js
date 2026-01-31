@@ -123,7 +123,7 @@ const renderSingleTable = (data) => {
         if (row.values && Array.isArray(row.values)) {
             row.values.forEach(item => {
                 const td = document.createElement("td");
-                td.className = "whitespace-nowrap px-2 py-4 text-center text-sm text-gray-500 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700 last:border-r-0";
+                td.className = "whitespace-normal min-w-[100px] px-2 py-4 text-center text-sm text-gray-500 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700 last:border-r-0";
                 if (item) {
                     if (item.colSpan) {
                         td.colSpan = item.colSpan;

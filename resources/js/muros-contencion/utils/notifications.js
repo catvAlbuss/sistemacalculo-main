@@ -1,4 +1,5 @@
 import { SYSTEM_CONSTANTS } from '../config/constants.js'
+import Swal from 'sweetalert2';
 
 export class NotificationManager {
     static showSuccess(title, text = '', callback = null) {

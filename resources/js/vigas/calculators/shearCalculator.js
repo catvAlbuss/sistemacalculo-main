@@ -113,7 +113,7 @@ export class ShearCalculator {
                 // N <= (Lconf - 5)/S.
                 const estribosCount = Math.floor((laconfigcorte - 5) / usarS);
 
-                const estribadoOriginal = `1@5cm; ${estribosCount}@${StructuralUtils.round(usarS, 2)} cm; resto@20cm`;
+                const estribadoOriginal = `1@5cm<br>${estribosCount}@${StructuralUtils.round(usarS, 2)} cm<br>resto@20cm`;
 
                 results.acws.push(acw);
                 results.Vcs.push(Vc);

@@ -211,7 +211,7 @@ export class CapacidadCalculator {
                 const estribosCount = Math.max(0, Math.floor((lconfig - 5) / usar));
 
                 // String construction
-                const estribadoscapacidad = `Estribado: 1@5cm; ${estribosCount}@${usar} cm; resto@20cm`;
+                const estribadoscapacidad = `Estribado<br>1@5cm<br>${estribosCount}@${usar} cm<br>resto@20cm`;
                 // --- Store Results (Pushing 1 value per TRAMO) ---
                 results.Vu.push(Vu_capacity_ton * 1000);
                 results.Acws.push(Acw);

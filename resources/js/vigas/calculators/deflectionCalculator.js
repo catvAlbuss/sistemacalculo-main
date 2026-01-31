@@ -296,7 +296,7 @@ export class DeflectionCalculator {
                 values.push({
                     value: typeof dataArray[i] === 'string' ? dataArray[i] : StructuralUtils.round(dataArray[i], decimals),
                     unit: unit,
-                    colSpan: 3
+                    colSpan: 1
                 });
             }
             return { name, symbol, values };

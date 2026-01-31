@@ -15,6 +15,11 @@ import Swal from "sweetalert2";
 document.addEventListener("DOMContentLoaded", () => {
     let tabulatorInstance = null;
 
+    // Almacenar resultados para exportación PDF
+    let currentResults = null;
+    let currentProjectData = null;
+    let currentFlexionState = null;
+
     // Inicializar tabla
     const initTable = () => {
         const numTramos = getIntElementValue("num_tramos", DEFAULT_VALUES.NUM_TRAMOS);
@@ -155,6 +160,31 @@ document.addEventListener("DOMContentLoaded", () => {
                     resultsDeflection
                 );
 
+                // Almacenar resultados para exportación
+                currentResults = {
+                    designRequirements: resultsDesign,
+                    flexionNegativo: resultsFlexion.negativo,
+                    flexionPositivo: resultsFlexion.positivo,
+                    shear: resultsShear,
+                    capacity: resultsCapacidad,
+                    deflection: resultsDeflection
+                };
+
+                currentProjectData = {
+                    fc: datos.parametros.fc,
+                    fy: datos.parametros.fy,
+                    numTramos: datos.parametros.numTramos
+                };
+
+                currentFlexionState = flexionState;
+
+                // Habilitar botón de exportación
+                const exportButton = document.getElementById("exportPdfButton");
+                if (exportButton) {
+                    exportButton.disabled = false;
+                    exportButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+
                 showSuccess("Cálculo Completado", "Los resultados se han generado correctamente.");
 
                 /*
@@ -164,6 +194,50 @@ document.addEventListener("DOMContentLoaded", () => {
                     icon: "success"
                 });
                 */
+            }
+        });
+    }
+
+    // Evento para el botón EXPORTAR PDF
+    const exportPdfButton = document.getElementById("exportPdfButton");
+    if (exportPdfButton) {
+        exportPdfButton.addEventListener("click", async () => {
+            if (!currentResults || !currentProjectData) {
+                showError("Error", "No hay resultados para exportar. Por favor, ejecuta el cálculo primero.");
+                return;
+            }
+
+            // Deshabilitar botón durante la generación
+            exportPdfButton.disabled = true;
+            exportPdfButton.textContent = "⏳ Generando PDF...";
+
+            try {
+                // Importar dinámicamente el generador de PDF
+                const { downloadBeamPDF } = await import("./utils/pdfGenerator.js");
+
+                // Agregar datos de estado de flexión a los resultados
+                if (currentFlexionState) {
+                    // Agregar resúmenes al resultado de flexión
+                    if (currentResults.flexionNegativo && currentResults.flexionNegativo.data) {
+                        currentResults.flexionNegativo.data.As_real_summary = currentFlexionState.negativo.asReal;
+                        currentResults.flexionNegativo.data.PhiMn_summary = currentFlexionState.negativo.phiMn;
+                    }
+
+                    if (currentResults.flexionPositivo && currentResults.flexionPositivo.data) {
+                        currentResults.flexionPositivo.data.As_real_summary = currentFlexionState.positivo.asReal;
+                        currentResults.flexionPositivo.data.PhiMn_summary = currentFlexionState.positivo.phiMn;
+                    }
+                }
+
+                await downloadBeamPDF(currentResults, currentProjectData);
+                showSuccess("PDF Generado", "El archivo PDF se ha descargado correctamente.");
+            } catch (error) {
+                console.error("Error al generar PDF:", error);
+                showError("Error", error.message || "Hubo un problema al generar el PDF. Por favor, intenta nuevamente.");
+            } finally {
+                // Rehabilitar botón
+                exportPdfButton.disabled = false;
+                exportPdfButton.textContent = "📄 EXPORTAR PDF";
             }
         });
     }
