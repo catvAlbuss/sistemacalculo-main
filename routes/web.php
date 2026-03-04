@@ -31,7 +31,7 @@ Route::post('/cotizarplano', [enviarCotizacionController::class, 'enviarCotizaci
 //==========================RUTA PARA LAS PRUEBAS PREDIM==================//
 Route::view('/info/arco_techo', 'landing.arco_techo')->name('landing.info.arco_techo');
 Route::view('/info/predim', 'landing.predim')->name('landing.info.predim');
-Route::view('/software/predim', 'predim.predim')->name('software.predim');
+Route::view('/software/predim', 'predim.predim-new')->name('software.predim');
 //==========================RUTAS PÚBLICAS================================//
 Route::view('/arco_techo', 'hcalculo.arco_techo')->name("calculadora.estudiante.arco_techo");
 
@@ -119,6 +119,8 @@ Route::middleware(["auth", "verified"])->group(function () {
             Route::view('/cerco-perimetrico', 'hcalculo.adm_CercoPerimetrico')->name("cerco-perimetrico");
             // irregularidades
             Route::view('/irregularidades', 'hcalculo.admIrregularidades')->name("irregularidades");
+            // memoria de calculo
+            Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name("memoria-calculo");
             // diseño en madera
             Route::prefix("diseño-en-madera")->name("diseño-en-madera.")->group(function () {
                 // correas

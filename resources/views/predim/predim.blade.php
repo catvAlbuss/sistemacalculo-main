@@ -319,6 +319,454 @@
                 filter: invert(1);
             }
         }
+
+        /* ====== Fase A: layout responsive y menu por clic ====== */
+        :root {
+            --predim-bg-main: #0f172a;
+            --predim-bg-surface: #111827;
+            --predim-bg-panel: #1f2937;
+            --predim-text-main: #f9fafb;
+            --predim-border: #334155;
+            --predim-accent: #2563eb;
+            --predim-sidebar-width: 268px;
+        }
+
+        html,
+        body {
+            background-color: var(--predim-bg-main);
+            overflow: hidden;
+        }
+
+        .container {
+            min-height: 100vh;
+            height: auto;
+            background: radial-gradient(circle at top right, #1d4ed8 0%, var(--predim-bg-main) 54%);
+            grid-template-rows: auto 1fr;
+        }
+
+        .header {
+            border-bottom: 1px solid var(--predim-border);
+            background-color: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(8px);
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .brand p {
+            margin: 0;
+            color: var(--predim-text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .menu-toggle {
+            display: none;
+            border: 1px solid var(--predim-border);
+            background-color: var(--predim-bg-panel);
+            color: var(--predim-text-main);
+            border-radius: 10px;
+            padding: 8px 10px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: var(--predim-sidebar-width) 1fr;
+            min-height: 0;
+            height: calc(100vh - 63px);
+            transition: grid-template-columns 0.2s ease;
+        }
+
+        .workspace.is-compact-sidebar {
+            grid-template-columns: 82px 1fr;
+        }
+
+        .sidebar {
+            border-right: 1px solid var(--predim-border);
+            background: linear-gradient(180deg, rgba(16, 26, 45, 0.96) 0%, rgba(8, 17, 34, 0.98) 100%);
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 8px;
+            height: 100%;
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            padding: 6px;
+            margin-bottom: 8px;
+            border: 1px solid var(--predim-border);
+            border-radius: 10px;
+            background-color: rgba(31, 41, 55, 0.8);
+            color: #cbd5e1;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .sidebar-collapse {
+            border: 1px solid #3b4b68;
+            background-color: #172033;
+            color: #dbeafe;
+            border-radius: 8px;
+            padding: 4px 7px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .main-menu {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 5px;
+            background-color: transparent;
+            padding: 0;
+            height: calc(100% - 54px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 2px;
+        }
+
+        .menu-group {
+            width: 100%;
+            margin-left: 0;
+            border: 1px solid #2e3f63;
+            border-radius: 10px;
+            background-color: rgba(20, 33, 56, 0.9);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        }
+
+        .menu-group-title {
+            width: 100%;
+            text-align: left;
+            padding: 7px 10px;
+            border-radius: 9px;
+            border: 1px solid transparent;
+            background: linear-gradient(180deg, #253b66 0%, #1d2f52 100%);
+            color: var(--predim-text-main);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .menu-group-title::after {
+            content: "\ea13";
+            font-family: remixicon;
+            font-size: 14px;
+            line-height: 1;
+            transition: transform 0.2s ease;
+        }
+
+        .menu-group:nth-child(1) .menu-group-title {
+            background: linear-gradient(180deg, #264f8a 0%, #1d3f6e 100%);
+        }
+
+        .menu-group:nth-child(2) .menu-group-title {
+            background: linear-gradient(180deg, #285c87 0%, #1b435f 100%);
+        }
+
+        .menu-group:nth-child(3) .menu-group-title {
+            background: linear-gradient(180deg, #4d5e93 0%, #394878 100%);
+        }
+
+        .menu-group:nth-child(4) .menu-group-title,
+        .menu-group:nth-child(5) .menu-group-title {
+            background: linear-gradient(180deg, #5f4a8a 0%, #463566 100%);
+        }
+
+        .menu-group:nth-child(6) .menu-group-title,
+        .menu-group:nth-child(7) .menu-group-title {
+            background: linear-gradient(180deg, #86515d 0%, #673b45 100%);
+        }
+
+        .menu-group:nth-child(8) .menu-group-title,
+        .menu-group:nth-child(9) .menu-group-title {
+            background: linear-gradient(180deg, #7a6333 0%, #5a4925 100%);
+        }
+
+        .menu-group.is-open .menu-group-title::after {
+            transform: rotate(180deg);
+        }
+
+        .submenu {
+            position: static;
+            display: none;
+            margin-top: 2px;
+            padding: 5px;
+            border-radius: 8px;
+            border: 1px solid #304368;
+            background-color: #101d33;
+            width: auto;
+        }
+
+        .menu-group:hover .submenu {
+            display: none;
+        }
+
+        .menu-group.is-open .submenu {
+            display: block;
+            max-height: min(38vh, 300px);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .submenu-items,
+        .submenu-items-herramientas {
+            display: grid;
+            gap: 6px;
+        }
+
+        .submenu-items {
+            grid-template-columns: 1fr;
+        }
+
+        .submenu-items-herramientas {
+            grid-template-columns: 1fr;
+        }
+
+        .palette-grid {
+            grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+            justify-content: start;
+            gap: 8px;
+        }
+
+        .submenu-items>div {
+            grid-column: 1 / -1;
+            display: grid;
+            gap: 3px;
+        }
+
+        .textinp {
+            font-size: 11px;
+            color: #cbd5e1;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            max-width: 130px;
+            padding: 5px 7px;
+            border: 1px solid #3b4b68;
+            background-color: #e2e8f0;
+            border-radius: 7px;
+            font-size: 12px;
+        }
+
+        .btn {
+            padding: 5px 8px;
+            cursor: pointer;
+            border: 1px solid #3b4b68;
+            border-radius: 7px;
+            font-size: 11px;
+            background: linear-gradient(180deg, #223555 0%, #1a2a45 100%);
+            color: #e2e8f0;
+            white-space: normal;
+            min-height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 5px;
+            width: 100%;
+            line-height: 1.15;
+        }
+
+        .btn:hover {
+            color: #ffffff;
+            background: linear-gradient(180deg, #2e589f 0%, #274a84 100%);
+            border-color: #6a87ba;
+        }
+
+        .btn i {
+            font-size: 14px;
+        }
+
+        #calc {
+            width: 100%;
+            border: 1px solid #3b4b68;
+            border-radius: 8px;
+            background: linear-gradient(180deg, #223555 0%, #1a2a45 100%);
+            color: #e2e8f0;
+            padding: 5px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            min-height: 30px;
+        }
+
+        #calc:hover {
+            background-color: #325ba7;
+        }
+
+        .submenu-items-herramientas .btn[data-color] {
+            width: 28px !important;
+            min-height: 28px;
+            height: 28px !important;
+            padding: 0;
+            border-radius: 6px;
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            background: var(--chip-color, #334155) !important;
+            box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.6);
+        }
+
+        .submenu-items-herramientas .btn[data-color].selected-color {
+            border-color: #ffffff;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.75);
+        }
+
+        .dropdown {
+            position: relative;
+            display: block;
+        }
+
+        .dropdown-content {
+            position: static;
+            display: none;
+            margin-top: 5px;
+            min-width: 180px;
+            border-radius: 8px;
+            border: 1px solid #1d4ed8;
+            background-color: #1e3a8a;
+            padding: 4px;
+            max-height: 220px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .dropdown-content a {
+            padding: 5px 7px;
+            border-radius: 7px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #f8fafc;
+            text-decoration: none;
+            font-size: 12px;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #1d4ed8;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: none;
+        }
+
+        .dropdown.is-open .dropdown-content {
+            display: block;
+        }
+
+        .drawing-panel {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            height: 100%;
+            padding: 6px;
+        }
+
+        .drawing-area {
+            margin: 0;
+            height: 100%;
+            min-height: 0;
+            border: 1px solid #2c3f62;
+            border-radius: 10px;
+            background: linear-gradient(180deg, #081327 0%, #040c1a 100%);
+            overflow: auto;
+            padding: 3px;
+        }
+
+        #canvas {
+            max-width: none;
+            height: auto;
+            background-color: #ffffff;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .sidebar.is-compact-sidebar {
+            padding: 8px 6px;
+        }
+
+        .sidebar.is-compact-sidebar .sidebar-header span,
+        .sidebar.is-compact-sidebar .menu-group-title::after {
+            display: none;
+        }
+
+        .sidebar.is-compact-sidebar .menu-group-title {
+            justify-content: center;
+            padding: 9px 6px;
+            font-size: 0;
+        }
+
+        .sidebar.is-compact-sidebar .menu-group-title::before {
+            content: attr(data-short);
+            font-size: 11px;
+            letter-spacing: 0.02em;
+            font-weight: 800;
+        }
+
+        .sidebar.is-compact-sidebar .submenu {
+            display: none !important;
+        }
+
+        .mobile-backdrop {
+            display: none;
+        }
+
+        @media (max-width: 1024px) {
+            .workspace {
+                grid-template-columns: 1fr;
+                height: calc(100vh - 63px);
+            }
+
+            .menu-toggle {
+                display: inline-flex;
+            }
+
+            .sidebar {
+                position: fixed;
+                top: 63px;
+                left: 0;
+                bottom: 0;
+                width: min(90vw, 310px);
+                transform: translateX(-105%);
+                transition: transform 0.25s ease;
+                z-index: 1200;
+                box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+            }
+
+            .sidebar.is-open {
+                transform: translateX(0);
+            }
+
+            .mobile-backdrop.is-open {
+                display: block;
+                position: fixed;
+                inset: 0;
+                background: rgba(2, 6, 23, 0.55);
+                z-index: 1100;
+            }
+        }
     </style>
 </head>
 
@@ -587,14 +1035,28 @@
     </div>
     <div class="container">
         <div class="header">
-            <div class="main-menu">
-                <div class="flex items-center justify-center space-x-2">
+            <div class="topbar">
+                <div class="brand">
                     <a class="py-2 text-lg font-bold text-white" href="{{ route('landing.home') }}">
                         <img class="logo mx-auto h-10 w-10"
                             src="{{ Vite::asset('resources/img/logo_rizabalAsociados.png') }}" alt="Logo">
                     </a>
                     <p class="text-gray-950 dark:text-gray-50">Rizabal & Asociados</p>
                 </div>
+                <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú">
+                    <i class="ri-menu-line"></i>
+                </button>
+            </div>
+        </div>
+        <div class="workspace" id="predimWorkspace">
+            <aside class="sidebar" id="predimSidebar">
+                <div class="sidebar-header">
+                    <span>Panel de Herramientas</span>
+                    <button class="sidebar-collapse" id="sidebarCollapse" type="button" aria-label="Contraer panel">
+                        <i class="ri-layout-left-line"></i>
+                    </button>
+                </div>
+                <div class="main-menu" id="predimMainMenu">
                 <div class="menu-group">
                     <div class="menu-group-title">Archivos</div>
                     <div class="submenu">
@@ -823,7 +1285,7 @@
                             <!-- Dropdown Tamaño Linea -->
                             <div class="dropdown">
                                 <button class="btn"><i class="ri-sun-line"></i> Tamaño Linea</button>
-                                <div class="dropdown-content">
+                                <div class="dropdown-content" id="grosorline">
                                     <a id="grosor-2" data-brush-width="2" href="#">2</a>
                                     <a id="grosor-5" data-brush-width="5" href="#">5</a>
                                     <a id="grosor-10" data-brush-width="10" href="#">10</a>
@@ -833,7 +1295,7 @@
                             <!-- Dropdown Tamaño Letra -->
                             <div class="dropdown">
                                 <button class="btn"><i class="ri-sun-line"></i> Tamaño Letra</button>
-                                <div class="dropdown-content">
+                                <div class="dropdown-content" id="grosorletter">
                                     <a id="font-size-12" data-font-size="12" href="#">12</a>
                                     <a id="font-size-14" data-font-size="14" href="#">14</a>
                                     <a id="font-size-16" data-font-size="16" href="#">16</a>
@@ -852,27 +1314,31 @@
                 <div class="menu-group">
                     <div class="menu-group-title">Colores</div>
                     <div class="submenu">
-                        <div class="submenu-items-herramientas">
-                            <a class="btn" id="red-color" data-color="#ff0400" type="button"
-                                style="background-color: red; width: 20px; height: 20px;"></a>
-                            <a class="btn" id="blue-color" data-color="#0400ff"
-                                style="background-color: blue; width: 20px; height: 20px;"></a>
-                            <a class="btn" id="yellow-color" data-color="#fbff00"
-                                style="background-color: yellow; width: 20px; height: 20px;"></a>
-                            <a class="btn" id="orange-color" data-color="#ff9900"
-                                style="background-color: orange; width: 20px; height: 20px;"></a>
-                            <a class="btn" id="green-color" data-color="#00ff04"
-                                style="background-color: green; width: 20px; height: 20px;"></a>
-                            <a class="btn" id="black-color" data-color="#000000"
-                                style="background-color: rgb(0, 0, 0); width: 20px; height: 20px;"></a>
+                        <div class="submenu-items-herramientas palette-grid">
+                            <button class="btn" id="red-color" data-color="#ff0400" type="button" title="Rojo"
+                                aria-label="Color rojo" style="--chip-color: #ff0400;"></button>
+                            <button class="btn" id="blue-color" data-color="#0400ff" type="button" title="Azul"
+                                aria-label="Color azul" style="--chip-color: #0400ff;"></button>
+                            <button class="btn" id="yellow-color" data-color="#fbff00" type="button" title="Amarillo"
+                                aria-label="Color amarillo" style="--chip-color: #fbff00;"></button>
+                            <button class="btn" id="orange-color" data-color="#ff9900" type="button" title="Naranja"
+                                aria-label="Color naranja" style="--chip-color: #ff9900;"></button>
+                            <button class="btn" id="green-color" data-color="#00ff04" type="button" title="Verde"
+                                aria-label="Color verde" style="--chip-color: #00ff04;"></button>
+                            <button class="btn" id="black-color" data-color="#000000" type="button" title="Negro"
+                                aria-label="Color negro" style="--chip-color: #000000;"></button>
                         </div>
                     </div>
                 </div>
+                </div>
+            </aside>
+            <div class="mobile-backdrop" id="mobileBackdrop"></div>
+            <div class="drawing-panel">
+                <label data-id="{{ url('/assets/pdf/Escalado.pdf') }}" type="hidden"></label>
+                <div class="drawing-area">
+                    <canvas class="border" id="canvas"></canvas>
+                </div>
             </div>
-        </div>
-        <label data-id="{{ url('/assets/pdf/Escalado.pdf') }}" type="hidden"></label>
-        <div class="drawing-area">
-            <canvas class="border" id="canvas"></canvas>
         </div>
     </div>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -887,6 +1353,124 @@
     <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.1/dist/flowbite.min.js"></script>
     <script src="https://unpkg.com/@themesberg/flowbite@1.2.0/dist/flowbite.bundle.js"></script>
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('predimSidebar');
+            const workspace = document.getElementById('predimWorkspace');
+            const menuToggle = document.getElementById('menuToggle');
+            const sidebarCollapse = document.getElementById('sidebarCollapse');
+            const backdrop = document.getElementById('mobileBackdrop');
+            const menuGroups = Array.from(document.querySelectorAll('.menu-group'));
+            const dropdowns = Array.from(document.querySelectorAll('.dropdown'));
+            let desktopSidebarCollapsed = false;
+
+            const applyDesktopSidebarState = () => {
+                if (window.innerWidth <= 1024) {
+                    workspace.classList.remove('is-compact-sidebar');
+                    sidebar.classList.remove('is-compact-sidebar');
+                    return;
+                }
+                workspace.classList.toggle('is-compact-sidebar', desktopSidebarCollapsed);
+                sidebar.classList.toggle('is-compact-sidebar', desktopSidebarCollapsed);
+            };
+
+            const closeSidebar = () => {
+                sidebar.classList.remove('is-open');
+                backdrop.classList.remove('is-open');
+            };
+
+            if (menuToggle) {
+                menuToggle.addEventListener('click', () => {
+                    sidebar.classList.toggle('is-open');
+                    backdrop.classList.toggle('is-open');
+                });
+            }
+
+            if (backdrop) {
+                backdrop.addEventListener('click', closeSidebar);
+            }
+
+            menuGroups.forEach((group, index) => {
+                const trigger = group.querySelector('.menu-group-title');
+                if (!trigger) return;
+                const label = trigger.textContent.trim();
+                const shortLabel = label.split(' ')[0].slice(0, 3).toUpperCase();
+                trigger.setAttribute('data-short', shortLabel);
+                trigger.setAttribute('title', label);
+
+                trigger.setAttribute('role', 'button');
+                trigger.setAttribute('tabindex', '0');
+
+                const toggleGroup = () => {
+                    const isOpen = group.classList.contains('is-open');
+                    menuGroups.forEach((item) => item.classList.remove('is-open'));
+                    if (!isOpen) {
+                        group.classList.add('is-open');
+                    }
+                };
+
+                trigger.addEventListener('click', toggleGroup);
+                trigger.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        toggleGroup();
+                    }
+                });
+
+                if (index === 0 && window.innerWidth > 1024) {
+                    group.classList.add('is-open');
+                }
+            });
+
+            if (sidebarCollapse) {
+                sidebarCollapse.addEventListener('click', () => {
+                    desktopSidebarCollapsed = !desktopSidebarCollapsed;
+                    sidebarCollapse.innerHTML = desktopSidebarCollapsed ?
+                        '<i class="ri-layout-right-line"></i>' :
+                        '<i class="ri-layout-left-line"></i>';
+                    applyDesktopSidebarState();
+                });
+            }
+
+            dropdowns.forEach((dropdown) => {
+                const btn = dropdown.querySelector(':scope > .btn');
+                if (!btn) return;
+
+                btn.setAttribute('type', 'button');
+                btn.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    const isOpen = dropdown.classList.contains('is-open');
+                    dropdowns.forEach((item) => item.classList.remove('is-open'));
+                    if (!isOpen) {
+                        dropdown.classList.add('is-open');
+                    }
+                });
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!event.target.closest('.dropdown')) {
+                    dropdowns.forEach((item) => item.classList.remove('is-open'));
+                }
+            });
+
+            sidebar.addEventListener('click', (event) => {
+                if (window.innerWidth > 1024) return;
+                if (event.target.closest('.tool, #calc, #upload-pdf, #openModal')) {
+                    closeSidebar();
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth > 1024) {
+                    closeSidebar();
+                } else {
+                    menuGroups.forEach((item) => item.classList.remove('is-open'));
+                }
+                applyDesktopSidebarState();
+            });
+
+            applyDesktopSidebarState();
+        });
+
         document.getElementById('openModal').onclick = function() {
             document.getElementById('myModal').style.display = 'block';
         }

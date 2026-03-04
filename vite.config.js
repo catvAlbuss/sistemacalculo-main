@@ -7,8 +7,12 @@ export default defineConfig({
         laravel({
             input: [
                 "resources/css/app.css",
+                "resources/css/predim.css",
                 ...glob.sync("resources/js/*.js"),
+                "resources/js/predim/ribbon-adapter.js",
                 ...glob.sync("resources/js/cav2/*.js"),
+                ...glob.sync("resources/js/memoria_calculo/*.js"),
+                ...glob.sync("resources/js/muros-contencion/*.js"),
             ],
             refresh: true,
         }),

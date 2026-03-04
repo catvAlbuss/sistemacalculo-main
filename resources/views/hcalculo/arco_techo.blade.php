@@ -1,6 +1,7 @@
-<x-calc-layout title="Arco Techo">
-    <div class="py-12">
+<x-calc-plain-layout title="Arco Techo">
+    <div class="py-4">
         <div class="container mx-auto w-full">
+            <h2 class="text-gray-950 dark:text-white text-2xl py-2 px-2 font-bold ">Hoja de calculo Arco Techo</h2>
             <div class="flex flex-wrap">
                 <!-- Formulario -->
                 <div class="w-full md:w-1/3">
@@ -292,4 +293,4 @@
     @pushOnce('scripts')
         @vite('resources/js/adm_Arcotecho_general.js')
     @endpushOnce
-</x-calc-layout>
+</x-calc-plain-layout>

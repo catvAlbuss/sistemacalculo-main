@@ -1,8 +1,13 @@
 // const { document } = require("postcss");
 
-$(document).ready(function () {
-  $("#desingButton").click((e) => {
-    e.preventDefault(); // Prevenir el comportamiento predeterminado del botón
+document.addEventListener("DOMContentLoaded", () => {
+  const desingButton = document.getElementById("desingButton");
+  if (!desingButton) {
+    return;
+  }
+
+  desingButton.addEventListener("click", (e) => {
+    e.preventDefault(); // Prevenir el comportamiento predeterminado del boton
     const longitudtransversal = parseFloat(document.getElementById("longitudtransversal").value);
     const alturacolumna = parseFloat(document.getElementById("alturacolumna").value); // nuevo el alturacolumna
     const luz = parseFloat(document.getElementById("luz").value);
@@ -17,8 +22,6 @@ $(document).ready(function () {
     const C = parseFloat(document.getElementById("C").value);
     const R = parseFloat(document.getElementById("R").value);
     const Ps = parseFloat(document.getElementById("Ps").value);
-
-
 
     const radio = (flecha * flecha + ((luz / 2) * luz) / 2) / (2 * flecha);
     const rad = Math.atan(luz / 2 / (radio - flecha));
@@ -38,13 +41,13 @@ $(document).ready(function () {
         </tr> 
         <tr class="bg-gray-100 dark:bg-gray-600">
             <td class='py-2 px-8'>Angulo de arco</td>
-            <td class='py-2 px-4'>θ</td>
+            <td class='py-2 px-4'>theta</td>
             <td class='py-2 px-4'>-</td>
-            <td class='py-2 px-4 text-center'>${angulo.toFixed(2)}°</td>
+            <td class='py-2 px-4 text-center'>${angulo.toFixed(2)} deg</td>
         </tr>
         <tr class="bg-gray-100 dark:bg-gray-600">
             <td class='py-2 px-8'>Angulo de arco</td>
-            <td class='py-2 px-4'>θ</td>
+            <td class='py-2 px-4'>theta</td>
             <td class='py-2 px-4'>-</td>
             <td class='py-2 px-4 text-center'>${rad.toFixed(2)} RAD</td>
         </tr>
@@ -295,13 +298,13 @@ $(document).ready(function () {
 
     const Relacion = flecha / luz;
     const Qt = Ps; 
-    const QT = Ps*0.8 ; 
+    const QT = Ps * 0.8; 
 
-    const Cnieve =  Qt* longArco;
+    const Cnieve = Qt * longArco;
 
-    const Cnieve2 = Cnieve*0.5; 
-    const CwxBar22 = (((Qt*longArco /2*cgmediaCuerda)) -Cnieve2*luz/2)/flecha;
-    const Axial6 = (Cnieve2*Cnieve2+ CwxBar22 *CwxBar22)**0.5 ; 
+    const Cnieve2 = Cnieve * 0.5; 
+    const CwxBar22 = (((Qt * longArco / 2 * cgmediaCuerda)) - Cnieve2 * luz / 2) / flecha;
+    const Axial6 = (Cnieve2 * Cnieve2 + CwxBar22 * CwxBar22) ** 0.5; 
 
     document.getElementById("carganieve").innerHTML = `
         <tr class="bg-gray-100 dark:bg-gray-600">

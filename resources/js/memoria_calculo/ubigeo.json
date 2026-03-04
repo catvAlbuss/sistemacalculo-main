@@ -1,0 +1,238 @@
+[
+    {
+        "name": "AMAZONAS",
+        "provinces": []
+    },
+    {
+        "name": "ANCASH",
+        "provinces": []
+    },
+    {
+        "name": "APURIMAC",
+        "provinces": []
+    },
+    {
+        "name": "AREQUIPA",
+        "provinces": []
+    },
+    {
+        "name": "AYACUCHO",
+        "provinces": []
+    },
+    {
+        "name": "CAJAMARCA",
+        "provinces": []
+    },
+    {
+        "name": "CALLAO",
+        "provinces": []
+    },
+    {
+        "name": "CUSCO",
+        "provinces": []
+    },
+    {
+        "name": "HUANCAVELICA",
+        "provinces": []
+    },
+    {
+        "name": "HUANUCO",
+        "provinces": [
+            {
+                "name": "AMBO",
+                "districts": [
+                    "AMBO",
+                    "CAYNA",
+                    "COLPAS",
+                    "CONCHAMARCA",
+                    "HUACAR",
+                    "SAN FRANCISCO",
+                    "SAN RAFAEL",
+                    "TOMAY KICHWA"
+                ]
+            },
+            {
+                "name": "DOS DE MAYO",
+                "districts": [
+                    "LA UNION",
+                    "CHUQUIS",
+                    "MARIAS",
+                    "PACHAS",
+                    "QUIVILLA",
+                    "RIPAN",
+                    "SHUNQUI",
+                    "SILLAPATA",
+                    "YANAS"
+                ]
+            },
+            {
+                "name": "HUACAYBAMBA",
+                "districts": [
+                    "HUACAYBAMBA",
+                    "CANCHABAMBA",
+                    "COCHABAMBA",
+                    "PINRA"
+                ]
+            },
+            {
+                "name": "HUAMALIES",
+                "districts": [
+                    "LLATA",
+                    "ARANCAY",
+                    "CHAVIN DE PARIARARCA",
+                    "JACAS GRANDE",
+                    "JIRCAN",
+                    "MONZON",
+                    "PUNCHAO",
+                    "PUÑOS",
+                    "SINGA",
+                    "TANTAMAYO",
+                    "VILLA FLORES"
+                ]
+            },
+            {
+                "name": "HUANUCO",
+                "districts": [
+                    "HUANUCO",
+                    "AMARILIS",
+                    "CHINCHAO",
+                    "CHURUBAMBA",
+                    "MARGOS",
+                    "PILLCO MARCA",
+                    "QUISQUI",
+                    "SAN FRANCISCO DE CAYRAN",
+                    "SAN PEDRO DE CHAULAN",
+                    "SANTA MARIA DEL VALLE",
+                    "YACUS",
+                    "YARUMAYO"
+                ]
+            },
+            {
+                "name": "LAURICOCHA",
+                "districts": [
+                    "JESUS",
+                    "BAÑOS",
+                    "JIVIA",
+                    "QUEROPALCA",
+                    "RONDOS",
+                    "SAN FRANCISCO DE ASIS",
+                    "SAN MIGUEL DE CAURI"
+                ]
+            },
+            {
+                "name": "LEONCIO PRADO",
+                "districts": [
+                    "RUPA-RUPA",
+                    "DANIEL ALOMIA ROBLES",
+                    "HERMILIO VALDIZAN",
+                    "JOSE CRESPO Y CASTILLO",
+                    "LUYANDO",
+                    "MARIANO DAMASO BERAUN",
+                    "PUCAYACU",
+                    "CASTILLO GRANDE"
+                ]
+            },
+            {
+                "name": "MARAÑON",
+                "districts": [
+                    "HUACRACHUCO",
+                    "CHOLON",
+                    "SAN BUENAVENTURA",
+                    "LA MORADA"
+                ]
+            },
+            {
+                "name": "PACHITEA",
+                "districts": [
+                    "PANAO",
+                    "CHAGLLA",
+                    "MOLINO",
+                    "UMARI"
+                ]
+            },
+            {
+                "name": "PUERTO INCA",
+                "districts": [
+                    "PUERTO INCA",
+                    "CODO DEL POZUZO",
+                    "HONORIA",
+                    "PUERTO BERMUDEZ",
+                    "YUYAPICHIS"
+                ]
+            },
+            {
+                "name": "YAROWILCA",
+                "districts": [
+                    "CHAVINILLO",
+                    "CAHUAC",
+                    "CHACABAMBA",
+                    "APARICIO POMARES",
+                    "JACAS CHICO",
+                    "OBAS",
+                    "PAMPAMARCA",
+                    "CHORAS"
+                ]
+            }
+        ]
+    },
+    {
+        "name": "ICA",
+        "provinces": []
+    },
+    {
+        "name": "JUNIN",
+        "provinces": []
+    },
+    {
+        "name": "LA LIBERTAD",
+        "provinces": []
+    },
+    {
+        "name": "LAMBAYEQUE",
+        "provinces": []
+    },
+    {
+        "name": "LIMA",
+        "provinces": []
+    },
+    {
+        "name": "LORETO",
+        "provinces": []
+    },
+    {
+        "name": "MADRE DE DIOS",
+        "provinces": []
+    },
+    {
+        "name": "MOQUEGUA",
+        "provinces": []
+    },
+    {
+        "name": "PASCO",
+        "provinces": []
+    },
+    {
+        "name": "PIURA",
+        "provinces": []
+    },
+    {
+        "name": "PUNO",
+        "provinces": []
+    },
+    {
+        "name": "SAN MARTIN",
+        "provinces": []
+    },
+    {
+        "name": "TACNA",
+        "provinces": []
+    },
+    {
+        "name": "TUMBES",
+        "provinces": []
+    },
+    {
+        "name": "UCAYALI",
+        "provinces": []
+    }
+]
