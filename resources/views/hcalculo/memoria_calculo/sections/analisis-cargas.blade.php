@@ -23,6 +23,46 @@
             <div class="grid grid-cols-1 gap-4">
                 <div class="space-y-2">
                     <div class="flex items-center justify-between">
+                        {{-- Usar el nombre específico del array --}}
+                        <label class="text-sm font-bold text-gray-700 dark:text-gray-300">Figura 14 - Vista 3D Modelo
+                            Matemático</label>
+                        <button type="button"
+                            x-show="previews.modeloMatematico3DImages[0]"
+                            @click="removeArrayImage('modeloMatematico3DImages', 0)"
+                            class="text-red-500 text-xs font-semibold hover:underline">
+                            Eliminar
+                        </button>
+                    </div>
+                    <div class="relative group h-48">
+                        <template x-if="previews.modeloMatematico3DImages[0]">
+                            <img :src="previews.modeloMatematico3DImages[0]"
+                                class="h-full w-full object-contain rounded-xl border-2 border-gray-200 bg-white">
+                        </template>
+                        <template x-if="!previews.modeloMatematico3DImages[0]">
+                            <div class="h-full">
+                                <input type="file"
+                                    :id="'file_pred_' + 0"
+                                    @change="handleArrayImageChange('modeloMatematico3DImages', 0, $event)"
+                                    class="hidden"
+                                    accept="image/*">
+                                <label :for="'file_pred_' + 0"
+                                    @paste="handlePaste($event, 'modeloMatematico3DImages', 0)"
+                                    @mouseenter="$el.focus()"
+                                    class="flex flex-col items-center justify-center h-full w-full rounded-xl border-2 border-dashed border-gray-300 cursor-pointer hover:bg-amber-50 transition-all"
+                                    tabindex="0">
+                                    <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <span class="text-xs text-gray-500 text-center">
+                                        Haz clic o <span class="font-semibold text-purple-600">Ctrl+V</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                <!-- <div class="space-y-2">
+                    <div class="flex items-center justify-between">
                         <label class="text-sm font-bold text-gray-700 dark:text-gray-300">Figura 14 - Vista 3D Modelo
                             Matemático</label>
                         <button type="button" x-show="previews.modeloMatematico3DImages[0]"
@@ -51,7 +91,7 @@
                             </label>
                         </template>
                     </div>
-                </div>
+                </div> -->
             </div>
         </div>
 
@@ -62,6 +102,46 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <template x-for="i in 2" :key="i">
                     <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            {{-- Usar el nombre específico del array --}}
+                            <label class="text-sm font-bold text-gray-700 dark:text-gray-300"
+                                x-text="'Figura ' + (14+i)"></label>
+                            <button type="button"
+                                x-show="previews.espectroPseudoaceleracionesImages[i-1]"
+                                @click="removeArrayImage('espectroPseudoaceleracionesImages', i-1)"
+                                class="text-red-500 text-xs font-semibold hover:underline">
+                                Eliminar
+                            </button>
+                        </div>
+                        <div class="relative group h-48">
+                            <template x-if="previews.espectroPseudoaceleracionesImages[i-1]">
+                                <img :src="previews.espectroPseudoaceleracionesImages[i-1]"
+                                    class="h-full w-full object-contain rounded-xl border-2 border-gray-200 bg-white">
+                            </template>
+                            <template x-if="!previews.espectroPseudoaceleracionesImages[i-1]">
+                                <div class="h-full">
+                                    <input type="file"
+                                        :id="'file_pred_' + i-1"
+                                        @change="handleArrayImageChange('espectroPseudoaceleracionesImages', i-1, $event)"
+                                        class="hidden"
+                                        accept="image/*">
+                                    <label :for="'file_pred_' + i-1"
+                                        @paste="handlePaste($event, 'espectroPseudoaceleracionesImages', i-1)"
+                                        @mouseenter="$el.focus()"
+                                        class="flex flex-col items-center justify-center h-full w-full rounded-xl border-2 border-dashed border-gray-300 cursor-pointer hover:bg-amber-50 transition-all"
+                                        tabindex="0">
+                                        <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                        <span class="text-xs text-gray-500 text-center">
+                                            Haz clic o <span class="font-semibold text-purple-600">Ctrl+V</span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    <!-- <div class="space-y-2">
                         <div class="flex items-center justify-between">
                             <label class="text-sm font-bold text-gray-700 dark:text-gray-300"
                                 x-text="'Figura ' + (14 + i)"></label>
@@ -84,7 +164,7 @@
                                 </label>
                             </template>
                         </div>
-                    </div>
+                    </div> -->
                 </template>
             </div>
         </div>
@@ -145,7 +225,55 @@
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <template x-for="i in 4" :key="i">
                         <div class="space-y-2">
-                            <label class="text-xs font-bold" x-text="'Figura ' + (17 + i)"></label>
+                            <div class="flex items-center justify-between">
+                                {{-- Usar el nombre específico del array --}}
+                                <label class="text-sm font-bold text-gray-700 dark:text-gray-300"
+                                    x-text="'Figura ' + (17+i)"></label>
+                                <button type="button"
+                                    x-show="previews.metradoCargasImages[i-1]"
+                                    @click="removeArrayImage('metradoCargasImages', i-1)"
+                                    class="text-red-500 text-xs font-semibold hover:underline">
+                                    Eliminar
+                                </button>
+                            </div>
+                            <div class="relative group h-48">
+                                <template x-if="previews.metradoCargasImages[i-1]">
+                                    <img :src="previews.metradoCargasImages[i-1]"
+                                        class="h-full w-full object-contain rounded-xl border-2 border-gray-200 bg-white">
+                                </template>
+                                <template x-if="!previews.metradoCargasImages[i-1]">
+                                    <div class="h-full">
+                                        <input type="file"
+                                            :id="'file_pred_' + i-1"
+                                            @change="handleArrayImageChange('metradoCargasImages', i-1, $event)"
+                                            class="hidden"
+                                            accept="image/*">
+                                        <label :for="'file_pred_' + i-1"
+                                            @paste="handlePaste($event, 'metradoCargasImages', i-1)"
+                                            @mouseenter="$el.focus()"
+                                            class="flex flex-col items-center justify-center h-full w-full rounded-xl border-2 border-dashed border-gray-300 cursor-pointer hover:bg-amber-50 transition-all"
+                                            tabindex="0">
+                                            <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <span class="text-xs text-gray-500 text-center">
+                                                Haz clic o <span class="font-semibold text-purple-600">Ctrl+V</span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <!-- <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs font-bold" x-text="'Figura ' + (17 + i)"></label>
+                                <button type="button" x-show="previews.metradoCargasImages[i-1]"
+                                    @click="removeArrayImage('metradoCargasImages', [i-1])"
+                                    class="text-red-500 text-xs font-semibold hover:underline flex items-center gap-1">
+                                    Eliminar
+                                </button>
+                            </div>
+
                             <div class="relative group h-32">
                                 <template x-if="previews.metradoCargasImages[i-1]">
                                     <img :src="previews.metradoCargasImages[i - 1]"
@@ -161,7 +289,7 @@
                                     </label>
                                 </template>
                             </div>
-                        </div>
+                        </div> -->
                     </template>
                 </div>
             </div>
@@ -171,7 +299,55 @@
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <template x-for="i in 4" :key="i">
                         <div class="space-y-2">
-                            <label class="text-xs font-bold" x-text="'Figura ' + (21 + i)"></label>
+                            <div class="flex items-center justify-between">
+                                {{-- Usar el nombre específico del array --}}
+                                <label class="text-sm font-bold text-gray-700 dark:text-gray-300"
+                                    x-text="'Figura ' + (21+i)"></label>
+                                <button type="button"
+                                    x-show="previews.cargasAproximadasImages[i-1]"
+                                    @click="removeArrayImage('cargasAproximadasImages', i-1)"
+                                    class="text-red-500 text-xs font-semibold hover:underline">
+                                    Eliminar
+                                </button>
+                            </div>
+                            <div class="relative group h-48">
+                                <template x-if="previews.cargasAproximadasImages[i-1]">
+                                    <img :src="previews.cargasAproximadasImages[i-1]"
+                                        class="h-full w-full object-contain rounded-xl border-2 border-gray-200 bg-white">
+                                </template>
+                                <template x-if="!previews.cargasAproximadasImages[i-1]">
+                                    <div class="h-full">
+                                        <input type="file"
+                                            :id="'file_pred_' + i-1"
+                                            @change="handleArrayImageChange('cargasAproximadasImages', i-1, $event)"
+                                            class="hidden"
+                                            accept="image/*">
+                                        <label :for="'file_pred_' + i-1"
+                                            @paste="handlePaste($event, 'cargasAproximadasImages', i-1)"
+                                            @mouseenter="$el.focus()"
+                                            class="flex flex-col items-center justify-center h-full w-full rounded-xl border-2 border-dashed border-gray-300 cursor-pointer hover:bg-amber-50 transition-all"
+                                            tabindex="0">
+                                            <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <span class="text-xs text-gray-500 text-center">
+                                                Haz clic o <span class="font-semibold text-purple-600">Ctrl+V</span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <!-- <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs font-bold" x-text="'Figura ' + (21 + i)"></label>
+                                <button type="button" x-show="previews.cargasAproximadasImages[i-1]"
+                                    @click="removeArrayImage('cargasAproximadasImages', [i-1])"
+                                    class="text-red-500 text-xs font-semibold hover:underline flex items-center gap-1">
+                                    Eliminar
+                                </button>
+                            </div>
+
                             <div class="relative group h-32">
                                 <template x-if="previews.cargasAproximadasImages[i-1]">
                                     <img :src="previews.cargasAproximadasImages[i - 1]"
@@ -187,7 +363,7 @@
                                     </label>
                                 </template>
                             </div>
-                        </div>
+                        </div> -->
                     </template>
                 </div>
             </div>

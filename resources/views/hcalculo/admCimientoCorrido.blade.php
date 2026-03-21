@@ -229,9 +229,14 @@
               id="btn_pdf_predim" type="button">
               Generar PDF
             </button>
+            <button
+              class="rounded-lg bg-blue-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+              id="btn_captura_resultado" type="button">
+              Generar IMG
+            </button>
             <div class="overflow-x-auto" id="cm_pdf">
-              <div id="main" style="width: 100%; height: 600px;"></div>
-              <div class="card-body" id="ObtenerResultadosCimiento"></div>
+              <div id="main" class="min-w-full h-128 text-gray-800 dark:text-white"></div>
+              <div class="card-body min-w-full text-gray-800 dark:text-white" id="ObtenerResultadosCimiento"></div>
             </div>
           </div>
         </div>

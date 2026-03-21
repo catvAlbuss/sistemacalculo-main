@@ -61,12 +61,12 @@ if ($HVer < $Lv) { $Verificacion="<" ; } else { $Verificacion=">" ; } $VerFinal=
             <!-- Requisitos de diseño vigas -->
             <thead class="bg-gray-200 dark:bg-gray-800">
                 <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                    <th class="text-xl py-2 px-4 text-left" colspan="4">1.- Requisitos de diseño</th>
+                    <th class="text-xl py-4 px-4 text-left" colspan="4">1.- Requisitos de diseño</th>
                 </tr>
                 <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                    <th class="text-lg py-2 px-4" scope="col" colspan="2">Nombre</th>
-                    <th class="text-lg py-2 px-4" scope="col">Símbolo</th>
-                    <th class="text-lg py-2 px-4" scope="col">Resultado</th>
+                    <th class="text-lg py-3 px-4" scope="col" colspan="2">Nombre</th>
+                    <th class="text-lg py-3 px-4" scope="col">Símbolo</th>
+                    <th class="text-lg py-3 px-4" scope="col">Resultado</th>
                 </tr>
             </thead>
             <tbody class="bg-gray-100 dark:bg-gray-800  py-2">
@@ -153,7 +153,7 @@ if ($HVer < $Lv) { $Verificacion="<" ; } else { $Verificacion=">" ; } $VerFinal=
             </tbody>
             <thead class="bg-gray-200 dark:bg-gray-800">
                 <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                    <th class="text-xl py-2 px-4 text-left" colspan="4">2.- Longitud de desarrollo del acero de columnas</th>
+                    <th class="text-xl py-4 px-4 text-left" colspan="4">2.- Longitud de desarrollo del acero de columnas</th>
                 </tr>
                 <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                     <th class="text-lg py-2 px-4" scope="col">Nombre</th>
@@ -164,25 +164,25 @@ if ($HVer < $Lv) { $Verificacion="<" ; } else { $Verificacion=">" ; } $VerFinal=
             </thead>
             <tbody class="bg-gray-100 dark:bg-gray-800  py-2">
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Longitud de desarrollo art 12.3</td>
+                    <td class="px-2">Longitud de desarrollo art 12.3</td>
                     <td class='py-2 px-8 text-center'>ld1</td>
                     <td class='py-2 px-8 text-center'>( 0.075 *(fy / √f'c ))* db</td>
                     <td class='py-2 px-8 text-center'>{{$ld1}} cm</td>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Longitud de desarrollo art 12.3</td>
+                    <td class="px-2">Longitud de desarrollo art 12.3</td>
                     <td class='py-2 px-8 text-center'>ld2</td>
                     <td class='py-2 px-8 text-center'>( 0.0044 * fy) * db </td>
                     <td class='py-2 px-8 text-center'>{{$ld2}} cm</td>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Recubrimiento</td>
+                    <td class="px-2">Recubrimiento</td>
                     <td class='py-2 px-8 text-center'>r</td>
                     <td class='py-2 px-8 text-center'>re</td>
                     <td class='py-2 px-8 text-center'>{{$r}} cm</td>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Altura a considerar</td>
+                    <td class="px-2">Altura a considerar</td>
                     <td class='py-2 px-8 text-center'>H</td>
                     <td class='py-2 px-8 text-center'>MAX(ld1,ld2) + re)</td>
                     <td class='py-2 px-8 text-center'>{{$H}} cm</td>
@@ -199,7 +199,7 @@ if ($HVer < $Lv) { $Verificacion="<" ; } else { $Verificacion=">" ; } $VerFinal=
             </tbody>
             <thead class="bg-gray-200 dark:bg-gray-800">
                 <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                    <th class="text-xl py-2 px-4 text-left" colspan="4">3.- Calculo de cargas</th>
+                    <th class="text-xl py-4 px-4 text-left" colspan="4">3.- Calculo de cargas</th>
                 </tr>
                 <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                     <th class="text-lg py-2 px-4" scope="col">Nombre</th>
@@ -208,69 +208,69 @@ if ($HVer < $Lv) { $Verificacion="<" ; } else { $Verificacion=">" ; } $VerFinal=
                     <th class="text-lg py-2 px-4" scope="col">Resultado</th>
                 </tr>
                 <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                    <th class="text-xl py-2 px-4 text-left" colspan="4">3.1.- Metrados de cargas por el ancho de influencia transformada</th>
+                    <th class="text-xl py-4 px-4 text-left" colspan="4">3.1.- Metrados de cargas por el ancho de influencia transformada</th>
                 </tr>
             </thead>
             <tbody class="bg-gray-100 dark:bg-gray-800  py-2">
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Carga Muerta</td>
+                    <td class="px-2">Carga Muerta</td>
                     <td class='py-2 px-8 text-center'></td>
                     <td class='py-2 px-8 text-center'></td>
                     <td class='py-2 px-8 text-center'>{{$CM}} kg/m</td>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Carga Viva</td>
+                    <td class="px-2">Carga Viva</td>
                     <td class='py-2 px-8 text-center'></td>
                     <td class='py-2 px-8 text-center'></td>
                     <td class='py-2 px-8 text-center'>{{$CV}} kg/m</td>
                 </tr>
                 <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                    <th class="text-xl py-2 px-4 text-left" colspan="4">3.2 Cálculo de Carga ultima amplificada</th>
+                    <th class="text-xl py-4 px-4 text-left" colspan="4">3.2 Cálculo de Carga ultima amplificada</th>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Carga ultima amplificada</td>
+                    <td class="px-2">Carga ultima amplificada</td>
                     <td class='py-2 px-8 text-center'>Cu</td>
                     <td class='py-2 px-8 text-center'>1.40 CM + 1.70 CV</td>
                     <td class='py-2 px-8 text-center'>{{$cu}} kg/m</td>
                 </tr>
                 <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                    <th class="text-xl py-2 px-4 text-left" colspan="4">3.3 Cálculo del esfuerzo neto del terreno</th>
+                    <th class="text-xl py-4 px-4 text-left" colspan="4">3.3 Cálculo del esfuerzo neto del terreno</th>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Esfuerzo neto del suelo</td>
+                    <td class="px-2">Esfuerzo neto del suelo</td>
                     <td class='py-2 px-8 text-center'>σn</td>
                     <td class='py-2 px-8 text-center'>σt*10 - Df*γ prom -s/c</td>
                     <td class='py-2 px-8 text-center'>{{$on}} Tn/m<sup>2</sup></td>
                 </tr>
                 <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                    <th class="text-xl py-2 px-4 text-left" colspan="4">3.4 Calculo de las dimensiones</th>
+                    <th class="text-xl py-4 px-4 text-left" colspan="4">3.4 Calculo de las dimensiones</th>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Calculo del acero</td>
+                    <td class="px-2">Calculo del acero</td>
                     <td class='py-2 px-8 text-center'>Acim</td>
                     <td class='py-2 px-8 text-center'>Cu/1000/σn</td>
                     <td class='py-2 px-8 text-center'>{{$Acim}} m<sup>2</sup></td>
                 </tr>
                 <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                    <th class="text-xl py-2 px-4 text-left" colspan="4">3.5 El largo se asume de 1 m</th>
+                    <th class="text-xl py-4 px-4 text-left" colspan="4">3.5 El largo se asume de 1 m</th>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Se asume el ancho</td>
+                    <td class="px-2">Se asume el ancho</td>
                     <td class='py-2 px-8 text-center'>B</td>
                     <td class='py-2 px-8 text-center'>Acim</td>
                     <td class='py-2 px-8 text-center'>{{$B}} Tn/m<sup>2</sup></td>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Ancho del cimiento corrido</td>
+                    <td class="px-2">Ancho del cimiento corrido</td>
                     <td class='py-2 px-8 text-center'>B</td>
                     <td class='py-2 px-8 text-center'>B*100</td>
                     <td class='py-2 px-8 text-center'>{{$b}} cm</td>
                 </tr>
                 <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                    <th class="text-xl py-2 px-4 text-left" colspan="4">3.6 Por Seguridad H > B</th>
+                    <th class="text-xl py-4 px-4 text-left" colspan="4">3.6 Por Seguridad H > B</th>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Altura el cimiento corrido</td>
+                    <td class="px-2">Altura el cimiento corrido</td>
                     <td class='py-2 px-8 text-center'>H</td>
                     <td class='py-2 px-8 text-center'>(B*100) + 2</td>
                     <td class='py-2 px-8 text-center'>{{$H2}} cm</td>
@@ -278,7 +278,7 @@ if ($HVer < $Lv) { $Verificacion="<" ; } else { $Verificacion=">" ; } $VerFinal=
             </tbody>
             <thead class="bg-gray-200 dark:bg-gray-800">
                 <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                    <th class="text-xl py-2 px-4 text-left" colspan="4">4.- Verificacion</th>
+                    <th class="text-xl py-4 px-4 text-left" colspan="4">4.- Verificacion</th>
                 </tr>
                 <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
                     <th class="text-lg py-2 px-4" scope="col">Nombre</th>
@@ -287,47 +287,47 @@ if ($HVer < $Lv) { $Verificacion="<" ; } else { $Verificacion=">" ; } $VerFinal=
                     <th class="text-lg py-2 px-4" scope="col">Resultado</th>
                 </tr>
                 <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                    <th class="text-xl py-2 px-4 text-left" colspan="4">4.1 Cálculo de reacción ultima del suelo</th>
+                    <th class="text-xl py-4 px-4 text-left" colspan="4">4.1 Cálculo de reacción ultima del suelo</th>
                 </tr>
             </thead>
             <tbody class="bg-gray-100 dark:bg-gray-800  py-2">
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Carga Muerta</td>
+                    <td class="px-2">Carga Muerta</td>
                     <td class='py-2 px-8 text-center'></td>
                     <td class='py-2 px-8 text-center'></td>
                     <td class='py-2 px-8 text-center'>{{$CM}} kg/m</td>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Carga ultima en el suelo</td>
+                    <td class="px-2">Carga ultima en el suelo</td>
                     <td class='py-2 px-8 text-center'>qu</td>
                     <td class='py-2 px-8 text-center'>(Cu / 1000) / (B / 100)</td>
                     <td class='py-2 px-8 text-center'>{{$qu}} tn/m<sup>2</sup></td>
                 </tr>
                 <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                    <th class="text-xl py-2 px-4 text-left" colspan="4">4.2 Verificación por corte a flexión (Concreto ciclópeo)</th>
+                    <th class="text-xl py-4 px-4 text-left" colspan="4">4.2 Verificación por corte a flexión (Concreto ciclópeo)</th>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Altura por punzonamiento</td>
-                    <td class='py-2 px-8 text-center'>Lv</td>
-                    <td class='py-2 px-8 text-center'>((B / 100) - Esp. muro) / 2 + (Esp. muro / 2) / 2</td>
-                    <td class='py-2 px-8 text-center'>{{$Lv}} m</td>
+                    <td class="px-2">Altura por punzonamiento</td>
+                    <td class='py-3 px-8 text-center'>Lv</td>
+                    <td class='py-3 px-8 text-center'>((B / 100) - Esp. muro) / 2 + (Esp. muro / 2) / 2</td>
+                    <td class='py-3 px-8 text-center'>{{$Lv}} m</td>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Ancho del cimiento corrido</td>
-                    <td class='py-2 px-8 text-center'>H</td>
-                    <td class='py-2 px-8 text-center'>H/100</td>
-                    <td class='py-2 px-8 text-center'>{{$HVer}} cm</td>
+                    <td class="px-2">Ancho del cimiento corrido</td>
+                    <td class='py-3 px-8 text-center'>H</td>
+                    <td class='py-3 px-8 text-center'>H/100</td>
+                    <td class='py-3 px-8 text-center'>{{$HVer}} cm</td>
                 </tr>
 
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Verificacion por Punzonamiento</td>
-                    <td class='py-2 px-8 text-center'></td>
-                    <td class='py-2 px-8 text-center'>
+                    <td class="px-2">Verificacion por Punzonamiento</td>
+                    <td class='py-3 px-8 text-center'></td>
+                    <td class='py-3 px-8 text-center'>
                         <table>
                             <tr class="bg-gray-100 dark:bg-gray-600">
-                                <td style="border: none;">H</td>
-                                <td style="border: none;"></td>
-                                <td style="border: none;">Lv</td>
+                                <td class="py-2" style="border: none;">H</td>
+                                <td class="py-2" style="border: none;"></td>
+                                <td class="py-2" style="border: none;">Lv</td>
                             </tr>
                             <tr class="bg-gray-100 dark:bg-gray-600">
                                 <td style="border: none;">{{$HVer}}</td>
@@ -339,33 +339,33 @@ if ($HVer < $Lv) { $Verificacion="<" ; } else { $Verificacion=">" ; } $VerFinal=
                     <td class='py-2 px-8 text-center' rowspan="2">{{$VerFinal}}</td>
                 </tr>
                 <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                    <th class="text-xl py-2 px-4 text-left" colspan="4">4.3 Cálculo de cortante máxima</th>
+                    <th class="text-xl py-4 px-4 text-left" colspan="4">4.3 Cálculo de cortante máxima</th>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Cortante máxima</td>
+                    <td class="px-2">Cortante máxima</td>
                     <td class='py-2 px-8 text-center'>Vua (TN)</td>
                     <td class='py-2 px-8 text-center'></td>
                     <td class='py-2 px-8 text-center'>{{$VuaTN}} </td>
                 </tr>
                 <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                    <th class="text-xl py-2 px-4 text-left" colspan="4">4.4 Cálculo de cortante admisible</th>
+                    <th class="text-xl py-4 px-4 text-left" colspan="4">4.4 Cálculo de cortante admisible</th>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Cortante admisible</td>
-                    <td class='py-2 px-8 text-center'>Vu (TN)</td>
-                    <td class='py-2 px-8 text-center'></td>
-                    <td class='py-2 px-8 text-center'>{{$VuTN}} </td>
+                    <td class="px-2">Cortante admisible</td>
+                    <td class='py-3 px-8 text-center'>Vu (TN)</td>
+                    <td class='py-3 px-8 text-center'></td>
+                    <td class='py-3 px-8 text-center'>{{$VuTN}} </td>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Verificacion por cortante</td>
-                    <td class='py-2 px-8 text-center'></td>
-                    <td class='py-2 px-8 text-center'>
+                    <td class="px-2">Verificacion por cortante</td>
+                    <td class='py-3 px-8 text-center'></td>
+                    <td class='py-3 px-8 text-center'>
                         <!-- Contenido de la celda -->
                         <table>
                             <tr class="bg-gray-100 dark:bg-gray-600">
-                                <td style="border: none;">Vua (TN)</td>
-                                <td style="border: none;">&lt;</td>
-                                <td style="border: none;">Vu (TN)</td>
+                                <td class="py-2" style="border: none;">Vua (TN)</td>
+                                <td class="py-2" style="border: none;">&lt;</td>
+                                <td class="py-2" style="border: none;">Vu (TN)</td>
                             </tr>
                             <tr class="bg-gray-100 dark:bg-gray-600">
                                 <td style="border: none;">{{$VuaTN}}</td>
@@ -377,23 +377,23 @@ if ($HVer < $Lv) { $Verificacion="<" ; } else { $Verificacion=">" ; } $VerFinal=
                     <td class='py-2 px-8 text-center'>{{$ccmcca}}</td>
                 </tr>
                 <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                    <th class="text-xl py-2 px-4 text-left" colspan="4">4.5 Verificación a corte por punzonamiento</th>
+                    <th class="text-xl py-4 px-4 text-left" colspan="4">4.5 Verificación a corte por punzonamiento</th>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
                     <td></td>
-                    <td class='py-2 px-8 text-center'>H/2</td>
-                    <td class='py-2 px-8 text-center'></td>
-                    <td class='py-2 px-8 text-center'>{{$verh2}} cm</td>
+                    <td class='py-3 px-8 text-center'>H/2</td>
+                    <td class='py-3 px-8 text-center'></td>
+                    <td class='py-3 px-8 text-center'>{{$verh2}} cm</td>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td colspan="2">Verificacion por punzonamiento</td>
-                    <td class='py-2 px-8 text-center'>
+                    <td class="px-2" colspan="2">Verificacion por punzonamiento</td>
+                    <td class='py-3 px-8 text-center'>
                         <!-- Contenido de la celda -->
                         <table>
                             <tr class="bg-gray-100 dark:bg-gray-600">
-                                <td style="border: none;">H/2</td>
-                                <td style="border: none;">&gt;</td>
-                                <td style="border: none;">Lv</td>
+                                <td class="py-2" style="border: none;">H/2</td>
+                                <td class="py-2" style="border: none;">&gt;</td>
+                                <td class="py-2" style="border: none;">Lv</td>
                             </tr>
                             <tr class="bg-gray-100 dark:bg-gray-600">
                                 <td style="border: none;">{{$verh2Div}}</td>
@@ -405,16 +405,16 @@ if ($HVer < $Lv) { $Verificacion="<" ; } else { $Verificacion=">" ; } $VerFinal=
                     <td class='py-2 px-8 text-center'> {{$verfCortPunzo}}</td>
                 </tr>
                 <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                    <th class="text-xl py-2 px-4 text-left" colspan="4">4.6 Dimensiones Finales</th>
+                    <th class="text-xl py-4 px-4 text-left" colspan="4">4.6 Dimensiones Finales</th>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Ancho final de cimiento corrido</td>
+                    <td class="px-2">Ancho final de cimiento corrido</td>
                     <td class='py-2 px-8 text-center'>B</td>
                     <td class='py-2 px-8 text-center'>B</td>
                     <td class='py-2 px-8 text-center'>{{$H2}} cm</td>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td>Alto final del cimiento corrido</td>
+                    <td class="px-2">Alto final del cimiento corrido</td>
                     <td class='py-2 px-8 text-center'>H</td>
                     <td class='py-2 px-8 text-center'>H</td>
                     <td class='py-2 px-8 text-center'>{{$H2 + 5}} cm</td>

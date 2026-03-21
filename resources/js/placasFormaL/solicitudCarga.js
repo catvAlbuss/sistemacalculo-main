@@ -12,12 +12,17 @@ export function solicitudCargaT1(contenedor) {
   var container = contenedor;
   var hot = new Handsontable(container, {
     data: data,
-    rowHeaders: true,
+    rowHeaders: false,
     colHeaders: true,
     height: 'auto',
     autoWrapRow: true,
     autoWrapCol: true,
-    colWidths: 100,
+    colWidths: [90 ,90, 90, 90, 150, 90, 90, 90, 150],
+    renderAllRows: true,
+    renderAllColumns: true,
+    viewportRowRenderingOffset: 1000,
+    viewportColumnRenderingOffset: 1000,
+    // width: 'max-content',
     nestedHeaders: [
       [
         'Nivel',
@@ -139,6 +144,10 @@ export function solicitudCargaT1(contenedor) {
     licenseKey: 'non-commercial-and-evaluation',
   });
 
+  setTimeout(() => {
+    hot.render();
+  }, 100);
+
   function calculateAndSetValues(row, rowData, startCol, endCol = 0) {
     // No es necesario calcular, al asignar un valor a la celda
     // se detecta como cambio y el hook afterChange realiza las operaciones
@@ -195,46 +204,51 @@ export function solicitudCargaT2(contenedor, filas) {
 
   var hot = new Handsontable(container, {
     data: data,
-    rowHeaders: true,
+    rowHeaders: false,
     colHeaders: true,
     height: 'auto',
     autoWrapRow: true,
     autoWrapCol: true,
-    colWidths: 100,
+    colWidths: [70, 90, 220, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90],
+    renderAllRows: true,
+    renderAllColumns: true,
+    viewportRowRenderingOffset: 1000,
+    viewportColumnRenderingOffset: 1000,
+    // width: 'max-content',
     nestedHeaders: [
       [
-        'Piso',
-        'Placa',
-        'Combinaciones',
-        'Pu',
-        'V2',
-        'V3',
-        'T',
-        'M2',
-        'M3 ',
-        'Pux',
-        'Vux',
-        'Mux',
-        'Puy',
-        'Vuy',
-        'Muy',
+        'Piso', //Columna 1
+        'Placa', //Columna 2
+        'Combinaciones', //Columna 3
+        'Pu', //Columna 4
+        'V2', //Columna 5
+        'V3', //Columna 6
+        'T', //Columna 7
+        'M2', //Columna 8
+        'M3 ', //Columna 9
+        'Pux', //Columna 10
+        'Vux', //Columna 11
+        'Mux', //Columna 12
+        'Puy', //Columna 13
+        'Vuy', //Columna 14
+        'Muy', //Columna 15
       ],
       [
-        '',
-        '',
-        'Carga',
-        '(Ton)',
-        '(Ton)',
-        '(Ton)',
-        '(Ton.m)',
-        '(Ton.m)',
-        '(Ton.m)',
-        '(Ton)',
-        '(Ton)',
-        '(Ton.m)',
-        '(Ton)',
-        '(Ton)',
-        '(Ton.m)',
+        '', //Columna 1
+        '', //Columna 2
+        'Carga', //Columna 3
+        '(Ton)', //Columna 4
+        '(Ton)', //Columna 5
+        '(Ton)', //Columna 6
+        '(Ton.m)', //Columna 7
+        '(Ton.m)', //Columna 8
+        '(Ton.m)', //Columna 9
+        '(Ton)', //Columna 10
+        '(Ton)', //Columna 11
+        '(Ton.m)', //Columna 12
+        '(Ton)', //Columna 13
+        '(Ton)', //Columna 14
+        '(Ton.m)', //Columna 15
       ],
     ],
     columns: [
@@ -366,12 +380,17 @@ export function solicitudCargaT3(contenedor, initialData) {
 
   var hot = new Handsontable(container, {
     data: data,
-    rowHeaders: true,
+    rowHeaders: false,
     colHeaders: true,
     height: 'auto',
     autoWrapRow: true,
     autoWrapCol: true,
-    colWidths: 100,
+    colWidths: [90, 90, 90, 90, 90, 90],
+    renderAllRows: true,
+    renderAllColumns: true,
+    viewportRowRenderingOffset: 1000,
+    viewportColumnRenderingOffset: 1000,
+    // width: 'max-content',
     nestedHeaders: [
       ['Nivel', 'Pu máx', 'Vux máx', 'Mux máx', 'Vuy máx', 'Muy máx'],
       ['', '(Ton)', '(Ton)', '(Ton.m)', '(Ton)', '(Ton.m)'],

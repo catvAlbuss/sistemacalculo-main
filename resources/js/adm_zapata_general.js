@@ -1,4 +1,5 @@
 import "print-this";
+import html2canvas from "html2canvas";
 
 $(document).ready(function () {
   var data = [
@@ -65,5 +66,97 @@ $(document).ready(function () {
       removeScripts: false, // No eliminar las etiquetas <script>
       copyTagClasses: false, // No copiar las clases de las etiquetas HTML
     });
+  });
+
+
+  document.getElementById("btn_captura_zapata").addEventListener("click", async function () {
+    const boton = this;
+    const contenedor = document.getElementById("resultadosZapataGeneral");
+
+    if (!contenedor || contenedor.innerHTML.trim() === "") {
+      alert("Primero debes generar los resultados.");
+      return;
+    }
+
+    const textoOriginal = boton.textContent;
+
+    try {
+      boton.disabled = true;
+      boton.textContent = "Generando...";
+
+      const canvas = await html2canvas(contenedor, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        scrollX: 0,
+        scrollY: -window.scrollY,
+        windowWidth: document.documentElement.scrollWidth,
+        windowHeight: document.documentElement.scrollHeight,
+        onclone: (doc) => {
+          const el = doc.getElementById("resultadosZapataGeneral");
+          if (el) {
+            el.style.margin = "0";
+            el.style.padding = "0";
+            el.style.height = "auto";
+            el.style.backgroundColor = "#ffffff";
+            el.style.color = "#000000";
+          }
+
+          doc.body.style.margin = "0";
+          doc.body.style.padding = "0";
+          doc.body.style.backgroundColor = "#ffffff";
+        },
+      });
+
+      // 🔥 AQUÍ HACEMOS LA DIVISIÓN
+      const partes = 4;
+      const ancho = canvas.width;
+      const altoTotal = canvas.height;
+      const altoParte = Math.ceil(altoTotal / partes);
+
+      const ahora = new Date();
+      const fecha = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}-${String(
+        ahora.getDate(),
+      ).padStart(2, "0")}_${String(ahora.getHours()).padStart(2, "0")}-${String(ahora.getMinutes()).padStart(
+        2,
+        "0",
+      )}-${String(ahora.getSeconds()).padStart(2, "0")}`;
+
+      for (let i = 0; i < partes; i++) {
+        const canvasParte = document.createElement("canvas");
+        const ctx = canvasParte.getContext("2d");
+
+        canvasParte.width = ancho;
+        canvasParte.height = altoParte;
+
+        ctx.drawImage(
+          canvas,
+          0,
+          i * altoParte, // origen en canvas original
+          ancho,
+          altoParte, // tamaño a cortar
+          0,
+          0, // destino
+          ancho,
+          altoParte,
+        );
+
+        const dataUrl = canvasParte.toDataURL("image/png");
+
+        const link = document.createElement("a");
+        link.href = dataUrl;
+        link.download = `Zapata_Parte_${i + 1}_de_4-${fecha}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (error) {
+      console.error("Error al generar la captura:", error);
+      alert("Ocurrió un error al generar la imagen.");
+    } finally {
+      boton.disabled = false;
+      boton.textContent = textoOriginal;
+    }
   });
 });

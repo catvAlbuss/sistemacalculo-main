@@ -287,12 +287,17 @@
               id="btn_pdf_predim" type="button">
               Generar PDF
             </button>
+            <button
+              class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+              id="btn_captura_zapata"
+              type="button">
+              Generar Imagen
+            </button>
             <div class="overflow-x-auto" id="zapataGeneral_pdf">
               <div id="resultadosZapataGeneral"></div>
             </div>
           </div>
         </div>
-
       </div>
     </div>
   </div>

@@ -71,6 +71,9 @@
                     <i class="ri-printer-line"></i>
                     <span class="predim-tool-btn-label">Imprimir</span>
                 </button>
+                <button class="predim-tool-btn" id="btnCanvasPNG" title="png">
+                    <span class="predim-tool-btn-label">PNG</span>
+                </button>
             </div>
         </div>
 
