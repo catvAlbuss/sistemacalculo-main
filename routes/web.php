@@ -33,7 +33,7 @@ Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturar
 //==========================RUTA PARA LAS PRUEBAS PREDIM==================//
 Route::view('/info/arco_techo', 'landing.arco_techo')->name('landing.info.arco_techo');
 Route::view('/info/predim', 'landing.predim')->name('landing.info.predim');
-Route::view('/software/predim', 'predim.predim-new')->name('software.predim');
+
 //==========================RUTAS PÚBLICAS================================//
 Route::view('/arco_techo', 'hcalculo.arco_techo')->name("calculadora.estudiante.arco_techo");
 
@@ -93,49 +93,61 @@ Route::middleware(["auth", "verified"])->group(function () {
                 Route::view('/hoja2', 'hcalculo.CAV2.admHoja2')->name("hoja2");
             });
         });
-        Route::prefix("asistente")->name("asistente.")->group(function () {
-            // Vigas
-            Route::view('/vigas', 'hcalculo.admdesingvigas')->name("vigas");
-            Route::view('/vigas-general', 'hcalculo.admvigageneral')->name("vigas-general");
-            // Losas
-            Route::view('/losas-macizas', 'hcalculo.admlosasmacizas')->name("losas-macizas");
-            Route::view('/losas-aligeradas', 'hcalculo.admlosasaligeradas')->name("losas-aligeradas");
-            // Diseño en madera
-            Route::view('/diseño-en-madera', 'hcalculo.diseño_en_madera_flexocompresion')->name("diseño-en-madera");
-            // Muros
-            Route::view('/muros-de-contencionv2', 'muros-contencion.index')->name("muros-de-contencionv2");
-            Route::view('/muros-de-contencion', 'hcalculo.admMurosContencion')->name("muros-de-contencion");
-            Route::view('/muros-de-albañieria', 'hcalculo.admMurosAlbanieria')->name("muros-de-albañieria");
-            // Cimiento
-            Route::view('/cimiento-corrido', 'hcalculo.admCimientoCorrido')->name("cimiento-corrido");
-            // Columnas
-            Route::view('/columna-de-acero', 'hcalculo.admdesingcolumnaAcero')->name("columna-de-acero");
-            Route::view('/columna', 'hcalculo.admdesingcolumna')->name("columna");
-            // Zapata
-            Route::view('/zapata-combinada', 'hcalculo.admZapataCombinada')->name("zapata-combinada");
-            Route::view('/zapata-conectada', 'hcalculo.admZapataConectada')->name("zapata-conectada");
-            Route::view('/zapata-general', 'hcalculo.admdesingZapataGeneral')->name("zapata-general");
-            // Placas
-            Route::view('/placas-L', 'hcalculo.admdesingPlacasL')->name("placas-L");
-            // Cerco
-            Route::view('/cerco-perimetrico', 'hcalculo.adm_CercoPerimetrico')->name("cerco-perimetrico");
-            // irregularidades
-            Route::view('/irregularidades', 'hcalculo.admIrregularidades')->name("irregularidades");
-            // memoria de calculo
-            Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name("memoria-calculo");
-            // diseño en madera
-            Route::prefix("diseño-en-madera")->name("diseño-en-madera.")->group(function () {
-                // correas
-                Route::view('/correas', 'hcalculo.admdesingcorreas')->name("correas");
-                Route::view('/flexo-compresion', 'hcalculo.diseño_en_madera.flexo_compresion')->name("flexo-compresion");
-                Route::view('/compresion', 'hcalculo.diseño_en_madera.compresion')->name("compresion");
-                Route::view('/traccion', 'hcalculo.diseño_en_madera.traccion')->name("traccion");
-                Route::view('/flexo-traccion', 'hcalculo.diseño_en_madera.flexo_traccion')->name("flexo-traccion");
-            });
-            // diseño en acero
-            Route::prefix("diseño-en-acero")->name("diseño-en-acero.")->group(function () {
-                Route::view('/compresion', 'hcalculo.diseño_en_acero.compresion')->name("compresion");
-                Route::view('/traccion', 'hcalculo.diseño_en_acero.traccion')->name("traccion");
+
+        //==================CALCULADORA ASISTENTE (Root, Gerencia, Asistente)//
+        Route::middleware(['role:root,gerencia,asistente'])->group(function () {
+            Route::prefix('asistente')->name('asistente.')->group(function () {
+                // Vigas
+                Route::view('/vigas', 'hcalculo.admdesingvigas')->name('vigas');
+                Route::view('/vigas-general', 'hcalculo.admvigageneral')->name('vigas-general');
+
+                // Losas
+                Route::view('/losas-macizas', 'hcalculo.admlosasmacizas')->name('losas-macizas');
+                Route::view('/losas-aligeradas', 'hcalculo.admlosasaligeradas')->name('losas-aligeradas');
+
+                // Diseño en madera
+                Route::view('/diseño-en-madera', 'hcalculo.diseño_en_madera_flexocompresion')->name('diseño-en-madera');
+
+                // Muros
+                Route::view('/muros-de-contencionv2', 'muros-contencion.index')->name('muros-de-contencionv2');
+                Route::view('/muros-de-contencion', 'hcalculo.admMurosContencion')->name('muros-de-contencion');
+                Route::view('/muros-de-albañieria', 'hcalculo.admMurosAlbanieria')->name('muros-de-albañieria');
+
+                // Cimiento
+                Route::view('/cimiento-corrido', 'hcalculo.admCimientoCorrido')->name('cimiento-corrido');
+
+                // Columnas
+                Route::view('/columna-de-acero', 'hcalculo.admdesingcolumnaAcero')->name('columna-de-acero');
+                Route::view('/columna', 'hcalculo.admdesingcolumna')->name('columna');
+
+                // Zapata
+                Route::view('/zapata-combinada', 'hcalculo.admZapataCombinada')->name('zapata-combinada');
+                Route::view('/zapata-conectada', 'hcalculo.admZapataConectada')->name('zapata-conectada');
+                Route::view('/zapata-general', 'hcalculo.admdesingZapataGeneral')->name('zapata-general');
+
+                // Placas
+                Route::view('/placas-L', 'hcalculo.admdesingPlacasL')->name('placas-L');
+
+                // Cerco
+                Route::view('/cerco-perimetrico', 'hcalculo.adm_CercoPerimetrico')->name('cerco-perimetrico');
+
+                // Irregularidades
+                Route::view('/irregularidades', 'hcalculo.admIrregularidades')->name('irregularidades');
+
+                // Diseño en madera
+                Route::prefix('diseño-en-madera')->name('diseño-en-madera.')->group(function () {
+                    Route::view('/correas', 'hcalculo.admdesingcorreas')->name('correas');
+                    Route::view('/flexo-compresion', 'hcalculo.diseño_en_madera.flexo_compresion')->name('flexo-compresion');
+                    Route::view('/compresion', 'hcalculo.diseño_en_madera.compresion')->name('compresion');
+                    Route::view('/traccion', 'hcalculo.diseño_en_madera.traccion')->name('traccion');
+                    Route::view('/flexo-traccion', 'hcalculo.diseño_en_madera.flexo_traccion')->name('flexo-traccion');
+                });
+
+                // Diseño en acero
+                Route::prefix('diseño-en-acero')->name('diseño-en-acero.')->group(function () {
+                    Route::view('/compresion', 'hcalculo.diseño_en_acero.compresion')->name('compresion');
+                    Route::view('/traccion', 'hcalculo.diseño_en_acero.traccion')->name('traccion');
+                });
             });
         });
     });

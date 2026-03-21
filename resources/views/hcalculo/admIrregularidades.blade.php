@@ -1,33 +1,71 @@
-﻿<x-calc-layout title="Diseno irregularidades">
-    @pushOnce('styles')
-        <link href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" rel="stylesheet" />
-    @endpushOnce
+﻿<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 
-    <div class="py-2">
-        <div class="container mx-auto px-2 max-w-full mt-2">
-            <div class="sticky top-2 z-30 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
-                <div class="flex flex-wrap gap-2 text-sm">
-                    <a href="#sec-ia-kv"
-                        class="rounded-lg bg-slate-100 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-200">IA.
-                        "K" y "V"</a>
-                    <a href="#sec-ia-masa"
-                        class="rounded-lg bg-slate-100 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-200">IA.
-                        Masa o Peso</a>
-                    <a href="#sec-ia-igv"
-                        class="rounded-lg bg-slate-100 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-200">IA.
-                        IGV, DSR</a>
-                    <a href="#sec-ip-igv"
-                        class="rounded-lg bg-slate-100 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-200">IP.
-                        IGV, DSR</a>
-                    <a href="#sec-ip-snp"
-                        class="rounded-lg bg-slate-100 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-200">IP.
-                        Sistemas No Paralelos</a>
-                    <a href="#sec-ip-torsion"
-                        class="rounded-lg bg-slate-100 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-200">IP.
-                        Torsion</a>
-                    <a href="#sec-ip-it"
-                        class="rounded-lg bg-slate-100 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-200">IP.
-                        Irregularidad Torsional</a>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
+  <link href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" rel="stylesheet" />
+  <title>{{ config('app.name', 'Laravel') }}</title>
+
+  <link type="image/x-icon" href="{{ url('/assets/img/logo_rizabalAsociados.png') }}" rel="icon">
+</head>
+
+<body class="hold-transition sidebar-mini layout-fixed small">
+  <div class="wrapper">
+    <div class="content-wrapper">
+      <!-- Content Header (Page header) -->
+      <section class="content-header">
+        <div class="container-fluid">
+          <div class="row mb-2">
+            <div class="col-sm-6">
+              <h1>IRREGULARIDADES ESTRUCTURALES</h1>
+            </div>
+            <div class="col-sm-6">
+              <ol class="breadcrumb float-sm-right">
+                <li class="breadcrumb-item"><a href="../adm_principal.php">Inicio</a></li>
+                <li class="breadcrumb-item active">IRREGULARIDADES ESTRUCTURALES</li>
+              </ol>
+            </div>
+          </div>
+        </div><!-- /.container-fluid -->
+      </section>
+      <section class="content">
+        <div class="container-fluid">
+          <!-- -------Irregularidad en altura------- -->
+          <div class="card card-info m-0 p-0">
+            <div class="card-header d-flex justify-content-between">
+              <h3 class="card-title">IRREGULARIDAD EN ALTURA | IA. "K", "V"</h3>
+              <button class="collapsible-btn ml-auto" data-target="content2">ver / ocultar</button>
+            </div>
+            <!-- Tablas interiores -->
+            <div class="card-body d-none m-0 p-0" class="collapsible-content" id="content2">
+              <!-- Tabla Análisis en Dirección "x" -->
+              <div class="card m-0" id="IRRRIPBXDiv">
+                <div class="card-header d-flex justify-content-between">Análisis en dirección "X" <button
+                    class="collapsible-btn ml-auto mr-5" data-target="IRRX">ver / ocultar</button></div>
+                <div class="card-body collapsible-content d-none" id="IRRX">
+                  <div class="d-flex flex-column">
+                    <div class="d-flex flex-column mb-5">
+                      <div class="d-flex flex-column">
+                        <div id="IRRRIPBX"></div>
+                      </div>
+                    </div>
+                    <div class="d-flex flex-column mb-5">
+                      <div class="d-flex justify-content-start">
+                        <button class="btn btn-primary mt-3" id="IRRRIPBXBtn">Ver resultados</button>
+                        <button class="btn btn-primary ml-3 mt-3" id="IRRRIPBXNext"
+                          data-target="IRRX">Siguiente</button>
+                      </div>
+                    </div>
+                    <div class="d-flex flex-column justify-content-center">
+                      <div class="table-container" id="IRRREPBX"></div>
+                    </div>
+                  </div>
                 </div>
                 <div class="mt-2 flex flex-wrap gap-2 text-xs">
                     <a href="#sec-ia-kv-x"
