@@ -6,6 +6,10 @@
             crossorigin="anonymous" referrerpolicy="no-referrer" />
     @endpushOnce
 
+    @pushOnce('initscripts')
+        @vite('resources/js/muros-contencion/init.js')
+    @endpushOnce
+
     <style>
         .konva-content {
             border: 1px solid #e2e8f0;
@@ -2996,7 +3000,7 @@
         window.captureElementBySections = captureElementBySections;
     </script>
 
-    @pushOnce('scripts') 
+    @pushOnce('scripts')
         <script src="https://cdn.tailwindcss.com"></script>
         <script src="https://unpkg.com/konva@9/konva.min.js"></script>
         <script src="https://d3js.org/d3.v7.min.js"></script>

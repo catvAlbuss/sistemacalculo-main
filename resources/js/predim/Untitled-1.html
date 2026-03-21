@@ -1,0 +1,1045 @@
+
+<x-calc-layout title="">
+    <div class="py-2" x-data="memoriaCalculo">
+        <div class="container mx-auto px-2 max-w-8xl">
+            <!-- Header Section -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                <div>
+                    <h1 class="text-3xl font-extrabold text-blue-600 dark:text-blue-400 tracking-tight">Memoria de
+                        Cálculo</h1>
+                    <p class="text-gray-500 dark:text-gray-400 mt-1">Generación de reportes estructurales profesionales
+                    </p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button type="button" @click="exportWord()" :disabled="isExporting"
+                        class="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-all shadow-lg shadow-blue-500/30 disabled:opacity-60">
+                        <template x-if="!isExporting">
+                            <span class="flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Descargar Word
+                            </span>
+                        </template>
+                        <template x-if="isExporting">
+                            <span class="flex items-center gap-2">
+                                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg"
+                                    fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10"
+                                        stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                    </path>
+                                </svg>
+                                Generando...
+                            </span>
+                        </template>
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <!-- Sidebar / Navigation -->
+                <div class="lg:col-span-3 space-y-4">
+                    <nav class="sticky top-6 flex flex-col gap-2">
+                        <a href="#section-cover"
+                            class="px-4 py-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-transparent hover:border-blue-500 transition-all font-medium text-gray-700 dark:text-gray-300 flex items-center gap-3">
+                            <span class="p-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                            </span>
+                            Portada
+                        </a>
+                        <a href="#section-cover"
+                            class="px-4 py-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-transparent hover:border-blue-500 transition-all font-medium text-gray-700 dark:text-gray-300 flex items-center gap-3">
+                            <span class="p-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                            </span>
+                            Casa
+                        </a>
+                        <a href="#section-cover"
+                            class="px-4 py-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-transparent hover:border-blue-500 transition-all font-medium text-gray-700 dark:text-gray-300 flex items-center gap-3">
+                            <span class="p-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                            </span>
+                            Modulos
+                        </a>
+                        {{-- Hide for now as requested --}}
+                        <a href="#section-document" x-show="false"
+                            class="px-4 py-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-transparent hover:border-blue-500 transition-all font-medium text-gray-700 dark:text-gray-300 flex items-center gap-3">
+                            <span class="p-1.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 6h16M4 12h16M4 18h7" />
+                                </svg>
+                            </span>
+                            Contenido
+                        </a>
+
+                        <div
+                            class="mt-8 p-6 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-xl shadow-blue-500/20">
+                            <h3 class="font-bold text-lg mb-2">Resumen</h3>
+                            <div class="space-y-3 text-sm opacity-90">
+                                <div class="flex justify-between">
+                                    <span>Secciones:</span>
+                                    <span class="font-bold" x-text="document.sections.length"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Pisos:</span>
+                                    <span class="font-bold" x-text="floors"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </nav>
+                </div>
+
+                <!-- Main Content Area -->
+                <div class="lg:col-span-9 space-y-8">
+                    <!-- Section: Cover -->
+                    <section id="section-cover"
+                        class="scroll-mt-2 rounded-3xl bg-white p-8 shadow-xl dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+                        <div class="flex items-center gap-3 mb-2">
+                            <div
+                                class="h-5 w-5 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                            </div>
+                            <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Información de Portada</h2>
+                        </div>
+                        {{-- formulario --}}
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div
+                                class="col-span-full mb-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800">
+                                <label class="text-sm font-bold text-blue-700 dark:text-blue-300 block mb-3">Tipo de
+                                    Memoria de Cálculo</label>
+                                <div class="flex gap-4">
+                                    <label class="flex-1 cursor-pointer group">
+                                        <input type="radio" x-model="cover.reportType" value="CASA"
+                                            class="hidden">
+                                        <div class="p-2 rounded-xl border-2 transition-all flex items-center justify-center gap-3"
+                                            :class="cover.reportType === 'CASA' ?
+                                                'bg-blue-600 border-blue-600 text-white shadow-lg' :
+                                                'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 hover:border-blue-400'">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                                viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                                            </svg>
+                                            <span class="font-bold">Casa (1 Foto)</span>
+                                        </div>
+                                    </label>
+                                    <label class="flex-1 cursor-pointer group">
+                                        <input type="radio" x-model="cover.reportType" value="MODULOS"
+                                            class="hidden">
+                                        <div class="p-2 rounded-xl border-2 transition-all flex items-center justify-center gap-3"
+                                            :class="cover.reportType === 'MODULOS' ?
+                                                'bg-indigo-600 border-indigo-600 text-white shadow-lg' :
+                                                'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 hover:border-indigo-400'">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                                viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                            </svg>
+                                            <span class="font-bold">Módulos (2 Fotos)</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Título</label>
+                                <input type="text" x-model="cover.title"
+                                    class="w-full bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none">
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Subtítulo</label>
+                                <input type="text" x-model="cover.subtitle"
+                                    class="w-full bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none">
+                            </div>
+                            <div class="col-span-2 space-y-1">
+                                <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Proyecto</label>
+                                <textarea type="text" x-model="cover.project"
+                                    class="w-full bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none"></textarea>
+                            </div>
+
+                            <div class="col-span-full">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                                    <!-- Departamento -->
+                                    <div class="space-y-2">
+                                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                            Departamento
+                                        </label>
+
+                                        <div class="relative">
+                                            <select x-model="cover.ubigeo.department"
+                                                @change="cover.ubigeo.province = ''; cover.ubigeo.district = ''; updateLocation()"
+                                                class="w-full appearance-none  bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100 px-4 py-3 pr-10 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 outline-none">
+                                                <option value="">Seleccione Departamento</option>
+                                                <template x-for="dept in departments" :key="dept">
+                                                    <option :value="dept" x-text="dept"></option>
+                                                </template>
+                                            </select>
+
+                                            <!-- Icon -->
+                                            <div
+                                                class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                                                <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none"
+                                                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Provincia -->
+                                    <div class="space-y-2">
+                                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                            Provincia
+                                        </label>
+
+                                        <div class="relative">
+                                            <select x-model="cover.ubigeo.province"
+                                                @change="cover.ubigeo.district = ''; updateLocation()"
+                                                :disabled="!cover.ubigeo.department"
+                                                class="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100 px-4 py-3 pr-10 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 outline-none disabled:opacity-50 disabled:cursor-not-allowed">
+                                                <option value="">Seleccione Provincia</option>
+                                                <template x-for="prov in provinces" :key="prov">
+                                                    <option :value="prov" x-text="prov"></option>
+                                                </template>
+                                            </select>
+
+                                            <div
+                                                class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                                                <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none"
+                                                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Distrito -->
+                                    <div class="space-y-2">
+                                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                            Distrito
+                                        </label>
+
+                                        <div class="relative">
+                                            <select x-model="cover.ubigeo.district" @change="updateLocation()"
+                                                :disabled="!cover.ubigeo.province"
+                                                class="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100 px-4 py-3 pr-10 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 outline-none disabled:opacity-50 disabled:cursor-not-allowed">
+                                                <option value="">Seleccione Distrito</option>
+                                                <template x-for="dist in districts" :key="dist">
+                                                    <option :value="dist" x-text="dist"></option>
+                                                </template>
+                                            </select>
+
+                                            <div
+                                                class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                                                <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none"
+                                                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            <div class="">
+                                <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Fecha</label>
+                                <input type="date" x-model="cover.date"
+                                    class="w-full bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none">
+                            </div>
+
+                            <div class="space-y-1">
+                                <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Elaborado
+                                    por</label>
+                                <input type="text" x-model="cover.preparedBy"
+                                    class="w-full bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none">
+                            </div>
+
+                            <div class="col-span-2 flex items-center gap-2">
+                                <div class="">
+                                    <label class="text-sm font-semibold text-gray-700 dark:text-gray-300"># de
+                                        Pisos</label>
+                                    <input type="number" x-model.number="floors" @input="updateFloors()"
+                                        min="1" max="20"
+                                        class="w-full bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none">
+                                </div>
+
+                                <div class="">
+                                    <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Factor
+                                        suelo</label>
+                                    <select x-model="cover.soilFactor"
+                                        class="w-full bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none">
+                                        <option value="S0">S0</option>
+                                        <option value="S1">S1</option>
+                                        <option value="S2">S2</option>
+                                        <option value="S3">S3</option>
+                                    </select>
+                                </div>
+
+                                <div class="">
+                                    <label
+                                        class="text-sm font-semibold text-gray-700 dark:text-gray-300">Periodos</label>
+                                    <select x-model="cover.soilPeriod"
+                                        class="w-full bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none">
+                                        <option value="Tp">Tp</option>
+                                        <option value="Tl">Tl</option>
+                                    </select>
+                                </div>
+
+
+                                <div class="">
+                                    <label
+                                        class="text-sm font-semibold text-gray-700 dark:text-gray-300">Categoria</label>
+                                    <select x-model="cover.buildingCategory" @change="updateBuildingCategory()"
+                                        class="w-full bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none">
+                                        <option value="A">A</option>
+                                        <option value="B">B</option>
+                                        <option value="C">C</option>
+                                        <option value="D">D</option>
+                                    </select>
+                                </div>
+
+                                <div class="">
+                                    <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Factor
+                                        U</label>
+                                    <input type="text" x-model="cover.importanceFactorU" readonly
+                                        class="w-full bg-gray-100 dark:bg-gray-700/60 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 p-3 rounded-xl outline-none">
+                                </div>
+
+                                <div class="">
+                                    <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Sistema
+                                        estructural</label>
+                                    <input type="text" x-model="cover.structuralSystemDescription"
+                                        placeholder="Ej: Dual, Muros de Concreto Armado"
+                                        class="w-full bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Portada Images -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-5 p-3 bg-gray-50 dark:bg-gray-900/40 rounded-3xl border border-gray-200 dark:border-gray-700"
+                            :class="cover.reportType === 'MODULOS' ? 'lg:grid-cols-2' : 'lg:grid-cols-1'">
+
+                            <!-- Image 1 Column -->
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-bold text-gray-700 dark:text-gray-300">
+                                        <span
+                                            x-text="cover.reportType === 'MODULOS' ? 'Imagen de Módulo 1' : 'Imagen Principal'"></span>
+                                    </label>
+                                    <button type="button" x-show="previews.coverImage"
+                                        @click="removeImage('coverImage')"
+                                        class="text-red-500 text-xs font-semibold hover:underline">Eliminar</button>
+                                </div>
+                                <div class="relative group">
+                                    <template x-if="previews.coverImage">
+                                        <div
+                                            class="relative h-48 w-full rounded-2xl overflow-hidden border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center bg-white dark:bg-gray-800">
+                                            <img :src="previews.coverImage"
+                                                class="max-h-full max-w-full object-contain p-4 transition-transform duration-300 group-hover:scale-105">
+                                        </div>
+                                    </template>
+                                    <template x-if="!previews.coverImage">
+                                        <label
+                                            class="flex flex-col items-center justify-center h-48 w-full rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-white dark:hover:bg-gray-800 transition-all group">
+                                            <div
+                                                class="p-3 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 mb-2 group-hover:scale-110 transition-transform">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6"
+                                                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                            </div>
+                                            <span class="text-sm font-medium text-gray-500">Subir Imagen 1</span>
+                                            <input type="file" accept="image/*"
+                                                @change="handleImageChange('coverImage', $event)" class="hidden">
+                                        </label>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- Image 2 Column (Optional) -->
+                            <div class="space-y-2" x-show="cover.reportType === 'MODULOS'" x-transition>
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-bold text-gray-700 dark:text-gray-300">Imagen de Módulo
+                                        2</label>
+                                    <button type="button" x-show="previews.coverImage2"
+                                        @click="removeImage('coverImage2')"
+                                        class="text-red-500 text-xs font-semibold hover:underline">Eliminar</button>
+                                </div>
+                                <div class="relative group">
+                                    <template x-if="previews.coverImage2">
+                                        <div
+                                            class="relative h-48 w-full rounded-2xl overflow-hidden border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center bg-white dark:bg-gray-800">
+                                            <img :src="previews.coverImage2"
+                                                class="max-h-full max-w-full object-contain p-4 transition-transform duration-300 group-hover:scale-105">
+                                        </div>
+                                    </template>
+                                    <template x-if="!previews.coverImage2">
+                                        <label
+                                            class="flex flex-col items-center justify-center h-48 w-full rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-white dark:hover:bg-gray-800 transition-all group">
+                                            <div
+                                                class="p-3 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 mb-2 group-hover:scale-110 transition-transform">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6"
+                                                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                            </div>
+                                            <span class="text-sm font-medium text-gray-500">Subir Imagen 2</span>
+                                            <input type="file" accept="image/*"
+                                                @change="handleImageChange('coverImage2', $event)" class="hidden">
+                                        </label>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Seccion configracion tabla de resumen seccion 1.4 --}}
+                        <div class="col-span-full border-t border-gray-100 dark:border-gray-700 pt-6 mt-4">
+                            <h3
+                                class="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-500"
+                                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                </svg>
+                                Configuración de Tabla Resumen (Sección 1.4)
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-2 col-span-full">
+                                    <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Uso
+                                        (Detalle por pisos)</label>
+                                    <textarea x-model="structuralDetails.usage" rows="4"
+                                        placeholder="Ej: 1° PISO: Local...&#10;2° PISO: Consultorio..."
+                                        class="w-full bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none resize-none"></textarea>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Sistema
+                                        Estructural en X</label>
+                                    <input type="text" x-model="structuralDetails.structuralSystemX"
+                                        class="w-full bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none">
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Sistema
+                                        Estructural en Y</label>
+                                    <input type="text" x-model="structuralDetails.structuralSystemY"
+                                        class="w-full bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none">
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Elementos
+                                        Verticales</label>
+                                    <input type="text" x-model="structuralDetails.verticalElements"
+                                        class="w-full bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none">
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Elementos
+                                        Horizontales</label>
+                                    <input type="text" x-model="structuralDetails.horizontalElements"
+                                        class="w-full bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none">
+                                </div>
+                                <div class="space-y-2 col-span-full">
+                                    <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Techo</label>
+                                    <input type="text" x-model="structuralDetails.roof"
+                                        class="w-full bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Floor Images Sections -->
+                        <div class="mt-12 space-y-8">
+                            <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100 border-b pb-4">Imágenes
+                                de
+                                Planta por Niveles</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <template x-for="(floor, index) in Array.from({length: parseInt(floors)})"
+                                    :key="index">
+                                    <div
+                                        class="p-4 bg-gray-50 dark:bg-gray-900/40 rounded-2xl border border-gray-200 dark:border-gray-700 space-y-3">
+                                        <div class="flex items-center justify-between">
+                                            <label class="text-sm font-bold text-gray-700 dark:text-gray-300"
+                                                x-text="'Nivel ' + (index + 1)"></label>
+                                            <button type="button" x-show="previews.floorImages[index]"
+                                                @click="removeFloorImage(index)"
+                                                class="text-red-500 text-xs font-semibold hover:underline">Eliminar</button>
+                                        </div>
+                                        <div class="relative group h-40">
+                                            <template x-if="previews.floorImages[index]">
+                                                <div
+                                                    class="h-full w-full rounded-xl overflow-hidden bg-white dark:bg-gray-800 border-2 border-dashed border-gray-200 dark:border-gray-600 flex items-center justify-center">
+                                                    <img :src="previews.floorImages[index]"
+                                                        class="max-h-full max-w-full object-contain p-2">
+                                                </div>
+                                            </template>
+                                            <template x-if="!previews.floorImages[index]">
+                                                <label
+                                                    class="flex flex-col items-center justify-center h-full w-full rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-600 cursor-pointer hover:bg-white dark:hover:bg-gray-800 transition-all">
+                                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                                        class="h-6 w-6 text-gray-400 mb-1" fill="none"
+                                                        viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2" d="M12 4v16m8-8H4" />
+                                                    </svg>
+                                                    <span class="text-xs font-medium text-gray-500">Subir
+                                                        Plano</span>
+                                                    <input type="file" accept="image/*"
+                                                        @change="handleFloorImageChange(index, $event)"
+                                                        class="hidden">
+                                                </label>
+                                            </template>
+                                        </div>
+                                        <p class="text-[10px] text-gray-500 text-center italic"
+                                            x-text="'Esquema general en planta ' + (index + 1) + '°nivel'"></p>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        {{-- End de la seccion 1.4 --}}
+
+                        {{-- material de diseño Seccion 1.5 --}}
+                        <div class="col-span-full border-t border-gray-100 dark:border-gray-700 pt-6 mt-4">
+                            <h3
+                                class="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                               Maaterial de Diseño (Sección 1.5)
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-2 col-span-full">
+                                    <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Descripción
+                                        General</label>
+                                    <textarea x-model="structuralDetails.generalDescription" rows="4"
+                                        placeholder="Descripción general de la estructura del edificio..."
+                                        class="w-full bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none resize-none"></textarea>
+                                </div>
+                                {{-- imagenes de la seccion 1.5 --}}
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 space-y-2 col-span-full">
+                                    {{-- Propiedad de refuerzo --}}
+                                    <div class="space-y-2">
+                                        <div class="flex items-center justify-between">
+                                            <label class="text-sm font-bold text-gray-700 dark:text-gray-300">
+                                                <span
+                                                    x-text="cover.reportType === 'MODULOS' ? 'Imagen de Módulo 1' : 'Imagen Principal'"></span>
+                                            </label>
+                                            <button type="button" x-show="previews.coverImage"
+                                                @click="removeImage('coverImage')"
+                                                class="text-red-500 text-xs font-semibold hover:underline">Eliminar</button>
+                                        </div>
+                                        <div class="relative group">
+                                            <template x-if="previews.coverImage">
+                                                <div
+                                                    class="relative h-48 w-full rounded-2xl overflow-hidden border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center bg-white dark:bg-gray-800">
+                                                    <img :src="previews.coverImage"
+                                                        class="max-h-full max-w-full object-contain p-4 transition-transform duration-300 group-hover:scale-105">
+                                                </div>
+                                            </template>
+                                            <template x-if="!previews.coverImage">
+                                                <label
+                                                    class="flex flex-col items-center justify-center h-48 w-full rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-white dark:hover:bg-gray-800 transition-all group">
+                                                    <div
+                                                        class="p-3 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 mb-2 group-hover:scale-110 transition-transform">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6"
+                                                            fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2"
+                                                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                        </svg>
+                                                    </div>
+                                                    <span class="text-sm font-medium text-gray-500">Subir Imagen
+                                                        1</span>
+                                                    <input type="file" accept="image/*"
+                                                        @change="handleImageChange('coverImage', $event)"
+                                                        class="hidden">
+                                                </label>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                    {{-- propiedad de concreto --}}
+                                    <div class="space-y-2">
+                                        <div class="flex items-center justify-between">
+                                            <label class="text-sm font-bold text-gray-700 dark:text-gray-300">
+                                                <span
+                                                    x-text="cover.reportType === 'MODULOS' ? 'Imagen de Módulo 1' : 'Imagen Principal'"></span>
+                                            </label>
+                                            <button type="button" x-show="previews.coverImage"
+                                                @click="removeImage('coverImage')"
+                                                class="text-red-500 text-xs font-semibold hover:underline">Eliminar</button>
+                                        </div>
+                                        <div class="relative group">
+                                            <template x-if="previews.coverImage">
+                                                <div
+                                                    class="relative h-48 w-full rounded-2xl overflow-hidden border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center bg-white dark:bg-gray-800">
+                                                    <img :src="previews.coverImage"
+                                                        class="max-h-full max-w-full object-contain p-4 transition-transform duration-300 group-hover:scale-105">
+                                                </div>
+                                            </template>
+                                            <template x-if="!previews.coverImage">
+                                                <label
+                                                    class="flex flex-col items-center justify-center h-48 w-full rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-white dark:hover:bg-gray-800 transition-all group">
+                                                    <div
+                                                        class="p-3 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 mb-2 group-hover:scale-110 transition-transform">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6"
+                                                            fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2"
+                                                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                        </svg>
+                                                    </div>
+                                                    <span class="text-sm font-medium text-gray-500">Subir Imagen
+                                                        1</span>
+                                                    <input type="file" accept="image/*"
+                                                        @change="handleImageChange('coverImage', $event)"
+                                                        class="hidden">
+                                                </label>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                    {{-- Propiedad de acero --}}
+                                    <div class="space-y-2">
+                                        <div class="flex items-center justify-between">
+                                            <label class="text-sm font-bold text-gray-700 dark:text-gray-300">
+                                                <span
+                                                    x-text="cover.reportType === 'MODULOS' ? 'Imagen de Módulo 1' : 'Imagen Principal'"></span>
+                                            </label>
+                                            <button type="button" x-show="previews.coverImage"
+                                                @click="removeImage('coverImage')"
+                                                class="text-red-500 text-xs font-semibold hover:underline">Eliminar</button>
+                                        </div>
+                                        <div class="relative group">
+                                            <template x-if="previews.coverImage">
+                                                <div
+                                                    class="relative h-48 w-full rounded-2xl overflow-hidden border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center bg-white dark:bg-gray-800">
+                                                    <img :src="previews.coverImage"
+                                                        class="max-h-full max-w-full object-contain p-4 transition-transform duration-300 group-hover:scale-105">
+                                                </div>
+                                            </template>
+                                            <template x-if="!previews.coverImage">
+                                                <label
+                                                    class="flex flex-col items-center justify-center h-48 w-full rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-white dark:hover:bg-gray-800 transition-all group">
+                                                    <div
+                                                        class="p-3 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 mb-2 group-hover:scale-110 transition-transform">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6"
+                                                            fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2"
+                                                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                        </svg>
+                                                    </div>
+                                                    <span class="text-sm font-medium text-gray-500">Subir Imagen
+                                                        1</span>
+                                                    <input type="file" accept="image/*"
+                                                        @change="handleImageChange('coverImage', $event)"
+                                                        class="hidden">
+                                                </label>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Section: Document Content (Hidden as requested) -->
+                    <section id="section-document" x-show="false"
+                        class="scroll-mt-6 rounded-3xl bg-white p-8 shadow-xl dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+                        <div class="flex items-center justify-between gap-3 mb-8">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="h-10 w-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 6h16M4 12h16M4 18h7" />
+                                    </svg>
+                                </div>
+                                <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Contenido del Documento
+                                </h2>
+                            </div>
+                            <button type="button" @click="addSection(1)"
+                                class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/30">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 4v16m8-8H4" />
+                                </svg>
+                                Nueva Sección
+                            </button>
+                        </div>
+
+                        <div class="space-y-6">
+                            <template x-for="(section, sIndex) in document.sections" :key="section.id">
+                                <div
+                                    class="group border border-gray-200 dark:border-gray-700 rounded-3xl overflow-hidden transition-all hover:border-indigo-500 dark:hover:border-indigo-400 p-6 bg-white dark:bg-gray-800/50">
+                                    <div class="flex items-start justify-between gap-4 mb-6">
+                                        <div class="flex-1 space-y-2">
+                                            <div class="flex items-center gap-4">
+                                                <span
+                                                    class="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 text-[10px] font-bold tracking-wider"
+                                                    x-text="'NIVEL ' + section.level"></span>
+                                                <input type="text" x-model="section.title"
+                                                    class="text-lg font-bold bg-transparent border-b border-dashed border-gray-300 focus:border-indigo-500 outline-none w-full py-1 text-gray-900 dark:text-white">
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <button @click="removeSection(sIndex)"
+                                                class="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
+                                                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Content Items within Section -->
+                                    <div class="space-y-6 pl-4 border-l-2 border-gray-100 dark:border-gray-700 ml-2">
+                                        <template x-for="(item, iIndex) in section.content" :key="iIndex">
+                                            <div
+                                                class="bg-gray-50 dark:bg-gray-900/40 p-5 rounded-2xl relative group/item border border-transparent hover:border-indigo-100 dark:hover:border-indigo-900/60 transition-all">
+                                                <div
+                                                    class="absolute right-4 top-4 flex items-center gap-2 opacity-0 group-item-hover/item:opacity-100 transition-opacity">
+                                                    <button @click="removeContentItem(sIndex, iIndex)"
+                                                        class="p-1.5 text-red-500 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:bg-red-50">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4"
+                                                            fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+
+                                                <!-- Paragraph/Heading Editor -->
+                                                <template x-if="item.type === 'paragraph' || item.type === 'heading'">
+                                                    <div class="space-y-4">
+                                                        <div class="flex items-center gap-3">
+                                                            <span class="text-[10px] font-bold text-gray-400 uppercase"
+                                                                x-text="item.type"></span>
+                                                            <select x-model="item.alignment"
+                                                                class="text-xs bg-white dark:bg-gray-800 border-none rounded-md py-1 px-2 focus:ring-1 focus:ring-indigo-500 outline-none">
+                                                                <option value="LEFT">Izquierda</option>
+                                                                <option value="CENTER">Centro</option>
+                                                                <option value="RIGHT">Derecha</option>
+                                                                <option value="JUSTIFIED">Justificado</option>
+                                                            </select>
+                                                        </div>
+                                                        <textarea x-model="item.text" rows="3"
+                                                            class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm resize-none focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
+                                                            placeholder="Escribe el contenido aquí..."></textarea>
+                                                    </div>
+                                                </template>
+
+                                                <!-- List Editor -->
+                                                <template x-if="item.type === 'list'">
+                                                    <div class="space-y-4">
+                                                        <div class="flex items-center gap-3 justify-between">
+                                                            <div class="flex items-center gap-3">
+                                                                <span
+                                                                    class="text-[10px] font-bold text-gray-400 uppercase">LISTA</span>
+                                                                <select x-model="item.listType"
+                                                                    class="text-xs bg-white dark:bg-gray-800 border-none rounded-md py-1 px-2 focus:ring-1 focus:ring-indigo-500 outline-none">
+                                                                    <option value="bullet">Viñetas (•)</option>
+                                                                    <option value="numbered">Numerada (1.)</option>
+                                                                </select>
+                                                            </div>
+                                                            <button @click="addListItem(sIndex, iIndex)"
+                                                                class="text-xs text-indigo-600 font-bold hover:underline">+
+                                                                Agregar ítem</button>
+                                                        </div>
+                                                        <div class="space-y-2">
+                                                            <template x-for="(li, liIdx) in item.items"
+                                                                :key="liIdx">
+                                                                <div class="flex items-center gap-2">
+                                                                    <div class="w-2 h-2 rounded-full bg-indigo-300">
+                                                                    </div>
+                                                                    <input type="text" x-model="item.items[liIdx]"
+                                                                        class="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500">
+                                                                    <button
+                                                                        @click="removeListItem(sIndex, iIndex, liIdx)"
+                                                                        class="text-gray-400 hover:text-red-500">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg"
+                                                                            class="h-4 w-4" fill="none"
+                                                                            viewBox="0 0 24 24" stroke="currentColor">
+                                                                            <path stroke-linecap="round"
+                                                                                stroke-linejoin="round"
+                                                                                stroke-width="2" d="M20 12H4" />
+                                                                        </svg>
+                                                                    </button>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+                                                </template>
+
+                                                <!-- Image Editor -->
+                                                <template x-if="item.type === 'image'">
+                                                    <div class="space-y-4">
+                                                        <span
+                                                            class="text-[10px] font-bold text-gray-400 uppercase">IMAGEN</span>
+                                                        <div class="flex flex-col md:flex-row gap-6 items-start">
+                                                            <div class="w-full md:w-1/2">
+                                                                <template x-if="item.src">
+                                                                    <div
+                                                                        class="relative group/img rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 aspect-video flex items-center justify-center">
+                                                                        <img :src="item.src"
+                                                                            class="max-h-full max-w-full object-contain p-2">
+                                                                        <div
+                                                                            class="absolute inset-0 bg-black/40 opacity-0 group-hover-img:opacity-100 flex items-center justify-center transition-opacity">
+                                                                            <label
+                                                                                class="cursor-pointer p-2 bg-white rounded-full text-gray-900 shadow-xl">
+                                                                                <svg xmlns="http://www.w3.org/2000/svg"
+                                                                                    class="h-5 w-5" fill="none"
+                                                                                    viewBox="0 0 24 24"
+                                                                                    stroke="currentColor">
+                                                                                    <path stroke-linecap="round"
+                                                                                        stroke-linejoin="round"
+                                                                                        stroke-width="2"
+                                                                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                                                </svg>
+                                                                                <input type="file" accept="image/*"
+                                                                                    @change="handleContentImageChange(sIndex, iIndex, $event)"
+                                                                                    class="hidden">
+                                                                            </label>
+                                                                        </div>
+                                                                    </div>
+                                                                </template>
+                                                                <template x-if="!item.src">
+                                                                    <label
+                                                                        class="flex flex-col items-center justify-center aspect-video w-full rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-white dark:hover:bg-gray-800 transition-all">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg"
+                                                                            class="h-8 w-8 text-gray-400 mb-2"
+                                                                            fill="none" viewBox="0 0 24 24"
+                                                                            stroke="currentColor">
+                                                                            <path stroke-linecap="round"
+                                                                                stroke-linejoin="round"
+                                                                                stroke-width="2"
+                                                                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                                        </svg>
+                                                                        <span
+                                                                            class="text-xs font-medium text-gray-500">Seleccionar
+                                                                            imagen</span>
+                                                                        <input type="file" accept="image/*"
+                                                                            @change="handleContentImageChange(sIndex, iIndex, $event)"
+                                                                            class="hidden">
+                                                                    </label>
+                                                                </template>
+                                                            </div>
+                                                            <div class="w-full md:w-1/2 space-y-4">
+                                                                <div class="grid grid-cols-2 gap-4">
+                                                                    <div class="space-y-1">
+                                                                        <label
+                                                                            class="text-[10px] font-bold text-gray-500 uppercase">Ancho
+                                                                            (px)</label>
+                                                                        <input type="number" x-model="item.width"
+                                                                            class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs">
+                                                                    </div>
+                                                                    <div class="space-y-1">
+                                                                        <label
+                                                                            class="text-[10px] font-bold text-gray-500 uppercase">Alto
+                                                                            (px)</label>
+                                                                        <input type="number" x-model="item.height"
+                                                                            class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs">
+                                                                    </div>
+                                                                </div>
+                                                                <p class="text-[10px] text-gray-400">Las imágenes se
+                                                                    centrarán automáticamente en el documento Word.</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <!-- Table Editor -->
+                                                    <template x-if="item.type === 'table'">
+                                                        <div class="space-y-4">
+                                                            <div class="flex items-center justify-between">
+                                                                <span
+                                                                    class="text-[10px] font-bold text-gray-400 uppercase">TABLA</span>
+                                                                <div class="flex gap-2">
+                                                                    <button type="button"
+                                                                        @click="item.rows.push(new Array(item.columns.length).fill(''))"
+                                                                        class="text-[10px] text-indigo-600 font-bold hover:underline">+
+                                                                        Fila</button>
+                                                                    <button type="button"
+                                                                        @click="item.columns.push({header: 'Nueva', width: 20}); item.rows.forEach(r => r.push(''))"
+                                                                        class="text-[10px] text-indigo-600 font-bold hover:underline">+
+                                                                        Col</button>
+                                                                </div>
+                                                            </div>
+                                                            <div
+                                                                class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                                                                <table class="w-full text-xs">
+                                                                    <thead>
+                                                                        <tr class="bg-gray-50 dark:bg-gray-900/60">
+                                                                            <template
+                                                                                x-for="(col, cIdx) in item.columns"
+                                                                                :key="cIdx">
+                                                                                <th
+                                                                                    class="p-2 border-r border-gray-200 dark:border-gray-700">
+                                                                                    <div
+                                                                                        class="flex items-center gap-1">
+                                                                                        <input type="text"
+                                                                                            x-model="col.header"
+                                                                                            class="bg-transparent font-bold w-full outline-none text-center">
+                                                                                        <button type="button"
+                                                                                            @click="if(item.columns.length > 1) { item.columns.splice(cIdx, 1); item.rows.forEach(r => r.splice(cIdx, 1)) }"
+                                                                                            class="text-red-400">×</button>
+                                                                                    </div>
+                                                                                </th>
+                                                                            </template>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        <template x-for="(row, rIdx) in item.rows"
+                                                                            :key="rIdx">
+                                                                            <tr>
+                                                                                <template x-for="(cell, ceIdx) in row"
+                                                                                    :key="ceIdx">
+                                                                                    <td
+                                                                                        class="p-1 border border-gray-100 dark:border-gray-800">
+                                                                                        <input type="text"
+                                                                                            x-model="item.rows[rIdx][ceIdx]"
+                                                                                            class="w-full bg-transparent outline-none px-2 py-1">
+                                                                                    </td>
+                                                                                </template>
+                                                                            </tr>
+                                                                        </template>
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                            </div>
+                                        </template>
+
+                                        <!-- Add Content Item Buttons -->
+                                        <div class="flex flex-wrap items-center gap-2 pt-4">
+                                            <span
+                                                class="text-[10px] font-bold text-gray-400 uppercase mr-2">Agregar:</span>
+                                            <button @click="addContentItem(sIndex, 'paragraph')"
+                                                class="px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-semibold hover:border-indigo-500 transition-all flex items-center gap-1.5">
+                                                <svg xmlns="http://www.w3.org/2000/svg"
+                                                    class="h-3.5 w-3.5 text-gray-500" fill="none"
+                                                    viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
+                                                </svg>
+                                                Párrafo
+                                            </button>
+                                            <button @click="addContentItem(sIndex, 'list')"
+                                                class="px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-semibold hover:border-indigo-500 transition-all flex items-center gap-1.5">
+                                                <svg xmlns="http://www.w3.org/2000/svg"
+                                                    class="h-3.5 w-3.5 text-gray-500" fill="none"
+                                                    viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                                                </svg>
+                                                Lista
+                                            </button>
+                                            <button @click="addContentItem(sIndex, 'image')"
+                                                class="px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-semibold hover:border-indigo-500 transition-all flex items-center gap-1.5">
+                                                <svg xmlns="http://www.w3.org/2000/svg"
+                                                    class="h-3.5 w-3.5 text-gray-500" fill="none"
+                                                    viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                                Imagen
+                                            </button>
+                                            <button @click="addContentItem(sIndex, 'heading')"
+                                                class="px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-semibold hover:border-indigo-500 transition-all flex items-center gap-1.5">
+                                                <span class="text-gray-500 font-bold">H</span>
+                                                Subtítulo
+                                            </button>
+                                            <button @click="addContentItem(sIndex, 'table')"
+                                                class="px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-semibold hover:border-indigo-500 transition-all flex items-center gap-1.5">
+                                                <svg xmlns="http://www.w3.org/2000/svg"
+                                                    class="h-3.5 w-3.5 text-gray-500" fill="none"
+                                                    viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                                </svg>
+                                                Tabla
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <div class="mt-8 flex justify-center">
+                            <button type="button" @click="addSection(1)"
+                                class="flex items-center gap-2 px-8 py-4 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 text-gray-500 hover:border-indigo-500 hover:text-indigo-600 transition-all group">
+                                <div
+                                    class="p-2 rounded-full bg-gray-50 dark:bg-gray-900 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/30 transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 4v16m8-8H4" />
+                                    </svg>
+                                </div>
+                                <span class="font-bold">Añadir Nueva Sección Principal</span>
+                            </button>
+                        </div>
+                    </section>
+
+                    <!-- Error Messages -->
+                    <div x-show="errors.length > 0"
+                        class="rounded-3xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 p-6 flex flex-col gap-2">
+                        <div class="flex items-center gap-3 text-red-600 dark:text-red-400 mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="font-bold">Se encontraron errores:</span>
+                        </div>
+                        <template x-for="error in errors" :key="error.id">
+                            <p class="text-sm text-red-500 dark:text-red-400 pl-8" x-text="'• ' + error.message"></p>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @pushOnce('initscripts')
+        <script src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+        @vite('resources/js/memoria_calculo/index.js')
+    @endpushOnce
+
+</x-calc-layout>

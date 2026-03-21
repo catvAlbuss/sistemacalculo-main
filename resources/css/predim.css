@@ -1,0 +1,507 @@
+/* Predim Module - Modern Ribbon Interface Styles */
+
+:root {
+  --predim-primary: #2563eb;
+  --predim-primary-dark: #1d4ed8;
+  --predim-secondary: #64748b;
+  --predim-bg-main: #ffffff;
+  --predim-bg-surface: #f8fafc;
+  --predim-bg-hover: #f1f5f9;
+  --predim-border: #e2e8f0;
+  --predim-text-main: #0f172a;
+  --predim-text-secondary: #64748b;
+  --predim-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --predim-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --predim-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--predim-bg-surface);
+  color: var(--predim-text-main);
+  overflow: hidden;
+}
+
+/* Container Principal */
+.predim-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ========== RIBBON HEADER ========== */
+.predim-ribbon {
+  background: var(--predim-bg-main);
+  border-bottom: 1px solid var(--predim-border);
+  box-shadow: var(--predim-shadow-sm);
+}
+
+/* Top Bar con Logo y Título */
+.predim-topbar {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  gap: 16px;
+  border-bottom: 1px solid var(--predim-border);
+}
+
+.predim-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.predim-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--predim-text-main);
+}
+
+/* Ribbon Tabs */
+.predim-ribbon-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 16px;
+  background: var(--predim-bg-surface);
+}
+
+.predim-ribbon-tab {
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--predim-text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.predim-ribbon-tab:hover {
+  color: var(--predim-text-main);
+  background: var(--predim-bg-hover);
+}
+
+.predim-ribbon-tab.active {
+  color: var(--predim-primary);
+  border-bottom-color: var(--predim-primary);
+  background: var(--predim-bg-main);
+}
+
+/* Ribbon Content */
+.predim-ribbon-content {
+  display: none;
+  padding: 12px 16px;
+  background: var(--predim-bg-main);
+  min-height: 100px;
+}
+
+.predim-ribbon-content.active {
+  display: flex;
+  gap: 24px;
+}
+
+/* Ribbon Groups */
+.predim-ribbon-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px;
+  border-right: 1px solid var(--predim-border);
+}
+
+.predim-ribbon-group:last-child {
+  border-right: none;
+}
+
+.predim-ribbon-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--predim-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.predim-ribbon-group-tools {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* Tool Buttons */
+.predim-tool-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 12px;
+  min-width: 64px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.predim-tool-btn:hover {
+  background: var(--predim-bg-hover);
+  border-color: var(--predim-border);
+}
+
+.predim-tool-btn.active {
+  background: var(--predim-primary);
+  color: white;
+  border-color: var(--predim-primary-dark);
+}
+
+.predim-tool-btn i {
+  font-size: 20px;
+}
+
+.predim-tool-btn-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Dropdown Tools */
+.predim-tool-dropdown {
+  position: relative;
+}
+
+.predim-tool-dropdown-toggle::after {
+  content: '▼';
+  font-size: 8px;
+  margin-left: 4px;
+}
+
+.predim-tool-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background: var(--predim-bg-main);
+  border: 1px solid var(--predim-border);
+  border-radius: 8px;
+  box-shadow: var(--predim-shadow-lg);
+  padding: 4px;
+  min-width: 200px;
+  z-index: 1000;
+}
+
+.predim-tool-dropdown:hover .predim-tool-dropdown-menu,
+.predim-tool-dropdown-menu:hover {
+  display: block;
+}
+
+.predim-tool-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 13px;
+}
+
+.predim-tool-dropdown-item:hover {
+  background: var(--predim-bg-hover);
+}
+
+.predim-tool-dropdown-item i {
+  font-size: 18px;
+  width: 20px;
+  text-align: center;
+}
+
+/* Input Groups in Ribbon */
+.predim-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.predim-input-group label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--predim-text-secondary);
+}
+
+.predim-input-group input {
+  padding: 6px 8px;
+  border: 1px solid var(--predim-border);
+  border-radius: 4px;
+  font-size: 13px;
+  width: 80px;
+}
+
+.predim-input-group input:focus {
+  outline: none;
+  border-color: var(--predim-primary);
+}
+
+/* Color Palette */
+.predim-color-palette {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+
+.predim-color-btn {
+  width: 24px;
+  height: 24px;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.predim-color-btn:hover {
+  transform: scale(1.1);
+  border-color: var(--predim-text-secondary);
+}
+
+.predim-color-btn.active {
+  border-color: var(--predim-primary);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+/* ========== WORKSPACE ========== */
+.predim-workspace {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  background: var(--predim-bg-surface);
+}
+
+/* Canvas Area */
+.predim-canvas-area {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow: hidden;
+  min-height: 0;
+  /* Important for flex children */
+}
+
+.predim-canvas-container {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  /* Enable scrolling for large PDFs */
+  position: relative;
+  background: var(--predim-bg-surface);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px;
+}
+
+#canvas {
+  display: block;
+  background: white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  max-width: none;
+  /* Allow canvas to be wider than container */
+  height: auto;
+}
+
+/* Properties Panel (Optional Sidebar) */
+.predim-properties-panel {
+  width: 280px;
+  background: var(--predim-bg-main);
+  border-left: 1px solid var(--predim-border);
+  padding: 16px;
+  overflow-y: auto;
+  display: none;
+}
+
+.predim-properties-panel.active {
+  display: block;
+}
+
+.predim-property-section {
+  margin-bottom: 24px;
+}
+
+.predim-property-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--predim-text-main);
+}
+
+/* ========== MODAL ========== */
+.predim-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.predim-modal.active {
+  display: flex;
+}
+
+.predim-modal-content {
+  background: var(--predim-bg-main);
+  border-radius: 12px;
+  box-shadow: var(--predim-shadow-lg);
+  width: 90%;
+  max-width: 1200px;
+  max-height: 90vh;
+  overflow: auto;
+  padding: 24px;
+}
+
+.predim-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--predim-border);
+}
+
+.predim-modal-title {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.predim-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--predim-text-secondary);
+  padding: 4px;
+  line-height: 1;
+}
+
+.predim-modal-close:hover {
+  color: var(--predim-text-main);
+}
+
+/* Tables in Modal */
+.predim-table-container {
+  margin: 20px 0;
+}
+
+.predim-table-container h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--predim-text-main);
+}
+
+.predim-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.predim-table thead {
+  background: var(--predim-bg-surface);
+  border-bottom: 2px solid var(--predim-border);
+}
+
+.predim-table th,
+.predim-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--predim-border);
+}
+
+.predim-table th {
+  font-weight: 600;
+  color: var(--predim-text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.predim-table tbody tr:hover {
+  background: var(--predim-bg-hover);
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 1024px) {
+  .predim-properties-panel {
+    position: fixed;
+    right: -280px;
+    top: 0;
+    bottom: 0;
+    transition: right 0.3s;
+    z-index: 100;
+  }
+
+  .predim-properties-panel.active {
+    right: 0;
+  }
+
+  .predim-ribbon-content {
+    flex-wrap: wrap;
+  }
+
+  .predim-ribbon-group {
+    min-width: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .predim-ribbon-tabs {
+    overflow-x: auto;
+  }
+
+  .predim-ribbon-tab {
+    flex-shrink: 0;
+  }
+
+  .predim-tool-btn {
+    min-width: 56px;
+    padding: 6px 8px;
+  }
+
+  .predim-canvas-area {
+    padding: 8px;
+  }
+}
+
+/* Utility Classes */
+.hidden {
+  display: none !important;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.gap-2 {
+  gap: 8px;
+}
+
+.gap-4 {
+  gap: 16px;
+}

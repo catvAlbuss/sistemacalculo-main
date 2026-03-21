@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const ctx = canvas.getContext("2d");
   const brightnessRange = document.getElementById("brightnessRange");
   var originalPdfSnapshot;
-  const colorPicker = document.getElementById("#color-picker");
+  const colorPicker = document.getElementById("color-picker");
 
   const npisosInput = document.getElementById("npisos");
 
@@ -71,22 +71,30 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   // Inicializar el color seleccionado
-  let selectedColor = "#4A98F7";
+  let selectedColor = "#0400ff";
 
   // Obtener todos los enlaces de color
-  const colorLinks = document.querySelectorAll("a[data-color]");
+  const colorLinks = document.querySelectorAll("[data-color]");
 
   // Añadir un evento de clic a cada enlace de color
   colorLinks.forEach((link) => {
     link.addEventListener("click", (event) => {
       event.preventDefault(); // Evita que el enlace recargue la página
-      selectedColor = event.target.closest("a").getAttribute("data-color");
+      const target = event.target.closest("[data-color]");
+      if (!target) return;
+      selectedColor = target.getAttribute("data-color");
       console.log(`Color seleccionado: ${selectedColor}`);
 
       // Opcional: Puedes añadir una clase al enlace seleccionado para resaltar el color
       colorLinks.forEach((link) => link.classList.remove("selected-color"));
-      event.target.closest("a").classList.add("selected-color");
+      target.classList.add("selected-color");
     });
+  });
+
+  colorLinks.forEach((link) => {
+    if (link.getAttribute("data-color") === selectedColor) {
+      link.classList.add("selected-color");
+    }
   });
 
   //===================Escalado de pdf y las lineas ============================================//

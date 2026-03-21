@@ -33,9 +33,14 @@ $logout = function (Logout $logout) {
                 </div>
 
                 <!-- Navigation Links -->
-                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                <div class="hidden space-x-2 sm:-my-px sm:ms-10 sm:flex">
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" {{-- wire:navigate --}}>
                         {{ __('Inicio') }}
+                    </x-nav-link>
+
+                    <x-nav-link :href="route('calculadora.asistente.memoria-calculo')"
+                        :active="request()->routeIs('calculadora.asistente.memoria-calculo')">
+                        {{ __('Memoria Calculo') }}
                     </x-nav-link>
                 </div>
                 @php
@@ -274,7 +279,8 @@ $logout = function (Logout $logout) {
                             </x-dropdown-link>
 
                             {{-- Logout --}}
-                            <button class="w-full text-start" wire:click="logout"> <x-dropdown-link> {{ __('Log Out') }} </x-dropdown-link> </button>
+                            <button class="w-full text-start" wire:click="logout"> <x-dropdown-link> {{ __('Log Out') }}
+                                </x-dropdown-link> </button>
                         </x-slot>
                     </x-dropdown>
                 </div>
@@ -303,6 +309,10 @@ $logout = function (Logout $logout) {
             <x-responsive-nav-link component="responsive-nav-item" :href="route('dashboard')" :active="request()->routeIs('dashboard')"
                 {{-- wire:navigate --}}>
                 {{ __('Dashboard') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link component="responsive-nav-item" :href="route('calculadora.asistente.memoria-calculo')"
+                :active="request()->routeIs('calculadora.asistente.memoria-calculo')">
+                {{ __('Memoria Calculo') }}
             </x-responsive-nav-link>
         </div>
         <div class="space-y-1 pb-3 pt-2">

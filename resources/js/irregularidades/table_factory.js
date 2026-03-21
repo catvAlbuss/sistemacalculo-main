@@ -29,7 +29,7 @@ export function createTableIrregularidad(
   document
     .getElementById(tbRigidez.id + "Next")
     .addEventListener("click", function () {
-      document.getElementById(tbRigidez.id + "Div").classList.toggle("d-none");
+      document.getElementById(tbRigidez.id + "Div").classList.toggle("d-none"); 
       document
         .getElementById(tbRigidez.id + "E" + "Div")
         .classList.toggle("d-none");

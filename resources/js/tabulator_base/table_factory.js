@@ -238,7 +238,7 @@ export function createSpreeadSheetTable(tableModel) {
 
   table.on("tableBuilt", function () {
     if (tableModel.data !== undefined) {
-      table.addRow(tableModel.data);
+      table.setData(tableModel.data);
       table.clearHistory();
     }
     if (spareRow) {
