@@ -18,7 +18,7 @@ $logout = function (Logout $logout) {
     <script type="text/javascript" src="https://www.geogebra.org/apps/deployggb.js"></script>
 @endpushOnce
 
-<nav class="border-b border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800" x-data="scientific_calculator_applet"
+<nav class="z-50 border-b border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800" x-data="scientific_calculator_applet"
     x-init="initComponent($refs.calculator_dialog, $refs.applet_container)">
     <!-- Primary Navigation Menu -->
     <div class="mx-auto max-w-full px-4 sm:px-6 lg:px-8">
@@ -35,7 +35,7 @@ $logout = function (Logout $logout) {
                 <!-- Navigation Links -->
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" {{-- wire:navigate --}}>
-                        {{ __('Dashboard') }}
+                        {{ __('Inicio') }}
                     </x-nav-link>
                 </div>
                 @php
@@ -57,12 +57,7 @@ $logout = function (Logout $logout) {
 
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                     <x-dropdown-nav-item name="{{ __('Estudiante') }}" :active="request()->routeIs('calculadora.estudiante.*')">
-                        <x-dropdown-link :href="route('software.predim')" :active="request()->routeIs('software.predim')">
-                            {{ __('Predim') }}
-                        </x-dropdown-link>
-                        <x-dropdown-link :href="route('calculadora.estudiante.arco_techo')" :active="request()->routeIs('calculadora.estudiante.arco_techo')">
-                            {{ __('Arco Techo') }}
-                        </x-dropdown-link>
+                        
                         <x-dropdown-sub label="{{ __('Concreto Armado') }}" :links="[
                             [
                                 'url' => 'calculadora.estudiante.cav2.metrados',
@@ -104,10 +99,7 @@ $logout = function (Logout $logout) {
                                 'url' => 'calculadora.estudiante.cav2.vigas-continuas',
                                 'label' => 'Vigas Continuas',
                             ],
-                            [
-                                'url' => 'calculadora.estudiante.cav2.hoja2',
-                                'label' => 'Hoja2',
-                            ],
+
                         ]"></x-dropdown-sub>
                     </x-dropdown-nav-item>
                 </div>
@@ -218,11 +210,20 @@ $logout = function (Logout $logout) {
                             ['url' => 'software.cimentacion-v1', 'label' => 'Cimentacion v1.0'],
                             ['url' => 'software.cimentacion-v2', 'label' => 'Cimentacion v2.0'],
                             ['url' => 'software.analisis-estructural-de-armaduras', 'label' => 'Analisis Estructural'],
-                            [
-                                'url' => 'calculadora.asistente.muros-de-contencionv2',
-                                'label' => 'Diseño de Muros de Contención V 2.0',
-                            ],
+                            ['url' => 'calculadora.asistente.muros-de-contencionv2','label' => 'Diseño de Muros de ContenciónV2'],
                         ]"></x-dropdown-sub>
+
+                        <x-dropdown-link :href="route('software.predim')" :active="request()->routeIs('software.predim')">
+                            {{ __('Predim') }}
+                        </x-dropdown-link>
+                        <x-dropdown-link :href="route('calculadora.estudiante.arco_techo')" :active="request()->routeIs('calculadora.estudiante.arco_techo')">
+                            {{ __('Arco Techo') }}
+                        </x-dropdown-link>
+                    </x-dropdown-nav-item>
+                </div>
+                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                    <x-dropdown-nav-item name="{{ __('Revisor') }}" :active="request()->routeIs('software.*')">
+                        
                         <x-dropdown-sub label="{{ __('Verificacion') }}" :links="[
                             ['url' => 'software.anclaje-v1', 'label' => 'Anclaje'],
                             ['url' => 'software.base-dinamica-v1', 'label' => 'Bases Dinamicas'],
@@ -230,9 +231,12 @@ $logout = function (Logout $logout) {
                             ['url' => 'software.estribo-placa-v1', 'label' => 'Estribo de Placas'],
                             ['url' => 'software.predim-viga-v1', 'label' => 'Predim Viga'],
                             ['url' => 'software.verificacion-viga-v1', 'label' => 'Viga Verifica'],
+                            ['url' => 'calculadora.estudiante.cav2.hoja2','label' => 'VRD-ALIG'],
                         ]"></x-dropdown-sub>
+
                     </x-dropdown-nav-item>
-                </div>
+                </div>   
+                
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                     <x-nav-item @click="toggle()"><x-svg.calculator class="h-5"></x-svg.calculator></x-nav-item>
                 </div>

@@ -165,7 +165,7 @@ class User extends Authenticatable
     }
     public function activeSessions()
     {
-        return $this->hasMany(Session::class)
+        return $this->hasMany(session::class)
             ->where('last_activity', '>=', now()->subMinutes(30)->timestamp);
     }
 }

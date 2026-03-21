@@ -111,7 +111,7 @@
                                 </form>
                             </div>
 
-                            <div class="flex gap-2">
+                            <!--<div class="flex gap-2">
                                 <a href="{{ route('suscripciones.edit', $plan['id']) }}"
                                     class="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-blue-700">
                                     Editar
@@ -125,7 +125,7 @@
                                         Eliminar
                                     </button>
                                 </form>
-                            </div>
+                            </div>-->
                         </div>
                     </div>
                 @empty

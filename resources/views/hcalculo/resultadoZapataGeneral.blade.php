@@ -1732,7 +1732,7 @@
             <tr class="bg-gray-100 dark:bg-gray-600 text-center">
                 <td class='py-2 px-8'>peralte efectivo</td>
                 <td class='py-2 px-4 text-center' scope="col">d</td>
-                <td class='py-2 px-4 text-center' colspan="2">{{ $PEfectivoCM }} m</td>
+                <td class='py-2 px-4 text-center' colspan="2">{{ $PEfectivoCM }} cm</td>
             </tr>
             <tr class="bg-gray-100 dark:bg-gray-600 text-center">
                 <td class='py-2 px-8'>dimensión de zapata en X</td>

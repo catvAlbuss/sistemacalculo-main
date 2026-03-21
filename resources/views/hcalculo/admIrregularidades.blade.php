@@ -10,7 +10,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
   <link href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" rel="stylesheet" />
-  <title>{{ config('app.name', 'Laravel') }}</title>
+  <title>{{ config('app.name', 'R&AIE') }}</title>
 
   <link type="image/x-icon" href="{{ url('/assets/img/logo_rizabalAsociados.png') }}" rel="icon">
 </head>

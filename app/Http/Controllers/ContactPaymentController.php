@@ -140,12 +140,12 @@ class ContactPaymentController extends Controller
     {
         // 1. Email al cliente (Usando Mailable)
         $mailableClient = new SolicitudCliente($user, $plan, $paymentRequest, $password);
-        //Mail::to($user->email)->send($mailableClient);
+        Mail::to($user->email)->send($mailableClient);
 
         // 2. Email al administrador (Usando Mailable) - Con archivo adjunto
         $adminEmail = config('mail.admin_email', 'admon.construyehco@gmail.com');
         $mailableAdmin = new SolicitudAdmin($user, $plan, $paymentRequest, $uploadedFile);
-        //Mail::to($adminEmail)->send($mailableAdmin);
+        Mail::to($adminEmail)->send($mailableAdmin);
     }
 
     /**

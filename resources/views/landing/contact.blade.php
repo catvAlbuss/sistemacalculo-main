@@ -204,7 +204,7 @@
 
                                         <!-- QR Code Placeholder -->
                                         <div class="bg-white p-4 rounded-lg inline-block mb-3">
-                                            <img src="{{ Vite::asset('resources/img/qrcodeyape.png') }}" alt="QR Yape"
+                                            <img src="{{ Vite::asset('resources/img/qrcodeyapera.png') }}" alt="QR Yape"
                                                 class="w-60 h-60">
                                         </div>
 
@@ -213,8 +213,8 @@
                                             Escanea el código QR con tu app Yape
                                         </p>
                                         <p class="text-xs text-gray-500">
-                                            Nombre: <span class="font-bold">Andrea A. Paredes S.</span>
-                                            Número: <span class="font-bold">+51 959 422 042</span>
+                                            Nombre: <span class="font-bold">Luis A. Rizabal G.</span>
+                                            Número: <span class="font-bold">+51 962 999 500</span>
                                         </p>
                                     </div>
 
