@@ -574,7 +574,7 @@
               <div id="ObtenerResultadosCol"></div>
             </div>
             <div class="overflow-x-auto py-5">
-              <div class="grid grid-cols-2 gap-4">
+              <div class="grid grid-cols-2 gap-2">
                 <script src="https://npmcdn.com/chart.js@latest/dist/chart.umd.js"></script>
                 <div class="myChartDiv">
                   <canvas id="DIXXs"

@@ -95,9 +95,12 @@ Route::middleware(["auth", "verified"])->group(function () {
         });
 
         //==================CALCULADORA ASISTENTE (Root, Gerencia, Asistente)//
-        Route::middleware(['role:root,gerencia,asistente'])->group(function () {
+        Route::middleware(['role:root|gerencia|asistente'])->group(function () {
             Route::prefix('asistente')->name('asistente.')->group(function () {
+
+                // Agrega la ruta de admMemoriaCalculo memoria-calculo
                 Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name('memoria-calculo');
+
                 // Vigas
                 Route::view('/vigas', 'hcalculo.admdesingvigas')->name('vigas');
                 Route::view('/vigas-general', 'hcalculo.admvigageneral')->name('vigas-general');
@@ -168,7 +171,9 @@ Route::middleware(["auth", "verified"])->group(function () {
         Route::view('/estribo-placa-v1', 'hcalculo.verificaciones.admEstriboplacas')->name("estribo-placa-v1");
         Route::view('/predim-viga-v1', 'hcalculo.verificaciones.admPredimviga')->name("predim-viga-v1");
         Route::view('/verificacion-viga-v1', 'hcalculo.verificaciones.admVigaverifica')->name("verificacion-viga-v1");
-        Route::view('/predim', 'predim.predim')->name("predim");
+
+
+        Route::view('/predim', 'predim.predim')->name('predim');
     });
 
     //===================RUTA DE LOSAS========================================//

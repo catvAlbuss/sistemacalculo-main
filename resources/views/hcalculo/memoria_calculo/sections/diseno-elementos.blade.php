@@ -91,9 +91,11 @@
                                     <template x-for="(img, imgIndex) in ($store.memoriaCalculo.previews.predimImages[seccionIndex])" :key="imgIndex">
                                         <div class="space-y-2" :data-image-slot="`predimImages-${seccionIndex}-${imgIndex}`">
 
-                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                Imagen <span x-text="imgIndex + 1"></span>
+                                            <!-- Usando x-text con condicional -->
+                                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300"
+                                                x-text="imgIndex === 0 ? 'FIGURA CANVAN' : `TABLA ${imgIndex}`">
                                             </label>
+
 
                                             <!-- Preview de imagen -->
                                             <template x-if="$store.memoriaCalculo.previews.predimImages[seccionIndex]?.[imgIndex]">

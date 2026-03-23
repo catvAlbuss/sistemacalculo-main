@@ -1421,7 +1421,7 @@ export class DocumentTransformer {
         width: 500,
         height: 300,
         caption: "figura 45-TABLA DE PREDISIONAMIENTO ",
-        alignment: "center",
+        alignment: "CENTER",
       });
       console.warn("Se encontró el parrafo de losa aligerada");
     } else {
@@ -1462,22 +1462,6 @@ export class DocumentTransformer {
     if (metradoCargasListIdx !== -1) {
       console.log("Se encontro la list de metrado de cargas para insertar la tabla.");
       disenoElementos.content.splice(metradoCargasListIdx + 1, 0, tablaMetradoCargasDetallada);
-    } else {
-      disenoElementos.content.splice(metradoCargasListIdx + 1, 0, {
-        type: "paragraph",
-        text: `[TABLA METRADOS DE CARGAS  - Sin tabla disponible]`,
-        style: "placeholder",
-        alignment: "center",
-      });
-      console.log("No Se encontro la list de metrado de cargas para insertar la tabla.");
-    }
-    // Buscar la lista "METRADO DE CARGAS"
-    const disenoAligeradaListIdx = disenoElementos.content.findIndex(
-      (item, i) => i > idx42 && item.type === "list" && item.items && item.items[0] === "METRADO DE CARGAS",
-    );
-
-    if (disenoAligeradaListIdx !== -1) {
-      console.log(`✅ Lista 'METRADO DE CARGAS' encontrada en índice: ${disenoAligeradaListIdx}`);
 
       // Obtener el texto de las secciones del store
       const listAligeradas = this.sections?.disenoElementos?.lista || "";
@@ -1502,7 +1486,7 @@ export class DocumentTransformer {
         console.log(`🖼️ Total de imágenes disponibles: ${losaImages.length} secciones con 4 imágenes cada una`);
 
         // INSERTAR las nuevas listas con sus imágenes
-        let currentPosition = disenoAligeradaListIdx + 1;
+        let currentPosition = metradoCargasListIdx + 2;
 
         for (let index = 0; index < itemsArray.length; index++) {
           const item = itemsArray[index];
@@ -1523,19 +1507,35 @@ export class DocumentTransformer {
             const imagen = imagenesSeccion[imgIdx];
 
             if (imagen) {
-              // Si hay imagen, insertarla
-              disenoElementos.content.splice(currentPosition, 0, {
-                type: "image",
-                src: imagen, // Aquí va la URL de la imagen
-                alt: `Figura 4.2.${index + 1}.${imgIdx + 1} - ${item}`,
-                width: 500,
-                height: 300,
-                caption: `Figura 4.2.${index + 1}.${imgIdx + 1} - Detalle ${imgIdx + 1} de ${item}`,
-                alignment: "center",
-              });
-              console.log(
-                `   🖼️ Insertada imagen ${imgIdx + 1} de sección ${index + 1} en posición ${currentPosition}`,
-              );
+              if (imgIdx === 0) {
+                // Si hay imagen, insertarla
+                disenoElementos.content.splice(currentPosition, 0, {
+                  type: "image",
+                  src: imagen, // Aquí va la URL de la imagen
+                  alt: `Figura 4.2.${index + 1}.${imgIdx + 1} - ${item}`,
+                  width: 500,
+                  height: 300,
+                  caption: `Figura 4.2.${index + 1}.${imgIdx + 1} - Detalle ${imgIdx + 1} de ${item}`,
+                  alignment: "CENTER",
+                });
+                console.log(
+                  `   🖼️ Insertada imagen ${imgIdx + 1} de sección ${index + 1} en posición ${currentPosition}`,
+                );
+              } else {
+                // Si hay imagen, insertarla
+                disenoElementos.content.splice(currentPosition, 0, {
+                  type: "image",
+                  src: imagen, // Aquí va la URL de la imagen
+                  alt: `Figura 4.2.${index + 1}.${imgIdx + 1} - ${item}`,
+                  width: 500,
+                  height: 800,
+                  caption: `Figura 4.2.${index + 1}.${imgIdx + 1} - Detalle ${imgIdx + 1} de ${item}`,
+                  alignment: "CENTER",
+                });
+                console.log(
+                  `   🖼️ Insertada imagen ${imgIdx + 1} de sección ${index + 1} en posición ${currentPosition}`,
+                );
+              }
             } else {
               // Si no hay imagen, insertar un placeholder o mensaje
               disenoElementos.content.splice(currentPosition, 0, {
@@ -1555,7 +1555,20 @@ export class DocumentTransformer {
       }
 
       console.log("✅ Listas e imágenes de losa aligerada insertadas correctamente");
+      console.log(`✅ Lista 'METRADO DE CARGAS' encontrada en índice: ${metradoCargasListIdx}`);
+    } else {
+      disenoElementos.content.splice(metradoCargasListIdx + 1, 0, {
+        type: "paragraph",
+        text: `[TABLA METRADOS DE CARGAS  - Sin tabla disponible]`,
+        style: "placeholder",
+        alignment: "center",
+      });
+      console.log("No Se encontro la list de metrado de cargas para insertar la tabla.");
     }
+    // Buscar la lista "METRADO DE CARGAS"
+    // const metradoCargasListIdx = disenoElementos.content.findIndex(
+    //   (item, i) => i > idx42 && item.type === "list" && item.items && item.items[0] === "METRADO DE CARGAS",
+    // );
 
     // ==================== DISEÑO DE LOZA MACIZA =======================0
     const idx43 = disenoElementos.content.findIndex(
@@ -1607,6 +1620,329 @@ export class DocumentTransformer {
       disenoElementos.content.splice(disenoLosaParagraphIdx + 1, 0, ...contentLosaMaciza);
     }
 
+    // ================== DISEÑO DE LOSA NERVADA 1 =======================
+    const idx44 = disenoElementos.content.findIndex(
+      (item) => item.type === "heading" && item.text === "4.4 DISEÑO DE LOSA NERVADA",
+    );
+    const disenoLosaNervadaParagraphIdx = disenoElementos.content.findIndex(
+      (item, i) => i > idx44 && item.type === "paragraph" && item.text === "Diseño de losa nervada 1 e=0.25",
+    );
+    const disenoLosaNervada1Images = this.previews.disenoLosaNervada1Images || [];
+
+    if (disenoLosaNervadaParagraphIdx !== -1 && disenoLosaNervada1Images[0]) {
+      disenoElementos.content.splice(disenoLosaNervadaParagraphIdx + 1, 0, {
+        type: "image",
+        src: disenoLosaNervada1Images[0],
+        alignment: "CENTER",
+        width: 500,
+        height: 280,
+        caption: "Ubicación de la losa para diseñar",
+      });
+    }
+
+    const disenoLosaNervadaVerticalParagraphIdx = disenoElementos.content.findIndex(
+      (item, i) =>
+        i > idx44 && item.type === "paragraph" && item.text === "Diseño de Losa Nervada – Dirección Vertical",
+    );
+
+    if (disenoLosaNervadaVerticalParagraphIdx !== -1) {
+      let insertIdx = disenoLosaNervadaVerticalParagraphIdx + 1;
+      if (disenoLosaNervada1Images[1]) {
+        disenoElementos.content.splice(insertIdx, 0, {
+          type: "image",
+          src: disenoLosaNervada1Images[1],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "",
+        });
+        insertIdx++;
+      }
+      if (disenoLosaNervada1Images[2]) {
+        disenoElementos.content.splice(insertIdx, 0, {
+          type: "image",
+          src: disenoLosaNervada1Images[2],
+          alignment: "CENTER",
+          width: 500,
+          height: 800,
+          caption: "",
+        });
+
+        insertIdx++;
+      }
+
+      disenoElementos.content.splice(insertIdx, 0, {
+        type: "paragraph",
+        text: "Se usará acero 1Ø1/2”+1Ø3/8”",
+        alignment: "JUSTIFIED",
+      });
+      insertIdx++;
+
+      if (disenoLosaNervada1Images[3]) {
+        disenoElementos.content.splice(insertIdx, 0, {
+          type: "image",
+          src: disenoLosaNervada1Images[3],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "",
+        });
+      }
+      insertIdx++;
+
+      if (disenoLosaNervada1Images[4]) {
+        disenoElementos.content.splice(insertIdx, 0, {
+          type: "image",
+          src: disenoLosaNervada1Images[4],
+          alignment: "CENTER",
+          width: 500,
+          height: 800,
+          caption: "",
+        });
+      }
+      insertIdx++;
+
+      disenoElementos.content.splice(insertIdx, 0, {
+        type: "paragraph",
+        text: "Se usará acero 1Ø1/2”+1Ø3/8”",
+        alignment: "JUSTIFIED",
+      });
+      insertIdx++;
+    }
+
+    const disenoLosaNervadaHorizontallParagraphIdx = disenoElementos.content.findIndex(
+      (item, i) =>
+        i > idx44 && item.type === "paragraph" && item.text === "Diseño de Losa Nervada – Dirección Horizontal",
+    );
+
+    if (disenoLosaNervadaHorizontallParagraphIdx !== -1) {
+      let indiceInsercion = disenoLosaNervadaHorizontallParagraphIdx + 1;
+      if (disenoLosaNervada1Images[5]) {
+        disenoElementos.content.splice(indiceInsercion, 0, {
+          type: "image",
+          src: disenoLosaNervada1Images[5],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "",
+        });
+      }
+      indiceInsercion++;
+      if (disenoLosaNervada1Images[6]) {
+        disenoElementos.content.splice(indiceInsercion, 0, {
+          type: "image",
+          src: disenoLosaNervada1Images[6],
+          alignment: "CENTER",
+          width: 500,
+          height: 800,
+          caption: "",
+        });
+      }
+      indiceInsercion++;
+      disenoElementos.content.splice(indiceInsercion, 0, {
+        type: "paragraph",
+        text: "Se usará acero 1Ø1/2”",
+        alignment: "JUSTIFIED",
+      });
+      indiceInsercion++;
+
+      if (disenoLosaNervada1Images[7]) {
+        disenoElementos.content.splice(indiceInsercion, 0, {
+          type: "image",
+          src: disenoLosaNervada1Images[7],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "",
+        });
+      }
+      indiceInsercion++;
+
+      if (disenoLosaNervada1Images[8]) {
+        disenoElementos.content.splice(indiceInsercion, 0, {
+          type: "image",
+          src: disenoLosaNervada1Images[8],
+          alignment: "CENTER",
+          width: 500,
+          height: 800,
+          caption: "",
+        });
+      }
+      indiceInsercion++;
+      disenoElementos.content.splice(indiceInsercion, 0, {
+        type: "paragraph",
+        text: "Se usará acero 1Ø1/2”",
+        alignment: "JUSTIFIED",
+      });
+      indiceInsercion++;
+    }
+
+    // ===================== DISEÑO DE LOSA NERVADA 2 =================
+    const disenoLosaNervada2ParagraphIdx = disenoElementos.content.findIndex(
+      (item, i) => i > idx44 && item.type === "paragraph" && item.text === "Diseño de losa nervada 2 e=0.25",
+    );
+    const disenoLosaNervada2Images = this.previews.disenoLosaNervada2Images || [];
+
+    if (disenoLosaNervada2ParagraphIdx !== -1 && disenoLosaNervada2Images[0]) {
+      disenoElementos.content.splice(disenoLosaNervada2ParagraphIdx + 1, 0, {
+        type: "image",
+        src: disenoLosaNervada2Images[0],
+        alignment: "CENTER",
+        width: 500,
+        height: 280,
+        caption: "Ubicación de la losa para diseñar",
+      });
+    }
+
+    const disenoLosaNervadaVertical2ParagraphIdx = disenoElementos.content.findIndex(
+      (item, i) =>
+        i > idx44 &&
+        i > disenoLosaNervada2ParagraphIdx &&
+        item.type === "paragraph" &&
+        item.text === "Diseño de Losa Nervada – Dirección Vertical",
+    );
+
+    if (disenoLosaNervadaVertical2ParagraphIdx !== -1) {
+      let indice2LosaNervada = disenoLosaNervadaVertical2ParagraphIdx + 1;
+
+      if (disenoLosaNervada2Images[1]) {
+        disenoElementos.content.splice(indice2LosaNervada, 0, {
+          type: "image",
+          src: disenoLosaNervada2Images[1],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "",
+        });
+      }
+
+      indice2LosaNervada++;
+
+      if (disenoLosaNervada2Images[2]) {
+        disenoElementos.content.splice(indice2LosaNervada, 0, {
+          type: "image",
+          src: disenoLosaNervada2Images[2],
+          alignment: "CENTER",
+          width: 500,
+          height: 700,
+          caption: "",
+        });
+      }
+
+      indice2LosaNervada++;
+
+      disenoElementos.content.splice(indice2LosaNervada, 0, {
+        type: "paragraph",
+        text: "Se usará acero 1Ø1/2”+1Ø3/8”",
+        alignment: "JUSTIFIED",
+      });
+      indice2LosaNervada++;
+
+      if (disenoLosaNervada2Images[3]) {
+        disenoElementos.content.splice(indice2LosaNervada, 0, {
+          type: "image",
+          src: disenoLosaNervada2Images[3],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "",
+        });
+      }
+      indice2LosaNervada++;
+
+      if (disenoLosaNervada2Images[4]) {
+        disenoElementos.content.splice(indice2LosaNervada, 0, {
+          type: "image",
+          src: disenoLosaNervada2Images[4],
+          alignment: "CENTER",
+          width: 500,
+          height: 700,
+          caption: "",
+        });
+      }
+      indice2LosaNervada++;
+      disenoElementos.content.splice(indice2LosaNervada, 0, {
+        type: "paragraph",
+        text: "Se usará acero 1Ø1/2”+1Ø3/8”",
+        alignment: "JUSTIFIED",
+      });
+      indice2LosaNervada++;
+    }
+
+    const disenoLosaNervadaHorizontall2ParagraphIdx = disenoElementos.content.findIndex(
+      (item, i) =>
+        i > idx44 &&
+        i > disenoLosaNervada2ParagraphIdx &&
+        item.type === "paragraph" &&
+        item.text === "Diseño de Losa Nervada – Dirección Horizontal",
+    );
+
+    if (disenoLosaNervadaHorizontall2ParagraphIdx !== -1) {
+      let indice2LosaNervadaHorizontal = disenoLosaNervadaHorizontall2ParagraphIdx + 1;
+      if (disenoLosaNervada2Images[5]) {
+        disenoElementos.content.splice(indice2LosaNervadaHorizontal, 0, {
+          type: "image",
+          src: disenoLosaNervada2Images[5],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "",
+        });
+      }
+      indice2LosaNervadaHorizontal++;
+
+      if (disenoLosaNervada2Images[6]) {
+        disenoElementos.content.splice(indice2LosaNervadaHorizontal, 0, {
+          type: "image",
+          src: disenoLosaNervada2Images[6],
+          alignment: "CENTER",
+          width: 500,
+          height: 800,
+          caption: "",
+        });
+      }
+
+      indice2LosaNervadaHorizontal++;
+
+      disenoElementos.content.splice(indice2LosaNervadaHorizontal, 0, {
+        type: "paragraph",
+        text: "Se usará acero 1Ø1/2”",
+        alignment: "JUSTIFIED",
+      });
+      indice2LosaNervadaHorizontal++;
+
+      if (disenoLosaNervada2Images[7]) {
+        disenoElementos.content.splice(indice2LosaNervadaHorizontal, 0, {
+          type: "image",
+          src: disenoLosaNervada2Images[7],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "",
+        });
+      }
+      indice2LosaNervadaHorizontal++;
+
+      if (disenoLosaNervada2Images[8]) {
+        disenoElementos.content.splice(indice2LosaNervadaHorizontal, 0, {
+          type: "image",
+          src: disenoLosaNervada2Images[8],
+          alignment: "CENTER",
+          width: 500,
+          height: 800,
+          caption: "",
+        });
+      }
+      indice2LosaNervadaHorizontal++;
+
+      disenoElementos.content.splice(indice2LosaNervadaHorizontal, 0, {
+        type: "paragraph",
+        text: "Se usará acero 1Ø1/2”",
+        alignment: "JUSTIFIED",
+      });
+      indice2LosaNervadaHorizontal++;
+    }
+
     // ==================== DISEÑO DE VIGAS ========================
     console.log("🔍 ===== INICIANDO TRANSFORMACIÓN DE VIGAS =====");
     console.log("📦 this.previews.vigaImages:", this.previews?.vigaImages);
@@ -1648,7 +1984,7 @@ export class DocumentTransformer {
         width: 500,
         height: 300,
         caption: "figura 56-Consideraciones y términos para el diseño por flexión (tonf-m)",
-        alignment: "center",
+        alignment: "CENTER",
       });
       console.warn("Se encontró la lista diseno por flexion");
     } else {
@@ -1721,10 +2057,10 @@ export class DocumentTransformer {
               type: "image",
               src: imagen,
               alt: `Figura 4.5.${index + 1}.${imgIdx + 1} - ${item}`,
-              width: 600,
-              height: 900,
+              width: 500,
+              height: 700,
               caption: `Figura 4.5.${index + 1}.${imgIdx + 1} - Detalle ${imgIdx + 1} de ${item}`,
-              alignment: "center",
+              alignment: "CENTER",
             });
             console.log(`   🖼️ Insertada imagen ${imgIdx + 1} en posición ${currentPosition}`);
           } else {
@@ -1739,7 +2075,7 @@ export class DocumentTransformer {
           currentPosition++;
         }
 
-        // Espacio entre vigas (opcional)
+        // Espacio entre vigas
         if (index < itemsArray.length - 1) {
           disenoElementos.content.splice(currentPosition, 0, {
             type: "paragraph",
@@ -1842,7 +2178,7 @@ export class DocumentTransformer {
               width: 500,
               height: 300,
               caption: `Figura 4.6.${index + 1}.${imgIdx + 1} - Detalle ${imgIdx + 1} de ${item}`,
-              alignment: "center",
+              alignment: "CENTER",
             });
             console.log(`   🖼️ Insertada imagen ${imgIdx + 1} en posición ${currentPosition}`);
           } else {
@@ -1882,7 +2218,7 @@ export class DocumentTransformer {
             alt: `Figura diseño `,
             width: 200,
             height: 100,
-            caption: `[IMAGEN Formula 4.6.${index + 1} - Sin imagen disponible]`,
+            caption: `Formula 4.6.${index + 1}`,
           });
         } else {
           disenoElementos.content.splice(currentPosition, 0, {
@@ -2016,7 +2352,7 @@ export class DocumentTransformer {
             width: 500,
             height: 300,
             caption: `Ubicación de placa a diseñar - ${item}`,
-            alignment: "center",
+            alignment: "CENTER",
           });
           console.log(`   🖼️ Insertada imagen ubicación en posición ${currentPosition}`);
         } else {
@@ -2047,10 +2383,10 @@ export class DocumentTransformer {
               type: "image",
               src: imagenesSeccion[imgIdx],
               alt: `Diseño de placa ${placaIdx + 1} - Imagen ${imgIdx}`,
-              width: 500,
+              width: 600,
               height: 300,
               caption: `Figura de diseño ${imgIdx} - ${item}`,
-              alignment: "center",
+              alignment: "CENTER",
             });
             console.log(`   🖼️ Insertada imagen ${imgIdx} en posición ${currentPosition}`);
           } else {
@@ -2084,7 +2420,7 @@ export class DocumentTransformer {
             width: 500,
             height: 300,
             caption: `Diseño de corte - ${item}`,
-            alignment: "center",
+            alignment: "CENTER",
           });
           console.log(`   🖼️ Insertada imagen de corte en posición ${currentPosition}`);
         } else {
@@ -2092,7 +2428,7 @@ export class DocumentTransformer {
             type: "paragraph",
             text: "[IMAGEN DE CORTE - Sin imagen disponible]",
             style: "placeholder",
-            alignment: "center",
+            alignment: "CENTER",
           });
           console.log(`   ⚠️ Placeholder imagen de corte en posición ${currentPosition}`);
         }
@@ -2108,17 +2444,40 @@ export class DocumentTransformer {
         console.log(`   📝 Insertado "VERIFICACIÓN DE DIAGRAMA" en posición ${currentPosition}`);
         currentPosition++;
 
+        if (imagenesSeccion[9]) {
+          disenoElementos.content.splice(currentPosition, 0, {
+            type: "image",
+            src: imagenesSeccion[9],
+            alt: `Verificación diagrama ${placaIdx + 1} - Imagen 10`,
+            width: 450,
+            height: 450,
+            caption: `Verificación de diagrama 10 - ${item}`,
+            alignment: "CENTER",
+          });
+          console.log(`   🖼️ Insertada imagen diagrama 9 en posición ${currentPosition}`);
+        } else {
+          disenoElementos.content.splice(currentPosition, 0, {
+            type: "paragraph",
+            text: `[IMAGEN DIAGRAMA 9 - Sin imagen disponible]`,
+            style: "placeholder",
+            alignment: "CENTER",
+          });
+          console.log(`   ⚠️ Placeholder diagrama ${imgIdx - 8} en posición ${currentPosition}`);
+        }
+
+        currentPosition++;
+
         // 8. Insertar imágenes 9-14 (índices 9 a 14)
-        for (let imgIdx = 9; imgIdx < 14; imgIdx++) {
+        for (let imgIdx = 10; imgIdx < 14; imgIdx++) {
           if (imagenesSeccion[imgIdx]) {
             disenoElementos.content.splice(currentPosition, 0, {
               type: "image",
               src: imagenesSeccion[imgIdx],
               alt: `Verificación diagrama ${placaIdx + 1} - Imagen ${imgIdx - 8}`,
-              width: 500,
+              width: 600,
               height: 300,
               caption: `Verificación de diagrama ${imgIdx - 8} - ${item}`,
-              alignment: "center",
+              alignment: "CENTER",
             });
             console.log(`   🖼️ Insertada imagen diagrama ${imgIdx - 8} en posición ${currentPosition}`);
           } else {
@@ -2126,7 +2485,7 @@ export class DocumentTransformer {
               type: "paragraph",
               text: `[IMAGEN DIAGRAMA ${imgIdx - 8} - Sin imagen disponible]`,
               style: "placeholder",
-              alignment: "center",
+              alignment: "CENTER",
             });
             console.log(`   ⚠️ Placeholder diagrama ${imgIdx - 8} en posición ${currentPosition}`);
           }
@@ -2148,333 +2507,11 @@ export class DocumentTransformer {
 
       console.log("✅ Listas e imágenes de placas insertadas correctamente");
     }
-    // ================== Diseño de losa Nervada =======================
-    const idx44 = disenoElementos.content.findIndex(
-      (item) => item.type === "heading" && item.text === "4.4 DISEÑO DE LOSA NERVADA",
-    );
-    const disenoLosaNervadaParagraphIdx = disenoElementos.content.findIndex(
-      (item, i) => i > idx44 && item.type === "paragraph" && item.text === "Diseño de losa nervada 1 e=0.25",
-    );
-    const disenoLosaNervada1Images = this.previews.disenoLosaNervada1Images || [];
-
-    if (disenoLosaNervadaParagraphIdx !== -1 && disenoLosaNervada1Images[0]) {
-      disenoElementos.content.splice(disenoLosaNervadaParagraphIdx + 1, 0, {
-        type: "image",
-        src: disenoLosaNervada1Images[0],
-        alignment: "CENTER",
-        width: 500,
-        height: 280,
-        caption: "Ubicación de la losa para diseñar",
-      });
-    }
-
-    const disenoLosaNervadaVerticalParagraphIdx = disenoElementos.content.findIndex(
-      (item, i) =>
-        i > idx44 && item.type === "paragraph" && item.text === "Diseño de Losa Nervada – Dirección Vertical",
-    );
-
-    if (disenoLosaNervadaVerticalParagraphIdx !== -1) {
-      let insertIdx = disenoLosaNervadaVerticalParagraphIdx + 1;
-      if (disenoLosaNervada1Images[1]) {
-        disenoElementos.content.splice(insertIdx, 0, {
-          type: "image",
-          src: disenoLosaNervada1Images[1],
-          alignment: "CENTER",
-          width: 500,
-          height: 280,
-          caption: "",
-        });
-        insertIdx++;
-      }
-      if (disenoLosaNervada1Images[2]) {
-        disenoElementos.content.splice(insertIdx, 0, {
-          type: "image",
-          src: disenoLosaNervada1Images[2],
-          alignment: "CENTER",
-          width: 500,
-          height: 280,
-          caption: "",
-        });
-
-        insertIdx++;
-      }
-
-      disenoElementos.content.splice(insertIdx, 0, {
-        type: "paragraph",
-        text: "Se usará acero 1Ø1/2”+1Ø3/8”",
-        alignment: "JUSTIFIED",
-      });
-      insertIdx++;
-
-      if (disenoLosaNervada1Images[3]) {
-        disenoElementos.content.splice(insertIdx, 0, {
-          type: "image",
-          src: disenoLosaNervada1Images[3],
-          alignment: "CENTER",
-          width: 500,
-          height: 280,
-          caption: "",
-        });
-      }
-      insertIdx++;
-
-      if (disenoLosaNervada1Images[4]) {
-        disenoElementos.content.splice(insertIdx, 0, {
-          type: "image",
-          src: disenoLosaNervada1Images[4],
-          alignment: "CENTER",
-          width: 500,
-          height: 280,
-          caption: "",
-        });
-      }
-      insertIdx++;
-
-      disenoElementos.content.splice(insertIdx, 0, {
-        type: "paragraph",
-        text: "Se usará acero 1Ø1/2”+1Ø3/8”",
-        alignment: "JUSTIFIED",
-      });
-      insertIdx++;
-    }
-
-    const disenoLosaNervadaHorizontallParagraphIdx = disenoElementos.content.findIndex(
-      (item, i) =>
-        i > idx44 && item.type === "paragraph" && item.text === "Diseño de Losa Nervada – Dirección Horizontal",
-    );
-
-    if (disenoLosaNervadaHorizontallParagraphIdx !== -1) {
-      let indiceInsercion = disenoLosaNervadaHorizontallParagraphIdx + 1;
-      if (disenoLosaNervada1Images[5]) {
-        disenoElementos.content.splice(indiceInsercion, 0, {
-          type: "image",
-          src: disenoLosaNervada1Images[5],
-          alignment: "CENTER",
-          width: 500,
-          height: 280,
-          caption: "",
-        });
-      }
-      indiceInsercion++;
-      if (disenoLosaNervada1Images[6]) {
-        disenoElementos.content.splice(indiceInsercion, 0, {
-          type: "image",
-          src: disenoLosaNervada1Images[6],
-          alignment: "CENTER",
-          width: 500,
-          height: 280,
-          caption: "",
-        });
-      }
-      indiceInsercion++;
-      disenoElementos.content.splice(indiceInsercion, 0, {
-        type: "paragraph",
-        text: "Se usará acero 1Ø1/2”",
-        alignment: "JUSTIFIED",
-      });
-      indiceInsercion++;
-
-      if (disenoLosaNervada1Images[7]) {
-        disenoElementos.content.splice(indiceInsercion, 0, {
-          type: "image",
-          src: disenoLosaNervada1Images[7],
-          alignment: "CENTER",
-          width: 500,
-          height: 280,
-          caption: "",
-        });
-      }
-      indiceInsercion++;
-
-      if (disenoLosaNervada1Images[8]) {
-        disenoElementos.content.splice(indiceInsercion, 0, {
-          type: "image",
-          src: disenoLosaNervada1Images[8],
-          alignment: "CENTER",
-          width: 500,
-          height: 280,
-          caption: "",
-        });
-      }
-      indiceInsercion++;
-      disenoElementos.content.splice(indiceInsercion, 0, {
-        type: "paragraph",
-        text: "Se usará acero 1Ø1/2”",
-        alignment: "JUSTIFIED",
-      });
-      indiceInsercion++;
-    }
-
-    // ===================== DISEÑO DE LOSA NERVADA 2 =================
-    const disenoLosaNervada2ParagraphIdx = disenoElementos.content.findIndex(
-      (item, i) => i > idx44 && item.type === "paragraph" && item.text === "Diseño de losa nervada 2 e=0.25",
-    );
-    const disenoLosaNervada2Images = this.previews.disenoLosaNervada2Images || [];
-
-    if (disenoLosaNervada2ParagraphIdx !== -1 && disenoLosaNervada2Images[0]) {
-      disenoElementos.content.splice(disenoLosaNervada2ParagraphIdx + 1, 0, {
-        type: "image",
-        src: disenoLosaNervada2Images[0],
-        alignment: "CENTER",
-        width: 500,
-        height: 280,
-        caption: "Ubicación de la losa para diseñar",
-      });
-    }
-
-    const disenoLosaNervadaVertical2ParagraphIdx = disenoElementos.content.findIndex(
-      (item, i) =>
-        i > idx44 &&
-        i > disenoLosaNervada2ParagraphIdx &&
-        item.type === "paragraph" &&
-        item.text === "Diseño de Losa Nervada – Dirección Vertical",
-    );
-
-    if (disenoLosaNervadaVertical2ParagraphIdx !== -1) {
-      let indice2LosaNervada = disenoLosaNervadaVertical2ParagraphIdx + 1;
-
-      if (disenoLosaNervada2Images[1]) {
-        disenoElementos.content.splice(indice2LosaNervada, 0, {
-          type: "image",
-          src: disenoLosaNervada2Images[1],
-          alignment: "CENTER",
-          width: 500,
-          height: 280,
-          caption: "",
-        });
-      }
-
-      indice2LosaNervada++;
-
-      if (disenoLosaNervada2Images[2]) {
-        disenoElementos.content.splice(indice2LosaNervada, 0, {
-          type: "image",
-          src: disenoLosaNervada2Images[2],
-          alignment: "CENTER",
-          width: 500,
-          height: 280,
-          caption: "",
-        });
-      }
-
-      indice2LosaNervada++;
-
-      disenoElementos.content.splice(indice2LosaNervada, 0, {
-        type: "paragraph",
-        text: "Se usará acero 1Ø1/2”+1Ø3/8”",
-        alignment: "JUSTIFIED",
-      });
-      indice2LosaNervada++;
-
-      if (disenoLosaNervada2Images[3]) {
-        disenoElementos.content.splice(indice2LosaNervada, 0, {
-          type: "image",
-          src: disenoLosaNervada2Images[3],
-          alignment: "CENTER",
-          width: 500,
-          height: 280,
-          caption: "",
-        });
-      }
-      indice2LosaNervada++;
-
-      if (disenoLosaNervada2Images[4]) {
-        disenoElementos.content.splice(indice2LosaNervada, 0, {
-          type: "image",
-          src: disenoLosaNervada2Images[4],
-          alignment: "CENTER",
-          width: 500,
-          height: 280,
-          caption: "",
-        });
-      }
-      indice2LosaNervada++;
-      disenoElementos.content.splice(indice2LosaNervada, 0, {
-        type: "paragraph",
-        text: "Se usará acero 1Ø1/2”+1Ø3/8”",
-        alignment: "JUSTIFIED",
-      });
-      indice2LosaNervada++;
-    }
-
-    const disenoLosaNervadaHorizontall2ParagraphIdx = disenoElementos.content.findIndex(
-      (item, i) =>
-        i > idx44 &&
-        i > disenoLosaNervada2ParagraphIdx &&
-        item.type === "paragraph" &&
-        item.text === "Diseño de Losa Nervada – Dirección Horizontal",
-    );
-
-    if (disenoLosaNervadaHorizontall2ParagraphIdx !== -1) {
-      let indice2LosaNervadaHorizontal = disenoLosaNervadaHorizontall2ParagraphIdx + 1;
-      if (disenoLosaNervada2Images[5]) {
-        disenoElementos.content.splice(indice2LosaNervadaHorizontal, 0, {
-          type: "image",
-          src: disenoLosaNervada2Images[5],
-          alignment: "CENTER",
-          width: 500,
-          height: 280,
-          caption: "",
-        });
-      }
-      indice2LosaNervadaHorizontal++;
-
-      if (disenoLosaNervada2Images[6]) {
-        disenoElementos.content.splice(indice2LosaNervadaHorizontal, 0, {
-          type: "image",
-          src: disenoLosaNervada2Images[6],
-          alignment: "CENTER",
-          width: 500,
-          height: 280,
-          caption: "",
-        });
-      }
-
-      indice2LosaNervadaHorizontal++;
-
-      disenoElementos.content.splice(indice2LosaNervadaHorizontal, 0, {
-        type: "paragraph",
-        text: "Se usará acero 1Ø1/2”",
-        alignment: "JUSTIFIED",
-      });
-      indice2LosaNervadaHorizontal++;
-
-      if (disenoLosaNervada2Images[7]) {
-        disenoElementos.content.splice(indice2LosaNervadaHorizontal, 0, {
-          type: "image",
-          src: disenoLosaNervada2Images[7],
-          alignment: "CENTER",
-          width: 500,
-          height: 280,
-          caption: "",
-        });
-      }
-      indice2LosaNervadaHorizontal++;
-
-      if (disenoLosaNervada2Images[8]) {
-        disenoElementos.content.splice(indice2LosaNervadaHorizontal, 0, {
-          type: "image",
-          src: disenoLosaNervada2Images[8],
-          alignment: "CENTER",
-          width: 500,
-          height: 280,
-          caption: "",
-        });
-      }
-      indice2LosaNervadaHorizontal++;
-
-      disenoElementos.content.splice(indice2LosaNervadaHorizontal, 0, {
-        type: "paragraph",
-        text: "Se usará acero 1Ø1/2”",
-        alignment: "JUSTIFIED",
-      });
-      indice2LosaNervadaHorizontal++;
-    }
 
     // ======================== DISEÑO DE MURO DE CONCRETO ============================
 
     const idx48 = disenoElementos.content.findIndex(
-      (item) => item.type === "heading" && item.text === "4.8 DISEÑO DE MURO CONCRETO DISEÑO DE ESCALERA",
+      (item) => item.type === "heading" && item.text === "4.8 DISEÑO DE MURO CONCRETO",
     );
     const disenoConcretoParagraphIdx = disenoElementos.content.findIndex(
       (item, i) =>
@@ -2488,23 +2525,53 @@ export class DocumentTransformer {
     const disenoMuroConcretoImages = this.previews.disenoMuroConcretoImages || [];
 
     if (disenoConcretoParagraphIdx !== -1) {
-      console.log("Parrafo encontrado");
-      const contentConcreto = [];
-      const concretoCaption = ["M22(0.70TN-M)", "M33(0.71TN-M)", "V23(0.78TN-M)", "V13(0.025TN-M)", ""];
+      let indice = disenoConcretoParagraphIdx + 1;
+      const concretoCaption = ["M22(0.70TN-M)", "M33(0.71TN-M)", "V23(0.78TN-M)", "V13(0.025TN-M)"];
 
-      disenoMuroConcretoImages.forEach((src, i) => {
-        if (src) {
-          contentConcreto.push({
+      for (let index = 0; index < 4; index++) {
+        if (disenoMuroConcretoImages[index]) {
+          disenoElementos.content.splice(indice, 0, {
             type: "image",
-            src,
+            src: disenoMuroConcretoImages[index],
             alignment: "CENTER",
             width: 500,
             height: 280,
-            caption: concretoCaption[i],
+            caption: concretoCaption[index],
           });
+        } else {
+          disenoElementos.content.splice(indice, 0, {
+            type: "paragraph",
+            text: `[IMAGEN  ${index} - Sin imagen disponible]`,
+            style: "placeholder",
+            alignment: "CENTER",
+          });
+          console.log(`   ⚠️ Placeholder diagrama ${index} en posición ${indice}`);
         }
-      });
-      disenoElementos.content.splice(disenoConcretoParagraphIdx + 1, 0, ...contentConcreto);
+
+        indice++;
+      }
+
+      for (let idx = 4; idx < 6; idx++) {
+        if (disenoMuroConcretoImages[idx]) {
+          disenoElementos.content.splice(indice, 0, {
+            type: "image",
+            src: disenoMuroConcretoImages[idx],
+            alignment: "CENTER",
+            width: 500,
+            height: 750,
+            caption: concretoCaption[idx],
+          });
+        } else {
+          disenoElementos.content.splice(indice, 0, {
+            type: "paragraph",
+            text: `[IMAGEN  ${idx} - Sin imagen disponible]`,
+            style: "placeholder",
+            alignment: "CENTER",
+          });
+          console.log(`   ⚠️ Placeholder diagrama ${idx} en posición ${indice}`);
+        }
+        indice++;
+      }
     }
 
     // ======================== DISEÑO DE ESCALERA ============================
@@ -2524,22 +2591,37 @@ export class DocumentTransformer {
 
     if (disenoEscaleraParagraphIdx !== -1) {
       console.log("Parrafo encontrado");
-      const contentEscaleras = [];
-      const escalerasCaption = ["M22 (1.23TN-M)", "M33 (0.12TN-M)", "V23 (1.47TN-M)", "V13 (1.66TN-M)", ""];
-
-      disenoEscaleraImages.forEach((src, i) => {
-        if (src) {
-          contentEscaleras.push({
+      const escalerasCaption = ["M22 (1.23TN-M)", "M33 (0.12TN-M)", "V23 (1.47TN-M)", "V13 (1.66TN-M)"];
+      let indice = disenoEscaleraParagraphIdx + 1;
+      for (let index = 0; index < 4; index++) {
+        if (disenoEscaleraImages[index]) {
+          disenoElementos.content.splice(indice, 0, {
             type: "image",
-            src,
+            src: disenoEscaleraImages[index],
             alignment: "CENTER",
             width: 500,
             height: 280,
-            caption: escalerasCaption[i],
+            caption: escalerasCaption[index],
           });
+        } else {
+          disenoElementos.content.splice(indice, 0, {
+            type: "paragraph",
+            text: `[IMAGEN  ${index} - Sin imagen disponible]`,
+            style: "placeholder",
+            alignment: "CENTER",
+          });
+          console.log(`   ⚠️ Placeholder diagrama ${index} en posición ${indice}`);
         }
+        indice++;
+      }
+      disenoElementos.content.splice(indice, 0, {
+        type: "image",
+        src: disenoEscaleraImages[4],
+        alignment: "CENTER",
+        width: 500,
+        height: 750,
+        caption: "",
       });
-      disenoElementos.content.splice(disenoEscaleraParagraphIdx + 1, 0, ...contentEscaleras);
     }
 
     // ======================== DISEÑO DE CISTERNA ============================
@@ -2550,23 +2632,45 @@ export class DocumentTransformer {
     const disenoCisternaImages = this.previews.disenoCisternaImages || [];
 
     if (idx410 !== -1) {
-      console.log("Headin encontrado");
-      const contentCisternas = [];
-      const cisternasCaption = ["M22 (08.75TN-M)", "M33(1.289TN-M2)", "V23 (0.0892TN)", "V13 (1.205TN)", "", ""];
+      console.log("Headin diseño de cisterna encontrado");
+      const cisternasCaption = ["M22 (08.75TN-M)", "M33(1.289TN-M2)", "V23 (0.0892TN)", "V13 (1.205TN)"];
+      let indice = idx410 + 1;
 
-      disenoCisternaImages.forEach((src, i) => {
-        if (src) {
-          contentCisternas.push({
+      for (let index = 0; index < 4; index++) {
+        if (disenoCisternaImages[index]) {
+          disenoElementos.content.splice(indice, 0, {
             type: "image",
-            src,
+            src: disenoCisternaImages[index],
             alignment: "CENTER",
             width: 500,
             height: 280,
-            caption: cisternasCaption[i],
+            caption: cisternasCaption[index],
+          });
+        } else {
+          disenoElementos.content.splice(indice, 0, {
+            type: "paragraph",
+            text: `[IMAGEN diseño de cisterna ${index} - Sin imagen disponible]`,
+            style: "placeholder",
+            alignment: "CENTER",
+          });
+          console.log(`⚠️ Placeholder diagrama ${index} en posición ${indice}`);
+        }
+        indice++;
+      }
+
+      for (let idx = 4; idx < 6; idx++) {
+        if (disenoCisternaImages[idx]) {
+          disenoElementos.content.splice(indice, 0, {
+            type: "image",
+            src: disenoCisternaImages[idx],
+            alignment: "CENTER",
+            width: 500,
+            height: 750,
+            caption: "",
           });
         }
-      });
-      disenoElementos.content.splice(idx410 + 1, 0, ...contentCisternas);
+        indice++;
+      }
     }
 
     // ======================== DISEÑO DE CIMIENTO CORRIDO ============================
@@ -2727,7 +2831,16 @@ export class DocumentTransformer {
 
         // 2. Insertar las 4 imágenes de esta cimentacion
         const imagenesSeccion = cimentacionImages[index] || [];
-        const cimentacionCaption = ["CARGA MUERTA", "CARGA VIVA", "CARGA VIVA", "SISMO DINÁMICO EN DIRECCIÓN Y","RESULTADO 1", "RESULTADO 2", "RESULTADO 3", "RESULTADO 4"];
+        const cimentacionCaption = [
+          "CARGA MUERTA",
+          "CARGA VIVA",
+          "CARGA VIVA",
+          "SISMO DINÁMICO EN DIRECCIÓN Y",
+          "RESULTADO 1",
+          "RESULTADO 2",
+          "RESULTADO 3",
+          "RESULTADO 4",
+        ];
 
         for (let imgIdx = 0; imgIdx < 8; imgIdx++) {
           const imagen = imagenesSeccion[imgIdx];
@@ -2737,8 +2850,8 @@ export class DocumentTransformer {
               type: "image",
               src: imagen,
               alt: cimentacionCaption[imgIdx],
-              width: 400,
-              height: 400,
+              width: 500,
+              height: 750,
               caption: cimentacionCaption[imgIdx],
               alignment: "CENTER",
             });
