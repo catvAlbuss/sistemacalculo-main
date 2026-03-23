@@ -670,39 +670,13 @@ export const DEFAULT_MC_STRUCTURE = {
             text: "Diseño de Losa Nervada – Dirección Vertical",
             alignment: "JUSTIFIED",
           },
-          // 2 imagenes
-          // {
-          //   type: "paragraph",
-          //   text: "Se usará acero 1Ø1/2”+1Ø3/8”",
-          //   alignment: "JUSTIFIED",
-          // },
-
-          // 2 imagenes
-          //esta parrafo se repite
-          // {
-          //   type: "paragraph",
-          //   text: "Se usará acero 1Ø1/2”+1Ø3/8”",
-          //   alignment: "JUSTIFIED",
-          // },
+          // 4 imagenes
           {
             type: "paragraph",
             text: "Diseño de Losa Nervada – Dirección Horizontal",
             alignment: "JUSTIFIED",
           },
-
-          // isertar 2 imagenes
-          // {
-          //   type: "paragraph",
-          //   text: "Se usará acero 1Ø1/2”",
-          //   alignment: "JUSTIFIED",
-          // },
-
-          // insertar 2 imagenes
-          // {
-          //   type: "paragraph",
-          //   text: "Se usará acero 1Ø1/2”",
-          //   alignment: "JUSTIFIED",
-          // },
+          // isertar 4 imagenes
           {
             type: "paragraph",
             text: "Diseño de losa nervada 2 e=0.25",
@@ -714,37 +688,13 @@ export const DEFAULT_MC_STRUCTURE = {
             text: "Diseño de Losa Nervada – Dirección Vertical",
             alignment: "JUSTIFIED",
           },
-          // 2 imagenes
-          // {
-          //   type: "paragraph",
-          //   text: "Se usará acero 1Ø1/2”+1Ø3/8”",
-          //   alignment: "JUSTIFIED",
-          // },
-          //isertar 2 imagenes
-          {
-            type: "paragraph",
-            text: "Se usará acero 1Ø1/2”+1Ø3/8”",
-            alignment: "JUSTIFIED",
-          },
+          // 4 imagenes
           {
             type: "paragraph",
             text: "Diseño de Losa Nervada – Dirección Horizontal",
             alignment: "JUSTIFIED",
           },
-
-          // isertar 2 imagenes
-          {
-            type: "paragraph",
-            text: "Se usará acero 1Ø1/2”",
-            alignment: "JUSTIFIED",
-          },
-
-          // insertar 2 imagenes
-          {
-            type: "paragraph",
-            text: "Se usará acero 1Ø1/2”",
-            alignment: "JUSRIFIED",
-          },
+          // 4 imagenes
           {
             type: "heading",
             level: 2,

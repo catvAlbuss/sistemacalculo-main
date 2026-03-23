@@ -460,7 +460,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const capturarTabla = async () => {
     const btn = document.getElementById("btn_captura_resultado");
-    const elemento = document.getElementById("resultadosiniciales");
+    const elemento = document.getElementById("desingcorte");
 
     if (!elemento || elemento.innerHTML.trim() === "") {
       alert("Primero debes generar los resultados.");
