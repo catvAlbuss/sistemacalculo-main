@@ -111,6 +111,7 @@ export function createGeneralidadesComponent() {
         get floors() {
             return this.$store?.memoriaCalculo?.sections?.generalidades?.floors || 1;
         },
+        
         set floors(value) {
             this.$store.memoriaCalculo.updateFloors(value);
         },

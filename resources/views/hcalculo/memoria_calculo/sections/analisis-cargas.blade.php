@@ -93,7 +93,6 @@
         <div class="space-y-6">
             <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 border-l-4 border-amber-500 pl-3">2.4 METRADO
                 DE CARGAS</h3>
-
             <div
                 class="bg-amber-50 dark:bg-amber-900/10 p-6 rounded-2xl border border-amber-100 dark:border-amber-800 space-y-6">
                 <h4 class="font-bold text-amber-800 dark:text-amber-400">Datos de Carga y Geometría</h4>
@@ -145,7 +144,16 @@
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <template x-for="i in 4" :key="i">
                         <div class="space-y-2">
-                            <label class="text-xs font-bold" x-text="'Figura ' + (17 + i)"></label>
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs font-bold" x-text="'Figura ' + (17 + i)"></label>
+                                <!-- BOTON ELIMINAR (JHACK) -->
+                                <button type="button" x-show="previews.metradoCargasImages[i-1]"
+                                    @click="removeArrayImage('metradoCargasImages', [i-1])"
+                                    class="text-red-500 text-xs font-semibold hover:underline flex items-center gap-1">
+                                    Eliminar
+                                </button>
+                            </div>
+
                             <div class="relative group h-32">
                                 <template x-if="previews.metradoCargasImages[i-1]">
                                     <img :src="previews.metradoCargasImages[i - 1]"
@@ -171,7 +179,17 @@
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <template x-for="i in 4" :key="i">
                         <div class="space-y-2">
-                            <label class="text-xs font-bold" x-text="'Figura ' + (21 + i)"></label>
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs font-bold" x-text="'Figura ' + (21 + i)"></label>
+
+                                <!-- BOTON ELIMINAR (JHACK) -->
+                                <button type="button" x-show="previews.cargasAproximadasImages[i-1]"
+                                    @click="removeArrayImage('cargasAproximadasImages', [i-1])"
+                                    class="text-red-500 text-xs font-semibold hover:underline flex items-center gap-1">
+                                    Eliminar
+                                </button>
+                            </div>
+
                             <div class="relative group h-32">
                                 <template x-if="previews.cargasAproximadasImages[i-1]">
                                     <img :src="previews.cargasAproximadasImages[i - 1]"

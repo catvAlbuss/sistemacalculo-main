@@ -87,6 +87,8 @@ var PPY10;
 var PPY11;
 var PPY12;
 var PPY13;
+
+import html2canvas from "html2canvas";
 import "print-this";
 
 $(document).ready(function () {
@@ -220,6 +222,135 @@ $(document).ready(function () {
         });
     });
 });
+
+const btnCaptura = document.getElementById("btn_captura_zapata_combinada");
+
+const descargarBlob = (blob, nombre) => {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nombre;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+const dataUrlABlob = async (dataUrl) => {
+  const res = await fetch(dataUrl);
+  return await res.blob();
+};
+
+const blobAImagen = (blob) =>
+  new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+
+const descargarEnPartes = async (blob, nombreBase, partes = 4) => {
+  const img = await blobAImagen(blob);
+
+  const ancho = img.width;
+  const altoTotal = img.height;
+  const altoParte = Math.ceil(altoTotal / partes);
+  const margen = 120; // ayuda a no cortar texto justo en la división
+
+  for (let i = 0; i < partes; i++) {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const origenY = Math.max(0, i * altoParte - (i === 0 ? 0 : margen));
+    const altoReal = Math.min(
+      altoParte + (i === 0 ? 0 : margen),
+      altoTotal - origenY
+    );
+
+    canvas.width = ancho;
+    canvas.height = altoReal;
+
+    ctx.drawImage(
+      img,
+      0, origenY,
+      ancho, altoReal,
+      0, 0,
+      ancho, altoReal
+    );
+
+    const parteBlob = await new Promise((resolve) =>
+      canvas.toBlob(resolve, "image/png")
+    );
+
+    descargarBlob(parteBlob, `Diseno_${nombreBase}_Parte_${i + 1}.png`);
+  }
+};
+
+if (btnCaptura) {
+  btnCaptura.addEventListener("click", async () => {
+    const textoOriginal = btnCaptura.textContent;
+
+    try {
+      const contenedor = document.getElementById("zapatacomb_pdf");
+
+      if (!contenedor || !contenedor.innerHTML.trim()) {
+        alert("Primero debes generar los resultados.");
+        return;
+      }
+
+      btnCaptura.disabled = true;
+      btnCaptura.textContent = "Generando...";
+
+      const canvas = await html2canvas(contenedor, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        scrollX: 0,
+        scrollY: -window.scrollY,
+        windowWidth: document.documentElement.scrollWidth,
+        windowHeight: document.documentElement.scrollHeight,
+        onclone: (doc) => {
+          const el = doc.getElementById("zapatacomb_pdf");
+          if (el) {
+            el.style.margin = "0";
+            el.style.padding = "0";
+            el.style.height = "auto";
+            el.style.minHeight = "auto";
+            el.style.overflow = "visible";
+            el.style.backgroundColor = "#ffffff";
+            el.style.color = "#000000";
+          }
+
+          doc.body.style.margin = "0";
+          doc.body.style.padding = "0";
+          doc.body.style.backgroundColor = "#ffffff";
+
+          // Evitar cortes feos dentro de filas/textos
+          doc.querySelectorAll("tr, td, th, p, div").forEach((n) => {
+            n.style.breakInside = "avoid";
+            n.style.pageBreakInside = "avoid";
+          });
+        },
+      });
+
+      const dataUrl = canvas.toDataURL("image/png");
+      const blob = await dataUrlABlob(dataUrl);
+
+      await descargarEnPartes(blob, "zapata_combinada", 4);
+
+    } catch (error) {
+      console.error("Error al generar la captura:", error);
+      alert("Ocurrió un error al generar la imagen.");
+    } finally {
+      btnCaptura.disabled = false;
+      btnCaptura.textContent = textoOriginal;
+    }
+  });
+}
+
 function dibujarZapataIzquierda() {
     var P_t1_col1 = parseFloat(document.getElementById("t1_col1").value);
     var P_t1_col2 = parseFloat(document.getElementById("t1_col2").value);

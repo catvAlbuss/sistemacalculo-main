@@ -71,14 +71,14 @@ export function flexDesignT1X(contenedor, initialData, formData) {
 
   var hot = new Handsontable(container, {
     data: data,
-    rowHeaders: true,
+    rowHeaders: false,
     colHeaders: true,
     height: 'auto',
     autoWrapRow: true,
     autoWrapCol: true,
-    colWidths: 100,
+    colWidths: [90, 90, 90, 90, 150, 90, 90, 90, 150, 150],
     nestedHeaders: [
-      ['Nivel', 'lm', 'h', 'hm', 'hm/lm', 'Tipo', 'Tipo', 'Mu', 'z', 'As'],
+      ['Nivel', 'lm', 'h', 'hm', 'hm/lm', 'Tipo de', 'Tipo de', 'Mu', 'z', 'As'],
       [
         '',
         '(m)',
@@ -262,25 +262,41 @@ export function flexDesignT2X(contenedor, initialData) {
 
   var hot = new Handsontable(container, {
     data: data,
-    rowHeaders: true,
+    rowHeaders: false,
     colHeaders: true,
     height: 'auto',
     autoWrapRow: true,
     autoWrapCol: true,
-    colWidths: 100,
-    colHeaders: [
-      'Nivel',
-      'Acero',
-      'D (cm)',
-      'Área (cm²)',
-      'N° Acero',
-      'Ø1/2"',
-      'Ø5/8"',
-      'Ø3/4"',
-      'Ø1"',
-      'Ascolocado (cm²)',
-      'Verificación de Acero Colocado',
-      'Distribución de Refuerzo Final en la Zona de Confinamiento',
+    colWidths: [90, 90, 90, 90, 90, 90, 90, 90, 90, 120, 150, 200],
+    nestedHeaders: [
+      [
+        'Nivel',
+        'Acero',
+        'D',
+        'Área',
+        'N°',
+        'Ø1/2"',
+        'Ø5/8"',
+        'Ø3/4"',
+        'Ø1"',
+        'Ascolocado',
+        'Verificación',
+        'Distribución de Refuerzo',
+      ],
+      [
+        '',
+        '',
+        '(cm)',
+        '(cm²)',
+        'Acero',
+        '',
+        '',
+        '',
+        '',
+        '(cm²)',
+        'Acero Colocado',
+        'Final en la Zona de Confinamiento',
+      ],
     ],
     columns: [
       { type: 'text', readOnly: true },
@@ -369,9 +385,9 @@ export function flexDesignT2X(contenedor, initialData) {
               row,
               9,
               1.267 * newValue +
-                1.979 * hot.getDataAtCell(row, 6) +
-                2.85 * hot.getDataAtCell(row, 7) +
-                5.067 * hot.getDataAtCell(row, 8)
+              1.979 * hot.getDataAtCell(row, 6) +
+              2.85 * hot.getDataAtCell(row, 7) +
+              5.067 * hot.getDataAtCell(row, 8)
             );
             if (newValue != 0) hot.setDataAtCell(row, 11, `${newValue}Ø1/2"`);
           }
@@ -380,9 +396,9 @@ export function flexDesignT2X(contenedor, initialData) {
               row,
               9,
               1.267 * hot.getDataAtCell(row, 5) +
-                1.979 * newValue +
-                2.85 * hot.getDataAtCell(row, 7) +
-                5.067 * hot.getDataAtCell(row, 8)
+              1.979 * newValue +
+              2.85 * hot.getDataAtCell(row, 7) +
+              5.067 * hot.getDataAtCell(row, 8)
             );
             if (newValue != 0) hot.setDataAtCell(row, 11, `${newValue}Ø5/8"`);
           }
@@ -391,9 +407,9 @@ export function flexDesignT2X(contenedor, initialData) {
               row,
               9,
               1.267 * hot.getDataAtCell(row, 5) +
-                1.979 * hot.getDataAtCell(row, 6) +
-                2.85 * newValue +
-                5.067 * hot.getDataAtCell(row, 8)
+              1.979 * hot.getDataAtCell(row, 6) +
+              2.85 * newValue +
+              5.067 * hot.getDataAtCell(row, 8)
             );
             if (newValue != 0) hot.setDataAtCell(row, 11, `${newValue}Ø3/4"`);
           }
@@ -402,9 +418,9 @@ export function flexDesignT2X(contenedor, initialData) {
               row,
               9,
               1.267 * hot.getDataAtCell(row, 5) +
-                1.979 * hot.getDataAtCell(row, 6) +
-                2.85 * hot.getDataAtCell(row, 7) +
-                5.067 * newValue
+              1.979 * hot.getDataAtCell(row, 6) +
+              2.85 * hot.getDataAtCell(row, 7) +
+              5.067 * newValue
             );
             if (newValue != 0) hot.setDataAtCell(row, 11, `${newValue}Ø1"`);
           }
@@ -507,15 +523,15 @@ export function flexDesignT3X(contenedor, initialData, formData) {
 
   var hot = new Handsontable(container, {
     data: data,
-    rowHeaders: true,
+    rowHeaders: false,
     colHeaders: true,
     height: 'auto',
     autoWrapRow: true,
     autoWrapCol: true,
-    colWidths: 100,
+    colWidths: [90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 120],
     nestedHeaders: [
       [
-        '',
+        'Nivel',
         'emín',
         'Verificación',
         'ρinicial',
@@ -624,8 +640,8 @@ export function flexDesignT3X(contenedor, initialData, formData) {
               9,
               Math.ceil(
                 (formData.lnucxDF * 100 * newValue) /
-                  (hot.getDataAtCell(row, 5) / hot.getDataAtCell(row, 4)) /
-                  5
+                (hot.getDataAtCell(row, 5) / hot.getDataAtCell(row, 4)) /
+                5
               ) * 5
             );
           }
@@ -693,12 +709,12 @@ export function flexDesignT1Y(contenedor, initialData, formData) {
 
   var hot = new Handsontable(container, {
     data: data,
-    rowHeaders: true,
+    rowHeaders: false,
     colHeaders: true,
     height: 'auto',
     autoWrapRow: true,
     autoWrapCol: true,
-    colWidths: 100,
+    colWidths: [90, 90, 90, 90, 150, 90, 90, 90, 150, 150],
     nestedHeaders: [
       ['Nivel', 'lm', 'h', 'hm', 'hm/lm', 'Tipo', 'Tipo', 'Mu', 'z', 'As'],
       [
@@ -877,12 +893,12 @@ export function flexDesignT2Y(contenedor, initialData) {
 
   var hot = new Handsontable(container, {
     data: data,
-    rowHeaders: true,
+    rowHeaders: false,
     colHeaders: true,
     height: 'auto',
     autoWrapRow: true,
     autoWrapCol: true,
-    colWidths: 100,
+    colWidths: [90, 90, 90, 90, 90, 90, 90, 90, 90, 120, 150, 200],
     nestedHeaders: [
       [
         'Nivel',
@@ -1000,9 +1016,9 @@ export function flexDesignT2Y(contenedor, initialData) {
               row,
               9,
               1.267 * newValue +
-                1.979 * hot.getDataAtCell(row, 6) +
-                2.85 * hot.getDataAtCell(row, 7) +
-                5.067 * hot.getDataAtCell(row, 8)
+              1.979 * hot.getDataAtCell(row, 6) +
+              2.85 * hot.getDataAtCell(row, 7) +
+              5.067 * hot.getDataAtCell(row, 8)
             );
             if (newValue != 0) hot.setDataAtCell(row, 11, `${newValue}Ø1/2"`);
           }
@@ -1011,9 +1027,9 @@ export function flexDesignT2Y(contenedor, initialData) {
               row,
               9,
               1.267 * hot.getDataAtCell(row, 5) +
-                1.979 * newValue +
-                2.85 * hot.getDataAtCell(row, 7) +
-                5.067 * hot.getDataAtCell(row, 8)
+              1.979 * newValue +
+              2.85 * hot.getDataAtCell(row, 7) +
+              5.067 * hot.getDataAtCell(row, 8)
             );
             if (newValue != 0) hot.setDataAtCell(row, 11, `${newValue}Ø5/8"`);
           }
@@ -1022,9 +1038,9 @@ export function flexDesignT2Y(contenedor, initialData) {
               row,
               9,
               1.267 * hot.getDataAtCell(row, 5) +
-                1.979 * hot.getDataAtCell(row, 6) +
-                2.85 * newValue +
-                5.067 * hot.getDataAtCell(row, 8)
+              1.979 * hot.getDataAtCell(row, 6) +
+              2.85 * newValue +
+              5.067 * hot.getDataAtCell(row, 8)
             );
             if (newValue != 0) hot.setDataAtCell(row, 11, `${newValue}Ø3/4"`);
           }
@@ -1033,9 +1049,9 @@ export function flexDesignT2Y(contenedor, initialData) {
               row,
               9,
               1.267 * hot.getDataAtCell(row, 5) +
-                1.979 * hot.getDataAtCell(row, 6) +
-                2.85 * hot.getDataAtCell(row, 7) +
-                5.067 * newValue
+              1.979 * hot.getDataAtCell(row, 6) +
+              2.85 * hot.getDataAtCell(row, 7) +
+              5.067 * newValue
             );
             if (newValue != 0) hot.setDataAtCell(row, 11, `${newValue}Ø1"`);
           }
@@ -1143,12 +1159,12 @@ export function flexDesignT3Y(contenedor, initialData, formData) {
 
   var hot = new Handsontable(container, {
     data: data,
-    rowHeaders: true,
+    rowHeaders: false,
     colHeaders: true,
     height: 'auto',
     autoWrapRow: true,
     autoWrapCol: true,
-    colWidths: 100,
+    colWidths: [90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 120],
     nestedHeaders: [
       [
         'Nivel',
@@ -1260,8 +1276,8 @@ export function flexDesignT3Y(contenedor, initialData, formData) {
               9,
               Math.ceil(
                 (formData.lnucyDF * 100 * newValue) /
-                  (hot.getDataAtCell(row, 5) / hot.getDataAtCell(row, 4)) /
-                  5
+                (hot.getDataAtCell(row, 5) / hot.getDataAtCell(row, 4)) /
+                5
               ) * 5
             );
           }

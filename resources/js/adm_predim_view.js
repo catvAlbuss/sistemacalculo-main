@@ -1,5 +1,6 @@
 import imgurl from "../img/rizabalasociados.png";
 import "print-this";
+import html2canvas from "html2canvas";
 
 document.addEventListener("DOMContentLoaded", function () {
   const canvas = document.getElementById("canvas");
@@ -3449,4 +3450,101 @@ $(document).ready(function () {
       copyTagClasses: false, // No copiar las clases de las etiquetas HTML
     });
   });
+
+  // ===== Helpers =====
+  const descargarPNG = (dataUrl, nombre) => {
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = nombre;
+    link.click();
+  };
+
+  const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const capturarElemento = async (elemento, oncloneExtra = null) => {
+    return html2canvas(elemento, {
+      scale: 3,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+      scrollX: 0,
+      scrollY: -window.scrollY,
+      onclone: (doc) => {
+        doc.body.style.margin = "0";
+        doc.body.style.padding = "0";
+        doc.body.style.backgroundColor = "#ffffff";
+
+        if (oncloneExtra) oncloneExtra(doc);
+      },
+    });
+  };
+
+  const exportarCanvasHD = (canvas, nombre = "Canvas.png", scale = 3) => {
+    const highResCanvas = document.createElement("canvas");
+    const ctx = highResCanvas.getContext("2d");
+
+    highResCanvas.width = canvas.width * scale;
+    highResCanvas.height = canvas.height * scale;
+
+    ctx.scale(scale, scale);
+    ctx.drawImage(canvas, 0, 0);
+
+    descargarPNG(highResCanvas.toDataURL("image/png"), nombre);
+  };
+
+  // ===== Exportar tablas =====
+  document.getElementById("btn_png_predimPNG").addEventListener("click", async function () {
+    const bloques = [...document.querySelectorAll(".table-responsive")];
+    if (!bloques.length) {
+      alert("No se encontraron tablas para exportar.");
+      return;
+    }
+
+    const boton = this;
+    const textoOriginal = boton.textContent;
+
+    try {
+      boton.disabled = true;
+      boton.textContent = "Exportando...";
+
+      for (const bloque of bloques) {
+        const tbody = bloque.querySelector("tbody");
+        if (!tbody || !tbody.innerHTML.trim()) continue;
+
+        const fileName = bloque.dataset.file || "tabla-predim";
+
+        const canvas = await capturarElemento(bloque, (doc) => {
+          const clone = doc.querySelector(`[data-file="${fileName}"]`);
+          if (clone) {
+            clone.style.margin = "0";
+            clone.style.padding = "0";
+            clone.style.backgroundColor = "#ffffff";
+            clone.style.color = "#000000";
+          }
+        });
+
+        descargarPNG(canvas.toDataURL("image/png"), `${fileName}.png`);
+        await esperar(300);
+      }
+    } catch (error) {
+      console.error("Error al exportar tablas:", error);
+      alert("Ocurrió un error al exportar las tablas.");
+    } finally {
+      boton.disabled = false;
+      boton.textContent = textoOriginal;
+    }
+  });
+
+  // ===== Exportar canvas =====
+  document.getElementById("btnCanvasPNG").addEventListener("click", () => {
+    const canvas = document.getElementById("canvas");
+
+    if (!canvas) {
+      alert("No se encuentra el canvas");
+      return;
+    }
+
+    exportarCanvasHD(canvas, "Predisionamiento.png", 3);
+  });
+
 });

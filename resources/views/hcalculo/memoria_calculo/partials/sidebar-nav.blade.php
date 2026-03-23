@@ -1,5 +1,6 @@
 {{-- partials/sidebar-nav.blade.php - Sidebar de navegación --}}
 <nav class="sticky top-6 flex flex-col gap-2" x-data="{ activeSection: 'section-info-general' }">
+    
     <a href="#section-info-general" @click="activeSection = 'section-info-general'"
         :class="activeSection === 'section-info-general' ? 'section-active' : ''"
         class="px-4 py-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-transparent hover:border-blue-500 transition-all font-medium text-gray-700 dark:text-gray-300 flex items-center gap-3">
@@ -103,6 +104,32 @@
             </svg>
         </span>
         <span>Diseño de Elementos</span>
+    </a>
+    <!-- DISEÑO DE ESTRUCTURA METÁLICA -->
+    <a href="#section-diseno-estructura" @click="activeSection = 'section-diseno-estructura'"
+        :class="activeSection === 'section-diseno-estructura' ? 'section-active' : ''"
+        class="px-4 py-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-transparent hover:border-blue-500 transition-all font-medium text-gray-700 dark:text-gray-300 flex items-center gap-3">
+        <span class="icon-container p-1.5 bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 rounded-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+        </span>
+        <span>Diseño de Estructura Metálica</span>
+    </a>
+
+    <!-- CONCLUSIONES Y RECOMENDACIONES -->
+    <a href="#section-conclusiones-recomendaciones" @click="activeSection = 'section-conclusiones-recomendaciones'"
+        :class="activeSection === 'section--conclusiones-recomendaciones' ? 'section-active' : ''"
+        class="px-4 py-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-transparent hover:border-blue-500 transition-all font-medium text-gray-700 dark:text-gray-300 flex items-center gap-3">
+        <span class="icon-container p-1.5 bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 rounded-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+            </svg>
+        </span>
+        <span>Conclusiones y Recomendaciones</span>
     </a>
 
     {{-- Resumen Card --}}

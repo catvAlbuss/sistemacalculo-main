@@ -36,12 +36,12 @@ export function cutDesignT1X(contenedor, initialData, formData) {
 
   var hot = new Handsontable(container, {
     data: data,
-    rowHeaders: true,
+    rowHeaders: false,
     colHeaders: true,
     height: 'auto',
     autoWrapRow: true,
     autoWrapCol: true,
-    colWidths: 100,
+    colWidths: [90, 50, 50, 90, 50, 50, 50, 50, 90, 50, 170, 150, 150, 50, 150, 50, 150, 150],
     nestedHeaders: [
       [
         'Nivel',
@@ -410,26 +410,26 @@ export function cutDesignT2X(contenedor, formData) {
 
   var hot = new Handsontable(container, {
     data: data,
-    rowHeaders: true,
+    rowHeaders: false,
     colHeaders: true,
     height: 'auto',
     autoWrapRow: true,
     autoWrapCol: true,
-    colWidths: 100,
+    colWidths: [90, 90, 150, 90, 90 ,90 , 150, 90, 90, 90, 150, 150, 90, 90],
     nestedHeaders: [
       [
         'Nivel',
         'Vs',
-        'Vs máx',
+        'Vs máx', // 
         'Verificación',
         'Acv',
         'N°',
-        'Vu máx',
+        'Vu máx',//
         'ρh mín',
         'ρh',
         'Vs final',
-        'Vn',
-        'Vn máx',
+        'Vn',//
+        'Vn máx', //
         'Verificación',
         'Verificación',
       ],
@@ -533,18 +533,18 @@ export function cutDesignT3X(contenedor, formData) {
 
   var hot = new Handsontable(container, {
     data: data,
-    rowHeaders: true,
+    rowHeaders: false,
     colHeaders: true,
     height: 'auto',
     autoWrapRow: true,
     autoWrapCol: true,
-    colWidths: 100,
+    colWidths: [90, 90, 90, 170, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90],
     nestedHeaders: [
       [
         'Nivel',
         'ρv mín',
         'ρv máx',
-        'ρv',
+        'ρv', //
         'Verificación',
         'Acero',
         'D',
@@ -796,12 +796,12 @@ export function cutDesignT4X(contenedor) {
 
   var hot = new Handsontable(container, {
     data: data,
-    rowHeaders: true,
+    rowHeaders: false,
     colHeaders: true,
     height: 'auto',
     autoWrapRow: true,
     autoWrapCol: true,
-    colWidths: 100,
+    colWidths: [90, 90, 90, 50, 90, 90, 90, 50, 90],
     colHeaders: [
       'Nivel',
       'Capas',
@@ -868,12 +868,12 @@ export function cutDesignT1Y(contenedor, initialData, formData) {
 
   var hot = new Handsontable(container, {
     data: data,
-    rowHeaders: true,
+    rowHeaders: false,
     colHeaders: true,
     height: 'auto',
     autoWrapRow: true,
     autoWrapCol: true,
-    colWidths: 100,
+    colWidths: [90, 50, 50, 90, 50, 50, 50, 50, 90, 50, 170, 150, 150, 50, 150, 50, 150, 150],
     nestedHeaders: [
       [
         'Nivel',
@@ -1224,12 +1224,12 @@ export function cutDesignT2Y(contenedor, formData) {
 
   var hot = new Handsontable(container, {
     data: data,
-    rowHeaders: true,
+    rowHeaders: false,
     colHeaders: true,
     height: 'auto',
     autoWrapRow: true,
     autoWrapCol: true,
-    colWidths: 100,
+    colWidths: [90, 90, 150, 90, 90 ,90 , 150, 90, 90, 90, 150, 150, 90, 90],
     nestedHeaders: [
       [
         'Nivel',
@@ -1348,12 +1348,12 @@ export function cutDesignT3Y(contenedor, formData) {
 
   var hot = new Handsontable(container, {
     data: data,
-    rowHeaders: true,
+    rowHeaders: false,
     colHeaders: true,
     height: 'auto',
     autoWrapRow: true,
     autoWrapCol: true,
-    colWidths: 100,
+    colWidths: [90, 90, 90, 170, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90],
     nestedHeaders: [
       [
         'Nivel',
@@ -1611,12 +1611,12 @@ export function cutDesignT4Y(contenedor) {
 
   var hot = new Handsontable(container, {
     data: data,
-    rowHeaders: true,
+    rowHeaders: false,
     colHeaders: true,
     height: 'auto',
     autoWrapRow: true,
     autoWrapCol: true,
-    colWidths: 100,
+    colWidths: [90, 90, 90, 50, 90, 90, 90, 50, 90],
     colHeaders: [
       'Nivel',
       'Capas',

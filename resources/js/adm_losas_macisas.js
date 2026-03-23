@@ -1,3 +1,4 @@
+import html2canvas from "html2canvas";
 import "print-this";
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -456,4 +457,78 @@ document.addEventListener("DOMContentLoaded", function () {
       copyTagClasses: false, // No copiar las clases de las etiquetas HTML
     });
   });
+
+  const capturarTabla = async () => {
+  const btn = document.getElementById("btn_captura_resultado");
+  const elemento = document.getElementById("desingcorte");
+
+  if (!elemento || !elemento.innerHTML.trim()) {
+    alert("Primero debes generar los resultados.");
+    return;
+  }
+
+  try {
+    btn.disabled = true;
+    btn.classList.add("opacity-50", "cursor-not-allowed");
+    btn.textContent = "Generando...";
+
+    elemento.style.width = "100%";
+    elemento.style.overflow = "visible";
+
+    const canvas = await html2canvas(elemento, {
+      scale: 3,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+      scrollX: 0,
+      scrollY: -window.scrollY,
+      windowWidth: document.documentElement.scrollWidth,
+      windowHeight: document.documentElement.scrollHeight,
+      onclone: (doc) => {
+        const el = doc.getElementById("losas_macizas");
+        if (el) {
+          el.style.margin = "0";
+          el.style.padding = "0";
+          el.style.height = "auto";
+          el.style.backgroundColor = "#ffffff";
+          el.style.color = "#000000";
+        }
+        doc.body.style.margin = "0";
+        doc.body.style.padding = "0";
+        doc.body.style.backgroundColor = "#ffffff";
+      },
+    });
+
+    const partes = 2;
+    const altoParte = Math.ceil(canvas.height / partes);
+
+    for (let i = 0; i < partes; i++) {
+      const parte = document.createElement("canvas");
+      parte.width = canvas.width;
+      parte.height = altoParte;
+
+      parte.getContext("2d").drawImage(
+        canvas,
+        0, i * altoParte,
+        canvas.width, altoParte,
+        0, 0,
+        canvas.width, altoParte
+      );
+
+      const link = document.createElement("a");
+      link.href = parte.toDataURL("image/png");
+      link.download = `Losas_Macizas_Parte_${i + 1}.png`;
+      link.click();
+    }
+  } catch (error) {
+    console.error("Error al generar la captura:", error);
+    alert("Ocurrió un error al generar la imagen.");
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove("opacity-50", "cursor-not-allowed");
+    btn.textContent = "Generar IMG";
+  }
+};
+
+document.getElementById("btn_captura_resultado").addEventListener("click", capturarTabla);
 });

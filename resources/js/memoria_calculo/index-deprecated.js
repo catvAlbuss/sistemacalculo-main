@@ -81,7 +81,20 @@ function memoriaCalculo() {
             modeloMatematico3DImages: [null],
             espectroPseudoaceleracionesImages: [null, null],
             metradoCargasImages: [null, null, null, null],
-            cargasAproximadasImages: [null, null, null, null]
+            cargasAproximadasImages: [null, null, null, null],
+
+            // CREAR NUEVA ENTRADA DE IMAGENES
+
+            estaticoConsideracionesETABS: [null, null],
+            estaticoCpesoSismico: [null],
+
+            dinamicoConsideracionesETABS: [null, null],
+            dinamicoModosVibracion: [null, null, null],
+            dinamicofuerzaCortante: [null],
+            dinamicoDesplazamientoPermisible: [null, null, null, null],
+            dinamicaDeformadas: [null, null],
+
+            
         },
 
         previews: {
@@ -94,7 +107,14 @@ function memoriaCalculo() {
             modeloMatematico3DImages: [null],
             espectroPseudoaceleracionesImages: [null, null],
             metradoCargasImages: [null, null, null, null],
-            cargasAproximadasImages: [null, null, null, null]
+            cargasAproximadasImages: [null, null, null, null],
+
+            // ANALISIS SISMICO (SECCION 3)
+
+            //ANALISIS SISMICO ESTATICO
+            estaticoConsideracionesETABS: [null, null],
+            estaticoCpesoSismico: [null],
+
         },
 
         floors: 1,
@@ -175,6 +195,14 @@ function memoriaCalculo() {
             if (!Array.isArray(this.previews.metradoCargasImages)) this.previews.metradoCargasImages = [];
             if (!Array.isArray(this.images.cargasAproximadasImages)) this.images.cargasAproximadasImages = [];
             if (!Array.isArray(this.previews.cargasAproximadasImages)) this.previews.cargasAproximadasImages = [];
+            // ANALISIS SISMICO (SECCION 3)
+            // 3.1 ANALISIS SISMICO ESTATICO 
+            if (!Array.isArray(this.images.estaticoConsideracionesETABS))this.images.estaticoConsideracionesETABS=[];
+            if (!Array.isArray(this.previews.estaticoConsideracionesETABS))this.previews.estaticoConsideracionesETABS=[];
+
+            if (!Array.isArray(this.images.estaticoCpesoSismico))this.images.estaticoCpesoSismico=[];
+            if (!Array.isArray(this.previews.estaticoCpesoSismico))this.previews.estaticoCpesoSismico=[];
+
 
             while (this.images.modeloMatematico3DImages.length < 1) this.images.modeloMatematico3DImages.push(null);
             while (this.previews.modeloMatematico3DImages.length < 1) this.previews.modeloMatematico3DImages.push(null);
@@ -184,6 +212,13 @@ function memoriaCalculo() {
             while (this.previews.metradoCargasImages.length < 4) this.previews.metradoCargasImages.push(null);
             while (this.images.cargasAproximadasImages.length < 4) this.images.cargasAproximadasImages.push(null);
             while (this.previews.cargasAproximadasImages.length < 4) this.previews.cargasAproximadasImages.push(null);
+            // ANALISIS SISMICO (SECCION 3)
+            // 3.1 ANALISIS SISMICO ESTATICO
+            while(this.images.estaticoConsideracionesETABS.length<4)this.images.estaticoConsideracionesETABS.push(null);
+            while(this.previews.estaticoConsideracionesETABS.length<4)this.previews.estaticoConsideracionesETABS.push(null);
+
+            while(this.images.estaticoCpesoSismico.length<1)this.images.estaticoCpesoSismico.push(null);
+            while(this.previews.estaticoCpesoSismico.length<1)this.previews.estaticoCpesoSismico.push(null);
 
             this.images.modeloMatematico3DImages = this.images.modeloMatematico3DImages.slice(0, 1);
             this.previews.modeloMatematico3DImages = this.previews.modeloMatematico3DImages.slice(0, 1);

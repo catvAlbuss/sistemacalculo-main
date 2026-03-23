@@ -1,6 +1,6 @@
 <x-calc-layout title="Diseño de Columna">
   @pushOnce('styles')
-    <link href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" rel="stylesheet" />
   @endpushOnce
 
   <!-- ==============================MODELS MODAL================== -->
@@ -565,6 +565,11 @@
               id="btn_pdf_predim" type="button">
               Generar PDF
             </button>
+            <button
+              class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+              id="btn_captura_columna" type="button">
+              Generar IMG
+            </button>
             <div class="overflow-x-auto">
               <div id="ObtenerResultadosCol"></div>
             </div>
@@ -589,8 +594,8 @@
   </div>
 
   @pushOnce('scripts')
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@latest/dist/echarts.min.js"></script>
-    @vite('resources/js/adm_desing_columnas.js')
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@latest/dist/echarts.min.js"></script>
+  @vite('resources/js/adm_desing_columnas.js')
   @endpushOnce
 </x-calc-layout>

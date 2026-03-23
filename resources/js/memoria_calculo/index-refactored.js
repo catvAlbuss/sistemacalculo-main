@@ -8,11 +8,9 @@ import { createMemoriaCalculoStore } from "./stores/memoriaCalculoStore.js";
 import { createGeneralidadesComponent } from "./components/GeneralidadesComponent.js";
 import { createAnalisisCargasComponent } from "./components/AnalisisCargasComponent.js";
 import { createAnalisisSismicoComponent } from "./components/AnalisisSismicoComponent.js";
-import {
-    createDisenoElementosComponent,
-    createEstructuraMetalicaComponent,
-    createConclusionesComponent
-} from "./components/SimpleSectionComponent.js";
+import {createEstructuraMetalicaComponent} from "./components/EstructuraMetalicaComponent.js";
+import {createDisenoElementosComponent} from "./components/DisenoElementosComponent.js";
+import {createConclusionesComponent} from "./components/SimpleSectionComponent.js";
 
 // Importar transformador de documentos
 import { DocumentTransformer } from "./processors/documentTransformer.js";
@@ -41,6 +39,7 @@ function memoriaCalculo() {
 
         // Proxies para compatibilidad con sidebar y otros partials
         get floors() { return this.sections.generalidades?.floors || 1; },
+         
         get structuralDetails() {
             return this.sections.generalidades?.structuralDetails || {
                 materialDesign: {
@@ -98,6 +97,7 @@ function memoriaCalculo() {
                 // Construir estructura para procesador
                 const structure = buildContentStructure({
                     cover: exportData.cover,
+                    sections: exportData.sections,
                     document: JSON.parse(JSON.stringify(this.document))
                 });
 

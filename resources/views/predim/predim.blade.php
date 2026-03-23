@@ -774,7 +774,8 @@
     <div class="modal" id="myModal">
         <div class="modal-content">
             <span class="close">&times;</span>
-            <div class="table-responsive relative overflow-x-auto">
+            {{-- COLUMNA RECTANGULAR --}}
+            <div class="table-responsive relative overflow-x-auto" data-file="Columna_rectangular">
                 <h3 class="text-xl">Columna Rectangular</h3>
                 <h3 class="">Cantidad: <span id="rectangulo-count">0</span></h3>
                 <table class="styled-table" id="tablaColRect">
@@ -793,7 +794,7 @@
             </div>
             <br>
             {{-- COLUMNA CUADRADO --}}
-            <div class="table-responsive relative overflow-x-auto">
+            <div class="table-responsive relative overflow-x-auto" data-file="Columna_cuadrada">
                 <h3 class="text-xl">Columna Cuadrada</h3>
                 <h3 class="">Cantidad: <span id="cuadro-count">0</span></h3>
                 <table class="styled-table" id="tablaColCuad">
@@ -809,7 +810,7 @@
             </div>
             <br>
             {{-- COLUMNA CIRCULO --}}
-            <div class="table-responsive relative overflow-x-auto">
+            <div class="table-responsive relative overflow-x-auto" data-file="Columna_circular">
                 <h3 class="text-xl">Columna Circular</h3>
                 <h3 class="">Cantidad: <span id="circulo-count">0</span></h3>
                 <table class="styled-table" id="tablaColCircle">
@@ -825,7 +826,7 @@
             </div>
             <br>
             {{-- COLUMNA T --}}
-            <div class="table-responsive relative overflow-x-auto">
+            <div class="table-responsive relative overflow-x-auto" data-file="Columna_T">
                 <h3 class="text-xl">Columna T</h3>
                 <h3 class="">Cantidad: <span id="te-count">0</span></h3>
                 <table class="styled-table" id="tablaColTe">
@@ -842,7 +843,7 @@
             </div>
             <br>
             {{-- COLUMNA L --}}
-            <div class="table-responsive relative overflow-x-auto">
+            <div class="table-responsive relative overflow-x-auto" data-file="Columna_L">
                 <h3 class="text-xl">Columna L</h3>
                 <h3 class="">Cantidad: <span id="le-count">0</span></h3>
                 <table class="styled-table" id="tablaColLe">
@@ -859,7 +860,7 @@
             </div>
             <br> {{-- ==============VIGAS================= --}}
             {{-- VIGAS PRINCIPAL --}}
-            <div class="table-responsive relative overflow-x-auto">
+            <div class="table-responsive relative overflow-x-auto" data-file="Vigas_principal">
                 <h3 class="text-xl">Vigas Principal</h3>
                 <h3 class="">Cantidad: <span id="vigas-count">0</span></h3>
                 <table class="styled-table" id="tablaVigasP">
@@ -874,9 +875,9 @@
                 </table>
             </div>
             <br>
-            {{-- VIGAS SEGUNDARIA --}}
-            <div class="table-responsive relative overflow-x-auto">
-                <h3 class="text-xl">Vigas SEGUNDARIA</h3>
+            {{-- VIGAS SECUNDARIA --}}
+            <div class="table-responsive relative overflow-x-auto" data-file="Vigas_secundaria">
+                <h3 class="text-xl">Vigas Secundaria</h3>
                 <h3 class="">Cantidad: <span id="vigasSeg-count">0</span></h3>
                 <table class="styled-table" id="tablaVigaSeg">
                     <thead>
@@ -891,7 +892,7 @@
             </div>
             <br>
             {{-- VIGAS CIMENTACION --}}
-            <div class="table-responsive relative overflow-x-auto">
+            <div class="table-responsive relative overflow-x-auto" data-file="Vigas_cimentación">
                 <h3 class="text-xl">Vigas Cimentacion</h3>
                 <h3 class="">Cantidad: <span id="vigasCimentacion-count">0</span></h3>
                 <table class="styled-table" id="tablaCimen">
@@ -906,8 +907,8 @@
                 </table>
             </div>
             <br>
-            {{-- VIGAS Sobre vigas --}}
-            <div class="table-responsive relative overflow-x-auto">
+            {{-- VIGAS SOBRE VIGAS --}}
+            <div class="table-responsive relative overflow-x-auto" data-file="Vigas_sobre_vigas">
                 <h3 class="text-xl">Vigas Sobre Vigas</h3>
                 <h3 class="">Cantidad: <span id="vigasSSvigas-count">0</span></h3>
                 <table class="styled-table" id="tablaVigaSVigas">
@@ -923,7 +924,7 @@
             </div>
             <br>
             {{-- VIGAS de borde --}}
-            <div class="table-responsive relative overflow-x-auto">
+            <div class="table-responsive relative overflow-x-auto" data-file="Vigas_borde">
                 <h3 class="text-xl">Vigas de Borde</h3>
                 <h3 class="">Cantidad: <span id="vigasbordes-count">0</span></h3>
                 <table class="styled-table" id="tablaVigaSBorde">
@@ -939,7 +940,7 @@
             </div>
             <br>
             {{-- LOSAS CUADRADAS --}}
-            <div class="table-responsive relative overflow-x-auto">
+            <div class="table-responsive relative overflow-x-auto" data-file="Losas_aligeradas_1_dir">
                 <h3 class="text-xl">Losas Aligerada 1 dir.</h3>
                 <h3 class="">Cantidad: <span id="losas-count">0</span></h3>
                 <table class="styled-table" id="tablaLosasCuad">
@@ -953,7 +954,7 @@
                 </table>
             </div>
             <br>
-            <div class="table-responsive relative overflow-x-auto">
+            <div class="table-responsive relative overflow-x-auto" data-file="Losas_aligeradas_2_dir">
                 <h3 class="text-xl">Losas Aligerada 2 dir</h3>
                 <h3 class="">Cantidad: <span id="losasal2-count">0</span></h3>
                 <table class="styled-table" id="tablaLosasAlig">
@@ -967,7 +968,7 @@
                 </table>
             </div>
             <br>
-            <div class="table-responsive relative overflow-x-auto">
+            <div class="table-responsive relative overflow-x-auto" data-file="Losas_maciza_1_dir">
                 <h3 class="text-xl">Losas Maciza 1 dir</h3>
                 <h3 class="">Cantidad: <span id="losamaciza1-count">0</span></h3>
                 <table class="styled-table" id="tablaLosasMaci">
@@ -981,7 +982,7 @@
                 </table>
             </div>
             <br>
-            <div class="table-responsive relative overflow-x-auto">
+            <div class="table-responsive relative overflow-x-auto" data-file="Losas_maciza_2_dir">
                 <h3 class="text-xl">Losas Maciza 2 dir</h3>
                 <h3 class="">Cantidad: <span id="losamaciza2-count">0</span></h3>
                 <table class="styled-table" id="tablaLosasMaci2">
@@ -996,7 +997,7 @@
             </div>
             <br>
             {{-- ZAPATA CUADRADA --}}
-            <div class="table-responsive relative overflow-x-auto">
+            <div class="table-responsive relative overflow-x-auto" data-file="Zapata_cuadrada">
                 <h3 class="text-xl">Cimentacion Zapata Cuadrada</h3>
                 <h3 class="">Cantidad: <span id="zapata-count">0</span></h3>
                 <table class="styled-table" id="tablaZapataCuad">
@@ -1012,7 +1013,7 @@
             </div>
             <br>
             {{-- PLACAS --}}
-            <div class="table-responsive relative overflow-x-auto">
+            <div class="table-responsive relative overflow-x-auto" data-file="Placas">
                 <h3 class="text-xl">Cimentacion Zapata Cuadrada</h3>
                 <h3 class="">Cantidad: <span id="placa-count">0</span></h3>
                 <table class="styled-table" id="tablaCimentacionZap">
@@ -1030,6 +1031,7 @@
             </div>
             <br>
             <button class="btn" id="btn_pdf_predim"><i class="ri-file-pdf-2-fill"></i> Reportes pdf</button>
+            <button class="btn" id="btn_png_predimPNG"><i class="ri-file-image-line"></i> Reportes PNG</button>
             <button class="btn" id="closeModal">Cerrar</button>
         </div>
     </div>
@@ -1057,279 +1059,281 @@
                     </button>
                 </div>
                 <div class="main-menu" id="predimMainMenu">
-                <div class="menu-group">
-                    <div class="menu-group-title">Archivos</div>
-                    <div class="submenu">
-                        <div class="submenu-items">
-                            <button class="btn"><i class="ri-file-pdf-2-line"></i> Nuevo</button>
-                            <button class="btn"><i class="ri-save-line"></i> Guardar</button>
-                            <button class="btn" id="imprimir_doc"><i class="ri-save-line"></i> Imprimir</button>
-                            <button class="btn"><i class="ri-delete-bin-6-line"></i> Eliminar</button>
-                            <button class="btn" id="openModal"><i class="ri-file-pdf-2-fill"></i>
-                                Reportes</button>
-                            <input id="upload-pdf" type="file" style="display: none" accept=".pdf" />
-                            <label class="btn" for="upload-pdf"><i class="ri-chat-upload-line"></i> Cargar</label>
-                            <button class="btn"><i class="ri-door-open-line"></i> Salir</button>
-                        </div>
-                    </div>
-                </div>
-                {{-- Escala --}}
-                <div class="menu-group">
-                    <div class="menu-group-title">Escala</div>
-                    <div class="submenu">
-                        <button class="btn tool" data-tool="lineaEscala" title="lineaEscala">
-                            <i class="ri-ruler-line"></i> Linea Escala
-                        </button>
-                        <div>
-                            <label class="textinp" for="npisos">Valor medido</label>
-                            <input id="escalaVal" type="number" value="1" min="1" />
-                        </div>
-                        <div>
-                            <label class="textinp" for="npisos">Valor del plano</label>
-                            <input id="escalaplano" type="number" value="1" min="1" />
-                        </div>
-                        <div>
-                            <button id="calc">ok</button>
-                        </div>
-                    </div>
-                </div>
-                {{-- Columna --}}
-                <div class="menu-group">
-                    <div class="menu-group-title">Columnas</div>
-                    <div class="submenu">
-                        <div class="submenu-items">
-                            <button class="btn tool" data-tool="rectangle" title="Rectangular"><i
-                                    class="ri-rectangle-line"></i>
-                                Col. Rectangular</button>
-                            <button class="btn tool" data-tool="cuadrado" title="Cuadrada"><i
-                                    class="ri-square-line"></i>
-                                Col. Cuadrada</button>
-                            <button class="btn tool" data-tool="circulo" title="Circular"><i
-                                    class="ri-circle-line"></i>
-                                Col. Circular</button>
-                            <button class="btn tool" data-tool="te" title="T"><i class="ri-t-box-line"></i>
-                                Col. T</button>
-                            <button class="btn tool" data-tool="ele" title="L"><i class="ri-ruler-2-line"></i>
-                                Col. L</button>
-                            <div>
-                                <label class="textinp" for="npisos">N° pisos</label>
-                                <input id="npisos" type="number" value="1" min="1" />
-                            </div>
-                            <div>
-                                <label class="textinp" for="">F'c</label>
-                                <input id="fc" name="fc" type="number" value="210">
-                                <span style="font-size: 10px">Kg/cm<sup>2</sup></span>
+                    <div class="menu-group">
+                        <div class="menu-group-title">Archivos</div>
+                        <div class="submenu">
+                            <div class="submenu-items">
+                                <button class="btn"><i class="ri-file-pdf-2-line"></i> Nuevo</button>
+                                <button class="btn"><i class="ri-save-line"></i> Guardar</button>
+                                <button class="btn" id="imprimir_doc"><i class="ri-save-line"></i> Imprimir</button>
+                                <!-- AGREGADO -->
+                                <button class="btn" id="btnCanvasPNG"><i class="ri-file-image-line"></i> PNG</button>
+                                <button class="btn"><i class="ri-delete-bin-6-line"></i> Eliminar</button>
+                                <button class="btn" id="openModal"><i class="ri-file-pdf-2-fill"></i>
+                                    Reportes</button>
+                                <input id="upload-pdf" type="file" style="display: none" accept=".pdf" />
+                                <label class="btn" for="upload-pdf"><i class="ri-chat-upload-line"></i> Cargar</label>
+                                <button class="btn"><i class="ri-door-open-line"></i> Salir</button>
                             </div>
                         </div>
                     </div>
-                </div>
-                {{-- Vigas --}}
-                <div class="menu-group">
-                    <div class="menu-group-title">Vigas</div>
-                    <div class="submenu">
-                        <div class="submenu-items">
-                            <button class="btn tool" data-tool="cuadradovigas" title="Vigas Principal"><i
-                                    class="ri-t-box-line"></i> Vigas Principal</button>
-                            <button class="btn tool" data-tool="cuadradovigasse" title="Vigas Segundaria"><i
-                                    class="ri-t-box-line"></i> Vigas Segundaria</button>
-                            <button class="btn tool" data-tool="cuadradovigascimentacion"
-                                title="Vigas Cimentación"><i class="ri-t-box-line"></i> Vigas Cimentación</button>
-
-                            <button class="btn tool" data-tool="vigaSobreVigas" title="Vigas Sobre Vigas"><i
-                                    class="ri-t-box-line"></i> Vigas Sobre Vigas</button>
-
-                            <button class="btn tool" data-tool="vigadeborde" title="Vigas de borde"><i
-                                    class="ri-t-box-line"></i>
-                                Vigas de Borde</button>
-                        </div>
-                    </div>
-                </div>
-                {{-- Losas --}}
-                <div class="menu-group">
-                    <div class="menu-group-title">Losas</div>
-                    <div class="submenu">
-                        <div class="submenu-items">
-                            <button class="btn tool" data-tool="losaligerada1" title="Losa Aligerada 1"><i
-                                    class="ri-t-box-line"></i> Losa Aligerada 1 dir.</button>
-                            <button class="btn tool" data-tool="losaligerada2" title="Losa Aligerada 2"><i
-                                    class="ri-t-box-line"></i> Losa Aligerada 2 dir.</button>
-                            <button class="btn tool" data-tool="losamaciza1" title="Losa Maciza 1"><i
-                                    class="ri-t-box-line"></i>
-                                Losa Maciza 1 dir.</button>
-                            <button class="btn tool" data-tool="losamaciza2" title="Losa Maciza 2"><i
-                                    class="ri-t-box-line"></i>
-                                Losa Maciza 2 dir.</button>
-                        </div>
-                    </div>
-                </div>
-                {{-- Cimentacion --}}
-                <div class="menu-group">
-                    <div class="menu-group-title">Cimentación</div>
-                    <div class="submenu">
-                        <div class="submenu-items">
-                            <button class="btn tool" data-tool="cuadradozapata" title="Zapata Cuadrada"><i
-                                    class="ri-square-line"></i> Cimentación</button>
+                    {{-- Escala --}}
+                    <div class="menu-group">
+                        <div class="menu-group-title">Escala</div>
+                        <div class="submenu">
+                            <button class="btn tool" data-tool="lineaEscala" title="lineaEscala">
+                                <i class="ri-ruler-line"></i> Linea Escala
+                            </button>
                             <div>
-                                <label class="textinp" for="Zpisos">N° pisos</label>
-                                <input id="Zpisos" type="number" value="0" min="0" />
+                                <label class="textinp" for="npisos">Valor medido</label>
+                                <input id="escalaVal" type="number" value="1" min="1" />
                             </div>
                             <div>
-                                <label class="textinp" for="Zsuelos">Cap. suelos</label>
-                                <input id="Zsuelos" type="number" value="0" min="0" />
-                                <span style="font-size: 10px">Kg/cm<sup>2</sup></span>
+                                <label class="textinp" for="npisos">Valor del plano</label>
+                                <input id="escalaplano" type="number" value="1" min="1" />
+                            </div>
+                            <div>
+                                <button id="calc">ok</button>
                             </div>
                         </div>
                     </div>
-                </div>
-                {{-- Placas --}}
-                <div class="menu-group">
-                    <div class="menu-group-title">Placas</div>
-                    <div class="submenu">
-                        <div class="submenu-items">
-                            <button class="btn tool" data-tool="placas" title="placas"><i
-                                    class="ri-square-line"></i>
-                                Placas</button>
-                            <div>
-                                <label class="textinp" for="npisosPlacas">N° pisos</label>
-                                <input id="npisosPlacas" type="number" value="1" min="1" />
-                            </div>
-                            <div>
-                                <label class="textinp" for="placaZ">Z</label>
-                                <input id="placaZ" type="number" value="1" min="1" />
-                            </div>
-                            <div>
-                                <label class="textinp" for="placaU">U</label>
-                                <input id="placaU" type="number" value="1" min="0" />
-                            </div>
-                            <div>
-                                <label class="textinp" for="placaS">S</label>
-                                <input id="placaS" type="number" value="1" min="0" />
-                            </div>
-                            <div>
-                                <label class="textinp" for="placaR">R</label>
-                                <input id="placaR" type="number" value="1" min="0" />
-                            </div>
-                            <div>
-                                <label class="textinp" for="placafc">fc</label>
-                                <input id="placafc" type="number" value="210" min="0" />
-                                <span style="font-size: 10px">Kg/cm<sup>2</sup> </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {{-- Herramientas --}}
-                <div class="menu-group">
-                    <div class="menu-group-title">Herramientas</div>
-                    <div class="submenu">
-                        <div class="submenu-items-herramientas">
-                            <button class="btn tool" data-tool="lapiz"><i class="ri-pencil-line"></i>
-                                Lápiz</button>
-                            <button class="btn" id="eliminar_grafico"> <i class="ri-eraser-line"></i>
-                                Borrar</button>
-                            <button class="btn tool" data-tool="texto"><i class="ri-font-family"></i>
-                                Texto</button>
-
-                            <!-- Dropdown Capas -->
-                            <div class="dropdown">
-                                <button class="btn"><i class="ri-stack-line" title="Capas"></i>
-                                    Capas</button>
-                                <div class="dropdown-content">
-                                    <a>
-                                        <input id="colRect" name="colRect" type="checkbox" value="">
-                                        <label class="textinp" for="checkbox-item-11">Columna Rectangular</label>
-                                    </a>
-                                    <a>
-                                        <input id="colCuad" name="colCuad" type="checkbox" value="">
-                                        <label class="textinp" for="checkbox-item-11">Columna Cuadrado</label>
-                                    </a>
-                                    <a>
-                                        <input id="colCircle" name="colCircle" type="checkbox" value="">
-                                        <label class="textinp" for="checkbox-item-11">Columna Circulo</label>
-                                    </a>
-                                    <a>
-                                        <input id="colT" name="colT" type="checkbox" value="">
-                                        <label class="textinp" for="checkbox-item-11">Columna T</label>
-                                    </a>
-                                    <a>
-                                        <input id="colL" name="colL" type="checkbox" value="">
-                                        <label class="textinp" for="checkbox-item-11">Columna L</label>
-                                    </a>
-                                    <a>
-                                        <input id="vigaPrin" name="vigaPrin" type="checkbox" value="">
-                                        <label class="textinp" for="checkbox-item-11">Viga Principal</label>
-                                    </a>
-                                    <a>
-                                        <input id="vigaCimen" name="vigaCimen" type="checkbox" value="">
-                                        <label class="textinp" for="checkbox-item-11">Viga Cimentación</label>
-                                    </a>
-                                    <a>
-                                        <input id="losaCuad" name="losaCuad" type="checkbox" value="">
-                                        <label class="textinp" for="checkbox-item-11">Losa Cuadrada</label>
-                                    </a>
-                                    <a>
-                                        <input id="zapataCuad" name="zapataCuad" type="checkbox" value="">
-                                        <label class="textinp" for="checkbox-item-11">Zapata Cauadrada</label>
-                                    </a>
+                    {{-- Columna --}}
+                    <div class="menu-group">
+                        <div class="menu-group-title">Columnas</div>
+                        <div class="submenu">
+                            <div class="submenu-items">
+                                <button class="btn tool" data-tool="rectangle" title="Rectangular"><i
+                                        class="ri-rectangle-line"></i>
+                                    Col. Rectangular</button>
+                                <button class="btn tool" data-tool="cuadrado" title="Cuadrada"><i
+                                        class="ri-square-line"></i>
+                                    Col. Cuadrada</button>
+                                <button class="btn tool" data-tool="circulo" title="Circular"><i
+                                        class="ri-circle-line"></i>
+                                    Col. Circular</button>
+                                <button class="btn tool" data-tool="te" title="T"><i class="ri-t-box-line"></i>
+                                    Col. T</button>
+                                <button class="btn tool" data-tool="ele" title="L"><i class="ri-ruler-2-line"></i>
+                                    Col. L</button>
+                                <div>
+                                    <label class="textinp" for="npisos">N° pisos</label>
+                                    <input id="npisos" type="number" value="1" min="1" />
                                 </div>
-                            </div>
-
-                            <!-- Dropdown Brillo -->
-                            <div class="dropdown">
-                                <button class="btn"><i class="ri-sun-line"></i> Brillo</button>
-                                <div class="dropdown-content">
-                                    <a> <input id="brightnessRange" type="range" value="1" min="0"
-                                            max="4" step="0.1"></a>
-                                </div>
-                            </div>
-
-                            <!-- Dropdown Tamaño Linea -->
-                            <div class="dropdown">
-                                <button class="btn"><i class="ri-sun-line"></i> Tamaño Linea</button>
-                                <div class="dropdown-content" id="grosorline">
-                                    <a id="grosor-2" data-brush-width="2" href="#">2</a>
-                                    <a id="grosor-5" data-brush-width="5" href="#">5</a>
-                                    <a id="grosor-10" data-brush-width="10" href="#">10</a>
-                                </div>
-                            </div>
-
-                            <!-- Dropdown Tamaño Letra -->
-                            <div class="dropdown">
-                                <button class="btn"><i class="ri-sun-line"></i> Tamaño Letra</button>
-                                <div class="dropdown-content" id="grosorletter">
-                                    <a id="font-size-12" data-font-size="12" href="#">12</a>
-                                    <a id="font-size-14" data-font-size="14" href="#">14</a>
-                                    <a id="font-size-16" data-font-size="16" href="#">16</a>
-                                    <a id="font-size-20" data-font-size="20" href="#">20</a>
-                                    <a id="font-size-24" data-font-size="24" href="#">24</a>
-                                    <a id="font-size-28" data-font-size="28" href="#">28</a>
-                                    <a id="font-size-32" data-font-size="32" href="#">32</a>
-                                    <a id="font-size-36" data-font-size="36" href="#">36</a>
-                                    <a id="font-size-40" data-font-size="40" href="#">40</a>
+                                <div>
+                                    <label class="textinp" for="">F'c</label>
+                                    <input id="fc" name="fc" type="number" value="210">
+                                    <span style="font-size: 10px">Kg/cm<sup>2</sup></span>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                {{-- Colores --}}
-                <div class="menu-group">
-                    <div class="menu-group-title">Colores</div>
-                    <div class="submenu">
-                        <div class="submenu-items-herramientas palette-grid">
-                            <button class="btn" id="red-color" data-color="#ff0400" type="button" title="Rojo"
-                                aria-label="Color rojo" style="--chip-color: #ff0400;"></button>
-                            <button class="btn" id="blue-color" data-color="#0400ff" type="button" title="Azul"
-                                aria-label="Color azul" style="--chip-color: #0400ff;"></button>
-                            <button class="btn" id="yellow-color" data-color="#fbff00" type="button" title="Amarillo"
-                                aria-label="Color amarillo" style="--chip-color: #fbff00;"></button>
-                            <button class="btn" id="orange-color" data-color="#ff9900" type="button" title="Naranja"
-                                aria-label="Color naranja" style="--chip-color: #ff9900;"></button>
-                            <button class="btn" id="green-color" data-color="#00ff04" type="button" title="Verde"
-                                aria-label="Color verde" style="--chip-color: #00ff04;"></button>
-                            <button class="btn" id="black-color" data-color="#000000" type="button" title="Negro"
-                                aria-label="Color negro" style="--chip-color: #000000;"></button>
+                    {{-- Vigas --}}
+                    <div class="menu-group">
+                        <div class="menu-group-title">Vigas</div>
+                        <div class="submenu">
+                            <div class="submenu-items">
+                                <button class="btn tool" data-tool="cuadradovigas" title="Vigas Principal"><i
+                                        class="ri-t-box-line"></i> Vigas Principal</button>
+                                <button class="btn tool" data-tool="cuadradovigasse" title="Vigas Segundaria"><i
+                                        class="ri-t-box-line"></i> Vigas Segundaria</button>
+                                <button class="btn tool" data-tool="cuadradovigascimentacion"
+                                    title="Vigas Cimentación"><i class="ri-t-box-line"></i> Vigas Cimentación</button>
+
+                                <button class="btn tool" data-tool="vigaSobreVigas" title="Vigas Sobre Vigas"><i
+                                        class="ri-t-box-line"></i> Vigas Sobre Vigas</button>
+
+                                <button class="btn tool" data-tool="vigadeborde" title="Vigas de borde"><i
+                                        class="ri-t-box-line"></i>
+                                    Vigas de Borde</button>
+                            </div>
                         </div>
                     </div>
-                </div>
+                    {{-- Losas --}}
+                    <div class="menu-group">
+                        <div class="menu-group-title">Losas</div>
+                        <div class="submenu">
+                            <div class="submenu-items">
+                                <button class="btn tool" data-tool="losaligerada1" title="Losa Aligerada 1"><i
+                                        class="ri-t-box-line"></i> Losa Aligerada 1 dir.</button>
+                                <button class="btn tool" data-tool="losaligerada2" title="Losa Aligerada 2"><i
+                                        class="ri-t-box-line"></i> Losa Aligerada 2 dir.</button>
+                                <button class="btn tool" data-tool="losamaciza1" title="Losa Maciza 1"><i
+                                        class="ri-t-box-line"></i>
+                                    Losa Maciza 1 dir.</button>
+                                <button class="btn tool" data-tool="losamaciza2" title="Losa Maciza 2"><i
+                                        class="ri-t-box-line"></i>
+                                    Losa Maciza 2 dir.</button>
+                            </div>
+                        </div>
+                    </div>
+                    {{-- Cimentacion --}}
+                    <div class="menu-group">
+                        <div class="menu-group-title">Cimentación</div>
+                        <div class="submenu">
+                            <div class="submenu-items">
+                                <button class="btn tool" data-tool="cuadradozapata" title="Zapata Cuadrada"><i
+                                        class="ri-square-line"></i> Cimentación</button>
+                                <div>
+                                    <label class="textinp" for="Zpisos">N° pisos</label>
+                                    <input id="Zpisos" type="number" value="0" min="0" />
+                                </div>
+                                <div>
+                                    <label class="textinp" for="Zsuelos">Cap. suelos</label>
+                                    <input id="Zsuelos" type="number" value="0" min="0" />
+                                    <span style="font-size: 10px">Kg/cm<sup>2</sup></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {{-- Placas --}}
+                    <div class="menu-group">
+                        <div class="menu-group-title">Placas</div>
+                        <div class="submenu">
+                            <div class="submenu-items">
+                                <button class="btn tool" data-tool="placas" title="placas"><i
+                                        class="ri-square-line"></i>
+                                    Placas</button>
+                                <div>
+                                    <label class="textinp" for="npisosPlacas">N° pisos</label>
+                                    <input id="npisosPlacas" type="number" value="1" min="1" />
+                                </div>
+                                <div>
+                                    <label class="textinp" for="placaZ">Z</label>
+                                    <input id="placaZ" type="number" value="1" min="1" />
+                                </div>
+                                <div>
+                                    <label class="textinp" for="placaU">U</label>
+                                    <input id="placaU" type="number" value="1" min="0" />
+                                </div>
+                                <div>
+                                    <label class="textinp" for="placaS">S</label>
+                                    <input id="placaS" type="number" value="1" min="0" />
+                                </div>
+                                <div>
+                                    <label class="textinp" for="placaR">R</label>
+                                    <input id="placaR" type="number" value="1" min="0" />
+                                </div>
+                                <div>
+                                    <label class="textinp" for="placafc">fc</label>
+                                    <input id="placafc" type="number" value="210" min="0" />
+                                    <span style="font-size: 10px">Kg/cm<sup>2</sup> </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {{-- Herramientas --}}
+                    <div class="menu-group">
+                        <div class="menu-group-title">Herramientas</div>
+                        <div class="submenu">
+                            <div class="submenu-items-herramientas">
+                                <button class="btn tool" data-tool="lapiz"><i class="ri-pencil-line"></i>
+                                    Lápiz</button>
+                                <button class="btn" id="eliminar_grafico"> <i class="ri-eraser-line"></i>
+                                    Borrar</button>
+                                <button class="btn tool" data-tool="texto"><i class="ri-font-family"></i>
+                                    Texto</button>
+
+                                <!-- Dropdown Capas -->
+                                <div class="dropdown">
+                                    <button class="btn"><i class="ri-stack-line" title="Capas"></i>
+                                        Capas</button>
+                                    <div class="dropdown-content">
+                                        <a>
+                                            <input id="colRect" name="colRect" type="checkbox" value="">
+                                            <label class="textinp" for="checkbox-item-11">Columna Rectangular</label>
+                                        </a>
+                                        <a>
+                                            <input id="colCuad" name="colCuad" type="checkbox" value="">
+                                            <label class="textinp" for="checkbox-item-11">Columna Cuadrado</label>
+                                        </a>
+                                        <a>
+                                            <input id="colCircle" name="colCircle" type="checkbox" value="">
+                                            <label class="textinp" for="checkbox-item-11">Columna Circulo</label>
+                                        </a>
+                                        <a>
+                                            <input id="colT" name="colT" type="checkbox" value="">
+                                            <label class="textinp" for="checkbox-item-11">Columna T</label>
+                                        </a>
+                                        <a>
+                                            <input id="colL" name="colL" type="checkbox" value="">
+                                            <label class="textinp" for="checkbox-item-11">Columna L</label>
+                                        </a>
+                                        <a>
+                                            <input id="vigaPrin" name="vigaPrin" type="checkbox" value="">
+                                            <label class="textinp" for="checkbox-item-11">Viga Principal</label>
+                                        </a>
+                                        <a>
+                                            <input id="vigaCimen" name="vigaCimen" type="checkbox" value="">
+                                            <label class="textinp" for="checkbox-item-11">Viga Cimentación</label>
+                                        </a>
+                                        <a>
+                                            <input id="losaCuad" name="losaCuad" type="checkbox" value="">
+                                            <label class="textinp" for="checkbox-item-11">Losa Cuadrada</label>
+                                        </a>
+                                        <a>
+                                            <input id="zapataCuad" name="zapataCuad" type="checkbox" value="">
+                                            <label class="textinp" for="checkbox-item-11">Zapata Cauadrada</label>
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <!-- Dropdown Brillo -->
+                                <div class="dropdown">
+                                    <button class="btn"><i class="ri-sun-line"></i> Brillo</button>
+                                    <div class="dropdown-content">
+                                        <a> <input id="brightnessRange" type="range" value="1" min="0"
+                                                max="4" step="0.1"></a>
+                                    </div>
+                                </div>
+
+                                <!-- Dropdown Tamaño Linea -->
+                                <div class="dropdown">
+                                    <button class="btn"><i class="ri-sun-line"></i> Tamaño Linea</button>
+                                    <div class="dropdown-content" id="grosorline">
+                                        <a id="grosor-2" data-brush-width="2" href="#">2</a>
+                                        <a id="grosor-5" data-brush-width="5" href="#">5</a>
+                                        <a id="grosor-10" data-brush-width="10" href="#">10</a>
+                                    </div>
+                                </div>
+
+                                <!-- Dropdown Tamaño Letra -->
+                                <div class="dropdown">
+                                    <button class="btn"><i class="ri-sun-line"></i> Tamaño Letra</button>
+                                    <div class="dropdown-content" id="grosorletter">
+                                        <a id="font-size-12" data-font-size="12" href="#">12</a>
+                                        <a id="font-size-14" data-font-size="14" href="#">14</a>
+                                        <a id="font-size-16" data-font-size="16" href="#">16</a>
+                                        <a id="font-size-20" data-font-size="20" href="#">20</a>
+                                        <a id="font-size-24" data-font-size="24" href="#">24</a>
+                                        <a id="font-size-28" data-font-size="28" href="#">28</a>
+                                        <a id="font-size-32" data-font-size="32" href="#">32</a>
+                                        <a id="font-size-36" data-font-size="36" href="#">36</a>
+                                        <a id="font-size-40" data-font-size="40" href="#">40</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {{-- Colores --}}
+                    <div class="menu-group">
+                        <div class="menu-group-title">Colores</div>
+                        <div class="submenu">
+                            <div class="submenu-items-herramientas palette-grid">
+                                <button class="btn" id="red-color" data-color="#ff0400" type="button" title="Rojo"
+                                    aria-label="Color rojo" style="--chip-color: #ff0400;"></button>
+                                <button class="btn" id="blue-color" data-color="#0400ff" type="button" title="Azul"
+                                    aria-label="Color azul" style="--chip-color: #0400ff;"></button>
+                                <button class="btn" id="yellow-color" data-color="#fbff00" type="button" title="Amarillo"
+                                    aria-label="Color amarillo" style="--chip-color: #fbff00;"></button>
+                                <button class="btn" id="orange-color" data-color="#ff9900" type="button" title="Naranja"
+                                    aria-label="Color naranja" style="--chip-color: #ff9900;"></button>
+                                <button class="btn" id="green-color" data-color="#00ff04" type="button" title="Verde"
+                                    aria-label="Color verde" style="--chip-color: #00ff04;"></button>
+                                <button class="btn" id="black-color" data-color="#000000" type="button" title="Negro"
+                                    aria-label="Color negro" style="--chip-color: #000000;"></button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </aside>
             <div class="mobile-backdrop" id="mobileBackdrop"></div>

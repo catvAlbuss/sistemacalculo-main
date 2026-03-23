@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\VigaCaptureController;
+
 use App\Http\Controllers\BlogController;
 use App\Http\Controllers\CimientoCorridoController;
 use App\Http\Controllers\ColumnaController;
@@ -27,6 +29,10 @@ Route::view('/servicios/planos_estructurales', 'landing.structural_blueprint')->
 Route::view('/servicios/metrados', 'landing.metrados')->name('landing.services.metrados');
 //Route::view('/contacto', 'landing.contact')->name('landing.contact');
 Route::post('/cotizarplano', [enviarCotizacionController::class, 'enviarCotizacion'])->name('cotizarplano');
+
+// Route::post('/capturar-viga-descarga', [VigaCaptureController::class, 'descargar']);
+
+Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento']);  
 
 //==========================RUTA PARA LAS PRUEBAS PREDIM==================//
 Route::view('/info/arco_techo', 'landing.arco_techo')->name('landing.info.arco_techo');
@@ -93,7 +99,7 @@ Route::middleware(["auth", "verified"])->group(function () {
         });
 
         //==================CALCULADORA ASISTENTE (Root, Gerencia, Asistente)//
-        Route::middleware(['role:root,gerencia,asistente'])->group(function () {
+        Route::middleware(['role:root|gerencia|asistente'])->group(function () {
             Route::prefix('asistente')->name('asistente.')->group(function () {
                 Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name('memoria-calculo');
                 // Vigas
