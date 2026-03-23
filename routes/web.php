@@ -33,7 +33,7 @@ Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturar
 //==========================RUTA PARA LAS PRUEBAS PREDIM==================//
 Route::view('/info/arco_techo', 'landing.arco_techo')->name('landing.info.arco_techo');
 Route::view('/info/predim', 'landing.predim')->name('landing.info.predim');
-
+Route::view('/predim_v2', 'predim.predim-new')->name("predim_v2");
 //==========================RUTAS PÚBLICAS================================//
 Route::view('/arco_techo', 'hcalculo.arco_techo')->name("calculadora.estudiante.arco_techo");
 
@@ -97,6 +97,7 @@ Route::middleware(["auth", "verified"])->group(function () {
         //==================CALCULADORA ASISTENTE (Root, Gerencia, Asistente)//
         Route::middleware(['role:root,gerencia,asistente'])->group(function () {
             Route::prefix('asistente')->name('asistente.')->group(function () {
+                Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name('memoria-calculo');
                 // Vigas
                 Route::view('/vigas', 'hcalculo.admdesingvigas')->name('vigas');
                 Route::view('/vigas-general', 'hcalculo.admvigageneral')->name('vigas-general');
@@ -167,7 +168,9 @@ Route::middleware(["auth", "verified"])->group(function () {
         Route::view('/estribo-placa-v1', 'hcalculo.verificaciones.admEstriboplacas')->name("estribo-placa-v1");
         Route::view('/predim-viga-v1', 'hcalculo.verificaciones.admPredimviga')->name("predim-viga-v1");
         Route::view('/verificacion-viga-v1', 'hcalculo.verificaciones.admVigaverifica')->name("verificacion-viga-v1");
+        Route::view('/predim', 'predim.predim')->name("predim");
     });
+
     //===================RUTA DE LOSAS========================================//
     Route::post('/desingLosa', [DesingLosaController::class, 'losasAligeradas'])->name('desingLosa');
     //===================RUTA DE CIMIENTO CORRIDO=============================//

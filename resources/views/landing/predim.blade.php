@@ -10,7 +10,7 @@
     información técnica relevante y cálculos necesarios para una correcta ejecución del diseño. Es una
     herramienta eficiente para ingenieros civiles y arquitectos, optimizando el proceso de predimensionamiento
     y análisis preliminar.</p>
-  <a href="{{ route('software.predim') }}">
+  <a href="{{ route('predim_v2') }}">
     <p class="text-justify"><span
         class="me-2 rounded border border-yellow-300 bg-yellow-100 px-2.5 py-0.5 text-4xl font-medium text-yellow-800 dark:bg-gray-700 dark:text-yellow-300">PRUEBALO</span>
     </p>
