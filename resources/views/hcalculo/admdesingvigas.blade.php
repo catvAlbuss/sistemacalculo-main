@@ -130,6 +130,11 @@
                             id="btn_pdf_predim">
                             Generar PDF
                         </button>
+                        <button type="button"
+                            class="text-white bg-green-700 hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center"
+                            id="btn_captura_resultado">
+                            Generar imagen
+                        </button>
                         <div class="overflow-x-auto" id="vigasgn">
                             <table id="desingcorte" class="min-w-full text-gray-800 dark:text-white">
                                 <!-- Requisitos de diseño vigas -->
@@ -139,10 +144,10 @@
                                             diseño</th>
                                     </tr>
                                     <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                        <th class="text-lg py-2 px-4" scope="col">Nombre</th>
-                                        <th class="text-lg py-2 px-4" scope="col">Símbolo</th>
-                                        <th class="text-lg py-2 px-4" scope="col">Fórmula</th>
-                                        <th class="text-lg py-2 px-4" scope="col">Resultado</th>
+                                        <<th class="text-xl py-2 px-4 w-[30%]" scope="col">Nombre</th>
+                                        <th class="text-xl py-2 px-4 w-[15%]" scope="col">Simbolo</th>
+                                        <th class="text-xl py-2 px-4 w-[35%]" scope="col">Formula</th>
+                                        <th class="text-xl py-2 px-4 w-[20%]" scope="col">Resultado</th>
                                     </tr>
                                 </thead>
                                 <tbody id="predimenension" class="bg-gray-100 dark:bg-gray-800  py-2"></tbody>
@@ -152,10 +157,10 @@
                                         </th>
                                     </tr>
                                     <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                        <th class="text-xl" scope="col">Nombre</th>
-                                        <th class="text-xl" scope="col">Simbolo</th>
-                                        <th class="text-xl" scope="col">Formula</th>
-                                        <th class="text-xl" scope="col">Resultado</th>
+                                        <th class="text-xl py-2 px-4 w-[30%]" scope="col">Nombre</th>
+                                        <th class="text-xl py-2 px-4 w-[15%]" scope="col">Simbolo</th>
+                                        <th class="text-xl py-2 px-4 w-[35%]" scope="col">Formula</th>
+                                        <th class="text-xl py-2 px-4 w-[20%]" scope="col">Resultado</th>
                                     </tr>
                                 </thead>
                                 <tbody id="desingFlexion" class="py-2"></tbody>
@@ -175,10 +180,10 @@
                                         </th>
                                     </tr>
                                     <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                        <th class="text-xl" scope="col">Nombre</th>
-                                        <th class="text-xl" scope="col">Simbolo</th>
-                                        <th class="text-xl" scope="col">Formula</th>
-                                        <th class="text-xl" scope="col">Resultado</th>
+                                        <th class="text-xl py-2 px-4 w-[30%]" scope="col">Nombre</th>
+                                        <th class="text-xl py-2 px-4 w-[15%]" scope="col">Simbolo</th>
+                                        <th class="text-xl py-2 px-4 w-[35%]" scope="col">Formula</th>
+                                        <th class="text-xl py-2 px-4 w-[20%]" scope="col">Resultado</th>
                                     </tr>
                                 </thead>
                                 <tbody id="diseñoCortes" class="py-2"></tbody>

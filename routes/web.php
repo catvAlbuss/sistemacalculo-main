@@ -11,6 +11,7 @@ use App\Http\Controllers\GestionUserRolSuscripcion;
 use App\Http\Controllers\OctavePlotController;
 use App\Http\Controllers\MuroAlbanieriaController;
 use App\Http\Controllers\SubscriptionPlanController;
+use App\Http\Controllers\VigaCaptureController;
 use App\Http\Controllers\ZapatacombinadaController;
 use App\Http\Controllers\ZapataconectadaController;
 use App\Http\Controllers\ZapatageneralController;
@@ -27,6 +28,7 @@ Route::view('/servicios/planos_estructurales', 'landing.structural_blueprint')->
 Route::view('/servicios/metrados', 'landing.metrados')->name('landing.services.metrados');
 //Route::view('/contacto', 'landing.contact')->name('landing.contact');
 Route::post('/cotizarplano', [enviarCotizacionController::class, 'enviarCotizacion'])->name('cotizarplano');
+Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento']);
 
 //==========================RUTA PARA LAS PRUEBAS PREDIM==================//
 Route::view('/info/arco_techo', 'landing.arco_techo')->name('landing.info.arco_techo');

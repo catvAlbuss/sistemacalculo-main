@@ -96,6 +96,11 @@
         <div class="mt-4 w-full px-4 md:mt-0 md:w-2/3">
           <div class="rounded-lg bg-white p-6 shadow-md dark:bg-gray-800">
             <h3 class="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">Resultados</h3>
+            <button
+              class="rounded-lg bg-blue-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+              id="btn_captura_resultado" type="button">
+              Generar IMG
+            </button>
             <div class="overflow-x-auto">
               <table class="min-w-full text-gray-800 dark:text-white" id="resultados">
                 <!-- datos -->

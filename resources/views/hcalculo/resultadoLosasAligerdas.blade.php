@@ -1,5 +1,19 @@
 <!-- resources/views/partials/resultadoLosasAligerdas.blade.php -->
 <table id="desingcorte" class="min-w-full text-gray-800 dark:text-white">
+    @php
+    // Al inicio de la vista, asegurar que base tenga valores válidos
+    foreach ($base as $key => $value) {
+    if ($base[$key] == 0) {
+    $base[$key] = 40; // valor por defecto
+    }
+    }
+
+    foreach ($altura as $key => $value) {
+    if ($altura[$key] == 0) {
+    $altura[$key] = 90; // valor por defecto
+    }
+    }
+    @endphp
     <!-- Requisitos de diseño vigas -->
     <thead class="bg-gray-200 dark:bg-gray-800">
         <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
@@ -853,6 +867,7 @@
             $bf = 0;
 
             $Ma_value = $cargaMuerta[ceil(($i / 3))] + $cargaViva[ceil(($i / 3))];
+            
             $ddef_value = ($altura[ceil(($i / 3))] - 3) / 100;
             $baseP_value = $bp[ceil(($i / 3))] / 100;
             $BaseM_value = $base[ceil(($i / 3))] / 100;
@@ -904,8 +919,8 @@
             <td class='py-2 px-4'>{{ $Icritica_value }} cm²</td>
             @endforeach
         </tr>
-         <!-- Lef (cm<sup>4</sup>) -->
-         <tr class="bg-gray-100 dark:bg-gray-600 text-center">
+        <!-- Lef (cm<sup>4</sup>) -->
+        <tr class="bg-gray-100 dark:bg-gray-600 text-center">
             <th class='py-2 px-4' scope="row">Lef</th>
             <th class='py-2 px-4' scope="row">Lef</th>
             <th class='py-2 px-4' scope="row">(Mcr/ma)^3 * lg + + (1 - (Mcr/Ma)^3 ) * lcr </th>

@@ -24,6 +24,9 @@
                     @include('hcalculo.memoria_calculo.sections.analisis-cargas')
                     @include('hcalculo.memoria_calculo.sections.analisis-sismico')
                     @include('hcalculo.memoria_calculo.sections.diseno-elementos')
+                    @include('hcalculo.memoria_calculo.sections.diseno-estructura')
+                    <!-- SECCION 6 -->
+                    @include('hcalculo.memoria_calculo.sections.conclusiones-recomendaciones')
                 </div>
             </div>
 

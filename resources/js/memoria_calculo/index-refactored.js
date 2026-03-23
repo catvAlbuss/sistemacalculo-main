@@ -8,9 +8,9 @@ import { createMemoriaCalculoStore } from "./stores/memoriaCalculoStore.js";
 import { createGeneralidadesComponent } from "./components/GeneralidadesComponent.js";
 import { createAnalisisCargasComponent } from "./components/AnalisisCargasComponent.js";
 import { createAnalisisSismicoComponent } from "./components/AnalisisSismicoComponent.js";
+import { createDisenoElementosComponent } from "./components/DisenoElementosComponent.js";
+import {createEstructuraMetalicaComponent} from "./components/EstructuraMetalicaComponent.js";
 import {
-    createDisenoElementosComponent,
-    createEstructuraMetalicaComponent,
     createConclusionesComponent
 } from "./components/SimpleSectionComponent.js";
 
@@ -50,6 +50,9 @@ function memoriaCalculo() {
                 }
             };
         },
+
+        get losa() { return this.sections.disenoElementos?.losa || 1; },
+
 
         document: JSON.parse(JSON.stringify(DEFAULT_MC_STRUCTURE.document)),
 
@@ -98,6 +101,7 @@ function memoriaCalculo() {
                 // Construir estructura para procesador
                 const structure = buildContentStructure({
                     cover: exportData.cover,
+                    sections: exportData.sections,
                     document: JSON.parse(JSON.stringify(this.document))
                 });
 

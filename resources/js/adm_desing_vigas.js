@@ -775,4 +775,168 @@ $(document).ready(function () {
       copyTagClasses: false, // No copiar las clases de las etiquetas HTML
     });
   });
+
+  // INTENTO CON Puppeteer
+  const btnCaptura = document.getElementById("btn_captura_resultado");
+
+  /* ================================
+     CLONAR DOM CON VALORES REALES
+  ================================ */
+  function clonarConValoresFormulario(node) {
+    const clone = node.cloneNode(true);
+
+    const originalFields = node.querySelectorAll("input, select, textarea");
+    const clonedFields = clone.querySelectorAll("input, select, textarea");
+
+    originalFields.forEach((field, index) => {
+      const clonedField = clonedFields[index];
+      if (!clonedField) return;
+
+      // INPUT
+      if (field.tagName === "INPUT") {
+        const type = (field.type || "").toLowerCase();
+
+        if (type === "checkbox" || type === "radio") {
+          if (field.checked) {
+            clonedField.setAttribute("checked", "checked");
+          } else {
+            clonedField.removeAttribute("checked");
+          }
+        } else {
+          clonedField.setAttribute("value", field.value);
+          clonedField.value = field.value;
+        }
+      }
+
+      // TEXTAREA
+      if (field.tagName === "TEXTAREA") {
+        clonedField.value = field.value;
+        clonedField.textContent = field.value;
+      }
+
+      // SELECT (IMPORTANTE 🔥)
+      if (field.tagName === "SELECT") {
+        clonedField.value = field.value;
+
+        Array.from(clonedField.options).forEach((option) => {
+          if (option.value === field.value) {
+            option.setAttribute("selected", "selected");
+            option.selected = true;
+          } else {
+            option.removeAttribute("selected");
+            option.selected = false;
+          }
+        });
+      }
+    });
+
+    return clone;
+  }
+
+  /* ================================
+     GENERAR NOMBRE DE ARCHIVO
+  ================================ */
+  function generarNombreCaptura() {
+    const ahora = new Date();
+
+    const fecha = [
+      ahora.getFullYear(),
+      String(ahora.getMonth() + 1).padStart(2, "0"),
+      String(ahora.getDate()).padStart(2, "0"),
+    ].join("-");
+
+    const hora = [
+      String(ahora.getHours()).padStart(2, "0"),
+      String(ahora.getMinutes()).padStart(2, "0"),
+      String(ahora.getSeconds()).padStart(2, "0"),
+    ].join("-");
+
+    return `resultado_viga_${fecha}_${hora}.png`;
+  }
+
+  /* ================================
+     DESCARGAR ARCHIVO
+  ================================ */
+  function descargarBlob(blob, nombreArchivo) {
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nombreArchivo;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    window.URL.revokeObjectURL(url);
+  }
+
+  /* ================================
+     EVENTO PRINCIPAL
+  ================================ */
+  btnCaptura.addEventListener("click", async () => {
+    const textoOriginal = btnCaptura.textContent;
+
+    try {
+      const node = document.getElementById("vigasgn");
+
+      if (!node || node.innerHTML.trim() === "") {
+        alert("Primero debes generar los resultados.");
+        return;
+      }
+
+      btnCaptura.disabled = true;
+      btnCaptura.textContent = "Generando...";
+
+      // 🔥 CLON CON VALORES REALES
+      const clone = clonarConValoresFormulario(node);
+
+      const stylesheets = Array.from(
+        document.querySelectorAll('link[rel="stylesheet"]'),
+        (link) => link.href
+      ).filter(Boolean);
+
+      const inlineStyles = Array.from(
+        document.querySelectorAll("style"),
+        (style) => style.outerHTML
+      ).join("\n");
+
+      const payload = {
+        html: clone.outerHTML,
+        stylesheets,
+        inlineStyles,
+      };
+
+      const response = await fetch("/capturar-viga-fragmento", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-TOKEN": document
+            .querySelector('meta[name="csrf-token"]')
+            .getAttribute("content"),
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("STATUS:", response.status);
+        console.error("RESPUESTA:", errorText);
+        throw new Error(`Error ${response.status} al generar la imagen.`);
+      }
+
+      const blob = await response.blob();
+      descargarBlob(blob, generarNombreCaptura());
+
+    } catch (error) {
+      console.error("Error en captura:", error);
+      alert(error.message || "Error al generar la imagen.");
+    } finally {
+      btnCaptura.disabled = false;
+      btnCaptura.textContent = textoOriginal;
+    }
+  });
+
 });
+
+
