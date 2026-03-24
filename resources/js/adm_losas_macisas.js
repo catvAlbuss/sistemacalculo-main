@@ -1,5 +1,6 @@
 import html2canvas from "html2canvas";
 import "print-this";
+// import html2canvas from "html2canvas";
 
 document.addEventListener("DOMContentLoaded", function () {
   /* Variables globales */
@@ -459,6 +460,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   const capturarTabla = async () => {
+
   const btn = document.getElementById("btn_captura_resultado");
   const elemento = document.getElementById("desingcorte");
 
@@ -532,3 +534,4 @@ document.addEventListener("DOMContentLoaded", function () {
 
 document.getElementById("btn_captura_resultado").addEventListener("click", capturarTabla);
 });
+

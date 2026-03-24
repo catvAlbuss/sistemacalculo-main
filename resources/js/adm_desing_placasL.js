@@ -1,4 +1,5 @@
 import html2canvas from "html2canvas";
+
 import {
   solicitudCargaT1,
   solicitudCargaDT2,

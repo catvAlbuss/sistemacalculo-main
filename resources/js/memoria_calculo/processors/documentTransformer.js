@@ -1421,7 +1421,11 @@ export class DocumentTransformer {
         width: 500,
         height: 300,
         caption: "figura 45-TABLA DE PREDISIONAMIENTO ",
+<<<<<<< HEAD
         alignment: "center",
+=======
+        alignment: "CENTER",
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
       });
       console.warn("Se encontró el parrafo de losa aligerada");
     } else {
@@ -1462,6 +1466,7 @@ export class DocumentTransformer {
     if (metradoCargasListIdx !== -1) {
       console.log("Se encontro la list de metrado de cargas para insertar la tabla.");
       disenoElementos.content.splice(metradoCargasListIdx + 1, 0, tablaMetradoCargasDetallada);
+<<<<<<< HEAD
     } else {
       disenoElementos.content.splice(metradoCargasListIdx + 1, 0, {
         type: "paragraph",
@@ -1478,6 +1483,8 @@ export class DocumentTransformer {
 
     if (disenoAligeradaListIdx !== -1) {
       console.log(`✅ Lista 'METRADO DE CARGAS' encontrada en índice: ${disenoAligeradaListIdx}`);
+=======
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
 
       // Obtener el texto de las secciones del store
       const listAligeradas = this.sections?.disenoElementos?.lista || "";
@@ -1502,7 +1509,11 @@ export class DocumentTransformer {
         console.log(`🖼️ Total de imágenes disponibles: ${losaImages.length} secciones con 4 imágenes cada una`);
 
         // INSERTAR las nuevas listas con sus imágenes
+<<<<<<< HEAD
         let currentPosition = disenoAligeradaListIdx + 1;
+=======
+        let currentPosition = metradoCargasListIdx + 2;
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
 
         for (let index = 0; index < itemsArray.length; index++) {
           const item = itemsArray[index];
@@ -1523,6 +1534,7 @@ export class DocumentTransformer {
             const imagen = imagenesSeccion[imgIdx];
 
             if (imagen) {
+<<<<<<< HEAD
               // Si hay imagen, insertarla
               disenoElementos.content.splice(currentPosition, 0, {
                 type: "image",
@@ -1536,6 +1548,37 @@ export class DocumentTransformer {
               console.log(
                 `   🖼️ Insertada imagen ${imgIdx + 1} de sección ${index + 1} en posición ${currentPosition}`,
               );
+=======
+              if (imgIdx === 0) {
+                // Si hay imagen, insertarla
+                disenoElementos.content.splice(currentPosition, 0, {
+                  type: "image",
+                  src: imagen, // Aquí va la URL de la imagen
+                  alt: `Figura 4.2.${index + 1}.${imgIdx + 1} - ${item}`,
+                  width: 500,
+                  height: 300,
+                  caption: `Figura 4.2.${index + 1}.${imgIdx + 1} - Detalle ${imgIdx + 1} de ${item}`,
+                  alignment: "CENTER",
+                });
+                console.log(
+                  `   🖼️ Insertada imagen ${imgIdx + 1} de sección ${index + 1} en posición ${currentPosition}`,
+                );
+              } else {
+                // Si hay imagen, insertarla
+                disenoElementos.content.splice(currentPosition, 0, {
+                  type: "image",
+                  src: imagen, // Aquí va la URL de la imagen
+                  alt: `Figura 4.2.${index + 1}.${imgIdx + 1} - ${item}`,
+                  width: 500,
+                  height: 800,
+                  caption: `Figura 4.2.${index + 1}.${imgIdx + 1} - Detalle ${imgIdx + 1} de ${item}`,
+                  alignment: "CENTER",
+                });
+                console.log(
+                  `   🖼️ Insertada imagen ${imgIdx + 1} de sección ${index + 1} en posición ${currentPosition}`,
+                );
+              }
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
             } else {
               // Si no hay imagen, insertar un placeholder o mensaje
               disenoElementos.content.splice(currentPosition, 0, {
@@ -1555,7 +1598,24 @@ export class DocumentTransformer {
       }
 
       console.log("✅ Listas e imágenes de losa aligerada insertadas correctamente");
+<<<<<<< HEAD
     }
+=======
+      console.log(`✅ Lista 'METRADO DE CARGAS' encontrada en índice: ${metradoCargasListIdx}`);
+    } else {
+      disenoElementos.content.splice(metradoCargasListIdx + 1, 0, {
+        type: "paragraph",
+        text: `[TABLA METRADOS DE CARGAS  - Sin tabla disponible]`,
+        style: "placeholder",
+        alignment: "center",
+      });
+      console.log("No Se encontro la list de metrado de cargas para insertar la tabla.");
+    }
+    // Buscar la lista "METRADO DE CARGAS"
+    // const metradoCargasListIdx = disenoElementos.content.findIndex(
+    //   (item, i) => i > idx42 && item.type === "list" && item.items && item.items[0] === "METRADO DE CARGAS",
+    // );
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
 
     // ==================== DISEÑO DE LOZA MACIZA =======================0
     const idx43 = disenoElementos.content.findIndex(
@@ -1607,6 +1667,7 @@ export class DocumentTransformer {
       disenoElementos.content.splice(disenoLosaParagraphIdx + 1, 0, ...contentLosaMaciza);
     }
 
+<<<<<<< HEAD
     // ==================== DISEÑO DE VIGAS ========================
     console.log("🔍 ===== INICIANDO TRANSFORMACIÓN DE VIGAS =====");
     console.log("📦 this.previews.vigaImages:", this.previews?.vigaImages);
@@ -2149,6 +2210,9 @@ export class DocumentTransformer {
       console.log("✅ Listas e imágenes de placas insertadas correctamente");
     }
     // ================== Diseño de losa Nervada =======================
+=======
+    // ================== DISEÑO DE LOSA NERVADA 1 =======================
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
     const idx44 = disenoElementos.content.findIndex(
       (item) => item.type === "heading" && item.text === "4.4 DISEÑO DE LOSA NERVADA",
     );
@@ -2192,7 +2256,11 @@ export class DocumentTransformer {
           src: disenoLosaNervada1Images[2],
           alignment: "CENTER",
           width: 500,
+<<<<<<< HEAD
           height: 280,
+=======
+          height: 800,
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
           caption: "",
         });
 
@@ -2224,7 +2292,11 @@ export class DocumentTransformer {
           src: disenoLosaNervada1Images[4],
           alignment: "CENTER",
           width: 500,
+<<<<<<< HEAD
           height: 280,
+=======
+          height: 800,
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
           caption: "",
         });
       }
@@ -2262,7 +2334,11 @@ export class DocumentTransformer {
           src: disenoLosaNervada1Images[6],
           alignment: "CENTER",
           width: 500,
+<<<<<<< HEAD
           height: 280,
+=======
+          height: 800,
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
           caption: "",
         });
       }
@@ -2292,7 +2368,11 @@ export class DocumentTransformer {
           src: disenoLosaNervada1Images[8],
           alignment: "CENTER",
           width: 500,
+<<<<<<< HEAD
           height: 280,
+=======
+          height: 800,
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
           caption: "",
         });
       }
@@ -2352,7 +2432,11 @@ export class DocumentTransformer {
           src: disenoLosaNervada2Images[2],
           alignment: "CENTER",
           width: 500,
+<<<<<<< HEAD
           height: 280,
+=======
+          height: 700,
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
           caption: "",
         });
       }
@@ -2384,7 +2468,11 @@ export class DocumentTransformer {
           src: disenoLosaNervada2Images[4],
           alignment: "CENTER",
           width: 500,
+<<<<<<< HEAD
           height: 280,
+=======
+          height: 700,
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
           caption: "",
         });
       }
@@ -2425,7 +2513,11 @@ export class DocumentTransformer {
           src: disenoLosaNervada2Images[6],
           alignment: "CENTER",
           width: 500,
+<<<<<<< HEAD
           height: 280,
+=======
+          height: 800,
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
           caption: "",
         });
       }
@@ -2457,7 +2549,11 @@ export class DocumentTransformer {
           src: disenoLosaNervada2Images[8],
           alignment: "CENTER",
           width: 500,
+<<<<<<< HEAD
           height: 280,
+=======
+          height: 800,
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
           caption: "",
         });
       }
@@ -2471,10 +2567,582 @@ export class DocumentTransformer {
       indice2LosaNervadaHorizontal++;
     }
 
+<<<<<<< HEAD
     // ======================== DISEÑO DE MURO DE CONCRETO ============================
 
     const idx48 = disenoElementos.content.findIndex(
       (item) => item.type === "heading" && item.text === "4.8 DISEÑO DE MURO CONCRETO DISEÑO DE ESCALERA",
+=======
+    // ==================== DISEÑO DE VIGAS ========================
+    console.log("🔍 ===== INICIANDO TRANSFORMACIÓN DE VIGAS =====");
+    console.log("📦 this.previews.vigaImages:", this.previews?.vigaImages);
+    console.log("📦 this.sections.disenoElementos.nameVigas:", this.sections?.disenoElementos?.nameVigas);
+
+    if (!disenoElementos || !disenoElementos.content) {
+      console.warn("⚠️ No se encontró la sección de diseño de elementos");
+      return;
+    }
+
+    // Buscar el encabezado de la sección 4.5
+    const idx45 = disenoElementos.content.findIndex(
+      (item) => item.type === "heading" && item.text && item.text.includes("4.5 DISEÑO DE VIGAS"),
+    );
+
+    console.log(`🔍 Índice del heading 4.5: ${idx45}`);
+
+    if (idx45 === -1) {
+      console.warn("⚠️ No se encontró el encabezado 4.5 DISEÑO DE VIGAS");
+      return;
+    }
+
+    console.warn("Antes de encontrar la lista diseno por flexion");
+    const listaDisenoFlexion = disenoElementos.content.findIndex(
+      (item, i) =>
+        i > idx45 &&
+        item.type === "list" &&
+        item.items &&
+        item.items[0].includes("Diseño por Flexión Artículo 9.2.3.1 de E.060"),
+    );
+
+    const disenoVigaImages = this.previews?.disenoVigaImages || [];
+
+    if (listaDisenoFlexion !== -1) {
+      disenoElementos.content.splice(listaDisenoFlexion + 1, 0, {
+        type: "image",
+        src: disenoVigaImages[0],
+        alt: "Imagen Diseño por Flexion",
+        width: 500,
+        height: 300,
+        caption: "figura 56-Consideraciones y términos para el diseño por flexión (tonf-m)",
+        alignment: "CENTER",
+      });
+      console.warn("Se encontró la lista diseno por flexion");
+    } else {
+      disenoElementos.content.splice(listaDisenoFlexion, 0, {
+        type: "paragraph",
+        text: `[IMAGEN figura 56-Consideraciones y términos para el diseño por flexión (tonf-m) - Sin imagen disponible]`,
+        style: "placeholder",
+        alignment: "center",
+      });
+      console.warn("No Se encontró la lista diseno por flexion");
+    }
+
+    // Buscar la lista "Diseño de Viga de 25x45" que servirá como punto de referencia
+    const listaReferenciaIdx = disenoElementos.content.findIndex(
+      (item, i) => i > idx45 && item.type === "list" && item.items && item.items[0].includes("Diseño de Viga de 25x45"),
+    );
+
+    // Si no encontramos esa lista específica, buscar cualquier lista después del heading
+    let puntoInsercion = idx45 + 1;
+    if (listaReferenciaIdx !== -1) {
+      puntoInsercion = listaReferenciaIdx + 1;
+      console.log(`✅ Lista de referencia encontrada en índice: ${listaReferenciaIdx}`);
+    } else {
+      console.log(`📋 No se encontró lista específica, se insertará después del heading`);
+    }
+
+    // Obtener el texto de las vigas del store
+    const listVigas = this.sections?.disenoElementos?.nameVigas || "";
+    console.log("📋 listVigas raw:", JSON.stringify(listVigas));
+
+    if (!listVigas.trim()) {
+      console.log("📝 No hay texto de vigas para agregar");
+    }
+
+    if (listVigas.trim()) {
+      // Convertir el texto en array de items
+      const itemsArray = listVigas
+        .split("\n")
+        .map((linea) => linea.trim())
+        .filter((linea) => linea.length > 0);
+
+      console.log(`📋 itemsArray (${itemsArray.length} items):`, itemsArray);
+
+      if (itemsArray.length === 0) return;
+
+      // Obtener las imágenes del store
+      const vigaImages = this.previews?.vigaImages || [];
+
+      // INSERTAR las nuevas listas con sus imágenes (sin eliminar nada)
+      let currentPosition = puntoInsercion;
+
+      for (let index = 0; index < itemsArray.length; index++) {
+        const item = itemsArray[index];
+        // 1. Insertar la lista con el texto de la viga
+        disenoElementos.content.splice(currentPosition, 0, {
+          type: "list",
+          listType: "bullet",
+          items: [item],
+        });
+        currentPosition++;
+
+        // 2. Insertar las 4 imágenes de esta viga
+        const imagenesSeccion = vigaImages[index] || [];
+
+        for (let imgIdx = 0; imgIdx < 4; imgIdx++) {
+          const imagen = imagenesSeccion[imgIdx];
+
+          if (imagen && typeof imagen === "string" && imagen.startsWith("data:image")) {
+            disenoElementos.content.splice(currentPosition, 0, {
+              type: "image",
+              src: imagen,
+              alt: `Figura 4.5.${index + 1}.${imgIdx + 1} - ${item}`,
+              width: 500,
+              height: 700,
+              caption: `Figura 4.5.${index + 1}.${imgIdx + 1} - Detalle ${imgIdx + 1} de ${item}`,
+              alignment: "CENTER",
+            });
+            console.log(`   🖼️ Insertada imagen ${imgIdx + 1} en posición ${currentPosition}`);
+          } else {
+            disenoElementos.content.splice(currentPosition, 0, {
+              type: "paragraph",
+              text: `[IMAGEN ${imgIdx + 1} - Sin imagen disponible]`,
+              style: "placeholder",
+              alignment: "center",
+            });
+            console.log(`   ⚠️ Placeholder imagen ${imgIdx + 1} en posición ${currentPosition}`);
+          }
+          currentPosition++;
+        }
+
+        // Espacio entre vigas
+        if (index < itemsArray.length - 1) {
+          disenoElementos.content.splice(currentPosition, 0, {
+            type: "paragraph",
+            text: "",
+          });
+          console.log(`   📄 Espacio insertado en posición ${currentPosition}`);
+          currentPosition++;
+        }
+
+        console.log(`✅ Viga ${index + 1} completada`);
+      }
+    }
+
+    console.log("✅ Listas e imágenes de vigas insertadas correctamente");
+    // ==================== DISEÑO DE COLUMNA ========================
+    console.log("🔍 ===== INICIANDO TRANSFORMACIÓN DE COLUMNAS =====");
+    console.log("📦 this.previews.columnaImages:", this.previews?.columnaImages);
+    console.log(
+      "📦 this.sections.disenoElementos.descriptionColumna:",
+      this.sections?.disenoElementos?.descriptionColumna,
+    );
+
+    // Buscar el encabezado de la sección 4.5
+    const idx46 = disenoElementos.content.findIndex(
+      (item) => item.type === "heading" && item.text && item.text.includes("4.6 DISEÑO DE COLUMNA"),
+    );
+
+    console.log(`🔍 Índice del heading 4.5: ${idx46}`);
+
+    if (idx46 === -1) {
+      console.warn("⚠️ No se encontró el encabezado 4.5 DISEÑO DE COLUMNA");
+      return;
+    }
+
+    // Buscar la lista "Diseño de Viga de 25x45" que servirá como punto de referencia
+    const paragraphReferenciaIdx = disenoElementos.content.findIndex(
+      (item, i) =>
+        i > idx46 &&
+        item.type === "paragraph" &&
+        item.text.includes(
+          "En pórticos o en elementos continuos deberá prestarse atención al efecto de las cargas no balanceadas de los pisos,",
+        ),
+    );
+
+    // Si no encontramos esa lista específica, buscar cualquier lista después del heading
+    let ptInsercion = idx46 + 1;
+    if (paragraphReferenciaIdx !== -1) {
+      ptInsercion = paragraphReferenciaIdx + 1;
+      console.log(`✅ Parrafo de referencia encontrada en índice: ${paragraphReferenciaIdx}`);
+    } else {
+      console.log(`📋 No se encontró lista específica, se insertará después del heading`);
+    }
+
+    // Obtener el texto de las vigas del store
+    const listColumna = this.sections?.disenoElementos?.nameColumna || "";
+    console.log("📋 listColumna raw:", JSON.stringify(listColumna));
+
+    if (!listColumna.trim()) {
+      console.log("📝 No hay texto de vigas para agregar");
+    }
+
+    if (listColumna.trim()) {
+      // Convertir el texto en array de items
+      const itemsArray = listColumna
+        .split("\n")
+        .map((linea) => linea.trim())
+        .filter((linea) => linea.length > 0);
+
+      console.log(`📋 itemsArray (${itemsArray.length} items):`, itemsArray);
+
+      if (itemsArray.length === 0) return;
+
+      // Obtener las imágenes del store
+      const columnaImages = this.previews?.columnaImages || [];
+
+      // INSERTAR las nuevas listas con sus imágenes (sin eliminar nada)
+      let currentPosition = ptInsercion;
+
+      for (let index = 0; index < itemsArray.length; index++) {
+        const item = itemsArray[index];
+        // 1. Insertar la lista con el texto de la viga
+        disenoElementos.content.splice(currentPosition, 0, {
+          type: "list",
+          listType: "bullet",
+          items: [item],
+        });
+        currentPosition++;
+
+        // 2. Insertar las 3 imágenes de esta viga
+        const imagenesSeccion = columnaImages[index] || [];
+
+        for (let imgIdx = 0; imgIdx < 3; imgIdx++) {
+          const imagen = imagenesSeccion[imgIdx];
+
+          if (imagen && typeof imagen === "string" && imagen.startsWith("data:image")) {
+            disenoElementos.content.splice(currentPosition, 0, {
+              type: "image",
+              src: imagen,
+              alt: `Figura 4.6.${index + 1}.${imgIdx + 1} - ${item}`,
+              width: 500,
+              height: 300,
+              caption: `Figura 4.6.${index + 1}.${imgIdx + 1} - Detalle ${imgIdx + 1} de ${item}`,
+              alignment: "CENTER",
+            });
+            console.log(`   🖼️ Insertada imagen ${imgIdx + 1} en posición ${currentPosition}`);
+          } else {
+            disenoElementos.content.splice(currentPosition, 0, {
+              type: "paragraph",
+              text: `[IMAGEN ${imgIdx + 1} - Sin imagen disponible]`,
+              style: "placeholder",
+              alignment: "center",
+            });
+            console.log(`   ⚠️ Placeholder imagen ${imgIdx + 1} en posición ${currentPosition}`);
+          }
+          currentPosition++;
+        }
+
+        const descriptionColumna = this.sections?.disenoElementos?.descriptionColumna || [];
+
+        if (descriptionColumna[index]) {
+          disenoElementos.content.splice(currentPosition, 0, {
+            type: "paragraph",
+            text: descriptionColumna[index],
+            alignment: "JUSTIFIED",
+          });
+        } else {
+          disenoElementos.content.splice(currentPosition, 0, {
+            type: "paragraph",
+            text: `Descripcion.${index + 1} - sin descripcion disponible`,
+            alignment: "JUSTIFIED",
+          });
+        }
+
+        currentPosition++;
+
+        if (imagenesSeccion[3]) {
+          disenoElementos.content.splice(currentPosition, 0, {
+            type: "image",
+            src: imagenesSeccion[3],
+            alt: `Figura diseño `,
+            width: 200,
+            height: 100,
+            caption: `Formula 4.6.${index + 1}`,
+          });
+        } else {
+          disenoElementos.content.splice(currentPosition, 0, {
+            type: "paragraph",
+            text: `Formula 4.6.${index + 1} figura diseño - sin imagen disponible`,
+            style: "placeholder",
+            alignment: "center",
+          });
+          console.log(`   ⚠️ Placeholder ubicación en posición ${currentPosition}`);
+        }
+
+        currentPosition++;
+        disenoElementos.content.splice(currentPosition, 0, {
+          type: "list",
+          listType: "bullet",
+          items: ["DISEÑO POR FLEXO COMPRESIÓN"],
+        });
+        currentPosition++;
+        disenoElementos.content.splice(currentPosition, 0, {
+          type: "paragraph",
+          text: "A continuación se muestra los puntos que se utilizan en la construcción de los diagramas de interacción en ambas dirección",
+          alignment: "JUSTIFIED",
+        });
+        currentPosition++;
+
+        if (imagenesSeccion[4]) {
+          disenoElementos.content.splice(currentPosition, 0, {
+            type: "image",
+            src: imagenesSeccion[4],
+            alt: `Figura diseño `,
+            width: 500,
+            height: 300,
+            caption: `Figura 4.6.${index + 1} figura diseño`,
+          });
+        } else {
+          disenoElementos.content.splice(currentPosition, 0, {
+            type: "paragraph",
+            text: `figura 4.6.${index + 1} figura diseño - sin imagen disponible`,
+            style: "placeholder",
+            alignment: "center",
+          });
+          console.log(`   ⚠️ Placeholder ubicación en posición ${currentPosition}`);
+        }
+        currentPosition++;
+        console.log(`✅ Columna ${index + 1} completada`);
+      }
+    }
+
+    console.log("✅ Listas e imágenes de vigas insertadas correctamente");
+
+    // ==================== DISEÑO DE PLACAS ========================
+    console.log("🔍 ===== INICIANDO TRANSFORMACIÓN DE PLACAS =====");
+    console.log("📦 this.previews.placaImages:", this.previews?.placaImages);
+    console.log("📦 this.sections.disenoElementos.namePlaca:", this.sections?.disenoElementos?.namePlaca);
+
+    // Buscar el encabezado de la sección 4.7
+    const idx47 = disenoElementos.content.findIndex(
+      (item) => item.type === "heading" && item.text && item.text.includes("4.7 DISEÑO DE PLACA"),
+    );
+
+    console.log(`🔍 Índice del heading 4.7: ${idx47}`);
+
+    if (idx47 === -1) {
+      console.warn("⚠️ No se encontró el encabezado 4.7 DISEÑO DE PLACA");
+    }
+
+    // Buscar el párrafo de referencia
+    const paragraphPlacasIdx = disenoElementos.content.findIndex(
+      (item, i) =>
+        i > idx47 &&
+        item.type === "paragraph" &&
+        item.text?.includes(
+          "El funcionamiento de las placas se centra en su capacidad para distribuir y transferir cargas",
+        ),
+    );
+
+    // Determinar punto de inserción
+    let pntInsercionPlacas = idx47 + 1;
+    if (paragraphPlacasIdx !== -1) {
+      pntInsercionPlacas = paragraphPlacasIdx + 1;
+      console.log(`✅ Párrafo de placas encontrado en índice: ${paragraphPlacasIdx}`);
+    } else {
+      console.log(`📋 No se encontró el párrafo específico, se insertará después del heading`);
+    }
+
+    // Obtener el texto de las placas del store
+    const listPlacas = this.sections?.disenoElementos?.namePlaca || "";
+    console.log("📋 listPlacas raw:", JSON.stringify(listPlacas));
+
+    if (!listPlacas.trim()) {
+      console.log("📝 No hay texto de Placas para agregar");
+    }
+
+    // Convertir el texto en array de items
+    const itemsArray = listPlacas
+      .split("\n")
+      .map((linea) => linea.trim())
+      .filter((linea) => linea.length > 0);
+
+    console.log(`📋 itemsArray (${itemsArray.length} items):`, itemsArray);
+
+    if (itemsArray.length !== 0) {
+      // Obtener las imágenes del store
+      const placaImages = this.previews?.placaImages || [];
+      console.log(`🖼️ placaImages length: ${placaImages.length}`);
+
+      // INSERTAR las estructuras completas para cada placa
+      let currentPosition = pntInsercionPlacas;
+
+      for (let placaIdx = 0; placaIdx < itemsArray.length; placaIdx++) {
+        const item = itemsArray[placaIdx];
+        console.log(`\n📌 Procesando placa ${placaIdx + 1}: "${item}"`);
+
+        const imagenesSeccion = placaImages[placaIdx] || [];
+
+        // 1. Insertar la lista con el texto de la placa
+        disenoElementos.content.splice(currentPosition, 0, {
+          type: "list",
+          listType: "bullet",
+          items: [item],
+        });
+        console.log(`   ➕ Insertada lista en posición ${currentPosition}`);
+        currentPosition++;
+
+        // 2. Insertar imagen de ubicación (índice 0)
+        if (imagenesSeccion[0]) {
+          disenoElementos.content.splice(currentPosition, 0, {
+            type: "image",
+            src: imagenesSeccion[0],
+            alt: `Ubicación de placa ${placaIdx + 1}`,
+            width: 500,
+            height: 300,
+            caption: `Ubicación de placa a diseñar - ${item}`,
+            alignment: "CENTER",
+          });
+          console.log(`   🖼️ Insertada imagen ubicación en posición ${currentPosition}`);
+        } else {
+          disenoElementos.content.splice(currentPosition, 0, {
+            type: "paragraph",
+            text: "[IMAGEN DE UBICACIÓN - Sin imagen disponible]",
+            style: "placeholder",
+            alignment: "center",
+          });
+          console.log(`   ⚠️ Placeholder ubicación en posición ${currentPosition}`);
+        }
+        currentPosition++;
+
+        // 3. Insertar texto "Diseño de placa 1"
+        disenoElementos.content.splice(currentPosition, 0, {
+          type: "paragraph",
+          text: "Diseño de placa 1",
+          alignment: "justified",
+          bold: true,
+        });
+        console.log(`   📝 Insertado texto "Diseño de placa 1" en posición ${currentPosition}`);
+        currentPosition++;
+
+        // 4. Insertar imágenes 1-7 (índices 1 a 7)
+        for (let imgIdx = 1; imgIdx < 8; imgIdx++) {
+          if (imagenesSeccion[imgIdx]) {
+            disenoElementos.content.splice(currentPosition, 0, {
+              type: "image",
+              src: imagenesSeccion[imgIdx],
+              alt: `Diseño de placa ${placaIdx + 1} - Imagen ${imgIdx}`,
+              width: 600,
+              height: 300,
+              caption: `Figura de diseño ${imgIdx} - ${item}`,
+              alignment: "CENTER",
+            });
+            console.log(`   🖼️ Insertada imagen ${imgIdx} en posición ${currentPosition}`);
+          } else {
+            disenoElementos.content.splice(currentPosition, 0, {
+              type: "paragraph",
+              text: `[IMAGEN ${imgIdx} - Sin imagen disponible]`,
+              style: "placeholder",
+              alignment: "center",
+            });
+            console.log(`   ⚠️ Placeholder imagen ${imgIdx} en posición ${currentPosition}`);
+          }
+          currentPosition++;
+        }
+
+        // 5. Insertar texto "DISEÑO DE CORTE"
+        disenoElementos.content.splice(currentPosition, 0, {
+          type: "paragraph",
+          text: "DISEÑO DE CORTE",
+          alignment: "justified",
+          bold: true,
+        });
+        console.log(`   📝 Insertado "DISEÑO DE CORTE" en posición ${currentPosition}`);
+        currentPosition++;
+
+        // 6. Insertar imagen de corte (índice 8)
+        if (imagenesSeccion[8]) {
+          disenoElementos.content.splice(currentPosition, 0, {
+            type: "image",
+            src: imagenesSeccion[8],
+            alt: `Diseño de corte - ${item}`,
+            width: 500,
+            height: 300,
+            caption: `Diseño de corte - ${item}`,
+            alignment: "CENTER",
+          });
+          console.log(`   🖼️ Insertada imagen de corte en posición ${currentPosition}`);
+        } else {
+          disenoElementos.content.splice(currentPosition, 0, {
+            type: "paragraph",
+            text: "[IMAGEN DE CORTE - Sin imagen disponible]",
+            style: "placeholder",
+            alignment: "CENTER",
+          });
+          console.log(`   ⚠️ Placeholder imagen de corte en posición ${currentPosition}`);
+        }
+        currentPosition++;
+
+        // 7. Insertar texto "VERIFICACIÓN DE DIAGRAMA DE ITERACIÓN"
+        disenoElementos.content.splice(currentPosition, 0, {
+          type: "paragraph",
+          text: "VERIFICACIÓN DE DIAGRAMA DE ITERACIÓN",
+          alignment: "justified",
+          bold: true,
+        });
+        console.log(`   📝 Insertado "VERIFICACIÓN DE DIAGRAMA" en posición ${currentPosition}`);
+        currentPosition++;
+
+        if (imagenesSeccion[9]) {
+          disenoElementos.content.splice(currentPosition, 0, {
+            type: "image",
+            src: imagenesSeccion[9],
+            alt: `Verificación diagrama ${placaIdx + 1} - Imagen 10`,
+            width: 450,
+            height: 450,
+            caption: `Verificación de diagrama 10 - ${item}`,
+            alignment: "CENTER",
+          });
+          console.log(`   🖼️ Insertada imagen diagrama 9 en posición ${currentPosition}`);
+        } else {
+          disenoElementos.content.splice(currentPosition, 0, {
+            type: "paragraph",
+            text: `[IMAGEN DIAGRAMA 9 - Sin imagen disponible]`,
+            style: "placeholder",
+            alignment: "CENTER",
+          });
+          console.log(`   ⚠️ Placeholder diagrama ${imgIdx - 8} en posición ${currentPosition}`);
+        }
+
+        currentPosition++;
+
+        // 8. Insertar imágenes 9-14 (índices 9 a 14)
+        for (let imgIdx = 10; imgIdx < 14; imgIdx++) {
+          if (imagenesSeccion[imgIdx]) {
+            disenoElementos.content.splice(currentPosition, 0, {
+              type: "image",
+              src: imagenesSeccion[imgIdx],
+              alt: `Verificación diagrama ${placaIdx + 1} - Imagen ${imgIdx - 8}`,
+              width: 600,
+              height: 300,
+              caption: `Verificación de diagrama ${imgIdx - 8} - ${item}`,
+              alignment: "CENTER",
+            });
+            console.log(`   🖼️ Insertada imagen diagrama ${imgIdx - 8} en posición ${currentPosition}`);
+          } else {
+            disenoElementos.content.splice(currentPosition, 0, {
+              type: "paragraph",
+              text: `[IMAGEN DIAGRAMA ${imgIdx - 8} - Sin imagen disponible]`,
+              style: "placeholder",
+              alignment: "CENTER",
+            });
+            console.log(`   ⚠️ Placeholder diagrama ${imgIdx - 8} en posición ${currentPosition}`);
+          }
+          currentPosition++;
+        }
+
+        // Espacio entre placas
+        if (placaIdx < itemsArray.length - 1) {
+          disenoElementos.content.splice(currentPosition, 0, {
+            type: "paragraph",
+            text: "",
+          });
+          console.log(`   📄 Espacio insertado en posición ${currentPosition}`);
+          currentPosition++;
+        }
+
+        console.log(`✅ Placa ${placaIdx + 1} completada`);
+      }
+
+      console.log("✅ Listas e imágenes de placas insertadas correctamente");
+    }
+
+    // ======================== DISEÑO DE MURO DE CONCRETO ============================
+
+    const idx48 = disenoElementos.content.findIndex(
+      (item) => item.type === "heading" && item.text === "4.8 DISEÑO DE MURO CONCRETO",
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
     );
     const disenoConcretoParagraphIdx = disenoElementos.content.findIndex(
       (item, i) =>
@@ -2488,6 +3156,7 @@ export class DocumentTransformer {
     const disenoMuroConcretoImages = this.previews.disenoMuroConcretoImages || [];
 
     if (disenoConcretoParagraphIdx !== -1) {
+<<<<<<< HEAD
       console.log("Parrafo encontrado");
       const contentConcreto = [];
       const concretoCaption = ["M22(0.70TN-M)", "M33(0.71TN-M)", "V23(0.78TN-M)", "V13(0.025TN-M)", ""];
@@ -2505,6 +3174,55 @@ export class DocumentTransformer {
         }
       });
       disenoElementos.content.splice(disenoConcretoParagraphIdx + 1, 0, ...contentConcreto);
+=======
+      let indice = disenoConcretoParagraphIdx + 1;
+      const concretoCaption = ["M22(0.70TN-M)", "M33(0.71TN-M)", "V23(0.78TN-M)", "V13(0.025TN-M)"];
+
+      for (let index = 0; index < 4; index++) {
+        if (disenoMuroConcretoImages[index]) {
+          disenoElementos.content.splice(indice, 0, {
+            type: "image",
+            src: disenoMuroConcretoImages[index],
+            alignment: "CENTER",
+            width: 500,
+            height: 280,
+            caption: concretoCaption[index],
+          });
+        } else {
+          disenoElementos.content.splice(indice, 0, {
+            type: "paragraph",
+            text: `[IMAGEN  ${index} - Sin imagen disponible]`,
+            style: "placeholder",
+            alignment: "CENTER",
+          });
+          console.log(`   ⚠️ Placeholder diagrama ${index} en posición ${indice}`);
+        }
+
+        indice++;
+      }
+
+      for (let idx = 4; idx < 6; idx++) {
+        if (disenoMuroConcretoImages[idx]) {
+          disenoElementos.content.splice(indice, 0, {
+            type: "image",
+            src: disenoMuroConcretoImages[idx],
+            alignment: "CENTER",
+            width: 500,
+            height: 750,
+            caption: concretoCaption[idx],
+          });
+        } else {
+          disenoElementos.content.splice(indice, 0, {
+            type: "paragraph",
+            text: `[IMAGEN  ${idx} - Sin imagen disponible]`,
+            style: "placeholder",
+            alignment: "CENTER",
+          });
+          console.log(`   ⚠️ Placeholder diagrama ${idx} en posición ${indice}`);
+        }
+        indice++;
+      }
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
     }
 
     // ======================== DISEÑO DE ESCALERA ============================
@@ -2524,6 +3242,7 @@ export class DocumentTransformer {
 
     if (disenoEscaleraParagraphIdx !== -1) {
       console.log("Parrafo encontrado");
+<<<<<<< HEAD
       const contentEscaleras = [];
       const escalerasCaption = ["M22 (1.23TN-M)", "M33 (0.12TN-M)", "V23 (1.47TN-M)", "V13 (1.66TN-M)", ""];
 
@@ -2540,6 +3259,39 @@ export class DocumentTransformer {
         }
       });
       disenoElementos.content.splice(disenoEscaleraParagraphIdx + 1, 0, ...contentEscaleras);
+=======
+      const escalerasCaption = ["M22 (1.23TN-M)", "M33 (0.12TN-M)", "V23 (1.47TN-M)", "V13 (1.66TN-M)"];
+      let indice = disenoEscaleraParagraphIdx + 1;
+      for (let index = 0; index < 4; index++) {
+        if (disenoEscaleraImages[index]) {
+          disenoElementos.content.splice(indice, 0, {
+            type: "image",
+            src: disenoEscaleraImages[index],
+            alignment: "CENTER",
+            width: 500,
+            height: 280,
+            caption: escalerasCaption[index],
+          });
+        } else {
+          disenoElementos.content.splice(indice, 0, {
+            type: "paragraph",
+            text: `[IMAGEN  ${index} - Sin imagen disponible]`,
+            style: "placeholder",
+            alignment: "CENTER",
+          });
+          console.log(`   ⚠️ Placeholder diagrama ${index} en posición ${indice}`);
+        }
+        indice++;
+      }
+      disenoElementos.content.splice(indice, 0, {
+        type: "image",
+        src: disenoEscaleraImages[4],
+        alignment: "CENTER",
+        width: 500,
+        height: 750,
+        caption: "",
+      });
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
     }
 
     // ======================== DISEÑO DE CISTERNA ============================
@@ -2550,6 +3302,7 @@ export class DocumentTransformer {
     const disenoCisternaImages = this.previews.disenoCisternaImages || [];
 
     if (idx410 !== -1) {
+<<<<<<< HEAD
       console.log("Headin encontrado");
       const contentCisternas = [];
       const cisternasCaption = ["M22 (08.75TN-M)", "M33(1.289TN-M2)", "V23 (0.0892TN)", "V13 (1.205TN)", "", ""];
@@ -2567,6 +3320,47 @@ export class DocumentTransformer {
         }
       });
       disenoElementos.content.splice(idx410 + 1, 0, ...contentCisternas);
+=======
+      console.log("Headin diseño de cisterna encontrado");
+      const cisternasCaption = ["M22 (08.75TN-M)", "M33(1.289TN-M2)", "V23 (0.0892TN)", "V13 (1.205TN)"];
+      let indice = idx410 + 1;
+
+      for (let index = 0; index < 4; index++) {
+        if (disenoCisternaImages[index]) {
+          disenoElementos.content.splice(indice, 0, {
+            type: "image",
+            src: disenoCisternaImages[index],
+            alignment: "CENTER",
+            width: 500,
+            height: 280,
+            caption: cisternasCaption[index],
+          });
+        } else {
+          disenoElementos.content.splice(indice, 0, {
+            type: "paragraph",
+            text: `[IMAGEN diseño de cisterna ${index} - Sin imagen disponible]`,
+            style: "placeholder",
+            alignment: "CENTER",
+          });
+          console.log(`⚠️ Placeholder diagrama ${index} en posición ${indice}`);
+        }
+        indice++;
+      }
+
+      for (let idx = 4; idx < 6; idx++) {
+        if (disenoCisternaImages[idx]) {
+          disenoElementos.content.splice(indice, 0, {
+            type: "image",
+            src: disenoCisternaImages[idx],
+            alignment: "CENTER",
+            width: 500,
+            height: 750,
+            caption: "",
+          });
+        }
+        indice++;
+      }
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
     }
 
     // ======================== DISEÑO DE CIMIENTO CORRIDO ============================
@@ -2727,9 +3521,24 @@ export class DocumentTransformer {
 
         // 2. Insertar las 4 imágenes de esta cimentacion
         const imagenesSeccion = cimentacionImages[index] || [];
+<<<<<<< HEAD
         const cimentacionCaption = ["CARGA MUERTA", "CARGA VIVA", "CARGA VIVA", "SISMO DINÁMICO EN DIRECCIÓN Y"];
 
         for (let imgIdx = 0; imgIdx < 4; imgIdx++) {
+=======
+        const cimentacionCaption = [
+          "CARGA MUERTA",
+          "CARGA VIVA",
+          "CARGA VIVA",
+          "SISMO DINÁMICO EN DIRECCIÓN Y",
+          "RESULTADO 1",
+          "RESULTADO 2",
+          "RESULTADO 3",
+          "RESULTADO 4",
+        ];
+
+        for (let imgIdx = 0; imgIdx < 8; imgIdx++) {
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
           const imagen = imagenesSeccion[imgIdx];
 
           if (imagen && typeof imagen === "string" && imagen.startsWith("data:image")) {
@@ -2738,9 +3547,15 @@ export class DocumentTransformer {
               src: imagen,
               alt: cimentacionCaption[imgIdx],
               width: 500,
+<<<<<<< HEAD
               height: 300,
               caption: cimentacionCaption[imgIdx],
               alignment: "center",
+=======
+              height: 750,
+              caption: cimentacionCaption[imgIdx],
+              alignment: "CENTER",
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
             });
             // console.log(`   🖼️ Insertada imagen ${imgIdx + 1} en posición ${currentPosition}`);
           } else {
@@ -2748,7 +3563,11 @@ export class DocumentTransformer {
               type: "paragraph",
               text: `[IMAGEN ${imgIdx + 1} - Sin imagen disponible]`,
               style: "placeholder",
+<<<<<<< HEAD
               alignment: "center",
+=======
+              alignment: "CENTER",
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
             });
             console.log(`   ⚠️ Placeholder imagen ${imgIdx + 1} en posición ${currentPosition}`);
           }

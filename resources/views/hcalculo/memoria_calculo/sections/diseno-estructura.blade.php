@@ -28,6 +28,7 @@
                     <p class="text-sm text-gray-700 dark:text-gray-300">Esta sección no se agrega nada.</p>
                 </div>
             </div>
+<<<<<<< HEAD
             <div class="space-y-4">
                 <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 border-l-4 border-amber-500 pl-3">5.2 Análisis Estructural</h3>
                 <div class="grid grid-cols-1 gap-4">
@@ -64,6 +65,40 @@
                 </div>
             </div>
 
+=======
+            <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-bold text-gray-700 dark:text-gray-300">Figura x</label>
+                    <button type="button" x-show="previews.analisisEstructuralImages[0]"
+                        @click="removeArrayImage('analisisEstructuralImages', 0)"
+                        class="text-red-500 text-xs font-semibold hover:underline flex items-center gap-1">
+                        Eliminar
+                    </button>
+                </div>
+                <div class="relative group h-64">
+                    <template x-if="previews.analisisEstructuralImages[0]">
+                        <img :src="previews.analisisEstructuralImages[0]"
+                            class="h-full w-full object-contain rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+                    </template>
+                    <template x-if="!previews.analisisEstructuralImages[0]">
+                        <label tabindex="0"
+                            @paste="handlePaste($event, 'analisisEstructuralImages', 0)"
+                            @mouseenter="$el.focus()"
+                            class="flex flex-col items-center justify-center h-full w-full rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-amber-500 mb-2"
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span class="text-xs font-medium text-gray-600">Subir imagen o <span class="font-semibold text-purple-600">Ctrl+V</span></span>
+                            <input type="file"
+                                @change="handleArrayImageChange('analisisEstructuralImages', 0, $event)"
+                                class="hidden">
+                        </label>
+                    </template>
+                </div>
+            </div>
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
         </div>
         <!-- FIGURA Y -->
         <!-- DISEÑOS -->
@@ -81,7 +116,11 @@
                 </svg>
             </button>
             <!-- NIVEL 2 -->
+<<<<<<< HEAD
             <!-- ●	DISEÑO DE COLUMNA METALICA -->
+=======
+            <!-- ● DISEÑO DE COLUMNA METALICA -->
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
             <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony1 = !showSectiony1" type="button"
@@ -94,6 +133,7 @@
                                 d="M19 9l-7 7-7-7" />
                         </svg>
                     </button>
+<<<<<<< HEAD
                     <!-- NIVEL 3 -->
                     <div x-show="showSectiony1" x-collapse class="p-6 space-y-6">
                         <!-- IMG 1 -->
@@ -138,6 +178,87 @@
                             </div>
                         </div>
                         <!-- DESCRIPCIÓN BREVE -->
+=======
+
+                    <div x-show="showSectiony1" x-collapse class="p-6 space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- IMAGEN 1 -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    imagen 1
+                                </label>
+                                <div class="relative">
+                                    <template x-if="previews.disenoColumnaMetalica?.[0]">
+                                        <div class="relative group">
+                                            <img :src="previews.disenoColumnaMetalica[0]" alt="Diseño Columna Metálica img-1"
+                                                class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
+                                            <button @click.prevent="removeArrayImage('disenoColumnaMetalica', 0)" type="button"
+                                                class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <template x-if="!previews.disenoColumnaMetalica?.[0]">
+                                        <label tabindex="0"
+                                            @paste="handlePaste($event, 'disenoColumnaMetalica', 0)"
+                                            @mouseenter="$el.focus()"
+                                            class="flex flex-col items-center justify-center w-full h-40 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none">
+                                            <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <span class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Subir imagen o <span class="font-semibold text-purple-600">Ctrl+V</span></span>
+                                            <span class="text-xs text-gray-500">PNG, JPG</span>
+                                            <input type="file" accept="image/*"
+                                                @change="handleArrayImageChange('disenoColumnaMetalica', 0, $event)"
+                                                class="hidden">
+                                        </label>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- IMAGEN 2 -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    imagen 2
+                                </label>
+                                <div class="relative">
+                                    <template x-if="previews.disenoColumnaMetalica?.[1]">
+                                        <div class="relative group">
+                                            <img :src="previews.disenoColumnaMetalica[1]" alt="Diseño Columna Metálica img-2"
+                                                class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
+                                            <button @click.prevent="removeArrayImage('disenoColumnaMetalica', 1)" type="button"
+                                                class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <template x-if="!previews.disenoColumnaMetalica?.[1]">
+                                        <label tabindex="0"
+                                            @paste="handlePaste($event, 'disenoColumnaMetalica', 1)"
+                                            @mouseenter="$el.focus()"
+                                            class="flex flex-col items-center justify-center w-full h-40 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none">
+                                            <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <span class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Subir imagen o <span class="font-semibold text-purple-600">Ctrl+V</span></span>
+                                            <span class="text-xs text-gray-500">PNG, JPG</span>
+                                            <input type="file" accept="image/*"
+                                                @change="handleArrayImageChange('disenoColumnaMetalica', 1, $event)"
+                                                class="hidden">
+                                        </label>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- DESCRIPCIÓN BREVE (se mantiene igual) -->
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                         <div class="space-y-2">
                             <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
                                 Descripción breve
@@ -166,6 +287,7 @@
                     </button>
                     <!-- NIVEL 3 -->
                     <div x-show="showSectiony2" x-collapse class="p-6 space-y-6">
+<<<<<<< HEAD
                         <!-- IMG 1 -->
                         <div class="space-y-2">
                             <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
@@ -204,6 +326,81 @@
                                             d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 </button>
+=======
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- IMAGEN 1 -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    imagen 1
+                                </label>
+                                <div class="relative">
+                                    <template x-if="previews.disenoBridaSuperior?.[0]">
+                                        <div class="relative group">
+                                            <img :src="previews.disenoBridaSuperior[0]" alt="Diseño Columna Metálica img-1"
+                                                class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
+                                            <button @click.prevent="removeArrayImage('disenoBridaSuperior', 0)" type="button"
+                                                class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <template x-if="!previews.disenoBridaSuperior?.[0]">
+                                        <label tabindex="0"
+                                            @paste="handlePaste($event, 'disenoBridaSuperior', 0)"
+                                            @mouseenter="$el.focus()"
+                                            class="flex flex-col items-center justify-center w-full h-40 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none">
+                                            <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <span class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Subir imagen o <span class="font-semibold text-purple-600">Ctrl+V</span></span>
+                                            <span class="text-xs text-gray-500">PNG, JPG</span>
+                                            <input type="file" accept="image/*"
+                                                @change="handleArrayImageChange('disenoBridaSuperior', 0, $event)"
+                                                class="hidden">
+                                        </label>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- IMAGEN 2 -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    imagen 2
+                                </label>
+                                <div class="relative">
+                                    <template x-if="previews.disenoBridaSuperior?.[1]">
+                                        <div class="relative group">
+                                            <img :src="previews.disenoBridaSuperior[1]" alt="Diseño Columna Metálica img-2"
+                                                class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
+                                            <button @click.prevent="removeArrayImage('disenoBridaSuperior', 1)" type="button"
+                                                class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <template x-if="!previews.disenoBridaSuperior?.[1]">
+                                        <label tabindex="0"
+                                            @paste="handlePaste($event, 'disenoBridaSuperior', 1)"
+                                            @mouseenter="$el.focus()"
+                                            class="flex flex-col items-center justify-center w-full h-40 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none">
+                                            <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <span class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Subir imagen o <span class="font-semibold text-purple-600">Ctrl+V</span></span>
+                                            <span class="text-xs text-gray-500">PNG, JPG</span>
+                                            <input type="file" accept="image/*"
+                                                @change="handleArrayImageChange('disenoBridaSuperior', 1, $event)"
+                                                class="hidden">
+                                        </label>
+                                    </template>
+                                </div>
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                             </div>
                         </div>
                         <!-- DESCRIPCIÓN BREVE -->
@@ -235,6 +432,7 @@
                     </button>
                     <!-- NIVEL 3 -->
                     <div x-show="showSectiony3" x-collapse class="p-6 space-y-6">
+<<<<<<< HEAD
                         <!-- IMG 1 -->
                         <div class="space-y-2">
                             <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
@@ -273,6 +471,81 @@
                                             d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 </button>
+=======
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- IMAGEN 1 -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    imagen 1
+                                </label>
+                                <div class="relative">
+                                    <template x-if="previews.disenoBridaInferior?.[0]">
+                                        <div class="relative group">
+                                            <img :src="previews.disenoBridaInferior[0]" alt="Diseño Columna Metálica img-1"
+                                                class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
+                                            <button @click.prevent="removeArrayImage('disenoBridaInferior', 0)" type="button"
+                                                class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <template x-if="!previews.disenoBridaInferior?.[0]">
+                                        <label tabindex="0"
+                                            @paste="handlePaste($event, 'disenoBridaInferior', 0)"
+                                            @mouseenter="$el.focus()"
+                                            class="flex flex-col items-center justify-center w-full h-40 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none">
+                                            <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <span class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Subir imagen o <span class="font-semibold text-purple-600">Ctrl+V</span></span>
+                                            <span class="text-xs text-gray-500">PNG, JPG</span>
+                                            <input type="file" accept="image/*"
+                                                @change="handleArrayImageChange('disenoBridaInferior', 0, $event)"
+                                                class="hidden">
+                                        </label>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- IMAGEN 2 -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    imagen 2
+                                </label>
+                                <div class="relative">
+                                    <template x-if="previews.disenoBridaInferior?.[1]">
+                                        <div class="relative group">
+                                            <img :src="previews.disenoBridaInferior[1]" alt="Diseño Columna Metálica img-2"
+                                                class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
+                                            <button @click.prevent="removeArrayImage('disenoBridaInferior', 1)" type="button"
+                                                class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <template x-if="!previews.disenoBridaInferior?.[1]">
+                                        <label tabindex="0"
+                                            @paste="handlePaste($event, 'disenoBridaInferior', 1)"
+                                            @mouseenter="$el.focus()"
+                                            class="flex flex-col items-center justify-center w-full h-40 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none">
+                                            <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <span class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Subir imagen o <span class="font-semibold text-purple-600">Ctrl+V</span></span>
+                                            <span class="text-xs text-gray-500">PNG, JPG</span>
+                                            <input type="file" accept="image/*"
+                                                @change="handleArrayImageChange('disenoBridaInferior', 1, $event)"
+                                                class="hidden">
+                                        </label>
+                                    </template>
+                                </div>
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                             </div>
                         </div>
                         <!-- DESCRIPCIÓN BREVE -->
@@ -304,6 +577,7 @@
                     </button>
                     <!-- NIVEL 3 -->
                     <div x-show="showSectiony4" x-collapse class="p-6 space-y-6">
+<<<<<<< HEAD
                         <!-- IMG 1 -->
                         <div class="space-y-2">
                             <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
@@ -342,6 +616,81 @@
                                             d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 </button>
+=======
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- IMAGEN 1 -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    imagen 1
+                                </label>
+                                <div class="relative">
+                                    <template x-if="previews.disenoParante?.[0]">
+                                        <div class="relative group">
+                                            <img :src="previews.disenoParante[0]" alt="Diseño Columna Metálica img-1"
+                                                class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
+                                            <button @click.prevent="removeArrayImage('disenoParante', 0)" type="button"
+                                                class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <template x-if="!previews.disenoParante?.[0]">
+                                        <label tabindex="0"
+                                            @paste="handlePaste($event, 'disenoParante', 0)"
+                                            @mouseenter="$el.focus()"
+                                            class="flex flex-col items-center justify-center w-full h-40 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none">
+                                            <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <span class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Subir imagen o <span class="font-semibold text-purple-600">Ctrl+V</span></span>
+                                            <span class="text-xs text-gray-500">PNG, JPG</span>
+                                            <input type="file" accept="image/*"
+                                                @change="handleArrayImageChange('disenoParante', 0, $event)"
+                                                class="hidden">
+                                        </label>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- IMAGEN 2 -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    imagen 2
+                                </label>
+                                <div class="relative">
+                                    <template x-if="previews.disenoParante?.[1]">
+                                        <div class="relative group">
+                                            <img :src="previews.disenoParante[1]" alt="Diseño Columna Metálica img-2"
+                                                class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
+                                            <button @click.prevent="removeArrayImage('disenoParante', 1)" type="button"
+                                                class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <template x-if="!previews.disenoParante?.[1]">
+                                        <label tabindex="0"
+                                            @paste="handlePaste($event, 'disenoParante', 1)"
+                                            @mouseenter="$el.focus()"
+                                            class="flex flex-col items-center justify-center w-full h-40 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none">
+                                            <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <span class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Subir imagen o <span class="font-semibold text-purple-600">Ctrl+V</span></span>
+                                            <span class="text-xs text-gray-500">PNG, JPG</span>
+                                            <input type="file" accept="image/*"
+                                                @change="handleArrayImageChange('disenoParante', 1, $event)"
+                                                class="hidden">
+                                        </label>
+                                    </template>
+                                </div>
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                             </div>
                         </div>
                         <!-- DESCRIPCIÓN BREVE -->
@@ -373,6 +722,7 @@
                     </button>
                     <!-- NIVEL 3 -->
                     <div x-show="showSectiony5" x-collapse class="p-6 space-y-6">
+<<<<<<< HEAD
                         <!-- IMG 1 -->
                         <div class="space-y-2">
                             <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
@@ -411,6 +761,81 @@
                                             d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 </button>
+=======
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- IMAGEN 1 -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    imagen 1
+                                </label>
+                                <div class="relative">
+                                    <template x-if="previews.disenoDiagonal?.[0]">
+                                        <div class="relative group">
+                                            <img :src="previews.disenoDiagonal[0]" alt="Diseño Columna Metálica img-1"
+                                                class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
+                                            <button @click.prevent="removeArrayImage('disenoDiagonal', 0)" type="button"
+                                                class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <template x-if="!previews.disenoDiagonal?.[0]">
+                                        <label tabindex="0"
+                                            @paste="handlePaste($event, 'disenoDiagonal', 0)"
+                                            @mouseenter="$el.focus()"
+                                            class="flex flex-col items-center justify-center w-full h-40 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none">
+                                            <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <span class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Subir imagen o <span class="font-semibold text-purple-600">Ctrl+V</span></span>
+                                            <span class="text-xs text-gray-500">PNG, JPG</span>
+                                            <input type="file" accept="image/*"
+                                                @change="handleArrayImageChange('disenoDiagonal', 0, $event)"
+                                                class="hidden">
+                                        </label>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- IMAGEN 2 -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    imagen 2
+                                </label>
+                                <div class="relative">
+                                    <template x-if="previews.disenoDiagonal?.[1]">
+                                        <div class="relative group">
+                                            <img :src="previews.disenoDiagonal[1]" alt="Diseño Columna Metálica img-2"
+                                                class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
+                                            <button @click.prevent="removeArrayImage('disenoDiagonal', 1)" type="button"
+                                                class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <template x-if="!previews.disenoDiagonal?.[1]">
+                                        <label tabindex="0"
+                                            @paste="handlePaste($event, 'disenoDiagonal', 1)"
+                                            @mouseenter="$el.focus()"
+                                            class="flex flex-col items-center justify-center w-full h-40 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none">
+                                            <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <span class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Subir imagen o <span class="font-semibold text-purple-600">Ctrl+V</span></span>
+                                            <span class="text-xs text-gray-500">PNG, JPG</span>
+                                            <input type="file" accept="image/*"
+                                                @change="handleArrayImageChange('disenoDiagonal', 1, $event)"
+                                                class="hidden">
+                                        </label>
+                                    </template>
+                                </div>
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                             </div>
                         </div>
                         <!-- DESCRIPCIÓN BREVE -->
@@ -442,6 +867,7 @@
                     </button>
                     <!-- NIVEL 3 -->
                     <div x-show="showSectiony6" x-collapse class="p-6 space-y-6">
+<<<<<<< HEAD
                         <!-- IMG 1 -->
                         <div class="space-y-2">
                             <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
@@ -480,6 +906,81 @@
                                             d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 </button>
+=======
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- IMAGEN 1 -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    imagen 1
+                                </label>
+                                <div class="relative">
+                                    <template x-if="previews.disenoCorreaMetalica?.[0]">
+                                        <div class="relative group">
+                                            <img :src="previews.disenoCorreaMetalica[0]" alt="Diseño Columna Metálica img-1"
+                                                class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
+                                            <button @click.prevent="removeArrayImage('disenoCorreaMetalica', 0)" type="button"
+                                                class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <template x-if="!previews.disenoCorreaMetalica?.[0]">
+                                        <label tabindex="0"
+                                            @paste="handlePaste($event, 'disenoCorreaMetalica', 0)"
+                                            @mouseenter="$el.focus()"
+                                            class="flex flex-col items-center justify-center w-full h-40 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none">
+                                            <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <span class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Subir imagen o <span class="font-semibold text-purple-600">Ctrl+V</span></span>
+                                            <span class="text-xs text-gray-500">PNG, JPG</span>
+                                            <input type="file" accept="image/*"
+                                                @change="handleArrayImageChange('disenoCorreaMetalica', 0, $event)"
+                                                class="hidden">
+                                        </label>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- IMAGEN 2 -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    imagen 2
+                                </label>
+                                <div class="relative">
+                                    <template x-if="previews.disenoCorreaMetalica?.[1]">
+                                        <div class="relative group">
+                                            <img :src="previews.disenoCorreaMetalica[1]" alt="Diseño Columna Metálica img-2"
+                                                class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
+                                            <button @click.prevent="removeArrayImage('disenoCorreaMetalica', 1)" type="button"
+                                                class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <template x-if="!previews.disenoCorreaMetalica?.[1]">
+                                        <label tabindex="0"
+                                            @paste="handlePaste($event, 'disenoCorreaMetalica', 1)"
+                                            @mouseenter="$el.focus()"
+                                            class="flex flex-col items-center justify-center w-full h-40 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none">
+                                            <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <span class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Subir imagen o <span class="font-semibold text-purple-600">Ctrl+V</span></span>
+                                            <span class="text-xs text-gray-500">PNG, JPG</span>
+                                            <input type="file" accept="image/*"
+                                                @change="handleArrayImageChange('disenoCorreaMetalica', 1, $event)"
+                                                class="hidden">
+                                        </label>
+                                    </template>
+                                </div>
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                             </div>
                         </div>
                         <!-- DESCRIPCIÓN BREVE -->

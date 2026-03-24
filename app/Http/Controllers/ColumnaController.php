@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ColumnaController extends Controller
 {
@@ -33,6 +34,12 @@ class ColumnaController extends Controller
         $dataFromHandsontablesLAX = array();
         $dataFromHandsontableLAY = json_decode($request->input("dataFromHandsontableLAY"), true);
         $dataFromHandsontablesLAY = array();
+
+         Log::info('Datos recibidos:', [
+                'LAX_count' => count($dataFromHandsontableLAX),
+                'LAY_count' => count($dataFromHandsontableLAY),
+                'datos_count' => count($dataFromHandsontable)
+            ]);
 
         $indiceQX = array();
         $LArx = array();

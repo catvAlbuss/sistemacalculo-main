@@ -1044,8 +1044,6 @@
                 @endif
             </tr>
         </tbody>
-
-
         <!-- Preciones en el suelo en condiciones de servicio  -->
         <thead class="bg-gray-200 dark:bg-gray-800">
             <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
@@ -1209,7 +1207,6 @@
                 @endif
             </tr>
         </tbody>
-
         <!-- 2.1 presiones utlimos de diseño-->
         <thead class="bg-gray-200 dark:bg-gray-800">
             <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">

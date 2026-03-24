@@ -193,7 +193,7 @@ document.addEventListener("DOMContentLoaded", function () {
         pdfSnapshot = new ImageData(
           new Uint8ClampedArray(originalPdfSnapshot.data),
           originalPdfSnapshot.width,
-          originalPdfSnapshot.height
+          originalPdfSnapshot.height,
         );
         applyBrightnessAndRedraw();
       });
@@ -206,7 +206,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const imageData = new ImageData(
       new Uint8ClampedArray(originalPdfSnapshot.data),
       originalPdfSnapshot.width,
-      originalPdfSnapshot.height
+      originalPdfSnapshot.height,
     );
     const data = imageData.data;
 
@@ -333,7 +333,7 @@ document.addEventListener("DOMContentLoaded", function () {
           e.offsetX >= shape.x &&
           e.offsetX <= shape.x + shape.width &&
           e.offsetY >= shape.y &&
-          e.offsetY <= shape.y + shape.height
+          e.offsetY <= shape.y + shape.height,
       );
 
       if (shapeIndex !== -1) {
@@ -365,7 +365,7 @@ document.addEventListener("DOMContentLoaded", function () {
           e.offsetX >= shape.x &&
           e.offsetX <= shape.x + shape.width &&
           e.offsetY >= shape.y &&
-          e.offsetY <= shape.y + shape.height
+          e.offsetY <= shape.y + shape.height,
       );
       if (shape) {
         const dx = e.offsetX - shape.x - shape.width / 2;
@@ -2639,7 +2639,7 @@ document.addEventListener("DOMContentLoaded", function () {
           e.offsetX >= shape.x &&
           e.offsetX <= shape.x + this.ctx.measureText(shape.text).width &&
           e.offsetY >= shape.y &&
-          e.offsetY <= shape.y + shape.fontSize
+          e.offsetY <= shape.y + shape.fontSize,
       );
 
       if (clickedShape) {
@@ -2971,7 +2971,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const eraserPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
       eraserPath.setAttribute(
         "d",
-        "M6.5 16c.69 0 1.24-.55 1.24-1.24v-4l-6-6-1.24 1.24v4c0 .69 .55 1.24 1.24 1.24zM18.76 17.24l-3.76-3.76c-.44-.44-1.14-.44-1.58 0-.44.44-.44 1.14 0 1.58l1.24 1.24c.22.22.51.33.79.33s.57-.11.79-.33l3.76-3.76c.44-.44.44-1.14 0-1.58a1.24 1.24 0 0 0-1.76 0zM14.76 2H9.24C8.55 2 8 2.55 8 3.24v16c0 .69.55 1.24 1.24 1.24h5.52c.69 0 1.24-.55 1.24-1.24V3.24C16 2.55 15.45 2 14.76 2z"
+        "M6.5 16c.69 0 1.24-.55 1.24-1.24v-4l-6-6-1.24 1.24v4c0 .69 .55 1.24 1.24 1.24zM18.76 17.24l-3.76-3.76c-.44-.44-1.14-.44-1.58 0-.44.44-.44 1.14 0 1.58l1.24 1.24c.22.22.51.33.79.33s.57-.11.79-.33l3.76-3.76c.44-.44.44-1.14 0-1.58a1.24 1.24 0 0 0-1.76 0zM14.76 2H9.24C8.55 2 8 2.55 8 3.24v16c0 .69.55 1.24 1.24 1.24h5.52c.69 0 1.24-.55 1.24-1.24V3.24C16 2.55 15.45 2 14.76 2z",
       );
       eraserIcon.appendChild(eraserPath);
 
@@ -3547,4 +3547,87 @@ $(document).ready(function () {
     exportarCanvasHD(canvas, "Predisionamiento.png", 3);
   });
 
+});
+
+document.getElementById("btn_png_predim").addEventListener("click", async function () {
+  const bloques = document.querySelectorAll(".predim-table-container");
+
+  if (!bloques.length) {
+    alert("No se encontraron tablas para exportar.");
+    return;
+  }
+
+  const boton = this;
+  const textoOriginal = boton.textContent;
+
+  try {
+    boton.disabled = true;
+    boton.textContent = "Exportando...";
+
+    for (const bloque of bloques) {
+      const tbody = bloque.querySelector("tbody");
+      const fileName = bloque.dataset.file || "tabla-predim";
+
+      // Solo exportar si tiene contenido real
+      if (!tbody || tbody.innerHTML.trim() === "") {
+        continue;
+      }
+
+      const canvas = await html2canvas(bloque, {
+        scale: 2.5,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        scrollX: 0,
+        scrollY: -window.scrollY,
+        onclone: (doc) => {
+          const clone = doc.querySelector(`[data-file="${fileName}"]`);
+          if (clone) {
+            clone.style.margin = "0";
+            clone.style.padding = "0";
+            clone.style.backgroundColor = "#ffffff";
+            clone.style.color = "#000000";
+          }
+
+          doc.body.style.margin = "0";
+          doc.body.style.padding = "0";
+          doc.body.style.backgroundColor = "#ffffff";
+        },
+      });
+
+      const dataUrl = canvas.toDataURL("image/png");
+
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `${fileName}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // pequeña pausa para que no choque la descarga múltiple
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+  } catch (error) {
+    console.error("Error al exportar tablas:", error);
+    alert("Ocurrió un error al exportar las tablas.");
+  } finally {
+    boton.disabled = false;
+    boton.textContent = textoOriginal;
+  }
+});
+
+document.getElementById("btnCanvasPNG").addEventListener("click", () => {
+  const canvas = document.getElementById("canvas");
+
+  if (!canvas) {
+    alert("No se encuentra el canvas");
+    return;
+  }
+
+  // Crear enlace de descarga
+  const link = document.createElement("a");
+  link.download = "canvas.png";
+  link.href = canvas.toDataURL("image/png");
+
+  link.click();
 });

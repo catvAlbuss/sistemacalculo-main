@@ -824,152 +824,316 @@ $(document).ready(function () {
 
   // });
 
+//   const btnCaptura = document.getElementById("btn_captura_resultado");
+
+// const clonarConValores = (node) => {
+//   const clone = node.cloneNode(true);
+//   const originales = node.querySelectorAll("input, select, textarea");
+//   const clonados = clone.querySelectorAll("input, select, textarea");
+
+//   originales.forEach((campo, i) => {
+//     const c = clonados[i];
+//     if (!c) return;
+
+//     if (campo.tagName === "INPUT") {
+//       const tipo = (campo.type || "").toLowerCase();
+//       if (tipo === "checkbox" || tipo === "radio") {
+//         campo.checked ? c.setAttribute("checked", "checked") : c.removeAttribute("checked");
+//       } else {
+//         c.value = campo.value;
+//         c.setAttribute("value", campo.value);
+//       }
+//     }
+
+//     if (campo.tagName === "TEXTAREA") {
+//       c.value = campo.value;
+//       c.textContent = campo.value;
+//     }
+
+//     if (campo.tagName === "SELECT") {
+//       c.value = campo.value;
+//       [...c.options].forEach((opt) => {
+//         opt.selected = opt.value === campo.value;
+//         opt.selected ? opt.setAttribute("selected", "selected") : opt.removeAttribute("selected");
+//       });
+//     }
+//   });
+
+//   return clone;
+// };
+
+// const descargarBlob = (blob, nombre) => {
+//   const url = URL.createObjectURL(blob);
+//   const a = document.createElement("a");
+//   a.href = url;
+//   a.download = nombre;
+//   a.click();
+//   URL.revokeObjectURL(url);
+// };
+
+// const blobAImagen = (blob) =>
+//   new Promise((resolve, reject) => {
+//     const url = URL.createObjectURL(blob);
+//     const img = new Image();
+//     img.onload = () => {
+//       URL.revokeObjectURL(url);
+//       resolve(img);
+//     };
+//     img.onerror = reject;
+//     img.src = url;
+//   });
+
+// const descargarEnPartes = async (blob, nombreBase, partes = 2) => {
+//   const img = await blobAImagen(blob);
+
+//   const ancho = img.width;
+//   const altoTotal = img.height;
+//   const altoParte = Math.ceil(altoTotal / partes);
+//   const margen = 100; // evita cortes justo en textos
+
+//   for (let i = 0; i < partes; i++) {
+//     const canvas = document.createElement("canvas");
+//     const ctx = canvas.getContext("2d");
+
+//     const origenY = Math.max(0, i * altoParte - (i === 0 ? 0 : margen));
+//     const altoReal = Math.min(altoParte + (i === 0 ? 0 : margen), altoTotal - origenY);
+
+//     canvas.width = ancho;
+//     canvas.height = altoReal;
+
+//     ctx.drawImage(
+//       img,
+//       0, origenY,
+//       ancho, altoReal,
+//       0, 0,
+//       ancho, altoReal
+//     );
+
+//     const parteBlob = await new Promise((resolve) =>
+//       canvas.toBlob(resolve, "image/png")
+//     );
+
+//     descargarBlob(parteBlob, `${nombreBase}_Parte_${i + 1}.png`);
+//   }
+// };
+
+// btnCaptura.addEventListener("click", async () => {
+//   const textoOriginal = btnCaptura.textContent;
+
+//   try {
+//     const node = document.getElementById("vigasgn");
+
+//     if (!node || !node.innerHTML.trim()) {
+//       alert("Primero debes generar los resultados.");
+//       return;
+//     }
+
+//     btnCaptura.disabled = true;
+//     btnCaptura.textContent = "Generando...";
+
+//     const clone = clonarConValores(node);
+
+//     const payload = {
+//       html: clone.outerHTML,
+//       stylesheets: [...document.querySelectorAll('link[rel="stylesheet"]')]
+//         .map((l) => l.href)
+//         .filter(Boolean),
+//       inlineStyles: [...document.querySelectorAll("style")]
+//         .map((s) => s.outerHTML)
+//         .join("\n"),
+//     };
+
+//     const response = await fetch("/capturar-viga-fragmento", {
+//       method: "POST",
+//       headers: {
+//         "Content-Type": "application/json",
+//         "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute("content"),
+//         "Accept": "application/json",
+//       },
+//       body: JSON.stringify(payload),
+//     });
+
+//     if (!response.ok) {
+//       const errorText = await response.text();
+//       console.error("STATUS:", response.status);
+//       console.error("RESPUESTA:", errorText);
+//       throw new Error(`Error ${response.status} al generar la imagen.`);
+//     }
+
+//     const blob = await response.blob();
+//     await descargarEnPartes(blob, "Diseño_vigas", 2);
+
+//   } catch (error) {
+//     console.error("Error en captura:", error);
+//     alert(error.message || "Error al generar la imagen.");
+//   } finally {
+//     btnCaptura.disabled = false;
+//     btnCaptura.textContent = textoOriginal;
+//   }
+// });
+
+
+  // INTENTO CON Puppeteer
   const btnCaptura = document.getElementById("btn_captura_resultado");
 
-const clonarConValores = (node) => {
-  const clone = node.cloneNode(true);
-  const originales = node.querySelectorAll("input, select, textarea");
-  const clonados = clone.querySelectorAll("input, select, textarea");
+  /* ================================
+     CLONAR DOM CON VALORES REALES
+  ================================ */
+  function clonarConValoresFormulario(node) {
+    const clone = node.cloneNode(true);
 
-  originales.forEach((campo, i) => {
-    const c = clonados[i];
-    if (!c) return;
+    const originalFields = node.querySelectorAll("input, select, textarea");
+    const clonedFields = clone.querySelectorAll("input, select, textarea");
 
-    if (campo.tagName === "INPUT") {
-      const tipo = (campo.type || "").toLowerCase();
-      if (tipo === "checkbox" || tipo === "radio") {
-        campo.checked ? c.setAttribute("checked", "checked") : c.removeAttribute("checked");
-      } else {
-        c.value = campo.value;
-        c.setAttribute("value", campo.value);
+    originalFields.forEach((field, index) => {
+      const clonedField = clonedFields[index];
+      if (!clonedField) return;
+
+      // INPUT
+      if (field.tagName === "INPUT") {
+        const type = (field.type || "").toLowerCase();
+
+        if (type === "checkbox" || type === "radio") {
+          if (field.checked) {
+            clonedField.setAttribute("checked", "checked");
+          } else {
+            clonedField.removeAttribute("checked");
+          }
+        } else {
+          clonedField.setAttribute("value", field.value);
+          clonedField.value = field.value;
+        }
       }
-    }
 
-    if (campo.tagName === "TEXTAREA") {
-      c.value = campo.value;
-      c.textContent = campo.value;
-    }
+      // TEXTAREA
+      if (field.tagName === "TEXTAREA") {
+        clonedField.value = field.value;
+        clonedField.textContent = field.value;
+      }
 
-    if (campo.tagName === "SELECT") {
-      c.value = campo.value;
-      [...c.options].forEach((opt) => {
-        opt.selected = opt.value === campo.value;
-        opt.selected ? opt.setAttribute("selected", "selected") : opt.removeAttribute("selected");
-      });
-    }
-  });
+      // SELECT (IMPORTANTE 🔥)
+      if (field.tagName === "SELECT") {
+        clonedField.value = field.value;
 
-  return clone;
-};
-
-const descargarBlob = (blob, nombre) => {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = nombre;
-  a.click();
-  URL.revokeObjectURL(url);
-};
-
-const blobAImagen = (blob) =>
-  new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(img);
-    };
-    img.onerror = reject;
-    img.src = url;
-  });
-
-const descargarEnPartes = async (blob, nombreBase, partes = 2) => {
-  const img = await blobAImagen(blob);
-
-  const ancho = img.width;
-  const altoTotal = img.height;
-  const altoParte = Math.ceil(altoTotal / partes);
-  const margen = 100; // evita cortes justo en textos
-
-  for (let i = 0; i < partes; i++) {
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-
-    const origenY = Math.max(0, i * altoParte - (i === 0 ? 0 : margen));
-    const altoReal = Math.min(altoParte + (i === 0 ? 0 : margen), altoTotal - origenY);
-
-    canvas.width = ancho;
-    canvas.height = altoReal;
-
-    ctx.drawImage(
-      img,
-      0, origenY,
-      ancho, altoReal,
-      0, 0,
-      ancho, altoReal
-    );
-
-    const parteBlob = await new Promise((resolve) =>
-      canvas.toBlob(resolve, "image/png")
-    );
-
-    descargarBlob(parteBlob, `${nombreBase}_Parte_${i + 1}.png`);
-  }
-};
-
-btnCaptura.addEventListener("click", async () => {
-  const textoOriginal = btnCaptura.textContent;
-
-  try {
-    const node = document.getElementById("vigasgn");
-
-    if (!node || !node.innerHTML.trim()) {
-      alert("Primero debes generar los resultados.");
-      return;
-    }
-
-    btnCaptura.disabled = true;
-    btnCaptura.textContent = "Generando...";
-
-    const clone = clonarConValores(node);
-
-    const payload = {
-      html: clone.outerHTML,
-      stylesheets: [...document.querySelectorAll('link[rel="stylesheet"]')]
-        .map((l) => l.href)
-        .filter(Boolean),
-      inlineStyles: [...document.querySelectorAll("style")]
-        .map((s) => s.outerHTML)
-        .join("\n"),
-    };
-
-    const response = await fetch("/capturar-viga-fragmento", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute("content"),
-        "Accept": "application/json",
-      },
-      body: JSON.stringify(payload),
+        Array.from(clonedField.options).forEach((option) => {
+          if (option.value === field.value) {
+            option.setAttribute("selected", "selected");
+            option.selected = true;
+          } else {
+            option.removeAttribute("selected");
+            option.selected = false;
+          }
+        });
+      }
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("STATUS:", response.status);
-      console.error("RESPUESTA:", errorText);
-      throw new Error(`Error ${response.status} al generar la imagen.`);
-    }
-
-    const blob = await response.blob();
-    await descargarEnPartes(blob, "Diseño_vigas", 2);
-
-  } catch (error) {
-    console.error("Error en captura:", error);
-    alert(error.message || "Error al generar la imagen.");
-  } finally {
-    btnCaptura.disabled = false;
-    btnCaptura.textContent = textoOriginal;
+    return clone;
   }
-});
+
+  /* ================================
+     GENERAR NOMBRE DE ARCHIVO
+  ================================ */
+  function generarNombreCaptura() {
+    const ahora = new Date();
+
+    const fecha = [
+      ahora.getFullYear(),
+      String(ahora.getMonth() + 1).padStart(2, "0"),
+      String(ahora.getDate()).padStart(2, "0"),
+    ].join("-");
+
+    const hora = [
+      String(ahora.getHours()).padStart(2, "0"),
+      String(ahora.getMinutes()).padStart(2, "0"),
+      String(ahora.getSeconds()).padStart(2, "0"),
+    ].join("-");
+
+    return `resultado_viga_${fecha}_${hora}.png`;
+  }
+
+  /* ================================
+     DESCARGAR ARCHIVO
+  ================================ */
+  function descargarBlob(blob, nombreArchivo) {
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nombreArchivo;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    window.URL.revokeObjectURL(url);
+  }
+
+  /* ================================
+     EVENTO PRINCIPAL
+  ================================ */
+  btnCaptura.addEventListener("click", async () => {
+    const textoOriginal = btnCaptura.textContent;
+
+    try {
+      const node = document.getElementById("vigasgn");
+
+      if (!node || node.innerHTML.trim() === "") {
+        alert("Primero debes generar los resultados.");
+        return;
+      }
+
+      btnCaptura.disabled = true;
+      btnCaptura.textContent = "Generando...";
+
+      // 🔥 CLON CON VALORES REALES
+      const clone = clonarConValoresFormulario(node);
+
+      const stylesheets = Array.from(
+        document.querySelectorAll('link[rel="stylesheet"]'),
+        (link) => link.href
+      ).filter(Boolean);
+
+      const inlineStyles = Array.from(
+        document.querySelectorAll("style"),
+        (style) => style.outerHTML
+      ).join("\n");
+
+      const payload = {
+        html: clone.outerHTML,
+        stylesheets,
+        inlineStyles,
+      };
+
+      const response = await fetch("/capturar-viga-fragmento", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-TOKEN": document
+            .querySelector('meta[name="csrf-token"]')
+            .getAttribute("content"),
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("STATUS:", response.status);
+        console.error("RESPUESTA:", errorText);
+        throw new Error(`Error ${response.status} al generar la imagen.`);
+      }
+
+      const blob = await response.blob();
+      descargarBlob(blob, generarNombreCaptura());
+
+    } catch (error) {
+      console.error("Error en captura:", error);
+      alert(error.message || "Error al generar la imagen.");
+    } finally {
+      btnCaptura.disabled = false;
+      btnCaptura.textContent = textoOriginal;
+    }
+  });
 
 });
+
+

@@ -13,6 +13,7 @@ use App\Http\Controllers\GestionUserRolSuscripcion;
 use App\Http\Controllers\OctavePlotController;
 use App\Http\Controllers\MuroAlbanieriaController;
 use App\Http\Controllers\SubscriptionPlanController;
+// use App\Http\Controllers\VigaCaptureController;
 use App\Http\Controllers\ZapatacombinadaController;
 use App\Http\Controllers\ZapataconectadaController;
 use App\Http\Controllers\ZapatageneralController;
@@ -29,6 +30,7 @@ Route::view('/servicios/planos_estructurales', 'landing.structural_blueprint')->
 Route::view('/servicios/metrados', 'landing.metrados')->name('landing.services.metrados');
 //Route::view('/contacto', 'landing.contact')->name('landing.contact');
 Route::post('/cotizarplano', [enviarCotizacionController::class, 'enviarCotizacion'])->name('cotizarplano');
+Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento']);
 
 // Route::post('/capturar-viga-descarga', [VigaCaptureController::class, 'descargar']);
 
@@ -101,7 +103,10 @@ Route::middleware(["auth", "verified"])->group(function () {
         //==================CALCULADORA ASISTENTE (Root, Gerencia, Asistente)//
         Route::middleware(['role:root|gerencia|asistente'])->group(function () {
             Route::prefix('asistente')->name('asistente.')->group(function () {
+
+                // Agrega la ruta de admMemoriaCalculo memoria-calculo
                 Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name('memoria-calculo');
+
                 // Vigas
                 Route::view('/vigas', 'hcalculo.admdesingvigas')->name('vigas');
                 Route::view('/vigas-general', 'hcalculo.admvigageneral')->name('vigas-general');
@@ -172,7 +177,9 @@ Route::middleware(["auth", "verified"])->group(function () {
         Route::view('/estribo-placa-v1', 'hcalculo.verificaciones.admEstriboplacas')->name("estribo-placa-v1");
         Route::view('/predim-viga-v1', 'hcalculo.verificaciones.admPredimviga')->name("predim-viga-v1");
         Route::view('/verificacion-viga-v1', 'hcalculo.verificaciones.admVigaverifica')->name("verificacion-viga-v1");
-        Route::view('/predim', 'predim.predim')->name("predim");
+
+
+        Route::view('/predim', 'predim.predim')->name('predim');
     });
 
     //===================RUTA DE LOSAS========================================//

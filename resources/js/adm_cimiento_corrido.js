@@ -1,5 +1,7 @@
 import html2canvas from "html2canvas";
 import "print-this";
+// import html2canvas from "html2canvas";
+// import { store } from "alpinejs";
 
 $(document).ready(function () {
   const g = 25;
@@ -45,7 +47,7 @@ $(document).ready(function () {
     let on =
       Math.round(
         (parseFloat(esadterr.value) * 10 - parseFloat(pdcimt.value) * parseFloat(yprom.value) - parseFloat(sc.value)) *
-          100
+          100,
       ) / 100;
     let Acim = Math.round((cu / 1000 / on) * 100) / 100;
     let B = Math.round(Acim * 100) / 100;
@@ -202,19 +204,6 @@ $(document).ready(function () {
       copyTagClasses: false, // No copiar las clases de las etiquetas HTML
     });
   });
-  // $("#cimientosControler").submit(function (event) {
-  //     event.preventDefault();
-  //     var formData = $(this).serialize();
-  //     $.ajax({
-  //         url: $(this).attr('action'),
-  //         method: 'POST',
-  //         data: $(this).serialize(),
-  //         success: function (response) {
-  //             console.log(response);
-  //             $("#ObtenerResultadosCimiento").html(response);
-  //         }
-  //     });
-  // });
 
   const capturarTablaSeparado = async () => {
     const btn = document.getElementById("btn_captura_resultado");
@@ -249,7 +238,7 @@ $(document).ready(function () {
       const chartDataUrl = chartImage.toDataURL("image/png");
       const chartLink = document.createElement("a");
       chartLink.href = chartDataUrl;
-      chartLink.download = `Cimiento_corrido_parte1.png`;
+      chartLink.download = `Grafico_${fecha}.png`;
       document.body.appendChild(chartLink);
       chartLink.click();
       document.body.removeChild(chartLink);
@@ -330,7 +319,7 @@ $(document).ready(function () {
           const superiorBase64 = canvasSuperior.toDataURL("image/png");
           const superiorLink = document.createElement("a");
           superiorLink.href = superiorBase64;
-          superiorLink.download = `Cimiento_corrido_parte2.png`;
+          superiorLink.download = `Resultados_Parte_Superior_${fecha}.png`;
           document.body.appendChild(superiorLink);
           superiorLink.click();
           document.body.removeChild(superiorLink);
@@ -339,7 +328,7 @@ $(document).ready(function () {
           const inferiorBase64 = canvasInferior.toDataURL("image/png");
           const inferiorLink = document.createElement("a");
           inferiorLink.href = inferiorBase64;
-          inferiorLink.download = `Cimiento_corrido_parte3.png`;
+          inferiorLink.download = `Resultados_Parte_Inferior_${fecha}.png`;
           document.body.appendChild(inferiorLink);
           inferiorLink.click();
           document.body.removeChild(inferiorLink);
@@ -365,4 +354,168 @@ $(document).ready(function () {
   };
 
   document.getElementById("btn_captura_resultado").addEventListener("click", capturarTablaSeparado);
+
+  // $("#cimientosControler").submit(function (event) {
+  //     event.preventDefault();
+  //     var formData = $(this).serialize();
+  //     $.ajax({
+  //         url: $(this).attr('action'),
+  //         method: 'POST',
+  //         data: $(this).serialize(),
+  //         success: function (response) {
+  //             console.log(response);
+  //             $("#ObtenerResultadosCimiento").html(response);
+  //         }
+  //     });
+  // });
+
+  // const capturarTablaSeparado = async () => {
+  //   const btn = document.getElementById("btn_captura_resultado");
+  //   try {
+  //     btn.disabled = true;
+  //     btn.classList.add("opacity-50", "cursor-not-allowed");
+  //     btn.textContent = "Generando...";
+
+  //     // ============================================
+  //     // PARTE 1: Capturar SOLO el gráfico
+  //     // ============================================
+  //     const chartCanvas = document.querySelector("canvas");
+  //     if (!chartCanvas) {
+  //       throw new Error("No se encontró el canvas del gráfico");
+  //     }
+
+  //     const chartImage = await html2canvas(chartCanvas, {
+  //       scale: 2,
+  //       backgroundColor: "#ffffff",
+  //       logging: false,
+  //     });
+
+  //     const ahora = new Date();
+  //     const fecha = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}-${String(
+  //       ahora.getDate(),
+  //     ).padStart(2, "0")}_${String(ahora.getHours()).padStart(2, "0")}-${String(ahora.getMinutes()).padStart(
+  //       2,
+  //       "0",
+  //     )}-${String(ahora.getSeconds()).padStart(2, "0")}`;
+
+  //     // DESCARGAR GRÁFICO
+  //     const chartDataUrl = chartImage.toDataURL("image/png");
+  //     const chartLink = document.createElement("a");
+  //     chartLink.href = chartDataUrl;
+  //     chartLink.download = `Cimiento_corrido_parte1.png`;
+  //     document.body.appendChild(chartLink);
+  //     chartLink.click();
+  //     document.body.removeChild(chartLink);
+
+  //     // ============================================
+  //     // PARTE 2: Capturar resultados (parte superior)
+  //     // ============================================
+  //     const resultadosDiv = document.getElementById("ObtenerResultadosCimiento");
+  //     if (!resultadosDiv) {
+  //       throw new Error("No se encontró el div de resultados");
+  //     }
+
+  //     // Crear contenedor para resultados
+  //     const contenedorResultados = document.createElement("div");
+  //     contenedorResultados.style.backgroundColor = "#ffffff";
+  //     contenedorResultados.style.padding = "20px";
+  //     contenedorResultados.style.width = "800px";
+
+  //     const resultadosClone = resultadosDiv.cloneNode(true);
+  //     resultadosClone.style.width = "100%";
+  //     contenedorResultados.appendChild(resultadosClone);
+
+  //     contenedorResultados.style.position = "absolute";
+  //     contenedorResultados.style.left = "-9999px";
+  //     contenedorResultados.style.top = "-9999px";
+  //     document.body.appendChild(contenedorResultados);
+
+  //     // Capturar resultados completos
+  //     const resultadosCanvas = await html2canvas(contenedorResultados, {
+  //       scale: 2,
+  //       backgroundColor: "#ffffff",
+  //       logging: false,
+  //       allowTaint: false,
+  //       useCORS: true,
+  //     });
+
+  //     document.body.removeChild(contenedorResultados);
+
+  //     // ============================================
+  //     // Dividir resultados en 2 partes (superior e inferior)
+  //     // ============================================
+  //     const resultadosCompleto = resultadosCanvas.toDataURL("image/png");
+
+  //     // Crear un canvas temporal para dividir la imagen
+  //     const imgTemp = new Image();
+  //     imgTemp.src = resultadosCompleto;
+
+  //     await new Promise((resolve) => {
+  //       imgTemp.onload = () => {
+  //         // Calcular la mitad de la altura
+  //         const mitadAltura = Math.floor(imgTemp.height / 2);
+
+  //         // Canvas para parte superior
+  //         const canvasSuperior = document.createElement("canvas");
+  //         canvasSuperior.width = imgTemp.width;
+  //         canvasSuperior.height = mitadAltura;
+  //         const ctxSuperior = canvasSuperior.getContext("2d");
+  //         ctxSuperior.drawImage(imgTemp, 0, 0, imgTemp.width, mitadAltura, 0, 0, imgTemp.width, mitadAltura);
+
+  //         // Canvas para parte inferior
+  //         const canvasInferior = document.createElement("canvas");
+  //         canvasInferior.width = imgTemp.width;
+  //         canvasInferior.height = imgTemp.height - mitadAltura;
+  //         const ctxInferior = canvasInferior.getContext("2d");
+  //         ctxInferior.drawImage(
+  //           imgTemp,
+  //           0,
+  //           mitadAltura,
+  //           imgTemp.width,
+  //           imgTemp.height - mitadAltura,
+  //           0,
+  //           0,
+  //           imgTemp.width,
+  //           imgTemp.height - mitadAltura,
+  //         );
+
+  //         // DESCARGAR PARTE SUPERIOR
+  //         const superiorBase64 = canvasSuperior.toDataURL("image/png");
+  //         const superiorLink = document.createElement("a");
+  //         superiorLink.href = superiorBase64;
+  //         superiorLink.download = `Cimiento_corrido_parte2.png`;
+  //         document.body.appendChild(superiorLink);
+  //         superiorLink.click();
+  //         document.body.removeChild(superiorLink);
+
+  //         // DESCARGAR PARTE INFERIOR
+  //         const inferiorBase64 = canvasInferior.toDataURL("image/png");
+  //         const inferiorLink = document.createElement("a");
+  //         inferiorLink.href = inferiorBase64;
+  //         inferiorLink.download = `Cimiento_corrido_parte3.png`;
+  //         document.body.appendChild(inferiorLink);
+  //         inferiorLink.click();
+  //         document.body.removeChild(inferiorLink);
+
+  //         console.log("✅ Todas las imágenes descargadas:");
+  //         console.log("   - Gráfico descargado");
+  //         console.log("   - Parte superior descargada");
+  //         console.log("   - Parte inferior descargada");
+
+  //         resolve();
+  //       };
+  //     });
+
+  //     alert("✅ Imágenes descargadas exitosamente (3 archivos)");
+  //   } catch (error) {
+  //     console.error("Error:", error);
+  //     alert("Error al generar la imagen: " + error.message);
+  //   } finally {
+  //     btn.disabled = false;
+  //     btn.classList.remove("opacity-50", "cursor-not-allowed");
+  //     btn.textContent = "Generar IMG";
+  //   }
+  // };
+
+  // document.getElementById("btn_captura_resultado").addEventListener("click", capturarTablaSeparado);
 });

@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class DesingLosaController extends Controller
 {
     public function losasAligeradas(Request $request)
     {
+        Log::info('Datos recibidos en losasAligeradas:', $request->all());
         $fc = $request->input('fc', 0);
         $fy = $request->input('fy', 0);
         $num_tramos = $request->input('num_tramos', 0);

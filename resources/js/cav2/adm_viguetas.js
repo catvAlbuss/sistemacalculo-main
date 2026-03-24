@@ -1,4 +1,5 @@
 import { doCalcs } from "../calc/calc_layout.js";
+import html2canvas from "html2canvas";
 
 document.addEventListener("DOMContentLoaded", () => {
   "use strict";
@@ -117,4 +118,61 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   doCalcs(calcs, calcFormatters, calculate);
+
+  const capturarTabla = async () => {
+    const btn = document.getElementById("btn_captura_resultado");
+
+    try {
+      btn.disabled = true;
+      btn.textContent = "Generando...";
+
+      // Crear un contenedor temporal
+      const contenedorTemp = document.createElement("div");
+      contenedorTemp.style.backgroundColor = "#ffffff";
+      contenedorTemp.style.width = "1000px";
+
+      // Agregar título
+      const titulo = document.createElement("h2");
+      titulo.textContent = "DISEÑO DE VIGUETA";
+      titulo.style.textAlign = "center";
+      titulo.style.fontSize = "24px";
+      titulo.style.marginBottom = "20px";
+      contenedorTemp.appendChild(titulo);
+
+      // Clonar los resultados
+      const resultados = document.getElementById("viguetas_content").cloneNode(true);
+      resultados.style.width = "100%";
+      contenedorTemp.appendChild(resultados);
+
+      // Agregar al DOM temporal
+      contenedorTemp.style.position = "absolute";
+      contenedorTemp.style.left = "-9999px";
+      contenedorTemp.style.top = "-9999px";
+      document.body.appendChild(contenedorTemp);
+
+      // Capturar el contenedor
+      const canvas = await html2canvas(contenedorTemp, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        logging: false,
+      });
+
+      // Limpiar
+      document.body.removeChild(contenedorTemp);
+
+      // Descargar
+      const link = document.createElement("a");
+      link.download = `diseño-vigueta-${Date.now()}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error al generar la imagen");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Generar IMG";
+    }
+  };
+
+  document.getElementById("btn_captura_resultado").addEventListener("click", capturarTabla);
 });
