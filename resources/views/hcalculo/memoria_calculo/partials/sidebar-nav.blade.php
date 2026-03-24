@@ -1,5 +1,6 @@
 {{-- partials/sidebar-nav.blade.php - Sidebar de navegación --}}
 <nav class="sticky top-6 flex flex-col gap-2" x-data="{ activeSection: 'section-info-general' }">
+    
     <a href="#section-info-general" @click="activeSection = 'section-info-general'"
         :class="activeSection === 'section-info-general' ? 'section-active' : ''"
         class="px-4 py-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-transparent hover:border-blue-500 transition-all font-medium text-gray-700 dark:text-gray-300 flex items-center gap-3">
@@ -104,8 +105,12 @@
         </span>
         <span>Diseño de Elementos</span>
     </a>
+<<<<<<< HEAD
+    <!-- DISEÑO DE ESTRUCTURA METÁLICA -->
+=======
     
 <!-- DISEÑO DE ESTRUCTURA METÁLICA -->
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
     <a href="#section-diseno-estructura" @click="activeSection = 'section-diseno-estructura'"
         :class="activeSection === 'section-diseno-estructura' ? 'section-active' : ''"
         class="px-4 py-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-transparent hover:border-blue-500 transition-all font-medium text-gray-700 dark:text-gray-300 flex items-center gap-3">

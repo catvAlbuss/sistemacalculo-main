@@ -15,7 +15,7 @@ class BlogController extends Controller
     {
         $blogs = blog::select('id', 'titulo', 'descripcion', 'fecha_publicacion', 'fecha_modificacion', 'ubicacion', 'imagenref')
             ->get();
-
+        
         return view('blogs.index', compact('blogs'));
     }
 

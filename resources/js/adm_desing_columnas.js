@@ -1,6 +1,6 @@
-import "print-this";
-
 import html2canvas from "html2canvas";
+import "print-this"
+
 
 $(document).ready(function () {
   /* ----Longitud Arriostrada------ */
@@ -1147,8 +1147,126 @@ $(document).ready(function () {
       removeScripts: false, // No eliminar las etiquetas <script>
       copyTagClasses: false, // No copiar las clases de las etiquetas HTML
     });
+
+    const btnCaptura = document.getElementById("btn_captura_columna");
+
+const descargarBlob = (blob, nombre) => {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nombre;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+const dataUrlABlob = async (dataUrl) => {
+  const res = await fetch(dataUrl);
+  return await res.blob();
+};
+
+const blobAImagen = (blob) =>
+  new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = reject;
+    img.src = url;
   });
+
+const descargarEnPartes = async (blob, nombreBase, partes = 3) => {
+  const img = await blobAImagen(blob);
+
+  const ancho = img.width;
+  const altoTotal = img.height;
+  const altoParte = Math.ceil(altoTotal / partes);
+  const margen = 100;
+
+  for (let i = 0; i < partes; i++) {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const origenY = Math.max(0, i * altoParte - (i === 0 ? 0 : margen));
+    const altoReal = Math.min(altoParte + (i === 0 ? 0 : margen), altoTotal - origenY);
+
+    canvas.width = ancho;
+    canvas.height = altoReal;
+
+    ctx.drawImage(
+      img,
+      0, origenY,
+      ancho, altoReal,
+      0, 0,
+      ancho, altoReal
+    );
+
+    const parteBlob = await new Promise((resolve) =>
+      canvas.toBlob(resolve, "image/png")
+    );
+
+    descargarBlob(parteBlob, `${nombreBase}_Parte_${i + 1}.png`);
+  }
+};
+
+btnCaptura.addEventListener("click", async () => {
+  const textoOriginal = btnCaptura.textContent;
+
+  try {
+    const elemento = document.getElementById("columna_pdf");
+
+    if (!elemento || !elemento.innerHTML.trim()) {
+      alert("Primero debes generar los resultados.");
+      return;
+    }
+
+    btnCaptura.disabled = true;
+    btnCaptura.textContent = "Generando...";
+
+    const canvas = await html2canvas(elemento, {
+      scale: 3,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+      scrollX: 0,
+      scrollY: -window.scrollY,
+      windowWidth: document.documentElement.scrollWidth,
+      windowHeight: document.documentElement.scrollHeight,
+      onclone: (doc) => {
+        const el = doc.getElementById("columna_pdf");
+        if (el) {
+          el.style.margin = "0";
+          el.style.padding = "24px";
+          el.style.height = "auto";
+          el.style.minHeight = "auto";
+          el.style.overflow = "visible";
+          el.style.backgroundColor = "#ffffff";
+          el.style.color = "#000000";
+        }
+
+        doc.body.style.margin = "0";
+        doc.body.style.padding = "0";
+        doc.body.style.backgroundColor = "#ffffff";
+      },
+    });
+
+    const dataUrl = canvas.toDataURL("image/png");
+    const blob = await dataUrlABlob(dataUrl);
+
+    await descargarEnPartes(blob, "Diseño_Columna", 3);
+
+  } catch (error) {
+    console.error("Error al generar la captura:", error);
+    alert("Ocurrió un error al generar la imagen.");
+  } finally {
+    btnCaptura.disabled = false;
+    btnCaptura.textContent = textoOriginal;
+  }
 });
+});
+
+  });
 
 $(document).ready(function () {
   const capturarTabla = async () => {

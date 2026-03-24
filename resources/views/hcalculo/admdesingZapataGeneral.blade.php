@@ -1,6 +1,6 @@
 <x-calc-layout title="Diseño de zapata general">
   @pushOnce('styles')
-    <link href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" rel="stylesheet" />
   @endpushOnce
   <div class="py-12">
     <div class="container mx-auto w-full">
@@ -243,7 +243,7 @@
                     <tr class="bg-white dark:bg-gray-800">
                       <th colspan="4">
                         <div id="CargaConServ"></div>
-                        <div id="CargaConServ"></div>
+                        <!-- <div id="CargaConServ"></div> -->
                       </th>
                     </tr>
                     <input id="dataFromHandsontable" name="dataFromHandsontable" type="hidden" value="">
@@ -291,7 +291,11 @@
               class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
               id="btn_captura_zapata"
               type="button">
+<<<<<<< HEAD
+              Generar IMG
+=======
               Generar Imagen
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
             </button>
             <div class="overflow-x-auto" id="zapataGeneral_pdf">
               <div id="resultadosZapataGeneral"></div>
@@ -303,7 +307,7 @@
   </div>
 
   @pushOnce('scripts')
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
-    @vite('resources/js/adm_zapata_general.js')
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
+  @vite('resources/js/adm_zapata_general.js')
   @endpushOnce
 </x-calc-layout>

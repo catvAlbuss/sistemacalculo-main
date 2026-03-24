@@ -58,7 +58,7 @@
                                         <th class="py-2 px-4">cm</th>
                                     </tr>
                                     <tr class="bg-white dark:bg-gray-800">
-                                        <th class="py-2 px-4">Momento ultimo</th>
+                                        <th class="py-2 px-4">Momento último</th>
                                         <th class="py-2 px-4">Mu</th>
                                         <th class="py-2 px-4"><input type="text" name="momentoultimo"
                                                 class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
@@ -69,7 +69,7 @@
                                         <th class="py-2 px-4">Tn/m</th>
                                     </tr>
                                     <tr class="bg-white dark:bg-gray-800">
-                                        <th class="py-2 px-4">Cortante ultimo</th>
+                                        <th class="py-2 px-4">Cortante último</th>
                                         <th class="py-2 px-4">Vu</th>
                                         <th class="py-2 px-4"><input type="text" name="vucortante"
                                                 class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
@@ -133,7 +133,11 @@
                         <button type="button"
                             class="text-white bg-green-700 hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center"
                             id="btn_captura_resultado">
+<<<<<<< HEAD
+                            Generar IMG
+=======
                             Generar imagen
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                         </button>
                         <div class="overflow-x-auto" id="vigasgn">
                             <table id="desingcorte" class="min-w-full text-gray-800 dark:text-white">
@@ -144,10 +148,17 @@
                                             diseño</th>
                                     </tr>
                                     <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
+<<<<<<< HEAD
+                                        <th class="text-lg py-2 px-4 w-[30%]" scope="col">Nombre</th>
+                                        <th class="text-lg py-2 px-4 w-[15%]" scope="col">Símbolo</th>
+                                        <th class="text-lg py-2 px-4 w-[35%]" scope="col">Fórmula</th>
+                                        <th class="text-lg py-2 px-4 w-[20%]" scope="col">Resultado</th>
+=======
                                         <<th class="text-xl py-2 px-4 w-[30%]" scope="col">Nombre</th>
                                         <th class="text-xl py-2 px-4 w-[15%]" scope="col">Simbolo</th>
                                         <th class="text-xl py-2 px-4 w-[35%]" scope="col">Formula</th>
                                         <th class="text-xl py-2 px-4 w-[20%]" scope="col">Resultado</th>
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                                     </tr>
                                 </thead>
                                 <tbody id="predimenension" class="bg-gray-100 dark:bg-gray-800  py-2"></tbody>
@@ -157,10 +168,17 @@
                                         </th>
                                     </tr>
                                     <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
+<<<<<<< HEAD
+                                        <th class="text-lg py-2 px-4 w-[30%]" scope="col">Nombre</th>
+                                        <th class="text-lg py-2 px-4 w-[15%]" scope="col">Simbolo</th>
+                                        <th class="text-lg py-2 px-4 w-[35%]" scope="col">Formula</th>
+                                        <th class="text-lg py-2 px-4 w-[20%]" scope="col">Resultado</th>
+=======
                                         <th class="text-xl py-2 px-4 w-[30%]" scope="col">Nombre</th>
                                         <th class="text-xl py-2 px-4 w-[15%]" scope="col">Simbolo</th>
                                         <th class="text-xl py-2 px-4 w-[35%]" scope="col">Formula</th>
                                         <th class="text-xl py-2 px-4 w-[20%]" scope="col">Resultado</th>
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                                     </tr>
                                 </thead>
                                 <tbody id="desingFlexion" class="py-2"></tbody>
@@ -180,10 +198,17 @@
                                         </th>
                                     </tr>
                                     <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
+<<<<<<< HEAD
+                                        <th class="text-lg py-2 px-4" scope="col">Nombre</th>
+                                        <th class="text-lg py-2 px-4" scope="col">Simbolo</th>
+                                        <th class="text-lg py-2 px-4" scope="col">Formula</th>
+                                        <th class="text-lg py-2 px-4" scope="col">Resultado</th>
+=======
                                         <th class="text-xl py-2 px-4 w-[30%]" scope="col">Nombre</th>
                                         <th class="text-xl py-2 px-4 w-[15%]" scope="col">Simbolo</th>
                                         <th class="text-xl py-2 px-4 w-[35%]" scope="col">Formula</th>
                                         <th class="text-xl py-2 px-4 w-[20%]" scope="col">Resultado</th>
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                                     </tr>
                                 </thead>
                                 <tbody id="diseñoCortes" class="py-2"></tbody>
@@ -201,6 +226,12 @@
     </div>
 
     @pushOnce('scripts')
-        @vite(['resources/js/adm_desing_vigas.js'])
+    @vite(['resources/js/adm_desing_vigas.js'])
     @endpushOnce
 </x-calc-layout>
+<style>
+    tr, td, th {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+</style>

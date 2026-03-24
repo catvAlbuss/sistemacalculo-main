@@ -54,6 +54,8 @@ export function createAnalisisSismicoComponent() {
     };
 }
 
+// POR TERMINAR (JHACK)
+
 /**
  * Componente para Diseño de Elementos (Sección 4)
  */
@@ -72,7 +74,10 @@ export function createEstructuraMetalicaComponent() {
     return {
         ...createSimpleSectionComponent('estructuraMetalica', 'Estructura Metálica'),
 
-        // Métodos específicos de esta sección pueden agregarse aquí
+        // init() {
+        //     console.log(`✅ Componente ${this.sectionName} inicializado`);
+        // },
+        
     };
 }
 
@@ -83,6 +88,9 @@ export function createConclusionesComponent() {
     return {
         ...createSimpleSectionComponent('conclusiones', 'Conclusiones y Recomendaciones'),
 
-        // Métodos específicos de esta sección pueden agregarse aquí
+        init() {
+            console.log(`✅ Componente ${this.sectionName} inicializado`);
+        },
+
     };
 }

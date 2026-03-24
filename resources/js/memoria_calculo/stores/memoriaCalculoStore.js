@@ -674,8 +674,13 @@ export function createMemoriaCalculoStore() {
       // Ajustar tamaño del array principal
       while (this.images.cimentacionImages.length < cimentacionCount) {
         // Cada vigas tiene un array de 4 imágenes
+<<<<<<< HEAD
+        this.images.cimentacionImages.push([null, null, null, null]);
+        this.previews.cimentacionImages.push([null, null, null, null]);
+=======
         this.images.cimentacionImages.push([null, null, null, null,null, null, null, null]);
         this.previews.cimentacionImages.push([null, null, null, null,null, null, null, null]);
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
       }
 
       if (this.images.cimentacionImages.length > cimentacionCount) {
@@ -877,4 +882,8 @@ export function createMemoriaCalculoStore() {
       this.ui.isExporting = false;
     },
   };
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec

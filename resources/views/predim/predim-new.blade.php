@@ -67,7 +67,6 @@
             </div>
         </div>
     </div>
-
     {{-- Modal for Reports --}}
     <div class="predim-modal" id="myModal">
         <div class="predim-modal-content">

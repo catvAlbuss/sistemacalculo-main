@@ -1,3 +1,4 @@
+import html2canvas from "html2canvas";
 import "print-this";
 import html2canvas from "html2canvas";
 
@@ -68,6 +69,17 @@ $(document).ready(function () {
     });
   });
 
+  // Imagen PNG
+  // document.getElementById("btn_pdf_predim").addEventListener("click", function () {
+  //   $("#zapataGeneral_pdf").printThis({
+  //     importCSS: true,
+  //     importStyle: true,
+  //     pageTitle: "Zapata General",
+  //     formValues: true,
+  //     canvas: true,
+  //   });
+  // });
+
 
   document.getElementById("btn_captura_zapata").addEventListener("click", async function () {
     const boton = this;
@@ -117,11 +129,18 @@ $(document).ready(function () {
 
       const ahora = new Date();
       const fecha = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}-${String(
+
+      //   ahora.getDate()
+      // ).padStart(2, "0")}_${String(ahora.getHours()).padStart(2, "0")}-${String(
+      //   ahora.getMinutes()
+      // ).padStart(2, "0")}-${String(ahora.getSeconds()).padStart(2, "0")}`;
+
         ahora.getDate(),
       ).padStart(2, "0")}_${String(ahora.getHours()).padStart(2, "0")}-${String(ahora.getMinutes()).padStart(
         2,
         "0",
       )}-${String(ahora.getSeconds()).padStart(2, "0")}`;
+
 
       for (let i = 0; i < partes; i++) {
         const canvasParte = document.createElement("canvas");
@@ -132,25 +151,31 @@ $(document).ready(function () {
 
         ctx.drawImage(
           canvas,
-          0,
-          i * altoParte, // origen en canvas original
-          ancho,
-          altoParte, // tamaño a cortar
-          0,
-          0, // destino
-          ancho,
-          altoParte,
+          0, i * altoParte,         // origen en canvas original
+          ancho, altoParte,         // tamaño a cortar
+          0, 0,                     // destino
+          ancho, altoParte
+          // 0,
+          // i * altoParte, // origen en canvas original
+          // ancho,
+          // altoParte, // tamaño a cortar
+          // 0,
+          // 0, // destino
+          // ancho,
+          // altoParte,
         );
 
         const dataUrl = canvasParte.toDataURL("image/png");
 
         const link = document.createElement("a");
         link.href = dataUrl;
-        link.download = `Zapata_Parte_${i + 1}_de_4-${fecha}.png`;
+        link.download = `Diseno_zapata_Parte_${i + 1}.png`;
+        // link.download = `Zapata_Parte_${i + 1}_de_4-${fecha}.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
       }
+
     } catch (error) {
       console.error("Error al generar la captura:", error);
       alert("Ocurrió un error al generar la imagen.");
@@ -159,4 +184,5 @@ $(document).ready(function () {
       boton.textContent = textoOriginal;
     }
   });
+
 });

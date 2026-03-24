@@ -9,7 +9,7 @@
             </svg>
         </div>
         <div>
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Diseño de Elementos Estructurales</h2>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Diseño de Elementos Estructurales (Sección 4)</h2>
             <p class="text-sm text-gray-500 dark:text-gray-400">Losas, vigas, columnas y otros elementos</p>
         </div>
     </div>
@@ -34,6 +34,9 @@
             </button>
 
             <div x-show="showSection41" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+<<<<<<< HEAD
+                <div class="space-y-2">
+=======
                 <!-- Inputs de número de secciones y texto -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-2">
@@ -143,6 +146,7 @@
                 </template>
 
                 <!-- <div class="space-y-2">
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                         {{-- Definir los nombres específicos en un array --}}
                         <template x-for="(item, idx) in [
@@ -197,7 +201,11 @@
                             </div>
                         </template>
                     </div>
+<<<<<<< HEAD
+                </div>
+=======
                 </div> -->
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
             </div>
         </div>
         <!-- SECCION 4.2.DISEÑO DE LOSA ALIGERADA -->
@@ -878,6 +886,9 @@
             </button>
 
             <div x-show="showSection46" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+<<<<<<< HEAD
+
+=======
                 <!-- Inputs de número de secciones y texto -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-2">
@@ -1094,6 +1105,7 @@
                         </div>
                     </template>
                 </div>
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
             </div>
         </div>
         <!-- SECCION 4.7. DISEÑO DE PLACA -->
@@ -1111,6 +1123,9 @@
             </button>
 
             <div x-show="showSection47" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+<<<<<<< HEAD
+
+=======
                 <!-- Inputs de número de secciones y texto -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-2">
@@ -1298,6 +1313,7 @@
                         </div>
                     </template>
                 </div>
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
             </div>
         </div>
         <!-- SECCION 4.8. DISEÑO DE MURO DE CONCRETO -->
@@ -1682,10 +1698,13 @@
                             { index: 1, nombre: 'CARGA VIVA' },
                             { index: 2, nombre: 'SISMO DINÁMICO EN DIRECCIÓN X' },
                             { index: 3, nombre: 'SISMO DINÁMICO EN DIRECCIÓN Y' },
+<<<<<<< HEAD
+=======
                             { index: 4, nombre: 'RESULTADO 1' },
                             { index: 5, nombre: 'RESULTADO 2' },
                             { index: 6, nombre: 'RESULTADO 3' },
                             { index: 7, nombre: 'RESULTADO 4' },
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                             
                         ]" :key="item.index">
                                             <div class="space-y-2">
