@@ -716,7 +716,7 @@
                     </table>
                 </div>
             </div>
-            <div class="w-1/2 py-10">
+            <div class="w-1/2 py-2">
                 <div class="overflow-x-auto">
                     <table id="" class="min-w-full text-gray-800 dark:text-white">
                         <thead class="bg-gray-200 dark:bg-gray-800">
@@ -829,7 +829,7 @@
                     </table>
                 </div>
             </div>
-            <div class="w-1/2 py-10">
+            <div class="w-1/2 py-2">
                 <div class="overflow-x-auto">
                     <table id="" class="min-w-full text-gray-800 dark:text-white">
                         <thead class="bg-gray-200 dark:bg-gray-800">
@@ -947,7 +947,7 @@
                     </table>
                 </div>
             </div>
-            <div class="w-full py-10">
+            <div class="w-full py-2">
                 <div class="overflow-x-auto">
                     <table id="" class="min-w-full text-gray-800 dark:text-white">
                         <thead class="bg-gray-200 dark:bg-gray-800">
@@ -1063,7 +1063,7 @@
                     </table>
                 </div>
             </div>
-            <div class="w-full py-10">
+            <div class="w-full py-2">
                 <div class="overflow-x-auto">
                     <table id="" class="min-w-full text-gray-800 dark:text-white">
                         <thead class="bg-gray-200 dark:bg-gray-800">
@@ -1372,7 +1372,7 @@
                     </table>
                 </div>
             </div>
-            <div class="w-full py-10">
+            <div class="w-full py-2">
                 <div class="overflow-x-auto">
                     <table id="" class="min-w-full text-gray-800 dark:text-white">
                         <thead class="bg-gray-200 dark:bg-gray-800">
@@ -1741,7 +1741,7 @@
                     </table>
                 </div>
             </div>
-            <div class="w-full py-10">
+            <div class="w-full py-2">
                 <div class="overflow-x-auto">
                     <table id="" class="min-w-full text-gray-800 dark:text-white">
                         <thead class="bg-gray-200 dark:bg-gray-800">
@@ -1818,7 +1818,7 @@
                     </table>
                 </div>
             </div>
-            <div class="w-full py-10">
+            <div class="w-full py-2">
                 <div class="overflow-x-auto">
                     <table id="" class="min-w-full text-gray-800 dark:text-white">
                         <thead class="bg-gray-200 dark:bg-gray-800">
@@ -2100,7 +2100,7 @@
                 </div>
             </div>
             {{-- DIseño por corte --}}
-            <div class="w-full py-10">
+            <div class="w-full py-2">
                 <div class="overflow-x-auto">
                     <table id="" class="min-w-full text-gray-800 dark:text-white">
                         <thead class="bg-gray-200 dark:bg-gray-800">
@@ -2250,7 +2250,7 @@
                 </div>
             </div>
 
-            <div class="w-full py-10">
+            <div class="w-full py-2">
                 <div class="overflow-x-auto">
                     <table id="" class="min-w-full text-gray-800 dark:text-white">
                         <thead class="bg-gray-200 dark:bg-gray-800">
@@ -2563,7 +2563,7 @@
                 </div>
             </div>
 
-            <div class="w-full py-10">
+            <div class="w-full py-2">
                 <div class="overflow-x-auto">
                     <table id="" class="min-w-full text-gray-800 dark:text-white">
                         <thead class="bg-gray-200 dark:bg-gray-800">
@@ -2663,7 +2663,7 @@
                 </div>
             </div>
 
-            <div class="w-full py-10">
+            <div class="w-full py-2">
                 <div class="overflow-x-auto">
                     <table id="" class="min-w-full text-gray-800 dark:text-white">
                         <thead class="bg-gray-200 dark:bg-gray-800">
@@ -2745,7 +2745,7 @@
                 </div>
             </div>
 
-            <div class="w-full py-10">
+            <div class="w-full py-2">
                 <div class="overflow-x-auto">
                     <table id="" class="min-w-full text-gray-800 dark:text-white">
                         <thead class="bg-gray-200 dark:bg-gray-800">
@@ -2875,7 +2875,7 @@
                 </div>
             </div>
             {{-- DIRECCION EN YY --}}
-            <div class="w-full py-10">
+            <div class="w-full py-2">
                 <div class="overflow-x-auto">
                     <table id="" class="min-w-full text-gray-800 dark:text-white">
                         <thead class="bg-gray-200 dark:bg-gray-800">
@@ -3045,7 +3045,7 @@
                 </div>
             </div>
 
-            <div class="w-full py-10">
+            <div class="w-full py-2">
                 <div class="overflow-x-auto">
                     <table id="" class="min-w-full text-gray-800 dark:text-white">
                         <thead class="bg-gray-200 dark:bg-gray-800">
@@ -3324,7 +3324,7 @@
                 </div>
             </div>
 
-            <div class="w-full py-10">
+            <div class="w-full py-2">
                 <div class="overflow-x-auto">
                     <table id="" class="min-w-full text-gray-800 dark:text-white">
                         <thead class="bg-gray-200 dark:bg-gray-800">
@@ -3443,7 +3443,7 @@
                 </div>
             </div>
 
-            <div class="w-full py-10">
+            <div class="w-full py-2">
                 <div class="overflow-x-auto">
                     <table id="" class="min-w-full text-gray-800 dark:text-white">
                         <thead class="bg-gray-200 dark:bg-gray-800">
@@ -3528,7 +3528,7 @@
                 </div>
             </div>
 
-            <div class="w-full py-10">
+            <div class="w-full py-2">
                 <div class="overflow-x-auto">
                     <table id="" class="min-w-full text-gray-800 dark:text-white">
                         <thead class="bg-gray-200 dark:bg-gray-800">
@@ -3658,7 +3658,7 @@
                 </div>
             </div>
 
-            <div class="w-full py-10">
+            <div class="w-full py-2">
                 <div class="overflow-x-auto">
                     <table id="" class="min-w-full text-gray-800 dark:text-white">
                         <thead class="bg-gray-200 dark:bg-gray-800">

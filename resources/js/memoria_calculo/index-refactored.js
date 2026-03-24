@@ -8,11 +8,17 @@ import { createMemoriaCalculoStore } from "./stores/memoriaCalculoStore.js";
 import { createGeneralidadesComponent } from "./components/GeneralidadesComponent.js";
 import { createAnalisisCargasComponent } from "./components/AnalisisCargasComponent.js";
 import { createAnalisisSismicoComponent } from "./components/AnalisisSismicoComponent.js";
+<<<<<<< HEAD
+import {createEstructuraMetalicaComponent} from "./components/EstructuraMetalicaComponent.js";
+import {createDisenoElementosComponent} from "./components/DisenoElementosComponent.js";
+import {createConclusionesComponent} from "./components/SimpleSectionComponent.js";
+=======
+import { createDisenoElementosComponent } from "./components/DisenoElementosComponent.js";
+import {createEstructuraMetalicaComponent} from "./components/EstructuraMetalicaComponent.js";
 import {
-    createDisenoElementosComponent,
-    createEstructuraMetalicaComponent,
     createConclusionesComponent
 } from "./components/SimpleSectionComponent.js";
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
 
 // Importar transformador de documentos
 import { DocumentTransformer } from "./processors/documentTransformer.js";
@@ -41,6 +47,7 @@ function memoriaCalculo() {
 
         // Proxies para compatibilidad con sidebar y otros partials
         get floors() { return this.sections.generalidades?.floors || 1; },
+         
         get structuralDetails() {
             return this.sections.generalidades?.structuralDetails || {
                 materialDesign: {
@@ -50,6 +57,9 @@ function memoriaCalculo() {
                 }
             };
         },
+
+        get losa() { return this.sections.disenoElementos?.losa || 1; },
+
 
         document: JSON.parse(JSON.stringify(DEFAULT_MC_STRUCTURE.document)),
 
@@ -98,6 +108,7 @@ function memoriaCalculo() {
                 // Construir estructura para procesador
                 const structure = buildContentStructure({
                     cover: exportData.cover,
+                    sections: exportData.sections,
                     document: JSON.parse(JSON.stringify(this.document))
                 });
 

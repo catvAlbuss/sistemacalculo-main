@@ -80,9 +80,7 @@ import"./printThis-eR5fzPta.js";$(document).ready(function(){$("#desingButton").
                         <td class='py-2 px-4 text-center'>${g.toFixed(2)} tn/m </td>
                     </tr>
                     <!--===========================0Cuantia balanceado=========================================-->
-                    <tr>
-                        <td colspan="4" class='py-2 px-4'></td>
-                    </tr>
+
                     <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
                         <td colspan="4" class="text-xl py-2 px-4"><strong>2.2.-Cuantia Balanceado</strong></td>
                     </tr>
@@ -106,9 +104,7 @@ import"./printThis-eR5fzPta.js";$(document).ready(function(){$("#desingButton").
                     </tr>
 
                     <!--==================================rmax===============================-->
-                    <tr>
-                        <td colspan="4" class='py-2 px-4'></td>
-                    </tr>
+                    
                     <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
                         <td colspan="4" class="text-xl py-2 px-4"><strong>2.3.-Cuantia máxima</strong></td>
                     </tr>
@@ -132,9 +128,7 @@ import"./printThis-eR5fzPta.js";$(document).ready(function(){$("#desingButton").
                     </tr>
 
                     <!--==================================reconomico===============================-->
-                    <tr>
-                        <td colspan="4" class='py-2 px-4'></td>
-                    </tr>
+                    
                     <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
                         <td colspan="4" class="text-xl py-2 px-4"><strong>2.4.-Cuantia económico</strong></td>
                     </tr>

@@ -1,6 +1,6 @@
 <x-calc-layout title="Diseño de Columna">
   @pushOnce('styles')
-    <link href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" rel="stylesheet" />
   @endpushOnce
 
   <!-- ==============================MODELS MODAL================== -->
@@ -565,11 +565,21 @@
               id="btn_pdf_predim" type="button">
               Generar PDF
             </button>
+            <button
+<<<<<<< HEAD
+              class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+              id="btn_captura_columna" type="button">
+=======
+              class="rounded-lg bg-blue-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+              id="btn_captura_resultado" type="button">
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
+              Generar IMG
+            </button>
             <div class="overflow-x-auto">
               <div id="ObtenerResultadosCol"></div>
             </div>
-            <div class="overflow-x-auto">
-              <div class="grid grid-cols-2 gap-4">
+            <div class="overflow-x-auto py-5">
+              <div class="grid grid-cols-2 gap-2">
                 <script src="https://npmcdn.com/chart.js@latest/dist/chart.umd.js"></script>
                 <div class="myChartDiv">
                   <canvas id="DIXXs"
@@ -583,14 +593,13 @@
             </div>
           </div>
         </div>
-
       </div>
     </div>
   </div>
 
   @pushOnce('scripts')
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@latest/dist/echarts.min.js"></script>
-    @vite('resources/js/adm_desing_columnas.js')
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@latest/dist/echarts.min.js"></script>
+  @vite('resources/js/adm_desing_columnas.js')
   @endpushOnce
 </x-calc-layout>

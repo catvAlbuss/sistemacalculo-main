@@ -229,6 +229,11 @@
               id="btn_pdf_predim" type="button">
               Generar PDF
             </button>
+            <button
+              class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+              id="btn_captura_resultado" type="button">
+              Generar IMG
+            </button>
             <div class="overflow-x-auto" id="cm_pdf">
               <div id="main" style="width: 100%; height: 600px;"></div>
               <div class="card-body" id="ObtenerResultadosCimiento"></div>
@@ -240,7 +245,7 @@
   </div>
 
   @pushOnce('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/echarts@latest/dist/echarts.min.js"></script>
-    @vite('resources/js/adm_cimiento_corrido.js')
+  <script src="https://cdn.jsdelivr.net/npm/echarts@latest/dist/echarts.min.js"></script>
+  @vite('resources/js/adm_cimiento_corrido.js')
   @endpushOnce
 </x-calc-layout>

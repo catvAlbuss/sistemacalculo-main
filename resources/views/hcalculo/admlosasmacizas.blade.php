@@ -94,6 +94,15 @@
               id="btn_pdf_predim" type="button">
               Generar PDF
             </button>
+            <button
+<<<<<<< HEAD
+              class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+=======
+              class="rounded-lg bg-blue-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
+              id="btn_captura_resultado" type="button">
+              Generar IMG
+            </button>
             <div class="overflow-x-auto" id="losas_macizas">
               <table class="min-w-full text-gray-800 dark:text-white" id="desingcorte">
                 <!-- Requisitos de diseño vigas -->
@@ -115,10 +124,17 @@
                     <th class="px-4 py-2 text-left text-xl" colspan="4">2.- Diseño por flexion</th>
                   </tr>
                   <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                    <th class="text-xl" scope="col">Nombre</th>
-                    <th class="text-xl" scope="col">Simbolo</th>
-                    <th class="text-xl" scope="col">Formula</th>
-                    <th class="text-xl" scope="col">Resultado</th>
+<<<<<<< HEAD
+                    <th class="px-4 py-2 text-lg" scope="col">Nombre</th>
+                    <th class="px-4 py-2 text-lg" scope="col">Simbolo</th>
+                    <th class="px-4 py-2 text-lg" scope="col">Formula</th>
+                    <th class="px-4 py-2 text-lg" scope="col">Resultado</th>
+=======
+                    <th class="px-4 py-2 text-xl" scope="col">Nombre</th>
+                    <th class="px-4 py-2 text-xl" scope="col">Simbolo</th>
+                    <th class="px-4 py-2 text-xl" scope="col">Formula</th>
+                    <th class="px-4 py-2 text-xl" scope="col">Resultado</th>
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                   </tr>
                 </thead>
                 <tbody class="py-2" id="resultadoflexion"></tbody>
@@ -128,10 +144,17 @@
                     <th class="px-4 py-2 text-left text-xl" colspan="4">3.- Diseño por Corte</th>
                   </tr>
                   <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                    <th class="text-xl" scope="col">Nombre</th>
-                    <th class="text-xl" scope="col">Simbolo</th>
-                    <th class="text-xl" scope="col">Formula</th>
-                    <th class="text-xl" scope="col">Resultado</th>
+<<<<<<< HEAD
+                    <th class="px-4 py-2 text-lg" scope="col">Nombre</th>
+                    <th class="px-4 py-2 text-lg" scope="col">Simbolo</th>
+                    <th class="px-4 py-2 text-lg" scope="col">Formula</th>
+                    <th class="px-4 py-2 text-lg" scope="col">Resultado</th>
+=======
+                    <th class="px-4 py-2 text-xl" scope="col">Nombre</th>
+                    <th class="px-4 py-2 text-xl" scope="col">Simbolo</th>
+                    <th class="px-4 py-2 text-xl" scope="col">Formula</th>
+                    <th class="px-4 py-2 text-xl" scope="col">Resultado</th>
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                   </tr>
                   <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
                     <th class="text-xm px-4 py-2 text-left" colspan="4">3.1- Calcular corte a una distancia</th>
