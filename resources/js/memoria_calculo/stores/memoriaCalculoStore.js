@@ -45,7 +45,7 @@ export function createMemoriaCalculoStore() {
       generalidades: {
         floors: 1,
         structuralDetails: {
-          usage: "",
+          usage: "Piso 1",
           structuralSystemX: "Sistema Dual",
           structuralSystemY: "Sistema Dual",
           verticalElements: "Columnas y Placas de Concreto Armado",
@@ -57,6 +57,17 @@ export function createMemoriaCalculoStore() {
             concreto: { fy: "", e: "253456.4", fc: "210" },
           },
           generalDescription: "",
+          combinacionesCarga: {
+            comb1: true, // 1,4 CM + 1,7 CV
+            comb2: true, // 1,25 (CM + CV +/- CVi)
+            comb3: true, // 0,9 CM +/- 1,25 CVi
+            comb4: true, // 1,25(CM + CV) +/- CS
+            comb5: true, // 0,9 CM +/- CS
+            comb6: true, // 1,4 CM + 1,7 CV + 1,7 CE
+            comb7: true, // 0,9 CM + 1,7 CE
+            comb8: true, // 1,4 CM + 1,7 CV + 1,4 CL
+            comb9: true, // 1,05 CM + 1,25 CV + 1,05 CT
+          },
         },
       },
 
@@ -72,6 +83,10 @@ export function createMemoriaCalculoStore() {
           K26: "-0.70",
           K32: "-0.60",
         },
+        // descripcionesModelo: [""],
+        // descripcionesEspectro: ["", ""],
+        descripcionesCargaMuerta: ["", "", "", ""],
+        descripcionesCargaViva: ["", "", "", ""],
       },
 
       // Sección 3: Análisis Sísmico
@@ -82,16 +97,16 @@ export function createMemoriaCalculoStore() {
         resultadoPredim: 1,
         predim: 1,
         losa: 1,
-        lista: "",
+        lista: "Lista 1",
         viga: 1,
-        nameVigas: "",
+        nameVigas: "Viga 1",
         columna: 1,
-        nameColumna: "",
+        nameColumna: "Columna 1",
         descriptionColumna: [],
         cimentacion: 1,
-        nameCimentacion: "",
+        nameCimentacion: "Cimentacion 1",
         placa: 1,
-        namePlaca: "",
+        namePlaca: "Placa 1",
       },
 
       // Sección 5: Estructura Metálica
@@ -184,8 +199,8 @@ export function createMemoriaCalculoStore() {
       materialImages: [null, null, null],
       modeloMatematico3DImages: [null],
       espectroPseudoaceleracionesImages: [null, null],
-      metradoCargasImages: [null, null, null, null],
-      cargasAproximadasImages: [null, null, null, null],
+      metradoCargasImages: [null, null, null, null], // 18-21
+      cargasAproximadasImages: [null, null, null, null], // 22-25
       estaticoConsideracionesETABS: [null, null, null], //26-27-28
       dinamicoConsideracionesETABS: [null, null], //29,30
       modosVibracionImages: [null, null, null],
@@ -674,13 +689,8 @@ export function createMemoriaCalculoStore() {
       // Ajustar tamaño del array principal
       while (this.images.cimentacionImages.length < cimentacionCount) {
         // Cada vigas tiene un array de 4 imágenes
-<<<<<<< HEAD
-        this.images.cimentacionImages.push([null, null, null, null]);
-        this.previews.cimentacionImages.push([null, null, null, null]);
-=======
-        this.images.cimentacionImages.push([null, null, null, null,null, null, null, null]);
-        this.previews.cimentacionImages.push([null, null, null, null,null, null, null, null]);
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
+        this.images.cimentacionImages.push([null, null, null, null, null, null, null, null]);
+        this.previews.cimentacionImages.push([null, null, null, null, null, null, null, null]);
       }
 
       if (this.images.cimentacionImages.length > cimentacionCount) {
@@ -882,8 +892,4 @@ export function createMemoriaCalculoStore() {
       this.ui.isExporting = false;
     },
   };
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec

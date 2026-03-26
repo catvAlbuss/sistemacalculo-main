@@ -170,6 +170,113 @@
             </template>
         </div>
 
+
+        <div class="space-y-3 border border-gray-200 dark:border-gray-700 rounded-xl p-4 bg-gray-50 dark:bg-gray-800/30">
+            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Combinaciones de Carga (Norma E.060)
+            </label>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Selecciona las combinaciones que deseas incluir en el documento:</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {{-- Combinación 1 --}}
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb1"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">1,4 CM + 1,7 CV</span>
+                </label>
+
+                {{-- Combinación 2: 1,25 (CM + CV ± CVi) --}}
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb2"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                        1,25 (CM + CV <span class="text-red-500 font-bold">±</span> CV<span class="text-xs align-sub">i</span>)
+                    </span>
+                </label>
+
+                {{-- Combinación 3: 0,9 CM ± 1,25 CVi --}}
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb3"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                        0,9 CM <span class="text-red-500 font-bold">±</span> 1,25 CV<span class="text-xs align-sub">i</span>
+                    </span>
+                </label>
+
+                {{-- Combinación 4: 1,25(CM + CV) ± CS --}}
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb4"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                        1,25(CM + CV) <span class="text-red-500 font-bold">±</span> CS
+                    </span>
+                </label>
+
+                {{-- Combinación 5: 0,9 CM ± CS --}}
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb5"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                        0,9 CM <span class="text-red-500 font-bold">±</span> CS
+                    </span>
+                </label>
+
+                {{-- Combinación 6: 1,4 CM + 1,7 CV + 1,7 CE --}}
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb6"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">1,4 CM + 1,7 CV + 1,7 CE</span>
+                </label>
+
+                {{-- Combinación 7: 0,9 CM + 1,7 CE --}}
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb7"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">0,9 CM + 1,7 CE</span>
+                </label>
+
+                {{-- Combinación 8: 1,4 CM + 1,7 CV + 1,4 CL --}}
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb8"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">1,4 CM + 1,7 CV + 1,4 CL</span>
+                </label>
+
+                {{-- Combinación 9: 1,05 CM + 1,25 CV + 1,05 CT --}}
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb9"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">1,05 CM + 1,25 CV + 1,05 CT</span>
+                </label>
+            </div>
+
+            {{-- Indicador de selección --}}
+            <div class="mt-3 pt-2 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <div class="text-xl text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                    <span x-text="'Combinaciones seleccionadas: ' + Object.values(structuralDetails.combinacionesCarga).filter(v => v === true).length + ' de 9'"></span>
+                </div>
+
+                {{-- Botón para seleccionar/deseleccionar todas --}}
+                <div class="flex gap-2">
+                    <button type="button"
+                        @click="Object.keys(structuralDetails.combinacionesCarga).forEach(key => structuralDetails.combinacionesCarga[key] = true)"
+                        class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition">
+                        Seleccionar todas
+                    </button>
+                    <span class="text-gray-300 dark:text-gray-600">|</span>
+                    <button type="button"
+                        @click="Object.keys(structuralDetails.combinacionesCarga).forEach(key => structuralDetails.combinacionesCarga[key] = false)"
+                        class="text-xs text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition">
+                        Deseleccionar todas
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
         {{-- General Description --}}
         <div class="space-y-2">
             <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Descripcion General</label>

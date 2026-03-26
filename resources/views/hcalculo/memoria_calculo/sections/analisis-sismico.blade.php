@@ -29,77 +29,12 @@
             </button>
 
             <div x-show="showSection32" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
-<<<<<<< HEAD
-                {{-- Figura 26: Patrón de cargas sísmicas en "X" --}}
-                <div class="space-y-2">
-                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                        Figura 26: Patrón de cargas sísmicas en "X"
-                    </label>
-
-                    {{-- Contenedor con soporte para pegar --}}
-                    <div @paste="handlePaste($event, 'figura26')"
-                        @click="$refs.input_figura26.click()"
-                        @mouseenter="$el.focus()"
-                        tabindex="0"
-                        class="w-full bg-gray-50 dark:bg-gray-700/50 border-2 border-gray-200 dark:border-gray-600 rounded-xl p-4 cursor-pointer transition-all hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                        :class="{ 'border-red-500 ring-2 ring-red-500': $refs.input_figura26 === document.activeElement }">
-
-                        {{-- Input oculto --}}
-                        <input type="file"
-                            accept="image/*"
-                            @change="handleImageUpload($event, 'figura26')"
-                            x-ref="input_figura26"
-                            class="hidden">
-
-                        {{-- Contenido según estado --}}
-                        <template x-if="!figura26">
-                            <div class="flex flex-col items-center justify-center gap-2 py-4">
-                                <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                <p class="text-gray-600 dark:text-gray-400 text-center">
-                                    Haz clic para seleccionar un archivo<br>
-                                    o <span class="font-semibold">Ctrl+V</span> para pegar una imagen
-                                </p>
-                            </div>
-                        </template>
-
-                        <template x-if="figura26">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-3">
-                                    <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    <span class="text-green-600 dark:text-green-400">Imagen cargada correctamente</span>
-                                </div>
-                                <span class="text-xs text-gray-500">Ctrl+V para reemplazar</span>
-                            </div>
-                        </template>
-                    </div>
-
-
-                    <!-- Preview de imagen con condicional -->
-                    <div x-show="figura26" class="mt-3 relative group">
-                        <img :src="figura26" alt="Preview Figura 26"
-                            class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
-                        <button @click.prevent="removeImage('figura26')" type="button"
-                            class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-=======
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {{-- Figura 26: Patrón de cargas sísmicas en "X" --}}
                     <div class="space-y-2">
                         <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
                             Figura 26: Patrón de cargas sísmicas en "X"
                         </label>
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
 
                         {{-- Contenedor con soporte para pegar --}}
                         <div @paste="handlePaste($event, 'figura26')"

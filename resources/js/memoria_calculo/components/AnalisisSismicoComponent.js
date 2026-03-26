@@ -30,11 +30,7 @@ export function createAnalisisSismicoComponent() {
 
     // Accordion states for subsections
     showSection32: false,
-<<<<<<< HEAD
     showSection33: false,
-=======
-    showSection33: true,
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
     showSection331: false,
     showSection332: false,
     showSection333: false,
@@ -470,8 +466,5 @@ export function createAnalisisSismicoComponent() {
       };
     },
   };
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
+

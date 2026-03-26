@@ -1,10 +1,7 @@
-<<<<<<< HEAD
-=======
 // ============================================
 // Crear archivo EstructuraMetalicaComponent.js
 // ============================================
 
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
 import { handleImageChange } from "../utils/imageHandler";
 
 
@@ -37,8 +34,6 @@ export function createEstructuraMetalicaComponent() {
 
         // IMAGENES
 
-<<<<<<< HEAD
-=======
         /**
          * Maneja el pegado de imagen para cualquier grupo de imágenes
          * @param {ClipboardEvent} event - Evento del portapapeles
@@ -131,7 +126,6 @@ export function createEstructuraMetalicaComponent() {
         removeArrayImage(groupKey, index) {
             this.$store.memoriaCalculo.removeArrayImage(groupKey, index);
         },
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
 
         handleImageUpload(event, imageKey) {
             const file = event.target.files[0];
@@ -244,7 +238,3 @@ export function createEstructuraMetalicaComponent() {
         }
     };
 }
-<<<<<<< HEAD
-=======
-
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
