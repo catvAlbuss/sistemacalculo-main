@@ -25,7 +25,7 @@
                 </svg>
                 # de Pisos
             </label>
-            <input type="number" x-model.number="floors" @input="updateFloors()" min="1" max="20"
+            <input type="number" x-model.number="floors" @input="updateFloors()" min="1" max="20" validate
                 class="w-full bg-gray-50 dark:bg-gray-700/50 border-2 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all outline-none">
         </div>
 

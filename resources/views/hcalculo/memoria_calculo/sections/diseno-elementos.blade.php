@@ -255,6 +255,10 @@
                     </div>
                 </div>
 
+                <div class="w-full bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-200 dark:border-yellow-700 text-gray-900 dark:text-gray-100 p-3 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none resize-none font-medium">
+                    <p class="text-sm text-gray-700 dark:text-gray-300">AVISO IMPORTANTE: Si en caso no detalla el nombre de las secciones no se tomara en cuenta las imagenes que se agregue.</p>
+                </div>
+
                 <!-- Inputs de número de secciones y texto -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-2">
@@ -743,6 +747,10 @@
                     </div>
                 </div>
 
+                <div class="w-full bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-200 dark:border-yellow-700 text-gray-900 dark:text-gray-100 p-3 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none resize-none font-medium">
+                    <p class="text-sm text-gray-700 dark:text-gray-300">AVISO IMPORTANTE: Si en caso no detalla el nombre de las secciones no se tomara en cuenta las imagenes que se agregue.</p>
+                </div>
+
                 <!-- Inputs de número de secciones y texto -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-2">
@@ -879,6 +887,9 @@
 
             <div x-show="showSection46" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
                 <!-- Inputs de número de secciones y texto -->
+                 <div class="w-full bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-200 dark:border-yellow-700 text-gray-900 dark:text-gray-100 p-3 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none resize-none font-medium">
+                    <p class="text-sm text-gray-700 dark:text-gray-300">AVISO IMPORTANTE: Si en caso no detalla el nombre de las secciones no se tomara en cuenta las imagenes que se agregue.</p>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-2">
                         <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
@@ -1111,6 +1122,9 @@
             </button>
 
             <div x-show="showSection47" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+                <div class="w-full bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-200 dark:border-yellow-700 text-gray-900 dark:text-gray-100 p-3 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none resize-none font-medium">
+                    <p class="text-sm text-gray-700 dark:text-gray-300">AVISO IMPORTANTE: Si en caso no detalla el nombre de las secciones no se tomara en cuenta las imagenes que se agregue.</p>
+                </div>
                 <!-- Inputs de número de secciones y texto -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-2">
@@ -1601,6 +1615,9 @@
 
             <div x-show="showSection412" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
                 <!-- Inputs de número de secciones y texto -->
+                <div class="w-full bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-200 dark:border-yellow-700 text-gray-900 dark:text-gray-100 p-3 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none resize-none font-medium">
+                    <p class="text-sm text-gray-700 dark:text-gray-300">AVISO IMPORTANTE: Si en caso no detalla el nombre de las secciones no se tomara en cuenta las imagenes que se agregue.</p>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-2">
                         <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">

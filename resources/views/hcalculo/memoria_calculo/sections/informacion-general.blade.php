@@ -44,7 +44,7 @@
                             </svg>
                         </div>
                         <div class="flex-1">
-                            <div class="font-bold text-sm mb-1">Casa</div>
+                            <div class="font-bold text-sm mb-1">Vivienda privada</div>
                             <div class="text-sm opacity-80">Proyecto residencial con 1 imagen</div>
                         </div>
                     </div>

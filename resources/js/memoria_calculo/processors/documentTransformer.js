@@ -36,6 +36,42 @@ export class DocumentTransformer {
     this.renumerarSeccionesFinales(structure);
   }
 
+  // JHACK
+  // getSeismicDataByDepartment(departmentName) {
+  //   const seismicZoneByDepartment = {
+  //     AMAZONAS: { zone: "2", factor: "0.25" },
+  //     ANCASH: { zone: "4", factor: "0.45" },
+  //     APURIMAC: { zone: "3", factor: "0.35" },
+  //     AREQUIPA: { zone: "4", factor: "0.45" },
+  //     AYACUCHO: { zone: "3", factor: "0.35" },
+  //     CAJAMARCA: { zone: "2", factor: "0.25" },
+  //     CALLAO: { zone: "4", factor: "0.45" },
+  //     CUSCO: { zone: "3", factor: "0.35" },
+  //     HUANCAVELICA: { zone: "4", factor: "0.45" },
+  //     HUANUCO: { zone: "2", factor: "0.25" },
+  //     ICA: { zone: "4", factor: "0.45" },
+  //     JUNIN: { zone: "2", factor: "0.25" },
+  //     "LA LIBERTAD": { zone: "3", factor: "0.35" },
+  //     LAMBAYEQUE: { zone: "4", factor: "0.45" },
+  //     LIMA: { zone: "4", factor: "0.45" },
+  //     LORETO: { zone: "1", factor: "0.10" },
+  //     "MADRE DE DIOS": { zone: "2", factor: "0.25" },
+  //     MOQUEGUA: { zone: "4", factor: "0.45" },
+  //     PASCO: { zone: "2", factor: "0.25" },
+  //     PIURA: { zone: "4", factor: "0.45" },
+  //     PUNO: { zone: "2", factor: "0.25" },
+  //     "SAN MARTIN": { zone: "2", factor: "0.25" },
+  //     TACNA: { zone: "4", factor: "0.45" },
+  //     TUMBES: { zone: "4", factor: "0.45" },
+  //     UCAYALI: { zone: "2", factor: "0.25" },
+  //   };
+  //   const dept = String(departmentName || "")
+  //     .trim()
+  //     .toUpperCase();
+  //   return seismicZoneByDepartment[dept] || { zone: "2", factor: "0.25" };
+  // }
+  // end
+
   /**
    * Encuentra el índice del siguiente heading después de startIdx
    */
@@ -102,7 +138,16 @@ export class DocumentTransformer {
 
       // Zona Sísmica (Merged)
       if (index === 0) {
-        row.push({ text: "2", rowSpan: districtsList.length, bold: true, size: 24 });
+        const deptData = this.ubigeoData.find((d) => d.name.toUpperCase() === deptName.toUpperCase());
+
+        const zona = deptData?.seismicZone || "2";
+
+        row.push({
+          text: zona,
+          rowSpan: districtsList.length,
+          bold: true,
+          size: 24,
+        });
       } else {
         row.push({ text: "" });
       }
@@ -149,21 +194,6 @@ export class DocumentTransformer {
     const insertPos = idx14 + 2;
     let currentInsertPos = insertPos;
 
-    // Insertar imágenes de pisos (2 por página si es posible)
-    this.previews.floorImages.forEach((imgData, i) => {
-      if (imgData) {
-        generalidades.content.splice(currentInsertPos++, 0, {
-          type: "image",
-          src: imgData,
-          alignment: "CENTER",
-          width: 500,
-          height: 380, // Reducido un poco para que quepan 2 por página (A4 ~842pt)
-          caption: `Esquema general en planta ${i + 1}°nivel`,
-          pageBreakBefore: i % 2 === 0, // Salto de página cada 2 imágenes
-        });
-      }
-    });
-
     // Agregar tabla resumen estructural
     const structuralDetails = this.sections.generalidades.structuralDetails;
     const floors = this.sections.generalidades.floors;
@@ -187,6 +217,23 @@ export class DocumentTransformer {
       ],
       rows: tableRows,
     });
+
+    currentInsertPos++;
+
+    // Insertar imágenes de pisos (2 por página si es posible)
+    this.previews.floorImages.forEach((imgData, i) => {
+      if (imgData) {
+        generalidades.content.splice(currentInsertPos++, 0, {
+          type: "image",
+          src: imgData,
+          alignment: "CENTER",
+          width: 500,
+          height: 380, // Reducido un poco para que quepan 2 por página (A4 ~842pt)
+          caption: `Esquema general en planta ${i + 1}°nivel`,
+          pageBreakBefore: i % 2 === 0, // Salto de página cada 2 imágenes
+        });
+      }
+    });
   }
 
   // ============================================
@@ -209,17 +256,22 @@ export class DocumentTransformer {
       4: "0.45",
     };
 
-    const zone = String(this.cover.seismicZone || "").trim();
-    const projectZone = Object.prototype.hasOwnProperty.call(zoneFactorMap, zone) ? zone : "2";
-    const projectZFactor = zoneFactorMap[projectZone];
+    const deptName = this.cover.ubigeo?.department || "HUANUCO";
+
+    // Si en tu ubigeo.json ya agregaste seismicZone y zFactor por departamento
+    const deptData = (this.ubigeoData || []).find(
+      (d) =>
+        String(d.name || "")
+          .trim()
+          .toUpperCase() === String(deptName).trim().toUpperCase(),
+    );
+
+    const projectZone = deptData?.seismicZone || String(this.cover.seismicZone || "2");
+    const projectZFactor = deptData?.zFactor || zoneFactorMap[projectZone] || "0.25";
 
     // Actualizar cover
     this.cover.seismicZone = projectZone;
     this.cover.seismicZoneFactor = projectZFactor;
-
-    const deptName = this.cover.ubigeo.department || "HUANUCO";
-    const provName = this.cover.ubigeo.province || "HUANUCO";
-    const distName = this.cover.ubigeo.district || "PILLCO MARCA";
 
     // Tabla de factores Z
     const zFactors = [
@@ -232,78 +284,103 @@ export class DocumentTransformer {
     const zTableRows = zFactors.map((f) => [
       {
         text: f.zone,
+        alignment: "CENTER",
         fill: f.zone === projectZone ? "00B0F0" : null,
         color: f.zone === projectZone ? "FFFFFF" : "000000",
         bold: f.zone === projectZone,
       },
       {
         text: f.z,
+        alignment: "CENTER",
         fill: f.zone === projectZone ? "00B0F0" : null,
         color: f.zone === projectZone ? "FFFFFF" : "000000",
         bold: f.zone === projectZone,
       },
     ]);
 
-    // Layout mezclado (mapa + info)
+    // Layout según la imagen: mapa a la izquierda y tabla a la derecha
     const layoutTable = {
       type: "table",
       widthPercent: 100,
       indentSize: 0,
       noBorders: true,
-      columns: [
-        { width: 55 }, // Mapa
-        { width: 45 }, // Info + Tabla Z
-      ],
+      columns: [{ width: 58 }, { width: 42 }],
       rows: [
         [
-          // Celda Izquierda: Mapa
-          {
-            type: "image",
-            src: "/assets/img/memoriacalculos/mapazonificacion.png",
-            width: 320,
-            height: 380,
-            alignment: "CENTER",
-          },
-          // Celda Derecha: Info + Tabla
           {
             stack: [
               {
-                text: `DEPARTAMENTO: ${deptName}\nPROVINCIA: ${provName}\nDISTRITO: ${distName}`,
-                bold: true,
-                size: 16,
-                alignment: "LEFT",
-                spacing: { after: 200 },
+                type: "image",
+                src: "/assets/img/memoriacalculos/mapazonificacion.png",
+                width: 340,
+                height: 420,
+                alignment: "CENTER",
               },
               {
-                type: "table",
-                title: "Tabla N°6\nFACTORES DE ZONA 'Z'",
-                widthPercent: 90,
-                columns: [
-                  { header: "ZONA", width: 50 },
-                  { header: "Z", width: 50 },
-                ],
-                rows: zTableRows,
+                type: "paragraph",
+                text: "Mapa de Zonificación Sísmica.E-030",
+                alignment: "CENTER",
+                italic: true,
+                size: 12,
+                spacing: { before: 120 },
               },
+            ],
+          },
+          {
+            type: "table",
+            title: "Tabla N°6\nFACTORES DE ZONA 'Z'",
+            widthPercent: 95,
+            columns: [{ width: 50 }, { width: 50 }],
+            rows: [
+              // [
+              //   {
+              //     text: "Tabla N°6 FACTORES DE\nZONA 'Z'",
+              //     colSpan: 2,
+              //     alignment: "CENTER",
+              //     bold: true,
+              //     fill: "EFBF72",
+              //     size: 16,
+              //   },
+              // ],
+              [
+                {
+                  text: "ZONA",
+                  alignment: "CENTER",
+                  bold: true,
+                  fill: "F6E1B7",
+                },
+                {
+                  text: "Z",
+                  alignment: "CENTER",
+                  bold: true,
+                  fill: "F6E1B7",
+                },
+              ],
+              ...zTableRows,
             ],
           },
         ],
       ],
     };
 
-    // Actualizar párrafo
+    // Actualizar párrafo descriptivo
     const idx131Paragraph = generalidades.content.findIndex((item, i) => i > idx131 && item.type === "paragraph");
+
     if (idx131Paragraph !== -1) {
       generalidades.content[idx131Paragraph] = {
         type: "paragraph",
-        text: `De acuerdo con el mapa del Reglamento Nacional de Edificaciones-Norma E.030, el área de estudio se localiza en la zona ${projectZone}, correspondiéndole un factor de Z=${projectZFactor}.`,
+        text: `De acuerdo con el mapa del Reglamento Nacional de Edificaciones, el proyecto se ubica en la zona sísmica ${projectZone}, correspondiéndole un factor de Z=${projectZFactor}.`,
         alignment: "JUSTIFIED",
       };
     }
 
-    // Reemplazar imagen
+    // Reemplazar imagen original por el nuevo layout
     const mapImgIdx = generalidades.content.findIndex((item, i) => i > idx131 && item.type === "image");
+
     if (mapImgIdx !== -1) {
       generalidades.content.splice(mapImgIdx, 1, layoutTable);
+    } else {
+      generalidades.content.splice(idx131 + 2, 0, layoutTable);
     }
   }
 
@@ -388,19 +465,20 @@ export class DocumentTransformer {
     const periodTableRows = ["Tp", "Tl"].map((periodKey) => [
       {
         text: periodKey === "Tp" ? "Tp(s)" : "Tl(s)",
-        fill: periodKey === selectedT ? lightRed : null,
-        color: periodKey === selectedT ? hardRed : "000000",
-        bold: periodKey === selectedT,
+        fill: null,
+        color: "000000",
+        bold: false,
       },
+      // "Tl(s)"
       ...["S0", "S1", "S2", "S3"].map((sKey) => {
-        const isRow = periodKey === selectedT;
+        // const isRow = periodKey === selectedT;
         const isCol = sKey === selectedS;
-        const isIntersection = isRow && isCol;
+        const isIntersection = isCol;
         return {
           text: periodMatrix[periodKey][sKey],
-          fill: isIntersection ? hardRed : isRow || isCol ? lightRed : null,
-          color: isIntersection ? "FFFFFF" : isRow || isCol ? hardRed : "000000",
-          bold: isIntersection || isRow || isCol,
+          fill: isIntersection ? hardRed : isCol ? lightRed : null,
+          color: isIntersection ? "FFFFFF" : isCol ? hardRed : "000000",
+          bold: isIntersection || isCol,
         };
       }),
     ]);
@@ -616,6 +694,19 @@ export class DocumentTransformer {
     const aceroCorrugado = materialInputs.aceroCorrugado || {};
     const concreto = materialInputs.concreto || {};
 
+    // obtener
+    const combinaciones = this.sections.generalidades.structuralDetails.combinacionesCarga || {
+      comb1: true,
+      comb2: true,
+      comb3: true,
+      comb4: true,
+      comb5: true,
+      comb6: true,
+      comb7: true,
+      comb8: true,
+      comb9: true,
+    };
+
     const materialBlocks = [
       {
         type: "paragraph",
@@ -690,19 +781,42 @@ export class DocumentTransformer {
       });
     }
 
-    // La descripción general (Norma E.090)
-    materialBlocks.push({
-      type: "paragraph",
-      text: "Para realizar el diseño de los elementos de la estructura metálica se tendrá que rescatar los máximos valores de la envolvente de cada elemento estructural de las combinaciones según la norma E.090. Del R.N.E. vigente que vienen a ser.",
-      alignment: "JUSTIFIED",
-      spacing: { before: 200 },
+    // MAPA DE COMBINACIONES CON NOMBRES MEJORADOS
+    const mapaCombinaciones = {
+      comb1: "1,4 CM + 1,7 CV",
+      comb2: "1,25 (CM + CV ± CVi)",
+      comb3: "0,9 CM ± 1,25 CVi",
+      comb4: "1,25(CM + CV) ± CS",
+      comb5: "0,9 CM ± CS",
+      comb6: "1,4 CM + 1,7 CV + 1,7 CE",
+      comb7: "0,9 CM + 1,7 CE",
+      comb8: "1,4 CM + 1,7 CV + 1,4 CL",
+      comb9: "1,05 CM + 1,25 CV + 1,05 CT",
+    };
+
+    // Obtener combinaciones seleccionadas
+    const combinacionesSeleccionadas = [];
+    Object.entries(combinaciones).forEach(([key, valor]) => {
+      if (valor === true && mapaCombinaciones[key]) {
+        combinacionesSeleccionadas.push(mapaCombinaciones[key]);
+      }
     });
 
-    materialBlocks.push({
-      type: "list",
-      listType: "bullet",
-      items: ["1.2D+1.6CVT+0.8CWP", "1.2D+1.6CVT+0.8CWN", "1.2D+0.5CVT+1.3CWP", "0.9D+1.3CWP", "0.9D+1.3CWN"],
-    });
+    // Agregar lista con las combinaciones seleccionadas
+    if (combinacionesSeleccionadas.length > 0) {
+      materialBlocks.push({
+        type: "paragraph",
+        text: "Para el diseño de los elementos estructurales se utilizarán las siguientes combinaciones de carga según la Norma E.060 del Reglamento Nacional de Edificaciones:",
+        alignment: "JUSTIFIED",
+        spacing: { before: 200 },
+      });
+
+      materialBlocks.push({
+        type: "list",
+        listType: "bullet",
+        items: combinacionesSeleccionadas,
+      });
+    }
 
     // Figura 13 al final
     if (materialImages[2]) {
@@ -761,7 +875,7 @@ export class DocumentTransformer {
           src: espectros[0],
           alignment: "CENTER",
           width: 500,
-          height: 280,
+          height: 600,
           caption: "figura 15-Espectro de Pseudoaceleraciones en dirección “X”",
         });
       }
@@ -771,7 +885,7 @@ export class DocumentTransformer {
           src: espectros[1],
           alignment: "CENTER",
           width: 500,
-          height: 280,
+          height: 600,
           caption: "figura 16-Espectro de Pseudoaceleraciones en dirección “Y”",
         });
       }
@@ -798,7 +912,9 @@ export class DocumentTransformer {
 
       // 1. Figuras 18-21 (Metrado de Cargas)
       const metradoImages = this.previews.metradoCargasImages || [];
-      const metradoCaptions = [
+      const metradoDescripciones = this.sections?.analisisCargas?.descripcionesCargaViva || [];
+
+      const metradoCaptionsDefault = [
         "figura 18-Cargas muertas por metro cuadrado (tonf/m2)",
         "figura 19-Carga viva entrepiso por metro cuadrado (tonf/m2)",
         "figura 20-Carga viva techo por metro cuadrado (tonf/m2)",
@@ -806,14 +922,15 @@ export class DocumentTransformer {
       ];
 
       metradoImages.forEach((src, i) => {
-        if (src && metradoCaptions[i]) {
+        if (src) {
           dynamicContent.push({
             type: "image",
             src,
             alignment: "CENTER",
             width: 500,
             height: 280,
-            caption: metradoCaptions[i],
+            caption: metradoDescripciones[i]?.trim(),
+            //  || metradoCaptionsDefault[i],
           });
         }
       });
@@ -930,7 +1047,9 @@ export class DocumentTransformer {
 
       // 4. Figuras 22-25 (Cargas Aproximadas)
       const approxImages = this.previews.cargasAproximadasImages || [];
-      const approxCaptions = [
+      const approxDescripciones = this.sections?.analisisCargas?.descripcionesCargaMuerta || [];
+
+      const approxCaptionsDefault = [
         "figura 22-Cargas muertas por metro cuadrado (kgf/m2)",
         "figura 23-Cargas viva techo metro cuadrado (kgf/m2)",
         "figura 24-Cargas viva viento positivo(kgf/m2)",
@@ -938,14 +1057,15 @@ export class DocumentTransformer {
       ];
 
       approxImages.forEach((src, i) => {
-        if (src && approxCaptions[i]) {
+        if (src) {
           dynamicContent.push({
             type: "image",
             src,
             alignment: "CENTER",
             width: 500,
             height: 280,
-            caption: approxCaptions[i],
+            caption: approxDescripciones[i]?.trim(), 
+            // || approxCaptionsDefault[i],
           });
         }
       });
@@ -2360,7 +2480,7 @@ export class DocumentTransformer {
             type: "paragraph",
             text: "[IMAGEN DE UBICACIÓN - Sin imagen disponible]",
             style: "placeholder",
-            alignment: "center",
+            alignment: "CENTER",
           });
           console.log(`   ⚠️ Placeholder ubicación en posición ${currentPosition}`);
         }
@@ -2394,7 +2514,7 @@ export class DocumentTransformer {
               type: "paragraph",
               text: `[IMAGEN ${imgIdx} - Sin imagen disponible]`,
               style: "placeholder",
-              alignment: "center",
+              alignment: "CENTER",
             });
             console.log(`   ⚠️ Placeholder imagen ${imgIdx} en posición ${currentPosition}`);
           }
@@ -2462,7 +2582,7 @@ export class DocumentTransformer {
             style: "placeholder",
             alignment: "CENTER",
           });
-          console.log(`   ⚠️ Placeholder diagrama ${imgIdx - 8} en posición ${currentPosition}`);
+          console.log(`   ⚠️ Placeholder diagrama 10 en posición ${currentPosition}`);
         }
 
         currentPosition++;
@@ -3276,6 +3396,15 @@ export class DocumentTransformer {
 
     const headingIndex = conclusionesSection.content.findIndex((item) => item.type === "heading");
 
+    const listConclusionesIdx = conclusionesSection.content.findIndex(
+      (item, i) =>
+        i > headingIndex &&
+        item.type === "list" &&
+        item.items &&
+        item.items[3] ===
+          "El Proyecto Estructural cumple con lo indicado en la Norma Sísmica vigente y con las Normas Técnicas correspondientes por lo que concluimos que la Estructura tiene una buena rigidez y resistencia sísmica.",
+    );
+
     const items = texto
       .split(/\r?\n/)
       .map((linea) => linea.trim())
@@ -3287,14 +3416,14 @@ export class DocumentTransformer {
       items,
     };
 
-    if (headingIndex === -1) {
+    if (listConclusionesIdx === -1) {
       conclusionesSection.content = [bloqueLista];
       return;
     }
 
     conclusionesSection.content.splice(
-      headingIndex + 1,
-      conclusionesSection.content.length - (headingIndex + 1),
+      listConclusionesIdx + 1,
+      conclusionesSection.content.length - (listConclusionesIdx + 1),
       bloqueLista,
     );
   }
@@ -3302,7 +3431,6 @@ export class DocumentTransformer {
   // RECOMENDACIONES
   transformRecomendaciones(structure) {
     const recomendacionesSection = structure.document.sections.find((s) => s.id === "recomendaciones");
-
     if (!recomendacionesSection) return;
 
     const texto = this.sections?.recomendaciones?.descripcion || "";
@@ -3311,6 +3439,15 @@ export class DocumentTransformer {
 
     const headingIndex = recomendacionesSection.content.findIndex((item) => item.type === "heading");
 
+    const listRecomendacionesIdx = recomendacionesSection.content.findIndex(
+      (item, i) =>
+        i > headingIndex &&
+        item.type === "list" &&
+        item.items &&
+        item.items[1] ===
+          "A su vez, se recomienda tener en cuenta y respetar las juntas de separación establecidas por la normativa para evitar daños contiguos entre la edificación que se encuentren cercanos cuando se presenten fuerzas sísmicas. Asimismo, contemplar todos los protocolos de calidad para la edificación a construir y de esta forma garantizar un adecuado servicio.",
+    );
+
     const items = texto
       .split(/\r?\n/)
       .map((linea) => linea.trim())
@@ -3322,14 +3459,14 @@ export class DocumentTransformer {
       items,
     };
 
-    if (headingIndex === -1) {
+    if (listRecomendacionesIdx === -1) {
       recomendacionesSection.content = [bloqueLista];
       return;
     }
 
     recomendacionesSection.content.splice(
-      headingIndex + 1,
-      recomendacionesSection.content.length - (headingIndex + 1),
+      listRecomendacionesIdx + 1,
+      recomendacionesSection.content.length - (listRecomendacionesIdx + 1),
       bloqueLista,
     );
   }

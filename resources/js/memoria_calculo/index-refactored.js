@@ -56,6 +56,9 @@ function memoriaCalculo() {
 
         document: JSON.parse(JSON.stringify(DEFAULT_MC_STRUCTURE.document)),
 
+        showErrorModal: false,
+        validationErrors: [],
+
         // ============================================
         // INICIALIZACIÓN
         // ============================================
@@ -71,6 +74,195 @@ function memoriaCalculo() {
         },
 
         // ============================================
+        // MÉTODOS - Validación de Campos de Texto
+        // ============================================
+        
+        /**
+         * Valida todos los campos de texto requeridos
+         * @returns {object} { valid: boolean, errors: string[] }
+         */
+        validateTextFields() {
+            const errors = [];
+            const sections = this.$store.memoriaCalculo.sections;
+            const store = this.$store.memoriaCalculo;
+            
+            // 1. Validar Uso por Pisos (Sección 1.4)
+            const usageText = sections.generalidades.structuralDetails.usage || "";
+            const floors = sections.generalidades.floors || 1;
+            const usageLines = usageText.split('\n').filter(line => line.trim() !== '').length;
+            
+            if (usageLines !== floors) {
+                errors.push({
+                    field: "Uso por Pisos",
+                    message: `El campo de pisos debe tener ${floors} líneas (una por cada piso). Actualmente tiene ${usageLines}.`
+                });
+            }
+            
+            // 2. Validar Descripción de Losas Aligeradas (Sección 4.2)
+            const losaDescripcion = sections.disenoElementos?.lista;
+            if (!losaDescripcion || losaDescripcion.trim() === "") {
+                errors.push({
+                    field: "Descripción de Losas Aligeradas",
+                    message: "El campo de losas aligeradas es obligatorio"
+                });
+            }
+            
+            // 3. Validar Descripción de Vigas (Sección 4.4)
+            const vigaDescripcion = sections.disenoElementos?.nameVigas;
+            if (!vigaDescripcion || vigaDescripcion.trim() === "") {
+                errors.push({
+                    field: "Descripción de Vigas",
+                    message: "El campo de vigas es obligatorio"
+                });
+            }
+            
+            // 4. Validar Descripción de Columnas (Sección 4.5)
+            const columnaDescripcion = sections.disenoElementos?.nameColumna;
+            if (!columnaDescripcion || columnaDescripcion.trim() === "") {
+                errors.push({
+                    field: "Descripción de Columnas",
+                    message: "El campo de columnas es obligatorio"
+                });
+            }
+            
+            // 5. Validar Descripción de Placas (Sección 4.6)
+            const placaDescripcion = sections.disenoElementos?.namePlaca;
+            if (!placaDescripcion || placaDescripcion.trim() === "") {
+                errors.push({
+                    field: "Descripción de Placas",
+                    message: "El campo de placas es obligatorio"
+                });
+            }
+            
+            // 6. Validar Descripción de Cimentaciones (Sección 4.11)
+            const cimentacionDescripcion = sections.disenoElementos?.nameCimentacion;
+            if (!cimentacionDescripcion || cimentacionDescripcion.trim() === "") {
+                errors.push({
+                    field: "Descripción de Cimentaciones",
+                    message: "Este campo de cimentaciones es obligatorio"
+                });
+            }
+            
+            // // 7. Validar Estructura Metálica - Columna
+            // const columnaMetalica = sections.estructuraMetalica?.descripcion?.ColumnaMetalica;
+            // if (!columnaMetalica || columnaMetalica.trim() === "") {
+            //     errors.push({
+            //         field: "Columna Metálica",
+            //         message: "Este campo es obligatorio"
+            //     });
+            // }
+            
+            // // 8. Validar Estructura Metálica - Brida Superior
+            // const bridaSuperior = sections.estructuraMetalica?.descripcion?.BridaSuperior;
+            // if (!bridaSuperior || bridaSuperior.trim() === "") {
+            //     errors.push({
+            //         field: "Brida Superior",
+            //         message: "Este campo es obligatorio"
+            //     });
+            // }
+            
+            // // 9. Validar Estructura Metálica - Brida Inferior
+            // const bridaInferior = sections.estructuraMetalica?.descripcion?.BridaInferior;
+            // if (!bridaInferior || bridaInferior.trim() === "") {
+            //     errors.push({
+            //         field: "Brida Inferior",
+            //         message: "Este campo es obligatorio"
+            //     });
+            // }
+            
+            // // 10. Validar Estructura Metálica - Parante
+            // const parante = sections.estructuraMetalica?.descripcion?.Parante;
+            // if (!parante || parante.trim() === "") {
+            //     errors.push({
+            //         field: "Parante",
+            //         message: "Este campo es obligatorio"
+            //     });
+            // }
+            
+            // // 11. Validar Estructura Metálica - Diagonal
+            // const diagonal = sections.estructuraMetalica?.descripcion?.Diagonal;
+            // if (!diagonal || diagonal.trim() === "") {
+            //     errors.push({
+            //         field: "Diagonal",
+            //         message: "Este campo es obligatorio"
+            //     });
+            // }
+            
+            // // 12. Validar Estructura Metálica - Correa Metálica
+            // const correaMetalica = sections.estructuraMetalica?.descripcion?.CorreaMetalica;
+            // if (!correaMetalica || correaMetalica.trim() === "") {
+            //     errors.push({
+            //         field: "Correa Metálica",
+            //         message: "Este campo es obligatorio"
+            //     });
+            // }
+            
+            // // 13. Validar Conclusiones
+            // const conclusiones = sections.conclusiones?.descripcion;
+            // if (!conclusiones || conclusiones.trim() === "") {
+            //     errors.push({
+            //         field: "Conclusiones",
+            //         message: "Este campo es obligatorio"
+            //     });
+            // }
+            
+            // // 14. Validar Recomendaciones
+            // const recomendaciones = sections.recomendaciones?.descripcion;
+            // if (!recomendaciones || recomendaciones.trim() === "") {
+            //     errors.push({
+            //         field: "Recomendaciones",
+            //         message: "Este campo es obligatorio"
+            //     });
+            // }
+            
+            // Limpiar errores anteriores y agregar nuevos
+            this.$store.memoriaCalculo.clearErrorsByCategory("validation");
+            errors.forEach((error) => {
+                this.$store.memoriaCalculo.addError("validation", error.message);
+            });
+            
+            return {
+                valid: errors.length === 0,
+                errors: errors
+            };
+        },
+
+        /**
+         * Muestra el modal con los errores
+         */
+        showValidationModal() {
+            const validation = this.validateTextFields();
+            
+            if (!validation.valid) {
+                this.validationErrors = validation.errors;
+                this.showErrorModal = true;
+                console.log('❌ Errores encontrados:', validation.errors);
+            } else {
+                // Si no hay errores, exportar directamente
+                this.exportWord();
+            }
+        },
+        
+        /**
+         * Cierra el modal de errores
+         */
+        closeErrorModal() {
+            this.showErrorModal = false;
+            this.validationErrors = [];
+        },
+        
+        /**
+         * Exportar después de cerrar el modal (si se corrigieron errores)
+         */
+        retryExport() {
+            this.closeErrorModal();
+            // Pequeño delay para que el modal se cierre antes de reintentar
+            setTimeout(() => {
+                this.showValidationModal();
+            }, 100);
+        },
+
+        // ============================================
         // EXPORTACIÓN WORD
         // ============================================
 
@@ -80,6 +272,17 @@ function memoriaCalculo() {
         async exportWord() {
             try {
                 console.log('📄 Iniciando exportación a Word...');
+
+                // 👇 VALIDAR ANTES DE EXPORTAR
+                const validation = this.validateTextFields();
+                
+                if (!validation.valid) {
+                    console.warn('⚠️ Validación fallida:', validation.errors);
+                    // Los errores ya se agregaron al store, se mostrarán en la UI
+                    this.$store.memoriaCalculo.ui.isExporting = false;
+                    return; // 👈 SALIR SIN EXPORTAR, SIN RECARGAR PÁGINA
+                }
+
                 this.$store.memoriaCalculo.startExport();
 
                 // Validar librerías requeridas

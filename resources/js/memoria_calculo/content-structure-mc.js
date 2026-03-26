@@ -923,16 +923,23 @@ export const DEFAULT_MC_STRUCTURE = {
         title: "6. CONCLUSIONES",
         level: 1,
         content: [
-          // {
-          //     type: "heading",
-          //     level: 2,
-          //     text: "6. Conclusiones"
-          // },
           {
             type: "paragraph",
             text: "Aquí se insertarán las conclusiones generadas dinámicamente.",
             alignment: "JUSTIFIED",
           },
+
+          {
+            type: "list",
+            listType: "bullet",
+            items: [
+              "De la edificación se asumió que la estructura es regular, ya que según la NTE.030 este tipo de edificaciones y por el lugar de ubicación debe ser una estructura regular. Se consideró tanto el análisis estático y dinámico, siendo este último de gran ayuda para la distribución espacial de masas y rigideces que nos permita conocer el comportamiento de la estructura.",
+              "Se analizó las distorsiones máximas alcanzadas de cada edificación en las direcciones de análisis X ó Y, y que no superen el valor de la distorsión permitida por la NTE.030, tanto para la deriva de 0.006 para sistemas de Muros Estructurales respectivamente ",
+              "Se analizó y diseño las dimensiones de las secciones de los diferentes elementos estructurales, así mismo se ha colocado el acero en los elementos estructurales acorde a los requerimientos del análisis y considerando lo mínimo que deben de poseer según la normatividad. De la misma manera se procedió con los elementos no estructurales.",
+              "El Proyecto Estructural cumple con lo indicado en la Norma Sísmica vigente y con las Normas Técnicas correspondientes por lo que concluimos que la Estructura tiene una buena rigidez y resistencia sísmica."
+            ],
+          }
+
         ],
       },
 
@@ -945,16 +952,19 @@ export const DEFAULT_MC_STRUCTURE = {
         title: "7. RECOMENDACIONES",
         level: 1,
         content: [
-          // {
-          //     type: "heading",
-          //     level: 2,
-          //     text: "7. Recomendaciones"
-          // },
           {
             type: "paragraph",
             text: "Aquí se insertarán las recomendaciones generadas dinámicamente.",
             alignment: "JUSTIFIED",
           },
+          {
+            type: "list",
+            listType: "bullet",
+            items: [
+              "Hoy en día al tener una variedad de programas y aplicativos para el cálculo estructural, en el presente proyecto se ha utilizado de la mejor manera para representar estructuralmente el proyecto arquitectónico propuesto y que cumplan con la normatividad, bien local y de ser el caso extranjera, dando resultados aceptables y que cumplan con las consideraciones estipuladas para este tipo de edificaciones esenciales.",
+              "A su vez, se recomienda tener en cuenta y respetar las juntas de separación establecidas por la normativa para evitar daños contiguos entre la edificación que se encuentren cercanos cuando se presenten fuerzas sísmicas. Asimismo, contemplar todos los protocolos de calidad para la edificación a construir y de esta forma garantizar un adecuado servicio.",
+            ],
+          }
         ],
       },
     ],

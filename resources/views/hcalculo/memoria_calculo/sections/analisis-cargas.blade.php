@@ -179,17 +179,17 @@
                 <h4 class="font-bold text-amber-800 dark:text-amber-400">Datos de Carga y Geometría</h4>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
                     <div class="space-y-1">
-                        <label class="text-xs font-bold text-gray-500">K5: Carga Muerta (kgf/m2)</label>
+                        <label class="text-xs font-bold text-gray-500">Carga Muerta (kgf/m2)</label>
                         <input type="number" x-model="$store.memoriaCalculo.sections.analisisCargas.casoscarga.K5"
                             class="w-full rounded-lg border-2 border-gray-200 p-2 text-sm focus:border-amber-500 outline-none">
                     </div>
                     <div class="space-y-1">
-                        <label class="text-xs font-bold text-gray-500">K10: Carga Viva (kgf/m2)</label>
+                        <label class="text-xs font-bold text-gray-500">Carga Viva (kgf/m2)</label>
                         <input type="number" x-model="$store.memoriaCalculo.sections.analisisCargas.casoscarga.K10"
                             class="w-full rounded-lg border-2 border-gray-200 p-2 text-sm focus:border-amber-500 outline-none">
                     </div>
                     <div class="space-y-1">
-                        <label class="text-xs font-bold text-gray-500">K11: S/C Const. (kgf/m2)</label>
+                        <label class="text-xs font-bold text-gray-500">S/C Const. (kgf/m2)</label>
                         <input type="number" x-model="$store.memoriaCalculo.sections.analisisCargas.casoscarga.K11"
                             class="w-full rounded-lg border-2 border-gray-200 p-2 text-sm focus:border-amber-500 outline-none">
                     </div>
@@ -200,19 +200,19 @@
                             class="w-full rounded-lg border-2 border-amber-200 p-2 text-sm focus:border-amber-500 outline-none bg-amber-50/50">
                     </div>
                     <div class="space-y-1">
-                        <label class="text-xs font-bold text-gray-500">K17: Altura (m)</label>
+                        <label class="text-xs font-bold text-gray-500">Altura (m)</label>
                         <input type="number" step="0.01"
                             x-model="$store.memoriaCalculo.sections.analisisCargas.casoscarga.K17"
                             class="w-full rounded-lg border-2 border-gray-200 p-2 text-sm focus:border-amber-500 outline-none">
                     </div>
                     <div class="space-y-1">
-                        <label class="text-xs font-bold text-gray-500">K21: C Barlovento</label>
+                        <label class="text-xs font-bold text-gray-500">C Barlovento</label>
                         <input type="number" step="0.01"
                             x-model="$store.memoriaCalculo.sections.analisisCargas.casoscarga.K21"
                             class="w-full rounded-lg border-2 border-gray-200 p-2 text-sm focus:border-amber-500 outline-none">
                     </div>
                     <div class="space-y-1">
-                        <label class="text-xs font-bold text-gray-500">K32: C Sotavento</label>
+                        <label class="text-xs font-bold text-gray-500">C Sotavento</label>
                         <input type="number" step="0.01"
                             x-model="$store.memoriaCalculo.sections.analisisCargas.casoscarga.K32"
                             class="w-full rounded-lg border-2 border-gray-200 p-2 text-sm focus:border-amber-500 outline-none">
@@ -221,7 +221,7 @@
             </div>
 
             <div class="space-y-4">
-                <h4 class="font-bold text-gray-700">Imágenes de Metrado (Fig 18 - 21)</h4>
+                <h4 class="font-bold text-gray-700">Imágenes de Carga Muerta (Fig 18 - 21)</h4>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <template x-for="i in 4" :key="i">
                         <div class="space-y-2">
@@ -263,6 +263,11 @@
                                     </div>
                                 </template>
                             </div>
+                            <input
+                                type="text"
+                                x-model="$store.memoriaCalculo.sections.analisisCargas.descripcionesCargaMuerta?.[i-1]"
+                                class="mt-2 w-full rounded-lg border border-gray-300 px-2 py-1 text-xs focus:border-amber-500 outline-none"
+                                :placeholder="'Figura ' + (17+i) + ' - Descripción'" />
                         </div>
                         <!-- <div class="space-y-2">
                             <div class="flex items-center justify-between">
@@ -295,7 +300,7 @@
             </div>
 
             <div class="space-y-4">
-                <h4 class="font-bold text-gray-700">Imágenes Cargas Aproximadas (Fig 22 - 25)</h4>
+                <h4 class="font-bold text-gray-700">Imágenes de Carga Viva (Fig 22 - 25)</h4>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <template x-for="i in 4" :key="i">
                         <div class="space-y-2">
@@ -337,6 +342,11 @@
                                     </div>
                                 </template>
                             </div>
+                            <input
+                                type="text"
+                                x-model="$store.memoriaCalculo.sections.analisisCargas.descripcionesCargaViva?.[i-1]"
+                                class="mt-2 w-full rounded-lg border border-gray-300 px-2 py-1 text-xs focus:border-amber-500 outline-none"
+                                :placeholder="'Figura ' + (21+i) + ' - Descripción'" />
                         </div>
                         <!-- <div class="space-y-2">
                             <div class="flex items-center justify-between">
