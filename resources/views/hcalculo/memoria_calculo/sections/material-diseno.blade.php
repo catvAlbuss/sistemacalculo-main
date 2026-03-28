@@ -251,12 +251,114 @@
                         class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
                     <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">1,05 CM + 1,25 CV + 1,05 CT</span>
                 </label>
+
+
+                <!-- CARGAS, FACTORES DE CARGA  Y COMBINACIONES DE CARGAS -->
+                 {{-- Combinación 5: 0,9 CM ± CS --}}
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb10"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                        1,4 D
+                    </span>
+                </label>
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb11"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                        1,2D + 1,6L + 0,5(L<span class="text-xs align-sub">r</span> ó S ó R)
+                    </span>
+                </label>
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb12"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                        1,2D + 1,6(L<span class="text-xs align-sub">r</span> ó S ó R) + (0,5L<span class="text-xs align-sub">r</span> ó 0,8W)
+                    </span>
+                </label>
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb13"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                        1,2D + 1,3W + 0,5L + 0,5(L<span class="text-xs align-sub">r</span> ó S ó R)
+                    </span>
+                </label>
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb14"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                        1,2D <span class="text-red-500 font-bold">±</span> 1,0E + 0,5L + 0,2S
+                    </span>
+                </label>
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb15"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                        0,9D <span class="text-red-500 font-bold">±</span> (1,3W ó 1,0E)
+                    </span>
+                </label>
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb16"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                        D
+                    </span>
+                </label>
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb17"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                        D + L
+                    </span>
+                </label>
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb18"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                        D + (W ó 0,70E)
+                    </span>
+                </label>
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb19"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                        D + T
+                    </span>
+                </label>
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb20"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                        &#945;[D + L +(W ó 0,70E)]
+                    </span>
+                </label>
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb21"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                        &#945;[D + L + T]
+                    </span>
+                </label>
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb22"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                        &#945;[D + (W ó 0,70E) + T]
+                    </span>
+                </label>
+                <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer group">
+                    <input type="checkbox" x-model="structuralDetails.combinacionesCarga.comb23"
+                        class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                        &#945;[D + L + (W ó 0,70E) + T]
+                    </span>
+                </label>
             </div>
 
             {{-- Indicador de selección --}}
             <div class="mt-3 pt-2 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
                 <div class="text-xl text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                    <span x-text="'Combinaciones seleccionadas: ' + Object.values(structuralDetails.combinacionesCarga).filter(v => v === true).length + ' de 9'"></span>
+                    <span x-text="'Combinaciones seleccionadas: ' + Object.values(structuralDetails.combinacionesCarga).filter(v => v === true).length + ' de 23'"></span>
                 </div>
 
                 {{-- Botón para seleccionar/deseleccionar todas --}}

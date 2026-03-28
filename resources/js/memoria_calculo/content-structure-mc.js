@@ -386,99 +386,193 @@ export const DEFAULT_MC_STRUCTURE = {
           {
             type: "heading",
             level: 2,
-            text: "3.1 PARÁMETROS SÍSMICOS (Norma E.030)",
+            text: "3.1 ANÁLISIS ESTRUCTURAL",
           },
           {
             type: "heading",
             level: 3,
-            text: "3.1.1. CÁLCULO DE IRREGULARIDADES EN ALTURA",
+            text: "3.1.1. Sistema Estructural",
           },
-          // LISTA 1
           {
-            type: "list",
-            listType: "bullet",
-            items: ["Irregularidad de rigidez – piso blando: No aplica: "],
+            type: "paragraph",
+            text: "Se determina el sistema estructural de acuerdo a las definiciones que aparecen en el artículo 16",
+            alignment: "JUSTIFIED",
           },
-          // img
-          // LISTA 2
           {
-            type: "list",
-            listType: "bullet",
-            items: ["Irregularidad de resistencia – piso débil: No aplica"],
+            type: "paragraph",
+            text: "En la tabla N° 6 se definen los sistemas estructurales permitidos de acuerdo a la categoria de las edificaciones y a la zona sismica en la que se encuentra.",
+            alignment: "JUSTIFIED",
           },
-          // img
-          // LISTA 3
-          {
-            type: "list",
-            listType: "bullet",
-            items: ["Irregularidad de masa: No aplica"],
-          },
-          //  img
-          //LISTA 4
-          {
-            type: "list",
-            listType: "bullet",
-            items: ["Irregularidad Geométrica Vertical: No aplica"],
-          },
-          // img
-          // LISTA 5
-          {
-            type: "list",
-            listType: "bullet",
-            items: ["Discontinuidad en los Sistemas Resistentes: No aplica"],
-          },
-          // img
-
+          // Insertar La tabla n° 6
           {
             type: "heading",
             level: 3,
-            text: "3.1.2. CÁLCULO DE IRREGULARIDADES EN PLANTA",
+            text: "3.1.2. Coeficiente Básico de Reducción de Fuerzas Sísmicas, Ro",
           },
-          // LISTA 1
           {
-            type: "list",
-            listType: "bullet",
-            items: ["Irregularidad torsional"],
+            type: "paragraph",
+            text: "De la tabla N° 7 se obtiene el valor del coeficiente Ro, que depende unicamente del sistema estructural",
+            alignment: "JUSTIFIED",
           },
-          // img
-          // LISTA 2
-          {
-            type: "list",
-            listType: "bullet",
-            items: ["Esquinas entrantes: No aplica"],
-          },
-          // img
-          // LISTA 3
-          {
-            type: "list",
-            listType: "bullet",
-            items: ["Discontinuidad del diafragma: No aplica"],
-          },
-          // img
-          // LISTA 4
-          {
-            type: "list",
-            listType: "bullet",
-            items: ["Sistemas no paralelos: No aplica"],
-          },
-          // img
-
           {
             type: "heading",
             level: 3,
-            text: "3.1.3. RESUMEN DE IRREGULARIDADES",
+            text: "3.1.3. Factores de Irregularidad (La, Lp)",
           },
-          // 👇 TABLA
+          {
+            type: "paragraph",
+            text: "El factor la se determina como el menor de los valores de la tabla N° 8 correspondiente a las irregularidades existentes en altura. El factor lp se determina como el menor de valores de la tabla N° 9 correspondiente a las irregularidades existentes en planta.",
+            alignment: "JUSTIFIED",
+          },
+          {
+            type: "paragraph",
+            text: "La mayoría de los casos se puede determinar si una estructura es regular o irregular a partir de su configuración estructural, pero en los casos de irregularidad de Rigidez e Irregularidad Torsional se comprueba con los resultados del análisis sísmico según se indica en la descripción de irregularidades",
+            alignment: "JUSTIFIED",
+          },
+          {
+            type: "heading",
+            level: 3,
+            text: "3.1.4. Restricciones a la Irregularidad",
+          },
+          {
+            type: "paragraph",
+            text: "Verificar las restricciones a la irregularidad de acuerdo a la categoría y zona de la edificación en la Tabla N° 10. Modificar la estructuración en caso que no se cumplan las restricciones de esta Tabla.",
+            alignment: "JUSTIFIED",
+          },
+          {
+            type: "heading",
+            level: 3,
+            text: "3.1.5. Coeficiente de Reducción de la Fuerza Sísmica (R)",
+          },
+          {
+            type: "paragraph",
+            text: "Se determina R = Ro.la.lp",
+            alignment: "JUSTIFIED",
+          },
+          {
+            type: "heading",
+            level: 3,
+            text: "3.1.6. Modelos de Análisis",
+          },
+          {
+            type: "paragraph",
+            text: "Desarrollar el modelo matemático de la estructura. Para estructuras de concreto armado y albañilería considerar las propiedades de las secciones brutas ignorando la fisuración y el refuerzo.",
+            alignment: "JUSTIFIED",
+          },
+          {
+            type: "heading",
+            level: 3,
+            text: "3.1.7. Estimación del Peso (P)",
+          },
+          {
+            type: "paragraph",
+            text: "Se determina el peso (P) para el cálculo de la fuerza sísmica adicionando a la carga permanente total un porcentaje de la carga viva que depende del uso y la categoría de la edificación, definido de acuerdo a lo indicado en este numeral.",
+            alignment: "JUSTIFIED",
+          },
+          {
+            type: "heading",
+            level: 3,
+            text: "3.1.8. Procedimientos de Análisis Sísmico",
+          },
+          {
+            type: "paragraph",
+            text: "Se definen los procedimientos de análisis considerados en esta Norma, que son análisis estático (artículo 28) y análisis dinámico modal espectral (artículo 29).",
+            alignment: "JUSTIFIED",
+          },
+          {
+            type: "heading",
+            level: 3,
+            text: "3.1.9. Determinación de Desplazamientos Laterales",
+          },
+          {
+            type: "paragraph",
+            text: "Se calculan los desplazamientos laterales de acuerdo a las indicaciones de este numeral.",
+            alignment: "JUSTIFIED",
+          },
+          {
+            type: "heading",
+            level: 3,
+            text: "3.1.10. Distorsión Admisible",
+          },
+          {
+            type: "paragraph",
+            text: "Verifique que la distorsión máxima de entrepiso que se obtiene en la estructura con los desplazamientos calculados en el paso anterior sea menor que lo indicado en la Tabla N° 11. De no cumplir se revisa la estructuración y repite el análisis hasta cumplir con el requerimiento.",
+            alignment: "JUSTIFIED",
+          },
+          {
+            type: "heading",
+            level: 3,
+            text: "3.1.11. Separacion entre edificios",
+          },
+          {
+            type: "paragraph",
+            text: "Determinar la separación mínima a otras edificaciones o al límite de propiedad de acuerdo a las indicaciones de este numeral.",
+            alignment: "JUSTIFIED",
+          },
+          {
+            type: "heading",
+            level: 2,
+            text: "3.2 PARÁMETROS SÍSMICOS (Norma E.030)",
+          },
+          {
+            type: "heading",
+            level: 3,
+            text: "3.2.1. CÁLCULO DE IRREGULARIDADES EN ALTURA",
+          },
+          {
+            type: "list",
+            listType: "bullet",
+            items: ["Irregularidades en altura (IA. \"K\", \"V\") "],
+          },
+          {
+            type: "list",
+            listType: "bullet",
+            items: ["Irregularidades en altura (MASA O PESO / Según NTE E.030 - 2018)"],
+          },
+          {
+            type: "list",
+            listType: "bullet",
+            items: ["Irregularidades en altura (IGV, DSR/ Según NTE E.030 - 2018)"],
+          },
+          {
+            type: "heading",
+            level: 3,
+            text: "3.2.2. CÁLCULO DE IRREGULARIDADES EN PLANTA",
+          },
+          {
+            type: "list",
+            listType: "bullet",
+            items: ["Irregularidades en planta (IGV, DSR/ Según NTE E.030 - 2018)"],
+          },
+          {
+            type: "list",
+            listType: "bullet",
+            items: ["Irregularidades en planta (Sistemas No Paralelos / Según NTE E.030 - 2018)"],
+          },
+          {
+            type: "list",
+            listType: "bullet",
+            items: ["Irregularidades en planta (TORSIÓN - Según NTE E.030 - 2018)"],
+          },
+          {
+            type: "list",
+            listType: "bullet",
+            items: ["Irregularidades en planta (Irregularidad Torsional)"],
+          },
+          {
+            type: "heading",
+            level: 3,
+            text: "3.2.3. RESUMEN DE IRREGULARIDADES",
+          },
           {
             type: "paragraph",
             text: "estructura es regular en altura e irregular en planta: ",
             alignment: "JUSTIFIED",
           },
-
           {
             type: "heading",
             level: 2,
-            text: "3.2 ANÁLISIS SÍSMICO ESTATICO",
+            text: "3.3 ANÁLISIS SÍSMICO ESTATICO",
           },
           {
             type: "paragraph",
@@ -490,8 +584,6 @@ export const DEFAULT_MC_STRUCTURE = {
             text: "Consideraciones en ETABS",
             alignment: "JUSTIFIED",
           },
-          // 👇 FIGURA 26
-          // 👇 FIGURA 27
           {
             type: "list",
             listType: "bullet",
@@ -499,11 +591,10 @@ export const DEFAULT_MC_STRUCTURE = {
               "DEFINICIÓN DEL PESO SÍSMICO: En ETABS, el peso sísmico se define a través del 'Mass Source', que determina cómo se genera la masa sísmica equivalente a partir de las cargas gravitacionales aplicadas en el modelo. Esta masa es la que se utiliza para calcular las fuerzas de inercia sísmica mediante el análisis estático o dinámico",
             ],
           },
-          //img 28
           {
             type: "heading",
             level: 2,
-            text: "3.3 ANÁLISIS SÍSMICO DINÁMICO",
+            text: "3.4 ANÁLISIS SÍSMICO DINÁMICO",
           },
           {
             type: "paragraph",
@@ -515,7 +606,6 @@ export const DEFAULT_MC_STRUCTURE = {
             listType: "bullet",
             items: ["CONSIDERACIONES EN ETABS"],
           },
-          // imagen 29 y 30
           {
             type: "list",
             listType: "bullet",
@@ -523,7 +613,6 @@ export const DEFAULT_MC_STRUCTURE = {
               "MODOS DE VIBRACIÓN Artículo 26.1.2 E-0.30: En cada dirección se consideran aquellos modos de vibración cuya suma de masas efectivas sea por lo menos el 90% de la masa de la estructura. A continuación, se muestran los periodos de los modos de vibración y sus respectivas masas de participación:",
             ],
           },
-          // imagen 31,32,33
           {
             type: "paragraph",
             text: "Se observa que la participación de masas en el análisis modal espectral supera el 90% en las dos direcciones de análisis (UX, UY) en el modal 6 respectivamente; por lo tanto, se concluye la validez del análisis dinámico modal espectral, según norma E.030. Las tablas mostradas verifican la norma E.030 Vigente",
@@ -536,12 +625,10 @@ export const DEFAULT_MC_STRUCTURE = {
               "FUERZA CORTANTE BASAL DINÁMICA: Utilizando el espectro de seudo aceleraciones para el análisis sísmico, se tienen las siguientes cortantes basales dinámicas:",
             ],
           },
-          // img 34
           {
             type: "paragraph",
             text: "De acuerdo con lo que establece el Artículo 26.4 de la Norma E.030 de Diseño Sismorresistente, la fuerza cortante en la base obtenida del análisis dinámico no puede ser menor que el 80 % de la fuerza cortante en la base obtenida del análisis estático para estructuras regulares, ni menor que el 90% para estructuras irregulares. En los cuadros siguientes se muestran las fuerzas cortantes obtenidas en los edificacións analizados bajo los análisis estático y dinámico:",
           },
-          // img35, 36
           {
             type: "list",
             listType: "bullet",
@@ -549,13 +636,11 @@ export const DEFAULT_MC_STRUCTURE = {
               "DESPLAZAMIENTO PERMISIBLE Artículo 28 E-030: En el cuadro siguiente indica los desplazamientos y derivas de entrepisos de los diafragmas de cada nivel. Estos valores fueron determinados multiplicando los resultados obtenidos en el programa de análisis por 0.75R, conforme se especifica en la Norma E.030 de Diseño Sismorresistente.",
             ],
           },
-          // img 37, 38
           {
             type: "paragraph",
             text: "De los resultados mostrados se puede concluir que las derivas obtenidas se encuentran dentro de lo permitido por la normativa E.030 de diseño sismorresistente.",
             alignment: "JUSTIFIED",
           },
-          // img 39 y 40
         ],
       },
       {
@@ -936,10 +1021,9 @@ export const DEFAULT_MC_STRUCTURE = {
               "De la edificación se asumió que la estructura es regular, ya que según la NTE.030 este tipo de edificaciones y por el lugar de ubicación debe ser una estructura regular. Se consideró tanto el análisis estático y dinámico, siendo este último de gran ayuda para la distribución espacial de masas y rigideces que nos permita conocer el comportamiento de la estructura.",
               "Se analizó las distorsiones máximas alcanzadas de cada edificación en las direcciones de análisis X ó Y, y que no superen el valor de la distorsión permitida por la NTE.030, tanto para la deriva de 0.006 para sistemas de Muros Estructurales respectivamente ",
               "Se analizó y diseño las dimensiones de las secciones de los diferentes elementos estructurales, así mismo se ha colocado el acero en los elementos estructurales acorde a los requerimientos del análisis y considerando lo mínimo que deben de poseer según la normatividad. De la misma manera se procedió con los elementos no estructurales.",
-              "El Proyecto Estructural cumple con lo indicado en la Norma Sísmica vigente y con las Normas Técnicas correspondientes por lo que concluimos que la Estructura tiene una buena rigidez y resistencia sísmica."
+              "El Proyecto Estructural cumple con lo indicado en la Norma Sísmica vigente y con las Normas Técnicas correspondientes por lo que concluimos que la Estructura tiene una buena rigidez y resistencia sísmica.",
             ],
-          }
-
+          },
         ],
       },
 
@@ -964,7 +1048,7 @@ export const DEFAULT_MC_STRUCTURE = {
               "Hoy en día al tener una variedad de programas y aplicativos para el cálculo estructural, en el presente proyecto se ha utilizado de la mejor manera para representar estructuralmente el proyecto arquitectónico propuesto y que cumplan con la normatividad, bien local y de ser el caso extranjera, dando resultados aceptables y que cumplan con las consideraciones estipuladas para este tipo de edificaciones esenciales.",
               "A su vez, se recomienda tener en cuenta y respetar las juntas de separación establecidas por la normativa para evitar daños contiguos entre la edificación que se encuentren cercanos cuando se presenten fuerzas sísmicas. Asimismo, contemplar todos los protocolos de calidad para la edificación a construir y de esta forma garantizar un adecuado servicio.",
             ],
-          }
+          },
         ],
       },
     ],

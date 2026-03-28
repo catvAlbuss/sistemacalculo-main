@@ -25,7 +25,7 @@
                 class="w-full px-6 py-4 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between hover:from-red-100 hover:to-orange-100 dark:hover:from-red-900/30 dark:hover:to-orange-900/30 transition-all">
                 <div class="flex items-center gap-3">
                     <span class="font-bold text-gray-900 dark:text-gray-100">4.1 PREDIMENSIONAMIENTO DE ELEMENTOS ESTRUCTURALES</span>
-                    <span class="text-xs text-gray-500 dark:text-gray-400">(7 imágenes)</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">(16 secciones, 2 imágenes c/u)</span>
                 </div>
                 <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform"
                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -34,170 +34,159 @@
             </button>
 
             <div x-show="showSection41" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
-                <!-- Inputs de número de secciones y texto -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+
+                <!-- Controles globales -->
+                <div class="flex items-center justify-between gap-4 p-4 bg-gray-100 dark:bg-gray-700/30 rounded-xl">
+                    <div class="flex items-center gap-4">
+                        <button type="button"
+                            @click="toggleAllSecciones(true)"
+                            class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm rounded-lg transition-all flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                             </svg>
-                            # de pisos
-                        </label>
-                        <!-- Cambio importante: usar :value y @input en lugar de x-model -->
-                        <input
-                            type="number"
-                            :value="predim"
-                            @input="updatePredim($event.target.value)"
-                            min="1"
-                            max="20"
-                            class="w-full bg-gray-50 dark:bg-gray-700/50 border-2 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all outline-none">
+                            Seleccionar todas
+                        </button>
+                        <button type="button"
+                            @click="toggleAllSecciones(false)"
+                            class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm rounded-lg transition-all flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Deseleccionar todas
+                        </button>
+                    </div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">
+                        Secciones seleccionadas:
+                        <span x-text="$store.memoriaCalculo.sections.disenoElementos.predimSecciones?.seleccionadas?.filter(s => s).length || 0"></span>
+                        / 16
                     </div>
                 </div>
 
-                <!-- Iterar por cada losa/sección -->
-                <template x-if="predim > 0">
-                    <div class="space-y-8">
-                        <template x-for="(seccion, seccionIndex) in Array.from({ length: predim })" :key="seccionIndex">
-                            <div class="border border-gray-200 dark:border-gray-700 rounded-xl p-6 bg-gray-50 dark:bg-gray-800/30">
-                                <!-- Título de la sección -->
-                                <div class="flex items-center justify-between mb-4">
-                                    <h4 class="text-lg font-semibold text-gray-800 dark:text-gray-200"
-                                        x-text="'Piso ' + (seccionIndex + 1)">
-                                    </h4>
+                <!-- Grid de 16 secciones fijas -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <template x-for="seccionIndex in 16" :key="seccionIndex - 1">
+                        <div class="border border-gray-200 dark:border-gray-700 rounded-xl p-6 bg-gray-50 dark:bg-gray-800/30"
+                            :class="{
+                         'border-green-500 dark:border-green-500 bg-green-50/50 dark:bg-green-900/20': $store.memoriaCalculo.sections.disenoElementos.predimSecciones?.seleccionadas?.[seccionIndex - 1],
+                         'opacity-60': !$store.memoriaCalculo.sections.disenoElementos.predimSecciones?.seleccionadas?.[seccionIndex - 1]
+                     }">
 
-                                    <!-- Botón para eliminar el último input -->
-                                    <button type="button"
-                                        @click="removeImagesToSection('predimImages', seccionIndex)"
-                                        :disabled="($store.memoriaCalculo.previews.predimImages[seccionIndex]?.length || 0) <= 1"
-                                        class="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white text-sm rounded-lg transition-all flex items-center gap-2 shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                        Eliminar último
-                                    </button>
-                                    <!-- Botón para agregar más imágenes -->
-                                    <button type="button"
-                                        @click="addMoreImagesToSection('predimImages', seccionIndex)"
-                                        class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm rounded-lg transition-all flex items-center gap-2 shadow-md hover:shadow-lg">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                                        </svg>
-                                        Agregar imagen
-                                    </button>
-                                </div>
+                            <!-- Cabecera de la sección con checkbox y título editable -->
+                            <div class="flex items-center gap-3 mb-4">
+                                <input type="checkbox"
+                                    :checked="$store.memoriaCalculo.sections.disenoElementos.predimSecciones?.seleccionadas?.[seccionIndex - 1] ?? true"
+                                    @change="handleSeccionSeleccion(seccionIndex - 1, $event)"
+                                    class="w-5 h-5 text-green-600 rounded focus:ring-green-500">
 
-                                <!-- Grid de imágenes dinamicos-->
-                                <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 gap-4">
-                                    <template x-for="(img, imgIndex) in ($store.memoriaCalculo.previews.predimImages[seccionIndex])" :key="imgIndex">
-                                        <div class="space-y-2" :data-image-slot="`predimImages-${seccionIndex}-${imgIndex}`">
-
-                                            <!-- Usando x-text con condicional -->
-                                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300"
-                                                x-text="imgIndex === 0 ? 'FIGURA CANVAN' : `TABLA ${imgIndex}`">
-                                            </label>
-
-
-                                            <!-- Preview de imagen -->
-                                            <template x-if="$store.memoriaCalculo.previews.predimImages[seccionIndex]?.[imgIndex]">
-                                                <div class="relative group">
-                                                    <div class="relative h-40 w-full rounded-xl overflow-hidden border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
-                                                        <img :src="$store.memoriaCalculo.previews.predimImages[seccionIndex][imgIndex]"
-                                                            class="w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-105">
-                                                    </div>
-                                                    <button type="button"
-                                                        @click="removePredimImage(seccionIndex, imgIndex)"
-                                                        class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 shadow-lg transition-all opacity-0 group-hover:opacity-100">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                                        </svg>
-                                                    </button>
-                                                </div>
-                                            </template>
-
-                                            <!-- Input file cuando no hay imagen -->
-                                            <template x-if="!$store.memoriaCalculo.previews.predimImages[seccionIndex]?.[imgIndex]">
-                                                <label
-                                                    tabindex="0"
-                                                    class="flex flex-col items-center justify-center h-40 w-full rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all group"
-                                                    @paste="handlePasteElementoConfig($event, 'predim', seccionIndex, imgIndex)"
-                                                    @mouseenter="$el.focus()">
-                                                    <div class="p-2 rounded-full bg-orange-100 dark:bg-orange-900/40 text-orange-600 mb-1 group-hover:scale-110 transition-transform">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                        </svg>
-                                                    </div>
-                                                    <span class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Subir imagen o Ctrl+V</span>
-                                                    <span class="text-xs text-gray-500">PNG, JPG</span>
-                                                    <!-- Cambio importante: usar handleElementoImageInput en lugar de handleLosaImageChange -->
-                                                    <input type="file" accept="image/*"
-                                                        @change="handleElementoImageInput('predim', seccionIndex, imgIndex, $event)"
-                                                        class="hidden">
-                                                </label>
-                                            </template>
-                                        </div>
-                                    </template>
+                                <div class="flex-1">
+                                    <input type="text"
+                                        :value="getSeccionTitulo(seccionIndex - 1)"
+                                        @input="handleTituloChange(seccionIndex - 1, $event)"
+                                        class="w-full text-lg font-semibold text-gray-800 dark:text-gray-200 bg-transparent border-b-2 border-gray-300 dark:border-gray-600 focus:border-green-500 focus:outline-none px-2 py-1"
+                                        placeholder="Título de la sección">
                                 </div>
                             </div>
-                        </template>
-                    </div>
-                </template>
 
-                <!-- <div class="space-y-2">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                        {{-- Definir los nombres específicos en un array --}}
-                        <template x-for="(item, idx) in [
-                            { index: 0, nombre: 'Resumen de Predimensiones' },
-                            { index: 1, nombre: 'figura 41-PREDISIONAMIENTO DE COLUMNA' },
-                            { index: 2, nombre: 'Vigas Principal' },
-                            { index: 3, nombre: 'figura 42-PREDISIONAMIENTO DE VIGA' },
-                            { index: 4, nombre: 'Losa aligerada' },
-                            { index: 5, nombre: 'figura 43-PREDISIONAMIENTO DE LOSA ALIGERADA' },
-                            { index: 6, nombre: 'Cimentacion Zapata Cuadrada' },
-                            { index: 7, nombre: 'figura 44-PREDISIONAMIENTO DE ZAPATA' }
-                        ]" :key="item.index">
-                            <div class="space-y-2">
-                                <div class="flex items-center justify-between">
-                                    {{-- Usar el nombre específico del array --}}
-                                    <label class="text-sm font-bold text-gray-700 dark:text-gray-300"
-                                        x-text="item.nombre"></label>
-                                    <button type="button"
-                                        x-show="previews.predisionamientoImages[item.index]"
-                                        @click="removeArrayImage('predisionamientoImages', item.index)"
-                                        class="text-red-500 text-xs font-semibold hover:underline">
-                                        Eliminar
-                                    </button>
-                                </div>
-                                <div class="relative group h-48">
-                                    <template x-if="previews.predisionamientoImages[item.index]">
-                                        <img :src="previews.predisionamientoImages[item.index]"
-                                            class="h-full w-full object-contain rounded-xl border-2 border-gray-200 bg-white">
+                            <div class="text-xs text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span>2 imágenes por sección (FIGURA y TABLA)</span>
+                            </div>
+
+                            <!-- Grid de 2 imágenes fijas -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <!-- Imagen 1: FIGURA / ESQUEMA -->
+                                <div class="space-y-2" :data-image-slot="`predimImages-${seccionIndex - 1}-0`">
+                                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                        FIGURA / ESQUEMA
+                                    </label>
+
+                                    <!-- Preview de imagen -->
+                                    <template x-if="$store.memoriaCalculo.previews.predimImages[seccionIndex - 1]?.[0]">
+                                        <div class="relative group">
+                                            <div class="relative h-40 w-full rounded-xl overflow-hidden border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
+                                                <img :src="$store.memoriaCalculo.previews.predimImages[seccionIndex - 1][0]"
+                                                    class="w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-105">
+                                            </div>
+                                            <button type="button"
+                                                @click="removePredimImage(seccionIndex - 1, 0)"
+                                                class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 shadow-lg transition-all opacity-0 group-hover:opacity-100">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </template>
-                                    <template x-if="!previews.predisionamientoImages[item.index]">
-                                        <div class="h-full">
-                                            <input type="file"
-                                                :id="'file_pred_' + item.index"
-                                                @change="handleArrayImageChange('predisionamientoImages', item.index, $event)"
-                                                class="hidden"
-                                                accept="image/*">
-                                            <label :for="'file_pred_' + item.index"
-                                                @paste="handlePaste($event, 'predisionamientoImages', item.index)"
-                                                @mouseenter="$el.focus()"
-                                                class="flex flex-col items-center justify-center h-full w-full rounded-xl border-2 border-dashed border-gray-300 cursor-pointer hover:bg-amber-50 transition-all"
-                                                tabindex="0">
-                                                <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+                                    <!-- Input file cuando no hay imagen -->
+                                    <template x-if="!$store.memoriaCalculo.previews.predimImages[seccionIndex - 1]?.[0]">
+                                        <label
+                                            tabindex="0"
+                                            class="flex flex-col items-center justify-center h-40 w-full rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all group"
+                                            @paste="handlePasteElementoConfig($event, 'predim', seccionIndex - 1, 0)"
+                                            @mouseenter="$el.focus()">
+                                            <div class="p-2 rounded-full bg-orange-100 dark:bg-orange-900/40 text-orange-600 mb-1 group-hover:scale-110 transition-transform">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                                 </svg>
-                                                <span class="text-xs text-gray-500 text-center">
-                                                    Haz clic o <span class="font-semibold text-purple-600">Ctrl+V</span>
-                                                </span>
-                                            </label>
+                                            </div>
+                                            <span class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Subir imagen o Ctrl+V</span>
+                                            <span class="text-xs text-gray-500">PNG, JPG</span>
+                                            <input type="file" accept="image/*"
+                                                @change="handleElementoImageInput('predim', seccionIndex - 1, 0, $event)"
+                                                class="hidden">
+                                        </label>
+                                    </template>
+                                </div>
+
+                                <!-- Imagen 2: TABLA / DETALLE -->
+                                <div class="space-y-2" :data-image-slot="`predimImages-${seccionIndex - 1}-1`">
+                                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                        TABLA / DETALLE
+                                    </label>
+
+                                    <!-- Preview de imagen -->
+                                    <template x-if="$store.memoriaCalculo.previews.predimImages[seccionIndex - 1]?.[1]">
+                                        <div class="relative group">
+                                            <div class="relative h-40 w-full rounded-xl overflow-hidden border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
+                                                <img :src="$store.memoriaCalculo.previews.predimImages[seccionIndex - 1][1]"
+                                                    class="w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-105">
+                                            </div>
+                                            <button type="button"
+                                                @click="removePredimImage(seccionIndex - 1, 1)"
+                                                class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 shadow-lg transition-all opacity-0 group-hover:opacity-100">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
                                         </div>
+                                    </template>
+
+                                    <!-- Input file cuando no hay imagen -->
+                                    <template x-if="!$store.memoriaCalculo.previews.predimImages[seccionIndex - 1]?.[1]">
+                                        <label
+                                            tabindex="0"
+                                            class="flex flex-col items-center justify-center h-40 w-full rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all group"
+                                            @paste="handlePasteElementoConfig($event, 'predim', seccionIndex - 1, 1)"
+                                            @mouseenter="$el.focus()">
+                                            <div class="p-2 rounded-full bg-orange-100 dark:bg-orange-900/40 text-orange-600 mb-1 group-hover:scale-110 transition-transform">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                            </div>
+                                            <span class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Subir imagen o Ctrl+V</span>
+                                            <span class="text-xs text-gray-500">PNG, JPG</span>
+                                            <input type="file" accept="image/*"
+                                                @change="handleElementoImageInput('predim', seccionIndex - 1, 1, $event)"
+                                                class="hidden">
+                                        </label>
                                     </template>
                                 </div>
                             </div>
-                        </template>
-                    </div>
-                </div> -->
+                        </div>
+                    </template>
+                </div>
             </div>
         </div>
         <!-- SECCION 4.2.DISEÑO DE LOSA ALIGERADA -->
@@ -887,7 +876,7 @@
 
             <div x-show="showSection46" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
                 <!-- Inputs de número de secciones y texto -->
-                 <div class="w-full bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-200 dark:border-yellow-700 text-gray-900 dark:text-gray-100 p-3 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none resize-none font-medium">
+                <div class="w-full bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-200 dark:border-yellow-700 text-gray-900 dark:text-gray-100 p-3 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none resize-none font-medium">
                     <p class="text-sm text-gray-700 dark:text-gray-300">AVISO IMPORTANTE: Si en caso no detalla el nombre de las secciones no se tomara en cuenta las imagenes que se agregue.</p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

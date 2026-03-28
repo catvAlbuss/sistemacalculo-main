@@ -1,5 +1,87 @@
 // AnalisisSismicoComponent.js - Alpine component for Análisis Sísmico section
+import { handleImageChange } from "../utils/imageHandler.js";
+
 export function createAnalisisSismicoComponent() {
+  // const CONFIG_ELEMENTOS = {
+  //   seccion1: {
+  //     nombre: "Losa Aligerada",
+  //     metodoStore: "updateLosaAligeradaImage",
+  //     imagenesPorSeccion: 2,
+  //     prefijoArchivo: "losa_alig",
+  //     groupKey: "seccion1Images",
+  //   },
+  //   seccion2: {
+  //     nombre: "Viga",
+  //     metodoStore: "updateVigaImage",
+  //     imagenesPorSeccion: 2,
+  //     prefijoArchivo: "viga",
+  //     groupKey: "seccion2Images",
+  //   },
+  //   seccion3: {
+  //     nombre: "Columna",
+  //     metodoStore: "updateColumnaImage",
+  //     imagenesPorSeccion: 4,
+  //     prefijoArchivo: "columna",
+  //     groupKey: "seccion3Images",
+  //   },
+  //   seccion4: {
+  //     nombre: "Placa",
+  //     metodoStore: "updatePlacaImage",
+  //     imagenesPorSeccion: 4,
+  //     prefijoArchivo: "placa",
+  //     groupKey: "seccion4Images",
+  //   },
+  //   seccion5: {
+  //     nombre: "Cimentación",
+  //     metodoStore: "updateCimentacionImage",
+  //     imagenesPorSeccion: 4,
+  //     prefijoArchivo: "ciment",
+  //     groupKey: "seccion5Images",
+  //   },
+  //   seccion6: {
+  //     nombre: "Predim",
+  //     metodoStore: "updatePredimImage",
+  //     imagenesPorSeccion: 2,
+  //     prefijoArchivo: "ciment",
+  //     groupKey: "seccion6Images",
+  //   },
+  //   seccion7: {
+  //     nombre: "Predim",
+  //     metodoStore: "updatePredimImage",
+  //     imagenesPorSeccion: 2,
+  //     prefijoArchivo: "ciment",
+  //     groupKey: "seccion7Images",
+  //   },
+  //   seccion8: {
+  //     nombre: "Predim",
+  //     metodoStore: "updatePredimImage",
+  //     imagenesPorSeccion: 2,
+  //     prefijoArchivo: "ciment",
+  //     groupKey: "seccion8Images",
+  //   },
+  //   seccion9: {
+  //     nombre: "Predim",
+  //     metodoStore: "updatePredimImage",
+  //     imagenesPorSeccion: 2,
+  //     prefijoArchivo: "ciment",
+  //     groupKey: "seccion9Images",
+  //   },
+  //   seccion10: {
+  //     nombre: "Predim",
+  //     metodoStore: "updatePredimImage",
+  //     imagenesPorSeccion: 2,
+  //     prefijoArchivo: "ciment",
+  //     groupKey: "seccion10Images",
+  //   },
+  //   seccion11: {
+  //     nombre: "Predim",
+  //     metodoStore: "updatePredimImage",
+  //     imagenesPorSeccion: 2,
+  //     prefijoArchivo: "ciment",
+  //     groupKey: "seccion11Images",
+  //   },
+  // };
+
   return {
     // Section 3.2 - Análisis Sísmico Estático (3 images)
     figura26: null, // Patrón de cargas sísmicas en "X"
@@ -29,13 +111,36 @@ export function createAnalisisSismicoComponent() {
     figura40: null, // Deformada en "Y" debido a carga sísmica (mm)
 
     // Accordion states for subsections
+    showSection31: false,
+    showSection311: false,
+    showSection312: false,
+    showSection313: false,
+    showSection314: false,
+    showSection315: false,
+    showSection316: false,
+    showSection317: false,
+    showSection318: false,
+    showSection319: false,
+    showSection3110: false,
+    showSection3111: false,
+
     showSection32: false,
+    showSection321: false,
+    showSection322: false,
+    showSection323: false,
+    showSection324: false,
+    showSection325: false,
+    showSection326: false,
+    showSection327: false,
+
     showSection33: false,
-    showSection331: false,
-    showSection332: false,
-    showSection333: false,
-    showSection334: false,
-    showSection335: false,
+    showSection34: false,
+    showSection341: false,
+    showSection342: false,
+    showSection343: false,
+    showSection344: false,
+    showSection345: false,
+
 
     imageMappings: {
       // Sección 3.2 - Análisis Sísmico Estático
@@ -157,7 +262,6 @@ export function createAnalisisSismicoComponent() {
       }
 
       this.initImageSlots();
-      this.loadFromStore();
 
       // DEBUG: Verificar estructura del store
       console.log("📦 Store disponible:", !!this.$store.memoriaCalculo);
@@ -169,6 +273,8 @@ export function createAnalisisSismicoComponent() {
 
       // Array groups necesarios
       const arrayGroups = [
+        "irregularidadImages",
+        "analisisEstructuralImages",
         "estaticoConsideracionesETABS",
         "dinamicoConsideracionesETABS",
         "modosVibracionImages",
@@ -189,6 +295,8 @@ export function createAnalisisSismicoComponent() {
 
       // Tamaños requeridos
       const arraySizes = {
+        irregularidadImages: 17,
+        analisisEstructuralImages: 22,
         estaticoConsideracionesETABS: 3,
         dinamicoConsideracionesETABS: 2,
         modosVibracionImages: 3,
@@ -222,47 +330,6 @@ export function createAnalisisSismicoComponent() {
       //   if (!store.images.hasOwnProperty(key)) store.images[key] = null;
       //   if (!store.previews.hasOwnProperty(key)) store.images[key] = null;
       // });
-    },
-
-    loadFromStore() {
-      const store = this.$store.memoriaCalculo;
-      if (!store) return;
-
-      // Cargar figura26 y figura27 desde el store
-      if (store.previews.estaticoConsideracionesETABS) {
-        this.figura26 = store.previews.estaticoConsideracionesETABS[0] || null;
-        this.figura27 = store.previews.estaticoConsideracionesETABS[1] || null;
-        this.figura28 = store.previews.estaticoConsideracionesETABS[2] || null;
-      }
-
-      if (store.previews.dinamicoConsideracionesETABS) {
-        this.figura29 = store.previews.dinamicoConsideracionesETABS[0] || null;
-        this.figura30 = store.previews.dinamicoConsideracionesETABS[1] || null;
-      }
-
-      if (store.previews.modosVibracionImages) {
-        this.figura31 = store.previews.modosVibracionImages[0] || null;
-        this.figura32 = store.previews.modosVibracionImages[1] || null;
-        this.figura33 = store.previews.modosVibracionImages[2] || null;
-      }
-
-      if (store.previews.cortanteBasalImages) {
-        this.figura34 = store.previews.cortanteBasalImages[0] || null;
-        this.figura35 = store.previews.cortanteBasalImages[1] || null;
-        this.figura36 = store.previews.cortanteBasalImages[2] || null;
-      }
-
-      if (store.previews.desplazamientoImages) {
-        this.figura37 = store.previews.desplazamientoImages[0] || null;
-        this.figura38 = store.previews.desplazamientoImages[1] || null;
-      }
-
-      if (store.previews.deformadaImages) {
-        this.figura39 = store.previews.deformadaImages[0] || null;
-        this.figura40 = store.previews.deformadaImages[1] || null;
-      }
-
-      console.log("📦 Imágenes cargadas desde store");
     },
 
     async handleImageUpload(event, figura) {
@@ -446,6 +513,107 @@ export function createAnalisisSismicoComponent() {
       this[section] = !this[section];
     },
 
+    /**
+     * Maneja el cambio de una imagen en array
+     * @param {string} groupKey - Clave del grupo
+     * @param {number} index - Índice
+     * @param {Event} event - Evento del input file
+     */
+    async handleArrayImageChange(groupKey, index, event) {
+      await handleImageChange(
+        event,
+        (file, dataUrl) => {
+          this.$store.memoriaCalculo.updateArrayImage(groupKey, index, file, dataUrl);
+        },
+        (error) => {
+          this.$store.memoriaCalculo.addError("images", error);
+        },
+      );
+
+      console.log(`✅ Imagen guardada:`);
+      console.log(`   - Grupo: ${groupKey}`);
+      console.log(`   - Índice: ${index}`);
+    },
+
+    /**
+     * Maneja el pegado de imagen en un grupo e índice específico
+     * @param {ClipboardEvent} event - Evento del portapapeles
+     * @param {string} groupKey - Clave del grupo
+     * @param {number} index - Índice
+     */
+    async handlePasteArray(event, groupKey, index) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      // if (document.activeElement !== event.target) {
+      //   console.log(`⏭️ Ignorando ${groupKey}[${index}] - no tiene foco`);
+      //   return;
+      // }
+
+      console.log(`📋 Detectado pegado para ${groupKey}[${index}]`);
+
+      try {
+        //USAR event.clipboardData (DATOS INMEDIATOS)
+        const items = event.clipboardData?.items;
+
+        if (!items) {
+          console.log("No hay items en el portapapeles");
+          return;
+        }
+
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+
+          if (item.type.indexOf("image") !== -1) {
+            // ✅ Obtener el archivo directamente del evento (SINCRÓNICO)
+            const file = item.getAsFile();
+
+            if (file) {
+              // Crear nombre único
+              const fileName = `pegado_${Date.now()}.png`;
+              const renamedFile = new File([file], fileName, { type: file.type });
+
+              // Crear evento simulado
+              const mockEvent = {
+                target: {
+                  files: [renamedFile],
+                },
+                type: "change",
+              };
+
+              // Usar el mismo handler que la selección de archivos
+              await handleImageChange(
+                mockEvent,
+                (file, dataUrl) => {
+                  this.$store.memoriaCalculo.updateArrayImage(groupKey, index, file, dataUrl);
+                  console.log(`✅ Imagen pegada INSTANTÁNEAMENTE en ${groupKey}[${index}]`);
+                },
+                (error) => {
+                  this.$store.memoriaCalculo.addError("images", error);
+                  console.error(`❌ Error al pegar:`, error);
+                },
+              );
+
+              return;
+            }
+          }
+        }
+
+        console.log("No se encontró una imagen en el portapapeles");
+      } catch (error) {
+        console.error("Error al pegar:", error);
+      }
+    },
+
+    /**
+     * Elimina una imagen de array
+     * @param {string} groupKey - Clave del grupo
+     * @param {number} index - Índice
+     */
+    removeArrayImage(groupKey, index) {
+      this.$store.memoriaCalculo.removeArrayImage(groupKey, index);
+    },
+
     getState() {
       return {
         figura26: this.figura26,
@@ -467,4 +635,3 @@ export function createAnalisisSismicoComponent() {
     },
   };
 }
-

@@ -40,7 +40,7 @@ export function createDisenoElementosComponent() {
     predim: {
       nombre: "Predim",
       metodoStore: "updatePredimImage",
-      imagenesPorSeccion: 4,
+      imagenesPorSeccion: 2,
       prefijoArchivo: "ciment",
       groupKey: "predimImages",
     },
@@ -69,46 +69,8 @@ export function createDisenoElementosComponent() {
       this.initImageSlots();
       this.updateLosas();
 
-      this.cargarImagenesDesdeLocalStorage();
     },
 
-    cargarImagenesDesdeLocalStorage() {
-      console.log("🔍 Buscando imágenes en localStorage...");
-
-      // // Cargar imagen de cimiento corrido
-      // const imagenCimiento = localStorage.getItem("cimiento_corrido_img");
-      // if (imagenCimiento) {
-      //   console.log("📸 Imagen de cimiento encontrada en localStorage");
-
-      //   // Guardar en el store
-      //   const store = this.$store.memoriaCalculo;
-
-      //   // Asegurar que existe el array
-      //   if (!store.previews.disenoSimientoCorridoImages) {
-      //     store.previews.disenoSimientoCorridoImages = [];
-      //   }
-
-      //   // Guardar en el índice 0 (o el que prefieras)
-      //   const indiceImagen = 0;
-      //   store.previews.disenoSimientoCorridoImages[indiceImagen] = imagenCimiento;
-
-      //   console.log("✅ Imagen de cimiento cargada al store");
-
-      //   // Opcional: Mostrar notificación al usuario
-      //   if (typeof toast !== "undefined") {
-      //     toast.success("Imagen de cimiento corrido cargada automáticamente");
-      //   }
-
-      //   // Opcional: Limpiar localStorage después de cargar
-      //   // localStorage.removeItem('cimiento_corrido_img');
-      // }
-      this.cargarImagenesCimientoCorrido();
-      this.cargarImagenesLosaMacisa();
-
-      // También puedes cargar imágenes de otros elementos si las necesitas
-      // const imagenViga = localStorage.getItem('viga_temp');
-      // etc... losas-macisas_img
-    },
 
     // En createDisenoElementosComponent.js
     cargarImagenesCimientoCorrido() {
@@ -240,6 +202,124 @@ export function createDisenoElementosComponent() {
       this.ensureArraySize("disenoEscaleraImages", 5);
       this.ensureArraySize("disenoCisternaImages", 6);
       this.ensureArraySize("disenoSimientoCorridoImages", 6);
+
+      this.initPredimImages();
+    },
+
+    /**
+     * 🆕 Inicializa las 16 secciones fijas de predimensionamiento
+     */
+    initPredimImages() {
+      const store = this.$store.memoriaCalculo;
+
+      console.log("🔄 Inicializando secciones fijas de predimensionamiento...");
+
+      // Inicializar arrays si no existen
+      if (!Array.isArray(store.images.predimImages)) {
+        store.images.predimImages = [];
+      }
+      if (!Array.isArray(store.previews.predimImages)) {
+        store.previews.predimImages = [];
+      }
+
+      // Crear 16 secciones con exactamente 2 imágenes cada una
+      for (let i = 0; i < 16; i++) {
+        if (!Array.isArray(store.images.predimImages[i])) {
+          store.images.predimImages[i] = [null, null];
+        } else if (store.images.predimImages[i].length !== 2) {
+          // Asegurar que tenga exactamente 2 slots
+          store.images.predimImages[i] = [
+            store.images.predimImages[i][0] || null,
+            store.images.predimImages[i][1] || null,
+          ];
+        }
+
+        if (!Array.isArray(store.previews.predimImages[i])) {
+          store.previews.predimImages[i] = [null, null];
+        } else if (store.previews.predimImages[i].length !== 2) {
+          // Asegurar que tenga exactamente 2 slots
+          store.previews.predimImages[i] = [
+            store.previews.predimImages[i][0] || null,
+            store.previews.predimImages[i][1] || null,
+          ];
+        }
+      }
+
+      // Inicializar selecciones y títulos si no existen
+      if (!store.sections.disenoElementos.predimSecciones) {
+        store.sections.disenoElementos.predimSecciones = {
+          seleccionadas: new Array(16).fill(true),
+          titulos: new Array(16).fill("").map((_, i) => `Sección ${i + 1}`),
+        };
+      } else {
+        // Asegurar tamaño correcto
+        if (store.sections.disenoElementos.predimSecciones.seleccionadas.length !== 16) {
+          store.sections.disenoElementos.predimSecciones.seleccionadas = new Array(16).fill(true);
+        }
+        if (store.sections.disenoElementos.predimSecciones.titulos.length !== 16) {
+          const nuevosTitulos = new Array(16).fill("");
+          for (let i = 0; i < store.sections.disenoElementos.predimSecciones.titulos.length && i < 16; i++) {
+            nuevosTitulos[i] = store.sections.disenoElementos.predimSecciones.titulos[i];
+          }
+          for (let i = store.sections.disenoElementos.predimSecciones.titulos.length; i < 16; i++) {
+            nuevosTitulos[i] = `Sección ${i + 1}`;
+          }
+          store.sections.disenoElementos.predimSecciones.titulos = nuevosTitulos;
+        }
+      }
+
+      console.log(`✅ Inicializadas 16 secciones fijas de predimensionamiento con 2 imágenes cada una`);
+      console.log(
+        `   - Secciones seleccionadas: ${store.sections.disenoElementos.predimSecciones.seleccionadas.filter((s) => s).length}/16`,
+      );
+    },
+
+    /**
+     * Maneja el cambio de checkbox (seleccionar/deseleccionar sección)
+     * @param {number} seccionIndex - Índice de la sección
+     * @param {Event} event - Evento del checkbox
+     */
+    handleSeccionSeleccion(seccionIndex, event) {
+      const seleccionado = event.target.checked;
+      this.$store.memoriaCalculo.updatePredimSeccionSeleccion(seccionIndex, seleccionado);
+    },
+
+    /**
+     * Maneja el cambio de título de sección
+     * @param {number} seccionIndex - Índice de la sección
+     * @param {Event} event - Evento del input
+     */
+    handleTituloChange(seccionIndex, event) {
+      const titulo = event.target.value;
+      this.$store.memoriaCalculo.updatePredimSeccionTitulo(seccionIndex, titulo);
+    },
+
+    /**
+     * Selecciona o deselecciona todas las secciones
+     * @param {boolean} seleccionarTodas - true para seleccionar todas
+     */
+    toggleAllSecciones(seleccionarTodas) {
+      this.$store.memoriaCalculo.seleccionarTodasPredimSecciones(seleccionarTodas);
+    },
+
+    /**
+     * Obtiene el título de una sección
+     * @param {number} seccionIndex
+     * @returns {string}
+     */
+    getSeccionTitulo(seccionIndex) {
+      const titulos = this.$store.memoriaCalculo.sections.disenoElementos.predimSecciones?.titulos || [];
+      return titulos[seccionIndex] || `Sección ${seccionIndex + 1}`;
+    },
+
+    /**
+     * Obtiene si una sección está seleccionada
+     * @param {number} seccionIndex
+     * @returns {boolean}
+     */
+    isSeccionSeleccionada(seccionIndex) {
+      const seleccionadas = this.$store.memoriaCalculo.sections.disenoElementos.predimSecciones?.seleccionadas || [];
+      return seleccionadas[seccionIndex] ?? true;
     },
 
     ensureArraySize(groupKey, size) {
@@ -445,98 +525,6 @@ export function createDisenoElementosComponent() {
      */
     removeArrayImage(groupKey, index) {
       this.$store.memoriaCalculo.removeArrayImage(groupKey, index);
-
-      switch (groupKey) {
-        case "disenoSimientoCorridoImages":
-          if (index === 0) {
-            this.eliminarImagenCimiento("grafico");
-          }
-          if (index === 1) {
-            this.eliminarImagenCimiento("resultados_sup");
-          }
-          if (index === 2) {
-            this.eliminarImagenCimiento("resultados_inf");
-          }
-          break;
-        case "disenoLosaMacizaImages":
-          if (index === 4) {
-            this.eliminarImagenLosaMaciza("losa_sup");
-          }
-          if (index === 5) {
-            this.eliminarImagenLosaMaciza("losa_inf");
-          }
-          localStorage.removeItem("losas-macisas_img");
-          console.log("🗑️ Imagen de losa macisa eliminada de localStorage");
-          break;
-        default:
-          console.log(`No hay limpieza de localStorage definida para ${groupKey}`);
-      }
-    },
-
-    eliminarImagenCimiento(tipo) {
-      // tipo puede ser: 'grafico', 'resultados_sup', 'resultados_inf'
-
-      const store = this.$store.memoriaCalculo;
-
-      switch (tipo) {
-        case "grafico":
-          store.previews.disenoSimientoCorridoImages[0] = null;
-          localStorage.removeItem("cimiento_corrido_grafico");
-          console.log("🗑️ Gráfico eliminado");
-          break;
-
-        case "resultados_sup":
-          store.previews.disenoSimientoCorridoImages[1] = null;
-          localStorage.removeItem("cimiento_corrido_resultados_sup");
-          console.log("🗑️ Resultados (superior) eliminados");
-          break;
-
-        case "resultados_inf":
-          store.previews.disenoSimientoCorridoImages[2] = null;
-          localStorage.removeItem("cimiento_corrido_resultados_inf");
-          console.log("🗑️ Resultados (inferior) eliminados");
-          break;
-
-        default:
-          console.log("Tipo no válido");
-      }
-
-      // Actualizar metadatos
-      const metadata = JSON.parse(localStorage.getItem("cimiento_corrido_metadata") || "{}");
-      metadata.eliminado = metadata.eliminado || [];
-      metadata.eliminado.push(tipo);
-      metadata.ultimaModificacion = new Date().toISOString();
-      localStorage.setItem("cimiento_corrido_metadata", JSON.stringify(metadata));
-    },
-
-    eliminarImagenLosaMaciza(tipo) {
-      // tipo puede ser: 'grafico', 'resultados_sup', 'resultados_inf'
-
-      const store = this.$store.memoriaCalculo;
-
-      switch (tipo) {
-        case "losa_sup":
-          store.previews.disenoLosaMacizaImages[4] = null;
-          localStorage.removeItem("losa_maciza_resultados_sup");
-          console.log("🗑️ Losa macisa superior eliminado");
-          break;
-
-        case "losa_inf":
-          store.previews.disenoLosaMacizaImages[5] = null;
-          localStorage.removeItem("losa_maciza_resultados_inf");
-          console.log("🗑️ Losa macisa inferior eliminados");
-          break;
-
-        default:
-          console.log("Tipo no válido");
-      }
-
-      // Actualizar metadatos
-      const metadata = JSON.parse(localStorage.getItem("cimiento_corrido_metadata") || "{}");
-      metadata.eliminado = metadata.eliminado || [];
-      metadata.eliminado.push(tipo);
-      metadata.ultimaModificacion = new Date().toISOString();
-      localStorage.setItem("cimiento_corrido_metadata", JSON.stringify(metadata));
     },
 
     // Método para agregar más imágenes a una sección específica
@@ -700,8 +688,4 @@ export function createDisenoElementosComponent() {
       );
     },
   };
-
 }
-
-
-
