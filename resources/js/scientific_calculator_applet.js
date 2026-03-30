@@ -49,6 +49,14 @@ export default () => ({
   converterValue: '',
   mathLib: null,
 
+  // Constantes para el ajuste de tamaño (valores por defecto)
+  dialogMinWidth: 320,
+  dialogMinHeight: 480,
+  dialogMarginH: 10,
+  dialogMarginV: 10,
+  dialogPaddingH: 20,
+  dialogPaddingV: 40,
+
   conversionCategories: {
     length: {
       name: 'Longitud',
@@ -176,8 +184,8 @@ export default () => ({
     $(dialog_elem).dialog({
       width: 350,
       height: 620,
-      minHeight: 480,
-      minWidth: 320,
+      minHeight: this.dialogMinHeight,
+      minWidth: this.dialogMinWidth,
       maxHeight: 650,
       maxWidth: 400,
       autoOpen: false,
@@ -531,57 +539,56 @@ export default () => ({
   },
 
   checkWindowSize() {
-    if (!$(dialog_elem).dialog("isOpen")) {
+    const $dialogElem = $(this.dialog_elem);
+    if (!$dialogElem.dialog("isOpen")) {
       return;
     }
-    if (
-      window.innerWidth <
-      $(dialog_elem).dialog("option", "width") + $(dialog_elem).parent().offset()["left"] + dialogMarginH
-    ) {
-      $(dialog_elem)
-        .parent()
-        .offset({
-          left: window.innerWidth - $(dialog_elem).dialog("option", "width") - dialogMarginH,
-        });
-    }
-    if (window.innerWidth < $(dialog_elem).dialog("option", "width") + dialogMarginH) {
-      var targetWidth = Math.max(dialogMinWidth, window.innerWidth);
-      $(dialog_elem).parent().offset({ left: 0 });
-      $(dialog_elem).dialog("option", {
-        width: targetWidth - dialogMarginH,
+
+    const dialogWidth = $dialogElem.dialog("option", "width");
+    const dialogHeight = $dialogElem.dialog("option", "height");
+    const parentOffset = $dialogElem.parent().offset();
+
+    // Ajustar horizontalmente
+    if (parentOffset && (window.innerWidth < dialogWidth + parentOffset.left + this.dialogMarginH)) {
+      $dialogElem.parent().offset({
+        left: window.innerWidth - dialogWidth - this.dialogMarginH
       });
-      window.ggbApplet && ggbApplet.setWidth(targetWidth - dialogPaddingH - dialogMarginH);
     }
-    if (
-      window.innerHeight <
-      $(dialog_elem).dialog("option", "height") + $(dialog_elem).parent().offset()["top"] + dialogMarginV
-    ) {
-      $(dialog_elem)
-        .parent()
-        .offset({
-          top: window.innerHeight - $(dialog_elem).dialog("option", "height") - dialogMarginV,
-        });
+    if (window.innerWidth < dialogWidth + this.dialogMarginH) {
+      const targetWidth = Math.max(this.dialogMinWidth, window.innerWidth);
+      $dialogElem.parent().offset({ left: 0 });
+      $dialogElem.dialog("option", { width: targetWidth - this.dialogMarginH });
+      if (window.ggbApplet && typeof window.ggbApplet.setWidth === 'function') {
+        window.ggbApplet.setWidth(targetWidth - this.dialogPaddingH - this.dialogMarginH);
+      }
     }
-    if (window.innerHeight < $(dialog_elem).dialog("option", "height")) {
-      var targetHeight = Math.max(dialogMinHeight, window.innerHeight);
-      $(dialog_elem).parent().offset({ top: 0 });
-      $(dialog_elem).dialog("option", { height: targetHeight });
-      window.ggbApplet && ggbApplet.setHeight(targetHeight - dialogPaddingV);
+
+    // Ajustar verticalmente
+    if (parentOffset && (window.innerHeight < dialogHeight + parentOffset.top + this.dialogMarginV)) {
+      $dialogElem.parent().offset({
+        top: window.innerHeight - dialogHeight - this.dialogMarginV
+      });
+    }
+    if (window.innerHeight < dialogHeight) {
+      const targetHeight = Math.max(this.dialogMinHeight, window.innerHeight);
+      $dialogElem.parent().offset({ top: 0 });
+      $dialogElem.dialog("option", { height: targetHeight });
+      if (window.ggbApplet && typeof window.ggbApplet.setHeight === 'function') {
+        window.ggbApplet.setHeight(targetHeight - this.dialogPaddingV);
+      }
     }
   },
 
   toggle() {
-    if ($(this.dialog_elem).dialog("isOpen")) {
-      $(this.dialog_elem).dialog("close");
-      //if applet is initialized open it
+    const $dialog = $(this.dialog_elem);
+    if ($dialog.dialog("isOpen")) {
+      $dialog.dialog("close");
     } else {
-      $(this.dialog_elem).dialog("open");
-      if (window.ggbApplet && ggbApplet.newConstruction) {
-        ggbApplet.newConstruction();
-        this.checkWindowSize();
-      } else {
-        window.ggbOnInit = this.checkWindowSize;
+      $dialog.dialog("open");
+      this.checkWindowSize();
+      if (window.ggbApplet && typeof window.ggbApplet.newConstruction === 'function') {
+        window.ggbApplet.newConstruction();
       }
     }
   },
-})
+});
