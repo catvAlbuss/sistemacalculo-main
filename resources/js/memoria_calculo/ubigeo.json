@@ -1162,8 +1162,8 @@
   },
   {
     "name": "HUANUCO",
-    "zFactor":"2",
-    "seismicZone":"0.25",
+    "seismicZone":"2",
+    "zFactor":"0.25",
     "provinces": [
       {
         "name": "AMBO",

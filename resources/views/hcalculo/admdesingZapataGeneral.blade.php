@@ -291,11 +291,8 @@
               class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
               id="btn_captura_zapata"
               type="button">
-<<<<<<< HEAD
               Generar IMG
-=======
-              Generar Imagen
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
+
             </button>
             <div class="overflow-x-auto" id="zapataGeneral_pdf">
               <div id="resultadosZapataGeneral"></div>

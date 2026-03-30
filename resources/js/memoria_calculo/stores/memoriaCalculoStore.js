@@ -85,8 +85,8 @@ export function createMemoriaCalculoStore() {
         },
         // descripcionesModelo: [""],
         // descripcionesEspectro: ["", ""],
-        descripcionesCargaViva: ["", "", "", ""],
         descripcionesCargaMuerta: ["", "", "", ""],
+        descripcionesCargaViva: ["", "", "", ""],
       },
 
       // Sección 3: Análisis Sísmico
@@ -199,8 +199,8 @@ export function createMemoriaCalculoStore() {
       materialImages: [null, null, null],
       modeloMatematico3DImages: [null],
       espectroPseudoaceleracionesImages: [null, null],
-      metradoCargasImages: [null, null, null, null],
-      cargasAproximadasImages: [null, null, null, null],
+      metradoCargasImages: [null, null, null, null], // 18-21
+      cargasAproximadasImages: [null, null, null, null], // 22-25
       estaticoConsideracionesETABS: [null, null, null], //26-27-28
       dinamicoConsideracionesETABS: [null, null], //29,30
       modosVibracionImages: [null, null, null],
@@ -691,8 +691,6 @@ export function createMemoriaCalculoStore() {
         // Cada vigas tiene un array de 4 imágenes
         this.images.cimentacionImages.push([null, null, null, null, null, null, null, null]);
         this.previews.cimentacionImages.push([null, null, null, null, null, null, null, null]);
-        this.images.cimentacionImages.push([null, null, null, null]);
-        this.previews.cimentacionImages.push([null, null, null, null]);
       }
 
       if (this.images.cimentacionImages.length > cimentacionCount) {

@@ -151,7 +151,7 @@ export class ContentProcessorMC {
     const headerItem = {
         type: "custom-header",
         left: {
-            src: "/assets/img/memoriacalculos/rizabalasociados.png"
+            src: "/assets/img/rizabalasociados.png"
         },
         center: {
             text: cover.project || "MEMORIA DE CÁLCULO",

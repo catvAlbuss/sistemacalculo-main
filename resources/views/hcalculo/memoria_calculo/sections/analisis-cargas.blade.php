@@ -173,6 +173,7 @@
         <div class="space-y-6">
             <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 border-l-4 border-amber-500 pl-3">2.4 METRADO
                 DE CARGAS</h3>
+
             <div
                 class="bg-amber-50 dark:bg-amber-900/10 p-6 rounded-2xl border border-amber-100 dark:border-amber-800 space-y-6">
                 <h4 class="font-bold text-amber-800 dark:text-amber-400">Datos de Carga y Geometría</h4>
@@ -225,10 +226,6 @@
                     <template x-for="i in 4" :key="i">
                         <div class="space-y-2">
                             <div class="flex items-center justify-between">
-<<<<<<< HEAD
-                                <label class="text-xs font-bold" x-text="'Figura ' + (17 + i)"></label>
-                                <!-- BOTON ELIMINAR (JHACK) -->
-=======
                                 {{-- Usar el nombre específico del array --}}
                                 <label class="text-sm font-bold text-gray-700 dark:text-gray-300"
                                     x-text="'Figura ' + (17+i)"></label>
@@ -268,14 +265,13 @@
                             </div>
                             <input
                                 type="text"
-                                x-model="$store.memoriaCalculo.sections.analisisCargas.descripcionesCargaMuerta?.[i-1]"
+                                x-model="$store.memoriaCalculo.sections.analisisCargas.descripcionesCargaMuerta[i-1]"
                                 class="mt-2 w-full rounded-lg border border-gray-300 px-2 py-1 text-xs focus:border-amber-500 outline-none"
                                 :placeholder="'Figura ' + (17+i) + ' - Descripción'" />
                         </div>
                         <!-- <div class="space-y-2">
                             <div class="flex items-center justify-between">
                                 <label class="text-xs font-bold" x-text="'Figura ' + (17 + i)"></label>
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                                 <button type="button" x-show="previews.metradoCargasImages[i-1]"
                                     @click="removeArrayImage('metradoCargasImages', [i-1])"
                                     class="text-red-500 text-xs font-semibold hover:underline flex items-center gap-1">
@@ -309,11 +305,6 @@
                     <template x-for="i in 4" :key="i">
                         <div class="space-y-2">
                             <div class="flex items-center justify-between">
-<<<<<<< HEAD
-                                <label class="text-xs font-bold" x-text="'Figura ' + (21 + i)"></label>
-
-                                <!-- BOTON ELIMINAR (JHACK) -->
-=======
                                 {{-- Usar el nombre específico del array --}}
                                 <label class="text-sm font-bold text-gray-700 dark:text-gray-300"
                                     x-text="'Figura ' + (21+i)"></label>
@@ -353,14 +344,13 @@
                             </div>
                             <input
                                 type="text"
-                                x-model="$store.memoriaCalculo.sections.analisisCargas.descripcionesCargaViva?.[i-1]"
+                                x-model="$store.memoriaCalculo.sections.analisisCargas.descripcionesCargaViva[i-1]"
                                 class="mt-2 w-full rounded-lg border border-gray-300 px-2 py-1 text-xs focus:border-amber-500 outline-none"
                                 :placeholder="'Figura ' + (21+i) + ' - Descripción'" />
                         </div>
                         <!-- <div class="space-y-2">
                             <div class="flex items-center justify-between">
                                 <label class="text-xs font-bold" x-text="'Figura ' + (21 + i)"></label>
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                                 <button type="button" x-show="previews.cargasAproximadasImages[i-1]"
                                     @click="removeArrayImage('cargasAproximadasImages', [i-1])"
                                     class="text-red-500 text-xs font-semibold hover:underline flex items-center gap-1">
