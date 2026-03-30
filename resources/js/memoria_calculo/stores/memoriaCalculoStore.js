@@ -691,6 +691,8 @@ export function createMemoriaCalculoStore() {
         // Cada vigas tiene un array de 4 imágenes
         this.images.cimentacionImages.push([null, null, null, null, null, null, null, null]);
         this.previews.cimentacionImages.push([null, null, null, null, null, null, null, null]);
+        this.images.cimentacionImages.push([null, null, null, null]);
+        this.previews.cimentacionImages.push([null, null, null, null]);
       }
 
       if (this.images.cimentacionImages.length > cimentacionCount) {
