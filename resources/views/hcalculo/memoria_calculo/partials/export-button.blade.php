@@ -1,5 +1,5 @@
 {{-- partials/export-button.blade.php - Botón de exportación con modal --}}
-<div class="mt-8 flex justify-center">
+<!-- <div class="mt-8 flex justify-center">
     <button @click="showValidationModal()" :disabled="isExporting"
         class="group px-8 py-4 rounded-2xl font-bold text-white
         text-lg shadow-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50
@@ -28,7 +28,7 @@
             <span x-text="isExporting ? 'Exportando...' : 'Exportar a Word'"></span>
         </div>
     </button>
-</div>
+</div> -->
 
 {{-- MODAL DE ERRORES --}}
 <div x-show="showErrorModal" 
