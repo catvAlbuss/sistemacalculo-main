@@ -29,7 +29,6 @@ import { vaT1X, vaT1Y } from './placasFormaL/agrietamiento.js';
 import { dcpT1X, dcpT1Y } from './placasFormaL/pureCompressionDesign.js';
 import { ddT1X /* ddT1Y */ } from './placasFormaL/deslizamiento.js';
 import { elT1 } from './placasFormaL/efectoLocal.js';
-import { resolve } from "mathjs";
 
 document.addEventListener('DOMContentLoaded', function () {
   var coll = document.getElementsByClassName('collapsible-btn');
@@ -978,27 +977,28 @@ document.addEventListener('DOMContentLoaded', function () {
       //------Envío de datos (contenedor, solicitaciones de carga, a Diagrama de interacción)--------------
       var contenedorX = document.getElementById('diT1X');
       var contenedorY = document.getElementById('diT1Y');
-      if (tableData1 == []) {
+      // ✅ CORRECCIÓN: Validar correctamente si las tablas están vacías
+      if (!tableData1 || tableData1.length === 0) {
         alert('Llene datos en la tabla 1 X-X de diseño corte');
         return;
       }
-      if (tableData1Y == []) {
+      if (!tableData1Y || tableData1Y.length === 0) {
         alert('Llene datos en la tabla 1 Y-Y de diseño corte');
         return;
       }
-      if (dataTable2x == []) {
+      if (!dataTable2x || dataTable2x.length === 0) {
         alert('Llene datos en la tabla 2 X-X de diseño flexión');
         return;
       }
-      if (dataTable2y == []) {
+      if (!dataTable2y || dataTable2y.length === 0) {
         alert('Llene datos en la tabla 2 Y-Y de diseño flexión');
         return;
       }
-      if (tableData3 == []) {
+      if (!tableData3 || tableData3.length === 0) {
         alert('Llene datos en la tabla 3 X-X de diseño corte');
         return;
       }
-      if (tableData3Y == []) {
+      if (!tableData3Y || tableData3Y.length === 0) {
         alert('Llene datos en la tabla 3 Y-Y de diseño corte');
         return;
       }
