@@ -1,3 +1,4 @@
+import html2canvas from "html2canvas";
 import { makeRoundRenderer } from "./table_model.js";
 
 var irregularidadRigidezPisoBlando = (tb_id) => {
@@ -35,14 +36,14 @@ var irregularidadRigidezPisoBlando = (tb_id) => {
           "∆ Absoluto",
           "∆ Relativo",
           "Vx",
-          'Riguidez Latera "Ki"',
+          'Rígidez Lateral "Ki"',
           "Caso I",
           "Caso II",
-          { label: "VERIFICACIÓN", colspan: 2 },
+          { label: "Verificación", colspan: 2 },
         ],
-        ["", "(m)", "(m)", "(Tonf)", "(Tonf/m)", "", "", "Caso I", "Caso II"],
+        ["-", "(m)", "(m)", "(Tonf)", "(Tonf/m)", "-", "-", "Caso I", "Caso II"],
       ],
-      //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+      colWidths: [100, 100, 100, 100, 100, 80, 80, 200, 200],
       columns: [
         // Story
         { type: "numeric", readOnly: true },
@@ -64,6 +65,10 @@ var irregularidadRigidezPisoBlando = (tb_id) => {
         { type: "text", readOnly: true },
       ],
       minSpareRows: 1,
+      minRows: 1,
+      // rowHeaders: true,
+      contextMenu: true,
+      manualRowMove: true,
     },
   };
 };
@@ -116,11 +121,11 @@ var irregularidadRigidezPisoBlandoExtrema = (tb_id, tb_irrrpb) => {
           'Riguidez Latera "Ki"',
           "Caso I",
           "Caso II",
-          { label: "VERIFICACIÓN", colspan: 2 },
+          { label: "Verificación", colspan: 2 },
         ],
-        ["", "(m)", "(m)", "(Tonf)", "(Tonf/m)", "", "", "Caso I", "Caso II"],
+        ["-", "(m)", "(m)", "(Tonf)", "(Tonf/m)", "-", "-", "Caso I", "Caso II"],
       ],
-      //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+      colWidths: [100, 100, 100, 100, 100, 80, 80, 200, 200],
       columns: [
         // Story
         { type: "numeric", readOnly: true },
@@ -142,6 +147,10 @@ var irregularidadRigidezPisoBlandoExtrema = (tb_id, tb_irrrpb) => {
         { type: "text", readOnly: true },
       ],
       minSpareRows: 1,
+      minRows: 1,
+      // rowHeaders: true,
+      contextMenu: true,
+      manualRowMove: true,
     },
   };
 };
@@ -173,9 +182,9 @@ var irregularidadResistenciaPisoDebil = (tb_id, tb_irrrpb) => {
       nestedHeaders: [
         [{ label: "Irregularidad de Resistencia - Piso Debil", colspan: 6 }],
         ["Story", "Carga", "Ubicación", "Vx", "Caso I", "VERIFICACIÓN"],
-        ["", "", "", "(Tonf)", "", ""],
+        ["-", "-", "-", "(Tonf)", "-", "-"],
       ],
-      //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+      colWidths: [100, 100, 100, 100, 100, 200],
       columns: [
         // Story
         { type: "numeric", readOnly: true },
@@ -226,9 +235,9 @@ var irregularidadResistenciaPisoDebilExtrema = (tb_id, tb_irrrpbe) => {
           },
         ],
         ["Story", "Carga", "Ubicación", "Vx", "Caso I", "VERIFICACIÓN"],
-        ["", "", "", "(Tonf)", "", ""],
+        ["-", "-", "-", "(Tonf)", "-", "-"],
       ],
-      //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+      colWidths: [100, 100, 100, 100, 100, 200],
       columns: [
         // Story
         { type: "numeric", readOnly: true },
@@ -313,7 +322,7 @@ export var irregularidadMasaOPeso = {
   id: "IRRMP",
   formulas: {
     0: (row) => {
-      return `Story${row + 1}`;
+      return `Story_${row}`;
     },
     1: (_) => {
       return "PESO: 100%CM+25%CV";
@@ -344,9 +353,10 @@ export var irregularidadMasaOPeso = {
         "Caso I",
         "VERIFICACIÓN",
       ],
-      ["", "", "", "(Tonf)", "(Tonf)", "", ""],
+      ["-", "-", "-", "(Tonf)", "(Tonf)", "-", "-"],
     ],
-    //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+    colWidths: [100, 220, 90, 110, 110, 100, 200],
+    // rowHeights: [50, 50, 50, 50, 50, 50, 50, 50],
     columns: [
       // Story
       { type: "text", readOnly: true },
@@ -364,6 +374,10 @@ export var irregularidadMasaOPeso = {
       { type: "text", readOnly: true },
     ],
     minSpareRows: 1,
+    minRows: 1,
+    // rowHeaders: true,
+    contextMenu: true,
+    manualRowMove: true,
   },
 };
 irregularidadMasaOPeso.data = [
@@ -380,6 +394,27 @@ irregularidadMasaOPeso.data = [
   [, , , 3973.6687, , ,],
   [, , , 4412.3883, , ,],
 ];
+
+// function actualizarStoryInvertidoIRRMP(hot) {
+//   if (!hot) return;
+
+//   const data = hot.getData();
+
+//   const filasConDatos = data.filter(row =>
+//     row.some(cell => cell !== null && cell !== "")
+//   ).length;
+
+//   for (let r = 0; r < hot.countRows(); r++) {
+//     if (r < filasConDatos) {
+//       hot.setDataAtCell(r, 0, `Story_${filasConDatos - r}`, "story");
+//     } else {
+//       hot.setDataAtCell(r, 0, "", "story");
+//     }
+//   }
+
+//   hot.render();
+// }
+
 export var irregularidadGeometricaVerticalXY = {
   id: "IRRGVXY",
   formulas: {
@@ -397,9 +432,9 @@ export var irregularidadGeometricaVerticalXY = {
   config: {
     nestedHeaders: [
       ["D", "L1", "L2", "L1/L2", "VERIFICACIÓN"],
-      ["", "m", "m", "", ""],
+      ["-", "m", "m", "-", "-"],
     ],
-    //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+    colWidths: [100, 100, 100, 100, 200],
     columns: [
       // Story
       { type: "text", readOnly: true },
@@ -433,9 +468,9 @@ export var irregularidadGeometricaVerticalXXYY = {
   config: {
     nestedHeaders: [
       ["D", "L1", "L2", "L1/L2", "VERIFICACIÓN"],
-      ["", "m", "m", "", ""],
+      ["-", "m", "m", "-", "-"],
     ],
-    //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+    colWidths: [100, 100, 100, 100, 200],
     columns: [
       // Story
       { type: "text", readOnly: true },
@@ -474,9 +509,9 @@ export var DSV1 = {
   config: {
     nestedHeaders: [
       ["Elem", "Vpl", "Vsis", "Vpl/Vsis", "e", "VERIFICACIÓN", "VERIFICACIÓN"],
-      ["", "(PL, C)", "Tonf", "", "", "", "Irregularidad Extrema"],
+      ["-", "(PL, C)", "Tonf", "-", "-", "-", "Irregularidad Extrema"],
     ],
-    //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+    colWidths: [100, 100, 100, 100, 100, 200, 200],
     columns: [
       { type: "text", readOnly: true },
       { type: "numeric" },
@@ -512,9 +547,9 @@ export var DSV2 = {
   config: {
     nestedHeaders: [
       ["Elem", "Vpl", "Vsis", "Vpl/Vsis", "e", "VERIFICACIÓN", "VERIFICACIÓN"],
-      ["", "(PL, C)", "Tonf", "", "", "", "Irregularidad Extrema"],
+      ["-", "(PL, C)", "Tonf", "-", "-", "-", "Irregularidad Extrema"],
     ],
-    //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+    colWidths: [100, 100, 100, 100, 100, 200, 200],
     columns: [
       { type: "text", readOnly: true },
       { type: "numeric" },
@@ -542,10 +577,10 @@ export var irregularidadPlantaGeometricaVerticalXY = {
   ],
   config: {
     nestedHeaders: [
-      ["D", "Le", "LT", "Le/LT", "VERIFICACIÓN"],
-      ["", "(a,b)", "(A,B)", "", ""],
+      ["D", "Le", "LT", "Le/LT", "VERIFICACION"],
+      ["-", "(a,b)", "(A,B)", "-", "-"],
     ],
-    //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+    colWidths: [100, 100, 100, 100, 200],
     columns: [
       // Story
       { type: "text", readOnly: true },
@@ -578,10 +613,10 @@ export var irregularidadPlantaGeometricaVerticalXYXY = {
   ],
   config: {
     nestedHeaders: [
-      ["D", "Le", "LT", "Le/LT", "VERIFICACIÓN"],
-      ["", "(a,b)", "(A,B)", "", ""],
+      ["D", "Le", "LT", "Le/LT", "VERIFICACION"],
+      ["-", "(a,b)", "(A,B)", "-", "-"],
     ],
-    //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+    colWidths: [100, 100, 100, 100, 200],
     columns: [
       // Story
       { type: "text", readOnly: true },
@@ -613,9 +648,9 @@ export var IRRPDDA1 = {
   config: {
     nestedHeaders: [
       ["Area", "A'", "A", `A'/A`, "VERIFICACIÓN"],
-      ["", "(Abertura)", "(Bruta)", "", ""],
+      ["-", "(Abertura)", "(Bruta)", "-", "-"],
     ],
-    //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+    colWidths: [100, 100, 100, 100, 200],
     columns: [
       { type: "text", readOnly: true },
       { type: "numeric" },
@@ -642,9 +677,9 @@ export var IRRPDDD1 = {
   config: {
     nestedHeaders: [
       ["D", "Lr", "L2", `L1/L2`, "VERIFICACIÓN"],
-      ["", "cm", "m", "", ""],
+      ["-", "cm", "m", "-", "-"],
     ],
-    //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+    colWidths: [100, 100, 100, 100, 200],
     columns: [
       { type: "text", readOnly: true },
       { type: "numeric" },
@@ -671,9 +706,9 @@ export var IRRPDDA2 = {
   config: {
     nestedHeaders: [
       ["Area", "A'", "A", `A'/A`, "VERIFICACIÓN"],
-      ["", "(Abertura)", "(Bruta)", "", ""],
+      ["-", "(Abertura)", "(Bruta)", "-", "-"],
     ],
-    //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+    colWidths: [100, 100, 100, 100, 200],
     columns: [
       { type: "text", readOnly: true },
       { type: "numeric" },
@@ -700,9 +735,9 @@ export var IRRPDDD2 = {
   config: {
     nestedHeaders: [
       ["D", "Lr", "L2", `L1/L2`, "VERIFICACIÓN"],
-      ["", "cm", "m", "", ""],
+      ["-", "cm", "m", "-", "-"],
     ],
-    //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+    colWidths: [100, 100, 100, 100, 200],
     columns: [
       { type: "text", readOnly: true },
       { type: "numeric" },
@@ -729,9 +764,9 @@ export var sistemasNoParalelosXY = {
   config: {
     nestedHeaders: [
       ["D", "Vpl", "Vpiso", "Vpl/Vp", "VERIFICACIÓN"],
-      ["", "(Muro)", "Tonf", "", ""],
+      ["-", "(Muro)", "Tonf", "-", "-"],
     ],
-    //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+    colWidths: [100, 100, 100, 100, 200],
     columns: [
       // Story
       { type: "text", readOnly: true },
@@ -765,9 +800,9 @@ export var sistemasNoParalelosXYXY = {
   config: {
     nestedHeaders: [
       ["D", "Le", "LT", "Le/LT", "VERIFICACIÓN"],
-      ["", "(a,b)", "(A,B)", "", ""],
+      ["-", "(a,b)", "(A,B)", "-", "-"],
     ],
-    //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+    colWidths: [100, 100, 100, 100, 200],
     columns: [
       // Story
       { type: "text", readOnly: true },
@@ -810,7 +845,7 @@ export var irregularidadTorsionalXX = {
   config: {
     data: [[]],
     nestedHeaders: [
-      [{ label: "Irregularidad Torsional _ XX", colspan: 9 }],
+      [{ label: "Irregularidad Torsional _ XX", colspan: 10 }],
       [
         "Story",
         "Output",
@@ -823,9 +858,9 @@ export var irregularidadTorsionalXX = {
         "VERIFICACIÓN",
         "VERIFICACIÓN",
       ],
-      ["", "Case", "", "", "", "", "", "", "", "Irregularidad Extrema"],
+      ["-", "Case", "-", "-", "-", "-", "-", "-", "-", "Irregularidad Extrema"],
     ],
-    //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+    colWidths: [50, 100, 130, 100, 130, 100, 100, 100, 200, 200],
     columns: [
       { type: "numeric", readOnly: true },
       { type: "text", readOnly: true },
@@ -839,6 +874,10 @@ export var irregularidadTorsionalXX = {
       { type: "text", readOnly: true },
     ],
     minSpareRows: 1,
+    minRows: 1,
+    // rowHeaders: true,
+    contextMenu: true,
+    manualRowMove: true,
   },
 };
 irregularidadTorsionalXX.data = [
@@ -883,7 +922,7 @@ export var irregularidadTorsionalYY = {
   config: {
     data: [[]],
     nestedHeaders: [
-      [{ label: "Irregularidad Torsional _ YY", colspan: 9 }],
+      [{ label: "Irregularidad Torsional _ YY", colspan: 10 }],
       [
         "Story",
         "Output",
@@ -896,9 +935,9 @@ export var irregularidadTorsionalYY = {
         "VERIFICACIÓN",
         "VERIFICACIÓN",
       ],
-      ["", "Case", "", "", "", "", "", "", "", "Irregularidad Extrema"],
+      ["-", "Case", "-", "-", "-", "-", "-", "-", "-", "Irregularidad Extrema"],
     ],
-    //colWidths: [15, 50, 50, 50, 50, 30, 30, 100, 100],
+    colWidths: [50, 100, 130, 100, 130, 100, 100, 100, 200, 200],
     columns: [
       { type: "numeric", readOnly: true },
       { type: "text", readOnly: true },
@@ -912,6 +951,10 @@ export var irregularidadTorsionalYY = {
       { type: "text", readOnly: true },
     ],
     minSpareRows: 1,
+    minRows: 1,
+    // rowHeaders: true,
+    contextMenu: true,
+    manualRowMove: true,
   },
 };
 irregularidadTorsionalYY.data = [
@@ -928,3 +971,238 @@ irregularidadTorsionalYY.data = [
   [, , , , , 0.0, 0.00064, 1.178, ,],
   [, , , , , 0.0, 0.000124, 1.139, ,],
 ];
+
+// CAPTURA DE IMAGENES
+document.addEventListener("DOMContentLoaded", () => {
+  inicializarCapturasGenerales();
+});
+
+function inicializarCapturasGenerales() {
+  const botones = document.querySelectorAll("[data-capture]");
+
+  botones.forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const tableId = btn.dataset.capture;
+      const wrapperId = `wrap-${tableId}`;
+
+      const nombreArchivo = obtenerNombreTabla(tableId);
+
+      await capturarTablaGeneral(wrapperId, nombreArchivo);
+    });
+  });
+}
+
+function obtenerNombreTabla(id) {
+  const nombres = {
+    // SECCION IRREGULARIDAD EN ALTURA | IA. "K", "V"
+    IRRRIPBX: "Irregularidad_De_Rigidez-Piso_Blando_X",
+    IRRREPBX: "Irregularidad_De_Resistencia-Piso_Débil_X",
+    IRRRIPBY: "Irregularidad_De_Rigidez-Piso_Blando_Y",
+    IRRREPBY: "Irregularidad_De_Resistencia-Piso_Débil_Y",
+
+    IRRRIPBXE: "Irregularidad_De_Rigidez-Piso_Blando_X_Extrema",
+    IRRREPBYE: "Irregularidad_De_Resistencia-Piso_Débil_Y_Extrema",
+
+    // SECCION IRREGULARIDAD EN ALTURA | MASA O PESO
+    IRRMP: "Irregularidad_De_Masa_O_Peso",
+
+    // SECCION IRREGULARIDAD EN ALTURA | IGV, DSR
+    IRRGV: "Altura_Irregularidad_Geometrica_Vertical",
+    DSV: "Altura_Discontinuidad_En_Los_Sistemas_Resistentes",
+
+    // SECCION IRREGULARIDAD EN PLANTA | IGV, DSR
+    IRRPGVXY: "Planta_Irregularidad_Geometrica_Vertical",
+    IRRPDD: "Planta_Discontinuidad_En_Los_Sistemas_Resistentes",
+
+    // SECCION IRREGULARIDAD EN PLANTA | Sistemas No Paralelos
+    SNPXY: "Sistemas_No_Paralelos",
+
+    // SECCION IRREGULARIDAD EN PLANTA | Irregularidad Torsional
+    IRRTXX: "Irregularidad_Torsional_XX",
+    IRRTYY: "Irregularidad_Torsional_YY",
+
+    // SECCION IRREGULARIDAD TORSIONAL
+    D: "Irregularidad_Torsional",
+  };
+
+  return nombres[id] || id;
+}
+
+function limpiarHeadersSobrantes(tablaClon) {
+  const filasHeader = tablaClon.querySelectorAll("thead tr");
+
+  filasHeader.forEach((fila) => {
+    const celdas = Array.from(fila.children);
+
+    for (let i = celdas.length - 1; i >= 0; i--) {
+      const celda = celdas[i];
+      const texto = (celda.textContent || "").trim();
+      const colspan = Number(celda.getAttribute("colspan") || "1");
+      const rowspan = Number(celda.getAttribute("rowspan") || "1");
+
+      const estaVacia = texto === "" || texto === "\u00A0";
+
+      if (estaVacia && colspan === 1 && rowspan === 1) {
+        celda.remove();
+      } else {
+        break;
+      }
+    }
+  });
+}
+
+function estilizarTablaClon(tablaClon) {
+  tablaClon.style.borderCollapse = "collapse";
+  tablaClon.style.background = "#ffffff";
+  tablaClon.style.color = "#111827";
+  tablaClon.style.fontSize = "14px";
+  tablaClon.style.fontFamily = "Arial, sans-serif";
+  tablaClon.style.tableLayout = "auto";
+  tablaClon.style.width = "auto";
+  tablaClon.style.maxWidth = "none";
+
+  tablaClon.querySelectorAll("th, td").forEach((cell) => {
+    cell.style.border = "1px solid #d1d5db";
+    cell.style.padding = "10px 12px";
+    cell.style.lineHeight = "1.4";
+    cell.style.height = "auto";
+    cell.style.minHeight = "34px";
+    cell.style.verticalAlign = "middle";
+    cell.style.whiteSpace = "normal";
+    cell.style.overflow = "visible";
+    cell.style.textOverflow = "clip";
+    cell.style.boxSizing = "border-box";
+  });
+
+  tablaClon.querySelectorAll("th").forEach((th) => {
+    th.style.fontWeight = "700";
+    th.style.background = "#f8fafc";
+    th.style.textAlign = "center";
+    th.style.paddingTop = "12px";
+    th.style.paddingBottom = "12px";
+  });
+}
+
+async function capturarTablaGeneral(wrapperId, nombreArchivo = "tabla") {
+  const elemento = document.getElementById(wrapperId);
+
+  if (!elemento) {
+    console.error(`No se encontró el wrapper con id: ${wrapperId}`);
+    return;
+  }
+
+  try {
+    await document.fonts.ready;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // SOLO tablas principales de Handsontable, evita duplicados
+    const tablasRenderizadas = elemento.querySelectorAll(".ht_master .htCore");
+
+    // Si no encuentra ninguna tabla principal, captura el wrapper normal
+    if (!tablasRenderizadas.length) {
+      const canvas = await html2canvas(elemento, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+        scrollX: 0,
+        scrollY: -window.scrollY,
+        windowWidth: document.documentElement.scrollWidth,
+        windowHeight: document.documentElement.scrollHeight,
+      });
+
+      const link = document.createElement("a");
+      link.download = `${nombreArchivo}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+      return;
+    }
+
+    // Contenedor temporal
+    const clonWrapper = document.createElement("div");
+    clonWrapper.style.position = "fixed";
+    clonWrapper.style.left = "-99999px";
+    clonWrapper.style.top = "0";
+    clonWrapper.style.background = "#ffffff";
+    clonWrapper.style.padding = "24px";
+    clonWrapper.style.width = "max-content";
+    clonWrapper.style.maxWidth = "none";
+    clonWrapper.style.zIndex = "999999";
+    clonWrapper.style.display = "flex";
+    clonWrapper.style.flexDirection = "column";
+    clonWrapper.style.gap = "16px";
+    clonWrapper.style.alignItems = "flex-start";
+
+    tablasRenderizadas.forEach((tablaRenderizada) => {
+      const tablaClon = tablaRenderizada.cloneNode(true);
+
+      limpiarHeadersSobrantes(tablaClon);
+      estilizarTablaClon(tablaClon);
+
+      clonWrapper.appendChild(tablaClon);
+    });
+
+    document.body.appendChild(clonWrapper);
+
+    const canvas = await html2canvas(clonWrapper, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      useCORS: true,
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: clonWrapper.scrollWidth,
+      windowHeight: clonWrapper.scrollHeight,
+    });
+
+    const link = document.createElement("a");
+    link.download = `${nombreArchivo}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+
+    document.body.removeChild(clonWrapper);
+  } catch (error) {
+    console.error("Error al capturar la tabla:", error);
+  }
+}
+
+// MOSTRAR RESULTADO DE IRREGULARIDAD DE RIGIDEZ - PISO BLANDO EN X
+document.addEventListener("DOMContentLoaded", () => {
+  const btnVerificarX = document.getElementById("IRRRIPBXBtn");
+  const resultadoX = document.getElementById("result-IRRREPBX");
+
+  if (btnVerificarX && resultadoX) {
+    btnVerificarX.addEventListener("click", () => {
+      resultadoX.classList.remove("hidden");
+    });
+  }
+});
+
+// MOSTRAR RESULTADO DE IRREGULARIDAD DE RIGIDEZ - PISO BLANDO EN Y
+document.addEventListener("DOMContentLoaded", () => {
+  const btnVerificarX = document.getElementById("IRRRIPBYBtn");
+  const resultadoX = document.getElementById("result-IRRREPBY");
+
+  if (btnVerificarX && resultadoX) {
+    btnVerificarX.addEventListener("click", () => {
+      resultadoX.classList.remove("hidden");
+    });
+  }
+});
+
+// OCULTAR RESULTADO DE IRREGULARIDAD DE RIGIDEZ - PISO BLANDO
+// const btnExtremaX = document.getElementById("IRRRIPBXNext");
+
+// if (btnExtremaX && resultadoX) {
+//     btnExtremaX.addEventListener("click", () => {
+//         resultadoX.classList.add("hidden");
+//     });
+// }
+
+// const content = document.getElementById("content-ia-masa");
+// content.classList.remove("hidden");
+
+// setTimeout(() => {
+//     if (window.irregularidadMasaPeso?.render) {
+//         window.irregularidadMasaPeso.render();
+//         window.irregularidadMasaPeso.refreshDimensions();
+//     }
+// }, 100);
