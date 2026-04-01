@@ -47,7 +47,7 @@ export class ContentProcessorMC {
             children: [
               new ImageRun({
                 data: imageBuffer,
-                transformation: { width: 130, height: 60 },
+                transformation: { width: 140, height: 50 },
               }),
             ],
             spacing: { before: 0, after: 0 },
@@ -63,9 +63,15 @@ export class ContentProcessorMC {
     // Tabla para el header (logo izquierda, texto derecha)
     const headerTable = new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
+      margins: {
+        top: 0, // Margen superior de la tabla (0 para pegar al borde)
+        bottom: 0,
+        left: 0, // Margen izquierdo de la tabla
+        right: 0,
+      },
       borders: {
         top: { style: BorderStyle.NONE },
-        bottom: { style: BorderStyle.SINGLE, size: 6, color: "cccccc" },
+        bottom: { style: BorderStyle.SINGLE, size: 0, color: "cccccc" },
         left: { style: BorderStyle.NONE },
         right: { style: BorderStyle.NONE },
         insideHorizontal: { style: BorderStyle.NONE },
@@ -81,7 +87,7 @@ export class ContentProcessorMC {
               borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE } },
             }),
             new TableCell({
-              width: { size: 80, type: WidthType.PERCENTAGE },
+              width: { size: 60, type: WidthType.PERCENTAGE },
               children: [
                 new Paragraph({
                   alignment: AlignmentType.RIGHT,
@@ -97,12 +103,47 @@ export class ContentProcessorMC {
                 }),
               ],
               verticalAlign: "center",
+              margins: {
+                top: 20,
+                bottom: 20,
+                left: 100, // Mayor margen izquierdo para separar del logo
+                right: 100, // Mayor margen derecho para separar del correo
+              },
+              borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE } },
+            }),
+            new TableCell({
+              width: { size: 20, type: WidthType.PERCENTAGE },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.RIGHT,
+                  children: [
+                    new TextRun({
+                      text: "Correo: rizabalasociados.estructurales@gmail.com\nTélefono: 953992277",
+                      size: 12,
+                      color: "888888",
+                      font: "Arial",
+                    }),
+                  ],
+                  spacing: { before: 0, after: 0 },
+                }),
+              ],
+              verticalAlign: "center",
               borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE } },
             }),
           ],
         }),
       ],
     });
+
+    const headerContent = new Paragraph({
+      children: [headerTable],
+      spacing: {
+        before: 0,
+        after: 0,
+        line: 240,
+      },
+    });
+    
 
     // El resto del documento (Indice + Secciones) en una sección con headers/footers
     const documentChildren = [];
@@ -140,25 +181,25 @@ export class ContentProcessorMC {
     return new Document({
       sections: [
         {
-            properties: {
-                type: SectionType.NEXT_PAGE,
-                pageNumber: {
-                    start: 0,
-                    format: NumberFormat.NONE, // Sin número en portada
-                },
+          properties: {
+            type: SectionType.NEXT_PAGE,
+            pageNumber: {
+              start: 0,
+              format: NumberFormat.NONE, // Sin número en portada
             },
-            // AGREGAR HEADER A LA PORTADA
-            headers: {
-                default: new Header({
-                    children: [headerTable]  // Mismo header que usas en la segunda sección
-                }),
-            },
-            footers: {
-                default: new Footer({
-                    children: [] // Sin footer en portada
-                }),
-            },
-            children: coverChildren,
+          },
+          // AGREGAR HEADER A LA PORTADA
+          headers: {
+            default: new Header({
+              children: [headerContent], // Mismo header que usas en la segunda sección
+            }),
+          },
+          footers: {
+            default: new Footer({
+              children: [], // Sin footer en portada
+            }),
+          },
+          children: coverChildren,
         },
         {
           properties: {
@@ -170,23 +211,7 @@ export class ContentProcessorMC {
           },
           headers: {
             default: new Header({
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: (structure.cover.project || "MEMORIA DE CÁLCULO").toUpperCase(),
-                      size: 14,
-                      color: "888888",
-                      font: "Arial",
-                    }),
-                  ],
-                  alignment: AlignmentType.RIGHT,
-                  spacing: { after: 200 },
-                  border: {
-                    bottom: { color: "cccccc", space: 1, style: "single", size: 6 },
-                  },
-                }),
-              ],
+              children: [headerContent],
             }),
           },
           footers: {
@@ -378,7 +403,7 @@ export class ContentProcessorMC {
 
     return children;
   }
-  
+
   async processSection(section) {
     const elements = [];
     // Solo agregar heading si la sección tiene título y no es la de encabezado

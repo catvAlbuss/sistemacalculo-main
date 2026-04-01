@@ -88,8 +88,8 @@
                 <select x-model="cover.ubigeo.district" @change="updateLocation()" :disabled="!cover.ubigeo.province"
                     class="w-full appearance-none bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100 px-4 py-3 pr-10 rounded-xl shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition duration-200 outline-none disabled:opacity-50 disabled:cursor-not-allowed">
                     <option value="">Seleccione Distrito</option>
-                    <template x-for="dist in districts" :key="dist">
-                        <option :value="dist" x-text="dist"></option>
+                    <template x-for="dist in districts" :key="dist.name">
+                        <option :value="dist.name" x-text="dist.name"></option>
                     </template>
                 </select>
                 <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none">

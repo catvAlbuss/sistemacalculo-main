@@ -130,6 +130,7 @@ export function createMemoriaCalculoStore() {
             "Cimentacion", "Placa"
           ], // Se inicializará en el componente
         },
+        descriptionAlbanieria: "",
       },
 
       // Sección 5: Estructura Metálica
@@ -243,6 +244,7 @@ export function createMemoriaCalculoStore() {
       disenoEscaleraImages: [null, null, null, null, null],
       disenoCisternaImages: [null, null, null, null, null, null],
       disenoSimientoCorridoImages: [null, null, null, null, null, null],
+      disenoAlbanileria: [null, null],
 
       // imagenes de irregularidades 17 img aprox
       irregularidadImages: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], 

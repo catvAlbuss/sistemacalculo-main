@@ -61,56 +61,76 @@ export class DocumentTransformer {
     if (imgIdx === -1) return;
 
     // Obtener datos de ubicación
-    const deptName = this.cover.ubigeo.department || "HUANUCO";
-    const provName = this.cover.ubigeo.province || "HUANUCO";
-    const distSelected = this.cover.ubigeo.district || "";
+    const deptName = this.cover.ubigeo?.department || "HUANUCO";
+    const provName = this.cover.ubigeo?.province || "HUANUCO";
+    const distSelected = this.cover.ubigeo?.district || "";
 
-    // Obtener distritos de la provincia
-    const deptData = this.ubigeoData.find((d) => d.name === deptName);
-    const provData = deptData?.provinces.find((p) => p.name === provName);
+    // Obtener provincia
+    const provData = this.findProvince(deptName, provName);
+
+    // Obtener lista de distritos
     const districtsList =
       provData && Array.isArray(provData.districts) && provData.districts.length > 0
         ? provData.districts
         : [distSelected || "NO DEFINIDO"];
+
+    // Obtener datos sísmicos del distrito seleccionado
+    const seismicData = this.getSeismicData(deptName, provName, distSelected);
+    const zonaSeleccionada = seismicData.zone || "2";
+    const ambitoSeleccionado = seismicData.ambito || "TODOS LOS DISTRITOS";
 
     // Generar filas de tabla
     const tableRows = [];
     districtsList.forEach((district, index) => {
       const row = [];
 
+      const districtName = typeof district === "string" ? district : district.name || "";
+      const isSelected = this.normalizeText(districtName) === this.normalizeText(distSelected);
+
       // Región (Merged)
       if (index === 0) {
-        row.push({ text: deptName, rowSpan: districtsList.length, bold: true });
+        row.push({
+          text: deptName,
+          rowSpan: districtsList.length,
+          bold: true,
+          alignment: "CENTER",
+          verticalAlign: "CENTER",
+        });
       } else {
         row.push({ text: "" });
       }
 
       // Provincia (Merged)
       if (index === 0) {
-        row.push({ text: provName, rowSpan: districtsList.length, bold: true });
+        row.push({
+          text: provName,
+          rowSpan: districtsList.length,
+          bold: true,
+          alignment: "CENTER",
+          verticalAlign: "CENTER",
+        });
       } else {
         row.push({ text: "" });
       }
 
       // Distrito (Coloreado)
       row.push({
-        text: district,
-        color: district === distSelected ? "FF0000" : "000000",
-        bold: district === distSelected,
+        text: districtName,
+        color: isSelected ? "FF0000" : "000000",
+        bold: isSelected,
         alignment: "LEFT",
+        verticalAlign: "CENTER",
       });
 
       // Zona Sísmica (Merged)
       if (index === 0) {
-        const deptData = this.ubigeoData.find((d) => d.name.toUpperCase() === deptName.toUpperCase());
-
-        const zona = deptData?.seismicZone || "2";
-
         row.push({
-          text: zona,
+          text: zonaSeleccionada,
           rowSpan: districtsList.length,
           bold: true,
           size: 24,
+          alignment: "CENTER",
+          verticalAlign: "CENTER",
         });
       } else {
         row.push({ text: "" });
@@ -118,7 +138,13 @@ export class DocumentTransformer {
 
       // Ámbito (Merged)
       if (index === 0) {
-        row.push({ text: "TODOS LOS DISTRITOS", rowSpan: districtsList.length, size: 16 });
+        row.push({
+          text: ambitoSeleccionado,
+          rowSpan: districtsList.length,
+          size: 16,
+          alignment: "CENTER",
+          verticalAlign: "CENTER",
+        });
       } else {
         row.push({ text: "" });
       }
@@ -140,6 +166,86 @@ export class DocumentTransformer {
       ],
       rows: tableRows,
     });
+  }
+
+  normalizeText(value) {
+    return String(value || "")
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[-]/g, " ")
+      .replace(/\s+/g, " ");
+  }
+
+  findDepartment(departmentName) {
+    const deptNorm = this.normalizeText(departmentName);
+
+    return (this.ubigeoData || []).find((d) => this.normalizeText(d.name) === deptNorm);
+  }
+
+  findProvince(departmentName, provinceName) {
+    const dept = this.findDepartment(departmentName);
+    if (!dept) return null;
+
+    const provNorm = this.normalizeText(provinceName);
+
+    return (dept.provinces || []).find((p) => this.normalizeText(p.name) === provNorm);
+  }
+
+  findDistrictData(departmentName, provinceName, districtName) {
+    const province = this.findProvince(departmentName, provinceName);
+    if (!province) return null;
+
+    const distNorm = this.normalizeText(districtName);
+
+    return (
+      (province.districts || []).find((d) => {
+        // por si algún departamento viejo aún tiene strings
+        if (typeof d === "string") {
+          return this.normalizeText(d) === distNorm;
+        }
+        return this.normalizeText(d.name) === distNorm;
+      }) || null
+    );
+  }
+
+  getSeismicData(departmentName, provinceName, districtName) {
+    const zoneFactorMap = {
+      1: "0.10",
+      2: "0.25",
+      3: "0.35",
+      4: "0.45",
+    };
+
+    const districtData = this.findDistrictData(departmentName, provinceName, districtName);
+
+    if (districtData && typeof districtData === "object") {
+      return {
+        zone: String(districtData.zone || "2"),
+        zFactor: String(districtData.zFactor || zoneFactorMap[districtData.zone] || "0.25"),
+        ambito: String(districtData.ambito || "TODOS LOS DISTRITOS"),
+        districtData,
+      };
+    }
+
+    // compatibilidad si algún JSON viejo sigue usando strings
+    const dept = this.findDepartment(departmentName);
+    if (dept) {
+      return {
+        zone: String(dept.seismicZone || "2"),
+        zFactor: String(dept.zFactor || zoneFactorMap[dept.seismicZone] || "0.25"),
+        ambito: "TODOS LOS DISTRITOS",
+        districtData: null,
+      };
+    }
+
+    return {
+      zone: "2",
+      zFactor: "0.25",
+      ambito: "TODOS LOS DISTRITOS",
+      districtData: null,
+    };
   }
 
   // ============================================
@@ -220,18 +326,26 @@ export class DocumentTransformer {
       4: "0.45",
     };
 
+    // const deptName = this.cover.ubigeo?.department || "HUANUCO";
+
+    // // Si en tu ubigeo.json ya agregaste seismicZone y zFactor por departamento
+    // const deptData = (this.ubigeoData || []).find(
+    //   (d) =>
+    //     String(d.name || "")
+    //       .trim()
+    //       .toUpperCase() === String(deptName).trim().toUpperCase(),
+    // );
+
+    // const projectZone = deptData?.seismicZone || String(this.cover.seismicZone || "2");
+    // const projectZFactor = deptData?.zFactor || zoneFactorMap[projectZone] || "0.25";
     const deptName = this.cover.ubigeo?.department || "HUANUCO";
+    const provName = this.cover.ubigeo?.province || "";
+    const distName = this.cover.ubigeo?.district || "";
 
-    // Si en tu ubigeo.json ya agregaste seismicZone y zFactor por departamento
-    const deptData = (this.ubigeoData || []).find(
-      (d) =>
-        String(d.name || "")
-          .trim()
-          .toUpperCase() === String(deptName).trim().toUpperCase(),
-    );
+    const seismicData = this.getSeismicData(deptName, provName, distName);
 
-    const projectZone = deptData?.seismicZone || String(this.cover.seismicZone || "2");
-    const projectZFactor = deptData?.zFactor || zoneFactorMap[projectZone] || "0.25";
+    const projectZone = seismicData.zone || String(this.cover.seismicZone || "2");
+    const projectZFactor = seismicData.zFactor || zoneFactorMap[projectZone] || "0.25";
 
     // Actualizar cover
     this.cover.seismicZone = projectZone;
@@ -786,19 +900,57 @@ export class DocumentTransformer {
       comb23: "α[D + L + (W ó 0,70E) + T]",
     };
 
-    // Obtener combinaciones seleccionadas
-    const combinacionesSeleccionadas = [];
+    // Obtener todas las claves que empiezan con "comb"
+    const todasLasCombs = Object.keys(combinaciones).filter((key) => key.startsWith("comb"));
+
+    // Verificar rangos - CORREGIDO
+    const tieneComb1a9 = todasLasCombs.some((key) => {
+      const num = parseInt(key.replace("comb", ""));
+      return num >= 1 && num <= 9 && combinaciones[key] === true;
+    });
+
+    const tieneComb10a15 = todasLasCombs.some((key) => {
+      const num = parseInt(key.replace("comb", ""));
+      return num >= 10 && num <= 15 && combinaciones[key] === true;
+    });
+
+    const tieneComb16a23 = todasLasCombs.some((key) => {
+      const num = parseInt(key.replace("comb", ""));
+      return num >= 16 && num <= 23 && combinaciones[key] === true;
+    });
+    // Obtener combinaciones seleccionadas por rango
+    const combinaciones1a9 = [];
+    const combinaciones10a15 = [];
+    const combinaciones16a23 = [];
+
     Object.entries(combinaciones).forEach(([key, valor]) => {
       if (valor === true && mapaCombinaciones[key]) {
-        combinacionesSeleccionadas.push(mapaCombinaciones[key]);
+        const num = parseInt(key.replace("comb", ""));
+        if (num >= 1 && num <= 9) {
+          combinaciones1a9.push(mapaCombinaciones[key]);
+        } else if (num >= 10 && num <= 15) {
+          combinaciones10a15.push(mapaCombinaciones[key]);
+        } else if (num >= 16 && num <= 23) {
+          combinaciones16a23.push(mapaCombinaciones[key]);
+        }
       }
     });
 
-    // Agregar lista con las combinaciones seleccionadas
-    if (combinacionesSeleccionadas.length > 0) {
+    // Agregar párrafos y listas según los rangos seleccionados
+    if (tieneComb1a9 || tieneComb10a15 || tieneComb16a23) {
       materialBlocks.push({
         type: "paragraph",
         text: "Para el diseño de los elementos estructurales se utilizarán las siguientes combinaciones de carga según la Norma E.060 del Reglamento Nacional de Edificaciones:",
+        alignment: "JUSTIFIED",
+        spacing: { before: 200 },
+      });
+    }
+
+    // Agregar lista con las combinaciones seleccionadas
+    if (tieneComb1a9) {
+      materialBlocks.push({
+        type: "paragraph",
+        text: "Combinaciones de Carga (Norma E.060)",
         alignment: "JUSTIFIED",
         spacing: { before: 200 },
       });
@@ -806,7 +958,37 @@ export class DocumentTransformer {
       materialBlocks.push({
         type: "list",
         listType: "bullet",
-        items: combinacionesSeleccionadas,
+        items: combinaciones1a9,
+      });
+    }
+
+    if (tieneComb10a15) {
+      materialBlocks.push({
+        type: "paragraph",
+        text: "Cargas, Factores de Cargas y Combinaciones de Carga",
+        alignment: "JUSTIFIED",
+        spacing: { before: 200 },
+      });
+
+      materialBlocks.push({
+        type: "list",
+        listType: "bullet",
+        items: combinaciones10a15,
+      });
+    }
+
+    if (tieneComb16a23) {
+      materialBlocks.push({
+        type: "paragraph",
+        text: "Combinaciones de Carga para diseños por esfuerzo admisibles",
+        alignment: "JUSTIFIED",
+        spacing: { before: 200 },
+      });
+
+      materialBlocks.push({
+        type: "list",
+        listType: "bullet",
+        items: combinaciones16a23,
       });
     }
 
@@ -2137,7 +2319,7 @@ export class DocumentTransformer {
     );
 
     if (listParametros3 !== -1) {
-      let insertPos = listParametros3 +1;
+      let insertPos = listParametros3 + 1;
       if (irregularidadImages[9]) {
         analisisSismico.content.splice(insertPos, 0, {
           type: "image",
@@ -2179,7 +2361,7 @@ export class DocumentTransformer {
     );
 
     if (listPlanta1 !== -1) {
-      let insertPos = listPlanta1 +1;
+      let insertPos = listPlanta1 + 1;
       if (irregularidadImages[11]) {
         analisisSismico.content.splice(insertPos, 0, {
           type: "image",
@@ -2229,7 +2411,7 @@ export class DocumentTransformer {
         i > idx322 &&
         item.type === "list" &&
         item.items[0] &&
-        item.items[0].includes("Irregularidades en planta (TORSIÓN - Según NTE E.030 - 2018)"),
+        item.items[0].includes("Irregularidades en planta (Irregularidad Torsional)"),
     );
 
     if (listPlanta3 !== -1) {
@@ -2250,11 +2432,11 @@ export class DocumentTransformer {
         i > idx322 &&
         item.type === "list" &&
         item.items[0] &&
-        item.items[0].includes("Irregularidades en planta (Irregularidad Torsional)"),
+        item.items[0].includes("Irregularidades en planta (TORSIÓN - Según NTE E.030 - 2018)"),
     );
 
     if (listPlanta4 !== -1) {
-      let insertPos = listPlanta4 +1;
+      let insertPos = listPlanta4 + 1;
       if (irregularidadImages[15]) {
         analisisSismico.content.splice(insertPos, 0, {
           type: "image",
@@ -2656,7 +2838,7 @@ export class DocumentTransformer {
           src: imagen1,
           alt: `${seccion.titulo} - Figura / Esquema`,
           width: 500,
-          height: 350,
+          height: 600,
           caption: `${seccion.titulo} - Figura / Esquema`,
           alignment: "CENTER",
         });
@@ -2678,8 +2860,8 @@ export class DocumentTransformer {
           type: "image",
           src: imagen2,
           alt: `${seccion.titulo} - Tabla / Detalle`,
-          width: 600,
-          height: 500,
+          width: 500,
+          height: 200,
           caption: `${seccion.titulo} - Tabla / Detalle`,
           alignment: "CENTER",
         });
@@ -4197,6 +4379,50 @@ export class DocumentTransformer {
         console.log(`✅ Cimentacion ${index + 1} completada`);
       }
       console.log("✅ Listas e imágenes de vigas insertadas correctamente");
+    }
+
+    // ------------------------------- DISEÑO DE ALBAÑILERIA --------------------------------
+    const idx413 = disenoElementos.content.findIndex(
+      (item) => item.type === "heading" && item.text === "4.13 DISEÑO DE ALBAÑILERIA",
+    );
+    const disenoAlbanileria = this.previews.disenoAlbanileria || [];
+
+    if (idx413 !== -1) {
+      let insertPos = idx413 + 1;
+      console.log(`✅ heading 4.13 DISEÑO DE ALBAÑILERIA encontrada en índice: ${idx413}`);
+      if (disenoAlbanileria[0]) {
+        disenoElementos.content.splice(insertPos, 0, {
+          type: "image",
+          src: disenoAlbanileria[0],
+          width: 500,
+          height: 350,
+          caption: "Diseño albañileria: Figura 1",
+          alignment: "CENTER",
+        });
+        insertPos++;
+      }
+
+      if (disenoAlbanileria[1]) {
+        disenoElementos.content.splice(insertPos, 0, {
+          type: "image",
+          src: disenoAlbanileria[1],
+          width: 500,
+          height: 350,
+          caption: "Diseño albañileria: Figura 2",
+          alignment: "CENTER",
+        });
+        insertPos++;
+      }
+
+      const descriptionAlbanieria = this.sections?.disenoElementos?.descriptionAlbanieria || "";
+
+      if (descriptionAlbanieria !== "") {
+        disenoElementos.content.splice(insertPos, 0, {
+          type: "paragraph",
+          text: descriptionAlbanieria,
+          alignment: "JUSTIFIED",
+        });
+      }
     }
   }
 

@@ -60,6 +60,7 @@ export function createDisenoElementosComponent() {
     showSection410: false,
     showSection411: false,
     showSection412: false,
+    showSection413: false,
 
     // ============================================
     // INICIALIZACIÓN

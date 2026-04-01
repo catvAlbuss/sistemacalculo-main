@@ -926,6 +926,11 @@ export const DEFAULT_MC_STRUCTURE = {
             alignment: "JUSTIFIED",
           },
           // Aqui esta la lista de zapatas con sus respectivas imagenes
+          {
+            type: "heading",
+            level: 2,
+            text: "4.13 DISEÑO DE ALBAÑILERIA",
+          },
         ],
       },
       {

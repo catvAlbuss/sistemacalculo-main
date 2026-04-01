@@ -78,7 +78,7 @@
             </button>
             <!-- NIVEL 2 -->
             <!-- ● DISEÑO DE COLUMNA METALICA -->
-            <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSectiony" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony1 = !showSectiony1" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
@@ -183,7 +183,7 @@
                 </div>
             </div>
             <!-- ●	DISEÑO DE BRIDA SUPERIOR  -->
-            <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSectiony" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony2 = !showSectiony2" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
@@ -287,7 +287,7 @@
                 </div>
             </div>
             <!-- ●	DISEÑO DE BRIDA INFERIOR  -->
-            <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSectiony" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony3 = !showSectiony3" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
@@ -391,7 +391,7 @@
                 </div>
             </div>
             <!-- ●	DISEÑO DE PARANTE -->
-            <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSectiony" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony4 = !showSectiony4" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
@@ -495,7 +495,7 @@
                 </div>
             </div>
             <!-- ●	DISEÑO DE DIAGONAL -->
-            <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSectiony" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony5 = !showSectiony5" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
@@ -599,7 +599,7 @@
                 </div>
             </div>
             <!-- ●	DISEÑO DE CORREA METÁLICA -->
-            <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSectiony" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony6 = !showSectiony6" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">

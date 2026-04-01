@@ -1482,11 +1482,11 @@
                             </div>
                     </div>
                 </div>
-                {{-- Sub-section 3.2.6. Irregularidades en planta (TORSIÓN - Según NTE E.030 - 2018) --}}
+                {{-- Sub-section 3.2.6. Irregularidades en planta (Irregularidad torsional) --}}
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSection326 = !showSection326" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
-                        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Irregularidades en planta (TORSIÓN - Según NTE E.030 - 2018)</span>
+                        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Irregularidad Torsional</span>
                         <svg class="w-4 h-4 text-gray-600 dark:text-gray-400 transition-transform"
                             :class="{ 'rotate-180': showSection326 }" fill="none" stroke="currentColor"
                             viewBox="0 0 24 24">
@@ -1536,11 +1536,11 @@
                         </div>
                     </div>
                 </div>
-                {{-- Sub-section 3.2.7. Irregularidad Torsional --}}
+                {{-- Sub-section 3.2.7. Irregularidad en planta (TORSIÓN - Según NTE E.030 - 2018) --}}
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSection327 = !showSection327" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
-                        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Irregularidad Torsional</span>
+                        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Irregularidades en planta (TORSIÓN - Según NTE E.030 - 2018)</span>
                         <svg class="w-4 h-4 text-gray-600 dark:text-gray-400 transition-transform"
                             :class="{ 'rotate-180': showSection327 }" fill="none" stroke="currentColor"
                             viewBox="0 0 24 24">

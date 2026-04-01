@@ -455,7 +455,7 @@
                 </svg>
             </button>
 
-            <div x-show="showSection44" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSection44" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSection441 = !showSection441" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
@@ -1743,6 +1743,79 @@
                             </template>
                         </div>
                     </template>
+                </div>
+            </div>
+        </div>
+        <!-- SECCION 4.13. DISEÑO DE ALBAÑILERIA -->
+        <div class="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+            <button @click="showSection413 = !showSection413" type="button"
+                class="w-full px-6 py-4 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between hover:from-red-100 hover:to-orange-100 dark:hover:from-red-900/30 dark:hover:to-orange-900/30 transition-all">
+                <div class="flex items-center gap-3">
+                    <span class="font-bold text-gray-900 dark:text-gray-100">4.13.DISEÑO DE ALBAÑILERIA</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">(2 imágenes)</span>
+                </div>
+                <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+
+            <div x-show="showSection413" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+                <div class="space-y-2">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                        {{-- Definir los nombres específicos en un array --}}
+                        <template x-for="(item, idx) in [
+                            { index: 0, nombre: 'FIGURA 1' },
+                            { index: 1, nombre: 'FIGURA 2' },
+                        ]" :key="item.index">
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between">
+                                    {{-- Usar el nombre específico del array --}}
+                                    <label class="text-sm font-bold text-gray-700 dark:text-gray-300"
+                                        x-text="item.nombre"></label>
+                                    <button type="button"
+                                        x-show="previews.disenoAlbanileria[item.index]"
+                                        @click="removeArrayImage('disenoAlbanileria', item.index)"
+                                        class="text-red-500 text-xs font-semibold hover:underline">
+                                        Eliminar
+                                    </button>
+                                </div>
+                                <div class="relative group h-48">
+                                    <template x-if="previews.disenoAlbanileria[item.index]">
+                                        <img :src="previews.disenoAlbanileria[item.index]"
+                                            class="h-full w-full object-contain rounded-xl border-2 border-gray-200 bg-white">
+                                    </template>
+                                    <template x-if="!previews.disenoAlbanileria[item.index]">
+                                        <div class="h-full">
+                                            <input type="file"
+                                                :id="'file_pred_' + item.index"
+                                                @change="handleArrayImageChange('disenoAlbanileria', item.index, $event)"
+                                                class="hidden"
+                                                accept="image/*">
+                                            <label :for="'file_pred_' + item.index"
+                                                @paste="handlePaste($event, 'disenoAlbanileria', item.index)"
+                                                @mouseenter="$el.focus()"
+                                                class="flex flex-col items-center justify-center h-full w-full rounded-xl border-2 border-dashed border-gray-300 cursor-pointer hover:bg-amber-50 transition-all"
+                                                tabindex="0">
+                                                <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                                <span class="text-xs text-gray-500 text-center">
+                                                    Haz clic o <span class="font-semibold text-purple-600">Ctrl+V</span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Detalla la descripcion del diseño de Albañieria</label>
+                    <textarea x-model="$store.memoriaCalculo.sections.disenoElementos.descriptionAlbanieria"
+                        placeholder="Las cargas últimas amplificadas están por debajo de este valor por lo que no sería necesario las verificaciones por flexo compresión (diseño de elementos especiales de borde)..."
+                        class="w-full h-32 bg-gray-50 dark:bg-gray-700/50 border-2 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none resize-none font-mono text-sm"></textarea>
                 </div>
             </div>
         </div>
