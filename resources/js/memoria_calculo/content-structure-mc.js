@@ -1014,12 +1014,6 @@ export const DEFAULT_MC_STRUCTURE = {
         level: 1,
         content: [
           {
-            type: "paragraph",
-            text: "Aquí se insertarán las conclusiones generadas dinámicamente.",
-            alignment: "JUSTIFIED",
-          },
-
-          {
             type: "list",
             listType: "bullet",
             items: [
@@ -1041,11 +1035,6 @@ export const DEFAULT_MC_STRUCTURE = {
         title: "7. RECOMENDACIONES",
         level: 1,
         content: [
-          {
-            type: "paragraph",
-            text: "Aquí se insertarán las recomendaciones generadas dinámicamente.",
-            alignment: "JUSTIFIED",
-          },
           {
             type: "list",
             listType: "bullet",

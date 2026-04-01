@@ -169,7 +169,6 @@
                 </div> -->
             </template>
         </div>
-
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <div class="space-y-3 border border-gray-200 dark:border-gray-700 rounded-xl p-4 bg-gray-50 dark:bg-gray-800/30">
                 <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">

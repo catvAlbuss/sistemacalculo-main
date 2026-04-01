@@ -1114,6 +1114,10 @@
                 <div class="w-full bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-200 dark:border-yellow-700 text-gray-900 dark:text-gray-100 p-3 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none resize-none font-medium">
                     <p class="text-sm text-gray-700 dark:text-gray-300">AVISO IMPORTANTE: Si en caso no detalla el nombre de las secciones no se tomara en cuenta las imagenes que se agregue.</p>
                 </div>
+<<<<<<< HEAD
+=======
+
+>>>>>>> 26ec88517dffb8e35a3859482509f2c6fcd38954
                 <!-- Inputs de número de secciones y texto -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-2">

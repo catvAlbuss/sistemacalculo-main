@@ -1147,393 +1147,132 @@ $(document).ready(function () {
       removeScripts: false, // No eliminar las etiquetas <script>
       copyTagClasses: false, // No copiar las clases de las etiquetas HTML
     });
-
-    const btnCaptura = document.getElementById("btn_captura_columna");
-
-const descargarBlob = (blob, nombre) => {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = nombre;
-  a.click();
-  URL.revokeObjectURL(url);
-};
-
-const dataUrlABlob = async (dataUrl) => {
-  const res = await fetch(dataUrl);
-  return await res.blob();
-};
-
-const blobAImagen = (blob) =>
-  new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(img);
-    };
-    img.onerror = reject;
-    img.src = url;
   });
+});
 
-const descargarEnPartes = async (blob, nombreBase, partes = 3) => {
-  const img = await blobAImagen(blob);
+document.addEventListener("DOMContentLoaded", () => {
+  const btnCaptura = document.getElementById("btn_captura_columna");
 
-  const ancho = img.width;
-  const altoTotal = img.height;
-  const altoParte = Math.ceil(altoTotal / partes);
-  const margen = 100;
+  if (!btnCaptura) return;
 
-  for (let i = 0; i < partes; i++) {
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
+  const descargarBlob = (blob, nombre) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nombre;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
-    const origenY = Math.max(0, i * altoParte - (i === 0 ? 0 : margen));
-    const altoReal = Math.min(altoParte + (i === 0 ? 0 : margen), altoTotal - origenY);
+  const dataUrlABlob = async (dataUrl) => {
+    const res = await fetch(dataUrl);
+    return await res.blob();
+  };
 
-    canvas.width = ancho;
-    canvas.height = altoReal;
-
-    ctx.drawImage(
-      img,
-      0, origenY,
-      ancho, altoReal,
-      0, 0,
-      ancho, altoReal
-    );
-
-    const parteBlob = await new Promise((resolve) =>
-      canvas.toBlob(resolve, "image/png")
-    );
-
-    descargarBlob(parteBlob, `${nombreBase}_Parte_${i + 1}.png`);
-  }
-};
-
-btnCaptura.addEventListener("click", async () => {
-  const textoOriginal = btnCaptura.textContent;
-
-  try {
-    const elemento = document.getElementById("columna_pdf");
-
-    if (!elemento || !elemento.innerHTML.trim()) {
-      alert("Primero debes generar los resultados.");
-      return;
-    }
-
-    btnCaptura.disabled = true;
-    btnCaptura.textContent = "Generando...";
-
-    const canvas = await html2canvas(elemento, {
-      scale: 3,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-      scrollX: 0,
-      scrollY: -window.scrollY,
-      windowWidth: document.documentElement.scrollWidth,
-      windowHeight: document.documentElement.scrollHeight,
-      onclone: (doc) => {
-        const el = doc.getElementById("columna_pdf");
-        if (el) {
-          el.style.margin = "0";
-          el.style.padding = "24px";
-          el.style.height = "auto";
-          el.style.minHeight = "auto";
-          el.style.overflow = "visible";
-          el.style.backgroundColor = "#ffffff";
-          el.style.color = "#000000";
-        }
-
-        doc.body.style.margin = "0";
-        doc.body.style.padding = "0";
-        doc.body.style.backgroundColor = "#ffffff";
-      },
+  const blobAImagen = (blob) =>
+    new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(img);
+      };
+      img.onerror = reject;
+      img.src = url;
     });
 
-    const dataUrl = canvas.toDataURL("image/png");
-    const blob = await dataUrlABlob(dataUrl);
+  const descargarEnPartes = async (blob, nombreBase, partes = 3) => {
+    const img = await blobAImagen(blob);
 
-    await descargarEnPartes(blob, "Diseño_Columna", 3);
+    const ancho = img.width;
+    const altoTotal = img.height;
+    const altoParte = Math.ceil(altoTotal / partes);
+    const margen = 100;
 
-  } catch (error) {
-    console.error("Error al generar la captura:", error);
-    alert("Ocurrió un error al generar la imagen.");
-  } finally {
-    btnCaptura.disabled = false;
-    btnCaptura.textContent = textoOriginal;
-  }
-});
-});
+    for (let i = 0; i < partes; i++) {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
 
-  });
+      const origenY = Math.max(0, i * altoParte - (i === 0 ? 0 : margen));
+      const altoReal = Math.min(altoParte + (i === 0 ? 0 : margen), altoTotal - origenY);
 
-$(document).ready(function () {
-  const capturarTabla = async () => {
-    const btn = document.getElementById("btn_captura_resultado");
-    const elemento = document.getElementById("ObtenerResultadosCol");
+      canvas.width = ancho;
+      canvas.height = altoReal;
 
-    if (!elemento || elemento.innerHTML.trim() === "") {
-      alert("Primero debes generar los resultados.");
-      return;
-    }
-    
-    try {
-      // Deshabilitar botón durante el proceso
-      btn.disabled = true;
-      btn.classList.add("opacity-50", "cursor-not-allowed");
-      btn.textContent = "Generando...";
+      ctx.drawImage(
+        img,
+        0, origenY,
+        ancho, altoReal,
+        0, 0,
+        ancho, altoReal
+      );
 
-      const ahora = new Date();
-      const fecha = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}-${String(
-        ahora.getDate(),
-      ).padStart(2, "0")}_${String(ahora.getHours()).padStart(2, "0")}-${String(ahora.getMinutes()).padStart(
-        2,
-        "0",
-      )}-${String(ahora.getSeconds()).padStart(2, "0")}`;
+      const parteBlob = await new Promise((resolve) =>
+        canvas.toBlob(resolve, "image/png")
+      );
 
-      // ============================================
-      // PARTE 1: CAPTURAR GRÁFICOS COMBINADOS
-      // ============================================
-      const graficosContainer = document.querySelector(".grid.grid-cols-2.gap-4");
-      
-      if (graficosContainer && graficosContainer.querySelectorAll("canvas").length > 0) {
-        console.log("✅ Capturando gráficos...");
-        
-        // Crear contenedor temporal para los gráficos con un ancho fijo mayor
-        const tempGraficosDiv = document.createElement("div");
-        tempGraficosDiv.style.backgroundColor = "#ffffff";
-        tempGraficosDiv.style.padding = "10px";
-        tempGraficosDiv.style.width = "1200px"; // Ancho fijo más grande
-        tempGraficosDiv.style.margin = "0 auto";
-        tempGraficosDiv.style.position = "absolute";
-        tempGraficosDiv.style.left = "-9999px";
-        tempGraficosDiv.style.top = "-9999px";
-        
-        // Título para los gráficos
-        const tituloGraficos = document.createElement("h2");
-        tituloGraficos.textContent = "GRÁFICOS DE DISEÑO";
-        tituloGraficos.style.textAlign = "center";
-        tituloGraficos.style.fontSize = "20px";
-        tituloGraficos.style.fontWeight = "bold";
-        tituloGraficos.style.marginBottom = "20px";
-        tituloGraficos.style.padding = "10px";
-        tituloGraficos.style.backgroundColor = "#ffffff";
-        tituloGraficos.style.color = "#000000";
-        tempGraficosDiv.appendChild(tituloGraficos);
-        
-        // Clonar el contenedor de gráficos
-        const graficosClone = graficosContainer.cloneNode(true);
-        graficosClone.style.display = "flex";
-        graficosClone.style.justifyContent = "space-between";
-        graficosClone.style.gap = "10px";
-        graficosClone.style.width = "100%";
-        
-        // Asegurar que los canvas mantengan su contenido y tengan tamaño adecuado
-        const canvasesOriginales = graficosContainer.querySelectorAll("canvas");
-        const canvasesClonados = graficosClone.querySelectorAll("canvas");
-        
-        for (let i = 0; i < canvasesOriginales.length; i++) {
-          const canvasOriginal = canvasesOriginales[i];
-          const canvasClonado = canvasesClonados[i];
-          
-          if (canvasOriginal && canvasClonado) {
-            // Copiar dimensiones y contenido
-            canvasClonado.width = canvasOriginal.width;
-            canvasClonado.height = canvasOriginal.height;
-            canvasClonado.style.width = "100%";
-            canvasClonado.style.height = "auto";
-            const ctx = canvasClonado.getContext("2d");
-            ctx.drawImage(canvasOriginal, 0, 0);
-          }
-        }
-        
-        tempGraficosDiv.appendChild(graficosClone);
-        document.body.appendChild(tempGraficosDiv);
-        
-        // Esperar renderizado
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        
-        // Capturar gráficos combinados
-        const graficosCanvas = await html2canvas(tempGraficosDiv, {
-          scale: 3,
-          backgroundColor: "#ffffff",
-          logging: false,
-          useCORS: true,
-          windowWidth: tempGraficosDiv.scrollWidth,
-          windowHeight: tempGraficosDiv.scrollHeight,
-        });
-        
-        // Limpiar DOM temporal
-        document.body.removeChild(tempGraficosDiv);
-        
-        // Descargar gráficos combinados
-        const graficosDataUrl = graficosCanvas.toDataURL("image/png");
-        const graficosLink = document.createElement("a");
-        graficosLink.href = graficosDataUrl;
-        graficosLink.download = `Graficos_Combinados_${fecha}.png`;
-        document.body.appendChild(graficosLink);
-        graficosLink.click();
-        document.body.removeChild(graficosLink);
-        
-        console.log("✅ Gráficos combinados descargados");
-      } else {
-        console.warn("⚠️ No se encontraron gráficos para capturar");
-      }
-
-      // ============================================
-      // PARTE 2: CAPTURAR RESULTADOS Y DIVIDIR EN 2 PARTES
-      // ============================================
-      
-      console.log("✅ Capturando resultados...");
-      
-      // Guardar estilos originales
-      const estiloOriginal = elemento.style.cssText;
-      const originalWidth = elemento.style.width;
-      const originalOverflow = elemento.style.overflow;
-      
-      // Crear un contenedor temporal más ancho para la captura
-      const tempContainer = document.createElement("div");
-      tempContainer.style.backgroundColor = "#ffffff";
-      tempContainer.style.padding = "20px";
-      tempContainer.style.width = "1400px"; // Ancho fijo grande para asegurar que todo el contenido quepa
-      tempContainer.style.margin = "0 auto";
-      tempContainer.style.position = "absolute";
-      tempContainer.style.left = "-9999px";
-      tempContainer.style.top = "-9999px";
-      
-      // Clonar el contenido
-      const contenidoClone = elemento.cloneNode(true);
-      contenidoClone.style.width = "100%";
-      contenidoClone.style.overflow = "visible";
-      contenidoClone.style.backgroundColor = "#ffffff";
-      contenidoClone.style.margin = "0";
-      contenidoClone.style.padding = "0";
-      
-      // Mejorar estilos de todas las tablas en el clon
-      const tables = contenidoClone.querySelectorAll("table");
-      tables.forEach((table) => {
-        table.style.width = "100%";
-        table.style.borderCollapse = "collapse";
-        table.style.marginBottom = "10px";
-        table.style.backgroundColor = "#ffffff";
-        table.style.tableLayout = "fixed"; // Para evitar que las tablas se desborden
-      });
-      
-      // Asegurar que las celdas tengan bordes y padding adecuados
-      const cells = contenidoClone.querySelectorAll("td, th");
-      cells.forEach((cell) => {
-        cell.style.border = "1px solid #ddd";
-        cell.style.padding = "8px";
-        cell.style.textAlign = "center";
-        cell.style.wordWrap = "break-word"; // Permitir que el texto se rompa
-      });
-      
-      // Mejorar estilos de los títulos
-      const headers = contenidoClone.querySelectorAll("h1, h2, h3, h4");
-      headers.forEach((header) => {
-        header.style.backgroundColor = "#ffffff";
-        header.style.color = "#000000";
-        header.style.marginTop = "10px";
-        header.style.marginBottom = "10px";
-      });
-      
-      tempContainer.appendChild(contenidoClone);
-      document.body.appendChild(tempContainer);
-      
-      // Esperar renderizado completo
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      // Capturar el contenedor temporal
-      const canvas = await html2canvas(tempContainer, {
-        scale: 3,
-        backgroundColor: "#ffffff",
-        logging: false,
-        useCORS: true,
-        allowTaint: false,
-        windowWidth: tempContainer.scrollWidth,
-        windowHeight: tempContainer.scrollHeight,
-        onclone: (doc) => {
-          // Asegurar estilos en el clon
-          const container = doc.querySelector("div");
-          if (container) {
-            container.style.width = "1400px";
-            container.style.backgroundColor = "#ffffff";
-          }
-        }
-      });
-      
-      // Limpiar DOM temporal
-      document.body.removeChild(tempContainer);
-      
-      // Restaurar estilos originales
-      elemento.style.cssText = estiloOriginal;
-      
-      console.log(`✅ Canvas capturado: ${canvas.width} x ${canvas.height}`);
-      
-      // Verificar si el canvas tiene contenido
-      if (canvas.width === 0 || canvas.height === 0) {
-        throw new Error("El canvas capturado está vacío");
-      }
-
-      // 🔥 DIVIDIR RESULTADOS EN 2 PARTES
-      const partes = 2;
-      const ancho = canvas;
-      const altoTotal = canvas.height;
-      const altoParte = Math.ceil(altoTotal / partes);
-      
-      console.log(`📐 Dividiendo imagen en ${partes} partes, altura total: ${altoTotal}px, altura por parte: ${altoParte}px`);
-      
-      for (let i = 0; i < partes; i++) {
-        const canvasParte = document.createElement("canvas");
-        const ctxParte = canvasParte.getContext("2d");
-        
-        canvasParte.width = ancho;
-        canvasParte.height = altoParte;
-        
-        ctxParte.drawImage(
-          canvas,
-          0,
-          i * altoParte,
-          ancho,
-          altoParte,
-          0,
-          0,
-          ancho,
-          altoParte
-        );
-        
-        const dataUrl = canvasParte.toDataURL("image/png");
-        
-        // Verificar que la parte no esté vacía
-        if (dataUrl === "data:," || canvasParte.width === 0 || canvasParte.height === 0) {
-          console.warn(`⚠️ Parte ${i + 1} está vacía`);
-          continue;
-        }
-        
-        const link = document.createElement("a");
-        link.href = dataUrl;
-        link.download = `Resultados_Parte_${i + 1}_de_2_${fecha}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        console.log(`✅ Parte ${i + 1} de ${partes} descargada (${canvasParte.width} x ${canvasParte.height})`);
-      }
-      
-      alert("✅ Imágenes descargadas exitosamente (1 gráfico combinado + 2 partes de resultados)");
-      
-    } catch (error) {
-      console.error("Error al generar la captura:", error);
-      alert("Ocurrió un error al generar la imagen: " + error.message);
-    } finally {
-      // Restaurar el botón
-      btn.disabled = false;
-      btn.classList.remove("opacity-50", "cursor-not-allowed");
-      btn.textContent = "Generar IMG";
+      descargarBlob(parteBlob, `${nombreBase}_Parte_${i + 1}.png`);
     }
   };
-  
-  // Asignar el evento al botón
-  document.getElementById("btn_captura_resultado").addEventListener("click", capturarTabla);
+
+  btnCaptura.addEventListener("click", async () => {
+    const textoOriginal = btnCaptura.textContent;
+
+    try {
+      const elemento = document.getElementById("columna_pdf");
+
+      if (!elemento || !elemento.innerHTML.trim()) {
+        alert("Primero debes generar los resultados.");
+        return;
+      }
+
+      btnCaptura.disabled = true;
+      btnCaptura.textContent = "Generando...";
+
+      const rect = elemento.getBoundingClientRect();
+
+      const canvas = await html2canvas(elemento, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        scrollX: 0,
+        scrollY: -window.scrollY,
+        windowWidth: document.documentElement.scrollWidth,
+        windowHeight: document.documentElement.scrollHeight,
+        onclone: (doc) => {
+          const el = doc.getElementById("columna_pdf");
+          if (el) {
+            el.style.margin = "0";
+            el.style.padding = "24px";
+            el.style.height = "auto";
+            el.style.minHeight = "auto";
+            el.style.overflow = "visible";
+            el.style.backgroundColor = "#ffffff";
+            el.style.color = "#000000";
+          }
+
+          // 🔥 OCULTAR BOTONES
+          doc.querySelectorAll("button").forEach(btn => {
+            btn.style.display = "none";
+          });
+
+          doc.body.style.margin = "0";
+          doc.body.style.padding = "0";
+          doc.body.style.backgroundColor = "#ffffff";
+        },
+      });
+
+      const dataUrl = canvas.toDataURL("image/png");
+      const blob = await dataUrlABlob(dataUrl);
+
+      await descargarEnPartes(blob, "Diseño_Columna", 3);
+    } catch (error) {
+      console.error("Error al generar la captura:", error);
+      alert("Ocurrió un error al generar la imagen.");
+    } finally {
+      btnCaptura.disabled = false;
+      btnCaptura.textContent = textoOriginal;
+    }
+  });
 });

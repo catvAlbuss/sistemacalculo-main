@@ -36,6 +36,42 @@ export class DocumentTransformer {
     this.renumerarSeccionesFinales(structure);
   }
 
+  // JHACK
+  // getSeismicDataByDepartment(departmentName) {
+  //   const seismicZoneByDepartment = {
+  //     AMAZONAS: { zone: "2", factor: "0.25" },
+  //     ANCASH: { zone: "4", factor: "0.45" },
+  //     APURIMAC: { zone: "3", factor: "0.35" },
+  //     AREQUIPA: { zone: "4", factor: "0.45" },
+  //     AYACUCHO: { zone: "3", factor: "0.35" },
+  //     CAJAMARCA: { zone: "2", factor: "0.25" },
+  //     CALLAO: { zone: "4", factor: "0.45" },
+  //     CUSCO: { zone: "3", factor: "0.35" },
+  //     HUANCAVELICA: { zone: "4", factor: "0.45" },
+  //     HUANUCO: { zone: "2", factor: "0.25" },
+  //     ICA: { zone: "4", factor: "0.45" },
+  //     JUNIN: { zone: "2", factor: "0.25" },
+  //     "LA LIBERTAD": { zone: "3", factor: "0.35" },
+  //     LAMBAYEQUE: { zone: "4", factor: "0.45" },
+  //     LIMA: { zone: "4", factor: "0.45" },
+  //     LORETO: { zone: "1", factor: "0.10" },
+  //     "MADRE DE DIOS": { zone: "2", factor: "0.25" },
+  //     MOQUEGUA: { zone: "4", factor: "0.45" },
+  //     PASCO: { zone: "2", factor: "0.25" },
+  //     PIURA: { zone: "4", factor: "0.45" },
+  //     PUNO: { zone: "2", factor: "0.25" },
+  //     "SAN MARTIN": { zone: "2", factor: "0.25" },
+  //     TACNA: { zone: "4", factor: "0.45" },
+  //     TUMBES: { zone: "4", factor: "0.45" },
+  //     UCAYALI: { zone: "2", factor: "0.25" },
+  //   };
+  //   const dept = String(departmentName || "")
+  //     .trim()
+  //     .toUpperCase();
+  //   return seismicZoneByDepartment[dept] || { zone: "2", factor: "0.25" };
+  // }
+  // end
+
   /**
    * Encuentra el índice del siguiente heading después de startIdx
    */
@@ -85,7 +121,8 @@ export class DocumentTransformer {
       const row = [];
 
       const districtName = typeof district === "string" ? district : district.name || "";
-      const isSelected = this.normalizeText(districtName) === this.normalizeText(distSelected);
+      const isSelected =
+        this.normalizeText(districtName) === this.normalizeText(distSelected);
 
       // Región (Merged)
       if (index === 0) {
@@ -346,6 +383,7 @@ export class DocumentTransformer {
 
     const projectZone = seismicData.zone || String(this.cover.seismicZone || "2");
     const projectZFactor = seismicData.zFactor || zoneFactorMap[projectZone] || "0.25";
+
 
     // Actualizar cover
     this.cover.seismicZone = projectZone;
@@ -3325,7 +3363,7 @@ export class DocumentTransformer {
           src: disenoLosaNervada2Images[2],
           alignment: "CENTER",
           width: 500,
-          height: 700,
+          height: 800,
           caption: "",
         });
       }
@@ -3357,7 +3395,7 @@ export class DocumentTransformer {
           src: disenoLosaNervada2Images[4],
           alignment: "CENTER",
           width: 500,
-          height: 700,
+          height: 800,
           caption: "",
         });
       }

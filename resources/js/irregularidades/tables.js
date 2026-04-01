@@ -46,7 +46,7 @@ var irregularidadRigidezPisoBlando = (tb_id) => {
       colWidths: [100, 100, 100, 100, 100, 80, 80, 200, 200],
       columns: [
         // Story
-        { type: "numeric", readOnly: true },
+        { type: "numeric", readOnly: false },
         // Absoluto(m)
         { type: "numeric" },
         // Relativo(m)
@@ -128,7 +128,7 @@ var irregularidadRigidezPisoBlandoExtrema = (tb_id, tb_irrrpb) => {
       colWidths: [100, 100, 100, 100, 100, 80, 80, 200, 200],
       columns: [
         // Story
-        { type: "numeric", readOnly: true },
+        { type: "numeric", readOnly: false },
         // Absoluto(m)
         { type: "numeric", readOnly: true },
         // Relativo(m)
@@ -187,7 +187,7 @@ var irregularidadResistenciaPisoDebil = (tb_id, tb_irrrpb) => {
       colWidths: [100, 100, 100, 100, 100, 200],
       columns: [
         // Story
-        { type: "numeric", readOnly: true },
+        { type: "numeric", readOnly: false },
         // Carga
         { type: "text", readOnly: true },
         // Ubicación
@@ -240,7 +240,7 @@ var irregularidadResistenciaPisoDebilExtrema = (tb_id, tb_irrrpbe) => {
       colWidths: [100, 100, 100, 100, 100, 200],
       columns: [
         // Story
-        { type: "numeric", readOnly: true },
+        { type: "numeric", readOnly: false },
         // Carga
         { type: "text", readOnly: true },
         // Ubicación
@@ -359,7 +359,7 @@ export var irregularidadMasaOPeso = {
     // rowHeights: [50, 50, 50, 50, 50, 50, 50, 50],
     columns: [
       // Story
-      { type: "text", readOnly: true },
+      { type: "text", readOnly: false },
       // Output Case
       { type: "text", readOnly: true },
       // Location
@@ -619,7 +619,7 @@ export var irregularidadPlantaGeometricaVerticalXYXY = {
     colWidths: [100, 100, 100, 100, 200],
     columns: [
       // Story
-      { type: "text", readOnly: true },
+      { type: "text", readOnly: false },
       // Output Case
       { type: "numeric" },
       // Location
@@ -769,7 +769,7 @@ export var sistemasNoParalelosXY = {
     colWidths: [100, 100, 100, 100, 200],
     columns: [
       // Story
-      { type: "text", readOnly: true },
+      { type: "text", readOnly: false },
       // Output Case
       { type: "numeric" },
       // Location
@@ -805,7 +805,7 @@ export var sistemasNoParalelosXYXY = {
     colWidths: [100, 100, 100, 100, 200],
     columns: [
       // Story
-      { type: "text", readOnly: true },
+      { type: "text", readOnly: false },
       // Output Case
       { type: "numeric" },
       // Location

@@ -298,7 +298,6 @@ export class ContentProcessorMC {
         }),
       );
     }
-
     // Nombre del Proyecto (Más prominente)
     children.push(
       new Paragraph({
