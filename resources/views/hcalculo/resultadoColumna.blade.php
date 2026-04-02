@@ -1012,13 +1012,13 @@
                                         $ag = $L1 * $L2;
                                         $Igx = ($L1 * pow($L2, 3)) / 12;
                                         $Igy = ($L2 * pow($L1, 3)) / 12;
-                                        $rx = round(sqrt($Igx / $ag), 2, PHP_ROUND_HALF_UP);
-                                        $ry = round(sqrt($Igy / $ag), 2, PHP_ROUND_HALF_UP);
+                                        $rx = $ag != 0 ? round(sqrt($Igx / $ag), 2, PHP_ROUND_HALF_UP) : 0;
+                                        $ry = $ag != 0 ? round(sqrt($Igy / $ag), 2, PHP_ROUND_HALF_UP) : 0;
 
-                                        $klu = round(($CDEZ * ($H * 100)) / $rx, 2, PHP_ROUND_HALF_UP);
+                                        $klu = $rx != 0 ? round(($CDEZ * ($H * 100)) / $rx, 2, PHP_ROUND_HALF_UP) : 0;
                                         $klu_values[] = $klu;
 
-                                        $kluy = round(($CDEZ * ($H * 100)) / $ry, 2, PHP_ROUND_HALF_UP);
+                                        $kluy = $ry != 0 ? round(($CDEZ * ($H * 100)) / $ry, 2, PHP_ROUND_HALF_UP) : 0;
                                         $kluy_values[] = $kluy;
 
                                         if ($klu < 100) {
@@ -1149,8 +1149,8 @@
                                         $m1tony = min($muylMax_value, $muy2Max_value);
                                         $m2tony = abs(max($muylMax_value, $muy2Max_value));
 
-                                        $m1m2 = round($m1ton / $m2ton, 2, PHP_ROUND_HALF_DOWN);
-                                        $m1m2y = round($m1tony / $m2tony, 2, PHP_ROUND_HALF_DOWN);
+                                        $m1m2 = $m2ton != 0 ? round($m1ton / $m2ton, 2, PHP_ROUND_HALF_DOWN) : 0;
+                                        $m1m2y = $m2tony != 0 ? round($m1tony / $m2tony, 2, PHP_ROUND_HALF_DOWN) : 0;
 
                                         if ($m1m2 < 0) {
                                             $tipflexion = 'Curvatura Doble';
@@ -1164,16 +1164,16 @@
                                             $tipflexiony = 'Curvatura Simple';
                                         }
 
-                                        if (34 - 12 * ($m1ton / $m2ton) > 40) {
+                                        if ($m2ton != 0 && (34 - 12 * ($m1ton / $m2ton)) > 40) {
                                             $calmm = 40;
                                         } else {
-                                            $calmm = 34 - 12 * ($m1ton / $m2ton);
+                                            $calmm = $m2ton != 0 ? (34 - 12 * ($m1ton / $m2ton)) : 40;
                                         }
 
-                                        if (34 - 12 * ($m1tony / $m2tony) > 40) {
+                                        if ($m2tony != 0 && (34 - 12 * ($m1tony / $m2tony)) > 40) {
                                             $calmmy = 40;
                                         } else {
-                                            $calmmy = 34 - 12 * ($m1tony / $m1tony);
+                                            $calmmy = $m2tony != 0 ? (34 - 12 * ($m1tony / $m2tony)) : 40;
                                         }
 
                                         if ($tipoEstructuraX[$piso_num] == 'Con Desplazamiento Lateral') {
@@ -1203,44 +1203,44 @@
 
                                         //XX
                                         if ($tipoEstructuraX[$piso_num] == 'Sin Desplazamiento Lateral') {
-                                            $bd = round(
+                                            $bd = $valor_piso_actual != 0 ? round(
                                                 max(
                                                     1.4 * $datos_piso_p[0] + 1.7 * $datos_piso_p[1],
                                                     1.25 * ($datos_piso_p[0] + $datos_piso_p[1]),
                                                 ) / $valor_piso_actual,
                                                 2,
                                                 PHP_ROUND_HALF_UP,
-                                            );
+                                            ) : 0;
                                         } else {
-                                            $bd = round(
+                                            $bd = $max_pisovux_value != 0 ? round(
                                                 max(
                                                     1.4 * $datos_piso_vx[0] + 1.7 * $datos_piso_vx[1],
                                                     1.25 * ($datos_piso_vx[0] + $datos_piso_vx[1]),
                                                 ) / $max_pisovux_value,
                                                 2,
                                                 PHP_ROUND_HALF_UP,
-                                            );
+                                            ) : 0;
                                         }
 
                                         //YY
                                         if ($tipoEstructuraY[$piso_num] == 'Sin Desplazamiento Lateral') {
-                                            $bdy = round(
+                                            $bdy = $valor_piso_actualyy != 0 ? round(
                                                 max(
                                                     1.4 * $datos_piso_p[0] + 1.7 * $datos_piso_p[1],
                                                     1.25 * ($datos_piso_p[0] + $datos_piso_p[1]),
                                                 ) / $valor_piso_actualyy,
                                                 2,
                                                 PHP_ROUND_HALF_UP,
-                                            );
+                                            ) : 0;
                                         } else {
-                                            $bdy = round(
+                                            $bdy = $max_pisoVy_value != 0 ? round(
                                                 max(
                                                     1.4 * $datos_piso_vy[0] + 1.7 * $datos_piso_vy[1],
                                                     1.25 * ($datos_piso_vy[0] + $datos_piso_vy[1]),
                                                 ) / $max_pisoVy_value,
                                                 2,
                                                 PHP_ROUND_HALF_UP,
-                                            );
+                                            ) : 0;
                                         }
 
                                         ///////////////-XX-EL////////////////////
@@ -1254,7 +1254,7 @@
                                         if ($veresbeltez == 'No Considerar Efectos de Esbeltez') {
                                             $pcton = '-';
                                         } else {
-                                            $pcton = (pow(pi(), 2) * $elton) / pow($CDEZ * $H, 2);
+                                            $pcton = ($CDEZ * $H) != 0 ? (pow(pi(), 2) * $elton) / pow($CDEZ * $H, 2) : 0;
                                         }
                                         ///////////////-XX-m2min////////////////////
                                         if ($veresbeltez == 'No Considerar Efectos de Esbeltez') {
@@ -1266,7 +1266,7 @@
                                         if ($veresbeltez == 'No Considerar Efectos de Esbeltez') {
                                             $cm = '-';
                                         } else {
-                                            if (0.6 + 0.4 * ($m1ton / $m2ton) >= 0.4) {
+                                            if ($m2ton != 0 && (0.6 + 0.4 * ($m1ton / $m2ton)) >= 0.4) {
                                                 $cm = 0.6 + 0.4 * ($m1ton / $m2ton);
                                             } else {
                                                 $cm = 0.4;
@@ -1276,8 +1276,9 @@
                                         if ($veresbeltez == 'No Considerar Efectos de Esbeltez') {
                                             $ns = 1;
                                         } else {
-                                            if ($cm / (1 - $valor_piso_actual / (0.75 * $pcton)) >= 1) {
-                                                $ns = $cm / (1 - $valor_piso_actual / (0.75 * $pcton));
+                                            $denom_ns = 1 - $valor_piso_actual / (0.75 * $pcton);
+                                            if ($denom_ns != 0 && $cm / $denom_ns >= 1) {
+                                                $ns = $cm / $denom_ns;
                                             } else {
                                                 $ns = 1;
                                             }
@@ -1298,7 +1299,7 @@
                                         if ($veresbeltezy == 'No Considerar Efectos de Esbeltez') {
                                             $pctony = '-';
                                         } else {
-                                            $pctony = (pow(pi(), 2) * $eltony) / pow(1 * $H, 2);
+                                            $pctony = $H != 0 ? (pow(pi(), 2) * $eltony) / pow(1 * $H, 2) : 0;
                                         }
 
                                         ///////////////-XX-m2min////////////////////
@@ -1311,7 +1312,7 @@
                                         if ($veresbeltezy == 'No Considerar Efectos de Esbeltez') {
                                             $cmy = '-';
                                         } else {
-                                            if (0.6 + 0.4 * ($m1tony / $m2tony) >= 0.4) {
+                                            if ($m2tony != 0 && (0.6 + 0.4 * ($m1tony / $m2tony)) >= 0.4) {
                                                 $cmy = 0.6 + 0.4 * ($m1tony / $m2tony);
                                             } else {
                                                 $cmy = 0.4;
@@ -1321,8 +1322,9 @@
                                         if ($veresbeltezy == 'No Considerar Efectos de Esbeltez') {
                                             $nsy = 1;
                                         } else {
-                                            if ($cmy / (1 - $valor_piso_actualyy / (0.75 * $pctony)) >= 1) {
-                                                $nsy = $cmy / (1 - $valor_piso_actualyy / (0.75 * $pctony));
+                                            $denom_nsy = 1 - $valor_piso_actualyy / (0.75 * $pctony);
+                                            if ($denom_nsy != 0 && $cmy / $denom_nsy >= 1) {
+                                                $nsy = $cmy / $denom_nsy;
                                             } else {
                                                 $nsy = 1;
                                             }
@@ -1475,8 +1477,9 @@
                                                 break;
 
                                             default:
-                                                if (1 / (1 - $indiceQX[$piso_num]) >= 1) {
-                                                    $os1 = round(1 / (1 - $indiceQX[$piso_num]), 2, PHP_ROUND_HALF_UP);
+                                                $denom_os1 = 1 - $indiceQX[$piso_num];
+                                                if ($denom_os1 != 0 && 1 / $denom_os1 >= 1) {
+                                                    $os1 = round(1 / $denom_os1, 2, PHP_ROUND_HALF_UP);
                                                 } else {
                                                     $os1 = 1;
                                                 }
@@ -1488,8 +1491,9 @@
                                                 break;
 
                                             default:
-                                                if (1 / (1 - $indiceQY[$piso_num]) >= 1) {
-                                                    $os1y = round(1 / (1 - $indiceQY[$piso_num]), 2, PHP_ROUND_HALF_UP);
+                                                $denom_os1y = 1 - $indiceQY[$piso_num];
+                                                if ($denom_os1y != 0 && 1 / $denom_os1y >= 1) {
+                                                    $os1y = round(1 / $denom_os1y, 2, PHP_ROUND_HALF_UP);
                                                 } else {
                                                     $os1y = 1;
                                                 }
@@ -1502,35 +1506,36 @@
                                         // $rx = round(sqrt($Igx / $ag), 2, PHP_ROUND_HALF_UP);
                                         // $ry = round(sqrt($Igy / $ag), 2, PHP_ROUND_HALF_UP);
                                         $ECmmedl = 15000 * sqrt($fc);
-                                        $pcmmedlx = round(
+                                        $pcmmedlx = (1 + $bd) != 0 && $H != 0 ? round(
                                             (pow(PI(), 2) * ((0.4 * $ECmmedl * $Igx) / (1 + $bd) / pow(10, 7))) /
                                                 pow(1 * $H, 2),
                                             2,
                                             PHP_ROUND_HALF_UP,
-                                        );
+                                        ) : 0;
 
-                                        $pcmmedly = round(
+                                        $pcmmedly = (1 + $bdy) != 0 && $H != 0 ? round(
                                             (pow(PI(), 2) * ((0.4 * $ECmmedl * $Igx) / (1 + $bdy) / pow(10, 7))) /
                                                 pow(1 * $H, 2),
                                             2,
                                             PHP_ROUND_HALF_UP,
-                                        );
+                                        ) : 0;
 
                                         $Epcx = round(27298.4031512411, 2, PHP_ROUND_HALF_UP);
                                         $Epcy = '-';
                                         $os2x =
                                             $verez == 'No Considerar Efectos de Esbeltez'
                                                 ? '-'
-                                                : max(1 / (1 - $LArx[$piso_num] / (0.75 * $Epcx)), 1);
+                                                : (($Epcx != 0 && (1 - $LArx[$piso_num] / (0.75 * $Epcx)) != 0) ? max(1 / (1 - $LArx[$piso_num] / (0.75 * $Epcx)), 1) : 1);
 
-                                        if ($Epcy === '-') {
+                                        if ($Epcy === '-' || $Epcy == 0) {
                                             $os2y = '-';
                                         } else {
+                                            $denom_os2y = 1 - $LAry[$piso_num] / (0.75 * $Epcy);
                                             $os2y =
                                                 $verezy == 'No Considerar Efectos de Esbeltez'
                                                     ? '-'
-                                                    : max(1 / (1 - $LAry[$piso_num] / (0.75 * $Epcy)), 1);
-                                            $os2y = round($os2y, 2);
+                                                    : ($denom_os2y != 0 ? max(1 / $denom_os2y, 1) : 1);
+                                            $os2y = $os2y !== '-' ? round($os2y, 2) : $os2y;
                                         }
 
                                         if ($verez == 'No Considerar Efectos de Esbeltez') {
@@ -1558,41 +1563,43 @@
                                         if ($verez == 'No Considerar Efectos de Esbeltez') {
                                             $lurx = '-';
                                         } else {
-                                            $lurx = ($H * 100) / $rx;
+                                            $lurx = $rx != 0 ? ($H * 100) / $rx : 0;
                                         }
 
                                         if ($verezy == 'No Considerar Efectos de Esbeltez') {
                                             $lury = '-';
                                         } else {
-                                            $lury = ($H * 100) / $ry;
+                                            $lury = $ry != 0 ? ($H * 100) / $ry : 0;
                                         }
 
                                         //====================================raizl pu==================//
                                         if ($verez == 'No Considerar Efectos de Esbeltez') {
                                             $raizpux = '-';
                                         } else {
-                                            $raizpux = round(
-                                                sqrt(($valor_piso_actual * 1000) / ($ag * $fc)),
+                                            $denom_raizpux = $ag * $fc;
+                                            $raizpux = $denom_raizpux != 0 ? round(
+                                                sqrt(($valor_piso_actual * 1000) / $denom_raizpux),
                                                 3,
                                                 PHP_ROUND_HALF_UP,
-                                            );
+                                            ) : 0;
                                         }
 
                                         if ($verezy == 'No Considerar Efectos de Esbeltez') {
                                             $raizpuy = '-';
                                         } else {
-                                            $raizpuy = round(
-                                                sqrt(($valor_piso_actualyy * 1000) / ($ag * $fc)),
+                                            $denom_raizpuy = $ag * $fc;
+                                            $raizpuy = $denom_raizpuy != 0 ? round(
+                                                sqrt(($valor_piso_actualyy * 1000) / $denom_raizpuy),
                                                 3,
                                                 PHP_ROUND_HALF_UP,
-                                            );
+                                            ) : 0;
                                         }
 
                                         //==============================VERIFICACION DEL ARTICULO 10 ==================//
                                         if ($verez == 'No Considerar Efectos de Esbeltez') {
                                             $verificacionArticuloX = '-';
                                         } else {
-                                            if ($lurx > 35 / $raizpux) {
+                                            if ($raizpux != 0 && $lurx > 35 / $raizpux) {
                                                 $verificacionArticuloX = 'Si Cumple, Aplicar';
                                             } else {
                                                 $verificacionArticuloX = 'No Cumple, No Aplicar';
@@ -1602,8 +1609,8 @@
                                         if ($verezy == 'No Considerar Efectos de Esbeltez') {
                                             $verificacionArticuloY = '-';
                                         } else {
-                                            if ($lury > 35 / $raizpuy) {
-                                                $verificacionArticuloX = 'Si Cumple, Aplicar';
+                                            if ($raizpuy != 0 && $lury > 35 / $raizpuy) {
+                                                $verificacionArticuloY = 'Si Cumple, Aplicar';
                                             } else {
                                                 $verificacionArticuloY = 'No Cumple, No Aplicar';
                                             }
@@ -1655,20 +1662,20 @@
                                         if ($verez == 'No Considerar Efectos de Esbeltez') {
                                             $Cmverfx = '-';
                                         } else {
-                                            if ($verificacionArticuloX = 'No Cumple, No Aplicar') {
+                                            if ($verificacionArticuloX == 'No Cumple, No Aplicar') {
                                                 $Cmverfx = '-';
                                             } else {
-                                                $Cmverfx = max(0.6 + 0.4 * ($m1tonx / $m2tonx), 0.4);
+                                                $Cmverfx = $m2tonx != 0 ? max(0.6 + 0.4 * ($m1tonx / $m2tonx), 0.4) : 0.4;
                                             }
                                         }
 
                                         if ($verezy == 'No Considerar Efectos de Esbeltez') {
                                             $Cmverfxy = '-';
                                         } else {
-                                            if ($verificacionArticuloX = 'No Cumple, No Aplicar') {
+                                            if ($verificacionArticuloY == 'No Cumple, No Aplicar') {
                                                 $Cmverfxy = '-';
                                             } else {
-                                                $Cmverfxy = max(0.6 + 0.4 * ($m1tony / $m2tony), 0.4);
+                                                $Cmverfxy = $m2tony != 0 ? max(0.6 + 0.4 * ($m1tony / $m2tony), 0.4) : 0.4;
                                             }
                                         }
 
@@ -1676,20 +1683,22 @@
                                         if ($verez == 'No Considerar Efectos de Esbeltez') {
                                             $OnsCDx = '-';
                                         } else {
-                                            if ($verificacionArticuloX = 'No Cumple, No Aplicar') {
+                                            if ($verificacionArticuloX == 'No Cumple, No Aplicar') {
                                                 $OnsCDx = '-';
                                             } else {
-                                                $OnsCDx = max($Cmverfx / (1 - $m1tonx / (0.75 * $pcmmedlx)), 1);
+                                                $denom_OnsCDx = 1 - $m1tonx / (0.75 * $pcmmedlx);
+                                                $OnsCDx = $denom_OnsCDx != 0 ? max($Cmverfx / $denom_OnsCDx, 1) : 1;
                                             }
                                         }
 
                                         if ($verezy == 'No Considerar Efectos de Esbeltez') {
                                             $OnsCDy = '-';
                                         } else {
-                                            if ($verificacionArticuloX = 'No Cumple, No Aplicar') {
+                                            if ($verificacionArticuloY == 'No Cumple, No Aplicar') {
                                                 $OnsCDy = '-';
                                             } else {
-                                                $OnsCDy = max($Cmverfy / (1 - $m1tony / (0.75 * $pcmmedly)), 1);
+                                                $denom_OnsCDy = 1 - $m1tony / (0.75 * $pcmmedly);
+                                                $OnsCDy = $denom_OnsCDy != 0 ? max($Cmverfxy / $denom_OnsCDy, 1) : 1;
                                             }
                                         }
                                         // var_dump($verezy);
@@ -1792,7 +1801,8 @@
                                         $pnx = round(0.8 * $Pon, 2, PHP_ROUND_HALF_UP);
                                         $pny = round(0.8 * $Pon, 2, PHP_ROUND_HALF_UP);
                                         $PonFy = round(0.1 * $IFy * $Pon, 2, PHP_ROUND_HALF_UP);
-                                        $Pn = round(1 / (1 / $pnx + 1 / $pny - 1 / $Pon), 2, PHP_ROUND_HALF_UP);
+                                        $PnDenom = ($pnx != 0 && $pny != 0 && $Pon != 0) ? (1 / $pnx + 1 / $pny - 1 / $Pon) : 0;
+                                        $Pn = $PnDenom != 0 ? round(1 / $PnDenom, 2, PHP_ROUND_HALF_UP) : 0;
                                         $pnFy = round($IFy * $Pn, 2, PHP_ROUND_HALF_UP);
                                         //VerificacionSegunArticulo
                                         if ($pnFy < $PnMax) {
@@ -1884,61 +1894,61 @@
                                         if ($P == '-') {
                                             $rx = '-';
                                         } else {
-                                            $rx = round($P / $pnFy, 2, PHP_ROUND_HALF_UP);
+                                            $rx = $pnFy != 0 ? round($P / $pnFy, 2, PHP_ROUND_HALF_UP) : 0;
                                         }
 
                                         if ($Pc == '-') {
                                             $rPc = '-';
                                         } else {
-                                            $rPc = round($Pc / $pnFy, 2, PHP_ROUND_HALF_UP);
+                                            $rPc = $pnFy != 0 ? round($Pc / $pnFy, 2, PHP_ROUND_HALF_UP) : 0;
                                         }
 
                                         if ($Pcn == '-') {
                                             $rPcn = '-';
                                         } else {
-                                            $rPcn = round($Pcn / $pnFy, 2, PHP_ROUND_HALF_UP);
+                                            $rPcn = $pnFy != 0 ? round($Pcn / $pnFy, 2, PHP_ROUND_HALF_UP) : 0;
                                         }
 
                                         if ($Pms == '-') {
                                             $rPms = '-';
                                         } else {
-                                            $rPms = round($Pms / $pnFy, 2, PHP_ROUND_HALF_UP);
+                                            $rPms = $pnFy != 0 ? round($Pms / $pnFy, 2, PHP_ROUND_HALF_UP) : 0;
                                         }
 
                                         if ($Pmns == '-') {
                                             $rPmns = '-';
                                         } else {
-                                            $rPmns = round($Pmns / $pnFy, 2, PHP_ROUND_HALF_UP);
+                                            $rPmns = $pnFy != 0 ? round($Pmns / $pnFy, 2, PHP_ROUND_HALF_UP) : 0;
                                         }
 
                                         if ($Py == '-') {
                                             $ry = '-';
                                         } else {
-                                            $ry = round($Py / $pnFy, 2, PHP_ROUND_HALF_UP);
+                                            $ry = $pnFy != 0 ? round($Py / $pnFy, 2, PHP_ROUND_HALF_UP) : 0;
                                         }
 
                                         if ($Pcsy == '-') {
                                             $rPcsy = '-';
                                         } else {
-                                            $rPcsy = round($Pcsy / $pnFy, 2, PHP_ROUND_HALF_UP);
+                                            $rPcsy = $pnFy != 0 ? round($Pcsy / $pnFy, 2, PHP_ROUND_HALF_UP) : 0;
                                         }
 
                                         if ($Pcnsy == '-') {
                                             $rPcnsy = '-';
                                         } else {
-                                            $rPcnsy = round($Pcnsy / $pnFy, 2, PHP_ROUND_HALF_UP);
+                                            $rPcnsy = $pnFy != 0 ? round($Pcnsy / $pnFy, 2, PHP_ROUND_HALF_UP) : 0;
                                         }
 
                                         if ($Pmsy == '-') {
                                             $rPmsy = '-';
                                         } else {
-                                            $rPmsy = round($Pmsy / $pnFy, 2, PHP_ROUND_HALF_UP);
+                                            $rPmsy = $pnFy != 0 ? round($Pmsy / $pnFy, 2, PHP_ROUND_HALF_UP) : 0;
                                         }
 
                                         if ($Pmnsy == '-') {
                                             $rPmnsy = '-';
                                         } else {
-                                            $rPmnsy = round($Pmnsy / $pnFy, 2, PHP_ROUND_HALF_UP);
+                                            $rPmnsy = $pnFy != 0 ? round($Pmnsy / $pnFy, 2, PHP_ROUND_HALF_UP) : 0;
                                         }
                                         //VERIFICACION XX
                                         if ($P == '-') {
@@ -2204,14 +2214,14 @@
                                             $MprII = $Mnsup;
                                         }
 
-                                        $VN = round(
+                                        $VN = $H != 0 ? round(
                                             max(($Mpri + $Mpr) / $H, ($MpriII + $MprII) / $H),
                                             2,
                                             PHP_ROUND_HALF_UP,
-                                        );
-                                        $VUD = round(($VN * (0.5 * $H - $dx / 100)) / (0.5 * $H), 2, PHP_ROUND_HALF_UP);
+                                        ) : 0;
+                                        $VUD = (0.5 * $H) != 0 ? round(($VN * (0.5 * $H - $dx / 100)) / (0.5 * $H), 2, PHP_ROUND_HALF_UP) : 0;
                                         $VUMAX = max($VUD, $VudEtap);
-                                        $VC = round(
+                                        $VC = (140 * $L1 * $L2) != 0 ? round(
                                             (0.53 *
                                                 sqrt($fc) *
                                                 (1 + (MAX($puinf, $pusup) * 1000) / (140 * $L1 * $L2)) *
@@ -2220,7 +2230,7 @@
                                                 1000,
                                             2,
                                             PHP_ROUND_HALF_UP,
-                                        );
+                                        ) : 0;
 
                                         if ($VUMAX > 0.7 * $VC) {
                                             $VerifiUtEstribo = 'Necesita Estribos';
@@ -2530,18 +2540,18 @@
                                         $Ac = 30;
                                         $bc = 20;
                                         $spaciamiento = 10;
-                                        $Ash1 = round(
+                                        $Ash1 = ($fy != 0 && $ach != 0) ? round(
                                             ((0.3 * $spaciamiento * $bc * $fc) / $fy) * ($ag / $ach - 1),
                                             2,
                                             PHP_ROUND_HALF_UP,
-                                        );
-                                        $Ash2 = (0.09 * $spaciamiento * $bc * $fc) / $fy;
-                                        $nRe = round(MAX($Ash2, $Ash1) / $DiaAcero);
+                                        ) : 0;
+                                        $Ash2 = $fy != 0 ? (0.09 * $spaciamiento * $bc * $fc) / $fy : 0;
+                                        $nRe = $DiaAcero != 0 ? round(MAX($Ash2, $Ash1) / $DiaAcero) : 0;
                                         $AV = $nRe * $AEstribos;
                                         if ($VerifiUtEstribo == 'Refuerzo Mínimo') {
                                             $So = '-';
                                         } else {
-                                            $So = round(($AV * $fy * $dx) / ($VsRef * 1000), 2, PHP_ROUND_HALF_UP);
+                                            $So = $VsRef != 0 ? round(($AV * $fy * $dx) / ($VsRef * 1000), 2, PHP_ROUND_HALF_UP) : 0;
                                         }
                                     @endphp
                                     <td class="text-lg py-2 px-4">{{ $VsRef }}</td>
@@ -2712,9 +2722,9 @@
 
                                         $SI = min($sII, $Smaxx, $Smax7);
                                         $base = 5;
-                                        $multiplo_superior = ceil($SI / $base) * $base;
+                                        $multiplo_superior = $base != 0 ? ceil($SI / $base) * $base : 0;
 
-                                        $VSton = round(($AV * $fy * $dx) / $sO / 1000, 2, PHP_ROUND_HALF_UP);
+                                        $VSton = $sO != 0 ? round(($AV * $fy * $dx) / $sO / 1000, 2, PHP_ROUND_HALF_UP) : 0;
                                         $FyVcVs = 0.7 * ($VC + $VSton);
 
                                         $VrfResistencia = '';
@@ -2723,7 +2733,7 @@
                                         } else {
                                             $VrfResistencia = 'NO CUMPLE, Verificar';
                                         }
-                                        $NEstribos = $lo / $sO;
+                                        $NEstribos = $sO != 0 ? $lo / $sO : 0;
                                     @endphp
                                     <td class="text-lg py-2 px-4">{{ $lo }}</td>
                                     <td class="text-lg py-2 px-4">{{ $sO }}</td>
@@ -2830,7 +2840,7 @@
                                                 $ashmin1 = '-';
                                             } else {
                                                 // Segunda condición
-                                                $ashmin1 = 0.3 * (($sO * $bc * $fc) / $fy) * (($L1 * $L2) / $ach - 1);
+                                                $ashmin1 = ($fy != 0 && $ach != 0) ? 0.3 * (($sO * $bc * $fc) / $fy) * (($L1 * $L2) / $ach - 1) : 0;
                                             }
                                         }
 
@@ -2841,7 +2851,7 @@
                                                 $ashmin2 = '-';
                                             } else {
                                                 // Segunda condición
-                                                $ashmin2 = 0.09 * (($sO * $bc * $fc) / $fy);
+                                                $ashmin2 = $fy != 0 ? 0.09 * (($sO * $bc * $fc) / $fy) : 0;
                                             }
                                         }
 
@@ -2851,7 +2861,7 @@
                                             if ($SEstru == 'Dual Tipo I') {
                                                 $verarti = '-';
                                             } else {
-                                                if ($ash >= max($ashmin1, $ashmin2)) {
+                                                if ($ashresul >= max($ashmin1, $ashmin2)) {
                                                     $verarti = 'Si Cumple';
                                                 } else {
                                                     $verarti = 'No Cumple, Verificar';
@@ -2993,19 +3003,19 @@
                                                 break;
                                         }
 
-                                        $VNy = round(
+                                        $VNy = $H != 0 ? round(
                                             max(($Mpri + $Mpr) / $H, ($MpriIIy + $MprIIy) / $H),
                                             2,
                                             PHP_ROUND_HALF_UP,
-                                        );
+                                        ) : 0;
 
-                                        $VUDy = round(
+                                        $VUDy = (0.5 * $H) != 0 ? round(
                                             ($VNy * (0.5 * $H - $dx / 100)) / (0.5 * $H),
                                             2,
                                             PHP_ROUND_HALF_UP,
-                                        );
+                                        ) : 0;
 
-                                        $VCy = round(
+                                        $VCy = (140 * $L1 * $L2) != 0 ? round(
                                             (0.53 *
                                                 sqrt($fc) *
                                                 (1 + (MAX($puinf, $pusup) * 1000) / (140 * $L1 * $L2)) *
@@ -3014,7 +3024,7 @@
                                                 1000,
                                             2,
                                             PHP_ROUND_HALF_UP,
-                                        );
+                                        ) : 0;
                                         $VUMAXy = max($VUDy, $VudEtap);
                                         if ($VUMAXy > 0.7 * $VCy) {
                                             $VerifiUtEstriboy = 'Necesita Estribos';
@@ -3291,18 +3301,18 @@
                                         $Ac = 30;
                                         $bc = 20;
                                         $spaciamiento = 10;
-                                        $Ash1y = round(
+                                        $Ash1y = ($fy != 0 && $ach != 0) ? round(
                                             ((0.3 * $spaciamiento * $bc * $fc) / $fy) * ($ag / $ach - 1),
                                             2,
                                             PHP_ROUND_HALF_UP,
-                                        );
-                                        $Ash2y = (0.09 * $spaciamiento * $bc * $fc) / $fy;
-                                        $nRey = round(MAX($Ash2y, $Ash1y) / $DiaAceroy);
+                                        ) : 0;
+                                        $Ash2y = $fy != 0 ? (0.09 * $spaciamiento * $bc * $fc) / $fy : 0;
+                                        $nRey = $DiaAceroy != 0 ? round(MAX($Ash2y, $Ash1y) / $DiaAceroy) : 0;
                                         $AVy = $nRey * $AEstribos;
                                         if ($VerifiUtEstriboy == 'Refuerzo Mínimo') {
                                             $Soy = '-';
                                         } else {
-                                            $Soy = round(($AVy * $fy * $dx) / ($VsRefy * 1000), 2, PHP_ROUND_HALF_UP);
+                                            $Soy = $VsRefy != 0 ? round(($AVy * $fy * $dx) / ($VsRefy * 1000), 2, PHP_ROUND_HALF_UP) : 0;
                                         }
                                     @endphp
                                     <td class="text-lg py-2 px-4">{{ $VsRefy }}</td>
@@ -3495,7 +3505,7 @@
 
                                         $SIy = ceil(min($sII, $Smaxxy, $Smax7y) / 5) * 5;
 
-                                        $VStony = round(($AVy * $fy * $dx) / $sOy / 1000, 2, PHP_ROUND_HALF_UP);
+                                        $VStony = $sOy != 0 ? round(($AVy * $fy * $dx) / $sOy / 1000, 2, PHP_ROUND_HALF_UP) : 0;
 
                                         $FyVcVsy = 0.7 * ($VCy + $VStony);
 
@@ -3506,7 +3516,7 @@
                                         } else {
                                             $VrfResistenciay = 'NO CUMPLE, Verificar';
                                         }
-                                        $NEstribosy = $loy / $sOy;
+                                        $NEstribosy = $sOy != 0 ? $loy / $sOy : 0;
                                     @endphp
                                     <td class="text-lg py-2 px-4">{{ $loy }}</td>
                                     <td class="text-lg py-2 px-4">{{ $sOy }}</td>
@@ -3613,7 +3623,7 @@
                                                 $ashmin1 = '-';
                                             } else {
                                                 // Segunda condición
-                                                $ashmin1 = 0.3 * (($sO * $bc * $fc) / $fy) * (($L1 * $L2) / $ach - 1);
+                                                $ashmin1 = ($fy != 0 && $ach != 0) ? 0.3 * (($sO * $bc * $fc) / $fy) * (($L1 * $L2) / $ach - 1) : 0;
                                             }
                                         }
 
@@ -3624,7 +3634,7 @@
                                                 $ashmin2 = '-';
                                             } else {
                                                 // Segunda condición
-                                                $ashmin2 = 0.09 * (($sO * $bc * $fc) / $fy);
+                                                $ashmin2 = $fy != 0 ? 0.09 * (($sO * $bc * $fc) / $fy) : 0;
                                             }
                                         }
 
@@ -3634,7 +3644,7 @@
                                             if ($SEstru == 'Dual Tipo I') {
                                                 $verarti = '-';
                                             } else {
-                                                if ($ash >= max($ashmin1, $ashmin2)) {
+                                                if ($ashresul >= max($ashmin1, $ashmin2)) {
                                                     $verarti = 'Si Cumple';
                                                 } else {
                                                     $verarti = 'No Cumple, Verificar';
