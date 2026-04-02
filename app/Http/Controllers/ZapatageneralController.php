@@ -3,11 +3,14 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ZapatageneralController extends Controller
 {
     public function zapataGeneral(Request $request)
     {
+        Log::info('Datos recibidos en zapataGeneral:', $request->all());
+        
         $fc = $request->input('fc', 0);
         $fy = $request->input('fy', 0);
         $ys = $request->input('ys', 0);
@@ -23,7 +26,10 @@ class ZapatageneralController extends Controller
         $Varillay = $request->input('VarillaY', 0);
         $espaciamientox = $request->input('espaciamientox', 0);
         $espaciamientoy = $request->input('espaciamientoy', 0);
-        $CargaCondicionServicio = json_decode($request->input('dataFromHandsontable'), true);
+        $decoded = json_decode($request->input('dataFromHandsontable'), true);
+        $CargaCondicionServicio = is_array($decoded) ? $decoded : [];
+
+        Log::info('CargaCondicionServicio:', $CargaCondicionServicio);
 
         return view('hcalculo.resultadoZapataGeneral',compact(
             'fc',
