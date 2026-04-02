@@ -295,7 +295,7 @@
 
             </button>
             <div class="overflow-x-auto" id="zapataGeneral_pdf">
-              <div id="resultadosZapataGeneral"></div>
+              <div id="ObtenerResultados"></div>
             </div>
           </div>
         </div>
