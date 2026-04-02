@@ -16,6 +16,7 @@ import {
 
 // Importar transformador de documentos
 import { DocumentTransformer } from "./processors/documentTransformer.js";
+import { error } from "jquery";
 
 // Inicializar store globalmente si no existe
 if (typeof Alpine !== 'undefined' && !Alpine.store('memoriaCalculo')) {
@@ -91,129 +92,100 @@ function memoriaCalculo() {
             const floors = sections.generalidades.floors || 1;
             const usageLines = usageText.split('\n').filter(line => line.trim() !== '').length;
             
-            if (usageLines !== floors) {
+             if (!usageText || usageText.trim() === "") {
                 errors.push({
-                    field: "Uso por Pisos",
-                    message: `El campo de pisos debe tener ${floors} líneas (una por cada piso). Actualmente tiene ${usageLines}.`
+                    field: "Descripción de Pisos",
+                    message: "El campo de descripcion de Pisos es obligatorio"
+                });
+            }else if (usageLines !== floors) {
+                errors.push({
+                    field: "Descripcion de Pisos",
+                    message: `El campo de Uso (Detalle por pisos) debe tener ${floors} líneas (una por cada piso). Actualmente tiene ${usageLines}.`
                 });
             }
             
             // 2. Validar Descripción de Losas Aligeradas (Sección 4.2)
             const losaDescripcion = sections.disenoElementos?.lista;
+            const losas = sections.disenoElementos.losa || 1;
+            const losaLines = losaDescripcion.split('\n').filter(line => line.trim() !== '').length;
             if (!losaDescripcion || losaDescripcion.trim() === "") {
                 errors.push({
                     field: "Descripción de Losas Aligeradas",
                     message: "El campo de losas aligeradas es obligatorio"
                 });
+            }else if (losaLines !== losas) {
+                errors.push({
+                    field: "Descripcion Losas",
+                    message: `El campo de descripcion de losas debe tener ${losas} líneas (una por cada seccion). Actualmente tiene ${losaLines}.`
+                });
             }
             
             // 3. Validar Descripción de Vigas (Sección 4.4)
             const vigaDescripcion = sections.disenoElementos?.nameVigas;
+            const vigas = sections.disenoElementos.viga || 1;
+            const vigaLines = vigaDescripcion.split('\n').filter(line => line.trim() !== '').length;
+
             if (!vigaDescripcion || vigaDescripcion.trim() === "") {
                 errors.push({
                     field: "Descripción de Vigas",
                     message: "El campo de vigas es obligatorio"
                 });
+            }else if (vigaLines !== vigas) {
+                errors.push({
+                    field: "Descripcion Vigas",
+                    message: `El campo de descripcion de vigas debe tener ${vigas} líneas (una por cada seccion). Actualmente tiene ${vigaLines}.`
+                });
             }
             
             // 4. Validar Descripción de Columnas (Sección 4.5)
             const columnaDescripcion = sections.disenoElementos?.nameColumna;
+            const columna = sections.disenoElementos.columna || 1;
+            const columnaLines = columnaDescripcion.split('\n').filter(line => line.trim() !== '').length;
+            
             if (!columnaDescripcion || columnaDescripcion.trim() === "") {
                 errors.push({
                     field: "Descripción de Columnas",
                     message: "El campo de columnas es obligatorio"
                 });
-            }
+            }else if (columnaLines !== columna) {
+                errors.push({
+                    field: "Descripcion Columna",
+                    message: `El campo de descripcion de columnas debe tener ${columna} líneas (una por cada seccion). Actualmente tiene ${columnaLines}.`
+                });
+            }            
             
             // 5. Validar Descripción de Placas (Sección 4.6)
             const placaDescripcion = sections.disenoElementos?.namePlaca;
+            const placas = sections.disenoElementos.placa || 1;
+            const placaLines = placaDescripcion.split('\n').filter(line => line.trim() !== '').length;
             if (!placaDescripcion || placaDescripcion.trim() === "") {
                 errors.push({
                     field: "Descripción de Placas",
                     message: "El campo de placas es obligatorio"
                 });
-            }
+            }else if (placaLines !== placas) {
+                errors.push({
+                    field: "Descripcion Placa",
+                    message: `El campo de descripcion de placas debe tener ${placas} líneas (una por cada seccion). Actualmente tiene ${placaLines}.`
+                });
+            }   
             
             // 6. Validar Descripción de Cimentaciones (Sección 4.11)
             const cimentacionDescripcion = sections.disenoElementos?.nameCimentacion;
+            const cimentaciones = sections.disenoElementos.cimentacion || 1;
+            const cimentacionLines = cimentacionDescripcion.split('\n').filter(line => line.trim() !== '').length;
             if (!cimentacionDescripcion || cimentacionDescripcion.trim() === "") {
                 errors.push({
                     field: "Descripción de Cimentaciones",
                     message: "Este campo de cimentaciones es obligatorio"
                 });
-            }
+            }else if (cimentacionLines !== cimentaciones) {
+                errors.push({
+                    field: "Descripcion Cimentacion",
+                    message: `El campo de descripcion de cimentacion debe tener ${cimentaciones} líneas (una por cada seccion). Actualmente tiene ${cimentacionLines}.`
+                });
+            }   
             
-            // // 7. Validar Estructura Metálica - Columna
-            // const columnaMetalica = sections.estructuraMetalica?.descripcion?.ColumnaMetalica;
-            // if (!columnaMetalica || columnaMetalica.trim() === "") {
-            //     errors.push({
-            //         field: "Columna Metálica",
-            //         message: "Este campo es obligatorio"
-            //     });
-            // }
-            
-            // // 8. Validar Estructura Metálica - Brida Superior
-            // const bridaSuperior = sections.estructuraMetalica?.descripcion?.BridaSuperior;
-            // if (!bridaSuperior || bridaSuperior.trim() === "") {
-            //     errors.push({
-            //         field: "Brida Superior",
-            //         message: "Este campo es obligatorio"
-            //     });
-            // }
-            
-            // // 9. Validar Estructura Metálica - Brida Inferior
-            // const bridaInferior = sections.estructuraMetalica?.descripcion?.BridaInferior;
-            // if (!bridaInferior || bridaInferior.trim() === "") {
-            //     errors.push({
-            //         field: "Brida Inferior",
-            //         message: "Este campo es obligatorio"
-            //     });
-            // }
-            
-            // // 10. Validar Estructura Metálica - Parante
-            // const parante = sections.estructuraMetalica?.descripcion?.Parante;
-            // if (!parante || parante.trim() === "") {
-            //     errors.push({
-            //         field: "Parante",
-            //         message: "Este campo es obligatorio"
-            //     });
-            // }
-            
-            // // 11. Validar Estructura Metálica - Diagonal
-            // const diagonal = sections.estructuraMetalica?.descripcion?.Diagonal;
-            // if (!diagonal || diagonal.trim() === "") {
-            //     errors.push({
-            //         field: "Diagonal",
-            //         message: "Este campo es obligatorio"
-            //     });
-            // }
-            
-            // // 12. Validar Estructura Metálica - Correa Metálica
-            // const correaMetalica = sections.estructuraMetalica?.descripcion?.CorreaMetalica;
-            // if (!correaMetalica || correaMetalica.trim() === "") {
-            //     errors.push({
-            //         field: "Correa Metálica",
-            //         message: "Este campo es obligatorio"
-            //     });
-            // }
-            
-            // // 13. Validar Conclusiones
-            // const conclusiones = sections.conclusiones?.descripcion;
-            // if (!conclusiones || conclusiones.trim() === "") {
-            //     errors.push({
-            //         field: "Conclusiones",
-            //         message: "Este campo es obligatorio"
-            //     });
-            // }
-            
-            // // 14. Validar Recomendaciones
-            // const recomendaciones = sections.recomendaciones?.descripcion;
-            // if (!recomendaciones || recomendaciones.trim() === "") {
-            //     errors.push({
-            //         field: "Recomendaciones",
-            //         message: "Este campo es obligatorio"
-            //     });
-            // }
             
             // Limpiar errores anteriores y agregar nuevos
             this.$store.memoriaCalculo.clearErrorsByCategory("validation");
@@ -251,16 +223,16 @@ function memoriaCalculo() {
             this.validationErrors = [];
         },
         
-        /**
-         * Exportar después de cerrar el modal (si se corrigieron errores)
-         */
-        retryExport() {
-            this.closeErrorModal();
-            // Pequeño delay para que el modal se cierre antes de reintentar
-            setTimeout(() => {
-                this.showValidationModal();
-            }, 100);
-        },
+        // /**
+        //  * Exportar después de cerrar el modal (si se corrigieron errores)
+        //  */
+        // retryExport() {
+        //     this.closeErrorModal();
+        //     // Pequeño delay para que el modal se cierre antes de reintentar
+        //     setTimeout(() => {
+        //         this.showValidationModal();
+        //     }, 100);
+        // },
 
         // ============================================
         // EXPORTACIÓN WORD
@@ -273,7 +245,7 @@ function memoriaCalculo() {
             try {
                 console.log('📄 Iniciando exportación a Word...');
 
-                // 👇 VALIDAR ANTES DE EXPORTAR
+                // VALIDAR ANTES DE EXPORTAR
                 const validation = this.validateTextFields();
                 
                 if (!validation.valid) {

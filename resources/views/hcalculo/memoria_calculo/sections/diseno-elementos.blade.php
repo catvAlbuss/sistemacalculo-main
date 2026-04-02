@@ -1675,14 +1675,6 @@
 
                                     <!-- Grid de 4 imágenes -->
                                     <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 gap-4">
-                                        <!-- (item, idx) in [
-                            { index: 0, nombre: 'CARGA MUERTA' },
-                            { index: 1, nombre: 'CARGA VIVA' },
-                            { index: 2, nombre: 'SISMO DINÁMICO EN DIRECCIÓN X' },
-                            { index: 3, nombre: 'SISMO DINÁMICO EN DIRECCIÓN Y' },
-                            
-                        ] -->
-
                                         <template x-for="(item, idx) in [
                             { index: 0, nombre: 'CARGA MUERTA' },
                             { index: 1, nombre: 'CARGA VIVA' },

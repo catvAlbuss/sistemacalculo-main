@@ -1120,7 +1120,7 @@
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSection321 = !showSection321" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
-                        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Irregularidades en altura (IA)</span>
+                        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Irregularidades en altura (IA. "K", "V")</span>
                         <svg class="w-4 h-4 text-gray-600 dark:text-gray-400 transition-transform"
                             :class="{ 'rotate-180': showSection321 }" fill="none" stroke="currentColor"
                             viewBox="0 0 24 24">
@@ -1188,7 +1188,7 @@
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSection322 = !showSection322" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
-                        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Irregularidades en altura (Masa)</span>
+                        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Irregularidades en altura (MASA O PESO / Según NTE E.030 - 2018)</span>
                         <svg class="w-4 h-4 text-gray-600 dark:text-gray-400 transition-transform"
                             :class="{ 'rotate-180': showSection322 }" fill="none" stroke="currentColor"
                             viewBox="0 0 24 24">
