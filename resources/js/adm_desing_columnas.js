@@ -1,6 +1,5 @@
 import html2canvas from "html2canvas";
-import "print-this"
-
+import "print-this";
 
 $(document).ready(function () {
   /* ----Longitud Arriostrada------ */
@@ -16,7 +15,7 @@ $(document).ready(function () {
   var difAbs = 0.0062;
   var difRel = difAbs;
   var vux = 1903.49;
-  var q = parseFloat(((puS * difRel) / (vux * h)).toFixed(4));
+  var q = vux * h !== 0 ? parseFloat(((puS * difRel) / (vux * h)).toFixed(4)) : 0;
   var verifArrios = q <= 0.06 ? "Sí hay Arriostramiento" : "No hay Arriostramiento";
   var tipoEs = verifArrios == "Sí hay Arriostramiento" ? "Sin desplazamiento lateral" : "Con desplazamiento lateral";
   //dataLAX.push(['Piso último', h, pu, puS, difAbs, difRel, vux, q, verifArrios, tipoEs]);
@@ -153,15 +152,13 @@ $(document).ready(function () {
           //var oldValue = change[2];
           var newValue = change[3];
           if (col === 1) {
+            var denom = hot.getDataAtCell(row, 6) * newValue;
             hot.setDataAtCell(
               row,
               7,
-              parseFloat(
-                (
-                  (hot.getDataAtCell(row, 3) * hot.getDataAtCell(row, 5)) /
-                  (hot.getDataAtCell(row, 6) * newValue)
-                ).toFixed(4),
-              ),
+              denom !== 0
+                ? parseFloat(((hot.getDataAtCell(row, 3) * hot.getDataAtCell(row, 5)) / denom).toFixed(4))
+                : 0,
             );
           }
           if (col === 2) {
@@ -178,15 +175,11 @@ $(document).ready(function () {
               hot.setDataAtCell(row + 1, 3, newValue + hot.getDataAtCell(row + 1, 2));
             }
             //hot.setDataAtCell(row + 1, 3, hot.getDataAtCell(row + 1, 2) + newValue)
+            var denom3 = hot.getDataAtCell(row, 6) * hot.getDataAtCell(row, 1);
             hot.setDataAtCell(
               row,
               7,
-              parseFloat(
-                (
-                  (newValue * hot.getDataAtCell(row, 5)) /
-                  (hot.getDataAtCell(row, 6) * hot.getDataAtCell(row, 1))
-                ).toFixed(4),
-              ),
+              denom3 !== 0 ? parseFloat(((newValue * hot.getDataAtCell(row, 5)) / denom3).toFixed(4)) : 0,
             );
           }
           if (col == 4) {
@@ -197,24 +190,21 @@ $(document).ready(function () {
             }
           }
           if (col == 5) {
+            var denom5 = hot.getDataAtCell(row, 6) * hot.getDataAtCell(row, 1);
             hot.setDataAtCell(
               row,
               7,
-              parseFloat(
-                (
-                  (hot.getDataAtCell(row, 3) * newValue) /
-                  (hot.getDataAtCell(row, 6) * hot.getDataAtCell(row, 1))
-                ).toFixed(4),
-              ),
+              denom5 !== 0 ? parseFloat(((hot.getDataAtCell(row, 3) * newValue) / denom5).toFixed(4)) : 0,
             );
           }
           if (col == 6) {
+            var denom6 = newValue * hot.getDataAtCell(row, 1);
             hot.setDataAtCell(
               row,
               7,
-              parseFloat(
-                (hot.getDataAtCell(row, 3) * hot.getDataAtCell(row, 5)) / (newValue * hot.getDataAtCell(row, 1)),
-              ).toFixed(4),
+              denom6 !== 0
+                ? parseFloat((hot.getDataAtCell(row, 3) * hot.getDataAtCell(row, 5)) / denom6).toFixed(4)
+                : 0,
             );
           }
           if (col == 7) {
@@ -233,12 +223,180 @@ $(document).ready(function () {
     licenseKey: "non-commercial-and-evaluation",
   });
 
+  /* ----Dirección Y Y------ */
+  var containerLAY = document.querySelector("#longitudArriostradaY");
+  var hotLAY = new Handsontable(containerLAY, {
+    data: [["", "", "", "", "", "", "", "", "", ""]],
+    rowHeaders: true,
+    colHeaders: true,
+    height: "auto",
+    autoWrapRow: true,
+    autoWrapCol: true,
+    nestedHeaders: [
+      [
+        "Nivel",
+        {
+          label: "Altura Total",
+          colspan: 1,
+        },
+        {
+          label: "Cargas Amplificadas",
+          colspan: 1,
+        },
+        {
+          label: "ƩPu",
+          colspan: 1,
+        },
+        {
+          label: "Norma E.030 Artículo 31",
+          colspan: 2,
+          align: "center",
+        },
+        {
+          label: "Vux",
+          colspan: 1,
+        },
+        {
+          label: "Índice de Estabilidad",
+          colspan: 1,
+        },
+        {
+          label: "Artículo 10.11.3.",
+          colspan: 1,
+        },
+        {
+          label: "Artículo 10.11.3.",
+          colspan: 1,
+        },
+      ],
+      [
+        "",
+        '"H" (m)',
+        '"Pu" (Ton)',
+        "(Ton)",
+        {
+          label: "Δabsoluto (m)",
+          colspan: 1,
+          align: "center",
+        },
+        {
+          label: "relativo(m)",
+          colspan: 1,
+          align: "center",
+        },
+        "(Ton)",
+        '"Q"',
+        " Verificación del Arriostramiento",
+        "Tipo de Estructura",
+      ],
+    ],
+    columns: [
+      {
+        type: "text",
+        readOnly: true,
+      }, // 'Nivel',
+      {
+        type: "numeric",
+        readOnly: true,
+      },
+      {
+        type: "numeric",
+        readOnly: true,
+      },
+      {
+        type: "numeric",
+        readOnly: true,
+      },
+      {
+        type: "numeric",
+      }, // 'hm (m)',
+      {
+        type: "numeric",
+        readOnly: true,
+      }, // 'Vua (Ton)',
+      {
+        type: "numeric",
+      },
+      {
+        type: "numeric",
+        readOnly: true,
+      },
+      {
+        type: "text",
+        readOnly: true,
+      },
+      {
+        type: "text",
+        readOnly: true,
+      },
+    ],
+    minSpareRows: 1,
+    afterChange: function (changes, source) {
+      if (source == "edit") {
+        var hot = this;
+        changes.forEach(function (change) {
+          var row = change[0];
+          var col = change[1];
+          var newValue = change[3];
+          if (col == 4) {
+            if (row == hot.countRows() - 2) {
+              hot.setDataAtCell(row, 5, newValue);
+            } else {
+              hot.setDataAtCell(row, 5, newValue - hot.getDataAtCell(row + 1, 4));
+            }
+          }
+          if (col == 5) {
+            var denomLay5 = hot.getDataAtCell(row, 6) * hot.getDataAtCell(row, 1);
+            hot.setDataAtCell(
+              row,
+              7,
+              denomLay5 !== 0 ? parseFloat(((hot.getDataAtCell(row, 3) * newValue) / denomLay5).toFixed(4)) : 0,
+            );
+          }
+          if (col == 6) {
+            var denomLay6 = newValue * hot.getDataAtCell(row, 1);
+            hot.setDataAtCell(
+              row,
+              7,
+              denomLay6 !== 0
+                ? parseFloat(((hot.getDataAtCell(row, 3) * hot.getDataAtCell(row, 5)) / denomLay6).toFixed(4))
+                : 0,
+            );
+          }
+          if (col == 7) {
+            hot.setDataAtCell(row, 8, newValue <= 0.06 ? "Si hay Arriostramiento" : "No hay Arriostramiento");
+          }
+          if (col == 8) {
+            hot.setDataAtCell(
+              row,
+              9,
+              newValue == "Sí hay Arriostramiento" ? "Sin desplazamiento lateral" : "Con Desplazamiento Lateral",
+            );
+          }
+        });
+      }
+    },
+    afterPaste: function (data, coords) {
+      data.forEach(function (rowData, i) {
+        var startRow = coords[0].startRow;
+        /* var endRow = coords[0].endRow; */
+        var startCol = coords[0].startCol;
+        var endCol = coords[0].endCol;
+        let k = 0;
+        for (let j = startCol; j <= endCol; j++) {
+          hotLAY.setDataAtCell(startRow + i, j, rowData[k]);
+          k++;
+        }
+      });
+    },
+    licenseKey: "non-commercial-and-evaluation",
+  });
+
   document.getElementById("guardarTablaX").addEventListener("click", function (e) {
     tablex = hot.getData();
     alert("Guardado, pase a la tabla dirección Y-Y");
-    /* ----Dirección Y Y------ */
-    var dataLAY = [];
 
+    var dataLAY = [];
     for (let i = 0; i < tablex.length - 1; i++) {
       var h = tablex[i][1];
       var pu = tablex[i][2];
@@ -246,189 +404,19 @@ $(document).ready(function () {
       var difAbs = 1;
       var difRel = difAbs;
       var vux = 1;
-      var q = parseFloat(((puS * difRel) / (vux * h)).toFixed(4));
+      var q = vux * h !== 0 ? parseFloat(((puS * difRel) / (vux * h)).toFixed(4)) : 0;
       var verifArrios = q <= 0.06 ? "Si hay Arriostramiento" : "No hay Arriostramiento";
       var tipoEs =
         verifArrios == "Si hay Arriostramiento" ? "Sin Desplazamiento Lateral" : "Con Desplazamiento Lateral";
       dataLAY.push([`Piso ${tablex.length - 1 - i}`, h, pu, puS, difAbs, difRel, vux, q, verifArrios, tipoEs]);
     }
 
-    var containerLAY = document.querySelector("#longitudArriostradaY");
-    var hotLAY = new Handsontable(containerLAY, {
-      data: dataLAY,
-      rowHeaders: true,
-      colHeaders: true,
-      height: "auto",
-      autoWrapRow: true,
-      autoWrapCol: true,
-      nestedHeaders: [
-        [
-          "Nivel",
-          {
-            label: "Altura Total",
-            colspan: 1,
-          },
-          {
-            label: "Cargas Amplificadas",
-            colspan: 1,
-          },
-          {
-            label: "ƩPu",
-            colspan: 1,
-          },
-          {
-            label: "Norma E.030 Artículo 31",
-            colspan: 2,
-            align: "center",
-          },
-          {
-            label: "Vux",
-            colspan: 1,
-          },
-          {
-            label: "Índice de Estabilidad",
-            colspan: 1,
-          },
-          {
-            label: "Artículo 10.11.3.",
-            colspan: 1,
-          },
-          {
-            label: "Artículo 10.11.3.",
-            colspan: 1,
-          },
-        ],
-        [
-          "",
-          '"H" (m)',
-          '"Pu" (Ton)',
-          "(Ton)",
-          {
-            label: "Δabsoluto (m)",
-            colspan: 1,
-            align: "center",
-          },
-          {
-            label: "relativo(m)",
-            colspan: 1,
-            align: "center",
-          },
-          "(Ton)",
-          '"Q"',
-          " Verificación del Arriostramiento",
-          "Tipo de Estructura",
-        ],
-      ],
-      columns: [
-        {
-          type: "text",
-          readOnly: true,
-        }, // 'Nivel',
-        {
-          type: "numeric",
-          readOnly: true,
-        },
-        {
-          type: "numeric",
-          readOnly: true,
-        },
-        {
-          type: "numeric",
-          readOnly: true,
-        },
-        {
-          type: "numeric",
-        }, // 'hm (m)',
-        {
-          type: "numeric",
-          readOnly: true,
-        }, // 'Vua (Ton)',
-        {
-          type: "numeric",
-        },
-        {
-          type: "numeric",
-          readOnly: true,
-        },
-        {
-          type: "text",
-          readOnly: true,
-        },
-        {
-          type: "text",
-          readOnly: true,
-        },
-      ],
-      afterChange: function (changes, source) {
-        if (source == "edit") {
-          var hot = this;
-          changes.forEach(function (change) {
-            var row = change[0];
-            var col = change[1];
-            var newValue = change[3];
-            if (col == 4) {
-              if (row == hot.countRows() - 2) {
-                hot.setDataAtCell(row, 5, newValue);
-              } else {
-                hot.setDataAtCell(row, 5, newValue - hot.getDataAtCell(row + 1, 4));
-              }
-            }
-            if (col == 5) {
-              hot.setDataAtCell(
-                row,
-                7,
-                parseFloat(
-                  (
-                    (hot.getDataAtCell(row, 3) * newValue) /
-                    (hot.getDataAtCell(row, 6) * hot.getDataAtCell(row, 1))
-                  ).toFixed(4),
-                ),
-              );
-            }
-            if (col == 6) {
-              hot.setDataAtCell(
-                row,
-                7,
-                parseFloat(
-                  (
-                    (hot.getDataAtCell(row, 3) * hot.getDataAtCell(row, 5)) /
-                    (newValue * hot.getDataAtCell(row, 1))
-                  ).toFixed(4),
-                ),
-              );
-            }
-            if (col == 7) {
-              hot.setDataAtCell(row, 8, newValue <= 0.06 ? "Si hay Arriostramiento" : "No hay Arriostramiento");
-            }
-            if (col == 8) {
-              hot.setDataAtCell(
-                row,
-                9,
-                newValue == "Sí hay Arriostramiento" ? "Sin desplazamiento lateral" : "Con Desplazamiento Lateral",
-              );
-            }
-          });
-        }
-      },
-      afterPaste: function (data, coords) {
-        data.forEach(function (rowData, i) {
-          var startRow = coords[0].startRow;
-          /* var endRow = coords[0].endRow; */
-          var startCol = coords[0].startCol;
-          var endCol = coords[0].endCol;
-          let k = 0;
-          for (let j = startCol; j <= endCol; j++) {
-            hotLAY.setDataAtCell(startRow + i, j, rowData[k]);
-            k++;
-          }
-        });
-      },
-      licenseKey: "non-commercial-and-evaluation",
-    });
-    document.getElementById("guardarTablaY").addEventListener("click", function (e) {
-      tabley = hotLAY.getData();
-      alert("Guardado");
-    });
+    hotLAY.loadData(dataLAY);
+  });
+
+  document.getElementById("guardarTablaY").addEventListener("click", function (e) {
+    tabley = hotLAY.getData();
+    alert("Guardado");
   });
   /* ---------------------------------------- */
   var data = [
@@ -1150,88 +1138,292 @@ $(document).ready(function () {
   });
 });
 
-document.addEventListener("DOMContentLoaded", () => {
-  const btnCaptura = document.getElementById("btn_captura_columna");
+    const btnCaptura = document.getElementById("btn_captura_columna");
 
-  if (!btnCaptura) return;
-
-  const descargarBlob = (blob, nombre) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = nombre;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const dataUrlABlob = async (dataUrl) => {
-    const res = await fetch(dataUrl);
-    return await res.blob();
-  };
-
-  const blobAImagen = (blob) =>
-    new Promise((resolve, reject) => {
+    const descargarBlob = (blob, nombre) => {
       const url = URL.createObjectURL(blob);
-      const img = new Image();
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        resolve(img);
-      };
-      img.onerror = reject;
-      img.src = url;
-    });
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = nombre;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
 
-  const descargarEnPartes = async (blob, nombreBase, partes = 3) => {
-    const img = await blobAImagen(blob);
+    const dataUrlABlob = async (dataUrl) => {
+      const res = await fetch(dataUrl);
+      return await res.blob();
+    };
 
-    const ancho = img.width;
-    const altoTotal = img.height;
-    const altoParte = Math.ceil(altoTotal / partes);
-    const margen = 100;
+    const blobAImagen = (blob) =>
+      new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          resolve(img);
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
 
-    for (let i = 0; i < partes; i++) {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
+    const descargarEnPartes = async (blob, nombreBase, partes = 3) => {
+      const img = await blobAImagen(blob);
 
-      const origenY = Math.max(0, i * altoParte - (i === 0 ? 0 : margen));
-      const altoReal = Math.min(altoParte + (i === 0 ? 0 : margen), altoTotal - origenY);
+      const ancho = img.width;
+      const altoTotal = img.height;
+      const altoParte = Math.ceil(altoTotal / partes);
+      const margen = 100;
 
-      canvas.width = ancho;
-      canvas.height = altoReal;
+      for (let i = 0; i < partes; i++) {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
 
-      ctx.drawImage(
-        img,
-        0, origenY,
-        ancho, altoReal,
-        0, 0,
-        ancho, altoReal
-      );
+        const origenY = Math.max(0, i * altoParte - (i === 0 ? 0 : margen));
+        const altoReal = Math.min(altoParte + (i === 0 ? 0 : margen), altoTotal - origenY);
 
-      const parteBlob = await new Promise((resolve) =>
-        canvas.toBlob(resolve, "image/png")
-      );
+        canvas.width = ancho;
+        canvas.height = altoReal;
 
-      descargarBlob(parteBlob, `${nombreBase}_Parte_${i + 1}.png`);
-    }
-  };
+        ctx.drawImage(img, 0, origenY, ancho, altoReal, 0, 0, ancho, altoReal);
 
-  btnCaptura.addEventListener("click", async () => {
-    const textoOriginal = btnCaptura.textContent;
+        const parteBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
 
-    try {
-      const elemento = document.getElementById("columna_pdf");
-
-      if (!elemento || !elemento.innerHTML.trim()) {
-        alert("Primero debes generar los resultados.");
-        return;
+        descargarBlob(parteBlob, `${nombreBase}_Parte_${i + 1}.png`);
       }
+    };
+
+    btnCaptura.addEventListener("click", async () => {
+      const textoOriginal = btnCaptura.textContent;
+
+      try {
+        const elemento = document.getElementById("columna_pdf");
+
+        if (!elemento || !elemento.innerHTML.trim()) {
+          alert("Primero debes generar los resultados.");
+          return;
+        }
+
+        btnCaptura.disabled = true;
+        btnCaptura.textContent = "Generando...";
+
+        const canvas = await html2canvas(elemento, {
+          scale: 3,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+          scrollX: 0,
+          scrollY: -window.scrollY,
+          windowWidth: document.documentElement.scrollWidth,
+          windowHeight: document.documentElement.scrollHeight,
+          onclone: (doc) => {
+            const el = doc.getElementById("columna_pdf");
+            if (el) {
+              el.style.margin = "0";
+              el.style.padding = "24px";
+              el.style.height = "auto";
+              el.style.minHeight = "auto";
+              el.style.overflow = "visible";
+              el.style.backgroundColor = "#ffffff";
+              el.style.color = "#000000";
+            }
+
+            doc.body.style.margin = "0";
+            doc.body.style.padding = "0";
+            doc.body.style.backgroundColor = "#ffffff";
+          },
+        });
+
+        const dataUrl = canvas.toDataURL("image/png");
+        const blob = await dataUrlABlob(dataUrl);
+
+        await descargarEnPartes(blob, "Diseño_Columna", 3);
+      } catch (error) {
+        console.error("Error al generar la captura:", error);
+        alert("Ocurrió un error al generar la imagen.");
+      } finally {
+        btnCaptura.disabled = false;
+        btnCaptura.textContent = textoOriginal;
+      }
+    });
+  });
+});
 
       btnCaptura.disabled = true;
       btnCaptura.textContent = "Generando...";
 
-      const rect = elemento.getBoundingClientRect();
+    if (!elemento || elemento.innerHTML.trim() === "") {
+      alert("Primero debes generar los resultados.");
+      return;
+    }
 
-      const canvas = await html2canvas(elemento, {
+    try {
+      // Deshabilitar botón durante el proceso
+      btn.disabled = true;
+      btn.classList.add("opacity-50", "cursor-not-allowed");
+      btn.textContent = "Generando...";
+
+      const ahora = new Date();
+      const fecha = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}-${String(
+        ahora.getDate(),
+      ).padStart(2, "0")}_${String(ahora.getHours()).padStart(2, "0")}-${String(ahora.getMinutes()).padStart(
+        2,
+        "0",
+      )}-${String(ahora.getSeconds()).padStart(2, "0")}`;
+
+      // ============================================
+      // PARTE 1: CAPTURAR GRÁFICOS COMBINADOS
+      // ============================================
+      const graficosContainer = document.querySelector(".grid.grid-cols-2.gap-4");
+
+      if (graficosContainer && graficosContainer.querySelectorAll("canvas").length > 0) {
+        console.log("✅ Capturando gráficos...");
+
+        // Crear contenedor temporal para los gráficos con un ancho fijo mayor
+        const tempGraficosDiv = document.createElement("div");
+        tempGraficosDiv.style.backgroundColor = "#ffffff";
+        tempGraficosDiv.style.padding = "10px";
+        tempGraficosDiv.style.width = "1200px"; // Ancho fijo más grande
+        tempGraficosDiv.style.margin = "0 auto";
+        tempGraficosDiv.style.position = "absolute";
+        tempGraficosDiv.style.left = "-9999px";
+        tempGraficosDiv.style.top = "-9999px";
+
+        // Título para los gráficos
+        const tituloGraficos = document.createElement("h2");
+        tituloGraficos.textContent = "GRÁFICOS DE DISEÑO";
+        tituloGraficos.style.textAlign = "center";
+        tituloGraficos.style.fontSize = "20px";
+        tituloGraficos.style.fontWeight = "bold";
+        tituloGraficos.style.marginBottom = "20px";
+        tituloGraficos.style.padding = "10px";
+        tituloGraficos.style.backgroundColor = "#ffffff";
+        tituloGraficos.style.color = "#000000";
+        tempGraficosDiv.appendChild(tituloGraficos);
+
+        // Clonar el contenedor de gráficos
+        const graficosClone = graficosContainer.cloneNode(true);
+        graficosClone.style.display = "flex";
+        graficosClone.style.justifyContent = "space-between";
+        graficosClone.style.gap = "10px";
+        graficosClone.style.width = "100%";
+
+        // Asegurar que los canvas mantengan su contenido y tengan tamaño adecuado
+        const canvasesOriginales = graficosContainer.querySelectorAll("canvas");
+        const canvasesClonados = graficosClone.querySelectorAll("canvas");
+
+        for (let i = 0; i < canvasesOriginales.length; i++) {
+          const canvasOriginal = canvasesOriginales[i];
+          const canvasClonado = canvasesClonados[i];
+
+          if (canvasOriginal && canvasClonado) {
+            // Copiar dimensiones y contenido
+            canvasClonado.width = canvasOriginal.width;
+            canvasClonado.height = canvasOriginal.height;
+            canvasClonado.style.width = "100%";
+            canvasClonado.style.height = "auto";
+            const ctx = canvasClonado.getContext("2d");
+            ctx.drawImage(canvasOriginal, 0, 0);
+          }
+        }
+
+        tempGraficosDiv.appendChild(graficosClone);
+        document.body.appendChild(tempGraficosDiv);
+
+        // Esperar renderizado
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Capturar gráficos combinados
+        const graficosCanvas = await html2canvas(tempGraficosDiv, {
+          scale: 3,
+          backgroundColor: "#ffffff",
+          logging: false,
+          useCORS: true,
+          windowWidth: tempGraficosDiv.scrollWidth,
+          windowHeight: tempGraficosDiv.scrollHeight,
+        });
+
+        // Limpiar DOM temporal
+        document.body.removeChild(tempGraficosDiv);
+
+        // Descargar gráficos combinados
+        const graficosDataUrl = graficosCanvas.toDataURL("image/png");
+        const graficosLink = document.createElement("a");
+        graficosLink.href = graficosDataUrl;
+        graficosLink.download = `Graficos_Combinados_${fecha}.png`;
+        document.body.appendChild(graficosLink);
+        graficosLink.click();
+        document.body.removeChild(graficosLink);
+
+        console.log("✅ Gráficos combinados descargados");
+      } else {
+        console.warn("⚠️ No se encontraron gráficos para capturar");
+      }
+
+      // ============================================
+      // PARTE 2: CAPTURAR RESULTADOS Y DIVIDIR EN 2 PARTES
+      // ============================================
+
+      console.log("✅ Capturando resultados...");
+
+      // Guardar estilos originales
+      const estiloOriginal = elemento.style.cssText;
+      const originalWidth = elemento.style.width;
+      const originalOverflow = elemento.style.overflow;
+
+      // Crear un contenedor temporal más ancho para la captura
+      const tempContainer = document.createElement("div");
+      tempContainer.style.backgroundColor = "#ffffff";
+      tempContainer.style.padding = "20px";
+      tempContainer.style.width = "1400px"; // Ancho fijo grande para asegurar que todo el contenido quepa
+      tempContainer.style.margin = "0 auto";
+      tempContainer.style.position = "absolute";
+      tempContainer.style.left = "-9999px";
+      tempContainer.style.top = "-9999px";
+
+      // Clonar el contenido
+      const contenidoClone = elemento.cloneNode(true);
+      contenidoClone.style.width = "100%";
+      contenidoClone.style.overflow = "visible";
+      contenidoClone.style.backgroundColor = "#ffffff";
+      contenidoClone.style.margin = "0";
+      contenidoClone.style.padding = "0";
+
+      // Mejorar estilos de todas las tablas en el clon
+      const tables = contenidoClone.querySelectorAll("table");
+      tables.forEach((table) => {
+        table.style.width = "100%";
+        table.style.borderCollapse = "collapse";
+        table.style.marginBottom = "10px";
+        table.style.backgroundColor = "#ffffff";
+        table.style.tableLayout = "fixed"; // Para evitar que las tablas se desborden
+      });
+
+      // Asegurar que las celdas tengan bordes y padding adecuados
+      const cells = contenidoClone.querySelectorAll("td, th");
+      cells.forEach((cell) => {
+        cell.style.border = "1px solid #ddd";
+        cell.style.padding = "8px";
+        cell.style.textAlign = "center";
+        cell.style.wordWrap = "break-word"; // Permitir que el texto se rompa
+      });
+
+      // Mejorar estilos de los títulos
+      const headers = contenidoClone.querySelectorAll("h1, h2, h3, h4");
+      headers.forEach((header) => {
+        header.style.backgroundColor = "#ffffff";
+        header.style.color = "#000000";
+        header.style.marginTop = "10px";
+        header.style.marginBottom = "10px";
+      });
+
+      tempContainer.appendChild(contenidoClone);
+      document.body.appendChild(tempContainer);
+
+      // Esperar renderizado completo
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Capturar el contenedor temporal
+      const canvas = await html2canvas(tempContainer, {
         scale: 3,
         useCORS: true,
         backgroundColor: "#ffffff",
@@ -1251,22 +1443,60 @@ document.addEventListener("DOMContentLoaded", () => {
             el.style.backgroundColor = "#ffffff";
             el.style.color = "#000000";
           }
-
-          // 🔥 OCULTAR BOTONES
-          doc.querySelectorAll("button").forEach(btn => {
-            btn.style.display = "none";
-          });
-
-          doc.body.style.margin = "0";
-          doc.body.style.padding = "0";
-          doc.body.style.backgroundColor = "#ffffff";
         },
       });
 
-      const dataUrl = canvas.toDataURL("image/png");
-      const blob = await dataUrlABlob(dataUrl);
+      // Limpiar DOM temporal
+      document.body.removeChild(tempContainer);
 
-      await descargarEnPartes(blob, "Diseño_Columna", 3);
+      // Restaurar estilos originales
+      elemento.style.cssText = estiloOriginal;
+
+      console.log(`✅ Canvas capturado: ${canvas.width} x ${canvas.height}`);
+
+      // Verificar si el canvas tiene contenido
+      if (canvas.width === 0 || canvas.height === 0) {
+        throw new Error("El canvas capturado está vacío");
+      }
+
+      // 🔥 DIVIDIR RESULTADOS EN 2 PARTES
+      const partes = 2;
+      const ancho = canvas;
+      const altoTotal = canvas.height;
+      const altoParte = Math.ceil(altoTotal / partes);
+
+      console.log(
+        `📐 Dividiendo imagen en ${partes} partes, altura total: ${altoTotal}px, altura por parte: ${altoParte}px`,
+      );
+
+      for (let i = 0; i < partes; i++) {
+        const canvasParte = document.createElement("canvas");
+        const ctxParte = canvasParte.getContext("2d");
+
+        canvasParte.width = ancho;
+        canvasParte.height = altoParte;
+
+        ctxParte.drawImage(canvas, 0, i * altoParte, ancho, altoParte, 0, 0, ancho, altoParte);
+
+        const dataUrl = canvasParte.toDataURL("image/png");
+
+        // Verificar que la parte no esté vacía
+        if (dataUrl === "data:," || canvasParte.width === 0 || canvasParte.height === 0) {
+          console.warn(`⚠️ Parte ${i + 1} está vacía`);
+          continue;
+        }
+
+        const link = document.createElement("a");
+        link.href = dataUrl;
+        link.download = `Resultados_Parte_${i + 1}_de_2_${fecha}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        console.log(`✅ Parte ${i + 1} de ${partes} descargada (${canvasParte.width} x ${canvasParte.height})`);
+      }
+
+      alert("✅ Imágenes descargadas exitosamente (1 gráfico combinado + 2 partes de resultados)");
     } catch (error) {
       console.error("Error al generar la captura:", error);
       alert("Ocurrió un error al generar la imagen.");
@@ -1274,5 +1504,8 @@ document.addEventListener("DOMContentLoaded", () => {
       btnCaptura.disabled = false;
       btnCaptura.textContent = textoOriginal;
     }
-  });
+  };
+
+  // Asignar el evento al botón
+  document.getElementById("btn_captura_resultado").addEventListener("click", capturarTabla);
 });
