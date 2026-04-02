@@ -28,11 +28,9 @@
 
         <div class="space-y-2">
             <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Periodos</label>
-            <select x-model="cover.soilPeriod"
-                class="w-full appearance-none bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100 px-4 py-3 pr-10 rounded-xl shadow-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200 outline-none">
-                <option value="Tp">Tp</option>
-                <option value="Tl">Tl</option>
-            </select>
+            <div class="flex gap-5 items-center justify-center pt-5">
+                <div class="text-xl font-bold text-gray-700 dark:text-gray-300 mb-1">Tp y Tl</div>
+            </div>
         </div>
 
         <div class="space-y-2">

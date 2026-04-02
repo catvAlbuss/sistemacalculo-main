@@ -173,22 +173,23 @@
         <div class="space-y-6">
             <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 border-l-4 border-amber-500 pl-3">2.4 METRADO
                 DE CARGAS</h3>
+
             <div
                 class="bg-amber-50 dark:bg-amber-900/10 p-6 rounded-2xl border border-amber-100 dark:border-amber-800 space-y-6">
                 <h4 class="font-bold text-amber-800 dark:text-amber-400">Datos de Carga y Geometría</h4>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
                     <div class="space-y-1">
-                        <label class="text-xs font-bold text-gray-500">K5: Carga Muerta (kgf/m2)</label>
+                        <label class="text-xs font-bold text-gray-500">Carga Muerta (kgf/m2)</label>
                         <input type="number" x-model="$store.memoriaCalculo.sections.analisisCargas.casoscarga.K5"
                             class="w-full rounded-lg border-2 border-gray-200 p-2 text-sm focus:border-amber-500 outline-none">
                     </div>
                     <div class="space-y-1">
-                        <label class="text-xs font-bold text-gray-500">K10: Carga Viva (kgf/m2)</label>
+                        <label class="text-xs font-bold text-gray-500">Carga Viva (kgf/m2)</label>
                         <input type="number" x-model="$store.memoriaCalculo.sections.analisisCargas.casoscarga.K10"
                             class="w-full rounded-lg border-2 border-gray-200 p-2 text-sm focus:border-amber-500 outline-none">
                     </div>
                     <div class="space-y-1">
-                        <label class="text-xs font-bold text-gray-500">K11: S/C Const. (kgf/m2)</label>
+                        <label class="text-xs font-bold text-gray-500">S/C Const. (kgf/m2)</label>
                         <input type="number" x-model="$store.memoriaCalculo.sections.analisisCargas.casoscarga.K11"
                             class="w-full rounded-lg border-2 border-gray-200 p-2 text-sm focus:border-amber-500 outline-none">
                     </div>
@@ -199,19 +200,19 @@
                             class="w-full rounded-lg border-2 border-amber-200 p-2 text-sm focus:border-amber-500 outline-none bg-amber-50/50">
                     </div>
                     <div class="space-y-1">
-                        <label class="text-xs font-bold text-gray-500">K17: Altura (m)</label>
+                        <label class="text-xs font-bold text-gray-500">Altura (m)</label>
                         <input type="number" step="0.01"
                             x-model="$store.memoriaCalculo.sections.analisisCargas.casoscarga.K17"
                             class="w-full rounded-lg border-2 border-gray-200 p-2 text-sm focus:border-amber-500 outline-none">
                     </div>
                     <div class="space-y-1">
-                        <label class="text-xs font-bold text-gray-500">K21: C Barlovento</label>
+                        <label class="text-xs font-bold text-gray-500">C Barlovento</label>
                         <input type="number" step="0.01"
                             x-model="$store.memoriaCalculo.sections.analisisCargas.casoscarga.K21"
                             class="w-full rounded-lg border-2 border-gray-200 p-2 text-sm focus:border-amber-500 outline-none">
                     </div>
                     <div class="space-y-1">
-                        <label class="text-xs font-bold text-gray-500">K32: C Sotavento</label>
+                        <label class="text-xs font-bold text-gray-500">C Sotavento</label>
                         <input type="number" step="0.01"
                             x-model="$store.memoriaCalculo.sections.analisisCargas.casoscarga.K32"
                             class="w-full rounded-lg border-2 border-gray-200 p-2 text-sm focus:border-amber-500 outline-none">
@@ -220,15 +221,11 @@
             </div>
 
             <div class="space-y-4">
-                <h4 class="font-bold text-gray-700">Imágenes de Metrado (Fig 18 - 21)</h4>
+                <h4 class="font-bold text-gray-700">Imágenes de Carga Muerta (Fig 18 - 21)</h4>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <template x-for="i in 4" :key="i">
                         <div class="space-y-2">
                             <div class="flex items-center justify-between">
-<<<<<<< HEAD
-                                <label class="text-xs font-bold" x-text="'Figura ' + (17 + i)"></label>
-                                <!-- BOTON ELIMINAR (JHACK) -->
-=======
                                 {{-- Usar el nombre específico del array --}}
                                 <label class="text-sm font-bold text-gray-700 dark:text-gray-300"
                                     x-text="'Figura ' + (17+i)"></label>
@@ -266,11 +263,15 @@
                                     </div>
                                 </template>
                             </div>
+                            <input
+                                type="text"
+                                x-model="$store.memoriaCalculo.sections.analisisCargas.descripcionesCargaMuerta[i-1]"
+                                class="mt-2 w-full rounded-lg border border-gray-300 px-2 py-1 text-xs focus:border-amber-500 outline-none"
+                                :placeholder="'Figura ' + (17+i) + ' - Descripción'" />
                         </div>
                         <!-- <div class="space-y-2">
                             <div class="flex items-center justify-between">
                                 <label class="text-xs font-bold" x-text="'Figura ' + (17 + i)"></label>
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                                 <button type="button" x-show="previews.metradoCargasImages[i-1]"
                                     @click="removeArrayImage('metradoCargasImages', [i-1])"
                                     class="text-red-500 text-xs font-semibold hover:underline flex items-center gap-1">
@@ -299,16 +300,11 @@
             </div>
 
             <div class="space-y-4">
-                <h4 class="font-bold text-gray-700">Imágenes Cargas Aproximadas (Fig 22 - 25)</h4>
+                <h4 class="font-bold text-gray-700">Imágenes de Carga Viva (Fig 22 - 25)</h4>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <template x-for="i in 4" :key="i">
                         <div class="space-y-2">
                             <div class="flex items-center justify-between">
-<<<<<<< HEAD
-                                <label class="text-xs font-bold" x-text="'Figura ' + (21 + i)"></label>
-
-                                <!-- BOTON ELIMINAR (JHACK) -->
-=======
                                 {{-- Usar el nombre específico del array --}}
                                 <label class="text-sm font-bold text-gray-700 dark:text-gray-300"
                                     x-text="'Figura ' + (21+i)"></label>
@@ -346,11 +342,15 @@
                                     </div>
                                 </template>
                             </div>
+                            <input
+                                type="text"
+                                x-model="$store.memoriaCalculo.sections.analisisCargas.descripcionesCargaViva[i-1]"
+                                class="mt-2 w-full rounded-lg border border-gray-300 px-2 py-1 text-xs focus:border-amber-500 outline-none"
+                                :placeholder="'Figura ' + (21+i) + ' - Descripción'" />
                         </div>
                         <!-- <div class="space-y-2">
                             <div class="flex items-center justify-between">
                                 <label class="text-xs font-bold" x-text="'Figura ' + (21 + i)"></label>
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                                 <button type="button" x-show="previews.cargasAproximadasImages[i-1]"
                                     @click="removeArrayImage('cargasAproximadasImages', [i-1])"
                                     class="text-red-500 text-xs font-semibold hover:underline flex items-center gap-1">

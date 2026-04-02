@@ -1,6 +1,6 @@
 {{-- partials/sidebar-nav.blade.php - Sidebar de navegación --}}
 <nav class="sticky top-6 flex flex-col gap-2" x-data="{ activeSection: 'section-info-general' }">
-    
+
     <a href="#section-info-general" @click="activeSection = 'section-info-general'"
         :class="activeSection === 'section-info-general' ? 'section-active' : ''"
         class="px-4 py-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-transparent hover:border-blue-500 transition-all font-medium text-gray-700 dark:text-gray-300 flex items-center gap-3">
@@ -105,12 +105,9 @@
         </span>
         <span>Diseño de Elementos</span>
     </a>
-<<<<<<< HEAD
     <!-- DISEÑO DE ESTRUCTURA METÁLICA -->
-=======
-    
-<!-- DISEÑO DE ESTRUCTURA METÁLICA -->
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
+
+    <!-- DISEÑO DE ESTRUCTURA METÁLICA -->
     <a href="#section-diseno-estructura" @click="activeSection = 'section-diseno-estructura'"
         :class="activeSection === 'section-diseno-estructura' ? 'section-active' : ''"
         class="px-4 py-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-transparent hover:border-blue-500 transition-all font-medium text-gray-700 dark:text-gray-300 flex items-center gap-3">
@@ -131,11 +128,33 @@
         <span class="icon-container p-1.5 bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 rounded-lg">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
                 stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
             </svg>
         </span>
         <span>Conclusiones y Recomendaciones</span>
     </a>
+
+    <div class="mt-8 flex justify-center">
+        <button @click="showValidationModal()" :disabled="isExporting"
+            :style="isExporting ? 'background-color: #9CA3AF; color: white;' : 'background: linear-gradient(135deg, #3B82F6, #4F46E5); color: white;'"
+            class="group px-8 py-4 rounded-2xl font-bold text-lg shadow-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+            <div class="flex items-center gap-3">
+                <template x-if="!isExporting">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                    </svg>
+                </template>
+                <template x-if="isExporting">
+                    <svg class="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </template>
+                <span x-text="isExporting ? 'Exportando...' : 'Exportar a Word'"></span>
+            </div>
+        </button>
+    </div>
 
     {{-- Resumen Card --}}
     <div
