@@ -24,11 +24,9 @@
                     @include('hcalculo.memoria_calculo.sections.analisis-cargas')
                     @include('hcalculo.memoria_calculo.sections.analisis-sismico')
                     @include('hcalculo.memoria_calculo.sections.diseno-elementos')
-<<<<<<< HEAD
                     <!-- JHACK -->
                     <!-- SECCION 5 -->
-=======
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
+
                     @include('hcalculo.memoria_calculo.sections.diseno-estructura')
                     <!-- SECCION 6 -->
                     @include('hcalculo.memoria_calculo.sections.conclusiones-recomendaciones')

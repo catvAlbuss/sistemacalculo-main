@@ -1135,6 +1135,8 @@ $(document).ready(function () {
       removeScripts: false, // No eliminar las etiquetas <script>
       copyTagClasses: false, // No copiar las clases de las etiquetas HTML
     });
+  });
+});
 
     const btnCaptura = document.getElementById("btn_captura_columna");
 
@@ -1246,10 +1248,8 @@ $(document).ready(function () {
   });
 });
 
-$(document).ready(function () {
-  const capturarTabla = async () => {
-    const btn = document.getElementById("btn_captura_resultado");
-    const elemento = document.getElementById("ObtenerResultadosCol");
+      btnCaptura.disabled = true;
+      btnCaptura.textContent = "Generando...";
 
     if (!elemento || elemento.innerHTML.trim() === "") {
       alert("Primero debes generar los resultados.");
@@ -1425,18 +1425,23 @@ $(document).ready(function () {
       // Capturar el contenedor temporal
       const canvas = await html2canvas(tempContainer, {
         scale: 3,
+        useCORS: true,
         backgroundColor: "#ffffff",
         logging: false,
-        useCORS: true,
-        allowTaint: false,
-        windowWidth: tempContainer.scrollWidth,
-        windowHeight: tempContainer.scrollHeight,
+        scrollX: 0,
+        scrollY: -window.scrollY,
+        windowWidth: document.documentElement.scrollWidth,
+        windowHeight: document.documentElement.scrollHeight,
         onclone: (doc) => {
-          // Asegurar estilos en el clon
-          const container = doc.querySelector("div");
-          if (container) {
-            container.style.width = "1400px";
-            container.style.backgroundColor = "#ffffff";
+          const el = doc.getElementById("columna_pdf");
+          if (el) {
+            el.style.margin = "0";
+            el.style.padding = "24px";
+            el.style.height = "auto";
+            el.style.minHeight = "auto";
+            el.style.overflow = "visible";
+            el.style.backgroundColor = "#ffffff";
+            el.style.color = "#000000";
           }
         },
       });
@@ -1494,12 +1499,10 @@ $(document).ready(function () {
       alert("✅ Imágenes descargadas exitosamente (1 gráfico combinado + 2 partes de resultados)");
     } catch (error) {
       console.error("Error al generar la captura:", error);
-      alert("Ocurrió un error al generar la imagen: " + error.message);
+      alert("Ocurrió un error al generar la imagen.");
     } finally {
-      // Restaurar el botón
-      btn.disabled = false;
-      btn.classList.remove("opacity-50", "cursor-not-allowed");
-      btn.textContent = "Generar IMG";
+      btnCaptura.disabled = false;
+      btnCaptura.textContent = textoOriginal;
     }
   };
 

@@ -28,61 +28,23 @@
                     <p class="text-sm text-gray-700 dark:text-gray-300">Esta sección no se agrega nada.</p>
                 </div>
             </div>
-<<<<<<< HEAD
-            <div class="space-y-4">
-                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 border-l-4 border-amber-500 pl-3">5.2 Análisis Estructural</h3>
-                <div class="grid grid-cols-1 gap-4">
-                    <div class="space-y-2">
-                        <div class="flex items-center justify-between">
-                            <label class="text-sm font-bold text-gray-700 dark:text-gray-300">Figura x</label>
-                            <button type="button" x-show="previews.analisisEstructuralImages[0]"
-                                @click="removeArrayImage('analisisEstructuralImages', 0)"
-                                class="text-red-500 text-xs font-semibold hover:underline flex items-center gap-1">
-                                Eliminar
-                            </button>
-                        </div>
-                        <div class="relative group h-64">
-                            <template x-if="previews.analisisEstructuralImages[0]">
-                                <img :src="previews.analisisEstructuralImages[0]"
-                                    class="h-full w-full object-contain rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-                            </template>
-                            <template x-if="!previews.analisisEstructuralImages[0]">
-                                <label
-                                    class="flex flex-col items-center justify-center h-full w-full rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-amber-500 mb-2"
-                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                    <span class="text-xs font-medium text-gray-600">Subir Figura x</span>
-                                    <input type="file"
-                                        @change="handleArrayImageChange('analisisEstructuralImages', 0, $event)"
-                                        class="hidden">
-                                </label>
-                            </template>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-=======
             <div class="space-y-2">
                 <div class="flex items-center justify-between">
                     <label class="text-sm font-bold text-gray-700 dark:text-gray-300">Figura x</label>
-                    <button type="button" x-show="previews.analisisEstructuralImages[0]"
-                        @click="removeArrayImage('analisisEstructuralImages', 0)"
+                    <button type="button" x-show="previews.analisisEstructuralSingleImages[0]"
+                        @click="removeArrayImage('analisisEstructuralSingleImages', 0)"
                         class="text-red-500 text-xs font-semibold hover:underline flex items-center gap-1">
                         Eliminar
                     </button>
                 </div>
                 <div class="relative group h-64">
-                    <template x-if="previews.analisisEstructuralImages[0]">
-                        <img :src="previews.analisisEstructuralImages[0]"
+                    <template x-if="previews.analisisEstructuralSingleImages[0]">
+                        <img :src="previews.analisisEstructuralSingleImages[0]"
                             class="h-full w-full object-contain rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
                     </template>
-                    <template x-if="!previews.analisisEstructuralImages[0]">
+                    <template x-if="!previews.analisisEstructuralSingleImages[0]">
                         <label tabindex="0"
-                            @paste="handlePaste($event, 'analisisEstructuralImages', 0)"
+                            @paste="handlePaste($event, 'analisisEstructuralSingleImages', 0)"
                             @mouseenter="$el.focus()"
                             class="flex flex-col items-center justify-center h-full w-full rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-amber-500 mb-2"
@@ -92,13 +54,12 @@
                             </svg>
                             <span class="text-xs font-medium text-gray-600">Subir imagen o <span class="font-semibold text-purple-600">Ctrl+V</span></span>
                             <input type="file"
-                                @change="handleArrayImageChange('analisisEstructuralImages', 0, $event)"
+                                @change="handleArrayImageChange('analisisEstructuralSingleImages', 0, $event)"
                                 class="hidden">
                         </label>
                     </template>
                 </div>
             </div>
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
         </div>
         <!-- FIGURA Y -->
         <!-- DISEÑOS -->
@@ -116,12 +77,8 @@
                 </svg>
             </button>
             <!-- NIVEL 2 -->
-<<<<<<< HEAD
-            <!-- ●	DISEÑO DE COLUMNA METALICA -->
-=======
             <!-- ● DISEÑO DE COLUMNA METALICA -->
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
-            <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSectiony" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony1 = !showSectiony1" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
@@ -133,52 +90,6 @@
                                 d="M19 9l-7 7-7-7" />
                         </svg>
                     </button>
-<<<<<<< HEAD
-                    <!-- NIVEL 3 -->
-                    <div x-show="showSectiony1" x-collapse class="p-6 space-y-6">
-                        <!-- IMG 1 -->
-                        <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                                imagen 1
-                            </label>
-                            <input type="file" accept="image/*" @change="handleArrayImageChange('disenoColumnaMetalica',0,$event)"
-                                x-ref="input_disenoColumnaMetalica_0"
-                                class="w-full bg-gray-50 dark:bg-gray-700/50 border-2 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-                            <div x-show="previews.disenoColumnaMetalica?.[0]" class="mt-3 relative group">
-                                <img :src="previews.disenoColumnaMetalica[0]" alt="Diseño Columna Metálica img-1"
-                                    class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
-
-                                <button @click.prevent="removeArrayImage('disenoColumnaMetalica', 0)" type="button"
-                                    class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                        <!-- IMG 2 -->
-                        <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                                imagen 2
-                            </label>
-                            <input type="file" accept="image/*" @change="handleArrayImageChange('disenoColumnaMetalica',1,$event)"
-                                x-ref="input_disenoColumnaMetalica_1"
-                                class="w-full bg-gray-50 dark:bg-gray-700/50 border-2 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-                            <div x-show="previews.disenoColumnaMetalica?.[1]" class="mt-3 relative group">
-                                <img :src="previews.disenoColumnaMetalica[1]" alt="Diseño Columna Metálica img-2"
-                                    class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
-                                <button @click.prevent="removeArrayImage('disenoColumnaMetalica', 1)" type="button"
-                                    class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                        <!-- DESCRIPCIÓN BREVE -->
-=======
 
                     <div x-show="showSectiony1" x-collapse class="p-6 space-y-6">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -258,7 +169,6 @@
                         </div>
 
                         <!-- DESCRIPCIÓN BREVE (se mantiene igual) -->
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                         <div class="space-y-2">
                             <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
                                 Descripción breve
@@ -273,7 +183,7 @@
                 </div>
             </div>
             <!-- ●	DISEÑO DE BRIDA SUPERIOR  -->
-            <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSectiony" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony2 = !showSectiony2" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
@@ -287,46 +197,6 @@
                     </button>
                     <!-- NIVEL 3 -->
                     <div x-show="showSectiony2" x-collapse class="p-6 space-y-6">
-<<<<<<< HEAD
-                        <!-- IMG 1 -->
-                        <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                                imagen 1
-                            </label>
-                            <input type="file" accept="image/*" @change="handleArrayImageChange('disenoBridaSuperior',0,$event)"
-                                x-ref="input_disenoBridaSuperior_0"
-                                class="w-full bg-gray-50 dark:bg-gray-700/50 border-2 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-                            <div x-show="previews.disenoBridaSuperior?.[0]" class="mt-3 relative group">
-                                <img :src="previews.disenoBridaSuperior?.[0]" alt="Preview Figura 29"
-                                    class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
-                                <button @click.prevent="removeArrayImage('disenoBridaSuperior', 0)" type="button"
-                                    class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                        <!-- IMG 2 -->
-                        <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                                imagen 2
-                            </label>
-                            <input type="file" accept="image/*" @change="handleArrayImageChange('disenoBridaSuperior',1,$event)"
-                                x-ref="input_disenoBridaSuperior_1"
-                                class="w-full bg-gray-50 dark:bg-gray-700/50 border-2 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-                            <div x-show="previews.disenoBridaSuperior?.[1]" class="mt-3 relative group">
-                                <img :src="previews.disenoBridaSuperior?.[1]" alt="Preview Figura 29"
-                                    class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
-                                <button @click.prevent="removeArrayImage('disenoBridaSuperior', 1)" type="button"
-                                    class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-=======
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- IMAGEN 1 -->
                             <div class="space-y-2">
@@ -400,7 +270,6 @@
                                         </label>
                                     </template>
                                 </div>
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                             </div>
                         </div>
                         <!-- DESCRIPCIÓN BREVE -->
@@ -418,7 +287,7 @@
                 </div>
             </div>
             <!-- ●	DISEÑO DE BRIDA INFERIOR  -->
-            <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSectiony" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony3 = !showSectiony3" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
@@ -432,46 +301,6 @@
                     </button>
                     <!-- NIVEL 3 -->
                     <div x-show="showSectiony3" x-collapse class="p-6 space-y-6">
-<<<<<<< HEAD
-                        <!-- IMG 1 -->
-                        <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                                imagen 1
-                            </label>
-                            <input type="file" accept="image/*" @change="handleArrayImageChange('disenoBridaInferior',0,$event)"
-                                x-ref="input_disenoBridaInferior_0"
-                                class="w-full bg-gray-50 dark:bg-gray-700/50 border-2 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-                            <div x-show="previews.disenoBridaInferior?.[0]" class="mt-3 relative group">
-                                <img :src="previews.disenoBridaInferior?.[0]" alt="Preview Figura 29"
-                                    class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
-                                <button @click.prevent="removeArrayImage('disenoBridaInferior', 0)" type="button"
-                                    class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                        <!-- IMG 2 -->
-                        <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                                imagen 2
-                            </label>
-                            <input type="file" accept="image/*" @change="handleArrayImageChange('disenoBridaInferior',1,$event)"
-                                x-ref="input_disenoBridaInferior_1"
-                                class="w-full bg-gray-50 dark:bg-gray-700/50 border-2 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-                            <div x-show="previews.disenoBridaInferior?.[1]" class="mt-3 relative group">
-                                <img :src="previews.disenoBridaInferior?.[1]" alt="Preview Figura 29"
-                                    class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
-                                <button @click.prevent="removeArrayImage('disenoBridaInferior', 1)" type="button"
-                                    class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-=======
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- IMAGEN 1 -->
                             <div class="space-y-2">
@@ -545,7 +374,6 @@
                                         </label>
                                     </template>
                                 </div>
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                             </div>
                         </div>
                         <!-- DESCRIPCIÓN BREVE -->
@@ -563,7 +391,7 @@
                 </div>
             </div>
             <!-- ●	DISEÑO DE PARANTE -->
-            <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSectiony" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony4 = !showSectiony4" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
@@ -577,46 +405,6 @@
                     </button>
                     <!-- NIVEL 3 -->
                     <div x-show="showSectiony4" x-collapse class="p-6 space-y-6">
-<<<<<<< HEAD
-                        <!-- IMG 1 -->
-                        <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                                imagen 1
-                            </label>
-                            <input type="file" accept="image/*" @change="handleArrayImageChange('disenoParante',0,$event)"
-                                x-ref="input_disenoParante_0"
-                                class="w-full bg-gray-50 dark:bg-gray-700/50 border-2 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-                            <div x-show="previews.disenoParante?.[0]" class="mt-3 relative group">
-                                <img :src="previews.disenoParante?.[0]" alt="Preview Figura 29"
-                                    class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
-                                <button @click.prevent="removeArrayImage('disenoParante', 0)" type="button"
-                                    class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                        <!-- IMG 2 -->
-                        <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                                imagen 2
-                            </label>
-                            <input type="file" accept="image/*" @change="handleArrayImageChange('disenoParante',1,$event)"
-                                x-ref="input_disenoParante_1"
-                                class="w-full bg-gray-50 dark:bg-gray-700/50 border-2 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-                            <div x-show="previews.disenoParante?.[1]" class="mt-3 relative group">
-                                <img :src="previews.disenoParante?.[1]" alt="Preview Figura 29"
-                                    class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
-                                <button @click.prevent="removeArrayImage('disenoParante', 1)" type="button"
-                                    class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-=======
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- IMAGEN 1 -->
                             <div class="space-y-2">
@@ -690,7 +478,6 @@
                                         </label>
                                     </template>
                                 </div>
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                             </div>
                         </div>
                         <!-- DESCRIPCIÓN BREVE -->
@@ -708,7 +495,7 @@
                 </div>
             </div>
             <!-- ●	DISEÑO DE DIAGONAL -->
-            <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSectiony" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony5 = !showSectiony5" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
@@ -722,46 +509,6 @@
                     </button>
                     <!-- NIVEL 3 -->
                     <div x-show="showSectiony5" x-collapse class="p-6 space-y-6">
-<<<<<<< HEAD
-                        <!-- IMG 1 -->
-                        <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                                imagen 1
-                            </label>
-                            <input type="file" accept="image/*" @change="handleArrayImageChange('disenoDiagonal',0,$event)"
-                                x-ref="input_disenoDiagonal_0"
-                                class="w-full bg-gray-50 dark:bg-gray-700/50 border-2 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-                            <div x-show="previews.disenoDiagonal?.[0]" class="mt-3 relative group">
-                                <img :src="previews.disenoDiagonal?.[0]" alt="Preview Figura 29"
-                                    class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
-                                <button @click.prevent="removeArrayImage('disenoDiagonal', 0)" type="button"
-                                    class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                        <!-- IMG 2 -->
-                        <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                                imagen 2
-                            </label>
-                            <input type="file" accept="image/*" @change="handleArrayImageChange('disenoDiagonal',1,$event)"
-                                x-ref="input_disenoDiagonal_1"
-                                class="w-full bg-gray-50 dark:bg-gray-700/50 border-2 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-                            <div x-show="previews.disenoDiagonal?.[1]" class="mt-3 relative group">
-                                <img :src="previews.disenoDiagonal?.[1]" alt="Preview Figura 29"
-                                    class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
-                                <button @click.prevent="removeArrayImage('disenoDiagonal', 1)" type="button"
-                                    class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-=======
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- IMAGEN 1 -->
                             <div class="space-y-2">
@@ -835,7 +582,6 @@
                                         </label>
                                     </template>
                                 </div>
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                             </div>
                         </div>
                         <!-- DESCRIPCIÓN BREVE -->
@@ -853,7 +599,7 @@
                 </div>
             </div>
             <!-- ●	DISEÑO DE CORREA METÁLICA -->
-            <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSectiony" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony6 = !showSectiony6" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
@@ -867,46 +613,6 @@
                     </button>
                     <!-- NIVEL 3 -->
                     <div x-show="showSectiony6" x-collapse class="p-6 space-y-6">
-<<<<<<< HEAD
-                        <!-- IMG 1 -->
-                        <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                                imagen 1
-                            </label>
-                            <input type="file" accept="image/*" @change="handleArrayImageChange('disenoCorreaMetalica',0,$event)"
-                                x-ref="input_disenoCorreaMetalica_0"
-                                class="w-full bg-gray-50 dark:bg-gray-700/50 border-2 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-                            <div x-show="previews.disenoCorreaMetalica?.[0]" class="mt-3 relative group">
-                                <img :src="previews.disenoCorreaMetalica?.[0]" alt="Preview Figura 29"
-                                    class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
-                                <button @click.prevent="removeArrayImage('disenoCorreaMetalica', 0)" type="button"
-                                    class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                        <!-- IMG 2 -->
-                        <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                                imagen 2
-                            </label>
-                            <input type="file" accept="image/*" @change="handleArrayImageChange('disenoCorreaMetalica',1,$event)"
-                                x-ref="input_disenoCorreaMetalica_1"
-                                class="w-full bg-gray-50 dark:bg-gray-700/50 border-2 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-                            <div x-show="previews.disenoCorreaMetalica?.[1]" class="mt-3 relative group">
-                                <img :src="previews.disenoCorreaMetalica?.[1]" alt="Preview Figura 29"
-                                    class="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 dark:border-gray-600">
-                                <button @click.prevent="removeArrayImage('disenoCorreaMetalica', 1)" type="button"
-                                    class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-=======
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- IMAGEN 1 -->
                             <div class="space-y-2">
@@ -980,7 +686,6 @@
                                         </label>
                                     </template>
                                 </div>
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
                             </div>
                         </div>
                         <!-- DESCRIPCIÓN BREVE -->
