@@ -11,8 +11,7 @@ $(document).ready(function () {
           tds[i].remove();
         }
       } else {
-        numLuz = numTramos;
-        for (let i = tds.length; i < numLuz; i++) {
+        for (let i = tds.length; i < numTramos; i++) {
           const td = document.createElement("td");
           const uniqueName = generateUniqueName(); // Generar un nombre único
           const inputContainer = document.createElement("div");
@@ -261,8 +260,8 @@ $(document).ready(function () {
           tds[i].remove();
         }
       } else {
-        numTramoss = numTramos * 3;
-        for (let i = tds.length; i < numTramoss; i++) {
+        const numTramos3 = numTramos * 3;
+        for (let i = tds.length; i < numTramos3; i++) {
           const td = document.createElement("td");
           const uniqueName = generateUniqueName(); // Generar un nombre único
           const inputContainer = document.createElement("div");
