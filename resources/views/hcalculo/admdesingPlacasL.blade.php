@@ -467,7 +467,13 @@
                                                     Análisis en
                                                     dirección "X" <button
                                                         class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 mr-5"
-                                                        data-target="contentDIx">ver / ocultar</button></div>
+                                                        data-target="contentDIx">ver / ocultar</button>
+                                                    <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                        data-target="contentDIx"
+                                                        data-name="Diagrama_interaccion_x">
+                                                        Generar IMG
+                                                    </button>
+                                                    </div>
                                                 <div class="card-body collapsible-content d-none" id="contentDIx">
                                                     <div class="d-flex flex-column">
                                                         <div class="d-flex flex-column mb-5">
@@ -502,7 +508,13 @@
                                                     Análisis en
                                                     dirección "Y" <button
                                                         class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 mr-5"
-                                                        data-target="contentDIy">ver / ocultar</button></div>
+                                                        data-target="contentDIy">ver / ocultar</button>
+                                                    <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                        data-target="contentDIy"
+                                                        data-name="Diagrama_interaccion_y">
+                                                        Generar IMG
+                                                    </button>
+                                                    </div>
                                                 <div class="card-body collapsible-content d-none" id="contentDIy">
                                                     <div class="d-flex flex-column">
                                                         <div class="d-flex flex-column mb-5">
