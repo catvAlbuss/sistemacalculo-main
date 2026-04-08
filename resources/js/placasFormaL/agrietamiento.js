@@ -1,6 +1,9 @@
 /* ------------------------ Análisis en X ------------------------ */
 export function vaT1X(contenedor, initialData, formData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
 
@@ -134,7 +137,10 @@ export function vaT1X(contenedor, initialData, formData) {
 
 /* ------------------------ Análisis en Y ------------------------ */
 export function vaT1Y(contenedor, initialData, formData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
 

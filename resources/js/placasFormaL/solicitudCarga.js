@@ -3,11 +3,14 @@ export var solicitudCargaDT2 = [];
 export var solicitudCargaDT3 = [];
 
 export function solicitudCargaT1(contenedor) {
+  if (!contenedor) return;
+  
   var data = [
     ['Piso 1', '', '', '', '', '', ''],
   ];
 
   var container = contenedor;
+  container.innerHTML = '';
 
   var hot = new Handsontable(container, {
     data: data,
@@ -115,20 +118,31 @@ export function solicitudCargaT1(contenedor) {
 
       hot.suspendRender();
       try {
-        // 1) Insertar los datos pegados (fuente 'paste' para que afterChange los procese)
         hot.populateFromArray(startRow, startCol, data, null, null, 'paste');
-
-        // 2) Actualizar los nombres de los pisos (solo si es necesario)
-        var totalRowsNeeded = data.length + startRow;
-        var rowAmount = hot.countRows() - 1;
-        if (rowAmount < totalRowsNeeded) {
-          var floorUpdates = [];
-          for (var i = startRow; i < totalRowsNeeded; i++) {
-            floorUpdates.push([i, 0, 'Piso ' + (i + 1)]);
+        
+        var allData = hot.getData();
+        var floorUpdates = [];
+        
+        // Contar solo las filas que tienen datos en la columna 0 (Nivel)
+        var dataRowCount = 0;
+        for (var i = 0; i < allData.length; i++) {
+          // Si la fila tiene al menos un valor en cualquier columna, cuenta como una fila con datos
+          var hasData = false;
+          for (var j = 0; j < allData[i].length; j++) {
+            if (allData[i][j] !== null && allData[i][j] !== '' && allData[i][j] !== undefined) {
+              hasData = true;
+              break;
+            }
           }
-          if (floorUpdates.length > 0) {
-            hot.setDataAtCell(floorUpdates, 'internal');
+          
+          if (hasData) {
+            floorUpdates.push([i, 0, 'Piso ' + (dataRowCount + 1)]);
+            dataRowCount++;
           }
+        }
+        
+        if (floorUpdates.length > 0) {
+          hot.setDataAtCell(floorUpdates);
         }
       } finally {
         hot.resumeRender();
@@ -145,39 +159,52 @@ export function solicitudCargaT1(contenedor) {
   document.getElementById('saveDataBtn1').addEventListener('click', saveData);
 
   function saveData() {
-    solicitudCargaDT1 = hot.getData();
-    console.log('Datos de la tabla 1:', solicitudCargaDT1);
-    if (solicitudCargaDT1.length > 1) {
+    var allData = hot.getData();
+    console.log('Raw data from table:', allData);
+    var pisoData = [];
+    for (var i = 0; i < allData.length; i++) {
+      if (allData[i] && allData[i][0] && String(allData[i][0]).trim() !== '') {
+        pisoData.push(allData[i]);
+      }
+    }
+    console.log('Filtered pisoData:', pisoData);
+    console.log('Cantidad de pisos:', pisoData.length);
+    if (pisoData.length >= 1) {
       var contenedor2 = document.getElementById('solicitudCargaT2');
-      solicitudCargaDT1.pop();
-      solicitudCargaT2(contenedor2, solicitudCargaDT1.length);
+      solicitudCargaDT1 = pisoData;
+      solicitudCargaT2(contenedor2, pisoData);
     }
   }
 }
 
-export function solicitudCargaT2(contenedor, filas) {
+export function solicitudCargaT2(contenedor, pisoData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
   var data = [];
 
-  for (let i = 1; i <= filas; i++) {
+  // Usar el pisoData que viene de la tabla 1 para obtener los nombres de los pisos
+  for (let i = 0; i < pisoData.length; i++) {
+    var pisoName = pisoData[i][0] || ('Piso ' + (i + 1)); // Extraer el nombre del piso de la primera columna
     var dataRow = [
-      [i, 'PL-01', '1.40CM+1.70CV'],
-      [i, 'PL-01', '1.25(CM+CV)+CSx Max'],
-      [i, 'PL-01', '1.25(CM+CV)+CSx Min'],
-      [i, 'PL-01', '1.25(CM+CV)+CSy Max'],
-      [i, 'PL-01', '1.25(CM+CV)+CSy Min'],
-      [i, 'PL-01', '1.25(CM+CV)-CSx Max'],
-      [i, 'PL-01', '1.25(CM+CV)-CSx Min'],
-      [i, 'PL-01', '1.25(CM+CV)-CSy Max'],
-      [i, 'PL-01', '1.25(CM+CV)-CSy Min'],
-      [i, 'PL-01', '0.90CM+CSx Max'],
-      [i, 'PL-01', '0.90CM+CSx Min'],
-      [i, 'PL-01', '0.90CM+CSy Max'],
-      [i, 'PL-01', '0.90CM+CSy Min'],
-      [i, 'PL-01', '0.90CM-CSx Max'],
-      [i, 'PL-01', '0.90CM-CSx Min'],
-      [i, 'PL-01', '0.90CM-CSy Max'],
-      [i, 'PL-01', '0.90CM-CSy Min'],
+      [pisoName, 'PL-01', '1.40CM+1.70CV'],
+      [pisoName, 'PL-01', '1.25(CM+CV)+CSx Max'],
+      [pisoName, 'PL-01', '1.25(CM+CV)+CSx Min'],
+      [pisoName, 'PL-01', '1.25(CM+CV)+CSy Max'],
+      [pisoName, 'PL-01', '1.25(CM+CV)+CSy Min'],
+      [pisoName, 'PL-01', '1.25(CM+CV)-CSx Max'],
+      [pisoName, 'PL-01', '1.25(CM+CV)-CSx Min'],
+      [pisoName, 'PL-01', '1.25(CM+CV)-CSy Max'],
+      [pisoName, 'PL-01', '1.25(CM+CV)-CSy Min'],
+      [pisoName, 'PL-01', '0.90CM+CSx Max'],
+      [pisoName, 'PL-01', '0.90CM+CSx Min'],
+      [pisoName, 'PL-01', '0.90CM+CSy Max'],
+      [pisoName, 'PL-01', '0.90CM+CSy Min'],
+      [pisoName, 'PL-01', '0.90CM-CSx Max'],
+      [pisoName, 'PL-01', '0.90CM-CSx Min'],
+      [pisoName, 'PL-01', '0.90CM-CSy Max'],
+      [pisoName, 'PL-01', '0.90CM-CSy Min'],
     ];
     dataRow.map((row) => data.push(row));
   }
@@ -306,21 +333,33 @@ export function solicitudCargaT2(contenedor, filas) {
   document.getElementById('saveDataBtn2').addEventListener('click', saveDataT2);
 
   function saveDataT2() {
-    solicitudCargaDT2 = hot.getData();
-    solicitudCargaDT2 = solicitudCargaDT2.map((row) => row.slice(-6));
+    var allData = hot.getData();
+    var pisoData = [];
+    for (var i = 0; i < allData.length; i++) {
+      if (allData[i] && allData[i][0] && String(allData[i][0]).trim() !== '') {
+        pisoData.push(allData[i]);
+      }
+    }
+    console.log('Filtered pisoData T2:', pisoData);
+    solicitudCargaDT2 = pisoData.map((row) => row.slice(-6));
     var contenedor3 = document.getElementById('solicitudCargaT3');
     solicitudCargaT3(contenedor3, solicitudCargaDT2, solicitudCargaDT2.length);
   }
 }
 
 export function solicitudCargaT3(contenedor, initialData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
   var data      = [];
   var puMax     = 0;
   var vuxMax    = 0;
   var muxMax    = 0;
   var vuyMax    = 0;
   var muyMax    = 0;
+  var pisoCount = 0;
+  var rowCount  = 0;
 
   initialData.map((row, i) => {
     puMax  = Math.max(puMax,  row[0]);
@@ -329,9 +368,13 @@ export function solicitudCargaT3(contenedor, initialData) {
     vuyMax = Math.max(vuyMax, row[4]);
     muyMax = Math.max(muyMax, row[5]);
 
-    if ((i + 1) % 17 == 0) {
+    rowCount++;
+
+    // Cada piso tiene 17 combinaciones de carga
+    if (rowCount % 17 == 0) {
+      pisoCount++;
       var dataRow = [];
-      dataRow.push('Piso ' + (i + 1) / 17);
+      dataRow.push('Piso ' + pisoCount);
       dataRow.push(puMax);
       dataRow.push(vuxMax);
       dataRow.push(muxMax);

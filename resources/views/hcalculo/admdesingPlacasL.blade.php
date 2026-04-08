@@ -2,8 +2,8 @@
     @pushOnce("styles")
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" />
     @endpushOnce
-    <div class="py-12">
-        <div class="container mx-auto w-full">
+    <div class="py-2">
+        <div class="px-2 w-full">
             <div class="flex flex-wrap">
                 <!-- Formulario -->
                 <div class="w-full md:w-1/3">
@@ -476,28 +476,19 @@
                                                     </div>
                                                 <div class="card-body collapsible-content d-none" id="contentDIx">
                                                     <div class="d-flex flex-column">
-                                                        <div class="d-flex flex-column mb-5">
+                                                        <div class="d-flex flex-column mb-5" id="diT1XContainer">
                                                             <div id="diT1X" class="table-container"></div>
                                                             <div class="d-flex justify-content-start">
                                                                 <button id="saveDataBtnDI1X"
                                                                     class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">Siguiente</button>
                                                             </div>
                                                         </div>
-                                                        <div class="d-flex flex-column mb-5">
+                                                        <div class="d-flex flex-column mb-5" id="diT2XContainer" style="display:none;">
                                                             <div id="diT2X" class="table-container"></div>
-                                                            <!-- <div class="d-flex justify-content-start">
-                                                                        <button id="saveDataBtnDI2X" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">Siguiente</button>
-                                                                    </div> -->
                                                         </div>
-                                                        <div class="d-flex flex-column mb-5">
+                                                        <div class="d-flex flex-column mb-5" id="diT3XContainer" style="display:none;">
                                                             <div id="diT3X" class="table-container"></div>
-                                                            <!-- <div class="d-flex justify-content-start">
-                                                                        <button id="saveDataBtnDC3X" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">Ancho Efectivo del Ala</button>
-                                                                    </div> -->
                                                         </div>
-                                                        <!-- <div class="d-flex flex-column mb-5">
-                                                                    <div id="cutDesingT4X" class="table-container"></div>
-                                                                </div> -->
                                                     </div>
                                                 </div>
                                             </div>
@@ -517,25 +508,21 @@
                                                     </div>
                                                 <div class="card-body collapsible-content d-none" id="contentDIy">
                                                     <div class="d-flex flex-column">
-                                                        <div class="d-flex flex-column mb-5">
+                                                        <div class="d-flex flex-column mb-5" id="diT1YContainer">
                                                             <div id="diT1Y" class="table-container"></div>
                                                             <div class="d-flex justify-content-start">
                                                                 <button id="saveDataBtnDI1Y"
                                                                     class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">Siguiente</button>
                                                             </div>
                                                         </div>
-                                                        <div class="d-flex flex-column mb-5">
+                                                        <div class="d-flex flex-column mb-5" id="diT2YContainer" style="display:none;">
                                                             <div id="diT2Y" class="table-container"></div>
-                                                            <!-- <div class="d-flex justify-content-start">
-                                                                        <button id="saveDataBtnDI2Y" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">Siguiente</button>
-                                                                    </div> -->
                                                         </div>
-                                                        <div class="d-flex flex-column mb-5">
+                                                        <div class="d-flex flex-column mb-5" id="diT3YContainer" style="display:none;">
                                                             <div id="diT3Y" class="table-container"></div>
-                                                            <!-- <div class="d-flex justify-content-start">
-                                                                        <button id="saveDataBtnDI3Y" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">Esquema Armado Final</button>
-                                                                    </div> -->
                                                         </div>
+                                                    </div>
+                                                </div>
                                                         <!-- <div class="d-flex flex-column mb-5">
                                                                     <div id="cutDesingT4Y" class="table-container"></div>
                                                                 </div> -->
@@ -543,7 +530,7 @@
                                                 </div>
                                             </div>
                                             <!-- Diagramas -->
-                                            <div class="card m-0">
+                                            <div class="card m-0" id="diagramsCard" style="display:none;">
                                                 <div
                                                     class="text-gray-950 dark:text-white d-flex justify-content-between">
                                                     Diagramas de
@@ -794,6 +781,7 @@
 
     @pushOnce("scripts")
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     @vite("resources/js/adm_desing_placasL.js")
     @endpushOnce
 </x-calc-layout>

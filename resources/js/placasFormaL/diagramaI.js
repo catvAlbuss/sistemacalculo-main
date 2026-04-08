@@ -11,6 +11,11 @@ export function diT1X(
   tableData3DC,
   formData
 ) {
+  if (!contenedor) return;
+  
+  container = contenedor;
+  container.innerHTML = '';
+  
   // Validación de datos de entrada
   if (!tableData1DC || tableData1DC.length === 0) {
     console.warn("diT1X: tableData1DC está vacío o no definido.");
@@ -257,17 +262,19 @@ export function diT1X(
 
   function CheckData() {
     tableDI1X = hot.getData();
-    var contenedor = document.getElementById('diT2X');
-    if (contenedor) {
-      diT2X(contenedor, solicitaciones, tableData1DC, dataTable2xDF, formData);
-    } else {
-      console.warn("No se encontró el contenedor diT2X");
+    
+    var contenedor2 = document.getElementById('diT2XContainer');
+    var contenedor2Inner = document.getElementById('diT2X');
+    if (contenedor2 && contenedor2Inner) {
+      diT2X(contenedor2Inner, solicitaciones, tableData1DC, dataTable2xDF, formData);
+      contenedor2.style.display = tableDI1X && tableDI1X.length > 0 ? 'block' : 'none';
     }
-    var contenedor2 = document.getElementById('diT3X');
-    if (contenedor2) {
-      diT3X(contenedor2, formData);
-    } else {
-      console.warn("No se encontró el contenedor diT3X");
+    
+    var contenedor3 = document.getElementById('diT3XContainer');
+    var contenedor3Inner = document.getElementById('diT3X');
+    if (contenedor3 && contenedor3Inner) {
+      diT3X(contenedor3Inner, formData);
+      contenedor3.style.display = tableDI1X && tableDI1X.length > 0 ? 'block' : 'none';
     }
   }
 }
@@ -463,6 +470,11 @@ export function diT1Y(
   tableData3DC,
   formData
 ) {
+  if (!contenedor) return;
+  
+  container = contenedor;
+  container.innerHTML = '';
+  
   // Validación de datos de entrada
   if (!tableData1DC || tableData1DC.length === 0) {
     console.warn("diT1Y: tableData1DC está vacío o no definido.");
@@ -704,17 +716,19 @@ export function diT1Y(
 
   function CheckData() {
     tableDI1Y = hot.getData();
-    var contenedor = document.getElementById('diT2Y');
-    if (contenedor) {
-      diT2Y(contenedor, solicitaciones, tableData1DC, dataTable2yDF, formData);
-    } else {
-      console.warn("No se encontró el contenedor diT2Y");
+    
+    var contenedor = document.getElementById('diT2YContainer');
+    var contenedorInner = document.getElementById('diT2Y');
+    if (contenedor && contenedorInner) {
+      diT2Y(contenedorInner, solicitaciones, tableData1DC, dataTable2yDF, formData);
+      contenedor.style.display = tableDI1Y && tableDI1Y.length > 0 ? 'block' : 'none';
     }
-    var contenedor2 = document.getElementById('diT3Y');
-    if (contenedor2) {
-      diT3Y(contenedor2, formData);
-    } else {
-      console.warn("No se encontró el contenedor diT3Y");
+    
+    var contenedor2 = document.getElementById('diT3YContainer');
+    var contenedor2Inner = document.getElementById('diT3Y');
+    if (contenedor2 && contenedor2Inner) {
+      diT3Y(contenedor2Inner, formData);
+      contenedor2.style.display = tableDI1Y && tableDI1Y.length > 0 ? 'block' : 'none';
     }
   }
 }
@@ -905,24 +919,42 @@ function diT3Y(contenedor, formData) {
 export function diagramI(solicitacionesVarios) {
   if (!solicitacionesVarios || solicitacionesVarios.length === 0) {
     console.warn("diagramI: No hay datos de solicitaciones.");
+    var diagramsCard = document.getElementById('diagramsCard');
+    if (diagramsCard) {
+      diagramsCard.style.display = 'none';
+    }
     return;
   }
 
+  var contenedor = document.getElementById('diagramsContainer');
+  if (!contenedor) {
+    console.warn("diagramI: No se encontró el contenedor 'diagramsContainer'.");
+    return;
+  }
+
+  var diagramsCard = document.getElementById('diagramsCard');
+  if (diagramsCard) {
+    diagramsCard.style.display = 'block';
+  }
+
+  contenedor.innerHTML = '';
   var cont = 0;
   var dataSize = solicitacionesVarios.length;
-  for (let i = 1; i <= dataSize / 17; i = i + 2) {
+  var numPairs = Math.ceil(dataSize / 34);
+  
+  var hasMultiplePairs = numPairs > 1;
+
+  for (let i = 0; i < numPairs; i++) {
     cont++;
-    // Asegurar que hay suficientes elementos para slice
-    var dataT1SC = solicitacionesVarios.slice(0, 17);
-    var dataT2SC = solicitacionesVarios.slice(17, 34);
-    solicitacionesVarios = solicitacionesVarios.slice(34);
+    var startIdx = i * 34;
+    var dataT1SC = solicitacionesVarios.slice(startIdx, startIdx + 17);
+    var dataT2SC = solicitacionesVarios.slice(startIdx + 17, startIdx + 34);
 
     if (dataT1SC.length === 0 || dataT2SC.length === 0) {
       console.warn("diagramI: No hay suficientes datos para crear el gráfico.");
       break;
     }
 
-    // Crear un nuevo elemento div
     var PairContainer = document.createElement('div');
     var rowContainer1 = document.createElement('div');
     var rowContainer2 = document.createElement('div');
@@ -959,10 +991,11 @@ export function diagramI(solicitacionesVarios) {
 
     PairContainer.id = `diagramsContainer${cont}`;
 
-    var contenedor = document.getElementById('diagramsContainer');
-    if (!contenedor) {
-      console.warn("diagramI: No se encontró el contenedor 'diagramsContainer'.");
-      return;
+    if (hasMultiplePairs) {
+      var pairHeader = document.createElement('h5');
+      pairHeader.className = 'text-gray-950 dark:text-white text-center mt-3 mb-2';
+      pairHeader.textContent = `Grupo ${cont} - Pisos ${(cont-1)*2 + 1} y ${(cont-1)*2 + 2}`;
+      PairContainer.appendChild(pairHeader);
     }
 
     contenedor.appendChild(PairContainer);
@@ -1002,6 +1035,20 @@ export function diagramI(solicitacionesVarios) {
       'Der',
       tableContainer2DIE
     );
+  }
+
+  if (numPairs === 1 && dataSize > 0) {
+    var singleHeader = document.createElement('div');
+    singleHeader.className = 'text-center text-gray-950 dark:text-white mb-2';
+    singleHeader.innerHTML = '<strong>Diagrama de Interacción - Datos y Gráfica</strong>';
+    contenedor.insertBefore(singleHeader, contenedor.firstChild);
+  }
+
+  if (numPairs > 1) {
+    var multiHeader = document.createElement('div');
+    multiHeader.className = 'text-center text-gray-950 dark:text-white mb-2';
+    multiHeader.innerHTML = '<strong>Diagramas de Interacción - Datos y Gráficas</strong>';
+    contenedor.insertBefore(multiHeader, contenedor.firstChild);
   }
 }
 
