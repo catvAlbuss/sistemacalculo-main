@@ -179,7 +179,7 @@ Route::middleware(["auth", "verified"])->group(function () {
         Route::view('/verificacion-viga-v1', 'hcalculo.verificaciones.admVigaverifica')->name("verificacion-viga-v1");
 
 
-        Route::view('/predim', 'predim.predim')->name('predim');
+        Route::view('/predimv2', 'predim.predim-new')->name('predimv2');
     });
 
     //===================RUTA DE LOSAS========================================//
