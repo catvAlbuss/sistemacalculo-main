@@ -71,6 +71,7 @@
                     <x-cad.input-properties label="Y" bind="moveObjectState.selectedObject.position.y"
                         handleInput=""></x-cad.input-properties>
                 </x-cad.panel-properties>
+                <!-- SECCION DE FUERZA -->
                 <x-cad.panel-properties title="Fuerza">
                     <x-cad.load-select bind="moveObjectState.currentLoad"></x-cad.load-select>
                     <x-cad.input-properties label="Multiplicador"
@@ -81,14 +82,25 @@
                     <x-cad.input-properties label="Fy" bind="moveObjectState.nodeY"
                         handleInput=""></x-cad.input-properties>
                 </x-cad.panel-properties>
+                <!-- SECCION DE SOPORTE -->
                 <x-cad.panel-properties title="Soporte">
                     <div class="flex flex-row justify-between">
                         <x-cad.ribbon-button clickHandler="moveObjectState.selectedObject.soporte = ''"
                             toggle="moveObjectState.selectedObject.soporte === ''"
-                            label=""><x-cad.svg.sinsoporte></x-cad.svg.sinsoporte></x-cad.ribbon-button>
+                            label=""
+                            class="cad-ribbon-button-hover-bg transition-colors duration-200 p-2 rounded">
+                            <div class="flex flex-col items-center">
+                                <x-cad.svg.sinsoporte></x-cad.svg.sinsoporte>
+                            </div>
+                        </x-cad.ribbon-button>
                         <x-cad.ribbon-button clickHandler="moveObjectState.selectedObject.soporte = 'soporteUno'"
                             toggle="moveObjectState.selectedObject.soporte === 'soporteUno'"
-                            label=""><x-cad.svg.soporte1></x-cad.svg.soporte1></x-cad.ribbon-button>
+                            label=""
+                            class="cad-ribbon-button-hover-bg transition-colors duration-200 p-2 rounded">
+                            <div class="flex flex-col items-center">
+                                <x-cad.svg.soporte1></x-cad.svg.soporte1>
+                            </div>
+                        </x-cad.ribbon-button>
                         <x-cad.ribbon-button clickHandler="moveObjectState.selectedObject.soporte = 'soporteDos'"
                             toggle="moveObjectState.selectedObject.soporte === 'soporteDos'"
                             label=""><x-cad.svg.soporte2></x-cad.svg.soporte2></x-cad.ribbon-button>
