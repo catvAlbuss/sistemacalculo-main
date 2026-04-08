@@ -1,7 +1,10 @@
 /* ------------------------ Análisis en X ------------------------ */
 var elT1Data = [];
 export function elT1(contenedor, formData, table1) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
 

@@ -1,6 +1,14 @@
 /* ------------------------ Análisis en X ------------------------ */
 export function dcpT1X(contenedor, initialData, formData, tableData1DC) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
+
+  if (!tableData1DC || tableData1DC.length === 0) {
+    alert('Debe completar el diseño por corte en X-X primero');
+    return;
+  }
 
   var data = [];
 
@@ -142,7 +150,15 @@ export function dcpT1X(contenedor, initialData, formData, tableData1DC) {
 
 /* ------------------------ Análisis en Y ------------------------ */
 export function dcpT1Y(contenedor, initialData, formData, tableData1DC) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
+
+  if (!tableData1DC || tableData1DC.length === 0) {
+    alert('Debe completar el diseño por corte en Y-Y primero');
+    return;
+  }
 
   var data = [];
 

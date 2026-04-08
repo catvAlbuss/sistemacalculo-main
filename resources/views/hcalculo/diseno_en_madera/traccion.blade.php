@@ -1,9 +1,12 @@
 @php
   $grupos = [['value' => 'A'], ['value' => 'B'], ['value' => 'C', 'selected' => true]];
+  $secciones = array_map(function ($value) {
+      return ['value' => $value];
+  }, range(1, 62, 1));
 @endphp
 
 @pushOnce('initscripts')
-  @vite('resources/js/diseño_madera_data.js')
+  @vite('resources/js/diseno_madera_data.js')
 @endPushOnce
 
 <x-calc-layout title="Diseño En Madera | Tracción">
@@ -11,7 +14,13 @@
     x-data="diseño_madera">
     <x-input-data>
       <x-input-select-calc name="Grupo" bind="calcs.grupo" unit="Kg/cm2" :options='$grupos'></x-input-select-calc>
+      <x-input-select-calc name="Sección" bind="calcs.compresionSeccion" unit="" :options='$secciones'></x-input-select-calc>
       <x-input-calc name="Axial" bind="calcs.traccionAxial" unit="Kg"></x-input-calc>
+      <div class="mt-4 text-center">
+        <button x-on:click="calcular()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+          Calcular
+        </button>
+      </div>
     </x-input-data>
     <x-output-data>
       <x-table-result title="1.- Prerequisitos del Diseño">
@@ -29,6 +38,8 @@
         <x-output-calc name="Axial" bind="calcs.traccionAxial" unit="Kg"></x-output-calc>
       </x-table-result>
       <x-table-result title="2.- Tracción">
+        <x-output-calc name="Sección" bind="calcs.compresionSeccion"></x-output-calc>
+        <x-output-calc name="Área" bind="calcs.compresionA" unit="cm2"></x-output-calc>
         <x-output-calc formula="$$f_t \cdot A$$" symbol="N" bind="calcs.traccionNFtA"></x-output-calc>
         <x-output-calc formula=">" bind="calcs.traccionNFtACompara"></x-output-calc>
         <x-output-calc bind="calcs.traccionNFtAOk"></x-output-calc>

@@ -47,7 +47,10 @@ var dataTable1x = [];
 /* var allCellsFilledT1X = true; */
 //Tabla Análisis en Dirección "x"
 export function flexDesignT1X(contenedor, initialData, formData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
 
@@ -237,7 +240,10 @@ export function flexDesignT1X(contenedor, initialData, formData) {
 
 //Tabla Análisis en Dirección "2 x"
 export function flexDesignT2X(contenedor, initialData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
 
@@ -493,7 +499,10 @@ export function flexDesignT2X(contenedor, initialData) {
 
 //Tabla Análisis en Dirección "3 x"
 export function flexDesignT3X(contenedor, initialData, formData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
 
@@ -702,7 +711,10 @@ export function flexDesignT3X(contenedor, initialData, formData) {
 }
 
 export function flexDesignT1Y(contenedor, initialData, formData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
 
@@ -892,7 +904,10 @@ export function flexDesignT1Y(contenedor, initialData, formData) {
 
 //Tabla Análisis en Dirección "2 y"
 export function flexDesignT2Y(contenedor, initialData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
 
@@ -1148,7 +1163,10 @@ export function flexDesignT2Y(contenedor, initialData) {
 
 //Tabla Análisis en Dirección "3 y"
 export function flexDesignT3Y(contenedor, initialData, formData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
 
