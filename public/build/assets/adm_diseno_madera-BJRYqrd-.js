@@ -1,0 +1,1 @@
+import{S as r}from"./predimensionamiento-CxryAhEz.js";r.mixin({customClass:{confirmButton:"bg-blue-500 hover:bg-blue-400 text-white font-bold py-2 px-4 border-b-4 border-blue-700 hover:border-blue-500 rounded",cancelButton:"bg-gray-500 hover:bg-gray-400 text-white font-bold py-2 px-4 border-b-4 border-gray-700 hover:border-gray-500 rounded"},buttonsStyling:!1});
