@@ -30,7 +30,7 @@ Route::view('/servicios/planos_estructurales', 'landing.structural_blueprint')->
 Route::view('/servicios/metrados', 'landing.metrados')->name('landing.services.metrados');
 //Route::view('/contacto', 'landing.contact')->name('landing.contact');
 Route::post('/cotizarplano', [enviarCotizacionController::class, 'enviarCotizacion'])->name('cotizarplano');
-Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento']);
+// Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento']);
 
 // Route::post('/capturar-viga-descarga', [VigaCaptureController::class, 'descargar']);
 

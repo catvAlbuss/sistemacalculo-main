@@ -21,9 +21,129 @@ export class ContentProcessorMC {
       NumberFormat,
       TableOfContents,
       PageBreak,
+      ImageRun,
+      Table,
+      TableRow,
+      TableCell,
+      WidthType,
+      BorderStyle,
     } = this.docx;
 
     const coverChildren = await this.createCover(structure.cover, images);
+
+    // ============================================
+    // CREAR HEADER CON LOGO Y TEXTO
+    // ============================================
+
+    // Procesar logo
+    let headerLogoContent = [];
+    try {
+      const logosrc = "/assets/img/rizabalasociados.png";
+      const imageBuffer = await this.getImageBuffer(logosrc);
+      if (imageBuffer) {
+        headerLogoContent = [
+          new Paragraph({
+            alignment: AlignmentType.LEFT,
+            children: [
+              new ImageRun({
+                data: imageBuffer,
+                transformation: { width: 140, height: 50 },
+              }),
+            ],
+            spacing: { before: 0, after: 0 },
+          }),
+        ];
+      }
+    } catch (e) {
+      console.error("Error loading logo", e);
+    }
+
+    const headerText = (structure.cover.project || "MEMORIA DE CÁLCULO").toUpperCase();
+
+    // Tabla para el header (logo izquierda, texto derecha)
+    const headerTable = new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      margins: {
+        top: 0, // Margen superior de la tabla (0 para pegar al borde)
+        bottom: 0,
+        left: 0, // Margen izquierdo de la tabla
+        right: 0,
+      },
+      borders: {
+        top: { style: BorderStyle.NONE },
+        bottom: { style: BorderStyle.SINGLE, size: 0, color: "cccccc" },
+        left: { style: BorderStyle.NONE },
+        right: { style: BorderStyle.NONE },
+        insideHorizontal: { style: BorderStyle.NONE },
+        insideVertical: { style: BorderStyle.NONE },
+      },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 20, type: WidthType.PERCENTAGE },
+              children: headerLogoContent,
+              verticalAlign: "center",
+              borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE } },
+            }),
+            new TableCell({
+              width: { size: 60, type: WidthType.PERCENTAGE },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.RIGHT,
+                  children: [
+                    new TextRun({
+                      text: headerText,
+                      size: 12,
+                      color: "888888",
+                      font: "Arial",
+                    }),
+                  ],
+                  spacing: { before: 0, after: 0 },
+                }),
+              ],
+              verticalAlign: "center",
+              margins: {
+                top: 20,
+                bottom: 20,
+                left: 100, // Mayor margen izquierdo para separar del logo
+                right: 100, // Mayor margen derecho para separar del correo
+              },
+              borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE } },
+            }),
+            new TableCell({
+              width: { size: 20, type: WidthType.PERCENTAGE },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.RIGHT,
+                  children: [
+                    new TextRun({
+                      text: "Correo: rizabalasociados.estructurales@gmail.com\nTélefono: 953992277",
+                      size: 12,
+                      color: "888888",
+                      font: "Arial",
+                    }),
+                  ],
+                  spacing: { before: 0, after: 0 },
+                }),
+              ],
+              verticalAlign: "center",
+              borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE } },
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const headerContent = new Paragraph({
+      children: [headerTable],
+      spacing: {
+        before: 0,
+        after: 0,
+        line: 240,
+      },
+    });
+    
 
     // El resto del documento (Indice + Secciones) en una sección con headers/footers
     const documentChildren = [];
@@ -61,7 +181,24 @@ export class ContentProcessorMC {
     return new Document({
       sections: [
         {
-          properties: { type: SectionType.NEXT_PAGE },
+          properties: {
+            type: SectionType.NEXT_PAGE,
+            pageNumber: {
+              start: 0,
+              format: NumberFormat.NONE, // Sin número en portada
+            },
+          },
+          // AGREGAR HEADER A LA PORTADA
+          headers: {
+            default: new Header({
+              children: [headerContent], // Mismo header que usas en la segunda sección
+            }),
+          },
+          footers: {
+            default: new Footer({
+              children: [], // Sin footer en portada
+            }),
+          },
           children: coverChildren,
         },
         {
@@ -74,23 +211,7 @@ export class ContentProcessorMC {
           },
           headers: {
             default: new Header({
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: (structure.cover.project || "MEMORIA DE CÁLCULO").toUpperCase(),
-                      size: 14,
-                      color: "888888",
-                      font: "Arial",
-                    }),
-                  ],
-                  alignment: AlignmentType.RIGHT,
-                  spacing: { after: 200 },
-                  border: {
-                    bottom: { color: "cccccc", space: 1, style: "single", size: 6 },
-                  },
-                }),
-              ],
+              children: [headerContent],
             }),
           },
           footers: {
@@ -143,38 +264,6 @@ export class ContentProcessorMC {
       this.docx;
     const children = [];
 
-    // ============================================
-    // ENCABEZADO: Usar el método createCustomHeader
-    // ============================================
-    
-    // Crear el item para el custom-header
-    const headerItem = {
-        type: "custom-header",
-        left: {
-            src: "/assets/img/rizabalasociados.png"
-        },
-        center: {
-            text: cover.project || "MEMORIA DE CÁLCULO",
-            bold: true,
-            alignment: "CENTER"
-        },
-        right: {
-            text: cover.location || ""
-        }
-    };
-    
-    // Generar el encabezado usando el método existente
-    const headerElements = await this.createCustomHeader(headerItem);
-    children.push(...headerElements);
-    
-    // Espacio después del encabezado
-    children.push(
-        new Paragraph({
-            children: [],
-            spacing: { before: 400 }
-        })
-    );
-
     // Título Principal
     children.push(
       new Paragraph({
@@ -209,7 +298,6 @@ export class ContentProcessorMC {
         }),
       );
     }
-
     // Nombre del Proyecto (Más prominente)
     children.push(
       new Paragraph({
@@ -315,186 +403,6 @@ export class ContentProcessorMC {
     return children;
   }
 
-  /**
-   * Crea un encabezado personalizado (3 columnas)
-   * @param {object} item - Item de tipo custom-header
-   * @returns {Array} Elementos del encabezado
-   */
-  async createCustomHeader(item) {
-    const { Paragraph, TextRun, AlignmentType, ImageRun, Table, TableRow, TableCell, WidthType, BorderStyle } =
-      this.docx;
-
-    // Procesar la imagen del logo si existe
-    let logoContent = [];
-    if (item.left && item.left.src) {
-      const logoSrc = this.replaceVariables(item.left.src);
-      if (logoSrc && logoSrc !== "{{cover.logo}}") {
-        try {
-          const imageBuffer = await this.getImageBuffer(logoSrc);
-          if (imageBuffer) {
-            logoContent = [
-              new Paragraph({
-                alignment: AlignmentType.LEFT,
-                children: [
-                  new ImageRun({
-                    data: imageBuffer,
-                    transformation: { width: 70, height: 120 },
-                  }),
-                ],
-                spacing: { before: 40, after: 40 },
-              }),
-            ];
-          }
-        } catch (e) {
-          console.error("Error loading logo", e);
-        }
-      }
-    }
-
-    // Si no hay logo, mostrar texto placeholder
-    if (logoContent.length === 0) {
-      logoContent = [
-        new Paragraph({
-          alignment: AlignmentType.LEFT,
-          children: [
-            new TextRun({
-              text: "LOGO",
-              size: 14,
-              font: "Arial",
-              color: "bdc3c7",
-              bold: true,
-            }),
-          ],
-          spacing: { before: 40, after: 40 },
-        }),
-      ];
-    }
-
-    // Procesar contenido central
-    const centerText = item.center?.text ? this.replaceVariables(item.center.text) : "";
-    const centerContent = [
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [
-          new TextRun({
-            text: centerText.toUpperCase(),
-            bold: item.center?.bold !== false,
-            size: 16,
-            font: "Arial",
-            color: "2c3e50",
-          }),
-        ],
-        spacing: { after: 40 },
-      }),
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [
-          new TextRun({
-            text: "MEMORIA DE CÁLCULO ESTRUCTURAL",
-            size: 12,
-            font: "Arial",
-            color: "5d6d7e",
-          }),
-        ],
-        spacing: { after: 40 },
-      }),
-    ];
-
-    // Procesar contenido derecho
-    const rightText = item.right?.text ? this.replaceVariables(item.right.text) : "";
-    const rightContent = [
-      new Paragraph({
-        alignment: AlignmentType.RIGHT,
-        children: [
-          new TextRun({
-            text: rightText,
-            size: 10,
-            font: "Arial",
-            color: "5d6d7e",
-          }),
-        ],
-        spacing: { after: 20 },
-      }),
-    ];
-
-    // Si hay teléfono y email en el store, agregarlos
-    if (this.data?.cover?.company?.phone) {
-      rightContent.push(
-        new Paragraph({
-          alignment: AlignmentType.RIGHT,
-          children: [
-            new TextRun({
-              text: `Tel: ${this.data.cover.company.phone}`,
-              size: 10,
-              font: "Arial",
-              color: "5d6d7e",
-            }),
-          ],
-          spacing: { after: 20 },
-        }),
-      );
-    }
-
-    if (this.data?.cover?.company?.email) {
-      rightContent.push(
-        new Paragraph({
-          alignment: AlignmentType.RIGHT,
-          children: [
-            new TextRun({
-              text: `Email: ${this.data.cover.company.email}`,
-              size: 10,
-              font: "Arial",
-              color: "5d6d7e",
-            }),
-          ],
-          spacing: { after: 40 },
-        }),
-      );
-    }
-
-    // Crear tabla de 3 columnas
-    const headerTable = new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      borders: {
-        top: { style: BorderStyle.NONE },
-        bottom: { style: BorderStyle.SINGLE, size: 6, color: "cccccc" },
-        left: { style: BorderStyle.NONE },
-        right: { style: BorderStyle.NONE },
-        insideHorizontal: { style: BorderStyle.NONE },
-        insideVertical: { style: BorderStyle.NONE },
-      },
-      rows: [
-        new TableRow({
-          children: [
-            // Columna Izquierda - Logo
-            new TableCell({
-              width: { size: 25, type: WidthType.PERCENTAGE },
-              children: logoContent,
-              verticalAlign: "center",
-              borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE } },
-            }),
-            // Columna Centro - Texto
-            new TableCell({
-              width: { size: 50, type: WidthType.PERCENTAGE },
-              children: centerContent,
-              verticalAlign: "center",
-              borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE } },
-            }),
-            // Columna Derecha - Información
-            new TableCell({
-              width: { size: 25, type: WidthType.PERCENTAGE },
-              children: rightContent,
-              verticalAlign: "center",
-              borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE } },
-            }),
-          ],
-        }),
-      ],
-    });
-
-    return [headerTable];
-  }
-
   async processSection(section) {
     const elements = [];
     // Solo agregar heading si la sección tiene título y no es la de encabezado
@@ -530,8 +438,6 @@ export class ContentProcessorMC {
         return await this.createSubsection(item);
       case "captured-image":
         return await this.createCapturedImage(item);
-      case "custom-header":
-        return await this.createCustomHeader(item);
       default:
         console.warn(`Unknown content type: ${item.type}`);
         return null;

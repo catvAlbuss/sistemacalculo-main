@@ -31,20 +31,20 @@
             <div class="space-y-2">
                 <div class="flex items-center justify-between">
                     <label class="text-sm font-bold text-gray-700 dark:text-gray-300">Figura x</label>
-                    <button type="button" x-show="previews.analisisEstructuralImages[0]"
-                        @click="removeArrayImage('analisisEstructuralImages', 0)"
+                    <button type="button" x-show="previews.analisisEstructuralSingleImages[0]"
+                        @click="removeArrayImage('analisisEstructuralSingleImages', 0)"
                         class="text-red-500 text-xs font-semibold hover:underline flex items-center gap-1">
                         Eliminar
                     </button>
                 </div>
                 <div class="relative group h-64">
-                    <template x-if="previews.analisisEstructuralImages[0]">
-                        <img :src="previews.analisisEstructuralImages[0]"
+                    <template x-if="previews.analisisEstructuralSingleImages[0]">
+                        <img :src="previews.analisisEstructuralSingleImages[0]"
                             class="h-full w-full object-contain rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
                     </template>
-                    <template x-if="!previews.analisisEstructuralImages[0]">
+                    <template x-if="!previews.analisisEstructuralSingleImages[0]">
                         <label tabindex="0"
-                            @paste="handlePaste($event, 'analisisEstructuralImages', 0)"
+                            @paste="handlePaste($event, 'analisisEstructuralSingleImages', 0)"
                             @mouseenter="$el.focus()"
                             class="flex flex-col items-center justify-center h-full w-full rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-amber-500 mb-2"
@@ -54,7 +54,7 @@
                             </svg>
                             <span class="text-xs font-medium text-gray-600">Subir imagen o <span class="font-semibold text-purple-600">Ctrl+V</span></span>
                             <input type="file"
-                                @change="handleArrayImageChange('analisisEstructuralImages', 0, $event)"
+                                @change="handleArrayImageChange('analisisEstructuralSingleImages', 0, $event)"
                                 class="hidden">
                         </label>
                     </template>
@@ -78,7 +78,7 @@
             </button>
             <!-- NIVEL 2 -->
             <!-- ● DISEÑO DE COLUMNA METALICA -->
-            <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSectiony" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony1 = !showSectiony1" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
@@ -183,7 +183,7 @@
                 </div>
             </div>
             <!-- ●	DISEÑO DE BRIDA SUPERIOR  -->
-            <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSectiony" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony2 = !showSectiony2" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
@@ -287,7 +287,7 @@
                 </div>
             </div>
             <!-- ●	DISEÑO DE BRIDA INFERIOR  -->
-            <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSectiony" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony3 = !showSectiony3" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
@@ -391,7 +391,7 @@
                 </div>
             </div>
             <!-- ●	DISEÑO DE PARANTE -->
-            <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSectiony" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony4 = !showSectiony4" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
@@ -495,7 +495,7 @@
                 </div>
             </div>
             <!-- ●	DISEÑO DE DIAGONAL -->
-            <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSectiony" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony5 = !showSectiony5" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">
@@ -599,7 +599,7 @@
                 </div>
             </div>
             <!-- ●	DISEÑO DE CORREA METÁLICA -->
-            <div x-show="showSectiony" x-collapse class="p-6 space-y-6 bg-white dark:bg-gray-800/50">
+            <div x-show="showSectiony" x-collapse class="bg-white dark:bg-gray-800/50">
                 <div class="border-t border-gray-200 dark:border-gray-700">
                     <button @click="showSectiony6 = !showSectiony6" type="button"
                         class="w-full px-6 py-3 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900/50 transition-all">

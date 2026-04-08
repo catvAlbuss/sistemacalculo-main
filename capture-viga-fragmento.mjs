@@ -143,12 +143,6 @@ run().catch((err) => {
 });
 
 
-function construirLinksCSS(stylesheets = []) {
-    return stylesheets
-        .filter(Boolean)
-        .map((href) => `<link rel="stylesheet" href="${href}">`)
-        .join("\n");
-}
 
 // function construirHTMLCaptura({ html, stylesheets = [], inlineStyles = "" }) {
 //     const stylesheetLinks = construirLinksCSS(stylesheets);
