@@ -8,20 +8,15 @@ import { createMemoriaCalculoStore } from "./stores/memoriaCalculoStore.js";
 import { createGeneralidadesComponent } from "./components/GeneralidadesComponent.js";
 import { createAnalisisCargasComponent } from "./components/AnalisisCargasComponent.js";
 import { createAnalisisSismicoComponent } from "./components/AnalisisSismicoComponent.js";
-<<<<<<< HEAD
-import {createEstructuraMetalicaComponent} from "./components/EstructuraMetalicaComponent.js";
-import {createDisenoElementosComponent} from "./components/DisenoElementosComponent.js";
-import {createConclusionesComponent} from "./components/SimpleSectionComponent.js";
-=======
 import { createDisenoElementosComponent } from "./components/DisenoElementosComponent.js";
 import {createEstructuraMetalicaComponent} from "./components/EstructuraMetalicaComponent.js";
 import {
     createConclusionesComponent
 } from "./components/SimpleSectionComponent.js";
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
 
 // Importar transformador de documentos
 import { DocumentTransformer } from "./processors/documentTransformer.js";
+import { error } from "jquery";
 
 // Inicializar store globalmente si no existe
 if (typeof Alpine !== 'undefined' && !Alpine.store('memoriaCalculo')) {
@@ -47,7 +42,6 @@ function memoriaCalculo() {
 
         // Proxies para compatibilidad con sidebar y otros partials
         get floors() { return this.sections.generalidades?.floors || 1; },
-         
         get structuralDetails() {
             return this.sections.generalidades?.structuralDetails || {
                 materialDesign: {
@@ -62,6 +56,9 @@ function memoriaCalculo() {
 
 
         document: JSON.parse(JSON.stringify(DEFAULT_MC_STRUCTURE.document)),
+
+        showErrorModal: false,
+        validationErrors: [],
 
         // ============================================
         // INICIALIZACIÓN
@@ -78,6 +75,166 @@ function memoriaCalculo() {
         },
 
         // ============================================
+        // MÉTODOS - Validación de Campos de Texto
+        // ============================================
+        
+        /**
+         * Valida todos los campos de texto requeridos
+         * @returns {object} { valid: boolean, errors: string[] }
+         */
+        validateTextFields() {
+            const errors = [];
+            const sections = this.$store.memoriaCalculo.sections;
+            const store = this.$store.memoriaCalculo;
+            
+            // 1. Validar Uso por Pisos (Sección 1.4)
+            const usageText = sections.generalidades.structuralDetails.usage || "";
+            const floors = sections.generalidades.floors || 1;
+            const usageLines = usageText.split('\n').filter(line => line.trim() !== '').length;
+            
+             if (!usageText || usageText.trim() === "") {
+                errors.push({
+                    field: "Descripción de Pisos",
+                    message: "El campo de descripcion de Pisos es obligatorio"
+                });
+            }else if (usageLines !== floors) {
+                errors.push({
+                    field: "Descripcion de Pisos",
+                    message: `El campo de Uso (Detalle por pisos) debe tener ${floors} líneas (una por cada piso). Actualmente tiene ${usageLines}.`
+                });
+            }
+            
+            // 2. Validar Descripción de Losas Aligeradas (Sección 4.2)
+            const losaDescripcion = sections.disenoElementos?.lista;
+            const losas = sections.disenoElementos.losa || 1;
+            const losaLines = losaDescripcion.split('\n').filter(line => line.trim() !== '').length;
+            if (!losaDescripcion || losaDescripcion.trim() === "") {
+                errors.push({
+                    field: "Descripción de Losas Aligeradas",
+                    message: "El campo de losas aligeradas es obligatorio"
+                });
+            }else if (losaLines !== losas) {
+                errors.push({
+                    field: "Descripcion Losas",
+                    message: `El campo de descripcion de losas debe tener ${losas} líneas (una por cada seccion). Actualmente tiene ${losaLines}.`
+                });
+            }
+            
+            // 3. Validar Descripción de Vigas (Sección 4.4)
+            const vigaDescripcion = sections.disenoElementos?.nameVigas;
+            const vigas = sections.disenoElementos.viga || 1;
+            const vigaLines = vigaDescripcion.split('\n').filter(line => line.trim() !== '').length;
+
+            if (!vigaDescripcion || vigaDescripcion.trim() === "") {
+                errors.push({
+                    field: "Descripción de Vigas",
+                    message: "El campo de vigas es obligatorio"
+                });
+            }else if (vigaLines !== vigas) {
+                errors.push({
+                    field: "Descripcion Vigas",
+                    message: `El campo de descripcion de vigas debe tener ${vigas} líneas (una por cada seccion). Actualmente tiene ${vigaLines}.`
+                });
+            }
+            
+            // 4. Validar Descripción de Columnas (Sección 4.5)
+            const columnaDescripcion = sections.disenoElementos?.nameColumna;
+            const columna = sections.disenoElementos.columna || 1;
+            const columnaLines = columnaDescripcion.split('\n').filter(line => line.trim() !== '').length;
+            
+            if (!columnaDescripcion || columnaDescripcion.trim() === "") {
+                errors.push({
+                    field: "Descripción de Columnas",
+                    message: "El campo de columnas es obligatorio"
+                });
+            }else if (columnaLines !== columna) {
+                errors.push({
+                    field: "Descripcion Columna",
+                    message: `El campo de descripcion de columnas debe tener ${columna} líneas (una por cada seccion). Actualmente tiene ${columnaLines}.`
+                });
+            }            
+            
+            // 5. Validar Descripción de Placas (Sección 4.6)
+            const placaDescripcion = sections.disenoElementos?.namePlaca;
+            const placas = sections.disenoElementos.placa || 1;
+            const placaLines = placaDescripcion.split('\n').filter(line => line.trim() !== '').length;
+            if (!placaDescripcion || placaDescripcion.trim() === "") {
+                errors.push({
+                    field: "Descripción de Placas",
+                    message: "El campo de placas es obligatorio"
+                });
+            }else if (placaLines !== placas) {
+                errors.push({
+                    field: "Descripcion Placa",
+                    message: `El campo de descripcion de placas debe tener ${placas} líneas (una por cada seccion). Actualmente tiene ${placaLines}.`
+                });
+            }   
+            
+            // 6. Validar Descripción de Cimentaciones (Sección 4.11)
+            const cimentacionDescripcion = sections.disenoElementos?.nameCimentacion;
+            const cimentaciones = sections.disenoElementos.cimentacion || 1;
+            const cimentacionLines = cimentacionDescripcion.split('\n').filter(line => line.trim() !== '').length;
+            if (!cimentacionDescripcion || cimentacionDescripcion.trim() === "") {
+                errors.push({
+                    field: "Descripción de Cimentaciones",
+                    message: "Este campo de cimentaciones es obligatorio"
+                });
+            }else if (cimentacionLines !== cimentaciones) {
+                errors.push({
+                    field: "Descripcion Cimentacion",
+                    message: `El campo de descripcion de cimentacion debe tener ${cimentaciones} líneas (una por cada seccion). Actualmente tiene ${cimentacionLines}.`
+                });
+            }   
+            
+            
+            // Limpiar errores anteriores y agregar nuevos
+            this.$store.memoriaCalculo.clearErrorsByCategory("validation");
+            errors.forEach((error) => {
+                this.$store.memoriaCalculo.addError("validation", error.message);
+            });
+            
+            return {
+                valid: errors.length === 0,
+                errors: errors
+            };
+        },
+
+        /**
+         * Muestra el modal con los errores
+         */
+        showValidationModal() {
+            const validation = this.validateTextFields();
+            
+            if (!validation.valid) {
+                this.validationErrors = validation.errors;
+                this.showErrorModal = true;
+                console.log('❌ Errores encontrados:', validation.errors);
+            } else {
+                // Si no hay errores, exportar directamente
+                this.exportWord();
+            }
+        },
+        
+        /**
+         * Cierra el modal de errores
+         */
+        closeErrorModal() {
+            this.showErrorModal = false;
+            this.validationErrors = [];
+        },
+        
+        // /**
+        //  * Exportar después de cerrar el modal (si se corrigieron errores)
+        //  */
+        // retryExport() {
+        //     this.closeErrorModal();
+        //     // Pequeño delay para que el modal se cierre antes de reintentar
+        //     setTimeout(() => {
+        //         this.showValidationModal();
+        //     }, 100);
+        // },
+
+        // ============================================
         // EXPORTACIÓN WORD
         // ============================================
 
@@ -87,6 +244,17 @@ function memoriaCalculo() {
         async exportWord() {
             try {
                 console.log('📄 Iniciando exportación a Word...');
+
+                // VALIDAR ANTES DE EXPORTAR
+                const validation = this.validateTextFields();
+                
+                if (!validation.valid) {
+                    console.warn('⚠️ Validación fallida:', validation.errors);
+                    // Los errores ya se agregaron al store, se mostrarán en la UI
+                    this.$store.memoriaCalculo.ui.isExporting = false;
+                    return; // 👈 SALIR SIN EXPORTAR, SIN RECARGAR PÁGINA
+                }
+
                 this.$store.memoriaCalculo.startExport();
 
                 // Validar librerías requeridas

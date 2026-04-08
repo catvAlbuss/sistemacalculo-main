@@ -36,6 +36,42 @@ export class DocumentTransformer {
     this.renumerarSeccionesFinales(structure);
   }
 
+  // JHACK
+  // getSeismicDataByDepartment(departmentName) {
+  //   const seismicZoneByDepartment = {
+  //     AMAZONAS: { zone: "2", factor: "0.25" },
+  //     ANCASH: { zone: "4", factor: "0.45" },
+  //     APURIMAC: { zone: "3", factor: "0.35" },
+  //     AREQUIPA: { zone: "4", factor: "0.45" },
+  //     AYACUCHO: { zone: "3", factor: "0.35" },
+  //     CAJAMARCA: { zone: "2", factor: "0.25" },
+  //     CALLAO: { zone: "4", factor: "0.45" },
+  //     CUSCO: { zone: "3", factor: "0.35" },
+  //     HUANCAVELICA: { zone: "4", factor: "0.45" },
+  //     HUANUCO: { zone: "2", factor: "0.25" },
+  //     ICA: { zone: "4", factor: "0.45" },
+  //     JUNIN: { zone: "2", factor: "0.25" },
+  //     "LA LIBERTAD": { zone: "3", factor: "0.35" },
+  //     LAMBAYEQUE: { zone: "4", factor: "0.45" },
+  //     LIMA: { zone: "4", factor: "0.45" },
+  //     LORETO: { zone: "1", factor: "0.10" },
+  //     "MADRE DE DIOS": { zone: "2", factor: "0.25" },
+  //     MOQUEGUA: { zone: "4", factor: "0.45" },
+  //     PASCO: { zone: "2", factor: "0.25" },
+  //     PIURA: { zone: "4", factor: "0.45" },
+  //     PUNO: { zone: "2", factor: "0.25" },
+  //     "SAN MARTIN": { zone: "2", factor: "0.25" },
+  //     TACNA: { zone: "4", factor: "0.45" },
+  //     TUMBES: { zone: "4", factor: "0.45" },
+  //     UCAYALI: { zone: "2", factor: "0.25" },
+  //   };
+  //   const dept = String(departmentName || "")
+  //     .trim()
+  //     .toUpperCase();
+  //   return seismicZoneByDepartment[dept] || { zone: "2", factor: "0.25" };
+  // }
+  // end
+
   /**
    * Encuentra el índice del siguiente heading después de startIdx
    */
@@ -61,55 +97,91 @@ export class DocumentTransformer {
     if (imgIdx === -1) return;
 
     // Obtener datos de ubicación
-    const deptName = this.cover.ubigeo.department || "HUANUCO";
-    const provName = this.cover.ubigeo.province || "HUANUCO";
-    const distSelected = this.cover.ubigeo.district || "";
+    const deptName = this.cover.ubigeo?.department || "HUANUCO";
+    const provName = this.cover.ubigeo?.province || "HUANUCO";
+    const distSelected = this.cover.ubigeo?.district || "";
 
-    // Obtener distritos de la provincia
-    const deptData = this.ubigeoData.find((d) => d.name === deptName);
-    const provData = deptData?.provinces.find((p) => p.name === provName);
+    // Obtener provincia
+    const provData = this.findProvince(deptName, provName);
+
+    // Obtener lista de distritos
     const districtsList =
       provData && Array.isArray(provData.districts) && provData.districts.length > 0
         ? provData.districts
         : [distSelected || "NO DEFINIDO"];
+
+    // Obtener datos sísmicos del distrito seleccionado
+    const seismicData = this.getSeismicData(deptName, provName, distSelected);
+    const zonaSeleccionada = seismicData.zone || "2";
+    const ambitoSeleccionado = seismicData.ambito || "TODOS LOS DISTRITOS";
 
     // Generar filas de tabla
     const tableRows = [];
     districtsList.forEach((district, index) => {
       const row = [];
 
+      const districtName = typeof district === "string" ? district : district.name || "";
+      const isSelected =
+        this.normalizeText(districtName) === this.normalizeText(distSelected);
+
       // Región (Merged)
       if (index === 0) {
-        row.push({ text: deptName, rowSpan: districtsList.length, bold: true });
+        row.push({
+          text: deptName,
+          rowSpan: districtsList.length,
+          bold: true,
+          alignment: "CENTER",
+          verticalAlign: "CENTER",
+        });
       } else {
         row.push({ text: "" });
       }
 
       // Provincia (Merged)
       if (index === 0) {
-        row.push({ text: provName, rowSpan: districtsList.length, bold: true });
+        row.push({
+          text: provName,
+          rowSpan: districtsList.length,
+          bold: true,
+          alignment: "CENTER",
+          verticalAlign: "CENTER",
+        });
       } else {
         row.push({ text: "" });
       }
 
       // Distrito (Coloreado)
       row.push({
-        text: district,
-        color: district === distSelected ? "FF0000" : "000000",
-        bold: district === distSelected,
+        text: districtName,
+        color: isSelected ? "FF0000" : "000000",
+        bold: isSelected,
         alignment: "LEFT",
+        verticalAlign: "CENTER",
       });
 
       // Zona Sísmica (Merged)
       if (index === 0) {
-        row.push({ text: "2", rowSpan: districtsList.length, bold: true, size: 24 });
+        row.push({
+          text: zonaSeleccionada,
+          rowSpan: districtsList.length,
+          bold: true,
+          size: 24,
+          alignment: "CENTER",
+          verticalAlign: "CENTER",
+        });
       } else {
         row.push({ text: "" });
       }
 
       // Ámbito (Merged)
       if (index === 0) {
-        row.push({ text: "TODOS LOS DISTRITOS", rowSpan: districtsList.length, size: 16 });
+        row.push({
+          text: ambitoSeleccionado,
+          rowSpan: districtsList.length,
+          size: 16,
+          alignment: "CENTER",
+          verticalAlign: "CENTER",
+        });
       } else {
         row.push({ text: "" });
       }
@@ -133,6 +205,86 @@ export class DocumentTransformer {
     });
   }
 
+  normalizeText(value) {
+    return String(value || "")
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[-]/g, " ")
+      .replace(/\s+/g, " ");
+  }
+
+  findDepartment(departmentName) {
+    const deptNorm = this.normalizeText(departmentName);
+
+    return (this.ubigeoData || []).find((d) => this.normalizeText(d.name) === deptNorm);
+  }
+
+  findProvince(departmentName, provinceName) {
+    const dept = this.findDepartment(departmentName);
+    if (!dept) return null;
+
+    const provNorm = this.normalizeText(provinceName);
+
+    return (dept.provinces || []).find((p) => this.normalizeText(p.name) === provNorm);
+  }
+
+  findDistrictData(departmentName, provinceName, districtName) {
+    const province = this.findProvince(departmentName, provinceName);
+    if (!province) return null;
+
+    const distNorm = this.normalizeText(districtName);
+
+    return (
+      (province.districts || []).find((d) => {
+        // por si algún departamento viejo aún tiene strings
+        if (typeof d === "string") {
+          return this.normalizeText(d) === distNorm;
+        }
+        return this.normalizeText(d.name) === distNorm;
+      }) || null
+    );
+  }
+
+  getSeismicData(departmentName, provinceName, districtName) {
+    const zoneFactorMap = {
+      1: "0.10",
+      2: "0.25",
+      3: "0.35",
+      4: "0.45",
+    };
+
+    const districtData = this.findDistrictData(departmentName, provinceName, districtName);
+
+    if (districtData && typeof districtData === "object") {
+      return {
+        zone: String(districtData.zone || "2"),
+        zFactor: String(districtData.zFactor || zoneFactorMap[districtData.zone] || "0.25"),
+        ambito: String(districtData.ambito || "TODOS LOS DISTRITOS"),
+        districtData,
+      };
+    }
+
+    // compatibilidad si algún JSON viejo sigue usando strings
+    const dept = this.findDepartment(departmentName);
+    if (dept) {
+      return {
+        zone: String(dept.seismicZone || "2"),
+        zFactor: String(dept.zFactor || zoneFactorMap[dept.seismicZone] || "0.25"),
+        ambito: "TODOS LOS DISTRITOS",
+        districtData: null,
+      };
+    }
+
+    return {
+      zone: "2",
+      zFactor: "0.25",
+      ambito: "TODOS LOS DISTRITOS",
+      districtData: null,
+    };
+  }
+
   // ============================================
   // 2. IMÁGENES POR PISO (Sección 1.4)
   // ============================================
@@ -148,21 +300,6 @@ export class DocumentTransformer {
 
     const insertPos = idx14 + 2;
     let currentInsertPos = insertPos;
-
-    // Insertar imágenes de pisos (2 por página si es posible)
-    this.previews.floorImages.forEach((imgData, i) => {
-      if (imgData) {
-        generalidades.content.splice(currentInsertPos++, 0, {
-          type: "image",
-          src: imgData,
-          alignment: "CENTER",
-          width: 500,
-          height: 380, // Reducido un poco para que quepan 2 por página (A4 ~842pt)
-          caption: `Esquema general en planta ${i + 1}°nivel`,
-          pageBreakBefore: i % 2 === 0, // Salto de página cada 2 imágenes
-        });
-      }
-    });
 
     // Agregar tabla resumen estructural
     const structuralDetails = this.sections.generalidades.structuralDetails;
@@ -187,6 +324,23 @@ export class DocumentTransformer {
       ],
       rows: tableRows,
     });
+
+    currentInsertPos++;
+
+    // Insertar imágenes de pisos (2 por página si es posible)
+    this.previews.floorImages.forEach((imgData, i) => {
+      if (imgData) {
+        generalidades.content.splice(currentInsertPos++, 0, {
+          type: "image",
+          src: imgData,
+          alignment: "CENTER",
+          width: 500,
+          height: 380, // Reducido un poco para que quepan 2 por página (A4 ~842pt)
+          caption: `Esquema general en planta ${i + 1}°nivel`,
+          pageBreakBefore: i % 2 === 0, // Salto de página cada 2 imágenes
+        });
+      }
+    });
   }
 
   // ============================================
@@ -209,17 +363,31 @@ export class DocumentTransformer {
       4: "0.45",
     };
 
-    const zone = String(this.cover.seismicZone || "").trim();
-    const projectZone = Object.prototype.hasOwnProperty.call(zoneFactorMap, zone) ? zone : "2";
-    const projectZFactor = zoneFactorMap[projectZone];
+    // const deptName = this.cover.ubigeo?.department || "HUANUCO";
+
+    // // Si en tu ubigeo.json ya agregaste seismicZone y zFactor por departamento
+    // const deptData = (this.ubigeoData || []).find(
+    //   (d) =>
+    //     String(d.name || "")
+    //       .trim()
+    //       .toUpperCase() === String(deptName).trim().toUpperCase(),
+    // );
+
+    // const projectZone = deptData?.seismicZone || String(this.cover.seismicZone || "2");
+    // const projectZFactor = deptData?.zFactor || zoneFactorMap[projectZone] || "0.25";
+    const deptName = this.cover.ubigeo?.department || "HUANUCO";
+    const provName = this.cover.ubigeo?.province || "";
+    const distName = this.cover.ubigeo?.district || "";
+
+    const seismicData = this.getSeismicData(deptName, provName, distName);
+
+    const projectZone = seismicData.zone || String(this.cover.seismicZone || "2");
+    const projectZFactor = seismicData.zFactor || zoneFactorMap[projectZone] || "0.25";
+
 
     // Actualizar cover
     this.cover.seismicZone = projectZone;
     this.cover.seismicZoneFactor = projectZFactor;
-
-    const deptName = this.cover.ubigeo.department || "HUANUCO";
-    const provName = this.cover.ubigeo.province || "HUANUCO";
-    const distName = this.cover.ubigeo.district || "PILLCO MARCA";
 
     // Tabla de factores Z
     const zFactors = [
@@ -232,78 +400,103 @@ export class DocumentTransformer {
     const zTableRows = zFactors.map((f) => [
       {
         text: f.zone,
+        alignment: "CENTER",
         fill: f.zone === projectZone ? "00B0F0" : null,
         color: f.zone === projectZone ? "FFFFFF" : "000000",
         bold: f.zone === projectZone,
       },
       {
         text: f.z,
+        alignment: "CENTER",
         fill: f.zone === projectZone ? "00B0F0" : null,
         color: f.zone === projectZone ? "FFFFFF" : "000000",
         bold: f.zone === projectZone,
       },
     ]);
 
-    // Layout mezclado (mapa + info)
+    // Layout según la imagen: mapa a la izquierda y tabla a la derecha
     const layoutTable = {
       type: "table",
       widthPercent: 100,
       indentSize: 0,
       noBorders: true,
-      columns: [
-        { width: 55 }, // Mapa
-        { width: 45 }, // Info + Tabla Z
-      ],
+      columns: [{ width: 58 }, { width: 42 }],
       rows: [
         [
-          // Celda Izquierda: Mapa
-          {
-            type: "image",
-            src: "/assets/img/memoriacalculos/mapazonificacion.png",
-            width: 320,
-            height: 380,
-            alignment: "CENTER",
-          },
-          // Celda Derecha: Info + Tabla
           {
             stack: [
               {
-                text: `DEPARTAMENTO: ${deptName}\nPROVINCIA: ${provName}\nDISTRITO: ${distName}`,
-                bold: true,
-                size: 16,
-                alignment: "LEFT",
-                spacing: { after: 200 },
+                type: "image",
+                src: "/assets/img/memoriacalculos/mapazonificacion.png",
+                width: 340,
+                height: 420,
+                alignment: "CENTER",
               },
               {
-                type: "table",
-                title: "Tabla N°6\nFACTORES DE ZONA 'Z'",
-                widthPercent: 90,
-                columns: [
-                  { header: "ZONA", width: 50 },
-                  { header: "Z", width: 50 },
-                ],
-                rows: zTableRows,
+                type: "paragraph",
+                text: "Mapa de Zonificación Sísmica.E-030",
+                alignment: "CENTER",
+                italic: true,
+                size: 12,
+                spacing: { before: 120 },
               },
+            ],
+          },
+          {
+            type: "table",
+            title: "Tabla N°6\nFACTORES DE ZONA 'Z'",
+            widthPercent: 95,
+            columns: [{ width: 50 }, { width: 50 }],
+            rows: [
+              // [
+              //   {
+              //     text: "Tabla N°6 FACTORES DE\nZONA 'Z'",
+              //     colSpan: 2,
+              //     alignment: "CENTER",
+              //     bold: true,
+              //     fill: "EFBF72",
+              //     size: 16,
+              //   },
+              // ],
+              [
+                {
+                  text: "ZONA",
+                  alignment: "CENTER",
+                  bold: true,
+                  fill: "F6E1B7",
+                },
+                {
+                  text: "Z",
+                  alignment: "CENTER",
+                  bold: true,
+                  fill: "F6E1B7",
+                },
+              ],
+              ...zTableRows,
             ],
           },
         ],
       ],
     };
 
-    // Actualizar párrafo
+    // Actualizar párrafo descriptivo
     const idx131Paragraph = generalidades.content.findIndex((item, i) => i > idx131 && item.type === "paragraph");
+
     if (idx131Paragraph !== -1) {
       generalidades.content[idx131Paragraph] = {
         type: "paragraph",
-        text: `De acuerdo con el mapa del Reglamento Nacional de Edificaciones-Norma E.030, el área de estudio se localiza en la zona ${projectZone}, correspondiéndole un factor de Z=${projectZFactor}.`,
+        text: `De acuerdo con el mapa del Reglamento Nacional de Edificaciones, el proyecto se ubica en la zona sísmica ${projectZone}, correspondiéndole un factor de Z=${projectZFactor}.`,
         alignment: "JUSTIFIED",
       };
     }
 
-    // Reemplazar imagen
+    // Reemplazar imagen original por el nuevo layout
     const mapImgIdx = generalidades.content.findIndex((item, i) => i > idx131 && item.type === "image");
+
     if (mapImgIdx !== -1) {
       generalidades.content.splice(mapImgIdx, 1, layoutTable);
+    } else {
+      generalidades.content.splice(idx131 + 2, 0, layoutTable);
     }
   }
 
@@ -388,19 +581,20 @@ export class DocumentTransformer {
     const periodTableRows = ["Tp", "Tl"].map((periodKey) => [
       {
         text: periodKey === "Tp" ? "Tp(s)" : "Tl(s)",
-        fill: periodKey === selectedT ? lightRed : null,
-        color: periodKey === selectedT ? hardRed : "000000",
-        bold: periodKey === selectedT,
+        fill: null,
+        color: "000000",
+        bold: false,
       },
+      // "Tl(s)"
       ...["S0", "S1", "S2", "S3"].map((sKey) => {
-        const isRow = periodKey === selectedT;
+        // const isRow = periodKey === selectedT;
         const isCol = sKey === selectedS;
-        const isIntersection = isRow && isCol;
+        const isIntersection = isCol;
         return {
           text: periodMatrix[periodKey][sKey],
-          fill: isIntersection ? hardRed : isRow || isCol ? lightRed : null,
-          color: isIntersection ? "FFFFFF" : isRow || isCol ? hardRed : "000000",
-          bold: isIntersection || isRow || isCol,
+          fill: isIntersection ? hardRed : isCol ? lightRed : null,
+          color: isIntersection ? "FFFFFF" : isCol ? hardRed : "000000",
+          bold: isIntersection || isCol,
         };
       }),
     ]);
@@ -616,6 +810,33 @@ export class DocumentTransformer {
     const aceroCorrugado = materialInputs.aceroCorrugado || {};
     const concreto = materialInputs.concreto || {};
 
+    // obtener los checkbox
+    const combinaciones = this.sections.generalidades.structuralDetails.combinacionesCarga || {
+      comb1: true,
+      comb2: true,
+      comb3: true,
+      comb4: true,
+      comb5: true,
+      comb6: true,
+      comb7: true,
+      comb8: true,
+      comb9: true,
+      comb10: true, //1,4 D
+      comb11: true, //1,2D + 1,6L + 0,5(Lr ó S ó R)
+      comb12: true, // 1,2D + 1,6(Lr ó S ó R) + (0,5Lr ó 0,8W)
+      comb13: true, // 1,2D + 1,3W + 0,5L + 0,5(Lr ó S ó R)
+      comb14: true, // 1,2D ± 1,0E + 0,5L + 0,2S
+      comb15: true, // 0,9D ± (1,3W ó 1,0E)
+      comb16: true, // D
+      comb17: true, // D + L
+      comb18: true, // D + (W ó 0,70E)
+      comb19: true, // D + T
+      comb20: true, // α[D + L +(W ó 0,70E)]
+      comb21: true, // α[D + L + T]
+      comb22: true, // α[D + (W ó 0,70E) + T]
+      comb23: true, // α[D + L + (W ó 0,70E) + T]
+    };
+
     const materialBlocks = [
       {
         type: "paragraph",
@@ -690,19 +911,124 @@ export class DocumentTransformer {
       });
     }
 
-    // La descripción general (Norma E.090)
-    materialBlocks.push({
-      type: "paragraph",
-      text: "Para realizar el diseño de los elementos de la estructura metálica se tendrá que rescatar los máximos valores de la envolvente de cada elemento estructural de las combinaciones según la norma E.090. Del R.N.E. vigente que vienen a ser.",
-      alignment: "JUSTIFIED",
-      spacing: { before: 200 },
+    // MAPA DE COMBINACIONES CON NOMBRES MEJORADOS
+    const mapaCombinaciones = {
+      comb1: "1,4 CM + 1,7 CV",
+      comb2: "1,25 (CM + CV ± CVi)",
+      comb3: "0,9 CM ± 1,25 CVi",
+      comb4: "1,25(CM + CV) ± CS",
+      comb5: "0,9 CM ± CS",
+      comb6: "1,4 CM + 1,7 CV + 1,7 CE",
+      comb7: "0,9 CM + 1,7 CE",
+      comb8: "1,4 CM + 1,7 CV + 1,4 CL",
+      comb9: "1,05 CM + 1,25 CV + 1,05 CT",
+      comb10: "1,4 D",
+      comb11: "1,2D + 1,6L + 0,5(Lr ó S ó R)",
+      comb12: "1,2D + 1,6(Lr ó S ó R) + (0,5Lr ó 0,8W)",
+      comb13: "1,2D + 1,3W + 0,5L + 0,5(Lr ó S ó R)",
+      comb14: "1,2D ± 1,0E + 0,5L + 0,2S",
+      comb15: "0,9D ± (1,3W ó 1,0E)",
+      comb16: "D",
+      comb17: "D + L",
+      comb18: "D + (W ó 0,70E)",
+      comb19: "D + T",
+      comb20: "α[D + L +(W ó 0,70E)]",
+      comb21: "α[D + L + T]",
+      comb22: "α[D + (W ó 0,70E) + T]",
+      comb23: "α[D + L + (W ó 0,70E) + T]",
+    };
+
+    // Obtener todas las claves que empiezan con "comb"
+    const todasLasCombs = Object.keys(combinaciones).filter((key) => key.startsWith("comb"));
+
+    // Verificar rangos - CORREGIDO
+    const tieneComb1a9 = todasLasCombs.some((key) => {
+      const num = parseInt(key.replace("comb", ""));
+      return num >= 1 && num <= 9 && combinaciones[key] === true;
     });
 
-    materialBlocks.push({
-      type: "list",
-      listType: "bullet",
-      items: ["1.2D+1.6CVT+0.8CWP", "1.2D+1.6CVT+0.8CWN", "1.2D+0.5CVT+1.3CWP", "0.9D+1.3CWP", "0.9D+1.3CWN"],
+    const tieneComb10a15 = todasLasCombs.some((key) => {
+      const num = parseInt(key.replace("comb", ""));
+      return num >= 10 && num <= 15 && combinaciones[key] === true;
     });
+
+    const tieneComb16a23 = todasLasCombs.some((key) => {
+      const num = parseInt(key.replace("comb", ""));
+      return num >= 16 && num <= 23 && combinaciones[key] === true;
+    });
+    // Obtener combinaciones seleccionadas por rango
+    const combinaciones1a9 = [];
+    const combinaciones10a15 = [];
+    const combinaciones16a23 = [];
+
+    Object.entries(combinaciones).forEach(([key, valor]) => {
+      if (valor === true && mapaCombinaciones[key]) {
+        const num = parseInt(key.replace("comb", ""));
+        if (num >= 1 && num <= 9) {
+          combinaciones1a9.push(mapaCombinaciones[key]);
+        } else if (num >= 10 && num <= 15) {
+          combinaciones10a15.push(mapaCombinaciones[key]);
+        } else if (num >= 16 && num <= 23) {
+          combinaciones16a23.push(mapaCombinaciones[key]);
+        }
+      }
+    });
+
+    // Agregar párrafos y listas según los rangos seleccionados
+    if (tieneComb1a9 || tieneComb10a15 || tieneComb16a23) {
+      materialBlocks.push({
+        type: "paragraph",
+        text: "Para el diseño de los elementos estructurales se utilizarán las siguientes combinaciones de carga según la Norma E.060 del Reglamento Nacional de Edificaciones:",
+        alignment: "JUSTIFIED",
+        spacing: { before: 200 },
+      });
+    }
+
+    // Agregar lista con las combinaciones seleccionadas
+    if (tieneComb1a9) {
+      materialBlocks.push({
+        type: "paragraph",
+        text: "Combinaciones de Carga (Norma E.060)",
+        alignment: "JUSTIFIED",
+        spacing: { before: 200 },
+      });
+
+      materialBlocks.push({
+        type: "list",
+        listType: "bullet",
+        items: combinaciones1a9,
+      });
+    }
+
+    if (tieneComb10a15) {
+      materialBlocks.push({
+        type: "paragraph",
+        text: "Cargas, Factores de Cargas y Combinaciones de Carga",
+        alignment: "JUSTIFIED",
+        spacing: { before: 200 },
+      });
+
+      materialBlocks.push({
+        type: "list",
+        listType: "bullet",
+        items: combinaciones10a15,
+      });
+    }
+
+    if (tieneComb16a23) {
+      materialBlocks.push({
+        type: "paragraph",
+        text: "Combinaciones de Carga para diseños por esfuerzo admisibles",
+        alignment: "JUSTIFIED",
+        spacing: { before: 200 },
+      });
+
+      materialBlocks.push({
+        type: "list",
+        listType: "bullet",
+        items: combinaciones16a23,
+      });
+    }
 
     // Figura 13 al final
     if (materialImages[2]) {
@@ -722,6 +1048,7 @@ export class DocumentTransformer {
   // ============================================
   // 8. ANÁLISIS DE CARGAS (Sección 2)
   // ============================================
+
   transformAnalisisCargas(structure) {
     const analisisCargas = structure.document.sections.find((s) => s.id === "analisis_cargas");
     if (!analisisCargas) return;
@@ -761,7 +1088,7 @@ export class DocumentTransformer {
           src: espectros[0],
           alignment: "CENTER",
           width: 500,
-          height: 280,
+          height: 600,
           caption: "figura 15-Espectro de Pseudoaceleraciones en dirección “X”",
         });
       }
@@ -771,7 +1098,7 @@ export class DocumentTransformer {
           src: espectros[1],
           alignment: "CENTER",
           width: 500,
-          height: 280,
+          height: 600,
           caption: "figura 16-Espectro de Pseudoaceleraciones en dirección “Y”",
         });
       }
@@ -798,7 +1125,9 @@ export class DocumentTransformer {
 
       // 1. Figuras 18-21 (Metrado de Cargas)
       const metradoImages = this.previews.metradoCargasImages || [];
-      const metradoCaptions = [
+      const metradoDescripciones = this.sections?.analisisCargas?.descripcionesCargaMuerta || [];
+
+      const metradoCaptionsDefault = [
         "figura 18-Cargas muertas por metro cuadrado (tonf/m2)",
         "figura 19-Carga viva entrepiso por metro cuadrado (tonf/m2)",
         "figura 20-Carga viva techo por metro cuadrado (tonf/m2)",
@@ -806,14 +1135,14 @@ export class DocumentTransformer {
       ];
 
       metradoImages.forEach((src, i) => {
-        if (src && metradoCaptions[i]) {
+        if (src) {
           dynamicContent.push({
             type: "image",
             src,
             alignment: "CENTER",
             width: 500,
             height: 280,
-            caption: metradoCaptions[i],
+            caption: metradoDescripciones[i]?.trim() || metradoCaptionsDefault[i],
           });
         }
       });
@@ -929,23 +1258,25 @@ export class DocumentTransformer {
       });
 
       // 4. Figuras 22-25 (Cargas Aproximadas)
-      const approxImages = this.previews.cargasAproximadasImages || [];
-      const approxCaptions = [
+      const aproximadasImages = this.previews.cargasAproximadasImages || [];
+      const approxDescripciones = this.sections?.analisisCargas?.descripcionesCargaViva || [];
+
+      const approxCaptionsDefault = [
         "figura 22-Cargas muertas por metro cuadrado (kgf/m2)",
         "figura 23-Cargas viva techo metro cuadrado (kgf/m2)",
         "figura 24-Cargas viva viento positivo(kgf/m2)",
         "figura 25-Cargas viva viento negativo(kgf/m2)",
       ];
 
-      approxImages.forEach((src, i) => {
-        if (src && approxCaptions[i]) {
+      aproximadasImages.forEach((src, i) => {
+        if (src) {
           dynamicContent.push({
             type: "image",
             src,
             alignment: "CENTER",
             width: 500,
             height: 280,
-            caption: approxCaptions[i],
+            caption: approxDescripciones[i]?.trim() || approxCaptionsDefault[i],
           });
         }
       });
@@ -970,27 +1301,1219 @@ export class DocumentTransformer {
       return;
     }
 
-    console.log(
-      "3. Contenido de la sección:",
-      analisisSismico.content.map((c) => c.type),
+    // console.log(
+    //   "3. Contenido de la sección:",
+    //   analisisSismico.content.map((c) => c.type),
+    // );
+
+    const idx31 = analisisSismico.content.findIndex(
+      (item) => item.type === "heading" && item.text === "3.1 ANÁLISIS ESTRUCTURAL",
     );
 
-    // Buscar el heading "3.2 ANÁLISIS SÍSMICO ESTATICO"
+    if (idx31 === -1) {
+      console.warn("No se encontró el heading '3.1 ANÁLISIS ESTRUCTURAL'");
+      return;
+    }
+
+    const analisisEstructuralImages = this.previews.analisisEstructuralImages || [];
+
+    const idx311 = analisisSismico.content.findIndex(
+      (item, i) => i > idx31 && item.type === "heading" && item.text === "3.1.1. Sistema Estructural",
+    );
+
+    if (idx311 === -1) {
+      console.warn("No se encontró la sección '3.1.1. Sistema Estructural'");
+      return;
+    }
+
+    const paragraphEstructuralIdx = analisisSismico.content.findIndex(
+      (item, i) =>
+        i > idx311 &&
+        item.type === "paragraph" &&
+        item.text ===
+          "En la tabla N° 6 se definen los sistemas estructurales permitidos de acuerdo a la categoria de las edificaciones y a la zona sismica en la que se encuentra.",
+    );
+
+    // inserta la tabla N° 6
+    const rowsTable6 = [
+      [
+        { text: "A1", fill: null, color: "000000", bold: false }, //cambie colspan
+        { text: "4 y 3", fill: null, color: "000000", bold: false },
+        {
+          text: "Aislamiento Sísmico con cualquier sistema estructural.",
+          fill: null,
+          color: "000000",
+          bold: false,
+          alignment: "LEFT",
+        },
+      ],
+      [
+        { text: "A1", fill: null, color: "000000", bold: false },
+        { text: "2 y 1", fill: null, color: "000000", bold: false },
+        {
+          text: "\nEstructuras de acero tipo SCBF y EBF.\nEstructuras de concreto: Sistema Dual, Muros de Concreto Armado.\nAlbañilería Armada o Confinada.\n",
+          fill: null,
+          color: "000000",
+          bold: false,
+          alignment: "LEFT",
+        },
+      ],
+      [
+        { text: "A2 (**)", fill: null, color: "000000", bold: false },
+        { text: "4, 3 y 2", fill: null, color: "000000", bold: false },
+        {
+          text: "\nEstructuras de acero tipo SCBF y EBF.\nEstructuras de concreto: Sistema Dual, Muros de Concreto Armado.\nAlbañilería Armada o Confinada.\n",
+          fill: null,
+          color: "000000",
+          bold: false,
+          alignment: "LEFT",
+        },
+      ],
+      [
+        { text: "A2 (**)", fill: null, color: "000000", bold: false },
+        { text: "1", fill: null, color: "000000", bold: false },
+        { text: "Cualquier sistema.", fill: null, color: "000000", bold: false, alignment: "LEFT" },
+      ],
+      [
+        { text: "B", fill: null, color: "000000", bold: false },
+        { text: "4, 3 y 2", fill: null, color: "000000", bold: false },
+        {
+          text: "\nEstructuras de acero tipo SMF, IMF, SCBF, OCBF y EBF.\nEstructuras de concreto: Pórticos, Sistema Dual, Muros de Concreto Armado.\nAlbañilería Armada o Confinada.\nEstructuras de madera\n",
+          fill: null,
+          color: "000000",
+          bold: false,
+          alignment: "LEFT",
+        },
+      ],
+      [
+        { text: "B", fill: null, color: "000000", bold: false },
+        { text: "1", fill: null, color: "000000", bold: false },
+        { text: "Cualquier sistema.", fill: null, color: "000000", bold: false, alignment: "LEFT" },
+      ],
+      [
+        { text: "C", fill: null, color: "000000", bold: false },
+        { text: "4, 3, 2 y 1", fill: null, color: "000000", bold: false },
+        { text: "Cualquier sistema.", fill: null, color: "000000", bold: false, alignment: "LEFT" },
+      ],
+    ];
+
+    const table6 = {
+      type: "table",
+      title: "Tabla N° 6\nCATEGORÍA Y SISTEMA ESTRUCTURAL DE LAS EDIFICACIONES",
+      widthPercent: 95,
+      indentSize: 500,
+      columns: [
+        { header: "Categoría de la Edificación", width: 20 },
+        { header: "Zona", width: 15 },
+        { header: "Sistema Estructural", width: 60 },
+      ],
+      rows: rowsTable6,
+    };
+
+    if (paragraphEstructuralIdx !== -1) {
+      console.warn("Se encontró el parrafo de 3.1.1. Sistema Estructural");
+      let insertPos = paragraphEstructuralIdx + 1;
+      analisisSismico.content.splice(insertPos, 0, table6);
+
+      insertPos++;
+
+      if (analisisEstructuralImages[0]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[0],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Sistema Estructural: imagen 1",
+        });
+        insertPos++;
+      }
+
+      if (analisisEstructuralImages[1]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[1],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Sistema Estructural: imagen 2",
+        });
+      }
+    }
+
+    const idx312 = analisisSismico.content.findIndex(
+      (item) =>
+        item.type === "heading" && item.text === "3.1.2. Coeficiente Básico de Reducción de Fuerzas Sísmicas, Ro",
+    );
+
+    if (idx312 === -1) {
+      console.warn("No se encontró el heading '3.1.2. Coeficiente Básico de Reducción de Fuerzas Sísmicas, Ro");
+      return;
+    }
+
+    const paragraphCoeficienteIdx = analisisSismico.content.findIndex(
+      (item, i) =>
+        i > idx312 &&
+        item.type === "paragraph" &&
+        item.text ===
+          "De la tabla N° 7 se obtiene el valor del coeficiente Ro, que depende unicamente del sistema estructural",
+    );
+
+    const rowsTable7 = [
+      [
+        { text: "Acero:", fill: null, color: "000000", bold: true, alignment: "LEFT" },
+        { text: "", fill: null, color: "000000", bold: false },
+      ],
+      [
+        {
+          text: "  Pórticos Especiales Resistentes a Momentos (SMF)",
+          fill: null,
+          color: "000000",
+          bold: false,
+          alignment: "LEFT",
+        },
+        { text: "8", fill: null, color: "000000", bold: false },
+      ],
+      [
+        {
+          text: "  Pórticos Intermedios Resistentes a Momentos (IMF)",
+          fill: null,
+          color: "000000",
+          bold: false,
+          alignment: "LEFT",
+        },
+        { text: "5", fill: null, color: "000000", bold: false },
+      ],
+      [
+        {
+          text: "  Pórticos Ordinarios Resistentes a Momentos (OMF)",
+          fill: null,
+          color: "000000",
+          bold: false,
+          alignment: "LEFT",
+        },
+        { text: "4", fill: null, color: "000000", bold: false },
+      ],
+      [
+        {
+          text: "  Pórticos Especiales Concéntricamente Arriostrados (SCBF)",
+          fill: null,
+          color: "000000",
+          bold: false,
+          alignment: "LEFT",
+        },
+        { text: "7", fill: null, color: "000000", bold: false },
+      ],
+      [
+        {
+          text: "  Pórticos Ordinarios Concéntricamente Arriostrados (OCBF)",
+          fill: null,
+          color: "000000",
+          bold: false,
+          alignment: "LEFT",
+        },
+        { text: "4", fill: null, color: "000000", bold: false },
+      ],
+      [
+        {
+          text: "  Pórticos Excéntricamente Arriostrados (EBF)",
+          fill: null,
+          color: "000000",
+          bold: false,
+          alignment: "LEFT",
+        },
+        { text: "8", fill: null, color: "000000", bold: false },
+      ],
+      [
+        { text: "Concreto Armado:", fill: null, color: "000000", bold: true, alignment: "LEFT" },
+        { text: "", fill: null, color: "000000", bold: false },
+      ],
+      [
+        { text: "  Pórticos", fill: null, color: "000000", bold: false, alignment: "LEFT" },
+        { text: "8", fill: null, color: "000000", bold: false },
+      ],
+      [
+        { text: "  Dual", fill: null, color: "000000", bold: false, alignment: "LEFT" },
+        { text: "7", fill: null, color: "000000", bold: false },
+      ],
+      [
+        { text: "  De muros estructurales", fill: null, color: "000000", bold: false, alignment: "LEFT" },
+        { text: "6", fill: null, color: "000000", bold: false },
+      ],
+      [
+        { text: "  Muros de ductilidad limitada", fill: null, color: "000000", bold: false, alignment: "LEFT" },
+        { text: "4", fill: null, color: "000000", bold: false },
+      ],
+      [
+        { text: "Albañilería Armada o Confinada", fill: null, color: "000000", bold: false, alignment: "LEFT" },
+        { text: "3", fill: null, color: "000000", bold: false },
+      ],
+      [
+        { text: "Madera", fill: null, color: "000000", bold: false, alignment: "LEFT" },
+        { text: "7 (**)", fill: null, color: "000000", bold: false },
+      ],
+    ];
+
+    const table7 = {
+      type: "table",
+      title: "Tabla N° 7\nSISTEMAS ESTRUCTURALES",
+      widthPercent: 90,
+      indentSize: 500,
+      columns: [
+        { header: "Sistema Estructural", width: 70 },
+        { header: "Coeficiente Básico de Reducción R₀ (*)", width: 30 },
+      ],
+      rows: rowsTable7,
+    };
+
+    if (paragraphCoeficienteIdx !== -1) {
+      console.warn("Se encontró el parrafo de 3.1.2. Coeficiente Básico de Reducción de Fuerzas Sísmicas, Ro");
+
+      let insertPos = paragraphCoeficienteIdx + 1;
+
+      analisisSismico.content.splice(insertPos, 0, table7);
+      insertPos++;
+
+      if (analisisEstructuralImages[2]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[2],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Coeficiente Básico: imagen 1",
+        });
+        insertPos++;
+      }
+
+      if (analisisEstructuralImages[3]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[3],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Coeficiente Básico: imagen 2",
+        });
+      }
+    }
+
+    const idx313 = analisisSismico.content.findIndex(
+      (item) => item.type === "heading" && item.text === "3.1.3. Factores de Irregularidad (La, Lp)",
+    );
+
+    if (idx313 === -1) {
+      console.warn("No se encontró el heading '3.1.3. Factores de Irregularidad (La, Lp)'");
+      return;
+    }
+
+    const paragraphFactoresIrregularidadIdx = analisisSismico.content.findIndex(
+      (item, i) =>
+        i > idx313 &&
+        item.type === "paragraph" &&
+        item.text.includes(
+          "La mayoría de los casos se puede determinar si una estructura es regular o irregular a partir de su configuración estructural,",
+        ),
+    );
+
+    const rowsTable8 = [
+      [
+        {
+          text: "\nIrregularidad de Rigidez - Piso Blando\nExiste irregularidad de rigidez cuando, en cualquiera de las direcciones de análisis, en un entrepiso la rigidez lateral es menor que 70% de la rigidez lateral del entrepiso inmediatamente superior, o es menor que 80% de la rigidez lateral promedio de los tres niveles superiores adyacentes.\nLas rigideces laterales pueden calcularse como la razón entre la fuerza cortante del entrepiso y el desplazamiento correspondiente relativo en el centro de masas, ambos evaluados para la misma condición de carga \n\nIrregularidades de Resistencia – Piso Débil\nExiste irregularidad de resistencia cuando, en cualquiera de las direcciones de análisis, la resistencia de un entrepiso frente a fuerzas cortantes es inferior a 80% de la resistencia del entrepiso inmediatamente superior\n",
+          fill: null,
+          color: "000000",
+          bold: false,
+          colSpan: 2,
+          alignment: "LEFT",
+        },
+        { text: "0,60", fill: null, color: "000000", bold: false },
+      ],
+      [
+        {
+          text: "\nIrregularidad Extrema de Rigidez (Ver Tabla N° 10)\nExiste irregularidad extrema de rigidez cuando, en cualquiera de las direcciones de análisis, en un entrepiso la rigidez lateral es menor que 60% de la rigidez lateral del entrepiso inmediatamente superior, o es menor que 70% de la rigidez lateral promedio de los tres niveles superiores adyacentes.\nLas rigideces laterales pueden calcularse como la razón entre la fuerza cortante del entrepiso y el desplazamiento correspondiente relativo en el centro de masas, ambos evaluados para la misma condición de carga.\n\nIrregularidad Extrema de Resistencia (Ver Tabla N° 10)\nExiste irregularidad extrema de resistencia cuando, en cualquiera de las direcciones de análisis, la resistencia de un entrepiso frente a fuerzas cortantes es inferior a 65% de la resistencia del entrepiso inmediatamente superior\n",
+          fill: null,
+          color: "000000",
+          bold: false,
+          colSpan: 2,
+          alignment: "LEFT",
+        },
+        { text: "0,50", fill: null, color: "000000", bold: false },
+      ],
+      [
+        {
+          text: "\nIrregularidad de Masa o Peso\nSe tiene irregularidad de masa (o peso) cuando el peso de un piso, determinado según el artículo 26, es mayor que 1,5 veces el peso de un piso adyacente. Este criterio no se aplica en azoteas ni en sótanos\n",
+          fill: null,
+          color: "000000",
+          bold: false,
+          colSpan: 2,
+          alignment: "LEFT",
+        },
+        { text: "0,90", fill: null, color: "000000", bold: false },
+      ],
+      [
+        {
+          text: "\nIrregularidad Geométrica Vertical\nLa configuración es irregular cuando, en cualquiera de las direcciones de análisis, la dimensión en planta de la estructura resistente a cargas laterales es mayor que 1,3 veces la dimensión correspondiente en un piso adyacente. Este criterio no se aplica en azoteas ni en sótanos\n",
+          fill: null,
+          color: "000000",
+          bold: false,
+          colSpan: 2,
+          alignment: "LEFT",
+        },
+        { text: "0,90", fill: null, color: "000000", bold: false },
+      ],
+      [
+        {
+          text: "\nDiscontinuidad en los Sistemas Resistentes\nSe califica a la estructura como irregular cuando en cualquier elemento que resista más de 10% de la fuerza cortante se tiene un desalineamiento vertical, tanto por un cambio de orientación, como por un desplazamiento del eje de magnitud mayor que 25% de la dimensión correspondiente del elemento\n",
+          fill: null,
+          color: "000000",
+          bold: false,
+          colSpan: 2,
+          alignment: "LEFT",
+        },
+        { text: "0,90", fill: null, color: "000000", bold: false },
+      ],
+      [
+        {
+          text: "\nDiscontinuidad extrema de los Sistemas Resistentes (Ver Tabla N° 10)\nExiste discontinuidad extrema cuando la fuerza cortante que resisten los elementos discontinuos según se describen en el ítem anterior, supere el 25% de la fuerza cortante total.\n",
+          fill: null,
+          color: "000000",
+          bold: false,
+          colSpan: 2,
+          alignment: "LEFT",
+        },
+        { text: "0,60", fill: null, color: "000000", bold: false },
+      ],
+    ];
+
+    const rowsTable9 = [
+      [
+        {
+          text: "\nIrregularidad Torsional\nExiste irregularidad torsional cuando, en cualquiera de las direcciones de análisis, el máximo desplazamiento relativo de entrepiso en un extremo del edificio (Δmax) en esa dirección, calculado incluyendo excentricidad accidental, es mayor que 1,3 veces el desplazamiento relativo promedio de los extremos del mismo entrepiso para la misma condición de carga (Δprom).\nEste criterio sólo se aplica en edificios con diafragmas rígidos y sólo si el máximo desplazamiento relativo de entrepiso es mayor que 50% del desplazamiento permisible indicado en la Tabla N° 11.\n",
+          fill: null,
+          color: "000000",
+          bold: false,
+          colSpan: 2,
+          alignment: "LEFT",
+        },
+        { text: "0,75", fill: null, color: "000000", bold: false },
+      ],
+      [
+        {
+          text: "\nIrregularidad Torsional Extrema (Ver Tabla N° 10)\nExiste irregularidad torsional extrema cuando, en cualquiera de las direcciones de análisis, el máximo desplazamiento relativo de entrepiso en un extremo del edificio (Δmax) en esa dirección, calculado incluyendo excentricidad accidental, es mayor que 1,5 veces el desplazamiento relativo promedio de los extremos del mismo entrepiso para la misma condición de carga (Δprom).\nEste criterio sólo se aplica en edificios con diafragmas rígidos y sólo si el máximo desplazamiento relativo de entrepiso es mayor que 50% del desplazamiento permisible indicado en la Tabla N° 11.\n",
+          fill: null,
+          color: "000000",
+          bold: false,
+          colSpan: 2,
+          alignment: "LEFT",
+        },
+        { text: "0,60", fill: null, color: "000000", bold: false },
+      ],
+      [
+        {
+          text: "\nEsquinas Entrantes\nLa estructura se califica como irregular cuando tiene esquinas entrantes cuyas dimensiones en ambas direcciones son mayores que el 20% de la correspondiente dimensión total en planta.\n",
+          fill: null,
+          color: "000000",
+          bold: false,
+          colSpan: 2,
+          alignment: "LEFT",
+        },
+        { text: "0,90", fill: null, color: "000000", bold: false },
+      ],
+      [
+        {
+          text: "\nDiscontinuidad del Diafragma\nLa estructura se califica como irregular cuando los diafragmas tienen discontinuidades abruptas o variaciones importantes en la rigidez, incluyendo aberturas mayores que el 50% del área bruta del diafragma. También existe irregularidad cuando, en cualquiera de los pisos y para cualquiera de las direcciones de análisis, se tiene alguna sección transversal del diafragma con un área neta resistente menor que 25% del área de la sección transversal total de la misma dirección calculada con las dimensiones totales de la planta.\n",
+          fill: null,
+          color: "000000",
+          bold: false,
+          colSpan: 2,
+          alignment: "LEFT",
+        },
+        { text: "0,85", fill: null, color: "000000", bold: false },
+      ],
+      [
+        {
+          text: "\nSistema no Paralelos\nSe considera que existe irregularidad cuando en cualquiera de las direcciones de análisis los elementos resistentes a fuerzas laterales no son paralelos. No se aplica si los ejes de los pórticos o muros forman ángulos menores que 30° ni cuando los elementos no paralelos resisten menos que 10% de la fuerza cortante del piso.\n",
+          fill: null,
+          color: "000000",
+          bold: false,
+          colSpan: 2,
+          alignment: "LEFT",
+        },
+        { text: "0,90", fill: null, color: "000000", bold: false },
+      ],
+    ];
+
+    const table8 = {
+      type: "table",
+      title: "Tabla N° 8",
+      widthPercent: 95,
+      indentSize: 500,
+      columns: [
+        { header: "IRREGULARIDADES ESTRUCTURALES EN ALTURA", width: 80 },
+        { header: "Factor de irregularidad la", width: 20 },
+      ],
+      rows: rowsTable8,
+    };
+
+    const table9 = {
+      type: "table",
+      title: "Tabla N° 9",
+      widthPercent: 95,
+      indentSize: 500,
+      columns: [
+        { header: "IRREGULARIDADES ESTRUCTURALES EN PLANTA", width: 80 },
+        { header: "Factor de irregularidad Ip", width: 20 },
+      ],
+      rows: rowsTable9,
+    };
+
+    if (paragraphFactoresIrregularidadIdx !== -1) {
+      console.warn("Se encontró el parrafo de 3.1.3. Factores de Irregularidad (La, Lp)");
+
+      let insertPos = paragraphFactoresIrregularidadIdx + 1;
+
+      analisisSismico.content.splice(insertPos, 0, table8);
+      insertPos++;
+
+      analisisSismico.content.splice(insertPos, 0, {
+        type: "paragraph",
+        text: "",
+        alignment: "CENTER",
+      });
+      insertPos++;
+
+      analisisSismico.content.splice(insertPos, 0, table9);
+      insertPos++;
+
+      if (analisisEstructuralImages[4]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[4],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Factores de Irregularidad: imagen 4",
+        });
+        insertPos++;
+      }
+
+      if (analisisEstructuralImages[5]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[5],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Factores de Irregularidad: imagen 5",
+        });
+      }
+    }
+
+    const idx314 = analisisSismico.content.findIndex(
+      (item) => item.type === "heading" && item.text === "3.1.4. Restricciones a la Irregularidad",
+    );
+
+    if (idx314 === -1) {
+      console.warn("No se encontró el heading '3.1.4. Restricciones a la Irregularidad'");
+      return;
+    }
+
+    const paragraphRestriccionesIdx = analisisSismico.content.findIndex(
+      (item, i) =>
+        i > idx314 &&
+        item.type === "paragraph" &&
+        item.text.includes(
+          "Verificar las restricciones a la irregularidad de acuerdo a la categoría y zona de la edificación en la Tabla N° 10.",
+        ),
+    );
+
+    const rowsTable10 = [
+      [
+        { text: "A1 y A2", fill: null, color: "000000", bold: false },
+        { text: "4, 3 y 2", fill: null, color: "000000", bold: false },
+        { text: "No se permiten irregularidades", fill: null, color: "000000", bold: false, alignment: "LEFT" },
+      ],
+      [
+        { text: "A1 y A2", fill: null, color: "000000", bold: false },
+        { text: "1", fill: null, color: "000000", bold: false },
+        {
+          text: "No se permiten irregularidades extremas",
+          fill: null,
+          color: "000000",
+          bold: false,
+          alignment: "LEFT",
+        },
+      ],
+      [
+        { text: "B", fill: null, color: "000000", bold: false },
+        { text: "4, 3 y 2", fill: null, color: "000000", bold: false },
+        {
+          text: "No se permiten irregularidades extremas",
+          fill: null,
+          color: "000000",
+          bold: false,
+          alignment: "LEFT",
+        },
+      ],
+      [
+        { text: "B", fill: null, color: "000000", bold: false },
+        { text: "1", fill: null, color: "000000", bold: false },
+        { text: "Sin restricciones", fill: null, color: "000000", bold: false, alignment: "LEFT" },
+      ],
+      [
+        { text: "C", fill: null, color: "000000", bold: false },
+        { text: "4 y 3", fill: null, color: "000000", bold: false },
+        {
+          text: "No se permiten irregularidades extremas",
+          fill: null,
+          color: "000000",
+          bold: false,
+          alignment: "LEFT",
+        },
+      ],
+      [
+        { text: "C", fill: null, color: "000000", bold: false },
+        { text: "2", fill: null, color: "000000", bold: false },
+        {
+          text: "No se permiten irregularidades extremas excepto en edificios de hasta 2 pisos u 8 m de altura total",
+          fill: null,
+          color: "000000",
+          bold: false,
+          alignment: "LEFT",
+        },
+      ],
+      [
+        { text: "C", fill: null, color: "000000", bold: false },
+        { text: "1", fill: null, color: "000000", bold: false },
+        { text: "Sin restricciones", fill: null, color: "000000", bold: false, alignment: "LEFT" },
+      ],
+    ];
+
+    const table10 = {
+      type: "table",
+      title: "Tabla N° 10\nCATEGORÍA Y REGULARIDAD DE LAS EDIFICACIONES",
+      widthPercent: 90,
+      indentSize: 500,
+      columns: [
+        { header: "Categoría de la Edificación", width: 25 },
+        { header: "Zona", width: 20 },
+        { header: "Restricciones", width: 55 },
+      ],
+      rows: rowsTable10,
+    };
+
+    if (paragraphRestriccionesIdx !== -1) {
+      console.warn("Se encontró el parrafo de 3.1.4. Restricciones a la Irregularidad");
+      let insertPos = paragraphRestriccionesIdx + 1;
+
+      analisisSismico.content.splice(insertPos, 0, table10);
+      insertPos++;
+
+      if (analisisEstructuralImages[6]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[6],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Restricciones a la irregularidad: imagen 1",
+        });
+        insertPos++;
+      }
+
+      if (analisisEstructuralImages[7]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[7],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Restricciones a la irregularidad: imagen 2",
+        });
+      }
+    }
+
+    const idx315 = analisisSismico.content.findIndex(
+      (item) => item.type === "heading" && item.text === "3.1.5. Coeficiente de Reducción de la Fuerza Sísmica (R)",
+    );
+
+    if (idx315 === -1) {
+      console.warn("No se encontró el heading '3.1.5. Coeficiente de Reducción de la Fuerza Sísmica (R)'");
+      return;
+    }
+
+    const paragraphCoeficienteReduccionIdx = analisisSismico.content.findIndex(
+      (item, i) => i > idx315 && item.type === "paragraph" && item.text === "Se determina R = Ro.la.lp",
+    );
+
+    if (paragraphCoeficienteReduccionIdx !== -1) {
+      console.warn("Se encontró el parrafo de 3.1.5. Coeficiente de Reducción de la Fuerza Sísmica (R)");
+      let insertPos = paragraphCoeficienteReduccionIdx + 1;
+
+      if (analisisEstructuralImages[8]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[8],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Coeficiente de Reducción de la Fuerza Sísmica: imagen 1",
+        });
+        insertPos++;
+      }
+      if (analisisEstructuralImages[9]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[9],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Coeficiente de Reducción de la Fuerza Sísmica: imagen 2",
+        });
+      }
+    }
+
+    const idx316 = analisisSismico.content.findIndex(
+      (item) => item.type === "heading" && item.text === "3.1.6. Modelos de Análisis",
+    );
+
+    if (idx316 === -1) {
+      console.warn("No se encontró el heading '3.1.6. Modelos de Análisis'");
+      return;
+    }
+
+    const paragraphModelosIdx = analisisSismico.content.findIndex(
+      (item, i) =>
+        i > idx316 &&
+        item.type === "paragraph" &&
+        item.text ===
+          "Desarrollar el modelo matemático de la estructura. Para estructuras de concreto armado y albañilería considerar las propiedades de las secciones brutas ignorando la fisuración y el refuerzo.",
+    );
+
+    if (paragraphModelosIdx !== -1) {
+      console.warn("Se encontró el parrafo de la seccion '3.1.6. Modelos de Análisis'");
+      let insertPos = paragraphModelosIdx + 1;
+      if (analisisEstructuralImages[10]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[10],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Modelos de Análisis: imagen 1",
+        });
+        insertPos++;
+      }
+
+      if (analisisEstructuralImages[11]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[11],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Modelos de Análisis: imagen 2",
+        });
+      }
+    }
+
+    const idx317 = analisisSismico.content.findIndex(
+      (item) => item.type === "heading" && item.text === "3.1.7. Estimación del Peso (P)",
+    );
+
+    if (idx317 === -1) {
+      console.warn("No se encontró el heading '3.1.7. Estimación del Peso (P)'");
+      return;
+    }
+
+    const paragraphEstimacionIdx = analisisSismico.content.findIndex(
+      (item, i) =>
+        i > idx317 &&
+        item.type === "paragraph" &&
+        item.text ===
+          "Se determina el peso (P) para el cálculo de la fuerza sísmica adicionando a la carga permanente total un porcentaje de la carga viva que depende del uso y la categoría de la edificación, definido de acuerdo a lo indicado en este numeral.",
+    );
+
+    if (paragraphEstimacionIdx !== -1) {
+      let insertPos = paragraphEstimacionIdx + 1;
+
+      if (analisisEstructuralImages[12]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[12],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Estimación del Peso: imagen 1",
+        });
+        insertPos++;
+      }
+
+      if (analisisEstructuralImages[13]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[13],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Estimación del Peso: imagen 2",
+        });
+      }
+    }
+
+    const idx318 = analisisSismico.content.findIndex(
+      (item) => item.type === "heading" && item.text === "3.1.8. Procedimientos de Análisis Sísmico",
+    );
+
+    if (idx318 === -1) {
+      console.warn("No se encontró el heading '3.1.8. Procedimientos de Análisis Sísmico'");
+      return;
+    }
+
+    const paragraphProcedimientos = analisisSismico.content.findIndex(
+      (item, i) =>
+        i > idx318 &&
+        item.type === "paragraph" &&
+        item.text ===
+          "Se definen los procedimientos de análisis considerados en esta Norma, que son análisis estático (artículo 28) y análisis dinámico modal espectral (artículo 29).",
+    );
+
+    if (paragraphProcedimientos !== -1) {
+      let insertPos = paragraphProcedimientos + 1;
+      if (analisisEstructuralImages[14]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[14],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Procedimientos de Análisis Sísmico: imagen 1",
+        });
+        insertPos++;
+      }
+      if (analisisEstructuralImages[15]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[15],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Procedimientos de Análisis Sísmico: imagen 2",
+        });
+      }
+    }
+
+    const idx319 = analisisSismico.content.findIndex(
+      (item) => item.type === "heading" && item.text === "3.1.9. Determinación de Desplazamientos Laterales",
+    );
+
+    if (idx319 === -1) {
+      console.warn("No se encontró el heading '3.1.9. Determinación de Desplazamientos Laterales'");
+      return;
+    }
+
+    const paragraphDesplazamientosIdx = analisisSismico.content.findIndex(
+      (item, i) =>
+        i > idx319 &&
+        item.type === "paragraph" &&
+        item.text === "Se calculan los desplazamientos laterales de acuerdo a las indicaciones de este numeral.",
+    );
+
+    if (paragraphDesplazamientosIdx !== -1) {
+      let insertPos = paragraphDesplazamientosIdx + 1;
+      if (analisisEstructuralImages[16]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[16],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Determinación de Desplazamientos Laterales: imagen 1",
+        });
+        insertPos++;
+      }
+      if (analisisEstructuralImages[17]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[17],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Determinación de Desplazamientos Laterales: imagen 2",
+        });
+      }
+    }
+
+    const idx3110 = analisisSismico.content.findIndex(
+      (item) => item.type === "heading" && item.text === "3.1.10. Distorsión Admisible",
+    );
+
+    if (idx3110 === -1) {
+      console.warn("No se encontró el heading '3.1.10. Distorsión Admisible'");
+      return;
+    }
+
+    const paragraphDistorsionIdx = analisisSismico.content.findIndex(
+      (item, i) =>
+        i > idx3110 &&
+        item.type === "paragraph" &&
+        item.text.includes(
+          "Verifique que la distorsión máxima de entrepiso que se obtiene en la estructura con los desplazamientos calculados en el paso anterior sea menor que lo indicado en la Tabla N° 11.",
+        ),
+    );
+
+    const rowsTable11 = [
+      [
+        { text: "Concreto Armado", fill: null, color: "000000", bold: false, alignment: "LEFT" },
+        { text: "0,007", fill: null, color: "000000", bold: false },
+      ],
+      [
+        { text: "Acero", fill: null, color: "000000", bold: false, alignment: "LEFT" },
+        { text: "0,010", fill: null, color: "000000", bold: false },
+      ],
+      [
+        { text: "Albañilería", fill: null, color: "000000", bold: false, alignment: "LEFT" },
+        { text: "0,005", fill: null, color: "000000", bold: false },
+      ],
+      [
+        { text: "Madera", fill: null, color: "000000", bold: false, alignment: "LEFT" },
+        { text: "0,010", fill: null, color: "000000", bold: false },
+      ],
+      [
+        {
+          text: "Edificios de concreto armado con muros de ductilidad limitada",
+          fill: null,
+          color: "000000",
+          bold: false,
+          alignment: "LEFT",
+        },
+        { text: "0,005", fill: null, color: "000000", bold: false },
+      ],
+    ];
+
+    const table11 = {
+      type: "table",
+      title: "Tabla N° 11\nLÍMITES PARA LA DISTORSIÓN DEL ENTREPISO",
+      widthPercent: 60,
+      indentSize: 500,
+      columns: [
+        { header: "Material Predominante", width: 70 },
+        { header: "Δi / hei", width: 30 },
+      ],
+      rows: rowsTable11,
+    };
+
+    if (paragraphDistorsionIdx !== -1) {
+      let insertPos = paragraphDistorsionIdx + 1;
+
+      analisisSismico.content.splice(insertPos, 0, table11);
+      insertPos++;
+
+      if (analisisEstructuralImages[18]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[18],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Distorsión Admisible: imagen 1",
+        });
+        insertPos++;
+      }
+      if (analisisEstructuralImages[19]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[19],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Distorsión Admisible: imagen 2",
+        });
+      }
+    }
+
+    const idx3111 = analisisSismico.content.findIndex(
+      (item) => item.type === "heading" && item.text === "3.1.11. Separacion entre edificios",
+    );
+
+    if (idx3111 === -1) {
+      console.warn("No se encontró el heading '3.1.11. Separacion entre edificios'");
+      return;
+    }
+
+    const paragraphSeparacionIdx = analisisSismico.content.findIndex(
+      (item, i) =>
+        i > idx3111 &&
+        item.type === "paragraph" &&
+        item.text ===
+          "Determinar la separación mínima a otras edificaciones o al límite de propiedad de acuerdo a las indicaciones de este numeral.",
+    );
+
+    if (paragraphSeparacionIdx !== -1) {
+      let insertPos = paragraphSeparacionIdx + 1;
+      if (analisisEstructuralImages[20]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[20],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Distorsión Admisible: imagen 1",
+        });
+        insertPos++;
+      }
+      if (analisisEstructuralImages[21]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: analisisEstructuralImages[21],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Distorsión Admisible: imagen 2",
+        });
+      }
+    }
+
+    // ---------------------------- 3.2 PARÁMETROS SÍSMICOS (Norma E.030) -------------------------
     const idx32 = analisisSismico.content.findIndex(
-      (item) => item.type === "heading" && item.text === "3.2 ANÁLISIS SÍSMICO ESTATICO",
+      (item) => item.type === "heading" && item.text === "3.2 PARÁMETROS SÍSMICOS (Norma E.030)",
     );
-
-    console.log("4. Índice del heading 3.2:", idx32);
-    console.log("5. Imágenes disponibles:", this.previews.estaticoConsideracionesETABS);
 
     if (idx32 === -1) {
-      console.warn("No se encontró el heading '3.2 ANÁLISIS SÍSMICO ESTATICO'");
+      console.warn("No se encontró el heading '3.2 PARÁMETROS SÍSMICOS (Norma E.030)'");
+      return;
+    }
+
+    const idx321 = analisisSismico.content.findIndex(
+      (item, i) => i > idx32 && item.type === "heading" && item.text === "3.2.1. CÁLCULO DE IRREGULARIDADES EN ALTURA",
+    );
+
+    if (idx321 === -1) {
+      console.warn("No se encontró el heading '3.2.1. CÁLCULO DE IRREGULARIDADES EN ALTURA'");
+      return;
+    }
+
+    const listParametros1 = analisisSismico.content.findIndex(
+      (item, i) =>
+        i > idx321 && item.type === "list" && item.items[0] && item.items[0].includes("Irregularidades en altura (IA."),
+    );
+
+    const irregularidadImages = this.previews.irregularidadImages || [];
+
+    if (listParametros1 !== -1) {
+      let insertPos = listParametros1 + 1;
+      const caption = [
+        "Irregularidad de Rigidez - Piso Blando X",
+        "Irregularidad de Resistencia - Piso Debil X",
+        "Irregularidad de Rigidez - Piso Blando Y",
+        "Irregularidad de Resistencia - Piso Debil Y",
+        "Irregularidad de Rigidez - Piso Blando (Extrema) X",
+        "Irregularidad de Resistencia - Piso Debil (Extrema) X",
+        "Irregularidad de Rigidez - Piso Blando (Extrema) Y",
+        "Irregularidad de Resistencia - Piso Debil (Extrema) Y",
+      ];
+      for (let index = 0; index < 8; index++) {
+        if (irregularidadImages[index]) {
+          analisisSismico.content.splice(insertPos, 0, {
+            type: "image",
+            src: irregularidadImages[index],
+            alignment: "CENTER",
+            width: 500,
+            height: 280,
+            caption: caption[index],
+          });
+          insertPos++;
+        }
+      }
+    }
+
+    const listParametros2 = analisisSismico.content.findIndex(
+      (item, i) =>
+        i > idx321 &&
+        item.type === "list" &&
+        item.items[0] &&
+        item.items[0].includes("Irregularidades en altura (MASA O PESO / Según NTE E.030 - 2018)"),
+    );
+
+    if (listParametros2 !== -1) {
+      if (irregularidadImages[8]) {
+        analisisSismico.content.splice(listParametros2 + 1, 0, {
+          type: "image",
+          src: irregularidadImages[8],
+          alignment: "CENTER",
+          width: 500,
+          height: 280,
+          caption: "Resultado de analisis",
+        });
+      }
+    }
+
+    const listParametros3 = analisisSismico.content.findIndex(
+      (item, i) =>
+        i > idx321 &&
+        item.type === "list" &&
+        item.items[0] &&
+        item.items[0].includes("Irregularidades en altura (IGV, DSR/ Según NTE E.030 - 2018)"),
+    );
+
+    if (listParametros3 !== -1) {
+      let insertPos = listParametros3 + 1;
+      if (irregularidadImages[9]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: irregularidadImages[9],
+          alignment: "CENTER",
+          width: 500,
+          height: 350,
+          caption: "Evaluacion IGV (X/Y)",
+        });
+        insertPos++;
+      }
+      if (irregularidadImages[10]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: irregularidadImages[10],
+          alignment: "CENTER",
+          width: 500,
+          height: 350,
+          caption: "Evaluacion combinado",
+        });
+      }
+    }
+
+    const idx322 = analisisSismico.content.findIndex(
+      (item, i) => i > idx32 && item.type === "heading" && item.text === "3.2.2. CÁLCULO DE IRREGULARIDADES EN PLANTA",
+    );
+
+    if (idx322 === -1) {
+      console.warn("No se encontró el heading '3.2.2. CÁLCULO DE IRREGULARIDADES EN PLANTA'");
+      return;
+    }
+
+    const listPlanta1 = analisisSismico.content.findIndex(
+      (item, i) =>
+        i > idx322 &&
+        item.type === "list" &&
+        item.items[0] &&
+        item.items[0].includes("Irregularidades en planta (IGV, DSR/ Según NTE E.030 - 2018)"),
+    );
+
+    if (listPlanta1 !== -1) {
+      let insertPos = listPlanta1 + 1;
+      if (irregularidadImages[11]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: irregularidadImages[11],
+          alignment: "CENTER",
+          width: 500,
+          height: 350,
+          caption: "Irregularidad geometrica vertical",
+        });
+        insertPos++;
+      }
+      if (irregularidadImages[12]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: irregularidadImages[12],
+          alignment: "CENTER",
+          width: 500,
+          height: 350,
+          caption: "Discontinuidad en los sistemas restantes",
+        });
+      }
+    }
+
+    const listPlanta2 = analisisSismico.content.findIndex(
+      (item, i) =>
+        i > idx322 &&
+        item.type === "list" &&
+        item.items[0] &&
+        item.items[0].includes("Irregularidades en planta (Sistemas No Paralelos / Según NTE E.030 - 2018)"),
+    );
+
+    if (listPlanta2 !== -1) {
+      if (irregularidadImages[13]) {
+        analisisSismico.content.splice(listPlanta2 + 1, 0, {
+          type: "image",
+          src: irregularidadImages[13],
+          alignment: "CENTER",
+          width: 500,
+          height: 350,
+          caption: "Caso combinado",
+        });
+      }
+    }
+
+    const listPlanta3 = analisisSismico.content.findIndex(
+      (item, i) =>
+        i > idx322 &&
+        item.type === "list" &&
+        item.items[0] &&
+        item.items[0].includes("Irregularidades en planta (Irregularidad Torsional)"),
+    );
+
+    if (listPlanta3 !== -1) {
+      if (irregularidadImages[14]) {
+        analisisSismico.content.splice(listPlanta3 + 1, 0, {
+          type: "image",
+          src: irregularidadImages[14],
+          alignment: "CENTER",
+          width: 500,
+          height: 350,
+          caption: "Datos de entrada y resultado",
+        });
+      }
+    }
+
+    const listPlanta4 = analisisSismico.content.findIndex(
+      (item, i) =>
+        i > idx322 &&
+        item.type === "list" &&
+        item.items[0] &&
+        item.items[0].includes("Irregularidades en planta (TORSIÓN - Según NTE E.030 - 2018)"),
+    );
+
+    if (listPlanta4 !== -1) {
+      let insertPos = listPlanta4 + 1;
+      if (irregularidadImages[15]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: irregularidadImages[15],
+          alignment: "CENTER",
+          width: 500,
+          height: 350,
+          caption: "Direccion XX",
+        });
+        insertPos++;
+      }
+      if (irregularidadImages[16]) {
+        analisisSismico.content.splice(insertPos, 0, {
+          type: "image",
+          src: irregularidadImages[16],
+          alignment: "CENTER",
+          width: 500,
+          height: 350,
+          caption: "Direccion YY",
+        });
+      }
+    }
+
+    // ---------------------------- "3.3 ANÁLISIS SÍSMICO ESTATICO" -------------------------
+    const idx33 = analisisSismico.content.findIndex(
+      (item) => item.type === "heading" && item.text === "3.3 ANÁLISIS SÍSMICO ESTATICO",
+    );
+
+    console.log("4. Índice del heading 3.3:", idx33);
+    console.log("5. Imágenes disponibles:", this.previews.estaticoConsideracionesETABS);
+
+    if (idx33 === -1) {
+      console.warn("No se encontró el heading '3.3 ANÁLISIS SÍSMICO ESTATICO'");
       return;
     }
 
     // Buscar dónde insertar las imágenes (después del párrafo "Consideraciones en ETABS")
     const consideracionesParagraphIdx = analisisSismico.content.findIndex(
-      (item, i) => i > idx32 && item.type === "paragraph" && item.text === "Consideraciones en ETABS",
+      (item, i) => i > idx33 && item.type === "paragraph" && item.text === "Consideraciones en ETABS",
     );
 
     if (consideracionesParagraphIdx === -1) {
@@ -1045,7 +2568,7 @@ export class DocumentTransformer {
     // ===========Figura 28 - peso sismico===========
     const listaPesoIdx = analisisSismico.content.findIndex(
       (item, i) =>
-        i > idx32 &&
+        i > idx33 &&
         item.type === "list" &&
         item.items &&
         item.items[0] &&
@@ -1070,18 +2593,18 @@ export class DocumentTransformer {
 
     //=====================figura 29-30 ===========
     const dinamicoImages = this.previews.dinamicoConsideracionesETABS || [];
-    const idx33 = analisisSismico.content.findIndex(
-      (item) => item.type === "heading" && item.text === "3.3 ANÁLISIS SÍSMICO DINÁMICO",
+    const idx34 = analisisSismico.content.findIndex(
+      (item) => item.type === "heading" && item.text === "3.4 ANÁLISIS SÍSMICO DINÁMICO",
     );
 
-    if (idx33 === -1) {
+    if (idx34 === -1) {
       console.warn("⚠️ No se encontró heading 3.3");
       return;
     }
 
     // Buscar la lista "CONSIDERACIONES EN ETABS"
     const listaConsIdx = analisisSismico.content.findIndex(
-      (item, i) => i > idx33 && item.type === "list" && item.items && item.items[0] === "CONSIDERACIONES EN ETABS",
+      (item, i) => i > idx34 && item.type === "list" && item.items && item.items[0] === "CONSIDERACIONES EN ETABS",
     );
 
     // Insertar figuras después de la lista
@@ -1117,7 +2640,7 @@ export class DocumentTransformer {
     // =========== Modos de vibracion 3 imagenes ====================0
     const vibracionImages = this.previews.modosVibracionImages || [];
     const listaModosIdx = analisisSismico.content.findIndex(
-      (item, i) => i > idx33 && item.type === "list" && item.items && item.items[0].includes("MODOS DE VIBRACIÓN"),
+      (item, i) => i > idx34 && item.type === "list" && item.items && item.items[0].includes("MODOS DE VIBRACIÓN"),
     );
 
     if (listaModosIdx !== -1) {
@@ -1148,7 +2671,7 @@ export class DocumentTransformer {
     const basalImages = this.previews.cortanteBasalImages || [];
     const listaBasalIdx = analisisSismico.content.findIndex(
       (item, i) =>
-        i > idx33 && item.type === "list" && item.items && item.items[0].includes("FUERZA CORTANTE BASAL DINÁMICA"),
+        i > idx34 && item.type === "list" && item.items && item.items[0].includes("FUERZA CORTANTE BASAL DINÁMICA"),
     );
 
     if (listaBasalIdx === -1) {
@@ -1172,7 +2695,7 @@ export class DocumentTransformer {
 
     const listaFuerzasObtenidas = analisisSismico.content.findIndex(
       (item, i) =>
-        i > idx33 &&
+        i > idx34 &&
         item.type === "paragraph" &&
         item.text.includes(
           "De acuerdo con lo que establece el Artículo 26.4 de la Norma E.030 de Diseño Sismorresistente",
@@ -1203,7 +2726,7 @@ export class DocumentTransformer {
     const desplazamientoImages = this.previews.desplazamientoImages || [];
     const listDesplazamientoIdx = analisisSismico.content.findIndex(
       (item, i) =>
-        i > idx33 && item.type === "list" && item.items[0].includes("DESPLAZAMIENTO PERMISIBLE Artículo 28 E-030"),
+        i > idx34 && item.type === "list" && item.items[0].includes("DESPLAZAMIENTO PERMISIBLE Artículo 28 E-030"),
     );
 
     if (listDesplazamientoIdx !== -1) {
@@ -1232,7 +2755,7 @@ export class DocumentTransformer {
     const deformadaImages = this.previews.deformadaImages || [];
     const paragraphDeformadaIdx = analisisSismico.content.findIndex(
       (item, i) =>
-        i > idx33 &&
+        i > idx34 &&
         item.type === "paragraph" &&
         item.text.includes("De los resultados mostrados se puede concluir que las derivas obtenidas"),
     );
@@ -1272,13 +2795,13 @@ export class DocumentTransformer {
       return;
     }
 
-    // =================== 4.1  PREDISIONAMIENTO DE LOS ELEMENTOS ESTRUCTURALES =========================
+    // =================== 4.1 PREDIMENSIONAMIENTO DE LOS ELEMENTOS ESTRUCTURALES =========================
     const idx41 = disenoElementos.content.findIndex(
       (item) => item.type === "heading" && item.text === "4.1 PREDISIONAMIENTO DE LOS ELEMENTOS ESTRUCTURALES",
     );
 
     if (idx41 === -1) {
-      console.warn("No se encontró el heading '4.1 PREDISIONAMIENTO DE LOS ELEMENTOS ESTRUCTURALES'");
+      console.warn("No se encontró el heading '4.1 4.1 PREDISIONAMIENTO DE LOS ELEMENTOS ESTRUCTURALES'");
       return;
     }
 
@@ -1290,102 +2813,118 @@ export class DocumentTransformer {
     );
 
     if (predisionamientoParagraphIdx === -1) {
-      console.warn("No se encontró el párrafo 'Predisionamiento de los elementos estructurales'");
+      console.warn("No se encontró el párrafo de introducción");
       return;
     }
-    const predisionamientoImages = this.previews.predisionamientoImages || [];
-    const resultadosPredim = this.sections?.disenoElementos?.resultadoPredim || 1;
 
-    if (predisionamientoParagraphIdx !== -1) {
-      console.log("🔍 ===== INICIANDO TRANSFORMACIÓN DE PREDIM (IMÁGENES DINÁMICAS) =====");
-      console.log("📦 this.previews.predimImages:", this.previews?.predimImages);
-      console.log("📦 this.sections.disenoElementos.predim:", this.sections?.disenoElementos?.predim);
-      console.log("📦 this.sections.disenoElementos.resultadoPredim:", this.sections?.disenoElementos?.resultadoPredim);
+    // OBTENER LAS SECCIONES SELECCIONADAS
+    const predimSecciones = this.sections?.disenoElementos?.predimSecciones || {
+      seleccionadas: new Array(16).fill(true),
+      titulos: new Array(16).fill(""),
+    };
+    const predimImages = this.previews?.predimImages || [];
 
-      const predimSeccion = this.sections?.disenoElementos?.predim || 1;
-      const predimImages = this.previews?.predimImages || [];
-
-      let indiceInsert = predisionamientoParagraphIdx + 1;
-
-      for (let index = 0; index < predimSeccion; index++) {
-        const imagenesSeccion = predimImages[index] || [];
-        const seccionNumero = index + 1;
-        // Insertar subtítulo del piso
-        disenoElementos.content.splice(indiceInsert, 0, {
-          type: "paragraph",
-          text: `Piso ${seccionNumero}`,
-          alignment: "JUSTIFIED",
+    // Filtrar solo las secciones seleccionadas
+    const seccionesAExportar = [];
+    for (let i = 0; i < 16; i++) {
+      if (predimSecciones.seleccionadas[i]) {
+        seccionesAExportar.push({
+          index: i,
+          titulo: predimSecciones.titulos[i] || `Sección ${i + 1}`,
+          imagenes: predimImages[i] || [null, null],
         });
-
-        indiceInsert++;
-
-        if (imagenesSeccion.length === 0) {
-          console.log(`No se hagregaron imagenes para el Piso ${seccionNumero}`);
-        } else {
-          for (let imgIdx = 0; imgIdx < imagenesSeccion.length; imgIdx++) {
-            const imagen = imagenesSeccion[imgIdx];
-            const imagenNumero = imgIdx + 1;
-
-            if (imagen && typeof imagen === "string" && imagen.startsWith("data:image")) {
-              disenoElementos.content.splice(indiceInsert, 0, {
-                type: "image",
-                src: imagen,
-                alt: `Resultado predimensionamiento Piso ${seccionNumero} - Imagen ${imagenNumero}`,
-                width: 500,
-                height: 300,
-                caption: `Piso ${seccionNumero} - Detalle ${imagenNumero}`,
-                alignment: "CENTER",
-              });
-              console.log(
-                `   🖼️ Insertada imagen ${imagenNumero} de Piso ${seccionNumero} en posición ${indiceInsert}`,
-              );
-            } else {
-              console.log(`Imagen ${imagenNumero} para el Piso ${seccionNumero}`);
-            }
-            indiceInsert++;
-          }
-
-          console.log(`Se hagregaron imagenes para todos los pisos`);
-        }
-        // Agregar un pequeño espacio entre pisos (excepto después del último)
-        if (index < predimSeccion - 1) {
-          disenoElementos.content.splice(indiceInsert, 0, {
-            type: "paragraph",
-            text: "",
-          });
-          indiceInsert++;
-        }
       }
     }
 
-    // if (predisionamientoParagraphIdx !== -1) {
-    //   const contentPredicionamiento = [];
-    //   const predicionamientoCaptions = [
-    //     "Resumen de Predimensiones",
-    //     "figura 41-PREDISIONAMIENTO DE COLUMNA",
-    //     "Vigas Principal",
-    //     "figura 42-PREDISIONAMIENTO DE VIGA",
-    //     "Loza aligerada",
-    //     "figura 43-PREDISIONAMIENTO DE LOSA ALIGERADA",
-    //     "Cimentacion Zapata Cuadrada",
-    //     "figura 44-PREDISIONAMIENTO DE ZAPATA",
-    //   ];
+    console.log(`📦 Exportando ${seccionesAExportar.length} secciones seleccionadas de 16`);
 
-    //   predisionamientoImages.forEach((src, i) => {
-    //     if (src && predicionamientoCaptions[i]) {
-    //       contentPredicionamiento.push({
-    //         type: "image",
-    //         src,
-    //         alignment: "CENTER",
-    //         width: 500,
-    //         height: 280,
-    //         caption: predicionamientoCaptions[i],
-    //       });
-    //     }
-    //   });
+    let indiceInsert = predisionamientoParagraphIdx + 1;
 
-    //   disenoElementos.content.splice(predisionamientoParagraphIdx + 1, 0, ...contentPredicionamiento);
-    // }
+    // Si no hay secciones seleccionadas, mostrar un mensaje
+    if (seccionesAExportar.length === 0) {
+      disenoElementos.content.splice(indiceInsert, 0, {
+        type: "paragraph",
+        text: "No hay secciones seleccionadas para exportar. Por favor, seleccione al menos una sección en el formulario.",
+        alignment: "CENTER",
+        style: "warning",
+      });
+      return;
+    }
+
+    // Iterar sobre las secciones seleccionadas
+    for (let idx = 0; idx < seccionesAExportar.length; idx++) {
+      const seccion = seccionesAExportar[idx];
+      const seccionNumero = idx + 1;
+      const imagenesSeccion = seccion.imagenes;
+
+      // Insertar título de la sección
+      disenoElementos.content.splice(indiceInsert, 0, {
+        type: "paragraph",
+        text: seccion.titulo,
+        alignment: "JUSTIFIED",
+        bold: true,
+        style: "subheading",
+      });
+      indiceInsert++;
+
+      // Insertar las 2 imágenes fijas de la sección
+      // Imagen 1: FIGURA / ESQUEMA
+      const imagen1 = imagenesSeccion[0];
+      if (imagen1 && typeof imagen1 === "string" && imagen1.startsWith("data:image")) {
+        disenoElementos.content.splice(indiceInsert, 0, {
+          type: "image",
+          src: imagen1,
+          alt: `${seccion.titulo} - Figura / Esquema`,
+          width: 500,
+          height: 600,
+          caption: `${seccion.titulo} - Figura / Esquema`,
+          alignment: "CENTER",
+        });
+        console.log(`   🖼️ Insertada imagen 1 (Figura) de "${seccion.titulo}"`);
+      } else {
+        disenoElementos.content.splice(indiceInsert, 0, {
+          type: "paragraph",
+          text: `[Figura / Esquema - No disponible para ${seccion.titulo}]`,
+          style: "placeholder",
+          alignment: "CENTER",
+        });
+      }
+      indiceInsert++;
+
+      // Imagen 2: TABLA / DETALLE
+      const imagen2 = imagenesSeccion[1];
+      if (imagen2 && typeof imagen2 === "string" && imagen2.startsWith("data:image")) {
+        disenoElementos.content.splice(indiceInsert, 0, {
+          type: "image",
+          src: imagen2,
+          alt: `${seccion.titulo} - Tabla / Detalle`,
+          width: 500,
+          height: 200,
+          caption: `${seccion.titulo} - Tabla / Detalle`,
+          alignment: "CENTER",
+        });
+        console.log(`   🖼️ Insertada imagen 2 (Tabla) de "${seccion.titulo}"`);
+      } else {
+        disenoElementos.content.splice(indiceInsert, 0, {
+          type: "paragraph",
+          text: `[Tabla / Detalle - No disponible para ${seccion.titulo}]`,
+          style: "placeholder",
+          alignment: "CENTER",
+        });
+      }
+      indiceInsert++;
+
+      // Agregar espacio entre secciones (excepto después de la última)
+      if (idx < seccionesAExportar.length - 1) {
+        disenoElementos.content.splice(indiceInsert, 0, {
+          type: "paragraph",
+          text: "",
+        });
+        indiceInsert++;
+      }
+    }
+
+    console.log(`✅ Predimensionamiento transformado con ${seccionesAExportar.length} secciones`);
     // ==================== DISEÑO DE LOSA ALIGERADA ========================
     // Verificar que existe la sección
     if (!disenoElementos || !disenoElementos.content) {
@@ -1421,11 +2960,7 @@ export class DocumentTransformer {
         width: 500,
         height: 300,
         caption: "figura 45-TABLA DE PREDISIONAMIENTO ",
-<<<<<<< HEAD
-        alignment: "center",
-=======
         alignment: "CENTER",
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
       });
       console.warn("Se encontró el parrafo de losa aligerada");
     } else {
@@ -1466,25 +3001,6 @@ export class DocumentTransformer {
     if (metradoCargasListIdx !== -1) {
       console.log("Se encontro la list de metrado de cargas para insertar la tabla.");
       disenoElementos.content.splice(metradoCargasListIdx + 1, 0, tablaMetradoCargasDetallada);
-<<<<<<< HEAD
-    } else {
-      disenoElementos.content.splice(metradoCargasListIdx + 1, 0, {
-        type: "paragraph",
-        text: `[TABLA METRADOS DE CARGAS  - Sin tabla disponible]`,
-        style: "placeholder",
-        alignment: "center",
-      });
-      console.log("No Se encontro la list de metrado de cargas para insertar la tabla.");
-    }
-    // Buscar la lista "METRADO DE CARGAS"
-    const disenoAligeradaListIdx = disenoElementos.content.findIndex(
-      (item, i) => i > idx42 && item.type === "list" && item.items && item.items[0] === "METRADO DE CARGAS",
-    );
-
-    if (disenoAligeradaListIdx !== -1) {
-      console.log(`✅ Lista 'METRADO DE CARGAS' encontrada en índice: ${disenoAligeradaListIdx}`);
-=======
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
 
       // Obtener el texto de las secciones del store
       const listAligeradas = this.sections?.disenoElementos?.lista || "";
@@ -1509,11 +3025,7 @@ export class DocumentTransformer {
         console.log(`🖼️ Total de imágenes disponibles: ${losaImages.length} secciones con 4 imágenes cada una`);
 
         // INSERTAR las nuevas listas con sus imágenes
-<<<<<<< HEAD
-        let currentPosition = disenoAligeradaListIdx + 1;
-=======
         let currentPosition = metradoCargasListIdx + 2;
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
 
         for (let index = 0; index < itemsArray.length; index++) {
           const item = itemsArray[index];
@@ -1534,21 +3046,6 @@ export class DocumentTransformer {
             const imagen = imagenesSeccion[imgIdx];
 
             if (imagen) {
-<<<<<<< HEAD
-              // Si hay imagen, insertarla
-              disenoElementos.content.splice(currentPosition, 0, {
-                type: "image",
-                src: imagen, // Aquí va la URL de la imagen
-                alt: `Figura 4.2.${index + 1}.${imgIdx + 1} - ${item}`,
-                width: 500,
-                height: 300,
-                caption: `Figura 4.2.${index + 1}.${imgIdx + 1} - Detalle ${imgIdx + 1} de ${item}`,
-                alignment: "center",
-              });
-              console.log(
-                `   🖼️ Insertada imagen ${imgIdx + 1} de sección ${index + 1} en posición ${currentPosition}`,
-              );
-=======
               if (imgIdx === 0) {
                 // Si hay imagen, insertarla
                 disenoElementos.content.splice(currentPosition, 0, {
@@ -1578,7 +3075,6 @@ export class DocumentTransformer {
                   `   🖼️ Insertada imagen ${imgIdx + 1} de sección ${index + 1} en posición ${currentPosition}`,
                 );
               }
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
             } else {
               // Si no hay imagen, insertar un placeholder o mensaje
               disenoElementos.content.splice(currentPosition, 0, {
@@ -1598,9 +3094,6 @@ export class DocumentTransformer {
       }
 
       console.log("✅ Listas e imágenes de losa aligerada insertadas correctamente");
-<<<<<<< HEAD
-    }
-=======
       console.log(`✅ Lista 'METRADO DE CARGAS' encontrada en índice: ${metradoCargasListIdx}`);
     } else {
       disenoElementos.content.splice(metradoCargasListIdx + 1, 0, {
@@ -1615,7 +3108,6 @@ export class DocumentTransformer {
     // const metradoCargasListIdx = disenoElementos.content.findIndex(
     //   (item, i) => i > idx42 && item.type === "list" && item.items && item.items[0] === "METRADO DE CARGAS",
     // );
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
 
     // ==================== DISEÑO DE LOZA MACIZA =======================0
     const idx43 = disenoElementos.content.findIndex(
@@ -1667,552 +3159,7 @@ export class DocumentTransformer {
       disenoElementos.content.splice(disenoLosaParagraphIdx + 1, 0, ...contentLosaMaciza);
     }
 
-<<<<<<< HEAD
-    // ==================== DISEÑO DE VIGAS ========================
-    console.log("🔍 ===== INICIANDO TRANSFORMACIÓN DE VIGAS =====");
-    console.log("📦 this.previews.vigaImages:", this.previews?.vigaImages);
-    console.log("📦 this.sections.disenoElementos.nameVigas:", this.sections?.disenoElementos?.nameVigas);
-
-    if (!disenoElementos || !disenoElementos.content) {
-      console.warn("⚠️ No se encontró la sección de diseño de elementos");
-      return;
-    }
-
-    // Buscar el encabezado de la sección 4.5
-    const idx45 = disenoElementos.content.findIndex(
-      (item) => item.type === "heading" && item.text && item.text.includes("4.5 DISEÑO DE VIGAS"),
-    );
-
-    console.log(`🔍 Índice del heading 4.5: ${idx45}`);
-
-    if (idx45 === -1) {
-      console.warn("⚠️ No se encontró el encabezado 4.5 DISEÑO DE VIGAS");
-      return;
-    }
-
-    console.warn("Antes de encontrar la lista diseno por flexion");
-    const listaDisenoFlexion = disenoElementos.content.findIndex(
-      (item, i) =>
-        i > idx45 &&
-        item.type === "list" &&
-        item.items &&
-        item.items[0].includes("Diseño por Flexión Artículo 9.2.3.1 de E.060"),
-    );
-
-    const disenoVigaImages = this.previews?.disenoVigaImages || [];
-
-    if (listaDisenoFlexion !== -1) {
-      disenoElementos.content.splice(listaDisenoFlexion + 1, 0, {
-        type: "image",
-        src: disenoVigaImages[0],
-        alt: "Imagen Diseño por Flexion",
-        width: 500,
-        height: 300,
-        caption: "figura 56-Consideraciones y términos para el diseño por flexión (tonf-m)",
-        alignment: "center",
-      });
-      console.warn("Se encontró la lista diseno por flexion");
-    } else {
-      disenoElementos.content.splice(listaDisenoFlexion, 0, {
-        type: "paragraph",
-        text: `[IMAGEN figura 56-Consideraciones y términos para el diseño por flexión (tonf-m) - Sin imagen disponible]`,
-        style: "placeholder",
-        alignment: "center",
-      });
-      console.warn("No Se encontró la lista diseno por flexion");
-    }
-
-    // Buscar la lista "Diseño de Viga de 25x45" que servirá como punto de referencia
-    const listaReferenciaIdx = disenoElementos.content.findIndex(
-      (item, i) => i > idx45 && item.type === "list" && item.items && item.items[0].includes("Diseño de Viga de 25x45"),
-    );
-
-    // Si no encontramos esa lista específica, buscar cualquier lista después del heading
-    let puntoInsercion = idx45 + 1;
-    if (listaReferenciaIdx !== -1) {
-      puntoInsercion = listaReferenciaIdx + 1;
-      console.log(`✅ Lista de referencia encontrada en índice: ${listaReferenciaIdx}`);
-    } else {
-      console.log(`📋 No se encontró lista específica, se insertará después del heading`);
-    }
-
-    // Obtener el texto de las vigas del store
-    const listVigas = this.sections?.disenoElementos?.nameVigas || "";
-    console.log("📋 listVigas raw:", JSON.stringify(listVigas));
-
-    if (!listVigas.trim()) {
-      console.log("📝 No hay texto de vigas para agregar");
-    }
-
-    if (listVigas.trim()) {
-      // Convertir el texto en array de items
-      const itemsArray = listVigas
-        .split("\n")
-        .map((linea) => linea.trim())
-        .filter((linea) => linea.length > 0);
-
-      console.log(`📋 itemsArray (${itemsArray.length} items):`, itemsArray);
-
-      if (itemsArray.length === 0) return;
-
-      // Obtener las imágenes del store
-      const vigaImages = this.previews?.vigaImages || [];
-
-      // INSERTAR las nuevas listas con sus imágenes (sin eliminar nada)
-      let currentPosition = puntoInsercion;
-
-      for (let index = 0; index < itemsArray.length; index++) {
-        const item = itemsArray[index];
-        // 1. Insertar la lista con el texto de la viga
-        disenoElementos.content.splice(currentPosition, 0, {
-          type: "list",
-          listType: "bullet",
-          items: [item],
-        });
-        currentPosition++;
-
-        // 2. Insertar las 4 imágenes de esta viga
-        const imagenesSeccion = vigaImages[index] || [];
-
-        for (let imgIdx = 0; imgIdx < 4; imgIdx++) {
-          const imagen = imagenesSeccion[imgIdx];
-
-          if (imagen && typeof imagen === "string" && imagen.startsWith("data:image")) {
-            disenoElementos.content.splice(currentPosition, 0, {
-              type: "image",
-              src: imagen,
-              alt: `Figura 4.5.${index + 1}.${imgIdx + 1} - ${item}`,
-              width: 600,
-              height: 900,
-              caption: `Figura 4.5.${index + 1}.${imgIdx + 1} - Detalle ${imgIdx + 1} de ${item}`,
-              alignment: "center",
-            });
-            console.log(`   🖼️ Insertada imagen ${imgIdx + 1} en posición ${currentPosition}`);
-          } else {
-            disenoElementos.content.splice(currentPosition, 0, {
-              type: "paragraph",
-              text: `[IMAGEN ${imgIdx + 1} - Sin imagen disponible]`,
-              style: "placeholder",
-              alignment: "center",
-            });
-            console.log(`   ⚠️ Placeholder imagen ${imgIdx + 1} en posición ${currentPosition}`);
-          }
-          currentPosition++;
-        }
-
-        // Espacio entre vigas (opcional)
-        if (index < itemsArray.length - 1) {
-          disenoElementos.content.splice(currentPosition, 0, {
-            type: "paragraph",
-            text: "",
-          });
-          console.log(`   📄 Espacio insertado en posición ${currentPosition}`);
-          currentPosition++;
-        }
-
-        console.log(`✅ Viga ${index + 1} completada`);
-      }
-    }
-
-    console.log("✅ Listas e imágenes de vigas insertadas correctamente");
-    // ==================== DISEÑO DE COLUMNA ========================
-    console.log("🔍 ===== INICIANDO TRANSFORMACIÓN DE COLUMNAS =====");
-    console.log("📦 this.previews.columnaImages:", this.previews?.columnaImages);
-    console.log(
-      "📦 this.sections.disenoElementos.descriptionColumna:",
-      this.sections?.disenoElementos?.descriptionColumna,
-    );
-
-    // Buscar el encabezado de la sección 4.5
-    const idx46 = disenoElementos.content.findIndex(
-      (item) => item.type === "heading" && item.text && item.text.includes("4.6 DISEÑO DE COLUMNA"),
-    );
-
-    console.log(`🔍 Índice del heading 4.5: ${idx46}`);
-
-    if (idx46 === -1) {
-      console.warn("⚠️ No se encontró el encabezado 4.5 DISEÑO DE COLUMNA");
-      return;
-    }
-
-    // Buscar la lista "Diseño de Viga de 25x45" que servirá como punto de referencia
-    const paragraphReferenciaIdx = disenoElementos.content.findIndex(
-      (item, i) =>
-        i > idx46 &&
-        item.type === "paragraph" &&
-        item.text.includes(
-          "En pórticos o en elementos continuos deberá prestarse atención al efecto de las cargas no balanceadas de los pisos,",
-        ),
-    );
-
-    // Si no encontramos esa lista específica, buscar cualquier lista después del heading
-    let ptInsercion = idx46 + 1;
-    if (paragraphReferenciaIdx !== -1) {
-      ptInsercion = paragraphReferenciaIdx + 1;
-      console.log(`✅ Parrafo de referencia encontrada en índice: ${paragraphReferenciaIdx}`);
-    } else {
-      console.log(`📋 No se encontró lista específica, se insertará después del heading`);
-    }
-
-    // Obtener el texto de las vigas del store
-    const listColumna = this.sections?.disenoElementos?.nameColumna || "";
-    console.log("📋 listColumna raw:", JSON.stringify(listColumna));
-
-    if (!listColumna.trim()) {
-      console.log("📝 No hay texto de vigas para agregar");
-    }
-
-    if (listColumna.trim()) {
-      // Convertir el texto en array de items
-      const itemsArray = listColumna
-        .split("\n")
-        .map((linea) => linea.trim())
-        .filter((linea) => linea.length > 0);
-
-      console.log(`📋 itemsArray (${itemsArray.length} items):`, itemsArray);
-
-      if (itemsArray.length === 0) return;
-
-      // Obtener las imágenes del store
-      const columnaImages = this.previews?.columnaImages || [];
-
-      // INSERTAR las nuevas listas con sus imágenes (sin eliminar nada)
-      let currentPosition = ptInsercion;
-
-      for (let index = 0; index < itemsArray.length; index++) {
-        const item = itemsArray[index];
-        // 1. Insertar la lista con el texto de la viga
-        disenoElementos.content.splice(currentPosition, 0, {
-          type: "list",
-          listType: "bullet",
-          items: [item],
-        });
-        currentPosition++;
-
-        // 2. Insertar las 3 imágenes de esta viga
-        const imagenesSeccion = columnaImages[index] || [];
-
-        for (let imgIdx = 0; imgIdx < 3; imgIdx++) {
-          const imagen = imagenesSeccion[imgIdx];
-
-          if (imagen && typeof imagen === "string" && imagen.startsWith("data:image")) {
-            disenoElementos.content.splice(currentPosition, 0, {
-              type: "image",
-              src: imagen,
-              alt: `Figura 4.6.${index + 1}.${imgIdx + 1} - ${item}`,
-              width: 500,
-              height: 300,
-              caption: `Figura 4.6.${index + 1}.${imgIdx + 1} - Detalle ${imgIdx + 1} de ${item}`,
-              alignment: "center",
-            });
-            console.log(`   🖼️ Insertada imagen ${imgIdx + 1} en posición ${currentPosition}`);
-          } else {
-            disenoElementos.content.splice(currentPosition, 0, {
-              type: "paragraph",
-              text: `[IMAGEN ${imgIdx + 1} - Sin imagen disponible]`,
-              style: "placeholder",
-              alignment: "center",
-            });
-            console.log(`   ⚠️ Placeholder imagen ${imgIdx + 1} en posición ${currentPosition}`);
-          }
-          currentPosition++;
-        }
-
-        const descriptionColumna = this.sections?.disenoElementos?.descriptionColumna || [];
-
-        if (descriptionColumna[index]) {
-          disenoElementos.content.splice(currentPosition, 0, {
-            type: "paragraph",
-            text: descriptionColumna[index],
-            alignment: "JUSTIFIED",
-          });
-        } else {
-          disenoElementos.content.splice(currentPosition, 0, {
-            type: "paragraph",
-            text: `Descripcion.${index + 1} - sin descripcion disponible`,
-            alignment: "JUSTIFIED",
-          });
-        }
-
-        currentPosition++;
-
-        if (imagenesSeccion[3]) {
-          disenoElementos.content.splice(currentPosition, 0, {
-            type: "image",
-            src: imagenesSeccion[3],
-            alt: `Figura diseño `,
-            width: 200,
-            height: 100,
-            caption: `[IMAGEN Formula 4.6.${index + 1} - Sin imagen disponible]`,
-          });
-        } else {
-          disenoElementos.content.splice(currentPosition, 0, {
-            type: "paragraph",
-            text: `Formula 4.6.${index + 1} figura diseño - sin imagen disponible`,
-            style: "placeholder",
-            alignment: "center",
-          });
-          console.log(`   ⚠️ Placeholder ubicación en posición ${currentPosition}`);
-        }
-
-        currentPosition++;
-        disenoElementos.content.splice(currentPosition, 0, {
-          type: "list",
-          listType: "bullet",
-          items: ["DISEÑO POR FLEXO COMPRESIÓN"],
-        });
-        currentPosition++;
-        disenoElementos.content.splice(currentPosition, 0, {
-          type: "paragraph",
-          text: "A continuación se muestra los puntos que se utilizan en la construcción de los diagramas de interacción en ambas dirección",
-          alignment: "JUSTIFIED",
-        });
-        currentPosition++;
-
-        if (imagenesSeccion[4]) {
-          disenoElementos.content.splice(currentPosition, 0, {
-            type: "image",
-            src: imagenesSeccion[4],
-            alt: `Figura diseño `,
-            width: 500,
-            height: 300,
-            caption: `Figura 4.6.${index + 1} figura diseño`,
-          });
-        } else {
-          disenoElementos.content.splice(currentPosition, 0, {
-            type: "paragraph",
-            text: `figura 4.6.${index + 1} figura diseño - sin imagen disponible`,
-            style: "placeholder",
-            alignment: "center",
-          });
-          console.log(`   ⚠️ Placeholder ubicación en posición ${currentPosition}`);
-        }
-        currentPosition++;
-        console.log(`✅ Columna ${index + 1} completada`);
-      }
-    }
-
-    console.log("✅ Listas e imágenes de vigas insertadas correctamente");
-
-    // ==================== DISEÑO DE PLACAS ========================
-    console.log("🔍 ===== INICIANDO TRANSFORMACIÓN DE PLACAS =====");
-    console.log("📦 this.previews.placaImages:", this.previews?.placaImages);
-    console.log("📦 this.sections.disenoElementos.namePlaca:", this.sections?.disenoElementos?.namePlaca);
-
-    // Buscar el encabezado de la sección 4.7
-    const idx47 = disenoElementos.content.findIndex(
-      (item) => item.type === "heading" && item.text && item.text.includes("4.7 DISEÑO DE PLACA"),
-    );
-
-    console.log(`🔍 Índice del heading 4.7: ${idx47}`);
-
-    if (idx47 === -1) {
-      console.warn("⚠️ No se encontró el encabezado 4.7 DISEÑO DE PLACA");
-    }
-
-    // Buscar el párrafo de referencia
-    const paragraphPlacasIdx = disenoElementos.content.findIndex(
-      (item, i) =>
-        i > idx47 &&
-        item.type === "paragraph" &&
-        item.text?.includes(
-          "El funcionamiento de las placas se centra en su capacidad para distribuir y transferir cargas",
-        ),
-    );
-
-    // Determinar punto de inserción
-    let pntInsercionPlacas = idx47 + 1;
-    if (paragraphPlacasIdx !== -1) {
-      pntInsercionPlacas = paragraphPlacasIdx + 1;
-      console.log(`✅ Párrafo de placas encontrado en índice: ${paragraphPlacasIdx}`);
-    } else {
-      console.log(`📋 No se encontró el párrafo específico, se insertará después del heading`);
-    }
-
-    // Obtener el texto de las placas del store
-    const listPlacas = this.sections?.disenoElementos?.namePlaca || "";
-    console.log("📋 listPlacas raw:", JSON.stringify(listPlacas));
-
-    if (!listPlacas.trim()) {
-      console.log("📝 No hay texto de Placas para agregar");
-    }
-
-    // Convertir el texto en array de items
-    const itemsArray = listPlacas
-      .split("\n")
-      .map((linea) => linea.trim())
-      .filter((linea) => linea.length > 0);
-
-    console.log(`📋 itemsArray (${itemsArray.length} items):`, itemsArray);
-
-    if (itemsArray.length !== 0) {
-      // Obtener las imágenes del store
-      const placaImages = this.previews?.placaImages || [];
-      console.log(`🖼️ placaImages length: ${placaImages.length}`);
-
-      // INSERTAR las estructuras completas para cada placa
-      let currentPosition = pntInsercionPlacas;
-
-      for (let placaIdx = 0; placaIdx < itemsArray.length; placaIdx++) {
-        const item = itemsArray[placaIdx];
-        console.log(`\n📌 Procesando placa ${placaIdx + 1}: "${item}"`);
-
-        const imagenesSeccion = placaImages[placaIdx] || [];
-
-        // 1. Insertar la lista con el texto de la placa
-        disenoElementos.content.splice(currentPosition, 0, {
-          type: "list",
-          listType: "bullet",
-          items: [item],
-        });
-        console.log(`   ➕ Insertada lista en posición ${currentPosition}`);
-        currentPosition++;
-
-        // 2. Insertar imagen de ubicación (índice 0)
-        if (imagenesSeccion[0]) {
-          disenoElementos.content.splice(currentPosition, 0, {
-            type: "image",
-            src: imagenesSeccion[0],
-            alt: `Ubicación de placa ${placaIdx + 1}`,
-            width: 500,
-            height: 300,
-            caption: `Ubicación de placa a diseñar - ${item}`,
-            alignment: "center",
-          });
-          console.log(`   🖼️ Insertada imagen ubicación en posición ${currentPosition}`);
-        } else {
-          disenoElementos.content.splice(currentPosition, 0, {
-            type: "paragraph",
-            text: "[IMAGEN DE UBICACIÓN - Sin imagen disponible]",
-            style: "placeholder",
-            alignment: "center",
-          });
-          console.log(`   ⚠️ Placeholder ubicación en posición ${currentPosition}`);
-        }
-        currentPosition++;
-
-        // 3. Insertar texto "Diseño de placa 1"
-        disenoElementos.content.splice(currentPosition, 0, {
-          type: "paragraph",
-          text: "Diseño de placa 1",
-          alignment: "justified",
-          bold: true,
-        });
-        console.log(`   📝 Insertado texto "Diseño de placa 1" en posición ${currentPosition}`);
-        currentPosition++;
-
-        // 4. Insertar imágenes 1-7 (índices 1 a 7)
-        for (let imgIdx = 1; imgIdx < 8; imgIdx++) {
-          if (imagenesSeccion[imgIdx]) {
-            disenoElementos.content.splice(currentPosition, 0, {
-              type: "image",
-              src: imagenesSeccion[imgIdx],
-              alt: `Diseño de placa ${placaIdx + 1} - Imagen ${imgIdx}`,
-              width: 500,
-              height: 300,
-              caption: `Figura de diseño ${imgIdx} - ${item}`,
-              alignment: "center",
-            });
-            console.log(`   🖼️ Insertada imagen ${imgIdx} en posición ${currentPosition}`);
-          } else {
-            disenoElementos.content.splice(currentPosition, 0, {
-              type: "paragraph",
-              text: `[IMAGEN ${imgIdx} - Sin imagen disponible]`,
-              style: "placeholder",
-              alignment: "center",
-            });
-            console.log(`   ⚠️ Placeholder imagen ${imgIdx} en posición ${currentPosition}`);
-          }
-          currentPosition++;
-        }
-
-        // 5. Insertar texto "DISEÑO DE CORTE"
-        disenoElementos.content.splice(currentPosition, 0, {
-          type: "paragraph",
-          text: "DISEÑO DE CORTE",
-          alignment: "justified",
-          bold: true,
-        });
-        console.log(`   📝 Insertado "DISEÑO DE CORTE" en posición ${currentPosition}`);
-        currentPosition++;
-
-        // 6. Insertar imagen de corte (índice 8)
-        if (imagenesSeccion[8]) {
-          disenoElementos.content.splice(currentPosition, 0, {
-            type: "image",
-            src: imagenesSeccion[8],
-            alt: `Diseño de corte - ${item}`,
-            width: 500,
-            height: 300,
-            caption: `Diseño de corte - ${item}`,
-            alignment: "center",
-          });
-          console.log(`   🖼️ Insertada imagen de corte en posición ${currentPosition}`);
-        } else {
-          disenoElementos.content.splice(currentPosition, 0, {
-            type: "paragraph",
-            text: "[IMAGEN DE CORTE - Sin imagen disponible]",
-            style: "placeholder",
-            alignment: "center",
-          });
-          console.log(`   ⚠️ Placeholder imagen de corte en posición ${currentPosition}`);
-        }
-        currentPosition++;
-
-        // 7. Insertar texto "VERIFICACIÓN DE DIAGRAMA DE ITERACIÓN"
-        disenoElementos.content.splice(currentPosition, 0, {
-          type: "paragraph",
-          text: "VERIFICACIÓN DE DIAGRAMA DE ITERACIÓN",
-          alignment: "justified",
-          bold: true,
-        });
-        console.log(`   📝 Insertado "VERIFICACIÓN DE DIAGRAMA" en posición ${currentPosition}`);
-        currentPosition++;
-
-        // 8. Insertar imágenes 9-14 (índices 9 a 14)
-        for (let imgIdx = 9; imgIdx < 14; imgIdx++) {
-          if (imagenesSeccion[imgIdx]) {
-            disenoElementos.content.splice(currentPosition, 0, {
-              type: "image",
-              src: imagenesSeccion[imgIdx],
-              alt: `Verificación diagrama ${placaIdx + 1} - Imagen ${imgIdx - 8}`,
-              width: 500,
-              height: 300,
-              caption: `Verificación de diagrama ${imgIdx - 8} - ${item}`,
-              alignment: "center",
-            });
-            console.log(`   🖼️ Insertada imagen diagrama ${imgIdx - 8} en posición ${currentPosition}`);
-          } else {
-            disenoElementos.content.splice(currentPosition, 0, {
-              type: "paragraph",
-              text: `[IMAGEN DIAGRAMA ${imgIdx - 8} - Sin imagen disponible]`,
-              style: "placeholder",
-              alignment: "center",
-            });
-            console.log(`   ⚠️ Placeholder diagrama ${imgIdx - 8} en posición ${currentPosition}`);
-          }
-          currentPosition++;
-        }
-
-        // Espacio entre placas
-        if (placaIdx < itemsArray.length - 1) {
-          disenoElementos.content.splice(currentPosition, 0, {
-            type: "paragraph",
-            text: "",
-          });
-          console.log(`   📄 Espacio insertado en posición ${currentPosition}`);
-          currentPosition++;
-        }
-
-        console.log(`✅ Placa ${placaIdx + 1} completada`);
-      }
-
-      console.log("✅ Listas e imágenes de placas insertadas correctamente");
-    }
-    // ================== Diseño de losa Nervada =======================
-=======
     // ================== DISEÑO DE LOSA NERVADA 1 =======================
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
     const idx44 = disenoElementos.content.findIndex(
       (item) => item.type === "heading" && item.text === "4.4 DISEÑO DE LOSA NERVADA",
     );
@@ -2256,11 +3203,7 @@ export class DocumentTransformer {
           src: disenoLosaNervada1Images[2],
           alignment: "CENTER",
           width: 500,
-<<<<<<< HEAD
-          height: 280,
-=======
           height: 800,
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
           caption: "",
         });
 
@@ -2292,11 +3235,7 @@ export class DocumentTransformer {
           src: disenoLosaNervada1Images[4],
           alignment: "CENTER",
           width: 500,
-<<<<<<< HEAD
-          height: 280,
-=======
           height: 800,
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
           caption: "",
         });
       }
@@ -2334,11 +3273,7 @@ export class DocumentTransformer {
           src: disenoLosaNervada1Images[6],
           alignment: "CENTER",
           width: 500,
-<<<<<<< HEAD
-          height: 280,
-=======
           height: 800,
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
           caption: "",
         });
       }
@@ -2368,11 +3303,7 @@ export class DocumentTransformer {
           src: disenoLosaNervada1Images[8],
           alignment: "CENTER",
           width: 500,
-<<<<<<< HEAD
-          height: 280,
-=======
           height: 800,
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
           caption: "",
         });
       }
@@ -2432,11 +3363,7 @@ export class DocumentTransformer {
           src: disenoLosaNervada2Images[2],
           alignment: "CENTER",
           width: 500,
-<<<<<<< HEAD
-          height: 280,
-=======
-          height: 700,
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
+          height: 800,
           caption: "",
         });
       }
@@ -2468,11 +3395,7 @@ export class DocumentTransformer {
           src: disenoLosaNervada2Images[4],
           alignment: "CENTER",
           width: 500,
-<<<<<<< HEAD
-          height: 280,
-=======
-          height: 700,
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
+          height: 800,
           caption: "",
         });
       }
@@ -2513,11 +3436,7 @@ export class DocumentTransformer {
           src: disenoLosaNervada2Images[6],
           alignment: "CENTER",
           width: 500,
-<<<<<<< HEAD
-          height: 280,
-=======
           height: 800,
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
           caption: "",
         });
       }
@@ -2549,11 +3468,7 @@ export class DocumentTransformer {
           src: disenoLosaNervada2Images[8],
           alignment: "CENTER",
           width: 500,
-<<<<<<< HEAD
-          height: 280,
-=======
           height: 800,
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
           caption: "",
         });
       }
@@ -2567,12 +3482,6 @@ export class DocumentTransformer {
       indice2LosaNervadaHorizontal++;
     }
 
-<<<<<<< HEAD
-    // ======================== DISEÑO DE MURO DE CONCRETO ============================
-
-    const idx48 = disenoElementos.content.findIndex(
-      (item) => item.type === "heading" && item.text === "4.8 DISEÑO DE MURO CONCRETO DISEÑO DE ESCALERA",
-=======
     // ==================== DISEÑO DE VIGAS ========================
     console.log("🔍 ===== INICIANDO TRANSFORMACIÓN DE VIGAS =====");
     console.log("📦 this.previews.vigaImages:", this.previews?.vigaImages);
@@ -2990,7 +3899,7 @@ export class DocumentTransformer {
             type: "paragraph",
             text: "[IMAGEN DE UBICACIÓN - Sin imagen disponible]",
             style: "placeholder",
-            alignment: "center",
+            alignment: "CENTER",
           });
           console.log(`   ⚠️ Placeholder ubicación en posición ${currentPosition}`);
         }
@@ -3024,7 +3933,7 @@ export class DocumentTransformer {
               type: "paragraph",
               text: `[IMAGEN ${imgIdx} - Sin imagen disponible]`,
               style: "placeholder",
-              alignment: "center",
+              alignment: "CENTER",
             });
             console.log(`   ⚠️ Placeholder imagen ${imgIdx} en posición ${currentPosition}`);
           }
@@ -3092,7 +4001,7 @@ export class DocumentTransformer {
             style: "placeholder",
             alignment: "CENTER",
           });
-          console.log(`   ⚠️ Placeholder diagrama ${imgIdx - 8} en posición ${currentPosition}`);
+          console.log(`   ⚠️ Placeholder diagrama 10 en posición ${currentPosition}`);
         }
 
         currentPosition++;
@@ -3142,7 +4051,6 @@ export class DocumentTransformer {
 
     const idx48 = disenoElementos.content.findIndex(
       (item) => item.type === "heading" && item.text === "4.8 DISEÑO DE MURO CONCRETO",
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
     );
     const disenoConcretoParagraphIdx = disenoElementos.content.findIndex(
       (item, i) =>
@@ -3156,25 +4064,6 @@ export class DocumentTransformer {
     const disenoMuroConcretoImages = this.previews.disenoMuroConcretoImages || [];
 
     if (disenoConcretoParagraphIdx !== -1) {
-<<<<<<< HEAD
-      console.log("Parrafo encontrado");
-      const contentConcreto = [];
-      const concretoCaption = ["M22(0.70TN-M)", "M33(0.71TN-M)", "V23(0.78TN-M)", "V13(0.025TN-M)", ""];
-
-      disenoMuroConcretoImages.forEach((src, i) => {
-        if (src) {
-          contentConcreto.push({
-            type: "image",
-            src,
-            alignment: "CENTER",
-            width: 500,
-            height: 280,
-            caption: concretoCaption[i],
-          });
-        }
-      });
-      disenoElementos.content.splice(disenoConcretoParagraphIdx + 1, 0, ...contentConcreto);
-=======
       let indice = disenoConcretoParagraphIdx + 1;
       const concretoCaption = ["M22(0.70TN-M)", "M33(0.71TN-M)", "V23(0.78TN-M)", "V13(0.025TN-M)"];
 
@@ -3222,7 +4111,6 @@ export class DocumentTransformer {
         }
         indice++;
       }
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
     }
 
     // ======================== DISEÑO DE ESCALERA ============================
@@ -3242,24 +4130,6 @@ export class DocumentTransformer {
 
     if (disenoEscaleraParagraphIdx !== -1) {
       console.log("Parrafo encontrado");
-<<<<<<< HEAD
-      const contentEscaleras = [];
-      const escalerasCaption = ["M22 (1.23TN-M)", "M33 (0.12TN-M)", "V23 (1.47TN-M)", "V13 (1.66TN-M)", ""];
-
-      disenoEscaleraImages.forEach((src, i) => {
-        if (src) {
-          contentEscaleras.push({
-            type: "image",
-            src,
-            alignment: "CENTER",
-            width: 500,
-            height: 280,
-            caption: escalerasCaption[i],
-          });
-        }
-      });
-      disenoElementos.content.splice(disenoEscaleraParagraphIdx + 1, 0, ...contentEscaleras);
-=======
       const escalerasCaption = ["M22 (1.23TN-M)", "M33 (0.12TN-M)", "V23 (1.47TN-M)", "V13 (1.66TN-M)"];
       let indice = disenoEscaleraParagraphIdx + 1;
       for (let index = 0; index < 4; index++) {
@@ -3291,7 +4161,6 @@ export class DocumentTransformer {
         height: 750,
         caption: "",
       });
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
     }
 
     // ======================== DISEÑO DE CISTERNA ============================
@@ -3302,25 +4171,6 @@ export class DocumentTransformer {
     const disenoCisternaImages = this.previews.disenoCisternaImages || [];
 
     if (idx410 !== -1) {
-<<<<<<< HEAD
-      console.log("Headin encontrado");
-      const contentCisternas = [];
-      const cisternasCaption = ["M22 (08.75TN-M)", "M33(1.289TN-M2)", "V23 (0.0892TN)", "V13 (1.205TN)", "", ""];
-
-      disenoCisternaImages.forEach((src, i) => {
-        if (src) {
-          contentCisternas.push({
-            type: "image",
-            src,
-            alignment: "CENTER",
-            width: 500,
-            height: 280,
-            caption: cisternasCaption[i],
-          });
-        }
-      });
-      disenoElementos.content.splice(idx410 + 1, 0, ...contentCisternas);
-=======
       console.log("Headin diseño de cisterna encontrado");
       const cisternasCaption = ["M22 (08.75TN-M)", "M33(1.289TN-M2)", "V23 (0.0892TN)", "V13 (1.205TN)"];
       let indice = idx410 + 1;
@@ -3360,7 +4210,6 @@ export class DocumentTransformer {
         }
         indice++;
       }
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
     }
 
     // ======================== DISEÑO DE CIMIENTO CORRIDO ============================
@@ -3521,11 +4370,6 @@ export class DocumentTransformer {
 
         // 2. Insertar las 4 imágenes de esta cimentacion
         const imagenesSeccion = cimentacionImages[index] || [];
-<<<<<<< HEAD
-        const cimentacionCaption = ["CARGA MUERTA", "CARGA VIVA", "CARGA VIVA", "SISMO DINÁMICO EN DIRECCIÓN Y"];
-
-        for (let imgIdx = 0; imgIdx < 4; imgIdx++) {
-=======
         const cimentacionCaption = [
           "CARGA MUERTA",
           "CARGA VIVA",
@@ -3538,7 +4382,6 @@ export class DocumentTransformer {
         ];
 
         for (let imgIdx = 0; imgIdx < 8; imgIdx++) {
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
           const imagen = imagenesSeccion[imgIdx];
 
           if (imagen && typeof imagen === "string" && imagen.startsWith("data:image")) {
@@ -3547,15 +4390,9 @@ export class DocumentTransformer {
               src: imagen,
               alt: cimentacionCaption[imgIdx],
               width: 500,
-<<<<<<< HEAD
-              height: 300,
-              caption: cimentacionCaption[imgIdx],
-              alignment: "center",
-=======
               height: 750,
               caption: cimentacionCaption[imgIdx],
               alignment: "CENTER",
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
             });
             // console.log(`   🖼️ Insertada imagen ${imgIdx + 1} en posición ${currentPosition}`);
           } else {
@@ -3563,11 +4400,7 @@ export class DocumentTransformer {
               type: "paragraph",
               text: `[IMAGEN ${imgIdx + 1} - Sin imagen disponible]`,
               style: "placeholder",
-<<<<<<< HEAD
-              alignment: "center",
-=======
               alignment: "CENTER",
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
             });
             console.log(`   ⚠️ Placeholder imagen ${imgIdx + 1} en posición ${currentPosition}`);
           }
@@ -3584,6 +4417,50 @@ export class DocumentTransformer {
         console.log(`✅ Cimentacion ${index + 1} completada`);
       }
       console.log("✅ Listas e imágenes de vigas insertadas correctamente");
+    }
+
+    // ------------------------------- DISEÑO DE ALBAÑILERIA --------------------------------
+    const idx413 = disenoElementos.content.findIndex(
+      (item) => item.type === "heading" && item.text === "4.13 DISEÑO DE ALBAÑILERIA",
+    );
+    const disenoAlbanileria = this.previews.disenoAlbanileria || [];
+
+    if (idx413 !== -1) {
+      let insertPos = idx413 + 1;
+      console.log(`✅ heading 4.13 DISEÑO DE ALBAÑILERIA encontrada en índice: ${idx413}`);
+      if (disenoAlbanileria[0]) {
+        disenoElementos.content.splice(insertPos, 0, {
+          type: "image",
+          src: disenoAlbanileria[0],
+          width: 500,
+          height: 350,
+          caption: "Diseño albañileria: Figura 1",
+          alignment: "CENTER",
+        });
+        insertPos++;
+      }
+
+      if (disenoAlbanileria[1]) {
+        disenoElementos.content.splice(insertPos, 0, {
+          type: "image",
+          src: disenoAlbanileria[1],
+          width: 500,
+          height: 350,
+          caption: "Diseño albañileria: Figura 2",
+          alignment: "CENTER",
+        });
+        insertPos++;
+      }
+
+      const descriptionAlbanieria = this.sections?.disenoElementos?.descriptionAlbanieria || "";
+
+      if (descriptionAlbanieria !== "") {
+        disenoElementos.content.splice(insertPos, 0, {
+          type: "paragraph",
+          text: descriptionAlbanieria,
+          alignment: "JUSTIFIED",
+        });
+      }
     }
   }
 
@@ -3602,7 +4479,7 @@ export class DocumentTransformer {
       (descripciones.Diagonal || "").trim() ||
       (descripciones.CorreaMetalica || "").trim();
 
-    const hayImagenAnalisis = !!this.previews.analisisEstructuralImages?.[0];
+    const hayImagenAnalisis = !!this.previews.analisisEstructuralSingleImages?.[0];
 
     const hayImagenesDiseno =
       (this.previews.disenoColumnaMetalica || []).some(Boolean) ||
@@ -3628,7 +4505,7 @@ export class DocumentTransformer {
     );
 
     if (idx !== -1) {
-      const img = this.previews.analisisEstructuralImages?.[0];
+      const img = this.previews.analisisEstructuralSingleImages?.[0];
       if (img) {
         // Insertar después del párrafo que sigue al heading
         analisisEstructural.content.splice(idx + 2, 0, {
@@ -3982,6 +4859,15 @@ export class DocumentTransformer {
 
     const headingIndex = conclusionesSection.content.findIndex((item) => item.type === "heading");
 
+    const listConclusionesIdx = conclusionesSection.content.findIndex(
+      (item, i) =>
+        i > headingIndex &&
+        item.type === "list" &&
+        item.items &&
+        item.items[3] ===
+        "El Proyecto Estructural cumple con lo indicado en la Norma Sísmica vigente y con las Normas Técnicas correspondientes por lo que concluimos que la Estructura tiene una buena rigidez y resistencia sísmica.",
+    );
+
     const items = texto
       .split(/\r?\n/)
       .map((linea) => linea.trim())
@@ -3993,14 +4879,14 @@ export class DocumentTransformer {
       items,
     };
 
-    if (headingIndex === -1) {
+    if (listConclusionesIdx === -1) {
       conclusionesSection.content = [bloqueLista];
       return;
     }
 
     conclusionesSection.content.splice(
-      headingIndex + 1,
-      conclusionesSection.content.length - (headingIndex + 1),
+      listConclusionesIdx + 1,
+      conclusionesSection.content.length - (listConclusionesIdx + 1),
       bloqueLista,
     );
   }
@@ -4008,7 +4894,6 @@ export class DocumentTransformer {
   // RECOMENDACIONES
   transformRecomendaciones(structure) {
     const recomendacionesSection = structure.document.sections.find((s) => s.id === "recomendaciones");
-
     if (!recomendacionesSection) return;
 
     const texto = this.sections?.recomendaciones?.descripcion || "";
@@ -4017,6 +4902,15 @@ export class DocumentTransformer {
 
     const headingIndex = recomendacionesSection.content.findIndex((item) => item.type === "heading");
 
+    const listRecomendacionesIdx = recomendacionesSection.content.findIndex(
+      (item, i) =>
+        i > headingIndex &&
+        item.type === "list" &&
+        item.items &&
+        item.items[1] ===
+        "A su vez, se recomienda tener en cuenta y respetar las juntas de separación establecidas por la normativa para evitar daños contiguos entre la edificación que se encuentren cercanos cuando se presenten fuerzas sísmicas. Asimismo, contemplar todos los protocolos de calidad para la edificación a construir y de esta forma garantizar un adecuado servicio.",
+    );
+
     const items = texto
       .split(/\r?\n/)
       .map((linea) => linea.trim())
@@ -4028,14 +4922,14 @@ export class DocumentTransformer {
       items,
     };
 
-    if (headingIndex === -1) {
+    if (listRecomendacionesIdx === -1) {
       recomendacionesSection.content = [bloqueLista];
       return;
     }
 
     recomendacionesSection.content.splice(
-      headingIndex + 1,
-      recomendacionesSection.content.length - (headingIndex + 1),
+      listRecomendacionesIdx + 1,
+      recomendacionesSection.content.length - (listRecomendacionesIdx + 1),
       bloqueLista,
     );
   }

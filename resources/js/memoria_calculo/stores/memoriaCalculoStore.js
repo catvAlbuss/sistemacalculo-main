@@ -45,7 +45,7 @@ export function createMemoriaCalculoStore() {
       generalidades: {
         floors: 1,
         structuralDetails: {
-          usage: "",
+          usage: "Piso 1",
           structuralSystemX: "Sistema Dual",
           structuralSystemY: "Sistema Dual",
           verticalElements: "Columnas y Placas de Concreto Armado",
@@ -57,6 +57,31 @@ export function createMemoriaCalculoStore() {
             concreto: { fy: "", e: "253456.4", fc: "210" },
           },
           generalDescription: "",
+          combinacionesCarga: {
+            comb1: true, // 1,4 CM + 1,7 CV
+            comb2: true, // 1,25 (CM + CV +/- CVi)
+            comb3: true, // 0,9 CM +/- 1,25 CVi
+            comb4: true, // 1,25(CM + CV) +/- CS
+            comb5: true, // 0,9 CM +/- CS
+            comb6: true, // 1,4 CM + 1,7 CV + 1,7 CE
+            comb7: true, // 0,9 CM + 1,7 CE
+            comb8: true, // 1,4 CM + 1,7 CV + 1,4 CL
+            comb9: true, // 1,05 CM + 1,25 CV + 1,05 CT
+            comb10: true, //1,4 D
+            comb11: true, //1,2D + 1,6L + 0,5(Lr ó S ó R)
+            comb12: true, // 1,2D + 1,6(Lr ó S ó R) + (0,5Lr ó 0,8W)
+            comb13: true, // 1,2D + 1,3W + 0,5L + 0,5(Lr ó S ó R)
+            comb14: true, // 1,2D ± 1,0E + 0,5L + 0,2S
+            comb15: true, // 0,9D ± (1,3W ó 1,0E)
+            comb16: true, // D
+            comb17: true, // D + L
+            comb18: true, // D + (W ó 0,70E)
+            comb19: true, // D + T
+            comb20: true, // α[D + L +(W ó 0,70E)]
+            comb21: true, // α[D + L + T]
+            comb22: true, // α[D + (W ó 0,70E) + T]
+            comb23: true, // α[D + L + (W ó 0,70E) + T]
+          },
         },
       },
 
@@ -72,6 +97,10 @@ export function createMemoriaCalculoStore() {
           K26: "-0.70",
           K32: "-0.60",
         },
+        // descripcionesModelo: [""],
+        // descripcionesEspectro: ["", ""],
+        descripcionesCargaMuerta: ["", "", "", ""],
+        descripcionesCargaViva: ["", "", "", ""],
       },
 
       // Sección 3: Análisis Sísmico
@@ -82,16 +111,26 @@ export function createMemoriaCalculoStore() {
         resultadoPredim: 1,
         predim: 1,
         losa: 1,
-        lista: "",
+        lista: "Lista 1",
         viga: 1,
-        nameVigas: "",
+        nameVigas: "Viga 1",
         columna: 1,
-        nameColumna: "",
+        nameColumna: "Columna 1",
         descriptionColumna: [],
         cimentacion: 1,
-        nameCimentacion: "",
+        nameCimentacion: "Cimentacion 1",
         placa: 1,
-        namePlaca: "",
+        namePlaca: "Placa 1",
+        predimSecciones: {
+          seleccionadas: [], // Se inicializará en el componente
+          titulos: [
+            "Columna Rectangular", "Columna Cuadrada", "Columna Circular", "Columna T", "Columna L",
+            "Vigas Principal", "Vigas Secundaria", "Vigas Cimentacion", "Vigas Sobre Vigas", "Vigas de Borde",
+            "Losas Aligeradas 1 dir", "Losas Aligeradas 2 dir", "Losas Macizas 1 dir", "Losas Macizas 2 dir",
+            "Cimentacion", "Placa"
+          ], // Se inicializará en el componente
+        },
+        descriptionAlbanieria: "",
       },
 
       // Sección 5: Estructura Metálica
@@ -133,6 +172,7 @@ export function createMemoriaCalculoStore() {
 
       // Imágenes de materiales
       materialImages: [null, null, null],
+      predimImages: [], // 16 secciones, 2 imágenes fijas
 
       // Imágenes de análisis
       modeloMatematico3DImages: [null], // Fig 14
@@ -159,8 +199,8 @@ export function createMemoriaCalculoStore() {
       disenoSimientoCorridoImages: [null, null, null, null, null, null],
 
       // imagenes para la seccion de analisis estructural
-      analisisEstructuralImages: [null],
-
+      analisisEstructuralImages: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],
+      analisisEstructuralSingleImages: [null],
       disenoColumnaMetalica: [null, null],
       disenoBridaSuperior: [null, null],
       disenoBridaInferior: [null, null],
@@ -184,8 +224,8 @@ export function createMemoriaCalculoStore() {
       materialImages: [null, null, null],
       modeloMatematico3DImages: [null],
       espectroPseudoaceleracionesImages: [null, null],
-      metradoCargasImages: [null, null, null, null],
-      cargasAproximadasImages: [null, null, null, null],
+      metradoCargasImages: [null, null, null, null], // 18-21
+      cargasAproximadasImages: [null, null, null, null], // 22-25
       estaticoConsideracionesETABS: [null, null, null], //26-27-28
       dinamicoConsideracionesETABS: [null, null], //29,30
       modosVibracionImages: [null, null, null],
@@ -204,9 +244,14 @@ export function createMemoriaCalculoStore() {
       disenoEscaleraImages: [null, null, null, null, null],
       disenoCisternaImages: [null, null, null, null, null, null],
       disenoSimientoCorridoImages: [null, null, null, null, null, null],
+      disenoAlbanileria: [null, null],
+
+      // imagenes de irregularidades 17 img aprox
+      irregularidadImages: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], 
 
       // imagenes para la seccion de analisis estructural
-      analisisEstructuralImages: [null],
+      analisisEstructuralImages: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],
+      analisisEstructuralSingleImages: [null],
 
       disenoColumnaMetalica: [null, null],
       disenoBridaSuperior: [null, null],
@@ -322,6 +367,84 @@ export function createMemoriaCalculoStore() {
       }
       if (Array.isArray(this.previews[groupKey])) {
         this.previews[groupKey][index] = null;
+      }
+    },
+
+    // ============================================
+    // MÉTODOS - Gestion de predimensionamiento
+    // ============================================
+
+    /**
+     * Actualiza el título de una sección específica
+     * @param {number} seccionIndex - Índice de la sección (0-15)
+     * @param {string} titulo - Nuevo título
+     */
+    updatePredimSeccionTitulo(seccionIndex, titulo) {
+      if (!this.sections.disenoElementos.predimSecciones) {
+        this.sections.disenoElementos.predimSecciones = {
+          seleccionadas: new Array(16).fill(true),
+          titulos: new Array(16).fill(""),
+        };
+      }
+      this.sections.disenoElementos.predimSecciones.titulos[seccionIndex] = titulo;
+      console.log(`✅ Título de sección ${seccionIndex + 1} actualizado: "${titulo}"`);
+    },
+
+    /**
+     * Actualiza el estado de selección de una sección
+     * @param {number} seccionIndex - Índice de la sección (0-15)
+     * @param {boolean} seleccionado - Estado de selección
+     */
+    updatePredimSeccionSeleccion(seccionIndex, seleccionado) {
+      if (!this.sections.disenoElementos.predimSecciones) {
+        this.sections.disenoElementos.predimSecciones = {
+          seleccionadas: new Array(16).fill(true),
+          titulos: new Array(16).fill(""),
+        };
+      }
+      this.sections.disenoElementos.predimSecciones.seleccionadas[seccionIndex] = seleccionado;
+      console.log(`✅ Sección ${seccionIndex + 1} ${seleccionado ? "seleccionada" : "deseleccionada"}`);
+    },
+
+    /**
+     * Selecciona o deselecciona todas las secciones
+     * @param {boolean} seleccionarTodas - true para seleccionar todas, false para deseleccionar todas
+     */
+    seleccionarTodasPredimSecciones(seleccionarTodas) {
+      if (!this.sections.disenoElementos.predimSecciones) {
+        this.sections.disenoElementos.predimSecciones = {
+          seleccionadas: new Array(16).fill(true),
+          titulos: new Array(16).fill(""),
+        };
+      }
+      this.sections.disenoElementos.predimSecciones.seleccionadas =
+        this.sections.disenoElementos.predimSecciones.seleccionadas.map(() => seleccionarTodas);
+      console.log(`✅ ${seleccionarTodas ? "Seleccionadas" : "Deseleccionadas"} todas las secciones`);
+    },
+
+    // Actualizar método updatePredimImage
+    updatePredimImage(seccionIndex, imagenIndex, file, preview) {
+      // Validar índices (0-15 para sección, 0-1 para imagen)
+      if (seccionIndex < 0 || seccionIndex >= 16) {
+        console.error(`❌ Índice de sección inválido: ${seccionIndex}. Debe estar entre 0 y 15`);
+        return;
+      }
+      if (imagenIndex < 0 || imagenIndex >= 2) {
+        console.error(`❌ Índice de imagen inválido: ${imagenIndex}. Debe ser 0 o 1`);
+        return;
+      }
+
+      this.updateElementoImage("predimImages", seccionIndex, imagenIndex, file, preview);
+    },
+
+    removePredimImage(seccionIndex, imagenIndex) {
+      if (seccionIndex >= 0 && seccionIndex < 16 && imagenIndex >= 0 && imagenIndex < 2) {
+        if (Array.isArray(this.images.predimImages[seccionIndex])) {
+          this.images.predimImages[seccionIndex][imagenIndex] = null;
+        }
+        if (Array.isArray(this.previews.predimImages[seccionIndex])) {
+          this.previews.predimImages[seccionIndex][imagenIndex] = null;
+        }
       }
     },
 
@@ -674,13 +797,8 @@ export function createMemoriaCalculoStore() {
       // Ajustar tamaño del array principal
       while (this.images.cimentacionImages.length < cimentacionCount) {
         // Cada vigas tiene un array de 4 imágenes
-<<<<<<< HEAD
-        this.images.cimentacionImages.push([null, null, null, null]);
-        this.previews.cimentacionImages.push([null, null, null, null]);
-=======
-        this.images.cimentacionImages.push([null, null, null, null,null, null, null, null]);
-        this.previews.cimentacionImages.push([null, null, null, null,null, null, null, null]);
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
+        this.images.cimentacionImages.push([null, null, null, null, null, null, null, null]);
+        this.previews.cimentacionImages.push([null, null, null, null, null, null, null, null]);
       }
 
       if (this.images.cimentacionImages.length > cimentacionCount) {
@@ -882,8 +1000,4 @@ export function createMemoriaCalculoStore() {
       this.ui.isExporting = false;
     },
   };
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec

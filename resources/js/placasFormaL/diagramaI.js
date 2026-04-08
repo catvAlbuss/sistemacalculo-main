@@ -2,6 +2,7 @@
 var tableDI1X = [];
 var tableDI1Y = [];
 var Charts = {};
+
 export function diT1X(
   contenedor,
   solicitaciones,
@@ -10,44 +11,77 @@ export function diT1X(
   tableData3DC,
   formData
 ) {
+  if (!contenedor) return;
+  
+  container = contenedor;
+  container.innerHTML = '';
+  
+  // Validación de datos de entrada
+  if (!tableData1DC || tableData1DC.length === 0) {
+    console.warn("diT1X: tableData1DC está vacío o no definido.");
+    return;
+  }
+  if (!dataTable2xDF || dataTable2xDF.length === 0) {
+    console.warn("diT1X: dataTable2xDF está vacío o no definido.");
+    return;
+  }
+  if (!tableData3DC || tableData3DC.length === 0) {
+    console.warn("diT1X: tableData3DC está vacío o no definido.");
+    return;
+  }
+  if (!formData) {
+    console.warn("diT1X: formData no está definido.");
+    return;
+  }
 
   var container = contenedor;
-
   var data = [];
-  // Tipo sistema Estructural = Muros Estructurales
-  /* var tipoSistema = 6; */
 
   for (let i = 0; i < 1; i++) {
+    // Verificar que cada array tenga al menos la fila i y las columnas necesarias
+    if (!tableData1DC[i] || tableData1DC[i].length <= 4) {
+      console.warn(`diT1X: tableData1DC[${i}] no tiene índice 4.`);
+      continue;
+    }
+    if (!dataTable2xDF[i] || dataTable2xDF[i].length <= 9) {
+      console.warn(`diT1X: dataTable2xDF[${i}] no tiene índice 9.`);
+      continue;
+    }
+    if (!tableData3DC[i] || tableData3DC[i].length <= 3) {
+      console.warn(`diT1X: tableData3DC[${i}] no tiene índice 3.`);
+      continue;
+    }
+
     var lm = formData.lxDF;
-    console.log(dataTable2xDF);
     var hm = tableData1DC[i][4];
-    console.log(hm);
     var as = dataTable2xDF[i][9];
     var ads = 0;
     var pu = solicitaciones[i][1];
     var pv = tableData3DC[i][3];
-    var c1 =
-      (pu * 1000 +
-        as * formData.fyDF +
-        pv * formData.ezcxDF * 100 * formData.lxDF * 100 * formData.fyDF -
-        ads * formData.fyDF) /
-      (0.85 * formData.fcDF * formData.ezcxDF * 100 * formData.β1DF +
-        2 * pv * formData.ezcxDF * 100 * formData.fyDF);
+
+    // Cálculo de c1 (evitar división por cero)
+    var denominator = (0.85 * formData.fcDF * formData.ezcxDF * 100 * formData.β1DF +
+                       2 * pv * formData.ezcxDF * 100 * formData.fyDF);
+    var c1 = denominator !== 0
+      ? (pu * 1000 +
+          as * formData.fyDF +
+          pv * formData.ezcxDF * 100 * formData.lxDF * 100 * formData.fyDF -
+          ads * formData.fyDF) / denominator
+      : 0;
+
     var es = 0;
     var c2 = 0;
-    var c3 =
-      es == 0
-        ? 0
-        : (formData.ƐcDF * formData.lxDF * 100) / (formData.ƐcDF + es);
+    var c3 = es == 0
+      ? 0
+      : (formData.ƐcDF * formData.lxDF * 100) / (formData.ƐcDF + es);
     var c = Math.max(c1, c2, c3);
     var gu = 0.2374764;
     var cLimit = (lm / (600 * Math.max(gu / hm, 0.005))) * 100;
-    var confinamiento =
-      c >= cLimit ? 'Requiere ser confinado' : 'No requiere ser confinado';
+    var confinamiento = c >= cLimit ? 'Requiere ser confinado' : 'No requiere ser confinado';
 
     var dataRow = [
-      lm, // lm
-      hm, // hm
+      lm,      // lm
+      hm,      // hm
       as,
       ads,
       pu,
@@ -62,6 +96,12 @@ export function diT1X(
       confinamiento,
     ];
     data.push(dataRow);
+  }
+
+  // Si no se pudo generar ninguna fila, salir
+  if (data.length === 0) {
+    console.warn("diT1X: No se generaron datos.");
+    return;
   }
 
   var hot = new Handsontable(container, {
@@ -107,29 +147,27 @@ export function diT1X(
       ],
     ],
     columns: [
-      { type: 'numeric', readOnly: true }, // 'lm (m)',
-      { type: 'numeric', readOnly: true }, // 'lm (m)',
-      { type: 'numeric', readOnly: true }, // 'hm acumulado (m)',
-      { type: 'numeric', readOnly: true }, // 'hm (m)',
-      { type: 'numeric', readOnly: true }, // 'Vua (Ton)',
-      { type: 'numeric', readOnly: true }, // 'Mua (Ton.m)',
-      { type: 'numeric', readOnly: true }, // 'Cociente',
-      { type: 'numeric' }, // 'Mnx (Ton.m)',
-      { type: 'numeric' }, // 'Mnx (Ton.m)',
-      { type: 'numeric', readOnly: true }, // 'Mnx/Mua',
-      { type: 'numeric', readOnly: true }, // 'Vux (Ton)',
-      { type: 'numeric' }, // 'hm/lm',
-      { type: 'numeric', readOnly: true }, // 'αc',
-      { type: 'numeric', readOnly: true }, // 'Vcx máx (Ton)',
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric' },
+      { type: 'numeric' },
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric' },
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric', readOnly: true },
     ],
     afterChange: function (changes, source) {
       if (source === 'edit') {
         var hot = this;
         changes.forEach(function (change) {
-          /* console.log(change) Devuelve un array con 4 valores, row, col, oldValue, newValue */
           var row = change[0];
           var col = change[1];
-          //var oldValue = change[2];
           var newValue = change[3];
 
           if (col === 7) {
@@ -196,23 +234,17 @@ export function diT1X(
             );
           }
         });
-        /* CheckData(); */
       }
     },
     afterPaste: function (data, coords) {
-      console.log(data); /* array de filas */
-      console.log(coords); /* array con coordenadas de inicio y fin (col-row)*/
+      console.log(data);
+      console.log(coords);
       data.forEach(function (rowData, i) {
         var startRow = coords[0].startRow;
-        /* var endRow = coords[0].endRow; */
         var startCol = coords[0].startCol;
         var endCol = coords[0].endCol;
         let k = 0;
         for (let j = startCol; j <= endCol; j++) {
-          /* console.log('Fila:', startRow + i);
-              console.log('Columna:', j);
-              console.log('Dato:', rowData[k]);
-              console.log('indice' + k); */
           hot.setDataAtCell(startRow + i, j, rowData[k]);
           k++;
         }
@@ -221,21 +253,33 @@ export function diT1X(
     licenseKey: 'non-commercial-and-evaluation',
   });
 
-  document
-    .getElementById('saveDataBtnDI1X')
-    .addEventListener('click', CheckData);
+  var saveBtn = document.getElementById('saveDataBtnDI1X');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', CheckData);
+  } else {
+    console.warn("diT1X: No se encontró el botón saveDataBtnDI1X");
+  }
 
   function CheckData() {
     tableDI1X = hot.getData();
-
-    var contenedor = document.getElementById('diT2X');
-    diT2X(contenedor, solicitaciones, tableData1DC, dataTable2xDF, formData);
-    var contenedor2 = document.getElementById('diT3X');
-    diT3X(contenedor2, formData);
+    
+    var contenedor2 = document.getElementById('diT2XContainer');
+    var contenedor2Inner = document.getElementById('diT2X');
+    if (contenedor2 && contenedor2Inner) {
+      diT2X(contenedor2Inner, solicitaciones, tableData1DC, dataTable2xDF, formData);
+      contenedor2.style.display = tableDI1X && tableDI1X.length > 0 ? 'block' : 'none';
+    }
+    
+    var contenedor3 = document.getElementById('diT3XContainer');
+    var contenedor3Inner = document.getElementById('diT3X');
+    if (contenedor3 && contenedor3Inner) {
+      diT3X(contenedor3Inner, formData);
+      contenedor3.style.display = tableDI1X && tableDI1X.length > 0 ? 'block' : 'none';
+    }
   }
 }
 
-//Tabla Análisis en Dirección "2 x"
+// Tabla Análisis en Dirección "2 x"
 function diT2X(
   contenedor,
   solicitaciones,
@@ -243,11 +287,32 @@ function diT2X(
   dataTable2xDF,
   formData
 ) {
-  var container = contenedor;
+  if (!tableDI1X || tableDI1X.length === 0) {
+    console.warn("diT2X: tableDI1X está vacío. Asegúrese de haber guardado los datos en diT1X.");
+    return;
+  }
 
+  var container = contenedor;
   var data = [];
 
   for (let i = 0; i < 1; i++) {
+    if (!tableDI1X[i] || tableDI1X[i].length <= 10) {
+      console.warn(`diT2X: tableDI1X[${i}] no tiene índice 10.`);
+      continue;
+    }
+    if (!tableData1DC[i] || tableData1DC[i].length <= 11) {
+      console.warn(`diT2X: tableData1DC[${i}] no tiene índice 11.`);
+      continue;
+    }
+    if (!solicitaciones[i] || solicitaciones[i].length <= 3) {
+      console.warn(`diT2X: solicitaciones[${i}] no tiene índice 3.`);
+      continue;
+    }
+    if (!dataTable2xDF[i] || dataTable2xDF[i].length <= 2) {
+      console.warn(`diT2X: dataTable2xDF[${i}] no tiene índice 2.`);
+      continue;
+    }
+
     var zc = formData.zcxDF;
     var vuMax = tableData1DC[i][11];
     var muMax = solicitaciones[i][3];
@@ -282,7 +347,9 @@ function diT2X(
     data.push(dataRow);
   }
 
-  var hot = new Handsontable(container, {
+  if (data.length === 0) return;
+
+  new Handsontable(container, {
     data: data,
     rowHeaders: true,
     colHeaders: true,
@@ -344,13 +411,21 @@ function diT2X(
   });
 }
 
-//Tabla Análisis en Dirección "2 x"
+// Tabla Análisis en Dirección "3 x"
 function diT3X(contenedor, formData) {
-  var container = contenedor;
+  if (!tableDI1X || tableDI1X.length === 0) {
+    console.warn("diT3X: tableDI1X está vacío.");
+    return;
+  }
 
+  var container = contenedor;
   var data = [];
 
   for (let i = 0; i < 1; i++) {
+    if (!tableDI1X[i] || tableDI1X[i].length <= 1) {
+      console.warn(`diT3X: tableDI1X[${i}] no tiene índice 1.`);
+      continue;
+    }
     var ly = formData.lyDF;
     var hm = tableDI1X[i][1];
     var lyCal = 0.1 * hm;
@@ -362,7 +437,9 @@ function diT3X(contenedor, formData) {
     data.push(dataRow);
   }
 
-  var hot = new Handsontable(container, {
+  if (data.length === 0) return;
+
+  new Handsontable(container, {
     data: data,
     rowHeaders: true,
     colHeaders: true,
@@ -393,41 +470,73 @@ export function diT1Y(
   tableData3DC,
   formData
 ) {
-  var container = contenedor;
+  if (!contenedor) return;
+  
+  container = contenedor;
+  container.innerHTML = '';
+  
+  // Validación de datos de entrada
+  if (!tableData1DC || tableData1DC.length === 0) {
+    console.warn("diT1Y: tableData1DC está vacío o no definido.");
+    return;
+  }
+  if (!dataTable2yDF || dataTable2yDF.length === 0) {
+    console.warn("diT1Y: dataTable2yDF está vacío o no definido.");
+    return;
+  }
+  if (!tableData3DC || tableData3DC.length === 0) {
+    console.warn("diT1Y: tableData3DC está vacío o no definido.");
+    return;
+  }
+  if (!formData) {
+    console.warn("diT1Y: formData no está definido.");
+    return;
+  }
 
+  var container = contenedor;
   var data = [];
-  // Tipo sistema Estructural = Muros Estructurales
-  /* var tipoSistema = 6; */
 
   for (let i = 0; i < 1; i++) {
-    var lm = formData.lxDF;
+    if (!tableData1DC[i] || tableData1DC[i].length <= 4) {
+      console.warn(`diT1Y: tableData1DC[${i}] no tiene índice 4.`);
+      continue;
+    }
+    if (!dataTable2yDF[i] || dataTable2yDF[i].length <= 9) {
+      console.warn(`diT1Y: dataTable2yDF[${i}] no tiene índice 9.`);
+      continue;
+    }
+    if (!tableData3DC[i] || tableData3DC[i].length <= 3) {
+      console.warn(`diT1Y: tableData3DC[${i}] no tiene índice 3.`);
+      continue;
+    }
+
+    var lm = formData.lxDF;  // Nota: en Y podría ser lyDF, se mantiene la lógica original
     var hm = tableData1DC[i][4];
     var as = dataTable2yDF[i][9];
     var ads = 0;
     var pu = solicitaciones[i][1];
     var pv = tableData3DC[i][3];
-    var c1 =
-      (pu * 1000 +
-        as * formData.fyDF +
-        pv * formData.ezcyDF * 100 * formData.lyDF * 100 * formData.fyDF -
-        ads * formData.fyDF) /
-      (0.85 * formData.fcDF * formData.ezcyDF * 100 * formData.β1DF +
-        2 * pv * formData.ezcyDF * 100 * formData.fyDF);
+    var denominator = (0.85 * formData.fcDF * formData.ezcyDF * 100 * formData.β1DF +
+                       2 * pv * formData.ezcyDF * 100 * formData.fyDF);
+    var c1 = denominator !== 0
+      ? (pu * 1000 +
+          as * formData.fyDF +
+          pv * formData.ezcyDF * 100 * formData.lyDF * 100 * formData.fyDF -
+          ads * formData.fyDF) / denominator
+      : 0;
     var es = 0;
     var c2 = 0;
-    var c3 =
-      es == 0
-        ? 0
-        : (formData.ƐcDF * formData.lxDF * 100) / (formData.ƐcDF + es);
+    var c3 = es == 0
+      ? 0
+      : (formData.ƐcDF * formData.lxDF * 100) / (formData.ƐcDF + es);
     var c = Math.max(c1, c2, c3);
     var gu = 0.2374764;
     var cLimit = (lm / (600 * Math.max(gu / hm, 0.005))) * 100;
-    var confinamiento =
-      c >= cLimit ? 'Requiere ser confinado' : 'No requiere ser confinado';
+    var confinamiento = c >= cLimit ? 'Requiere ser confinado' : 'No requiere ser confinado';
 
     var dataRow = [
-      lm, // lm
-      hm, // hm
+      lm,      // lm
+      hm,      // hm
       as,
       ads,
       pu,
@@ -442,6 +551,11 @@ export function diT1Y(
       confinamiento,
     ];
     data.push(dataRow);
+  }
+
+  if (data.length === 0) {
+    console.warn("diT1Y: No se generaron datos.");
+    return;
   }
 
   var hot = new Handsontable(container, {
@@ -487,29 +601,27 @@ export function diT1Y(
       ],
     ],
     columns: [
-      { type: 'numeric', readOnly: true }, // 'lm (m)',
-      { type: 'numeric', readOnly: true }, // 'lm (m)',
-      { type: 'numeric', readOnly: true }, // 'hm acumulado (m)',
-      { type: 'numeric', readOnly: true }, // 'hm (m)',
-      { type: 'numeric', readOnly: true }, // 'Vua (Ton)',
-      { type: 'numeric', readOnly: true }, // 'Mua (Ton.m)',
-      { type: 'numeric', readOnly: true }, // 'Cociente',
-      { type: 'numeric' }, // 'Mnx (Ton.m)',
-      { type: 'numeric' }, // 'Mnx (Ton.m)',
-      { type: 'numeric', readOnly: true }, // 'Mnx/Mua',
-      { type: 'numeric', readOnly: true }, // 'Vux (Ton)',
-      { type: 'numeric' }, // 'hm/lm',
-      { type: 'numeric', readOnly: true }, // 'αc',
-      { type: 'numeric', readOnly: true }, // 'Vcx máx (Ton)',
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric' },
+      { type: 'numeric' },
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric' },
+      { type: 'numeric', readOnly: true },
+      { type: 'numeric', readOnly: true },
     ],
     afterChange: function (changes, source) {
       if (source === 'edit') {
         var hot = this;
         changes.forEach(function (change) {
-          /* console.log(change) Devuelve un array con 4 valores, row, col, oldValue, newValue */
           var row = change[0];
           var col = change[1];
-          //var oldValue = change[2];
           var newValue = change[3];
 
           if (col === 7) {
@@ -576,23 +688,17 @@ export function diT1Y(
             );
           }
         });
-        /* CheckData(); */
       }
     },
     afterPaste: function (data, coords) {
-      console.log(data); /* array de filas */
-      console.log(coords); /* array con coordenadas de inicio y fin (col-row)*/
+      console.log(data);
+      console.log(coords);
       data.forEach(function (rowData, i) {
         var startRow = coords[0].startRow;
-        /* var endRow = coords[0].endRow; */
         var startCol = coords[0].startCol;
         var endCol = coords[0].endCol;
         let k = 0;
         for (let j = startCol; j <= endCol; j++) {
-          /* console.log('Fila:', startRow + i);
-              console.log('Columna:', j);
-              console.log('Dato:', rowData[k]);
-              console.log('indice' + k); */
           hot.setDataAtCell(startRow + i, j, rowData[k]);
           k++;
         }
@@ -601,21 +707,33 @@ export function diT1Y(
     licenseKey: 'non-commercial-and-evaluation',
   });
 
-  document
-    .getElementById('saveDataBtnDI1Y')
-    .addEventListener('click', CheckData);
+  var saveBtn = document.getElementById('saveDataBtnDI1Y');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', CheckData);
+  } else {
+    console.warn("diT1Y: No se encontró el botón saveDataBtnDI1Y");
+  }
 
   function CheckData() {
     tableDI1Y = hot.getData();
-
-    var contenedor = document.getElementById('diT2Y');
-    diT2Y(contenedor, solicitaciones, tableData1DC, dataTable2yDF, formData);
-    var contenedor2 = document.getElementById('diT3Y');
-    diT3Y(contenedor2, formData);
+    
+    var contenedor = document.getElementById('diT2YContainer');
+    var contenedorInner = document.getElementById('diT2Y');
+    if (contenedor && contenedorInner) {
+      diT2Y(contenedorInner, solicitaciones, tableData1DC, dataTable2yDF, formData);
+      contenedor.style.display = tableDI1Y && tableDI1Y.length > 0 ? 'block' : 'none';
+    }
+    
+    var contenedor2 = document.getElementById('diT3YContainer');
+    var contenedor2Inner = document.getElementById('diT3Y');
+    if (contenedor2 && contenedor2Inner) {
+      diT3Y(contenedor2Inner, formData);
+      contenedor2.style.display = tableDI1Y && tableDI1Y.length > 0 ? 'block' : 'none';
+    }
   }
 }
 
-//Tabla Análisis en Dirección "2 y"
+// Tabla Análisis en Dirección "2 y"
 function diT2Y(
   contenedor,
   solicitaciones,
@@ -623,13 +741,33 @@ function diT2Y(
   dataTable2yDF,
   formData
 ) {
-  var container = contenedor;
+  if (!tableDI1Y || tableDI1Y.length === 0) {
+    console.warn("diT2Y: tableDI1Y está vacío.");
+    return;
+  }
 
+  var container = contenedor;
   var data = [];
 
   for (let i = 0; i < 1; i++) {
+    if (!tableDI1Y[i] || tableDI1Y[i].length <= 10) {
+      console.warn(`diT2Y: tableDI1Y[${i}] no tiene índice 10.`);
+      continue;
+    }
+    if (!tableData1DC[i] || tableData1DC[i].length <= 11) {
+      console.warn(`diT2Y: tableData1DC[${i}] no tiene índice 11.`);
+      continue;
+    }
+    if (!solicitaciones[i] || solicitaciones[i].length <= 3) {
+      console.warn(`diT2Y: solicitaciones[${i}] no tiene índice 3.`);
+      continue;
+    }
+    if (!dataTable2yDF[i] || dataTable2yDF[i].length <= 2) {
+      console.warn(`diT2Y: dataTable2yDF[${i}] no tiene índice 2.`);
+      continue;
+    }
+
     var zc = formData.zcyDF;
-    console.log(zc);
     var vuMax = tableData1DC[i][11];
     var muMax = solicitaciones[i][3];
     var lomax1 = tableDI1Y[i][0];
@@ -663,7 +801,9 @@ function diT2Y(
     data.push(dataRow);
   }
 
-  var hot = new Handsontable(container, {
+  if (data.length === 0) return;
+
+  new Handsontable(container, {
     data: data,
     rowHeaders: true,
     colHeaders: true,
@@ -725,13 +865,21 @@ function diT2Y(
   });
 }
 
-//Tabla Análisis en Dirección "3y"
+// Tabla Análisis en Dirección "3 y"
 function diT3Y(contenedor, formData) {
-  var container = contenedor;
+  if (!tableDI1Y || tableDI1Y.length === 0) {
+    console.warn("diT3Y: tableDI1Y está vacío.");
+    return;
+  }
 
+  var container = contenedor;
   var data = [];
 
   for (let i = 0; i < 1; i++) {
+    if (!tableDI1Y[i] || tableDI1Y[i].length <= 1) {
+      console.warn(`diT3Y: tableDI1Y[${i}] no tiene índice 1.`);
+      continue;
+    }
     var lx = formData.lxDF;
     var hm = tableDI1Y[i][1];
     var lyCal = 0.1 * hm;
@@ -743,7 +891,9 @@ function diT3Y(contenedor, formData) {
     data.push(dataRow);
   }
 
-  var hot = new Handsontable(container, {
+  if (data.length === 0) return;
+
+  new Handsontable(container, {
     data: data,
     rowHeaders: true,
     colHeaders: true,
@@ -767,15 +917,44 @@ function diT3Y(contenedor, formData) {
 
 // Datos y gráficas
 export function diagramI(solicitacionesVarios) {
+  if (!solicitacionesVarios || solicitacionesVarios.length === 0) {
+    console.warn("diagramI: No hay datos de solicitaciones.");
+    var diagramsCard = document.getElementById('diagramsCard');
+    if (diagramsCard) {
+      diagramsCard.style.display = 'none';
+    }
+    return;
+  }
+
+  var contenedor = document.getElementById('diagramsContainer');
+  if (!contenedor) {
+    console.warn("diagramI: No se encontró el contenedor 'diagramsContainer'.");
+    return;
+  }
+
+  var diagramsCard = document.getElementById('diagramsCard');
+  if (diagramsCard) {
+    diagramsCard.style.display = 'block';
+  }
+
+  contenedor.innerHTML = '';
   var cont = 0;
   var dataSize = solicitacionesVarios.length;
-  for (let i = 1; i <= dataSize / 17; i = i + 2) {
-    cont++;
-    var dataT1SC = solicitacionesVarios.slice(0, 17);
-    var dataT2SC = solicitacionesVarios.slice(17, 34);
-    solicitacionesVarios = solicitacionesVarios.slice(34);
+  var numPairs = Math.ceil(dataSize / 34);
+  
+  var hasMultiplePairs = numPairs > 1;
 
-    // Crear un nuevo elemento div
+  for (let i = 0; i < numPairs; i++) {
+    cont++;
+    var startIdx = i * 34;
+    var dataT1SC = solicitacionesVarios.slice(startIdx, startIdx + 17);
+    var dataT2SC = solicitacionesVarios.slice(startIdx + 17, startIdx + 34);
+
+    if (dataT1SC.length === 0 || dataT2SC.length === 0) {
+      console.warn("diagramI: No hay suficientes datos para crear el gráfico.");
+      break;
+    }
+
     var PairContainer = document.createElement('div');
     var rowContainer1 = document.createElement('div');
     var rowContainer2 = document.createElement('div');
@@ -803,7 +982,6 @@ export function diagramI(solicitacionesVarios) {
     tableContainer2DI.id = `hotTableContainerDDI${cont}`;
     buttonD2.id = `buttonDDI${cont}`;
 
-    // Agregar clases, estilos o cualquier otro atributo necesario al nuevo div
     PairContainer.classList.add('d-flex', 'flex-column');
     rowContainer1.classList.add('d-flex');
     rowContainer2.classList.add('row');
@@ -813,10 +991,13 @@ export function diagramI(solicitacionesVarios) {
 
     PairContainer.id = `diagramsContainer${cont}`;
 
-    // Obtener el contenedor donde se agregarán los nuevos divs
-    var contenedor = document.getElementById('diagramsContainer');
+    if (hasMultiplePairs) {
+      var pairHeader = document.createElement('h5');
+      pairHeader.className = 'text-gray-950 dark:text-white text-center mt-3 mb-2';
+      pairHeader.textContent = `Grupo ${cont} - Pisos ${(cont-1)*2 + 1} y ${(cont-1)*2 + 2}`;
+      PairContainer.appendChild(pairHeader);
+    }
 
-    // Agregar el nuevo div al contenedor
     contenedor.appendChild(PairContainer);
     PairContainer.appendChild(rowContainer1);
     PairContainer.appendChild(rowContainer2);
@@ -855,9 +1036,25 @@ export function diagramI(solicitacionesVarios) {
       tableContainer2DIE
     );
   }
+
+  if (numPairs === 1 && dataSize > 0) {
+    var singleHeader = document.createElement('div');
+    singleHeader.className = 'text-center text-gray-950 dark:text-white mb-2';
+    singleHeader.innerHTML = '<strong>Diagrama de Interacción - Datos y Gráfica</strong>';
+    contenedor.insertBefore(singleHeader, contenedor.firstChild);
+  }
+
+  if (numPairs > 1) {
+    var multiHeader = document.createElement('div');
+    multiHeader.className = 'text-center text-gray-950 dark:text-white mb-2';
+    multiHeader.innerHTML = '<strong>Diagramas de Interacción - Datos y Gráficas</strong>';
+    contenedor.insertBefore(multiHeader, contenedor.firstChild);
+  }
 }
 
 function soliciTabla(contenedor, solicitaciones) {
+  if (!solicitaciones || solicitaciones.length === 0) return;
+
   var rowToUse = [
     'Combinación 01',
     'Combinación 02 Max',
@@ -881,7 +1078,7 @@ function soliciTabla(contenedor, solicitaciones) {
     return [rowToUse[i], ...row];
   });
 
-  var hot = Handsontable(contenedor, {
+  Handsontable(contenedor, {
     data: dataModified,
     rowHeaders: true,
     colHeaders: true,
@@ -894,7 +1091,7 @@ function soliciTabla(contenedor, solicitaciones) {
       ['Carga', '(Ton)', '(Ton.m)', '(Ton.m)'],
     ],
     columns: [
-      { type: 'text', readOnly: true }, // 'Nivel',
+      { type: 'text', readOnly: true },
       { type: 'numeric', readOnly: true },
       { type: 'numeric', readOnly: true },
       { type: 'numeric', readOnly: true },
@@ -1028,12 +1225,9 @@ function diagramaHot(
           break;
         }
       }
-      if (!allCellsFilled) {
-        break;
-      }
+      if (!allCellsFilled) break;
     }
     if (allCellsFilled) {
-      console.log('Datos de la tabla graph1 HOT:', tableDataEx);
       diagramStart(
         PairContainer,
         dataT1SC,
@@ -1058,40 +1252,21 @@ function diagramStart(
   pos,
   tableDataEx
 ) {
-  /* var rowContainer3 = document.createElement('div'); */
   var graphContainer = document.createElement('div');
-  /* rowContainer3.classList.add('d-flex'); */
   var data1 = [];
   var data2 = [];
   if (pos == 'Izq') {
-    data1 = dataIz.map((row) => {
-      return [row[0], row[1]];
-    });
-
-    data2 = dataDer.map((row) => {
-      return [row[0], row[1]];
-    });
+    data1 = dataIz.map((row) => [row[0], row[1]]);
+    data2 = dataDer.map((row) => [row[0], row[1]]);
   } else {
-    data1 = dataIz.map((row) => {
-      return [row[0], row[2]];
-    });
-    data2 = dataDer.map((row) => {
-      return [row[0], row[2]];
-    });
+    data1 = dataIz.map((row) => [row[0], row[2]]);
+    data2 = dataDer.map((row) => [row[0], row[2]]);
   }
 
-  var leftLine = tableData.map((row) => {
-    return [row[4], row[6]];
-  });
-  var rightLine = tableData.map((row) => {
-    return [row[1], row[3]];
-  });
-  var leftLineEx = tableDataEx.map((row) => {
-    return [row[4], row[6]];
-  });
-  var rightLineEx = tableDataEx.map((row) => {
-    return [row[1], row[3]];
-  });
+  var leftLine = tableData.map((row) => [row[4], row[6]]);
+  var rightLine = tableData.map((row) => [row[1], row[3]]);
+  var leftLineEx = tableDataEx.map((row) => [row[4], row[6]]);
+  var rightLineEx = tableDataEx.map((row) => [row[1], row[3]]);
 
   var canvaId = `graph${pos}${cont}`;
 
@@ -1102,7 +1277,6 @@ function diagramStart(
     canva1.height = 400;
     graphContainer.appendChild(canva1);
     container.appendChild(graphContainer);
-    /* container.appendChild(rowContainer3); */
     createGraph(
       canvaId,
       canva1,
@@ -1130,33 +1304,14 @@ function diagramStart(
 
 function updateGraph(canvaId, data1, data2, data3, data4, data5, data6) {
   var chart = Charts[canvaId];
-  //console.log(data1, data2, data3, data4);
-  // Definir los datos de data1 y data2
-  if (!chart) {
-    return;
-  }
-  chart.data.datasets[0].data = data1.map(function (row) {
-    return { x: row[1], y: row[0] };
-  });
+  if (!chart) return;
 
-  chart.data.datasets[1].data = data2.map(function (row) {
-    return { x: row[1], y: row[0] };
-  });
-
-  chart.data.datasets[2].data = data3.map(function (row) {
-    return { x: row[1], y: row[0] };
-  });
-
-  chart.data.datasets[3].data = data4.map(function (row) {
-    return { x: row[1], y: row[0] };
-  });
-  chart.data.datasets[4].data = data5.map(function (row) {
-    return { x: row[1], y: row[0] };
-  });
-
-  chart.data.datasets[5].data = data6.map(function (row) {
-    return { x: row[1], y: row[0] };
-  });
+  chart.data.datasets[0].data = data1.map((row) => ({ x: row[1], y: row[0] }));
+  chart.data.datasets[1].data = data2.map((row) => ({ x: row[1], y: row[0] }));
+  chart.data.datasets[2].data = data3.map((row) => ({ x: row[1], y: row[0] }));
+  chart.data.datasets[3].data = data4.map((row) => ({ x: row[1], y: row[0] }));
+  chart.data.datasets[4].data = data5.map((row) => ({ x: row[1], y: row[0] }));
+  chart.data.datasets[5].data = data6.map((row) => ({ x: row[1], y: row[0] }));
 
   chart.update();
 }
@@ -1173,85 +1328,66 @@ function createGraph(
   cont,
   pos
 ) {
-  //console.log(data1, data2, data3, data4);
-  // Definir los datos de data1 y data2
-  data1 = data1.map(function (row) {
-    return { x: row[1], y: row[0] };
-  });
+  var data1Points = data1.map((row) => ({ x: row[1], y: row[0] }));
+  var data2Points = data2.map((row) => ({ x: row[1], y: row[0] }));
+  var data3Points = data3.map((row) => ({ x: row[1], y: row[0] }));
+  var data4Points = data4.map((row) => ({ x: row[1], y: row[0] }));
+  var data5Points = data5.map((row) => ({ x: row[1], y: row[0] }));
+  var data6Points = data6.map((row) => ({ x: row[1], y: row[0] }));
 
-  var data2 = data2.map(function (row) {
-    return { x: row[1], y: row[0] };
-  });
-
-  var data3 = data3.map(function (row) {
-    return { x: row[1], y: row[0] };
-  });
-
-  var data4 = data4.map(function (row) {
-    return { x: row[1], y: row[0] };
-  });
-  var data5 = data5.map(function (row) {
-    return { x: row[1], y: row[0] };
-  });
-
-  var data6 = data6.map(function (row) {
-    return { x: row[1], y: row[0] };
-  });
-
-  // Configurar los datos para el gráfico
   var config = {
     type: 'scatter',
     data: {
       datasets: [
         {
           label: `SC Piso ${cont * 2 - 1} (Mux, Pu)`,
-          data: data1,
-          borderColor: 'blue', // Color del borde para los puntos de data1
-          backgroundColor: 'blue', // Color de fondo para los puntos de data1
-          borderWidth: 1, // Ancho del borde
+          data: data1Points,
+          borderColor: 'blue',
+          backgroundColor: 'blue',
+          borderWidth: 1,
         },
         {
           label: `SC Piso ${cont * 2} (Mux, Pu)`,
-          data: data2,
-          borderColor: 'green', // Color del borde para los puntos de data2
-          backgroundColor: 'green', // Color de fondo para los puntos de data2
-          borderWidth: 1, // Ancho del borde
+          data: data2Points,
+          borderColor: 'green',
+          backgroundColor: 'green',
+          borderWidth: 1,
         },
         {
           label: 'DI Incluido X-X',
-          data: data3,
-          borderColor: pos == 'Izq' ? 'red' : 'blue', // Color del borde para los puntos de data2
-          backgroundColor: pos == 'Izq' ? 'red' : 'blue', // Color de fondo para los puntos de data2
-          borderWidth: 0, // Establece el ancho del borde en 0 para que no se muestren puntos
-          fill: false, // No rellenar el área debajo de la línea
-          type: 'line', // Tipo de gráfico para conectar los puntos con líneas
+          data: data3Points,
+          borderColor: pos == 'Izq' ? 'red' : 'blue',
+          backgroundColor: pos == 'Izq' ? 'red' : 'blue',
+          borderWidth: 0,
+          fill: false,
+          type: 'line',
         },
         {
           label: 'DI Incluido Y-Y',
-          data: data4,
-          borderColor: pos == 'Izq' ? 'red' : 'blue', // Color del borde para los puntos de data2
-          backgroundColor: pos == 'Izq' ? 'red' : 'blue', // Color de fondo para los puntos de data2
-          borderWidth: 0, // Establece el ancho del borde en 0 para que no se muestren puntos
-          fill: false, // No rellenar el área debajo de la línea
-          type: 'line', // Tipo de gráfico para conectar los puntos con líneas
+          data: data4Points,
+          borderColor: pos == 'Izq' ? 'red' : 'blue',
+          backgroundColor: pos == 'Izq' ? 'red' : 'blue',
+          borderWidth: 0,
+          fill: false,
+          type: 'line',
         },
         {
           label: 'DI Excluido X-X',
-          data: data5,
-          borderColor: 'green', // Color del borde para los puntos de data2
-          backgroundColor: 'green', // Color de fondo para los puntos de data2
-          borderWidth: 0, // Establece el ancho del borde en 0 para que no se muestren puntos
-          fill: false, // No rellenar el área debajo de la línea
-          type: 'line', // Tipo de gráfico para conectar los puntos con líneas
+          data: data5Points,
+          borderColor: 'green',
+          backgroundColor: 'green',
+          borderWidth: 0,
+          fill: false,
+          type: 'line',
         },
         {
           label: 'DI Excluido Y-Y',
-          data: data6,
-          borderColor: 'yellow', // Color del borde para los puntos de data2
-          backgroundColor: 'yellow', // Color de fondo para los puntos de data2
-          borderWidth: 0, // Establece el ancho del borde en 0 para que no se muestren puntos
-          fill: false, // No rellenar el área debajo de la línea
-          type: 'line', // Tipo de gráfico para conectar los puntos con líneas
+          data: data6Points,
+          borderColor: 'yellow',
+          backgroundColor: 'yellow',
+          borderWidth: 0,
+          fill: false,
+          type: 'line',
         },
       ],
     },
@@ -1288,7 +1424,6 @@ function createGraph(
     },
   };
 
-  // Crear el gráfico utilizando Chart.js
   var myChart = new Chart(canva, config);
-  charts['canvaId'] = myChart;
+  Charts[canvaId] = myChart;   
 }

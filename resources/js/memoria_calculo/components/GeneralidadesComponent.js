@@ -304,22 +304,9 @@ export function createGeneralidadesComponent() {
 
       console.log(`📋 Detectado pegado para ${groupKey}[${index}]`);
 
-<<<<<<< HEAD
-        /**
-         * Obtiene y establece el número de pisos actual (proxy al store)
-         */
-        get floors() {
-            return this.$store?.memoriaCalculo?.sections?.generalidades?.floors || 1;
-        },
-        
-        set floors(value) {
-            this.$store.memoriaCalculo.updateFloors(value);
-        },
-=======
       try {
         //USAR event.clipboardData (DATOS INMEDIATOS)
         const items = event.clipboardData?.items;
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
 
         if (!items) {
           console.log("No hay items en el portapapeles");

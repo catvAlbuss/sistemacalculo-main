@@ -636,6 +636,7 @@
 
   @pushOnce('scripts')
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script type="module" src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     @vite('resources/js/adm_zapata_combinada.js')
   @endpushOnce

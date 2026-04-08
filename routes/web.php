@@ -30,7 +30,7 @@ Route::view('/servicios/planos_estructurales', 'landing.structural_blueprint')->
 Route::view('/servicios/metrados', 'landing.metrados')->name('landing.services.metrados');
 //Route::view('/contacto', 'landing.contact')->name('landing.contact');
 Route::post('/cotizarplano', [enviarCotizacionController::class, 'enviarCotizacion'])->name('cotizarplano');
-Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento']);
+// Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento']);
 
 // Route::post('/capturar-viga-descarga', [VigaCaptureController::class, 'descargar']);
 
@@ -116,7 +116,7 @@ Route::middleware(["auth", "verified"])->group(function () {
                 Route::view('/losas-aligeradas', 'hcalculo.admlosasaligeradas')->name('losas-aligeradas');
 
                 // Diseño en madera
-                Route::view('/diseño-en-madera', 'hcalculo.diseño_en_madera_flexocompresion')->name('diseño-en-madera');
+                Route::view('/diseno-en-madera', 'hcalculo.diseno_en_madera_flexocompresion')->name('diseno-en-madera');
 
                 // Muros
                 Route::view('/muros-de-contencionv2', 'muros-contencion.index')->name('muros-de-contencionv2');
@@ -145,18 +145,18 @@ Route::middleware(["auth", "verified"])->group(function () {
                 Route::view('/irregularidades', 'hcalculo.admIrregularidades')->name('irregularidades');
 
                 // Diseño en madera
-                Route::prefix('diseño-en-madera')->name('diseño-en-madera.')->group(function () {
+                Route::prefix('diseno-en-madera')->name('diseno-en-madera.')->group(function () {
                     Route::view('/correas', 'hcalculo.admdesingcorreas')->name('correas');
-                    Route::view('/flexo-compresion', 'hcalculo.diseño_en_madera.flexo_compresion')->name('flexo-compresion');
-                    Route::view('/compresion', 'hcalculo.diseño_en_madera.compresion')->name('compresion');
-                    Route::view('/traccion', 'hcalculo.diseño_en_madera.traccion')->name('traccion');
-                    Route::view('/flexo-traccion', 'hcalculo.diseño_en_madera.flexo_traccion')->name('flexo-traccion');
+                    Route::view('/flexo-compresion', 'hcalculo.diseno_en_madera.flexo_compresion')->name('flexo-compresion');
+                    Route::view('/compresion', 'hcalculo.diseno_en_madera.compresion')->name('compresion');
+                    Route::view('/traccion', 'hcalculo.diseno_en_madera.traccion')->name('traccion');
+                    Route::view('/flexo-traccion', 'hcalculo.diseno_en_madera.flexo_traccion')->name('flexo-traccion');
                 });
 
                 // Diseño en acero
-                Route::prefix('diseño-en-acero')->name('diseño-en-acero.')->group(function () {
-                    Route::view('/compresion', 'hcalculo.diseño_en_acero.compresion')->name('compresion');
-                    Route::view('/traccion', 'hcalculo.diseño_en_acero.traccion')->name('traccion');
+                Route::prefix('diseno-en-acero')->name('diseno-en-acero.')->group(function () {
+                    Route::view('/compresion', 'hcalculo.diseno_en_acero.compresion')->name('compresion');
+                    Route::view('/traccion', 'hcalculo.diseno_en_acero.traccion')->name('traccion');
                 });
             });
         });

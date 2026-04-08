@@ -3,13 +3,15 @@ export var solicitudCargaDT2 = [];
 export var solicitudCargaDT3 = [];
 
 export function solicitudCargaT1(contenedor) {
-  // Datos iniciales para la tabla
+  if (!contenedor) return;
+  
   var data = [
     ['Piso 1', '', '', '', '', '', ''],
-    // Continúa con los datos para los 20 pisos
   ];
 
   var container = contenedor;
+  container.innerHTML = '';
+
   var hot = new Handsontable(container, {
     data: data,
     rowHeaders: false,
@@ -17,12 +19,16 @@ export function solicitudCargaT1(contenedor) {
     height: 'auto',
     autoWrapRow: true,
     autoWrapCol: true,
-    colWidths: [90 ,90, 90, 90, 150, 90, 90, 90, 150],
-    renderAllRows: true,
+    colWidths: [90, 90, 90, 90, 150, 90, 90, 90, 150],
+
+    // === OPTIMIZACIONES ===
+    renderAllRows: false,
     renderAllColumns: true,
-    viewportRowRenderingOffset: 1000,
-    viewportColumnRenderingOffset: 1000,
-    // width: 'max-content',
+    viewportRowRenderingOffset: 15,
+    viewportColumnRenderingOffset: 15,
+    sanitizer: (content) => content,
+    // ======================
+
     nestedHeaders: [
       [
         'Nivel',
@@ -38,25 +44,21 @@ export function solicitudCargaT1(contenedor) {
       ['', '(Ton)', '(Ton)', '(Vx)', '(Vx)', '(Ton)', '(Ton)', '(Vy)', '(Vy)'],
     ],
     columns: [
-      { type: 'text', readOnly: true }, // Nivel
-      { type: 'numeric' }, // Vx Piso Ton
-      { type: 'numeric' }, // Vx Elemento Ton
-      { type: 'numeric', readOnly: true }, // Ratio (Vx)
-      { type: 'text', readOnly: true }, // Verificación de Redundancia (Vx)
-      { type: 'numeric' }, // Vy Piso Ton
-      { type: 'numeric' }, // Vy Elemento Ton
-      { type: 'numeric', readOnly: true }, // Ratio (Vy)
-      { type: 'text', readOnly: true }, // Verificación de Redundancia (Vy)
+      { type: 'text', readOnly: true },   // Nivel
+      { type: 'numeric' },                // Vx Piso Ton
+      { type: 'numeric' },                // Vx Elemento Ton
+      { type: 'numeric', readOnly: true },// Ratio (Vx)
+      { type: 'text', readOnly: true },   // Verificación de Redundancia (Vx)
+      { type: 'numeric' },                // Vy Piso Ton
+      { type: 'numeric' },                // Vy Elemento Ton
+      { type: 'numeric', readOnly: true },// Ratio (Vy)
+      { type: 'text', readOnly: true },   // Verificación de Redundancia (Vy)
     ],
-    minSpareRows: 1, // Permite agregar nuevas filas al final
-    // enable the plugin with the default configuration
-    /* copyPaste: true,
-    pasteMode: 'overwrite', */
+    minSpareRows: 1,
+
     beforePaste: function (data, coords) {
-      // Determinar el número de filas que se generarán al pegar los datos
       var totalRowsToPaste = data.length + coords[0].startRow;
-      if (hot.countRows < totalRowsToPaste) {
-        // Agregar las filas necesarias para acomodar los datos pegados
+      if (hot.countRows() < totalRowsToPaste) {
         hot.alter(
           'insert_row_above',
           totalRowsToPaste - hot.countRows(),
@@ -64,83 +66,89 @@ export function solicitudCargaT1(contenedor) {
         );
       }
     },
+
     afterChange: function (changes, source) {
-      if (source === 'edit') {
+      if (source === 'edit' || source === 'paste') {
         var hot = this;
+        var updates = [];
+
         changes.forEach(function (change) {
-          /* console.log(change) Devuelve un array con 4 valores, row, col, oldValue, newValue */
           var row = change[0];
           var col = change[1];
-          /* var oldValue = change[2];
-          var newValue = change[3]; */
 
           if (col === 1 || col === 2) {
-            // Verificar cambios en las columnas de carga
-            // Calcular el ratio
-            var vxPiso = hot.getDataAtCell(row, 1);
+            var vxPiso     = hot.getDataAtCell(row, 1);
             var vxElemento = hot.getDataAtCell(row, 2);
-            var ratioVx = vxElemento !== 0 ? vxElemento / vxPiso : 0; // Evitar división por cero
-            hot.setDataAtCell(row, 3, ratioVx.toFixed(2));
+            var ratioVx    = (vxPiso !== 0 && vxPiso !== null)
+              ? vxElemento / vxPiso
+              : 0;
+            var redundanciaVx = ratioVx >= 0.3
+              ? 'Diseñar para el 125% del Sismo'
+              : 'No Diseñar para el 125% del Sismo';
 
-            // Verificar la redundancia para Vx
-            var redundanciaVx =
-              ratioVx >= 0.3
-                ? 'Diseñar para el 125% del Sismo'
-                : 'No Diseñar para el 125% del Sismo';
-            hot.setDataAtCell(row, 4, redundanciaVx);
+            updates.push([row, 3, parseFloat(ratioVx.toFixed(2))]);
+            updates.push([row, 4, redundanciaVx]);
           }
-          if (col === 5 || col === 6) {
-            // Calcular el ratio para Vy
-            var vyPiso = hot.getDataAtCell(row, 5);
-            var vyElemento = hot.getDataAtCell(row, 6);
-            var ratioVy = vyElemento !== 0 ? vyElemento / vyPiso : 0; // Evitar división por cero
-            hot.setDataAtCell(row, 7, ratioVy.toFixed(2));
 
-            // Verificar la redundancia para Vy
-            var redundanciaVy =
-              ratioVy >= 0.3
-                ? 'Diseñar para el 125% del Sismo'
-                : 'No Diseñar para el 125% del Sismo';
-            hot.setDataAtCell(row, 8, redundanciaVy);
+          if (col === 5 || col === 6) {
+            var vyPiso     = hot.getDataAtCell(row, 5);
+            var vyElemento = hot.getDataAtCell(row, 6);
+            var ratioVy    = (vyPiso !== 0 && vyPiso !== null)
+              ? vyElemento / vyPiso
+              : 0;
+            var redundanciaVy = ratioVy >= 0.3
+              ? 'Diseñar para el 125% del Sismo'
+              : 'No Diseñar para el 125% del Sismo';
+
+            updates.push([row, 7, parseFloat(ratioVy.toFixed(2))]);
+            updates.push([row, 8, redundanciaVy]);
           }
         });
-      }
-    },
-    afterPaste: function (data, coords) {
-      var totalRowsToPaste = data.length + coords[0].startRow;
-      var rowAmount = hot.countRows() - 1;
-      //console.log(rowAmount)
-      if (rowAmount < totalRowsToPaste) {
-        for (var i = coords[0].startRow; i < totalRowsToPaste; i++) {
-          var floorNumber = i + 1;
-          hot.setDataAtCell(i, 0, 'Piso ' + floorNumber);
-        }
-      }
-      console.log(data); /* array de filas */
-      console.log(coords); /* array con coordenadas de inicio y fin (col-row)*/
-      data.forEach(function (rowData, i) {
-        /* console.log(rowData);
-        console.log(coords); */
-        var startRow = coords[0].startRow;
-        var endRow = coords[0].endRow;
-        var startCol = coords[0].startCol;
-        var endCol = coords[0].endCol;
-        // Datos pegado solo en una columna
-        var singleColumn = startCol === endCol;
 
-        if (singleColumn) {
-          // Columnas Vx
-          if (startCol === 1 || startCol === 2) {
-            calculateAndSetValues(startRow + i, rowData, startCol);
-            // Columnas Vy
-          } else if (startCol === 5 || startCol === 6) {
-            calculateAndSetValues(startRow + i, rowData, startCol);
-          }
-        } else {
-          calculateAndSetValues(startRow + i, rowData, startCol, endCol);
+        if (updates.length > 0) {
+          hot.setDataAtCell(updates, 'internal');
         }
-      });
+      }
     },
+
+    afterPaste: function (data, coords) {
+      var hot = this;
+      var startRow = coords[0].startRow;
+      var startCol = coords[0].startCol;
+
+      hot.suspendRender();
+      try {
+        hot.populateFromArray(startRow, startCol, data, null, null, 'paste');
+        
+        var allData = hot.getData();
+        var floorUpdates = [];
+        
+        // Contar solo las filas que tienen datos en la columna 0 (Nivel)
+        var dataRowCount = 0;
+        for (var i = 0; i < allData.length; i++) {
+          // Si la fila tiene al menos un valor en cualquier columna, cuenta como una fila con datos
+          var hasData = false;
+          for (var j = 0; j < allData[i].length; j++) {
+            if (allData[i][j] !== null && allData[i][j] !== '' && allData[i][j] !== undefined) {
+              hasData = true;
+              break;
+            }
+          }
+          
+          if (hasData) {
+            floorUpdates.push([i, 0, 'Piso ' + (dataRowCount + 1)]);
+            dataRowCount++;
+          }
+        }
+        
+        if (floorUpdates.length > 0) {
+          hot.setDataAtCell(floorUpdates);
+        }
+      } finally {
+        hot.resumeRender();
+      }
+    },
+
     licenseKey: 'non-commercial-and-evaluation',
   });
 
@@ -148,56 +156,55 @@ export function solicitudCargaT1(contenedor) {
     hot.render();
   }, 100);
 
-  function calculateAndSetValues(row, rowData, startCol, endCol = 0) {
-    // No es necesario calcular, al asignar un valor a la celda
-    // se detecta como cambio y el hook afterChange realiza las operaciones
-    if (endCol === 0) {
-      hot.setDataAtCell(row, startCol, rowData[0]);
-    } else {
-      hot.setDataAtCell(row, startCol, rowData[0]);
-      hot.setDataAtCell(row, endCol, rowData[1]);
-    }
-  }
-
   document.getElementById('saveDataBtn1').addEventListener('click', saveData);
 
   function saveData() {
-    // Obtener los datos de la tabla
-    solicitudCargaDT1 = hot.getData();
-
-    // Aquí puedes realizar alguna acción con los datos, como enviarlos al servidor o guardarlos en el almacenamiento local
-    console.log('Datos de la tabla 1:', solicitudCargaDT1);
-    if (solicitudCargaDT1.length > 1) {
+    var allData = hot.getData();
+    console.log('Raw data from table:', allData);
+    var pisoData = [];
+    for (var i = 0; i < allData.length; i++) {
+      if (allData[i] && allData[i][0] && String(allData[i][0]).trim() !== '') {
+        pisoData.push(allData[i]);
+      }
+    }
+    console.log('Filtered pisoData:', pisoData);
+    console.log('Cantidad de pisos:', pisoData.length);
+    if (pisoData.length >= 1) {
       var contenedor2 = document.getElementById('solicitudCargaT2');
-      solicitudCargaDT1.pop();
-      solicitudCargaT2(contenedor2, solicitudCargaDT1.length);
+      solicitudCargaDT1 = pisoData;
+      solicitudCargaT2(contenedor2, pisoData);
     }
   }
 }
 
-export function solicitudCargaT2(contenedor, filas) {
+export function solicitudCargaT2(contenedor, pisoData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
   var data = [];
 
-  for (let i = 1; i <= filas; i++) {
+  // Usar el pisoData que viene de la tabla 1 para obtener los nombres de los pisos
+  for (let i = 0; i < pisoData.length; i++) {
+    var pisoName = pisoData[i][0] || ('Piso ' + (i + 1)); // Extraer el nombre del piso de la primera columna
     var dataRow = [
-      [i, 'PL-01', '1.40CM+1.70CV'],
-      [i, 'PL-01', '1.25(CM+CV)+CSx Max'],
-      [i, 'PL-01', '1.25(CM+CV)+CSx Min'],
-      [i, 'PL-01', '1.25(CM+CV)+CSy Max'],
-      [i, 'PL-01', '1.25(CM+CV)+CSy Min'],
-      [i, 'PL-01', '1.25(CM+CV)-CSx Max'],
-      [i, 'PL-01', '1.25(CM+CV)-CSx Min'],
-      [i, 'PL-01', '1.25(CM+CV)-CSy Max'],
-      [i, 'PL-01', '1.25(CM+CV)-CSy Min'],
-      [i, 'PL-01', '0.90CM+CSx Max'],
-      [i, 'PL-01', '0.90CM+CSx Min'],
-      [i, 'PL-01', '0.90CM+CSy Max'],
-      [i, 'PL-01', '0.90CM+CSy Min'],
-      [i, 'PL-01', '0.90CM-CSx Max'],
-      [i, 'PL-01', '0.90CM-CSx Min'],
-      [i, 'PL-01', '0.90CM-CSy Max'],
-      [i, 'PL-01', '0.90CM-CSy Min'],
+      [pisoName, 'PL-01', '1.40CM+1.70CV'],
+      [pisoName, 'PL-01', '1.25(CM+CV)+CSx Max'],
+      [pisoName, 'PL-01', '1.25(CM+CV)+CSx Min'],
+      [pisoName, 'PL-01', '1.25(CM+CV)+CSy Max'],
+      [pisoName, 'PL-01', '1.25(CM+CV)+CSy Min'],
+      [pisoName, 'PL-01', '1.25(CM+CV)-CSx Max'],
+      [pisoName, 'PL-01', '1.25(CM+CV)-CSx Min'],
+      [pisoName, 'PL-01', '1.25(CM+CV)-CSy Max'],
+      [pisoName, 'PL-01', '1.25(CM+CV)-CSy Min'],
+      [pisoName, 'PL-01', '0.90CM+CSx Max'],
+      [pisoName, 'PL-01', '0.90CM+CSx Min'],
+      [pisoName, 'PL-01', '0.90CM+CSy Max'],
+      [pisoName, 'PL-01', '0.90CM+CSy Min'],
+      [pisoName, 'PL-01', '0.90CM-CSx Max'],
+      [pisoName, 'PL-01', '0.90CM-CSx Min'],
+      [pisoName, 'PL-01', '0.90CM-CSy Max'],
+      [pisoName, 'PL-01', '0.90CM-CSy Min'],
     ];
     dataRow.map((row) => data.push(row));
   }
@@ -210,159 +217,164 @@ export function solicitudCargaT2(contenedor, filas) {
     autoWrapRow: true,
     autoWrapCol: true,
     colWidths: [70, 90, 220, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90],
-    renderAllRows: true,
+
+    renderAllRows: false,
     renderAllColumns: true,
-    viewportRowRenderingOffset: 1000,
-    viewportColumnRenderingOffset: 1000,
-    // width: 'max-content',
+    viewportRowRenderingOffset: 15,
+    viewportColumnRenderingOffset: 15,
+    sanitizer: (content) => content,
+
     nestedHeaders: [
       [
-        'Piso', //Columna 1
-        'Placa', //Columna 2
-        'Combinaciones', //Columna 3
-        'Pu', //Columna 4
-        'V2', //Columna 5
-        'V3', //Columna 6
-        'T', //Columna 7
-        'M2', //Columna 8
-        'M3 ', //Columna 9
-        'Pux', //Columna 10
-        'Vux', //Columna 11
-        'Mux', //Columna 12
-        'Puy', //Columna 13
-        'Vuy', //Columna 14
-        'Muy', //Columna 15
+        'Piso',         // Columna 1
+        'Placa',        // Columna 2
+        'Combinaciones',// Columna 3
+        'Pu',           // Columna 4
+        'V2',           // Columna 5
+        'V3',           // Columna 6
+        'T',            // Columna 7
+        'M2',           // Columna 8
+        'M3 ',          // Columna 9
+        'Pux',          // Columna 10
+        'Vux',          // Columna 11
+        'Mux',          // Columna 12
+        'Puy',          // Columna 13
+        'Vuy',          // Columna 14
+        'Muy',          // Columna 15
       ],
       [
-        '', //Columna 1
-        '', //Columna 2
-        'Carga', //Columna 3
-        '(Ton)', //Columna 4
-        '(Ton)', //Columna 5
-        '(Ton)', //Columna 6
-        '(Ton.m)', //Columna 7
-        '(Ton.m)', //Columna 8
-        '(Ton.m)', //Columna 9
-        '(Ton)', //Columna 10
-        '(Ton)', //Columna 11
-        '(Ton.m)', //Columna 12
-        '(Ton)', //Columna 13
-        '(Ton)', //Columna 14
-        '(Ton.m)', //Columna 15
+        '',          // Columna 1
+        '',          // Columna 2
+        'Carga',     // Columna 3
+        '(Ton)',     // Columna 4
+        '(Ton)',     // Columna 5
+        '(Ton)',     // Columna 6
+        '(Ton.m)',   // Columna 7
+        '(Ton.m)',   // Columna 8
+        '(Ton.m)',   // Columna 9
+        '(Ton)',     // Columna 10
+        '(Ton)',     // Columna 11
+        '(Ton.m)',   // Columna 12
+        '(Ton)',     // Columna 13
+        '(Ton)',     // Columna 14
+        '(Ton.m)',   // Columna 15
       ],
     ],
     columns: [
-      { type: 'text' }, // Piso
-      { type: 'text', readOnly: true }, // Placa
-      { type: 'text' }, // Combinaciones de Carga
-      { type: 'numeric' }, // Pu (Ton)
-      { type: 'numeric' }, // 'V2 (Ton)'
-      { type: 'numeric' }, // 'V3 (Ton)'
-      { type: 'numeric' }, // 'T (Ton.m)'
-      { type: 'numeric' }, // 'M2 (Ton.m)'
-      { type: 'numeric' }, // 'M3 (Ton.m)'
-      { type: 'numeric', readOnly: true }, // 'Pux (Ton)'
-      { type: 'numeric', readOnly: true }, // 'Vux (Ton)'
-      { type: 'numeric', readOnly: true }, // 'Mux (Ton.m)'
-      { type: 'numeric', readOnly: true }, // 'Puy (Ton)'
-      { type: 'numeric', readOnly: true }, // 'Vuy (Ton)'
-      { type: 'numeric', readOnly: true }, // 'Muy (Ton.m)'
+      { type: 'text' },                   // Piso
+      { type: 'text', readOnly: true },   // Placa
+      { type: 'text' },                   // Combinaciones de Carga
+      { type: 'numeric' },                // Pu (Ton)
+      { type: 'numeric' },                // V2 (Ton)
+      { type: 'numeric' },                // V3 (Ton)
+      { type: 'numeric' },                // T (Ton.m)
+      { type: 'numeric' },                // M2 (Ton.m)
+      { type: 'numeric' },                // M3 (Ton.m)
+      { type: 'numeric', readOnly: true },// Pux (Ton)
+      { type: 'numeric', readOnly: true },// Vux (Ton)
+      { type: 'numeric', readOnly: true },// Mux (Ton.m)
+      { type: 'numeric', readOnly: true },// Puy (Ton)
+      { type: 'numeric', readOnly: true },// Vuy (Ton)
+      { type: 'numeric', readOnly: true },// Muy (Ton.m)
     ],
+
     afterChange: function (changes, source) {
-      if (source === 'edit') {
+      if (source === 'edit' || source === 'paste') {
         var hot = this;
+        var updates = [];
+
         changes.forEach(function (change) {
-          /* console.log(change) Devuelve un array con 4 valores, row, col, oldValue, newValue */
-          var row = change[0];
-          var col = change[1];
-          /* var oldValue = change[2];
-          var newValue = change[3]; */
+          var row      = change[0];
+          var col      = change[1];
+          var newValue = change[3];
 
           if (col === 3) {
-            hot.setDataAtCell(row, 9, -hot.getDataAtCell(row, col));
-            hot.setDataAtCell(row, 12, -hot.getDataAtCell(row, col));
+            updates.push([row, 9,  newValue !== null ? -newValue : null]);
+            updates.push([row, 12, newValue !== null ? -newValue : null]);
           }
-
           if (col === 4) {
-            hot.setDataAtCell(row, 10, hot.getDataAtCell(row, col));
+            updates.push([row, 10, newValue]);
           }
-
           if (col === 5) {
-            hot.setDataAtCell(row, 13, hot.getDataAtCell(row, col));
+            updates.push([row, 13, newValue]);
           }
-
-          if (col === 6) {
-            //hot.setDataAtCell(row, 13, hot.getDataAtCell(row, col));
-          }
-
           if (col === 7) {
-            hot.setDataAtCell(row, 14, hot.getDataAtCell(row, col));
+            updates.push([row, 14, newValue]);
           }
-
           if (col === 8) {
-            hot.setDataAtCell(row, 11, hot.getDataAtCell(row, col));
+            updates.push([row, 11, newValue]);
           }
         });
+
+        if (updates.length > 0) {
+          hot.setDataAtCell(updates, 'internal');
+        }
       }
     },
+
     afterPaste: function (data, coords) {
-      //console.log(data); /* array de filas */
-      //console.log(coords); /* array con coordenadas de inicio y fin (col-row)*/
-      data.forEach(function (rowData, i) {
-        /* console.log(rowData);
-        console.log(coords); */
-        var startRow = coords[0].startRow;
-        var endRow = coords[0].endRow;
-        var startCol = coords[0].startCol;
-        var endCol = coords[0].endCol;
-        let k = 0;
-        for (let j = startCol; j <= endCol; j++) {
-          //console.log('Fila:', startRow + i);
-          //console.log('Columna:', j);
-          //console.log('Dato:', rowData[k]);
-          //console.log('indice' + k);
-          hot.setDataAtCell(startRow + i, j, rowData[k]);
-          k++;
-        }
-      });
+      var hot       = this;
+      var startRow  = coords[0].startRow;
+      var startCol  = coords[0].startCol;
+
+      hot.suspendRender();
+      try {
+        hot.populateFromArray(
+          startRow, startCol, data, null, null, 'paste'
+        );
+      } finally {
+        hot.resumeRender();
+      }
     },
+
     licenseKey: 'non-commercial-and-evaluation',
   });
 
   document.getElementById('saveDataBtn2').addEventListener('click', saveDataT2);
 
   function saveDataT2() {
-    // Obtener los datos de la tabla
-    solicitudCargaDT2 = hot.getData();
-
-    solicitudCargaDT2 = solicitudCargaDT2.map((row) => row.slice(-6));
-    // extractedValues will contain the values from index 9 to index 14 of the original array
-
-    // Aquí puedes realizar alguna acción con los datos, como enviarlos al servidor o guardarlos en el almacenamiento local
-    //console.log('Datos de la tabla 2:', solicitudCargaDT2);
+    var allData = hot.getData();
+    var pisoData = [];
+    for (var i = 0; i < allData.length; i++) {
+      if (allData[i] && allData[i][0] && String(allData[i][0]).trim() !== '') {
+        pisoData.push(allData[i]);
+      }
+    }
+    console.log('Filtered pisoData T2:', pisoData);
+    solicitudCargaDT2 = pisoData.map((row) => row.slice(-6));
     var contenedor3 = document.getElementById('solicitudCargaT3');
-
     solicitudCargaT3(contenedor3, solicitudCargaDT2, solicitudCargaDT2.length);
   }
 }
 
 export function solicitudCargaT3(contenedor, initialData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
-  var data = [];
-  var puMax = 0;
-  var vuxMax = 0;
-  var muxMax = 0;
-  var vuyMax = 0;
-  var muyMax = 0;
+  container.innerHTML = '';
+  var data      = [];
+  var puMax     = 0;
+  var vuxMax    = 0;
+  var muxMax    = 0;
+  var vuyMax    = 0;
+  var muyMax    = 0;
+  var pisoCount = 0;
+  var rowCount  = 0;
+
   initialData.map((row, i) => {
-    puMax = Math.max(puMax, row[0]);
+    puMax  = Math.max(puMax,  row[0]);
     vuxMax = Math.max(vuxMax, row[1]);
     muxMax = Math.max(muxMax, row[2]);
     vuyMax = Math.max(vuyMax, row[4]);
     muyMax = Math.max(muyMax, row[5]);
-    if ((i + 1) % 17 == 0) {
+
+    rowCount++;
+
+    // Cada piso tiene 17 combinaciones de carga
+    if (rowCount % 17 == 0) {
+      pisoCount++;
       var dataRow = [];
-      dataRow.push('Piso ' + (i + 1) / 17);
+      dataRow.push('Piso ' + pisoCount);
       dataRow.push(puMax);
       dataRow.push(vuxMax);
       dataRow.push(muxMax);
@@ -370,7 +382,7 @@ export function solicitudCargaT3(contenedor, initialData) {
       dataRow.push(muyMax);
       console.log(dataRow);
       data.push(dataRow);
-      puMax = 0;
+      puMax  = 0;
       vuxMax = 0;
       muxMax = 0;
       vuyMax = 0;
@@ -386,17 +398,19 @@ export function solicitudCargaT3(contenedor, initialData) {
     autoWrapRow: true,
     autoWrapCol: true,
     colWidths: [90, 90, 90, 90, 90, 90],
-    renderAllRows: true,
+
+    renderAllRows: false,
     renderAllColumns: true,
-    viewportRowRenderingOffset: 1000,
-    viewportColumnRenderingOffset: 1000,
-    // width: 'max-content',
+    viewportRowRenderingOffset: 15,
+    viewportColumnRenderingOffset: 15,
+    sanitizer: (content) => content,
+
     nestedHeaders: [
       ['Nivel', 'Pu máx', 'Vux máx', 'Mux máx', 'Vuy máx', 'Muy máx'],
       ['', '(Ton)', '(Ton)', '(Ton.m)', '(Ton)', '(Ton.m)'],
     ],
     columns: [
-      { type: 'text', readOnly: true }, // Nivel
+      { type: 'text',    readOnly: true }, // Nivel
       { type: 'numeric', readOnly: true }, // Pu máx (Ton)
       { type: 'numeric', readOnly: true }, // Vux máx (Ton)
       { type: 'numeric', readOnly: true }, // Mux máx (Ton)
@@ -407,13 +421,8 @@ export function solicitudCargaT3(contenedor, initialData) {
     licenseKey: 'non-commercial-and-evaluation',
   });
 
-  //document.getElementById('saveDataBtn3').addEventListener('click', saveDataT3);
-
   function saveDataT3() {
-    // Obtener los datos de la tabla
     solicitudCargaDT3 = hot.getData();
-
-    // Aquí puedes realizar alguna acción con los datos, como enviarlos al servidor o guardarlos en el almacenamiento local
     console.log('Datos de la tabla 3:', solicitudCargaDT3);
   }
   setTimeout(saveDataT3, 1000);

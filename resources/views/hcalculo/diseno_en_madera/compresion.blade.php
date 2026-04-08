@@ -6,7 +6,7 @@
 @endphp
 
 @pushOnce('initscripts')
-  @vite('resources/js/diseño_madera_data.js')
+  @vite('resources/js/diseno_madera_data.js')
 @endPushOnce
 
 <x-calc-layout title="Diseño En Madera | Compresion">
@@ -14,10 +14,14 @@
     x-data="diseño_madera">
     <x-input-data>
       <x-input-select-calc name="Grupo" bind="calcs.grupo" unit="Kg/cm2" :options='$grupos'></x-input-select-calc>
-      <x-input-calc name="Axial" bind="calcs.compresionAxial" unit="cm3"></x-input-calc>
-      <x-input-calc name="Longitud Efectiva" bind="calcs.compresionLongitudEfectiva" unit="cm3"></x-input-calc>
-      <x-input-select-calc name="Sección" bind="calcs.compresionSeccion" unit="Kg/cm2" :options='$secciones'
-        unit="cm3"></x-input-select-calc>
+      <x-input-calc name="Axial" bind="calcs.compresionAxial" unit="kg"></x-input-calc>
+      <x-input-calc name="Longitud Efectiva" bind="calcs.compresionLongitudEfectiva" unit="cm"></x-input-calc>
+      <x-input-select-calc name="Sección" bind="calcs.compresionSeccion" unit="" :options='$secciones'></x-input-select-calc>
+      <div class="mt-4 text-center">
+        <button x-on:click="calcular()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+          Calcular
+        </button>
+      </div>
     </x-input-data>
     <x-output-data>
       <x-table-result title="1.- Prerequisitos del Diseño">

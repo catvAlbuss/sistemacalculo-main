@@ -90,7 +90,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Procesar los datos del formulario
 
     //3.1
-    /*  console.log(zonasSismicas); */
+    // console.log(zonasSismicas); 
     cargarDep(document.getElementById("depaSelect"), zonasSismicas);
 
     /* var departamento = document.getElementById('depaSelect').value; */

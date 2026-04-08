@@ -2,6 +2,7 @@
 <div class="cad-border flex items-center overflow-x-auto overflow-y-hidden border-b px-2">
   <!-- Add more toolbar buttons as needed -->
   <span class="cad-text-logo-color w-48 text-sm font-bold italic">Analisis Estructural De Armaduras</span>
+  <!-- -------------------------APARTADO DE DISEÑAR-------------------------- -->
   <x-cad.ribbon-group title="Diseñar">
     <x-cad.ribbon-button clickHandler="setState(trussDrawingState)" toggle="currentState === trussDrawingState"
       label="Barra">
@@ -25,6 +26,7 @@
             </x-slot>
         </x-cad.ribbon-button-subitem> --}}
   </x-cad.ribbon-group>
+  <!-- -------------------------APARTADO DE TAREAS -------------------------- -->
   <x-cad.ribbon-group title="Tareas">
     <form class="flex flex-row" x-on:submit="calcularFuerzas">
       @csrf
@@ -36,11 +38,13 @@
       <x-cad.svg.pdf></x-cad.svg.pdf>
     </x-cad.ribbon-button>
   </x-cad.ribbon-group>
+  <!-- -------------------------APARTADO DE ESTRUCTURA ----------------------- -->
   <x-cad.ribbon-group title="Estructura">
     <x-cad.ribbon-button clickHandler="options.showWireframe = !options.showWireframe" toggle="options.showWireframe"
       label="Wireframe">
       <x-cad.svg.wireframe></x-cad.svg.wireframe>
     </x-cad.ribbon-button>
+    <!-- SECCION DE FUERZAZ -->
     <x-cad.ribbon-button-subitem clickHandler="options.showForces = !options.showForces" label="Fuerzas"
       toggle="options.showForces">
       <x-slot name="slot1"><x-cad.svg.force></x-cad.svg.force></x-slot>
@@ -61,14 +65,17 @@
         </div>
       </x-slot>
     </x-cad.ribbon-button-subitem>
+    <!-- SECCION DE MATERIALES -->
     <x-cad.ribbon-button clickHandler="options.showMaterials = !options.showMaterials" toggle="options.showMaterials"
       label="Materiales">
       <x-cad.svg.material></x-cad.svg.material>
     </x-cad.ribbon-button>
+    <!-- SECCION ID -->
     <x-cad.ribbon-button clickHandler="options.showIDs = !options.showIDs" toggle="options.showIDs" label="ID">
       <x-cad.svg.id></x-cad.svg.id>
     </x-cad.ribbon-button>
   </x-cad.ribbon-group>
+  <!-- -------------------------APARTADO DE LOS RESULTADOS------------------------ -->
   <x-cad.ribbon-group title="Resultados">
     <x-cad.ribbon-button-subitem clickHandler="options.showDeflection = !options.showDeflection" label="Deflección"
       toggle="options.showDeflection">
@@ -95,12 +102,16 @@
       </x-slot>
     </x-cad.ribbon-button-subitem>
   </x-cad.ribbon-group>
+  <!-- -------------------------APARTADO DE PARAMETRIZADO ----------------------- -->
   <x-cad.ribbon-group title="Parametrizado">
     <x-cad.ribbon-button clickHandler="creaArco()" toggle="false" label="Arco">
+      <x-cad.svg.arco></x-cad.svg.arco>
     </x-cad.ribbon-button>
     <x-cad.ribbon-button clickHandler="creaTriangulo()" toggle="false" label="Triangulo">
+      <x-cad.svg.triangle></x-cad.svg.triangle>
     </x-cad.ribbon-button>
     <x-cad.ribbon-button clickHandler="creaElipse()" toggle="false" label="Elipse">
+      <x-cad.svg.ellipse></x-cad.svg.ellipse>
     </x-cad.ribbon-button>
   </x-cad.ribbon-group>
 </div>
