@@ -210,15 +210,15 @@ $logout = function (Logout $logout) {
                             ],
                         ]"></x-dropdown-sub>
                         <x-dropdown-sub label="{{ __('Programas') }}" :links="[
-                            ['url' => 'software.aligerados-v1', 'label' => 'Aligerados v1.0'],
-                            ['url' => 'software.aligerados-v2', 'label' => 'Aligerados v2.0'],
-                            ['url' => 'software.cimentacion-v1', 'label' => 'Cimentacion v1.0'],
-                            ['url' => 'software.cimentacion-v2', 'label' => 'Cimentacion v2.0'],
-                            ['url' => 'software.analisis-estructural-de-armaduras', 'label' => 'Analisis Estructural'],
+                            ['url' => route('software.aligerados-v1'), 'label' => 'Aligerados v1.0'],
+                            ['url' => route('software.aligerados-v2'), 'label' => 'Aligerados v2.0'],
+                            ['url' => route('software.cimentacion-v1'), 'label' => 'Cimentacion v1.0'],
+                            ['url' => route('software.cimentacion-v2'), 'label' => 'Cimentacion v2.0'],
+                            ['url' => route('software.analisis-estructural-de-armaduras'), 'label' => 'Analisis Estructural'],
                             ['url' => route('calculadora.asistente.muros-de-contencionv2'),'label' => 'Diseño de Muros de ContenciónV2'],
                         ]"></x-dropdown-sub>
 
-                        <x-dropdown-link :href="route('software.predim')" :active="request()->routeIs('software.predim')">
+                        <x-dropdown-link :href="route('software.predimv2')" :active="request()->routeIs('software.predimv2')">
                             {{ __('Predim') }}
                         </x-dropdown-link>
                         <x-dropdown-link :href="route('calculadora.estudiante.arco_techo')" :active="request()->routeIs('calculadora.estudiante.arco_techo')">
@@ -230,12 +230,12 @@ $logout = function (Logout $logout) {
                     <x-dropdown-nav-item name="{{ __('Revisor') }}" :active="request()->routeIs('software.*')">
                         
                         <x-dropdown-sub label="{{ __('Verificacion') }}" :links="[
-                            ['url' => 'software.anclaje-v1', 'label' => 'Anclaje'],
-                            ['url' => 'software.base-dinamica-v1', 'label' => 'Bases Dinamicas'],
-                            ['url' => 'software.estribo-columna-placa-v1', 'label' => 'Estribo Columna Placa'],
-                            ['url' => 'software.estribo-placa-v1', 'label' => 'Estribo de Placas'],
-                            ['url' => 'software.predim-viga-v1', 'label' => 'Predim Viga'],
-                            ['url' => 'software.verificacion-viga-v1', 'label' => 'Viga Verifica'],
+                            ['url' => route('software.anclaje-v1'), 'label' => 'Anclaje'],
+                            ['url' => route('software.base-dinamica-v1'), 'label' => 'Bases Dinamicas'],
+                            ['url' => route('software.estribo-columna-placa-v1'), 'label' => 'Estribo Columna Placa'],
+                            ['url' => route('software.estribo-placa-v1'), 'label' => 'Estribo de Placas'],
+                            ['url' => route('software.predim-viga-v1'), 'label' => 'Predim Viga'],
+                            ['url' => route('software.verificacion-viga-v1'), 'label' => 'Viga Verifica'],
                             ['url' => route('calculadora.estudiante.cav2.hoja2'),'label' => 'VRD-ALIG'],
                         ]"></x-dropdown-sub>
 
@@ -317,7 +317,7 @@ $logout = function (Logout $logout) {
         </div>
         <div class="space-y-1 pb-3 pt-2">
             <x-dropdown-nav-item name="{{ __('Estudiante') }}" component="responsive-nav-item" :active="request()->routeIs('calculadora.estudiante.*')">
-                <x-dropdown-link :href="route('software.predim')" :active="request()->routeIs('software.predim')">
+                <x-dropdown-link :href="route('software.predimv2')" :active="request()->routeIs('software.predimv2')">
                     {{ __('Predim') }}
                 </x-dropdown-link>
                 <x-dropdown-link :href="route('calculadora.estudiante.arco_techo')" :active="request()->routeIs('calculadora.estudiante.arco_techo')">
@@ -464,11 +464,11 @@ $logout = function (Logout $logout) {
         <div class="space-y-1 pb-3 pt-2">
             <x-dropdown-nav-item name="{{ __('Diseñador') }}" component="responsive-nav-item" :active="request()->routeIs('software.*')">
                 <x-dropdown-sub label="{{ __('Programas') }}" :links="[
-                    ['url' => 'software.aligerados-v1', 'label' => 'Aligerados v1.0'],
-                    ['url' => 'software.aligerados-v2', 'label' => 'Aligerados v2.0'],
-                    ['url' => 'software.cimentacion-v1', 'label' => 'Cimentacion v1.0'],
-                    ['url' => 'software.cimentacion-v2', 'label' => 'Cimentacion v2.0'],
-                    ['url' => 'software.analisis-estructural-de-armaduras', 'label' => 'Analisis Estructural'],
+                    ['url' => route('software.aligerados-v1'), 'label' => 'Aligerados v1.0'],
+                    ['url' => route('software.aligerados-v2'), 'label' => 'Aligerados v2.0'],
+                    ['url' => route('software.cimentacion-v1'), 'label' => 'Cimentacion v1.0'],
+                    ['url' => route('software.cimentacion-v2'), 'label' => 'Cimentacion v2.0'],
+                    ['url' => route('software.analisis-estructural-de-armaduras'), 'label' => 'Analisis Estructural'],
                 ]"></x-dropdown-sub>
             </x-dropdown-nav-item>
         </div>
