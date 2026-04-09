@@ -529,8 +529,8 @@
     </div>
 
     @pushOnce('scripts')
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/paper.js/0.12.17/paper-full.min.js"></script>
       <script src="https://cdn.jsdelivr.net/npm/echarts@latest/dist/echarts.min.js"></script>
-      <script type="module" src="https://cdn.jsdelivr.net/npm/chart.js"></script>
       @vite('resources/js/adm_zapata_conectada.js')
     @endpushOnce
 </x-calc-layout>

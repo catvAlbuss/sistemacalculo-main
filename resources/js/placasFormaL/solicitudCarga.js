@@ -8,6 +8,7 @@ export function solicitudCargaT1(contenedor) {
   ];
 
   var container = contenedor;
+
   var hot = new Handsontable(container, {
     data: data,
     rowHeaders: false,

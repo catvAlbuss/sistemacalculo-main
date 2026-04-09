@@ -6,7 +6,7 @@
 @endphp
 
 @pushOnce('initscripts')
-  @vite('resources/js/diseño_madera_data.js')
+  @vite('resources/js/diseno_madera_data.js')
 @endPushOnce
 
 <x-calc-layout title="Diseño En Madera | Flexotracción">
@@ -15,12 +15,14 @@
     <x-input-data>
       <x-input-select-calc name="Grupo" bind="calcs.grupo" unit="Kg/cm2" :options='$grupos'></x-input-select-calc>
       <x-input-calc name="Longitud efectiva" symbol="lef" bind="calcs.diseñoLef" unit="m"></x-input-calc>
+      <x-input-select-calc name="Sección" bind="calcs.flexotraccionSeccion" unit="" :options='$secciones'></x-input-select-calc>
       <x-input-calc name="Axial" bind="calcs.flexotraccionAxial" unit="kg"></x-input-calc>
       <x-input-calc name="Momento" bind="calcs.flexotraccionMomento" unit="kg-m"></x-input-calc>
-      <x-input-select-calc name="Sección" bind="calcs.flexotraccionSeccion" unit="Kg/cm2" :options='$secciones'
-        unit="cm3"></x-input-select-calc>
-      <x-input-calc symbol="b" bind="calcs.flexotraccionB" unit="pulg"></x-input-calc>
-      <x-input-calc symbol="d" bind="calcs.flexotraccionD" unit="pulg"></x-input-calc>
+      <div class="mt-4 text-center">
+        <button x-on:click="calcular()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+          Calcular
+        </button>
+      </div>
     </x-input-data>
     <x-output-data>
       <x-table-result title="1.- Prerequisitos del Diseño">
@@ -48,8 +50,7 @@
         <x-output-calc name="Zx" bind="calcs.flexotraccionZx" unit="cm3"></x-output-calc>
       </x-table-result>
       <x-table-result title="2.- Flexotracción">
-        <x-output-calc name="Donde" bind="calcs.flexotraccionDonde"></x-output-calc>
-        <x-output-calc formula="< 1" bind="calcs.flexotraccionCambiarSeccion"></x-output-calc>
+        <x-output-calc name="Factor" symbol="< 1" bind="calcs.flexotraccionCambiarSeccion"></x-output-calc>
         <x-output-calc name="Usar" bind="calcs.flexotraccionUsar" unit="pulg"></x-output-calc>
       </x-table-result>
     </x-output-data>

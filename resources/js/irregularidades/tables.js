@@ -1204,4 +1204,4 @@ document.addEventListener("DOMContentLoaded", () => {
 //     if (window.irregularidadMasaPeso?.render) {
 //         window.irregularidadMasaPeso.render();
 //         window.irregularidadMasaPeso.refreshDimensions();
-//    
+

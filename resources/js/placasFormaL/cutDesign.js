@@ -4,7 +4,10 @@ export var tableData3 = [];
 
 /* ------------------------ Análsis en X ------------------------ */
 export function cutDesignT1X(contenedor, initialData, formData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
   // Tipo sistema Estructural = Muros Estructurales
@@ -105,57 +108,147 @@ export function cutDesignT1X(contenedor, initialData, formData) {
       { type: 'numeric', readOnly: true }, // 'Vcx (Ton)',
     ],
     afterChange: function (changes, source) {
-      if (source === 'edit') {
+      if (source === 'edit' || source === 'CopyPaste.paste') {
         var hot = this;
-        changes.forEach(function (change) {
-          /* console.log(change) Devuelve un array con 4 valores, row, col, oldValue, newValue */
-          var row = change[0];
-          var col = change[1];
-          //var oldValue = change[2];
-          var newValue = change[3];
 
-          if (col === 2) {
-            // Valor h -> newValue
-            var h = newValue;
-            // Valor hm (m)
-            var hm = 0;
-            for (let i = 0; i < hot.countRows(); i++) {
-              hm += hot.getDataAtCell(i, 2);
-            }
-            if (row == 0) {
-              hot.setDataAtCell(row, 4, hm);
-              hot.setDataAtCell(row, 3, h);
+        // Agrupar cambios en col 2 para recalcular en lote
+        var col2Changes = changes.filter(c => c[1] === 2);
+        var otherChanges = changes.filter(c => c[1] !== 2);
+
+        // Procesar columna h (col 2) en lote para evitar recálculos repetidos
+        if (col2Changes.length > 0) {
+          // Calcular hm total una sola vez
+          var hm = 0;
+          for (let i = 0; i < hot.countRows(); i++) {
+            var val = hot.getDataAtCell(i, 2);
+            hm += (val !== null && val !== '') ? parseFloat(val) : 0;
+          }
+
+          var batchUpdates = [];
+
+          // Primera pasada: calcular hm acumulado (col 3) y hm (col 4)
+          // Reconstruir desde fila 0 si hay múltiples cambios
+          var hAcum = 0;
+          for (let i = 0; i < hot.countRows(); i++) {
+            var hVal = hot.getDataAtCell(i, 2);
+            if (hVal === null || hVal === '') continue;
+            hVal = parseFloat(hVal);
+            hAcum += hVal;
+            batchUpdates.push([i, 3, hAcum]); // hm acumulado
+          }
+
+          // hm (col 4): fila 0 = total hm, resto = hm_acum[i-1] - h[i]
+          // Reconstruir hm acumulado acumulado para col 4
+          var acumAnterior = 0;
+          for (let i = 0; i < hot.countRows(); i++) {
+            var hVal = hot.getDataAtCell(i, 2);
+            if (hVal === null || hVal === '') continue;
+            hVal = parseFloat(hVal);
+            if (i === 0) {
+              batchUpdates.push([0, 4, hm]);
             } else {
-              hot.setDataAtCell(row, 3, h + hot.getDataAtCell(row - 1, 3));
-              hot.setDataAtCell(0, 4, hm);
-              hot.setDataAtCell(row, 4, hot.getDataAtCell(row - 1, 3) - h);
+              batchUpdates.push([i, 4, acumAnterior - hVal]);
             }
+            acumAnterior += hVal;
+          }
+
+          // Calcular cociente y aplica para cada fila modificada
+          col2Changes.forEach(function (change) {
+            var row = change[0];
+            var newValue = parseFloat(change[3]);
+
             // Cociente
             var cociente = 0;
             if (row == 0) {
+              var h1 = parseFloat(hot.getDataAtCell(1, 2)) || 0;
               cociente = Math.max(
                 hot.getDataAtCell(row, 1),
-                newValue + hot.getDataAtCell(1, 2),
+                newValue + h1,
                 0.25 * (hot.getDataAtCell(0, 6) / hot.getDataAtCell(0, 5))
               );
-            }
-            if (row == 1) {
+            } else if (row == 1) {
               cociente = Math.max(
                 hot.getDataAtCell(row, 1),
-                hot.getDataAtCell(0, 2) + newValue,
+                parseFloat(hot.getDataAtCell(0, 2)) + newValue,
                 0.25 * (hot.getDataAtCell(0, 6) / hot.getDataAtCell(0, 5))
-                /* 0.25 * (hot.getDataAtCell(row, 6) / hot.getDataAtCell(row, 5)) */
               );
             } else {
+              var h0 = parseFloat(hot.getDataAtCell(0, 2)) || 0;
+              var h1 = parseFloat(hot.getDataAtCell(1, 2)) || 0;
               cociente = Math.max(
                 hot.getDataAtCell(row, 1),
-                hot.getDataAtCell(0, 2) + hot.getDataAtCell(1, 2),
+                h0 + h1,
                 0.25 * (hot.getDataAtCell(0, 6) / hot.getDataAtCell(0, 5))
-                /* 0.25 * (hot.getDataAtCell(row, 6) / hot.getDataAtCell(row, 5)) */
               );
             }
-            hot.setDataAtCell(row, 7, cociente);
-          }
+            batchUpdates.push([row, 7, cociente]);
+
+            // hm acumulado para aplica (buscar en batchUpdates lo que calculamos)
+            var hmAcumRow = batchUpdates.find(u => u[0] === row && u[1] === 3);
+            var hacum = hmAcumRow ? hmAcumRow[2] : hot.getDataAtCell(row, 3);
+            var fijo = batchUpdates.find(u => u[0] === 0 && u[1] === 3);
+            var fijoVal = fijo ? fijo[2] : hot.getDataAtCell(0, 3);
+            var aplica =
+              parseFloat((hacum - fijoVal).toFixed(2)) < cociente
+                ? 'Sí aplica'
+                : 'No aplica';
+            batchUpdates.push([row, 8, aplica]);
+
+            // hm/lm (col 12) - usar col 4 calculada
+            var hmRow = batchUpdates.find(u => u[0] === row && u[1] === 4);
+            var hmVal = hmRow ? hmRow[2] : hot.getDataAtCell(row, 4);
+            var hmlm = hmVal / hot.getDataAtCell(row, 1);
+            batchUpdates.push([row, 12, hmlm]);
+
+            // αc (col 13)
+            var ac = hmlm <= 1.5
+              ? 0.8
+              : hmlm >= 2
+              ? 0.53
+              : 0.53 - ((0.53 - 0.8) * (2 - hmlm)) / (2 - 1.5);
+            batchUpdates.push([row, 13, ac]);
+
+            // Vcx máx (col 14)
+            var vcxMax = formData.acwxDC * Math.sqrt(formData.fcDF) * ac * 10;
+            batchUpdates.push([row, 14, vcxMax]);
+
+            // Vcx (col 17)
+            var nuVal = hot.getDataAtCell(row, 15);
+            var betaVal = hot.getDataAtCell(row, 16);
+            if (nuVal == '-') {
+              batchUpdates.push([row, 17, vcxMax]);
+            } else {
+              var beta = 1 - parseFloat(nuVal) / (35 * formData.exDF * hot.getDataAtCell(row, 1) * 10);
+              batchUpdates.push([row, 16, beta]);
+              batchUpdates.push([row, 17, vcxMax * beta]);
+            }
+          });
+
+          // Aplica actualización para filas con aplica calculado
+          // Vux (col 11) en lote
+          col2Changes.forEach(function (change) {
+            var row = change[0];
+            var aplicaEntry = batchUpdates.filter(u => u[0] === row && u[1] === 8);
+            var aplica = aplicaEntry.length > 0 ? aplicaEntry[aplicaEntry.length - 1][2] : hot.getDataAtCell(row, 8);
+            var mnxMua = hot.getDataAtCell(row, 10);
+            var vua = hot.getDataAtCell(row, 5);
+            batchUpdates.push([
+              row, 11,
+              aplica == 'Sí aplica'
+                ? vua * mnxMua
+                : vua
+            ]);
+          });
+
+          hot.setDataAtCell(batchUpdates, 'internal_update');
+          return;
+        }
+
+        // Cambios en otras columnas: lógica original sin modificar
+        changes.forEach(function (change) {
+          var row = change[0];
+          var col = change[1];
+          var newValue = change[3];
 
           if (col === 3) {
             if (row + 1 < hot.countRows()) {
@@ -165,23 +258,6 @@ export function cutDesignT1X(contenedor, initialData, formData) {
                 newValue + hot.getDataAtCell(row + 1, 2)
               );
             }
-            // Cociente
-            /*var cociente = hot.getDataAtCell(row, 7);
-             if (row + 1 < hot.countRows()) {
-              cociente = Math.max(
-                hot.getDataAtCell(row, 1),
-                hot.getDataAtCell(row, 2) + hot.getDataAtCell(row + 1, 2),
-                0.25 * (hot.getDataAtCell(row, 6) / hot.getDataAtCell(row, 5))
-              );
-            } else {
-              cociente = Math.max(
-                hot.getDataAtCell(row, 1),
-                hot.getDataAtCell(row, 2) + 0,
-                // hot.getDataAtCell(row, 2) + hot.getDataAtCell(row + 1, 2),
-                0.25 * (hot.getDataAtCell(row, 6) / hot.getDataAtCell(row, 5))
-              );
-            } 
-            hot.setDataAtCell(row, 7, cociente);*/
             var fijo = hot.getDataAtCell(0, 3);
             var aplica =
               parseFloat((newValue - fijo).toFixed(2)) <
@@ -189,7 +265,6 @@ export function cutDesignT1X(contenedor, initialData, formData) {
                 ? 'Sí aplica'
                 : 'No aplica';
             hot.setDataAtCell(row, 8, aplica);
-            //console.log(row,`hmacu ${newValue}  fijo ${fijo}  resta ${newValue - fijo}`,` $cociente ${hot.getDataAtCell(row, 7)}`);
           }
 
           if (col === 4) {
@@ -197,17 +272,14 @@ export function cutDesignT1X(contenedor, initialData, formData) {
               hot.setDataAtCell(
                 row + 1,
                 4,
-                /* hot.getDataAtCell(row, 3) - hot.getDataAtCell(row + 1, 2) */
                 newValue - hot.getDataAtCell(row + 1, 2)
               );
             }
-            // Valor hm/lm
             var hmlm = newValue / hot.getDataAtCell(row, 1);
             hot.setDataAtCell(row, 12, hmlm);
           }
 
           if (col == 7) {
-            // Valor Tipo de Muro
             var fijo = hot.getDataAtCell(0, 3);
             var hacum = hot.getDataAtCell(row, 3);
             var aplica =
@@ -216,8 +288,7 @@ export function cutDesignT1X(contenedor, initialData, formData) {
                 : 'No aplica';
             hot.setDataAtCell(row, 8, aplica);
           }
-          // if(col == 5)
-          // if(col == 6)
+
           if (col == 8) {
             hot.setDataAtCell(
               row,
@@ -300,27 +371,37 @@ export function cutDesignT1X(contenedor, initialData, formData) {
             );
           }
         });
-        /* CheckData(); */
       }
     },
     afterPaste: function (data, coords) {
-      console.log(data); /* array de filas */
-      console.log(coords); /* array con coordenadas de inicio y fin (col-row)*/
-      data.forEach(function (rowData, i) {
-        var startRow = coords[0].startRow;
-        /* var endRow = coords[0].endRow; */
-        var startCol = coords[0].startCol;
-        var endCol = coords[0].endCol;
-        let k = 0;
-        for (let j = startCol; j <= endCol; j++) {
-          /* console.log('Fila:', startRow + i);
-            console.log('Columna:', j);
-            console.log('Dato:', rowData[k]);
-            console.log('indice' + k); */
-          hot.setDataAtCell(startRow + i, j, rowData[k]);
-          k++;
-        }
-      });
+      console.log(data);
+      console.log(coords);
+      var hot = this;
+      var startRow = coords[0].startRow;
+      var startCol = coords[0].startCol;
+      var endCol = coords[0].endCol;
+
+      // Si el pegado incluye columna h (col 2), procesar en lote
+      if (startCol <= 2 && endCol >= 2) {
+        var batchSet = [];
+        data.forEach(function (rowData, i) {
+          let k = 0;
+          for (let j = startCol; j <= endCol; j++) {
+            batchSet.push([startRow + i, j, rowData[k]]);
+            k++;
+          }
+        });
+        hot.setDataAtCell(batchSet, 'CopyPaste.paste');
+      } else {
+        // Pegado normal para otras columnas
+        data.forEach(function (rowData, i) {
+          var k = 0;
+          for (let j = startCol; j <= endCol; j++) {
+            hot.setDataAtCell(startRow + i, j, rowData[k]);
+            k++;
+          }
+        });
+      }
     },
     licenseKey: 'non-commercial-and-evaluation',
   });
@@ -347,8 +428,6 @@ export function cutDesignT1X(contenedor, initialData, formData) {
       console.log('Datos de la tabla DC T1X:', tableData1);
       var cutDesingT2X = document.getElementById('cutDesingT2X');
       cutDesignT2X(cutDesingT2X, formData);
-      //var flexDesingT3X = document.getElementById('flexDesingT3X');
-      //flexDesignT3X(flexDesingT3X, tableData, formData);
     } else {
       alert('Hay celdas vacías');
     }
@@ -357,7 +436,10 @@ export function cutDesignT1X(contenedor, initialData, formData) {
 
 //Tabla Análisis en Dirección "2 x"
 export function cutDesignT2X(contenedor, formData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
   var initialData = tableData1;
   var data = [];
 
@@ -480,7 +562,10 @@ export function cutDesignT2X(contenedor, formData) {
 
 //Tabla Análisis en Dirección "3 x"
 export function cutDesignT3X(contenedor, formData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
 
@@ -775,7 +860,10 @@ export function cutDesignT3X(contenedor, formData) {
 
 //Tabla Análisis en Dirección "4 x"
 export function cutDesignT4X(contenedor) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
 
@@ -836,7 +924,10 @@ var tableData2Y = [];
 export var tableData3Y = [];
 
 export function cutDesignT1Y(contenedor, initialData, formData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
   // Tipo sistema Estructural = Muros Estructurales
@@ -937,57 +1028,143 @@ export function cutDesignT1Y(contenedor, initialData, formData) {
       { type: 'numeric', readOnly: true }, // 'Vcy (Ton)',
     ],
     afterChange: function (changes, source) {
-      if (source === 'edit') {
+      if (source === 'edit' || source === 'CopyPaste.paste') {
         var hot = this;
-        changes.forEach(function (change) {
-          /* console.log(change) Devuelve un array con 4 valores, row, col, oldValue, newValue */
-          var row = change[0];
-          var col = change[1];
-          //var oldValue = change[2];
-          var newValue = change[3];
 
-          if (col === 2) {
-            // Valor h -> newValue
-            var h = newValue;
-            // Valor hm (m)
-            var hm = 0;
-            for (let i = 0; i < hot.countRows(); i++) {
-              hm += hot.getDataAtCell(i, 2);
-            }
-            if (row == 0) {
-              hot.setDataAtCell(row, 4, hm);
-              hot.setDataAtCell(row, 3, h);
+        // Agrupar cambios en col 2 para recalcular en lote
+        var col2Changes = changes.filter(c => c[1] === 2);
+        var otherChanges = changes.filter(c => c[1] !== 2);
+
+        // Procesar columna h (col 2) en lote para evitar recálculos repetidos
+        if (col2Changes.length > 0) {
+          // Calcular hm total una sola vez
+          var hm = 0;
+          for (let i = 0; i < hot.countRows(); i++) {
+            var val = hot.getDataAtCell(i, 2);
+            hm += (val !== null && val !== '') ? parseFloat(val) : 0;
+          }
+
+          var batchUpdates = [];
+
+          // Primera pasada: calcular hm acumulado (col 3) y hm (col 4)
+          var hAcum = 0;
+          for (let i = 0; i < hot.countRows(); i++) {
+            var hVal = hot.getDataAtCell(i, 2);
+            if (hVal === null || hVal === '') continue;
+            hVal = parseFloat(hVal);
+            hAcum += hVal;
+            batchUpdates.push([i, 3, hAcum]); // hm acumulado
+          }
+
+          // hm (col 4)
+          var acumAnterior = 0;
+          for (let i = 0; i < hot.countRows(); i++) {
+            var hVal = hot.getDataAtCell(i, 2);
+            if (hVal === null || hVal === '') continue;
+            hVal = parseFloat(hVal);
+            if (i === 0) {
+              batchUpdates.push([0, 4, hm]);
             } else {
-              hot.setDataAtCell(row, 3, h + hot.getDataAtCell(row - 1, 3));
-              hot.setDataAtCell(0, 4, hm);
-              hot.setDataAtCell(row, 4, hot.getDataAtCell(row - 1, 3) - h);
+              batchUpdates.push([i, 4, acumAnterior - hVal]);
             }
+            acumAnterior += hVal;
+          }
+
+          // Calcular cociente y aplica para cada fila modificada
+          col2Changes.forEach(function (change) {
+            var row = change[0];
+            var newValue = parseFloat(change[3]);
+
             // Cociente
             var cociente = 0;
             if (row == 0) {
+              var h1 = parseFloat(hot.getDataAtCell(1, 2)) || 0;
               cociente = Math.max(
                 hot.getDataAtCell(row, 1),
-                newValue + hot.getDataAtCell(1, 2),
+                newValue + h1,
                 0.25 * (hot.getDataAtCell(0, 6) / hot.getDataAtCell(0, 5))
               );
-            }
-            if (row == 1) {
+            } else if (row == 1) {
               cociente = Math.max(
                 hot.getDataAtCell(row, 1),
-                hot.getDataAtCell(0, 2) + newValue,
+                parseFloat(hot.getDataAtCell(0, 2)) + newValue,
                 0.25 * (hot.getDataAtCell(0, 6) / hot.getDataAtCell(0, 5))
-                /* 0.25 * (hot.getDataAtCell(row, 6) / hot.getDataAtCell(row, 5)) */
               );
             } else {
+              var h0 = parseFloat(hot.getDataAtCell(0, 2)) || 0;
+              var h1 = parseFloat(hot.getDataAtCell(1, 2)) || 0;
               cociente = Math.max(
                 hot.getDataAtCell(row, 1),
-                hot.getDataAtCell(0, 2) + hot.getDataAtCell(1, 2),
+                h0 + h1,
                 0.25 * (hot.getDataAtCell(0, 6) / hot.getDataAtCell(0, 5))
-                /* 0.25 * (hot.getDataAtCell(row, 6) / hot.getDataAtCell(row, 5)) */
               );
             }
-            hot.setDataAtCell(row, 7, cociente);
-          }
+            batchUpdates.push([row, 7, cociente]);
+
+            // aplica
+            var hmAcumRow = batchUpdates.find(u => u[0] === row && u[1] === 3);
+            var hacum = hmAcumRow ? hmAcumRow[2] : hot.getDataAtCell(row, 3);
+            var fijo = batchUpdates.find(u => u[0] === 0 && u[1] === 3);
+            var fijoVal = fijo ? fijo[2] : hot.getDataAtCell(0, 3);
+            var aplica =
+              parseFloat((hacum - fijoVal).toFixed(2)) < cociente
+                ? 'Sí aplica'
+                : 'No aplica';
+            batchUpdates.push([row, 8, aplica]);
+
+            // hm/lm (col 12)
+            var hmRow = batchUpdates.find(u => u[0] === row && u[1] === 4);
+            var hmVal = hmRow ? hmRow[2] : hot.getDataAtCell(row, 4);
+            var hmlm = hmVal / hot.getDataAtCell(row, 1);
+            batchUpdates.push([row, 12, hmlm]);
+
+            // αc (col 13)
+            var ac = hmlm <= 1.5
+              ? 0.8
+              : hmlm >= 2
+              ? 0.53
+              : 0.53 - ((0.53 - 0.8) * (2 - hmlm)) / (2 - 1.5);
+            batchUpdates.push([row, 13, ac]);
+
+            // Vcy máx (col 14)
+            var vcyMax = formData.acwyDC * Math.sqrt(formData.fcDF) * ac * 10;
+            batchUpdates.push([row, 14, vcyMax]);
+
+            // Vcy (col 17)
+            var nuVal = hot.getDataAtCell(row, 15);
+            if (nuVal == '-') {
+              batchUpdates.push([row, 17, vcyMax]);
+            } else {
+              var beta = 1 - parseFloat(nuVal) / (35 * formData.eyDF * hot.getDataAtCell(row, 1) * 10);
+              batchUpdates.push([row, 16, beta]);
+              batchUpdates.push([row, 17, vcyMax * beta]);
+            }
+          });
+
+          // Vuy (col 11) en lote
+          col2Changes.forEach(function (change) {
+            var row = change[0];
+            var aplicaEntry = batchUpdates.filter(u => u[0] === row && u[1] === 8);
+            var aplica = aplicaEntry.length > 0 ? aplicaEntry[aplicaEntry.length - 1][2] : hot.getDataAtCell(row, 8);
+            var mnxMua = hot.getDataAtCell(row, 10);
+            var vua = hot.getDataAtCell(row, 5);
+            batchUpdates.push([
+              row, 11,
+              aplica == 'Sí aplica'
+                ? vua * mnxMua
+                : vua
+            ]);
+          });
+
+          hot.setDataAtCell(batchUpdates, 'internal_update');
+          return;
+        }
+
+        // Cambios en otras columnas: lógica original sin modificar
+        changes.forEach(function (change) {
+          var row = change[0];
+          var col = change[1];
+          var newValue = change[3];
 
           if (col === 3) {
             if (row + 1 < hot.countRows()) {
@@ -1011,17 +1188,14 @@ export function cutDesignT1Y(contenedor, initialData, formData) {
               hot.setDataAtCell(
                 row + 1,
                 4,
-                /* hot.getDataAtCell(row, 3) - hot.getDataAtCell(row + 1, 2) */
                 newValue - hot.getDataAtCell(row + 1, 2)
               );
             }
-            // Valor hm/lm
             var hmlm = newValue / hot.getDataAtCell(row, 1);
             hot.setDataAtCell(row, 12, hmlm);
           }
 
           if (col == 7) {
-            // Valor Tipo de Muro
             var fijo = hot.getDataAtCell(0, 3);
             var hacum = hot.getDataAtCell(row, 3);
             var aplica =
@@ -1030,8 +1204,7 @@ export function cutDesignT1Y(contenedor, initialData, formData) {
                 : 'No aplica';
             hot.setDataAtCell(row, 8, aplica);
           }
-          // if(col == 5)
-          // if(col == 6)
+
           if (col == 8) {
             hot.setDataAtCell(
               row,
@@ -1114,27 +1287,36 @@ export function cutDesignT1Y(contenedor, initialData, formData) {
             );
           }
         });
-        /* CheckData(); */
       }
     },
     afterPaste: function (data, coords) {
-      console.log(data); /* array de filas */
-      console.log(coords); /* array con coordenadas de inicio y fin (col-row)*/
-      data.forEach(function (rowData, i) {
-        var startRow = coords[0].startRow;
-        /* var endRow = coords[0].endRow; */
-        var startCol = coords[0].startCol;
-        var endCol = coords[0].endCol;
-        let k = 0;
-        for (let j = startCol; j <= endCol; j++) {
-          /* console.log('Fila:', startRow + i);
-                console.log('Columna:', j);
-                console.log('Dato:', rowData[k]);
-                console.log('indice' + k); */
-          hot.setDataAtCell(startRow + i, j, rowData[k]);
-          k++;
-        }
-      });
+      console.log(data);
+      console.log(coords);
+      var hot = this;
+      var startRow = coords[0].startRow;
+      var startCol = coords[0].startCol;
+      var endCol = coords[0].endCol;
+
+      // Si el pegado incluye columna h (col 2), procesar en lote
+      if (startCol <= 2 && endCol >= 2) {
+        var batchSet = [];
+        data.forEach(function (rowData, i) {
+          let k = 0;
+          for (let j = startCol; j <= endCol; j++) {
+            batchSet.push([startRow + i, j, rowData[k]]);
+            k++;
+          }
+        });
+        hot.setDataAtCell(batchSet, 'CopyPaste.paste');
+      } else {
+        data.forEach(function (rowData, i) {
+          var k = 0;
+          for (let j = startCol; j <= endCol; j++) {
+            hot.setDataAtCell(startRow + i, j, rowData[k]);
+            k++;
+          }
+        });
+      }
     },
     licenseKey: 'non-commercial-and-evaluation',
   });
@@ -1161,8 +1343,6 @@ export function cutDesignT1Y(contenedor, initialData, formData) {
       console.log('Datos de la tabla DC T1X:', tableData1Y);
       var cutDesingT2Y = document.getElementById('cutDesingT2Y');
       cutDesignT2Y(cutDesingT2Y, formData);
-      //var flexDesingT3X = document.getElementById('flexDesingT3X');
-      //flexDesignT3X(flexDesingT3X, tableData, formData);
     } else {
       alert('Hay celdas vacías');
     }
@@ -1171,7 +1351,10 @@ export function cutDesignT1Y(contenedor, initialData, formData) {
 
 //Tabla Análisis en Dirección "2 Y"
 export function cutDesignT2Y(contenedor, formData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
   var initialData = tableData1Y;
   var data = [];
 
@@ -1292,9 +1475,12 @@ export function cutDesignT2Y(contenedor, formData) {
   }
 }
 
-//Tabla Análisis en Dirección "3 x"
+//Tabla Análisis en Dirección "3 Y"
 export function cutDesignT3Y(contenedor, formData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
 
@@ -1588,9 +1774,12 @@ export function cutDesignT3Y(contenedor, formData) {
   }
 }
 
-//Tabla Análisis en Dirección "3 x"
+//Tabla Análisis en Dirección "4 Y"
 export function cutDesignT4Y(contenedor) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
 

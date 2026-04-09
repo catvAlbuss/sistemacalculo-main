@@ -1,4 +1,4 @@
-﻿import { buildContentStructure, DEFAULT_MC_STRUCTURE } from "./content-structure-mc.js";
+import { buildContentStructure, DEFAULT_MC_STRUCTURE } from "./content-structure-mc.js";
 import { ContentProcessorMC } from "./content-processor-mc.js";
 import ubigeoData from "../memoria_calculo/ubigeo.json";
 

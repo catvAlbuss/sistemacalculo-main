@@ -1,6 +1,5 @@
 import html2canvas from "html2canvas";
-import "print-this"
-
+import "print-this";
 
 $(document).ready(function () {
   /* ----Longitud Arriostrada------ */
@@ -16,7 +15,7 @@ $(document).ready(function () {
   var difAbs = 0.0062;
   var difRel = difAbs;
   var vux = 1903.49;
-  var q = parseFloat(((puS * difRel) / (vux * h)).toFixed(4));
+  var q = vux * h !== 0 ? parseFloat(((puS * difRel) / (vux * h)).toFixed(4)) : 0;
   var verifArrios = q <= 0.06 ? "Sí hay Arriostramiento" : "No hay Arriostramiento";
   var tipoEs = verifArrios == "Sí hay Arriostramiento" ? "Sin desplazamiento lateral" : "Con desplazamiento lateral";
   //dataLAX.push(['Piso último', h, pu, puS, difAbs, difRel, vux, q, verifArrios, tipoEs]);
@@ -153,15 +152,13 @@ $(document).ready(function () {
           //var oldValue = change[2];
           var newValue = change[3];
           if (col === 1) {
+            var denom = hot.getDataAtCell(row, 6) * newValue;
             hot.setDataAtCell(
               row,
               7,
-              parseFloat(
-                (
-                  (hot.getDataAtCell(row, 3) * hot.getDataAtCell(row, 5)) /
-                  (hot.getDataAtCell(row, 6) * newValue)
-                ).toFixed(4),
-              ),
+              denom !== 0
+                ? parseFloat(((hot.getDataAtCell(row, 3) * hot.getDataAtCell(row, 5)) / denom).toFixed(4))
+                : 0,
             );
           }
           if (col === 2) {
@@ -178,15 +175,11 @@ $(document).ready(function () {
               hot.setDataAtCell(row + 1, 3, newValue + hot.getDataAtCell(row + 1, 2));
             }
             //hot.setDataAtCell(row + 1, 3, hot.getDataAtCell(row + 1, 2) + newValue)
+            var denom3 = hot.getDataAtCell(row, 6) * hot.getDataAtCell(row, 1);
             hot.setDataAtCell(
               row,
               7,
-              parseFloat(
-                (
-                  (newValue * hot.getDataAtCell(row, 5)) /
-                  (hot.getDataAtCell(row, 6) * hot.getDataAtCell(row, 1))
-                ).toFixed(4),
-              ),
+              denom3 !== 0 ? parseFloat(((newValue * hot.getDataAtCell(row, 5)) / denom3).toFixed(4)) : 0,
             );
           }
           if (col == 4) {
@@ -197,24 +190,21 @@ $(document).ready(function () {
             }
           }
           if (col == 5) {
+            var denom5 = hot.getDataAtCell(row, 6) * hot.getDataAtCell(row, 1);
             hot.setDataAtCell(
               row,
               7,
-              parseFloat(
-                (
-                  (hot.getDataAtCell(row, 3) * newValue) /
-                  (hot.getDataAtCell(row, 6) * hot.getDataAtCell(row, 1))
-                ).toFixed(4),
-              ),
+              denom5 !== 0 ? parseFloat(((hot.getDataAtCell(row, 3) * newValue) / denom5).toFixed(4)) : 0,
             );
           }
           if (col == 6) {
+            var denom6 = newValue * hot.getDataAtCell(row, 1);
             hot.setDataAtCell(
               row,
               7,
-              parseFloat(
-                (hot.getDataAtCell(row, 3) * hot.getDataAtCell(row, 5)) / (newValue * hot.getDataAtCell(row, 1)),
-              ).toFixed(4),
+              denom6 !== 0
+                ? parseFloat((hot.getDataAtCell(row, 3) * hot.getDataAtCell(row, 5)) / denom6).toFixed(4)
+                : 0,
             );
           }
           if (col == 7) {
@@ -233,12 +223,180 @@ $(document).ready(function () {
     licenseKey: "non-commercial-and-evaluation",
   });
 
+  /* ----Dirección Y Y------ */
+  var containerLAY = document.querySelector("#longitudArriostradaY");
+  var hotLAY = new Handsontable(containerLAY, {
+    data: [["", "", "", "", "", "", "", "", "", ""]],
+    rowHeaders: true,
+    colHeaders: true,
+    height: "auto",
+    autoWrapRow: true,
+    autoWrapCol: true,
+    nestedHeaders: [
+      [
+        "Nivel",
+        {
+          label: "Altura Total",
+          colspan: 1,
+        },
+        {
+          label: "Cargas Amplificadas",
+          colspan: 1,
+        },
+        {
+          label: "ƩPu",
+          colspan: 1,
+        },
+        {
+          label: "Norma E.030 Artículo 31",
+          colspan: 2,
+          align: "center",
+        },
+        {
+          label: "Vux",
+          colspan: 1,
+        },
+        {
+          label: "Índice de Estabilidad",
+          colspan: 1,
+        },
+        {
+          label: "Artículo 10.11.3.",
+          colspan: 1,
+        },
+        {
+          label: "Artículo 10.11.3.",
+          colspan: 1,
+        },
+      ],
+      [
+        "",
+        '"H" (m)',
+        '"Pu" (Ton)',
+        "(Ton)",
+        {
+          label: "Δabsoluto (m)",
+          colspan: 1,
+          align: "center",
+        },
+        {
+          label: "relativo(m)",
+          colspan: 1,
+          align: "center",
+        },
+        "(Ton)",
+        '"Q"',
+        " Verificación del Arriostramiento",
+        "Tipo de Estructura",
+      ],
+    ],
+    columns: [
+      {
+        type: "text",
+        readOnly: true,
+      }, // 'Nivel',
+      {
+        type: "numeric",
+        readOnly: true,
+      },
+      {
+        type: "numeric",
+        readOnly: true,
+      },
+      {
+        type: "numeric",
+        readOnly: true,
+      },
+      {
+        type: "numeric",
+      }, // 'hm (m)',
+      {
+        type: "numeric",
+        readOnly: true,
+      }, // 'Vua (Ton)',
+      {
+        type: "numeric",
+      },
+      {
+        type: "numeric",
+        readOnly: true,
+      },
+      {
+        type: "text",
+        readOnly: true,
+      },
+      {
+        type: "text",
+        readOnly: true,
+      },
+    ],
+    minSpareRows: 1,
+    afterChange: function (changes, source) {
+      if (source == "edit") {
+        var hot = this;
+        changes.forEach(function (change) {
+          var row = change[0];
+          var col = change[1];
+          var newValue = change[3];
+          if (col == 4) {
+            if (row == hot.countRows() - 2) {
+              hot.setDataAtCell(row, 5, newValue);
+            } else {
+              hot.setDataAtCell(row, 5, newValue - hot.getDataAtCell(row + 1, 4));
+            }
+          }
+          if (col == 5) {
+            var denomLay5 = hot.getDataAtCell(row, 6) * hot.getDataAtCell(row, 1);
+            hot.setDataAtCell(
+              row,
+              7,
+              denomLay5 !== 0 ? parseFloat(((hot.getDataAtCell(row, 3) * newValue) / denomLay5).toFixed(4)) : 0,
+            );
+          }
+          if (col == 6) {
+            var denomLay6 = newValue * hot.getDataAtCell(row, 1);
+            hot.setDataAtCell(
+              row,
+              7,
+              denomLay6 !== 0
+                ? parseFloat(((hot.getDataAtCell(row, 3) * hot.getDataAtCell(row, 5)) / denomLay6).toFixed(4))
+                : 0,
+            );
+          }
+          if (col == 7) {
+            hot.setDataAtCell(row, 8, newValue <= 0.06 ? "Si hay Arriostramiento" : "No hay Arriostramiento");
+          }
+          if (col == 8) {
+            hot.setDataAtCell(
+              row,
+              9,
+              newValue == "Sí hay Arriostramiento" ? "Sin desplazamiento lateral" : "Con Desplazamiento Lateral",
+            );
+          }
+        });
+      }
+    },
+    afterPaste: function (data, coords) {
+      data.forEach(function (rowData, i) {
+        var startRow = coords[0].startRow;
+        /* var endRow = coords[0].endRow; */
+        var startCol = coords[0].startCol;
+        var endCol = coords[0].endCol;
+        let k = 0;
+        for (let j = startCol; j <= endCol; j++) {
+          hotLAY.setDataAtCell(startRow + i, j, rowData[k]);
+          k++;
+        }
+      });
+    },
+    licenseKey: "non-commercial-and-evaluation",
+  });
+
   document.getElementById("guardarTablaX").addEventListener("click", function (e) {
     tablex = hot.getData();
     alert("Guardado, pase a la tabla dirección Y-Y");
-    /* ----Dirección Y Y------ */
-    var dataLAY = [];
 
+    var dataLAY = [];
     for (let i = 0; i < tablex.length - 1; i++) {
       var h = tablex[i][1];
       var pu = tablex[i][2];
@@ -246,189 +404,19 @@ $(document).ready(function () {
       var difAbs = 1;
       var difRel = difAbs;
       var vux = 1;
-      var q = parseFloat(((puS * difRel) / (vux * h)).toFixed(4));
+      var q = vux * h !== 0 ? parseFloat(((puS * difRel) / (vux * h)).toFixed(4)) : 0;
       var verifArrios = q <= 0.06 ? "Si hay Arriostramiento" : "No hay Arriostramiento";
       var tipoEs =
         verifArrios == "Si hay Arriostramiento" ? "Sin Desplazamiento Lateral" : "Con Desplazamiento Lateral";
       dataLAY.push([`Piso ${tablex.length - 1 - i}`, h, pu, puS, difAbs, difRel, vux, q, verifArrios, tipoEs]);
     }
 
-    var containerLAY = document.querySelector("#longitudArriostradaY");
-    var hotLAY = new Handsontable(containerLAY, {
-      data: dataLAY,
-      rowHeaders: true,
-      colHeaders: true,
-      height: "auto",
-      autoWrapRow: true,
-      autoWrapCol: true,
-      nestedHeaders: [
-        [
-          "Nivel",
-          {
-            label: "Altura Total",
-            colspan: 1,
-          },
-          {
-            label: "Cargas Amplificadas",
-            colspan: 1,
-          },
-          {
-            label: "ƩPu",
-            colspan: 1,
-          },
-          {
-            label: "Norma E.030 Artículo 31",
-            colspan: 2,
-            align: "center",
-          },
-          {
-            label: "Vux",
-            colspan: 1,
-          },
-          {
-            label: "Índice de Estabilidad",
-            colspan: 1,
-          },
-          {
-            label: "Artículo 10.11.3.",
-            colspan: 1,
-          },
-          {
-            label: "Artículo 10.11.3.",
-            colspan: 1,
-          },
-        ],
-        [
-          "",
-          '"H" (m)',
-          '"Pu" (Ton)',
-          "(Ton)",
-          {
-            label: "Δabsoluto (m)",
-            colspan: 1,
-            align: "center",
-          },
-          {
-            label: "relativo(m)",
-            colspan: 1,
-            align: "center",
-          },
-          "(Ton)",
-          '"Q"',
-          " Verificación del Arriostramiento",
-          "Tipo de Estructura",
-        ],
-      ],
-      columns: [
-        {
-          type: "text",
-          readOnly: true,
-        }, // 'Nivel',
-        {
-          type: "numeric",
-          readOnly: true,
-        },
-        {
-          type: "numeric",
-          readOnly: true,
-        },
-        {
-          type: "numeric",
-          readOnly: true,
-        },
-        {
-          type: "numeric",
-        }, // 'hm (m)',
-        {
-          type: "numeric",
-          readOnly: true,
-        }, // 'Vua (Ton)',
-        {
-          type: "numeric",
-        },
-        {
-          type: "numeric",
-          readOnly: true,
-        },
-        {
-          type: "text",
-          readOnly: true,
-        },
-        {
-          type: "text",
-          readOnly: true,
-        },
-      ],
-      afterChange: function (changes, source) {
-        if (source == "edit") {
-          var hot = this;
-          changes.forEach(function (change) {
-            var row = change[0];
-            var col = change[1];
-            var newValue = change[3];
-            if (col == 4) {
-              if (row == hot.countRows() - 2) {
-                hot.setDataAtCell(row, 5, newValue);
-              } else {
-                hot.setDataAtCell(row, 5, newValue - hot.getDataAtCell(row + 1, 4));
-              }
-            }
-            if (col == 5) {
-              hot.setDataAtCell(
-                row,
-                7,
-                parseFloat(
-                  (
-                    (hot.getDataAtCell(row, 3) * newValue) /
-                    (hot.getDataAtCell(row, 6) * hot.getDataAtCell(row, 1))
-                  ).toFixed(4),
-                ),
-              );
-            }
-            if (col == 6) {
-              hot.setDataAtCell(
-                row,
-                7,
-                parseFloat(
-                  (
-                    (hot.getDataAtCell(row, 3) * hot.getDataAtCell(row, 5)) /
-                    (newValue * hot.getDataAtCell(row, 1))
-                  ).toFixed(4),
-                ),
-              );
-            }
-            if (col == 7) {
-              hot.setDataAtCell(row, 8, newValue <= 0.06 ? "Si hay Arriostramiento" : "No hay Arriostramiento");
-            }
-            if (col == 8) {
-              hot.setDataAtCell(
-                row,
-                9,
-                newValue == "Sí hay Arriostramiento" ? "Sin desplazamiento lateral" : "Con Desplazamiento Lateral",
-              );
-            }
-          });
-        }
-      },
-      afterPaste: function (data, coords) {
-        data.forEach(function (rowData, i) {
-          var startRow = coords[0].startRow;
-          /* var endRow = coords[0].endRow; */
-          var startCol = coords[0].startCol;
-          var endCol = coords[0].endCol;
-          let k = 0;
-          for (let j = startCol; j <= endCol; j++) {
-            hotLAY.setDataAtCell(startRow + i, j, rowData[k]);
-            k++;
-          }
-        });
-      },
-      licenseKey: "non-commercial-and-evaluation",
-    });
-    document.getElementById("guardarTablaY").addEventListener("click", function (e) {
-      tabley = hotLAY.getData();
-      alert("Guardado");
-    });
+    hotLAY.loadData(dataLAY);
+  });
+
+  document.getElementById("guardarTablaY").addEventListener("click", function (e) {
+    tabley = hotLAY.getData();
+    alert("Guardado");
   });
   /* ---------------------------------------- */
   var data = [
@@ -1199,17 +1187,9 @@ document.addEventListener("DOMContentLoaded", () => {
       canvas.width = ancho;
       canvas.height = altoReal;
 
-      ctx.drawImage(
-        img,
-        0, origenY,
-        ancho, altoReal,
-        0, 0,
-        ancho, altoReal
-      );
+      ctx.drawImage(img, 0, origenY, ancho, altoReal, 0, 0, ancho, altoReal);
 
-      const parteBlob = await new Promise((resolve) =>
-        canvas.toBlob(resolve, "image/png")
-      );
+      const parteBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
 
       descargarBlob(parteBlob, `${nombreBase}_Parte_${i + 1}.png`);
     }
@@ -1253,7 +1233,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
 
           // 🔥 OCULTAR BOTONES
-          doc.querySelectorAll("button").forEach(btn => {
+          doc.querySelectorAll("button").forEach((btn) => {
             btn.style.display = "none";
           });
 

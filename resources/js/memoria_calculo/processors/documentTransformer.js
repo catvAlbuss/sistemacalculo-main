@@ -379,6 +379,86 @@ export class DocumentTransformer {
     };
   }
 
+  normalizeText(value) {
+    return String(value || "")
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[-]/g, " ")
+      .replace(/\s+/g, " ");
+  }
+
+  findDepartment(departmentName) {
+    const deptNorm = this.normalizeText(departmentName);
+
+    return (this.ubigeoData || []).find((d) => this.normalizeText(d.name) === deptNorm);
+  }
+
+  findProvince(departmentName, provinceName) {
+    const dept = this.findDepartment(departmentName);
+    if (!dept) return null;
+
+    const provNorm = this.normalizeText(provinceName);
+
+    return (dept.provinces || []).find((p) => this.normalizeText(p.name) === provNorm);
+  }
+
+  findDistrictData(departmentName, provinceName, districtName) {
+    const province = this.findProvince(departmentName, provinceName);
+    if (!province) return null;
+
+    const distNorm = this.normalizeText(districtName);
+
+    return (
+      (province.districts || []).find((d) => {
+        // por si algún departamento viejo aún tiene strings
+        if (typeof d === "string") {
+          return this.normalizeText(d) === distNorm;
+        }
+        return this.normalizeText(d.name) === distNorm;
+      }) || null
+    );
+  }
+
+  getSeismicData(departmentName, provinceName, districtName) {
+    const zoneFactorMap = {
+      1: "0.10",
+      2: "0.25",
+      3: "0.35",
+      4: "0.45",
+    };
+
+    const districtData = this.findDistrictData(departmentName, provinceName, districtName);
+
+    if (districtData && typeof districtData === "object") {
+      return {
+        zone: String(districtData.zone || "2"),
+        zFactor: String(districtData.zFactor || zoneFactorMap[districtData.zone] || "0.25"),
+        ambito: String(districtData.ambito || "TODOS LOS DISTRITOS"),
+        districtData,
+      };
+    }
+
+    // compatibilidad si algún JSON viejo sigue usando strings
+    const dept = this.findDepartment(departmentName);
+    if (dept) {
+      return {
+        zone: String(dept.seismicZone || "2"),
+        zFactor: String(dept.zFactor || zoneFactorMap[dept.seismicZone] || "0.25"),
+        ambito: "TODOS LOS DISTRITOS",
+        districtData: null,
+      };
+    }
+
+    return {
+      zone: "2",
+      zFactor: "0.25",
+      ambito: "TODOS LOS DISTRITOS",
+      districtData: null,
+    };
+  }
+
   // ============================================
   // 2. IMÁGENES POR PISO (Sección 1.4)
   // ============================================

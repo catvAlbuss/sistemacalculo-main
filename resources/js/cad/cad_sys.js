@@ -1,3 +1,6 @@
+import { initScene3D } from "./3d/scene3d.js";
+import { renderModel3D } from "./3d/renderModel3d.js";
+
 import { Grid } from "./grid.js";
 import { DiseñoRenderer, DeflexionRenderer, AxialRenderer } from "./renderer.js";
 import {
@@ -18,7 +21,7 @@ import Swal from "sweetalert2";
 import sections from "./sections.js";
 
 export default () => ({
-  init() {},
+  init() { },
 
   initSys(canvas, distanceInput) {
     this.Arco = Arco;
@@ -44,6 +47,10 @@ export default () => ({
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
     this.distanceInput = distanceInput;
+
+    // NUEVO: inicializar visor 3D
+    this.viewer3D = initScene3D(this.$refs.cad3d);
+
     this.shapes = [];
     this.nodes = [];
     this.parametricModels = [];
@@ -145,9 +152,21 @@ export default () => ({
         s.angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
       });
       this.redraw();
+      this.sync3D();
+
       window.requestAnimationFrame(renderLoop);
     };
     window.requestAnimationFrame(renderLoop);
+  },
+
+  sync3D() {
+    if (!this.viewer3D) return;
+    renderModel3D(this.viewer3D, this.nodes, this.shapes);
+
+    // if (this.firstRender3D) {
+    //   focusCamera(this.viewer3D.camera, this.nodes);
+    //   this.firstRender3D = false;
+    // }
   },
 
   creaArco() {
@@ -345,69 +364,69 @@ export default () => ({
     formData.append(
       "nodos",
       "[" +
-        this.nodes
-          .map((node, index) => {
-            return [index + 1, node.position.x, node.position.y, 0].join(",");
-          })
-          .join(";") +
-        "]"
+      this.nodes
+        .map((node, index) => {
+          return [index + 1, node.position.x, node.position.y, 0].join(",");
+        })
+        .join(";") +
+      "]"
     );
     formData.append(
       "barras",
       "[" +
-        this.shapes
-          .map((beam, index) => {
-            return [index + 1, this.nodes.indexOf(beam.node1) + 1, this.nodes.indexOf(beam.node2) + 1].join(",");
-          })
-          .join(";") +
-        "]"
+      this.shapes
+        .map((beam, index) => {
+          return [index + 1, this.nodes.indexOf(beam.node1) + 1, this.nodes.indexOf(beam.node2) + 1].join(",");
+        })
+        .join(";") +
+      "]"
     );
     formData.append(
       "cargas",
       "[" +
-        this.nodes
-          .map((node, index) => {
-            return { id: index + 1, node: node };
-          })
-          .filter(({ node: node }) => {
-            return node.tieneCarga();
-          })
-          .map((value) => {
-            return [value.id, value.node.cargaX(), value.node.cargaY(), 0].join(",");
-          })
-          .join(";") +
-        "]"
+      this.nodes
+        .map((node, index) => {
+          return { id: index + 1, node: node };
+        })
+        .filter(({ node: node }) => {
+          return node.tieneCarga();
+        })
+        .map((value) => {
+          return [value.id, value.node.cargaX(), value.node.cargaY(), 0].join(",");
+        })
+        .join(";") +
+      "]"
     );
     formData.append(
       "restringidos",
       "[" +
-        this.nodes
-          .map((node, index) => {
-            return { id: index + 1, node: node };
-          })
-          .map((value) => {
-            let restriccion = [0, 0, 1];
-            if (value.node.soporte === "soporteUno") {
-              restriccion = [1, 1, 1];
-            } else if (value.node.soporte === "soporteDos") {
-              restriccion = [0, 1, 1];
-            } else if (value.node.soporte === "soporteTres") {
-              restriccion = [1, 0, 1];
-            }
-            return [value.id, ...restriccion];
-          })
-          .join(";") +
-        "]"
+      this.nodes
+        .map((node, index) => {
+          return { id: index + 1, node: node };
+        })
+        .map((value) => {
+          let restriccion = [0, 0, 1];
+          if (value.node.soporte === "soporteUno") {
+            restriccion = [1, 1, 1];
+          } else if (value.node.soporte === "soporteDos") {
+            restriccion = [0, 1, 1];
+          } else if (value.node.soporte === "soporteTres") {
+            restriccion = [1, 0, 1];
+          }
+          return [value.id, ...restriccion];
+        })
+        .join(";") +
+      "]"
     );
     formData.append(
       "propiedades",
       "[" +
-        this.shapes
-          .map((beam) => {
-            return [beam.A, beam.E].join(",");
-          })
-          .join(";") +
-        "]"
+      this.shapes
+        .map((beam) => {
+          return [beam.A, beam.E].join(",");
+        })
+        .join(";") +
+      "]"
     );
     console.log(Object.fromEntries(formData));
 
@@ -815,3 +834,4 @@ export default () => ({
     pdfMake.createPdf(docDefinition).download("aligerados.pdf");
   },
 });
+

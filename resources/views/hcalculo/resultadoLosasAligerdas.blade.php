@@ -867,6 +867,10 @@
             $bf = 0;
 
             $Ma_value = $cargaMuerta[ceil(($i / 3))] + $cargaViva[ceil(($i / 3))];
+            // Evitar división por cero
+            if ($Ma_value == 0) {
+                $Ma_value = 0.001;
+            }
             
             $ddef_value = ($altura[ceil(($i / 3))] - 3) / 100;
             $baseP_value = $bp[ceil(($i / 3))] / 100;

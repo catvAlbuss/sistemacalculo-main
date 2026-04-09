@@ -2,8 +2,8 @@
     @pushOnce("styles")
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" />
     @endpushOnce
-    <div class="py-12">
-        <div class="container mx-auto w-full">
+    <div class="py-2">
+        <div class="px-2 w-full">
             <div class="flex flex-wrap">
                 <!-- Formulario -->
                 <div class="w-full md:w-1/3">
@@ -21,7 +21,8 @@
                                 <div class="d-flex flex-column">
                                     <!-- TABLA 1 -->
                                     <div class="d-flex flex-column">
-                                        <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 mb-2"
+
+                                        <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 mb-2">
                                             data-target="solicitudCargaT1"
                                             data-name="tabla1-solicitud-carga">
                                             Generar IMG
@@ -34,11 +35,11 @@
                                     </div>
                                     <!-- TABLA 2 -->
                                     <div class="d-flex flex-column mb-5">
-                                        <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 mb-2"
+
+                                        <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 mb-2">
                                             data-target="solicitudCargaT2"
                                             data-name="tabla2-solicitud-carga">
                                             Generar IMG
-
                                         </button>
                                         <div id="solicitudCargaT2" class="table-container"></div>
                                         <div class="d-flex justify-content-start">
@@ -54,16 +55,18 @@
                                             data-target="solicitudCargaT3"
                                             data-name="tabla3-solicitud-carga">
                                             Generar IMG
-<<<<<<< HEAD
 <!-- =======
                                         <button class="btn-captura-bloque bg-green-600 text-white px-3 py-1 rounded mb-2"
                                             data-target="solicitudCargaT3"
                                             data-name="tabla3-solicitud-carga">
                                             Descargar PNG
 >>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec -->
-=======
 
->>>>>>> 62580a47aa54da2f0c6ef0eea4f72efe17dcd4c0
+                                        <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 mb-2"
+                                            data-target="solicitudCargaT3"
+                                            data-name="tabla3-solicitud-carga">
+                                            Generar IMG
+
                                         </button>
                                         <div id="solicitudCargaT3" class="table-container"></div>
                                     </div>
@@ -123,7 +126,8 @@
                                                     <!-- <button
                                                         class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 mr-5"
                                                         data-target="contentDFx">ver / ocultar</button> -->
-                                                    <!-- <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 mb-2"
+
+                                                    <!-- <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 mb-2"
                                                         data-target="flexDesingT1X"
                                                         data-name="flexion_tabla1_x">
                                                         Generar IMG
@@ -141,16 +145,18 @@
                                                                     data-target="flexDesingT1X"
                                                                     data-name="Diseno_flexion_tabla1_x">
                                                                     Generar IMG
-<<<<<<< HEAD
 <!-- =======
                                                                 <button class="btn-captura-bloque bg-green-600 text-white px-3 py-1 rounded"
                                                                     data-target="flexDesingT1X"
                                                                     data-name="flexion_tabla1_x">
                                                                     Descargar PNG
 >>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec -->
-=======
 
->>>>>>> 62580a47aa54da2f0c6ef0eea4f72efe17dcd4c0
+                                                                <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                                    data-target="flexDesingT1X"
+                                                                    data-name="Diseno_flexion_tabla1_x">
+                                                                    Generar IMG
+
                                                                 </button>
                                                             </div>
                                                             <div id="flexDesingT1X"></div>
@@ -166,16 +172,18 @@
                                                             <div class="d-flex justify-content-between items-center mb-2">
                                                                 <!-- <span>Tabla 2 X</span> -->
 
-                                                                <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                                <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300">
                                                                     data-target="flexDesingT2X"
                                                                     data-name="Diseno_flexion_tabla2_x">
                                                                     Generar IMG
 
+<!-- <<<<<<< HEAD
                                                                 <button class="btn-captura-bloque bg-green-600 text-white px-3 py-1 rounded"
                                                                     data-target="flexDesingT2X"
                                                                     data-name="flexion_tabla2_x">
                                                                     Descargar PNG
 
+======= -->
                                                                 </button>
                                                             </div>
                                                             <div id="flexDesingT2X" class="table-container"></div>
@@ -203,6 +211,10 @@
                                                                     Descargar PNG
 >>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec -->
 
+                                                                <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                                    data-target="flexDesingT3X"
+                                                                    data-name="Diseno_flexion_tabla3_x">
+                                                                    Generar IMG
                                                                 </button>
                                                             </div>
                                                             <div id="flexDesingT3X" class="table-container"></div>
@@ -223,7 +235,7 @@
                                                         class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 mr-5"
                                                         data-target="contentDFy">ver / ocultar</button> -->
 
-                                                    <!-- <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 mb-2"
+                                                    <!-- <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 mb-2"
                                                         data-target="contentDFy"
                                                         data-name="diseno-flexion-direccion-y">
                                                         Generar IMG
@@ -242,16 +254,18 @@
                                                                         data-target="flexDesingT1Y"
                                                                         data-name="Diseno_flexion_tabla1_y">
                                                                         Generar IMG
-<<<<<<< HEAD
 <!-- =======
                                                                     <button class="btn-captura-bloque bg-green-600 text-white px-3 py-1 rounded"
                                                                         data-target="flexDesingT1Y"
                                                                         data-name="flexion_tabla1_y">
                                                                         Descargar PNG
 >>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec -->
-=======
 
->>>>>>> 62580a47aa54da2f0c6ef0eea4f72efe17dcd4c0
+                                                                    <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                                        data-target="flexDesingT1Y"
+                                                                        data-name="Diseno_flexion_tabla1_y">
+                                                                        Generar IMG
+
                                                                     </button>
                                                                 </div>
                                                                 <div id="flexDesingT1Y" class="table-container"></div>
@@ -269,16 +283,18 @@
                                                                         data-target="flexDesingT2Y"
                                                                         data-name="Diseno_flexion_tabla2_y">
                                                                         Generar IMG
-<<<<<<< HEAD
 <!-- =======
                                                                     <button class="btn-captura-bloque bg-green-600 text-white px-3 py-1 rounded"
                                                                         data-target="flexDesingT2Y"
                                                                         data-name="flexion_tabla2_y">
                                                                         Descargar PNG
 >>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec -->
-=======
 
->>>>>>> 62580a47aa54da2f0c6ef0eea4f72efe17dcd4c0
+                                                                    <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                                        data-target="flexDesingT2Y"
+                                                                        data-name="Diseno_flexion_tabla2_y">
+                                                                        Generar IMG
+
                                                                     </button>
                                                                 </div>
                                                                 <div id="flexDesingT2Y" class="table-container"></div>
@@ -298,15 +314,17 @@
                                                                         data-target="flexDesingT3Y"
                                                                         data-name="Diseno_flexion_tabla3_y">
                                                                         Generar IMG
-<<<<<<< HEAD
 <!-- =======
                                                                     <button class="btn-captura-bloque bg-green-600 text-white px-3 py-1 rounded"
                                                                         data-target="flexDesingT3Y"
                                                                         data-name="flexion_tabla3_y">
                                                                         Descargar PNG
 >>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec -->
-=======
->>>>>>> 62580a47aa54da2f0c6ef0eea4f72efe17dcd4c0
+
+                                                                    <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                                        data-target="flexDesingT3Y"
+                                                                        data-name="Diseno_flexion_tabla3_y">
+                                                                        Generar IMG
                                                                     </button>
                                                                 </div>
                                                                 <div id="flexDesingT3Y" class="table-container"></div>
@@ -349,7 +367,7 @@
                                                     class="text-gray-950 dark:text-white d-flex justify-content-between">
                                                     Análisis en
                                                     dirección "X"
-                                                    <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                    <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
                                                         data-target="contentDCx"
                                                         data-name="Diseno_corte_x">
                                                         Generar IMG
@@ -360,7 +378,7 @@
                                                     <!-- TABLA 1 -->
                                                     <div class="d-flex flex-column mb-5">
                                                         <!-- <div class="d-flex justify-content-between items-center mb-2">
-                                                            <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                            <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
                                                                 data-target="cutDesingT1X"
                                                                 data-name="corte_tabla1_x">
                                                                 Generar IMG
@@ -376,7 +394,7 @@
                                                     <!-- TABLA 2 -->
                                                     <div class="d-flex flex-column mb-5">
                                                         <!-- <div class="d-flex justify-content-between items-center mb-2">
-                                                            <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                            <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
                                                                 data-target="cutDesingT2X"
                                                                 data-name="corte_tabla2_x">
                                                                 Generar IMG
@@ -392,7 +410,7 @@
                                                     <!-- TABLA 3 -->
                                                     <div class="d-flex flex-column mb-5">
                                                         <!-- <div class="d-flex justify-content-between items-center mb-2">
-                                                            <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                            <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
                                                                 data-target="cutDesingT3X"
                                                                 data-name="corte_tabla3_x">
                                                                 Generar IMG
@@ -410,7 +428,7 @@
                                                     <!-- TABLA 4 -->
                                                     <div class="d-flex flex-column mb-5">
                                                         <!-- <div class="d-flex justify-content-between items-center mb-2">
-                                                            <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                            <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
                                                                 data-target="cutDesingT4X"
                                                                 data-name="corte_tabla4_x">
                                                                 Generar IMG
@@ -427,7 +445,7 @@
                                                     class="text-gray-950 dark:text-white d-flex justify-content-between">
                                                     Análisis en
                                                     dirección "Y"
-                                                    <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                    <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
                                                         data-target="contentDCy"
                                                         data-name="Diseno_corte_y">
                                                         Generar IMG
@@ -439,7 +457,7 @@
                                                         <!-- TABLA 1 -->
                                                         <div class="d-flex flex-column mb-5">
                                                             <!-- <div class="d-flex justify-content-between items-center mb-2">
-                                                                <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                                <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
                                                                     data-target="cutDesingT1Y"
                                                                     data-name="corte_tabla1_y">
                                                                     Generar IMG
@@ -455,7 +473,7 @@
                                                         <!-- TABLA 2 -->
                                                         <div class="d-flex flex-column mb-5">
                                                             <!-- <div class="d-flex justify-content-between items-center mb-2">
-                                                                <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                                <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
                                                                     data-target="cutDesingT2Y"
                                                                     data-name="corte_tabla2_y">
                                                                     Generar IMG
@@ -471,7 +489,7 @@
                                                         <!-- TABLA 3 -->
                                                         <div class="d-flex flex-column mb-5">
                                                             <!-- <div class="d-flex justify-content-between items-center mb-2">
-                                                                <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                                <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
                                                                     data-target="cutDesingT3Y"
                                                                     data-name="corte_tabla3_y">
                                                                     Generar IMG
@@ -489,7 +507,7 @@
                                                         <!-- TABLA 4 -->
                                                         <div class="d-flex flex-column mb-5">
                                                             <!-- <div class="d-flex justify-content-between items-center mb-2">
-                                                                <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                                <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
                                                                     data-target="cutDesingT4Y"
                                                                     data-name="corte_tabla4_y">
                                                                     Generar IMG
@@ -533,31 +551,28 @@
                                                     Análisis en
                                                     dirección "X" <button
                                                         class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 mr-5"
-                                                        data-target="contentDIx">ver / ocultar</button></div>
+                                                        data-target="contentDIx">ver / ocultar</button>
+                                                    <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                        data-target="contentDIx"
+                                                        data-name="Diagrama_interaccion_x">
+                                                        Generar IMG
+                                                    </button>
+                                                    </div>
                                                 <div class="card-body collapsible-content d-none" id="contentDIx">
                                                     <div class="d-flex flex-column">
-                                                        <div class="d-flex flex-column mb-5">
+                                                        <div class="d-flex flex-column mb-5" id="diT1XContainer">
                                                             <div id="diT1X" class="table-container"></div>
                                                             <div class="d-flex justify-content-start">
                                                                 <button id="saveDataBtnDI1X"
                                                                     class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">Siguiente</button>
                                                             </div>
                                                         </div>
-                                                        <div class="d-flex flex-column mb-5">
+                                                        <div class="d-flex flex-column mb-5" id="diT2XContainer" style="display:none;">
                                                             <div id="diT2X" class="table-container"></div>
-                                                            <!-- <div class="d-flex justify-content-start">
-                                                                        <button id="saveDataBtnDI2X" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">Siguiente</button>
-                                                                    </div> -->
                                                         </div>
-                                                        <div class="d-flex flex-column mb-5">
+                                                        <div class="d-flex flex-column mb-5" id="diT3XContainer" style="display:none;">
                                                             <div id="diT3X" class="table-container"></div>
-                                                            <!-- <div class="d-flex justify-content-start">
-                                                                        <button id="saveDataBtnDC3X" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">Ancho Efectivo del Ala</button>
-                                                                    </div> -->
                                                         </div>
-                                                        <!-- <div class="d-flex flex-column mb-5">
-                                                                    <div id="cutDesingT4X" class="table-container"></div>
-                                                                </div> -->
                                                     </div>
                                                 </div>
                                             </div>
@@ -568,28 +583,30 @@
                                                     Análisis en
                                                     dirección "Y" <button
                                                         class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 mr-5"
-                                                        data-target="contentDIy">ver / ocultar</button></div>
+                                                        data-target="contentDIy">ver / ocultar</button>
+                                                    <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                        data-target="contentDIy"
+                                                        data-name="Diagrama_interaccion_y">
+                                                        Generar IMG
+                                                    </button>
+                                                    </div>
                                                 <div class="card-body collapsible-content d-none" id="contentDIy">
                                                     <div class="d-flex flex-column">
-                                                        <div class="d-flex flex-column mb-5">
+                                                        <div class="d-flex flex-column mb-5" id="diT1YContainer">
                                                             <div id="diT1Y" class="table-container"></div>
                                                             <div class="d-flex justify-content-start">
                                                                 <button id="saveDataBtnDI1Y"
                                                                     class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">Siguiente</button>
                                                             </div>
                                                         </div>
-                                                        <div class="d-flex flex-column mb-5">
+                                                        <div class="d-flex flex-column mb-5" id="diT2YContainer" style="display:none;">
                                                             <div id="diT2Y" class="table-container"></div>
-                                                            <!-- <div class="d-flex justify-content-start">
-                                                                        <button id="saveDataBtnDI2Y" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">Siguiente</button>
-                                                                    </div> -->
                                                         </div>
-                                                        <div class="d-flex flex-column mb-5">
+                                                        <div class="d-flex flex-column mb-5" id="diT3YContainer" style="display:none;">
                                                             <div id="diT3Y" class="table-container"></div>
-                                                            <!-- <div class="d-flex justify-content-start">
-                                                                        <button id="saveDataBtnDI3Y" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">Esquema Armado Final</button>
-                                                                    </div> -->
                                                         </div>
+                                                    </div>
+                                                </div>
                                                         <!-- <div class="d-flex flex-column mb-5">
                                                                     <div id="cutDesingT4Y" class="table-container"></div>
                                                                 </div> -->
@@ -597,7 +614,7 @@
                                                 </div>
                                             </div>
                                             <!-- Diagramas -->
-                                            <div class="card m-0">
+                                            <div class="card m-0" id="diagramsCard" style="display:none;">
                                                 <div
                                                     class="text-gray-950 dark:text-white d-flex justify-content-between">
                                                     Diagramas de
@@ -848,6 +865,7 @@
 
     @pushOnce("scripts")
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     @vite("resources/js/adm_desing_placasL.js")
     @endpushOnce
 </x-calc-layout>
