@@ -18,6 +18,7 @@
         "vite": "^6.0.11"
     },
     "dependencies": {
+        "@babylonjs/core": "^9.1.0",
         "alpinejs": "^3.14.9",
         "flowbite": "^3.1.2",
         "html-to-image": "^1.11.13",
@@ -31,6 +32,7 @@
         "print-this": "^2.0.0",
         "puppeteer": "^24.39.1",
         "sweetalert2": "^11.17.2",
-        "tabulator-tables": "^6.3.1"
+        "tabulator-tables": "^6.3.1",
+        "three": "^0.183.2"
     }
 }

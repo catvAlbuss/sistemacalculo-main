@@ -82,4 +82,86 @@ export class Grid {
       y: this.offestY - p.y / this.scaleY,
     };
   }
+
+  // resources/js/cad/grid.js - Añadir esta función
+
+  // resources/js/cad/grid.js - Añadir esta función
+
+  // resources/js/cad/grid.js - Reemplaza la función draw o añade esta
+
+  // drawETABSGrid(ctx) {
+  //   const spacing = 5; // Espaciado entre ejes en metros (como ETABS)
+
+  //   // Calcular límites
+  //   const startX = Math.floor(this.offestX / spacing) * spacing;
+  //   const startY = Math.floor(this.offestY / spacing) * spacing;
+  //   const endX = startX + this.width / this.scaleX;
+  //   const endY = startY - this.height / this.scaleY;
+
+  //   ctx.save();
+  //   ctx.lineWidth = 0.5;
+  //   ctx.font = "11px 'Segoe UI', Arial";
+  //   ctx.shadowBlur = 0;
+
+  //   // Colores estilo ETABS
+  //   const gridColor = "#3a5a7a";
+  //   const textColor = "#8aadcc";
+
+  //   // Letras para ejes horizontales (A, B, C, D...)
+  //   const letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+
+  //   // Dibujar líneas verticales y etiquetas
+  //   let xIndex = 0;
+  //   for (let x = startX; x <= endX; x += spacing) {
+  //     const label = letters[xIndex % letters.length];
+  //     const screenX = (x - this.offestX) * this.scaleX;
+
+  //     // Línea vertical (tenue)
+  //     ctx.beginPath();
+  //     ctx.strokeStyle = gridColor;
+  //     ctx.moveTo(screenX, 0);
+  //     ctx.lineTo(screenX, this.height);
+  //     ctx.stroke();
+
+  //     // Etiqueta en la parte inferior (sin fondo)
+  //     ctx.fillStyle = textColor;
+  //     ctx.fillText(label, screenX - 4, this.height - 8);
+
+  //     xIndex++;
+  //   }
+
+  //   // Dibujar líneas horizontales y etiquetas
+  //   let yIndex = 1;
+  //   for (let y = startY; y >= endY; y -= spacing) {
+  //     const label = yIndex.toString();
+  //     const screenY = (this.offestY - y) * this.scaleY;
+
+  //     // Línea horizontal (tenue)
+  //     ctx.beginPath();
+  //     ctx.strokeStyle = gridColor;
+  //     ctx.moveTo(0, screenY);
+  //     ctx.lineTo(this.width, screenY);
+  //     ctx.stroke();
+
+  //     // Etiqueta en el borde izquierdo (sin fondo)
+  //     ctx.fillStyle = textColor;
+  //     ctx.fillText(label, 5, screenY + 4);
+
+  //     yIndex++;
+  //   }
+
+  //   // Dibujar el origen (0,0) más visible
+  //   const originX = (0 - this.offestX) * this.scaleX;
+  //   const originY = (this.offestY - 0) * this.scaleY;
+
+  //   ctx.beginPath();
+  //   ctx.arc(originX, originY, 4, 0, 2 * Math.PI);
+  //   ctx.fillStyle = "#ff6666";
+  //   ctx.fill();
+  //   ctx.fillStyle = "#ffffff";
+  //   ctx.font = "bold 10px Arial";
+  //   ctx.fillText("0,0", originX + 6, originY - 4);
+
+  //   ctx.restore();
+  // }
 }

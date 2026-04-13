@@ -250,11 +250,11 @@ export class DiseñoRenderer {
     context.ctx.moveTo(p.x, p.y);
     context.ctx.lineTo(
       p.x - headLength * Math.cos(angle - Math.PI / 6),
-      p.y - headLength * Math.sin(angle - Math.PI / 6)
+      p.y - headLength * Math.sin(angle - Math.PI / 6),
     );
     context.ctx.lineTo(
       p.x - headLength * Math.cos(angle + Math.PI / 6),
-      p.y - headLength * Math.sin(angle + Math.PI / 6)
+      p.y - headLength * Math.sin(angle + Math.PI / 6),
     );
     context.ctx.lineTo(p.x, p.y);
     context.ctx.closePath();
@@ -285,11 +285,11 @@ export class DiseñoRenderer {
     context.ctx.moveTo(p.x, p.y);
     context.ctx.lineTo(
       p.x - headLength * Math.cos(angle - Math.PI / 6),
-      p.y - headLength * Math.sin(angle - Math.PI / 6)
+      p.y - headLength * Math.sin(angle - Math.PI / 6),
     );
     context.ctx.lineTo(
       p.x - headLength * Math.cos(angle + Math.PI / 6),
-      p.y - headLength * Math.sin(angle + Math.PI / 6)
+      p.y - headLength * Math.sin(angle + Math.PI / 6),
     );
     context.ctx.lineTo(p.x, p.y);
     context.ctx.closePath();
@@ -317,11 +317,11 @@ export class DiseñoRenderer {
     context.ctx.moveTo(p.x, p.y);
     context.ctx.lineTo(
       p.x - headLength * Math.cos(angle - Math.PI / 6),
-      p.y - headLength * Math.sin(angle - Math.PI / 6)
+      p.y - headLength * Math.sin(angle - Math.PI / 6),
     );
     context.ctx.lineTo(
       p.x - headLength * Math.cos(angle + Math.PI / 6),
-      p.y - headLength * Math.sin(angle + Math.PI / 6)
+      p.y - headLength * Math.sin(angle + Math.PI / 6),
     );
     context.ctx.lineTo(p.x, p.y);
     context.ctx.closePath();
@@ -415,7 +415,8 @@ export class DiseñoRenderer {
     context.ctx.restore();
   }
 
-  drawGrid(grid, context) {
+  // DRAW GRID ORIGINAL
+  drawStandardGrid(grid, context) {
     const ctx = context.ctx; // Assuming you're using a canvas context
     ctx.save();
 
@@ -457,6 +458,366 @@ export class DiseñoRenderer {
     }
     ctx.restore();
   }
+
+  // --------------- ESTILO DE DRAW GRID INSPIRADO EN ETABS ----------------
+
+  drawGrid(grid, context) {
+    const ctx = context.ctx;
+    ctx.save();
+    ctx.shadowBlur = 0;
+
+    // Si hay un grid de referencia definido, dibujar SOLO ese
+    if (context.referenceGrid && context.referenceGrid.xPositions && context.referenceGrid.xPositions.length > 0) {
+      this.drawReferenceGridOnly(grid, context);
+      ctx.restore();
+      return;
+    }
+
+    // Si no hay grid de referencia, dibujar grid estándar (opcional)
+    this.drawStandardGrid(grid, context);
+    ctx.restore();
+  }
+
+  drawReferenceGridOnly(grid, context) {
+    const ctx = context.ctx;
+    const refGrid = context.referenceGrid;
+
+    if (!refGrid || !refGrid.xPositions || refGrid.xPositions.length === 0) return;
+
+    const xPositions = refGrid.xPositions;
+    const yPositions = refGrid.yPositions;
+    const xLabels = refGrid.xLabels;
+    const yLabels = refGrid.yLabels;
+
+    // Colores estilo ETABS
+    const lineColor = "#3a6a9a";
+    const textColor = "#8aadcc";
+    const axisColor = "#00ff00";
+    // const coordColor = "#aaccee";
+
+    ctx.lineWidth = 0.8;
+    ctx.font = "11px 'Segoe UI', Arial";
+    ctx.setLineDash([]);
+
+    const minX = Math.min(...xPositions);
+    const maxX = Math.max(...xPositions);
+    const minY = Math.min(...yPositions);
+    const maxY = Math.max(...yPositions);
+
+    // ========== DIBUJAR EJES X e Y CON FLECHAS ==========
+    const arrowSize = 6; // Tamaño de la flecha
+
+    // Eje X (horizontal) - línea roja en Y=0
+    const ejeXStart = grid.worldToScreen({ x: minX, y: 0 });
+    const ejeXEnd = grid.worldToScreen({ x: 2, y: 0 });
+
+    ctx.beginPath();
+    ctx.strokeStyle = axisColor;
+    ctx.fillStyle = axisColor;
+    ctx.lineWidth = 1.5;
+    ctx.moveTo(ejeXStart.x, ejeXStart.y);
+    ctx.lineTo(ejeXEnd.x, ejeXEnd.y);
+    ctx.stroke();
+
+    // Flecha del eje X (punta en dirección positiva)
+    const arrowXTip = grid.worldToScreen({ x: 2, y: 0 });
+    ctx.beginPath();
+    ctx.moveTo(arrowXTip.x, arrowXTip.y);
+    ctx.lineTo(arrowXTip.x - arrowSize, arrowXTip.y - arrowSize / 2);
+    ctx.lineTo(arrowXTip.x - arrowSize, arrowXTip.y + arrowSize / 2);
+    ctx.fill();
+
+    // Etiqueta del eje X
+    ctx.fillStyle = axisColor;
+    ctx.font = "bold 12px 'Segoe UI', Arial";
+    const ejeXLabelPos = grid.worldToScreen({ x: maxX + 1.2, y: 0 });
+    ctx.fillText("X", ejeXLabelPos.x + 3, ejeXLabelPos.y - 3);
+
+    // Eje Y (vertical) - línea roja en X=0
+    const ejeYStart = grid.worldToScreen({ x: 0, y: minY});
+    const ejeYEnd = grid.worldToScreen({ x: 0, y: 2 });
+
+    ctx.beginPath();
+    ctx.moveTo(ejeYStart.x, ejeYStart.y);
+    ctx.lineTo(ejeYEnd.x, ejeYEnd.y);
+    ctx.stroke();
+
+    // Flecha del eje Y (punta en dirección positiva)
+    const arrowYTip = grid.worldToScreen({ x: 0, y: 2 });
+    ctx.beginPath();
+    ctx.moveTo(arrowYTip.x, arrowYTip.y);
+    ctx.lineTo(arrowYTip.x - arrowSize / 2, arrowYTip.y + arrowSize); // ← Cambiado: + arrowSize
+    ctx.lineTo(arrowYTip.x + arrowSize / 2, arrowYTip.y + arrowSize); // ← Cambiado: + arrowSize
+    ctx.fill();
+
+    // Etiqueta del eje Y
+    const ejeYLabelPos = grid.worldToScreen({ x: 0, y: maxY + 1.2 });
+    ctx.fillText("Y", ejeYLabelPos.x + 5, ejeYLabelPos.y + 3);
+
+    // ========== DIBUJAR NÚMEROS DE COORDENADAS EN LOS EJES ==========
+    // ctx.font = "10px 'Segoe UI', Arial";
+    // ctx.fillStyle = textColor;
+    // ctx.lineWidth = 0.5;
+
+    // // Coordenadas en el eje X
+    // xPositions.forEach((x) => {
+    //   const screenPos = grid.worldToScreen({ x: x, y: 0 });
+    //   // Pequeña marca en el eje
+    //   ctx.beginPath();
+    //   ctx.moveTo(screenPos.x, screenPos.y - 3);
+    //   ctx.lineTo(screenPos.x, screenPos.y + 3);
+    //   ctx.stroke();
+    //   // Número
+    //   ctx.fillText(x.toString(), screenPos.x - 5, screenPos.y - 5);
+    // });
+
+    // // Coordenadas en el eje Y
+    // yPositions.forEach((y) => {
+    //   const screenPos = grid.worldToScreen({ x: 0, y: y });
+    //   // Pequeña marca en el eje
+    //   ctx.beginPath();
+    //   ctx.moveTo(screenPos.x - 3, screenPos.y);
+    //   ctx.lineTo(screenPos.x + 3, screenPos.y);
+    //   ctx.stroke();
+    //   // Número
+    //   ctx.fillText(y.toString(), screenPos.x + 5, screenPos.y + 3);
+    // });
+
+    // ========== DIBUJAR EL ORIGEN (0,0) ==========
+    const origin = grid.worldToScreen({ x: 0, y: 0 });
+    ctx.beginPath();
+    ctx.arc(origin.x, origin.y, 5, 0, 2 * Math.PI);
+    ctx.fillStyle = "#ff8888";
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 10px Arial";
+    ctx.fillText("0,0", origin.x + 8, origin.y - 5);
+
+    // ========== DIBUJAR LÍNEAS DEL GRID (solo dentro del área) ==========
+    ctx.lineWidth = 0.5;
+    ctx.strokeStyle = lineColor;
+    ctx.fillStyle = textColor;
+    ctx.font = "10px 'Segoe UI', Arial";
+
+    // Líneas verticales (en X)
+    xPositions.forEach((x, index) => {
+      const start = grid.worldToScreen({ x: x, y: minY });
+      const end = grid.worldToScreen({ x: x, y: maxY });
+
+      if (start.x >= -100 && start.x <= grid.width + 100) {
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.stroke();
+
+        // Etiqueta A, B, C... en la parte inferior
+        const labelPos = grid.worldToScreen({ x: x, y: minY - 0.5 });
+        ctx.fillStyle = textColor;
+        ctx.fillText(xLabels[index], labelPos.x - 4, labelPos.y + 5);
+      }
+    });
+
+    // Líneas horizontales (en Y)
+    yPositions.forEach((y, index) => {
+      const start = grid.worldToScreen({ x: minX, y: y });
+      const end = grid.worldToScreen({ x: maxX, y: y });
+
+      if (start.y >= -100 && start.y <= grid.height + 100) {
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.stroke();
+
+        // Etiqueta 1, 2, 3... en el borde izquierdo
+        const labelPos = grid.worldToScreen({ x: minX - 0.5, y: y });
+        ctx.fillStyle = textColor;
+        ctx.fillText(yLabels[index].toString(), labelPos.x - 15, labelPos.y + 4);
+      }
+    });
+
+    // ========== COORDENADAS ENTRE EJES (en cada celda) ==========
+    // ctx.font = "9px 'Segoe UI', Arial";
+    // ctx.fillStyle = coordColor;
+    // ctx.setLineDash([2, 2]);
+    // ctx.lineWidth = 0.3;
+
+    // for (let i = 0; i < xPositions.length - 1; i++) {
+    //   for (let j = 0; j < yPositions.length - 1; j++) {
+    //     const x = (xPositions[i] + xPositions[i + 1]) / 2;
+    //     const y = (yPositions[j] + yPositions[j + 1]) / 2;
+    //     const screenPos = grid.worldToScreen({ x: x, y: y });
+
+    //     // Mostrar coordenadas en el centro de cada celda
+    //     ctx.fillStyle = coordColor;
+    //     ctx.fillText(`(${x.toFixed(1)}, ${y.toFixed(1)})`, screenPos.x - 22, screenPos.y + 3);
+    //   }
+    // }
+
+    // ========== CONTORNO DEL ÁREA (punteado) ==========
+    const topLeft = grid.worldToScreen({ x: minX, y: maxY });
+    const topRight = grid.worldToScreen({ x: maxX, y: maxY });
+    const bottomLeft = grid.worldToScreen({ x: minX, y: minY });
+    const bottomRight = grid.worldToScreen({ x: maxX, y: minY });
+
+    ctx.beginPath();
+    ctx.strokeStyle = "#4a90d9";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([8, 4]);
+    ctx.moveTo(topLeft.x, topLeft.y);
+    ctx.lineTo(topRight.x, topRight.y);
+    ctx.lineTo(bottomRight.x, bottomRight.y);
+    ctx.lineTo(bottomLeft.x, bottomLeft.y);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Restaurar configuración
+    ctx.font = "11px 'Segoe UI', Arial";
+    ctx.fillStyle = "#ffffff";
+  }
+
+  // drawStandardGrid(grid, context) {
+  //   const ctx = context.ctx;
+
+  //   const topLeft = grid.screenToWorld({ x: 0, y: 0 });
+  //   const bottomRight = grid.screenToWorld({ x: grid.width, y: grid.height });
+
+  //   const spacing = 5;
+  //   const startX = Math.floor(topLeft.x / spacing) * spacing;
+  //   const endX = Math.ceil(bottomRight.x / spacing) * spacing;
+  //   const startY = Math.floor(bottomRight.y / spacing) * spacing;
+  //   const endY = Math.ceil(topLeft.y / spacing) * spacing;
+
+  //   const letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+
+  //   ctx.lineWidth = 0.5;
+  //   ctx.font = "11px 'Segoe UI', Arial";
+  //   ctx.strokeStyle = "#2a4a6a";
+  //   ctx.fillStyle = "#6a9aba";
+
+  //   // Líneas verticales
+  //   let colIndex = 0;
+  //   for (let x = startX; x <= endX; x += spacing) {
+  //     const screenX = (x - grid.offestX) * grid.scaleX;
+  //     ctx.beginPath();
+  //     ctx.moveTo(screenX, 0);
+  //     ctx.lineTo(screenX, grid.height);
+  //     ctx.stroke();
+
+  //     if (colIndex % 2 === 0) {
+  //       const label = letters[Math.floor(colIndex / 2) % letters.length];
+  //       ctx.fillText(label, screenX - 4, grid.height - 8);
+  //     }
+  //     colIndex++;
+  //   }
+
+  //   // Líneas horizontales
+  //   let rowIndex = 0;
+  //   for (let y = startY; y <= endY; y += spacing) {
+  //     const screenY = (grid.offestY - y) * grid.scaleY;
+  //     ctx.beginPath();
+  //     ctx.moveTo(0, screenY);
+  //     ctx.lineTo(grid.width, screenY);
+  //     ctx.stroke();
+
+  //     if (rowIndex % 2 === 0) {
+  //       const label = Math.floor(rowIndex / 2) + 1;
+  //       ctx.fillText(label.toString(), 5, screenY + 4);
+  //     }
+  //     rowIndex++;
+  //   }
+  // }
+
+  // ------------fin del nueveo drawGrid------------
+
+  // Busca la función drawGrid y modifícala o añade esta versión:
+
+  // resources/js/cad/renderer.js
+
+  // drawGrid(grid, context) {
+  //   const ctx = context.ctx;
+  //   ctx.save();
+  //   ctx.shadowBlur = 0;
+
+  //   // Configuración estilo ETABS
+  //   const majorColor = "#3a6a9a"; // Líneas principales (azul)
+  //   const minorColor = "#2a4a6a"; // Líneas secundarias (azul más oscuro)
+  //   const textColor = "#8aadcc"; // Color del texto (azul claro)
+  //   const spacing = 2; // Espaciado entre ejes (metros)
+
+  //   // Calcular límites del grid visible
+  //   const topLeft = grid.screenToWorld({ x: 0, y: 0 });
+  //   const bottomRight = grid.screenToWorld({ x: grid.width, y: grid.height });
+
+  //   const startX = Math.floor(topLeft.x / spacing) * spacing;
+  //   const endX = Math.ceil(bottomRight.x / spacing) * spacing;
+  //   const startY = Math.floor(bottomRight.y / spacing) * spacing;
+  //   const endY = Math.ceil(topLeft.y / spacing) * spacing;
+
+  //   // Letras para ejes horizontales (A, B, C, D, E...)
+  //   const letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
+
+  //   ctx.lineWidth = 0.5;
+  //   ctx.font = "11px 'Segoe UI', Arial";
+
+  //   // ========== DIBUJAR LÍNEAS VERTICALES (Ejes A, B, C, D) ==========
+  //   let colIndex = 0;
+  //   for (let x = startX; x <= endX; x += spacing) {
+  //     const isMajor = colIndex % 2 === 0;
+  //     const screenX = (x - grid.offestX) * grid.scaleX;
+
+  //     // Línea
+  //     ctx.beginPath();
+  //     ctx.strokeStyle = isMajor ? majorColor : minorColor;
+  //     ctx.moveTo(screenX, 0);
+  //     ctx.lineTo(screenX, grid.height);
+  //     ctx.stroke();
+
+  //     // Etiqueta en la parte inferior (solo para líneas principales)
+  //     if (isMajor) {
+  //       const label = letters[Math.floor(colIndex / 2) % letters.length];
+  //       ctx.fillStyle = textColor;
+  //       ctx.fillText(label, screenX - 4, grid.height - 8);
+  //     }
+  //     colIndex++;
+  //   }
+
+  //   // ========== DIBUJAR LÍNEAS HORIZONTALES (Ejes 1, 2, 3, 4) ==========
+  //   let rowIndex = 0;
+  //   for (let y = startY; y <= endY; y += spacing) {
+  //     const isMajor = rowIndex % 2 === 0;
+  //     const screenY = (grid.offestY - y) * grid.scaleY;
+
+  //     // Línea
+  //     ctx.beginPath();
+  //     ctx.strokeStyle = isMajor ? majorColor : minorColor;
+  //     ctx.moveTo(0, screenY);
+  //     ctx.lineTo(grid.width, screenY);
+  //     ctx.stroke();
+
+  //     // Etiqueta en el lateral izquierdo (solo para líneas principales)
+  //     if (isMajor) {
+  //       const label = Math.floor(rowIndex / 2) + 1;
+  //       ctx.fillStyle = textColor;
+  //       ctx.fillText(label.toString(), 5, screenY + 4);
+  //     }
+  //     rowIndex++;
+  //   }
+
+  //   // ========== DIBUJAR EL ORIGEN (0,0) ==========
+  //   const originX = (0 - grid.offestX) * grid.scaleX;
+  //   const originY = (grid.offestY - 0) * grid.scaleY;
+
+  //   ctx.beginPath();
+  //   ctx.arc(originX, originY, 4, 0, 2 * Math.PI);
+  //   ctx.fillStyle = "#ff6666";
+  //   ctx.fill();
+  //   ctx.fillStyle = "#ffffff";
+  //   ctx.font = "bold 10px Arial";
+  //   ctx.fillText("0", originX + 6, originY - 4);
+
+  //   ctx.restore();
+  // }
 
   drawState(state) {}
 
@@ -581,7 +942,7 @@ export class DeflexionRenderer extends DiseñoRenderer {
             },
           },
         },
-        context
+        context,
       );
     });
     context.desplazamientosPosition.forEach((d, index) => {
@@ -595,7 +956,7 @@ export class DeflexionRenderer extends DiseñoRenderer {
             },
           },
         },
-        context
+        context,
       );
     });
   }
