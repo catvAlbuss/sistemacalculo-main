@@ -214,7 +214,7 @@ $logout = function (Logout $logout) {
                             ['url' => 'software.aligerados-v2', 'label' => 'Aligerados v2.0'],
                             ['url' => 'software.cimentacion-v1', 'label' => 'Cimentacion v1.0'],
                             ['url' => 'software.cimentacion-v2', 'label' => 'Cimentacion v2.0'],
-                            ['url' => 'software.analisis-estructural-de-armaduras', 'label' => 'Analisis Estructural'],
+                            ['url' => route('software.analisis-estructural-de-armaduras'), 'label' => 'Analisis Estructural'],
                             ['url' => route('calculadora.asistente.muros-de-contencionv2'),'label' => 'Diseño de Muros de ContenciónV2'],
                         ]"></x-dropdown-sub>
 

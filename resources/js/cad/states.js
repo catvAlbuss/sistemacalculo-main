@@ -3,21 +3,21 @@ import { pointDistance, removeFromArray } from "./utils.js";
 import { MOUSE_BUTTONS, isMouseButton } from "./utils.js";
 
 export class StateBase {
-  constructor() {}
-  handleMouseWheel(event, context, mouse) {}
-  handleMouseClick(event, context, mouse) {}
-  handleMouseDown(event, context, mouse) {}
-  handleMouseMove(event, context, mouse) {}
-  handleMouseUp(event, context, mouse) {}
-  handleMouseEnter(event, context, mouse) {}
-  handleMouseLeave(event, context, mouse) {}
+  constructor() { }
+  handleMouseWheel(event, context, mouse) { }
+  handleMouseClick(event, context, mouse) { }
+  handleMouseDown(event, context, mouse) { }
+  handleMouseMove(event, context, mouse) { }
+  handleMouseUp(event, context, mouse) { }
+  handleMouseEnter(event, context, mouse) { }
+  handleMouseLeave(event, context, mouse) { }
   handleKeyDown(event, context) {
     if (event.key === "Escape") {
       context.setState(context.idleState);
     }
   }
-  enter(args) {}
-  exit() {}
+  enter(args) { }
+  exit() { }
   draw(renderer, context) {
     renderer.drawState(this, context);
   }
@@ -545,7 +545,16 @@ export class TrussDrawingState extends PanAndZoomState {
     if (collided) {
       node = collided;
     } else {
-      node = new Node(context.mousePos, context.nodes.length + 1);
+      // MODIFICAR
+      // node = new Node(context.mousePos, context.nodes.length + 1);
+      node = new Node(
+        {
+          x: context.mousePos.x,
+          y: context.mousePos.y,
+          z: 0,
+        },
+        context.nodes.length + 1
+      );
       context.nodes.push(node);
       const beam = context.closestBeam({ x: x, y: y });
       if (beam) {
@@ -613,7 +622,16 @@ export class TrussDrawingState extends PanAndZoomState {
     };
     const distance = parseFloat(context.distanceInput.value);
     const newPoint = { x: last_point.x + unitVec.x * distance, y: last_point.y + unitVec.y * distance };
-    const node = new Node(newPoint, context.nodes.length + 1);
+    // MODIFICAR
+    // const node = new Node(newPoint, context.nodes.length + 1);
+    const node = new Node(
+      {
+        x: newPoint.x,
+        y: newPoint.y,
+        z: 0,
+      },
+      context.nodes.length + 1
+    );
     context.nodes.push(node);
     const isDone = this.shape.addNode(node);
     if (isDone) {

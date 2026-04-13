@@ -171,13 +171,13 @@ export class Shape {
     return this._propiedades;
   }
 
-  drawUnfinished() {}
+  drawUnfinished() { }
 
   drawTranslated(translation) {
     // draws a copy translated to a diference of vectors
   }
 
-  drawSelected() {}
+  drawSelected() { }
 }
 
 export class Marker {
@@ -205,7 +205,13 @@ export class Marker {
 
 export class Node {
   constructor(position, id) {
-    this.position = position;
+    // MODIFICADO
+    // this.position = position;
+    this.position = {
+      x: position.x ?? 0,
+      y: position.y ?? 0,
+      z: position.z ?? 0,
+    };
     this.force = {
       loads: {
         CM: { x: 0, y: 0, multiplier: 1 },
@@ -289,5 +295,5 @@ export class Beam {
 }
 
 export class PointLoad {
-  constructor() {}
+  constructor() { }
 }

@@ -1,4 +1,4 @@
-import { initScene3D } from "./3d/scene3d.js";
+import { initScene3D, focusCamera } from "./3d/scene3d.js";
 import { renderModel3D } from "./3d/renderModel3d.js";
 
 import { Grid } from "./grid.js";
@@ -49,7 +49,26 @@ export default () => ({
     this.distanceInput = distanceInput;
 
     // NUEVO: inicializar visor 3D
-    this.viewer3D = initScene3D(this.$refs.cad3d);
+    this.viewer3D = initScene3D(this.$refs.cad3d, {
+      onNodeSelected: (nodeId) => {
+        const node = this.nodes.find((n) => n.id === nodeId);
+        if (!node) return;
+
+        console.log("Nodo real seleccionado:", node);
+
+        this.selectedObject = node;
+
+        if (this.selectedNodesState) {
+          this.selectedNodesState.selectedObjects = [node];
+          this.setState(this.selectedNodesState);
+        }
+
+        console.log("Nodo real seleccionado:", node);
+      }
+    });
+
+    this.firstRender3D = false;
+    this.needsSync3D = true;
 
     this.shapes = [];
     this.nodes = [];
@@ -152,21 +171,30 @@ export default () => ({
         s.angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
       });
       this.redraw();
-      this.sync3D();
+      // this.sync3D();
+
+      if (this.needsSync3D) {
+        // this.sync3D({ focus: !this.firstRender3D });
+        this.sync3D({ focus: false });
+      }
 
       window.requestAnimationFrame(renderLoop);
     };
+    this.mark3DDirty();
     window.requestAnimationFrame(renderLoop);
   },
 
-  sync3D() {
+  sync3D({ focus = false } = {}) {
     if (!this.viewer3D) return;
+
     renderModel3D(this.viewer3D, this.nodes, this.shapes);
 
-    // if (this.firstRender3D) {
-    //   focusCamera(this.viewer3D.camera, this.nodes);
-    //   this.firstRender3D = false;
-    // }
+    if (focus && this.nodes.length > 0) {
+      focusCamera(this.viewer3D.camera, this.nodes);
+      this.firstRender3D = true;
+    }
+
+    this.needsSync3D = true;
   },
 
   creaArco() {
@@ -183,6 +211,17 @@ export default () => ({
 
   handleKeyDown(event) {
     this.currentState.handleKeyDown(event, this);
+    if (this.selectedObject && this.selectedObject.position) {
+      if (event.key === "ArrowUp") {
+        this.selectedObject.position.z += 0.5;
+      }
+
+      if (event.key === "ArrowDown") {
+        this.selectedObject.position.z -= 0.5;
+      }
+    }
+    //FUNCION 3D
+    this.mark3DDirty();
   },
 
   handleMouseWheel(event) {
@@ -191,6 +230,8 @@ export default () => ({
 
   handleMouseClick(event) {
     this.currentState.handleMouseClick(event, this, mousePositionFrom(this.canvas, event));
+    //FUNCION 3D
+    this.mark3DDirty();
   },
 
   handleMouseDown(event) {
@@ -199,6 +240,8 @@ export default () => ({
 
   handleMouseUp(event) {
     this.currentState.handleMouseUp(event, this, mousePositionFrom(this.canvas, event));
+    //FUNCION 3D
+    this.mark3DDirty();
   },
 
   handleMouseMove(event) {
@@ -503,13 +546,17 @@ export default () => ({
     this.nodes = this.nodes.concat(parametricModel.nodes);
     this.shapes = this.shapes.concat(parametricModel.shapes);
     removeFromArray(this.parametricModels, parametricModel);
+
     this.nodes.forEach((node, index) => {
       node.id = index + 1;
     });
+
     this.shapes.forEach((beam, index) => {
       beam.id = index + 1;
     });
+
     this.setState(this.idleState);
+    this.mark3DDirty();
   },
 
   save() {
@@ -833,5 +880,11 @@ export default () => ({
     };
     pdfMake.createPdf(docDefinition).download("aligerados.pdf");
   },
+
+  // FUNCION 3D
+  mark3DDirty() {
+    this.needsSync3D = true;
+  },
+
 });
 

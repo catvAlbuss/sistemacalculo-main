@@ -1,25 +1,43 @@
-import { MeshBuilder, StandardMaterial, Color3, Vector3 } from "@babylonjs/core";
+import { MeshBuilder, Vector3 } from "@babylonjs/core";
 
-export function createNode3D(scene, node) {
-  const mesh = MeshBuilder.CreateSphere(
-    `node-${node.id ?? Math.random()}`,
-    { diameter: 0.2 },
-    scene
-  );
-
-  const material = new StandardMaterial(`mat-node-${node.id ?? Math.random()}`, scene);
-  material.diffuseColor = new Color3(1, 0, 0);
-
-  mesh.material = material;
-
+export function createNode3D(scene, node, material) {
   const x = node.position?.x ?? node.x ?? 0;
   const y = node.position?.y ?? node.y ?? 0;
   const z = node.position?.z ?? node.z ?? 0;
 
-  mesh.position = new Vector3(x, y, z);
+  const mesh = MeshBuilder.CreateSphere(
+    `node-${node.id}`,
+    {
+      diameter: 0.18,
+      segments: 16,
+    },
+    scene
+  );
+
+  mesh.position = new Vector3(x, z, y); // 🔥 intercambiar y-z para que z sea altura
+
+  if (material) mesh.material = material;
+
+  mesh.isPickable = true;
   mesh.metadata = {
     type: "node",
-    nodeId: node.id ?? null,
+    nodeId: node.id,
+  };
+
+  return mesh;
+}
+
+export function updateNode3D(mesh, node) {
+  const x = node.position?.x ?? node.x ?? 0;
+  const y = node.position?.y ?? node.y ?? 0;
+  const z = node.position?.z ?? node.z ?? 0;
+
+  mesh.position.set(x, y, z);
+
+  mesh.isPickable = true;
+  mesh.metadata = {
+    type: "node",
+    nodeId: node.id,
   };
 
   return mesh;
