@@ -1,5 +1,5 @@
-import { createNode3D, updateNode3D } from "./objects/node3d.js";
-import { createBeam3D, updateBeam3D } from "./objects/beam3d.js";
+import { createNode3D, updateNode3D } from "./node3d.js";
+import { createBeam3D, updateBeam3D } from "./beam3d.js";
 
 export function renderModel3D(viewer3D, nodes = [], shapes = []) {
   if (!viewer3D || !viewer3D.scene) return;

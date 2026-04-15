@@ -1,23 +1,23 @@
-import { Beam, Node, Shape } from "./shapes.js";
+import { Beam, Node as StructuralNode, Shape } from "./shapes.js";
 import { pointDistance, removeFromArray } from "./utils.js";
 import { MOUSE_BUTTONS, isMouseButton } from "./utils.js";
 
 export class StateBase {
-  constructor() { }
-  handleMouseWheel(event, context, mouse) { }
-  handleMouseClick(event, context, mouse) { }
-  handleMouseDown(event, context, mouse) { }
-  handleMouseMove(event, context, mouse) { }
-  handleMouseUp(event, context, mouse) { }
-  handleMouseEnter(event, context, mouse) { }
-  handleMouseLeave(event, context, mouse) { }
+  constructor() {}
+  handleMouseWheel(event, context, mouse) {}
+  handleMouseClick(event, context, mouse) {}
+  handleMouseDown(event, context, mouse) {}
+  handleMouseMove(event, context, mouse) {}
+  handleMouseUp(event, context, mouse) {}
+  handleMouseEnter(event, context, mouse) {}
+  handleMouseLeave(event, context, mouse) {}
   handleKeyDown(event, context) {
     if (event.key === "Escape") {
       context.setState(context.idleState);
     }
   }
-  enter(args) { }
-  exit() { }
+  enter(args) {}
+  exit() {}
   draw(renderer, context) {
     renderer.drawState(this, context);
   }
@@ -126,7 +126,7 @@ export class IdleState extends PanAndZoomState {
           const shortestDistance = 5;
           const lineLength = pointDistance(
             context.grid.worldToScreen(s.node1.position),
-            context.grid.worldToScreen(s.node2.position)
+            context.grid.worldToScreen(s.node2.position),
           );
           const d1 = pointDistance(context.grid.worldToScreen(s.node1.position), mouse);
           const d2 = pointDistance(context.grid.worldToScreen(s.node2.position), mouse);
@@ -157,7 +157,7 @@ export class IdleState extends PanAndZoomState {
             const shortestDistance = 5;
             const lineLength = pointDistance(
               context.grid.worldToScreen(s.node1.position),
-              context.grid.worldToScreen(s.node2.position)
+              context.grid.worldToScreen(s.node2.position),
             );
             const d1 = pointDistance(context.grid.worldToScreen(s.node1.position), mouse);
             const d2 = pointDistance(context.grid.worldToScreen(s.node2.position), mouse);
@@ -284,7 +284,7 @@ export class EditParametricState extends PanAndZoomState {
         const shortestDistance = 5;
         const lineLength = pointDistance(
           context.grid.worldToScreen(s.node1.position),
-          context.grid.worldToScreen(s.node2.position)
+          context.grid.worldToScreen(s.node2.position),
         );
         const d1 = pointDistance(context.grid.worldToScreen(s.node1.position), mouse);
         const d2 = pointDistance(context.grid.worldToScreen(s.node2.position), mouse);
@@ -306,7 +306,7 @@ export class EditParametricState extends PanAndZoomState {
           const shortestDistance = 5;
           const lineLength = pointDistance(
             context.grid.worldToScreen(s.node1.position),
-            context.grid.worldToScreen(s.node2.position)
+            context.grid.worldToScreen(s.node2.position),
           );
           const d1 = pointDistance(context.grid.worldToScreen(s.node1.position), mouse);
           const d2 = pointDistance(context.grid.worldToScreen(s.node2.position), mouse);
@@ -545,16 +545,7 @@ export class TrussDrawingState extends PanAndZoomState {
     if (collided) {
       node = collided;
     } else {
-      // MODIFICAR
-      // node = new Node(context.mousePos, context.nodes.length + 1);
-      node = new Node(
-        {
-          x: context.mousePos.x,
-          y: context.mousePos.y,
-          z: 0,
-        },
-        context.nodes.length + 1
-      );
+      node = new StructuralNode(context.mousePos, context.nodes.length + 1, 0);
       context.nodes.push(node);
       const beam = context.closestBeam({ x: x, y: y });
       if (beam) {
@@ -622,16 +613,7 @@ export class TrussDrawingState extends PanAndZoomState {
     };
     const distance = parseFloat(context.distanceInput.value);
     const newPoint = { x: last_point.x + unitVec.x * distance, y: last_point.y + unitVec.y * distance };
-    // MODIFICAR
-    // const node = new Node(newPoint, context.nodes.length + 1);
-    const node = new Node(
-      {
-        x: newPoint.x,
-        y: newPoint.y,
-        z: 0,
-      },
-      context.nodes.length + 1
-    );
+    const node = new StructuralNode(newPoint, context.nodes.length + 1, 0);
     context.nodes.push(node);
     const isDone = this.shape.addNode(node);
     if (isDone) {
@@ -694,5 +676,270 @@ export class ChangeSupport extends StateBase {
     if (selectedPoint) {
       selectedPoint.soporte = selectedSoporte;
     }
+  }
+}
+
+export class TrussDrawingState3D extends PanAndZoomState {
+  constructor(context) {
+    super();
+    this.context = context;
+    this.shape = null;
+    this.currentPlane = "XZ"; // XZ = plano horizontal (como 2D)
+    this.showCoordinates = true;
+    this.snapToGrid3D = true;
+    this.gridSize3D = 1;
+  }
+
+  enter(args) {
+    super.enter(args);
+    this.shape = new Beam(this.context.globalE, this.context.globalA);
+    // Mostrar panel de coordenadas 3D
+    this.show3DCoordinatesPanel();
+  }
+
+  exit() {
+    super.exit();
+    this.shape = null;
+    this.hide3DCoordinatesPanel();
+  }
+
+  show3DCoordinatesPanel() {
+    if (!this.coordsPanel) {
+      this.coordsPanel = document.createElement("div");
+      this.coordsPanel.id = "coords3d-panel";
+      this.coordsPanel.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(0,0,0,0.8);
+        color: #0f0;
+        font-family: monospace;
+        font-size: 12px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        border-left: 3px solid #00ff00;
+        z-index: 1000;
+        pointer-events: none;
+      `;
+      document.body.appendChild(this.coordsPanel);
+    }
+    this.coordsPanel.style.display = "block";
+  }
+
+  hide3DCoordinatesPanel() {
+    if (this.coordsPanel) {
+      this.coordsPanel.style.display = "none";
+    }
+  }
+
+  updateCoordinatesPanel(x, y, z, plane) {
+    if (this.coordsPanel) {
+      this.coordsPanel.innerHTML = `
+        📍 Posición 3D:<br>
+        X: ${x.toFixed(2)} | Y: ${y.toFixed(2)} | Z: ${z.toFixed(2)}<br>
+        🎯 Plano: ${plane} | 🟢 Snap: ${this.snapToGrid3D ? "ON" : "OFF"}<br>
+        🔧 Grid: ${this.gridSize3D}m
+      `;
+    }
+  }
+
+  handleMouseDown(event, context, mouse) {
+    // Pan con botón medio
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseDown(event, context, mouse);
+      return;
+    }
+
+    // Obtener posición 3D
+    const worldPos = context.grid.screenToWorld(mouse);
+    let { x, y, z } = this.get3DPosition(worldPos);
+
+    // Aplicar snap al grid si está activado
+    if (this.snapToGrid3D) {
+      x = Math.round(x / this.gridSize3D) * this.gridSize3D;
+      y = Math.round(y / this.gridSize3D) * this.gridSize3D;
+      z = Math.round(z / this.gridSize3D) * this.gridSize3D;
+    }
+
+    // Buscar nodo cercano (radio de 0.5 unidades)
+    let node = this.findNearbyNode(context, x, y, z);
+
+    if (!node) {
+      // Crear nuevo nodo 3D
+      node = new StructuralNode({ x: x, y: y }, context.nodes.length + 1, z);
+      context.nodes.push(node);
+    }
+
+    if (!this.shape) {
+      this.shape = new Beam(context.globalE, context.globalA);
+    }
+
+    const isDone = this.shape.addNode(node);
+    if (isDone) {
+      context.shapes.push(this.shape);
+      if (this.shape.node1 && this.shape.node1.beams) {
+        this.shape.node1.beams.push(this.shape);
+      }
+      if (this.shape.node2 && this.shape.node2.beams) {
+        this.shape.node2.beams.push(this.shape);
+      }
+      this.shape.id = context.shapes.length;
+      // Crear nueva viga
+      this.shape = new Beam(context.globalE, context.globalA);
+      this.shape.addNode(node);
+    }
+
+    // Sincronizar vista 3D
+    if (context.sync3D) {
+      context.sync3D();
+    }
+  }
+
+  findNearbyNode(context, x, y, z, radius = 0.5) {
+    return context.nodes.find((node) => {
+      const dx = Math.abs(node.position.x - x);
+      const dy = Math.abs((node.position.y || 0) - y);
+      const dz = Math.abs((node.position.z || 0) - z);
+      return dx <= radius && dy <= radius && dz <= radius;
+    });
+  }
+
+  get3DPosition(worldPos) {
+    let x = worldPos.x;
+    let y = 0;
+    let z = 0;
+
+    switch (this.currentPlane) {
+      case "XZ": // Plano horizontal (como 2D) - Y=0
+        x = worldPos.x;
+        z = worldPos.y;
+        y = 0;
+        break;
+      case "XY": // Plano frontal - Z=0
+        x = worldPos.x;
+        y = worldPos.y;
+        z = 0;
+        break;
+      case "YZ": // Plano lateral - X=0
+        y = worldPos.x;
+        z = worldPos.y;
+        x = 0;
+        break;
+    }
+
+    return { x, y, z };
+  }
+
+  handleMouseMove(event, context, mouse) {
+    // Pan mode
+    if (this.isDragging) {
+      super.handleMouseMove(event, context, mouse);
+      return;
+    }
+
+    // Obtener posición 3D actual
+    const worldPos = context.grid.screenToWorld(mouse);
+    let { x, y, z } = this.get3DPosition(worldPos);
+
+    // Aplicar snap al grid
+    if (this.snapToGrid3D) {
+      x = Math.round(x / this.gridSize3D) * this.gridSize3D;
+      y = Math.round(y / this.gridSize3D) * this.gridSize3D;
+      z = Math.round(z / this.gridSize3D) * this.gridSize3D;
+    }
+
+    // Actualizar panel de coordenadas
+    this.updateCoordinatesPanel(x, y, z, this.currentPlane);
+
+    // Mostrar distancia de preview
+    const last_point = this.shape?.node1?.position;
+    if (last_point && context.distanceInput) {
+      const dx = x - last_point.x;
+      const dy = y - (last_point.y || 0);
+      const dz = z - (last_point.z || 0);
+      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+      const screenPos = { x: mouse.x, y: mouse.y };
+      context.distanceInput.style.top = screenPos.y + "px";
+      context.distanceInput.style.left = screenPos.x + "px";
+      context.distanceInput.value = distance.toFixed(2);
+    }
+
+    // Actualizar cursor
+    context.setCursor("crosshair");
+  }
+
+  handleKeyDown(event, context) {
+    super.handleKeyDown(event, context);
+
+    // Cambiar plano de dibujo
+    if (event.key === "1") {
+      this.currentPlane = "XZ";
+      this.showMessage("📐 Plano XZ (Horizontal) - X→, Z↗, Y=0");
+    } else if (event.key === "2") {
+      this.currentPlane = "XY";
+      this.showMessage("📐 Plano XY (Frontal) - X→, Y↑, Z=0");
+    } else if (event.key === "3") {
+      this.currentPlane = "YZ";
+      this.showMessage("📐 Plano YZ (Lateral) - Y↑, Z↗, X=0");
+    }
+
+    // Toggle snap al grid
+    if (event.key === "s") {
+      this.snapToGrid3D = !this.snapToGrid3D;
+      this.showMessage(`🟢 Snap al grid: ${this.snapToGrid3D ? "ON" : "OFF"}`);
+    }
+
+    // Cambiar tamaño del grid
+    if (event.key === "g") {
+      this.gridSize3D = this.gridSize3D === 1 ? 0.5 : this.gridSize3D === 0.5 ? 0.25 : 1;
+      this.showMessage(`📏 Tamaño del grid: ${this.gridSize3D}m`);
+    }
+  }
+
+  showMessage(message) {
+    const toast = document.createElement("div");
+    toast.textContent = message;
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 100px;
+      right: 20px;
+      background: #3b82f6;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: monospace;
+      z-index: 1001;
+      animation: fadeOut 2s ease forwards;
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+  }
+
+  draw(renderer, context) {
+    // Dibujar línea de preview en 2D
+    if (this.shape && this.shape.node1 && context.ctx) {
+      const p1 = context.grid.worldToScreen(this.shape.node1.position);
+      const p2 = context.grid.worldToScreen(context.mousePos);
+      context.ctx.save();
+      context.ctx.strokeStyle = "#88aaff";
+      context.ctx.setLineDash([5, 5]);
+      context.ctx.lineWidth = 2;
+      context.ctx.beginPath();
+      context.ctx.moveTo(p1.x, p1.y);
+      context.ctx.lineTo(p2.x, p2.y);
+      context.ctx.stroke();
+      context.ctx.restore();
+    }
+  }
+
+  info() {
+    const planeNames = {
+      XZ: "XZ (Horizontal - como 2D)",
+      XY: "XY (Frontal)",
+      YZ: "YZ (Lateral)",
+    };
+    return `✏️ DIBUJO 3D | Plano: ${planeNames[this.currentPlane]} | Snap: ${this.snapToGrid3D ? "ON" : "OFF"} | Grid: ${this.gridSize3D}m | Teclas: 1,2,3 (planos) | S (snap) | G (grid)`;
   }
 }

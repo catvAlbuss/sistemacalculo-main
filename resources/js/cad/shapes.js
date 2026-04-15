@@ -171,13 +171,13 @@ export class Shape {
     return this._propiedades;
   }
 
-  drawUnfinished() { }
+  drawUnfinished() {}
 
   drawTranslated(translation) {
     // draws a copy translated to a diference of vectors
   }
 
-  drawSelected() { }
+  drawSelected() {}
 }
 
 export class Marker {
@@ -204,29 +204,32 @@ export class Marker {
 }
 
 export class Node {
-  constructor(position, id) {
-    // MODIFICADO
-    // this.position = position;
+  constructor(position, id, z = 0) {  // ← AÑADE z = 0 como tercer parámetro
     this.position = {
-      x: position.x ?? 0,
-      y: position.y ?? 0,
-      z: position.z ?? 0,
+      x: position.x,
+      y: position.y,
+      z: z  // ← AHORA z está definido
     };
     this.force = {
       loads: {
-        CM: { x: 0, y: 0, multiplier: 1 },
-        CV: { x: 0, y: 0, multiplier: 1 },
-        CVVM: { x: 0, y: 0, multiplier: 1 },
-        CVVP: { x: 0, y: 0, multiplier: 1 },
-        CN: { x: 0, y: 0, multiplier: 1 },
-        CLL: { x: 0, y: 0, multiplier: 1 },
+        CM: { x: 0, y: 0, z: 0, multiplier: 1 },
+        CV: { x: 0, y: 0, z: 0, multiplier: 1 },
+        CVVM: { x: 0, y: 0, z: 0, multiplier: 1 },
+        CVVP: { x: 0, y: 0, z: 0, multiplier: 1 },
+        CN: { x: 0, y: 0, z: 0, multiplier: 1 },
+        CLL: { x: 0, y: 0, z: 0, multiplier: 1 },
       },
     };
-    this.reaction = { x: 0, y: 0 };
+    this.reaction = { x: 0, y: 0, z: 0 };
     this.id = id;
     this.beams = [];
     this.style = new NodeStyle();
     this.soporte = "";
+  }
+
+  // Añadir método para cambiar altura
+  setElevation(z) {
+    this.position.z = z;
   }
 
   tieneCarga() {
@@ -295,5 +298,5 @@ export class Beam {
 }
 
 export class PointLoad {
-  constructor() { }
+  constructor() {}
 }

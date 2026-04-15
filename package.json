@@ -27,12 +27,12 @@
         "jquery-ui": "^1.14.1",
         "mat-for-js": "^1.1.0",
         "mathjs": "^14.2.1",
-        "paper": "^0.12.18",
         "pdfmake": "^0.2.18",
         "plotly.js-dist-min": "2.35.3",
         "print-this": "^2.0.0",
         "puppeteer": "^24.39.1",
-        "sweetalert2": "^11.26.24",
-        "tabulator-tables": "^6.3.1"
+        "sweetalert2": "^11.17.2",
+        "tabulator-tables": "^6.3.1",
+        "three": "^0.183.2"
     }
 }

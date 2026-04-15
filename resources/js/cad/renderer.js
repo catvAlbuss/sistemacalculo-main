@@ -69,8 +69,16 @@ export class DiseñoRenderer {
         }
       } else {
         CADSystem.shapes.forEach((s) => {
+          if (!this.shouldDrawBeam(s, CADSystem)) return;
           s.draw(this, CADSystem);
         });
+        const currentZ = CADSystem.stories?.[CADSystem.activeStory]?.elevation ?? 0;
+
+        CADSystem.shapes.forEach((s) => {
+          if (!this.shouldDrawBeam(s, CADSystem)) return;
+          s.draw(this, CADSystem);
+        });
+
         CADSystem.parametricModels.forEach((parametric) => {
           parametric.shapes.forEach((s) => {
             s.draw(this, CADSystem);
@@ -78,14 +86,25 @@ export class DiseñoRenderer {
         });
       }
       CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
         n.draw(this, CADSystem);
       });
+
       CADSystem.parametricModels.forEach((parametric) => {
         parametric.nodes.forEach((n) => {
           n.draw(this, CADSystem);
           this.drawForce(n, CADSystem);
         });
       });
+
+      // CADSystem.parametricModels.forEach((parametric) => {
+      //   parametric.nodes.forEach((n) => {
+      //     if ((n.position.z || 0) !== currentZ) return;
+
+      //     n.draw(this, CADSystem);
+      //   });
+      // });
+
     } else {
       if (CADSystem.options.showFAxiales) {
         this.drawWireframeAxiales(CADSystem);
@@ -191,7 +210,8 @@ export class DiseñoRenderer {
   }
 
   drawNode(node, context) {
-    const p = context.grid.worldToScreen(node.position);
+    // const p = context.grid.worldToScreen(node.position);
+    const p = this.projectPoint(node, context);
     context.ctx.save();
     const model = node.style.getModel();
     Object.assign(context.ctx, node.style.get().MODEL);
@@ -250,11 +270,11 @@ export class DiseñoRenderer {
     context.ctx.moveTo(p.x, p.y);
     context.ctx.lineTo(
       p.x - headLength * Math.cos(angle - Math.PI / 6),
-      p.y - headLength * Math.sin(angle - Math.PI / 6)
+      p.y - headLength * Math.sin(angle - Math.PI / 6),
     );
     context.ctx.lineTo(
       p.x - headLength * Math.cos(angle + Math.PI / 6),
-      p.y - headLength * Math.sin(angle + Math.PI / 6)
+      p.y - headLength * Math.sin(angle + Math.PI / 6),
     );
     context.ctx.lineTo(p.x, p.y);
     context.ctx.closePath();
@@ -285,11 +305,11 @@ export class DiseñoRenderer {
     context.ctx.moveTo(p.x, p.y);
     context.ctx.lineTo(
       p.x - headLength * Math.cos(angle - Math.PI / 6),
-      p.y - headLength * Math.sin(angle - Math.PI / 6)
+      p.y - headLength * Math.sin(angle - Math.PI / 6),
     );
     context.ctx.lineTo(
       p.x - headLength * Math.cos(angle + Math.PI / 6),
-      p.y - headLength * Math.sin(angle + Math.PI / 6)
+      p.y - headLength * Math.sin(angle + Math.PI / 6),
     );
     context.ctx.lineTo(p.x, p.y);
     context.ctx.closePath();
@@ -317,11 +337,11 @@ export class DiseñoRenderer {
     context.ctx.moveTo(p.x, p.y);
     context.ctx.lineTo(
       p.x - headLength * Math.cos(angle - Math.PI / 6),
-      p.y - headLength * Math.sin(angle - Math.PI / 6)
+      p.y - headLength * Math.sin(angle - Math.PI / 6),
     );
     context.ctx.lineTo(
       p.x - headLength * Math.cos(angle + Math.PI / 6),
-      p.y - headLength * Math.sin(angle + Math.PI / 6)
+      p.y - headLength * Math.sin(angle + Math.PI / 6),
     );
     context.ctx.lineTo(p.x, p.y);
     context.ctx.closePath();
@@ -388,8 +408,10 @@ export class DiseñoRenderer {
   }
 
   drawBeam(beam, context) {
-    const p1 = context.grid.worldToScreen(beam.node1.position);
-    const p2 = context.grid.worldToScreen(beam.node2.position);
+    // const p1 = context.grid.worldToScreen(beam.node1.position);
+    // const p2 = context.grid.worldToScreen(beam.node2.position);
+    const p1 = this.projectPoint(beam.node1, context);
+    const p2 = this.projectPoint(beam.node2, context);
     context.ctx.save();
     Object.assign(context.ctx, beam.style.get().MODEL);
     context.ctx.beginPath();
@@ -415,7 +437,8 @@ export class DiseñoRenderer {
     context.ctx.restore();
   }
 
-  drawGrid(grid, context) {
+  // DRAW GRID ORIGINAL
+  drawStandardGrid(grid, context) {
     const ctx = context.ctx; // Assuming you're using a canvas context
     ctx.save();
 
@@ -458,7 +481,204 @@ export class DiseñoRenderer {
     ctx.restore();
   }
 
-  drawState(state) {}
+  // --------------- ESTILO DE DRAW GRID INSPIRADO EN ETABS ----------------
+
+  drawGrid(grid, context) {
+    const ctx = context.ctx;
+    ctx.save();
+    ctx.shadowBlur = 0;
+
+    // console.log("referenceGrid:", context.referenceGrid);
+    if (!this._debugLogged) {
+      // console.log("referenceGrid:", context.referenceGrid);
+      this._debugLogged = true;
+    }
+
+    // Si hay un grid de referencia definido, dibujar SOLO ese
+    if (context.referenceGrid && context.referenceGrid.xPositions && context.referenceGrid.xPositions.length > 0) {
+      // console.log("dibujando referenceGrid");
+      this.drawReferenceGridOnly(grid, context);
+      ctx.restore();
+      return;
+    }
+
+    // Si no hay grid de referencia, dibujar grid estándar (opcional)
+    // console.log("dibujando standardGrid");
+    this.drawStandardGrid(grid, context);
+    ctx.restore();
+  }
+
+  drawReferenceGridOnly(grid, context) {
+    const ctx = context.ctx;
+    const refGrid = context.referenceGrid;
+
+    if (!refGrid || !refGrid.xPositions || refGrid.xPositions.length === 0) return;
+
+    const xPositions = refGrid.xPositions;
+    const yPositions = refGrid.yPositions;
+    const xLabels = refGrid.xLabels;
+    const yLabels = refGrid.yLabels;
+
+    // Colores estilo ETABS
+    const lineColor = "#3a6a9a";
+    const textColor = "#8aadcc";
+    const axisColor = "#00ff00";
+    // const coordColor = "#aaccee";
+
+    ctx.lineWidth = 0.8;
+    ctx.font = "11px 'Segoe UI', Arial";
+    ctx.setLineDash([]);
+
+    const minX = Math.min(...xPositions);
+    const maxX = Math.max(...xPositions);
+    const minY = Math.min(...yPositions);
+    const maxY = Math.max(...yPositions);
+
+    // ========== DIBUJAR EJES X e Y CON FLECHAS ==========
+    const arrowSize = 6; // Tamaño de la flecha
+
+    // Eje X (horizontal) - línea roja en Y=0
+    const ejeXStart = grid.worldToScreen({ x: minX, y: 0 });
+    const ejeXEnd = grid.worldToScreen({ x: 2, y: 0 });
+
+    ctx.beginPath();
+    ctx.strokeStyle = axisColor;
+    ctx.fillStyle = axisColor;
+    ctx.lineWidth = 1.5;
+    ctx.moveTo(ejeXStart.x, ejeXStart.y);
+    ctx.lineTo(ejeXEnd.x, ejeXEnd.y);
+    ctx.stroke();
+
+    // Flecha del eje X (punta en dirección positiva)
+    const arrowXTip = grid.worldToScreen({ x: 2, y: 0 });
+    ctx.beginPath();
+    ctx.moveTo(arrowXTip.x, arrowXTip.y);
+    ctx.lineTo(arrowXTip.x - arrowSize, arrowXTip.y - arrowSize / 2);
+    ctx.lineTo(arrowXTip.x - arrowSize, arrowXTip.y + arrowSize / 2);
+    ctx.fill();
+
+    // Etiqueta del eje X
+    ctx.fillStyle = axisColor;
+    ctx.font = "bold 12px 'Segoe UI', Arial";
+    const ejeXLabelPos = grid.worldToScreen({ x: maxX + 1.2, y: 0 });
+    ctx.fillText("X", ejeXLabelPos.x + 3, ejeXLabelPos.y - 3);
+
+    // Eje Y (vertical) - línea roja en X=0
+    const ejeYStart = grid.worldToScreen({ x: 0, y: minY });
+    const ejeYEnd = grid.worldToScreen({ x: 0, y: 2 });
+
+    ctx.beginPath();
+    ctx.moveTo(ejeYStart.x, ejeYStart.y);
+    ctx.lineTo(ejeYEnd.x, ejeYEnd.y);
+    ctx.stroke();
+
+    // Flecha del eje Y (punta en dirección positiva)
+    const arrowYTip = grid.worldToScreen({ x: 0, y: 2 });
+    ctx.beginPath();
+    ctx.moveTo(arrowYTip.x, arrowYTip.y);
+    ctx.lineTo(arrowYTip.x - arrowSize / 2, arrowYTip.y + arrowSize); // ← Cambiado: + arrowSize
+    ctx.lineTo(arrowYTip.x + arrowSize / 2, arrowYTip.y + arrowSize); // ← Cambiado: + arrowSize
+    ctx.fill();
+
+    // Etiqueta del eje Y
+    const ejeYLabelPos = grid.worldToScreen({ x: 0, y: maxY + 1.2 });
+    ctx.fillText("Y", ejeYLabelPos.x + 5, ejeYLabelPos.y + 3);
+
+    // ========== DIBUJAR EL ORIGEN (0,0) ==========
+    const origin = grid.worldToScreen({ x: 0, y: 0 });
+    ctx.beginPath();
+    ctx.arc(origin.x, origin.y, 5, 0, 2 * Math.PI);
+    ctx.fillStyle = "#ff8888";
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 10px Arial";
+    ctx.fillText("0,0", origin.x + 8, origin.y - 5);
+
+    // ========== DIBUJAR LÍNEAS DEL GRID (solo dentro del área) ==========
+    ctx.lineWidth = 0.5;
+    ctx.strokeStyle = lineColor;
+    ctx.fillStyle = textColor;
+    ctx.font = "10px 'Segoe UI', Arial";
+
+    // Líneas verticales (en X)
+    xPositions.forEach((x, index) => {
+      const start = grid.worldToScreen({ x: x, y: minY });
+      const end = grid.worldToScreen({ x: x, y: maxY });
+
+      if (start.x >= -100 && start.x <= grid.width + 100) {
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.stroke();
+
+        // Etiqueta A, B, C... en la parte inferior
+        const labelPos = grid.worldToScreen({ x: x, y: minY - 0.5 });
+        ctx.fillStyle = textColor;
+        ctx.fillText(xLabels[index], labelPos.x - 4, labelPos.y + 5);
+      }
+    });
+
+    // Líneas horizontales (en Y)
+    yPositions.forEach((y, index) => {
+      const start = grid.worldToScreen({ x: minX, y: y });
+      const end = grid.worldToScreen({ x: maxX, y: y });
+
+      if (start.y >= -100 && start.y <= grid.height + 100) {
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.stroke();
+
+        // Etiqueta 1, 2, 3... en el borde izquierdo
+        const labelPos = grid.worldToScreen({ x: minX - 0.5, y: y });
+        ctx.fillStyle = textColor;
+        ctx.fillText(yLabels[index].toString(), labelPos.x - 15, labelPos.y + 4);
+      }
+    });
+
+    // ========== COORDENADAS ENTRE EJES (en cada celda) ==========
+    // ctx.font = "9px 'Segoe UI', Arial";
+    // ctx.fillStyle = coordColor;
+    // ctx.setLineDash([2, 2]);
+    // ctx.lineWidth = 0.3;
+
+    // for (let i = 0; i < xPositions.length - 1; i++) {
+    //   for (let j = 0; j < yPositions.length - 1; j++) {
+    //     const x = (xPositions[i] + xPositions[i + 1]) / 2;
+    //     const y = (yPositions[j] + yPositions[j + 1]) / 2;
+    //     const screenPos = grid.worldToScreen({ x: x, y: y });
+
+    //     // Mostrar coordenadas en el centro de cada celda
+    //     ctx.fillStyle = coordColor;
+    //     ctx.fillText(`(${x.toFixed(1)}, ${y.toFixed(1)})`, screenPos.x - 22, screenPos.y + 3);
+    //   }
+    // }
+
+    // ========== CONTORNO DEL ÁREA (punteado) ==========
+    const topLeft = grid.worldToScreen({ x: minX, y: maxY });
+    const topRight = grid.worldToScreen({ x: maxX, y: maxY });
+    const bottomLeft = grid.worldToScreen({ x: minX, y: minY });
+    const bottomRight = grid.worldToScreen({ x: maxX, y: minY });
+
+    ctx.beginPath();
+    ctx.strokeStyle = "#4a90d9";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([8, 4]);
+    ctx.moveTo(topLeft.x, topLeft.y);
+    ctx.lineTo(topRight.x, topRight.y);
+    ctx.lineTo(bottomRight.x, bottomRight.y);
+    ctx.lineTo(bottomLeft.x, bottomLeft.y);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Restaurar configuración
+    ctx.font = "11px 'Segoe UI', Arial";
+    ctx.fillStyle = "#ffffff";
+  }
+
+
+  drawState(state) { }
 
   drawSelectionState(state, context) {
     context.ctx.save();
@@ -542,6 +762,65 @@ export class DiseñoRenderer {
       context.ctx.restore();
     });
   }
+
+  // DIBUJO DE NODOS EN WIRE FRAME SOLO SI ESTÁN EN EL PLANO DE LA VISTA ACTIVA
+  shouldDrawNode(node, CADSystem) {
+    const view = CADSystem.viewSet?.[CADSystem.activeViewIndex];
+    if (!view) return true;
+
+    const tol = 0.05;
+    const x = node.position.x || 0;
+    const y = node.position.y || 0;
+    const z = node.position.z || 0;
+
+    if (view.type === "plan") {
+      return Math.abs(z - view.elevation) <= tol;
+    }
+
+    if (view.type === "elevation") {
+      if (view.axis === "X") {
+        return Math.abs(x - view.value) <= tol;
+      }
+
+      if (view.axis === "Y") {
+        return Math.abs(y - view.value) <= tol;
+      }
+    }
+
+    return true;
+  }
+
+  shouldDrawBeam(beam, CADSystem) {
+    return (
+      this.shouldDrawNode(beam.node1, CADSystem) &&
+      this.shouldDrawNode(beam.node2, CADSystem)
+    );
+  }
+
+  projectPoint(node, CADSystem) {
+    const view = CADSystem.viewSet?.[CADSystem.activeViewIndex];
+    const x = node.position.x || 0;
+    const y = node.position.y || 0;
+    const z = node.position.z || 0;
+
+    if (!view || view.type === "plan") {
+      return CADSystem.grid.worldToScreen({ x, y });
+    }
+
+    if (view.type === "elevation") {
+      if (view.axis === "X") {
+        // horizontal = Y, vertical = Z
+        return CADSystem.grid.worldToScreen({ x: y, y: z });
+      }
+
+      if (view.axis === "Y") {
+        // horizontal = X, vertical = Z
+        return CADSystem.grid.worldToScreen({ x, y: z });
+      }
+    }
+
+    return CADSystem.grid.worldToScreen({ x, y });
+  }
 }
 
 export class DeflexionRenderer extends DiseñoRenderer {
@@ -554,7 +833,9 @@ export class DeflexionRenderer extends DiseñoRenderer {
       this.drawDeflectionsIDs(CADSystem);
     }
     CADSystem.nodes.forEach((n) => {
-      this.drawSupport(n, CADSystem);
+      // this.drawSupport(n, CADSystem);
+      if (!this.shouldDrawNode(n, CADSystem)) return;
+      n.draw(this, CADSystem);
     });
 
     this.drawDeflections(CADSystem);
@@ -581,7 +862,7 @@ export class DeflexionRenderer extends DiseñoRenderer {
             },
           },
         },
-        context
+        context,
       );
     });
     context.desplazamientosPosition.forEach((d, index) => {
@@ -595,7 +876,7 @@ export class DeflexionRenderer extends DiseñoRenderer {
             },
           },
         },
-        context
+        context,
       );
     });
   }
