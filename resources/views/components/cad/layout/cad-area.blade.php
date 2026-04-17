@@ -5,6 +5,51 @@
     x-show="currentState === trussDrawingState && currentState.shape.node1" x-ref="distanceInput"
     @keyup.enter="trussDrawingState.createBeam($data)">
 
+  {{-- Barra de nivel actual Y VISTA --}}
+  <div class="bg-gray-800 text-white px-4 py-2 flex items-center gap-4 border-b border-gray-600 flex-wrap">
+
+    {{-- Selector de Nivel (Story) --}}
+    <div class="flex items-center gap-2">
+      <span class="text-sm font-semibold">Nivel:</span>
+      <select x-model="currentStory"
+        @change="changeStory()"
+        class="bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm">
+        <option value="none" disabled>Planta</option>
+        <template x-for="(story, idx) in stories">
+          <option :value="story.name" x-text="`${story.name} (Z = ${story.z} m)`"></option>
+        </template>
+      </select>
+    </div>
+
+    {{-- Selector de Vista en ELEVACIÓN (Ejes X) --}}
+    <div class="flex items-center gap-2 ml-4">
+      <span class="text-sm font-semibold">Vista Eje X:</span>
+      <select x-model="currentElevationX"
+        @change="changeElevationX()"
+        class="bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm">
+        <option value="none">🗺️ PLANTA (X-Y)</option>
+        <template x-for="(elev, idx) in xElevations">
+          <option :value="elev.name" x-text="`${elev.name} (Y = ${elev.y} m)`"></option>
+        </template>
+      </select>
+    </div>
+
+    {{-- Selector de Vista en ELEVACIÓN (Ejes Z: A,B,C...) --}}
+    <div class="flex items-center gap-2 ml-4">
+      <span class="text-sm font-semibold">Vista Eje Z:</span>
+      <select x-model="currentElevationZ"
+        @change="changeElevationZ()"
+        class="bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm">
+        <option value="none">🗺️ PLANTA (X-Y)</option>
+        <template x-for="elev in zElevations" :key="elev.name">
+          <option :value="elev.name" x-text="`${elev.name} (X = ${elev.x} m)`"></option>
+        </template>
+      </select>
+    </div>
+    
+    {{-- Indicador de filtro actual --}}
+    <span class="text-xs text-blue-400 ml-4" x-text="getFilterInfo()"></span>
+  </div>
   {{-- Contenedor dividido: 2D a la izquierda, 3D a la derecha --}}
   <div class="flex flex-1 w-full overflow-hidden">
 
@@ -45,7 +90,7 @@
       <button class="p-1" :class="currentRenderer === axialRenderer ? 'bg-gray-100' : ''"
         @click="currentRenderer = axialRenderer;setState(idleState)">Axial</button>
 
-        <!-- para probar la sincronizacion -->
+      <!-- para probar la sincronizacion -->
       <button @click="sync3D()"
         class="p-1 px-2 bg-yellow-600 text-white rounded text-xs ml-2">
         Sincronizar

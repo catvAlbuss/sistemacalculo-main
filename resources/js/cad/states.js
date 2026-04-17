@@ -97,6 +97,23 @@ export class IdleState extends PanAndZoomState {
       context.setState(context.selectionState, { selectionStart: context.grid.screenToWorld(mouse) });
     }
   }
+  getCurrentPlane(context) {
+    const isElevationView = context.currentElevationX && context.currentElevationX !== "none";
+
+    if (isElevationView) {
+      // En vista elevación, obtener la Y del eje
+      const elev = context.xElevations?.find((e) => e.name === context.currentElevationX);
+      return { type: "elevation", value: elev?.y || 0 };
+    } else {
+      // En vista planta, obtener la Z del nivel
+      let currentZ = 0;
+      if (context.currentStory && context.stories) {
+        const story = context.stories.find((s) => s.name === context.currentStory);
+        if (story) currentZ = story.z;
+      }
+      return { type: "plan", value: currentZ };
+    }
+  }
   handleMouseUp(event, context, mouse) {
     super.handleMouseUp(...arguments);
   }
@@ -107,6 +124,7 @@ export class IdleState extends PanAndZoomState {
     let collidedParametric = false;
     if (!this.isDragging) {
       context.nodes.forEach((n) => {
+        if (!n) return; // ← AÑADE ESTA LÍNEA AL INICIO
         const shortestDistance = 10;
         const distance = pointDistance(mouse, context.grid.worldToScreen(n.position));
         if (distance <= shortestDistance) {
@@ -222,8 +240,56 @@ export class SelectedObjectsState extends PanAndZoomState {
 export class SelectedBeamsState extends SelectedObjectsState {
   handleKeyDown(event, context) {
     super.handleKeyDown(...arguments);
+    // ORIGINAL
+    // if (event.key === "Delete") {
+    //   this.selectedObjects.forEach((deleteShape) => {
+    //     removeFromArray(deleteShape.node1.beams, deleteShape);
+    //     removeFromArray(deleteShape.node2.beams, deleteShape);
+    //     removeFromArray(context.shapes, deleteShape);
+    //     context.shapes.forEach((beam, index) => {
+    //       beam.id = index + 1;
+    //     });
+    //   });
+    //   context.setState(context.idleState);
+
+    //   context.sync3D();
+    // }
+
     if (event.key === "Delete") {
-      this.selectedObjects.forEach((deleteShape) => {
+      // Obtener el plano actual
+      const isElevationView = context.currentElevationX && context.currentElevationX !== "none";
+      let targetValue = 0;
+
+      if (isElevationView) {
+        // Vista ELEVACIÓN: obtener la Y del eje seleccionado
+        const elev = context.xElevations?.find((e) => e.name === context.currentElevationX);
+        targetValue = elev?.y || 0;
+      } else {
+        // Vista PLANTA: obtener la Z del nivel actual
+        const story = context.stories?.find((s) => s.name === context.currentStory);
+        targetValue = story?.z || 0;
+      }
+
+      // Filtrar solo las vigas que están en el plano actual
+      const beamsToDelete = this.selectedObjects.filter((beam) => {
+        if (!beam.node1 || !beam.node2) return false;
+
+        if (isElevationView) {
+          // Vista ELEVACIÓN: filtrar por Y
+          const y1 = beam.node1.position.y;
+          const y2 = beam.node2.position.y;
+          return Math.abs(y1 - targetValue) < 0.01 && Math.abs(y2 - targetValue) < 0.01;
+        } else {
+          // Vista PLANTA: filtrar por Z
+          const z1 = beam.node1.position.z || 0;
+          const z2 = beam.node2.position.z || 0;
+          return Math.abs(z1 - targetValue) < 0.01 && Math.abs(z2 - targetValue) < 0.01;
+        }
+      });
+
+      console.log(`🗑️ Eliminando ${beamsToDelete.length} vigas del plano actual`);
+
+      beamsToDelete.forEach((deleteShape) => {
         removeFromArray(deleteShape.node1.beams, deleteShape);
         removeFromArray(deleteShape.node2.beams, deleteShape);
         removeFromArray(context.shapes, deleteShape);
@@ -231,7 +297,9 @@ export class SelectedBeamsState extends SelectedObjectsState {
           beam.id = index + 1;
         });
       });
+
       context.setState(context.idleState);
+      context.sync3D();
     }
   }
   enter(args) {
@@ -341,10 +409,98 @@ export class EditParametricState extends PanAndZoomState {
 }
 
 export class SelectedNodesState extends SelectedObjectsState {
+  // ORIGINAL
+  // handleKeyDown(event, context) {
+  //   super.handleKeyDown(...arguments);
+  //   if (event.key === "Delete") {
+  //     this.selectedObjects.forEach((deleteShape) => {
+  //       deleteShape.beams.forEach((beam) => {
+  //         const updateBeamsNode = deleteShape === beam.node1 ? beam.node2 : beam.node1;
+  //         removeFromArray(updateBeamsNode.beams, beam);
+  //       });
+  //       deleteShape.beams.forEach((beam) => {
+  //         removeFromArray(context.shapes, beam);
+  //       });
+  //       removeFromArray(context.nodes, deleteShape);
+  //       context.nodes.forEach((node, index) => {
+  //         node.id = index + 1;
+  //       });
+  //     });
+  //     context.setState(context.idleState);
+
+  //     context.sync3D();
+  //   }
+  // }
+
   handleKeyDown(event, context) {
     super.handleKeyDown(...arguments);
+    // ORIGINAL
+    // if (event.key === "Delete") {
+    //   // Obtener el plano actual
+    //   const isElevationView = context.currentElevationX && context.currentElevationX !== "none";
+    //   let targetValue = 0;
+
+    //   if (isElevationView) {
+    //     const elev = context.xElevations?.find((e) => e.name === context.currentElevationX);
+    //     targetValue = elev?.y || 0;
+    //   } else {
+    //     const story = context.stories?.find((s) => s.name === context.currentStory);
+    //     targetValue = story?.z || 0;
+    //   }
+
+    //   // Filtrar solo los nodos que están en el plano actual
+    //   const nodesToDelete = this.selectedObjects.filter((node) => {
+    //     if (isElevationView) {
+    //       return Math.abs(node.position.y - targetValue) < 0.01;
+    //     } else {
+    //       return Math.abs((node.position.z || 0) - targetValue) < 0.01;
+    //     }
+    //   });
+
+    //   nodesToDelete.forEach((deleteShape) => {
+    //     deleteShape.beams.forEach((beam) => {
+    //       const updateBeamsNode = deleteShape === beam.node1 ? beam.node2 : beam.node1;
+    //       removeFromArray(updateBeamsNode.beams, beam);
+    //     });
+    //     deleteShape.beams.forEach((beam) => {
+    //       removeFromArray(context.shapes, beam);
+    //     });
+    //     removeFromArray(context.nodes, deleteShape);
+    //     context.nodes.forEach((node, index) => {
+    //       node.id = index + 1;
+    //     });
+    //   });
+    //   context.setState(context.idleState);
+    //   context.sync3D();
+    // }
+
     if (event.key === "Delete") {
-      this.selectedObjects.forEach((deleteShape) => {
+      // Obtener el plano actual
+      const isElevationView = context.currentElevationX && context.currentElevationX !== "none";
+      let targetValue = 0;
+
+      if (isElevationView) {
+        // Vista ELEVACIÓN: obtener la Y del eje seleccionado
+        const elev = context.xElevations?.find((e) => e.name === context.currentElevationX);
+        targetValue = elev?.y || 0;
+      } else {
+        // Vista PLANTA: obtener la Z del nivel actual
+        const story = context.stories?.find((s) => s.name === context.currentStory);
+        targetValue = story?.z || 0;
+      }
+
+      // Filtrar solo los nodos que están en el plano actual
+      const nodesToDelete = this.selectedObjects.filter((node) => {
+        if (isElevationView) {
+          return Math.abs(node.position.y - targetValue) < 0.01;
+        } else {
+          return Math.abs((node.position.z || 0) - targetValue) < 0.01;
+        }
+      });
+
+      console.log(`🗑️ Eliminando ${nodesToDelete.length} nodos del plano actual`);
+
+      nodesToDelete.forEach((deleteShape) => {
         deleteShape.beams.forEach((beam) => {
           const updateBeamsNode = deleteShape === beam.node1 ? beam.node2 : beam.node1;
           removeFromArray(updateBeamsNode.beams, beam);
@@ -357,7 +513,10 @@ export class SelectedNodesState extends SelectedObjectsState {
           node.id = index + 1;
         });
       });
+
       context.setState(context.idleState);
+      context.sync3D();
+      context.redraw();
     }
   }
   enter(args) {
@@ -373,6 +532,25 @@ export class SelectionState extends PanAndZoomState {
     this.selectedNodes = [];
     this.selectedBeams = [];
   }
+
+  getCurrentPlane(context) {
+    const isElevationView = context.currentElevationX && context.currentElevationX !== "none";
+
+    if (isElevationView) {
+      // En vista elevación, obtener la Y del eje
+      const elev = context.xElevations?.find((e) => e.name === context.currentElevationX);
+      return { type: "elevation", value: elev?.y || 0 };
+    } else {
+      // En vista planta, obtener la Z del nivel
+      let currentZ = 0;
+      if (context.currentStory && context.stories) {
+        const story = context.stories.find((s) => s.name === context.currentStory);
+        if (story) currentZ = story.z;
+      }
+      return { type: "plan", value: currentZ };
+    }
+  }
+
   handleMouseUp(event, context, mouse) {
     super.handleMouseUp(...arguments);
     this.selectionEnd = mouse;
@@ -386,20 +564,129 @@ export class SelectionState extends PanAndZoomState {
       context.setState(context.idleState);
     }
   }
+  // ORIGINAL
+  // handleMouseMove(event, context, mouse) {
+  //   const pointRect = (point, startRect, endRect) => {
+  //     return point.x >= startRect.x && point.x <= endRect.x && point.y >= startRect.y && point.y <= endRect.y;
+  //   };
+
+  //   super.handleMouseMove(...arguments);
+  //   this.selectionEnd = context.grid.screenToWorld(mouse);
+  //   let start = context.grid.worldToScreen(this.selectionStart);
+  //   let end = mouse;
+  //   const selectBeams = start.x > mouse.x || start.y > mouse.y;
+
+  //   // Obtener el plano actual (Y para elevación, Z para planta)
+  //   const plane = this.getCurrentPlane(context);
+  //   const isElevationView = plane.type === "elevation";
+  //   const targetValue = plane.value;
+
+  //   if (selectBeams) {
+  //     [start, end] = [end, start];
+  //     this.selectedBeams = context.shapes.filter((b) => {
+  //       if (!b.node1 || !b.node2) return false;
+
+  //       // Verificar que la viga esté en el plano actual
+  //       if (isElevationView) {
+  //         // Vista ELEVACIÓN: filtrar por Y
+  //         const y1 = b.node1.position.y;
+  //         const y2 = b.node2.position.y;
+  //         if (Math.abs(y1 - targetValue) > 0.01 || Math.abs(y2 - targetValue) > 0.01) return false;
+  //       } else {
+  //         // Vista PLANTA: filtrar por Z
+  //         const z1 = b.node1.position.z || 0;
+  //         const z2 = b.node2.position.z || 0;
+  //         if (Math.abs(z1 - targetValue) > 0.01 || Math.abs(z2 - targetValue) > 0.01) return false;
+  //       }
+
+  //       const p1 = context.grid.worldToScreen(b.node1.position);
+  //       const p2 = context.grid.worldToScreen(b.node2.position);
+  //       const collided = pointRect(p1, start, end) && pointRect(p2, start, end);
+
+  //       if (collided) {
+  //         b.style.hover();
+  //       } else {
+  //         b.style.default();
+  //       }
+  //       return collided;
+  //     });
+  //   } else {
+  //     this.selectedNodes = context.nodes.filter((n) => {
+  //       if (!n || !n.position) return false;
+
+  //       // Verificar que el nodo esté en el plano actual
+  //       if (isElevationView) {
+  //         // Vista ELEVACIÓN: filtrar por Y
+  //         if (Math.abs(n.position.y - targetValue) > 0.01) return false;
+  //       } else {
+  //         // Vista PLANTA: filtrar por Z
+  //         const nodeZ = n.position.z || 0;
+  //         if (Math.abs(nodeZ - targetValue) > 0.01) return false;
+  //       }
+
+  //       const position = context.grid.worldToScreen(n.position);
+  //       const collided = pointRect(position, start, end);
+
+  //       if (collided) {
+  //         n.style.hover();
+  //       } else {
+  //         n.style.default();
+  //       }
+  //       return collided;
+  //     });
+  //   }
+  // }
+
   handleMouseMove(event, context, mouse) {
     const pointRect = (point, startRect, endRect) => {
       return point.x >= startRect.x && point.x <= endRect.x && point.y >= startRect.y && point.y <= endRect.y;
     };
+
     super.handleMouseMove(...arguments);
     this.selectionEnd = context.grid.screenToWorld(mouse);
     let start = context.grid.worldToScreen(this.selectionStart);
     let end = mouse;
     const selectBeams = start.x > mouse.x || start.y > mouse.y;
+
+    // Obtener el plano actual
+    const isElevationView = context.currentElevationX && context.currentElevationX !== "none";
+    let targetY = null;
+    let targetZ = null;
+
+    if (isElevationView) {
+      const elev = context.xElevations?.find((e) => e.name === context.currentElevationX);
+      targetY = elev?.y || 0;
+    } else {
+      const story = context.stories?.find((s) => s.name === context.currentStory);
+      targetZ = story?.z || 0;
+    }
+
     if (selectBeams) {
       [start, end] = [end, start];
       this.selectedBeams = context.shapes.filter((b) => {
-        const p1 = context.grid.worldToScreen(b.node1.position);
-        const p2 = context.grid.worldToScreen(b.node2.position);
+        if (!b.node1 || !b.node2) return false;
+
+        // Filtrar por plano actual
+        if (isElevationView) {
+          const y1 = b.node1.position.y;
+          const y2 = b.node2.position.y;
+          if (Math.abs(y1 - targetY) > 0.01 || Math.abs(y2 - targetY) > 0.01) return false;
+        } else {
+          const z1 = b.node1.position.z || 0;
+          const z2 = b.node2.position.z || 0;
+          if (Math.abs(z1 - targetZ) > 0.01 || Math.abs(z2 - targetZ) > 0.01) return false;
+        }
+
+        // Proyectar a 2D
+        let p1, p2;
+        if (isElevationView) {
+          p1 = context.grid.worldToScreen({ x: b.node1.position.x, y: b.node1.position.z || 0 });
+          p2 = context.grid.worldToScreen({ x: b.node2.position.x, y: b.node2.position.z || 0 });
+        } else {
+          p1 = context.grid.worldToScreen(b.node1.position);
+          p2 = context.grid.worldToScreen(b.node2.position);
+        }
+
         const collided = pointRect(p1, start, end) && pointRect(p2, start, end);
         if (collided) {
           b.style.hover();
@@ -410,7 +697,23 @@ export class SelectionState extends PanAndZoomState {
       });
     } else {
       this.selectedNodes = context.nodes.filter((n) => {
-        const position = context.grid.worldToScreen(n.position);
+        if (!n || !n.position) return false;
+
+        // Filtrar por plano actual
+        if (isElevationView) {
+          if (Math.abs(n.position.y - targetY) > 0.01) return false;
+        } else {
+          if (Math.abs((n.position.z || 0) - targetZ) > 0.01) return false;
+        }
+
+        // Proyectar a 2D
+        let position;
+        if (isElevationView) {
+          position = context.grid.worldToScreen({ x: n.position.x, y: n.position.z || 0 });
+        } else {
+          position = context.grid.worldToScreen(n.position);
+        }
+
         const collided = pointRect(position, start, end);
         if (collided) {
           n.style.hover();
@@ -483,6 +786,22 @@ export class MoveObjectState extends IdleState {
     if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
       return;
     }
+
+    // Verificar que el objeto seleccionado esté en el nivel actual
+    if (this.selectedObject) {
+      let currentZ = 0;
+      if (context.currentStory && context.stories) {
+        const story = context.stories.find((s) => s.name === context.currentStory);
+        if (story) currentZ = story.z;
+      }
+      const nodeZ = this.selectedObject.position.z || 0;
+      if (Math.abs(nodeZ - currentZ) > 0.01) {
+        // No permitir mover nodos de otro nivel
+        context.setState(context.idleState);
+        return;
+      }
+    }
+
     this.isMoving = !this.isMoving;
     const selected = context.closestNode(mouse);
     if ((selected && this.selectedObject !== selected) || !selected) {
@@ -512,6 +831,9 @@ export class MoveObjectState extends IdleState {
       this.selectedObject.position.x = context.mousePos.x;
       this.selectedObject.position.y = context.mousePos.y;
     }
+
+    // Sincronizar mientras se mueve
+    context.sync3D();
   }
   enter(args) {
     this.selectedObject = args.selectedObject;
@@ -535,54 +857,78 @@ export class TrussDrawingState extends PanAndZoomState {
     this.shape = new Beam(this.context.globalE, this.context.globalA);
   }
   handleMouseDown(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseDown(event, context, mouse);
+      return;
+    }
+
     super.handleMouseDown(...arguments);
     if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
       return;
     }
-    const { x, y } = mouse;
-    const collided = context.closestNode(context.grid.worldToScreen(context.mousePos));
-    let node;
-    if (collided) {
-      node = collided;
+
+    const worldPos = context.grid.screenToWorld(mouse);
+    const isElevationView = context.currentElevationX !== "none";
+
+    let x, y, z;
+
+    if (isElevationView) {
+      // VISTA ELEVACIÓN: dibujar en el plano Y = constante
+      const currentY = context.getCurrentElevationY();
+      x = worldPos.x;
+      y = currentY;
+      z = worldPos.y; // ← El eje Y del mouse se convierte en Z (altura)
+      console.log(
+        `🖱️ Dibujando en ELEVACIÓN X-${context.currentElevationX} - Y = ${y}m, Posición 2D: (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)}) -> 3D: (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`,
+      );
     } else {
-      node = new StructuralNode(context.mousePos, context.nodes.length + 1, 0);
-      context.nodes.push(node);
-      const beam = context.closestBeam({ x: x, y: y });
-      if (beam) {
-        const vAB = {
-          x: beam.node2.position.x - beam.node1.position.x,
-          y: beam.node2.position.y - beam.node1.position.y,
-        };
-        const vAD = { x: context.mousePos.x - beam.node1.position.x, y: context.mousePos.y - beam.node1.position.y };
-        const scale = (vAB.x * vAD.x + vAB.y * vAD.y) / pointDistance({ x: 0, y: 0 }, vAB) ** 2;
-        const projAD_AB = { x: vAB.x * scale, y: vAB.y * scale };
-        node.position.x = beam.node1.position.x + projAD_AB.x;
-        node.position.y = beam.node1.position.y + projAD_AB.y;
-        const startID = beam.id;
-        const node2 = beam.node2;
-        removeFromArray(node2.beams, beam);
-        beam.node2 = node;
-        node.beams.push(beam);
-        const newBeam = new Beam(context.globalE, context.globalA);
-        newBeam.addNode(node);
-        node.beams.push(newBeam);
-        newBeam.addNode(node2);
-        node2.beams.push(newBeam);
-        context.shapes.splice(startID, 0, newBeam);
-        context.shapes.forEach((beam, index) => {
-          beam.id = index + 1;
-        });
+      // VISTA PLANTA: dibujar en el nivel Z = constante
+      let currentZ = 0;
+      if (context.currentStory && context.stories) {
+        const story = context.stories.find((s) => s.name === context.currentStory);
+        if (story) currentZ = story.z;
       }
+      x = worldPos.x;
+      y = worldPos.y;
+      z = currentZ;
+      console.log(
+        `🖱️ Dibujando en PLANTA - Z = ${z}m, Posición 2D: (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)}) -> 3D: (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`,
+      );
     }
+
+    // Buscar nodo cercano
+    let node = context.nodes.find((n) => {
+      const dx = Math.abs(n.position.x - x);
+      const dy = Math.abs(n.position.y - y);
+      const dz = Math.abs((n.position.z || 0) - z);
+      return dx < 0.3 && dy < 0.3 && dz < 0.1;
+    });
+
+    if (!node) {
+      node = new StructuralNode({ x: x, y: y }, context.nodes.length + 1, z);
+      context.nodes.push(node);
+      console.log(`✅ Nodo creado ID: ${node.id} en (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
+    } else {
+      console.log(`🔗 Nodo existente ID: ${node.id} en Z=${node.position.z}`);
+    }
+
     const isDone = this.shape.addNode(node);
     if (isDone) {
       context.shapes.push(this.shape);
-      this.shape.node1.beams.push(this.shape);
-      this.shape.node2.beams.push(this.shape);
       this.shape.id = context.shapes.length;
+      if (this.shape.node1 && this.shape.node1.beams) {
+        this.shape.node1.beams.push(this.shape);
+      }
+      if (this.shape.node2 && this.shape.node2.beams) {
+        this.shape.node2.beams.push(this.shape);
+      }
+      console.log(`📐 Viga creada ID: ${this.shape.id}`);
       this.shape = new Beam(this.context.globalE, this.context.globalA);
       this.shape.addNode(node);
     }
+
+    context.redraw();
+    context.sync3D();
   }
   handleMouseMove(event, context, mouse) {
     super.handleMouseMove(...arguments);
@@ -624,6 +970,9 @@ export class TrussDrawingState extends PanAndZoomState {
       this.shape = new Beam(context.globalE, context.globalA);
       this.shape.addNode(node);
     }
+
+    context.redraw();
+    context.sync3D();
   }
   exit() {
     super.exit();
@@ -744,31 +1093,40 @@ export class TrussDrawingState3D extends PanAndZoomState {
   }
 
   handleMouseDown(event, context, mouse) {
-    // Pan con botón medio
     if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
       super.handleMouseDown(event, context, mouse);
       return;
     }
 
-    // Obtener posición 3D
     const worldPos = context.grid.screenToWorld(mouse);
-    let { x, y, z } = this.get3DPosition(worldPos);
+    const view = context.elevationManager?.current2DView || "plan";
 
-    // Aplicar snap al grid si está activado
-    if (this.snapToGrid3D) {
-      x = Math.round(x / this.gridSize3D) * this.gridSize3D;
-      y = Math.round(y / this.gridSize3D) * this.gridSize3D;
-      z = Math.round(z / this.gridSize3D) * this.gridSize3D;
+    let x, y, z;
+
+    if (view === "plan") {
+      x = worldPos.x;
+      y = 0;
+      z = worldPos.y;
+    } else if (view === "elevation-xy") {
+      x = worldPos.x;
+      y = worldPos.y;
+      z = 0;
+    } else if (view === "elevation-zy") {
+      x = 0;
+      y = worldPos.y;
+      z = worldPos.x;
+    } else {
+      x = worldPos.x;
+      y = worldPos.y;
+      z = 0;
     }
 
-    // Buscar nodo cercano (radio de 0.5 unidades)
-    let node = this.findNearbyNode(context, x, y, z);
+    console.log(`🖱️ CREANDO NODO - Vista: ${view}, 3D: (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
 
-    if (!node) {
-      // Crear nuevo nodo 3D
-      node = new StructuralNode({ x: x, y: y }, context.nodes.length + 1, z);
-      context.nodes.push(node);
-    }
+    // Siempre crear nuevo nodo para pruebas
+    const node = new StructuralNode({ x: x, y: y }, context.nodes.length + 1, z);
+    context.nodes.push(node);
+    console.log(`✅ NODO CREADO ${node.id}: (${node.position.x}, ${node.position.y}, ${node.position.z})`);
 
     if (!this.shape) {
       this.shape = new Beam(context.globalE, context.globalA);
@@ -777,22 +1135,14 @@ export class TrussDrawingState3D extends PanAndZoomState {
     const isDone = this.shape.addNode(node);
     if (isDone) {
       context.shapes.push(this.shape);
-      if (this.shape.node1 && this.shape.node1.beams) {
-        this.shape.node1.beams.push(this.shape);
-      }
-      if (this.shape.node2 && this.shape.node2.beams) {
-        this.shape.node2.beams.push(this.shape);
-      }
       this.shape.id = context.shapes.length;
-      // Crear nueva viga
+      console.log(`📐 VIGA CREADA ${this.shape.id}: Nodo${this.shape.node1.id} -> Nodo${this.shape.node2.id}`);
       this.shape = new Beam(context.globalE, context.globalA);
       this.shape.addNode(node);
     }
 
-    // Sincronizar vista 3D
-    if (context.sync3D) {
-      context.sync3D();
-    }
+    // Forzar un solo redibujado
+    context.redraw();
   }
 
   findNearbyNode(context, x, y, z, radius = 0.5) {
@@ -805,29 +1155,26 @@ export class TrussDrawingState3D extends PanAndZoomState {
   }
 
   get3DPosition(worldPos) {
-    let x = worldPos.x;
-    let y = 0;
-    let z = 0;
+    const view = this.context?.elevationManager?.current2DView || "plan";
+    const mouseX = worldPos.x;
+    const mouseY = worldPos.y;
 
-    switch (this.currentPlane) {
-      case "XZ": // Plano horizontal (como 2D) - Y=0
-        x = worldPos.x;
-        z = worldPos.y;
-        y = 0;
-        break;
-      case "XY": // Plano frontal - Z=0
-        x = worldPos.x;
-        y = worldPos.y;
-        z = 0;
-        break;
-      case "YZ": // Plano lateral - X=0
-        y = worldPos.x;
-        z = worldPos.y;
-        x = 0;
-        break;
+    switch (view) {
+      case "plan":
+        // Vista PLANTA: dibujar en Y=0 (suelo), X y Z varían
+        return { x: mouseX, y: 0, z: mouseY };
+
+      case "elevation-xy":
+        // Vista ELEVACIÓN X-Y: dibujar en Z=0, X y Y varían
+        return { x: mouseX, y: mouseY, z: 0 };
+
+      case "elevation-zy":
+        // Vista ELEVACIÓN Z-Y: dibujar en X=0, Z y Y varían
+        return { x: 0, y: mouseY, z: mouseX };
+
+      default:
+        return { x: mouseX, y: mouseY, z: 0 };
     }
-
-    return { x, y, z };
   }
 
   handleMouseMove(event, context, mouse) {

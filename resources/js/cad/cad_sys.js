@@ -22,24 +22,33 @@ import sections from "./sections.js";
 import * as BABYLON from "@babylonjs/core";
 import { TrussDrawingState3D } from "./states.js";
 import { Beam, Node as StructuralNode } from "./shapes.js";
+import { ElevationViewManager } from "./modules/elevationView.js";
+import { Grid3DManager } from "./modules/grid3D.js";
+import { ViewFilter } from "./modules/viewFilter.js";
 
 export default () => ({
   init() {},
 
-  // NUEVAS PROPIEDADES PARA 3D
+  // NUEVAS PROPIEDADES
   show3DView: false,
   viewer3DInitialized: false, // ← NUEVA
-
-  // NUEVAS PROPIEDADES
-  calcEngine: "hybrid", // 'hybrid', 'opensees', 'octave'
   syncPending: false,
+  pendingGrid3D: false, // ← AÑADE ESTA LÍNEA
+  grid3DDrawn: false,
+  calcEngine: "hybrid", // 'hybrid', 'opensees', 'octave'
 
-  // // Almacenamiento NO reactive para Three.js
-  // threeScene: null, // ← NUEVA
-  // threeCamera: null, // ← NUEVA
-  // threeRenderer: null, // ← NUEVA
-  // threeControls: null, // ← NUEVA
-  // threeElements: null, // ← NUEVA
+  // MANAGERS
+  elevationManager: null,
+  grid3Dmanager: null,
+
+  // Propiedades de pisos(stories)
+  currentStory: "BASE",
+  stories: [], // [{ name: 'BASE', z: 0 }, { name: 'STORY1', z: 3 }, ...]
+
+  //Propiedades de elevaciones en X (vistas 1,2,...)
+  currentViewMode: "plan", // 'plan' o 'elevation'
+  currentElevationX: "none", // '1', '2', '3', etc.
+  xElevations: [], // ← ¡ESTA ES LA QUE FALTA! [{ name: '1', y: 0 }, { name: '2', y: 3
 
   initSys(canvas, distanceInput) {
     this.Arco = Arco;
@@ -120,6 +129,18 @@ export default () => ({
     this.prevState = null;
     this.trussDrawingState3D = new TrussDrawingState3D(this);
 
+    // inicializar managers
+    this.elevationManager = new ElevationViewManager(this);
+    this.grid3Dmanager = new Grid3DManager(this);
+    window.cadSystem = this;
+
+    this.elevationManager = this.elevationManager; // ← AÑADE ESTA LÍNEA PARA HACERLO REACTIVO EN ALPINE
+    this.viewFilter = new ViewFilter(this);
+
+    // funciones alambricas para Alpine
+    window.openElevationModal = () => this.elevationManager.openElevationModal();
+    window.setElevationView = (elevation, type) => this.elevationManager.setElevationView(elevation, type);
+
     document.onkeydown = (event) => {
       this.handleKeyDown(event);
     };
@@ -169,6 +190,13 @@ export default () => ({
         s.angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
       });
       this.redraw();
+
+      // sincronizar vista 3D cada 10 frames
+      // frameCounter++;
+      // if (frameCounter >= 10 && window.babylonInitialized) {
+      //   frameCounter = 0;
+      //   this.sync3D();
+      // }
       window.requestAnimationFrame(renderLoop);
     };
     window.requestAnimationFrame(renderLoop);
@@ -182,6 +210,19 @@ export default () => ({
     }, 1000);
 
     window.cadSystem = this;
+  },
+
+  // Funciones que delegan en los managers
+  openElevationModal() {
+    this.elevationManager.openElevationModal();
+  },
+
+  setElevationView(elevation, type) {
+    this.elevationManager.setElevationView(elevation, type);
+  },
+
+  drawReferenceGrid3D() {
+    this.grid3DManager.drawReferenceGrid3D();
   },
 
   creaArco() {
@@ -276,18 +317,113 @@ export default () => ({
       }
     }
   },
+  // ORIGINAL
+  // closestNode(searchPoint) {
+  //   // Returns null if there are 0 points in the shape
+  //   // const shortestDistance = 10;
+  //   // for (let index = 0; index < this.nodes.length; index++) {
+  //   //   const distance = pointDistance(searchPoint, this.grid.worldToScreen(this.nodes[index].position));
+  //   //   if (distance <= shortestDistance) {
+  //   //     return this.nodes[index];
+  //   //   }
+  //   // }
+
+  //   // Obtener la altura Z del nivel actual
+  //   let currentZ = 0;
+  //   if (this.currentStory && this.stories) {
+  //     const story = this.stories.find((s) => s.name === this.currentStory);
+  //     if (story) currentZ = story.z;
+  //   }
+
+  //   const shortestDistance = 15;
+  //   let closest = null;
+  //   let minDistance = shortestDistance;
+
+  //   // Determinar el plano actual
+  //   const isElevationView = this.currentElevationX && this.currentElevationX !== "none";
+  //   let currentPlaneValue = 0;
+
+  //   if (isElevationView) {
+  //     const elev = this.xElevations?.find((e) => e.name === this.currentElevationX);
+  //     currentPlaneValue = elev?.y || 0;
+  //   } else {
+  //     const story = this.stories?.find((s) => s.name === this.currentStory);
+  //     currentPlaneValue = story?.z || 0;
+  //   }
+
+  //   for (let index = 0; index < this.nodes.length; index++) {
+  //     const node = this.nodes[index];
+
+  //     // Filtrar por plano actual
+  //     if (isElevationView) {
+  //       if (Math.abs(node.position.y - currentPlaneValue) > 0.01) continue;
+  //     } else {
+  //       if (Math.abs((node.position.z || 0) - currentPlaneValue) > 0.01) continue;
+  //     }
+
+  //     const screenPos = this.grid.worldToScreen(node.position);
+  //     const distance = pointDistance(searchPoint, screenPos);
+  //     if (distance < minDistance) {
+  //       minDistance = distance;
+  //       closest = node;
+  //     }
+  //   }
+  //   return closest;
+  // },
 
   closestNode(searchPoint) {
-    // Returns null if there are 0 points in the shape
-    const shortestDistance = 10;
+    const shortestDistance = 15;
+    let closest = null;
+    let minDistance = shortestDistance;
+
+    // Determinar el plano actual
+    const isElevationView = this.currentElevationX && this.currentElevationX !== "none";
+    let targetY = null;
+    let targetZ = null;
+
+    if (isElevationView) {
+      const elev = this.xElevations?.find((e) => e.name === this.currentElevationX);
+      targetY = elev?.y || 0;
+    } else {
+      const story = this.stories?.find((s) => s.name === this.currentStory);
+      targetZ = story?.z || 0;
+    }
+
     for (let index = 0; index < this.nodes.length; index++) {
-      const distance = pointDistance(searchPoint, this.grid.worldToScreen(this.nodes[index].position));
-      if (distance <= shortestDistance) {
-        return this.nodes[index];
+      const node = this.nodes[index];
+
+      // FILTRAR POR PLANO ACTUAL
+      if (isElevationView) {
+        // En vista elevación, solo nodos con Y = targetY
+        if (Math.abs(node.position.y - targetY) > 0.01) continue;
+      } else {
+        // En vista planta, solo nodos con Z = targetZ
+        if (Math.abs((node.position.z || 0) - targetZ) > 0.01) continue;
+      }
+
+      // Proyectar a 2D según la vista actual para calcular distancia en pantalla
+      let screenX, screenY;
+      if (isElevationView) {
+        // Proyectar (X, Z)
+        const projected = { x: node.position.x, y: node.position.z || 0 };
+        const p = this.grid.worldToScreen(projected);
+        screenX = p.x;
+        screenY = p.y;
+      } else {
+        // Proyectar (X, Y)
+        const p = this.grid.worldToScreen(node.position);
+        screenX = p.x;
+        screenY = p.y;
+      }
+
+      const distance = Math.hypot(searchPoint.x - screenX, searchPoint.y - screenY);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closest = node;
       }
     }
+    return closest;
   },
-
   closestParametric(searchPoint) {
     let collidedParametric = false;
     return this.parametricModels.find((p) => {
@@ -333,35 +469,255 @@ export default () => ({
     });
   },
 
-  closestBeam(searchPoint) {
-    var shortestDistance = 5;
-    return this.shapes.find((s) => {
-      const lineLength = pointDistance(
-        this.grid.worldToScreen(s.node1.position),
-        this.grid.worldToScreen(s.node2.position),
-      );
-      const d1 = pointDistance(this.grid.worldToScreen(s.node1.position), searchPoint);
-      const d2 = pointDistance(this.grid.worldToScreen(s.node2.position), searchPoint);
-      if (d1 + d2 >= lineLength - shortestDistance && d1 + d2 <= lineLength + shortestDistance) {
-        return true;
-      }
-    });
-  },
+  // ORIGINAL
+  // closestBeam(searchPoint) {
+  //   // Obtener la altura Z del nivel actual
+  //   let currentZ = 0;
+  //   if (this.currentStory && this.stories) {
+  //     const story = this.stories.find((s) => s.name === this.currentStory);
+  //     if (story) currentZ = story.z;
+  //   }
+
+  //   const shortestDistance = 5;
+
+  //   return this.shapes.find((s) => {
+  //     // Verificar que la viga esté en el nivel actual
+  //     const z1 = s.node1?.position.z || 0;
+  //     const z2 = s.node2?.position.z || 0;
+  //     if (Math.abs(z1 - currentZ) > 0.01 || Math.abs(z2 - currentZ) > 0.01) {
+  //       return false;
+  //     }
+
+  //     const lineLength = pointDistance(
+  //       this.grid.worldToScreen(s.node1.position),
+  //       this.grid.worldToScreen(s.node2.position),
+  //     );
+  //     const d1 = pointDistance(this.grid.worldToScreen(s.node1.position), searchPoint);
+  //     const d2 = pointDistance(this.grid.worldToScreen(s.node2.position), searchPoint);
+  //     return d1 + d2 >= lineLength - shortestDistance && d1 + d2 <= lineLength + shortestDistance;
+  //   });
+  // },
 
   // redraw() {
   //   this.currentRenderer.render(this);
   // },
 
+  closestBeam(searchPoint) {
+    const shortestDistance = 10;
+
+    // Determinar el plano actual
+    const isElevationView = this.currentElevationX && this.currentElevationX !== "none";
+    let targetY = null;
+    let targetZ = null;
+
+    if (isElevationView) {
+      const elev = this.xElevations?.find((e) => e.name === this.currentElevationX);
+      targetY = elev?.y || 0;
+    } else {
+      const story = this.stories?.find((s) => s.name === this.currentStory);
+      targetZ = story?.z || 0;
+    }
+
+    let closestBeam = null;
+    let minDistance = shortestDistance;
+
+    for (let index = 0; index < this.shapes.length; index++) {
+      const beam = this.shapes[index];
+      if (!beam.node1 || !beam.node2) continue;
+
+      // FILTRAR POR PLANO ACTUAL
+      if (isElevationView) {
+        // En vista elevación, solo vigas con ambos nodos en Y = targetY
+        const y1 = beam.node1.position.y;
+        const y2 = beam.node2.position.y;
+        if (Math.abs(y1 - targetY) > 0.01 || Math.abs(y2 - targetY) > 0.01) continue;
+      } else {
+        // En vista planta, solo vigas con ambos nodos en Z = targetZ
+        const z1 = beam.node1.position.z || 0;
+        const z2 = beam.node2.position.z || 0;
+        if (Math.abs(z1 - targetZ) > 0.01 || Math.abs(z2 - targetZ) > 0.01) continue;
+      }
+
+      // Proyectar a 2D según la vista actual
+      let p1, p2;
+      if (isElevationView) {
+        p1 = this.grid.worldToScreen({ x: beam.node1.position.x, y: beam.node1.position.z || 0 });
+        p2 = this.grid.worldToScreen({ x: beam.node2.position.x, y: beam.node2.position.z || 0 });
+      } else {
+        p1 = this.grid.worldToScreen(beam.node1.position);
+        p2 = this.grid.worldToScreen(beam.node2.position);
+      }
+
+      // Calcular distancia del punto a la línea
+      const lineLength = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      const d1 = Math.hypot(searchPoint.x - p1.x, searchPoint.y - p1.y);
+      const d2 = Math.hypot(searchPoint.x - p2.x, searchPoint.y - p2.y);
+
+      if (d1 + d2 >= lineLength - shortestDistance && d1 + d2 <= lineLength + shortestDistance) {
+        const distanceToLine =
+          Math.abs((p2.y - p1.y) * searchPoint.x - (p2.x - p1.x) * searchPoint.y + p2.x * p1.y - p2.y * p1.x) /
+          lineLength;
+        if (distanceToLine < minDistance) {
+          minDistance = distanceToLine;
+          closestBeam = beam;
+        }
+      }
+    }
+    return closestBeam;
+  },
+
   redraw() {
-    this.currentRenderer.render(this);
-    // Sincronizar vista 3D después de cada redibujado
-    // if (window.babylonInitialized && window.babylonScene) {
-    //   // Limpiar timeout anterior si existe
-    //   if (this._syncTimeout) clearTimeout(this._syncTimeout);
-    //   this._syncTimeout = setTimeout(() => {
-    //     this.drawIn3D();
-    //   }, 10);
-    // }
+    if (this.currentViewMode === "elevation" && this.currentElevationX !== "none") {
+      // Usar modo de dibujo para elevación
+      this.drawElevationView();
+    } else {
+      // Modo normal de pisos (el que ya funcionaba)
+      this.currentRenderer.render(this);
+    }
+
+    if (window.babylonInitialized && window.babylonScene) {
+      if (this._syncTimeout) clearTimeout(this._syncTimeout);
+      this._syncTimeout = setTimeout(() => {
+        this.drawIn3D();
+      }, 50);
+    }
+  },
+
+  // NUEVO MÉTODO PARA DIBUJAR LA VISTA DE ELEVACIÓN (Ejes Y)
+  drawElevationView() {
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Obtener la posición Y del eje seleccionado
+    let currentY = 0;
+    const elev = this.xElevations.find((e) => e.name === this.currentElevationX);
+    if (elev) currentY = elev.y;
+
+    // Filtrar nodos en el plano Y = currentY
+    const nodesToDraw = this.nodes.filter((node) => Math.abs(node.position.y - currentY) < 0.1);
+    const beamsToDraw = this.shapes.filter(
+      (beam) => nodesToDraw.includes(beam.node1) && nodesToDraw.includes(beam.node2),
+    );
+
+    // Dibujar grid de elevación
+    this.drawElevationGridOnly(currentY);
+
+    // Dibujar vigas (proyectando X, Z)
+    beamsToDraw.forEach((beam) => {
+      const p1 = this.grid.worldToScreen({ x: beam.node1.position.x, y: beam.node1.position.z || 0 });
+      const p2 = this.grid.worldToScreen({ x: beam.node2.position.x, y: beam.node2.position.z || 0 });
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.strokeStyle = "#aaaaaa";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    });
+
+    // Dibujar nodos (proyectando X, Z)
+    nodesToDraw.forEach((node) => {
+      const p = this.grid.worldToScreen({ x: node.position.x, y: node.position.z || 0 });
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 5, 0, 2 * Math.PI);
+      ctx.fillStyle = "#ff8888";
+      ctx.fill();
+      ctx.fillStyle = "white";
+      ctx.font = "10px Arial";
+      ctx.fillText(node.id, p.x + 8, p.y - 5);
+    });
+
+    // Título
+    ctx.font = "bold 14px Arial";
+    ctx.fillStyle = "#4a90d9";
+    ctx.fillText(`📐 ELEVACIÓN Eje X-${this.currentElevationX} (Y = ${currentY}m)`, 15, 50);
+  },
+
+  //Nuevo metodo para dibujar el grid específico de la vista de elevación
+  drawElevationGridOnly(currentY) {
+    const tempGrid = this.grid;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.strokeStyle = "#3a6a9a";
+    ctx.fillStyle = "#8aadcc";
+    ctx.lineWidth = 0.8;
+    ctx.font = "11px 'Segoe UI', Arial";
+    ctx.setLineDash([]);
+
+    const refGrid = this.referenceGrid;
+    if (!refGrid || !refGrid.xPositions || refGrid.xPositions.length === 0) {
+      ctx.restore();
+      return;
+    }
+
+    const xPositions = refGrid.xPositions;
+    const xLabels = refGrid.xLabels;
+    const storyCount = refGrid.storyCount;
+    const storyHeight = refGrid.storyHeight;
+    const axisColor = "#ff6666";
+    const lineColor = "#3a6a9a";
+    const textColor = "#8aadcc";
+
+    // Líneas horizontales (pisos)
+    for (let floor = 0; floor <= storyCount; floor++) {
+      const z = floor * storyHeight;
+      const screenY = tempGrid.worldToScreen({ x: 0, y: z }).y;
+
+      ctx.beginPath();
+      ctx.strokeStyle = floor === 0 ? axisColor : lineColor;
+      ctx.lineWidth = floor === 0 ? 1.5 : 0.5;
+      ctx.setLineDash(floor === 0 ? [] : [5, 5]);
+      ctx.moveTo(0, screenY);
+      ctx.lineTo(this.canvas.width, screenY);
+      ctx.stroke();
+
+      ctx.fillStyle = floor === 0 ? axisColor : textColor;
+      ctx.font = floor === 0 ? "bold 10px Arial" : "10px Arial";
+      const label = floor === 0 ? "BASE" : `STORY${floor}`;
+      ctx.fillText(label, 10, screenY - 5);
+      ctx.fillStyle = "#666";
+      ctx.font = "9px Arial";
+      ctx.fillText(`${z}m`, 80, screenY - 5);
+    }
+
+    // Líneas verticales (ejes X)
+    xPositions.forEach((x, index) => {
+      const screenX = tempGrid.worldToScreen({ x: x, y: 0 }).x;
+      const isActive = this.currentElevationX === xLabels[index];
+
+      ctx.beginPath();
+      ctx.strokeStyle = isActive ? axisColor : lineColor;
+      ctx.lineWidth = isActive ? 2 : 0.8;
+      ctx.setLineDash(isActive ? [] : [8, 4]);
+      ctx.moveTo(screenX, 0);
+      ctx.lineTo(screenX, this.canvas.height);
+      ctx.stroke();
+
+      ctx.fillStyle = isActive ? axisColor : textColor;
+      ctx.font = isActive ? "bold 12px Arial" : "11px Arial";
+      ctx.fillText(xLabels[index], screenX - 6, this.canvas.height - 10);
+    });
+
+    ctx.setLineDash([]);
+
+    // Origen
+    const origin = tempGrid.worldToScreen({ x: 0, y: 0 });
+    ctx.beginPath();
+    ctx.arc(origin.x, origin.y, 5, 0, 2 * Math.PI);
+    ctx.fillStyle = "#ff8888";
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 10px Arial";
+    ctx.fillText("0,0", origin.x + 8, origin.y - 5);
+
+    // Título
+    ctx.font = "bold 12px 'Segoe UI', Arial";
+    ctx.fillStyle = "#4a90d9";
+    ctx.fillText(`📐 Vista X-Z (Eje ${this.currentElevationX}) - Y = ${currentY}m`, 15, 30);
+    ctx.font = "10px Arial";
+    ctx.fillStyle = "#888";
+    ctx.fillText("Haz clic para dibujar | Esc para salir", 15, 50);
+
+    ctx.restore();
   },
 
   windowResize() {
@@ -611,6 +967,7 @@ export default () => ({
     /* const maxDefx = ;
     const minDefy = ;
     const minDefy = ; */
+
     const docDefinition = {
       pageOrientation: "landscape",
       content: [
@@ -867,161 +1224,6 @@ export default () => ({
   },
   // // Reemplaza todas las funciones 3D con estas versiones:
 
-  // // NUEVO MÉTODO: Alternar vista 3D
-  // toggleView3D() {
-  //   this.show3DView = !this.show3DView;
-
-  //   if (this.show3DView) {
-  //     this.$nextTick(() => {
-  //       const container = document.getElementById("viewer3d-container");
-  //       if (container && !window.threeInitialized) {
-  //         this.initViewer3D(container);
-  //       } else if (window.threeScene) {
-  //         this.drawIn3D();
-  //       }
-  //     });
-  //   }
-  // },
-
-  // // NUEVO MÉTODO: Inicializar visor 3D (usando window)
-  // initViewer3D(container) {
-  //   if (window.threeInitialized) return;
-
-  //   const width = container.clientWidth;
-  //   const height = container.clientHeight;
-
-  //   // Crear objetos y guardarlos en window (evita el proxy de Alpine)
-  //   window.threeScene = new THREE.Scene();
-  //   window.threeScene.background = new THREE.Color(0x1a1a2e);
-
-  //   window.threeCamera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-  //   window.threeCamera.position.set(10, 8, 12);
-  //   window.threeCamera.lookAt(0, 0, 0);
-
-  //   window.threeRenderer = new THREE.WebGLRenderer({ antialias: true });
-  //   window.threeRenderer.setSize(width, height);
-  //   container.innerHTML = "";
-  //   container.appendChild(window.threeRenderer.domElement);
-
-  //   window.threeControls = new OrbitControls(window.threeCamera, window.threeRenderer.domElement);
-  //   window.threeControls.enableDamping = true;
-  //   window.threeControls.dampingFactor = 0.05;
-
-  //   const ambientLight = new THREE.AmbientLight(0x404060);
-  //   window.threeScene.add(ambientLight);
-
-  //   const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-  //   directionalLight.position.set(5, 10, 7);
-  //   window.threeScene.add(directionalLight);
-
-  //   const gridHelper = new THREE.GridHelper(20, 20, 0x88aaff, 0x335588);
-  //   gridHelper.position.y = -0.01;
-  //   window.threeScene.add(gridHelper);
-
-  //   const axesHelper = new THREE.AxesHelper(5);
-  //   window.threeScene.add(axesHelper);
-
-  //   window.threeElements = [];
-  //   window.threeInitialized = true;
-
-  //   this.start3DAnimation();
-  //   window.addEventListener("resize", () => this.onResize3D());
-  //   this.drawIn3D();
-  // },
-
-  // // NUEVO MÉTODO: Limpiar escena 3D
-  // clear3D() {
-  //   if (!window.threeScene || !window.threeElements) return;
-
-  //   window.threeElements.forEach((element) => {
-  //     if (element && element.parent) window.threeScene.remove(element);
-  //     if (element && element.geometry) element.geometry.dispose();
-  //     if (element && element.material) element.material.dispose();
-  //   });
-
-  //   window.threeElements = [];
-  // },
-
-  // // NUEVO MÉTODO: Iniciar animación 3D
-  // start3DAnimation() {
-  //   const animate = () => {
-  //     if (!window.threeRenderer || !window.threeScene || !window.threeCamera) return;
-
-  //     if (window.threeControls) window.threeControls.update();
-  //     window.threeRenderer.render(window.threeScene, window.threeCamera);
-  //     requestAnimationFrame(animate);
-  //   };
-  //   requestAnimationFrame(animate);
-  // },
-
-  // // NUEVO MÉTODO: Dibujar todo en 3D
-  // drawIn3D() {
-  //   if (!window.threeScene || !this.nodes) return;
-
-  //   this.clear3D();
-
-  //   // Dibujar nodos (esferas)
-  //   this.nodes.forEach((node) => {
-  //     if (!node || !node.position) return;
-
-  //     const geometry = new THREE.SphereGeometry(0.15, 32, 32);
-  //     const material = new THREE.MeshStandardMaterial({ color: 0x88aaff, emissive: 0x112233 });
-  //     const sphere = new THREE.Mesh(geometry, material);
-  //     sphere.position.set(node.position.x, node.position.y, 0);
-  //     sphere.userData = { type: "node", id: node.id };
-
-  //     window.threeScene.add(sphere);
-  //     window.threeElements.push(sphere);
-  //   });
-
-  //   // Dibujar vigas (líneas)
-  //   if (this.shapes) {
-  //     this.shapes.forEach((beam) => {
-  //       if (!beam || !beam.node1 || !beam.node2) return;
-
-  //       const start = new THREE.Vector3(beam.node1.position.x, beam.node1.position.y, 0);
-  //       const end = new THREE.Vector3(beam.node2.position.x, beam.node2.position.y, 0);
-  //       const points = [start, end];
-  //       const geometry = new THREE.BufferGeometry().setFromPoints(points);
-
-  //       let color = 0x6d7b8d;
-  //       if (beam.fAxial > 0.001) color = 0x3b82f6;
-  //       if (beam.fAxial < -0.001) color = 0xef4444;
-
-  //       const material = new THREE.LineBasicMaterial({ color });
-  //       const line = new THREE.Line(geometry, material);
-  //       line.userData = { type: "beam", id: beam.id };
-
-  //       window.threeScene.add(line);
-  //       window.threeElements.push(line);
-  //     });
-  //   }
-  // },
-
-  // // NUEVO MÉTODO: Manejar cambio de tamaño
-  // onResize3D() {
-  //   if (!window.threeRenderer || !window.threeCamera) return;
-
-  //   const container = document.getElementById("viewer3d-container");
-  //   if (!container) return;
-
-  //   const width = container.clientWidth;
-  //   const height = container.clientHeight;
-
-  //   if (width > 0 && height > 0) {
-  //     window.threeCamera.aspect = width / height;
-  //     window.threeCamera.updateProjectionMatrix();
-  //     window.threeRenderer.setSize(width, height);
-  //   }
-  // },
-
-  // // NUEVO MÉTODO: Sincronizar después de cambios
-  // sync3D() {
-  //   if (this.show3DView && window.threeInitialized) {
-  //     this.drawIn3D();
-  //   }
-  // },
-
   // NUEVO MÉTODO: Alternar vista 3D
   toggleView3D() {
     this.show3DView = !this.show3DView;
@@ -1127,9 +1329,13 @@ export default () => ({
       backLight.intensity = 0.3;
 
       // ========== GRID 3D COMPLETO ESTILO HOJA DE CUADERNO ==========
-      this.createFull3DGrid(window.babylonScene);
       if (this.referenceGrid) {
         this.drawReferenceGrid3D();
+      } else if (this.pendingGrid3D && this.referenceGrid) {
+        this.drawReferenceGrid3D();
+        this.pendingGrid3D = false;
+      } else {
+        console.log("📐 No hay grid de referencia definido. Usa 'Nuevo Modelo' para crear uno.");
       }
 
       // ========== CONTADOR DE FPS ==========
@@ -1535,12 +1741,27 @@ export default () => ({
     this.syncPending = true;
 
     setTimeout(() => {
-      // Primero dibujar el grid 3D de referencia
+      // Limpiar SOLO elementos de referencia (no los nodos/vigas estructurales)
+      if (window.babylonElements) {
+        const toRemove = window.babylonElements.filter(
+          (el) => el.userData && (el.userData.type === "node" || el.userData.type === "beam"),
+        );
+        toRemove.forEach((el) => {
+          if (el.dispose) el.dispose();
+        });
+        window.babylonElements = window.babylonElements.filter(
+          (el) => !(el.userData && (el.userData.type === "node" || el.userData.type === "beam")),
+        );
+      }
+
+      // Dibujar grid 3D de referencia si existe
       if (this.referenceGrid) {
         this.drawReferenceGrid3D();
       }
-      // Luego dibujar los elementos estructurales
+
+      // Dibujar elementos estructurales
       this.drawIn3D();
+
       this.syncPending = false;
     }, 50);
   },
@@ -1631,25 +1852,30 @@ export default () => ({
   drawIn3D() {
     if (!window.babylonScene || !this.nodes) return;
 
-    this.clear3D();
+    // NO limpiar toda la escena - solo eliminar nodos y vigas anteriores
+    if (window.babylonElements) {
+      const toRemove = window.babylonElements.filter(
+        (el) => el.userData && (el.userData.type === "node" || el.userData.type === "beam"),
+      );
+      toRemove.forEach((el) => {
+        if (el.dispose) el.dispose();
+      });
+      window.babylonElements = window.babylonElements.filter(
+        (el) => !(el.userData && (el.userData.type === "node" || el.userData.type === "beam")),
+      );
+    }
 
     // ========== NODOS ==========
-    // En ETABS, los nodos son puntos pequeños, casi invisibles
     this.nodes.forEach((node) => {
       if (!node || !node.position) return;
 
-      // Usar puntos muy pequeños (casi imperceptibles)
       const sphere = BABYLON.MeshBuilder.CreateSphere(
         `node_${node.id}`,
         { diameter: 0.08, segments: 8 },
         window.babylonScene,
       );
 
-      sphere.position = new BABYLON.Vector3(
-        node.position.x, // X: horizontal
-        node.position.z || 0, // Z: ALTURA (hacia arriba)
-        node.position.y, // Y: profundidad
-      );
+      sphere.position = new BABYLON.Vector3(node.position.x, node.position.z || 0, node.position.y);
 
       const material = new BABYLON.StandardMaterial(`nodeMat_${node.id}`, window.babylonScene);
       material.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.9);
@@ -1661,27 +1887,19 @@ export default () => ({
     });
 
     // ========== VIGAS ==========
-    // En ETABS, las vigas se ven como líneas delgadas
     this.shapes.forEach((beam) => {
       if (!beam || !beam.node1 || !beam.node2) return;
 
-      // IMPORTANTE: Usar la misma orientación que los nodos (X, Z, Y)
-      const start = new BABYLON.Vector3(
-        beam.node1.position.x, // X: horizontal
-        beam.node1.position.z || 0, // Z: ALTURA (hacia arriba)
-        beam.node1.position.y, // Y: profundidad
-      );
+      const start = new BABYLON.Vector3(beam.node1.position.x, beam.node1.position.z || 0, beam.node1.position.y);
 
       const end = new BABYLON.Vector3(beam.node2.position.x, beam.node2.position.z || 0, beam.node2.position.y);
 
-      // Usar líneas en lugar de cilindros (más estilo ETABS)
       const points = [start, end];
       const lines = BABYLON.MeshBuilder.CreateLines(`beam_${beam.id}`, { points: points }, window.babylonScene);
 
-      // Color según esfuerzo axial
-      let color = new BABYLON.Color3(0.7, 0.7, 0.8); // Gris claro
-      if (beam.fAxial > 0.001) color = new BABYLON.Color3(0.2, 0.5, 0.9); // Azul - Tracción
-      if (beam.fAxial < -0.001) color = new BABYLON.Color3(0.9, 0.3, 0.3); // Rojo - Compresión
+      let color = new BABYLON.Color3(0.7, 0.7, 0.8);
+      if (beam.fAxial > 0.001) color = new BABYLON.Color3(0.2, 0.5, 0.9);
+      if (beam.fAxial < -0.001) color = new BABYLON.Color3(0.9, 0.3, 0.3);
 
       const material = new BABYLON.StandardMaterial(`beamMat_${beam.id}`, window.babylonScene);
       material.diffuseColor = color;
@@ -1691,7 +1909,6 @@ export default () => ({
       lines.userData = { type: "beam", id: beam.id };
       window.babylonElements.push(lines);
     });
-    // console.log(`🔄 3D actualizado: ${this.nodes.length} nodos, ${this.shapes.length} vigas`);
   },
 
   // ================FUNCION DE ELEVACION=======================
@@ -2321,111 +2538,6 @@ export default () => ({
     return response.json();
   },
 
-  // ============================================================
-  // 3. FUNCIÓN PARA ANIMAR DEFORMACIONES 3D
-  // ============================================================
-
-  // async animateDeformation3D(results, scale = 50, duration = 2000) {
-  //   if (!window.babylonScene || !results.displacements) return;
-
-  //   // Guardar posiciones originales
-  //   const originalPositions = new Map();
-  //   this.nodes.forEach((node) => {
-  //     originalPositions.set(node.id, {
-  //       x: node.position.x,
-  //       y: node.position.y,
-  //       z: node.position.z || 0,
-  //     });
-  //   });
-
-  //   const startTime = performance.now();
-  //   const displacements = results.displacements;
-
-  //   const animate = (currentTime) => {
-  //     const elapsed = currentTime - startTime;
-  //     const factor = Math.min(1, elapsed / duration);
-  //     const easeFactor = 1 - Math.pow(1 - factor, 3); // Easing cúbico
-
-  //     // Actualizar posiciones de nodos en 3D
-  //     this.nodes.forEach((node) => {
-  //       const original = originalPositions.get(node.id);
-  //       const disp = displacements[node.id];
-
-  //       if (original && disp) {
-  //         const newX = original.x + disp.dx * scale * easeFactor;
-  //         const newY = original.y + disp.dy * scale * easeFactor;
-  //         const newZ = original.z + disp.dz * scale * easeFactor;
-
-  //         // Actualizar posición en Babylon.js
-  //         const sphere = window.babylonElements.find(
-  //           (el) => el.userData?.type === "node" && el.userData?.id === node.id,
-  //         );
-  //         if (sphere) {
-  //           sphere.position = new BABYLON.Vector3(newX, newY, newZ);
-  //         }
-  //       }
-  //     });
-
-  //     // Actualizar vigas
-  //     this.updateBeams3DPositions();
-
-  //     if (factor < 1) {
-  //       requestAnimationFrame(animate);
-  //     }
-  //   };
-
-  //   requestAnimationFrame(animate);
-  // },
-
-  // Actualizar posiciones de vigas después de mover nodos
-  // updateBeams3DPositions() {
-  //   if (!window.babylonScene) return;
-
-  //   // Encontrar todas las vigas en la escena
-  //   const beams = window.babylonElements.filter((el) => el.userData?.type === "beam");
-
-  //   beams.forEach((beam) => {
-  //     const beamId = beam.userData?.id;
-  //     const beamData = this.shapes.find((b) => b.id === beamId);
-  //     if (!beamData || !beamData.node1 || !beamData.node2) return;
-
-  //     // Obtener posiciones actuales de los nodos
-  //     const startNode = this.nodes.find((n) => n.id === beamData.node1.id);
-  //     const endNode = this.nodes.find((n) => n.id === beamData.node2.id);
-  //     if (!startNode || !endNode) return;
-
-  //     const start = new BABYLON.Vector3(startNode.position.x, startNode.position.y, startNode.position.z || 0);
-  //     const end = new BABYLON.Vector3(endNode.position.x, endNode.position.y, endNode.position.z || 0);
-
-  //     const direction = end.subtract(start);
-  //     const length = direction.length();
-
-  //     if (length < 0.001) return;
-
-  //     const midPoint = start.add(end).scale(0.5);
-  //     beam.position = midPoint;
-
-  //     const quat = BABYLON.Quaternion.FromUnitVectorsToRef(
-  //       BABYLON.Vector3.Up(),
-  //       direction.normalize(),
-  //       new BABYLON.Quaternion(),
-  //     );
-  //     beam.rotationQuaternion = quat;
-
-  //     // Actualizar altura del cilindro
-  //     const cylinder = beam;
-  //     cylinder.scaling = new BABYLON.Vector3(
-  //       1,
-  //       length / (cylinder._geometry?._boundingInfo?.boundingBox?.extents?.y * 2 || 1),
-  //       1,
-  //     );
-  //   });
-  // },
-
-  // ============================================================
-  // 4. FUNCIÓN PRINCIPAL PARA EJECUTAR ANÁLISIS 3D Y ANIMAR
-  // ============================================================
-
   async run3DAnalysisWithDeformation() {
     const swalTailwind = Swal.mixin({
       customClass: {
@@ -2790,6 +2902,7 @@ export default () => ({
     }
   },
 
+  // Función para crear el modelo a partir de los parámetros del diálogo
   createModelFromDialog(params) {
     console.log("🏗️ Configurando grid de referencia con parámetros:", params);
 
@@ -2815,6 +2928,36 @@ export default () => ({
       this.referenceGrid.yPositions.push(i * params.gridYSpacing);
     }
 
+    // ========== CONSTRUIR NIVELES (STORIES) ==========
+    this.stories = [{ name: "BASE", z: 0 }];
+    for (let i = 1; i <= params.storyCount; i++) {
+      this.stories.push({
+        name: `STORY${i}`,
+        z: i * params.storyHeight,
+      });
+    }
+    this.currentStory = "BASE";
+
+    // Mostrar mensaje con los niveles creados
+    console.log(`📐 Niveles creados: ${this.stories.map((s) => `${s.name}(${s.z}m)`).join(", ")}`);
+    this.showMessage(`✅ ${params.storyCount} niveles creados: BASE + ${params.storyCount} pisos`);
+
+    // ========== CONSTRUIR ELEVACIONES EN X (Vistas 1,2,3...) - Eje Y ==========
+    this.xElevations = [{ name: "1", y: 0 }];
+    for (let i = 2; i <= params.gridXCount; i++) {
+      this.xElevations.push({
+        name: `${i}`,
+        y: (i - 1) * params.gridXSpacing,
+      });
+    }
+    this.currentElevationX = "none";
+    this.currentViewMode = "plan";
+
+    console.log(`📐 Pisos: ${this.stories.map((s) => `${s.name}(${s.z}m)`).join(", ")}`);
+    console.log(`📐 Elevaciones X: ${this.xElevations.map((e) => `${e.name}(Y=${e.y}m)`).join(", ")}`);
+
+    this.showMessage(`✅ ${params.storyCount} pisos y ${params.gridXCount} elevaciones creados`);
+
     // Opcional: centrar la vista en el grid creado
     if (this.referenceGrid.xPositions.length > 0 && this.referenceGrid.yPositions.length > 0) {
       const minX = Math.min(...this.referenceGrid.xPositions);
@@ -2834,21 +2977,83 @@ export default () => ({
     this.redraw();
 
     // Dibujar grid 3D si la vista 3D está activa
-    if (this.show3DView && window.babylonInitialized) {
-      // Limpiar elementos anteriores del grid 3D
-      if (window.babylonElements) {
-        window.babylonElements = window.babylonElements.filter((el) => {
-          if (el.name && el.name.startsWith("ref_")) {
-            if (el.dispose) el.dispose();
-            return false;
-          }
-          return true;
-        });
-      }
+    if (window.babylonInitialized && window.babylonScene) {
       this.drawReferenceGrid3D();
+    } else {
+      // Si Babylon no está inicializado, guardar para dibujar después
+      this.pendingGrid3D = true;
     }
 
     this.showMessage(`✅ Grid de referencia: ${params.gridXCount}x${params.gridYCount}, ${params.storyCount} pisos`);
+  },
+
+  // Método para cambiar elevación X
+  changeElevationX() {
+    if (this.currentElevationX === "none") {
+      this.currentViewMode = "plan";
+      this.currentRenderer = this.diseñoRenderer; // Volver al renderer normal
+    } else {
+      this.currentViewMode = "elevation";
+      const elev = this.xElevations.find((e) => e.name === this.currentElevationX);
+      if (elev) {
+        this.showMessage(`📐 Vista ELEVACIÓN X-${this.currentElevationX} (Y = ${elev.y}m)`);
+      }
+      // Podrías crear un renderer específico para elevación si es necesario
+    }
+    console.log(`📐 Cambiando a elevación X: ${this.currentElevationX}`);
+    this.redraw();
+    this.sync3D();
+  },
+
+  getCurrentZ() {
+    if (this.currentStory && this.stories) {
+      const story = this.stories.find((s) => s.name === this.currentStory);
+      if (story) return story.z;
+    }
+    return 0;
+  },
+
+  // Obtener la posición Y de la elevación actual (o null si es planta)
+  getCurrentElevationY() {
+    if (this.currentElevationX !== "none") {
+      const elev = this.xElevations.find((e) => e.name === this.currentElevationX);
+      if (elev) return elev.y;
+    }
+    return null;
+  },
+
+  // Obtener información del filtro actual
+  getFilterInfo() {
+    const currentZ = this.getCurrentZ();
+    const currentY = this.getCurrentElevationY();
+
+    if (currentY !== null) {
+      return `🔍 Vista ELEVACIÓN: Y = ${currentY}m, mostrando nodos en ese plano vertical`;
+    } else {
+      return `🔍 Vista PLANTA: Z = ${currentZ}m, mostrando nodos en ese nivel`;
+    }
+  },
+
+  getViewTitle() {
+    const currentZ = this.getCurrentZ();
+    const currentY = this.getCurrentElevationY();
+
+    if (currentY !== null) {
+      return `📐 Vista ELEVACIÓN Eje X-${this.currentElevationX} (Y = ${currentY}m) - Plano X-Z`;
+    } else {
+      return `📐 Vista PLANTA - Piso: ${this.currentStory} (Z = ${currentZ}m)`;
+    }
+  },
+
+  // Cambiar de planta
+  changeStory() {
+    const story = this.stories.find((s) => s.name === this.currentStory);
+    if (story) {
+      console.log(`📐 Cambiando a nivel: ${story.name} (Z = ${story.z} m)`);
+      this.showMessage(`📐 Nivel: ${story.name} - Altura Z = ${story.z} m`);
+      this.redraw();
+      this.sync3D();
+    }
   },
 
   // Función auxiliar para obtener etiquetas X (A, B, C...)
@@ -2888,6 +3093,9 @@ export default () => ({
   drawReferenceGrid3D() {
     if (!window.babylonScene || !this.referenceGrid) return;
 
+    // Verificar si el grid ya existe para no duplicarlo
+    if (this.grid3DDrawn) return;
+
     const grid = this.referenceGrid;
     const xPositions = grid.xPositions;
     const yPositions = grid.yPositions;
@@ -2899,11 +3107,9 @@ export default () => ({
     const axisColor = new BABYLON.Color3(1, 0.4, 0.4);
     const textColor = new BABYLON.Color3(0.7, 0.8, 1);
 
-    // Altura del suelo
     const groundLevel = -0.05;
 
-    // ========== LÍNEAS DEL SUELO (Y = 0) ==========
-    // Líneas en dirección X
+    // ========== LÍNEAS DEL SUELO ==========
     yPositions.forEach((z, idx) => {
       const points = [];
       xPositions.forEach((x) => {
@@ -2917,7 +3123,6 @@ export default () => ({
       window.babylonElements.push(lines);
     });
 
-    // Líneas en dirección Z
     xPositions.forEach((x, idx) => {
       const points = [];
       yPositions.forEach((z) => {
@@ -2931,12 +3136,11 @@ export default () => ({
       window.babylonElements.push(lines);
     });
 
-    // ========== LÍNEAS DE PISOS (altura Y) ==========
+    // ========== LÍNEAS DE PISOS ==========
     for (let floor = 1; floor <= grid.storyCount; floor++) {
       const y = floor * grid.storyHeight;
       const alpha = 0.35;
 
-      // Líneas en dirección X
       yPositions.forEach((z, idx) => {
         const points = [];
         xPositions.forEach((x) => {
@@ -2950,7 +3154,6 @@ export default () => ({
         window.babylonElements.push(lines);
       });
 
-      // Líneas en dirección Z
       xPositions.forEach((x, idx) => {
         const points = [];
         yPositions.forEach((z) => {
@@ -2965,13 +3168,11 @@ export default () => ({
       });
     }
 
-    // ========== EJES PRINCIPALES 3D ==========
-    // Eje X (Rojo) - línea en X positiva
+    // ========== EJES PRINCIPALES ==========
     const maxX = Math.max(...xPositions);
     const minX = Math.min(...xPositions);
     const maxY = Math.max(...yPositions);
 
-    // Línea del eje X
     const xAxisPoints = [new BABYLON.Vector3(minX - 1, 0, 0), new BABYLON.Vector3(maxX + 1, 0, 0)];
     const xAxisLine = BABYLON.MeshBuilder.CreateLines("ref_x_axis", { points: xAxisPoints }, window.babylonScene);
     const xAxisMat = new BABYLON.StandardMaterial("ref_x_axis_mat", window.babylonScene);
@@ -2979,7 +3180,6 @@ export default () => ({
     xAxisLine.material = xAxisMat;
     window.babylonElements.push(xAxisLine);
 
-    // Eje Z (Azul) - línea en Z positiva
     const zAxisPoints = [new BABYLON.Vector3(0, 0, -1), new BABYLON.Vector3(0, 0, maxY + 1)];
     const zAxisLine = BABYLON.MeshBuilder.CreateLines("ref_z_axis", { points: zAxisPoints }, window.babylonScene);
     const zAxisMat = new BABYLON.StandardMaterial("ref_z_axis_mat", window.babylonScene);
@@ -2987,7 +3187,6 @@ export default () => ({
     zAxisLine.material = zAxisMat;
     window.babylonElements.push(zAxisLine);
 
-    // Eje Y (Verde) - altura
     const yAxisPoints = [
       new BABYLON.Vector3(0, -0.5, 0),
       new BABYLON.Vector3(0, grid.storyCount * grid.storyHeight + 1, 0),
@@ -2998,33 +3197,27 @@ export default () => ({
     yAxisLine.material = yAxisMat;
     window.babylonElements.push(yAxisLine);
 
-    // ========== ETIQUETAS DE LOS EJES ==========
-    // Etiqueta X
+    // ========== ETIQUETAS ==========
     const xLabel = this.createSimpleAxisLabel("X", new BABYLON.Color3(1, 0.4, 0.4), window.babylonScene);
     if (xLabel) {
       xLabel.position = new BABYLON.Vector3(maxX + 1.2, -0.3, 0);
       window.babylonElements.push(xLabel);
     }
 
-    // Etiqueta Z
     const zLabel = this.createSimpleAxisLabel("Z", new BABYLON.Color3(0.3, 0.3, 1), window.babylonScene);
     if (zLabel) {
       zLabel.position = new BABYLON.Vector3(0, -0.3, maxY + 1.2);
       window.babylonElements.push(zLabel);
     }
 
-    // Etiqueta Y (altura)
     const yLabel = this.createSimpleAxisLabel("Y", new BABYLON.Color3(0.3, 1, 0.3), window.babylonScene);
     if (yLabel) {
       yLabel.position = new BABYLON.Vector3(-0.5, grid.storyCount * grid.storyHeight + 1, -0.5);
       window.babylonElements.push(yLabel);
     }
 
-    // ========== ETIQUETAS DE LOS EJES X y Z (A,B,C y 1,2,3) ==========
+    // Etiquetas X (A, B, C...)
     const xLabels = grid.xLabels;
-    const zLabels = grid.yLabels;
-
-    // Etiquetas en el eje X
     xPositions.forEach((x, idx) => {
       const text = this.createSimpleAxisLabel(xLabels[idx], new BABYLON.Color3(0.5, 0.8, 1), window.babylonScene);
       if (text) {
@@ -3033,7 +3226,8 @@ export default () => ({
       }
     });
 
-    // Etiquetas en el eje Z
+    // Etiquetas Z (1, 2, 3...)
+    const zLabels = grid.yLabels;
     yPositions.forEach((z, idx) => {
       const text = this.createSimpleAxisLabel(
         zLabels[idx].toString(),
@@ -3046,7 +3240,7 @@ export default () => ({
       }
     });
 
-    // ========== ETIQUETAS DE PISOS (Story 1, Story 2...) ==========
+    // Etiquetas de pisos
     for (let floor = 1; floor <= grid.storyCount; floor++) {
       const y = floor * grid.storyHeight;
       const text = this.createSimpleAxisLabel(`P${floor}`, new BABYLON.Color3(0.7, 0.9, 0.5), window.babylonScene);
@@ -3056,6 +3250,7 @@ export default () => ({
       }
     }
 
+    this.grid3DDrawn = true;
     console.log(`✅ Grid 3D de referencia: ${xPositions.length}x${yPositions.length}, ${grid.storyCount} pisos`);
   },
 });

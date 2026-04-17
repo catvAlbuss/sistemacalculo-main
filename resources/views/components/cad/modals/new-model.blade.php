@@ -134,8 +134,8 @@
             open: false,
             gridXCount: 3,
             gridYCount: 3,
-            gridXSpacing: 5.0,
-            gridYSpacing: 5.0,
+            gridXSpacing: 3.0,
+            gridYSpacing: 3.0,
             storyCount: 3,
             storyHeight: 3.0,
             selectedTemplate: 'grid-only',
@@ -154,8 +154,8 @@
             openModal() {
                 this.gridXCount = 3;
                 this.gridYCount = 3;
-                this.gridXSpacing = 5.0;
-                this.gridYSpacing = 5.0;
+                this.gridXSpacing = 3.0;
+                this.gridYSpacing = 3.0;
                 this.storyCount = 3;
                 this.storyHeight = 3.0;
                 this.selectedTemplate = 'grid-only';

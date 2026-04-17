@@ -121,40 +121,12 @@
   </x-cad.ribbon-group>
   <!-- -------------------------APARTADO DE 3D ----------------------- -->
   <!-- Controles de cámara estilo ETABS -->
-  <x-cad.ribbon-group title="Vista 3D">
+  <x-cad.ribbon-group title="Vista 2D">
     <!-- Vista en planta (desde arriba) -->
-    <x-cad.ribbon-button clickHandler="setViewPlan()" toggle="false" label="Planta">
+    <x-cad.ribbon-button clickHandler="openElevationModal()" toggle="false" label="S|ev">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-      </svg>
-    </x-cad.ribbon-button>
-
-    <!-- Vista 3D isométrica -->
-    <x-cad.ribbon-button clickHandler="setViewIso()" toggle="false" label="Isométrica">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3h14v18H5z M12 3v18 M3 12h18" />
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 8l8 8M16 8l-8 8" />
-      </svg>
-    </x-cad.ribbon-button>
-
-    <!-- Vista frontal (elevación X) -->
-    <x-cad.ribbon-button clickHandler="setViewFront()" toggle="false" label="Frontal">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12h18M12 3v18" />
-      </svg>
-    </x-cad.ribbon-button>
-
-    <!-- Vista lateral (elevación Y) -->
-    <x-cad.ribbon-button clickHandler="setViewSide()" toggle="false" label="Lateral">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16v12H4z" />
-      </svg>
-    </x-cad.ribbon-button>
-
-    <!-- Zoom extents -->
-    <x-cad.ribbon-button clickHandler="zoomExtents()" toggle="false" label="Ajustar">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12h18M3 6h18M3 18h18" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 3v18M16 3v18" />
       </svg>
     </x-cad.ribbon-button>
   </x-cad.ribbon-group>

@@ -190,11 +190,112 @@ export class DiseñoRenderer {
     context.ctx.restore();
   }
 
+  // Funcion auxiliar
+  getNodePosition(node, context) {
+    if (!node || !node.position) {
+      return null;
+    }
+
+    if (context.elevationManager) {
+      const view = context.elevationManager.current2DView;
+      const currentElevation = context.elevationManager.currentElevation;
+      const currentType = context.elevationManager.currentElevationType;
+      const grid = context.referenceGrid;
+
+      const x = node.position.x;
+      const y = node.position.y;
+      const z = node.position.z || 0;
+
+      if (view === "plan") {
+        // Vista PLANTA: solo mostrar nodos en Z=0
+        if (Math.abs(z) > 0.01) return null;
+        return { x: x, y: y };
+      } else if (view === "elevation-xz") {
+        // Vista X-Z: solo nodos en Y=0
+        if (Math.abs(y) > 0.01) return null;
+
+        // Si hay grid y es una elevación numérica (Eje 1, 2, 3)
+        if (grid && currentType === "number") {
+          const idx = parseInt(currentElevation) - 1;
+          if (idx >= 0 && idx < grid.xPositions.length) {
+            const targetX = grid.xPositions[idx];
+            // Solo mostrar nodos que están en este eje X
+            if (Math.abs(x - targetX) > 0.1) return null;
+          }
+        }
+        return { x: x, y: z };
+      } else if (view === "elevation-yz") {
+        // Vista Y-Z: solo nodos en X=0
+        if (Math.abs(x) > 0.01) return null;
+
+        // Si hay grid y es una elevación por letra (A, B, C)
+        if (grid && currentType === "letter") {
+          const idx = grid.xLabels.indexOf(currentElevation);
+          if (idx >= 0 && idx < grid.yPositions.length) {
+            const targetZ = grid.yPositions[idx];
+            // Solo mostrar nodos que están en este eje Z
+            if (Math.abs(z - targetZ) > 0.1) return null;
+          }
+        }
+        return { x: y, y: z };
+      }
+    }
+    // Fallback
+    return { x: node.position.x, y: node.position.y };
+  }
+
   drawNode(node, context) {
-    const p = context.grid.worldToScreen(node.position);
+    // if (!node || !node.position) {
+    //   return;
+    // }
+
+    // const pos = this.getNodePosition(node, context); //se agregio esta linea para obtener la posicion del nodo dependiendo de la vista
+    // // SI LA POSICIÓN ES NULL (nodo no pertenece a la vista actual), NO DIBUJAR
+    // if (!pos) {
+    //   return;
+    // }
+
+    // const p = context.grid.worldToScreen({ x: pos.x, y: pos.y });
+    // context.ctx.save();
+    // const model = node.style.getModel();
+    // Object.assign(context.ctx, node.style.get().MODEL);
+    // context.ctx.beginPath();
+    // context.ctx.arc(p.x, p.y, model.RADIUS, 0, Math.PI * 2);
+    // context.ctx.fill();
+    // context.ctx.fillStyle = model.JOINT_FILL;
+    // context.ctx.beginPath();
+    // context.ctx.arc(p.x, p.y, model.RADIUS / 2, 0, Math.PI * 2);
+    // context.ctx.fill();
+    // context.ctx.restore();
+    if (!node || !node.position) return;
+
+    // Obtener la altura Z del nivel actual
+    let currentZ = 0;
+    if (context.currentStory && context.stories) {
+      const story = context.stories.find((s) => s.name === context.currentStory);
+      if (story) currentZ = story.z;
+    }
+
+    // SOLO dibujar nodos que están en el nivel actual
+    const nodeZ = node.position.z || 0;
+    if (Math.abs(nodeZ - currentZ) > 0.01) {
+      return; // Nodo de otro nivel, no dibujar
+    }
+
+    // Proyectar coordenadas 3D a 2D (X, Y)
+    const p = context.grid.worldToScreen({ x: node.position.x, y: node.position.y });
+
     context.ctx.save();
     const model = node.style.getModel();
-    Object.assign(context.ctx, node.style.get().MODEL);
+
+    // Si está en modo wireframe, usar estilo wireframe
+    if (context.options.showWireframe) {
+      Object.assign(context.ctx, node.style.get().WIREFRAME);
+    } else {
+      Object.assign(context.ctx, node.style.get().MODEL);
+    }
+
+    // Object.assign(context.ctx, node.style.get().MODEL);
     context.ctx.beginPath();
     context.ctx.arc(p.x, p.y, model.RADIUS, 0, Math.PI * 2);
     context.ctx.fill();
@@ -206,6 +307,19 @@ export class DiseñoRenderer {
   }
 
   drawNodeID(node, context) {
+    if (!node || !node.position) return;
+
+    // 🔑 FILTRAR POR NIVEL ACTUAL
+    let currentZ = 0;
+    if (context.currentStory && context.stories) {
+      const story = context.stories.find((s) => s.name === context.currentStory);
+      if (story) currentZ = story.z;
+    }
+
+    const nodeZ = node.position.z || 0;
+    if (Math.abs(nodeZ - currentZ) > 0.01) {
+      return; // Nodo de otro nivel, NO mostrar ID
+    }
     const p = context.grid.worldToScreen(node.position);
     context.ctx.save();
     context.ctx.beginPath();
@@ -328,7 +442,22 @@ export class DiseñoRenderer {
     context.ctx.fill();
   }
 
+  // Función para dibujar fuerzas en nodos, filtrando por nivel actual
   drawForce(node, context) {
+    if (!node || !node.position) return;
+
+    // 🔑 FILTRAR POR NIVEL ACTUAL
+    let currentZ = 0;
+    if (context.currentStory && context.stories) {
+      const story = context.stories.find((s) => s.name === context.currentStory);
+      if (story) currentZ = story.z;
+    }
+
+    const nodeZ = node.position.z || 0;
+    if (Math.abs(nodeZ - currentZ) > 0.01) {
+      return; // Nodo de otro nivel, NO mostrar fuerza
+    }
+
     //context.ctx.textAlign = "right";
     const p = context.grid.worldToScreen(node.position);
     const colors = {
@@ -388,22 +517,80 @@ export class DiseñoRenderer {
   }
 
   drawBeam(beam, context) {
-    const p1 = context.grid.worldToScreen(beam.node1.position);
-    const p2 = context.grid.worldToScreen(beam.node2.position);
+    // // VERIFICAR QUE LA VIGA TENGA AMBOS NODOS
+    // if (!beam || !beam.node1 || !beam.node2) {
+    //   return;
+    // }
+
+    // const pos1 = this.getNodePosition(beam.node1, context); //se agregio esta linea para obtener la posicion del nodo dependiendo de la vista
+    // const pos2 = this.getNodePosition(beam.node2, context); //se agregio esta linea para obtener la posicion del nodo dependiendo de la vista
+
+    // const p1 = context.grid.worldToScreen({ x: pos1.x, y: pos1.y });
+    // const p2 = context.grid.worldToScreen({ x: pos2.x, y: pos2.y });
+    // context.ctx.save();
+    // Object.assign(context.ctx, beam.style.get().MODEL);
+    // context.ctx.beginPath();
+    // context.ctx.moveTo(p1.x, p1.y);
+    // context.ctx.lineTo(p2.x, p2.y);
+    // context.ctx.stroke();
+    // /*     context.ctx.globalCompositeOperation = "destination-out";
+    // context.ctx.strokeStyle = "black";
+    // context.ctx.lineWidth = 11;
+    // context.ctx.stroke(); */
+    // context.ctx.restore();
+
+    if (!beam || !beam.node1 || !beam.node2) return;
+
+    // Obtener la altura Z del nivel actual
+    let currentZ = 0;
+    if (context.currentStory && context.stories) {
+      const story = context.stories.find((s) => s.name === context.currentStory);
+      if (story) currentZ = story.z;
+    }
+
+    // SOLO dibujar vigas cuyos dos nodos están en el nivel actual
+    const z1 = beam.node1.position.z || 0;
+    const z2 = beam.node2.position.z || 0;
+    if (Math.abs(z1 - currentZ) > 0.01 || Math.abs(z2 - currentZ) > 0.01) {
+      return; // Viga de otro nivel, no dibujar
+    }
+
+    const p1 = context.grid.worldToScreen({ x: beam.node1.position.x, y: beam.node1.position.y });
+    const p2 = context.grid.worldToScreen({ x: beam.node2.position.x, y: beam.node2.position.y });
+
     context.ctx.save();
+
+    // Si está en modo wireframe, usar estilo wireframe
+    if (context.options.showWireframe) {
+      Object.assign(context.ctx, beam.style.get().WIREFRAME);
+    } else {
+      Object.assign(context.ctx, beam.style.get().MODEL);
+    }
+
     Object.assign(context.ctx, beam.style.get().MODEL);
     context.ctx.beginPath();
     context.ctx.moveTo(p1.x, p1.y);
     context.ctx.lineTo(p2.x, p2.y);
     context.ctx.stroke();
-    /*     context.ctx.globalCompositeOperation = "destination-out";
-    context.ctx.strokeStyle = "black";
-    context.ctx.lineWidth = 11;
-    context.ctx.stroke(); */
     context.ctx.restore();
   }
 
+  // FUNCION PARA DIBUJAR EL ID DE LA VIGA EN EL CENTRO DE LA MISMA, ORIENTADO SEGUN SU ANGULO, Y SOLO SI AMBOS NODOS PERTENECEN AL NIVEL ACTUAL
   drawBeamID(beam, context) {
+    if (!beam || !beam.node1 || !beam.node2) return;
+
+    // 🔑 FILTRAR POR NIVEL ACTUAL
+    let currentZ = 0;
+    if (context.currentStory && context.stories) {
+      const story = context.stories.find((s) => s.name === context.currentStory);
+      if (story) currentZ = story.z;
+    }
+
+    const z1 = beam.node1.position.z || 0;
+    const z2 = beam.node2.position.z || 0;
+    if (Math.abs(z1 - currentZ) > 0.01 || Math.abs(z2 - currentZ) > 0.01) {
+      return; // Viga de otro nivel, NO mostrar ID
+    }
     context.ctx.save();
     const p1 = context.grid.worldToScreen(beam.node1.position);
     const p2 = context.grid.worldToScreen(beam.node2.position);
@@ -478,6 +665,7 @@ export class DiseñoRenderer {
     ctx.restore();
   }
 
+  // DIBUJAR SOLO EL GRID DE REFERENCIA CON ESTILO ETABS
   drawReferenceGridOnly(grid, context) {
     const ctx = context.ctx;
     const refGrid = context.referenceGrid;
@@ -534,7 +722,7 @@ export class DiseñoRenderer {
     ctx.fillText("X", ejeXLabelPos.x + 3, ejeXLabelPos.y - 3);
 
     // Eje Y (vertical) - línea roja en X=0
-    const ejeYStart = grid.worldToScreen({ x: 0, y: minY});
+    const ejeYStart = grid.worldToScreen({ x: 0, y: minY });
     const ejeYEnd = grid.worldToScreen({ x: 0, y: 2 });
 
     ctx.beginPath();
@@ -674,150 +862,253 @@ export class DiseñoRenderer {
     // Restaurar configuración
     ctx.font = "11px 'Segoe UI', Arial";
     ctx.fillStyle = "#ffffff";
+
+    // Al final, mostrar el nivel actual
+    if (context.currentStory && context.stories) {
+      const story = context.stories.find((s) => s.name === context.currentStory);
+      if (story) {
+        context.ctx.font = "bold 14px 'Segoe UI', Arial";
+        context.ctx.fillStyle = "#4a90d9";
+        context.ctx.setLineDash([]);
+        context.ctx.fillText(`📍 Nivel: ${context.currentStory} (Z = ${story.z.toFixed(2)} m)`, 15, 50);
+      }
+    }
   }
 
-  // drawStandardGrid(grid, context) {
+  // drawReferenceGridOnly(grid, context) {
   //   const ctx = context.ctx;
+  //   const refGrid = context.referenceGrid;
+  //   const elevationManager = context.elevationManager;
 
-  //   const topLeft = grid.screenToWorld({ x: 0, y: 0 });
-  //   const bottomRight = grid.screenToWorld({ x: grid.width, y: grid.height });
+  //   if (!refGrid || !refGrid.xPositions || refGrid.xPositions.length === 0) return;
 
-  //   const spacing = 5;
-  //   const startX = Math.floor(topLeft.x / spacing) * spacing;
-  //   const endX = Math.ceil(bottomRight.x / spacing) * spacing;
-  //   const startY = Math.floor(bottomRight.y / spacing) * spacing;
-  //   const endY = Math.ceil(topLeft.y / spacing) * spacing;
+  //   const xPositions = refGrid.xPositions;
+  //   const yPositions = refGrid.yPositions;
+  //   const xLabels = refGrid.xLabels;
+  //   const yLabels = refGrid.yLabels;
+  //   const storyCount = refGrid.storyCount;
+  //   const storyHeight = refGrid.storyHeight;
 
-  //   const letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+  //   // Colores estilo ETABS
+  //   const lineColor = "#3a6a9a";
+  //   const textColor = "#8aadcc";
+  //   const axisColor = "#ff6666";
 
-  //   ctx.lineWidth = 0.5;
+  //   ctx.lineWidth = 0.8;
   //   ctx.font = "11px 'Segoe UI', Arial";
-  //   ctx.strokeStyle = "#2a4a6a";
-  //   ctx.fillStyle = "#6a9aba";
+  //   ctx.setLineDash([]);
 
-  //   // Líneas verticales
-  //   let colIndex = 0;
-  //   for (let x = startX; x <= endX; x += spacing) {
-  //     const screenX = (x - grid.offestX) * grid.scaleX;
-  //     ctx.beginPath();
-  //     ctx.moveTo(screenX, 0);
-  //     ctx.lineTo(screenX, grid.height);
-  //     ctx.stroke();
+  //   // Verificar si estamos en vista de elevación
+  //   const isElevationView = elevationManager && elevationManager.current2DView !== "plan";
+  //   const isXZView = elevationManager && elevationManager.current2DView === "elevation-xz";
+  //   const isYZView = elevationManager && elevationManager.current2DView === "elevation-yz";
 
-  //     if (colIndex % 2 === 0) {
-  //       const label = letters[Math.floor(colIndex / 2) % letters.length];
-  //       ctx.fillText(label, screenX - 4, grid.height - 8);
+  //   if (isElevationView) {
+  //     // ========== VISTA DE ELEVACIÓN (X-Z o Y-Z) ==========
+
+  //     // Determinar el rango de coordenadas
+  //     let positions, labels;
+  //     if (isXZView) {
+  //       positions = xPositions;
+  //       labels = xLabels;
+  //     } else {
+  //       positions = yPositions;
+  //       labels = yLabels;
   //     }
-  //     colIndex++;
-  //   }
 
-  //   // Líneas horizontales
-  //   let rowIndex = 0;
-  //   for (let y = startY; y <= endY; y += spacing) {
-  //     const screenY = (grid.offestY - y) * grid.scaleY;
-  //     ctx.beginPath();
-  //     ctx.moveTo(0, screenY);
-  //     ctx.lineTo(grid.width, screenY);
-  //     ctx.stroke();
+  //     const minPos = Math.min(...positions);
+  //     const maxPos = Math.max(...positions);
+  //     const totalHeight = storyCount * storyHeight;
 
-  //     if (rowIndex % 2 === 0) {
-  //       const label = Math.floor(rowIndex / 2) + 1;
-  //       ctx.fillText(label.toString(), 5, screenY + 4);
+  //     // Dibujar líneas horizontales (pisos)
+  //     for (let floor = 0; floor <= storyCount; floor++) {
+  //       const y = floor * storyHeight;
+  //       const screenY = grid.worldToScreen({ x: 0, y: y }).y;
+
+  //       ctx.beginPath();
+  //       ctx.strokeStyle = floor === 0 ? axisColor : lineColor;
+  //       ctx.lineWidth = floor === 0 ? 1.5 : 0.5;
+  //       ctx.setLineDash(floor === 0 ? [] : [5, 5]);
+  //       ctx.moveTo(0, screenY);
+  //       ctx.lineTo(grid.width, screenY);
+  //       ctx.stroke();
+
+  //       // Etiqueta del piso
+  //       ctx.fillStyle = floor === 0 ? axisColor : textColor;
+  //       ctx.font = floor === 0 ? "bold 10px Arial" : "10px Arial";
+  //       const label = floor === 0 ? "BASE" : `STORY${floor}`;
+  //       ctx.fillText(label, 10, screenY - 3);
   //     }
-  //     rowIndex++;
-  //   }
-  // }
 
-  // ------------fin del nueveo drawGrid------------
+  //     // Dibujar líneas verticales (ejes X o Y)
+  //     positions.forEach((pos, index) => {
+  //       const screenX = grid.worldToScreen({ x: pos, y: 0 }).x;
 
-  // Busca la función drawGrid y modifícala o añade esta versión:
+  //       ctx.beginPath();
+  //       ctx.strokeStyle = lineColor;
+  //       ctx.lineWidth = 0.5;
+  //       ctx.moveTo(screenX, 0);
+  //       ctx.lineTo(screenX, grid.height);
+  //       ctx.stroke();
 
-  // resources/js/cad/renderer.js
-
-  // drawGrid(grid, context) {
-  //   const ctx = context.ctx;
-  //   ctx.save();
-  //   ctx.shadowBlur = 0;
-
-  //   // Configuración estilo ETABS
-  //   const majorColor = "#3a6a9a"; // Líneas principales (azul)
-  //   const minorColor = "#2a4a6a"; // Líneas secundarias (azul más oscuro)
-  //   const textColor = "#8aadcc"; // Color del texto (azul claro)
-  //   const spacing = 2; // Espaciado entre ejes (metros)
-
-  //   // Calcular límites del grid visible
-  //   const topLeft = grid.screenToWorld({ x: 0, y: 0 });
-  //   const bottomRight = grid.screenToWorld({ x: grid.width, y: grid.height });
-
-  //   const startX = Math.floor(topLeft.x / spacing) * spacing;
-  //   const endX = Math.ceil(bottomRight.x / spacing) * spacing;
-  //   const startY = Math.floor(bottomRight.y / spacing) * spacing;
-  //   const endY = Math.ceil(topLeft.y / spacing) * spacing;
-
-  //   // Letras para ejes horizontales (A, B, C, D, E...)
-  //   const letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
-
-  //   ctx.lineWidth = 0.5;
-  //   ctx.font = "11px 'Segoe UI', Arial";
-
-  //   // ========== DIBUJAR LÍNEAS VERTICALES (Ejes A, B, C, D) ==========
-  //   let colIndex = 0;
-  //   for (let x = startX; x <= endX; x += spacing) {
-  //     const isMajor = colIndex % 2 === 0;
-  //     const screenX = (x - grid.offestX) * grid.scaleX;
-
-  //     // Línea
-  //     ctx.beginPath();
-  //     ctx.strokeStyle = isMajor ? majorColor : minorColor;
-  //     ctx.moveTo(screenX, 0);
-  //     ctx.lineTo(screenX, grid.height);
-  //     ctx.stroke();
-
-  //     // Etiqueta en la parte inferior (solo para líneas principales)
-  //     if (isMajor) {
-  //       const label = letters[Math.floor(colIndex / 2) % letters.length];
+  //       // Etiqueta del eje (A, B, C o 1, 2, 3)
   //       ctx.fillStyle = textColor;
-  //       ctx.fillText(label, screenX - 4, grid.height - 8);
-  //     }
-  //     colIndex++;
-  //   }
+  //       ctx.fillText(labels[index], screenX - 4, grid.height - 8);
+  //     });
 
-  //   // ========== DIBUJAR LÍNEAS HORIZONTALES (Ejes 1, 2, 3, 4) ==========
-  //   let rowIndex = 0;
-  //   for (let y = startY; y <= endY; y += spacing) {
-  //     const isMajor = rowIndex % 2 === 0;
-  //     const screenY = (grid.offestY - y) * grid.scaleY;
-
-  //     // Línea
+  //     // Dibujar origen
+  //     const origin = grid.worldToScreen({ x: 0, y: 0 });
   //     ctx.beginPath();
-  //     ctx.strokeStyle = isMajor ? majorColor : minorColor;
-  //     ctx.moveTo(0, screenY);
-  //     ctx.lineTo(grid.width, screenY);
-  //     ctx.stroke();
+  //     ctx.arc(origin.x, origin.y, 4, 0, 2 * Math.PI);
+  //     ctx.fillStyle = "#ff8888";
+  //     ctx.fill();
 
-  //     // Etiqueta en el lateral izquierdo (solo para líneas principales)
-  //     if (isMajor) {
-  //       const label = Math.floor(rowIndex / 2) + 1;
-  //       ctx.fillStyle = textColor;
-  //       ctx.fillText(label.toString(), 5, screenY + 4);
-  //     }
-  //     rowIndex++;
+  //     ctx.setLineDash([]);
+  //     ctx.restore();
+  //     return;
   //   }
 
-  //   // ========== DIBUJAR EL ORIGEN (0,0) ==========
-  //   const originX = (0 - grid.offestX) * grid.scaleX;
-  //   const originY = (grid.offestY - 0) * grid.scaleY;
+  //   // ========== VISTA EN PLANTA (original) ==========
+  //   // ... resto del código original para vista en planta ...
 
+  //   const minX = Math.min(...xPositions);
+  //   const maxX = Math.max(...xPositions);
+  //   const minY = Math.min(...yPositions);
+  //   const maxY = Math.max(...yPositions);
+
+  //   // Dibujar líneas verticales
+  //   xPositions.forEach((x, index) => {
+  //     const start = grid.worldToScreen({ x: x, y: minY });
+  //     const end = grid.worldToScreen({ x: x, y: maxY });
+  //     if (start.x >= -100 && start.x <= grid.width + 100) {
+  //       ctx.beginPath();
+  //       ctx.moveTo(start.x, start.y);
+  //       ctx.lineTo(end.x, end.y);
+  //       ctx.stroke();
+  //       const labelPos = grid.worldToScreen({ x: x, y: minY - 0.5 });
+  //       ctx.fillStyle = textColor;
+  //       ctx.fillText(xLabels[index], labelPos.x - 4, labelPos.y + 5);
+  //     }
+  //   });
+
+  //   // Dibujar líneas horizontales
+  //   yPositions.forEach((y, index) => {
+  //     const start = grid.worldToScreen({ x: minX, y: y });
+  //     const end = grid.worldToScreen({ x: maxX, y: y });
+  //     if (start.y >= -100 && start.y <= grid.height + 100) {
+  //       ctx.beginPath();
+  //       ctx.moveTo(start.x, start.y);
+  //       ctx.lineTo(end.x, end.y);
+  //       ctx.stroke();
+  //       const labelPos = grid.worldToScreen({ x: minX - 0.5, y: y });
+  //       ctx.fillStyle = textColor;
+  //       ctx.fillText(yLabels[index].toString(), labelPos.x - 15, labelPos.y + 4);
+  //     }
+  //   });
+
+  //   // Origen
+  //   const origin = grid.worldToScreen({ x: 0, y: 0 });
   //   ctx.beginPath();
-  //   ctx.arc(originX, originY, 4, 0, 2 * Math.PI);
-  //   ctx.fillStyle = "#ff6666";
+  //   ctx.arc(origin.x, origin.y, 5, 0, 2 * Math.PI);
+  //   ctx.fillStyle = "#ff8888";
   //   ctx.fill();
-  //   ctx.fillStyle = "#ffffff";
-  //   ctx.font = "bold 10px Arial";
-  //   ctx.fillText("0", originX + 6, originY - 4);
 
+  //   ctx.setLineDash([]);
   //   ctx.restore();
   // }
+
+  
+  // DIBUJAR SOLO EL GRID DE REFERENCIA CON ESTILO ETABS, PERO ADAPTADO A VISTA DE ELEVACIÓN (X-Z O Y-Z)
+  drawElevationGridOnly(grid, context) {
+    const ctx = context.ctx;
+    const refGrid = context.referenceGrid;
+    const currentElevationX = context.currentElevationX;
+    const currentY = context.getCurrentElevationY ? context.getCurrentElevationY() : 0;
+
+    if (!refGrid || !refGrid.xPositions || refGrid.xPositions.length === 0) return;
+
+    const xPositions = refGrid.xPositions; // Posiciones en X (A, B, C...)
+    const xLabels = refGrid.xLabels; // ['A', 'B', 'C', ...]
+    const storyCount = refGrid.storyCount;
+    const storyHeight = refGrid.storyHeight;
+
+    // Colores estilo ETABS
+    const lineColor = "#3a6a9a";
+    const textColor = "#8aadcc";
+    const axisColor = "#ff6666";
+
+    ctx.lineWidth = 0.8;
+    ctx.font = "11px 'Segoe UI', Arial";
+    ctx.setLineDash([]);
+
+    // ========== DIBUJAR LÍNEAS HORIZONTALES (pisos/niveles de altura) ==========
+    for (let floor = 0; floor <= storyCount; floor++) {
+      const z = floor * storyHeight;
+      const screenY = grid.worldToScreen({ x: 0, y: z }).y;
+
+      ctx.beginPath();
+      ctx.strokeStyle = floor === 0 ? axisColor : lineColor;
+      ctx.lineWidth = floor === 0 ? 1.5 : 0.5;
+      ctx.setLineDash(floor === 0 ? [] : [5, 5]);
+      ctx.moveTo(0, screenY);
+      ctx.lineTo(grid.width, screenY);
+      ctx.stroke();
+
+      // Etiqueta del piso (BASE, STORY1, STORY2...)
+      ctx.fillStyle = floor === 0 ? axisColor : textColor;
+      ctx.font = floor === 0 ? "bold 10px Arial" : "10px Arial";
+      const label = floor === 0 ? "BASE" : `STORY${floor}`;
+      ctx.fillText(label, 10, screenY - 5);
+
+      // Altura en metros
+      ctx.fillStyle = "#666";
+      ctx.font = "9px Arial";
+      ctx.fillText(`${z}m`, 80, screenY - 5);
+    }
+
+    // ========== DIBUJAR LÍNEAS VERTICALES (ejes X: A, B, C...) ==========
+    xPositions.forEach((x, index) => {
+      const screenX = grid.worldToScreen({ x: x, y: 0 }).x;
+
+      // Resaltar el eje actual
+      const isActive = currentElevationX === xLabels[index];
+
+      ctx.beginPath();
+      ctx.strokeStyle = isActive ? axisColor : lineColor;
+      ctx.lineWidth = isActive ? 2 : 0.8;
+      ctx.setLineDash(isActive ? [] : [8, 4]);
+      ctx.moveTo(screenX, 0);
+      ctx.lineTo(screenX, grid.height);
+      ctx.stroke();
+
+      // Etiqueta del eje (A, B, C...)
+      ctx.fillStyle = isActive ? axisColor : textColor;
+      ctx.font = isActive ? "bold 12px Arial" : "11px Arial";
+      ctx.fillText(xLabels[index], screenX - 6, grid.height - 10);
+    });
+
+    ctx.setLineDash([]);
+
+    // ========== DIBUJAR ORIGEN (0,0) ==========
+    const origin = grid.worldToScreen({ x: 0, y: 0 });
+    ctx.beginPath();
+    ctx.arc(origin.x, origin.y, 5, 0, 2 * Math.PI);
+    ctx.fillStyle = "#ff8888";
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 10px Arial";
+    ctx.fillText("0,0", origin.x + 8, origin.y - 5);
+
+    // ========== TÍTULO DE LA VISTA ==========
+    ctx.font = "bold 12px 'Segoe UI', Arial";
+    ctx.fillStyle = "#4a90d9";
+    ctx.fillText(`📐 Vista X-Z (Eje ${currentElevationX}) - Y = ${currentY}m`, 15, 30);
+
+    // Instrucción
+    ctx.font = "10px Arial";
+    ctx.fillStyle = "#888";
+    ctx.fillText("Haz clic para dibujar | Esc para salir", 15, 50);
+  }
 
   drawState(state) {}
 
@@ -841,32 +1132,82 @@ export class DiseñoRenderer {
   }
 
   drawTrussDrawingState(state, context) {
+    // const last_point = state.shape.getFirstPoint();
+    // const p = context.grid.worldToScreen(context.mousePos);
+    // context.ctx.save();
+    // context.ctx.beginPath();
+    // context.ctx.fillStyle = "red";
+    // context.ctx.arc(p.x, p.y, context.grid.size, 0, Math.PI * 2);
+    // context.ctx.fill();
+    // if (last_point) {
+    //   var c = context.grid.worldToScreen(last_point.position);
+    //   const mouse = context.grid.worldToScreen(context.mousePos);
+    //   context.ctx.strokeStyle = "gray";
+    //   context.ctx.beginPath();
+    //   context.ctx.moveTo(c.x, c.y);
+    //   context.ctx.lineTo(mouse.x, mouse.y);
+    //   context.ctx.stroke();
+    // }
+    // context.ctx.restore();
     const last_point = state.shape.getFirstPoint();
     const p = context.grid.worldToScreen(context.mousePos);
     context.ctx.save();
+
+    // Dibujar el punto del mouse
     context.ctx.beginPath();
     context.ctx.fillStyle = "red";
     context.ctx.arc(p.x, p.y, context.grid.size, 0, Math.PI * 2);
     context.ctx.fill();
+
     if (last_point) {
       var c = context.grid.worldToScreen(last_point.position);
       const mouse = context.grid.worldToScreen(context.mousePos);
-      context.ctx.strokeStyle = "gray";
+
+      // Dibujar línea de preview
+      context.ctx.strokeStyle = "#88aaff";
+      context.ctx.setLineDash([5, 5]);
+      context.ctx.lineWidth = 2;
       context.ctx.beginPath();
       context.ctx.moveTo(c.x, c.y);
       context.ctx.lineTo(mouse.x, mouse.y);
       context.ctx.stroke();
+
+      // Mostrar distancia
+      const distance = pointDistance(last_point.position, context.mousePos);
+      const midX = (c.x + mouse.x) / 2;
+      const midY = (c.y + mouse.y) / 2;
+      context.ctx.fillStyle = "#ffffff";
+      context.ctx.font = "10px Arial";
+      context.ctx.setLineDash([]);
+      context.ctx.fillText(`${distance.toFixed(2)}m`, midX, midY - 10);
     }
     context.ctx.restore();
   }
 
   drawDeflections(context) {
+    // 🔑 Obtener nivel actual
+    let currentZ = 0;
+    if (context.currentStory && context.stories) {
+      const story = context.stories.find((s) => s.name === context.currentStory);
+      if (story) currentZ = story.z;
+    }
+
     context.ctx.save();
     context.ctx.strokeStyle = "blue";
     context.ctx.fillStyle = "blue";
     context.ctx.textAlign = "center";
     context.ctx.textBaseline = "middle";
     context.deflecciones.forEach((def) => {
+      const beam = context.shapes[idx];
+      if (!beam || !beam.node1 || !beam.node2) return;
+
+      // Filtrar por nivel
+      const z1 = beam.node1.position.z || 0;
+      const z2 = beam.node2.position.z || 0;
+      if (Math.abs(z1 - currentZ) > 0.01 || Math.abs(z2 - currentZ) > 0.01) {
+        return;
+      }
+
       const [x1, x2] = def.x;
       const [y1, y2] = def.y;
       const p1 = context.grid.worldToScreen({ x: x1, y: y1 });
@@ -878,6 +1219,13 @@ export class DiseñoRenderer {
       context.ctx.stroke();
     });
     context.desplazamientosPosition.forEach((d, index) => {
+      const node = context.nodes[index];
+      if (!node) return;
+
+      // Filtrar por nivel
+      const nodeZ = node.position.z || 0;
+      if (Math.abs(nodeZ - currentZ) > 0.01) return;
+
       const [x, y, _] = context.matrizDesplazamiento[index];
       const p = context.grid.worldToScreen(d);
       context.ctx.fillText(`dx: ${axisToFixed(x)}`, p.x, p.y);
@@ -888,7 +1236,22 @@ export class DiseñoRenderer {
   }
 
   drawMaterials(context) {
+    // 🔑 Obtener nivel actual
+    let currentZ = 0;
+    if (context.currentStory && context.stories) {
+      const story = context.stories.find((s) => s.name === context.currentStory);
+      if (story) currentZ = story.z;
+    }
     context.shapes.forEach((s) => {
+      if (!s.node1 || !s.node2) return;
+
+      // Filtrar por nivel
+      const z1 = s.node1.position.z || 0;
+      const z2 = s.node2.position.z || 0;
+      if (Math.abs(z1 - currentZ) > 0.01 || Math.abs(z2 - currentZ) > 0.01) {
+        return; // Viga de otro nivel, NO mostrar materiales
+      }
+
       const p1 = context.grid.worldToScreen(s.node1.position);
       const p2 = context.grid.worldToScreen(s.node2.position);
       const mid = midPoint(p1, p2);
