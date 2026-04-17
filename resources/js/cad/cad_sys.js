@@ -46,7 +46,7 @@ import {
   SelectedNodesState,
   SelectionState,
 } from "./states.js";
-import { pointDistance, mousePositionFrom, removeFromArray, axisToFixed } from "./utils.js";
+import { pointDistance, mousePositionFrom, removeFromArray, axisToFixed, pointDistanceToSegment } from "./utils.js";
 import { read as readmat } from "mat-for-js";
 import { Triangle, Puente, Arco } from "./parametricModels.js";
 import Swal from "sweetalert2";
@@ -74,6 +74,9 @@ export default () => ({
 
   stories: [],
   activeStory: 0,
+
+  nextNodeId: 1,
+  nextBeamId: 1,
 
   // Selection de vistas 3D
   viewSet: [],
@@ -162,6 +165,9 @@ export default () => ({
     this.selectedParametricState = new SelectedParametricState();
     this.selectionState = new SelectionState();
     this.currentState = this.idleState;
+
+    this.nextNodeId = 1;
+    this.nextBeamId = 1;
     // this.threeElements = []; // ← NUEVA
     this.prevState = null;
     this.trussDrawingState3D = new TrussDrawingState3D(this);
@@ -823,6 +829,62 @@ export default () => ({
     return Array.from({ length: count }, (_, i) => i + 1);
   },
 
+  closestBeamAtElevation(searchPoint, targetZ, tolerance = 0.05) {
+    let closest = null;
+    let shortestDistance = 10;
+
+    for (let i = 0; i < this.shapes.length; i++) {
+      const beam = this.shapes[i];
+      if (!beam?.node1 || !beam?.node2) continue;
+
+      const z1 = beam.node1.position.z || 0;
+      const z2 = beam.node2.position.z || 0;
+
+      // solo barras del mismo piso
+      if (
+        Math.abs(z1 - targetZ) > tolerance ||
+        Math.abs(z2 - targetZ) > tolerance
+      ) {
+        continue;
+      }
+
+      const p1 = this.grid.worldToScreen(beam.node1.position);
+      const p2 = this.grid.worldToScreen(beam.node2.position);
+
+      const dist = pointDistanceToSegment(searchPoint, p1, p2); // helper abajo
+      if (dist < shortestDistance) {
+        shortestDistance = dist;
+        closest = beam;
+      }
+    }
+
+    return closest;
+  },
+
+  getActivePlanElevation() {
+    const view = this.viewSet?.[this.activeViewIndex];
+
+    if (view?.type === "plan") {
+      return view.elevation ?? 0;
+    }
+
+    return this.stories?.[this.activeStory]?.elevation ?? 0;
+  },
+
+  closestNodeAtElevation(searchPoint, targetZ, tolerance = 0.05) {
+    const shortestDistance = 10;
+
+    for (let index = 0; index < this.nodes.length; index++) {
+      const node = this.nodes[index];
+      const distance = pointDistance(searchPoint, this.grid.worldToScreen(node.position));
+      const nodeZ = node.position.z || 0;
+
+      if (distance <= shortestDistance && Math.abs(nodeZ - targetZ) <= tolerance) {
+        return node;
+      }
+    }
+  },
+
   // Vista desde un conjunto de vistas
   setViewFromSet(index) {
     this.activeViewIndex = Number(index);
@@ -835,6 +897,12 @@ export default () => ({
     if (view.type === "plan") {
       this.activeStory = view.storyId;
     }
+
+    // limpiar cualquier selección anterior
+    this.clearAllSelections();
+
+    // salir al estado idle
+    this.setState(this.idleState);
 
     this.redraw();
     this.sync3D();
@@ -936,4 +1004,121 @@ export default () => ({
   showTestFrame() {
     return showTestFrame(this);
   },
+
+  closestNodeAtActiveView(searchPoint) {
+    const view = this.viewSet?.[this.activeViewIndex];
+    const tolerance = 0.05;
+    const shortestDistance = 10;
+
+    let closest = null;
+    let best = shortestDistance;
+
+    for (let i = 0; i < this.nodes.length; i++) {
+      const node = this.nodes[i];
+      const distance = pointDistance(searchPoint, this.grid.worldToScreen(node.position));
+      if (distance > best) continue;
+
+      const x = node.position.x || 0;
+      const y = node.position.y || 0;
+      const z = node.position.z || 0;
+
+      let belongs = true;
+
+      if (view?.type === "plan") {
+        belongs = Math.abs(z - (view.elevation ?? 0)) <= tolerance;
+      } else if (view?.type === "elevation") {
+        if (view.axis === "X") belongs = Math.abs(x - view.value) <= tolerance;
+        if (view.axis === "Y") belongs = Math.abs(y - view.value) <= tolerance;
+      }
+
+      if (!belongs) continue;
+
+      closest = node;
+      best = distance;
+    }
+
+    return closest;
+  },
+
+  closestBeamAtActiveView(searchPoint) {
+    const view = this.viewSet?.[this.activeViewIndex];
+    const tolerance = 0.05;
+    let closest = null;
+    let shortestDistance = 10;
+
+    for (let i = 0; i < this.shapes.length; i++) {
+      const beam = this.shapes[i];
+      if (!beam?.node1 || !beam?.node2) continue;
+
+      const x1 = beam.node1.position.x || 0;
+      const y1 = beam.node1.position.y || 0;
+      const z1 = beam.node1.position.z || 0;
+
+      const x2 = beam.node2.position.x || 0;
+      const y2 = beam.node2.position.y || 0;
+      const z2 = beam.node2.position.z || 0;
+
+      let belongs = true;
+
+      if (view?.type === "plan") {
+        belongs =
+          Math.abs(z1 - (view.elevation ?? 0)) <= tolerance &&
+          Math.abs(z2 - (view.elevation ?? 0)) <= tolerance;
+      } else if (view?.type === "elevation") {
+        if (view.axis === "X") {
+          belongs =
+            Math.abs(x1 - view.value) <= tolerance &&
+            Math.abs(x2 - view.value) <= tolerance;
+        }
+        if (view.axis === "Y") {
+          belongs =
+            Math.abs(y1 - view.value) <= tolerance &&
+            Math.abs(y2 - view.value) <= tolerance;
+        }
+      }
+
+      if (!belongs) continue;
+
+      const p1 = this.grid.worldToScreen(beam.node1.position);
+      const p2 = this.grid.worldToScreen(beam.node2.position);
+      const dist = pointDistanceToSegment(searchPoint, p1, p2);
+
+      if (dist < shortestDistance) {
+        shortestDistance = dist;
+        closest = beam;
+      }
+    }
+
+    return closest;
+  },
+
+  canSelectInCurrentView() {
+    const view = this.viewSet?.[this.activeViewIndex];
+    return !!(view && view.type === "plan");
+  },
+
+  clearAllSelections() {
+    const states = [
+      this.selectedNodesState,
+      this.selectedBeamsState,
+      this.selectedParametricState,
+    ];
+
+    states.forEach((state) => {
+      if (state?.selectedObjects?.length) {
+        state.exit?.();
+        state.selectedObjects = [];
+      }
+    });
+
+    if (this.moveObjectState) {
+      this.moveObjectState.selectedObject = null;
+      this.moveObjectState.isMoving = false;
+    }
+
+    this.selectedNode = null;
+    this.selectedBeam = null;
+    this.selectedObject = null;
+  },
+
 });

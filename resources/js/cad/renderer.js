@@ -59,6 +59,7 @@ export class DiseñoRenderer {
       CADSystem.grid.draw(this, CADSystem);
     }
     CADSystem.nodes.forEach((n) => {
+      if (!this.shouldDrawNode(n, CADSystem)) return;
       this.drawSupport(n, CADSystem);
     });
     if (!CADSystem.options.showWireframe) {
@@ -121,10 +122,19 @@ export class DiseñoRenderer {
       }
     }
     if (CADSystem.options.showIDs) {
+      // CADSystem.shapes.forEach((s) => {
+      //   this.drawBeamID(s, CADSystem);
+      // });
+      // CADSystem.nodes.forEach((n) => {
+      //   this.drawNodeID(n, CADSystem);
+      // });
       CADSystem.shapes.forEach((s) => {
+        if (!this.shouldDrawBeam(s, CADSystem)) return;
         this.drawBeamID(s, CADSystem);
       });
+
       CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
         this.drawNodeID(n, CADSystem);
       });
     }
@@ -200,7 +210,8 @@ export class DiseñoRenderer {
   }
 
   drawWireNode(node, context) {
-    const p = context.grid.worldToScreen(node.position);
+    // const p = context.grid.worldToScreen(node.position);
+    const p = this.projectPoint(node, context);
     context.ctx.save();
     Object.assign(context.ctx, node.style.get().WIREFRAME);
     context.ctx.beginPath();
@@ -226,7 +237,8 @@ export class DiseñoRenderer {
   }
 
   drawNodeID(node, context) {
-    const p = context.grid.worldToScreen(node.position);
+    // const p = context.grid.worldToScreen(node.position);
+    const p = this.projectPoint(node, context);
     context.ctx.save();
     context.ctx.beginPath();
     Object.assign(context.ctx, node.style.get().ID);
@@ -237,7 +249,8 @@ export class DiseñoRenderer {
   }
 
   drawSupport(node, context) {
-    const p = context.grid.worldToScreen(node.position);
+    // const p = context.grid.worldToScreen(node.position);
+    const p = this.projectPoint(node, context);
     if (node.soporte) {
       if (node.soporte !== "soporteTres") {
         context.ctx.drawImage(soportes[node.soporte], p.x - 15, p.y);
@@ -350,7 +363,8 @@ export class DiseñoRenderer {
 
   drawForce(node, context) {
     //context.ctx.textAlign = "right";
-    const p = context.grid.worldToScreen(node.position);
+    // const p = context.grid.worldToScreen(node.position);
+    const p = this.projectPoint(node, context);
     const colors = {
       CM: "brown",
       CV: "orange",
@@ -366,21 +380,30 @@ export class DiseñoRenderer {
     const mag = pointDistance({ x: 0, y: 0 }, { x: magX, y: magY });
     const uMag = { x: magX / mag, y: magY / mag };
     const end = { x: p.x - uMag.x * 5 * mag, y: p.y + uMag.y * 5 * mag };
+
     Object.assign(context.ctx, node.style.getModel().FORCE);
+
     if (magX && magX !== 0) {
       this.drawHorizontalLine(context, magX, `${magX.toFixed(2)}kN`, p, colors[context.options.currentLoad]);
     }
     if (magY && magY !== 0) {
       this.drawVerticalLine(context, magY, `${magY.toFixed(2)}kN`, p, colors[context.options.currentLoad]);
     }
-    if ((magX || magY) && (magX !== 0 || magY !== 0)) {
-    }
+    // if (magX && magX !== 0) {
+    //   this.drawHorizontalLine(context, magX, `${magX.toFixed(2)}kN`, p, colors[context.options.currentLoad]);
+    // }
+    // if (magY && magY !== 0) {
+    //   this.drawVerticalLine(context, magY, `${magY.toFixed(2)}kN`, p, colors[context.options.currentLoad]);
+    // }
+    // if ((magX || magY) && (magX !== 0 || magY !== 0)) {
+    // }
     /* }); */
   }
 
   drawReaction(node, context) {
     //context.ctx.textAlign = "right";
-    const p = context.grid.worldToScreen(node.position);
+    // const p = context.grid.worldToScreen(node.position);
+    const p = this.projectPoint(node, context);
     const magX = node.reaction.x;
     const magY = node.reaction.y;
     const mag = pointDistance({ x: 0, y: 0 }, { x: magX, y: magY });
@@ -396,8 +419,10 @@ export class DiseñoRenderer {
   }
 
   drawWireBeam(beam, context) {
-    const p1 = context.grid.worldToScreen(beam.node1.position);
-    const p2 = context.grid.worldToScreen(beam.node2.position);
+    // const p1 = context.grid.worldToScreen(beam.node1.position);
+    // const p2 = context.grid.worldToScreen(beam.node2.position);
+    const p1 = this.projectPoint(beam.node1, context);
+    const p2 = this.projectPoint(beam.node2, context);
     context.ctx.save();
     Object.assign(context.ctx, beam.style.get().WIREFRAME);
     context.ctx.beginPath();
@@ -427,9 +452,12 @@ export class DiseñoRenderer {
 
   drawBeamID(beam, context) {
     context.ctx.save();
-    const p1 = context.grid.worldToScreen(beam.node1.position);
-    const p2 = context.grid.worldToScreen(beam.node2.position);
+    // const p1 = context.grid.worldToScreen(beam.node1.position);
+    // const p2 = context.grid.worldToScreen(beam.node2.position);
+    const p1 = this.projectPoint(beam.node1, context);
+    const p2 = this.projectPoint(beam.node2, context);
     const mid = { x: (p1.x + p2.x) * 0.5, y: (p1.y + p2.y) * 0.5 };
+
     Object.assign(context.ctx, beam.style.get().ID);
     context.ctx.translate(mid.x, mid.y);
     context.ctx.rotate(beam.angle);
@@ -748,9 +776,13 @@ export class DiseñoRenderer {
 
   drawMaterials(context) {
     context.shapes.forEach((s) => {
-      const p1 = context.grid.worldToScreen(s.node1.position);
-      const p2 = context.grid.worldToScreen(s.node2.position);
+      if (!this.shouldDrawBeam(s, context)) return;
+      // const p1 = context.grid.worldToScreen(s.node1.position);
+      // const p2 = context.grid.worldToScreen(s.node2.position);
+      const p1 = this.projectPoint(s.node1, context);
+      const p2 = this.projectPoint(s.node2, context);
       const mid = midPoint(p1, p2);
+
       context.ctx.save();
       context.ctx.fillStyle = "white";
       context.ctx.textAlign = "center";
@@ -826,19 +858,106 @@ export class DiseñoRenderer {
 export class DeflexionRenderer extends DiseñoRenderer {
   render(CADSystem) {
     this.clearBackground(CADSystem);
+
     if (CADSystem.options.showGrid) {
       CADSystem.grid.draw(this, CADSystem);
     }
-    if (CADSystem.options.showIDs) {
-      this.drawDeflectionsIDs(CADSystem);
-    }
+
+    // Soportes solo de la vista activa
     CADSystem.nodes.forEach((n) => {
-      // this.drawSupport(n, CADSystem);
       if (!this.shouldDrawNode(n, CADSystem)) return;
-      n.draw(this, CADSystem);
+      this.drawSupport(n, CADSystem);
     });
 
-    this.drawDeflections(CADSystem);
+    if (!CADSystem.options.showWireframe) {
+      if (CADSystem.options.showFAxiales) {
+        this.drawAxiales(CADSystem);
+        if (CADSystem.options.showFAxialesValues) {
+          this.drawAxialesValues(CADSystem);
+        }
+      } else {
+        CADSystem.shapes.forEach((s) => {
+          if (!this.shouldDrawBeam(s, CADSystem)) return;
+          s.draw(this, CADSystem);
+        });
+
+        CADSystem.parametricModels.forEach((parametric) => {
+          parametric.shapes.forEach((s) => {
+            if (!this.shouldDrawBeam(s, CADSystem)) return;
+            s.draw(this, CADSystem);
+          });
+        });
+      }
+
+      CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
+        n.draw(this, CADSystem);
+      });
+
+      CADSystem.parametricModels.forEach((parametric) => {
+        parametric.nodes.forEach((n) => {
+          if (!this.shouldDrawNode(n, CADSystem)) return;
+          n.draw(this, CADSystem);
+          this.drawForce(n, CADSystem);
+        });
+      });
+    } else {
+      if (CADSystem.options.showFAxiales) {
+        this.drawWireframeAxiales(CADSystem);
+        if (CADSystem.options.showFAxialesValues) {
+          this.drawAxialesValues(CADSystem);
+        }
+      } else {
+        CADSystem.shapes.forEach((s) => {
+          if (!this.shouldDrawBeam(s, CADSystem)) return;
+          this.drawWireBeam(s, CADSystem);
+        });
+
+        CADSystem.nodes.forEach((n) => {
+          if (!this.shouldDrawNode(n, CADSystem)) return;
+          this.drawWireNode(n, CADSystem);
+        });
+      }
+    }
+
+    if (CADSystem.options.showIDs) {
+      CADSystem.shapes.forEach((s) => {
+        if (!this.shouldDrawBeam(s, CADSystem)) return;
+        this.drawBeamID(s, CADSystem);
+      });
+
+      CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
+        this.drawNodeID(n, CADSystem);
+      });
+    }
+
+    if (CADSystem.options.showForces) {
+      CADSystem.ctx.save();
+      CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
+        this.drawForce(n, CADSystem);
+      });
+      CADSystem.ctx.restore();
+    }
+
+    if (CADSystem.options.showReactions) {
+      CADSystem.ctx.save();
+      CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
+        this.drawReaction(n, CADSystem);
+      });
+      CADSystem.ctx.restore();
+    }
+
+    if (CADSystem.options.showDeflection) {
+      this.drawDeflections(CADSystem);
+    }
+
+    if (CADSystem.options.showMaterials) {
+      this.drawMaterials(CADSystem);
+    }
+
     CADSystem.currentState.draw(this, CADSystem);
   }
 

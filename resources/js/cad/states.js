@@ -3,21 +3,21 @@ import { pointDistance, removeFromArray } from "./utils.js";
 import { MOUSE_BUTTONS, isMouseButton } from "./utils.js";
 
 export class StateBase {
-  constructor() {}
-  handleMouseWheel(event, context, mouse) {}
-  handleMouseClick(event, context, mouse) {}
-  handleMouseDown(event, context, mouse) {}
-  handleMouseMove(event, context, mouse) {}
-  handleMouseUp(event, context, mouse) {}
-  handleMouseEnter(event, context, mouse) {}
-  handleMouseLeave(event, context, mouse) {}
+  constructor() { }
+  handleMouseWheel(event, context, mouse) { }
+  handleMouseClick(event, context, mouse) { }
+  handleMouseDown(event, context, mouse) { }
+  handleMouseMove(event, context, mouse) { }
+  handleMouseUp(event, context, mouse) { }
+  handleMouseEnter(event, context, mouse) { }
+  handleMouseLeave(event, context, mouse) { }
   handleKeyDown(event, context) {
     if (event.key === "Escape") {
       context.setState(context.idleState);
     }
   }
-  enter(args) {}
-  exit() {}
+  enter(args) { }
+  exit() { }
   draw(renderer, context) {
     renderer.drawState(this, context);
   }
@@ -75,28 +75,44 @@ export class PanAndZoomState extends StateBase {
 }
 
 export class IdleState extends PanAndZoomState {
+
   handleMouseDown(event, context, mouse) {
     super.handleMouseDown(...arguments);
+
     if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
       return;
     }
-    context.nodes.forEach((n) => {
-      n.style.default();
-    });
-    context.shapes.find((s) => {
-      s.style.default();
-    });
-    let selectedObject = context.closestNode(mouse);
+
+    if (!context.canSelectInCurrentView()) {
+      context.clearAllSelections();
+      return;
+    }
+
+    context.nodes.forEach((n) => n.style.default());
+    context.shapes.forEach((s) => s.style.default());
+
+    let selectedObject = context.closestNodeAtActiveView(mouse);
+
     if (selectedObject) {
-      context.setState(context.moveObjectState, { selectedObject: selectedObject, isMoving: true });
-    } else if ((selectedObject = context.closestBeam(mouse))) {
-      context.setState(context.selectedBeamsState, { selectedBeams: [selectedObject] });
+      context.setState(context.moveObjectState, {
+        selectedObject,
+        isMoving: true,
+      });
+    } else if ((selectedObject = context.closestBeamAtActiveView(mouse))) {
+      context.setState(context.selectedBeamsState, {
+        selectedBeams: [selectedObject],
+      });
     } else if ((selectedObject = context.closestParametric(mouse))) {
-      context.setState(context.selectedParametricState, { selectedParametric: [selectedObject] });
+      context.setState(context.selectedParametricState, {
+        selectedParametric: [selectedObject],
+      });
     } else {
-      context.setState(context.selectionState, { selectionStart: context.grid.screenToWorld(mouse) });
+      context.setState(context.selectionState, {
+        selectionStart: context.grid.screenToWorld(mouse),
+      });
     }
   }
+
   handleMouseUp(event, context, mouse) {
     super.handleMouseUp(...arguments);
   }
@@ -188,32 +204,50 @@ export class SelectedObjectsState extends PanAndZoomState {
     super();
     this.selectedObjects = [];
   }
+
   handleMouseDown(event, context, mouse) {
+    if (!context.canSelectInCurrentView()) {
+      context.clearAllSelections();
+      context.setState(context.idleState);
+      return;
+    }
+
     super.handleMouseDown(...arguments);
+
     if (!isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
-      let selectedObject = context.closestNode(mouse);
+      let selectedObject = context.closestNodeAtActiveView(mouse);
+
       if (selectedObject) {
-        context.setState(context.moveObjectState, { selectedObject: selectedObject, isMoving: true });
-      } else if ((selectedObject = context.closestBeam(mouse))) {
-        context.setState(context.selectedBeamsState, { selectedBeams: [selectedObject] });
+        context.setState(context.moveObjectState, {
+          selectedObject: selectedObject,
+          isMoving: true,
+        });
+      } else if ((selectedObject = context.closestBeamAtActiveView(mouse))) {
+        context.setState(context.selectedBeamsState, {
+          selectedBeams: [selectedObject],
+        });
       } else {
-        context.setState(context.selectionState, { selectionStart: context.grid.screenToWorld(mouse) });
+        context.setState(context.selectionState, {
+          selectionStart: context.grid.screenToWorld(mouse),
+        });
       }
     }
   }
+
   enter(args) {
     this.selectedObjects = args.selectedObjects;
     this.selectedObjects.forEach((n) => {
       n.style.selected();
     });
   }
+
   exit() {
     super.exit();
     this.selectedObjects.forEach((n) => {
       n.style.default();
     });
-    /* this.selectedObjects.splice(0, this.selectedObjects.length); */
   }
+
   info() {
     return 'Edita sus propiedades desde el menú o presiona "Supr" para eliminar.';
   }
@@ -386,6 +420,7 @@ export class SelectionState extends PanAndZoomState {
       context.setState(context.idleState);
     }
   }
+
   handleMouseMove(event, context, mouse) {
     const pointRect = (point, startRect, endRect) => {
       return point.x >= startRect.x && point.x <= endRect.x && point.y >= startRect.y && point.y <= endRect.y;
@@ -397,30 +432,36 @@ export class SelectionState extends PanAndZoomState {
     const selectBeams = start.x > mouse.x || start.y > mouse.y;
     if (selectBeams) {
       [start, end] = [end, start];
+
       this.selectedBeams = context.shapes.filter((b) => {
+        if (!context.currentRenderer.shouldDrawBeam(b, context)) return false;
+
         const p1 = context.grid.worldToScreen(b.node1.position);
         const p2 = context.grid.worldToScreen(b.node2.position);
         const collided = pointRect(p1, start, end) && pointRect(p2, start, end);
-        if (collided) {
-          b.style.hover();
-        } else {
-          b.style.default();
-        }
+
+        if (collided) b.style.hover();
+        else b.style.default();
+
         return collided;
       });
     } else {
+
       this.selectedNodes = context.nodes.filter((n) => {
+        if (!context.currentRenderer.shouldDrawNode(n, context)) return false;
+
         const position = context.grid.worldToScreen(n.position);
         const collided = pointRect(position, start, end);
-        if (collided) {
-          n.style.hover();
-        } else {
-          n.style.default();
-        }
+
+        if (collided) n.style.hover();
+        else n.style.default();
+
         return collided;
       });
+
     }
   }
+
   enter(args) {
     this.selectionStart = this.selectionEnd = args.selectionStart;
   }
@@ -478,17 +519,28 @@ export class MoveObjectState extends IdleState {
       context.setState(context.idleState);
     }
   }
+
   handleMouseDown(event, context, mouse) {
+    if (!context.canSelectInCurrentView()) {
+      context.clearAllSelections();
+      context.setState(context.idleState);
+      return;
+    }
+
     PanAndZoomState.prototype.handleMouseDown.call(this, ...arguments);
+
     if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
       return;
     }
+
     this.isMoving = !this.isMoving;
-    const selected = context.closestNode(mouse);
+
+    const selected = context.closestNodeAtActiveView(mouse);
     if ((selected && this.selectedObject !== selected) || !selected) {
       super.handleMouseDown(...arguments);
     }
   }
+
   handleMouseUp(event, context, mouse) {
     super.handleMouseUp(...arguments);
     this.isMoving = false;
@@ -534,46 +586,79 @@ export class TrussDrawingState extends PanAndZoomState {
     this.context = context;
     this.shape = new Beam(this.context.globalE, this.context.globalA);
   }
+
   handleMouseDown(event, context, mouse) {
     super.handleMouseDown(...arguments);
     if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
       return;
     }
+
+    const view = context.viewSet?.[context.activeViewIndex];
+    if (view?.type === "elevation") {
+      context.showMessage?.("Para dibujar nuevos elementos, cambia a una vista de planta.");
+      return;
+    }
+
     const { x, y } = mouse;
-    const collided = context.closestNode(context.grid.worldToScreen(context.mousePos));
+    const currentZ = context.getActivePlanElevation();
+
+    const collided = context.closestNodeAtElevation(
+      context.grid.worldToScreen(context.mousePos),
+      currentZ,
+    );
+
     let node;
+
     if (collided) {
       node = collided;
     } else {
-      node = new StructuralNode(context.mousePos, context.nodes.length + 1, 0);
+      node = new StructuralNode(
+        { x: context.mousePos.x, y: context.mousePos.y },
+        context.nodes.length + 1,
+        currentZ
+      );
+
       context.nodes.push(node);
-      const beam = context.closestBeam({ x: x, y: y });
+
+      // const beam = context.closestBeam({ x: x, y: y });
+      let beam = null;
+      // const beam = context.closestBeamAtElevation({ x: x, y: y }, currentZ);
       if (beam) {
         const vAB = {
           x: beam.node2.position.x - beam.node1.position.x,
           y: beam.node2.position.y - beam.node1.position.y,
         };
-        const vAD = { x: context.mousePos.x - beam.node1.position.x, y: context.mousePos.y - beam.node1.position.y };
+        const vAD = {
+          x: context.mousePos.x - beam.node1.position.x,
+          y: context.mousePos.y - beam.node1.position.y,
+        };
         const scale = (vAB.x * vAD.x + vAB.y * vAD.y) / pointDistance({ x: 0, y: 0 }, vAB) ** 2;
         const projAD_AB = { x: vAB.x * scale, y: vAB.y * scale };
+
         node.position.x = beam.node1.position.x + projAD_AB.x;
         node.position.y = beam.node1.position.y + projAD_AB.y;
+        node.position.z = currentZ;
+
         const startID = beam.id;
         const node2 = beam.node2;
+
         removeFromArray(node2.beams, beam);
         beam.node2 = node;
         node.beams.push(beam);
+
         const newBeam = new Beam(context.globalE, context.globalA);
         newBeam.addNode(node);
         node.beams.push(newBeam);
         newBeam.addNode(node2);
         node2.beams.push(newBeam);
+
         context.shapes.splice(startID, 0, newBeam);
         context.shapes.forEach((beam, index) => {
           beam.id = index + 1;
         });
       }
     }
+
     const isDone = this.shape.addNode(node);
     if (isDone) {
       context.shapes.push(this.shape);
@@ -583,7 +668,12 @@ export class TrussDrawingState extends PanAndZoomState {
       this.shape = new Beam(this.context.globalE, this.context.globalA);
       this.shape.addNode(node);
     }
+
+    if (context.show3DView) {
+      context.sync3D();
+    }
   }
+
   handleMouseMove(event, context, mouse) {
     super.handleMouseMove(...arguments);
     const { x, y } = context.grid.worldToScreen(context.mousePos);
@@ -605,26 +695,47 @@ export class TrussDrawingState extends PanAndZoomState {
       context.distanceInput.select();
     }
   }
+
   createBeam(context) {
+    const view = context.viewSet?.[context.activeViewIndex];
+    if (view?.type === "elevation") {
+      context.showMessage?.("Para dibujar nuevos elementos, cambia a una vista de planta.");
+      return;
+    }
+
+    const currentZ = context.getActivePlanElevation();
+
     const last_point = this.shape.node1.position;
     const unitVec = {
       x: (context.mousePos.x - last_point.x) / pointDistance(last_point, context.mousePos),
       y: (context.mousePos.y - last_point.y) / pointDistance(last_point, context.mousePos),
     };
+
     const distance = parseFloat(context.distanceInput.value);
-    const newPoint = { x: last_point.x + unitVec.x * distance, y: last_point.y + unitVec.y * distance };
-    const node = new StructuralNode(newPoint, context.nodes.length + 1, 0);
+    const newPoint = {
+      x: last_point.x + unitVec.x * distance,
+      y: last_point.y + unitVec.y * distance,
+    };
+
+    const node = new StructuralNode(newPoint, context.nodes.length + 1, currentZ);
     context.nodes.push(node);
+
     const isDone = this.shape.addNode(node);
     if (isDone) {
       context.shapes.push(this.shape);
       this.shape.node1.beams.push(this.shape);
       this.shape.node2.beams.push(this.shape);
       this.shape.id = context.shapes.length;
+
+      // reinicia el estado de dibujo limpio
       this.shape = new Beam(context.globalE, context.globalA);
-      this.shape.addNode(node);
+    }
+
+    if (context.show3DView) {
+      context.sync3D();
     }
   }
+
   exit() {
     super.exit();
     this.shape = new Beam(this.context.globalE, this.context.globalA);
@@ -655,27 +766,64 @@ export class CopyState extends StateBase {
 
 export class EditState extends StateBase {
   handleMouseDown(event, context, mouse) {
-    selectedPoint = closestNode({ x: x, y: y });
-    if (selectedPoint) {
-      nodoID.value = selectedPoint.id;
-      posX.value = selectedPoint.position.x;
-      posY.value = selectedPoint.position.y;
-      magnitudX.value = selectedPoint.xMag ?? 0;
-      magnitudY.value = selectedPoint.yMag ?? 0;
-    } else if ((selectedBeam = closestBeam({ x: x, y: y }))) {
-      barraID.value = selectedBeam.id;
-      modElasticoBarra.value = selectedBeam.E;
-      aSeccionBarra.value = selectedBeam.A;
+    if (!context.canSelectInCurrentView()) {
+      context.clearAllSelections();
+      context.setState(context.idleState);
+      return;
     }
+
+    super.handleMouseDown(...arguments);
+
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      return;
+    }
+
+    const selectedNode = context.closestNodeAtActiveView(mouse);
+    if (selectedNode) {
+      context.setState(context.selectedNodesState, {
+        selectedNodes: [selectedNode],
+      });
+      return;
+    }
+
+    const selectedBeam = context.closestBeamAtActiveView(mouse);
+    if (selectedBeam) {
+      context.setState(context.selectedBeamsState, {
+        selectedBeams: [selectedBeam],
+      });
+      return;
+    }
+
+    context.clearAllSelections();
+    context.setState(context.idleState);
   }
 }
 
 export class ChangeSupport extends StateBase {
   handleMouseDown(event, context, mouse) {
-    selectedPoint = closestNode({ x: x, y: y });
-    if (selectedPoint) {
-      selectedPoint.soporte = selectedSoporte;
+    if (!context.canSelectInCurrentView()) {
+      context.clearAllSelections();
+      context.setState(context.idleState);
+      return;
     }
+
+    super.handleMouseDown(...arguments);
+
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      return;
+    }
+
+    const selectedNode = context.closestNodeAtActiveView(mouse);
+
+    if (!selectedNode) {
+      context.clearAllSelections();
+      context.setState(context.idleState);
+      return;
+    }
+
+    context.setState(context.selectedNodesState, {
+      selectedNodes: [selectedNode],
+    });
   }
 }
 
@@ -744,55 +892,36 @@ export class TrussDrawingState3D extends PanAndZoomState {
   }
 
   handleMouseDown(event, context, mouse) {
-    // Pan con botón medio
-    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
-      super.handleMouseDown(event, context, mouse);
+    if (!context.canSelectInCurrentView()) {
+      context.clearAllSelections();
+      context.setState(context.idleState);
       return;
     }
 
-    // Obtener posición 3D
-    const worldPos = context.grid.screenToWorld(mouse);
-    let { x, y, z } = this.get3DPosition(worldPos);
+    super.handleMouseDown(...arguments);
 
-    // Aplicar snap al grid si está activado
-    if (this.snapToGrid3D) {
-      x = Math.round(x / this.gridSize3D) * this.gridSize3D;
-      y = Math.round(y / this.gridSize3D) * this.gridSize3D;
-      z = Math.round(z / this.gridSize3D) * this.gridSize3D;
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      return;
     }
 
-    // Buscar nodo cercano (radio de 0.5 unidades)
-    let node = this.findNearbyNode(context, x, y, z);
-
-    if (!node) {
-      // Crear nuevo nodo 3D
-      node = new StructuralNode({ x: x, y: y }, context.nodes.length + 1, z);
-      context.nodes.push(node);
+    const selectedNode = context.closestNodeAtActiveView(mouse);
+    if (selectedNode) {
+      context.setState(context.selectedNodesState, {
+        selectedNodes: [selectedNode],
+      });
+      return;
     }
 
-    if (!this.shape) {
-      this.shape = new Beam(context.globalE, context.globalA);
+    const selectedBeam = context.closestBeamAtActiveView(mouse);
+    if (selectedBeam) {
+      context.setState(context.selectedBeamsState, {
+        selectedBeams: [selectedBeam],
+      });
+      return;
     }
 
-    const isDone = this.shape.addNode(node);
-    if (isDone) {
-      context.shapes.push(this.shape);
-      if (this.shape.node1 && this.shape.node1.beams) {
-        this.shape.node1.beams.push(this.shape);
-      }
-      if (this.shape.node2 && this.shape.node2.beams) {
-        this.shape.node2.beams.push(this.shape);
-      }
-      this.shape.id = context.shapes.length;
-      // Crear nueva viga
-      this.shape = new Beam(context.globalE, context.globalA);
-      this.shape.addNode(node);
-    }
-
-    // Sincronizar vista 3D
-    if (context.sync3D) {
-      context.sync3D();
-    }
+    context.clearAllSelections();
+    context.setState(context.idleState);
   }
 
   findNearbyNode(context, x, y, z, radius = 0.5) {

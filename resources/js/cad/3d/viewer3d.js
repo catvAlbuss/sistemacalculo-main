@@ -10,6 +10,14 @@ const VIEWER_STATE = {
     resizeHandler: null,
 };
 
+const COLORS_3D = {
+    activeModel: new BABYLON.Color3(1.0, 0.85, 0.15),   // amarillo
+    activeModelGlow: new BABYLON.Color3(0.35, 0.28, 0.02),
+    inactiveModel: new BABYLON.Color3(0.25, 0.25, 0.25), // gris
+    selectedModel: new BABYLON.Color3(1.0, 0.55, 0.1),   // naranja
+    selectedGlow: new BABYLON.Color3(0.45, 0.18, 0.02),
+};
+
 function getViewerContainer() {
     return document.getElementById("viewer3d-container");
 }
@@ -133,18 +141,6 @@ function setupResizeHandler() {
     window.addEventListener("resize", VIEWER_STATE.resizeHandler);
 }
 
-// function clearSceneElements() {
-//     try {
-//         VIEWER_STATE.elements.forEach((element) => {
-//             if (element?.dispose) element.dispose();
-//         });
-//     } catch (error) {
-//         console.warn("Error al limpiar elementos 3D:", error);
-//     }
-
-//     VIEWER_STATE.elements = [];
-// }
-
 function mapNodePositionTo3D(node) {
     return new BABYLON.Vector3(
         node.position.x,
@@ -152,6 +148,7 @@ function mapNodePositionTo3D(node) {
         node.position.y,
     );
 }
+
 
 // HELPER FUNCTIONS
 function belongsToActiveView(nodeOrBeam, context) {
@@ -220,16 +217,19 @@ function createNodeMesh(node, context) {
     const isSelected = isNodeSelected(node, context);
 
     if (isSelected) {
-        material.diffuseColor = new BABYLON.Color3(0.15, 0.45, 1);
-        material.emissiveColor = new BABYLON.Color3(0.08, 0.2, 0.6);
+        // Selección puntual
+        material.diffuseColor = COLORS_3D.selectedModel;
+        material.emissiveColor = COLORS_3D.selectedGlow;
         material.alpha = 1;
         sphere.scaling = new BABYLON.Vector3(1.8, 1.8, 1.8);
     } else if (isActiveView) {
-        material.diffuseColor = new BABYLON.Color3(0.15, 0.55, 1);
-        material.emissiveColor = new BABYLON.Color3(0.05, 0.2, 0.6);
+        // Lo que estás viendo/editando en 2D
+        material.diffuseColor = COLORS_3D.activeModel;
+        material.emissiveColor = COLORS_3D.activeModelGlow;
         material.alpha = 1;
     } else {
-        material.diffuseColor = new BABYLON.Color3(0.35, 0.35, 0.35);
+        // Resto del modelo
+        material.diffuseColor = COLORS_3D.inactiveModel;
         material.emissiveColor = new BABYLON.Color3(0.03, 0.03, 0.03);
         material.alpha = 0.12;
     }
@@ -254,13 +254,16 @@ function createBeamMesh(beam, context) {
     const isSelected = isBeamSelected(beam, context);
 
     if (isSelected) {
-        lines.color = new BABYLON.Color3(0.15, 0.45, 1);
+        // Selección puntual
+        lines.color = COLORS_3D.selectedModel;
         lines.alpha = 1;
     } else if (isActiveView) {
-        lines.color = new BABYLON.Color3(0.15, 0.55, 1);
+        // Lo que estás viendo/editando en 2D
+        lines.color = COLORS_3D.activeModel;
         lines.alpha = 1;
     } else {
-        lines.color = new BABYLON.Color3(0.25, 0.25, 0.25);
+        // Resto del modelo
+        lines.color = COLORS_3D.inactiveModel;
         lines.alpha = 0.10;
     }
 
