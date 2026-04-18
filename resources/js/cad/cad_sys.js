@@ -1121,4 +1121,252 @@ export default () => ({
     this.selectedObject = null;
   },
 
+  // MOSTRAR indicador visual de vista activa
+  getActiveViewLabel() {
+    const view = this.viewSet?.[this.activeViewIndex];
+
+    if (!view) {
+      return "Vista 2D";
+    }
+
+    return `Vista 2D (${view.name})`;
+  },
+
+  getActiveViewBadgeClass() {
+    const view = this.viewSet?.[this.activeViewIndex];
+
+    if (!view) {
+      return "bg-gray-900 text-white";
+    }
+
+    if (view.type === "plan") {
+      return "bg-gray-900 text-white";
+    }
+
+    if (view.type === "elevation") {
+      return "bg-blue-900 text-blue-100";
+    }
+
+    return "bg-gray-900 text-white";
+  },
+
+  getActive3DViewLabel() {
+    const view = this.viewSet?.[this.activeViewIndex];
+
+    if (!view) {
+      return "Vista 3D";
+    }
+
+    return `Vista 3D (${view.name})`;
+  },
+
+  // hola
+  // getStoryById(storyId) {
+  //   return this.stories?.find((s) => Number(s.id) === Number(storyId)) ?? null;
+  // },
+
+  // findNodeAtXYAndZ(x, y, z, tolerance = 0.05) {
+  //   return this.nodes.find((node) => {
+  //     const nx = node.position.x || 0;
+  //     const ny = node.position.y || 0;
+  //     const nz = node.position.z || 0;
+
+  //     return (
+  //       Math.abs(nx - x) <= tolerance &&
+  //       Math.abs(ny - y) <= tolerance &&
+  //       Math.abs(nz - z) <= tolerance
+  //     );
+  //   }) ?? null;
+  // },
+
+  // beamExistsBetweenNodes(node1, node2) {
+  //   return this.shapes.some((beam) => {
+  //     if (!beam?.node1 || !beam?.node2) return false;
+
+  //     const sameDirection =
+  //       beam.node1.id === node1.id && beam.node2.id === node2.id;
+
+  //     const reverseDirection =
+  //       beam.node1.id === node2.id && beam.node2.id === node1.id;
+
+  //     return sameDirection || reverseDirection;
+  //   });
+  // },
+
+  // getPlanNodesAtElevation(z, tolerance = 0.05) {
+  //   return this.nodes.filter((node) => {
+  //     const nz = node.position.z || 0;
+  //     return Math.abs(nz - z) <= tolerance;
+  //   });
+  // },
+
+  // // Obtiene las barras que están aproximadamente a la misma elevación (ambos nodos dentro de tolerancia)
+  // getPlanBeamsAtElevation(z, tolerance = 0.05) {
+  //   return this.shapes.filter((beam) => {
+  //     if (!beam?.node1 || !beam?.node2) return false;
+
+  //     const z1 = beam.node1.position.z || 0;
+  //     const z2 = beam.node2.position.z || 0;
+
+  //     return (
+  //       Math.abs(z1 - z) <= tolerance &&
+  //       Math.abs(z2 - z) <= tolerance
+  //     );
+  //   });
+  // },
+
+  // copyActivePlanToFloor(targetStoryId) {
+  //   const view = this.viewSet?.[this.activeViewIndex];
+
+  //   if (!view || view.type !== "plan") {
+  //     this.showMessage?.("Primero cambia a una vista de planta.");
+  //     return;
+  //   }
+
+  //   const targetStory = this.getStoryById(targetStoryId);
+  //   if (!targetStory) {
+  //     this.showMessage?.("No se encontró el piso destino.");
+  //     return;
+  //   }
+
+  //   const sourceZ = view.elevation ?? 0;
+  //   const targetZ = targetStory.elevation ?? 0;
+
+  //   if (Math.abs(sourceZ - targetZ) <= 0.001) {
+  //     this.showMessage?.("El piso destino no puede ser el mismo piso actual.");
+  //     return;
+  //   }
+
+  //   const sourceNodes = this.getPlanNodesAtElevation(sourceZ);
+  //   const sourceBeams = this.getPlanBeamsAtElevation(sourceZ);
+
+  //   if (!sourceNodes.length) {
+  //     this.showMessage?.("No hay elementos en la planta activa para copiar.");
+  //     return;
+  //   }
+
+  //   const nodeMap = new Map();
+  //   let createdNodes = 0;
+  //   let createdBeams = 0;
+
+  //   // 1. Copiar/reutilizar nodos
+  //   sourceNodes.forEach((oldNode) => {
+  //     let newNode = this.findNodeAtXYAndZ(
+  //       oldNode.position.x,
+  //       oldNode.position.y,
+  //       targetZ
+  //     );
+
+  //     if (!newNode) {
+  //       const nextId =
+  //         typeof this.nextNodeId === "number"
+  //           ? this.nextNodeId++
+  //           : this.nodes.length + 1;
+
+  //       newNode = new StructuralNode(
+  //         { x: oldNode.position.x, y: oldNode.position.y },
+  //         nextId,
+  //         targetZ
+  //       );
+
+  //       // No copiar soporte por defecto
+  //       newNode.soporte = null;
+
+  //       this.nodes.push(newNode);
+  //       createdNodes++;
+  //     }
+
+  //     nodeMap.set(oldNode.id, newNode);
+  //   });
+
+  //   // 2. Copiar barras
+  //   sourceBeams.forEach((oldBeam) => {
+  //     const newNode1 = nodeMap.get(oldBeam.node1.id);
+  //     const newNode2 = nodeMap.get(oldBeam.node2.id);
+
+  //     if (!newNode1 || !newNode2) return;
+  //     if (this.beamExistsBetweenNodes(newNode1, newNode2)) return;
+
+  //     const newBeam = new Beam(
+  //       oldBeam.E ?? this.globalE,
+  //       oldBeam.A ?? this.globalA
+  //     );
+
+  //     newBeam.addNode(newNode1);
+  //     newBeam.addNode(newNode2);
+
+  //     newBeam.E = oldBeam.E;
+  //     newBeam.A = oldBeam.A;
+
+  //     const nextBeamId =
+  //       typeof this.nextBeamId === "number"
+  //         ? this.nextBeamId++
+  //         : this.shapes.length + 1;
+
+  //     newBeam.id = nextBeamId;
+
+  //     this.shapes.push(newBeam);
+  //     newNode1.beams.push(newBeam);
+  //     newNode2.beams.push(newBeam);
+
+  //     createdBeams++;
+  //   });
+
+  //   this.redraw();
+  //   this.sync3D();
+
+  //   this.showMessage?.(
+  //     `✅ Planta copiada al piso "${targetStory.name}" | Nodos: ${createdNodes}, Barras: ${createdBeams}`
+  //   );
+  // },
+
+  // copyActivePlanToNextFloor() {
+  //   const view = this.viewSet?.[this.activeViewIndex];
+
+  //   if (!view || view.type !== "plan") {
+  //     this.showMessage?.("Primero cambia a una vista de planta.");
+  //     return;
+  //   }
+
+  //   const currentStoryId = Number(view.storyId ?? 0);
+  //   const nextStory = this.getStoryById(currentStoryId + 1);
+
+  //   if (!nextStory) {
+  //     this.showMessage?.("No existe un piso superior para copiar.");
+  //     return;
+  //   }
+
+  //   this.copyActivePlanToFloor(nextStory.id);
+  // },
+
+  // promptCopyActivePlanToFloor() {
+  //   const view = this.viewSet?.[this.activeViewIndex];
+
+  //   if (!view || view.type !== "plan") {
+  //     this.showMessage?.("Primero cambia a una vista de planta.");
+  //     return;
+  //   }
+
+  //   const sourceStoryId = Number(view.storyId ?? 0);
+
+  //   const options = (this.stories ?? [])
+  //     .filter((story) => Number(story.id) !== sourceStoryId)
+  //     .map((story) => `${story.id}: ${story.name}`)
+  //     .join("\n");
+
+  //   const input = window.prompt(
+  //     `Copiar planta actual a qué piso?\n\n${options}\n\nEscribe el ID del piso destino:`,
+  //     sourceStoryId + 1
+  //   );
+
+  //   if (input === null) return;
+
+  //   const targetStoryId = Number(input);
+  //   if (Number.isNaN(targetStoryId)) {
+  //     this.showMessage?.("ID de piso inválido.");
+  //     return;
+  //   }
+
+  //   this.copyActivePlanToFloor(targetStoryId);
+  // },
 });

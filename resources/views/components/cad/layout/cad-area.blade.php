@@ -12,18 +12,19 @@
     <div class="w-1/2 h-full border-r border-gray-600 relative bg-gray-800">
       <canvas class="w-full h-full" x-ref="cad"></canvas>
       <!-- Etiqueta 2D -->
-      <div class="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
-        📐 Vista 2D (Planta)
-      </div>
+      <div
+        class="absolute top-3 left-3 rounded px-3 py-1 text-sm font-medium shadow"
+        :class="getActiveViewBadgeClass()"
+        x-text="getActiveViewLabel()"></div>
     </div>
 
     {{-- Vista 3D (mitad derecha) --}}
     <div class="w-1/2 h-full relative bg-gray-900">
       <div id="viewer3d-container" class="w-full h-full"></div>
       <!-- Etiqueta 3D -->
-      <div class="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded z-10">
-        🧊 Vista 3D (Isométrica)
-      </div>
+      <div
+        class="absolute top-3 left-3 rounded bg-gray-900 px-3 py-1 text-sm font-medium text-white shadow"
+        x-text="getActive3DViewLabel()"></div>
       {{-- Indicador de plano 3D --}}
       <div x-show="currentState === trussDrawingState3D"
         x-cloak
@@ -45,7 +46,7 @@
       <button class="p-1" :class="currentRenderer === axialRenderer ? 'bg-gray-100' : ''"
         @click="currentRenderer = axialRenderer;setState(idleState)">Axial</button>
 
-        <!-- para probar la sincronizacion -->
+      <!-- para probar la sincronizacion -->
       <button @click="sync3D()"
         class="p-1 px-2 bg-yellow-600 text-white rounded text-xs ml-2">
         Sincronizar
