@@ -1,3 +1,38 @@
+// import {
+//   activate3DDrawingMode,
+//   elevateSelectedNodes,
+//   lowerSelectedNodes,
+//   extrudeToNewFloor,
+//   extrudeTo3D,
+//   selectAllNodes,
+//   selectNodesByHeight,
+//   createTestFrame,
+//   showTestFrame,
+// } from "./3d/modeling3d.js";
+
+// import {
+//   setViewPlan,
+//   setViewIso,
+//   setViewFront,
+//   setViewSide,
+//   zoomExtents,
+// } from "./3d/camera3d.js";
+
+// import {
+//   initViewer3D,
+//   toggleView3D,
+//   clear3D,
+//   sync3D,
+//   drawIn3D,
+//   getViewer3DState,
+// } from "./3d/viewer3d.js";
+
+// import {
+//   createFull3DGrid,
+//   drawReferenceGrid3D,
+//   clearReferenceGrid3D,
+// } from "./3d/grid3d.js";
+
 import { Grid } from "./grid.js";
 import { DiseñoRenderer, DeflexionRenderer, AxialRenderer } from "./renderer.js";
 import {
@@ -48,7 +83,11 @@ export default () => ({
   //Propiedades de elevaciones en X (vistas 1,2,...)
   currentViewMode: "plan", // 'plan' o 'elevation'
   currentElevationX: "none", // '1', '2', '3', etc.
-  xElevations: [], // ← ¡ESTA ES LA QUE FALTA! [{ name: '1', y: 0 }, { name: '2', y: 3
+  xElevations: [], // ← ¡ESTA ES LA QUE FALTA! [{ name: '1', y: 0 }, { name: '2', y: 3 }]
+
+  // Propiedades de elevaciones en Y (vistas A,B,C,...)
+  currentElevationZ: "none", // 'A', 'B', 'C', ... o 'none'
+  zElevations: [], // [{ name: 'A', x: 0 }, { name: 'B', x: 3 }, ...]
 
   initSys(canvas, distanceInput) {
     this.Arco = Arco;
@@ -377,13 +416,18 @@ export default () => ({
     let minDistance = shortestDistance;
 
     // Determinar el plano actual
-    const isElevationView = this.currentElevationX && this.currentElevationX !== "none";
+    const isElevationXView = this.currentElevationX && this.currentElevationX !== "none";
+    const isElevationZView = this.currentElevationZ && this.currentElevationZ !== "none";
     let targetY = null;
     let targetZ = null;
+    let targetX = null;
 
-    if (isElevationView) {
+    if (isElevationXView) {
       const elev = this.xElevations?.find((e) => e.name === this.currentElevationX);
       targetY = elev?.y || 0;
+    } else if (isElevationZView) {
+      const elev = this.zElevations?.find((e) => e.name === this.currentElevationZ);
+      targetX = elev?.x || 0;
     } else {
       const story = this.stories?.find((s) => s.name === this.currentStory);
       targetZ = story?.z || 0;
@@ -393,19 +437,28 @@ export default () => ({
       const node = this.nodes[index];
 
       // FILTRAR POR PLANO ACTUAL
-      if (isElevationView) {
-        // En vista elevación, solo nodos con Y = targetY
+      if (isElevationXView) {
+        // Vista elevación numérica: solo nodos con Y = targetY
         if (Math.abs(node.position.y - targetY) > 0.01) continue;
+      } else if (isElevationZView) {
+        // Vista elevación letras: solo nodos con X = targetX
+        if (Math.abs(node.position.x - targetX) > 0.01) continue;
       } else {
-        // En vista planta, solo nodos con Z = targetZ
+        // Vista planta: solo nodos con Z = targetZ
         if (Math.abs((node.position.z || 0) - targetZ) > 0.01) continue;
       }
 
       // Proyectar a 2D según la vista actual para calcular distancia en pantalla
       let screenX, screenY;
-      if (isElevationView) {
+      if (isElevationXView) {
         // Proyectar (X, Z)
         const projected = { x: node.position.x, y: node.position.z || 0 };
+        const p = this.grid.worldToScreen(projected);
+        screenX = p.x;
+        screenY = p.y;
+      } else if (isElevationZView) {
+        // Proyectar (Y, Z) - Y es profundidad, Z es altura
+        const projected = { x: node.position.y || 0, y: node.position.z || 0 };
         const p = this.grid.worldToScreen(projected);
         screenX = p.x;
         screenY = p.y;
@@ -506,13 +559,18 @@ export default () => ({
     const shortestDistance = 10;
 
     // Determinar el plano actual
-    const isElevationView = this.currentElevationX && this.currentElevationX !== "none";
+    const isElevationXView = this.currentElevationX && this.currentElevationX !== "none";
+    const isElevationZView = this.currentElevationZ && this.currentElevationZ !== "none";
     let targetY = null;
     let targetZ = null;
+    let targetX = null;
 
-    if (isElevationView) {
+    if (isElevationXView) {
       const elev = this.xElevations?.find((e) => e.name === this.currentElevationX);
       targetY = elev?.y || 0;
+    } else if (isElevationZView) {
+      const elev = this.zElevations?.find((e) => e.name === this.currentElevationZ);
+      targetX = elev?.x || 0;
     } else {
       const story = this.stories?.find((s) => s.name === this.currentStory);
       targetZ = story?.z || 0;
@@ -526,13 +584,18 @@ export default () => ({
       if (!beam.node1 || !beam.node2) continue;
 
       // FILTRAR POR PLANO ACTUAL
-      if (isElevationView) {
-        // En vista elevación, solo vigas con ambos nodos en Y = targetY
+      if (isElevationXView) {
+        // Vista elevación numérica: solo vigas con ambos nodos en Y = targetY
         const y1 = beam.node1.position.y;
         const y2 = beam.node2.position.y;
         if (Math.abs(y1 - targetY) > 0.01 || Math.abs(y2 - targetY) > 0.01) continue;
+      } else if (isElevationZView) {
+        // Vista elevación letras: solo vigas con ambos nodos en X = targetX
+        const x1 = beam.node1.position.x;
+        const x2 = beam.node2.position.x;
+        if (Math.abs(x1 - targetX) > 0.01 || Math.abs(x2 - targetX) > 0.01) continue;
       } else {
-        // En vista planta, solo vigas con ambos nodos en Z = targetZ
+        // Vista planta: solo vigas con ambos nodos en Z = targetZ
         const z1 = beam.node1.position.z || 0;
         const z2 = beam.node2.position.z || 0;
         if (Math.abs(z1 - targetZ) > 0.01 || Math.abs(z2 - targetZ) > 0.01) continue;
@@ -540,9 +603,12 @@ export default () => ({
 
       // Proyectar a 2D según la vista actual
       let p1, p2;
-      if (isElevationView) {
+      if (isElevationXView) {
         p1 = this.grid.worldToScreen({ x: beam.node1.position.x, y: beam.node1.position.z || 0 });
         p2 = this.grid.worldToScreen({ x: beam.node2.position.x, y: beam.node2.position.z || 0 });
+      } else if (isElevationZView) {
+        p1 = this.grid.worldToScreen({ x: beam.node1.position.y || 0, y: beam.node1.position.z || 0 });
+        p2 = this.grid.worldToScreen({ x: beam.node2.position.y || 0, y: beam.node2.position.z || 0 });
       } else {
         p1 = this.grid.worldToScreen(beam.node1.position);
         p2 = this.grid.worldToScreen(beam.node2.position);
@@ -570,6 +636,15 @@ export default () => ({
     if (this.currentViewMode === "elevation" && this.currentElevationX !== "none") {
       // Usar modo de dibujo para elevación
       this.drawElevationView();
+    } else if (this.currentViewMode === "elevationZ" && this.currentElevationZ !== "none") {
+      // Vistas por letras (A,B,C...) - NUEVO
+      const elev = this.zElevations.find((e) => e.name === this.currentElevationZ);
+      if (elev) {
+        this.drawElevationZView(elev.x);
+      } else {
+        this.currentViewMode = "plan";
+        this.currentRenderer.render(this);
+      }
     } else {
       // Modo normal de pisos (el que ya funcionaba)
       this.currentRenderer.render(this);
@@ -1222,7 +1297,6 @@ export default () => ({
     };
     pdfMake.createPdf(docDefinition).download("aligerados.pdf");
   },
-  // // Reemplaza todas las funciones 3D con estas versiones:
 
   // NUEVO MÉTODO: Alternar vista 3D
   toggleView3D() {
@@ -2184,7 +2258,6 @@ export default () => ({
     }
   },
 
-  // resources/js/cad/cad_sys.js
 
   async analyzeWithOpenSees() {
     // ============================================================
@@ -2958,6 +3031,40 @@ export default () => ({
 
     this.showMessage(`✅ ${params.storyCount} pisos y ${params.gridXCount} elevaciones creados`);
 
+    // ========== CONSTRUIR ELEVACIONES EN Z (Vistas A,B,C...) - NUEVO ==========
+    this.zElevations = [];
+    const letters = [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "H",
+      "I",
+      "J",
+      "K",
+      "L",
+      "M",
+      "N",
+      "O",
+      "P",
+      "Q",
+      "R",
+      "S",
+      "T",
+    ];
+    for (let i = 0; i < params.gridYCount; i++) {
+      this.zElevations.push({
+        name: letters[i % letters.length],
+        x: i * params.gridYSpacing,
+      });
+    }
+    this.currentElevationZ = "none";
+
+    console.log(`📐 Elevaciones Z (nuevas): ${this.zElevations.map((e) => `${e.name}(X=${e.x}m)`).join(", ")}`);
+
     // Opcional: centrar la vista en el grid creado
     if (this.referenceGrid.xPositions.length > 0 && this.referenceGrid.yPositions.length > 0) {
       const minX = Math.min(...this.referenceGrid.xPositions);
@@ -3003,6 +3110,226 @@ export default () => ({
     console.log(`📐 Cambiando a elevación X: ${this.currentElevationX}`);
     this.redraw();
     this.sync3D();
+  },
+
+  changeElevationZ() {
+    console.log(`📐 Cambiando a elevación Z: ${this.currentElevationZ}`);
+
+    if (this.currentElevationZ === "none") {
+      // Volver a vista PLANTA
+      this.currentElevationX = "none";
+      this.currentViewMode = "plan";
+      this.showMessage(`📐 Vista PLANTA (X-Y) - Piso: ${this.currentStory}`);
+      this.redraw();
+    } else {
+      // Cambiar a vista de letras
+      this.currentElevationX = "none";
+      this.currentViewMode = "elevationZ";
+      const elev = this.zElevations.find((e) => e.name === this.currentElevationZ);
+      if (elev) {
+        this.showMessage(`📐 Vista ELEVACIÓN Z-${this.currentElevationZ} (X = ${elev.x}m) - Plano Z-Y`);
+        this.drawElevationZView(elev.x);
+      }
+    }
+    this.sync3D();
+  },
+
+  // Método para dibujar la vista de letras (Z-Y)
+  // drawElevationZView(currentX) {
+  //   const ctx = this.ctx;
+  //   ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+  //   // Filtrar nodos en el plano X = currentX (ejes verticales A,B,C...)
+  //   const nodesToDraw = this.nodes.filter((node) => Math.abs(node.position.x - currentX) < 0.1);
+  //   const beamsToDraw = this.shapes.filter(
+  //     (beam) => nodesToDraw.includes(beam.node1) && nodesToDraw.includes(beam.node2),
+  //   );
+
+  //   console.log(
+  //     `🔍 Vista Z-${this.currentElevationZ} (X = ${currentX}m): ${nodesToDraw.length} nodos, ${beamsToDraw.length} vigas`,
+  //   );
+
+  //   // Dibujar grid para vista Z-Y
+  //   this.drawElevationZGrid(currentX);
+
+  //   // Dibujar vigas - Proyección CORRECTA: (Z, Y) -> (X, Y) en canvas
+  //   // Donde Z es la coordenada de profundidad, Y es la altura
+  //   beamsToDraw.forEach((beam) => {
+  //     // Usar position.z como X del canvas, position.y como Y del canvas
+  //     const p1 = this.grid.worldToScreen({ x: beam.node1.position.z || 0, y: beam.node1.position.y });
+  //     const p2 = this.grid.worldToScreen({ x: beam.node2.position.z || 0, y: beam.node2.position.y });
+
+  //     ctx.beginPath();
+  //     ctx.moveTo(p1.x, p1.y);
+  //     ctx.lineTo(p2.x, p2.y);
+  //     ctx.strokeStyle = "#aaaaaa";
+  //     ctx.lineWidth = 3;
+  //     ctx.stroke();
+  //   });
+
+  //   // Dibujar nodos - MISMA PROYECCIÓN
+  //   nodesToDraw.forEach((node) => {
+  //     const p = this.grid.worldToScreen({ x: node.position.z || 0, y: node.position.y });
+  //     ctx.beginPath();
+  //     ctx.arc(p.x, p.y, 5, 0, 2 * Math.PI);
+  //     ctx.fillStyle = "#ff8888";
+  //     ctx.fill();
+  //     ctx.fillStyle = "white";
+  //     ctx.font = "10px Arial";
+  //     ctx.fillText(node.id, p.x + 8, p.y - 5);
+  //   });
+
+  //   // Título
+  //   ctx.font = "bold 14px Arial";
+  //   ctx.fillStyle = "#4a90d9";
+  //   ctx.fillText(`📐 ELEVACIÓN Eje Z-${this.currentElevationZ} (X = ${currentX}m) - Plano Z-Y`, 15, 50);
+  // },
+
+  drawElevationZView(currentX) {
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Filtrar nodos en el plano X = currentX
+    const nodesToDraw = this.nodes.filter((node) => Math.abs(node.position.x - currentX) < 0.1);
+    const beamsToDraw = this.shapes.filter(
+      (beam) => nodesToDraw.includes(beam.node1) && nodesToDraw.includes(beam.node2),
+    );
+
+    // Dibujar grid
+    this.drawElevationZGrid(currentX);
+
+    // Dibujar vigas - PROYECCIÓN CORREGIDA: (Y, Z) -> (X, Y) en canvas
+    // Donde:
+    //   node.position.y = profundidad -> se convierte en X del canvas (horizontal)
+    //   node.position.z = altura -> se convierte en Y del canvas (vertical)
+    beamsToDraw.forEach((beam) => {
+      const p1 = this.grid.worldToScreen({ x: beam.node1.position.y || 0, y: beam.node1.position.z || 0 });
+      const p2 = this.grid.worldToScreen({ x: beam.node2.position.y || 0, y: beam.node2.position.z || 0 });
+
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.strokeStyle = "#aaaaaa";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    });
+
+    // Dibujar nodos - MISMA PROYECCIÓN CORREGIDA
+    nodesToDraw.forEach((node) => {
+      const p = this.grid.worldToScreen({ x: node.position.y || 0, y: node.position.z || 0 });
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 5, 0, 2 * Math.PI);
+      ctx.fillStyle = "#ff8888";
+      ctx.fill();
+      ctx.fillStyle = "white";
+      ctx.font = "10px Arial";
+      ctx.fillText(node.id, p.x + 8, p.y - 5);
+    });
+
+    // Título
+    ctx.font = "bold 14px Arial";
+    ctx.fillStyle = "#4a90d9";
+    ctx.fillText(`📐 ELEVACIÓN Eje Z-${this.currentElevationZ} (X = ${currentX}m) - Plano Z-Y`, 15, 50);
+  },
+
+  // 5. Método para dibujar el grid de la vista de letras (Z-Y)
+  drawElevationZGrid(currentX) {
+    const tempGrid = this.grid;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.strokeStyle = "#3a6a9a";
+    ctx.fillStyle = "#8aadcc";
+    ctx.lineWidth = 0.8;
+    ctx.font = "11px 'Segoe UI', Arial";
+    ctx.setLineDash([]);
+
+    const refGrid = this.referenceGrid;
+    if (!refGrid || !refGrid.yPositions || refGrid.yPositions.length === 0) {
+      ctx.restore();
+      return;
+    }
+
+    const zPositions = refGrid.yPositions; // Posiciones en Z (profundidad) - se mostrarán en el eje X del canvas
+    const storyCount = refGrid.storyCount;
+    const storyHeight = refGrid.storyHeight;
+    const axisColor = "#ff6666";
+    const lineColor = "#3a6a9a";
+    const textColor = "#8aadcc";
+
+    // Líneas HORIZONTALES (pisos - altura Y)
+    for (let floor = 0; floor <= storyCount; floor++) {
+      const altura = floor * storyHeight; // esto es Z en 3D (altura)
+      const screenY = tempGrid.worldToScreen({ x: 0, y: altura }).y;
+
+      ctx.beginPath();
+      ctx.strokeStyle = floor === 0 ? axisColor : lineColor;
+      ctx.lineWidth = floor === 0 ? 1.5 : 0.5;
+      ctx.setLineDash(floor === 0 ? [] : [5, 5]);
+      ctx.moveTo(0, screenY);
+      ctx.lineTo(this.canvas.width, screenY);
+      ctx.stroke();
+
+      ctx.fillStyle = floor === 0 ? axisColor : textColor;
+      ctx.font = floor === 0 ? "bold 10px Arial" : "10px Arial";
+      const label = floor === 0 ? "BASE" : `STORY${floor}`;
+      ctx.fillText(label, 10, screenY - 5);
+      ctx.fillStyle = "#666";
+      ctx.font = "9px Arial";
+      ctx.fillText(`${altura}m`, 80, screenY - 5);
+    }
+
+    // Líneas VERTICALES (profundidad) - se muestran como números 1,2,3...
+    zPositions.forEach((profundidad, index) => {
+      const screenX = tempGrid.worldToScreen({ x: profundidad, y: 0 }).x;
+
+      ctx.beginPath();
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 0.8;
+      ctx.setLineDash([8, 4]);
+      ctx.moveTo(screenX, 0);
+      ctx.lineTo(screenX, this.canvas.height);
+      ctx.stroke();
+
+      ctx.fillStyle = textColor;
+      ctx.font = "11px Arial";
+      ctx.fillText(index + 1, screenX - 6, this.canvas.height - 10);
+    });
+
+    ctx.setLineDash([]);
+
+    // Origen
+    const origin = tempGrid.worldToScreen({ x: 0, y: 0 });
+    ctx.beginPath();
+    ctx.arc(origin.x, origin.y, 5, 0, 2 * Math.PI);
+    ctx.fillStyle = "#ff8888";
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 10px Arial";
+    ctx.fillText("0,0", origin.x + 8, origin.y - 5);
+
+    // Resaltar la línea del nivel actual
+    const currentZ = this.getCurrentZ();
+    const currentZScreen = tempGrid.worldToScreen({ x: 0, y: currentZ }).y;
+    ctx.beginPath();
+    ctx.strokeStyle = axisColor;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 4]);
+    ctx.moveTo(0, currentZScreen);
+    ctx.lineTo(this.canvas.width, currentZScreen);
+    ctx.stroke();
+    ctx.fillStyle = axisColor;
+    ctx.fillText(`Nivel: ${currentZ}m`, 10, currentZScreen - 5);
+    ctx.setLineDash([]);
+
+    // Título
+    ctx.font = "bold 12px 'Segoe UI', Arial";
+    ctx.fillStyle = "#4a90d9";
+    ctx.fillText(`📐 Vista Z-Y (Eje ${this.currentElevationZ}) - X = ${currentX}m`, 15, 30);
+    ctx.font = "10px Arial";
+    ctx.fillStyle = "#888";
+    ctx.fillText("Haz clic para dibujar | Esc para salir", 15, 50);
+
+    ctx.restore();
   },
 
   getCurrentZ() {

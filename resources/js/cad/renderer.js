@@ -53,84 +53,331 @@ export const soportes = {
 };
 
 export class DiseñoRenderer {
+  // render(CADSystem) {
+  //   this.clearBackground(CADSystem);
+  //   if (CADSystem.options.showGrid) {
+  //     CADSystem.grid.draw(this, CADSystem);
+  //   }
+  //   CADSystem.nodes.forEach((n) => {
+  //     this.drawSupport(n, CADSystem);
+  //   });
+  //   if (!CADSystem.options.showWireframe) {
+  //     if (CADSystem.options.showFAxiales) {
+  //       this.drawAxiales(CADSystem);
+  //       if (CADSystem.options.showFAxialesValues) {
+  //         this.drawAxialesValues(CADSystem);
+  //       }
+  //     } else {
+  //       CADSystem.shapes.forEach((s) => {
+  //         s.draw(this, CADSystem);
+  //       });
+  //       CADSystem.parametricModels.forEach((parametric) => {
+  //         parametric.shapes.forEach((s) => {
+  //           s.draw(this, CADSystem);
+  //         });
+  //       });
+  //     }
+  //     CADSystem.nodes.forEach((n) => {
+  //       n.draw(this, CADSystem);
+  //     });
+  //     CADSystem.parametricModels.forEach((parametric) => {
+  //       parametric.nodes.forEach((n) => {
+  //         n.draw(this, CADSystem);
+  //         this.drawForce(n, CADSystem);
+  //       });
+  //     });
+  //   } else {
+  //     if (CADSystem.options.showFAxiales) {
+  //       this.drawWireframeAxiales(CADSystem);
+  //       if (CADSystem.options.showFAxialesValues) {
+  //         this.drawAxialesValues(CADSystem);
+  //       }
+  //     } else {
+  //       CADSystem.shapes.forEach((s) => {
+  //         this.drawWireBeam(s, CADSystem);
+  //       });
+  //       CADSystem.nodes.forEach((n) => {
+  //         this.drawWireNode(n, CADSystem);
+  //       });
+  //     }
+  //   }
+  //   if (CADSystem.options.showIDs) {
+  //     CADSystem.shapes.forEach((s) => {
+  //       this.drawBeamID(s, CADSystem);
+  //     });
+  //     CADSystem.nodes.forEach((n) => {
+  //       this.drawNodeID(n, CADSystem);
+  //     });
+  //   }
+  //   if (CADSystem.options.showForces) {
+  //     CADSystem.ctx.save();
+  //     CADSystem.nodes.forEach((n) => {
+  //       this.drawForce(n, CADSystem);
+  //     });
+  //     CADSystem.ctx.restore();
+  //   }
+  //   if (CADSystem.options.showReactions) {
+  //     CADSystem.ctx.save();
+  //     CADSystem.nodes.forEach((n) => {
+  //       this.drawReaction(n, CADSystem);
+  //     });
+  //     CADSystem.ctx.restore();
+  //   }
+  //   if (CADSystem.options.showDeflection) {
+  //     this.drawDeflections(CADSystem);
+  //   }
+  //   if (CADSystem.options.showMaterials) {
+  //     this.drawMaterials(CADSystem);
+  //   }
+
+  //   CADSystem.currentState.draw(this, CADSystem);
+  // }
+
   render(CADSystem) {
     this.clearBackground(CADSystem);
-    if (CADSystem.options.showGrid) {
-      CADSystem.grid.draw(this, CADSystem);
-    }
-    CADSystem.nodes.forEach((n) => {
-      this.drawSupport(n, CADSystem);
-    });
-    if (!CADSystem.options.showWireframe) {
-      if (CADSystem.options.showFAxiales) {
-        this.drawAxiales(CADSystem);
-        if (CADSystem.options.showFAxialesValues) {
-          this.drawAxialesValues(CADSystem);
-        }
-      } else {
-        CADSystem.shapes.forEach((s) => {
-          s.draw(this, CADSystem);
-        });
-        CADSystem.parametricModels.forEach((parametric) => {
-          parametric.shapes.forEach((s) => {
-            s.draw(this, CADSystem);
-          });
-        });
+
+    // ========== DETECTAR SI ESTAMOS EN VISTA ELEVACIÓN ==========
+    const isElevationView = CADSystem.currentElevationX && CADSystem.currentElevationX !== "none";
+
+    let currentZ = 0;
+    let currentY = 0;
+
+    if (isElevationView) {
+      // VISTA ELEVACIÓN: obtener Y del eje seleccionado
+      if (CADSystem.getCurrentElevationY) {
+        currentY = CADSystem.getCurrentElevationY();
       }
-      CADSystem.nodes.forEach((n) => {
-        n.draw(this, CADSystem);
-      });
-      CADSystem.parametricModels.forEach((parametric) => {
-        parametric.nodes.forEach((n) => {
-          n.draw(this, CADSystem);
-          this.drawForce(n, CADSystem);
-        });
-      });
     } else {
-      if (CADSystem.options.showFAxiales) {
-        this.drawWireframeAxiales(CADSystem);
-        if (CADSystem.options.showFAxialesValues) {
-          this.drawAxialesValues(CADSystem);
-        }
-      } else {
-        CADSystem.shapes.forEach((s) => {
-          this.drawWireBeam(s, CADSystem);
-        });
-        CADSystem.nodes.forEach((n) => {
-          this.drawWireNode(n, CADSystem);
-        });
+      // VISTA PLANTA: obtener Z del nivel actual
+      if (CADSystem.currentStory && CADSystem.stories) {
+        const story = CADSystem.stories.find((s) => s.name === CADSystem.currentStory);
+        if (story) currentZ = story.z;
       }
-    }
-    if (CADSystem.options.showIDs) {
-      CADSystem.shapes.forEach((s) => {
-        this.drawBeamID(s, CADSystem);
-      });
-      CADSystem.nodes.forEach((n) => {
-        this.drawNodeID(n, CADSystem);
-      });
-    }
-    if (CADSystem.options.showForces) {
-      CADSystem.ctx.save();
-      CADSystem.nodes.forEach((n) => {
-        this.drawForce(n, CADSystem);
-      });
-      CADSystem.ctx.restore();
-    }
-    if (CADSystem.options.showReactions) {
-      CADSystem.ctx.save();
-      CADSystem.nodes.forEach((n) => {
-        this.drawReaction(n, CADSystem);
-      });
-      CADSystem.ctx.restore();
-    }
-    if (CADSystem.options.showDeflection) {
-      this.drawDeflections(CADSystem);
-    }
-    if (CADSystem.options.showMaterials) {
-      this.drawMaterials(CADSystem);
     }
 
+    // ========== FILTRAR NODOS SEGÚN LA VISTA ==========
+    const nodesToDraw = CADSystem.nodes.filter((node) => {
+      if (isElevationView) {
+        // Vista ELEVACIÓN: filtrar por Y (profundidad)
+        return Math.abs(node.position.y - currentY) < 0.1;
+      } else {
+        // Vista PLANTA: filtrar por Z (altura)
+        const nodeZ = node.position.z || 0;
+        return Math.abs(nodeZ - currentZ) < 0.1;
+      }
+    });
+
+    // ========== FILTRAR VIGAS ==========
+    const beamsToDraw = CADSystem.shapes.filter((beam) => {
+      if (!beam.node1 || !beam.node2) return false;
+
+      if (isElevationView) {
+        // Vista ELEVACIÓN: filtrar por Y
+        const y1 = beam.node1.position.y;
+        const y2 = beam.node2.position.y;
+        return Math.abs(y1 - currentY) < 0.1 && Math.abs(y2 - currentY) < 0.1;
+      } else {
+        // Vista PLANTA: filtrar por Z
+        const z1 = beam.node1.position.z || 0;
+        const z2 = beam.node2.position.z || 0;
+        return Math.abs(z1 - currentZ) < 0.1 && Math.abs(z2 - currentZ) < 0.1;
+      }
+    });
+
+    // ========== DIBUJAR GRID ==========
+    if (CADSystem.options.showGrid) {
+      if (isElevationView) {
+        // Usar grid de elevación
+        this.drawElevationGridOnly(CADSystem.grid, CADSystem);
+      } else {
+        // Usar grid normal
+        CADSystem.grid.draw(this, CADSystem);
+      }
+    }
+
+    // ========== DIBUJAR SOPORTES ==========
+    nodesToDraw.forEach((n) => {
+      this.drawSupport(n, CADSystem);
+    });
+
+    // ========== DIBUJAR VIGAS ==========
+    if (!CADSystem.options.showWireframe) {
+      beamsToDraw.forEach((s) => {
+        this.drawBeamWithProjection(s, CADSystem, isElevationView);
+      });
+    } else {
+      beamsToDraw.forEach((s) => {
+        this.drawWireBeam(s, CADSystem);
+      });
+    }
+
+    // ========== DIBUJAR NODOS ==========
+    nodesToDraw.forEach((n) => {
+      this.drawNodeWithProjection(n, CADSystem, isElevationView);
+    });
+
+    // ========== IDs ==========
+    if (CADSystem.options.showIDs) {
+      beamsToDraw.forEach((s) => {
+        this.drawBeamIDWithProjection(s, CADSystem, isElevationView);
+      });
+      nodesToDraw.forEach((n) => {
+        this.drawNodeIDWithProjection(n, CADSystem, isElevationView);
+      });
+    }
+
+    // ========== MOSTRAR TÍTULO ==========
+    CADSystem.ctx.save();
+    CADSystem.ctx.font = "bold 14px 'Segoe UI', Arial";
+    CADSystem.ctx.fillStyle = "#4a90d9";
+    if (isElevationView) {
+      CADSystem.ctx.fillText(
+        `📍 Vista ELEVACIÓN Eje X-${CADSystem.currentElevationX} (Y = ${currentY.toFixed(2)} m)`,
+        15,
+        50,
+      );
+    } else {
+      CADSystem.ctx.fillText(`📍 Nivel: ${CADSystem.currentStory} (Z = ${currentZ.toFixed(2)} m)`, 15, 50);
+    }
+    CADSystem.ctx.restore();
+
     CADSystem.currentState.draw(this, CADSystem);
+  }
+
+  // Nuevas funciones para dibujar con proyección según la vista (planta o elevación)
+  drawNodeWithProjection(node, context, isElevationView) {
+    if (!node || !node.position) return;
+
+    let x2D, y2D;
+    const x = node.position.x;
+    const y = node.position.y;
+    const z = node.position.z || 0;
+
+    if (isElevationView) {
+      // Proyectar (X, Z) para vista elevación
+      x2D = x;
+      y2D = z;
+    } else {
+      // Proyectar (X, Y) para vista planta
+      x2D = x;
+      y2D = y;
+    }
+
+    const p = context.grid.worldToScreen({ x: x2D, y: y2D });
+
+    context.ctx.save();
+    const model = node.style.getModel();
+
+    if (context.options.showWireframe) {
+      Object.assign(context.ctx, node.style.get().WIREFRAME);
+    } else {
+      Object.assign(context.ctx, node.style.get().MODEL);
+    }
+
+    context.ctx.beginPath();
+    context.ctx.arc(p.x, p.y, model.RADIUS, 0, Math.PI * 2);
+    context.ctx.fill();
+    context.ctx.fillStyle = model.JOINT_FILL;
+    context.ctx.beginPath();
+    context.ctx.arc(p.x, p.y, model.RADIUS / 2, 0, Math.PI * 2);
+    context.ctx.fill();
+    context.ctx.restore();
+  }
+
+  drawBeamWithProjection(beam, context, isElevationView) {
+    if (!beam || !beam.node1 || !beam.node2) return;
+
+    const getPoint = (node) => {
+      const x = node.position.x;
+      const y = node.position.y;
+      const z = node.position.z || 0;
+
+      if (isElevationView) {
+        return { x: x, y: z }; // Proyectar (X, Z)
+      } else {
+        return { x: x, y: y }; // Proyectar (X, Y)
+      }
+    };
+
+    const pos1 = getPoint(beam.node1);
+    const pos2 = getPoint(beam.node2);
+    const p1 = context.grid.worldToScreen({ x: pos1.x, y: pos1.y });
+    const p2 = context.grid.worldToScreen({ x: pos2.x, y: pos2.y });
+
+    context.ctx.save();
+
+    if (context.options.showWireframe) {
+      Object.assign(context.ctx, beam.style.get().WIREFRAME);
+    } else {
+      if (beam.fAxial > 0.001) {
+        context.ctx.strokeStyle = "#44aaff";
+      } else if (beam.fAxial < -0.001) {
+        context.ctx.strokeStyle = "#ff6644";
+      } else {
+        Object.assign(context.ctx, beam.style.get().MODEL);
+      }
+      context.ctx.lineWidth = 3;
+    }
+
+    context.ctx.beginPath();
+    context.ctx.moveTo(p1.x, p1.y);
+    context.ctx.lineTo(p2.x, p2.y);
+    context.ctx.stroke();
+    context.ctx.restore();
+  }
+
+  drawNodeIDWithProjection(node, context, isElevationView) {
+    if (!node || !node.position) return;
+
+    let x2D, y2D;
+    const x = node.position.x;
+    const y = node.position.y;
+    const z = node.position.z || 0;
+
+    if (isElevationView) {
+      x2D = x;
+      y2D = z;
+    } else {
+      x2D = x;
+      y2D = y;
+    }
+
+    const p = context.grid.worldToScreen({ x: x2D, y: y2D });
+    context.ctx.save();
+    context.ctx.beginPath();
+    Object.assign(context.ctx, node.style.get().ID);
+    context.ctx.arc(p.x - 10, p.y - 10, context.grid.size * 2, 0, Math.PI * 2);
+    context.ctx.stroke();
+    context.ctx.fillText(node.id + "", p.x - 10, p.y - 10);
+    context.ctx.restore();
+  }
+
+  drawBeamIDWithProjection(beam, context, isElevationView) {
+    if (!beam || !beam.node1 || !beam.node2) return;
+
+    const getPoint = (node) => {
+      const x = node.position.x;
+      const y = node.position.y;
+      const z = node.position.z || 0;
+      if (isElevationView) {
+        return { x: x, y: z };
+      } else {
+        return { x: x, y: y };
+      }
+    };
+
+    const pos1 = getPoint(beam.node1);
+    const pos2 = getPoint(beam.node2);
+    const p1 = context.grid.worldToScreen({ x: pos1.x, y: pos1.y });
+    const p2 = context.grid.worldToScreen({ x: pos2.x, y: pos2.y });
+    const mid = { x: (p1.x + p2.x) * 0.5, y: (p1.y + p2.y) * 0.5 };
+
+    context.ctx.save();
+    Object.assign(context.ctx, beam.style.get().ID);
+    context.ctx.translate(mid.x, mid.y);
+    context.ctx.rotate(beam.angle);
+    context.ctx.fillText(`${beam.id}`, 0, 10);
+    context.ctx.restore();
   }
 
   drawAxiales(context) {
@@ -1017,7 +1264,6 @@ export class DiseñoRenderer {
   //   ctx.restore();
   // }
 
-  
   // DIBUJAR SOLO EL GRID DE REFERENCIA CON ESTILO ETABS, PERO ADAPTADO A VISTA DE ELEVACIÓN (X-Z O Y-Z)
   drawElevationGridOnly(grid, context) {
     const ctx = context.ctx;

@@ -206,6 +206,35 @@ export class ElevationViewManager {
   //   }
   // }
 
+  // SE AGREGO NUEVAS FUNCIONES PARA OBTENER LAS COORDENADAS ACTUALES DE ELEVACIÓN SEGÚN LA VISTA ACTIVA
+  getCurrentZ() {
+    if (this.current2DView === "plan" && this.cadSystem.currentStory && this.cadSystem.stories) {
+      const story = this.cadSystem.stories.find((s) => s.name === this.cadSystem.currentStory);
+      if (story) return story.z;
+    }
+    return 0;
+  }
+
+  getCurrentElevationY() {
+    if (this.current2DView === "elevation-xy") {
+      const idx = parseInt(this.currentElevation) - 1;
+      if (this.cadSystem.referenceGrid && idx >= 0 && idx < this.cadSystem.referenceGrid.xPositions.length) {
+        return this.cadSystem.referenceGrid.xPositions[idx];
+      }
+    }
+    return 0;
+  }
+
+  getCurrentElevationX() {
+    if (this.current2DView === "elevation-zy") {
+      const idx = this.cadSystem.referenceGrid?.xLabels.indexOf(this.currentElevation);
+      if (idx >= 0 && idx < this.cadSystem.referenceGrid?.yPositions.length) {
+        return this.cadSystem.referenceGrid.yPositions[idx];
+      }
+    }
+    return 0;
+  }
+
   resetView() {
     this.current2DView = "plan";
     this.clearHighlight();
