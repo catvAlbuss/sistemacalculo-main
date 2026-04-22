@@ -61,54 +61,79 @@
         </ul>
     </x-cad.panel>
     <x-cad.panel title="Propiedades" init="isOpen = true">
+        <!-- Se cambio el currentstate === moveObjectState -->
         <template x-if="currentState === moveObjectState">
-            <div class="flex flex-col gap-2 p-2">
-                <x-cad.input-properties label="ID" bind="moveObjectState.selectedObject.id" handleInput=""
-                    disabled="true"></x-cad.input-properties>
-                <x-cad.panel-properties title="Posición">
-                    <x-cad.input-properties label="X" bind="moveObjectState.selectedObject.position.x"
-                        handleInput=""></x-cad.input-properties>
-                    <x-cad.input-properties label="Y" bind="moveObjectState.selectedObject.position.y"
-                        handleInput=""></x-cad.input-properties>
-                </x-cad.panel-properties>
-                <!-- SECCION DE FUERZA -->
-                <x-cad.panel-properties title="Fuerza">
-                    <x-cad.load-select bind="moveObjectState.currentLoad"></x-cad.load-select>
-                    <x-cad.input-properties label="Multiplicador"
-                        bind="moveObjectState.selectedObject.force.loads[moveObjectState.currentLoad].multiplier"
-                        handleInput=""></x-cad.input-properties>
-                    <x-cad.input-properties label="Fx" bind="moveObjectState.nodeX"
-                        handleInput=""></x-cad.input-properties>
-                    <x-cad.input-properties label="Fy" bind="moveObjectState.nodeY"
-                        handleInput=""></x-cad.input-properties>
-                </x-cad.panel-properties>
-                <!-- SECCION DE SOPORTE -->
-                <x-cad.panel-properties title="Soporte">
-                    <div class="flex flex-row justify-between">
-                        <x-cad.ribbon-button clickHandler="moveObjectState.selectedObject.soporte = ''"
-                            toggle="moveObjectState.selectedObject.soporte === ''"
-                            label=""
-                            class="cad-ribbon-button-hover-bg transition-colors duration-200 p-2 rounded">
-                            <div class="flex flex-col items-center">
-                                <x-cad.svg.sinsoporte></x-cad.svg.sinsoporte>
-                            </div>
-                        </x-cad.ribbon-button>
-                        <x-cad.ribbon-button clickHandler="moveObjectState.selectedObject.soporte = 'soporteUno'"
-                            toggle="moveObjectState.selectedObject.soporte === 'soporteUno'"
-                            label=""
-                            class="cad-ribbon-button-hover-bg transition-colors duration-200 p-2 rounded">
-                            <div class="flex flex-col items-center">
-                                <x-cad.svg.soporte1></x-cad.svg.soporte1>
-                            </div>
-                        </x-cad.ribbon-button>
-                        <x-cad.ribbon-button clickHandler="moveObjectState.selectedObject.soporte = 'soporteDos'"
-                            toggle="moveObjectState.selectedObject.soporte === 'soporteDos'"
-                            label=""><x-cad.svg.soporte2></x-cad.svg.soporte2></x-cad.ribbon-button>
-                        <x-cad.ribbon-button clickHandler="moveObjectState.selectedObject.soporte = 'soporteTres'"
-                            toggle="moveObjectState.selectedObject.soporte === 'soporteTres'"
-                            label=""><x-cad.svg.soporte3></x-cad.svg.soporte3></x-cad.ribbon-button>
-                    </div>
-                </x-cad.panel-properties>
+            <div x-show="moveObjectState.selectedObject">
+                <div class="flex flex-col gap-2 p-2">
+                    <template x-if="moveObjectState.selectedObject">
+                        <x-cad.input-properties label="ID" bind="moveObjectState.selectedObject.id" handleInput=""
+                            disabled="true"></x-cad.input-properties>
+                    </template>
+                    <x-cad.panel-properties title="Posición">
+                        <template x-if="moveObjectState.selectedObject">
+                            <x-cad.input-properties label="X" bind="moveObjectState.selectedObject.position.x"
+                                handleInput=""></x-cad.input-properties>
+                        </template>
+                        <template x-if="moveObjectState.selectedObject">
+                            <x-cad.input-properties label="Y" bind="moveObjectState.selectedObject.position.y"
+                                handleInput=""></x-cad.input-properties>
+                        </template>
+                    </x-cad.panel-properties>
+                    <!-- SECCION DE FUERZA -->
+                    <x-cad.panel-properties title="Fuerza">
+                        <x-cad.load-select bind="moveObjectState.currentLoad"></x-cad.load-select>
+                        <template x-if="moveObjectState.selectedObject">
+                            <x-cad.input-properties label="Multiplicador"
+                                bind="moveObjectState.selectedObject.force.loads[moveObjectState.currentLoad].multiplier"
+                                handleInput=""></x-cad.input-properties>
+                        </template>
+                        <x-cad.input-properties label="Fx" bind="moveObjectState.nodeX"
+                            handleInput=""></x-cad.input-properties>
+                        <x-cad.input-properties label="Fy" bind="moveObjectState.nodeY"
+                            handleInput=""></x-cad.input-properties>
+                    </x-cad.panel-properties>
+                    <!-- SECCION DE SOPORTE -->
+                    <x-cad.panel-properties title="Soporte">
+                        <div class="flex flex-row justify-between">
+                            <x-cad.ribbon-button
+                                clickHandler="moveObjectState.selectedObject && (moveObjectState.selectedObject.soporte = '')"
+                                toggle="moveObjectState.selectedObject?.soporte === ''"
+                                label=""
+                                class="cad-ribbon-button-hover-bg transition-colors duration-200 p-2 rounded">
+                                <div class="flex flex-col items-center">
+                                    <x-cad.svg.sinsoporte></x-cad.svg.sinsoporte>
+                                </div>
+                            </x-cad.ribbon-button>
+                            <x-cad.ribbon-button
+                                clickHandler="moveObjectState.selectedObject && (moveObjectState.selectedObject.soporte = 'soporteUno')"
+                                toggle="moveObjectState.selectedObject?.soporte === 'soporteUno'"
+                                label=""
+                                class="cad-ribbon-button-hover-bg transition-colors duration-200 p-2 rounded">
+                                <div class="flex flex-col items-center">
+                                    <x-cad.svg.soporte1></x-cad.svg.soporte1>
+                                </div>
+                            </x-cad.ribbon-button>
+                            <x-cad.ribbon-button
+                                clickHandler="moveObjectState.selectedObject && (moveObjectState.selectedObject.soporte = 'soporteDos')"
+                                toggle="moveObjectState.selectedObject?.soporte === 'soporteDos'"
+                                label=""
+                                class="cad-ribbon-button-hover-bg transition-colors duration-200 p-2 rounded">
+                                <div class="flex flex-col items-center">
+                                    <x-cad.svg.soporte2></x-cad.svg.soporte2>
+                                </div>
+                            </x-cad.ribbon-button>
+                            <x-cad.ribbon-button
+                                clickHandler="moveObjectState.selectedObject && (moveObjectState.selectedObject.soporte = 'soporteTres')"
+                                toggle="moveObjectState.selectedObject?.soporte === 'soporteTres'"
+                                label=""
+                                class="cad-ribbon-button-hover-bg transition-colors duration-200 p-2 rounded">
+                                <div class="flex flex-col items-center">
+                                    <x-cad.svg.soporte3></x-cad.svg.soporte3>
+                                </div>
+                            </x-cad.ribbon-button>
+                        </div>
+                    </x-cad.panel-properties>
+                </div>
             </div>
         </template>
         <template x-if="currentState === selectedNodesState">

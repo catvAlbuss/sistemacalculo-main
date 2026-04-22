@@ -3,21 +3,21 @@ import { pointDistance, removeFromArray } from "./utils.js";
 import { MOUSE_BUTTONS, isMouseButton } from "./utils.js";
 
 export class StateBase {
-  constructor() { }
-  handleMouseWheel(event, context, mouse) { }
-  handleMouseClick(event, context, mouse) { }
-  handleMouseDown(event, context, mouse) { }
-  handleMouseMove(event, context, mouse) { }
-  handleMouseUp(event, context, mouse) { }
-  handleMouseEnter(event, context, mouse) { }
-  handleMouseLeave(event, context, mouse) { }
+  constructor() {}
+  handleMouseWheel(event, context, mouse) {}
+  handleMouseClick(event, context, mouse) {}
+  handleMouseDown(event, context, mouse) {}
+  handleMouseMove(event, context, mouse) {}
+  handleMouseUp(event, context, mouse) {}
+  handleMouseEnter(event, context, mouse) {}
+  handleMouseLeave(event, context, mouse) {}
   handleKeyDown(event, context) {
     if (event.key === "Escape") {
       context.setState(context.idleState);
     }
   }
-  enter(args) { }
-  exit() { }
+  enter(args) {}
+  exit() {}
   draw(renderer, context) {
     renderer.drawState(this, context);
   }
@@ -75,7 +75,6 @@ export class PanAndZoomState extends StateBase {
 }
 
 export class IdleState extends PanAndZoomState {
-
   handleMouseDown(event, context, mouse) {
     super.handleMouseDown(...arguments);
 
@@ -253,21 +252,99 @@ export class SelectedObjectsState extends PanAndZoomState {
   }
 }
 
+// export class SelectedBeamsState extends SelectedObjectsState {
+//   handleKeyDown(event, context) {
+//     super.handleKeyDown(...arguments);
+//     if (event.key === "Delete") {
+//       // Obtener el plano actual
+//       const isElevationView = context.currentElevationX && context.currentElevationX !== "none";
+//       const isElevationZView = context.currentElevationZ && context.currentElevationZ !== "none";
+//       let targetValue = 0;
+
+//       if (isElevationView) {
+//         const elev = context.xElevations?.find((e) => e.name === context.currentElevationX);
+//         targetValue = elev?.y || 0;
+//       } else if (isElevationZView) {
+//         const elev = context.zElevations?.find((e) => e.name === context.currentElevationZ);
+//         targetValue = elev?.x || 0;
+//       } else {
+//         const story = context.stories?.find((s) => s.name === context.currentStory);
+//         targetValue = story?.elevation || 0;
+//       }
+
+//       // Filtrar solo las vigas que están en el plano actual
+//       // const beamsToDelete = this.selectedObjects.filter((beam) => {
+//       //   if (!beam.node1 || !beam.node2) return false;
+
+//       //   if (isElevationView) {
+//       //     const y1 = beam.node1.position.y;
+//       //     const y2 = beam.node2.position.y;
+//       //     return Math.abs(y1 - targetValue) < 0.01 && Math.abs(y2 - targetValue) < 0.01;
+//       //   } else if (isElevationZView) {
+//       //     const x1 = beam.node1.position.x;
+//       //     const x2 = beam.node2.position.x;
+//       //     return Math.abs(x1 - targetValue) < 0.01 && Math.abs(x2 - targetValue) < 0.01;
+//       //   } else {
+//       //     const z1 = beam.node1.position.z || 0;
+//       //     const z2 = beam.node2.position.z || 0;
+//       //     return Math.abs(z1 - targetValue) < 0.01 && Math.abs(z2 - targetValue) < 0.01;
+//       //   }
+//       // });
+
+//       const beamsToDelete = this.selectedObjects.forEach((beam) => {
+//         removeFromArray(beam.node1.beams, beam);
+//         removeFromArray(beam.node2.beams, beam);
+//         removeFromArray(context.shapes, beam);
+//       });
+
+//       console.log(`🗑️ Eliminando ${beamsToDelete.length} vigas del plano actual`);
+
+//       beamsToDelete.forEach((deleteShape) => {
+//         removeFromArray(deleteShape.node1.beams, deleteShape);
+//         removeFromArray(deleteShape.node2.beams, deleteShape);
+//         removeFromArray(context.shapes, deleteShape);
+//         context.shapes.forEach((beam, index) => {
+//           beam.id = index + 1;
+//         });
+//       });
+
+//       context.setState(context.idleState);
+//       context.sync3D();
+//     }
+//   }
+//   enter(args) {
+//     super.enter({ selectedObjects: args.selectedBeams });
+//   }
+// }
+
 export class SelectedBeamsState extends SelectedObjectsState {
   handleKeyDown(event, context) {
     super.handleKeyDown(...arguments);
+
     if (event.key === "Delete") {
-      this.selectedObjects.forEach((deleteShape) => {
-        removeFromArray(deleteShape.node1.beams, deleteShape);
-        removeFromArray(deleteShape.node2.beams, deleteShape);
-        removeFromArray(context.shapes, deleteShape);
-        context.shapes.forEach((beam, index) => {
-          beam.id = index + 1;
-        });
+      console.log(`🗑️ Eliminando ${this.selectedObjects.length} vigas`);
+
+      // 🔥 Eliminar directamente lo seleccionado (SIN FILTRO)
+      const beamsToDelete = [...this.selectedObjects];
+
+      beamsToDelete.forEach((beam) => {
+        if (!beam.node1 || !beam.node2) return;
+
+        removeFromArray(beam.node1.beams, beam);
+        removeFromArray(beam.node2.beams, beam);
+        removeFromArray(context.shapes, beam);
       });
+
+      // 🔄 Reindexar IDs
+      context.shapes.forEach((beam, index) => {
+        beam.id = index + 1;
+      });
+
       context.setState(context.idleState);
+      context.sync3D();
     }
   }
+
   enter(args) {
     super.enter({ selectedObjects: args.selectedBeams });
   }
@@ -374,26 +451,107 @@ export class EditParametricState extends PanAndZoomState {
   }
 }
 
+// export class SelectedNodesState extends SelectedObjectsState {
+//   handleKeyDown(event, context) {
+//     super.handleKeyDown(...arguments);
+//     if (event.key === "Delete") {
+//       // Obtener el plano actual
+//       const isElevationView = context.currentElevationX && context.currentElevationX !== "none";
+//       const isElevationZView = context.currentElevationZ && context.currentElevationZ !== "none";
+//       let targetValue = 0;
+
+//       if (isElevationView) {
+//         // Vista ELEVACIÓN NÚMEROS: obtener la Y del eje seleccionado
+//         const elev = context.xElevations?.find((e) => e.name === context.currentElevationX);
+//         targetValue = elev?.y || 0;
+//       } else if (isElevationZView) {
+//         // Vista ELEVACIÓN LETRAS: obtener la X del eje seleccionado
+//         const elev = context.zElevations?.find((e) => e.name === context.currentElevationZ);
+//         targetValue = elev?.x || 0;
+//       } else {
+//         // Vista PLANTA: obtener la Z del nivel actual
+//         const story = context.stories?.find((s) => s.name === context.currentStory);
+//         targetValue = story?.elevation || 0;
+//       }
+
+//       // Filtrar solo los nodos que están en el plano actual
+//       const nodesToDelete = this.selectedObjects.filter((node) => {
+//         if (isElevationView) {
+//           return Math.abs(node.position.y - targetValue) < 0.1;
+//         } else if (isElevationZView) {
+//           return Math.abs(node.position.x - targetValue) < 0.1;
+//         } else {
+//           return Math.abs((node.position.z || 0) - targetValue) < 0.1;
+//         }
+//       });
+
+//       console.log(`🗑️ Eliminando ${nodesToDelete.length} nodos del plano actual`);
+
+//       nodesToDelete.forEach((deleteShape) => {
+//         deleteShape.beams.forEach((beam) => {
+//           const updateBeamsNode = deleteShape === beam.node1 ? beam.node2 : beam.node1;
+//           removeFromArray(updateBeamsNode.beams, beam);
+//         });
+//         deleteShape.beams.forEach((beam) => {
+//           removeFromArray(context.shapes, beam);
+//         });
+//         removeFromArray(context.nodes, deleteShape);
+//         context.nodes.forEach((node, index) => {
+//           node.id = index + 1;
+//         });
+//       });
+
+//       context.setState(context.idleState);
+//       context.sync3D();
+//       context.redraw();
+//     }
+//   }
+//   enter(args) {
+//     super.enter({ selectedObjects: args.selectedNodes });
+//   }
+// }
+
 export class SelectedNodesState extends SelectedObjectsState {
   handleKeyDown(event, context) {
     super.handleKeyDown(...arguments);
+
     if (event.key === "Delete") {
-      this.selectedObjects.forEach((deleteShape) => {
-        deleteShape.beams.forEach((beam) => {
-          const updateBeamsNode = deleteShape === beam.node1 ? beam.node2 : beam.node1;
-          removeFromArray(updateBeamsNode.beams, beam);
-        });
-        deleteShape.beams.forEach((beam) => {
+      console.log(`🗑️ Eliminando ${this.selectedObjects.length} nodos`);
+
+      this.selectedObjects.forEach((node) => {
+        if (!node) return;
+
+        // 🔥 COPIA SEGURA
+        const beamsToDelete = [...node.beams];
+
+        beamsToDelete.forEach((beam) => {
+          const otherNode = node === beam.node1 ? beam.node2 : beam.node1;
+          removeFromArray(otherNode.beams, beam);
           removeFromArray(context.shapes, beam);
         });
-        removeFromArray(context.nodes, deleteShape);
-        context.nodes.forEach((node, index) => {
-          node.id = index + 1;
-        });
+
+        // limpiar beams del nodo
+        node.beams = [];
+
+        removeFromArray(context.nodes, node);
       });
+
+      // 🔄 Reindexar nodos
+      context.nodes.forEach((node, index) => {
+        node.id = index + 1;
+      });
+
+      // 🔄 Reindexar vigas también (importante)
+      context.shapes.forEach((beam, index) => {
+        beam.id = index + 1;
+      });
+
       context.setState(context.idleState);
+      context.sync3D();
+      context.redraw();
     }
   }
+
   enter(args) {
     super.enter({ selectedObjects: args.selectedNodes });
   }
@@ -446,7 +604,6 @@ export class SelectionState extends PanAndZoomState {
         return collided;
       });
     } else {
-
       this.selectedNodes = context.nodes.filter((n) => {
         if (!context.currentRenderer.shouldDrawNode(n, context)) return false;
 
@@ -458,7 +615,6 @@ export class SelectionState extends PanAndZoomState {
 
         return collided;
       });
-
     }
   }
 
@@ -487,7 +643,7 @@ export class MoveObjectState extends IdleState {
   }
 
   get nodeX() {
-    return this.selectedObject.force.loads[this.currentLoad].x;
+    return this.selectedObject?.force?.loads?.[this.currentLoad]?.x ?? 0;
   }
 
   set nodeX(x) {
@@ -495,7 +651,7 @@ export class MoveObjectState extends IdleState {
   }
 
   get nodeY() {
-    return this.selectedObject.force.loads[this.currentLoad].y;
+    return this.selectedObject?.force?.loads?.[this.currentLoad]?.y ?? 0;
   }
 
   set nodeY(y) {
@@ -561,8 +717,22 @@ export class MoveObjectState extends IdleState {
         point.y += dY;
       });
     } else {
-      this.selectedObject.position.x = context.mousePos.x;
-      this.selectedObject.position.y = context.mousePos.y;
+      const isElevationXView = context.currentElevationX && context.currentElevationX !== "none";
+      const isElevationZView = context.currentElevationZ && context.currentElevationZ !== "none";
+
+      if (isElevationXView) {
+        // Plano X-Z (Y fija)
+        this.selectedObject.position.x = context.mousePos.x;
+        this.selectedObject.position.z = context.mousePos.y;
+      } else if (isElevationZView) {
+        // Plano Y-Z (X fija)
+        this.selectedObject.position.y = context.mousePos.x;
+        this.selectedObject.position.z = context.mousePos.y;
+      } else {
+        // Planta (X-Y, Z fija)
+        this.selectedObject.position.x = context.mousePos.x;
+        this.selectedObject.position.y = context.mousePos.y;
+      }
     }
   }
   enter(args) {
@@ -572,8 +742,11 @@ export class MoveObjectState extends IdleState {
   }
   exit() {
     super.exit();
-    this.selectedObject.style.default();
-    /* this.selectedObject = null; */
+    if (this.selectedObject) {
+      this.selectedObject.style.default();
+    }
+    // this.selectedObject = null;
+    this.isMoving = false;
   }
   info() {
     return 'Edita sus propiedades desde el menú o presiona "Supr" para eliminar.';
@@ -587,98 +760,221 @@ export class TrussDrawingState extends PanAndZoomState {
     this.shape = new Beam(this.context.globalE, this.context.globalA);
   }
 
+  // handleMouseDown(event, context, mouse) {
+  //   super.handleMouseDown(...arguments);
+  //   if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+  //     return;
+  //   }
+
+  //   const view = context.viewSet?.[context.activeViewIndex];
+  //   if (view?.type === "elevation") {
+  //     context.showMessage?.("Para dibujar nuevos elementos, cambia a una vista de planta.");
+  //     return;
+  //   }
+
+  //   const { x, y } = mouse;
+  //   const currentZ = context.getActivePlanElevation();
+
+  //   const collided = context.closestNodeAtElevation(
+  //     context.grid.worldToScreen(context.mousePos),
+  //     currentZ,
+  //   );
+
+  //   let node;
+
+  //   if (collided) {
+  //     node = collided;
+  //   } else {
+  //     node = new StructuralNode(
+  //       { x: context.mousePos.x, y: context.mousePos.y },
+  //       context.nodes.length + 1,
+  //       currentZ
+  //     );
+
+  //     context.nodes.push(node);
+
+  //     // const beam = context.closestBeam({ x: x, y: y });
+  //     let beam = null;
+  //     // const beam = context.closestBeamAtElevation({ x: x, y: y }, currentZ);
+  //     if (beam) {
+  //       const vAB = {
+  //         x: beam.node2.position.x - beam.node1.position.x,
+  //         y: beam.node2.position.y - beam.node1.position.y,
+  //       };
+  //       const vAD = {
+  //         x: context.mousePos.x - beam.node1.position.x,
+  //         y: context.mousePos.y - beam.node1.position.y,
+  //       };
+  //       const scale = (vAB.x * vAD.x + vAB.y * vAD.y) / pointDistance({ x: 0, y: 0 }, vAB) ** 2;
+  //       const projAD_AB = { x: vAB.x * scale, y: vAB.y * scale };
+
+  //       node.position.x = beam.node1.position.x + projAD_AB.x;
+  //       node.position.y = beam.node1.position.y + projAD_AB.y;
+  //       node.position.z = currentZ;
+
+  //       const startID = beam.id;
+  //       const node2 = beam.node2;
+
+  //       removeFromArray(node2.beams, beam);
+  //       beam.node2 = node;
+  //       node.beams.push(beam);
+
+  //       const newBeam = new Beam(context.globalE, context.globalA);
+  //       newBeam.addNode(node);
+  //       node.beams.push(newBeam);
+  //       newBeam.addNode(node2);
+  //       node2.beams.push(newBeam);
+
+  //       context.shapes.splice(startID, 0, newBeam);
+  //       context.shapes.forEach((beam, index) => {
+  //         beam.id = index + 1;
+  //       });
+  //     }
+  //   }
+
+  //   const isDone = this.shape.addNode(node);
+  //   if (isDone) {
+  //     context.shapes.push(this.shape);
+  //     this.shape.node1.beams.push(this.shape);
+  //     this.shape.node2.beams.push(this.shape);
+  //     this.shape.id = context.shapes.length;
+  //     this.shape = new Beam(this.context.globalE, this.context.globalA);
+  //     this.shape.addNode(node);
+  //   }
+
+  //   if (context.show3DView) {
+  //     context.sync3D();
+  //   }
+  // }
+
   handleMouseDown(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseDown(event, context, mouse);
+      return;
+    }
+
     super.handleMouseDown(...arguments);
     if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
       return;
     }
 
-    const view = context.viewSet?.[context.activeViewIndex];
-    if (view?.type === "elevation") {
-      context.showMessage?.("Para dibujar nuevos elementos, cambia a una vista de planta.");
-      return;
+    const worldPos = context.grid.screenToWorld(mouse);
+
+    // ========== USAR LAS MISMAS VARIABLES QUE EN TU CÓDIGO ORIGINAL ==========
+    const isElevationXView = context.currentElevationX && context.currentElevationX !== "none";
+    const isElevationZView = context.currentElevationZ && context.currentElevationZ !== "none";
+
+    let x, y, z;
+
+    if (isElevationXView) {
+      // VISTA ELEVACIÓN NUMÉRICA (1,2,3...): Plano X-Z, Y constante
+      const currentY = context.getCurrentElevationY?.() || 0;
+      console.log("🎯 currentY para vista", context.currentElevationX, "=", currentY);
+      x = worldPos.x;
+      y = currentY;
+      z = worldPos.y; // ← El Y del mouse se convierte en Z (altura)
+      console.log(`🖱️ ELEVACIÓN X-${context.currentElevationX}: (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
+    } else if (isElevationZView) {
+      // VISTA ELEVACIÓN LETRAS (A,B,C...): Plano Y-Z, X constante
+      let currentX = 0;
+      const elev = context.zElevations?.find((e) => e.name === context.currentElevationZ);
+      if (elev) currentX = elev.x;
+      x = currentX;
+      y = worldPos.x; // ← El X del mouse se convierte en Y (profundidad)
+      z = worldPos.y; // ← El Y del mouse se convierte en Z (altura)
+      console.log(`🖱️ ELEVACIÓN Z-${context.currentElevationZ}: (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
+    } else {
+      // VISTA PLANTA: Z constante
+      let currentZ = context.getCurrentZ?.() || 0;
+      x = worldPos.x;
+      y = worldPos.y;
+      z = currentZ;
+      console.log(`🖱️ PLANTA: (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
     }
 
-    const { x, y } = mouse;
-    const currentZ = context.getActivePlanElevation();
+    // Buscar nodo cercano (con tolerancia)
+    let node = context.nodes.find((n) => {
+      const dx = Math.abs(n.position.x - x);
+      const dy = Math.abs(n.position.y - y);
+      const dz = Math.abs((n.position.z || 0) - z);
+      return dx < 0.3 && dy < 0.3 && dz < 0.1;
+    });
 
-    const collided = context.closestNodeAtElevation(
-      context.grid.worldToScreen(context.mousePos),
-      currentZ,
-    );
-
-    let node;
-
-    if (collided) {
-      node = collided;
-    } else {
-      node = new StructuralNode(
-        { x: context.mousePos.x, y: context.mousePos.y },
-        context.nodes.length + 1,
-        currentZ
-      );
-
+    if (!node) {
+      node = new StructuralNode({ x: x, y: y }, context.nodes.length + 1, z);
       context.nodes.push(node);
-
-      // const beam = context.closestBeam({ x: x, y: y });
-      let beam = null;
-      // const beam = context.closestBeamAtElevation({ x: x, y: y }, currentZ);
-      if (beam) {
-        const vAB = {
-          x: beam.node2.position.x - beam.node1.position.x,
-          y: beam.node2.position.y - beam.node1.position.y,
-        };
-        const vAD = {
-          x: context.mousePos.x - beam.node1.position.x,
-          y: context.mousePos.y - beam.node1.position.y,
-        };
-        const scale = (vAB.x * vAD.x + vAB.y * vAD.y) / pointDistance({ x: 0, y: 0 }, vAB) ** 2;
-        const projAD_AB = { x: vAB.x * scale, y: vAB.y * scale };
-
-        node.position.x = beam.node1.position.x + projAD_AB.x;
-        node.position.y = beam.node1.position.y + projAD_AB.y;
-        node.position.z = currentZ;
-
-        const startID = beam.id;
-        const node2 = beam.node2;
-
-        removeFromArray(node2.beams, beam);
-        beam.node2 = node;
-        node.beams.push(beam);
-
-        const newBeam = new Beam(context.globalE, context.globalA);
-        newBeam.addNode(node);
-        node.beams.push(newBeam);
-        newBeam.addNode(node2);
-        node2.beams.push(newBeam);
-
-        context.shapes.splice(startID, 0, newBeam);
-        context.shapes.forEach((beam, index) => {
-          beam.id = index + 1;
-        });
-      }
+      console.log(`✅ Nodo creado ID: ${node.id} en (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
+    } else {
+      console.log(`🔗 Nodo existente ID: ${node.id}`);
     }
 
     const isDone = this.shape.addNode(node);
     if (isDone) {
       context.shapes.push(this.shape);
-      this.shape.node1.beams.push(this.shape);
-      this.shape.node2.beams.push(this.shape);
       this.shape.id = context.shapes.length;
+      if (this.shape.node1 && this.shape.node1.beams) {
+        this.shape.node1.beams.push(this.shape);
+      }
+      if (this.shape.node2 && this.shape.node2.beams) {
+        this.shape.node2.beams.push(this.shape);
+      }
+      console.log(`📐 Viga creada ID: ${this.shape.id}`);
       this.shape = new Beam(this.context.globalE, this.context.globalA);
       this.shape.addNode(node);
     }
 
-    if (context.show3DView) {
-      context.sync3D();
-    }
+    context.redraw();
+    context.sync3D();
   }
+
+  // handleMouseMove(event, context, mouse) {
+  //   super.handleMouseMove(...arguments);
+  //   const { x, y } = context.grid.worldToScreen(context.mousePos);
+  //   const last_point = this.shape.node1?.position;
+  //   if (last_point) {
+  //     const lp = context.grid.worldToScreen(last_point);
+  //     const unitVec = {
+  //       x: (x - lp.x) / pointDistance(lp, { x: x, y: y }),
+  //       y: (y - lp.y) / pointDistance(lp, { x: x, y: y }),
+  //     };
+  //     const perpUnitVec = { x: -unitVec.y, y: unitVec.x };
+  //     const midPoint = { x: (lp.x + x) * 0.5, y: (lp.y + y) * 0.5 };
+  //     const mid = { x: midPoint.x + perpUnitVec.x * 100, y: midPoint.y + perpUnitVec.y * 100 };
+  //     this.mid = mid;
+  //     context.distanceInput.style.top = mid.y + "px";
+  //     context.distanceInput.style.left = mid.x + "px";
+  //     context.distanceInput.value = pointDistance(last_point, context.mousePos).toFixed(2);
+  //     context.distanceInput.focus();
+  //     context.distanceInput.select();
+  //   }
+  // }
 
   handleMouseMove(event, context, mouse) {
     super.handleMouseMove(...arguments);
     const { x, y } = context.grid.worldToScreen(context.mousePos);
     const last_point = this.shape.node1?.position;
+
     if (last_point) {
+      // Calcular distancia correctamente según la vista
+      const isElevationXView = context.currentElevationX && context.currentElevationX !== "none";
+      const isElevationZView = context.currentElevationZ && context.currentElevationZ !== "none";
+
+      let distance;
+      if (isElevationXView) {
+        // Distancia en plano X-Z
+        const dx = context.mousePos.x - last_point.x;
+        const dz = context.mousePos.y - (last_point.z || 0);
+        distance = Math.sqrt(dx * dx + dz * dz);
+      } else if (isElevationZView) {
+        // Distancia en plano Y-Z
+        const dy = context.mousePos.x - last_point.y;
+        const dz = context.mousePos.y - (last_point.z || 0);
+        distance = Math.sqrt(dy * dy + dz * dz);
+      } else {
+        // Distancia en plano X-Y (planta)
+        distance = pointDistance(last_point, context.mousePos);
+      }
+
       const lp = context.grid.worldToScreen(last_point);
       const unitVec = {
         x: (x - lp.x) / pointDistance(lp, { x: x, y: y }),
@@ -687,10 +983,10 @@ export class TrussDrawingState extends PanAndZoomState {
       const perpUnitVec = { x: -unitVec.y, y: unitVec.x };
       const midPoint = { x: (lp.x + x) * 0.5, y: (lp.y + y) * 0.5 };
       const mid = { x: midPoint.x + perpUnitVec.x * 100, y: midPoint.y + perpUnitVec.y * 100 };
-      this.mid = mid;
+
       context.distanceInput.style.top = mid.y + "px";
       context.distanceInput.style.left = mid.x + "px";
-      context.distanceInput.value = pointDistance(last_point, context.mousePos).toFixed(2);
+      context.distanceInput.value = distance.toFixed(2);
       context.distanceInput.focus();
       context.distanceInput.select();
     }
