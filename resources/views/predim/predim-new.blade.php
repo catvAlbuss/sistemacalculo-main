@@ -416,9 +416,8 @@
     {{-- Ribbon Adapter Script (loads before main JS) --}}
     @vite(['resources/js/predim/ribbon-adapter.js'])
 
-    {{-- Main Predim JavaScript --}}
-    @vite(['resources/js/adm_predim_view.js'])
-    {{-- TODO: Change to @vite(['resources/js/predim/index.js']) when refactoring is complete --}}
+    {{-- Main Predim JavaScript (refactored modular version) --}}
+    @vite(['resources/js/predim/index.js'])
 
     <script>
         // Enhanced dark mode toggle with icon change
