@@ -53,6 +53,106 @@
       </button>
     </div>
   </div>
+
+  {{-- Modal editor de grillas --}}
+  <div id="grid-editor-modal" hidden style="
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  ">
+    <div style="
+      width: 1200px;
+      max-width: 96vw;
+      max-height: 90vh;
+      overflow: auto;
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 18px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    ">
+      <h2 style="margin-top: 0; color: #111827;">Grid System Data</h2>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px;">
+        <section>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="color: #111827;">X Grid Data</h3>
+            <button id="btn-add-x-grid" type="button">Agregar X</button>
+          </div>
+
+          <table class="w-full border-collapse text-sm" border="1" width="100%" cellspacing="0" cellpadding="6" style="color:#111827;">
+            <thead style="background:#f3f4f6;">
+              <tr>
+                <th>Grid ID</th>
+                <th>X Ordinate</th>
+                <th>Visible</th>
+                <th>Bubble Loc</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="x-grid-body"></tbody>
+          </table>
+        </section>
+
+        <section>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="color: #111827;">Y Grid Data</h3>
+            <button id="btn-add-y-grid" type="button">Agregar Y</button>
+          </div>
+
+          <table class="w-full border-collapse text-sm" border="1" width="100%" cellspacing="0" cellpadding="6" style="color:#111827;">
+            <thead style="background:#f3f4f6;">
+              <tr>
+                <th>Grid ID</th>
+                <th>Y Ordinate</th>
+                <th>Visible</th>
+                <th>Bubble Loc</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="y-grid-body"></tbody>
+          </table>
+        </section>
+      </div>
+
+      <section>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h3 style="color: #111827;">General Grids</h3>
+          <button id="btn-add-general-grid" type="button">Agregar línea general</button>
+        </div>
+
+        <table class="w-full border-collapse text-sm" border="1" width="100%" cellspacing="0" cellpadding="6" style="color:#111827;">
+          <thead style="background:#f3f4f6;">
+            <tr>
+              <th>Grid ID</th>
+              <th>X1</th>
+              <th>Y1</th>
+              <th>X2</th>
+              <th>Y2</th>
+              <th>Visible</th>
+              <th>Bubble Loc</th>
+              <th>Source</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="general-grid-body"></tbody>
+        </table>
+
+        <p style="margin-top:10px; color:#555;">
+          Las líneas con source <strong>x</strong> y <strong>y</strong> se editan desde X Grid Data y Y Grid Data.
+          Las líneas con source <strong>custom</strong> sirven para grillas inclinadas o no ortogonales.
+        </p>
+      </section>
+
+      <div style="margin-top:18px; display:flex; justify-content:flex-end; gap:10px;">
+        <button id="btn-grid-editor-cancel" type="button">Cancelar</button>
+        <button id="btn-grid-editor-apply" type="button">Aplicar</button>
+      </div>
+    </div>
+  </div>
 </main>
 
 @push('styles')

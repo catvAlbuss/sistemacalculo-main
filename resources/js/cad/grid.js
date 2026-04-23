@@ -5,7 +5,7 @@ export class Grid {
     this.scaleX = 1.0;
     this.scaleY = 1.0;
     this.size = 4;
-    this.gridSpacing = 1; // Define grid spacing in world coordinates
+    this.gridSpacing = 1;
     this.spacing = 10;
     this.resize(canvas);
   }
@@ -17,14 +17,43 @@ export class Grid {
     this.offestY = this.height / 2;
   }
 
-  draw(renderer, ctx) {
-    renderer.drawGrid(this, ctx);
+  draw(renderer, ctx, cad) {
+    renderer.drawGrid(this, ctx, cad);
   }
 
   worldToScreen(p) {
     return {
       x: (p.x - this.offestX) * this.scaleX,
       y: (this.offestY - p.y) * this.scaleY,
+    };
+  }
+
+  screenToWorld(p) {
+    return {
+      x: p.x / this.scaleX + this.offestX,
+      y: this.offestY - p.y / this.scaleY,
+    };
+  }
+
+  worldLineToScreen(line) {
+    return {
+      p1: this.worldToScreen({ x: line.x1, y: line.y1 }),
+      p2: this.worldToScreen({ x: line.x2, y: line.y2 }),
+    };
+  }
+
+  getVisibleWorldBounds() {
+    const topLeft = this.screenToWorld({ x: 0, y: 0 });
+    const bottomRight = this.screenToWorld({
+      x: this.width,
+      y: this.height,
+    });
+
+    return {
+      minX: topLeft.x,
+      maxX: bottomRight.x,
+      minY: bottomRight.y,
+      maxY: topLeft.y,
     };
   }
 
@@ -62,11 +91,11 @@ export class Grid {
 
     const dY = Math.abs(view.cminy - view.cmaxy);
     const scaleY = this.height / dY;
-    //this.scaleY = this.scaleX = scaleX < scaleY ? scaleX * 0.9 : scaleY * 0.9;
     this.scaleY = this.scaleX = scaleX < scaleY ? scaleX : scaleY;
 
     this.offestX = 0;
     this.offestY = 0;
+
     const range = this.screenToWorld({
       x: this.width * 0.5,
       y: this.height * 0.5,
@@ -74,12 +103,5 @@ export class Grid {
 
     this.offestX = (view.cminx + view.cmaxx) * 0.5 - range.x;
     this.offestY = (view.cminy + view.cmaxy) * 0.5 - range.y;
-  }
-
-  screenToWorld(p) {
-    return {
-      x: p.x / this.scaleX + this.offestX,
-      y: this.offestY - p.y / this.scaleY,
-    };
   }
 }

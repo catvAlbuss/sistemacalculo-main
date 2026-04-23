@@ -1,3 +1,5 @@
+import { GridEditor } from "./grid_editor.js";
+
 import {
   activate3DDrawingMode,
   elevateSelectedNodes,
@@ -42,7 +44,7 @@ import { TrussDrawingState3D } from "./states.js";
 import { Beam, Node as StructuralNode } from "./shapes.js";
 
 export default () => ({
-  init() {},
+  init() { },
 
   // NUEVAS PROPIEDADES PARA 3D
   show3DView: false,
@@ -81,6 +83,15 @@ export default () => ({
 
   // También agrega referenceGrid si no está
   referenceGrid: null,
+
+  // Guardar estado para restaurar después de cerrar el editor de grid
+  gridEditor: null,
+
+  // NUEVAS FUNCIONES
+  activeGridPoint: null,
+  statusCoordinates: "X 0.00  Y 0.00  Z 0.00",
+  planGridSnapTolerance: 1.0,
+  lastMouseScreen: { x: 0, y: 0 },
 
   initSys(canvas, distanceInput) {
     this.Arco = Arco;
@@ -164,6 +175,8 @@ export default () => ({
     this.prevState = null;
     this.trussDrawingState3D = new TrussDrawingState3D(this);
 
+    this.gridEditor = new GridEditor(this);
+
     document.onkeydown = (event) => {
       this.handleKeyDown(event);
     };
@@ -228,6 +241,13 @@ export default () => ({
       }
     }, 1000);
 
+    const btnOpenGridEditor = document.getElementById("btn-open-grid-editor");
+    if (btnOpenGridEditor) {
+      btnOpenGridEditor.addEventListener("click", () => {
+        this.gridEditor.open();
+      });
+    }
+
     window.cadSystem = this;
   },
 
@@ -268,18 +288,32 @@ export default () => ({
 
   handleMouseMove(event) {
     const { x, y } = mousePositionFrom(this.canvas, event);
-    this.mousePos = this.grid.screenToWorld({ x: x, y: y });
+    this.mousePos = this.grid.screenToWorld({ x, y });
+
     if (this.snap_enabled) {
       this.mousePos.x =
         Math.floor((this.mousePos.x + 0.5) * this.grid.gridSpacing) +
         this.grid.gridSpacing -
         Math.floor(this.grid.gridSpacing);
+
       this.mousePos.y =
         Math.floor((this.mousePos.y + 0.5) * this.grid.gridSpacing) +
         this.grid.gridSpacing -
         Math.floor(this.grid.gridSpacing);
     }
-    this.currentState.handleMouseMove(event, this, mousePositionFrom(this.canvas, event));
+
+    if (this.currentViewMode === "plan") {
+      this.updatePlanGridSnap(this.mousePos, { x, y });
+    } else if (
+      this.currentViewMode === "elevationX" ||
+      this.currentViewMode === "elevationY"
+    ) {
+      this.updateElevationGridSnap(this.mousePos, { x, y });
+    } else {
+      this.activeGridPoint = null;
+    }
+
+    this.currentState.handleMouseMove(event, this, { x, y });
   },
 
   handleMouseLeave(event) {
@@ -301,18 +335,6 @@ export default () => ({
   setCursor(cursor) {
     this.canvas.style.cursor = cursor;
   },
-
-  /* closestMarker(searchPoint) {
-    // Returns null if there are 0 points in the shape
-    var shortestDistance = 5;
-    for (let index = 0; index < markers.length; index++) {
-      const p = markers[index].point;
-      const distance = pointDistance(searchPoint, this.grid.worldToScreen(p));
-      if (distance <= shortestDistance) {
-        return markers[index];
-      }
-    }
-  } */
 
   closestPoint(searchPoint) {
     // Returns null if there are 0 points in the shape
@@ -399,29 +421,10 @@ export default () => ({
     });
   },
 
-  // redraw() {
-  //   this.currentRenderer.render(this);
-  // },
-
   redraw() {
-    // Usar tus métodos de dibujo originales
-    if (this.currentViewMode === "elevation" && this.currentElevationX !== "none") {
-      // Vista de NÚMEROS (1,2,3...) - Plano X-Z con letras A,B,C
-      this.drawElevationView();
-    } else if (this.currentViewMode === "elevationZ" && this.currentElevationZ !== "none") {
-      // Vista de LETRAS (A,B,C...) - Plano Y-Z con números 1,2,3
-      const elev = this.zElevations.find((e) => e.name === this.currentElevationZ);
-      if (elev) {
-        this.drawElevationZView(elev.x);
-      } else {
-        this.currentRenderer.render(this);
-      }
-    } else {
-      // Vista PLANTA
-      this.currentRenderer.render(this);
-    }
+    // Siempre usar el renderer principal para planta y elevaciones
+    this.currentRenderer.render(this);
 
-    // Sincronizar 3D
     if (window.babylonInitialized && window.babylonScene) {
       if (this._syncTimeout) clearTimeout(this._syncTimeout);
       this._syncTimeout = setTimeout(() => {
@@ -429,36 +432,6 @@ export default () => ({
       }, 50);
     }
   },
-
-  // redraw() {
-  //   console.log("=== REDRAW ===");
-  //   console.log("currentViewMode:", this.currentViewMode);
-  //   console.log("currentElevationX:", this.currentElevationX);
-  //   console.log("currentElevationZ:", this.currentElevationZ);
-
-  //   if (this.currentViewMode === "elevation" && this.currentElevationX !== "none") {
-  //     console.log("📐 Llamando a drawElevationView para vista:", this.currentElevationX);
-  //     this.drawElevationView(); // ← TU método
-  //   } else if (this.currentViewMode === "elevationZ" && this.currentElevationZ !== "none") {
-  //     console.log("📐 Llamando a drawElevationZView para vista:", this.currentElevationZ);
-  //     const elev = this.zElevations.find((e) => e.name === this.currentElevationZ);
-  //     if (elev) {
-  //       this.drawElevationZView(elev.x);
-  //     } else {
-  //       this.currentRenderer.render(this);
-  //     }
-  //   } else {
-  //     console.log("📐 Vista PLANTA");
-  //     this.currentRenderer.render(this);
-  //   }
-
-  //   if (window.babylonInitialized && window.babylonScene) {
-  //     if (this._syncTimeout) clearTimeout(this._syncTimeout);
-  //     this._syncTimeout = setTimeout(() => {
-  //       this.drawIn3D();
-  //     }, 50);
-  //   }
-  // },
 
   windowResize() {
     // Set actual size in memory (scaled to account for extra pixel density).
@@ -664,6 +637,164 @@ export default () => ({
     }
   },
 
+  buildXGrids(count, spacing) {
+    const labels = this.getXLabels(count);
+    const grids = [];
+
+    for (let i = 0; i < count; i++) {
+      grids.push({
+        id: labels[i],              // A, B, C...
+        ordinate: i * spacing,      // coordenada X
+        visible: true,
+        bubbleLoc: "End",
+      });
+    }
+
+    return grids;
+  },
+
+  buildYGrids(count, spacing) {
+    const labels = this.getYLabels(count);
+    const grids = [];
+
+    for (let i = 0; i < count; i++) {
+      grids.push({
+        id: String(labels[i]),      // 1, 2, 3...
+        ordinate: i * spacing,      // coordenada Y
+        visible: true,
+        bubbleLoc: "Start",
+      });
+    }
+
+    return grids;
+  },
+
+  rebuildGeneralGrids(targetGrid = this.referenceGrid) {
+    if (!targetGrid) return;
+
+    const ref = targetGrid;
+
+    const customLines = Array.isArray(ref.generalGrids)
+      ? ref.generalGrids.filter((g) => g.source === "custom")
+      : [];
+
+    const xValues = Array.isArray(ref.xGrids)
+      ? ref.xGrids.map((g) => Number(g.ordinate) || 0)
+      : [];
+
+    const yValues = Array.isArray(ref.yGrids)
+      ? ref.yGrids.map((g) => Number(g.ordinate) || 0)
+      : [];
+
+    const minX = xValues.length ? Math.min(...xValues) : 0;
+    const maxX = xValues.length ? Math.max(...xValues) : 10;
+    const minY = yValues.length ? Math.min(...yValues) : 0;
+    const maxY = yValues.length ? Math.max(...yValues) : 10;
+
+    const xLines = (ref.xGrids || []).map((g) => ({
+      id: g.id,
+      x1: Number(g.ordinate) || 0,
+      y1: minY,
+      x2: Number(g.ordinate) || 0,
+      y2: maxY,
+      visible: g.visible !== false,
+      bubbleLoc: g.bubbleLoc || "End",
+      source: "x",
+    }));
+
+    const yLines = (ref.yGrids || []).map((g) => ({
+      id: g.id,
+      x1: minX,
+      y1: Number(g.ordinate) || 0,
+      x2: maxX,
+      y2: Number(g.ordinate) || 0,
+      visible: g.visible !== false,
+      bubbleLoc: g.bubbleLoc || "Start",
+      source: "y",
+    }));
+
+    ref.generalGrids = [...xLines, ...yLines, ...customLines];
+
+    // Compatibilidad con tu sistema actual
+    ref.xPositions = (ref.xGrids || []).map((g) => Number(g.ordinate) || 0);
+    ref.yPositions = (ref.yGrids || []).map((g) => Number(g.ordinate) || 0);
+    ref.xLabels = (ref.xGrids || []).map((g) => g.id);
+    ref.yLabels = (ref.yGrids || []).map((g) => g.id);
+  },
+
+  getReferenceGrid() {
+    return this.referenceGrid;
+  },
+
+  rebuildViewSetFromReferenceGrid() {
+    if (!this.referenceGrid) return;
+
+    const ref = this.referenceGrid;
+    this.viewSet = [];
+
+    this.viewSet.push({
+      type: "plan",
+      storyId: 0,
+      name: "Planta - Base",
+      elevation: 0,
+    });
+
+    for (let i = 1; i <= (ref.storyCount || 0); i++) {
+      this.viewSet.push({
+        type: "plan",
+        storyId: i,
+        name: `Planta - Piso ${i}`,
+        elevation: i * (ref.storyHeight || 0),
+      });
+    }
+
+    // LETRAS => eje X
+    (ref.xPositions || []).forEach((x, i) => {
+      this.viewSet.push({
+        type: "elevation",
+        axis: "X",
+        label: ref.xLabels?.[i],   // A, B, C, D
+        value: x,
+        name: `Elevación ${ref.xLabels?.[i]}`,
+      });
+    });
+
+    // NÚMEROS => eje Y
+    (ref.yPositions || []).forEach((y, i) => {
+      this.viewSet.push({
+        type: "elevation",
+        axis: "Y",
+        label: ref.yLabels?.[i],   // 1, 2, 3, 4
+        value: y,
+        name: `Elevación ${ref.yLabels?.[i]}`,
+      });
+    });
+
+    if (this.activeViewIndex >= this.viewSet.length) {
+      this.activeViewIndex = 0;
+    }
+  },
+
+  rebuildElevationListsFromReferenceGrid() {
+    if (!this.referenceGrid) return;
+
+    const ref = this.referenceGrid;
+
+    // LETRAS => X
+    this.xElevations = (ref.xPositions || []).map((x, i) => ({
+      label: ref.xLabels?.[i],   // A, B, C, D
+      value: x,
+      name: `Elevación ${ref.xLabels?.[i]}`,
+    }));
+
+    // NÚMEROS => Y
+    this.zElevations = (ref.yPositions || []).map((y, i) => ({
+      label: ref.yLabels?.[i],   // 1, 2, 3, 4
+      value: y,
+      name: `Elevación ${ref.yLabels?.[i]}`,
+    }));
+  },
+
   createModelFromDialog(params) {
     console.log("🏗️ Configurando grid de referencia con parámetros:", params);
 
@@ -674,28 +805,21 @@ export default () => ({
       ySpacing: params.gridYSpacing,
       storyCount: params.storyCount,
       storyHeight: params.storyHeight,
+
       xPositions: [],
       yPositions: [],
-      xLabels: this.getXLabels(params.gridXCount),
-      yLabels: this.getYLabels(params.gridYCount),
+      xLabels: [],
+      yLabels: [],
+
+      xGrids: this.buildXGrids(params.gridXCount, params.gridXSpacing),
+      yGrids: this.buildYGrids(params.gridYCount, params.gridYSpacing),
+      generalGrids: [],
     };
 
-    // 1. Primero llenar posiciones del grid
-    for (let i = 0; i < params.gridXCount; i++) {
-      this.referenceGrid.xPositions.push(i * params.gridXSpacing);
-    }
+    this.rebuildGeneralGrids();
 
-    for (let i = 0; i < params.gridYCount; i++) {
-      this.referenceGrid.yPositions.push(i * params.gridYSpacing);
-    }
-
-    // 2. Stories
     this.stories = [
-      {
-        id: 0,
-        name: "Base",
-        elevation: 0,
-      },
+      { id: 0, name: "Base", elevation: 0 },
     ];
 
     for (let i = 1; i <= params.storyCount; i++) {
@@ -708,69 +832,13 @@ export default () => ({
 
     this.activeStory = 0;
 
-    // 3. ViewSet
-    this.viewSet = [];
-
-    // Planta base
-    this.viewSet.push({
-      type: "plan",
-      storyId: 0,
-      name: "Planta - Base",
-      elevation: 0,
-    });
-
-    // Plantas por piso
-    for (let i = 1; i <= params.storyCount; i++) {
-      this.viewSet.push({
-        type: "plan",
-        storyId: i,
-        name: `Planta - Piso ${i}`,
-        elevation: i * params.storyHeight,
-      });
-    }
-
-    // Elevaciones por ejes X => A, B, C...
-    this.referenceGrid.xPositions.forEach((x, i) => {
-      this.viewSet.push({
-        type: "elevation",
-        axis: "X",
-        label: this.referenceGrid.xLabels[i],
-        value: x,
-        name: `Elevación ${this.referenceGrid.xLabels[i]}`,
-      });
-    });
-
-    // Elevaciones por ejes Y => 1, 2, 3...
-    this.referenceGrid.yPositions.forEach((y, i) => {
-      this.viewSet.push({
-        type: "elevation",
-        axis: "Y",
-        label: this.referenceGrid.yLabels[i],
-        value: y,
-        name: `Elevación ${this.referenceGrid.yLabels[i]}`,
-      });
-    });
-
-    // Después de crear this.referenceGrid, agrega:
-    this.xElevations = [];
-    for (let i = 0; i < params.gridXCount; i++) {
-      this.xElevations.push({
-        name: (i + 1).toString(), // "1", "2", "3"... (NÚMEROS)
-        y: i * params.gridXSpacing,
-      });
-    }
-
-    this.zElevations = [];
-    const letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
-    for (let i = 0; i < params.gridYCount; i++) {
-      this.zElevations.push({
-        name: letters[i % letters.length], // "A", "B", "C"... (LETRAS)
-        x: i * params.gridYSpacing,
-      });
-    }
+    this.rebuildViewSetFromReferenceGrid();
+    this.rebuildElevationListsFromReferenceGrid();
 
     this.activeViewIndex = 0;
-    this.viewMode = "plan";
+    this.currentViewMode = "plan";
+    this.currentElevationX = "none";
+    this.currentElevationZ = "none";
 
     if (this.referenceGrid.xPositions.length > 0 && this.referenceGrid.yPositions.length > 0) {
       const minX = Math.min(...this.referenceGrid.xPositions);
@@ -887,37 +955,190 @@ export default () => ({
     }
   },
 
+  // nueva función para cambiar de vista según el índice del set
+  getNearestValueWithIndex(values, target) {
+    if (!Array.isArray(values) || values.length === 0) return null;
+
+    let nearestIndex = 0;
+    let nearestValue = values[0];
+    let minDist = Math.abs(values[0] - target);
+
+    for (let i = 1; i < values.length; i++) {
+      const dist = Math.abs(values[i] - target);
+      if (dist < minDist) {
+        minDist = dist;
+        nearestIndex = i;
+        nearestValue = values[i];
+      }
+    }
+
+    return {
+      index: nearestIndex,
+      value: nearestValue,
+      distance: minDist,
+    };
+  },
+
+  getActivePlanElevation() {
+    const view = this.viewSet?.[this.activeViewIndex];
+    if (view?.type === "plan") {
+      return view.elevation ?? 0;
+    }
+
+    const story = this.stories?.find((s) => s.name === this.currentStory);
+    return story?.elevation ?? 0;
+  },
+
+  getNearestPlanGridPoint(mouseWorld, mouseScreen) {
+    const ref = this.referenceGrid;
+    if (!ref) return null;
+
+    const xValues = Array.isArray(ref.xPositions) ? ref.xPositions : [];
+    const yValues = Array.isArray(ref.yPositions) ? ref.yPositions : [];
+    const xLabels = Array.isArray(ref.xLabels) ? ref.xLabels : [];
+    const yLabels = Array.isArray(ref.yLabels) ? ref.yLabels : [];
+
+    if (!xValues.length || !yValues.length) return null;
+
+    let best = null;
+
+    for (let ix = 0; ix < xValues.length; ix++) {
+      for (let iy = 0; iy < yValues.length; iy++) {
+        const worldPoint = {
+          x: xValues[ix],
+          y: yValues[iy],
+          z: this.getActivePlanElevation(),
+        };
+
+        const screenPoint = this.grid.worldToScreen({
+          x: worldPoint.x,
+          y: worldPoint.y,
+        });
+
+        const dxScreen = mouseScreen.x - screenPoint.x;
+        const dyScreen = mouseScreen.y - screenPoint.y;
+        const screenDistance = Math.sqrt(dxScreen * dxScreen + dyScreen * dyScreen);
+
+        if (
+          best === null ||
+          screenDistance < best.screenDistance
+        ) {
+          best = {
+            x: worldPoint.x,
+            y: worldPoint.y,
+            z: worldPoint.z,
+            xGridId: xLabels[ix] ?? String(ix + 1),
+            yGridId: yLabels[iy] ?? String(iy + 1),
+            label: `Grid Point ${xLabels[ix] ?? ix + 1} ${yLabels[iy] ?? iy + 1}`,
+            screenDistance,
+          };
+        }
+      }
+    }
+
+    if (!best) return null;
+    if (best.screenDistance > this.planGridSnapScreenTolerance) return null;
+
+    return best;
+  },
+
+  updatePlanGridSnap(mouseWorld, mouseScreen) {
+    const view = this.viewSet?.[this.activeViewIndex];
+
+    this.lastMouseScreen = mouseScreen;
+
+    // PLANTA
+    if (view && view.type === "plan") {
+      const point = this.getNearestPlanGridPoint(mouseWorld, mouseScreen);
+      this.activeGridPoint = point;
+
+      if (point) {
+        this.statusCoordinates = `X ${point.x.toFixed(2)}  Y ${point.y.toFixed(2)}  Z ${point.z.toFixed(2)}`;
+      } else {
+        const z = this.getActivePlanElevation();
+        this.statusCoordinates = `X ${mouseWorld.x.toFixed(2)}  Y ${mouseWorld.y.toFixed(2)}  Z ${z.toFixed(2)}`;
+      }
+
+      return;
+    }
+
+    // ELEVACIÓN POR LETRAS => X fija => plano Y-Z
+    if (view?.type === "elevation" && view.axis === "X") {
+      const fixedX = view.value ?? 0;
+      this.activeGridPoint = null;
+      this.statusCoordinates = `X ${fixedX.toFixed(2)}  Y ${mouseWorld.x.toFixed(2)}  Z ${mouseWorld.y.toFixed(2)}`;
+      return;
+    }
+
+    // ELEVACIÓN POR NÚMEROS => Y fija => plano X-Z
+    if (view?.type === "elevation" && view.axis === "Y") {
+      const fixedY = view.value ?? 0;
+      this.activeGridPoint = null;
+      this.statusCoordinates = `X ${mouseWorld.x.toFixed(2)}  Y ${fixedY.toFixed(2)}  Z ${mouseWorld.y.toFixed(2)}`;
+      return;
+    }
+
+    this.activeGridPoint = null;
+    this.statusCoordinates = `X ${mouseWorld.x.toFixed(2)}  Y ${mouseWorld.y.toFixed(2)}  Z 0.00`;
+  },
+
+  isPlanView() {
+    return this.currentViewMode === "plan";
+  },
+
+  isNumberElevationView() {
+    // Elevaciones 1,2,3,4 -> plano X-Z (Y fijo)
+    return (
+      this.currentViewMode === "elevation" ||
+      this.currentViewMode === "elevationY"
+    );
+  },
+
+  isLetterElevationView() {
+    // Elevaciones A,B,C,D -> plano Y-Z (X fijo)
+    return (
+      this.currentViewMode === "elevationZ" ||
+      this.currentViewMode === "elevationX"
+    );
+  },
+
+  isAnyElevationView() {
+    return this.isNumberElevationView() || this.isLetterElevationView();
+  },
+
   setViewFromSet(index) {
     this.activeViewIndex = Number(index);
     const view = this.viewSet[this.activeViewIndex];
     if (!view) return;
 
-    // Salir del estado actual limpiamente
     if (this.currentState && this.currentState.exit) {
       this.currentState.exit();
     }
 
-    // Limpiar selecciones
     this.clearAllSelections();
+    this.activeGridPoint = null;
 
-    // Actualizar propiedades según la vista
     if (view.type === "plan") {
       this.currentViewMode = "plan";
       this.currentElevationX = "none";
       this.currentElevationZ = "none";
+
       const story = this.stories.find((s) => s.elevation === view.elevation);
       if (story) this.currentStory = story.name;
+
     } else if (view.type === "elevation" && view.axis === "X") {
-      this.currentViewMode = "elevationZ";
+      // Letras A,B,C... => plano Y-Z
+      this.currentViewMode = "elevationX";
       this.currentElevationZ = view.label;
       this.currentElevationX = "none";
+
     } else if (view.type === "elevation" && view.axis === "Y") {
-      this.currentViewMode = "elevation";
+      // Números 1,2,3... => plano X-Z
+      this.currentViewMode = "elevationY";
       this.currentElevationX = view.label;
       this.currentElevationZ = "none";
     }
 
-    // Establecer el nuevo estado
     this.currentState = this.idleState;
     if (this.currentState.enter) {
       this.currentState.enter();
@@ -925,6 +1146,219 @@ export default () => ({
 
     this.redraw();
     this.sync3D();
+  },
+
+  findClosestGridValue(values = [], labels = [], target = 0, tolerance = 0.3) {
+    if (!values || values.length === 0) return null;
+
+    let bestIndex = -1;
+    let bestDistance = Infinity;
+
+    values.forEach((value, index) => {
+      const d = Math.abs(Number(value) - Number(target));
+      if (d < bestDistance) {
+        bestDistance = d;
+        bestIndex = index;
+      }
+    });
+
+    if (bestIndex === -1 || bestDistance > tolerance) return null;
+
+    return {
+      index: bestIndex,
+      value: Number(values[bestIndex]),
+      label: labels?.[bestIndex] ?? String(bestIndex + 1),
+      distance: bestDistance
+    };
+  },
+
+  findClosestStoryLevel(targetZ = 0, tolerance = 0.3) {
+    const ref = this.referenceGrid;
+    if (!ref) return null;
+
+    const storyCount = Number(ref.storyCount || 0);
+    const storyHeight = Number(ref.storyHeight || 0);
+
+    let levels = [{ label: "BASE", z: 0 }];
+
+    for (let i = 1; i <= storyCount; i++) {
+      levels.push({
+        label: `STORY${i}`,
+        z: i * storyHeight
+      });
+    }
+
+    let best = null;
+    let bestDistance = Infinity;
+
+    levels.forEach(level => {
+      const d = Math.abs(level.z - Number(targetZ));
+      if (d < bestDistance) {
+        bestDistance = d;
+        best = { ...level, distance: d };
+      }
+    });
+
+    if (!best || best.distance > tolerance) return null;
+
+    return best;
+  },
+
+  getFixedCoordinateForActiveElevation() {
+    const view = this.viewSet?.[this.activeViewIndex];
+    const ref = this.referenceGrid;
+    if (!ref || !view) return 0;
+
+    // NÚMEROS => eje Y fijo
+    if (view.axis === "Y") {
+      const idx = (ref.yLabels || []).findIndex(
+        label => String(label) === String(view.label)
+      );
+      if (idx >= 0) return Number(ref.yPositions[idx] || 0);
+    }
+
+    // LETRAS => eje X fijo
+    if (view.axis === "X") {
+      const idx = (ref.xLabels || []).findIndex(
+        label => String(label) === String(view.label)
+      );
+      if (idx >= 0) return Number(ref.xPositions[idx] || 0);
+    }
+
+    return 0;
+  },
+
+  updateElevationGridSnap(mouseWorld, mouseScreen) {
+    const view = this.viewSet?.[this.activeViewIndex];
+    const ref = this.referenceGrid;
+
+    if (!view || !ref) {
+      this.activeGridPoint = null;
+      return;
+    }
+
+    const toleranceX = 12 / (this.grid.scaleX || 1);
+    const toleranceY = 12 / (this.grid.scaleY || 1);
+
+    const snapZ = this.findClosestStoryLevel(mouseWorld.y, toleranceY);
+
+    if (!snapZ) {
+      this.activeGridPoint = null;
+      return;
+    }
+
+    // ELEVACIÓN NUMÉRICA => plano X-Z => Y fijo
+    if (this.currentViewMode === "elevationY") {
+      const fixedY = this.getFixedCoordinateForActiveElevation();
+
+      const snapX = this.findClosestGridValue(
+        ref.xPositions || [],
+        ref.xLabels || [],
+        mouseWorld.x,
+        toleranceX
+      );
+
+      if (!snapX) {
+        this.activeGridPoint = null;
+        return;
+      }
+
+      this.activeGridPoint = {
+        x: snapX.value,
+        y: fixedY,
+        z: snapZ.z,
+        xGridId: snapX.label,
+        yGridId: String(view.label),
+        storyLabel: snapZ.label,
+        label: `Grid Point ${snapX.label} ${view.label}`,
+        source: "elevation-xz"
+      };
+
+      this.statusCoordinates = `X ${snapX.value.toFixed(2)}  Y ${fixedY.toFixed(2)}  Z ${snapZ.z.toFixed(2)}`;
+      return;
+    }
+
+    // ELEVACIÓN POR LETRAS => plano Y-Z => X fijo
+    if (this.currentViewMode === "elevationX") {
+      const fixedX = this.getFixedCoordinateForActiveElevation();
+
+      const snapY = this.findClosestGridValue(
+        ref.yPositions || [],
+        ref.yLabels || [],
+        mouseWorld.x,
+        toleranceX
+      );
+
+      if (!snapY) {
+        this.activeGridPoint = null;
+        return;
+      }
+
+      this.activeGridPoint = {
+        x: fixedX,
+        y: snapY.value,
+        z: snapZ.z,
+        xGridId: String(view.label),
+        yGridId: snapY.label,
+        storyLabel: snapZ.label,
+        label: `Grid Point ${view.label} ${snapY.label}`,
+        source: "elevation-yz"
+      };
+
+      this.statusCoordinates = `X ${fixedX.toFixed(2)}  Y ${snapY.value.toFixed(2)}  Z ${snapZ.z.toFixed(2)}`;
+      return;
+    }
+
+    this.activeGridPoint = null;
+  },
+
+  getCurrentSnapPoint(worldPos) {
+    if (this.activeGridPoint) {
+      return {
+        x: this.activeGridPoint.x,
+        y: this.activeGridPoint.y,
+        z: this.activeGridPoint.z
+      };
+    }
+
+    const view = this.viewSet?.[this.activeViewIndex];
+
+    // Si no hay snap, igual devuelve un punto coherente según la vista
+    if (!view || view.type === "plan") {
+      return {
+        x: worldPos.x,
+        y: worldPos.y,
+        z: this.currentZ || 0
+      };
+    }
+
+    if (view.type === "elevation") {
+      const fixedCoord = this.getFixedCoordinateForActiveElevation(view);
+
+      // Elevación numérica: plano X-Z con Y fijo
+      if (view.axis === "Y") {
+        return {
+          x: worldPos.x,
+          y: fixedCoord,
+          z: worldPos.y
+        };
+      }
+
+      // Elevación por letras: plano Y-Z con X fijo
+      if (view.axis === "X") {
+        return {
+          x: fixedCoord,
+          y: worldPos.x,
+          z: worldPos.y
+        };
+      }
+    }
+
+    return {
+      x: worldPos.x,
+      y: worldPos.y,
+      z: 0
+    };
   },
 
   setStory(id) {
@@ -1116,53 +1550,6 @@ export default () => ({
     return closest;
   },
 
-  // closestBeamAtActiveView(searchPoint) {
-  //   const view = this.viewSet?.[this.activeViewIndex];
-  //   const tolerance = 0.05;
-  //   let closest = null;
-  //   let shortestDistance = 10;
-
-  //   for (let i = 0; i < this.shapes.length; i++) {
-  //     const beam = this.shapes[i];
-  //     if (!beam?.node1 || !beam?.node2) continue;
-
-  //     const x1 = beam.node1.position.x || 0;
-  //     const y1 = beam.node1.position.y || 0;
-  //     const z1 = beam.node1.position.z || 0;
-
-  //     const x2 = beam.node2.position.x || 0;
-  //     const y2 = beam.node2.position.y || 0;
-  //     const z2 = beam.node2.position.z || 0;
-
-  //     let belongs = true;
-
-  //     if (view?.type === "plan") {
-  //       belongs =
-  //         Math.abs(z1 - (view.elevation ?? 0)) <= tolerance && Math.abs(z2 - (view.elevation ?? 0)) <= tolerance;
-  //     } else if (view?.type === "elevation") {
-  //       if (view.axis === "X") {
-  //         belongs = Math.abs(x1 - view.value) <= tolerance && Math.abs(x2 - view.value) <= tolerance;
-  //       }
-  //       if (view.axis === "Y") {
-  //         belongs = Math.abs(y1 - view.value) <= tolerance && Math.abs(y2 - view.value) <= tolerance;
-  //       }
-  //     }
-
-  //     if (!belongs) continue;
-
-  //     const p1 = this.grid.worldToScreen(beam.node1.position);
-  //     const p2 = this.grid.worldToScreen(beam.node2.position);
-  //     const dist = pointDistanceToSegment(searchPoint, p1, p2);
-
-  //     if (dist < shortestDistance) {
-  //       shortestDistance = dist;
-  //       closest = beam;
-  //     }
-  //   }
-
-  //   return closest;
-  // },
-
   closestBeamAtActiveView(searchPoint) {
     const view = this.viewSet?.[this.activeViewIndex];
     const tolerance = 0.05;
@@ -1338,6 +1725,10 @@ export default () => ({
   drawElevationGridOnly(currentY) {
     const tempGrid = this.grid;
     const ctx = this.ctx;
+
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+
     ctx.save();
     ctx.strokeStyle = "#3a6a9a";
     ctx.fillStyle = "#8aadcc";
@@ -1352,14 +1743,15 @@ export default () => ({
     }
 
     const xPositions = refGrid.xPositions;
-    const xLabels = refGrid.xLabels; // A, B, C...
+    const xLabels = refGrid.xLabels; // A, B, C, D...
     const storyCount = refGrid.storyCount;
     const storyHeight = refGrid.storyHeight;
+
     const axisColor = "#ff6666";
     const lineColor = "#3a6a9a";
     const textColor = "#8aadcc";
 
-    // Líneas horizontales (pisos)
+    // Líneas horizontales (niveles Z)
     for (let floor = 0; floor <= storyCount; floor++) {
       const z = floor * storyHeight;
       const screenY = tempGrid.worldToScreen({ x: 0, y: z }).y;
@@ -1376,42 +1768,46 @@ export default () => ({
       ctx.font = floor === 0 ? "bold 10px Arial" : "10px Arial";
       const label = floor === 0 ? "BASE" : `STORY${floor}`;
       ctx.fillText(label, 10, screenY - 5);
+
       ctx.fillStyle = "#666";
       ctx.font = "9px Arial";
       ctx.fillText(`${z}m`, 80, screenY - 5);
     }
 
-    // Líneas verticales (ejes X - A, B, C...)
+    // Líneas verticales del plano X-Z (ejes A, B, C, D...)
     xPositions.forEach((x, index) => {
-      const screenX = tempGrid.worldToScreen({ x: x, y: 0 }).x;
-      const isActive = this.currentElevationX === (index + 1).toString();
+      const screenX = tempGrid.worldToScreen({ x, y: 0 }).x;
 
       ctx.beginPath();
-      ctx.strokeStyle = isActive ? axisColor : lineColor;
-      ctx.lineWidth = isActive ? 2 : 0.8;
-      ctx.setLineDash(isActive ? [] : [8, 4]);
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 0.8;
+      ctx.setLineDash([8, 4]);
       ctx.moveTo(screenX, 0);
       ctx.lineTo(screenX, this.canvas.height);
       ctx.stroke();
 
-      ctx.fillStyle = isActive ? axisColor : textColor;
-      ctx.font = isActive ? "bold 12px Arial" : "11px Arial";
+      ctx.fillStyle = textColor;
+      ctx.font = "11px Arial";
       ctx.fillText(xLabels[index], screenX - 6, this.canvas.height - 10);
     });
 
     ctx.setLineDash([]);
+
     const origin = tempGrid.worldToScreen({ x: 0, y: 0 });
     ctx.beginPath();
     ctx.arc(origin.x, origin.y, 5, 0, 2 * Math.PI);
     ctx.fillStyle = "#ff8888";
     ctx.fill();
+
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 10px Arial";
     ctx.fillText("0,0", origin.x + 8, origin.y - 5);
 
+    // Título correcto para elevaciones numéricas
     ctx.font = "bold 12px 'Segoe UI', Arial";
     ctx.fillStyle = "#4a90d9";
-    ctx.fillText(`📐 Vista X-Z (Eje ${this.currentElevationX}) - Y = ${currentY}m`, 15, 30);
+    ctx.fillText(`📐 ELEVACIÓN Eje Y-${this.currentElevationZ} (Y = ${currentY}m) - Plano X-Z`, 15, 30);
+
     ctx.font = "10px Arial";
     ctx.fillStyle = "#888";
     ctx.fillText("Haz clic para dibujar | Esc para salir", 15, 50);
@@ -1420,6 +1816,15 @@ export default () => ({
   },
 
   drawReferenceGridOnly(grid, context) {
+
+    if (isElevationX) {
+      this.drawElevationGridOnly(grid, context);
+    } else if (isElevationY) {
+      this.drawElevationZGridOnly(grid, context, view);
+    } else {
+      this.drawPlanGrid(grid, context, refGrid);
+    }
+
     const ctx = context.ctx;
     const refGrid = context.referenceGrid;
     const view = context.viewSet?.[context.activeViewIndex];

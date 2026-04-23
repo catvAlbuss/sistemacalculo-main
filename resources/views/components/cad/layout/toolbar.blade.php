@@ -155,21 +155,14 @@
     </x-cad.ribbon-button>
   </x-cad.ribbon-group> -->
 
-  <!-- -------------------------APARTADO DE NIVELES (ETABS) ----------------------- -->
-  <x-cad.ribbon-group title="Niveles">
-
-    <div class="flex flex-col px-2 py-1 text-xs text-white">
-      <label class="mb-1 text-gray-300">Nivel activo</label>
-
-      <select
-        class="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm"
-        @change="setStory($event.target.value)">
-        <template x-for="story in stories" :key="story.id">
-          <option :value="story.id" x-text="story.name"></option>
-        </template>
-      </select>
-    </div>
-
+  <x-cad.ribbon-group title="Grillas">
+    <button
+      id="btn-open-grid-editor"
+      type="button"
+      class="hover:bg-opacity-80 cad-text-logo-color flex min-w-[72px] flex-col items-center justify-center rounded px-3 py-2 text-xs transition hover:bg-gray-700">
+      <x-cad.svg.grid></x-cad.svg.grid>
+      <span class="mt-1 text-[11px]">Editar</span>
+    </button>
   </x-cad.ribbon-group>
 
   <x-cad.ribbon-group title="Vistas">
