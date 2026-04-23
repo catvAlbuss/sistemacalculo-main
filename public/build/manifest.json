@@ -114,7 +114,7 @@
     "src": "node_modules/jquery-ui/themes/base/images/ui-icons_ffffff_256x240.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-exB2Fl8p.css",
+    "file": "assets/app-D9g_obtT.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
@@ -845,6 +845,18 @@
       "resources/js/scientific_calculator_applet.js",
       "_jquery-CyiP2wLU.js",
       "__commonjsHelpers-_d1bhYXs.js"
+    ]
+  },
+  "resources/js/predim/index.js": {
+    "file": "assets/index-Cdt0Zv3r.js",
+    "name": "index",
+    "src": "resources/js/predim/index.js",
+    "isEntry": true,
+    "imports": [
+      "resources/js/adm_predim_view.js",
+      "_rizabalasociados-DHREaxkb.js",
+      "_printThis-eR5fzPta.js",
+      "_html2canvas.esm-5Cw11iw4.js"
     ]
   },
   "resources/js/predim/ribbon-adapter.js": {

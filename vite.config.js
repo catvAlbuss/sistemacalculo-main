@@ -9,6 +9,7 @@ export default defineConfig({
                 "resources/css/app.css",
                 "resources/css/predim.css",
                 ...glob.sync("resources/js/*.js").filter(f => !f.includes('memoria_calculo') && !f.includes('index-deprecated')),
+                "resources/js/predim/index.js",
                 "resources/js/predim/ribbon-adapter.js",
                 ...glob.sync("resources/js/cav2/*.js"),
                 ...glob.sync("resources/js/memoria_calculo/*.js").filter(f => !f.includes('index-deprecated')),
