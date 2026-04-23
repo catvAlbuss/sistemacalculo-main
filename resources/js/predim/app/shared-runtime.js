@@ -171,6 +171,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let shapes = []; // Array para almacenar todas las formas dibujadas
   let pdfSnapshot = null;
   let currentBrightness = 1; // Valor inicial del brillo
+  const hiddenTools = new Set();
 
   //INICIO DE LA PRUEBA DE RENDERIZADO
 
@@ -336,7 +337,7 @@ document.addEventListener("DOMContentLoaded", function () {
         fill: this.fillColor.checked,
         tool: selectedTool,
       };
-      shapes.push(shape);
+      pushShape(shape);
       this.redrawCanvas();
       this.updateCount();
     }
@@ -367,11 +368,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Redibujar todas las formas
       shapes.forEach((shape) => {
-        const tool = tools[shape.tool];
-        if (tool && typeof tool.drawShape === "function") {
-          tool.drawShape(shape);
-        } else {
-          console.warn(`No drawShape method found for tool: ${shape.tool}`);
+        if (shape.visible !== false) {
+          const tool = tools[shape.tool];
+          if (tool && typeof tool.drawShape === "function") {
+            tool.drawShape(shape);
+          } else {
+            console.warn(`No drawShape method found for tool: ${shape.tool}`);
+          }
         }
       });
     }
@@ -2590,7 +2593,7 @@ document.addEventListener("DOMContentLoaded", function () {
         brushWidth: this.brushWidth,
         tool: "lapiz",
       };
-      shapes.push(shape);
+      pushShape(shape);
       this.updateCount();
     }
 
@@ -2643,7 +2646,7 @@ document.addEventListener("DOMContentLoaded", function () {
         fontFamily: this.fontFamily,
         tool: "texto",
       };
-      shapes.push(shape);
+      pushShape(shape);
       this.redrawCanvas();
       this.updateCount();
     }
@@ -2760,7 +2763,7 @@ document.addEventListener("DOMContentLoaded", function () {
         color: this.selectedColor,
         brushWidth: this.brushWidth,
       };
-      shapes.push(shape);
+      pushShape(shape);
       this.redrawCanvas();
       this.updateCount();
     }
@@ -2954,7 +2957,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Luego, dibujamos las formas visibles
     shapes.forEach((shape) => {
-      if (shape.visible) {
+      if (shape.visible !== false) {
         const tool = tools[shape.tool];
         if (tool && tool.drawShape) {
           tool.drawShape(shape);
@@ -3125,33 +3128,104 @@ document.addEventListener("DOMContentLoaded", function () {
   bindIfExists("zapataCuad", "change", function () {
     toggleShapes("cuadradozapata", this.checked);
   });
-  // Agrega una propiedad 'visible' a las figuras al crearlas
-  function addShape(shape) {
-    shape.visible = true; // Por defecto, las formas son visibles
+
+  function pushShape(shape) {
+    shape.visible = !hiddenTools.has(shape.tool);
     shapes.push(shape);
+  }
+
+  function setToolVisibility(toolName, isVisible) {
+    if (isVisible) {
+      hiddenTools.delete(toolName);
+    } else {
+      hiddenTools.add(toolName);
+    }
+
+    shapes.forEach((shape) => {
+      if (shape.tool === toolName) {
+        shape.visible = isVisible;
+      }
+    });
+
+    redrawAllShapes();
+  }
+
+  function syncVisibilityControls() {
+    document.querySelectorAll("[data-visibility-tool]").forEach((input) => {
+      const toolName = input.getAttribute("data-visibility-tool");
+      input.checked = !hiddenTools.has(toolName);
+    });
+  }
+
+  function showAllShapes() {
+    hiddenTools.clear();
+    shapes.forEach((shape) => {
+      shape.visible = true;
+    });
+    syncVisibilityControls();
+    redrawAllShapes();
+  }
+
+  function hideAllShapes() {
+    document.querySelectorAll("[data-visibility-tool]").forEach((input) => {
+      hiddenTools.add(input.getAttribute("data-visibility-tool"));
+    });
+
+    shapes.forEach((shape) => {
+      shape.visible = false;
+    });
+    syncVisibilityControls();
+    redrawAllShapes();
+  }
+
+  function showOnlyTool(toolName) {
+    const allTools = [...document.querySelectorAll("[data-visibility-tool]")].map((input) =>
+      input.getAttribute("data-visibility-tool"),
+    );
+
+    hiddenTools.clear();
+    allTools.forEach((name) => {
+      if (name !== toolName) {
+        hiddenTools.add(name);
+      }
+    });
+
+    shapes.forEach((shape) => {
+      shape.visible = shape.tool === toolName;
+    });
+
+    syncVisibilityControls();
+    redrawAllShapes();
   }
 
   // Ocultar las figuras de un tipo específico
   function hideShapes(toolName) {
     console.log(toolName);
-    shapes.forEach((shape) => {
-      console.log(shape.tool === toolName);
-      if (shape.tool === toolName) {
-        shape.visible = false; // Marcar como no visible
-      }
-    });
-    redrawAllShapes();
+    setToolVisibility(toolName, false);
   }
 
   // Mostrar las figuras de un tipo específico
   function showShapes(toolName) {
-    shapes.forEach((shape) => {
-      if (shape.tool === toolName) {
-        shape.visible = true; // Marcar como visible
-      }
-    });
-    redrawAllShapes();
+    setToolVisibility(toolName, true);
   }
+
+  document.querySelectorAll("[data-visibility-tool]").forEach((input) => {
+    input.addEventListener("change", (event) => {
+      const toolName = event.currentTarget.getAttribute("data-visibility-tool");
+      setToolVisibility(toolName, event.currentTarget.checked);
+      syncVisibilityControls();
+    });
+  });
+
+  document.querySelectorAll("[data-visibility-only]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      showOnlyTool(event.currentTarget.getAttribute("data-visibility-only"));
+    });
+  });
+
+  bindIfExists("show-all-shapes", "click", showAllShapes);
+  bindIfExists("hide-all-shapes", "click", hideAllShapes);
+  syncVisibilityControls();
 });
 
 bindElementIfExists("btn_pdf_predim", "click", () => {

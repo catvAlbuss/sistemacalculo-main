@@ -1,507 +1,554 @@
-/* Predim Module - Modern Ribbon Interface Styles */
+/* ============================================================
+   PREDIM — Rizabal & Asociados
+   Ribbon-style UI — compact Paint mode
+   ============================================================ */
 
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+/* ── VARIABLES ──────────────────────────────────────────────── */
 :root {
-  --predim-primary: #2563eb;
-  --predim-primary-dark: #1d4ed8;
-  --predim-secondary: #64748b;
-  --predim-bg-main: #ffffff;
-  --predim-bg-surface: #f8fafc;
-  --predim-bg-hover: #f1f5f9;
-  --predim-border: #e2e8f0;
-  --predim-text-main: #0f172a;
-  --predim-text-secondary: #64748b;
-  --predim-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --predim-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  --predim-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  /* Alturas fijas del ribbon */
+  --rb-h-top:     34px;
+  --rb-h-tabs:    26px;
+  --rb-h-content: 80px;
+  --rb-total:    140px;          /* top + tabs + content */
+
+  /* Dark (por defecto) */
+  --rb-bg:           #1c1e24;
+  --rb-bg2:          #252830;
+  --rb-bg3:          #2e323d;
+  --rb-border:       #383d4a;
+  --rb-accent:       #3b82f6;
+  --rb-accent2:      #60a5fa;
+  --rb-text:         #d4d8e2;
+  --rb-muted:        #7a8096;
+  --rb-btn-bg:       #2e323d;
+  --rb-btn-hover:    #3a3f4e;
+  --rb-btn-active:   #1e3a5f;
+  --rb-btn-act-text: #60a5fa;
+  --rb-group-sep:    #383d4a;
+  --rb-input-bg:     #1c1e24;
+  --rb-input-border: #454c5e;
+  --rb-canvas-outer: #1a1c22;
+  --rb-status-bg:    #161820;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+:root[data-theme="light"] {
+  --rb-bg:           #f0f2f5;
+  --rb-bg2:          #ffffff;
+  --rb-bg3:          #e4e7ef;
+  --rb-border:       #d0d5e0;
+  --rb-accent:       #1d4ed8;
+  --rb-accent2:      #2563eb;
+  --rb-text:         #1e2230;
+  --rb-muted:        #6b7280;
+  --rb-btn-bg:       #e8edf5;
+  --rb-btn-hover:    #d8dff0;
+  --rb-btn-active:   #c0d0ef;
+  --rb-btn-act-text: #1d4ed8;
+  --rb-group-sep:    #d0d5e0;
+  --rb-input-bg:     #ffffff;
+  --rb-input-border: #b0b9cc;
+  --rb-canvas-outer: #c8ccd4;
+  --rb-status-bg:    #e8eaef;
 }
+
+/* ── BASE ───────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background-color: var(--predim-bg-surface);
-  color: var(--predim-text-main);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 12px;
+  background: var(--rb-canvas-outer);
+  color: var(--rb-text);
   overflow: hidden;
 }
 
-/* Container Principal */
+/* ── LAYOUT PRINCIPAL ───────────────────────────────────────── */
 .predim-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
   width: 100vw;
+  overflow: hidden;
 }
 
-/* ========== RIBBON HEADER ========== */
 .predim-ribbon {
-  background: var(--predim-bg-main);
-  border-bottom: 1px solid var(--predim-border);
-  box-shadow: var(--predim-shadow-sm);
+  flex-shrink: 0;
+  background: var(--rb-bg2);
 }
 
-/* Top Bar con Logo y Título */
+.predim-workspace {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── TOPBAR ─────────────────────────────────────────────────── */
 .predim-topbar {
+  height: var(--rb-h-top);
+  background: var(--rb-bg);
+  border-bottom: 1px solid var(--rb-border);
   display: flex;
   align-items: center;
-  padding: 8px 16px;
-  gap: 16px;
-  border-bottom: 1px solid var(--predim-border);
+  padding: 0 10px;
+  gap: 8px;
 }
 
 .predim-logo {
-  width: 32px;
-  height: 32px;
-  object-fit: contain;
+  height: 20px;
+  width: auto;
+  flex-shrink: 0;
+  opacity: 0.9;
 }
 
 .predim-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--predim-text-main);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--rb-accent2);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Ribbon Tabs */
-.predim-ribbon-tabs {
+/* dark-mode toggle como icon btn pequeño */
+#dark-mode-toggle {
+  margin-left: auto !important;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--rb-muted);
+  cursor: pointer;
   display: flex;
-  gap: 4px;
-  padding: 0 16px;
-  background: var(--predim-bg-surface);
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: background 0.15s, color 0.15s;
+}
+#dark-mode-toggle:hover {
+  background: var(--rb-btn-hover);
+  color: var(--rb-text);
+}
+
+/* ── TABS ───────────────────────────────────────────────────── */
+.predim-ribbon-tabs {
+  height: var(--rb-h-tabs);
+  background: var(--rb-bg);
+  display: flex;
+  align-items: flex-end;
+  padding: 0 8px;
+  gap: 1px;
+  border-bottom: 1px solid var(--rb-border);
 }
 
 .predim-ribbon-tab {
-  padding: 8px 20px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--predim-text-secondary);
+  height: 22px;
+  padding: 0 12px;
   background: transparent;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-radius: 3px 3px 0 0;
+  color: var(--rb-muted);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.12s, color 0.12s;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
+.predim-ribbon-tab:hover { color: var(--rb-text); background: var(--rb-bg3); }
+.predim-ribbon-tab.active { color: #fff; background: var(--rb-accent); }
+:root[data-theme="light"] .predim-ribbon-tab.active { color: #fff; }
 
-.predim-ribbon-tab:hover {
-  color: var(--predim-text-main);
-  background: var(--predim-bg-hover);
-}
-
-.predim-ribbon-tab.active {
-  color: var(--predim-primary);
-  border-bottom-color: var(--predim-primary);
-  background: var(--predim-bg-main);
-}
-
-/* Ribbon Content */
+/* ── RIBBON CONTENT ─────────────────────────────────────────── */
 .predim-ribbon-content {
   display: none;
-  padding: 12px 16px;
-  background: var(--predim-bg-main);
-  min-height: 100px;
 }
-
 .predim-ribbon-content.active {
   display: flex;
-  gap: 24px;
+  height: var(--rb-h-content);
+  background: var(--rb-bg2);
+  border-bottom: 1px solid var(--rb-border);
+  padding: 0 4px;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.predim-ribbon-content::-webkit-scrollbar { height: 3px; }
+.predim-ribbon-content::-webkit-scrollbar-thumb { background: var(--rb-border); border-radius: 2px; }
+
+/* Herramientas: mismo layout, no necesita grid especial */
+.predim-ribbon-tools-grid {
+  display: none;
+}
+.predim-ribbon-tools-grid.active {
+  display: flex;
 }
 
-/* Ribbon Groups */
+/* ── GROUPS ─────────────────────────────────────────────────── */
 .predim-ribbon-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 0 16px;
-  border-right: 1px solid var(--predim-border);
+  height: 100%;
+  padding: 6px 8px 4px;
+  border-right: 1px solid var(--rb-group-sep);
+  gap: 3px;
+  min-width: max-content;
+  flex-shrink: 0;
 }
-
-.predim-ribbon-group:last-child {
-  border-right: none;
-}
+.predim-ribbon-group:last-child { border-right: none; }
 
 .predim-ribbon-group-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--predim-text-secondary);
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--rb-muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
+  letter-spacing: 0.08em;
+  text-align: center;
+  line-height: 1;
+  margin-bottom: 2px;
 }
 
 .predim-ribbon-group-tools {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 3px;
+  flex: 1;
   flex-wrap: wrap;
+  justify-content: flex-start;
 }
+.predim-ribbon-group-tools.flex { display: flex; }
+.predim-ribbon-group-tools.gap-2 { gap: 5px; }
 
-/* Tool Buttons */
+/* Compact alias */
+.predim-ribbon-group-compact { }
+
+/* ── TOOL BUTTONS ───────────────────────────────────────────── */
 .predim-tool-btn {
+  height: 34px;
+  min-width: 34px;
+  padding: 0 5px;
+  background: var(--rb-btn-bg);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--rb-text);
+  cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 8px 12px;
-  min-width: 64px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-  position: relative;
+  gap: 1px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 9px;
+  font-weight: 500;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  white-space: nowrap;
+  line-height: 1;
+}
+.predim-tool-btn i { font-size: 13px; line-height: 1; }
+.predim-tool-btn-label {
+  font-size: 8px;
+  color: inherit;
+  line-height: 1;
 }
 
 .predim-tool-btn:hover {
-  background: var(--predim-bg-hover);
-  border-color: var(--predim-border);
+  background: var(--rb-btn-hover);
+  border-color: var(--rb-input-border);
+}
+.predim-tool-btn.active,
+.predim-tool-btn.tool.active {
+  background: var(--rb-btn-active);
+  border-color: var(--rb-accent);
+  color: var(--rb-btn-act-text);
 }
 
-.predim-tool-btn.active {
-  background: var(--predim-primary);
-  color: white;
-  border-color: var(--predim-primary-dark);
+/* Inline (height mínimo para botones de acción rápida) */
+.predim-tool-btn-inline {
+  height: 16px;
+  font-size: 7px;
+  padding: 0 5px;
 }
 
-.predim-tool-btn i {
-  font-size: 20px;
-}
-
-.predim-tool-btn-label {
-  font-size: 11px;
-  font-weight: 500;
-  text-align: center;
-  line-height: 1.2;
-}
-
-/* Dropdown Tools */
-.predim-tool-dropdown {
-  position: relative;
-}
-
-.predim-tool-dropdown-toggle::after {
-  content: '▼';
-  font-size: 8px;
-  margin-left: 4px;
-}
-
-.predim-tool-dropdown-menu {
-  display: none;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 4px;
-  background: var(--predim-bg-main);
-  border: 1px solid var(--predim-border);
-  border-radius: 8px;
-  box-shadow: var(--predim-shadow-lg);
-  padding: 4px;
-  min-width: 200px;
-  z-index: 1000;
-}
-
-.predim-tool-dropdown:hover .predim-tool-dropdown-menu,
-.predim-tool-dropdown-menu:hover {
-  display: block;
-}
-
-.predim-tool-dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.2s;
-  font-size: 13px;
-}
-
-.predim-tool-dropdown-item:hover {
-  background: var(--predim-bg-hover);
-}
-
-.predim-tool-dropdown-item i {
-  font-size: 18px;
-  width: 20px;
-  text-align: center;
-}
-
-/* Input Groups in Ribbon */
+/* ── INPUT GROUPS ───────────────────────────────────────────── */
 .predim-input-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 1px;
+  align-items: center;
 }
-
 .predim-input-group label {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--predim-text-secondary);
+  font-size: 8px;
+  color: var(--rb-muted);
+  text-align: center;
+  line-height: 1;
+  white-space: nowrap;
 }
-
-.predim-input-group input {
-  padding: 6px 8px;
-  border: 1px solid var(--predim-border);
-  border-radius: 4px;
-  font-size: 13px;
-  width: 80px;
-}
-
-.predim-input-group input:focus {
+.predim-input-group input[type="number"],
+.predim-input-group input[type="text"] {
+  width: 48px;
+  height: 20px;
+  background: var(--rb-input-bg);
+  border: 1px solid var(--rb-input-border);
+  border-radius: 3px;
+  color: var(--rb-text);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-align: center;
+  padding: 0 3px;
   outline: none;
-  border-color: var(--predim-primary);
+  transition: border-color 0.12s;
+}
+.predim-input-group input:focus {
+  border-color: var(--rb-accent);
 }
 
-/* Color Palette */
+/* ── COLOR PALETTE ──────────────────────────────────────────── */
 .predim-color-palette {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(4, 14px);
+  gap: 2px;
+  align-self: center;
 }
-
 .predim-color-btn {
-  width: 24px;
-  height: 24px;
-  border: 2px solid transparent;
-  border-radius: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  border: 1.2px solid transparent;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.1s, border-color 0.1s;
+  padding: 0;
 }
+.predim-color-btn:hover { transform: scale(1.15); }
+.predim-color-btn.active { border-color: var(--rb-text) !important; }
 
-.predim-color-btn:hover {
-  transform: scale(1.1);
-  border-color: var(--predim-text-secondary);
+/* ── VISIBILITY PANEL ───────────────────────────────────────── */
+.predim-ribbon-group-visibility {
+  min-width: 300px;
+  max-width: 600px;
 }
-
-.predim-color-btn.active {
-  border-color: var(--predim-primary);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
-}
-
-/* ========== WORKSPACE ========== */
-.predim-workspace {
-  flex: 1;
+.predim-visibility-panel-inline {
   display: flex;
-  overflow: hidden;
-  background: var(--predim-bg-surface);
+  gap: 4px;
+  align-items: flex-start;
+  height: 100%;
+  padding: 2px 0;
+}
+.predim-visibility-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  justify-content: center;
+}
+.predim-visibility-groups-inline {
+  display: flex;
+  gap: 10px;
+}
+.predim-visibility-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.predim-visibility-group-title {
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--rb-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 2px;
+}
+.predim-visibility-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 8px;
+  color: var(--rb-text);
+}
+.predim-visibility-item label {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+}
+.predim-visibility-item input[type="checkbox"] {
+  width: 9px;
+  height: 9px;
+  accent-color: var(--rb-accent);
+  cursor: pointer;
+}
+.predim-visibility-solo {
+  font-size: 8px;
+  color: var(--rb-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 2px;
+  border-radius: 2px;
+  font-family: inherit;
+}
+.predim-visibility-solo:hover {
+  color: var(--rb-accent2);
+  background: var(--rb-btn-hover);
 }
 
-/* Canvas Area */
+/* Separador vertical entre grupos de vis */
+.predim-vis-sep {
+  width: 1px;
+  background: var(--rb-group-sep);
+  align-self: stretch;
+  margin: 4px 2px;
+}
+
+/* ── CANVAS AREA ────────────────────────────────────────────── */
 .predim-canvas-area {
   flex: 1;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  flex-direction: column;
   overflow: hidden;
-  min-height: 0;
-  /* Important for flex children */
 }
 
 .predim-canvas-container {
+  flex: 1;
   width: 100%;
-  height: 100%;
-  overflow: auto;
-  /* Enable scrolling for large PDFs */
+  height: calc(100vh - var(--rb-total) - 20px) !important; /* status bar 20px */
+  overflow: auto !important;
   position: relative;
-  background: var(--predim-bg-surface);
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 20px;
+  background: var(--rb-canvas-outer) !important;
 }
 
 #canvas {
   display: block;
+  margin: 8px auto;
   background: white;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  max-width: none;
-  /* Allow canvas to be wider than container */
-  height: auto;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
 }
 
-/* Properties Panel (Optional Sidebar) */
-.predim-properties-panel {
-  width: 280px;
-  background: var(--predim-bg-main);
-  border-left: 1px solid var(--predim-border);
-  padding: 16px;
-  overflow-y: auto;
-  display: none;
+/* ── STATUS BAR ─────────────────────────────────────────────── */
+.predim-statusbar {
+  height: 20px;
+  background: var(--rb-status-bg);
+  border-top: 1px solid var(--rb-border);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 10px;
+  flex-shrink: 0;
 }
-
-.predim-properties-panel.active {
-  display: block;
+.predim-status-item {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--rb-muted);
 }
+.predim-status-item span { color: var(--rb-accent2); }
 
-.predim-property-section {
-  margin-bottom: 24px;
-}
-
-.predim-property-section-title {
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 12px;
-  color: var(--predim-text-main);
-}
-
-/* ========== MODAL ========== */
+/* ── MODAL ──────────────────────────────────────────────────── */
 .predim-modal {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 10000;
+  background: rgba(0,0,0,0.6);
+  z-index: 1000;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  backdrop-filter: blur(2px);
 }
-
-.predim-modal.active {
-  display: flex;
-}
+.predim-modal.active { display: flex; }
 
 .predim-modal-content {
-  background: var(--predim-bg-main);
-  border-radius: 12px;
-  box-shadow: var(--predim-shadow-lg);
-  width: 90%;
-  max-width: 1200px;
-  max-height: 90vh;
-  overflow: auto;
-  padding: 24px;
+  background: var(--rb-bg2);
+  border: 1px solid var(--rb-border);
+  border-radius: 8px;
+  width: min(96vw, 900px);
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 20px 24px;
+  position: relative;
 }
 
 .predim-modal-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--predim-border);
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rb-border);
 }
-
 .predim-modal-title {
-  font-size: 20px;
+  font-size: 14px;
   font-weight: 600;
+  color: var(--rb-text);
 }
-
 .predim-modal-close {
+  width: 28px; height: 28px;
   background: none;
   border: none;
-  font-size: 24px;
+  color: var(--rb-muted);
+  font-size: 20px;
   cursor: pointer;
-  color: var(--predim-text-secondary);
-  padding: 4px;
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
   line-height: 1;
 }
+.predim-modal-close:hover { background: var(--rb-btn-hover); color: var(--rb-text); }
 
-.predim-modal-close:hover {
-  color: var(--predim-text-main);
-}
-
-/* Tables in Modal */
+/* ── TABLES ─────────────────────────────────────────────────── */
 .predim-table-container {
-  margin: 20px 0;
+  margin-bottom: 20px;
 }
-
 .predim-table-container h3 {
-  font-size: 16px;
+  font-size: 12px;
   font-weight: 600;
-  margin-bottom: 12px;
-  color: var(--predim-text-main);
+  color: var(--rb-text);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .predim-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 11px;
 }
-
-.predim-table thead {
-  background: var(--predim-bg-surface);
-  border-bottom: 2px solid var(--predim-border);
-}
-
-.predim-table th,
-.predim-table td {
-  padding: 12px;
-  text-align: left;
-  border-bottom: 1px solid var(--predim-border);
-}
-
 .predim-table th {
-  font-weight: 600;
-  color: var(--predim-text-secondary);
-  font-size: 12px;
+  background: var(--rb-bg3);
+  color: var(--rb-muted);
+  font-weight: 500;
+  text-align: left;
+  padding: 6px 8px;
+  border: 1px solid var(--rb-border);
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.06em;
+}
+.predim-table td {
+  padding: 5px 8px;
+  border: 1px solid var(--rb-border);
+  color: var(--rb-text);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+}
+.predim-table tbody tr:nth-child(even) td {
+  background: var(--rb-bg3);
+}
+.predim-table tbody tr:hover td {
+  background: var(--rb-btn-hover);
 }
 
-.predim-table tbody tr:hover {
-  background: var(--predim-bg-hover);
+/* ── BRIGHTNESS RANGE ───────────────────────────────────────── */
+#brightnessRange {
+  accent-color: var(--rb-accent);
+  cursor: pointer;
 }
 
-/* ========== RESPONSIVE ========== */
-@media (max-width: 1024px) {
-  .predim-properties-panel {
-    position: fixed;
-    right: -280px;
-    top: 0;
-    bottom: 0;
-    transition: right 0.3s;
-    z-index: 100;
-  }
-
-  .predim-properties-panel.active {
-    right: 0;
-  }
-
-  .predim-ribbon-content {
-    flex-wrap: wrap;
-  }
-
-  .predim-ribbon-group {
-    min-width: 200px;
-  }
-}
-
-@media (max-width: 768px) {
-  .predim-ribbon-tabs {
-    overflow-x: auto;
-  }
-
-  .predim-ribbon-tab {
-    flex-shrink: 0;
-  }
-
-  .predim-tool-btn {
-    min-width: 56px;
-    padding: 6px 8px;
-  }
-
-  .predim-canvas-area {
-    padding: 8px;
-  }
-}
-
-/* Utility Classes */
-.hidden {
-  display: none !important;
-}
-
-.flex {
-  display: flex;
-}
-
-.flex-col {
-  flex-direction: column;
-}
-
-.gap-2 {
-  gap: 8px;
-}
-
-.gap-4 {
-  gap: 16px;
-}
+/* ── SCROLLBAR GLOBAL ───────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--rb-bg); }
+::-webkit-scrollbar-thumb { background: var(--rb-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--rb-input-border); }
