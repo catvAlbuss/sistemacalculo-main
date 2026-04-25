@@ -780,35 +780,95 @@ export class TrussDrawingState extends PanAndZoomState {
     const view = context.viewSet?.[context.activeViewIndex];
     const worldPos = context.grid.screenToWorld(mouse);
 
-    // AHORA el snap aplica en cualquier vista si existe activeGridPoint
-    const snapPoint = context.activeGridPoint ?? null;
+// <<<<<<< Updated upstream
+//     // AHORA el snap aplica en cualquier vista si existe activeGridPoint
+//     const snapPoint = context.activeGridPoint ?? null;
 
+//     let x, y, z;
+
+//     if (snapPoint) {
+//       x = snapPoint.x;
+//       y = snapPoint.y;
+//       z = snapPoint.z;
+
+//       console.log(
+//         `🎯 SNAP ${view?.type === "elevation" ? "ELEVACIÓN" : "PLANTA"}: ${snapPoint.label ?? ""} -> (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`
+//       );
+//     } else if (view?.type === "elevation" && view.axis === "X") {
+//       // LETRAS => X fija => plano Y-Z
+//       const fixedX = view.value ?? 0;
+//       x = fixedX;
+//       y = worldPos.x;
+//       z = worldPos.y;
+
+//       console.log(`🖱️ ELEVACIÓN X-${view.label}: (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
+//     } else if (view?.type === "elevation" && view.axis === "Y") {
+//       // NÚMEROS => Y fija => plano X-Z
+//       const fixedY = view.value ?? 0;
+//       x = worldPos.x;
+//       y = fixedY;
+//       z = worldPos.y;
+
+//       console.log(`🖱️ ELEVACIÓN Y-${view.label}: (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
+// =======
+    // ========== DETECTAR TIPO DE VISTA ==========
+    const isElevationXView = context.currentElevationX && context.currentElevationX !== "none";
+    const isElevationZView = context.currentElevationZ && context.currentElevationZ !== "none";
+    const isDiagonalView = context.viewSet?.[context.activeViewIndex]?.type === "diagonal";
     let x, y, z;
 
-    if (snapPoint) {
-      x = snapPoint.x;
-      y = snapPoint.y;
-      z = snapPoint.z;
+    if (isDiagonalView) {
+      const view = context.viewSet[context.activeViewIndex];
 
-      console.log(
-        `🎯 SNAP ${view?.type === "elevation" ? "ELEVACIÓN" : "PLANTA"}: ${snapPoint.label ?? ""} -> (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`
-      );
-    } else if (view?.type === "elevation" && view.axis === "X") {
-      // LETRAS => X fija => plano Y-Z
-      const fixedX = view.value ?? 0;
-      x = fixedX;
+      // Calcular vector director del eje diagonal
+      const dx = view.endX - view.startX;
+      const dy = view.endY - view.startY;
+      const lengthSq = dx * dx + dy * dy;
+
+      if (lengthSq > 0) {
+        // Vector desde el inicio hasta el punto del mouse
+        const px = worldPos.x - view.startX;
+        const py = worldPos.y - view.startY;
+        let t = (px * dx + py * dy) / lengthSq;
+        t = Math.max(0, Math.min(1, t));
+
+        // Punto proyectado en la línea diagonal
+        const projX = view.startX + dx * t;
+        const projY = view.startY + dy * t;
+
+        // 🔥 CALCULAR Z DE FORMA SIMPLE
+        // Usar la posición Y del mouse en pantalla (mouse.y) para determinar la altura
+        // Normalizar entre 0 y la altura máxima del edificio
+        const maxZ = (context.referenceGrid?.storyCount || 3) * (context.referenceGrid?.storyHeight || 3);
+        // Usar directamente la posición Y del mouse (0 = arriba, height = abajo)
+        const mouseYNormalized = 1 - mouse.y / context.canvas.height;
+        const alturaZ = mouseYNormalized * maxZ;
+
+        x = projX;
+        y = projY;
+        z = alturaZ;
+
+        console.log(
+          `🎯 Vista Diagonal ${view.name}: punto (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)}) - t=${t.toFixed(3)}, mouseY=${mouse.y}, maxZ=${maxZ}`,
+        );
+      }
+    } else if (isElevationXView) {
+      // VISTA ELEVACIÓN NUMÉRICA (1,2,3...): Plano X-Z, Y constante
+      const currentY = context.getCurrentElevationY?.() || 0;
+      x = worldPos.x;
+      y = currentY;
+      z = worldPos.y;
+      console.log(`🖱️ ELEVACIÓN X-${context.currentElevationX}: (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
+    } else if (isElevationZView) {
+      // VISTA ELEVACIÓN LETRAS (A,B,C...): Plano Y-Z, X constante
+      let currentX = 0;
+      const elev = context.zElevations?.find((e) => e.name === context.currentElevationZ);
+      if (elev) currentX = elev.x;
+      x = currentX;
       y = worldPos.x;
       z = worldPos.y;
-
-      console.log(`🖱️ ELEVACIÓN X-${view.label}: (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
-    } else if (view?.type === "elevation" && view.axis === "Y") {
-      // NÚMEROS => Y fija => plano X-Z
-      const fixedY = view.value ?? 0;
-      x = worldPos.x;
-      y = fixedY;
-      z = worldPos.y;
-
-      console.log(`🖱️ ELEVACIÓN Y-${view.label}: (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
+      console.log(`🖱️ ELEVACIÓN Z-${context.currentElevationZ}: (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
+// >>>>>>> Stashed changes
     } else {
       // PLANTA libre, si no hubo snap
       const currentZ = context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0;

@@ -121,7 +121,7 @@
       <section>
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <h3 style="color: #111827;">General Grids</h3>
-          <button id="btn-add-general-grid" type="button">Agregar línea general</button>
+          <button id="btn-add-general-grid" type="button">Agregar grids diagonales</button>
         </div>
 
         <table class="w-full border-collapse text-sm" border="1" width="100%" cellspacing="0" cellpadding="6" style="color:#111827;">

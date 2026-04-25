@@ -9,6 +9,18 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
       </svg>
     </x-cad.ribbon-button>
+
+    <!-- <button @click="cadSystem.openDiagonalGridModal()"
+      class="px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm rounded transition">
+      📐 Grillas Diagonales
+    </button> -->
+
+    <!-- <x-cad.ribbon-button clickHandler="generateLShapedBuilding()" toggle="false" label="Edificio L">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4 L14 4 L14 14 L4 14 Z M14 4 L20 10 L20 14 L14 14" />
+      </svg>
+    </x-cad.ribbon-button> -->
+
     <x-cad.ribbon-button clickHandler="setState(trussDrawingState)" toggle="currentState === trussDrawingState"
       label="Barra">
       <x-cad.svg.beam></x-cad.svg.beam>
@@ -117,6 +129,9 @@
     </x-cad.ribbon-button>
     <x-cad.ribbon-button clickHandler="creaElipse()" toggle="false" label="Elipse">
       <x-cad.svg.ellipse></x-cad.svg.ellipse>
+    </x-cad.ribbon-button>
+    <x-cad.ribbon-button clickHandler="generarDiagonales()" toggle="false" label="Diagonales">
+      <!-- <x-cad.svg.ellipse></x-cad.svg.ellipse> -->
     </x-cad.ribbon-button>
   </x-cad.ribbon-group>
   <!-- -------------------------APARTADO DE 3D ----------------------- -->

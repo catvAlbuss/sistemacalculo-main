@@ -1,5 +1,6 @@
 <!-- Side Panel -->
 <aside class="cad-bg cad-border flex h-full basis-1/4 flex-col border-r-4">
+    <!-- Panel de Grillas Diagonales -->
     <x-cad.panel title="Items" init="isOpen = false">
         <ul>
             <li x-data="{ open: false }">

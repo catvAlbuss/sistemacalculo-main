@@ -44,7 +44,7 @@ import { TrussDrawingState3D } from "./states.js";
 import { Beam, Node as StructuralNode } from "./shapes.js";
 
 export default () => ({
-  init() { },
+  init() {},
 
   // NUEVAS PROPIEDADES PARA 3D
   show3DView: false,
@@ -92,6 +92,14 @@ export default () => ({
   statusCoordinates: "X 0.00  Y 0.00  Z 0.00",
   planGridSnapTolerance: 1.0,
   lastMouseScreen: { x: 0, y: 0 },
+  // En la sección de propiedades, agregar:
+  diagonalGrids: {
+    x: [], // Ejes diagonales en dirección X (definidos por dos puntos)
+    y: [], // Ejes diagonales en dirección Y
+  },
+  showDiagonalGrids: true,
+  // selectedDiagonalGrid: null,
+  // editingDiagonalGrid: false,
 
   initSys(canvas, distanceInput) {
     this.Arco = Arco;
@@ -304,10 +312,7 @@ export default () => ({
 
     if (this.currentViewMode === "plan") {
       this.updatePlanGridSnap(this.mousePos, { x, y });
-    } else if (
-      this.currentViewMode === "elevationX" ||
-      this.currentViewMode === "elevationY"
-    ) {
+    } else if (this.currentViewMode === "elevationX" || this.currentViewMode === "elevationY") {
       this.updateElevationGridSnap(this.mousePos, { x, y });
     } else {
       this.activeGridPoint = null;
@@ -498,8 +503,6 @@ export default () => ({
     }
   },
 
-  // EDICION 3D
-
   // ================FUNCION DE ELEVACION=======================
 
   // Mostrar mensaje temporal
@@ -525,8 +528,6 @@ export default () => ({
   },
 
   // ========== NUEVAS FUNCIONES PARA OPENSEES ==========
-
-  // resources/js/cad/cad_sys.js
 
   // ============================================================
   // 4. FUNCIÓN PRINCIPAL PARA EJECUTAR ANÁLISIS 3D Y ANIMAR
@@ -643,8 +644,8 @@ export default () => ({
 
     for (let i = 0; i < count; i++) {
       grids.push({
-        id: labels[i],              // A, B, C...
-        ordinate: i * spacing,      // coordenada X
+        id: labels[i], // A, B, C...
+        ordinate: i * spacing, // coordenada X
         visible: true,
         bubbleLoc: "End",
       });
@@ -659,8 +660,8 @@ export default () => ({
 
     for (let i = 0; i < count; i++) {
       grids.push({
-        id: String(labels[i]),      // 1, 2, 3...
-        ordinate: i * spacing,      // coordenada Y
+        id: String(labels[i]), // 1, 2, 3...
+        ordinate: i * spacing, // coordenada Y
         visible: true,
         bubbleLoc: "Start",
       });
@@ -674,17 +675,11 @@ export default () => ({
 
     const ref = targetGrid;
 
-    const customLines = Array.isArray(ref.generalGrids)
-      ? ref.generalGrids.filter((g) => g.source === "custom")
-      : [];
+    const customLines = Array.isArray(ref.generalGrids) ? ref.generalGrids.filter((g) => g.source === "custom") : [];
 
-    const xValues = Array.isArray(ref.xGrids)
-      ? ref.xGrids.map((g) => Number(g.ordinate) || 0)
-      : [];
+    const xValues = Array.isArray(ref.xGrids) ? ref.xGrids.map((g) => Number(g.ordinate) || 0) : [];
 
-    const yValues = Array.isArray(ref.yGrids)
-      ? ref.yGrids.map((g) => Number(g.ordinate) || 0)
-      : [];
+    const yValues = Array.isArray(ref.yGrids) ? ref.yGrids.map((g) => Number(g.ordinate) || 0) : [];
 
     const minX = xValues.length ? Math.min(...xValues) : 0;
     const maxX = xValues.length ? Math.max(...xValues) : 10;
@@ -753,7 +748,7 @@ export default () => ({
       this.viewSet.push({
         type: "elevation",
         axis: "X",
-        label: ref.xLabels?.[i],   // A, B, C, D
+        label: ref.xLabels?.[i], // A, B, C, D
         value: x,
         name: `Elevación ${ref.xLabels?.[i]}`,
       });
@@ -764,7 +759,7 @@ export default () => ({
       this.viewSet.push({
         type: "elevation",
         axis: "Y",
-        label: ref.yLabels?.[i],   // 1, 2, 3, 4
+        label: ref.yLabels?.[i], // 1, 2, 3, 4
         value: y,
         name: `Elevación ${ref.yLabels?.[i]}`,
       });
@@ -782,14 +777,14 @@ export default () => ({
 
     // LETRAS => X
     this.xElevations = (ref.xPositions || []).map((x, i) => ({
-      label: ref.xLabels?.[i],   // A, B, C, D
+      label: ref.xLabels?.[i], // A, B, C, D
       value: x,
       name: `Elevación ${ref.xLabels?.[i]}`,
     }));
 
     // NÚMEROS => Y
     this.zElevations = (ref.yPositions || []).map((y, i) => ({
-      label: ref.yLabels?.[i],   // 1, 2, 3, 4
+      label: ref.yLabels?.[i], // 1, 2, 3, 4
       value: y,
       name: `Elevación ${ref.yLabels?.[i]}`,
     }));
@@ -818,9 +813,7 @@ export default () => ({
 
     this.rebuildGeneralGrids();
 
-    this.stories = [
-      { id: 0, name: "Base", elevation: 0 },
-    ];
+    this.stories = [{ id: 0, name: "Base", elevation: 0 }];
 
     for (let i = 1; i <= params.storyCount; i++) {
       this.stories.push({
@@ -868,6 +861,338 @@ export default () => ({
     }
 
     this.showMessage(`✅ Grid de referencia: ${params.gridXCount}x${params.gridYCount}, ${params.storyCount} pisos`);
+  },
+
+  // NUEVA FUNCION:
+  // addDiagonalGrids(params) {
+  //   console.log("📐 Agregando grillas diagonales:", params);
+
+  //   // this.diagonalGrids = {
+  //   //   x: params.diagonalX || [],
+  //   //   y: params.diagonalY || [],
+  //   // };
+
+  //   this.diagonalGrids = {
+  //       x: (params.diagonalX || []).map(grid => ({
+  //           ...grid,
+  //           color: grid.color || defaultColorX
+  //       })),
+  //       y: (params.diagonalY || []).map(grid => ({
+  //           ...grid,
+  //           color: grid.color || defaultColorY
+  //       })),
+  //   };
+
+  //   // Agregar ejes diagonales a los viewSet para poder seleccionarlos
+  //   // Ejes diagonales X (se muestran como elevaciones)
+  //   // this.diagonalGrids.x.forEach((grid, idx) => {
+  //   //   this.viewSet.push({
+  //   //     type: "diagonal",
+  //   //     direction: "X",
+  //   //     name: grid.name,
+  //   //     startX: grid.startX,
+  //   //     startY: grid.startY,
+  //   //     endX: grid.endX,
+  //   //     endY: grid.endY,
+  //   //     label: grid.name,
+  //   //   });
+  //   // });
+
+  //   // // Ejes diagonales Y
+  //   // this.diagonalGrids.y.forEach((grid, idx) => {
+  //   //   this.viewSet.push({
+  //   //     type: "diagonal",
+  //   //     direction: "Y",
+  //   //     name: grid.name,
+  //   //     startX: grid.startX,
+  //   //     startY: grid.startY,
+  //   //     endX: grid.endX,
+  //   //     endY: grid.endY,
+  //   //     label: grid.name,
+  //   //   });
+  //   // });
+
+  //   this.redraw();
+  //   this.sync3D();
+
+  //   this.showMessage(
+  //     `✅ Agregados ${this.diagonalGrids.x.length} ejes diagonales X y ${this.diagonalGrids.y.length} ejes diagonales Y`,
+  //   );
+  // },
+
+  addDiagonalGrids(params) {
+    console.log("📐 Agregando grillas diagonales:", params);
+
+    const defaultColorX = "#ff0000";
+    const defaultColorY = "#00ff00";
+
+    this.diagonalGrids = {
+      x: (params.diagonalX || []).map((grid) => ({
+        name: grid.name,
+        startX: grid.startX,
+        startY: grid.startY,
+        endX: grid.endX,
+        endY: grid.endY,
+        color: grid.color || defaultColorX,
+        visible: grid.visible !== false, // ← AGREGAR visible
+      })),
+      y: (params.diagonalY || []).map((grid) => ({
+        name: grid.name,
+        startX: grid.startX,
+        startY: grid.startY,
+        endX: grid.endX,
+        endY: grid.endY,
+        color: grid.color || defaultColorY,
+        visible: grid.visible !== false, // ← AGREGAR visible
+      })),
+    };
+
+    this.redraw();
+    this.sync3D();
+
+    this.showMessage(
+      `✅ Agregados ${this.diagonalGrids.x.length} ejes diagonales X y ${this.diagonalGrids.y.length} ejes diagonales Y`,
+    );
+  },
+
+  // Método para abrir el modal de grillas diagonales
+
+  // openDiagonalGridModal() {
+  //   Swal.fire({
+  //     title: "Definir Grillas Diagonales",
+  //     html: `
+  //           <div class="text-left">
+  //               <div class="mb-4">
+  //                   <label class="block text-sm font-medium mb-2">Ejes Diagonales X (Rojos)</label>
+  //                   <div id="diagonalXList" class="space-y-2 mb-3">
+  //                       <div class="flex gap-2">
+  //                           <input type="text" placeholder="Nombre" class="diagX-name w-24 px-2 py-1 border rounded text-sm">
+  //                           <input type="number" placeholder="X1" class="diagX-x1 w-20 px-2 py-1 border rounded text-sm" value="0">
+  //                           <input type="number" placeholder="Y1" class="diagX-y1 w-20 px-2 py-1 border rounded text-sm" value="0">
+  //                           <input type="number" placeholder="X2" class="diagX-x2 w-20 px-2 py-1 border rounded text-sm" value="10">
+  //                           <input type="number" placeholder="Y2" class="diagX-y2 w-20 px-2 py-1 border rounded text-sm" value="10">
+  //                       </div>
+  //                   </div>
+  //                   <button type="button" id="addDiagonalX" class="text-xs bg-green-600 text-white px-2 py-1 rounded">+ Agregar Eje X</button>
+  //               </div>
+  //               <div>
+  //                   <label class="block text-sm font-medium mb-2">Ejes Diagonales Y (Verdes)</label>
+  //                   <div id="diagonalYList" class="space-y-2 mb-3">
+  //                       <div class="flex gap-2">
+  //                           <input type="text" placeholder="Nombre" class="diagY-name w-24 px-2 py-1 border rounded text-sm">
+  //                           <input type="number" placeholder="X1" class="diagY-x1 w-20 px-2 py-1 border rounded text-sm" value="0">
+  //                           <input type="number" placeholder="Y1" class="diagY-y1 w-20 px-2 py-1 border rounded text-sm" value="10">
+  //                           <input type="number" placeholder="X2" class="diagY-x2 w-20 px-2 py-1 border rounded text-sm" value="10">
+  //                           <input type="number" placeholder="Y2" class="diagY-y2 w-20 px-2 py-1 border rounded text-sm" value="0">
+  //                       </div>
+  //                   </div>
+  //                   <button type="button" id="addDiagonalY" class="text-xs bg-green-600 text-white px-2 py-1 rounded">+ Agregar Eje Y</button>
+  //               </div>
+  //               <div class="text-xs text-gray-400 mt-3">⚠️ Todos los ejes deben tener un nombre único</div>
+  //           </div>
+  //       `,
+  //     width: "750px",
+  //     showConfirmButton: true,
+  //     confirmButtonText: "Aplicar",
+  //     showCancelButton: true,
+  //     didOpen: (popup) => {
+  //       let xCount = 1,
+  //         yCount = 1;
+
+  //       document.getElementById("addDiagonalX").onclick = () => {
+  //         const container = document.getElementById("diagonalXList");
+  //         const div = document.createElement("div");
+  //         div.className = "flex gap-2 mt-2";
+  //         div.innerHTML = `
+  //                   <input type="text" placeholder="Nombre" class="diagX-name w-24 px-2 py-1 border rounded text-sm" value="D${xCount + 1}">
+  //                   <input type="number" placeholder="X1" class="diagX-x1 w-20 px-2 py-1 border rounded text-sm" value="0">
+  //                   <input type="number" placeholder="Y1" class="diagX-y1 w-20 px-2 py-1 border rounded text-sm" value="0">
+  //                   <input type="number" placeholder="X2" class="diagX-x2 w-20 px-2 py-1 border rounded text-sm" value="10">
+  //                   <input type="number" placeholder="Y2" class="diagX-y2 w-20 px-2 py-1 border rounded text-sm" value="10">
+  //                   <button type="button" class="remove-row text-red-500 px-2">✕</button>
+  //               `;
+  //         div.querySelector(".remove-row").onclick = () => div.remove();
+  //         container.appendChild(div);
+  //         xCount++;
+  //       };
+
+  //       document.getElementById("addDiagonalY").onclick = () => {
+  //         const container = document.getElementById("diagonalYList");
+  //         const div = document.createElement("div");
+  //         div.className = "flex gap-2 mt-2";
+  //         div.innerHTML = `
+  //                   <input type="text" placeholder="Nombre" class="diagY-name w-24 px-2 py-1 border rounded text-sm" value="E${yCount + 1}">
+  //                   <input type="number" placeholder="X1" class="diagY-x1 w-20 px-2 py-1 border rounded text-sm" value="0">
+  //                   <input type="number" placeholder="Y1" class="diagY-y1 w-20 px-2 py-1 border rounded text-sm" value="10">
+  //                   <input type="number" placeholder="X2" class="diagY-x2 w-20 px-2 py-1 border rounded text-sm" value="10">
+  //                   <input type="number" placeholder="Y2" class="diagY-y2 w-20 px-2 py-1 border rounded text-sm" value="0">
+  //                   <button type="button" class="remove-row text-red-500 px-2">✕</button>
+  //               `;
+  //         div.querySelector(".remove-row").onclick = () => div.remove();
+  //         container.appendChild(div);
+  //         yCount++;
+  //       };
+  //     },
+  //     preConfirm: () => {
+  //       const diagonalX = [];
+  //       const diagonalY = [];
+  //       const allNames = new Set();
+
+  //       const xRows = document.querySelectorAll("#diagonalXList > div");
+  //       for (const row of xRows) {
+  //         const name = row.querySelector(".diagX-name")?.value?.trim();
+  //         if (!name) {
+  //           Swal.showValidationMessage("Todos los ejes diagonales X deben tener un nombre");
+  //           return false;
+  //         }
+  //         if (allNames.has(name)) {
+  //           Swal.showValidationMessage(`Nombre duplicado: ${name}`);
+  //           return false;
+  //         }
+  //         allNames.add(name);
+
+  //         diagonalX.push({
+  //           name: name,
+  //           startX: parseFloat(row.querySelector(".diagX-x1")?.value || 0),
+  //           startY: parseFloat(row.querySelector(".diagX-y1")?.value || 0),
+  //           endX: parseFloat(row.querySelector(".diagX-x2")?.value || 0),
+  //           endY: parseFloat(row.querySelector(".diagX-y2")?.value || 0),
+  //           color: "#ff0000"  // Rojo por defecto para X
+  //         });
+  //       }
+
+  //       const yRows = document.querySelectorAll("#diagonalYList > div");
+  //       for (const row of yRows) {
+  //         const name = row.querySelector(".diagY-name")?.value?.trim();
+  //         if (!name) {
+  //           Swal.showValidationMessage("Todos los ejes diagonales Y deben tener un nombre");
+  //           return false;
+  //         }
+  //         if (allNames.has(name)) {
+  //           Swal.showValidationMessage(`Nombre duplicado: ${name}`);
+  //           return false;
+  //         }
+  //         allNames.add(name);
+
+  //         diagonalY.push({
+  //           name: name,
+  //           startX: parseFloat(row.querySelector(".diagY-x1")?.value || 0),
+  //           startY: parseFloat(row.querySelector(".diagY-y1")?.value || 0),
+  //           endX: parseFloat(row.querySelector(".diagY-x2")?.value || 0),
+  //           endY: parseFloat(row.querySelector(".diagY-y2")?.value || 0),
+  //           color: "#00ff00"  // Verde por defecto para Y
+  //         });
+  //       }
+
+  //       return { diagonalX, diagonalY };
+  //     },
+  //   }).then((result) => {
+  //     if (result.isConfirmed && result.value) {
+  //       this.addDiagonalGrids(result.value);
+  //     }
+  //   });
+  // },
+
+  // Método para editar un grid diagonal existente
+  editDiagonalGrid(grid, direction) {
+    console.log("✏️ Editando grid diagonal:", grid, direction);
+
+    if (!grid.name || grid.name === "") {
+      this.showMessage("❌ No se puede editar un eje sin nombre", "warning");
+      return;
+    }
+
+    // Abrir modal en modo edición
+    window.dispatchEvent(
+      new CustomEvent("edit-diagonal-grid", {
+        detail: { grid: { ...grid }, direction: direction, originalName: grid.name },
+      }),
+    );
+  },
+
+  // Método para actualizar un grid diagonal
+  updateDiagonalGrid(updatedGrid, originalName, direction) {
+    console.log("🔄 Actualizando grid diagonal:", updatedGrid, originalName, direction);
+
+    const gridArray = direction === "X" ? this.diagonalGrids.x : this.diagonalGrids.y;
+    const index = gridArray.findIndex((g) => g.name === originalName);
+
+    if (index !== -1) {
+      // Actualizar en diagonalGrids
+      gridArray[index] = updatedGrid;
+
+      // Actualizar también en viewSet
+      const viewIndex = this.viewSet.findIndex(
+        (v) => v.type === "diagonal" && v.name === originalName && v.direction === direction,
+      );
+
+      if (viewIndex !== -1) {
+        this.viewSet[viewIndex] = {
+          type: "diagonal",
+          direction: direction,
+          name: updatedGrid.name,
+          startX: updatedGrid.startX,
+          startY: updatedGrid.startY,
+          endX: updatedGrid.endX,
+          endY: updatedGrid.endY,
+          label: updatedGrid.name,
+        };
+      }
+
+      // Solo redibujar, no limpiar todo
+      this.redraw();
+      this.sync3D();
+      this.showMessage(`✅ Eje diagonal ${updatedGrid.name} actualizado`);
+    } else {
+      console.error("No se encontró el grid a actualizar:", originalName);
+    }
+  },
+
+  // Método para eliminar un grid diagonal
+  deleteDiagonalGrid(gridName, direction) {
+    console.log("🗑️ Eliminando grid diagonal:", gridName, direction);
+
+    if (!gridName || gridName === "") {
+      console.error("No se puede eliminar: nombre vacío");
+      return;
+    }
+
+    const gridArray = direction === "X" ? this.diagonalGrids.x : this.diagonalGrids.y;
+    const index = gridArray.findIndex((g) => g.name === gridName);
+
+    if (index !== -1) {
+      gridArray.splice(index, 1);
+
+      // Eliminar también de viewSet
+      const viewIndex = this.viewSet.findIndex(
+        (v) => v.type === "diagonal" && v.name === gridName && v.direction === direction,
+      );
+
+      if (viewIndex !== -1) {
+        this.viewSet.splice(viewIndex, 1);
+      }
+
+      // IMPORTANTE: No llamar a clearReferenceGrid3D()
+      // Solo redibujar la vista actual
+      this.redraw();
+
+      // Sincronizar 3D (esto recreará el grid 3D)
+      if (this.show3DView && window.babylonScene) {
+        this.drawIn3D();
+      }
+
+      this.showMessage(`🗑️ Eje diagonal ${gridName} eliminado`);
+    } else {
+      console.error("No se encontró el grid a eliminar:", gridName);
+    }
+  },
+
+  // Método para listar grids diagonales (para mostrar en UI)
+  getDiagonalGridsList() {
+    return {
+      x: this.diagonalGrids.x.map((g) => ({ ...g, direction: "X" })),
+      y: this.diagonalGrids.y.map((g) => ({ ...g, direction: "Y" })),
+    };
   },
 
   // Función auxiliar para obtener etiquetas X (A, B, C...)
@@ -979,15 +1304,15 @@ export default () => ({
     };
   },
 
-  getActivePlanElevation() {
-    const view = this.viewSet?.[this.activeViewIndex];
-    if (view?.type === "plan") {
-      return view.elevation ?? 0;
-    }
+  // getActivePlanElevation() {
+  //   const view = this.viewSet?.[this.activeViewIndex];
+  //   if (view?.type === "plan") {
+  //     return view.elevation ?? 0;
+  //   }
 
-    const story = this.stories?.find((s) => s.name === this.currentStory);
-    return story?.elevation ?? 0;
-  },
+  //   const story = this.stories?.find((s) => s.name === this.currentStory);
+  //   return story?.elevation ?? 0;
+  // },
 
   getNearestPlanGridPoint(mouseWorld, mouseScreen) {
     const ref = this.referenceGrid;
@@ -1019,10 +1344,7 @@ export default () => ({
         const dyScreen = mouseScreen.y - screenPoint.y;
         const screenDistance = Math.sqrt(dxScreen * dxScreen + dyScreen * dyScreen);
 
-        if (
-          best === null ||
-          screenDistance < best.screenDistance
-        ) {
+        if (best === null || screenDistance < best.screenDistance) {
           best = {
             x: worldPoint.x,
             y: worldPoint.y,
@@ -1088,18 +1410,12 @@ export default () => ({
 
   isNumberElevationView() {
     // Elevaciones 1,2,3,4 -> plano X-Z (Y fijo)
-    return (
-      this.currentViewMode === "elevation" ||
-      this.currentViewMode === "elevationY"
-    );
+    return this.currentViewMode === "elevation" || this.currentViewMode === "elevationY";
   },
 
   isLetterElevationView() {
     // Elevaciones A,B,C,D -> plano Y-Z (X fijo)
-    return (
-      this.currentViewMode === "elevationZ" ||
-      this.currentViewMode === "elevationX"
-    );
+    return this.currentViewMode === "elevationZ" || this.currentViewMode === "elevationX";
   },
 
   isAnyElevationView() {
@@ -1125,13 +1441,11 @@ export default () => ({
 
       const story = this.stories.find((s) => s.elevation === view.elevation);
       if (story) this.currentStory = story.name;
-
     } else if (view.type === "elevation" && view.axis === "X") {
       // Letras A,B,C... => plano Y-Z
       this.currentViewMode = "elevationX";
       this.currentElevationZ = view.label;
       this.currentElevationX = "none";
-
     } else if (view.type === "elevation" && view.axis === "Y") {
       // Números 1,2,3... => plano X-Z
       this.currentViewMode = "elevationY";
@@ -1168,7 +1482,7 @@ export default () => ({
       index: bestIndex,
       value: Number(values[bestIndex]),
       label: labels?.[bestIndex] ?? String(bestIndex + 1),
-      distance: bestDistance
+      distance: bestDistance,
     };
   },
 
@@ -1184,14 +1498,14 @@ export default () => ({
     for (let i = 1; i <= storyCount; i++) {
       levels.push({
         label: `STORY${i}`,
-        z: i * storyHeight
+        z: i * storyHeight,
       });
     }
 
     let best = null;
     let bestDistance = Infinity;
 
-    levels.forEach(level => {
+    levels.forEach((level) => {
       const d = Math.abs(level.z - Number(targetZ));
       if (d < bestDistance) {
         bestDistance = d;
@@ -1211,17 +1525,13 @@ export default () => ({
 
     // NÚMEROS => eje Y fijo
     if (view.axis === "Y") {
-      const idx = (ref.yLabels || []).findIndex(
-        label => String(label) === String(view.label)
-      );
+      const idx = (ref.yLabels || []).findIndex((label) => String(label) === String(view.label));
       if (idx >= 0) return Number(ref.yPositions[idx] || 0);
     }
 
     // LETRAS => eje X fijo
     if (view.axis === "X") {
-      const idx = (ref.xLabels || []).findIndex(
-        label => String(label) === String(view.label)
-      );
+      const idx = (ref.xLabels || []).findIndex((label) => String(label) === String(view.label));
       if (idx >= 0) return Number(ref.xPositions[idx] || 0);
     }
 
@@ -1251,12 +1561,7 @@ export default () => ({
     if (this.currentViewMode === "elevationY") {
       const fixedY = this.getFixedCoordinateForActiveElevation();
 
-      const snapX = this.findClosestGridValue(
-        ref.xPositions || [],
-        ref.xLabels || [],
-        mouseWorld.x,
-        toleranceX
-      );
+      const snapX = this.findClosestGridValue(ref.xPositions || [], ref.xLabels || [], mouseWorld.x, toleranceX);
 
       if (!snapX) {
         this.activeGridPoint = null;
@@ -1271,7 +1576,7 @@ export default () => ({
         yGridId: String(view.label),
         storyLabel: snapZ.label,
         label: `Grid Point ${snapX.label} ${view.label}`,
-        source: "elevation-xz"
+        source: "elevation-xz",
       };
 
       this.statusCoordinates = `X ${snapX.value.toFixed(2)}  Y ${fixedY.toFixed(2)}  Z ${snapZ.z.toFixed(2)}`;
@@ -1282,12 +1587,7 @@ export default () => ({
     if (this.currentViewMode === "elevationX") {
       const fixedX = this.getFixedCoordinateForActiveElevation();
 
-      const snapY = this.findClosestGridValue(
-        ref.yPositions || [],
-        ref.yLabels || [],
-        mouseWorld.x,
-        toleranceX
-      );
+      const snapY = this.findClosestGridValue(ref.yPositions || [], ref.yLabels || [], mouseWorld.x, toleranceX);
 
       if (!snapY) {
         this.activeGridPoint = null;
@@ -1302,7 +1602,7 @@ export default () => ({
         yGridId: snapY.label,
         storyLabel: snapZ.label,
         label: `Grid Point ${view.label} ${snapY.label}`,
-        source: "elevation-yz"
+        source: "elevation-yz",
       };
 
       this.statusCoordinates = `X ${fixedX.toFixed(2)}  Y ${snapY.value.toFixed(2)}  Z ${snapZ.z.toFixed(2)}`;
@@ -1317,7 +1617,7 @@ export default () => ({
       return {
         x: this.activeGridPoint.x,
         y: this.activeGridPoint.y,
-        z: this.activeGridPoint.z
+        z: this.activeGridPoint.z,
       };
     }
 
@@ -1328,7 +1628,7 @@ export default () => ({
       return {
         x: worldPos.x,
         y: worldPos.y,
-        z: this.currentZ || 0
+        z: this.currentZ || 0,
       };
     }
 
@@ -1340,7 +1640,7 @@ export default () => ({
         return {
           x: worldPos.x,
           y: fixedCoord,
-          z: worldPos.y
+          z: worldPos.y,
         };
       }
 
@@ -1349,7 +1649,7 @@ export default () => ({
         return {
           x: fixedCoord,
           y: worldPos.x,
-          z: worldPos.y
+          z: worldPos.y,
         };
       }
     }
@@ -1357,7 +1657,7 @@ export default () => ({
     return {
       x: worldPos.x,
       y: worldPos.y,
-      z: 0
+      z: 0,
     };
   },
 
@@ -1457,41 +1757,6 @@ export default () => ({
   showTestFrame() {
     return showTestFrame(this);
   },
-
-  // closestNodeAtActiveView(searchPoint) {
-  //   const view = this.viewSet?.[this.activeViewIndex];
-  //   const tolerance = 0.05;
-  //   const shortestDistance = 10;
-
-  //   let closest = null;
-  //   let best = shortestDistance;
-
-  //   for (let i = 0; i < this.nodes.length; i++) {
-  //     const node = this.nodes[i];
-  //     const distance = pointDistance(searchPoint, this.grid.worldToScreen(node.position));
-  //     if (distance > best) continue;
-
-  //     const x = node.position.x || 0;
-  //     const y = node.position.y || 0;
-  //     const z = node.position.z || 0;
-
-  //     let belongs = true;
-
-  //     if (view?.type === "plan") {
-  //       belongs = Math.abs(z - (view.elevation ?? 0)) <= tolerance;
-  //     } else if (view?.type === "elevation") {
-  //       if (view.axis === "X") belongs = Math.abs(x - view.value) <= tolerance;
-  //       if (view.axis === "Y") belongs = Math.abs(y - view.value) <= tolerance;
-  //     }
-
-  //     if (!belongs) continue;
-
-  //     closest = node;
-  //     best = distance;
-  //   }
-
-  //   return closest;
-  // },
 
   closestNodeAtActiveView(searchPoint) {
     const view = this.viewSet?.[this.activeViewIndex];
@@ -1728,7 +1993,6 @@ export default () => ({
 
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-
     ctx.save();
     ctx.strokeStyle = "#3a6a9a";
     ctx.fillStyle = "#8aadcc";
@@ -1816,7 +2080,6 @@ export default () => ({
   },
 
   drawReferenceGridOnly(grid, context) {
-
     if (isElevationX) {
       this.drawElevationGridOnly(grid, context);
     } else if (isElevationY) {
@@ -2005,5 +2268,4 @@ export default () => ({
 
     return null;
   },
-
 });
