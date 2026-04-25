@@ -890,20 +890,53 @@ export class DiseñoRenderer {
     ctx.strokeStyle = lineColor;
     ctx.lineWidth = 0.8;
 
+    // lines.forEach((line) => {
+    //   if (line.visible === false) return;
+
+    //   const p1 = grid.worldToScreen({ x: line.x1, y: line.y1 });
+    //   const p2 = grid.worldToScreen({ x: line.x2, y: line.y2 });
+
+    //   ctx.beginPath();
+    //   ctx.setLineDash(line.source === "custom" ? [8, 4] : []);
+    //   ctx.moveTo(p1.x, p1.y);
+    //   ctx.lineTo(p2.x, p2.y);
+    //   ctx.stroke();
+
+    //   const bubblePoint = line.bubbleLoc === "Start" ? p1 : p2;
+    //   this.drawGridBubble(ctx, bubblePoint, line.id, lineColor, textColor);
+    // });
+    // Líneas de grilla generales
     lines.forEach((line) => {
       if (line.visible === false) return;
 
       const p1 = grid.worldToScreen({ x: line.x1, y: line.y1 });
       const p2 = grid.worldToScreen({ x: line.x2, y: line.y2 });
 
+      if (line.source === "custom") {
+        ctx.strokeStyle = "#bfc7d5";
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([6, 4]);
+      } else {
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = 0.8;
+        ctx.setLineDash([]);
+      }
+
       ctx.beginPath();
-      ctx.setLineDash(line.source === "custom" ? [8, 4] : []);
       ctx.moveTo(p1.x, p1.y);
       ctx.lineTo(p2.x, p2.y);
       ctx.stroke();
 
+      ctx.setLineDash([]);
+
       const bubblePoint = line.bubbleLoc === "Start" ? p1 : p2;
-      this.drawGridBubble(ctx, bubblePoint, line.id, lineColor, textColor);
+      this.drawGridBubble(
+        ctx,
+        bubblePoint,
+        line.id,
+        line.source === "custom" ? "#bfc7d5" : lineColor,
+        textColor
+      );
     });
 
     ctx.setLineDash([]);
@@ -925,6 +958,126 @@ export class DiseñoRenderer {
     ctx.closePath();
     ctx.stroke();
 
+    this.drawGeneralGridIntersectionMarkers(grid, context);
+    this.drawGeneralGridEndpointMarkers(grid, context);
+    this.drawCustomGeneralGridBubbles(grid, context);
+
+    ctx.restore();
+  }
+
+  getGeneralGridBubbleWorldPoint(line) {
+    if (!line) return null;
+
+    if ((line.bubbleLoc ?? "End") === "Start") {
+      return { x: Number(line.x1 ?? 0), y: Number(line.y1 ?? 0) };
+    }
+
+    return { x: Number(line.x2 ?? 0), y: Number(line.y2 ?? 0) };
+  }
+
+  drawGeneralGridBubble(grid, ctx, line) {
+    if (!line || line.visible === false) return;
+
+    const worldPoint = this.getGeneralGridBubbleWorldPoint(line);
+    if (!worldPoint) return;
+
+    const p = grid.worldToScreen(worldPoint);
+    const radius = 13;
+
+    ctx.save();
+
+    // línea guía pequeña hacia la burbuja
+    const midX = (Number(line.x1 ?? 0) + Number(line.x2 ?? 0)) / 2;
+    const midY = (Number(line.y1 ?? 0) + Number(line.y2 ?? 0)) / 2;
+    const midP = grid.worldToScreen({ x: midX, y: midY });
+
+    ctx.beginPath();
+    ctx.strokeStyle = "#cdd7e3";
+    ctx.lineWidth = 1;
+    ctx.moveTo(midP.x, midP.y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+
+    // burbuja
+    ctx.beginPath();
+    ctx.fillStyle = "#f4f6f8";
+    ctx.strokeStyle = "#aeb7c2";
+    ctx.lineWidth = 1.2;
+    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // texto
+    ctx.fillStyle = "#4b5563";
+    ctx.font = "12px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(String(line.id ?? ""), p.x, p.y);
+
+    ctx.restore();
+  }
+
+  drawCustomGeneralGridBubbles(grid, context) {
+    const ref = context.referenceGrid;
+    if (!ref?.generalGrids?.length) return;
+
+    const customLines = ref.generalGrids.filter(
+      (g) => g.source === "custom" && g.visible !== false
+    );
+
+    customLines.forEach((line) => {
+      this.drawGeneralGridBubble(grid, context.ctx, line);
+    });
+  }
+
+  drawGeneralGridIntersectionMarkers(grid, context) {
+    if (!context.getGeneralGridIntersections) return;
+
+    const points = context.getGeneralGridIntersections();
+    if (!points?.length) return;
+
+    const ctx = context.ctx;
+
+    ctx.save();
+    ctx.strokeStyle = "#9fb3c8";
+    ctx.lineWidth = 1;
+
+    points.forEach((point) => {
+      const p = grid.worldToScreen({ x: point.x, y: point.y });
+
+      ctx.beginPath();
+      ctx.moveTo(p.x - 4, p.y - 4);
+      ctx.lineTo(p.x + 4, p.y + 4);
+      ctx.moveTo(p.x - 4, p.y + 4);
+      ctx.lineTo(p.x + 4, p.y - 4);
+      ctx.stroke();
+    });
+
+    ctx.restore();
+  }
+
+  drawGeneralGridEndpointMarkers(grid, context) {
+    if (!context.getGeneralGridEndpoints) return;
+
+    const points = context.getGeneralGridEndpoints();
+    if (!points?.length) return;
+
+    const ctx = context.ctx;
+
+    ctx.save();
+    ctx.fillStyle = "#d6dde6";
+    ctx.strokeStyle = "#aeb7c2";
+    ctx.lineWidth = 1;
+
+    points.forEach((point) => {
+      const p = grid.worldToScreen({ x: point.x, y: point.y });
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    });
+
     ctx.restore();
   }
 
@@ -939,20 +1092,31 @@ export class DiseñoRenderer {
     if (!view || view.type === "plan") {
       p = context.grid.worldToScreen({ x: point.x, y: point.y });
     } else if (view.type === "elevation") {
-      // usar la misma proyección correcta del renderer
       p = this.projectPoint({ position: point }, context);
     } else {
       return;
     }
 
+    let markerColor = "#ff3b30";
+
+    if (point.source === "general-grid-intersection") {
+      markerColor = "#ffd166";
+    } else if (point.source === "general-grid-endpoint") {
+      markerColor = "#06d6a0";
+    } else if (point.source === "general-grid") {
+      markerColor = "#a78bfa";
+    }
+
     ctx.save();
 
+    // punto
     ctx.beginPath();
-    ctx.fillStyle = "#ff3b30";
+    ctx.fillStyle = markerColor;
     ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = "#ff3b30";
+    // cruz
+    ctx.strokeStyle = markerColor;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(p.x - 8, p.y);
@@ -961,9 +1125,10 @@ export class DiseñoRenderer {
     ctx.lineTo(p.x, p.y + 8);
     ctx.stroke();
 
+    // etiqueta
     ctx.fillStyle = "#111";
     ctx.font = "12px Arial";
-    ctx.fillText(point.label || "", p.x + 10, p.y - 10);
+    ctx.fillText(point.displayLabel || point.label || "", p.x + 10, p.y - 10);
 
     ctx.restore();
   }

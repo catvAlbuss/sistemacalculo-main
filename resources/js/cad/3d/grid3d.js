@@ -1,4 +1,5 @@
 import * as BABYLON from "@babylonjs/core";
+import { MeshBuilder, Vector3, Color3, TransformNode } from "@babylonjs/core";
 import { getViewer3DState } from "./viewer3d.js";
 import { createSimpleAxisLabel } from "./axes3d.js";
 
@@ -533,4 +534,86 @@ export function createFull3DGrid(scene) {
   }
 
   console.log("✅ Grid base 3D creado");
+}
+
+function modelToBabylon(x, y, z = 0) {
+  // Mantén la misma convención de tu proyecto:
+  // modelo estructural: (x, y, z)
+  // Babylon:           (x, z, y)
+  return new Vector3(x, z, y);
+}
+
+function getStoryElevations(referenceGrid, stories = []) {
+  if (Array.isArray(stories) && stories.length) {
+    const values = [0, ...stories.map((s) => Number(s.elevation ?? 0))];
+    return [...new Set(values.map((v) => Number(v.toFixed(6))))];
+  }
+
+  const storyCount = Number(referenceGrid?.storyCount ?? 0);
+  const storyHeight = Number(referenceGrid?.storyHeight ?? 3);
+
+  const values = [];
+  for (let i = 0; i <= storyCount; i++) {
+    values.push(i * storyHeight);
+  }
+
+  return [...new Set(values.map((v) => Number(v.toFixed(6))))];
+}
+
+export function clearCustomGeneralGrids3D(scene) {
+  if (!scene) return;
+
+  scene.meshes
+    .filter((m) => m.metadata?.type === "customGeneralGrid3D")
+    .forEach((m) => m.dispose());
+
+  scene.transformNodes
+    .filter((n) => n.metadata?.type === "customGeneralGrid3DRoot")
+    .forEach((n) => n.dispose());
+}
+
+export function drawCustomGeneralGrids3D(scene, referenceGrid, stories = []) {
+  if (!scene || !referenceGrid) return;
+
+  clearCustomGeneralGrids3D(scene);
+
+  const allGeneralGrids = referenceGrid.generalGrids || [];
+  const customLines = allGeneralGrids.filter(
+    (line) => line.visible !== false && line.source === "custom"
+  );
+
+  if (!customLines.length) return;
+
+  const elevations = getStoryElevations(referenceGrid, stories);
+
+  const root = new TransformNode("customGeneralGrid3DRoot", scene);
+  root.metadata = { type: "customGeneralGrid3DRoot" };
+
+  customLines.forEach((line) => {
+    elevations.forEach((elev, index) => {
+      const mesh = MeshBuilder.CreateDashedLines(
+        `custom-general-grid-${line.id}-${index}`,
+        {
+          points: [
+            modelToBabylon(line.x1, line.y1, elev),
+            modelToBabylon(line.x2, line.y2, elev),
+          ],
+          dashSize: 0.35,
+          gapSize: 0.2,
+          dashNb: 40,
+          updatable: false,
+        },
+        scene
+      );
+
+      mesh.color = new Color3(0.9, 0.9, 0.9);
+      mesh.isPickable = false;
+      mesh.parent = root;
+      mesh.metadata = {
+        type: "customGeneralGrid3D",
+        gridId: line.id,
+        elevation: elev,
+      };
+    });
+  });
 }

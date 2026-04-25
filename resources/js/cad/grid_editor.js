@@ -16,6 +16,13 @@ export class GridEditor {
         this.yBody = document.getElementById("y-grid-body");
         this.generalBody = document.getElementById("general-grid-body");
 
+        this.modeOrdinatesInput = document.getElementById("grid-mode-ordinates");
+        this.modeSpacingInput = document.getElementById("grid-mode-spacing");
+
+        this.displayMode = "ordinates";
+        this.xRows = [];
+        this.yRows = [];
+
         this.btnCancel = document.getElementById("btn-grid-editor-cancel");
         this.btnApply = document.getElementById("btn-grid-editor-apply");
         this.btnAddX = document.getElementById("btn-add-x-grid");
@@ -25,47 +32,161 @@ export class GridEditor {
         this.bindStaticEvents();
     }
 
-    bindStaticEvents() {
-        this.btnCancel?.addEventListener("click", () => this.close());
-        this.btnApply?.addEventListener("click", () => this.apply());
+    syncDisplayRowsFromDraft() {
+        if (!this.draftGrid) return;
 
-        this.btnAddX?.addEventListener("click", () => {
-            if (!this.draftGrid) return;
-            this.draftGrid.xGrids.push({
-                id: this.getNextXId(),
-                ordinate: 0,
-                visible: true,
-                bubbleLoc: "End",
+        const xGrids = this.draftGrid.xGrids || [];
+        const yGrids = this.draftGrid.yGrids || [];
+
+        if (this.displayMode === "ordinates") {
+            this.xRows = xGrids.map((g) => ({
+                id: g.id,
+                ordinate: Number(g.ordinate ?? 0),
+                visible: g.visible !== false,
+                bubbleLoc: g.bubbleLoc ?? "End",
+            }));
+
+            this.yRows = yGrids.map((g) => ({
+                id: g.id,
+                ordinate: Number(g.ordinate ?? 0),
+                visible: g.visible !== false,
+                bubbleLoc: g.bubbleLoc ?? "Start",
+            }));
+        } else {
+            this.xRows = this.cad.buildSpacingRowsFromOrdinates(xGrids).map((g) => ({
+                id: g.id,
+                spacing: Number(g.spacing ?? 0),
+                visible: g.visible !== false,
+                bubbleLoc: g.bubbleLoc ?? "End",
+            }));
+
+            this.yRows = this.cad.buildSpacingRowsFromOrdinates(yGrids).map((g) => ({
+                id: g.id,
+                spacing: Number(g.spacing ?? 0),
+                visible: g.visible !== false,
+                bubbleLoc: g.bubbleLoc ?? "Start",
+            }));
+        }
+    }
+
+    rebuildDraftGridFromDisplayRows() {
+        if (!this.draftGrid) return;
+
+        const toOrdinateRows = (rows, defaultBubbleLoc) => {
+            let acc = 0;
+
+            return rows.map((r, i) => {
+                if (this.displayMode === "spacing") {
+                    acc += Number(r.spacing ?? 0);
+                } else {
+                    acc = Number(r.ordinate ?? 0);
+                }
+
+                return {
+                    id: String(r.id ?? i + 1),
+                    ordinate: acc,
+                    visible: r.visible !== false,
+                    bubbleLoc: r.bubbleLoc ?? defaultBubbleLoc,
+                };
             });
-            this.refreshDraft();
-            this.renderAll();
+        };
+
+        this.draftGrid.xGrids = toOrdinateRows(this.xRows, "End");
+        this.draftGrid.yGrids = toOrdinateRows(this.yRows, "Start");
+    }
+
+    setDisplayMode(mode) {
+        if (mode !== "ordinates" && mode !== "spacing") return;
+
+        this.displayMode = mode;
+
+        if (this.modeOrdinatesInput) {
+            this.modeOrdinatesInput.checked = mode === "ordinates";
+        }
+
+        if (this.modeSpacingInput) {
+            this.modeSpacingInput.checked = mode === "spacing";
+        }
+
+        this.syncDisplayRowsFromDraft();
+        this.renderX();
+        this.renderY();
+    }
+
+    getXValueFieldName() {
+        return this.displayMode === "ordinates" ? "ordinate" : "spacing";
+    }
+
+    getYValueFieldName() {
+        return this.displayMode === "ordinates" ? "ordinate" : "spacing";
+    }
+
+    bindStaticEvents() {
+        this.btnAddX?.addEventListener("click", () => {
+            if (this.displayMode === "ordinates") {
+                this.xRows.push({
+                    id: `X${this.xRows.length + 1}`,
+                    ordinate: 0,
+                    visible: true,
+                    bubbleLoc: "End"
+                });
+            } else {
+                this.xRows.push({
+                    id: `X${this.xRows.length + 1}`,
+                    spacing: 0,
+                    visible: true,
+                    bubbleLoc: "End"
+                });
+            }
+            this.renderX();
         });
 
         this.btnAddY?.addEventListener("click", () => {
-            if (!this.draftGrid) return;
-            this.draftGrid.yGrids.push({
-                id: this.getNextYId(),
-                ordinate: 0,
-                visible: true,
-                bubbleLoc: "Start",
-            });
-            this.refreshDraft();
-            this.renderAll();
+            if (this.displayMode === "ordinates") {
+                this.yRows.push({
+                    id: `Y${this.yRows.length + 1}`,
+                    ordinate: 0,
+                    visible: true,
+                    bubbleLoc: "Start"
+                });
+            } else {
+                this.yRows.push({
+                    id: `Y${this.yRows.length + 1}`,
+                    spacing: 0,
+                    visible: true,
+                    bubbleLoc: "Start"
+                });
+            }
+            this.renderY();
         });
 
         this.btnAddGeneral?.addEventListener("click", () => {
-            if (!this.draftGrid) return;
             this.draftGrid.generalGrids.push({
-                id: uid("custom"),
+                id: `G${this.draftGrid.generalGrids.length + 1}`,
                 x1: 0,
                 y1: 0,
-                x2: 5,
-                y2: 5,
+                x2: 0,
+                y2: 0,
                 visible: true,
                 bubbleLoc: "End",
                 source: "custom",
             });
             this.renderGeneral();
+        });
+
+        this.btnCancel?.addEventListener("click", () => this.close());
+        this.btnApply?.addEventListener("click", () => this.apply());
+
+        this.modeOrdinatesInput?.addEventListener("change", () => {
+            if (this.modeOrdinatesInput.checked) {
+                this.setDisplayMode("ordinates");
+            }
+        });
+
+        this.modeSpacingInput?.addEventListener("change", () => {
+            if (this.modeSpacingInput.checked) {
+                this.setDisplayMode("spacing");
+            }
         });
     }
 
@@ -86,12 +207,25 @@ export class GridEditor {
     }
 
     open() {
-        const ref = this.cad.getReferenceGrid?.() || this.cad.referenceGrid;
-        if (!ref) return;
+        const currentGrid = this.cad.referenceGrid;
+        if (!currentGrid) return;
 
-        this.draftGrid = deepClone(ref);
-        this.refreshDraft();
-        this.renderAll();
+        this.draftGrid = JSON.parse(JSON.stringify(currentGrid));
+
+        this.displayMode = this.cad.gridDisplayMode || "ordinates";
+
+        if (this.modeOrdinatesInput) {
+            this.modeOrdinatesInput.checked = this.displayMode === "ordinates";
+        }
+
+        if (this.modeSpacingInput) {
+            this.modeSpacingInput.checked = this.displayMode === "spacing";
+        }
+
+        this.syncDisplayRowsFromDraft();
+        this.renderX();
+        this.renderY();
+        this.renderGeneral();
 
         if (this.modal) {
             this.modal.hidden = false;
@@ -108,20 +242,56 @@ export class GridEditor {
     }
 
     apply() {
-        if (!this.draftGrid) return;
+        if (!this.cad?.referenceGrid) return;
 
-        this.cad.referenceGrid = deepClone(this.draftGrid);
+        const buildFromRows = (rows, defaultBubbleLoc) => {
+            let acc = 0;
+
+            return rows.map((r, i) => {
+                const value =
+                    this.displayMode === "spacing"
+                        ? Number(r.spacing ?? 0)
+                        : Number(r.ordinate ?? 0);
+
+                acc = this.displayMode === "spacing" ? acc + value : value;
+
+                return {
+                    id: String(r.id ?? i + 1),
+                    ordinate: acc,
+                    visible: r.visible !== false,
+                    bubbleLoc: r.bubbleLoc ?? defaultBubbleLoc,
+                };
+            });
+        };
+
+        const newXGrids = buildFromRows(this.xRows, "End");
+        const newYGrids = buildFromRows(this.yRows, "Start");
+
+        console.log("DISPLAY MODE:", this.displayMode);
+        console.log("X ROWS:", JSON.parse(JSON.stringify(this.xRows)));
+        console.log("NEW X GRIDS:", JSON.parse(JSON.stringify(newXGrids)));
+
+        // copiar directamente al CAD real
+        this.cad.referenceGrid.xGrids = JSON.parse(JSON.stringify(newXGrids));
+        this.cad.referenceGrid.yGrids = JSON.parse(JSON.stringify(newYGrids));
+        this.cad.referenceGrid.generalGrids = JSON.parse(
+            JSON.stringify(this.draftGrid?.generalGrids || [])
+        );
+
+        this.cad.gridDisplayMode = this.displayMode;
+
+        this.cad.rebuildReferenceGridCaches();
         this.cad.rebuildGeneralGrids();
         this.cad.rebuildViewSetFromReferenceGrid();
         this.cad.rebuildElevationListsFromReferenceGrid();
 
-        if (typeof this.cad.redraw === "function") {
-            this.cad.redraw();
-        }
+        this.cad.redraw?.();
+        this.cad.sync3D?.();
 
-        if (typeof this.cad.sync3D === "function") {
-            this.cad.sync3D();
-        }
+        console.log(
+            "REFERENCE GRID X FINAL:",
+            JSON.parse(JSON.stringify(this.cad.referenceGrid.xGrids))
+        );
 
         this.close();
     }
@@ -138,20 +308,29 @@ export class GridEditor {
     }
 
     renderX() {
-        if (!this.xBody || !this.draftGrid) return;
+        if (!this.xBody) return;
 
         const inputClass = this.inputClass();
         const selectClass = this.selectClass();
         const checkboxClass = this.checkboxClass();
         const deleteButtonClass = this.deleteButtonClass();
 
-        this.xBody.innerHTML = this.draftGrid.xGrids.map((row, index) => `
+        const fieldName = this.getXValueFieldName();
+        const headerText = this.displayMode === "ordinates" ? "X Ordinate" : "X Spacing";
+
+        const table = this.xBody.closest("table");
+        if (table) {
+            const ths = table.querySelectorAll("thead th");
+            if (ths[1]) ths[1].textContent = `${headerText} (m)`;
+        }
+
+        this.xBody.innerHTML = this.xRows.map((row, index) => `
     <tr class="border-b">
       <td class="p-2">
         <input class="${inputClass}" data-kind="x" data-index="${index}" data-field="id" value="${row.id}">
       </td>
       <td class="p-2">
-        <input class="${inputClass}" type="number" step="any" data-kind="x" data-index="${index}" data-field="ordinate" value="${row.ordinate}">
+        <input class="${inputClass}" type="number" step="any" data-kind="x" data-index="${index}" data-field="${fieldName}" value="${row[fieldName] ?? 0}">
       </td>
       <td class="p-2 text-center">
         <input class="${checkboxClass}" type="checkbox" data-kind="x" data-index="${index}" data-field="visible" ${row.visible ? "checked" : ""}>
@@ -172,20 +351,29 @@ export class GridEditor {
     }
 
     renderY() {
-        if (!this.yBody || !this.draftGrid) return;
+        if (!this.yBody) return;
 
         const inputClass = this.inputClass();
         const selectClass = this.selectClass();
         const checkboxClass = this.checkboxClass();
         const deleteButtonClass = this.deleteButtonClass();
 
-        this.yBody.innerHTML = this.draftGrid.yGrids.map((row, index) => `
+        const fieldName = this.getYValueFieldName();
+        const headerText = this.displayMode === "ordinates" ? "Y Ordinate" : "Y Spacing";
+
+        const table = this.yBody.closest("table");
+        if (table) {
+            const ths = table.querySelectorAll("thead th");
+            if (ths[1]) ths[1].textContent = `${headerText} (m)`;
+        }
+
+        this.yBody.innerHTML = this.yRows.map((row, index) => `
     <tr class="border-b">
       <td class="p-2">
         <input class="${inputClass}" data-kind="y" data-index="${index}" data-field="id" value="${row.id}">
       </td>
       <td class="p-2">
-        <input class="${inputClass}" type="number" step="any" data-kind="y" data-index="${index}" data-field="ordinate" value="${row.ordinate}">
+        <input class="${inputClass}" type="number" step="any" data-kind="y" data-index="${index}" data-field="${fieldName}" value="${row[fieldName] ?? 0}">
       </td>
       <td class="p-2 text-center">
         <input class="${checkboxClass}" type="checkbox" data-kind="y" data-index="${index}" data-field="visible" ${row.visible ? "checked" : ""}>
@@ -257,11 +445,85 @@ export class GridEditor {
 
     bindDynamicEvents(container) {
         container.querySelectorAll("input, select").forEach((el) => {
-            el.addEventListener("change", (e) => this.handleFieldChange(e));
+            el.addEventListener("input", (event) => {
+                const kind = event.target.dataset.kind;
+                const index = Number(event.target.dataset.index);
+                const field = event.target.dataset.field;
+
+                if (kind === "x" || kind === "y") {
+                    const rows = kind === "x" ? this.xRows : this.yRows;
+                    if (!rows[index]) return;
+
+                    if (field === "visible") {
+                        rows[index][field] = event.target.checked;
+                    } else if (field === "ordinate" || field === "spacing") {
+                        rows[index][field] = Number(event.target.value);
+                    } else {
+                        rows[index][field] = event.target.value;
+                    }
+                }
+
+                if (kind === "general") {
+                    if (!this.draftGrid?.generalGrids?.[index]) return;
+
+                    if (field === "visible") {
+                        this.draftGrid.generalGrids[index][field] = event.target.checked;
+                    } else if (["x1", "y1", "x2", "y2"].includes(field)) {
+                        this.draftGrid.generalGrids[index][field] = Number(event.target.value);
+                    } else {
+                        this.draftGrid.generalGrids[index][field] = event.target.value;
+                    }
+                }
+            });
+
+            el.addEventListener("change", (event) => {
+                const kind = event.target.dataset.kind;
+                const index = Number(event.target.dataset.index);
+                const field = event.target.dataset.field;
+
+                if (kind === "x" || kind === "y") {
+                    const rows = kind === "x" ? this.xRows : this.yRows;
+                    if (!rows[index]) return;
+
+                    if (field === "visible") {
+                        rows[index][field] = event.target.checked;
+                    } else if (field === "ordinate" || field === "spacing") {
+                        rows[index][field] = Number(event.target.value);
+                    } else {
+                        rows[index][field] = event.target.value;
+                    }
+                }
+
+                if (kind === "general") {
+                    if (!this.draftGrid?.generalGrids?.[index]) return;
+
+                    if (field === "visible") {
+                        this.draftGrid.generalGrids[index][field] = event.target.checked;
+                    } else if (["x1", "y1", "x2", "y2"].includes(field)) {
+                        this.draftGrid.generalGrids[index][field] = Number(event.target.value);
+                    } else {
+                        this.draftGrid.generalGrids[index][field] = event.target.value;
+                    }
+                }
+            });
         });
 
-        container.querySelectorAll("button[data-remove]").forEach((btn) => {
-            btn.addEventListener("click", (e) => this.handleRemove(e));
+        container.querySelectorAll("[data-remove]").forEach((btn) => {
+            btn.addEventListener("click", (event) => {
+                const kind = event.target.dataset.remove;
+                const index = Number(event.target.dataset.index);
+
+                if (kind === "x") {
+                    this.xRows.splice(index, 1);
+                    this.renderX();
+                } else if (kind === "y") {
+                    this.yRows.splice(index, 1);
+                    this.renderY();
+                } else if (kind === "general") {
+                    this.draftGrid.generalGrids.splice(index, 1);
+                    this.renderGeneral();
+                }
+            });
         });
     }
 

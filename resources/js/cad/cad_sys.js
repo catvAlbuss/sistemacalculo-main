@@ -82,7 +82,20 @@ export default () => ({
   zElevations: [], // ← AGREGA ESTA LÍNEA
 
   // También agrega referenceGrid si no está
-  referenceGrid: null,
+  // referenceGrid: null,
+  referenceGrid: {
+    xGrids: [],
+    yGrids: [],
+    generalGrids: [],
+    xPositions: [],
+    yPositions: [],
+    xLabels: [],
+    yLabels: [],
+    storyCount: 0,
+    storyHeight: 0,
+  },
+
+  gridDisplayMode: "ordinates", // "ordinates" o "spacing"
 
   // Guardar estado para restaurar después de cerrar el editor de grid
   gridEditor: null,
@@ -643,8 +656,8 @@ export default () => ({
 
     for (let i = 0; i < count; i++) {
       grids.push({
-        id: labels[i],              // A, B, C...
-        ordinate: i * spacing,      // coordenada X
+        id: labels[i],
+        ordinate: i * Number(spacing),
         visible: true,
         bubbleLoc: "End",
       });
@@ -659,8 +672,8 @@ export default () => ({
 
     for (let i = 0; i < count; i++) {
       grids.push({
-        id: String(labels[i]),      // 1, 2, 3...
-        ordinate: i * spacing,      // coordenada Y
+        id: String(labels[i]),
+        ordinate: i * Number(spacing),
         visible: true,
         bubbleLoc: "Start",
       });
@@ -724,6 +737,91 @@ export default () => ({
 
   getReferenceGrid() {
     return this.referenceGrid;
+  },
+
+  normalizeGridLine(line = {}, fallbackId = "") {
+    return {
+      id: String(line.id ?? fallbackId),
+      ordinate: Number(line.ordinate ?? 0),
+      visible: line.visible !== false,
+      bubbleLoc: line.bubbleLoc ?? "End",
+    };
+  },
+
+  normalizeGeneralGridLine(line = {}, fallbackId = "") {
+    return {
+      id: String(line.id ?? fallbackId),
+      x1: Number(line.x1 ?? 0),
+      y1: Number(line.y1 ?? 0),
+      x2: Number(line.x2 ?? 0),
+      y2: Number(line.y2 ?? 0),
+      visible: line.visible !== false,
+      bubbleLoc: line.bubbleLoc ?? "End",
+      source: line.source ?? "custom",
+    };
+  },
+
+  sortGridsByOrdinate(lines = []) {
+    return [...lines].sort((a, b) => Number(a.ordinate) - Number(b.ordinate));
+  },
+
+  rebuildReferenceGridCaches() {
+    if (!this.referenceGrid) return;
+
+    const ref = this.referenceGrid;
+
+    ref.xGrids = this.sortGridsByOrdinate(
+      (ref.xGrids || []).map((g, i) => this.normalizeGridLine(g, `X${i + 1}`))
+    );
+
+    ref.yGrids = this.sortGridsByOrdinate(
+      (ref.yGrids || []).map((g, i) => this.normalizeGridLine(g, `Y${i + 1}`))
+    );
+
+    ref.generalGrids = (ref.generalGrids || []).map((g, i) =>
+      this.normalizeGeneralGridLine(g, `G${i + 1}`)
+    );
+
+    ref.xPositions = ref.xGrids.map((g) => Number(g.ordinate));
+    ref.yPositions = ref.yGrids.map((g) => Number(g.ordinate));
+    ref.xLabels = ref.xGrids.map((g) => g.id);
+    ref.yLabels = ref.yGrids.map((g) => g.id);
+  },
+
+  buildSpacingRowsFromOrdinates(lines = []) {
+    const sorted = this.sortGridsByOrdinate(lines);
+
+    return sorted.map((line, index) => {
+      const prev = sorted[index - 1];
+      const spacing = index === 0 ? Number(line.ordinate) : Number(line.ordinate) - Number(prev.ordinate);
+
+      return {
+        id: line.id,
+        spacing,
+        visible: line.visible !== false,
+        bubbleLoc: line.bubbleLoc ?? "End",
+      };
+    });
+  },
+
+  buildOrdinatesFromSpacingRows(rows = []) {
+    let cumulative = 0;
+
+    return rows.map((row, index) => {
+      cumulative += Number(row.spacing ?? 0);
+
+      return {
+        id: String(row.id ?? index + 1),
+        ordinate: cumulative,
+        visible: row.visible !== false,
+        bubbleLoc: row.bubbleLoc ?? "End",
+      };
+    });
+  },
+
+  setGridDisplayMode(mode) {
+    if (mode !== "ordinates" && mode !== "spacing") return;
+    this.gridDisplayMode = mode;
   },
 
   rebuildViewSetFromReferenceGrid() {
@@ -798,25 +896,44 @@ export default () => ({
   createModelFromDialog(params) {
     console.log("🏗️ Configurando grid de referencia con parámetros:", params);
 
+    // this.referenceGrid = {
+    //   xCount: params.gridXCount,
+    //   yCount: params.gridYCount,
+    //   xSpacing: params.gridXSpacing,
+    //   ySpacing: params.gridYSpacing,
+    //   storyCount: params.storyCount,
+    //   storyHeight: params.storyHeight,
+
+    //   xPositions: [],
+    //   yPositions: [],
+    //   xLabels: [],
+    //   yLabels: [],
+
+    //   xGrids: this.buildXGrids(params.gridXCount, params.gridXSpacing),
+    //   yGrids: this.buildYGrids(params.gridYCount, params.gridYSpacing),
+    //   generalGrids: [],
+    // };
+
+    // this.rebuildGeneralGrids();
+
     this.referenceGrid = {
-      xCount: params.gridXCount,
-      yCount: params.gridYCount,
-      xSpacing: params.gridXSpacing,
-      ySpacing: params.gridYSpacing,
-      storyCount: params.storyCount,
-      storyHeight: params.storyHeight,
+      xGrids: this.buildXGrids(params.gridXCount, params.gridXSpacing),
+      yGrids: this.buildYGrids(params.gridYCount, params.gridYSpacing),
+      generalGrids: [],
 
       xPositions: [],
       yPositions: [],
       xLabels: [],
       yLabels: [],
 
-      xGrids: this.buildXGrids(params.gridXCount, params.gridXSpacing),
-      yGrids: this.buildYGrids(params.gridYCount, params.gridYSpacing),
-      generalGrids: [],
+      storyCount: Number(params.storyCount || 0),
+      storyHeight: Number(params.storyHeight || 0),
     };
 
+    this.rebuildReferenceGridCaches();
     this.rebuildGeneralGrids();
+    this.rebuildViewSetFromReferenceGrid();
+    this.rebuildElevationListsFromReferenceGrid();
 
     this.stories = [
       { id: 0, name: "Base", elevation: 0 },
@@ -1000,41 +1117,216 @@ export default () => ({
 
     if (!xValues.length || !yValues.length) return null;
 
+    const nearestX = this.getNearestValueWithIndex(xValues, mouseWorld.x);
+    const nearestY = this.getNearestValueWithIndex(yValues, mouseWorld.y);
+
+    if (!nearestX || !nearestY) return null;
+
+    const worldPoint = {
+      x: nearestX.value,
+      y: nearestY.value,
+      z: this.getActivePlanElevation(),
+    };
+
+    const screenPoint = this.grid.worldToScreen({
+      x: worldPoint.x,
+      y: worldPoint.y,
+    });
+
+    const dxScreen = mouseScreen.x - screenPoint.x;
+    const dyScreen = mouseScreen.y - screenPoint.y;
+    const screenDistance = Math.sqrt(dxScreen * dxScreen + dyScreen * dyScreen);
+
+    if (screenDistance > this.planGridSnapScreenTolerance) {
+      return null;
+    }
+
+    return {
+      x: worldPoint.x,
+      y: worldPoint.y,
+      z: worldPoint.z,
+      xGridId: xLabels[nearestX.index] ?? String(nearestX.index + 1),
+      yGridId: yLabels[nearestY.index] ?? String(nearestY.index + 1),
+      label: `Grid Point ${xLabels[nearestX.index] ?? nearestX.index + 1} ${yLabels[nearestY.index] ?? nearestY.index + 1}`,
+      source: "grid-xy",
+      screenDistance,
+    };
+  },
+
+  getGeneralGridIntersections() {
+    const ref = this.referenceGrid;
+    if (!ref?.generalGrids?.length) return [];
+
+    const customLines = ref.generalGrids.filter(
+      (g) => g.source === "custom" && g.visible !== false
+    );
+
+    const intersections = [];
+
+    customLines.forEach((line) => {
+      const x1 = Number(line.x1 ?? 0);
+      const y1 = Number(line.y1 ?? 0);
+      const x2 = Number(line.x2 ?? 0);
+      const y2 = Number(line.y2 ?? 0);
+
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+
+      // Intersección con líneas X (verticales)
+      (ref.xPositions || []).forEach((xVal, ix) => {
+        if (Math.abs(dx) < 1e-9) return;
+
+        const t = (xVal - x1) / dx;
+        if (t >= 0 && t <= 1) {
+          const yVal = y1 + t * dy;
+
+          intersections.push({
+            x: xVal,
+            y: yVal,
+            z: this.getActivePlanElevation(),
+            label: `Intersection ${line.id} × ${ref.xLabels[ix]}`,
+            gridId: line.id,
+            baseGridId: ref.xLabels[ix],
+            source: "general-grid-intersection",
+          });
+        }
+      });
+
+      // Intersección con líneas Y (horizontales)
+      (ref.yPositions || []).forEach((yVal, iy) => {
+        if (Math.abs(dy) < 1e-9) return;
+
+        const t = (yVal - y1) / dy;
+        if (t >= 0 && t <= 1) {
+          const xVal = x1 + t * dx;
+
+          intersections.push({
+            x: xVal,
+            y: yVal,
+            z: this.getActivePlanElevation(),
+            label: `Intersection ${line.id} × ${ref.yLabels[iy]}`,
+            gridId: line.id,
+            baseGridId: ref.yLabels[iy],
+            source: "general-grid-intersection",
+          });
+        }
+      });
+    });
+
+    return intersections;
+  },
+
+  buildSnapDisplayLabel(point) {
+    if (!point) return "";
+
+    switch (point.source) {
+      case "general-grid-intersection":
+        return `Intersection ${point.gridId} × ${point.baseGridId}`;
+
+      case "general-grid-endpoint":
+        return `Endpoint ${point.gridId}`;
+
+      case "general-grid":
+        return `Grid ${point.gridId}`;
+
+      case "grid-xy":
+      default:
+        if (point.xGridId && point.yGridId) {
+          return `Grid Point ${point.xGridId} ${point.yGridId}`;
+        }
+        return point.label || "";
+    }
+  },
+
+  getNearestPlanGeneralGridIntersectionSnap(mouseScreen) {
+    const points = this.getGeneralGridIntersections();
+    if (!points.length) return null;
+
     let best = null;
 
-    for (let ix = 0; ix < xValues.length; ix++) {
-      for (let iy = 0; iy < yValues.length; iy++) {
-        const worldPoint = {
-          x: xValues[ix],
-          y: yValues[iy],
-          z: this.getActivePlanElevation(),
+    points.forEach((point) => {
+      const sp = this.grid.worldToScreen({ x: point.x, y: point.y });
+      const dx = mouseScreen.x - sp.x;
+      const dy = mouseScreen.y - sp.y;
+      const screenDistance = Math.sqrt(dx * dx + dy * dy);
+
+      if (
+        best === null ||
+        screenDistance < best.screenDistance
+      ) {
+        best = {
+          ...point,
+          screenDistance,
         };
-
-        const screenPoint = this.grid.worldToScreen({
-          x: worldPoint.x,
-          y: worldPoint.y,
-        });
-
-        const dxScreen = mouseScreen.x - screenPoint.x;
-        const dyScreen = mouseScreen.y - screenPoint.y;
-        const screenDistance = Math.sqrt(dxScreen * dxScreen + dyScreen * dyScreen);
-
-        if (
-          best === null ||
-          screenDistance < best.screenDistance
-        ) {
-          best = {
-            x: worldPoint.x,
-            y: worldPoint.y,
-            z: worldPoint.z,
-            xGridId: xLabels[ix] ?? String(ix + 1),
-            yGridId: yLabels[iy] ?? String(iy + 1),
-            label: `Grid Point ${xLabels[ix] ?? ix + 1} ${yLabels[iy] ?? iy + 1}`,
-            screenDistance,
-          };
-        }
       }
+    });
+
+    if (!best) return null;
+    if (best.screenDistance > this.planGridSnapScreenTolerance) return null;
+
+    return best;
+  },
+
+  closestPointOnSegment(px, py, x1, y1, x2, y2) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+
+    if (Math.abs(dx) < 1e-9 && Math.abs(dy) < 1e-9) {
+      return { x: x1, y: y1, t: 0 };
     }
+
+    let t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
+    t = Math.max(0, Math.min(1, t));
+
+    return {
+      x: x1 + t * dx,
+      y: y1 + t * dy,
+      t,
+    };
+  },
+
+  getNearestPlanGeneralGridSnap(mouseWorld, mouseScreen) {
+    const ref = this.referenceGrid;
+    if (!ref?.generalGrids?.length) return null;
+
+    const customLines = ref.generalGrids.filter(
+      (g) => g.source === "custom" && g.visible !== false
+    );
+
+    if (!customLines.length) return null;
+
+    let best = null;
+
+    customLines.forEach((line) => {
+      const cp = this.closestPointOnSegment(
+        mouseWorld.x,
+        mouseWorld.y,
+        Number(line.x1 ?? 0),
+        Number(line.y1 ?? 0),
+        Number(line.x2 ?? 0),
+        Number(line.y2 ?? 0)
+      );
+
+      const sp = this.grid.worldToScreen({ x: cp.x, y: cp.y });
+      const dx = mouseScreen.x - sp.x;
+      const dy = mouseScreen.y - sp.y;
+      const screenDistance = Math.sqrt(dx * dx + dy * dy);
+
+      if (
+        best === null ||
+        screenDistance < best.screenDistance
+      ) {
+        best = {
+          x: cp.x,
+          y: cp.y,
+          z: this.getActivePlanElevation(),
+          label: `Grid ${line.id}`,
+          gridId: line.id,
+          source: "general-grid",
+          screenDistance,
+        };
+      }
+    });
 
     if (!best) return null;
     if (best.screenDistance > this.planGridSnapScreenTolerance) return null;
@@ -1044,42 +1336,150 @@ export default () => ({
 
   updatePlanGridSnap(mouseWorld, mouseScreen) {
     const view = this.viewSet?.[this.activeViewIndex];
-
     this.lastMouseScreen = mouseScreen;
 
-    // PLANTA
-    if (view && view.type === "plan") {
-      const point = this.getNearestPlanGridPoint(mouseWorld, mouseScreen);
-      this.activeGridPoint = point;
+    if (!view || view.type !== "plan") {
+      this.activeGridPoint = null;
+      return;
+    }
 
-      if (point) {
-        this.statusCoordinates = `X ${point.x.toFixed(2)}  Y ${point.y.toFixed(2)}  Z ${point.z.toFixed(2)}`;
-      } else {
-        const z = this.getActivePlanElevation();
-        this.statusCoordinates = `X ${mouseWorld.x.toFixed(2)}  Y ${mouseWorld.y.toFixed(2)}  Z ${z.toFixed(2)}`;
+    const pointIntersection = this.getNearestPlanGeneralGridIntersectionSnap(mouseScreen);
+    const pointEndpoint = this.getNearestPlanGeneralGridEndpointSnap(mouseScreen);
+    const pointGeneral = this.getNearestPlanGeneralGridSnap(mouseWorld, mouseScreen);
+    const pointXY = this.getNearestPlanGridPoint(mouseWorld, mouseScreen);
+
+    const candidates = [];
+
+    if (pointIntersection) {
+      candidates.push({
+        ...pointIntersection,
+        priorityWeight: 0
+      });
+    }
+
+    if (pointEndpoint) {
+      candidates.push({
+        ...pointEndpoint,
+        priorityWeight: 2
+      });
+    }
+
+    if (pointGeneral) {
+      candidates.push({
+        ...pointGeneral,
+        priorityWeight: 4
+      });
+    }
+
+    if (pointXY) {
+      candidates.push({
+        ...pointXY,
+        priorityWeight: 6
+      });
+    }
+
+    if (!candidates.length) {
+      this.activeGridPoint = null;
+      const z = this.getActivePlanElevation();
+      this.statusCoordinates = `X ${mouseWorld.x.toFixed(2)}  Y ${mouseWorld.y.toFixed(2)}  Z ${z.toFixed(2)}`;
+      return;
+    }
+
+    // Elegir el mejor punto por cercanía real + pequeña prioridad
+    candidates.forEach((c) => {
+      c.score = (c.screenDistance ?? 9999) + (c.priorityWeight ?? 0);
+    });
+
+    candidates.sort((a, b) => a.score - b.score);
+
+    const point = candidates[0];
+
+    point.displayLabel = this.buildSnapDisplayLabel(point);
+    this.activeGridPoint = point;
+    this.statusCoordinates = `X ${point.x.toFixed(2)}  Y ${point.y.toFixed(2)}  Z ${point.z.toFixed(2)}`;
+  },
+
+  getGeneralGridEndpoints() {
+    const ref = this.referenceGrid;
+    if (!ref?.generalGrids?.length) return [];
+
+    const customLines = ref.generalGrids.filter(
+      (g) => g.source === "custom" && g.visible !== false
+    );
+
+    const z = this.getActivePlanElevation();
+    const points = [];
+
+    customLines.forEach((line) => {
+      points.push({
+        x: Number(line.x1 ?? 0),
+        y: Number(line.y1 ?? 0),
+        z,
+        label: `Endpoint ${line.id}`,
+        gridId: line.id,
+        source: "general-grid-endpoint",
+        bubbleLoc: "Start",
+      });
+
+      points.push({
+        x: Number(line.x2 ?? 0),
+        y: Number(line.y2 ?? 0),
+        z,
+        label: `Endpoint ${line.id}`,
+        gridId: line.id,
+        source: "general-grid-endpoint",
+        bubbleLoc: "End",
+      });
+    });
+
+    return points;
+  },
+
+  getNearestPlanGeneralGridEndpointSnap(mouseScreen) {
+    const points = this.getGeneralGridEndpoints();
+    if (!points.length) return null;
+
+    let best = null;
+
+    points.forEach((point) => {
+      const sp = this.grid.worldToScreen({ x: point.x, y: point.y });
+      const dx = mouseScreen.x - sp.x;
+      const dy = mouseScreen.y - sp.y;
+      const screenDistance = Math.sqrt(dx * dx + dy * dy);
+
+      if (!best || screenDistance < best.screenDistance) {
+        best = {
+          ...point,
+          screenDistance,
+        };
       }
+    });
 
-      return;
+    if (!best) return null;
+    if (best.screenDistance > this.planGridSnapScreenTolerance) return null;
+
+    return best;
+  },
+
+  buildSnapDisplayLabel(point) {
+    if (!point) return "";
+
+    switch (point.source) {
+      case "general-grid-intersection":
+        return `Intersection ${point.gridId} × ${point.baseGridId}`;
+
+      case "general-grid-endpoint":
+        return `Endpoint ${point.gridId}`;
+
+      case "general-grid":
+        return `Grid ${point.gridId}`;
+
+      default:
+        if (point.xGridId && point.yGridId) {
+          return `Grid Point ${point.xGridId} ${point.yGridId}`;
+        }
+        return point.label || "";
     }
-
-    // ELEVACIÓN POR LETRAS => X fija => plano Y-Z
-    if (view?.type === "elevation" && view.axis === "X") {
-      const fixedX = view.value ?? 0;
-      this.activeGridPoint = null;
-      this.statusCoordinates = `X ${fixedX.toFixed(2)}  Y ${mouseWorld.x.toFixed(2)}  Z ${mouseWorld.y.toFixed(2)}`;
-      return;
-    }
-
-    // ELEVACIÓN POR NÚMEROS => Y fija => plano X-Z
-    if (view?.type === "elevation" && view.axis === "Y") {
-      const fixedY = view.value ?? 0;
-      this.activeGridPoint = null;
-      this.statusCoordinates = `X ${mouseWorld.x.toFixed(2)}  Y ${fixedY.toFixed(2)}  Z ${mouseWorld.y.toFixed(2)}`;
-      return;
-    }
-
-    this.activeGridPoint = null;
-    this.statusCoordinates = `X ${mouseWorld.x.toFixed(2)}  Y ${mouseWorld.y.toFixed(2)}  Z 0.00`;
   },
 
   isPlanView() {

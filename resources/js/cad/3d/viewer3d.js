@@ -1,4 +1,5 @@
 import * as BABYLON from "@babylonjs/core";
+import { drawCustomGeneralGrids3D } from "./grid3d.js";
 
 const VIEWER_STATE = {
     engine: null,
@@ -306,12 +307,21 @@ export function initViewer3D(context, container) {
             context.createFull3DGrid(scene);
         }
 
+        // if (context.referenceGrid && context.pendingGrid3D) {
+        //     context.grid3DDrawn = false;
+        //     context.drawReferenceGrid3D();
+        //     context.pendingGrid3D = false;
+        // } else if (context.referenceGrid && typeof context.drawReferenceGrid3D === "function") {
+        //     context.drawReferenceGrid3D();
+        // }
         if (context.referenceGrid && context.pendingGrid3D) {
             context.grid3DDrawn = false;
             context.drawReferenceGrid3D();
+            drawCustomGeneralGrids3D(scene, context.referenceGrid, context.stories);
             context.pendingGrid3D = false;
         } else if (context.referenceGrid && typeof context.drawReferenceGrid3D === "function") {
             context.drawReferenceGrid3D();
+            drawCustomGeneralGrids3D(scene, context.referenceGrid, context.stories);
         }
 
         let frameCount = 0;
@@ -377,6 +387,11 @@ export function sync3D(context) {
         try {
             if (context.referenceGrid && typeof context.drawReferenceGrid3D === "function") {
                 context.drawReferenceGrid3D();
+                drawCustomGeneralGrids3D(
+                    VIEWER_STATE.scene,
+                    context.referenceGrid,
+                    context.stories
+                );
             }
 
             drawIn3D(context);

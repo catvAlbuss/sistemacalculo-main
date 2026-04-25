@@ -75,6 +75,17 @@
       box-shadow: 0 12px 30px rgba(0,0,0,0.25);
     ">
       <h2 style="margin-top: 0; color: #111827;">Grid System Data</h2>
+      <div style="display:flex; gap:20px; align-items:center; margin-bottom:16px;">
+        <label style="display:flex; align-items:center; gap:6px; color:#111827;">
+          <input type="radio" name="grid-display-mode" id="grid-mode-ordinates" value="ordinates" checked>
+          Display Grid Data as Ordinates
+        </label>
+
+        <label style="display:flex; align-items:center; gap:6px; color:#111827;">
+          <input type="radio" name="grid-display-mode" id="grid-mode-spacing" value="spacing">
+          Display Grid Data as Spacing
+        </label>
+      </div>
 
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px;">
         <section>
