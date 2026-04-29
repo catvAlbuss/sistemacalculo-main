@@ -24,6 +24,14 @@ import {
   IdleState,
   PanAndZoomState,
   TrussDrawingState,
+  PointDrawingState,
+  ColumnDrawingState,
+  ReferencePointDrawingState,
+  DimensionLineDrawingState,
+  SelectedDimensionLinesState,
+  ReshapeObjectState,
+  AreaDrawingState,
+  SelectedAreasState,
   MoveObjectState,
   SelectedBeamsState,
   EditParametricState,
@@ -42,6 +50,16 @@ import sections from "./sections.js";
 import * as BABYLON from "@babylonjs/core";
 import { TrussDrawingState3D } from "./states.js";
 import { Beam, Node as StructuralNode } from "./shapes.js";
+
+// IMPORTAR LOS DIÁLOGOS
+import { openMaterialDialog } from "./dialogs/material-dialog.js";
+import { openSectionDialog } from "./dialogs/section-dialog.js";
+import { openLoadCaseDialog } from "./dialogs/loadcase-dialog.js";
+import { openCombinationDialog } from "./dialogs/combination-dialog.js";
+import { openMassSourceDialog } from "./dialogs/mass-source-dialog.js";
+
+// Importar menús
+import { menus, getMenuContent } from "./menus/index.js";
 
 export default () => ({
   init() { },
@@ -106,6 +124,54 @@ export default () => ({
   planGridSnapTolerance: 1.0,
   lastMouseScreen: { x: 0, y: 0 },
 
+  // ===========================================================
+  // ========== PROPIEDADES PARA LA SECION DEFINE ==============
+  // ===========================================================
+  materialProperties: {
+    open: false,
+    materials: [],
+    selectedMaterial: null,
+  },
+
+  frameSections: {
+    open: false,
+    sections: [],
+    selectedSection: null,
+  },
+
+  loadCases: {
+    open: false,
+    cases: [
+      { name: "CM", type: "Dead", selfWeight: true, value: 1.0 },
+      { name: "CV", type: "Live", value: 1.0 },
+      { name: "CVV+", type: "Live", value: 0.5 },
+      { name: "CVV-", type: "Live", value: 0.5 },
+      { name: "CN", type: "Live", value: 0.3 },
+      { name: "CLL", type: "Live", value: 0.4 },
+    ],
+  },
+
+  loadCombinations: {
+    open: false,
+    combinations: [
+      { name: "COMB1", expression: "1.4CM + 1.7CV" },
+      { name: "COMB2", expression: "1.25CM + 1.25CV + 1.0CVV+" },
+      { name: "COMB3", expression: "0.9CM + 1.0CVV-" },
+    ],
+  },
+
+  massSource: {
+    open: false,
+    sources: {
+      fromLoads: true,
+      fromElements: false,
+      multiplier: 1.0,
+    },
+  },
+
+  menus: Object.values(menus),
+  getMenuContent,
+
   initSys(canvas, distanceInput) {
     this.Arco = Arco;
     this.Triangle = Triangle;
@@ -132,6 +198,9 @@ export default () => ({
     this.distanceInput = distanceInput;
     this.shapes = [];
     this.nodes = [];
+    this.areas = [];
+    this.referencePoints = [];
+    this.dimensionLines = [];
     this.parametricModels = [];
     this.K_Global_Reducido = [];
     this.Fuerzas_Globales_Reducidas = [];
@@ -174,9 +243,21 @@ export default () => ({
     this.idleState = new IdleState();
     this.moveState = new PanAndZoomState();
     this.trussDrawingState = new TrussDrawingState(this);
+    this.pointDrawingState = new PointDrawingState(this);
+    this.braceDrawingState = new TrussDrawingState(this, "brace");
+    this.beamDrawingState = new TrussDrawingState(this, "beam");
+    this.columnDrawingState = new ColumnDrawingState(this);
+    this.referencePointDrawingState = new ReferencePointDrawingState(this);
+    this.dimensionLineDrawingState = new DimensionLineDrawingState(this);
+    this.slabDrawingState = new AreaDrawingState(this, "slab");
+    this.wallDrawingState = new AreaDrawingState(this, "wall");
+    this.openingDrawingState = new AreaDrawingState(this, "opening");
     this.moveObjectState = new MoveObjectState();
     this.selectedNodesState = new SelectedNodesState();
     this.selectedBeamsState = new SelectedBeamsState();
+    this.selectedAreasState = new SelectedAreasState();
+    this.selectedDimensionLinesState = new SelectedDimensionLinesState();
+    this.reshapeObjectState = new ReshapeObjectState();
     this.editParametricState = new EditParametricState();
     this.selectedParametricState = new SelectedParametricState();
     this.selectionState = new SelectionState();
@@ -264,6 +345,30 @@ export default () => ({
     window.cadSystem = this;
   },
 
+  // ========================================= 
+  // ========== MÉTODOS PARA DEFINE ==========
+  // =========================================
+
+  openMaterialProperties() {
+    openMaterialDialog(this);
+  },
+
+  openFrameSections() {
+    openSectionDialog(this);
+  },
+
+  openLoadCases() {
+    openLoadCaseDialog(this);
+  },
+
+  openLoadCombinations() {
+    openCombinationDialog(this);
+  },
+
+  openMassSource() {
+    openMassSourceDialog(this);
+  },
+
   creaArco() {
     this.parametricModels.push(new Arco());
     this.sync3D(); // ← AÑADIR
@@ -277,6 +382,154 @@ export default () => ({
   creaTriangulo() {
     this.parametricModels.push(new Triangle());
     this.sync3D(); // ← AÑADIR
+  },
+
+  pointInPolygon(screenPoint, polygonPoints) {
+    let inside = false;
+
+    for (let i = 0, j = polygonPoints.length - 1; i < polygonPoints.length; j = i++) {
+      const xi = polygonPoints[i].x, yi = polygonPoints[i].y;
+      const xj = polygonPoints[j].x, yj = polygonPoints[j].y;
+
+      const intersect =
+        ((yi > screenPoint.y) !== (yj > screenPoint.y)) &&
+        (screenPoint.x < ((xj - xi) * (screenPoint.y - yi)) / ((yj - yi) || 1e-9) + xi);
+
+      if (intersect) inside = !inside;
+    }
+
+    return inside;
+  },
+
+  closestAreaAtActiveView(searchPoint) {
+    if (!this.areas?.length) return null;
+
+    const view = this.viewSet?.[this.activeViewIndex];
+
+    // Primera versión: solo planta
+    if (view?.type !== "plan") return null;
+
+    let closest = null;
+    let bestDistance = 8;
+
+    this.areas.forEach((area) => {
+      if (!area.visible || !area.points || area.points.length < 3) return;
+
+      const pts = area.points.map((p) =>
+        this.currentRenderer.projectPoint({ position: p }, this)
+      );
+
+      // Si el clic cae dentro del polígono, seleccionar directo
+      if (this.pointInPolygon(searchPoint, pts)) {
+        closest = area;
+        bestDistance = 0;
+        return;
+      }
+
+      // Si no está dentro, probar cercanía al borde
+      for (let i = 0; i < pts.length; i++) {
+        const p1 = pts[i];
+        const p2 = pts[(i + 1) % pts.length];
+        const d = pointDistanceToSegment(searchPoint, p1, p2);
+
+        if (d < bestDistance) {
+          bestDistance = d;
+          closest = area;
+        }
+      }
+    });
+
+    return closest;
+  },
+
+  activateDrawMenuAction(action) {
+    switch (action) {
+      case "select-object":
+        this.clearAllSelections?.();
+        this.setState(this.idleState);
+        this.showMessage("Modo selección activado");
+        break;
+
+      case "reshape-object":
+        this.clearAllSelections?.();
+        this.setState(this.reshapeObjectState);
+        this.showMessage("Modo modificar objeto activado");
+        break;
+
+      case "draw-point":
+        this.clearAllSelections?.();
+        this.setState(this.pointDrawingState);
+        this.showMessage("Modo dibujar puntos activado");
+        break;
+
+      case "draw-line-beam":
+        this.clearAllSelections?.();
+        this.setState(this.beamDrawingState || this.trussDrawingState);
+        this.showMessage("Modo dibujar barras activado");
+        break;
+
+      case "draw-line-brace":
+        this.clearAllSelections?.();
+        this.setState(this.braceDrawingState || this.trussDrawingState);
+        this.showMessage("Modo dibujar arriostres activado");
+        break;
+
+      case "draw-line-column":
+        this.clearAllSelections?.();
+        this.setState(this.columnDrawingState);
+        this.showMessage("Modo dibujar columnas activado");
+        break;
+
+      case "draw-area-slab":
+        this.clearAllSelections?.();
+        this.setState(this.slabDrawingState);
+        this.showMessage("Modo dibujar losa / área activado");
+        break;
+
+      case "draw-area-wall":
+        this.clearAllSelections?.();
+        this.setState(this.wallDrawingState);
+        this.showMessage("Modo dibujar muro / panel activado");
+        break;
+
+      case "draw-area-opening":
+        this.clearAllSelections?.();
+        this.setState(this.openingDrawingState);
+        this.showMessage("Modo dibujar abertura activado");
+        break;
+
+      case "draw-developed-elevation":
+        this.showMessage("Definición de elevación desarrollada - Próximamente");
+        break;
+
+      case "draw-dimension-line":
+        this.clearAllSelections?.();
+        this.setState(this.dimensionLineDrawingState);
+        this.showMessage("Modo dibujar línea de dimensión activado");
+        break;
+
+      case "draw-reference-point":
+        this.clearAllSelections?.();
+        this.setState(this.referencePointDrawingState);
+        this.showMessage("Modo dibujar punto de referencia activado");
+        break;
+
+      case "snap-on":
+        this.snap_enabled = true;
+        this.showMessage("Ajuste a la cuadrícula activado");
+        break;
+
+      case "snap-off":
+        this.snap_enabled = false;
+        this.showMessage("Ajuste a la cuadrícula desactivado");
+        break;
+
+      default:
+        this.showMessage(`Acción no reconocida: ${action}`);
+        break;
+    }
+
+    this.redraw?.();
   },
 
   handleKeyDown(event) {
@@ -509,6 +762,112 @@ export default () => ({
         y: this.canvas.height * 0.5,
       });
     }
+  },
+
+  closestAreaVertexAtActiveView(searchPoint, area = null) {
+    const areas = area ? [area] : this.areas;
+    let best = null;
+    let bestDistance = 10;
+
+    areas.forEach((a) => {
+      if (!a?.points?.length) return;
+
+      a.points.forEach((pt, index) => {
+        const screenPt = this.currentRenderer.projectPoint({ position: pt }, this);
+        const d = pointDistance(searchPoint, screenPt);
+
+        if (d < bestDistance) {
+          bestDistance = d;
+          best = {
+            area: a,
+            index,
+            point: pt,
+          };
+        }
+      });
+    });
+
+    return best;
+  },
+
+  closestBeamEndpointAtActiveView(searchPoint, beam = null) {
+    const beams = beam ? [beam] : this.shapes;
+    let best = null;
+    let bestDistance = 10;
+
+    beams.forEach((b) => {
+      if (!b?.node1 || !b?.node2) return;
+      if (!this.currentRenderer.shouldDrawBeam(b, this)) return;
+
+      const p1 = this.currentRenderer.projectPoint(b.node1, this);
+      const p2 = this.currentRenderer.projectPoint(b.node2, this);
+
+      const d1 = pointDistance(searchPoint, p1);
+      const d2 = pointDistance(searchPoint, p2);
+
+      if (d1 < bestDistance) {
+        bestDistance = d1;
+        best = { beam: b, node: b.node1, endpoint: "node1" };
+      }
+
+      if (d2 < bestDistance) {
+        bestDistance = d2;
+        best = { beam: b, node: b.node2, endpoint: "node2" };
+      }
+    });
+
+    return best;
+  },
+
+  getDimensionScreenGeometry(dim) {
+    const p1 = this.currentRenderer.projectPoint({ position: dim.start }, this);
+    const p2 = this.currentRenderer.projectPoint({ position: dim.end }, this);
+
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+
+    if (len < 1e-6) return null;
+
+    const ux = dx / len;
+    const uy = dy / len;
+
+    const nx = -uy;
+    const ny = ux;
+
+    const offset = 18;
+
+    const a1 = { x: p1.x + nx * offset, y: p1.y + ny * offset };
+    const a2 = { x: p2.x + nx * offset, y: p2.y + ny * offset };
+
+    return { p1, p2, a1, a2 };
+  },
+
+  closestDimensionLineAtActiveView(searchPoint) {
+    if (!this.dimensionLines?.length) return null;
+
+    let closest = null;
+    let bestDistance = 8;
+
+    this.dimensionLines.forEach((dim) => {
+      if (!dim.visible) return;
+
+      const geom = this.getDimensionScreenGeometry(dim);
+      if (!geom) return;
+
+      const dMain = pointDistanceToSegment(searchPoint, geom.a1, geom.a2);
+      const dExt1 = pointDistanceToSegment(searchPoint, geom.p1, geom.a1);
+      const dExt2 = pointDistanceToSegment(searchPoint, geom.p2, geom.a2);
+
+      const d = Math.min(dMain, dExt1, dExt2);
+
+      if (d < bestDistance) {
+        bestDistance = d;
+        closest = dim;
+      }
+    });
+
+    return closest;
   },
 
   // EDICION 3D
@@ -2013,7 +2372,13 @@ export default () => ({
   },
 
   clearAllSelections() {
-    const states = [this.selectedNodesState, this.selectedBeamsState, this.selectedParametricState];
+    const states = [
+      this.selectedNodesState,
+      this.selectedBeamsState,
+      this.selectedParametricState,
+      this.selectedAreasState,
+      this.selectedDimensionLinesState,
+    ];
 
     states.forEach((state) => {
       if (state?.selectedObjects?.length) {
@@ -2029,6 +2394,18 @@ export default () => ({
       }
       this.moveObjectState.selectedObject = null;
       this.moveObjectState.isMoving = false;
+    }
+
+    if (this.dimensionLines?.length) {
+      this.dimensionLines.forEach((dim) => {
+        dim.selected = false;
+      });
+    }
+
+    if (this.areas?.length) {
+      this.areas.forEach((area) => {
+        area.selected = false;
+      });
     }
 
     this.selectedNode = null;

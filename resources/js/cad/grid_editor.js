@@ -20,7 +20,7 @@ export class GridEditor {
         this.modeSpacingInput = document.getElementById("grid-mode-spacing");
 
         this.displayMode = "ordinates";
-        this.xRows = [];
+        this.xRows = [];  
         this.yRows = [];
 
         this.btnCancel = document.getElementById("btn-grid-editor-cancel");

@@ -1,4 +1,4 @@
-import { Beam, Node as StructuralNode, Shape } from "./shapes.js";
+import { Beam, Node as StructuralNode, Shape, Area } from "./shapes.js";
 import { pointDistance, removeFromArray } from "./utils.js";
 import { MOUSE_BUTTONS, isMouseButton } from "./utils.js";
 
@@ -75,6 +75,7 @@ export class PanAndZoomState extends StateBase {
 }
 
 export class IdleState extends PanAndZoomState {
+
   handleMouseDown(event, context, mouse) {
     super.handleMouseDown(...arguments);
 
@@ -104,6 +105,14 @@ export class IdleState extends PanAndZoomState {
     } else if ((selectedObject = context.closestParametric(mouse))) {
       context.setState(context.selectedParametricState, {
         selectedParametric: [selectedObject],
+      });
+    } else if ((selectedObject = context.closestAreaAtActiveView(mouse))) {
+      context.setState(context.selectedAreasState, {
+        selectedAreas: [selectedObject],
+      });
+    } else if ((selectedObject = context.closestDimensionLineAtActiveView(mouse))) {
+      context.setState(context.selectedDimensionLinesState, {
+        selectedDimensionLines: [selectedObject],
       });
     } else {
       context.setState(context.selectionState, {
@@ -199,6 +208,7 @@ export class IdleState extends PanAndZoomState {
 }
 
 export class SelectedObjectsState extends PanAndZoomState {
+
   constructor() {
     super();
     this.selectedObjects = [];
@@ -224,6 +234,14 @@ export class SelectedObjectsState extends PanAndZoomState {
       } else if ((selectedObject = context.closestBeamAtActiveView(mouse))) {
         context.setState(context.selectedBeamsState, {
           selectedBeams: [selectedObject],
+        });
+      } else if ((selectedObject = context.closestAreaAtActiveView(mouse))) {
+        context.setState(context.selectedAreasState, {
+          selectedAreas: [selectedObject],
+        });
+      } else if ((selectedObject = context.closestDimensionLineAtActiveView(mouse))) {
+        context.setState(context.selectedDimensionLinesState, {
+          selectedDimensionLines: [selectedObject],
         });
       } else {
         context.setState(context.selectionState, {
@@ -251,71 +269,6 @@ export class SelectedObjectsState extends PanAndZoomState {
     return 'Edita sus propiedades desde el menú o presiona "Supr" para eliminar.';
   }
 }
-
-// export class SelectedBeamsState extends SelectedObjectsState {
-//   handleKeyDown(event, context) {
-//     super.handleKeyDown(...arguments);
-//     if (event.key === "Delete") {
-//       // Obtener el plano actual
-//       const isElevationView = context.currentElevationX && context.currentElevationX !== "none";
-//       const isElevationZView = context.currentElevationZ && context.currentElevationZ !== "none";
-//       let targetValue = 0;
-
-//       if (isElevationView) {
-//         const elev = context.xElevations?.find((e) => e.name === context.currentElevationX);
-//         targetValue = elev?.y || 0;
-//       } else if (isElevationZView) {
-//         const elev = context.zElevations?.find((e) => e.name === context.currentElevationZ);
-//         targetValue = elev?.x || 0;
-//       } else {
-//         const story = context.stories?.find((s) => s.name === context.currentStory);
-//         targetValue = story?.elevation || 0;
-//       }
-
-//       // Filtrar solo las vigas que están en el plano actual
-//       // const beamsToDelete = this.selectedObjects.filter((beam) => {
-//       //   if (!beam.node1 || !beam.node2) return false;
-
-//       //   if (isElevationView) {
-//       //     const y1 = beam.node1.position.y;
-//       //     const y2 = beam.node2.position.y;
-//       //     return Math.abs(y1 - targetValue) < 0.01 && Math.abs(y2 - targetValue) < 0.01;
-//       //   } else if (isElevationZView) {
-//       //     const x1 = beam.node1.position.x;
-//       //     const x2 = beam.node2.position.x;
-//       //     return Math.abs(x1 - targetValue) < 0.01 && Math.abs(x2 - targetValue) < 0.01;
-//       //   } else {
-//       //     const z1 = beam.node1.position.z || 0;
-//       //     const z2 = beam.node2.position.z || 0;
-//       //     return Math.abs(z1 - targetValue) < 0.01 && Math.abs(z2 - targetValue) < 0.01;
-//       //   }
-//       // });
-
-//       const beamsToDelete = this.selectedObjects.forEach((beam) => {
-//         removeFromArray(beam.node1.beams, beam);
-//         removeFromArray(beam.node2.beams, beam);
-//         removeFromArray(context.shapes, beam);
-//       });
-
-//       console.log(`🗑️ Eliminando ${beamsToDelete.length} vigas del plano actual`);
-
-//       beamsToDelete.forEach((deleteShape) => {
-//         removeFromArray(deleteShape.node1.beams, deleteShape);
-//         removeFromArray(deleteShape.node2.beams, deleteShape);
-//         removeFromArray(context.shapes, deleteShape);
-//         context.shapes.forEach((beam, index) => {
-//           beam.id = index + 1;
-//         });
-//       });
-
-//       context.setState(context.idleState);
-//       context.sync3D();
-//     }
-//   }
-//   enter(args) {
-//     super.enter({ selectedObjects: args.selectedBeams });
-//   }
-// }
 
 export class SelectedBeamsState extends SelectedObjectsState {
   handleKeyDown(event, context) {
@@ -347,6 +300,406 @@ export class SelectedBeamsState extends SelectedObjectsState {
 
   enter(args) {
     super.enter({ selectedObjects: args.selectedBeams });
+  }
+}
+
+export class SelectedAreasState extends PanAndZoomState {
+  constructor() {
+    super();
+    this.selectedObjects = [];
+  }
+
+  enter(args = {}) {
+    this.selectedObjects = args.selectedAreas || [];
+    this.selectedObjects.forEach((area) => {
+      area.selected = true;
+    });
+  }
+
+  exit() {
+    super.exit();
+    this.selectedObjects.forEach((area) => {
+      area.selected = false;
+    });
+  }
+
+  handleMouseDown(event, context, mouse) {
+    super.handleMouseDown(...arguments);
+
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      return;
+    }
+
+    const selectedArea = context.closestAreaAtActiveView(mouse);
+
+    if (selectedArea) {
+      context.setState(context.selectedAreasState, {
+        selectedAreas: [selectedArea],
+      });
+    } else {
+      context.setState(context.idleState);
+    }
+  }
+
+  handleKeyDown(event, context) {
+    super.handleKeyDown(...arguments);
+
+    if (event.key === "Delete") {
+      const areasToDelete = [...this.selectedObjects];
+
+      areasToDelete.forEach((area) => {
+        removeFromArray(context.areas, area);
+      });
+
+      context.areas.forEach((area, index) => {
+        area.id = index + 1;
+      });
+
+      context.setState(context.idleState);
+      context.redraw();
+    }
+  }
+
+  info() {
+    return 'Área seleccionada. Presiona "Supr" para eliminar.';
+  }
+}
+
+export class SelectedDimensionLinesState extends PanAndZoomState {
+  constructor() {
+    super();
+    this.selectedObjects = [];
+  }
+
+  enter(args) {
+    this.selectedObjects = args.selectedDimensionLines || [];
+    this.selectedObjects.forEach((dim) => {
+      dim.selected = true;
+    });
+  }
+
+  exit() {
+    super.exit();
+    this.selectedObjects.forEach((dim) => {
+      dim.selected = false;
+    });
+  }
+
+  handleMouseDown(event, context, mouse) {
+    super.handleMouseDown(...arguments);
+
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      return;
+    }
+
+    let selectedObject = context.closestDimensionLineAtActiveView(mouse);
+
+    if (selectedObject) {
+      context.setState(context.selectedDimensionLinesState, {
+        selectedDimensionLines: [selectedObject],
+      });
+    } else {
+      context.setState(context.idleState);
+    }
+  }
+
+  handleKeyDown(event, context) {
+    super.handleKeyDown(...arguments);
+
+    if (event.key === "Delete") {
+      const dimsToDelete = [...this.selectedObjects];
+
+      dimsToDelete.forEach((dim) => {
+        removeFromArray(context.dimensionLines, dim);
+      });
+
+      context.dimensionLines.forEach((dim, index) => {
+        dim.id = index + 1;
+        if (!dim.label || dim.label.startsWith("DIM")) {
+          dim.label = `${dim.value.toFixed(2)} m`;
+        }
+      });
+
+      context.setState(context.idleState);
+      context.redraw();
+    }
+  }
+
+  info() {
+    return 'Línea de dimensión seleccionada. Presiona "Supr" para eliminar.';
+  }
+}
+
+export class ReshapeObjectState extends PanAndZoomState {
+  constructor() {
+    super();
+    this.selectedBeam = null;
+    this.selectedArea = null;
+
+    this.selectedNode = null;          // para barras
+    this.selectedVertexIndex = null;   // para áreas
+
+    this.isMoving = false;
+  }
+
+  enter(args = {}) {
+    this.selectedBeam = args.selectedBeam || null;
+    this.selectedArea = args.selectedArea || null;
+
+    this.selectedNode = null;
+    this.selectedVertexIndex = null;
+    this.isMoving = false;
+
+    if (this.selectedBeam?.style) {
+      this.selectedBeam.style.selected();
+    }
+
+    if (this.selectedArea) {
+      this.selectedArea.selected = true;
+    }
+  }
+
+  exit() {
+    super.exit();
+
+    if (this.selectedBeam?.style) {
+      this.selectedBeam.style.default();
+    }
+
+    if (this.selectedNode?.style) {
+      this.selectedNode.style.default();
+    }
+
+    if (this.selectedArea) {
+      this.selectedArea.selected = false;
+    }
+
+    this.selectedBeam = null;
+    this.selectedArea = null;
+    this.selectedNode = null;
+    this.selectedVertexIndex = null;
+    this.isMoving = false;
+  }
+
+  handleMouseDown(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseDown(event, context, mouse);
+      return;
+    }
+
+    super.handleMouseDown(...arguments);
+
+    if (!context.canSelectInCurrentView()) {
+      context.clearAllSelections();
+      context.setState(context.idleState);
+      return;
+    }
+
+    // =========================================
+    // 1. Si no hay nada seleccionado, elegir objeto
+    // =========================================
+    if (!this.selectedBeam && !this.selectedArea) {
+      const area = context.closestAreaAtActiveView(mouse);
+      if (area) {
+        context.setState(context.reshapeObjectState, { selectedArea: area });
+        return;
+      }
+
+      const beam = context.closestBeamAtActiveView(mouse);
+      if (beam) {
+        context.setState(context.reshapeObjectState, { selectedBeam: beam });
+        return;
+      }
+
+      context.setState(context.idleState);
+      return;
+    }
+
+    // =========================================
+    // 2. Si hay un área seleccionada, buscar vértice
+    // =========================================
+    if (this.selectedArea) {
+      const handle = context.closestAreaVertexAtActiveView(mouse, this.selectedArea);
+
+      if (handle) {
+        this.selectedVertexIndex = handle.index;
+        this.isMoving = true;
+        context.setCursor("grabbing");
+        return;
+      }
+
+      // Si no tocó vértice, intentar cambiar de área
+      const anotherArea = context.closestAreaAtActiveView(mouse);
+      if (anotherArea && anotherArea !== this.selectedArea) {
+        context.setState(context.reshapeObjectState, { selectedArea: anotherArea });
+        return;
+      }
+
+      // Si tocó una barra en vez de área, cambiar
+      const beam = context.closestBeamAtActiveView(mouse);
+      if (beam) {
+        context.setState(context.reshapeObjectState, { selectedBeam: beam });
+        return;
+      }
+
+      context.setState(context.idleState);
+      return;
+    }
+
+    // =========================================
+    // 3. Si hay una barra seleccionada, buscar extremo
+    // =========================================
+    if (this.selectedBeam) {
+      const handle = context.closestBeamEndpointAtActiveView(mouse, this.selectedBeam);
+
+      if (handle) {
+        this.selectedNode = handle.node;
+        this.isMoving = true;
+
+        if (this.selectedNode?.style) {
+          this.selectedNode.style.selected();
+        }
+
+        context.setCursor("grabbing");
+        return;
+      }
+
+      // intentar cambiar de barra
+      const anotherBeam = context.closestBeamAtActiveView(mouse);
+      if (anotherBeam && anotherBeam !== this.selectedBeam) {
+        context.setState(context.reshapeObjectState, { selectedBeam: anotherBeam });
+        return;
+      }
+
+      // intentar cambiar a área
+      const area = context.closestAreaAtActiveView(mouse);
+      if (area) {
+        context.setState(context.reshapeObjectState, { selectedArea: area });
+        return;
+      }
+
+      context.setState(context.idleState);
+    }
+  }
+
+  handleMouseMove(event, context, mouse) {
+    PanAndZoomState.prototype.handleMouseMove.call(this, ...arguments);
+
+    if (!this.isMoving) return;
+
+    const worldPos = context.grid.screenToWorld(mouse);
+    const snapPoint = context.getCurrentSnapPoint(worldPos);
+
+    // =========================================
+    // Mover extremo de barra
+    // =========================================
+    if (this.selectedNode) {
+      this.selectedNode.position.x = snapPoint.x;
+      this.selectedNode.position.y = snapPoint.y;
+      this.selectedNode.position.z = snapPoint.z;
+
+      context.redraw();
+      return;
+    }
+
+    // =========================================
+    // Mover vértice de área
+    // =========================================
+    if (
+      this.selectedArea &&
+      this.selectedVertexIndex !== null &&
+      this.selectedArea.points?.[this.selectedVertexIndex]
+    ) {
+      const pt = this.selectedArea.points[this.selectedVertexIndex];
+      pt.x = snapPoint.x;
+      pt.y = snapPoint.y;
+      pt.z = snapPoint.z;
+
+      context.redraw();
+    }
+  }
+
+  handleMouseUp(event, context, mouse) {
+    super.handleMouseUp(...arguments);
+
+    if (this.isMoving) {
+      this.isMoving = false;
+
+      if (this.selectedNode?.style) {
+        this.selectedNode.style.default();
+      }
+
+      this.selectedNode = null;
+      this.selectedVertexIndex = null;
+
+      context.setCursor("default");
+      context.sync3D?.();
+    }
+  }
+
+  handleKeyDown(event, context) {
+    if (event.key === "Escape") {
+      context.setState(context.idleState);
+      return;
+    }
+
+    if (event.key === "Delete") {
+      // borrar barra
+      if (this.selectedBeam) {
+        removeFromArray(this.selectedBeam.node1.beams, this.selectedBeam);
+        removeFromArray(this.selectedBeam.node2.beams, this.selectedBeam);
+        removeFromArray(context.shapes, this.selectedBeam);
+
+        context.shapes.forEach((beam, index) => {
+          beam.id = index + 1;
+        });
+
+        context.setState(context.idleState);
+        context.sync3D?.();
+        return;
+      }
+
+      // borrar área
+      if (this.selectedArea) {
+        removeFromArray(context.areas, this.selectedArea);
+
+        context.areas.forEach((area, index) => {
+          area.id = index + 1;
+        });
+
+        context.setState(context.idleState);
+        context.redraw();
+        return;
+      }
+    }
+  }
+
+  draw(renderer, context) {
+    renderer.drawReshapeObjectState?.(this, context);
+  }
+
+  info() {
+    if (!this.selectedBeam && !this.selectedArea) {
+      return "Haz clic en una barra o área para modificarla.";
+    }
+
+    if (this.isMoving && this.selectedBeam) {
+      return "Arrastra el extremo seleccionado de la barra. Usa Esc para salir.";
+    }
+
+    if (this.isMoving && this.selectedArea) {
+      return "Arrastra el vértice seleccionado del área. Usa Esc para salir.";
+    }
+
+    if (this.selectedBeam) {
+      return 'Haz clic en uno de los extremos de la barra para moverlo. "Supr" para eliminar.';
+    }
+
+    if (this.selectedArea) {
+      return 'Haz clic en uno de los vértices del área para moverlo. "Supr" para eliminar.';
+    }
+
+    return "Modo modificar objeto.";
   }
 }
 
@@ -450,66 +803,6 @@ export class EditParametricState extends PanAndZoomState {
     return "Edita los materiales de las secciones.";
   }
 }
-
-// export class SelectedNodesState extends SelectedObjectsState {
-//   handleKeyDown(event, context) {
-//     super.handleKeyDown(...arguments);
-//     if (event.key === "Delete") {
-//       // Obtener el plano actual
-//       const isElevationView = context.currentElevationX && context.currentElevationX !== "none";
-//       const isElevationZView = context.currentElevationZ && context.currentElevationZ !== "none";
-//       let targetValue = 0;
-
-//       if (isElevationView) {
-//         // Vista ELEVACIÓN NÚMEROS: obtener la Y del eje seleccionado
-//         const elev = context.xElevations?.find((e) => e.name === context.currentElevationX);
-//         targetValue = elev?.y || 0;
-//       } else if (isElevationZView) {
-//         // Vista ELEVACIÓN LETRAS: obtener la X del eje seleccionado
-//         const elev = context.zElevations?.find((e) => e.name === context.currentElevationZ);
-//         targetValue = elev?.x || 0;
-//       } else {
-//         // Vista PLANTA: obtener la Z del nivel actual
-//         const story = context.stories?.find((s) => s.name === context.currentStory);
-//         targetValue = story?.elevation || 0;
-//       }
-
-//       // Filtrar solo los nodos que están en el plano actual
-//       const nodesToDelete = this.selectedObjects.filter((node) => {
-//         if (isElevationView) {
-//           return Math.abs(node.position.y - targetValue) < 0.1;
-//         } else if (isElevationZView) {
-//           return Math.abs(node.position.x - targetValue) < 0.1;
-//         } else {
-//           return Math.abs((node.position.z || 0) - targetValue) < 0.1;
-//         }
-//       });
-
-//       console.log(`🗑️ Eliminando ${nodesToDelete.length} nodos del plano actual`);
-
-//       nodesToDelete.forEach((deleteShape) => {
-//         deleteShape.beams.forEach((beam) => {
-//           const updateBeamsNode = deleteShape === beam.node1 ? beam.node2 : beam.node1;
-//           removeFromArray(updateBeamsNode.beams, beam);
-//         });
-//         deleteShape.beams.forEach((beam) => {
-//           removeFromArray(context.shapes, beam);
-//         });
-//         removeFromArray(context.nodes, deleteShape);
-//         context.nodes.forEach((node, index) => {
-//           node.id = index + 1;
-//         });
-//       });
-
-//       context.setState(context.idleState);
-//       context.sync3D();
-//       context.redraw();
-//     }
-//   }
-//   enter(args) {
-//     super.enter({ selectedObjects: args.selectedNodes });
-//   }
-// }
 
 export class SelectedNodesState extends SelectedObjectsState {
   handleKeyDown(event, context) {
@@ -760,10 +1053,12 @@ export class MoveObjectState extends IdleState {
 }
 
 export class TrussDrawingState extends PanAndZoomState {
-  constructor(context) {
+  constructor(context, elementType = "beam") {
     super();
     this.context = context;
+    this.elementType = elementType;
     this.shape = new Beam(this.context.globalE, this.context.globalA);
+    this.shape.elementType = this.elementType;
   }
 
   handleMouseDown(event, context, mouse) {
@@ -848,6 +1143,7 @@ export class TrussDrawingState extends PanAndZoomState {
 
       console.log(`📐 Viga creada ID: ${this.shape.id}`);
       this.shape = new Beam(this.context.globalE, this.context.globalA);
+      this.shape.elementType = this.elementType;
       this.shape.addNode(node);
     }
 
@@ -1071,6 +1367,438 @@ export class TrussDrawingState extends PanAndZoomState {
   }
   info() {
     return 'Haz clic para definir el siguiente nodo y presiona "Esc" para finalizarla.';
+  }
+}
+
+export class PointDrawingState extends PanAndZoomState {
+  constructor(context) {
+    super();
+    this.context = context;
+  }
+
+  handleMouseDown(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseDown(event, context, mouse);
+      return;
+    }
+
+    super.handleMouseDown(...arguments);
+
+    const view = context.viewSet?.[context.activeViewIndex];
+    const worldPos = context.grid.screenToWorld(mouse);
+    const snapPoint = context.activeGridPoint ?? null;
+
+    let x, y, z;
+
+    if (snapPoint) {
+      x = snapPoint.x;
+      y = snapPoint.y;
+      z = snapPoint.z;
+    } else if (view?.type === "elevation" && view.axis === "X") {
+      const fixedX = view.value ?? 0;
+      x = fixedX;
+      y = worldPos.x;
+      z = worldPos.y;
+    } else if (view?.type === "elevation" && view.axis === "Y") {
+      const fixedY = view.value ?? 0;
+      x = worldPos.x;
+      y = fixedY;
+      z = worldPos.y;
+    } else {
+      const currentZ = context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0;
+      x = worldPos.x;
+      y = worldPos.y;
+      z = currentZ;
+    }
+
+    let node = context.nodes.find((n) => {
+      const dx = Math.abs(n.position.x - x);
+      const dy = Math.abs(n.position.y - y);
+      const dz = Math.abs((n.position.z || 0) - z);
+      return dx < 0.3 && dy < 0.3 && dz < 0.1;
+    });
+
+    if (!node) {
+      node = new StructuralNode({ x, y }, context.nodes.length + 1, z);
+      context.nodes.push(node);
+      console.log(`📍 Nodo creado ID: ${node.id} en (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
+    } else {
+      console.log(`🔗 Nodo existente ID: ${node.id}`);
+    }
+
+    context.redraw();
+    context.sync3D();
+  }
+
+  info() {
+    return "Haz clic para crear nodos. Usa Esc para salir.";
+  }
+}
+
+export class ColumnDrawingState extends PanAndZoomState {
+  constructor(context) {
+    super();
+    this.context = context;
+  }
+
+  handleMouseDown(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseDown(event, context, mouse);
+      return;
+    }
+
+    super.handleMouseDown(...arguments);
+
+    const snapPoint = context.activeGridPoint ?? null;
+    const currentZ = context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0;
+    const storyHeight = Number(context.referenceGrid?.storyHeight ?? 3);
+    const nextZ = currentZ + storyHeight;
+
+    let x, y;
+
+    if (snapPoint) {
+      x = snapPoint.x;
+      y = snapPoint.y;
+    } else {
+      const worldPos = context.grid.screenToWorld(mouse);
+      x = worldPos.x;
+      y = worldPos.y;
+    }
+
+    let node1 = context.nodes.find((n) =>
+      Math.abs(n.position.x - x) < 0.3 &&
+      Math.abs(n.position.y - y) < 0.3 &&
+      Math.abs((n.position.z || 0) - currentZ) < 0.1
+    );
+
+    if (!node1) {
+      node1 = new StructuralNode({ x, y }, context.nodes.length + 1, currentZ);
+      context.nodes.push(node1);
+    }
+
+    let node2 = context.nodes.find((n) =>
+      Math.abs(n.position.x - x) < 0.3 &&
+      Math.abs(n.position.y - y) < 0.3 &&
+      Math.abs((n.position.z || 0) - nextZ) < 0.1
+    );
+
+    if (!node2) {
+      node2 = new StructuralNode({ x, y }, context.nodes.length + 1, nextZ);
+      context.nodes.push(node2);
+    }
+
+    const beam = new Beam(context.globalE, context.globalA);
+    beam.elementType = "column";
+    beam.addNode(node1);
+    beam.addNode(node2);
+
+    context.shapes.push(beam);
+    beam.id = context.shapes.length;
+
+    node1.beams.push(beam);
+    node2.beams.push(beam);
+
+    console.log(`│ Columna creada ID: ${beam.id}`);
+
+    context.redraw();
+    context.sync3D();
+  }
+
+  info() {
+    return "Haz clic para crear columnas verticales entre niveles.";
+  }
+}
+
+export class ReferencePointDrawingState extends PanAndZoomState {
+  constructor(context) {
+    super();
+    this.context = context;
+  }
+
+  handleMouseDown(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseDown(event, context, mouse);
+      return;
+    }
+
+    super.handleMouseDown(...arguments);
+
+    const view = context.viewSet?.[context.activeViewIndex];
+    const worldPos = context.grid.screenToWorld(mouse);
+    const snapPoint = context.activeGridPoint ?? null;
+
+    let x, y, z;
+
+    if (snapPoint) {
+      x = snapPoint.x;
+      y = snapPoint.y;
+      z = snapPoint.z;
+    } else if (view?.type === "elevation" && view.axis === "X") {
+      // plano Y-Z con X fijo
+      x = view.value ?? 0;
+      y = worldPos.x;
+      z = worldPos.y;
+    } else if (view?.type === "elevation" && view.axis === "Y") {
+      // plano X-Z con Y fijo
+      x = worldPos.x;
+      y = view.value ?? 0;
+      z = worldPos.y;
+    } else {
+      // planta
+      const currentZ = context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0;
+      x = worldPos.x;
+      y = worldPos.y;
+      z = currentZ;
+    }
+
+    const point = {
+      id: context.referencePoints.length + 1,
+      x,
+      y,
+      z,
+      label: `RP${context.referencePoints.length + 1}`,
+      visible: true,
+    };
+
+    context.referencePoints.push(point);
+
+    console.log(
+      `📌 Punto de referencia creado: ${point.label} en (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`
+    );
+
+    context.redraw();
+    context.sync3D?.();
+  }
+
+  info() {
+    return "Haz clic para crear puntos de referencia. Usa Esc para salir.";
+  }
+}
+
+export class AreaDrawingState extends PanAndZoomState {
+  constructor(context, areaType = "slab") {
+    super();
+    this.context = context;
+    this.areaType = areaType; // slab | wall | opening
+    this.points = [];
+    this.previewPoint = null;
+    this.previewArea = null;
+  }
+
+  resetPreview() {
+    this.points = [];
+    this.previewPoint = null;
+    this.previewArea = null;
+  }
+
+  buildPreviewArea(context) {
+    if (!this.points.length) {
+      this.previewArea = null;
+      return;
+    }
+
+    const currentZ = context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0;
+    const area = new Area(this.areaType, currentZ);
+
+    this.points.forEach((p) => area.addPoint(p));
+
+    if (this.previewPoint) {
+      area.addPoint(this.previewPoint);
+    }
+
+    this.previewArea = area;
+  }
+
+  getSnapPoint(context, mouse) {
+    const worldPos = context.grid.screenToWorld(mouse);
+    return context.getCurrentSnapPoint(worldPos);
+  }
+
+  handleMouseDown(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseDown(event, context, mouse);
+      return;
+    }
+
+    super.handleMouseDown(...arguments);
+
+    const view = context.viewSet?.[context.activeViewIndex];
+
+    // Primera versión: solo planta
+    if (view?.type !== "plan") {
+      context.showMessage?.("Por ahora las áreas solo se dibujan en planta.", "warning");
+      return;
+    }
+
+    const snapPoint = this.getSnapPoint(context, mouse);
+
+    // Evitar repetir exactamente el mismo punto
+    const last = this.points[this.points.length - 1];
+    if (
+      last &&
+      Math.abs(last.x - snapPoint.x) < 1e-6 &&
+      Math.abs(last.y - snapPoint.y) < 1e-6 &&
+      Math.abs(last.z - snapPoint.z) < 1e-6
+    ) {
+      return;
+    }
+
+    this.points.push({ ...snapPoint });
+    this.previewPoint = { ...snapPoint };
+    this.buildPreviewArea(context);
+    context.redraw();
+  }
+
+  handleMouseMove(event, context, mouse) {
+    super.handleMouseMove(...arguments);
+
+    if (!this.points.length) return;
+
+    const view = context.viewSet?.[context.activeViewIndex];
+    if (view?.type !== "plan") return;
+
+    this.previewPoint = this.getSnapPoint(context, mouse);
+    this.buildPreviewArea(context);
+    context.redraw();
+  }
+
+  handleKeyDown(event, context) {
+    if (event.key === "Escape") {
+      this.resetPreview();
+      context.redraw();
+      context.setState(context.idleState);
+      return;
+    }
+
+    if (event.key === "Backspace") {
+      event.preventDefault();
+      if (this.points.length > 0) {
+        this.points.pop();
+        this.buildPreviewArea(context);
+        context.redraw();
+      }
+      return;
+    }
+
+    if (event.key === "Enter") {
+      if (this.points.length < 3) {
+        context.showMessage?.("Se necesitan al menos 3 puntos para crear un área.", "warning");
+        return;
+      }
+
+      const currentZ = context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0;
+      const area = new Area(this.areaType, currentZ);
+
+      this.points.forEach((p) => area.addPoint(p));
+      area.id = context.areas.length + 1;
+
+      context.areas.push(area);
+
+      console.log(
+        `▭ Área creada ID: ${area.id}, tipo: ${this.areaType}, puntos: ${area.points.length}`
+      );
+
+      this.resetPreview();
+      context.redraw();
+      return;
+    }
+  }
+
+  draw(renderer, context) {
+    // El preview ya se dibuja desde renderer.drawAreaPreview(context)
+  }
+
+  info() {
+    if (this.points.length === 0) {
+      return "Haz clic para empezar a dibujar el área.";
+    }
+
+    return 'Haz clic para seguir marcando vértices. Enter = cerrar área, Backspace = borrar último punto, Esc = cancelar.';
+  }
+}
+
+export class DimensionLineDrawingState extends PanAndZoomState {
+  constructor(context) {
+    super();
+    this.context = context;
+    this.startPoint = null;
+    this.previewPoint = null;
+  }
+
+  handleMouseDown(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseDown(event, context, mouse);
+      return;
+    }
+
+    super.handleMouseDown(...arguments);
+
+    const worldPos = context.grid.screenToWorld(mouse);
+    const snapPoint = context.getCurrentSnapPoint(worldPos);
+
+    if (!this.startPoint) {
+      this.startPoint = { ...snapPoint };
+      this.previewPoint = { ...snapPoint };
+      context.redraw();
+      return;
+    }
+
+    const endPoint = { ...snapPoint };
+
+    const samePoint =
+      Math.abs(this.startPoint.x - endPoint.x) < 1e-6 &&
+      Math.abs(this.startPoint.y - endPoint.y) < 1e-6 &&
+      Math.abs(this.startPoint.z - endPoint.z) < 1e-6;
+
+    if (samePoint) return;
+
+    const dx = endPoint.x - this.startPoint.x;
+    const dy = endPoint.y - this.startPoint.y;
+    const dz = endPoint.z - this.startPoint.z;
+    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+    context.dimensionLines.push({
+      id: context.dimensionLines.length + 1,
+      start: { ...this.startPoint },
+      end: { ...endPoint },
+      value: distance,
+      label: `${distance.toFixed(2)} m`,
+      visible: true,
+    });
+
+    this.startPoint = null;
+    this.previewPoint = null;
+
+    context.redraw();
+  }
+
+  handleMouseMove(event, context, mouse) {
+    super.handleMouseMove(...arguments);
+
+    if (!this.startPoint) return;
+
+    const worldPos = context.grid.screenToWorld(mouse);
+    this.previewPoint = context.getCurrentSnapPoint(worldPos);
+    context.redraw();
+  }
+
+  handleKeyDown(event, context) {
+    if (event.key === "Escape") {
+      if (this.startPoint) {
+        this.startPoint = null;
+        this.previewPoint = null;
+        context.redraw();
+        return;
+      }
+      context.setState(context.idleState);
+    }
+  }
+
+  info() {
+    if (this.startPoint) {
+      return "Selecciona el segundo punto de la dimensión. Usa Esc para cancelar.";
+    }
+    return "Haz clic en el primer punto de la dimensión.";
   }
 }
 

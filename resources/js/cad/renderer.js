@@ -59,7 +59,12 @@ export class DiseñoRenderer {
       CADSystem.grid.draw(this, CADSystem);
     }
 
+    this.drawReferencePoints(CADSystem);
     this.drawActiveGridPoint(CADSystem);
+    this.drawDimensionLines(CADSystem);
+    this.drawDimensionPreview(CADSystem);
+    this.drawAreas(CADSystem);
+    this.drawAreaPreview(CADSystem);
 
     CADSystem.nodes.forEach((n) => {
       if (!this.shouldDrawNode(n, CADSystem)) return;
@@ -407,48 +412,461 @@ export class DiseñoRenderer {
   }
 
   drawWireBeam(beam, context) {
-    // const p1 = context.grid.worldToScreen(beam.node1.position);
-    // const p2 = context.grid.worldToScreen(beam.node2.position);
     const p1 = this.projectPoint(beam.node1, context);
     const p2 = this.projectPoint(beam.node2, context);
+    const style = this.getElementRenderStyle(beam, "wireframe");
+
     context.ctx.save();
-    Object.assign(context.ctx, beam.style.get().WIREFRAME);
+    context.ctx.strokeStyle = style.strokeStyle;
+    context.ctx.lineWidth = style.lineWidth;
+    context.ctx.setLineDash(style.lineDash || []);
     context.ctx.beginPath();
     context.ctx.moveTo(p1.x, p1.y);
     context.ctx.lineTo(p2.x, p2.y);
     context.ctx.stroke();
+    context.ctx.setLineDash([]);
     context.ctx.restore();
   }
 
   drawBeam(beam, context) {
-    // const p1 = context.grid.worldToScreen(beam.node1.position);
-    // const p2 = context.grid.worldToScreen(beam.node2.position);
     const p1 = this.projectPoint(beam.node1, context);
     const p2 = this.projectPoint(beam.node2, context);
+    const style = this.getElementRenderStyle(beam, "model");
+
     context.ctx.save();
-    Object.assign(context.ctx, beam.style.get().MODEL);
+    context.ctx.strokeStyle = style.strokeStyle;
+    context.ctx.lineWidth = style.lineWidth;
+    context.ctx.setLineDash(style.lineDash || []);
     context.ctx.beginPath();
     context.ctx.moveTo(p1.x, p1.y);
     context.ctx.lineTo(p2.x, p2.y);
     context.ctx.stroke();
-    /*     context.ctx.globalCompositeOperation = "destination-out";
-    context.ctx.strokeStyle = "black";
-    context.ctx.lineWidth = 11;
-    context.ctx.stroke(); */
+    context.ctx.setLineDash([]);
     context.ctx.restore();
   }
 
+  getAreaRenderStyle(area, isPreview = false) {
+    const type = area.areaType || "slab";
+
+    if (isPreview) {
+      return {
+        strokeStyle: "#fbbf24",
+        fillStyle: "rgba(251, 191, 36, 0.18)",
+        lineWidth: 1.5,
+        lineDash: [6, 4],
+      };
+    }
+
+    if (area.selected) {
+      return {
+        strokeStyle: "#ef4444",
+        fillStyle: "rgba(239, 68, 68, 0.16)",
+        lineWidth: 2,
+        lineDash: [],
+      };
+    }
+
+    switch (type) {
+      case "wall":
+        return {
+          strokeStyle: "#22c55e",
+          fillStyle: "rgba(34, 197, 94, 0.18)",
+          lineWidth: 1.5,
+          lineDash: [],
+        };
+
+      case "opening":
+        return {
+          strokeStyle: "#ef4444",
+          fillStyle: "rgba(239, 68, 68, 0.12)",
+          lineWidth: 1.5,
+          lineDash: [4, 4],
+        };
+
+      case "slab":
+      default:
+        return {
+          strokeStyle: "#38bdf8",
+          fillStyle: "rgba(56, 189, 248, 0.18)",
+          lineWidth: 1.5,
+          lineDash: [],
+        };
+    }
+  }
+
+  drawArea(area, context, isPreview = false) {
+    if (!area || area.visible === false) return;
+    if (!area.points || area.points.length < 2) return;
+
+    // primera versión: solo se muestra en planta
+    const view = context.viewSet?.[context.activeViewIndex];
+    if (view?.type !== "plan") return;
+
+    const pts = area.points.map((p) => this.projectPoint({ position: p }, context));
+    if (!pts.length) return;
+
+    const style = this.getAreaRenderStyle(area, isPreview);
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    ctx.strokeStyle = style.strokeStyle;
+    ctx.fillStyle = style.fillStyle;
+    ctx.lineWidth = style.lineWidth;
+    ctx.setLineDash(style.lineDash || []);
+
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(pts[i].x, pts[i].y);
+    }
+
+    // si el polígono ya está cerrado (3 o más puntos), lo cerramos visualmente
+    if (pts.length >= 3) {
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // vértices
+    pts.forEach((p) => {
+      ctx.beginPath();
+      ctx.fillStyle = style.strokeStyle;
+      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    ctx.restore();
+  }
+
+  drawAreas(context) {
+    if (!context.areas?.length) return;
+
+    context.areas.forEach((area) => {
+      if (!this.shouldDrawArea(area, context)) return;
+      this.drawArea(area, context, false);
+    });
+  }
+
+  drawAreaPreview(context) {
+    const state = context.currentState;
+    if (!state || !state.previewArea) return;
+    if (!this.shouldDrawArea(state.previewArea, context)) return;
+
+    this.drawArea(state.previewArea, context, true);
+  }
+
+  drawReshapeObjectState(state, context) {
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    // =========================
+    // BARRA
+    // =========================
+    if (state.selectedBeam) {
+      const p1 = this.projectPoint(state.selectedBeam.node1, context);
+      const p2 = this.projectPoint(state.selectedBeam.node2, context);
+
+      // resaltar barra
+      ctx.strokeStyle = "#60a5fa";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+
+      // handle nodo 1
+      ctx.beginPath();
+      ctx.fillStyle = state.selectedNode === state.selectedBeam.node1 ? "#f59e0b" : "#38bdf8";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.2;
+      ctx.arc(p1.x, p1.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // handle nodo 2
+      ctx.beginPath();
+      ctx.fillStyle = state.selectedNode === state.selectedBeam.node2 ? "#f59e0b" : "#38bdf8";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.2;
+      ctx.arc(p2.x, p2.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // =========================
+    // ÁREA
+    // =========================
+    if (state.selectedArea && state.selectedArea.points?.length) {
+      const pts = state.selectedArea.points.map((p) =>
+        this.projectPoint({ position: p }, context)
+      );
+
+      // borde resaltado
+      ctx.strokeStyle = "#60a5fa";
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+
+      for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i].x, pts[i].y);
+      }
+
+      if (pts.length >= 3) {
+        ctx.closePath();
+      }
+
+      ctx.stroke();
+
+      // handles de vértices
+      pts.forEach((p, index) => {
+        ctx.beginPath();
+        ctx.fillStyle = state.selectedVertexIndex === index ? "#f59e0b" : "#38bdf8";
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1.2;
+        ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      });
+    }
+
+    ctx.restore();
+  }
+
+  drawReferencePoint(point, context) {
+    if (!point || point.visible === false) return;
+
+    const p = this.projectPoint({ position: point }, context);
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    // círculo exterior
+    ctx.beginPath();
+    ctx.strokeStyle = "#38bdf8";
+    ctx.lineWidth = 1.5;
+    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // cruz interior
+    ctx.beginPath();
+    ctx.strokeStyle = "#38bdf8";
+    ctx.lineWidth = 1;
+    ctx.moveTo(p.x - 8, p.y);
+    ctx.lineTo(p.x + 8, p.y);
+    ctx.moveTo(p.x, p.y - 8);
+    ctx.lineTo(p.x, p.y + 8);
+    ctx.stroke();
+
+    // punto central
+    ctx.beginPath();
+    ctx.fillStyle = "#7dd3fc";
+    ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // etiqueta
+    ctx.fillStyle = "#7dd3fc";
+    ctx.font = "11px Arial";
+    ctx.fillText(point.label || `RP${point.id}`, p.x + 10, p.y - 8);
+
+    ctx.restore();
+  }
+
+  drawReferencePoints(context) {
+    if (!context.referencePoints?.length) return;
+
+    context.referencePoints.forEach((point) => {
+      this.drawReferencePoint(point, context);
+    });
+  }
+
+  drawDimensionLine(dim, context, isPreview = false) {
+    if (!dim || dim.visible === false) return;
+
+    const ctx = context.ctx;
+
+    const p1 = this.projectPoint({ position: dim.start }, context);
+    const p2 = this.projectPoint({ position: dim.end }, context);
+
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len < 1e-6) return;
+
+    const ux = dx / len;
+    const uy = dy / len;
+
+    const nx = -uy;
+    const ny = ux;
+
+    const offset = 18;
+
+    const a1 = { x: p1.x + nx * offset, y: p1.y + ny * offset };
+    const a2 = { x: p2.x + nx * offset, y: p2.y + ny * offset };
+
+    ctx.save();
+
+    const strokeColor = isPreview
+      ? "#fbbf24"
+      : dim.selected
+        ? "#ef4444"
+        : "#38bdf8";
+
+    const fillColor = isPreview
+      ? "#fbbf24"
+      : dim.selected
+        ? "#f87171"
+        : "#7dd3fc";
+
+    ctx.strokeStyle = strokeColor;
+    ctx.fillStyle = fillColor;
+    ctx.lineWidth = 1.2;
+
+    if (isPreview) {
+      ctx.setLineDash([6, 4]);
+    } else {
+      ctx.setLineDash([]);
+    }
+
+    // líneas de extensión
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(a1.x, a1.y);
+    ctx.moveTo(p2.x, p2.y);
+    ctx.lineTo(a2.x, a2.y);
+    ctx.stroke();
+
+    // línea de dimensión
+    ctx.beginPath();
+    ctx.moveTo(a1.x, a1.y);
+    ctx.lineTo(a2.x, a2.y);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+
+    // marcas finales
+    const tick = 5;
+    ctx.beginPath();
+    ctx.moveTo(a1.x - ux * tick, a1.y - uy * tick);
+    ctx.lineTo(a1.x + ux * tick, a1.y + uy * tick);
+
+    ctx.moveTo(a2.x - ux * tick, a2.y - uy * tick);
+    ctx.lineTo(a2.x + ux * tick, a2.y + uy * tick);
+    ctx.stroke();
+
+    // texto
+    const mid = {
+      x: (a1.x + a2.x) * 0.5,
+      y: (a1.y + a2.y) * 0.5,
+    };
+
+    ctx.font = "11px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(dim.label, mid.x, mid.y - 4);
+
+    ctx.restore();
+  }
+
+  drawDimensionLines(context) {
+    if (!context.dimensionLines?.length) return;
+
+    context.dimensionLines.forEach((dim) => {
+      this.drawDimensionLine(dim, context, false);
+    });
+  }
+
+  drawDimensionPreview(context) {
+    const state = context.currentState;
+    if (!state || !state.startPoint || !state.previewPoint) return;
+
+    const preview = {
+      start: state.startPoint,
+      end: state.previewPoint,
+      label: (() => {
+        const dx = state.previewPoint.x - state.startPoint.x;
+        const dy = state.previewPoint.y - state.startPoint.y;
+        const dz = state.previewPoint.z - state.startPoint.z;
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        return `${d.toFixed(2)} m`;
+      })(),
+      visible: true,
+    };
+
+    this.drawDimensionLine(preview, context, true);
+  }
+
+  getElementRenderStyle(beam, mode = "model") {
+    const type = beam.elementType || "beam";
+
+    if (mode === "wireframe") {
+      switch (type) {
+        case "brace":
+          return {
+            strokeStyle: "#f59e0b",
+            lineWidth: 2,
+            lineDash: [6, 4],
+          };
+        case "column":
+          return {
+            strokeStyle: "#22c55e",
+            lineWidth: 3,
+            lineDash: [],
+          };
+        case "beam":
+        default:
+          return {
+            strokeStyle: "#d1d5db",
+            lineWidth: 2.5,
+            lineDash: [],
+            textColor: "#ffffff",
+          };
+      }
+    }
+
+    switch (type) {
+      case "brace":
+        return {
+          strokeStyle: "#f59e0b",
+          lineWidth: 2,
+          lineDash: [6, 4],
+          textColor: "#fbbf24",
+        };
+      case "column":
+        return {
+          strokeStyle: "#22c55e",
+          lineWidth: 3,
+          lineDash: [],
+          textColor: "#86efac",
+        };
+      case "beam":
+      default:
+        return {
+          strokeStyle: "#d1d5db",
+          lineWidth: 2.5,
+          lineDash: [],
+          textColor: "#ffffff",
+        };
+    }
+  }
+
   drawBeamID(beam, context) {
-    context.ctx.save();
-    // const p1 = context.grid.worldToScreen(beam.node1.position);
-    // const p2 = context.grid.worldToScreen(beam.node2.position);
     const p1 = this.projectPoint(beam.node1, context);
     const p2 = this.projectPoint(beam.node2, context);
     const mid = { x: (p1.x + p2.x) * 0.5, y: (p1.y + p2.y) * 0.5 };
+    const style = this.getElementRenderStyle(beam, "model");
 
-    Object.assign(context.ctx, beam.style.get().ID);
+    context.ctx.save();
     context.ctx.translate(mid.x, mid.y);
-    context.ctx.rotate(beam.angle);
+    context.ctx.rotate(beam.angle || 0);
+    context.ctx.fillStyle = style.textColor || "#ffffff";
+    context.ctx.font = "10px Arial";
+    context.ctx.textAlign = "center";
     context.ctx.fillText(`${beam.id}`, 0, 10);
     context.ctx.restore();
   }
@@ -1285,6 +1703,33 @@ export class DiseñoRenderer {
     return this.shouldDrawNode(beam.node1, CADSystem) && this.shouldDrawNode(beam.node2, CADSystem);
   }
 
+  shouldDrawArea(area, CADSystem) {
+    const view = CADSystem.viewSet?.[CADSystem.activeViewIndex];
+    if (!view) return true;
+    if (!area?.points?.length) return false;
+
+    const tol = 0.05;
+
+    // cota del área
+    const areaZ =
+      typeof area.z === "number"
+        ? area.z
+        : typeof area.points[0]?.z === "number"
+          ? area.points[0].z
+          : 0;
+
+    if (view.type === "plan") {
+      return Math.abs(areaZ - view.elevation) <= tol;
+    }
+
+    // Primera versión: áreas solo visibles en planta
+    if (view.type === "elevation") {
+      return false;
+    }
+
+    return true;
+  }
+
   projectPoint(node, CADSystem) {
     const view = CADSystem.viewSet?.[CADSystem.activeViewIndex];
     const x = node.position.x || 0;
@@ -1334,13 +1779,13 @@ export class DeflexionRenderer extends DiseñoRenderer {
       } else {
         CADSystem.shapes.forEach((s) => {
           if (!this.shouldDrawBeam(s, CADSystem)) return;
-          s.draw(this, CADSystem);
+          this.drawBeam(s, CADSystem);
         });
 
         CADSystem.parametricModels.forEach((parametric) => {
           parametric.shapes.forEach((s) => {
             if (!this.shouldDrawBeam(s, CADSystem)) return;
-            s.draw(this, CADSystem);
+            this.drawBeam(s, CADSystem);
           });
         });
       }
