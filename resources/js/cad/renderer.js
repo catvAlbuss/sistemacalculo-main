@@ -53,6 +53,11 @@ export const soportes = {
 };
 
 export class DiseñoRenderer {
+
+  getDisplayColor(context, key, fallback) {
+    return context.displayColors?.[key] || fallback;
+  }
+
   render(CADSystem) {
     this.clearBackground(CADSystem);
     if (CADSystem.options.showGrid) {
@@ -198,18 +203,30 @@ export class DiseñoRenderer {
   }
 
   clearBackground(context) {
-    context.ctx.fillStyle = "#36454F";
+    const bgColor = this.getDisplayColor(
+      context,
+      "background2d",
+      context.canvas2dBackground || "#36454F"
+    );
+
+    context.ctx.fillStyle = bgColor;
     context.ctx.fillRect(0, 0, context.grid.width, context.grid.height);
   }
 
   drawWireNode(node, context) {
-    // const p = context.grid.worldToScreen(node.position);
     const p = this.projectPoint(node, context);
+
     context.ctx.save();
+
     Object.assign(context.ctx, node.style.get().WIREFRAME);
+
+    context.ctx.fillStyle = this.getDisplayColor(context, "node", "#9ca3af");
+    context.ctx.strokeStyle = this.getDisplayColor(context, "node", "#9ca3af");
+
     context.ctx.beginPath();
     context.ctx.arc(p.x, p.y, node.style.getModel().RADIUS / 2, 0, Math.PI * 2);
     context.ctx.fill();
+
     context.ctx.restore();
   }
 
@@ -219,6 +236,8 @@ export class DiseñoRenderer {
     context.ctx.save();
     const model = node.style.getModel();
     Object.assign(context.ctx, node.style.get().MODEL);
+    context.ctx.fillStyle = this.getDisplayColor(context, "node", "#9ca3af");
+    context.ctx.strokeStyle = this.getDisplayColor(context, "node", "#9ca3af");
     context.ctx.beginPath();
     context.ctx.arc(p.x, p.y, model.RADIUS, 0, Math.PI * 2);
     context.ctx.fill();
@@ -234,7 +253,12 @@ export class DiseñoRenderer {
     const p = this.projectPoint(node, context);
     context.ctx.save();
     context.ctx.beginPath();
+
     Object.assign(context.ctx, node.style.get().ID);
+
+    context.ctx.fillStyle = this.getDisplayColor(context, "text", "#ffffff");
+    context.ctx.strokeStyle = this.getDisplayColor(context, "node", "#9ca3af");
+
     context.ctx.arc(p.x - 10, p.y - 10, context.grid.size * 2, 0, Math.PI * 2);
     context.ctx.stroke();
     context.ctx.fillText(node.id + "", p.x - 10, p.y - 10);
@@ -414,7 +438,7 @@ export class DiseñoRenderer {
   drawWireBeam(beam, context) {
     const p1 = this.projectPoint(beam.node1, context);
     const p2 = this.projectPoint(beam.node2, context);
-    const style = this.getElementRenderStyle(beam, "wireframe");
+    const style = this.getElementRenderStyle(beam, "wireframe", context);
 
     context.ctx.save();
     context.ctx.strokeStyle = style.strokeStyle;
@@ -431,7 +455,7 @@ export class DiseñoRenderer {
   drawBeam(beam, context) {
     const p1 = this.projectPoint(beam.node1, context);
     const p2 = this.projectPoint(beam.node2, context);
-    const style = this.getElementRenderStyle(beam, "model");
+    const style = this.getElementRenderStyle(beam, "model", context);
 
     context.ctx.save();
     context.ctx.strokeStyle = style.strokeStyle;
@@ -801,65 +825,78 @@ export class DiseñoRenderer {
     this.drawDimensionLine(preview, context, true);
   }
 
-  getElementRenderStyle(beam, mode = "model") {
-    const type = beam.elementType || "beam";
+  getElementRenderStyle(beam, mode = "model", context = null) {
+    const type = beam.elementType || beam.type || "beam";
 
-    if (mode === "wireframe") {
-      switch (type) {
-        case "brace":
-          return {
-            strokeStyle: "#f59e0b",
-            lineWidth: 2,
-            lineDash: [6, 4],
-          };
-        case "column":
-          return {
-            strokeStyle: "#22c55e",
-            lineWidth: 3,
-            lineDash: [],
-          };
-        case "beam":
-        default:
-          return {
-            strokeStyle: "#d1d5db",
-            lineWidth: 2.5,
-            lineDash: [],
-            textColor: "#ffffff",
-          };
-      }
+    const beamColor = context
+      ? this.getDisplayColor(context, "beam", "#d1d5db")
+      : "#d1d5db";
+
+    const secondaryBeamColor = context
+      ? this.getDisplayColor(context, "secondaryBeam", "#38bdf8")
+      : "#38bdf8";
+
+    const columnColor = context
+      ? this.getDisplayColor(context, "column", "#22c55e")
+      : "#22c55e";
+
+    const selectedColor = context
+      ? this.getDisplayColor(context, "selected", "#facc15")
+      : "#facc15";
+
+    const textColor = context
+      ? this.getDisplayColor(context, "text", "#ffffff")
+      : "#ffffff";
+
+    if (beam.selected) {
+      return {
+        strokeStyle: selectedColor,
+        lineWidth: 3,
+        lineDash: [],
+        textColor: selectedColor,
+      };
     }
 
-    switch (type) {
-      case "brace":
-        return {
-          strokeStyle: "#f59e0b",
-          lineWidth: 2,
-          lineDash: [6, 4],
-          textColor: "#fbbf24",
-        };
-      case "column":
-        return {
-          strokeStyle: "#22c55e",
-          lineWidth: 3,
-          lineDash: [],
-          textColor: "#86efac",
-        };
-      case "beam":
-      default:
-        return {
-          strokeStyle: "#d1d5db",
-          lineWidth: 2.5,
-          lineDash: [],
-          textColor: "#ffffff",
-        };
+    if (type === "column") {
+      return {
+        strokeStyle: columnColor,
+        lineWidth: 3,
+        lineDash: [],
+        textColor,
+      };
     }
+
+    if (type === "secondary-beam") {
+      return {
+        strokeStyle: secondaryBeamColor,
+        lineWidth: 2.2,
+        lineDash: [6, 4],
+        textColor,
+      };
+    }
+
+    if (type === "brace") {
+      return {
+        strokeStyle: "#f59e0b",
+        lineWidth: 2,
+        lineDash: [6, 4],
+        textColor,
+      };
+    }
+
+    return {
+      strokeStyle: beamColor,
+      lineWidth: mode === "wireframe" ? 2 : 2.5,
+      lineDash: [],
+      textColor,
+    };
   }
 
   drawBeamID(beam, context) {
     const p1 = this.projectPoint(beam.node1, context);
     const p2 = this.projectPoint(beam.node2, context);
     const mid = { x: (p1.x + p2.x) * 0.5, y: (p1.y + p2.y) * 0.5 };
-    const style = this.getElementRenderStyle(beam, "model");
+    const style = this.getElementRenderStyle(beam, "model", context);
 
     context.ctx.save();
     context.ctx.translate(mid.x, mid.y);
@@ -885,8 +922,8 @@ export class DiseñoRenderer {
     const startX = spacing - (topLeft.x % spacing);
 
     ctx.lineWidth = 0.1;
-    ctx.strokeStyle = "white";
-    ctx.fillStyle = "gray";
+    ctx.strokeStyle = this.getDisplayColor(context, "gridLine", "#2f5f7f");
+    ctx.fillStyle = this.getDisplayColor(context, "text", "#ffffff");
     const textAlign = ctx.textAlign;
     ctx.textAlign = "center";
     for (let x = topLeft.x + startX; x <= bottomRigth.x; x += spacing) {
@@ -992,19 +1029,23 @@ export class DiseñoRenderer {
     return [...xLines, ...yLines];
   }
 
-  drawGridBubble(ctx, point, label, strokeColor = "#3a6a9a", textColor = "#8aadcc") {
+  drawGridBubble(ctx, point, label, context, strokeColor = null, textColor = null) {
+    const bubbleStroke = strokeColor || this.getDisplayColor(context, "gridMainLine", "#3b82f6");
+    const bubbleText = textColor || this.getDisplayColor(context, "text", "#ffffff");
+
     ctx.save();
     ctx.beginPath();
-    ctx.strokeStyle = strokeColor;
+    ctx.strokeStyle = bubbleStroke;
     ctx.lineWidth = 1;
     ctx.arc(point.x, point.y, 10, 0, Math.PI * 2);
     ctx.stroke();
 
-    ctx.fillStyle = textColor;
+    ctx.fillStyle = bubbleText;
     ctx.font = "10px 'Segoe UI', Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(String(label), point.x, point.y);
+
     ctx.restore();
   }
 
@@ -1058,9 +1099,9 @@ export class DiseñoRenderer {
     const storyCount = refGrid.storyCount;
     const storyHeight = refGrid.storyHeight;
 
-    const axisColor = "#ff6666";
-    const lineColor = "#3a6a9a";
-    const textColor = "#8aadcc";
+    const axisColor = this.getDisplayColor(context, "gridMainLine", "#3b82f6");
+    const lineColor = this.getDisplayColor(context, "gridLine", "#2f5f7f");
+    const textColor = this.getDisplayColor(context, "text", "#ffffff");
 
     ctx.save();
     ctx.lineWidth = 0.8;
@@ -1085,7 +1126,7 @@ export class DiseñoRenderer {
       const label = floor === 0 ? "BASE" : `STORY${floor}`;
       ctx.fillText(label, 10, screenY - 5);
 
-      ctx.fillStyle = "#666";
+      ctx.fillStyle = textColor;
       ctx.font = "9px Arial";
       ctx.fillText(`${z}m`, 80, screenY - 5);
     }
@@ -1112,19 +1153,19 @@ export class DiseñoRenderer {
     const origin = grid.worldToScreen({ x: 0, y: 0 });
     ctx.beginPath();
     ctx.arc(origin.x, origin.y, 5, 0, 2 * Math.PI);
-    ctx.fillStyle = "#ff8888";
+    ctx.fillStyle = this.getDisplayColor(context, "node", "#9ca3af");
     ctx.fill();
 
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = textColor;
     ctx.font = "bold 10px Arial";
     ctx.fillText("0,0", origin.x + 8, origin.y - 5);
 
     ctx.font = "bold 12px 'Segoe UI', Arial";
-    ctx.fillStyle = "#4a90d9";
+    ctx.fillStyle = axisColor;
     ctx.fillText(`📐 ELEVACIÓN Eje Y-${currentElevationZ} (Y = ${currentY}m) - Plano X-Z`, 15, 30);
 
     ctx.font = "10px Arial";
-    ctx.fillStyle = "#888";
+    ctx.fillStyle = textColor;
     ctx.fillText("Haz clic para dibujar | Esc para salir", 15, 50);
 
     ctx.restore();
@@ -1155,9 +1196,9 @@ export class DiseñoRenderer {
     const storyCount = refGrid.storyCount;
     const storyHeight = refGrid.storyHeight;
 
-    const axisColor = "#ff6666";
-    const lineColor = "#3a6a9a";
-    const textColor = "#8aadcc";
+    const axisColor = this.getDisplayColor(context, "gridMainLine", "#3b82f6");
+    const lineColor = this.getDisplayColor(context, "gridLine", "#2f5f7f");
+    const textColor = this.getDisplayColor(context, "text", "#ffffff");
 
     ctx.save();
     ctx.lineWidth = 0.8;
@@ -1181,7 +1222,7 @@ export class DiseñoRenderer {
       const label = floor === 0 ? "BASE" : `STORY${floor}`;
       ctx.fillText(label, 10, screenY - 5);
 
-      ctx.fillStyle = "#666";
+      ctx.fillStyle = textColor;
       ctx.font = "9px Arial";
       ctx.fillText(`${z}m`, 80, screenY - 5);
     }
@@ -1207,19 +1248,19 @@ export class DiseñoRenderer {
     const origin = grid.worldToScreen({ x: 0, y: 0 });
     ctx.beginPath();
     ctx.arc(origin.x, origin.y, 5, 0, 2 * Math.PI);
-    ctx.fillStyle = "#ff8888";
+    ctx.fillStyle = this.getDisplayColor(context, "node", "#9ca3af");
     ctx.fill();
 
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = textColor;
     ctx.font = "bold 10px Arial";
     ctx.fillText("0,0", origin.x + 8, origin.y - 5);
 
     ctx.font = "bold 12px 'Segoe UI', Arial";
-    ctx.fillStyle = "#4a90d9";
+    ctx.fillStyle = axisColor;
     ctx.fillText(`📐 ELEVACIÓN Eje X-${currentElevationX} (X = ${currentX}m) - Plano Y-Z`, 15, 30);
 
     ctx.font = "10px Arial";
-    ctx.fillStyle = "#888";
+    ctx.fillStyle = textColor;
     ctx.fillText("Haz clic para dibujar | Esc para salir", 15, 50);
 
     ctx.restore();
@@ -1233,9 +1274,9 @@ export class DiseñoRenderer {
 
     if (!lines.length) return;
 
-    const lineColor = "#3a6a9a";
-    const textColor = "#8aadcc";
-    const axisColor = "#00ff00";
+    const lineColor = this.getDisplayColor(context, "gridLine", "#2f5f7f");
+    const textColor = this.getDisplayColor(context, "text", "#ffffff");
+    const axisColor = this.getDisplayColor(context, "gridMainLine", "#3b82f6");
 
     ctx.save();
     ctx.lineWidth = 0.8;
@@ -1321,7 +1362,7 @@ export class DiseñoRenderer {
     //   ctx.stroke();
 
     //   const bubblePoint = line.bubbleLoc === "Start" ? p1 : p2;
-    //   this.drawGridBubble(ctx, bubblePoint, line.id, lineColor, textColor);
+    //   this.drawGridBubble(ctx, point, label, context, lineColor, textColor);
     // });
     // Líneas de grilla generales
     lines.forEach((line) => {

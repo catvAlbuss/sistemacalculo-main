@@ -1057,8 +1057,144 @@ export class TrussDrawingState extends PanAndZoomState {
     super();
     this.context = context;
     this.elementType = elementType;
-    this.shape = new Beam(this.context.globalE, this.context.globalA);
+    this.shape = this.createEmptyShape(context);
+  }
+
+  createEmptyShape(context) {
+    const shape = new Beam(context.globalE, context.globalA);
+    shape.elementType = this.elementType;
+    shape.type = this.elementType;
+    shape.objectType = "frame";
+    shape.visible = true;
+    return shape;
+  }
+
+  getDrawingPoint(context, mouse) {
+    const worldPos = context.grid.screenToWorld(mouse);
+
+    if (context.getCurrentSnapPoint) {
+      return context.getCurrentSnapPoint(worldPos);
+    }
+
+    const view = context.viewSet?.[context.activeViewIndex];
+
+    if (context.activeGridPoint) {
+      return {
+        x: Number(context.activeGridPoint.x || 0),
+        y: Number(context.activeGridPoint.y || 0),
+        z: Number(context.activeGridPoint.z || 0),
+      };
+    }
+
+    if (view?.type === "elevation" && view.axis === "X") {
+      return {
+        x: Number(view.value || 0),
+        y: Number(worldPos.x || 0),
+        z: Number(worldPos.y || 0),
+      };
+    }
+
+    if (view?.type === "elevation" && view.axis === "Y") {
+      return {
+        x: Number(worldPos.x || 0),
+        y: Number(view.value || 0),
+        z: Number(worldPos.y || 0),
+      };
+    }
+
+    return {
+      x: Number(worldPos.x || 0),
+      y: Number(worldPos.y || 0),
+      z: Number(context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0),
+    };
+  }
+
+  getOrCreateNode(context, point) {
+    const toleranceXY = 0.001;
+    const toleranceZ = 0.001;
+
+    let node = context.nodes.find((n) => {
+      const p = n.position || n;
+
+      return (
+        Math.abs(Number(p.x || 0) - Number(point.x || 0)) <= toleranceXY &&
+        Math.abs(Number(p.y || 0) - Number(point.y || 0)) <= toleranceXY &&
+        Math.abs(Number(p.z || 0) - Number(point.z || 0)) <= toleranceZ
+      );
+    });
+
+    if (node) {
+      return node;
+    }
+
+    node = new StructuralNode(
+      { x: point.x, y: point.y },
+      context.nodes.length + 1,
+      point.z
+    );
+
+    if (!node.position) {
+      node.position = {
+        x: point.x,
+        y: point.y,
+        z: point.z,
+      };
+    }
+
+    node.position.x = point.x;
+    node.position.y = point.y;
+    node.position.z = point.z;
+
+    if (!node.beams) {
+      node.beams = [];
+    }
+
+    context.nodes.push(node);
+
+    console.log(
+      `✅ Nodo creado ID: ${node.id} en (${point.x.toFixed(2)}, ${point.y.toFixed(2)}, ${point.z.toFixed(2)})`
+    );
+
+    return node;
+  }
+
+  addNodeToCurrentShape(context, node) {
+    const isDone = this.shape.addNode(node);
+
+    if (!isDone) {
+      return;
+    }
+
+    this.shape.id = context.shapes.length + 1;
     this.shape.elementType = this.elementType;
+    this.shape.type = this.elementType;
+    this.shape.objectType = "frame";
+    this.shape.visible = true;
+
+    context.shapes.push(this.shape);
+
+    if (!this.shape.node1.beams) this.shape.node1.beams = [];
+    if (!this.shape.node2.beams) this.shape.node2.beams = [];
+
+    if (!this.shape.node1.beams.includes(this.shape)) {
+      this.shape.node1.beams.push(this.shape);
+    }
+
+    if (!this.shape.node2.beams.includes(this.shape)) {
+      this.shape.node2.beams.push(this.shape);
+    }
+
+    console.log(
+      `📐 Línea creada ID: ${this.shape.id} | tipo: ${this.elementType}`
+    );
+
+    const lastNode = this.shape.node2;
+
+    this.shape = this.createEmptyShape(context);
+
+    // Esto permite seguir dibujando otra línea desde el último punto,
+    // igual que un modo Draw Lines continuo.
+    this.shape.addNode(lastNode);
   }
 
   handleMouseDown(event, context, mouse) {
@@ -1068,305 +1204,156 @@ export class TrussDrawingState extends PanAndZoomState {
     }
 
     super.handleMouseDown(...arguments);
-    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
-      return;
-    }
 
-    const view = context.viewSet?.[context.activeViewIndex];
-    const worldPos = context.grid.screenToWorld(mouse);
+    const point = this.getDrawingPoint(context, mouse);
+    const node = this.getOrCreateNode(context, point);
 
-    // AHORA el snap aplica en cualquier vista si existe activeGridPoint
-    const snapPoint = context.activeGridPoint ?? null;
+    this.addNodeToCurrentShape(context, node);
 
-    let x, y, z;
-
-    if (snapPoint) {
-      x = snapPoint.x;
-      y = snapPoint.y;
-      z = snapPoint.z;
-
-      console.log(
-        `🎯 SNAP ${view?.type === "elevation" ? "ELEVACIÓN" : "PLANTA"}: ${snapPoint.label ?? ""} -> (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`
-      );
-    } else if (view?.type === "elevation" && view.axis === "X") {
-      // LETRAS => X fija => plano Y-Z
-      const fixedX = view.value ?? 0;
-      x = fixedX;
-      y = worldPos.x;
-      z = worldPos.y;
-
-      console.log(`🖱️ ELEVACIÓN X-${view.label}: (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
-    } else if (view?.type === "elevation" && view.axis === "Y") {
-      // NÚMEROS => Y fija => plano X-Z
-      const fixedY = view.value ?? 0;
-      x = worldPos.x;
-      y = fixedY;
-      z = worldPos.y;
-
-      console.log(`🖱️ ELEVACIÓN Y-${view.label}: (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
-    } else {
-      // PLANTA libre, si no hubo snap
-      const currentZ = context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0;
-      x = worldPos.x;
-      y = worldPos.y;
-      z = currentZ;
-
-      console.log(`🖱️ PLANTA LIBRE: (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
-    }
-
-    let node = context.nodes.find((n) => {
-      const dx = Math.abs(n.position.x - x);
-      const dy = Math.abs(n.position.y - y);
-      const dz = Math.abs((n.position.z || 0) - z);
-      return dx < 0.3 && dy < 0.3 && dz < 0.1;
-    });
-
-    if (!node) {
-      node = new StructuralNode({ x, y }, context.nodes.length + 1, z);
-      context.nodes.push(node);
-      console.log(`✅ Nodo creado ID: ${node.id} en (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
-    } else {
-      console.log(`🔗 Nodo existente ID: ${node.id}`);
-    }
-
-    const isDone = this.shape.addNode(node);
-    if (isDone) {
-      context.shapes.push(this.shape);
-      this.shape.id = context.shapes.length;
-
-      if (this.shape.node1 && this.shape.node1.beams) {
-        this.shape.node1.beams.push(this.shape);
-      }
-      if (this.shape.node2 && this.shape.node2.beams) {
-        this.shape.node2.beams.push(this.shape);
-      }
-
-      console.log(`📐 Viga creada ID: ${this.shape.id}`);
-      this.shape = new Beam(this.context.globalE, this.context.globalA);
-      this.shape.elementType = this.elementType;
-      this.shape.addNode(node);
-    }
-
-    context.redraw();
-    context.sync3D();
+    context.redraw?.();
+    context.sync3D?.();
   }
 
   handleMouseMove(event, context, mouse) {
     super.handleMouseMove(...arguments);
 
-    const view = context.viewSet?.[context.activeViewIndex];
-    const snapPoint = context.activeGridPoint ?? null;
-    const last_point = this.shape.node1?.position;
+    const firstPoint = this.shape.node1?.position;
 
-    // Punto actual del preview en coordenadas del MODELO
-    let currentPoint;
-
-    if (snapPoint) {
-      currentPoint = {
-        x: snapPoint.x,
-        y: snapPoint.y,
-        z: snapPoint.z,
-      };
-    } else if (view?.type === "elevation" && view.axis === "X") {
-      currentPoint = {
-        x: view.value ?? 0,
-        y: context.mousePos.x,
-        z: context.mousePos.y,
-      };
-    } else if (view?.type === "elevation" && view.axis === "Y") {
-      currentPoint = {
-        x: context.mousePos.x,
-        y: view.value ?? 0,
-        z: context.mousePos.y,
-      };
-    } else {
-      currentPoint = {
-        x: context.mousePos.x,
-        y: context.mousePos.y,
-        z: context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0,
-      };
+    if (!firstPoint) {
+      return;
     }
 
-    if (last_point) {
-      let distance;
+    const currentPoint = this.getDrawingPoint(context, mouse);
 
-      if (view?.type === "elevation" && view.axis === "X") {
-        // plano Y-Z
-        const dy = currentPoint.y - last_point.y;
-        const dz = currentPoint.z - (last_point.z || 0);
-        distance = Math.sqrt(dy * dy + dz * dz);
-      } else if (view?.type === "elevation" && view.axis === "Y") {
-        // plano X-Z
-        const dx = currentPoint.x - last_point.x;
-        const dz = currentPoint.z - (last_point.z || 0);
-        distance = Math.sqrt(dx * dx + dz * dz);
-      } else {
-        const dx = currentPoint.x - last_point.x;
-        const dy = currentPoint.y - last_point.y;
-        distance = Math.sqrt(dx * dx + dy * dy);
-      }
+    const dx = currentPoint.x - firstPoint.x;
+    const dy = currentPoint.y - firstPoint.y;
+    const dz = (currentPoint.z || 0) - (firstPoint.z || 0);
 
-      // const mouseScreen =
-      //   view?.type === "elevation"
-      //     ? context.grid.worldToScreen({
-      //       x: context.mousePos.x,
-      //       y: context.mousePos.y,
-      //     })
-      //     : context.grid.worldToScreen(context.mousePos);
-      let mouseScreen;
+    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-      if (snapPoint) {
-        // si existe snap, el preview debe ir al punto snap real
-        mouseScreen = context.currentRenderer.projectPoint
-          ? context.currentRenderer.projectPoint({ position: currentPoint }, context)
-          : context.grid.worldToScreen({ x: context.mousePos.x, y: context.mousePos.y });
-      } else if (view?.type === "elevation") {
-        mouseScreen = context.grid.worldToScreen({
-          x: context.mousePos.x,
-          y: context.mousePos.y,
-        });
-      } else {
-        mouseScreen = context.grid.worldToScreen(context.mousePos);
-      }
+    if (context.distanceInput && distance > 0.001) {
+      const p1 = context.currentRenderer.projectPoint
+        ? context.currentRenderer.projectPoint({ position: firstPoint }, context)
+        : context.grid.worldToScreen(firstPoint);
 
-      const lp = context.currentRenderer.projectPoint
-        ? context.currentRenderer.projectPoint({ position: last_point }, context)
-        : context.grid.worldToScreen(last_point);
+      const p2 = context.currentRenderer.projectPoint
+        ? context.currentRenderer.projectPoint({ position: currentPoint }, context)
+        : context.grid.worldToScreen(currentPoint);
 
-      // const unitVec = {
-      //   x: (mouseScreen.x - lp.x) / pointDistance(lp, mouseScreen),
-      //   y: (mouseScreen.y - lp.y) / pointDistance(lp, mouseScreen),
-      // };
-      const previewDistance = pointDistance(lp, mouseScreen);
-      if (previewDistance < 0.001) return;
-
-      const unitVec = {
-        x: (mouseScreen.x - lp.x) / previewDistance,
-        y: (mouseScreen.y - lp.y) / previewDistance,
-      };
-
-      const perpUnitVec = { x: -unitVec.y, y: unitVec.x };
-      const midPoint = { x: (lp.x + mouseScreen.x) * 0.5, y: (lp.y + mouseScreen.y) * 0.5 };
       const mid = {
-        x: midPoint.x + perpUnitVec.x * 100,
-        y: midPoint.y + perpUnitVec.y * 100,
+        x: (p1.x + p2.x) / 2,
+        y: (p1.y + p2.y) / 2,
       };
 
-      context.distanceInput.style.top = mid.y + "px";
-      context.distanceInput.style.left = mid.x + "px";
+      context.distanceInput.style.left = `${mid.x + 20}px`;
+      context.distanceInput.style.top = `${mid.y - 20}px`;
       context.distanceInput.value = distance.toFixed(2);
-      context.distanceInput.focus();
-      context.distanceInput.select();
     }
+
+    context.redraw?.();
   }
 
   createBeam(context) {
-    const view = context.viewSet?.[context.activeViewIndex];
-    const last_point = this.shape.node1.position;
-    const distance = parseFloat(context.distanceInput.value);
+    const firstPoint = this.shape.node1?.position;
+
+    if (!firstPoint) {
+      return;
+    }
+
+    const distance = parseFloat(context.distanceInput?.value);
 
     if (isNaN(distance) || distance <= 0) {
       return;
     }
 
-    let unitVec;
-    let newPoint;
+    const view = context.viewSet?.[context.activeViewIndex];
+    const mouseWorld = context.mousePos;
 
-    // Si existe snap activo, usarlo directamente
-    if (context.activeGridPoint) {
-      newPoint = {
-        x: context.activeGridPoint.x,
-        y: context.activeGridPoint.y,
-        z: context.activeGridPoint.z,
-      };
-    } else if (view?.type === "elevation" && view.axis === "X") {
-      // Letras => plano Y-Z
-      const dy = context.mousePos.x - last_point.y;
-      const dz = context.mousePos.y - (last_point.z || 0);
+    let direction = null;
+
+    if (view?.type === "elevation" && view.axis === "X") {
+      const dy = mouseWorld.x - firstPoint.y;
+      const dz = mouseWorld.y - (firstPoint.z || 0);
       const len = Math.sqrt(dy * dy + dz * dz);
 
-      if (len < 0.001) return;
+      if (len <= 0.001) return;
 
-      unitVec = {
+      direction = {
+        x: 0,
         y: dy / len,
         z: dz / len,
-      };
-
-      newPoint = {
-        x: view.value ?? last_point.x,
-        y: last_point.y + unitVec.y * distance,
-        z: (last_point.z || 0) + unitVec.z * distance,
       };
     } else if (view?.type === "elevation" && view.axis === "Y") {
-      // Números => plano X-Z
-      const dx = context.mousePos.x - last_point.x;
-      const dz = context.mousePos.y - (last_point.z || 0);
+      const dx = mouseWorld.x - firstPoint.x;
+      const dz = mouseWorld.y - (firstPoint.z || 0);
       const len = Math.sqrt(dx * dx + dz * dz);
 
-      if (len < 0.001) return;
+      if (len <= 0.001) return;
 
-      unitVec = {
+      direction = {
         x: dx / len,
+        y: 0,
         z: dz / len,
       };
-
-      newPoint = {
-        x: last_point.x + unitVec.x * distance,
-        y: view.value ?? last_point.y,
-        z: (last_point.z || 0) + unitVec.z * distance,
-      };
     } else {
-      // Planta
-      const currentZ = context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0;
-      const dx = context.mousePos.x - last_point.x;
-      const dy = context.mousePos.y - last_point.y;
+      const dx = mouseWorld.x - firstPoint.x;
+      const dy = mouseWorld.y - firstPoint.y;
       const len = Math.sqrt(dx * dx + dy * dy);
 
-      if (len < 0.001) return;
+      if (len <= 0.001) return;
 
-      unitVec = {
+      direction = {
         x: dx / len,
         y: dy / len,
-      };
-
-      newPoint = {
-        x: last_point.x + unitVec.x * distance,
-        y: last_point.y + unitVec.y * distance,
-        z: currentZ,
+        z: 0,
       };
     }
 
-    const node = new StructuralNode(
-      { x: newPoint.x, y: newPoint.y },
-      context.nodes.length + 1,
-      newPoint.z
-    );
+    const newPoint = {
+      x: firstPoint.x + direction.x * distance,
+      y: firstPoint.y + direction.y * distance,
+      z: (firstPoint.z || 0) + direction.z * distance,
+    };
 
-    context.nodes.push(node);
+    const node = this.getOrCreateNode(context, newPoint);
+    this.addNodeToCurrentShape(context, node);
 
-    const isDone = this.shape.addNode(node);
-    if (isDone) {
-      context.shapes.push(this.shape);
-      this.shape.node1.beams.push(this.shape);
-      this.shape.node2.beams.push(this.shape);
-      this.shape.id = context.shapes.length;
-
-      this.shape = new Beam(context.globalE, context.globalA);
-    }
-
-    context.redraw();
+    context.redraw?.();
     context.sync3D?.();
+  }
+
+  handleKeyDown(event, context) {
+    if (event.key === "Escape") {
+      this.shape = this.createEmptyShape(context);
+
+      if (context.distanceInput) {
+        context.distanceInput.value = "";
+      }
+
+      context.setState(context.idleState);
+      context.redraw?.();
+      return;
+    }
+
+    if (event.key === "Enter") {
+      this.createBeam(context);
+      return;
+    }
+
+    super.handleKeyDown(event, context);
   }
 
   exit() {
     super.exit();
-    this.shape = new Beam(this.context.globalE, this.context.globalA);
+    this.shape = this.createEmptyShape(this.context);
   }
+
   draw(renderer, context) {
     renderer.drawTrussDrawingState(this, context);
   }
+
   info() {
-    return 'Haz clic para definir el siguiente nodo y presiona "Esc" para finalizarla.';
+    return 'Draw Lines activo: clic para primer punto, clic para segundo punto. Presiona "Esc" para salir.';
   }
 }
 
@@ -1441,6 +1428,152 @@ export class ColumnDrawingState extends PanAndZoomState {
     this.context = context;
   }
 
+  getColumnPoint(context, mouse) {
+    const view = context.viewSet?.[context.activeViewIndex];
+
+    if (!view || view.type !== "plan") {
+      return null;
+    }
+
+    if (context.activeGridPoint) {
+      return {
+        x: Number(context.activeGridPoint.x || 0),
+        y: Number(context.activeGridPoint.y || 0),
+      };
+    }
+
+    const worldPos = context.grid.screenToWorld(mouse);
+
+    return {
+      x: Number(worldPos.x || 0),
+      y: Number(worldPos.y || 0),
+    };
+  }
+
+  getNextStoryElevation(context, currentZ) {
+    const stories = Array.isArray(context.stories) ? context.stories : [];
+
+    const upperStory = stories
+      .filter((story) => Number(story.elevation) > Number(currentZ))
+      .sort((a, b) => Number(a.elevation) - Number(b.elevation))[0];
+
+    if (upperStory) {
+      return Number(upperStory.elevation);
+    }
+
+    const storyHeight = Number(context.referenceGrid?.storyHeight ?? 0);
+
+    if (storyHeight > 0) {
+      return Number(currentZ) + storyHeight;
+    }
+
+    return null;
+  }
+
+  getOrCreateNodeAt(context, x, y, z) {
+    const toleranceXY = 0.001;
+    const toleranceZ = 0.001;
+
+    let node = context.nodes.find((n) => {
+      const p = n.position || n;
+
+      return (
+        Math.abs(Number(p.x || 0) - Number(x || 0)) <= toleranceXY &&
+        Math.abs(Number(p.y || 0) - Number(y || 0)) <= toleranceXY &&
+        Math.abs(Number(p.z || 0) - Number(z || 0)) <= toleranceZ
+      );
+    });
+
+    if (node) {
+      if (!node.beams) node.beams = [];
+      return node;
+    }
+
+    node = new StructuralNode(
+      { x: Number(x || 0), y: Number(y || 0) },
+      context.nodes.length + 1,
+      Number(z || 0)
+    );
+
+    if (!node.position) {
+      node.position = {
+        x: Number(x || 0),
+        y: Number(y || 0),
+        z: Number(z || 0),
+      };
+    }
+
+    node.position.x = Number(x || 0);
+    node.position.y = Number(y || 0);
+    node.position.z = Number(z || 0);
+
+    if (!node.beams) {
+      node.beams = [];
+    }
+
+    context.nodes.push(node);
+
+    return node;
+  }
+
+  columnAlreadyExists(context, node1, node2) {
+    return context.shapes.some((shape) => {
+      if (!shape?.node1 || !shape?.node2) return false;
+
+      const sameDirection =
+        shape.node1 === node1 && shape.node2 === node2;
+
+      const reverseDirection =
+        shape.node1 === node2 && shape.node2 === node1;
+
+      const isColumn =
+        shape.elementType === "column" ||
+        shape.type === "column";
+
+      return isColumn && (sameDirection || reverseDirection);
+    });
+  }
+
+  createColumn(context, x, y, z1, z2) {
+    const node1 = this.getOrCreateNodeAt(context, x, y, z1);
+    const node2 = this.getOrCreateNodeAt(context, x, y, z2);
+
+    if (this.columnAlreadyExists(context, node1, node2)) {
+      context.showMessage?.("Ya existe una columna en este punto", "warning");
+      return null;
+    }
+
+    const column = new Beam(context.globalE, context.globalA);
+
+    column.elementType = "column";
+    column.type = "column";
+    column.objectType = "frame";
+    column.visible = true;
+
+    column.addNode(node1);
+    column.addNode(node2);
+
+    column.id = context.shapes.length + 1;
+    context.shapes.push(column);
+
+    if (!node1.beams) node1.beams = [];
+    if (!node2.beams) node2.beams = [];
+
+    if (!node1.beams.includes(column)) {
+      node1.beams.push(column);
+    }
+
+    if (!node2.beams.includes(column)) {
+      node2.beams.push(column);
+    }
+
+    console.log(
+      `│ Columna creada ID: ${column.id} desde Z=${z1.toFixed(2)} hasta Z=${z2.toFixed(2)}`
+    );
+
+    return column;
+  }
+
   handleMouseDown(event, context, mouse) {
     if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
       super.handleMouseDown(event, context, mouse);
@@ -1449,63 +1582,983 @@ export class ColumnDrawingState extends PanAndZoomState {
 
     super.handleMouseDown(...arguments);
 
-    const snapPoint = context.activeGridPoint ?? null;
-    const currentZ = context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0;
-    const storyHeight = Number(context.referenceGrid?.storyHeight ?? 3);
-    const nextZ = currentZ + storyHeight;
+    const view = context.viewSet?.[context.activeViewIndex];
 
-    let x, y;
-
-    if (snapPoint) {
-      x = snapPoint.x;
-      y = snapPoint.y;
-    } else {
-      const worldPos = context.grid.screenToWorld(mouse);
-      x = worldPos.x;
-      y = worldPos.y;
+    if (!view || view.type !== "plan") {
+      context.showMessage?.(
+        "Create Columns solo funciona en planta",
+        "warning"
+      );
+      return;
     }
 
-    let node1 = context.nodes.find((n) =>
-      Math.abs(n.position.x - x) < 0.3 &&
-      Math.abs(n.position.y - y) < 0.3 &&
-      Math.abs((n.position.z || 0) - currentZ) < 0.1
+    const point = this.getColumnPoint(context, mouse);
+
+    if (!point) {
+      context.showMessage?.(
+        "No se pudo obtener el punto para crear la columna",
+        "warning"
+      );
+      return;
+    }
+
+    const currentZ =
+      Number(context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0);
+
+    const nextZ = this.getNextStoryElevation(context, currentZ);
+
+    if (nextZ === null || nextZ <= currentZ) {
+      context.showMessage?.(
+        "No existe un piso superior para crear la columna",
+        "warning"
+      );
+      return;
+    }
+
+    this.createColumn(
+      context,
+      point.x,
+      point.y,
+      currentZ,
+      nextZ
     );
 
-    if (!node1) {
-      node1 = new StructuralNode({ x, y }, context.nodes.length + 1, currentZ);
-      context.nodes.push(node1);
-    }
-
-    let node2 = context.nodes.find((n) =>
-      Math.abs(n.position.x - x) < 0.3 &&
-      Math.abs(n.position.y - y) < 0.3 &&
-      Math.abs((n.position.z || 0) - nextZ) < 0.1
-    );
-
-    if (!node2) {
-      node2 = new StructuralNode({ x, y }, context.nodes.length + 1, nextZ);
-      context.nodes.push(node2);
-    }
-
-    const beam = new Beam(context.globalE, context.globalA);
-    beam.elementType = "column";
-    beam.addNode(node1);
-    beam.addNode(node2);
-
-    context.shapes.push(beam);
-    beam.id = context.shapes.length;
-
-    node1.beams.push(beam);
-    node2.beams.push(beam);
-
-    console.log(`│ Columna creada ID: ${beam.id}`);
-
-    context.redraw();
-    context.sync3D();
+    context.redraw?.();
+    context.sync3D?.();
   }
 
   info() {
-    return "Haz clic para crear columnas verticales entre niveles.";
+    return "Create Columns: haz clic en planta para crear una columna vertical hasta el piso superior. Usa Esc para salir.";
+  }
+}
+
+export class CreateLinesRegionClicksState extends PanAndZoomState {
+  constructor(context) {
+    super();
+    this.context = context;
+
+    this.isDraggingRegion = false;
+    this.regionStart = null;
+    this.regionEnd = null;
+    this.dragThreshold = 8;
+  }
+
+  getActiveView(context) {
+    return context.viewSet?.[context.activeViewIndex] || null;
+  }
+
+  getGridSegmentsForActiveView(context) {
+    const view = this.getActiveView(context);
+    const ref = context.referenceGrid;
+
+    if (!view || !ref) return [];
+
+    const segments = [];
+
+    const xPositions = ref.xPositions || [];
+    const yPositions = ref.yPositions || [];
+    const storyCount = Number(ref.storyCount || 0);
+    const storyHeight = Number(ref.storyHeight || 0);
+
+    if (view.type === "plan") {
+      const z = Number(view.elevation || 0);
+
+      yPositions.forEach((y) => {
+        for (let i = 0; i < xPositions.length - 1; i++) {
+          segments.push({
+            p1: { x: xPositions[i], y, z },
+            p2: { x: xPositions[i + 1], y, z },
+            type: "beam",
+          });
+        }
+      });
+
+      xPositions.forEach((x) => {
+        for (let j = 0; j < yPositions.length - 1; j++) {
+          segments.push({
+            p1: { x, y: yPositions[j], z },
+            p2: { x, y: yPositions[j + 1], z },
+            type: "beam",
+          });
+        }
+      });
+
+      return segments;
+    }
+
+    if (view.type === "elevation" && view.axis === "X") {
+      const fixedX = Number(view.value || 0);
+
+      const zLevels = [];
+      for (let k = 0; k <= storyCount; k++) {
+        zLevels.push(k * storyHeight);
+      }
+
+      zLevels.forEach((z) => {
+        for (let j = 0; j < yPositions.length - 1; j++) {
+          segments.push({
+            p1: { x: fixedX, y: yPositions[j], z },
+            p2: { x: fixedX, y: yPositions[j + 1], z },
+            type: "beam",
+          });
+        }
+      });
+
+      yPositions.forEach((y) => {
+        for (let k = 0; k < zLevels.length - 1; k++) {
+          segments.push({
+            p1: { x: fixedX, y, z: zLevels[k] },
+            p2: { x: fixedX, y, z: zLevels[k + 1] },
+            type: "column",
+          });
+        }
+      });
+
+      return segments;
+    }
+
+    if (view.type === "elevation" && view.axis === "Y") {
+      const fixedY = Number(view.value || 0);
+
+      const zLevels = [];
+      for (let k = 0; k <= storyCount; k++) {
+        zLevels.push(k * storyHeight);
+      }
+
+      zLevels.forEach((z) => {
+        for (let i = 0; i < xPositions.length - 1; i++) {
+          segments.push({
+            p1: { x: xPositions[i], y: fixedY, z },
+            p2: { x: xPositions[i + 1], y: fixedY, z },
+            type: "beam",
+          });
+        }
+      });
+
+      xPositions.forEach((x) => {
+        for (let k = 0; k < zLevels.length - 1; k++) {
+          segments.push({
+            p1: { x, y: fixedY, z: zLevels[k] },
+            p2: { x, y: fixedY, z: zLevels[k + 1] },
+            type: "column",
+          });
+        }
+      });
+
+      return segments;
+    }
+
+    return [];
+  }
+
+  projectPointToActiveView(context, point) {
+    const view = this.getActiveView(context);
+
+    if (!view || view.type === "plan") {
+      return context.grid.worldToScreen({
+        x: point.x,
+        y: point.y,
+      });
+    }
+
+    if (view.type === "elevation" && view.axis === "X") {
+      return context.grid.worldToScreen({
+        x: point.y,
+        y: point.z,
+      });
+    }
+
+    if (view.type === "elevation" && view.axis === "Y") {
+      return context.grid.worldToScreen({
+        x: point.x,
+        y: point.z,
+      });
+    }
+
+    return null;
+  }
+
+  distanceToSegment(mouse, a, b) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+
+    if (Math.abs(dx) < 1e-9 && Math.abs(dy) < 1e-9) {
+      return Math.hypot(mouse.x - a.x, mouse.y - a.y);
+    }
+
+    let t =
+      ((mouse.x - a.x) * dx + (mouse.y - a.y) * dy) /
+      (dx * dx + dy * dy);
+
+    t = Math.max(0, Math.min(1, t));
+
+    const px = a.x + t * dx;
+    const py = a.y + t * dy;
+
+    return Math.hypot(mouse.x - px, mouse.y - py);
+  }
+
+  findClosestSegment(context, mouse) {
+    const segments = this.getGridSegmentsForActiveView(context);
+
+    let best = null;
+    let bestDistance = 12;
+
+    segments.forEach((segment) => {
+      const s1 = this.projectPointToActiveView(context, segment.p1);
+      const s2 = this.projectPointToActiveView(context, segment.p2);
+
+      if (!s1 || !s2) return;
+
+      const d = this.distanceToSegment(mouse, s1, s2);
+
+      if (d < bestDistance) {
+        bestDistance = d;
+        best = segment;
+      }
+    });
+
+    return best;
+  }
+
+  lineAlreadyExists(context, p1, p2, tolerance = 0.001) {
+    return context.shapes.some((shape) => {
+      if (!shape?.node1?.position || !shape?.node2?.position) return false;
+
+      const a = shape.node1.position;
+      const b = shape.node2.position;
+
+      const sameDirection =
+        Math.abs(a.x - p1.x) <= tolerance &&
+        Math.abs(a.y - p1.y) <= tolerance &&
+        Math.abs((a.z || 0) - (p1.z || 0)) <= tolerance &&
+        Math.abs(b.x - p2.x) <= tolerance &&
+        Math.abs(b.y - p2.y) <= tolerance &&
+        Math.abs((b.z || 0) - (p2.z || 0)) <= tolerance;
+
+      const reverseDirection =
+        Math.abs(a.x - p2.x) <= tolerance &&
+        Math.abs(a.y - p2.y) <= tolerance &&
+        Math.abs((a.z || 0) - (p2.z || 0)) <= tolerance &&
+        Math.abs(b.x - p1.x) <= tolerance &&
+        Math.abs(b.y - p1.y) <= tolerance &&
+        Math.abs((b.z || 0) - (p1.z || 0)) <= tolerance;
+
+      return sameDirection || reverseDirection;
+    });
+  }
+
+  createLine(context, segment, silent = false) {
+    if (!segment) return false;
+
+    if (this.lineAlreadyExists(context, segment.p1, segment.p2)) {
+      if (!silent) {
+        context.showMessage?.("Ya existe una línea en ese tramo", "warning");
+      }
+      return false;
+    }
+
+    if (!context.createFrameLineFromPoints) {
+      context.showMessage?.(
+        "Falta createFrameLineFromPoints en cad_sys.js",
+        "warning"
+      );
+      return false;
+    }
+
+    const line = context.createFrameLineFromPoints(
+      segment.p1,
+      segment.p2,
+      segment.type || "beam"
+    );
+
+    if (line) {
+      line.elementType = segment.type || "beam";
+      line.type = segment.type || "beam";
+      return true;
+    }
+
+    return false;
+  }
+
+  getRegionRect() {
+    if (!this.regionStart || !this.regionEnd) return null;
+
+    return {
+      left: Math.min(this.regionStart.x, this.regionEnd.x),
+      right: Math.max(this.regionStart.x, this.regionEnd.x),
+      top: Math.min(this.regionStart.y, this.regionEnd.y),
+      bottom: Math.max(this.regionStart.y, this.regionEnd.y),
+    };
+  }
+
+  pointInsideRect(point, rect) {
+    return (
+      point.x >= rect.left &&
+      point.x <= rect.right &&
+      point.y >= rect.top &&
+      point.y <= rect.bottom
+    );
+  }
+
+  // CREATE LINES IN REGION: para cada tramo de grilla, FIGURA ABIERTA (intersección con la región)
+  // segmentIntersectsRect(a, b, rect) {
+  //   if (this.pointInsideRect(a, rect) || this.pointInsideRect(b, rect)) {
+  //     return true;
+  //   }
+
+  //   const mid = {
+  //     x: (a.x + b.x) / 2,
+  //     y: (a.y + b.y) / 2,
+  //   };
+
+  //   if (this.pointInsideRect(mid, rect)) {
+  //     return true;
+  //   }
+
+  //   return false;
+  // }
+
+  // CREATE LINES IN REGION: para cada tramo de grilla, FIGURA CERRADA (ambos puntos dentro de la región)
+  segmentIntersectsRect(a, b, rect) {
+    return (
+      this.pointInsideRect(a, rect) &&
+      this.pointInsideRect(b, rect)
+    );
+  }
+
+  getSegmentsInsideRegion(context) {
+    const rect = this.getRegionRect();
+    if (!rect) return [];
+
+    const segments = this.getGridSegmentsForActiveView(context);
+
+    return segments.filter((segment) => {
+      const s1 = this.projectPointToActiveView(context, segment.p1);
+      const s2 = this.projectPointToActiveView(context, segment.p2);
+
+      if (!s1 || !s2) return false;
+
+      return this.segmentIntersectsRect(s1, s2, rect);
+    });
+  }
+
+  createLinesInRegion(context) {
+    const segments = this.getSegmentsInsideRegion(context);
+
+    if (!segments.length) {
+      context.showMessage?.("No hay tramos de grilla dentro de la región", "warning");
+      return;
+    }
+
+    let created = 0;
+
+    segments.forEach((segment) => {
+      const ok = this.createLine(context, segment, true);
+      if (ok) created++;
+    });
+
+    if (created > 0) {
+      context.showMessage?.(`Se crearon ${created} líneas en la región`);
+    } else {
+      context.showMessage?.("No se crearon líneas nuevas; ya existían", "warning");
+    }
+
+    context.redraw?.();
+    context.sync3D?.();
+  }
+
+  handleMouseDown(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseDown(event, context, mouse);
+      return;
+    }
+
+    super.handleMouseDown(...arguments);
+
+    this.isDraggingRegion = true;
+    this.regionStart = { x: mouse.x, y: mouse.y };
+    this.regionEnd = { x: mouse.x, y: mouse.y };
+  }
+
+  handleMouseMove(event, context, mouse) {
+    super.handleMouseMove(...arguments);
+
+    if (!this.isDraggingRegion) return;
+
+    this.regionEnd = { x: mouse.x, y: mouse.y };
+    context.redraw?.();
+  }
+
+  handleMouseUp(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseUp(event, context, mouse);
+      return;
+    }
+
+    if (!this.isDraggingRegion) return;
+
+    this.regionEnd = { x: mouse.x, y: mouse.y };
+
+    const dx = this.regionEnd.x - this.regionStart.x;
+    const dy = this.regionEnd.y - this.regionStart.y;
+    const dragDistance = Math.sqrt(dx * dx + dy * dy);
+
+    if (dragDistance <= this.dragThreshold) {
+      const segment = this.findClosestSegment(context, mouse);
+
+      if (!segment) {
+        context.showMessage?.("Haz clic cerca de un tramo de grilla", "warning");
+      } else {
+        this.createLine(context, segment);
+      }
+    } else {
+      this.createLinesInRegion(context);
+    }
+
+    this.isDraggingRegion = false;
+    this.regionStart = null;
+    this.regionEnd = null;
+
+    context.redraw?.();
+    context.sync3D?.();
+  }
+
+  handleKeyDown(event, context) {
+    if (event.key === "Escape") {
+      this.isDraggingRegion = false;
+      this.regionStart = null;
+      this.regionEnd = null;
+
+      context.setState(context.idleState);
+      context.redraw?.();
+      return;
+    }
+
+    super.handleKeyDown(event, context);
+  }
+
+  draw(renderer, context) {
+    if (!this.isDraggingRegion || !this.regionStart || !this.regionEnd) {
+      return;
+    }
+
+    const ctx = context.ctx;
+    const rect = this.getRegionRect();
+
+    if (!ctx || !rect) return;
+
+    ctx.save();
+
+    ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = "#facc15";
+    ctx.lineWidth = 1.5;
+
+    ctx.strokeRect(
+      rect.left,
+      rect.top,
+      rect.right - rect.left,
+      rect.bottom - rect.top
+    );
+
+    ctx.fillStyle = "rgba(250, 204, 21, 0.12)";
+    ctx.fillRect(
+      rect.left,
+      rect.top,
+      rect.right - rect.left,
+      rect.bottom - rect.top
+    );
+
+    ctx.restore();
+  }
+
+  info() {
+    return "Create Lines: clic cerca de una grilla para crear un tramo, o arrastra una región para crear varios. Esc para salir.";
+  }
+}
+
+export class CreateSecondaryBeamsRegionClicksState extends PanAndZoomState {
+  constructor(context) {
+    super();
+    this.context = context;
+
+    this.isDraggingRegion = false;
+    this.regionStart = null;
+    this.regionEnd = null;
+
+    this.dragThreshold = 8;
+
+    // Dirección por defecto:
+    // "X" crea vigas horizontales entre ejes X.
+    // "Y" crea vigas verticales entre ejes Y.
+    this.direction = "X";
+
+    // Cantidad de vigas secundarias por paño cuando se usa región.
+    this.beamCount = 1;
+  }
+
+  getActiveView(context) {
+    return context.viewSet?.[context.activeViewIndex] || null;
+  }
+
+  isPlanView(context) {
+    const view = this.getActiveView(context);
+    return view && view.type === "plan";
+  }
+
+  getPlanZ(context) {
+    const view = this.getActiveView(context);
+    return Number(view?.elevation ?? context.getActivePlanElevation?.() ?? 0);
+  }
+
+  getRawPlanPoint(context, mouse) {
+    const world = context.grid.screenToWorld(mouse);
+
+    return {
+      x: Number(world.x || 0),
+      y: Number(world.y || 0),
+      z: this.getPlanZ(context),
+    };
+  }
+
+  getSortedValues(values = []) {
+    return [...values]
+      .map((v) => Number(v || 0))
+      .sort((a, b) => a - b);
+  }
+
+  findBayForPoint(context, point) {
+    const ref = context.referenceGrid;
+    if (!ref) return null;
+
+    const xValues = this.getSortedValues(ref.xPositions || []);
+    const yValues = this.getSortedValues(ref.yPositions || []);
+
+    if (xValues.length < 2 || yValues.length < 2) return null;
+
+    let xIndex = -1;
+    let yIndex = -1;
+
+    for (let i = 0; i < xValues.length - 1; i++) {
+      if (point.x >= xValues[i] && point.x <= xValues[i + 1]) {
+        xIndex = i;
+        break;
+      }
+    }
+
+    for (let j = 0; j < yValues.length - 1; j++) {
+      if (point.y >= yValues[j] && point.y <= yValues[j + 1]) {
+        yIndex = j;
+        break;
+      }
+    }
+
+    if (xIndex < 0 || yIndex < 0) return null;
+
+    return {
+      x0: xValues[xIndex],
+      x1: xValues[xIndex + 1],
+      y0: yValues[yIndex],
+      y1: yValues[yIndex + 1],
+      xIndex,
+      yIndex,
+    };
+  }
+
+  getAllBays(context) {
+    const ref = context.referenceGrid;
+    if (!ref) return [];
+
+    const xValues = this.getSortedValues(ref.xPositions || []);
+    const yValues = this.getSortedValues(ref.yPositions || []);
+
+    const bays = [];
+
+    for (let i = 0; i < xValues.length - 1; i++) {
+      for (let j = 0; j < yValues.length - 1; j++) {
+        bays.push({
+          x0: xValues[i],
+          x1: xValues[i + 1],
+          y0: yValues[j],
+          y1: yValues[j + 1],
+          xIndex: i,
+          yIndex: j,
+        });
+      }
+    }
+
+    return bays;
+  }
+
+  projectPlanPoint(context, point) {
+    return context.grid.worldToScreen({
+      x: point.x,
+      y: point.y,
+    });
+  }
+
+  getRegionRect() {
+    if (!this.regionStart || !this.regionEnd) return null;
+
+    return {
+      left: Math.min(this.regionStart.x, this.regionEnd.x),
+      right: Math.max(this.regionStart.x, this.regionEnd.x),
+      top: Math.min(this.regionStart.y, this.regionEnd.y),
+      bottom: Math.max(this.regionStart.y, this.regionEnd.y),
+    };
+  }
+
+  pointInsideRect(point, rect) {
+    return (
+      point.x >= rect.left &&
+      point.x <= rect.right &&
+      point.y >= rect.top &&
+      point.y <= rect.bottom
+    );
+  }
+
+  getBaysInsideRegion(context) {
+    const rect = this.getRegionRect();
+    if (!rect) return [];
+
+    const z = this.getPlanZ(context);
+    const bays = this.getAllBays(context);
+
+    return bays.filter((bay) => {
+      const center = {
+        x: (bay.x0 + bay.x1) / 2,
+        y: (bay.y0 + bay.y1) / 2,
+        z,
+      };
+
+      const screenCenter = this.projectPlanPoint(context, center);
+
+      return this.pointInsideRect(screenCenter, rect);
+    });
+  }
+
+  lineAlreadyExists(context, p1, p2, tolerance = 0.001) {
+    return context.shapes.some((shape) => {
+      if (!shape?.node1?.position || !shape?.node2?.position) return false;
+
+      const a = shape.node1.position;
+      const b = shape.node2.position;
+
+      const sameDirection =
+        Math.abs(a.x - p1.x) <= tolerance &&
+        Math.abs(a.y - p1.y) <= tolerance &&
+        Math.abs((a.z || 0) - (p1.z || 0)) <= tolerance &&
+        Math.abs(b.x - p2.x) <= tolerance &&
+        Math.abs(b.y - p2.y) <= tolerance &&
+        Math.abs((b.z || 0) - (p2.z || 0)) <= tolerance;
+
+      const reverseDirection =
+        Math.abs(a.x - p2.x) <= tolerance &&
+        Math.abs(a.y - p2.y) <= tolerance &&
+        Math.abs((a.z || 0) - (p2.z || 0)) <= tolerance &&
+        Math.abs(b.x - p1.x) <= tolerance &&
+        Math.abs(b.y - p1.y) <= tolerance &&
+        Math.abs((b.z || 0) - (p1.z || 0)) <= tolerance;
+
+      return sameDirection || reverseDirection;
+    });
+  }
+
+  createSecondaryBeam(context, p1, p2, silent = false) {
+    if (!context.createFrameLineFromPoints) {
+      context.showMessage?.(
+        "Falta createFrameLineFromPoints en cad_sys.js",
+        "warning"
+      );
+      return false;
+    }
+
+    if (this.lineAlreadyExists(context, p1, p2)) {
+      if (!silent) {
+        context.showMessage?.("Ya existe una viga en ese tramo", "warning");
+      }
+      return false;
+    }
+
+    const line = context.createFrameLineFromPoints(p1, p2, "beam");
+
+    if (!line) return false;
+
+    // Importante:
+    // dejamos type = "beam" para que el renderer lo siga dibujando normal.
+    // marcamos elementType como secondary-beam para diferenciarlo.
+    line.type = "beam";
+    line.elementType = "secondary-beam";
+    line.objectType = "frame";
+    line.isSecondaryBeam = true;
+    line.visible = true;
+
+    return true;
+  }
+
+  createSecondaryBeamAtClick(context, mouse) {
+    if (!this.isPlanView(context)) {
+      context.showMessage?.(
+        "Create Secondary Beams solo funciona en planta",
+        "warning"
+      );
+      return;
+    }
+
+    const point = this.getRawPlanPoint(context, mouse);
+    const bay = this.findBayForPoint(context, point);
+
+    if (!bay) {
+      context.showMessage?.(
+        "Haz clic dentro de un paño de grilla",
+        "warning"
+      );
+      return;
+    }
+
+    const segments = this.getSecondaryBeamSegmentsForBay(context, bay);
+
+    let created = 0;
+
+    segments.forEach((segment) => {
+      const ok = this.createSecondaryBeam(
+        context,
+        segment.p1,
+        segment.p2,
+        true
+      );
+
+      if (ok) created++;
+    });
+
+    if (created > 0) {
+      context.showMessage?.(
+        `Se crearon ${created} vigas secundarias en el paño | Dir: ${this.direction}`
+      );
+    } else {
+      context.showMessage?.(
+        "No se crearon vigas nuevas; ya existían",
+        "warning"
+      );
+    }
+
+    context.redraw?.();
+    context.sync3D?.();
+  }
+
+  getSecondaryBeamSegmentsForBay(context, bay) {
+    const z = this.getPlanZ(context);
+    const segments = [];
+
+    const count = Math.max(1, Number(this.beamCount || 1));
+
+    for (let i = 1; i <= count; i++) {
+      const ratio = i / (count + 1);
+
+      if (this.direction === "X") {
+        const y = bay.y0 + (bay.y1 - bay.y0) * ratio;
+
+        segments.push({
+          p1: { x: bay.x0, y, z },
+          p2: { x: bay.x1, y, z },
+        });
+      } else {
+        const x = bay.x0 + (bay.x1 - bay.x0) * ratio;
+
+        segments.push({
+          p1: { x, y: bay.y0, z },
+          p2: { x, y: bay.y1, z },
+        });
+      }
+    }
+
+    return segments;
+  }
+
+  createSecondaryBeamsInRegion(context) {
+    if (!this.isPlanView(context)) {
+      context.showMessage?.(
+        "Create Secondary Beams solo funciona en planta",
+        "warning"
+      );
+      return;
+    }
+
+    const bays = this.getBaysInsideRegion(context);
+
+    if (!bays.length) {
+      context.showMessage?.(
+        "No hay paños de grilla dentro de la región",
+        "warning"
+      );
+      return;
+    }
+
+    let created = 0;
+
+    bays.forEach((bay) => {
+      const segments = this.getSecondaryBeamSegmentsForBay(context, bay);
+
+      segments.forEach((segment) => {
+        const ok = this.createSecondaryBeam(
+          context,
+          segment.p1,
+          segment.p2,
+          true
+        );
+
+        if (ok) created++;
+      });
+    });
+
+    if (created > 0) {
+      context.showMessage?.(
+        `Se crearon ${created} vigas secundarias | Dir: ${this.direction} | Cantidad por paño: ${this.beamCount}`
+      );
+    } else {
+      context.showMessage?.(
+        "No se crearon vigas nuevas; ya existían",
+        "warning"
+      );
+    }
+
+    context.redraw?.();
+    context.sync3D?.();
+  }
+
+  handleMouseDown(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseDown(event, context, mouse);
+      return;
+    }
+
+    super.handleMouseDown(...arguments);
+
+    if (!this.isPlanView(context)) {
+      context.showMessage?.(
+        "Create Secondary Beams solo funciona en planta",
+        "warning"
+      );
+      return;
+    }
+
+    this.isDraggingRegion = true;
+    this.regionStart = { x: mouse.x, y: mouse.y };
+    this.regionEnd = { x: mouse.x, y: mouse.y };
+  }
+
+  handleMouseMove(event, context, mouse) {
+    super.handleMouseMove(...arguments);
+
+    if (!this.isDraggingRegion) return;
+
+    this.regionEnd = { x: mouse.x, y: mouse.y };
+    context.redraw?.();
+  }
+
+  handleMouseUp(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseUp(event, context, mouse);
+      return;
+    }
+
+    if (!this.isDraggingRegion) return;
+
+    this.regionEnd = { x: mouse.x, y: mouse.y };
+
+    const dx = this.regionEnd.x - this.regionStart.x;
+    const dy = this.regionEnd.y - this.regionStart.y;
+    const dragDistance = Math.sqrt(dx * dx + dy * dy);
+
+    if (dragDistance <= this.dragThreshold) {
+      this.createSecondaryBeamAtClick(context, mouse);
+    } else {
+      this.createSecondaryBeamsInRegion(context);
+    }
+
+    this.isDraggingRegion = false;
+    this.regionStart = null;
+    this.regionEnd = null;
+
+    context.redraw?.();
+    context.sync3D?.();
+  }
+
+  handleKeyDown(event, context) {
+    if (event.key === "Escape") {
+      this.isDraggingRegion = false;
+      this.regionStart = null;
+      this.regionEnd = null;
+
+      context.setState(context.idleState);
+      context.redraw?.();
+      return;
+    }
+
+    if (event.key.toLowerCase() === "r") {
+      this.direction = this.direction === "X" ? "Y" : "X";
+      context.showMessage?.(
+        `Dirección de vigas secundarias: ${this.direction}`
+      );
+      context.redraw?.();
+      return;
+    }
+
+    if (event.key === "+" || event.key === "=") {
+      this.beamCount++;
+      context.showMessage?.(
+        `Cantidad de vigas secundarias por paño: ${this.beamCount}`
+      );
+      return;
+    }
+
+    if (event.key === "-") {
+      this.beamCount = Math.max(1, this.beamCount - 1);
+      context.showMessage?.(
+        `Cantidad de vigas secundarias por paño: ${this.beamCount}`
+      );
+      return;
+    }
+
+    super.handleKeyDown(event, context);
+  }
+
+  draw(renderer, context) {
+    if (!this.isDraggingRegion || !this.regionStart || !this.regionEnd) {
+      return;
+    }
+
+    const ctx = context.ctx;
+    const rect = this.getRegionRect();
+
+    if (!ctx || !rect) return;
+
+    ctx.save();
+
+    ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = "#38bdf8";
+    ctx.lineWidth = 1.5;
+
+    ctx.strokeRect(
+      rect.left,
+      rect.top,
+      rect.right - rect.left,
+      rect.bottom - rect.top
+    );
+
+    ctx.fillStyle = "rgba(56, 189, 248, 0.12)";
+    ctx.fillRect(
+      rect.left,
+      rect.top,
+      rect.right - rect.left,
+      rect.bottom - rect.top
+    );
+
+    ctx.restore();
+  }
+
+  info() {
+    return `Create Secondary Beams: clic dentro de un paño o arrastra una región. Dirección: ${this.direction}. Cantidad por paño: ${this.beamCount}. R cambia dirección. + / - cambia cantidad.`;
   }
 }
 

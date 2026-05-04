@@ -26,6 +26,8 @@ import {
   TrussDrawingState,
   PointDrawingState,
   ColumnDrawingState,
+  CreateLinesRegionClicksState,
+  CreateSecondaryBeamsRegionClicksState,
   ReferencePointDrawingState,
   DimensionLineDrawingState,
   SelectedDimensionLinesState,
@@ -75,7 +77,98 @@ export default () => ({
   calcEngine: "hybrid", // 'hybrid', 'opensees', 'octave'
   syncPending: false,
 
+  // 3 OPTIONS
   activeStory: 0,
+  windowLayout: "two-vertical",
+  singleWindowView: "2d", // "2d" | "3d"
+
+  // 2 OPTIONS
+  activeCanvasTheme: "dark",
+
+  canvasThemes: {
+    dark: {
+      canvas2d: "#36454F",
+      canvas3d: "#050511",
+      displayColors: {
+        background2d: "#36454F",
+        gridLine: "#2f5f7f",
+        gridMainLine: "#3b82f6",
+        beam: "#d1d5db",
+        secondaryBeam: "#38bdf8",
+        column: "#22c55e",
+        node: "#9ca3af",
+        text: "#ffffff",
+        selected: "#facc15",
+        snap: "#f97316",
+      },
+    },
+
+    light: {
+      canvas2d: "#e5e7eb",
+      canvas3d: "#f1f5f9",
+      displayColors: {
+        background2d: "#e5e7eb",
+        gridLine: "#cbd5e1",
+        gridMainLine: "#2563eb",
+        beam: "#374151",
+        secondaryBeam: "#0284c7",
+        column: "#16a34a",
+        node: "#475569",
+        text: "#111827",
+        selected: "#ca8a04",
+        snap: "#ea580c",
+      },
+    },
+  },
+
+  displayColors: {
+    background2d: "#36454F",
+    gridLine: "#2f5f7f",
+    gridMainLine: "#3b82f6",
+    beam: "#d1d5db",
+    secondaryBeam: "#38bdf8",
+    column: "#22c55e",
+    node: "#9ca3af",
+    text: "#ffffff",
+    selected: "#facc15",
+    snap: "#f97316",
+  },
+
+  canvas2dBackground: "#36454F",
+
+  // 1 OPTIONS
+  preferences: {
+    lengthUnit: "m",
+    forceUnit: "kN",
+    modelTolerance: 0.001,
+    snapScreenTolerance: 14,
+    snapWorldTolerance: 1.0,
+  },
+
+  outputDecimals: {
+    coordinates: 2,
+    lengths: 2,
+    forces: 2,
+    displacements: 3,
+    reactions: 2,
+  },
+
+  steelFrameDesign: {
+    code: "AISC 360-16",
+    designMethod: "LRFD",
+    checkDeflection: true,
+    checkSlenderness: true,
+    phiBending: 0.90,
+    phiCompression: 0.90,
+  },
+
+  reinforcementBarSizes: [
+    { name: "#3", diameterMm: 9.5, areaMm2: 71, enabled: true },
+    { name: "#4", diameterMm: 12.7, areaMm2: 129, enabled: true },
+    { name: "#5", diameterMm: 15.9, areaMm2: 199, enabled: true },
+    { name: "#6", diameterMm: 19.1, areaMm2: 284, enabled: true },
+    { name: "#8", diameterMm: 25.4, areaMm2: 510, enabled: true },
+  ],
 
   nextNodeId: 1,
   nextBeamId: 1,
@@ -122,6 +215,7 @@ export default () => ({
   activeGridPoint: null,
   statusCoordinates: "X 0.00  Y 0.00  Z 0.00",
   planGridSnapTolerance: 1.0,
+  planGridSnapScreenTolerance: 14,
   lastMouseScreen: { x: 0, y: 0 },
 
   // ===========================================================
@@ -247,6 +341,8 @@ export default () => ({
     this.braceDrawingState = new TrussDrawingState(this, "brace");
     this.beamDrawingState = new TrussDrawingState(this, "beam");
     this.columnDrawingState = new ColumnDrawingState(this);
+    this.createLinesRegionClicksState = new CreateLinesRegionClicksState(this);
+    this.createSecondaryBeamsRegionClicksState = new CreateSecondaryBeamsRegionClicksState(this);
     this.referencePointDrawingState = new ReferencePointDrawingState(this);
     this.dimensionLineDrawingState = new DimensionLineDrawingState(this);
     this.slabDrawingState = new AreaDrawingState(this, "slab");
@@ -342,7 +438,66 @@ export default () => ({
       });
     }
 
+    localStorage.removeItem("cad-canvas-theme");
+    localStorage.removeItem("cad-display-colors");
+
+    this.activeCanvasTheme = "dark";
+    this.setCanvasTheme("dark");
+
+    this.loadOptionsPreferences();
+
     window.cadSystem = this;
+  },
+
+  loadOptionsPreferences() {
+    const preferenceData = localStorage.getItem("cad-preferences");
+    const outputDecimalsData = localStorage.getItem("cad-output-decimals");
+    const steelDesignData = localStorage.getItem("cad-steel-frame-design");
+    const barSizesData = localStorage.getItem("cad-reinforcement-bar-sizes");
+
+    if (preferenceData) {
+      try {
+        this.preferences = {
+          ...this.preferences,
+          ...JSON.parse(preferenceData),
+        };
+
+        this.planGridSnapScreenTolerance = this.preferences.snapScreenTolerance;
+        this.planGridSnapTolerance = this.preferences.snapWorldTolerance;
+      } catch (error) {
+        console.warn("No se pudieron cargar Preferences:", error);
+      }
+    }
+
+    if (outputDecimalsData) {
+      try {
+        this.outputDecimals = {
+          ...this.outputDecimals,
+          ...JSON.parse(outputDecimalsData),
+        };
+      } catch (error) {
+        console.warn("No se pudieron cargar Output Decimals:", error);
+      }
+    }
+
+    if (steelDesignData) {
+      try {
+        this.steelFrameDesign = {
+          ...this.steelFrameDesign,
+          ...JSON.parse(steelDesignData),
+        };
+      } catch (error) {
+        console.warn("No se pudo cargar Steel Frame Design:", error);
+      }
+    }
+
+    if (barSizesData) {
+      try {
+        this.reinforcementBarSizes = JSON.parse(barSizesData);
+      } catch (error) {
+        console.warn("No se pudieron cargar Reinforcement Bar Sizes:", error);
+      }
+    }
   },
 
   // ========================================= 
@@ -442,6 +597,8 @@ export default () => ({
     return closest;
   },
 
+  // OPCIONES DE LA BARRA DE OPCIONES
+
   activateDrawMenuAction(action) {
     switch (action) {
       case "select-object":
@@ -462,23 +619,53 @@ export default () => ({
         this.showMessage("Modo dibujar puntos activado");
         break;
 
-      case "draw-line-beam":
+      case "draw-lines":
         this.clearAllSelections?.();
         this.setState(this.beamDrawingState || this.trussDrawingState);
-        this.showMessage("Modo dibujar barras activado");
+        this.showMessage("Draw Lines activado");
         break;
 
-      case "draw-line-brace":
+      case "create-lines-region-clicks":
         this.clearAllSelections?.();
-        this.setState(this.braceDrawingState || this.trussDrawingState);
-        this.showMessage("Modo dibujar arriostres activado");
+        this.setState(this.createLinesRegionClicksState);
+        this.showMessage("Create Lines in Region or at Clicks activado");
         break;
 
-      case "draw-line-column":
+      case "create-columns-region-clicks": {
+        const view = this.viewSet?.[this.activeViewIndex];
+
+        if (!view || view.type !== "plan") {
+          this.showMessage(
+            "Create Columns solo está disponible en vistas de planta",
+            "warning"
+          );
+          break;
+        }
+
         this.clearAllSelections?.();
         this.setState(this.columnDrawingState);
-        this.showMessage("Modo dibujar columnas activado");
+        this.showMessage("Create Columns in Region or at Clicks activado");
         break;
+      }
+
+      case "create-secondary-beams-region-clicks": {
+        const view = this.viewSet?.[this.activeViewIndex];
+
+        if (!view || view.type !== "plan") {
+          this.showMessage(
+            "Create Secondary Beams solo está disponible en vistas de planta",
+            "warning"
+          );
+          break;
+        }
+
+        this.clearAllSelections?.();
+        this.setState(this.createSecondaryBeamsRegionClicksState);
+        this.showMessage(
+          "Create Secondary Beams activado | R cambia dirección | + / - cambia cantidad"
+        );
+        break;
+      }
 
       case "draw-area-slab":
         this.clearAllSelections?.();
@@ -530,6 +717,670 @@ export default () => ({
     }
 
     this.redraw?.();
+  },
+
+  activateOptionsMenuAction(action) {
+    switch (action) {
+      // OPCIONES DE PREFERENCIAS
+      case "dimensions-tolerances":
+        this.openDimensionsTolerancesDialog();
+        break;
+
+      case "output-decimals":
+        this.openOutputDecimalsDialog();
+        break;
+
+      case "steel-frame-design":
+        this.openSteelFrameDesignDialog();
+        break;
+
+      case "reinforcement-bar-sizes":
+        this.openReinforcementBarSizesDialog();
+        break;
+
+      // OPCIONES DE COLORES
+      case "theme-dark":
+        this.setCanvasTheme("dark");
+        break;
+
+      case "theme-light":
+        this.setCanvasTheme("light");
+        break;
+
+      // case "display-colors":
+      //   this.openDisplayColorsDialog();
+      //   break;
+
+      // OPCIÓN DE LAYOUT DE VENTANAS
+      case "window-one":
+        this.setWindowLayout("one");
+        break;
+
+      case "window-two-vertical":
+        this.setWindowLayout("two-vertical");
+        break;
+
+      case "window-two-horizontal":
+        this.setWindowLayout("two-horizontal");
+        break;
+
+      // case "window-three":
+      //   this.setWindowLayout("three");
+      //   break;
+
+      // case "window-four":
+      //   this.setWindowLayout("four");
+      //   break;
+    }
+
+    this.redraw?.();
+  },
+
+  setWindowLayout(layout) {
+    this.windowLayout = layout;
+
+    const workspace = document.getElementById("cad-workspace");
+    const panel2D = document.getElementById("cad-panel-2d");
+    const panel3D = document.getElementById("cad-panel-3d");
+
+    if (!workspace || !panel2D || !panel3D) {
+      this.showMessage?.("No se encontró el contenedor de vistas", "warning");
+      return;
+    }
+
+    workspace.dataset.layout = layout;
+
+    // Limpiar clases del workspace
+    workspace.classList.remove(
+      "grid-cols-1",
+      "grid-cols-2",
+      "grid-rows-1",
+      "grid-rows-2"
+    );
+
+    // Limpiar clases de paneles
+    panel2D.classList.remove(
+      "hidden",
+      "border-r",
+      "border-b"
+    );
+
+    panel3D.classList.remove(
+      "hidden",
+      "border-r",
+      "border-b"
+    );
+
+    // ==========================
+    // One: solo vista 2D
+    // ==========================
+    if (layout === "one") {
+      workspace.classList.add("grid-cols-1", "grid-rows-1");
+
+      if (this.singleWindowView === "2d") {
+        panel2D.classList.remove("hidden");
+        panel3D.classList.add("hidden");
+      }
+
+      if (this.singleWindowView === "3d") {
+        panel2D.classList.add("hidden");
+        panel3D.classList.remove("hidden");
+      }
+
+      this.showMessage?.(`Windows: One - ${this.singleWindowView.toUpperCase()}`);
+    }
+
+    // ==========================
+    // Two Tiled Vertically: 2D | 3D
+    // ==========================
+    else if (layout === "two-vertical") {
+      workspace.classList.add("grid-cols-2", "grid-rows-1");
+
+      panel2D.classList.add("border-r");
+
+      this.showMessage?.("Windows: Two Tiled Vertically");
+    }
+
+    // ==========================
+    // Two Tiled Horizontally:
+    // 2D
+    // 3D
+    // ==========================
+    else if (layout === "two-horizontal") {
+      workspace.classList.add("grid-cols-1", "grid-rows-2");
+
+      panel2D.classList.add("border-b");
+
+      this.showMessage?.("Windows: Two Tiled Horizontally");
+    }
+
+    // ==========================
+    // Pendientes
+    // ==========================
+    else if (layout === "three") {
+      workspace.classList.add("grid-cols-2", "grid-rows-1");
+
+      panel2D.classList.add("border-r");
+
+      this.showMessage?.(
+        "Windows: Three requiere crear una tercera vista",
+        "warning"
+      );
+    }
+
+    else if (layout === "four") {
+      workspace.classList.add("grid-cols-2", "grid-rows-1");
+
+      panel2D.classList.add("border-r");
+
+      this.showMessage?.(
+        "Windows: Four requiere crear vistas adicionales",
+        "warning"
+      );
+    }
+
+    setTimeout(() => {
+      this.windowResize?.();
+
+      const viewer = getViewer3DState?.();
+
+      if (viewer?.engine) {
+        viewer.engine.resize();
+      }
+
+      this.redraw?.();
+      this.sync3D?.();
+    }, 100);
+  },
+
+  setSingleWindowView(view) {
+    if (view !== "2d" && view !== "3d") return;
+
+    this.singleWindowView = view;
+
+    if (this.windowLayout === "one") {
+      this.setWindowLayout("one");
+    }
+
+    this.showMessage?.(`Vista activa: ${view.toUpperCase()}`);
+
+    setTimeout(() => {
+      this.windowResize?.();
+
+      const viewer = getViewer3DState?.();
+      if (viewer?.engine) {
+        viewer.engine.resize();
+      }
+
+      this.redraw?.();
+      this.sync3D?.();
+    }, 100);
+  },
+
+  setCanvasTheme(themeKey) {
+    const theme = this.canvasThemes?.[themeKey];
+
+    if (!theme) {
+      this.showMessage?.("Tema de canvas no válido", "warning");
+      return;
+    }
+
+    this.activeCanvasTheme = themeKey;
+
+    this.displayColors = {
+      ...this.displayColors,
+      ...theme.displayColors,
+    };
+
+    this.canvas2dBackground = theme.canvas2d;
+
+    const panel2D = document.getElementById("cad-panel-2d");
+
+    if (panel2D) {
+      panel2D.style.backgroundColor = theme.canvas2d;
+    }
+
+    if (this.canvas) {
+      this.canvas.style.backgroundColor = theme.canvas2d;
+    }
+
+    this.applyThemeToViewer3DCanvas(theme.canvas3d);
+
+    // localStorage.setItem("cad-canvas-theme", themeKey);
+
+    this.showMessage?.(
+      themeKey === "dark"
+        ? "Canvas oscuro activado"
+        : "Canvas claro activado"
+    );
+
+    this.redraw?.();
+    this.sync3D?.();
+  },
+
+  applyThemeToViewer3DCanvas(hexColor) {
+    const viewer = getViewer3DState?.();
+
+    if (!viewer?.scene) return;
+
+    const rgb = this.hexToRgb(hexColor);
+
+    if (!rgb) return;
+
+    viewer.scene.clearColor = new BABYLON.Color4(
+      rgb.r / 255,
+      rgb.g / 255,
+      rgb.b / 255,
+      1
+    );
+  },
+
+  hexToRgb(hex) {
+    const clean = String(hex || "").replace("#", "");
+
+    if (clean.length !== 6) return null;
+
+    const value = parseInt(clean, 16);
+
+    return {
+      r: (value >> 16) & 255,
+      g: (value >> 8) & 255,
+      b: value & 255,
+    };
+  },
+
+  async openDisplayColorsDialog() {
+    const c = this.displayColors;
+
+    const { value } = await Swal.fire({
+      title: "Display Colors",
+      width: 520,
+      html: `
+      <div style="display:grid; grid-template-columns: 1fr 90px; gap:10px; align-items:center; text-align:left; font-size:13px;">
+
+        <label>Fondo 2D</label>
+        <input id="color-background2d" type="color" value="${c.background2d}">
+
+        <label>Grilla secundaria</label>
+        <input id="color-gridLine" type="color" value="${c.gridLine}">
+
+        <label>Grilla principal / ejes</label>
+        <input id="color-gridMainLine" type="color" value="${c.gridMainLine}">
+
+        <label>Barras / vigas</label>
+        <input id="color-beam" type="color" value="${c.beam}">
+
+        <label>Vigas secundarias</label>
+        <input id="color-secondaryBeam" type="color" value="${c.secondaryBeam}">
+
+        <label>Columnas</label>
+        <input id="color-column" type="color" value="${c.column}">
+
+        <label>Nodos</label>
+        <input id="color-node" type="color" value="${c.node}">
+
+        <label>Textos</label>
+        <input id="color-text" type="color" value="${c.text}">
+
+        <label>Elemento seleccionado</label>
+        <input id="color-selected" type="color" value="${c.selected}">
+
+        <label>Snap</label>
+        <input id="color-snap" type="color" value="${c.snap}">
+      </div>
+    `,
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: "Aplicar",
+      denyButtonText: "Restaurar",
+      cancelButtonText: "Cancelar",
+      preConfirm: () => {
+        return {
+          background2d: document.getElementById("color-background2d").value,
+          gridLine: document.getElementById("color-gridLine").value,
+          gridMainLine: document.getElementById("color-gridMainLine").value,
+          beam: document.getElementById("color-beam").value,
+          secondaryBeam: document.getElementById("color-secondaryBeam").value,
+          column: document.getElementById("color-column").value,
+          node: document.getElementById("color-node").value,
+          text: document.getElementById("color-text").value,
+          selected: document.getElementById("color-selected").value,
+          snap: document.getElementById("color-snap").value,
+        };
+      },
+    });
+
+    if (value) {
+      this.setDisplayColors(value);
+      return;
+    }
+
+    if (value === false) {
+      this.resetDisplayColors();
+    }
+  },
+
+  async openDimensionsTolerancesDialog() {
+    const p = this.preferences;
+
+    const { value } = await Swal.fire({
+      title: "Dimensions / Tolerances",
+      width: 520,
+      html: `
+      <div style="display:grid; grid-template-columns: 1fr 160px; gap:10px; align-items:center; text-align:left; font-size:13px;">
+        <label>Unidad de longitud</label>
+        <select id="pref-length-unit" class="swal2-input" style="width:140px;">
+          <option value="m">m</option>
+          <option value="cm">cm</option>
+          <option value="mm">mm</option>
+        </select>
+
+        <label>Unidad de fuerza</label>
+        <select id="pref-force-unit" class="swal2-input" style="width:140px;">
+          <option value="kN">kN</option>
+          <option value="N">N</option>
+          <option value="tonf">tonf</option>
+          <option value="kgf">kgf</option>
+        </select>
+
+        <label>Tolerancia del modelo</label>
+        <input id="pref-model-tolerance" type="number" step="0.0001" class="swal2-input" value="${p.modelTolerance}">
+
+        <label>Tolerancia Snap en pantalla</label>
+        <input id="pref-snap-screen" type="number" step="1" class="swal2-input" value="${p.snapScreenTolerance}">
+
+        <label>Tolerancia Snap en mundo</label>
+        <input id="pref-snap-world" type="number" step="0.1" class="swal2-input" value="${p.snapWorldTolerance}">
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Aplicar",
+      cancelButtonText: "Cancelar",
+      didOpen: () => {
+        document.getElementById("pref-length-unit").value = p.lengthUnit;
+        document.getElementById("pref-force-unit").value = p.forceUnit;
+      },
+      preConfirm: () => {
+        return {
+          lengthUnit: document.getElementById("pref-length-unit").value,
+          forceUnit: document.getElementById("pref-force-unit").value,
+          modelTolerance: Number(document.getElementById("pref-model-tolerance").value),
+          snapScreenTolerance: Number(document.getElementById("pref-snap-screen").value),
+          snapWorldTolerance: Number(document.getElementById("pref-snap-world").value),
+        };
+      },
+    });
+
+    if (!value) return;
+
+    this.preferences = {
+      ...this.preferences,
+      ...value,
+    };
+
+    this.planGridSnapScreenTolerance = value.snapScreenTolerance;
+    this.planGridSnapTolerance = value.snapWorldTolerance;
+
+    localStorage.setItem("cad-preferences", JSON.stringify(this.preferences));
+
+    this.showMessage?.("Dimensions / Tolerances actualizado");
+    this.redraw?.();
+  },
+
+  async openOutputDecimalsDialog() {
+    const d = this.outputDecimals;
+
+    const { value } = await Swal.fire({
+      title: "Output Decimals",
+      width: 480,
+      html: `
+      <div style="display:grid; grid-template-columns: 1fr 120px; gap:10px; align-items:center; text-align:left; font-size:13px;">
+        <label>Coordenadas</label>
+        <input id="dec-coordinates" type="number" min="0" max="8" class="swal2-input" value="${d.coordinates}">
+
+        <label>Longitudes</label>
+        <input id="dec-lengths" type="number" min="0" max="8" class="swal2-input" value="${d.lengths}">
+
+        <label>Fuerzas</label>
+        <input id="dec-forces" type="number" min="0" max="8" class="swal2-input" value="${d.forces}">
+
+        <label>Desplazamientos</label>
+        <input id="dec-displacements" type="number" min="0" max="8" class="swal2-input" value="${d.displacements}">
+
+        <label>Reacciones</label>
+        <input id="dec-reactions" type="number" min="0" max="8" class="swal2-input" value="${d.reactions}">
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Aplicar",
+      cancelButtonText: "Cancelar",
+      preConfirm: () => {
+        return {
+          coordinates: Number(document.getElementById("dec-coordinates").value),
+          lengths: Number(document.getElementById("dec-lengths").value),
+          forces: Number(document.getElementById("dec-forces").value),
+          displacements: Number(document.getElementById("dec-displacements").value),
+          reactions: Number(document.getElementById("dec-reactions").value),
+        };
+      },
+    });
+
+    if (!value) return;
+
+    this.outputDecimals = {
+      ...this.outputDecimals,
+      ...value,
+    };
+
+    localStorage.setItem("cad-output-decimals", JSON.stringify(this.outputDecimals));
+
+    this.showMessage?.("Output Decimals actualizado");
+    this.redraw?.();
+  },
+
+  formatOutput(value, type = "coordinates") {
+    const decimals = this.outputDecimals?.[type] ?? 2;
+    const number = Number(value);
+
+    if (Number.isNaN(number)) return "0";
+
+    return number.toFixed(decimals);
+  },
+
+  async openSteelFrameDesignDialog() {
+    const s = this.steelFrameDesign;
+
+    const { value } = await Swal.fire({
+      title: "Steel Frame Design",
+      width: 560,
+      html: `
+      <div style="display:grid; grid-template-columns: 1fr 180px; gap:10px; align-items:center; text-align:left; font-size:13px;">
+        <label>Norma de diseño</label>
+        <select id="steel-code" class="swal2-input" style="width:170px;">
+          <option value="AISC 360-16">AISC 360-16</option>
+          <option value="AISC 360-10">AISC 360-10</option>
+          <option value="RNE E.090">RNE E.090</option>
+        </select>
+
+        <label>Método de diseño</label>
+        <select id="steel-method" class="swal2-input" style="width:170px;">
+          <option value="LRFD">LRFD</option>
+          <option value="ASD">ASD</option>
+        </select>
+
+        <label>ϕ Flexión</label>
+        <input id="steel-phi-bending" type="number" step="0.01" class="swal2-input" value="${s.phiBending}">
+
+        <label>ϕ Compresión</label>
+        <input id="steel-phi-compression" type="number" step="0.01" class="swal2-input" value="${s.phiCompression}">
+
+        <label>Verificar deflexión</label>
+        <input id="steel-check-deflection" type="checkbox" ${s.checkDeflection ? "checked" : ""}>
+
+        <label>Verificar esbeltez</label>
+        <input id="steel-check-slenderness" type="checkbox" ${s.checkSlenderness ? "checked" : ""}>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Guardar",
+      cancelButtonText: "Cancelar",
+      didOpen: () => {
+        document.getElementById("steel-code").value = s.code;
+        document.getElementById("steel-method").value = s.designMethod;
+      },
+      preConfirm: () => {
+        return {
+          code: document.getElementById("steel-code").value,
+          designMethod: document.getElementById("steel-method").value,
+          phiBending: Number(document.getElementById("steel-phi-bending").value),
+          phiCompression: Number(document.getElementById("steel-phi-compression").value),
+          checkDeflection: document.getElementById("steel-check-deflection").checked,
+          checkSlenderness: document.getElementById("steel-check-slenderness").checked,
+        };
+      },
+    });
+
+    if (!value) return;
+
+    this.steelFrameDesign = {
+      ...this.steelFrameDesign,
+      ...value,
+    };
+
+    localStorage.setItem("cad-steel-frame-design", JSON.stringify(this.steelFrameDesign));
+
+    this.showMessage?.(`Steel Frame Design: ${value.code} - ${value.designMethod}`);
+  },
+
+  async openReinforcementBarSizesDialog() {
+    const rows = this.reinforcementBarSizes
+      .map((bar, index) => {
+        return `
+        <tr>
+          <td style="border:1px solid #999; padding:5px; text-align:center;">
+            <input id="bar-enabled-${index}" type="checkbox" ${bar.enabled ? "checked" : ""}>
+          </td>
+          <td style="border:1px solid #999; padding:5px;">
+            <input id="bar-name-${index}" value="${bar.name}" style="width:70px;">
+          </td>
+          <td style="border:1px solid #999; padding:5px;">
+            <input id="bar-diameter-${index}" type="number" step="0.1" value="${bar.diameterMm}" style="width:90px;">
+          </td>
+          <td style="border:1px solid #999; padding:5px;">
+            <input id="bar-area-${index}" type="number" step="1" value="${bar.areaMm2}" style="width:90px;">
+          </td>
+        </tr>
+      `;
+      })
+      .join("");
+
+    const { value } = await Swal.fire({
+      title: "Reinforcement Bar Sizes",
+      width: 620,
+      html: `
+      <div style="text-align:left; font-size:13px;">
+        <p>Selecciona las barras de refuerzo disponibles para el diseño.</p>
+
+        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+          <thead>
+            <tr>
+              <th style="border:1px solid #999; padding:5px;">Usar</th>
+              <th style="border:1px solid #999; padding:5px;">Barra</th>
+              <th style="border:1px solid #999; padding:5px;">Diámetro (mm)</th>
+              <th style="border:1px solid #999; padding:5px;">Área (mm²)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Guardar",
+      cancelButtonText: "Cancelar",
+      preConfirm: () => {
+        return this.reinforcementBarSizes.map((bar, index) => ({
+          name: document.getElementById(`bar-name-${index}`).value,
+          diameterMm: Number(document.getElementById(`bar-diameter-${index}`).value),
+          areaMm2: Number(document.getElementById(`bar-area-${index}`).value),
+          enabled: document.getElementById(`bar-enabled-${index}`).checked,
+        }));
+      },
+    });
+
+    if (!value) return;
+
+    this.reinforcementBarSizes = value;
+
+    localStorage.setItem(
+      "cad-reinforcement-bar-sizes",
+      JSON.stringify(this.reinforcementBarSizes)
+    );
+
+    const enabledCount = this.reinforcementBarSizes.filter((b) => b.enabled).length;
+
+    this.showMessage?.(`Barras de refuerzo activas: ${enabledCount}`);
+  },
+
+  setDisplayColors(colors) {
+    this.displayColors = {
+      ...this.displayColors,
+      ...colors,
+    };
+
+    this.canvas2dBackground = this.displayColors.background2d;
+
+    const panel2D = document.getElementById("cad-panel-2d");
+
+    if (panel2D) {
+      panel2D.style.backgroundColor = this.displayColors.background2d;
+    }
+
+    if (this.canvas) {
+      this.canvas.style.backgroundColor = this.displayColors.background2d;
+    }
+
+    localStorage.setItem(
+      "cad-display-colors",
+      JSON.stringify(this.displayColors)
+    );
+
+    this.showMessage?.("Colores de visualización actualizados");
+
+    this.redraw?.();
+    this.sync3D?.();
+  },
+
+  resetDisplayColors() {
+    const defaults =
+      this.activeCanvasTheme === "light"
+        ? {
+          background2d: "#e5e7eb",
+          gridLine: "#cbd5e1",
+          gridMainLine: "#2563eb",
+          beam: "#374151",
+          secondaryBeam: "#0284c7",
+          column: "#16a34a",
+          node: "#475569",
+          text: "#111827",
+          selected: "#ca8a04",
+          snap: "#ea580c",
+        }
+        : {
+          background2d: "#36454F",
+          gridLine: "#2f5f7f",
+          gridMainLine: "#3b82f6",
+          beam: "#d1d5db",
+          secondaryBeam: "#38bdf8",
+          column: "#22c55e",
+          node: "#9ca3af",
+          text: "#ffffff",
+          selected: "#facc15",
+          snap: "#f97316",
+        };
+
+    this.setDisplayColors(defaults);
   },
 
   handleKeyDown(event) {
@@ -688,8 +1539,11 @@ export default () => ({
   },
 
   redraw() {
-    // Siempre usar el renderer principal para planta y elevaciones
     this.currentRenderer.render(this);
+
+    if (this.currentState?.draw) {
+      this.currentState.draw(this.currentRenderer, this);
+    }
 
     if (window.babylonInitialized && window.babylonScene) {
       if (this._syncTimeout) clearTimeout(this._syncTimeout);
@@ -2069,6 +2923,116 @@ export default () => ({
     }
 
     this.activeGridPoint = null;
+  },
+
+  getOrCreateStructuralNode(point, tolerance = null) {
+
+    tolerance = tolerance ?? this.preferences?.modelTolerance ?? 0.001;
+
+    const existing = this.nodes.find((node) => {
+      const p = node.position || node;
+
+      return (
+        Math.abs(Number(p.x || 0) - Number(point.x || 0)) <= tolerance &&
+        Math.abs(Number(p.y || 0) - Number(point.y || 0)) <= tolerance &&
+        Math.abs(Number(p.z || 0) - Number(point.z || 0)) <= tolerance
+      );
+    });
+
+    if (existing) {
+      if (!existing.beams) existing.beams = [];
+      return existing;
+    }
+
+    const node = new StructuralNode(
+      {
+        x: Number(point.x || 0),
+        y: Number(point.y || 0),
+      },
+      this.nodes.length + 1,
+      Number(point.z || 0)
+    );
+
+    if (!node.position) {
+      node.position = {
+        x: Number(point.x || 0),
+        y: Number(point.y || 0),
+        z: Number(point.z || 0),
+      };
+    }
+
+    node.position.x = Number(point.x || 0);
+    node.position.y = Number(point.y || 0);
+    node.position.z = Number(point.z || 0);
+
+    if (!node.beams) {
+      node.beams = [];
+    }
+
+    this.nodes.push(node);
+
+    return node;
+  },
+
+  createFrameLineFromPoints(startPoint, endPoint, frameType = "beam") {
+
+    const tolerance = this.preferences?.modelTolerance ?? 0.001;
+
+    if (!startPoint || !endPoint) {
+      return null;
+    }
+
+    const samePoint =
+      Math.abs(Number(startPoint.x || 0) - Number(endPoint.x || 0)) < tolerance &&
+      Math.abs(Number(startPoint.y || 0) - Number(endPoint.y || 0)) < tolerance &&
+      Math.abs(Number(startPoint.z || 0) - Number(endPoint.z || 0)) < tolerance;
+
+    if (samePoint) {
+      this.showMessage?.(
+        "No se puede crear una línea con el mismo punto inicial y final",
+        "warning"
+      );
+      return null;
+    }
+
+    const node1 = this.getOrCreateStructuralNode(startPoint);
+    const node2 = this.getOrCreateStructuralNode(endPoint);
+
+    const frame = new Beam(this.globalE, this.globalA);
+
+    frame.elementType = frameType;
+    frame.type = frameType;
+    frame.objectType = "frame";
+    frame.visible = true;
+
+    frame.addNode(node1);
+    frame.addNode(node2);
+
+    frame.id = this.shapes.length + 1;
+
+    this.shapes.push(frame);
+
+    if (!node1.beams) node1.beams = [];
+    if (!node2.beams) node2.beams = [];
+
+    if (!node1.beams.includes(frame)) {
+      node1.beams.push(frame);
+    }
+
+    if (!node2.beams.includes(frame)) {
+      node2.beams.push(frame);
+    }
+
+    this.redraw?.();
+    this.sync3D?.();
+
+    console.log(
+      `✅ Línea creada ID: ${frame.id} | tipo: ${frameType}`,
+      frame.node1.position,
+      frame.node2.position
+    );
+
+    return frame;
   },
 
   getCurrentSnapPoint(worldPos) {

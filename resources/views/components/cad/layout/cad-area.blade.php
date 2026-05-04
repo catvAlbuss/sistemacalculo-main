@@ -5,35 +5,72 @@
     x-show="currentState === trussDrawingState && currentState.shape.node1" x-ref="distanceInput"
     @keyup.enter="trussDrawingState.createBeam($data)">
 
-  {{-- Contenedor dividido: 2D a la izquierda, 3D a la derecha --}}
-  <div class="flex flex-1 w-full overflow-hidden">
+  {{-- Contenedor de vistas: controlado desde Options > Windows --}}
+  <div id="cad-workspace"
+    data-layout="two-vertical"
+    class="grid flex-1 h-full w-full min-h-0 min-w-0 grid-cols-2 grid-rows-1 overflow-hidden bg-gray-950">
 
-    {{-- Canvas 2D (mitad izquierda) --}}
-    <div class="w-1/2 h-full border-r border-gray-600 relative bg-gray-800">
-      <canvas class="w-full h-full" x-ref="cad"></canvas>
-      <!-- Etiqueta 2D -->
-      <div
-        class="absolute top-3 left-3 rounded px-3 py-1 text-sm font-medium shadow"
-        :class="getActiveViewBadgeClass()"
-        x-text="getActiveViewLabel()"></div>
+    {{-- Selector de vista cuando Windows = One --}}
+    <div
+      x-show="windowLayout === 'one'"
+      x-cloak
+      class="absolute right-4 top-3 z-40 flex overflow-hidden rounded-lg border border-gray-600 bg-gray-900 shadow-lg">
+
+      <button
+        class="px-3 py-1 text-xs"
+        :class="singleWindowView === '2d'
+            ? 'bg-blue-600 text-white'
+            : 'bg-gray-800 text-gray-300 hover:bg-gray-700'"
+        @click="setSingleWindowView('2d')">
+        2D
+      </button>
+
+      <button
+        class="px-3 py-1 text-xs"
+        :class="singleWindowView === '3d'
+            ? 'bg-blue-600 text-white'
+            : 'bg-gray-800 text-gray-300 hover:bg-gray-700'"
+        @click="setSingleWindowView('3d')">
+        3D
+      </button>
     </div>
 
-    {{-- Vista 3D (mitad derecha) --}}
-    <div class="w-1/2 h-full relative bg-gray-900">
-      <div id="viewer3d-container" class="w-full h-full"></div>
-      <!-- Etiqueta 3D -->
+    {{-- Panel 2D --}}
+    <section id="cad-panel-2d"
+      class="relative min-h-0 min-w-0 overflow-hidden border-r border-gray-700 bg-gray-800">
+
+      <canvas class="h-full w-full" x-ref="cad"></canvas>
+
+      {{-- Etiqueta 2D --}}
       <div
-        class="absolute top-3 left-3 rounded bg-gray-900 px-3 py-1 text-sm font-medium text-white shadow"
-        x-text="getActive3DViewLabel()"></div>
+        class="absolute top-3 left-3 z-20 rounded px-3 py-1 text-sm font-medium shadow"
+        :class="getActiveViewBadgeClass()"
+        x-text="getActiveViewLabel()">
+      </div>
+    </section>
+
+    {{-- Panel 3D --}}
+    <section id="cad-panel-3d"
+      class="relative min-h-0 min-w-0 overflow-hidden bg-gray-900">
+
+      <div id="viewer3d-container" class="h-full w-full"></div>
+
+      {{-- Etiqueta 3D --}}
+      <div
+        class="absolute top-3 left-3 z-20 rounded bg-gray-900 px-3 py-1 text-sm font-medium text-white shadow"
+        x-text="getActive3DViewLabel()">
+      </div>
+
       {{-- Indicador de plano 3D --}}
       <div x-show="currentState === trussDrawingState3D"
         x-cloak
-        class="absolute bottom-4 right-4 bg-black/80 text-white px-3 py-1.5 rounded-lg text-xs font-mono z-20 shadow-lg">
+        class="absolute bottom-4 right-4 z-20 rounded-lg bg-black/80 px-3 py-1.5 font-mono text-xs text-white shadow-lg">
         <span class="text-blue-400">✏️ Dibujando en:</span>
-        <span x-text="currentState.currentPlane" class="font-bold ml-1"></span>
-        <span class="text-gray-400 text-[10px] ml-2">(1:XY 2:XZ 3:YZ)</span>
+        <span x-text="currentState.currentPlane" class="ml-1 font-bold"></span>
+        <span class="ml-2 text-[10px] text-gray-400">(1:XY 2:XZ 3:YZ)</span>
       </div>
-    </div>
+    </section>
+
   </div>
 
   {{-- Barra inferior --}}
