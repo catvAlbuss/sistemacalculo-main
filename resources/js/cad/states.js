@@ -1247,7 +1247,10 @@ export class TrussDrawingState extends PanAndZoomState {
 
       context.distanceInput.style.left = `${mid.x + 20}px`;
       context.distanceInput.style.top = `${mid.y - 20}px`;
-      context.distanceInput.value = distance.toFixed(2);
+      // context.distanceInput.value = distance.toFixed(2);
+      context.distanceInput.value = context.formatOutput
+        ? context.formatOutput(distance, "lengths")
+        : distance.toFixed(2);
     }
 
     context.redraw?.();
@@ -2815,7 +2818,11 @@ export class DimensionLineDrawingState extends PanAndZoomState {
       start: { ...this.startPoint },
       end: { ...endPoint },
       value: distance,
-      label: `${distance.toFixed(2)} m`,
+      // label: `${distance.toFixed(2)} m`,
+      label: `${context.formatOutput
+          ? context.formatOutput(distance, "lengths")
+          : distance.toFixed(2)
+        } m`,
       visible: true,
     });
 

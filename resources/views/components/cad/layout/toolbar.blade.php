@@ -179,4 +179,23 @@
       </x-cad.ribbon-button>
     </x-cad.ribbon-group>
   </div>
+  <!-- Modal para el apartado de las vistas -->
+  <x-cad.modals.view-modal />
+
+
+  <x-cad.modals.material-properties-modal />
+  <x-cad.modals.frame-sections-modal />
+  <x-cad.modals.diaphragms-modal />
+  <x-cad.modals.section-cuts-modal />
+  <x-cad.modals.response-spectrum-functions-modal />
+  <x-cad.modals.static-load-cases-modal />
+  <x-cad.modals.load-combinations-modal />
+  <x-cad.modals.mass-source-modal />
+  <!-- Seccion de analisis -->
+  <x-cad.modals.analysis-options-modal />
+  <x-cad.modals.check-model-modal />
+  <!-- Seccion del modal de diseño -->
+  <x-cad.modals.select-design-combinations-modal />
+  <x-cad.modals.display-design-info-modal />
+  <x-cad.modals.design-overwrites-modal />
 </div>

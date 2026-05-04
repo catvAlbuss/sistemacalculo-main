@@ -58,6 +58,20 @@ export class DiseñoRenderer {
     return context.displayColors?.[key] || fallback;
   }
 
+  formatValue(context, value, type = "coordinates", fallbackDecimals = 2) {
+    if (context.formatOutput) {
+      return context.formatOutput(value, type);
+    }
+
+    const number = Number(value);
+
+    if (Number.isNaN(number)) {
+      return "0";
+    }
+
+    return number.toFixed(fallbackDecimals);
+  }
+
   render(CADSystem) {
     this.clearBackground(CADSystem);
     if (CADSystem.options.showGrid) {
@@ -197,7 +211,12 @@ export class DiseñoRenderer {
       Object.assign(context.ctx, s.style.axialStyle.MODEL);
       context.ctx.translate(mid.x, mid.y);
       context.ctx.rotate(s.angle);
-      context.ctx.fillText(s.fAxial.toFixed(3), 0, 30);
+      // context.ctx.fillText(s.fAxial.toFixed(3), 0, 30);
+      context.ctx.fillText(
+        this.formatValue(context, s.fAxial, "forces", 3),
+        0,
+        30
+      );
       context.ctx.restore();
     });
   }
@@ -347,7 +366,7 @@ export class DiseñoRenderer {
     context.ctx.restore();
   }
 
-  drawArrow(magX, magY, p) {
+  drawArrow(context, magX, magY, p) {
     const mag = pointDistance({ x: 0, y: 0 }, { x: magX, y: magY });
     const uMag = { x: magX / mag, y: magY / mag };
     context.ctx.beginPath();
@@ -358,7 +377,12 @@ export class DiseñoRenderer {
     context.ctx.lineTo(end.x, end.y);
     context.ctx.font = "12px arial";
     context.ctx.textAlign = "right";
-    context.ctx.fillText(mag.toFixed(2) + "kN", end.x, end.y);
+    // context.ctx.fillText(mag.toFixed(2) + "kN", end.x, end.y);
+    context.ctx.fillText(
+      `${this.formatValue(context, mag, "forces", 2)}kN`,
+      end.x,
+      end.y
+    );
     context.ctx.stroke();
     // Draw arrowhead
     const headLength = 10;
@@ -401,20 +425,25 @@ export class DiseñoRenderer {
     Object.assign(context.ctx, node.style.getModel().FORCE);
 
     if (magX && magX !== 0) {
-      this.drawHorizontalLine(context, magX, `${magX.toFixed(2)}kN`, p, colors[context.options.currentLoad]);
+      // this.drawHorizontalLine(context, magX, `${magX.toFixed(2)}kN`, p, colors[context.options.currentLoad]);
+      this.drawHorizontalLine(
+        context,
+        magX,
+        `${this.formatValue(context, magX, "forces", 2)}kN`,
+        p,
+        colors[context.options.currentLoad]
+      );
     }
     if (magY && magY !== 0) {
-      this.drawVerticalLine(context, magY, `${magY.toFixed(2)}kN`, p, colors[context.options.currentLoad]);
+      // this.drawVerticalLine(context, magY, `${magY.toFixed(2)}kN`, p, colors[context.options.currentLoad]);
+      this.drawVerticalLine(
+        context,
+        magY,
+        `${this.formatValue(context, magY, "forces", 2)}kN`,
+        p,
+        colors[context.options.currentLoad]
+      );
     }
-    // if (magX && magX !== 0) {
-    //   this.drawHorizontalLine(context, magX, `${magX.toFixed(2)}kN`, p, colors[context.options.currentLoad]);
-    // }
-    // if (magY && magY !== 0) {
-    //   this.drawVerticalLine(context, magY, `${magY.toFixed(2)}kN`, p, colors[context.options.currentLoad]);
-    // }
-    // if ((magX || magY) && (magX !== 0 || magY !== 0)) {
-    // }
-    /* }); */
   }
 
   drawReaction(node, context) {
@@ -428,10 +457,24 @@ export class DiseñoRenderer {
     const end = { x: p.x - uMag.x * 5 * mag, y: p.y + uMag.y * 5 * mag };
     Object.assign(context.ctx, node.style.getModel().FORCE);
     if (magX && Math.abs(magX) > 0.0000000001) {
-      this.drawHorizontalLine(context, magX, `${magX.toFixed(2)}kN`, p, "aquamarine");
+      // this.drawHorizontalLine(context, magX, `${magX.toFixed(2)}kN`, p, "aquamarine");
+      this.drawHorizontalLine(
+        context,
+        magX,
+        `${this.formatValue(context, magX, "reactions", 2)}kN`,
+        p,
+        "aquamarine"
+      );
     }
     if (magY && Math.abs(magY) > 0.0000000001) {
-      this.drawVerticalLine(context, magY, `${magY.toFixed(2)}kN`, p, "aquamarine");
+      // this.drawVerticalLine(context, magY, `${magY.toFixed(2)}kN`, p, "aquamarine");
+      this.drawVerticalLine(
+        context,
+        magY,
+        `${this.formatValue(context, magY, "reactions", 2)}kN`,
+        p,
+        "aquamarine"
+      );
     }
   }
 
@@ -817,7 +860,8 @@ export class DiseñoRenderer {
         const dy = state.previewPoint.y - state.startPoint.y;
         const dz = state.previewPoint.z - state.startPoint.z;
         const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        return `${d.toFixed(2)} m`;
+        // return `${d.toFixed(2)} m`;
+        return `${this.formatValue(context, d, "lengths", 2)} m`;
       })(),
       visible: true,
     };
