@@ -19,17 +19,18 @@
         </div>
     </button>
 
-    <!-- Dropdown Menu -->
+    <!-- Dropdown Menu con scroll SOLO si es necesario -->
     <div 
-        class="cad-bg cad-border z-50 border text-xs"
+        class="cad-bg cad-border z-50 border p-1 text-xs"
         x-anchor="$el.previousElementSibling"
         x-show="isOpen"
         @click.outside="isOpen = false"
         @keydown.down.prevent="$focus.wrap().next()"
         @keydown.up.prevent="$focus.wrap().previous()"
-        style="display: none; min-width: 280px; max-height: 500px; overflow-y: auto; overflow-x: visible;"
+        style="display: none; min-width: 280px; max-height: 500px; overflow-y: auto;"
     >
-        <!-- IMPORTANTE: El py-1 está aquí pero el contenido interno no debe tener scroll propio -->
-        {{ $dropdown }}
+        <div class="py-1">
+            {{ $dropdown }}
+        </div>
     </div>
 </div>

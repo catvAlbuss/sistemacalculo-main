@@ -1,30 +1,9 @@
-// js/cad/menus/index.js
-// import { fileMenu } from './file-menu.js';
-// import { editMenu } from './edit-menu.js';
-// import { viewMenu } from './view-menu.js';
 import { defineMenu } from './define-menu.js';
-// import { drawMenu } from './draw-menu.js';
-// import { selectMenu } from './select-menu.js';
-// import { assignMenu } from './assign-menu.js';
-// import { analyzeMenu } from './analyze-menu.js';
-// import { displayMenu } from './display-menu.js';
-// import { designMenu } from './design-menu.js';
-// import { optionsMenu } from './options-menu.js';
-// import { helpMenu } from './help-menu.js';
+import { drawMenu } from './draw-menu.js';
 
 export const menus = {
-    // file: fileMenu,
-    // edit: editMenu,
-    // view: viewMenu,
     define: defineMenu,
-    // draw: drawMenu,
-    // select: selectMenu,
-    // assign: assignMenu,
-    // analyze: analyzeMenu,
-    // display: displayMenu,
-    // design: designMenu,
-    // options: optionsMenu,
-    // help: helpMenu,
+    draw: drawMenu,
 };
 
 export const getMenuContent = (menuName, cadSystem) => {

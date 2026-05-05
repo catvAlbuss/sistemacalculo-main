@@ -22,11 +22,11 @@
     cancelClose() {
         clearTimeout(this.timeout);
     }
-}" 
-     @mouseenter="openSubmenu()"
-     @mouseleave="closeSubmenu()"
-     class="relative">
-    
+}"
+    @mouseenter="openSubmenu()"
+    @mouseleave="closeSubmenu()"
+    class="relative">
+
     <div class="submenu-btn dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center justify-between gap-2 cursor-pointer">
         <div class="flex items-center gap-2">
             <span class="inline-block w-5">{{ $slot }}</span>
@@ -36,14 +36,14 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
         </svg>
     </div>
-    
-    <div x-show="open" 
-         x-cloak
-         class="bg-gray-800 border border-gray-700 rounded-md shadow-xl"
-         x-bind:style="submenuStyle"
-         @mouseenter="cancelClose()"
-         @mouseleave="closeSubmenu()"
-         style="display: none;">
+
+    <div x-show="open"
+        x-cloak
+        class="bg-gray-800 border border-gray-700 rounded-md shadow-xl"
+        x-bind:style="submenuStyle"
+        @mouseenter="cancelClose()"
+        @mouseleave="closeSubmenu()"
+        style="display: none;">
         <div class="py-1" style="overflow-y: visible; overflow-x: visible;">
             {{ $submenu }}
         </div>

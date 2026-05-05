@@ -1,4 +1,5 @@
 // js/cad/dialogs/section-dialog.js
+
 import Swal from 'sweetalert2';
 
 export const openSectionDialog = async (cadSystem) => {

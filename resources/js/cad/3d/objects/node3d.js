@@ -32,7 +32,10 @@ export function updateNode3D(mesh, node) {
   const y = node.position?.y ?? node.y ?? 0;
   const z = node.position?.z ?? node.z ?? 0;
 
-  mesh.position.set(x, y, z);
+  // Mantener la misma conversión que createNode3D:
+  // modelo:  (x, y, z)
+  // Babylon: (x, z, y)
+  mesh.position.set(x, z, y);
 
   mesh.isPickable = true;
   mesh.metadata = {

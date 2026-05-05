@@ -1,4 +1,6 @@
 // js/cad/dialogs/combination-dialog.js
+
+
 import Swal from 'sweetalert2';
 
 export const openCombinationDialog = async (cadSystem) => {

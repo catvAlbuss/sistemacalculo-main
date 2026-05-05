@@ -171,13 +171,13 @@ export class Shape {
     return this._propiedades;
   }
 
-  drawUnfinished() {}
+  drawUnfinished() { }
 
   drawTranslated(translation) {
     // draws a copy translated to a diference of vectors
   }
 
-  drawSelected() {}
+  drawSelected() { }
 }
 
 export class Marker {
@@ -297,6 +297,35 @@ export class Beam {
   }
 }
 
+export class Area extends Shape {
+  constructor(areaType = "slab", z = 0) {
+    super();
+    this.areaType = areaType;   // slab | wall | opening
+    this.z = z;
+    this.id = null;
+    this.visible = true;
+    this.selected = false;
+  }
+
+  addPoint(point) {
+    this.points.push({
+      x: point.x,
+      y: point.y,
+      z: point.z ?? this.z,
+      visible: true,
+      color: null,
+    });
+  }
+
+  isClosed() {
+    return this.points.length >= 3;
+  }
+
+  draw(renderer, context) {
+    renderer.drawArea(this, context);
+  }
+}
+
 export class PointLoad {
-  constructor() {}
+  constructor() { }
 }

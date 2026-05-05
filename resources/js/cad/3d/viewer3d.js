@@ -1,4 +1,6 @@
 import * as BABYLON from "@babylonjs/core";
+import { drawCustomGeneralGrids3D } from "./grid3d.js";
+import { renderModel3D } from "./objects/renderModel3d.js";
 
 const VIEWER_STATE = {
     engine: null,
@@ -306,12 +308,21 @@ export function initViewer3D(context, container) {
             context.createFull3DGrid(scene);
         }
 
+        // if (context.referenceGrid && context.pendingGrid3D) {
+        //     context.grid3DDrawn = false;
+        //     context.drawReferenceGrid3D();
+        //     context.pendingGrid3D = false;
+        // } else if (context.referenceGrid && typeof context.drawReferenceGrid3D === "function") {
+        //     context.drawReferenceGrid3D();
+        // }
         if (context.referenceGrid && context.pendingGrid3D) {
             context.grid3DDrawn = false;
             context.drawReferenceGrid3D();
+            drawCustomGeneralGrids3D(scene, context.referenceGrid, context.stories);
             context.pendingGrid3D = false;
         } else if (context.referenceGrid && typeof context.drawReferenceGrid3D === "function") {
             context.drawReferenceGrid3D();
+            drawCustomGeneralGrids3D(scene, context.referenceGrid, context.stories);
         }
 
         let frameCount = 0;
@@ -377,6 +388,11 @@ export function sync3D(context) {
         try {
             if (context.referenceGrid && typeof context.drawReferenceGrid3D === "function") {
                 context.drawReferenceGrid3D();
+                drawCustomGeneralGrids3D(
+                    VIEWER_STATE.scene,
+                    context.referenceGrid,
+                    context.stories
+                );
             }
 
             drawIn3D(context);
@@ -389,17 +405,13 @@ export function sync3D(context) {
 export function drawIn3D(context) {
     if (!VIEWER_STATE.scene || !context.nodes) return;
 
-    clearModelElements();
-
-    context.nodes.forEach((node) => {
-        if (!node?.position) return;
-        createNodeMesh(node, context);
-    });
-
-    context.shapes.forEach((beam) => {
-        if (!beam?.node1 || !beam?.node2) return;
-        createBeamMesh(beam, context);
-    });
+    // Si ya estás usando renderModel3D
+    renderModel3D(
+        VIEWER_STATE,
+        context.nodes,
+        context.shapes,
+        context.areas || []
+    );
 }
 
 export function getViewer3DState() {
