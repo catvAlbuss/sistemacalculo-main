@@ -1058,6 +1058,12 @@ export class TrussDrawingState extends PanAndZoomState {
     this.context = context;
     this.elementType = elementType;
     this.shape = this.createEmptyShape(context);
+
+    // ========== NUEVAS PROPIEDADES PARA DIBUJO POR LONGITUD ==========
+    this.inputMode = false;        // Modo de entrada de longitud
+    this.inputBuffer = '';         // Buffer de texto para la longitud
+    this.inputStartPoint = null;   // Punto de inicio para modo entrada
+    // ================================================================
   }
 
   createEmptyShape(context) {
@@ -1192,32 +1198,220 @@ export class TrussDrawingState extends PanAndZoomState {
 
     this.shape = this.createEmptyShape(context);
 
-    // Esto permite seguir dibujando otra línea desde el último punto,
-    // igual que un modo Draw Lines continuo.
+    // Esto permite seguir dibujando otra línea desde el último punto
     this.shape.addNode(lastNode);
   }
 
+  // ========== NUEVO: Obtener dirección actual desde el mouse (SIEMPRE actualizada) ==========
+  getCurrentDirection(context) {
+    if (!this.inputStartPoint) return null;
+    
+    const startWorld = this.inputStartPoint.position;
+    // 🔧 Usar la posición actual del mouse (context.mousePos se actualiza en cada handleMouseMove)
+    const mouseWorld = context.mousePos;
+    const view = context.viewSet?.[context.activeViewIndex];
+    
+    let dx, dy, dz = 0;
+    
+    if (view?.type === "elevation" && view.axis === "X") {
+      // Plano Y-Z
+      dy = mouseWorld.x - startWorld.y;
+      dz = mouseWorld.y - (startWorld.z || 0);
+      const len = Math.sqrt(dy*dy + dz*dz);
+      if (len > 0.001) {
+        return { dx: 0, dy: dy/len, dz: dz/len };
+      }
+    } else if (view?.type === "elevation" && view.axis === "Y") {
+      // Plano X-Z
+      dx = mouseWorld.x - startWorld.x;
+      dz = mouseWorld.y - (startWorld.z || 0);
+      const len = Math.sqrt(dx*dx + dz*dz);
+      if (len > 0.001) {
+        return { dx: dx/len, dy: 0, dz: dz/len };
+      }
+    } else {
+      // Planta
+      dx = mouseWorld.x - startWorld.x;
+      dy = mouseWorld.y - startWorld.y;
+      const len = Math.sqrt(dx*dx + dy*dy);
+      if (len > 0.001) {
+        return { dx: dx/len, dy: dy/len, dz: 0 };
+      }
+    }
+    
+    // Si no hay dirección válida, usar dirección por defecto (derecha)
+    return { dx: 1, dy: 0, dz: 0 };
+  }
+
+  // ========== NUEVO: Iniciar modo entrada de longitud ==========
+  startLengthInput(context, startPoint) {
+    this.inputMode = true;
+    this.inputBuffer = '';
+    this.inputStartPoint = startPoint;
+    
+    context.showMessage?.('📏 Ingrese la longitud y presione Enter. Esc para cancelar');
+    context.redraw?.();
+  }
+
+  // ========== NUEVO: Dibujar preview de la viga a construir (usando dirección actual) ==========
+  drawLengthPreview(context) {
+    if (!this.inputMode || !this.inputStartPoint) return;
+    
+    const startPoint = this.inputStartPoint.position;
+    const length = parseFloat(this.inputBuffer) || 1;
+    
+    // 🔧 Obtener dirección actualizada dinámicamente
+    const direction = this.getCurrentDirection(context);
+    
+    const endPoint = {
+      x: startPoint.x + direction.dx * length,
+      y: startPoint.y + direction.dy * length,
+      z: (startPoint.z || 0) + direction.dz * length
+    };
+    
+    const p1 = context.grid.worldToScreen(startPoint);
+    const p2 = context.grid.worldToScreen(endPoint);
+    
+    context.ctx.save();
+    
+    // Línea de preview naranja PUNTEADA
+    context.ctx.strokeStyle = '#ffaa44';
+    context.ctx.lineWidth = 2;
+    context.ctx.setLineDash([8, 4]);
+    context.ctx.beginPath();
+    context.ctx.moveTo(p1.x, p1.y);
+    context.ctx.lineTo(p2.x, p2.y);
+    context.ctx.stroke();
+    
+    // Texto de longitud en el medio
+    const midX = (p1.x + p2.x) / 2;
+    const midY = (p1.y + p2.y) / 2;
+    context.ctx.fillStyle = '#ffaa44';
+    context.ctx.font = 'bold 12px monospace';
+    context.ctx.fillText(`${this.inputBuffer || '0'} m`, midX, midY - 10);
+    
+    // Mostrar buffer de entrada
+    context.ctx.fillStyle = '#ffffff';
+    context.ctx.font = '14px monospace';
+    context.ctx.fillText(`Longitud: ${this.inputBuffer}_`, 20, 40);
+    
+    context.ctx.restore();
+  }
+
+  // ========== NUEVO: Crear viga con la longitud ingresada ==========
+  createBeamWithLength(context) {
+    if (!this.inputMode || !this.inputStartPoint) return;
+    
+    const length = parseFloat(this.inputBuffer);
+    if (isNaN(length) || length <= 0) {
+      context.showMessage?.('❌ Longitud inválida', 'warning');
+      this.inputMode = false;
+      this.inputBuffer = '';
+      this.inputStartPoint = null;
+      context.redraw();
+      return;
+    }
+    
+    const startPoint = this.inputStartPoint.position;
+    
+    // 🔧 Usar dirección actualizada
+    const direction = this.getCurrentDirection(context);
+    
+    const endPoint = {
+      x: startPoint.x + direction.dx * length,
+      y: startPoint.y + direction.dy * length,
+      z: (startPoint.z || 0) + direction.dz * length
+    };
+    
+    // Crear o buscar nodo final
+    let endNode = context.nodes.find(n => {
+      const p = n.position;
+      return Math.abs(p.x - endPoint.x) < 0.001 &&
+             Math.abs(p.y - endPoint.y) < 0.001 &&
+             Math.abs((p.z || 0) - (endPoint.z || 0)) < 0.001;
+    });
+    
+    if (!endNode) {
+      endNode = new StructuralNode(
+        { x: endPoint.x, y: endPoint.y },
+        context.nodes.length + 1,
+        endPoint.z
+      );
+      context.nodes.push(endNode);
+    }
+    
+    // Crear la viga
+    const beam = new Beam(context.globalE, context.globalA);
+    beam.node1 = this.inputStartPoint;
+    beam.node2 = endNode;
+    beam.id = context.shapes.length + 1;
+    beam.elementType = this.elementType;
+    beam.type = this.elementType;
+    beam.objectType = "frame";
+    beam.visible = true;
+    
+    context.shapes.push(beam);
+    
+    // Conectar referencias
+    if (!this.inputStartPoint.beams) this.inputStartPoint.beams = [];
+    if (!endNode.beams) endNode.beams = [];
+    this.inputStartPoint.beams.push(beam);
+    endNode.beams.push(beam);
+    
+    console.log(`📐 Viga creada ID: ${beam.id} | longitud: ${length.toFixed(2)}m`);
+    
+    // Limpiar modo entrada
+    this.inputMode = false;
+    this.inputBuffer = '';
+    this.inputStartPoint = null;
+    
+    // Continuar dibujando desde el nuevo nodo
+    this.shape = this.createEmptyShape(context);
+    this.shape.addNode(endNode);
+    
+    context.redraw();
+    context.sync3D?.();
+    context.showMessage?.(`✅ Viga de ${length.toFixed(2)}m creada. Continúe dibujando.`);
+  }
+
+  // ========== handleMouseDown ==========
   handleMouseDown(event, context, mouse) {
     if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
       super.handleMouseDown(event, context, mouse);
       return;
     }
-
+    
     super.handleMouseDown(...arguments);
-
+    
     const point = this.getDrawingPoint(context, mouse);
     const node = this.getOrCreateNode(context, point);
-
-    this.addNodeToCurrentShape(context, node);
-
-    context.redraw?.();
-    context.sync3D?.();
+    
+    // Si es el primer punto, solo agregarlo
+    if (!this.shape.node1) {
+      this.addNodeToCurrentShape(context, node);
+      context.redraw?.();
+      context.sync3D?.();
+      return;
+    }
+    
+    // Si ya hay primer punto y NO estamos en modo entrada, permitir dibujo por clic normal
+    if (!this.inputMode) {
+      this.addNodeToCurrentShape(context, node);
+      context.redraw?.();
+      context.sync3D?.();
+    }
   }
 
+  // ========== handleMouseMove ==========
   handleMouseMove(event, context, mouse) {
+    // Primero, el comportamiento de pan/zoom
     super.handleMouseMove(...arguments);
-
-    const firstPoint = this.shape.node1?.position;
+    
+    // 🔧 IMPORTANTE: Actualizar mousePos del contexto (en coordenadas del mundo)
+    context.mousePos = context.grid.screenToWorld(mouse);
+    
+    // ==== LÍNEA DE PREVIEW ORIGINAL (AZUL PUNTEADA) ====
+    const firstPoint = this.shape?.node1?.position;
 
     if (!firstPoint) {
       return;
@@ -1247,13 +1441,17 @@ export class TrussDrawingState extends PanAndZoomState {
 
       context.distanceInput.style.left = `${mid.x + 20}px`;
       context.distanceInput.style.top = `${mid.y - 20}px`;
-      // context.distanceInput.value = distance.toFixed(2);
       context.distanceInput.value = context.formatOutput
         ? context.formatOutput(distance, "lengths")
         : distance.toFixed(2);
     }
 
-    context.redraw?.();
+    // 🔧 Si estamos en modo entrada, forzar redibujado para actualizar la línea naranja
+    if (this.inputMode) {
+      context.redraw();
+    } else {
+      context.redraw?.();
+    }
   }
 
   createBeam(context) {
@@ -1325,38 +1523,99 @@ export class TrussDrawingState extends PanAndZoomState {
     context.sync3D?.();
   }
 
+  // ========== handleKeyDown ==========
   handleKeyDown(event, context) {
-    if (event.key === "Escape") {
+    // Manejo de entrada numérica en modo entrada
+    if (this.inputMode) {
+      if (event.key === 'Enter') {
+        this.createBeamWithLength(context);
+        event.preventDefault();
+        return;
+      } else if (event.key === 'Escape') {
+        this.inputMode = false;
+        this.inputBuffer = '';
+        this.inputStartPoint = null;
+        context.showMessage?.('📏 Modo de entrada cancelado');
+        context.redraw();
+        event.preventDefault();
+        return;
+      } else if (event.key === 'Backspace') {
+        this.inputBuffer = this.inputBuffer.slice(0, -1);
+        context.redraw();
+        event.preventDefault();
+        return;
+      } else if (/[0-9.]/.test(event.key)) {
+        this.inputBuffer += event.key;
+        context.redraw();
+        event.preventDefault();
+        return;
+      }
+    }
+    
+    // Tecla 'L' para activar modo entrada de longitud (después de tener primer punto)
+    if (event.key === 'l' || event.key === 'L') {
+      if (this.shape?.node1 && !this.shape.node2 && !this.inputMode) {
+        this.startLengthInput(context, this.shape.node1);
+        event.preventDefault();
+        return;
+      }
+    }
+    
+    // Escape para salir del estado
+    if (event.key === "Escape" && !this.inputMode) {
       this.shape = this.createEmptyShape(context);
-
       if (context.distanceInput) {
         context.distanceInput.value = "";
       }
-
       context.setState(context.idleState);
       context.redraw?.();
       return;
     }
-
-    if (event.key === "Enter") {
+    
+    // Enter original (para dibujo por distancia con input numérico)
+    if (event.key === "Enter" && !this.inputMode) {
       this.createBeam(context);
       return;
     }
-
+    
     super.handleKeyDown(event, context);
   }
 
   exit() {
     super.exit();
     this.shape = this.createEmptyShape(this.context);
+    this.inputMode = false;
+    this.inputBuffer = '';
+    this.inputStartPoint = null;
   }
 
   draw(renderer, context) {
-    renderer.drawTrussDrawingState(this, context);
+    // Dibujar preview normal del estado (línea azul PUNTEADA original)
+    if (this.shape && this.shape.node1 && context.ctx) {
+      const p1 = context.grid.worldToScreen(this.shape.node1.position);
+      const p2 = context.grid.worldToScreen(context.mousePos);
+      context.ctx.save();
+      context.ctx.strokeStyle = '#88aaff';
+      context.ctx.setLineDash([5, 5]);
+      context.ctx.lineWidth = 2;
+      context.ctx.beginPath();
+      context.ctx.moveTo(p1.x, p1.y);
+      context.ctx.lineTo(p2.x, p2.y);
+      context.ctx.stroke();
+      context.ctx.restore();
+    }
+    
+    // Dibujar preview de entrada de longitud (línea naranja PUNTEADA)
+    if (this.inputMode) {
+      this.drawLengthPreview(context);
+    }
   }
 
   info() {
-    return 'Draw Lines activo: clic para primer punto, clic para segundo punto. Presiona "Esc" para salir.';
+    if (this.inputMode) {
+      return `📏 Ingrese longitud: ${this.inputBuffer || '0'} | Enter = dibujar | Esc = cancelar`;
+    }
+    return 'Dibujo de vigas: Clic para primer punto, luego L + longitud + Enter para dibujar. O simplemente clic para segundo punto. Esc para salir.';
   }
 }
 

@@ -1,6 +1,3 @@
-// js/cad/dialogs/loadcase-dialog.js
-
-
 import Swal from 'sweetalert2';
 
 export const openLoadCaseDialog = async (cadSystem) => {

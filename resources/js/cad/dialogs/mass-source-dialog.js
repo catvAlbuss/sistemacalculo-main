@@ -1,6 +1,4 @@
 // js/cad/dialogs/mass-source-dialog.js
-
-
 import Swal from 'sweetalert2';
 
 export const openMassSourceDialog = async (cadSystem) => {

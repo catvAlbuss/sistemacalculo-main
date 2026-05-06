@@ -1,6 +1,4 @@
 // js/cad/dialogs/material-dialog.js
-
-
 import Swal from 'sweetalert2';
 
 export const openMaterialDialog = async (cadSystem) => {

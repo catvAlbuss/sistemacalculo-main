@@ -3706,75 +3706,6 @@ export default () => ({
       this.showMessage(`📊 Mostrando cargas en elementos frame/línea`);
     });
   },
-
-  // showLoadsOnShells() {
-  //   Swal.fire({
-  //     title: "",
-  //     html: `
-  //           <div class="text-left" style="background-color: #1e1e1e; color: #e5e7eb;">
-  //               <div class="border border-gray-700 rounded p-4 mb-4 flex items-center justify-between gap-4" style="background-color: #1e1e1e;">
-  //                   <label class="text-sm font-bold whitespace-nowrap" style="color: #e5e7eb;">Caso de Carga</label>
-  //                   <div class="relative w-full">
-  //                       <select id="loadCaseSelect" class="w-full bg-[#0c0c0c] border border-gray-600 rounded px-2 py-1 text-sm text-white focus:border-blue-500 outline-none appearance-none cursor-pointer">
-  //                           <option value="DEAD">DEAD</option>
-  //                           <option value="LIVE">LIVE</option>
-  //                       </select>
-  //                       <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-gray-500">
-  //                           ▼
-  //                       </div>
-  //                   </div>
-  //               </div>
-
-  //               <fieldset class="border border-gray-700 rounded p-3 flex flex-col gap-2 mb-4" style="background-color: #1e1e1e;">
-  //                   <legend class="text-[11px] text-gray-500 px-2 ml-2 italic">Tipo de Carga</legend>
-
-  //                   <label class="flex items-center gap-2 text-sm text-gray-600 cursor-not-allowed">
-  //                       <input type="radio" name="loadType" disabled class="accent-gray-700"> Valores de Carga Uniforme
-  //                   </label>
-  //                   <!-- Dirección (Sub-opción) -->
-  //                   <div class="flex items-center gap-3 pl-6">
-  //                       <span class="text-xs text-gray-600">Dirección</span>
-  //                       <select disabled class="w-full bg-[#1a1a1a] border border-gray-800 rounded px-2 py-0.5 text-xs text-gray-700 cursor-not-allowed outline-none">
-  //                           <option>Gravedad</option>
-  //                       </select>
-  //                   </div>
-  //                   <label class="flex items-center gap-2 text-sm text-gray-600 cursor-not-allowed">
-  //                       <input type="radio" name="loadType" disabled class="accent-gray-700"> Valores de Temperatura
-  //                   </label>
-  //                   <label class="flex items-center gap-2 text-sm text-gray-600 cursor-not-allowed">
-  //                       <input type="radio" name="loadType" disabled class="accent-gray-700"> Presión de Viento
-  //                   </label>
-  //               </fieldset>
-
-  //               <div class="flex justify-center gap-4 pt-2">
-  //                   <button id="okButton" class="px-8 py-1 text-sm bg-gray-800/50 text-gray-500 border border-gray-700 rounded cursor-not-allowed" disabled>
-  //                       OK
-  //                   </button>
-  //                   <button id="cancelButton" class="px-8 py-1 text-sm bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 rounded transition-colors shadow-md">
-  //                       Cancelar
-  //                   </button>
-  //               </div>
-  //           </div>
-  //       `,
-  //     width: "380px",
-  //     showConfirmButton: false,
-  //     showCancelButton: false,
-  //     background: "#1e1e1e",
-  //     didOpen: (popup) => {
-  //       popup.style.backgroundColor = "#1e1e1e";
-  //       popup.style.border = "1px solid #374151";
-  //       popup.style.borderRadius = "0.5rem";
-
-  //       const cancelBtn = popup.querySelector("#cancelButton");
-  //       cancelBtn.addEventListener("click", () => {
-  //         Swal.close();
-  //       });
-  //     },
-  //   }).then(() => {
-  //     this.showMessage("◻️ Mostrando cargas en elementos shell/área - Próximamente");
-  //   });
-  // },
-
   showDeformedShape() {
     // Diálogo para configurar la forma deformada
     Swal.fire({
@@ -6114,5 +6045,125 @@ export default () => ({
 
   deselectByYZPlane() {
     return this.deselectByPlane("YZ");
+  },
+
+  // AGREGADO
+  getFrameObjects() {
+    return this.getSelectableObjects().filter((obj) => {
+      const type = obj.elementType || obj.type || obj.objectType;
+
+      return (
+        obj.node1 && obj.node2 ||
+        type === "beam" ||
+        type === "column" ||
+        type === "brace" ||
+        type === "secondary-beam" ||
+        type === "frame"
+      );
+    });
+  },
+
+  getFrameSectionKey(frame) {
+    if (!frame) return null;
+
+    return (
+      frame.sectionId ||
+      frame.sectionName ||
+      frame.section?.id ||
+      frame.section?.name ||
+      frame.frameSection ||
+      frame.frameSectionId ||
+      "Sin sección"
+    );
+  },
+
+  getUsedFrameSections() {
+    const sections = new Set();
+
+    this.getFrameObjects().forEach((frame) => {
+      sections.add(this.getFrameSectionKey(frame));
+    });
+
+    return Array.from(sections).filter(Boolean);
+  },
+
+  async selectByFrameSections() {
+    const sections = this.getUsedFrameSections();
+
+    if (!sections.length) {
+      this.showMessage?.("No hay secciones de marco disponibles", "warning");
+      return;
+    }
+
+    const inputOptions = {};
+
+    sections.forEach((section) => {
+      inputOptions[section] = section;
+    });
+
+    const result = await Swal.fire({
+      title: "Seleccionar por Secciones de Marco",
+      input: "select",
+      inputOptions,
+      inputPlaceholder: "Selecciona una sección",
+      showCancelButton: true,
+      confirmButtonText: "Seleccionar",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    const selectedSection = result.value;
+
+    const objects = this.getFrameObjects().filter((frame) => {
+      return this.getFrameSectionKey(frame) === selectedSection;
+    });
+
+    this.deselectAllFromMenu?.();
+
+    this.selectObjects(objects);
+
+    this.showMessage?.(
+      `Sección ${selectedSection}: ${objects.length} elementos seleccionados`
+    );
+  },
+
+  async deselectByFrameSections() {
+    const sections = this.getUsedFrameSections();
+
+    if (!sections.length) {
+      this.showMessage?.("No hay secciones de marco disponibles", "warning");
+      return;
+    }
+
+    const inputOptions = {};
+
+    sections.forEach((section) => {
+      inputOptions[section] = section;
+    });
+
+    const result = await Swal.fire({
+      title: "Deseleccionar por Secciones de Marco",
+      input: "select",
+      inputOptions,
+      inputPlaceholder: "Selecciona una sección",
+      showCancelButton: true,
+      confirmButtonText: "Deseleccionar",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    const selectedSection = result.value;
+
+    const objects = this.getSelectedObjects().filter((frame) => {
+      return this.getFrameSectionKey(frame) === selectedSection;
+    });
+
+    this.deselectObjects(objects);
+
+    this.showMessage?.(
+      `Sección ${selectedSection}: ${objects.length} elementos deseleccionados`
+    );
   },
 });
