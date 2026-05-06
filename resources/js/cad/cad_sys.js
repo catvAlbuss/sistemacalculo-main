@@ -842,6 +842,32 @@ export default () => ({
 
   // OPCIONES DE LA BARRA DE OPCIONES
 
+  activateSelectMenuAction(action) {
+    switch (action) {
+      case "select-invert":
+        this.invertSelection();
+        break;
+
+      case "select-none":
+      case "deselect-all":
+        this.deselectAllFromMenu();
+        break;
+
+      case "select-pointer-window":
+        this.clearAllSelections?.();
+        this.setState(this.idleState);
+        this.showMessage?.("Modo selección por puntero / ventana activado");
+        break;
+
+      default:
+        this.showMessage?.(`Acción de selección no reconocida: ${action}`, "warning");
+        break;
+    }
+
+    this.redraw?.();
+    this.sync3D?.();
+  },
+
   activateDrawMenuAction(action) {
     switch (action) {
       case "select-object":
@@ -962,6 +988,59 @@ export default () => ({
     this.redraw?.();
   },
 
+  deselectAllFromMenu() {
+    const objects = this.getSelectableObjects();
+
+    objects.forEach((obj) => {
+      this.setObjectSelected(obj, false);
+    });
+
+    // Limpiar estados internos de selección
+    const selectionStates = [
+      this.selectedNodesState,
+      this.selectedBeamsState,
+      this.selectedParametricState,
+      this.selectedObjectsState,
+      this.moveObjectState,
+      this.reshapeObjectState,
+    ];
+
+    selectionStates.forEach((state) => {
+      if (!state) return;
+
+      if (Array.isArray(state.selectedObjects)) {
+        state.selectedObjects = [];
+      }
+
+      if (Array.isArray(state.objects)) {
+        state.objects = [];
+      }
+
+      if ("selectedObject" in state) {
+        state.selectedObject = null;
+      }
+
+      if ("selectedNode" in state) {
+        state.selectedNode = null;
+      }
+
+      if ("selectedBeam" in state) {
+        state.selectedBeam = null;
+      }
+    });
+
+    // MUY IMPORTANTE:
+    // volver al modo selección normal para que deje de pintar amarillo
+    if (this.idleState) {
+      this.setState(this.idleState);
+    }
+
+    this.redraw?.();
+    this.sync3D?.();
+
+    this.showMessage?.("Todos los objetos fueron deseleccionados");
+  },
+
   activateOptionsMenuAction(action) {
     switch (action) {
       // OPCIONES DE PREFERENCIAS
@@ -1017,6 +1096,302 @@ export default () => ({
     }
 
     this.redraw?.();
+  },
+
+  getSelectableObjects() {
+    const objects = [];
+    const seen = new Set();
+
+    const addObject = (obj) => {
+      if (!obj) return;
+      if (seen.has(obj)) return;
+
+      // Si el objeto está oculto, no lo consideramos seleccionable
+      if (obj.visible === false) return;
+
+      seen.add(obj);
+      objects.push(obj);
+    };
+
+    // Nodos
+    if (Array.isArray(this.nodes)) {
+      this.nodes.forEach(addObject);
+    }
+
+    // Barras, columnas, vigas secundarias, arriostres, etc.
+    if (Array.isArray(this.shapes)) {
+      this.shapes.forEach(addObject);
+    }
+
+    // Por si luego tienes áreas separadas
+    if (Array.isArray(this.areas)) {
+      this.areas.forEach(addObject);
+    }
+
+    if (Array.isArray(this.slabs)) {
+      this.slabs.forEach(addObject);
+    }
+
+    if (Array.isArray(this.walls)) {
+      this.walls.forEach(addObject);
+    }
+
+    if (Array.isArray(this.openings)) {
+      this.openings.forEach(addObject);
+    }
+
+    return objects;
+  },
+
+  getSelectedObjects() {
+    return this.getSelectableObjects().filter((obj) => obj.selected === true);
+  },
+
+  setObjectSelected(obj, selected = true) {
+    if (!obj) return;
+
+    obj.selected = selected === true;
+
+    if ("isSelected" in obj) {
+      obj.isSelected = selected === true;
+    }
+  },
+
+  selectObjects(objects = []) {
+    objects.forEach((obj) => {
+      this.setObjectSelected(obj, true);
+    });
+
+    this.redraw?.();
+    this.sync3D?.();
+
+    this.showMessage?.(`Objetos seleccionados: ${objects.length}`);
+  },
+
+  deselectObjects(objects = []) {
+    objects.forEach((obj) => {
+      this.setObjectSelected(obj, false);
+    });
+
+    this.redraw?.();
+    this.sync3D?.();
+
+    this.showMessage?.(`Objetos deseleccionados: ${objects.length}`);
+  },
+
+  clearAllSelections() {
+    const objects = this.getSelectableObjects();
+
+    objects.forEach((obj) => {
+      this.setObjectSelected(obj, false);
+    });
+
+    // Limpiar también estados que guardan selección interna
+    if (this.selectedNodesState?.selectedObjects) {
+      this.selectedNodesState.selectedObjects = [];
+    }
+
+    if (this.selectedBeamsState?.selectedObjects) {
+      this.selectedBeamsState.selectedObjects = [];
+    }
+
+    if (this.selectedParametricState?.selectedObjects) {
+      this.selectedParametricState.selectedObjects = [];
+    }
+
+    this.redraw?.();
+    this.sync3D?.();
+
+    this.showMessage?.("Selección limpiada");
+  },
+
+  invertSelection() {
+    const objects = this.getSelectableObjects();
+
+    objects.forEach((obj) => {
+      const isSelected = obj.selected === true;
+      this.setObjectSelected(obj, !isSelected);
+    });
+
+    const selectedCount = this.getSelectedObjects().length;
+
+    this.redraw?.();
+    this.sync3D?.();
+
+    this.showMessage?.(`Selección invertida: ${selectedCount} objetos seleccionados`);
+  },
+
+  getPointPosition(point) {
+    if (!point) return null;
+
+    const p = point.position || point;
+
+    return {
+      x: Number(p.x ?? 0),
+      y: Number(p.y ?? 0),
+      z: Number(p.z ?? 0),
+    };
+  },
+
+  getObjectPoints(obj) {
+    if (!obj) return [];
+
+    // Caso nodo
+    if (obj.position || obj.objectType === "node") {
+      const p = this.getPointPosition(obj);
+      return p ? [p] : [];
+    }
+
+    // Caso barra / viga / columna
+    if (obj.node1 && obj.node2) {
+      const p1 = this.getPointPosition(obj.node1);
+      const p2 = this.getPointPosition(obj.node2);
+
+      return [p1, p2].filter(Boolean);
+    }
+
+    // Caso objeto con nodes[]
+    if (Array.isArray(obj.nodes)) {
+      return obj.nodes
+        .map((node) => this.getPointPosition(node))
+        .filter(Boolean);
+    }
+
+    // Caso objeto con points[]
+    if (Array.isArray(obj.points)) {
+      return obj.points
+        .map((point) => this.getPointPosition(point))
+        .filter(Boolean);
+    }
+
+    return [];
+  },
+
+  isObjectOnPlane(obj, plane = "XY", planeValue = 0, tolerance = null) {
+    const points = this.getObjectPoints(obj);
+
+    if (!points.length) return false;
+
+    const tol = tolerance ?? this.getModelTolerance?.() ?? 0.001;
+    const value = Number(planeValue);
+
+    if (plane === "XY") {
+      return points.every((p) => Math.abs(p.z - value) <= tol);
+    }
+
+    if (plane === "XZ") {
+      return points.every((p) => Math.abs(p.y - value) <= tol);
+    }
+
+    if (plane === "YZ") {
+      return points.every((p) => Math.abs(p.x - value) <= tol);
+    }
+
+    return false;
+  },
+
+  getDefaultPlaneValue(plane = "XY") {
+    if (plane === "XY") {
+      return Number(
+        this.currentZ ??
+        this.stories?.[this.activeStory]?.elevation ??
+        0
+      );
+    }
+
+    if (plane === "XZ") {
+      return Number(this.activeElevationY ?? this.currentY ?? 0);
+    }
+
+    if (plane === "YZ") {
+      return Number(this.activeElevationX ?? this.currentX ?? 0);
+    }
+
+    return 0;
+  },
+
+  async selectByPlane(plane = "XY") {
+    const defaultValue = this.getDefaultPlaneValue(plane);
+
+    const axisLabel = plane === "XY"
+      ? "Z"
+      : plane === "XZ"
+        ? "Y"
+        : "X";
+
+    const result = await Swal.fire({
+      title: `Seleccionar en Plano ${plane}`,
+      html: `
+      <div style="text-align:left; font-size:13px;">
+        <label>Coordenada ${axisLabel} del plano:</label>
+        <input id="select-plane-value" type="number" step="0.001"
+          class="swal2-input" value="${defaultValue}">
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Seleccionar",
+      cancelButtonText: "Cancelar",
+      preConfirm: () => {
+        return Number(document.getElementById("select-plane-value").value);
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
+    const planeValue = result.value;
+    const tolerance = this.getModelTolerance?.() ?? 0.001;
+
+    const objects = this.getSelectableObjects().filter((obj) =>
+      this.isObjectOnPlane(obj, plane, planeValue, tolerance)
+    );
+
+    this.selectObjects(objects);
+
+    this.showMessage?.(
+      `Plano ${plane}: ${objects.length} objetos seleccionados`
+    );
+  },
+
+  async deselectByPlane(plane = "XY") {
+    const defaultValue = this.getDefaultPlaneValue(plane);
+
+    const axisLabel = plane === "XY"
+      ? "Z"
+      : plane === "XZ"
+        ? "Y"
+        : "X";
+
+    const result = await Swal.fire({
+      title: `Deseleccionar en Plano ${plane}`,
+      html: `
+      <div style="text-align:left; font-size:13px;">
+        <label>Coordenada ${axisLabel} del plano:</label>
+        <input id="deselect-plane-value" type="number" step="0.001"
+          class="swal2-input" value="${defaultValue}">
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Deseleccionar",
+      cancelButtonText: "Cancelar",
+      preConfirm: () => {
+        return Number(document.getElementById("deselect-plane-value").value);
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
+    const planeValue = result.value;
+    const tolerance = this.getModelTolerance?.() ?? 0.001;
+
+    const objects = this.getSelectedObjects().filter((obj) =>
+      this.isObjectOnPlane(obj, plane, planeValue, tolerance)
+    );
+
+    this.deselectObjects(objects);
+
+    this.showMessage?.(
+      `Plano ${plane}: ${objects.length} objetos deseleccionados`
+    );
   },
 
   setWindowLayout(layout) {
@@ -2941,21 +3316,6 @@ export default () => ({
       });
     } else {
       this.showMessage("📐 Selección por nivel de piso - No hay niveles definidos");
-    }
-  },
-
-  invertSelection() {
-    // Invertir selección de nodos
-    if (this.selectedNodesState && this.selectedNodesState.selectedObjects) {
-      let allNodes = this.nodes;
-      let currentlySelected = this.selectedNodesState.selectedObjects;
-      let newSelection = allNodes.filter((node) => !currentlySelected.includes(node));
-      this.selectedNodesState.selectedObjects = newSelection;
-      this.redraw();
-      this.sync3D();
-      this.showMessage(`🔄 Selección invertida: ${newSelection.length} nodos seleccionados`);
-    } else {
-      this.showMessage("🔄 Invertir selección - Próximamente");
     }
   },
 
@@ -5730,5 +6090,29 @@ export default () => ({
     return {
       ...this.steelFrameDesign,
     };
+  },
+
+  selectByXYPlane() {
+    return this.selectByPlane("XY");
+  },
+
+  selectByXZPlane() {
+    return this.selectByPlane("XZ");
+  },
+
+  selectByYZPlane() {
+    return this.selectByPlane("YZ");
+  },
+
+  deselectByXYPlane() {
+    return this.deselectByPlane("XY");
+  },
+
+  deselectByXZPlane() {
+    return this.deselectByPlane("XZ");
+  },
+
+  deselectByYZPlane() {
+    return this.deselectByPlane("YZ");
   },
 });

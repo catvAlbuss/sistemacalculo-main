@@ -533,7 +533,7 @@
                 <div class="py-1" style="min-width: 260px;">
                     {{-- Selección por Ubicación --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">Por Ubicación</div>
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2" @click="cadSystem.selectByPointer()">
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2" @click="cadSystem.activateSelectMenuAction('select-pointer-window')">
                         <span>🖱️</span> En Puntero/En Ventana
                     </button>
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2" @click="cadSystem.selectByXYPlane()">
@@ -562,7 +562,7 @@
                     {{-- Selección General --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">General</div>
 
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2" @click="cadSystem.invertSelection()">
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2" @click="cadSystem.activateSelectMenuAction('select-invert')">
                         <span>🔄</span> Invertir
                     </button>
 
@@ -588,12 +588,13 @@
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap" @click="cadSystem.deselectByFrameSections()">
                                 <span>📐</span> por Secciones de Pórtico...
                             </button>
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap" @click="cadSystem.deselectAll()">
+                            <div class="border-t border-gray-700 my-1"></div>
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap" @click="cadSystem.activateSelectMenuAction('select-none')">
                                 <span>✅</span> Todo
                             </button>
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap" @click="cadSystem.invertSelection()">
+                            <!-- <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap" @click="cadSystem.activateSelectMenuAction('select-none')">
                                 <span>All</span> Invertir
-                            </button>
+                            </button> -->
                         </x-slot>
                     </x-cad.menu-subitem>
 
@@ -903,10 +904,6 @@
             </x-slot>
         </x-cad.menu-dropdown-item>
 
-        <!-- {{-- Otros menús ETABS pueden ir aquí --}}
-        <button class="text-gray-300 hover:text-white text-sm px-2 py-1 whitespace-nowrap">Analyze</button>
-        <button class="text-gray-300 hover:text-white text-sm px-2 py-1 whitespace-nowrap">Display</button>
-        <button class="text-gray-300 hover:text-white text-sm px-2 py-1 whitespace-nowrap">Design</button> -->
     </div>
 </div>
 
