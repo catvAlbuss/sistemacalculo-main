@@ -1,7 +1,9 @@
 import * as BABYLON from "@babylonjs/core";
 import { MeshBuilder, Vector3, Color3, TransformNode } from "@babylonjs/core";
 import { getViewer3DState } from "./viewer3d.js";
-import { createSimpleAxisLabel } from "./axes3d.js";
+// import { createSimpleAxisLabel } from "./axes3d.js";
+// Al inicio de grid3d.js, agrega estas importaciones
+import { createSimpleAxisLabel, createStoryLabel3D, createElevationLabel3D } from "./axes3d.js";
 
 const COLORS = {
   base: new BABYLON.Color3(0.18, 0.22, 0.32),
@@ -34,11 +36,7 @@ function createLine(name, p1, p2, color, alpha = 1) {
   const scene = getScene();
   if (!scene) return null;
 
-  const line = BABYLON.MeshBuilder.CreateLines(
-    name,
-    { points: [p1, p2], updatable: false },
-    scene,
-  );
+  const line = BABYLON.MeshBuilder.CreateLines(name, { points: [p1, p2], updatable: false }, scene);
 
   line.color = color;
   line.alpha = alpha;
@@ -53,11 +51,7 @@ function createPolyline(name, points, color, alpha = 1, closed = false) {
 
   const pts = closed ? [...points, points[0]] : points;
 
-  const line = BABYLON.MeshBuilder.CreateLines(
-    name,
-    { points: pts, updatable: false },
-    scene,
-  );
+  const line = BABYLON.MeshBuilder.CreateLines(name, { points: pts, updatable: false }, scene);
 
   line.color = color;
   line.alpha = alpha;
@@ -73,27 +67,16 @@ function createLabel(name, text, color, position) {
   let label = null;
 
   try {
-    label = createSimpleAxisLabel(text, color, scene);
-  } catch {
-    try {
-      label = createSimpleAxisLabel(text, color, position, scene);
-    } catch {
-      label = null;
-    }
+    // Pasar posición correctamente
+    label = createSimpleAxisLabel(text, color, scene, position);
+  } catch (error) {
+    console.warn(`Error creating label ${name}:`, error);
+    label = null;
   }
 
   if (!label) return null;
 
   label.name = name;
-
-  if (label.position && position) {
-    if (typeof label.position.copyFrom === "function") {
-      label.position.copyFrom(position);
-    } else {
-      label.position = position;
-    }
-  }
-
   label.isPickable = false;
   return registerElement(label);
 }
@@ -129,23 +112,11 @@ function createHorizontalGrid(prefix, xPositions, yPositions, z, color, alpha = 
   const maxY = Math.max(...yPositions);
 
   xPositions.forEach((x, i) => {
-    createLine(
-      `${prefix}_x_${i}`,
-      mapToBabylon(x, minY, z),
-      mapToBabylon(x, maxY, z),
-      color,
-      alpha,
-    );
+    createLine(`${prefix}_x_${i}`, mapToBabylon(x, minY, z), mapToBabylon(x, maxY, z), color, alpha);
   });
 
   yPositions.forEach((y, i) => {
-    createLine(
-      `${prefix}_y_${i}`,
-      mapToBabylon(minX, y, z),
-      mapToBabylon(maxX, y, z),
-      color,
-      alpha,
-    );
+    createLine(`${prefix}_y_${i}`, mapToBabylon(minX, y, z), mapToBabylon(maxX, y, z), color, alpha);
   });
 
   createPolyline(
@@ -177,13 +148,7 @@ function createVerticalGridX(prefix, xConst, yPositions, maxZ, storyHeight, colo
   }
 
   yPositions.forEach((y, i) => {
-    createLine(
-      `${prefix}_v_${i}`,
-      mapToBabylon(xConst, y, 0),
-      mapToBabylon(xConst, y, maxZ),
-      color,
-      alpha,
-    );
+    createLine(`${prefix}_v_${i}`, mapToBabylon(xConst, y, 0), mapToBabylon(xConst, y, maxZ), color, alpha);
   });
 
   createPolyline(
@@ -215,13 +180,7 @@ function createVerticalGridY(prefix, yConst, xPositions, maxZ, storyHeight, colo
   }
 
   xPositions.forEach((x, i) => {
-    createLine(
-      `${prefix}_v_${i}`,
-      mapToBabylon(x, yConst, 0),
-      mapToBabylon(x, yConst, maxZ),
-      color,
-      alpha,
-    );
+    createLine(`${prefix}_v_${i}`, mapToBabylon(x, yConst, 0), mapToBabylon(x, yConst, maxZ), color, alpha);
   });
 
   createPolyline(
@@ -246,12 +205,9 @@ function drawStoryLabels(refGrid, maxZ) {
   for (let i = 0; i <= refGrid.storyCount; i++) {
     const z = i * refGrid.storyHeight;
     const label = i === 0 ? "BASE" : `P${i}`;
-    createLabel(
-      `ref_story_label_${i}`,
-      label,
-      COLORS.text,
-      mapToBabylon(offsetX, offsetY, Math.min(z, maxZ)),
-    );
+    // Asegurar que z no supere maxZ
+    const finalZ = Math.min(z, maxZ);
+    createLabel(`ref_story_label_${i}`, label, COLORS.text, mapToBabylon(offsetX, offsetY, finalZ));
   }
 }
 
@@ -261,21 +217,11 @@ function drawAxisLabels(refGrid) {
   const yOffset = refGrid.xSpacing * 0.18;
 
   refGrid.xPositions.forEach((x, i) => {
-    createLabel(
-      `ref_x_label_${i}`,
-      refGrid.xLabels[i],
-      COLORS.text,
-      mapToBabylon(x, minY - xOffset, 0),
-    );
+    createLabel(`ref_x_label_${i}`, refGrid.xLabels[i], COLORS.text, mapToBabylon(x, minY - xOffset, 0));
   });
 
   refGrid.yPositions.forEach((y, i) => {
-    createLabel(
-      `ref_y_label_${i}`,
-      String(refGrid.yLabels[i]),
-      COLORS.text,
-      mapToBabylon(minX - yOffset, y, 0),
-    );
+    createLabel(`ref_y_label_${i}`, String(refGrid.yLabels[i]), COLORS.text, mapToBabylon(minX - yOffset, y, 0));
   });
 }
 
@@ -285,29 +231,11 @@ function drawWorldAxes(refGrid, maxZ) {
   const axisLenY = Math.max(...refGrid.yPositions) - minY + refGrid.ySpacing * 0.6;
   const axisLenZ = maxZ + refGrid.storyHeight * 0.5;
 
-  createLine(
-    "ref_axis_x",
-    mapToBabylon(minX, minY, 0),
-    mapToBabylon(minX + axisLenX, minY, 0),
-    COLORS.axisX,
-    0.9,
-  );
+  createLine("ref_axis_x", mapToBabylon(minX, minY, 0), mapToBabylon(minX + axisLenX, minY, 0), COLORS.axisX, 0.9);
 
-  createLine(
-    "ref_axis_y",
-    mapToBabylon(minX, minY, 0),
-    mapToBabylon(minX, minY + axisLenY, 0),
-    COLORS.axisY,
-    0.9,
-  );
+  createLine("ref_axis_y", mapToBabylon(minX, minY, 0), mapToBabylon(minX, minY + axisLenY, 0), COLORS.axisY, 0.9);
 
-  createLine(
-    "ref_axis_z",
-    mapToBabylon(minX, minY, 0),
-    mapToBabylon(minX, minY, axisLenZ),
-    COLORS.axisZ,
-    0.9,
-  );
+  createLine("ref_axis_z", mapToBabylon(minX, minY, 0), mapToBabylon(minX, minY, axisLenZ), COLORS.axisZ, 0.9);
 
   createLabel("ref_axis_x_label", "X", COLORS.axisX, mapToBabylon(minX + axisLenX + 0.2, minY, 0));
   createLabel("ref_axis_y_label", "Y", COLORS.axisY, mapToBabylon(minX, minY + axisLenY + 0.2, 0));
@@ -325,24 +253,13 @@ function drawActiveView(refGrid, context) {
   if (view.type === "plan") {
     const z = view.elevation ?? 0;
 
-    createHorizontalGrid(
-      "activeview_plan",
-      refGrid.xPositions,
-      refGrid.yPositions,
-      z,
-      COLORS.active,
-      1,
-    );
+    createHorizontalGrid("activeview_plan", refGrid.xPositions, refGrid.yPositions, z, COLORS.active, 1);
 
     createLabel(
       "activeview_label",
       view.name,
       COLORS.active,
-      mapToBabylon(
-        Math.min(...refGrid.xPositions),
-        Math.min(...refGrid.yPositions) - refGrid.ySpacing * 0.7,
-        z,
-      ),
+      mapToBabylon(Math.min(...refGrid.xPositions), Math.min(...refGrid.yPositions) - refGrid.ySpacing * 0.7, z),
     );
   }
 
@@ -443,9 +360,14 @@ function drawReferenceStructure(refGrid) {
     0.16,
   );
 
+  // 🔧 Ahora maxZ ya está definido
   drawAxisLabels(refGrid);
   drawStoryLabels(refGrid, maxZ);
   drawWorldAxes(refGrid, maxZ);
+
+  // ========== NUEVO: Dibujar labels de pisos y elevaciones en 3D ==========
+  drawStoryElevationLabels(refGrid);
+  drawAxisElevationLabels(refGrid);
 }
 
 export function clearReferenceGrid3D() {
@@ -563,13 +485,9 @@ function getStoryElevations(referenceGrid, stories = []) {
 export function clearCustomGeneralGrids3D(scene) {
   if (!scene) return;
 
-  scene.meshes
-    .filter((m) => m.metadata?.type === "customGeneralGrid3D")
-    .forEach((m) => m.dispose());
+  scene.meshes.filter((m) => m.metadata?.type === "customGeneralGrid3D").forEach((m) => m.dispose());
 
-  scene.transformNodes
-    .filter((n) => n.metadata?.type === "customGeneralGrid3DRoot")
-    .forEach((n) => n.dispose());
+  scene.transformNodes.filter((n) => n.metadata?.type === "customGeneralGrid3DRoot").forEach((n) => n.dispose());
 }
 
 export function drawCustomGeneralGrids3D(scene, referenceGrid, stories = []) {
@@ -578,9 +496,7 @@ export function drawCustomGeneralGrids3D(scene, referenceGrid, stories = []) {
   clearCustomGeneralGrids3D(scene);
 
   const allGeneralGrids = referenceGrid.generalGrids || [];
-  const customLines = allGeneralGrids.filter(
-    (line) => line.visible !== false && line.source === "custom"
-  );
+  const customLines = allGeneralGrids.filter((line) => line.visible !== false && line.source === "custom");
 
   if (!customLines.length) return;
 
@@ -594,16 +510,13 @@ export function drawCustomGeneralGrids3D(scene, referenceGrid, stories = []) {
       const mesh = MeshBuilder.CreateDashedLines(
         `custom-general-grid-${line.id}-${index}`,
         {
-          points: [
-            modelToBabylon(line.x1, line.y1, elev),
-            modelToBabylon(line.x2, line.y2, elev),
-          ],
+          points: [modelToBabylon(line.x1, line.y1, elev), modelToBabylon(line.x2, line.y2, elev)],
           dashSize: 0.35,
           gapSize: 0.2,
           dashNb: 40,
           updatable: false,
         },
-        scene
+        scene,
       );
 
       mesh.color = new Color3(0.9, 0.9, 0.9);
@@ -615,5 +528,109 @@ export function drawCustomGeneralGrids3D(scene, referenceGrid, stories = []) {
         elevation: elev,
       };
     });
+  });
+}
+
+// Coloca estas funciones antes de drawReferenceStructure
+
+function getStoryElevationLabels(refGrid) {
+  const labels = [];
+  const storyCount = refGrid.storyCount;
+  const storyHeight = refGrid.storyHeight;
+
+  const { minX, minY } = getReferenceBounds(refGrid);
+  const offsetX = minX - (refGrid.xSpacing || 1) * 0.6;
+  const offsetY = minY - (refGrid.ySpacing || 1) * 0.6;
+
+  for (let i = 0; i <= storyCount; i++) {
+    const z = i * storyHeight;
+    const labelName = i === 0 ? "BASE" : `PISO ${i}`;
+    const elevationText = `${labelName}\nEL. ${z.toFixed(2)}m`;
+
+    const position = mapToBabylon(offsetX, offsetY, z);
+
+    labels.push({
+      text: elevationText,
+      position: position,
+      z: z,
+      storyIndex: i,
+    });
+  }
+
+  return labels;
+}
+
+function getAxisElevationLabels(refGrid) {
+  const labels = [];
+  const { minX, minY } = getReferenceBounds(refGrid);
+  const offset = 1.2;
+
+  // Labels para ejes X (Letras) - SOLO en la base
+  if (refGrid.xPositions && refGrid.xLabels) {
+    refGrid.xPositions.forEach((x, idx) => {
+      const label = refGrid.xLabels[idx];
+      labels.push({
+        text: label,
+        position: mapToBabylon(x, minY - offset, 0),
+        type: 'x_bottom'
+      });
+    });
+  }
+
+  // Labels para ejes Y (Números) - SOLO en la base
+  if (refGrid.yPositions && refGrid.yLabels) {
+    refGrid.yPositions.forEach((y, idx) => {
+      const label = refGrid.yLabels[idx];
+      labels.push({
+        text: String(label),
+        position: mapToBabylon(minX - offset, y, 0),
+        type: 'y_bottom'
+      });
+    });
+  }
+  
+  return labels;
+}
+
+function drawStoryElevationLabels(refGrid) {
+  const storyLabels = getStoryElevationLabels(refGrid);
+  const scene = getScene();
+
+  if (!scene) {
+    console.warn("❌ No scene found");
+    return;
+  }
+
+  storyLabels.forEach((labelInfo) => {
+    
+    const label = createStoryLabel3D(labelInfo.text, labelInfo.position, scene, COLORS.text);
+    if (label) {
+      registerElement(label);
+    } else {
+      console.warn("❌ Failed to create label:", labelInfo.text);
+    }
+  });
+}
+
+function drawAxisElevationLabels(refGrid) {
+  const axisLabels = getAxisElevationLabels(refGrid);
+  const scene = getScene();
+
+  if (!scene) return;
+
+  // Usar un Set para evitar duplicados por nombre
+  const createdLabels = new Set();
+
+  axisLabels.forEach((labelInfo) => {
+    // Crear un ID único para evitar duplicados
+    const labelId = `${labelInfo.text}_${labelInfo.position.x}_${labelInfo.position.y}_${labelInfo.position.z}`;
+    
+    if (!createdLabels.has(labelId)) {
+      createdLabels.add(labelId);
+      const label = createElevationLabel3D(labelInfo.text, labelInfo.position, scene, COLORS.text);
+      if (label) {
+        registerElement(label);
+      }
+    }
   });
 }
