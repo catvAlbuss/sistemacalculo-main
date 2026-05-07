@@ -603,92 +603,145 @@
         </x-cad.menu-dropdown-item>
 
         {{-- Menú ASSIGN (estilo ETABS con submenús) --}}
-        <x-cad.menu-dropdown-item label="Asignar">
+        <x-cad.menu-dropdown-item label="Assign">
             <x-slot name="slot">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                 </svg>
             </x-slot>
+
             <x-slot name="dropdown">
-                <div class="py-1" style="min-width: 220px; overflow-x: visible;">
+                <div class="py-1" style="min-width: 260px; overflow-x: visible;">
 
-                    {{-- ========== TIPO DE OBJETO ========== --}}
-                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">Tipo de Objeto</div>
-
-                    {{-- Joint/Point --}}
-                    <x-cad.menu-subitem label="Nudo/Punto">
+                    {{-- ================= JOINT / POINT ================= --}}
+                    <x-cad.menu-subitem label="Joint / Point">
                         <span>⚫</span>
+
                         <x-slot name="submenu">
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap">
-                                🏢 Diafragmas...
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="activateAssignMenuAction('joint-diaphragms')">
+                                🏢 Diaphragms...
                             </button>
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap">
-                                ⚓ Restricciones (Soportes)...
+
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="activateAssignMenuAction('joint-restraints')">
+                                ⚓ Restraints (Supports)...
                             </button>
-                            <div class="my-1 border-t border-gray-200"></div>
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap">
-                                ➿ Resortes Puntuales...
+
+                            <div class="my-1 border-t border-gray-700"></div>
+
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="activateAssignMenuAction('joint-springs')">
+                                ➿ Point Springs...
                             </button>
                         </x-slot>
                     </x-cad.menu-subitem>
 
-                    {{-- Frame/Line --}}
-                    <x-cad.menu-subitem label="Elemento Frame/Línea">
+
+                    {{-- ================= FRAME / LINE ================= --}}
+                    <x-cad.menu-subitem label="Frame / Line">
                         <span>━━</span>
+
                         <x-slot name="submenu">
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap">
-                                📐 Sección de Elemento Frame...
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="activateAssignMenuAction('frame-section')">
+                                📐 Frame Section...
                             </button>
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap">
-                                🔓 Liberaciones de Extremo / Fijación Parcial...
+
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="activateAssignMenuAction('frame-releases')">
+                                🔓 Frame Releases / Partial Fixity...
                             </button>
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap">
-                                📏 Desplazamiento de la longi...
+
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="activateAssignMenuAction('frame-end-offsets')">
+                                📏 End (Length) Offsets...
                             </button>
                         </x-slot>
                     </x-cad.menu-subitem>
 
-                    {{-- Shell/Area --}}
 
                     <div class="border-t border-gray-700 my-1"></div>
 
-                    {{-- ========== CARGAS EN NUDOS/PUNTOS ========== --}}
-                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">Cargas en Nudos/Puntos</div>
 
-                    <x-cad.menu-subitem label="Cargas en Nudos/Puntos">
+                    {{-- ================= JOINT / POINT LOADS ================= --}}
+                    <x-cad.menu-subitem label="Joint / Point Loads">
                         <span>🔴</span>
+
                         <x-slot name="submenu">
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap">
-                                🎯 Fuerza (Force)...
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="activateAssignMenuAction('joint-load-force')">
+                                🎯 Force...
                             </button>
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap">
-                                🌍 Desplazamiento del Terreno...
+
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="activateAssignMenuAction('joint-load-ground-displacement')">
+                                🌍 Ground Displacement...
                             </button>
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap">
-                                🌡️ Temperatura...
+
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="activateAssignMenuAction('joint-load-temperature')">
+                                🌡️ Temperature...
                             </button>
                         </x-slot>
                     </x-cad.menu-subitem>
+
+
+                    {{-- ================= FRAME / LINE LOADS ================= --}}
+                    <x-cad.menu-subitem label="Frame / Line Loads">
+                        <span>📊</span>
+
+                        <x-slot name="submenu">
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="activateAssignMenuAction('frame-load-point')">
+                                📍 Point...
+                            </button>
+
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="activateAssignMenuAction('frame-load-distributed')">
+                                📊 Distributed...
+                            </button>
+
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="activateAssignMenuAction('frame-load-temperature')">
+                                🌡️ Temperature...
+                            </button>
+                        </x-slot>
+                    </x-cad.menu-subitem>
+
 
                     <div class="border-t border-gray-700 my-1"></div>
 
-                    {{-- ========== CARGAS EN ELEMENTOS FRAME/LÍNEA ========== --}}
-                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">Cargas en Elementos Frame/Línea</div>
 
-                    <x-cad.menu-subitem label="Cargas en Frame/Línea">
-                        <span>📊</span>
-                        <x-slot name="submenu">
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap">
-                                📍 Puntual (Point)...
-                            </button>
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap">
-                                📊 Distribuida (Distributed)...
-                            </button>
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap">
-                                🌡️ Temperatura...
-                            </button>
-                        </x-slot>
-                    </x-cad.menu-subitem>
+                    {{-- ================= GROUP NAMES ================= --}}
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="activateAssignMenuAction('group-names')">
+                        🧩 Group Names...
+                    </button>
+
+                    <!-- ================= SHOW SELECTED ASSIGNMENTS ================= -->
+                    <div class="border-t border-gray-700 my-1"></div>
+
+                    <button
+                        class="w-full text-left px-4 py-2 text-sm hover:bg-gray-700"
+                        onclick="window.cadSystem?.activateAssignMenuAction?.('show-selected-assignments')">
+                        📋 Show Selected Assignments...
+                    </button>
+
                 </div>
             </x-slot>
         </x-cad.menu-dropdown-item>
