@@ -64,7 +64,7 @@ import { openMassSourceDialog } from "./dialogs/mass-source-dialog.js";
 import { menus, getMenuContent } from "./menus/index.js";
 
 export default () => ({
-  init() { },
+  init() {},
 
   // NUEVAS PROPIEDADES PARA 3D
   show3DView: false,
@@ -153,9 +153,9 @@ export default () => ({
     checkSlenderness: true,
     checkCompactness: true,
 
-    phiBending: 0.90,
-    phiCompression: 0.90,
-    phiShear: 0.90,
+    phiBending: 0.9,
+    phiCompression: 0.9,
+    phiShear: 0.9,
 
     deflectionLimitLive: 360,
     deflectionLimitTotal: 240,
@@ -196,8 +196,8 @@ export default () => ({
     designMethod: "LRFD",
     checkDeflection: true,
     checkSlenderness: true,
-    phiBending: 0.90,
-    phiCompression: 0.90,
+    phiBending: 0.9,
+    phiCompression: 0.9,
   },
 
   reinforcementBarSizes: [
@@ -304,54 +304,9 @@ export default () => ({
   menus: Object.values(menus),
   getMenuContent,
 
-
   // ===========================================================
   // ========== PROPIEDADES PARA LA SECION MATERIALES ==============
   // ===========================================================
-  materialProperties: {
-    open: false,
-    materials: [],
-    selectedMaterial: null,
-  },
-
-  frameSections: {
-    open: false,
-    sections: [],
-    selectedSection: null,
-  },
-
-  loadCases: {
-    open: false,
-    cases: [
-      { name: "CM", type: "Dead", selfWeight: true, value: 1.0 },
-      { name: "CV", type: "Live", value: 1.0 },
-      { name: "CVV+", type: "Live", value: 0.5 },
-      { name: "CVV-", type: "Live", value: 0.5 },
-      { name: "CN", type: "Live", value: 0.3 },
-      { name: "CLL", type: "Live", value: 0.4 },
-    ],
-  },
-
-  loadCombinations: {
-    open: false,
-    combinations: [
-      { name: "COMB1", expression: "1.4CM + 1.7CV" },
-      { name: "COMB2", expression: "1.25CM + 1.25CV + 1.0CVV+" },
-      { name: "COMB3", expression: "0.9CM + 1.0CVV-" },
-    ],
-  },
-
-  massSource: {
-    open: false,
-    sources: {
-      fromLoads: true,
-      fromElements: false,
-      multiplier: 1.0,
-    },
-  },
-
-  menus: Object.values(menus),
-  getMenuContent,
 
   materialModalOpen: false, // propiedad para usar el modal de materiales
 
@@ -399,10 +354,6 @@ export default () => ({
     selectedSequentialCase: null,
   },
 
-  loadCombinations: {
-    items: [],
-    selectedCombination: null,
-  },
   specialSeismicData: {
     useForDesign: "include",
     rhoFactor: "program",
@@ -743,7 +694,7 @@ export default () => ({
     }
   },
 
-  // ========================================= 
+  // =========================================
   // ========== MÉTODOS PARA DEFINE ==========
   // =========================================
 
@@ -786,12 +737,14 @@ export default () => ({
     let inside = false;
 
     for (let i = 0, j = polygonPoints.length - 1; i < polygonPoints.length; j = i++) {
-      const xi = polygonPoints[i].x, yi = polygonPoints[i].y;
-      const xj = polygonPoints[j].x, yj = polygonPoints[j].y;
+      const xi = polygonPoints[i].x,
+        yi = polygonPoints[i].y;
+      const xj = polygonPoints[j].x,
+        yj = polygonPoints[j].y;
 
       const intersect =
-        ((yi > screenPoint.y) !== (yj > screenPoint.y)) &&
-        (screenPoint.x < ((xj - xi) * (screenPoint.y - yi)) / ((yj - yi) || 1e-9) + xi);
+        yi > screenPoint.y !== yj > screenPoint.y &&
+        screenPoint.x < ((xj - xi) * (screenPoint.y - yi)) / (yj - yi || 1e-9) + xi;
 
       if (intersect) inside = !inside;
     }
@@ -813,9 +766,7 @@ export default () => ({
     this.areas.forEach((area) => {
       if (!area.visible || !area.points || area.points.length < 3) return;
 
-      const pts = area.points.map((p) =>
-        this.currentRenderer.projectPoint({ position: p }, this)
-      );
+      const pts = area.points.map((p) => this.currentRenderer.projectPoint({ position: p }, this));
 
       // Si el clic cae dentro del polígono, seleccionar directo
       if (this.pointInPolygon(searchPoint, pts)) {
@@ -904,10 +855,7 @@ export default () => ({
         const view = this.viewSet?.[this.activeViewIndex];
 
         if (!view || view.type !== "plan") {
-          this.showMessage(
-            "Create Columns solo está disponible en vistas de planta",
-            "warning"
-          );
+          this.showMessage("Create Columns solo está disponible en vistas de planta", "warning");
           break;
         }
 
@@ -921,18 +869,13 @@ export default () => ({
         const view = this.viewSet?.[this.activeViewIndex];
 
         if (!view || view.type !== "plan") {
-          this.showMessage(
-            "Create Secondary Beams solo está disponible en vistas de planta",
-            "warning"
-          );
+          this.showMessage("Create Secondary Beams solo está disponible en vistas de planta", "warning");
           break;
         }
 
         this.clearAllSelections?.();
         this.setState(this.createSecondaryBeamsRegionClicksState);
-        this.showMessage(
-          "Create Secondary Beams activado | R cambia dirección | + / - cambia cantidad"
-        );
+        this.showMessage("Create Secondary Beams activado | R cambia dirección | + / - cambia cantidad");
         break;
       }
 
@@ -1252,16 +1195,12 @@ export default () => ({
 
     // Caso objeto con nodes[]
     if (Array.isArray(obj.nodes)) {
-      return obj.nodes
-        .map((node) => this.getPointPosition(node))
-        .filter(Boolean);
+      return obj.nodes.map((node) => this.getPointPosition(node)).filter(Boolean);
     }
 
     // Caso objeto con points[]
     if (Array.isArray(obj.points)) {
-      return obj.points
-        .map((point) => this.getPointPosition(point))
-        .filter(Boolean);
+      return obj.points.map((point) => this.getPointPosition(point)).filter(Boolean);
     }
 
     return [];
@@ -1292,11 +1231,7 @@ export default () => ({
 
   getDefaultPlaneValue(plane = "XY") {
     if (plane === "XY") {
-      return Number(
-        this.currentZ ??
-        this.stories?.[this.activeStory]?.elevation ??
-        0
-      );
+      return Number(this.currentZ ?? this.stories?.[this.activeStory]?.elevation ?? 0);
     }
 
     if (plane === "XZ") {
@@ -1313,11 +1248,7 @@ export default () => ({
   async selectByPlane(plane = "XY") {
     const defaultValue = this.getDefaultPlaneValue(plane);
 
-    const axisLabel = plane === "XY"
-      ? "Z"
-      : plane === "XZ"
-        ? "Y"
-        : "X";
+    const axisLabel = plane === "XY" ? "Z" : plane === "XZ" ? "Y" : "X";
 
     const result = await Swal.fire({
       title: `Seleccionar en Plano ${plane}`,
@@ -1342,24 +1273,18 @@ export default () => ({
     const tolerance = this.getModelTolerance?.() ?? 0.001;
 
     const objects = this.getSelectableObjects().filter((obj) =>
-      this.isObjectOnPlane(obj, plane, planeValue, tolerance)
+      this.isObjectOnPlane(obj, plane, planeValue, tolerance),
     );
 
     this.selectObjects(objects);
 
-    this.showMessage?.(
-      `Plano ${plane}: ${objects.length} objetos seleccionados`
-    );
+    this.showMessage?.(`Plano ${plane}: ${objects.length} objetos seleccionados`);
   },
 
   async deselectByPlane(plane = "XY") {
     const defaultValue = this.getDefaultPlaneValue(plane);
 
-    const axisLabel = plane === "XY"
-      ? "Z"
-      : plane === "XZ"
-        ? "Y"
-        : "X";
+    const axisLabel = plane === "XY" ? "Z" : plane === "XZ" ? "Y" : "X";
 
     const result = await Swal.fire({
       title: `Deseleccionar en Plano ${plane}`,
@@ -1383,15 +1308,11 @@ export default () => ({
     const planeValue = result.value;
     const tolerance = this.getModelTolerance?.() ?? 0.001;
 
-    const objects = this.getSelectedObjects().filter((obj) =>
-      this.isObjectOnPlane(obj, plane, planeValue, tolerance)
-    );
+    const objects = this.getSelectedObjects().filter((obj) => this.isObjectOnPlane(obj, plane, planeValue, tolerance));
 
     this.deselectObjects(objects);
 
-    this.showMessage?.(
-      `Plano ${plane}: ${objects.length} objetos deseleccionados`
-    );
+    this.showMessage?.(`Plano ${plane}: ${objects.length} objetos deseleccionados`);
   },
 
   setWindowLayout(layout) {
@@ -1409,25 +1330,12 @@ export default () => ({
     workspace.dataset.layout = layout;
 
     // Limpiar clases del workspace
-    workspace.classList.remove(
-      "grid-cols-1",
-      "grid-cols-2",
-      "grid-rows-1",
-      "grid-rows-2"
-    );
+    workspace.classList.remove("grid-cols-1", "grid-cols-2", "grid-rows-1", "grid-rows-2");
 
     // Limpiar clases de paneles
-    panel2D.classList.remove(
-      "hidden",
-      "border-r",
-      "border-b"
-    );
+    panel2D.classList.remove("hidden", "border-r", "border-b");
 
-    panel3D.classList.remove(
-      "hidden",
-      "border-r",
-      "border-b"
-    );
+    panel3D.classList.remove("hidden", "border-r", "border-b");
 
     // ==========================
     // One: solo vista 2D
@@ -1480,21 +1388,13 @@ export default () => ({
 
       panel2D.classList.add("border-r");
 
-      this.showMessage?.(
-        "Windows: Three requiere crear una tercera vista",
-        "warning"
-      );
-    }
-
-    else if (layout === "four") {
+      this.showMessage?.("Windows: Three requiere crear una tercera vista", "warning");
+    } else if (layout === "four") {
       workspace.classList.add("grid-cols-2", "grid-rows-1");
 
       panel2D.classList.add("border-r");
 
-      this.showMessage?.(
-        "Windows: Four requiere crear vistas adicionales",
-        "warning"
-      );
+      this.showMessage?.("Windows: Four requiere crear vistas adicionales", "warning");
     }
 
     setTimeout(() => {
@@ -1566,11 +1466,7 @@ export default () => ({
 
     // localStorage.setItem("cad-canvas-theme", themeKey);
 
-    this.showMessage?.(
-      themeKey === "dark"
-        ? "Canvas oscuro activado"
-        : "Canvas claro activado"
-    );
+    this.showMessage?.(themeKey === "dark" ? "Canvas oscuro activado" : "Canvas claro activado");
 
     this.redraw?.();
     this.sync3D?.();
@@ -1585,12 +1481,7 @@ export default () => ({
 
     if (!rgb) return;
 
-    viewer.scene.clearColor = new BABYLON.Color4(
-      rgb.r / 255,
-      rgb.g / 255,
-      rgb.b / 255,
-      1
-    );
+    viewer.scene.clearColor = new BABYLON.Color4(rgb.r / 255, rgb.g / 255, rgb.b / 255, 1);
   },
 
   hexToRgb(hex) {
@@ -1746,11 +1637,9 @@ export default () => ({
   },
 
   applyDimensionsTolerances() {
-    this.planGridSnapScreenTolerance =
-      Number(this.preferences?.snapScreenTolerance ?? 14);
+    this.planGridSnapScreenTolerance = Number(this.preferences?.snapScreenTolerance ?? 14);
 
-    this.planGridSnapTolerance =
-      Number(this.preferences?.snapWorldTolerance ?? 1.0);
+    this.planGridSnapTolerance = Number(this.preferences?.snapWorldTolerance ?? 1.0);
   },
 
   getModelTolerance() {
@@ -1898,14 +1787,9 @@ export default () => ({
         ...result.value,
       };
 
-      localStorage.setItem(
-        "cad-steel-frame-design",
-        JSON.stringify(this.steelFrameDesign)
-      );
+      localStorage.setItem("cad-steel-frame-design", JSON.stringify(this.steelFrameDesign));
 
-      this.showMessage?.(
-        `Steel Frame Design: ${this.steelFrameDesign.code} - ${this.steelFrameDesign.designMethod}`
-      );
+      this.showMessage?.(`Steel Frame Design: ${this.steelFrameDesign.code} - ${this.steelFrameDesign.designMethod}`);
 
       return;
     }
@@ -1924,18 +1808,15 @@ export default () => ({
       checkSlenderness: true,
       checkCompactness: true,
 
-      phiBending: 0.90,
-      phiCompression: 0.90,
-      phiShear: 0.90,
+      phiBending: 0.9,
+      phiCompression: 0.9,
+      phiShear: 0.9,
 
       deflectionLimitLive: 360,
       deflectionLimitTotal: 240,
     };
 
-    localStorage.setItem(
-      "cad-steel-frame-design",
-      JSON.stringify(this.steelFrameDesign)
-    );
+    localStorage.setItem("cad-steel-frame-design", JSON.stringify(this.steelFrameDesign));
 
     this.showMessage?.("Steel Frame Design restaurado");
   },
@@ -2012,10 +1893,7 @@ export default () => ({
     if (result.isConfirmed && result.value) {
       this.reinforcementBarSizes = result.value;
 
-      localStorage.setItem(
-        "cad-reinforcement-bar-sizes",
-        JSON.stringify(this.reinforcementBarSizes)
-      );
+      localStorage.setItem("cad-reinforcement-bar-sizes", JSON.stringify(this.reinforcementBarSizes));
 
       const enabledCount = this.reinforcementBarSizes.filter((bar) => bar.enabled).length;
 
@@ -2037,10 +1915,7 @@ export default () => ({
       { name: "#8", diameterMm: 25.4, areaMm2: 510, enabled: true },
     ];
 
-    localStorage.setItem(
-      "cad-reinforcement-bar-sizes",
-      JSON.stringify(this.reinforcementBarSizes)
-    );
+    localStorage.setItem("cad-reinforcement-bar-sizes", JSON.stringify(this.reinforcementBarSizes));
 
     this.showMessage?.("Reinforcement Bar Sizes restaurado");
   },
@@ -2063,10 +1938,7 @@ export default () => ({
       this.canvas.style.backgroundColor = this.displayColors.background2d;
     }
 
-    localStorage.setItem(
-      "cad-display-colors",
-      JSON.stringify(this.displayColors)
-    );
+    localStorage.setItem("cad-display-colors", JSON.stringify(this.displayColors));
 
     this.showMessage?.("Colores de visualización actualizados");
 
@@ -2078,29 +1950,29 @@ export default () => ({
     const defaults =
       this.activeCanvasTheme === "light"
         ? {
-          background2d: "#e5e7eb",
-          gridLine: "#cbd5e1",
-          gridMainLine: "#2563eb",
-          beam: "#374151",
-          secondaryBeam: "#0284c7",
-          column: "#16a34a",
-          node: "#475569",
-          text: "#111827",
-          selected: "#ca8a04",
-          snap: "#ea580c",
-        }
+            background2d: "#e5e7eb",
+            gridLine: "#cbd5e1",
+            gridMainLine: "#2563eb",
+            beam: "#374151",
+            secondaryBeam: "#0284c7",
+            column: "#16a34a",
+            node: "#475569",
+            text: "#111827",
+            selected: "#ca8a04",
+            snap: "#ea580c",
+          }
         : {
-          background2d: "#36454F",
-          gridLine: "#2f5f7f",
-          gridMainLine: "#3b82f6",
-          beam: "#d1d5db",
-          secondaryBeam: "#38bdf8",
-          column: "#22c55e",
-          node: "#9ca3af",
-          text: "#ffffff",
-          selected: "#facc15",
-          snap: "#f97316",
-        };
+            background2d: "#36454F",
+            gridLine: "#2f5f7f",
+            gridMainLine: "#3b82f6",
+            beam: "#d1d5db",
+            secondaryBeam: "#38bdf8",
+            column: "#22c55e",
+            node: "#9ca3af",
+            text: "#ffffff",
+            selected: "#facc15",
+            snap: "#f97316",
+          };
 
     this.setDisplayColors(defaults);
   },
@@ -2158,10 +2030,7 @@ export default () => ({
 
     if (this.currentViewMode === "plan") {
       this.updatePlanGridSnap(this.mousePos, { x, y });
-    } else if (
-      this.currentViewMode === "elevationX" ||
-      this.currentViewMode === "elevationY"
-    ) {
+    } else if (this.currentViewMode === "elevationX" || this.currentViewMode === "elevationY") {
       this.updateElevationGridSnap(this.mousePos, { x, y });
     } else {
       this.activeGridPoint = null;
@@ -2367,26 +2236,62 @@ export default () => ({
   },
 
   // Import methods
-  importETABS_E2K() { this.showMessage('📥 Importar ETABS .e2k - Próximamente'); },
-  importETABS6() { this.showMessage('📥 Importar ETABS6 - Próximamente'); },
-  importETABS_EDB() { this.showMessage('📥 Importar ETABS .edb - Próximamente'); },
-  importDXFGrid() { this.showMessage('📥 Importar DXF de Grilla - Próximamente'); },
-  importDXFFloorPlan() { this.showMessage('📥 Importar Plano DXF - Próximamente'); },
-  importDXF3D() { this.showMessage('📥 Importar Modelo 3D DXF - Próximamente'); },
-  importIFC() { this.showMessage('📥 Importar IFC - Próximamente'); },
-  importIGES() { this.showMessage('📥 Importar IGES - Próximamente'); },
-  importCIS2() { this.showMessage('📥 Importar CIS/2 - Próximamente'); },
-  importRevit() { this.showMessage('📥 Importar Revit - Próximamente'); },
-  importProSteel() { this.showMessage('📥 Importar ProSteel - Próximamente'); },
-  importFrameworks() { this.showMessage('📥 Importar Frameworks - Próximamente'); },
-  importSTRUDL() { this.showMessage('📥 Importar STRUDL/STAAD - Próximamente'); },
+  importETABS_E2K() {
+    this.showMessage("📥 Importar ETABS .e2k - Próximamente");
+  },
+  importETABS6() {
+    this.showMessage("📥 Importar ETABS6 - Próximamente");
+  },
+  importETABS_EDB() {
+    this.showMessage("📥 Importar ETABS .edb - Próximamente");
+  },
+  importDXFGrid() {
+    this.showMessage("📥 Importar DXF de Grilla - Próximamente");
+  },
+  importDXFFloorPlan() {
+    this.showMessage("📥 Importar Plano DXF - Próximamente");
+  },
+  importDXF3D() {
+    this.showMessage("📥 Importar Modelo 3D DXF - Próximamente");
+  },
+  importIFC() {
+    this.showMessage("📥 Importar IFC - Próximamente");
+  },
+  importIGES() {
+    this.showMessage("📥 Importar IGES - Próximamente");
+  },
+  importCIS2() {
+    this.showMessage("📥 Importar CIS/2 - Próximamente");
+  },
+  importRevit() {
+    this.showMessage("📥 Importar Revit - Próximamente");
+  },
+  importProSteel() {
+    this.showMessage("📥 Importar ProSteel - Próximamente");
+  },
+  importFrameworks() {
+    this.showMessage("📥 Importar Frameworks - Próximamente");
+  },
+  importSTRUDL() {
+    this.showMessage("📥 Importar STRUDL/STAAD - Próximamente");
+  },
 
   // Export methods
-  exportETABS_E2K() { this.showMessage('📤 Exportar a ETABS .e2k - Próximamente'); },
-  exportSAFE_V8() { this.showMessage('📤 Exportar a SAFE V8 - Próximamente'); },
-  exportSAFE_V12() { this.showMessage('📤 Exportar a SAFE V12 - Próximamente'); },
-  exportETABS_EDB() { this.showMessage('📤 Exportar a ETABS .edb - Próximamente'); },
-  exportProSteelMDB() { this.showMessage('📤 Exportar a ProSteel - Próximamente'); },
+  exportETABS_E2K() {
+    this.showMessage("📤 Exportar a ETABS .e2k - Próximamente");
+  },
+  exportSAFE_V8() {
+    this.showMessage("📤 Exportar a SAFE V8 - Próximamente");
+  },
+  exportSAFE_V12() {
+    this.showMessage("📤 Exportar a SAFE V12 - Próximamente");
+  },
+  exportETABS_EDB() {
+    this.showMessage("📤 Exportar a ETABS .edb - Próximamente");
+  },
+  exportProSteelMDB() {
+    this.showMessage("📤 Exportar a ProSteel - Próximamente");
+  },
 
   // Print methods
   createVideo() {
@@ -2652,13 +2557,13 @@ export default () => ({
         `,
       confirmButtonText: "Replicar",
       cancelButtonText: "Cancelar",
-      showCancelButton: true
+      showCancelButton: true,
     }).then((result) => {
       if (result.isConfirmed) {
-        const copies = parseInt(document.getElementById('copies').value);
-        const dx = parseFloat(document.getElementById('dx').value);
-        const dy = parseFloat(document.getElementById('dy').value);
-        const dz = parseFloat(document.getElementById('dz').value);
+        const copies = parseInt(document.getElementById("copies").value);
+        const dx = parseFloat(document.getElementById("dx").value);
+        const dy = parseFloat(document.getElementById("dy").value);
+        const dz = parseFloat(document.getElementById("dz").value);
         this.replicateElements(copies, dx, dy, dz);
       }
     });
@@ -2682,7 +2587,7 @@ export default () => ({
         const newNode = new StructuralNode(
           original.position.x + offsetX,
           original.position.y + offsetY,
-          (original.position.z || 0) + offsetZ
+          (original.position.z || 0) + offsetZ,
         );
         this.nodes.push(newNode);
         newElements.push(newNode);
@@ -2690,12 +2595,12 @@ export default () => ({
         const newNode1 = new StructuralNode(
           original.node1.position.x + offsetX,
           original.node1.position.y + offsetY,
-          (original.node1.position.z || 0) + offsetZ
+          (original.node1.position.z || 0) + offsetZ,
         );
         const newNode2 = new StructuralNode(
           original.node2.position.x + offsetX,
           original.node2.position.y + offsetY,
-          (original.node2.position.z || 0) + offsetZ
+          (original.node2.position.z || 0) + offsetZ,
         );
         this.nodes.push(newNode1, newNode2);
         const newBeam = new Beam(newNode1, newNode2);
@@ -2725,13 +2630,17 @@ export default () => ({
                 <div class="mb-3">
                     <label class="block text-xs font-semibold text-gray-400 mb-2">Lista de Pisos</label>
                     <div id="storyList" class="border border-gray-700 rounded bg-gray-900 max-h-40 overflow-y-auto">
-                        ${this.stories.map((story, idx) => `
+                        ${this.stories
+                          .map(
+                            (story, idx) => `
                             <div class="flex justify-between items-center px-3 py-2 border-b border-gray-700">
                                 <input type="text" value="${story.name}" data-idx="${idx}" data-field="name" class="story-input w-24 bg-gray-800 text-white text-sm px-2 py-1 rounded">
                                 <input type="number" step="0.5" value="${story.elevation}" data-idx="${idx}" data-field="elevation" class="story-input w-20 bg-gray-800 text-white text-sm px-2 py-1 rounded">
                                 <button class="delete-story text-red-400 hover:text-red-300" data-idx="${idx}">✕</button>
                             </div>
-                        `).join('')}
+                        `,
+                          )
+                          .join("")}
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
@@ -2745,22 +2654,22 @@ export default () => ({
       cancelButtonText: "Cancelar",
       showCancelButton: true,
       didOpen: (popup) => {
-        popup.querySelector('#addStoryBtn').onclick = () => {
-          const name = popup.querySelector('#newStoryName').value;
-          const elevation = parseFloat(popup.querySelector('#newStoryElevation').value);
+        popup.querySelector("#addStoryBtn").onclick = () => {
+          const name = popup.querySelector("#newStoryName").value;
+          const elevation = parseFloat(popup.querySelector("#newStoryElevation").value);
           if (name) {
             this.stories.push({ id: this.stories.length, name, elevation });
             this.updateStoryList(popup);
           }
         };
-        popup.querySelectorAll('.delete-story').forEach(btn => {
+        popup.querySelectorAll(".delete-story").forEach((btn) => {
           btn.onclick = (e) => {
-            const idx = parseInt(btn.getAttribute('data-idx'));
+            const idx = parseInt(btn.getAttribute("data-idx"));
             this.stories.splice(idx, 1);
             this.updateStoryList(popup);
           };
         });
-      }
+      },
     }).then((result) => {
       if (result.isConfirmed) {
         this.redraw();
@@ -2771,26 +2680,30 @@ export default () => ({
   },
 
   updateStoryList(popup) {
-    const container = popup.querySelector('#storyList');
-    container.innerHTML = this.stories.map((story, idx) => `
+    const container = popup.querySelector("#storyList");
+    container.innerHTML = this.stories
+      .map(
+        (story, idx) => `
         <div class="flex justify-between items-center px-3 py-2 border-b border-gray-700">
             <input type="text" value="${story.name}" data-idx="${idx}" data-field="name" class="story-input w-24 bg-gray-800 text-white text-sm px-2 py-1 rounded">
             <input type="number" step="0.5" value="${story.elevation}" data-idx="${idx}" data-field="elevation" class="story-input w-20 bg-gray-800 text-white text-sm px-2 py-1 rounded">
             <button class="delete-story text-red-400 hover:text-red-300" data-idx="${idx}">✕</button>
         </div>
-    `).join('');
+    `,
+      )
+      .join("");
 
-    popup.querySelectorAll('.story-input').forEach(input => {
+    popup.querySelectorAll(".story-input").forEach((input) => {
       input.onchange = (e) => {
-        const idx = parseInt(input.getAttribute('data-idx'));
-        const field = input.getAttribute('data-field');
+        const idx = parseInt(input.getAttribute("data-idx"));
+        const field = input.getAttribute("data-field");
         this.stories[idx][field] = input.value;
       };
     });
 
-    popup.querySelectorAll('.delete-story').forEach(btn => {
+    popup.querySelectorAll(".delete-story").forEach((btn) => {
       btn.onclick = (e) => {
-        const idx = parseInt(btn.getAttribute('data-idx'));
+        const idx = parseInt(btn.getAttribute("data-idx"));
         this.stories.splice(idx, 1);
         this.updateStoryList(popup);
       };
@@ -2813,16 +2726,16 @@ export default () => ({
         type: obj.isBeam ? "beam" : "node",
         data: obj.isBeam
           ? {
-            id: obj.id,
-            node1: { x: obj.node1.position.x, y: obj.node1.position.y, z: obj.node1.position.z },
-            node2: { x: obj.node2.position.x, y: obj.node2.position.y, z: obj.node2.position.z },
-          }
+              id: obj.id,
+              node1: { x: obj.node1.position.x, y: obj.node1.position.y, z: obj.node1.position.z },
+              node2: { x: obj.node2.position.x, y: obj.node2.position.y, z: obj.node2.position.z },
+            }
           : {
-            id: obj.id,
-            x: obj.position.x,
-            y: obj.position.y,
-            z: obj.position.z,
-          },
+              id: obj.id,
+              x: obj.position.x,
+              y: obj.position.y,
+              z: obj.position.z,
+            },
       };
     }
   },
@@ -2880,47 +2793,19 @@ export default () => ({
     // this.setViewIso();
     // this.showMessage("🎥 Vista 3D configurada");
 
-    window.dispatchEvent(new CustomEvent('open-view-modal', { detail: { view: '3d' } }));
+    window.dispatchEvent(new CustomEvent("open-view-modal", { detail: { view: "3d" } }));
   },
 
   setPlanView() {
     // this.setViewPlan();
     // this.showMessage("🗺️ Vista en planta configurada");
 
-    window.dispatchEvent(new CustomEvent('open-view-modal', { detail: { view: 'plan' } }));
+    window.dispatchEvent(new CustomEvent("open-view-modal", { detail: { view: "plan" } }));
   },
 
   setElevationView() {
-    // Mostrar diálogo para seleccionar elevación
-    // if (this.stories && this.stories.length > 0) {
-    //   let storyNames = this.stories.map((s) => s.name);
-    //   Swal.fire({
-    //     title: "Configurar Vista en Elevación",
-    //     input: "select",
-    //     inputOptions: storyNames.reduce((acc, story) => {
-    //       acc[story] = story;
-    //       return acc;
-    //     }, {}),
-    //     inputPlaceholder: "Seleccione un nivel",
-    //     showCancelButton: true,
-    //     confirmButtonText: "Configurar",
-    //     cancelButtonText: "Cancelar",
-    //   }).then((result) => {
-    //     if (result.isConfirmed && result.value) {
-    //       let selectedStory = this.stories.find((s) => s.name === result.value);
-    //       if (selectedStory) {
-    //         // Configurar vista de elevación
-    //         this.setViewFront();
-    //         this.showMessage(`📐 Vista en elevación - Nivel: ${selectedStory.name}`);
-    //       }
-    //     }
-    //   });
-    // } else {
-    //   this.showMessage("📐 Configurar Vista en Elevación");
-    // }
-
     // Primero preguntar qué tipo de elevación (X o Y)
-    window.dispatchEvent(new CustomEvent('open-view-modal', { detail: { view: 'elevation' } }));
+    window.dispatchEvent(new CustomEvent("open-view-modal", { detail: { view: "elevation" } }));
   },
 
   rubberBandZoom() {
@@ -3082,30 +2967,40 @@ export default () => ({
   // },
 
   convertCombosToNonlinear() {
+    // 🔧 Verificar que combinations exista y sea un array
+    const combinations = this.loadCombinations?.combinations;
+
+    if (!combinations || !Array.isArray(combinations) || combinations.length === 0) {
+      this.showMessage("⚠️ No hay combinaciones de carga definidas para convertir", "warning");
+      return;
+    }
+
     Swal.fire({
-      title: "Convert Combos to Nonlinear Cases",
+      title: "Convertir Combinaciones a Casos No Lineales",
       html: `
-            <div class="text-left">
-                <p class="text-sm text-gray-400 mb-3">Seleccione las combinaciones a convertir:</p>
-                <div class="max-h-40 overflow-y-auto border rounded p-2">
-                    ${this.loadCombinations.combinations
-          .map(
-            (combo) => `
-                        <label class="flex items-center gap-2 py-1">
-                            <input type="checkbox" value="${combo.name}" class="combo-checkbox">
-                            <span class="text-sm">${combo.name}: ${combo.expression}</span>
-                        </label>
-                    `,
-          )
-          .join("")}
-                </div>
-                <div class="mt-3">
-                    <label class="text-xs">Prefix for Nonlinear Cases</label>
-                    <input type="text" id="nl-prefix" class="w-full px-2 py-1 border rounded text-sm" value="NL_">
-                </div>
-            </div>
-        `,
-      confirmButtonText: "Convert",
+      <div class="text-left">
+        <p class="text-sm text-gray-400 mb-3">Seleccione las combinaciones a convertir:</p>
+        <div class="max-h-40 overflow-y-auto border rounded p-2">
+          ${combinations
+            .map(
+              (combo, index) => `
+            <label class="flex items-center gap-2 py-1">
+              <input type="checkbox" value="${combo.name}" class="combo-checkbox" data-index="${index}">
+              <span class="text-sm">${combo.name}: ${combo.expression || combo.name}</span>
+            </label>
+          `,
+            )
+            .join("")}
+        </div>
+        <div class="mt-3">
+          <label class="text-xs">Prefijo para Casos No Lineales</label>
+          <input type="text" id="nl-prefix" class="w-full px-2 py-1 border rounded text-sm" value="NL_">
+        </div>
+      </div>
+    `,
+      confirmButtonText: "Convertir",
+      cancelButtonText: "Cancelar",
+      showCancelButton: true,
       preConfirm: () => {
         const selected = [];
         document.querySelectorAll(".combo-checkbox:checked").forEach((cb) => {
@@ -3116,6 +3011,10 @@ export default () => ({
       },
     }).then((result) => {
       if (result.isConfirmed && result.value) {
+        if (result.value.selected.length === 0) {
+          this.showMessage("⚠️ No se seleccionó ninguna combinación", "warning");
+          return;
+        }
         this.showMessage(
           `🔄 Convertidas ${result.value.selected.length} combinaciones con prefijo "${result.value.prefix}"`,
         );
@@ -3159,8 +3058,8 @@ export default () => ({
                         </thead>
                         <tbody>
                             ${this.nodes
-            .map(
-              (n) => `
+                              .map(
+                                (n) => `
                                 <tr class="border-t">
                                     <td class="p-2">${n.id}</td>
                                     <td class="p-2">${n.position.x.toFixed(3)}</td>
@@ -3168,8 +3067,8 @@ export default () => ({
                                     <td class="p-2">${(n.position.z || 0).toFixed(3)}</td>
                                 </tr>
                             `,
-            )
-            .join("")}
+                              )
+                              .join("")}
                             ${this.nodes.length === 0 ? '<tr><td colspan="4" class="p-4 text-center text-gray-400">No hay nodos</td></tr>' : ""}
                         </tbody>
                     </table>
@@ -3188,11 +3087,11 @@ export default () => ({
                         </thead>
                         <tbody>
                             ${this.shapes
-            .map((b) => {
-              const dx = b.node1.position.x - b.node2.position.x;
-              const dy = b.node1.position.y - b.node2.position.y;
-              const length = Math.sqrt(dx * dx + dy * dy).toFixed(3);
-              return `
+                              .map((b) => {
+                                const dx = b.node1.position.x - b.node2.position.x;
+                                const dy = b.node1.position.y - b.node2.position.y;
+                                const length = Math.sqrt(dx * dx + dy * dy).toFixed(3);
+                                return `
                                     <tr class="border-t">
                                         <td class="p-2">${b.id}</td>
                                         <td class="p-2">${b.node1.id}</td>
@@ -3201,8 +3100,8 @@ export default () => ({
                                         <td class="p-2">${b.material?.name || "MAT1"}</td>
                                     </tr>
                                 `;
-            })
-            .join("")}
+                              })
+                              .join("")}
                             ${this.shapes.length === 0 ? '<tr><td colspan="5" class="p-4 text-center text-gray-400">No hay elementos</td></tr>' : ""}
                         </tbody>
                     </table>
@@ -4016,7 +3915,773 @@ export default () => ({
 
   // ========== NUEVAS FUNCIONES PARA OPENSEES ==========
 
-  // resources/js/cad/cad_sys.js
+  // Función principal que reemplazará a calcularFuerzas cuando esté listo
+  async calcularFuerzasOpenSees(event) {
+    if (event) event.preventDefault();
+
+    const swalTailwind = Swal.mixin({
+      customClass: {
+        confirmButton: "bg-blue-500 hover:bg-blue-400 text-white font-bold py-2 px-4 rounded",
+      },
+      buttonsStyling: false,
+    });
+
+    const waitingPopup = swalTailwind.fire({
+      title: "Calculando con OpenSees!",
+      html: "Por favor espere!<br>",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+
+    try {
+      // Primero, verificar si OpenSeesPy está disponible
+      const statusResponse = await fetch("/api/opensees/status");
+      const status = await statusResponse.json();
+
+      let results;
+
+      if (status.status === "online") {
+        // Usar OpenSeesPy
+        results = await this.analyzeWithOpenSees();
+      } else {
+        // Fallback a Octave
+        console.log("OpenSees no disponible, usando Octave...");
+        waitingPopup.hideLoading();
+        return this.calcularFuerzas(event);
+      }
+
+      waitingPopup.hideLoading();
+
+      if (results.success) {
+        this.processOpenSeesResults(results);
+        swalTailwind.fire({
+          icon: "success",
+          title: "¡Cálculo completado!",
+          html: "Los resultados se han actualizado correctamente.",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      } else {
+        throw new Error(results.error || "Error en el cálculo");
+      }
+    } catch (error) {
+      waitingPopup.hideLoading();
+      console.error("Error:", error);
+      swalTailwind
+        .fire({
+          icon: "error",
+          title: "Error",
+          html: error.message || "Hubo un problema al calcular las fuerzas. Usando Octave...",
+          showConfirmButton: true,
+        })
+        .then(() => {
+          // Fallback a Octave
+          this.calcularFuerzas(event);
+        });
+    }
+  },
+
+  // Versión híbrida que intenta OpenSees primero y fallback a Octave
+  async calcularFuerzasHybrid(event) {
+    if (event) event.preventDefault();
+
+    const swalTailwind = Swal.mixin({
+      customClass: {
+        confirmButton: "bg-blue-500 hover:bg-blue-400 text-white font-bold py-2 px-4 rounded",
+      },
+      buttonsStyling: false,
+    });
+
+    const waitingPopup = swalTailwind.fire({
+      title: "Calculando!",
+      html: "Por favor espere!<br>",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+
+    try {
+      // Intentar llamar a OpenSees directamente
+      const results = await this.analyzeWithOpenSees();
+      waitingPopup.hideLoading();
+
+      if (results && results.success) {
+        this.processOpenSeesResults(results);
+        swalTailwind.fire({
+          icon: "success",
+          title: "¡Cálculo completado!",
+          html: "Resultados de OpenSeesPy",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+        return;
+      } else if (results && results.error) {
+        throw new Error(results.error);
+      } else {
+        throw new Error("Respuesta inválida del servidor");
+      }
+    } catch (error) {
+      waitingPopup.hideLoading();
+      console.error("Error en OpenSees:", error);
+
+      // Fallback a Octave
+      console.log("Usando Octave como fallback...");
+      swalTailwind
+        .fire({
+          icon: "info",
+          title: "Usando motor alternativo",
+          html: "OpenSees no está disponible. Usando Octave...",
+          timer: 1500,
+          showConfirmButton: false,
+        })
+        .then(() => {
+          this.calcularFuerzas(event);
+        });
+    }
+  },
+
+  async analyzeWithOpenSees() {
+    // ============================================================
+    // 1. CAPTURAR DATOS DE TU INTERFAZ
+    // ============================================================
+
+    // Nodos: posición (x, y) de cada nodo
+    const nodes = this.nodes.map((node, index) => ({
+      id: index + 1,
+      x: node.position.x,
+      y: node.position.y,
+    }));
+
+    // Elementos: conexiones entre nodos
+    const elements = this.shapes.map((beam, index) => ({
+      id: index + 1,
+      node_i: beam.node1.id,
+      node_j: beam.node2.id,
+      area: beam.A || 0.01, // Área de la sección
+      E: beam.E || 200e9, // Módulo de elasticidad
+    }));
+
+    // Apoyos: restricciones (1=fijo, 0=libre)
+    const supports = this.nodes.map((node, index) => ({
+      node: index + 1,
+      ux: node.soporte === "soporteUno" || node.soporte === "soporteTres" ? 1 : 0,
+      uy: node.soporte !== "" ? 1 : 0,
+    }));
+
+    // Cargas: fuerzas aplicadas
+    const loads = this.nodes.map((node, index) => ({
+      node: index + 1,
+      fx: node.cargaX(),
+      fy: node.cargaY(),
+    }));
+
+    // ============================================================
+    // 2. MOSTRAR EN CONSOLA PARA DEPURAR
+    // ============================================================
+    console.log("📤 DATOS ENVIADOS A OPENSEES:");
+    console.log("   Nodos:", nodes);
+    console.log("   Elementos:", elements);
+    console.log("   Apoyos:", supports);
+    console.log("   Cargas:", loads);
+
+    // ============================================================
+    // 3. ENVIAR AL SERVIDOR PYTHON
+    // ============================================================
+    const response = await fetch("http://localhost:5001/api/analyze", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        nodes: nodes,
+        elements: elements,
+        supports: supports,
+        loads: loads,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Error HTTP ${response.status}: ${errorText}`);
+    }
+
+    const results = await response.json();
+    console.log("📥 RESULTADOS RECIBIDOS:", results);
+
+    return results;
+  },
+
+  // Procesar resultados de OpenSees
+  processOpenSeesResults(results) {
+    // Procesar fuerzas axiales
+    Object.entries(results.forces).forEach(([id, axialForce]) => {
+      const beamIndex = parseInt(id) - 1;
+      if (this.shapes[beamIndex]) {
+        this.shapes[beamIndex].fAxial = axialForce;
+        if (Math.abs(axialForce) < 0.001) {
+          this.shapes[beamIndex].style.normal();
+        } else if (axialForce < 0) {
+          this.shapes[beamIndex].style.compresion();
+        } else {
+          this.shapes[beamIndex].style.traccion();
+        }
+      }
+    });
+
+    // Procesar desplazamientos
+    this.matrizDesplazamiento = Object.values(results.displacements).map((d) => [d.dx, d.dy, 0]);
+    this.calcularDeflecciones();
+
+    // Procesar reacciones
+    Object.entries(results.reactions).forEach(([id, reaction]) => {
+      const nodeIndex = parseInt(id) - 1;
+      if (this.nodes[nodeIndex]) {
+        this.nodes[nodeIndex].reaction.x = reaction.rx;
+        this.nodes[nodeIndex].reaction.y = reaction.ry;
+      }
+    });
+
+    // Sincronizar vista 3D
+    this.sync3D();
+
+    if (results.displacements) {
+      // Aplicar desplazamientos a la visualización 3D
+      this.applyDeformationsTo3D(results.displacements);
+    }
+
+    console.log("✅ Resultados de OpenSees procesados:", results);
+  },
+
+  // Después de runOpenSeesAnalysis(), agrega:
+  applyDeformationsTo3D(displacements, scale = 100) {
+    if (!window.babylonScene || !this.nodes) return;
+
+    console.log("🎨 Aplicando deformaciones a vista 3D...");
+
+    // Guardar posiciones originales si no existen
+    if (!this._originalPositions) {
+      this._originalPositions = this.nodes.map((node) => ({
+        x: node.position.x,
+        y: node.position.y,
+        z: node.position.z || 0,
+      }));
+    }
+
+    // Aplicar desplazamientos escalados
+    this.nodes.forEach((node, i) => {
+      const nodeId = node.id;
+      const disp = displacements[nodeId];
+
+      if (disp) {
+        // Posición original
+        const orig = this._originalPositions[i];
+
+        // Nueva posición = original + desplazamiento * escala
+        node.position.x = orig.x + (disp.dx || 0) * scale;
+        node.position.y = orig.y + (disp.dy || 0) * scale;
+        node.position.z = (orig.z || 0) + (disp.dz || 0) * scale;
+      }
+    });
+
+    // Redibujar la escena 3D
+    this.drawIn3D();
+
+    console.log("✅ Deformaciones aplicadas (escala: " + scale + "x)");
+  },
+
+  calcularDeflecciones() {
+    this.desplazamientosPosition = this.matrizDesplazamiento.map(([x, y, _], index) => {
+      return {
+        x: x * this.options.deflectionScale + this.nodes[index].position.x,
+        y: y * this.options.deflectionScale + this.nodes[index].position.y,
+      };
+    });
+    this.deflecciones = this.shapes.map((b) => {
+      return {
+        x: [this.desplazamientosPosition[b.node1.id - 1].x, this.desplazamientosPosition[b.node2.id - 1].x],
+        y: [this.desplazamientosPosition[b.node1.id - 1].y, this.desplazamientosPosition[b.node2.id - 1].y],
+      };
+    });
+  },
+
+  generarReporte() {
+    this.save();
+    this.fitContentToScreen();
+    this.redraw();
+    const diseño = this.canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+    this.currentRenderer = this.deflexionRenderer;
+    this.redraw();
+    const deflexion = this.canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+    this.currentRenderer = this.axialRenderer;
+    this.redraw();
+    const axial = this.canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+    this.restore();
+    const colSpan = (this.K_Global_Reducido[0] ?? []).length - 1;
+    const minmax = this.nodes.length !== 0 ? [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY] : [-0, 0];
+    const [minx, maxx] = this.matrizDesplazamiento.reduce(
+      ([min, max], [x, y, z]) => [Math.min(min, x), Math.max(max, x)],
+      minmax,
+    );
+    const [miny, maxy] = this.matrizDesplazamiento.reduce(
+      ([min, max], [x, y, z]) => [Math.min(min, y), Math.max(max, y)],
+      minmax,
+    );
+    /* const maxDefx = ;
+    const minDefy = ;
+    const minDefy = ; */
+    const docDefinition = {
+      pageOrientation: "landscape",
+      content: [
+        { text: "1.- Nodos", style: "header", pageOrientation: "landscape" },
+        {
+          style: "tableExample",
+          table: {
+            headerRows: 2,
+            widths: ["*", "*", "*", "*", "*", "*", "*"],
+            body: [
+              [{ text: "Nodos", style: "tableHeader", colSpan: 7, alignment: "center" }, {}, {}, {}, {}, {}, {}],
+              [
+                { text: "ID", style: "tableHeader", alignment: "center" },
+                { text: "Dx", style: "tableHeader", alignment: "center" },
+                { text: "Dy", style: "tableHeader", alignment: "center" },
+                { text: "X", style: "tableHeader", alignment: "center" },
+                { text: "Y", style: "tableHeader", alignment: "center" },
+                { text: "Fx", style: "tableHeader", alignment: "center" },
+                { text: "Fy", style: "tableHeader", alignment: "center" },
+              ],
+              ...this.nodes.map((n, index) => {
+                return [
+                  {
+                    text: n.id,
+                    alignment: "center",
+                  },
+                  {
+                    text: axisToFixed(this.matrizDesplazamiento[index][0]),
+                    alignment: "center",
+                  },
+                  {
+                    text: axisToFixed(this.matrizDesplazamiento[index][1]),
+                    alignment: "center",
+                  },
+                  {
+                    text: n.position.x.toFixed(2),
+                    alignment: "center",
+                  },
+                  {
+                    text: n.position.y.toFixed(2),
+                    alignment: "center",
+                  },
+                  {
+                    text: n.cargaX().toFixed(2),
+                    alignment: "center",
+                  },
+                  {
+                    text: n.cargaX().toFixed(2),
+                    alignment: "center",
+                  },
+                ];
+              }),
+            ],
+          },
+          layout: "lightHorizontalLines",
+        },
+        { text: "2.- Barras", style: "header" },
+        {
+          style: "tableExample",
+          table: {
+            headerRows: 2,
+            widths: ["*", "*", "*", "*", "*", "*", "*", "*", "*", "*", "*"],
+            body: [
+              [
+                { text: "Barras", style: "tableHeader", colSpan: 11, alignment: "center" },
+                {},
+                {},
+                {},
+                {},
+                {},
+                {},
+                {},
+                {},
+                {},
+                {},
+              ],
+              [
+                { text: "ID", style: "tableHeader", alignment: "center" },
+                { text: "Axial", style: "tableHeader", alignment: "center" },
+                { text: "Cercano", style: "tableHeader", alignment: "center" },
+                { text: "Lejano", style: "tableHeader", alignment: "center" },
+                { text: "X1", style: "tableHeader", alignment: "center" },
+                { text: "Y1", style: "tableHeader", alignment: "center" },
+                { text: "X2", style: "tableHeader", alignment: "center" },
+                { text: "Y2", style: "tableHeader", alignment: "center" },
+                { text: "L", style: "tableHeader", alignment: "center" },
+                { text: "E", style: "tableHeader", alignment: "center" },
+                { text: "A", style: "tableHeader", alignment: "center" },
+              ],
+              ...this.shapes.map((s) => {
+                return [
+                  {
+                    text: s.id,
+                    alignment: "center",
+                  },
+                  {
+                    text: s.fAxial.toFixed(3),
+                    alignment: "center",
+                  },
+                  {
+                    text: s.node1.id,
+                    alignment: "center",
+                  },
+                  {
+                    text: s.node2.id,
+                    alignment: "center",
+                  },
+                  {
+                    text: s.node1.position.x.toFixed(2),
+                    alignment: "center",
+                  },
+                  {
+                    text: s.node1.position.y.toFixed(2),
+                    alignment: "center",
+                  },
+                  {
+                    text: s.node2.position.x.toFixed(2),
+                    alignment: "center",
+                  },
+                  {
+                    text: s.node2.position.y.toFixed(2),
+                    alignment: "center",
+                  },
+                  {
+                    text: pointDistance(s.node1.position, s.node2.position).toFixed(2),
+                    alignment: "center",
+                  },
+                  {
+                    text: s.E.toFixed(2),
+                    alignment: "center",
+                  },
+                  {
+                    text: s.A.toFixed(2),
+                    alignment: "center",
+                  },
+                ];
+              }),
+            ],
+          },
+          layout: "lightHorizontalLines",
+        },
+        { text: "3.- Diseño", style: "header", pageBreak: "before", pageOrientation: "portrait" },
+        {
+          image: diseño,
+          width: 500,
+        },
+        { text: "4.- Deflexion", style: "header" },
+        {
+          image: deflexion,
+          width: 500,
+        },
+        { text: "5.- Axial", style: "header", pageBreak: "before" },
+        {
+          image: axial,
+          width: 500,
+        },
+        { text: "6.- Resultados", style: "header", pageBreak: "before", pageOrientation: "landscape" },
+        {
+          style: "tableExample",
+          table: {
+            headerRows: 1,
+            widths: [
+              ...(this.K_Global_Reducido[0] ?? [1]).map(() => {
+                return "*";
+              }),
+              "*",
+              "*",
+            ],
+            body: [
+              /* [{ text: "", alignment: "center" }], */
+              [
+                {
+                  text: "K Global Reducido",
+                  style: "tableHeader",
+                  colSpan: this.K_Global_Reducido[0]?.length ?? 1,
+                  alignment: "center",
+                },
+                ...Array.from(Array(colSpan < 0 ? 0 : colSpan), () => {
+                  return {};
+                }),
+                { text: "Fuerzas Globales Reducidas", style: "tableHeader", alignment: "center" },
+                { text: "D Global Reducido", style: "tableHeader", alignment: "center" },
+              ],
+              ...this.K_Global_Reducido.map((valores, index) => {
+                return [
+                  ...valores.map((val) => {
+                    return {
+                      text: val.toFixed(2),
+                      alignment: "center",
+                      style: "resultados",
+                    };
+                  }),
+                  {
+                    text: this.Fuerzas_Globales_Reducidas[index].toFixed(2),
+                    alignment: "center",
+                    style: "resultados",
+                  },
+                  {
+                    text: this.D_Global_Reducido[index].toFixed(2),
+                    alignment: "center",
+                    style: "resultados",
+                  },
+                ];
+              }),
+            ],
+          },
+          layout: "lightHorizontalLines",
+        },
+        {
+          text: `La maxima deflexion en x es: ${axisToFixed(maxx)}`,
+          style: "tableExample",
+          pageBreak: "before",
+          pageOrientation: "landscape",
+        },
+        {
+          text: `La minima deflexion en x es: ${axisToFixed(minx)}`,
+          style: "tableExample",
+        },
+        {
+          text: `La maxima deflexion en y es: ${axisToFixed(maxy)}`,
+          style: "tableExample",
+        },
+        {
+          text: `La minima deflexion en y es: ${axisToFixed(miny)}`,
+          style: "tableExample",
+        },
+      ],
+      styles: {
+        header: {
+          fontSize: 16,
+          bold: true,
+          margin: [0, 0, 0, 10],
+        },
+        subheader: {
+          fontSize: 16,
+          bold: true,
+          margin: [0, 10, 0, 5],
+        },
+        tableExample: {
+          margin: [0, 5, 0, 15],
+        },
+        tableHeader: {
+          bold: true,
+          fontSize: 13,
+          color: "black",
+        },
+        resultados: {
+          fontSize: 8,
+          color: "black",
+        },
+      },
+    };
+    pdfMake.createPdf(docDefinition).download("aligerados.pdf");
+  },
+
+  async analyze3DWithOpenSees() {
+    // ============================================================
+    // 1. CAPTURAR DATOS 3D DE TU INTERFAZ
+    // ============================================================
+
+    const nodes = this.nodes.map((node, index) => ({
+      id: index + 1,
+      x: node.position.x,
+      y: node.position.y,
+      z: node.position.z || 0, // ← Coordenada Z (altura)
+    }));
+
+    const elements = this.shapes.map((beam, index) => ({
+      id: index + 1,
+      node_i: beam.node1.id,
+      node_j: beam.node2.id,
+      area: beam.A || 0.01,
+      E: beam.E || 200e9,
+      Iz: 0.0001, // Momento de inercia Z
+      Iy: 0.0001, // Momento de inercia Y
+      J: 1e-6, // Constante de torsión
+    }));
+
+    const supports = this.nodes.map((node, index) => ({
+      node: index + 1,
+      ux: node.soporte === "soporteUno" ? 1 : 0,
+      uy: node.soporte === "soporteUno" || node.soporte === "soporteTres" ? 1 : 0,
+      uz: node.soporte === "soporteUno" ? 1 : 0,
+      rx: node.soporte === "soporteUno" ? 1 : 0,
+      ry: node.soporte === "soporteUno" ? 1 : 0,
+      rz: 1,
+    }));
+
+    const loads = this.nodes.map((node, index) => ({
+      node: index + 1,
+      fx: node.cargaX(),
+      fy: node.cargaY(),
+      fz: node.cargaZ() || 0,
+      mx: 0,
+      my: 0,
+      mz: 0,
+    }));
+
+    console.log("📤 DATOS 3D ENVIADOS:", { nodes, elements, supports, loads });
+
+    const response = await fetch("http://localhost:5001/api/analyze-3d", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nodes, elements, supports, loads }),
+    });
+
+    return response.json();
+  },
+
+  calcularFuerzas(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    formData.append(
+      "nodos",
+      "[" +
+        this.nodes
+          .map((node, index) => {
+            return [index + 1, node.position.x, node.position.y, 0].join(",");
+          })
+          .join(";") +
+        "]",
+    );
+    formData.append(
+      "barras",
+      "[" +
+        this.shapes
+          .map((beam, index) => {
+            return [index + 1, this.nodes.indexOf(beam.node1) + 1, this.nodes.indexOf(beam.node2) + 1].join(",");
+          })
+          .join(";") +
+        "]",
+    );
+    formData.append(
+      "cargas",
+      "[" +
+        this.nodes
+          .map((node, index) => {
+            return { id: index + 1, node: node };
+          })
+          .filter(({ node: node }) => {
+            return node.tieneCarga();
+          })
+          .map((value) => {
+            return [value.id, value.node.cargaX(), value.node.cargaY(), 0].join(",");
+          })
+          .join(";") +
+        "]",
+    );
+    formData.append(
+      "restringidos",
+      "[" +
+        this.nodes
+          .map((node, index) => {
+            return { id: index + 1, node: node };
+          })
+          .map((value) => {
+            let restriccion = [0, 0, 1];
+            if (value.node.soporte === "soporteUno") {
+              restriccion = [1, 1, 1];
+            } else if (value.node.soporte === "soporteDos") {
+              restriccion = [0, 1, 1];
+            } else if (value.node.soporte === "soporteTres") {
+              restriccion = [1, 0, 1];
+            }
+            return [value.id, ...restriccion];
+          })
+          .join(";") +
+        "]",
+    );
+    formData.append(
+      "propiedades",
+      "[" +
+        this.shapes
+          .map((beam) => {
+            return [beam.A, beam.E].join(",");
+          })
+          .join(";") +
+        "]",
+    );
+    console.log(Object.fromEntries(formData));
+
+    const swalTailwind = Swal.mixin({
+      customClass: {
+        confirmButton:
+          "bg-blue-500 hover:bg-blue-400 text-white font-bold py-2 px-4 border-b-4 border-blue-700 hover:border-blue-500 rounded",
+      },
+      buttonsStyling: false,
+    });
+    const waitingPopup = swalTailwind.fire({
+      title: "Calculando!",
+      html: "Por favor espere!<br>",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+    fetch("/calcularFuerzasArmaduras", {
+      method: "POST",
+      body: formData,
+    })
+      .then(async (response) => {
+        const contentType = response.headers.get("Content-Type");
+        if (contentType && contentType.includes("application/octet-stream")) {
+          return response.arrayBuffer();
+        } else {
+          const error = await response.text();
+          return Promise.reject(error);
+        }
+      })
+      .then((matData) => {
+        waitingPopup.hideLoading();
+        const fuerzas = readmat(matData);
+        console.log(fuerzas);
+        const dataObject = fuerzas.data;
+        this.matrizDesplazamiento = dataObject.MatrizDesplazamiento;
+        this.calcularDeflecciones();
+        Object.values(dataObject.resultados.lines).forEach(({ coords: _, fuerza: [f] }, index) => {
+          this.shapes[index].fAxial = f;
+          if (Math.abs(f) < 0.001) {
+            this.shapes[index].style.normal();
+          } else if (f < 0) {
+            this.shapes[index].style.compresion();
+          } else {
+            this.shapes[index].style.traccion();
+          }
+        });
+        this.nodes.forEach((n, index) => {
+          const rX = dataObject.Reacciones[3 * index];
+          const rY = dataObject.Reacciones[3 * index + 1];
+          dataObject.Reacciones[3 * index + 2];
+          n.reaction.x = Math.abs(rX) < 1.0e-8 ? 0 : rX;
+          n.reaction.y = Math.abs(rY) < 1.0e-8 ? 0 : rY;
+        });
+        this.K_Global_Reducido = fuerzas.data.K_Global_Reducido;
+        this.Fuerzas_Globales_Reducidas = fuerzas.data.Fuerzas_Globales_Reducidas;
+        this.D_Global_Reducido = fuerzas.data.D_Global_Reducido;
+        this.sync3D(); // ← AGREGAR
+      })
+      .catch((error) => {
+        console.log(error);
+        waitingPopup.hideLoading();
+        swalTailwind.fire({
+          icon: "error",
+          html: `
+            ${error}
+          `,
+          showConfirmButton: true,
+        });
+      });
+  },
 
   // ============================================================
   // 4. FUNCIÓN PRINCIPAL PARA EJECUTAR ANÁLISIS 3D Y ANIMAR
@@ -4164,17 +4829,11 @@ export default () => ({
 
     const ref = targetGrid;
 
-    const customLines = Array.isArray(ref.generalGrids)
-      ? ref.generalGrids.filter((g) => g.source === "custom")
-      : [];
+    const customLines = Array.isArray(ref.generalGrids) ? ref.generalGrids.filter((g) => g.source === "custom") : [];
 
-    const xValues = Array.isArray(ref.xGrids)
-      ? ref.xGrids.map((g) => Number(g.ordinate) || 0)
-      : [];
+    const xValues = Array.isArray(ref.xGrids) ? ref.xGrids.map((g) => Number(g.ordinate) || 0) : [];
 
-    const yValues = Array.isArray(ref.yGrids)
-      ? ref.yGrids.map((g) => Number(g.ordinate) || 0)
-      : [];
+    const yValues = Array.isArray(ref.yGrids) ? ref.yGrids.map((g) => Number(g.ordinate) || 0) : [];
 
     const minX = xValues.length ? Math.min(...xValues) : 0;
     const maxX = xValues.length ? Math.max(...xValues) : 10;
@@ -4247,17 +4906,11 @@ export default () => ({
 
     const ref = this.referenceGrid;
 
-    ref.xGrids = this.sortGridsByOrdinate(
-      (ref.xGrids || []).map((g, i) => this.normalizeGridLine(g, `X${i + 1}`))
-    );
+    ref.xGrids = this.sortGridsByOrdinate((ref.xGrids || []).map((g, i) => this.normalizeGridLine(g, `X${i + 1}`)));
 
-    ref.yGrids = this.sortGridsByOrdinate(
-      (ref.yGrids || []).map((g, i) => this.normalizeGridLine(g, `Y${i + 1}`))
-    );
+    ref.yGrids = this.sortGridsByOrdinate((ref.yGrids || []).map((g, i) => this.normalizeGridLine(g, `Y${i + 1}`)));
 
-    ref.generalGrids = (ref.generalGrids || []).map((g, i) =>
-      this.normalizeGeneralGridLine(g, `G${i + 1}`)
-    );
+    ref.generalGrids = (ref.generalGrids || []).map((g, i) => this.normalizeGeneralGridLine(g, `G${i + 1}`));
 
     ref.xPositions = ref.xGrids.map((g) => Number(g.ordinate));
     ref.yPositions = ref.yGrids.map((g) => Number(g.ordinate));
@@ -4328,7 +4981,7 @@ export default () => ({
       this.viewSet.push({
         type: "elevation",
         axis: "X",
-        label: ref.xLabels?.[i],   // A, B, C, D
+        label: ref.xLabels?.[i], // A, B, C, D
         value: x,
         name: `Elevación ${ref.xLabels?.[i]}`,
       });
@@ -4339,7 +4992,7 @@ export default () => ({
       this.viewSet.push({
         type: "elevation",
         axis: "Y",
-        label: ref.yLabels?.[i],   // 1, 2, 3, 4
+        label: ref.yLabels?.[i], // 1, 2, 3, 4
         value: y,
         name: `Elevación ${ref.yLabels?.[i]}`,
       });
@@ -4357,14 +5010,14 @@ export default () => ({
 
     // LETRAS => X
     this.xElevations = (ref.xPositions || []).map((x, i) => ({
-      label: ref.xLabels?.[i],   // A, B, C, D
+      label: ref.xLabels?.[i], // A, B, C, D
       value: x,
       name: `Elevación ${ref.xLabels?.[i]}`,
     }));
 
     // NÚMEROS => Y
     this.zElevations = (ref.yPositions || []).map((y, i) => ({
-      label: ref.yLabels?.[i],   // 1, 2, 3, 4
+      label: ref.yLabels?.[i], // 1, 2, 3, 4
       value: y,
       name: `Elevación ${ref.yLabels?.[i]}`,
     }));
@@ -4372,26 +5025,6 @@ export default () => ({
 
   createModelFromDialog(params) {
     console.log("🏗️ Configurando grid de referencia con parámetros:", params);
-
-    // this.referenceGrid = {
-    //   xCount: params.gridXCount,
-    //   yCount: params.gridYCount,
-    //   xSpacing: params.gridXSpacing,
-    //   ySpacing: params.gridYSpacing,
-    //   storyCount: params.storyCount,
-    //   storyHeight: params.storyHeight,
-
-    //   xPositions: [],
-    //   yPositions: [],
-    //   xLabels: [],
-    //   yLabels: [],
-
-    //   xGrids: this.buildXGrids(params.gridXCount, params.gridXSpacing),
-    //   yGrids: this.buildYGrids(params.gridYCount, params.gridYSpacing),
-    //   generalGrids: [],
-    // };
-
-    // this.rebuildGeneralGrids();
 
     this.referenceGrid = {
       xGrids: this.buildXGrids(params.gridXCount, params.gridXSpacing),
@@ -4412,9 +5045,7 @@ export default () => ({
     this.rebuildViewSetFromReferenceGrid();
     this.rebuildElevationListsFromReferenceGrid();
 
-    this.stories = [
-      { id: 0, name: "Base", elevation: 0 },
-    ];
+    this.stories = [{ id: 0, name: "Base", elevation: 0 }];
 
     for (let i = 1; i <= params.storyCount; i++) {
       this.stories.push({
@@ -4457,6 +5088,14 @@ export default () => ({
       this.clearReferenceGrid3D();
       this.drawReferenceGrid3D();
       this.sync3D();
+
+      // 🔧 FORZAR REGENERACIÓN DE LABELS 3D
+      setTimeout(() => {
+        console.log("🔄 Regenerando labels 3D después de crear modelo...");
+        this.clearReferenceGrid3D();
+        this.drawReferenceGrid3D();
+        this.sync3D();
+      }, 100);
     } else {
       this.pendingGrid3D = true;
     }
@@ -4634,9 +5273,7 @@ export default () => ({
     const ref = this.referenceGrid;
     if (!ref?.generalGrids?.length) return [];
 
-    const customLines = ref.generalGrids.filter(
-      (g) => g.source === "custom" && g.visible !== false
-    );
+    const customLines = ref.generalGrids.filter((g) => g.source === "custom" && g.visible !== false);
 
     const intersections = [];
 
@@ -4727,10 +5364,7 @@ export default () => ({
       const dy = mouseScreen.y - sp.y;
       const screenDistance = Math.sqrt(dx * dx + dy * dy);
 
-      if (
-        best === null ||
-        screenDistance < best.screenDistance
-      ) {
+      if (best === null || screenDistance < best.screenDistance) {
         best = {
           ...point,
           screenDistance,
@@ -4766,9 +5400,7 @@ export default () => ({
     const ref = this.referenceGrid;
     if (!ref?.generalGrids?.length) return null;
 
-    const customLines = ref.generalGrids.filter(
-      (g) => g.source === "custom" && g.visible !== false
-    );
+    const customLines = ref.generalGrids.filter((g) => g.source === "custom" && g.visible !== false);
 
     if (!customLines.length) return null;
 
@@ -4781,7 +5413,7 @@ export default () => ({
         Number(line.x1 ?? 0),
         Number(line.y1 ?? 0),
         Number(line.x2 ?? 0),
-        Number(line.y2 ?? 0)
+        Number(line.y2 ?? 0),
       );
 
       const sp = this.grid.worldToScreen({ x: cp.x, y: cp.y });
@@ -4789,10 +5421,7 @@ export default () => ({
       const dy = mouseScreen.y - sp.y;
       const screenDistance = Math.sqrt(dx * dx + dy * dy);
 
-      if (
-        best === null ||
-        screenDistance < best.screenDistance
-      ) {
+      if (best === null || screenDistance < best.screenDistance) {
         best = {
           x: cp.x,
           y: cp.y,
@@ -4830,28 +5459,28 @@ export default () => ({
     if (pointIntersection) {
       candidates.push({
         ...pointIntersection,
-        priorityWeight: 0
+        priorityWeight: 0,
       });
     }
 
     if (pointEndpoint) {
       candidates.push({
         ...pointEndpoint,
-        priorityWeight: 2
+        priorityWeight: 2,
       });
     }
 
     if (pointGeneral) {
       candidates.push({
         ...pointGeneral,
-        priorityWeight: 4
+        priorityWeight: 4,
       });
     }
 
     if (pointXY) {
       candidates.push({
         ...pointXY,
-        priorityWeight: 6
+        priorityWeight: 6,
       });
     }
 
@@ -4880,9 +5509,7 @@ export default () => ({
     const ref = this.referenceGrid;
     if (!ref?.generalGrids?.length) return [];
 
-    const customLines = ref.generalGrids.filter(
-      (g) => g.source === "custom" && g.visible !== false
-    );
+    const customLines = ref.generalGrids.filter((g) => g.source === "custom" && g.visible !== false);
 
     const z = this.getActivePlanElevation();
     const points = [];
@@ -4965,18 +5592,12 @@ export default () => ({
 
   isNumberElevationView() {
     // Elevaciones 1,2,3,4 -> plano X-Z (Y fijo)
-    return (
-      this.currentViewMode === "elevation" ||
-      this.currentViewMode === "elevationY"
-    );
+    return this.currentViewMode === "elevation" || this.currentViewMode === "elevationY";
   },
 
   isLetterElevationView() {
     // Elevaciones A,B,C,D -> plano Y-Z (X fijo)
-    return (
-      this.currentViewMode === "elevationZ" ||
-      this.currentViewMode === "elevationX"
-    );
+    return this.currentViewMode === "elevationZ" || this.currentViewMode === "elevationX";
   },
 
   isAnyElevationView() {
@@ -5002,13 +5623,11 @@ export default () => ({
 
       const story = this.stories.find((s) => s.elevation === view.elevation);
       if (story) this.currentStory = story.name;
-
     } else if (view.type === "elevation" && view.axis === "X") {
       // Letras A,B,C... => plano Y-Z
       this.currentViewMode = "elevationX";
       this.currentElevationZ = view.label;
       this.currentElevationX = "none";
-
     } else if (view.type === "elevation" && view.axis === "Y") {
       // Números 1,2,3... => plano X-Z
       this.currentViewMode = "elevationY";
@@ -5045,7 +5664,7 @@ export default () => ({
       index: bestIndex,
       value: Number(values[bestIndex]),
       label: labels?.[bestIndex] ?? String(bestIndex + 1),
-      distance: bestDistance
+      distance: bestDistance,
     };
   },
 
@@ -5061,14 +5680,14 @@ export default () => ({
     for (let i = 1; i <= storyCount; i++) {
       levels.push({
         label: `STORY${i}`,
-        z: i * storyHeight
+        z: i * storyHeight,
       });
     }
 
     let best = null;
     let bestDistance = Infinity;
 
-    levels.forEach(level => {
+    levels.forEach((level) => {
       const d = Math.abs(level.z - Number(targetZ));
       if (d < bestDistance) {
         bestDistance = d;
@@ -5088,17 +5707,13 @@ export default () => ({
 
     // NÚMEROS => eje Y fijo
     if (view.axis === "Y") {
-      const idx = (ref.yLabels || []).findIndex(
-        label => String(label) === String(view.label)
-      );
+      const idx = (ref.yLabels || []).findIndex((label) => String(label) === String(view.label));
       if (idx >= 0) return Number(ref.yPositions[idx] || 0);
     }
 
     // LETRAS => eje X fijo
     if (view.axis === "X") {
-      const idx = (ref.xLabels || []).findIndex(
-        label => String(label) === String(view.label)
-      );
+      const idx = (ref.xLabels || []).findIndex((label) => String(label) === String(view.label));
       if (idx >= 0) return Number(ref.xPositions[idx] || 0);
     }
 
@@ -5128,12 +5743,7 @@ export default () => ({
     if (this.currentViewMode === "elevationY") {
       const fixedY = this.getFixedCoordinateForActiveElevation();
 
-      const snapX = this.findClosestGridValue(
-        ref.xPositions || [],
-        ref.xLabels || [],
-        mouseWorld.x,
-        toleranceX
-      );
+      const snapX = this.findClosestGridValue(ref.xPositions || [], ref.xLabels || [], mouseWorld.x, toleranceX);
 
       if (!snapX) {
         this.activeGridPoint = null;
@@ -5148,7 +5758,7 @@ export default () => ({
         yGridId: String(view.label),
         storyLabel: snapZ.label,
         label: `Grid Point ${snapX.label} ${view.label}`,
-        source: "elevation-xz"
+        source: "elevation-xz",
       };
 
       this.statusCoordinates = this.formatCoordinates(snapX.value, fixedY, snapZ.z);
@@ -5159,12 +5769,7 @@ export default () => ({
     if (this.currentViewMode === "elevationX") {
       const fixedX = this.getFixedCoordinateForActiveElevation();
 
-      const snapY = this.findClosestGridValue(
-        ref.yPositions || [],
-        ref.yLabels || [],
-        mouseWorld.x,
-        toleranceX
-      );
+      const snapY = this.findClosestGridValue(ref.yPositions || [], ref.yLabels || [], mouseWorld.x, toleranceX);
 
       if (!snapY) {
         this.activeGridPoint = null;
@@ -5179,7 +5784,7 @@ export default () => ({
         yGridId: snapY.label,
         storyLabel: snapZ.label,
         label: `Grid Point ${view.label} ${snapY.label}`,
-        source: "elevation-yz"
+        source: "elevation-yz",
       };
 
       this.statusCoordinates = this.formatCoordinates(fixedX, snapY.value, snapZ.z);
@@ -5190,7 +5795,6 @@ export default () => ({
   },
 
   getOrCreateStructuralNode(point, tolerance = null) {
-
     tolerance = tolerance ?? this.getModelTolerance();
 
     const existing = this.nodes.find((node) => {
@@ -5214,7 +5818,7 @@ export default () => ({
         y: Number(point.y || 0),
       },
       this.nodes.length + 1,
-      Number(point.z || 0)
+      Number(point.z || 0),
     );
 
     if (!node.position) {
@@ -5239,7 +5843,6 @@ export default () => ({
   },
 
   createFrameLineFromPoints(startPoint, endPoint, frameType = "beam") {
-
     // const tolerance = this.preferences?.modelTolerance ?? 0.001;
 
     if (!startPoint || !endPoint) {
@@ -5254,10 +5857,7 @@ export default () => ({
       Math.abs(Number(startPoint.z || 0) - Number(endPoint.z || 0)) < tolerance;
 
     if (samePoint) {
-      this.showMessage?.(
-        "No se puede crear una línea con el mismo punto inicial y final",
-        "warning"
-      );
+      this.showMessage?.("No se puede crear una línea con el mismo punto inicial y final", "warning");
       return null;
     }
 
@@ -5292,11 +5892,7 @@ export default () => ({
     this.redraw?.();
     this.sync3D?.();
 
-    console.log(
-      `✅ Línea creada ID: ${frame.id} | tipo: ${frameType}`,
-      frame.node1.position,
-      frame.node2.position
-    );
+    console.log(`✅ Línea creada ID: ${frame.id} | tipo: ${frameType}`, frame.node1.position, frame.node2.position);
 
     return frame;
   },
@@ -5306,7 +5902,7 @@ export default () => ({
       return {
         x: this.activeGridPoint.x,
         y: this.activeGridPoint.y,
-        z: this.activeGridPoint.z
+        z: this.activeGridPoint.z,
       };
     }
 
@@ -5317,7 +5913,7 @@ export default () => ({
       return {
         x: worldPos.x,
         y: worldPos.y,
-        z: this.currentZ || 0
+        z: this.currentZ || 0,
       };
     }
 
@@ -5329,7 +5925,7 @@ export default () => ({
         return {
           x: worldPos.x,
           y: fixedCoord,
-          z: worldPos.y
+          z: worldPos.y,
         };
       }
 
@@ -5338,7 +5934,7 @@ export default () => ({
         return {
           x: fixedCoord,
           y: worldPos.x,
-          z: worldPos.y
+          z: worldPos.y,
         };
       }
     }
@@ -5346,7 +5942,7 @@ export default () => ({
     return {
       x: worldPos.x,
       y: worldPos.y,
-      z: 0
+      z: 0,
     };
   },
 
@@ -5386,6 +5982,16 @@ export default () => ({
   },
 
   drawReferenceGrid3D() {
+    if (window._grid3DLabels) {
+      window._grid3DLabels.forEach((label) => {
+        if (label && !label.isDisposed()) {
+          label.dispose();
+        }
+      });
+      window._grid3DLabels = [];
+    }
+
+    // Llamar a la función original
     return drawReferenceGrid3D(this);
   },
 
@@ -5735,7 +6341,6 @@ export default () => ({
 
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-
     ctx.save();
     ctx.strokeStyle = "#3a6a9a";
     ctx.fillStyle = "#8aadcc";
@@ -5823,7 +6428,6 @@ export default () => ({
   },
 
   drawReferenceGridOnly(grid, context) {
-
     if (isElevationX) {
       this.drawElevationGridOnly(grid, context);
     } else if (isElevationY) {
@@ -6053,7 +6657,7 @@ export default () => ({
       const type = obj.elementType || obj.type || obj.objectType;
 
       return (
-        obj.node1 && obj.node2 ||
+        (obj.node1 && obj.node2) ||
         type === "beam" ||
         type === "column" ||
         type === "brace" ||
@@ -6123,9 +6727,7 @@ export default () => ({
 
     this.selectObjects(objects);
 
-    this.showMessage?.(
-      `Sección ${selectedSection}: ${objects.length} elementos seleccionados`
-    );
+    this.showMessage?.(`Sección ${selectedSection}: ${objects.length} elementos seleccionados`);
   },
 
   async deselectByFrameSections() {
@@ -6162,8 +6764,6 @@ export default () => ({
 
     this.deselectObjects(objects);
 
-    this.showMessage?.(
-      `Sección ${selectedSection}: ${objects.length} elementos deseleccionados`
-    );
+    this.showMessage?.(`Sección ${selectedSection}: ${objects.length} elementos deseleccionados`);
   },
 });

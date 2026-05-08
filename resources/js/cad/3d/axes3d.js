@@ -288,7 +288,7 @@ export function createStoryLabel3D(text, position, scene, color = null) {
     const ctx = texture.getContext();
     ctx.fillStyle = "rgba(0,0,0,0.7)";
     ctx.fillRect(0, 0, 512, 256);
-    ctx.font = "Bold 38px Arial";
+    ctx.font = "Bold 43px Arial";
     ctx.fillStyle = `rgb(${textColor.r * 255}, ${textColor.g * 255}, ${textColor.b * 255})`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -299,7 +299,7 @@ export function createStoryLabel3D(text, position, scene, color = null) {
       ctx.fillText(text, 256, 128);
     } else {
       ctx.fillText(lines[0], 256, 100);
-      ctx.font = "18px Arial";
+      ctx.font = "30px Arial";
       ctx.fillText(lines[1], 256, 160);
     }
 
