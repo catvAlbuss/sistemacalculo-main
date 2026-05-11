@@ -3413,6 +3413,44 @@ export class DiseñoRenderer {
     context.ctx.restore();
   }
 
+  drawRubberBandZoomState(state, context) {
+    const rect = state.getScreenRect?.();
+
+    if (!rect || rect.width <= 0 || rect.height <= 0) {
+      return;
+    }
+
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    ctx.fillStyle = "rgba(250, 204, 21, 0.12)";
+    ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
+
+    ctx.strokeStyle = "rgba(250, 204, 21, 1)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 4]);
+
+    ctx.shadowColor = "rgba(250, 204, 21, 0.8)";
+    ctx.shadowBlur = 4;
+
+    ctx.strokeRect(rect.left, rect.top, rect.width, rect.height);
+
+    ctx.setLineDash([]);
+
+    ctx.font = "11px Arial";
+    ctx.fillStyle = "#facc15";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(
+      "Rubber Band Zoom",
+      rect.left + 6,
+      rect.top - 4
+    );
+
+    ctx.restore();
+  }
+
   drawTrussDrawingState(state, context) {
     const view = context.viewSet?.[context.activeViewIndex];
     const last_point = state.shape.getFirstPoint();

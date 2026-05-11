@@ -851,6 +851,7 @@ export class SelectedNodesState extends SelectedObjectsState {
 }
 
 export class SelectionState extends PanAndZoomState {
+
   constructor() {
     super();
     this.selectionStart = { x: 0, y: 0 };
@@ -858,6 +859,7 @@ export class SelectionState extends PanAndZoomState {
     this.selectedNodes = [];
     this.selectedBeams = [];
   }
+
   handleMouseUp(event, context, mouse) {
     super.handleMouseUp(...arguments);
     this.selectionEnd = mouse;
@@ -914,16 +916,173 @@ export class SelectionState extends PanAndZoomState {
   enter(args) {
     this.selectionStart = this.selectionEnd = args.selectionStart;
   }
+
   exit() {
     super.exit();
     this.selectedNodes = [];
     this.selectedBeams = [];
   }
+
   draw(renderer, context) {
     renderer.drawSelectionState(this, context);
   }
+
   info() {
     return "Suelta el botón del ratón para completar la selección.";
+  }
+}
+
+export class RubberBandZoomState extends PanAndZoomState {
+  
+  constructor() {
+    super();
+
+    this.isRubberDragging = false;
+    this.startScreen = null;
+    this.endScreen = null;
+    this.dragThreshold = 10;
+  }
+
+  enter() {
+    this.isRubberDragging = false;
+    this.startScreen = null;
+    this.endScreen = null;
+  }
+
+  handleMouseDown(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseDown(event, context, mouse);
+      return;
+    }
+
+    if (!isMouseButton(event, MOUSE_BUTTONS.LEFT)) {
+      return;
+    }
+
+    this.isRubberDragging = true;
+
+    this.startScreen = {
+      x: mouse.x,
+      y: mouse.y,
+    };
+
+    this.endScreen = {
+      x: mouse.x,
+      y: mouse.y,
+    };
+
+    context.setCursor?.("crosshair");
+    context.redraw?.();
+  }
+
+  handleMouseMove(event, context, mouse) {
+    if (this.isDragging) {
+      super.handleMouseMove(event, context, mouse);
+      return;
+    }
+
+    if (!this.isRubberDragging) {
+      context.setCursor?.("crosshair");
+      return;
+    }
+
+    this.endScreen = {
+      x: mouse.x,
+      y: mouse.y,
+    };
+
+    context.redraw?.();
+  }
+
+  handleMouseUp(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseUp(event, context, mouse);
+      return;
+    }
+
+    if (!this.isRubberDragging) {
+      return;
+    }
+
+    this.endScreen = {
+      x: mouse.x,
+      y: mouse.y,
+    };
+
+    const dx = this.endScreen.x - this.startScreen.x;
+    const dy = this.endScreen.y - this.startScreen.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance < this.dragThreshold) {
+      this.cancel(context);
+      context.showMessage?.("El recuadro de zoom es demasiado pequeño.", "warning");
+      return;
+    }
+
+    if (!context.grid?.zoomToScreenRect) {
+      this.cancel(context);
+      context.showMessage?.("Falta zoomToScreenRect() en grid.js", "warning");
+      return;
+    }
+
+    context.saveZoomState?.();
+
+    context.grid.zoomToScreenRect(
+      this.startScreen,
+      this.endScreen,
+      40
+    );
+
+    this.isRubberDragging = false;
+    this.startScreen = null;
+    this.endScreen = null;
+
+    context.setState(context.idleState);
+    context.redraw?.();
+
+    context.showMessage?.("🔍 Zoom con recuadro aplicado");
+  }
+
+  handleKeyDown(event, context) {
+    if (event.key === "Escape") {
+      this.cancel(context);
+      context.setState(context.idleState);
+      context.showMessage?.("Rubber Band Zoom cancelado");
+      return;
+    }
+
+    super.handleKeyDown(event, context);
+  }
+
+  handleMouseLeave(event, context, mouse) {
+    super.handleMouseLeave(event, context, mouse);
+    this.cancel(context);
+  }
+
+  cancel(context) {
+    this.isRubberDragging = false;
+    this.startScreen = null;
+    this.endScreen = null;
+    context.redraw?.();
+  }
+
+  getScreenRect() {
+    if (!this.startScreen || !this.endScreen) return null;
+
+    return {
+      left: Math.min(this.startScreen.x, this.endScreen.x),
+      top: Math.min(this.startScreen.y, this.endScreen.y),
+      width: Math.abs(this.endScreen.x - this.startScreen.x),
+      height: Math.abs(this.endScreen.y - this.startScreen.y),
+    };
+  }
+
+  draw(renderer, context) {
+    renderer.drawRubberBandZoomState?.(this, context);
+  }
+
+  info() {
+    return "Rubber Band Zoom: arrastra un recuadro con clic izquierdo. Esc para cancelar.";
   }
 }
 
@@ -1205,40 +1364,40 @@ export class TrussDrawingState extends PanAndZoomState {
   // ========== NUEVO: Obtener dirección actual desde el mouse (SIEMPRE actualizada) ==========
   getCurrentDirection(context) {
     if (!this.inputStartPoint) return null;
-    
+
     const startWorld = this.inputStartPoint.position;
     // 🔧 Usar la posición actual del mouse (context.mousePos se actualiza en cada handleMouseMove)
     const mouseWorld = context.mousePos;
     const view = context.viewSet?.[context.activeViewIndex];
-    
+
     let dx, dy, dz = 0;
-    
+
     if (view?.type === "elevation" && view.axis === "X") {
       // Plano Y-Z
       dy = mouseWorld.x - startWorld.y;
       dz = mouseWorld.y - (startWorld.z || 0);
-      const len = Math.sqrt(dy*dy + dz*dz);
+      const len = Math.sqrt(dy * dy + dz * dz);
       if (len > 0.001) {
-        return { dx: 0, dy: dy/len, dz: dz/len };
+        return { dx: 0, dy: dy / len, dz: dz / len };
       }
     } else if (view?.type === "elevation" && view.axis === "Y") {
       // Plano X-Z
       dx = mouseWorld.x - startWorld.x;
       dz = mouseWorld.y - (startWorld.z || 0);
-      const len = Math.sqrt(dx*dx + dz*dz);
+      const len = Math.sqrt(dx * dx + dz * dz);
       if (len > 0.001) {
-        return { dx: dx/len, dy: 0, dz: dz/len };
+        return { dx: dx / len, dy: 0, dz: dz / len };
       }
     } else {
       // Planta
       dx = mouseWorld.x - startWorld.x;
       dy = mouseWorld.y - startWorld.y;
-      const len = Math.sqrt(dx*dx + dy*dy);
+      const len = Math.sqrt(dx * dx + dy * dy);
       if (len > 0.001) {
-        return { dx: dx/len, dy: dy/len, dz: 0 };
+        return { dx: dx / len, dy: dy / len, dz: 0 };
       }
     }
-    
+
     // Si no hay dirección válida, usar dirección por defecto (derecha)
     return { dx: 1, dy: 0, dz: 0 };
   }
@@ -1248,7 +1407,7 @@ export class TrussDrawingState extends PanAndZoomState {
     this.inputMode = true;
     this.inputBuffer = '';
     this.inputStartPoint = startPoint;
-    
+
     context.showMessage?.('📏 Ingrese la longitud y presione Enter. Esc para cancelar');
     context.redraw?.();
   }
@@ -1256,24 +1415,24 @@ export class TrussDrawingState extends PanAndZoomState {
   // ========== NUEVO: Dibujar preview de la viga a construir (usando dirección actual) ==========
   drawLengthPreview(context) {
     if (!this.inputMode || !this.inputStartPoint) return;
-    
+
     const startPoint = this.inputStartPoint.position;
     const length = parseFloat(this.inputBuffer) || 1;
-    
+
     // 🔧 Obtener dirección actualizada dinámicamente
     const direction = this.getCurrentDirection(context);
-    
+
     const endPoint = {
       x: startPoint.x + direction.dx * length,
       y: startPoint.y + direction.dy * length,
       z: (startPoint.z || 0) + direction.dz * length
     };
-    
+
     const p1 = context.grid.worldToScreen(startPoint);
     const p2 = context.grid.worldToScreen(endPoint);
-    
+
     context.ctx.save();
-    
+
     // Línea de preview naranja PUNTEADA
     context.ctx.strokeStyle = '#ffaa44';
     context.ctx.lineWidth = 2;
@@ -1282,26 +1441,26 @@ export class TrussDrawingState extends PanAndZoomState {
     context.ctx.moveTo(p1.x, p1.y);
     context.ctx.lineTo(p2.x, p2.y);
     context.ctx.stroke();
-    
+
     // Texto de longitud en el medio
     const midX = (p1.x + p2.x) / 2;
     const midY = (p1.y + p2.y) / 2;
     context.ctx.fillStyle = '#ffaa44';
     context.ctx.font = 'bold 12px monospace';
     context.ctx.fillText(`${this.inputBuffer || '0'} m`, midX, midY - 10);
-    
+
     // Mostrar buffer de entrada
     context.ctx.fillStyle = '#ffffff';
     context.ctx.font = '14px monospace';
     context.ctx.fillText(`Longitud: ${this.inputBuffer}_`, 20, 40);
-    
+
     context.ctx.restore();
   }
 
   // ========== NUEVO: Crear viga con la longitud ingresada ==========
   createBeamWithLength(context) {
     if (!this.inputMode || !this.inputStartPoint) return;
-    
+
     const length = parseFloat(this.inputBuffer);
     if (isNaN(length) || length <= 0) {
       context.showMessage?.('❌ Longitud inválida', 'warning');
@@ -1311,26 +1470,26 @@ export class TrussDrawingState extends PanAndZoomState {
       context.redraw();
       return;
     }
-    
+
     const startPoint = this.inputStartPoint.position;
-    
+
     // 🔧 Usar dirección actualizada
     const direction = this.getCurrentDirection(context);
-    
+
     const endPoint = {
       x: startPoint.x + direction.dx * length,
       y: startPoint.y + direction.dy * length,
       z: (startPoint.z || 0) + direction.dz * length
     };
-    
+
     // Crear o buscar nodo final
     let endNode = context.nodes.find(n => {
       const p = n.position;
       return Math.abs(p.x - endPoint.x) < 0.001 &&
-             Math.abs(p.y - endPoint.y) < 0.001 &&
-             Math.abs((p.z || 0) - (endPoint.z || 0)) < 0.001;
+        Math.abs(p.y - endPoint.y) < 0.001 &&
+        Math.abs((p.z || 0) - (endPoint.z || 0)) < 0.001;
     });
-    
+
     if (!endNode) {
       endNode = new StructuralNode(
         { x: endPoint.x, y: endPoint.y },
@@ -1339,7 +1498,7 @@ export class TrussDrawingState extends PanAndZoomState {
       );
       context.nodes.push(endNode);
     }
-    
+
     // Crear la viga
     const beam = new Beam(context.globalE, context.globalA);
     beam.node1 = this.inputStartPoint;
@@ -1349,26 +1508,26 @@ export class TrussDrawingState extends PanAndZoomState {
     beam.type = this.elementType;
     beam.objectType = "frame";
     beam.visible = true;
-    
+
     context.shapes.push(beam);
-    
+
     // Conectar referencias
     if (!this.inputStartPoint.beams) this.inputStartPoint.beams = [];
     if (!endNode.beams) endNode.beams = [];
     this.inputStartPoint.beams.push(beam);
     endNode.beams.push(beam);
-    
+
     console.log(`📐 Viga creada ID: ${beam.id} | longitud: ${length.toFixed(2)}m`);
-    
+
     // Limpiar modo entrada
     this.inputMode = false;
     this.inputBuffer = '';
     this.inputStartPoint = null;
-    
+
     // Continuar dibujando desde el nuevo nodo
     this.shape = this.createEmptyShape(context);
     this.shape.addNode(endNode);
-    
+
     context.redraw();
     context.sync3D?.();
     context.showMessage?.(`✅ Viga de ${length.toFixed(2)}m creada. Continúe dibujando.`);
@@ -1380,12 +1539,12 @@ export class TrussDrawingState extends PanAndZoomState {
       super.handleMouseDown(event, context, mouse);
       return;
     }
-    
+
     super.handleMouseDown(...arguments);
-    
+
     const point = this.getDrawingPoint(context, mouse);
     const node = this.getOrCreateNode(context, point);
-    
+
     // Si es el primer punto, solo agregarlo
     if (!this.shape.node1) {
       this.addNodeToCurrentShape(context, node);
@@ -1393,7 +1552,7 @@ export class TrussDrawingState extends PanAndZoomState {
       context.sync3D?.();
       return;
     }
-    
+
     // Si ya hay primer punto y NO estamos en modo entrada, permitir dibujo por clic normal
     if (!this.inputMode) {
       this.addNodeToCurrentShape(context, node);
@@ -1406,10 +1565,10 @@ export class TrussDrawingState extends PanAndZoomState {
   handleMouseMove(event, context, mouse) {
     // Primero, el comportamiento de pan/zoom
     super.handleMouseMove(...arguments);
-    
+
     // 🔧 IMPORTANTE: Actualizar mousePos del contexto (en coordenadas del mundo)
     context.mousePos = context.grid.screenToWorld(mouse);
-    
+
     // ==== LÍNEA DE PREVIEW ORIGINAL (AZUL PUNTEADA) ====
     const firstPoint = this.shape?.node1?.position;
 
@@ -1551,7 +1710,7 @@ export class TrussDrawingState extends PanAndZoomState {
         return;
       }
     }
-    
+
     // Tecla 'L' para activar modo entrada de longitud (después de tener primer punto)
     if (event.key === 'l' || event.key === 'L') {
       if (this.shape?.node1 && !this.shape.node2 && !this.inputMode) {
@@ -1560,7 +1719,7 @@ export class TrussDrawingState extends PanAndZoomState {
         return;
       }
     }
-    
+
     // Escape para salir del estado
     if (event.key === "Escape" && !this.inputMode) {
       this.shape = this.createEmptyShape(context);
@@ -1571,13 +1730,13 @@ export class TrussDrawingState extends PanAndZoomState {
       context.redraw?.();
       return;
     }
-    
+
     // Enter original (para dibujo por distancia con input numérico)
     if (event.key === "Enter" && !this.inputMode) {
       this.createBeam(context);
       return;
     }
-    
+
     super.handleKeyDown(event, context);
   }
 
@@ -1604,7 +1763,7 @@ export class TrussDrawingState extends PanAndZoomState {
       context.ctx.stroke();
       context.ctx.restore();
     }
-    
+
     // Dibujar preview de entrada de longitud (línea naranja PUNTEADA)
     if (this.inputMode) {
       this.drawLengthPreview(context);
@@ -3079,8 +3238,8 @@ export class DimensionLineDrawingState extends PanAndZoomState {
       value: distance,
       // label: `${distance.toFixed(2)} m`,
       label: `${context.formatOutput
-          ? context.formatOutput(distance, "lengths")
-          : distance.toFixed(2)
+        ? context.formatOutput(distance, "lengths")
+        : distance.toFixed(2)
         } m`,
       visible: true,
     });

@@ -250,69 +250,105 @@
             </x-slot>
         </x-cad.menu-dropdown-item>
 
-        {{-- Menú VIEW (estilo ETABS) --}}
+        {{-- Menú VIEW / VISTA (estilo ETABS) --}}
         <x-cad.menu-dropdown-item label="Vista">
             <x-slot name="slot">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
             </x-slot>
+
             <x-slot name="dropdown">
-                <div class="py-1" style="min-width: 260px; overflow-x: visible;">
+                <div class="py-1" style="min-width: 280px; overflow-x: visible;">
 
-                    {{-- Set 3D View --}}
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2" @click="cadSystem.set3DView()">
-                        <span>🎥</span> Configurar Vista 3D...
+                    {{-- ================= CAMBIO DE VISTA ================= --}}
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Configurar Vista
+                    </div>
+
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="cadSystem.activateViewMenuAction('set-3d-view')">
+                        <span>🎥</span>
+                        Set 3D View...
                     </button>
 
-                    {{-- Set Plan View --}}
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2" @click="cadSystem.setPlanView()">
-                        <span>🗺️</span> Configurar Vista en Planta...
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="cadSystem.activateViewMenuAction('set-plan-view')">
+                        <span>🗺️</span>
+                        Set Plan View...
                     </button>
 
-                    {{-- Set Elevation View --}}
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2" @click="cadSystem.setElevationView()">
-                        <span>📐</span> Configurar Vista en Elevación...
-                    </button>
-
-                    <div class="border-t border-gray-700 my-1"></div>
-
-                    {{-- Rubber Band Zoom --}}
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2" @click="cadSystem.rubberBandZoom()">
-                        <span>🔍</span> Zoom con Recuadro
-                    </button>
-
-                    {{-- Restore Full View --}}
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2" @click="cadSystem.restoreFullView()">
-                        <span>🖼️</span> Restaurar Vista Completa
-                    </button>
-
-                    {{-- Previous Zoom --}}
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2" @click="cadSystem.previousZoom()">
-                        <span>⏪</span> Zoom Anterior
-                    </button>
-
-                    {{-- Zoom In One Step --}}
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2" @click="cadSystem.zoomInOneStep()">
-                        <span>🔍+</span> Zoom +1
-                    </button>
-
-                    {{-- Zoom Out One Step --}}
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2" @click="cadSystem.zoomOutOneStep()">
-                        <span>🔍-</span> Zoom -1
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="cadSystem.activateViewMenuAction('set-elevation-view')">
+                        <span>📐</span>
+                        Set Elevation View...
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
 
-                    {{-- Pan --}}
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2" @click="cadSystem.panView()">
-                        <span>✋</span> Panorámica
+                    {{-- ================= ZOOM ================= --}}
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Zoom
+                    </div>
+
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="cadSystem.activateViewMenuAction('rubber-band-zoom')">
+                        <span>🔍</span>
+                        Rubber Band Zoom
                     </button>
+
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="cadSystem.activateViewMenuAction('restore-full-view')">
+                        <span>🖼️</span>
+                        Restore Full View
+                    </button>
+
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="cadSystem.activateViewMenuAction('previous-zoom')">
+                        <span>⏪</span>
+                        Previous Zoom
+                    </button>
+
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="cadSystem.activateViewMenuAction('zoom-in-one-step')">
+                        <span>🔍+</span>
+                        Zoom In One Step
+                    </button>
+
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="cadSystem.activateViewMenuAction('zoom-out-one-step')">
+                        <span>🔍-</span>
+                        Zoom Out One Step
+                    </button>
+
+                    <div class="border-t border-gray-700 my-1"></div>
+
+                    {{-- ================= NAVEGACIÓN ================= --}}
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Navegación
+                    </div>
+
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="cadSystem.activateViewMenuAction('pan')">
+                        <span>✋</span>
+                        Pan
+                    </button>
+
                 </div>
             </x-slot>
         </x-cad.menu-dropdown-item>
-        {{-- Otros menús ETABS pueden ir aquí --}}
 
         {{-- Menú DEFINE (estilo ETABS) --}}
         <x-cad.menu-dropdown-item label="Define">
@@ -602,7 +638,7 @@
             </x-slot>
         </x-cad.menu-dropdown-item>
 
-        {{-- Menú ASSIGN (estilo ETABS con submenús) --}}
+        {{-- Menú ASSIGN / ASIGNAR (estilo ETABS) --}}
         <x-cad.menu-dropdown-item label="Assign">
             <x-slot name="slot">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -612,134 +648,161 @@
             </x-slot>
 
             <x-slot name="dropdown">
-                <div class="py-1" style="min-width: 260px; overflow-x: visible;">
+                <div class="py-1" style="min-width: 300px; overflow-x: visible;">
 
-                    {{-- ================= JOINT / POINT ================= --}}
+                    {{-- ================= ASIGNACIONES A OBJETOS ================= --}}
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Asignaciones a Objetos
+                    </div>
+
+                    {{-- Joint / Point --}}
                     <x-cad.menu-subitem label="Joint / Point">
                         <span>⚫</span>
 
                         <x-slot name="submenu">
                             <button
                                 class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="activateAssignMenuAction('joint-diaphragms')">
-                                🏢 Diaphragms...
+                                @click.stop="cadSystem.activateAssignMenuAction('joint-diaphragms')">
+                                <span>🏢</span>
+                                Diaphragms...
                             </button>
 
                             <button
                                 class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="activateAssignMenuAction('joint-restraints')">
-                                ⚓ Restraints (Supports)...
+                                @click.stop="cadSystem.activateAssignMenuAction('joint-restraints')">
+                                <span>⚓</span>
+                                Restraints / Supports...
                             </button>
-
-                            <div class="my-1 border-t border-gray-700"></div>
 
                             <button
                                 class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="activateAssignMenuAction('joint-springs')">
-                                ➿ Point Springs...
+                                @click.stop="cadSystem.activateAssignMenuAction('joint-springs')">
+                                <span>➿</span>
+                                Point Springs...
                             </button>
                         </x-slot>
                     </x-cad.menu-subitem>
 
-
-                    {{-- ================= FRAME / LINE ================= --}}
+                    {{-- Frame / Line --}}
                     <x-cad.menu-subitem label="Frame / Line">
                         <span>━━</span>
 
                         <x-slot name="submenu">
                             <button
                                 class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="activateAssignMenuAction('frame-section')">
-                                📐 Frame Section...
+                                @click.stop="cadSystem.activateAssignMenuAction('frame-section')">
+                                <span>📐</span>
+                                Frame Section...
+                            </button>
+
+                            {{-- Activa este botón solo si ya tienes implementado frame-material --}}
+                            {{--
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="cadSystem.activateAssignMenuAction('frame-material')">
+                        <span>🧱</span>
+                        Material...
+                    </button>
+                    --}}
+
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateAssignMenuAction('frame-releases')">
+                                <span>🔓</span>
+                                Frame Releases / Partial Fixity...
                             </button>
 
                             <button
                                 class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="activateAssignMenuAction('frame-releases')">
-                                🔓 Frame Releases / Partial Fixity...
-                            </button>
-
-                            <button
-                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="activateAssignMenuAction('frame-end-offsets')">
-                                📏 End (Length) Offsets...
+                                @click.stop="cadSystem.activateAssignMenuAction('frame-end-offsets')">
+                                <span>📏</span>
+                                End (Length) Offsets...
                             </button>
                         </x-slot>
                     </x-cad.menu-subitem>
 
-
                     <div class="border-t border-gray-700 my-1"></div>
 
+                    {{-- ================= CARGAS ================= --}}
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Cargas
+                    </div>
 
-                    {{-- ================= JOINT / POINT LOADS ================= --}}
+                    {{-- Joint / Point Loads --}}
                     <x-cad.menu-subitem label="Joint / Point Loads">
                         <span>🔴</span>
 
                         <x-slot name="submenu">
                             <button
                                 class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="activateAssignMenuAction('joint-load-force')">
-                                🎯 Force...
+                                @click.stop="cadSystem.activateAssignMenuAction('joint-load-force')">
+                                <span>🎯</span>
+                                Force...
                             </button>
 
                             <button
                                 class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="activateAssignMenuAction('joint-load-ground-displacement')">
-                                🌍 Ground Displacement...
+                                @click.stop="cadSystem.activateAssignMenuAction('joint-load-ground-displacement')">
+                                <span>🌍</span>
+                                Ground Displacement...
                             </button>
 
                             <button
                                 class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="activateAssignMenuAction('joint-load-temperature')">
-                                🌡️ Temperature...
+                                @click.stop="cadSystem.activateAssignMenuAction('joint-load-temperature')">
+                                <span>🌡️</span>
+                                Temperature...
                             </button>
                         </x-slot>
                     </x-cad.menu-subitem>
 
-
-                    {{-- ================= FRAME / LINE LOADS ================= --}}
+                    {{-- Frame / Line Loads --}}
                     <x-cad.menu-subitem label="Frame / Line Loads">
                         <span>📊</span>
 
                         <x-slot name="submenu">
                             <button
                                 class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="activateAssignMenuAction('frame-load-point')">
-                                📍 Point...
+                                @click.stop="cadSystem.activateAssignMenuAction('frame-load-point')">
+                                <span>📍</span>
+                                Point...
                             </button>
 
                             <button
                                 class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="activateAssignMenuAction('frame-load-distributed')">
-                                📊 Distributed...
+                                @click.stop="cadSystem.activateAssignMenuAction('frame-load-distributed')">
+                                <span>📊</span>
+                                Distributed...
                             </button>
 
                             <button
                                 class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="activateAssignMenuAction('frame-load-temperature')">
-                                🌡️ Temperature...
+                                @click.stop="cadSystem.activateAssignMenuAction('frame-load-temperature')">
+                                <span>🌡️</span>
+                                Temperature...
                             </button>
                         </x-slot>
                     </x-cad.menu-subitem>
 
-
                     <div class="border-t border-gray-700 my-1"></div>
 
+                    {{-- ================= GRUPOS Y REVISIÓN ================= --}}
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Grupos y Revisión
+                    </div>
 
-                    {{-- ================= GROUP NAMES ================= --}}
                     <button
                         class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                        @click.stop="activateAssignMenuAction('group-names')">
-                        🧩 Group Names...
+                        @click.stop="cadSystem.activateAssignMenuAction('group-names')">
+                        <span>🧩</span>
+                        Group Names...
                     </button>
 
-                    <!-- ================= SHOW SELECTED ASSIGNMENTS ================= -->
-                    <div class="border-t border-gray-700 my-1"></div>
-
                     <button
-                        class="w-full text-left px-4 py-2 text-sm hover:bg-gray-700"
-                        onclick="window.cadSystem?.activateAssignMenuAction?.('show-selected-assignments')">
-                        📋 Show Selected Assignments...
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="cadSystem.activateAssignMenuAction('show-selected-assignments')">
+                        <span>📋</span>
+                        Show Selected Assignments...
                     </button>
 
                 </div>
@@ -775,7 +838,7 @@
             </x-slot>
         </x-cad.menu-dropdown-item>
 
-        {{-- Menú DISPLAY / MOSTRAR --}}
+        {{-- Menú DISPLAY / MOSTRAR (estilo ETABS) --}}
         <x-cad.menu-dropdown-item label="Mostrar">
             <x-slot name="slot">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -785,7 +848,12 @@
             </x-slot>
 
             <x-slot name="dropdown">
-                <div class="py-1" style="min-width: 280px; overflow-x: visible;">
+                <div class="py-1" style="min-width: 310px; overflow-x: visible;">
+
+                    {{-- ================= MODELO ================= --}}
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Modelo
+                    </div>
 
                     {{-- Show Undeformed Shape --}}
                     <button
@@ -794,6 +862,13 @@
                         <span>📐</span>
                         Show Undeformed Shape
                     </button>
+
+                    <div class="border-t border-gray-700 my-1"></div>
+
+                    {{-- ================= CARGAS ================= --}}
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Cargas
+                    </div>
 
                     {{-- Show Loads --}}
                     <x-cad.menu-subitem label="Show Loads">
@@ -818,6 +893,11 @@
 
                     <div class="border-t border-gray-700 my-1"></div>
 
+                    {{-- ================= DEFORMADAS Y MODOS ================= --}}
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Deformadas y Modos
+                    </div>
+
                     {{-- Show Deformed Shape --}}
                     <button
                         class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
@@ -836,6 +916,11 @@
 
                     <div class="border-t border-gray-700 my-1"></div>
 
+                    {{-- ================= FUERZAS Y DIAGRAMAS ================= --}}
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Fuerzas y Diagramas
+                    </div>
+
                     {{-- Show Member Forces / Stress Diagram --}}
                     <button
                         class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
@@ -848,37 +933,118 @@
             </x-slot>
         </x-cad.menu-dropdown-item>
 
-        {{-- Menú DESIGN --}}
-        <x-cad.menu-dropdown-item label="Desiño">
+        {{-- Menú DESIGN / DISEÑO (estilo ETABS) --}}
+        <x-cad.menu-dropdown-item label="Design">
             <x-slot name="slot">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 7h6m-6 4h6m-6 4h3m-7 4h14a2 2 0 002-2V7.828a2 2 0 00-.586-1.414l-3.828-3.828A2 2 0 0015.172 2H5a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
             </x-slot>
-            <x-slot name="dropdown">
-                <div class="py-1" style="min-width: 200px;">
 
-                    {{-- Mostrar Cargas (con submenús) --}}
-                    <x-cad.menu-subitem label="Diseño de Estructura de Acero">
-                        <span>🏗️</span>
+            <x-slot name="dropdown">
+                <div class="py-1" style="min-width: 320px; overflow-x: visible;">
+
+                    {{-- ================= STEEL FRAME DESIGN ================= --}}
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Diseño de Marcos de Acero
+                    </div>
+
+                    <x-cad.menu-subitem label="Steel Frame Design">
+                        <span>Ⅰ</span>
+
                         <x-slot name="submenu">
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap" @click="cadSystem.selectDesignCombos()">
-                                <span>🔢</span> Seleccionar Combos de Diseño...
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-frame-select-combo') : cadSystem.showMessage?.('Design pendiente: Select Design Combo', 'warning')">
+                                <span>📋</span>
+                                Select Design Combo...
                             </button>
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap" @click="cadSystem.openDesignOverwrites()">
-                                <span>📝</span> Ver/Revisar Sobrescrituras (Overwrites)...
+
+                            <div class="border-t border-gray-700 my-1"></div>
+
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-frame-overwrites') : cadSystem.showMessage?.('Design pendiente: View/Revise Overwrites', 'warning')">
+                                <span>📝</span>
+                                View/Revise Overwrites...
                             </button>
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap" @click="cadSystem">
-                                <span>🏗️</span> Iniciar Diseño/Chequeo de la Estructura
+
+                            <div class="border-t border-gray-700 my-1"></div>
+
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-frame-start-check') : cadSystem.showMessage?.('Design pendiente: Start Design/Check', 'warning')">
+                                <span>▶️</span>
+                                Start Design/Check of Structure
                             </button>
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap" @click="cadSystem.displayDesignInfo()">
-                                <span>📊</span> Mostrar Información de Diseño...
+
+                            <div class="border-t border-gray-700 my-1"></div>
+
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-frame-display-info') : cadSystem.showMessage?.('Design pendiente: Display Design Info', 'warning')">
+                                <span>📊</span>
+                                Display Design Info...
                             </button>
                         </x-slot>
                     </x-cad.menu-subitem>
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap" @click="cadSystem.showMemberForces()">
-                        <span>📉</span> Diseño de Viguetas de Acero (Joist)
-                    </button>
+
+                    <div class="border-t border-gray-700 my-1"></div>
+
+                    {{-- ================= STEEL JOIST DESIGN ================= --}}
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Diseño de Joist de Acero
+                    </div>
+
+                    <x-cad.menu-subitem label="Steel Joist Design">
+                        <span>▰</span>
+
+                        <x-slot name="submenu">
+                            
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-joist-select-combo') : cadSystem.showMessage?.('Steel Joist Design pendiente: Select Design Combo', 'warning')">
+                                <span>📋</span>
+                                Select Design Combo...
+                            </button>
+
+                            <div class="border-t border-gray-700 my-1"></div>
+
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-joist-overwrites') : cadSystem.showMessage?.('Steel Joist Design pendiente: View/Revise Overwrites', 'warning')">
+                                <span>📝</span>
+                                View/Revise Overwrites...
+                            </button>
+
+                            <div class="border-t border-gray-700 my-1"></div>
+
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-joist-start-using-similarity') : cadSystem.showMessage?.('Steel Joist Design pendiente: Start Design Using Similarity', 'warning')">
+                                <span>▶️</span>
+                                Start Design Using Similarity
+                            </button>
+
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-joist-start-without-similarity') : cadSystem.showMessage?.('Steel Joist Design pendiente: Start Design Without Similarity', 'warning')">
+                                <span>▶️</span>
+                                Start Design Without Similarity
+                            </button>
+
+                            <div class="border-t border-gray-700 my-1"></div>
+
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-joist-display-info') : cadSystem.showMessage?.('Steel Joist Design pendiente: Display Design Info', 'warning')">
+                                <span>📊</span>
+                                Display Design Info...
+                            </button>
+                        </x-slot>
+                    </x-cad.menu-subitem>
+
                 </div>
             </x-slot>
         </x-cad.menu-dropdown-item>

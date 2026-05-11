@@ -23,6 +23,7 @@ import { DiseñoRenderer, DeflexionRenderer, AxialRenderer } from "./renderer.js
 import {
   IdleState,
   PanAndZoomState,
+  RubberBandZoomState,
   TrussDrawingState,
   PointDrawingState,
   ColumnDrawingState,
@@ -548,6 +549,7 @@ export default () => ({
     this.currentRenderer = this.diseñoRenderer;
     this.oldRenderer = this.diseñoRenderer;
     this.panAndZoomState = new PanAndZoomState();
+    this.rubberBandZoomState = new RubberBandZoomState();
     this.idleState = new IdleState();
     this.moveState = new PanAndZoomState();
     this.trussDrawingState = new TrussDrawingState(this);
@@ -7096,6 +7098,64 @@ export default () => ({
   // ========== MÉTODOS PARA EL MENÚ FILE ==========
   // ===============================================
 
+  activateViewMenuAction(action) {
+    console.log("View action:", action);
+
+    switch (action) {
+      // ===============================
+      // CONFIGURAR VISTA
+      // ===============================
+      case "set-3d-view":
+        this.set3DView();
+        break;
+
+      case "set-plan-view":
+        this.setPlanView();
+        break;
+
+      case "set-elevation-view":
+        this.setElevationView();
+        break;
+
+      // ===============================
+      // ZOOM
+      // ===============================
+      case "rubber-band-zoom":
+        this.rubberBandZoom();
+        break;
+
+      case "restore-full-view":
+        this.restoreFullView();
+        break;
+
+      case "previous-zoom":
+        this.previousZoom();
+        break;
+
+      case "zoom-in-one-step":
+        this.zoomInOneStep();
+        break;
+
+      case "zoom-out-one-step":
+        this.zoomOutOneStep();
+        break;
+
+      // ===============================
+      // PAN
+      // ===============================
+      case "pan":
+        this.panView();
+        break;
+
+      default:
+        this.showMessage?.(`Acción View no reconocida: ${action}`, "warning");
+        console.warn("Acción View no reconocida:", action);
+        break;
+    }
+
+    this.redraw?.();
+  },
+
   // Open / Save
   openModel() {
     // Crear input file para abrir modelo JSON
@@ -7888,94 +7948,356 @@ export default () => ({
   // ========== MÉTODOS PARA EL MENÚ VIEW ==========
   // ===============================================
 
-  set3DView() {
-    // this.setViewIso();
-    // this.showMessage("🎥 Vista 3D configurada");
+  async set3DView() {
+    const result = await Swal.fire({
+      title: "Set 3D View",
+      width: 520,
+      html: `
+      <div style="text-align:left; font-size:13px;">
+        <p style="margin-bottom:12px;">
+          Selecciona una orientación para la vista 3D.
+        </p>
 
-    window.dispatchEvent(new CustomEvent('open-view-modal', { detail: { view: '3d' } }));
+        <label style="display:block; margin-bottom:6px;">Vista 3D</label>
+
+        <select id="view-3d-type" style="width:100%; padding:7px;">
+          <option value="iso">Isometric View</option>
+          <option value="plan">Plan View / Top</option>
+          <option value="front">Front Elevation</option>
+          <option value="side">Side Elevation</option>
+          <option value="extents">Zoom Extents 3D</option>
+        </select>
+
+        <div style="margin-top:12px; padding:10px; border:1px solid #555; border-radius:6px; color:#777; font-size:12px;">
+          Esta opción cambia solo la cámara 3D. No modifica nodos, barras, grillas ni asignaciones.
+        </div>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Aplicar",
+      cancelButtonText: "Cancelar",
+      preConfirm: () => {
+        return document.getElementById("view-3d-type")?.value || "iso";
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
+    const viewType = result.value;
+
+    if (this.windowLayout === "one") {
+      this.singleWindowView = "3d";
+      this.setWindowLayout?.("one");
+    }
+
+    if (viewType === "iso") {
+      this.setViewIso?.();
+    }
+
+    if (viewType === "plan") {
+      this.setViewPlan?.();
+    }
+
+    if (viewType === "front") {
+      this.setViewFront?.();
+    }
+
+    if (viewType === "side") {
+      this.setViewSide?.();
+    }
+
+    if (viewType === "extents") {
+      this.zoomExtents?.();
+    }
+
+    this.sync3D?.();
+
+    this.showMessage?.(`🎥 Set 3D View: ${viewType}`);
   },
 
-  setPlanView() {
-    // this.setViewPlan();
-    // this.showMessage("🗺️ Vista en planta configurada");
+  async setPlanView() {
+    this.ensureViewSetForViewMenu?.();
 
-    window.dispatchEvent(new CustomEvent('open-view-modal', { detail: { view: 'plan' } }));
+    const planViews = (this.viewSet || [])
+      .map((view, index) => ({ ...view, index }))
+      .filter((view) => view.type === "plan");
+
+    if (!planViews.length) {
+      this.showMessage?.("No hay vistas de planta disponibles.", "warning");
+      return;
+    }
+
+    const options = {};
+
+    planViews.forEach((view) => {
+      const z = Number(view.elevation ?? 0);
+      options[view.index] = `${view.name || "Planta"} | Z = ${z.toFixed(2)} m`;
+    });
+
+    const currentPlan = planViews.find((view) => view.index === this.activeViewIndex);
+    const defaultValue = currentPlan ? String(currentPlan.index) : String(planViews[0].index);
+
+    const result = await Swal.fire({
+      title: "Set Plan View",
+      width: 560,
+      html: `
+      <div style="text-align:left; font-size:13px;">
+        <p style="margin-bottom:12px;">
+          Selecciona el nivel o planta que deseas visualizar.
+        </p>
+
+        <label style="display:block; margin-bottom:6px;">Plan View</label>
+
+        <select id="view-plan-index" style="width:100%; padding:7px;">
+          ${planViews.map((view) => {
+        const z = Number(view.elevation ?? 0);
+        const selected = String(view.index) === defaultValue ? "selected" : "";
+
+        return `
+              <option value="${view.index}" ${selected}>
+                ${view.name || "Planta"} | Z = ${z.toFixed(2)} m
+              </option>
+            `;
+      }).join("")}
+        </select>
+
+        <label style="display:flex; align-items:center; gap:8px; margin-top:12px;">
+          <input id="view-plan-fit" type="checkbox" checked>
+          Restore Full View después de cambiar
+        </label>
+
+        <div style="margin-top:12px; padding:10px; border:1px solid #555; border-radius:6px; color:#777; font-size:12px;">
+          Esta opción cambia la vista activa 2D a una planta. Los objetos seguirán filtrándose por el nivel seleccionado.
+        </div>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Aplicar",
+      cancelButtonText: "Cancelar",
+      preConfirm: () => {
+        return {
+          index: Number(document.getElementById("view-plan-index")?.value),
+          fit: document.getElementById("view-plan-fit")?.checked === true,
+        };
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
+    const selectedIndex = result.value.index;
+
+    this.saveZoomState?.();
+    this.setViewFromSet(selectedIndex);
+
+    const selectedView = this.viewSet?.[selectedIndex];
+
+    if (result.value.fit) {
+      this.fitContentToScreen?.();
+    }
+
+    this.redraw?.();
+    this.sync3D?.();
+
+    this.showMessage?.(`🗺️ Vista en planta: ${selectedView?.name || selectedIndex}`);
   },
 
-  setElevationView() {
-    // Mostrar diálogo para seleccionar elevación
-    // if (this.stories && this.stories.length > 0) {
-    //   let storyNames = this.stories.map((s) => s.name);
-    //   Swal.fire({
-    //     title: "Configurar Vista en Elevación",
-    //     input: "select",
-    //     inputOptions: storyNames.reduce((acc, story) => {
-    //       acc[story] = story;
-    //       return acc;
-    //     }, {}),
-    //     inputPlaceholder: "Seleccione un nivel",
-    //     showCancelButton: true,
-    //     confirmButtonText: "Configurar",
-    //     cancelButtonText: "Cancelar",
-    //   }).then((result) => {
-    //     if (result.isConfirmed && result.value) {
-    //       let selectedStory = this.stories.find((s) => s.name === result.value);
-    //       if (selectedStory) {
-    //         // Configurar vista de elevación
-    //         this.setViewFront();
-    //         this.showMessage(`📐 Vista en elevación - Nivel: ${selectedStory.name}`);
-    //       }
-    //     }
-    //   });
-    // } else {
-    //   this.showMessage("📐 Configurar Vista en Elevación");
-    // }
+  async setElevationView() {
+    this.ensureViewSetForViewMenu?.();
 
-    // Primero preguntar qué tipo de elevación (X o Y)
-    window.dispatchEvent(new CustomEvent('open-view-modal', { detail: { view: 'elevation' } }));
+    const elevationViews = (this.viewSet || [])
+      .map((view, index) => ({ ...view, index }))
+      .filter((view) => view.type === "elevation");
+
+    if (!elevationViews.length) {
+      this.showMessage?.("No hay vistas de elevación disponibles.", "warning");
+      return;
+    }
+
+    const defaultView =
+      elevationViews.find((view) => view.index === this.activeViewIndex) ||
+      elevationViews[0];
+
+    const result = await Swal.fire({
+      title: "Set Elevation View",
+      width: 620,
+      html: `
+      <div style="text-align:left; font-size:13px;">
+        <p style="margin-bottom:12px;">
+          Selecciona la elevación que deseas visualizar.
+        </p>
+
+        <label style="display:block; margin-bottom:6px;">Elevation View</label>
+
+        <select id="view-elevation-index" style="width:100%; padding:7px;">
+          ${elevationViews.map((view) => {
+        const fixedAxis = view.axis === "X" ? "X fijo" : "Y fijo";
+        const plane = view.axis === "X" ? "Plano Y-Z" : "Plano X-Z";
+        const value = Number(view.value ?? 0).toFixed(2);
+        const selected = view.index === defaultView.index ? "selected" : "";
+
+        return `
+              <option value="${view.index}" ${selected}>
+                ${view.name || `Elevación ${view.label}`} | ${fixedAxis} = ${value} m | ${plane}
+              </option>
+            `;
+      }).join("")}
+        </select>
+
+        <label style="display:flex; align-items:center; gap:8px; margin-top:12px;">
+          <input id="view-elevation-fit" type="checkbox" checked>
+          Restore Full View después de cambiar
+        </label>
+
+        <div style="margin-top:12px; padding:10px; border:1px solid #555; border-radius:6px; color:#777; font-size:12px;">
+          En esta versión:
+          <br>• Elevaciones A, B, C... trabajan con X fijo y muestran el plano Y-Z.
+          <br>• Elevaciones 1, 2, 3... trabajan con Y fijo y muestran el plano X-Z.
+        </div>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Aplicar",
+      cancelButtonText: "Cancelar",
+      preConfirm: () => {
+        return {
+          index: Number(document.getElementById("view-elevation-index")?.value),
+          fit: document.getElementById("view-elevation-fit")?.checked === true,
+        };
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
+    const selectedIndex = result.value.index;
+
+    this.saveZoomState?.();
+    this.setViewFromSet(selectedIndex);
+
+    const selectedView = this.viewSet?.[selectedIndex];
+
+    if (result.value.fit) {
+      this.fitContentToScreen?.();
+    }
+
+    this.redraw?.();
+    this.sync3D?.();
+
+    this.showMessage?.(`📐 Vista en elevación: ${selectedView?.name || selectedIndex}`);
+  },
+
+  ensureViewSetForViewMenu() {
+    if (!Array.isArray(this.viewSet)) {
+      this.viewSet = [];
+    }
+
+    if (this.viewSet.length > 0) {
+      return;
+    }
+
+    this.rebuildReferenceGridCaches?.();
+    this.rebuildViewSetFromReferenceGrid?.();
+    this.rebuildElevationListsFromReferenceGrid?.();
+
+    if (!Array.isArray(this.viewSet)) {
+      this.viewSet = [];
+    }
   },
 
   rubberBandZoom() {
-    this.showMessage("🔍 Zoom con recuadro - Arrastre para seleccionar área");
-    // Cambiar al modo de zoom con recuadro
-    if (this.panAndZoomState) {
-      // Activar modo de zoom con recuadro
+    if (!this.rubberBandZoomState) {
+      this.showMessage?.("No existe RubberBandZoomState", "warning");
+      return;
     }
+
+    this.clearAllSelections?.();
+    this.setState(this.rubberBandZoomState);
+
+    this.showMessage?.(
+      "🔍 Rubber Band Zoom activado. Arrastra un recuadro con clic izquierdo."
+    );
   },
 
   restoreFullView() {
+    this.saveZoomState?.();
+
     this.fitContentToScreen();
-    this.showMessage("🖼️ Vista completa restaurada");
+
+    this.redraw?.();
+    this.showMessage?.("🖼️ Vista completa restaurada");
   },
 
   previousZoom() {
-    if (this.zoomHistory && this.zoomHistory.length > 0) {
-      const previousState = this.zoomHistory.pop();
-      this.grid.restoreState(previousState);
-      this.redraw();
-      this.showMessage("⏪ Zoom anterior restaurado");
-    } else {
-      this.showMessage("⏪ No hay zoom anterior disponible", "warning");
+    if (!this.zoomHistory || this.zoomHistory.length === 0) {
+      this.showMessage?.("⏪ No hay zoom anterior disponible", "warning");
+      return;
     }
+
+    const previousState = this.zoomHistory.pop();
+
+    if (!this.grid?.restoreState) {
+      this.showMessage?.("Falta restoreState() en grid.js", "warning");
+      return;
+    }
+
+    this.grid.restoreState(previousState);
+
+    this.redraw?.();
+    this.showMessage?.("⏪ Zoom anterior restaurado");
   },
 
   zoomInOneStep() {
-    this.grid.zoomInToScreenPoint({ x: this.canvas.width / 2, y: this.canvas.height / 2 });
-    this.redraw();
-    this.showMessage("🔍+ Zoom +1");
+    if (!this.canvas || !this.grid) return;
+
+    this.saveZoomState?.();
+
+    this.grid.zoomInToScreenPoint({
+      x: this.canvas.width / 2,
+      y: this.canvas.height / 2,
+    });
+
+    this.redraw?.();
+    this.showMessage?.("🔍+ Zoom +1");
   },
 
   zoomOutOneStep() {
-    this.grid.zoomOutToScreenPoint({ x: this.canvas.width / 2, y: this.canvas.height / 2 });
-    this.redraw();
-    this.showMessage("🔍- Zoom -1");
+    if (!this.canvas || !this.grid) return;
+
+    this.saveZoomState?.();
+
+    this.grid.zoomOutToScreenPoint({
+      x: this.canvas.width / 2,
+      y: this.canvas.height / 2,
+    });
+
+    this.redraw?.();
+    this.showMessage?.("🔍- Zoom -1");
   },
 
   panView() {
-    this.showMessage("✋ Modo panorámica - Arrastre para mover la vista");
-    // Cambiar al modo de panorámica
-    if (this.panAndZoomState) {
-      this.setState(this.panAndZoomState);
+    if (!this.panAndZoomState) {
+      this.showMessage?.("No existe PanAndZoomState", "warning");
+      return;
+    }
+
+    this.setState(this.panAndZoomState);
+
+    this.showMessage?.("✋ Pan activado: usa el botón central del mouse para mover la vista y la rueda para zoom.");
+  },
+
+  saveZoomState() {
+    if (!this.grid?.getState) {
+      console.warn("Falta getState() en grid.js");
+      return;
+    }
+
+    if (!Array.isArray(this.zoomHistory)) {
+      this.zoomHistory = [];
+    }
+
+    this.zoomHistory.push(this.grid.getState());
+
+    if (this.zoomHistory.length > 20) {
+      this.zoomHistory.shift();
     }
   },
 
