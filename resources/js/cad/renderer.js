@@ -90,50 +90,59 @@ export class DiseñoRenderer {
       this.drawSupport(n, CADSystem);
     });
     if (!CADSystem.options.showWireframe) {
-      if (CADSystem.options.showFAxiales) {
-        this.drawAxiales(CADSystem);
-        if (CADSystem.options.showFAxialesValues) {
-          this.drawAxialesValues(CADSystem);
-        }
-      } else {
-        CADSystem.shapes.forEach((s) => {
+      // 1. Siempre dibujar primero el modelo normal visible en la vista activa
+      CADSystem.shapes.forEach((s) => {
+        if (!this.shouldDrawBeam(s, CADSystem)) return;
+        this.drawBeam(s, CADSystem);
+      });
+
+      CADSystem.parametricModels.forEach((parametric) => {
+        parametric.shapes.forEach((s) => {
           if (!this.shouldDrawBeam(s, CADSystem)) return;
           this.drawBeam(s, CADSystem);
         });
+      });
 
-        CADSystem.parametricModels.forEach((parametric) => {
-          parametric.shapes.forEach((s) => {
-            s.draw(this, CADSystem);
-          });
-        });
+      // 2. Si Display > Member Forces está activo, dibujar encima el diagrama axial
+      if (CADSystem.options.showFAxiales) {
+        this.drawAxiales(CADSystem);
+
+        if (CADSystem.options.showFAxialesValues) {
+          this.drawAxialesValues(CADSystem);
+        }
       }
+
+      // 3. Dibujar nodos visibles en la vista activa
       CADSystem.nodes.forEach((n) => {
         if (!this.shouldDrawNode(n, CADSystem)) return;
-        n.draw(this, CADSystem);
+        this.drawNode(n, CADSystem);
       });
 
       CADSystem.parametricModels.forEach((parametric) => {
         parametric.nodes.forEach((n) => {
-          n.draw(this, CADSystem);
-          this.drawForce(n, CADSystem);
+          if (!this.shouldDrawNode(n, CADSystem)) return;
+          this.drawNode(n, CADSystem);
         });
       });
     } else {
+      // Wireframe normal
+      CADSystem.shapes.forEach((s) => {
+        if (!this.shouldDrawBeam(s, CADSystem)) return;
+        this.drawWireBeam(s, CADSystem);
+      });
+
+      CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
+        this.drawWireNode(n, CADSystem);
+      });
+
+      // Axiales encima del wireframe
       if (CADSystem.options.showFAxiales) {
         this.drawWireframeAxiales(CADSystem);
+
         if (CADSystem.options.showFAxialesValues) {
           this.drawAxialesValues(CADSystem);
         }
-      } else {
-        CADSystem.shapes.forEach((s) => {
-          if (!this.shouldDrawBeam(s, CADSystem)) return;
-          this.drawWireBeam(s, CADSystem);
-        });
-
-        CADSystem.nodes.forEach((n) => {
-          if (!this.shouldDrawNode(n, CADSystem)) return;
-          this.drawWireNode(n, CADSystem);
-        });
       }
     }
     if (CADSystem.options.showIDs) {
@@ -175,47 +184,79 @@ export class DiseñoRenderer {
 
   drawAxiales(context) {
     context.shapes.forEach((s) => {
-      const p1 = context.grid.worldToScreen(s.node1.position);
-      const p2 = context.grid.worldToScreen(s.node2.position);
+      if (!this.shouldDrawBeam(s, context)) return;
+
+      const p1 = this.projectPoint(s.node1, context);
+      const p2 = this.projectPoint(s.node2, context);
+
       context.ctx.save();
-      Object.assign(context.ctx, s.style.axialStyle.MODEL);
+
+      Object.assign(context.ctx, s.style?.axialStyle?.MODEL || {});
+
+      context.ctx.strokeStyle = "#16a34a";
+      context.ctx.lineWidth = 2;
+
       context.ctx.beginPath();
       context.ctx.moveTo(p1.x, p1.y);
       context.ctx.lineTo(p2.x, p2.y);
       context.ctx.stroke();
+
       context.ctx.restore();
     });
   }
 
   drawWireframeAxiales(context) {
     context.shapes.forEach((s) => {
-      const p1 = context.grid.worldToScreen(s.node1.position);
-      const p2 = context.grid.worldToScreen(s.node2.position);
+      if (!this.shouldDrawBeam(s, context)) return;
+
+      const p1 = this.projectPoint(s.node1, context);
+      const p2 = this.projectPoint(s.node2, context);
+
       context.ctx.save();
-      Object.assign(context.ctx, s.style.axialStyle.WIREFRAME);
+
+      Object.assign(context.ctx, s.style?.axialStyle?.WIREFRAME || {});
+
+      context.ctx.strokeStyle = "#16a34a";
+      context.ctx.lineWidth = 1.5;
+      context.ctx.setLineDash([4, 4]);
+
       context.ctx.beginPath();
       context.ctx.moveTo(p1.x, p1.y);
       context.ctx.lineTo(p2.x, p2.y);
       context.ctx.stroke();
+
+      context.ctx.setLineDash([]);
       context.ctx.restore();
     });
   }
 
   drawAxialesValues(context) {
     context.shapes.forEach((s) => {
-      const p1 = context.grid.worldToScreen(s.node1.position);
-      const p2 = context.grid.worldToScreen(s.node2.position);
-      const mid = midPoint(p1, p2);
+      if (!this.shouldDrawBeam(s, context)) return;
+
+      const p1 = this.projectPoint(s.node1, context);
+      const p2 = this.projectPoint(s.node2, context);
+
+      const mid = {
+        x: (p1.x + p2.x) / 2,
+        y: (p1.y + p2.y) / 2,
+      };
+
       context.ctx.save();
-      Object.assign(context.ctx, s.style.axialStyle.MODEL);
-      context.ctx.translate(mid.x, mid.y);
-      context.ctx.rotate(s.angle);
-      // context.ctx.fillText(s.fAxial.toFixed(3), 0, 30);
+
+      context.ctx.fillStyle = "#16a34a";
+      context.ctx.font = "11px Arial";
+      context.ctx.textAlign = "center";
+      context.ctx.textBaseline = "middle";
+
       context.ctx.fillText(
-        this.formatValue(context, s.fAxial, "forces", 3),
-        0,
-        30
+        this.formatValue
+          ? this.formatValue(context, s.fAxial ?? 0, "forces", 3)
+          : Number(s.fAxial ?? 0).toFixed(1),
+        mid.x,
+        mid.y - 14
       );
+
       context.ctx.restore();
     });
   }
@@ -288,24 +329,27 @@ export class DiseñoRenderer {
       this.drawJointPointSpringSymbol(node, context, p);
     }
 
-    // Símbolo visual de Joint / Point Force Loads
-    if (this.jointHasForceLoads(node)) {
-      this.drawJointPointForceSymbol(node, context, p);
-    }
+    if (context.displayOptions?.showJointLoads) {
+      if (this.jointHasForceLoads(node)) {
+        this.drawJointPointForceSymbol(node, context, p);
+      }
 
-    // Símbolo visual de Joint / Point Ground Displacement Loads
-    if (this.jointHasGroundDisplacementLoads(node)) {
-      this.drawJointGroundDisplacementSymbol(node, context, p);
-    }
+      if (this.jointHasGroundDisplacementLoads(node)) {
+        this.drawJointGroundDisplacementSymbol(node, context, p);
+      }
 
-    // Símbolo visual de Joint / Point Temperature Loads
-    if (this.jointHasTemperatureLoads(node)) {
-      this.drawJointTemperatureSymbol(node, context, p);
+      if (this.jointHasTemperatureLoads(node)) {
+        this.drawJointTemperatureSymbol(node, context, p);
+      }
     }
 
     if (this.objectHasGroups(node)) {
       const groupLabel = this.getObjectGroupLabel(node);
       this.drawObjectGroupLabel(context, p.x + 12, p.y + 28, groupLabel);
+    }
+
+    if (context.displayOptions?.showModeShape) {
+      this.drawModeShapeNodeOverlay(node, context, p);
     }
   }
 
@@ -571,19 +615,22 @@ export class DiseñoRenderer {
       this.drawFrameEndOffsetSymbols(beam, context, p1, p2);
     }
 
-    // Símbolos de Frame / Line Point Loads
-    if (this.frameHasPointLoads(beam)) {
-      this.drawFramePointLoadSymbols(beam, context, p1, p2);
+    if (context.displayOptions?.showFrameLoads) {
+      if (this.frameHasPointLoads(beam)) {
+        this.drawFramePointLoadSymbols(beam, context, p1, p2);
+      }
+
+      if (this.frameHasDistributedLoads(beam)) {
+        this.drawFrameDistributedLoadSymbols(beam, context, p1, p2);
+      }
+
+      if (this.frameHasTemperatureLoads(beam)) {
+        this.drawFrameTemperatureLoadSymbols(beam, context, p1, p2);
+      }
     }
 
-    // Símbolos de Frame / Line Distributed Loads
-    if (this.frameHasDistributedLoads(beam)) {
-      this.drawFrameDistributedLoadSymbols(beam, context, p1, p2);
-    }
-
-    // Símbolos de Frame / Line Temperature Loads
-    if (this.frameHasTemperatureLoads(beam)) {
-      this.drawFrameTemperatureLoadSymbols(beam, context, p1, p2);
+    if (context.displayOptions?.showModeShape) {
+      this.drawModeShapeBeamOverlay(beam, context, p1, p2);
     }
 
     if (this.objectHasGroups(beam)) {
@@ -2562,6 +2609,105 @@ export class DiseñoRenderer {
     context.ctx.restore();
   }
 
+  // =====================================================
+  // VISUAL DISPLAY > SHOW MODE SHAPE
+  // =====================================================
+
+  getModeShapeScreenOffset(obj, context) {
+    const modeNumber = Number(context.displayOptions?.modeNumber ?? 1);
+    const modeScale = Number(context.displayOptions?.modeScale ?? 1);
+
+    const p =
+      obj?.position ||
+      obj?.node1?.position ||
+      { x: 0, y: 0, z: 0 };
+
+    const x = Number(p.x ?? 0);
+    const y = Number(p.y ?? 0);
+    const z = Number(p.z ?? 0);
+
+    // Forma modal visual temporal, no resultado real de análisis.
+    const phase = (x * 0.37 + y * 0.23 + z * 0.19 + modeNumber) * Math.PI;
+
+    return {
+      dx: Math.sin(phase) * 14 * modeScale,
+      dy: Math.cos(phase) * 10 * modeScale,
+    };
+  }
+
+  drawModeShapeBeamOverlay(beam, context, p1, p2) {
+    if (!context.displayOptions?.showModeShape) return;
+
+    const ctx = context.ctx;
+
+    const o1 = this.getModeShapeScreenOffset(beam.node1, context);
+    const o2 = this.getModeShapeScreenOffset(beam.node2, context);
+
+    const q1 = {
+      x: p1.x + o1.dx,
+      y: p1.y + o1.dy,
+    };
+
+    const q2 = {
+      x: p2.x + o2.dx,
+      y: p2.y + o2.dy,
+    };
+
+    ctx.save();
+
+    ctx.strokeStyle = "#c084fc";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+
+    ctx.beginPath();
+    ctx.moveTo(q1.x, q1.y);
+    ctx.lineTo(q2.x, q2.y);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+
+    const label = `Mode ${context.displayOptions?.modeNumber ?? 1}`;
+    const midX = (q1.x + q2.x) / 2;
+    const midY = (q1.y + q2.y) / 2;
+
+    ctx.font = "10px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    const textWidth = ctx.measureText(label).width;
+
+    ctx.fillStyle = "rgba(88, 28, 135, 0.85)";
+    ctx.fillRect(midX - textWidth / 2 - 4, midY - 8, textWidth + 8, 16);
+
+    ctx.fillStyle = "#e9d5ff";
+    ctx.fillText(label, midX, midY);
+
+    ctx.restore();
+  }
+
+  drawModeShapeNodeOverlay(node, context, p) {
+    if (!context.displayOptions?.showModeShape) return;
+
+    const ctx = context.ctx;
+    const offset = this.getModeShapeScreenOffset(node, context);
+
+    const x = p.x + offset.dx;
+    const y = p.y + offset.dy;
+
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = "#c084fc";
+    ctx.fill();
+
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
   // DRAW GRID ORIGINAL
   drawStandardGrid(grid, context) {
     const ctx = context.ctx; // Assuming you're using a canvas context
@@ -3622,45 +3768,76 @@ export class DeflexionRenderer extends DiseñoRenderer {
 export class AxialRenderer extends DiseñoRenderer {
   render(CADSystem) {
     this.clearBackground(CADSystem);
+
     if (CADSystem.options.showGrid) {
       CADSystem.grid.draw(this, CADSystem);
     }
+
     CADSystem.nodes.forEach((n) => {
+      if (!this.shouldDrawNode(n, CADSystem)) return;
       this.drawSupport(n, CADSystem);
     });
+
     if (!CADSystem.options.showWireframe) {
+      CADSystem.shapes.forEach((s) => {
+        if (!this.shouldDrawBeam(s, CADSystem)) return;
+        this.drawBeam(s, CADSystem);
+      });
+
       this.drawAxiales(CADSystem);
+
       CADSystem.nodes.forEach((n) => {
-        n.draw(this, CADSystem);
+        if (!this.shouldDrawNode(n, CADSystem)) return;
+        this.drawNode(n, CADSystem);
       });
     } else {
+      CADSystem.shapes.forEach((s) => {
+        if (!this.shouldDrawBeam(s, CADSystem)) return;
+        this.drawWireBeam(s, CADSystem);
+      });
+
       this.drawWireframeAxiales(CADSystem);
+
+      CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
+        this.drawWireNode(n, CADSystem);
+      });
     }
+
     if (CADSystem.options.showFAxialesValues) {
       this.drawAxialesValues(CADSystem);
     }
+
     if (CADSystem.options.showIDs) {
       CADSystem.shapes.forEach((s) => {
+        if (!this.shouldDrawBeam(s, CADSystem)) return;
         this.drawBeamID(s, CADSystem);
       });
+
       CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
         this.drawNodeID(n, CADSystem);
       });
     }
+
     if (CADSystem.options.showForces) {
       CADSystem.ctx.save();
       CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
         this.drawForce(n, CADSystem);
       });
       CADSystem.ctx.restore();
     }
+
     if (CADSystem.options.showReactions) {
       CADSystem.ctx.save();
       CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
         this.drawReaction(n, CADSystem);
       });
       CADSystem.ctx.restore();
     }
+
     CADSystem.currentState.draw(this, CADSystem);
   }
 }

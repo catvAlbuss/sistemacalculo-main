@@ -1,11 +1,13 @@
 import { defineMenu } from './define-menu.js';
 import { drawMenu } from './draw-menu.js';
 import { assignMenu } from './assign-menu.js';
+import { displayMenu } from './display-menu.js';
 
 export const menus = {
     define: defineMenu,
     draw: drawMenu,
     assign: assignMenu,
+    display: displayMenu,
 };
 
 export const getMenuContent = (menuName, cadSystem) => {

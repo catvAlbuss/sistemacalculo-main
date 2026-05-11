@@ -775,56 +775,79 @@
             </x-slot>
         </x-cad.menu-dropdown-item>
 
-        {{-- Menú MOSTRAR --}}
+        {{-- Menú DISPLAY / MOSTRAR --}}
         <x-cad.menu-dropdown-item label="Mostrar">
             <x-slot name="slot">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
             </x-slot>
-            <x-slot name="dropdown">
-                <div class="py-1" style="min-width: 220px; overflow-x: visible;">
 
-                    {{-- Mostrar Forma No Deformada --}}
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap" @click="cadSystem.showUndeformedShape()">
-                        <span>📐</span> Mostrar Forma No Deformada
+            <x-slot name="dropdown">
+                <div class="py-1" style="min-width: 280px; overflow-x: visible;">
+
+                    {{-- Show Undeformed Shape --}}
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="cadSystem.activateDisplayMenuAction('show-undeformed-shape')">
+                        <span>📐</span>
+                        Show Undeformed Shape
                     </button>
 
-                    {{-- Mostrar Cargas (con submenús) --}}
-                    <x-cad.menu-subitem label="Mostrar Cargas">
+                    {{-- Show Loads --}}
+                    <x-cad.menu-subitem label="Show Loads">
                         <span>📊</span>
+
                         <x-slot name="submenu">
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap" @click="cadSystem.showLoadsOnJoints()">
-                                <span>⚫</span> Nudos/Puntos...
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateDisplayMenuAction('show-joint-loads')">
+                                <span>⚫</span>
+                                Joint / Point...
                             </button>
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap" @click="cadSystem.showLoadsOnFrames()">
-                                <span>━━</span> Elementos Frame/Línea...
+
+                            <button
+                                class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateDisplayMenuAction('show-frame-loads')">
+                                <span>━━</span>
+                                Frame / Line...
                             </button>
-                            <!-- <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap" @click="cadSystem.showLoadsOnShells()">
-                                <span>◻️</span> Elementos Shell/Área...
-                            </button> -->
                         </x-slot>
                     </x-cad.menu-subitem>
 
-                    {{-- Mostrar Forma Deformada --}}
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap" @click="cadSystem.showDeformedShape()">
-                        <span>📈</span> Mostrar Forma Deformada...
+                    <div class="border-t border-gray-700 my-1"></div>
+
+                    {{-- Show Deformed Shape --}}
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="cadSystem.activateDisplayMenuAction('show-deformed-shape')">
+                        <span>📈</span>
+                        Show Deformed Shape...
                     </button>
 
-                    {{-- Mostrar Forma Modal --}}
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap" @click="cadSystem.showModeShape()">
-                        <span>🎵</span> Mostrar Forma Modal...
+                    {{-- Show Mode Shape --}}
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="cadSystem.activateDisplayMenuAction('show-mode-shape')">
+                        <span>🎵</span>
+                        Show Mode Shape...
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
 
-                    {{-- Mostrar Diagramas de Fuerzas/Esfuerzos --}}
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap" @click="cadSystem.showMemberForces()">
-                        <span>📉</span> Mostrar Diagramas de Fuerzas/Esfuerzos de Elementos
+                    {{-- Show Member Forces / Stress Diagram --}}
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="cadSystem.activateDisplayMenuAction('show-member-forces')">
+                        <span>📉</span>
+                        Show Member Forces / Stress Diagram
                     </button>
+
                 </div>
             </x-slot>
         </x-cad.menu-dropdown-item>
+
         {{-- Menú DESIGN --}}
         <x-cad.menu-dropdown-item label="Desiño">
             <x-slot name="slot">
