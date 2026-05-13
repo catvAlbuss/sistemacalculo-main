@@ -162,7 +162,9 @@ Route::middleware(["auth", "verified"])->group(function () {
         });
     });
     Route::prefix("software")->name("software.")->group(function () {
-        Route::view('/analisis-estructural-de-armaduras', 'matlab.admAnalisisEstructuralDeArmaduras')->name("analisis-estructural-de-armaduras");
+        Route::view('/analisis-estructural-de-armaduras', 'etabs')->name("analisis-estructural-de-armaduras");
+        Route::view('/etabs2', 'etabs2')->name("etabs2");
+        Route::view('/etabs', 'matlab.admAnalisisEstructuralDeArmaduras')->name("etabs");
         Route::view('/aligerados-v2', 'matlab.admAligeradosGrafico')->name("aligerados-v2");
         Route::view('/aligerados-v1', 'matlab.admFuerzasCortantesGrafico')->name("aligerados-v1");
         Route::view('/cimentacion-v2', 'matlab.admSafecito')->name("cimentacion-v2");
