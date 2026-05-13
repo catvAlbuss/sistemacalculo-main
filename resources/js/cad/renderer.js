@@ -179,7 +179,86 @@ export class DiseñoRenderer {
       this.drawMaterials(CADSystem);
     }
 
+    this.drawDesignInfo?.(CADSystem);
+
     CADSystem.currentState.draw(this, CADSystem);
+  }
+
+  drawDesignInfo(CADSystem) {
+    const mode = CADSystem.getActiveDesignDisplayMode?.();
+
+    if (!mode) return;
+
+    const ctx = CADSystem.ctx;
+    const frames = CADSystem.shapes || [];
+
+    ctx.save();
+
+    frames.forEach((frame) => {
+      if (!frame?.node1 || !frame?.node2) return;
+      
+      // Respetar vista activa: planta, elevación o vista filtrada
+      if (
+        typeof CADSystem.isObjectVisibleInActiveView === "function" &&
+        !CADSystem.isObjectVisibleInActiveView(frame)
+      ) {
+        return;
+      }
+
+      // Compatibilidad si también tienes shouldDrawBeam en cadSystem
+      if (
+        typeof CADSystem.shouldDrawBeam === "function" &&
+        !CADSystem.shouldDrawBeam(frame)
+      ) {
+        return;
+      }
+
+      const result = CADSystem.getDesignResultForDisplay?.(frame);
+
+      if (!result) return;
+
+      const p1 = this.projectPoint(frame.node1, CADSystem);
+      const p2 = this.projectPoint(frame.node2, CADSystem);
+
+      const mx = (p1.x + p2.x) / 2;
+      const my = (p1.y + p2.y) / 2;
+
+      const text = CADSystem.formatDesignInfoText?.(
+        result,
+        mode.options?.infoType || "ratio"
+      );
+
+      if (!text) return;
+
+      const isOk = String(result.status).toUpperCase() === "OK";
+
+      ctx.font = "bold 11px Arial";
+      const paddingX = 5;
+      const paddingY = 3;
+      const textWidth = ctx.measureText(text).width;
+      const boxWidth = textWidth + paddingX * 2;
+      const boxHeight = 18;
+
+      const x = mx - boxWidth / 2;
+      const y = my - 28;
+
+      ctx.fillStyle = isOk
+        ? "rgba(22, 163, 74, 0.90)"
+        : "rgba(220, 38, 38, 0.90)";
+
+      ctx.fillRect(x, y, boxWidth, boxHeight);
+
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, boxWidth, boxHeight);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, mx, y + boxHeight / 2);
+    });
+
+    ctx.restore();
   }
 
   drawAxiales(context) {
