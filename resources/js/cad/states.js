@@ -252,16 +252,26 @@ export class SelectedObjectsState extends PanAndZoomState {
   }
 
   enter(args) {
-    this.selectedObjects = args.selectedObjects;
-    this.selectedObjects.forEach((n) => {
-      n.style.selected();
+    this.selectedObjects = args.selectedObjects || [];
+
+    this.selectedObjects.forEach((obj) => {
+      obj.selected = true;
+
+      if (obj.style?.selected) {
+        obj.style.selected();
+      }
     });
   }
 
   exit() {
     super.exit();
-    this.selectedObjects.forEach((n) => {
-      n.style.default();
+
+    this.selectedObjects.forEach((obj) => {
+      obj.selected = false;
+
+      if (obj.style?.default) {
+        obj.style.default();
+      }
     });
   }
 
@@ -450,8 +460,12 @@ export class ReshapeObjectState extends PanAndZoomState {
     this.selectedVertexIndex = null;
     this.isMoving = false;
 
-    if (this.selectedBeam?.style) {
-      this.selectedBeam.style.selected();
+    if (this.selectedBeam) {
+      this.selectedBeam.selected = true;
+
+      if (this.selectedBeam.style?.selected) {
+        this.selectedBeam.style.selected();
+      }
     }
 
     if (this.selectedArea) {
@@ -462,8 +476,12 @@ export class ReshapeObjectState extends PanAndZoomState {
   exit() {
     super.exit();
 
-    if (this.selectedBeam?.style) {
-      this.selectedBeam.style.default();
+    if (this.selectedBeam) {
+      this.selectedBeam.selected = false;
+
+      if (this.selectedBeam.style?.default) {
+        this.selectedBeam.style.default();
+      }
     }
 
     if (this.selectedNode?.style) {
@@ -933,7 +951,7 @@ export class SelectionState extends PanAndZoomState {
 }
 
 export class RubberBandZoomState extends PanAndZoomState {
-  
+
   constructor() {
     super();
 
@@ -1195,17 +1213,32 @@ export class MoveObjectState extends IdleState {
 
   enter(args) {
     this.selectedObject = args.selectedObject;
-    this.selectedObject.style.selected();
+
+    if (this.selectedObject) {
+      this.selectedObject.selected = true;
+
+      if (this.selectedObject.style?.selected) {
+        this.selectedObject.style.selected();
+      }
+    }
+
     this.isMoving = args.isMoving ?? true;
   }
+
   exit() {
     super.exit();
+
     if (this.selectedObject) {
-      this.selectedObject.style.default();
+      this.selectedObject.selected = false;
+
+      if (this.selectedObject.style?.default) {
+        this.selectedObject.style.default();
+      }
     }
-    // this.selectedObject = null;
+
     this.isMoving = false;
   }
+
   info() {
     return 'Edita sus propiedades desde el menú o presiona "Supr" para eliminar.';
   }
@@ -1236,13 +1269,18 @@ export class TrussDrawingState extends PanAndZoomState {
 
   getDrawingPoint(context, mouse) {
     const worldPos = context.grid.screenToWorld(mouse);
-
-    if (context.getCurrentSnapPoint) {
-      return context.getCurrentSnapPoint(worldPos);
-    }
-
     const view = context.viewSet?.[context.activeViewIndex];
 
+    // Recalcular snap con el mouse actual
+    if (context.snap_enabled !== false) {
+      if (!view || view.type === "plan" || context.currentViewMode === "plan") {
+        context.updatePlanGridSnap?.(worldPos, mouse);
+      } else if (view.type === "elevation") {
+        context.updateElevationGridSnap?.(worldPos, mouse);
+      }
+    }
+
+    // Primero usar activeGridPoint ya recalculado
     if (context.activeGridPoint) {
       return {
         x: Number(context.activeGridPoint.x || 0),
@@ -1251,26 +1289,29 @@ export class TrussDrawingState extends PanAndZoomState {
       };
     }
 
+    // Elevación por letras: X fija, plano Y-Z
     if (view?.type === "elevation" && view.axis === "X") {
       return {
-        x: Number(view.value || 0),
+        x: Number(context.getFixedCoordinateForActiveElevation?.() ?? view.value ?? 0),
         y: Number(worldPos.x || 0),
         z: Number(worldPos.y || 0),
       };
     }
 
+    // Elevación por números: Y fija, plano X-Z
     if (view?.type === "elevation" && view.axis === "Y") {
       return {
         x: Number(worldPos.x || 0),
-        y: Number(view.value || 0),
+        y: Number(context.getFixedCoordinateForActiveElevation?.() ?? view.value ?? 0),
         z: Number(worldPos.y || 0),
       };
     }
 
+    // Planta
     return {
       x: Number(worldPos.x || 0),
       y: Number(worldPos.y || 0),
-      z: Number(context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0),
+      z: Number(context.getActivePlanElevation?.() ?? context.currentZ ?? 0),
     };
   }
 
@@ -1359,6 +1400,9 @@ export class TrussDrawingState extends PanAndZoomState {
 
     // Esto permite seguir dibujando otra línea desde el último punto
     this.shape.addNode(lastNode);
+
+    context.redraw?.();
+    context.sync3D?.();
   }
 
   // ========== NUEVO: Obtener dirección actual desde el mouse (SIEMPRE actualizada) ==========
@@ -1428,8 +1472,13 @@ export class TrussDrawingState extends PanAndZoomState {
       z: (startPoint.z || 0) + direction.dz * length
     };
 
-    const p1 = context.grid.worldToScreen(startPoint);
-    const p2 = context.grid.worldToScreen(endPoint);
+    const p1 = context.currentRenderer?.projectPoint
+      ? context.currentRenderer.projectPoint({ position: startPoint }, context)
+      : context.grid.worldToScreen(startPoint);
+
+    const p2 = context.currentRenderer?.projectPoint
+      ? context.currentRenderer.projectPoint({ position: endPoint }, context)
+      : context.grid.worldToScreen(endPoint);
 
     context.ctx.save();
 
@@ -1567,7 +1616,7 @@ export class TrussDrawingState extends PanAndZoomState {
     super.handleMouseMove(...arguments);
 
     // 🔧 IMPORTANTE: Actualizar mousePos del contexto (en coordenadas del mundo)
-    context.mousePos = context.grid.screenToWorld(mouse);
+    // context.mousePos = context.grid.screenToWorld(mouse);
 
     // ==== LÍNEA DE PREVIEW ORIGINAL (AZUL PUNTEADA) ====
     const firstPoint = this.shape?.node1?.position;
@@ -1749,22 +1798,10 @@ export class TrussDrawingState extends PanAndZoomState {
   }
 
   draw(renderer, context) {
-    // Dibujar preview normal del estado (línea azul PUNTEADA original)
-    if (this.shape && this.shape.node1 && context.ctx) {
-      const p1 = context.grid.worldToScreen(this.shape.node1.position);
-      const p2 = context.grid.worldToScreen(context.mousePos);
-      context.ctx.save();
-      context.ctx.strokeStyle = '#88aaff';
-      context.ctx.setLineDash([5, 5]);
-      context.ctx.lineWidth = 2;
-      context.ctx.beginPath();
-      context.ctx.moveTo(p1.x, p1.y);
-      context.ctx.lineTo(p2.x, p2.y);
-      context.ctx.stroke();
-      context.ctx.restore();
+    if (renderer?.drawTrussDrawingState) {
+      renderer.drawTrussDrawingState(this, context);
     }
 
-    // Dibujar preview de entrada de longitud (línea naranja PUNTEADA)
     if (this.inputMode) {
       this.drawLengthPreview(context);
     }

@@ -245,6 +245,8 @@ export default () => ({
     storyHeight: 0,
   },
 
+  referencePlanes: [],
+
   gridDisplayMode: "ordinates", // "ordinates" o "spacing"
 
   // Guardar estado para restaurar después de cerrar el editor de grid
@@ -476,6 +478,8 @@ export default () => ({
   displayOptions: {
     showUndeformedShape: true,
 
+    showReferencePlanes: true,
+
     showJointLoads: false,
     showFrameLoads: false,
 
@@ -522,7 +526,14 @@ export default () => ({
     this.nodes = [];
     this.areas = [];
     this.referencePoints = [];
+    this.referencePlanes = this.referencePlanes || [];
     this.dimensionLines = [];
+    this.undoStack = [];
+    this.redoStack = [];
+    this.maxUndoSteps = 30;
+
+    this.editClipboard = null;
+    this.editPasteCount = 0;
     this.parametricModels = [];
     this.K_Global_Reducido = [];
     this.Fuerzas_Globales_Reducidas = [];
@@ -1081,6 +1092,1203 @@ export default () => ({
   },
 
   // =========================================
+  // ========== MÉTODOS PARA EDIT ============
+  // =========================================
+
+  activateEditMenuAction(action) {
+    console.log("Edit action:", action);
+
+    switch (action) {
+      // ===============================
+      // HISTORIAL
+      // ===============================
+      case "undo":
+        if (typeof this.undo === "function") {
+          this.undo();
+        } else {
+          this.showEditNotImplemented("Undo");
+        }
+        break;
+
+      case "redo":
+        if (typeof this.redo === "function") {
+          this.redo();
+        } else {
+          this.showEditNotImplemented("Redo");
+        }
+        break;
+
+      // ===============================
+      // PORTAPAPELES
+      // ===============================
+      case "cut":
+        if (typeof this.cut === "function") {
+          this.cut();
+        } else {
+          this.showEditNotImplemented("Cut");
+        }
+        break;
+
+      case "copy":
+        if (typeof this.copy === "function") {
+          this.copy();
+        } else {
+          this.showEditNotImplemented("Copy");
+        }
+        break;
+
+      case "paste":
+        if (typeof this.paste === "function") {
+          this.paste();
+        } else {
+          this.showEditNotImplemented("Paste");
+        }
+        break;
+
+      case "delete":
+        if (typeof this.deleteSelected === "function") {
+          this.deleteSelected();
+        } else {
+          this.showEditNotImplemented("Delete");
+        }
+        break;
+
+      // ===============================
+      // EDICIÓN DEL MODELO
+      // ===============================
+      case "replicate":
+        if (typeof this.replicate === "function") {
+          this.replicate();
+        } else {
+          this.showEditNotImplemented("Replicate");
+        }
+        break;
+
+      // ===============================
+      // DATOS DEL MODELO
+      // ===============================
+      case "edit-grid-data":
+        if (typeof this.editGridData === "function") {
+          this.editGridData();
+        } else if (this.gridEditor && typeof this.gridEditor.open === "function") {
+          this.gridEditor.open();
+        } else {
+          this.showEditNotImplemented("Edit Grid Data");
+        }
+        break;
+
+      case "edit-story-data":
+        if (typeof this.editStoryData === "function") {
+          this.editStoryData();
+        } else {
+          this.showEditNotImplemented("Edit Story Data");
+        }
+        break;
+
+      case "edit-reference-planes":
+        if (typeof this.editReferencePlanes === "function") {
+          this.editReferencePlanes();
+        } else {
+          this.showEditNotImplemented("Edit Reference Planes");
+        }
+        break;
+
+      case "edit-reference-lines":
+        if (typeof this.editReferenceLines === "function") {
+          this.editReferenceLines();
+        } else {
+          this.showEditNotImplemented("Edit Reference Lines");
+        }
+        break;
+
+      // ===============================
+      // HERRAMIENTAS GEOMÉTRICAS
+      // ===============================
+      case "merge-points":
+        if (typeof this.openMergePointsDialog === "function") {
+          this.openMergePointsDialog();
+        } else {
+          this.showEditNotImplemented("Merge Points");
+        }
+        break;
+
+      case "align-points-lines-edges":
+      case "align-objects":
+        if (typeof this.openAlignPointsLinesEdgesDialog === "function") {
+          this.openAlignPointsLinesEdgesDialog();
+        } else {
+          this.showEditNotImplemented("Align Points/Lines/Edges");
+        }
+        break;
+
+      case "move-points-lines-areas":
+      case "move-objects":
+        if (typeof this.openMovePointsLinesAreasDialog === "function") {
+          this.openMovePointsLinesAreasDialog();
+        } else {
+          this.showEditNotImplemented("Move Points/Lines/Areas");
+        }
+        break;
+
+      case "join-lines":
+        if (typeof this.joinLines === "function") {
+          this.joinLines();
+        } else {
+          this.showEditNotImplemented("Join Lines");
+        }
+        break;
+
+      case "divide-lines":
+        if (typeof this.openDivideLinesDialog === "function") {
+          this.openDivideLinesDialog();
+        } else {
+          this.showEditNotImplemented("Divide Lines");
+        }
+        break;
+
+      // ===============================
+      // EXTRUSIÓN
+      // ===============================
+      case "extrude-points-to-lines":
+        if (typeof this.openExtrudePointsToLinesDialog === "function") {
+          this.openExtrudePointsToLinesDialog();
+        } else {
+          this.showEditNotImplemented("Extrude Points to Lines");
+        }
+        break;
+
+      case "extrude-lines-to-areas":
+        if (typeof this.openExtrudeLinesToAreasDialog === "function") {
+          this.openExtrudeLinesToAreasDialog();
+        } else {
+          this.showEditNotImplemented("Extrude Lines to Areas");
+        }
+        break;
+
+      default:
+        this.showMessage?.(`Acción Edit no reconocida: ${action}`, "warning");
+        console.warn("Acción Edit no reconocida:", action);
+        break;
+    }
+
+    this.redraw?.();
+  },
+
+  showEditNotImplemented(label) {
+    this.showMessage?.(`${label}: funcionalidad pendiente de implementar.`, "warning");
+    console.warn(`EDIT pendiente: ${label}`);
+  },
+
+  // =========================================
+  // ======= EDIT: SELECCIÓN CENTRAL =========
+  // =========================================
+
+  isEditNodeObject(obj) {
+    if (!obj) return false;
+
+    const type = String(
+      obj.objectType ||
+      obj.elementType ||
+      obj.type ||
+      obj.constructor?.name ||
+      ""
+    ).toLowerCase();
+
+    return (
+      !!obj.position &&
+      !obj.node1 &&
+      !obj.node2 &&
+      (
+        Array.isArray(obj.beams) ||
+        obj.isNode === true ||
+        type === "node" ||
+        type === "structuralnode" ||
+        type === "joint" ||
+        type === "point"
+      )
+    );
+  },
+
+  isEditFrameObject(obj) {
+    if (!obj) return false;
+
+    const type = String(
+      obj.objectType ||
+      obj.elementType ||
+      obj.type ||
+      obj.constructor?.name ||
+      ""
+    ).toLowerCase();
+
+    return (
+      !!obj.node1 &&
+      !!obj.node2 &&
+      (
+        obj.isBeam === true ||
+        type === "beam" ||
+        type === "column" ||
+        type === "brace" ||
+        type === "frame" ||
+        type === "line" ||
+        type === "secondary-beam" ||
+        type === "secondarybeam"
+      )
+    );
+  },
+
+  isEditAreaObject(obj) {
+    if (!obj) return false;
+
+    const type = String(
+      obj.objectType ||
+      obj.elementType ||
+      obj.type ||
+      obj.areaType ||
+      obj.constructor?.name ||
+      ""
+    ).toLowerCase();
+
+    return (
+      Array.isArray(obj.points) &&
+      (
+        type === "area" ||
+        type === "slab" ||
+        type === "wall" ||
+        type === "opening" ||
+        !!obj.areaType
+      )
+    );
+  },
+
+  isEditDimensionLineObject(obj) {
+    if (!obj) return false;
+
+    return (
+      obj.start &&
+      obj.end &&
+      (
+        obj.label ||
+        typeof obj.value === "number"
+      )
+    );
+  },
+
+  isEditObjectVisibleInActiveView(obj) {
+    if (!obj) return false;
+
+    if (obj.visible === false) return false;
+
+    if (typeof this.isObjectVisibleInActiveView === "function") {
+      try {
+        return this.isObjectVisibleInActiveView(obj);
+      } catch (error) {
+        // Algunas entidades auxiliares, como líneas de dimensión,
+        // pueden no estar contempladas por el filtro principal.
+        return true;
+      }
+    }
+
+    return true;
+  },
+
+  addUniqueEditObject(list, seen, obj, options = {}) {
+    if (!obj) return;
+
+    if (seen.has(obj)) return;
+
+    const respectActiveView = options.respectActiveView ?? true;
+
+    if (respectActiveView && !this.isEditObjectVisibleInActiveView(obj)) {
+      return;
+    }
+
+    seen.add(obj);
+    list.push(obj);
+  },
+
+  getObjectsFromSelectionState(state) {
+    if (!state) return [];
+
+    const objects = [];
+
+    const pushMany = (items) => {
+      if (!Array.isArray(items)) return;
+      items.forEach((item) => {
+        if (item) objects.push(item);
+      });
+    };
+
+    pushMany(state.selectedObjects);
+    pushMany(state.objects);
+    pushMany(state.selectedNodes);
+    pushMany(state.selectedBeams);
+    pushMany(state.selectedAreas);
+    pushMany(state.selectedDimensionLines);
+    pushMany(state.selectedParametric);
+
+    if (state.selectedObject) objects.push(state.selectedObject);
+    if (state.selectedNode) objects.push(state.selectedNode);
+    if (state.selectedBeam) objects.push(state.selectedBeam);
+    if (state.selectedArea) objects.push(state.selectedArea);
+
+    return objects;
+  },
+
+  getEditSelectedObjects(options = {}) {
+    const selected = [];
+    const seen = new Set();
+
+    const explicitObjects = [];
+    const explicitSeen = new Set();
+
+    const addExplicit = (obj) => {
+      if (!obj || explicitSeen.has(obj)) return;
+      explicitSeen.add(obj);
+      explicitObjects.push(obj);
+    };
+
+    const addFinal = (obj) => {
+      this.addUniqueEditObject(selected, seen, obj, options);
+    };
+
+    // =====================================================
+    // 1. Objetos explícitos desde el estado actual
+    // =====================================================
+    this.getObjectsFromSelectionState(this.currentState).forEach(addExplicit);
+
+    if (
+      this.currentState === this.moveObjectState &&
+      this.moveObjectState?.selectedObject
+    ) {
+      addExplicit(this.moveObjectState.selectedObject);
+    }
+
+    // =====================================================
+    // 2. Objetos explícitos desde estados de selección múltiple
+    // =====================================================
+    [
+      this.selectedNodesState,
+      this.selectedBeamsState,
+      this.selectedAreasState,
+      this.selectedDimensionLinesState,
+      this.selectedParametricState,
+    ].forEach((state) => {
+      this.getObjectsFromSelectionState(state).forEach(addExplicit);
+    });
+
+    // =====================================================
+    // 3. Objetos marcados visualmente con selected / isSelected
+    // =====================================================
+    const selectableObjects =
+      typeof this.getSelectableObjects === "function"
+        ? this.getSelectableObjects()
+        : [
+          ...(this.nodes || []),
+          ...(this.shapes || []),
+          ...(this.areas || []),
+          ...(this.dimensionLines || []),
+        ];
+
+    const flaggedObjects = selectableObjects.filter((obj) => {
+      return obj?.selected === true || obj?.isSelected === true;
+    });
+
+    // =====================================================
+    // 4. Unir explícitos + flagged
+    // =====================================================
+    const combined = [];
+
+    explicitObjects.forEach((obj) => {
+      if (obj && !combined.includes(obj)) {
+        combined.push(obj);
+      }
+    });
+
+    flaggedObjects.forEach((obj) => {
+      if (obj && !combined.includes(obj)) {
+        combined.push(obj);
+      }
+    });
+
+    // =====================================================
+    // 5. Evitar que los nodos extremos de una barra entren
+    //    automáticamente como selección independiente.
+    // =====================================================
+    const selectedFrames = combined.filter((obj) =>
+      this.isEditFrameObject(obj)
+    );
+
+    const explicitNodes = new Set(
+      explicitObjects.filter((obj) => this.isEditNodeObject(obj))
+    );
+
+    const frameEndpointNodes = new Set();
+
+    selectedFrames.forEach((frame) => {
+      if (frame.node1) frameEndpointNodes.add(frame.node1);
+      if (frame.node2) frameEndpointNodes.add(frame.node2);
+    });
+
+    combined.forEach((obj) => {
+      if (
+        selectedFrames.length > 0 &&
+        this.isEditNodeObject(obj) &&
+        frameEndpointNodes.has(obj) &&
+        !explicitNodes.has(obj)
+      ) {
+        return;
+      }
+
+      addFinal(obj);
+    });
+
+    return selected;
+  },
+
+  getEditSelectedNodes(options = {}) {
+    return this.getEditSelectedObjects(options).filter((obj) =>
+      this.isEditNodeObject(obj)
+    );
+  },
+
+  getEditSelectedFrames(options = {}) {
+    return this.getEditSelectedObjects(options).filter((obj) =>
+      this.isEditFrameObject(obj)
+    );
+  },
+
+  getEditSelectedAreas(options = {}) {
+    return this.getEditSelectedObjects(options).filter((obj) =>
+      this.isEditAreaObject(obj)
+    );
+  },
+
+  getEditSelectedDimensionLines(options = {}) {
+    return this.getEditSelectedObjects(options).filter((obj) =>
+      this.isEditDimensionLineObject(obj)
+    );
+  },
+
+  getEditSelectedSummary(options = {}) {
+    const nodes = this.getEditSelectedNodes(options);
+    const frames = this.getEditSelectedFrames(options);
+    const areas = this.getEditSelectedAreas(options);
+    const dimensions = this.getEditSelectedDimensionLines(options);
+    const total = this.getEditSelectedObjects(options).length;
+
+    return {
+      total,
+      nodes: nodes.length,
+      frames: frames.length,
+      areas: areas.length,
+      dimensions: dimensions.length,
+      others: total - nodes.length - frames.length - areas.length - dimensions.length,
+    };
+  },
+
+  debugEditSelection() {
+    const objects = this.getEditSelectedObjects();
+    const summary = this.getEditSelectedSummary();
+
+    console.log("🧩 EDIT - Objetos seleccionados:", {
+      summary,
+      objects,
+      currentState: this.currentState?.constructor?.name,
+    });
+
+    this.showMessage?.(
+      `Edit selección: ${summary.total} objeto(s) | Nodos: ${summary.nodes}, Líneas: ${summary.frames}, Áreas: ${summary.areas}`
+    );
+
+    return {
+      summary,
+      objects,
+    };
+  },
+
+  // =========================================
+  // ========== EDIT: DELETE =================
+  // =========================================
+
+  reindexModelObjects() {
+    if (Array.isArray(this.nodes)) {
+      this.nodes.forEach((node, index) => {
+        node.id = index + 1;
+      });
+    }
+
+    if (Array.isArray(this.shapes)) {
+      this.shapes.forEach((shape, index) => {
+        shape.id = index + 1;
+      });
+    }
+
+    if (Array.isArray(this.areas)) {
+      this.areas.forEach((area, index) => {
+        area.id = index + 1;
+      });
+    }
+
+    if (Array.isArray(this.dimensionLines)) {
+      this.dimensionLines.forEach((dim, index) => {
+        dim.id = index + 1;
+      });
+    }
+  },
+
+  removeFrameFromModel(frame) {
+    if (!frame) return false;
+
+    if (frame.node1?.beams) {
+      frame.node1.beams = frame.node1.beams.filter((beam) => beam !== frame);
+    }
+
+    if (frame.node2?.beams) {
+      frame.node2.beams = frame.node2.beams.filter((beam) => beam !== frame);
+    }
+
+    if (Array.isArray(this.shapes)) {
+      const index = this.shapes.indexOf(frame);
+
+      if (index >= 0) {
+        this.shapes.splice(index, 1);
+        return true;
+      }
+    }
+
+    return false;
+  },
+
+  removeNodeFromModel(node) {
+    if (!node) return false;
+
+    const connectedFrames = Array.isArray(node.beams)
+      ? [...node.beams]
+      : [];
+
+    connectedFrames.forEach((frame) => {
+      this.removeFrameFromModel(frame);
+    });
+
+    node.beams = [];
+
+    if (Array.isArray(this.nodes)) {
+      const index = this.nodes.indexOf(node);
+
+      if (index >= 0) {
+        this.nodes.splice(index, 1);
+        return true;
+      }
+    }
+
+    return false;
+  },
+
+  removeAreaFromModel(area) {
+    if (!area || !Array.isArray(this.areas)) return false;
+
+    const index = this.areas.indexOf(area);
+
+    if (index >= 0) {
+      this.areas.splice(index, 1);
+      return true;
+    }
+
+    return false;
+  },
+
+  removeDimensionLineFromModel(dim) {
+    if (!dim || !Array.isArray(this.dimensionLines)) return false;
+
+    const index = this.dimensionLines.indexOf(dim);
+
+    if (index >= 0) {
+      this.dimensionLines.splice(index, 1);
+      return true;
+    }
+
+    return false;
+  },
+
+  clearEditSelectionFlags() {
+    const clearOne = (obj) => {
+      if (!obj) return;
+
+      obj.selected = false;
+      obj.isSelected = false;
+
+      if (obj.style?.default) {
+        obj.style.default();
+      }
+    };
+
+    this.nodes?.forEach(clearOne);
+    this.shapes?.forEach(clearOne);
+    this.areas?.forEach(clearOne);
+    this.dimensionLines?.forEach(clearOne);
+
+    if (this.moveObjectState) {
+      this.moveObjectState.selectedObject = null;
+    }
+
+    if (this.reshapeObjectState) {
+      this.reshapeObjectState.selectedBeam = null;
+      this.reshapeObjectState.selectedNode = null;
+      this.reshapeObjectState.selectedArea = null;
+    }
+
+    if (this.idleState) {
+      this.setState?.(this.idleState);
+    }
+  },
+
+  deleteSelected() {
+    const selectedObjects = this.getEditSelectedObjects?.({
+      respectActiveView: true,
+    }) || [];
+
+    if (!selectedObjects.length) {
+      this.showMessage?.("🗑️ Seleccione un elemento para eliminar", "warning");
+      console.warn("EDIT Delete: no hay selección.");
+      return;
+    }
+
+    this.saveUndoState?.("Delete selected objects");
+
+    const selectedNodes = selectedObjects.filter((obj) =>
+      this.isEditNodeObject(obj)
+    );
+
+    const selectedFrames = selectedObjects.filter((obj) =>
+      this.isEditFrameObject(obj)
+    );
+
+    const selectedAreas = selectedObjects.filter((obj) =>
+      this.isEditAreaObject(obj)
+    );
+
+    const selectedDimensions = selectedObjects.filter((obj) =>
+      this.isEditDimensionLineObject(obj)
+    );
+
+    let deletedNodes = 0;
+    let deletedFrames = 0;
+    let deletedAreas = 0;
+    let deletedDimensions = 0;
+
+    selectedNodes.forEach((node) => {
+      const connectedFrames = Array.isArray(node.beams)
+        ? [...node.beams]
+        : [];
+
+      connectedFrames.forEach((frame) => {
+        if (this.removeFrameFromModel(frame)) {
+          deletedFrames++;
+        }
+      });
+
+      if (this.removeNodeFromModel(node)) {
+        deletedNodes++;
+      }
+    });
+
+    selectedFrames.forEach((frame) => {
+      if (this.removeFrameFromModel(frame)) {
+        deletedFrames++;
+      }
+    });
+
+    selectedAreas.forEach((area) => {
+      if (this.removeAreaFromModel(area)) {
+        deletedAreas++;
+      }
+    });
+
+    selectedDimensions.forEach((dim) => {
+      if (this.removeDimensionLineFromModel(dim)) {
+        deletedDimensions++;
+      }
+    });
+
+    this.reindexModelObjects();
+    this.clearEditSelectionFlags();
+
+    const totalDeleted =
+      deletedNodes +
+      deletedFrames +
+      deletedAreas +
+      deletedDimensions;
+
+    console.log("🗑️ EDIT Delete ejecutado:", {
+      deletedNodes,
+      deletedFrames,
+      deletedAreas,
+      deletedDimensions,
+      totalDeleted,
+    });
+
+    this.redraw?.();
+
+    if (deletedNodes > 0 || deletedFrames > 0 || deletedAreas > 0) {
+      this.sync3D?.();
+    }
+
+    this.showMessage?.(
+      `🗑️ Eliminado: ${totalDeleted} objeto(s). Nodos: ${deletedNodes}, Líneas: ${deletedFrames}, Áreas: ${deletedAreas}`
+    );
+  },
+
+  // =========================================
+  // ======== EDIT: COPY / PASTE / CUT =======
+  // =========================================
+
+  getNextEditNodeId() {
+    const maxId = Math.max(
+      0,
+      ...(this.nodes || []).map((node) => Number(node.id || 0))
+    );
+
+    const next = Math.max(Number(this.nextNodeId || 1), maxId + 1);
+    this.nextNodeId = next + 1;
+
+    return next;
+  },
+
+  getNextEditFrameId() {
+    const maxId = Math.max(
+      0,
+      ...(this.shapes || []).map((frame) => Number(frame.id || 0))
+    );
+
+    const next = Math.max(Number(this.nextBeamId || 1), maxId + 1);
+    this.nextBeamId = next + 1;
+
+    return next;
+  },
+
+  getNextEditGenericId(list = []) {
+    return Math.max(
+      0,
+      ...list.map((item) => Number(item?.id || 0))
+    ) + 1;
+  },
+
+  getEditPasteOffset() {
+    const view = this.viewSet?.[this.activeViewIndex];
+    const step = 1;
+    const count = Math.max(1, Number(this.editPasteCount || 1));
+
+    // Planta X-Y: desplazar en X e Y
+    if (!view || view.type === "plan") {
+      return {
+        x: step * count,
+        y: step * count,
+        z: 0,
+      };
+    }
+
+    // Elevación eje X: plano Y-Z, X queda fijo
+    if (view.type === "elevation" && view.axis === "X") {
+      return {
+        x: 0,
+        y: step * count,
+        z: step * count,
+      };
+    }
+
+    // Elevación eje Y: plano X-Z, Y queda fijo
+    if (view.type === "elevation" && view.axis === "Y") {
+      return {
+        x: step * count,
+        y: 0,
+        z: step * count,
+      };
+    }
+
+    return {
+      x: step * count,
+      y: step * count,
+      z: 0,
+    };
+  },
+
+  offsetEditPoint(point, offset) {
+    return {
+      ...(point || {}),
+      x: Number(point?.x || 0) + Number(offset.x || 0),
+      y: Number(point?.y || 0) + Number(offset.y || 0),
+      z: Number(point?.z || 0) + Number(offset.z || 0),
+    };
+  },
+
+  createEditClipboardFromSelection() {
+    const selectedObjects = this.getEditSelectedObjects?.({
+      respectActiveView: true,
+    }) || [];
+
+    if (!selectedObjects.length) {
+      return null;
+    }
+
+    const selectedNodes = selectedObjects.filter((obj) =>
+      this.isEditNodeObject(obj)
+    );
+
+    const selectedFrames = selectedObjects.filter((obj) =>
+      this.isEditFrameObject(obj)
+    );
+
+    const selectedAreas = selectedObjects.filter((obj) =>
+      this.isEditAreaObject(obj)
+    );
+
+    const selectedDimensions = selectedObjects.filter((obj) =>
+      this.isEditDimensionLineObject(obj)
+    );
+
+    const nodeSet = new Set(selectedNodes);
+
+    // Si se copia una barra, también necesitamos copiar sus nodos extremos.
+    selectedFrames.forEach((frame) => {
+      if (frame.node1) nodeSet.add(frame.node1);
+      if (frame.node2) nodeSet.add(frame.node2);
+    });
+
+    const nodeIds = new Set(
+      [...nodeSet].map((node) => Number(node.id))
+    );
+
+    const frameIds = new Set(
+      selectedFrames.map((frame) => Number(frame.id))
+    );
+
+    const areaIds = new Set(
+      selectedAreas.map((area) => Number(area.id))
+    );
+
+    const dimensionIds = new Set(
+      selectedDimensions.map((dim) => Number(dim.id))
+    );
+
+    const snapshot = this.createModelSnapshot?.("Clipboard") || null;
+
+    if (!snapshot) {
+      this.showMessage?.("No se pudo crear el portapapeles de Edit.", "warning");
+      return null;
+    }
+
+    const clipboard = {
+      type: "edit-clipboard",
+      createdAt: new Date().toISOString(),
+
+      nodes: (snapshot.nodes || []).filter((node) =>
+        nodeIds.has(Number(node.id))
+      ),
+
+      frames: (snapshot.frames || []).filter((frame) =>
+        frameIds.has(Number(frame.id))
+      ),
+
+      areas: (snapshot.areas || []).filter((area) =>
+        areaIds.has(Number(area.id))
+      ),
+
+      dimensionLines: (snapshot.dimensionLines || []).filter((dim) =>
+        dimensionIds.has(Number(dim.id))
+      ),
+    };
+
+    clipboard.summary = {
+      nodes: clipboard.nodes.length,
+      frames: clipboard.frames.length,
+      areas: clipboard.areas.length,
+      dimensions: clipboard.dimensionLines.length,
+      total:
+        clipboard.nodes.length +
+        clipboard.frames.length +
+        clipboard.areas.length +
+        clipboard.dimensionLines.length,
+    };
+
+    return clipboard;
+  },
+
+  copy() {
+    const clipboard = this.createEditClipboardFromSelection();
+
+    if (!clipboard || clipboard.summary.total === 0) {
+      this.showMessage?.("📋 Selecciona objetos para copiar.", "warning");
+      console.warn("EDIT Copy: no hay selección.");
+      return;
+    }
+
+    this.editClipboard = clipboard;
+    this.editPasteCount = 0;
+
+    console.log("📋 EDIT Copy:", clipboard);
+
+    this.showMessage?.(
+      `📋 Copiado: ${clipboard.summary.total} objeto(s). ` +
+      `Nodos: ${clipboard.summary.nodes}, Líneas: ${clipboard.summary.frames}, Áreas: ${clipboard.summary.areas}`
+    );
+  },
+
+  paste() {
+    if (!this.editClipboard || this.editClipboard.type !== "edit-clipboard") {
+      this.showMessage?.("📌 No hay objetos copiados para pegar.", "warning");
+      console.warn("EDIT Paste: portapapeles vacío.");
+      return;
+    }
+
+    this.saveUndoState?.("Paste objects");
+
+    this.editPasteCount = Number(this.editPasteCount || 0) + 1;
+
+    const offset = this.getEditPasteOffset();
+
+    const clipboard = this.cloneEditPlainData(this.editClipboard);
+    const oldNodeIdToNewNode = new Map();
+
+    this.clearEditSelectionFlags?.();
+
+    const pastedNodes = [];
+    const pastedFrames = [];
+    const pastedAreas = [];
+    const pastedDimensions = [];
+
+    // ==========================
+    // 1. Pegar nodos
+    // ==========================
+    (clipboard.nodes || []).forEach((nodeData) => {
+      const oldId = Number(nodeData.id);
+      const p = this.offsetEditPoint(nodeData.position, offset);
+
+      const newNode = new StructuralNode(
+        {
+          x: Number(p.x || 0),
+          y: Number(p.y || 0),
+        },
+        this.getNextEditNodeId(),
+        Number(p.z || 0)
+      );
+
+      newNode.position.x = Number(p.x || 0);
+      newNode.position.y = Number(p.y || 0);
+      newNode.position.z = Number(p.z || 0);
+
+      newNode.beams = [];
+      newNode.selected = true;
+      newNode.isSelected = true;
+
+      newNode.soporte = nodeData.soporte || "";
+      newNode.force = this.cloneEditPlainData(nodeData.force) || newNode.force;
+      newNode.reaction = this.cloneEditPlainData(nodeData.reaction) || newNode.reaction;
+
+      newNode.restraints = this.cloneEditPlainData(nodeData.restraints);
+      newNode.constraints = this.cloneEditPlainData(nodeData.constraints);
+
+      newNode.diaphragm = this.cloneEditPlainData(nodeData.diaphragm);
+      newNode.diaphragmId = nodeData.diaphragmId ?? null;
+      newNode.diaphragmName = nodeData.diaphragmName ?? null;
+
+      newNode.pointSprings = this.cloneEditPlainData(nodeData.pointSprings);
+      newNode.springs = this.cloneEditPlainData(nodeData.springs);
+
+      newNode.pointLoads = this.cloneEditPlainData(nodeData.pointLoads) || [];
+      newNode.jointLoads = this.cloneEditPlainData(nodeData.jointLoads) || [];
+
+      newNode.groupIds = this.cloneEditPlainData(nodeData.groupIds) || [];
+      newNode.groupNames = this.cloneEditPlainData(nodeData.groupNames) || [];
+      newNode.groups = this.cloneEditPlainData(nodeData.groups) || [];
+
+      newNode.assignment = this.cloneEditPlainData(nodeData.assignment) || {};
+      newNode.visible = nodeData.visible !== false;
+
+      this.nodes.push(newNode);
+      oldNodeIdToNewNode.set(oldId, newNode);
+      pastedNodes.push(newNode);
+    });
+
+    // ==========================
+    // 2. Pegar barras / frames
+    // ==========================
+    (clipboard.frames || []).forEach((frameData) => {
+      const node1 = oldNodeIdToNewNode.get(Number(frameData.node1Id));
+      const node2 = oldNodeIdToNewNode.get(Number(frameData.node2Id));
+
+      if (!node1 || !node2) return;
+
+      const newFrame = new Beam(
+        frameData.E ?? this.globalE,
+        frameData._A ?? this.globalA
+      );
+
+      newFrame.id = this.getNextEditFrameId();
+
+      newFrame.node1 = node1;
+      newFrame.node2 = node2;
+
+      newFrame.E = frameData.E ?? this.globalE;
+      newFrame._A = frameData._A ?? this.globalA;
+
+      newFrame.elementType = frameData.elementType || "beam";
+      newFrame.type = frameData.type || newFrame.elementType;
+      newFrame.objectType = frameData.objectType || "frame";
+      newFrame.visible = frameData.visible !== false;
+
+      newFrame.selected = true;
+      newFrame.isSelected = true;
+
+      newFrame.fAxial = Number(frameData.fAxial || 0);
+
+      newFrame.sectionId = frameData.sectionId ?? null;
+      newFrame.sectionName = frameData.sectionName ?? null;
+      newFrame.frameSection = this.cloneEditPlainData(frameData.frameSection);
+      newFrame.section = this.cloneEditPlainData(frameData.section);
+      newFrame.hasAssignedSection = frameData.hasAssignedSection === true;
+
+      newFrame.releases = this.cloneEditPlainData(frameData.releases);
+      newFrame.frameReleases = this.cloneEditPlainData(frameData.frameReleases);
+      newFrame.hasFrameReleases = frameData.hasFrameReleases === true;
+
+      newFrame.endOffsets = this.cloneEditPlainData(frameData.endOffsets);
+      newFrame.frameEndOffsets = this.cloneEditPlainData(frameData.frameEndOffsets);
+      newFrame.hasEndOffsets = frameData.hasEndOffsets === true;
+
+      newFrame.frameLoads = this.cloneEditPlainData(frameData.frameLoads) || [];
+      newFrame.lineLoads = this.cloneEditPlainData(frameData.lineLoads) || [];
+      newFrame.hasFrameLoads = frameData.hasFrameLoads === true;
+      newFrame.hasLineLoads = frameData.hasLineLoads === true;
+
+      newFrame.groupIds = this.cloneEditPlainData(frameData.groupIds) || [];
+      newFrame.groupNames = this.cloneEditPlainData(frameData.groupNames) || [];
+      newFrame.groups = this.cloneEditPlainData(frameData.groups) || [];
+      newFrame.hasGroups = frameData.hasGroups === true;
+
+      newFrame.assignment = this.cloneEditPlainData(frameData.assignment) || {};
+
+      newFrame.designOverwrites = this.cloneEditPlainData(frameData.designOverwrites) || {};
+      newFrame.designResults = this.cloneEditPlainData(frameData.designResults) || {};
+
+      newFrame.steelFrameDesignResult = this.cloneEditPlainData(frameData.steelFrameDesignResult);
+      newFrame.steelJoistDesignResult = this.cloneEditPlainData(frameData.steelJoistDesignResult);
+
+      newFrame.steelFrameDesignOverwrites = this.cloneEditPlainData(frameData.steelFrameDesignOverwrites);
+      newFrame.steelJoistDesignOverwrites = this.cloneEditPlainData(frameData.steelJoistDesignOverwrites);
+
+      newFrame.designType = frameData.designType ?? null;
+      newFrame.isSteelJoist = frameData.isSteelJoist === true;
+
+      this.shapes.push(newFrame);
+
+      if (!node1.beams) node1.beams = [];
+      if (!node2.beams) node2.beams = [];
+
+      node1.beams.push(newFrame);
+      node2.beams.push(newFrame);
+
+      pastedFrames.push(newFrame);
+    });
+
+    // ==========================
+    // 3. Pegar áreas
+    // ==========================
+    (clipboard.areas || []).forEach((areaData) => {
+      const newArea = this.cloneEditPlainData(areaData);
+
+      newArea.id = this.getNextEditGenericId(this.areas || []);
+      newArea.selected = true;
+      newArea.isSelected = true;
+
+      if (Array.isArray(newArea.points)) {
+        newArea.points = newArea.points.map((point) =>
+          this.offsetEditPoint(point, offset)
+        );
+      }
+
+      if (typeof newArea.z === "number") {
+        newArea.z = Number(newArea.z || 0) + Number(offset.z || 0);
+      }
+
+      this.areas.push(newArea);
+      pastedAreas.push(newArea);
+    });
+
+    // ==========================
+    // 4. Pegar líneas de dimensión
+    // ==========================
+    (clipboard.dimensionLines || []).forEach((dimData) => {
+      const newDim = this.cloneEditPlainData(dimData);
+
+      newDim.id = this.getNextEditGenericId(this.dimensionLines || []);
+      newDim.selected = true;
+      newDim.isSelected = true;
+
+      if (newDim.start) {
+        newDim.start = this.offsetEditPoint(newDim.start, offset);
+      }
+
+      if (newDim.end) {
+        newDim.end = this.offsetEditPoint(newDim.end, offset);
+      }
+
+      this.dimensionLines.push(newDim);
+      pastedDimensions.push(newDim);
+    });
+
+    this.redraw?.();
+
+    if (
+      pastedNodes.length > 0 ||
+      pastedFrames.length > 0 ||
+      pastedAreas.length > 0
+    ) {
+      this.sync3D?.();
+    }
+
+    const total =
+      pastedNodes.length +
+      pastedFrames.length +
+      pastedAreas.length +
+      pastedDimensions.length;
+
+    console.log("📌 EDIT Paste:", {
+      offset,
+      pastedNodes,
+      pastedFrames,
+      pastedAreas,
+      pastedDimensions,
+      total,
+    });
+
+    this.showMessage?.(
+      `📌 Pegado: ${total} objeto(s). ` +
+      `Nodos: ${pastedNodes.length}, Líneas: ${pastedFrames.length}, Áreas: ${pastedAreas.length}`
+    );
+  },
+
+  cut() {
+    const clipboard = this.createEditClipboardFromSelection();
+
+    if (!clipboard || clipboard.summary.total === 0) {
+      this.showMessage?.("✂️ Selecciona objetos para cortar.", "warning");
+      console.warn("EDIT Cut: no hay selección.");
+      return;
+    }
+
+    this.editClipboard = clipboard;
+    this.editPasteCount = 0;
+
+    this.deleteSelected();
+
+    console.log("✂️ EDIT Cut:", clipboard);
+
+    this.showMessage?.(
+      `✂️ Cortado: ${clipboard.summary.total} objeto(s).`
+    );
+  },
+
+  // =========================================
   // ========== MÉTODOS PARA ASSIGN ==========
   // =========================================
 
@@ -1178,6 +2386,8 @@ export default () => ({
     this.displayOptions = {
       showUndeformedShape: this.displayOptions.showUndeformedShape ?? true,
 
+      showReferencePlanes: this.displayOptions.showReferencePlanes ?? true,
+
       showJointLoads: this.displayOptions.showJointLoads ?? false,
       showFrameLoads: this.displayOptions.showFrameLoads ?? false,
 
@@ -1204,6 +2414,10 @@ export default () => ({
     switch (action) {
       case "show-undeformed-shape":
         this.showUndeformedShape();
+        break;
+
+      case "show-reference-planes":
+        this.openShowReferencePlanesDialog();
         break;
 
       case "show-joint-loads":
@@ -3144,6 +4358,59 @@ export default () => ({
         memberForceType: this.displayOptions.memberForceType,
         showFAxiales: this.options.showFAxiales,
         showFAxialesValues: this.options.showFAxialesValues,
+      });
+    });
+  },
+
+  openShowReferencePlanesDialog() {
+    this.ensureDisplayOptions?.();
+
+    Swal.fire({
+      title: "Display Reference Planes",
+      width: 520,
+      html: `
+      <div style="text-align:left; font-size:13px;">
+        <p style="margin-bottom:12px;">
+          Controla la visualización de los planos auxiliares de referencia creados desde Edit Reference Planes.
+        </p>
+
+        <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+          <input 
+            id="display-reference-planes" 
+            type="checkbox" 
+            ${this.displayOptions?.showReferencePlanes !== false ? "checked" : ""}>
+          Show Reference Planes
+        </label>
+
+        <div style="padding:10px; border:1px solid #555; border-radius:6px; font-size:12px; color:#777;">
+          Los Reference Planes son guías visuales. No son losas, muros ni elementos estructurales de análisis.
+        </div>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Aplicar",
+      cancelButtonText: "Cancelar",
+      preConfirm: () => {
+        return {
+          showReferencePlanes:
+            document.getElementById("display-reference-planes")?.checked === true,
+        };
+      },
+    }).then((result) => {
+      if (!result.isConfirmed) return;
+
+      this.displayOptions.showReferencePlanes = result.value.showReferencePlanes;
+
+      this.redraw?.();
+
+      this.showMessage?.(
+        this.displayOptions.showReferencePlanes
+          ? "Display: Reference Planes visibles."
+          : "Display: Reference Planes ocultos."
+      );
+
+      console.log("✅ Display > Show Reference Planes", {
+        showReferencePlanes: this.displayOptions.showReferencePlanes,
       });
     });
   },
@@ -7300,6 +8567,12 @@ export default () => ({
   },
 
   getSelectedObjects() {
+    if (typeof this.getEditSelectedObjects === "function") {
+      return this.getEditSelectedObjects({
+        respectActiveView: true,
+      });
+    }
+
     return this.getSelectableObjects().filter((obj) => obj.selected === true);
   },
 
@@ -7596,6 +8869,61 @@ export default () => ({
     return true;
   },
 
+  isAreaVisibleInActiveView(area) {
+    if (!area || area.visible === false) return false;
+    if (!Array.isArray(area.points) || area.points.length < 3) return false;
+
+    const view = this.getActiveView?.();
+    const tol = this.getActiveViewTolerance?.() ?? 0.001;
+    const points = area.points;
+
+    if (!view) return true;
+
+    // ==========================
+    // PLANTA: X-Y con Z fijo
+    // ==========================
+    if (view.type === "plan" || this.currentViewMode === "plan") {
+      const activeZ = this.getActivePlanElevation?.() ?? 0;
+
+      const zs = points.map((p) => Number(p.z ?? 0));
+      const minZ = Math.min(...zs);
+      const maxZ = Math.max(...zs);
+
+      const allOnPlan = zs.every((z) => Math.abs(z - activeZ) <= tol);
+
+      const crossesPlan =
+        activeZ >= minZ - tol &&
+        activeZ <= maxZ + tol;
+
+      return allOnPlan || crossesPlan;
+    }
+
+    // ==========================
+    // ELEVACIÓN:
+    // axis X => plano Y-Z con X fijo
+    // axis Y => plano X-Z con Y fijo
+    // ==========================
+    if (view.type === "elevation") {
+      const value = Number(view.value ?? 0);
+
+      if (view.axis === "X") {
+        return points.every((p) => {
+          const x = Number(p.x ?? 0);
+          return Math.abs(x - value) <= tol;
+        });
+      }
+
+      if (view.axis === "Y") {
+        return points.every((p) => {
+          const y = Number(p.y ?? 0);
+          return Math.abs(y - value) <= tol;
+        });
+      }
+    }
+
+    return true;
+  },
+
   isObjectVisibleInActiveView(obj) {
     if (!obj) return false;
 
@@ -7608,17 +8936,7 @@ export default () => ({
     }
 
     if (Array.isArray(obj.points)) {
-      const view = this.getActiveView?.();
-
-      if (!view || view.type === "plan") {
-        const activeZ = this.getActivePlanElevation();
-        const tol = this.getActiveViewTolerance();
-
-        return obj.points.every((point) => {
-          const z = Number(point.z ?? 0);
-          return Math.abs(z - activeZ) <= tol;
-        });
-      }
+      return this.isAreaVisibleInActiveView(obj);
     }
 
     return true;
@@ -8459,33 +9777,56 @@ export default () => ({
   },
 
   handleMouseMove(event) {
-    const { x, y } = mousePositionFrom(this.canvas, event);
-    this.mousePos = this.grid.screenToWorld({ x, y });
+    const screen = mousePositionFrom(this.canvas, event);
+    const rawWorld = this.grid.screenToWorld(screen);
+
+    const view = this.viewSet?.[this.activeViewIndex];
+
+    // Guardamos primero el punto crudo del mouse en coordenadas del plano 2D activo
+    this.mousePos = {
+      x: Number(rawWorld.x || 0),
+      y: Number(rawWorld.y || 0),
+    };
 
     if (this.snap_enabled) {
-      this.mousePos.x =
-        Math.floor((this.mousePos.x + 0.5) * this.grid.gridSpacing) +
-        this.grid.gridSpacing -
-        Math.floor(this.grid.gridSpacing);
+      if (this.currentViewMode === "plan") {
+        this.updatePlanGridSnap(this.mousePos, screen);
+      } else if (
+        this.currentViewMode === "elevationX" ||
+        this.currentViewMode === "elevationY"
+      ) {
+        this.updateElevationGridSnap(this.mousePos, screen);
+      } else {
+        this.activeGridPoint = null;
+      }
 
-      this.mousePos.y =
-        Math.floor((this.mousePos.y + 0.5) * this.grid.gridSpacing) +
-        this.grid.gridSpacing -
-        Math.floor(this.grid.gridSpacing);
-    }
-
-    if (this.currentViewMode === "plan") {
-      this.updatePlanGridSnap(this.mousePos, { x, y });
-    } else if (
-      this.currentViewMode === "elevationX" ||
-      this.currentViewMode === "elevationY"
-    ) {
-      this.updateElevationGridSnap(this.mousePos, { x, y });
+      // Si hay snap activo, actualizamos mousePos para que el preview visual
+      // también caiga exactamente sobre el punto de grilla.
+      if (this.activeGridPoint) {
+        if (!view || view.type === "plan") {
+          this.mousePos = {
+            x: Number(this.activeGridPoint.x || 0),
+            y: Number(this.activeGridPoint.y || 0),
+          };
+        } else if (view.type === "elevation" && view.axis === "Y") {
+          // Elevación Y: plano X-Z
+          this.mousePos = {
+            x: Number(this.activeGridPoint.x || 0),
+            y: Number(this.activeGridPoint.z || 0),
+          };
+        } else if (view.type === "elevation" && view.axis === "X") {
+          // Elevación X: plano Y-Z
+          this.mousePos = {
+            x: Number(this.activeGridPoint.y || 0),
+            y: Number(this.activeGridPoint.z || 0),
+          };
+        }
+      }
     } else {
       this.activeGridPoint = null;
     }
 
-    this.currentState.handleMouseMove(event, this, { x, y });
+    this.currentState.handleMouseMove(event, this, screen);
   },
 
   handleMouseLeave(event) {
@@ -9173,104 +10514,3365 @@ export default () => ({
   // ========== MÉTODOS PARA EL MENÚ EDIT ==========
   // ===============================================
 
-  undo() {
-    if (this.undoStack && this.undoStack.length > 0) {
-      const lastState = this.undoStack.pop();
-      this.restoreState(lastState);
-      this.showMessage("↩️ Deshacer realizado");
-    } else {
-      this.showMessage("↩️ No hay acciones para deshacer", "warning");
+  // =========================================
+  // ========== EDIT: UNDO / REDO ============
+  // =========================================
+
+  cloneEditPlainData(data) {
+    if (data === undefined || data === null) return data;
+
+    try {
+      return JSON.parse(JSON.stringify(data));
+    } catch (error) {
+      console.warn("No se pudo clonar data de Edit:", data, error);
+      return null;
     }
+  },
+
+  createModelSnapshot(label = "") {
+    const nodes = (this.nodes || []).map((node, index) => {
+      const p = node.position || {};
+
+      return {
+        id: Number(node.id ?? index + 1),
+        position: {
+          x: Number(p.x || 0),
+          y: Number(p.y || 0),
+          z: Number(p.z || 0),
+        },
+
+        soporte: node.soporte || "",
+        force: this.cloneEditPlainData(node.force),
+        reaction: this.cloneEditPlainData(node.reaction),
+
+        restraints: this.cloneEditPlainData(node.restraints),
+        constraints: this.cloneEditPlainData(node.constraints),
+
+        diaphragm: this.cloneEditPlainData(node.diaphragm),
+        diaphragmId: node.diaphragmId ?? null,
+        diaphragmName: node.diaphragmName ?? null,
+
+        pointSprings: this.cloneEditPlainData(node.pointSprings),
+        springs: this.cloneEditPlainData(node.springs),
+
+        pointLoads: this.cloneEditPlainData(node.pointLoads),
+        jointLoads: this.cloneEditPlainData(node.jointLoads),
+
+        groupIds: this.cloneEditPlainData(node.groupIds),
+        groupNames: this.cloneEditPlainData(node.groupNames),
+        groups: this.cloneEditPlainData(node.groups),
+
+        assignment: this.cloneEditPlainData(node.assignment),
+        visible: node.visible !== false,
+      };
+    });
+
+    const frames = (this.shapes || [])
+      .filter((frame) => frame?.node1 && frame?.node2)
+      .map((frame, index) => {
+        return {
+          id: Number(frame.id ?? index + 1),
+
+          node1Id: Number(frame.node1?.id ?? 0),
+          node2Id: Number(frame.node2?.id ?? 0),
+
+          E: frame.E ?? this.globalE,
+          _A: frame._A ?? this.globalA,
+
+          elementType: frame.elementType || frame.type || "beam",
+          type: frame.type || frame.elementType || "beam",
+          objectType: frame.objectType || "frame",
+          visible: frame.visible !== false,
+
+          fAxial: Number(frame.fAxial || 0),
+
+          sectionId: frame.sectionId ?? null,
+          sectionName: frame.sectionName ?? null,
+          frameSection: this.cloneEditPlainData(frame.frameSection),
+          section: this.cloneEditPlainData(frame.section),
+          hasAssignedSection: frame.hasAssignedSection === true,
+
+          releases: this.cloneEditPlainData(frame.releases),
+          frameReleases: this.cloneEditPlainData(frame.frameReleases),
+          hasFrameReleases: frame.hasFrameReleases === true,
+
+          endOffsets: this.cloneEditPlainData(frame.endOffsets),
+          frameEndOffsets: this.cloneEditPlainData(frame.frameEndOffsets),
+          hasEndOffsets: frame.hasEndOffsets === true,
+
+          frameLoads: this.cloneEditPlainData(frame.frameLoads),
+          lineLoads: this.cloneEditPlainData(frame.lineLoads),
+          hasFrameLoads: frame.hasFrameLoads === true,
+          hasLineLoads: frame.hasLineLoads === true,
+
+          groupIds: this.cloneEditPlainData(frame.groupIds),
+          groupNames: this.cloneEditPlainData(frame.groupNames),
+          groups: this.cloneEditPlainData(frame.groups),
+          hasGroups: frame.hasGroups === true,
+
+          assignment: this.cloneEditPlainData(frame.assignment),
+
+          designOverwrites: this.cloneEditPlainData(frame.designOverwrites),
+          designResults: this.cloneEditPlainData(frame.designResults),
+
+          steelFrameDesignResult: this.cloneEditPlainData(frame.steelFrameDesignResult),
+          steelJoistDesignResult: this.cloneEditPlainData(frame.steelJoistDesignResult),
+
+          steelFrameDesignOverwrites: this.cloneEditPlainData(frame.steelFrameDesignOverwrites),
+          steelJoistDesignOverwrites: this.cloneEditPlainData(frame.steelJoistDesignOverwrites),
+
+          designType: frame.designType ?? null,
+          isSteelJoist: frame.isSteelJoist === true,
+        };
+      });
+
+    const areas = this.cloneEditPlainData(this.areas || []);
+    const dimensionLines = this.cloneEditPlainData(this.dimensionLines || []);
+    const referencePoints = this.cloneEditPlainData(this.referencePoints || []);
+
+    const referenceGrid = this.cloneEditPlainData(this.referenceGrid || null);
+    const stories = this.cloneEditPlainData(this.stories || []);
+
+    const referencePlanes = this.cloneEditPlainData(this.referencePlanes || []);
+
+    return {
+      label,
+      createdAt: new Date().toISOString(),
+
+      nodes,
+      frames,
+      areas,
+      dimensionLines,
+      referencePoints,
+
+      // Datos del modelo / grillas / pisos
+      referenceGrid,
+      stories,
+      referencePlanes,
+      gridDisplayMode: this.gridDisplayMode || "ordinates",
+      activeViewIndex: Number(this.activeViewIndex || 0),
+      currentViewMode: this.currentViewMode || "plan",
+      currentElevationX: this.currentElevationX || "none",
+      currentElevationZ: this.currentElevationZ || "none",
+      currentZ: Number(this.currentZ || 0),
+      activeStory: Number(this.activeStory || 0),
+
+      nextNodeId: this.nextNodeId ?? ((this.nodes?.length || 0) + 1),
+      nextBeamId: this.nextBeamId ?? ((this.shapes?.length || 0) + 1),
+    };
+  },
+
+  restoreModelSnapshot(snapshot, options = {}) {
+    if (!snapshot) return;
+
+    const nodeById = new Map();
+
+    this.nodes = [];
+    this.shapes = [];
+    this.areas = [];
+    this.dimensionLines = [];
+    this.referencePoints = [];
+
+    // ==========================
+    // Restaurar nodos
+    // ==========================
+    (snapshot.nodes || []).forEach((nodeData, index) => {
+      const p = nodeData.position || {};
+
+      const node = new StructuralNode(
+        {
+          x: Number(p.x || 0),
+          y: Number(p.y || 0),
+        },
+        Number(nodeData.id ?? index + 1),
+        Number(p.z || 0)
+      );
+
+      node.position.x = Number(p.x || 0);
+      node.position.y = Number(p.y || 0);
+      node.position.z = Number(p.z || 0);
+
+      node.beams = [];
+      node.selected = false;
+      node.isSelected = false;
+
+      node.soporte = nodeData.soporte || "";
+      node.force = this.cloneEditPlainData(nodeData.force) || node.force;
+      node.reaction = this.cloneEditPlainData(nodeData.reaction) || node.reaction;
+
+      node.restraints = this.cloneEditPlainData(nodeData.restraints);
+      node.constraints = this.cloneEditPlainData(nodeData.constraints);
+
+      node.diaphragm = this.cloneEditPlainData(nodeData.diaphragm);
+      node.diaphragmId = nodeData.diaphragmId ?? null;
+      node.diaphragmName = nodeData.diaphragmName ?? null;
+
+      node.pointSprings = this.cloneEditPlainData(nodeData.pointSprings);
+      node.springs = this.cloneEditPlainData(nodeData.springs);
+
+      node.pointLoads = this.cloneEditPlainData(nodeData.pointLoads) || [];
+      node.jointLoads = this.cloneEditPlainData(nodeData.jointLoads) || [];
+
+      node.groupIds = this.cloneEditPlainData(nodeData.groupIds) || [];
+      node.groupNames = this.cloneEditPlainData(nodeData.groupNames) || [];
+      node.groups = this.cloneEditPlainData(nodeData.groups) || [];
+
+      node.assignment = this.cloneEditPlainData(nodeData.assignment) || {};
+      node.visible = nodeData.visible !== false;
+
+      this.nodes.push(node);
+      nodeById.set(Number(node.id), node);
+    });
+
+    // ==========================
+    // Restaurar barras / frames
+    // ==========================
+    (snapshot.frames || []).forEach((frameData, index) => {
+      const node1 = nodeById.get(Number(frameData.node1Id));
+      const node2 = nodeById.get(Number(frameData.node2Id));
+
+      if (!node1 || !node2) return;
+
+      const frame = new Beam(
+        frameData.E ?? this.globalE,
+        frameData._A ?? this.globalA
+      );
+
+      frame.node1 = node1;
+      frame.node2 = node2;
+
+      frame.id = Number(frameData.id ?? index + 1);
+      frame.E = frameData.E ?? this.globalE;
+      frame._A = frameData._A ?? this.globalA;
+
+      frame.elementType = frameData.elementType || "beam";
+      frame.type = frameData.type || frame.elementType;
+      frame.objectType = frameData.objectType || "frame";
+      frame.visible = frameData.visible !== false;
+
+      frame.selected = false;
+      frame.isSelected = false;
+
+      frame.fAxial = Number(frameData.fAxial || 0);
+
+      frame.sectionId = frameData.sectionId ?? null;
+      frame.sectionName = frameData.sectionName ?? null;
+      frame.frameSection = this.cloneEditPlainData(frameData.frameSection);
+      frame.section = this.cloneEditPlainData(frameData.section);
+      frame.hasAssignedSection = frameData.hasAssignedSection === true;
+
+      frame.releases = this.cloneEditPlainData(frameData.releases);
+      frame.frameReleases = this.cloneEditPlainData(frameData.frameReleases);
+      frame.hasFrameReleases = frameData.hasFrameReleases === true;
+
+      frame.endOffsets = this.cloneEditPlainData(frameData.endOffsets);
+      frame.frameEndOffsets = this.cloneEditPlainData(frameData.frameEndOffsets);
+      frame.hasEndOffsets = frameData.hasEndOffsets === true;
+
+      frame.frameLoads = this.cloneEditPlainData(frameData.frameLoads) || [];
+      frame.lineLoads = this.cloneEditPlainData(frameData.lineLoads) || [];
+      frame.hasFrameLoads = frameData.hasFrameLoads === true;
+      frame.hasLineLoads = frameData.hasLineLoads === true;
+
+      frame.groupIds = this.cloneEditPlainData(frameData.groupIds) || [];
+      frame.groupNames = this.cloneEditPlainData(frameData.groupNames) || [];
+      frame.groups = this.cloneEditPlainData(frameData.groups) || [];
+      frame.hasGroups = frameData.hasGroups === true;
+
+      frame.assignment = this.cloneEditPlainData(frameData.assignment) || {};
+
+      frame.designOverwrites = this.cloneEditPlainData(frameData.designOverwrites) || {};
+      frame.designResults = this.cloneEditPlainData(frameData.designResults) || {};
+
+      frame.steelFrameDesignResult = this.cloneEditPlainData(frameData.steelFrameDesignResult);
+      frame.steelJoistDesignResult = this.cloneEditPlainData(frameData.steelJoistDesignResult);
+
+      frame.steelFrameDesignOverwrites = this.cloneEditPlainData(frameData.steelFrameDesignOverwrites);
+      frame.steelJoistDesignOverwrites = this.cloneEditPlainData(frameData.steelJoistDesignOverwrites);
+
+      frame.designType = frameData.designType ?? null;
+      frame.isSteelJoist = frameData.isSteelJoist === true;
+
+      this.shapes.push(frame);
+
+      if (!node1.beams) node1.beams = [];
+      if (!node2.beams) node2.beams = [];
+
+      if (!node1.beams.includes(frame)) node1.beams.push(frame);
+      if (!node2.beams.includes(frame)) node2.beams.push(frame);
+    });
+
+    this.areas = this.cloneEditPlainData(snapshot.areas || []) || [];
+    this.dimensionLines = this.cloneEditPlainData(snapshot.dimensionLines || []) || [];
+    this.referencePoints = this.cloneEditPlainData(snapshot.referencePoints || []) || [];
+    this.referencePlanes = this.cloneEditPlainData(snapshot.referencePlanes || []) || [];
+
+    // ==========================
+    // Restaurar grillas / líneas de referencia / pisos
+    // ==========================
+    if (snapshot.referenceGrid) {
+      this.referenceGrid = this.cloneEditPlainData(snapshot.referenceGrid);
+
+      this.gridDisplayMode = snapshot.gridDisplayMode || this.gridDisplayMode || "ordinates";
+
+      this.stories = this.cloneEditPlainData(snapshot.stories || this.stories || []);
+
+      this.rebuildReferenceGridCaches?.();
+      this.rebuildGeneralGrids?.();
+      this.rebuildViewSetFromReferenceGrid?.();
+      this.rebuildElevationListsFromReferenceGrid?.();
+
+      if (Array.isArray(this.viewSet) && this.viewSet.length > 0) {
+        this.activeViewIndex = Math.min(
+          Number(snapshot.activeViewIndex || 0),
+          this.viewSet.length - 1
+        );
+      } else {
+        this.activeViewIndex = 0;
+      }
+
+      const activeView = this.viewSet?.[this.activeViewIndex];
+
+      if (!activeView || activeView.type === "plan") {
+        this.currentViewMode = "plan";
+        this.currentZ = Number(activeView?.elevation ?? snapshot.currentZ ?? 0);
+        this.activeStory = Number(snapshot.activeStory || 0);
+      }
+
+      if (activeView?.type === "elevation") {
+        this.currentViewMode = "elevation";
+
+        if (activeView.axis === "X") {
+          this.currentElevationX =
+            activeView.label ||
+            activeView.name ||
+            snapshot.currentElevationX ||
+            "none";
+        }
+
+        if (activeView.axis === "Y") {
+          this.currentElevationZ =
+            activeView.label ||
+            activeView.name ||
+            snapshot.currentElevationZ ||
+            "none";
+        }
+      }
+
+      this.activeGridPoint = null;
+    }
+
+    this.reindexModelObjects?.();
+
+    this.nextNodeId =
+      snapshot.nextNodeId ??
+      Math.max(...this.nodes.map((node) => Number(node.id || 0)), 0) + 1;
+
+    this.nextBeamId =
+      snapshot.nextBeamId ??
+      Math.max(...this.shapes.map((frame) => Number(frame.id || 0)), 0) + 1;
+
+    this.clearEditSelectionFlags?.();
+
+    this.redraw?.();
+
+    if (options.sync3D !== false) {
+      this.sync3D?.();
+    }
+
+    this.rebuildGroupMemberships?.();
+  },
+
+  saveUndoState(label = "Edit action") {
+    if (!Array.isArray(this.undoStack)) this.undoStack = [];
+    if (!Array.isArray(this.redoStack)) this.redoStack = [];
+
+    const snapshot = this.createModelSnapshot(label);
+
+    this.undoStack.push(snapshot);
+
+    const max = Number(this.maxUndoSteps || 30);
+
+    if (this.undoStack.length > max) {
+      this.undoStack.shift();
+    }
+
+    // Si hago una acción nueva, ya no corresponde rehacer acciones antiguas.
+    this.redoStack = [];
+
+    console.log("💾 Undo guardado:", {
+      label,
+      undoCount: this.undoStack.length,
+      redoCount: this.redoStack.length,
+    });
+  },
+
+  undo() {
+    if (!Array.isArray(this.undoStack) || this.undoStack.length === 0) {
+      this.showMessage?.("↩️ No hay acciones para deshacer", "warning");
+      return;
+    }
+
+    if (!Array.isArray(this.redoStack)) this.redoStack = [];
+
+    const currentSnapshot = this.createModelSnapshot("Redo snapshot");
+    this.redoStack.push(currentSnapshot);
+
+    const previousSnapshot = this.undoStack.pop();
+
+    this.restoreModelSnapshot(previousSnapshot);
+
+    this.showMessage?.(`↩️ Undo: ${previousSnapshot.label || "acción anterior"}`);
+
+    console.log("↩️ Undo ejecutado:", {
+      restored: previousSnapshot.label,
+      undoCount: this.undoStack.length,
+      redoCount: this.redoStack.length,
+    });
   },
 
   redo() {
-    if (this.redoStack && this.redoStack.length > 0) {
-      const nextState = this.redoStack.pop();
-      this.restoreState(nextState);
-      this.showMessage("↪️ Rehacer realizado");
-    } else {
-      this.showMessage("↪️ No hay acciones para rehacer", "warning");
+    if (!Array.isArray(this.redoStack) || this.redoStack.length === 0) {
+      this.showMessage?.("↪️ No hay acciones para rehacer", "warning");
+      return;
     }
+
+    if (!Array.isArray(this.undoStack)) this.undoStack = [];
+
+    const currentSnapshot = this.createModelSnapshot("Undo snapshot");
+    this.undoStack.push(currentSnapshot);
+
+    const nextSnapshot = this.redoStack.pop();
+
+    this.restoreModelSnapshot(nextSnapshot);
+
+    this.showMessage?.(`↪️ Redo: ${nextSnapshot.label || "acción rehecha"}`);
+
+    console.log("↪️ Redo ejecutado:", {
+      restored: nextSnapshot.label,
+      undoCount: this.undoStack.length,
+      redoCount: this.redoStack.length,
+    });
   },
 
-  cut() {
-    if (this.moveObjectState && this.moveObjectState.selectedObject) {
-      this.copyToClipboard();
-      this.deleteSelected();
-      this.showMessage("✂️ Elemento(s) cortado(s)");
-    } else {
-      this.showMessage("✂️ Seleccione un elemento para cortar", "warning");
+  // Compatibilidad con funciones antiguas
+  saveState() {
+    return this.createModelSnapshot("Manual saveState");
+  },
+
+  restoreState(state) {
+    this.restoreModelSnapshot(state);
+  },
+
+  // =========================================
+  // ========== EDIT: REPLICATE ==============
+  // =========================================
+
+  async replicate() {
+    const clipboard = this.createEditClipboardFromSelection?.();
+
+    if (!clipboard || clipboard.summary?.total === 0) {
+      this.showMessage?.("🔄 Selecciona objetos para replicar.", "warning");
+      console.warn("EDIT Replicate: no hay selección.");
+      return;
     }
-  },
 
-  copy() {
-    this.copyToClipboard();
-    this.showMessage("📋 Elemento(s) copiado(s)");
-  },
-
-  paste() {
-    if (this.clipboardElements) {
-      this.pasteFromClipboard();
-      this.showMessage("📌 Elemento(s) pegado(s)");
-    } else {
-      this.showMessage("📌 No hay elementos para pegar", "warning");
-    }
-  },
-
-  deleteSelected() {
-    if (this.moveObjectState && this.moveObjectState.selectedObject) {
-      const obj = this.moveObjectState.selectedObject;
-      if (obj.isBeam) {
-        const index = this.shapes.findIndex((b) => b === obj);
-        if (index !== -1) this.shapes.splice(index, 1);
-      } else if (obj.isNode) {
-        const index = this.nodes.findIndex((n) => n === obj);
-        if (index !== -1) this.nodes.splice(index, 1);
-      }
-      this.moveObjectState.selectedObject = null;
-      this.redraw();
-      this.sync3D();
-      this.showMessage("🗑️ Elemento(s) eliminado(s)");
-    } else {
-      this.showMessage("🗑️ Seleccione un elemento para eliminar", "warning");
-    }
-  },
-
-  replicate() {
-    Swal.fire({
-      title: "Replicar",
+    const result = await Swal.fire({
+      title: "Replicate",
+      width: 620,
       html: `
-            <div class="text-left">
-                <div class="mb-3">
-                    <label class="block text-xs font-semibold text-gray-400 mb-2">Número de copias</label>
-                    <input type="number" id="copies" value="1" min="1" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm">
-                </div>
-                <div class="mb-3">
-                    <label class="block text-xs font-semibold text-gray-400 mb-2">Desplazamiento X</label>
-                    <input type="number" step="any" id="dx" value="0" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm">
-                </div>
-                <div class="mb-3">
-                    <label class="block text-xs font-semibold text-gray-400 mb-2">Desplazamiento Y</label>
-                    <input type="number" step="any" id="dy" value="0" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm">
-                </div>
-                <div class="mb-3">
-                    <label class="block text-xs font-semibold text-gray-400 mb-2">Desplazamiento Z</label>
-                    <input type="number" step="any" id="dz" value="0" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm">
-                </div>
+      <div style="text-align:left; font-size:13px;">
+        <p style="margin-bottom:12px;">
+          Crea copias lineales de los objetos seleccionados, similar a ETABS.
+        </p>
+
+        <div style="border:1px solid #555; border-radius:6px; padding:10px; margin-bottom:12px;">
+          <div style="font-weight:bold; margin-bottom:8px;">
+            Linear Replication
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="display:block; margin-bottom:5px;">DX</label>
+              <input id="replicate-dx" type="number" step="0.001" value="1"
+                style="width:100%; padding:7px;">
             </div>
-        `,
-      confirmButtonText: "Replicar",
+
+            <div>
+              <label style="display:block; margin-bottom:5px;">DY</label>
+              <input id="replicate-dy" type="number" step="0.001" value="0"
+                style="width:100%; padding:7px;">
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:5px;">DZ</label>
+              <input id="replicate-dz" type="number" step="0.001" value="0"
+                style="width:100%; padding:7px;">
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div>
+              <label style="display:block; margin-bottom:5px;">Number of Copies</label>
+              <input id="replicate-count" type="number" min="1" step="1" value="1"
+                style="width:100%; padding:7px;">
+            </div>
+
+            <div style="display:flex; align-items:end;">
+              <label style="display:flex; align-items:center; gap:8px; padding-bottom:8px;">
+                <input id="replicate-select-new" type="checkbox" checked>
+                Select replicated objects
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:10px; border:1px solid #555; border-radius:6px; color:#777; font-size:12px;">
+          Objetos seleccionados para replicar:<br>
+          Nodos: <b>${clipboard.summary.nodes}</b> |
+          Líneas: <b>${clipboard.summary.frames}</b> |
+          Áreas: <b>${clipboard.summary.areas}</b> |
+          Dimensiones: <b>${clipboard.summary.dimensions}</b>
+        </div>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Replicate",
       cancelButtonText: "Cancelar",
-      showCancelButton: true
-    }).then((result) => {
-      if (result.isConfirmed) {
-        const copies = parseInt(document.getElementById('copies').value);
-        const dx = parseFloat(document.getElementById('dx').value);
-        const dy = parseFloat(document.getElementById('dy').value);
-        const dz = parseFloat(document.getElementById('dz').value);
-        this.replicateElements(copies, dx, dy, dz);
+      preConfirm: () => {
+        const dx = Number(document.getElementById("replicate-dx")?.value || 0);
+        const dy = Number(document.getElementById("replicate-dy")?.value || 0);
+        const dz = Number(document.getElementById("replicate-dz")?.value || 0);
+        const count = Number(document.getElementById("replicate-count")?.value || 1);
+        const selectNew =
+          document.getElementById("replicate-select-new")?.checked === true;
+
+        if (!Number.isFinite(dx) || !Number.isFinite(dy) || !Number.isFinite(dz)) {
+          Swal.showValidationMessage("DX, DY y DZ deben ser valores numéricos.");
+          return false;
+        }
+
+        if (!Number.isInteger(count) || count < 1) {
+          Swal.showValidationMessage("Number of Copies debe ser un entero mayor o igual a 1.");
+          return false;
+        }
+
+        if (dx === 0 && dy === 0 && dz === 0) {
+          Swal.showValidationMessage("Define al menos un desplazamiento diferente de cero.");
+          return false;
+        }
+
+        return {
+          dx,
+          dy,
+          dz,
+          count,
+          selectNew,
+        };
+      },
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    this.saveUndoState?.("Replicate objects");
+
+    const summary = this.replicateClipboardLinear(clipboard, result.value);
+
+    this.redraw?.();
+
+    if (summary.nodes > 0 || summary.frames > 0 || summary.areas > 0) {
+      this.sync3D?.();
+    }
+
+    console.log("🔄 EDIT Replicate ejecutado:", {
+      options: result.value,
+      summary,
+    });
+
+    this.showMessage?.(
+      `🔄 Replicado: ${summary.total} objeto(s). ` +
+      `Nodos: ${summary.nodes}, Líneas: ${summary.frames}, Áreas: ${summary.areas}`
+    );
+  },
+
+  replicateClipboardLinear(clipboard, options = {}) {
+    const count = Number(options.count || 1);
+    const dx = Number(options.dx || 0);
+    const dy = Number(options.dy || 0);
+    const dz = Number(options.dz || 0);
+    const selectNew = options.selectNew !== false;
+
+    const totalSummary = {
+      nodes: 0,
+      frames: 0,
+      areas: 0,
+      dimensions: 0,
+      total: 0,
+    };
+
+    this.clearEditSelectionFlags?.();
+
+    for (let i = 1; i <= count; i++) {
+      const offset = {
+        x: dx * i,
+        y: dy * i,
+        z: dz * i,
+      };
+
+      const partial = this.replicateClipboardOnce(clipboard, offset, {
+        selectNew,
+      });
+
+      totalSummary.nodes += partial.nodes;
+      totalSummary.frames += partial.frames;
+      totalSummary.areas += partial.areas;
+      totalSummary.dimensions += partial.dimensions;
+      totalSummary.total += partial.total;
+    }
+
+    return totalSummary;
+  },
+
+  replicateClipboardOnce(clipboard, offset, options = {}) {
+    const selectNew = options.selectNew !== false;
+
+    const oldNodeIdToNewNode = new Map();
+
+    const pastedNodes = [];
+    const pastedFrames = [];
+    const pastedAreas = [];
+    const pastedDimensions = [];
+
+    // ==========================
+    // 1. Replicar nodos
+    // ==========================
+    (clipboard.nodes || []).forEach((nodeData) => {
+      const oldId = Number(nodeData.id);
+      const p = this.offsetEditPoint(nodeData.position, offset);
+
+      const newNode = new StructuralNode(
+        {
+          x: Number(p.x || 0),
+          y: Number(p.y || 0),
+        },
+        this.getNextEditNodeId(),
+        Number(p.z || 0)
+      );
+
+      newNode.position.x = Number(p.x || 0);
+      newNode.position.y = Number(p.y || 0);
+      newNode.position.z = Number(p.z || 0);
+
+      newNode.beams = [];
+
+      newNode.selected = selectNew;
+      newNode.isSelected = selectNew;
+
+      if (selectNew && newNode.style?.selected) {
+        newNode.style.selected();
+      }
+
+      newNode.soporte = nodeData.soporte || "";
+      newNode.force = this.cloneEditPlainData(nodeData.force) || newNode.force;
+      newNode.reaction = this.cloneEditPlainData(nodeData.reaction) || newNode.reaction;
+
+      newNode.restraints = this.cloneEditPlainData(nodeData.restraints);
+      newNode.constraints = this.cloneEditPlainData(nodeData.constraints);
+
+      newNode.diaphragm = this.cloneEditPlainData(nodeData.diaphragm);
+      newNode.diaphragmId = nodeData.diaphragmId ?? null;
+      newNode.diaphragmName = nodeData.diaphragmName ?? null;
+
+      newNode.pointSprings = this.cloneEditPlainData(nodeData.pointSprings);
+      newNode.springs = this.cloneEditPlainData(nodeData.springs);
+
+      newNode.pointLoads = this.cloneEditPlainData(nodeData.pointLoads) || [];
+      newNode.jointLoads = this.cloneEditPlainData(nodeData.jointLoads) || [];
+
+      newNode.groupIds = this.cloneEditPlainData(nodeData.groupIds) || [];
+      newNode.groupNames = this.cloneEditPlainData(nodeData.groupNames) || [];
+      newNode.groups = this.cloneEditPlainData(nodeData.groups) || [];
+
+      newNode.assignment = this.cloneEditPlainData(nodeData.assignment) || {};
+      newNode.visible = nodeData.visible !== false;
+
+      this.nodes.push(newNode);
+
+      oldNodeIdToNewNode.set(oldId, newNode);
+      pastedNodes.push(newNode);
+    });
+
+    // ==========================
+    // 2. Replicar barras / frames
+    // ==========================
+    (clipboard.frames || []).forEach((frameData) => {
+      const node1 = oldNodeIdToNewNode.get(Number(frameData.node1Id));
+      const node2 = oldNodeIdToNewNode.get(Number(frameData.node2Id));
+
+      if (!node1 || !node2) return;
+
+      const newFrame = new Beam(
+        frameData.E ?? this.globalE,
+        frameData._A ?? this.globalA
+      );
+
+      newFrame.id = this.getNextEditFrameId();
+
+      newFrame.node1 = node1;
+      newFrame.node2 = node2;
+
+      newFrame.E = frameData.E ?? this.globalE;
+      newFrame._A = frameData._A ?? this.globalA;
+
+      newFrame.elementType = frameData.elementType || "beam";
+      newFrame.type = frameData.type || newFrame.elementType;
+      newFrame.objectType = frameData.objectType || "frame";
+      newFrame.visible = frameData.visible !== false;
+
+      newFrame.selected = selectNew;
+      newFrame.isSelected = selectNew;
+
+      if (selectNew && newFrame.style?.selected) {
+        newFrame.style.selected();
+      }
+
+      newFrame.fAxial = Number(frameData.fAxial || 0);
+
+      newFrame.sectionId = frameData.sectionId ?? null;
+      newFrame.sectionName = frameData.sectionName ?? null;
+      newFrame.frameSection = this.cloneEditPlainData(frameData.frameSection);
+      newFrame.section = this.cloneEditPlainData(frameData.section);
+      newFrame.hasAssignedSection = frameData.hasAssignedSection === true;
+
+      newFrame.releases = this.cloneEditPlainData(frameData.releases);
+      newFrame.frameReleases = this.cloneEditPlainData(frameData.frameReleases);
+      newFrame.hasFrameReleases = frameData.hasFrameReleases === true;
+
+      newFrame.endOffsets = this.cloneEditPlainData(frameData.endOffsets);
+      newFrame.frameEndOffsets = this.cloneEditPlainData(frameData.frameEndOffsets);
+      newFrame.hasEndOffsets = frameData.hasEndOffsets === true;
+
+      newFrame.frameLoads = this.cloneEditPlainData(frameData.frameLoads) || [];
+      newFrame.lineLoads = this.cloneEditPlainData(frameData.lineLoads) || [];
+      newFrame.hasFrameLoads = frameData.hasFrameLoads === true;
+      newFrame.hasLineLoads = frameData.hasLineLoads === true;
+
+      newFrame.groupIds = this.cloneEditPlainData(frameData.groupIds) || [];
+      newFrame.groupNames = this.cloneEditPlainData(frameData.groupNames) || [];
+      newFrame.groups = this.cloneEditPlainData(frameData.groups) || [];
+      newFrame.hasGroups = frameData.hasGroups === true;
+
+      newFrame.assignment = this.cloneEditPlainData(frameData.assignment) || {};
+
+      newFrame.designOverwrites = this.cloneEditPlainData(frameData.designOverwrites) || {};
+      newFrame.designResults = this.cloneEditPlainData(frameData.designResults) || {};
+
+      newFrame.steelFrameDesignResult =
+        this.cloneEditPlainData(frameData.steelFrameDesignResult);
+
+      newFrame.steelJoistDesignResult =
+        this.cloneEditPlainData(frameData.steelJoistDesignResult);
+
+      newFrame.steelFrameDesignOverwrites =
+        this.cloneEditPlainData(frameData.steelFrameDesignOverwrites);
+
+      newFrame.steelJoistDesignOverwrites =
+        this.cloneEditPlainData(frameData.steelJoistDesignOverwrites);
+
+      newFrame.designType = frameData.designType ?? null;
+      newFrame.isSteelJoist = frameData.isSteelJoist === true;
+
+      this.shapes.push(newFrame);
+
+      if (!node1.beams) node1.beams = [];
+      if (!node2.beams) node2.beams = [];
+
+      node1.beams.push(newFrame);
+      node2.beams.push(newFrame);
+
+      pastedFrames.push(newFrame);
+    });
+
+    // ==========================
+    // 3. Replicar áreas
+    // ==========================
+    (clipboard.areas || []).forEach((areaData) => {
+      const newArea = this.cloneEditPlainData(areaData);
+
+      newArea.id = this.getNextEditGenericId(this.areas || []);
+      newArea.selected = selectNew;
+      newArea.isSelected = selectNew;
+
+      if (Array.isArray(newArea.points)) {
+        newArea.points = newArea.points.map((point) =>
+          this.offsetEditPoint(point, offset)
+        );
+      }
+
+      if (typeof newArea.z === "number") {
+        newArea.z = Number(newArea.z || 0) + Number(offset.z || 0);
+      }
+
+      this.areas.push(newArea);
+      pastedAreas.push(newArea);
+    });
+
+    // ==========================
+    // 4. Replicar líneas de dimensión
+    // ==========================
+    (clipboard.dimensionLines || []).forEach((dimData) => {
+      const newDim = this.cloneEditPlainData(dimData);
+
+      newDim.id = this.getNextEditGenericId(this.dimensionLines || []);
+      newDim.selected = selectNew;
+      newDim.isSelected = selectNew;
+
+      if (newDim.start) {
+        newDim.start = this.offsetEditPoint(newDim.start, offset);
+      }
+
+      if (newDim.end) {
+        newDim.end = this.offsetEditPoint(newDim.end, offset);
+      }
+
+      this.dimensionLines.push(newDim);
+      pastedDimensions.push(newDim);
+    });
+
+    return {
+      nodes: pastedNodes.length,
+      frames: pastedFrames.length,
+      areas: pastedAreas.length,
+      dimensions: pastedDimensions.length,
+      total:
+        pastedNodes.length +
+        pastedFrames.length +
+        pastedAreas.length +
+        pastedDimensions.length,
+    };
+  },
+
+  // =========================================
+  // ===== EDIT: MOVE POINTS/LINES/AREAS =====
+  // =========================================
+
+  getMoveDialogDefaultValues() {
+    const view = this.viewSet?.[this.activeViewIndex];
+
+    if (!view || view.type === "plan") {
+      return {
+        dx: 1,
+        dy: 0,
+        dz: 0,
+        note: "Vista de planta: DX y DY mueven en el plano X-Y. DZ mueve en altura.",
+      };
+    }
+
+    if (view.type === "elevation" && view.axis === "X") {
+      return {
+        dx: 0,
+        dy: 1,
+        dz: 0,
+        note: "Elevación eje X: DY mueve horizontalmente en la elevación y DZ mueve verticalmente.",
+      };
+    }
+
+    if (view.type === "elevation" && view.axis === "Y") {
+      return {
+        dx: 1,
+        dy: 0,
+        dz: 0,
+        note: "Elevación eje Y: DX mueve horizontalmente en la elevación y DZ mueve verticalmente.",
+      };
+    }
+
+    return {
+      dx: 1,
+      dy: 0,
+      dz: 0,
+      note: "Define el desplazamiento global del objeto seleccionado.",
+    };
+  },
+
+  async openMovePointsLinesAreasDialog() {
+    const selectedObjects = this.getEditSelectedObjects?.({
+      respectActiveView: true,
+    }) || [];
+
+    if (!selectedObjects.length) {
+      this.showMessage?.("↔️ Selecciona objetos para mover.", "warning");
+      console.warn("EDIT Move: no hay selección.");
+      return;
+    }
+
+    const summary = this.getEditSelectedSummary?.({
+      respectActiveView: true,
+    }) || {
+      nodes: 0,
+      frames: 0,
+      areas: 0,
+      dimensions: 0,
+      total: selectedObjects.length,
+    };
+
+    const defaults = this.getMoveDialogDefaultValues();
+
+    const result = await Swal.fire({
+      title: "Move Points/Lines/Areas",
+      width: 620,
+      html: `
+      <div style="text-align:left; font-size:13px;">
+        <p style="margin-bottom:12px;">
+          Mueve los objetos seleccionados mediante un desplazamiento global.
+        </p>
+
+        <div style="border:1px solid #555; border-radius:6px; padding:10px; margin-bottom:12px;">
+          <div style="font-weight:bold; margin-bottom:8px;">
+            Move Offset
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+            <div>
+              <label style="display:block; margin-bottom:5px;">DX</label>
+              <input id="move-dx" type="number" step="0.001" value="${defaults.dx}"
+                style="width:100%; padding:7px;">
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:5px;">DY</label>
+              <input id="move-dy" type="number" step="0.001" value="${defaults.dy}"
+                style="width:100%; padding:7px;">
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:5px;">DZ</label>
+              <input id="move-dz" type="number" step="0.001" value="${defaults.dz}"
+                style="width:100%; padding:7px;">
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:10px; border:1px solid #555; border-radius:6px; margin-bottom:12px; color:#777; font-size:12px;">
+          ${defaults.note}
+        </div>
+
+        <div style="padding:10px; border:1px solid #555; border-radius:6px; color:#777; font-size:12px;">
+          Objetos seleccionados:<br>
+          Nodos: <b>${summary.nodes}</b> |
+          Líneas: <b>${summary.frames}</b> |
+          Áreas: <b>${summary.areas}</b> |
+          Dimensiones: <b>${summary.dimensions}</b>
+        </div>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Move",
+      cancelButtonText: "Cancelar",
+      preConfirm: () => {
+        const dx = Number(document.getElementById("move-dx")?.value || 0);
+        const dy = Number(document.getElementById("move-dy")?.value || 0);
+        const dz = Number(document.getElementById("move-dz")?.value || 0);
+
+        if (!Number.isFinite(dx) || !Number.isFinite(dy) || !Number.isFinite(dz)) {
+          Swal.showValidationMessage("DX, DY y DZ deben ser valores numéricos.");
+          return false;
+        }
+
+        if (dx === 0 && dy === 0 && dz === 0) {
+          Swal.showValidationMessage("Define al menos un desplazamiento diferente de cero.");
+          return false;
+        }
+
+        return {
+          dx,
+          dy,
+          dz,
+        };
+      },
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    this.saveUndoState?.("Move Points/Lines/Areas");
+
+    const moveSummary = this.moveSelectedObjectsByOffset(result.value);
+
+    this.redraw?.();
+
+    if (
+      moveSummary.nodes > 0 ||
+      moveSummary.frames > 0 ||
+      moveSummary.areas > 0
+    ) {
+      this.sync3D?.();
+    }
+
+    console.log("↔️ EDIT Move ejecutado:", {
+      offset: result.value,
+      summary: moveSummary,
+    });
+
+    this.showMessage?.(
+      `↔️ Movido: ${moveSummary.total} objeto(s). ` +
+      `Nodos: ${moveSummary.nodes}, Líneas: ${moveSummary.frames}, Áreas: ${moveSummary.areas}`
+    );
+  },
+
+  moveSelectedObjectsByOffset(offset = {}) {
+    const selectedObjects = this.getEditSelectedObjects?.({
+      respectActiveView: true,
+    }) || [];
+
+    const selectedNodes = selectedObjects.filter((obj) =>
+      this.isEditNodeObject(obj)
+    );
+
+    const selectedFrames = selectedObjects.filter((obj) =>
+      this.isEditFrameObject(obj)
+    );
+
+    const selectedAreas = selectedObjects.filter((obj) =>
+      this.isEditAreaObject(obj)
+    );
+
+    const selectedDimensions = selectedObjects.filter((obj) =>
+      this.isEditDimensionLineObject(obj)
+    );
+
+    const nodesToMove = new Set();
+
+    // 1. Nodos seleccionados directamente.
+    selectedNodes.forEach((node) => {
+      nodesToMove.add(node);
+    });
+
+    // 2. Si se selecciona una barra/frame, mover sus nodos extremos.
+    selectedFrames.forEach((frame) => {
+      if (frame.node1) nodesToMove.add(frame.node1);
+      if (frame.node2) nodesToMove.add(frame.node2);
+    });
+
+    const movedObjects = [];
+
+    // 3. Mover nodos una sola vez, aunque estén compartidos por varias barras.
+    nodesToMove.forEach((node) => {
+      if (!node.position) return;
+
+      node.position.x = Number(node.position.x || 0) + Number(offset.dx || 0);
+      node.position.y = Number(node.position.y || 0) + Number(offset.dy || 0);
+      node.position.z = Number(node.position.z || 0) + Number(offset.dz || 0);
+
+      node.selected = true;
+      node.isSelected = true;
+
+      if (node.style?.selected) {
+        node.style.selected();
+      }
+
+      movedObjects.push(node);
+    });
+
+    // 4. Mantener marcadas las barras seleccionadas.
+    selectedFrames.forEach((frame) => {
+      frame.selected = true;
+      frame.isSelected = true;
+
+      if (frame.style?.selected) {
+        frame.style.selected();
+      }
+
+      movedObjects.push(frame);
+    });
+
+    // 5. Mover áreas.
+    selectedAreas.forEach((area) => {
+      if (Array.isArray(area.points)) {
+        area.points = area.points.map((point) =>
+          this.offsetEditPoint(point, {
+            x: Number(offset.dx || 0),
+            y: Number(offset.dy || 0),
+            z: Number(offset.dz || 0),
+          })
+        );
+      }
+
+      if (typeof area.z === "number") {
+        area.z = Number(area.z || 0) + Number(offset.dz || 0);
+      }
+
+      area.selected = true;
+      area.isSelected = true;
+
+      movedObjects.push(area);
+    });
+
+    // 6. Mover líneas de dimensión.
+    selectedDimensions.forEach((dim) => {
+      if (dim.start) {
+        dim.start = this.offsetEditPoint(dim.start, {
+          x: Number(offset.dx || 0),
+          y: Number(offset.dy || 0),
+          z: Number(offset.dz || 0),
+        });
+      }
+
+      if (dim.end) {
+        dim.end = this.offsetEditPoint(dim.end, {
+          x: Number(offset.dx || 0),
+          y: Number(offset.dy || 0),
+          z: Number(offset.dz || 0),
+        });
+      }
+
+      dim.selected = true;
+      dim.isSelected = true;
+
+      movedObjects.push(dim);
+    });
+
+    return {
+      nodes: nodesToMove.size,
+      frames: selectedFrames.length,
+      areas: selectedAreas.length,
+      dimensions: selectedDimensions.length,
+      total:
+        nodesToMove.size +
+        selectedFrames.length +
+        selectedAreas.length +
+        selectedDimensions.length,
+      objects: movedObjects,
+    };
+  },
+
+  // =========================================
+  // ========== EDIT: MERGE POINTS ===========
+  // =========================================
+
+  async openMergePointsDialog() {
+    const selectedNodes = this.getEditSelectedNodes?.({
+      respectActiveView: true,
+    }) || [];
+
+    const defaultTolerance = Number(this.preferences?.modelTolerance || 0.001);
+
+    const result = await Swal.fire({
+      title: "Merge Points",
+      width: 620,
+      html: `
+      <div style="text-align:left; font-size:13px;">
+        <p style="margin-bottom:12px;">
+          Une nodos duplicados o muy cercanos, actualizando las barras conectadas.
+        </p>
+
+        <div style="border:1px solid #555; border-radius:6px; padding:10px; margin-bottom:12px;">
+          <div style="font-weight:bold; margin-bottom:8px;">
+            Merge Options
+          </div>
+
+          <label style="display:block; margin-bottom:5px;">Scope</label>
+          <select id="merge-scope" style="width:100%; padding:7px; margin-bottom:12px;">
+            <option value="selected">Selected Points Only</option>
+            <option value="active-view">All Points in Active View</option>
+            <option value="all">All Points in Model</option>
+          </select>
+
+          <label style="display:block; margin-bottom:5px;">Merge Tolerance</label>
+          <input id="merge-tolerance" type="number" step="0.0001" min="0"
+            value="${defaultTolerance}"
+            style="width:100%; padding:7px; margin-bottom:12px;">
+
+          <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <input id="merge-remove-duplicates" type="checkbox" checked>
+            Remove zero-length and duplicate lines after merge
+          </label>
+
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input id="merge-select-result" type="checkbox" checked>
+            Select merged points after operation
+          </label>
+        </div>
+
+        <div style="padding:10px; border:1px solid #555; border-radius:6px; color:#777; font-size:12px;">
+          Puntos seleccionados actualmente: <b>${selectedNodes.length}</b><br>
+          Recomendación: usa esta opción cuando existan nodos encima de otros o casi coincidentes.
+        </div>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Merge",
+      cancelButtonText: "Cancelar",
+      didOpen: () => {
+        const scope = document.getElementById("merge-scope");
+
+        if (scope) {
+          scope.value = selectedNodes.length >= 2 ? "selected" : "active-view";
+        }
+      },
+      preConfirm: () => {
+        const scope = document.getElementById("merge-scope")?.value || "selected";
+        const tolerance = Number(document.getElementById("merge-tolerance")?.value || 0);
+        const removeDuplicates =
+          document.getElementById("merge-remove-duplicates")?.checked === true;
+        const selectResult =
+          document.getElementById("merge-select-result")?.checked === true;
+
+        if (!Number.isFinite(tolerance) || tolerance < 0) {
+          Swal.showValidationMessage("La tolerancia debe ser un número mayor o igual a 0.");
+          return false;
+        }
+
+        return {
+          scope,
+          tolerance,
+          removeDuplicates,
+          selectResult,
+        };
+      },
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    this.saveUndoState?.("Merge Points");
+
+    const summary = this.mergePointsByTolerance(result.value);
+
+    this.redraw?.();
+
+    if (summary.mergedNodes > 0 || summary.removedFrames > 0) {
+      this.sync3D?.();
+    }
+
+    console.log("🔗 EDIT Merge Points ejecutado:", {
+      options: result.value,
+      summary,
+    });
+
+    if (summary.mergedNodes === 0) {
+      this.showMessage?.(
+        "🔗 Merge Points: no se encontraron puntos para unir con esa tolerancia.",
+        "warning"
+      );
+      return;
+    }
+
+    this.showMessage?.(
+      `🔗 Merge Points: ${summary.mergedNodes} nodo(s) unido(s), ` +
+      `${summary.finalNodes} nodo(s) resultante(s), ` +
+      `${summary.removedFrames} línea(s) duplicada(s) removida(s).`
+    );
+  },
+
+  getMergeCandidateNodes(scope = "selected") {
+    if (scope === "selected") {
+      return this.getEditSelectedNodes?.({
+        respectActiveView: true,
+      }) || [];
+    }
+
+    if (scope === "active-view") {
+      return (this.nodes || []).filter((node) => {
+        return this.isEditNodeObject(node) &&
+          this.isEditObjectVisibleInActiveView(node);
+      });
+    }
+
+    if (scope === "all") {
+      return (this.nodes || []).filter((node) =>
+        this.isEditNodeObject(node)
+      );
+    }
+
+    return [];
+  },
+
+  getNodeDistance3D(nodeA, nodeB) {
+    const a = nodeA?.position || {};
+    const b = nodeB?.position || {};
+
+    const dx = Number(a.x || 0) - Number(b.x || 0);
+    const dy = Number(a.y || 0) - Number(b.y || 0);
+    const dz = Number(a.z || 0) - Number(b.z || 0);
+
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  },
+
+  buildMergeNodeClusters(nodes = [], tolerance = 0.001) {
+    const clusters = [];
+    const used = new Set();
+
+    const orderedNodes = [...nodes].sort((a, b) => {
+      return Number(a.id || 0) - Number(b.id || 0);
+    });
+
+    orderedNodes.forEach((node) => {
+      if (used.has(node)) return;
+
+      const cluster = [node];
+      used.add(node);
+
+      let changed = true;
+
+      while (changed) {
+        changed = false;
+
+        orderedNodes.forEach((candidate) => {
+          if (used.has(candidate)) return;
+
+          const belongs = cluster.some((clusterNode) => {
+            return this.getNodeDistance3D(clusterNode, candidate) <= tolerance;
+          });
+
+          if (belongs) {
+            cluster.push(candidate);
+            used.add(candidate);
+            changed = true;
+          }
+        });
+      }
+
+      if (cluster.length >= 2) {
+        clusters.push(cluster);
       }
     });
+
+    return clusters;
+  },
+
+  mergeNodeCluster(cluster = [], options = {}) {
+    if (!Array.isArray(cluster) || cluster.length < 2) {
+      return {
+        targetNode: null,
+        mergedCount: 0,
+      };
+    }
+
+    const ordered = [...cluster].sort((a, b) => {
+      return Number(a.id || 0) - Number(b.id || 0);
+    });
+
+    const targetNode = ordered[0];
+    const nodesToMerge = ordered.slice(1);
+
+    nodesToMerge.forEach((oldNode) => {
+      // Redirigir barras conectadas al nodo objetivo.
+      const connectedFrames = Array.isArray(oldNode.beams)
+        ? [...oldNode.beams]
+        : [];
+
+      connectedFrames.forEach((frame) => {
+        if (frame.node1 === oldNode) {
+          frame.node1 = targetNode;
+        }
+
+        if (frame.node2 === oldNode) {
+          frame.node2 = targetNode;
+        }
+
+        if (!Array.isArray(targetNode.beams)) {
+          targetNode.beams = [];
+        }
+
+        if (!targetNode.beams.includes(frame)) {
+          targetNode.beams.push(frame);
+        }
+      });
+
+      oldNode.beams = [];
+
+      const index = this.nodes.indexOf(oldNode);
+
+      if (index >= 0) {
+        this.nodes.splice(index, 1);
+      }
+    });
+
+    targetNode.selected = options.selectResult !== false;
+    targetNode.isSelected = options.selectResult !== false;
+
+    if (targetNode.selected && targetNode.style?.selected) {
+      targetNode.style.selected();
+    }
+
+    return {
+      targetNode,
+      mergedCount: nodesToMerge.length,
+    };
+  },
+
+  removeZeroLengthAndDuplicateFrames() {
+    const seen = new Set();
+    let removed = 0;
+
+    const frames = Array.isArray(this.shapes) ? [...this.shapes] : [];
+
+    frames.forEach((frame) => {
+      if (!this.isEditFrameObject(frame)) return;
+
+      const id1 = Number(frame.node1?.id || 0);
+      const id2 = Number(frame.node2?.id || 0);
+
+      // Si la barra quedó conectada al mismo nodo, se elimina.
+      if (!id1 || !id2 || frame.node1 === frame.node2 || id1 === id2) {
+        if (this.removeFrameFromModel(frame)) {
+          removed++;
+        }
+        return;
+      }
+
+      const key = [id1, id2].sort((a, b) => a - b).join("-");
+
+      if (seen.has(key)) {
+        if (this.removeFrameFromModel(frame)) {
+          removed++;
+        }
+        return;
+      }
+
+      seen.add(key);
+    });
+
+    return removed;
+  },
+
+  mergePointsByTolerance(options = {}) {
+    const scope = options.scope || "selected";
+    const tolerance = Number(options.tolerance ?? 0.001);
+    const removeDuplicates = options.removeDuplicates !== false;
+    const selectResult = options.selectResult !== false;
+
+    const candidateNodes = this.getMergeCandidateNodes(scope);
+
+    if (candidateNodes.length < 2) {
+      return {
+        candidateNodes: candidateNodes.length,
+        clusters: 0,
+        mergedNodes: 0,
+        finalNodes: 0,
+        removedFrames: 0,
+      };
+    }
+
+    this.clearEditSelectionFlags?.();
+
+    const clusters = this.buildMergeNodeClusters(candidateNodes, tolerance);
+
+    let mergedNodes = 0;
+    let finalNodes = 0;
+
+    clusters.forEach((cluster) => {
+      const result = this.mergeNodeCluster(cluster, {
+        selectResult,
+      });
+
+      if (result.targetNode) {
+        mergedNodes += result.mergedCount;
+        finalNodes++;
+      }
+    });
+
+    let removedFrames = 0;
+
+    if (removeDuplicates) {
+      removedFrames = this.removeZeroLengthAndDuplicateFrames();
+    }
+
+    this.reindexModelObjects?.();
+
+    return {
+      candidateNodes: candidateNodes.length,
+      clusters: clusters.length,
+      mergedNodes,
+      finalNodes,
+      removedFrames,
+    };
+  },
+
+  // =========================================
+  // ===== EDIT: ALIGN POINTS/LINES/EDGES ====
+  // =========================================
+
+  getDefaultAlignAxis() {
+    const view = this.viewSet?.[this.activeViewIndex];
+
+    if (!view || view.type === "plan") {
+      return "x";
+    }
+
+    if (view.type === "elevation" && view.axis === "X") {
+      return "y";
+    }
+
+    if (view.type === "elevation" && view.axis === "Y") {
+      return "x";
+    }
+
+    return "x";
+  },
+
+  getAxisLabel(axis = "x") {
+    const key = String(axis || "x").toLowerCase();
+
+    if (key === "x") return "X";
+    if (key === "y") return "Y";
+    if (key === "z") return "Z";
+
+    return "X";
+  },
+
+  getAxisValue(point, axis = "x") {
+    if (!point) return 0;
+
+    const key = String(axis || "x").toLowerCase();
+
+    if (key === "x") return Number(point.x || 0);
+    if (key === "y") return Number(point.y || 0);
+    if (key === "z") return Number(point.z || 0);
+
+    return Number(point.x || 0);
+  },
+
+  setAxisValue(point, axis = "x", value = 0) {
+    if (!point) return;
+
+    const key = String(axis || "x").toLowerCase();
+    const numericValue = Number(value || 0);
+
+    if (key === "x") point.x = numericValue;
+    if (key === "y") point.y = numericValue;
+    if (key === "z") point.z = numericValue;
+  },
+
+  getAlignCandidateData() {
+    const selectedObjects = this.getEditSelectedObjects?.({
+      respectActiveView: true,
+    }) || [];
+
+    const selectedNodes = selectedObjects.filter((obj) =>
+      this.isEditNodeObject(obj)
+    );
+
+    const selectedFrames = selectedObjects.filter((obj) =>
+      this.isEditFrameObject(obj)
+    );
+
+    const selectedAreas = selectedObjects.filter((obj) =>
+      this.isEditAreaObject(obj)
+    );
+
+    const selectedDimensions = selectedObjects.filter((obj) =>
+      this.isEditDimensionLineObject(obj)
+    );
+
+    const nodesToAlign = new Set();
+
+    selectedNodes.forEach((node) => {
+      nodesToAlign.add(node);
+    });
+
+    selectedFrames.forEach((frame) => {
+      if (frame.node1) nodesToAlign.add(frame.node1);
+      if (frame.node2) nodesToAlign.add(frame.node2);
+    });
+
+    const areaPoints = [];
+
+    selectedAreas.forEach((area) => {
+      if (Array.isArray(area.points)) {
+        area.points.forEach((point) => {
+          if (point) areaPoints.push(point);
+        });
+      }
+    });
+
+    const dimensionPoints = [];
+
+    selectedDimensions.forEach((dim) => {
+      if (dim.start) dimensionPoints.push(dim.start);
+      if (dim.end) dimensionPoints.push(dim.end);
+    });
+
+    return {
+      selectedObjects,
+      selectedNodes,
+      selectedFrames,
+      selectedAreas,
+      selectedDimensions,
+      nodesToAlign: [...nodesToAlign],
+      areaPoints,
+      dimensionPoints,
+      totalPoints:
+        nodesToAlign.size +
+        areaPoints.length +
+        dimensionPoints.length,
+    };
+  },
+
+  getAlignValuesForAxis(axis = "x") {
+    const data = this.getAlignCandidateData();
+
+    const values = [];
+
+    data.nodesToAlign.forEach((node) => {
+      values.push(this.getAxisValue(node.position, axis));
+    });
+
+    data.areaPoints.forEach((point) => {
+      values.push(this.getAxisValue(point, axis));
+    });
+
+    data.dimensionPoints.forEach((point) => {
+      values.push(this.getAxisValue(point, axis));
+    });
+
+    return values.filter((value) => Number.isFinite(value));
+  },
+
+  calculateAlignTargetValue(axis = "x", mode = "average", customValue = 0) {
+    const values = this.getAlignValuesForAxis(axis);
+
+    if (mode === "custom") {
+      return Number(customValue || 0);
+    }
+
+    if (!values.length) {
+      return 0;
+    }
+
+    if (mode === "first") {
+      return values[0];
+    }
+
+    if (mode === "min") {
+      return Math.min(...values);
+    }
+
+    if (mode === "max") {
+      return Math.max(...values);
+    }
+
+    if (mode === "average") {
+      return values.reduce((sum, value) => sum + value, 0) / values.length;
+    }
+
+    return values[0];
+  },
+
+  async openAlignPointsLinesEdgesDialog() {
+    const data = this.getAlignCandidateData();
+
+    if (!data.totalPoints) {
+      this.showMessage?.("📍 Selecciona puntos, líneas o áreas para alinear.", "warning");
+      console.warn("EDIT Align: no hay selección.");
+      return;
+    }
+
+    const defaultAxis = this.getDefaultAlignAxis();
+    const defaultValues = this.getAlignValuesForAxis(defaultAxis);
+    const defaultCustomValue = defaultValues.length ? defaultValues[0] : 0;
+
+    const result = await Swal.fire({
+      title: "Align Points/Lines/Edges",
+      width: 640,
+      html: `
+      <div style="text-align:left; font-size:13px;">
+        <p style="margin-bottom:12px;">
+          Alinea los puntos, líneas o bordes seleccionados en una coordenada común.
+        </p>
+
+        <div style="border:1px solid #555; border-radius:6px; padding:10px; margin-bottom:12px;">
+          <div style="font-weight:bold; margin-bottom:8px;">
+            Align Direction
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
+            <div>
+              <label style="display:block; margin-bottom:5px;">Axis</label>
+              <select id="align-axis" style="width:100%; padding:7px;">
+                <option value="x">X Coordinate</option>
+                <option value="y">Y Coordinate</option>
+                <option value="z">Z Coordinate</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:5px;">Target</label>
+              <select id="align-mode" style="width:100%; padding:7px;">
+                <option value="first">First selected point</option>
+                <option value="average">Average coordinate</option>
+                <option value="min">Minimum coordinate</option>
+                <option value="max">Maximum coordinate</option>
+                <option value="custom">Custom coordinate</option>
+              </select>
+            </div>
+          </div>
+
+          <label style="display:block; margin-bottom:5px;">Custom Coordinate</label>
+          <input id="align-custom-value" type="number" step="0.001"
+            value="${Number(defaultCustomValue || 0)}"
+            style="width:100%; padding:7px;">
+        </div>
+
+        <div style="padding:10px; border:1px solid #555; border-radius:6px; color:#777; font-size:12px;">
+          Objetos afectados:<br>
+          Nodos: <b>${data.nodesToAlign.length}</b> |
+          Líneas: <b>${data.selectedFrames.length}</b> |
+          Áreas: <b>${data.selectedAreas.length}</b> |
+          Dimensiones: <b>${data.selectedDimensions.length}</b><br>
+          Puntos totales a alinear: <b>${data.totalPoints}</b>
+        </div>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Align",
+      cancelButtonText: "Cancelar",
+
+      didOpen: () => {
+        const axisSelect = document.getElementById("align-axis");
+        const modeSelect = document.getElementById("align-mode");
+        const customInput = document.getElementById("align-custom-value");
+
+        if (axisSelect) {
+          axisSelect.value = defaultAxis;
+        }
+
+        if (modeSelect) {
+          modeSelect.value = "average";
+        }
+
+        const updateCustomValue = () => {
+          const axis = axisSelect?.value || "x";
+          const mode = modeSelect?.value || "average";
+          const values = this.getAlignValuesForAxis(axis);
+
+          if (!values.length || mode === "custom") return;
+
+          let value = values[0];
+
+          if (mode === "average") {
+            value = values.reduce((sum, item) => sum + item, 0) / values.length;
+          }
+
+          if (mode === "min") {
+            value = Math.min(...values);
+          }
+
+          if (mode === "max") {
+            value = Math.max(...values);
+          }
+
+          if (mode === "first") {
+            value = values[0];
+          }
+
+          if (customInput) {
+            customInput.value = Number(value || 0).toFixed(3);
+          }
+        };
+
+        axisSelect?.addEventListener("change", updateCustomValue);
+        modeSelect?.addEventListener("change", updateCustomValue);
+
+        updateCustomValue();
+      },
+
+      preConfirm: () => {
+        const axis = document.getElementById("align-axis")?.value || "x";
+        const mode = document.getElementById("align-mode")?.value || "average";
+        const customValue = Number(
+          document.getElementById("align-custom-value")?.value || 0
+        );
+
+        if (!["x", "y", "z"].includes(axis)) {
+          Swal.showValidationMessage("Selecciona un eje válido.");
+          return false;
+        }
+
+        if (!["first", "average", "min", "max", "custom"].includes(mode)) {
+          Swal.showValidationMessage("Selecciona un modo de alineación válido.");
+          return false;
+        }
+
+        if (!Number.isFinite(customValue)) {
+          Swal.showValidationMessage("La coordenada personalizada debe ser numérica.");
+          return false;
+        }
+
+        return {
+          axis,
+          mode,
+          customValue,
+        };
+      },
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    this.saveUndoState?.("Align Points/Lines/Edges");
+
+    const summary = this.alignSelectedObjects(result.value);
+
+    this.redraw?.();
+
+    if (summary.nodes > 0 || summary.frames > 0 || summary.areas > 0) {
+      this.sync3D?.();
+    }
+
+    console.log("📍 EDIT Align ejecutado:", {
+      options: result.value,
+      summary,
+    });
+
+    this.showMessage?.(
+      `📍 Align ${this.getAxisLabel(result.value.axis)}: ` +
+      `${summary.totalPoints} punto(s) alineado(s) en ` +
+      `${summary.targetValue.toFixed(3)}.`
+    );
+  },
+
+  alignSelectedObjects(options = {}) {
+    const axis = options.axis || "x";
+    const mode = options.mode || "average";
+    const customValue = Number(options.customValue || 0);
+
+    const targetValue = this.calculateAlignTargetValue(axis, mode, customValue);
+    const data = this.getAlignCandidateData();
+
+    data.nodesToAlign.forEach((node) => {
+      if (!node.position) return;
+
+      this.setAxisValue(node.position, axis, targetValue);
+
+      node.selected = true;
+      node.isSelected = true;
+
+      if (node.style?.selected) {
+        node.style.selected();
+      }
+    });
+
+    data.selectedFrames.forEach((frame) => {
+      frame.selected = true;
+      frame.isSelected = true;
+
+      if (frame.style?.selected) {
+        frame.style.selected();
+      }
+    });
+
+    data.areaPoints.forEach((point) => {
+      this.setAxisValue(point, axis, targetValue);
+    });
+
+    data.selectedAreas.forEach((area) => {
+      if (typeof area.z === "number" && axis === "z") {
+        area.z = targetValue;
+      }
+
+      area.selected = true;
+      area.isSelected = true;
+    });
+
+    data.dimensionPoints.forEach((point) => {
+      this.setAxisValue(point, axis, targetValue);
+    });
+
+    data.selectedDimensions.forEach((dim) => {
+      dim.selected = true;
+      dim.isSelected = true;
+    });
+
+    this.reindexModelObjects?.();
+
+    return {
+      axis,
+      targetValue,
+      nodes: data.nodesToAlign.length,
+      frames: data.selectedFrames.length,
+      areas: data.selectedAreas.length,
+      dimensions: data.selectedDimensions.length,
+      totalPoints: data.totalPoints,
+    };
+  },
+
+  // =========================================
+  // ========== EDIT: JOIN LINES =============
+  // =========================================
+
+  async joinLines() {
+    const selectedFrames = this.getEditSelectedFrames?.({
+      respectActiveView: true,
+    }) || [];
+
+    if (selectedFrames.length < 2) {
+      this.showMessage?.(
+        "⛓️ Selecciona al menos dos líneas / frames para unir.",
+        "warning"
+      );
+      console.warn("EDIT Join Lines: selección insuficiente.");
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: "Join Lines",
+      width: 600,
+      html: `
+      <div style="text-align:left; font-size:13px;">
+        <p style="margin-bottom:12px;">
+          Une líneas colineales seleccionadas en un solo objeto Frame / Line.
+        </p>
+
+        <div style="border:1px solid #555; border-radius:6px; padding:10px; margin-bottom:12px;">
+          <div style="font-weight:bold; margin-bottom:8px;">
+            Join Options
+          </div>
+
+          <label style="display:block; margin-bottom:5px;">Collinearity Tolerance</label>
+          <input id="join-tolerance" type="number" step="0.0001" min="0"
+            value="0.001"
+            style="width:100%; padding:7px; margin-bottom:12px;">
+
+          <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <input id="join-remove-unused-nodes" type="checkbox" checked>
+            Remove unused intermediate points
+          </label>
+
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input id="join-select-result" type="checkbox" checked>
+            Select joined lines after operation
+          </label>
+        </div>
+
+        <div style="padding:10px; border:1px solid #555; border-radius:6px; color:#777; font-size:12px;">
+          Líneas seleccionadas: <b>${selectedFrames.length}</b><br>
+          Solo se unirán líneas conectadas y aproximadamente colineales.
+        </div>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Join",
+      cancelButtonText: "Cancelar",
+      preConfirm: () => {
+        const tolerance = Number(document.getElementById("join-tolerance")?.value || 0);
+        const removeUnusedNodes =
+          document.getElementById("join-remove-unused-nodes")?.checked === true;
+        const selectResult =
+          document.getElementById("join-select-result")?.checked === true;
+
+        if (!Number.isFinite(tolerance) || tolerance < 0) {
+          Swal.showValidationMessage("La tolerancia debe ser un número mayor o igual a 0.");
+          return false;
+        }
+
+        return {
+          tolerance,
+          removeUnusedNodes,
+          selectResult,
+        };
+      },
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    this.saveUndoState?.("Join Lines");
+
+    const summary = this.joinSelectedLines(result.value);
+
+    this.redraw?.();
+
+    if (summary.joinedGroups > 0) {
+      this.sync3D?.();
+    }
+
+    console.log("⛓️ EDIT Join Lines ejecutado:", {
+      options: result.value,
+      summary,
+    });
+
+    if (summary.joinedGroups === 0) {
+      this.showMessage?.(
+        "⛓️ Join Lines: no se encontraron líneas conectadas y colineales para unir.",
+        "warning"
+      );
+      return;
+    }
+
+    this.showMessage?.(
+      `⛓️ Join Lines: ${summary.removedFrames} línea(s) reemplazada(s) por ` +
+      `${summary.createdFrames} línea(s) nueva(s).`
+    );
+  },
+
+  getPointVector3D(point = {}) {
+    return {
+      x: Number(point.x || 0),
+      y: Number(point.y || 0),
+      z: Number(point.z || 0),
+    };
+  },
+
+  subtractVector3D(a, b) {
+    return {
+      x: Number(a.x || 0) - Number(b.x || 0),
+      y: Number(a.y || 0) - Number(b.y || 0),
+      z: Number(a.z || 0) - Number(b.z || 0),
+    };
+  },
+
+  dotVector3D(a, b) {
+    return (
+      Number(a.x || 0) * Number(b.x || 0) +
+      Number(a.y || 0) * Number(b.y || 0) +
+      Number(a.z || 0) * Number(b.z || 0)
+    );
+  },
+
+  crossVector3D(a, b) {
+    return {
+      x: Number(a.y || 0) * Number(b.z || 0) - Number(a.z || 0) * Number(b.y || 0),
+      y: Number(a.z || 0) * Number(b.x || 0) - Number(a.x || 0) * Number(b.z || 0),
+      z: Number(a.x || 0) * Number(b.y || 0) - Number(a.y || 0) * Number(b.x || 0),
+    };
+  },
+
+  lengthVector3D(v) {
+    return Math.sqrt(
+      Number(v.x || 0) * Number(v.x || 0) +
+      Number(v.y || 0) * Number(v.y || 0) +
+      Number(v.z || 0) * Number(v.z || 0)
+    );
+  },
+
+  normalizeVector3D(v) {
+    const len = this.lengthVector3D(v);
+
+    if (len <= 1e-9) {
+      return { x: 0, y: 0, z: 0 };
+    }
+
+    return {
+      x: Number(v.x || 0) / len,
+      y: Number(v.y || 0) / len,
+      z: Number(v.z || 0) / len,
+    };
+  },
+
+  getFrameDirection3D(frame) {
+    const p1 = this.getPointVector3D(frame?.node1?.position || {});
+    const p2 = this.getPointVector3D(frame?.node2?.position || {});
+
+    return this.normalizeVector3D(this.subtractVector3D(p2, p1));
+  },
+
+  getDistancePointToLine3D(point, linePoint, lineDirection) {
+    const p = this.getPointVector3D(point);
+    const a = this.getPointVector3D(linePoint);
+    const d = this.normalizeVector3D(lineDirection);
+
+    const ap = this.subtractVector3D(p, a);
+    const cross = this.crossVector3D(ap, d);
+
+    return this.lengthVector3D(cross);
+  },
+
+  framesShareNode(frameA, frameB) {
+    if (!frameA || !frameB) return false;
+
+    return (
+      frameA.node1 === frameB.node1 ||
+      frameA.node1 === frameB.node2 ||
+      frameA.node2 === frameB.node1 ||
+      frameA.node2 === frameB.node2
+    );
+  },
+
+  areFramesCollinear(frameA, frameB, tolerance = 0.001) {
+    if (!frameA?.node1 || !frameA?.node2 || !frameB?.node1 || !frameB?.node2) {
+      return false;
+    }
+
+    const a1 = this.getPointVector3D(frameA.node1.position);
+    const dirA = this.getFrameDirection3D(frameA);
+    const dirB = this.getFrameDirection3D(frameB);
+
+    const cross = this.crossVector3D(dirA, dirB);
+    const crossLen = this.lengthVector3D(cross);
+
+    // Si las direcciones no son paralelas, no se pueden unir.
+    if (crossLen > Math.max(tolerance, 1e-6)) {
+      return false;
+    }
+
+    const b1Distance = this.getDistancePointToLine3D(
+      frameB.node1.position,
+      a1,
+      dirA
+    );
+
+    const b2Distance = this.getDistancePointToLine3D(
+      frameB.node2.position,
+      a1,
+      dirA
+    );
+
+    return b1Distance <= tolerance && b2Distance <= tolerance;
+  },
+
+  buildJoinLineGroups(frames = [], tolerance = 0.001) {
+    const groups = [];
+    const used = new Set();
+
+    frames.forEach((frame) => {
+      if (used.has(frame)) return;
+
+      const group = [frame];
+      used.add(frame);
+
+      let changed = true;
+
+      while (changed) {
+        changed = false;
+
+        frames.forEach((candidate) => {
+          if (used.has(candidate)) return;
+
+          const canJoin = group.some((groupFrame) => {
+            return (
+              this.framesShareNode(groupFrame, candidate) &&
+              this.areFramesCollinear(groupFrame, candidate, tolerance)
+            );
+          });
+
+          if (canJoin) {
+            group.push(candidate);
+            used.add(candidate);
+            changed = true;
+          }
+        });
+      }
+
+      if (group.length >= 2) {
+        groups.push(group);
+      }
+    });
+
+    return groups;
+  },
+
+  copyBasicFrameProperties(sourceFrame, targetFrame) {
+    if (!sourceFrame || !targetFrame) return;
+
+    targetFrame.E = sourceFrame.E ?? this.globalE;
+    targetFrame._A = sourceFrame._A ?? this.globalA;
+
+    targetFrame.elementType = sourceFrame.elementType || sourceFrame.type || "beam";
+    targetFrame.type = sourceFrame.type || sourceFrame.elementType || "beam";
+    targetFrame.objectType = sourceFrame.objectType || "frame";
+    targetFrame.visible = sourceFrame.visible !== false;
+
+    targetFrame.sectionId = sourceFrame.sectionId ?? null;
+    targetFrame.sectionName = sourceFrame.sectionName ?? null;
+    targetFrame.frameSection = this.cloneEditPlainData(sourceFrame.frameSection);
+    targetFrame.section = this.cloneEditPlainData(sourceFrame.section);
+    targetFrame.hasAssignedSection = sourceFrame.hasAssignedSection === true;
+
+    targetFrame.releases = this.cloneEditPlainData(sourceFrame.releases);
+    targetFrame.frameReleases = this.cloneEditPlainData(sourceFrame.frameReleases);
+    targetFrame.hasFrameReleases = sourceFrame.hasFrameReleases === true;
+
+    targetFrame.endOffsets = this.cloneEditPlainData(sourceFrame.endOffsets);
+    targetFrame.frameEndOffsets = this.cloneEditPlainData(sourceFrame.frameEndOffsets);
+    targetFrame.hasEndOffsets = sourceFrame.hasEndOffsets === true;
+
+    // Para versión inicial, se conservan cargas/asignaciones del primer tramo.
+    targetFrame.frameLoads = this.cloneEditPlainData(sourceFrame.frameLoads) || [];
+    targetFrame.lineLoads = this.cloneEditPlainData(sourceFrame.lineLoads) || [];
+    targetFrame.hasFrameLoads = sourceFrame.hasFrameLoads === true;
+    targetFrame.hasLineLoads = sourceFrame.hasLineLoads === true;
+
+    targetFrame.assignment = this.cloneEditPlainData(sourceFrame.assignment) || {};
+
+    targetFrame.groupIds = this.cloneEditPlainData(sourceFrame.groupIds) || [];
+    targetFrame.groupNames = this.cloneEditPlainData(sourceFrame.groupNames) || [];
+    targetFrame.groups = this.cloneEditPlainData(sourceFrame.groups) || [];
+    targetFrame.hasGroups = sourceFrame.hasGroups === true;
+
+    targetFrame.designOverwrites = this.cloneEditPlainData(sourceFrame.designOverwrites) || {};
+    targetFrame.designResults = this.cloneEditPlainData(sourceFrame.designResults) || {};
+
+    targetFrame.steelFrameDesignResult =
+      this.cloneEditPlainData(sourceFrame.steelFrameDesignResult);
+
+    targetFrame.steelJoistDesignResult =
+      this.cloneEditPlainData(sourceFrame.steelJoistDesignResult);
+
+    targetFrame.steelFrameDesignOverwrites =
+      this.cloneEditPlainData(sourceFrame.steelFrameDesignOverwrites);
+
+    targetFrame.steelJoistDesignOverwrites =
+      this.cloneEditPlainData(sourceFrame.steelJoistDesignOverwrites);
+
+    targetFrame.designType = sourceFrame.designType ?? null;
+    targetFrame.isSteelJoist = sourceFrame.isSteelJoist === true;
+  },
+
+  joinFrameGroup(group = [], options = {}) {
+    if (!Array.isArray(group) || group.length < 2) {
+      return {
+        createdFrame: null,
+        removedFrames: 0,
+        removedNodes: 0,
+      };
+    }
+
+    const selectResult = options.selectResult !== false;
+    const removeUnusedNodes = options.removeUnusedNodes !== false;
+
+    const baseFrame = group[0];
+    const baseDirection = this.getFrameDirection3D(baseFrame);
+    const basePoint = this.getPointVector3D(baseFrame.node1.position);
+
+    const allNodes = [];
+
+    group.forEach((frame) => {
+      if (frame.node1 && !allNodes.includes(frame.node1)) allNodes.push(frame.node1);
+      if (frame.node2 && !allNodes.includes(frame.node2)) allNodes.push(frame.node2);
+    });
+
+    if (allNodes.length < 2) {
+      return {
+        createdFrame: null,
+        removedFrames: 0,
+        removedNodes: 0,
+      };
+    }
+
+    const projectedNodes = allNodes.map((node) => {
+      const p = this.getPointVector3D(node.position);
+      const ap = this.subtractVector3D(p, basePoint);
+
+      return {
+        node,
+        projection: this.dotVector3D(ap, baseDirection),
+      };
+    });
+
+    projectedNodes.sort((a, b) => a.projection - b.projection);
+
+    const startNode = projectedNodes[0].node;
+    const endNode = projectedNodes[projectedNodes.length - 1].node;
+
+    if (!startNode || !endNode || startNode === endNode) {
+      return {
+        createdFrame: null,
+        removedFrames: 0,
+        removedNodes: 0,
+      };
+    }
+
+    const newFrame = new Beam(
+      baseFrame.E ?? this.globalE,
+      baseFrame._A ?? this.globalA
+    );
+
+    newFrame.id = this.getNextEditFrameId();
+    newFrame.node1 = startNode;
+    newFrame.node2 = endNode;
+
+    this.copyBasicFrameProperties(baseFrame, newFrame);
+
+    newFrame.selected = selectResult;
+    newFrame.isSelected = selectResult;
+
+    if (selectResult && newFrame.style?.selected) {
+      newFrame.style.selected();
+    }
+
+    let removedFrames = 0;
+
+    group.forEach((frame) => {
+      if (this.removeFrameFromModel(frame)) {
+        removedFrames++;
+      }
+    });
+
+    this.shapes.push(newFrame);
+
+    if (!startNode.beams) startNode.beams = [];
+    if (!endNode.beams) endNode.beams = [];
+
+    if (!startNode.beams.includes(newFrame)) startNode.beams.push(newFrame);
+    if (!endNode.beams.includes(newFrame)) endNode.beams.push(newFrame);
+
+    let removedNodes = 0;
+
+    if (removeUnusedNodes) {
+      const intermediateNodes = allNodes.filter((node) => {
+        return node !== startNode && node !== endNode;
+      });
+
+      intermediateNodes.forEach((node) => {
+        const hasConnections = Array.isArray(node.beams) && node.beams.length > 0;
+
+        if (!hasConnections) {
+          const index = this.nodes.indexOf(node);
+
+          if (index >= 0) {
+            this.nodes.splice(index, 1);
+            removedNodes++;
+          }
+        }
+      });
+    }
+
+    return {
+      createdFrame: newFrame,
+      removedFrames,
+      removedNodes,
+    };
+  },
+
+  joinSelectedLines(options = {}) {
+    const tolerance = Number(options.tolerance ?? 0.001);
+
+    const selectedFrames = this.getEditSelectedFrames?.({
+      respectActiveView: true,
+    }) || [];
+
+    if (selectedFrames.length < 2) {
+      return {
+        selectedFrames: selectedFrames.length,
+        joinedGroups: 0,
+        createdFrames: 0,
+        removedFrames: 0,
+        removedNodes: 0,
+      };
+    }
+
+    this.clearEditSelectionFlags?.();
+
+    const groups = this.buildJoinLineGroups(selectedFrames, tolerance);
+
+    let createdFrames = 0;
+    let removedFrames = 0;
+    let removedNodes = 0;
+
+    groups.forEach((group) => {
+      const result = this.joinFrameGroup(group, options);
+
+      if (result.createdFrame) {
+        createdFrames++;
+        removedFrames += result.removedFrames;
+        removedNodes += result.removedNodes;
+      }
+    });
+
+    this.reindexModelObjects?.();
+
+    return {
+      selectedFrames: selectedFrames.length,
+      joinedGroups: groups.length,
+      createdFrames,
+      removedFrames,
+      removedNodes,
+    };
+  },
+
+  // =========================================
+  // ========== EDIT: DIVIDE LINES ===========
+  // =========================================
+
+  async openDivideLinesDialog() {
+    const selectedFrames = this.getEditSelectedFrames?.({
+      respectActiveView: true,
+    }) || [];
+
+    if (!selectedFrames.length) {
+      this.showMessage?.(
+        "✂️ Selecciona una o más líneas / frames para dividir.",
+        "warning"
+      );
+      console.warn("EDIT Divide Lines: no hay selección.");
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: "Divide Lines",
+      width: 640,
+      html: `
+      <div style="text-align:left; font-size:13px;">
+        <p style="margin-bottom:12px;">
+          Divide los elementos Frame / Line seleccionados en segmentos.
+        </p>
+
+        <div style="border:1px solid #555; border-radius:6px; padding:10px; margin-bottom:12px;">
+          <div style="font-weight:bold; margin-bottom:8px;">
+            Divide Options
+          </div>
+
+          <label style="display:block; margin-bottom:5px;">Divide Method</label>
+          <select id="divide-method" style="width:100%; padding:7px; margin-bottom:12px;">
+            <option value="equal">Divide into equal segments</option>
+            <option value="max-length">Divide by maximum segment length</option>
+          </select>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
+            <div>
+              <label style="display:block; margin-bottom:5px;">Number of Segments</label>
+              <input id="divide-segments" type="number" min="2" step="1" value="2"
+                style="width:100%; padding:7px;">
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:5px;">Maximum Segment Length</label>
+              <input id="divide-max-length" type="number" min="0.001" step="0.001" value="2.5"
+                style="width:100%; padding:7px;">
+            </div>
+          </div>
+
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input id="divide-select-result" type="checkbox" checked>
+            Select divided lines after operation
+          </label>
+        </div>
+
+        <div style="padding:10px; border:1px solid #555; border-radius:6px; color:#777; font-size:12px;">
+          Líneas seleccionadas: <b>${selectedFrames.length}</b><br>
+          La línea original será reemplazada por nuevos tramos conectados.
+        </div>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Divide",
+      cancelButtonText: "Cancelar",
+
+      didOpen: () => {
+        const methodSelect = document.getElementById("divide-method");
+        const segmentsInput = document.getElementById("divide-segments");
+        const maxLengthInput = document.getElementById("divide-max-length");
+
+        const updateInputs = () => {
+          const method = methodSelect?.value || "equal";
+
+          if (segmentsInput) {
+            segmentsInput.disabled = method !== "equal";
+          }
+
+          if (maxLengthInput) {
+            maxLengthInput.disabled = method !== "max-length";
+          }
+        };
+
+        methodSelect?.addEventListener("change", updateInputs);
+        updateInputs();
+      },
+
+      preConfirm: () => {
+        const method = document.getElementById("divide-method")?.value || "equal";
+
+        const segments = Number(
+          document.getElementById("divide-segments")?.value || 2
+        );
+
+        const maxLength = Number(
+          document.getElementById("divide-max-length")?.value || 0
+        );
+
+        const selectResult =
+          document.getElementById("divide-select-result")?.checked === true;
+
+        if (!["equal", "max-length"].includes(method)) {
+          Swal.showValidationMessage("Selecciona un método válido.");
+          return false;
+        }
+
+        if (method === "equal") {
+          if (!Number.isInteger(segments) || segments < 2) {
+            Swal.showValidationMessage("Number of Segments debe ser un entero mayor o igual a 2.");
+            return false;
+          }
+        }
+
+        if (method === "max-length") {
+          if (!Number.isFinite(maxLength) || maxLength <= 0) {
+            Swal.showValidationMessage("Maximum Segment Length debe ser mayor que 0.");
+            return false;
+          }
+        }
+
+        return {
+          method,
+          segments,
+          maxLength,
+          selectResult,
+        };
+      },
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    this.saveUndoState?.("Divide Lines");
+
+    const summary = this.divideSelectedLines(result.value);
+
+    this.redraw?.();
+
+    if (summary.createdFrames > 0) {
+      this.sync3D?.();
+    }
+
+    console.log("✂️ EDIT Divide Lines ejecutado:", {
+      options: result.value,
+      summary,
+    });
+
+    this.showMessage?.(
+      `✂️ Divide Lines: ${summary.removedFrames} línea(s) reemplazada(s) por ` +
+      `${summary.createdFrames} tramo(s). Nodos nuevos: ${summary.createdNodes}.`
+    );
+  },
+
+  getEditFrameLength3D(frame) {
+    if (!frame?.node1?.position || !frame?.node2?.position) return 0;
+
+    const p1 = frame.node1.position;
+    const p2 = frame.node2.position;
+
+    const dx = Number(p2.x || 0) - Number(p1.x || 0);
+    const dy = Number(p2.y || 0) - Number(p1.y || 0);
+    const dz = Number(p2.z || 0) - Number(p1.z || 0);
+
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  },
+
+  interpolateEditPoint3D(p1, p2, t) {
+    return {
+      x: Number(p1.x || 0) + (Number(p2.x || 0) - Number(p1.x || 0)) * t,
+      y: Number(p1.y || 0) + (Number(p2.y || 0) - Number(p1.y || 0)) * t,
+      z: Number(p1.z || 0) + (Number(p2.z || 0) - Number(p1.z || 0)) * t,
+    };
+  },
+
+  getDivideSegmentCount(frame, options = {}) {
+    const method = options.method || "equal";
+
+    if (method === "equal") {
+      return Math.max(2, Number(options.segments || 2));
+    }
+
+    if (method === "max-length") {
+      const length = this.getEditFrameLength3D(frame);
+      const maxLength = Number(options.maxLength || 0);
+
+      if (length <= 0 || maxLength <= 0) {
+        return 2;
+      }
+
+      return Math.max(2, Math.ceil(length / maxLength));
+    }
+
+    return 2;
+  },
+
+  divideSelectedLines(options = {}) {
+    const selectedFrames = this.getEditSelectedFrames?.({
+      respectActiveView: true,
+    }) || [];
+
+    const summary = {
+      selectedFrames: selectedFrames.length,
+      removedFrames: 0,
+      createdFrames: 0,
+      createdNodes: 0,
+    };
+
+    if (!selectedFrames.length) {
+      return summary;
+    }
+
+    this.clearEditSelectionFlags?.();
+
+    selectedFrames.forEach((frame) => {
+      const result = this.divideFrameIntoSegments(frame, options);
+
+      summary.removedFrames += result.removedFrames;
+      summary.createdFrames += result.createdFrames;
+      summary.createdNodes += result.createdNodes;
+    });
+
+    this.reindexModelObjects?.();
+
+    return summary;
+  },
+
+  divideFrameIntoSegments(frame, options = {}) {
+    const selectResult = options.selectResult !== false;
+    const segmentCount = this.getDivideSegmentCount(frame, options);
+
+    if (!frame?.node1 || !frame?.node2 || segmentCount < 2) {
+      return {
+        removedFrames: 0,
+        createdFrames: 0,
+        createdNodes: 0,
+      };
+    }
+
+    const startNode = frame.node1;
+    const endNode = frame.node2;
+
+    const p1 = startNode.position;
+    const p2 = endNode.position;
+
+    const chainNodes = [startNode];
+    const createdNodes = [];
+
+    // Crear nodos intermedios
+    for (let i = 1; i < segmentCount; i++) {
+      const t = i / segmentCount;
+      const p = this.interpolateEditPoint3D(p1, p2, t);
+
+      const newNode = new StructuralNode(
+        {
+          x: Number(p.x || 0),
+          y: Number(p.y || 0),
+        },
+        this.getNextEditNodeId(),
+        Number(p.z || 0)
+      );
+
+      newNode.position.x = Number(p.x || 0);
+      newNode.position.y = Number(p.y || 0);
+      newNode.position.z = Number(p.z || 0);
+
+      newNode.beams = [];
+
+      newNode.selected = selectResult;
+      newNode.isSelected = selectResult;
+
+      if (selectResult && newNode.style?.selected) {
+        newNode.style.selected();
+      }
+
+      // Copias mínimas de propiedades compatibles con nodos
+      newNode.visible = true;
+      newNode.assignment = {};
+      newNode.pointLoads = [];
+      newNode.jointLoads = [];
+
+      this.nodes.push(newNode);
+      chainNodes.push(newNode);
+      createdNodes.push(newNode);
+    }
+
+    chainNodes.push(endNode);
+
+    const newFrames = [];
+
+    // Eliminar frame original antes de crear nuevos tramos
+    const removed = this.removeFrameFromModel(frame) ? 1 : 0;
+
+    for (let i = 0; i < chainNodes.length - 1; i++) {
+      const nodeA = chainNodes[i];
+      const nodeB = chainNodes[i + 1];
+
+      const newFrame = new Beam(
+        frame.E ?? this.globalE,
+        frame._A ?? this.globalA
+      );
+
+      newFrame.id = this.getNextEditFrameId();
+
+      newFrame.node1 = nodeA;
+      newFrame.node2 = nodeB;
+
+      this.copyBasicFrameProperties?.(frame, newFrame);
+
+      newFrame.selected = selectResult;
+      newFrame.isSelected = selectResult;
+
+      if (selectResult && newFrame.style?.selected) {
+        newFrame.style.selected();
+      }
+
+      this.shapes.push(newFrame);
+
+      if (!nodeA.beams) nodeA.beams = [];
+      if (!nodeB.beams) nodeB.beams = [];
+
+      if (!nodeA.beams.includes(newFrame)) nodeA.beams.push(newFrame);
+      if (!nodeB.beams.includes(newFrame)) nodeB.beams.push(newFrame);
+
+      newFrames.push(newFrame);
+    }
+
+    return {
+      removedFrames: removed,
+      createdFrames: newFrames.length,
+      createdNodes: createdNodes.length,
+    };
+  },
+
+  // =========================================
+  // ==== EDIT: EXTRUDE POINTS TO LINES ======
+  // =========================================
+
+  async openExtrudePointsToLinesDialog() {
+    const selectedNodes = this.getEditSelectedNodes?.({
+      respectActiveView: true,
+    }) || [];
+
+    const activeViewNodes = (this.nodes || []).filter((node) => {
+      return this.isEditNodeObject(node) &&
+        this.isEditObjectVisibleInActiveView(node);
+    });
+
+    if (!selectedNodes.length && !activeViewNodes.length) {
+      this.showMessage?.(
+        "📍 No hay puntos disponibles para extruir.",
+        "warning"
+      );
+      console.warn("EDIT Extrude Points to Lines: no hay puntos.");
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: "Extrude Points to Lines",
+      width: 680,
+      html: `
+      <div style="text-align:left; font-size:13px;">
+        <p style="margin-bottom:12px;">
+          Crea líneas a partir de puntos seleccionados mediante un desplazamiento.
+        </p>
+
+        <div style="border:1px solid #555; border-radius:6px; padding:10px; margin-bottom:12px;">
+          <div style="font-weight:bold; margin-bottom:8px;">
+            Extrude Options
+          </div>
+
+          <label style="display:block; margin-bottom:5px;">Scope</label>
+          <select id="extrude-points-scope" style="width:100%; padding:7px; margin-bottom:12px;">
+            <option value="selected">Selected Points Only</option>
+            <option value="active-view">All Points in Active View</option>
+          </select>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:12px;">
+            <div>
+              <label style="display:block; margin-bottom:5px;">DX</label>
+              <input id="extrude-points-dx" type="number" step="0.001" value="0"
+                style="width:100%; padding:7px;">
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:5px;">DY</label>
+              <input id="extrude-points-dy" type="number" step="0.001" value="0"
+                style="width:100%; padding:7px;">
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:5px;">DZ</label>
+              <input id="extrude-points-dz" type="number" step="0.001" value="3"
+                style="width:100%; padding:7px;">
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
+            <div>
+              <label style="display:block; margin-bottom:5px;">Number of Copies</label>
+              <input id="extrude-points-count" type="number" min="1" step="1" value="1"
+                style="width:100%; padding:7px;">
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:5px;">Line Type</label>
+              <select id="extrude-points-line-type" style="width:100%; padding:7px;">
+                <option value="beam">Beam / Line</option>
+                <option value="column">Column</option>
+                <option value="brace">Brace</option>
+              </select>
+            </div>
+          </div>
+
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input id="extrude-points-select-result" type="checkbox" checked>
+            Select created lines after operation
+          </label>
+        </div>
+
+        <div style="padding:10px; border:1px solid #555; border-radius:6px; color:#777; font-size:12px;">
+          Puntos seleccionados: <b>${selectedNodes.length}</b><br>
+          Puntos en vista activa: <b>${activeViewNodes.length}</b><br>
+          Recomendación: usa DZ para crear líneas verticales entre pisos.
+        </div>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Extrude",
+      cancelButtonText: "Cancelar",
+
+      didOpen: () => {
+        const scopeSelect = document.getElementById("extrude-points-scope");
+
+        if (scopeSelect) {
+          scopeSelect.value = selectedNodes.length ? "selected" : "active-view";
+        }
+      },
+
+      preConfirm: () => {
+        const scope =
+          document.getElementById("extrude-points-scope")?.value || "selected";
+
+        const dx = Number(
+          document.getElementById("extrude-points-dx")?.value || 0
+        );
+
+        const dy = Number(
+          document.getElementById("extrude-points-dy")?.value || 0
+        );
+
+        const dz = Number(
+          document.getElementById("extrude-points-dz")?.value || 0
+        );
+
+        const count = Number(
+          document.getElementById("extrude-points-count")?.value || 1
+        );
+
+        const lineType =
+          document.getElementById("extrude-points-line-type")?.value || "beam";
+
+        const selectResult =
+          document.getElementById("extrude-points-select-result")?.checked === true;
+
+        if (!["selected", "active-view"].includes(scope)) {
+          Swal.showValidationMessage("Selecciona un alcance válido.");
+          return false;
+        }
+
+        if (!Number.isFinite(dx) || !Number.isFinite(dy) || !Number.isFinite(dz)) {
+          Swal.showValidationMessage("DX, DY y DZ deben ser valores numéricos.");
+          return false;
+        }
+
+        if (dx === 0 && dy === 0 && dz === 0) {
+          Swal.showValidationMessage("Define al menos un desplazamiento diferente de cero.");
+          return false;
+        }
+
+        if (!Number.isInteger(count) || count < 1) {
+          Swal.showValidationMessage("Number of Copies debe ser un entero mayor o igual a 1.");
+          return false;
+        }
+
+        return {
+          scope,
+          dx,
+          dy,
+          dz,
+          count,
+          lineType,
+          selectResult,
+        };
+      },
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    this.saveUndoState?.("Extrude Points to Lines");
+
+    const summary = this.extrudePointsToLines(result.value);
+
+    this.redraw?.();
+
+    if (summary.createdFrames > 0) {
+      this.sync3D?.();
+    }
+
+    console.log("📍➡️━━ EDIT Extrude Points to Lines ejecutado:", {
+      options: result.value,
+      summary,
+    });
+
+    this.showMessage?.(
+      `📍➡️━━ Extrude Points to Lines: ${summary.createdFrames} línea(s) creada(s), ` +
+      `${summary.createdNodes} nodo(s) nuevo(s).`
+    );
+  },
+
+  getExtrudePointCandidates(scope = "selected") {
+    if (scope === "selected") {
+      return this.getEditSelectedNodes?.({
+        respectActiveView: true,
+      }) || [];
+    }
+
+    if (scope === "active-view") {
+      return (this.nodes || []).filter((node) => {
+        return this.isEditNodeObject(node) &&
+          this.isEditObjectVisibleInActiveView(node);
+      });
+    }
+
+    return [];
+  },
+
+  createExtrudedFrame(nodeA, nodeB, lineType = "beam", selectResult = true) {
+    const frame = new Beam(
+      this.globalE,
+      this.globalA
+    );
+
+    frame.id = this.getNextEditFrameId();
+
+    frame.node1 = nodeA;
+    frame.node2 = nodeB;
+
+    frame.E = this.globalE;
+    frame._A = this.globalA;
+
+    frame.elementType = lineType;
+    frame.type = lineType;
+    frame.objectType = "frame";
+    frame.visible = true;
+
+    frame.selected = selectResult;
+    frame.isSelected = selectResult;
+
+    if (selectResult && frame.style?.selected) {
+      frame.style.selected();
+    }
+
+    frame.assignment = {};
+    frame.frameLoads = [];
+    frame.lineLoads = [];
+
+    this.shapes.push(frame);
+
+    if (!nodeA.beams) nodeA.beams = [];
+    if (!nodeB.beams) nodeB.beams = [];
+
+    if (!nodeA.beams.includes(frame)) nodeA.beams.push(frame);
+    if (!nodeB.beams.includes(frame)) nodeB.beams.push(frame);
+
+    return frame;
+  },
+
+  extrudePointsToLines(options = {}) {
+    const scope = options.scope || "selected";
+    const dx = Number(options.dx || 0);
+    const dy = Number(options.dy || 0);
+    const dz = Number(options.dz || 0);
+    const count = Math.max(1, Number(options.count || 1));
+    const lineType = options.lineType || "beam";
+    const selectResult = options.selectResult !== false;
+
+    const baseNodes = this.getExtrudePointCandidates(scope);
+
+    const summary = {
+      baseNodes: baseNodes.length,
+      createdNodes: 0,
+      createdFrames: 0,
+    };
+
+    if (!baseNodes.length) {
+      return summary;
+    }
+
+    this.clearEditSelectionFlags?.();
+
+    baseNodes.forEach((baseNode) => {
+      let previousNode = baseNode;
+
+      for (let i = 1; i <= count; i++) {
+        const offset = {
+          x: dx,
+          y: dy,
+          z: dz,
+        };
+
+        const nextPosition = this.offsetEditPoint(previousNode.position, offset);
+
+        const newNode = new StructuralNode(
+          {
+            x: Number(nextPosition.x || 0),
+            y: Number(nextPosition.y || 0),
+          },
+          this.getNextEditNodeId(),
+          Number(nextPosition.z || 0)
+        );
+
+        newNode.position.x = Number(nextPosition.x || 0);
+        newNode.position.y = Number(nextPosition.y || 0);
+        newNode.position.z = Number(nextPosition.z || 0);
+
+        newNode.beams = [];
+        newNode.visible = true;
+
+        newNode.selected = selectResult;
+        newNode.isSelected = selectResult;
+
+        if (selectResult && newNode.style?.selected) {
+          newNode.style.selected();
+        }
+
+        newNode.assignment = {};
+        newNode.pointLoads = [];
+        newNode.jointLoads = [];
+
+        this.nodes.push(newNode);
+
+        this.createExtrudedFrame(
+          previousNode,
+          newNode,
+          lineType,
+          selectResult
+        );
+
+        summary.createdNodes++;
+        summary.createdFrames++;
+
+        previousNode = newNode;
+      }
+    });
+
+    this.reindexModelObjects?.();
+
+    return summary;
+  },
+
+  // =========================================
+  // ==== EDIT: EXTRUDE LINES TO AREAS =======
+  // =========================================
+
+  async openExtrudeLinesToAreasDialog() {
+    const selectedFrames = this.getEditSelectedFrames?.({
+      respectActiveView: true,
+    }) || [];
+
+    const activeViewFrames = (this.shapes || []).filter((frame) => {
+      return this.isEditFrameObject(frame) &&
+        this.isEditObjectVisibleInActiveView(frame);
+    });
+
+    if (!selectedFrames.length && !activeViewFrames.length) {
+      this.showMessage?.(
+        "▭ No hay líneas disponibles para extruir a áreas.",
+        "warning"
+      );
+      console.warn("EDIT Extrude Lines to Areas: no hay líneas.");
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: "Extrude Lines to Areas",
+      width: 700,
+      html: `
+      <div style="text-align:left; font-size:13px;">
+        <p style="margin-bottom:12px;">
+          Crea áreas a partir de líneas seleccionadas mediante un desplazamiento.
+        </p>
+
+        <div style="border:1px solid #555; border-radius:6px; padding:10px; margin-bottom:12px;">
+          <div style="font-weight:bold; margin-bottom:8px;">
+            Extrude Options
+          </div>
+
+          <label style="display:block; margin-bottom:5px;">Scope</label>
+          <select id="extrude-lines-scope" style="width:100%; padding:7px; margin-bottom:12px;">
+            <option value="selected">Selected Lines Only</option>
+            <option value="active-view">All Lines in Active View</option>
+          </select>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:12px;">
+            <div>
+              <label style="display:block; margin-bottom:5px;">DX</label>
+              <input id="extrude-lines-dx" type="number" step="0.001" value="0"
+                style="width:100%; padding:7px;">
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:5px;">DY</label>
+              <input id="extrude-lines-dy" type="number" step="0.001" value="0"
+                style="width:100%; padding:7px;">
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:5px;">DZ</label>
+              <input id="extrude-lines-dz" type="number" step="0.001" value="3"
+                style="width:100%; padding:7px;">
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
+            <div>
+              <label style="display:block; margin-bottom:5px;">Number of Copies</label>
+              <input id="extrude-lines-count" type="number" min="1" step="1" value="1"
+                style="width:100%; padding:7px;">
+            </div>
+
+            <div>
+              <label style="display:block; margin-bottom:5px;">Area Type</label>
+              <select id="extrude-lines-area-type" style="width:100%; padding:7px;">
+                <option value="wall">Wall</option>
+                <option value="slab">Slab</option>
+                <option value="opening">Opening</option>
+                <option value="area">Generic Area</option>
+              </select>
+            </div>
+          </div>
+
+          <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <input id="extrude-lines-select-result" type="checkbox" checked>
+            Select created areas after operation
+          </label>
+
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input id="extrude-lines-keep-original" type="checkbox" checked>
+            Keep original lines
+          </label>
+        </div>
+
+        <div style="padding:10px; border:1px solid #555; border-radius:6px; color:#777; font-size:12px;">
+          Líneas seleccionadas: <b>${selectedFrames.length}</b><br>
+          Líneas en vista activa: <b>${activeViewFrames.length}</b><br>
+          Recomendación: usa DZ para crear muros verticales desde vigas/líneas.
+        </div>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Extrude",
+      cancelButtonText: "Cancelar",
+
+      didOpen: () => {
+        const scopeSelect = document.getElementById("extrude-lines-scope");
+
+        if (scopeSelect) {
+          scopeSelect.value = selectedFrames.length ? "selected" : "active-view";
+        }
+      },
+
+      preConfirm: () => {
+        const scope =
+          document.getElementById("extrude-lines-scope")?.value || "selected";
+
+        const dx = Number(
+          document.getElementById("extrude-lines-dx")?.value || 0
+        );
+
+        const dy = Number(
+          document.getElementById("extrude-lines-dy")?.value || 0
+        );
+
+        const dz = Number(
+          document.getElementById("extrude-lines-dz")?.value || 0
+        );
+
+        const count = Number(
+          document.getElementById("extrude-lines-count")?.value || 1
+        );
+
+        const areaType =
+          document.getElementById("extrude-lines-area-type")?.value || "wall";
+
+        const selectResult =
+          document.getElementById("extrude-lines-select-result")?.checked === true;
+
+        const keepOriginalLines =
+          document.getElementById("extrude-lines-keep-original")?.checked === true;
+
+        if (!["selected", "active-view"].includes(scope)) {
+          Swal.showValidationMessage("Selecciona un alcance válido.");
+          return false;
+        }
+
+        if (!Number.isFinite(dx) || !Number.isFinite(dy) || !Number.isFinite(dz)) {
+          Swal.showValidationMessage("DX, DY y DZ deben ser valores numéricos.");
+          return false;
+        }
+
+        if (dx === 0 && dy === 0 && dz === 0) {
+          Swal.showValidationMessage("Define al menos un desplazamiento diferente de cero.");
+          return false;
+        }
+
+        if (!Number.isInteger(count) || count < 1) {
+          Swal.showValidationMessage("Number of Copies debe ser un entero mayor o igual a 1.");
+          return false;
+        }
+
+        return {
+          scope,
+          dx,
+          dy,
+          dz,
+          count,
+          areaType,
+          selectResult,
+          keepOriginalLines,
+        };
+      },
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    this.saveUndoState?.("Extrude Lines to Areas");
+
+    const summary = this.extrudeLinesToAreas(result.value);
+
+    this.redraw?.();
+
+    if (summary.createdAreas > 0) {
+      this.sync3D?.();
+    }
+
+    console.log("━━➡️▭ EDIT Extrude Lines to Areas ejecutado:", {
+      options: result.value,
+      summary,
+    });
+
+    this.showMessage?.(
+      `━━➡️▭ Extrude Lines to Areas: ${summary.createdAreas} área(s) creada(s).`
+    );
+  },
+
+  getExtrudeLineCandidates(scope = "selected") {
+    if (scope === "selected") {
+      return this.getEditSelectedFrames?.({
+        respectActiveView: true,
+      }) || [];
+    }
+
+    if (scope === "active-view") {
+      return (this.shapes || []).filter((frame) => {
+        return this.isEditFrameObject(frame) &&
+          this.isEditObjectVisibleInActiveView(frame);
+      });
+    }
+
+    return [];
+  },
+
+  createExtrudedAreaFromLinePoints(p1, p2, p3, p4, areaType = "wall", selectResult = true) {
+    const area = {
+      id: this.getNextEditGenericId(this.areas || []),
+
+      objectType: "area",
+      type: areaType,
+      elementType: areaType,
+      areaType,
+
+      points: [
+        {
+          x: Number(p1.x || 0),
+          y: Number(p1.y || 0),
+          z: Number(p1.z || 0),
+        },
+        {
+          x: Number(p2.x || 0),
+          y: Number(p2.y || 0),
+          z: Number(p2.z || 0),
+        },
+        {
+          x: Number(p3.x || 0),
+          y: Number(p3.y || 0),
+          z: Number(p3.z || 0),
+        },
+        {
+          x: Number(p4.x || 0),
+          y: Number(p4.y || 0),
+          z: Number(p4.z || 0),
+        },
+      ],
+
+      z: Number(p1.z || 0),
+      visible: true,
+
+      selected: selectResult,
+      isSelected: selectResult,
+
+      assignment: {},
+      areaLoads: [],
+      shellLoads: [],
+    };
+
+    return area;
+  },
+
+  extrudeLinesToAreas(options = {}) {
+    const scope = options.scope || "selected";
+
+    const dx = Number(options.dx || 0);
+    const dy = Number(options.dy || 0);
+    const dz = Number(options.dz || 0);
+
+    const count = Math.max(1, Number(options.count || 1));
+    const areaType = options.areaType || "wall";
+    const selectResult = options.selectResult !== false;
+    const keepOriginalLines = options.keepOriginalLines !== false;
+
+    const baseFrames = this.getExtrudeLineCandidates(scope);
+
+    const summary = {
+      baseFrames: baseFrames.length,
+      createdAreas: 0,
+      removedFrames: 0,
+    };
+
+    if (!baseFrames.length) {
+      return summary;
+    }
+
+    this.clearEditSelectionFlags?.();
+
+    baseFrames.forEach((frame) => {
+      if (!frame?.node1?.position || !frame?.node2?.position) return;
+
+      let currentP1 = {
+        x: Number(frame.node1.position.x || 0),
+        y: Number(frame.node1.position.y || 0),
+        z: Number(frame.node1.position.z || 0),
+      };
+
+      let currentP2 = {
+        x: Number(frame.node2.position.x || 0),
+        y: Number(frame.node2.position.y || 0),
+        z: Number(frame.node2.position.z || 0),
+      };
+
+      for (let i = 1; i <= count; i++) {
+        const offset = {
+          x: dx,
+          y: dy,
+          z: dz,
+        };
+
+        const nextP1 = this.offsetEditPoint(currentP1, offset);
+        const nextP2 = this.offsetEditPoint(currentP2, offset);
+
+        const area = this.createExtrudedAreaFromLinePoints(
+          currentP1,
+          currentP2,
+          nextP2,
+          nextP1,
+          areaType,
+          selectResult
+        );
+
+        this.areas.push(area);
+        summary.createdAreas++;
+
+        currentP1 = nextP1;
+        currentP2 = nextP2;
+      }
+
+      if (!keepOriginalLines) {
+        if (this.removeFrameFromModel(frame)) {
+          summary.removedFrames++;
+        }
+      }
+    });
+
+    this.reindexModelObjects?.();
+
+    return summary;
   },
 
   replicateElements(copies, dx, dy, dz) {
@@ -9327,92 +13929,802 @@ export default () => ({
   },
 
   editStoryData() {
+    const currentStoryCount = Number(this.referenceGrid?.storyCount ?? this.stories?.length - 1 ?? 0);
+    const currentStoryHeight = Number(this.referenceGrid?.storyHeight ?? 3);
+
     Swal.fire({
-      title: "Editar Datos de Pisos",
+      title: "Edit Story Data",
+      width: 620,
       html: `
-            <div class="text-left">
-                <div class="mb-3">
-                    <label class="block text-xs font-semibold text-gray-400 mb-2">Lista de Pisos</label>
-                    <div id="storyList" class="border border-gray-700 rounded bg-gray-900 max-h-40 overflow-y-auto">
-                        ${this.stories.map((story, idx) => `
-                            <div class="flex justify-between items-center px-3 py-2 border-b border-gray-700">
-                                <input type="text" value="${story.name}" data-idx="${idx}" data-field="name" class="story-input w-24 bg-gray-800 text-white text-sm px-2 py-1 rounded">
-                                <input type="number" step="0.5" value="${story.elevation}" data-idx="${idx}" data-field="elevation" class="story-input w-20 bg-gray-800 text-white text-sm px-2 py-1 rounded">
-                                <button class="delete-story text-red-400 hover:text-red-300" data-idx="${idx}">✕</button>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <input type="text" id="newStoryName" placeholder="Nombre del piso" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
-                    <input type="number" id="newStoryElevation" step="0.5" placeholder="Elevación" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
-                    <button id="addStoryBtn" class="col-span-2 px-3 py-1 bg-green-600 hover:bg-green-500 rounded text-white text-sm">+ Agregar Piso</button>
-                </div>
-            </div>
-        `,
-      confirmButtonText: "Guardar",
-      cancelButtonText: "Cancelar",
-      showCancelButton: true,
-      didOpen: (popup) => {
-        popup.querySelector('#addStoryBtn').onclick = () => {
-          const name = popup.querySelector('#newStoryName').value;
-          const elevation = parseFloat(popup.querySelector('#newStoryElevation').value);
-          if (name) {
-            this.stories.push({ id: this.stories.length, name, elevation });
-            this.updateStoryList(popup);
-          }
-        };
-        popup.querySelectorAll('.delete-story').forEach(btn => {
-          btn.onclick = (e) => {
-            const idx = parseInt(btn.getAttribute('data-idx'));
-            this.stories.splice(idx, 1);
-            this.updateStoryList(popup);
-          };
-        });
-      }
-    }).then((result) => {
-      if (result.isConfirmed) {
-        this.redraw();
-        this.sync3D();
-        this.showMessage("🏢 Datos de pisos actualizados");
-      }
-    });
-  },
+      <div style="text-align:left; font-size:13px;">
+        <p style="margin-bottom:12px;">
+          Edita la cantidad de pisos y la altura típica entre niveles.
+        </p>
 
-  updateStoryList(popup) {
-    const container = popup.querySelector('#storyList');
-    container.innerHTML = this.stories.map((story, idx) => `
-        <div class="flex justify-between items-center px-3 py-2 border-b border-gray-700">
-            <input type="text" value="${story.name}" data-idx="${idx}" data-field="name" class="story-input w-24 bg-gray-800 text-white text-sm px-2 py-1 rounded">
-            <input type="number" step="0.5" value="${story.elevation}" data-idx="${idx}" data-field="elevation" class="story-input w-20 bg-gray-800 text-white text-sm px-2 py-1 rounded">
-            <button class="delete-story text-red-400 hover:text-red-300" data-idx="${idx}">✕</button>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+          <div>
+            <label style="display:block; margin-bottom:5px;">Number of Stories</label>
+            <input 
+              id="edit-story-count" 
+              type="number" 
+              min="0" 
+              step="1" 
+              value="${currentStoryCount}"
+              style="width:100%; padding:7px;"
+            >
+          </div>
+
+          <div>
+            <label style="display:block; margin-bottom:5px;">Typical Story Height (m)</label>
+            <input 
+              id="edit-story-height" 
+              type="number" 
+              min="0.01" 
+              step="0.01" 
+              value="${currentStoryHeight}"
+              style="width:100%; padding:7px;"
+            >
+          </div>
         </div>
-    `).join('');
 
-    popup.querySelectorAll('.story-input').forEach(input => {
-      input.onchange = (e) => {
-        const idx = parseInt(input.getAttribute('data-idx'));
-        const field = input.getAttribute('data-field');
-        this.stories[idx][field] = input.value;
-      };
-    });
+        <div id="edit-story-preview" style="border:1px solid #555; border-radius:6px; max-height:260px; overflow:auto;">
+        </div>
 
-    popup.querySelectorAll('.delete-story').forEach(btn => {
-      btn.onclick = (e) => {
-        const idx = parseInt(btn.getAttribute('data-idx'));
-        this.stories.splice(idx, 1);
-        this.updateStoryList(popup);
-      };
+        <div style="margin-top:12px; padding:10px; border:1px solid #555; border-radius:6px; color:#777; font-size:12px;">
+          Esta versión trabaja con pisos uniformes porque las vistas, grillas de elevación y columnas usan 
+          <b>storyCount</b> y <b>storyHeight</b>.
+        </div>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Aplicar",
+      cancelButtonText: "Cancelar",
+
+      didOpen: () => {
+        const countInput = document.getElementById("edit-story-count");
+        const heightInput = document.getElementById("edit-story-height");
+        const preview = document.getElementById("edit-story-preview");
+
+        const renderPreview = () => {
+          const storyCount = Math.max(0, Number(countInput?.value || 0));
+          const storyHeight = Math.max(0.01, Number(heightInput?.value || 0));
+
+          const rows = [];
+
+          rows.push({
+            id: 0,
+            name: "Base",
+            elevation: 0,
+          });
+
+          for (let i = 1; i <= storyCount; i++) {
+            rows.push({
+              id: i,
+              name: `Piso ${i}`,
+              elevation: i * storyHeight,
+            });
+          }
+
+          preview.innerHTML = `
+          <div style="display:grid; grid-template-columns: 80px 1fr 120px; gap:8px; padding:7px; background:#1f2937; color:white; font-weight:bold;">
+            <span>ID</span>
+            <span>Story Name</span>
+            <span>Elevation</span>
+          </div>
+
+          ${rows.map((story) => `
+            <div style="display:grid; grid-template-columns: 80px 1fr 120px; gap:8px; padding:7px; border-bottom:1px solid #444;">
+              <span>${story.id}</span>
+              <span>${story.name}</span>
+              <span>${story.elevation.toFixed(2)} m</span>
+            </div>
+          `).join("")}
+        `;
+        };
+
+        countInput?.addEventListener("input", renderPreview);
+        heightInput?.addEventListener("input", renderPreview);
+
+        renderPreview();
+      },
+
+      preConfirm: () => {
+        const storyCount = Number(document.getElementById("edit-story-count")?.value || 0);
+        const storyHeight = Number(document.getElementById("edit-story-height")?.value || 0);
+
+        if (!Number.isFinite(storyCount) || storyCount < 0) {
+          Swal.showValidationMessage("La cantidad de pisos no es válida.");
+          return false;
+        }
+
+        if (!Number.isInteger(storyCount)) {
+          Swal.showValidationMessage("La cantidad de pisos debe ser un número entero.");
+          return false;
+        }
+
+        if (!Number.isFinite(storyHeight) || storyHeight <= 0) {
+          Swal.showValidationMessage("La altura de piso debe ser mayor que cero.");
+          return false;
+        }
+
+        return {
+          storyCount,
+          storyHeight,
+        };
+      },
+    }).then((result) => {
+      if (!result.isConfirmed || !result.value) return;
+
+      this.applyStoryData(
+        result.value.storyCount,
+        result.value.storyHeight
+      );
     });
   },
 
-  editReferencePlanes() {
-    this.showMessage("📐 Editar planos de referencia - Próximamente");
+  applyStoryData(storyCount, storyHeight) {
+    if (!this.referenceGrid) {
+      this.referenceGrid = {
+        xGrids: [],
+        yGrids: [],
+        generalGrids: [],
+        xPositions: [],
+        yPositions: [],
+        xLabels: [],
+        yLabels: [],
+        storyCount: 0,
+        storyHeight: 0,
+      };
+    }
+
+    this.saveUndoState?.("Edit Story Data");
+
+    this.referenceGrid.storyCount = Number(storyCount || 0);
+    this.referenceGrid.storyHeight = Number(storyHeight || 0);
+
+    this.stories = [
+      {
+        id: 0,
+        name: "Base",
+        elevation: 0,
+      },
+    ];
+
+    for (let i = 1; i <= storyCount; i++) {
+      this.stories.push({
+        id: i,
+        name: `Piso ${i}`,
+        elevation: i * storyHeight,
+      });
+    }
+
+    if (Number(this.activeStory || 0) > storyCount) {
+      this.activeStory = 0;
+    }
+
+    this.rebuildReferenceGridCaches?.();
+    this.rebuildGeneralGrids?.();
+    this.rebuildViewSetFromReferenceGrid?.();
+    this.rebuildElevationListsFromReferenceGrid?.();
+
+    if (this.activeViewIndex >= this.viewSet.length) {
+      this.activeViewIndex = 0;
+    }
+
+    this.activeGridPoint = null;
+
+    const activeView = this.viewSet?.[this.activeViewIndex];
+
+    if (activeView?.type === "plan") {
+      this.currentViewMode = "plan";
+      this.currentZ = Number(activeView.elevation || 0);
+    }
+
+    this.redraw?.();
+    this.sync3D?.();
+
+    this.showMessage?.(
+      `Edit Story Data aplicado: ${storyCount} piso(s), altura ${storyHeight} m.`
+    );
+
+    console.log("✅ EDIT STORY DATA aplicado:", {
+      storyCount,
+      storyHeight,
+      stories: this.stories,
+      viewSet: this.viewSet,
+    });
   },
+
+  // =========================================
+  // ===== EDIT: REFERENCE LINES =============
+  // =========================================
 
   editReferenceLines() {
-    this.showMessage("━━ Editar líneas de referencia - Próximamente");
+    if (!this.referenceGrid) {
+      this.referenceGrid = {
+        xGrids: [],
+        yGrids: [],
+        generalGrids: [],
+        xPositions: [],
+        yPositions: [],
+        xLabels: [],
+        yLabels: [],
+        storyCount: 0,
+        storyHeight: 0,
+      };
+    }
+
+    const currentCustomLines = (this.referenceGrid.generalGrids || [])
+      .filter((line) => line.source === "custom")
+      .map((line, index) => ({
+        id: String(line.id ?? `RL${index + 1}`),
+        x1: Number(line.x1 ?? 0),
+        y1: Number(line.y1 ?? 0),
+        x2: Number(line.x2 ?? 0),
+        y2: Number(line.y2 ?? 0),
+        visible: line.visible !== false,
+        bubbleLoc: line.bubbleLoc ?? "End",
+        source: "custom",
+      }));
+
+    Swal.fire({
+      title: "Edit Reference Lines",
+      width: 900,
+      html: `
+      <div style="text-align:left; font-size:13px;">
+        <p style="margin-bottom:12px;">
+          Edita líneas de referencia auxiliares en planta. Estas líneas sirven como guías y puntos de snap.
+        </p>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <b>Reference Lines</b>
+          <button 
+            type="button" 
+            id="btn-add-reference-line"
+            style="padding:6px 10px; border-radius:5px; border:1px solid #2563eb; background:#2563eb; color:white; cursor:pointer;"
+          >
+            + Add Line
+          </button>
+        </div>
+
+        <div style="border:1px solid #555; border-radius:6px; max-height:340px; overflow:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:12px;">
+            <thead>
+              <tr style="background:#1f2937; color:white;">
+                <th style="border:1px solid #555; padding:6px;">ID</th>
+                <th style="border:1px solid #555; padding:6px;">X1</th>
+                <th style="border:1px solid #555; padding:6px;">Y1</th>
+                <th style="border:1px solid #555; padding:6px;">X2</th>
+                <th style="border:1px solid #555; padding:6px;">Y2</th>
+                <th style="border:1px solid #555; padding:6px;">Visible</th>
+                <th style="border:1px solid #555; padding:6px;">Bubble</th>
+                <th style="border:1px solid #555; padding:6px;">Remove</th>
+              </tr>
+            </thead>
+
+            <tbody id="edit-reference-lines-body"></tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:12px; padding:10px; border:1px solid #555; border-radius:6px; color:#777; font-size:12px;">
+          Ejemplo: una línea diagonal desde X1=0, Y1=0 hasta X2=10, Y2=8.
+          Se mostrará en planta como línea auxiliar personalizada.
+        </div>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Aplicar",
+      cancelButtonText: "Cancelar",
+
+      didOpen: () => {
+        const body = document.getElementById("edit-reference-lines-body");
+        const addButton = document.getElementById("btn-add-reference-line");
+
+        let rows = JSON.parse(JSON.stringify(currentCustomLines));
+
+        const inputStyle = "width:100%; padding:5px; box-sizing:border-box;";
+        const selectStyle = "width:100%; padding:5px; box-sizing:border-box;";
+
+        const renderRows = () => {
+          if (!body) return;
+
+          body.innerHTML = rows.map((line, index) => `
+          <tr>
+            <td style="border:1px solid #555; padding:5px;">
+              <input 
+                data-ref-line-index="${index}" 
+                data-ref-line-field="id"
+                value="${line.id}"
+                style="${inputStyle}"
+              >
+            </td>
+
+            <td style="border:1px solid #555; padding:5px;">
+              <input 
+                type="number" 
+                step="any"
+                data-ref-line-index="${index}" 
+                data-ref-line-field="x1"
+                value="${line.x1}"
+                style="${inputStyle}"
+              >
+            </td>
+
+            <td style="border:1px solid #555; padding:5px;">
+              <input 
+                type="number" 
+                step="any"
+                data-ref-line-index="${index}" 
+                data-ref-line-field="y1"
+                value="${line.y1}"
+                style="${inputStyle}"
+              >
+            </td>
+
+            <td style="border:1px solid #555; padding:5px;">
+              <input 
+                type="number" 
+                step="any"
+                data-ref-line-index="${index}" 
+                data-ref-line-field="x2"
+                value="${line.x2}"
+                style="${inputStyle}"
+              >
+            </td>
+
+            <td style="border:1px solid #555; padding:5px;">
+              <input 
+                type="number" 
+                step="any"
+                data-ref-line-index="${index}" 
+                data-ref-line-field="y2"
+                value="${line.y2}"
+                style="${inputStyle}"
+              >
+            </td>
+
+            <td style="border:1px solid #555; padding:5px; text-align:center;">
+              <input 
+                type="checkbox"
+                data-ref-line-index="${index}" 
+                data-ref-line-field="visible"
+                ${line.visible !== false ? "checked" : ""}
+              >
+            </td>
+
+            <td style="border:1px solid #555; padding:5px;">
+              <select 
+                data-ref-line-index="${index}" 
+                data-ref-line-field="bubbleLoc"
+                style="${selectStyle}"
+              >
+                <option value="Start" ${line.bubbleLoc === "Start" ? "selected" : ""}>Start</option>
+                <option value="End" ${line.bubbleLoc === "End" ? "selected" : ""}>End</option>
+              </select>
+            </td>
+
+            <td style="border:1px solid #555; padding:5px; text-align:center;">
+              <button 
+                type="button" 
+                data-remove-reference-line="${index}"
+                style="padding:5px 8px; border-radius:5px; border:1px solid #dc2626; background:#dc2626; color:white; cursor:pointer;"
+              >
+                X
+              </button>
+            </td>
+          </tr>
+        `).join("");
+
+          body.querySelectorAll("[data-ref-line-field]").forEach((input) => {
+            input.addEventListener("input", (event) => {
+              const index = Number(event.target.dataset.refLineIndex);
+              const field = event.target.dataset.refLineField;
+
+              if (!rows[index]) return;
+
+              if (field === "visible") {
+                rows[index][field] = event.target.checked;
+              } else if (["x1", "y1", "x2", "y2"].includes(field)) {
+                rows[index][field] = Number(event.target.value);
+              } else {
+                rows[index][field] = event.target.value;
+              }
+            });
+
+            input.addEventListener("change", (event) => {
+              const index = Number(event.target.dataset.refLineIndex);
+              const field = event.target.dataset.refLineField;
+
+              if (!rows[index]) return;
+
+              if (field === "visible") {
+                rows[index][field] = event.target.checked;
+              } else if (["x1", "y1", "x2", "y2"].includes(field)) {
+                rows[index][field] = Number(event.target.value);
+              } else {
+                rows[index][field] = event.target.value;
+              }
+            });
+          });
+
+          body.querySelectorAll("[data-remove-reference-line]").forEach((button) => {
+            button.addEventListener("click", (event) => {
+              const index = Number(event.target.dataset.removeReferenceLine);
+              rows.splice(index, 1);
+              renderRows();
+            });
+          });
+        };
+
+        addButton?.addEventListener("click", () => {
+          rows.push({
+            id: `RL${rows.length + 1}`,
+            x1: 0,
+            y1: 0,
+            x2: 5,
+            y2: 5,
+            visible: true,
+            bubbleLoc: "End",
+            source: "custom",
+          });
+
+          renderRows();
+        });
+
+        window.__editReferenceLinesRows = rows;
+        renderRows();
+      },
+
+      preConfirm: () => {
+        const rows = window.__editReferenceLinesRows || [];
+
+        const cleaned = rows.map((line, index) => ({
+          id: String(line.id || `RL${index + 1}`),
+          x1: Number(line.x1 || 0),
+          y1: Number(line.y1 || 0),
+          x2: Number(line.x2 || 0),
+          y2: Number(line.y2 || 0),
+          visible: line.visible !== false,
+          bubbleLoc: line.bubbleLoc || "End",
+          source: "custom",
+        }));
+
+        for (const line of cleaned) {
+          if (
+            !Number.isFinite(line.x1) ||
+            !Number.isFinite(line.y1) ||
+            !Number.isFinite(line.x2) ||
+            !Number.isFinite(line.y2)
+          ) {
+            Swal.showValidationMessage("Hay coordenadas inválidas en una línea de referencia.");
+            return false;
+          }
+
+          const samePoint =
+            Math.abs(line.x1 - line.x2) < 1e-9 &&
+            Math.abs(line.y1 - line.y2) < 1e-9;
+
+          if (samePoint) {
+            Swal.showValidationMessage(`La línea ${line.id} tiene el punto inicial y final iguales.`);
+            return false;
+          }
+        }
+
+        return cleaned;
+      },
+
+      willClose: () => {
+        delete window.__editReferenceLinesRows;
+      },
+    }).then((result) => {
+      if (!result.isConfirmed || !result.value) return;
+
+      this.applyReferenceLinesData(result.value);
+    });
   },
+
+  applyReferenceLinesData(lines = []) {
+    if (!this.referenceGrid) return;
+
+    this.saveUndoState?.("Edit Reference Lines");
+
+    const existingBaseLines = (this.referenceGrid.generalGrids || [])
+      .filter((line) => line.source !== "custom");
+
+    const customLines = lines.map((line, index) => ({
+      id: String(line.id || `RL${index + 1}`),
+      x1: Number(line.x1 || 0),
+      y1: Number(line.y1 || 0),
+      x2: Number(line.x2 || 0),
+      y2: Number(line.y2 || 0),
+      visible: line.visible !== false,
+      bubbleLoc: line.bubbleLoc || "End",
+      source: "custom",
+    }));
+
+    this.referenceGrid.generalGrids = [
+      ...existingBaseLines,
+      ...customLines,
+    ];
+
+    this.rebuildReferenceGridCaches?.();
+    this.rebuildGeneralGrids?.();
+
+    this.activeGridPoint = null;
+
+    this.redraw?.();
+    this.sync3D?.();
+
+    this.showMessage?.(
+      `Edit Reference Lines aplicado: ${customLines.length} línea(s) de referencia.`
+    );
+
+    console.log("✅ EDIT REFERENCE LINES aplicado:", {
+      customLines,
+      generalGrids: this.referenceGrid.generalGrids,
+    });
+  },
+
+  // =========================================
+  // ===== EDIT: REFERENCE PLANES ============
+  // =========================================
+
+  editReferencePlanes() {
+    if (!Array.isArray(this.referencePlanes)) {
+      this.referencePlanes = [];
+    }
+
+    const currentPlanes = this.referencePlanes.map((plane, index) => ({
+      id: String(plane.id ?? `RP${index + 1}`),
+      name: String(plane.name ?? plane.id ?? `RP${index + 1}`),
+      planeType: plane.planeType || "XY",
+      coordinate: Number(plane.coordinate ?? 0),
+      visible: plane.visible !== false,
+      showFill: plane.showFill === true,
+    }));
+
+    Swal.fire({
+      title: "Edit Reference Planes",
+      width: 900,
+      html: `
+      <div style="text-align:left; font-size:13px;">
+        <p style="margin-bottom:12px;">
+          Edita planos auxiliares de referencia. Estos planos sirven como guías visuales para modelar en planta, elevación y 3D.
+        </p>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <b>Reference Planes</b>
+          <button 
+            type="button" 
+            id="btn-add-reference-plane"
+            style="padding:6px 10px; border-radius:5px; border:1px solid #2563eb; background:#2563eb; color:white; cursor:pointer;"
+          >
+            + Add Plane
+          </button>
+        </div>
+
+        <div style="border:1px solid #555; border-radius:6px; max-height:340px; overflow:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:12px;">
+            <thead>
+              <tr style="background:#1f2937; color:white;">
+                <th style="border:1px solid #555; padding:6px;">ID</th>
+                <th style="border:1px solid #555; padding:6px;">Name</th>
+                <th style="border:1px solid #555; padding:6px;">Plane</th>
+                <th style="border:1px solid #555; padding:6px;">Coordinate</th>
+                <th style="border:1px solid #555; padding:6px;">Visible</th>
+                <th style="border:1px solid #555; padding:6px;">Fill</th>
+                <th style="border:1px solid #555; padding:6px;">Remove</th>
+              </tr>
+            </thead>
+
+            <tbody id="edit-reference-planes-body"></tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:12px; padding:10px; border:1px solid #555; border-radius:6px; color:#777; font-size:12px;">
+          <b>XY</b>: plano horizontal, coordenada Z.<br>
+          <b>YZ</b>: plano vertical, coordenada X.<br>
+          <b>XZ</b>: plano vertical, coordenada Y.
+        </div>
+      </div>
+    `,
+      showCancelButton: true,
+      confirmButtonText: "Aplicar",
+      cancelButtonText: "Cancelar",
+
+      didOpen: () => {
+        const body = document.getElementById("edit-reference-planes-body");
+        const addButton = document.getElementById("btn-add-reference-plane");
+
+        let rows = JSON.parse(JSON.stringify(currentPlanes));
+
+        const inputStyle = "width:100%; padding:5px; box-sizing:border-box;";
+        const selectStyle = "width:100%; padding:5px; box-sizing:border-box;";
+
+        const renderRows = () => {
+          if (!body) return;
+
+          body.innerHTML = rows.map((plane, index) => `
+          <tr>
+            <td style="border:1px solid #555; padding:5px;">
+              <input 
+                data-ref-plane-index="${index}" 
+                data-ref-plane-field="id"
+                value="${plane.id}"
+                style="${inputStyle}"
+              >
+            </td>
+
+            <td style="border:1px solid #555; padding:5px;">
+              <input 
+                data-ref-plane-index="${index}" 
+                data-ref-plane-field="name"
+                value="${plane.name}"
+                style="${inputStyle}"
+              >
+            </td>
+
+            <td style="border:1px solid #555; padding:5px;">
+              <select 
+                data-ref-plane-index="${index}" 
+                data-ref-plane-field="planeType"
+                style="${selectStyle}"
+              >
+                <option value="XY" ${plane.planeType === "XY" ? "selected" : ""}>XY - Z constant</option>
+                <option value="YZ" ${plane.planeType === "YZ" ? "selected" : ""}>YZ - X constant</option>
+                <option value="XZ" ${plane.planeType === "XZ" ? "selected" : ""}>XZ - Y constant</option>
+              </select>
+            </td>
+
+            <td style="border:1px solid #555; padding:5px;">
+              <input 
+                type="number" 
+                step="any"
+                data-ref-plane-index="${index}" 
+                data-ref-plane-field="coordinate"
+                value="${plane.coordinate}"
+                style="${inputStyle}"
+              >
+            </td>
+
+            <td style="border:1px solid #555; padding:5px; text-align:center;">
+              <input 
+                type="checkbox"
+                data-ref-plane-index="${index}" 
+                data-ref-plane-field="visible"
+                ${plane.visible !== false ? "checked" : ""}
+              >
+            </td>
+
+            <td style="border:1px solid #555; padding:5px; text-align:center;">
+              <input 
+                type="checkbox"
+                data-ref-plane-index="${index}" 
+                data-ref-plane-field="showFill"
+                ${plane.showFill === true ? "checked" : ""}
+              >
+            </td>
+
+            <td style="border:1px solid #555; padding:5px; text-align:center;">
+              <button 
+                type="button" 
+                data-remove-reference-plane="${index}"
+                style="padding:5px 8px; border-radius:5px; border:1px solid #dc2626; background:#dc2626; color:white; cursor:pointer;"
+              >
+                X
+              </button>
+            </td>
+          </tr>
+        `).join("");
+
+          body.querySelectorAll("[data-ref-plane-field]").forEach((input) => {
+            const updateValue = (event) => {
+              const index = Number(event.target.dataset.refPlaneIndex);
+              const field = event.target.dataset.refPlaneField;
+
+              if (!rows[index]) return;
+
+              if (field === "visible" || field === "showFill") {
+                rows[index][field] = event.target.checked;
+              } else if (field === "coordinate") {
+                rows[index][field] = Number(event.target.value);
+              } else {
+                rows[index][field] = event.target.value;
+              }
+            };
+
+            input.addEventListener("input", updateValue);
+            input.addEventListener("change", updateValue);
+          });
+
+          body.querySelectorAll("[data-remove-reference-plane]").forEach((button) => {
+            button.addEventListener("click", (event) => {
+              const index = Number(event.target.dataset.removeReferencePlane);
+              rows.splice(index, 1);
+              renderRows();
+            });
+          });
+        };
+
+        addButton?.addEventListener("click", () => {
+          rows.push({
+            id: `RP${rows.length + 1}`,
+            name: `Reference Plane ${rows.length + 1}`,
+            planeType: "XY",
+            coordinate: 0,
+            visible: true,
+            showFill: false,
+          });
+
+          renderRows();
+        });
+
+        window.__editReferencePlanesRows = rows;
+        renderRows();
+      },
+
+      preConfirm: () => {
+        const rows = window.__editReferencePlanesRows || [];
+
+        const cleaned = rows.map((plane, index) => ({
+          id: String(plane.id || `RP${index + 1}`),
+          name: String(plane.name || plane.id || `Reference Plane ${index + 1}`),
+          planeType: ["XY", "YZ", "XZ"].includes(plane.planeType)
+            ? plane.planeType
+            : "XY",
+          coordinate: Number(plane.coordinate || 0),
+          visible: plane.visible !== false,
+          showFill: plane.showFill === true,
+        }));
+
+        for (const plane of cleaned) {
+          if (!Number.isFinite(plane.coordinate)) {
+            Swal.showValidationMessage(`El plano ${plane.id} tiene una coordenada inválida.`);
+            return false;
+          }
+        }
+
+        return cleaned;
+      },
+
+      willClose: () => {
+        delete window.__editReferencePlanesRows;
+      },
+    }).then((result) => {
+      if (!result.isConfirmed || !result.value) return;
+
+      this.applyReferencePlanesData(result.value);
+    });
+  },
+
+  applyReferencePlanesData(planes = []) {
+    this.saveUndoState?.("Edit Reference Planes");
+
+    this.referencePlanes = planes.map((plane, index) => ({
+      id: String(plane.id || `RP${index + 1}`),
+      name: String(plane.name || plane.id || `Reference Plane ${index + 1}`),
+      planeType: ["XY", "YZ", "XZ"].includes(plane.planeType)
+        ? plane.planeType
+        : "XY",
+      coordinate: Number(plane.coordinate || 0),
+      visible: plane.visible !== false,
+      showFill: plane.showFill === true,
+    }));
+
+    this.activeGridPoint = null;
+
+    this.redraw?.();
+    // this.sync3D?.();
+
+    this.showMessage?.(
+      `Edit Reference Planes aplicado: ${this.referencePlanes.length} plano(s) de referencia.`
+    );
+
+    console.log("✅ EDIT REFERENCE PLANES aplicado:", {
+      referencePlanes: this.referencePlanes,
+    });
+  },
+
 
   // Métodos auxiliares para clipboard
   copyToClipboard() {
@@ -9464,21 +14776,6 @@ export default () => ({
       this.redraw();
       this.sync3D();
     }
-  },
-
-  restoreState(state) {
-    if (state.nodes) this.nodes = state.nodes;
-    if (state.shapes) this.shapes = state.shapes;
-    this.redraw();
-    this.sync3D();
-  },
-
-  // Guardar estado para undo/redo
-  saveState() {
-    return {
-      nodes: JSON.parse(JSON.stringify(this.nodes)),
-      shapes: JSON.parse(JSON.stringify(this.shapes)),
-    };
   },
 
   // ===============================================

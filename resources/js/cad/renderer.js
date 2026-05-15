@@ -78,6 +78,7 @@ export class DiseñoRenderer {
       CADSystem.grid.draw(this, CADSystem);
     }
 
+    this.drawReferencePlanes(CADSystem);
     this.drawReferencePoints(CADSystem);
     this.drawActiveGridPoint(CADSystem);
     this.drawDimensionLines(CADSystem);
@@ -196,7 +197,7 @@ export class DiseñoRenderer {
 
     frames.forEach((frame) => {
       if (!frame?.node1 || !frame?.node2) return;
-      
+
       // Respetar vista activa: planta, elevación o vista filtrada
       if (
         typeof CADSystem.isObjectVisibleInActiveView === "function" &&
@@ -774,11 +775,10 @@ export class DiseñoRenderer {
     if (!area || area.visible === false) return;
     if (!area.points || area.points.length < 2) return;
 
-    // primera versión: solo se muestra en planta
-    const view = context.viewSet?.[context.activeViewIndex];
-    if (view?.type !== "plan") return;
+    const pts = area.points.map((p) =>
+      this.projectPoint({ position: p }, context)
+    );
 
-    const pts = area.points.map((p) => this.projectPoint({ position: p }, context));
     if (!pts.length) return;
 
     const style = this.getAreaRenderStyle(area, isPreview);
@@ -798,16 +798,22 @@ export class DiseñoRenderer {
       ctx.lineTo(pts[i].x, pts[i].y);
     }
 
-    // si el polígono ya está cerrado (3 o más puntos), lo cerramos visualmente
     if (pts.length >= 3) {
       ctx.closePath();
-      ctx.fill();
+
+      const projectedArea = this.getProjectedPolygonArea(pts);
+
+      // Si el área se proyecta como línea, por ejemplo un muro visto en planta,
+      // no intentamos rellenar porque visualmente se aplasta.
+      if (projectedArea > 0.5) {
+        ctx.fill();
+      }
     }
 
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // vértices
+    // Vértices
     pts.forEach((p) => {
       ctx.beginPath();
       ctx.fillStyle = style.strokeStyle;
@@ -815,7 +821,61 @@ export class DiseñoRenderer {
       ctx.fill();
     });
 
+    // Etiqueta simple para que el cliente vea qué tipo de área es
+    if (!isPreview && pts.length >= 3) {
+      const center = this.getProjectedPolygonCenter(pts);
+      const label = area.areaType || area.type || "area";
+
+      ctx.font = "10px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      const textWidth = ctx.measureText(label).width;
+
+      ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+      ctx.fillRect(center.x - textWidth / 2 - 4, center.y - 8, textWidth + 8, 16);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(label, center.x, center.y);
+    }
+
     ctx.restore();
+  }
+
+  getProjectedPolygonArea(points = []) {
+    if (!Array.isArray(points) || points.length < 3) return 0;
+
+    let area = 0;
+
+    for (let i = 0; i < points.length; i++) {
+      const p1 = points[i];
+      const p2 = points[(i + 1) % points.length];
+
+      area += Number(p1.x || 0) * Number(p2.y || 0);
+      area -= Number(p2.x || 0) * Number(p1.y || 0);
+    }
+
+    return Math.abs(area / 2);
+  }
+
+  getProjectedPolygonCenter(points = []) {
+    if (!Array.isArray(points) || !points.length) {
+      return { x: 0, y: 0 };
+    }
+
+    const sum = points.reduce(
+      (acc, p) => {
+        acc.x += Number(p.x || 0);
+        acc.y += Number(p.y || 0);
+        return acc;
+      },
+      { x: 0, y: 0 }
+    );
+
+    return {
+      x: sum.x / points.length,
+      y: sum.y / points.length,
+    };
   }
 
   drawAreas(context) {
@@ -912,6 +972,247 @@ export class DiseñoRenderer {
     }
 
     ctx.restore();
+  }
+
+  // =====================================================
+  // EDIT > REFERENCE PLANES
+  // =====================================================
+
+  getReferencePlaneBounds(context) {
+    const ref = context.referenceGrid || {};
+
+    const xs = Array.isArray(ref.xPositions) && ref.xPositions.length
+      ? ref.xPositions.map(Number)
+      : [0, 10];
+
+    const ys = Array.isArray(ref.yPositions) && ref.yPositions.length
+      ? ref.yPositions.map(Number)
+      : [0, 10];
+
+    const storyCount = Number(ref.storyCount ?? 3);
+    const storyHeight = Number(ref.storyHeight ?? 3);
+    const maxZ = Math.max(storyCount * storyHeight, storyHeight || 3);
+
+    return {
+      minX: Math.min(...xs),
+      maxX: Math.max(...xs),
+      minY: Math.min(...ys),
+      maxY: Math.max(...ys),
+      minZ: 0,
+      maxZ,
+    };
+  }
+
+  getReferencePlaneShape(plane, context) {
+    if (!plane || plane.visible === false) return null;
+
+    const view = context.viewSet?.[context.activeViewIndex];
+    const bounds = this.getReferencePlaneBounds(context);
+    const tol = context.getActiveViewTolerance?.() ?? 0.001;
+
+    const type = plane.planeType || "XY";
+    const c = Number(plane.coordinate || 0);
+
+    if (!view || view.type === "plan") {
+      const activeZ = Number(
+        view?.elevation ??
+        view?.z ??
+        context.getActivePlanElevation?.() ??
+        0
+      );
+
+      if (type === "XY") {
+        if (Math.abs(activeZ - c) > tol) return null;
+
+        return {
+          kind: "polygon",
+          points: [
+            { x: bounds.minX, y: bounds.minY, z: c },
+            { x: bounds.maxX, y: bounds.minY, z: c },
+            { x: bounds.maxX, y: bounds.maxY, z: c },
+            { x: bounds.minX, y: bounds.maxY, z: c },
+          ],
+        };
+      }
+
+      if (type === "YZ") {
+        return {
+          kind: "line",
+          points: [
+            { x: c, y: bounds.minY, z: activeZ },
+            { x: c, y: bounds.maxY, z: activeZ },
+          ],
+        };
+      }
+
+      if (type === "XZ") {
+        return {
+          kind: "line",
+          points: [
+            { x: bounds.minX, y: c, z: activeZ },
+            { x: bounds.maxX, y: c, z: activeZ },
+          ],
+        };
+      }
+    }
+
+    if (view.type === "elevation") {
+      const viewValue = Number(view.value || 0);
+
+      // Elevación por letras: X fijo, se mira Y-Z
+      if (view.axis === "X") {
+        if (type === "YZ") {
+          if (Math.abs(viewValue - c) > tol) return null;
+
+          return {
+            kind: "polygon",
+            points: [
+              { x: c, y: bounds.minY, z: bounds.minZ },
+              { x: c, y: bounds.maxY, z: bounds.minZ },
+              { x: c, y: bounds.maxY, z: bounds.maxZ },
+              { x: c, y: bounds.minY, z: bounds.maxZ },
+            ],
+          };
+        }
+
+        if (type === "XY") {
+          return {
+            kind: "line",
+            points: [
+              { x: viewValue, y: bounds.minY, z: c },
+              { x: viewValue, y: bounds.maxY, z: c },
+            ],
+          };
+        }
+
+        if (type === "XZ") {
+          return {
+            kind: "line",
+            points: [
+              { x: viewValue, y: c, z: bounds.minZ },
+              { x: viewValue, y: c, z: bounds.maxZ },
+            ],
+          };
+        }
+      }
+
+      // Elevación por números: Y fijo, se mira X-Z
+      if (view.axis === "Y") {
+        if (type === "XZ") {
+          if (Math.abs(viewValue - c) > tol) return null;
+
+          return {
+            kind: "polygon",
+            points: [
+              { x: bounds.minX, y: c, z: bounds.minZ },
+              { x: bounds.maxX, y: c, z: bounds.minZ },
+              { x: bounds.maxX, y: c, z: bounds.maxZ },
+              { x: bounds.minX, y: c, z: bounds.maxZ },
+            ],
+          };
+        }
+
+        if (type === "XY") {
+          return {
+            kind: "line",
+            points: [
+              { x: bounds.minX, y: viewValue, z: c },
+              { x: bounds.maxX, y: viewValue, z: c },
+            ],
+          };
+        }
+
+        if (type === "YZ") {
+          return {
+            kind: "line",
+            points: [
+              { x: c, y: viewValue, z: bounds.minZ },
+              { x: c, y: viewValue, z: bounds.maxZ },
+            ],
+          };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  drawReferencePlane(plane, context) {
+    if (context.displayOptions?.showReferencePlanes === false) return;
+
+    const shape = this.getReferencePlaneShape(plane, context);
+
+    if (!shape || !shape.points?.length) return;
+
+    const ctx = context.ctx;
+    const pts = shape.points.map((p) =>
+      this.projectPoint({ position: p }, context)
+    );
+
+    const isPolygon = shape.kind === "polygon";
+
+    ctx.save();
+
+    // Estilo más sutil tipo guía auxiliar ETABS
+    ctx.strokeStyle = "rgba(251, 191, 36, 0.95)";
+    ctx.fillStyle = "rgba(251, 191, 36, 0.055)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([7, 5]);
+
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(pts[i].x, pts[i].y);
+    }
+
+    if (isPolygon) {
+      ctx.closePath();
+
+      if (plane.showFill === true) {
+        ctx.fill();
+      }
+    }
+
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Etiqueta compacta
+    const labelPoint = pts[0];
+    const coordinate = this.formatValue
+      ? this.formatValue(context, plane.coordinate || 0, "coordinates", 2)
+      : Number(plane.coordinate || 0).toFixed(2);
+
+    const label = `${plane.id || "RP"}  ${plane.planeType || ""}=${coordinate}`;
+
+    ctx.font = "10px 'Segoe UI', Arial";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+
+    const textWidth = ctx.measureText(label).width;
+    const labelX = labelPoint.x + 8;
+    const labelY = labelPoint.y - 12;
+
+    ctx.fillStyle = "rgba(30, 41, 59, 0.88)";
+    ctx.fillRect(labelX - 4, labelY - 8, textWidth + 8, 16);
+
+    ctx.strokeStyle = "rgba(251, 191, 36, 0.8)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(labelX - 4, labelY - 8, textWidth + 8, 16);
+
+    ctx.fillStyle = "#fde68a";
+    ctx.fillText(label, labelX, labelY);
+
+    ctx.restore();
+  }
+
+  drawReferencePlanes(context) {
+    if (context.displayOptions?.showReferencePlanes === false) return;
+    if (!Array.isArray(context.referencePlanes)) return;
+
+    context.referencePlanes.forEach((plane) => {
+      this.drawReferencePlane(plane, context);
+    });
   }
 
   drawReferencePoint(point, context) {
@@ -3272,6 +3573,7 @@ export class DiseñoRenderer {
         ctx,
         bubblePoint,
         line.id,
+        context,
         line.source === "custom" ? "#bfc7d5" : lineColor,
         textColor
       );
@@ -3532,49 +3834,73 @@ export class DiseñoRenderer {
 
   drawTrussDrawingState(state, context) {
     const view = context.viewSet?.[context.activeViewIndex];
-    const last_point = state.shape.getFirstPoint();
+    const lastPoint = state.shape.getFirstPoint();
 
-    let previewMouseScreen;
+    // Punto estructural real que usará la barra:
+    // - si hay activeGridPoint, usa el snap
+    // - si no hay snap, usa el punto coherente según planta/elevación
+    let previewPoint = null;
 
-    // Cursor preview según la vista activa
-    if (!view || view.type === "plan") {
-      previewMouseScreen = context.grid.worldToScreen(context.mousePos);
-    } else if (view.type === "elevation") {
-      // En elevación, context.mousePos ya está en coordenadas del plano 2D activo
-      previewMouseScreen = context.grid.worldToScreen({
-        x: context.mousePos.x,
-        y: context.mousePos.y,
-      });
+    if (context.activeGridPoint) {
+      previewPoint = {
+        x: Number(context.activeGridPoint.x || 0),
+        y: Number(context.activeGridPoint.y || 0),
+        z: Number(context.activeGridPoint.z || 0),
+      };
+    } else if (typeof context.getCurrentSnapPoint === "function") {
+      previewPoint = context.getCurrentSnapPoint(context.mousePos || { x: 0, y: 0 });
     } else {
-      previewMouseScreen = context.grid.worldToScreen(context.mousePos);
+      previewPoint = {
+        x: Number(context.mousePos?.x || 0),
+        y: Number(context.mousePos?.y || 0),
+        z: Number(context.currentZ || 0),
+      };
     }
+
+    const previewMouseScreen = this.projectPoint(
+      { position: previewPoint },
+      context
+    );
 
     context.ctx.save();
 
-    // Punto rojo del cursor
+    // Cursor del punto final real
     context.ctx.beginPath();
-    context.ctx.fillStyle = "red";
-    context.ctx.arc(previewMouseScreen.x, previewMouseScreen.y, context.grid.size, 0, Math.PI * 2);
+    context.ctx.fillStyle = context.activeGridPoint ? "#f97316" : "red";
+    context.ctx.arc(
+      previewMouseScreen.x,
+      previewMouseScreen.y,
+      context.grid.size,
+      0,
+      Math.PI * 2
+    );
     context.ctx.fill();
 
-    // Línea preview desde el nodo inicial
-    if (last_point) {
-      let startScreen;
+    // Etiqueta del snap
+    if (context.activeGridPoint?.label || context.activeGridPoint?.displayLabel) {
+      context.ctx.fillStyle = "#ffffff";
+      context.ctx.font = "11px Arial";
+      context.ctx.fillText(
+        context.activeGridPoint.displayLabel || context.activeGridPoint.label,
+        previewMouseScreen.x + 10,
+        previewMouseScreen.y - 10
+      );
+    }
 
-      if (!view || view.type === "plan") {
-        startScreen = context.grid.worldToScreen(last_point.position);
-      } else if (view.type === "elevation") {
-        // Usar la misma proyección correcta del renderer
-        startScreen = this.projectPoint(last_point, context);
-      } else {
-        startScreen = context.grid.worldToScreen(last_point.position);
-      }
+    // Línea preview desde el primer punto hasta el punto con snap
+    if (lastPoint) {
+      const startScreen = this.projectPoint(lastPoint, context);
 
-      context.ctx.strokeStyle = "gray";
+      context.ctx.strokeStyle = context.activeGridPoint ? "#facc15" : "gray";
+      context.ctx.lineWidth = context.activeGridPoint ? 2 : 1;
+      context.ctx.setLineDash(context.activeGridPoint ? [] : [5, 4]);
+
       context.ctx.beginPath();
       context.ctx.moveTo(startScreen.x, startScreen.y);
       context.ctx.lineTo(previewMouseScreen.x, previewMouseScreen.y);
       context.ctx.stroke();
+
+      context.ctx.setLineDash([]);
     }
 
     context.ctx.restore();
@@ -3680,28 +4006,60 @@ export class DiseñoRenderer {
     if (!area || area.visible === false) return false;
     if (!area?.points?.length) return false;
 
-    if (typeof CADSystem.isObjectVisibleInActiveView === "function") {
-      return CADSystem.isObjectVisibleInActiveView(area);
-    }
-
     const view = CADSystem.viewSet?.[CADSystem.activeViewIndex];
     if (!view) return true;
 
-    const tol = CADSystem.getActiveViewTolerance?.() ?? 0.05;
+    const tol = CADSystem.getActiveViewTolerance?.() ?? 0.001;
 
-    const areaZ =
-      typeof area.z === "number"
-        ? area.z
-        : typeof area.points[0]?.z === "number"
-          ? area.points[0].z
-          : 0;
+    const points = area.points || [];
 
+    if (!points.length) return false;
+
+    // ==========================
+    // PLANTA: plano X-Y con Z fijo
+    // ==========================
     if (view.type === "plan") {
-      return Math.abs(areaZ - Number(view.elevation ?? 0)) <= tol;
+      const activeZ = Number(
+        view.elevation ??
+        view.z ??
+        CADSystem.getActivePlanElevation?.() ??
+        0
+      );
+
+      const zs = points.map((p) => Number(p.z ?? 0));
+      const minZ = Math.min(...zs);
+      const maxZ = Math.max(...zs);
+
+      const allOnPlan = zs.every((z) => Math.abs(z - activeZ) <= tol);
+
+      const crossesPlan =
+        activeZ >= minZ - tol &&
+        activeZ <= maxZ + tol;
+
+      return allOnPlan || crossesPlan;
     }
 
+    // ==========================
+    // ELEVACIÓN:
+    // axis X => plano Y-Z con X fijo
+    // axis Y => plano X-Z con Y fijo
+    // ==========================
     if (view.type === "elevation") {
-      return false;
+      const value = Number(view.value ?? 0);
+
+      if (view.axis === "X") {
+        return points.every((p) => {
+          const x = Number(p.x ?? 0);
+          return Math.abs(x - value) <= tol;
+        });
+      }
+
+      if (view.axis === "Y") {
+        return points.every((p) => {
+          const y = Number(p.y ?? 0);
+          return Math.abs(y - value) <= tol;
+        });
+      }
     }
 
     return true;
@@ -3740,6 +4098,9 @@ export class DeflexionRenderer extends DiseñoRenderer {
     if (CADSystem.options.showGrid) {
       CADSystem.grid.draw(this, CADSystem);
     }
+
+    this.drawReferencePlanes(CADSystem);
+    this.drawReferencePoints(CADSystem);
 
     // Soportes solo de la vista activa
     CADSystem.nodes.forEach((n) => {
@@ -3889,6 +4250,9 @@ export class AxialRenderer extends DiseñoRenderer {
     if (CADSystem.options.showGrid) {
       CADSystem.grid.draw(this, CADSystem);
     }
+
+    this.drawReferencePlanes(CADSystem);
+    this.drawReferencePoints(CADSystem);
 
     CADSystem.nodes.forEach((n) => {
       if (!this.shouldDrawNode(n, CADSystem)) return;

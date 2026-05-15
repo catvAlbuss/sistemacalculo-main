@@ -99,7 +99,10 @@ export function renderModel3D(viewer3D, nodes = [], shapes = [], areas = []) {
 
   for (const [nodeId, mesh] of nodeMeshes.entries()) {
     if (!nodeIds.has(nodeId)) {
-      if (mesh && !mesh.isDisposed()) mesh.dispose();
+      if (mesh && !mesh.isDisposed()) {
+        safeDisposeMeshAfterRender(mesh, scene);
+      }
+
       nodeMeshes.delete(nodeId);
     }
   }
@@ -146,7 +149,10 @@ export function renderModel3D(viewer3D, nodes = [], shapes = [], areas = []) {
 
   for (const [beamId, mesh] of beamMeshes.entries()) {
     if (!beamIds.has(beamId)) {
-      if (mesh && !mesh.isDisposed()) mesh.dispose();
+      if (mesh && !mesh.isDisposed()) {
+        safeDisposeMeshAfterRender(mesh, scene);
+      }
+
       beamMeshes.delete(beamId);
     }
   }
@@ -206,8 +212,39 @@ export function renderModel3D(viewer3D, nodes = [], shapes = [], areas = []) {
 
   for (const [areaId, mesh] of areaMeshes.entries()) {
     if (!areaIds.has(areaId)) {
-      if (mesh && !mesh.isDisposed()) mesh.dispose();
+      if (mesh && !mesh.isDisposed()) safeDisposeMeshAfterRender(mesh, scene);
       areaMeshes.delete(areaId);
+    }
+  }
+
+  function safeDisposeMeshAfterRender(mesh, scene) {
+    if (!mesh || mesh.isDisposed()) return;
+
+    mesh.setEnabled(false);
+    mesh.isPickable = false;
+
+    const disposeNow = () => {
+      try {
+        if (mesh && !mesh.isDisposed()) {
+          // Desvincular el material antes de eliminar el mesh.
+          // No eliminamos materiales aquí para evitar errores WebGL en Babylon.
+          mesh.material = null;
+
+          // IMPORTANTE:
+          // El segundo parámetro debe ser false.
+          // true puede eliminar material/texturas y provocar:
+          // WebGL INVALID_VALUE getProgramParameter deleted object.
+          mesh.dispose(false, false);
+        }
+      } catch (error) {
+        console.warn("No se pudo liberar mesh 3D:", error);
+      }
+    };
+
+    if (scene?.onAfterRenderObservable) {
+      scene.onAfterRenderObservable.addOnce(disposeNow);
+    } else {
+      setTimeout(disposeNow, 0);
     }
   }
 }
