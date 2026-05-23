@@ -77,6 +77,8 @@ export default () => ({
   // NUEVAS PROPIEDADES
   calcEngine: "hybrid", // 'hybrid', 'opensees', 'octave'
   syncPending: false,
+  view3DUpdateTimer: null,
+  view3DUpdateToken: 0,
 
   // 3 OPTIONS
   activeStory: 0,
@@ -430,6 +432,66 @@ export default () => ({
     selectedGroup: null,
   },
 
+  // ===========================================================
+  // ========== PROPIEDADES PARA ANALYZE / ANÁLISIS ============
+  // ===========================================================
+  analysisOptions: {
+    enabled: true,
+    analysisType: "full3d",
+    solverType: "linear_static",
+    runStaticAnalysis: true,
+    considerSelfWeight: true,
+    analysisStatus: "not_run",
+
+    dof: {
+      ux: true,
+      uy: true,
+      uz: true,
+      rx: true,
+      ry: true,
+      rz: true,
+    },
+
+    dynamicAnalysis: {
+      enabled: true,
+    },
+
+    dynamicParams: {
+      numModes: 12,
+      analysisType: "eigenvectors",
+      freqShift: 0,
+      cutoffFrequency: 0,
+      tolerance: "1.000E-07",
+      includeResidualModes: false,
+      ritzLoads: [],
+    },
+
+    pDelta: {
+      enabled: false,
+    },
+
+    pDeltaParams: {
+      method: "iterative",
+      maxIterations: 1,
+      tolerance: "1.000E-03",
+      loads: [
+        {
+          name: "DEAD",
+          scale: 1,
+        },
+      ],
+    },
+
+    dbAccess: {
+      enabled: false,
+      filename: "analysis_output",
+    },
+
+  },
+
+  analysisResults: null,
+  modelCheck: null,
+
   //Propiedades para la seccion de analisis
   dynamicParams: {
     numModes: 12,
@@ -501,7 +563,7 @@ export default () => ({
     this.Puente = Puente;
     this.options = {
       showGrid: true,
-      showDeflection: true,
+      showDeflection: false,
       deflectionScale: 1,
       showWireframe: false,
       showForces: true,
@@ -541,6 +603,9 @@ export default () => ({
     this.deflecciones = [];
     this.desplazamientosPosition = [];
     this.matrizDesplazamiento = [];
+
+    this.analysisResults = null;
+    this.modelCheck = null;
     this.sections = sections;
     this.materiales = [
       {
@@ -740,6 +805,7 @@ export default () => ({
     }
 
     window.cadSystem = this;
+    window.getViewer3DState = getViewer3DState;
   },
 
   loadOptionsPreferences() {
@@ -1435,7 +1501,7 @@ export default () => ({
   },
 
   getEditSelectedObjects(options = {}) {
-    const selected = [];
+    let selected = [];
     const seen = new Set();
 
     const explicitObjects = [];
@@ -1542,7 +1608,44 @@ export default () => ({
       addFinal(obj);
     });
 
+    // Filtrar objetos que ya no existen en el modelo
+    selected = selected.filter((obj) => {
+      return this.isEditObjectStillInModel?.(obj);
+    });
+
     return selected;
+  },
+
+  // =====================================================
+  // EDIT CORE > VALIDAR SI UN OBJETO SIGUE EN EL MODELO
+  // =====================================================
+  isEditObjectStillInModel(obj) {
+    if (!obj) return false;
+
+    // Nodo
+    if (this.isEditNodeObject?.(obj) || obj.position) {
+      return this.nodes?.includes(obj) ?? false;
+    }
+
+    // Barra / Frame
+    if (this.isEditFrameObject?.(obj) || obj.node1 || obj.node2) {
+      return this.shapes?.includes(obj) ?? false;
+    }
+
+    // Área
+    if (this.isEditAreaObject?.(obj) || Array.isArray(obj.points)) {
+      return this.areas?.includes(obj) ?? false;
+    }
+
+    // Línea de dimensión
+    if (
+      this.isEditDimensionLineObject?.(obj) ||
+      (obj.start && obj.end && obj.value !== undefined)
+    ) {
+      return this.dimensionLines?.includes(obj) ?? false;
+    }
+
+    return false;
   },
 
   getEditSelectedNodes(options = {}) {
@@ -1710,6 +1813,9 @@ export default () => ({
     return false;
   },
 
+  // =====================================================
+  // EDIT CORE > LIMPIAR SELECCIÓN VISUAL E INTERNA
+  // =====================================================
   clearEditSelectionFlags() {
     const clearOne = (obj) => {
       if (!obj) return;
@@ -1722,23 +1828,54 @@ export default () => ({
       }
     };
 
+    // Limpiar banderas visuales del modelo actual
     this.nodes?.forEach(clearOne);
     this.shapes?.forEach(clearOne);
     this.areas?.forEach(clearOne);
     this.dimensionLines?.forEach(clearOne);
 
-    if (this.moveObjectState) {
-      this.moveObjectState.selectedObject = null;
+    // Limpiar arrays internos de estados seleccionados
+    if (this.selectedNodesState) {
+      this.selectedNodesState.selectedObjects = [];
     }
 
+    if (this.selectedBeamsState) {
+      this.selectedBeamsState.selectedObjects = [];
+    }
+
+    if (this.selectedAreasState) {
+      this.selectedAreasState.selectedObjects = [];
+    }
+
+    if (this.selectedDimensionLinesState) {
+      this.selectedDimensionLinesState.selectedObjects = [];
+    }
+
+    if (this.selectedParametricState) {
+      this.selectedParametricState.selectedObjects = [];
+    }
+
+    // Limpiar selección por ventana
+    if (this.selectionState) {
+      this.selectionState.selectedNodes = [];
+      this.selectionState.selectedBeams = [];
+      this.selectionState.selectedAreas = [];
+      this.selectionState.selectedDimensionLines = [];
+    }
+
+    // Limpiar estado de movimiento
+    if (this.moveObjectState) {
+      this.moveObjectState.selectedObject = null;
+      this.moveObjectState.isMoving = false;
+    }
+
+    // Limpiar estado reshape
     if (this.reshapeObjectState) {
       this.reshapeObjectState.selectedBeam = null;
       this.reshapeObjectState.selectedNode = null;
       this.reshapeObjectState.selectedArea = null;
-    }
-
-    if (this.idleState) {
-      this.setState?.(this.idleState);
+      this.reshapeObjectState.selectedVertexIndex = null;
+      this.reshapeObjectState.isMoving = false;
     }
   },
 
@@ -1827,6 +1964,7 @@ export default () => ({
       totalDeleted,
     });
 
+    this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
     this.redraw?.();
 
     if (deletedNodes > 0 || deletedFrames > 0 || deletedAreas > 0) {
@@ -2236,6 +2374,28 @@ export default () => ({
       pastedDimensions.push(newDim);
     });
 
+    // Evita que una barra vieja cortada/eliminada sigata como seleccionada después de pegar, lo que podría causar confusión.
+    this.clearEditSelectionFlags?.();
+
+    if (pastedFrames.length > 0) {
+      this.setState?.(this.selectedBeamsState, {
+        selectedBeams: pastedFrames,
+      });
+    } else if (pastedNodes.length > 0) {
+      this.setState?.(this.selectedNodesState, {
+        selectedNodes: pastedNodes,
+      });
+    } else if (pastedAreas.length > 0) {
+      this.setState?.(this.selectedAreasState, {
+        selectedAreas: pastedAreas,
+      });
+    } else if (pastedDimensions.length > 0) {
+      this.setState?.(this.selectedDimensionLinesState, {
+        selectedDimensionLines: pastedDimensions,
+      });
+    }
+
+    this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
     this.redraw?.();
 
     if (
@@ -2401,6 +2561,12 @@ export default () => ({
       modeNumber: this.displayOptions.modeNumber ?? 1,
       modeScale: this.displayOptions.modeScale ?? 1,
       memberForceType: this.displayOptions.memberForceType ?? "axial",
+
+      analysisResultsAvailable:
+        this.displayOptions.analysisResultsAvailable ?? false,
+
+      lastAnalysisRun:
+        this.displayOptions.lastAnalysisRun ?? null,
     };
 
     if (!this.options) {
@@ -4076,6 +4242,11 @@ export default () => ({
   openShowDeformedShapeDialog() {
     this.ensureDisplayOptions();
 
+    if (!this.hasCompletedAnalysisResults()) {
+      this.showRunAnalysisRequiredMessage("Display > Show Deformed Shape");
+      return;
+    }
+
     Swal.fire({
       title: "Display Deformed Shape",
       width: 560,
@@ -4160,6 +4331,11 @@ export default () => ({
 
   openShowModeShapeDialog() {
     this.ensureDisplayOptions();
+
+    if (!this.hasCompletedAnalysisResults()) {
+      this.showRunAnalysisRequiredMessage("Display > Show Mode Shape");
+      return;
+    }
 
     Swal.fire({
       title: "Display Mode Shape",
@@ -4253,6 +4429,11 @@ export default () => ({
 
   openShowMemberForcesDialog() {
     this.ensureDisplayOptions();
+
+    if (!this.hasCompletedAnalysisResults()) {
+      this.showRunAnalysisRequiredMessage("Display > Show Member Forces / Stress Diagram");
+      return;
+    }
 
     Swal.fire({
       title: "Display Member Forces / Stress Diagram",
@@ -4625,6 +4806,7 @@ export default () => ({
       };
     });
 
+    this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
     this.redraw?.();
 
     // Evitamos sync3D directo si te genera parpadeo o zoom automático.
@@ -5330,6 +5512,7 @@ export default () => ({
       joint.hasRestraints = this.jointHasAnyRestraint(restraints);
     });
 
+    this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
     this.redraw?.();
 
     this.showMessage?.(
@@ -5859,6 +6042,7 @@ export default () => ({
       joint.hasPointSprings = this.jointHasPointSprings(pointSprings);
     });
 
+    this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
     this.redraw?.();
 
     this.showMessage?.(
@@ -6213,6 +6397,7 @@ export default () => ({
       };
     });
 
+    this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
     this.redraw?.();
 
     const actionText =
@@ -6501,6 +6686,7 @@ export default () => ({
       };
     });
 
+    this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
     this.redraw?.();
 
     const actionText =
@@ -6765,6 +6951,7 @@ export default () => ({
       };
     });
 
+    this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
     this.redraw?.();
 
     const actionText =
@@ -7053,6 +7240,7 @@ export default () => ({
       };
     });
 
+    this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
     this.redraw?.();
 
     const actionText =
@@ -7427,6 +7615,7 @@ export default () => ({
       };
     });
 
+    this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
     this.redraw?.();
 
     const actionText =
@@ -7754,6 +7943,7 @@ export default () => ({
       };
     });
 
+    this.markAnalysisResultsOutdated?.("Se modificó una carga de temperatura en Frame / Line.");
     this.redraw?.();
 
     const actionText =
@@ -9757,7 +9947,45 @@ export default () => ({
   },
 
   handleKeyDown(event) {
-    this.currentState.handleKeyDown(event, this);
+    const key = String(event.key || "").toLowerCase();
+
+    if (event.ctrlKey && key === "z") {
+      event.preventDefault();
+      this.undo?.();
+      return;
+    }
+
+    if (event.ctrlKey && key === "y") {
+      event.preventDefault();
+      this.redo?.();
+      return;
+    }
+
+    if (event.ctrlKey && key === "x") {
+      event.preventDefault();
+      this.cut?.();
+      return;
+    }
+
+    if (event.ctrlKey && key === "c") {
+      event.preventDefault();
+      this.copy?.();
+      return;
+    }
+
+    if (event.ctrlKey && key === "v") {
+      event.preventDefault();
+      this.paste?.();
+      return;
+    }
+
+    if (event.key === "Delete") {
+      event.preventDefault();
+      this.deleteSelected?.();
+      return;
+    }
+
+    this.currentState?.handleKeyDown?.(event, this);
   },
 
   handleMouseWheel(event) {
@@ -10036,21 +10264,45 @@ export default () => ({
 
   // Open / Save
   openModel() {
-    // Crear input file para abrir modelo JSON
     const input = document.createElement("input");
+
     input.type = "file";
-    input.accept = ".json,.e2k";
-    input.onchange = async (e) => {
-      const file = e.target.files[0];
-      const text = await file.text();
+    input.accept = ".json";
+
+    input.onchange = async (event) => {
+      const file = event.target.files?.[0];
+
+      if (!file) return;
+
       try {
+        const text = await file.text();
         const data = JSON.parse(text);
-        this.loadFromJSON(data);
-        this.showMessage("✅ Modelo cargado correctamente");
-      } catch (err) {
-        this.showMessage("❌ Error al cargar el archivo", "error");
+
+        const loaded = this.loadFromJSON(data);
+
+        if (!loaded) {
+          this.showMessage?.("❌ No se pudo cargar el modelo JSON.", "error");
+          return;
+        }
+
+        this.currentFileName = file.name;
+
+        this.showMessage?.(`✅ Modelo cargado correctamente: ${file.name}`);
+
+        console.log("📂 Modelo abierto:", {
+          fileName: file.name,
+          data,
+        });
+      } catch (error) {
+        console.error("❌ Error al abrir modelo:", error);
+
+        this.showMessage?.(
+          "❌ Error al cargar el archivo. Verifica que sea un JSON válido.",
+          "error"
+        );
       }
     };
+
     input.click();
   },
 
@@ -10084,424 +10336,2364 @@ export default () => ({
   },
 
   // Import methods
-  importETABS_E2K() { this.showMessage('📥 Importar ETABS .e2k - Próximamente'); },
-  importETABS6() { this.showMessage('📥 Importar ETABS6 - Próximamente'); },
-  importETABS_EDB() { this.showMessage('📥 Importar ETABS .edb - Próximamente'); },
-  importDXFGrid() { this.showMessage('📥 Importar DXF de Grilla - Próximamente'); },
-  importDXFFloorPlan() { this.showMessage('📥 Importar Plano DXF - Próximamente'); },
-  importDXF3D() { this.showMessage('📥 Importar Modelo 3D DXF - Próximamente'); },
-  importIFC() { this.showMessage('📥 Importar IFC - Próximamente'); },
-  importIGES() { this.showMessage('📥 Importar IGES - Próximamente'); },
-  importCIS2() { this.showMessage('📥 Importar CIS/2 - Próximamente'); },
-  importRevit() { this.showMessage('📥 Importar Revit - Próximamente'); },
-  importProSteel() { this.showMessage('📥 Importar ProSteel - Próximamente'); },
-  importFrameworks() { this.showMessage('📥 Importar Frameworks - Próximamente'); },
-  importSTRUDL() { this.showMessage('📥 Importar STRUDL/STAAD - Próximamente'); },
+  openTextFileForImport(accept = ".txt,.e2k") {
+    return new Promise((resolve, reject) => {
+      const input = document.createElement("input");
+
+      input.type = "file";
+      input.accept = accept;
+
+      input.onchange = async (event) => {
+        try {
+          const file = event.target.files?.[0];
+
+          if (!file) {
+            resolve(null);
+            return;
+          }
+
+          const text = await file.text();
+
+          resolve({
+            file,
+            text,
+          });
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      input.click();
+    });
+  },
+
+  getQuotedValue(line, key) {
+    const regex = new RegExp(`${key}\\s+"([^"]*)"`, "i");
+    const match = String(line || "").match(regex);
+
+    return match ? match[1] : null;
+  },
+
+  getNumericValue(line, key, fallback = 0) {
+    const regex = new RegExp(`${key}\\s+(-?\\d+(?:\\.\\d+)?)`, "i");
+    const match = String(line || "").match(regex);
+
+    if (!match) return fallback;
+
+    const value = Number(match[1]);
+
+    return Number.isFinite(value) ? value : fallback;
+  },
+
+  getWordValue(line, key, fallback = "") {
+    const regex = new RegExp(`${key}\\s+([^\\s]+)`, "i");
+    const match = String(line || "").match(regex);
+
+    return match ? match[1] : fallback;
+  },
+
+  parseJSONAfterData(line) {
+    const marker = " DATA ";
+    const index = String(line || "").indexOf(marker);
+
+    if (index < 0) return null;
+
+    try {
+      return JSON.parse(line.slice(index + marker.length));
+    } catch (error) {
+      console.warn("No se pudo leer DATA JSON en línea E2K:", line, error);
+      return null;
+    }
+  },
+
+  // FUNCION AUXILIAR PARA IMPORTAR: DEVUELVE UNA ESTRUCTURA DE CARGAS POR NODO CON VALORES POR DEFECTO (0) PARA LOS DISTINTOS TIPOS DE CARGA
+  getDefaultNodeForceForImport() {
+    return {
+      loads: {
+        CM: {
+          x: 0,
+          y: 0,
+          z: 0,
+          multiplier: 1,
+        },
+        CV: {
+          x: 0,
+          y: 0,
+          z: 0,
+          multiplier: 1,
+        },
+        CVVM: {
+          x: 0,
+          y: 0,
+          z: 0,
+          multiplier: 1,
+        },
+        CVVP: {
+          x: 0,
+          y: 0,
+          z: 0,
+          multiplier: 1,
+        },
+        CN: {
+          x: 0,
+          y: 0,
+          z: 0,
+          multiplier: 1,
+        },
+        CLL: {
+          x: 0,
+          y: 0,
+          z: 0,
+          multiplier: 1,
+        },
+      },
+    };
+  },
+
+  parseInitialE2KText(text) {
+    const lines = String(text || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("$"));
+
+    const stories = [];
+    const xGrids = [];
+    const yGrids = [];
+    const generalGrids = [];
+    const materials = [];
+    const frameSections = [];
+    const nodes = [];
+    const frames = [];
+    const areas = [];
+
+    const nodeMap = new Map();
+    const frameMap = new Map();
+
+    const frameSectionAssignments = new Map();
+
+    lines.forEach((line) => {
+      // ===============================
+      // STORIES
+      // STORY "Piso 1" ID 1 ELEV 3
+      // ===============================
+      if (line.startsWith("STORY ")) {
+        const name = this.getQuotedValue(line, "STORY") || "Story";
+        const id = this.getNumericValue(line, "ID", stories.length);
+        const elevation = this.getNumericValue(line, "ELEV", 0);
+
+        stories.push({
+          id,
+          name,
+          elevation,
+        });
+
+        return;
+      }
+
+      // ===============================
+      // GRIDLINE
+      // GRIDLINE DIR X ID "A" ORD 0 VISIBLE YES BUBBLE "End"
+      // ===============================
+      if (line.startsWith("GRIDLINE ")) {
+        const dir = this.getWordValue(line, "DIR", "").toUpperCase();
+        const id = this.getQuotedValue(line, "ID") || "";
+        const ordinate = this.getNumericValue(line, "ORD", 0);
+        const visible = !/VISIBLE\s+NO/i.test(line);
+        const bubbleLoc = this.getQuotedValue(line, "BUBBLE") || (dir === "X" ? "End" : "Start");
+
+        const gridData = {
+          id,
+          ordinate,
+          visible,
+          bubbleLoc,
+        };
+
+        if (dir === "X") {
+          xGrids.push(gridData);
+        }
+
+        if (dir === "Y") {
+          yGrids.push(gridData);
+        }
+
+        return;
+      }
+
+      // ===============================
+      // GENERAL GRID
+      // GENERALGRID "A" X1 0 Y1 0 X2 0 Y2 10 SOURCE "x" VISIBLE YES
+      // ===============================
+      if (line.startsWith("GENERALGRID ")) {
+        const id = this.getQuotedValue(line, "GENERALGRID") || `G${generalGrids.length + 1}`;
+
+        generalGrids.push({
+          id,
+          label: id,
+          x1: this.getNumericValue(line, "X1", 0),
+          y1: this.getNumericValue(line, "Y1", 0),
+          x2: this.getNumericValue(line, "X2", 0),
+          y2: this.getNumericValue(line, "Y2", 0),
+          source: this.getQuotedValue(line, "SOURCE") || "custom",
+          visible: !/VISIBLE\s+NO/i.test(line),
+          bubbleLoc: "End",
+        });
+
+        return;
+      }
+
+      // ===============================
+      // MATERIAL
+      // MATERIAL "STEEL" NAME "STEEL" TYPE "Isotropic" E 210000
+      // ===============================
+      if (line.startsWith("MATERIAL ")) {
+        const id = this.getQuotedValue(line, "MATERIAL") || `MAT_${materials.length + 1}`;
+        const name = this.getQuotedValue(line, "NAME") || id;
+        const type = this.getQuotedValue(line, "TYPE") || "Other";
+        const E = this.getNumericValue(line, "E", 0);
+
+        materials.push({
+          id,
+          name,
+          type,
+          E,
+        });
+
+        return;
+      }
+
+      // ===============================
+      // FRAME SECTION
+      // FRAMESECTION "W10X12" NAME "W10X12" TYPE "wf" A 3.54
+      // ===============================
+      if (line.startsWith("FRAMESECTION ")) {
+        const id = this.getQuotedValue(line, "FRAMESECTION") || `SEC_${frameSections.length + 1}`;
+        const name = this.getQuotedValue(line, "NAME") || id;
+        const type = this.getQuotedValue(line, "TYPE") || "General";
+        const A = this.getNumericValue(line, "A", 0);
+
+        frameSections.push({
+          id,
+          name,
+          type,
+          A,
+          area: A,
+        });
+
+        return;
+      }
+
+      // ===============================
+      // POINT
+      // POINT "1" X 0 Y 0 Z 0
+      // ===============================
+      if (line.startsWith("POINT ")) {
+        const id = Number(this.getQuotedValue(line, "POINT") || nodes.length + 1);
+
+        const nodeData = {
+          id,
+          x: this.getNumericValue(line, "X", 0),
+          y: this.getNumericValue(line, "Y", 0),
+          z: this.getNumericValue(line, "Z", 0),
+
+          visible: true,
+
+          constraints: null,
+          restraints: null,
+          hasRestraints: false,
+
+          pointLoads: [],
+          jointLoads: [],
+          hasPointLoads: false,
+          hasJointLoads: false,
+
+          groupIds: [],
+          groupNames: [],
+          groups: [],
+          hasGroups: false,
+
+          assignment: {},
+
+          // Importante para que renderer.drawForce() no reviente
+          force: this.getDefaultNodeForceForImport(),
+          reaction: {
+            x: 0,
+            y: 0,
+            z: 0,
+          },
+        };
+
+        nodes.push(nodeData);
+        nodeMap.set(String(id), nodeData);
+
+        return;
+      }
+
+      // ===============================
+      // FRAME
+      // FRAME "1" I "1" J "2" TYPE "beam" SECTION "W10X12"
+      // ===============================
+      if (line.startsWith("FRAME ")) {
+        const id = Number(this.getQuotedValue(line, "FRAME") || frames.length + 1);
+        const node1Id = this.getQuotedValue(line, "I");
+        const node2Id = this.getQuotedValue(line, "J");
+        const type = this.getQuotedValue(line, "TYPE") || "beam";
+        const sectionName = this.getQuotedValue(line, "SECTION");
+
+        const section =
+          frameSections.find((item) =>
+            String(item.id) === String(sectionName) ||
+            String(item.name) === String(sectionName)
+          ) || null;
+
+        const frameData = {
+          id,
+          node1: Number(node1Id),
+          node2: Number(node2Id),
+          node1Id: Number(node1Id),
+          node2Id: Number(node2Id),
+          type,
+          elementType: type,
+          objectType: "frame",
+          sectionId: section && sectionName !== "NONE" ? section.id : null,
+          sectionName: section && sectionName !== "NONE" ? section.name : null,
+          section: section && sectionName !== "NONE" ? { ...section } : null,
+          frameSection: section && sectionName !== "NONE" ? { ...section } : null,
+          hasAssignedSection: Boolean(section && sectionName !== "NONE"),
+          A: section?.A ?? null,
+          _A: section?.A ?? null,
+          frameLoads: [],
+          lineLoads: [],
+          assignment: {},
+        };
+
+        frames.push(frameData);
+        frameMap.set(String(id), frameData);
+
+        return;
+      }
+
+      // ===============================
+      // AREA
+      // AREA "1" TYPE "area" P1(0,0,0) P2(...)
+      // Versión básica: por ahora guarda línea como metadata.
+      // ===============================
+      if (line.startsWith("AREA ")) {
+        const id = Number(this.getQuotedValue(line, "AREA") || areas.length + 1);
+        const type = this.getQuotedValue(line, "TYPE") || "area";
+
+        areas.push({
+          id,
+          type,
+          areaType: type,
+          points: [],
+          raw: line,
+          assignment: {},
+        });
+
+        return;
+      }
+
+      // ===============================
+      // ASSIGN FRAME
+      // ASSIGN FRAME "2" SECTION "W10X12"
+      // ===============================
+      if (line.startsWith("ASSIGN FRAME ")) {
+        const frameId = this.getQuotedValue(line, "FRAME");
+        const sectionName = this.getQuotedValue(line, "SECTION");
+
+        if (frameId && sectionName) {
+          frameSectionAssignments.set(String(frameId), sectionName);
+        }
+
+        return;
+      }
+
+      // ===============================
+      // JOINT LOAD
+      // JOINTLOAD POINT "1" CASE "DEAD" TYPE "force" DATA {...}
+      // ===============================
+      if (line.startsWith("JOINTLOAD ")) {
+        const nodeId = this.getQuotedValue(line, "POINT");
+        const loadData = this.parseJSONAfterData(line);
+
+        if (nodeId && loadData && nodeMap.has(String(nodeId))) {
+          const node = nodeMap.get(String(nodeId));
+
+          node.pointLoads.push(loadData);
+          node.jointLoads.push(loadData);
+          node.hasPointLoads = true;
+          node.hasJointLoads = true;
+          node.assignment.pointLoads = node.pointLoads;
+          node.assignment.jointLoads = node.jointLoads;
+        }
+
+        return;
+      }
+
+      // ===============================
+      // FRAME LOAD
+      // FRAMELOAD FRAME "2" CASE "DEAD" TYPE "distributed" DATA {...}
+      // ===============================
+      if (line.startsWith("FRAMELOAD ")) {
+        const frameId = this.getQuotedValue(line, "FRAME");
+        const loadData = this.parseJSONAfterData(line);
+
+        if (frameId && loadData && frameMap.has(String(frameId))) {
+          const frame = frameMap.get(String(frameId));
+
+          frame.frameLoads.push(loadData);
+          frame.lineLoads.push(loadData);
+          frame.hasFrameLoads = true;
+          frame.hasLineLoads = true;
+          frame.assignment.frameLoads = frame.frameLoads;
+          frame.assignment.lineLoads = frame.lineLoads;
+        }
+
+        return;
+      }
+    });
+
+    // Reaplicar asignaciones de sección explícitas.
+    frameSectionAssignments.forEach((sectionName, frameId) => {
+      const frame = frameMap.get(String(frameId));
+
+      if (!frame) return;
+
+      const section =
+        frameSections.find((item) =>
+          String(item.id) === String(sectionName) ||
+          String(item.name) === String(sectionName)
+        ) || null;
+
+      if (!section || sectionName === "NONE") return;
+
+      frame.sectionId = section.id;
+      frame.sectionName = section.name;
+      frame.section = { ...section };
+      frame.frameSection = { ...section };
+      frame.A = section.A ?? section.area ?? null;
+      frame._A = section.A ?? section.area ?? null;
+      frame.hasAssignedSection = true;
+
+      frame.assignment = {
+        ...(frame.assignment || {}),
+        frameSection: {
+          id: section.id,
+          name: section.name,
+        },
+      };
+    });
+
+    // Si el archivo no trae stories, crear Base por defecto.
+    if (!stories.length) {
+      stories.push({
+        id: 0,
+        name: "Base",
+        elevation: 0,
+      });
+    }
+
+    // Calcular storyCount y storyHeight.
+    const sortedStories = [...stories].sort((a, b) => Number(a.elevation || 0) - Number(b.elevation || 0));
+
+    const storyCount = Math.max(0, sortedStories.length - 1);
+
+    const storyHeight =
+      sortedStories.length > 1
+        ? Number(sortedStories[1].elevation || 0) - Number(sortedStories[0].elevation || 0)
+        : 3;
+
+    // Si no hay grillas, crear una grilla mínima a partir de nodos.
+    if (!xGrids.length) {
+      const xs = [...new Set(nodes.map((node) => Number(node.x || 0)))].sort((a, b) => a - b);
+
+      xs.forEach((x, index) => {
+        xGrids.push({
+          id: String.fromCharCode(65 + index),
+          ordinate: x,
+          visible: true,
+          bubbleLoc: "End",
+        });
+      });
+    }
+
+    if (!yGrids.length) {
+      const ys = [...new Set(nodes.map((node) => Number(node.y || 0)))].sort((a, b) => a - b);
+
+      ys.forEach((y, index) => {
+        yGrids.push({
+          id: String(index + 1),
+          ordinate: y,
+          visible: true,
+          bubbleLoc: "Start",
+        });
+      });
+    }
+
+    return {
+      app: "JHACK-ETABS-WEB",
+      fileType: "internal-model-json-imported-from-e2k-initial",
+      schemaVersion: "1.0.0",
+      importedAt: new Date().toISOString(),
+
+      model: {
+        referenceGrid: {
+          xGrids,
+          yGrids,
+          generalGrids,
+          xPositions: [],
+          yPositions: [],
+          xLabels: [],
+          yLabels: [],
+          storyCount,
+          storyHeight,
+        },
+
+        stories: sortedStories,
+        nodes,
+        frames,
+        beams: frames,
+        shapes: frames,
+        areas,
+
+        activeViewIndex: 0,
+        activeStory: 0,
+        currentViewMode: "plan",
+        currentStory: "BASE",
+        currentElevationX: "none",
+        currentElevationZ: "none",
+
+        referencePlanes: [],
+        referencePoints: [],
+        dimensionLines: [],
+      },
+
+      definitions: {
+        materials,
+        frameSections,
+        loadCases: this.loadCases?.cases || [],
+        loadCombinations: this.loadCombinations?.combinations || this.loadCombinations?.items || [],
+        diaphragms: this.diaphragms?.items || [],
+        groups: this.groups?.items || [],
+        massSource: this.massSource || null,
+      },
+
+      options: {
+        displayOptions: this.displayOptions || {},
+        designOptions: this.designOptions || {},
+        preferences: this.preferences || {},
+        outputDecimals: this.outputDecimals || {},
+        steelFrameDesign: this.steelFrameDesign || {},
+        reinforcementBarSizes: this.reinforcementBarSizes || [],
+        dynamicParams: this.dynamicParams || {},
+        analysisOptions: this.analysisOptions || null,
+        canvasTheme: this.activeCanvasTheme || "dark",
+      },
+
+      results: {},
+    };
+  },
+
+  async importETABS_E2K() {
+    try {
+      const selected = await this.openTextFileForImport(".e2k,.txt");
+
+      if (!selected) return;
+
+      const data = this.parseInitialE2KText(selected.text);
+
+      const loaded = this.loadFromJSON(data);
+
+      if (!loaded) {
+        this.showMessage?.("❌ No se pudo importar el .e2k inicial.", "error");
+        return;
+      }
+
+      this.currentFileName = selected.file.name.replace(/\.[^/.]+$/, "") + "_importado_desde_e2k.json";
+
+      this.showMessage?.(
+        `📥 Importación .e2k inicial/no oficial completada: ${selected.file.name}`
+      );
+
+      console.log("📥 Import E2K inicial/no oficial:", {
+        fileName: selected.file.name,
+        nodes: this.nodes?.length || 0,
+        frames: this.shapes?.length || 0,
+        areas: this.areas?.length || 0,
+        stories: this.stories?.length || 0,
+        referenceGrid: this.referenceGrid,
+      });
+    } catch (error) {
+      console.error("❌ Error importando E2K inicial:", error);
+
+      this.showMessage?.(
+        "❌ Error al importar .e2k inicial/no oficial.",
+        "error"
+      );
+    }
+  },
+
+  showImportPending(formatName) {
+    this.showMessage?.(`📥 Importar ${formatName} - pendiente. Por ahora está estable JSON interno y .e2k inicial/no oficial.`);
+    console.warn(`Import pendiente: ${formatName}`);
+  },
+
+  importETABS6() {
+    this.showImportPending("ETABS6 Text File");
+  },
+
+  importETABS_EDB() {
+    this.showImportPending("ETABS .edb. Formato propietario/binario");
+  },
+
+  importDXFGrid() {
+    this.showImportPending("DXF Architectural Grid");
+  },
+
+  importDXFFloorPlan() {
+    this.showImportPending("DXF Floor Plan");
+  },
+
+  importDXF3D() {
+    this.showImportPending("DXF 3D Model");
+  },
+
+  importIFC() {
+    this.showImportPending("IFC .ifc");
+  },
+
+  importIGES() {
+    this.showImportPending("IGES .igs");
+  },
+
+  importCIS2() {
+    this.showImportPending("CIS/2 .stp");
+  },
+
+  importRevit() {
+    this.showImportPending("Revit Structure .exr");
+  },
+
+  importProSteel() {
+    this.showImportPending("ProSteel .mdb");
+  },
+
+  importFrameworks() {
+    this.showImportPending("Frameworks Plus .sfc");
+  },
+
+  importSTRUDL() {
+    this.showImportPending("STRUDL/STAAD .gti/.std");
+  },
 
   // Export methods
-  exportETABS_E2K() { this.showMessage('📤 Exportar a ETABS .e2k - Próximamente'); },
-  exportSAFE_V8() { this.showMessage('📤 Exportar a SAFE V8 - Próximamente'); },
-  exportSAFE_V12() { this.showMessage('📤 Exportar a SAFE V12 - Próximamente'); },
-  exportETABS_EDB() { this.showMessage('📤 Exportar a ETABS .edb - Próximamente'); },
-  exportProSteelMDB() { this.showMessage('📤 Exportar a ProSteel - Próximamente'); },
+  downloadTextFile(content, filename, mimeType = "text/plain") {
+    const blob = new Blob([content], {
+      type: `${mimeType};charset=utf-8`,
+    });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+
+    a.href = url;
+    a.download = filename;
+    a.click();
+
+    URL.revokeObjectURL(url);
+  },
+
+  getExportBaseName(defaultName = "modelo_estructura") {
+    const rawName = this.currentFileName || defaultName;
+
+    return String(rawName)
+      .replace(/\.[^/.]+$/, "")
+      .replace(/[^\w\-]+/g, "_")
+      .replace(/^_+|_+$/g, "") || defaultName;
+  },
+
+  formatE2KNumber(value, decimals = 6) {
+    const number = Number(value || 0);
+
+    if (!Number.isFinite(number)) {
+      return "0";
+    }
+
+    return Number(number.toFixed(decimals));
+  },
+
+  buildETABS_E2KText() {
+    const data = this.exportToJSON?.() || {};
+    const model = data.model || data;
+
+    const referenceGrid = model.referenceGrid || this.referenceGrid || {};
+    const stories = model.stories || this.stories || [];
+    const nodes = model.nodes || data.nodes || [];
+    const frames = model.frames || model.beams || data.beams || [];
+    const areas = model.areas || data.areas || [];
+
+    const definitions = data.definitions || {};
+    const frameSections =
+      definitions.frameSections ||
+      data.frameSections ||
+      this.frameSections?.sections ||
+      [];
+
+    const materials =
+      definitions.materials ||
+      data.materials ||
+      this.materialProperties?.materials ||
+      [];
+
+    const lines = [];
+
+    lines.push("$ ------------------------------------------------------------");
+    lines.push("$ JHACK ETABS WEB - E2K TEXT EXPORT");
+    lines.push("$ ESTADO: AVANCE INICIAL / NO OFICIAL");
+    lines.push("$ Export inicial tipo texto para intercambio/documentación");
+    lines.push("$ Este archivo NO es todavía un .e2k oficial completo de ETABS");
+    lines.push("$ Sirve como avance de exportación para revisión del cliente");
+    lines.push("$ ------------------------------------------------------------");
+    lines.push(`$ DATE "${new Date().toISOString()}"`);
+    lines.push(`$ UNITS "${this.preferences?.forceUnit || "kN"}" "${this.preferences?.lengthUnit || "m"}"`);
+    lines.push("");
+
+    lines.push("$ STORIES");
+    stories.forEach((story) => {
+      lines.push(
+        `STORY "${story.name || `Story_${story.id}`}" ` +
+        `ID ${story.id ?? 0} ` +
+        `ELEV ${this.formatE2KNumber(story.elevation)}`
+      );
+    });
+    lines.push("");
+
+    lines.push("$ GRID LINES X");
+    (referenceGrid.xGrids || []).forEach((grid) => {
+      lines.push(
+        `GRIDLINE DIR X ` +
+        `ID "${grid.id}" ` +
+        `ORD ${this.formatE2KNumber(grid.ordinate)} ` +
+        `VISIBLE ${grid.visible !== false ? "YES" : "NO"} ` +
+        `BUBBLE "${grid.bubbleLoc || "End"}"`
+      );
+    });
+    lines.push("");
+
+    lines.push("$ GRID LINES Y");
+    (referenceGrid.yGrids || []).forEach((grid) => {
+      lines.push(
+        `GRIDLINE DIR Y ` +
+        `ID "${grid.id}" ` +
+        `ORD ${this.formatE2KNumber(grid.ordinate)} ` +
+        `VISIBLE ${grid.visible !== false ? "YES" : "NO"} ` +
+        `BUBBLE "${grid.bubbleLoc || "Start"}"`
+      );
+    });
+    lines.push("");
+
+    lines.push("$ GENERAL GRID LINES");
+    (referenceGrid.generalGrids || []).forEach((grid) => {
+      lines.push(
+        `GENERALGRID "${grid.id || grid.label || "GRID"}" ` +
+        `X1 ${this.formatE2KNumber(grid.x1)} ` +
+        `Y1 ${this.formatE2KNumber(grid.y1)} ` +
+        `X2 ${this.formatE2KNumber(grid.x2)} ` +
+        `Y2 ${this.formatE2KNumber(grid.y2)} ` +
+        `SOURCE "${grid.source || "custom"}" ` +
+        `VISIBLE ${grid.visible !== false ? "YES" : "NO"}`
+      );
+    });
+    lines.push("");
+
+    lines.push("$ MATERIALS");
+    materials.forEach((material, index) => {
+      const id = material.id || material.name || `MAT_${index + 1}`;
+      const name = material.name || material.nombre || id;
+
+      lines.push(
+        `MATERIAL "${id}" ` +
+        `NAME "${name}" ` +
+        `TYPE "${material.type || material.materialType || "Other"}" ` +
+        `E ${this.formatE2KNumber(material.E || material.modulusElasticity || 0)}`
+      );
+    });
+    lines.push("");
+
+    lines.push("$ FRAME SECTIONS");
+    frameSections.forEach((section, index) => {
+      const id = section.id || section.name || `SEC_${index + 1}`;
+      const name = section.name || section.nombre || id;
+
+      lines.push(
+        `FRAMESECTION "${id}" ` +
+        `NAME "${name}" ` +
+        `TYPE "${section.type || "General"}" ` +
+        `A ${this.formatE2KNumber(section.A || section.area || 0)}`
+      );
+    });
+    lines.push("");
+
+    lines.push("$ POINT COORDINATES");
+    nodes.forEach((node) => {
+      lines.push(
+        `POINT "${node.id}" ` +
+        `X ${this.formatE2KNumber(node.x ?? node.position?.x)} ` +
+        `Y ${this.formatE2KNumber(node.y ?? node.position?.y)} ` +
+        `Z ${this.formatE2KNumber(node.z ?? node.position?.z)}`
+      );
+    });
+    lines.push("");
+
+    lines.push("$ FRAME CONNECTIVITY");
+    frames.forEach((frame) => {
+      const sectionName =
+        frame.sectionName ||
+        frame.sectionId ||
+        frame.frameSection?.name ||
+        frame.section?.name ||
+        "NONE";
+
+      lines.push(
+        `FRAME "${frame.id}" ` +
+        `I "${frame.node1Id ?? frame.node1}" ` +
+        `J "${frame.node2Id ?? frame.node2}" ` +
+        `TYPE "${frame.elementType || frame.type || "beam"}" ` +
+        `SECTION "${sectionName}"`
+      );
+    });
+    lines.push("");
+
+    lines.push("$ AREA OBJECTS");
+    areas.forEach((area) => {
+      const points = Array.isArray(area.points)
+        ? area.points
+          .map((point, index) =>
+            `P${index + 1}(${this.formatE2KNumber(point.x)},${this.formatE2KNumber(point.y)},${this.formatE2KNumber(point.z)})`
+          )
+          .join(" ")
+        : "";
+
+      lines.push(
+        `AREA "${area.id}" ` +
+        `TYPE "${area.areaType || area.type || "area"}" ` +
+        points
+      );
+    });
+    lines.push("");
+
+    lines.push("$ ASSIGNMENTS - FRAME SECTIONS");
+    frames.forEach((frame) => {
+      if (!frame.sectionId && !frame.sectionName) return;
+
+      lines.push(
+        `ASSIGN FRAME "${frame.id}" ` +
+        `SECTION "${frame.sectionName || frame.sectionId}"`
+      );
+    });
+    lines.push("");
+
+    lines.push("$ LOADS - JOINT");
+    nodes.forEach((node) => {
+      const loads = node.pointLoads || node.jointLoads || [];
+
+      loads.forEach((load) => {
+        lines.push(
+          `JOINTLOAD POINT "${node.id}" ` +
+          `CASE "${load.loadCase || "DEAD"}" ` +
+          `TYPE "${load.type || "force"}" ` +
+          `DATA ${JSON.stringify(load)}`
+        );
+      });
+    });
+    lines.push("");
+
+    lines.push("$ LOADS - FRAME");
+    frames.forEach((frame) => {
+      const loads = frame.frameLoads || frame.lineLoads || [];
+
+      loads.forEach((load) => {
+        lines.push(
+          `FRAMELOAD FRAME "${frame.id}" ` +
+          `CASE "${load.loadCase || "DEAD"}" ` +
+          `TYPE "${load.type || "distributed"}" ` +
+          `DATA ${JSON.stringify(load)}`
+        );
+      });
+    });
+    lines.push("");
+
+    lines.push("$ END OF JHACK ETABS WEB EXPORT");
+
+    return lines.join("\n");
+  },
+
+  exportETABS_E2K() {
+    try {
+      const content = this.buildETABS_E2KText();
+      const filename = `${this.getExportBaseName()}_AVANCE_INICIAL_E2K_NO_OFICIAL.e2k`;
+
+      this.downloadTextFile(content, filename, "text/plain");
+
+      this.showMessage?.(`📤 Exportación .e2k inicial/no oficial generada: ${filename}`);
+      console.log("📤 Export ETABS E2K:", {
+        filename,
+        nodes: this.nodes?.length || 0,
+        frames: this.shapes?.length || 0,
+        areas: this.areas?.length || 0,
+      });
+    } catch (error) {
+      console.error("❌ Error exportando E2K:", error);
+      this.showMessage?.("❌ Error al exportar E2K.", "error");
+    }
+  },
+
+  exportSAFE_V8() {
+    this.showMessage?.("📤 Exportar SAFE V8 .f2k - pendiente. Primero dejamos estable E2K.");
+    console.warn("Export SAFE V8 pendiente.");
+  },
+
+  exportSAFE_V12() {
+    this.showMessage?.("📤 Exportar SAFE V12 .f2k - pendiente. Primero dejamos estable E2K.");
+    console.warn("Export SAFE V12 pendiente.");
+  },
+
+  exportETABS_EDB() {
+    this.showMessage?.("📤 Exportar ETABS .edb - no disponible en navegador. Requiere formato binario propietario.");
+    console.warn("Export ETABS EDB no implementado: formato binario propietario.");
+  },
+
+  exportProSteelMDB() {
+    this.showMessage?.("📤 Exportar ProSteel .mdb - pendiente. Requiere estructura de base Access/MDB.");
+    console.warn("Export ProSteel MDB pendiente.");
+  },
 
   // Print methods
   createVideo() {
-    this.showMessage("🎥 Crear Video - Próximamente");
+    this.showMessage?.("🎥 Crear Video - pendiente. Primero se completó impresión gráfica.");
   },
 
   printSetup() {
-    this.showMessage("🖨️ Configurar Impresión - Próximamente");
+    this.showMessage?.("🖨️ Configurar Impresión - pendiente. Usando impresión gráfica preliminar.");
   },
 
-  printGraphics() {
-    window.print();
-    this.showMessage("🖨️ Enviando a impresora...");
+  waitForNextFrames(count = 2) {
+    return new Promise((resolve) => {
+      const step = () => {
+        count -= 1;
+
+        if (count <= 0) {
+          resolve();
+          return;
+        }
+
+        requestAnimationFrame(step);
+      };
+
+      requestAnimationFrame(step);
+    });
+  },
+
+  async getCanvasImageForPrint(canvas, options = {}) {
+    try {
+      if (!canvas) return null;
+
+      if (canvas.width <= 0 || canvas.height <= 0) {
+        return null;
+      }
+
+      if (options.render3D) {
+        const viewer = getViewer3DState?.();
+
+        if (viewer?.scene) {
+          viewer.scene.render();
+          await this.waitForNextFrames(2);
+          viewer.scene.render();
+        }
+      }
+
+      const image = canvas.toDataURL("image/png");
+
+      if (!image || image === "data:,") {
+        return null;
+      }
+
+      return image;
+    } catch (error) {
+      console.warn("No se pudo capturar canvas para impresión:", error);
+      return null;
+    }
+  },
+
+  getPrintModelName() {
+    return this.currentFileName || "Modelo sin nombre";
+  },
+
+  getPrintActiveViewName() {
+    try {
+      if (typeof this.getActiveViewLabel === "function") {
+        return this.getActiveViewLabel();
+      }
+
+      const view = this.viewSet?.[this.activeViewIndex];
+
+      if (view?.name) return view.name;
+
+      return this.currentViewMode || "Vista actual";
+    } catch (error) {
+      return "Vista actual";
+    }
+  },
+
+  async buildPrintGraphicsHTML() {
+    const canvas2D =
+      this.canvas ||
+      document.querySelector("#cad-panel-2d canvas") ||
+      document.querySelector("canvas");
+
+    const canvas3D =
+      document.querySelector("#viewer3d-container canvas");
+
+    const image2D = await this.getCanvasImageForPrint(canvas2D);
+
+    const image3D = await this.getCanvasImageForPrint(canvas3D, {
+      render3D: true,
+    });
+
+    const modelName = this.getPrintModelName();
+    const activeViewName = this.getPrintActiveViewName();
+    const date = new Date().toLocaleString();
+
+    const nodesCount = this.nodes?.length || 0;
+    const framesCount = this.shapes?.length || 0;
+    const areasCount = this.areas?.length || 0;
+    const storiesCount = this.stories?.length || 0;
+
+    return `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <title>Impresión Gráfica - ${modelName}</title>
+        <style>
+          * {
+            box-sizing: border-box;
+          }
+
+          body {
+            margin: 0;
+            padding: 24px;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #111827;
+            background: #ffffff;
+          }
+
+          .print-header {
+            border-bottom: 2px solid #1f2937;
+            padding-bottom: 12px;
+            margin-bottom: 18px;
+          }
+
+          .title {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0;
+          }
+
+          .subtitle {
+            font-size: 12px;
+            color: #4b5563;
+            margin-top: 4px;
+          }
+
+          .summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin: 14px 0 18px;
+          }
+
+          .summary-card {
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 12px;
+          }
+
+          .summary-card strong {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 2px;
+          }
+
+          .views {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+          }
+
+          .view-card {
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 10px;
+            break-inside: avoid;
+          }
+
+          .view-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #111827;
+          }
+
+          .view-card img {
+            width: 100%;
+            max-height: 520px;
+            object-fit: contain;
+            border: 1px solid #e5e7eb;
+            background: #f9fafb;
+          }
+
+          .empty-capture {
+            height: 240px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px dashed #9ca3af;
+            color: #6b7280;
+            font-size: 12px;
+            text-align: center;
+            padding: 20px;
+          }
+
+          .note {
+            margin-top: 18px;
+            padding: 10px;
+            border-left: 4px solid #f59e0b;
+            background: #fffbeb;
+            font-size: 12px;
+            color: #92400e;
+          }
+
+          .footer {
+            margin-top: 18px;
+            padding-top: 10px;
+            border-top: 1px solid #d1d5db;
+            font-size: 11px;
+            color: #6b7280;
+          }
+
+          @media print {
+            body {
+              padding: 12mm;
+            }
+
+            .views {
+              grid-template-columns: 1fr 1fr;
+            }
+
+            .no-print {
+              display: none !important;
+            }
+          }
+
+          @media (max-width: 900px) {
+            .views {
+              grid-template-columns: 1fr;
+            }
+
+            .summary {
+              grid-template-columns: repeat(2, 1fr);
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="print-header">
+          <h1 class="title">Impresión Gráfica del Modelo</h1>
+          <div class="subtitle">
+            Modelo: <strong>${modelName}</strong> |
+            Vista activa: <strong>${activeViewName}</strong> |
+            Fecha: ${date}
+          </div>
+        </div>
+
+        <div class="summary">
+          <div class="summary-card">
+            <strong>${nodesCount}</strong>
+            Nodos
+          </div>
+          <div class="summary-card">
+            <strong>${framesCount}</strong>
+            Barras / Frames
+          </div>
+          <div class="summary-card">
+            <strong>${areasCount}</strong>
+            Áreas
+          </div>
+          <div class="summary-card">
+            <strong>${storiesCount}</strong>
+            Niveles
+          </div>
+        </div>
+
+        <div class="views">
+          <div class="view-card">
+            <div class="view-title">Vista 2D</div>
+            ${image2D
+        ? `<img src="${image2D}" alt="Vista 2D">`
+        : `<div class="empty-capture">No se pudo capturar la vista 2D.</div>`
+      }
+          </div>
+
+          <div class="view-card">
+            <div class="view-title">Vista 3D</div>
+            ${image3D
+        ? `<img src="${image3D}" alt="Vista 3D">`
+        : `<div class="empty-capture">No se pudo capturar la vista 3D. Si aparece vacío, sincroniza la vista 3D e intenta nuevamente.</div>`
+      }
+          </div>
+        </div>
+
+        <div class="note">
+          Estado: impresión gráfica preliminar del sistema web tipo ETABS.
+          Esta salida sirve para revisión visual del modelo y no reemplaza todavía un reporte técnico final.
+        </div>
+
+        <div class="footer">
+          Generado desde JHACK ETABS WEB - File / Print Graphics.
+        </div>
+      </body>
+      </html>
+    `;
+  },
+
+  async printPreviewGraphics() {
+    try {
+      this.redraw?.();
+
+      const printWindow = window.open("", "_blank", "width=1200,height=800");
+
+      if (!printWindow) {
+        this.showMessage?.("❌ El navegador bloqueó la ventana de impresión.", "error");
+        return;
+      }
+
+      printWindow.document.open();
+      const html = await this.buildPrintGraphicsHTML();
+      printWindow.document.write(html);
+      printWindow.document.close();
+
+      this.showMessage?.("👁️ Vista previa de impresión generada.");
+    } catch (error) {
+      console.error("❌ Error generando vista previa de impresión:", error);
+      this.showMessage?.("❌ Error generando vista previa de impresión.", "error");
+    }
+  },
+
+  async printGraphics() {
+    try {
+      this.redraw?.();
+
+      const printWindow = window.open("", "_blank", "width=1200,height=800");
+
+      if (!printWindow) {
+        this.showMessage?.("❌ El navegador bloqueó la ventana de impresión.", "error");
+        return;
+      }
+
+      const html = await this.buildPrintGraphicsHTML();
+
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.focus();
+          printWindow.print();
+        }, 400);
+      };
+
+      this.showMessage?.("🖨️ Preparando impresión gráfica...");
+    } catch (error) {
+      console.error("❌ Error en Print Graphics:", error);
+      this.showMessage?.("❌ Error al imprimir gráficos.", "error");
+    }
   },
 
   // ========== MÉTODOS PARA EXPORTAR/IMPORTAR MODELO formato JSON ==========
 
   exportToJSON() {
-    // Exportar el modelo completo a JSON
+    const clean = (data, fallback = null) => {
+      try {
+        return JSON.parse(JSON.stringify(data ?? fallback));
+      } catch (error) {
+        console.warn("No se pudo serializar dato:", data, error);
+        return fallback;
+      }
+    };
+
+    const nodes = (this.nodes || []).map((node) => ({
+      id: node.id,
+      x: Number(node.position?.x || 0),
+      y: Number(node.position?.y || 0),
+      z: Number(node.position?.z || 0),
+
+      visible: node.visible !== false,
+
+      constraints: clean(node.constraints || node.restraints),
+      restraints: clean(node.restraints || node.constraints),
+      hasRestraints: node.hasRestraints === true,
+
+      diaphragmId: node.diaphragmId || node.diaphragm?.id || null,
+      diaphragmName: node.diaphragmName || node.diaphragm?.name || null,
+      diaphragm: clean(node.diaphragm),
+      hasDiaphragm: node.hasDiaphragm === true,
+
+      pointSprings: clean(node.pointSprings),
+      springs: clean(node.springs),
+      hasPointSprings: node.hasPointSprings === true,
+
+      pointLoads: clean(node.pointLoads, []),
+      jointLoads: clean(node.jointLoads, []),
+      hasPointLoads: node.hasPointLoads === true,
+      hasJointLoads: node.hasJointLoads === true,
+
+      groupIds: clean(node.groupIds, []),
+      groupNames: clean(node.groupNames, []),
+      groups: clean(node.groups, []),
+      hasGroups: node.hasGroups === true,
+
+      assignment: clean(node.assignment, {}),
+      force: clean(node.force),
+      reaction: clean(node.reaction),
+    }));
+
+    const frames = (this.shapes || []).map((frame) => ({
+      id: frame.id,
+
+      node1: frame.node1?.id ?? null,
+      node2: frame.node2?.id ?? null,
+      node1Id: frame.node1?.id ?? null,
+      node2Id: frame.node2?.id ?? null,
+
+      type: frame.type || frame.elementType || "beam",
+      elementType: frame.elementType || frame.type || "beam",
+      objectType: frame.objectType || "frame",
+
+      visible: frame.visible !== false,
+
+      E: frame.E ?? null,
+      A: frame.A ?? null,
+      _A: frame._A ?? null,
+      material: clean(frame.material),
+
+      section: clean(frame.section || frame.frameSection),
+      frameSection: clean(frame.frameSection || frame.section),
+      sectionId: frame.sectionId || frame.section?.id || frame.frameSection?.id || null,
+      sectionName: frame.sectionName || frame.section?.name || frame.frameSection?.name || null,
+      hasAssignedSection: frame.hasAssignedSection === true,
+
+      releases: clean(frame.releases),
+      frameReleases: clean(frame.frameReleases),
+      hasFrameReleases: frame.hasFrameReleases === true,
+
+      endOffsets: clean(frame.endOffsets),
+      frameEndOffsets: clean(frame.frameEndOffsets),
+      hasEndOffsets: frame.hasEndOffsets === true,
+
+      frameLoads: clean(frame.frameLoads, []),
+      lineLoads: clean(frame.lineLoads, []),
+      hasFrameLoads: frame.hasFrameLoads === true,
+      hasLineLoads: frame.hasLineLoads === true,
+
+      groupIds: clean(frame.groupIds, []),
+      groupNames: clean(frame.groupNames, []),
+      groups: clean(frame.groups, []),
+      hasGroups: frame.hasGroups === true,
+
+      assignment: clean(frame.assignment, {}),
+
+      fAxial: Number(frame.fAxial || 0),
+      axialForce: Number(frame.axialForce || 0),
+
+      designType: frame.designType || null,
+      isSteelJoist: frame.isSteelJoist === true,
+
+      designOverwrites: clean(frame.designOverwrites, {}),
+      designResults: clean(frame.designResults, {}),
+
+      steelFrameDesignOverwrites: clean(frame.steelFrameDesignOverwrites),
+      steelFrameDesignResult: clean(frame.steelFrameDesignResult),
+
+      steelJoistDesignOverwrites: clean(frame.steelJoistDesignOverwrites),
+      steelJoistDesignResult: clean(frame.steelJoistDesignResult),
+    }));
+
+    const areas = (this.areas || []).map((area) => ({
+      id: area.id ?? null,
+      type: area.type || area.areaType || "area",
+      areaType: area.areaType || area.type || "area",
+      visible: area.visible !== false,
+
+      points: clean(area.points, []),
+      z: Number(area.z || 0),
+
+      section: clean(area.section),
+      material: clean(area.material),
+
+      loads: clean(area.loads, []),
+      areaLoads: clean(area.areaLoads, []),
+
+      groupIds: clean(area.groupIds, []),
+      groupNames: clean(area.groupNames, []),
+      groups: clean(area.groups, []),
+
+      assignment: clean(area.assignment, {}),
+    }));
+
     const modelData = {
-      // Información del modelo
+      app: "JHACK-ETABS-WEB",
+      fileType: "internal-model-json",
+      schemaVersion: "1.0.0",
       version: "1.0",
+      savedAt: new Date().toISOString(),
       date: new Date().toISOString(),
 
-      // Nodos
-      nodes: this.nodes.map((node) => ({
-        id: node.id,
-        x: node.position.x,
-        y: node.position.y,
-        z: node.position.z || 0,
+      model: {
+        referenceGrid: clean(this.referenceGrid, {
+          xGrids: [],
+          yGrids: [],
+          generalGrids: [],
+          xPositions: [],
+          yPositions: [],
+          xLabels: [],
+          yLabels: [],
+          storyCount: 0,
+          storyHeight: 0,
+        }),
 
-        constraints: node.constraints || node.restraints || null,
-        restraints: node.restraints || node.constraints || null,
-        hasRestraints: node.hasRestraints || false,
+        stories: clean(this.stories, []),
+        viewSet: clean(this.viewSet, []),
+        activeViewIndex: Number(this.activeViewIndex || 0),
+        activeStory: Number(this.activeStory || 0),
+        currentViewMode: this.currentViewMode || "plan",
+        currentStory: this.currentStory || "BASE",
+        currentElevationX: this.currentElevationX || "none",
+        currentElevationZ: this.currentElevationZ || "none",
 
-        diaphragmId: node.diaphragmId || node.diaphragm?.id || null,
-        diaphragmName: node.diaphragmName || node.diaphragm?.name || null,
-        diaphragm: node.diaphragm || null,
-        hasDiaphragm: node.hasDiaphragm || false,
+        referencePlanes: clean(this.referencePlanes, []),
+        referencePoints: clean(this.referencePoints, []),
+        dimensionLines: clean(this.dimensionLines, []),
 
-        pointSprings: node.pointSprings || null,
-        springs: node.springs || null,
-        hasPointSprings: node.hasPointSprings || false,
+        nodes,
+        frames,
+        beams: frames,
+        shapes: frames,
+        areas,
+      },
 
-        pointLoads: node.pointLoads || [],
-        jointLoads: node.jointLoads || [],
-        hasPointLoads: node.hasPointLoads || false,
-        hasJointLoads: node.hasJointLoads || false,
+      definitions: {
+        materials: clean(this.materialProperties?.materials, []),
+        materiales: clean(this.materiales, []),
 
-        groupIds: node.groupIds || [],
-        groupNames: node.groupNames || [],
-        groups: node.groups || [],
-        hasGroups: node.hasGroups || false,
+        frameSections: clean(
+          this.frameSections?.sections ||
+          this.frameSections?.items ||
+          [],
+          []
+        ),
 
-        assignment: node.assignment || null,
-      })),
+        sections: clean(this.sections, {}),
 
-      // Elementos (barras)
-      beams: this.shapes.map((beam) => ({
-        id: beam.id,
-        node1: beam.node1.id,
-        node2: beam.node2.id,
+        loadCases: clean(
+          this.loadCases?.cases ||
+          this.staticLoadCases?.items ||
+          [],
+          []
+        ),
 
-        type: beam.type || beam.elementType || "beam",
-        elementType: beam.elementType || beam.type || "beam",
+        loadCombinations: clean(
+          this.loadCombinations?.combinations ||
+          this.loadCombinations?.items ||
+          [],
+          []
+        ),
 
-        material: beam.material || null,
+        diaphragms: clean(this.diaphragms?.items, []),
+        groups: clean(this.groups?.items, []),
+        sectionCuts: clean(this.sectionCuts?.items, []),
 
-        section: beam.section || beam.frameSection || null,
-        sectionId: beam.sectionId || beam.section?.id || beam.frameSection?.id || null,
-        sectionName: beam.sectionName || beam.section?.name || beam.frameSection?.name || null,
-        frameSection: beam.frameSection || beam.section || null,
+        responseSpectrumFunctions: clean(this.responseSpectrumFunctions?.items, []),
+        timeHistoryFunctions: clean(this.timeHistoryFunctions?.items, []),
 
-        releases: beam.releases || null,
-        frameReleases: beam.frameReleases || null,
-        hasFrameReleases: beam.hasFrameReleases || false,
+        staticLoadCases: clean(this.staticLoadCases?.items, []),
+        staticNonlinearCases: clean(this.staticNonlinearCases?.items, []),
+        sequentialConstruction: clean(this.sequentialConstruction?.items, []),
 
-        endOffsets: beam.endOffsets || null,
-        frameEndOffsets: beam.frameEndOffsets || null,
-        hasEndOffsets: beam.hasEndOffsets || false,
+        massSource: clean(this.massSource),
+        specialSeismicData: clean(this.specialSeismicData),
+      },
 
-        frameLoads: beam.frameLoads || [],
-        lineLoads: beam.lineLoads || [],
-        hasFrameLoads: beam.hasFrameLoads || false,
-        hasLineLoads: beam.hasLineLoads || false,
+      options: {
+        displayOptions: clean(this.displayOptions, {}),
+        designOptions: clean(this.designOptions, {}),
+        preferences: clean(this.preferences, {}),
+        outputDecimals: clean(this.outputDecimals, {}),
+        steelFrameDesign: clean(this.steelFrameDesign, {}),
+        reinforcementBarSizes: clean(this.reinforcementBarSizes, []),
+        dynamicParams: clean(this.dynamicParams, {}),
+        availableLoads: clean(this.availableLoads, []),
+        analysisOptions: clean(this.analysisOptions || null),
+        canvasTheme: this.activeCanvasTheme || "dark",
+      },
 
-        groupIds: beam.groupIds || [],
-        groupNames: beam.groupNames || [],
-        groups: beam.groups || [],
-        hasGroups: beam.hasGroups || false,
+      results: {
+        K_Global_Reducido: clean(this.K_Global_Reducido, []),
+        Fuerzas_Globales_Reducidas: clean(this.Fuerzas_Globales_Reducidas, []),
+        D_Global_Reducido: clean(this.D_Global_Reducido, []),
+        deflecciones: clean(this.deflecciones, []),
+        desplazamientosPosition: clean(this.desplazamientosPosition, []),
+        matrizDesplazamiento: clean(this.matrizDesplazamiento, []),
 
-        A: beam.A ?? null,
-        _A: beam._A ?? null,
+        analysisResults: clean(this.analysisResults, null),
+        modelCheck: clean(this.modelCheck, null),
+      },
 
-        assignment: beam.assignment || null,
-      })),
+      // Compatibilidad con el formato anterior
+      nodes,
+      beams: frames,
+      shapes: frames,
+      areas,
 
-      // Materiales
-      materials: this.materialProperties?.materials || [],
-
-      // Secciones de Frame
-      frameSections: this.frameSections?.sections || [],
-
-      // Casos de carga
-      loadCases: this.loadCases?.cases || [],
-
-      // Combinaciones de carga
-      loadCombinations: this.loadCombinations?.combinations || [],
-
-      // Diafragmas
-      diaphragms: this.diaphragms?.items || [],
-
-      // Cortes de sección
-      sectionCuts: this.sectionCuts?.items || [],
-
-      // Grupos
-      groups: this.groups?.items || [],
-
-      // Opciones de análisis
-      analysisOptions: this.analysisOptions || null,
-
-      // Fuente de masa
-      massSource: this.massSource || null,
-
-      // Parámetros dinámicos
-      dynamicParams: this.dynamicParams || null,
+      materials: clean(this.materialProperties?.materials, []),
+      frameSections: clean(this.frameSections?.sections || this.frameSections?.items || [], []),
+      loadCases: clean(this.loadCases?.cases || this.staticLoadCases?.items || [], []),
+      loadCombinations: clean(this.loadCombinations?.combinations || this.loadCombinations?.items || [], []),
+      diaphragms: clean(this.diaphragms?.items, []),
+      groups: clean(this.groups?.items, []),
+      massSource: clean(this.massSource),
+      dynamicParams: clean(this.dynamicParams),
     };
+
+    console.log("💾 Export JSON completo:", {
+      nodes: modelData.model.nodes.length,
+      frames: modelData.model.frames.length,
+      areas: modelData.model.areas.length,
+      stories: modelData.model.stories.length,
+      xGrids: modelData.model.referenceGrid?.xGrids?.length || 0,
+      yGrids: modelData.model.referenceGrid?.yGrids?.length || 0,
+    });
 
     return modelData;
   },
 
   importFromJSON(jsonData) {
     try {
-      const data = typeof jsonData === "string" ? JSON.parse(jsonData) : jsonData;
+      const data =
+        typeof jsonData === "string"
+          ? JSON.parse(jsonData)
+          : jsonData;
 
-      // Importar nodos
-      if (data.nodes && Array.isArray(data.nodes)) {
-        this.nodes = data.nodes.map((node) => {
-          const newNode = new StructuralNode(node.x, node.y, node.z, node.id);
-          const importedRestraints =
-            node.restraints ||
-            node.constraints ||
-            null;
-          const importedDiaphragm =
-            node.diaphragm ||
-            (
-              node.diaphragmId
-                ? {
-                  id: node.diaphragmId,
-                  name: node.diaphragmName || node.diaphragmId,
-                  type: "rigid",
-                }
-                : null
+      if (!data || typeof data !== "object") {
+        throw new Error("JSON inválido o vacío.");
+      }
+
+      const cleanClone = (value, fallback = null) => {
+        try {
+          return JSON.parse(JSON.stringify(value ?? fallback));
+        } catch (error) {
+          console.warn("No se pudo clonar dato importado:", value, error);
+          return fallback;
+        }
+      };
+
+      const model = data.model || data;
+      const definitions = data.definitions || data;
+      const options = data.options || {};
+      const results = data.results || {};
+
+      const importedNodes =
+        model.nodes ||
+        data.nodes ||
+        [];
+
+      const importedFrames =
+        model.frames ||
+        model.beams ||
+        model.shapes ||
+        data.frames ||
+        data.beams ||
+        data.shapes ||
+        [];
+
+      const importedAreas =
+        model.areas ||
+        data.areas ||
+        [];
+
+      console.log("📂 Importando JSON interno:", {
+        app: data.app,
+        fileType: data.fileType,
+        schemaVersion: data.schemaVersion,
+        nodes: importedNodes.length,
+        frames: importedFrames.length,
+        areas: importedAreas.length,
+      });
+
+      // ===============================
+      // 1. Limpiar modelo actual
+      // ===============================
+      this.clearAllSelections?.();
+      this.clearEditSelectionFlags?.();
+
+      if (this.idleState && typeof this.setState === "function") {
+        this.setState(this.idleState);
+      }
+
+      this.nodes = [];
+      this.shapes = [];
+      this.areas = [];
+
+      this.referencePoints = [];
+      this.referencePlanes = [];
+      this.dimensionLines = [];
+
+      this.parametricModels = [];
+
+      this.selectedObject = null;
+      this.activeGridPoint = null;
+
+      this.undoStack = [];
+      this.redoStack = [];
+
+      this.editClipboard = null;
+      this.editPasteCount = 0;
+
+      // ===============================
+      // 2. Restaurar referenceGrid
+      // ===============================
+      const importedReferenceGrid =
+        model.referenceGrid ||
+        data.referenceGrid ||
+        null;
+
+      if (importedReferenceGrid) {
+        const importedCustomGeneralGrids =
+          Array.isArray(importedReferenceGrid.generalGrids)
+            ? importedReferenceGrid.generalGrids.filter((grid) => {
+              const source = String(grid.source || "").toLowerCase();
+              return source === "custom" || (source !== "x" && source !== "y");
+            })
+            : [];
+
+        this.referenceGrid = {
+          xGrids: cleanClone(importedReferenceGrid.xGrids, []),
+          yGrids: cleanClone(importedReferenceGrid.yGrids, []),
+
+          // Primero cargamos solo custom. Luego rebuildGeneralGrids reconstruye X/Y.
+          generalGrids: cleanClone(importedCustomGeneralGrids, []),
+
+          xPositions: [],
+          yPositions: [],
+          xLabels: [],
+          yLabels: [],
+
+          storyCount: Number(importedReferenceGrid.storyCount || 0),
+          storyHeight: Number(importedReferenceGrid.storyHeight || 0),
+        };
+
+        this.rebuildReferenceGridCaches?.();
+        this.rebuildGeneralGrids?.();
+
+        // Reasegurar grillas custom si rebuildGeneralGrids no las preservó.
+        importedCustomGeneralGrids.forEach((customGrid) => {
+          const exists = (this.referenceGrid.generalGrids || []).some((grid) => {
+            return (
+              String(grid.id || grid.label) === String(customGrid.id || customGrid.label) &&
+              Number(grid.x1 || 0) === Number(customGrid.x1 || 0) &&
+              Number(grid.y1 || 0) === Number(customGrid.y1 || 0) &&
+              Number(grid.x2 || 0) === Number(customGrid.x2 || 0) &&
+              Number(grid.y2 || 0) === Number(customGrid.y2 || 0)
             );
-          const importedPointSprings =
-            node.pointSprings ||
-            node.springs ||
+          });
+
+          if (!exists) {
+            this.referenceGrid.generalGrids.push(cleanClone(customGrid, {}));
+          }
+        });
+      }
+
+      // ===============================
+      // 3. Restaurar stories
+      // ===============================
+      if (Array.isArray(model.stories) && model.stories.length > 0) {
+        this.stories = cleanClone(model.stories, []);
+      } else {
+        const storyCount = Number(this.referenceGrid?.storyCount || 0);
+        const storyHeight = Number(this.referenceGrid?.storyHeight || 3);
+
+        this.stories = [
+          {
+            id: 0,
+            name: "Base",
+            elevation: 0,
+          },
+        ];
+
+        for (let i = 1; i <= storyCount; i++) {
+          this.stories.push({
+            id: i,
+            name: `Piso ${i}`,
+            elevation: i * storyHeight,
+          });
+        }
+      }
+
+      // ===============================
+      // 4. Reconstruir vistas
+      // ===============================
+      this.rebuildReferenceGridCaches?.();
+      this.rebuildViewSetFromReferenceGrid?.();
+      this.rebuildElevationListsFromReferenceGrid?.();
+
+      this.activeViewIndex = Number(model.activeViewIndex || 0);
+      this.activeStory = Number(model.activeStory || 0);
+
+      this.currentViewMode = model.currentViewMode || "plan";
+      this.currentStory = model.currentStory || "BASE";
+      this.currentElevationX = model.currentElevationX || "none";
+      this.currentElevationZ = model.currentElevationZ || "none";
+
+      // ===============================
+      // 5. Restaurar nodos
+      // ===============================
+      const nodeMap = new Map();
+
+      this.nodes = importedNodes.map((nodeData, index) => {
+        const id = Number(nodeData.id || index + 1);
+
+        const x = Number(nodeData.x ?? nodeData.position?.x ?? 0);
+        const y = Number(nodeData.y ?? nodeData.position?.y ?? 0);
+        const z = Number(nodeData.z ?? nodeData.position?.z ?? 0);
+
+        const newNode = new StructuralNode(
+          {
+            x,
+            y,
+          },
+          id,
+          z
+        );
+
+        newNode.id = id;
+        newNode.position.x = x;
+        newNode.position.y = y;
+        newNode.position.z = z;
+
+        newNode.beams = [];
+        newNode.visible = nodeData.visible !== false;
+
+        const importedRestraints =
+          nodeData.restraints ||
+          nodeData.constraints ||
+          null;
+
+        if (importedRestraints) {
+          newNode.restraints = cleanClone(importedRestraints);
+          newNode.constraints = cleanClone(importedRestraints);
+          newNode.hasRestraints =
+            nodeData.hasRestraints ?? this.jointHasAnyRestraint?.(importedRestraints) ?? true;
+        }
+
+        const importedDiaphragm =
+          nodeData.diaphragm ||
+          (
+            nodeData.diaphragmId
+              ? {
+                id: nodeData.diaphragmId,
+                name: nodeData.diaphragmName || nodeData.diaphragmId,
+                type: "rigid",
+              }
+              : null
+          );
+
+        if (importedDiaphragm) {
+          newNode.diaphragm = cleanClone(importedDiaphragm);
+          newNode.diaphragmId = importedDiaphragm.id || nodeData.diaphragmId || null;
+          newNode.diaphragmName = importedDiaphragm.name || nodeData.diaphragmName || null;
+          newNode.hasDiaphragm = nodeData.hasDiaphragm ?? true;
+        }
+
+        const importedPointSprings =
+          nodeData.pointSprings ||
+          nodeData.springs ||
+          null;
+
+        if (importedPointSprings) {
+          newNode.pointSprings = cleanClone(importedPointSprings);
+          newNode.springs = cleanClone(importedPointSprings);
+          newNode.hasPointSprings =
+            nodeData.hasPointSprings ?? this.jointHasPointSprings?.(importedPointSprings) ?? true;
+        }
+
+        const importedPointLoads =
+          nodeData.pointLoads ||
+          nodeData.jointLoads ||
+          [];
+
+        newNode.pointLoads = cleanClone(importedPointLoads, []);
+        newNode.jointLoads = cleanClone(importedPointLoads, []);
+        newNode.hasPointLoads =
+          nodeData.hasPointLoads ?? newNode.pointLoads.length > 0;
+        newNode.hasJointLoads =
+          nodeData.hasJointLoads ?? newNode.jointLoads.length > 0;
+
+        newNode.groupIds = cleanClone(nodeData.groupIds, []);
+        newNode.groupNames = cleanClone(nodeData.groupNames, []);
+        newNode.groups = cleanClone(nodeData.groups, []);
+
+        if (!newNode.groupIds.length && newNode.groups.length) {
+          newNode.groupIds = newNode.groups.map((group) => group.id || group.name);
+        }
+
+        if (!newNode.groupNames.length && newNode.groups.length) {
+          newNode.groupNames = newNode.groups.map((group) => group.name || group.id);
+        }
+
+        newNode.hasGroups =
+          nodeData.hasGroups ?? newNode.groupIds.length > 0;
+
+        newNode.assignment = cleanClone(nodeData.assignment, {});
+
+        newNode.force = cleanClone(
+          nodeData.force,
+          this.getDefaultNodeForceForImport()
+        );
+
+        if (!newNode.force || !newNode.force.loads) {
+          newNode.force = this.getDefaultNodeForceForImport();
+        }
+
+        newNode.reaction = cleanClone(
+          nodeData.reaction,
+          {
+            x: 0,
+            y: 0,
+            z: 0,
+          }
+        );
+
+        nodeMap.set(String(id), newNode);
+
+        return newNode;
+      });
+
+      this.nextNodeId =
+        Math.max(0, ...this.nodes.map((node) => Number(node.id || 0))) + 1;
+
+      // ===============================
+      // 6. Restaurar frames / beams
+      // ===============================
+      this.shapes = importedFrames
+        .map((frameData, index) => {
+          const node1Id =
+            frameData.node1Id ??
+            frameData.node1 ??
+            frameData.iNode ??
+            frameData.startNode;
+
+          const node2Id =
+            frameData.node2Id ??
+            frameData.node2 ??
+            frameData.jNode ??
+            frameData.endNode;
+
+          const node1 = nodeMap.get(String(node1Id));
+          const node2 = nodeMap.get(String(node2Id));
+
+          if (!node1 || !node2) {
+            console.warn("Frame ignorado por nodos no encontrados:", frameData);
+            return null;
+          }
+
+          const newFrame = new Beam(
+            frameData.E ?? this.globalE,
+            frameData._A ?? frameData.A ?? this.globalA
+          );
+
+          newFrame.id = Number(frameData.id || index + 1);
+
+          newFrame.node1 = node1;
+          newFrame.node2 = node2;
+
+          newFrame.E = frameData.E ?? this.globalE;
+          newFrame.A = frameData.A ?? null;
+          newFrame._A = frameData._A ?? frameData.A ?? this.globalA;
+
+          newFrame.type = frameData.type || frameData.elementType || "beam";
+          newFrame.elementType = frameData.elementType || frameData.type || "beam";
+          newFrame.objectType = frameData.objectType || "frame";
+
+          newFrame.visible = frameData.visible !== false;
+
+          newFrame.material = cleanClone(frameData.material);
+
+          const importedSection =
+            frameData.frameSection ||
+            frameData.section ||
             null;
 
-          if (Array.isArray(node.pointLoads) || Array.isArray(node.jointLoads)) {
-            const importedPointLoads = node.pointLoads || node.jointLoads || [];
+          if (importedSection) {
+            newFrame.section = cleanClone(importedSection);
+            newFrame.frameSection = cleanClone(importedSection);
 
-            newNode.pointLoads = importedPointLoads;
-            newNode.jointLoads = importedPointLoads;
+            newFrame.sectionId =
+              frameData.sectionId ||
+              importedSection.id ||
+              importedSection.name ||
+              null;
 
-            newNode.hasPointLoads =
-              node.hasPointLoads ?? importedPointLoads.length > 0;
+            newFrame.sectionName =
+              frameData.sectionName ||
+              importedSection.name ||
+              importedSection.id ||
+              null;
 
-            newNode.hasJointLoads =
-              node.hasJointLoads ?? importedPointLoads.length > 0;
+            newFrame.A =
+              frameData.A ??
+              importedSection.A ??
+              importedSection.area ??
+              newFrame.A ??
+              null;
+
+            newFrame._A =
+              frameData._A ??
+              importedSection.A ??
+              importedSection.area ??
+              newFrame._A ??
+              null;
+
+            newFrame.hasAssignedSection =
+              frameData.hasAssignedSection ?? true;
+          } else {
+            newFrame.sectionId = frameData.sectionId || null;
+            newFrame.sectionName = frameData.sectionName || null;
+            newFrame.hasAssignedSection =
+              frameData.hasAssignedSection === true;
           }
 
-          if (importedPointSprings) {
-            newNode.pointSprings = importedPointSprings;
-            newNode.springs = importedPointSprings;
-            newNode.hasPointSprings =
-              node.hasPointSprings ?? this.jointHasPointSprings(importedPointSprings);
+          const importedReleases =
+            frameData.releases ||
+            frameData.frameReleases ||
+            null;
+
+          if (importedReleases) {
+            newFrame.releases = cleanClone(importedReleases);
+            newFrame.frameReleases = cleanClone(importedReleases);
+            newFrame.hasFrameReleases =
+              frameData.hasFrameReleases ?? this.frameHasAnyRelease?.(importedReleases) ?? true;
           }
 
-          if (importedDiaphragm) {
-            newNode.diaphragm = importedDiaphragm;
-            newNode.diaphragmId = importedDiaphragm.id || node.diaphragmId || null;
-            newNode.diaphragmName = importedDiaphragm.name || node.diaphragmName || null;
-            newNode.hasDiaphragm = node.hasDiaphragm ?? true;
+          const importedEndOffsets =
+            frameData.endOffsets ||
+            frameData.frameEndOffsets ||
+            null;
+
+          if (importedEndOffsets) {
+            newFrame.endOffsets = cleanClone(importedEndOffsets);
+            newFrame.frameEndOffsets = cleanClone(importedEndOffsets);
+            newFrame.hasEndOffsets =
+              frameData.hasEndOffsets ?? this.frameHasEndOffsets?.(importedEndOffsets) ?? true;
           }
 
-          if (importedRestraints) {
-            newNode.restraints = importedRestraints;
-            newNode.constraints = importedRestraints;
-            newNode.hasRestraints =
-              node.hasRestraints ?? this.jointHasAnyRestraint(importedRestraints);
+          const importedFrameLoads =
+            frameData.frameLoads ||
+            frameData.lineLoads ||
+            [];
+
+          newFrame.frameLoads = cleanClone(importedFrameLoads, []);
+          newFrame.lineLoads = cleanClone(importedFrameLoads, []);
+          newFrame.hasFrameLoads =
+            frameData.hasFrameLoads ?? newFrame.frameLoads.length > 0;
+          newFrame.hasLineLoads =
+            frameData.hasLineLoads ?? newFrame.lineLoads.length > 0;
+
+          newFrame.groupIds = cleanClone(frameData.groupIds, []);
+          newFrame.groupNames = cleanClone(frameData.groupNames, []);
+          newFrame.groups = cleanClone(frameData.groups, []);
+
+          if (!newFrame.groupIds.length && newFrame.groups.length) {
+            newFrame.groupIds = newFrame.groups.map((group) => group.id || group.name);
           }
 
-          if (node.assignment) {
-            newNode.assignment = node.assignment;
+          if (!newFrame.groupNames.length && newFrame.groups.length) {
+            newFrame.groupNames = newFrame.groups.map((group) => group.name || group.id);
           }
 
-          if (Array.isArray(beam.frameLoads) || Array.isArray(beam.lineLoads)) {
-            const importedFrameLoads = beam.frameLoads || beam.lineLoads || [];
+          newFrame.hasGroups =
+            frameData.hasGroups ?? newFrame.groupIds.length > 0;
 
-            newBeam.frameLoads = importedFrameLoads;
-            newBeam.lineLoads = importedFrameLoads;
+          newFrame.assignment = cleanClone(frameData.assignment, {});
 
-            newBeam.hasFrameLoads =
-              beam.hasFrameLoads ?? importedFrameLoads.length > 0;
+          newFrame.fAxial = Number(frameData.fAxial || 0);
+          newFrame.axialForce = Number(frameData.axialForce || 0);
 
-            newBeam.hasLineLoads =
-              beam.hasLineLoads ?? importedFrameLoads.length > 0;
-          }
+          newFrame.designType = frameData.designType || null;
+          newFrame.isSteelJoist = frameData.isSteelJoist === true;
 
-          if (Array.isArray(node.groupIds) || Array.isArray(node.groups)) {
-            newNode.groupIds =
-              node.groupIds ||
-              node.groups?.map((group) => group.id || group.name) ||
-              [];
+          newFrame.designOverwrites = cleanClone(frameData.designOverwrites, {});
+          newFrame.designResults = cleanClone(frameData.designResults, {});
 
-            newNode.groupNames =
-              node.groupNames ||
-              node.groups?.map((group) => group.name || group.id) ||
-              [];
+          newFrame.steelFrameDesignOverwrites =
+            cleanClone(frameData.steelFrameDesignOverwrites);
 
-            newNode.groups =
-              node.groups ||
-              newNode.groupIds.map((id) => ({
-                id,
-                name: id,
-              }));
+          newFrame.steelFrameDesignResult =
+            cleanClone(frameData.steelFrameDesignResult);
 
-            newNode.hasGroups =
-              node.hasGroups ?? newNode.groupIds.length > 0;
-          }
+          newFrame.steelJoistDesignOverwrites =
+            cleanClone(frameData.steelJoistDesignOverwrites);
 
-          return newNode;
+          newFrame.steelJoistDesignResult =
+            cleanClone(frameData.steelJoistDesignResult);
+
+          if (!node1.beams) node1.beams = [];
+          if (!node2.beams) node2.beams = [];
+
+          node1.beams.push(newFrame);
+          node2.beams.push(newFrame);
+
+          return newFrame;
+        })
+        .filter(Boolean);
+
+      this.nextBeamId =
+        Math.max(0, ...this.shapes.map((frame) => Number(frame.id || 0))) + 1;
+
+      // ===============================
+      // 7. Restaurar áreas
+      // ===============================
+      this.areas = importedAreas.map((areaData, index) => ({
+        ...cleanClone(areaData, {}),
+        id: areaData.id ?? index + 1,
+        type: areaData.type || areaData.areaType || "area",
+        areaType: areaData.areaType || areaData.type || "area",
+        visible: areaData.visible !== false,
+        points: cleanClone(areaData.points, []),
+        z: Number(areaData.z || 0),
+        assignment: cleanClone(areaData.assignment, {}),
+      }));
+
+      // ===============================
+      // 8. Restaurar objetos auxiliares
+      // ===============================
+      this.referencePlanes = cleanClone(model.referencePlanes, []);
+      this.referencePoints = cleanClone(model.referencePoints, []);
+      this.dimensionLines = cleanClone(model.dimensionLines, []);
+
+      // ===============================
+      // 9. Restaurar definiciones
+      // ===============================
+      if (!this.materialProperties) {
+        this.materialProperties = {
+          open: false,
+          materials: [],
+          selectedMaterial: null,
+        };
+      }
+
+      this.materialProperties.materials =
+        cleanClone(definitions.materials || data.materials, []);
+
+      if (definitions.materiales || data.materiales) {
+        this.materiales = cleanClone(definitions.materiales || data.materiales, []);
+      }
+
+      if (!this.frameSections) {
+        this.frameSections = {
+          open: false,
+          sections: [],
+          selectedSection: null,
+        };
+      }
+
+      this.frameSections.sections =
+        cleanClone(definitions.frameSections || data.frameSections, []);
+
+      if (definitions.sections || data.sections) {
+        this.sections = cleanClone(definitions.sections || data.sections, this.sections || {});
+      }
+
+      if (!this.loadCases) {
+        this.loadCases = {
+          open: false,
+          cases: [],
+        };
+      }
+
+      this.loadCases.cases =
+        cleanClone(definitions.loadCases || data.loadCases, []);
+
+      if (!this.loadCombinations) {
+        this.loadCombinations = {};
+      }
+
+      const importedLoadCombinations =
+        definitions.loadCombinations ||
+        data.loadCombinations ||
+        [];
+
+      this.loadCombinations.combinations =
+        cleanClone(importedLoadCombinations, []);
+
+      this.loadCombinations.items =
+        cleanClone(importedLoadCombinations, []);
+
+      if (!this.diaphragms) {
+        this.diaphragms = {
+          items: [],
+          selectedDiaphragm: null,
+        };
+      }
+
+      this.diaphragms.items =
+        cleanClone(definitions.diaphragms || data.diaphragms, []);
+
+      if (!this.groups) {
+        this.groups = {
+          items: [],
+          selectedGroup: null,
+        };
+      }
+
+      this.groups.items =
+        cleanClone(definitions.groups || data.groups, []);
+
+      if (!this.sectionCuts) {
+        this.sectionCuts = {
+          items: [],
+          selectedSectionCut: null,
+        };
+      }
+
+      this.sectionCuts.items =
+        cleanClone(definitions.sectionCuts || data.sectionCuts, []);
+
+      if (this.responseSpectrumFunctions) {
+        this.responseSpectrumFunctions.items =
+          cleanClone(definitions.responseSpectrumFunctions, []);
+      }
+
+      if (this.timeHistoryFunctions) {
+        this.timeHistoryFunctions.items =
+          cleanClone(definitions.timeHistoryFunctions, []);
+      }
+
+      if (this.staticLoadCases) {
+        this.staticLoadCases.items =
+          cleanClone(definitions.staticLoadCases, []);
+      }
+
+      if (this.staticNonlinearCases) {
+        this.staticNonlinearCases.items =
+          cleanClone(definitions.staticNonlinearCases, []);
+      }
+
+      if (this.sequentialConstruction) {
+        this.sequentialConstruction.items =
+          cleanClone(definitions.sequentialConstruction, []);
+      }
+
+      if (definitions.massSource || data.massSource) {
+        this.massSource = cleanClone(definitions.massSource || data.massSource);
+      }
+
+      if (definitions.specialSeismicData) {
+        this.specialSeismicData = cleanClone(definitions.specialSeismicData);
+      }
+
+      // ===============================
+      // 10. Restaurar opciones
+      // ===============================
+      if (options.displayOptions) {
+        this.displayOptions = {
+          ...(this.displayOptions || {}),
+          ...cleanClone(options.displayOptions, {}),
+        };
+      }
+
+      this.ensureDisplayOptions?.();
+
+      if (options.designOptions) {
+        this.designOptions = {
+          ...(this.designOptions || {}),
+          ...cleanClone(options.designOptions, {}),
+        };
+      }
+
+      this.ensureDesignOptions?.();
+
+      if (options.preferences) {
+        this.preferences = {
+          ...(this.preferences || {}),
+          ...cleanClone(options.preferences, {}),
+        };
+
+        this.applyDimensionsTolerances?.();
+      }
+
+      if (options.outputDecimals) {
+        this.outputDecimals = {
+          ...(this.outputDecimals || {}),
+          ...cleanClone(options.outputDecimals, {}),
+        };
+      }
+
+      if (options.steelFrameDesign) {
+        this.steelFrameDesign = {
+          ...(this.steelFrameDesign || {}),
+          ...cleanClone(options.steelFrameDesign, {}),
+        };
+      }
+
+      if (options.reinforcementBarSizes) {
+        this.reinforcementBarSizes =
+          cleanClone(options.reinforcementBarSizes, []);
+      }
+
+      if (options.dynamicParams || data.dynamicParams) {
+        this.dynamicParams =
+          cleanClone(options.dynamicParams || data.dynamicParams, {});
+      }
+
+      if (options.analysisOptions || data.analysisOptions) {
+        this.analysisOptions =
+          cleanClone(options.analysisOptions || data.analysisOptions);
+      }
+
+      if (options.availableLoads) {
+        this.availableLoads =
+          cleanClone(options.availableLoads, []);
+      }
+
+      if (options.canvasTheme && typeof this.setCanvasTheme === "function") {
+        this.setCanvasTheme(options.canvasTheme);
+      }
+
+      // ===============================
+      // 11. Restaurar resultados
+      // ===============================
+      this.K_Global_Reducido =
+        cleanClone(results.K_Global_Reducido, []);
+
+      this.Fuerzas_Globales_Reducidas =
+        cleanClone(results.Fuerzas_Globales_Reducidas, []);
+
+      this.D_Global_Reducido =
+        cleanClone(results.D_Global_Reducido, []);
+
+      this.deflecciones =
+        cleanClone(results.deflecciones, []);
+
+      this.desplazamientosPosition =
+        cleanClone(results.desplazamientosPosition, []);
+
+      this.matrizDesplazamiento =
+        cleanClone(results.matrizDesplazamiento, []);
+
+      this.analysisResults =
+        cleanClone(results.analysisResults, null);
+
+      this.modelCheck =
+        cleanClone(results.modelCheck, null);
+
+      if (this.analysisOptions && this.modelCheck) {
+        this.analysisOptions.lastModelCheck = {
+          checkedAt: this.modelCheck.checkedAt || null,
+          errors: this.modelCheck.errors || 0,
+          warnings: this.modelCheck.warnings || 0,
+          info: this.modelCheck.info || 0,
+          canRunAnalysis: this.modelCheck.canRunAnalysis === true,
+        };
+      }
+
+      if (this.analysisResults && this.analysisOptions?.analysisStatus === "completed") {
+        if (!this.displayOptions) {
+          this.displayOptions = {};
+        }
+
+        this.displayOptions.analysisResultsAvailable = true;
+
+        this.displayOptions.lastAnalysisRun = {
+          ranAt: this.analysisResults.ranAt || null,
+          status: this.analysisResults.status || "completed",
+          maxDisplacement: this.analysisResults.summary?.maxDisplacement || 0,
+          maxAxial: this.analysisResults.summary?.maxAxial || 0,
+        };
+
+        // Al abrir JSON, dejamos los resultados disponibles,
+        // pero no activamos deformada ni diagramas automáticamente.
+        this.displayOptions.showDeformedShape = false;
+        this.displayOptions.showModeShape = false;
+        this.displayOptions.showMemberForces = false;
+
+        if (!this.options) {
+          this.options = {};
+        }
+
+        this.options.showDeflection = false;
+        this.options.showFAxiales = false;
+        this.options.showFAxialesValues = true;
+      }
+
+      // ===============================
+      // 12. Ajustar vista 2D
+      // ===============================
+      if (
+        this.grid?.centerToView &&
+        this.referenceGrid?.xPositions?.length &&
+        this.referenceGrid?.yPositions?.length
+      ) {
+        const minX = Math.min(...this.referenceGrid.xPositions);
+        const maxX = Math.max(...this.referenceGrid.xPositions);
+        const minY = Math.min(...this.referenceGrid.yPositions);
+        const maxY = Math.max(...this.referenceGrid.yPositions);
+
+        this.grid.centerToView({
+          cminx: minX - 2,
+          cminy: minY - 2,
+          cmaxx: maxX + 2,
+          cmaxy: maxY + 2,
         });
-        this.nextNodeId = Math.max(...this.nodes.map((n) => n.id), 0) + 1;
       }
 
-      // Importar elementos
-      if (data.beams && Array.isArray(data.beams)) {
-        this.shapes = data.beams
-          .map((beam) => {
-            const node1 = this.nodes.find((n) => n.id === beam.node1);
-            const node2 = this.nodes.find((n) => n.id === beam.node2);
-            if (node1 && node2) {
-              const newBeam = new Beam(node1, node2, beam.id);
-              if (beam.material) {
-                newBeam.material = beam.material;
-              }
-
-              const importedSection =
-                beam.frameSection ||
-                beam.section ||
-                null;
-
-              if (importedSection) {
-                newBeam.section = importedSection;
-                newBeam.frameSection = importedSection;
-
-                newBeam.sectionId =
-                  beam.sectionId ||
-                  importedSection.id ||
-                  importedSection.name ||
-                  null;
-
-                newBeam.sectionName =
-                  beam.sectionName ||
-                  importedSection.name ||
-                  importedSection.id ||
-                  null;
-
-                newBeam.A = beam.A ?? importedSection.A ?? importedSection.area ?? newBeam.A ?? null;
-                newBeam._A = beam._A ?? importedSection.A ?? importedSection.area ?? newBeam._A ?? null;
-
-                newBeam.hasAssignedSection = true;
-              }
-
-              if (beam.type) {
-                newBeam.type = beam.type;
-              }
-
-              if (beam.elementType) {
-                newBeam.elementType = beam.elementType;
-              }
-
-              if (beam.assignment) {
-                newBeam.assignment = beam.assignment;
-              }
-
-              if (beam.releases || beam.frameReleases) {
-                const importedReleases = beam.releases || beam.frameReleases;
-
-                newBeam.releases = importedReleases;
-                newBeam.frameReleases = importedReleases;
-                newBeam.hasFrameReleases =
-                  beam.hasFrameReleases ?? this.frameHasAnyRelease(importedReleases);
-              }
-
-              if (beam.assignment) {
-                newBeam.assignment = beam.assignment;
-              }
-
-              if (beam.endOffsets || beam.frameEndOffsets) {
-                const importedEndOffsets = beam.endOffsets || beam.frameEndOffsets;
-
-                newBeam.endOffsets = importedEndOffsets;
-                newBeam.frameEndOffsets = importedEndOffsets;
-                newBeam.hasEndOffsets =
-                  beam.hasEndOffsets ?? this.frameHasEndOffsets(importedEndOffsets);
-              }
-
-              if (Array.isArray(beam.groupIds) || Array.isArray(beam.groups)) {
-                newBeam.groupIds =
-                  beam.groupIds ||
-                  beam.groups?.map((group) => group.id || group.name) ||
-                  [];
-
-                newBeam.groupNames =
-                  beam.groupNames ||
-                  beam.groups?.map((group) => group.name || group.id) ||
-                  [];
-
-                newBeam.groups =
-                  beam.groups ||
-                  newBeam.groupIds.map((id) => ({
-                    id,
-                    name: id,
-                  }));
-
-                newBeam.hasGroups =
-                  beam.hasGroups ?? newBeam.groupIds.length > 0;
-              }
-
-              return newBeam;
-            }
-            return null;
-          })
-          .filter((beam) => beam !== null);
-        this.nextBeamId = Math.max(...this.shapes.map((b) => b.id), 0) + 1;
-      }
-
-      // Importar materiales
-      if (data.materials) {
-        this.materialProperties.materials = data.materials;
-      }
-
-      // Importar secciones de frame
-      if (data.frameSections) {
-        this.frameSections.sections = data.frameSections;
-      }
-
-      // Importar casos de carga
-      if (data.loadCases) {
-        this.loadCases.cases = data.loadCases;
-      }
-
-      // Importar combinaciones de carga
-      if (data.loadCombinations) {
-        this.loadCombinations.combinations = data.loadCombinations;
-      }
-
-      // Importar diafragmas
-      if (data.diaphragms) {
-        this.diaphragms.items = data.diaphragms;
-      }
-
-      // Importar cortes de sección
-      if (data.sectionCuts) {
-        this.sectionCuts.items = data.sectionCuts;
-      }
-
-      // Importar grupos
-      if (data.groups) {
-        this.groups.items = data.groups;
-      }
-
-      // Importar opciones de análisis
-      if (data.analysisOptions) {
-        this.analysisOptions = data.analysisOptions;
-      }
-
-      // Importar fuente de masa
-      if (data.massSource) {
-        this.massSource = data.massSource;
-      }
-
-      // Importar parámetros dinámicos
-      if (data.dynamicParams) {
-        this.dynamicParams = data.dynamicParams;
-      }
-
-      // Redibujar y sincronizar
-      this.redraw();
-      this.sync3D();
       this.rebuildGroupMemberships?.();
+
+      this.grid3DDrawn = false;
+      this.pendingGrid3D = false;
+
+      this.redraw?.();
+
+      // Evita warning WebGL por redibujar mientras Babylon compila/renderiza.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          this.sync3D?.();
+        });
+      });
+
+      console.log("✅ JSON importado correctamente:", {
+        nodes: this.nodes.length,
+        frames: this.shapes.length,
+        areas: this.areas.length,
+        stories: this.stories.length,
+        xGrids: this.referenceGrid?.xGrids?.length || 0,
+        yGrids: this.referenceGrid?.yGrids?.length || 0,
+        viewSet: this.viewSet?.length || 0,
+      });
 
       return true;
     } catch (error) {
-      console.error("Error al importar JSON:", error);
+      console.error("❌ Error al importar JSON:", error);
       return false;
     }
   },
@@ -14844,7 +17036,7 @@ export default () => ({
       this.zoomExtents?.();
     }
 
-    this.sync3D?.();
+    this.redraw?.();
 
     this.showMessage?.(`🎥 Set 3D View: ${viewType}`);
   },
@@ -14930,7 +17122,6 @@ export default () => ({
     }
 
     this.redraw?.();
-    this.sync3D?.();
 
     this.showMessage?.(`🗺️ Vista en planta: ${selectedView?.name || selectedIndex}`);
   },
@@ -15014,7 +17205,6 @@ export default () => ({
     }
 
     this.redraw?.();
-    this.sync3D?.();
 
     this.showMessage?.(`📐 Vista en elevación: ${selectedView?.name || selectedIndex}`);
   },
@@ -15548,6 +17738,901 @@ export default () => ({
 
   setAnalysisOptions() {
     window.dispatchEvent(new CustomEvent("open-analysis-options-modal"));
+  },
+
+  // =================================================
+  // ========== ANALYZE > RUN ANALYSIS ===============
+  // =================================================
+
+  ensureRunAnalysisOptions() {
+    if (!this.analysisOptions) {
+      this.analysisOptions = {};
+    }
+
+    this.analysisOptions = {
+      enabled: this.analysisOptions.enabled ?? true,
+      analysisType: this.analysisOptions.analysisType || "full3d",
+      solverType: this.analysisOptions.solverType || "linear_static",
+      runStaticAnalysis: this.analysisOptions.runStaticAnalysis ?? true,
+      considerSelfWeight: this.analysisOptions.considerSelfWeight ?? true,
+      analysisStatus: this.analysisOptions.analysisStatus || "not_run",
+
+      dof: {
+        ux: this.analysisOptions.dof?.ux ?? true,
+        uy: this.analysisOptions.dof?.uy ?? true,
+        uz: this.analysisOptions.dof?.uz ?? true,
+        rx: this.analysisOptions.dof?.rx ?? true,
+        ry: this.analysisOptions.dof?.ry ?? true,
+        rz: this.analysisOptions.dof?.rz ?? true,
+      },
+
+      dynamicAnalysis: {
+        enabled: this.analysisOptions.dynamicAnalysis?.enabled ?? true,
+      },
+
+      dynamicParams: {
+        ...(this.dynamicParams || {}),
+        ...(this.analysisOptions.dynamicParams || {}),
+      },
+
+      pDelta: {
+        enabled: this.analysisOptions.pDelta?.enabled ?? false,
+      },
+
+      pDeltaParams: {
+        method: this.analysisOptions.pDeltaParams?.method || "iterative",
+        maxIterations: Number(this.analysisOptions.pDeltaParams?.maxIterations || 1),
+        tolerance: this.analysisOptions.pDeltaParams?.tolerance || "1.000E-03",
+        loads: Array.isArray(this.analysisOptions.pDeltaParams?.loads)
+          ? this.analysisOptions.pDeltaParams.loads
+          : [{ name: "DEAD", scale: 1 }],
+      },
+
+      dbAccess: {
+        enabled: this.analysisOptions.dbAccess?.enabled ?? false,
+        filename: this.analysisOptions.dbAccess?.filename || "analysis_output",
+      },
+
+      lastModelCheck: this.analysisOptions.lastModelCheck || null,
+      updatedAt: this.analysisOptions.updatedAt || null,
+    };
+
+    return this.analysisOptions;
+  },
+
+  getRunAnalysisNodes() {
+    return Array.isArray(this.nodes) ? this.nodes : [];
+  },
+
+  getRunAnalysisFrames() {
+    return (this.shapes || []).filter((frame) => {
+      return frame?.node1 && frame?.node2;
+    });
+  },
+
+  getRunAnalysisPoint(obj) {
+    const p = obj?.position || obj || {};
+
+    return {
+      x: Number(p.x || 0),
+      y: Number(p.y || 0),
+      z: Number(p.z || 0),
+    };
+  },
+
+  getRunAnalysisDistance(p1, p2) {
+    const dx = Number(p2.x || 0) - Number(p1.x || 0);
+    const dy = Number(p2.y || 0) - Number(p1.y || 0);
+    const dz = Number(p2.z || 0) - Number(p1.z || 0);
+
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  },
+
+  getRunAnalysisFrameLength(frame) {
+    if (!frame?.node1?.position || !frame?.node2?.position) return 0;
+
+    return this.getRunAnalysisDistance(
+      this.getRunAnalysisPoint(frame.node1),
+      this.getRunAnalysisPoint(frame.node2)
+    );
+  },
+
+  nodeHasRunAnalysisRestraint(node) {
+    const r = node?.restraints || node?.constraints;
+
+    if (!r) return false;
+
+    return (
+      r.ux === true ||
+      r.uy === true ||
+      r.uz === true ||
+      r.rx === true ||
+      r.ry === true ||
+      r.rz === true
+    );
+  },
+
+  nodeHasRunAnalysisSpring(node) {
+    const springs = node?.pointSprings || node?.springs;
+    const k = springs?.stiffness;
+
+    if (!k) return false;
+
+    return (
+      Number(k.ux || 0) !== 0 ||
+      Number(k.uy || 0) !== 0 ||
+      Number(k.uz || 0) !== 0 ||
+      Number(k.rx || 0) !== 0 ||
+      Number(k.ry || 0) !== 0 ||
+      Number(k.rz || 0) !== 0
+    );
+  },
+
+  getRunAnalysisLoadSummary() {
+    const nodes = this.getRunAnalysisNodes();
+    const frames = this.getRunAnalysisFrames();
+
+    let jointLoads = 0;
+    let frameLoads = 0;
+    let legacyForces = 0;
+
+    const countUniqueLoads = (object, fields) => {
+      const seen = new Set();
+
+      fields.forEach((field) => {
+        const loads = object?.[field];
+
+        if (!Array.isArray(loads)) return;
+
+        loads.forEach((load) => {
+          seen.add(JSON.stringify({
+            id: load?.id || null,
+            type: load?.type || null,
+            loadCase: load?.loadCase || null,
+            forces: load?.forces || null,
+            value: load?.value ?? null,
+            startValue: load?.startValue ?? null,
+            endValue: load?.endValue ?? null,
+            direction: load?.direction || null,
+          }));
+        });
+      });
+
+      return seen.size;
+    };
+
+    nodes.forEach((node) => {
+      jointLoads += countUniqueLoads(node, ["pointLoads", "jointLoads", "loads"]);
+
+      const f = node.force || {};
+      const hasLegacyForce =
+        Number(f.fx || f.Fx || 0) !== 0 ||
+        Number(f.fy || f.Fy || 0) !== 0 ||
+        Number(f.fz || f.Fz || 0) !== 0 ||
+        Number(f.mx || f.Mx || 0) !== 0 ||
+        Number(f.my || f.My || 0) !== 0 ||
+        Number(f.mz || f.Mz || 0) !== 0;
+
+      if (hasLegacyForce) legacyForces++;
+    });
+
+    frames.forEach((frame) => {
+      frameLoads += countUniqueLoads(frame, ["frameLoads", "lineLoads", "loads"]);
+    });
+
+    return {
+      jointLoads,
+      frameLoads,
+      legacyForces,
+      totalLoads: jointLoads + frameLoads + legacyForces,
+    };
+  },
+
+  getRunAnalysisReadiness() {
+    const nodes = this.getRunAnalysisNodes();
+    const frames = this.getRunAnalysisFrames();
+    const areas = Array.isArray(this.areas) ? this.areas : [];
+
+    const errors = [];
+    const warnings = [];
+
+    if (this.modelCheck && this.modelCheck.canRunAnalysis === false) {
+      errors.push("Check Model tiene errores. Corrige el modelo antes de ejecutar Run Analysis.");
+    }
+
+    if (nodes.length === 0 && frames.length === 0 && areas.length === 0) {
+      errors.push("El modelo está vacío. No hay nodos, barras ni áreas para analizar.");
+    }
+
+    const invalidFrames = (this.shapes || []).filter((frame) => {
+      return !frame?.node1 || !frame?.node2;
+    });
+
+    if (invalidFrames.length > 0) {
+      errors.push(`Existen ${invalidFrames.length} elemento(s) Frame / Line sin nodos válidos.`);
+    }
+
+    const zeroLengthFrames = frames.filter((frame) => {
+      return this.getRunAnalysisFrameLength(frame) <= 0.000001;
+    });
+
+    if (zeroLengthFrames.length > 0) {
+      errors.push(`Existen ${zeroLengthFrames.length} elemento(s) Frame / Line con longitud cero.`);
+    }
+
+    const supports = nodes.filter((node) => {
+      return this.nodeHasRunAnalysisRestraint(node) || this.nodeHasRunAnalysisSpring(node);
+    });
+
+    if (frames.length > 0 && supports.length === 0) {
+      errors.push("No se encontraron apoyos, restricciones o resortes. El modelo puede ser inestable.");
+    }
+
+    const loadSummary = this.getRunAnalysisLoadSummary();
+
+    if (frames.length > 0 && loadSummary.totalLoads === 0) {
+      warnings.push("No se encontraron cargas asignadas. El análisis se ejecutará con resultados mínimos.");
+    }
+
+    return {
+      canRun: errors.length === 0,
+      errors,
+      warnings,
+      nodes,
+      frames,
+      areas,
+      supports,
+      loadSummary,
+    };
+  },
+
+  async runAnalysis() {
+    this.ensureRunAnalysisOptions();
+
+    const readiness = this.getRunAnalysisReadiness();
+
+    if (!readiness.canRun) {
+      this.analysisOptions.analysisStatus = "failed";
+
+      const html = `
+      <div style="text-align:left; font-size:13px;">
+        <p>Run Analysis no puede continuar por los siguientes errores:</p>
+        <ul style="margin-top:10px; padding-left:18px;">
+          ${readiness.errors.map((error) => `<li>${error}</li>`).join("")}
+        </ul>
+        <p style="margin-top:12px; color:#777;">
+          Recomendación: ejecute Analyze &gt; Check Model y corrija los errores del modelo.
+        </p>
+      </div>
+    `;
+
+      if (typeof Swal !== "undefined") {
+        await Swal.fire({
+          icon: "error",
+          title: "Run Analysis bloqueado",
+          html,
+          confirmButtonText: "Entendido",
+        });
+      } else {
+        this.showMessage?.("Run Analysis bloqueado. Revise Check Model.", "warning");
+      }
+
+      console.warn("❌ Analyze > Run Analysis bloqueado:", readiness);
+      return false;
+    }
+
+    this.analysisOptions.analysisStatus = "running";
+    this.analysisOptions.startedAt = new Date().toISOString();
+
+    if (typeof Swal !== "undefined") {
+      Swal.fire({
+        title: "Run Analysis",
+        html: "Ejecutando análisis inicial del modelo...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    const results = this.performInitialRunAnalysis(readiness);
+
+    this.applyInitialRunAnalysisResults(results);
+
+    this.analysisOptions.analysisStatus = "completed";
+    this.analysisOptions.completedAt = new Date().toISOString();
+
+    this.redraw?.();
+
+    requestAnimationFrame(() => {
+      this.sync3D?.();
+    });
+
+    if (typeof Swal !== "undefined") {
+      await Swal.fire({
+        icon: "success",
+        title: "Analysis Complete",
+        html: `
+        <div style="text-align:left; font-size:13px;">
+          <p><b>Estado:</b> Completed</p>
+          <p><b>Nodos analizados:</b> ${results.summary.nodes}</p>
+          <p><b>Frames analizados:</b> ${results.summary.frames}</p>
+          <p><b>Cargas detectadas:</b> ${results.summary.loads}</p>
+          <p><b>Desplazamiento máximo estimado:</b> ${Number(results.summary.maxDisplacement || 0).toExponential(3)} m</p>
+          <p><b>Fuerza axial máxima estimada:</b> ${Number(results.summary.maxAxial || 0).toFixed(3)}</p>
+          <div style="margin-top:10px; color:#777; font-size:12px;">
+            Versión inicial: resultados simplificados para conectar Analyze con Display.
+          </div>
+        </div>
+      `,
+        confirmButtonText: "OK",
+      });
+    }
+
+    this.showMessage?.("Analyze: Run Analysis completado.");
+
+    console.log("✅ Analyze > Run Analysis:", results);
+
+    return true;
+  },
+
+  performInitialRunAnalysis(readiness) {
+    const options = this.ensureRunAnalysisOptions();
+
+    const nodes = readiness.nodes;
+    const frames = readiness.frames;
+
+    const nodeResults = {};
+    const frameResults = {};
+    const reactions = {};
+
+    const nodeConnectivity = new Map();
+
+    nodes.forEach((node) => {
+      nodeConnectivity.set(String(node.id), []);
+    });
+
+    frames.forEach((frame) => {
+      if (frame.node1?.id !== undefined) {
+        nodeConnectivity.get(String(frame.node1.id))?.push(frame);
+      }
+
+      if (frame.node2?.id !== undefined) {
+        nodeConnectivity.get(String(frame.node2.id))?.push(frame);
+      }
+    });
+
+    let maxDisplacement = 0;
+    let maxAxial = 0;
+
+    nodes.forEach((node, index) => {
+      const nodeId = node.id || index + 1;
+
+      const isSupported =
+        this.nodeHasRunAnalysisRestraint(node) ||
+        this.nodeHasRunAnalysisSpring(node);
+
+      const loadVector = this.getNodeResultantLoadForRunAnalysis(node);
+      const connectedFrames = nodeConnectivity.get(String(node.id)) || [];
+
+      const stiffnessBase = Math.max(connectedFrames.length, 1) * 10000;
+
+      const loadMagnitude = Math.sqrt(
+        loadVector.fx * loadVector.fx +
+        loadVector.fy * loadVector.fy +
+        loadVector.fz * loadVector.fz
+      );
+
+      const factor = isSupported ? 0 : loadMagnitude / stiffnessBase;
+
+      const displacement = {
+        ux: options.dof.ux ? factor * Math.sign(loadVector.fx || 0) : 0,
+        uy: options.dof.uy ? factor * Math.sign(loadVector.fy || 0) : 0,
+        uz: options.dof.uz ? factor * Math.sign(loadVector.fz || 0) : 0,
+        rx: options.dof.rx ? factor * 0.001 : 0,
+        ry: options.dof.ry ? factor * 0.001 : 0,
+        rz: options.dof.rz ? factor * 0.001 : 0,
+      };
+
+      const displacementMagnitude = Math.sqrt(
+        displacement.ux * displacement.ux +
+        displacement.uy * displacement.uy +
+        displacement.uz * displacement.uz
+      );
+
+      maxDisplacement = Math.max(maxDisplacement, displacementMagnitude);
+
+      nodeResults[nodeId] = {
+        nodeId,
+        position: this.getRunAnalysisPoint(node),
+        displacement,
+        displacementMagnitude,
+        loadVector,
+        supported: isSupported,
+      };
+
+      node.analysisDisplacement = { ...displacement };
+      node.displacement = { ...displacement };
+      node.deflection = displacementMagnitude;
+
+      if (isSupported) {
+        reactions[nodeId] = {
+          nodeId,
+          rxnFx: -loadVector.fx,
+          rxnFy: -loadVector.fy,
+          rxnFz: -loadVector.fz,
+          rxnMx: -loadVector.mx,
+          rxnMy: -loadVector.my,
+          rxnMz: -loadVector.mz,
+        };
+
+        node.reaction = reactions[nodeId];
+      }
+    });
+
+    frames.forEach((frame, index) => {
+      const frameId = frame.id || index + 1;
+      const length = Math.max(this.getRunAnalysisFrameLength(frame), 0.000001);
+
+      const frameLoad = this.getFrameResultantLoadForRunAnalysis(frame);
+
+      const n1 = nodeResults[frame.node1?.id];
+      const n2 = nodeResults[frame.node2?.id];
+
+      const area = this.getFrameAreaForRunAnalysis(frame);
+      const elasticModulus = this.getFrameElasticModulusForRunAnalysis(frame);
+
+      const relativeDisp =
+        (n2?.displacementMagnitude || 0) -
+        (n1?.displacementMagnitude || 0);
+
+      const axialFromDeformation =
+        elasticModulus * area * (relativeDisp / length);
+
+      const axialFromLoads = frameLoad.total / Math.max(length, 1);
+
+      const axial = axialFromDeformation + axialFromLoads;
+      const shear2 = frameLoad.vertical * 0.5;
+      const shear3 = frameLoad.horizontal * 0.5;
+      const moment2 = shear2 * length / 4;
+      const moment3 = shear3 * length / 4;
+      const torsion = frameLoad.torsion || 0;
+
+      maxAxial = Math.max(maxAxial, Math.abs(axial));
+
+      const result = {
+        frameId,
+        length,
+        axial,
+        shear2,
+        shear3,
+        moment2,
+        moment3,
+        torsion,
+        load: frameLoad,
+        section: frame.sectionName || frame.sectionId || frame.frameSection?.name || "Sin sección",
+      };
+
+      frameResults[frameId] = result;
+
+      frame.fAxial = axial;
+      frame.analysisForces = { ...result };
+      frame.internalForces = { ...result };
+    });
+
+    const modalResults = this.calculateInitialModalRunResults(nodes, frames, options);
+
+    return {
+      type: "initial-analysis-results",
+      status: "completed",
+      solverType: options.solverType,
+      analysisType: options.analysisType,
+      runStaticAnalysis: options.runStaticAnalysis,
+      dynamicAnalysis: options.dynamicAnalysis,
+      pDelta: options.pDelta,
+      ranAt: new Date().toISOString(),
+
+      summary: {
+        nodes: nodes.length,
+        frames: frames.length,
+        areas: readiness.areas.length,
+        stories: (this.stories || []).length,
+        loads: readiness.loadSummary.totalLoads,
+        supports: readiness.supports.length,
+        maxDisplacement,
+        maxAxial,
+        warnings: readiness.warnings,
+      },
+
+      nodes: nodeResults,
+      frames: frameResults,
+      reactions,
+      modalResults,
+    };
+  },
+
+  getNodeResultantLoadForRunAnalysis(node) {
+    const result = {
+      fx: 0,
+      fy: 0,
+      fz: 0,
+      mx: 0,
+      my: 0,
+      mz: 0,
+    };
+
+    const addForceObject = (forces = {}) => {
+      result.fx += Number(forces.fx ?? forces.Fx ?? 0);
+      result.fy += Number(forces.fy ?? forces.Fy ?? 0);
+      result.fz += Number(forces.fz ?? forces.Fz ?? 0);
+      result.mx += Number(forces.mx ?? forces.Mx ?? 0);
+      result.my += Number(forces.my ?? forces.My ?? 0);
+      result.mz += Number(forces.mz ?? forces.Mz ?? 0);
+    };
+
+    if (node?.force) {
+      addForceObject(node.force);
+    }
+
+    const loads = [
+      ...(Array.isArray(node?.pointLoads) ? node.pointLoads : []),
+      ...(Array.isArray(node?.jointLoads) ? node.jointLoads : []),
+      ...(Array.isArray(node?.loads) ? node.loads : []),
+    ];
+
+    const seen = new Set();
+
+    loads.forEach((load) => {
+      const key = JSON.stringify(load);
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      if (load.type === "force" && load.forces) {
+        addForceObject(load.forces);
+      }
+
+      if (load.type === "ground-displacement" && load.displacements) {
+        result.fx += Number(load.displacements.ux || 0) * 1000;
+        result.fy += Number(load.displacements.uy || 0) * 1000;
+        result.fz += Number(load.displacements.uz || 0) * 1000;
+      }
+
+      if (load.type === "temperature" && load.temperature) {
+        result.fz += Number(load.temperature.deltaT || 0) * 0.1;
+      }
+    });
+
+    return result;
+  },
+
+  getFrameResultantLoadForRunAnalysis(frame) {
+    const result = {
+      total: 0,
+      vertical: 0,
+      horizontal: 0,
+      torsion: 0,
+    };
+
+    const length = Math.max(this.getRunAnalysisFrameLength(frame), 1);
+
+    const loads = [
+      ...(Array.isArray(frame?.frameLoads) ? frame.frameLoads : []),
+      ...(Array.isArray(frame?.lineLoads) ? frame.lineLoads : []),
+      ...(Array.isArray(frame?.loads) ? frame.loads : []),
+    ];
+
+    const seen = new Set();
+
+    loads.forEach((load) => {
+      const key = JSON.stringify(load);
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      if (load.type === "point") {
+        const value = Number(load.value || 0);
+        result.total += Math.abs(value);
+
+        if (String(load.direction || "").toUpperCase().includes("Z")) {
+          result.vertical += value;
+        } else {
+          result.horizontal += value;
+        }
+      }
+
+      if (load.type === "distributed") {
+        const w1 = Number(load.startValue ?? load.value ?? 0);
+        const w2 = Number(load.endValue ?? load.value ?? 0);
+        const total = ((w1 + w2) / 2) * length;
+
+        result.total += Math.abs(total);
+
+        if (String(load.direction || "").toUpperCase().includes("Z")) {
+          result.vertical += total;
+        } else {
+          result.horizontal += total;
+        }
+      }
+
+      if (load.type === "temperature") {
+        result.total += Math.abs(Number(load.temperature?.deltaT || 0)) * 0.1;
+      }
+    });
+
+    return result;
+  },
+
+  getFrameAreaForRunAnalysis(frame) {
+    const section =
+      frame?.frameSection ||
+      frame?.section ||
+      frame?.assignment?.frameSection ||
+      null;
+
+    const sectionArea = Number(
+      section?.A ??
+      section?.area ??
+      section?.Area ??
+      0
+    );
+
+    if (sectionArea > 0) return sectionArea;
+
+    const frameArea = Number(frame?.A ?? frame?._A ?? 0);
+
+    if (frameArea > 0) return frameArea;
+
+    return 0.01;
+  },
+
+  getFrameElasticModulusForRunAnalysis(frame) {
+    const section =
+      frame?.frameSection ||
+      frame?.section ||
+      null;
+
+    const eValue = Number(
+      frame?.E ??
+      section?.E ??
+      section?.elasticModulus ??
+      this.globalE ??
+      210000
+    );
+
+    return Number.isFinite(eValue) && eValue > 0 ? eValue : 210000;
+  },
+
+  calculateInitialModalRunResults(nodes, frames, options) {
+    if (!options.dynamicAnalysis?.enabled) {
+      return {
+        enabled: false,
+        modes: [],
+      };
+    }
+
+    const numModes = Math.max(
+      1,
+      Number(options.dynamicParams?.numModes || this.dynamicParams?.numModes || 3)
+    );
+
+    const totalMass = Math.max(nodes.length, 1);
+    const totalStiffness = Math.max(frames.length, 1) * 10000;
+
+    const baseFrequency = Math.sqrt(totalStiffness / totalMass) / (2 * Math.PI);
+
+    const modes = [];
+
+    for (let i = 1; i <= numModes; i++) {
+      const frequency = baseFrequency * i;
+      const period = frequency > 0 ? 1 / frequency : 0;
+
+      modes.push({
+        mode: i,
+        frequency,
+        period,
+        massParticipationX: Math.min(100, (100 / numModes) * i),
+        massParticipationY: Math.min(100, (95 / numModes) * i),
+        massParticipationZ: Math.min(100, (80 / numModes) * i),
+      });
+    }
+
+    return {
+      enabled: true,
+      analysisType: options.dynamicParams?.analysisType || "eigenvectors",
+      numModes,
+      modes,
+    };
+  },
+
+  applyInitialRunAnalysisResults(results) {
+    this.analysisResults = JSON.parse(JSON.stringify(results));
+
+    this.K_Global_Reducido = [
+      {
+        type: "initial-global-stiffness-summary",
+        frames: results.summary.frames,
+        estimatedStiffness: Math.max(results.summary.frames, 1) * 10000,
+      },
+    ];
+
+    this.Fuerzas_Globales_Reducidas = [
+      {
+        type: "initial-global-force-summary",
+        totalLoads: results.summary.loads,
+        maxAxial: results.summary.maxAxial,
+      },
+    ];
+
+    this.D_Global_Reducido = Object.values(results.nodes || {}).map((nodeResult) => {
+      return {
+        nodeId: nodeResult.nodeId,
+        ...nodeResult.displacement,
+      };
+    });
+
+    const nodeResultsList = Object.values(results.nodes || {});
+
+    this.deflecciones = nodeResultsList.map((nodeResult) => {
+      const d = nodeResult.displacement || {};
+
+      return {
+        nodeId: nodeResult.nodeId,
+        id: nodeResult.nodeId,
+
+        value: Number(nodeResult.displacementMagnitude || 0),
+
+        displacement: {
+          ux: Number(d.ux || 0),
+          uy: Number(d.uy || 0),
+          uz: Number(d.uz || 0),
+          rx: Number(d.rx || 0),
+          ry: Number(d.ry || 0),
+          rz: Number(d.rz || 0),
+        },
+
+        // Compatibilidad con renderers que esperan arrays
+        displacements: [
+          Number(d.ux || 0),
+          Number(d.uy || 0),
+          Number(d.uz || 0),
+        ],
+
+        desplazamiento: [
+          Number(d.ux || 0),
+          Number(d.uy || 0),
+          Number(d.uz || 0),
+        ],
+
+        dx: Number(d.ux || 0),
+        dy: Number(d.uy || 0),
+        dz: Number(d.uz || 0),
+
+        ux: Number(d.ux || 0),
+        uy: Number(d.uy || 0),
+        uz: Number(d.uz || 0),
+      };
+    });
+
+    this.desplazamientosPosition = Object.values(results.nodes || {}).map((nodeResult) => {
+      const p = nodeResult.position || {};
+      const d = nodeResult.displacement || {};
+
+      return {
+        nodeId: nodeResult.nodeId,
+        x: Number(p.x || 0) + Number(d.ux || 0),
+        y: Number(p.y || 0) + Number(d.uy || 0),
+        z: Number(p.z || 0) + Number(d.uz || 0),
+      };
+    });
+
+    this.matrizDesplazamiento = this.D_Global_Reducido.map((item) => {
+      return [
+        item.nodeId,
+        item.ux || 0,
+        item.uy || 0,
+        item.uz || 0,
+        item.rx || 0,
+        item.ry || 0,
+        item.rz || 0,
+      ];
+    });
+
+    this.displayOptions = {
+      ...(this.displayOptions || {}),
+      analysisResultsAvailable: true,
+      lastAnalysisRun: {
+        ranAt: results.ranAt,
+        status: results.status,
+        maxDisplacement: results.summary.maxDisplacement,
+        maxAxial: results.summary.maxAxial,
+      },
+    };
+
+    if (!this.options) {
+      this.options = {};
+    }
+
+    this.displayOptions.showDeformedShape = false;
+    this.displayOptions.showModeShape = false;
+
+    this.options.showDeflection = false;
+    this.options.showFAxiales = false;
+    this.options.showFAxialesValues = true;
+  },
+
+  // =================================================
+  // ========== ANALYZE > RESULT STATUS ==============
+  // =================================================
+
+  hasCompletedAnalysisResults() {
+    return (
+      this.analysisOptions?.analysisStatus === "completed" &&
+      this.analysisResults &&
+      this.displayOptions?.analysisResultsAvailable === true
+    );
+  },
+
+  showRunAnalysisRequiredMessage(actionLabel = "Display Results") {
+    if (typeof Swal !== "undefined") {
+      Swal.fire({
+        icon: "warning",
+        title: "Run Analysis required",
+        html: `
+        <div style="text-align:left; font-size:13px;">
+          <p>Para usar <b>${actionLabel}</b>, primero debes ejecutar:</p>
+          <ol style="margin-top:10px; padding-left:18px;">
+            <li>Analyze &gt; Check Model...</li>
+            <li>Analyze &gt; Run Analysis</li>
+          </ol>
+          <p style="margin-top:12px; color:#777;">
+            Esto evita mostrar resultados inexistentes o desactualizados.
+          </p>
+        </div>
+      `,
+        confirmButtonText: "Entendido",
+      });
+    } else {
+      this.showMessage?.("Primero ejecuta Analyze > Run Analysis.", "warning");
+    }
+  },
+
+  markAnalysisResultsOutdated(reason = "Model changed") {
+    if (!this.analysisOptions) {
+      this.analysisOptions = {};
+    }
+
+    const hadResults =
+      this.analysisResults ||
+      this.analysisOptions.analysisStatus === "completed";
+
+    if (!hadResults) return;
+
+    this.analysisOptions.analysisStatus = "outdated";
+    this.analysisOptions.outdatedReason = reason;
+    this.analysisOptions.outdatedAt = new Date().toISOString();
+
+    if (!this.displayOptions) {
+      this.displayOptions = {};
+    }
+
+    this.displayOptions.analysisResultsAvailable = false;
+    this.displayOptions.showDeformedShape = false;
+    this.displayOptions.showModeShape = false;
+    this.displayOptions.showMemberForces = false;
+
+    if (!this.options) {
+      this.options = {};
+    }
+
+    this.options.showDeflection = false;
+    this.options.showFAxiales = false;
+    this.options.showFAxialesValues = false;
+
+    this.redraw?.();
+
+    console.warn("⚠️ Analyze results marked as outdated:", {
+      reason,
+      analysisStatus: this.analysisOptions.analysisStatus,
+    });
   },
 
   runConstructionSequenceAnalysis() {
@@ -16284,15 +19369,7 @@ export default () => ({
   },
 
   openNewModelDialog() {
-    // Buscar el modal por clase o ID
-    const modalEl = document.querySelector('[x-data="newModelModal()"]');
-    console.log("modalEl:", modalEl);
-    if (modalEl && modalEl.__x) {
-      modalEl.__x.$data.openModal();
-    } else {
-      console.warn("Modal no encontrado, intentando con evento...");
-      window.dispatchEvent(new CustomEvent("open-new-model-modal"));
-    }
+    window.dispatchEvent(new CustomEvent("open-new-model-modal"));
   },
 
   buildXGrids(count, spacing) {
@@ -16541,25 +19618,45 @@ export default () => ({
   createModelFromDialog(params) {
     console.log("🏗️ Configurando grid de referencia con parámetros:", params);
 
-    // this.referenceGrid = {
-    //   xCount: params.gridXCount,
-    //   yCount: params.gridYCount,
-    //   xSpacing: params.gridXSpacing,
-    //   ySpacing: params.gridYSpacing,
-    //   storyCount: params.storyCount,
-    //   storyHeight: params.storyHeight,
+    // ===============================
+    // LIMPIEZA GENERAL DEL MODELO ANTERIOR
+    // ===============================
+    this.clearAllSelections?.();
+    this.clearEditSelectionFlags?.();
 
-    //   xPositions: [],
-    //   yPositions: [],
-    //   xLabels: [],
-    //   yLabels: [],
+    if (this.idleState && typeof this.setState === "function") {
+      this.setState(this.idleState);
+    }
 
-    //   xGrids: this.buildXGrids(params.gridXCount, params.gridXSpacing),
-    //   yGrids: this.buildYGrids(params.gridYCount, params.gridYSpacing),
-    //   generalGrids: [],
-    // };
+    this.currentFileName = null;
 
-    // this.rebuildGeneralGrids();
+    this.nodes = [];
+    this.shapes = [];
+    this.areas = [];
+
+    this.referencePoints = [];
+    this.referencePlanes = [];
+    this.dimensionLines = [];
+    this.parametricModels = [];
+
+    this.selectedObject = null;
+    this.activeGridPoint = null;
+
+    this.nextNodeId = 1;
+    this.nextBeamId = 1;
+
+    this.undoStack = [];
+    this.redoStack = [];
+
+    this.editClipboard = null;
+    this.editPasteCount = 0;
+
+    this.K_Global_Reducido = [];
+    this.Fuerzas_Globales_Reducidas = [];
+    this.D_Global_Reducido = [];
+    this.deflecciones = [];
+    this.desplazamientosPosition = [];
+    this.matrizDesplazamiento = [];
 
     this.referenceGrid = {
       xGrids: this.buildXGrids(params.gridXCount, params.gridXSpacing),
@@ -16577,8 +19674,6 @@ export default () => ({
 
     this.rebuildReferenceGridCaches();
     this.rebuildGeneralGrids();
-    this.rebuildViewSetFromReferenceGrid();
-    this.rebuildElevationListsFromReferenceGrid();
 
     this.stories = [
       { id: 0, name: "Base", elevation: 0 },
@@ -16620,11 +19715,18 @@ export default () => ({
 
     const viewer = getViewer3DState();
 
-    if (viewer.initialized && viewer.scene) {
-      this.grid3DDrawn = false;
-      this.clearReferenceGrid3D();
-      this.drawReferenceGrid3D();
-      this.sync3D();
+    this.grid3DDrawn = false;
+
+    if (viewer?.initialized && viewer?.scene) {
+      this.pendingGrid3D = false;
+
+      // Esperar 2 frames para evitar borrar/redibujar objetos 3D
+      // mientras Babylon todavía está renderizando o compilando shaders.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          this.sync3D?.();
+        });
+      });
     } else {
       this.pendingGrid3D = true;
     }
@@ -17153,44 +20255,94 @@ export default () => ({
 
   setViewFromSet(index) {
     this.activeViewIndex = Number(index);
-    const view = this.viewSet[this.activeViewIndex];
+    const view = this.viewSet?.[this.activeViewIndex];
+
     if (!view) return;
 
     if (this.currentState && this.currentState.exit) {
       this.currentState.exit();
     }
 
-    this.clearAllSelections();
+    this.clearAllSelections?.();
     this.activeGridPoint = null;
 
+    // =====================================================
+    // VISTA EN PLANTA
+    // =====================================================
     if (view.type === "plan") {
       this.currentViewMode = "plan";
       this.currentElevationX = "none";
       this.currentElevationZ = "none";
 
-      const story = this.stories.find((s) => s.elevation === view.elevation);
-      if (story) this.currentStory = story.name;
+      const viewElevation = Number(view.elevation ?? view.z ?? 0);
+      const tol = this.getActiveViewTolerance?.() ?? 0.001;
 
-    } else if (view.type === "elevation" && view.axis === "X") {
-      // Letras A,B,C... => plano Y-Z
+      const storyIndex = this.stories?.findIndex((story) => {
+        const storyElevation = Number(story.elevation ?? 0);
+
+        return (
+          Math.abs(storyElevation - viewElevation) <= tol ||
+          story.name === view.storyName ||
+          story.id === view.storyId
+        );
+      });
+
+      if (storyIndex >= 0) {
+        const story = this.stories[storyIndex];
+
+        this.activeStory = storyIndex;
+        this.currentStory = story.name;
+        this.currentZ = Number(story.elevation ?? viewElevation);
+      } else {
+        this.currentZ = viewElevation;
+      }
+    }
+
+    // =====================================================
+    // VISTA EN ELEVACIÓN X
+    // Letras A, B, C... plano Y-Z
+    // =====================================================
+    else if (view.type === "elevation" && view.axis === "X") {
       this.currentViewMode = "elevationX";
       this.currentElevationZ = view.label;
       this.currentElevationX = "none";
+    }
 
-    } else if (view.type === "elevation" && view.axis === "Y") {
-      // Números 1,2,3... => plano X-Z
+    // =====================================================
+    // VISTA EN ELEVACIÓN Y
+    // Números 1, 2, 3... plano X-Z
+    // =====================================================
+    else if (view.type === "elevation" && view.axis === "Y") {
       this.currentViewMode = "elevationY";
       this.currentElevationX = view.label;
       this.currentElevationZ = "none";
     }
 
     this.currentState = this.idleState;
-    if (this.currentState.enter) {
+
+    if (this.currentState?.enter) {
       this.currentState.enter();
     }
 
-    this.redraw();
-    this.sync3D();
+    console.log("👁️ Vista activa cambiada:", {
+      activeViewIndex: this.activeViewIndex,
+      view,
+      currentViewMode: this.currentViewMode,
+      activeStory: this.activeStory,
+      currentStory: this.currentStory,
+      currentZ: this.currentZ,
+      currentElevationX: this.currentElevationX,
+      currentElevationZ: this.currentElevationZ,
+    });
+
+    this.redraw?.();
+    this.refresh3DActiveView?.("setViewFromSet");
+
+    if (typeof this.requestSync3D === "function") {
+      this.requestSync3D("setViewFromSet");
+    } else {
+      this.sync3D?.();
+    }
   },
 
   findClosestGridValue(values = [], labels = [], target = 0, tolerance = 0.3) {
@@ -17579,6 +20731,77 @@ export default () => ({
 
   sync3D() {
     return sync3D(this);
+  },
+
+  requestSync3D(reason = "sync3D") {
+    if (this.syncPending) return;
+
+    this.syncPending = true;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        try {
+          const viewer = getViewer3DState?.();
+
+          if (viewer?.initialized && viewer?.scene) {
+            this.sync3D?.();
+          }
+        } catch (error) {
+          console.warn("⚠️ No se pudo sincronizar 3D:", reason, error);
+        } finally {
+          this.syncPending = false;
+        }
+      });
+    });
+  },
+
+  refresh3DActiveView(reason = "refresh3DActiveView") {
+    // Cada cambio de vista genera un token nuevo.
+    // Si el usuario cambia vistas rápido, los tokens anteriores quedan cancelados.
+    this.view3DUpdateToken = Number(this.view3DUpdateToken || 0) + 1;
+    const token = this.view3DUpdateToken;
+
+    // Cancelar actualización pendiente anterior
+    if (this.view3DUpdateTimer) {
+      clearTimeout(this.view3DUpdateTimer);
+      this.view3DUpdateTimer = null;
+    }
+
+    // Esperar un poco para no reconstruir 3D en cada clic rápido
+    this.view3DUpdateTimer = setTimeout(() => {
+      requestAnimationFrame(() => {
+        try {
+          // Si ya hubo otro cambio de vista después, este update queda anulado
+          if (token !== this.view3DUpdateToken) return;
+
+          const viewer = getViewer3DState?.();
+
+          if (!viewer?.initialized || !viewer?.scene) {
+            return;
+          }
+
+          // IMPORTANTE:
+          // No llamamos drawReferenceGrid3D aquí directamente.
+          // sync3D ya debe encargarse de actualizar lo necesario.
+          this.sync3D?.();
+
+          console.log("✅ 3D actualizado por cambio de vista:", {
+            reason,
+            activeViewIndex: this.activeViewIndex,
+            currentViewMode: this.currentViewMode,
+            activeStory: this.activeStory,
+            currentStory: this.currentStory,
+            currentZ: this.currentZ,
+            currentElevationX: this.currentElevationX,
+            currentElevationZ: this.currentElevationZ,
+          });
+        } catch (error) {
+          console.warn("⚠️ No se pudo actualizar vista 3D:", reason, error);
+        } finally {
+          this.view3DUpdateTimer = null;
+        }
+      });
+    }, 350);
   },
 
   drawIn3D() {

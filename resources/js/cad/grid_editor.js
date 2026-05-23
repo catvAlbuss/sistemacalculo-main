@@ -279,9 +279,9 @@ export class GridEditor {
         const newXGrids = buildFromRows(this.xRows, "End");
         const newYGrids = buildFromRows(this.yRows, "Start");
 
-        if (!newXGrids.length || !newYGrids.length) {
+        if (newXGrids.length < 2 || newYGrids.length < 2) {
             this.cad.showMessage?.(
-                "Debe existir al menos una grilla en X y una grilla en Y.",
+                "Debe existir al menos 2 grillas en X y 2 grillas en Y.",
                 "warning"
             );
             return;
@@ -302,7 +302,21 @@ export class GridEditor {
         this.cad.rebuildViewSetFromReferenceGrid?.();
         this.cad.rebuildElevationListsFromReferenceGrid?.();
 
+        if (
+            Array.isArray(this.cad.viewSet) &&
+            this.cad.activeViewIndex >= this.cad.viewSet.length
+        ) {
+            this.cad.activeViewIndex = 0;
+            this.cad.currentViewMode = "plan";
+            this.cad.currentElevationX = "none";
+            this.cad.currentElevationZ = "none";
+        }
+
         this.cad.activeGridPoint = null;
+
+        this.cad.markAnalysisResultsOutdated?.(
+            "Se editó la grilla de referencia."
+        );
 
         this.cad.redraw?.();
         this.cad.sync3D?.();

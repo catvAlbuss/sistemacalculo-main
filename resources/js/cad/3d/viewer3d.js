@@ -10,7 +10,25 @@ const VIEWER_STATE = {
     elements: [],
     initialized: false,
     resizeHandler: null,
+
+    // Evita renderizar mientras se limpian o recrean objetos 3D
+    isUpdating: false,
+
+    needsSync: false,
+
+    // Guarda el render loop para poder detenerlo correctamente
+    renderLoop: null,
 };
+
+function isSceneDisposed(scene) {
+    if (!scene) return true;
+
+    if (typeof scene.isDisposed === "function") {
+        return scene.isDisposed();
+    }
+
+    return Boolean(scene.isDisposed);
+}
 
 const COLORS_3D = {
     activeModel: new BABYLON.Color3(1.0, 0.85, 0.15),   // amarillo
@@ -26,9 +44,19 @@ function getViewerContainer() {
 
 function disposeViewer() {
     try {
+        VIEWER_STATE.isUpdating = true;
+
+        if (VIEWER_STATE.engine && VIEWER_STATE.renderLoop) {
+            VIEWER_STATE.engine.stopRenderLoop(VIEWER_STATE.renderLoop);
+            VIEWER_STATE.renderLoop = null;
+        }
+
         VIEWER_STATE.elements.forEach((element) => {
-            if (element?.dispose) element.dispose();
+            if (element && !element.isDisposed?.()) {
+                element.dispose?.(false, true);
+            }
         });
+
         VIEWER_STATE.elements = [];
 
         if (VIEWER_STATE.resizeHandler) {
@@ -36,21 +64,27 @@ function disposeViewer() {
             VIEWER_STATE.resizeHandler = null;
         }
 
-        if (VIEWER_STATE.scene) {
+        if (VIEWER_STATE.camera) {
+            VIEWER_STATE.camera.detachControl?.();
+        }
+
+        if (VIEWER_STATE.scene && !isSceneDisposed(VIEWER_STATE.scene)) {
             VIEWER_STATE.scene.dispose();
-            VIEWER_STATE.scene = null;
         }
 
         if (VIEWER_STATE.engine) {
             VIEWER_STATE.engine.dispose();
-            VIEWER_STATE.engine = null;
         }
 
+        VIEWER_STATE.engine = null;
+        VIEWER_STATE.scene = null;
         VIEWER_STATE.camera = null;
         VIEWER_STATE.canvas = null;
         VIEWER_STATE.initialized = false;
     } catch (error) {
         console.warn("Error al destruir el visor 3D:", error);
+    } finally {
+        VIEWER_STATE.isUpdating = false;
     }
 }
 
@@ -328,19 +362,33 @@ export function initViewer3D(context, container) {
         let frameCount = 0;
         let lastTime = performance.now();
 
-        engine.runRenderLoop(() => {
-            if (!VIEWER_STATE.scene) return;
+        const renderLoop = () => {
+            const scene = VIEWER_STATE.scene;
+            const engine = VIEWER_STATE.engine;
 
-            VIEWER_STATE.scene.render();
-            frameCount++;
+            if (!engine || !scene || isSceneDisposed(scene)) return;
 
-            const now = performance.now();
-            if (now - lastTime >= 1000) {
-                context.fps = frameCount;
-                frameCount = 0;
-                lastTime = now;
+            // Mientras sync3D limpia o reconstruye objetos, no renderizamos ese frame
+            if (VIEWER_STATE.isUpdating) return;
+
+            try {
+                scene.render();
+
+                frameCount++;
+
+                const now = performance.now();
+                if (now - lastTime >= 1000) {
+                    context.fps = frameCount;
+                    frameCount = 0;
+                    lastTime = now;
+                }
+            } catch (error) {
+                console.warn("Render 3D omitido por escena no lista:", error);
             }
-        });
+        };
+
+        VIEWER_STATE.renderLoop = renderLoop;
+        engine.runRenderLoop(renderLoop);
 
         setupResizeHandler();
 
@@ -379,27 +427,45 @@ export function clear3D() {
 }
 
 export function sync3D(context) {
-    if (context.syncPending) return;
     if (!VIEWER_STATE.initialized || !VIEWER_STATE.scene) return;
+    if (isSceneDisposed(VIEWER_STATE.scene)) return;
 
-    context.syncPending = true;
+    if (VIEWER_STATE.isUpdating) {
+        VIEWER_STATE.needsSync = true;
+        return;
+    }
 
-    setTimeout(() => {
-        try {
-            if (context.referenceGrid && typeof context.drawReferenceGrid3D === "function") {
-                context.drawReferenceGrid3D();
-                drawCustomGeneralGrids3D(
-                    VIEWER_STATE.scene,
-                    context.referenceGrid,
-                    context.stories
-                );
+    VIEWER_STATE.isUpdating = true;
+
+    requestAnimationFrame(() => {
+        setTimeout(() => {
+            try {
+                if (!VIEWER_STATE.scene || isSceneDisposed(VIEWER_STATE.scene)) return;
+
+                if (context.referenceGrid && typeof context.drawReferenceGrid3D === "function") {
+                    context.drawReferenceGrid3D();
+
+                    drawCustomGeneralGrids3D(
+                        VIEWER_STATE.scene,
+                        context.referenceGrid,
+                        context.stories
+                    );
+                }
+
+                drawIn3D(context);
+            } catch (error) {
+                console.warn("Error sincronizando vista 3D:", error);
+            } finally {
+                VIEWER_STATE.isUpdating = false;
+                context.syncPending = false;
+
+                if (VIEWER_STATE.needsSync) {
+                    VIEWER_STATE.needsSync = false;
+                    sync3D(context);
+                }
             }
-
-            drawIn3D(context);
-        } finally {
-            context.syncPending = false;
-        }
-    }, 50);
+        }, 50);
+    });
 }
 
 export function drawIn3D(context) {
@@ -420,11 +486,31 @@ export function getViewer3DState() {
 
 function clearModelElements() {
     try {
-        VIEWER_STATE.elements = VIEWER_STATE.elements.filter((element) => {
-            const type = element?.metadata?.type;
+        const modelTypes = new Set([
+            "node",
+            "beam",
+            "frame",
+            "line",
+            "area",
+            "slab",
+            "wall",
+            "opening",
+        ]);
 
-            if (type === "node" || type === "beam") {
-                if (element.dispose) element.dispose();
+        VIEWER_STATE.elements = VIEWER_STATE.elements.filter((element) => {
+            const type = String(element?.metadata?.type || "").toLowerCase();
+            const source = String(element?.metadata?.source || "").toLowerCase();
+
+            const isModelElement =
+                modelTypes.has(type) ||
+                source === "model" ||
+                source === "model3d";
+
+            if (isModelElement) {
+                if (element && !element.isDisposed?.()) {
+                    element.dispose?.(false, true);
+                }
+
                 return false;
             }
 

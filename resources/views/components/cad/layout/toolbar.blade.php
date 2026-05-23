@@ -179,6 +179,9 @@
       </x-cad.ribbon-button>
     </x-cad.ribbon-group>
   </div>
+  <!-- Modal para File > New Model -->
+  <x-cad.modals.new-model />
+
   <!-- Modal para el apartado de las vistas -->
   <x-cad.modals.view-modal />
 

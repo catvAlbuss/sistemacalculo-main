@@ -251,11 +251,13 @@ export class SelectedObjectsState extends PanAndZoomState {
     }
   }
 
+  // Marca los objetos como seleccionados visual e internamente.
   enter(args) {
     this.selectedObjects = args.selectedObjects || [];
 
     this.selectedObjects.forEach((obj) => {
       obj.selected = true;
+      obj.isSelected = true;
 
       if (obj.style?.selected) {
         obj.style.selected();
@@ -263,16 +265,20 @@ export class SelectedObjectsState extends PanAndZoomState {
     });
   }
 
+  // Limpia selección visual e interna.
   exit() {
     super.exit();
 
     this.selectedObjects.forEach((obj) => {
       obj.selected = false;
+      obj.isSelected = false;
 
       if (obj.style?.default) {
         obj.style.default();
       }
     });
+
+    this.selectedObjects = [];
   }
 
   info() {
@@ -285,26 +291,9 @@ export class SelectedBeamsState extends SelectedObjectsState {
     super.handleKeyDown(...arguments);
 
     if (event.key === "Delete") {
-      console.log(`🗑️ Eliminando ${this.selectedObjects.length} vigas`);
-
-      // 🔥 Eliminar directamente lo seleccionado (SIN FILTRO)
-      const beamsToDelete = [...this.selectedObjects];
-
-      beamsToDelete.forEach((beam) => {
-        if (!beam.node1 || !beam.node2) return;
-
-        removeFromArray(beam.node1.beams, beam);
-        removeFromArray(beam.node2.beams, beam);
-        removeFromArray(context.shapes, beam);
-      });
-
-      // 🔄 Reindexar IDs
-      context.shapes.forEach((beam, index) => {
-        beam.id = index + 1;
-      });
-
-      context.setState(context.idleState);
-      context.sync3D();
+      event.preventDefault();
+      context.deleteSelected?.();
+      return;
     }
   }
 
@@ -355,18 +344,9 @@ export class SelectedAreasState extends PanAndZoomState {
     super.handleKeyDown(...arguments);
 
     if (event.key === "Delete") {
-      const areasToDelete = [...this.selectedObjects];
-
-      areasToDelete.forEach((area) => {
-        removeFromArray(context.areas, area);
-      });
-
-      context.areas.forEach((area, index) => {
-        area.id = index + 1;
-      });
-
-      context.setState(context.idleState);
-      context.redraw();
+      event.preventDefault();
+      context.deleteSelected?.();
+      return;
     }
   }
 
@@ -417,21 +397,9 @@ export class SelectedDimensionLinesState extends PanAndZoomState {
     super.handleKeyDown(...arguments);
 
     if (event.key === "Delete") {
-      const dimsToDelete = [...this.selectedObjects];
-
-      dimsToDelete.forEach((dim) => {
-        removeFromArray(context.dimensionLines, dim);
-      });
-
-      context.dimensionLines.forEach((dim, index) => {
-        dim.id = index + 1;
-        if (!dim.label || dim.label.startsWith("DIM")) {
-          dim.label = `${dim.value.toFixed(2)} m`;
-        }
-      });
-
-      context.setState(context.idleState);
-      context.redraw();
+      event.preventDefault();
+      context.deleteSelected?.();
+      return;
     }
   }
 
@@ -662,33 +630,9 @@ export class ReshapeObjectState extends PanAndZoomState {
     }
 
     if (event.key === "Delete") {
-      // borrar barra
-      if (this.selectedBeam) {
-        removeFromArray(this.selectedBeam.node1.beams, this.selectedBeam);
-        removeFromArray(this.selectedBeam.node2.beams, this.selectedBeam);
-        removeFromArray(context.shapes, this.selectedBeam);
-
-        context.shapes.forEach((beam, index) => {
-          beam.id = index + 1;
-        });
-
-        context.setState(context.idleState);
-        context.sync3D?.();
-        return;
-      }
-
-      // borrar área
-      if (this.selectedArea) {
-        removeFromArray(context.areas, this.selectedArea);
-
-        context.areas.forEach((area, index) => {
-          area.id = index + 1;
-        });
-
-        context.setState(context.idleState);
-        context.redraw();
-        return;
-      }
+      event.preventDefault();
+      context.deleteSelected?.();
+      return;
     }
   }
 
@@ -827,39 +771,9 @@ export class SelectedNodesState extends SelectedObjectsState {
     super.handleKeyDown(...arguments);
 
     if (event.key === "Delete") {
-      console.log(`🗑️ Eliminando ${this.selectedObjects.length} nodos`);
-
-      this.selectedObjects.forEach((node) => {
-        if (!node) return;
-
-        // 🔥 COPIA SEGURA
-        const beamsToDelete = [...node.beams];
-
-        beamsToDelete.forEach((beam) => {
-          const otherNode = node === beam.node1 ? beam.node2 : beam.node1;
-          removeFromArray(otherNode.beams, beam);
-          removeFromArray(context.shapes, beam);
-        });
-
-        // limpiar beams del nodo
-        node.beams = [];
-
-        removeFromArray(context.nodes, node);
-      });
-
-      // 🔄 Reindexar nodos
-      context.nodes.forEach((node, index) => {
-        node.id = index + 1;
-      });
-
-      // 🔄 Reindexar vigas también (importante)
-      context.shapes.forEach((beam, index) => {
-        beam.id = index + 1;
-      });
-
-      context.setState(context.idleState);
-      context.sync3D();
-      context.redraw();
+      event.preventDefault();
+      context.deleteSelected?.();
+      return;
     }
   }
 
@@ -1131,18 +1045,15 @@ export class MoveObjectState extends IdleState {
   handleKeyDown(event, context) {
     super.handleKeyDown(...arguments);
     if (event.key === "Delete") {
-      this.selectedObject.beams.forEach((beam) => {
-        const updateBeamsNode = this.selectedObject === beam.node1 ? beam.node2 : beam.node1;
-        removeFromArray(updateBeamsNode.beams, beam);
-      });
-      this.selectedObject.beams.forEach((beam) => {
-        removeFromArray(context.shapes, beam);
-      });
-      removeFromArray(context.nodes, this.selectedObject);
-      context.nodes.forEach((node, index) => {
-        node.id = index + 1;
-      });
-      context.setState(context.idleState);
+      event.preventDefault();
+
+      if (this.selectedObject) {
+        this.selectedObject.selected = true;
+        this.selectedObject.isSelected = true;
+      }
+
+      context.deleteSelected?.();
+      return;
     }
   }
 

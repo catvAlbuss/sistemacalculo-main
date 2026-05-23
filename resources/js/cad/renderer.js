@@ -1258,6 +1258,7 @@ export class DiseñoRenderer {
     if (!context.referencePoints?.length) return;
 
     context.referencePoints.forEach((point) => {
+      if (!this.shouldDrawReferencePoint(point, context)) return;
       this.drawReferencePoint(point, context);
     });
   }
@@ -1354,8 +1355,52 @@ export class DiseñoRenderer {
     if (!context.dimensionLines?.length) return;
 
     context.dimensionLines.forEach((dim) => {
+      if (!this.shouldDrawDimensionLine(dim, context)) return;
       this.drawDimensionLine(dim, context, false);
     });
+  }
+
+  shouldDrawDimensionLine(dim, CADSystem) {
+    if (!dim || dim.visible === false) return false;
+    if (!dim.start || !dim.end) return false;
+
+    const view = CADSystem.viewSet?.[CADSystem.activeViewIndex];
+    if (!view) return true;
+
+    const tol = CADSystem.getActiveViewTolerance?.() ?? 0.001;
+
+    const points = [dim.start, dim.end];
+
+    if (view.type === "plan") {
+      const activeZ = Number(
+        view.elevation ??
+        view.z ??
+        CADSystem.getActivePlanElevation?.() ??
+        0
+      );
+
+      return points.every((p) => {
+        return Math.abs(Number(p.z ?? 0) - activeZ) <= tol;
+      });
+    }
+
+    if (view.type === "elevation") {
+      const value = Number(view.value ?? 0);
+
+      if (view.axis === "X") {
+        return points.every((p) => {
+          return Math.abs(Number(p.x ?? 0) - value) <= tol;
+        });
+      }
+
+      if (view.axis === "Y") {
+        return points.every((p) => {
+          return Math.abs(Number(p.y ?? 0) - value) <= tol;
+        });
+      }
+    }
+
+    return true;
   }
 
   drawDimensionPreview(context) {
@@ -1370,11 +1415,13 @@ export class DiseñoRenderer {
         const dy = state.previewPoint.y - state.startPoint.y;
         const dz = state.previewPoint.z - state.startPoint.z;
         const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        // return `${d.toFixed(2)} m`;
+
         return `${this.formatValue(context, d, "lengths", 2)} m`;
       })(),
       visible: true,
     };
+
+    if (!this.shouldDrawDimensionLine(preview, context)) return;
 
     this.drawDimensionLine(preview, context, true);
   }
@@ -3088,6 +3135,42 @@ export class DiseñoRenderer {
     ctx.restore();
   }
 
+  shouldDrawReferencePoint(point, CADSystem) {
+    if (!point || point.visible === false) return false;
+
+    const view = CADSystem.viewSet?.[CADSystem.activeViewIndex];
+    if (!view) return true;
+
+    const tol = CADSystem.getActiveViewTolerance?.() ?? 0.001;
+
+    const x = Number(point.x ?? point.position?.x ?? 0);
+    const y = Number(point.y ?? point.position?.y ?? 0);
+    const z = Number(point.z ?? point.position?.z ?? 0);
+
+    if (view.type === "plan") {
+      const activeZ = Number(
+        view.elevation ??
+        view.z ??
+        CADSystem.getActivePlanElevation?.() ??
+        0
+      );
+
+      return Math.abs(z - activeZ) <= tol;
+    }
+
+    if (view.type === "elevation") {
+      if (view.axis === "X") {
+        return Math.abs(x - Number(view.value ?? 0)) <= tol;
+      }
+
+      if (view.axis === "Y") {
+        return Math.abs(y - Number(view.value ?? 0)) <= tol;
+      }
+    }
+
+    return true;
+  }
+
   // DRAW GRID ORIGINAL
   drawStandardGrid(grid, context) {
     const ctx = context.ctx; // Assuming you're using a canvas context
@@ -3907,49 +3990,230 @@ export class DiseñoRenderer {
   }
 
   drawDeflections(context) {
-    context.ctx.save();
-    context.ctx.strokeStyle = "blue";
-    context.ctx.fillStyle = "blue";
-    context.ctx.textAlign = "center";
-    context.ctx.textBaseline = "middle";
-    context.deflecciones.forEach((def) => {
+    const ctx = context.ctx;
+
+    const deflecciones = Array.isArray(context.deflecciones)
+      ? context.deflecciones
+      : [];
+
+    const matriz = Array.isArray(context.matrizDesplazamiento)
+      ? context.matrizDesplazamiento
+      : [];
+
+    const nodes = Array.isArray(context.nodes) ? context.nodes : [];
+    const shapes = Array.isArray(context.shapes) ? context.shapes : [];
+
+    const scale = Number(
+      context.displayOptions?.deformedScale ??
+      context.displayOptions?.deformationScale ??
+      context.options?.deflectionScale ??
+      50
+    );
+
+    const getDisplacementFromRow = (node, index) => {
+      const nodeId = node?.id;
+
+      const fromNode =
+        node?.analysisDisplacement ||
+        node?.displacement ||
+        null;
+
+      if (fromNode) {
+        return {
+          ux: Number(fromNode.ux ?? fromNode.dx ?? 0),
+          uy: Number(fromNode.uy ?? fromNode.dy ?? 0),
+          uz: Number(fromNode.uz ?? fromNode.dz ?? 0),
+        };
+      }
+
+      const fromResults = context.analysisResults?.nodes?.[nodeId]?.displacement;
+
+      if (fromResults) {
+        return {
+          ux: Number(fromResults.ux ?? fromResults.dx ?? 0),
+          uy: Number(fromResults.uy ?? fromResults.dy ?? 0),
+          uz: Number(fromResults.uz ?? fromResults.dz ?? 0),
+        };
+      }
+
+      const fromDef = deflecciones.find((item) => {
+        return String(item?.nodeId ?? item?.id) === String(nodeId);
+      });
+
+      if (fromDef) {
+        const d = fromDef.displacement || fromDef;
+
+        return {
+          ux: Number(d.ux ?? d.dx ?? 0),
+          uy: Number(d.uy ?? d.dy ?? 0),
+          uz: Number(d.uz ?? d.dz ?? 0),
+        };
+      }
+
+      const row = matriz[index];
+
+      if (Array.isArray(row)) {
+        // Nuevo formato: [nodeId, ux, uy, uz, rx, ry, rz]
+        if (row.length >= 4 && String(row[0]) === String(nodeId)) {
+          return {
+            ux: Number(row[1] || 0),
+            uy: Number(row[2] || 0),
+            uz: Number(row[3] || 0),
+          };
+        }
+
+        // Formato antiguo: [ux, uy, uz]
+        return {
+          ux: Number(row[0] || 0),
+          uy: Number(row[1] || 0),
+          uz: Number(row[2] || 0),
+        };
+      }
+
+      if (row && typeof row === "object") {
+        return {
+          ux: Number(row.ux ?? row.dx ?? 0),
+          uy: Number(row.uy ?? row.dy ?? 0),
+          uz: Number(row.uz ?? row.dz ?? 0),
+        };
+      }
+
+      return {
+        ux: 0,
+        uy: 0,
+        uz: 0,
+      };
+    };
+
+    const getDeformedPosition = (node, index) => {
+      const p = node?.position || {};
+      const d = getDisplacementFromRow(node, index);
+
+      return {
+        x: Number(p.x || 0) + d.ux * scale,
+        y: Number(p.y || 0) + d.uy * scale,
+        z: Number(p.z || 0) + d.uz * scale,
+      };
+    };
+
+    ctx.save();
+
+    ctx.strokeStyle = "#38bdf8";
+    ctx.fillStyle = "#38bdf8";
+    ctx.lineWidth = 2;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    // Compatibilidad con formato antiguo: def.x = [x1,x2], def.y = [y1,y2]
+    deflecciones.forEach((def) => {
+      if (!Array.isArray(def?.x) || !Array.isArray(def?.y)) return;
+
       const [x1, x2] = def.x;
       const [y1, y2] = def.y;
+
       const p1 = context.grid.worldToScreen({ x: x1, y: y1 });
       const p2 = context.grid.worldToScreen({ x: x2, y: y2 });
-      context.ctx.beginPath();
-      context.ctx.setLineDash([5, 3]);
-      context.ctx.moveTo(p1.x, p1.y);
-      context.ctx.lineTo(p2.x, p2.y);
-      context.ctx.stroke();
-    });
-    context.desplazamientosPosition.forEach((d, index) => {
-      const [x, y, _] = context.matrizDesplazamiento[index];
-      const p = context.grid.worldToScreen(d);
-      context.ctx.fillText(`dx: ${axisToFixed(x)}`, p.x, p.y);
-      context.ctx.fillText(`dy: ${axisToFixed(y)}`, p.x, p.y + 10);
+
+      ctx.beginPath();
+      ctx.setLineDash([5, 3]);
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
     });
 
-    context.ctx.restore();
+    // Nuevo formato Analyze: dibujar barras deformadas desde nodos + desplazamientos
+    shapes.forEach((shape) => {
+      if (!shape?.node1 || !shape?.node2) return;
+
+      if (typeof this.shouldDrawBeam === "function" && !this.shouldDrawBeam(shape, context)) {
+        return;
+      }
+
+      const node1Index = nodes.findIndex((n) => String(n.id) === String(shape.node1.id));
+      const node2Index = nodes.findIndex((n) => String(n.id) === String(shape.node2.id));
+
+      const q1 = getDeformedPosition(shape.node1, node1Index);
+      const q2 = getDeformedPosition(shape.node2, node2Index);
+
+      const p1 = this.projectPoint({ position: q1 }, context);
+      const p2 = this.projectPoint({ position: q2 }, context);
+
+      ctx.beginPath();
+      ctx.setLineDash([7, 4]);
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+    });
+
+    ctx.setLineDash([]);
+
+    // Dibujar nodos deformados y etiquetas dx/dy
+    nodes.forEach((node, index) => {
+      if (typeof this.shouldDrawNode === "function" && !this.shouldDrawNode(node, context)) {
+        return;
+      }
+
+      const q = getDeformedPosition(node, index);
+      const d = getDisplacementFromRow(node, index);
+      const p = this.projectPoint({ position: q }, context);
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.font = "10px Arial";
+      ctx.fillText(`dx: ${axisToFixed(d.ux)}`, p.x + 24, p.y - 6);
+      ctx.fillText(`dy: ${axisToFixed(d.uy)}`, p.x + 24, p.y + 6);
+    });
+
+    ctx.restore();
   }
 
   drawMaterials(context) {
     context.shapes.forEach((s) => {
       if (!this.shouldDrawBeam(s, context)) return;
-      // const p1 = context.grid.worldToScreen(s.node1.position);
-      // const p2 = context.grid.worldToScreen(s.node2.position);
+
       const p1 = this.projectPoint(s.node1, context);
       const p2 = this.projectPoint(s.node2, context);
       const mid = midPoint(p1, p2);
 
+      const section =
+        s.frameSection ||
+        s.section ||
+        s.assignment?.frameSection ||
+        null;
+
+      const E = Number(
+        s.E ??
+        section?.E ??
+        section?.elasticModulus ??
+        context.globalE ??
+        210000
+      );
+
+      const AValue =
+        s.A ??
+        s._A ??
+        section?.A ??
+        section?.area ??
+        section?.Area ??
+        null;
+
+      const ALabel = AValue !== null && AValue !== undefined
+        ? this.formatValue(context, AValue, "areas", 3)
+        : "-";
+
       context.ctx.save();
+
       context.ctx.fillStyle = "white";
       context.ctx.textAlign = "center";
       context.ctx.font = "10px arial";
       context.ctx.translate(mid.x, mid.y);
-      context.ctx.rotate(s.angle);
-      context.ctx.fillText(`E: ${s.E}`, 0, -30);
-      context.ctx.fillText(`A: ${s.A}`, 0, -20);
+      context.ctx.rotate(s.angle || 0);
+
+      context.ctx.fillText(`E: ${this.formatValue(context, E, "materials", 0)}`, 0, -30);
+      context.ctx.fillText(`A: ${ALabel}`, 0, -20);
+
       context.ctx.restore();
     });
   }
@@ -4201,46 +4465,24 @@ export class DeflexionRenderer extends DiseñoRenderer {
   }
 
   drawDeflectionsIDs(context) {
-    context.deflecciones.forEach((def, index) => {
-      const [x1, x2] = def.x;
-      const [y1, y2] = def.y;
-      const p1 = { x: x1, y: y1 };
-      const p2 = { x: x2, y: y2 };
-      const pScreen1 = context.grid.worldToScreen(p1);
-      const pScreen2 = context.grid.worldToScreen(p2);
-      this.drawBeamID(
-        {
-          node1: { position: p1 },
-          node2: { position: p2 },
-          id: context.shapes[index].id,
-          angle: Math.atan2(pScreen2.y - pScreen1.y, pScreen2.x - pScreen1.x),
-          style: {
-            get() {
-              return BeamStyle.DEFAULT;
-            },
-          },
-        },
-        context,
-      );
+    const nodes = Array.isArray(context.nodes) ? context.nodes : [];
+    const shapes = Array.isArray(context.shapes) ? context.shapes : [];
+
+    if (!nodes.length && !shapes.length) return;
+
+    shapes.forEach((shape) => {
+      if (!shape?.node1 || !shape?.node2) return;
+      if (!this.shouldDrawBeam(shape, context)) return;
+
+      this.drawBeamID(shape, context);
     });
-    context.desplazamientosPosition.forEach((d, index) => {
-      this.drawNodeID(
-        {
-          position: d,
-          id: context.nodes[index].id,
-          style: {
-            get() {
-              return NodeStyle.DEFAULT;
-            },
-          },
-        },
-        context,
-      );
+
+    nodes.forEach((node) => {
+      if (!this.shouldDrawNode(node, context)) return;
+
+      this.drawNodeID(node, context);
     });
   }
-
-
-
 }
 
 export class AxialRenderer extends DiseñoRenderer {
