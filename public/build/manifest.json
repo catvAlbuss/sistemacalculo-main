@@ -122,6 +122,11 @@
     "src": "resources/css/app.css",
     "isEntry": true
   },
+  "resources/css/espectroStyle.css": {
+    "file": "assets/espectroStyle-DZ8cdKeW.css",
+    "src": "resources/css/espectroStyle.css",
+    "isEntry": true
+  },
   "resources/css/predim.css": {
     "file": "assets/predim-C1NgwH5L.css",
     "src": "resources/css/predim.css",
@@ -684,6 +689,12 @@
     "imports": [
       "resources/js/muros-contencion/predimensionamiento.js"
     ]
+  },
+  "resources/js/espectro-sismico/index.js": {
+    "file": "assets/index-umkddeLv.js",
+    "name": "index",
+    "src": "resources/js/espectro-sismico/index.js",
+    "isEntry": true
   },
   "resources/js/etabs/main.js": {
     "file": "assets/main-jMgA1_ps.js",

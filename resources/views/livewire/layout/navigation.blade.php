@@ -170,6 +170,9 @@ $logout = function (Logout $logout) {
                         <x-dropdown-link :href="route('calculadora.asistente.irregularidades')" :active="request()->routeIs('calculadora.asistente.irregularidades')" {{-- wire:navigate --}}>
                             {{ __('Irregularidades') }}
                         </x-dropdown-link>
+                        <x-dropdown-link :href="route('calculadora.asistente.espectro-sismico')" :active="request()->routeIs('calculadora.asistente.espectro-sismico')" {{-- wire:navigate --}}>
+                            {{ __('Epectro Simico') }}
+                        </x-dropdown-link>
                         <x-dropdown-sub label="{{ __('Diseño En Madera') }}" :links="[
                             ['url' => route('calculadora.asistente.diseno-en-madera.correas'), 'label' => 'Diseño de Correas'],
                             [
@@ -429,6 +432,9 @@ $logout = function (Logout $logout) {
                 </x-dropdown-link>
                 <x-dropdown-link :href="route('calculadora.asistente.irregularidades')" :active="request()->routeIs('calculadora.asistente.irregularidades')" {{-- wire:navigate --}}>
                     {{ __('Irregularidades') }}
+                </x-dropdown-link>
+                <x-dropdown-link :href="route('calculadora.asistente.espectro-sismico')" :active="request()->routeIs('calculadora.asistente.espectro-sismico')" {{-- wire:navigate --}}>
+                    {{ __('Epectro Simico') }}
                 </x-dropdown-link>
                 <x-dropdown-sub label="{{ __('Diseño En Madera') }}" :links="[
                     ['url' => route('calculadora.asistente.diseno-en-madera.correas'), 'label' => 'Diseño de Correas'],

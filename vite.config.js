@@ -59,7 +59,9 @@ export default defineConfig({
             input: [
                 "resources/css/app.css",
                 "resources/css/predim.css",
+                "resources/css/espectroStyle.css",
                 ...glob.sync("resources/js/*.js").filter(f => !f.includes('memoria_calculo') && !f.includes('index-deprecated')),
+                "resources/js/espectro-sismico/index.js",
                 "resources/js/predim/index.js",
                 "resources/js/predim/ribbon-adapter.js",
                 ...glob.sync("resources/js/cav2/*.js"),
