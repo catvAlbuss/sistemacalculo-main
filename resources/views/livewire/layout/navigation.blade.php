@@ -170,6 +170,9 @@ $logout = function (Logout $logout) {
                         <x-dropdown-link :href="route('calculadora.asistente.irregularidades')" :active="request()->routeIs('calculadora.asistente.irregularidades')" {{-- wire:navigate --}}>
                             {{ __('Irregularidades') }}
                         </x-dropdown-link>
+                        <x-dropdown-link :href="route('calculadora.asistente.espectro-sismico')" :active="request()->routeIs('calculadora.asistente.espectro-sismico')" {{-- wire:navigate --}}>
+                            {{ __('Epectro Simico') }}
+                        </x-dropdown-link>
                         <x-dropdown-sub label="{{ __('Diseño En Madera') }}" :links="[
                             ['url' => route('calculadora.asistente.diseno-en-madera.correas'), 'label' => 'Diseño de Correas'],
                             [
@@ -209,14 +212,14 @@ $logout = function (Logout $logout) {
                                 'label' => 'Distribucion de Esfuerzos',
                             ],
                         ]"></x-dropdown-sub>
-                        <x-dropdown-sub label="{{ __('Programas') }}" :links="[
-                            ['url' => route('software.aligerados-v1'), 'label' => 'Aligerados v1.0'],
-                            ['url' => route('software.aligerados-v2'), 'label' => 'Aligerados v2.0'],
-                            ['url' => route('software.cimentacion-v1'), 'label' => 'Cimentacion v1.0'],
-                            ['url' => route('software.cimentacion-v2'), 'label' => 'Cimentacion v2.0'],
-                            ['url' => route('software.analisis-estructural-de-armaduras'), 'label' => 'Analisis Estructural'],
-                            ['url' => route('calculadora.asistente.muros-de-contencionv2'),'label' => 'Diseño de Muros de ContenciónV2'],
-                        ]"></x-dropdown-sub>
+                 <x-dropdown-sub label="{{ __('Programas') }}" :links="[
+                     ['url' => route('software.aligerados-v1'), 'label' => 'Aligerados v1.0'],
+                     ['url' => route('software.aligerados-v2'), 'label' => 'Aligerados v2.0'],
+                     ['url' => route('software.cimentacion-v1'), 'label' => 'Cimentacion v1.0'],
+                     ['url' => route('software.cimentacion-v2'), 'label' => 'Cimentacion v2.0'],
+                     ['url' => route('software.analisis-estructural-de-armaduras'), 'label' => 'Analisis Estructural'],
+                     ['url' => route('software.etabs2'), 'label' => 'Etabs 2'],
+                 ]"></x-dropdown-sub>
 
                         <x-dropdown-link :href="route('software.predimv2')" :active="request()->routeIs('software.predimv2')">
                             {{ __('Predim') }}
@@ -430,6 +433,9 @@ $logout = function (Logout $logout) {
                 <x-dropdown-link :href="route('calculadora.asistente.irregularidades')" :active="request()->routeIs('calculadora.asistente.irregularidades')" {{-- wire:navigate --}}>
                     {{ __('Irregularidades') }}
                 </x-dropdown-link>
+                <x-dropdown-link :href="route('calculadora.asistente.espectro-sismico')" :active="request()->routeIs('calculadora.asistente.espectro-sismico')" {{-- wire:navigate --}}>
+                    {{ __('Epectro Simico') }}
+                </x-dropdown-link>
                 <x-dropdown-sub label="{{ __('Diseño En Madera') }}" :links="[
                     ['url' => route('calculadora.asistente.diseno-en-madera.correas'), 'label' => 'Diseño de Correas'],
                     [
@@ -463,13 +469,14 @@ $logout = function (Logout $logout) {
         </div>
         <div class="space-y-1 pb-3 pt-2">
             <x-dropdown-nav-item name="{{ __('Diseñador') }}" component="responsive-nav-item" :active="request()->routeIs('software.*')">
-                <x-dropdown-sub label="{{ __('Programas') }}" :links="[
-                    ['url' => route('software.aligerados-v1'), 'label' => 'Aligerados v1.0'],
-                    ['url' => route('software.aligerados-v2'), 'label' => 'Aligerados v2.0'],
-                    ['url' => route('software.cimentacion-v1'), 'label' => 'Cimentacion v1.0'],
-                    ['url' => route('software.cimentacion-v2'), 'label' => 'Cimentacion v2.0'],
-                    ['url' => route('software.analisis-estructural-de-armaduras'), 'label' => 'Analisis Estructural'],
-                ]"></x-dropdown-sub>
+                        <x-dropdown-sub label="{{ __('Programas') }}" :links="[
+                            ['url' => route('software.aligerados-v1'), 'label' => 'Aligerados v1.0'],
+                            ['url' => route('software.aligerados-v2'), 'label' => 'Aligerados v2.0'],
+                            ['url' => route('software.cimentacion-v1'), 'label' => 'Cimentacion v1.0'],
+                            ['url' => route('software.cimentacion-v2'), 'label' => 'Cimentacion v2.0'],
+                            ['url' => route('software.analisis-estructural-de-armaduras'), 'label' => 'Analisis Estructural'],
+                            ['url' => route('software.etabs2'), 'label' => 'Etabs 2'],
+                        ]"></x-dropdown-sub>
             </x-dropdown-nav-item>
         </div>
         <div class="space-y-1 pb-3 pt-2">

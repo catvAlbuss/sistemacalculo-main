@@ -144,6 +144,9 @@ Route::middleware(["auth", "verified"])->group(function () {
                 // Irregularidades
                 Route::view('/irregularidades', 'hcalculo.admIrregularidades')->name('irregularidades');
 
+                // Espectro Sísmico
+                Route::view('/espectro-sismico', 'hcalculo.espectro-sismico')->name('espectro-sismico');
+
                 // Diseño en madera
                 Route::prefix('diseno-en-madera')->name('diseno-en-madera.')->group(function () {
                     Route::view('/correas', 'hcalculo.admdesingcorreas')->name('correas');
@@ -162,7 +165,9 @@ Route::middleware(["auth", "verified"])->group(function () {
         });
     });
     Route::prefix("software")->name("software.")->group(function () {
-        Route::view('/analisis-estructural-de-armaduras', 'matlab.admAnalisisEstructuralDeArmaduras')->name("analisis-estructural-de-armaduras");
+        Route::view('/analisis-estructural-de-armaduras', 'etabs')->name("analisis-estructural-de-armaduras");
+        Route::view('/etabs2', 'etabs2')->name("etabs2");
+        Route::view('/etabs', 'matlab.admAnalisisEstructuralDeArmaduras')->name("etabs");
         Route::view('/aligerados-v2', 'matlab.admAligeradosGrafico')->name("aligerados-v2");
         Route::view('/aligerados-v1', 'matlab.admFuerzasCortantesGrafico')->name("aligerados-v1");
         Route::view('/cimentacion-v2', 'matlab.admSafecito')->name("cimentacion-v2");
