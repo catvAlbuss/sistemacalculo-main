@@ -151,7 +151,6 @@ function mapNodePositionTo3D(node) {
     );
 }
 
-
 // HELPER FUNCTIONS
 function belongsToActiveView(nodeOrBeam, context) {
     const view = context?.viewSet?.[context?.activeViewIndex];

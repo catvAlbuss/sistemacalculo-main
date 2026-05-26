@@ -35,7 +35,7 @@
     </x-cad.ribbon-group>
     <!-- -------------------------APARTADO DE TAREAS -------------------------- -->
     <x-cad.ribbon-group title="Tareas">
-      <form class="flex flex-row" x-on:submit="calcularFuerzasHybrid">
+      <form class="flex flex-row" x-on:submit.prevent="calcularFuerzas">
         @csrf
         <x-cad.ribbon-button clickHandler="" toggle="false" label="Correr">
           <x-cad.svg.run></x-cad.svg.run>

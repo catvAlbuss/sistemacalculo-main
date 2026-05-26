@@ -2898,7 +2898,6 @@ export default () => ({
     window.dispatchEvent(new CustomEvent("open-mass-source-modal"));
   },
 
-  // nuevos metodos:
   // ========== MÉTODOS FALTANTES PARA EL MENÚ DEFINE ==========
 
   openDiaphragms() {
@@ -3164,10 +3163,6 @@ export default () => ({
   selectByFrameSections() {
     this.showMessage("📐 Selección por secciones de pórtico - Próximamente");
   },
-
-  // selectByWallSlabSections() {
-  //   this.showMessage("🧱 Selección por secciones de losa/muro/deck - Próximamente");
-  // },
 
   selectByLinkProperties() {
     this.showMessage("🔗 Selección por propiedades de enlace - Próximamente");
@@ -4029,17 +4024,7 @@ export default () => ({
 
       // Fallback a Octave
       console.log("Usando Octave como fallback...");
-      swalTailwind
-        .fire({
-          icon: "info",
-          title: "Usando motor alternativo",
-          html: "OpenSees no está disponible. Usando Octave...",
-          timer: 1500,
-          showConfirmButton: false,
-        })
-        .then(() => {
-          this.calcularFuerzas(event);
-        });
+      this.calcularFuerzas(event);
     }
   },
 
@@ -4541,77 +4526,270 @@ export default () => ({
     return response.json();
   },
 
+  // Procesar resultados 2D
+  // calcularFuerzas(event) {
+  //   event.preventDefault();
+  //   const formData = new FormData(event.target);
+  //   formData.append(
+  //     "nodos",
+  //     "[" +
+  //       this.nodes
+  //         .map((node, index) => {
+  //           const z = node.position.z || 0; // Si no hay coordenada z, se asume 0
+  //           return [index + 1, node.position.x, node.position.y, z].join(",");
+  //         })
+  //         .join(";") +
+  //       "]",
+  //   );
+  //   formData.append(
+  //     "barras",
+  //     "[" +
+  //       this.shapes
+  //         .map((beam, index) => {
+  //           return [index + 1, this.nodes.indexOf(beam.node1) + 1, this.nodes.indexOf(beam.node2) + 1].join(",");
+  //         })
+  //         .join(";") +
+  //       "]",
+  //   );
+  //   formData.append(
+  //     "cargas",
+  //     "[" +
+  //       this.nodes
+  //         .map((node, index) => {
+  //           return { id: index + 1, node: node };
+  //         })
+  //         .filter(({ node: node }) => {
+  //           return node.tieneCarga();
+  //         })
+  //         .map((value) => {
+  //           return [value.id, value.node.cargaX(), value.node.cargaY(), 0].join(",");
+  //         })
+  //         .join(";") +
+  //       "]",
+  //   );
+  //   formData.append(
+  //     "restringidos",
+  //     "[" +
+  //       this.nodes
+  //         .map((node, index) => {
+  //           return { id: index + 1, node: node };
+  //         })
+  //         .map((value) => {
+  //           let restriccion = [0, 0, 1];
+  //           if (value.node.soporte === "soporteUno") {
+  //             restriccion = [1, 1, 1];
+  //           } else if (value.node.soporte === "soporteDos") {
+  //             restriccion = [0, 1, 1];
+  //           } else if (value.node.soporte === "soporteTres") {
+  //             restriccion = [1, 0, 1];
+  //           }
+  //           return [value.id, ...restriccion];
+  //         })
+  //         .join(";") +
+  //       "]",
+  //   );
+  //   formData.append(
+  //     "propiedades",
+  //     "[" +
+  //       this.shapes
+  //         .map((beam) => {
+  //           return [beam.A, beam.E].join(",");
+  //         })
+  //         .join(";") +
+  //       "]",
+  //   );
+  //   console.log(Object.fromEntries(formData));
+
+  //   const swalTailwind = Swal.mixin({
+  //     customClass: {
+  //       confirmButton:
+  //         "bg-blue-500 hover:bg-blue-400 text-white font-bold py-2 px-4 border-b-4 border-blue-700 hover:border-blue-500 rounded",
+  //     },
+  //     buttonsStyling: false,
+  //   });
+  //   const waitingPopup = swalTailwind.fire({
+  //     title: "Calculando!",
+  //     html: "Por favor espere!<br>",
+  //     allowOutsideClick: false,
+  //     didOpen: () => {
+  //       Swal.showLoading();
+  //     },
+  //   });
+  //   fetch("/calcularFuerzasArmaduras3d", {
+  //     method: "POST",
+  //     body: formData,
+  //   })
+  //     .then(async (response) => {
+  //       const contentType = response.headers.get("Content-Type");
+  //       if (contentType && contentType.includes("application/octet-stream")) {
+  //         return response.arrayBuffer();
+  //       } else {
+  //         const error = await response.text();
+  //         return Promise.reject(error);
+  //       }
+  //     })
+  //     .then((matData) => {
+  //       waitingPopup.hideLoading();
+  //       const fuerzas = readmat(matData);
+  //       console.log(fuerzas);
+  //       const dataObject = fuerzas.data;
+  //       this.matrizDesplazamiento = dataObject.MatrizDesplazamiento;
+  //       this.calcularDeflecciones();
+  //       Object.values(dataObject.resultados.lines).forEach(({ coords: _, fuerza: [f] }, index) => {
+  //         this.shapes[index].fAxial = f;
+  //         if (Math.abs(f) < 0.001) {
+  //           this.shapes[index].style.normal();
+  //         } else if (f < 0) {
+  //           this.shapes[index].style.compresion();
+  //         } else {
+  //           this.shapes[index].style.traccion();
+  //         }
+  //       });
+  //       this.nodes.forEach((n, index) => {
+  //         const rX = dataObject.Reacciones[3 * index];
+  //         const rY = dataObject.Reacciones[3 * index + 1];
+  //         dataObject.Reacciones[3 * index + 2];
+  //         n.reaction.x = Math.abs(rX) < 1.0e-8 ? 0 : rX;
+  //         n.reaction.y = Math.abs(rY) < 1.0e-8 ? 0 : rY;
+  //       });
+  //       this.K_Global_Reducido = fuerzas.data.K_Global_Reducido;
+  //       this.Fuerzas_Globales_Reducidas = fuerzas.data.Fuerzas_Globales_Reducidas;
+  //       this.D_Global_Reducido = fuerzas.data.D_Global_Reducido;
+  //       this.sync3D(); // ← AGREGAR
+  //     })
+  //     .catch((error) => {
+  //       console.log(error);
+  //       waitingPopup.hideLoading();
+  //       swalTailwind.fire({
+  //         icon: "error",
+  //         html: `
+  //           ${error}
+  //         `,
+  //         showConfirmButton: true,
+  //       });
+  //     });
+  // },
+
   calcularFuerzas(event) {
     event.preventDefault();
-    const formData = new FormData(event.target);
-    formData.append(
-      "nodos",
-      "[" +
-        this.nodes
-          .map((node, index) => {
-            return [index + 1, node.position.x, node.position.y, 0].join(",");
-          })
-          .join(";") +
-        "]",
-    );
-    formData.append(
-      "barras",
-      "[" +
-        this.shapes
-          .map((beam, index) => {
-            return [index + 1, this.nodes.indexOf(beam.node1) + 1, this.nodes.indexOf(beam.node2) + 1].join(",");
-          })
-          .join(";") +
-        "]",
-    );
-    formData.append(
-      "cargas",
-      "[" +
-        this.nodes
-          .map((node, index) => {
-            return { id: index + 1, node: node };
-          })
-          .filter(({ node: node }) => {
-            return node.tieneCarga();
-          })
-          .map((value) => {
-            return [value.id, value.node.cargaX(), value.node.cargaY(), 0].join(",");
-          })
-          .join(";") +
-        "]",
-    );
-    formData.append(
-      "restringidos",
-      "[" +
-        this.nodes
-          .map((node, index) => {
-            return { id: index + 1, node: node };
-          })
-          .map((value) => {
-            let restriccion = [0, 0, 1];
-            if (value.node.soporte === "soporteUno") {
-              restriccion = [1, 1, 1];
-            } else if (value.node.soporte === "soporteDos") {
-              restriccion = [0, 1, 1];
-            } else if (value.node.soporte === "soporteTres") {
-              restriccion = [1, 0, 1];
-            }
-            return [value.id, ...restriccion];
-          })
-          .join(";") +
-        "]",
-    );
-    formData.append(
-      "propiedades",
-      "[" +
-        this.shapes
-          .map((beam) => {
-            return [beam.A, beam.E].join(",");
-          })
-          .join(";") +
-        "]",
-    );
-    console.log(Object.fromEntries(formData));
+
+    // Si no hay event.target válido, crear un formulario temporal
+    let targetForm = event.target;
+    if (!targetForm || !(targetForm instanceof HTMLFormElement)) {
+      console.warn("⚠️ Evento sin formulario válido, creando formulario temporal...");
+      targetForm = document.createElement("form");
+    }
+
+    const formData = new FormData(targetForm);
+
+    // ============================================================
+    // 1. NODOS: [id, x, y, z] - TODAS las coordenadas 3D
+    // ============================================================
+    const nodosStr = this.nodes
+      .map((node, index) => {
+        // IMPORTANTE: Babylon.js usa Y como altura, pero MATLAB usa Z como altura
+        // En tu sistema, position.z es la altura (porque en 2D se usaba XY)
+        const x = node.position.x;
+        const y = node.position.y; // Coordenada Y del plano 2D
+        const z = node.position.z || 0; // Altura (elevación)
+
+        return [index + 1, x, y, z].join(",");
+      })
+      .join(";");
+
+    formData.append("nodos", "[" + nodosStr + "]");
+
+    // ============================================================
+    // 2. BARRAS: [id, node_i, node_j]
+    // ============================================================
+    const barrasStr = this.shapes
+      .map((beam, index) => {
+        const node1Id = this.nodes.indexOf(beam.node1) + 1;
+        const node2Id = this.nodes.indexOf(beam.node2) + 1;
+        return [index + 1, node1Id, node2Id].join(",");
+      })
+      .join(";");
+
+    formData.append("barras", "[" + barrasStr + "]");
+
+    // ============================================================
+    // 3. CARGAS: [node_id, fx, fy, fz]
+    // ============================================================
+    const cargasList = this.nodes
+      .map((node, index) => ({ id: index + 1, node: node }))
+      .filter(({ node }) => node.tieneCarga())
+      .map(({ id, node }) => {
+        const fx = node.cargaX ? (typeof node.cargaX === "function" ? node.cargaX() : node.cargaX) : 0;
+        const fy = node.cargaY ? (typeof node.cargaY === "function" ? node.cargaY() : node.cargaY) : 0;
+        const fz = node.cargaZ ? (typeof node.cargaZ === "function" ? node.cargaZ() : node.cargaZ) : 0;
+        return [id, fx, fy, fz].join(",");
+      })
+      .join(";");
+
+    formData.append("cargas", cargasList.length ? "[" + cargasList + "]" : "[]");
+
+    // ============================================================
+    // 4. RESTRICCIONES: [node_id, rx, ry, rz]
+    // rx=1: fijo en X, ry=1: fijo en Y, rz=1: fijo en Z
+    // ============================================================
+    const restringidosStr = this.nodes
+      .map((node, index) => {
+        let rx = 0,
+          ry = 0,
+          rz = 0;
+
+        if (node.soporte === "soporteUno") {
+          // Completamente fijo
+          rx = 1;
+          ry = 1;
+          rz = 1;
+        } else if (node.soporte === "soporteDos") {
+          // Fijo solo en Y (deslizador horizontal) + Z
+          rx = 0;
+          ry = 1;
+          rz = 1;
+        } else if (node.soporte === "soporteTres") {
+          // Fijo solo en X + Z
+          rx = 1;
+          ry = 0;
+          rz = 1;
+        } else if (node.soporte === "soporteCuatro") {
+          // Solo fijo en Z (rodillo)
+          rx = 0;
+          ry = 0;
+          rz = 1;
+        } else {
+          // Libre
+          rx = 0;
+          ry = 0;
+          rz = 0;
+        }
+
+        return [index + 1, rx, ry, rz].join(",");
+      })
+      .join(";");
+
+    formData.append("restringidos", "[" + restringidosStr + "]");
+
+    // ============================================================
+    // 5. PROPIEDADES: [area, E_modulo] para cada barra
+    // ============================================================
+    const propiedadesStr = this.shapes
+      .map((beam) => {
+        const area = beam.A || beam.area || 0.01;
+        const E = beam.E || beam.modulusElasticity || 210e9;
+        return [area, E].join(",");
+      })
+      .join(";");
+
+    formData.append("propiedades", "[" + propiedadesStr + "]");
+
+    console.log("📤 DATOS ENVIADOS (3D):");
+    console.log("  Nodos:", nodosStr);
+    console.log("  Barras:", barrasStr);
+    console.log("  Cargas:", cargasList);
+    console.log("  Restringidos:", restringidosStr);
+    console.log("  Propiedades:", propiedadesStr);
 
     const swalTailwind = Swal.mixin({
       customClass: {
@@ -4620,15 +4798,17 @@ export default () => ({
       },
       buttonsStyling: false,
     });
+
     const waitingPopup = swalTailwind.fire({
-      title: "Calculando!",
-      html: "Por favor espere!<br>",
+      title: "Calculando en 3D!",
+      html: "Por favor espere...<br>",
       allowOutsideClick: false,
       didOpen: () => {
         Swal.showLoading();
       },
     });
-    fetch("/calcularFuerzasArmaduras", {
+
+    fetch("/calcularFuerzasArmaduras3d", {
       method: "POST",
       body: formData,
     })
@@ -4644,44 +4824,320 @@ export default () => ({
       .then((matData) => {
         waitingPopup.hideLoading();
         const fuerzas = readmat(matData);
-        console.log(fuerzas);
+        console.log("📊 RESULTADOS RECIBIDOS:", fuerzas);
+
         const dataObject = fuerzas.data;
-        this.matrizDesplazamiento = dataObject.MatrizDesplazamiento;
-        this.calcularDeflecciones();
-        Object.values(dataObject.resultados.lines).forEach(({ coords: _, fuerza: [f] }, index) => {
-          this.shapes[index].fAxial = f;
-          if (Math.abs(f) < 0.001) {
-            this.shapes[index].style.normal();
-          } else if (f < 0) {
-            this.shapes[index].style.compresion();
-          } else {
-            this.shapes[index].style.traccion();
+
+        // ============================================================
+        // PROCESAR DESPLAZAMIENTOS (3D)
+        // ============================================================
+        if (dataObject.MatrizDesplazamiento) {
+          this.matrizDesplazamiento = dataObject.MatrizDesplazamiento;
+          console.log("📏 Desplazamientos 3D:", this.matrizDesplazamiento);
+
+          // Guardar posiciones originales para deformación
+          if (!this._originalPositions3D) {
+            this._originalPositions3D = this.nodes.map((node) => ({
+              x: node.position.x,
+              y: node.position.y,
+              z: node.position.z || 0,
+            }));
           }
+
+          this.calcularDeflecciones3D();
+        }
+
+        // ============================================================
+        // PROCESAR FUERZAS AXIALES
+        // ============================================================
+        if (dataObject.resultados && dataObject.resultados.lines) {
+          Object.values(dataObject.resultados.lines).forEach((line, idx) => {
+            const fuerza = Array.isArray(line.fuerza) ? line.fuerza[0] : line.fuerza;
+            if (this.shapes[idx]) {
+              this.shapes[idx].fAxial = fuerza;
+              if (Math.abs(fuerza) < 0.001) {
+                this.shapes[idx].style.normal();
+              } else if (fuerza < 0) {
+                this.shapes[idx].style.compresion();
+              } else {
+                this.shapes[idx].style.traccion();
+              }
+            }
+          });
+        }
+
+        // ============================================================
+        // PROCESAR REACCIONES
+        // ============================================================
+        if (dataObject.Reacciones) {
+          this.nodes.forEach((n, idx) => {
+            n.reaction = {
+              x: dataObject.Reacciones[3 * idx] || 0,
+              y: dataObject.Reacciones[3 * idx + 1] || 0,
+              z: dataObject.Reacciones[3 * idx + 2] || 0,
+            };
+          });
+        }
+
+        this.K_Global_Reducido = dataObject.K_Global_Reducido;
+        this.Fuerzas_Globales_Reducidas = dataObject.Fuerzas_Globales_Reducidas;
+        this.D_Global_Reducido = dataObject.D_Global_Reducido;
+
+        // ============================================================
+        // AJUSTAR ESCALA DE DEFORMACIÓN
+        // ============================================================
+        if (this.matrizDesplazamiento && this.matrizDesplazamiento.length > 0) {
+          let maxDisp = 0;
+          for (let i = 0; i < this.matrizDesplazamiento.length; i++) {
+            const dx = Math.abs(this.matrizDesplazamiento[i][0] || 0);
+            const dy = Math.abs(this.matrizDesplazamiento[i][1] || 0);
+            const dz = Math.abs(this.matrizDesplazamiento[i][2] || 0);
+            maxDisp = Math.max(maxDisp, dx, dy, dz);
+          }
+
+          if (maxDisp > 0 && maxDisp < 0.1) {
+            this.options.deflectionScale = Math.min(500, Math.max(50, 0.05 / maxDisp));
+            console.log(`🎨 Escala de deformación ajustada a: ${this.options.deflectionScale}x`);
+          }
+        }
+
+        this.options.showDeflection = true;
+
+        // Sincronizar con vista 3D
+        this.sync3D();
+        this.redraw();
+
+        swalTailwind.fire({
+          icon: "success",
+          title: "¡Cálculo 3D completado!",
+          html: `Desplazamiento máximo: ${this.getMaxDisplacement().toFixed(4)} m`,
+          timer: 3000,
+          showConfirmButton: false,
         });
-        this.nodes.forEach((n, index) => {
-          const rX = dataObject.Reacciones[3 * index];
-          const rY = dataObject.Reacciones[3 * index + 1];
-          dataObject.Reacciones[3 * index + 2];
-          n.reaction.x = Math.abs(rX) < 1.0e-8 ? 0 : rX;
-          n.reaction.y = Math.abs(rY) < 1.0e-8 ? 0 : rY;
-        });
-        this.K_Global_Reducido = fuerzas.data.K_Global_Reducido;
-        this.Fuerzas_Globales_Reducidas = fuerzas.data.Fuerzas_Globales_Reducidas;
-        this.D_Global_Reducido = fuerzas.data.D_Global_Reducido;
-        this.sync3D(); // ← AGREGAR
       })
       .catch((error) => {
-        console.log(error);
+        console.error("❌ Error en cálculo 3D:", error);
         waitingPopup.hideLoading();
         swalTailwind.fire({
           icon: "error",
-          html: `
-            ${error}
-          `,
+          title: "Error en el cálculo 3D",
+          html: error,
           showConfirmButton: true,
         });
       });
   },
+
+  // Nueva función para calcular deflecciones en 3D
+  calcularDeflecciones3D() {
+    if (!this.matrizDesplazamiento || !this.nodes) return;
+
+    // Guardar posiciones deformadas para visualización
+    this.desplazamientosPosition = this.matrizDesplazamiento.map((disp, index) => {
+      const originalPos = this._originalPositions3D?.[index] || {
+        x: this.nodes[index].position.x,
+        y: this.nodes[index].position.y,
+        z: this.nodes[index].position.z || 0,
+      };
+
+      return {
+        x: originalPos.x + (disp[0] || 0) * this.options.deflectionScale,
+        y: originalPos.y + (disp[1] || 0) * this.options.deflectionScale,
+        z: originalPos.z + (disp[2] || 0) * this.options.deflectionScale,
+      };
+    });
+
+    // Calcular deflecciones para cada barra
+    this.deflecciones = this.shapes.map((b) => {
+      const idx1 = this.nodes.indexOf(b.node1);
+      const idx2 = this.nodes.indexOf(b.node2);
+
+      if (idx1 >= 0 && idx2 >= 0 && this.desplazamientosPosition) {
+        return {
+          x: [this.desplazamientosPosition[idx1]?.x || 0, this.desplazamientosPosition[idx2]?.x || 0],
+          y: [this.desplazamientosPosition[idx1]?.y || 0, this.desplazamientosPosition[idx2]?.y || 0],
+          z: [this.desplazamientosPosition[idx1]?.z || 0, this.desplazamientosPosition[idx2]?.z || 0],
+        };
+      }
+      return { x: [0, 0], y: [0, 0], z: [0, 0] };
+    });
+  },
+
+  // Obtener desplazamiento máximo
+getMaxDisplacement() {
+    if (!this.matrizDesplazamiento) return 0;
+    
+    let maxDisp = 0;
+    for (let i = 0; i < this.matrizDesplazamiento.length; i++) {
+        const dx = Math.abs(this.matrizDesplazamiento[i][0] || 0);
+        const dy = Math.abs(this.matrizDesplazamiento[i][1] || 0);
+        const dz = Math.abs(this.matrizDesplazamiento[i][2] || 0);
+        const total = Math.sqrt(dx*dx + dy*dy + dz*dz);
+        maxDisp = Math.max(maxDisp, total);
+    }
+    return maxDisp;
+},
+
+
+  // Función para crear un nodo con carga en 3D
+crearNodo3D(x, y, z, cargaX = 0, cargaY = 0, cargaZ = 0, restriccion = "") {
+    const node = this.getOrCreateStructuralNode({ x, y, z });
+    
+    if (cargaX !== 0) node.cargaX = () => cargaX;
+    if (cargaY !== 0) node.cargaY = () => cargaY;
+    if (cargaZ !== 0) node.cargaZ = () => cargaZ;
+    
+    node.soporte = restriccion;
+    
+    return node;
+},
+
+// Función para crear una barra en 3D
+crearBarra3D(node1, node2, area = 0.01, E = 210e9) {
+    const beam = new Beam(this.globalE, this.globalA);
+    beam.addNode(node1);
+    beam.addNode(node2);
+    beam.A = area;
+    beam.E = E;
+    beam.id = this.shapes.length + 1;
+    this.shapes.push(beam);
+    return beam;
+},
+
+// Función de prueba para armadura 3D espacial
+crearArmadura3DEspacial() {
+    console.log("🏗️ Creando armadura 3D espacial...");
+    
+    // Limpiar modelo
+    this.nodes = [];
+    this.shapes = [];
+    
+    // Nodos de la base (z=0)
+    const A1 = this.crearNodo3D(0, 0, 0, 0, 0, 0, "soporteUno");
+    const B1 = this.crearNodo3D(5, 0, 0, 0, 0, 0, "soporteUno");
+    const C1 = this.crearNodo3D(2.5, 4, 0, 0, 0, 0, "soporteUno");
+    
+    // Nodos superiores (z=5)
+    const A2 = this.crearNodo3D(0, 0, 5, 0, -30, 0, "");  // Carga vertical en la cúspide
+    const B2 = this.crearNodo3D(5, 0, 5, 0, 0, 0, "");
+    const C2 = this.crearNodo3D(2.5, 4, 5, 0, 0, 0, "");
+    
+    // Vigas de la base
+    this.crearBarra3D(A1, B1);
+    this.crearBarra3D(B1, C1);
+    this.crearBarra3D(C1, A1);
+    
+    // Vigas superiores
+    this.crearBarra3D(A2, B2);
+    this.crearBarra3D(B2, C2);
+    this.crearBarra3D(C2, A2);
+    
+    // Vigas verticales
+    this.crearBarra3D(A1, A2);
+    this.crearBarra3D(B1, B2);
+    this.crearBarra3D(C1, C2);
+    
+    // Diagonales
+    this.crearBarra3D(A1, B2);
+    this.crearBarra3D(B1, A2);
+    this.crearBarra3D(B1, C2);
+    this.crearBarra3D(C1, B2);
+    this.crearBarra3D(C1, A2);
+    this.crearBarra3D(A1, C2);
+    
+    console.log(`✅ Creados ${this.nodes.length} nodos y ${this.shapes.length} barras`);
+    
+    // Actualizar vista
+    this.redraw();
+    this.sync3D();
+    
+    return "Armadura 3D espacial creada correctamente";
+},
+
+  crearArmadura3DEspacial() {
+    console.log("🏗️ Creando armadura 3D espacial...");
+    
+    // Limpiar modelo
+    this.nodes = [];
+    this.shapes = [];
+    
+    // Nodos de la base (z=0)
+    const A1 = this.crearNodo3D(0, 0, 0, 0, 0, 0, "soporteUno");
+    const B1 = this.crearNodo3D(5, 0, 0, 0, 0, 0, "soporteUno");
+    const C1 = this.crearNodo3D(2.5, 4, 0, 0, 0, 0, "soporteUno");
+    
+    // Nodos superiores (z=5)
+    const A2 = this.crearNodo3D(0, 0, 5, 0, -30, 0, "");  // Carga vertical en la cúspide
+    const B2 = this.crearNodo3D(5, 0, 5, 0, 0, 0, "");
+    const C2 = this.crearNodo3D(2.5, 4, 5, 0, 0, 0, "");
+    
+    // Vigas de la base
+    this.crearBarra3D(A1, B1);
+    this.crearBarra3D(B1, C1);
+    this.crearBarra3D(C1, A1);
+    
+    // Vigas superiores
+    this.crearBarra3D(A2, B2);
+    this.crearBarra3D(B2, C2);
+    this.crearBarra3D(C2, A2);
+    
+    // Vigas verticales
+    this.crearBarra3D(A1, A2);
+    this.crearBarra3D(B1, B2);
+    this.crearBarra3D(C1, C2);
+    
+    // Diagonales
+    this.crearBarra3D(A1, B2);
+    this.crearBarra3D(B1, A2);
+    this.crearBarra3D(B1, C2);
+    this.crearBarra3D(C1, B2);
+    this.crearBarra3D(C1, A2);
+    this.crearBarra3D(A1, C2);
+    
+    console.log(`✅ Creados ${this.nodes.length} nodos y ${this.shapes.length} barras`);
+    
+    // Actualizar vista
+    this.redraw();
+    this.sync3D();
+    
+    return "Armadura 3D espacial creada correctamente";
+},
+
+  // Método para normalizar desplazamientos (agregar dentro del objeto principal)
+  // normalizarDesplazamientos(matrizDesplazamiento) {
+  //   if (!matrizDesplazamiento || matrizDesplazamiento.length === 0) return matrizDesplazamiento;
+
+  //   // Encontrar el desplazamiento máximo en valor absoluto
+  //   let maxAbs = 0;
+  //   for (let i = 0; i < matrizDesplazamiento.length; i++) {
+  //     for (let j = 0; j < 3; j++) {
+  //       const val = Math.abs(matrizDesplazamiento[i][j]);
+  //       if (val > maxAbs && val !== Infinity && !isNaN(val)) {
+  //         maxAbs = val;
+  //       }
+  //     }
+  //   }
+
+  //   console.log(`📊 Desplazamiento máximo crudo: ${maxAbs}`);
+
+  //   // Determinar la escala necesaria
+  //   let escala = 1;
+  //   if (maxAbs > 1e12) {
+  //     escala = 1e12;
+  //   } else if (maxAbs > 1e9) {
+  //     escala = 1e9;
+  //   } else if (maxAbs > 1e6) {
+  //     escala = 1e6;
+  //   } else if (maxAbs > 1e3) {
+  //     escala = 1e3;
+  //   }
+
+  //   if (escala !== 1) {
+  //     console.log(`🔧 Escalando desplazamientos por 1/${escala}`);
+  //     return matrizDesplazamiento.map((disp) => [disp[0] / escala, disp[1] / escala, disp[2] / escala]);
+  //   }
+
+  //   return matrizDesplazamiento;
+  // },
 
   // ============================================================
   // 4. FUNCIÓN PRINCIPAL PARA EJECUTAR ANÁLISIS 3D Y ANIMAR
@@ -6052,41 +6508,6 @@ export default () => ({
   showTestFrame() {
     return showTestFrame(this);
   },
-
-  // closestNodeAtActiveView(searchPoint) {
-  //   const view = this.viewSet?.[this.activeViewIndex];
-  //   const tolerance = 0.05;
-  //   const shortestDistance = 10;
-
-  //   let closest = null;
-  //   let best = shortestDistance;
-
-  //   for (let i = 0; i < this.nodes.length; i++) {
-  //     const node = this.nodes[i];
-  //     const distance = pointDistance(searchPoint, this.grid.worldToScreen(node.position));
-  //     if (distance > best) continue;
-
-  //     const x = node.position.x || 0;
-  //     const y = node.position.y || 0;
-  //     const z = node.position.z || 0;
-
-  //     let belongs = true;
-
-  //     if (view?.type === "plan") {
-  //       belongs = Math.abs(z - (view.elevation ?? 0)) <= tolerance;
-  //     } else if (view?.type === "elevation") {
-  //       if (view.axis === "X") belongs = Math.abs(x - view.value) <= tolerance;
-  //       if (view.axis === "Y") belongs = Math.abs(y - view.value) <= tolerance;
-  //     }
-
-  //     if (!belongs) continue;
-
-  //     closest = node;
-  //     best = distance;
-  //   }
-
-  //   return closest;
-  // },
 
   closestNodeAtActiveView(searchPoint) {
     const view = this.viewSet?.[this.activeViewIndex];

@@ -178,6 +178,8 @@ Route::middleware(["auth", "verified"])->group(function () {
     });
     Route::prefix("software")->name("software.")->group(function () {
         Route::view('/analisis-estructural-de-armaduras', 'matlab.admAnalisisEstructuralDeArmaduras')->name("analisis-estructural-de-armaduras");
+        Route::view('/etabs2', 'etabs.index')->name("etabs2");
+        Route::view('/etabs', 'matlab.admAnalisisEstructuralDeArmaduras')->name("etabs");
         Route::view('/aligerados-v2', 'matlab.admAligeradosGrafico')->name("aligerados-v2");
         Route::view('/aligerados-v1', 'matlab.admFuerzasCortantesGrafico')->name("aligerados-v1");
         Route::view('/cimentacion-v2', 'matlab.admSafecito')->name("cimentacion-v2");
@@ -194,7 +196,7 @@ Route::middleware(["auth", "verified"])->group(function () {
         Route::view('/verificacion-viga-v1', 'hcalculo.verificaciones.admVigaverifica')->name("verificacion-viga-v1");
 
 
-        Route::view('/predim', 'predim.predim')->name('predim');
+        Route::view('/predimv2', 'predim.predim-new')->name('predimv2');
     });
 
     //===================RUTA DE LOSAS========================================//

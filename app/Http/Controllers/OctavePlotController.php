@@ -201,6 +201,20 @@ class OctavePlotController extends Controller
         self::returnOctaveResult($function);
     }
 
+    public function calcularFuerzasArmaduras3d(Request $request)
+    {
+        $function = sprintf(
+            "rigidez_armaduras(%s, %s, %s, %s, %s);",
+            $request->input("nodos"),
+            $request->input("barras"),
+            $request->input("cargas"),
+            $request->input("restringidos"),
+            $request->input("propiedades"),
+        );
+
+        self::returnOctaveResult($function);
+    }
+
     public function calcularSuelos(Request $request)
     {
         $function = sprintf(

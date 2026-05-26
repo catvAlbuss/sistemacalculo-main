@@ -13,12 +13,12 @@ import * as pdfFonts from "pdfmake/build/vfs_fonts";
 window.Alpine = Alpine;
 window.pdfMake = pdfMake;
 
-console.log('� Aplicación base inicializada');
+console.log("� Aplicación base inicializada");
 
 // Evento para manejo de errores globales (común a todos los módulos)
-window.addEventListener('unhandledrejection', (event) => {
-    console.error('❌ Error no manejado:', event.reason);
-    if (window.NotificationManager) {
-        window.NotificationManager.showError('Error inesperado en el sistema');
-    }
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("❌ Error no manejado:", event.reason);
+  if (window.NotificationManager) {
+    window.NotificationManager.showError("Error inesperado en el sistema");
+  }
 });
