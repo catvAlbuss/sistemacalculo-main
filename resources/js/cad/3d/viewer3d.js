@@ -401,16 +401,81 @@ export function sync3D(context) {
     }, 50);
 }
 
+// Original
+// export function drawIn3D(context) {
+//     if (!VIEWER_STATE.scene || !context.nodes) return;
+
+//     // Si ya estás usando renderModel3D
+//     renderModel3D(
+//         VIEWER_STATE,
+//         context.nodes,
+//         context.shapes,
+//         context.areas || []
+//     );
+// }
+
 export function drawIn3D(context) {
     if (!VIEWER_STATE.scene || !context.nodes) return;
 
-    // Si ya estás usando renderModel3D
-    renderModel3D(
-        VIEWER_STATE,
-        context.nodes,
-        context.shapes,
-        context.areas || []
-    );
+
+    console.log(`🎨 drawIn3D: ${context.nodes.length} nodos, showDeflection=${context.options?.showDeflection}, desplazamientos=${context.desplazamientosPosition?.length}`);
+
+    // Limpiar elementos anteriores del modelo (nodos y barras)
+    clearModelElements();
+
+    // Dibujar nodos deformados (si corresponde)
+    context.nodes.forEach(node => {
+        const pos3d = getNodePosition3D(node, context);
+        const sphere = BABYLON.MeshBuilder.CreateSphere(
+            `node_${node.id}`,
+            { diameter: 0.08, segments: 8 },
+            VIEWER_STATE.scene,
+        );
+        sphere.position = pos3d;
+
+        const material = new BABYLON.StandardMaterial(`nodeMat_${node.id}`, VIEWER_STATE.scene);
+        const isActiveView = belongsToActiveView(node, context);
+        const isSelected = isNodeSelected(node, context);
+
+        if (isSelected) {
+            material.diffuseColor = COLORS_3D.selectedModel;
+            material.emissiveColor = COLORS_3D.selectedGlow;
+            sphere.scaling = new BABYLON.Vector3(1.8, 1.8, 1.8);
+        } else if (isActiveView) {
+            material.diffuseColor = COLORS_3D.activeModel;
+            material.emissiveColor = COLORS_3D.activeModelGlow;
+        } else {
+            material.diffuseColor = COLORS_3D.inactiveModel;
+            material.emissiveColor = new BABYLON.Color3(0.03, 0.03, 0.03);
+            material.alpha = 0.12;
+        }
+        sphere.material = material;
+        sphere.metadata = { type: "node", id: node.id };
+        VIEWER_STATE.elements.push(sphere);
+    });
+
+    // Dibujar barras deformadas
+    context.shapes.forEach(beam => {
+        const [start, end] = getBeamPoints(beam, context);
+        const lines = BABYLON.MeshBuilder.CreateLines(
+            `beam_${beam.id}`,
+            { points: [start, end] },
+            VIEWER_STATE.scene,
+        );
+        const isActiveView = belongsToActiveView(beam, context);
+        const isSelected = isBeamSelected(beam, context);
+
+        if (isSelected) {
+            lines.color = COLORS_3D.selectedModel;
+        } else if (isActiveView) {
+            lines.color = COLORS_3D.activeModel;
+        } else {
+            lines.color = COLORS_3D.inactiveModel;
+            lines.alpha = 0.10;
+        }
+        lines.metadata = { type: "beam", id: beam.id };
+        VIEWER_STATE.elements.push(lines);
+    });
 }
 
 export function getViewer3DState() {
@@ -432,4 +497,56 @@ function clearModelElements() {
     } catch (error) {
         console.warn("Error al limpiar elementos del modelo 3D:", error);
     }
+}
+
+// Obtener posición deformada de un nodo (si existe y está activada la deformación)
+// function getNodePosition3D(node, context) {
+//     const useDeflection = context.options?.showDeflection && context.desplazamientosPosition;
+//     if (useDeflection) {
+//         const def = context.desplazamientosPosition[node.id - 1]; // asumiendo ids 1-based
+//         if (def) {
+//             // Conversión: sistema (x, y, z) -> Babylon (x, z, y)
+//             return new BABYLON.Vector3(def.x, def.z, def.y);
+//         }
+//     }
+//     // fallback a posición original
+//     return mapNodePositionTo3D(node);
+// }
+
+function getNodePosition3D(node, context) {
+    const useDeflection = context.options?.showDeflection && context.desplazamientosPosition;
+    if (useDeflection) {
+        const idx = node.id - 1;
+        if (idx >= 0 && idx < context.desplazamientosPosition.length) {
+            // const def = context.desplazamientosPosition[idx];
+            // if (def && !isNaN(def.x) && !isNaN(def.y) && !isNaN(def.z)) {
+            //     // Conversión correcta: (x, y, z) estructural -> Babylon (x, z, y)
+            //     return new BABYLON.Vector3(def.x, def.z, def.y);
+            // } else {
+            //     console.warn(`Posición deformada inválida para nodo ${node.id}, usando original`);
+            // }
+
+            const def = context.desplazamientosPosition[idx];
+            if (def && typeof def.x === 'number' && !isNaN(def.x) &&
+                typeof def.y === 'number' && !isNaN(def.y) &&
+                typeof def.z === 'number' && !isNaN(def.z)) {
+                // Babylon: (x, z, y)
+                return new BABYLON.Vector3(def.x, def.z, def.y);
+            } else {
+                console.warn(`Posición deformada inválida para nodo ${node.id}, usando original`, def);
+            }
+
+        } else {
+            console.warn(`Índice ${idx} fuera de rango (len=${context.desplazamientosPosition.length}) para nodo ${node.id}`);
+        }
+    }
+    // fallback a posición original
+    return mapNodePositionTo3D(node);
+}
+
+// Obtener los puntos deformados de una barra
+function getBeamPoints(beam, context) {
+    const start = getNodePosition3D(beam.node1, context);
+    const end = getNodePosition3D(beam.node2, context);
+    return [start, end];
 }

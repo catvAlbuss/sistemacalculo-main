@@ -4192,6 +4192,7 @@ export default () => ({
     });
   },
 
+  // ======================== FUNCION DE REPORTE ========================
   generarReporte() {
     this.save();
     this.fitContentToScreen();
@@ -4670,6 +4671,7 @@ export default () => ({
   //     });
   // },
 
+  // ======================== FUNCION DE CALCULO CON OCTAVE (3D) ========================
   calcularFuerzas(event) {
     event.preventDefault();
 
@@ -4835,14 +4837,55 @@ export default () => ({
           this.matrizDesplazamiento = dataObject.MatrizDesplazamiento;
           console.log("📏 Desplazamientos 3D:", this.matrizDesplazamiento);
 
-          // Guardar posiciones originales para deformación
-          if (!this._originalPositions3D) {
-            this._originalPositions3D = this.nodes.map((node) => ({
-              x: node.position.x,
-              y: node.position.y,
-              z: node.position.z || 0,
-            }));
+          // === VALIDACIÓN DE ESTABILIDAD ===
+          let maxDisp = 0;
+          let invalid = false;
+          for (let i = 0; i < this.matrizDesplazamiento.length; i++) {
+            const d = this.matrizDesplazamiento[i];
+            for (let j = 0; j < 3; j++) {
+              const val = d[j];
+              if (isNaN(val) || !isFinite(val)) {
+                invalid = true;
+                break;
+              }
+              if (Math.abs(val) > maxDisp) maxDisp = Math.abs(val);
+            }
+            if (invalid) break;
           }
+
+          // Umbral: si el desplazamiento máximo > 1e6 metros (1000 km), asumimos inestabilidad
+          if (invalid || maxDisp > 1e6) {
+            console.error("Estructura inestable: desplazamiento máximo =", maxDisp);
+            Swal.fire({
+              icon: "error",
+              title: "Estructura inestable",
+              html: `Los desplazamientos calculados son anormalmente grandes (${maxDisp.toExponential(2)} m).<br>
+                   Esto indica que la estructura es un <strong>mecanismo</strong> (no es rígida).<br><br>
+                   <b>Sugerencias:</b><br>
+                   • Añada diagonales para rigidizar la estructura.<br>
+                   • Verifique que todos los nodos tengan conexiones suficientes.<br>
+                   • Revise los apoyos (debe haber al menos 6 restricciones independientes en 3D).`,
+              confirmButtonText: "OK",
+            });
+            return; // Detener el procesamiento
+          }
+          // Fin validación
+
+          // ✅ Siempre actualizar las posiciones originales con los nodos actuales
+          this._originalPositions3D = this.nodes.map((node) => ({
+            x: node.position.x,
+            y: node.position.y,
+            z: node.position.z || 0,
+          }));
+
+          // Guardar posiciones originales para deformación
+          // if (!this._originalPositions3D) {
+          //   this._originalPositions3D = this.nodes.map((node) => ({
+          //     x: node.position.x,
+          //     y: node.position.y,
+          //     z: node.position.z || 0,
+          //   }));
+          // }
 
           this.calcularDeflecciones3D();
         }
@@ -4903,6 +4946,12 @@ export default () => ({
 
         this.options.showDeflection = true;
 
+        // Forzar redibujado completo de la deformada
+        if (this.options.showDeflection && this.desplazamientosPosition) {
+          console.log("🎨 Actualizando vista 3D con deformada (escala " + this.options.deflectionScale + "x)");
+          this.sync3D(); // esto llamará a drawIn3D nuevamente
+        }
+
         // Sincronizar con vista 3D
         this.sync3D();
         this.redraw();
@@ -4929,113 +4978,152 @@ export default () => ({
 
   // Nueva función para calcular deflecciones en 3D
   calcularDeflecciones3D() {
+    // if (!this.matrizDesplazamiento || !this.nodes) return;
+
+    // // Guardar posiciones deformadas para visualización
+    // this.desplazamientosPosition = this.matrizDesplazamiento.map((disp, index) => {
+    //   const originalPos = this._originalPositions3D?.[index] || {
+    //     x: this.nodes[index].position.x,
+    //     y: this.nodes[index].position.y,
+    //     z: this.nodes[index].position.z || 0,
+    //   };
+
+    //   return {
+    //     x: originalPos.x + (disp[0] || 0) * this.options.deflectionScale,
+    //     y: originalPos.y + (disp[1] || 0) * this.options.deflectionScale,
+    //     z: originalPos.z + (disp[2] || 0) * this.options.deflectionScale,
+    //   };
+    // });
+
+    // // Calcular deflecciones para cada barra
+    // this.deflecciones = this.shapes.map((b) => {
+    //   const idx1 = this.nodes.indexOf(b.node1);
+    //   const idx2 = this.nodes.indexOf(b.node2);
+
+    //   if (idx1 >= 0 && idx2 >= 0 && this.desplazamientosPosition) {
+    //     return {
+    //       x: [this.desplazamientosPosition[idx1]?.x || 0, this.desplazamientosPosition[idx2]?.x || 0],
+    //       y: [this.desplazamientosPosition[idx1]?.y || 0, this.desplazamientosPosition[idx2]?.y || 0],
+    //       z: [this.desplazamientosPosition[idx1]?.z || 0, this.desplazamientosPosition[idx2]?.z || 0],
+    //     };
+    //   }
+    //   return { x: [0, 0], y: [0, 0], z: [0, 0] };
+    // });
+
+
     if (!this.matrizDesplazamiento || !this.nodes) return;
 
-    // Guardar posiciones deformadas para visualización
+    // Inicializar posiciones originales si no existen
+    if (!this._originalPositions3D) {
+        this._originalPositions3D = this.nodes.map(node => ({
+            x: node.position.x,
+            y: node.position.y,
+            z: node.position.z || 0,
+        }));
+    }
+
+    const scale = this.options.deflectionScale || 1;
     this.desplazamientosPosition = this.matrizDesplazamiento.map((disp, index) => {
-      const originalPos = this._originalPositions3D?.[index] || {
-        x: this.nodes[index].position.x,
-        y: this.nodes[index].position.y,
-        z: this.nodes[index].position.z || 0,
-      };
-
-      return {
-        x: originalPos.x + (disp[0] || 0) * this.options.deflectionScale,
-        y: originalPos.y + (disp[1] || 0) * this.options.deflectionScale,
-        z: originalPos.z + (disp[2] || 0) * this.options.deflectionScale,
-      };
-    });
-
-    // Calcular deflecciones para cada barra
-    this.deflecciones = this.shapes.map((b) => {
-      const idx1 = this.nodes.indexOf(b.node1);
-      const idx2 = this.nodes.indexOf(b.node2);
-
-      if (idx1 >= 0 && idx2 >= 0 && this.desplazamientosPosition) {
+        const orig = this._originalPositions3D[index];
+        if (!orig) return null;
+        const dx = disp[0] || 0;
+        const dy = disp[1] || 0;
+        const dz = disp[2] || 0;
+        // Evitar NaN
+        if (isNaN(dx) || isNaN(dy) || isNaN(dz)) return null;
         return {
-          x: [this.desplazamientosPosition[idx1]?.x || 0, this.desplazamientosPosition[idx2]?.x || 0],
-          y: [this.desplazamientosPosition[idx1]?.y || 0, this.desplazamientosPosition[idx2]?.y || 0],
-          z: [this.desplazamientosPosition[idx1]?.z || 0, this.desplazamientosPosition[idx2]?.z || 0],
+            x: orig.x + dx * scale,
+            y: orig.y + dy * scale,
+            z: orig.z + dz * scale,
         };
-      }
-      return { x: [0, 0], y: [0, 0], z: [0, 0] };
-    });
+    }).filter(p => p !== null);
+
+    // Si algún nodo no tiene desplazamiento válido, usar posición original
+    if (this.desplazamientosPosition.length !== this.nodes.length) {
+        console.warn("Algunos nodos no tienen desplazamiento válido, usando originales");
+        this.desplazamientosPosition = this.nodes.map((node, i) => {
+            return this.desplazamientosPosition[i] || {
+                x: node.position.x,
+                y: node.position.y,
+                z: node.position.z || 0,
+            };
+        });
+    }
   },
 
   // Obtener desplazamiento máximo
-getMaxDisplacement() {
+  getMaxDisplacement() {
     if (!this.matrizDesplazamiento) return 0;
-    
+
     let maxDisp = 0;
     for (let i = 0; i < this.matrizDesplazamiento.length; i++) {
-        const dx = Math.abs(this.matrizDesplazamiento[i][0] || 0);
-        const dy = Math.abs(this.matrizDesplazamiento[i][1] || 0);
-        const dz = Math.abs(this.matrizDesplazamiento[i][2] || 0);
-        const total = Math.sqrt(dx*dx + dy*dy + dz*dz);
-        maxDisp = Math.max(maxDisp, total);
+      const dx = Math.abs(this.matrizDesplazamiento[i][0] || 0);
+      const dy = Math.abs(this.matrizDesplazamiento[i][1] || 0);
+      const dz = Math.abs(this.matrizDesplazamiento[i][2] || 0);
+      const total = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      maxDisp = Math.max(maxDisp, total);
     }
     return maxDisp;
-},
-
+  },
 
   // Función para crear un nodo con carga en 3D
-crearNodo3D(x, y, z, cargaX = 0, cargaY = 0, cargaZ = 0, restriccion = "") {
+  crearNodo3D(x, y, z, cargaX = 0, cargaY = 0, cargaZ = 0, restriccion = "") {
     const node = this.getOrCreateStructuralNode({ x, y, z });
-    
+
     if (cargaX !== 0) node.cargaX = () => cargaX;
     if (cargaY !== 0) node.cargaY = () => cargaY;
     if (cargaZ !== 0) node.cargaZ = () => cargaZ;
-    
-    node.soporte = restriccion;
-    
-    return node;
-},
 
-// Función para crear una barra en 3D
-crearBarra3D(node1, node2, area = 0.01, E = 210e9) {
+    node.soporte = restriccion;
+
+    return node;
+  },
+
+  // Función para crear una barra en 3D
+  crearBarra3D(node1, node2, area = "25x25-1.5", E = 210e9) {
     const beam = new Beam(this.globalE, this.globalA);
     beam.addNode(node1);
     beam.addNode(node2);
-    beam.A = area;
+    beam._A = area;
     beam.E = E;
     beam.id = this.shapes.length + 1;
     this.shapes.push(beam);
     return beam;
-},
+  },
 
-// Función de prueba para armadura 3D espacial
-crearArmadura3DEspacial() {
+  // Función de prueba para armadura 3D espacial
+  crearArmadura3DEspacial() {
     console.log("🏗️ Creando armadura 3D espacial...");
-    
+
     // Limpiar modelo
     this.nodes = [];
     this.shapes = [];
-    
+
     // Nodos de la base (z=0)
     const A1 = this.crearNodo3D(0, 0, 0, 0, 0, 0, "soporteUno");
     const B1 = this.crearNodo3D(5, 0, 0, 0, 0, 0, "soporteUno");
     const C1 = this.crearNodo3D(2.5, 4, 0, 0, 0, 0, "soporteUno");
-    
+
     // Nodos superiores (z=5)
-    const A2 = this.crearNodo3D(0, 0, 5, 0, -30, 0, "");  // Carga vertical en la cúspide
+    const A2 = this.crearNodo3D(0, 0, 5, 0, -30, 0, ""); // Carga vertical en la cúspide
     const B2 = this.crearNodo3D(5, 0, 5, 0, 0, 0, "");
     const C2 = this.crearNodo3D(2.5, 4, 5, 0, 0, 0, "");
-    
+
     // Vigas de la base
     this.crearBarra3D(A1, B1);
     this.crearBarra3D(B1, C1);
     this.crearBarra3D(C1, A1);
-    
+
     // Vigas superiores
     this.crearBarra3D(A2, B2);
     this.crearBarra3D(B2, C2);
     this.crearBarra3D(C2, A2);
-    
+
     // Vigas verticales
     this.crearBarra3D(A1, A2);
     this.crearBarra3D(B1, B2);
     this.crearBarra3D(C1, C2);
-    
+
     // Diagonales
     this.crearBarra3D(A1, B2);
     this.crearBarra3D(B1, A2);
@@ -5043,48 +5131,48 @@ crearArmadura3DEspacial() {
     this.crearBarra3D(C1, B2);
     this.crearBarra3D(C1, A2);
     this.crearBarra3D(A1, C2);
-    
+
     console.log(`✅ Creados ${this.nodes.length} nodos y ${this.shapes.length} barras`);
-    
+
     // Actualizar vista
     this.redraw();
     this.sync3D();
-    
+
     return "Armadura 3D espacial creada correctamente";
-},
+  },
 
   crearArmadura3DEspacial() {
     console.log("🏗️ Creando armadura 3D espacial...");
-    
+
     // Limpiar modelo
     this.nodes = [];
     this.shapes = [];
-    
+
     // Nodos de la base (z=0)
     const A1 = this.crearNodo3D(0, 0, 0, 0, 0, 0, "soporteUno");
     const B1 = this.crearNodo3D(5, 0, 0, 0, 0, 0, "soporteUno");
     const C1 = this.crearNodo3D(2.5, 4, 0, 0, 0, 0, "soporteUno");
-    
+
     // Nodos superiores (z=5)
-    const A2 = this.crearNodo3D(0, 0, 5, 0, -30, 0, "");  // Carga vertical en la cúspide
+    const A2 = this.crearNodo3D(0, 0, 5, 0, -30, 0, ""); // Carga vertical en la cúspide
     const B2 = this.crearNodo3D(5, 0, 5, 0, 0, 0, "");
     const C2 = this.crearNodo3D(2.5, 4, 5, 0, 0, 0, "");
-    
+
     // Vigas de la base
     this.crearBarra3D(A1, B1);
     this.crearBarra3D(B1, C1);
     this.crearBarra3D(C1, A1);
-    
+
     // Vigas superiores
     this.crearBarra3D(A2, B2);
     this.crearBarra3D(B2, C2);
     this.crearBarra3D(C2, A2);
-    
+
     // Vigas verticales
     this.crearBarra3D(A1, A2);
     this.crearBarra3D(B1, B2);
     this.crearBarra3D(C1, C2);
-    
+
     // Diagonales
     this.crearBarra3D(A1, B2);
     this.crearBarra3D(B1, A2);
@@ -5092,15 +5180,118 @@ crearArmadura3DEspacial() {
     this.crearBarra3D(C1, B2);
     this.crearBarra3D(C1, A2);
     this.crearBarra3D(A1, C2);
-    
+
     console.log(`✅ Creados ${this.nodes.length} nodos y ${this.shapes.length} barras`);
-    
+
     // Actualizar vista
     this.redraw();
     this.sync3D();
-    
+
     return "Armadura 3D espacial creada correctamente";
-},
+  },
+
+  // Función para normalizar unidades antes del análisis
+  normalizarUnidadesParaAnalisis() {
+    console.log("🔧 Normalizando unidades para análisis 3D...");
+
+    // Normalizar áreas (de cm² o mm² a m²)
+    this.shapes.forEach((beam) => {
+      // Si el área es > 1, probablemente está en cm² o mm²
+      let area = beam.A || beam.area || 0.00015;
+
+      if (area > 0.1) {
+        // Asumir que está en cm², convertir a m²
+        area = area / 10000;
+        console.log(`  Barra ${beam.id}: área convertida de ${beam.A} cm² → ${area} m²`);
+      } else if (area > 0.001 && area < 0.1) {
+        // Podría estar en m² pero muy grande para un perfil pequeño
+        console.log(`  Barra ${beam.id}: área ${area} m² parece grande para perfil 25x25`);
+      }
+
+      beam.A = area;
+
+      // Normalizar módulo E (de GPa a Pa)
+      let E = beam.E || beam.modulusElasticity || 210e9;
+
+      if (E < 1e9 && E > 0) {
+        // Asumir que está en GPa, convertir a Pa
+        E = E * 1e9;
+        console.log(`  Barra ${beam.id}: E convertido de ${beam.E} GPa → ${E} Pa`);
+      } else if (E > 1e12) {
+        // Demasiado grande, probable error
+        console.warn(`  Barra ${beam.id}: E=${E} parece incorrecto, usando 210e9 Pa`);
+        E = 210e9;
+      }
+
+      beam.E = E;
+    });
+  },
+
+  // Función para diagnosticar el modelo antes del análisis
+  diagnosticarModelo3D() {
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log("🔍 DIAGNÓSTICO DEL MODELO 3D");
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+    console.log("📌 NODOS:");
+    this.nodes.forEach((node, i) => {
+      const soporte = node.soporte || "libre";
+      const cargaX = node.cargaX ? (typeof node.cargaX === "function" ? node.cargaX() : node.cargaX) : 0;
+      const cargaY = node.cargaY ? (typeof node.cargaY === "function" ? node.cargaY() : node.cargaY) : 0;
+      const cargaZ = node.cargaZ ? (typeof node.cargaZ === "function" ? node.cargaZ() : node.cargaZ) : 0;
+      console.log(
+        `  Nodo ${i + 1}: (${node.position.x}, ${node.position.y}, ${node.position.z || 0}) | soporte: ${soporte} | carga: (${cargaX}, ${cargaY}, ${cargaZ})`,
+      );
+    });
+
+    console.log("\n📌 BARRAS:");
+    this.shapes.forEach((beam, i) => {
+      const L = Math.sqrt(
+        Math.pow(beam.node2.position.x - beam.node1.position.x, 2) +
+          Math.pow(beam.node2.position.y - beam.node1.position.y, 2) +
+          Math.pow((beam.node2.position.z || 0) - (beam.node1.position.z || 0), 2),
+      );
+      const EA = (beam.E || 210e9) * (beam.A || 0.00015);
+      const rigidezAxial = EA / L;
+
+      console.log(
+        `  Barra ${i + 1}: nodos ${beam.node1.id}→${beam.node2.id} | L=${L.toFixed(3)}m | EA=${(EA / 1e6).toFixed(2)}MN | rigidez=${rigidezAxial.toFixed(2)} MN/m`,
+      );
+      console.log(`           A=${(beam.A || 0).toFixed(6)}m² | E=${((beam.E || 0) / 1e9).toFixed(1)}GPa`);
+    });
+
+    console.log("\n📌 RIGIDEZ ESTIMADA DEL SISTEMA:");
+    let sumaRigidez = 0;
+    this.shapes.forEach((beam) => {
+      const L = Math.sqrt(
+        Math.pow(beam.node2.position.x - beam.node1.position.x, 2) +
+          Math.pow(beam.node2.position.y - beam.node1.position.y, 2) +
+          Math.pow((beam.node2.position.z || 0) - (beam.node1.position.z || 0), 2),
+      );
+      if (L > 0) {
+        sumaRigidez += ((beam.E || 210e9) * (beam.A || 0.00015)) / L;
+      }
+    });
+    console.log(`  Rigidez axial total estimada: ${(sumaRigidez / 1e6).toFixed(2)} MN/m`);
+
+    // Verificar si hay grados de libertad sin restringir
+    const gradosLibres =
+      this.nodes.filter((node) => {
+        return (
+          node.soporte !== "soporteUno" &&
+          node.soporte !== "soporteDos" &&
+          node.soporte !== "soporteTres" &&
+          node.soporte !== "soporteCuatro"
+        );
+      }).length * 3;
+
+    console.log(`\n⚠️ Grados de libertad no restringidos: ~${gradosLibres}`);
+    if (gradosLibres > 0 && this.nodes.some((n) => n.cargaY && n.cargaY() !== 0)) {
+      console.log("  ⚠️ Si hay cargas verticales sin suficiente soporte, la matriz será singular!");
+    }
+
+    console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+  },
 
   // Método para normalizar desplazamientos (agregar dentro del objeto principal)
   // normalizarDesplazamientos(matrizDesplazamiento) {
