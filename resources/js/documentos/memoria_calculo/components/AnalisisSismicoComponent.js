@@ -132,7 +132,7 @@ export function createAnalisisSismicoComponent() {
     showSection325: false,
     showSection326: false,
     showSection327: false,
-
+    
     showSection33: false,
     showSection34: false,
     showSection341: false,
@@ -140,7 +140,6 @@ export function createAnalisisSismicoComponent() {
     showSection343: false,
     showSection344: false,
     showSection345: false,
-
 
     imageMappings: {
       // Sección 3.2 - Análisis Sísmico Estático
@@ -498,7 +497,6 @@ export function createAnalisisSismicoComponent() {
           this.$store.memoriaCalculo.previews[mapping.key][mapping.index] = null;
         }
       }
-
       // Disparar evento para actualizar la UI
       this.$store.memoriaCalculo.previews = { ...this.$store.memoriaCalculo.previews };
 
@@ -586,7 +584,7 @@ export function createAnalisisSismicoComponent() {
                 mockEvent,
                 (file, dataUrl) => {
                   this.$store.memoriaCalculo.updateArrayImage(groupKey, index, file, dataUrl);
-                  console.log(`✅ Imagen pegada INSTANTÁNEAMENTE en ${groupKey}[${index}]`);
+                  console.log(` Imagen pegada INSTANTÁNEAMENTE en ${groupKey}[${index}]`);
                 },
                 (error) => {
                   this.$store.memoriaCalculo.addError("images", error);

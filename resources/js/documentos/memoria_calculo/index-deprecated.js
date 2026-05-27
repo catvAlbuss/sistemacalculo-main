@@ -1,6 +1,6 @@
 import { buildContentStructure, DEFAULT_MC_STRUCTURE } from "./content-structure-mc.js";
 import { ContentProcessorMC } from "./content-processor-mc.js";
-import ubigeoData from "../memoria_calculo/ubigeo.json";
+import ubigeoData from "./ubigeo.json";
 
 function memoriaCalculo() {
   return {
@@ -55,7 +55,7 @@ function memoriaCalculo() {
           e: "253456.4",
           fc: "210",
         },
-<<<<<<< HEAD
+
 
         document: JSON.parse(JSON.stringify(DEFAULT_MC_STRUCTURE.document)),
 
@@ -190,7 +190,6 @@ function memoriaCalculo() {
 
             if (!Array.isArray(this.images.estaticoCpesoSismico))this.images.estaticoCpesoSismico=[];
             if (!Array.isArray(this.previews.estaticoCpesoSismico))this.previews.estaticoCpesoSismico=[];
-
 
             while (this.images.modeloMatematico3DImages.length < 1) this.images.modeloMatematico3DImages.push(null);
             while (this.previews.modeloMatematico3DImages.length < 1) this.previews.modeloMatematico3DImages.push(null);
@@ -1183,7 +1182,7 @@ function memoriaCalculo() {
                 reader.onerror = (error) => reject(error);
                 reader.readAsDataURL(file);
             });
-=======
+
       },
       generalDescription:
         "Para realizar el diseno de los elementos de la estructura metalica se tendra que rescatar los maximos valores de la envolvente de cada elemento estructural de las combinaciones segun la norma E.090 del R.N.E. vigente que vienen a ser:\n- 1.2D+1.6CVT+0.8CWP\n- 1.2D+1.6CVT+0.8CWN\n- 1.2D+0.5CVT+1.3CWP\n- 0.9D+1.3CWP\n- 0.9D+1.3CWN",
@@ -1551,7 +1550,7 @@ function memoriaCalculo() {
         if (!window.docx) {
           this.addError("libs", "La librerÃ­a 'docx' no se ha cargado correctamente desde el servidor externo.");
           return;
->>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec
+
         }
 
         if (!window.saveAs) {
@@ -2436,7 +2435,7 @@ function memoriaCalculo() {
         reader.readAsDataURL(file);
       });
     },
-  };
+  }
 }
 
 export { memoriaCalculo };
@@ -2454,4 +2453,5 @@ if (typeof window !== "undefined") {
   } else {
     document.addEventListener("alpine:init", register);
   }
+}
 }

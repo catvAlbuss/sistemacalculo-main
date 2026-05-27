@@ -103,10 +103,43 @@ Route::middleware(["auth", "verified"])->group(function () {
         //==================CALCULADORA ASISTENTE (Root, Gerencia, Asistente)//
         Route::middleware(['role:root|gerencia|asistente'])->group(function () {
             Route::prefix('asistente')->name('asistente.')->group(function () {
+                
 
                 // Agrega la ruta de admMemoriaCalculo memoria-calculo
                 Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name('memoria-calculo');
+                // Línea 74 aprox - dentro del middleware de asistente
+                Route::get('/memoria-descriptiva', function () {
+    return view('hcalculo.admMemoriaDescriptiva');
+})->name('memoria-descriptiva');
 
+// Rutas para cada sección (coinciden con tu sidebar)
+Route::prefix('memoria-descriptiva')->name('memoria-descriptiva.')->middleware(['auth', 'verified'])->group(function () {
+    
+    // Portada
+    Route::get('/portada', function () {
+        return view('hcalculo.memoria_descriptiva.portada');
+    })->name('portada');
+    
+    // Generalidades
+    Route::get('/generalidades', function () {
+        return view('hcalculo.memoria_descriptiva.generalidades');
+    })->name('generalidades');
+    
+    // Consideraciones
+    Route::get('/consideraciones', function () {
+        return view('hcalculo.memoria_descriptiva.consideraciones');
+    })->name('consideraciones');
+    
+    // Predimensionamiento
+    Route::get('/predimensionamiento', function () {
+        return view('hcalculo.memoria_descriptiva.predimensionamiento');
+    })->name('predimensionamiento');
+    
+    // Demolición
+    Route::get('/demolicion', function () {
+        return view('hcalculo.memoria_descriptiva.demolicion');
+    })->name('demolicion');
+});
                 // Vigas
                 Route::view('/vigas', 'hcalculo.admdesingvigas')->name('vigas');
                 Route::view('/vigas-general', 'hcalculo.admvigageneral')->name('vigas-general');
@@ -229,4 +262,4 @@ Route::prefix('storage')->group(function () {
             'Cache-Control' => 'public, max-age=3600'
         ]);
     })->name('get.firma');
-});
+}); 

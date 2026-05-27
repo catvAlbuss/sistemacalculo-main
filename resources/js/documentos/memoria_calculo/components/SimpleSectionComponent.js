@@ -1,5 +1,4 @@
 // components/SimpleSectionComponent.js - Componente base para secciones simples
-
 /**
  * Factory para crear componentes simples (Análisis Sísmico, Diseño Elementos, etc.)
  * @param {string} sectionId - ID de la sección
@@ -11,7 +10,7 @@ export function createSimpleSectionComponent(sectionId, sectionName) {
         sectionName,
 
         init() {
-            console.log(`✅ Componente ${this.sectionName} inicializado`);
+            console.log(` Componente ${this.sectionName} inicializado`);
         },
 
         /**
@@ -55,7 +54,6 @@ export function createAnalisisSismicoComponent() {
 }
 
 // POR TERMINAR (JHACK)
-
 /**
  * Componente para Diseño de Elementos (Sección 4)
  */
@@ -66,21 +64,18 @@ export function createDisenoElementosComponent() {
         // Métodos específicos de esta sección pueden agregarse aquí
     };
 }
-
 /**
  * Componente para Estructura Metálica (Sección 5)
  */
 export function createEstructuraMetalicaComponent() {
     return {
         ...createSimpleSectionComponent('estructuraMetalica', 'Estructura Metálica'),
-
         // init() {
-        //     console.log(`✅ Componente ${this.sectionName} inicializado`);
+        //     console.log(` Componente ${this.sectionName} inicializado`);
         // },
         
     };
 }
-
 /**
  * Componente para Conclusiones (Sección 6)
  */
@@ -89,7 +84,7 @@ export function createConclusionesComponent() {
         ...createSimpleSectionComponent('conclusiones', 'Conclusiones y Recomendaciones'),
 
         init() {
-            console.log(`✅ Componente ${this.sectionName} inicializado`);
+            console.log(` Componente ${this.sectionName} inicializado`);
         },
 
     };

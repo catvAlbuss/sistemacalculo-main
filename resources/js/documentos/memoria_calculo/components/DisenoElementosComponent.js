@@ -72,7 +72,6 @@ export function createDisenoElementosComponent() {
 
     },
 
-
     // En createDisenoElementosComponent.js
     cargarImagenesCimientoCorrido() {
       console.log("🔍 Buscando imágenes de cimiento corrido...");
@@ -128,7 +127,6 @@ export function createDisenoElementosComponent() {
       }
 
       // Guardar cada parte en una posición diferente
-
       if (resultadosSup) {
         store.previews.disenoLosaMacizaImages[4] = resultadosSup;
         console.log("✅ Resultados (superior) cargados en posición 4");
@@ -269,7 +267,7 @@ export function createDisenoElementosComponent() {
         }
       }
 
-      console.log(`✅ Inicializadas 16 secciones fijas de predimensionamiento con 2 imágenes cada una`);
+      console.log(` Inicializadas 16 secciones fijas de predimensionamiento con 2 imágenes cada una`);
       console.log(
         `   - Secciones seleccionadas: ${store.sections.disenoElementos.predimSecciones.seleccionadas.filter((s) => s).length}/16`,
       );
@@ -463,7 +461,6 @@ export function createDisenoElementosComponent() {
       //   console.log(`⏭️ Ignorando ${groupKey}[${index}] - no tiene foco`);
       //   return;
       // }
-
       console.log(`📋 Detectado pegado para ${groupKey}[${index}]`);
 
       try {
@@ -479,7 +476,7 @@ export function createDisenoElementosComponent() {
           const item = items[i];
 
           if (item.type.indexOf("image") !== -1) {
-            // ✅ Obtener el archivo directamente del evento (SINCRÓNICO)
+            // Obtener el archivo directamente del evento (SINCRÓNICO)
             const file = item.getAsFile();
 
             if (file) {
@@ -617,7 +614,6 @@ export function createDisenoElementosComponent() {
       //   console.log(`⏭️ Ignorando pegado - ${config.nombre}[${seccionIndex + 1}][${imagenIndex + 1}]`);
       //   return;
       // }
-
       console.log(`📋 Pegando en ${config.nombre} - Sección ${seccionIndex + 1}, Imagen ${imagenIndex + 1}`);
 
       try {

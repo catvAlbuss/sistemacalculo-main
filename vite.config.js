@@ -14,7 +14,11 @@ export default defineConfig({
                 ...glob.sync("resources/js/cav2/*.js"),
                 ...glob.sync("resources/js/memoria_calculo/*.js").filter(f => !f.includes('index-deprecated')),
                 ...glob.sync("resources/js/muros-contencion/*.js"),
+
+                "resources/js/documentos/memoria_descriptiva/index.js",           // 👈 Ya lo tienes
+                "resources/js/documentos/memoria_descriptiva/memoria_descriptiva_export.js", // 👈 AGREGA ESTE
             ],
+
             refresh: true,
             exclude: ['resources/img/**'],
         }),
@@ -31,11 +35,4 @@ export default defineConfig({
         host: 'localhost',
         port: 5173,
     },
-    // server: {
-    //     host: "0.0.0.0",
-    //     cors: true,
-    //     hmr: {
-    //         host: "0.0.0.0",
-    //     },
-    // },
 });

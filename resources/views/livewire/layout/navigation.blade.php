@@ -42,6 +42,11 @@ $logout = function (Logout $logout) {
                         :active="request()->routeIs('calculadora.asistente.memoria-calculo')">
                         {{ __('Memoria Calculo') }}
                     </x-nav-link>
+
+                    <x-nav-link :href="route('calculadora.asistente.memoria-descriptiva')"
+                        :active="request()->routeIs('calculadora.asistente.memoria-descriptiva')">
+                    {{ __('Memoria Descriptiva') }}
+                    </x-nav-link>
                 </div>
                 @php
                     $user = auth()->user();
@@ -314,6 +319,11 @@ $logout = function (Logout $logout) {
                 :active="request()->routeIs('calculadora.asistente.memoria-calculo')">
                 {{ __('Memoria Calculo') }}
             </x-responsive-nav-link>
+
+            <x-responsive-nav-link component="responsive-nav-item" :href="route('calculadora.asistente.memoria-descriptiva')"
+                :active="request()->routeIs('calculadora.asistente.memoria-descriptiva')">
+                 {{ __('Memoria Descriptiva') }}
+            </x-responsive-nav-link>
         </div>
         <div class="space-y-1 pb-3 pt-2">
             <x-dropdown-nav-item name="{{ __('Estudiante') }}" component="responsive-nav-item" :active="request()->routeIs('calculadora.estudiante.*')">
@@ -505,3 +515,4 @@ $logout = function (Logout $logout) {
         <div style="min-width:800px;min-height:600px" x-ref="applet_container"></div>
     </div>
 </nav>
+    

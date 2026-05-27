@@ -54,9 +54,7 @@ function memoriaCalculo() {
 
         get losa() { return this.sections.disenoElementos?.losa || 1; },
 
-
         document: JSON.parse(JSON.stringify(DEFAULT_MC_STRUCTURE.document)),
-
         showErrorModal: false,
         validationErrors: [],
 

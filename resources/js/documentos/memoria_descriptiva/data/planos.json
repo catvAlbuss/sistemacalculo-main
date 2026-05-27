@@ -1,0 +1,9 @@
+{
+  "titulo": "Incompatibilidades del Terreno",
+  "incompatibilidades": [
+    { "num": "1", "descripcion": "No pueden ubicarse a una distancia menor de 150 m en línea recta de velatorios y/o cementerios.", "dispositivoLegal": "DS Nº 003-94-SA\nReglamento de la Ley de Cementerios y Servicios Funerarios", "compatibilizacion": "Compatible: La IE se encuentra a 771m del cementerio" },
+    { "num": "2", "descripcion": "No pueden ubicarse a una distancia menor de 1,000 m de rellenos sanitarios y rellenos de seguridad.", "dispositivoLegal": "DS Nº 057-2004-PCM\nReglamento de la Ley Nº 27314, Ley General de Residuos Sólidos", "compatibilizacion": "Compatible: No existe rellenos de ese tipo a 3000 metros" },
+    { "num": "3", "descripcion": "Se prohíbe la construcción de los locales educativos en áreas que fueron utilizadas como infraestructura de disposición final de residuos sólidos.", "dispositivoLegal": "DS Nº 057-2004-PCM\nReglamento de la Ley Nº 27314, Ley General de Residuos Sólidos", "compatibilizacion": "Compatible" },
+    { "num": "4", "descripcion": "No pueden ubicarse a una distancia menor de 100 m de cualquier Establecimiento de Salud.", "dispositivoLegal": "RM Nº 045-2015/MINSA\nNorma Técnica de Salud N° 113-MINSA/DGIEM-V.01\nRM N° 862-2015/MINSA\nNorma Técnica de Salud N° 119-MINSA/DGIEM-V.01", "compatibilizacion": "Compatible: La IE se encuentra a 758m del establecimiento de salud" }
+  ]
+}
