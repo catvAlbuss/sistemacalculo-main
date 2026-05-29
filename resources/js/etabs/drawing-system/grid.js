@@ -32,22 +32,19 @@ export class Grid {
     const hasCadContent = cadCanvas && cadCanvas.width > 0 && cadCanvas.height > 0;
 
     // Verificar si hay un CAD importado (si el motor tiene una vista válida)
-    const hasCad = cadSystem.cadEngine && 
-                   cadSystem.cadEngine.docManager && 
-                   cadSystem.cadEngine.docManager.curDocument;
-    
+    const hasCad = cadSystem.cadEngine && cadSystem.cadEngine.docManager && cadSystem.cadEngine.docManager.curDocument;
+
     // Si no hay CAD importado, NO dibujar el grid
     if (!hasCadContent || !hasCad) {
+      this.drawDefaultGrid(ctx);
       return;
     }
 
-     // También verificar que la vista exista
-    const hasView = cadSystem.cadEngine && 
-                    cadSystem.cadEngine.docManager && 
-                    cadSystem.cadEngine.docManager.curView;
-    
+    // También verificar que la vista exista
+    const hasView = cadSystem.cadEngine && cadSystem.cadEngine.docManager && cadSystem.cadEngine.docManager.curView;
+
     if (!hasView) {
-        return;
+      return;
     }
 
     ctx.save();
@@ -57,8 +54,15 @@ export class Grid {
     try {
       topLeft = cadSystem.screenToWorld({ x: 0, y: 0 });
       bottomRight = cadSystem.screenToWorld({ x: this.width, y: this.height });
-      
-      if (!topLeft || !bottomRight || isNaN(topLeft.x) || isNaN(topLeft.y) || isNaN(bottomRight.x) || isNaN(bottomRight.y)) {
+
+      if (
+        !topLeft ||
+        !bottomRight ||
+        isNaN(topLeft.x) ||
+        isNaN(topLeft.y) ||
+        isNaN(bottomRight.x) ||
+        isNaN(bottomRight.y)
+      ) {
         ctx.restore();
         return;
       }
@@ -127,6 +131,45 @@ export class Grid {
         }
       }
     }
+
+    ctx.restore();
+  }
+
+  drawDefaultGrid(ctx) {
+    const width = this.width;
+    const height = this.height;
+    const step = 50; // Espaciado en píxeles (ajústalo a tu gusto)
+
+    ctx.save();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+    ctx.lineWidth = 0.5;
+
+    // Líneas verticales
+    for (let x = step; x < width; x += step) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+
+    // Líneas horizontales
+    for (let y = step; y < height; y += step) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+
+    // Opcional: dibujar el origen (0,0) en el centro de la pantalla
+    const centerX = width / 2;
+    const centerY = height / 2;
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
+    ctx.moveTo(centerX - 10, centerY);
+    ctx.lineTo(centerX + 10, centerY);
+    ctx.moveTo(centerX, centerY - 10);
+    ctx.lineTo(centerX, centerY + 10);
+    ctx.stroke();
 
     ctx.restore();
   }

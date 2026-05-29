@@ -91,7 +91,7 @@
         </x-slot>
         <x-slot name="slot2">
           <input id="dEscala" name="dEscala" type="range" min="1" max="1000" step="1"
-            x-model="options.deflectionScale" x-on:input="calcularDeflecciones()">
+            x-model="options.deflectionScale" @input="updateDeflectionScale()">
         </x-slot>
       </x-cad.ribbon-button-subitem>
       <x-cad.ribbon-button clickHandler="options.showReactions = !options.showReactions" toggle="options.showReactions"
@@ -160,6 +160,13 @@
       <x-cad.ribbon-button clickHandler="elevateSelectedNodes()" toggle="false" label="Elevar +1m">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+        </svg>
+      </x-cad.ribbon-button>
+
+      <x-cad.ribbon-button clickHandler="testTorreConCargaExcentrica()" toggle="false" label="Torre Carga Excentrica">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 19v-6h13m0 0V5a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h3m7 0v6m-4 0h4" />
         </svg>
       </x-cad.ribbon-button>
 

@@ -79,6 +79,10 @@
                             <x-cad.input-properties label="Y" bind="moveObjectState.selectedObject.position.y"
                                 handleInput=""></x-cad.input-properties>
                         </template>
+                        <!-- NUEVO: Campo Z -->
+                        <template x-if="moveObjectState.selectedObject">
+                            <x-cad.input-properties label="Z" bind="moveObjectState.selectedObject.position.z" handleInput=""></x-cad.input-properties>
+                        </template>
                     </x-cad.panel-properties>
                     <!-- SECCION DE FUERZA -->
                     <x-cad.panel-properties title="Fuerza">
@@ -91,6 +95,8 @@
                         <x-cad.input-properties label="Fx" bind="moveObjectState.nodeX"
                             handleInput=""></x-cad.input-properties>
                         <x-cad.input-properties label="Fy" bind="moveObjectState.nodeY"
+                            handleInput=""></x-cad.input-properties>
+                        <x-cad.input-properties label="Fz" bind="moveObjectState.nodeZ"
                             handleInput=""></x-cad.input-properties>
                     </x-cad.panel-properties>
                     <!-- SECCION DE SOPORTE -->
@@ -148,6 +154,12 @@
                         handleInput="currentState.selectedObjects.forEach((n) => {
                                   n.force.y = fy;
                               })"></x-cad.input-properties>
+                    <!-- NUEVO: Fz -->
+                    <x-cad.input-properties label="Fz" bind="fz"
+                        handleInput="currentState.selectedObjects.forEach((n) => { 
+                                  n.force.z = fz;
+                              })"></x-cad.input-properties>
+
                 </x-cad.panel-properties>
                 <x-cad.panel-properties title="Soporte">
                     <div class="row flex">

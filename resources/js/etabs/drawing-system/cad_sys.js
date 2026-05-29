@@ -94,7 +94,7 @@ export default () => ({
 
     // 2. Opciones del sistema
     this.options = {
-      showGrid: false,
+      showGrid: true,
       showDeflection: true,
       deflectionScale: 1,
       showWireframe: false,
@@ -172,6 +172,9 @@ export default () => ({
     this.selectionState = new SelectionState();
     this.currentState = this.idleState;
     this.prevState = null;
+
+    this.calibrationFactor = 1; // Factor de calibración (unidades CAD por metro)
+
 
     // 7. Configurar eventos en el canvas del CAD
     this.setupCanvasEventsOnCAD(cadCanvas);
@@ -333,24 +336,48 @@ connectToCadEngine() {
 },
 
 // Loop de sincronización continua
+// startCadSyncLoop() {
+//     const sync = () => {
+//         if (this.cadEngine && this.cadEngine.getView) {
+//             const view = this.cadEngine.getView();
+//             if (view) {
+//                 // Actualizar zoom
+//                 if (view.zoom && Math.abs(this.grid.scaleX - view.zoom) > 0.001) {
+//                     this.grid.scaleX = view.zoom;
+//                     this.grid.scaleY = view.zoom;
+//                 }
+                
+//                 // Actualizar offset desde la vista del CAD
+//                 // La vista del CAD tiene un center o una posición
+//                 if (view.center) {
+//                     this.grid.offestX = view.center.x;
+//                     this.grid.offestY = view.center.y;
+//                 }
+                
+//                 this.redraw();
+//             }
+//         }
+//         requestAnimationFrame(sync);
+//     };
+//     sync();
+// },
+
 startCadSyncLoop() {
     const sync = () => {
         if (this.cadEngine && this.cadEngine.getView) {
             const view = this.cadEngine.getView();
             if (view) {
-                // Actualizar zoom
+                // Sincronizar escala
                 if (view.zoom && Math.abs(this.grid.scaleX - view.zoom) > 0.001) {
                     this.grid.scaleX = view.zoom;
                     this.grid.scaleY = view.zoom;
                 }
-                
-                // Actualizar offset desde la vista del CAD
-                // La vista del CAD tiene un center o una posición
+                // Sincronizar offset (el centro de la cámara)
                 if (view.center) {
                     this.grid.offestX = view.center.x;
                     this.grid.offestY = view.center.y;
                 }
-                
+                // Forzar redibujado
                 this.redraw();
             }
         }
@@ -359,22 +386,29 @@ startCadSyncLoop() {
     sync();
 },
 
+
 // NUEVO: Conversión de coordenadas usando el CAD nativo
 worldToScreen(point) {
-    // Usar el motor CAD
     if (this.cadEngine && this.cadEngine.worldToScreen) {
         const result = this.cadEngine.worldToScreen({ x: point.x, y: point.y });
         if (result && typeof result.x === 'number') {
             return { x: result.x, y: result.y };
         }
     }
-    // Fallback
     return this.grid.worldToScreen(point);
 },
 
 screenToWorld(point) {
-    if (this.cadScreenToWorld) {
-        const result = this.cadScreenToWorld({ x: point.x, y: point.y });
+    // if (this.cadScreenToWorld) {
+    //     const result = this.cadScreenToWorld({ x: point.x, y: point.y });
+    //     if (result && typeof result.x === 'number') {
+    //         return { x: result.x, y: result.y };
+    //     }
+    // }
+    // return this.grid.screenToWorld(point);
+
+    if (this.cadEngine && this.cadEngine.screenToWorld) {
+        const result = this.cadEngine.screenToWorld({ x: point.x, y: point.y });
         if (result && typeof result.x === 'number') {
             return { x: result.x, y: result.y };
         }
@@ -646,24 +680,42 @@ connectEngine(engine) {
 },
 
   handleMouseClick(event) {
-    this.currentState.handleMouseClick(event, this, mousePositionFrom(this.canvas, event));
-  },
+    // this.currentState.handleMouseClick(event, this, mousePositionFrom(this.canvas, event));
 
-  handleMouseDown(event) {
-    if (this.currentState && this.currentState.handleMouseDown) {
-      this.currentState.handleMouseDown(event, this, mousePositionFrom(this.canvas, event));
+    const { x, y } = mousePositionFrom(this.canvas, event);
+    console.log("🖱️ Mouse click en pantalla:", { x, y });
+    const worldPos = this.screenToWorld({ x, y });
+    console.log("🖱️ Posición mundo calculada:", worldPos);
+    
+    if (this.currentState && this.currentState.handleMouseClick) {
+        this.currentState.handleMouseClick(event, this, { x, y });
     }
   },
 
+  handleMouseDown(event) {
+    // if (this.currentState && this.currentState.handleMouseDown) {
+    //   this.currentState.handleMouseDown(event, this, mousePositionFrom(this.canvas, event));
+    // }
+
+    const { x, y } = mousePositionFrom(this.canvas, event);
+    console.log("🖱️ Mouse down en pantalla:", { x, y });
+    if (this.currentState && this.currentState.handleMouseDown) {
+        this.currentState.handleMouseDown(event, this, { x, y });
+    } 
+  },
+
   handleMouseUp(event) {
+    const { x, y } = mousePositionFrom(this.canvas, event);
     if (this.currentState && this.currentState.handleMouseUp) {
-      this.currentState.handleMouseUp(event, this, mousePositionFrom(this.canvas, event));
+      this.currentState.handleMouseUp(event, this, {x, y});
     }
   },
 
   handleMouseMove(event) {
     const { x, y } = mousePositionFrom(this.canvas, event);
-    this.mousePos = this.grid.screenToWorld({ x: x, y: y });
+    const rawWorld = this.screenToWorld({ x, y });
+    this.rawMousePos = rawWorld;  // para depuración
+    this.mousePos = { ...rawWorld };
     if (this.snap_enabled) {
       this.mousePos.x =
         Math.floor((this.mousePos.x + 0.5) * this.grid.gridSpacing) +
@@ -675,7 +727,7 @@ connectEngine(engine) {
         Math.floor(this.grid.gridSpacing);
     }
     if (this.currentState && this.currentState.handleMouseMove) {
-      this.currentState.handleMouseMove(event, this, mousePositionFrom(this.canvas, event));
+      this.currentState.handleMouseMove(event, this, { x, y });
     }
   },
 

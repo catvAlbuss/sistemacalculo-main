@@ -221,13 +221,25 @@ export class IdleState extends PanAndZoomState {
       return;
     }
 
+    // Solo selección de elementos (pero sin romper si no tienen style)
+    if (context.nodes) {
+        context.nodes.forEach((n) => {
+            if (n && n.style && n.style.default) n.style.default();
+        });
+    }
+    if (context.shapes) {
+        context.shapes.forEach((s) => {
+            if (s && s.style && s.style.default) s.style.default();
+        });
+    }
+
     // Solo selección de elementos
-    context.nodes.forEach((n) => {
-      n.style.default();
-    });
-    context.shapes.find((s) => {
-      s.style.default();
-    });
+    // context.nodes.forEach((n) => {
+    //   n.style.default();
+    // });
+    // context.shapes.find((s) => {
+    //   s.style.default();
+    // });
     let selectedObject = context.closestNode(mouse);
     if (selectedObject) {
       context.setState(context.moveObjectState, { selectedObject: selectedObject, isMoving: true });
@@ -664,55 +676,90 @@ export class TrussDrawingState extends StateBase {
     this.context = context;
     this.shape = new Beam(this.context.globalE, this.context.globalA);
   }
+  // handleMouseDown(event, context, mouse) {
+  //   // super.handleMouseDown(...arguments);
+  //   if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+  //     return;
+  //   }
+
+  //   // 🔥 NUEVO: Obtener la posición mundial a partir del clic en pantalla
+  //   const worldPos = context.screenToWorld({ x: mouse.x, y: mouse.y });
+  //   console.log("TrussDrawingState - mundo desde clic:", worldPos);
+
+  //   // const { x, y } = mouse;
+  //   const collided = context.closestNode(context.grid.worldToScreen(worldPos));
+  //   let node;
+  //   if (collided) {
+  //     node = collided;
+  //   } else {
+  //     node = new Node(worldPos, context.nodes.length + 1);
+  //     context.nodes.push(node);
+  //     const beam = context.closestBeam({ x: mouse.x, y: mouse.y });
+  //     if (beam) {
+  //       const vAB = {
+  //         x: beam.node2.position.x - beam.node1.position.x,
+  //         y: beam.node2.position.y - beam.node1.position.y,
+  //       };
+  //       const vAD = { x: context.mousePos.x - beam.node1.position.x, y: context.mousePos.y - beam.node1.position.y };
+  //       const scale = (vAB.x * vAD.x + vAB.y * vAD.y) / pointDistance({ x: 0, y: 0 }, vAB) ** 2;
+  //       const projAD_AB = { x: vAB.x * scale, y: vAB.y * scale };
+  //       node.position.x = beam.node1.position.x + projAD_AB.x;
+  //       node.position.y = beam.node1.position.y + projAD_AB.y;
+  //       const startID = beam.id;
+  //       const node2 = beam.node2;
+  //       removeFromArray(node2.beams, beam);
+  //       beam.node2 = node;
+  //       node.beams.push(beam);
+  //       const newBeam = new Beam(context.globalE, context.globalA);
+  //       newBeam.addNode(node);
+  //       node.beams.push(newBeam);
+  //       newBeam.addNode(node2);
+  //       node2.beams.push(newBeam);
+  //       context.shapes.splice(startID, 0, newBeam);
+  //       context.shapes.forEach((beam, index) => {
+  //         beam.id = index + 1;
+  //       });
+  //     }
+  //   }
+  //   const isDone = this.shape.addNode(node);
+  //   if (isDone) {
+  //     context.shapes.push(this.shape);
+  //     this.shape.node1.beams.push(this.shape);
+  //     this.shape.node2.beams.push(this.shape);
+  //     this.shape.id = context.shapes.length;
+  //     this.shape = new Beam(this.context.globalE, this.context.globalA);
+  //     this.shape.addNode(node);
+  //   }
+  // }
+
   handleMouseDown(event, context, mouse) {
-    // super.handleMouseDown(...arguments);
-    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
-      return;
-    }
-    const { x, y } = mouse;
-    const collided = context.closestNode(context.grid.worldToScreen(context.mousePos));
-    let node;
-    if (collided) {
-      node = collided;
-    } else {
-      node = new Node(context.mousePos, context.nodes.length + 1);
-      context.nodes.push(node);
-      const beam = context.closestBeam({ x: x, y: y });
-      if (beam) {
-        const vAB = {
-          x: beam.node2.position.x - beam.node1.position.x,
-          y: beam.node2.position.y - beam.node1.position.y,
-        };
-        const vAD = { x: context.mousePos.x - beam.node1.position.x, y: context.mousePos.y - beam.node1.position.y };
-        const scale = (vAB.x * vAD.x + vAB.y * vAD.y) / pointDistance({ x: 0, y: 0 }, vAB) ** 2;
-        const projAD_AB = { x: vAB.x * scale, y: vAB.y * scale };
-        node.position.x = beam.node1.position.x + projAD_AB.x;
-        node.position.y = beam.node1.position.y + projAD_AB.y;
-        const startID = beam.id;
-        const node2 = beam.node2;
-        removeFromArray(node2.beams, beam);
-        beam.node2 = node;
-        node.beams.push(beam);
-        const newBeam = new Beam(context.globalE, context.globalA);
-        newBeam.addNode(node);
-        node.beams.push(newBeam);
-        newBeam.addNode(node2);
-        node2.beams.push(newBeam);
-        context.shapes.splice(startID, 0, newBeam);
-        context.shapes.forEach((beam, index) => {
-          beam.id = index + 1;
-        });
+      if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) return;
+
+      const worldPos = context.screenToWorld({ x: mouse.x, y: mouse.y });
+      console.log("TrussDrawingState - mundo desde clic:", worldPos);
+
+      // Buscar si hay un nodo cercano (opcional, para snap a nodos existentes)
+      const collidedNode = context.closestNode(context.grid.worldToScreen(worldPos));
+      let node;
+      if (collidedNode) {
+          node = collidedNode;
+      } else {
+          // Crear nuevo nodo en la posición exacta del clic
+          node = new Node(worldPos, context.nodes.length + 1);
+          context.nodes.push(node);
       }
-    }
-    const isDone = this.shape.addNode(node);
-    if (isDone) {
-      context.shapes.push(this.shape);
-      this.shape.node1.beams.push(this.shape);
-      this.shape.node2.beams.push(this.shape);
-      this.shape.id = context.shapes.length;
-      this.shape = new Beam(this.context.globalE, this.context.globalA);
-      this.shape.addNode(node);
-    }
+
+      // Agregar el nodo a la viga en construcción
+      const isDone = this.shape.addNode(node);
+      if (isDone) {
+          context.shapes.push(this.shape);
+          this.shape.node1.beams.push(this.shape);
+          this.shape.node2.beams.push(this.shape);
+          this.shape.id = context.shapes.length;
+          // Iniciar una nueva viga
+          this.shape = new Beam(context.globalE, context.globalA);
+          this.shape.addNode(node); // el primer nodo de la siguiente viga es este mismo nodo
+      }
   }
   handleMouseMove(event, context, mouse) {
     // super.handleMouseMove(...arguments);

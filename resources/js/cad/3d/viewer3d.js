@@ -537,7 +537,7 @@ function getNodePosition3D(node, context) {
             }
 
         } else {
-            console.warn(`Índice ${idx} fuera de rango (len=${context.desplazamientosPosition.length}) para nodo ${node.id}`);
+            // console.warn(`Índice ${idx} fuera de rango (len=${context.desplazamientosPosition.length}) para nodo ${node.id}`);
         }
     }
     // fallback a posición original
