@@ -25,6 +25,7 @@ import {
   PanAndZoomState,
   RubberBandZoomState,
   TrussDrawingState,
+  CrossViewFrameDrawingState,
   PointDrawingState,
   ColumnDrawingState,
   CreateLinesRegionClicksState,
@@ -51,7 +52,7 @@ import sections from "./sections.js";
 // import * as THREE from "three";
 // import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as BABYLON from "@babylonjs/core";
-import { TrussDrawingState3D } from "./states.js";
+import { TrussDrawingState3D } from "./states.js";  
 import { Beam, Node as StructuralNode } from "./shapes.js";
 
 // IMPORTAR LOS DIÁLOGOS
@@ -180,36 +181,36 @@ export default () => ({
     reactions: 2,
   },
 
-  preferences: {
-    lengthUnit: "m",
-    forceUnit: "kN",
+  // preferences: {
+  //   lengthUnit: "m",
+  //   forceUnit: "kN",
 
-    // Para considerar dos puntos como iguales
-    modelTolerance: 0.001,
+  //   // Para considerar dos puntos como iguales
+  //   modelTolerance: 0.001,
 
-    // Distancia en píxeles para que el mouse capture una intersección
-    snapScreenTolerance: 14,
+  //   // Distancia en píxeles para que el mouse capture una intersección
+  //   snapScreenTolerance: 14,
 
-    // Tolerancia en coordenadas reales
-    snapWorldTolerance: 1.0,
-  },
+  //   // Tolerancia en coordenadas reales
+  //   snapWorldTolerance: 1.0,
+  // },
 
-  steelFrameDesign: {
-    code: "AISC 360-16",
-    designMethod: "LRFD",
-    checkDeflection: true,
-    checkSlenderness: true,
-    phiBending: 0.90,
-    phiCompression: 0.90,
-  },
+  // steelFrameDesign: {
+  //   code: "AISC 360-16",
+  //   designMethod: "LRFD",
+  //   checkDeflection: true,
+  //   checkSlenderness: true,
+  //   phiBending: 0.90,
+  //   phiCompression: 0.90,
+  // },
 
-  reinforcementBarSizes: [
-    { name: "#3", diameterMm: 9.5, areaMm2: 71, enabled: true },
-    { name: "#4", diameterMm: 12.7, areaMm2: 129, enabled: true },
-    { name: "#5", diameterMm: 15.9, areaMm2: 199, enabled: true },
-    { name: "#6", diameterMm: 19.1, areaMm2: 284, enabled: true },
-    { name: "#8", diameterMm: 25.4, areaMm2: 510, enabled: true },
-  ],
+  // reinforcementBarSizes: [
+  //   { name: "#3", diameterMm: 9.5, areaMm2: 71, enabled: true },
+  //   { name: "#4", diameterMm: 12.7, areaMm2: 129, enabled: true },
+  //   { name: "#5", diameterMm: 15.9, areaMm2: 199, enabled: true },
+  //   { name: "#6", diameterMm: 19.1, areaMm2: 284, enabled: true },
+  //   { name: "#8", diameterMm: 25.4, areaMm2: 510, enabled: true },
+  // ],
 
   nextNodeId: 1,
   nextBeamId: 1,
@@ -295,6 +296,8 @@ export default () => ({
       { name: "COMB2", expression: "1.25CM + 1.25CV + 1.0CVV+" },
       { name: "COMB3", expression: "0.9CM + 1.0CVV-" },
     ],
+    items: [],
+    selectedCombination: null,
   },
 
   massSource: {
@@ -304,6 +307,10 @@ export default () => ({
       fromElements: false,
       multiplier: 1.0,
     },
+    massDefinition: "self",
+    loadMultipliers: [{ load: "DEAD", multiplier: 1 }],
+    includeLateralMassOnly: false,
+    lumpLateralMassAtStoryLevels: false,
   },
 
   menus: Object.values(menus),
@@ -313,50 +320,50 @@ export default () => ({
   // ===========================================================
   // ========== PROPIEDADES PARA LA SECION MATERIALES ==============
   // ===========================================================
-  materialProperties: {
-    open: false,
-    materials: [],
-    selectedMaterial: null,
-  },
+  // materialProperties: {
+  //   open: false,
+  //   materials: [],
+  //   selectedMaterial: null,
+  // },
 
-  frameSections: {
-    open: false,
-    sections: [],
-    selectedSection: null,
-  },
+  // frameSections: {
+  //   open: false,
+  //   sections: [],
+  //   selectedSection: null,
+  // },
 
-  loadCases: {
-    open: false,
-    cases: [
-      { name: "CM", type: "Dead", selfWeight: true, value: 1.0 },
-      { name: "CV", type: "Live", value: 1.0 },
-      { name: "CVV+", type: "Live", value: 0.5 },
-      { name: "CVV-", type: "Live", value: 0.5 },
-      { name: "CN", type: "Live", value: 0.3 },
-      { name: "CLL", type: "Live", value: 0.4 },
-    ],
-  },
+  // loadCases: {
+  //   open: false,
+  //   cases: [
+  //     { name: "CM", type: "Dead", selfWeight: true, value: 1.0 },
+  //     { name: "CV", type: "Live", value: 1.0 },
+  //     { name: "CVV+", type: "Live", value: 0.5 },
+  //     { name: "CVV-", type: "Live", value: 0.5 },
+  //     { name: "CN", type: "Live", value: 0.3 },
+  //     { name: "CLL", type: "Live", value: 0.4 },
+  //   ],
+  // },
 
-  loadCombinations: {
-    open: false,
-    combinations: [
-      { name: "COMB1", expression: "1.4CM + 1.7CV" },
-      { name: "COMB2", expression: "1.25CM + 1.25CV + 1.0CVV+" },
-      { name: "COMB3", expression: "0.9CM + 1.0CVV-" },
-    ],
-  },
+  // loadCombinations: {
+  //   open: false,
+  //   combinations: [
+  //     { name: "COMB1", expression: "1.4CM + 1.7CV" },
+  //     { name: "COMB2", expression: "1.25CM + 1.25CV + 1.0CVV+" },
+  //     { name: "COMB3", expression: "0.9CM + 1.0CVV-" },
+  //   ],
+  // },
 
-  massSource: {
-    open: false,
-    sources: {
-      fromLoads: true,
-      fromElements: false,
-      multiplier: 1.0,
-    },
-  },
+  // massSource: {
+  //   open: false,
+  //   sources: {
+  //     fromLoads: true,
+  //     fromElements: false,
+  //     multiplier: 1.0,
+  //   },
+  // },
 
-  menus: Object.values(menus),
-  getMenuContent,
+  // menus: Object.values(menus),
+  // getMenuContent,
 
   materialModalOpen: false, // propiedad para usar el modal de materiales
 
@@ -404,10 +411,11 @@ export default () => ({
     selectedSequentialCase: null,
   },
 
-  loadCombinations: {
-    items: [],
-    selectedCombination: null,
-  },
+  // loadCombinations: {
+  //   items: [],
+  //   selectedCombination: null,
+  // },
+
   specialSeismicData: {
     useForDesign: "include",
     rhoFactor: "program",
@@ -420,12 +428,12 @@ export default () => ({
     dlMultiplierValue: 0.2,
   },
 
-  massSource: {
-    massDefinition: "self",
-    loadMultipliers: [{ load: "DEAD", multiplier: 1 }],
-    includeLateralMassOnly: false,
-    lumpLateralMassAtStoryLevels: false,
-  },
+  // massSource: {
+  //   massDefinition: "self",
+  //   loadMultipliers: [{ load: "DEAD", multiplier: 1 }],
+  //   includeLateralMassOnly: false,
+  //   lumpLateralMassAtStoryLevels: false,
+  // },
 
   groups: {
     items: [],
@@ -557,6 +565,14 @@ export default () => ({
     memberForceType: "axial",
   },
 
+  // =====================================================
+  // DRAW 3D > CONFIGURACIÓN DE BARRAS DIAGONALES
+  // Permite conectar nodos entre planos distintos.
+  // =====================================================
+  allow3DCrossPlaneFrames: true,
+  frame3DStartWorkPlane: null,
+  frame3DEndWorkPlane: null,
+
   initSys(canvas, distanceInput) {
     this.Arco = Arco;
     this.Triangle = Triangle;
@@ -645,6 +661,8 @@ export default () => ({
     this.pointDrawingState = new PointDrawingState(this);
     this.braceDrawingState = new TrussDrawingState(this, "brace");
     this.beamDrawingState = new TrussDrawingState(this, "beam");
+    // Estado especial para dibujar barras entre diferentes vistas.
+    this.crossViewFrameDrawingState = new CrossViewFrameDrawingState(this, "beam");
     this.columnDrawingState = new ColumnDrawingState(this);
     this.createLinesRegionClicksState = new CreateLinesRegionClicksState(this);
     this.createSecondaryBeamsRegionClicksState = new CreateSecondaryBeamsRegionClicksState(this);
@@ -663,6 +681,9 @@ export default () => ({
     this.selectedParametricState = new SelectedParametricState();
     this.selectionState = new SelectionState();
     this.currentState = this.idleState;
+    // Estado 3D antiguo desactivado.
+    // Se deja como null para que Alpine no rompa el x-show del Blade.
+    // this.trussDrawingState3D = null;
 
     this.nextNodeId = 1;
     this.nextBeamId = 1;
@@ -733,6 +754,12 @@ export default () => ({
       if (container && !viewer.initialized) {
         console.log("🚀 Inicializando vista 3D automáticamente...");
         this.initViewer3D(container);
+
+        // =====================================================
+        // 3D SNAP > RECONSTRUIR SNAP POINTS AL INICIAR BABYLON
+        // Por si el modelo ya existe cuando recién aparece el 3D.
+        // =====================================================
+        this.rebuild3DGridSnapPointsSoon?.("initSys viewer initialized");
       }
     }, 1000);
 
@@ -863,25 +890,25 @@ export default () => ({
   // ========== MÉTODOS PARA DEFINE ==========
   // =========================================
 
-  openMaterialProperties() {
-    openMaterialDialog(this);
-  },
+  // openMaterialProperties() {
+  //   openMaterialDialog(this);
+  // },
 
-  openFrameSections() {
-    openSectionDialog(this);
-  },
+  // openFrameSections() {
+  //   openSectionDialog(this);
+  // },
 
-  openLoadCases() {
-    openLoadCaseDialog(this);
-  },
+  // openLoadCases() {
+  //   openLoadCaseDialog(this);
+  // },
 
-  openLoadCombinations() {
-    openCombinationDialog(this);
-  },
+  // openLoadCombinations() {
+  //   openCombinationDialog(this);
+  // },
 
-  openMassSource() {
-    openMassSourceDialog(this);
-  },
+  // openMassSource() {
+  //   openMassSourceDialog(this);
+  // },
 
   creaArco() {
     this.parametricModels.push(new Arco());
@@ -1824,7 +1851,7 @@ export default () => ({
       obj.isSelected = false;
 
       if (obj.style?.default) {
-        obj.style.default();
+        obj.style?.default?.();
       }
     };
 
@@ -2611,6 +2638,415 @@ export default () => ({
         console.warn("Acción Display no reconocida:", action);
         break;
     }
+  },
+
+  // Identifica barras inclinadas o creadas entre diferentes vistas. Estas barras se mostrarán en 3D, pero no en el canvas 2D.
+  // =====================================================
+  is3DOnlyFrame(frame) {
+    if (!frame) return false;
+
+    if (
+      frame.is3DOnlyFrame === true ||
+      frame.isCrossViewFrame === true ||
+      frame.showIn2D === false
+    ) {
+      return true;
+    }
+
+    const p1 = frame.node1?.position;
+    const p2 = frame.node2?.position;
+
+    if (!p1 || !p2) return false;
+
+    const tol = 0.001;
+
+    const dx = Math.abs(Number(p2.x || 0) - Number(p1.x || 0));
+    const dy = Math.abs(Number(p2.y || 0) - Number(p1.y || 0));
+    const dz = Math.abs(Number(p2.z || 0) - Number(p1.z || 0));
+
+    // Barra inclinada espacial: cambia altura y también cambia X/Y.
+    return dz > tol && (dx > tol || dy > tol);
+  },
+
+  // =====================================================
+  // DISPLAY 2D > VALIDAR SI UNA BARRA SE DIBUJA
+  // Planta: solo muestra barras del piso activo.
+  // Elevación Y: muestra barras ubicadas en ese plano Y.
+  // Elevación X: muestra barras ubicadas en ese plano X.
+  // =====================================================
+  shouldDrawFrameIn2D(frame) {
+    if (!frame) return false;
+
+    const p1 = frame.node1?.position;
+    const p2 = frame.node2?.position;
+
+    if (!p1 || !p2) return false;
+
+    const tol = 0.001;
+    const view = this.viewSet?.[this.activeViewIndex];
+
+    // =====================================================
+    // DISPLAY 2D > PLANTA
+    // En planta solo se dibujan barras cuyos dos nodos están
+    // en el Z del piso activo. Las barras entre pisos se ocultan.
+    // =====================================================
+    if (!view || view.type === "plan" || this.currentViewMode === "plan") {
+      const activeZ = Number(
+        view?.elevation ??
+        this.currentZ ??
+        this.stories?.[this.activeStory]?.elevation ??
+        0
+      );
+
+      const z1 = Number(p1.z || 0);
+      const z2 = Number(p2.z || 0);
+
+      return (
+        Math.abs(z1 - activeZ) <= tol &&
+        Math.abs(z2 - activeZ) <= tol
+      );
+    }
+
+    // =====================================================
+    // DISPLAY 2D > ELEVACIÓN Y
+    // Plano X-Z con Y fijo.
+    // Aquí sí deben mostrarse barras verticales, inclinadas
+    // o cruzadas siempre que estén sobre esa elevación.
+    // =====================================================
+    if (view.type === "elevation" && view.axis === "Y") {
+      const fixedY = Number(
+        view.elevation ??
+        view.ordinate ??
+        view.value ??
+        view.coord ??
+        0
+      );
+
+      const y1 = Number(p1.y || 0);
+      const y2 = Number(p2.y || 0);
+
+      return (
+        Math.abs(y1 - fixedY) <= tol &&
+        Math.abs(y2 - fixedY) <= tol
+      );
+    }
+
+    // =====================================================
+    // DISPLAY 2D > ELEVACIÓN X
+    // Plano Y-Z con X fijo.
+    // Aquí sí deben mostrarse barras verticales, inclinadas
+    // o cruzadas siempre que estén sobre esa elevación.
+    // =====================================================
+    if (view.type === "elevation" && view.axis === "X") {
+      const fixedX = Number(
+        view.elevation ??
+        view.ordinate ??
+        view.value ??
+        view.coord ??
+        0
+      );
+
+      const x1 = Number(p1.x || 0);
+      const x2 = Number(p2.x || 0);
+
+      return (
+        Math.abs(x1 - fixedX) <= tol &&
+        Math.abs(x2 - fixedX) <= tol
+      );
+    }
+
+    return true;
+  },
+
+  // Detecta barras visibles en la planta/elevación actual. Ignora barras 3D-only ocultas en 2D.
+  // =====================================================
+  closestBeamAtActiveView(searchPoint) {
+    const view = this.viewSet?.[this.activeViewIndex];
+    const tolerance = 0.05;
+    let closest = null;
+    let shortestDistance = 10;
+
+    for (let i = 0; i < this.shapes.length; i++) {
+      const beam = this.shapes[i];
+
+      if (!beam?.node1 || !beam?.node2) continue;
+
+      // =====================================================
+      // SELECTION 2D > IGNORAR BARRAS 3D-ONLY
+      // Si no se ve en 2D, tampoco debe activar cursor/hover.
+      // =====================================================
+      if (
+        typeof this.shouldSelectFrameIn2D === "function" &&
+        !this.shouldSelectFrameIn2D(beam)
+      ) {
+        continue;
+      }
+
+      const x1 = Number(beam.node1.position.x || 0);
+      const y1 = Number(beam.node1.position.y || 0);
+      const z1 = Number(beam.node1.position.z || 0);
+
+      const x2 = Number(beam.node2.position.x || 0);
+      const y2 = Number(beam.node2.position.y || 0);
+      const z2 = Number(beam.node2.position.z || 0);
+
+      let belongs = true;
+      let p1 = null;
+      let p2 = null;
+
+      if (view?.type === "plan") {
+        const viewZ = Number(view.elevation ?? 0);
+
+        belongs =
+          Math.abs(z1 - viewZ) <= tolerance &&
+          Math.abs(z2 - viewZ) <= tolerance;
+
+        p1 = this.grid.worldToScreen({ x: x1, y: y1 });
+        p2 = this.grid.worldToScreen({ x: x2, y: y2 });
+      }
+
+      else if (view?.type === "elevation") {
+        if (view.axis === "X") {
+          // Plano Y-Z con X fijo
+          const viewX = Number(view.value ?? 0);
+
+          belongs =
+            Math.abs(x1 - viewX) <= tolerance &&
+            Math.abs(x2 - viewX) <= tolerance;
+
+          p1 = this.grid.worldToScreen({ x: y1, y: z1 });
+          p2 = this.grid.worldToScreen({ x: y2, y: z2 });
+        }
+
+        else if (view.axis === "Y") {
+          // Plano X-Z con Y fijo
+          const viewY = Number(view.value ?? 0);
+
+          belongs =
+            Math.abs(y1 - viewY) <= tolerance &&
+            Math.abs(y2 - viewY) <= tolerance;
+
+          p1 = this.grid.worldToScreen({ x: x1, y: z1 });
+          p2 = this.grid.worldToScreen({ x: x2, y: z2 });
+        }
+      }
+
+      if (!belongs || !p1 || !p2) continue;
+
+      const dist = pointDistanceToSegment(searchPoint, p1, p2);
+
+      if (dist < shortestDistance) {
+        shortestDistance = dist;
+        closest = beam;
+      }
+    }
+
+    return closest;
+  },
+
+  // Versión general usada por cursor/hover. Ignora barras 3D-only ocultas en 2D.
+  // =====================================================
+  closestBeam(searchPoint) {
+    const shortestDistance = 5;
+
+    return this.shapes.find((s) => {
+      if (!s?.node1?.position || !s?.node2?.position) return false;
+
+      // =====================================================
+      // SELECTION 2D > IGNORAR BARRAS 3D-ONLY
+      // Evita que el cursor cambie sobre una barra que no se ve.
+      // =====================================================
+      if (
+        typeof this.shouldSelectFrameIn2D === "function" &&
+        !this.shouldSelectFrameIn2D(s)
+      ) {
+        return false;
+      }
+
+      // Si existe filtro de vista activa, también se respeta.
+      if (
+        typeof this.isObjectVisibleInActiveView === "function" &&
+        !this.isObjectVisibleInActiveView(s)
+      ) {
+        return false;
+      }
+
+      const lineLength = pointDistance(
+        this.grid.worldToScreen(s.node1.position),
+        this.grid.worldToScreen(s.node2.position)
+      );
+
+      const d1 = pointDistance(
+        this.grid.worldToScreen(s.node1.position),
+        searchPoint
+      );
+
+      const d2 = pointDistance(
+        this.grid.worldToScreen(s.node2.position),
+        searchPoint
+      );
+
+      return (
+        d1 + d2 >= lineLength - shortestDistance &&
+        d1 + d2 <= lineLength + shortestDistance
+      );
+    });
+  },
+
+  // =====================================================
+  // SELECTION 2D > VALIDAR SI UNA BARRA PUEDE SELECCIONARSE
+  // Usa el mismo criterio visual del canvas 2D.
+  // Si se ve en la vista activa, se puede seleccionar.
+  // =====================================================
+  shouldSelectFrameIn2D(frame) {
+    if (!frame) return false;
+
+    if (typeof this.shouldDrawFrameIn2D === "function") {
+      return this.shouldDrawFrameIn2D(frame);
+    }
+
+    return true;
+  },
+
+  // =====================================================
+  // SELECTION 2D > DETECTAR SI UNA BARRA ES 3D-ONLY. Identifica barras inclinadas/espaciales ocultas en canvas 2D.
+  // =====================================================
+  isFrame3DOnlyForSelection(frame) {
+    if (!frame?.node1 || !frame?.node2) return false;
+
+    if (
+      frame.is3DOnlyFrame === true ||
+      frame.isCrossViewFrame === true ||
+      frame.showIn2D === false
+    ) {
+      return true;
+    }
+
+    if (typeof this.is3DOnlyFrame === "function") {
+      return this.is3DOnlyFrame(frame);
+    }
+
+    const p1 = frame.node1.position;
+    const p2 = frame.node2.position;
+
+    if (!p1 || !p2) return false;
+
+    const tol = 0.001;
+
+    const dx = Math.abs(Number(p2.x || 0) - Number(p1.x || 0));
+    const dy = Math.abs(Number(p2.y || 0) - Number(p1.y || 0));
+    const dz = Math.abs(Number(p2.z || 0) - Number(p1.z || 0));
+
+    return dz > tol && (dx > tol || dy > tol);
+  },
+
+  // =====================================================
+  // SELECTION 2D > PROYECTAR NODO EN VISTA ACTIVA. Convierte un nodo 3D a coordenadas de pantalla según planta/elevación.
+  // =====================================================
+  projectNodeInActiveView(node) {
+    if (!node?.position) return null;
+
+    const view = this.viewSet?.[this.activeViewIndex];
+    const p = node.position;
+
+    const x = Number(p.x || 0);
+    const y = Number(p.y || 0);
+    const z = Number(p.z || 0);
+
+    if (view?.type === "plan") {
+      return this.grid.worldToScreen({ x, y });
+    }
+
+    if (view?.type === "elevation") {
+      if (view.axis === "X") {
+        // Elevación X: plano Y-Z
+        return this.grid.worldToScreen({ x: y, y: z });
+      }
+
+      if (view.axis === "Y") {
+        // Elevación Y: plano X-Z
+        return this.grid.worldToScreen({ x, y: z });
+      }
+    }
+
+    return this.grid.worldToScreen({ x, y });
+  },
+
+  // =====================================================
+  // SELECTION 2D > BARRAS 3D-ONLY OCULTAS CONECTADAS A NODO
+  // Solo devuelve barras que realmente NO se ven en la vista 2D activa.
+  // Si la barra se ve en elevación, no debe pedir Alt + clic.
+  // =====================================================
+  get3DOnlyFramesConnectedToNode(node) {
+    if (!node || !Array.isArray(this.shapes)) return [];
+
+    return this.shapes.filter((frame) => {
+      const connected =
+        String(frame.node1?.id) === String(node.id) ||
+        String(frame.node2?.id) === String(node.id);
+
+      if (!connected) return false;
+
+      const is3DOnly =
+        frame.is3DOnlyFrame === true ||
+        frame.isCrossViewFrame === true ||
+        frame.showIn2D === false ||
+        this.isFrame3DOnlyForSelection?.(frame) === true;
+
+      if (!is3DOnly) return false;
+
+      // Clave: si la barra se ve en la vista activa, no necesita Alt + clic.
+      const visibleInCurrent2DView =
+        this.shouldDrawFrameIn2D?.(frame) === true;
+
+      return !visibleInCurrent2DView;
+    });
+  },
+
+  // =====================================================
+  // SELECTION 2D > BUSCAR EXTREMO DE BARRA 3D-ONLY
+  // Permite seleccionar barras inclinadas desde sus nodos extremos. Se usa con Alt + clic para no bloquear la selección normal del nodo.
+  // =====================================================
+  closest3DOnlyFrameEndpointAtActiveView(searchPoint, radius = 12) {
+    let closestHit = null;
+    let shortestDistance = radius;
+
+    if (!Array.isArray(this.nodes)) return null;
+
+    for (const node of this.nodes) {
+      if (!node?.position) continue;
+
+      // El nodo debe pertenecer a la vista activa.
+      if (
+        typeof this.isNodeVisibleInActiveView === "function" &&
+        !this.isNodeVisibleInActiveView(node)
+      ) {
+        continue;
+      }
+
+      const connected3DFrames = this.get3DOnlyFramesConnectedToNode(node);
+
+      if (!connected3DFrames.length) continue;
+
+      const screenPoint = this.projectNodeInActiveView(node);
+
+      if (!screenPoint) continue;
+
+      const distance = pointDistance(searchPoint, screenPoint);
+
+      if (distance <= shortestDistance) {
+        shortestDistance = distance;
+
+        closestHit = {
+          node,
+          frames: connected3DFrames,
+          screenPoint,
+          distance,
+        };
+      }
+    }
+
+    return closestHit;
   },
 
   // =========================================
@@ -8711,16 +9147,35 @@ export default () => ({
     this.redraw?.();
   },
 
-  getSelectableObjects() {
+  // Devuelve nodos, barras y áreas visibles/seleccionables. Ignora barras 3D-only en selección 2D.
+  // =====================================================
+  getSelectableObjects(options = {}) {
     const objects = [];
     const seen = new Set();
+
+    const include3DOnlyFrames =
+      options.include3DOnlyFrames === true;
 
     const addObject = (obj) => {
       if (!obj) return;
       if (seen.has(obj)) return;
 
-      // Si el objeto está oculto, no lo consideramos seleccionable
+      // Si el objeto está oculto, no lo consideramos seleccionable.
       if (obj.visible === false) return;
+
+      // =====================================================
+      // SELECTION 2D > IGNORAR BARRAS 3D-ONLY
+      // Los nodos sí se mantienen seleccionables.
+      // Solo se bloquean las barras ocultas en 2D.
+      // =====================================================
+      if (obj.node1 && obj.node2 && !include3DOnlyFrames) {
+        if (
+          typeof this.shouldSelectFrameIn2D === "function" &&
+          !this.shouldSelectFrameIn2D(obj)
+        ) {
+          return;
+        }
+      }
 
       seen.add(obj);
       objects.push(obj);
@@ -8736,7 +9191,7 @@ export default () => ({
       this.shapes.forEach(addObject);
     }
 
-    // Por si luego tienes áreas separadas
+    // Áreas
     if (Array.isArray(this.areas)) {
       this.areas.forEach(addObject);
     }
@@ -8766,14 +9221,26 @@ export default () => ({
     return this.getSelectableObjects().filter((obj) => obj.selected === true);
   },
 
+  // =====================================================
+  // SELECTION > DEFINIR ESTADO DE SELECCIÓN DE OBJETO
+  // Versión segura para nodos, barras y objetos creados desde 3D.
+  // Evita errores cuando no existe style.default() o style.selected().
+  // =====================================================
   setObjectSelected(obj, selected = true) {
     if (!obj) return;
 
-    obj.selected = selected === true;
+    obj.selected = selected;
+    obj.isSelected = selected;
 
-    if ("isSelected" in obj) {
-      obj.isSelected = selected === true;
+    if (selected) {
+      obj.style?.selected?.();
+      return;
     }
+
+    obj.highlighted3D = false;
+    obj.is3DOnlyEndpointHover = false;
+
+    obj.style?.default?.();
   },
 
   selectObjects(objects = []) {
@@ -8798,31 +9265,1076 @@ export default () => ({
     this.showMessage?.(`Objetos deseleccionados: ${objects.length}`);
   },
 
-  clearAllSelections() {
-    const objects = this.getSelectableObjects();
+  // =====================================================
+  // DRAW FRAME > ACTIVAR HERRAMIENTA GENERAL DE BARRAS
+  // Activa una herramienta única para dibujar barras.
+  // Luego el sistema decidirá si se dibuja en 2D o en 3D.
+  // =====================================================
+  startFrameDrawingMode() {
+    this.activeDrawTool = "frame";
 
-    objects.forEach((obj) => {
-      this.setObjectSelected(obj, false);
+    this.isDrawingFrame3D = false;
+    this.frame3DStartNode = null;
+    this.frame3DEndNode = null;
+
+    this.clearAllSelections?.();
+
+    if (this.idleState) {
+      this.setState?.(this.idleState);
+    }
+
+    this.showMessage?.(
+      "Herramienta de barra activada. Dibuje en 2D o seleccione nodos en 3D."
+    );
+
+    console.log("🟢 Draw Frame general activado:", {
+      activeDrawTool: this.activeDrawTool,
+      activeViewport: this.activeViewport,
+      isDrawingFrame3D: this.isDrawingFrame3D,
+    });
+  },
+
+  // =====================================================
+  // DRAW FRAME > ACTIVAR DESDE MENÚ
+  // Función puente para que los botones/menús llamen
+  // a la herramienta general de dibujo de barras.
+  // =====================================================
+  activateDrawFrameTool() {
+    this.startFrameDrawingMode?.();
+  },
+
+  // =====================================================
+  // DRAW FRAME > CANCELAR HERRAMIENTA GENERAL DE BARRAS
+  // Cancela dibujo de barras tanto en 2D como en 3D.
+  // =====================================================
+  cancelFrameDrawingMode() {
+    this.activeDrawTool = null;
+
+    this.isDrawingFrame3D = false;
+    this.frame3DStartNode = null;
+    this.frame3DEndNode = null;
+
+    this.nodes?.forEach((node) => {
+      node.selected = false;
+      node.isSelected = false;
+      node.is3DOnlyEndpointHover = false;
     });
 
-    // Limpiar también estados que guardan selección interna
-    if (this.selectedNodesState?.selectedObjects) {
-      this.selectedNodesState.selectedObjects = [];
+    if (this.idleState) {
+      this.setState?.(this.idleState);
     }
 
-    if (this.selectedBeamsState?.selectedObjects) {
-      this.selectedBeamsState.selectedObjects = [];
-    }
+    // =====================================================
+    // 3D DRAW > DESBLOQUEAR CÁMARA AL CANCELAR
+    // Evita que el visor 3D quede bloqueado después de Esc.
+    // =====================================================
+    window.__jhSet3DDrawCameraLock?.(false);
 
-    if (this.selectedParametricState?.selectedObjects) {
-      this.selectedParametricState.selectedObjects = [];
-    }
+    // =====================================================
+    // 3D DRAW > LIMPIAR MALLA INVISIBLE DE DIBUJO
+    // Si queda activa, bloquea la selección de barras 3D.
+    // =====================================================
+    window.__jhClear3DGridPointHoverReference?.();
+    window.__jhDisable3DWorkPlanePickMesh?.();
 
     this.redraw?.();
     this.sync3D?.();
 
-    this.showMessage?.("Selección limpiada");
+    this.showMessage?.("Herramienta de barra cancelada.");
+
+    console.log("🟡 Draw Frame general cancelado");
   },
+
+  // =====================================================
+  // DRAW FRAME > VALIDAR SI LA HERRAMIENTA ESTÁ ACTIVA
+  // Sirve para que 2D y 3D sepan si pueden dibujar barras.
+  // =====================================================
+  isFrameDrawingToolActive() {
+    return this.activeDrawTool === "frame";
+  },
+
+  // =====================================================
+  // VIEWPORT > DEFINIR VISTA ACTIVA
+  // Guarda si el usuario está trabajando en canvas 2D o 3D.
+  // No activa herramientas, solo registra el área activa.
+  // =====================================================
+  setActiveViewport(viewport, reason = "") {
+    if (viewport !== "2d" && viewport !== "3d") return;
+
+    if (this.activeViewport === viewport) return;
+
+    this.activeViewport = viewport;
+
+    console.log("🧭 Viewport activo:", {
+      activeViewport: this.activeViewport,
+      activeDrawTool: this.activeDrawTool,
+      isDrawingFrame3D: this.isDrawingFrame3D,
+      reason,
+    });
+  },
+
+  // =====================================================
+  // VIEWPORT > MARCAR CANVAS 2D ACTIVO
+  // Se llama cuando el mouse/clic ocurre sobre el canvas 2D.
+  // =====================================================
+  mark2DViewportActive(reason = "2d interaction") {
+    this.setActiveViewport?.("2d", reason);
+  },
+
+  // =====================================================
+  // VIEWPORT > MARCAR CANVAS 3D ACTIVO
+  // Se llama cuando el mouse/clic ocurre sobre el visor 3D.
+  // =====================================================
+  mark3DViewportActive(reason = "3d interaction") {
+    this.setActiveViewport?.("3d", reason);
+  },
+
+  // =====================================================
+  // DRAW 3D > ACTIVAR DIBUJO DE BARRAS EN 3D
+  // Permite iniciar dibujo 3D sin borrar el nodo inicial
+  // si ya se está dibujando una barra diagonal entre planos.
+  // =====================================================
+  startFrame3DDrawingMode() {
+    if (this.activeDrawTool !== "frame") {
+      this.startFrameDrawingMode?.();
+    }
+
+    this.activeViewport = "3d";
+    this.isDrawingFrame3D = true;
+
+    // No borrar el nodo inicial si ya existe.
+    // Esto permite cambiar de planta/elevación entre el primer y segundo clic.
+    if (!this.frame3DStartNode) {
+      this.frame3DStartNode = null;
+      this.frame3DEndNode = null;
+      this.frame3DStartWorkPlane = null;
+      this.frame3DEndWorkPlane = null;
+    }
+
+    if (this.idleState) {
+      this.setState?.(this.idleState);
+    }
+
+    this.showMessage?.(
+      this.frame3DStartNode
+        ? "Seleccione el nodo final en otro punto, piso o elevación."
+        : "Dibujo 3D activado: seleccione el nodo inicial en la vista 3D."
+    );
+
+    console.log("🟢 Draw Frame 3D activado:", {
+      activeDrawTool: this.activeDrawTool,
+      activeViewport: this.activeViewport,
+      isDrawingFrame3D: this.isDrawingFrame3D,
+      startNode: this.frame3DStartNode?.id ?? null,
+      startWorkPlane: this.frame3DStartWorkPlane,
+    });
+  },
+
+  // =====================================================
+  // DRAW 3D > CANCELAR DIBUJO DE BARRAS EN 3D
+  // Cancela solo la parte 3D, pero conserva o limpia
+  // correctamente la herramienta general de barras.
+  // =====================================================
+  cancelFrame3DDrawingMode() {
+    this.isDrawingFrame3D = false;
+    this.frame3DStartNode = null;
+    this.frame3DEndNode = null;
+
+    this.nodes?.forEach((node) => {
+      node.selected = false;
+      node.isSelected = false;
+    });
+
+    // =====================================================
+    // 3D DRAW > DESBLOQUEAR CÁMARA AL CANCELAR
+    // Evita que el visor 3D quede bloqueado después de Esc.
+    // =====================================================
+    window.__jhSet3DDrawCameraLock?.(false);
+
+    // =====================================================
+    // 3D DRAW > LIMPIAR MALLA INVISIBLE DE DIBUJO
+    // Si queda activa, bloquea la selección de barras 3D.
+    // =====================================================
+    window.__jhClear3DGridPointHoverReference?.();
+    window.__jhDisable3DWorkPlanePickMesh?.();
+
+    this.redraw?.();
+    this.sync3D?.();
+
+    this.showMessage?.("Dibujo 3D cancelado.");
+
+    console.log("🟡 Draw Frame 3D cancelado");
+  },
+
+  // =====================================================
+  // DRAW 3D > RECIBIR NODO SELECCIONADO EN 3D
+  // Primer clic: guarda nodo inicial.
+  // Segundo clic: crea barra 3D, incluso entre planos distintos.
+  // =====================================================
+  handle3DFrameNodePicked(node) {
+    if (!node) return;
+
+    if (this.activeDrawTool !== "frame") {
+      this.startFrameDrawingMode?.();
+    }
+
+    if (this.isDrawingFrame3D !== true) {
+      this.isDrawingFrame3D = true;
+    }
+
+    const currentWorkPlane = this.getActive3DWorkPlane?.() || {
+      type: "unknown",
+      fixedAxis: null,
+      value: null,
+    };
+
+    // =====================================================
+    // PRIMER CLIC > GUARDAR NODO INICIAL
+    // =====================================================
+    if (!this.frame3DStartNode) {
+      this.frame3DStartNode = node;
+      this.frame3DStartWorkPlane = {
+        ...currentWorkPlane,
+      };
+
+      node.selected = true;
+      node.isSelected = true;
+
+      this.showMessage?.(
+        "Nodo inicial seleccionado. Puede elegir otro punto, cambiar de piso/elevación y seleccionar el nodo final."
+      );
+
+      console.log("📍 Nodo inicial 3D:", {
+        id: node.id,
+        position: node.position,
+        workPlane: this.frame3DStartWorkPlane,
+      });
+
+      this.redraw?.();
+      this.sync3D?.();
+
+      return;
+    }
+
+    // =====================================================
+    // SEGUNDO CLIC > CREAR BARRA DIAGONAL / ESPACIAL
+    // =====================================================
+    const startNode = this.frame3DStartNode;
+    const endNode = node;
+
+    if (String(startNode.id) === String(endNode.id)) {
+      this.showMessage?.("Seleccione un nodo final diferente al nodo inicial.");
+
+      console.warn("⚠️ Nodo final igual al inicial, se mantiene el nodo inicial:", {
+        nodeId: node.id,
+      });
+
+      return;
+    }
+
+    this.frame3DEndNode = endNode;
+    this.frame3DEndWorkPlane = {
+      ...currentWorkPlane,
+    };
+
+    console.log("📍 Nodo final 3D:", {
+      id: endNode.id,
+      position: endNode.position,
+      startWorkPlane: this.frame3DStartWorkPlane,
+      endWorkPlane: this.frame3DEndWorkPlane,
+    });
+
+    const createdFrame = this.createFrameBetween3DNodes?.(
+      startNode,
+      endNode,
+      {
+        startWorkPlane: this.frame3DStartWorkPlane,
+        endWorkPlane: this.frame3DEndWorkPlane,
+        createdAcrossWorkPlanes: true,
+      }
+    );
+
+    if (!createdFrame) return;
+
+    startNode.selected = false;
+    startNode.isSelected = false;
+
+    endNode.selected = false;
+    endNode.isSelected = false;
+
+    this.frame3DStartNode = null;
+    this.frame3DEndNode = null;
+    this.frame3DStartWorkPlane = null;
+    this.frame3DEndWorkPlane = null;
+
+    // La herramienta sigue activa para dibujar otra barra.
+    this.isDrawingFrame3D = false;
+
+    this.showMessage?.("Barra diagonal 3D creada correctamente.");
+
+    console.log("✅ Draw Frame 3D diagonal finalizado:", {
+      frameId: createdFrame.id,
+    });
+
+    this.redraw?.();
+    this.sync3D?.();
+  },
+
+  // =====================================================
+  // DRAW 3D > OBTENER Z ACTIVA PARA PLANTA
+  // Devuelve la elevación Z del piso/planta activa.
+  // =====================================================
+  getActive3DWorkPlaneZ() {
+    const activeView = this.viewSet?.[this.activeViewIndex];
+
+    if (activeView?.type === "plan" && Number.isFinite(Number(activeView.elevation))) {
+      return Number(activeView.elevation);
+    }
+
+    if (Number.isFinite(Number(this.currentZ))) {
+      return Number(this.currentZ);
+    }
+
+    const story = this.stories?.[this.activeStory];
+
+    if (story && Number.isFinite(Number(story.elevation))) {
+      return Number(story.elevation);
+    }
+
+    return 0;
+  },
+
+  // =====================================================
+  // DRAW 3D > OBTENER PLANO DE TRABAJO ACTIVO
+  // Define si el dibujo 3D se hará en planta o elevación.
+  // Planta:      X-Y con Z fijo.
+  // Elevación Y: X-Z con Y fijo.
+  // Elevación X: Y-Z con X fijo.
+  // =====================================================
+  getActive3DWorkPlane() {
+    const activeView = this.viewSet?.[this.activeViewIndex];
+
+    // =====================================================
+    // PLANO DE ELEVACIÓN
+    // axis === "Y" => plano X-Z con Y fijo.
+    // axis === "X" => plano Y-Z con X fijo.
+    // =====================================================
+    if (activeView?.type === "elevation") {
+      const fixedValue = Number(
+        activeView.elevation ??
+        activeView.ordinate ??
+        activeView.value ??
+        activeView.coord ??
+        0
+      );
+
+      if (activeView.axis === "Y") {
+        return {
+          type: "elevationY",
+          fixedAxis: "y",
+          value: fixedValue,
+          label: activeView.label || `Elevación Y=${fixedValue}`,
+        };
+      }
+
+      if (activeView.axis === "X") {
+        return {
+          type: "elevationX",
+          fixedAxis: "x",
+          value: fixedValue,
+          label: activeView.label || `Elevación X=${fixedValue}`,
+        };
+      }
+    }
+
+    // =====================================================
+    // PLANO DE PLANTA
+    // Por defecto trabaja en X-Y con Z fijo.
+    // =====================================================
+    return {
+      type: "plan",
+      fixedAxis: "z",
+      value: this.getActive3DWorkPlaneZ?.() ?? 0,
+      label: activeView?.label || activeView?.name || "Planta",
+    };
+  },
+
+  // =====================================================
+  // DRAW 3D > EXTRAER POSICIONES DE GRILLA
+  // Obtiene valores exactos de grillas X o Y desde referenceGrid.
+  // =====================================================
+  getReferenceGridOrdinateList(axis = "x") {
+    const source =
+      axis === "x"
+        ? this.referenceGrid?.xGrids
+        : this.referenceGrid?.yGrids;
+
+    if (!Array.isArray(source)) return [];
+
+    return source
+      .map((grid) => {
+        return Number(
+          grid.ordinate ??
+          grid.position ??
+          grid.value ??
+          grid.coord ??
+          0
+        );
+      })
+      .filter((value) => Number.isFinite(value))
+      .sort((a, b) => a - b);
+  },
+
+  // =====================================================
+  // DRAW 3D > AJUSTAR VALOR A GRILLA MÁS CERCANA
+  // Recibe un valor aproximado y lo lleva al punto exacto.
+  // =====================================================
+  snapValueToNearestGrid(value, gridValues = []) {
+    const numericValue = Number(value || 0);
+
+    if (!gridValues.length) return numericValue;
+
+    let nearest = gridValues[0];
+    let minDistance = Math.abs(numericValue - nearest);
+
+    for (const candidate of gridValues) {
+      const distance = Math.abs(numericValue - candidate);
+
+      if (distance < minDistance) {
+        nearest = candidate;
+        minDistance = distance;
+      }
+    }
+
+    return nearest;
+  },
+
+  // =====================================================
+  // DRAW 3D > OBTENER ID DE GRILLA MÁS CERCANA
+  // Devuelve la etiqueta de grilla, por ejemplo A, B, C o 1, 2, 3.
+  // =====================================================
+  getNearestGridId(axis = "x", value = 0) {
+    const source =
+      axis === "x"
+        ? this.referenceGrid?.xGrids
+        : this.referenceGrid?.yGrids;
+
+    if (!Array.isArray(source) || !source.length) return null;
+
+    let nearestGrid = source[0];
+    let minDistance = Math.abs(
+      Number(value || 0) -
+      Number(nearestGrid.ordinate ?? nearestGrid.position ?? nearestGrid.value ?? 0)
+    );
+
+    for (const grid of source) {
+      const ordinate = Number(grid.ordinate ?? grid.position ?? grid.value ?? 0);
+      const distance = Math.abs(Number(value || 0) - ordinate);
+
+      if (distance < minDistance) {
+        nearestGrid = grid;
+        minDistance = distance;
+      }
+    }
+
+    return nearestGrid.id ?? nearestGrid.label ?? nearestGrid.name ?? null;
+  },
+
+  // =====================================================
+  // DRAW 3D > SNAP A GRID POINT EXACTO SEGÚN VISTA ACTIVA
+  // Planta: ajusta X/Y y fija Z.
+  // Elevación Y: ajusta X/Z y fija Y.
+  // Elevación X: ajusta Y/Z y fija X.
+  // =====================================================
+  snap3DModelPointToGridPoint(approxPoint = {}) {
+    const xValues = this.getReferenceGridOrdinateList?.("x") || [];
+    const yValues = this.getReferenceGridOrdinateList?.("y") || [];
+
+    const workPlane = this.getActive3DWorkPlane?.() || {
+      type: "plan",
+      fixedAxis: "z",
+      value: 0,
+    };
+
+    let snappedX = Number(approxPoint.x || 0);
+    let snappedY = Number(approxPoint.y || 0);
+    let snappedZ = Number(approxPoint.z || 0);
+
+    // =====================================================
+    // PLANTA > X/Y CON Z FIJO
+    // Ejemplo: Base, Piso 1, Piso 2.
+    // =====================================================
+    if (workPlane.type === "plan") {
+      snappedX = this.snapValueToNearestGrid?.(approxPoint.x, xValues);
+      snappedY = this.snapValueToNearestGrid?.(approxPoint.y, yValues);
+      snappedZ = Number(workPlane.value || 0);
+    }
+
+    // =====================================================
+    // ELEVACIÓN Y > X/Z CON Y FIJO
+    // Ejemplo: elevación sobre una línea de grilla Y.
+    // =====================================================
+    if (workPlane.type === "elevationY") {
+      snappedX = this.snapValueToNearestGrid?.(approxPoint.x, xValues);
+      snappedY = Number(workPlane.value || 0);
+      snappedZ = this.snapValueToNearestStory?.(approxPoint.z);
+    }
+
+    // =====================================================
+    // ELEVACIÓN X > Y/Z CON X FIJO
+    // Ejemplo: elevación sobre una línea de grilla X.
+    // =====================================================
+    if (workPlane.type === "elevationX") {
+      snappedX = Number(workPlane.value || 0);
+      snappedY = this.snapValueToNearestGrid?.(approxPoint.y, yValues);
+      snappedZ = this.snapValueToNearestStory?.(approxPoint.z);
+    }
+
+    const xGridId = this.getNearestGridId?.("x", snappedX);
+    const yGridId = this.getNearestGridId?.("y", snappedY);
+
+    return {
+      x: Number(snappedX || 0),
+      y: Number(snappedY || 0),
+      z: Number(snappedZ || 0),
+
+      xGridId,
+      yGridId,
+
+      workPlaneType: workPlane.type,
+      workPlaneAxis: workPlane.fixedAxis,
+      workPlaneValue: workPlane.value,
+      workPlaneLabel: workPlane.label,
+    };
+  },
+
+  // =====================================================
+  // DRAW 3D > OBTENER ELEVACIONES DE PISOS
+  // Devuelve las alturas Z disponibles: Base, Piso 1, Piso 2...
+  // =====================================================
+  getStoryElevationList() {
+    if (!Array.isArray(this.stories) || !this.stories.length) {
+      return [0];
+    }
+
+    return this.stories
+      .map((story) => Number(story.elevation ?? 0))
+      .filter((value) => Number.isFinite(value))
+      .sort((a, b) => a - b);
+  },
+
+  // =====================================================
+  // DRAW 3D > AJUSTAR Z A PISO MÁS CERCANO
+  // Para elevaciones, permite hacer snap exacto a los niveles.
+  // =====================================================
+  snapValueToNearestStory(value) {
+    const storyValues = this.getStoryElevationList?.() || [0];
+
+    return this.snapValueToNearestGrid?.(value, storyValues);
+  },
+
+  // =====================================================
+  // DRAW 3D > BUSCAR NODO EN PUNTO EXACTO
+  // Revisa si ya existe un nodo en la coordenada X/Y/Z.
+  // =====================================================
+  findNodeAt3DPoint(point, tolerance = 0.001) {
+    if (!point || !Array.isArray(this.nodes)) return null;
+
+    return this.nodes.find((node) => {
+      const p = node.position || {};
+
+      return (
+        Math.abs(Number(p.x || 0) - Number(point.x || 0)) <= tolerance &&
+        Math.abs(Number(p.y || 0) - Number(point.y || 0)) <= tolerance &&
+        Math.abs(Number(p.z || 0) - Number(point.z || 0)) <= tolerance
+      );
+    }) || null;
+  },
+
+  // =====================================================
+  // DRAW 3D > GENERAR ID ÚNICO DE NODO
+  // Evita repetir IDs al crear nodos desde el visor 3D.
+  // =====================================================
+  getNextNodeIdSafe() {
+    if (!Array.isArray(this.nodes)) {
+      this.nodes = [];
+    }
+
+    const maxNodeId = this.nodes.reduce((max, node) => {
+      return Math.max(max, Number(node.id || 0));
+    }, 0);
+
+    const nextNodeCandidate = Number(this.nextNodeId || 0);
+
+    const nextId = Math.max(
+      maxNodeId + 1,
+      nextNodeCandidate || 1
+    );
+
+    this.nextNodeId = nextId + 1;
+
+    return nextId;
+  },
+
+  // =====================================================
+  // DRAW 3D > CREAR NODO EN GRID POINT EXACTO
+  // Crea un nodo nuevo en una coordenada exacta de grilla 3D.
+  // =====================================================
+  createNodeAt3DGridPoint(point) {
+    if (!point) return null;
+
+    if (!Array.isArray(this.nodes)) {
+      this.nodes = [];
+    }
+
+    const nodeId = this.getNextNodeIdSafe?.();
+
+    const node = {
+      id: nodeId,
+      position: {
+        x: Number(point.x || 0),
+        y: Number(point.y || 0),
+        z: Number(point.z || 0),
+      },
+      // =====================================================
+      // DRAW 3D > CARGAS INICIALES DEL NODO
+      // Evita errores en renderer.drawForce() cuando el nodo
+      // recién fue creado desde el visor 3D.
+      // =====================================================
+      force: {
+        loads: {
+          [this.options?.currentLoad || this.currentLoad || "default"]: {
+            x: 0,
+            y: 0,
+            z: 0,
+            fx: 0,
+            fy: 0,
+            fz: 0,
+            mx: 0,
+            my: 0,
+            mz: 0,
+          },
+        },
+      },
+      // =====================================================
+      // DRAW 3D > REACCIÓN INICIAL DEL NODO
+      // Evita errores en renderer.drawReaction().
+      // =====================================================
+      reaction: {
+        x: 0,
+        y: 0,
+        z: 0,
+        rx: 0,
+        ry: 0,
+        rz: 0,
+        getModel() {
+          return this;
+        },
+      },
+      beams: [],
+      soporte: "",
+      selected: false,
+      isSelected: false,
+      visible: true,
+
+      // Metadata útil para saber que fue creado desde el visor 3D.
+      createdFrom3D: true,
+      xGridId: point.xGridId ?? null,
+      yGridId: point.yGridId ?? null,
+    };
+
+    this.nodes.push(node);
+
+    console.log("📍 Nodo 3D creado en grid point:", {
+      id: node.id,
+      position: node.position,
+      xGridId: node.xGridId,
+      yGridId: node.yGridId,
+    });
+
+    return node;
+  },
+
+  // =====================================================
+  // DRAW 3D > BUSCAR O CREAR NODO EN PUNTO 3D
+  // Recibe un punto aproximado del visor 3D, lo ajusta a grilla,
+  // busca nodo existente y, si no existe, crea uno nuevo.
+  // =====================================================
+  findOrCreateNodeAt3DModelPoint(approxPoint) {
+    if (!approxPoint) return null;
+
+    const snappedPoint = this.snap3DModelPointToGridPoint?.(approxPoint);
+
+    if (!snappedPoint) return null;
+
+    const existingNode = this.findNodeAt3DPoint?.(snappedPoint);
+
+    if (existingNode) {
+      console.log("📍 Nodo 3D existente usado:", {
+        id: existingNode.id,
+        position: existingNode.position,
+        xGridId: snappedPoint.xGridId,
+        yGridId: snappedPoint.yGridId,
+      });
+
+      return existingNode;
+    }
+
+    const newNode = this.createNodeAt3DGridPoint?.(snappedPoint);
+
+    this.redraw?.();
+    this.sync3D?.();
+
+    return newNode;
+  },
+
+  // =====================================================
+  // DRAW 3D > CREAR BARRA ENTRE NODOS 3D
+  // Crea una barra real usando dos nodos seleccionados
+  // directamente desde el visor 3D.
+  // =====================================================
+  createFrameBetween3DNodes(node1, node2, options = {}) {
+    // =====================================================
+    // DRAW 3D > VALIDAR NODOS
+    // Evita crear barras con datos incompletos.
+    // =====================================================
+    if (!node1 || !node2) {
+      this.showMessage?.("No se pudo crear la barra 3D: nodos inválidos.");
+      return null;
+    }
+
+    if (String(node1.id) === String(node2.id)) {
+      this.showMessage?.("Seleccione dos nodos diferentes para crear la barra 3D.");
+      return null;
+    }
+
+    if (!Array.isArray(this.shapes)) {
+      this.shapes = [];
+    }
+
+    // =====================================================
+    // DRAW 3D > EVITAR BARRAS DUPLICADAS
+    // No permite crear otra barra entre los mismos dos nodos.
+    // Sirve aunque el orden sea nodo 1 -> nodo 2 o nodo 2 -> nodo 1.
+    // =====================================================
+    const existingFrame = this.shapes.find((frame) => {
+      const frameNode1Id = String(frame.node1?.id ?? frame.node1);
+      const frameNode2Id = String(frame.node2?.id ?? frame.node2);
+
+      const pickedNode1Id = String(node1.id);
+      const pickedNode2Id = String(node2.id);
+
+      return (
+        (frameNode1Id === pickedNode1Id && frameNode2Id === pickedNode2Id) ||
+        (frameNode1Id === pickedNode2Id && frameNode2Id === pickedNode1Id)
+      );
+    });
+
+    if (existingFrame) {
+      this.showMessage?.(
+        `Ya existe una barra entre los nodos ${node1.id} y ${node2.id}.`
+      );
+
+      console.warn("⚠️ Barra duplicada evitada:", {
+        existingFrameId: existingFrame.id,
+        node1: node1.id,
+        node2: node2.id,
+      });
+
+      return null;
+    }
+
+    // =====================================================
+    // DRAW 3D > GENERAR ID ÚNICO DE BARRA
+    // Evita repetir IDs aunque nextShapeId o nextBeamId estén desactualizados.
+    // =====================================================
+    const maxShapeId = this.shapes.reduce((max, shape) => {
+      return Math.max(max, Number(shape.id || 0));
+    }, 0);
+
+    const nextShapeCandidate = Number(this.nextShapeId || 0);
+    const nextBeamCandidate = Number(this.nextBeamId || 0);
+
+    const nextId = Math.max(
+      maxShapeId + 1,
+      nextShapeCandidate || 1,
+      nextBeamCandidate || 1
+    );
+
+    this.nextShapeId = nextId + 1;
+    this.nextBeamId = nextId + 1;
+
+    // =====================================================
+    // DRAW 3D > CALCULAR TIPO DE BARRA
+    // Si cambia de altura Z, será una barra 3D-only.
+    // Si además cambia X/Y, será inclinada espacial.
+    // =====================================================
+    const p1 = node1.position || {};
+    const p2 = node2.position || {};
+
+    const tol = 0.001;
+
+    const dx = Math.abs(Number(p2.x || 0) - Number(p1.x || 0));
+    const dy = Math.abs(Number(p2.y || 0) - Number(p1.y || 0));
+    const dz = Math.abs(Number(p2.z || 0) - Number(p1.z || 0));
+
+    const isDifferentZFrame = dz > tol;
+    const isSpatialInclinedFrame =
+      dz > tol && (dx > tol || dy > tol);
+
+    const isVertical3DFrame =
+      dz > tol && dx <= tol && dy <= tol;
+
+    // =====================================================
+    // DRAW 3D > CREAR OBJETO FRAME
+    // Frame real que será renderizado en 2D/3D.
+    // =====================================================
+    const frame = {
+      id: nextId,
+
+      type: "beam",
+      elementType: "beam",
+
+      node1,
+      node2,
+
+      selected: false,
+      isSelected: false,
+      highlighted3D: false,
+      visible: true,
+
+      // Propiedades especiales para barras creadas desde 3D
+      createdFrom3D: true,
+      is3DOnlyFrame: isDifferentZFrame,
+      isCrossViewFrame: isDifferentZFrame,
+      isSpatialInclinedFrame,
+      isVertical3DFrame,
+
+      // =====================================================
+      // DRAW 3D > BARRAS DIAGONALES ENTRE PLANOS
+      // =====================================================
+      createdAcrossWorkPlanes: options.createdAcrossWorkPlanes === true,
+      startWorkPlane: options.startWorkPlane || null,
+      endWorkPlane: options.endWorkPlane || null,
+
+      is3DDiagonalFrame: isSpatialInclinedFrame,
+      isCrossPlaneFrame:
+        options.createdAcrossWorkPlanes === true ||
+        isSpatialInclinedFrame ||
+        isVertical3DFrame,
+
+      // Si cambia de altura, no se dibuja como línea normal en 2D.
+      showIn2D: !isDifferentZFrame,
+    };
+
+    // =====================================================
+    // DRAW 3D > AGREGAR BARRA AL MODELO
+    // Inserta el frame dentro del arreglo principal de barras.
+    // =====================================================
+    this.shapes.push(frame);
+
+    // =====================================================
+    // DRAW 3D > VINCULAR BARRA A LOS NODOS
+    // Evita duplicar la misma barra dentro de node.beams.
+    // =====================================================
+    const addFrameToNode = (node, frameToAdd) => {
+      if (!node) return;
+
+      if (!Array.isArray(node.beams)) {
+        node.beams = [];
+      }
+
+      const alreadyLinked = node.beams.some((beam) => {
+        return String(beam?.id) === String(frameToAdd.id);
+      });
+
+      if (!alreadyLinked) {
+        node.beams.push(frameToAdd);
+      }
+    };
+
+    addFrameToNode(node1, frame);
+    addFrameToNode(node2, frame);
+
+    // =====================================================
+    // DRAW 3D > LOG DE VALIDACIÓN
+    // Muestra en consola qué tipo de barra se creó.
+    // =====================================================
+    console.log("📐 Barra 3D creada:", {
+      id: frame.id,
+      node1: node1.id,
+      node2: node2.id,
+      dx,
+      dy,
+      dz,
+      is3DOnlyFrame: frame.is3DOnlyFrame,
+      isCrossViewFrame: frame.isCrossViewFrame,
+      isSpatialInclinedFrame: frame.isSpatialInclinedFrame,
+      isVertical3DFrame: frame.isVertical3DFrame,
+      showIn2D: frame.showIn2D,
+    });
+
+    this.showMessage?.(
+      `Barra 3D creada entre nodo ${node1.id} y nodo ${node2.id}.`
+    );
+
+    // =====================================================
+    // DRAW 3D > ACTUALIZAR VISTAS
+    // Redibuja canvas 2D y visor 3D.
+    // =====================================================
+    this.redraw?.();
+    this.sync3D?.();
+
+    requestAnimationFrame(() => {
+      this.sync3D?.();
+    });
+
+    return frame;
+  },
+
+  // =====================================================
+  // SELECTION > LIMPIAR TODA LA SELECCIÓN
+  // Limpia nodos, barras, estados internos y highlights 3D.
+  // Versión segura para objetos creados desde 2D o desde 3D.
+  // =====================================================
+  // clearAllSelections() {
+  //   const objects = this.getSelectableObjects
+  //     ? this.getSelectableObjects({ include3DOnlyFrames: true })
+  //     : [];
+
+  //   // =====================================================
+  //   // =====================================================
+  //   // SELECTION > FUNCIÓN SEGURA PARA DESELECCIONAR
+  //   // Evita que reviente si un objeto no tiene style.default().
+  //   // =====================================================
+  //   const safeUnselectObject = (obj) => {
+  //     if (!obj) return;
+
+  //     obj.selected = false;
+  //     obj.isSelected = false;
+  //     obj.highlighted3D = false;
+  //     obj.is3DOnlyEndpointHover = false;
+
+  //     // No llamamos setObjectSelected aquí para evitar que una versión antigua
+  //     // de esa función use obj.style.default() sin validar.
+  //     obj.style?.default?.();
+  //   };
+
+  //   // =====================================================
+  //   // SELECTION > LIMPIAR OBJETOS SELECCIONABLES
+  //   // Incluye barras normales, nodos, áreas y barras 3D-only.
+  //   // =====================================================
+  //   objects.forEach((obj) => {
+  //     safeUnselectObject(obj);
+  //   });
+
+  //   // =====================================================
+  //   // SELECTION > LIMPIAR BARRAS DIRECTAMENTE
+  //   // Necesario para barras 3D-only ocultas en 2D.
+  //   // =====================================================
+  //   this.shapes?.forEach((frame) => {
+  //     frame.selected = false;
+  //     frame.isSelected = false;
+  //     frame.highlighted3D = false;
+  //     frame.is3DOnlyEndpointHover = false;
+
+  //     frame.style?.default?.();
+  //   });
+
+  //   // =====================================================
+  //   // SELECTION > LIMPIAR NODOS DIRECTAMENTE
+  //   // Necesario para nodos creados desde el visor 3D.
+  //   // =====================================================
+  //   this.nodes?.forEach((node) => {
+  //     node.selected = false;
+  //     node.isSelected = false;
+  //     node.is3DOnlyEndpointHover = false;
+
+  //     node.style?.default?.();
+  //   });
+
+  //   // =====================================================
+  //   // SELECTION > LIMPIAR ÁREAS SI EXISTEN
+  //   // Evita que queden áreas seleccionadas al cambiar de vista.
+  //   // =====================================================
+  //   this.areas?.forEach((area) => {
+  //     area.selected = false;
+  //     area.isSelected = false;
+  //     area.highlighted3D = false;
+
+  //     area.style?.default?.();
+  //   });
+
+  //   // =====================================================
+  //   // SELECTION > LIMPIAR ESTADOS INTERNOS
+  //   // Limpia arreglos de estados de selección.
+  //   // =====================================================
+  //   if (this.selectedNodesState?.selectedObjects) {
+  //     this.selectedNodesState.selectedObjects = [];
+  //   }
+
+  //   if (this.selectedBeamsState?.selectedObjects) {
+  //     this.selectedBeamsState.selectedObjects = [];
+  //   }
+
+  //   if (this.selectedBeamsState?.selectedBeams) {
+  //     this.selectedBeamsState.selectedBeams = [];
+  //   }
+
+  //   if (this.selectedParametricState?.selectedObjects) {
+  //     this.selectedParametricState.selectedObjects = [];
+  //   }
+
+  //   this.selectedBeams = [];
+  //   this.selectedObjects = [];
+  //   this.hovered3DOnlyEndpointNode = null;
+  //   this.hovered3DOnlyEndpointFrames = [];
+  //   this.last3DOnlyEndpointHelpKey = null;
+
+  //   // =====================================================
+  //   // 3D DRAW > DESBLOQUEAR CÁMARA SI ESTABA EN MODO DIBUJO
+  //   // Evita que el visor 3D quede bloqueado al limpiar selección.
+  //   // =====================================================
+  //   window.__jhSet3DDrawCameraLock?.(false);
+
+  //   // =====================================================
+  //   // 3D > FORZAR LIMPIEZA DE HIGHLIGHTS
+  //   // renderModel3d.js leerá esta bandera y eliminará
+  //   // cualquier highlight 3D que haya quedado en escena.
+  //   // =====================================================
+  //   this.forceClear3DFrameHighlights = true;
+
+  //   console.log("🧹 clearAllSelections ejecutado:", {
+  //     selectedFrames: this.shapes?.filter((frame) =>
+  //       frame.selected || frame.isSelected || frame.highlighted3D
+  //     ).length,
+  //     selectedNodes: this.nodes?.filter((node) =>
+  //       node.selected || node.isSelected
+  //     ).length,
+  //   });
+
+  //   // =====================================================
+  //   // RENDER > REDIBUJAR 2D Y 3D
+  //   // Protegido para evitar que un error de render bloquee cambio de vista.
+  //   // =====================================================
+  //   try {
+  //     this.redraw?.();
+  //   } catch (error) {
+  //     console.warn("⚠️ redraw falló después de clearAllSelections:", error?.message);
+  //   }
+
+  //   try {
+  //     this.sync3D?.();
+
+  //     requestAnimationFrame(() => {
+  //       this.sync3D?.();
+  //     });
+  //   } catch (error) {
+  //     console.warn("⚠️ sync3D falló después de clearAllSelections:", error?.message);
+  //   }
+
+  //   this.showMessage?.("Selección limpiada");
+  // },
 
   invertSelection() {
     const objects = this.getSelectableObjects();
@@ -9114,17 +10626,34 @@ export default () => ({
     return true;
   },
 
+  // Controla si un objeto pertenece a la planta/elevación actual. También oculta barras 3D-only del canvas 2D.
+  // =====================================================
   isObjectVisibleInActiveView(obj) {
     if (!obj) return false;
 
+    // Barras / frames
     if (obj.node1 && obj.node2) {
+      // =====================================================
+      // VIEW 2D > OCULTAR BARRAS 3D-ONLY
+      // Si la barra no debe verse en 2D, no debe contarse
+      // como visible ni seleccionable en la vista activa.
+      // =====================================================
+      if (
+        typeof this.shouldDrawFrameIn2D === "function" &&
+        !this.shouldDrawFrameIn2D(obj)
+      ) {
+        return false;
+      }
+
       return this.isFrameVisibleInActiveView(obj);
     }
 
+    // Nodos
     if (obj.position) {
       return this.isNodeVisibleInActiveView(obj);
     }
 
+    // Áreas
     if (Array.isArray(obj.points)) {
       return this.isAreaVisibleInActiveView(obj);
     }
@@ -9946,7 +11475,108 @@ export default () => ({
     return `X ${this.formatOutput(x, "coordinates")}  Y ${this.formatOutput(y, "coordinates")}  Z ${this.formatOutput(z, "coordinates")}`;
   },
 
+  // =====================================================
+  // SYSTEM > TECLAS GENERALES DEL CAD
+  // Maneja atajos globales y limpia selección con Escape.
+  // =====================================================
   handleKeyDown(event) {
+
+    // =====================================================
+    // DRAW 3D > ESC CANCELA DIBUJO DE BARRA 3D
+    // Si el usuario está dibujando una barra en 3D,
+    // Escape cancela el modo y limpia el punto inicial.
+    // =====================================================
+    if (event.key === "Escape" && this.isDrawingFrame3D === true) {
+      this.cancelFrame3DDrawingMode?.();
+
+      this.redraw?.();
+      this.sync3D?.();
+
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    // =====================================================
+    // DRAW FRAME > ESC CANCELA HERRAMIENTA DE BARRA
+    // Si está activa la herramienta de dibujo de barras,
+    // Escape la cancela antes de limpiar selecciones.
+    // =====================================================
+    if (event.key === "Escape" && this.activeDrawTool === "frame") {
+      this.cancelFrameDrawingMode?.();
+
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    // =====================================================
+    // SELECTION > ESC GLOBAL PARA LIMPIAR SELECCIÓN
+    // Limpia nodos, barras normales, barras 3D-only y estados internos.
+    // =====================================================
+    if (event.key === "Escape") {
+      const hasSelectedFrames = this.shapes?.some((frame) =>
+        frame.selected === true ||
+        frame.isSelected === true ||
+        frame.highlighted3D === true
+      );
+
+      const hasSelectedNodes = this.nodes?.some((node) =>
+        node.selected === true ||
+        node.isSelected === true
+      );
+
+      const hasSelectedObjects =
+        hasSelectedFrames ||
+        hasSelectedNodes ||
+        this.selectedBeams?.length > 0 ||
+        this.selectedObjects?.length > 0 ||
+        this.selectedBeamsState?.selectedObjects?.length > 0 ||
+        this.selectedBeamsState?.selectedBeams?.length > 0 ||
+        this.currentState?.selectedObjects?.length > 0 ||
+        this.currentState?.selectedBeams?.length > 0 ||
+        this.selectedNodesState?.selectedObjects?.length > 0;
+
+      if (hasSelectedObjects) {
+        console.log("🧹 Escape detectado: limpiando selección global");
+
+        this.clearAllSelections?.();
+
+        // Limpieza extra por seguridad
+        this.shapes?.forEach((frame) => {
+          frame.selected = false;
+          frame.isSelected = false;
+          frame.highlighted3D = false;
+        });
+
+        this.selectedBeams = [];
+        this.selectedObjects = [];
+
+        if (this.selectedBeamsState) {
+          this.selectedBeamsState.selectedObjects = [];
+          this.selectedBeamsState.selectedBeams = [];
+        }
+
+        if (this.currentState) {
+          this.currentState.selectedObjects = [];
+          this.currentState.selectedBeams = [];
+        }
+
+        this.setState?.(this.idleState);
+
+        this.redraw?.();
+        this.sync3D?.();
+
+        requestAnimationFrame(() => {
+          this.sync3D?.();
+        });
+
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+    }
+
     const key = String(event.key || "").toLowerCase();
 
     if (event.ctrlKey && key === "z") {
@@ -9997,7 +11627,50 @@ export default () => ({
   },
 
   handleMouseDown(event) {
-    this.currentState.handleMouseDown(event, this, mousePositionFrom(this.canvas, event));
+    // =====================================================
+    // VIEWPORT > CLIC EN CANVAS 2D
+    // Marca el canvas 2D como área activa.
+    // =====================================================
+    this.mark2DViewportActive?.("2d mouse down");
+
+    // =====================================================
+    // DRAW FRAME > DIBUJAR EN 2D SI LA HERRAMIENTA ESTÁ ACTIVA
+    // Cuando el usuario hace clic en el canvas 2D con Draw Frame activo,
+    // se usa el estado normal de dibujo 2D.
+    // =====================================================
+    if (this.activeDrawTool === "frame") {
+      this.activeViewport = "2d";
+
+      // Si el usuario venía del modo 3D, limpiamos ese proceso temporal.
+      this.isDrawingFrame3D = false;
+      this.frame3DStartNode = null;
+      this.frame3DEndNode = null;
+
+      const frame2DState =
+        this.trussDrawingState ||
+        this.beamDrawingState ||
+        this.lineDrawingState;
+
+      if (
+        frame2DState &&
+        this.currentState !== frame2DState &&
+        this.currentState?.constructor?.name !== frame2DState?.constructor?.name
+      ) {
+        this.setState?.(frame2DState);
+
+        console.log("✏️ Draw Frame usando canvas 2D:", {
+          activeDrawTool: this.activeDrawTool,
+          activeViewport: this.activeViewport,
+          state: frame2DState?.constructor?.name,
+        });
+      }
+    }
+
+    this.currentState.handleMouseDown(
+      event,
+      this,
+      mousePositionFrom(this.canvas, event)
+    );
   },
 
   handleMouseUp(event) {
@@ -10005,6 +11678,12 @@ export default () => ({
   },
 
   handleMouseMove(event) {
+    // =====================================================
+    // VIEWPORT > CANVAS 2D ACTIVO
+    // Cada movimiento sobre el canvas 2D marca la vista activa.
+    // =====================================================
+    this.mark2DViewportActive?.("2d mouse move");
+
     const screen = mousePositionFrom(this.canvas, event);
     const rawWorld = this.grid.screenToWorld(screen);
 
@@ -10061,11 +11740,66 @@ export default () => ({
     this.currentState.handleMouseLeave(event, this, mousePositionFrom(this.canvas, event));
   },
 
+  // =====================================================
+  // SYSTEM > CAMBIAR ESTADO DE HERRAMIENTA
+  // Controla el cambio entre selección, dibujo, edición, etc.
+  // También protege modos especiales como Frame 3D entre vistas.
+  // =====================================================
   setState(state, args) {
-    this.currentState.exit();
+    // Sirve para encontrar qué función rompe CrossViewFrameDrawingState.
+    if (
+      this.currentState?.constructor?.name === "CrossViewFrameDrawingState" &&
+      state?.constructor?.name === "TrussDrawingState"
+    ) {
+      console.trace("⚠️ CrossViewFrameDrawingState está siendo cambiado a TrussDrawingState");
+    }
+    if (!state) {
+      console.warn("setState cancelado: estado inválido", state);
+      return;
+    }
+
+    const fromState = this.currentState?.constructor?.name || "none";
+    const toState = state?.constructor?.name || "none";
+
+    // =====================================================
+    // DRAW > PROTEGER FRAME 3D ENTRE VISTAS
+    // Si ya se guardó el primer punto, no permitimos que
+    // el sistema vuelva accidentalmente a TrussDrawingState.
+    // =====================================================
+    const crossViewDrawingInProgress =
+      this.currentState?.preserveOnViewChange === true &&
+      this.currentState?.startPoint;
+
+    if (
+      crossViewDrawingInProgress &&
+      toState === "TrussDrawingState"
+    ) {
+      console.warn("⛔ Cambio bloqueado: CrossViewFrameDrawingState no debe volver a TrussDrawingState durante el dibujo.", {
+        fromState,
+        toState,
+        startPoint: this.currentState.startPoint,
+      });
+
+      return;
+    }
+
+    console.log("🔁 Cambio de estado:", {
+      fromState,
+      toState,
+      args,
+    });
+
+    if (this.currentState?.exit) {
+      this.currentState.exit();
+    }
+
     this.prevState = this.currentState;
     this.currentState = state;
-    this.currentState.enter(args);
+
+    if (this.currentState?.enter) {
+      this.currentState.enter(args);
+    }
+
     this.setCursor("default");
 
     if (this.show3DView) {
@@ -10143,21 +11877,6 @@ export default () => ({
         if (d1 + d2 >= lineLength - shortestDistance && d1 + d2 <= lineLength + shortestDistance) {
           return true;
         }
-      }
-    });
-  },
-
-  closestBeam(searchPoint) {
-    var shortestDistance = 5;
-    return this.shapes.find((s) => {
-      const lineLength = pointDistance(
-        this.grid.worldToScreen(s.node1.position),
-        this.grid.worldToScreen(s.node2.position),
-      );
-      const d1 = pointDistance(this.grid.worldToScreen(s.node1.position), searchPoint);
-      const d2 = pointDistance(this.grid.worldToScreen(s.node2.position), searchPoint);
-      if (d1 + d2 >= lineLength - shortestDistance && d1 + d2 <= lineLength + shortestDistance) {
-        return true;
       }
     });
   },
@@ -17325,12 +19044,12 @@ export default () => ({
     }
   },
 
-  // Método auxiliar para guardar estado de zoom
-  saveZoomState() {
-    if (!this.zoomHistory) this.zoomHistory = [];
-    this.zoomHistory.push(this.grid.getState());
-    if (this.zoomHistory.length > 20) this.zoomHistory.shift();
-  },
+  // // Método auxiliar para guardar estado de zoom
+  // saveZoomState() {
+  //   if (!this.zoomHistory) this.zoomHistory = [];
+  //   this.zoomHistory.push(this.grid.getState());
+  //   if (this.zoomHistory.length > 20) this.zoomHistory.shift();
+  // },
 
   // =========================================
   // ========== MÉTODOS PARA DEFINE ==========
@@ -17482,12 +19201,12 @@ export default () => ({
   },
 
   // También agrega estos si no existen:
-  showDeformedShape() {
-    this.options.showDeflection = !this.options.showDeflection;
-    this.redraw();
-    this.sync3D();
-    this.showMessage(this.options.showDeflection ? "📈 Forma deformada activada" : "📈 Forma deformada desactivada");
-  },
+  // showDeformedShape() {
+  //   this.options.showDeflection = !this.options.showDeflection;
+  //   this.redraw();
+  //   this.sync3D();
+  //   this.showMessage(this.options.showDeflection ? "📈 Forma deformada activada" : "📈 Forma deformada desactivada");
+  // },
 
   showForces() {
     this.options.showForces = !this.options.showForces;
@@ -17604,17 +19323,17 @@ export default () => ({
   //   this.showMessage("📏 Selección por línea de intersección - Próximamente");
   // },
 
-  selectByXYPlane() {
-    this.showMessage("📐 Selección en plano XY - Próximamente");
-  },
+  // selectByXYPlane() {
+  //   this.showMessage("📐 Selección en plano XY - Próximamente");
+  // },
 
-  selectByXZPlane() {
-    this.showMessage("📐 Selección en plano XZ - Próximamente");
-  },
+  // selectByXZPlane() {
+  //   this.showMessage("📐 Selección en plano XZ - Próximamente");
+  // },
 
-  selectByYZPlane() {
-    this.showMessage("📐 Selección en plano YZ - Próximamente");
-  },
+  // selectByYZPlane() {
+  //   this.showMessage("📐 Selección en plano YZ - Próximamente");
+  // },
 
   selectByGroups() {
     this.showMessage("👥 Selección por grupos - Próximamente");
@@ -17701,17 +19420,17 @@ export default () => ({
     this.showMessage("📏 Deseleccionar usando línea de intersección - Próximamente");
   },
 
-  deselectByXYPlane() {
-    this.showMessage("📐 Deseleccionar en plano XY - Próximamente");
-  },
+  // deselectByXYPlane() {
+  //   this.showMessage("📐 Deseleccionar en plano XY - Próximamente");
+  // },
 
-  deselectByXZPlane() {
-    this.showMessage("📐 Deseleccionar en plano XZ - Próximamente");
-  },
+  // deselectByXZPlane() {
+  //   this.showMessage("📐 Deseleccionar en plano XZ - Próximamente");
+  // },
 
-  deselectByYZPlane() {
-    this.showMessage("📐 Deseleccionar en plano YZ - Próximamente");
-  },
+  // deselectByYZPlane() {
+  //   this.showMessage("📐 Deseleccionar en plano YZ - Próximamente");
+  // },
 
   deselectByGroups() {
     this.showMessage("👥 Deseleccionar por grupos - Próximamente");
@@ -18959,53 +20678,54 @@ export default () => ({
       this.showMessage(`📊 Mostrando cargas en elementos frame/línea`);
     });
   },
-  showDeformedShape() {
-    // Diálogo para configurar la forma deformada
-    Swal.fire({
-      title: "Mostrar Forma Deformada",
-      html: `
-            <div class="text-left">
-                <div class="mb-3">
-                    <label class="block text-xs font-semibold text-gray-400 mb-2">Factor de Escala</label>
-                    <input type="range" id="deflectionScale" min="1" max="1000" value="100" class="w-full">
-                    <div class="flex justify-between text-xs text-gray-500 mt-1">
-                        <span>1</span><span>100</span><span>200</span><span>500</span><span>1000</span>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label class="flex items-center gap-2">
-                        <input type="checkbox" id="showUndefShape" checked>
-                        <span class="text-sm text-gray-300">Mostrar forma no deformada como referencia</span>
-                    </label>
-                </div>
-                <div class="mb-3">
-                    <label class="flex items-center gap-2">
-                        <input type="checkbox" id="animateDeformation">
-                        <span class="text-sm text-gray-300">Animar deformación</span>
-                    </label>
-                </div>
-            </div>
-        `,
-      confirmButtonText: "Aplicar",
-      cancelButtonText: "Cancelar",
-      showCancelButton: true,
-      preConfirm: () => {
-        return {
-          scale: parseInt(document.getElementById("deflectionScale").value),
-          showUndefShape: document.getElementById("showUndefShape").checked,
-          animate: document.getElementById("animateDeformation").checked,
-        };
-      },
-    }).then((result) => {
-      if (result.isConfirmed) {
-        this.options.showDeflection = true;
-        this.options.deflectionScale = result.value.scale;
-        this.redraw();
-        this.sync3D();
-        this.showMessage(`📈 Mostrando forma deformada (escala: ${result.value.scale})`);
-      }
-    });
-  },
+
+  // showDeformedShape() {
+  //   // Diálogo para configurar la forma deformada
+  //   Swal.fire({
+  //     title: "Mostrar Forma Deformada",
+  //     html: `
+  //           <div class="text-left">
+  //               <div class="mb-3">
+  //                   <label class="block text-xs font-semibold text-gray-400 mb-2">Factor de Escala</label>
+  //                   <input type="range" id="deflectionScale" min="1" max="1000" value="100" class="w-full">
+  //                   <div class="flex justify-between text-xs text-gray-500 mt-1">
+  //                       <span>1</span><span>100</span><span>200</span><span>500</span><span>1000</span>
+  //                   </div>
+  //               </div>
+  //               <div class="mb-3">
+  //                   <label class="flex items-center gap-2">
+  //                       <input type="checkbox" id="showUndefShape" checked>
+  //                       <span class="text-sm text-gray-300">Mostrar forma no deformada como referencia</span>
+  //                   </label>
+  //               </div>
+  //               <div class="mb-3">
+  //                   <label class="flex items-center gap-2">
+  //                       <input type="checkbox" id="animateDeformation">
+  //                       <span class="text-sm text-gray-300">Animar deformación</span>
+  //                   </label>
+  //               </div>
+  //           </div>
+  //       `,
+  //     confirmButtonText: "Aplicar",
+  //     cancelButtonText: "Cancelar",
+  //     showCancelButton: true,
+  //     preConfirm: () => {
+  //       return {
+  //         scale: parseInt(document.getElementById("deflectionScale").value),
+  //         showUndefShape: document.getElementById("showUndefShape").checked,
+  //         animate: document.getElementById("animateDeformation").checked,
+  //       };
+  //     },
+  //   }).then((result) => {
+  //     if (result.isConfirmed) {
+  //       this.options.showDeflection = true;
+  //       this.options.deflectionScale = result.value.scale;
+  //       this.redraw();
+  //       this.sync3D();
+  //       this.showMessage(`📈 Mostrando forma deformada (escala: ${result.value.scale})`);
+  //     }
+  //   });
+  // },
 
   showModeShape() {
     Swal.fire({
@@ -19725,10 +21445,20 @@ export default () => ({
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           this.sync3D?.();
+
+          // =====================================================
+          // 3D SNAP > RECONSTRUIR SNAP POINTS DESPUÉS DEL MODELO
+          // Necesario para dibujar diagonales 3D sin cambiar de piso.
+          // =====================================================
+          this.rebuild3DGridSnapPointsSoon?.("createModelFromDialog");
         });
       });
     } else {
       this.pendingGrid3D = true;
+
+      // Si el visor 3D todavía no inició, intentamos reconstruir
+      // cuando Babylon ya esté disponible.
+      this.rebuild3DGridSnapPointsSoon?.("createModelFromDialog pending viewer");
     }
 
     this.showMessage(`✅ Grid de referencia: ${params.gridXCount}x${params.gridYCount}, ${params.storyCount} pisos`);
@@ -19795,15 +21525,15 @@ export default () => ({
     return closest;
   },
 
-  getActivePlanElevation() {
-    const view = this.viewSet?.[this.activeViewIndex];
+  // getActivePlanElevation() {
+  //   const view = this.viewSet?.[this.activeViewIndex];
 
-    if (view?.type === "plan") {
-      return view.elevation ?? 0;
-    }
+  //   if (view?.type === "plan") {
+  //     return view.elevation ?? 0;
+  //   }
 
-    return this.stories?.[this.activeStory]?.elevation ?? 0;
-  },
+  //   return this.stories?.[this.activeStory]?.elevation ?? 0;
+  // },
 
   closestNodeAtElevation(searchPoint, targetZ, tolerance = 0.05) {
     const shortestDistance = 10;
@@ -20208,26 +21938,26 @@ export default () => ({
     return best;
   },
 
-  buildSnapDisplayLabel(point) {
-    if (!point) return "";
+  // buildSnapDisplayLabel(point) {
+  //   if (!point) return "";
 
-    switch (point.source) {
-      case "general-grid-intersection":
-        return `Intersection ${point.gridId} × ${point.baseGridId}`;
+  //   switch (point.source) {
+  //     case "general-grid-intersection":
+  //       return `Intersection ${point.gridId} × ${point.baseGridId}`;
 
-      case "general-grid-endpoint":
-        return `Endpoint ${point.gridId}`;
+  //     case "general-grid-endpoint":
+  //       return `Endpoint ${point.gridId}`;
 
-      case "general-grid":
-        return `Grid ${point.gridId}`;
+  //     case "general-grid":
+  //       return `Grid ${point.gridId}`;
 
-      default:
-        if (point.xGridId && point.yGridId) {
-          return `Grid Point ${point.xGridId} ${point.yGridId}`;
-        }
-        return point.label || "";
-    }
-  },
+  //     default:
+  //       if (point.xGridId && point.yGridId) {
+  //         return `Grid Point ${point.xGridId} ${point.yGridId}`;
+  //       }
+  //       return point.label || "";
+  //   }
+  // },
 
   isPlanView() {
     return this.currentViewMode === "plan";
@@ -20253,21 +21983,46 @@ export default () => ({
     return this.isNumberElevationView() || this.isLetterElevationView();
   },
 
+  // =====================================================
+  // VIEW > CAMBIAR ENTRE PLANTA Y ELEVACIONES
+  // Cambia la vista activa sin romper modos especiales,
+  // como Frame 3D entre plantas/elevaciones.
+  // =====================================================
   setViewFromSet(index) {
     this.activeViewIndex = Number(index);
     const view = this.viewSet?.[this.activeViewIndex];
 
     if (!view) return;
 
-    if (this.currentState && this.currentState.exit) {
+    // Si hay una barra en proceso con primer punto,
+    // no se cancela al cambiar de piso o elevación.
+    // =====================================================
+    const isFrameDrawingInProgress =
+      this.currentState?.isFrameDrawingState === true &&
+      this.currentState?.shape?.node1 &&
+      !this.currentState?.shape?.node2;
+
+    const shouldPreserveCurrentState =
+      this.currentState?.preserveOnViewChange === true &&
+      isFrameDrawingInProgress;
+
+    const preservedState = shouldPreserveCurrentState
+      ? this.currentState
+      : null;
+
+    if (!shouldPreserveCurrentState && this.currentState?.exit) {
       this.currentState.exit();
     }
 
-    this.clearAllSelections?.();
+    if (!shouldPreserveCurrentState) {
+      this.clearAllSelections?.();
+    }
+
     this.activeGridPoint = null;
 
     // =====================================================
-    // VISTA EN PLANTA
+    // VIEW > VISTA EN PLANTA
+    // Activa una planta y actualiza el piso / nivel actual.
     // =====================================================
     if (view.type === "plan") {
       this.currentViewMode = "plan";
@@ -20299,8 +22054,8 @@ export default () => ({
     }
 
     // =====================================================
-    // VISTA EN ELEVACIÓN X
-    // Letras A, B, C... plano Y-Z
+    // VIEW > ELEVACIÓN X
+    // Letras A, B, C... plano Y-Z con X fijo.
     // =====================================================
     else if (view.type === "elevation" && view.axis === "X") {
       this.currentViewMode = "elevationX";
@@ -20309,8 +22064,8 @@ export default () => ({
     }
 
     // =====================================================
-    // VISTA EN ELEVACIÓN Y
-    // Números 1, 2, 3... plano X-Z
+    // VIEW > ELEVACIÓN Y
+    // Números 1, 2, 3... plano X-Z con Y fijo.
     // =====================================================
     else if (view.type === "elevation" && view.axis === "Y") {
       this.currentViewMode = "elevationY";
@@ -20318,10 +22073,21 @@ export default () => ({
       this.currentElevationZ = "none";
     }
 
-    this.currentState = this.idleState;
+    // Si es Frame 3D entre vistas, mantiene el punto inicial.
+    // Si es un estado normal, vuelve a selección.
+    // =====================================================
+    if (shouldPreserveCurrentState && preservedState) {
+      this.currentState = preservedState;
 
-    if (this.currentState?.enter) {
-      this.currentState.enter();
+      if (typeof this.currentState.onViewChanged === "function") {
+        this.currentState.onViewChanged(this, view);
+      }
+    } else {
+      this.currentState = this.idleState;
+
+      if (this.currentState?.enter) {
+        this.currentState.enter();
+      }
     }
 
     console.log("👁️ Vista activa cambiada:", {
@@ -20333,6 +22099,8 @@ export default () => ({
       currentZ: this.currentZ,
       currentElevationX: this.currentElevationX,
       currentElevationZ: this.currentElevationZ,
+      preservedState: shouldPreserveCurrentState,
+      currentState: this.currentState?.constructor?.name,
     });
 
     this.redraw?.();
@@ -20343,6 +22111,32 @@ export default () => ({
     } else {
       this.sync3D?.();
     }
+  },
+
+  // =====================================================
+  // DRAW > ACTIVAR FRAME 3D ENTRE PLANTAS Y ELEVACIONES
+  // Activa el modo especial para dibujar barras entre vistas distintas.
+  // =====================================================
+  activateCrossViewFrameDrawing() {
+    if (!this.crossViewFrameDrawingState) {
+      this.showMessage?.(
+        "No existe crossViewFrameDrawingState. Revisa el import y la instancia.",
+        "warning"
+      );
+      return;
+    }
+
+    this.clearAllSelections?.();
+    this.setState(this.crossViewFrameDrawingState);
+
+    this.showMessage?.(
+      "Frame 3D entre vistas activado: haz clic en el primer punto."
+    );
+
+    console.log("✅ Modo CrossViewFrameDrawingState activado:", {
+      currentState: this.currentState?.constructor?.name,
+      preserveOnViewChange: this.currentState?.preserveOnViewChange,
+    });
   },
 
   findClosestGridValue(values = [], labels = [], target = 0, tolerance = 0.3) {
@@ -20804,6 +22598,45 @@ export default () => ({
     }, 350);
   },
 
+  // =====================================================
+  // 3D SNAP > RECONSTRUIR SNAP POINTS 3D DESDE cad_sys
+  // Llama a la función global creada en viewer3d.js.
+  // Tiene reintentos por si Babylon todavía no terminó de iniciar.
+  // =====================================================
+  rebuild3DGridSnapPointsSoon(reason = "manual", attempts = 8) {
+    const run = () => {
+      const viewer = getViewer3DState?.();
+
+      if (!viewer?.initialized || !viewer?.scene) {
+        if (attempts > 0) {
+          setTimeout(() => {
+            this.rebuild3DGridSnapPointsSoon?.(reason, attempts - 1);
+          }, 300);
+        }
+
+        return;
+      }
+
+      if (typeof window.__jhRebuild3DGridSnapPoints !== "function") {
+        console.warn(
+          "⚠️ window.__jhRebuild3DGridSnapPoints no está disponible. Revisa viewer3d.js"
+        );
+        return;
+      }
+
+      window.__jhRebuild3DGridSnapPoints(this);
+
+      console.log("✅ Snap Points 3D reconstruidos desde cad_sys:", {
+        reason,
+        xGrids: this.referenceGrid?.xGrids?.length || 0,
+        yGrids: this.referenceGrid?.yGrids?.length || 0,
+        stories: this.stories?.length || 0,
+      });
+    };
+
+    setTimeout(run, 250);
+  },
+
   drawIn3D() {
     return drawIn3D(this);
   },
@@ -20875,41 +22708,6 @@ export default () => ({
     return showTestFrame(this);
   },
 
-  // closestNodeAtActiveView(searchPoint) {
-  //   const view = this.viewSet?.[this.activeViewIndex];
-  //   const tolerance = 0.05;
-  //   const shortestDistance = 10;
-
-  //   let closest = null;
-  //   let best = shortestDistance;
-
-  //   for (let i = 0; i < this.nodes.length; i++) {
-  //     const node = this.nodes[i];
-  //     const distance = pointDistance(searchPoint, this.grid.worldToScreen(node.position));
-  //     if (distance > best) continue;
-
-  //     const x = node.position.x || 0;
-  //     const y = node.position.y || 0;
-  //     const z = node.position.z || 0;
-
-  //     let belongs = true;
-
-  //     if (view?.type === "plan") {
-  //       belongs = Math.abs(z - (view.elevation ?? 0)) <= tolerance;
-  //     } else if (view?.type === "elevation") {
-  //       if (view.axis === "X") belongs = Math.abs(x - view.value) <= tolerance;
-  //       if (view.axis === "Y") belongs = Math.abs(y - view.value) <= tolerance;
-  //     }
-
-  //     if (!belongs) continue;
-
-  //     closest = node;
-  //     best = distance;
-  //   }
-
-  //   return closest;
-  // },
-
   closestNodeAtActiveView(searchPoint) {
     const view = this.viewSet?.[this.activeViewIndex];
     const tolerance = 0.05;
@@ -20967,61 +22765,7 @@ export default () => ({
     return closest;
   },
 
-  closestBeamAtActiveView(searchPoint) {
-    const view = this.viewSet?.[this.activeViewIndex];
-    const tolerance = 0.05;
-    let closest = null;
-    let shortestDistance = 10;
 
-    for (let i = 0; i < this.shapes.length; i++) {
-      const beam = this.shapes[i];
-      if (!beam?.node1 || !beam?.node2) continue;
-
-      const x1 = beam.node1.position.x || 0;
-      const y1 = beam.node1.position.y || 0;
-      const z1 = beam.node1.position.z || 0;
-
-      const x2 = beam.node2.position.x || 0;
-      const y2 = beam.node2.position.y || 0;
-      const z2 = beam.node2.position.z || 0;
-
-      let belongs = true;
-      let p1, p2;
-
-      if (view?.type === "plan") {
-        belongs =
-          Math.abs(z1 - (view.elevation ?? 0)) <= tolerance && Math.abs(z2 - (view.elevation ?? 0)) <= tolerance;
-
-        p1 = this.grid.worldToScreen({ x: x1, y: y1 });
-        p2 = this.grid.worldToScreen({ x: x2, y: y2 });
-      } else if (view?.type === "elevation") {
-        if (view.axis === "X") {
-          // 🔥 Plano Y-Z
-          belongs = Math.abs(x1 - view.value) <= tolerance && Math.abs(x2 - view.value) <= tolerance;
-
-          p1 = this.grid.worldToScreen({ x: y1, y: z1 });
-          p2 = this.grid.worldToScreen({ x: y2, y: z2 });
-        } else if (view.axis === "Y") {
-          // 🔥 Plano X-Z
-          belongs = Math.abs(y1 - view.value) <= tolerance && Math.abs(y2 - view.value) <= tolerance;
-
-          p1 = this.grid.worldToScreen({ x: x1, y: z1 });
-          p2 = this.grid.worldToScreen({ x: x2, y: z2 });
-        }
-      }
-
-      if (!belongs || !p1 || !p2) continue;
-
-      const dist = pointDistanceToSegment(searchPoint, p1, p2);
-
-      if (dist < shortestDistance) {
-        shortestDistance = dist;
-        closest = beam;
-      }
-    }
-
-    return closest;
-  },
 
   canSelectInCurrentView() {
     // const view = this.viewSet?.[this.activeViewIndex];
@@ -21029,46 +22773,209 @@ export default () => ({
     return true;
   },
 
+  // =====================================================
+  // SELECTION > LIMPIAR TODA LA SELECCIÓN
+  // Versión única y activa.
+  // Limpia nodos, barras, áreas, dimensiones, estados internos,
+  // MoveObjectState, ReshapeObjectState y highlights 3D.
+  // =====================================================
   clearAllSelections() {
+    // =====================================================
+    // SELECTION > FUNCIÓN SEGURA PARA LIMPIAR UN OBJETO
+    // No usa setObjectSelected para evitar llamadas internas
+    // a style.default() sin validar.
+    // =====================================================
+    const safeUnselectObject = (obj) => {
+      if (!obj) return;
+
+      obj.selected = false;
+      obj.isSelected = false;
+      obj.highlighted3D = false;
+      obj.is3DOnlyEndpointHover = false;
+
+      if (obj.style && typeof obj.style.default === "function") {
+        obj.style.default();
+      }
+    };
+
+    // =====================================================
+    // SELECTION > LIMPIAR OBJETOS DEL MODELO
+    // =====================================================
+    this.nodes?.forEach((node) => {
+      safeUnselectObject(node);
+    });
+
+    this.shapes?.forEach((frame) => {
+      safeUnselectObject(frame);
+    });
+
+    this.areas?.forEach((area) => {
+      safeUnselectObject(area);
+    });
+
+    this.dimensionLines?.forEach((dim) => {
+      safeUnselectObject(dim);
+    });
+
+    this.parametricModels?.forEach((parametric) => {
+      safeUnselectObject(parametric);
+    });
+
+    // =====================================================
+    // SELECTION > LIMPIAR ESTADOS DE SELECCIÓN
+    // Protegemos state.exit() porque algunos estados antiguos
+    // pueden usar style.default() directamente.
+    // =====================================================
     const states = [
       this.selectedNodesState,
       this.selectedBeamsState,
       this.selectedParametricState,
       this.selectedAreasState,
       this.selectedDimensionLinesState,
+      this.selectionState,
     ];
 
     states.forEach((state) => {
-      if (state?.selectedObjects?.length) {
+      if (!state) return;
+
+      try {
         state.exit?.();
+      } catch (error) {
+        console.warn("⚠️ state.exit falló durante clearAllSelections:", {
+          state: state.constructor?.name,
+          error: error?.message,
+        });
+      }
+
+      if (Array.isArray(state.selectedObjects)) {
         state.selectedObjects = [];
       }
+
+      if (Array.isArray(state.selectedNodes)) {
+        state.selectedNodes = [];
+      }
+
+      if (Array.isArray(state.selectedBeams)) {
+        state.selectedBeams = [];
+      }
+
+      if (Array.isArray(state.selectedAreas)) {
+        state.selectedAreas = [];
+      }
+
+      if (Array.isArray(state.selectedDimensionLines)) {
+        state.selectedDimensionLines = [];
+      }
+
+      if (Array.isArray(state.objects)) {
+        state.objects = [];
+      }
+
+      state.selectedObject = null;
+      state.selectedNode = null;
+      state.selectedBeam = null;
+      state.selectedArea = null;
     });
 
+    // =====================================================
+    // SELECTION > LIMPIAR MOVE OBJECT
+    // =====================================================
     if (this.moveObjectState) {
-      // Limpiar el selectedObject antes de salir
-      if (this.moveObjectState.selectedObject) {
-        this.moveObjectState.selectedObject.style.default();
-      }
+      safeUnselectObject(this.moveObjectState.selectedObject);
+
       this.moveObjectState.selectedObject = null;
+      this.moveObjectState.selectedNode = null;
+      this.moveObjectState.selectedBeam = null;
+      this.moveObjectState.selectedArea = null;
       this.moveObjectState.isMoving = false;
+      this.moveObjectState.startPoint = null;
+      this.moveObjectState.lastPoint = null;
     }
 
-    if (this.dimensionLines?.length) {
-      this.dimensionLines.forEach((dim) => {
-        dim.selected = false;
-      });
+    // =====================================================
+    // SELECTION > LIMPIAR RESHAPE OBJECT
+    // =====================================================
+    if (this.reshapeObjectState) {
+      safeUnselectObject(this.reshapeObjectState.selectedObject);
+      safeUnselectObject(this.reshapeObjectState.selectedNode);
+      safeUnselectObject(this.reshapeObjectState.selectedBeam);
+      safeUnselectObject(this.reshapeObjectState.selectedArea);
+
+      this.reshapeObjectState.selectedObject = null;
+      this.reshapeObjectState.selectedNode = null;
+      this.reshapeObjectState.selectedBeam = null;
+      this.reshapeObjectState.selectedArea = null;
+      this.reshapeObjectState.selectedVertexIndex = null;
+      this.reshapeObjectState.isMoving = false;
     }
 
-    if (this.areas?.length) {
-      this.areas.forEach((area) => {
-        area.selected = false;
-      });
-    }
-
+    // =====================================================
+    // SELECTION > LIMPIAR VARIABLES GLOBALES
+    // =====================================================
     this.selectedNode = null;
     this.selectedBeam = null;
+    this.selectedArea = null;
     this.selectedObject = null;
+
+    this.selectedBeams = [];
+    this.selectedObjects = [];
+
+    this.hovered3DOnlyEndpointNode = null;
+    this.hovered3DOnlyEndpointFrames = [];
+    this.last3DOnlyEndpointHelpKey = null;
+
+    // =====================================================
+    // 3D DRAW > DESBLOQUEAR CÁMARA
+    // =====================================================
+    window.__jhSet3DDrawCameraLock?.(false);
+
+    // =====================================================
+    // 3D > FORZAR LIMPIEZA DE HIGHLIGHTS
+    // =====================================================
+    this.forceClear3DFrameHighlights = true;
+
+    // =====================================================
+    // DRAW 3D > CONSERVAR NODO INICIAL SI ESTOY DIBUJANDO
+    // Permite cambiar de planta/elevación entre primer y segundo clic.
+    // =====================================================
+    if (
+      this.activeDrawTool === "frame" &&
+      this.isDrawingFrame3D === true &&
+      this.frame3DStartNode
+    ) {
+      this.frame3DStartNode.selected = true;
+      this.frame3DStartNode.isSelected = true;
+    }
+
+    console.log("🧹 clearAllSelections ejecutado:", {
+      selectedFrames: this.shapes?.filter((frame) =>
+        frame.selected || frame.isSelected || frame.highlighted3D
+      ).length,
+      selectedNodes: this.nodes?.filter((node) =>
+        node.selected || node.isSelected
+      ).length,
+    });
+
+    // =====================================================
+    // RENDER > ACTUALIZAR VISTAS
+    // =====================================================
+    try {
+      this.redraw?.();
+    } catch (error) {
+      console.warn("⚠️ redraw falló después de clearAllSelections:", error?.message);
+    }
+
+    try {
+      this.sync3D?.();
+
+      requestAnimationFrame(() => {
+        this.sync3D?.();
+      });
+    } catch (error) {
+      console.warn("⚠️ sync3D falló después de clearAllSelections:", error?.message);
+    }
+
+    this.showMessage?.("Selección limpiada");
   },
 
   // MOSTRAR indicador visual de vista activa
@@ -21124,9 +23031,13 @@ export default () => ({
     // console.log("currentY:", currentY);
 
     const nodesToDraw = this.nodes.filter((node) => Math.abs(node.position.y - currentY) < 0.1);
-    const beamsToDraw = this.shapes.filter(
-      (beam) => nodesToDraw.includes(beam.node1) && nodesToDraw.includes(beam.node2),
-    );
+    const beamsToDraw = this.shapes.filter((beam) => {
+      if (this.shouldDrawFrameIn2D && !this.shouldDrawFrameIn2D(beam)) {
+        return false;
+      }
+
+      return nodesToDraw.includes(beam.node1) && nodesToDraw.includes(beam.node2);
+    });
 
     this.drawElevationGridOnly(currentY);
 

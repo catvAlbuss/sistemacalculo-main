@@ -433,21 +433,62 @@ export class DiseñoRenderer {
     }
   }
 
-  drawNodeID(node, context) {
-    // const p = context.grid.worldToScreen(node.position);
-    const p = this.projectPoint(node, context);
-    context.ctx.save();
-    context.ctx.beginPath();
+  // =====================================================
+  // DISPLAY 2D > DIBUJAR ID DE NODO
+  // Dibuja el número del nodo en el canvas 2D.
+  // Versión segura para nodos creados desde 2D o desde 3D.
+  // =====================================================
+  drawNodeID(node, context, screenPoint = null) {
+    if (!node || !context?.ctx) return;
 
-    Object.assign(context.ctx, node.style.get().ID);
+    const ctx = context.ctx;
 
-    context.ctx.fillStyle = this.getDisplayColor(context, "text", "#ffffff");
-    context.ctx.strokeStyle = this.getDisplayColor(context, "node", "#9ca3af");
+    // =====================================================
+    // DISPLAY 2D > OBTENER POSICIÓN DEL NODO
+    // Evita error cuando nodeScreenPositions no existe.
+    // =====================================================
+    let point = screenPoint;
 
-    context.ctx.arc(p.x - 10, p.y - 10, context.grid.size * 2, 0, Math.PI * 2);
-    context.ctx.stroke();
-    context.ctx.fillText(node.id + "", p.x - 10, p.y - 10);
-    context.ctx.restore();
+    if (!point) {
+      point =
+        this.nodeScreenPositions?.get?.(node.id) ||
+        context.nodeScreenPositions?.get?.(node.id) ||
+        context.nodeScreenPositionMap?.get?.(node.id) ||
+        null;
+    }
+
+    // Si no hay mapa previo, proyectamos el nodo directamente.
+    if (!point && typeof this.projectPoint === "function") {
+      point = this.projectPoint(node, context);
+    }
+
+    if (
+      !point ||
+      !Number.isFinite(Number(point.x)) ||
+      !Number.isFinite(Number(point.y))
+    ) {
+      return;
+    }
+
+    const label = String(node.id ?? "");
+
+    if (!label) return;
+
+    const displayColor = context
+      ? this.getDisplayColor?.(context, "text", "#ffffff") || "#ffffff"
+      : "#ffffff";
+
+    ctx.save();
+
+    ctx.font = "11px Arial";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = displayColor;
+
+    // Pequeño desplazamiento para que el ID no tape el nodo.
+    ctx.fillText(label, Number(point.x) + 8, Number(point.y) - 8);
+
+    ctx.restore();
   }
 
   drawSupport(node, context) {
@@ -581,7 +622,30 @@ export class DiseñoRenderer {
       CLL: "lightblue",
     };
     /* Object.entries(node.force.loads).forEach(([load, { x, y }]) => { */
-    const { x, y } = node.force.loads[context.options.currentLoad];
+    const currentLoad =
+      context?.options?.currentLoad ||
+      context?.currentLoad ||
+      "default";
+
+    node.force = node.force || { loads: {} };
+    node.force.loads = node.force.loads || {};
+    node.force.loads[currentLoad] = node.force.loads[currentLoad] || {
+      x: 0,
+      y: 0,
+      z: 0,
+      fx: 0,
+      fy: 0,
+      fz: 0,
+      mx: 0,
+      my: 0,
+      mz: 0,
+    };
+
+    const { x = 0, y = 0, z = 0 } = node.force.loads[currentLoad];
+
+    if (Number(x) === 0 && Number(y) === 0 && Number(z) === 0) {
+      return;
+    }
     const magX = x;
     const magY = y;
     const mag = pointDistance({ x: 0, y: 0 }, { x: magX, y: magY });
@@ -609,39 +673,116 @@ export class DiseñoRenderer {
         p,
         colors[context.options.currentLoad]
       );
-    }
+    } 
   }
 
+  // =====================================================
+  // DISPLAY 2D > DIBUJAR REACCIONES EN NODO
+  // Versión segura para nodos creados desde 2D o desde 3D.
+  // Evita romper si reaction/style/getModel no existen.
+  // =====================================================
   drawReaction(node, context) {
-    //context.ctx.textAlign = "right";
-    // const p = context.grid.worldToScreen(node.position);
-    const p = this.projectPoint(node, context);
-    const magX = node.reaction.x;
-    const magY = node.reaction.y;
-    const mag = pointDistance({ x: 0, y: 0 }, { x: magX, y: magY });
-    const uMag = { x: magX / mag, y: magY / mag };
-    const end = { x: p.x - uMag.x * 5 * mag, y: p.y + uMag.y * 5 * mag };
-    Object.assign(context.ctx, node.style.getModel().FORCE);
-    if (magX && Math.abs(magX) > 0.0000000001) {
-      // this.drawHorizontalLine(context, magX, `${magX.toFixed(2)}kN`, p, "aquamarine");
-      this.drawHorizontalLine(
-        context,
-        magX,
-        `${this.formatValue(context, magX, "reactions", 2)}kN`,
-        p,
-        "aquamarine"
-      );
+    if (!node || !context?.ctx) return;
+
+    const ctx = context.ctx;
+
+    let reaction = node.reaction || {};
+
+    if (typeof reaction.getModel === "function") {
+      reaction = reaction.getModel() || {};
     }
-    if (magY && Math.abs(magY) > 0.0000000001) {
-      // this.drawVerticalLine(context, magY, `${magY.toFixed(2)}kN`, p, "aquamarine");
-      this.drawVerticalLine(
-        context,
-        magY,
-        `${this.formatValue(context, magY, "reactions", 2)}kN`,
-        p,
-        "aquamarine"
-      );
+
+    const rx = Number(
+      reaction.x ??
+      reaction.rx ??
+      reaction.fx ??
+      0
+    );
+
+    const ry = Number(
+      reaction.y ??
+      reaction.ry ??
+      reaction.fy ??
+      0
+    );
+
+    const rz = Number(
+      reaction.z ??
+      reaction.rz ??
+      reaction.fz ??
+      0
+    );
+
+    // Si no hay reacción, no dibuja nada.
+    if (rx === 0 && ry === 0 && rz === 0) return;
+
+    const p =
+      typeof this.projectPoint === "function"
+        ? this.projectPoint(node, context)
+        : null;
+
+    if (
+      !p ||
+      !Number.isFinite(Number(p.x)) ||
+      !Number.isFinite(Number(p.y))
+    ) {
+      return;
     }
+
+    const color =
+      this.getDisplayColor?.(context, "reaction", "#22c55e") ||
+      "#22c55e";
+
+    ctx.save();
+
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 1.8;
+
+    // =====================================================
+    // DISPLAY 2D > FLECHA SIMPLE DE REACCIÓN
+    // Representación básica para evitar romper el render.
+    // =====================================================
+    const drawArrow = (x1, y1, x2, y2) => {
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      const headLength = 7;
+
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(
+        x2 - headLength * Math.cos(angle - Math.PI / 6),
+        y2 - headLength * Math.sin(angle - Math.PI / 6)
+      );
+      ctx.lineTo(
+        x2 - headLength * Math.cos(angle + Math.PI / 6),
+        y2 - headLength * Math.sin(angle + Math.PI / 6)
+      );
+      ctx.closePath();
+      ctx.fill();
+    };
+
+    const length = 22;
+
+    if (rx !== 0) {
+      drawArrow(p.x - Math.sign(rx) * length, p.y, p.x, p.y);
+    }
+
+    if (ry !== 0) {
+      drawArrow(p.x, p.y + Math.sign(ry) * length, p.x, p.y);
+    }
+
+    if (rz !== 0) {
+      ctx.beginPath();
+      ctx.arc(p.x + 12, p.y + 12, 5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.restore();
   }
 
   drawWireBeam(beam, context) {
@@ -2944,12 +3085,20 @@ export class DiseñoRenderer {
     ctx.restore();
   }
 
+  // =====================================================
+  // DISPLAY 2D > ESTILO VISUAL DE BARRAS
+  // Define color, grosor y tipo de línea según el estado.
+  // Barra normal: amarillo.
+  // Barra seleccionada: amarillo más fuerte y más gruesa.
+  // =====================================================
   getElementRenderStyle(beam, mode = "model", context = null) {
     const type = beam.elementType || beam.type || "beam";
 
-    const beamColor = context
-      ? this.getDisplayColor(context, "beam", "#d1d5db")
-      : "#d1d5db";
+    // =====================================================
+    // DISPLAY 2D > COLORES BASE
+    // Forzamos amarillo para barras normales en 2D.
+    // =====================================================
+    const beamColor = "#facc15"; // amarillo normal
 
     const secondaryBeamColor = context
       ? this.getDisplayColor(context, "secondaryBeam", "#38bdf8")
@@ -2959,29 +3108,43 @@ export class DiseñoRenderer {
       ? this.getDisplayColor(context, "column", "#22c55e")
       : "#22c55e";
 
-    const selectedColor = context
-      ? this.getDisplayColor(context, "selected", "#facc15")
-      : "#facc15";
+    const selectedColor = "#fde047"; // amarillo más fuerte
 
     const textColor = context
       ? this.getDisplayColor(context, "text", "#ffffff")
       : "#ffffff";
 
-    if (beam.selected) {
+    // =====================================================
+    // DISPLAY 2D > DETECTAR SI LA BARRA ESTÁ SELECCIONADA
+    // Reconoce selección normal y selección guardada en selectedBeams.
+    // =====================================================
+    const isSelectedBeam =
+      beam.selected === true ||
+      beam.isSelected === true ||
+      context?.selectedBeams?.some?.((b) => b?.id === beam?.id) ||
+      context?.currentState?.selectedBeams?.some?.((b) => b?.id === beam?.id) ||
+      context?.selectedBeamsState?.selectedObjects?.some?.((b) => b?.id === beam?.id);
+
+    if (isSelectedBeam) {
       return {
         strokeStyle: selectedColor,
-        lineWidth: 3,
+        lineWidth: 3.5,
         lineDash: [],
         textColor: selectedColor,
       };
     }
 
+    // =====================================================
+    // DISPLAY 2D > BARRAS CON SECCIÓN ASIGNADA
+    // Mantiene la barra amarilla aunque tenga sección.
+    // El texto puede seguir mostrándose normal.
+    // =====================================================
     if (this.hasAssignedFrameSection(beam)) {
       return {
-        strokeStyle: "#60a5fa",
+        strokeStyle: beamColor,
         lineWidth: mode === "wireframe" ? 2.2 : 3,
         lineDash: [],
-        textColor: "#60a5fa",
+        textColor: "#ffffff",
       };
     }
 
@@ -4253,16 +4416,44 @@ export class DiseñoRenderer {
     return true;
   }
 
-  shouldDrawBeam(beam, CADSystem) {
+  // Aplica filtros de vista activa y oculta barras 3D-only.
+  // =====================================================
+  shouldDrawBeam(beam, CADSystem = null) {
     if (!beam) return false;
 
-    if (typeof CADSystem.isObjectVisibleInActiveView === "function") {
-      return CADSystem.isObjectVisibleInActiveView(beam);
+    // =====================================================
+    // DISPLAY 2D > OBTENER SISTEMA CAD REAL
+    // Usa primero el CADSystem que llega desde render().
+    // =====================================================
+    const cad =
+      CADSystem ||
+      this.CADSystem ||
+      this.cadSystem ||
+      this.context ||
+      window.cadSystem;
+
+    // =====================================================
+    // DISPLAY 2D > OCULTAR BARRAS 3D-ONLY
+    // Si la barra es inclinada/espacial, no se dibuja en 2D.
+    // =====================================================
+    if (
+      cad?.shouldDrawFrameIn2D &&
+      !cad.shouldDrawFrameIn2D(beam)
+    ) {
+      return false;
+    }
+
+    // =====================================================
+    // DISPLAY 2D > FILTRO NORMAL DE VISTA ACTIVA
+    // Mantiene tu lógica original para planta/elevación.
+    // =====================================================
+    if (typeof cad?.isObjectVisibleInActiveView === "function") {
+      return cad.isObjectVisibleInActiveView(beam);
     }
 
     return (
-      this.shouldDrawNode(beam.node1, CADSystem) &&
-      this.shouldDrawNode(beam.node2, CADSystem)
+      this.shouldDrawNode(beam.node1, cad) &&
+      this.shouldDrawNode(beam.node2, cad)
     );
   }
 

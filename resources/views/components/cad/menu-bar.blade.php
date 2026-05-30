@@ -1,6 +1,6 @@
 {{-- resources/views/components/cad/layout/menu-bar.blade.php --}}
 <div class="bg-gray-800 border-b border-gray-700 shadow-lg">
-    
+
     <div class="flex items-center px-2 py-1 gap-4 border-t border-gray-700">
         {{-- ============================================================
                                 LOGO Y VERSIÓN
@@ -737,7 +737,7 @@
                     </div>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
-                        @click="cadSystem.activateDrawMenuAction('draw-lines')">
+                        @click="cadSystem.activateDrawFrameTool()">
                         <span>📏</span> Draw Lines (Plan, Elev, 3D)
                     </button>
 

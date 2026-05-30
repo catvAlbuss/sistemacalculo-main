@@ -88,8 +88,101 @@ export class IdleState extends PanAndZoomState {
       return;
     }
 
-    context.nodes.forEach((n) => n.style.default());
-    context.shapes.forEach((s) => s.style.default());
+    // =====================================================
+    // IDLE > LIMPIAR ESTILOS SIN ROMPER OBJETOS 3D
+    // Algunos nodos/barras creados desde 3D no tienen style.default.
+    // Por eso se usa optional chaining.
+    // =====================================================
+    context.nodes?.forEach((node) => {
+      node.selected = false;
+      node.isSelected = false;
+      node.is3DOnlyEndpointHover = false;
+
+      node.style?.default?.();
+    });
+
+    context.shapes?.forEach((shape) => {
+      shape.selected = false;
+      shape.isSelected = false;
+      shape.highlighted3D = false;
+
+      shape.style?.default?.();
+    });
+
+    // =====================================================
+    // IDLE > ALT + CLIC EN EXTREMO DE BARRA 3D-ONLY
+    // Selecciona barras inclinadas ocultas en 2D desde sus nodos.
+    // La confirmación visual se verá en el canvas 3D.
+    // =====================================================
+    if (event.altKey) {
+      const hit3DOnlyFrame =
+        context.closest3DOnlyFrameEndpointAtActiveView?.(mouse);
+
+      console.log("🔎 Alt + clic sobre posible barra 3D-only:", hit3DOnlyFrame);
+
+      if (hit3DOnlyFrame?.frames?.length) {
+        const framesToSelect = hit3DOnlyFrame.frames;
+
+        context.clearAllSelections?.();
+
+        // Primero cambiamos al estado de barras seleccionadas
+        context.setState(context.selectedBeamsState, {
+          selectedBeams: framesToSelect,
+          selectedBeam: framesToSelect[0],
+        });
+
+        // =====================================================
+        // SELECTION 3D > MARCAR BARRAS SELECCIONADAS
+        // Se marca después del setState para que no se borre.
+        // =====================================================
+        framesToSelect.forEach((frame) => {
+          frame.selected = true;
+          frame.isSelected = true;
+          frame.highlighted3D = true;
+
+          if (frame.style?.select) {
+            frame.style.select();
+          }
+        });
+
+        context.selectedBeams = framesToSelect;
+
+        context.showMessage?.(
+          framesToSelect.length === 1
+            ? "Barra 3D/inclinada seleccionada. Revísala en la vista 3D."
+            : `${framesToSelect.length} barras 3D/inclinadas seleccionadas. Revísalas en la vista 3D.`
+        );
+
+        console.log("✅ Barra(s) 3D-only marcadas como seleccionadas:", framesToSelect.map((frame) => ({
+          id: frame.id,
+          selected: frame.selected,
+          isSelected: frame.isSelected,
+          highlighted3D: frame.highlighted3D,
+          is3DOnlyFrame: frame.is3DOnlyFrame,
+          isCrossViewFrame: frame.isCrossViewFrame,
+        })));
+
+        context.redraw?.();
+
+        // =====================================================
+        // 3D > FORZAR ACTUALIZACIÓN VISUAL
+        // Asegura que Babylon repinte la barra seleccionada.
+        // =====================================================
+        if (typeof context.sync3D === "function") {
+          context.sync3D();
+        }
+
+        if (typeof context.requestSync3D === "function") {
+          context.requestSync3D("select3DOnlyFrameFromEndpoint");
+        }
+
+        requestAnimationFrame(() => {
+          context.sync3D?.();
+        });
+
+        return;
+      }
+    }
 
     let selectedObject = context.closestNodeAtActiveView(mouse);
 
@@ -124,86 +217,231 @@ export class IdleState extends PanAndZoomState {
   handleMouseUp(event, context, mouse) {
     super.handleMouseUp(...arguments);
   }
+  // =====================================================
+  // Controla el cursor cuando el mouse pasa sobre nodos, barras visibles y objetos paramétricos. Ignora barras 3D-only ocultas en el canvas 2D.
+  // =====================================================
   handleMouseMove(event, context, mouse) {
     super.handleMouseMove(...arguments);
-    let collidedNode = false;
-    let collidedBeam = false;
-    let collidedParametric = false;
-    if (!this.isDragging) {
-      context.nodes.forEach((n) => {
-        const shortestDistance = 10;
-        const distance = pointDistance(mouse, context.grid.worldToScreen(n.position));
-        if (distance <= shortestDistance) {
-          n.style.hover();
-          collidedNode = true;
-        } else {
-          n.style.default();
-        }
-      });
-      if (collidedNode) {
-        context.setCursor("grab");
-      } else {
-        context.setCursor("crosshair");
-      }
-      if (!collidedNode) {
-        context.shapes.forEach((s) => {
-          const shortestDistance = 5;
-          const lineLength = pointDistance(
-            context.grid.worldToScreen(s.node1.position),
-            context.grid.worldToScreen(s.node2.position),
-          );
-          const d1 = pointDistance(context.grid.worldToScreen(s.node1.position), mouse);
-          const d2 = pointDistance(context.grid.worldToScreen(s.node2.position), mouse);
-          if (d1 + d2 >= lineLength - shortestDistance && d1 + d2 <= lineLength + shortestDistance) {
-            collidedBeam = true;
-            s.style.hover();
-          } else {
-            s.style.default();
-          }
-        });
-        if (collidedBeam) {
-          context.setCursor("pointer");
-        } else {
-          context.setCursor("crosshair");
-        }
-      }
-      if (!collidedBeam && !collidedNode) {
-        context.parametricModels.find((p) => {
-          p.nodes.find((n) => {
-            const shortestDistance = 10;
-            const distance = pointDistance(mouse, context.grid.worldToScreen(n.position));
-            if (distance <= shortestDistance) {
-              collidedParametric = true;
-            }
-            return collidedParametric;
-          });
-          p.shapes.find((s) => {
-            const shortestDistance = 5;
-            const lineLength = pointDistance(
-              context.grid.worldToScreen(s.node1.position),
-              context.grid.worldToScreen(s.node2.position),
-            );
-            const d1 = pointDistance(context.grid.worldToScreen(s.node1.position), mouse);
-            const d2 = pointDistance(context.grid.worldToScreen(s.node2.position), mouse);
-            if (d1 + d2 >= lineLength - shortestDistance && d1 + d2 <= lineLength + shortestDistance) {
-              collidedParametric = true;
-            }
-            return collidedParametric;
-          });
-          if (collidedParametric) {
-            p.hover();
-          } else {
-            p.default();
-          }
-          return collidedParametric;
-        });
-        if (collidedParametric) {
-          context.setCursor("pointer");
-        } else {
-          context.setCursor("crosshair");
-        }
-      }
+
+    if (this.isDragging) {
+      return;
     }
+
+    // =====================================================
+    // IDLE > LIMPIAR HOVER DE NODOS
+    // Limpia estilos normales y marca especial de nodos 3D-only.
+    // =====================================================
+    context.nodes?.forEach((n) => {
+      n.is3DOnlyEndpointHover = false;
+
+      if (!n?.selected && !n?.isSelected) {
+        n.style?.default?.();
+      }
+    });
+
+    context.shapes?.forEach((s) => {
+      if (!s?.selected && !s?.isSelected) {
+        s.style?.default?.();
+      }
+    });
+
+    let collidedParametric = false;
+
+    // =====================================================
+    // IDLE > DETECTAR NODO EN VISTA ACTIVA
+    // Si el nodo tiene barras 3D-only conectadas,
+    // muestra ayuda visual para usar Alt + clic.
+    // =====================================================
+    const hoveredNode = context.closestNodeAtActiveView?.(mouse);
+
+    if (hoveredNode) {
+      hoveredNode.style?.hover?.();
+
+      const connected3DOnlyFrames =
+        context.get3DOnlyFramesConnectedToNode?.(hoveredNode) || [];
+
+      const has3DOnlyFrames = connected3DOnlyFrames.length > 0;
+
+      // =====================================================
+      // IDLE > AYUDA PARA NODO CON BARRA 3D-ONLY
+      // Marca el nodo y muestra una guía sin repetir mensajes.
+      // =====================================================
+      if (has3DOnlyFrames) {
+        hoveredNode.is3DOnlyEndpointHover = true;
+
+        context.hovered3DOnlyEndpointNode = hoveredNode;
+        context.hovered3DOnlyEndpointFrames = connected3DOnlyFrames;
+
+        const helpKey = `${hoveredNode.id}:${connected3DOnlyFrames
+          .map((frame) => frame.id)
+          .join("-")}`;
+
+        if (context.last3DOnlyEndpointHelpKey !== helpKey) {
+          context.last3DOnlyEndpointHelpKey = helpKey;
+
+          context.showMessage?.(
+            "Nodo con barra 3D/inclinada conectada. Usa Alt + clic para seleccionar la barra."
+          );
+        }
+      } else {
+        hoveredNode.is3DOnlyEndpointHover = false;
+        context.hovered3DOnlyEndpointNode = null;
+        context.hovered3DOnlyEndpointFrames = [];
+        context.last3DOnlyEndpointHelpKey = null;
+      }
+
+      context.setCursor("grab");
+      context.redraw?.();
+      return;
+    }
+
+    // =====================================================
+    // IDLE > DETECTAR BARRA EN VISTA ACTIVA
+    // Usa closestBeamAtActiveView(), que ya debe ignorar
+    // barras 3D-only ocultas en 2D.
+    // =====================================================
+    const hoveredBeam = context.closestBeamAtActiveView?.(mouse);
+
+    if (
+      hoveredBeam &&
+      typeof context.shouldSelectFrameIn2D === "function" &&
+      !context.shouldSelectFrameIn2D(hoveredBeam)
+    ) {
+      context.setCursor("crosshair");
+      return;
+    }
+
+    if (hoveredBeam) {
+      hoveredBeam.style?.hover?.();
+      context.setCursor("pointer");
+      return;
+    }
+
+    // =====================================================
+    // IDLE > OBJETOS PARAMÉTRICOS
+    // Mantiene tu lógica antigua, pero sin afectar barras normales.
+    // =====================================================
+    context.parametricModels?.find((p) => {
+      p.nodes?.find((n) => {
+        const shortestDistance = 10;
+        const distance = pointDistance(
+          mouse,
+          context.grid.worldToScreen(n.position)
+        );
+
+        if (distance <= shortestDistance) {
+          collidedParametric = true;
+        }
+
+        return collidedParametric;
+      });
+
+      p.shapes?.find((s) => {
+        if (!s?.node1?.position || !s?.node2?.position) return false;
+
+        // Si hay filtro de render, respétalo también aquí.
+        if (
+          context.currentRenderer?.shouldDrawBeam &&
+          !context.currentRenderer.shouldDrawBeam(s, context)
+        ) {
+          return false;
+        }
+
+        const shortestDistance = 5;
+
+        const lineLength = pointDistance(
+          context.grid.worldToScreen(s.node1.position),
+          context.grid.worldToScreen(s.node2.position)
+        );
+
+        const d1 = pointDistance(
+          context.grid.worldToScreen(s.node1.position),
+          mouse
+        );
+
+        const d2 = pointDistance(
+          context.grid.worldToScreen(s.node2.position),
+          mouse
+        );
+
+        if (
+          d1 + d2 >= lineLength - shortestDistance &&
+          d1 + d2 <= lineLength + shortestDistance
+        ) {
+          collidedParametric = true;
+        }
+
+        return collidedParametric;
+      });
+
+      if (collidedParametric) {
+        p.hover?.();
+      } else {
+        p.default?.();
+      }
+
+      return collidedParametric;
+    });
+
+    if (collidedParametric) {
+      context.setCursor("pointer");
+    } else {
+      context.setCursor("crosshair");
+    }
+  }
+
+  // =====================================================
+  // Dibuja un aro sobre el nodo extremo y un texto corto.
+  // =====================================================
+  draw(renderer, context) {
+    const node = context.hovered3DOnlyEndpointNode;
+
+    if (!node?.position || !context.ctx) return;
+
+    const frames = context.hovered3DOnlyEndpointFrames || [];
+
+    if (!frames.length) return;
+
+    const screenPoint =
+      context.projectNodeInActiveView?.(node) ||
+      context.grid.worldToScreen({
+        x: node.position.x || 0,
+        y: node.position.y || 0,
+      });
+
+    if (!screenPoint) return;
+
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    // Aro sobre el nodo
+    ctx.strokeStyle = "#facc15";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+
+    ctx.beginPath();
+    ctx.arc(screenPoint.x, screenPoint.y, 13, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+
+    // Punto central reforzado
+    ctx.fillStyle = "#facc15";
+    ctx.beginPath();
+    ctx.arc(screenPoint.x, screenPoint.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Texto de ayuda
+    ctx.font = "bold 12px monospace";
+    ctx.fillStyle = "#facc15";
+    ctx.fillText(
+      "Alt + clic: seleccionar barra 3D",
+      screenPoint.x + 16,
+      screenPoint.y - 12
+    );
+
+    ctx.restore();
   }
 }
 
@@ -224,6 +462,60 @@ export class SelectedObjectsState extends PanAndZoomState {
     super.handleMouseDown(...arguments);
 
     if (!isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      // =====================================================
+      // Permite seleccionar barras inclinadas desde sus nodos extremos
+      // sin mostrar la barra en el canvas 2D.
+      // =====================================================
+      if (event.altKey) {
+        const hit3DOnlyFrame =
+          context.closest3DOnlyFrameEndpointAtActiveView?.(mouse);
+
+        if (hit3DOnlyFrame?.frames?.length) {
+          // =====================================================
+          // SELECTION 2D > SELECCIONAR BARRA 3D-ONLY DESDE EXTREMO
+          // Marca las barras inclinadas conectadas al nodo extremo.
+          // La barra sigue oculta en 2D, pero podrá resaltarse en 3D.
+          // =====================================================
+          context.clearAllSelections?.();
+
+          hit3DOnlyFrame.frames.forEach((frame) => {
+            frame.selected = true;
+            frame.isSelected = true;
+            frame.highlighted3D = true;
+          });
+
+          context.selectedBeams = hit3DOnlyFrame.frames;
+
+          context.setState(context.selectedBeamsState, {
+            selectedBeams: hit3DOnlyFrame.frames,
+          });
+
+          context.showMessage?.(
+            hit3DOnlyFrame.frames.length === 1
+              ? "Barra 3D/inclinada seleccionada. Revísala en la vista 3D."
+              : `${hit3DOnlyFrame.frames.length} barras 3D/inclinadas seleccionadas. Revísalas en la vista 3D.`
+          );
+
+          context.redraw?.();
+
+          if (typeof context.requestSync3D === "function") {
+            context.requestSync3D("select3DOnlyFrameFromEndpoint");
+          } else {
+            context.sync3D?.();
+          }
+
+          return;
+
+          context.showMessage?.(
+            hit3DOnlyFrame.frames.length === 1
+              ? "Barra 3D/inclinada seleccionada desde su nodo extremo."
+              : `${hit3DOnlyFrame.frames.length} barras 3D/inclinadas seleccionadas desde el nodo extremo.`
+          );
+
+          return;
+        }
+      }
+
       let selectedObject = context.closestNodeAtActiveView(mouse);
 
       if (selectedObject) {
@@ -288,6 +580,18 @@ export class SelectedObjectsState extends PanAndZoomState {
 
 export class SelectedBeamsState extends SelectedObjectsState {
   handleKeyDown(event, context) {
+    // =====================================================
+    // SELECTION > ESC PARA DESELECCIONAR BARRAS
+    // Limpia barras seleccionadas, incluyendo barras 3D-only.
+    // =====================================================
+    if (event.key === "Escape") {
+      context.clearAllSelections?.();
+      context.setState(context.idleState);
+
+      event.preventDefault();
+      return;
+    }
+
     super.handleKeyDown(...arguments);
 
     if (event.key === "Delete") {
@@ -1167,6 +1471,15 @@ export class TrussDrawingState extends PanAndZoomState {
     this.inputBuffer = '';         // Buffer de texto para la longitud
     this.inputStartPoint = null;   // Punto de inicio para modo entrada
     // ================================================================
+
+    // Permite mantener el primer punto cuando se pasa de planta a otra planta o a una elevación.
+    // =====================================================
+    this.preserveOnViewChange = true;
+    this.isFrameDrawingState = true;
+
+    // Guarda desde qué planta/elevación empezó la barra. Sirve para detectar barras creadas entre diferentes vistas.
+    // =====================================================
+    this.startViewSignature = null;
   }
 
   createEmptyShape(context) {
@@ -1275,10 +1588,82 @@ export class TrussDrawingState extends PanAndZoomState {
     return node;
   }
 
+  // Identifica la planta o elevación donde se hizo clic.
+  // =====================================================
+  getActiveViewSignature(context) {
+    const view = context.viewSet?.[context.activeViewIndex];
+
+    if (!view) return "view:none";
+
+    if (view.type === "plan") {
+      const z = Number(view.elevation ?? context.getActivePlanElevation?.() ?? 0);
+      return `plan:z=${z.toFixed(4)}`;
+    }
+
+    if (view.type === "elevation") {
+      const axis = view.axis || "none";
+      const value = Number(view.value ?? 0);
+      return `elevation:${axis}=${value.toFixed(4)}`;
+    }
+
+    return `${view.type || "view"}:${view.name || context.activeViewIndex}`;
+  }
+
+  // Devuelve true si la barra no pertenece a un solo plano 2D.
+  // =====================================================
+  isSpatialFrameFor2D(frame) {
+    const p1 = frame?.node1?.position;
+    const p2 = frame?.node2?.position;
+
+    if (!p1 || !p2) return false;
+
+    const tol = 0.001;
+
+    const dx = Math.abs(Number(p2.x || 0) - Number(p1.x || 0));
+    const dy = Math.abs(Number(p2.y || 0) - Number(p1.y || 0));
+    const dz = Math.abs(Number(p2.z || 0) - Number(p1.z || 0));
+
+    // Barra inclinada entre pisos: cambia Z y también cambia X o Y.
+    return dz > tol && (dx > tol || dy > tol);
+  }
+
+  // Oculta la barra en canvas 2D, pero la mantiene en 3D.
+  // =====================================================
+  markFrameAs3DOnlyIfNeeded(context, frame, endViewSignature) {
+    const createdAcrossViews =
+      this.startViewSignature &&
+      this.startViewSignature !== endViewSignature;
+
+    const isSpatialFrame = this.isSpatialFrameFor2D(frame);
+
+    if (createdAcrossViews || isSpatialFrame) {
+      frame.isCrossViewFrame = true;
+      frame.is3DOnlyFrame = true;
+      frame.showIn2D = false;
+
+      console.log("🟨 Barra marcada como 3D-only:", {
+        id: frame.id,
+        startView: this.startViewSignature,
+        endView: endViewSignature,
+        node1: frame.node1?.position,
+        node2: frame.node2?.position,
+      });
+    }
+  }
+
   addNodeToCurrentShape(context, node) {
+    const wasFirstNode = !this.shape?.node1;
+    const currentViewSignature = this.getActiveViewSignature(context);
+
     const isDone = this.shape.addNode(node);
 
+    // Cuando todavía no se completa la barra, se recuerda desde qué vista empezó el dibujo.
+    // =====================================================================================
     if (!isDone) {
+      if (wasFirstNode) {
+        this.startViewSignature = currentViewSignature;
+      }
+
       return;
     }
 
@@ -1287,6 +1672,14 @@ export class TrussDrawingState extends PanAndZoomState {
     this.shape.type = this.elementType;
     this.shape.objectType = "frame";
     this.shape.visible = true;
+
+    // Si empezó en una vista y terminó en otra, se verá solo en 3D.
+    // =============================================================
+    this.markFrameAs3DOnlyIfNeeded(
+      context,
+      this.shape,
+      currentViewSignature
+    );
 
     context.shapes.push(this.shape);
 
@@ -1311,6 +1704,9 @@ export class TrussDrawingState extends PanAndZoomState {
 
     // Esto permite seguir dibujando otra línea desde el último punto
     this.shape.addNode(lastNode);
+
+    // La siguiente barra continuará desde la vista actual.
+    this.startViewSignature = currentViewSignature;
 
     context.redraw?.();
     context.sync3D?.();
@@ -1700,12 +2096,25 @@ export class TrussDrawingState extends PanAndZoomState {
     super.handleKeyDown(event, context);
   }
 
+  // Mantiene el primer punto al cambiar de planta/elevación.
+  // =====================================================
+  onViewChanged(context, view) {
+    if (!this.shape?.node1) return;
+
+    context.showMessage?.(
+      "Primer punto conservado. Selecciona el segundo punto en la nueva vista."
+    );
+
+    context.redraw?.();
+  }
+
   exit() {
     super.exit();
     this.shape = this.createEmptyShape(this.context);
     this.inputMode = false;
     this.inputBuffer = '';
     this.inputStartPoint = null;
+    this.startViewSignature = null;
   }
 
   draw(renderer, context) {
@@ -1723,6 +2132,284 @@ export class TrussDrawingState extends PanAndZoomState {
       return `📏 Ingrese longitud: ${this.inputBuffer || '0'} | Enter = dibujar | Esc = cancelar`;
     }
     return 'Dibujo de vigas: Clic para primer punto, luego L + longitud + Enter para dibujar. O simplemente clic para segundo punto. Esc para salir.';
+  }
+}
+
+// =====================================================
+// DRAW > FRAME 3D ENTRE PLANTAS Y ELEVACIONES
+// =====================================================
+export class CrossViewFrameDrawingState extends TrussDrawingState {
+  constructor(context, elementType = "beam") {
+    super(context, elementType);
+
+    // Punto inicial guardado en coordenadas reales X, Y, Z
+    this.startPoint = null;
+
+    // Punto temporal usado para mostrar vista previa
+    this.previewPoint = null;
+
+    // Bandera para que cad_sys.js no cancele este modo al cambiar de vista
+    this.preserveOnViewChange = true;
+  }
+
+  // =====================================================
+  // CROSS VIEW > COPIAR PUNTO 3D
+  // Evita modificar el punto original por referencia.
+  // =====================================================
+  clone3DPoint(point) {
+    return {
+      x: Number(point?.x || 0),
+      y: Number(point?.y || 0),
+      z: Number(point?.z || 0),
+    };
+  }
+
+  // =====================================================
+  // CROSS VIEW > CALCULAR DISTANCIA 3D
+  // Calcula la longitud real entre dos puntos X,Y,Z.
+  // =====================================================
+  get3DDistance(p1, p2) {
+    const dx = Number(p2.x || 0) - Number(p1.x || 0);
+    const dy = Number(p2.y || 0) - Number(p1.y || 0);
+    const dz = Number(p2.z || 0) - Number(p1.z || 0);
+
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  }
+
+  // =====================================================
+  // CROSS VIEW > CREAR BARRA 3D
+  // Usa la función central de cad_sys.js para crear nodos y barra.
+  // =====================================================
+  createCrossViewFrame(context, startPoint, endPoint) {
+    if (!context.createFrameLineFromPoints) {
+      context.showMessage?.(
+        "Falta createFrameLineFromPoints en cad_sys.js",
+        "warning"
+      );
+      return null;
+    }
+
+    const frame = context.createFrameLineFromPoints(
+      startPoint,
+      endPoint,
+      this.elementType || "beam"
+    );
+
+    if (!frame) return null;
+
+    frame.elementType = this.elementType || "beam";
+    frame.type = this.elementType || "beam";
+    frame.objectType = "frame";
+    frame.visible = true;
+    frame.isCrossViewFrame = true;
+
+    return frame;
+  }
+
+  // =====================================================
+  // CROSS VIEW > CLIC DE DIBUJO
+  // Primer clic guarda el punto inicial.
+  // Segundo clic crea la barra entre vistas.
+  // =====================================================
+  handleMouseDown(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      PanAndZoomState.prototype.handleMouseDown.call(this, event, context, mouse);
+      return;
+    }
+
+    PanAndZoomState.prototype.handleMouseDown.call(this, event, context, mouse);
+
+    const currentPoint = this.clone3DPoint(
+      this.getDrawingPoint(context, mouse)
+    );
+
+    // Primer clic: guardar punto inicial
+    if (!this.startPoint) {
+      this.startPoint = currentPoint;
+      this.previewPoint = currentPoint;
+
+      context.showMessage?.(
+        `Punto inicial 3D guardado: X=${currentPoint.x.toFixed(2)}, Y=${currentPoint.y.toFixed(2)}, Z=${currentPoint.z.toFixed(2)}`
+      );
+
+      context.redraw?.();
+      return;
+    }
+
+    // Segundo clic: crear barra entre punto inicial y punto final
+    const distance = this.get3DDistance(this.startPoint, currentPoint);
+
+    if (distance <= 0.001) {
+      context.showMessage?.(
+        "No se puede crear una barra con el mismo punto inicial y final",
+        "warning"
+      );
+      return;
+    }
+
+    const frame = this.createCrossViewFrame(
+      context,
+      this.startPoint,
+      currentPoint
+    );
+
+    if (!frame) return;
+
+    context.showMessage?.(
+      `Barra 3D creada | Longitud: ${context.formatOutput
+        ? context.formatOutput(distance, "lengths")
+        : distance.toFixed(2)
+      } m`
+    );
+
+    // Continuar dibujando desde el último punto, como ETABS
+    this.startPoint = currentPoint;
+    this.previewPoint = currentPoint;
+
+    context.markAnalysisResultsOutdated?.(
+      "Se agregó una barra 3D entre vistas."
+    );
+
+    context.redraw?.();
+    context.sync3D?.();
+  }
+
+  // =====================================================
+  // CROSS VIEW > VISTA PREVIA CON EL MOUSE
+  // Muestra la distancia entre el punto inicial y el punto actual.
+  // =====================================================
+  handleMouseMove(event, context, mouse) {
+    PanAndZoomState.prototype.handleMouseMove.call(this, event, context, mouse);
+
+    if (!this.startPoint) return;
+
+    this.previewPoint = this.clone3DPoint(
+      this.getDrawingPoint(context, mouse)
+    );
+
+    const distance = this.get3DDistance(this.startPoint, this.previewPoint);
+
+    if (context.distanceInput && distance > 0.001) {
+      const p1 = context.currentRenderer?.projectPoint
+        ? context.currentRenderer.projectPoint({ position: this.startPoint }, context)
+        : context.grid.worldToScreen(this.startPoint);
+
+      const p2 = context.currentRenderer?.projectPoint
+        ? context.currentRenderer.projectPoint({ position: this.previewPoint }, context)
+        : context.grid.worldToScreen(this.previewPoint);
+
+      const mid = {
+        x: (p1.x + p2.x) / 2,
+        y: (p1.y + p2.y) / 2,
+      };
+
+      context.distanceInput.style.left = `${mid.x + 20}px`;
+      context.distanceInput.style.top = `${mid.y - 20}px`;
+      context.distanceInput.value = context.formatOutput
+        ? context.formatOutput(distance, "lengths")
+        : distance.toFixed(2);
+    }
+
+    context.redraw?.();
+  }
+
+  // =====================================================
+  // CROSS VIEW > CAMBIO DE VISTA
+  // Mantiene guardado el punto inicial cuando el usuario cambia de vista.
+  // =====================================================
+  onViewChanged(context, view) {
+    if (!this.startPoint) return;
+
+    context.showMessage?.(
+      "Modo Frame 3D activo: selecciona el segundo punto en la nueva vista."
+    );
+
+    context.redraw?.();
+  }
+
+  // =====================================================
+  // CROSS VIEW > TECLAS DEL MODO
+  // Esc cancela el punto inicial o sale del modo.
+  // =====================================================
+  handleKeyDown(event, context) {
+    if (event.key === "Escape") {
+      if (this.startPoint) {
+        this.startPoint = null;
+        this.previewPoint = null;
+
+        if (context.distanceInput) {
+          context.distanceInput.value = "";
+        }
+
+        context.showMessage?.("Punto inicial 3D cancelado.");
+        context.redraw?.();
+        event.preventDefault();
+        return;
+      }
+
+      context.setState(context.idleState);
+      event.preventDefault();
+      return;
+    }
+
+    super.handleKeyDown(event, context);
+  }
+
+  // =====================================================
+  // CROSS VIEW > DIBUJAR PREVIEW
+  // Dibuja una línea punteada temporal entre el punto inicial y el mouse.
+  // =====================================================
+  draw(renderer, context) {
+    if (!this.startPoint || !this.previewPoint || !context.ctx) return;
+
+    const p1 = context.currentRenderer?.projectPoint
+      ? context.currentRenderer.projectPoint({ position: this.startPoint }, context)
+      : context.grid.worldToScreen(this.startPoint);
+
+    const p2 = context.currentRenderer?.projectPoint
+      ? context.currentRenderer.projectPoint({ position: this.previewPoint }, context)
+      : context.grid.worldToScreen(this.previewPoint);
+
+    context.ctx.save();
+
+    context.ctx.strokeStyle = "#facc15";
+    context.ctx.lineWidth = 2;
+    context.ctx.setLineDash([8, 5]);
+
+    context.ctx.beginPath();
+    context.ctx.moveTo(p1.x, p1.y);
+    context.ctx.lineTo(p2.x, p2.y);
+    context.ctx.stroke();
+
+    context.ctx.setLineDash([]);
+    context.ctx.fillStyle = "#facc15";
+    context.ctx.font = "bold 12px monospace";
+    context.ctx.fillText("Frame 3D", p2.x + 8, p2.y - 8);
+
+    context.ctx.restore();
+  }
+
+  // =====================================================
+  // CROSS VIEW > LIMPIEZA AL SALIR
+  // Reinicia el modo cuando el usuario cambia a otra herramienta.
+  // =====================================================
+  exit() {
+    super.exit();
+
+    this.startPoint = null;
+    this.previewPoint = null;
+
+    if (this.context?.distanceInput) {
+      this.context.distanceInput.value = "";
+    }
+  }
+
+  info() {
+    if (this.startPoint) {
+      return "Frame 3D entre vistas: cambia de planta/elevación y selecciona el segundo punto. Esc cancela.";
+    }
+
+    return "Frame 3D entre vistas: haz clic en el primer punto. Luego puedes cambiar de vista y hacer clic en el segundo punto.";
   }
 }
 
@@ -3228,85 +3915,6 @@ export class DimensionLineDrawingState extends PanAndZoomState {
   }
 }
 
-export class CopyState extends StateBase {
-  handleMouseDown(event, context, mouse) {
-    const cloneShape = closestLine({ x: x, y: y });
-    if (cloneShape) {
-      handleIsSelected = true;
-      shape = structuredClone(cloneShape);
-      shape = Object.assign(Object.create(Object.getPrototypeOf(cloneShape)), shape);
-      shapes.push(shape);
-      selectedObject = shape;
-      shape = new Shape(true);
-      switchTool(Tools.MOVE);
-      canvas.style.cursor = "move";
-    }
-  }
-}
-
-export class EditState extends StateBase {
-  handleMouseDown(event, context, mouse) {
-    if (!context.canSelectInCurrentView()) {
-      context.clearAllSelections();
-      context.setState(context.idleState);
-      return;
-    }
-
-    super.handleMouseDown(...arguments);
-
-    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
-      return;
-    }
-
-    const selectedNode = context.closestNodeAtActiveView(mouse);
-    if (selectedNode) {
-      context.setState(context.selectedNodesState, {
-        selectedNodes: [selectedNode],
-      });
-      return;
-    }
-
-    const selectedBeam = context.closestBeamAtActiveView(mouse);
-    if (selectedBeam) {
-      context.setState(context.selectedBeamsState, {
-        selectedBeams: [selectedBeam],
-      });
-      return;
-    }
-
-    context.clearAllSelections();
-    context.setState(context.idleState);
-  }
-}
-
-export class ChangeSupport extends StateBase {
-  handleMouseDown(event, context, mouse) {
-    if (!context.canSelectInCurrentView()) {
-      context.clearAllSelections();
-      context.setState(context.idleState);
-      return;
-    }
-
-    super.handleMouseDown(...arguments);
-
-    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
-      return;
-    }
-
-    const selectedNode = context.closestNodeAtActiveView(mouse);
-
-    if (!selectedNode) {
-      context.clearAllSelections();
-      context.setState(context.idleState);
-      return;
-    }
-
-    context.setState(context.selectedNodesState, {
-      selectedNodes: [selectedNode],
-    });
-  }
-}
-
 export class TrussDrawingState3D extends PanAndZoomState {
   constructor(context) {
     super();
@@ -3552,3 +4160,82 @@ export class TrussDrawingState3D extends PanAndZoomState {
     return `✏️ DIBUJO 3D | Plano: ${planeNames[this.currentPlane]} | Snap: ${this.snapToGrid3D ? "ON" : "OFF"} | Grid: ${this.gridSize3D}m | Teclas: 1,2,3 (planos) | S (snap) | G (grid)`;
   }
 }
+
+// export class CopyState extends StateBase {
+//   handleMouseDown(event, context, mouse) {
+//     const cloneShape = closestLine({ x: x, y: y });
+//     if (cloneShape) {
+//       handleIsSelected = true;
+//       shape = structuredClone(cloneShape);
+//       shape = Object.assign(Object.create(Object.getPrototypeOf(cloneShape)), shape);
+//       shapes.push(shape);
+//       selectedObject = shape;
+//       shape = new Shape(true);
+//       switchTool(Tools.MOVE);
+//       canvas.style.cursor = "move";
+//     }
+//   }
+// }
+
+// export class EditState extends StateBase {
+//   handleMouseDown(event, context, mouse) {
+//     if (!context.canSelectInCurrentView()) {
+//       context.clearAllSelections();
+//       context.setState(context.idleState);
+//       return;
+//     }
+
+//     super.handleMouseDown(...arguments);
+
+//     if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+//       return;
+//     }
+
+//     const selectedNode = context.closestNodeAtActiveView(mouse);
+//     if (selectedNode) {
+//       context.setState(context.selectedNodesState, {
+//         selectedNodes: [selectedNode],
+//       });
+//       return;
+//     }
+
+//     const selectedBeam = context.closestBeamAtActiveView(mouse);
+//     if (selectedBeam) {
+//       context.setState(context.selectedBeamsState, {
+//         selectedBeams: [selectedBeam],
+//       });
+//       return;
+//     }
+
+//     context.clearAllSelections();
+//     context.setState(context.idleState);
+//   }
+// }
+
+// export class ChangeSupport extends StateBase {
+//   handleMouseDown(event, context, mouse) {
+//     if (!context.canSelectInCurrentView()) {
+//       context.clearAllSelections();
+//       context.setState(context.idleState);
+//       return;
+//     }
+
+//     super.handleMouseDown(...arguments);
+
+//     if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+//       return;
+//     }
+
+//     const selectedNode = context.closestNodeAtActiveView(mouse);
+
+//     if (!selectedNode) {
+//       context.clearAllSelections();
+//       context.setState(context.idleState);
+//       return;
+//     }
+
+//     context.setState(context.selectedNodesState, {
+//       selectedNodes: [selectedNode],
+//     });
+//   }
+// }
