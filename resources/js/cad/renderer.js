@@ -53,7 +53,6 @@ export const soportes = {
 };
 
 export class DiseñoRenderer {
-
   getDisplayColor(context, key, fallback) {
     return context.displayColors?.[key] || fallback;
   }
@@ -160,6 +159,7 @@ export class DiseñoRenderer {
     if (CADSystem.options.showReactions) {
       CADSystem.ctx.save();
       CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
         this.drawReaction(n, CADSystem);
       });
       CADSystem.ctx.restore();
@@ -212,21 +212,13 @@ export class DiseñoRenderer {
       context.ctx.translate(mid.x, mid.y);
       context.ctx.rotate(s.angle);
       // context.ctx.fillText(s.fAxial.toFixed(3), 0, 30);
-      context.ctx.fillText(
-        this.formatValue(context, s.fAxial, "forces", 3),
-        0,
-        30
-      );
+      context.ctx.fillText(this.formatValue(context, s.fAxial, "forces", 3), 0, 30);
       context.ctx.restore();
     });
   }
 
   clearBackground(context) {
-    const bgColor = this.getDisplayColor(
-      context,
-      "background2d",
-      context.canvas2dBackground || "#36454F"
-    );
+    const bgColor = this.getDisplayColor(context, "background2d", context.canvas2dBackground || "#36454F");
 
     context.ctx.fillStyle = bgColor;
     context.ctx.fillRect(0, 0, context.grid.width, context.grid.height);
@@ -378,11 +370,7 @@ export class DiseñoRenderer {
     context.ctx.font = "12px arial";
     context.ctx.textAlign = "right";
     // context.ctx.fillText(mag.toFixed(2) + "kN", end.x, end.y);
-    context.ctx.fillText(
-      `${this.formatValue(context, mag, "forces", 2)}kN`,
-      end.x,
-      end.y
-    );
+    context.ctx.fillText(`${this.formatValue(context, mag, "forces", 2)}kN`, end.x, end.y);
     context.ctx.stroke();
     // Draw arrowhead
     const headLength = 10;
@@ -402,9 +390,93 @@ export class DiseñoRenderer {
     context.ctx.fill();
   }
 
+  // agregamos la funcion auxiliar
+  // Esta función dibuja una flecha vertical desde el punto p, con la magnitud y dirección indicadas.
+  // Es similar a drawVerticalLine pero sin asumir que se trata de Fy
+
+  drawVerticalForce(context, mag, text, p, color) {
+    context.ctx.save();
+    context.ctx.strokeStyle = color;
+    context.ctx.fillStyle = color;
+    let angle;
+    if (Math.sign(mag) === -1) {
+      context.ctx.textBaseline = "bottom";
+      angle = Math.PI / 2;
+    } else {
+      context.ctx.textBaseline = "top";
+      angle = (3 * Math.PI) / 2;
+    }
+    context.ctx.textAlign = "center";
+    context.ctx.beginPath();
+    context.ctx.moveTo(p.x, p.y);
+    const endY = p.y + 50 * Math.sign(mag);
+    context.ctx.lineTo(p.x, endY);
+    context.ctx.stroke();
+    context.ctx.fillText(text, p.x, endY);
+    const headLength = 8;
+    context.ctx.beginPath();
+    context.ctx.moveTo(p.x, p.y);
+    context.ctx.lineTo(
+      p.x - headLength * Math.cos(angle - Math.PI / 6),
+      p.y - headLength * Math.sin(angle - Math.PI / 6),
+    );
+    context.ctx.lineTo(
+      p.x - headLength * Math.cos(angle + Math.PI / 6),
+      p.y - headLength * Math.sin(angle + Math.PI / 6),
+    );
+    context.ctx.lineTo(p.x, p.y);
+    context.ctx.closePath();
+    context.ctx.fill();
+    context.ctx.restore();
+  }
+
+  // drawForce(node, context) {
+  //   //context.ctx.textAlign = "right";
+  //   // const p = context.grid.worldToScreen(node.position);
+  //   const p = this.projectPoint(node, context);
+  //   const colors = {
+  //     CM: "brown",
+  //     CV: "orange",
+  //     CVVM: "white",
+  //     CVVP: "black",
+  //     CN: "whitesmoke",
+  //     CLL: "lightblue",
+  //   };
+  //   /* Object.entries(node.force.loads).forEach(([load, { x, y }]) => { */
+  //   const { x, y } = node.force.loads[context.options.currentLoad];
+  //   const magX = x;
+  //   const magY = y;
+  //   const mag = pointDistance({ x: 0, y: 0 }, { x: magX, y: magY });
+  //   const uMag = { x: magX / mag, y: magY / mag };
+  //   const end = { x: p.x - uMag.x * 5 * mag, y: p.y + uMag.y * 5 * mag };
+
+  //   Object.assign(context.ctx, node.style.getModel().FORCE);
+
+  //   if (magX && magX !== 0) {
+  //     // this.drawHorizontalLine(context, magX, `${magX.toFixed(2)}kN`, p, colors[context.options.currentLoad]);
+  //     this.drawHorizontalLine(
+  //       context,
+  //       magX,
+  //       `${this.formatValue(context, magX, "forces", 2)}kN`,
+  //       p,
+  //       colors[context.options.currentLoad],
+  //     );
+  //   }
+  //   if (magY && magY !== 0) {
+  //     // this.drawVerticalLine(context, magY, `${magY.toFixed(2)}kN`, p, colors[context.options.currentLoad]);
+  //     this.drawVerticalLine(
+  //       context,
+  //       magY,
+  //       `${this.formatValue(context, magY, "forces", 2)}kN`,
+  //       p,
+  //       colors[context.options.currentLoad],
+  //     );
+  //   }
+  // }
+
   drawForce(node, context) {
-    //context.ctx.textAlign = "right";
-    // const p = context.grid.worldToScreen(node.position);
+    // Asegurar que el nodo es visible en la vista actual
+    if (!this.shouldDrawNode(node, context)) return;
     const p = this.projectPoint(node, context);
     const colors = {
       CM: "brown",
@@ -414,35 +486,62 @@ export class DiseñoRenderer {
       CN: "whitesmoke",
       CLL: "lightblue",
     };
-    /* Object.entries(node.force.loads).forEach(([load, { x, y }]) => { */
-    const { x, y } = node.force.loads[context.options.currentLoad];
-    const magX = x;
-    const magY = y;
-    const mag = pointDistance({ x: 0, y: 0 }, { x: magX, y: magY });
-    const uMag = { x: magX / mag, y: magY / mag };
-    const end = { x: p.x - uMag.x * 5 * mag, y: p.y + uMag.y * 5 * mag };
+    const currentLoad = context.options.currentLoad;
+    const load = node.force.loads[currentLoad];
+    if (!load) return;
 
-    Object.assign(context.ctx, node.style.getModel().FORCE);
+    const fx = load.x || 0;
+    const fy = load.y || 0;
+    const fz = load.z || 0;
 
-    if (magX && magX !== 0) {
-      // this.drawHorizontalLine(context, magX, `${magX.toFixed(2)}kN`, p, colors[context.options.currentLoad]);
-      this.drawHorizontalLine(
-        context,
-        magX,
-        `${this.formatValue(context, magX, "forces", 2)}kN`,
-        p,
-        colors[context.options.currentLoad]
-      );
+    const view = context.viewSet?.[context.activeViewIndex];
+
+    // Vista planta: dibujar Fx y Fy como antes, y opcionalmente un marcador para Fz
+    if (!view || view.type === "plan") {
+      if (fx !== 0) {
+        this.drawHorizontalLine(context, fx, `${this.formatValue(context, fx, "forces", 2)}kN`, p, colors[currentLoad]);
+      }
+      if (fy !== 0) {
+        this.drawVerticalLine(context, fy, `${this.formatValue(context, fy, "forces", 2)}kN`, p, colors[currentLoad]);
+      }
+      if (fz !== 0) {
+        // En planta, la fuerza vertical no se ve como flecha; dibujamos un pequeño círculo con "Z"
+        context.ctx.save();
+        context.ctx.fillStyle = colors[currentLoad];
+        context.ctx.beginPath();
+        context.ctx.arc(p.x, p.y + 15, 8, 0, 2 * Math.PI);
+        context.ctx.fill();
+        context.ctx.fillStyle = "white";
+        context.ctx.font = "10px Arial";
+        context.ctx.textAlign = "center";
+        context.ctx.textBaseline = "middle";
+        context.ctx.fillText("Z", p.x, p.y + 15);
+        // Mostrar magnitud al lado
+        context.ctx.fillStyle = colors[currentLoad];
+        context.ctx.font = "10px Arial";
+        context.ctx.fillText(`${this.formatValue(context, fz, "forces", 2)}kN`, p.x + 12, p.y + 15);
+        context.ctx.restore();
+      }
     }
-    if (magY && magY !== 0) {
-      // this.drawVerticalLine(context, magY, `${magY.toFixed(2)}kN`, p, colors[context.options.currentLoad]);
-      this.drawVerticalLine(
-        context,
-        magY,
-        `${this.formatValue(context, magY, "forces", 2)}kN`,
-        p,
-        colors[context.options.currentLoad]
-      );
+    // Vista elevación X (LETRAS) → plano Y-Z: Fy horizontal, Fz vertical
+    else if (view.type === "elevation" && view.axis === "X") {
+      if (fy !== 0) {
+        this.drawHorizontalLine(context, fy, `${this.formatValue(context, fy, "forces", 2)}kN`, p, colors[currentLoad]);
+      }
+      if (fz !== 0) {
+        this.drawVerticalForce(context, fz, `${this.formatValue(context, fz, "forces", 2)}kN`, p, colors[currentLoad]);
+      }
+      // fx no se dibuja (sale del plano)
+    }
+    // Vista elevación Y (NÚMEROS) → plano X-Z: Fx horizontal, Fz vertical
+    else if (view.type === "elevation" && view.axis === "Y") {
+      if (fx !== 0) {
+        this.drawHorizontalLine(context, fx, `${this.formatValue(context, fx, "forces", 2)}kN`, p, colors[currentLoad]);
+      }
+      if (fz !== 0) {
+        this.drawVerticalForce(context, fz, `${this.formatValue(context, fz, "forces", 2)}kN`, p, colors[currentLoad]);
+      }
+      // fy no se dibuja
     }
   }
 
@@ -458,23 +557,11 @@ export class DiseñoRenderer {
     Object.assign(context.ctx, node.style.getModel().FORCE);
     if (magX && Math.abs(magX) > 0.0000000001) {
       // this.drawHorizontalLine(context, magX, `${magX.toFixed(2)}kN`, p, "aquamarine");
-      this.drawHorizontalLine(
-        context,
-        magX,
-        `${this.formatValue(context, magX, "reactions", 2)}kN`,
-        p,
-        "aquamarine"
-      );
+      this.drawHorizontalLine(context, magX, `${this.formatValue(context, magX, "reactions", 2)}kN`, p, "aquamarine");
     }
     if (magY && Math.abs(magY) > 0.0000000001) {
       // this.drawVerticalLine(context, magY, `${magY.toFixed(2)}kN`, p, "aquamarine");
-      this.drawVerticalLine(
-        context,
-        magY,
-        `${this.formatValue(context, magY, "reactions", 2)}kN`,
-        p,
-        "aquamarine"
-      );
+      this.drawVerticalLine(context, magY, `${this.formatValue(context, magY, "reactions", 2)}kN`, p, "aquamarine");
     }
   }
 
@@ -669,9 +756,7 @@ export class DiseñoRenderer {
     // ÁREA
     // =========================
     if (state.selectedArea && state.selectedArea.points?.length) {
-      const pts = state.selectedArea.points.map((p) =>
-        this.projectPoint({ position: p }, context)
-      );
+      const pts = state.selectedArea.points.map((p) => this.projectPoint({ position: p }, context));
 
       // borde resaltado
       ctx.strokeStyle = "#60a5fa";
@@ -778,17 +863,9 @@ export class DiseñoRenderer {
 
     ctx.save();
 
-    const strokeColor = isPreview
-      ? "#fbbf24"
-      : dim.selected
-        ? "#ef4444"
-        : "#38bdf8";
+    const strokeColor = isPreview ? "#fbbf24" : dim.selected ? "#ef4444" : "#38bdf8";
 
-    const fillColor = isPreview
-      ? "#fbbf24"
-      : dim.selected
-        ? "#f87171"
-        : "#7dd3fc";
+    const fillColor = isPreview ? "#fbbf24" : dim.selected ? "#f87171" : "#7dd3fc";
 
     ctx.strokeStyle = strokeColor;
     ctx.fillStyle = fillColor;
@@ -872,25 +949,15 @@ export class DiseñoRenderer {
   getElementRenderStyle(beam, mode = "model", context = null) {
     const type = beam.elementType || beam.type || "beam";
 
-    const beamColor = context
-      ? this.getDisplayColor(context, "beam", "#d1d5db")
-      : "#d1d5db";
+    const beamColor = context ? this.getDisplayColor(context, "beam", "#d1d5db") : "#d1d5db";
 
-    const secondaryBeamColor = context
-      ? this.getDisplayColor(context, "secondaryBeam", "#38bdf8")
-      : "#38bdf8";
+    const secondaryBeamColor = context ? this.getDisplayColor(context, "secondaryBeam", "#38bdf8") : "#38bdf8";
 
-    const columnColor = context
-      ? this.getDisplayColor(context, "column", "#22c55e")
-      : "#22c55e";
+    const columnColor = context ? this.getDisplayColor(context, "column", "#22c55e") : "#22c55e";
 
-    const selectedColor = context
-      ? this.getDisplayColor(context, "selected", "#facc15")
-      : "#facc15";
+    const selectedColor = context ? this.getDisplayColor(context, "selected", "#facc15") : "#facc15";
 
-    const textColor = context
-      ? this.getDisplayColor(context, "text", "#ffffff")
-      : "#ffffff";
+    const textColor = context ? this.getDisplayColor(context, "text", "#ffffff") : "#ffffff";
 
     if (beam.selected) {
       return {
@@ -1004,18 +1071,13 @@ export class DiseñoRenderer {
 
     const refGrid = context.referenceGrid;
 
-    const hasLegacyGrid =
-      refGrid &&
-      Array.isArray(refGrid.xPositions) &&
-      refGrid.xPositions.length > 0;
+    const hasLegacyGrid = refGrid && Array.isArray(refGrid.xPositions) && refGrid.xPositions.length > 0;
 
     const hasNewGrid =
       refGrid &&
-      (
-        (Array.isArray(refGrid.generalGrids) && refGrid.generalGrids.length > 0) ||
+      ((Array.isArray(refGrid.generalGrids) && refGrid.generalGrids.length > 0) ||
         (Array.isArray(refGrid.xGrids) && refGrid.xGrids.length > 0) ||
-        (Array.isArray(refGrid.yGrids) && refGrid.yGrids.length > 0)
-      );
+        (Array.isArray(refGrid.yGrids) && refGrid.yGrids.length > 0));
 
     if (hasLegacyGrid || hasNewGrid) {
       this.drawReferenceGridOnly(grid, context);
@@ -1127,9 +1189,7 @@ export class DiseñoRenderer {
     let currentY = 0;
     const elev = context.zElevations?.find(
       (e) =>
-        e.label === currentElevationZ ||
-        e.name === currentElevationZ ||
-        e.name === `Elevación ${currentElevationZ}`
+        e.label === currentElevationZ || e.name === currentElevationZ || e.name === `Elevación ${currentElevationZ}`,
     );
 
     if (elev) currentY = elev.value ?? elev.y ?? 0;
@@ -1224,9 +1284,7 @@ export class DiseñoRenderer {
     let currentX = 0;
     const elev = context.xElevations?.find(
       (e) =>
-        e.label === currentElevationX ||
-        e.name === currentElevationX ||
-        e.name === `Elevación ${currentElevationX}`
+        e.label === currentElevationX || e.name === currentElevationX || e.name === `Elevación ${currentElevationX}`,
     );
 
     if (elev) currentX = elev.value ?? elev.x ?? 0;
@@ -1433,13 +1491,7 @@ export class DiseñoRenderer {
       ctx.setLineDash([]);
 
       const bubblePoint = line.bubbleLoc === "Start" ? p1 : p2;
-      this.drawGridBubble(
-        ctx,
-        bubblePoint,
-        line.id,
-        line.source === "custom" ? "#bfc7d5" : lineColor,
-        textColor
-      );
+      this.drawGridBubble(ctx, bubblePoint, line.id, line.source === "custom" ? "#bfc7d5" : lineColor, textColor);
     });
 
     ctx.setLineDash([]);
@@ -1524,9 +1576,7 @@ export class DiseñoRenderer {
     const ref = context.referenceGrid;
     if (!ref?.generalGrids?.length) return;
 
-    const customLines = ref.generalGrids.filter(
-      (g) => g.source === "custom" && g.visible !== false
-    );
+    const customLines = ref.generalGrids.filter((g) => g.source === "custom" && g.visible !== false);
 
     customLines.forEach((line) => {
       this.drawGeneralGridBubble(grid, context.ctx, line);
@@ -1636,7 +1686,7 @@ export class DiseñoRenderer {
     ctx.restore();
   }
 
-  drawState(state) { }
+  drawState(state) {}
 
   drawSelectionState(state, context) {
     context.ctx.save();
@@ -1656,6 +1706,33 @@ export class DiseñoRenderer {
     context.ctx.strokeRect(start.x, start.y, width, height);
     context.ctx.restore();
   }
+
+  // drawDeflections(context) {
+  //   context.ctx.save();
+  //   context.ctx.strokeStyle = "blue";
+  //   context.ctx.fillStyle = "blue";
+  //   context.ctx.textAlign = "center";
+  //   context.ctx.textBaseline = "middle";
+  //   context.deflecciones.forEach((def) => {
+  //     const [x1, x2] = def.x;
+  //     const [y1, y2] = def.y;
+  //     const p1 = context.grid.worldToScreen({ x: x1, y: y1 });
+  //     const p2 = context.grid.worldToScreen({ x: x2, y: y2 });
+  //     context.ctx.beginPath();
+  //     context.ctx.setLineDash([5, 3]);
+  //     context.ctx.moveTo(p1.x, p1.y);
+  //     context.ctx.lineTo(p2.x, p2.y);
+  //     context.ctx.stroke();
+  //   });
+  //   context.desplazamientosPosition.forEach((d, index) => {
+  //     const [x, y, _] = context.matrizDesplazamiento[index];
+  //     const p = context.grid.worldToScreen(d);
+  //     context.ctx.fillText(`dx: ${axisToFixed(x)}`, p.x, p.y);
+  //     context.ctx.fillText(`dy: ${axisToFixed(y)}`, p.x, p.y + 10);
+  //   });
+
+  //   context.ctx.restore();
+  // }
 
   drawTrussDrawingState(state, context) {
     const view = context.viewSet?.[context.activeViewIndex];
@@ -1707,31 +1784,74 @@ export class DiseñoRenderer {
     context.ctx.restore();
   }
 
+  // ======================================================================================================
+  // METODO PARA DIBUJAR LAS DEFORMADAS SOLO EN LOS NODOS Y BARRAS VISIBLES SEGÚN LA VISTA ACTIVA
+  // PROYECTANDO CORRECTAMENTE LOS PUNTOS DE LAS DEFORMADAS PARA QUE SEAN COHERENTES CON PLANTA Y ELEVACIÓN
+  // ======================================================================================================
   drawDeflections(context) {
-    context.ctx.save();
-    context.ctx.strokeStyle = "blue";
-    context.ctx.fillStyle = "blue";
-    context.ctx.textAlign = "center";
-    context.ctx.textBaseline = "middle";
-    context.deflecciones.forEach((def) => {
-      const [x1, x2] = def.x;
-      const [y1, y2] = def.y;
-      const p1 = context.grid.worldToScreen({ x: x1, y: y1 });
-      const p2 = context.grid.worldToScreen({ x: x2, y: y2 });
-      context.ctx.beginPath();
-      context.ctx.setLineDash([5, 3]);
-      context.ctx.moveTo(p1.x, p1.y);
-      context.ctx.lineTo(p2.x, p2.y);
-      context.ctx.stroke();
-    });
-    context.desplazamientosPosition.forEach((d, index) => {
-      const [x, y, _] = context.matrizDesplazamiento[index];
-      const p = context.grid.worldToScreen(d);
-      context.ctx.fillText(`dx: ${axisToFixed(x)}`, p.x, p.y);
-      context.ctx.fillText(`dy: ${axisToFixed(y)}`, p.x, p.y + 10);
+    const ctx = context.ctx;
+    ctx.save();
+    ctx.strokeStyle = "blue";
+    ctx.fillStyle = "blue";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    // Dibujar barras deformadas proyectando correctamente según la vista activa
+    context.shapes.forEach((beam, idx) => {
+      const node1 = beam.node1;
+      const node2 = beam.node2;
+      if (!node1 || !node2) return;
+      if (!this.shouldDrawNode(node1, context) || !this.shouldDrawNode(node2, context)) return;
+
+      const def = context.deflecciones[idx];
+      if (!def || !def.x || !def.y || !def.z) return;
+
+      // Puntos 3D deformados
+      const p1_3d = { x: def.x[0], y: def.y[0], z: def.z[0] };
+      const p2_3d = { x: def.x[1], y: def.y[1], z: def.z[1] };
+
+      // Proyectar a pantalla usando el método que ya maneja plantas y elevaciones
+      const screen1 = this.projectPoint({ position: p1_3d }, context);
+      const screen2 = this.projectPoint({ position: p2_3d }, context);
+
+      ctx.beginPath();
+      ctx.setLineDash([5, 3]);
+      ctx.moveTo(screen1.x, screen1.y);
+      ctx.lineTo(screen2.x, screen2.y);
+      ctx.stroke();
     });
 
-    context.ctx.restore();
+    // Dibujar etiquetas de desplazamiento proyectadas
+    context.nodes.forEach((node, index) => {
+      if (!this.shouldDrawNode(node, context)) return;
+      const dispPos = context.desplazamientosPosition?.[index];
+      if (!dispPos) return;
+      const [dx, dy, dz] = context.matrizDesplazamiento[index] || [0, 0, 0];
+
+      const screen = this.projectPoint({ position: dispPos }, context);
+      const view = context.viewSet?.[context.activeViewIndex];
+
+      if (view?.type === "plan") {
+        ctx.fillText(`dx: ${this.formatValue(context, dx, "displacements", 6)}`, screen.x, screen.y);
+        ctx.fillText(`dy: ${this.formatValue(context, dy, "displacements", 6)}`, screen.x, screen.y + 12);
+      } else if (view?.type === "elevation") {
+        if (view.axis === "X") {
+          // Plano Y-Z: dy horizontal, dz vertical
+          ctx.fillText(`dy: ${this.formatValue(context, dy, "displacements", 6)}`, screen.x, screen.y);
+          ctx.fillText(`dz: ${this.formatValue(context, dz, "displacements", 6)}`, screen.x, screen.y + 12);
+        } else if (view.axis === "Y") {
+          // Plano X-Z: dx horizontal, dz vertical
+          ctx.fillText(`dx: ${this.formatValue(context, dx, "displacements", 6)}`, screen.x, screen.y);
+          ctx.fillText(`dz: ${this.formatValue(context, dz, "displacements", 6)}`, screen.x, screen.y + 12);
+        }
+      } else {
+        // fallback
+        ctx.fillText(`dx: ${this.formatValue(context, dx, "displacements", 6)}`, screen.x, screen.y);
+        ctx.fillText(`dy: ${this.formatValue(context, dy, "displacements", 6)}`, screen.x, screen.y + 12);
+      }
+    });
+
+    ctx.restore();
   }
 
   drawMaterials(context) {
@@ -1796,12 +1916,7 @@ export class DiseñoRenderer {
     const tol = 0.05;
 
     // cota del área
-    const areaZ =
-      typeof area.z === "number"
-        ? area.z
-        : typeof area.points[0]?.z === "number"
-          ? area.points[0].z
-          : 0;
+    const areaZ = typeof area.z === "number" ? area.z : typeof area.points[0]?.z === "number" ? area.points[0].z : 0;
 
     if (view.type === "plan") {
       return Math.abs(areaZ - view.elevation) <= tol;
@@ -1985,9 +2100,6 @@ export class DeflexionRenderer extends DiseñoRenderer {
       );
     });
   }
-
-
-
 }
 
 export class AxialRenderer extends DiseñoRenderer {

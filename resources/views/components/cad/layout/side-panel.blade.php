@@ -144,7 +144,7 @@
             </div>
         </template>
         <template x-if="currentState === selectedNodesState">
-            <div class="flex flex-col gap-2 p-2" x-data="{ fx: undefined, fy: undefined, selected: null }">
+            <div class="flex flex-col gap-2 p-2" x-data="{ fx: undefined, fy: undefined, fz: undefined, selected: null }">
                 <x-cad.panel-properties title="Fuerza">
                     <x-cad.input-properties label="Fx" bind="fx"
                         handleInput="currentState.selectedObjects.forEach((n) => {

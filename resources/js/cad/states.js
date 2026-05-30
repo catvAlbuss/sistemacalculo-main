@@ -949,6 +949,18 @@ export class MoveObjectState extends IdleState {
     return (this.selectedObject.force.loads[this.currentLoad].y = y);
   }
 
+  // ========== NUEVO: getter y setter para Fz ==========
+  get nodeZ() {
+    return this.selectedObject?.force?.loads?.[this.currentLoad]?.z ?? 0;
+  }
+
+  set nodeZ(z) {
+    if (this.selectedObject?.force?.loads?.[this.currentLoad]) {
+      this.selectedObject.force.loads[this.currentLoad].z = z;
+    }
+  }
+  // ====================================================
+
   handleKeyDown(event, context) {
     super.handleKeyDown(...arguments);
     if (event.key === "Delete") {
@@ -1072,46 +1084,6 @@ export class TrussDrawingState extends PanAndZoomState {
     shape.visible = true;
     return shape;
   }
-
-  // getDrawingPoint(context, mouse) {
-  //   const worldPos = context.grid.screenToWorld(mouse);
-
-  //   if (context.getCurrentSnapPoint) {
-  //     return context.getCurrentSnapPoint(worldPos);
-  //   }
-
-  //   const view = context.viewSet?.[context.activeViewIndex];
-
-  //   if (context.activeGridPoint) {
-  //     return {
-  //       x: Number(context.activeGridPoint.x || 0),
-  //       y: Number(context.activeGridPoint.y || 0),
-  //       z: Number(context.activeGridPoint.z || 0),
-  //     };
-  //   }
-
-  //   if (view?.type === "elevation" && view.axis === "X") {
-  //     return {
-  //       x: Number(view.value || 0),
-  //       y: Number(worldPos.x || 0),
-  //       z: Number(worldPos.y || 0),
-  //     };
-  //   }
-
-  //   if (view?.type === "elevation" && view.axis === "Y") {
-  //     return {
-  //       x: Number(worldPos.x || 0),
-  //       y: Number(view.value || 0),
-  //       z: Number(worldPos.y || 0),
-  //     };
-  //   }
-
-  //   return {
-  //     x: Number(worldPos.x || 0),
-  //     y: Number(worldPos.y || 0),
-  //     z: Number(context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0),
-  //   };
-  // }
 
   getDrawingPoint(context, mouse) {
     const worldPos = context.grid.screenToWorld(mouse);

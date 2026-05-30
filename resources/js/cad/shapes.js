@@ -171,13 +171,13 @@ export class Shape {
     return this._propiedades;
   }
 
-  drawUnfinished() { }
+  drawUnfinished() {}
 
   drawTranslated(translation) {
     // draws a copy translated to a diference of vectors
   }
 
-  drawSelected() { }
+  drawSelected() {}
 }
 
 export class Marker {
@@ -204,11 +204,12 @@ export class Marker {
 }
 
 export class Node {
-  constructor(position, id, z = 0) {  // ← AÑADE z = 0 como tercer parámetro
+  constructor(position, id, z = 0) {
+    // ← AÑADE z = 0 como tercer parámetro
     this.position = {
       x: position.x,
       y: position.y,
-      z: z  // ← AHORA z está definido
+      z: z, // ← AHORA z está definido
     };
     this.force = {
       loads: {
@@ -233,8 +234,8 @@ export class Node {
   }
 
   tieneCarga() {
-    return Object.entries(this.force.loads).some(([_, { x, y }]) => {
-      return x != 0 || y != 0;
+    return Object.entries(this.force.loads).some(([_, { x, y, z }]) => {
+      return x != 0 || y != 0 || z != 0;
     });
   }
 
@@ -247,6 +248,13 @@ export class Node {
   cargaY() {
     return Object.entries(this.force.loads).reduce((sum, [_, { __, y, multiplier }]) => {
       return sum + y * multiplier;
+    }, 0);
+  }
+
+  // Agrega la carga Z
+  cargaZ() {
+    return Object.entries(this.force.loads).reduce((sum, [_, { z, multiplier }]) => {
+      return sum + (z || 0) * (multiplier || 1);
     }, 0);
   }
 
@@ -300,7 +308,7 @@ export class Beam {
 export class Area extends Shape {
   constructor(areaType = "slab", z = 0) {
     super();
-    this.areaType = areaType;   // slab | wall | opening
+    this.areaType = areaType; // slab | wall | opening
     this.z = z;
     this.id = null;
     this.visible = true;
@@ -327,5 +335,5 @@ export class Area extends Shape {
 }
 
 export class PointLoad {
-  constructor() { }
+  constructor() {}
 }

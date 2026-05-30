@@ -2782,6 +2782,7 @@ export default () => ({
       });
   },
 
+  // Metodo que calcula la deflexion en 2D
   // calcularFuerzas(event) {
   //   event.preventDefault();
   //   const formData = new FormData(event.target);
@@ -2930,37 +2931,6 @@ export default () => ({
    * Almacena en this.desplazamientosPosition y también actualiza this.deflecciones.
    */
   calcularDeflecciones3D() {
-    // if (!this.matrizDesplazamiento || !this.nodes) return;
-
-    // // Guardar posiciones deformadas para visualización
-    // this.desplazamientosPosition = this.matrizDesplazamiento.map((disp, index) => {
-    //   const originalPos = this._originalPositions3D?.[index] || {
-    //     x: this.nodes[index].position.x,
-    //     y: this.nodes[index].position.y,
-    //     z: this.nodes[index].position.z || 0,
-    //   };
-
-    //   return {
-    //     x: originalPos.x + (disp[0] || 0) * this.options.deflectionScale,
-    //     y: originalPos.y + (disp[1] || 0) * this.options.deflectionScale,
-    //     z: originalPos.z + (disp[2] || 0) * this.options.deflectionScale,
-    //   };
-    // });
-
-    // // Calcular deflecciones para cada barra
-    // this.deflecciones = this.shapes.map((b) => {
-    //   const idx1 = this.nodes.indexOf(b.node1);
-    //   const idx2 = this.nodes.indexOf(b.node2);
-
-    //   if (idx1 >= 0 && idx2 >= 0 && this.desplazamientosPosition) {
-    //     return {
-    //       x: [this.desplazamientosPosition[idx1]?.x || 0, this.desplazamientosPosition[idx2]?.x || 0],
-    //       y: [this.desplazamientosPosition[idx1]?.y || 0, this.desplazamientosPosition[idx2]?.y || 0],
-    //       z: [this.desplazamientosPosition[idx1]?.z || 0, this.desplazamientosPosition[idx2]?.z || 0],
-    //     };
-    //   }
-    //   return { x: [0, 0], y: [0, 0], z: [0, 0] };
-    // });
 
     if (!this.matrizDesplazamiento || !this.nodes) return;
 
@@ -2991,6 +2961,22 @@ export default () => ({
       })
       .filter((p) => p !== null);
 
+    // Calcular deflecciones para cada barra usando las posiciones deformadas
+    // Si alguna posición deformada no es válida, se usará la posición original del nodo
+    this.deflecciones = this.shapes.map((b) => {
+      const idx1 = this.nodes.indexOf(b.node1);
+      const idx2 = this.nodes.indexOf(b.node2);
+      if (idx1 >= 0 && idx2 >= 0 && this.desplazamientosPosition) {
+        const p1 = this.desplazamientosPosition[idx1];
+        const p2 = this.desplazamientosPosition[idx2];
+        return {
+          x: [p1.x, p2.x],
+          y: [p1.y, p2.y],
+          z: [p1.z, p2.z],
+        };
+      }
+      return { x: [0,0], y: [0,0], z: [0,0] };
+    });
     // Si algún nodo no tiene desplazamiento válido, usar posición original
     if (this.desplazamientosPosition.length !== this.nodes.length) {
       console.warn("Algunos nodos no tienen desplazamiento válido, usando originales");
@@ -3032,7 +3018,7 @@ export default () => ({
   updateDeflectionScale() {
     if (this.matrizDesplazamiento) {
       // console.log("Escala:", this.options.deflectionScale);
-      this.calcularDeflecciones(); // actualiza this.desplazamientosPosition
+      // this.calcularDeflecciones(); // actualiza this.desplazamientosPosition
       // console.log("desplazamientosPosition (2D):", this.desplazamientosPosition);
       this.calcularDeflecciones3D(); // actualiza this.desplazamientosPosition
       // console.log("desplazamientosPosition (3D):", this.desplazamientosPosition);
@@ -4836,6 +4822,13 @@ export default () => ({
       if (result.isConfirmed) {
         this.options.showDeflection = true;
         this.options.deflectionScale = result.value.scale;
+
+        this.options.showDeflection = !this.options.showDeflection;
+        if (this.options.showDeflection) {
+          this.currentRenderer = this.deflexionRenderer;
+        } else {
+          this.currentRenderer = this.diseñoRenderer;
+        }
         this.redraw();
         this.sync3D();
         this.showMessage(`📈 Mostrando forma deformada (escala: ${result.value.scale})`);
