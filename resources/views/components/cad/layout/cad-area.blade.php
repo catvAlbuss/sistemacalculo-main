@@ -69,6 +69,7 @@
         <span x-text="currentState.currentPlane" class="ml-1 font-bold"></span>
         <span class="ml-2 text-[10px] text-gray-400">(1:XY 2:XZ 3:YZ)</span>
       </div>
+
     </section>
 
   </div>

@@ -20,7 +20,7 @@ export class GridEditor {
         this.modeSpacingInput = document.getElementById("grid-mode-spacing");
 
         this.displayMode = "ordinates";
-        this.xRows = [];  
+        this.xRows = [];
         this.yRows = [];
 
         this.btnCancel = document.getElementById("btn-grid-editor-cancel");
@@ -212,6 +212,18 @@ export class GridEditor {
 
         this.draftGrid = JSON.parse(JSON.stringify(currentGrid));
 
+        if (!Array.isArray(this.draftGrid.xGrids)) {
+            this.draftGrid.xGrids = [];
+        }
+
+        if (!Array.isArray(this.draftGrid.yGrids)) {
+            this.draftGrid.yGrids = [];
+        }
+
+        if (!Array.isArray(this.draftGrid.generalGrids)) {
+            this.draftGrid.generalGrids = [];
+        }
+
         this.displayMode = this.cad.gridDisplayMode || "ordinates";
 
         if (this.modeOrdinatesInput) {
@@ -257,7 +269,7 @@ export class GridEditor {
 
                 return {
                     id: String(r.id ?? i + 1),
-                    ordinate: acc,
+                    ordinate: Number(acc || 0),
                     visible: r.visible !== false,
                     bubbleLoc: r.bubbleLoc ?? defaultBubbleLoc,
                 };
@@ -267,11 +279,16 @@ export class GridEditor {
         const newXGrids = buildFromRows(this.xRows, "End");
         const newYGrids = buildFromRows(this.yRows, "Start");
 
-        console.log("DISPLAY MODE:", this.displayMode);
-        console.log("X ROWS:", JSON.parse(JSON.stringify(this.xRows)));
-        console.log("NEW X GRIDS:", JSON.parse(JSON.stringify(newXGrids)));
+        if (newXGrids.length < 2 || newYGrids.length < 2) {
+            this.cad.showMessage?.(
+                "Debe existir al menos 2 grillas en X y 2 grillas en Y.",
+                "warning"
+            );
+            return;
+        }
 
-        // copiar directamente al CAD real
+        this.cad.saveUndoState?.("Edit Grid Data");
+
         this.cad.referenceGrid.xGrids = JSON.parse(JSON.stringify(newXGrids));
         this.cad.referenceGrid.yGrids = JSON.parse(JSON.stringify(newYGrids));
         this.cad.referenceGrid.generalGrids = JSON.parse(
@@ -280,18 +297,39 @@ export class GridEditor {
 
         this.cad.gridDisplayMode = this.displayMode;
 
-        this.cad.rebuildReferenceGridCaches();
-        this.cad.rebuildGeneralGrids();
-        this.cad.rebuildViewSetFromReferenceGrid();
-        this.cad.rebuildElevationListsFromReferenceGrid();
+        this.cad.rebuildReferenceGridCaches?.();
+        this.cad.rebuildGeneralGrids?.();
+        this.cad.rebuildViewSetFromReferenceGrid?.();
+        this.cad.rebuildElevationListsFromReferenceGrid?.();
+
+        if (
+            Array.isArray(this.cad.viewSet) &&
+            this.cad.activeViewIndex >= this.cad.viewSet.length
+        ) {
+            this.cad.activeViewIndex = 0;
+            this.cad.currentViewMode = "plan";
+            this.cad.currentElevationX = "none";
+            this.cad.currentElevationZ = "none";
+        }
+
+        this.cad.activeGridPoint = null;
+
+        this.cad.markAnalysisResultsOutdated?.(
+            "Se editó la grilla de referencia."
+        );
 
         this.cad.redraw?.();
         this.cad.sync3D?.();
 
-        console.log(
-            "REFERENCE GRID X FINAL:",
-            JSON.parse(JSON.stringify(this.cad.referenceGrid.xGrids))
-        );
+        this.cad.showMessage?.("Edit Grid Data aplicado correctamente.");
+
+        console.log("✅ EDIT GRID DATA aplicado:", {
+            displayMode: this.displayMode,
+            xGrids: this.cad.referenceGrid.xGrids,
+            yGrids: this.cad.referenceGrid.yGrids,
+            generalGrids: this.cad.referenceGrid.generalGrids,
+            viewSet: this.cad.viewSet,
+        });
 
         this.close();
     }

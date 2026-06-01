@@ -17,6 +17,70 @@ export class Grid {
     this.offestY = this.height / 2;
   }
 
+  getState() {
+    return {
+      offestX: this.offestX,
+      offestY: this.offestY,
+      scaleX: this.scaleX,
+      scaleY: this.scaleY,
+      width: this.width,
+      height: this.height,
+    };
+  }
+
+  restoreState(state) {
+    if (!state) return;
+
+    this.offestX = Number(state.offestX ?? this.offestX);
+    this.offestY = Number(state.offestY ?? this.offestY);
+    this.scaleX = Number(state.scaleX ?? this.scaleX);
+    this.scaleY = Number(state.scaleY ?? this.scaleY);
+  }
+
+  zoomToScreenRect(start, end, padding = 40) {
+    if (!start || !end) return;
+
+    const left = Math.min(start.x, end.x);
+    const right = Math.max(start.x, end.x);
+    const top = Math.min(start.y, end.y);
+    const bottom = Math.max(start.y, end.y);
+
+    const rectWidth = right - left;
+    const rectHeight = bottom - top;
+
+    if (rectWidth < 8 || rectHeight < 8) {
+      return;
+    }
+
+    const worldA = this.screenToWorld({ x: left, y: top });
+    const worldB = this.screenToWorld({ x: right, y: bottom });
+
+    const minX = Math.min(worldA.x, worldB.x);
+    const maxX = Math.max(worldA.x, worldB.x);
+    const minY = Math.min(worldA.y, worldB.y);
+    const maxY = Math.max(worldA.y, worldB.y);
+
+    const worldWidth = maxX - minX || 1;
+    const worldHeight = maxY - minY || 1;
+
+    const availableWidth = Math.max(this.width - padding * 2, 100);
+    const availableHeight = Math.max(this.height - padding * 2, 100);
+
+    const newScale = Math.min(
+      availableWidth / worldWidth,
+      availableHeight / worldHeight
+    );
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    this.scaleX = newScale;
+    this.scaleY = newScale;
+
+    this.offestX = centerX - this.width / (2 * newScale);
+    this.offestY = centerY + this.height / (2 * newScale);
+  }
+
   draw(renderer, ctx, cad) {
     renderer.drawGrid(this, ctx, cad);
   }

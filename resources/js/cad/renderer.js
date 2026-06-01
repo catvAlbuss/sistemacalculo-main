@@ -77,6 +77,7 @@ export class DiseñoRenderer {
       CADSystem.grid.draw(this, CADSystem);
     }
 
+    this.drawReferencePlanes(CADSystem);
     this.drawReferencePoints(CADSystem);
     this.drawActiveGridPoint(CADSystem);
     this.drawDimensionLines(CADSystem);
@@ -89,53 +90,59 @@ export class DiseñoRenderer {
       this.drawSupport(n, CADSystem);
     });
     if (!CADSystem.options.showWireframe) {
+      // 1. Siempre dibujar primero el modelo normal visible en la vista activa
+      CADSystem.shapes.forEach((s) => {
+        if (!this.shouldDrawBeam(s, CADSystem)) return;
+        this.drawBeam(s, CADSystem);
+      });
+
+      CADSystem.parametricModels.forEach((parametric) => {
+        parametric.shapes.forEach((s) => {
+          if (!this.shouldDrawBeam(s, CADSystem)) return;
+          this.drawBeam(s, CADSystem);
+        });
+      });
+
+      // 2. Si Display > Member Forces está activo, dibujar encima el diagrama axial
       if (CADSystem.options.showFAxiales) {
         this.drawAxiales(CADSystem);
+
         if (CADSystem.options.showFAxialesValues) {
           this.drawAxialesValues(CADSystem);
         }
-      } else {
-        CADSystem.shapes.forEach((s) => {
-          if (!this.shouldDrawBeam(s, CADSystem)) return;
-          s.draw(this, CADSystem);
-        });
-        const currentZ = CADSystem.stories?.[CADSystem.activeStory]?.elevation ?? 0;
-
-        CADSystem.shapes.forEach((s) => {
-          if (!this.shouldDrawBeam(s, CADSystem)) return;
-          s.draw(this, CADSystem);
-        });
-
-        CADSystem.parametricModels.forEach((parametric) => {
-          parametric.shapes.forEach((s) => {
-            s.draw(this, CADSystem);
-          });
-        });
       }
+
+      // 3. Dibujar nodos visibles en la vista activa
       CADSystem.nodes.forEach((n) => {
         if (!this.shouldDrawNode(n, CADSystem)) return;
-        n.draw(this, CADSystem);
+        this.drawNode(n, CADSystem);
       });
 
       CADSystem.parametricModels.forEach((parametric) => {
         parametric.nodes.forEach((n) => {
-          n.draw(this, CADSystem);
-          this.drawForce(n, CADSystem);
+          if (!this.shouldDrawNode(n, CADSystem)) return;
+          this.drawNode(n, CADSystem);
         });
       });
     } else {
+      // Wireframe normal
+      CADSystem.shapes.forEach((s) => {
+        if (!this.shouldDrawBeam(s, CADSystem)) return;
+        this.drawWireBeam(s, CADSystem);
+      });
+
+      CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
+        this.drawWireNode(n, CADSystem);
+      });
+
+      // Axiales encima del wireframe
       if (CADSystem.options.showFAxiales) {
         this.drawWireframeAxiales(CADSystem);
+
         if (CADSystem.options.showFAxialesValues) {
           this.drawAxialesValues(CADSystem);
         }
-      } else {
-        CADSystem.shapes.forEach((s) => {
-          this.drawWireBeam(s, CADSystem);
-        });
-        CADSystem.nodes.forEach((n) => {
-          this.drawWireNode(n, CADSystem);
-        });
       }
     }
     if (CADSystem.options.showIDs) {
@@ -152,6 +159,7 @@ export class DiseñoRenderer {
     if (CADSystem.options.showForces) {
       CADSystem.ctx.save();
       CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
         this.drawForce(n, CADSystem);
       });
       CADSystem.ctx.restore();
@@ -171,48 +179,168 @@ export class DiseñoRenderer {
       this.drawMaterials(CADSystem);
     }
 
+    this.drawDesignInfo?.(CADSystem);
+
     CADSystem.currentState.draw(this, CADSystem);
+  }
+
+  drawDesignInfo(CADSystem) {
+    const mode = CADSystem.getActiveDesignDisplayMode?.();
+
+    if (!mode) return;
+
+    const ctx = CADSystem.ctx;
+    const frames = CADSystem.shapes || [];
+
+    ctx.save();
+
+    frames.forEach((frame) => {
+      if (!frame?.node1 || !frame?.node2) return;
+
+      // Respetar vista activa: planta, elevación o vista filtrada
+      if (
+        typeof CADSystem.isObjectVisibleInActiveView === "function" &&
+        !CADSystem.isObjectVisibleInActiveView(frame)
+      ) {
+        return;
+      }
+
+      // Compatibilidad si también tienes shouldDrawBeam en cadSystem
+      if (
+        typeof CADSystem.shouldDrawBeam === "function" &&
+        !CADSystem.shouldDrawBeam(frame)
+      ) {
+        return;
+      }
+
+      const result = CADSystem.getDesignResultForDisplay?.(frame);
+
+      if (!result) return;
+
+      const p1 = this.projectPoint(frame.node1, CADSystem);
+      const p2 = this.projectPoint(frame.node2, CADSystem);
+
+      const mx = (p1.x + p2.x) / 2;
+      const my = (p1.y + p2.y) / 2;
+
+      const text = CADSystem.formatDesignInfoText?.(
+        result,
+        mode.options?.infoType || "ratio"
+      );
+
+      if (!text) return;
+
+      const isOk = String(result.status).toUpperCase() === "OK";
+
+      ctx.font = "bold 11px Arial";
+      const paddingX = 5;
+      const paddingY = 3;
+      const textWidth = ctx.measureText(text).width;
+      const boxWidth = textWidth + paddingX * 2;
+      const boxHeight = 18;
+
+      const x = mx - boxWidth / 2;
+      const y = my - 28;
+
+      ctx.fillStyle = isOk
+        ? "rgba(22, 163, 74, 0.90)"
+        : "rgba(220, 38, 38, 0.90)";
+
+      ctx.fillRect(x, y, boxWidth, boxHeight);
+
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, boxWidth, boxHeight);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, mx, y + boxHeight / 2);
+    });
+
+    ctx.restore();
   }
 
   drawAxiales(context) {
     context.shapes.forEach((s) => {
-      const p1 = context.grid.worldToScreen(s.node1.position);
-      const p2 = context.grid.worldToScreen(s.node2.position);
+      if (!this.shouldDrawBeam(s, context)) return;
+
+      const p1 = this.projectPoint(s.node1, context);
+      const p2 = this.projectPoint(s.node2, context);
+
       context.ctx.save();
-      Object.assign(context.ctx, s.style.axialStyle.MODEL);
+
+      Object.assign(context.ctx, s.style?.axialStyle?.MODEL || {});
+
+      context.ctx.strokeStyle = "#16a34a";
+      context.ctx.lineWidth = 2;
+
       context.ctx.beginPath();
       context.ctx.moveTo(p1.x, p1.y);
       context.ctx.lineTo(p2.x, p2.y);
       context.ctx.stroke();
+
       context.ctx.restore();
     });
   }
 
   drawWireframeAxiales(context) {
     context.shapes.forEach((s) => {
-      const p1 = context.grid.worldToScreen(s.node1.position);
-      const p2 = context.grid.worldToScreen(s.node2.position);
+      if (!this.shouldDrawBeam(s, context)) return;
+
+      const p1 = this.projectPoint(s.node1, context);
+      const p2 = this.projectPoint(s.node2, context);
+
       context.ctx.save();
-      Object.assign(context.ctx, s.style.axialStyle.WIREFRAME);
+
+      Object.assign(context.ctx, s.style?.axialStyle?.WIREFRAME || {});
+
+      context.ctx.strokeStyle = "#16a34a";
+      context.ctx.lineWidth = 1.5;
+      context.ctx.setLineDash([4, 4]);
+
       context.ctx.beginPath();
       context.ctx.moveTo(p1.x, p1.y);
       context.ctx.lineTo(p2.x, p2.y);
       context.ctx.stroke();
+
+      context.ctx.setLineDash([]);
       context.ctx.restore();
     });
   }
 
   drawAxialesValues(context) {
     context.shapes.forEach((s) => {
-      const p1 = context.grid.worldToScreen(s.node1.position);
-      const p2 = context.grid.worldToScreen(s.node2.position);
-      const mid = midPoint(p1, p2);
+      if (!this.shouldDrawBeam(s, context)) return;
+
+      const p1 = this.projectPoint(s.node1, context);
+      const p2 = this.projectPoint(s.node2, context);
+
+      const mid = {
+        x: (p1.x + p2.x) / 2,
+        y: (p1.y + p2.y) / 2,
+      };
+
       context.ctx.save();
       Object.assign(context.ctx, s.style.axialStyle.MODEL);
       context.ctx.translate(mid.x, mid.y);
       context.ctx.rotate(s.angle);
       // context.ctx.fillText(s.fAxial.toFixed(3), 0, 30);
       context.ctx.fillText(this.formatValue(context, s.fAxial, "forces", 3), 0, 30);
+
+      // context.ctx.fillStyle = "#16a34a";
+      // context.ctx.font = "11px Arial";
+      // context.ctx.textAlign = "center";
+      // context.ctx.textBaseline = "middle";
+
+      // context.ctx.fillText(
+      //   this.formatValue
+      //     ? this.formatValue(context, s.fAxial ?? 0, "forces", 3)
+      //     : Number(s.fAxial ?? 0).toFixed(1),
+      //   mid.x,
+      //   mid.y - 14
+      // );
+
       context.ctx.restore();
     });
   }
@@ -242,38 +370,125 @@ export class DiseñoRenderer {
   }
 
   drawNode(node, context) {
-    // const p = context.grid.worldToScreen(node.position);
     const p = this.projectPoint(node, context);
-    context.ctx.save();
-    const model = node.style.getModel();
-    Object.assign(context.ctx, node.style.get().MODEL);
-    context.ctx.fillStyle = this.getDisplayColor(context, "node", "#9ca3af");
-    context.ctx.strokeStyle = this.getDisplayColor(context, "node", "#9ca3af");
-    context.ctx.beginPath();
-    context.ctx.arc(p.x, p.y, model.RADIUS, 0, Math.PI * 2);
-    context.ctx.fill();
-    context.ctx.fillStyle = model.JOINT_FILL;
-    context.ctx.beginPath();
-    context.ctx.arc(p.x, p.y, model.RADIUS / 2, 0, Math.PI * 2);
-    context.ctx.fill();
-    context.ctx.restore();
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, node.selected ? 6 : 4, 0, Math.PI * 2);
+    ctx.fillStyle = node.selected
+      ? (context.displayColors?.selected || "#facc15")
+      : (context.displayColors?.node || "#9ca3af");
+    ctx.fill();
+
+    ctx.strokeStyle = "#111827";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // if (context.options?.showIDs) {
+    //   ctx.fillStyle = context.displayColors?.text || "#ffffff";
+    //   ctx.font = "10px Arial";
+    //   ctx.fillText(node.id, p.x + 7, p.y - 7);
+    // }
+
+    ctx.restore();
+
+    // Símbolo visual de apoyo / restricción
+    if (this.jointHasAnyRestraint(node)) {
+      this.drawJointSupportSymbol(node, context, p);
+    }
+
+    // Símbolo visual de diafragma
+    if (this.jointHasDiaphragm(node)) {
+      this.drawJointDiaphragmSymbol(node, context, p);
+    }
+
+    // Símbolo visual de Point Springs
+    if (this.jointHasPointSprings(node)) {
+      this.drawJointPointSpringSymbol(node, context, p);
+    }
+
+    if (context.displayOptions?.showJointLoads) {
+      if (this.jointHasForceLoads(node)) {
+        this.drawJointPointForceSymbol(node, context, p);
+      }
+
+      if (this.jointHasGroundDisplacementLoads(node)) {
+        this.drawJointGroundDisplacementSymbol(node, context, p);
+      }
+
+      if (this.jointHasTemperatureLoads(node)) {
+        this.drawJointTemperatureSymbol(node, context, p);
+      }
+    }
+
+    if (this.objectHasGroups(node)) {
+      const groupLabel = this.getObjectGroupLabel(node);
+      this.drawObjectGroupLabel(context, p.x + 12, p.y + 28, groupLabel);
+    }
+
+    if (context.displayOptions?.showModeShape) {
+      this.drawModeShapeNodeOverlay(node, context, p);
+    }
   }
 
-  drawNodeID(node, context) {
-    // const p = context.grid.worldToScreen(node.position);
-    const p = this.projectPoint(node, context);
-    context.ctx.save();
-    context.ctx.beginPath();
+  // =====================================================
+  // DISPLAY 2D > DIBUJAR ID DE NODO
+  // Dibuja el número del nodo en el canvas 2D.
+  // Versión segura para nodos creados desde 2D o desde 3D.
+  // =====================================================
+  drawNodeID(node, context, screenPoint = null) {
+    if (!node || !context?.ctx) return;
 
-    Object.assign(context.ctx, node.style.get().ID);
+    const ctx = context.ctx;
 
-    context.ctx.fillStyle = this.getDisplayColor(context, "text", "#ffffff");
-    context.ctx.strokeStyle = this.getDisplayColor(context, "node", "#9ca3af");
+    // =====================================================
+    // DISPLAY 2D > OBTENER POSICIÓN DEL NODO
+    // Evita error cuando nodeScreenPositions no existe.
+    // =====================================================
+    let point = screenPoint;
 
-    context.ctx.arc(p.x - 10, p.y - 10, context.grid.size * 2, 0, Math.PI * 2);
-    context.ctx.stroke();
-    context.ctx.fillText(node.id + "", p.x - 10, p.y - 10);
-    context.ctx.restore();
+    if (!point) {
+      point =
+        this.nodeScreenPositions?.get?.(node.id) ||
+        context.nodeScreenPositions?.get?.(node.id) ||
+        context.nodeScreenPositionMap?.get?.(node.id) ||
+        null;
+    }
+
+    // Si no hay mapa previo, proyectamos el nodo directamente.
+    if (!point && typeof this.projectPoint === "function") {
+      point = this.projectPoint(node, context);
+    }
+
+    if (
+      !point ||
+      !Number.isFinite(Number(point.x)) ||
+      !Number.isFinite(Number(point.y))
+    ) {
+      return;
+    }
+
+    const label = String(node.id ?? "");
+
+    if (!label) return;
+
+    const displayColor = context
+      ? this.getDisplayColor?.(context, "text", "#ffffff") || "#ffffff"
+      : "#ffffff";
+
+    ctx.save();
+
+    ctx.font = "11px Arial";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = displayColor;
+
+    // Pequeño desplazamiento para que el ID no tape el nodo.
+    ctx.fillText(label, Number(point.x) + 8, Number(point.y) - 8);
+
+    ctx.restore();
   }
 
   drawSupport(node, context) {
@@ -545,12 +760,22 @@ export class DiseñoRenderer {
     }
   }
 
+  // =====================================================
+  // DISPLAY 2D > DIBUJAR REACCIONES EN NODO
+  // Versión segura para nodos creados desde 2D o desde 3D.
+  // Evita romper si reaction/style/getModel no existen.
+  // =====================================================
   drawReaction(node, context) {
     //context.ctx.textAlign = "right";
     // const p = context.grid.worldToScreen(node.position);
+
+    if (!context?.ctx) return;
+    // Verificar que el nodo tenga style y getModel
+    if (!node.style || typeof node.style.getModel !== 'function') return;
     const p = this.projectPoint(node, context);
     const magX = node.reaction.x;
     const magY = node.reaction.y;
+
     const mag = pointDistance({ x: 0, y: 0 }, { x: magX, y: magY });
     const uMag = { x: magX / mag, y: magY / mag };
     const end = { x: p.x - uMag.x * 5 * mag, y: p.y + uMag.y * 5 * mag };
@@ -588,15 +813,59 @@ export class DiseñoRenderer {
     const style = this.getElementRenderStyle(beam, "model", context);
 
     context.ctx.save();
+
     context.ctx.strokeStyle = style.strokeStyle;
     context.ctx.lineWidth = style.lineWidth;
     context.ctx.setLineDash(style.lineDash || []);
+
     context.ctx.beginPath();
     context.ctx.moveTo(p1.x, p1.y);
     context.ctx.lineTo(p2.x, p2.y);
     context.ctx.stroke();
+
     context.ctx.setLineDash([]);
     context.ctx.restore();
+
+    // Etiqueta de sección asignada
+    if (this.hasAssignedFrameSection(beam)) {
+      this.drawFrameSectionLabel(beam, context, p1, p2);
+    }
+
+    // Símbolos de Frame Releases / Partial Fixity
+    if (this.hasFrameReleases(beam)) {
+      this.drawFrameReleaseSymbols(beam, context, p1, p2);
+    }
+
+    // Símbolos de End Length Offsets
+    if (this.hasFrameEndOffsets(beam)) {
+      this.drawFrameEndOffsetSymbols(beam, context, p1, p2);
+    }
+
+    if (context.displayOptions?.showFrameLoads) {
+      if (this.frameHasPointLoads(beam)) {
+        this.drawFramePointLoadSymbols(beam, context, p1, p2);
+      }
+
+      if (this.frameHasDistributedLoads(beam)) {
+        this.drawFrameDistributedLoadSymbols(beam, context, p1, p2);
+      }
+
+      if (this.frameHasTemperatureLoads(beam)) {
+        this.drawFrameTemperatureLoadSymbols(beam, context, p1, p2);
+      }
+    }
+
+    if (context.displayOptions?.showModeShape) {
+      this.drawModeShapeBeamOverlay(beam, context, p1, p2);
+    }
+
+    if (this.objectHasGroups(beam)) {
+      const groupLabel = this.getObjectGroupLabel(beam);
+      const midX = (p1.x + p2.x) / 2;
+      const midY = (p1.y + p2.y) / 2;
+
+      this.drawObjectGroupLabel(context, midX + 8, midY + 16, groupLabel);
+    }
   }
 
   getAreaRenderStyle(area, isPreview = false) {
@@ -652,11 +921,10 @@ export class DiseñoRenderer {
     if (!area || area.visible === false) return;
     if (!area.points || area.points.length < 2) return;
 
-    // primera versión: solo se muestra en planta
-    const view = context.viewSet?.[context.activeViewIndex];
-    if (view?.type !== "plan") return;
+    const pts = area.points.map((p) =>
+      this.projectPoint({ position: p }, context)
+    );
 
-    const pts = area.points.map((p) => this.projectPoint({ position: p }, context));
     if (!pts.length) return;
 
     const style = this.getAreaRenderStyle(area, isPreview);
@@ -676,16 +944,22 @@ export class DiseñoRenderer {
       ctx.lineTo(pts[i].x, pts[i].y);
     }
 
-    // si el polígono ya está cerrado (3 o más puntos), lo cerramos visualmente
     if (pts.length >= 3) {
       ctx.closePath();
-      ctx.fill();
+
+      const projectedArea = this.getProjectedPolygonArea(pts);
+
+      // Si el área se proyecta como línea, por ejemplo un muro visto en planta,
+      // no intentamos rellenar porque visualmente se aplasta.
+      if (projectedArea > 0.5) {
+        ctx.fill();
+      }
     }
 
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // vértices
+    // Vértices
     pts.forEach((p) => {
       ctx.beginPath();
       ctx.fillStyle = style.strokeStyle;
@@ -693,7 +967,61 @@ export class DiseñoRenderer {
       ctx.fill();
     });
 
+    // Etiqueta simple para que el cliente vea qué tipo de área es
+    if (!isPreview && pts.length >= 3) {
+      const center = this.getProjectedPolygonCenter(pts);
+      const label = area.areaType || area.type || "area";
+
+      ctx.font = "10px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      const textWidth = ctx.measureText(label).width;
+
+      ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+      ctx.fillRect(center.x - textWidth / 2 - 4, center.y - 8, textWidth + 8, 16);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(label, center.x, center.y);
+    }
+
     ctx.restore();
+  }
+
+  getProjectedPolygonArea(points = []) {
+    if (!Array.isArray(points) || points.length < 3) return 0;
+
+    let area = 0;
+
+    for (let i = 0; i < points.length; i++) {
+      const p1 = points[i];
+      const p2 = points[(i + 1) % points.length];
+
+      area += Number(p1.x || 0) * Number(p2.y || 0);
+      area -= Number(p2.x || 0) * Number(p1.y || 0);
+    }
+
+    return Math.abs(area / 2);
+  }
+
+  getProjectedPolygonCenter(points = []) {
+    if (!Array.isArray(points) || !points.length) {
+      return { x: 0, y: 0 };
+    }
+
+    const sum = points.reduce(
+      (acc, p) => {
+        acc.x += Number(p.x || 0);
+        acc.y += Number(p.y || 0);
+        return acc;
+      },
+      { x: 0, y: 0 }
+    );
+
+    return {
+      x: sum.x / points.length,
+      y: sum.y / points.length,
+    };
   }
 
   drawAreas(context) {
@@ -790,6 +1118,247 @@ export class DiseñoRenderer {
     ctx.restore();
   }
 
+  // =====================================================
+  // EDIT > REFERENCE PLANES
+  // =====================================================
+
+  getReferencePlaneBounds(context) {
+    const ref = context.referenceGrid || {};
+
+    const xs = Array.isArray(ref.xPositions) && ref.xPositions.length
+      ? ref.xPositions.map(Number)
+      : [0, 10];
+
+    const ys = Array.isArray(ref.yPositions) && ref.yPositions.length
+      ? ref.yPositions.map(Number)
+      : [0, 10];
+
+    const storyCount = Number(ref.storyCount ?? 3);
+    const storyHeight = Number(ref.storyHeight ?? 3);
+    const maxZ = Math.max(storyCount * storyHeight, storyHeight || 3);
+
+    return {
+      minX: Math.min(...xs),
+      maxX: Math.max(...xs),
+      minY: Math.min(...ys),
+      maxY: Math.max(...ys),
+      minZ: 0,
+      maxZ,
+    };
+  }
+
+  getReferencePlaneShape(plane, context) {
+    if (!plane || plane.visible === false) return null;
+
+    const view = context.viewSet?.[context.activeViewIndex];
+    const bounds = this.getReferencePlaneBounds(context);
+    const tol = context.getActiveViewTolerance?.() ?? 0.001;
+
+    const type = plane.planeType || "XY";
+    const c = Number(plane.coordinate || 0);
+
+    if (!view || view.type === "plan") {
+      const activeZ = Number(
+        view?.elevation ??
+        view?.z ??
+        context.getActivePlanElevation?.() ??
+        0
+      );
+
+      if (type === "XY") {
+        if (Math.abs(activeZ - c) > tol) return null;
+
+        return {
+          kind: "polygon",
+          points: [
+            { x: bounds.minX, y: bounds.minY, z: c },
+            { x: bounds.maxX, y: bounds.minY, z: c },
+            { x: bounds.maxX, y: bounds.maxY, z: c },
+            { x: bounds.minX, y: bounds.maxY, z: c },
+          ],
+        };
+      }
+
+      if (type === "YZ") {
+        return {
+          kind: "line",
+          points: [
+            { x: c, y: bounds.minY, z: activeZ },
+            { x: c, y: bounds.maxY, z: activeZ },
+          ],
+        };
+      }
+
+      if (type === "XZ") {
+        return {
+          kind: "line",
+          points: [
+            { x: bounds.minX, y: c, z: activeZ },
+            { x: bounds.maxX, y: c, z: activeZ },
+          ],
+        };
+      }
+    }
+
+    if (view.type === "elevation") {
+      const viewValue = Number(view.value || 0);
+
+      // Elevación por letras: X fijo, se mira Y-Z
+      if (view.axis === "X") {
+        if (type === "YZ") {
+          if (Math.abs(viewValue - c) > tol) return null;
+
+          return {
+            kind: "polygon",
+            points: [
+              { x: c, y: bounds.minY, z: bounds.minZ },
+              { x: c, y: bounds.maxY, z: bounds.minZ },
+              { x: c, y: bounds.maxY, z: bounds.maxZ },
+              { x: c, y: bounds.minY, z: bounds.maxZ },
+            ],
+          };
+        }
+
+        if (type === "XY") {
+          return {
+            kind: "line",
+            points: [
+              { x: viewValue, y: bounds.minY, z: c },
+              { x: viewValue, y: bounds.maxY, z: c },
+            ],
+          };
+        }
+
+        if (type === "XZ") {
+          return {
+            kind: "line",
+            points: [
+              { x: viewValue, y: c, z: bounds.minZ },
+              { x: viewValue, y: c, z: bounds.maxZ },
+            ],
+          };
+        }
+      }
+
+      // Elevación por números: Y fijo, se mira X-Z
+      if (view.axis === "Y") {
+        if (type === "XZ") {
+          if (Math.abs(viewValue - c) > tol) return null;
+
+          return {
+            kind: "polygon",
+            points: [
+              { x: bounds.minX, y: c, z: bounds.minZ },
+              { x: bounds.maxX, y: c, z: bounds.minZ },
+              { x: bounds.maxX, y: c, z: bounds.maxZ },
+              { x: bounds.minX, y: c, z: bounds.maxZ },
+            ],
+          };
+        }
+
+        if (type === "XY") {
+          return {
+            kind: "line",
+            points: [
+              { x: bounds.minX, y: viewValue, z: c },
+              { x: bounds.maxX, y: viewValue, z: c },
+            ],
+          };
+        }
+
+        if (type === "YZ") {
+          return {
+            kind: "line",
+            points: [
+              { x: c, y: viewValue, z: bounds.minZ },
+              { x: c, y: viewValue, z: bounds.maxZ },
+            ],
+          };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  drawReferencePlane(plane, context) {
+    if (context.displayOptions?.showReferencePlanes === false) return;
+
+    const shape = this.getReferencePlaneShape(plane, context);
+
+    if (!shape || !shape.points?.length) return;
+
+    const ctx = context.ctx;
+    const pts = shape.points.map((p) =>
+      this.projectPoint({ position: p }, context)
+    );
+
+    const isPolygon = shape.kind === "polygon";
+
+    ctx.save();
+
+    // Estilo más sutil tipo guía auxiliar ETABS
+    ctx.strokeStyle = "rgba(251, 191, 36, 0.95)";
+    ctx.fillStyle = "rgba(251, 191, 36, 0.055)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([7, 5]);
+
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(pts[i].x, pts[i].y);
+    }
+
+    if (isPolygon) {
+      ctx.closePath();
+
+      if (plane.showFill === true) {
+        ctx.fill();
+      }
+    }
+
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Etiqueta compacta
+    const labelPoint = pts[0];
+    const coordinate = this.formatValue
+      ? this.formatValue(context, plane.coordinate || 0, "coordinates", 2)
+      : Number(plane.coordinate || 0).toFixed(2);
+
+    const label = `${plane.id || "RP"}  ${plane.planeType || ""}=${coordinate}`;
+
+    ctx.font = "10px 'Segoe UI', Arial";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+
+    const textWidth = ctx.measureText(label).width;
+    const labelX = labelPoint.x + 8;
+    const labelY = labelPoint.y - 12;
+
+    ctx.fillStyle = "rgba(30, 41, 59, 0.88)";
+    ctx.fillRect(labelX - 4, labelY - 8, textWidth + 8, 16);
+
+    ctx.strokeStyle = "rgba(251, 191, 36, 0.8)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(labelX - 4, labelY - 8, textWidth + 8, 16);
+
+    ctx.fillStyle = "#fde68a";
+    ctx.fillText(label, labelX, labelY);
+
+    ctx.restore();
+  }
+
+  drawReferencePlanes(context) {
+    if (context.displayOptions?.showReferencePlanes === false) return;
+    if (!Array.isArray(context.referencePlanes)) return;
+
+    context.referencePlanes.forEach((plane) => {
+      this.drawReferencePlane(plane, context);
+    });
+  }
+
   drawReferencePoint(point, context) {
     if (!point || point.visible === false) return;
 
@@ -833,6 +1402,7 @@ export class DiseñoRenderer {
     if (!context.referencePoints?.length) return;
 
     context.referencePoints.forEach((point) => {
+      if (!this.shouldDrawReferencePoint(point, context)) return;
       this.drawReferencePoint(point, context);
     });
   }
@@ -921,8 +1491,52 @@ export class DiseñoRenderer {
     if (!context.dimensionLines?.length) return;
 
     context.dimensionLines.forEach((dim) => {
+      if (!this.shouldDrawDimensionLine(dim, context)) return;
       this.drawDimensionLine(dim, context, false);
     });
+  }
+
+  shouldDrawDimensionLine(dim, CADSystem) {
+    if (!dim || dim.visible === false) return false;
+    if (!dim.start || !dim.end) return false;
+
+    const view = CADSystem.viewSet?.[CADSystem.activeViewIndex];
+    if (!view) return true;
+
+    const tol = CADSystem.getActiveViewTolerance?.() ?? 0.001;
+
+    const points = [dim.start, dim.end];
+
+    if (view.type === "plan") {
+      const activeZ = Number(
+        view.elevation ??
+        view.z ??
+        CADSystem.getActivePlanElevation?.() ??
+        0
+      );
+
+      return points.every((p) => {
+        return Math.abs(Number(p.z ?? 0) - activeZ) <= tol;
+      });
+    }
+
+    if (view.type === "elevation") {
+      const value = Number(view.value ?? 0);
+
+      if (view.axis === "X") {
+        return points.every((p) => {
+          return Math.abs(Number(p.x ?? 0) - value) <= tol;
+        });
+      }
+
+      if (view.axis === "Y") {
+        return points.every((p) => {
+          return Math.abs(Number(p.y ?? 0) - value) <= tol;
+        });
+      }
+    }
+
+    return true;
   }
 
   drawDimensionPreview(context) {
@@ -937,34 +1551,1595 @@ export class DiseñoRenderer {
         const dy = state.previewPoint.y - state.startPoint.y;
         const dz = state.previewPoint.z - state.startPoint.z;
         const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        // return `${d.toFixed(2)} m`;
+
         return `${this.formatValue(context, d, "lengths", 2)} m`;
       })(),
       visible: true,
     };
 
+    if (!this.shouldDrawDimensionLine(preview, context)) return;
+
     this.drawDimensionLine(preview, context, true);
   }
 
+  getFrameSectionLabel(beam) {
+    if (!beam) return "";
+
+    return (
+      beam.sectionName ||
+      beam.frameSection?.name ||
+      beam.frameSection?.id ||
+      beam.section?.name ||
+      beam.section?.id ||
+      beam.sectionId ||
+      ""
+    );
+  }
+
+  hasAssignedFrameSection(beam) {
+    return !!this.getFrameSectionLabel(beam);
+  }
+
+  drawFrameSectionLabel(beam, context, p1, p2) {
+    const label = this.getFrameSectionLabel(beam);
+
+    if (!label) return;
+
+    const ctx = context.ctx;
+
+    const midX = (p1.x + p2.x) / 2;
+    const midY = (p1.y + p2.y) / 2;
+
+    ctx.save();
+
+    ctx.translate(midX, midY);
+    ctx.rotate(beam.angle || 0);
+
+    ctx.font = "11px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+
+    // Fondo pequeño para que se lea mejor
+    const textWidth = ctx.measureText(label).width;
+    ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+    ctx.fillRect(-textWidth / 2 - 4, -20, textWidth + 8, 14);
+
+    ctx.fillStyle = "#60a5fa";
+    ctx.fillText(label, 0, -8);
+
+    ctx.restore();
+  }
+
+  getFrameReleases(beam) {
+    if (!beam) return null;
+
+    return (
+      beam.frameReleases ||
+      beam.releases ||
+      beam.assignment?.frameReleases ||
+      null
+    );
+  }
+
+  frameEndHasRelease(releases, endKey = "iEnd") {
+    if (!releases || !releases[endKey]) return false;
+
+    const keys = [
+      "axial",
+      "shear2",
+      "shear3",
+      "torsion",
+      "moment22",
+      "moment33",
+    ];
+
+    return keys.some((key) => releases[endKey]?.[key] === true);
+  }
+
+  frameHasPartialFixity(releases) {
+    return releases?.partialFixity?.enabled === true;
+  }
+
+  hasFrameReleases(beam) {
+    const releases = this.getFrameReleases(beam);
+
+    if (!releases) return false;
+
+    return (
+      this.frameEndHasRelease(releases, "iEnd") ||
+      this.frameEndHasRelease(releases, "jEnd") ||
+      this.frameHasPartialFixity(releases)
+    );
+  }
+
+  getReleaseLabel(releases, endKey = "iEnd") {
+    if (!releases || !releases[endKey]) return "";
+
+    const map = {
+      axial: "P",
+      shear2: "V2",
+      shear3: "V3",
+      torsion: "T",
+      moment22: "M2",
+      moment33: "M3",
+    };
+
+    return Object.keys(map)
+      .filter((key) => releases[endKey]?.[key] === true)
+      .map((key) => map[key])
+      .join(",");
+  }
+
+  drawFrameReleaseCircle(context, x, y, label = "") {
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.arc(x, y, 7, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(249, 115, 22, 0.95)";
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "#ffffff";
+    ctx.stroke();
+
+    if (label) {
+      ctx.font = "9px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#111827";
+      ctx.fillText("R", x, y);
+    }
+
+    ctx.restore();
+  }
+
+  drawPartialFixityDiamond(context, x, y) {
+    const ctx = context.ctx;
+    const size = 7;
+
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.moveTo(x, y - size);
+    ctx.lineTo(x + size, y);
+    ctx.lineTo(x, y + size);
+    ctx.lineTo(x - size, y);
+    ctx.closePath();
+
+    ctx.fillStyle = "rgba(168, 85, 247, 0.95)";
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "#ffffff";
+    ctx.stroke();
+
+    ctx.font = "9px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText("F", x, y);
+
+    ctx.restore();
+  }
+
+  drawFrameReleaseSymbols(beam, context, p1, p2) {
+    const releases = this.getFrameReleases(beam);
+
+    if (!releases) return;
+
+    const hasI = this.frameEndHasRelease(releases, "iEnd");
+    const hasJ = this.frameEndHasRelease(releases, "jEnd");
+    const hasPartial = this.frameHasPartialFixity(releases);
+
+    if (!hasI && !hasJ && !hasPartial) return;
+
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const length = Math.sqrt(dx * dx + dy * dy);
+
+    if (length < 1e-6) return;
+
+    const ux = dx / length;
+    const uy = dy / length;
+
+    // Separar un poco del nodo para que no tape el punto
+    const offset = 14;
+
+    const iX = p1.x + ux * offset;
+    const iY = p1.y + uy * offset;
+
+    const jX = p2.x - ux * offset;
+    const jY = p2.y - uy * offset;
+
+    if (hasI) {
+      this.drawFrameReleaseCircle(
+        context,
+        iX,
+        iY,
+        this.getReleaseLabel(releases, "iEnd")
+      );
+    }
+
+    if (hasJ) {
+      this.drawFrameReleaseCircle(
+        context,
+        jX,
+        jY,
+        this.getReleaseLabel(releases, "jEnd")
+      );
+    }
+
+    if (hasPartial) {
+      const midX = (p1.x + p2.x) / 2;
+      const midY = (p1.y + p2.y) / 2;
+
+      this.drawPartialFixityDiamond(context, midX, midY);
+    }
+  }
+
+  getFrameEndOffsets(beam) {
+    if (!beam) return null;
+
+    return (
+      beam.frameEndOffsets ||
+      beam.endOffsets ||
+      beam.assignment?.frameEndOffsets ||
+      null
+    );
+  }
+
+  hasFrameEndOffsets(beam) {
+    const offsets = this.getFrameEndOffsets(beam);
+
+    if (!offsets) return false;
+
+    const iLength = Number(offsets.iEnd?.offsetLength || 0);
+    const jLength = Number(offsets.jEnd?.offsetLength || 0);
+
+    const iRigid = Number(offsets.iEnd?.rigidZoneFactor || 0);
+    const jRigid = Number(offsets.jEnd?.rigidZoneFactor || 0);
+
+    return (
+      offsets.autoOffset === true ||
+      offsets.useRigidZoneFactor === true ||
+      iLength > 0 ||
+      jLength > 0 ||
+      iRigid > 0 ||
+      jRigid > 0
+    );
+  }
+
+  drawFrameEndOffsetSymbols(beam, context, p1, p2) {
+    const offsets = this.getFrameEndOffsets(beam);
+
+    if (!offsets || !this.hasFrameEndOffsets(beam)) return;
+
+    const ctx = context.ctx;
+
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const length = Math.sqrt(dx * dx + dy * dy);
+
+    if (length < 1e-6) return;
+
+    const ux = dx / length;
+    const uy = dy / length;
+
+    const markerLength = 18;
+
+    const iLength = Number(offsets.iEnd?.offsetLength || 0);
+    const jLength = Number(offsets.jEnd?.offsetLength || 0);
+
+    ctx.save();
+
+    ctx.strokeStyle = "#22c55e";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([4, 3]);
+
+    if (iLength > 0 || offsets.autoOffset) {
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p1.x + ux * markerLength, p1.y + uy * markerLength);
+      ctx.stroke();
+    }
+
+    if (jLength > 0 || offsets.autoOffset) {
+      ctx.beginPath();
+      ctx.moveTo(p2.x, p2.y);
+      ctx.lineTo(p2.x - ux * markerLength, p2.y - uy * markerLength);
+      ctx.stroke();
+    }
+
+    ctx.setLineDash([]);
+
+    ctx.font = "10px Arial";
+    ctx.fillStyle = "#22c55e";
+    ctx.textAlign = "center";
+
+    if (iLength > 0) {
+      ctx.fillText(
+        `OI ${iLength}`,
+        p1.x + ux * (markerLength + 12),
+        p1.y + uy * (markerLength + 12)
+      );
+    }
+
+    if (jLength > 0) {
+      ctx.fillText(
+        `OJ ${jLength}`,
+        p2.x - ux * (markerLength + 12),
+        p2.y - uy * (markerLength + 12)
+      );
+    }
+
+    ctx.restore();
+  }
+
+  // =====================================================
+  // VISUAL ASSIGN > JOINT / POINT > RESTRAINTS
+  // =====================================================
+
+  getJointRestraints(node) {
+    if (!node) return null;
+
+    return (
+      node.restraints ||
+      node.constraints ||
+      node.assignment?.restraints ||
+      null
+    );
+  }
+
+  jointHasAnyRestraint(node) {
+    const r = this.getJointRestraints(node);
+
+    if (!r) return false;
+
+    return (
+      r.ux === true ||
+      r.uy === true ||
+      r.uz === true ||
+      r.rx === true ||
+      r.ry === true ||
+      r.rz === true
+    );
+  }
+
+  getJointSupportType(node) {
+    const r = this.getJointRestraints(node);
+
+    if (!r) return "free";
+
+    if (r.type) return r.type;
+
+    const ux = r.ux === true;
+    const uy = r.uy === true;
+    const uz = r.uz === true;
+    const rx = r.rx === true;
+    const ry = r.ry === true;
+    const rz = r.rz === true;
+
+    if (ux && uy && uz && rx && ry && rz) return "fixed";
+    if (ux && uy && uz && !rx && !ry && !rz) return "pinned";
+    if (!ux && uy && uz && !rx && !ry && !rz) return "rollerX";
+    if (ux && !uy && uz && !rx && !ry && !rz) return "rollerY";
+    if (!ux && !uy && !uz && !rx && !ry && !rz) return "free";
+
+    return "custom";
+  }
+
+  drawJointSupportSymbol(node, context, screenPoint) {
+    if (!this.jointHasAnyRestraint(node)) return;
+
+    const type = this.getJointSupportType(node);
+    const x = screenPoint.x;
+    const y = screenPoint.y;
+
+    switch (type) {
+      case "fixed":
+        this.drawFixedSupport(context, x, y);
+        break;
+
+      case "pinned":
+        this.drawPinnedSupport(context, x, y);
+        break;
+
+      case "rollerX":
+        this.drawRollerXSupport(context, x, y);
+        break;
+
+      case "rollerY":
+        this.drawRollerYSupport(context, x, y);
+        break;
+
+      case "free":
+        break;
+
+      default:
+        this.drawCustomSupport(context, x, y);
+        break;
+    }
+  }
+
+  drawFixedSupport(context, x, y) {
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    // Cuadrado de apoyo fijo
+    ctx.fillStyle = "#ef4444";
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.5;
+
+    ctx.beginPath();
+    ctx.rect(x - 8, y + 7, 16, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    // Hachurado
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1;
+
+    for (let i = -8; i <= 8; i += 4) {
+      ctx.beginPath();
+      ctx.moveTo(x + i, y + 17);
+      ctx.lineTo(x + i - 5, y + 23);
+      ctx.stroke();
+    }
+
+    // Letra
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "9px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("F", x, y + 15);
+
+    ctx.restore();
+  }
+
+  drawPinnedSupport(context, x, y) {
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    ctx.fillStyle = "#facc15";
+    ctx.strokeStyle = "#111827";
+    ctx.lineWidth = 1.5;
+
+    // Triángulo
+    ctx.beginPath();
+    ctx.moveTo(x, y + 7);
+    ctx.lineTo(x - 10, y + 22);
+    ctx.lineTo(x + 10, y + 22);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Base
+    ctx.beginPath();
+    ctx.moveTo(x - 13, y + 23);
+    ctx.lineTo(x + 13, y + 23);
+    ctx.stroke();
+
+    ctx.fillStyle = "#111827";
+    ctx.font = "9px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("P", x, y + 20);
+
+    ctx.restore();
+  }
+
+  drawRollerXSupport(context, x, y) {
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    // Triángulo principal
+    ctx.fillStyle = "#38bdf8";
+    ctx.strokeStyle = "#111827";
+    ctx.lineWidth = 1.5;
+
+    ctx.beginPath();
+    ctx.moveTo(x, y + 7);
+    ctx.lineTo(x - 10, y + 20);
+    ctx.lineTo(x + 10, y + 20);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Rueditas horizontales
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = "#111827";
+
+    ctx.beginPath();
+    ctx.arc(x - 6, y + 25, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(x + 6, y + 25, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Base
+    ctx.beginPath();
+    ctx.moveTo(x - 14, y + 30);
+    ctx.lineTo(x + 14, y + 30);
+    ctx.stroke();
+
+    ctx.fillStyle = "#111827";
+    ctx.font = "8px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("RX", x, y + 18);
+
+    ctx.restore();
+  }
+
+  drawRollerYSupport(context, x, y) {
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    // Triángulo lateral para diferenciarlo
+    ctx.fillStyle = "#34d399";
+    ctx.strokeStyle = "#111827";
+    ctx.lineWidth = 1.5;
+
+    ctx.beginPath();
+    ctx.moveTo(x + 8, y);
+    ctx.lineTo(x + 22, y - 10);
+    ctx.lineTo(x + 22, y + 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Rueditas verticales
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = "#111827";
+
+    ctx.beginPath();
+    ctx.arc(x + 27, y - 6, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(x + 27, y + 6, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Base vertical
+    ctx.beginPath();
+    ctx.moveTo(x + 32, y - 14);
+    ctx.lineTo(x + 32, y + 14);
+    ctx.stroke();
+
+    ctx.fillStyle = "#111827";
+    ctx.font = "8px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("RY", x + 18, y + 3);
+
+    ctx.restore();
+  }
+
+  drawCustomSupport(context, x, y) {
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.arc(x, y + 15, 9, 0, Math.PI * 2);
+    ctx.fillStyle = "#a855f7";
+    ctx.fill();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "9px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("C", x, y + 15);
+
+    ctx.restore();
+  }
+
+  // =====================================================
+  // VISUAL ASSIGN > JOINT / POINT > DIAPHRAGMS
+  // =====================================================
+
+  getJointDiaphragm(node) {
+    if (!node) return null;
+
+    return (
+      node.diaphragm ||
+      node.assignment?.diaphragm ||
+      (
+        node.diaphragmId
+          ? {
+            id: node.diaphragmId,
+            name: node.diaphragmName || node.diaphragmId,
+            type: "rigid",
+          }
+          : null
+      )
+    );
+  }
+
+  jointHasDiaphragm(node) {
+    return !!this.getJointDiaphragm(node);
+  }
+
+  drawJointDiaphragmSymbol(node, context, screenPoint) {
+    const diaphragm = this.getJointDiaphragm(node);
+
+    if (!diaphragm) return;
+
+    const ctx = context.ctx;
+    const label = diaphragm.name || diaphragm.id || "D";
+
+    const x = screenPoint.x;
+    const y = screenPoint.y;
+
+    ctx.save();
+
+    // Anillo alrededor del nodo
+    ctx.beginPath();
+    ctx.arc(x, y, 10, 0, Math.PI * 2);
+    ctx.strokeStyle = "#22d3ee";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Etiqueta pequeña
+    ctx.font = "10px Arial";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+
+    const textWidth = ctx.measureText(label).width;
+    const labelX = x + 12;
+    const labelY = y + 12;
+
+    ctx.fillStyle = "rgba(8, 47, 73, 0.85)";
+    ctx.fillRect(labelX - 3, labelY - 8, textWidth + 6, 16);
+
+    ctx.fillStyle = "#67e8f9";
+    ctx.fillText(label, labelX, labelY);
+
+    ctx.restore();
+  }
+
+  // =====================================================
+  // VISUAL ASSIGN > JOINT / POINT > POINT SPRINGS
+  // =====================================================
+
+  getJointPointSprings(node) {
+    if (!node) return null;
+
+    return (
+      node.pointSprings ||
+      node.springs ||
+      node.assignment?.pointSprings ||
+      null
+    );
+  }
+
+  jointHasPointSprings(node) {
+    const springs = this.getJointPointSprings(node);
+
+    if (!springs?.stiffness) return false;
+
+    const k = springs.stiffness;
+
+    return (
+      Number(k.ux || 0) !== 0 ||
+      Number(k.uy || 0) !== 0 ||
+      Number(k.uz || 0) !== 0 ||
+      Number(k.rx || 0) !== 0 ||
+      Number(k.ry || 0) !== 0 ||
+      Number(k.rz || 0) !== 0
+    );
+  }
+
+  getPointSpringLabel(node) {
+    const springs = this.getJointPointSprings(node);
+
+    if (!springs?.stiffness) return "K";
+
+    const k = springs.stiffness;
+    const labels = [];
+
+    if (Number(k.ux || 0) !== 0) labels.push("UX");
+    if (Number(k.uy || 0) !== 0) labels.push("UY");
+    if (Number(k.uz || 0) !== 0) labels.push("UZ");
+    if (Number(k.rx || 0) !== 0) labels.push("RX");
+    if (Number(k.ry || 0) !== 0) labels.push("RY");
+    if (Number(k.rz || 0) !== 0) labels.push("RZ");
+
+    return labels.length ? `K:${labels.join(",")}` : "K";
+  }
+
+  drawPointSpringZigzag(context, x, y) {
+    const ctx = context.ctx;
+
+    const startY = y + 6;
+    const endY = y + 34;
+    const width = 7;
+    const segments = 6;
+    const step = (endY - startY) / segments;
+
+    ctx.save();
+
+    ctx.strokeStyle = "#22c55e";
+    ctx.lineWidth = 2;
+
+    ctx.beginPath();
+    ctx.moveTo(x, startY);
+
+    for (let i = 1; i <= segments; i++) {
+      const px = i % 2 === 0 ? x - width : x + width;
+      const py = startY + step * i;
+      ctx.lineTo(px, py);
+    }
+
+    ctx.lineTo(x, endY + 6);
+    ctx.stroke();
+
+    // Base del resorte
+    ctx.beginPath();
+    ctx.moveTo(x - 12, endY + 8);
+    ctx.lineTo(x + 12, endY + 8);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  drawJointPointSpringSymbol(node, context, screenPoint) {
+    if (!this.jointHasPointSprings(node)) return;
+
+    const ctx = context.ctx;
+
+    // Lo movemos a la izquierda para no chocar con apoyos ni diafragmas
+    const x = screenPoint.x - 26;
+    const y = screenPoint.y;
+
+    const label = this.getPointSpringLabel(node);
+
+    ctx.save();
+
+    this.drawPointSpringZigzag(context, x, y);
+
+    ctx.font = "10px Arial";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+
+    const textX = x + 12;
+    const textY = y + 22;
+    const textWidth = ctx.measureText(label).width;
+
+    ctx.fillStyle = "rgba(20, 83, 45, 0.85)";
+    ctx.fillRect(textX - 3, textY - 8, textWidth + 6, 16);
+
+    ctx.fillStyle = "#86efac";
+    ctx.fillText(label, textX, textY);
+
+    ctx.restore();
+  }
+
+  // =====================================================
+  // VISUAL ASSIGN > JOINT / POINT LOADS > FORCE
+  // =====================================================
+
+  getJointPointLoads(node) {
+    if (!node) return [];
+
+    return (
+      node.pointLoads ||
+      node.jointLoads ||
+      node.assignment?.pointLoads ||
+      []
+    );
+  }
+
+  getJointForceLoads(node) {
+    return this.getJointPointLoads(node).filter((load) => {
+      return load?.type === "force" && load?.forces;
+    });
+  }
+
+  jointHasForceLoads(node) {
+    return this.getJointForceLoads(node).length > 0;
+  }
+
+  getJointForceLoadLabel(node) {
+    const loads = this.getJointForceLoads(node);
+
+    if (!loads.length) return "";
+
+    const load = loads[loads.length - 1];
+    const f = load.forces || {};
+
+    const parts = [];
+
+    if (Number(f.fx || 0) !== 0) parts.push(`FX=${f.fx}`);
+    if (Number(f.fy || 0) !== 0) parts.push(`FY=${f.fy}`);
+    if (Number(f.fz || 0) !== 0) parts.push(`FZ=${f.fz}`);
+    if (Number(f.mx || 0) !== 0) parts.push(`MX=${f.mx}`);
+    if (Number(f.my || 0) !== 0) parts.push(`MY=${f.my}`);
+    if (Number(f.mz || 0) !== 0) parts.push(`MZ=${f.mz}`);
+
+    const loadCase = load.loadCase || "LOAD";
+
+    return `${loadCase}: ${parts.join(", ")}`;
+  }
+
+  drawJointForceArrow(context, x, y) {
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    ctx.strokeStyle = "#ef4444";
+    ctx.fillStyle = "#ef4444";
+    ctx.lineWidth = 2;
+
+    // Flecha vertical hacia abajo
+    ctx.beginPath();
+    ctx.moveTo(x, y - 38);
+    ctx.lineTo(x, y - 10);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(x, y - 10);
+    ctx.lineTo(x - 5, y - 19);
+    ctx.lineTo(x + 5, y - 19);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  drawJointPointForceSymbol(node, context, screenPoint) {
+    if (!this.jointHasForceLoads(node)) return;
+
+    const ctx = context.ctx;
+    const x = screenPoint.x;
+    const y = screenPoint.y;
+
+    const label = this.getJointForceLoadLabel(node);
+
+    ctx.save();
+
+    this.drawJointForceArrow(context, x, y);
+
+    ctx.font = "10px Arial";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+
+    const labelX = x + 10;
+    const labelY = y - 30;
+    const textWidth = ctx.measureText(label).width;
+
+    ctx.fillStyle = "rgba(127, 29, 29, 0.85)";
+    ctx.fillRect(labelX - 3, labelY - 8, textWidth + 6, 16);
+
+    ctx.fillStyle = "#fecaca";
+    ctx.fillText(label, labelX, labelY);
+
+    ctx.restore();
+  }
+
+  // =====================================================
+  // VISUAL ASSIGN > JOINT / POINT LOADS > GROUND DISPLACEMENT
+  // =====================================================
+
+  getJointGroundDisplacementLoads(node) {
+    return this.getJointPointLoads(node).filter((load) => {
+      return load?.type === "ground-displacement" && load?.displacements;
+    });
+  }
+
+  jointHasGroundDisplacementLoads(node) {
+    return this.getJointGroundDisplacementLoads(node).length > 0;
+  }
+
+  getJointGroundDisplacementLabel(node) {
+    const loads = this.getJointGroundDisplacementLoads(node);
+
+    if (!loads.length) return "";
+
+    const load = loads[loads.length - 1];
+    const d = load.displacements || {};
+
+    const parts = [];
+
+    if (Number(d.ux || 0) !== 0) parts.push(`UX=${d.ux}`);
+    if (Number(d.uy || 0) !== 0) parts.push(`UY=${d.uy}`);
+    if (Number(d.uz || 0) !== 0) parts.push(`UZ=${d.uz}`);
+    if (Number(d.rx || 0) !== 0) parts.push(`RX=${d.rx}`);
+    if (Number(d.ry || 0) !== 0) parts.push(`RY=${d.ry}`);
+    if (Number(d.rz || 0) !== 0) parts.push(`RZ=${d.rz}`);
+
+    const loadCase = load.loadCase || "LOAD";
+
+    return `${loadCase}: ${parts.join(", ")}`;
+  }
+
+  drawJointGroundDisplacementSymbol(node, context, screenPoint) {
+    if (!this.jointHasGroundDisplacementLoads(node)) return;
+
+    const ctx = context.ctx;
+
+    const x = screenPoint.x + 34;
+    const y = screenPoint.y + 4;
+
+    const label = this.getJointGroundDisplacementLabel(node);
+
+    ctx.save();
+
+    // Símbolo tipo desplazamiento impuesto: flecha doble morada
+    ctx.strokeStyle = "#a855f7";
+    ctx.fillStyle = "#a855f7";
+    ctx.lineWidth = 2;
+
+    ctx.beginPath();
+    ctx.moveTo(x - 16, y);
+    ctx.lineTo(x + 16, y);
+    ctx.stroke();
+
+    // Punta izquierda
+    ctx.beginPath();
+    ctx.moveTo(x - 16, y);
+    ctx.lineTo(x - 8, y - 5);
+    ctx.lineTo(x - 8, y + 5);
+    ctx.closePath();
+    ctx.fill();
+
+    // Punta derecha
+    ctx.beginPath();
+    ctx.moveTo(x + 16, y);
+    ctx.lineTo(x + 8, y - 5);
+    ctx.lineTo(x + 8, y + 5);
+    ctx.closePath();
+    ctx.fill();
+
+    // Letra D
+    ctx.beginPath();
+    ctx.arc(x, y, 9, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(88, 28, 135, 0.95)";
+    ctx.fill();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "10px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("D", x, y);
+
+    // Etiqueta
+    ctx.font = "10px Arial";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+
+    const labelX = x + 18;
+    const labelY = y;
+    const textWidth = ctx.measureText(label).width;
+
+    ctx.fillStyle = "rgba(88, 28, 135, 0.85)";
+    ctx.fillRect(labelX - 3, labelY - 8, textWidth + 6, 16);
+
+    ctx.fillStyle = "#e9d5ff";
+    ctx.fillText(label, labelX, labelY);
+
+    ctx.restore();
+  }
+
+  // =====================================================
+  // VISUAL ASSIGN > JOINT / POINT LOADS > TEMPERATURE
+  // =====================================================
+
+  getJointTemperatureLoads(node) {
+    return this.getJointPointLoads(node).filter((load) => {
+      return load?.type === "temperature" && load?.temperature;
+    });
+  }
+
+  jointHasTemperatureLoads(node) {
+    return this.getJointTemperatureLoads(node).length > 0;
+  }
+
+  getJointTemperatureLabel(node) {
+    const loads = this.getJointTemperatureLoads(node);
+
+    if (!loads.length) return "";
+
+    const load = loads[loads.length - 1];
+    const t = load.temperature || {};
+
+    const loadCase = load.loadCase || "LOAD";
+    const deltaT = Number(t.deltaT || 0);
+
+    return `${loadCase}: ΔT=${deltaT}°C`;
+  }
+
+  drawJointTemperatureSymbol(node, context, screenPoint) {
+    if (!this.jointHasTemperatureLoads(node)) return;
+
+    const ctx = context.ctx;
+
+    const x = screenPoint.x + 34;
+    const y = screenPoint.y - 28;
+
+    const label = this.getJointTemperatureLabel(node);
+
+    ctx.save();
+
+    // Termómetro simple
+    ctx.strokeStyle = "#fb923c";
+    ctx.fillStyle = "#fb923c";
+    ctx.lineWidth = 2;
+
+    // Tubo
+    ctx.beginPath();
+    ctx.roundRect(x - 3, y - 18, 6, 24, 3);
+    ctx.stroke();
+
+    // Bulbo
+    ctx.beginPath();
+    ctx.arc(x, y + 10, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // Línea interna
+    ctx.beginPath();
+    ctx.moveTo(x, y + 6);
+    ctx.lineTo(x, y - 12);
+    ctx.strokeStyle = "#fb923c";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Letra T
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "9px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("T", x, y + 10);
+
+    // Etiqueta
+    ctx.font = "10px Arial";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+
+    const labelX = x + 13;
+    const labelY = y;
+    const textWidth = ctx.measureText(label).width;
+
+    ctx.fillStyle = "rgba(124, 45, 18, 0.85)";
+    ctx.fillRect(labelX - 3, labelY - 8, textWidth + 6, 16);
+
+    ctx.fillStyle = "#fed7aa";
+    ctx.fillText(label, labelX, labelY);
+
+    ctx.restore();
+  }
+
+  // =====================================================
+  // VISUAL ASSIGN > FRAME / LINE LOADS > POINT
+  // =====================================================
+
+  getFrameLoads(beam) {
+    if (!beam) return [];
+
+    return (
+      beam.frameLoads ||
+      beam.lineLoads ||
+      beam.assignment?.frameLoads ||
+      []
+    );
+  }
+
+  getFramePointLoads(beam) {
+    return this.getFrameLoads(beam).filter((load) => {
+      return load?.type === "point";
+    });
+  }
+
+  frameHasPointLoads(beam) {
+    return this.getFramePointLoads(beam).length > 0;
+  }
+
+  getFramePointLoadLabel(load) {
+    if (!load) return "";
+
+    const loadCase = load.loadCase || "LOAD";
+    const direction = load.direction || "";
+    const value = Number(load.value || 0);
+
+    return `${loadCase}: ${direction}=${value}`;
+  }
+
+  getFramePointLoadScreenPosition(beam, context, p1, p2, load) {
+    const t = Number(load.relativeDistance ?? 0.5);
+
+    return {
+      x: p1.x + (p2.x - p1.x) * t,
+      y: p1.y + (p2.y - p1.y) * t,
+    };
+  }
+
+  drawFramePointLoadArrow(context, x, y, angle = 0) {
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+
+    ctx.strokeStyle = "#ef4444";
+    ctx.fillStyle = "#ef4444";
+    ctx.lineWidth = 2;
+
+    // Flecha hacia abajo local en pantalla
+    ctx.beginPath();
+    ctx.moveTo(0, -34);
+    ctx.lineTo(0, -8);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(0, -8);
+    ctx.lineTo(-5, -17);
+    ctx.lineTo(5, -17);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  drawFramePointLoadSymbols(beam, context, p1, p2) {
+    const loads = this.getFramePointLoads(beam);
+
+    if (!loads.length) return;
+
+    const ctx = context.ctx;
+
+    loads.forEach((load, index) => {
+      const pos = this.getFramePointLoadScreenPosition(beam, context, p1, p2, load);
+      const label = this.getFramePointLoadLabel(load);
+
+      const offsetY = index * 16;
+
+      this.drawFramePointLoadArrow(context, pos.x, pos.y - offsetY);
+
+      ctx.save();
+
+      ctx.font = "10px Arial";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+
+      const labelX = pos.x + 8;
+      const labelY = pos.y - 30 - offsetY;
+      const textWidth = ctx.measureText(label).width;
+
+      ctx.fillStyle = "rgba(127, 29, 29, 0.85)";
+      ctx.fillRect(labelX - 3, labelY - 8, textWidth + 6, 16);
+
+      ctx.fillStyle = "#fecaca";
+      ctx.fillText(label, labelX, labelY);
+
+      ctx.restore();
+    });
+  }
+
+  // =====================================================
+  // VISUAL ASSIGN > FRAME / LINE LOADS > DISTRIBUTED
+  // =====================================================
+
+  getFrameDistributedLoads(beam) {
+    return this.getFrameLoads(beam).filter((load) => {
+      return load?.type === "distributed";
+    });
+  }
+
+  frameHasDistributedLoads(beam) {
+    return this.getFrameDistributedLoads(beam).length > 0;
+  }
+
+  getFrameDistributedLoadLabel(load) {
+    if (!load) return "";
+
+    const loadCase = load.loadCase || "LOAD";
+    const direction = load.direction || "";
+    const w1 = Number(load.startValue || 0);
+    const w2 = Number(load.endValue || 0);
+
+    if (w1 === w2) {
+      return `${loadCase}: ${direction}=${w1}`;
+    }
+
+    return `${loadCase}: ${direction}=${w1}→${w2}`;
+  }
+
+  getFrameDistributedRange(load) {
+    let t1 = Number(load.startRelativeDistance ?? 0);
+    let t2 = Number(load.endRelativeDistance ?? 1);
+
+    t1 = Math.max(0, Math.min(1, t1));
+    t2 = Math.max(0, Math.min(1, t2));
+
+    if (t2 < t1) {
+      const temp = t1;
+      t1 = t2;
+      t2 = temp;
+    }
+
+    return { t1, t2 };
+  }
+
+  drawFrameDistributedLoadArrow(context, x, y, arrowLength = 28) {
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    ctx.strokeStyle = "#f97316";
+    ctx.fillStyle = "#f97316";
+    ctx.lineWidth = 1.8;
+
+    ctx.beginPath();
+    ctx.moveTo(x, y - arrowLength);
+    ctx.lineTo(x, y - 6);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(x, y - 6);
+    ctx.lineTo(x - 4, y - 14);
+    ctx.lineTo(x + 4, y - 14);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  drawFrameDistributedLoadSymbols(beam, context, p1, p2) {
+    const loads = this.getFrameDistributedLoads(beam);
+
+    if (!loads.length) return;
+
+    const ctx = context.ctx;
+
+    loads.forEach((load, loadIndex) => {
+      const { t1, t2 } = this.getFrameDistributedRange(load);
+
+      const x1 = p1.x + (p2.x - p1.x) * t1;
+      const y1 = p1.y + (p2.y - p1.y) * t1;
+
+      const x2 = p1.x + (p2.x - p1.x) * t2;
+      const y2 = p1.y + (p2.y - p1.y) * t2;
+
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const length = Math.sqrt(dx * dx + dy * dy);
+
+      if (length < 1e-6) return;
+
+      const ux = dx / length;
+      const uy = dy / length;
+
+      // Normal para separar las flechas de la barra
+      const nx = -uy;
+      const ny = ux;
+
+      const baseOffset = 24 + loadIndex * 22;
+
+      const arrowCount = Math.max(3, Math.min(9, Math.floor(length / 45)));
+
+      const startValue = Math.abs(Number(load.startValue || 0));
+      const endValue = Math.abs(Number(load.endValue || 0));
+      const maxValue = Math.max(startValue, endValue, 1);
+
+      const topPoints = [];
+
+      for (let i = 0; i < arrowCount; i++) {
+        const ratio = arrowCount === 1 ? 0 : i / (arrowCount - 1);
+        const t = t1 + (t2 - t1) * ratio;
+
+        const x = p1.x + (p2.x - p1.x) * t;
+        const y = p1.y + (p2.y - p1.y) * t;
+
+        const valueAtPoint =
+          Number(load.startValue || 0) +
+          (Number(load.endValue || 0) - Number(load.startValue || 0)) * ratio;
+
+        const normalized = Math.abs(valueAtPoint) / maxValue;
+        const arrowLength = 18 + normalized * 18;
+
+        const baseX = x + nx * baseOffset;
+        const baseY = y + ny * baseOffset;
+
+        const topX = baseX + nx * arrowLength;
+        const topY = baseY + ny * arrowLength;
+
+        topPoints.push({ x: topX, y: topY });
+
+        this.drawFrameDistributedLoadArrow(context, baseX, baseY, arrowLength);
+      }
+
+      // Línea superior para que parezca carga distribuida/trapezoidal
+      if (topPoints.length >= 2) {
+        ctx.save();
+
+        ctx.strokeStyle = "#f97316";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 3]);
+
+        ctx.beginPath();
+        ctx.moveTo(topPoints[0].x, topPoints[0].y);
+
+        for (let i = 1; i < topPoints.length; i++) {
+          ctx.lineTo(topPoints[i].x, topPoints[i].y);
+        }
+
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.restore();
+      }
+
+      // Etiqueta
+      const label = this.getFrameDistributedLoadLabel(load);
+      const midT = (t1 + t2) / 2;
+      const midX = p1.x + (p2.x - p1.x) * midT + nx * (baseOffset + 38);
+      const midY = p1.y + (p2.y - p1.y) * midT + ny * (baseOffset + 38);
+
+      ctx.save();
+
+      ctx.font = "10px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      const textWidth = ctx.measureText(label).width;
+
+      ctx.fillStyle = "rgba(124, 45, 18, 0.85)";
+      ctx.fillRect(midX - textWidth / 2 - 4, midY - 8, textWidth + 8, 16);
+
+      ctx.fillStyle = "#fed7aa";
+      ctx.fillText(label, midX, midY);
+
+      ctx.restore();
+    });
+  }
+
+  // =====================================================
+  // VISUAL ASSIGN > FRAME / LINE LOADS > TEMPERATURE
+  // =====================================================
+
+  getFrameTemperatureLoads(beam) {
+    return this.getFrameLoads(beam).filter((load) => {
+      return load?.type === "temperature" && load?.temperature;
+    });
+  }
+
+  frameHasTemperatureLoads(beam) {
+    return this.getFrameTemperatureLoads(beam).length > 0;
+  }
+
+  getFrameTemperatureLoadLabel(load) {
+    if (!load) return "";
+
+    const loadCase = load.loadCase || "LOAD";
+    const type = load.temperatureType || "uniform";
+    const t = load.temperature || {};
+
+    if (type === "gradient2") {
+      return `${loadCase}: G2=${Number(t.gradient2 || 0)}°C/m`;
+    }
+
+    if (type === "gradient3") {
+      return `${loadCase}: G3=${Number(t.gradient3 || 0)}°C/m`;
+    }
+
+    if (type === "combined") {
+      return `${loadCase}: ΔT=${Number(t.deltaT || 0)} G2=${Number(t.gradient2 || 0)} G3=${Number(t.gradient3 || 0)}`;
+    }
+
+    return `${loadCase}: ΔT=${Number(t.deltaT || 0)}°C`;
+  }
+
+  drawFrameTemperatureSymbol(context, x, y) {
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    ctx.strokeStyle = "#fb923c";
+    ctx.fillStyle = "#fb923c";
+    ctx.lineWidth = 2;
+
+    // Tubo del termómetro
+    ctx.beginPath();
+    ctx.rect(x - 3, y - 18, 6, 24);
+    ctx.stroke();
+
+    // Bulbo
+    ctx.beginPath();
+    ctx.arc(x, y + 10, 7, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // Línea interna
+    ctx.beginPath();
+    ctx.moveTo(x, y + 6);
+    ctx.lineTo(x, y - 12);
+    ctx.strokeStyle = "#fb923c";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "9px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("T", x, y + 10);
+
+    ctx.restore();
+  }
+
+  drawFrameTemperatureLoadSymbols(beam, context, p1, p2) {
+    const loads = this.getFrameTemperatureLoads(beam);
+
+    if (!loads.length) return;
+
+    const ctx = context.ctx;
+
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const length = Math.sqrt(dx * dx + dy * dy);
+
+    if (length < 1e-6) return;
+
+    const ux = dx / length;
+    const uy = dy / length;
+
+    const nx = -uy;
+    const ny = ux;
+
+    loads.forEach((load, index) => {
+      const midX = (p1.x + p2.x) / 2 + nx * (54 + index * 24);
+      const midY = (p1.y + p2.y) / 2 + ny * (54 + index * 24);
+
+      const label = this.getFrameTemperatureLoadLabel(load);
+
+      this.drawFrameTemperatureSymbol(context, midX, midY);
+
+      ctx.save();
+
+      ctx.font = "10px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      const labelX = midX + 34;
+      const labelY = midY;
+      const textWidth = ctx.measureText(label).width;
+
+      ctx.fillStyle = "rgba(124, 45, 18, 0.85)";
+      ctx.fillRect(labelX - textWidth / 2 - 4, labelY - 8, textWidth + 8, 16);
+
+      ctx.fillStyle = "#fed7aa";
+      ctx.fillText(label, labelX, labelY);
+
+      ctx.restore();
+    });
+  }
+
+  // =====================================================
+  // VISUAL ASSIGN > GROUP NAMES
+  // =====================================================
+
+  getObjectGroupLabel(obj) {
+    if (!obj) return "";
+
+    const groups =
+      obj.groupNames ||
+      obj.groupIds ||
+      obj.groups?.map((group) => group.name || group.id) ||
+      obj.assignment?.groups?.map((group) => group.name || group.id) ||
+      [];
+
+    if (!groups.length) return "";
+
+    if (groups.length === 1) {
+      return `G:${groups[0]}`;
+    }
+
+    return `G:${groups[0]}+${groups.length - 1}`;
+  }
+
+  objectHasGroups(obj) {
+    return !!this.getObjectGroupLabel(obj);
+  }
+
+  drawObjectGroupLabel(context, x, y, label) {
+    if (!label) return;
+
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    ctx.font = "10px Arial";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+
+    const textWidth = ctx.measureText(label).width;
+
+    ctx.fillStyle = "rgba(30, 64, 175, 0.85)";
+    ctx.fillRect(x - 3, y - 8, textWidth + 6, 16);
+
+    ctx.fillStyle = "#bfdbfe";
+    ctx.fillText(label, x, y);
+
+    ctx.restore();
+  }
+
+  // =====================================================
+  // DISPLAY 2D > ESTILO VISUAL DE BARRAS
+  // Define color, grosor y tipo de línea según el estado.
+  // Barra normal: amarillo.
+  // Barra seleccionada: amarillo más fuerte y más gruesa.
+  // =====================================================
   getElementRenderStyle(beam, mode = "model", context = null) {
     const type = beam.elementType || beam.type || "beam";
 
-    const beamColor = context ? this.getDisplayColor(context, "beam", "#d1d5db") : "#d1d5db";
+// <<<<<<< HEAD
+//     const beamColor = context ? this.getDisplayColor(context, "beam", "#d1d5db") : "#d1d5db";
+// =======
+    // =====================================================
+    // DISPLAY 2D > COLORES BASE
+    // Forzamos amarillo para barras normales en 2D.
+    // =====================================================
+    const beamColor = "#facc15"; // amarillo normal
 
     const secondaryBeamColor = context ? this.getDisplayColor(context, "secondaryBeam", "#38bdf8") : "#38bdf8";
 
     const columnColor = context ? this.getDisplayColor(context, "column", "#22c55e") : "#22c55e";
 
-    const selectedColor = context ? this.getDisplayColor(context, "selected", "#facc15") : "#facc15";
+// <<<<<<< HEAD
+//     const selectedColor = context ? this.getDisplayColor(context, "selected", "#facc15") : "#facc15";
+// =======
+    const selectedColor = "#fde047"; // amarillo más fuerte
 
     const textColor = context ? this.getDisplayColor(context, "text", "#ffffff") : "#ffffff";
 
-    if (beam.selected) {
+    // =====================================================
+    // DISPLAY 2D > DETECTAR SI LA BARRA ESTÁ SELECCIONADA
+    // Reconoce selección normal y selección guardada en selectedBeams.
+    // =====================================================
+    const isSelectedBeam =
+      beam.selected === true ||
+      beam.isSelected === true ||
+      context?.selectedBeams?.some?.((b) => b?.id === beam?.id) ||
+      context?.currentState?.selectedBeams?.some?.((b) => b?.id === beam?.id) ||
+      context?.selectedBeamsState?.selectedObjects?.some?.((b) => b?.id === beam?.id);
+
+    if (isSelectedBeam) {
       return {
         strokeStyle: selectedColor,
-        lineWidth: 3,
+        lineWidth: 3.5,
         lineDash: [],
         textColor: selectedColor,
+      };
+    }
+
+    // =====================================================
+    // DISPLAY 2D > BARRAS CON SECCIÓN ASIGNADA
+    // Mantiene la barra amarilla aunque tenga sección.
+    // El texto puede seguir mostrándose normal.
+    // =====================================================
+    if (this.hasAssignedFrameSection(beam)) {
+      return {
+        strokeStyle: beamColor,
+        lineWidth: mode === "wireframe" ? 2.2 : 3,
+        lineDash: [],
+        textColor: "#ffffff",
       };
     }
 
@@ -1017,6 +3192,141 @@ export class DiseñoRenderer {
     context.ctx.textAlign = "center";
     context.ctx.fillText(`${beam.id}`, 0, 10);
     context.ctx.restore();
+  }
+
+  // =====================================================
+  // VISUAL DISPLAY > SHOW MODE SHAPE
+  // =====================================================
+
+  getModeShapeScreenOffset(obj, context) {
+    const modeNumber = Number(context.displayOptions?.modeNumber ?? 1);
+    const modeScale = Number(context.displayOptions?.modeScale ?? 1);
+
+    const p =
+      obj?.position ||
+      obj?.node1?.position ||
+      { x: 0, y: 0, z: 0 };
+
+    const x = Number(p.x ?? 0);
+    const y = Number(p.y ?? 0);
+    const z = Number(p.z ?? 0);
+
+    // Forma modal visual temporal, no resultado real de análisis.
+    const phase = (x * 0.37 + y * 0.23 + z * 0.19 + modeNumber) * Math.PI;
+
+    return {
+      dx: Math.sin(phase) * 14 * modeScale,
+      dy: Math.cos(phase) * 10 * modeScale,
+    };
+  }
+
+  drawModeShapeBeamOverlay(beam, context, p1, p2) {
+    if (!context.displayOptions?.showModeShape) return;
+
+    const ctx = context.ctx;
+
+    const o1 = this.getModeShapeScreenOffset(beam.node1, context);
+    const o2 = this.getModeShapeScreenOffset(beam.node2, context);
+
+    const q1 = {
+      x: p1.x + o1.dx,
+      y: p1.y + o1.dy,
+    };
+
+    const q2 = {
+      x: p2.x + o2.dx,
+      y: p2.y + o2.dy,
+    };
+
+    ctx.save();
+
+    ctx.strokeStyle = "#c084fc";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+
+    ctx.beginPath();
+    ctx.moveTo(q1.x, q1.y);
+    ctx.lineTo(q2.x, q2.y);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+
+    const label = `Mode ${context.displayOptions?.modeNumber ?? 1}`;
+    const midX = (q1.x + q2.x) / 2;
+    const midY = (q1.y + q2.y) / 2;
+
+    ctx.font = "10px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    const textWidth = ctx.measureText(label).width;
+
+    ctx.fillStyle = "rgba(88, 28, 135, 0.85)";
+    ctx.fillRect(midX - textWidth / 2 - 4, midY - 8, textWidth + 8, 16);
+
+    ctx.fillStyle = "#e9d5ff";
+    ctx.fillText(label, midX, midY);
+
+    ctx.restore();
+  }
+
+  drawModeShapeNodeOverlay(node, context, p) {
+    if (!context.displayOptions?.showModeShape) return;
+
+    const ctx = context.ctx;
+    const offset = this.getModeShapeScreenOffset(node, context);
+
+    const x = p.x + offset.dx;
+    const y = p.y + offset.dy;
+
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = "#c084fc";
+    ctx.fill();
+
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  shouldDrawReferencePoint(point, CADSystem) {
+    if (!point || point.visible === false) return false;
+
+    const view = CADSystem.viewSet?.[CADSystem.activeViewIndex];
+    if (!view) return true;
+
+    const tol = CADSystem.getActiveViewTolerance?.() ?? 0.001;
+
+    const x = Number(point.x ?? point.position?.x ?? 0);
+    const y = Number(point.y ?? point.position?.y ?? 0);
+    const z = Number(point.z ?? point.position?.z ?? 0);
+
+    if (view.type === "plan") {
+      const activeZ = Number(
+        view.elevation ??
+        view.z ??
+        CADSystem.getActivePlanElevation?.() ??
+        0
+      );
+
+      return Math.abs(z - activeZ) <= tol;
+    }
+
+    if (view.type === "elevation") {
+      if (view.axis === "X") {
+        return Math.abs(x - Number(view.value ?? 0)) <= tol;
+      }
+
+      if (view.axis === "Y") {
+        return Math.abs(y - Number(view.value ?? 0)) <= tol;
+      }
+    }
+
+    return true;
   }
 
   // DRAW GRID ORIGINAL
@@ -1491,7 +3801,17 @@ export class DiseñoRenderer {
       ctx.setLineDash([]);
 
       const bubblePoint = line.bubbleLoc === "Start" ? p1 : p2;
-      this.drawGridBubble(ctx, bubblePoint, line.id, line.source === "custom" ? "#bfc7d5" : lineColor, textColor);
+// <<<<<<< HEAD
+//       this.drawGridBubble(ctx, bubblePoint, line.id, line.source === "custom" ? "#bfc7d5" : lineColor, textColor);
+// =======
+      this.drawGridBubble(
+        ctx,
+        bubblePoint,
+        line.id,
+        context,
+        line.source === "custom" ? "#bfc7d5" : lineColor,
+        textColor
+      );
     });
 
     ctx.setLineDash([]);
@@ -1707,78 +4027,113 @@ export class DiseñoRenderer {
     context.ctx.restore();
   }
 
-  // drawDeflections(context) {
-  //   context.ctx.save();
-  //   context.ctx.strokeStyle = "blue";
-  //   context.ctx.fillStyle = "blue";
-  //   context.ctx.textAlign = "center";
-  //   context.ctx.textBaseline = "middle";
-  //   context.deflecciones.forEach((def) => {
-  //     const [x1, x2] = def.x;
-  //     const [y1, y2] = def.y;
-  //     const p1 = context.grid.worldToScreen({ x: x1, y: y1 });
-  //     const p2 = context.grid.worldToScreen({ x: x2, y: y2 });
-  //     context.ctx.beginPath();
-  //     context.ctx.setLineDash([5, 3]);
-  //     context.ctx.moveTo(p1.x, p1.y);
-  //     context.ctx.lineTo(p2.x, p2.y);
-  //     context.ctx.stroke();
-  //   });
-  //   context.desplazamientosPosition.forEach((d, index) => {
-  //     const [x, y, _] = context.matrizDesplazamiento[index];
-  //     const p = context.grid.worldToScreen(d);
-  //     context.ctx.fillText(`dx: ${axisToFixed(x)}`, p.x, p.y);
-  //     context.ctx.fillText(`dy: ${axisToFixed(y)}`, p.x, p.y + 10);
-  //   });
+  drawRubberBandZoomState(state, context) {
+    const rect = state.getScreenRect?.();
 
-  //   context.ctx.restore();
-  // }
+    if (!rect || rect.width <= 0 || rect.height <= 0) {
+      return;
+    }
+
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    ctx.fillStyle = "rgba(250, 204, 21, 0.12)";
+    ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
+
+    ctx.strokeStyle = "rgba(250, 204, 21, 1)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 4]);
+
+    ctx.shadowColor = "rgba(250, 204, 21, 0.8)";
+    ctx.shadowBlur = 4;
+
+    ctx.strokeRect(rect.left, rect.top, rect.width, rect.height);
+
+    ctx.setLineDash([]);
+
+    ctx.font = "11px Arial";
+    ctx.fillStyle = "#facc15";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(
+      "Rubber Band Zoom",
+      rect.left + 6,
+      rect.top - 4
+    );
+
+    ctx.restore();
+  }
 
   drawTrussDrawingState(state, context) {
     const view = context.viewSet?.[context.activeViewIndex];
-    const last_point = state.shape.getFirstPoint();
+    const lastPoint = state.shape.getFirstPoint();
 
-    let previewMouseScreen;
+    // Punto estructural real que usará la barra:
+    // - si hay activeGridPoint, usa el snap
+    // - si no hay snap, usa el punto coherente según planta/elevación
+    let previewPoint = null;
 
-    // Cursor preview según la vista activa
-    if (!view || view.type === "plan") {
-      previewMouseScreen = context.grid.worldToScreen(context.mousePos);
-    } else if (view.type === "elevation") {
-      // En elevación, context.mousePos ya está en coordenadas del plano 2D activo
-      previewMouseScreen = context.grid.worldToScreen({
-        x: context.mousePos.x,
-        y: context.mousePos.y,
-      });
+    if (context.activeGridPoint) {
+      previewPoint = {
+        x: Number(context.activeGridPoint.x || 0),
+        y: Number(context.activeGridPoint.y || 0),
+        z: Number(context.activeGridPoint.z || 0),
+      };
+    } else if (typeof context.getCurrentSnapPoint === "function") {
+      previewPoint = context.getCurrentSnapPoint(context.mousePos || { x: 0, y: 0 });
     } else {
-      previewMouseScreen = context.grid.worldToScreen(context.mousePos);
+      previewPoint = {
+        x: Number(context.mousePos?.x || 0),
+        y: Number(context.mousePos?.y || 0),
+        z: Number(context.currentZ || 0),
+      };
     }
+
+    const previewMouseScreen = this.projectPoint(
+      { position: previewPoint },
+      context
+    );
 
     context.ctx.save();
 
-    // Punto rojo del cursor
+    // Cursor del punto final real
     context.ctx.beginPath();
-    context.ctx.fillStyle = "red";
-    context.ctx.arc(previewMouseScreen.x, previewMouseScreen.y, context.grid.size, 0, Math.PI * 2);
+    context.ctx.fillStyle = context.activeGridPoint ? "#f97316" : "red";
+    context.ctx.arc(
+      previewMouseScreen.x,
+      previewMouseScreen.y,
+      context.grid.size,
+      0,
+      Math.PI * 2
+    );
     context.ctx.fill();
 
-    // Línea preview desde el nodo inicial
-    if (last_point) {
-      let startScreen;
+    // Etiqueta del snap
+    if (context.activeGridPoint?.label || context.activeGridPoint?.displayLabel) {
+      context.ctx.fillStyle = "#ffffff";
+      context.ctx.font = "11px Arial";
+      context.ctx.fillText(
+        context.activeGridPoint.displayLabel || context.activeGridPoint.label,
+        previewMouseScreen.x + 10,
+        previewMouseScreen.y - 10
+      );
+    }
 
-      if (!view || view.type === "plan") {
-        startScreen = context.grid.worldToScreen(last_point.position);
-      } else if (view.type === "elevation") {
-        // Usar la misma proyección correcta del renderer
-        startScreen = this.projectPoint(last_point, context);
-      } else {
-        startScreen = context.grid.worldToScreen(last_point.position);
-      }
+    // Línea preview desde el primer punto hasta el punto con snap
+    if (lastPoint) {
+      const startScreen = this.projectPoint(lastPoint, context);
 
-      context.ctx.strokeStyle = "gray";
+      context.ctx.strokeStyle = context.activeGridPoint ? "#facc15" : "gray";
+      context.ctx.lineWidth = context.activeGridPoint ? 2 : 1;
+      context.ctx.setLineDash(context.activeGridPoint ? [] : [5, 4]);
+
       context.ctx.beginPath();
       context.ctx.moveTo(startScreen.x, startScreen.y);
       context.ctx.lineTo(previewMouseScreen.x, previewMouseScreen.y);
       context.ctx.stroke();
+
+      context.ctx.setLineDash([]);
     }
 
     context.ctx.restore();
@@ -1849,6 +4204,181 @@ export class DiseñoRenderer {
         ctx.fillText(`dx: ${this.formatValue(context, dx, "displacements", 6)}`, screen.x, screen.y);
         ctx.fillText(`dy: ${this.formatValue(context, dy, "displacements", 6)}`, screen.x, screen.y + 12);
       }
+// =======
+
+//     const deflecciones = Array.isArray(context.deflecciones)
+//       ? context.deflecciones
+//       : [];
+
+//     const matriz = Array.isArray(context.matrizDesplazamiento)
+//       ? context.matrizDesplazamiento
+//       : [];
+
+//     const nodes = Array.isArray(context.nodes) ? context.nodes : [];
+//     const shapes = Array.isArray(context.shapes) ? context.shapes : [];
+
+//     const scale = Number(
+//       context.displayOptions?.deformedScale ??
+//       context.displayOptions?.deformationScale ??
+//       context.options?.deflectionScale ??
+//       50
+//     );
+
+//     const getDisplacementFromRow = (node, index) => {
+//       const nodeId = node?.id;
+
+//       const fromNode =
+//         node?.analysisDisplacement ||
+//         node?.displacement ||
+//         null;
+
+//       if (fromNode) {
+//         return {
+//           ux: Number(fromNode.ux ?? fromNode.dx ?? 0),
+//           uy: Number(fromNode.uy ?? fromNode.dy ?? 0),
+//           uz: Number(fromNode.uz ?? fromNode.dz ?? 0),
+//         };
+//       }
+
+//       const fromResults = context.analysisResults?.nodes?.[nodeId]?.displacement;
+
+//       if (fromResults) {
+//         return {
+//           ux: Number(fromResults.ux ?? fromResults.dx ?? 0),
+//           uy: Number(fromResults.uy ?? fromResults.dy ?? 0),
+//           uz: Number(fromResults.uz ?? fromResults.dz ?? 0),
+//         };
+//       }
+
+//       const fromDef = deflecciones.find((item) => {
+//         return String(item?.nodeId ?? item?.id) === String(nodeId);
+//       });
+
+//       if (fromDef) {
+//         const d = fromDef.displacement || fromDef;
+
+//         return {
+//           ux: Number(d.ux ?? d.dx ?? 0),
+//           uy: Number(d.uy ?? d.dy ?? 0),
+//           uz: Number(d.uz ?? d.dz ?? 0),
+//         };
+//       }
+
+//       const row = matriz[index];
+
+//       if (Array.isArray(row)) {
+//         // Nuevo formato: [nodeId, ux, uy, uz, rx, ry, rz]
+//         if (row.length >= 4 && String(row[0]) === String(nodeId)) {
+//           return {
+//             ux: Number(row[1] || 0),
+//             uy: Number(row[2] || 0),
+//             uz: Number(row[3] || 0),
+//           };
+//         }
+
+//         // Formato antiguo: [ux, uy, uz]
+//         return {
+//           ux: Number(row[0] || 0),
+//           uy: Number(row[1] || 0),
+//           uz: Number(row[2] || 0),
+//         };
+//       }
+
+//       if (row && typeof row === "object") {
+//         return {
+//           ux: Number(row.ux ?? row.dx ?? 0),
+//           uy: Number(row.uy ?? row.dy ?? 0),
+//           uz: Number(row.uz ?? row.dz ?? 0),
+//         };
+//       }
+
+//       return {
+//         ux: 0,
+//         uy: 0,
+//         uz: 0,
+//       };
+//     };
+
+//     const getDeformedPosition = (node, index) => {
+//       const p = node?.position || {};
+//       const d = getDisplacementFromRow(node, index);
+
+//       return {
+//         x: Number(p.x || 0) + d.ux * scale,
+//         y: Number(p.y || 0) + d.uy * scale,
+//         z: Number(p.z || 0) + d.uz * scale,
+//       };
+//     };
+
+//     ctx.save();
+
+//     ctx.strokeStyle = "#38bdf8";
+//     ctx.fillStyle = "#38bdf8";
+//     ctx.lineWidth = 2;
+//     ctx.textAlign = "center";
+//     ctx.textBaseline = "middle";
+
+//     // Compatibilidad con formato antiguo: def.x = [x1,x2], def.y = [y1,y2]
+//     deflecciones.forEach((def) => {
+//       if (!Array.isArray(def?.x) || !Array.isArray(def?.y)) return;
+
+//       const [x1, x2] = def.x;
+//       const [y1, y2] = def.y;
+
+//       const p1 = context.grid.worldToScreen({ x: x1, y: y1 });
+//       const p2 = context.grid.worldToScreen({ x: x2, y: y2 });
+
+//       ctx.beginPath();
+//       ctx.setLineDash([5, 3]);
+//       ctx.moveTo(p1.x, p1.y);
+//       ctx.lineTo(p2.x, p2.y);
+//       ctx.stroke();
+//     });
+
+//     // Nuevo formato Analyze: dibujar barras deformadas desde nodos + desplazamientos
+//     shapes.forEach((shape) => {
+//       if (!shape?.node1 || !shape?.node2) return;
+
+//       if (typeof this.shouldDrawBeam === "function" && !this.shouldDrawBeam(shape, context)) {
+//         return;
+//       }
+
+//       const node1Index = nodes.findIndex((n) => String(n.id) === String(shape.node1.id));
+//       const node2Index = nodes.findIndex((n) => String(n.id) === String(shape.node2.id));
+
+//       const q1 = getDeformedPosition(shape.node1, node1Index);
+//       const q2 = getDeformedPosition(shape.node2, node2Index);
+
+//       const p1 = this.projectPoint({ position: q1 }, context);
+//       const p2 = this.projectPoint({ position: q2 }, context);
+
+//       ctx.beginPath();
+//       ctx.setLineDash([7, 4]);
+//       ctx.moveTo(p1.x, p1.y);
+//       ctx.lineTo(p2.x, p2.y);
+//       ctx.stroke();
+//     });
+
+//     ctx.setLineDash([]);
+
+//     // Dibujar nodos deformados y etiquetas dx/dy
+//     nodes.forEach((node, index) => {
+//       if (typeof this.shouldDrawNode === "function" && !this.shouldDrawNode(node, context)) {
+//         return;
+//       }
+
+//       const q = getDeformedPosition(node, index);
+//       const d = getDisplacementFromRow(node, index);
+//       const p = this.projectPoint({ position: q }, context);
+
+//       ctx.beginPath();
+//       ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+//       ctx.fill();
+
+//       ctx.font = "10px Arial";
+//       ctx.fillText(`dx: ${axisToFixed(d.ux)}`, p.x + 24, p.y - 6);
+//       ctx.fillText(`dy: ${axisToFixed(d.uy)}`, p.x + 24, p.y + 6);
+// >>>>>>> eab88042b6badc95272f8096c910734e6c5231f0
     });
 
     ctx.restore();
@@ -1857,74 +4387,190 @@ export class DiseñoRenderer {
   drawMaterials(context) {
     context.shapes.forEach((s) => {
       if (!this.shouldDrawBeam(s, context)) return;
-      // const p1 = context.grid.worldToScreen(s.node1.position);
-      // const p2 = context.grid.worldToScreen(s.node2.position);
+
       const p1 = this.projectPoint(s.node1, context);
       const p2 = this.projectPoint(s.node2, context);
       const mid = midPoint(p1, p2);
 
+      const section =
+        s.frameSection ||
+        s.section ||
+        s.assignment?.frameSection ||
+        null;
+
+      const E = Number(
+        s.E ??
+        section?.E ??
+        section?.elasticModulus ??
+        context.globalE ??
+        210000
+      );
+
+      const AValue =
+        s.A ??
+        s._A ??
+        section?.A ??
+        section?.area ??
+        section?.Area ??
+        null;
+
+      const ALabel = AValue !== null && AValue !== undefined
+        ? this.formatValue(context, AValue, "areas", 3)
+        : "-";
+
       context.ctx.save();
+
       context.ctx.fillStyle = "white";
       context.ctx.textAlign = "center";
       context.ctx.font = "10px arial";
       context.ctx.translate(mid.x, mid.y);
-      context.ctx.rotate(s.angle);
-      context.ctx.fillText(`E: ${s.E}`, 0, -30);
-      context.ctx.fillText(`A: ${s.A}`, 0, -20);
+      context.ctx.rotate(s.angle || 0);
+
+      context.ctx.fillText(`E: ${this.formatValue(context, E, "materials", 0)}`, 0, -30);
+      context.ctx.fillText(`A: ${ALabel}`, 0, -20);
+
       context.ctx.restore();
     });
   }
 
-  // DIBUJO DE NODOS EN WIRE FRAME SOLO SI ESTÁN EN EL PLANO DE LA VISTA ACTIVA
+  // DIBUJO SOLO DE OBJETOS VISIBLES EN LA VISTA ACTIVA
   shouldDrawNode(node, CADSystem) {
+    if (!node) return false;
+
+    if (typeof CADSystem.isObjectVisibleInActiveView === "function") {
+      return CADSystem.isObjectVisibleInActiveView(node);
+    }
+
     const view = CADSystem.viewSet?.[CADSystem.activeViewIndex];
     if (!view) return true;
 
-    const tol = 0.05;
-    const x = node.position.x || 0;
-    const y = node.position.y || 0;
-    const z = node.position.z || 0;
+    const tol = CADSystem.getActiveViewTolerance?.() ?? 0.05;
+
+    const x = Number(node.position?.x || 0);
+    const y = Number(node.position?.y || 0);
+    const z = Number(node.position?.z || 0);
 
     if (view.type === "plan") {
-      return Math.abs(z - view.elevation) <= tol;
+      const activeZ = Number(view.elevation ?? view.z ?? 0);
+      return Math.abs(z - activeZ) <= tol;
     }
 
     if (view.type === "elevation") {
       if (view.axis === "X") {
-        // Letras A,B,C,D => X fija => plano Y-Z
-        return Math.abs(x - view.value) <= tol;
+        return Math.abs(x - Number(view.value ?? 0)) <= tol;
       }
 
       if (view.axis === "Y") {
-        // Números 1,2,3,4 => Y fija => plano X-Z
-        return Math.abs(y - view.value) <= tol;
+        return Math.abs(y - Number(view.value ?? 0)) <= tol;
       }
     }
 
     return true;
   }
 
-  shouldDrawBeam(beam, CADSystem) {
-    return this.shouldDrawNode(beam.node1, CADSystem) && this.shouldDrawNode(beam.node2, CADSystem);
+  // Aplica filtros de vista activa y oculta barras 3D-only.
+  // =====================================================
+  shouldDrawBeam(beam, CADSystem = null) {
+    if (!beam) return false;
+
+    // =====================================================
+    // DISPLAY 2D > OBTENER SISTEMA CAD REAL
+    // Usa primero el CADSystem que llega desde render().
+    // =====================================================
+    const cad =
+      CADSystem ||
+      this.CADSystem ||
+      this.cadSystem ||
+      this.context ||
+      window.cadSystem;
+
+    // =====================================================
+    // DISPLAY 2D > OCULTAR BARRAS 3D-ONLY
+    // Si la barra es inclinada/espacial, no se dibuja en 2D.
+    // =====================================================
+    if (
+      cad?.shouldDrawFrameIn2D &&
+      !cad.shouldDrawFrameIn2D(beam)
+    ) {
+      return false;
+    }
+
+    // =====================================================
+    // DISPLAY 2D > FILTRO NORMAL DE VISTA ACTIVA
+    // Mantiene tu lógica original para planta/elevación.
+    // =====================================================
+    if (typeof cad?.isObjectVisibleInActiveView === "function") {
+      return cad.isObjectVisibleInActiveView(beam);
+    }
+
+    return (
+      this.shouldDrawNode(beam.node1, cad) &&
+      this.shouldDrawNode(beam.node2, cad)
+    );
   }
 
   shouldDrawArea(area, CADSystem) {
-    const view = CADSystem.viewSet?.[CADSystem.activeViewIndex];
-    if (!view) return true;
+    if (!area || area.visible === false) return false;
     if (!area?.points?.length) return false;
 
-    const tol = 0.05;
+    const view = CADSystem.viewSet?.[CADSystem.activeViewIndex];
+    if (!view) return true;
 
-    // cota del área
-    const areaZ = typeof area.z === "number" ? area.z : typeof area.points[0]?.z === "number" ? area.points[0].z : 0;
+// <<<<<<< HEAD
+//     // cota del área
+//     const areaZ = typeof area.z === "number" ? area.z : typeof area.points[0]?.z === "number" ? area.points[0].z : 0;
+// =======
+    const tol = CADSystem.getActiveViewTolerance?.() ?? 0.001;
 
+    const points = area.points || [];
+
+    if (!points.length) return false;
+
+    // ==========================
+    // PLANTA: plano X-Y con Z fijo
+    // ==========================
     if (view.type === "plan") {
-      return Math.abs(areaZ - view.elevation) <= tol;
+      const activeZ = Number(
+        view.elevation ??
+        view.z ??
+        CADSystem.getActivePlanElevation?.() ??
+        0
+      );
+
+      const zs = points.map((p) => Number(p.z ?? 0));
+      const minZ = Math.min(...zs);
+      const maxZ = Math.max(...zs);
+
+      const allOnPlan = zs.every((z) => Math.abs(z - activeZ) <= tol);
+
+      const crossesPlan =
+        activeZ >= minZ - tol &&
+        activeZ <= maxZ + tol;
+
+      return allOnPlan || crossesPlan;
     }
 
-    // Primera versión: áreas solo visibles en planta
+    // ==========================
+    // ELEVACIÓN:
+    // axis X => plano Y-Z con X fijo
+    // axis Y => plano X-Z con Y fijo
+    // ==========================
     if (view.type === "elevation") {
-      return false;
+      const value = Number(view.value ?? 0);
+
+      if (view.axis === "X") {
+        return points.every((p) => {
+          const x = Number(p.x ?? 0);
+          return Math.abs(x - value) <= tol;
+        });
+      }
+
+      if (view.axis === "Y") {
+        return points.every((p) => {
+          const y = Number(p.y ?? 0);
+          return Math.abs(y - value) <= tol;
+        });
+      }
     }
 
     return true;
@@ -1963,6 +4609,9 @@ export class DeflexionRenderer extends DiseñoRenderer {
     if (CADSystem.options.showGrid) {
       CADSystem.grid.draw(this, CADSystem);
     }
+
+    this.drawReferencePlanes(CADSystem);
+    this.drawReferencePoints(CADSystem);
 
     // Soportes solo de la vista activa
     CADSystem.nodes.forEach((n) => {
@@ -2063,41 +4712,22 @@ export class DeflexionRenderer extends DiseñoRenderer {
   }
 
   drawDeflectionsIDs(context) {
-    context.deflecciones.forEach((def, index) => {
-      const [x1, x2] = def.x;
-      const [y1, y2] = def.y;
-      const p1 = { x: x1, y: y1 };
-      const p2 = { x: x2, y: y2 };
-      const pScreen1 = context.grid.worldToScreen(p1);
-      const pScreen2 = context.grid.worldToScreen(p2);
-      this.drawBeamID(
-        {
-          node1: { position: p1 },
-          node2: { position: p2 },
-          id: context.shapes[index].id,
-          angle: Math.atan2(pScreen2.y - pScreen1.y, pScreen2.x - pScreen1.x),
-          style: {
-            get() {
-              return BeamStyle.DEFAULT;
-            },
-          },
-        },
-        context,
-      );
+    const nodes = Array.isArray(context.nodes) ? context.nodes : [];
+    const shapes = Array.isArray(context.shapes) ? context.shapes : [];
+
+    if (!nodes.length && !shapes.length) return;
+
+    shapes.forEach((shape) => {
+      if (!shape?.node1 || !shape?.node2) return;
+      if (!this.shouldDrawBeam(shape, context)) return;
+
+      this.drawBeamID(shape, context);
     });
-    context.desplazamientosPosition.forEach((d, index) => {
-      this.drawNodeID(
-        {
-          position: d,
-          id: context.nodes[index].id,
-          style: {
-            get() {
-              return NodeStyle.DEFAULT;
-            },
-          },
-        },
-        context,
-      );
+
+    nodes.forEach((node) => {
+      if (!this.shouldDrawNode(node, context)) return;
+
+      this.drawNodeID(node, context);
     });
   }
 }
@@ -2105,45 +4735,79 @@ export class DeflexionRenderer extends DiseñoRenderer {
 export class AxialRenderer extends DiseñoRenderer {
   render(CADSystem) {
     this.clearBackground(CADSystem);
+
     if (CADSystem.options.showGrid) {
       CADSystem.grid.draw(this, CADSystem);
     }
+
+    this.drawReferencePlanes(CADSystem);
+    this.drawReferencePoints(CADSystem);
+
     CADSystem.nodes.forEach((n) => {
+      if (!this.shouldDrawNode(n, CADSystem)) return;
       this.drawSupport(n, CADSystem);
     });
+
     if (!CADSystem.options.showWireframe) {
+      CADSystem.shapes.forEach((s) => {
+        if (!this.shouldDrawBeam(s, CADSystem)) return;
+        this.drawBeam(s, CADSystem);
+      });
+
       this.drawAxiales(CADSystem);
+
       CADSystem.nodes.forEach((n) => {
-        n.draw(this, CADSystem);
+        if (!this.shouldDrawNode(n, CADSystem)) return;
+        this.drawNode(n, CADSystem);
       });
     } else {
+      CADSystem.shapes.forEach((s) => {
+        if (!this.shouldDrawBeam(s, CADSystem)) return;
+        this.drawWireBeam(s, CADSystem);
+      });
+
       this.drawWireframeAxiales(CADSystem);
+
+      CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
+        this.drawWireNode(n, CADSystem);
+      });
     }
+
     if (CADSystem.options.showFAxialesValues) {
       this.drawAxialesValues(CADSystem);
     }
+
     if (CADSystem.options.showIDs) {
       CADSystem.shapes.forEach((s) => {
+        if (!this.shouldDrawBeam(s, CADSystem)) return;
         this.drawBeamID(s, CADSystem);
       });
+
       CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
         this.drawNodeID(n, CADSystem);
       });
     }
+
     if (CADSystem.options.showForces) {
       CADSystem.ctx.save();
       CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
         this.drawForce(n, CADSystem);
       });
       CADSystem.ctx.restore();
     }
+
     if (CADSystem.options.showReactions) {
       CADSystem.ctx.save();
       CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
         this.drawReaction(n, CADSystem);
       });
       CADSystem.ctx.restore();
     }
+
     CADSystem.currentState.draw(this, CADSystem);
   }
 }

@@ -87,8 +87,101 @@ export class IdleState extends PanAndZoomState {
       return;
     }
 
-    context.nodes.forEach((n) => n.style.default());
-    context.shapes.forEach((s) => s.style.default());
+    // =====================================================
+    // IDLE > LIMPIAR ESTILOS SIN ROMPER OBJETOS 3D
+    // Algunos nodos/barras creados desde 3D no tienen style.default.
+    // Por eso se usa optional chaining.
+    // =====================================================
+    context.nodes?.forEach((node) => {
+      node.selected = false;
+      node.isSelected = false;
+      node.is3DOnlyEndpointHover = false;
+
+      node.style?.default?.();
+    });
+
+    context.shapes?.forEach((shape) => {
+      shape.selected = false;
+      shape.isSelected = false;
+      shape.highlighted3D = false;
+
+      shape.style?.default?.();
+    });
+
+    // =====================================================
+    // IDLE > ALT + CLIC EN EXTREMO DE BARRA 3D-ONLY
+    // Selecciona barras inclinadas ocultas en 2D desde sus nodos.
+    // La confirmación visual se verá en el canvas 3D.
+    // =====================================================
+    if (event.altKey) {
+      const hit3DOnlyFrame =
+        context.closest3DOnlyFrameEndpointAtActiveView?.(mouse);
+
+      console.log("🔎 Alt + clic sobre posible barra 3D-only:", hit3DOnlyFrame);
+
+      if (hit3DOnlyFrame?.frames?.length) {
+        const framesToSelect = hit3DOnlyFrame.frames;
+
+        context.clearAllSelections?.();
+
+        // Primero cambiamos al estado de barras seleccionadas
+        context.setState(context.selectedBeamsState, {
+          selectedBeams: framesToSelect,
+          selectedBeam: framesToSelect[0],
+        });
+
+        // =====================================================
+        // SELECTION 3D > MARCAR BARRAS SELECCIONADAS
+        // Se marca después del setState para que no se borre.
+        // =====================================================
+        framesToSelect.forEach((frame) => {
+          frame.selected = true;
+          frame.isSelected = true;
+          frame.highlighted3D = true;
+
+          if (frame.style?.select) {
+            frame.style.select();
+          }
+        });
+
+        context.selectedBeams = framesToSelect;
+
+        context.showMessage?.(
+          framesToSelect.length === 1
+            ? "Barra 3D/inclinada seleccionada. Revísala en la vista 3D."
+            : `${framesToSelect.length} barras 3D/inclinadas seleccionadas. Revísalas en la vista 3D.`
+        );
+
+        console.log("✅ Barra(s) 3D-only marcadas como seleccionadas:", framesToSelect.map((frame) => ({
+          id: frame.id,
+          selected: frame.selected,
+          isSelected: frame.isSelected,
+          highlighted3D: frame.highlighted3D,
+          is3DOnlyFrame: frame.is3DOnlyFrame,
+          isCrossViewFrame: frame.isCrossViewFrame,
+        })));
+
+        context.redraw?.();
+
+        // =====================================================
+        // 3D > FORZAR ACTUALIZACIÓN VISUAL
+        // Asegura que Babylon repinte la barra seleccionada.
+        // =====================================================
+        if (typeof context.sync3D === "function") {
+          context.sync3D();
+        }
+
+        if (typeof context.requestSync3D === "function") {
+          context.requestSync3D("select3DOnlyFrameFromEndpoint");
+        }
+
+        requestAnimationFrame(() => {
+          context.sync3D?.();
+        });
+
+        return;
+      }
+    }
 
     let selectedObject = context.closestNodeAtActiveView(mouse);
 
@@ -123,86 +216,231 @@ export class IdleState extends PanAndZoomState {
   handleMouseUp(event, context, mouse) {
     super.handleMouseUp(...arguments);
   }
+  // =====================================================
+  // Controla el cursor cuando el mouse pasa sobre nodos, barras visibles y objetos paramétricos. Ignora barras 3D-only ocultas en el canvas 2D.
+  // =====================================================
   handleMouseMove(event, context, mouse) {
     super.handleMouseMove(...arguments);
-    let collidedNode = false;
-    let collidedBeam = false;
-    let collidedParametric = false;
-    if (!this.isDragging) {
-      context.nodes.forEach((n) => {
-        const shortestDistance = 10;
-        const distance = pointDistance(mouse, context.grid.worldToScreen(n.position));
-        if (distance <= shortestDistance) {
-          n.style.hover();
-          collidedNode = true;
-        } else {
-          n.style.default();
-        }
-      });
-      if (collidedNode) {
-        context.setCursor("grab");
-      } else {
-        context.setCursor("crosshair");
-      }
-      if (!collidedNode) {
-        context.shapes.forEach((s) => {
-          const shortestDistance = 5;
-          const lineLength = pointDistance(
-            context.grid.worldToScreen(s.node1.position),
-            context.grid.worldToScreen(s.node2.position),
-          );
-          const d1 = pointDistance(context.grid.worldToScreen(s.node1.position), mouse);
-          const d2 = pointDistance(context.grid.worldToScreen(s.node2.position), mouse);
-          if (d1 + d2 >= lineLength - shortestDistance && d1 + d2 <= lineLength + shortestDistance) {
-            collidedBeam = true;
-            s.style.hover();
-          } else {
-            s.style.default();
-          }
-        });
-        if (collidedBeam) {
-          context.setCursor("pointer");
-        } else {
-          context.setCursor("crosshair");
-        }
-      }
-      if (!collidedBeam && !collidedNode) {
-        context.parametricModels.find((p) => {
-          p.nodes.find((n) => {
-            const shortestDistance = 10;
-            const distance = pointDistance(mouse, context.grid.worldToScreen(n.position));
-            if (distance <= shortestDistance) {
-              collidedParametric = true;
-            }
-            return collidedParametric;
-          });
-          p.shapes.find((s) => {
-            const shortestDistance = 5;
-            const lineLength = pointDistance(
-              context.grid.worldToScreen(s.node1.position),
-              context.grid.worldToScreen(s.node2.position),
-            );
-            const d1 = pointDistance(context.grid.worldToScreen(s.node1.position), mouse);
-            const d2 = pointDistance(context.grid.worldToScreen(s.node2.position), mouse);
-            if (d1 + d2 >= lineLength - shortestDistance && d1 + d2 <= lineLength + shortestDistance) {
-              collidedParametric = true;
-            }
-            return collidedParametric;
-          });
-          if (collidedParametric) {
-            p.hover();
-          } else {
-            p.default();
-          }
-          return collidedParametric;
-        });
-        if (collidedParametric) {
-          context.setCursor("pointer");
-        } else {
-          context.setCursor("crosshair");
-        }
-      }
+
+    if (this.isDragging) {
+      return;
     }
+
+    // =====================================================
+    // IDLE > LIMPIAR HOVER DE NODOS
+    // Limpia estilos normales y marca especial de nodos 3D-only.
+    // =====================================================
+    context.nodes?.forEach((n) => {
+      n.is3DOnlyEndpointHover = false;
+
+      if (!n?.selected && !n?.isSelected) {
+        n.style?.default?.();
+      }
+    });
+
+    context.shapes?.forEach((s) => {
+      if (!s?.selected && !s?.isSelected) {
+        s.style?.default?.();
+      }
+    });
+
+    let collidedParametric = false;
+
+    // =====================================================
+    // IDLE > DETECTAR NODO EN VISTA ACTIVA
+    // Si el nodo tiene barras 3D-only conectadas,
+    // muestra ayuda visual para usar Alt + clic.
+    // =====================================================
+    const hoveredNode = context.closestNodeAtActiveView?.(mouse);
+
+    if (hoveredNode) {
+      hoveredNode.style?.hover?.();
+
+      const connected3DOnlyFrames =
+        context.get3DOnlyFramesConnectedToNode?.(hoveredNode) || [];
+
+      const has3DOnlyFrames = connected3DOnlyFrames.length > 0;
+
+      // =====================================================
+      // IDLE > AYUDA PARA NODO CON BARRA 3D-ONLY
+      // Marca el nodo y muestra una guía sin repetir mensajes.
+      // =====================================================
+      if (has3DOnlyFrames) {
+        hoveredNode.is3DOnlyEndpointHover = true;
+
+        context.hovered3DOnlyEndpointNode = hoveredNode;
+        context.hovered3DOnlyEndpointFrames = connected3DOnlyFrames;
+
+        const helpKey = `${hoveredNode.id}:${connected3DOnlyFrames
+          .map((frame) => frame.id)
+          .join("-")}`;
+
+        if (context.last3DOnlyEndpointHelpKey !== helpKey) {
+          context.last3DOnlyEndpointHelpKey = helpKey;
+
+          context.showMessage?.(
+            "Nodo con barra 3D/inclinada conectada. Usa Alt + clic para seleccionar la barra."
+          );
+        }
+      } else {
+        hoveredNode.is3DOnlyEndpointHover = false;
+        context.hovered3DOnlyEndpointNode = null;
+        context.hovered3DOnlyEndpointFrames = [];
+        context.last3DOnlyEndpointHelpKey = null;
+      }
+
+      context.setCursor("grab");
+      context.redraw?.();
+      return;
+    }
+
+    // =====================================================
+    // IDLE > DETECTAR BARRA EN VISTA ACTIVA
+    // Usa closestBeamAtActiveView(), que ya debe ignorar
+    // barras 3D-only ocultas en 2D.
+    // =====================================================
+    const hoveredBeam = context.closestBeamAtActiveView?.(mouse);
+
+    if (
+      hoveredBeam &&
+      typeof context.shouldSelectFrameIn2D === "function" &&
+      !context.shouldSelectFrameIn2D(hoveredBeam)
+    ) {
+      context.setCursor("crosshair");
+      return;
+    }
+
+    if (hoveredBeam) {
+      hoveredBeam.style?.hover?.();
+      context.setCursor("pointer");
+      return;
+    }
+
+    // =====================================================
+    // IDLE > OBJETOS PARAMÉTRICOS
+    // Mantiene tu lógica antigua, pero sin afectar barras normales.
+    // =====================================================
+    context.parametricModels?.find((p) => {
+      p.nodes?.find((n) => {
+        const shortestDistance = 10;
+        const distance = pointDistance(
+          mouse,
+          context.grid.worldToScreen(n.position)
+        );
+
+        if (distance <= shortestDistance) {
+          collidedParametric = true;
+        }
+
+        return collidedParametric;
+      });
+
+      p.shapes?.find((s) => {
+        if (!s?.node1?.position || !s?.node2?.position) return false;
+
+        // Si hay filtro de render, respétalo también aquí.
+        if (
+          context.currentRenderer?.shouldDrawBeam &&
+          !context.currentRenderer.shouldDrawBeam(s, context)
+        ) {
+          return false;
+        }
+
+        const shortestDistance = 5;
+
+        const lineLength = pointDistance(
+          context.grid.worldToScreen(s.node1.position),
+          context.grid.worldToScreen(s.node2.position)
+        );
+
+        const d1 = pointDistance(
+          context.grid.worldToScreen(s.node1.position),
+          mouse
+        );
+
+        const d2 = pointDistance(
+          context.grid.worldToScreen(s.node2.position),
+          mouse
+        );
+
+        if (
+          d1 + d2 >= lineLength - shortestDistance &&
+          d1 + d2 <= lineLength + shortestDistance
+        ) {
+          collidedParametric = true;
+        }
+
+        return collidedParametric;
+      });
+
+      if (collidedParametric) {
+        p.hover?.();
+      } else {
+        p.default?.();
+      }
+
+      return collidedParametric;
+    });
+
+    if (collidedParametric) {
+      context.setCursor("pointer");
+    } else {
+      context.setCursor("crosshair");
+    }
+  }
+
+  // =====================================================
+  // Dibuja un aro sobre el nodo extremo y un texto corto.
+  // =====================================================
+  draw(renderer, context) {
+    const node = context.hovered3DOnlyEndpointNode;
+
+    if (!node?.position || !context.ctx) return;
+
+    const frames = context.hovered3DOnlyEndpointFrames || [];
+
+    if (!frames.length) return;
+
+    const screenPoint =
+      context.projectNodeInActiveView?.(node) ||
+      context.grid.worldToScreen({
+        x: node.position.x || 0,
+        y: node.position.y || 0,
+      });
+
+    if (!screenPoint) return;
+
+    const ctx = context.ctx;
+
+    ctx.save();
+
+    // Aro sobre el nodo
+    ctx.strokeStyle = "#facc15";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+
+    ctx.beginPath();
+    ctx.arc(screenPoint.x, screenPoint.y, 13, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+
+    // Punto central reforzado
+    ctx.fillStyle = "#facc15";
+    ctx.beginPath();
+    ctx.arc(screenPoint.x, screenPoint.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Texto de ayuda
+    ctx.font = "bold 12px monospace";
+    ctx.fillStyle = "#facc15";
+    ctx.fillText(
+      "Alt + clic: seleccionar barra 3D",
+      screenPoint.x + 16,
+      screenPoint.y - 12
+    );
+
+    ctx.restore();
   }
 }
 
@@ -222,6 +460,60 @@ export class SelectedObjectsState extends PanAndZoomState {
     super.handleMouseDown(...arguments);
 
     if (!isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      // =====================================================
+      // Permite seleccionar barras inclinadas desde sus nodos extremos
+      // sin mostrar la barra en el canvas 2D.
+      // =====================================================
+      if (event.altKey) {
+        const hit3DOnlyFrame =
+          context.closest3DOnlyFrameEndpointAtActiveView?.(mouse);
+
+        if (hit3DOnlyFrame?.frames?.length) {
+          // =====================================================
+          // SELECTION 2D > SELECCIONAR BARRA 3D-ONLY DESDE EXTREMO
+          // Marca las barras inclinadas conectadas al nodo extremo.
+          // La barra sigue oculta en 2D, pero podrá resaltarse en 3D.
+          // =====================================================
+          context.clearAllSelections?.();
+
+          hit3DOnlyFrame.frames.forEach((frame) => {
+            frame.selected = true;
+            frame.isSelected = true;
+            frame.highlighted3D = true;
+          });
+
+          context.selectedBeams = hit3DOnlyFrame.frames;
+
+          context.setState(context.selectedBeamsState, {
+            selectedBeams: hit3DOnlyFrame.frames,
+          });
+
+          context.showMessage?.(
+            hit3DOnlyFrame.frames.length === 1
+              ? "Barra 3D/inclinada seleccionada. Revísala en la vista 3D."
+              : `${hit3DOnlyFrame.frames.length} barras 3D/inclinadas seleccionadas. Revísalas en la vista 3D.`
+          );
+
+          context.redraw?.();
+
+          if (typeof context.requestSync3D === "function") {
+            context.requestSync3D("select3DOnlyFrameFromEndpoint");
+          } else {
+            context.sync3D?.();
+          }
+
+          return;
+
+          context.showMessage?.(
+            hit3DOnlyFrame.frames.length === 1
+              ? "Barra 3D/inclinada seleccionada desde su nodo extremo."
+              : `${hit3DOnlyFrame.frames.length} barras 3D/inclinadas seleccionadas desde el nodo extremo.`
+          );
+
+          return;
+        }
+      }
+
       let selectedObject = context.closestNodeAtActiveView(mouse);
 
       if (selectedObject) {
@@ -249,18 +541,34 @@ export class SelectedObjectsState extends PanAndZoomState {
     }
   }
 
+  // Marca los objetos como seleccionados visual e internamente.
   enter(args) {
-    this.selectedObjects = args.selectedObjects;
-    this.selectedObjects.forEach((n) => {
-      n.style.selected();
+    this.selectedObjects = args.selectedObjects || [];
+
+    this.selectedObjects.forEach((obj) => {
+      obj.selected = true;
+      obj.isSelected = true;
+
+      if (obj.style?.selected) {
+        obj.style.selected();
+      }
     });
   }
 
+  // Limpia selección visual e interna.
   exit() {
     super.exit();
-    this.selectedObjects.forEach((n) => {
-      n.style.default();
+
+    this.selectedObjects.forEach((obj) => {
+      obj.selected = false;
+      obj.isSelected = false;
+
+      if (obj.style?.default) {
+        obj.style.default();
+      }
     });
+
+    this.selectedObjects = [];
   }
 
   info() {
@@ -270,29 +578,24 @@ export class SelectedObjectsState extends PanAndZoomState {
 
 export class SelectedBeamsState extends SelectedObjectsState {
   handleKeyDown(event, context) {
+    // =====================================================
+    // SELECTION > ESC PARA DESELECCIONAR BARRAS
+    // Limpia barras seleccionadas, incluyendo barras 3D-only.
+    // =====================================================
+    if (event.key === "Escape") {
+      context.clearAllSelections?.();
+      context.setState(context.idleState);
+
+      event.preventDefault();
+      return;
+    }
+
     super.handleKeyDown(...arguments);
 
     if (event.key === "Delete") {
-      console.log(`🗑️ Eliminando ${this.selectedObjects.length} vigas`);
-
-      // 🔥 Eliminar directamente lo seleccionado (SIN FILTRO)
-      const beamsToDelete = [...this.selectedObjects];
-
-      beamsToDelete.forEach((beam) => {
-        if (!beam.node1 || !beam.node2) return;
-
-        removeFromArray(beam.node1.beams, beam);
-        removeFromArray(beam.node2.beams, beam);
-        removeFromArray(context.shapes, beam);
-      });
-
-      // 🔄 Reindexar IDs
-      context.shapes.forEach((beam, index) => {
-        beam.id = index + 1;
-      });
-
-      context.setState(context.idleState);
-      context.sync3D();
+      event.preventDefault();
+      context.deleteSelected?.();
+      return;
     }
   }
 
@@ -343,18 +646,9 @@ export class SelectedAreasState extends PanAndZoomState {
     super.handleKeyDown(...arguments);
 
     if (event.key === "Delete") {
-      const areasToDelete = [...this.selectedObjects];
-
-      areasToDelete.forEach((area) => {
-        removeFromArray(context.areas, area);
-      });
-
-      context.areas.forEach((area, index) => {
-        area.id = index + 1;
-      });
-
-      context.setState(context.idleState);
-      context.redraw();
+      event.preventDefault();
+      context.deleteSelected?.();
+      return;
     }
   }
 
@@ -405,21 +699,9 @@ export class SelectedDimensionLinesState extends PanAndZoomState {
     super.handleKeyDown(...arguments);
 
     if (event.key === "Delete") {
-      const dimsToDelete = [...this.selectedObjects];
-
-      dimsToDelete.forEach((dim) => {
-        removeFromArray(context.dimensionLines, dim);
-      });
-
-      context.dimensionLines.forEach((dim, index) => {
-        dim.id = index + 1;
-        if (!dim.label || dim.label.startsWith("DIM")) {
-          dim.label = `${dim.value.toFixed(2)} m`;
-        }
-      });
-
-      context.setState(context.idleState);
-      context.redraw();
+      event.preventDefault();
+      context.deleteSelected?.();
+      return;
     }
   }
 
@@ -448,8 +730,12 @@ export class ReshapeObjectState extends PanAndZoomState {
     this.selectedVertexIndex = null;
     this.isMoving = false;
 
-    if (this.selectedBeam?.style) {
-      this.selectedBeam.style.selected();
+    if (this.selectedBeam) {
+      this.selectedBeam.selected = true;
+
+      if (this.selectedBeam.style?.selected) {
+        this.selectedBeam.style.selected();
+      }
     }
 
     if (this.selectedArea) {
@@ -460,8 +746,12 @@ export class ReshapeObjectState extends PanAndZoomState {
   exit() {
     super.exit();
 
-    if (this.selectedBeam?.style) {
-      this.selectedBeam.style.default();
+    if (this.selectedBeam) {
+      this.selectedBeam.selected = false;
+
+      if (this.selectedBeam.style?.default) {
+        this.selectedBeam.style.default();
+      }
     }
 
     if (this.selectedNode?.style) {
@@ -642,33 +932,9 @@ export class ReshapeObjectState extends PanAndZoomState {
     }
 
     if (event.key === "Delete") {
-      // borrar barra
-      if (this.selectedBeam) {
-        removeFromArray(this.selectedBeam.node1.beams, this.selectedBeam);
-        removeFromArray(this.selectedBeam.node2.beams, this.selectedBeam);
-        removeFromArray(context.shapes, this.selectedBeam);
-
-        context.shapes.forEach((beam, index) => {
-          beam.id = index + 1;
-        });
-
-        context.setState(context.idleState);
-        context.sync3D?.();
-        return;
-      }
-
-      // borrar área
-      if (this.selectedArea) {
-        removeFromArray(context.areas, this.selectedArea);
-
-        context.areas.forEach((area, index) => {
-          area.id = index + 1;
-        });
-
-        context.setState(context.idleState);
-        context.redraw();
-        return;
-      }
+      event.preventDefault();
+      context.deleteSelected?.();
+      return;
     }
   }
 
@@ -807,39 +1073,9 @@ export class SelectedNodesState extends SelectedObjectsState {
     super.handleKeyDown(...arguments);
 
     if (event.key === "Delete") {
-      console.log(`🗑️ Eliminando ${this.selectedObjects.length} nodos`);
-
-      this.selectedObjects.forEach((node) => {
-        if (!node) return;
-
-        // 🔥 COPIA SEGURA
-        const beamsToDelete = [...node.beams];
-
-        beamsToDelete.forEach((beam) => {
-          const otherNode = node === beam.node1 ? beam.node2 : beam.node1;
-          removeFromArray(otherNode.beams, beam);
-          removeFromArray(context.shapes, beam);
-        });
-
-        // limpiar beams del nodo
-        node.beams = [];
-
-        removeFromArray(context.nodes, node);
-      });
-
-      // 🔄 Reindexar nodos
-      context.nodes.forEach((node, index) => {
-        node.id = index + 1;
-      });
-
-      // 🔄 Reindexar vigas también (importante)
-      context.shapes.forEach((beam, index) => {
-        beam.id = index + 1;
-      });
-
-      context.setState(context.idleState);
-      context.sync3D();
-      context.redraw();
+      event.preventDefault();
+      context.deleteSelected?.();
+      return;
     }
   }
 
@@ -849,6 +1085,7 @@ export class SelectedNodesState extends SelectedObjectsState {
 }
 
 export class SelectionState extends PanAndZoomState {
+
   constructor() {
     super();
     this.selectionStart = { x: 0, y: 0 };
@@ -856,6 +1093,7 @@ export class SelectionState extends PanAndZoomState {
     this.selectedNodes = [];
     this.selectedBeams = [];
   }
+
   handleMouseUp(event, context, mouse) {
     super.handleMouseUp(...arguments);
     this.selectionEnd = mouse;
@@ -912,16 +1150,173 @@ export class SelectionState extends PanAndZoomState {
   enter(args) {
     this.selectionStart = this.selectionEnd = args.selectionStart;
   }
+
   exit() {
     super.exit();
     this.selectedNodes = [];
     this.selectedBeams = [];
   }
+
   draw(renderer, context) {
     renderer.drawSelectionState(this, context);
   }
+
   info() {
     return "Suelta el botón del ratón para completar la selección.";
+  }
+}
+
+export class RubberBandZoomState extends PanAndZoomState {
+
+  constructor() {
+    super();
+
+    this.isRubberDragging = false;
+    this.startScreen = null;
+    this.endScreen = null;
+    this.dragThreshold = 10;
+  }
+
+  enter() {
+    this.isRubberDragging = false;
+    this.startScreen = null;
+    this.endScreen = null;
+  }
+
+  handleMouseDown(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseDown(event, context, mouse);
+      return;
+    }
+
+    if (!isMouseButton(event, MOUSE_BUTTONS.LEFT)) {
+      return;
+    }
+
+    this.isRubberDragging = true;
+
+    this.startScreen = {
+      x: mouse.x,
+      y: mouse.y,
+    };
+
+    this.endScreen = {
+      x: mouse.x,
+      y: mouse.y,
+    };
+
+    context.setCursor?.("crosshair");
+    context.redraw?.();
+  }
+
+  handleMouseMove(event, context, mouse) {
+    if (this.isDragging) {
+      super.handleMouseMove(event, context, mouse);
+      return;
+    }
+
+    if (!this.isRubberDragging) {
+      context.setCursor?.("crosshair");
+      return;
+    }
+
+    this.endScreen = {
+      x: mouse.x,
+      y: mouse.y,
+    };
+
+    context.redraw?.();
+  }
+
+  handleMouseUp(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseUp(event, context, mouse);
+      return;
+    }
+
+    if (!this.isRubberDragging) {
+      return;
+    }
+
+    this.endScreen = {
+      x: mouse.x,
+      y: mouse.y,
+    };
+
+    const dx = this.endScreen.x - this.startScreen.x;
+    const dy = this.endScreen.y - this.startScreen.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance < this.dragThreshold) {
+      this.cancel(context);
+      context.showMessage?.("El recuadro de zoom es demasiado pequeño.", "warning");
+      return;
+    }
+
+    if (!context.grid?.zoomToScreenRect) {
+      this.cancel(context);
+      context.showMessage?.("Falta zoomToScreenRect() en grid.js", "warning");
+      return;
+    }
+
+    context.saveZoomState?.();
+
+    context.grid.zoomToScreenRect(
+      this.startScreen,
+      this.endScreen,
+      40
+    );
+
+    this.isRubberDragging = false;
+    this.startScreen = null;
+    this.endScreen = null;
+
+    context.setState(context.idleState);
+    context.redraw?.();
+
+    context.showMessage?.("🔍 Zoom con recuadro aplicado");
+  }
+
+  handleKeyDown(event, context) {
+    if (event.key === "Escape") {
+      this.cancel(context);
+      context.setState(context.idleState);
+      context.showMessage?.("Rubber Band Zoom cancelado");
+      return;
+    }
+
+    super.handleKeyDown(event, context);
+  }
+
+  handleMouseLeave(event, context, mouse) {
+    super.handleMouseLeave(event, context, mouse);
+    this.cancel(context);
+  }
+
+  cancel(context) {
+    this.isRubberDragging = false;
+    this.startScreen = null;
+    this.endScreen = null;
+    context.redraw?.();
+  }
+
+  getScreenRect() {
+    if (!this.startScreen || !this.endScreen) return null;
+
+    return {
+      left: Math.min(this.startScreen.x, this.endScreen.x),
+      top: Math.min(this.startScreen.y, this.endScreen.y),
+      width: Math.abs(this.endScreen.x - this.startScreen.x),
+      height: Math.abs(this.endScreen.y - this.startScreen.y),
+    };
+  }
+
+  draw(renderer, context) {
+    renderer.drawRubberBandZoomState?.(this, context);
+  }
+
+  info() {
+    return "Rubber Band Zoom: arrastra un recuadro con clic izquierdo. Esc para cancelar.";
   }
 }
 
@@ -964,18 +1359,15 @@ export class MoveObjectState extends IdleState {
   handleKeyDown(event, context) {
     super.handleKeyDown(...arguments);
     if (event.key === "Delete") {
-      this.selectedObject.beams.forEach((beam) => {
-        const updateBeamsNode = this.selectedObject === beam.node1 ? beam.node2 : beam.node1;
-        removeFromArray(updateBeamsNode.beams, beam);
-      });
-      this.selectedObject.beams.forEach((beam) => {
-        removeFromArray(context.shapes, beam);
-      });
-      removeFromArray(context.nodes, this.selectedObject);
-      context.nodes.forEach((node, index) => {
-        node.id = index + 1;
-      });
-      context.setState(context.idleState);
+      event.preventDefault();
+
+      if (this.selectedObject) {
+        this.selectedObject.selected = true;
+        this.selectedObject.isSelected = true;
+      }
+
+      context.deleteSelected?.();
+      return;
     }
   }
 
@@ -1046,17 +1438,32 @@ export class MoveObjectState extends IdleState {
 
   enter(args) {
     this.selectedObject = args.selectedObject;
-    this.selectedObject.style.selected();
+
+    if (this.selectedObject) {
+      this.selectedObject.selected = true;
+
+      if (this.selectedObject.style?.selected) {
+        this.selectedObject.style.selected();
+      }
+    }
+
     this.isMoving = args.isMoving ?? true;
   }
+
   exit() {
     super.exit();
+
     if (this.selectedObject) {
-      this.selectedObject.style.default();
+      this.selectedObject.selected = false;
+
+      if (this.selectedObject.style?.default) {
+        this.selectedObject.style.default();
+      }
     }
-    // this.selectedObject = null;
+
     this.isMoving = false;
   }
+
   info() {
     return 'Edita sus propiedades desde el menú o presiona "Supr" para eliminar.';
   }
@@ -1074,6 +1481,15 @@ export class TrussDrawingState extends PanAndZoomState {
     this.inputBuffer = ""; // Buffer de texto para la longitud
     this.inputStartPoint = null; // Punto de inicio para modo entrada
     // ================================================================
+
+    // Permite mantener el primer punto cuando se pasa de planta a otra planta o a una elevación.
+    // =====================================================
+    this.preserveOnViewChange = true;
+    this.isFrameDrawingState = true;
+
+    // Guarda desde qué planta/elevación empezó la barra. Sirve para detectar barras creadas entre diferentes vistas.
+    // =====================================================
+    this.startViewSignature = null;
   }
 
   createEmptyShape(context) {
@@ -1089,119 +1505,47 @@ export class TrussDrawingState extends PanAndZoomState {
     const worldPos = context.grid.screenToWorld(mouse);
     const view = context.viewSet?.[context.activeViewIndex];
 
-    // 🔧 OBTENER EL Z PLAN actual para la vista de planta
-    const getPlanZ = () => {
-      if (view?.type === "plan") {
-        return Number(view.elevation ?? context.getActivePlanElevation?.() ?? 0);
-      }
-      return context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0;
-    };
-
-    // 🔧 PRIORIDAD 1: Snap a nodos existentes (SOLO si están en la misma vista)
-    const snapTolerance = 15; // píxeles
-    let closestNode = null;
-    let closestDistance = snapTolerance;
-
-    // Determinar qué coordenadas comparar según el tipo de vista
-    for (let node of context.nodes) {
-      let screenPos = null;
-      let belongsToView = false;
-
-      if (view?.type === "plan") {
-        // Vista planta: solo nodos en el mismo Z
-        const nodeZ = node.position.z || 0;
-        const viewZ = getPlanZ();
-        if (Math.abs(nodeZ - viewZ) > 0.1) continue;
-        screenPos = context.grid.worldToScreen({ x: node.position.x, y: node.position.y });
-        belongsToView = true;
-      } else if (view?.type === "elevation" && view.axis === "X") {
-        // Vista elevación X (LETRAS A,B,C): X fijo, plano Y-Z
-        const nodeX = node.position.x || 0;
-        const fixedX = Number(view.value || 0);
-        if (Math.abs(nodeX - fixedX) > 0.1) continue;
-        screenPos = context.grid.worldToScreen({ x: node.position.y || 0, y: node.position.z || 0 });
-        belongsToView = true;
-      } else if (view?.type === "elevation" && view.axis === "Y") {
-        // Vista elevación Y (NÚMEROS 1,2,3): Y fijo, plano X-Z
-        const nodeY = node.position.y || 0;
-        const fixedY = Number(view.value || 0);
-        if (Math.abs(nodeY - fixedY) > 0.1) continue;
-        screenPos = context.grid.worldToScreen({ x: node.position.x || 0, y: node.position.z || 0 });
-        belongsToView = true;
-      }
-
-      if (!belongsToView || !screenPos) continue;
-
-      const dist = Math.hypot(mouse.x - screenPos.x, mouse.y - screenPos.y);
-      if (dist < closestDistance) {
-        closestDistance = dist;
-        closestNode = node;
+    // Recalcular snap con el mouse actual
+    if (context.snap_enabled !== false) {
+      if (!view || view.type === "plan" || context.currentViewMode === "plan") {
+        context.updatePlanGridSnap?.(worldPos, mouse);
+      } else if (view.type === "elevation") {
+        context.updateElevationGridSnap?.(worldPos, mouse);
       }
     }
 
-    // Si encontramos un nodo cercano en la vista actual, usarlo
-    if (closestNode) {
+    // Primero usar activeGridPoint ya recalculado
+    if (context.activeGridPoint) {
       return {
-        x: closestNode.position.x,
-        y: closestNode.position.y,
-        z: closestNode.position.z || 0,
+        x: Number(context.activeGridPoint.x || 0),
+        y: Number(context.activeGridPoint.y || 0),
+        z: Number(context.activeGridPoint.z || 0),
       };
     }
 
-    // 🔧 PRIORIDAD 2: Snap a grid activo (solo si está en la misma vista)
-    if (context.activeGridPoint) {
-      // Verificar que el grid point pertenezca a la vista actual
-      let belongsToView = false;
-
-      if (view?.type === "plan") {
-        belongsToView = true;
-      } else if (view?.type === "elevation" && view.axis === "X") {
-        const fixedX = Number(view.value || 0);
-        if (Math.abs(context.activeGridPoint.x - fixedX) < 0.1) {
-          belongsToView = true;
-        }
-      } else if (view?.type === "elevation" && view.axis === "Y") {
-        const fixedY = Number(view.value || 0);
-        if (Math.abs(context.activeGridPoint.y - fixedY) < 0.1) {
-          belongsToView = true;
-        }
-      }
-
-      if (belongsToView) {
-        return {
-          x: Number(context.activeGridPoint.x || 0),
-          y: Number(context.activeGridPoint.y || 0),
-          z: Number(context.activeGridPoint.z || 0),
-        };
-      }
-    }
-
-    // 🔧 PRIORIDAD 3: Posición libre según vista
+    // Elevación por letras: X fija, plano Y-Z
     if (view?.type === "elevation" && view.axis === "X") {
-      // LETRAS A,B,C => plano Y-Z (X fijo)
-      const fixedX = Number(view.value || 0);
       return {
-        x: fixedX,
+        x: Number(context.getFixedCoordinateForActiveElevation?.() ?? view.value ?? 0),
         y: Number(worldPos.x || 0),
         z: Number(worldPos.y || 0),
       };
     }
 
+    // Elevación por números: Y fija, plano X-Z
     if (view?.type === "elevation" && view.axis === "Y") {
-      // NÚMEROS 1,2,3 => plano X-Z (Y fijo)
-      const fixedY = Number(view.value || 0);
       return {
         x: Number(worldPos.x || 0),
-        y: fixedY,
+        y: Number(context.getFixedCoordinateForActiveElevation?.() ?? view.value ?? 0),
         z: Number(worldPos.y || 0),
       };
     }
 
-    // Vista planta por defecto
+    // Planta
     return {
       x: Number(worldPos.x || 0),
       y: Number(worldPos.y || 0),
-      z: getPlanZ(),
+      z: Number(context.getActivePlanElevation?.() ?? context.currentZ ?? 0),
     };
   }
 
@@ -1271,67 +1615,106 @@ export class TrussDrawingState extends PanAndZoomState {
     return node;
   }
 
-  // addNodeToCurrentShape(context, node) {
-  //   const isDone = this.shape.addNode(node);
+// <<<<<<< HEAD
 
-  //   if (!isDone) {
-  //     return;
-  //   }
+//   addNodeToCurrentShape(context, node) {
+//     // Verificar si el nodo ya es el mismo que el primero (evitar auto-conexión)
+//     if (this.shape.node1 === node) {
+//       console.log("⚠️ No se puede conectar un nodo consigo mismo");
+//       return;
+//     }
 
-  //   this.shape.id = context.shapes.length + 1;
-  //   this.shape.elementType = this.elementType;
-  //   this.shape.type = this.elementType;
-  //   this.shape.objectType = "frame";
-  //   this.shape.visible = true;
+//     // Verificar si ya existe una conexión entre estos nodos
+//     const connectionExists = context.shapes.some((shape) => {
+//       if (!shape?.node1 || !shape?.node2) return false;
+//       return (
+//         (shape.node1 === this.shape.node1 && shape.node2 === node) ||
+//         (shape.node1 === node && shape.node2 === this.shape.node1)
+//       );
+//     });
 
-  //   context.shapes.push(this.shape);
+//     if (connectionExists && this.shape.node1 && node) {
+//       console.log("⚠️ Ya existe una conexión entre estos nodos");
+//       context.showMessage?.("⚠️ Ya existe una viga entre estos puntos", "warning");
+//       return;
+//     }
+// =======
+  // Identifica la planta o elevación donde se hizo clic.
+  // =====================================================
+  getActiveViewSignature(context) {
+    const view = context.viewSet?.[context.activeViewIndex];
 
-  //   if (!this.shape.node1.beams) this.shape.node1.beams = [];
-  //   if (!this.shape.node2.beams) this.shape.node2.beams = [];
+    if (!view) return "view:none";
 
-  //   if (!this.shape.node1.beams.includes(this.shape)) {
-  //     this.shape.node1.beams.push(this.shape);
-  //   }
+    if (view.type === "plan") {
+      const z = Number(view.elevation ?? context.getActivePlanElevation?.() ?? 0);
+      return `plan:z=${z.toFixed(4)}`;
+    }
 
-  //   if (!this.shape.node2.beams.includes(this.shape)) {
-  //     this.shape.node2.beams.push(this.shape);
-  //   }
+    if (view.type === "elevation") {
+      const axis = view.axis || "none";
+      const value = Number(view.value ?? 0);
+      return `elevation:${axis}=${value.toFixed(4)}`;
+    }
 
-  //   console.log(`📐 Línea creada ID: ${this.shape.id} | tipo: ${this.elementType}`);
+    return `${view.type || "view"}:${view.name || context.activeViewIndex}`;
+  }
 
-  //   const lastNode = this.shape.node2;
+  // Devuelve true si la barra no pertenece a un solo plano 2D.
+  // =====================================================
+  isSpatialFrameFor2D(frame) {
+    const p1 = frame?.node1?.position;
+    const p2 = frame?.node2?.position;
 
-  //   this.shape = this.createEmptyShape(context);
+    if (!p1 || !p2) return false;
 
-  //   // Esto permite seguir dibujando otra línea desde el último punto
-  //   this.shape.addNode(lastNode);
-  // }
+    const tol = 0.001;
+
+    const dx = Math.abs(Number(p2.x || 0) - Number(p1.x || 0));
+    const dy = Math.abs(Number(p2.y || 0) - Number(p1.y || 0));
+    const dz = Math.abs(Number(p2.z || 0) - Number(p1.z || 0));
+
+    // Barra inclinada entre pisos: cambia Z y también cambia X o Y.
+    return dz > tol && (dx > tol || dy > tol);
+  }
+
+  // Oculta la barra en canvas 2D, pero la mantiene en 3D.
+  // =====================================================
+  markFrameAs3DOnlyIfNeeded(context, frame, endViewSignature) {
+    const createdAcrossViews =
+      this.startViewSignature &&
+      this.startViewSignature !== endViewSignature;
+
+    const isSpatialFrame = this.isSpatialFrameFor2D(frame);
+
+    if (createdAcrossViews || isSpatialFrame) {
+      frame.isCrossViewFrame = true;
+      frame.is3DOnlyFrame = true;
+      frame.showIn2D = false;
+
+      console.log("🟨 Barra marcada como 3D-only:", {
+        id: frame.id,
+        startView: this.startViewSignature,
+        endView: endViewSignature,
+        node1: frame.node1?.position,
+        node2: frame.node2?.position,
+      });
+    }
+  }
 
   addNodeToCurrentShape(context, node) {
-    // Verificar si el nodo ya es el mismo que el primero (evitar auto-conexión)
-    if (this.shape.node1 === node) {
-      console.log("⚠️ No se puede conectar un nodo consigo mismo");
-      return;
-    }
-
-    // Verificar si ya existe una conexión entre estos nodos
-    const connectionExists = context.shapes.some((shape) => {
-      if (!shape?.node1 || !shape?.node2) return false;
-      return (
-        (shape.node1 === this.shape.node1 && shape.node2 === node) ||
-        (shape.node1 === node && shape.node2 === this.shape.node1)
-      );
-    });
-
-    if (connectionExists && this.shape.node1 && node) {
-      console.log("⚠️ Ya existe una conexión entre estos nodos");
-      context.showMessage?.("⚠️ Ya existe una viga entre estos puntos", "warning");
-      return;
-    }
+    const wasFirstNode = !this.shape?.node1;
+    const currentViewSignature = this.getActiveViewSignature(context);
 
     const isDone = this.shape.addNode(node);
 
+    // Cuando todavía no se completa la barra, se recuerda desde qué vista empezó el dibujo.
+    // =====================================================================================
     if (!isDone) {
+      if (wasFirstNode) {
+        this.startViewSignature = currentViewSignature;
+      }
+
       return;
     }
 
@@ -1340,6 +1723,14 @@ export class TrussDrawingState extends PanAndZoomState {
     this.shape.type = this.elementType;
     this.shape.objectType = "frame";
     this.shape.visible = true;
+
+    // Si empezó en una vista y terminó en otra, se verá solo en 3D.
+    // =============================================================
+    this.markFrameAs3DOnlyIfNeeded(
+      context,
+      this.shape,
+      currentViewSignature
+    );
 
     context.shapes.push(this.shape);
 
@@ -1362,50 +1753,14 @@ export class TrussDrawingState extends PanAndZoomState {
 
     // Esto permite seguir dibujando otra línea desde el último punto
     this.shape.addNode(lastNode);
+
+    // La siguiente barra continuará desde la vista actual.
+    this.startViewSignature = currentViewSignature;
+
+    context.redraw?.();
+    context.sync3D?.();
   }
 
-  // ========== NUEVO: Obtener dirección actual desde el mouse (SIEMPRE actualizada) ==========
-  // getCurrentDirection(context) {
-  //   if (!this.inputStartPoint) return null;
-
-  //   const startWorld = this.inputStartPoint.position;
-  //   // 🔧 Usar la posición actual del mouse (context.mousePos se actualiza en cada handleMouseMove)
-  //   const mouseWorld = context.mousePos;
-  //   const view = context.viewSet?.[context.activeViewIndex];
-
-  //   let dx,
-  //     dy,
-  //     dz = 0;
-
-  //   if (view?.type === "elevation" && view.axis === "X") {
-  //     // Plano Y-Z
-  //     dy = mouseWorld.x - startWorld.y;
-  //     dz = mouseWorld.y - (startWorld.z || 0);
-  //     const len = Math.sqrt(dy * dy + dz * dz);
-  //     if (len > 0.001) {
-  //       return { dx: 0, dy: dy / len, dz: dz / len };
-  //     }
-  //   } else if (view?.type === "elevation" && view.axis === "Y") {
-  //     // Plano X-Z
-  //     dx = mouseWorld.x - startWorld.x;
-  //     dz = mouseWorld.y - (startWorld.z || 0);
-  //     const len = Math.sqrt(dx * dx + dz * dz);
-  //     if (len > 0.001) {
-  //       return { dx: dx / len, dy: 0, dz: dz / len };
-  //     }
-  //   } else {
-  //     // Planta
-  //     dx = mouseWorld.x - startWorld.x;
-  //     dy = mouseWorld.y - startWorld.y;
-  //     const len = Math.sqrt(dx * dx + dy * dy);
-  //     if (len > 0.001) {
-  //       return { dx: dx / len, dy: dy / len, dz: 0 };
-  //     }
-  //   }
-
-  //   // Si no hay dirección válida, usar dirección por defecto (derecha)
-  //   return { dx: 1, dy: 0, dz: 0 };
-  // }
 
   getCurrentDirection(context) {
     if (!this.inputStartPoint) return null;
@@ -1413,7 +1768,6 @@ export class TrussDrawingState extends PanAndZoomState {
     const startWorld = this.inputStartPoint.position;
     const mouseWorld = context.mousePos;
     const view = context.viewSet?.[context.activeViewIndex];
-
     let dx = 0,
       dy = 0,
       dz = 0;
@@ -1449,19 +1803,10 @@ export class TrussDrawingState extends PanAndZoomState {
         return { dx: dx / length, dy: dy / length, dz: 0 };
       }
       // Dirección por defecto hacia la derecha en X
+      // Si no hay dirección válida, usar dirección por defecto (derecha)
       return { dx: 1, dy: 0, dz: 0 };
     }
   }
-
-  // ========== NUEVO: Iniciar modo entrada de longitud ==========
-  // startLengthInput(context, startPoint) {
-  //   this.inputMode = true;
-  //   this.inputBuffer = "";
-  //   this.inputStartPoint = startPoint;
-
-  //   context.showMessage?.("📏 Ingrese la longitud y presione Enter. Esc para cancelar");
-  //   context.redraw?.();
-  // }
 
   startLengthInput(context, startPoint) {
     this.inputMode = true;
@@ -1482,51 +1827,6 @@ export class TrussDrawingState extends PanAndZoomState {
     context.redraw?.();
   }
 
-  // ========== NUEVO: Dibujar preview de la viga a construir (usando dirección actual) ==========
-  // drawLengthPreview(context) {
-  //   if (!this.inputMode || !this.inputStartPoint) return;
-
-  //   const startPoint = this.inputStartPoint.position;
-  //   const length = parseFloat(this.inputBuffer) || 1;
-
-  //   // 🔧 Obtener dirección actualizada dinámicamente
-  //   const direction = this.getCurrentDirection(context);
-
-  //   const endPoint = {
-  //     x: startPoint.x + direction.dx * length,
-  //     y: startPoint.y + direction.dy * length,
-  //     z: (startPoint.z || 0) + direction.dz * length,
-  //   };
-
-  //   const p1 = context.grid.worldToScreen(startPoint);
-  //   const p2 = context.grid.worldToScreen(endPoint);
-
-  //   context.ctx.save();
-
-  //   // Línea de preview naranja PUNTEADA
-  //   context.ctx.strokeStyle = "#ffaa44";
-  //   context.ctx.lineWidth = 2;
-  //   context.ctx.setLineDash([8, 4]);
-  //   context.ctx.beginPath();
-  //   context.ctx.moveTo(p1.x, p1.y);
-  //   context.ctx.lineTo(p2.x, p2.y);
-  //   context.ctx.stroke();
-
-  //   // Texto de longitud en el medio
-  //   const midX = (p1.x + p2.x) / 2;
-  //   const midY = (p1.y + p2.y) / 2;
-  //   context.ctx.fillStyle = "#ffaa44";
-  //   context.ctx.font = "bold 12px monospace";
-  //   context.ctx.fillText(`${this.inputBuffer || "0"} m`, midX, midY - 10);
-
-  //   // Mostrar buffer de entrada
-  //   context.ctx.fillStyle = "#ffffff";
-  //   context.ctx.font = "14px monospace";
-  //   context.ctx.fillText(`Longitud: ${this.inputBuffer}_`, 20, 40);
-
-  //   context.ctx.restore();
-  // }
-
   drawLengthPreview(context) {
     if (!this.inputMode || !this.inputStartPoint) return;
 
@@ -1543,22 +1843,32 @@ export class TrussDrawingState extends PanAndZoomState {
       z: (startPoint.z || 0) + direction.dz * length,
     };
 
-    let p1, p2;
+// <<<<<<< HEAD
+//     let p1, p2;
 
-    // Proyectar puntos según el tipo de vista
-    if (view?.type === "elevation" && view.axis === "X") {
-      // Vista elevación X (LETRAS): X fijo, plano Y-Z
-      p1 = context.grid.worldToScreen({ x: startPoint.y, y: startPoint.z || 0 });
-      p2 = context.grid.worldToScreen({ x: endPoint.y, y: endPoint.z });
-    } else if (view?.type === "elevation" && view.axis === "Y") {
-      // Vista elevación Y (NÚMEROS): Y fijo, plano X-Z
-      p1 = context.grid.worldToScreen({ x: startPoint.x, y: startPoint.z || 0 });
-      p2 = context.grid.worldToScreen({ x: endPoint.x, y: endPoint.z });
-    } else {
-      // Vista PLANTA normal
-      p1 = context.grid.worldToScreen({ x: startPoint.x, y: startPoint.y });
-      p2 = context.grid.worldToScreen({ x: endPoint.x, y: endPoint.y });
-    }
+//     // Proyectar puntos según el tipo de vista
+//     if (view?.type === "elevation" && view.axis === "X") {
+//       // Vista elevación X (LETRAS): X fijo, plano Y-Z
+//       p1 = context.grid.worldToScreen({ x: startPoint.y, y: startPoint.z || 0 });
+//       p2 = context.grid.worldToScreen({ x: endPoint.y, y: endPoint.z });
+//     } else if (view?.type === "elevation" && view.axis === "Y") {
+//       // Vista elevación Y (NÚMEROS): Y fijo, plano X-Z
+//       p1 = context.grid.worldToScreen({ x: startPoint.x, y: startPoint.z || 0 });
+//       p2 = context.grid.worldToScreen({ x: endPoint.x, y: endPoint.z });
+//     } else {
+//       // Vista PLANTA normal
+//       p1 = context.grid.worldToScreen({ x: startPoint.x, y: startPoint.y });
+//       p2 = context.grid.worldToScreen({ x: endPoint.x, y: endPoint.y });
+//     }
+// =======
+    const p1 = context.currentRenderer?.projectPoint
+      ? context.currentRenderer.projectPoint({ position: startPoint }, context)
+      : context.grid.worldToScreen(startPoint);
+
+    const p2 = context.currentRenderer?.projectPoint
+      ? context.currentRenderer.projectPoint({ position: endPoint }, context)
+      : context.grid.worldToScreen(endPoint);
+// >>>>>>> eab88042b6badc95272f8096c910734e6c5231f0
 
     context.ctx.save();
 
@@ -1689,62 +1999,9 @@ export class TrussDrawingState extends PanAndZoomState {
     }
   }
 
-  // ========== handleMouseMove ==========
-  // handleMouseMove(event, context, mouse) {
-  //   // Primero, el comportamiento de pan/zoom
-  //   super.handleMouseMove(...arguments);
-
-  //   // 🔧 IMPORTANTE: Actualizar mousePos del contexto (en coordenadas del mundo)
-  //   context.mousePos = context.grid.screenToWorld(mouse);
-
-  //   // ==== LÍNEA DE PREVIEW ORIGINAL (AZUL PUNTEADA) ====
-  //   const firstPoint = this.shape?.node1?.position;
-
-  //   if (!firstPoint) {
-  //     return;
-  //   }
-
-  //   const currentPoint = this.getDrawingPoint(context, mouse);
-
-  //   const dx = currentPoint.x - firstPoint.x;
-  //   const dy = currentPoint.y - firstPoint.y;
-  //   const dz = (currentPoint.z || 0) - (firstPoint.z || 0);
-
-  //   const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-  //   if (context.distanceInput && distance > 0.001) {
-  //     const p1 = context.currentRenderer.projectPoint
-  //       ? context.currentRenderer.projectPoint({ position: firstPoint }, context)
-  //       : context.grid.worldToScreen(firstPoint);
-
-  //     const p2 = context.currentRenderer.projectPoint
-  //       ? context.currentRenderer.projectPoint({ position: currentPoint }, context)
-  //       : context.grid.worldToScreen(currentPoint);
-
-  //     const mid = {
-  //       x: (p1.x + p2.x) / 2,
-  //       y: (p1.y + p2.y) / 2,
-  //     };
-
-  //     context.distanceInput.style.left = `${mid.x + 20}px`;
-  //     context.distanceInput.style.top = `${mid.y - 20}px`;
-  //     context.distanceInput.value = context.formatOutput
-  //       ? context.formatOutput(distance, "lengths")
-  //       : distance.toFixed(2);
-  //   }
-
-  //   // 🔧 Si estamos en modo entrada, forzar redibujado para actualizar la línea naranja
-  //   if (this.inputMode) {
-  //     context.redraw();
-  //   } else {
-  //     context.redraw?.();
-  //   }
-  // }
-
   handleMouseMove(event, context, mouse) {
     // Primero, el comportamiento de pan/zoom
     super.handleMouseMove(...arguments);
-
     // Actualizar mousePos del contexto (en coordenadas del mundo)
     context.mousePos = context.grid.screenToWorld(mouse);
 
@@ -1899,64 +2156,6 @@ export class TrussDrawingState extends PanAndZoomState {
     context.sync3D?.();
   }
 
-  // ========== handleKeyDown ==========
-  // handleKeyDown(event, context) {
-  //   // Manejo de entrada numérica en modo entrada
-  //   if (this.inputMode) {
-  //     if (event.key === "Enter") {
-  //       this.createBeamWithLength(context);
-  //       event.preventDefault();
-  //       return;
-  //     } else if (event.key === "Escape") {
-  //       this.inputMode = false;
-  //       this.inputBuffer = "";
-  //       this.inputStartPoint = null;
-  //       context.showMessage?.("📏 Modo de entrada cancelado");
-  //       context.redraw();
-  //       event.preventDefault();
-  //       return;
-  //     } else if (event.key === "Backspace") {
-  //       this.inputBuffer = this.inputBuffer.slice(0, -1);
-  //       context.redraw();
-  //       event.preventDefault();
-  //       return;
-  //     } else if (/[0-9.]/.test(event.key)) {
-  //       this.inputBuffer += event.key;
-  //       context.redraw();
-  //       event.preventDefault();
-  //       return;
-  //     }
-  //   }
-
-  //   // Tecla 'L' para activar modo entrada de longitud (después de tener primer punto)
-  //   if (event.key === "l" || event.key === "L") {
-  //     if (this.shape?.node1 && !this.shape.node2 && !this.inputMode) {
-  //       this.startLengthInput(context, this.shape.node1);
-  //       event.preventDefault();
-  //       return;
-  //     }
-  //   }
-
-  //   // Escape para salir del estado
-  //   if (event.key === "Escape" && !this.inputMode) {
-  //     this.shape = this.createEmptyShape(context);
-  //     if (context.distanceInput) {
-  //       context.distanceInput.value = "";
-  //     }
-  //     context.setState(context.idleState);
-  //     context.redraw?.();
-  //     return;
-  //   }
-
-  //   // Enter original (para dibujo por distancia con input numérico)
-  //   if (event.key === "Enter" && !this.inputMode) {
-  //     this.createBeam(context);
-  //     return;
-  //   }
-
-  //   super.handleKeyDown(event, context);
-  // }
-
   handleKeyDown(event, context) {
     // Manejo de entrada numérica en modo entrada
     if (this.inputMode) {
@@ -2025,37 +2224,29 @@ export class TrussDrawingState extends PanAndZoomState {
     super.handleKeyDown(event, context);
   }
 
+  // Mantiene el primer punto al cambiar de planta/elevación.
+  // =====================================================
+  onViewChanged(context, view) {
+    if (!this.shape?.node1) return;
+
+    context.showMessage?.(
+      "Primer punto conservado. Selecciona el segundo punto en la nueva vista."
+    );
+
+    context.redraw?.();
+  }
+
   exit() {
     super.exit();
     this.shape = this.createEmptyShape(this.context);
     this.inputMode = false;
     this.inputBuffer = "";
     this.inputStartPoint = null;
+    this.startViewSignature = null;
   }
 
-  // draw(renderer, context) {
-  //   // Dibujar preview normal del estado (línea azul PUNTEADA original)
-  //   if (this.shape && this.shape.node1 && context.ctx) {
-  //     const p1 = context.grid.worldToScreen(this.shape.node1.position);
-  //     const p2 = context.grid.worldToScreen(context.mousePos);
-  //     context.ctx.save();
-  //     context.ctx.strokeStyle = "#88aaff";
-  //     context.ctx.setLineDash([5, 5]);
-  //     context.ctx.lineWidth = 2;
-  //     context.ctx.beginPath();
-  //     context.ctx.moveTo(p1.x, p1.y);
-  //     context.ctx.lineTo(p2.x, p2.y);
-  //     context.ctx.stroke();
-  //     context.ctx.restore();
-  //   }
-
-  //   // Dibujar preview de entrada de longitud (línea naranja PUNTEADA)
-  //   if (this.inputMode) {
-  //     this.drawLengthPreview(context);
-  //   }
-  // }
-
   draw(renderer, context) {
+// <<<<<<< HEAD
     // Dibujar preview normal del estado (línea azul PUNTEADA original)
     if (this.shape && this.shape.node1 && context.ctx) {
       let p1, p2;
@@ -2091,7 +2282,13 @@ export class TrussDrawingState extends PanAndZoomState {
     }
 
     // Dibujar preview de entrada de longitud (línea naranja PUNTEADA)
-    if (this.inputMode && this.inputStartPoint) {
+//     if (this.inputMode && this.inputStartPoint) {
+// =======
+    if (renderer?.drawTrussDrawingState) {
+      renderer.drawTrussDrawingState(this, context);
+    }
+
+    if (this.inputMode) {
       this.drawLengthPreview(context);
     }
   }
@@ -2101,6 +2298,284 @@ export class TrussDrawingState extends PanAndZoomState {
       return `📏 Ingrese longitud: ${this.inputBuffer || "0"} | Enter = dibujar | Esc = cancelar`;
     }
     return "Dibujo de vigas: Clic para primer punto, luego L + longitud + Enter para dibujar. O simplemente clic para segundo punto. Esc para salir.";
+  }
+}
+
+// =====================================================
+// DRAW > FRAME 3D ENTRE PLANTAS Y ELEVACIONES
+// =====================================================
+export class CrossViewFrameDrawingState extends TrussDrawingState {
+  constructor(context, elementType = "beam") {
+    super(context, elementType);
+
+    // Punto inicial guardado en coordenadas reales X, Y, Z
+    this.startPoint = null;
+
+    // Punto temporal usado para mostrar vista previa
+    this.previewPoint = null;
+
+    // Bandera para que cad_sys.js no cancele este modo al cambiar de vista
+    this.preserveOnViewChange = true;
+  }
+
+  // =====================================================
+  // CROSS VIEW > COPIAR PUNTO 3D
+  // Evita modificar el punto original por referencia.
+  // =====================================================
+  clone3DPoint(point) {
+    return {
+      x: Number(point?.x || 0),
+      y: Number(point?.y || 0),
+      z: Number(point?.z || 0),
+    };
+  }
+
+  // =====================================================
+  // CROSS VIEW > CALCULAR DISTANCIA 3D
+  // Calcula la longitud real entre dos puntos X,Y,Z.
+  // =====================================================
+  get3DDistance(p1, p2) {
+    const dx = Number(p2.x || 0) - Number(p1.x || 0);
+    const dy = Number(p2.y || 0) - Number(p1.y || 0);
+    const dz = Number(p2.z || 0) - Number(p1.z || 0);
+
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  }
+
+  // =====================================================
+  // CROSS VIEW > CREAR BARRA 3D
+  // Usa la función central de cad_sys.js para crear nodos y barra.
+  // =====================================================
+  createCrossViewFrame(context, startPoint, endPoint) {
+    if (!context.createFrameLineFromPoints) {
+      context.showMessage?.(
+        "Falta createFrameLineFromPoints en cad_sys.js",
+        "warning"
+      );
+      return null;
+    }
+
+    const frame = context.createFrameLineFromPoints(
+      startPoint,
+      endPoint,
+      this.elementType || "beam"
+    );
+
+    if (!frame) return null;
+
+    frame.elementType = this.elementType || "beam";
+    frame.type = this.elementType || "beam";
+    frame.objectType = "frame";
+    frame.visible = true;
+    frame.isCrossViewFrame = true;
+
+    return frame;
+  }
+
+  // =====================================================
+  // CROSS VIEW > CLIC DE DIBUJO
+  // Primer clic guarda el punto inicial.
+  // Segundo clic crea la barra entre vistas.
+  // =====================================================
+  handleMouseDown(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      PanAndZoomState.prototype.handleMouseDown.call(this, event, context, mouse);
+      return;
+    }
+
+    PanAndZoomState.prototype.handleMouseDown.call(this, event, context, mouse);
+
+    const currentPoint = this.clone3DPoint(
+      this.getDrawingPoint(context, mouse)
+    );
+
+    // Primer clic: guardar punto inicial
+    if (!this.startPoint) {
+      this.startPoint = currentPoint;
+      this.previewPoint = currentPoint;
+
+      context.showMessage?.(
+        `Punto inicial 3D guardado: X=${currentPoint.x.toFixed(2)}, Y=${currentPoint.y.toFixed(2)}, Z=${currentPoint.z.toFixed(2)}`
+      );
+
+      context.redraw?.();
+      return;
+    }
+
+    // Segundo clic: crear barra entre punto inicial y punto final
+    const distance = this.get3DDistance(this.startPoint, currentPoint);
+
+    if (distance <= 0.001) {
+      context.showMessage?.(
+        "No se puede crear una barra con el mismo punto inicial y final",
+        "warning"
+      );
+      return;
+    }
+
+    const frame = this.createCrossViewFrame(
+      context,
+      this.startPoint,
+      currentPoint
+    );
+
+    if (!frame) return;
+
+    context.showMessage?.(
+      `Barra 3D creada | Longitud: ${context.formatOutput
+        ? context.formatOutput(distance, "lengths")
+        : distance.toFixed(2)
+      } m`
+    );
+
+    // Continuar dibujando desde el último punto, como ETABS
+    this.startPoint = currentPoint;
+    this.previewPoint = currentPoint;
+
+    context.markAnalysisResultsOutdated?.(
+      "Se agregó una barra 3D entre vistas."
+    );
+
+    context.redraw?.();
+    context.sync3D?.();
+  }
+
+  // =====================================================
+  // CROSS VIEW > VISTA PREVIA CON EL MOUSE
+  // Muestra la distancia entre el punto inicial y el punto actual.
+  // =====================================================
+  handleMouseMove(event, context, mouse) {
+    PanAndZoomState.prototype.handleMouseMove.call(this, event, context, mouse);
+
+    if (!this.startPoint) return;
+
+    this.previewPoint = this.clone3DPoint(
+      this.getDrawingPoint(context, mouse)
+    );
+
+    const distance = this.get3DDistance(this.startPoint, this.previewPoint);
+
+    if (context.distanceInput && distance > 0.001) {
+      const p1 = context.currentRenderer?.projectPoint
+        ? context.currentRenderer.projectPoint({ position: this.startPoint }, context)
+        : context.grid.worldToScreen(this.startPoint);
+
+      const p2 = context.currentRenderer?.projectPoint
+        ? context.currentRenderer.projectPoint({ position: this.previewPoint }, context)
+        : context.grid.worldToScreen(this.previewPoint);
+
+      const mid = {
+        x: (p1.x + p2.x) / 2,
+        y: (p1.y + p2.y) / 2,
+      };
+
+      context.distanceInput.style.left = `${mid.x + 20}px`;
+      context.distanceInput.style.top = `${mid.y - 20}px`;
+      context.distanceInput.value = context.formatOutput
+        ? context.formatOutput(distance, "lengths")
+        : distance.toFixed(2);
+    }
+
+    context.redraw?.();
+  }
+
+  // =====================================================
+  // CROSS VIEW > CAMBIO DE VISTA
+  // Mantiene guardado el punto inicial cuando el usuario cambia de vista.
+  // =====================================================
+  onViewChanged(context, view) {
+    if (!this.startPoint) return;
+
+    context.showMessage?.(
+      "Modo Frame 3D activo: selecciona el segundo punto en la nueva vista."
+    );
+
+    context.redraw?.();
+  }
+
+  // =====================================================
+  // CROSS VIEW > TECLAS DEL MODO
+  // Esc cancela el punto inicial o sale del modo.
+  // =====================================================
+  handleKeyDown(event, context) {
+    if (event.key === "Escape") {
+      if (this.startPoint) {
+        this.startPoint = null;
+        this.previewPoint = null;
+
+        if (context.distanceInput) {
+          context.distanceInput.value = "";
+        }
+
+        context.showMessage?.("Punto inicial 3D cancelado.");
+        context.redraw?.();
+        event.preventDefault();
+        return;
+      }
+
+      context.setState(context.idleState);
+      event.preventDefault();
+      return;
+    }
+
+    super.handleKeyDown(event, context);
+  }
+
+  // =====================================================
+  // CROSS VIEW > DIBUJAR PREVIEW
+  // Dibuja una línea punteada temporal entre el punto inicial y el mouse.
+  // =====================================================
+  draw(renderer, context) {
+    if (!this.startPoint || !this.previewPoint || !context.ctx) return;
+
+    const p1 = context.currentRenderer?.projectPoint
+      ? context.currentRenderer.projectPoint({ position: this.startPoint }, context)
+      : context.grid.worldToScreen(this.startPoint);
+
+    const p2 = context.currentRenderer?.projectPoint
+      ? context.currentRenderer.projectPoint({ position: this.previewPoint }, context)
+      : context.grid.worldToScreen(this.previewPoint);
+
+    context.ctx.save();
+
+    context.ctx.strokeStyle = "#facc15";
+    context.ctx.lineWidth = 2;
+    context.ctx.setLineDash([8, 5]);
+
+    context.ctx.beginPath();
+    context.ctx.moveTo(p1.x, p1.y);
+    context.ctx.lineTo(p2.x, p2.y);
+    context.ctx.stroke();
+
+    context.ctx.setLineDash([]);
+    context.ctx.fillStyle = "#facc15";
+    context.ctx.font = "bold 12px monospace";
+    context.ctx.fillText("Frame 3D", p2.x + 8, p2.y - 8);
+
+    context.ctx.restore();
+  }
+
+  // =====================================================
+  // CROSS VIEW > LIMPIEZA AL SALIR
+  // Reinicia el modo cuando el usuario cambia a otra herramienta.
+  // =====================================================
+  exit() {
+    super.exit();
+
+    this.startPoint = null;
+    this.previewPoint = null;
+
+    if (this.context?.distanceInput) {
+      this.context.distanceInput.value = "";
+    }
+  }
+
+  info() {
+    if (this.startPoint) {
+      return "Frame 3D entre vistas: cambia de planta/elevación y selecciona el segundo punto. Esc cancela.";
+    }
+
+    return "Frame 3D entre vistas: haz clic en el primer punto. Luego puedes cambiar de vista y hacer clic en el segundo punto.";
   }
 }
 
@@ -3484,85 +3959,6 @@ export class DimensionLineDrawingState extends PanAndZoomState {
       return "Selecciona el segundo punto de la dimensión. Usa Esc para cancelar.";
     }
     return "Haz clic en el primer punto de la dimensión.";
-  }
-}
-
-export class CopyState extends StateBase {
-  handleMouseDown(event, context, mouse) {
-    const cloneShape = closestLine({ x: x, y: y });
-    if (cloneShape) {
-      handleIsSelected = true;
-      shape = structuredClone(cloneShape);
-      shape = Object.assign(Object.create(Object.getPrototypeOf(cloneShape)), shape);
-      shapes.push(shape);
-      selectedObject = shape;
-      shape = new Shape(true);
-      switchTool(Tools.MOVE);
-      canvas.style.cursor = "move";
-    }
-  }
-}
-
-export class EditState extends StateBase {
-  handleMouseDown(event, context, mouse) {
-    if (!context.canSelectInCurrentView()) {
-      context.clearAllSelections();
-      context.setState(context.idleState);
-      return;
-    }
-
-    super.handleMouseDown(...arguments);
-
-    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
-      return;
-    }
-
-    const selectedNode = context.closestNodeAtActiveView(mouse);
-    if (selectedNode) {
-      context.setState(context.selectedNodesState, {
-        selectedNodes: [selectedNode],
-      });
-      return;
-    }
-
-    const selectedBeam = context.closestBeamAtActiveView(mouse);
-    if (selectedBeam) {
-      context.setState(context.selectedBeamsState, {
-        selectedBeams: [selectedBeam],
-      });
-      return;
-    }
-
-    context.clearAllSelections();
-    context.setState(context.idleState);
-  }
-}
-
-export class ChangeSupport extends StateBase {
-  handleMouseDown(event, context, mouse) {
-    if (!context.canSelectInCurrentView()) {
-      context.clearAllSelections();
-      context.setState(context.idleState);
-      return;
-    }
-
-    super.handleMouseDown(...arguments);
-
-    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
-      return;
-    }
-
-    const selectedNode = context.closestNodeAtActiveView(mouse);
-
-    if (!selectedNode) {
-      context.clearAllSelections();
-      context.setState(context.idleState);
-      return;
-    }
-
-    context.setState(context.selectedNodesState, {
-      selectedNodes: [selectedNode],
-    });
   }
 }
 

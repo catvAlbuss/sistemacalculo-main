@@ -211,6 +211,12 @@ export class Node {
       y: position.y,
       z: z, // ← AHORA z está definido
     };
+    // this.position = {
+    //   x: Number(position.x || 0),
+    //   y: Number(position.y || 0),
+    //   z: Number(z || 0),
+    // };
+
     this.force = {
       loads: {
         CM: { x: 0, y: 0, z: 0, multiplier: 1 },
@@ -221,9 +227,16 @@ export class Node {
         CLL: { x: 0, y: 0, z: 0, multiplier: 1 },
       },
     };
+
     this.reaction = { x: 0, y: 0, z: 0 };
+
     this.id = id;
     this.beams = [];
+
+    this.visible = true;
+    this.selected = false;
+    this.isSelected = false;
+
     this.style = new NodeStyle();
     this.soporte = "";
   }
@@ -265,12 +278,25 @@ export class Node {
 
 export class Beam {
   constructor(E, A) {
+    this.id = null;
+
     this.node1 = null;
     this.node2 = null;
+
     this.E = E;
     this._A = A;
+
     this.angle = 0;
     this.fAxial = 0;
+
+    this.elementType = "beam";
+    this.type = "beam";
+    this.objectType = "frame";
+
+    this.visible = true;
+    this.selected = false;
+    this.isSelected = false;
+
     this.style = new BeamStyle();
   }
 
@@ -279,7 +305,7 @@ export class Beam {
   }
 
   get A() {
-    return sections[this._A];
+    return sections?.[this._A] ?? this._A;
   }
 
   addNode(node) {
@@ -313,6 +339,8 @@ export class Area extends Shape {
     this.id = null;
     this.visible = true;
     this.selected = false;
+    this.isSelected = false;
+    this.visible = true;
   }
 
   addPoint(point) {

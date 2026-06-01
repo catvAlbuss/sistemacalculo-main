@@ -35,7 +35,7 @@
     </x-cad.ribbon-group>
     <!-- -------------------------APARTADO DE TAREAS -------------------------- -->
     <x-cad.ribbon-group title="Tareas">
-      <form class="flex flex-row" x-on:submit.prevent="calcularFuerzas">
+      <form class="flex flex-row" x-on:submit.prevent="calcularFuerzas" id="run-analysis-form">
         @csrf
         <x-cad.ribbon-button clickHandler="" toggle="false" label="Correr">
           <x-cad.svg.run></x-cad.svg.run>
@@ -186,6 +186,9 @@
       </x-cad.ribbon-button>
     </x-cad.ribbon-group>
   </div>
+  <!-- Modal para File > New Model -->
+  <x-cad.modals.new-model />
+
   <!-- Modal para el apartado de las vistas -->
   <x-cad.modals.view-modal />
 
