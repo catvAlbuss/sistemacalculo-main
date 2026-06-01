@@ -176,19 +176,61 @@ export class ContentProcessorMD {
             pageNumber: { start: 1, format: NumberFormat.DECIMAL },
           },
           headers: { default: new Header({ children: [headerContent] }) },
+          // Reemplaza la sección de footers en el segundo section
+
           footers: {
             default: new Footer({
               children: [
                 new Paragraph({
                   children: [
-                    new TextRun({ text: "Página ", size: 18, color: "888888", font: "Arial" }),
-                    new TextRun({ children: [PageNumber.CURRENT], size: 18, color: "888888", font: "Arial" }),
-                    new TextRun({ text: " de ", size: 18, color: "888888", font: "Arial" }),
-                    new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 18, color: "888888", font: "Arial" }),
+                    new TextRun({
+                      text: "MUNICIPALIDAD PROVINCIAL DE UCAYALI",
+                      size: 16,
+                      bold: true,
+                      color: "333333",
+                      font: "Arial",
+                    }),
                   ],
+                  alignment: AlignmentType.LEFT,
+                  spacing: { before: 100, after: 20 },
+                }),
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "Jr. Amazonas N° 307 - Contamana - Contamana - Ucayali - Loreto",
+                      size: 14,
+                      color: "555555",
+                      font: "Arial",
+                    }),
+                  ],
+                  alignment: AlignmentType.LEFT,
+                  spacing: { after: 30 },
+                }),
+                // Línea separadora
+                new Paragraph({
+                  children: [new TextRun({ text: " ", size: 1 })],  // ← Espacio invisible
                   alignment: AlignmentType.CENTER,
-                  spacing: { before: 200 },
-                  border: { top: { color: "cccccc", space: 1, style: "single", size: 6 } },
+                  border: { bottom: { color: "cccccc", size: 6, style: "single" } },  // ← bottom en lugar de top
+                  spacing: { before: 50, after: 50 },
+                }),
+                // Fila con número de página (derecha)
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "Página ",
+                      size: 16,
+                      color: "555555",
+                      font: "Arial"
+                    }),
+                    new TextRun({
+                      children: [PageNumber.CURRENT],
+                      size: 16,
+                      color: "555555",
+                      font: "Arial"
+                    }),
+                  ],
+                  alignment: AlignmentType.RIGHT,
+                  spacing: { before: 20, after: 100 },
                 }),
               ],
             }),
@@ -205,76 +247,76 @@ export class ContentProcessorMD {
 
     // 1. Título Principal
     children.push(
-        new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [
-                new TextRun({
-                    text: (cover.title || "MEMORIA DESCRIPTIVA").toUpperCase(),
-                    bold: true,
-                    size: 36,
-                    font: "Arial",
-                    color: "000000",
-                }),
-            ],
-            spacing: { before: 800 },
-        })
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({
+            text: (cover.title || "MEMORIA DESCRIPTIVA").toUpperCase(),
+            bold: true,
+            size: 36,
+            font: "Arial",
+            color: "000000",
+          }),
+        ],
+        spacing: { before: 800 },
+      })
     );
 
     // 2. Subtítulo
     if (cover.subtitle) {
-        children.push(
-            new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [
-                    new TextRun({
-                        text: cover.subtitle.toUpperCase(),
-                        bold: true,
-                        size: 32,
-                        font: "Arial",
-                        color: "000000",
-                    }),
-                ],
-                spacing: { after: 600 },
-            })
-        );
+      children.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({
+              text: cover.subtitle.toUpperCase(),
+              bold: true,
+              size: 32,
+              font: "Arial",
+              color: "000000",
+            }),
+          ],
+          spacing: { after: 600 },
+        })
+      );
     }
 
     // 3. Nombre del Proyecto
     children.push(
-        new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [
-                new TextRun({
-                    text: cover.project ? String(cover.project).toUpperCase() : "NOMBRE DEL PROYECTO NO DEFINIDO",
-                    bold: true,
-                    size: 22,
-                    font: "Arial",
-                    color: cover.project ? "000000" : "999999",
-                }),
-            ],
-            spacing: { before: 400, after: 400 },
-        })
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({
+            text: cover.project ? String(cover.project).toUpperCase() : "NOMBRE DEL PROYECTO NO DEFINIDO",
+            bold: true,
+            size: 22,
+            font: "Arial",
+            color: cover.project ? "000000" : "999999",
+          }),
+        ],
+        spacing: { before: 400, after: 400 },
+      })
     );
 
     // 4. IMAGEN DE PORTADA
     if (images.coverImage) {
-        try {
-            const coverBuffer = await this.dataUrlToArrayBuffer(images.coverImage);
-            children.push(
-                new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [
-                        new ImageRun({
-                            data: coverBuffer,
-                            transformation: { width: 500, height: 380 },
-                        }),
-                    ],
-                    spacing: { before: 200, after: 400 },
-                })
-            );
-        } catch (e) {
-            console.error("Error processing cover image", e);
-        }
+      try {
+        const coverBuffer = await this.dataUrlToArrayBuffer(images.coverImage);
+        children.push(
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new ImageRun({
+                data: coverBuffer,
+                transformation: { width: 500, height: 380 },
+              }),
+            ],
+            spacing: { before: 200, after: 400 },
+          })
+        );
+      } catch (e) {
+        console.error("Error processing cover image", e);
+      }
     }
 
     // 5. DATOS INSTITUCIONALES EN TABLA DE 2 COLUMNAS
@@ -296,60 +338,60 @@ export class ContentProcessorMD {
     const tableRows = [];
 
     for (let i = 0; i < maxRows; i++) {
-        const leftText = leftColumn[i] || "";
-        const rightText = rightColumn[i] || "";
+      const leftText = leftColumn[i] || "";
+      const rightText = rightColumn[i] || "";
 
-        tableRows.push(
-            new TableRow({
-                children: [
-                    new TableCell({
-                        width: { size: 50, type: WidthType.PERCENTAGE },
-                        children: [
-                            new Paragraph({
-                                alignment: AlignmentType.LEFT,
-                                children: [new TextRun({ text: leftText, size: 20, font: "Arial", bold: true })],
-                            }),
-                        ],
-                        verticalAlign: VerticalAlign.CENTER,
-                        borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
-                    }),
-                    new TableCell({
-                        width: { size: 50, type: WidthType.PERCENTAGE },
-                        children: [
-                            new Paragraph({
-                                alignment: AlignmentType.LEFT,
-                                children: [new TextRun({ text: rightText, size: 20, font: "Arial", bold: true })],
-                            }),
-                        ],
-                        verticalAlign: VerticalAlign.CENTER,
-                        borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
-                    }),
-                ],
-            })
-        );
+      tableRows.push(
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.LEFT,
+                  children: [new TextRun({ text: leftText, size: 20, font: "Arial", bold: true })],
+                }),
+              ],
+              verticalAlign: VerticalAlign.CENTER,
+              borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
+            }),
+            new TableCell({
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.LEFT,
+                  children: [new TextRun({ text: rightText, size: 20, font: "Arial", bold: true })],
+                }),
+              ],
+              verticalAlign: VerticalAlign.CENTER,
+              borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
+            }),
+          ],
+        })
+      );
     }
 
     // Agregar tabla si hay datos
     if (tableRows.length > 0) {
-        children.push(
-            new Table({
-                width: { size: 80, type: WidthType.PERCENTAGE },
-                alignment: AlignmentType.CENTER,
-                rows: tableRows,
-                borders: {
-                    top: { style: BorderStyle.NONE },
-                    bottom: { style: BorderStyle.NONE },
-                    left: { style: BorderStyle.NONE },
-                    right: { style: BorderStyle.NONE },
-                    insideHorizontal: { style: BorderStyle.NONE },
-                    insideVertical: { style: BorderStyle.NONE },
-                },
-            })
-        );
+      children.push(
+        new Table({
+          width: { size: 80, type: WidthType.PERCENTAGE },
+          alignment: AlignmentType.CENTER,
+          rows: tableRows,
+          borders: {
+            top: { style: BorderStyle.NONE },
+            bottom: { style: BorderStyle.NONE },
+            left: { style: BorderStyle.NONE },
+            right: { style: BorderStyle.NONE },
+            insideHorizontal: { style: BorderStyle.NONE },
+            insideVertical: { style: BorderStyle.NONE },
+          },
+        })
+      );
     }
 
     return children;
-}
+  }
 
   async processSection(section) {
     const elements = [];
@@ -676,18 +718,14 @@ export class ContentProcessorMD {
           cellChildren.push(
             new Paragraph({
               alignment: alignment,
-              spacing: cellData.spacing || { after: 0 },
+              spacing: cellData?.spacing || { after: 0 },
               children: lines.map(
                 (line, idx) =>
                   new TextRun({
                     text: line,
                     size: size,
-                    font: "Arial",
-                    color: textColor.replace("#", ""),
-                    bold: bold,
-                    break: idx > 0 ? 1 : 0,
-                  }),
-              ),
+                  })
+              )
             }),
           );
         }

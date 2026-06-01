@@ -37,21 +37,41 @@ function memoriaDescriptiva() {
         // ============================================
         // INICIALIZACIÓN
         // ============================================
+        // PARCHE para index-refactored-md.js
+        // Agregar este bloque dentro de la función init() del componente memoriaDescriptiva,
+        // DESPUÉS de la línea: this.initDefaultData();
+        //
+        // ─────────────────────────────────────────────────────────────────────────────
+        // REEMPLAZA el método init() existente con este:
+        // ─────────────────────────────────────────────────────────────────────────────
+
         init() {
             console.log('🚀 Inicializando Memoria Descriptiva');
 
-            // Asegurar que el store tenga los datos de ubigeo
             if (this.$store.memoriaDescriptiva && ubigeoData) {
                 this.$store.memoriaDescriptiva.ubigeoData = ubigeoData;
             }
 
-            // Inicializar arrays por defecto
             this.initDefaultArrays();
-
-            // Inicializar datos de ejemplo para la portada
             this.initDefaultData();
 
-            console.log('✅ Inicialización completa');
+            // ── AUTO-SAVE: cada vez que cualquier dato del store cambia, persistir ──
+            // Observamos cover
+            this.$watch('$store.memoriaDescriptiva.cover', () => {
+                this.$store.memoriaDescriptiva.save();
+            }, { deep: true });
+
+            // Observamos sections
+            this.$watch('$store.memoriaDescriptiva.sections', () => {
+                this.$store.memoriaDescriptiva.save();
+            }, { deep: true });
+
+            // Observamos previews (dataURLs de imágenes)
+            this.$watch('$store.memoriaDescriptiva.previews', () => {
+                this.$store.memoriaDescriptiva.save();
+            }, { deep: true });
+
+            console.log('✅ Inicialización completa — auto-save activado');
         },
         initDefaultData() {
             console.log('🔄 Inicializando datos por defecto');
@@ -84,14 +104,50 @@ function memoriaDescriptiva() {
                 ];
             }
 
-            // Objetivo general por defecto
+            // ==================== OBJETIVOS ====================
             if (!store.sections.generalidades.objetivos.general) {
-                store.sections.generalidades.objetivos.general = "Realizar el modelamiento, análisis y cálculo estructural de la edificación, así como verificaciones posteriores.";
+                store.sections.generalidades.objetivos.general = "Realizar el modelamiento, análisis y cálculo estructural de la estructura correspondiente al proyecto, así como verificaciones posteriores: para lo cual se presenta a continuación los objetivos específicos de la memoria de cálculo.";
             }
 
-            // Antecedentes por defecto
+            if (store.sections.generalidades.objetivos.especificos.length === 0) {
+                store.sections.generalidades.objetivos.especificos = [
+                    "Dimensionar los elementos estructurales.",
+                    "Calcular las cargas actuantes en la estructura y su masa.",
+                    "Realizar el modelamiento estructural del Proyecto con el Software ETABS, SAP 2000 y SAFE.",
+                    "Realizar el análisis estático de la estructura.",
+                    "Realizar el análisis dinámico modal espectral de la estructura.",
+                    "Realizar la verificación de la participación del 90% de la masa como mínimo, para la validez del análisis dinámico, según disposiciones de la norma E030.",
+                    "Realizar la verificación de la fuerza cortante mínima en la base (relación entre cortante dinámica y estática) y su correspondiente factor de escala, para el diseño de los elementos, según disposiciones de la norma E030.",
+                    "Realizar la verificación de las distorsiones laterales en los entrepisos, según disposiciones de la norma E030.",
+                    "Realizar el diseño de los elementos estructurales.",
+                    "Verificar el análisis y diseño con normas internacionales."
+                ];
+            }
+
+            if (!store.sections.generalidades.objetivos.tipoTerreno) {
+                store.sections.generalidades.objetivos.tipoTerreno = "El terreno es de tipología de TIPO I (sin posibilidad de expansión) que contempla dentro de sus linderos parte de su programa arquitectónico. Con la finalidad de atender la totalidad del servicio educativo, se hará uso del equipamiento de Losa deportiva del entorno que se encuentra disponible.";
+            }
+
+
+            if (!store.sections.generalidades.objetivos.proyectoDetalle) {
+                store.sections.generalidades.objetivos.proyectoDetalle = "• El proyecto será elaborado de un Colegio Inicial Ciclo II de tres aulas de 20 y Primaria Polidocente completo de 15 aulas de 30 alumnos cada uno, según lo establecido en el RVM N°208-2019 -- MINEDU.";
+            }
+
+            // ==================== ANTECEDENTES ====================
+            const textoAntecedentes = `La I.E 64193 es un centro educativo en Loreto que pertenece a la población Urbana, una institución educativa Escolarizada perteneciente a la DRE Loreto con código 160007 y que está supervisada por la UGEL Ucayali-Contamana.
+
+La Institución Educativa Inicial y Primaria N°64193, donde la fecha de incorporación al registro de servicios educativos del nivel inicial es el 10-03-2006 y del nivel primaria el 01-04-1911, año de su creación. En sus inicios los pobladores y autoridades, realizaron la donación de un terreno a la Dirección Regional de Educación de Loreto, con la única finalidad de que se construya una infraestructura educativa para el nivel primaria y posteriormente el inicial, con el fin de que los alumnos y el personal docente pueda contar con adecuados espacios pedagógicos, administrativos, complementarios y áreas de recreación, mejorando la calidad educativa de los alumnos. En la actualidad la I.E cuenta con 23 niños y dos docentes.
+
+Según el último censo educativo la institución educativa en el nivel Inicial - Jardín cuenta con clases en turno Mañana, con unas 3 secciones y tiene un total aproximado de 38 alumnos, contando con 20 varones y 18 mujeres. Con 3 docentes.
+
+Así mismo la institución educativa en el nivel Primaria cuenta con clases en turno Mañana, con unas 6 secciones y tiene un total aproximado de 138 alumnos, contando con 74 varones y 64 mujeres. Con 7 docentes.`;
+
             if (!store.sections.generalidades.antecedentes.history) {
-                store.sections.generalidades.antecedentes.history = "La I.E 64193 es un centro educativo en Loreto que pertenece a la población Urbana, una institución educativa Escolarizada perteneciente a la DRE Loreto con código 160007 y que está supervisada por la UGEL Ucayali-Contamana.";
+                store.sections.generalidades.antecedentes.history = textoAntecedentes;
+            }
+
+            if (!store.sections.generalidades.antecedentes.textoCompleto) {
+                store.sections.generalidades.antecedentes.textoCompleto = textoAntecedentes;
             }
 
             // Parámetros sísmicos por defecto
@@ -142,6 +198,16 @@ function memoriaDescriptiva() {
                         }
                     };
                 }
+                // ==================== INCOMPATIBILIDADES DEL TERRENO ====================
+                if (!store.sections.generalidades.incompatibilidades) {
+                    store.sections.generalidades.incompatibilidades = [
+                        { num: "1", descripcion: "No pueden ubicarse a una distancia menor de 150 m en línea recta de velatorios y/o cementerios.", dispositivoLegal: "DS Nº 003-94-SA", compatibilizacion: "Compatible: La IE se encuentra a 771m del cementerio" },
+                        { num: "2", descripcion: "No pueden ubicarse a una distancia menor de 1,000 m de rellenos sanitarios y rellenos de seguridad.", dispositivoLegal: "DS Nº 057-2004-PCM", compatibilizacion: "Compatible: No existe rellenos de ese tipo a 3000 metros" },
+                        { num: "3", descripcion: "Se prohíbe la construcción de los locales educativos en áreas que fueron utilizadas como infraestructura de disposición final de residuos sólidos.", dispositivoLegal: "DS Nº 057-2004-PCM", compatibilizacion: "Compatible" },
+                        { num: "4", descripcion: "No pueden ubicarse a una distancia menor de 100 m de cualquier Establecimiento de Salud.", dispositivoLegal: "RM N° 045-2015/MINSA", compatibilizacion: "Compatible: La IE se encuentra a 758m del establecimiento de salud" }
+                        // ... continuar hasta 26 filas
+                    ];
+                }
                 console.log('✅ Consideraciones inicializadas para 16 módulos');
             }
 
@@ -171,6 +237,90 @@ function memoriaDescriptiva() {
                 }
                 console.log('✅ Predimensionamiento inicializado para 15 módulos');
             }
+
+            // ==================== DOCUMENTOS Y PLANOS POR DEFECTO ====================
+            // Forzar carga de documentos si están vacíos o tienen menos de 20
+            if (store.sections.documentosPlanos.documentos.length < 20) {
+                store.sections.documentosPlanos.documentos = [
+                    "Memoria descriptiva general",
+                    "Especificaciones Técnicas Estructuras",
+                    "Especificaciones Técnicas Obras Provisionales",
+                    "Memoria de cálculo del Módulo I",
+                    "Memoria de cálculo del Módulo II",
+                    "Memoria de cálculo del Módulo III",
+                    "Memoria de cálculo del Módulo IV",
+                    "Memoria de cálculo del Módulo V",
+                    "Memoria de cálculo del Módulo VI",
+                    "Memoria de cálculo del Módulo VII",
+                    "Memoria de cálculo del Módulo VIII",
+                    "Memoria de cálculo del Módulo IX",
+                    "Memoria de cálculo del Módulo X",
+                    "Memoria de cálculo del Módulo XI",
+                    "Memoria de cálculo del Módulo XII",
+                    "Memoria de cálculo del Módulo XIII",
+                    "Memoria de cálculo del Módulo XIV",
+                    "Memoria de cálculo del Módulo XV",
+                    "Memoria de cálculo del Módulo XVI",
+                    "Memoria de cálculo de Obras Exteriores-I Cerco Perimétrico",
+                    "Memoria de cálculo de Obras Exteriores-II Portada Primaria",
+                    "Memoria de cálculo de Obras Exteriores-III Portada Inicial"
+                ];
+                console.log('✅ Documentos inicializados:', store.sections.documentosPlanos.documentos.length);
+            }
+
+            // Forzar carga de planos si están vacíos o tienen menos de 20
+            if (store.sections.documentosPlanos.planos.length < 20) {
+                store.sections.documentosPlanos.planos = [
+                    { descripcion: "ESTRUCTURA", lamina: "", esEncabezado: true },
+                    { descripcion: "PLANO GENERAL DE CIMENTACION GENERAL", lamina: "PG-1" },
+                    { descripcion: "PLANO GENERAL DE CIMENTACION GENERAL", lamina: "PG-2" },
+                    { descripcion: "PLANO GENERAL DE ALIGERADOS PRIMER NIVEL", lamina: "PG-3" },
+                    { descripcion: "PLANO GENERAL DE ALIGERADOS SEGUNDO NIVEL", lamina: "PG-4" },
+                    { descripcion: "PLANO GENERAL DE ALIGERADOS TERCER NIVEL", lamina: "PG-5" },
+                    { descripcion: "PLANO GENERAL DE ALIGERADOS CUARTO NIVEL", lamina: "PG-6" },
+                    { descripcion: "PLANTA GENERAL DE EXPLANACIONES", lamina: "PG-7" },
+                    { descripcion: "DETALLES GENERALES MODULO I", lamina: "E-01" },
+                    { descripcion: "PLANO DE CIMENTACION MODULO I", lamina: "E-02" },
+                    { descripcion: "DETALLE DE CIMENTACION MODULO I", lamina: "E-03" },
+                    { descripcion: "PLANO DE ALIGERADO MODULO I", lamina: "E-04" },
+                    { descripcion: "PLANO DE PORTICO MODULO I", lamina: "E-05" },
+                    { descripcion: "PLANO DE PORTICO MODULO I", lamina: "E-06" },
+                    { descripcion: "PLANO DE PORTICO MODULO I", lamina: "E-07" },
+                    { descripcion: "PLANO DE PORTICO MODULO I", lamina: "E-08" },
+                    { descripcion: "PLANO DE PORTICO MODULO I", lamina: "E-09" },
+                    { descripcion: "DETALLES GENERALES MODULO II", lamina: "E-10" },
+                    { descripcion: "PLANO DE CIMENTACION MODULO II", lamina: "E-11" },
+                    { descripcion: "PLANO DE CIMENTACION MODULO II", lamina: "E-12" },
+                    { descripcion: "PLANO DE ALIGERADO MODULO II", lamina: "E-13" },
+                ];
+                console.log('✅ Planos inicializados:', store.sections.documentosPlanos.planos.length);
+            }
+            // ==================== DATOS DEL PROYECTO (1.2) ====================
+            const dp = store.sections.generalidades.datosProyecto;
+
+            if (!dp.nombre || dp.nombre === "") {
+                dp.nombre = store.cover.project;
+            }
+            if (!dp.localidad || dp.localidad === "") {
+                dp.localidad = "Contamana";
+                dp.distrito = "Contamana";
+                dp.provincia = "Ucayali";
+                dp.region = "Loreto";
+                dp.este = "499311.54";
+                dp.norte = "9188568.58";
+                dp.altitud = "134";
+                dp.colindanciaNorte = "Vivienda aledaña";
+                dp.colindanciaSur = "Vivienda aledaña";
+                dp.colindanciaEste = "Vivienda aledaña";
+                dp.colindanciaOeste = "Av. Victor Raul Haya de la Torre";
+            }
+            if (!dp.uei || dp.uei === "") {
+                dp.uei = store.cover.uei || "Municipalidad Provincial de Ucayali";
+            }
+
+            // Guardar los cambios en localStorage
+            store.save();
+
         },
 
         initDefaultArrays() {

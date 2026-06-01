@@ -1,27 +1,27 @@
 {{-- resources/views/hcalculo/memoria_descriptiva/portada.blade.php --}}
 <x-calc-layout title="Memoria Descriptiva - Portada">
-    <div class="py-4" x-data="memoriaDescriptiva">
+    <div class="py-4" x-data="memoriaDescriptiva" x-init="init()">
         <div class="container mx-auto px-4 max-w-7xl">
 
             {{-- Barra de navegación --}}
             <div class="flex flex-wrap gap-2 mb-6 pb-4 border-b border-gray-200">
-                <a href="{{ route('memoria-descriptiva.portada') }}" 
+                <a href="{{ route('calculadora.asistente.memoria-descriptiva.portada')}}" 
                    class="px-4 py-2 rounded-lg bg-green-600 text-white">
                     📄 Portada
                 </a>
-                <a href="{{ route('memoria-descriptiva.generalidades') }}" 
+                <a href="{{ route('calculadora.asistente.memoria-descriptiva.generalidades') }}" 
                    class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300">
                     📋 1. GENERALIDADES
                 </a>
-                <a href="{{ route('memoria-descriptiva.consideraciones') }}" 
+                <a href="{{ route('calculadora.asistente.memoria-descriptiva.consideraciones') }}" 
                    class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300">
                     ⚙️ 2. CONSIDERACIONES
                 </a>
-                <a href="{{ route('memoria-descriptiva.predimensionamiento') }}" 
+                <a href="{{ route('calculadora.asistente.memoria-descriptiva.predimensionamiento') }}" 
                    class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300">
                     📐 3. PREDIMENSIONAMIENTO
                 </a>
-                <a href="{{ route('memoria-descriptiva.demolicion') }}" 
+                <a href="{{ route('calculadora.asistente.memoria-descriptiva.demolicion') }}" 
                    class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300">
                     💥 4. DEMOLICIÓN
                 </a>
@@ -125,7 +125,7 @@
                 {{-- Botones de navegación --}}
                 <div class="flex justify-between mt-6 pt-4 border-t">
                     <div></div>
-                    <a href="{{ route('memoria-descriptiva.generalidades') }}" 
+                    <a href="{{ route('calculadora.asistente.memoria-descriptiva.generalidades')}}" 
                        class="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
                         Siguiente →
                     </a>

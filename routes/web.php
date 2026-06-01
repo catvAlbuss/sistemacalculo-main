@@ -104,42 +104,10 @@ Route::middleware(["auth", "verified"])->group(function () {
         Route::middleware(['role:root|gerencia|asistente'])->group(function () {
             Route::prefix('asistente')->name('asistente.')->group(function () {
                 
+// Agrega la ruta de admMemoriaCalculo memoria-calculo
+        Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name('memoria-calculo');
 
-                // Agrega la ruta de admMemoriaCalculo memoria-calculo
-                Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name('memoria-calculo');
-                // Línea 74 aprox - dentro del middleware de asistente
-                Route::get('/memoria-descriptiva', function () {
-    return view('hcalculo.admMemoriaDescriptiva');
-})->name('memoria-descriptiva');
 
-// Rutas para cada sección (coinciden con tu sidebar)
-Route::prefix('memoria-descriptiva')->name('memoria-descriptiva.')->middleware(['auth', 'verified'])->group(function () {
-    
-    // Portada
-    Route::get('/portada', function () {
-        return view('hcalculo.memoria_descriptiva.portada');
-    })->name('portada');
-    
-    // Generalidades
-    Route::get('/generalidades', function () {
-        return view('hcalculo.memoria_descriptiva.generalidades');
-    })->name('generalidades');
-    
-    // Consideraciones
-    Route::get('/consideraciones', function () {
-        return view('hcalculo.memoria_descriptiva.consideraciones');
-    })->name('consideraciones');
-    
-    // Predimensionamiento
-    Route::get('/predimensionamiento', function () {
-        return view('hcalculo.memoria_descriptiva.predimensionamiento');
-    })->name('predimensionamiento');
-    
-    // Demolición
-    Route::get('/demolicion', function () {
-        return view('hcalculo.memoria_descriptiva.demolicion');
-    })->name('demolicion');
-});
                 // Vigas
                 Route::view('/vigas', 'hcalculo.admdesingvigas')->name('vigas');
                 Route::view('/vigas-general', 'hcalculo.admvigageneral')->name('vigas-general');
@@ -240,6 +208,36 @@ Route::prefix('memoria-descriptiva')->name('memoria-descriptiva.')->middleware([
 });
 
 require __DIR__ . '/auth.php';
+
+// =============================================
+// RUTAS MEMORIA DESCRIPTIVA - VERSIÓN SIMPLE
+// =============================================
+
+// Ruta principal del menú
+Route::get('/calculadora/asistente/memoria-descriptiva', function () {
+    return redirect()->to('/calculadora/asistente/memoria-descriptiva/portada');
+})->name('calculadora.asistente.memoria-descriptiva');
+
+// Rutas directas SIN grupos anidados
+Route::get('/calculadora/asistente/memoria-descriptiva/portada', function () {
+    return view('hcalculo.memoria_descriptiva.sections.portada');
+})->name('calculadora.asistente.memoria-descriptiva.portada');
+
+Route::get('/calculadora/asistente/memoria-descriptiva/generalidades', function () {
+    return view('hcalculo.memoria_descriptiva.sections.generalidades-md');
+})->name('calculadora.asistente.memoria-descriptiva.generalidades');
+
+Route::get('/calculadora/asistente/memoria-descriptiva/consideraciones', function () {
+    return view('hcalculo.memoria_descriptiva.sections.consideraciones');
+})->name('calculadora.asistente.memoria-descriptiva.consideraciones');
+
+Route::get('/calculadora/asistente/memoria-descriptiva/predimensionamiento', function () {
+    return view('hcalculo.memoria_descriptiva.sections.predimensionamiento');
+})->name('calculadora.asistente.memoria-descriptiva.predimensionamiento');
+
+Route::get('/calculadora/asistente/memoria-descriptiva/demolicion', function () {
+    return view('hcalculo.memoria_descriptiva.sections.demolicion');
+})->name('calculadora.asistente.memoria-descriptiva.demolicion');
 Route::prefix('storage')->group(function () {
     // Imágenes de perfil
     Route::get('/profile/{filename}', function ($filename) {
