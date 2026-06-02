@@ -144,6 +144,7 @@ Route::middleware(["auth", "verified"])->group(function () {
                 // Columnas
                 Route::view('/columna-de-acero', 'hcalculo.admdesingcolumnaAcero')->name('columna-de-acero');
                 Route::view('/columna', 'hcalculo.admdesingcolumna')->name('columna');
+                Route::view('/columna-ii', 'hcalculo.adm_columnaII')->name('columna-ii');
 
                 // Zapata
                 Route::view('/zapata-combinada', 'hcalculo.admZapataCombinada')->name('zapata-combinada');
