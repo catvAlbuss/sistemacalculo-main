@@ -143,6 +143,10 @@ $logout = function (Logout $logout) {
                                 'url' => route('calculadora.asistente.columna'),
                                 'label' => 'Diseño de Columnas',
                             ],
+                            [
+                                'url' => route('calculadora.asistente.columna-ii'),
+                                'label' => 'Diseño de Columnas II',
+                            ],
                         ]"></x-dropdown-sub>
                         <x-dropdown-sub label="{{ __('Zapatas') }}" :links="[
                             [
@@ -405,6 +409,10 @@ $logout = function (Logout $logout) {
                     [
                         'url' => route('calculadora.asistente.columna'),
                         'label' => 'Diseño de Columnas',
+                    ],
+                    [
+                        'url' => route('calculadora.asistente.columna-ii'),
+                        'label' => 'Diseño de Columnas II',
                     ],
                 ]"></x-dropdown-sub>
                 <x-dropdown-sub label="{{ __('Zapatas') }}" :links="[
