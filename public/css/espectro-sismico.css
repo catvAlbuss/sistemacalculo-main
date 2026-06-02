@@ -1,0 +1,383 @@
+/* ════════════════════════════════════════════════════════
+   ESPECTRO SÍSMICO - ESTILOS LIVEWIRE
+   ═════════════════════════════════════════════════════════ */
+
+:root {
+    --espectro-bg: #0f1528;
+    --espectro-border: #1e2d4a;
+    --espectro-accent: #00e5ff;
+    --espectro-text: #c8d8f0;
+    --espectro-muted: #5a7090;
+    --espectro-input-bg: #0d1420;
+    --espectro-primary: #00e5ff;
+    --espectro-success: #00ff88;
+    --espectro-danger: #ff4444;
+}
+
+.espectro-sismico-container {
+    background: var(--espectro-bg);
+    border: 1px solid var(--espectro-border);
+    border-radius: 8px;
+    padding: 2rem;
+    color: var(--espectro-text);
+    font-family: 'Rajdhani', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ─── HEADER ─── */
+.espectro-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid var(--espectro-border);
+}
+
+.espectro-header h2 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 0.5rem;
+    color: #fff;
+}
+
+.espectro-header p {
+    font-size: 0.9rem;
+    color: var(--espectro-muted);
+    font-family: 'Share Tech Mono', monospace;
+}
+
+/* ─── FORM ─── */
+.espectro-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--espectro-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.badge {
+    display: inline-block;
+    background: rgba(0, 229, 255, 0.1);
+    border: 1px solid rgba(0, 229, 255, 0.3);
+    color: var(--espectro-accent);
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 1px;
+}
+
+.badge.new-badge {
+    background: rgba(0, 255, 136, 0.1);
+    border-color: rgba(0, 255, 136, 0.3);
+    color: var(--espectro-success);
+}
+
+/* ─── VERSION BUTTONS ─── */
+.version-buttons {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.5rem;
+}
+
+.version-btn {
+    padding: 0.6rem 0.8rem;
+    background: var(--espectro-input-bg);
+    border: 2px solid var(--espectro-border);
+    color: var(--espectro-muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.version-btn:hover {
+    border-color: var(--espectro-accent);
+    color: var(--espectro-accent);
+    background: rgba(0, 229, 255, 0.05);
+}
+
+.version-btn.active {
+    background: rgba(0, 229, 255, 0.15);
+    border-color: var(--espectro-accent);
+    color: var(--espectro-accent);
+    box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+}
+
+.version-btn .new-badge {
+    margin-left: 0.3rem;
+}
+
+/* ─── FORM CONTROLS ─── */
+.form-control {
+    padding: 0.7rem 0.9rem;
+    background: var(--espectro-input-bg);
+    border: 1px solid var(--espectro-border);
+    color: #fff;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.9rem;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    outline: none;
+}
+
+.form-control:hover {
+    border-color: rgba(0, 229, 255, 0.3);
+}
+
+.form-control:focus {
+    border-color: var(--espectro-accent);
+    box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.1);
+    background: rgba(13, 20, 32, 0.8);
+}
+
+.form-group small {
+    font-size: 0.75rem;
+    color: var(--espectro-muted);
+    font-family: 'Share Tech Mono', monospace;
+    margin-top: 0.2rem;
+}
+
+/* ─── FORM ACTIONS ─── */
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 0.85rem 1.5rem;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-width: 180px;
+}
+
+.btn-primary {
+    background: var(--espectro-accent);
+    color: #000;
+    border-color: var(--espectro-accent);
+}
+
+.btn-primary:hover {
+    background: #00c4d6;
+    border-color: #00c4d6;
+    box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+}
+
+.btn-primary:active {
+    transform: scale(0.98);
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--espectro-accent);
+    border-color: var(--espectro-accent);
+}
+
+.btn-secondary:hover {
+    background: rgba(0, 229, 255, 0.1);
+    box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+}
+
+/* ─── RESULTADOS ─── */
+.espectro-resultados {
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.chart-container,
+.params-container,
+.export-container {
+    background: rgba(13, 20, 32, 0.5);
+    border: 1px solid var(--espectro-border);
+    border-radius: 6px;
+    padding: 1.5rem;
+}
+
+.chart-container h3,
+.params-container h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    margin-bottom: 1rem;
+    color: var(--espectro-accent);
+    text-transform: uppercase;
+}
+
+.chart-container canvas {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+
+/* ─── PARÁMETROS GRID ─── */
+.params-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.param-item {
+    background: rgba(0, 229, 255, 0.05);
+    border: 1px solid rgba(0, 229, 255, 0.2);
+    border-radius: 4px;
+    padding: 1rem;
+    text-align: center;
+}
+
+.param-label {
+    font-size: 0.75rem;
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--espectro-muted);
+    margin-bottom: 0.5rem;
+}
+
+.param-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--espectro-success);
+    font-family: 'Share Tech Mono', monospace;
+}
+
+.param-unit {
+    font-size: 0.8rem;
+    color: var(--espectro-muted);
+    margin-top: 0.3rem;
+}
+
+/* ─── EXPORT CONTAINER ─── */
+.export-container {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.export-container .btn {
+    flex: 1;
+    min-width: 160px;
+}
+
+/* ─── LOADING ─── */
+.loading-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    color: var(--espectro-accent);
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 1px;
+}
+
+.loading-indicator::after {
+    content: '';
+    display: inline-block;
+    width: 1.2rem;
+    height: 1.2rem;
+    margin-left: 0.8rem;
+    border: 2px solid rgba(0, 229, 255, 0.3);
+    border-top-color: var(--espectro-accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 768px) {
+    .espectro-sismico-container {
+        padding: 1.5rem;
+    }
+
+    .espectro-header h2 {
+        font-size: 1.4rem;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .version-buttons {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .btn {
+        min-width: auto;
+        width: 100%;
+    }
+
+    .params-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ─── DARK MODE ADJUSTMENTS ─── */
+@media (prefers-color-scheme: dark) {
+    .espectro-sismico-container {
+        --espectro-bg: #0a0e1a;
+        --espectro-border: #1a2942;
+        --espectro-input-bg: #0d1420;
+    }
+}

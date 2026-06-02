@@ -159,6 +159,9 @@ Route::middleware(["auth", "verified"])->group(function () {
                 // Irregularidades
                 Route::view('/irregularidades', 'hcalculo.admIrregularidades')->name('irregularidades');
 
+                // Espectro Sísmico
+                Route::view('/espectro-sismico', 'hcalculo.espectro-sismico')->name('espectro-sismico');
+
                 // Diseño en madera
                 Route::prefix('diseno-en-madera')->name('diseno-en-madera.')->group(function () {
                     Route::view('/correas', 'hcalculo.admdesingcorreas')->name('correas');
