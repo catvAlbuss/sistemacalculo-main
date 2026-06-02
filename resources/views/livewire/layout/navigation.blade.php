@@ -11,11 +11,11 @@ $logout = function (Logout $logout) {
 ?>
 
 @pushOnce('initscripts')
-@vite('resources/js/navigation.js')
+    @vite('resources/js/navigation.js')
 @endPushOnce
 
 @pushOnce('scripts')
-<script type="text/javascript" src="https://www.geogebra.org/apps/deployggb.js"></script>
+    <script type="text/javascript" src="https://www.geogebra.org/apps/deployggb.js"></script>
 @endpushOnce
 
 <nav class="z-50 border-b border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800" x-data="scientific_calculator_applet"
@@ -37,32 +37,66 @@ $logout = function (Logout $logout) {
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" {{-- wire:navigate --}}>
                         {{ __('Inicio') }}
                     </x-nav-link>
-
-                    <x-nav-link :href="route('calculadora.asistente.memoria-calculo')"
-                        :active="request()->routeIs('calculadora.asistente.memoria-calculo')">
-                        {{ __('Memoria Calculo') }}
-                    </x-nav-link>
                 </div>
                 @php
-                $user = auth()->user();
+                    $user = auth()->user();
+                    $memoryRoutes = [
+                        'calculadora.asistente.memoria-calculo',
+                        'calculadora.asistente.memoria-descriptiva*',
+                    ];
+                    $reviewerRoutes = [
+                        'software.anclaje-v1',
+                        'software.base-dinamica-v1',
+                        'software.estribo-columna-placa-v1',
+                        'software.estribo-placa-v1',
+                        'software.predim-viga-v1',
+                        'software.verificacion-viga-v1',
+                        'calculadora.estudiante.cav2.hoja2',
+                    ];
+                    $designerRoutes = [
+                        'software.suelos.*',
+                        'software.aligerados-v1',
+                        'software.aligerados-v2',
+                        'software.cimentacion-v1',
+                        'software.cimentacion-v2',
+                        'software.analisis-estructural-de-armaduras',
+                        'software.etabs2',
+                        'software.predimv2',
+                        'calculadora.estudiante.arco_techo',
+                    ];
+                    $isMemoryActive = request()->routeIs($memoryRoutes);
+                    $isReviewerActive = request()->routeIs($reviewerRoutes);
+                    $isDesignerActive = request()->routeIs($designerRoutes);
+                    $isStudentActive = request()->routeIs('calculadora.estudiante.*')
+                        && !request()->routeIs(['calculadora.estudiante.arco_techo', 'calculadora.estudiante.cav2.hoja2']);
+                    $isAssistantActive = request()->routeIs('calculadora.asistente.*') && ! $isMemoryActive;
                 @endphp
 
                 @if ($user->hasRole(['root', 'gerencia']))
-                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-dropdown-nav-item name="{{ __('Planes/User') }}" :active="request()->routeIs('suscripciones.*')">
-                        <x-nav-link :href="route('planUser.index')" :active="request()->routeIs('planUser.index')">
-                            {{ __('Gestion de Usuario') }}
-                        </x-nav-link>
-                        <x-nav-link :href="route('suscripciones.index')" :active="request()->routeIs('suscripciones.index')">
-                            {{ __('Gestion de planes') }}
-                        </x-nav-link>
-                    </x-dropdown-nav-item>
-                </div>
+                    <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                        <x-dropdown-nav-item name="{{ __('Planes') }}" :active="request()->routeIs(['planUser.*', 'suscripciones.*'])">
+                            <x-nav-link :href="route('planUser.index')" :active="request()->routeIs('planUser.index')">
+                                {{ __('Gestion de Usuario') }}
+                            </x-nav-link>
+                            <x-nav-link :href="route('suscripciones.index')" :active="request()->routeIs('suscripciones.index')">
+                                {{ __('Gestion de planes') }}
+                            </x-nav-link>
+                        </x-dropdown-nav-item>
+                    </div>
                 @endif
 
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-dropdown-nav-item name="{{ __('Estudiante') }}" :active="request()->routeIs('calculadora.estudiante.*')">
-
+                    <x-dropdown-nav-item name="{{ __('Memoria') }}" :active="$isMemoryActive">
+                        <x-dropdown-link :href="route('calculadora.asistente.memoria-calculo')" :active="request()->routeIs('calculadora.asistente.memoria-calculo')">
+                            {{ __('Memoria Calculo') }}
+                        </x-dropdown-link>
+                        <x-dropdown-link :href="route('calculadora.asistente.memoria-descriptiva')" :active="request()->routeIs('calculadora.asistente.memoria-descriptiva*')">
+                            {{ __('Memoria Descriptiva') }}
+                        </x-dropdown-link>
+                    </x-dropdown-nav-item>
+                </div>
+                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                    <x-dropdown-nav-item name="{{ __('Estudiante') }}" :active="$isStudentActive">
                         <x-dropdown-sub label="{{ __('Concreto Armado') }}" :links="[
                             [
                                 'url' => route('calculadora.estudiante.cav2.metrados'),
@@ -104,18 +138,23 @@ $logout = function (Logout $logout) {
                                 'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
                                 'label' => 'Vigas Continuas',
                             ],
-
                         ]"></x-dropdown-sub>
                     </x-dropdown-nav-item>
                 </div>
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-dropdown-nav-item name="{{ __('Asistente') }}" :active="request()->routeIs('calculadora.asistente.*')">
+                    <x-dropdown-nav-item name="{{ __('Asistente') }}" :active="$isAssistantActive">
                         <x-dropdown-sub label="{{ __('Vigas') }}" :links="[
                             ['url' => route('calculadora.asistente.vigas'), 'label' => 'Diseño de Vigas'],
-                            ['url' => route('calculadora.asistente.vigas-general'), 'label' => 'Diseño de Vigas General'],
+                            [
+                                'url' => route('calculadora.asistente.vigas-general'),
+                                'label' => 'Diseño de Vigas General',
+                            ],
                         ]"></x-dropdown-sub>
                         <x-dropdown-sub label="{{ __('Losas') }}" :links="[
-                            ['url' => route('calculadora.asistente.losas-macizas'), 'label' => 'Diseño de Losas Macizas'],
+                            [
+                                'url' => route('calculadora.asistente.losas-macizas'),
+                                'label' => 'Diseño de Losas Macizas',
+                            ],
                             [
                                 'url' => route('calculadora.asistente.losas-aligeradas'),
                                 'label' => 'Diseño de Losas Aligeradas',
@@ -127,7 +166,7 @@ $logout = function (Logout $logout) {
                                 'label' => 'Diseño de Muros de Contención',
                             ],
                             [
-                                'url' => route('calculadora.asistente.muros-de-albañieria'),
+                                'url' => route('calculadora.asistente.muros-de-albanieria'),
                                 'label' => 'Diseño de Muros de Albañieria',
                             ],
                         ]"></x-dropdown-sub>
@@ -178,7 +217,10 @@ $logout = function (Logout $logout) {
                             {{ __('Epectro Simico') }}
                         </x-dropdown-link>
                         <x-dropdown-sub label="{{ __('Diseño En Madera') }}" :links="[
-                            ['url' => route('calculadora.asistente.diseno-en-madera.correas'), 'label' => 'Diseño de Correas'],
+                            [
+                                'url' => route('calculadora.asistente.diseno-en-madera.correas'),
+                                'label' => 'Diseño de Correas',
+                            ],
                             [
                                 'url' => route('calculadora.asistente.diseno-en-madera.flexo-compresion'),
                                 'label' => 'Flexocompresion',
@@ -209,7 +251,7 @@ $logout = function (Logout $logout) {
                     </x-dropdown-nav-item>
                 </div>
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-dropdown-nav-item name="{{ __('Diseñador') }}" :active="request()->routeIs('software.*')">
+                    <x-dropdown-nav-item name="{{ __('Diseñador') }}" :active="$isDesignerActive">
                         <x-dropdown-sub label="{{ __('Suelos') }}" :links="[
                             [
                                 'url' => route('software.suelos.distribucion-de-esfuerzos'),
@@ -217,13 +259,16 @@ $logout = function (Logout $logout) {
                             ],
                         ]"></x-dropdown-sub>
                         <x-dropdown-sub label="{{ __('Programas') }}" :links="[
-                     ['url' => route('software.aligerados-v1'), 'label' => 'Aligerados v1.0'],
-                     ['url' => route('software.aligerados-v2'), 'label' => 'Aligerados v2.0'],
-                     ['url' => route('software.cimentacion-v1'), 'label' => 'Cimentacion v1.0'],
-                     ['url' => route('software.cimentacion-v2'), 'label' => 'Cimentacion v2.0'],
-                     ['url' => route('software.analisis-estructural-de-armaduras'), 'label' => 'Analisis Estructural'],
-                     ['url' => route('software.etabs2'), 'label' => 'Etabs 2'],
-                 ]"></x-dropdown-sub>
+                            ['url' => route('software.aligerados-v1'), 'label' => 'Aligerados v1.0'],
+                            ['url' => route('software.aligerados-v2'), 'label' => 'Aligerados v2.0'],
+                            ['url' => route('software.cimentacion-v1'), 'label' => 'Cimentacion v1.0'],
+                            ['url' => route('software.cimentacion-v2'), 'label' => 'Cimentacion v2.0'],
+                            [
+                                'url' => route('software.analisis-estructural-de-armaduras'),
+                                'label' => 'Analisis Estructural',
+                            ],
+                            ['url' => route('software.etabs2'), 'label' => 'Etabs 2'],
+                        ]"></x-dropdown-sub>
 
                         <x-dropdown-link :href="route('software.predimv2')" :active="request()->routeIs('software.predimv2')">
                             {{ __('Predim') }}
@@ -234,7 +279,7 @@ $logout = function (Logout $logout) {
                     </x-dropdown-nav-item>
                 </div>
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-dropdown-nav-item name="{{ __('Revisor') }}" :active="request()->routeIs('software.*')">
+                    <x-dropdown-nav-item name="{{ __('Revisor') }}" :active="$isReviewerActive">
 
                         <x-dropdown-sub label="{{ __('Verificacion') }}" :links="[
                             ['url' => route('software.anclaje-v1'), 'label' => 'Anclaje'],
@@ -243,7 +288,7 @@ $logout = function (Logout $logout) {
                             ['url' => route('software.estribo-placa-v1'), 'label' => 'Estribo de Placas'],
                             ['url' => route('software.predim-viga-v1'), 'label' => 'Predim Viga'],
                             ['url' => route('software.verificacion-viga-v1'), 'label' => 'Viga Verifica'],
-                            ['url' => route('calculadora.estudiante.cav2.hoja2'),'label' => 'VRD-ALIG'],
+                            ['url' => route('calculadora.estudiante.cav2.hoja2'), 'label' => 'VRD-ALIG'],
                         ]"></x-dropdown-sub>
 
                     </x-dropdown-nav-item>
@@ -256,41 +301,41 @@ $logout = function (Logout $logout) {
 
             <!-- Settings Dropdown -->
             @auth
-            <div class="hidden sm:flex sm:items-center sm:ms-6">
-                <x-dropdown align="right" width="48">
-                    {{-- Botón del avatar --}}
-                    <x-slot name="trigger">
-                        <button
-                            class="flex items-center gap-3 rounded-full focus:outline-none transition duration-150 ease-in-out group"
-                            aria-label="User menu" aria-haspopup="true">
+                <div class="hidden sm:flex sm:items-center sm:ms-6">
+                    <x-dropdown align="right" width="48">
+                        {{-- Botón del avatar --}}
+                        <x-slot name="trigger">
+                            <button
+                                class="flex items-center gap-3 rounded-full focus:outline-none transition duration-150 ease-in-out group"
+                                aria-label="User menu" aria-haspopup="true">
 
-                            {{-- Avatar con iniciales --}}
+                                {{-- Avatar con iniciales --}}
+                                <div
+                                    class="h-10 w-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold group-hover:scale-105 transition">
+                                    {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
+                                </div>
+                            </button>
+                        </x-slot>
+
+                        {{-- Contenido del dropdown --}}
+                        <x-slot name="content">
                             <div
-                                class="h-10 w-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold group-hover:scale-105 transition">
-                                {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
+                                class="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700">
+                                <span x-data="{ name: '{{ auth()->user()->name }}' }" x-text="name"
+                                    x-on:profile-updated.window="name = $event.detail.name"></span>
                             </div>
-                        </button>
-                    </x-slot>
 
-                    {{-- Contenido del dropdown --}}
-                    <x-slot name="content">
-                        <div
-                            class="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700">
-                            <span x-data="{ name: '{{ auth()->user()->name }}' }" x-text="name"
-                                x-on:profile-updated.window="name = $event.detail.name"></span>
-                        </div>
+                            {{-- Enlace al perfil --}}
+                            <x-dropdown-link :href="route('profile')">
+                                {{ __('Perfil') }}
+                            </x-dropdown-link>
 
-                        {{-- Enlace al perfil --}}
-                        <x-dropdown-link :href="route('profile')">
-                            {{ __('Perfil') }}
-                        </x-dropdown-link>
-
-                        {{-- Logout --}}
-                        <button class="w-full text-start" wire:click="logout"> <x-dropdown-link> {{ __('Log Out') }}
-                            </x-dropdown-link> </button>
-                    </x-slot>
-                </x-dropdown>
-            </div>
+                            {{-- Logout --}}
+                            <button class="w-full text-start" wire:click="logout"> <x-dropdown-link> {{ __('Log Out') }}
+                                </x-dropdown-link> </button>
+                        </x-slot>
+                    </x-dropdown>
+                </div>
             @endauth
 
             <!-- Hamburger -->
@@ -315,21 +360,33 @@ $logout = function (Logout $logout) {
         <div class="space-y-1 pb-3 pt-2">
             <x-responsive-nav-link component="responsive-nav-item" :href="route('dashboard')" :active="request()->routeIs('dashboard')"
                 {{-- wire:navigate --}}>
-                {{ __('Dashboard') }}
-            </x-responsive-nav-link>
-            <x-responsive-nav-link component="responsive-nav-item" :href="route('calculadora.asistente.memoria-calculo')"
-                :active="request()->routeIs('calculadora.asistente.memoria-calculo')">
-                {{ __('Memoria Calculo') }}
+                {{ __('Inicio') }}
             </x-responsive-nav-link>
         </div>
+        @if ($user->hasRole(['root', 'gerencia']))
+            <div class="space-y-1 pb-3 pt-2">
+                <x-dropdown-nav-item name="{{ __('Planes') }}" component="responsive-nav-item" :active="request()->routeIs(['planUser.*', 'suscripciones.*'])">
+                    <x-dropdown-link :href="route('planUser.index')" :active="request()->routeIs('planUser.index')">
+                        {{ __('Gestion de Usuario') }}
+                    </x-dropdown-link>
+                    <x-dropdown-link :href="route('suscripciones.index')" :active="request()->routeIs('suscripciones.index')">
+                        {{ __('Gestion de planes') }}
+                    </x-dropdown-link>
+                </x-dropdown-nav-item>
+            </div>
+        @endif
         <div class="space-y-1 pb-3 pt-2">
-            <x-dropdown-nav-item name="{{ __('Estudiante') }}" component="responsive-nav-item" :active="request()->routeIs('calculadora.estudiante.*')">
-                <x-dropdown-link :href="route('software.predimv2')" :active="request()->routeIs('software.predimv2')">
-                    {{ __('Predim') }}
+            <x-dropdown-nav-item name="{{ __('Memoria') }}" component="responsive-nav-item" :active="$isMemoryActive">
+                <x-dropdown-link :href="route('calculadora.asistente.memoria-calculo')" :active="request()->routeIs('calculadora.asistente.memoria-calculo')">
+                    {{ __('Memoria Calculo') }}
                 </x-dropdown-link>
-                <x-dropdown-link :href="route('calculadora.estudiante.arco_techo')" :active="request()->routeIs('calculadora.estudiante.arco_techo')">
-                    {{ __('Arco Techo') }}
+                <x-dropdown-link :href="route('calculadora.asistente.memoria-descriptiva')" :active="request()->routeIs('calculadora.asistente.memoria-descriptiva*')">
+                    {{ __('Memoria Descriptiva') }}
                 </x-dropdown-link>
+            </x-dropdown-nav-item>
+        </div>
+        <div class="space-y-1 pb-3 pt-2">
+            <x-dropdown-nav-item name="{{ __('Estudiante') }}" component="responsive-nav-item" :active="$isStudentActive">
                 <x-dropdown-sub label="{{ __('Concreto Armado') }}" :links="[
                     [
                         'url' => route('calculadora.estudiante.cav2.metrados'),
@@ -371,15 +428,11 @@ $logout = function (Logout $logout) {
                         'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
                         'label' => 'Vigas Continuas',
                     ],
-                    [
-                        'url' => route('calculadora.estudiante.cav2.hoja2'),
-                        'label' => 'Hoja2',
-                    ],
                 ]"></x-dropdown-sub>
             </x-dropdown-nav-item>
         </div>
         <div class="space-y-1 pb-3 pt-2">
-            <x-dropdown-nav-item name="{{ __('Asistente') }}" component="responsive-nav-item" :active="request()->routeIs('calculadora.asistente.*')">
+            <x-dropdown-nav-item name="{{ __('Asistente') }}" component="responsive-nav-item" :active="$isAssistantActive">
                 <x-dropdown-sub label="{{ __('Vigas') }}" :links="[
                     ['url' => route('calculadora.asistente.vigas'), 'label' => 'Diseño de Vigas'],
                     ['url' => route('calculadora.asistente.vigas-general'), 'label' => 'Diseño de Vigas General'],
@@ -394,7 +447,7 @@ $logout = function (Logout $logout) {
                         'label' => 'Diseño de Muros de Contención',
                     ],
                     [
-                        'url' => route('calculadora.asistente.muros-de-albañieria'),
+                        'url' => route('calculadora.asistente.muros-de-albanieria'),
                         'label' => 'Diseño de Muros de Albañieria',
                     ],
                 ]"></x-dropdown-sub>
@@ -476,15 +529,40 @@ $logout = function (Logout $logout) {
             </x-dropdown-nav-item>
         </div>
         <div class="space-y-1 pb-3 pt-2">
-            <x-dropdown-nav-item name="{{ __('Diseñador') }}" component="responsive-nav-item" :active="request()->routeIs('software.*')">
+            <x-dropdown-nav-item name="{{ __('Diseñador') }}" component="responsive-nav-item" :active="$isDesignerActive">
+                <x-dropdown-sub label="{{ __('Suelos') }}" :links="[
+                    [
+                        'url' => route('software.suelos.distribucion-de-esfuerzos'),
+                        'label' => 'Distribucion de Esfuerzos',
+                    ],
+                ]"></x-dropdown-sub>
                 <x-dropdown-sub label="{{ __('Programas') }}" :links="[
-                            ['url' => route('software.aligerados-v1'), 'label' => 'Aligerados v1.0'],
-                            ['url' => route('software.aligerados-v2'), 'label' => 'Aligerados v2.0'],
-                            ['url' => route('software.cimentacion-v1'), 'label' => 'Cimentacion v1.0'],
-                            ['url' => route('software.cimentacion-v2'), 'label' => 'Cimentacion v2.0'],
-                            ['url' => route('software.analisis-estructural-de-armaduras'), 'label' => 'Analisis Estructural'],
-                            ['url' => route('software.etabs2'), 'label' => 'Etabs 2'],
-                        ]"></x-dropdown-sub>
+                    ['url' => route('software.aligerados-v1'), 'label' => 'Aligerados v1.0'],
+                    ['url' => route('software.aligerados-v2'), 'label' => 'Aligerados v2.0'],
+                    ['url' => route('software.cimentacion-v1'), 'label' => 'Cimentacion v1.0'],
+                    ['url' => route('software.cimentacion-v2'), 'label' => 'Cimentacion v2.0'],
+                    ['url' => route('software.analisis-estructural-de-armaduras'), 'label' => 'Analisis Estructural'],
+                    ['url' => route('software.etabs2'), 'label' => 'Etabs 2'],
+                ]"></x-dropdown-sub>
+                <x-dropdown-link :href="route('software.predimv2')" :active="request()->routeIs('software.predimv2')">
+                    {{ __('Predim') }}
+                </x-dropdown-link>
+                <x-dropdown-link :href="route('calculadora.estudiante.arco_techo')" :active="request()->routeIs('calculadora.estudiante.arco_techo')">
+                    {{ __('Arco Techo') }}
+                </x-dropdown-link>
+            </x-dropdown-nav-item>
+        </div>
+        <div class="space-y-1 pb-3 pt-2">
+            <x-dropdown-nav-item name="{{ __('Revisor') }}" component="responsive-nav-item" :active="$isReviewerActive">
+                <x-dropdown-sub label="{{ __('Verificacion') }}" :links="[
+                    ['url' => route('software.anclaje-v1'), 'label' => 'Anclaje'],
+                    ['url' => route('software.base-dinamica-v1'), 'label' => 'Bases Dinamicas'],
+                    ['url' => route('software.estribo-columna-placa-v1'), 'label' => 'Estribo Columna Placa'],
+                    ['url' => route('software.estribo-placa-v1'), 'label' => 'Estribo de Placas'],
+                    ['url' => route('software.predim-viga-v1'), 'label' => 'Predim Viga'],
+                    ['url' => route('software.verificacion-viga-v1'), 'label' => 'Viga Verifica'],
+                    ['url' => route('calculadora.estudiante.cav2.hoja2'), 'label' => 'VRD-ALIG'],
+                ]"></x-dropdown-sub>
             </x-dropdown-nav-item>
         </div>
         <div class="space-y-1 pb-3 pt-2">
@@ -495,11 +573,11 @@ $logout = function (Logout $logout) {
         <!-- Responsive Settings Options -->
         <div class="border-t border-gray-200 pb-1 pt-4 dark:border-gray-600">
             @auth
-            <div class="px-4">
-                <div class="text-base font-medium text-gray-800 dark:text-gray-200" x-data="{{ json_encode(['name' => auth()->user()->name]) }}"
-                    x-text="name" x-on:profile-updated.window="name = $event.detail.name"></div>
-                <div class="text-sm font-medium text-gray-500">{{ auth()->user()->email }}</div>
-            </div>
+                <div class="px-4">
+                    <div class="text-base font-medium text-gray-800 dark:text-gray-200" x-data="{{ json_encode(['name' => auth()->user()->name]) }}"
+                        x-text="name" x-on:profile-updated.window="name = $event.detail.name"></div>
+                    <div class="text-sm font-medium text-gray-500">{{ auth()->user()->email }}</div>
+                </div>
             @endauth
             <div class="mt-3 space-y-1">
                 <x-responsive-nav-link :href="route('profile')" {{-- wire:navigate --}}>
