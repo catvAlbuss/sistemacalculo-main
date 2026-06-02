@@ -89,3 +89,21 @@ export function unitVector(p1, p2) {
     y: (p1.y - p2.y) / pointDistance(p2, p1),
   };
 }
+
+export function pointDistanceToSegment(p, a, b) {
+  const abx = b.x - a.x;
+  const aby = b.y - a.y;
+  const apx = p.x - a.x;
+  const apy = p.y - a.y;
+
+  const abLen2 = abx * abx + aby * aby;
+  if (abLen2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+
+  let t = (apx * abx + apy * aby) / abLen2;
+  t = Math.max(0, Math.min(1, t));
+
+  const cx = a.x + t * abx;
+  const cy = a.y + t * aby;
+
+  return Math.hypot(p.x - cx, p.y - cy);
+}

@@ -8,6 +8,7 @@ export class ContentProcessorMC {
     }
   }
 
+  // Función principal para construir el documento completo a partir de la estructura definida, creando la portada, el índice y procesando cada sección con su contenido, además de configurar headers y footers con logo, texto y numeración de páginas
   async buildDocument(structure, images = {}) {
     const {
       Document,
@@ -259,6 +260,7 @@ export class ContentProcessorMC {
     });
   }
 
+  // Función para crear la portada del documento, con diseño adaptable según el tipo de reporte (módulos o casa) y soporte para una o dos imágenes, además de incluir el título principal, subtítulo y nombre del proyecto con estilos diferenciados
   async createCover(cover, images) {
     const { Paragraph, TextRun, AlignmentType, ImageRun, Table, TableRow, TableCell, WidthType, BorderStyle } =
       this.docx;
@@ -403,6 +405,7 @@ export class ContentProcessorMC {
     return children;
   }
 
+  // Función principal para procesar cada sección del documento, creando el encabezado de sección y luego procesando cada ítem de contenido dentro de la sección, pasando el nivel de sección para ajustar sangrías y alineamientos
   async processSection(section) {
     const elements = [];
     // Solo agregar heading si la sección tiene título y no es la de encabezado
@@ -422,6 +425,7 @@ export class ContentProcessorMC {
     return elements;
   }
 
+  // Función principal para procesar cada ítem de contenido según su tipo, con soporte para niveles de sección para ajustar sangrías y alineamientos
   async processContentItem(item, parentLevel = 1) {
     switch (item.type) {
       case "heading":
@@ -444,6 +448,7 @@ export class ContentProcessorMC {
     }
   }
 
+  // Lógica para crear encabezados con diferentes niveles (H1, H2, H3) y opción de subrayado, además de ajustar la sangría para niveles más profundos
   createHeading(text, level, underline = false) {
     const { Paragraph, TextRun, AlignmentType, HeadingLevel, UnderlineType } = this.docx;
 
@@ -491,6 +496,7 @@ export class ContentProcessorMC {
     });
   }
 
+  // Lógica para crear párrafos con soporte de variables y texto formateado (negrita, cursiva, subrayado) dentro del mismo párrafo
   createParagraph(item) {
     const { Paragraph, TextRun, AlignmentType } = this.docx;
 
@@ -536,6 +542,7 @@ export class ContentProcessorMC {
     });
   }
 
+  // Lógica para crear listas con soporte de variables en los ítems y mejor sangría para listados anidados
   createList(item) {
     const { Paragraph, TextRun, AlignmentType } = this.docx;
     const elements = [];
@@ -564,6 +571,7 @@ export class ContentProcessorMC {
     return elements;
   }
 
+  // Lógica para crear subsecciones dentro de una sección, procesando cada ítem de contenido dentro de la subsección y ajustando el nivel para que las imágenes/tablas tengan sangría acorde al nivel de sección
   async createSubsection(item) {
     const elements = [];
     elements.push(this.createHeading(item.title, 4));
@@ -580,6 +588,7 @@ export class ContentProcessorMC {
     return elements;
   }
 
+  // Lógica para crear imágenes con soporte de alineamiento (izquierda, centro, derecha) y opción de centrado vertical respecto al texto
   async createImage(item, level = 1) {
     const { Paragraph, ImageRun, TextRun, AlignmentType } = this.docx;
     const src = this.replaceVariables(item.src);
@@ -645,6 +654,7 @@ export class ContentProcessorMC {
     }
   }
 
+  // Función para obtener el buffer de una imagen a partir de una URL o Data URL, con manejo de errores para imágenes estáticas que no se puedan cargar
   async getImageBuffer(src) {
     if (src.startsWith("data:")) {
       return await this.dataUrlToArrayBuffer(src);
@@ -661,6 +671,7 @@ export class ContentProcessorMC {
     }
   }
 
+  // Función para capturar contenido dinámico (gráficos, tablas HTML, etc.) y convertirlo en imagen para insertar en el documento
   async createCapturedImage(item) {
     const { Paragraph, ImageRun, AlignmentType } = this.docx;
 
@@ -703,6 +714,7 @@ export class ContentProcessorMC {
     }
   }
 
+  // Lógica para crear tablas con soporte de contenido complejo (texto formateado, imágenes, tablas anidadas) y manejo de celdas fusionadas verticalmente
   async createTable(item) {
     const {
       Table,
@@ -873,6 +885,7 @@ export class ContentProcessorMC {
     });
   }
 
+  // Función para mapear opciones de alineamiento de texto a los tipos de alineación de docx, con valor por defecto a izquierda
   getAlignment(alignment) {
     const alignments = {
       LEFT: this.docx.AlignmentType.LEFT,
@@ -883,6 +896,7 @@ export class ContentProcessorMC {
     return alignments[alignment] || this.docx.AlignmentType.LEFT;
   }
 
+  // Función para reemplazar variables en el texto utilizando la sintaxis {{variable}} y accediendo a los valores desde el objeto de datos proporcionado, con soporte para rutas anidadas (ej. {{user.name}})
   replaceVariables(text) {
     let processed = String(text ?? "");
     if (!processed) return "";
@@ -892,10 +906,12 @@ export class ContentProcessorMC {
     });
   }
 
+  // Función para obtener un valor de un objeto a partir de una ruta en formato string (ej. "user.name.first") utilizando reduce para acceder a niveles anidados de forma segura
   getValueByPath(obj, path) {
     return path.split(".").reduce((acc, part) => acc && acc[part], obj);
   }
 
+  // Función para convertir una imagen en formato Data URL a un ArrayBuffer, decodificando la parte base64 y creando un Uint8Array para obtener el buffer necesario para docx
   async dataUrlToArrayBuffer(dataUrl) {
     if (!dataUrl || !dataUrl.startsWith("data:")) return null;
     const b64 = dataUrl.split(",")[1];

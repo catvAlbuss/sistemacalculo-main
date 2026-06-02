@@ -8,6 +8,7 @@
     "devDependencies": {
         "@tailwindcss/forms": "^0.5.10",
         "@tailwindcss/postcss": "^4.0.6",
+        "@vitejs/plugin-vue": "^6.0.6",
         "autoprefixer": "^10.4.2",
         "axios": "^1.7.4",
         "concurrently": "^9.0.1",
@@ -18,7 +19,16 @@
         "vite": "^6.0.11"
     },
     "dependencies": {
+        "@babylonjs/core": "^9.7.0",
+        "@element-plus/icons-vue": "^2.3.2",
+        "@mlightcad/cad-simple-viewer": "^1.5.0",
+        "@mlightcad/cad-viewer": "^1.5.0",
+        "@mlightcad/data-model": "^1.7.33",
+        "@vueuse/core": "^11.3.0",
         "alpinejs": "^3.14.9",
+        "babylonjs": "^9.7.0",
+        "earcut": "^3.0.2",
+        "element-plus": "^2.13.6",
         "flowbite": "^3.1.2",
         "html-to-image": "^1.11.13",
         "html2canvas": "^1.4.1",
@@ -26,12 +36,13 @@
         "jquery-ui": "^1.14.1",
         "mat-for-js": "^1.1.0",
         "mathjs": "^14.2.1",
-        "paper": "^0.12.18",
         "pdfmake": "^0.2.18",
         "plotly.js-dist-min": "2.35.3",
         "print-this": "^2.0.0",
         "puppeteer": "^24.39.1",
         "sweetalert2": "^11.26.24",
-        "tabulator-tables": "^6.3.1"
+        "tabulator-tables": "^6.3.1",
+        "vue": "^3.5.31",
+        "vue-i18n": "^10.0.8"
     }
 }
