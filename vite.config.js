@@ -67,10 +67,12 @@ export default defineConfig({
                 ...glob.sync("resources/js/cav2/*.js"),
                 "resources/css/columnaII.css",
                 "resources/js/columnav2/adm_columnav2.js",
-                ...glob.sync("resources/js/memoria_calculo/*.js").filter(f => !f.includes('index-deprecated')),
+                "resources/js/documentos/memoria_calculo/index-refactored.js",
                 ...glob.sync("resources/js/muros-contencion/*.js"),
                 "resources/js/etabs/main.js",
+                "resources/js/documentos/memoria_descriptiva/index-refactored-md.js",
             ],
+
             refresh: true,
             exclude: ['resources/img/**'],
         }),
@@ -89,11 +91,4 @@ export default defineConfig({
         host: 'localhost',
         port: 5173,
     },
-    // server: {
-    //     host: "0.0.0.0",
-    //     cors: true,
-    //     hmr: {
-    //         host: "0.0.0.0",
-    //     },
-    // },
 });
