@@ -241,7 +241,7 @@ export class Marker {
     ctx.fill();
     ctx.stroke();
     ctx.font = "8pt arial";
-    ctx.textBaseline = "textBaseline";
+    ctx.textBaseline = "middle";
     ctx.fillText(`  ${this.label}`, p.x, p.y);
     ctx.restore();
   }

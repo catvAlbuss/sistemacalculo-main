@@ -1377,3 +1377,4 @@ export function dibujarLine(
   }
   paper.view.draw();
 }
+

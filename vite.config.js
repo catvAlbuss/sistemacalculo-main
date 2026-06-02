@@ -65,6 +65,8 @@ export default defineConfig({
                 "resources/js/predim/index.js",
                 "resources/js/predim/ribbon-adapter.js",
                 ...glob.sync("resources/js/cav2/*.js"),
+                "resources/css/columnaII.css",
+                "resources/js/columnav2/adm_columnav2.js",
                 ...glob.sync("resources/js/memoria_calculo/*.js").filter(f => !f.includes('index-deprecated')),
                 ...glob.sync("resources/js/muros-contencion/*.js"),
                 "resources/js/etabs/main.js",
@@ -77,6 +79,7 @@ export default defineConfig({
     build: {
         rollupOptions: {
             context: "window",
+            external: ['paper'],
             moduleContext: {
                 "./node_modules/pdfmake/build/vfs_fonts.js": "window",
             },

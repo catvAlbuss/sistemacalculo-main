@@ -1,12 +1,20 @@
-// Vue app entry for CAD Viewer
+// resources/js/etabs/main.js
 import { createApp } from 'vue'
 import { i18n, MlCadViewer } from '@mlightcad/cad-viewer'
-import { AcApDocManager } from '@mlightcad/cad-simple-viewer'
+import { 
+  AcApDocManager, 
+  AcApSettingManager,
+  AcApLineCmd,
+  AcEdCommand,
+  AcEdPreviewJig,
+  AcEdPromptPointOptions,
+  AcEdPromptStatus
+} from '@mlightcad/cad-simple-viewer'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import App from './App.vue'
 
-// Ensure CAD worker scripts are loaded from the public root path
+// Configurar workers
 const originalCreateInstance = AcApDocManager.createInstance.bind(AcApDocManager)
 AcApDocManager.createInstance = (options = {}) => {
   options.webworkerFileUrls = {
@@ -18,15 +26,17 @@ AcApDocManager.createInstance = (options = {}) => {
   return originalCreateInstance(options)
 }
 
-// Create Vue app
-const app = createApp(App)
+// Ocultar toda la UI del CAD desde el inicio
+AcApSettingManager.instance.isShowCommandLine = false
+AcApSettingManager.instance.isShowToolbar = false
+AcApSettingManager.instance.isShowRibbon = false
+AcApSettingManager.instance.isShowStatusBar = false
 
-// Use plugins
+// Crear app
+const app = createApp(App)
 app.use(i18n)
 app.use(ElementPlus)
-
-// Register MlCadViewer component
 app.component('MlCadViewer', MlCadViewer)
-
-// Mount to #cad-viewer-app
 app.mount('#cad-viewer-app')
+
+console.log('✅ App Vue montada correctamente')

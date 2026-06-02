@@ -5,6 +5,9 @@
 <div class="cad-text-color cad-bg cad-border flex h-screen flex-col" x-id="['materiales']" x-data="cadSys"
     x-init="initSys($refs.cad, $refs.distanceInput, $id('materiales'));
     $el.scrollIntoView({ behavior: 'smooth' })">
+    <x-cad.modals.new-model/>
+    <!-- Se Agrego el modal de grid -->
+    <x-cad.modals.diagonal-grid-modal/>
     <input id="_token" name="_token" type="hidden" value="{{ csrf_token() }}" />
     <x-cad.layout.toolbar></x-cad.layout.toolbar>
     <!-- Main Content -->

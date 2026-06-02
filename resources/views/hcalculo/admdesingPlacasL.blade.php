@@ -21,7 +21,8 @@
                                 <div class="d-flex flex-column">
                                     <!-- TABLA 1 -->
                                     <div class="d-flex flex-column">
-                                        <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 mb-2"
+
+                                        <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 mb-2">
                                             data-target="solicitudCargaT1"
                                             data-name="tabla1-solicitud-carga">
                                             Generar IMG
@@ -34,11 +35,11 @@
                                     </div>
                                     <!-- TABLA 2 -->
                                     <div class="d-flex flex-column mb-5">
-                                        <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 mb-2"
+
+                                        <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 mb-2">
                                             data-target="solicitudCargaT2"
                                             data-name="tabla2-solicitud-carga">
                                             Generar IMG
-
                                         </button>
                                         <div id="solicitudCargaT2" class="table-container"></div>
                                         <div class="d-flex justify-content-start">
@@ -49,6 +50,18 @@
                                     </div>
                                     <!-- TABLA 3 -->
                                     <div class="d-flex flex-column">
+
+                                        <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 mb-2"
+                                            data-target="solicitudCargaT3"
+                                            data-name="tabla3-solicitud-carga">
+                                            Generar IMG
+<!-- =======
+                                        <button class="btn-captura-bloque bg-green-600 text-white px-3 py-1 rounded mb-2"
+                                            data-target="solicitudCargaT3"
+                                            data-name="tabla3-solicitud-carga">
+                                            Descargar PNG
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec -->
+
                                         <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 mb-2"
                                             data-target="solicitudCargaT3"
                                             data-name="tabla3-solicitud-carga">
@@ -113,6 +126,7 @@
                                                     <!-- <button
                                                         class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 mr-5"
                                                         data-target="contentDFx">ver / ocultar</button> -->
+
                                                     <!-- <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 mb-2"
                                                         data-target="flexDesingT1X"
                                                         data-name="flexion_tabla1_x">
@@ -126,6 +140,18 @@
                                                         <div class="d-flex flex-column mb-5">
                                                             <div class="d-flex justify-content-between items-center mb-2">
                                                                 <!-- <span>Tabla 2 X</span> -->
+
+                                                                <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                                    data-target="flexDesingT1X"
+                                                                    data-name="Diseno_flexion_tabla1_x">
+                                                                    Generar IMG
+<!-- =======
+                                                                <button class="btn-captura-bloque bg-green-600 text-white px-3 py-1 rounded"
+                                                                    data-target="flexDesingT1X"
+                                                                    data-name="flexion_tabla1_x">
+                                                                    Descargar PNG
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec -->
+
                                                                 <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
                                                                     data-target="flexDesingT1X"
                                                                     data-name="Diseno_flexion_tabla1_x">
@@ -145,11 +171,19 @@
                                                         <div class="d-flex flex-column mb-5">
                                                             <div class="d-flex justify-content-between items-center mb-2">
                                                                 <!-- <span>Tabla 2 X</span> -->
-                                                                <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+
+                                                                <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300">
                                                                     data-target="flexDesingT2X"
                                                                     data-name="Diseno_flexion_tabla2_x">
                                                                     Generar IMG
 
+<!-- <<<<<<< HEAD
+                                                                <button class="btn-captura-bloque bg-green-600 text-white px-3 py-1 rounded"
+                                                                    data-target="flexDesingT2X"
+                                                                    data-name="flexion_tabla2_x">
+                                                                    Descargar PNG
+
+======= -->
                                                                 </button>
                                                             </div>
                                                             <div id="flexDesingT2X" class="table-container"></div>
@@ -164,6 +198,19 @@
                                                         <div class="d-flex flex-column mb-5">
                                                             <div class="d-flex justify-content-between items-center mb-2">
                                                                 <!-- <span>Tabla 3 X</span> -->
+
+                                                                <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                                    data-target="flexDesingT3X"
+                                                                    data-name="Diseno_flexion_tabla3_x">
+                                                                    Generar IMG
+
+<!-- =======
+                                                                <button class="btn-captura-bloque bg-green-600 text-white px-3 py-1 rounded"
+                                                                    data-target="flexDesingT3X"
+                                                                    data-name="flexion_tabla3_x">
+                                                                    Descargar PNG
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec -->
+
                                                                 <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
                                                                     data-target="flexDesingT3X"
                                                                     data-name="Diseno_flexion_tabla3_x">
@@ -187,6 +234,7 @@
                                                     <!-- <button
                                                         class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 mr-5"
                                                         data-target="contentDFy">ver / ocultar</button> -->
+
                                                     <!-- <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 mb-2"
                                                         data-target="contentDFy"
                                                         data-name="diseno-flexion-direccion-y">
@@ -201,6 +249,18 @@
                                                             <div class="d-flex flex-column mb-5">
                                                                 <div class="d-flex justify-content-between items-center mb-2">
                                                                     <!-- <span>Tabla 1 Y</span> -->
+
+                                                                    <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                                        data-target="flexDesingT1Y"
+                                                                        data-name="Diseno_flexion_tabla1_y">
+                                                                        Generar IMG
+<!-- =======
+                                                                    <button class="btn-captura-bloque bg-green-600 text-white px-3 py-1 rounded"
+                                                                        data-target="flexDesingT1Y"
+                                                                        data-name="flexion_tabla1_y">
+                                                                        Descargar PNG
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec -->
+
                                                                     <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
                                                                         data-target="flexDesingT1Y"
                                                                         data-name="Diseno_flexion_tabla1_y">
@@ -218,6 +278,18 @@
                                                             <div class="d-flex flex-column mb-5">
                                                                 <div class="d-flex justify-content-between items-center mb-2">
                                                                     <!-- <span>Tabla 2 Y</span> -->
+
+                                                                    <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                                        data-target="flexDesingT2Y"
+                                                                        data-name="Diseno_flexion_tabla2_y">
+                                                                        Generar IMG
+<!-- =======
+                                                                    <button class="btn-captura-bloque bg-green-600 text-white px-3 py-1 rounded"
+                                                                        data-target="flexDesingT2Y"
+                                                                        data-name="flexion_tabla2_y">
+                                                                        Descargar PNG
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec -->
+
                                                                     <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
                                                                         data-target="flexDesingT2Y"
                                                                         data-name="Diseno_flexion_tabla2_y">
@@ -237,6 +309,18 @@
                                                             <div class="d-flex flex-column mb-5">
                                                                 <div class="d-flex justify-content-between items-center mb-2">
                                                                     <!-- <span>Tabla 3 Y</span> -->
+
+                                                                    <button class="rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
+                                                                        data-target="flexDesingT3Y"
+                                                                        data-name="Diseno_flexion_tabla3_y">
+                                                                        Generar IMG
+<!-- =======
+                                                                    <button class="btn-captura-bloque bg-green-600 text-white px-3 py-1 rounded"
+                                                                        data-target="flexDesingT3Y"
+                                                                        data-name="flexion_tabla3_y">
+                                                                        Descargar PNG
+>>>>>>> 214c24bba7f9f12cdbf217e63261464dbacb13ec -->
+
                                                                     <button class="btn-captura-bloque rounded-lg bg-green-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300"
                                                                         data-target="flexDesingT3Y"
                                                                         data-name="Diseno_flexion_tabla3_y">

@@ -12,16 +12,31 @@ use App\Http\Controllers\enviarCotizacionController;
 use App\Http\Controllers\GestionUserRolSuscripcion;
 use App\Http\Controllers\OctavePlotController;
 use App\Http\Controllers\MuroAlbanieriaController;
+use App\Http\Controllers\OpenSeesController;
 use App\Http\Controllers\SubscriptionPlanController;
 // use App\Http\Controllers\VigaCaptureController;
 use App\Http\Controllers\ZapatacombinadaController;
 use App\Http\Controllers\ZapataconectadaController;
 use App\Http\Controllers\ZapatageneralController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome')->name("landing.home");
+
+Route::get('/api/opensees/status', function () {
+    try {
+        $response = Illuminate\Support\Facades\Http::timeout(2)->get('http://localhost:5001/health');
+        return response()->json(['status' => 'online', 'version' => 'OpenSeesPy']);
+    } catch (\Exception $e) {
+        return response()->json(['status' => 'offline', 'fallback' => 'Octave']);
+    }
+})->name('opensees.status');
+
+// Ruta POST para análisis (con autenticación)
+Route::post('/api/opensees/analyze', [OpenSeesController::class, 'analyze']);
 
 //=======================Landing=========================================//
 Route::view('/servicios/diseño_estructural', 'landing.structural_design')->name('landing.services.structural_design');
@@ -129,6 +144,7 @@ Route::middleware(["auth", "verified"])->group(function () {
                 // Columnas
                 Route::view('/columna-de-acero', 'hcalculo.admdesingcolumnaAcero')->name('columna-de-acero');
                 Route::view('/columna', 'hcalculo.admdesingcolumna')->name('columna');
+                Route::view('/columna-ii', 'hcalculo.adm_columnaII')->name('columna-ii');
 
                 // Zapata
                 Route::view('/zapata-combinada', 'hcalculo.admZapataCombinada')->name('zapata-combinada');
@@ -165,8 +181,8 @@ Route::middleware(["auth", "verified"])->group(function () {
         });
     });
     Route::prefix("software")->name("software.")->group(function () {
-        Route::view('/analisis-estructural-de-armaduras', 'etabs')->name("analisis-estructural-de-armaduras");
-        Route::view('/etabs2', 'etabs2')->name("etabs2");
+        Route::view('/analisis-estructural-de-armaduras', 'matlab.admAnalisisEstructuralDeArmaduras')->name("analisis-estructural-de-armaduras");
+        Route::view('/etabs2', 'etabs.index')->name("etabs2");
         Route::view('/etabs', 'matlab.admAnalisisEstructuralDeArmaduras')->name("etabs");
         Route::view('/aligerados-v2', 'matlab.admAligeradosGrafico')->name("aligerados-v2");
         Route::view('/aligerados-v1', 'matlab.admFuerzasCortantesGrafico')->name("aligerados-v1");
@@ -235,3 +251,19 @@ Route::prefix('storage')->group(function () {
         ]);
     })->name('get.firma');
 });
+
+// =================== RUTAS PARA OPENSEES =================== //
+// Route::middleware(["auth", "verified"])->group(function () {
+//     Route::post('/api/opensees/analyze', [OpenSeesController::class, 'analyze'])
+//         ->name('opensees.analyze');
+    
+//     // Ruta para verificar estado del servicio Python
+//     Route::get('/api/opensees/status', function () {
+//         try {
+//             $response = Http::timeout(2)->get('http://localhost:5001/health');
+//             return response()->json(['status' => 'online', 'version' => 'OpenSeesPy']);
+//         } catch (\Exception $e) {
+//             return response()->json(['status' => 'offline', 'fallback' => 'Octave']);
+//         }
+//     })->name('opensees.status');
+// });

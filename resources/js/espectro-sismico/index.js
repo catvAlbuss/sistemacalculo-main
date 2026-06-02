@@ -1,4 +1,6 @@
 import UBIGEO_DATA from "../../data/ubigeo.js";
+import { exportTXT, filterByStep } from "./exporttxt.js";
+import { exportXLSX } from "./exportadoxlsx.js";
 
 const versions = ["1977", "1997", "2003", "2016", "2018", "2026"];
 let normaVersion = "2026";
@@ -68,6 +70,8 @@ const versionColor = {
 };
 
 const $ = (id) => document.getElementById(id);
+const versionActiveClasses = ["border-red-600", "bg-red-600", "text-white", "dark:border-red-500", "dark:bg-red-600"];
+const versionInactiveClasses = ["border-gray-300", "bg-white", "text-gray-700", "dark:border-gray-700", "dark:bg-gray-800", "dark:text-gray-300"];
 
 function option(value, label, selected = false) {
     const el = document.createElement("option");
@@ -160,12 +164,9 @@ function clearUbigeoTag() {
 }
 
 function renderUbigeoTag(zone, district, province) {
-    const colors = { 1: "var(--accent5)", 2: "var(--accent3)", 3: "var(--accent4)", 4: "var(--accent6)" };
-    const color = colors[zone] || "var(--accent)";
     const tag = $("ubigeo-tag");
     tag.style.display = "flex";
-    tag.style.borderColor = color;
-    tag.innerHTML = `<span style="color:${color};font-weight:700;">Zona ${zone} asignada</span><span style="color:var(--muted);font-size:0.68rem;">- ${cap(district)}, ${cap(province)}</span>`;
+    tag.innerHTML = `<span class="font-bold text-red-600 dark:text-red-400">Zona ${zone} asignada</span><span class="text-[0.68rem] text-gray-500 dark:text-gray-400">- ${cap(district)}, ${cap(province)}</span>`;
 }
 
 function applyZonaFromUbigeo(zone) {
@@ -176,7 +177,16 @@ function applyZonaFromUbigeo(zone) {
 
 function setVersion(version) {
     normaVersion = version;
-    versions.forEach((item) => $("btn" + item).classList.toggle("active", item === version));
+    versions.forEach((item) => {
+        const button = $("btn" + item);
+        const isActive = item === version;
+        button.classList.toggle("active", isActive);
+        button.classList.toggle("hover:border-red-600", !isActive);
+        button.classList.toggle("hover:bg-red-600", !isActive);
+        button.classList.toggle("hover:text-white", !isActive);
+        versionActiveClasses.forEach((className) => button.classList.toggle(className, isActive));
+        versionInactiveClasses.forEach((className) => button.classList.toggle(className, !isActive));
+    });
     $("ts-group").style.display = version === "2026" ? "block" : "none";
 
     const zona = $("zona");
@@ -389,11 +399,11 @@ function hexToRgba(hex, alpha) {
 function renderTable(data, paso) {
     $("tabla-panel").style.display = "block";
     const rows = filterByStep(data, paso).map((item) => `
-        <tr>
-            <td>${item.T.toFixed(3)}</td>
-            <td class="td-num">${item.Sa.toFixed(5)}</td>
-            <td class="td-num">${item.C.toFixed(4)}</td>
-            <td class="td-num">${item.SaMS2.toFixed(4)}</td>
+        <tr class="border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-gray-700/60 dark:hover:bg-gray-700/30">
+            <td class="px-4 py-2">${item.T.toFixed(3)}</td>
+            <td class="px-4 py-2 text-right font-mono">${item.Sa.toFixed(5)}</td>
+            <td class="px-4 py-2 text-right font-mono">${item.C.toFixed(4)}</td>
+            <td class="px-4 py-2 text-right font-mono">${item.SaMS2.toFixed(4)}</td>
         </tr>
     `);
     $("tabla-body").innerHTML = rows.join("");
@@ -401,64 +411,37 @@ function renderTable(data, paso) {
 
 function renderParams(data) {
     const el = $("params-out");
-    const color = versionColor[normaVersion] || "#00ff88";
     const saMax = (data.Z * data.U * 2.5 * data.S) / data.R;
+    const cardClass = "rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/70";
+    const highlightCardClass = "rounded-lg border border-red-200 bg-red-50 px-3 py-2 dark:border-red-700 dark:bg-red-900/20";
+    const keyClass = "text-[10px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400";
+    const valueClass = "mt-1 text-sm font-bold text-gray-900 dark:text-white";
     el.style.display = "grid";
     el.innerHTML = `
-        <div class="param-card" style="grid-column:1/-1;border-color:${color};background:${hexToRgba(color, 0.06)}">
-            <div class="pk">Norma activa</div><div class="pv" style="color:${color}">E.030 - ${normaVersion}</div>
+        <div class="${highlightCardClass} col-span-2">
+            <div class="${keyClass}">Norma activa</div><div class="${valueClass} text-red-700 dark:text-red-400">E.030 - ${normaVersion}</div>
         </div>
-        ${ubigeoSeleccionado ? `<div class="param-card" style="grid-column:1/-1"><div class="pk">Ubicacion</div><div class="pv" style="font-size:0.78rem">${cap(ubigeoSeleccionado.dist)}, ${cap(ubigeoSeleccionado.prov)}, ${cap(ubigeoSeleccionado.dep)}</div></div>` : ""}
-        <div class="param-card highlight"><div class="pk">Z - Zona ${data.zonaVal}</div><div class="pv">${data.Z.toFixed(2)} <span>g</span></div></div>
-        <div class="param-card highlight"><div class="pk">S - ${data.sueloEfectivo}</div><div class="pv">${data.S.toFixed(2)}</div></div>
-        <div class="param-card"><div class="pk">U</div><div class="pv">${data.U.toFixed(1)}</div></div>
-        <div class="param-card"><div class="pk">R efectivo</div><div class="pv">${data.R.toFixed(2)}</div></div>
-        <div class="param-card"><div class="pk">Tp</div><div class="pv">${data.Tp.toFixed(2)} <span>s</span></div></div>
-        <div class="param-card"><div class="pk">TL</div><div class="pv">${data.Tl ? data.Tl.toFixed(2) : "N/A"} <span>${data.Tl ? "s" : ""}</span></div></div>
-        <div class="param-card"><div class="pk">Ia x Ip</div><div class="pv">${(data.IaEf * data.IpEf).toFixed(2)}</div></div>
-        <div class="param-card highlight" style="grid-column:1/-1"><div class="pk">Sa max.</div><div class="pv">${saMax.toFixed(4)} <span>g = ${(saMax * 9.81).toFixed(3)} m/s2</span></div></div>
-        ${data.sueloModificado ? `<div class="param-card" style="grid-column:1/-1;border-color:var(--accent3)"><div class="pk">Condicion Ts > 0.65 x Tp</div><div class="pv" style="font-size:0.75rem">Perfil original: ${data.sueloOriginal}. Perfil aplicado: ${data.sueloEfectivo}</div></div>` : ""}
+        ${ubigeoSeleccionado ? `<div class="${cardClass} col-span-2"><div class="${keyClass}">Ubicación</div><div class="${valueClass} text-xs">${cap(ubigeoSeleccionado.dist)}, ${cap(ubigeoSeleccionado.prov)}, ${cap(ubigeoSeleccionado.dep)}</div></div>` : ""}
+        <div class="${highlightCardClass}"><div class="${keyClass}">Z - Zona ${data.zonaVal}</div><div class="${valueClass}">${data.Z.toFixed(2)} <span class="text-xs text-gray-500 dark:text-gray-400">g</span></div></div>
+        <div class="${highlightCardClass}"><div class="${keyClass}">S - ${data.sueloEfectivo}</div><div class="${valueClass}">${data.S.toFixed(2)}</div></div>
+        <div class="${cardClass}"><div class="${keyClass}">U</div><div class="${valueClass}">${data.U.toFixed(1)}</div></div>
+        <div class="${cardClass}"><div class="${keyClass}">R efectivo</div><div class="${valueClass}">${data.R.toFixed(2)}</div></div>
+        <div class="${cardClass}"><div class="${keyClass}">Tp</div><div class="${valueClass}">${data.Tp.toFixed(2)} <span class="text-xs text-gray-500 dark:text-gray-400">s</span></div></div>
+        <div class="${cardClass}"><div class="${keyClass}">TL</div><div class="${valueClass}">${data.Tl ? data.Tl.toFixed(2) : "N/A"} <span class="text-xs text-gray-500 dark:text-gray-400">${data.Tl ? "s" : ""}</span></div></div>
+        <div class="${cardClass}"><div class="${keyClass}">Ia x Ip</div><div class="${valueClass}">${(data.IaEf * data.IpEf).toFixed(2)}</div></div>
+        <div class="${highlightCardClass} col-span-2"><div class="${keyClass}">Sa max.</div><div class="${valueClass}">${saMax.toFixed(4)} <span class="text-xs text-gray-500 dark:text-gray-400">g = ${(saMax * 9.81).toFixed(3)} m/s2</span></div></div>
+        ${data.sueloModificado ? `<div class="${cardClass} col-span-2 border-yellow-300 dark:border-yellow-700"><div class="${keyClass}">Condición Ts > 0.65 x Tp</div><div class="${valueClass} text-xs">Perfil original: ${data.sueloOriginal}. Perfil aplicado: ${data.sueloEfectivo}</div></div>` : ""}
     `;
 }
 
-function filterByStep(data, paso) {
-    return data.filter((item) => {
-        const multiple = Math.round(item.T / paso);
-        return Math.abs(item.T - multiple * paso) < 1e-9;
-    });
-}
-
-function exportTXT() {
-    if (!datosEspectro.length) return;
+function handleExportTXT() {
     const paso = Number($("paso").value);
-    const rows = filterByStep(datosEspectro, paso).map((item) => `${item.T.toFixed(3)} ${item.Sa.toFixed(4)}`);
-    downloadBlob("Espectro 1.txt", rows.join("\r\n"), "text/plain;charset=utf-8");
+    exportTXT(datosEspectro, paso);
 }
 
-function exportExcel() {
-    if (!datosEspectro.length) return;
+function handleExportXLSX() {
     const paso = Number($("paso").value);
-    const rows = filterByStep(datosEspectro, paso).map((item) => `
-        <tr>
-            <td>${item.T.toFixed(3)}</td>
-            <td>${item.Sa.toFixed(5)}</td>
-            <td>${item.C.toFixed(4)}</td>
-            <td>${item.SaMS2.toFixed(4)}</td>
-        </tr>
-    `).join("");
-    const html = `<!doctype html><html><head><meta charset="utf-8"></head><body><table><thead><tr><th>T (s)</th><th>Sa (g)</th><th>C</th><th>Sa (m/s2)</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
-    downloadBlob(`Espectro_E030-${normaVersion}.xls`, html, "application/vnd.ms-excel;charset=utf-8");
-}
-
-function downloadBlob(filename, content, type) {
-    const blob = new Blob([content], { type });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(link.href);
+    exportXLSX(datosEspectro, paso, normaVersion, resolveParams);
 }
 
 function init() {
@@ -469,8 +452,8 @@ function init() {
     setVersion("2026");
     versions.forEach((version) => $("btn" + version).addEventListener("click", () => setVersion(version)));
     $("bot_accion").addEventListener("click", calcular);
-    $("btn-exportTXT").addEventListener("click", exportTXT);
-    $("btn-exportXLSX").addEventListener("click", exportExcel);
+    $("btn-exportTXT").addEventListener("click", handleExportTXT);
+    $("btn-exportXLSX").addEventListener("click", handleExportXLSX);
     window.addEventListener("resize", () => {
         if (datosEspectro.length) renderChart(datosEspectro);
     });
