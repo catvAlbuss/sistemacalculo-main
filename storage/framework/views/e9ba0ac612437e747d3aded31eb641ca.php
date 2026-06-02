@@ -9,7 +9,152 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['title' => 'Memoria Descriptiva - Demolición']); ?>
-    <div class="py-4" x-data="memoriaDescriptiva" x-init="init()">
+    <div class="py-4" x-data="{
+        isExporting: false,
+        
+        // Inicializar datos de demolición
+        initDemolicion() {
+            const store = $store.memoriaDescriptiva;
+            
+            // Inicializar estructura de demolición si no existe
+            if (!store.sections.demolicion) {
+                store.sections.demolicion = {};
+            }
+            
+            // Datos por defecto para demolición
+            if (!store.sections.demolicion.alcance) {
+                store.sections.demolicion.alcance = 'Las edificaciones a intervenir son todas las existentes en el terreno de la I.E.I.P. N° 64193 Contamana. Las estructuras actuales presentan patologías constructivas, antigüedad avanzada (11 a 34 años) y no cumplen con los requisitos estructurales ni arquitectónicos establecidos en el Reglamento Nacional de Edificaciones. Se procederá a la demolición total de todas las edificaciones existentes para dar paso a la nueva infraestructura educativa.';
+            }
+            
+            if (!store.sections.demolicion.modulosADemoler || store.sections.demolicion.modulosADemoler.length === 0) {
+                store.sections.demolicion.modulosADemoler = [
+                    'MÓDULO I (Biblioteca, Almacén de Alimentos, Dirección y Servicio Higiénico) - DEMOLICIÓN TOTAL - Antigüedad: 34 años',
+                    'MÓDULO II (ALMACÉN) - DEMOLICIÓN TOTAL - Antigüedad: 11 años',
+                    'MÓDULO III (AULAS DE SEGUNDO, TERCERO Y CUARTO GRADO DE PRIMARIA) - DEMOLICIÓN TOTAL - Antigüedad: 34 años',
+                    'MÓDULO IV (AULA INICIAL DE 5 AÑOS) - DEMOLICIÓN TOTAL - Antigüedad: 11 años',
+                    'MÓDULO V (DEPÓSITO DE MOBILIARIOS EN MAL ESTADO) - DEMOLICIÓN TOTAL - Antigüedad: 11 años',
+                    'MÓDULO VI (AULAS DE INICIAL DE 3 Y 4 AÑOS) - DEMOLICIÓN TOTAL - Antigüedad: 34 años',
+                    'MÓDULO VII (SERVICIOS HIGIÉNICOS PARA AULAS DE INICIAL) - DEMOLICIÓN TOTAL - Antigüedad: 11 años',
+                    'PATIO DE FORMACIÓN (Losa de concreto simple) - DEMOLICIÓN TOTAL - Antigüedad: 34 años',
+                    'LOSA DEPORTIVA - DEMOLICIÓN TOTAL - Antigüedad: 34 años',
+                    'SARDINELES, CUNETAS Y VEREDAS DE INGRESO - DEMOLICIÓN TOTAL - Antigüedad: 34 años',
+                    'CERCO PERIMÉTRICO - DEMOLICIÓN TOTAL - Antigüedad: 11 años'
+                ];
+            }
+            
+            if (!store.sections.demolicion.obrasExterioresADemoler || store.sections.demolicion.obrasExterioresADemoler.length === 0) {
+                store.sections.demolicion.obrasExterioresADemoler = [
+                    'OBRAS EXTERIORES N°1 (PATIO DE FORMACIÓN) - Losa de concreto simple con fallas estructurales - DEMOLICIÓN TOTAL',
+                    'OBRAS EXTERIORES N°2 (LOSA DEPORTIVA) - Concreto simple con grietas y deterioro - DEMOLICIÓN TOTAL',
+                    'OBRAS EXTERIORES N°3 (SARDINELES, CUNETAS Y VEREDAS) - Concreto simple deteriorado - DEMOLICIÓN TOTAL',
+                    'OBRAS EXTERIORES N°4 (CERCO PERIMÉTRICO) - Muros de soga con patologías por humedad - DEMOLICIÓN TOTAL',
+                    'OBRAS EXTERIORES N°5 (ANTENA METÁLICA) - REUBICACIÓN según nuevo diseño arquitectónico'
+                ];
+            }
+            
+            // Inicializar previews de imágenes de demolición
+            if (!store.previews.demolicionImages) {
+                store.previews.demolicionImages = [];
+            }
+            
+            store.save();
+        },
+        
+        // Métodos para manejar módulos a demoler
+        addModuloADemoler() {
+            const store = $store.memoriaDescriptiva;
+            if (!store.sections.demolicion.modulosADemoler) {
+                store.sections.demolicion.modulosADemoler = [];
+            }
+            store.sections.demolicion.modulosADemoler.push('');
+            store.save();
+        },
+        
+        removeModuloADemoler(index) {
+            const store = $store.memoriaDescriptiva;
+            if (store.sections.demolicion.modulosADemoler) {
+                store.sections.demolicion.modulosADemoler.splice(index, 1);
+                store.save();
+            }
+        },
+        
+        // Métodos para manejar obras exteriores a demoler
+        addObraExteriorADemoler() {
+            const store = $store.memoriaDescriptiva;
+            if (!store.sections.demolicion.obrasExterioresADemoler) {
+                store.sections.demolicion.obrasExterioresADemoler = [];
+            }
+            store.sections.demolicion.obrasExterioresADemoler.push('');
+            store.save();
+        },
+        
+        removeObraExteriorADemoler(index) {
+            const store = $store.memoriaDescriptiva;
+            if (store.sections.demolicion.obrasExterioresADemoler) {
+                store.sections.demolicion.obrasExterioresADemoler.splice(index, 1);
+                store.save();
+            }
+        },
+        
+        // Métodos para manejar imágenes de demolición
+        addDemolicionImage() {
+            const store = $store.memoriaDescriptiva;
+            if (!store.previews.demolicionImages) {
+                store.previews.demolicionImages = [];
+            }
+            store.previews.demolicionImages.push(null);
+            store.save();
+        },
+        
+        removeDemolicionImage(index) {
+            const store = $store.memoriaDescriptiva;
+            if (store.previews.demolicionImages) {
+                store.previews.demolicionImages[index] = null;
+                store.save();
+            }
+        },
+        
+        async handleDemolicionImageChange(index, event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                alert('Seleccione una imagen válida');
+                return;
+            }
+            if (file.size > 10 * 1024 * 1024) {
+                alert('El archivo excede 10 MB');
+                return;
+            }
+            
+            const store = $store.memoriaDescriptiva;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if (!store.previews.demolicionImages) {
+                    store.previews.demolicionImages = [];
+                }
+                store.previews.demolicionImages[index] = e.target.result;
+                store.save();
+            };
+            reader.readAsDataURL(file);
+        },
+        
+        async exportWord() {
+            this.isExporting = true;
+            try {
+                if ($store.memoriaDescriptiva?.exportToWord) {
+                    await $store.memoriaDescriptiva.exportToWord();
+                } else {
+                    console.warn('Función exportToWord no disponible en el store');
+                    alert('La función de exportación aún no está disponible');
+                }
+            } catch (error) {
+                console.error('Error al exportar:', error);
+                alert('Error al exportar el documento');
+            } finally {
+                this.isExporting = false;
+            }
+        }
+    }" x-init="initDemolicion()">
         <div class="container mx-auto px-4 max-w-7xl">
 
             
@@ -43,15 +188,15 @@
                     
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 text-center">
-                            <div class="text-2xl font-bold text-red-600" x-text="$store.memoriaDescriptiva.sections.demolicion.modulosADemoler?.length || 0"></div>
+                            <div class="text-2xl font-bold text-red-600" x-text="$store.memoriaDescriptiva?.sections?.demolicion?.modulosADemoler?.length || 0"></div>
                             <div class="text-xs text-gray-500">Módulos a Demoler</div>
                         </div>
                         <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 text-center">
-                            <div class="text-2xl font-bold text-red-600" x-text="$store.memoriaDescriptiva.sections.demolicion.obrasExterioresADemoler?.length || 0"></div>
+                            <div class="text-2xl font-bold text-red-600" x-text="$store.memoriaDescriptiva?.sections?.demolicion?.obrasExterioresADemoler?.length || 0"></div>
                             <div class="text-xs text-gray-500">Obras Exteriores</div>
                         </div>
                         <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 text-center">
-                            <div class="text-2xl font-bold text-red-600" x-text="$store.memoriaDescriptiva.previews.demolicionImages?.filter(i => i).length || 0"></div>
+                            <div class="text-2xl font-bold text-red-600" x-text="$store.memoriaDescriptiva?.previews?.demolicionImages?.filter(i => i).length || 0"></div>
                             <div class="text-xs text-gray-500">Evidencias Fotográficas</div>
                         </div>
                     </div>
@@ -88,21 +233,21 @@
                             </div>
                         </div>
                         <div class="p-4">
-                            <div x-data="{ items: $store.memoriaDescriptiva.sections.demolicion.modulosADemoler }">
-                                <template x-for="(item, idx) in items" :key="idx">
-                                    <div class="flex gap-2 mt-2">
-                                        <div class="flex-1 flex items-center gap-2">
-                                            <span class="text-red-500 font-bold text-sm" x-text="(idx + 1) + '.'"></span>
-                                            <input type="text" x-model="items[idx]" class="flex-1 border rounded-lg p-2 text-sm focus:ring-2 focus:ring-red-500" placeholder="Ej: MÓDULO I (Biblioteca) - DEMOLICIÓN TOTAL">
-                                        </div>
-                                        <button @click="items.splice(idx,1)" class="text-red-500 hover:text-red-700 px-2 transition">✕</button>
+                            <template x-for="(item, idx) in $store.memoriaDescriptiva.sections.demolicion.modulosADemoler" :key="idx">
+                                <div class="flex gap-2 mt-2">
+                                    <div class="flex-1 flex items-center gap-2">
+                                        <span class="text-red-500 font-bold text-sm" x-text="(idx + 1) + '.'"></span>
+                                        <input type="text" x-model="$store.memoriaDescriptiva.sections.demolicion.modulosADemoler[idx]" 
+                                               class="flex-1 border rounded-lg p-2 text-sm focus:ring-2 focus:ring-red-500" 
+                                               placeholder="Ej: MÓDULO I (Biblioteca) - DEMOLICIÓN TOTAL">
                                     </div>
-                                </template>
-                                <div x-show="items.length === 0" class="text-center py-8 bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-500 text-sm">
-                                    <svg class="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                                    No hay módulos registrados para demolición.
-                                    <button @click="items.push('')" class="block mx-auto mt-2 text-red-500 text-xs hover:underline">+ Agregar primer módulo</button>
+                                    <button @click="removeModuloADemoler(idx)" class="text-red-500 hover:text-red-700 px-2 transition">✕</button>
                                 </div>
+                            </template>
+                            <div x-show="!$store.memoriaDescriptiva?.sections?.demolicion?.modulosADemoler?.length" class="text-center py-8 bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-500 text-sm">
+                                <svg class="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                                No hay módulos registrados para demolición.
+                                <button @click="addModuloADemoler()" class="block mx-auto mt-2 text-red-500 text-xs hover:underline">+ Agregar primer módulo</button>
                             </div>
                         </div>
                     </div>
@@ -123,21 +268,21 @@
                             </div>
                         </div>
                         <div class="p-4">
-                            <div x-data="{ items: $store.memoriaDescriptiva.sections.demolicion.obrasExterioresADemoler }">
-                                <template x-for="(item, idx) in items" :key="idx">
-                                    <div class="flex gap-2 mt-2">
-                                        <div class="flex-1 flex items-center gap-2">
-                                            <span class="text-red-500 font-bold text-sm" x-text="(idx + 1) + '.'"></span>
-                                            <input type="text" x-model="items[idx]" class="flex-1 border rounded-lg p-2 text-sm focus:ring-2 focus:ring-red-500" placeholder="Ej: PATIO DE FORMACIÓN - DEMOLICIÓN TOTAL">
-                                        </div>
-                                        <button @click="items.splice(idx,1)" class="text-red-500 hover:text-red-700 px-2 transition">✕</button>
+                            <template x-for="(item, idx) in $store.memoriaDescriptiva.sections.demolicion.obrasExterioresADemoler" :key="idx">
+                                <div class="flex gap-2 mt-2">
+                                    <div class="flex-1 flex items-center gap-2">
+                                        <span class="text-red-500 font-bold text-sm" x-text="(idx + 1) + '.'"></span>
+                                        <input type="text" x-model="$store.memoriaDescriptiva.sections.demolicion.obrasExterioresADemoler[idx]" 
+                                               class="flex-1 border rounded-lg p-2 text-sm focus:ring-2 focus:ring-red-500" 
+                                               placeholder="Ej: PATIO DE FORMACIÓN - DEMOLICIÓN TOTAL">
                                     </div>
-                                </template>
-                                <div x-show="items.length === 0" class="text-center py-8 bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-500 text-sm">
-                                    <svg class="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
-                                    No hay obras exteriores registradas para demolición.
-                                    <button @click="items.push('')" class="block mx-auto mt-2 text-red-500 text-xs hover:underline">+ Agregar primera obra exterior</button>
+                                    <button @click="removeObraExteriorADemoler(idx)" class="text-red-500 hover:text-red-700 px-2 transition">✕</button>
                                 </div>
+                            </template>
+                            <div x-show="!$store.memoriaDescriptiva?.sections?.demolicion?.obrasExterioresADemoler?.length" class="text-center py-8 bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-500 text-sm">
+                                <svg class="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                                No hay obras exteriores registradas para demolición.
+                                <button @click="addObraExteriorADemoler()" class="block mx-auto mt-2 text-red-500 text-xs hover:underline">+ Agregar primera obra exterior</button>
                             </div>
                         </div>
                     </div>
@@ -159,12 +304,12 @@
                         </div>
                         <div class="p-4">
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <template x-for="(img, idx) in $store.memoriaDescriptiva.previews.demolicionImages" :key="idx">
+                                <template x-for="(img, idx) in ($store.memoriaDescriptiva?.previews?.demolicionImages || [])" :key="idx">
                                     <div class="relative">
                                         <template x-if="img">
                                             <div class="relative group">
                                                 <img :src="img" class="h-32 w-full object-cover rounded-lg border shadow-sm">
-                                                <button @click="$store.memoriaDescriptiva.removeDemolicionImage(idx)" 
+                                                <button @click="removeDemolicionImage(idx)" 
                                                         class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs opacity-0 group-hover:opacity-100 transition">✕</button>
                                             </div>
                                         </template>
@@ -174,11 +319,14 @@
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                                 </svg>
                                                 <span class="text-xs text-gray-500">Subir imagen</span>
-                                                <input type="file" accept="image/*" @change="$store.memoriaDescriptiva.handleDemolicionImageChange(idx, $event)" class="hidden">
+                                                <input type="file" accept="image/*" @change="handleDemolicionImageChange(idx, $event)" class="hidden">
                                             </label>
                                         </template>
                                     </div>
                                 </template>
+                            </div>
+                            <div x-show="!$store.memoriaDescriptiva?.previews?.demolicionImages?.length" class="text-center py-4 text-gray-400 text-sm">
+                                No hay imágenes agregadas. Haga clic en "Agregar Imagen" para subir evidencias fotográficas.
                             </div>
                             <p class="text-xs text-gray-400 mt-3 text-center">💡 Las imágenes se mostrarán en una galería en el Word</p>
                         </div>
@@ -208,7 +356,7 @@
                             Anterior
                         </a>
                         <button @click="exportWord()" :disabled="isExporting" 
-                            class="px-5 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition flex items-center gap-2 shadow-md">
+                            class="px-5 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition flex items-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                             <span x-text="isExporting ? 'Exportando...' : 'Exportar a Word'"></span>
                         </button>
@@ -219,7 +367,7 @@
         </div>
     </div>
 
-    <?php if (! $__env->hasRenderedOnce('2a56e726-b37a-498e-b7b1-9540fab262c2')): $__env->markAsRenderedOnce('2a56e726-b37a-498e-b7b1-9540fab262c2');
+    <?php if (! $__env->hasRenderedOnce('371b67af-09ce-486a-90a9-ff7b988823f3')): $__env->markAsRenderedOnce('371b67af-09ce-486a-90a9-ff7b988823f3');
 $__env->startPush('initscripts'); ?>
         <script src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>

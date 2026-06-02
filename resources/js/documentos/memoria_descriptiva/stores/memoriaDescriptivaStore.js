@@ -264,7 +264,7 @@ export function createMemoriaDescriptivaStore() {
                     "Rigidez lateral: Los elementos estructurales verticales como los muros, placas o columnas (aporticado) controlan las deformaciones laterales. Las cuales, son las responsables de daños en los elementos estructurales.",
                     "Influencia de elementos no estructurales: Los elementos estructurales proveen efectos positivos durante el comportamiento sísmico de las estructuras, esto es, contribución al amortiguamiento dinámico y al agrietarse ayuda a la disipación de energía, sin antes comprometer considerablemente a los elementos estructurales."
                 ],
-                eleccionSistema: "El sistema estructural que se considerará en este módulo considera en el proyecto, será de sistemas de muros estructurales o duales, dependiendo de la configuración arquitectónica de cada módulo.",
+                eleccionSistema: "El sistema estructural constituye el armazón o esqueleto de la estructura, que será capaz de soportar las cargas actuantes y transmitirlas al suelo de fundación. Tenemos sistemas estructurales como: pórticos, dual, de muros estructurales, muros de ductilidad limitada, albañilería confinada, de madera y mixto (pórtico y albañilería).\n\nEl sistema estructural que se considerará en este módulo considera en el proyecto, será de sistemas de muros estructurales o duales.",
                 elementosEstructurales: [
                     "Losa aligerada: Elemento estructural plano donde las cargas son perpendiculares a su plano, siendo las cargas muertas y vivas. Este elemento estructural trabaja principalmente a flexión.",
                     "Vigas: Elementos estructurales lineales que soportan cargas lineales y puntuales provenientes de cargas muertas, vivas y sismo. Trabajan a flexión, cortante y eventualmente a torsión.",
@@ -317,31 +317,76 @@ export function createMemoriaDescriptivaStore() {
                         poisson: "0.25"
                     }
                 },
+
                 software: "El programa que se va a usar para el análisis y diseño de la superestructura es el ETABS V16 y SAP 2000. El cual nos permitirá modelar, analizar y diseñar la estructura de la edificación. Asimismo, para el diseño de las cimentaciones se usará el programa SAFE 2016.",
                 parametrosSismicos: {
-                    zona: "2", factorZ: "0.25", perfilSuelo: "S3", factorS: "1.40",
-                    tp: "1.00", tl: "1.60", categoria: "A", factorU: "1.50",
-                    ro: "7", irregularidades: { altura: false, planta: false }
-                },
-                parametrosSismicos: {
+                    zona: "2",
+                    factorZ: "0.25",
+                    perfilSuelo: "S3",
+                    factorS: "1.40",
+                    tp: "1.00",
+                    tl: "1.60",
+                    categoria: "A",
+                    factorU: "1.50",
+                    ro: "7",
+                    irregularidades: { altura: false, planta: false },
+
                     textoIntro: "La norma E.030 nos especifica los parámetros para el análisis sísmico de la estructura, la cual nos servirá para el diseño estructural de los elementos estructurales.",
+
                     textoFactorZona: "A cada zona se asigna un factor Z según se indica en la Tabla N°1 de la NTE E.030. Este factor se interpreta como la aceleración máxima horizontal del suelo rígido con una probabilidad de 10 % de ser excedida en 50 años.",
+
                     textoZonaUbicacion: "En el mapa de zonificación sísmica ubicamos la región Loreto, provincia de Ucayali y distrito de Contamana, de donde observamos que pertenece a la Zona 2, a la cual le corresponde el valor de Z = 0.25 (Anexo N° 01 NTE E.030).",
+
                     textoGeotecnico: "Este valor lo obtenemos de la Tabla N° 3 – factor de suelo (NTE E.030) en base a las características del estudio del suelo, donde se cimentará la edificación. Siendo en nuestro caso un suelo tipo \"S3\", obtenemos un S = 1.40 y los periodos de acuerdo con la tabla N° 04 (NTE E.030) Tp = 1.00 s y TL = 1.60 s.",
+
                     textoPeriodo: "El periodo fundamental de la estructura se determina de acuerdo con el análisis dinámico modal espectral que se realizó para cada módulo en cada dirección de análisis.",
+
                     textoCoeficiente: "Representa la amplificación de la respuesta estructural respecto a la aceleración de suelo. De acuerdo con las características de sitio, se define el factor de amplificación sísmica por las siguientes expresiones (NTE E.030):",
+
                     formulas: [
                         "C = 2.5 si: T < Tp",
                         "C = 2.5(Tp/T) si: Tp < T < Tl",
                         "C = 2.5(Tp.Tl/T²) si: Tl < T"
                     ],
+
+                    textoSiendo: "Siendo:",
+                    textoListaSiendo: ["T = periodo fundamental de la estructura."],
+
                     textoCategoria: "Este valor se obtiene de la Tabla N° 5 – Categoría de las Edificaciones y factor de uso. (NTE E.030).",
+
                     textoProyecto: "El proyecto en evaluación corresponde a la categoría A (edificaciones esenciales) tratándose de un centro educativo, por lo tanto, el factor de uso U = 1.5",
+
                     textoIrregularidadAltura: "Irregularidad en altura Ia",
-                    textoIrregularidadPlanta: "Irregularidad en planta Ip"
+                    textoIrregularidadPlanta: "Irregularidad en planta Ip",
+
+                    textoCoeficienteReduccion: "Coeficiente de reducción de las fuerzas sísmicas (R)",
+
+                    textoFormulaR: "R = R₀ * Ia * Ip",
+
+                    textoDonde: "Donde:",
+
+                    listaDonde: [
+                        "R₀: Coeficiente básico de reducción de las fuerzas sísmica.",
+                        "Ia: Factor de irregularidad en altura",
+                        "Ip: Factor de irregularidad en planta"
+                    ],
+
+                    textoFuenteTabla: "El coeficiente básico obtenemos de la tabla N° 07 – Sistemas estructurales (NTE E.030)",
+
+                    textoTanque: "Coeficiente de reducción de las fuerzas sísmicas (R) para tanque elevado",
+
+                    textoFuenteTanque: "El coeficiente básico obtenemos de la tabla N° 4.1.1(b) – ACI 350.3-06"
+                },
+                verificaciones: {
+                    textoCortante: "Para verificar la fuerza cortante mínima en la base en cada una de las direcciones, procedemos de la siguiente manera:",
+                    textoCortanteNorma: "Según la Norma E.030, se debe cumplir que: V dinámico ≥ (80% o 90%) V estático",
+                    textoDerivas: "Para estructuras regulares, los desplazamientos laterales se calculan multiplicando por 0.75R los resultados obtenidos del análisis lineal elástico con las solicitaciones sísmicas reducidas.",
+                    textoDerivasTabla: "Los desplazamientos relativos de entrepiso se especifican a continuación:",
+                    textoJunta: "La estructura debe estar separada de las estructuras vecinas, desde el nivel del terreno natural, una distancia mínima S para evitar el contacto durante un movimiento sísmico.",
+                    textoJuntaFormula: "Esta distancia no será menor que los 2/3 de la suma de los desplazamientos máximos de los edificios adyacentes ni menor que:",
+                    formulaJunta: "S = 0.006 h ≥ 0.03 m"
                 }
             },
-
 
             consideraciones: {
                 1: {
@@ -351,15 +396,7 @@ export function createMemoriaDescriptivaStore() {
                         profundidad: "1.40",
                         agresividadSulfatos: "Ataque no perjudicial",
                         profNF: "A 1.40m y 1.50m"
-                    },
-                    sismico: {
-                        zona: "2", factorZ: "0.25", perfilSuelo: "S3", factorS: "1.40",
-                        tp: "1.00", tl: "1.60", categoria: "A", factorU: "1.50", coeficienteR: "6"
-                    },
-                    sobrecargas: "- Sobrecarga en Aulas: 250 kg/m2\n- Sobrecarga en corredores: 400 kg/m2\n- Sobrecarga en techos: 50 kg/m2",
-                    recubrimientos: "- Vigas y columnas: 40 mm\n- Losas: 20 mm\n- Zapatas: 70 mm",
-                    materiales: "- Concreto: f'c = 210 kg/cm2\n- Acero: fy = 4200 kg/cm2",
-                    combinaciones: { comb1: true, comb2: true, comb3: true, comb4: true, comb5: true, comb6: true, comb7: true, comb8: true, comb9: true }
+                    }
                 },
                 2: {
                     geotecnia: {
@@ -368,254 +405,44 @@ export function createMemoriaDescriptivaStore() {
                         profundidad: "1.40",
                         agresividadSulfatos: "Ataque no perjudicial",
                         profNF: "A 1.40m y 1.50m"
-                    },
-                    sismico: {
-                        zona: "2", factorZ: "0.25", perfilSuelo: "S3", factorS: "1.40",
-                        tp: "1.00", tl: "1.60", categoria: "A", factorU: "1.50", coeficienteR: "6"
-                    },
-                    sobrecargas: "- Sobrecarga en AIP: 300 kg/m2\n- Sobrecarga en Depósito AIP: 500 kg/m2\n- Sobrecarga en corredores: 400 kg/m2\n- Sobrecarga en techos: 50 kg/m2",
-                    recubrimientos: "- Vigas y columnas: 40 mm\n- Losas: 20 mm\n- Zapatas: 70 mm",
-                    materiales: "- Concreto: f'c = 210 kg/cm2\n- Acero: fy = 4200 kg/cm2",
-                    combinaciones: { comb1: true, comb2: true, comb3: true, comb4: true, comb5: true, comb6: true, comb7: true, comb8: true, comb9: true }
+                    }
                 },
-                3: {
-                    geotecnia: {
-                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
-                        capacidadPortante: "0.60",
-                        profundidad: "1.40",
-                        agresividadSulfatos: "Ataque no perjudicial",
-                        profNF: "A 1.40m y 1.50m"
-                    },
-                    sismico: {
-                        zona: "2", factorZ: "0.25", perfilSuelo: "S3", factorS: "1.40",
-                        tp: "1.00", tl: "1.60", categoria: "A", factorU: "1.50", coeficienteR: "6"
-                    },
-                    sobrecargas: "- Sobrecarga en Taller creativo: 350 kg/m2\n- Sobrecarga en Depósito: 500 kg/m2\n- Sobrecarga en corredores: 400 kg/m2\n- Sobrecarga en techos: 50 kg/m2",
-                    recubrimientos: "- Vigas y columnas: 40 mm\n- Losas: 20 mm\n- Zapatas: 70 mm",
-                    materiales: "- Concreto: f'c = 210 kg/cm2\n- Acero: fy = 4200 kg/cm2",
-                    combinaciones: { comb1: true, comb2: true, comb3: true, comb4: true, comb5: true, comb6: true, comb7: true, comb8: true, comb9: true }
-                },
-                4: {
-                    geotecnia: {
-                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
-                        capacidadPortante: "0.60",
-                        profundidad: "1.40",
-                        agresividadSulfatos: "Ataque no perjudicial",
-                        profNF: "A 1.40m y 1.50m"
-                    },
-                    sismico: {
-                        zona: "2", factorZ: "0.25", perfilSuelo: "S3", factorS: "1.40",
-                        tp: "1.00", tl: "1.60", categoria: "A", factorU: "1.50", coeficienteR: "3"
-                    },
-                    sobrecargas: "- Sobrecarga en escaleras: 400 kg/m2\n- Sobrecarga en corredores: 400 kg/m2\n- Sobrecarga en techos: 50 kg/m2",
-                    recubrimientos: "- Vigas y columnas: 40 mm\n- Losas: 20 mm\n- Zapatas: 70 mm",
-                    materiales: "- Concreto: f'c = 210 kg/cm2\n- Acero: fy = 4200 kg/cm2",
-                    combinaciones: { comb1: true, comb2: true, comb3: true, comb4: true, comb5: true, comb6: true, comb7: true, comb8: true, comb9: true }
-                },
-                5: {
-                    geotecnia: {
-                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
-                        capacidadPortante: "0.63",
-                        profundidad: "1.40",
-                        agresividadSulfatos: "Ataque no perjudicial",
-                        profNF: "A 1.40m y 1.50m"
-                    },
-                    sismico: {
-                        zona: "2", factorZ: "0.25", perfilSuelo: "S3", factorS: "1.40",
-                        tp: "1.00", tl: "1.60", categoria: "A", factorU: "1.50", coeficienteR: "3"
-                    },
-                    sobrecargas: "- Sobrecarga en Aulas: 250 kg/m2\n- Sobrecarga en corredores: 400 kg/m2\n- Sobrecarga en techos: 50 kg/m2",
-                    recubrimientos: "- Vigas y columnas: 40 mm\n- Losas: 20 mm\n- Zapatas: 70 mm",
-                    materiales: "- Concreto: f'c = 210 kg/cm2\n- Acero: fy = 4200 kg/cm2",
-                    combinaciones: { comb1: true, comb2: true, comb3: true, comb4: true, comb5: true, comb6: true, comb7: true, comb8: true, comb9: true }
-                },
-                6: {
-                    geotecnia: {
-                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
-                        capacidadPortante: "0.62",
-                        profundidad: "1.40",
-                        agresividadSulfatos: "Ataque no perjudicial",
-                        profNF: "A 1.40m y 1.50m"
-                    },
-                    sismico: {
-                        zona: "2", factorZ: "0.25", perfilSuelo: "S3", factorS: "1.40",
-                        tp: "1.00", tl: "1.60", categoria: "A", factorU: "1.50", coeficienteR: "6"
-                    },
-                    sobrecargas: "- Sobrecarga en Aulas: 250 kg/m2\n- Sobrecarga en escaleras: 400 kg/m2\n- Sobrecarga en corredores: 400 kg/m2\n- Sobrecarga en techos: 100 kg/m2",
-                    recubrimientos: "- Vigas y columnas: 40 mm\n- Losas: 20 mm\n- Zapatas: 70 mm",
-                    materiales: "- Concreto: f'c = 210 kg/cm2\n- Acero: fy = 4200 kg/cm2",
-                    combinaciones: { comb1: true, comb2: true, comb3: true, comb4: true, comb5: true, comb6: true, comb7: true, comb8: true, comb9: true }
-                },
-                7: {
-                    geotecnia: {
-                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
-                        capacidadPortante: "0.50",
-                        profundidad: "1.40",
-                        agresividadSulfatos: "Ataque no perjudicial",
-                        profNF: "A 1.40m y 1.50m"
-                    },
-                    sismico: {
-                        zona: "2", factorZ: "0.25", perfilSuelo: "S3", factorS: "1.40",
-                        tp: "1.00", tl: "1.60", categoria: "A", factorU: "1.50", coeficienteR: "3"
-                    },
-                    sobrecargas: "- Sobrecarga de techos: 50 kg/m2",
-                    recubrimientos: "- Vigas y columnas: 40 mm\n- Losas: 20 mm\n- Zapatas: 70 mm",
-                    materiales: "- Concreto: f'c = 210 kg/cm2\n- Acero: fy = 4200 kg/cm2",
-                    combinaciones: { comb1: true, comb2: true, comb3: true, comb4: true, comb5: true, comb6: true, comb7: true, comb8: true, comb9: true }
-                },
-                8: {
-                    geotecnia: {
-                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
-                        capacidadPortante: "0.60",
-                        profundidad: "1.40",
-                        agresividadSulfatos: "Ataque no perjudicial",
-                        profNF: "A 1.40m y 1.50m"
-                    },
-                    sismico: {
-                        zona: "2", factorZ: "0.25", perfilSuelo: "S3", factorS: "1.40",
-                        tp: "1.00", tl: "1.60", categoria: "A", factorU: "1.50", coeficienteR: "6"
-                    },
-                    sobrecargas: "- Sobrecarga en Sala: 250 kg/m2\n- Sobrecarga en Estar y Bienestar: 250 kg/m2\n- Sobrecarga en Depósito y archivo: 500 kg/m2\n- Sobrecarga en corredores: 400 kg/m2\n- Sobrecarga en techos: 50 kg/m2",
-                    recubrimientos: "- Vigas y columnas: 40 mm\n- Losas: 20 mm\n- Zapatas: 70 mm",
-                    materiales: "- Concreto: f'c = 210 kg/cm2\n- Acero: fy = 4200 kg/cm2",
-                    combinaciones: { comb1: true, comb2: true, comb3: true, comb4: true, comb5: true, comb6: true, comb7: true, comb8: true, comb9: true }
-                },
-                9: {
-                    geotecnia: {
-                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
-                        capacidadPortante: "0.50",
-                        profundidad: "1.40",
-                        agresividadSulfatos: "Ataque no perjudicial",
-                        profNF: "A 1.40m y 1.50m"
-                    },
-                    sismico: {
-                        zona: "2", factorZ: "0.25", perfilSuelo: "S3", factorS: "1.40",
-                        tp: "1.00", tl: "1.60", categoria: "A", factorU: "1.50", coeficienteR: "7"
-                    },
-                    sobrecargas: "- Sobrecarga de techos: 50 kg/m2",
-                    recubrimientos: "- Vigas y columnas: 40 mm\n- Losas: 20 mm\n- Zapatas: 70 mm",
-                    materiales: "- Concreto: f'c = 210 kg/cm2\n- Acero: fy = 4200 kg/cm2",
-                    combinaciones: { comb1: true, comb2: true, comb3: true, comb4: true, comb5: true, comb6: true, comb7: true, comb8: true, comb9: true }
-                },
-                10: {
-                    geotecnia: {
-                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
-                        capacidadPortante: "0.50",
-                        profundidad: "1.40",
-                        agresividadSulfatos: "Ataque no perjudicial",
-                        profNF: "A 1.40m y 1.50m"
-                    },
-                    sismico: {
-                        zona: "2", factorZ: "0.25", perfilSuelo: "S3", factorS: "1.40",
-                        tp: "1.00", tl: "1.60", categoria: "A", factorU: "1.50", coeficienteR: "7"
-                    },
-                    sobrecargas: "- Sobrecarga de techos: 50 kg/m2",
-                    recubrimientos: "- Vigas y columnas: 40 mm\n- Losas: 20 mm\n- Zapatas: 70 mm",
-                    materiales: "- Concreto: f'c = 210 kg/cm2\n- Acero: fy = 4200 kg/cm2",
-                    combinaciones: { comb1: true, comb2: true, comb3: true, comb4: true, comb5: true, comb6: true, comb7: true, comb8: true, comb9: true }
-                },
-                11: {
-                    geotecnia: {
-                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
-                        capacidadPortante: "0.50",
-                        profundidad: "1.40",
-                        agresividadSulfatos: "Ataque no perjudicial",
-                        profNF: "A 1.40m y 1.50m"
-                    },
-                    sismico: {
-                        zona: "2", factorZ: "0.25", perfilSuelo: "S3", factorS: "1.40",
-                        tp: "1.00", tl: "1.60", categoria: "A", factorU: "1.50", coeficienteR: "8"
-                    },
-                    sobrecargas: "- Sobrecarga en techo: 30 kg/m2",
-                    recubrimientos: "- Vigas y columnas: 40 mm\n- Losas: 20 mm\n- Zapatas: 70 mm",
-                    materiales: "- Acero estructural: ASTM A36\n- Concreto: f'c = 210 kg/cm2\n- Acero de refuerzo: fy = 4200 kg/cm2",
-                    combinaciones: { comb1: true, comb2: true, comb3: true, comb4: true, comb5: true, comb6: true, comb7: true, comb8: true, comb9: true }
-                },
-                12: {
-                    geotecnia: {
-                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
-                        capacidadPortante: "1.50",
-                        profundidad: "5.20",
-                        agresividadSulfatos: "Ataque no perjudicial",
-                        profNF: "A 1.40m y 1.50m"
-                    },
-                    sismico: {
-                        zona: "2", factorZ: "0.25", perfilSuelo: "S3", factorS: "1.40",
-                        tp: "1.00", tl: "1.60", categoria: "A", factorU: "1.50", coeficienteR: "3"
-                    },
-                    sobrecargas: "- Sobrecarga en entrepiso: 100 kg/m2\n- Sobrecarga de techos: 50 kg/m2",
-                    recubrimientos: "- Vigas y columnas: 40 mm\n- Losas: 20 mm\n- Zapatas: 70 mm",
-                    materiales: "- Concreto: f'c = 280 kg/cm2 (cisterna)\n- Acero: fy = 4200 kg/cm2",
-                    combinaciones: { comb1: true, comb2: true, comb3: true, comb4: true, comb5: true, comb6: true, comb7: true, comb8: true, comb9: true }
-                },
-                13: {
-                    geotecnia: {
-                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
-                        capacidadPortante: "0.50",
-                        profundidad: "1.40",
-                        agresividadSulfatos: "Ataque no perjudicial",
-                        profNF: "A 1.40m y 1.50m"
-                    },
-                    sismico: {
-                        zona: "2", factorZ: "0.25", perfilSuelo: "S3", factorS: "1.40",
-                        tp: "1.00", tl: "1.60", categoria: "A", factorU: "1.50", coeficienteR: "6"
-                    },
-                    sobrecargas: "- Sobrecarga en rampa: 400 kg/m2",
-                    recubrimientos: "- Vigas y columnas: 40 mm\n- Losas: 20 mm\n- Zapatas: 70 mm",
-                    materiales: "- Concreto: f'c = 210 kg/cm2\n- Acero: fy = 4200 kg/cm2",
-                    combinaciones: { comb1: true, comb2: true, comb3: true, comb4: true, comb5: true, comb6: true, comb7: true, comb8: true, comb9: true }
-                },
-                14: {
-                    geotecnia: {
-                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
-                        capacidadPortante: "0.60",
-                        profundidad: "1.40",
-                        agresividadSulfatos: "Ataque no perjudicial",
-                        profNF: "A 1.40m y 1.50m"
-                    },
-                    sismico: {
-                        zona: "2", factorZ: "0.25", perfilSuelo: "S3", factorS: "1.40",
-                        tp: "1.00", tl: "1.60", categoria: "A", factorU: "1.50", coeficienteR: "3"
-                    },
-                    sobrecargas: "- Sobrecarga de techos: 50 kg/m2",
-                    recubrimientos: "- Vigas y columnas: 40 mm\n- Losas: 20 mm\n- Zapatas: 70 mm",
-                    materiales: "- Concreto: f'c = 210 kg/cm2\n- Acero: fy = 4200 kg/cm2",
-                    combinaciones: { comb1: true, comb2: true, comb3: true, comb4: true, comb5: true, comb6: true, comb7: true, comb8: true, comb9: true }
-                },
-                15: {
-                    geotecnia: {
-                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
-                        capacidadPortante: "0.66",
-                        profundidad: "1.40",
-                        agresividadSulfatos: "Ataque no perjudicial",
-                        profNF: "A 1.40m y 1.50m"
-                    },
-                    sismico: {
-                        zona: "2", factorZ: "0.25", perfilSuelo: "S3", factorS: "1.40",
-                        tp: "1.00", tl: "1.60", categoria: "A", factorU: "1.50", coeficienteR: "6"
-                    },
-                    sobrecargas: "- Sobrecarga en SS.HH.: 250 kg/m2\n- Sobrecarga en corredores: 400 kg/m2\n- Sobrecarga en techos: 50 kg/m2",
-                    recubrimientos: "- Vigas y columnas: 40 mm\n- Losas: 20 mm\n- Zapatas: 70 mm",
-                    materiales: "- Concreto: f'c = 210 kg/cm2\n- Acero: fy = 4200 kg/cm2",
-                    combinaciones: { comb1: true, comb2: true, comb3: true, comb4: true, comb5: true, comb6: true, comb7: true, comb8: true, comb9: true }
-                },
-                16: {
-                    geotecnia: {
-                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
-                        capacidadPortante: "0.50",
-                        profundidad: "1.40",
-                        agresividadSulfatos: "Ataque no perjudicial",
-                        profNF: "A 1.40m y 1.50m"
-                    },
-                    sismico: {
-                        zona: "2", factorZ: "0.25", perfilSuelo: "S3", factorS: "1.40",
-                        tp: "1.00", tl: "1.60", categoria: "A", factorU: "1.50", coeficienteR: "8"
-                    },
-                    sobrecargas: "- Sobrecarga en techo: 30 kg/m2",
-                    recubrimientos: "- Vigas y columnas: 40 mm\n- Losas: 20 mm\n- Zapatas: 70 mm",
-                    materiales: "- Concreto: f'c = 210 kg/cm2\n- Acero estructural: ASTM A36\n- Acero de refuerzo: fy = 4200 kg/cm2",
-                    combinaciones: { comb1: true, comb2: true, comb3: true, comb4: true, comb5: true, comb6: true, comb7: true, comb8: true, comb9: true }
-                }
+                recubrimientos: [
+                    "Concreto colocado contra el suelo y expuesto permanentemente a él: 70 mm",
+                    "Concreto en contacto permanente con el suelo o la intemperie:",
+                    "  - Barras de 3/4\" y mayores .............................................................. 50 mm",
+                    "  - Barras de 5/8\" y menores, mallas electrosoldadas ........................ 40 mm",
+                    "Concreto no expuesto a la intemperie ni en contacto con el suelo:",
+                    "  - Losas, muros, viguetas:",
+                    "      • Barras de 1 11/16\" y 2 1/4\" ........................................................ 40 mm",
+                    "      • Barras de 1 3/8\" y menores ........................................................ 20 mm",
+                    "  - Vigas y columnas:",
+                    "      • Armadura principal, estribos y espirales ....................................... 40 mm",
+                    "  - Cáscaras y losas plegadas:",
+                    "      • Barras de 3/4\" y mayores .................................................. 20 mm",
+                    "      • Barras de 5/8\" y menores ..................................... 15 mm",
+                    "      • Mallas electrosoldadas ....................................... 15 mm"
+                ],
+                materiales: [
+                    "Resistencia del concreto: f'c = 210 kg/cm2, 175 kg/cm2",
+                    "Resistencia de la albañilería: f'm = 85 kg/cm2",
+                    "Acero corrugado: ASTM A615-GRADO 60",
+                    "Cemento: Tipo I",
+                    "Módulo de elasticidad del concreto: E = 15000√(f'c) kg/cm2",
+                    "Resistencia de fluencia del acero: f'y = 4200 kg/cm2",
+                    "Amortiguamiento para el concreto: 0.05"
+                ],
+                sobrecargasMuertas: [
+                    "Concreto: 2400 kg/m3",
+                    "Albañilería: 1800 kg/m3",
+                    "Aligerado (h=20cm): 300 kg/m2",
+                    "Carga muerta general: 200 kg/m2",
+                    "Tarrajeo: 2000 kg/m3"
+                ],
+                sobrecargasVivas: [
+                    "Sobrecarga de techos: 50 kg/m2"
+                ]
+
             },
 
             predimensionamiento: {

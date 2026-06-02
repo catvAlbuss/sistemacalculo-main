@@ -9,7 +9,152 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['title' => 'Memoria Descriptiva - Predimensionamiento']); ?>
-    <div class="py-4" x-data="memoriaDescriptiva" x-init="init(); moduloActual = 1">
+    <div class="py-4" x-data="{
+        moduloActual: 1,
+        isExporting: false,
+        
+        // Inicializar datos de predimensionamiento para todos los módulos
+        initPredimensionamiento() {
+            const store = $store.memoriaDescriptiva;
+            if (!store.sections.predimensionamiento) {
+                store.sections.predimensionamiento = {};
+            }
+            
+            // Datos por defecto para cada módulo (1-16)
+            const defaultTechos = {
+                tipo: 'Losa aligerada e=20cm',
+                luz: '5.00',
+                espesor: '0.20'
+            };
+            
+            const defaultVigas = {
+                principal: {
+                    ejeA: { b: '25', h: '45', luz: '5.00' },
+                    ejeB: { b: '25', h: '45', luz: '5.00' },
+                    ejeC: { b: '25', h: '45', luz: '5.00' }
+                }
+            };
+            
+            const defaultColumnas = {
+                c1: { b: '25', h: '25', obs: 'ok' },
+                c2: { b: '25', h: '45', obs: 'ok' },
+                c3: { b: '30', h: '50', obs: 'ok' }
+            };
+            
+            // Valores específicos por módulo (según tu archivo original)
+            const techosPorModulo = {
+                1: { tipo: 'Losa aligerada e=20cm', luz: '5.20', espesor: '0.20' },
+                2: { tipo: 'Losa aligerada e=20cm (1° Nivel) / Losa aligerada a dos aguas e=20cm (Techo)', luz: '6.00', espesor: '0.20' },
+                3: { tipo: 'Losa aligerada e=20cm (1° Nivel) / Losa aligerada a dos aguas e=20cm (Techo)', luz: '6.00', espesor: '0.20' },
+                4: { tipo: 'Losa aligerada e=20cm', luz: '4.50', espesor: '0.20' },
+                5: { tipo: 'Losa aligerada e=20cm', luz: '5.50', espesor: '0.20' },
+                6: { tipo: 'Losa aligerada e=20cm', luz: '5.50', espesor: '0.20' },
+                7: { tipo: 'Losa aligerada a una sola agua e=20cm', luz: '4.00', espesor: '0.20' },
+                8: { tipo: 'Losa aligerada e=20cm (1° Nivel) / Losa aligerada a dos aguas e=20cm (Techo)', luz: '5.50', espesor: '0.20' },
+                9: { tipo: 'Losa aligerada a dos aguas e=20cm', luz: '5.00', espesor: '0.20' },
+                10: { tipo: 'Losa aligerada a dos aguas e=20cm', luz: '5.00', espesor: '0.20' },
+                11: { tipo: 'Cobertura parabólica de Aluzinc tipo TR4', luz: '8.00', espesor: '0.00' },
+                12: { tipo: 'Losa maciza e=20cm', luz: '4.00', espesor: '0.20' },
+                13: { tipo: 'Losa en rampa de 15cm / Losa aligerada e=20cm (Techo)', luz: '6.00', espesor: '0.15' },
+                14: { tipo: 'Losa aligerada a un agua e=20cm', luz: '3.50', espesor: '0.20' },
+                15: { tipo: 'Losa maciza e=20cm (1° y 2° Nivel) / Losa aligerada dos aguas e=20cm (Techo)', luz: '5.00', espesor: '0.20' },
+                16: { tipo: 'Cobertura parabólica de Aluzinc tipo TR4', luz: '8.00', espesor: '0.00' }
+            };
+            
+            const vigasPorModulo = {
+                1: { ejeA: { b: '25', h: '45', luz: '5.00' }, ejeB: { b: '25', h: '45', luz: '5.00' }, ejeC: { b: '25', h: '45', luz: '5.00' } },
+                2: { ejeA: { b: '30', h: '50', luz: '6.00' }, ejeB: { b: '30', h: '50', luz: '6.00' }, ejeC: { b: '30', h: '50', luz: '6.00' } },
+                3: { ejeA: { b: '30', h: '50', luz: '6.00' }, ejeB: { b: '30', h: '50', luz: '6.00' }, ejeC: { b: '30', h: '50', luz: '6.00' } },
+                4: { ejeA: { b: '25', h: '40', luz: '4.50' }, ejeB: { b: '25', h: '40', luz: '4.50' }, ejeC: { b: '25', h: '40', luz: '4.50' } },
+                5: { ejeA: { b: '25', h: '50', luz: '5.50' }, ejeB: { b: '25', h: '50', luz: '5.50' }, ejeC: { b: '25', h: '50', luz: '5.50' } },
+                6: { ejeA: { b: '25', h: '50', luz: '5.50' }, ejeB: { b: '25', h: '50', luz: '5.50' }, ejeC: { b: '25', h: '50', luz: '5.50' } },
+                7: { ejeA: { b: '25', h: '35', luz: '4.00' }, ejeB: { b: '25', h: '35', luz: '4.00' }, ejeC: { b: '25', h: '35', luz: '4.00' } },
+                8: { ejeA: { b: '30', h: '50', luz: '5.50' }, ejeB: { b: '30', h: '50', luz: '5.50' }, ejeC: { b: '30', h: '50', luz: '5.50' } },
+                9: { ejeA: { b: '25', h: '45', luz: '5.00' }, ejeB: { b: '25', h: '45', luz: '5.00' }, ejeC: { b: '25', h: '45', luz: '5.00' } },
+                10: { ejeA: { b: '25', h: '45', luz: '5.00' }, ejeB: { b: '25', h: '45', luz: '5.00' }, ejeC: { b: '25', h: '45', luz: '5.00' } },
+                11: { ejeA: { b: 'W10x45', h: '25.4', luz: '8.00' }, ejeB: { b: 'W10x45', h: '25.4', luz: '8.00' }, ejeC: { b: 'W10x45', h: '25.4', luz: '8.00' } },
+                12: { ejeA: { b: '25', h: '60', luz: '4.00' }, ejeB: { b: '25', h: '60', luz: '4.00' }, ejeC: { b: '25', h: '60', luz: '4.00' } },
+                13: { ejeA: { b: '30', h: '60', luz: '6.00' }, ejeB: { b: '30', h: '60', luz: '6.00' }, ejeC: { b: '30', h: '60', luz: '6.00' } },
+                14: { ejeA: { b: '25', h: '35', luz: '3.50' }, ejeB: { b: '25', h: '35', luz: '3.50' }, ejeC: { b: '25', h: '35', luz: '3.50' } },
+                15: { ejeA: { b: '30', h: '50', luz: '5.00' }, ejeB: { b: '30', h: '50', luz: '5.00' }, ejeC: { b: '30', h: '50', luz: '5.00' } },
+                16: { ejeA: { b: 'W10x45', h: '25.4', luz: '8.00' }, ejeB: { b: 'W10x45', h: '25.4', luz: '8.00' }, ejeC: { b: 'W10x45', h: '25.4', luz: '8.00' } }
+            };
+            
+            const columnasPorModulo = {
+                1: { c1: { b: '25', h: '25', obs: 'ok' }, c2: { b: '25', h: '45', obs: 'ok' }, c3: { b: '30', h: '50', obs: 'ok' } },
+                2: { c1: { b: '30', h: '30', obs: 'ok' }, c2: { b: '30', h: '50', obs: 'ok' }, c3: { b: '35', h: '55', obs: 'ok' } },
+                3: { c1: { b: '30', h: '30', obs: 'ok' }, c2: { b: '30', h: '50', obs: 'ok' }, c3: { b: '35', h: '55', obs: 'ok' } },
+                4: { c1: { b: '25', h: '25', obs: 'ok' }, c2: { b: '25', h: '40', obs: 'ok' }, c3: { b: '30', h: '45', obs: 'ok' } },
+                5: { c1: { b: '25', h: '25', obs: 'ok' }, c2: { b: '25', h: '50', obs: 'ok' }, c3: { b: '30', h: '55', obs: 'ok' } },
+                6: { c1: { b: '25', h: '25', obs: 'ok' }, c2: { b: '25', h: '50', obs: 'ok' }, c3: { b: '30', h: '55', obs: 'ok' } },
+                7: { c1: { b: '25', h: '25', obs: 'ok' }, c2: { b: '25', h: '35', obs: 'ok' }, c3: { b: '25', h: '40', obs: 'ok' } },
+                8: { c1: { b: '30', h: '30', obs: 'ok' }, c2: { b: '30', h: '50', obs: 'ok' }, c3: { b: '35', h: '55', obs: 'ok' } },
+                9: { c1: { b: '25', h: '25', obs: 'ok' }, c2: { b: '25', h: '45', obs: 'ok' }, c3: { b: '30', h: '50', obs: 'ok' } },
+                10: { c1: { b: '25', h: '25', obs: 'ok' }, c2: { b: '25', h: '45', obs: 'ok' }, c3: { b: '30', h: '50', obs: 'ok' } },
+                11: { c1: { b: '30', h: '30', obs: 'metálica' }, c2: { b: '30', h: '30', obs: 'metálica' }, c3: { b: '30', h: '30', obs: 'metálica' } },
+                12: { c1: { b: '25', h: '25', obs: 'ok' }, c2: { b: '60', h: '60', obs: 'para tanque' }, c3: { b: '60', h: '60', obs: 'para tanque' } },
+                13: { c1: { b: '30', h: '40', obs: 'ok' }, c2: { b: '30', h: '40', obs: 'ok' }, c3: { b: '30', h: '40', obs: 'ok' } },
+                14: { c1: { b: '25', h: '25', obs: 'ok' }, c2: { b: '25', h: '35', obs: 'ok' }, c3: { b: '25', h: '35', obs: 'ok' } },
+                15: { c1: { b: '30', h: '30', obs: 'ok' }, c2: { b: '30', h: '50', obs: 'ok' }, c3: { b: '35', h: '55', obs: 'ok' } },
+                16: { c1: { b: '30', h: '30', obs: 'metálica' }, c2: { b: '30', h: '30', obs: 'metálica' }, c3: { b: '30', h: '30', obs: 'metálica' } }
+            };
+            
+            const observacionesPorModulo = {
+                1: 'El espesor de losa aligerada no debe permitir deflexiones fuera de los límites establecidos. La relación b/h debe estar entre 0.4 y 0.6 para vigas principales.',
+                2: 'Para luces de 6m, se recomienda vigas de 30x50cm. Columnas centrales de 35x55cm para cumplir con requisitos de rigidez.',
+                3: 'Similar al Módulo II, con luces de 6m.',
+                4: 'Módulo de escaleras, luces más pequeñas. Vigas de 25x40cm suficientes.',
+                5: 'Módulo de aulas de 3 pisos. Vigas de 25x50cm.',
+                6: 'Módulo de aulas con escalera integrada.',
+                7: 'Módulo de cocina y almacenes. Luces pequeñas, vigas de 25x35cm.',
+                8: 'Módulo administrativo de 2 pisos.',
+                9: 'Módulo de aulas de 1 piso.',
+                10: 'Módulo de cocina y comedor de 1 piso.',
+                11: 'Estructura metálica para área de juegos. Columnas tubulares C30x30x8mm.',
+                12: 'Módulo de cisterna y tanque elevado de 4 niveles. Vigas de 25x60cm reforzadas.',
+                13: 'Módulo de rampa vehicular/peatonal. Vigas de 30x60cm para soportar cargas dinámicas.',
+                14: 'Módulo de guardianía, luces pequeñas. Vigas de 25x35cm.',
+                15: 'Módulo de SS.HH. de 3 pisos. Vigas de 30x50cm.',
+                16: 'Estructura metálica para SUM exterior. Vigas de concreto 30x40cm y tijerales metálicos.'
+            };
+            
+            // Crear módulos faltantes (1-16)
+            for (let i = 1; i <= 16; i++) {
+                if (!store.sections.predimensionamiento[i]) {
+                    store.sections.predimensionamiento[i] = {
+                        techos: techosPorModulo[i] || defaultTechos,
+                        vigas: { principal: vigasPorModulo[i] || defaultVigas.principal },
+                        columnas: columnasPorModulo[i] || defaultColumnas,
+                        observaciones: observacionesPorModulo[i] || ''
+                    };
+                }
+            }
+            
+            // Inicializar previews de imágenes si no existen
+            if (!store.previews.predimLosaImage) store.previews.predimLosaImage = {};
+            if (!store.previews.predimVigaImage) store.previews.predimVigaImage = {};
+            if (!store.previews.predimColumnaImage) store.previews.predimColumnaImage = {};
+            
+            store.save();
+        },
+        
+        async exportWord() {
+            this.isExporting = true;
+            try {
+                if ($store.memoriaDescriptiva?.exportToWord) {
+                    await $store.memoriaDescriptiva.exportToWord();
+                } else {
+                    console.warn('Función exportToWord no disponible en el store');
+                    alert('La función de exportación aún no está disponible');
+                }
+            } catch (error) {
+                console.error('Error al exportar:', error);
+                alert('Error al exportar el documento');
+            } finally {
+                this.isExporting = false;
+            }
+        }
+    }" x-init="initPredimensionamiento()">
         <div class="container mx-auto px-4 max-w-7xl">
 
             
@@ -47,10 +192,10 @@
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
                                 SELECCIONAR MÓDULO
                             </label>
-                            <span class="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">15 módulos</span>
+                            <span class="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">16 módulos</span>
                         </div>
-                        <div class="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-15 gap-2">
-                            <template x-for="i in 15" :key="i">
+                        <div class="grid grid-cols-4 sm:grid-cols-8 md:grid-cols-12 lg:grid-cols-16 gap-2">
+                            <template x-for="i in 16" :key="i">
                                 <button @click="moduloActual = i" 
                                     :class="moduloActual === i ? 'bg-gradient-to-r from-cyan-600 to-cyan-700 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
                                     class="px-2 py-2 rounded-lg text-xs font-semibold transition-all duration-200">
@@ -61,19 +206,16 @@
                     </div>
 
                     
-                    <template x-if="moduloActual">
+                    <div class="text-center mb-6">
+                        <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                            Módulo actual: <strong x-text="'M-' + String(moduloActual).padStart(2, '0')"></strong>
+                        </span>
+                    </div>
+
+                    
+                    <template x-if="$store.memoriaDescriptiva?.sections?.predimensionamiento?.[moduloActual]">
                         <div>
-                            
-                            <div class="mb-6 flex items-center justify-between">
-                                <div class="flex items-center gap-2">
-                                    <div class="h-8 w-8 rounded-full bg-cyan-100 dark:bg-cyan-900/40 flex items-center justify-center">
-                                        <span class="text-cyan-600 font-bold text-sm" x-text="'M' + String(moduloActual).padStart(2, '0')"></span>
-                                    </div>
-                                    <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200">MÓDULO <span x-text="String(moduloActual).padStart(2, '0')"></span></h3>
-                                </div>
-                                <div class="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">Dimensiones en cm</div>
-                            </div>
-                            
                             
                             <div class="bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
                                 <div class="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-800/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
@@ -92,34 +234,12 @@
                                         <div>
                                             <label class="text-xs font-semibold text-gray-500 block mb-1">Luz mayor (m)</label>
                                             <input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].techos.luz" 
-                                                   class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-cyan-500">
+                                                   class="w-full border rounded-lg p-2 text-sm">
                                         </div>
                                         <div>
                                             <label class="text-xs font-semibold text-gray-500 block mb-1">Espesor propuesto (m)</label>
                                             <input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].techos.espesor" 
-                                                   class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-cyan-500">
-                                        </div>
-                                    </div>
-                                    
-                                    
-                                    <div class="mt-4">
-                                        <label class="text-xs font-semibold text-gray-500 block mb-2">Imagen - Pre dimensionamiento de losa aligerada</label>
-                                        <div class="relative inline-block">
-                                            <template x-if="$store.memoriaDescriptiva.previews.predimLosaImage[moduloActual]">
-                                                <div class="relative">
-                                                    <img :src="$store.memoriaDescriptiva.previews.predimLosaImage[moduloActual]" class="max-h-32 object-contain border rounded-lg">
-                                                    <button @click="$store.memoriaDescriptiva.removePredimLosaImage(moduloActual)" 
-                                                            class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 text-xs">✕</button>
-                                                </div>
-                                            </template>
-                                            <label class="flex flex-col items-center justify-center h-24 w-48 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50" 
-                                                   x-show="!$store.memoriaDescriptiva.previews.predimLosaImage[moduloActual]">
-                                                <svg class="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                </svg>
-                                                <span class="text-xs text-gray-500">Subir imagen</span>
-                                                <input type="file" accept="image/*" @change="$store.memoriaDescriptiva.handlePredimLosaImageChange(moduloActual, $event)" class="hidden">
-                                            </label>
+                                                   class="w-full border rounded-lg p-2 text-sm">
                                         </div>
                                     </div>
                                 </div>
@@ -170,28 +290,6 @@
                                             </tbody>
                                         </table>
                                     </div>
-
-                                    
-                                    <div class="mt-4">
-                                        <label class="text-xs font-semibold text-gray-500 block mb-2">Imagen - Pre dimensionamiento de vigas</label>
-                                        <div class="relative inline-block">
-                                            <template x-if="$store.memoriaDescriptiva.previews.predimVigaImage[moduloActual]">
-                                                <div class="relative">
-                                                    <img :src="$store.memoriaDescriptiva.previews.predimVigaImage[moduloActual]" class="max-h-32 object-contain border rounded-lg">
-                                                    <button @click="$store.memoriaDescriptiva.removePredimVigaImage(moduloActual)" 
-                                                            class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 text-xs">✕</button>
-                                                </div>
-                                            </template>
-                                            <label class="flex flex-col items-center justify-center h-24 w-48 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50" 
-                                                   x-show="!$store.memoriaDescriptiva.previews.predimVigaImage[moduloActual]">
-                                                <svg class="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                </svg>
-                                                <span class="text-xs text-gray-500">Subir imagen</span>
-                                                <input type="file" accept="image/*" @change="$store.memoriaDescriptiva.handlePredimVigaImageChange(moduloActual, $event)" class="hidden">
-                                            </label>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
 
@@ -240,28 +338,6 @@
                                             </tbody>
                                         </table>
                                     </div>
-
-                                    
-                                    <div class="mt-4">
-                                        <label class="text-xs font-semibold text-gray-500 block mb-2">Imagen - Detalle de columnas</label>
-                                        <div class="relative inline-block">
-                                            <template x-if="$store.memoriaDescriptiva.previews.predimColumnaImage[moduloActual]">
-                                                <div class="relative">
-                                                    <img :src="$store.memoriaDescriptiva.previews.predimColumnaImage[moduloActual]" class="max-h-32 object-contain border rounded-lg">
-                                                    <button @click="$store.memoriaDescriptiva.removePredimColumnaImage(moduloActual)" 
-                                                            class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 text-xs">✕</button>
-                                                </div>
-                                            </template>
-                                            <label class="flex flex-col items-center justify-center h-24 w-48 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50" 
-                                                   x-show="!$store.memoriaDescriptiva.previews.predimColumnaImage[moduloActual]">
-                                                <svg class="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                </svg>
-                                                <span class="text-xs text-gray-500">Subir imagen</span>
-                                                <input type="file" accept="image/*" @change="$store.memoriaDescriptiva.handlePredimColumnaImageChange(moduloActual, $event)" class="hidden">
-                                            </label>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
 
@@ -275,16 +351,16 @@
                                 </div>
                                 <div class="p-4">
                                     <textarea x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].observaciones" 
-                                              rows="3" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-cyan-500"
-                                              placeholder="El espesor de losa aligerada no debe permitir deflexiones fuera de los límites establecidos..."></textarea>
+                                              rows="4" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-cyan-500"></textarea>
                                 </div>
                             </div>
                         </div>
                     </template>
 
-                    <div x-show="!moduloActual" class="text-center py-16 text-gray-400">
+                    
+                    <div x-show="!$store.memoriaDescriptiva?.sections?.predimensionamiento?.[moduloActual]" class="text-center py-16 text-gray-400">
                         <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                        <p>Seleccione un módulo para ver y editar su predimensionamiento</p>
+                        <p>Cargando datos del módulo <span x-text="'M-' + String(moduloActual).padStart(2, '0')"></span>...</p>
                     </div>
 
                     
@@ -294,10 +370,10 @@
                             Anterior
                         </a>
                         <div class="flex gap-3">
-                            <button @click="moduloActual = moduloActual > 1 ? moduloActual - 1 : 15" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 transition">◀ Módulo anterior</button>
-                            <button @click="moduloActual = moduloActual < 15 ? moduloActual + 1 : 1" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 transition">Módulo siguiente ▶</button>
+                            <button @click="moduloActual = moduloActual > 1 ? moduloActual - 1 : 16" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 transition">◀ Módulo anterior</button>
+                            <button @click="moduloActual = moduloActual < 16 ? moduloActual + 1 : 1" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 transition">Módulo siguiente ▶</button>
                             <button @click="exportWord()" :disabled="isExporting" 
-                                class="px-5 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition flex items-center gap-2 shadow-md">
+                                class="px-5 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition flex items-center gap-2 shadow-md disabled:opacity-50">
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                                 <span x-text="isExporting ? 'Exportando...' : 'Exportar a Word'"></span>
                             </button>
@@ -313,7 +389,7 @@
         </div>
     </div>
 
-    <?php if (! $__env->hasRenderedOnce('901de83e-8445-462b-811b-05c05f550895')): $__env->markAsRenderedOnce('901de83e-8445-462b-811b-05c05f550895');
+    <?php if (! $__env->hasRenderedOnce('87a76cbb-eb1c-4883-819e-d2efce6467ef')): $__env->markAsRenderedOnce('87a76cbb-eb1c-4883-819e-d2efce6467ef');
 $__env->startPush('initscripts'); ?>
         <script src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>

@@ -660,6 +660,7 @@ export class DocumentTransformerMD {
       }
     }
 
+
     // ========== e) MATERIALES DE LOS ELEMENTOS ESTRUCTURALES ==========
     if (mt.materiales) {
       marcoTeorico.content.push({ type: "heading", level: 2, text: "e) MATERIALES DE LOS ELEMENTOS ESTRUCTURALES" });
@@ -668,10 +669,7 @@ export class DocumentTransformerMD {
       if (mt.materiales.concreto) {
         const c = mt.materiales.concreto;
 
-        // Título Concreto estructural
         marcoTeorico.content.push({ type: "heading", level: 3, text: "Concreto estructural" });
-
-        // Descripción general del concreto
         marcoTeorico.content.push({ type: "paragraph", text: c.descripcionGeneral || "", alignment: "JUSTIFIED" });
 
         // a. Resistencia a la compresión (f'c)
@@ -680,7 +678,7 @@ export class DocumentTransformerMD {
           { type: "paragraph", text: c.descripcionResistencia || "", alignment: "JUSTIFIED" }
         );
 
-        // IMAGEN 1 - Curvas esfuerzo-deformación del concreto
+        // IMAGEN 1
         marcoTeorico.content.push({
           type: "image",
           src: "/assets/img/memoria_decriptiva/modulos/figura2CurvaEsfuerzo.png",
@@ -690,16 +688,15 @@ export class DocumentTransformerMD {
           alignment: "CENTER"
         });
 
-        // Texto después de la imagen de resistencia
-        marcoTeorico.content.push({ type: "paragraph", text: `Para el diseño de los elementos estructurales se usará una resistencia a la compresión de f’c = 210 Kg/cm2 y para obras hidráulicas f’c=280 kg/cm2.`, alignment: "JUSTIFIED" });
+        marcoTeorico.content.push({ type: "paragraph", text: `Para el diseño de los elementos estructurales se usará una resistencia a la compresión de f'c = ${c.fc || "210"} kg/cm2 y para obras hidráulicas f'c = 280 kg/cm2.`, alignment: "JUSTIFIED" });
 
         // b. Módulo de elasticidad (Ec)
         marcoTeorico.content.push(
           { type: "paragraph", text: "b. Módulo de elasticidad (Ec)", bold: true, alignment: "JUSTIFIED" },
-          { type: "paragraph", text: "Viene a ser la tangente en la zona elástica de la curva esfuerzo – deformación unitaria.", alignment: "JUSTIFIED" }
+          { type: "paragraph", text: c.descripcionModulo || "", alignment: "JUSTIFIED" }  // ← lee del store
         );
 
-        // IMAGEN 2 - Módulo de elasticidad (ANTES de la fórmula)
+        // IMAGEN 2
         marcoTeorico.content.push({
           type: "image",
           src: "/assets/img/memoria_decriptiva/modulos/figura3ModuloElasticidad.png",
@@ -709,10 +706,8 @@ export class DocumentTransformerMD {
           alignment: "CENTER"
         });
 
-
-        // Fórmula de Ec
         marcoTeorico.content.push(
-          { type: "paragraph", text: "De acuerdo con la NTE E.060 en el art. 8.5.2 especifica la determinación del módulo elasticidad del concreto, con un peso específico aproximado de 2300 kg/m3, mediante la siguiente fórmula:", alignment: "JUSTIFIED" },
+          { type: "paragraph", text: c.descripcionFormula || "De acuerdo con la NTE E.060 en el art. 8.5.2 especifica la determinación del módulo elasticidad del concreto, con un peso específico aproximado de 2300 kg/m3, mediante la siguiente fórmula:", alignment: "JUSTIFIED" },
           { type: "paragraph", text: "Ec = 15000 √(f'c)", bold: true, alignment: "CENTER" },
           { type: "paragraph", text: `En el presente diseño usaremos f'c = ${c.fc || "210"} kg/cm2, entonces obtenemos como módulo de elasticidad Ec = ${c.ec || "217370.65"} kg/cm2.`, alignment: "JUSTIFIED" }
         );
@@ -722,6 +717,52 @@ export class DocumentTransformerMD {
           { type: "paragraph", text: "c. Peso específico (ϒc)", bold: true, alignment: "JUSTIFIED" },
           { type: "paragraph", text: "El peso específico para concreto simple es 2300 kg/m3 de acuerdo con la NTE E.020 especificada en el anexo 1 (pesos unitarios). Así mismo para concreto armado agregamos 100 kg/m3 obteniendo 2400 kg/m3, el cual será considerado para el análisis de cargas estáticas de la estructura.", alignment: "JUSTIFIED" },
           { type: "paragraph", text: `Entre otras propiedades mecánicas tenemos el coeficiente de Poisson (u = ${c.poisson || "0.20"}), módulo de corte (G = 90571.10 kg/cm2), entre otros.`, alignment: "JUSTIFIED" }
+        );
+      }
+
+      // Acero de refuerzo
+      if (mt.materiales.acero) {
+        const a = mt.materiales.acero;
+
+        marcoTeorico.content.push(
+          { type: "heading", level: 3, text: "Acero de refuerzo" },
+          { type: "paragraph", text: a.descripcionGeneral || "", alignment: "JUSTIFIED" },
+          { type: "paragraph", text: "Contiene principalmente hierro, carbono y otros elementos químicos, en esta aleación el carbono se encuentra en un porcentaje entre 0.2% y 0.3% en peso.", alignment: "JUSTIFIED" },
+          { type: "paragraph", text: "El refuerzo corrugado debe cumplir las Normas ASTM A615 grado 60 / NTP 341.031 (aceros no soldables) o ASTM A706 grado 60 / NTP 339.186 (aceros soldables).", alignment: "JUSTIFIED" },
+          { type: "paragraph", text: "La función principal del acero en el concreto armado es de tomar todos los esfuerzos a tracción, ya que el concreto posee una insignificante resistencia a la tracción. A continuación, definiremos algunas propiedades mecánicas y físicas del acero de refuerzo.", alignment: "JUSTIFIED" }
+        );
+
+        // a. Esfuerzo de fluencia (fy)
+        marcoTeorico.content.push(
+          { type: "paragraph", text: "a. Esfuerzo de fluencia (fy)", bold: true, alignment: "JUSTIFIED" },
+          { type: "paragraph", text: a.descripcionFluencia || "", alignment: "JUSTIFIED" }
+        );
+
+        // IMAGEN 3
+        marcoTeorico.content.push({
+          type: "image",
+          src: "/assets/img/memoria_decriptiva/modulos/figura4DiagramaAcero.png",
+          width: 450,
+          height: 350,
+          caption: "Figura 4. Diagrama esfuerzo – deformación del acero (fy).",
+          alignment: "CENTER"
+        });
+
+        marcoTeorico.content.push(
+          { type: "paragraph", text: `En el presente proyecto se diseñará con acero corrugado de grado 60, es decir, fy = ${a.fy || "4200"} kg/cm2.`, alignment: "JUSTIFIED" }
+        );
+
+        // b. Módulo de elasticidad (Es)
+        marcoTeorico.content.push(
+          { type: "paragraph", text: "b. Módulo de elasticidad (Es)", bold: true, alignment: "JUSTIFIED" },
+          { type: "paragraph", text: a.descripcionModulo || "", alignment: "JUSTIFIED" },
+          { type: "paragraph", text: `Teniendo como valor Es = ${a.es || "2000000"} kg/cm2.`, alignment: "JUSTIFIED" }
+        );
+
+        // c. Peso específico (Y)
+        marcoTeorico.content.push(
+          { type: "paragraph", text: "c. Peso específico (Y)", bold: true, alignment: "JUSTIFIED" },
+          { type: "paragraph", text: `El peso específico del acero es Y = ${a.peso || "7.85"} ton/m3 (NTE E.020).`, alignment: "JUSTIFIED" }
         );
       }
     }
@@ -740,16 +781,16 @@ export class DocumentTransformerMD {
         { type: "paragraph", text: "La función principal del acero en el concreto armado es de tomar todos los esfuerzos a tracción, ya que el concreto posee una insignificante resistencia a la tracción. A continuación, definiremos algunas propiedades mecánicas y físicas del acero de refuerzo.", alignment: "JUSTIFIED" }
       );
 
-      // a. Esfuerzo de fluencia (fy)
+      // a. Esfuerzo de fluencia (fy) - TÍTULO COMPLETO EN NEGRITA
       marcoTeorico.content.push(
-        { type: "paragraph", text: "a. Esfuerzo de fluencia (fy)", bold: true, alignment: "JUSTIFIED" },
+        { type: "paragraph", text: `a. Esfuerzo de fluencia (fy)`, bold: true, alignment: "JUSTIFIED" },
         { type: "paragraph", text: a.descripcionFluencia || "Es aquel esfuerzo donde, partir del cual el acero llega a una deformación unitaria de 0.0035, continúa deformándose sin necesidad de incrementar la fuerza de tensión. A continuación, mostramos el diagrama de esfuerzo – deformación del acero.", alignment: "JUSTIFIED" }
       );
 
       // IMAGEN - Diagrama esfuerzo-deformación del acero
       marcoTeorico.content.push({
         type: "image",
-        src: "/assets/img/memoria_decriptiva/modulos/figura4DiagramaEsfuerzo.png",
+        src: "public/assets/img/memoria_decriptiva/modulos/figura4DiagramaEsfuerzo.png",
         width: 450,
         height: 350,
         caption: "Figura 4. Diagrama esfuerzo – deformación del acero (fy).",
@@ -761,34 +802,39 @@ export class DocumentTransformerMD {
         { type: "paragraph", text: `En el presente proyecto se diseñará con acero corrugado de grado 60, es decir, fy = ${a.fy || "4200"} kg/cm2.`, alignment: "JUSTIFIED" }
       );
 
-      // b. Módulo de elasticidad (Es)
+      // b. Módulo de elasticidad (Es) - TÍTULO COMPLETO EN NEGRITA
       marcoTeorico.content.push(
-        { type: "paragraph", text: "b. Módulo de elasticidad (Es)", bold: true, alignment: "JUSTIFIED" },
+        { type: "paragraph", text: `b. Módulo de elasticidad (Es)`, bold: true, alignment: "JUSTIFIED" },
         { type: "paragraph", text: a.descripcionModulo || "Viene a ser la pendiente de la curva en la zona lineal del diagrama esfuerzo - deformación del acero.", alignment: "JUSTIFIED" },
         { type: "paragraph", text: `Teniendo como valor Es = ${a.es || "2000000"} kg/cm2.`, alignment: "JUSTIFIED" }
       );
 
-      // c. Peso específico (Y)
+      // c. Peso específico (Y) - TÍTULO COMPLETO EN NEGRITA
       marcoTeorico.content.push(
-        { type: "paragraph", text: "c. Peso específico (Y)", bold: true, alignment: "JUSTIFIED" },
+        { type: "paragraph", text: `c. Peso específico (Y)`, bold: true, alignment: "JUSTIFIED" },
         { type: "paragraph", text: `El peso específico del acero es Y = ${a.peso || "7.85"} ton/m3 (NTE E.020).`, alignment: "JUSTIFIED" }
       );
     }
 
+
     // ========== g) CARGA MUERTA ==========
-    if (mt.cargaMuerta) {
+    if (mt.materiales && mt.materiales.cargaMuerta) {
+      const cm = mt.materiales.cargaMuerta;
+
       marcoTeorico.content.push(
         { type: "heading", level: 2, text: "g) CARGA MUERTA" },
-        { type: "paragraph", text: mt.cargaMuerta.descripcion || "", alignment: "JUSTIFIED" },
-        { type: "list", listType: "bullet", items: mt.cargaMuerta.items || [] }
+        { type: "paragraph", text: cm.descripcion || "", alignment: "JUSTIFIED" },
+        { type: "list", listType: "bullet", items: cm.items || [] }
       );
     }
     // ========== h) CARGA VIVA ==========
-    if (mt.cargaViva) {
+    if (mt.materiales && mt.materiales.cargaViva) {
+      const cv = mt.materiales.cargaViva;
+
       marcoTeorico.content.push(
         { type: "heading", level: 2, text: "h) CARGA VIVA" },
-        { type: "paragraph", text: mt.cargaViva.descripcion || "", alignment: "JUSTIFIED" },
-        { type: "list", listType: "bullet", items: mt.cargaViva.items || [] }
+        { type: "paragraph", text: cv.descripcion || "", alignment: "JUSTIFIED" },
+        { type: "list", listType: "bullet", items: cv.items || [] }
       );
     }
 
@@ -822,10 +868,10 @@ export class DocumentTransformerMD {
         { type: "paragraph", text: ps.textoFactorZona, alignment: "JUSTIFIED" }
       );
 
-      // IMAGEN 1
+      // IMAGEN 1 - Tabla N°1
       marcoTeorico.content.push({
         type: "image",
-        src: "public/assets/img/memoria_decriptiva/modulos/tablaZona.png",
+        src: "/assets/img/memoria_decriptiva/modulos/tablaZona.png",
         width: 400,
         height: 200,
         caption: "Tabla N° 1 - FACTORES DE ZONA \"Z\"",
@@ -834,10 +880,10 @@ export class DocumentTransformerMD {
 
       marcoTeorico.content.push({ type: "paragraph", text: ps.textoZonaUbicacion, alignment: "JUSTIFIED" });
 
-      // IMAGEN 2
+      // IMAGEN 2 - Mapa sísmico (Figura 30)
       marcoTeorico.content.push({
         type: "image",
-        src: "public/assets/img/memoria_decriptiva/modulos/figura30MapaSismico.png",
+        src: "/assets/img/memoria_decriptiva/modulos/figura30MapaSismico.png",
         width: 500,
         height: 400,
         caption: "Figura 30: Distribución espacial sismicidad del Perú.",
@@ -846,45 +892,22 @@ export class DocumentTransformerMD {
 
       marcoTeorico.content.push(
         { type: "heading", level: 3, text: "Condiciones geotécnicas" },
-        { type: "paragraph", text: ps.textoGeotecnico, alignment: "JUSTIFIED" }
-      );
-
-      // IMAGEN 3
-      marcoTeorico.content.push({
-        type: "image",
-        src: "public/assets/img/memoria_decriptiva/modulos/tablaCategoriaEdificaciones.png",
-        width: 500,
-        height: 250,
-        caption: "Tabla N° 3 - FACTOR DE SUELO \"S\"",
-        alignment: "CENTER"
-      });
-
-      // IMAGEN 4
-      marcoTeorico.content.push({
-        type: "image",
-        src: "public/assets/img/memoria_decriptiva/modulos/tablaIrregularidades.png",
-        width: 500,
-        height: 200,
-        caption: "Tabla N° 4 - PERÍODOS \"Tp\" Y \"TL\"",
-        alignment: "CENTER"
-      });
-
-      marcoTeorico.content.push(
+        { type: "paragraph", text: ps.textoGeotecnico, alignment: "JUSTIFIED" },
         { type: "heading", level: 3, text: "Periodo fundamental (T)" },
         { type: "paragraph", text: ps.textoPeriodo, alignment: "JUSTIFIED" },
         { type: "heading", level: 3, text: "Coeficiente de amplificación sísmica (C)" },
         { type: "paragraph", text: ps.textoCoeficiente, alignment: "JUSTIFIED" },
         { type: "list", listType: "bullet", items: ps.formulas },
-        { type: "paragraph", text: "Siendo:", alignment: "JUSTIFIED" },
-        { type: "list", listType: "bullet", items: ["T = periodo fundamental de la estructura."] },
+        { type: "paragraph", text: ps.textoSiendo, alignment: "JUSTIFIED" },
+        { type: "list", listType: "bullet", items: ps.textoListaSiendo },
         { type: "heading", level: 3, text: "Categoría de la edificación y factor de uso (U)" },
         { type: "paragraph", text: ps.textoCategoria, alignment: "JUSTIFIED" }
       );
 
-      // IMAGEN 5
+      // IMAGEN 3 - Tabla N°5 (Categorías)
       marcoTeorico.content.push({
         type: "image",
-        src: "public/assets/img/memoria_decriptiva/modulos/tablaIrregularidades2.png",
+        src: "/assets/img/memoria_decriptiva/modulos/tabla5.png",
         width: 550,
         height: 350,
         caption: "Tabla N° 5 - CATEGORÍA DE LAS EDIFICACIONES Y FACTOR \"U\"",
@@ -897,10 +920,10 @@ export class DocumentTransformerMD {
         { type: "paragraph", text: ps.textoIrregularidadAltura, bold: true, alignment: "JUSTIFIED" }
       );
 
-      // IMAGEN 6
+      // IMAGEN 4 - Tabla N°8 (Irregularidades en altura)
       marcoTeorico.content.push({
         type: "image",
-        src: "public/assets/img/memoria_decriptiva/modulos/tablaSistemas.png",
+        src: "/assets/img/memoria_decriptiva/modulos/tabla8.png",
         width: 550,
         height: 400,
         caption: "Tabla N° 8 - IRREGULARIDADES ESTRUCTURALES EN ALTURA",
@@ -911,23 +934,97 @@ export class DocumentTransformerMD {
         { type: "paragraph", text: ps.textoIrregularidadPlanta, bold: true, alignment: "JUSTIFIED" }
       );
 
-      // IMAGEN 7
+      // IMAGEN 5 - Tabla N°9 (Irregularidades en planta)
       marcoTeorico.content.push({
         type: "image",
-        src: "public/assets/img/memoria_decriptiva/modulos/tablaResponse.png",
+        src: "/assets/img/memoria_decriptiva/modulos/tabla9.png",
         width: 550,
         height: 400,
         caption: "Tabla N° 9 - IRREGULARIDADES ESTRUCTURALES EN PLANTA",
         alignment: "CENTER"
       });
+
+      marcoTeorico.content.push(
+        { type: "heading", level: 3, text: "Coeficiente de reducción de las fuerzas sísmicas (R)" }
+      );
+
+      // IMAGEN 6 - Tabla N°7 (Sistemas estructurales)
+      marcoTeorico.content.push({
+        type: "image",
+        src: "/assets/img/memoria_decriptiva/modulos/tabla7.png",
+        width: 550,
+        height: 400,
+        caption: "Tabla N° 7 - SISTEMAS ESTRUCTURALES",
+        alignment: "CENTER"
+      });
+
+      marcoTeorico.content.push(
+        { type: "paragraph", text: "Se determina mediante la siguiente expresión:", alignment: "JUSTIFIED" },
+        { type: "paragraph", text: ps.textoFormulaR, bold: true, alignment: "CENTER" },
+        { type: "paragraph", text: ps.textoDonde, alignment: "JUSTIFIED" },
+        { type: "list", listType: "bullet", items: ps.listaDonde },
+        { type: "paragraph", text: ps.textoFuenteTabla, alignment: "JUSTIFIED" },
+        { type: "heading", level: 3, text: ps.textoTanque }
+      );
+
+      // IMAGEN 7 - Tabla ACI 350.3-06 (Tanque elevado)
+      marcoTeorico.content.push({
+        type: "image",
+        src: "/assets/img/memoria_decriptiva/modulos/tabla4.png",
+        width: 550,
+        height: 300,
+        caption: "Tabla 4.1.1(b) - Response modification factor R (ACI 350.3-06)",
+        alignment: "CENTER"
+      });
+
+      marcoTeorico.content.push(
+        { type: "paragraph", text: ps.textoFuenteTanque, alignment: "JUSTIFIED" }
+      );
+    }
+    // ========== k) VERIFICAR LA FUERZA CORTANTE MINIMA ==========
+    if (mt.verificaciones) {
+      const v = mt.verificaciones;
+      marcoTeorico.content.push(
+        { type: "heading", level: 2, text: "k) VERIFICAR LA FUERZA CORTANTE MINIMA" },
+        { type: "paragraph", text: v.textoCortante || "", alignment: "JUSTIFIED" },
+        { type: "paragraph", text: v.textoCortanteNorma || "", alignment: "JUSTIFIED" }
+      );
+    }
+
+    // ========== l) VERIFICACION DE DERIVAS ==========
+    if (mt.verificaciones) {
+      const v = mt.verificaciones;
+      marcoTeorico.content.push(
+        { type: "heading", level: 2, text: "l) VERIFICACION DE DERIVAS" },
+        { type: "paragraph", text: v.textoDerivas || "", alignment: "JUSTIFIED" },
+        { type: "paragraph", text: v.textoDerivasTabla || "", alignment: "JUSTIFIED" }
+      );
+    }
+
+    // IMAGEN - Tabla N°11 (Límites para la distorsión del entrepiso)
+    marcoTeorico.content.push({
+      type: "image",
+      src: "/assets/img/memoria_decriptiva/modulos/tabla11.png",
+      width: 500,
+      height: 250,
+      caption: "Tabla N° 11 - LÍMITES PARA LA DISTORSIÓN DEL ENTREPISO",
+      alignment: "CENTER"
+    });
+
+    // ========== m) JUNTA SISMICA ENTRE LOS MODULOS ==========
+    if (mt.verificaciones) {
+      const v = mt.verificaciones;
+      marcoTeorico.content.push(
+        { type: "heading", level: 2, text: "m) JUNTA SISMICA ENTRE LOS MODULOS" },
+        { type: "paragraph", text: v.textoJunta || "", alignment: "JUSTIFIED" },
+        { type: "paragraph", text: v.textoJuntaFormula || "", alignment: "JUSTIFIED" },
+        { type: "paragraph", text: v.formulaJunta || "S = 0.006 h ≥ 0.03 m", bold: true, alignment: "CENTER" }
+      );
     }
     console.log("✅ transformMarcoTeorico ejecutado");
   }
-  // ============================================
-  // SECCIÓN 2 - CONSIDERACIONES GENERALES (NUEVA SECCIÓN)
-  // ============================================
+
   transformConsideracionesGenerales(structure) {
-    // Buscar o crear la sección
     let consideraciones = structure.document.sections.find((s) => s.id === "consideraciones");
 
     if (!consideraciones) {
@@ -937,7 +1034,6 @@ export class DocumentTransformerMD {
         level: 1,
         content: []
       };
-      // Insertar después de descripcion_bloques
       const descIdx = structure.document.sections.findIndex((s) => s.id === "descripcion_bloques");
       if (descIdx !== -1) {
         structure.document.sections.splice(descIdx + 1, 0, consideraciones);
@@ -949,88 +1045,248 @@ export class DocumentTransformerMD {
     const consideracionesData = this.sections.consideraciones || {};
     const content = [];
 
+    // Datos comunes (nivel raíz del store — no se repiten)
+    const recubrimientos = consideracionesData.recubrimientos || [];
+    const materiales = consideracionesData.materiales || [];
+    const sobrecargasMuertas = consideracionesData.sobrecargasMuertas || [];
+    const sobrecargasVivas = consideracionesData.sobrecargasVivas || [];
+
+    // Nombres de los módulos (igual al store de descripcionModulos)
+    const nombreModulos = [
+      "MÓDULO I", "MÓDULO II", "MÓDULO III", "MÓDULO IV",
+      "MÓDULO V", "MÓDULO VI", "MÓDULO VII", "MÓDULO VIII",
+      "MÓDULO IX", "MÓDULO X", "MÓDULO XI", "MÓDULO XII",
+      "MÓDULO XIII", "MÓDULO XIV", "MÓDULO XV", "MÓDULO XVI"
+    ];
+
+    // Numeración romana para subtítulos (2.1, 2.2 … 2.16)
+    const romanos = [
+      "I", "II", "III", "IV", "V", "VI", "VII", "VIII",
+      "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI"
+    ];
+
+    // ========== 3 IMÁGENES INICIALES ==========
     content.push({
-      type: "paragraph",
-      text: "A continuación se presentan las condiciones geotécnicas, parámetros sísmicos y método de diseño para cada módulo del proyecto.",
-      alignment: "JUSTIFIED"
+      type: "image",
+      src: "/assets/img/memoria_decriptiva/consideraciones/imagen1.png",
+      width: 550, height: 400, caption: "", alignment: "CENTER"
+    });
+    content.push({
+      type: "image",
+      src: "/assets/img/memoria_decriptiva/consideraciones/imagen2.png",
+      width: 550, height: 400, caption: "", alignment: "CENTER"
+    });
+    content.push({
+      type: "image",
+      src: "/assets/img/memoria_decriptiva/consideraciones/imagen3.png",
+      width: 550, height: 400, caption: "", alignment: "CENTER"
     });
 
-    // Recorrer los 16 módulos
+    // ========== GENERAR LOS 16 MÓDULOS ==========
     for (let i = 1; i <= 16; i++) {
-      const modulo = consideracionesData[i];
+      const geotecnia = consideracionesData[i]?.geotecnia || null;
+      const num = `2.${i}`;
+      const romano = romanos[i - 1];
 
-      // 🔥 Si no hay datos para este módulo, saltar (sin fallbacks)
-      if (!modulo) continue;
+      // ── Título del módulo ──────────────────────────────────────────
+      content.push({
+        type: "heading", level: 2,
+        text: `${num}. ${nombreModulos[i - 1]}`
+      });
 
-      content.push({ type: "heading", level: 2, text: `MÓDULO ${String(i).padStart(2, '0')}` });
+      // ── 2.X.1. CONDICIONES GEOTÉCNICAS ────────────────────────────
+      content.push({
+        type: "heading", level: 3,
+        text: `${num}.1. CONDICIONES GEOTÉCNICAS`
+      });
 
-      // Condiciones Geotécnicas
-      if (modulo.geotecnia) {
-        content.push({ type: "heading", level: 3, text: "CONDICIONES GEOTÉCNICAS" });
+      if (geotecnia) {
         content.push({
           type: "table",
           widthPercent: 80,
-          columns: [{ header: "Parámetro", width: 40 }, { header: "Valor", width: 60 }],
+          columns: [
+            { header: "Parámetro", width: 45 },
+            { header: "", width: 5 },
+            { header: "Valor", width: 50 }
+          ],
           rows: [
-            ["Perfil del suelo", modulo.geotecnia.perfilSuelo || ""],
-            ["Capacidad Portante", modulo.geotecnia.capacidadPortante ? `${modulo.geotecnia.capacidadPortante} kg/cm²` : ""],
-            ["Profundidad de cimentación", modulo.geotecnia.profundidad ? `${modulo.geotecnia.profundidad} m` : ""],
-            ["Agresividad de sulfatos", modulo.geotecnia.agresividadSulfatos || ""],
-            ["Prof. N.F.", modulo.geotecnia.profNF || ""]
+            ["Perfil del suelo", ":", geotecnia.perfilSuelo || ""],
+            ["Capacidad Portante", ":", `${geotecnia.capacidadPortante || ""} kg/cm²`],
+            ["Profundidad de cimentación", ":", `${geotecnia.profundidad || ""} m`],
+            ["Agresividad de sulfatos", ":", geotecnia.agresividadSulfatos || ""],
+            ["Prof. N.F.", ":", geotecnia.profNF || ""]
           ]
         });
       }
 
-      // Parámetros Sísmicos
-      if (modulo.sismico) {
-        content.push({ type: "heading", level: 3, text: "CONDICIONES SÍSMICAS - PARÁMETROS SISMORESISTENTES" });
+      // ── 2.X.2. CONDICIONES SÍSMICAS ───────────────────────────────
+      content.push({
+        type: "heading", level: 3,
+        text: `${num}.2. CONDICIONES SÍSMICAS - PARÁMETROS SISMORESISTENTES`
+      });
+      content.push({
+        type: "paragraph",
+        text: "Los parámetros sísmicos considerados para el análisis de la estructura en estudio fueron los siguientes:",
+        alignment: "JUSTIFIED"
+      });
+
+      const imagenesSismicas = ["imagen4.png", "imagen5.png", "imagen6.png", "imagen7.png"];
+      for (const img of imagenesSismicas) {
         content.push({
-          type: "table",
-          widthPercent: 80,
-          columns: [{ header: "Parámetro", width: 40 }, { header: "Valor", width: 60 }],
-          rows: [
-            ["Zona sísmica", modulo.sismico.zona || ""],
-            ["Factor Z", modulo.sismico.factorZ || ""],
-            ["Perfil de suelo", modulo.sismico.perfilSuelo || ""],
-            ["Factor S", modulo.sismico.factorS || ""],
-            ["Tp (s)", modulo.sismico.tp || ""],
-            ["Tl (s)", modulo.sismico.tl || ""],
-            ["Categoría", modulo.sismico.categoria || ""],
-            ["Factor U", modulo.sismico.factorU || ""],
-            ["Coeficiente de reducción (R)", modulo.sismico.coeficienteR || ""]
-          ]
+          type: "image",
+          src: `/assets/img/memoria_decriptiva/consideraciones/${img}`,
+          width: 500, height: 400, caption: "", alignment: "CENTER"
         });
       }
 
-      // Sobrecargas
-      if (modulo.sobrecargas) {
-        content.push({ type: "heading", level: 3, text: "SOBRECARGAS EMPLEADAS" });
-        const sobrecargasList = modulo.sobrecargas.split('\n').filter(s => s.trim());
-        if (sobrecargasList.length > 0) {
-          content.push({ type: "list", listType: "bullet", items: sobrecargasList });
-        }
+      // ── 2.X.3. MÉTODO DE DISEÑO ───────────────────────────────────
+      content.push({
+        type: "heading", level: 3,
+        text: `${num}.3. MÉTODO DE DISEÑO`
+      });
+
+      // 2.X.3.1. RECUBRIMIENTOS
+      content.push({
+        type: "heading", level: 4,
+        text: `${num}.3.1. RECUBRIMIENTOS DE ELEMENTOS`
+      });
+      content.push({
+        type: "paragraph",
+        text: "Según el RNE 0.60 Concreto Armado, indica los recubrimientos mínimos en el Inciso 7.7:",
+        alignment: "JUSTIFIED"
+      });
+      content.push({
+        type: "paragraph",
+        text: "Debe proporcionarse el siguiente recubrimiento mínimo de concreto al refuerzo, excepto cuando se requieran recubrimientos mayores según 7.7.5.1 ó se requiera protección especial contra el fuego:",
+        alignment: "JUSTIFIED"
+      });
+      if (recubrimientos.length > 0) {
+        content.push({ type: "list", listType: "bullet", items: recubrimientos });
       }
 
-      // Método de diseño
-      content.push({ type: "heading", level: 3, text: "MÉTODO DE DISEÑO" });
-
-      if (modulo.recubrimientos) {
-        content.push({ type: "heading", level: 4, text: "RECUBRIMIENTOS DE ELEMENTOS" });
-        const recubrimientosList = modulo.recubrimientos.split('\n').filter(r => r.trim());
-        if (recubrimientosList.length > 0) {
-          content.push({ type: "list", listType: "bullet", items: recubrimientosList });
-        }
+      // 2.X.3.2. MATERIALES
+      content.push({
+        type: "heading", level: 4,
+        text: `${num}.3.2. MATERIALES DE DISEÑO`
+      });
+      content.push({
+        type: "paragraph",
+        text: "Se consideró las siguientes características de los materiales que conforman esta estructura.",
+        alignment: "JUSTIFIED"
+      });
+      if (materiales.length > 0) {
+        content.push({ type: "list", listType: "bullet", items: materiales });
       }
 
-      if (modulo.materiales) {
-        content.push({ type: "heading", level: 4, text: "MATERIALES DE DISEÑO" });
-        const materialesList = modulo.materiales.split('\n').filter(m => m.trim());
-        if (materialesList.length > 0) {
-          content.push({ type: "list", listType: "bullet", items: materialesList });
-        }
+      // 2.X.3.3. SOBRECARGAS
+      content.push({
+        type: "heading", level: 4,
+        text: `${num}.3.3. SOBRECARGAS EMPLEADAS`
+      });
+      content.push({
+        type: "paragraph",
+        text: "La estimación de cargas verticales se evaluará conforme a la norma de Cargas, E-020 que forma parte del Reglamento Nacional de Edificaciones.",
+        alignment: "JUSTIFIED"
+      });
+      content.push({
+        type: "paragraph",
+        text: "Para el metrado de cargas en el diseño se utilizará las siguientes cargas:",
+        alignment: "JUSTIFIED"
+      });
+
+      if (sobrecargasMuertas.length > 0) {
+        content.push({ type: "paragraph", text: "Cargas muertas", bold: true, alignment: "JUSTIFIED" });
+        content.push({ type: "list", listType: "bullet", items: sobrecargasMuertas });
       }
 
-      if (i < 16) content.push({ type: "pageBreak" });
+      if (sobrecargasVivas.length > 0) {
+        content.push({ type: "paragraph", text: "Cargas vivas", bold: true, alignment: "JUSTIFIED" });
+        content.push({ type: "list", listType: "bullet", items: sobrecargasVivas });
+      }
+
+      // Carga Sísmica — texto fijo igual en todos los módulos
+      content.push({ type: "paragraph", text: "Carga Sísmica", bold: true, alignment: "JUSTIFIED" });
+      content.push({
+        type: "paragraph",
+        text: "El análisis sísmico contempla un análisis estático y un análisis dinámico empleando un modelo pseudotridimensional, formado por pórticos planos más placas de concreto o muros de albañilería confinada, en ambas direcciones los cuales están unidos entre sí por medio de un diafragma plano en cada entrepiso para compatibilizar desplazamientos. Además, unido a estos diagramas de entrepiso se colocó la masa de cada nivel con tres coordenadas dinámicas por nivel. Para el modelo de los pórticos planos se tomó en cuenta las deformaciones por flexión, fuerza cortante y carga axial.",
+        alignment: "JUSTIFIED"
+      });
+      content.push({
+        type: "paragraph",
+        text: "Para el análisis dinámico se realizó el método de superposición espectral, considerando como criterio de superposición la combinación cuadrática completa (C.Q.C.) de los modos necesarios.",
+        alignment: "JUSTIFIED"
+      });
+      content.push({
+        type: "paragraph",
+        text: "El valor de las fuerzas sísmicas que actúan sobre las estructuras se calculó considerando los siguientes parámetros:",
+        alignment: "JUSTIFIED"
+      });
+      content.push({
+        type: "paragraph",
+        text: "Factor de uso, U: La norma E-030 considera a este tipo de edificación como \"Edificaciones esencial\", correspondiéndole un factor de uso U = 1.5.",
+        alignment: "JUSTIFIED"
+      });
+      content.push({
+        type: "paragraph",
+        text: "Coeficiente de reducción sísmica, R: En la dirección XX las estructuras estarán configuradas en base a columnas y muros estructurales, entonces le corresponde un factor de reducción de R = 6; y en la dirección YY las estructuras estarán configuradas en base a albañilería confinada, entonces le corresponde un factor de reducción de R = 3.",
+        alignment: "JUSTIFIED"
+      });
+
+      // 2.X.3.4. MÉTODO DE DISEÑO — concreto armado
+      content.push({
+        type: "heading", level: 4,
+        text: `${num}.3.4. MÉTODO DE DISEÑO`
+      });
+      content.push({
+        type: "paragraph",
+        text: "En el análisis por cargas verticales todos los elementos son capaces de resistir las cargas que se generan como consecuencia del uso requerido. Las cargas no exceden los esfuerzos según la norma de diseño correspondiente.",
+        alignment: "JUSTIFIED"
+      });
+      content.push({
+        type: "paragraph",
+        text: "Las vigas, así como las columnas y placas, han sido diseñadas para soportar las cargas de gravedad transmitidas por las losas de techo, así como las cargas sísmicas que eventualmente se les impongan.",
+        alignment: "JUSTIFIED"
+      });
+      content.push({ type: "paragraph", text: "CONCRETO ARMADO", bold: true, alignment: "JUSTIFIED" });
+      content.push({
+        type: "paragraph",
+        text: "Para el diseño de estructuras de concreto armado (COLUMNAS, VIGAS, ZAPATAS, VIGAS DE CIMENTACION, PLACAS, ETC.) se utilizará el Diseño por Resistencia.",
+        alignment: "JUSTIFIED"
+      });
+      content.push({
+        type: "paragraph",
+        text: "Deberá proporcionarse a todas las secciones de los elementos estructurales Resistencias de diseño (ΦRn) adecuadas, de acuerdo con las disposiciones de la Norma E.060, utilizando los factores de carga (amplificación) y los factores de reducción de resistencia, Φ, especificados en el Capítulo 9 de la RNE E.060.",
+        alignment: "JUSTIFIED"
+      });
+      content.push({ type: "paragraph", text: "Combinaciones de carga:", alignment: "JUSTIFIED" });
+      content.push({
+        type: "list", listType: "bullet",
+        items: [
+          "C1: 1.4D + 1.7L",
+          "C2: 1.25(D + L) + SX",
+          "C3: 1.25(D + L) – SX",
+          "C4: 1.25(D + L) + SY",
+          "C5: 1.25(D + L) – SY",
+          "C6: 0.9D + SX",
+          "C7: 0.9D – SX",
+          "C8: 0.9D + SY",
+          "C9: 0.9D – SY"
+        ]
+      });
+      content.push({ type: "paragraph", text: "Desplazamientos máximos permitidos:", bold: true, alignment: "JUSTIFIED" });
+      content.push({
+        type: "image",
+        src: "/assets/img/memoria_decriptiva/consideraciones/UltimaTabla.png",
+        width: 500,
+        height: 300,
+        caption: "",
+        alignment: "CENTER"
+      });
+
+      // Salto de página entre módulos (excepto el último)
+      if (i < 16) {
+        content.push({ type: "pageBreak" });
+      }
     }
 
     consideraciones.content = content;
