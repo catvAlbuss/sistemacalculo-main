@@ -39,7 +39,7 @@ Route::get('/api/opensees/status', function () {
 Route::post('/api/opensees/analyze', [OpenSeesController::class, 'analyze']);
 
 //=======================Landing=========================================//
-Route::view('/servicios/diseño_estructural', 'landing.structural_design')->name('landing.services.structural_design');
+Route::view('/servicios/diseno_estructural', 'landing.structural_design')->name('landing.services.structural_design');
 Route::view('/servicios/software_estructural', 'landing.structural_software')->name('landing.services.structural_software');
 Route::view('/servicios/planos_estructurales', 'landing.structural_blueprint')->name('landing.services.structural_blueprint');
 Route::view('/servicios/metrados', 'landing.metrados')->name('landing.services.metrados');
@@ -137,7 +137,7 @@ Route::middleware(["auth", "verified"])->group(function () {
                 // Muros
                 Route::view('/muros-de-contencionv2', 'muros-contencion.index')->name('muros-de-contencionv2');
                 Route::view('/muros-de-contencion', 'hcalculo.admMurosContencion')->name('muros-de-contencion');
-                Route::view('/muros-de-albañieria', 'hcalculo.admMurosAlbanieria')->name('muros-de-albañieria');
+                Route::view('/muros-de-albanieria', 'hcalculo.admMurosAlbanieria')->name('muros-de-albanieria');
 
                 // Cimiento
                 Route::view('/cimiento-corrido', 'hcalculo.admCimientoCorrido')->name('cimiento-corrido');
@@ -223,6 +223,7 @@ Route::middleware(["auth", "verified"])->group(function () {
     Route::post('/suelos', [OctavePlotController::class, 'calcularSuelos'])->name('suelos');
     //===================OCTAVE===============================================//
     Route::post('/calcularFuerzasArmaduras', [OctavePlotController::class, 'calcularFuerzasArmaduras'])->name('calcularFuerzasArmaduras');
+    Route::post('/calcularFuerzasArmaduras3d', [OctavePlotController::class, 'calcularFuerzasArmaduras3d'])->name('calcularFuerzasArmaduras3d');
     Route::post('/fuerzasCortantes', [OctavePlotController::class, 'graficarFC'])->name('fuerzasCortantes');
     Route::post('/aligerados', [OctavePlotController::class, 'graficarAligerados'])->name('aligerados');
     Route::post('/zapatas', [OctavePlotController::class, 'graficarZapatas'])->name('zapatas');

@@ -16,12 +16,7 @@ import {
 
 // Importar transformador de documentos
 import { DocumentTransformer } from "./processors/documentTransformer.js";
-import { error } from "jquery";
 
-// Inicializar store globalmente si no existe
-if (typeof Alpine !== 'undefined' && !Alpine.store('memoriaCalculo')) {
-    Alpine.store('memoriaCalculo', createMemoriaCalculoStore());
-}
 
 /**
  * Componente principal Alpine.js para Memoria de Cálculo
@@ -331,7 +326,21 @@ function memoriaCalculo() {
     };
 }
 
-// Exportar función principal y componentes al ámbito global
+// Registrar con Alpine (store + componente)
+const registerWithAlpine = () => {
+    if (!Alpine.store('memoriaCalculo')) {
+        Alpine.store('memoriaCalculo', createMemoriaCalculoStore());
+    }
+    Alpine.data('memoriaCalculo', memoriaCalculo);
+};
+
+if (typeof Alpine !== 'undefined' && Alpine.store) {
+    registerWithAlpine();
+} else {
+    document.addEventListener('alpine:init', registerWithAlpine);
+}
+
+// Mantener exports globales para compatibilidad con otros módulos
 window.memoriaCalculo = memoriaCalculo;
 window.createGeneralidadesComponent = createGeneralidadesComponent;
 window.createAnalisisCargasComponent = createAnalisisCargasComponent;

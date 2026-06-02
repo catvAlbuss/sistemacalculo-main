@@ -1230,7 +1230,7 @@
     @pushOnce('initscripts')
         <script src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-        @vite('resources/js/memoria_calculo/index.js')
+        @vite('resources/js/documentos/memoria_calculo/index-refactored.js')
     @endPushOnce
 
 </x-calc-layout>
