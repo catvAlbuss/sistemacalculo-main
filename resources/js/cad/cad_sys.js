@@ -13850,7 +13850,7 @@ export default () => ({
       },
     });
 
-    fetch("/calcularFuerzasArmaduras3d", {
+    fetch("/calcularFuerzasArmaduras", {
       method: "POST",
       body: formData,
     })
