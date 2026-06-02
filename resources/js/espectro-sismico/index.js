@@ -1,4 +1,6 @@
 import UBIGEO_DATA from "../../data/ubigeo.js";
+import { exportTXT, filterByStep } from "./exporttxt.js";
+import { exportXLSX } from "./exportadoxlsx.js";
 
 const versions = ["1977", "1997", "2003", "2016", "2018", "2026"];
 let normaVersion = "2026";
@@ -421,44 +423,14 @@ function renderParams(data) {
     `;
 }
 
-function filterByStep(data, paso) {
-    return data.filter((item) => {
-        const multiple = Math.round(item.T / paso);
-        return Math.abs(item.T - multiple * paso) < 1e-9;
-    });
-}
-
-function exportTXT() {
-    if (!datosEspectro.length) return;
+function handleExportTXT() {
     const paso = Number($("paso").value);
-    const rows = filterByStep(datosEspectro, paso).map((item) => `${item.T.toFixed(3)} ${item.Sa.toFixed(4)}`);
-    downloadBlob("Espectro 1.txt", rows.join("\r\n"), "text/plain;charset=utf-8");
+    exportTXT(datosEspectro, paso);
 }
 
-function exportExcel() {
-    if (!datosEspectro.length) return;
+function handleExportXLSX() {
     const paso = Number($("paso").value);
-    const rows = filterByStep(datosEspectro, paso).map((item) => `
-        <tr>
-            <td>${item.T.toFixed(3)}</td>
-            <td>${item.Sa.toFixed(5)}</td>
-            <td>${item.C.toFixed(4)}</td>
-            <td>${item.SaMS2.toFixed(4)}</td>
-        </tr>
-    `).join("");
-    const html = `<!doctype html><html><head><meta charset="utf-8"></head><body><table><thead><tr><th>T (s)</th><th>Sa (g)</th><th>C</th><th>Sa (m/s2)</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
-    downloadBlob(`Espectro_E030-${normaVersion}.xls`, html, "application/vnd.ms-excel;charset=utf-8");
-}
-
-function downloadBlob(filename, content, type) {
-    const blob = new Blob([content], { type });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(link.href);
+    exportXLSX(datosEspectro, paso, normaVersion);
 }
 
 function init() {
@@ -469,8 +441,8 @@ function init() {
     setVersion("2026");
     versions.forEach((version) => $("btn" + version).addEventListener("click", () => setVersion(version)));
     $("bot_accion").addEventListener("click", calcular);
-    $("btn-exportTXT").addEventListener("click", exportTXT);
-    $("btn-exportXLSX").addEventListener("click", exportExcel);
+    $("btn-exportTXT").addEventListener("click", handleExportTXT);
+    $("btn-exportXLSX").addEventListener("click", handleExportXLSX);
     window.addEventListener("resize", () => {
         if (datosEspectro.length) renderChart(datosEspectro);
     });

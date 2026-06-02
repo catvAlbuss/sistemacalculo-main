@@ -16,7 +16,7 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-body {
+.espectro-page {
   position: relative;
   background: var(--bg);
   color: var(--text);
@@ -30,7 +30,7 @@ body {
 }
 
 /* ─── HEADER ─── */
-header {
+.espectro-page .espectro-header {
   border-bottom: 1px solid var(--border);
   padding: 1.2rem 2rem;
   display: flex;
@@ -40,7 +40,7 @@ header {
   backdrop-filter: blur(10px);
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 5;
 }
 .logo-box {
   background: var(--accent);
@@ -52,14 +52,14 @@ header {
   letter-spacing: 2px;
   clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
 }
-header h1 {
+.espectro-page .espectro-header h1 {
   font-size: 1.4rem;
   font-weight: 600;
   letter-spacing: 3px;
   text-transform: uppercase;
   color: #fff;
 }
-header span {
+.espectro-page .espectro-header span {
   font-family: 'Share Tech Mono', monospace;
   font-size: 0.75rem;
   color: var(--muted);
