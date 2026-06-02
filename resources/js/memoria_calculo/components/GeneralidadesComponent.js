@@ -120,6 +120,7 @@ export function createGeneralidadesComponent() {
      */
     get structuralDetails() {
       const details = this.$store?.memoriaCalculo?.sections?.generalidades?.structuralDetails;
+      // Fallback para evitar errores si no existe la sección o detalles estructurales
       if (!details) {
         console.warn("⚠️ structuralDetails no encontrado en el store, usando fallback");
         return {

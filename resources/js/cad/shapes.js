@@ -204,28 +204,51 @@ export class Marker {
 }
 
 export class Node {
-  constructor(position, id) {
-    this.position = position;
+  constructor(position, id, z = 0) {
+    // ← AÑADE z = 0 como tercer parámetro
+    this.position = {
+      x: position.x,
+      y: position.y,
+      z: z, // ← AHORA z está definido
+    };
+    // this.position = {
+    //   x: Number(position.x || 0),
+    //   y: Number(position.y || 0),
+    //   z: Number(z || 0),
+    // };
+
     this.force = {
       loads: {
-        CM: { x: 0, y: 0, multiplier: 1 },
-        CV: { x: 0, y: 0, multiplier: 1 },
-        CVVM: { x: 0, y: 0, multiplier: 1 },
-        CVVP: { x: 0, y: 0, multiplier: 1 },
-        CN: { x: 0, y: 0, multiplier: 1 },
-        CLL: { x: 0, y: 0, multiplier: 1 },
+        CM: { x: 0, y: 0, z: 0, multiplier: 1 },
+        CV: { x: 0, y: 0, z: 0, multiplier: 1 },
+        CVVM: { x: 0, y: 0, z: 0, multiplier: 1 },
+        CVVP: { x: 0, y: 0, z: 0, multiplier: 1 },
+        CN: { x: 0, y: 0, z: 0, multiplier: 1 },
+        CLL: { x: 0, y: 0, z: 0, multiplier: 1 },
       },
     };
-    this.reaction = { x: 0, y: 0 };
+
+    this.reaction = { x: 0, y: 0, z: 0 };
+
     this.id = id;
     this.beams = [];
+
+    this.visible = true;
+    this.selected = false;
+    this.isSelected = false;
+
     this.style = new NodeStyle();
     this.soporte = "";
   }
 
+  // Añadir método para cambiar altura
+  setElevation(z) {
+    this.position.z = z;
+  }
+
   tieneCarga() {
-    return Object.entries(this.force.loads).some(([_, { x, y }]) => {
-      return x != 0 || y != 0;
+    return Object.entries(this.force.loads).some(([_, { x, y, z }]) => {
+      return x != 0 || y != 0 || z != 0;
     });
   }
 
@@ -241,6 +264,13 @@ export class Node {
     }, 0);
   }
 
+  // Agrega la carga Z
+  cargaZ() {
+    return Object.entries(this.force.loads).reduce((sum, [_, { z, multiplier }]) => {
+      return sum + (z || 0) * (multiplier || 1);
+    }, 0);
+  }
+
   draw(renderer, context) {
     renderer.drawNode(this, context);
   }
@@ -248,12 +278,25 @@ export class Node {
 
 export class Beam {
   constructor(E, A) {
+    this.id = null;
+
     this.node1 = null;
     this.node2 = null;
+
     this.E = E;
     this._A = A;
+
     this.angle = 0;
     this.fAxial = 0;
+
+    this.elementType = "beam";
+    this.type = "beam";
+    this.objectType = "frame";
+
+    this.visible = true;
+    this.selected = false;
+    this.isSelected = false;
+
     this.style = new BeamStyle();
   }
 
@@ -262,7 +305,7 @@ export class Beam {
   }
 
   get A() {
-    return sections[this._A];
+    return sections?.[this._A] ?? this._A;
   }
 
   addNode(node) {
@@ -285,6 +328,37 @@ export class Beam {
 
   draw(renderer, context) {
     renderer.drawBeam(this, context);
+  }
+}
+
+export class Area extends Shape {
+  constructor(areaType = "slab", z = 0) {
+    super();
+    this.areaType = areaType; // slab | wall | opening
+    this.z = z;
+    this.id = null;
+    this.visible = true;
+    this.selected = false;
+    this.isSelected = false;
+    this.visible = true;
+  }
+
+  addPoint(point) {
+    this.points.push({
+      x: point.x,
+      y: point.y,
+      z: point.z ?? this.z,
+      visible: true,
+      color: null,
+    });
+  }
+
+  isClosed() {
+    return this.points.length >= 3;
+  }
+
+  draw(renderer, context) {
+    renderer.drawArea(this, context);
   }
 }
 
