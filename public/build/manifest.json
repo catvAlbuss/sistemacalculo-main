@@ -384,7 +384,7 @@
     "src": "node_modules/jquery-ui/themes/base/images/ui-icons_ffffff_256x240.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-DiukyRI1.css",
+    "file": "assets/app-Dib0P3iW.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
@@ -987,7 +987,7 @@
       "resources/js/muros-contencion/predimensionamiento.js"
     ]
   },
-  "resources/js/espectro-sismico/index.js": {
+"resources/js/espectro-sismico/index.js": {
     "file": "assets/index-D4UfNd1v.js",
     "name": "index",
     "src": "resources/js/espectro-sismico/index.js",
@@ -1007,6 +1007,21 @@
       "assets/main-Cc1HGVGa.css"
     ]
   },
+  "resources/js/documentos/memoria_descriptiva/index.js": {
+    "file": "assets/index-C2ax4Of9.js",
+    "name": "index",
+    "src": "resources/js/documentos/memoria_descriptiva/index.js",
+    "isEntry": true,
+    "imports": [
+      "__commonjsHelpers-_d1bhYXs.js"
+    ]
+  },
+  "resources/js/documentos/memoria_descriptiva/memoria_descriptiva_export.js": {
+    "file": "assets/memoria_descriptiva_export-DkFXs3aw.js",
+    "name": "memoria_descriptiva_export",
+    "src": "resources/js/documentos/memoria_descriptiva/memoria_descriptiva_export.js",
+    "isEntry": true
+  },
   "resources/js/irregularidades.js": {
     "file": "assets/irregularidades-MMK61WBG.js",
     "name": "irregularidades",
@@ -1025,17 +1040,17 @@
       "_jquery-CyiP2wLU.js",
       "__commonjsHelpers-_d1bhYXs.js"
     ]
-  },
-  "resources/js/memoria_calculo/content-processor-mc.js": {
+},
+  "resources/js/documentos/memoria_calculo/content-processor-mc.js": {
     "file": "assets/content-processor-mc-l0sNRNKZ.js",
     "name": "content-processor-mc",
-    "src": "resources/js/memoria_calculo/content-processor-mc.js",
+    "src": "resources/js/documentos/memoria_calculo/content-processor-mc.js",
     "isEntry": true
   },
-  "resources/js/memoria_calculo/content-structure-mc.js": {
+  "resources/js/documentos/memoria_calculo/content-structure-mc.js": {
     "file": "assets/content-structure-mc-D8SX6QyO.js",
     "name": "content-structure-mc",
-    "src": "resources/js/memoria_calculo/content-structure-mc.js",
+    "src": "resources/js/documentos/memoria_calculo/content-structure-mc.js",
     "isEntry": true,
     "imports": [
       "_jquery-CyiP2wLU.js",
@@ -1043,14 +1058,14 @@
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
-  "resources/js/memoria_calculo/index-refactored.js": {
+  "resources/js/documentos/memoria_calculo/index-refactored.js": {
     "file": "assets/index-refactored-BqBG2Kxr.js",
     "name": "index-refactored",
-    "src": "resources/js/memoria_calculo/index-refactored.js",
+    "src": "resources/js/documentos/memoria_calculo/index-refactored.js",
     "isEntry": true,
     "imports": [
       "_jquery-CyiP2wLU.js",
-      "resources/js/memoria_calculo/content-structure-mc.js",
+      "resources/js/documentos/memoria_calculo/content-structure-mc.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]

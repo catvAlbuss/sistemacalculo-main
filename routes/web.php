@@ -118,9 +118,10 @@ Route::middleware(["auth", "verified"])->group(function () {
         //==================CALCULADORA ASISTENTE (Root, Gerencia, Asistente)//
         Route::middleware(['role:root|gerencia|asistente'])->group(function () {
             Route::prefix('asistente')->name('asistente.')->group(function () {
+                
+// Agrega la ruta de admMemoriaCalculo memoria-calculo
+        Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name('memoria-calculo');
 
-                // Agrega la ruta de admMemoriaCalculo memoria-calculo
-                Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name('memoria-calculo');
 
                 // Vigas
                 Route::view('/vigas', 'hcalculo.admdesingvigas')->name('vigas');
@@ -228,6 +229,36 @@ Route::middleware(["auth", "verified"])->group(function () {
 });
 
 require __DIR__ . '/auth.php';
+
+// =============================================
+// RUTAS MEMORIA DESCRIPTIVA - VERSIÓN SIMPLE
+// =============================================
+
+// Ruta principal del menú
+Route::get('/calculadora/asistente/memoria-descriptiva', function () {
+    return redirect()->to('/calculadora/asistente/memoria-descriptiva/portada');
+})->name('calculadora.asistente.memoria-descriptiva');
+
+// Rutas directas SIN grupos anidados
+Route::get('/calculadora/asistente/memoria-descriptiva/portada', function () {
+    return view('hcalculo.memoria_descriptiva.sections.portada');
+})->name('calculadora.asistente.memoria-descriptiva.portada');
+
+Route::get('/calculadora/asistente/memoria-descriptiva/generalidades', function () {
+    return view('hcalculo.memoria_descriptiva.sections.generalidades-md');
+})->name('calculadora.asistente.memoria-descriptiva.generalidades');
+
+Route::get('/calculadora/asistente/memoria-descriptiva/consideraciones', function () {
+    return view('hcalculo.memoria_descriptiva.sections.consideraciones');
+})->name('calculadora.asistente.memoria-descriptiva.consideraciones');
+
+Route::get('/calculadora/asistente/memoria-descriptiva/predimensionamiento', function () {
+    return view('hcalculo.memoria_descriptiva.sections.predimensionamiento');
+})->name('calculadora.asistente.memoria-descriptiva.predimensionamiento');
+
+Route::get('/calculadora/asistente/memoria-descriptiva/demolicion', function () {
+    return view('hcalculo.memoria_descriptiva.sections.demolicion');
+})->name('calculadora.asistente.memoria-descriptiva.demolicion');
 Route::prefix('storage')->group(function () {
     // Imágenes de perfil
     Route::get('/profile/{filename}', function ($filename) {
@@ -251,19 +282,3 @@ Route::prefix('storage')->group(function () {
         ]);
     })->name('get.firma');
 });
-
-// =================== RUTAS PARA OPENSEES =================== //
-// Route::middleware(["auth", "verified"])->group(function () {
-//     Route::post('/api/opensees/analyze', [OpenSeesController::class, 'analyze'])
-//         ->name('opensees.analyze');
-    
-//     // Ruta para verificar estado del servicio Python
-//     Route::get('/api/opensees/status', function () {
-//         try {
-//             $response = Http::timeout(2)->get('http://localhost:5001/health');
-//             return response()->json(['status' => 'online', 'version' => 'OpenSeesPy']);
-//         } catch (\Exception $e) {
-//             return response()->json(['status' => 'offline', 'fallback' => 'Octave']);
-//         }
-//     })->name('opensees.status');
-// });

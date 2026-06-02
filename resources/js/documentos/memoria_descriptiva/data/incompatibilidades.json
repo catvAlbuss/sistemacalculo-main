@@ -1,0 +1,158 @@
+[
+    {
+        "num": "1",
+        "descripcion": "No pueden ubicarse a una distancia menor de 150 m en línea recta de velatorios y/o cementerios.",
+        "dispositivoLegal": "DS Nº 003-94-SA\nReglamento de la Ley de Cementerios y Servicios Funerarios",
+        "compatibilizacion": "Compatible: La IE se encuentra a 771m del cementerio"
+    },
+    {
+        "num": "2",
+        "descripcion": "No pueden ubicarse a una distancia menor de 1,000 m de rellenos sanitarios y rellenos de seguridad.",
+        "dispositivoLegal": "DS Nº 057-2004-PCM\nReglamento de la Ley N° 27314, Ley General de Residuos Sólidos",
+        "compatibilizacion": "Compatible: No existe rellenos de ese tipo a 3000 metros"
+    },
+    {
+        "num": "3",
+        "descripcion": "Se prohíbe la construcción de los locales educativos en áreas que fueron utilizadas como infraestructura de disposición final de residuos sólidos.",
+        "dispositivoLegal": "DS Nº 057-2004-PCM\nReglamento de la Ley Nº 27314, Ley General de Residuos Sólidos",
+        "compatibilizacion": "Compatible"
+    },
+    {
+        "num": "4",
+        "descripcion": "No pueden ubicarse a una distancia menor de 100 m de cualquier Establecimiento de Salud.",
+        "dispositivoLegal": "RM N° 045-2015/MINSA\nNorma Técnica de Salud N° 113-MINSA/DGIEM-V.01\nRM N° 862-2015/MINSA\nNorma Técnica de Salud N° 119-MINSA/DGIEM-V.01",
+        "compatibilizacion": "Compatible: La IE se encuentra a 758m del establecimiento de salud"
+    },
+    {
+        "num": "5",
+        "descripcion": "No pueden ubicarse a una distancia menor de 100 m de Plantas Envasadoras de gas licuado de petróleo.",
+        "dispositivoLegal": "DS Nº 027-94-EM\nReglamento de seguridad para instalaciones y transporte de GLP",
+        "compatibilizacion": "Compatible"
+    },
+    {
+        "num": "6",
+        "descripcion": "No pueden ubicarse a una distancia menor de 50 m de estaciones de servicio y puestos de venta de combustibles (Grifos), Gas centros y establecimientos de venta al público de GNV, desde el límite de propiedad de la IE. Solamente para el caso de establecimientos de venta al público de GNV, la distancia se medirá desde los puntos de emanación de gases.",
+        "dispositivoLegal": "DS N° 054-93-EM (modificado por el DS N° 037-2007-EM)\nReglamento de Seguridad para Establecimientos de Venta al Público de Combustibles Derivados de Hidrocarburos.",
+        "compatibilizacion": "Compatible"
+    },
+    {
+        "num": "7",
+        "descripcion": "No pueden ubicarse a una distancia menor 100 m de locales de comercialización y consumo de bebidas alcohólicas al público.",
+        "dispositivoLegal": "Ley Nº 28681\nDS N° 012-2009-SA\nReglamento de la Ley Nº 28681",
+        "compatibilizacion": "Compatible: La IE se encuentra a 150 m de local de comercialización"
+    },
+    {
+        "num": "8",
+        "descripcion": "No pueden ubicarse a una distancia menor de 513 m de Polvorines",
+        "dispositivoLegal": "DS N° 19-1971-IN\nReglamento de Control de Explosivos de Uso Civil",
+        "compatibilizacion": "Compatible"
+    },
+    {
+        "num": "9",
+        "descripcion": "No pueden ubicarse a una distancia menor de 23 m (deflagrantes) y 62.40 m (detonantes) de plantas y almacenamiento de talleres y fábricas de pirotécnicos deflagrantes y detonantes.",
+        "dispositivoLegal": "DS N° 14-2002-IN\nReglamento de la Ley que regula la fabricación, importación, exportación, depósito, transporte, comercialización, uso y destrucción de productos pirotécnicos",
+        "compatibilizacion": "Compatible: No corresponde ya que la policía y ejército están a 900m y 1200m"
+    },
+    {
+        "num": "10",
+        "descripcion": "No pueden ubicarse a una distancia menor de 100 m de Plantas de Abastecimiento (incluye aquellas en aeropuertos y terminales)",
+        "dispositivoLegal": "DS Nº 045-2001-EM\nReglamento para la comercialización de combustibles líquidos y otros productos derivados de los hidrocarburos",
+        "compatibilizacion": "Compatible"
+    },
+    {
+        "num": "11",
+        "descripcion": "No deben ubicarse en la franja ribereña de 50 m contados a partir de la línea de más alta marea, la cual es considerada zona acuática. Se prohíbe la construcción de las IE en las fajas marginales de cursos de ríos.",
+        "dispositivoLegal": "DS Nº 28-2001-DE/MGP\nReglamento de la Ley de Control y Vigilancia de las Actividades Marítimas, Fluviales y Lacustres\nDS Nº 001-2010-AG\nReglamento de la Ley de Recursos Hídricos",
+        "compatibilizacion": "Compatible: La IE se encuentra mayor a 2km de la franja ribereña"
+    },
+    {
+        "num": "12",
+        "descripcion": "No pueden ubicarse a una distancia menor de 200 m a cada lado del eje de ductos de gas natural.",
+        "dispositivoLegal": "DS Nº 081-2007-EM (modificado por DS Nº 007-2012-EM)\nReglamento de Transporte de Hidrocarburos por Ductos",
+        "compatibilizacion": "Compatible: No existen ductos de gas en la ciudad"
+    },
+    {
+        "num": "13",
+        "descripcion": "Los pozos de hidrocarburos a perforar serán ubicados a no menos de 100 m de cualquier construcción o instalación. Se prohíbe la construcción de una IE a menos de 100 m de predios ubicados cerca de pozos en perforación.",
+        "dispositivoLegal": "DS Nº 032-2004-EM\nReglamento de las Actividades de Exploración y Explotación de Hidrocarburos",
+        "compatibilizacion": "Compatible: Existe un pozo a 5.5 km de distancia"
+    },
+    {
+        "num": "14",
+        "descripcion": "Se prohíbe la construcción de las IE en terrenos adyacentes y/o circundantes a los aeródromos.",
+        "dispositivoLegal": "DS Nº 050-2001-MTC\nReglamento de la Ley de Aeronáutica Civil",
+        "compatibilizacion": "Compatible"
+    },
+    {
+        "num": "15",
+        "descripcion": "No podrá establecerse la servidumbre de líneas aéreas de instalaciones eléctricas sobre las IE. En caso que las líneas aéreas de electricidad pasen por un terreno para la construcción de una edificación de uso educativo, se deberá solicitar su reubicación.",
+        "dispositivoLegal": "RM Nº 214-2011-MEM/DM\nCódigo Nacional de Electricidad (Suministro 2011)",
+        "compatibilizacion": "Compatible"
+    },
+    {
+        "num": "16",
+        "descripcion": "En zonas urbanas, la servidumbre de electroductos no podrá estar sobre las IE.",
+        "dispositivoLegal": "DL Nº 25884\nLey de Concesiones Eléctricas",
+        "compatibilizacion": "Compatible: No existe servidumbre alguna"
+    },
+    {
+        "num": "17",
+        "descripcion": "Se deberá considerar los valores de radiación establecidos por la Norma Técnica sobre Restricciones Radioeléctricas en Áreas de Uso Público cuando una IE se encuentre próximo a una estación radioeléctrica.",
+        "dispositivoLegal": "RM Nº 120-2005-MTC/03\nNorma Técnica sobre Restricciones Radioeléctricas en Áreas de Uso Público",
+        "compatibilizacion": "Compatible"
+    },
+    {
+        "num": "18",
+        "descripcion": "Las IE deberán estar lo más alejadas posible de las Plantas de Tratamiento de aguas residuales, recomendándose distancias mínimas: 500 m para tratamientos anaeróbicos; 200 m para lagunas facultativas; 100 m para sistemas con lagunas aireadas y 100 m para lodos activados y filtros percoladores.",
+        "dispositivoLegal": "Decreto Supremo N° 011-2006-VIVIENDA\nReglamento Nacional de Edificaciones Norma OS.090\nPlantas de tratamiento de aguas residuales",
+        "compatibilizacion": "Compatible: No existen plantas de tratamiento cercanas"
+    },
+    {
+        "num": "19",
+        "descripcion": "Se prohíbe construir una IE sobre la faja de terreno lateral y colindante a la faja de terreno de derecho de vía, ya que es propiedad restringida donde está prohibido ejecutar construcciones permanentes que puedan afectar a la seguridad vial.",
+        "dispositivoLegal": "DS Nº 034-2008-MTC\nReglamento Nacional de Gestión de Infraestructura Vial",
+        "compatibilizacion": "Compatible"
+    },
+    {
+        "num": "20",
+        "descripcion": "Se prohíbe construir una IE sobre el área de terreno que linda con la zona del ferrocarril, la cual comprende una franja de 100 m de ancho a cada lado.",
+        "dispositivoLegal": "DS Nº 032-2005-MTC\nReglamento Nacional de Ferrocarriles",
+        "compatibilizacion": "Compatible: No corresponde"
+    },
+    {
+        "num": "21",
+        "descripcion": "De los casinos y tragamonedas con el fin de preservar y proteger a la ciudadanía de los posibles perjuicios o daños que afectan la salud pública, considerando que los menores de edad están prohibidos de ingresar.",
+        "dispositivoLegal": "Ley Nº 27153\nLey que regula la explotación de los juegos de casino y máquinas tragamonedas",
+        "compatibilizacion": "Compatible: Se encuentran a los 900m del terreno"
+    },
+    {
+        "num": "22",
+        "descripcion": "Las IE deben considerar lo establecido por los gobiernos locales con respecto de la cercanía a hostales, bares, peñas, discotecas, video-pubs, bingos casinos, tragamonedas y salas de billar; no debiendo ubicarse a una distancia menor a los 150 m.",
+        "dispositivoLegal": "Gobiernos Locales",
+        "compatibilizacion": "Compatible: Están sobre los 210m del terreno"
+    },
+    {
+        "num": "23",
+        "descripcion": "Las IE no pueden ubicarse a una distancia menor de 1,000 m de plantas de transferencia y tratamiento de residuos sólidos.",
+        "dispositivoLegal": "Ley General de Residuos Sólidos - Reglamento",
+        "compatibilizacion": "Compatible: No existe planta de residuos sólidos"
+    },
+    {
+        "num": "24",
+        "descripcion": "No debe construirse una IE a menos de 100 m de un terreno que presente erosión hídrica y/o causada por los vientos.",
+        "dispositivoLegal": "Reglamento Nacional de Edificaciones - Norma de Suelos",
+        "compatibilizacion": "Compatible: No existe erosión en zonas cercanas"
+    },
+    {
+        "num": "25",
+        "descripcion": "Las IE deberán estar lo más alejadas posible de los cauces de ríos o en peligro de desbordamiento, no a menos de 500 m.",
+        "dispositivoLegal": "Ley de Recursos Hídricos\nReglamento de Seguridad de Presas",
+        "compatibilizacion": "Compatible: El terreno está en la parte alta, lejos del cauce de ríos"
+    },
+    {
+        "num": "26",
+        "descripcion": "No ubicar las IE en predios con las siguientes características: *Con presencia de filtración de agua o adyacentes a zonas pantanosas *En quebradas, cuencas, valles, conos aluviónicos *Ubicados sobre rellenos que contengan relaves *Ubicados en las laderas de un volcán *Cercanos a acantilados o rocas con peligro de desprendimiento.",
+        "dispositivoLegal": "Reglamento Nacional de Edificaciones - Norma de Suelos\nLey de Gestión de Riesgos de Desastres",
+        "compatibilizacion": "Compatible: No presenta ningún factor de riesgo indicado"
+    }
+]
