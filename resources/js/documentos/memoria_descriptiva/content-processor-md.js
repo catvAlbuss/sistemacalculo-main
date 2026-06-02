@@ -423,10 +423,20 @@ export class ContentProcessorMD {
         return await this.createTable(item);
       case "subsection":
         return await this.createSubsection(item);
+      case "pageBreak":
+        return this.createPageBreak();
       default:
         console.warn(`Unknown content type: ${item.type}`);
         return null;
     }
+  }
+
+  createPageBreak() {
+    const { Paragraph, PageBreak } = this.docx;
+
+    return new Paragraph({
+      children: [new PageBreak()],
+    });
   }
 
   createHeading(text, level, underline = false) {
@@ -609,14 +619,24 @@ export class ContentProcessorMD {
     if (src.startsWith("data:")) {
       return await this.dataUrlToArrayBuffer(src);
     }
+    const imageSrc = this.normalizeStaticImageSrc(src);
     try {
-      const response = await fetch(src);
-      if (!response.ok) throw new Error(`No se pudo cargar la imagen: ${src}`);
+      const response = await fetch(imageSrc);
+      if (!response.ok) throw new Error(`No se pudo cargar la imagen: ${imageSrc}`);
       return await response.arrayBuffer();
     } catch (error) {
       console.error("Error fetching static image:", error);
       return null;
     }
+  }
+
+  normalizeStaticImageSrc(src) {
+    if (!src || src.startsWith("http://") || src.startsWith("https://") || src.startsWith("blob:")) {
+      return src;
+    }
+
+    const normalized = src.replace(/^public\//, "");
+    return normalized.startsWith("/") ? normalized : `/${normalized}`;
   }
 
   async createTable(item) {

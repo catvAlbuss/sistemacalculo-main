@@ -741,7 +741,7 @@ export class DocumentTransformerMD {
         // IMAGEN 3
         marcoTeorico.content.push({
           type: "image",
-          src: "/assets/img/memoria_decriptiva/modulos/figura4DiagramaAcero.png",
+          src: "/assets/img/memoria_decriptiva/modulos/figura4DiagramaEsfuerzo.png",
           width: 450,
           height: 350,
           caption: "Figura 4. Diagrama esfuerzo – deformación del acero (fy).",
@@ -790,7 +790,7 @@ export class DocumentTransformerMD {
       // IMAGEN - Diagrama esfuerzo-deformación del acero
       marcoTeorico.content.push({
         type: "image",
-        src: "public/assets/img/memoria_decriptiva/modulos/figura4DiagramaEsfuerzo.png",
+        src: "/assets/img/memoria_decriptiva/modulos/figura4DiagramaEsfuerzo.png",
         width: 450,
         height: 350,
         caption: "Figura 4. Diagrama esfuerzo – deformación del acero (fy).",
@@ -849,7 +849,7 @@ export class DocumentTransformerMD {
       // IMAGEN después del texto
       marcoTeorico.content.push({
         type: "image",
-        src: "public/assets/img/memoria_decriptiva/modulos/figura28VentanaPresentacion.png",
+        src: "/assets/img/memoria_decriptiva/modulos/figura28VentanaPresentacion.png",
         width: 500,
         height: 350,
         caption: "Figura. Ventana de presentación del programa ETABS V16.",
@@ -1276,7 +1276,7 @@ export class DocumentTransformerMD {
       content.push({ type: "paragraph", text: "Desplazamientos máximos permitidos:", bold: true, alignment: "JUSTIFIED" });
       content.push({
         type: "image",
-        src: "/assets/img/memoria_decriptiva/consideraciones/UltimaTabla.png",
+        src: "/assets/img/memoria_decriptiva/consideraciones/ultimaTabla.png",
         width: 500,
         height: 300,
         caption: "",
