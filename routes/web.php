@@ -111,7 +111,8 @@ Route::middleware(["auth", "verified"])->group(function () {
                 Route::view('/aligerados', 'hcalculo.CAV2.admAligerados')->name("aligerados");
                 Route::view('/distribucion-del-acero', 'hcalculo.CAV2.admDistribucionDelAcero')->name("distribucion-del-acero");
                 Route::view('/vigas-continuas', 'hcalculo.CAV2.admVigasContinuas')->name("vigas-continuas");
-                Route::view('/hoja2', 'hcalculo.CAV2.admHoja2')->name("hoja2");
+                     Route::view('/hoja2', 'hcalculo.CAV2.admHoja2')->name("hoja2");
+                     Route::view('/viga-t', 'hcalculo.adm_vigas_T')->name("viga-t");
             });
         });
 
