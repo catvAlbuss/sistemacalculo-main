@@ -1434,7 +1434,7 @@ export default () => ({
             background2d: "#e5e7eb",
             gridLine: "#cbd5e1",
             gridMainLine: "#2563eb",
-            beam: "#374151",
+            beam: "#11c9cf",
             secondaryBeam: "#0284c7",
             column: "#16a34a",
             node: "#475569",
@@ -1769,11 +1769,11 @@ export default () => ({
     }
 
     // Depurar cada cambio de estado para entender mejor el flujo de herramientas.
-      // console.log("🔁 Cambio de estado:", {
-      //   fromState,
-      //   toState,
-      //   args,
-      // });
+    // console.log("🔁 Cambio de estado:", {
+    //   fromState,
+    //   toState,
+    //   args,
+    // });
 
     if (this.currentState?.exit) {
       this.currentState.exit();
@@ -1908,32 +1908,6 @@ export default () => ({
 
     this.showMessage?.(`Objetos deseleccionados: ${objects.length}`);
   },
-
-  // clearAllSelections() {
-  //   const objects = this.getSelectableObjects();
-
-  //   objects.forEach((obj) => {
-  //     this.setObjectSelected(obj, false);
-  //   });
-
-  //   // Limpiar también estados que guardan selección interna
-  //   if (this.selectedNodesState?.selectedObjects) {
-  //     this.selectedNodesState.selectedObjects = [];
-  //   }
-
-  //   if (this.selectedBeamsState?.selectedObjects) {
-  //     this.selectedBeamsState.selectedObjects = [];
-  //   }
-
-  //   if (this.selectedParametricState?.selectedObjects) {
-  //     this.selectedParametricState.selectedObjects = [];
-  //   }
-
-  //   this.redraw?.();
-  //   this.sync3D?.();
-
-  //   this.showMessage?.("Selección limpiada");
-  // },
 
   clearAllSelections() {
     const states = [
@@ -5486,6 +5460,10 @@ export default () => ({
           value="${this.displayOptions.deformedScale ?? 1}"
           style="width:100%; padding:7px;">
 
+          <label style="display:flex; align-items:center; gap:8px; margin-top:12px;">
+                    <input id="display-deformed-animate" type="checkbox">
+                    Animate Deformation (smooth transition)
+                </label>
         <div style="margin-top:12px; padding:10px; border:1px solid #555; border-radius:6px; font-size:12px; color:#777;">
           Esta opción activa la visualización de deflexiones. Para que se note visualmente, el modelo debe tener resultados de desplazamiento o deflexión calculados.
         </div>
@@ -5499,6 +5477,9 @@ export default () => ({
           showDeformedShape: document.getElementById("display-deformed-shape")?.checked === true,
 
           deformedScale: Number(document.getElementById("display-deformed-scale")?.value || 1),
+
+          // retornamos tambien la animacion
+          animate: document.getElementById("display-deformed-animate").checked,
         };
       },
     }).then((result) => {
@@ -13918,15 +13899,6 @@ export default () => ({
             z: node.position.z || 0,
           }));
 
-          // Guardar posiciones originales para deformación
-          // if (!this._originalPositions3D) {
-          //   this._originalPositions3D = this.nodes.map((node) => ({
-          //     x: node.position.x,
-          //     y: node.position.y,
-          //     z: node.position.z || 0,
-          //   }));
-          // }
-
           this.calcularDeflecciones3D();
         }
 
@@ -14296,6 +14268,13 @@ export default () => ({
       this.sync3D(); // redibuja la escena 3D
       this.redraw(); // (opcional) refresca la vista 2D
     }
+  },
+
+  // Alterna la visualización de la deformada en ambas vistas
+  showDeflections(){
+    this.options.showDeflection = !this.options.showDeflection;
+    this.sync3D();
+    this.redraw();
   },
 
   /**
@@ -19761,6 +19740,13 @@ export default () => ({
     this.showMessage(
       this.options.showForces ? "📊 Diagramas de fuerzas activados" : "📊 Diagramas de fuerzas desactivados",
     );
+  },
+
+  showReactions() {
+    this.options.showReactions = !this.options.showReactions;
+    this.redraw();
+    this.sync3D(); // ← esto actualiza la vista 3D
+    this.showMessage(this.options.showReactions ? "📊 Reacciones activadas" : "📊 Reacciones desactivadas");
   },
 
   showStresses() {
