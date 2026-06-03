@@ -14,7 +14,15 @@ import {
 
 import { setViewPlan, setViewIso, setViewFront, setViewSide, zoomExtents } from "./3d/camera3d.js";
 
-import { initViewer3D, toggleView3D, clear3D, sync3D, drawIn3D, getViewer3DState } from "./3d/viewer3d.js";
+import {
+  initViewer3D,
+  toggleView3D,
+  clear3D,
+  sync3D,
+  drawIn3D,
+  getViewer3DState,
+  removeBeamMeshById,
+} from "./3d/viewer3d.js";
 
 import { createFull3DGrid, drawReferenceGrid3D, clearReferenceGrid3D } from "./3d/grid3d.js";
 
@@ -1642,7 +1650,10 @@ export default () => ({
       this.frame3DStartNode = null;
       this.frame3DEndNode = null;
 
-      const frame2DState = this.trussDrawingState || this.beamDrawingState || this.lineDrawingState;
+      const frame2DState =
+        this.trussDrawingState ||
+        this.beamDrawingState ||
+        this.lineDrawingState;
 
       if (
         frame2DState &&
@@ -1659,7 +1670,32 @@ export default () => ({
       }
     }
 
-    this.currentState.handleMouseDown(event, this, mousePositionFrom(this.canvas, event));
+    const mouse = mousePositionFrom(this.canvas, event);
+
+    // =====================================================
+    // SELECTION GLOBAL > CTRL + CLIC PARA BARRAS
+    // Funciona aunque el estado actual ya no sea IdleState.
+    // Permite seleccionar 1, 2, 3, 4 o más barras.
+    // =====================================================
+    if (event.ctrlKey === true && this.activeDrawTool !== "frame") {
+      const beam = this.closestBeamAtActiveView?.(mouse);
+
+      if (beam) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        this.toggleFrameSelection?.(beam);
+
+        console.log("🟨 Ctrl + clic global sobre barra:", {
+          id: beam.id,
+          seleccionadas: this.getCurrentlySelectedFrames?.().map((f) => f.id),
+        });
+
+        return;
+      }
+    }
+
+    this.currentState?.handleMouseDown?.(event, this, mouse);
   },
 
   handleMouseUp(event) {
@@ -1884,6 +1920,193 @@ export default () => ({
     obj.is3DOnlyEndpointHover = false;
 
     obj.style?.default?.();
+  },
+
+  // =====================================================
+  // SELECTION > RESOLVER BARRA REAL DEL MODELO
+  // En 3D a veces llega una copia/proxy del frame.
+  // Por eso se busca la barra real dentro de this.shapes usando el id.
+  // =====================================================
+  resolveFrameFromModel(frameOrId) {
+    if (!frameOrId) return null;
+
+    const id =
+      typeof frameOrId === "object"
+        ? frameOrId.id ?? frameOrId.frameId
+        : frameOrId;
+
+    if (id == null) return null;
+
+    return (
+      this.shapes?.find((frame) => String(frame.id) === String(id)) ||
+      null
+    );
+  },
+
+  // =====================================================
+  // SELECTION > OBTENER BARRAS SELECCIONADAS ACTUALMENTE
+  // Soporta selección 2D, 3D y estados internos.
+  // =====================================================
+  // =====================================================
+  // SELECTION > OBTENER BARRAS SELECCIONADAS ACTUALMENTE
+  // Usa una lista propia para permitir seleccionar 1, 2, 3, 4 o más barras.
+  // =====================================================
+  getCurrentlySelectedFrames() {
+    if (!Array.isArray(this.multiSelectedFrames)) {
+      this.multiSelectedFrames = [];
+    }
+
+    // Convertir cualquier copia/proxy en la barra real del modelo
+    this.multiSelectedFrames = this.multiSelectedFrames
+      .map((frame) => this.resolveFrameFromModel?.(frame) || frame)
+      .filter((frame) => {
+        return frame && this.shapes?.some((item) => String(item.id) === String(frame.id));
+      });
+
+    // Quitar repetidos por id
+    const seen = new Set();
+
+    this.multiSelectedFrames = this.multiSelectedFrames.filter((frame) => {
+      const key = String(frame.id);
+
+      if (seen.has(key)) return false;
+
+      seen.add(key);
+      return true;
+    });
+
+    return this.multiSelectedFrames;
+  },
+
+  // =====================================================
+  // SELECTION > SELECCIONAR LISTA DE BARRAS
+  // Clic normal: reemplaza selección.
+  // Ctrl + clic: toggleFrameSelection manda una lista acumulada.
+  // =====================================================
+  selectFramesForEdit(frames = [], options = {}) {
+    if (!Array.isArray(this.multiSelectedFrames)) {
+      this.multiSelectedFrames = [];
+    }
+
+    const cleanFrames = [];
+    const seen = new Set();
+
+    frames.forEach((frame) => {
+      // CLAVE: resolver la barra real dentro del modelo
+      const realFrame = this.resolveFrameFromModel?.(frame) || frame;
+
+      if (!realFrame || !realFrame.node1 || !realFrame.node2) return;
+
+      const existsInModel = this.shapes?.some((item) => {
+        return String(item.id) === String(realFrame.id);
+      });
+
+      if (!existsInModel) return;
+
+      const key = String(realFrame.id);
+
+      if (seen.has(key)) return;
+
+      seen.add(key);
+      cleanFrames.push(realFrame);
+    });
+
+    // Limpiar selección visual anterior
+    this.shapes?.forEach((shape) => {
+      shape.selected = false;
+      shape.isSelected = false;
+      shape.highlighted3D = false;
+      shape.style?.default?.();
+    });
+
+    this.nodes?.forEach((node) => {
+      node.selected = false;
+      node.isSelected = false;
+      node.is3DOnlyEndpointHover = false;
+      node.style?.default?.();
+    });
+
+    this.areas?.forEach((area) => {
+      area.selected = false;
+      area.isSelected = false;
+    });
+
+    // Guardar selección múltiple real
+    this.multiSelectedFrames = cleanFrames;
+
+    cleanFrames.forEach((frame) => {
+      frame.selected = true;
+      frame.isSelected = true;
+      frame.highlighted3D = true;
+
+      frame.style?.select?.();
+      frame.style?.selected?.();
+    });
+
+    // Sincronizar con Edit
+    this.selectedBeams = cleanFrames;
+    this.selectedObjects = cleanFrames;
+
+    if (this.selectedBeamsState) {
+      this.selectedBeamsState.selectedBeams = cleanFrames;
+      this.selectedBeamsState.selectedObjects = cleanFrames;
+      this.selectedBeamsState.selectedBeam = cleanFrames[0] || null;
+    }
+
+    if (cleanFrames.length > 0) {
+      this.setState?.(this.selectedBeamsState, {
+        selectedBeams: cleanFrames,
+        selectedBeam: cleanFrames[0],
+        selectedObjects: cleanFrames,
+      });
+    } else {
+      this.setState?.(this.idleState);
+    }
+
+    this.redraw?.();
+    this.sync3D?.();
+
+    this.showMessage?.(
+      cleanFrames.length === 1
+        ? "1 barra seleccionada"
+        : `${cleanFrames.length} barras seleccionadas`
+    );
+
+    console.log(
+      "✅ Selección múltiple de barras:",
+      cleanFrames.map((frame) => frame.id)
+    );
+  },
+
+  // =====================================================
+  // SELECTION > CTRL + CLIC PARA AGREGAR O QUITAR BARRAS
+  // Permite seleccionar tantas barras como quieras.
+  // =====================================================
+  toggleFrameSelection(frame) {
+    const realFrame = this.resolveFrameFromModel?.(frame) || frame;
+
+    if (!realFrame || !realFrame.node1 || !realFrame.node2) {
+      console.warn("⚠️ toggleFrameSelection: frame inválido", frame);
+      return;
+    }
+
+    if (!Array.isArray(this.multiSelectedFrames)) {
+      this.multiSelectedFrames = [];
+    }
+
+    const currentFrames = this.getCurrentlySelectedFrames?.() || [];
+
+    const alreadySelected = currentFrames.some((item) => {
+      return String(item.id) === String(realFrame.id);
+    });
+
+    const nextFrames = alreadySelected
+      ? currentFrames.filter((item) => String(item.id) !== String(realFrame.id))
+      : [...currentFrames, realFrame];
+
+    this.selectFramesForEdit?.(nextFrames, {
+      reason: "ctrl click multiple frame selection",
+    });
   },
 
   selectObjects(objects = []) {
@@ -2768,26 +2991,92 @@ export default () => ({
     }
   },
 
+  // removeFrameFromModel(frame) {
+  //   if (!frame) return false;
+
+  //   if (typeof removeBeamMeshById === "function") {
+  //     removeBeamMeshById(frame.id);
+  //   }
+
+  //   // Eliminar frame original del modelo
+  //   const removed = this.removeFrameFromModel(frame) ? 1 : 0;
+
+  //   // Limpieza extra por si la función anterior falló (búsqueda por ID)
+  //   const extraIndex = this.shapes.findIndex((f) => f.id === frame.id);
+  //   if (extraIndex !== -1) {
+  //     const extraFrame = this.shapes[extraIndex];
+  //     if (extraFrame.node1?.beams) extraFrame.node1.beams = extraFrame.node1.beams.filter((b) => b.id !== frame.id);
+  //     if (extraFrame.node2?.beams) extraFrame.node2.beams = extraFrame.node2.beams.filter((b) => b.id !== frame.id);
+  //     this.shapes.splice(extraIndex, 1);
+  //   }
+
+  //   if (frame.node1?.beams) {
+  //     frame.node1.beams = frame.node1.beams.filter((beam) => beam !== frame);
+  //   }
+
+  //   if (frame.node2?.beams) {
+  //     frame.node2.beams = frame.node2.beams.filter((beam) => beam !== frame);
+  //   }
+
+  //   if (Array.isArray(this.shapes)) {
+  //     const index = this.shapes.indexOf(frame);
+
+  //     if (index >= 0) {
+  //       this.shapes.splice(index, 1);
+  //       return true;
+  //     }
+  //   }
+
+  //   return false;
+  // },
+
   removeFrameFromModel(frame) {
     if (!frame) return false;
+    const frameId = frame.id;
+    if (!frameId) return false;
 
+    // 1. Limpiar referencias en los nodos extremos
     if (frame.node1?.beams) {
-      frame.node1.beams = frame.node1.beams.filter((beam) => beam !== frame);
+      frame.node1.beams = frame.node1.beams.filter((b) => b.id !== frameId);
     }
-
     if (frame.node2?.beams) {
-      frame.node2.beams = frame.node2.beams.filter((beam) => beam !== frame);
+      frame.node2.beams = frame.node2.beams.filter((b) => b.id !== frameId);
     }
 
-    if (Array.isArray(this.shapes)) {
-      const index = this.shapes.indexOf(frame);
-
-      if (index >= 0) {
-        this.shapes.splice(index, 1);
-        return true;
-      }
+    // 2. Limpiar referencias en estados de selección (globales y de estado)
+    if (this.selectedBeams) {
+      this.selectedBeams = this.selectedBeams.filter((b) => b.id !== frameId);
+    }
+    if (this.selectedObjects) {
+      this.selectedObjects = this.selectedObjects.filter((obj) => obj.id !== frameId);
+    }
+    if (this.selectedBeamsState?.selectedObjects) {
+      this.selectedBeamsState.selectedObjects = this.selectedBeamsState.selectedObjects.filter((b) => b.id !== frameId);
+    }
+    if (this.selectedBeamsState?.selectedBeams) {
+      this.selectedBeamsState.selectedBeams = this.selectedBeamsState.selectedBeams.filter((b) => b.id !== frameId);
+    }
+    if (this.currentState?.selectedObjects) {
+      this.currentState.selectedObjects = this.currentState.selectedObjects.filter((obj) => obj.id !== frameId);
+    }
+    if (this.currentState?.selectedBeams) {
+      this.currentState.selectedBeams = this.currentState.selectedBeams.filter((b) => b.id !== frameId);
     }
 
+    // 3. Eliminar la malla 3D (si la función está disponible)
+    if (typeof removeBeamMeshById === "function") {
+      removeBeamMeshById(frameId);
+    }
+
+    // 4. Buscar y eliminar el frame del array principal por ID (no por referencia)
+    const index = this.shapes.findIndex((f) => f.id === frameId);
+    if (index !== -1) {
+      this.shapes.splice(index, 1);
+      console.log(`✅ Frame ${frameId} eliminado del modelo de datos`);
+      return true;
+    }
+
+    console.warn(`⚠️ No se encontró el frame ${frameId} en this.shapes`);
     return false;
   },
 
@@ -14271,7 +14560,7 @@ export default () => ({
   },
 
   // Alterna la visualización de la deformada en ambas vistas
-  showDeflections(){
+  showDeflections() {
     this.options.showDeflection = !this.options.showDeflection;
     this.sync3D();
     this.redraw();
@@ -17608,6 +17897,11 @@ export default () => ({
       summary.createdNodes += result.createdNodes;
     });
 
+    this.redraw?.();
+    // Forzar una limpieza de la selección y una sincronización 3D completa
+    this.clearAllSelections?.();
+    setTimeout(() => this.sync3D?.(), 50);
+
     this.reindexModelObjects?.();
 
     return summary;
@@ -17675,6 +17969,9 @@ export default () => ({
     chainNodes.push(endNode);
 
     const newFrames = [];
+    frame.selected = false;
+    frame.isSelected = false;
+    frame.highlighted3D = false;
 
     // Eliminar frame original antes de crear nuevos tramos
     const removed = this.removeFrameFromModel(frame) ? 1 : 0;
@@ -22194,6 +22491,8 @@ export default () => ({
       preservedState: shouldPreserveCurrentState,
       currentState: this.currentState?.constructor?.name,
     });
+
+    this.rebuild3DGridSnapPointsSoon?.("view change");
 
     this.redraw?.();
     this.refresh3DActiveView?.("setViewFromSet");

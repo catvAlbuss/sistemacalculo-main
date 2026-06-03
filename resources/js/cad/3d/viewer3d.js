@@ -532,45 +532,71 @@ function getFrameFromPickedMesh(pickedMesh, context) {
 }
 
 // =====================================================
-// 3D SELECTION > SELECCIONAR BARRA EN 3D
-// Marca la barra seleccionada y actualiza el visor 3D.
+// 3D SELECTION > SELECCIONAR BARRA DESDE 3D
+// Clic normal: selecciona solo una barra.
+// Ctrl + clic: agrega o quita barras sin límite.
 // =====================================================
-function selectFrameFrom3D(frame, context) {
-  if (!frame || !context) return;
+function selectFrameFrom3D(frame, context, options = {}) {
+    if (!frame || !context) return;
 
-  context.clearAllSelections?.();
+    const additive = options.additive === true;
 
-  frame.selected = true;
-  frame.isSelected = true;
-  frame.highlighted3D = true;
+    // =====================================================
+    // CTRL + CLIC 3D > AGREGAR / QUITAR BARRA
+    // Usa la misma lógica que ya funciona en 2D.
+    // =====================================================
+    if (additive) {
+        if (typeof context.toggleFrameSelection === "function") {
+            context.toggleFrameSelection(frame);
 
-  context.selectedBeams = [frame];
+            console.log("🟨 Ctrl + clic 3D sobre barra:", {
+                id: frame.id,
+                seleccionadas: context.getCurrentlySelectedFrames?.().map((f) => f.id),
+            });
 
-  if (context.selectedBeamsState) {
-    context.selectedBeamsState.selectedObjects = [frame];
-    context.selectedBeamsState.selectedBeams = [frame];
-  }
+            return;
+        }
+    }
 
-  context.setState?.(context.selectedBeamsState, {
-    selectedBeams: [frame],
-    selectedBeam: frame,
-  });
+    // =====================================================
+    // CLIC NORMAL 3D > SELECCIÓN ÚNICA
+    // Limpia lo anterior y selecciona solo esta barra.
+    // =====================================================
+    if (typeof context.selectFramesForEdit === "function") {
+        context.multiSelectedFrames = [];
 
-  context.showMessage?.(
-    frame.is3DOnlyFrame || frame.isCrossViewFrame || frame.showIn2D === false
-      ? "Barra 3D/inclinada seleccionada desde el visor 3D."
-      : "Barra seleccionada desde el visor 3D.",
-  );
+        context.selectFramesForEdit([frame], {
+            reason: "3d single frame selection",
+        });
 
-  context.redraw?.();
+        console.log("🖱️ Clic normal 3D sobre barra:", {
+            id: frame.id,
+        });
 
-  if (typeof context.sync3D === "function") {
-    context.sync3D();
-  }
+        return;
+    }
 
-  requestAnimationFrame(() => {
+    // =====================================================
+    // RESPALDO ANTIGUO
+    // Por si todavía no existe selectFramesForEdit.
+    // =====================================================
+    context.clearAllSelections?.();
+
+    frame.selected = true;
+    frame.isSelected = true;
+    frame.highlighted3D = true;
+
+    context.setState?.(context.selectedBeamsState, {
+        selectedBeams: [frame],
+        selectedBeam: frame,
+        selectedObjects: [frame],
+    });
+
+    context.selectedBeams = [frame];
+    context.selectedObjects = [frame];
+
+    context.redraw?.();
     context.sync3D?.();
-  });
 }
 
 // =====================================================
@@ -1071,289 +1097,307 @@ window.__jhSet3DDrawCameraLock = set3DDrawCameraLock;
 // Si no está activa, el clic sirve para seleccionar barras.
 // =====================================================
 function enable3DFrameSelection(context) {
-  const scene = VIEWER_STATE.scene;
+    const scene = VIEWER_STATE.scene;
 
-  if (!scene || scene.__frameSelectionEnabled) return;
+    if (!scene || scene.__frameSelectionEnabled) return;
 
-  scene.__frameSelectionEnabled = true;
-
-  // =====================================================
-  // 3D DRAW > CONTROL DE ARRASTRE
-  // Diferencia clic real de arrastre/orbitado.
-  // =====================================================
-  let pointerDownPosition3D = null;
-  let pointerWasDragged3D = false;
-
-  scene.onPointerObservable.add((pointerInfo) => {
-    const event = pointerInfo.event;
+    scene.__frameSelectionEnabled = true;
 
     // =====================================================
-    // DRAW FRAME > VALIDAR HERRAMIENTA ACTIVA
-    // Se calcula al inicio para usarlo en move, down y pick.
+    // 3D DRAW > CONTROL DE ARRASTRE
+    // Diferencia clic real de arrastre/orbitado.
     // =====================================================
-    const frameToolActive = context?.isFrameDrawingToolActive?.() === true || context?.activeDrawTool === "frame";
+    let pointerDownPosition3D = null;
+    let pointerWasDragged3D = false;
 
-    // =====================================================
-    // 3D SELECTION > SI NO ESTOY DIBUJANDO, APAGAR PLANO PICK
-    // Evita que el plano invisible intercepte clics sobre barras.
-    // =====================================================
-    if (!frameToolActive && context?.isDrawingFrame3D !== true) {
-      disable3DWorkPlanePickMesh();
-    }
+    scene.onPointerObservable.add((pointerInfo) => {
+        const event = pointerInfo.event;
 
-    // =====================================================
-    // 3D DRAW > HOVER SOBRE GRID POINT
-    // Muestra referencia visual tipo ETABS al pasar por un vértice.
-    // =====================================================
-    if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERMOVE) {
-      if (frameToolActive) {
-        update3DGridPointHoverReference(context, pointerInfo);
-      } else {
-        clear3DGridPointHoverReference();
-      }
-    }
+        // =====================================================
+        // DRAW FRAME > VALIDAR HERRAMIENTA ACTIVA
+        // Se calcula al inicio para usarlo en move, down y pick.
+        // =====================================================
+        const frameToolActive =
+            context?.isFrameDrawingToolActive?.() === true ||
+            context?.activeDrawTool === "frame";
 
-    // =====================================================
-    // VIEWPORT > VISOR 3D ACTIVO
-    // Marca el visor 3D como área activa cuando hay interacción.
-    // =====================================================
-    if (
-      pointerInfo.type === BABYLON.PointerEventTypes.POINTERMOVE ||
-      pointerInfo.type === BABYLON.PointerEventTypes.POINTERPICK ||
-      pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN
-    ) {
-      context?.mark3DViewportActive?.("3d pointer interaction");
-    }
+        // =====================================================
+        // 3D SELECTION > SI NO ESTOY DIBUJANDO, APAGAR PLANO PICK
+        // Evita que el plano invisible intercepte clics sobre barras.
+        // =====================================================
+        if (!frameToolActive && context?.isDrawingFrame3D !== true) {
+            disable3DWorkPlanePickMesh();
+        }
 
-    // =====================================================
-    // 3D DRAW > CONTROL DE CÁMARA SEGÚN HERRAMIENTA
-    // Si Draw Frame está activo, bloquea cámara antes del pick.
-    // Si no está activo, devuelve control normal.
-    // =====================================================
-    set3DDrawCameraLock(frameToolActive === true);
+        // =====================================================
+        // 3D DRAW > HOVER SOBRE GRID POINT
+        // Muestra referencia visual tipo ETABS al pasar por un vértice.
+        // =====================================================
+        if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERMOVE) {
+            if (frameToolActive) {
+                update3DGridPointHoverReference(context, pointerInfo);
+            } else {
+                clear3DGridPointHoverReference();
+            }
+        }
 
-    // =====================================================
-    // DRAW 3D > ASEGURAR PLANO PICKABLE
-    // Permite hacer clic en puntos vacíos de la grilla 3D.
-    // =====================================================
-    if (frameToolActive || context?.isDrawingFrame3D === true) {
-      ensure3DWorkPlanePickMesh(context);
-    }
+        // =====================================================
+        // VIEWPORT > VISOR 3D ACTIVO
+        // Marca el visor 3D como área activa cuando hay interacción.
+        // =====================================================
+        if (
+            pointerInfo.type === BABYLON.PointerEventTypes.POINTERMOVE ||
+            pointerInfo.type === BABYLON.PointerEventTypes.POINTERPICK ||
+            pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN
+        ) {
+            context?.mark3DViewportActive?.("3d pointer interaction");
+        }
 
-    // =====================================================
-    // 3D DRAW > REGISTRAR INICIO DEL CLIC
-    // Guardamos la posición inicial solo con clic izquierdo.
-    // =====================================================
-    if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN) {
-      if (event?.button !== 0) return;
+        // =====================================================
+        // 3D DRAW > CONTROL DE CÁMARA SEGÚN HERRAMIENTA
+        // Si Draw Frame está activo, bloquea cámara antes del pick.
+        // Si no está activo, devuelve control normal.
+        // =====================================================
+        set3DDrawCameraLock(frameToolActive === true);
 
-      pointerDownPosition3D = {
-        x: event?.clientX || 0,
-        y: event?.clientY || 0,
-      };
+        // =====================================================
+        // DRAW 3D > ASEGURAR PLANO PICKABLE
+        // Permite hacer clic en puntos vacíos de la grilla 3D.
+        // =====================================================
+        if (frameToolActive || context?.isDrawingFrame3D === true) {
+            ensure3DWorkPlanePickMesh(context);
+        }
 
-      pointerWasDragged3D = false;
-      return;
-    }
+        // =====================================================
+        // 3D DRAW > REGISTRAR INICIO DEL CLIC
+        // Guardamos la posición inicial solo con clic izquierdo.
+        // =====================================================
+        if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN) {
+            if (event?.button !== 0) return;
 
-    // =====================================================
-    // 3D DRAW > DETECTAR ARRASTRE
-    // Si el mouse se mueve bastante desde el pointerDown,
-    // luego se ignorará el pick para no crear nodos accidentales.
-    // =====================================================
-    if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERMOVE && pointerDownPosition3D) {
-      const dx = Math.abs((event?.clientX || 0) - pointerDownPosition3D.x);
-      const dy = Math.abs((event?.clientY || 0) - pointerDownPosition3D.y);
+            pointerDownPosition3D = {
+                x: event?.clientX || 0,
+                y: event?.clientY || 0,
+            };
 
-      if (dx > 6 || dy > 6) {
-        pointerWasDragged3D = true;
-      }
+            pointerWasDragged3D = false;
+            return;
+        }
 
-      return;
-    }
+        // =====================================================
+        // 3D DRAW > DETECTAR ARRASTRE
+        // Si el mouse se mueve bastante desde el pointerDown,
+        // luego se ignorará el pick para no crear nodos accidentales.
+        // =====================================================
+        if (
+            pointerInfo.type === BABYLON.PointerEventTypes.POINTERMOVE &&
+            pointerDownPosition3D
+        ) {
+            const dx = Math.abs((event?.clientX || 0) - pointerDownPosition3D.x);
+            const dy = Math.abs((event?.clientY || 0) - pointerDownPosition3D.y);
 
-    if (pointerInfo.type !== BABYLON.PointerEventTypes.POINTERPICK) return;
+            if (dx > 6 || dy > 6) {
+                pointerWasDragged3D = true;
+            }
 
-    // Solo clic izquierdo
-    if (event?.button !== 0) return;
+            return;
+        }
 
-    // =====================================================
-    // 3D DRAW > IGNORAR SI FUE ARRASTRE
-    // Evita crear nodos/barras cuando el usuario intentó mover la vista.
-    // =====================================================
-    if (pointerDownPosition3D) {
-      const dx = Math.abs((event?.clientX || 0) - pointerDownPosition3D.x);
-      const dy = Math.abs((event?.clientY || 0) - pointerDownPosition3D.y);
+        if (pointerInfo.type !== BABYLON.PointerEventTypes.POINTERPICK) return;
 
-      if (pointerWasDragged3D || dx > 6 || dy > 6) {
-        console.log("🖐️ Pick 3D ignorado por arrastre:", {
-          dx,
-          dy,
-          pointerWasDragged3D,
-        });
+        // Solo clic izquierdo
+        if (event?.button !== 0) return;
+
+        // =====================================================
+        // 3D DRAW > IGNORAR SI FUE ARRASTRE
+        // Evita crear nodos/barras cuando el usuario intentó mover la vista.
+        // =====================================================
+        if (pointerDownPosition3D) {
+            const dx = Math.abs((event?.clientX || 0) - pointerDownPosition3D.x);
+            const dy = Math.abs((event?.clientY || 0) - pointerDownPosition3D.y);
+
+            if (pointerWasDragged3D || dx > 6 || dy > 6) {
+                console.log("🖐️ Pick 3D ignorado por arrastre:", {
+                    dx,
+                    dy,
+                    pointerWasDragged3D,
+                });
+
+                pointerDownPosition3D = null;
+                pointerWasDragged3D = false;
+                return;
+            }
+        }
 
         pointerDownPosition3D = null;
         pointerWasDragged3D = false;
-        return;
-      }
-    }
 
-    pointerDownPosition3D = null;
-    pointerWasDragged3D = false;
+        const pickedMesh = pointerInfo.pickInfo?.pickedMesh;
 
-    const pickedMesh = pointerInfo.pickInfo?.pickedMesh;
+        if (!pickedMesh) return;
 
-    if (!pickedMesh) return;
+        const metadata = pickedMesh.metadata || {};
 
-    const metadata = pickedMesh.metadata || {};
+        // =====================================================
+        // DRAW FRAME > DIBUJAR EN 3D SI LA HERRAMIENTA ESTÁ ACTIVA
+        // Si se hace clic en un nodo existente, lo usa.
+        // Si se hace clic en un punto de grilla/mesh, crea nodo exacto.
+        // =====================================================
+        if (frameToolActive) {
+            if (context?.isDrawingFrame3D !== true) {
+                context.startFrame3DDrawingMode?.();
+            }
 
-    // =====================================================
-    // DRAW FRAME > DIBUJAR EN 3D SI LA HERRAMIENTA ESTÁ ACTIVA
-    // Si se hace clic en un nodo existente, lo usa.
-    // Si se hace clic en un punto de grilla/mesh, crea nodo exacto.
-    // =====================================================
-    if (frameToolActive) {
-      if (context?.isDrawingFrame3D !== true) {
-        context.startFrame3DDrawingMode?.();
-      }
+            // =====================================================
+            // DRAW 3D > CASO 0 REAL: CLIC EN GRID SNAP POINT 3D GLOBAL
+            // Permite diagonales espaciales sin cambiar de piso/elevación.
+            // Tiene prioridad sobre plano invisible y sobre meshes del modelo.
+            // =====================================================
+            const nearestSnapPoint = findNearest3DGridSnapPointUnderPointer(context, 18);
 
-      // =====================================================
-      // DRAW 3D > CASO 0 REAL: CLIC EN GRID SNAP POINT 3D GLOBAL
-      // Permite diagonales espaciales sin cambiar de piso/elevación.
-      // Tiene prioridad sobre plano invisible y sobre meshes del modelo.
-      // =====================================================
-      const nearestSnapPoint = findNearest3DGridSnapPointUnderPointer(context, 18);
+            if (nearestSnapPoint?.modelPoint) {
+                const modelPoint = nearestSnapPoint.modelPoint;
 
-      if (nearestSnapPoint?.modelPoint) {
-        const modelPoint = nearestSnapPoint.modelPoint;
+                let pickedOrCreatedNode = null;
 
-        let pickedOrCreatedNode = null;
+                if (typeof context.findNodeAt3DPoint === "function") {
+                    pickedOrCreatedNode = context.findNodeAt3DPoint(modelPoint, 0.001);
+                }
 
-        if (typeof context.findNodeAt3DPoint === "function") {
-          pickedOrCreatedNode = context.findNodeAt3DPoint(modelPoint, 0.001);
-        }
+                if (
+                    !pickedOrCreatedNode &&
+                    typeof context.createNodeAt3DGridPoint === "function"
+                ) {
+                    pickedOrCreatedNode = context.createNodeAt3DGridPoint(modelPoint);
+                }
 
-        if (!pickedOrCreatedNode && typeof context.createNodeAt3DGridPoint === "function") {
-          pickedOrCreatedNode = context.createNodeAt3DGridPoint(modelPoint);
-        }
+                if (pickedOrCreatedNode) {
+                    console.log("🎯 Grid Snap Point 3D GLOBAL usado:", {
+                        nodeId: pickedOrCreatedNode.id,
+                        modelPoint,
+                        distance: nearestSnapPoint.distance,
+                    });
 
-        if (pickedOrCreatedNode) {
-          console.log("🎯 Grid Snap Point 3D GLOBAL usado:", {
-            nodeId: pickedOrCreatedNode.id,
-            modelPoint,
-            distance: nearestSnapPoint.distance,
-          });
+                    context.handle3DFrameNodePicked?.(pickedOrCreatedNode);
+                    return;
+                }
+            }
 
-          context.handle3DFrameNodePicked?.(pickedOrCreatedNode);
-          return;
-        }
-      }
+            // =====================================================
+            // DRAW 3D > CASO 0: CLIC EN GRID SNAP POINT 3D
+            // Permite dibujar diagonales espaciales sin cambiar de piso/elevación.
+            // Este punto ya trae X, Y, Z reales del grid en 3D.
+            // =====================================================
+            if (
+                metadata.objectType === "gridSnapPoint3D" ||
+                metadata.type === "gridSnapPoint3D"
+            ) {
+                const modelPoint = metadata.modelPoint;
 
-      // =====================================================
-      // DRAW 3D > CASO 0: CLIC EN GRID SNAP POINT 3D
-      // Permite dibujar diagonales espaciales sin cambiar de piso/elevación.
-      // Este punto ya trae X, Y, Z reales del grid en 3D.
-      // =====================================================
-      if (metadata.objectType === "gridSnapPoint3D" || metadata.type === "gridSnapPoint3D") {
-        const modelPoint = metadata.modelPoint;
+                if (modelPoint) {
+                    let pickedOrCreatedNode = null;
 
-        if (modelPoint) {
-          let pickedOrCreatedNode = null;
+                    // Primero busca si ya existe un nodo en ese punto 3D exacto.
+                    if (typeof context.findNodeAt3DPoint === "function") {
+                        pickedOrCreatedNode = context.findNodeAt3DPoint(modelPoint, 0.001);
+                    }
 
-          // Primero busca si ya existe un nodo en ese punto 3D exacto.
-          if (typeof context.findNodeAt3DPoint === "function") {
-            pickedOrCreatedNode = context.findNodeAt3DPoint(modelPoint, 0.001);
-          }
+                    // Si no existe, crea un nodo exactamente en ese grid point 3D.
+                    // No usamos findOrCreateNodeAt3DModelPoint aquí porque esa función
+                    // puede volver a ajustar el punto al plano activo.
+                    if (!pickedOrCreatedNode && typeof context.createNodeAt3DGridPoint === "function") {
+                        pickedOrCreatedNode = context.createNodeAt3DGridPoint(modelPoint);
+                    }
 
-          // Si no existe, crea un nodo exactamente en ese grid point 3D.
-          // No usamos findOrCreateNodeAt3DModelPoint aquí porque esa función
-          // puede volver a ajustar el punto al plano activo.
-          if (!pickedOrCreatedNode && typeof context.createNodeAt3DGridPoint === "function") {
-            pickedOrCreatedNode = context.createNodeAt3DGridPoint(modelPoint);
-          }
+                    if (pickedOrCreatedNode) {
+                        console.log("🎯 Grid Snap Point 3D usado para Draw Frame:", {
+                            nodeId: pickedOrCreatedNode.id,
+                            modelPoint,
+                        });
 
-          if (pickedOrCreatedNode) {
-            console.log("🎯 Grid Snap Point 3D usado para Draw Frame:", {
-              nodeId: pickedOrCreatedNode.id,
-              modelPoint,
+                        context.handle3DFrameNodePicked?.(pickedOrCreatedNode);
+                        return;
+                    }
+                }
+            }
+
+            // =====================================================
+            // DRAW 3D > CASO 1: CLIC EN NODO EXISTENTE
+            // Usa el nodo ya creado en el modelo.
+            // =====================================================
+            if (metadata.objectType === "node" || metadata.type === "node") {
+                const pickedNode =
+                    metadata.sourceNode ||
+                    context.nodes?.find((node) =>
+                        String(node.id) === String(metadata.nodeId || metadata.id)
+                    );
+
+                if (pickedNode) {
+                    context.handle3DFrameNodePicked?.(pickedNode);
+                    return;
+                }
+            }
+
+            // =====================================================
+            // DRAW 3D > CASO 2: CLIC EN PUNTO DEL 3D
+            // Convierte el punto Babylon a coordenada de modelo,
+            // lo ajusta a grid point exacto y crea/usa un nodo.
+            // =====================================================
+            const pickedPoint = pointerInfo.pickInfo?.pickedPoint;
+
+            if (pickedPoint) {
+                const approxModelPoint = babylonPointToModelPoint(pickedPoint);
+
+                const pickedOrCreatedNode =
+                    context.findOrCreateNodeAt3DModelPoint?.(approxModelPoint);
+
+                if (pickedOrCreatedNode) {
+                    context.handle3DFrameNodePicked?.(pickedOrCreatedNode);
+                    return;
+                }
+            }
+
+            context.showMessage?.(
+                "Herramienta de barra activa: haga clic en un nodo o punto de grilla 3D."
+            );
+
+            console.log("⚠️ Draw Frame activo en 3D, pero no se pudo obtener punto válido:", {
+                pickedName: pickedMesh?.name,
+                objectType: metadata.objectType,
+                type: metadata.type,
+                frameId: metadata.frameId,
+                nodeId: metadata.nodeId,
+                hasPickedPoint: Boolean(pointerInfo.pickInfo?.pickedPoint),
             });
 
-            context.handle3DFrameNodePicked?.(pickedOrCreatedNode);
             return;
-          }
         }
-      }
 
-      // =====================================================
-      // DRAW 3D > CASO 1: CLIC EN NODO EXISTENTE
-      // Usa el nodo ya creado en el modelo.
-      // =====================================================
-      if (metadata.objectType === "node" || metadata.type === "node") {
-        const pickedNode =
-          metadata.sourceNode ||
-          context.nodes?.find((node) => String(node.id) === String(metadata.nodeId || metadata.id));
-
-        if (pickedNode) {
-          context.handle3DFrameNodePicked?.(pickedNode);
-          return;
+        // =====================================================
+        // 3D SELECTION > SELECCIONAR BARRA EN 3D
+        // Solo funciona cuando NO está activa la herramienta Draw Frame.
+        // =====================================================
+        if (metadata.objectType !== "frame" && metadata.type !== "beam") {
+            return;
         }
-      }
 
-      // =====================================================
-      // DRAW 3D > CASO 2: CLIC EN PUNTO DEL 3D
-      // Convierte el punto Babylon a coordenada de modelo,
-      // lo ajusta a grid point exacto y crea/usa un nodo.
-      // =====================================================
-      const pickedPoint = pointerInfo.pickInfo?.pickedPoint;
+        const frame = getFrameFromPickedMesh(pickedMesh, context);
 
-      if (pickedPoint) {
-        const approxModelPoint = babylonPointToModelPoint(pickedPoint);
+        if (!frame) return;
 
-        const pickedOrCreatedNode = context.findOrCreateNodeAt3DModelPoint?.(approxModelPoint);
+        console.log("🖱️ Barra seleccionada desde 3D:", {
+            id: frame.id,
+            is3DOnlyFrame: frame.is3DOnlyFrame,
+            isCrossViewFrame: frame.isCrossViewFrame,
+            showIn2D: frame.showIn2D,
+        });
 
-        if (pickedOrCreatedNode) {
-          context.handle3DFrameNodePicked?.(pickedOrCreatedNode);
-          return;
-        }
-      }
-
-      context.showMessage?.("Herramienta de barra activa: haga clic en un nodo o punto de grilla 3D.");
-
-      console.log("⚠️ Draw Frame activo en 3D, pero no se pudo obtener punto válido:", {
-        pickedName: pickedMesh?.name,
-        objectType: metadata.objectType,
-        type: metadata.type,
-        frameId: metadata.frameId,
-        nodeId: metadata.nodeId,
-        hasPickedPoint: Boolean(pointerInfo.pickInfo?.pickedPoint),
-      });
-
-      return;
-    }
-
-    // =====================================================
-    // 3D SELECTION > SELECCIONAR BARRA EN 3D
-    // Solo funciona cuando NO está activa la herramienta Draw Frame.
-    // =====================================================
-    if (metadata.objectType !== "frame" && metadata.type !== "beam") {
-      return;
-    }
-
-    const frame = getFrameFromPickedMesh(pickedMesh, context);
-
-    if (!frame) return;
-
-    console.log("🖱️ Barra seleccionada desde 3D:", {
-      id: frame.id,
-      is3DOnlyFrame: frame.is3DOnlyFrame,
-      isCrossViewFrame: frame.isCrossViewFrame,
-      showIn2D: frame.showIn2D,
+        selectFrameFrom3D(frame, context, {
+            additive: event?.ctrlKey === true,
+        });
     });
 
-    selectFrameFrom3D(frame, context);
-  });
-
-  console.log("✅ Selección directa de barras en 3D activada");
+    console.log("✅ Selección directa de barras en 3D activada");
 }
 
 // =====================================================
@@ -1985,6 +2029,16 @@ function getBeamPoints(beam, context) {
   const start = getNodePosition3D(beam.node1, context);
   const end = getNodePosition3D(beam.node2, context);
   return [start, end];
+}
+
+export function removeBeamMeshById(beamId) {
+  if (!VIEWER_STATE.scene) return;
+  const mesh = VIEWER_STATE.scene.getMeshByName(`beam_${beamId}`);
+  if (mesh && !mesh.isDisposed()) {
+    mesh.dispose();
+    VIEWER_STATE.elements = VIEWER_STATE.elements.filter(el => el !== mesh);
+    console.log(`🗑️ Malla 3D de la barra ${beamId} eliminada`);
+  }
 }
 
 // // ================================================

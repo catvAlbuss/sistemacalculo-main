@@ -4,7 +4,7 @@
     <div class="flex items-center px-2 py-1 gap-4 border-t border-gray-700">
         
         <div class="text-blue-400 font-bold text-sm px-2 whitespace-nowrap border-r border-gray-600">
-            ETABS v9.7.1
+            ANALISIS 3D ESTRUCTURAL - v0.1.0-alpha
         </div>
 
         
