@@ -1,8 +1,36 @@
-<x-app-layout>
-    <x-header title="Cimentacion 2.0"></x-header>
-    @pushOnce('styles')
+<?php if (isset($component)) { $__componentOriginal9ac128a9029c0e4701924bd2d73d7f54 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54 = $attributes; } ?>
+<?php $component = App\View\Components\AppLayout::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('app-layout'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\App\View\Components\AppLayout::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+    <?php if (isset($component)) { $__componentOriginalfd1f218809a441e923395fcbf03e4272 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginalfd1f218809a441e923395fcbf03e4272 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.header','data' => ['title' => 'Cimentacion 2.0']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('header'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['title' => 'Cimentacion 2.0']); ?> <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginalfd1f218809a441e923395fcbf03e4272)): ?>
+<?php $attributes = $__attributesOriginalfd1f218809a441e923395fcbf03e4272; ?>
+<?php unset($__attributesOriginalfd1f218809a441e923395fcbf03e4272); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginalfd1f218809a441e923395fcbf03e4272)): ?>
+<?php $component = $__componentOriginalfd1f218809a441e923395fcbf03e4272; ?>
+<?php unset($__componentOriginalfd1f218809a441e923395fcbf03e4272); ?>
+<?php endif; ?>
+    <?php if (! $__env->hasRenderedOnce('8f61de31-f97a-4a84-8bc7-5d8d8b435fb3')): $__env->markAsRenderedOnce('8f61de31-f97a-4a84-8bc7-5d8d8b435fb3');
+$__env->startPush('styles'); ?>
         <link href="https://netdna.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.css" rel="stylesheet">
-    @endpushOnce
+    <?php $__env->stopPush(); endif; ?>
 
     <div class="py-2">
         <div class="mx-auto w-full">
@@ -16,7 +44,7 @@
                                 reacciones, selecciona 3 combos y luego completa coordenadas.</p>
                         </div>
                         <form id="zapatas2Form" class="space-y-6">
-                            @csrf
+                            <?php echo csrf_field(); ?>
                             <div
                                 class="grid gap-4 lg:grid-cols-[minmax(160px,1fr)_minmax(220px,1fr)_minmax(320px,1.25fr)]">
                                 <div
@@ -254,10 +282,7 @@
                                                             title="Delete All"></i>
                                                     </li>
                                                 </ul>
-                                                {{-- <ol class="flex gap-4">
-                                                    <li><i class="fa fa-file fa-rotate-180"></i></li>
-                                                    <li><i class="fa fa-trash-o"></i></li>
-                                                </ol> --}}
+                                                
                                                 <ul class="hidden">
                                                     <li id="color:1" style="background-color:#2020FF"><i
                                                             class="fa fa-paint-brush" title="Color: BLUE"></i>
@@ -304,7 +329,7 @@
                                                     class="h-full w-full"></canvas>
                                             </div>
                                             <form id="calcularZapatas2">
-                                                @csrf
+                                                <?php echo csrf_field(); ?>
                                                 <button
                                                     class="mt-2 rounded border-b-4 border-blue-700 bg-blue-500 px-4 py-2 font-bold text-white hover:border-blue-500 hover:bg-blue-400"
                                                     type="submit">CALCULAR</button>
@@ -353,8 +378,19 @@
             </div>
         </div>
     </div>
-    @pushOnce('scripts')
+    <?php if (! $__env->hasRenderedOnce('c3da6137-fbb8-4aca-b571-09a09b796d95')): $__env->markAsRenderedOnce('c3da6137-fbb8-4aca-b571-09a09b796d95');
+$__env->startPush('scripts'); ?>
         <script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
-        @vite('resources/js/adm_safecito.js')
-    @endPushOnce
-</x-app-layout>
+        <?php echo app('Illuminate\Foundation\Vite')('resources/js/adm_safecito.js'); ?>
+    <?php $__env->stopPush(); endif; ?>
+ <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>
+<?php $attributes = $__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54; ?>
+<?php unset($__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>
+<?php $component = $__componentOriginal9ac128a9029c0e4701924bd2d73d7f54; ?>
+<?php unset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54); ?>
+<?php endif; ?>
+<?php /**PATH C:\laragon\www\rizabalAsociadosActualizadoServer\resources\views/matlab/admSafecito.blade.php ENDPATH**/ ?>
