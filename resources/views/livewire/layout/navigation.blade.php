@@ -134,11 +134,15 @@ $logout = function (Logout $logout) {
                                 'url' => route('calculadora.estudiante.cav2.distribucion-del-acero'),
                                 'label' => 'Distribución del Acero',
                             ],
-                            [
-                                'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
-                                'label' => 'Vigas Continuas',
-                            ],
-                        ]"></x-dropdown-sub>
+                             [
+                                 'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
+                                 'label' => 'Vigas Continuas',
+                             ],
+                             [
+                                 'url' => route('calculadora.estudiante.cav2.viga-t'),
+                                 'label' => 'Viga T',
+                             ],
+                         ]"></x-dropdown-sub>
                     </x-dropdown-nav-item>
                 </div>
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
@@ -424,11 +428,15 @@ $logout = function (Logout $logout) {
                         'url' => route('calculadora.estudiante.cav2.distribucion-del-acero'),
                         'label' => 'Distribución del Acero',
                     ],
-                    [
-                        'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
-                        'label' => 'Vigas Continuas',
-                    ],
-                ]"></x-dropdown-sub>
+                     [
+                         'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
+                         'label' => 'Vigas Continuas',
+                     ],
+                     [
+                         'url' => route('calculadora.estudiante.cav2.viga-t'),
+                         'label' => 'Viga T',
+                     ],
+                 ]"></x-dropdown-sub>
             </x-dropdown-nav-item>
         </div>
         <div class="space-y-1 pb-3 pt-2">
