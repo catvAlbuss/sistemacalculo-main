@@ -4,12 +4,12 @@ use App\Livewire\Actions\Logout;
 
 ?>
 
-<?php if (! $__env->hasRenderedOnce('eb17382c-23e3-4509-ac8f-8ec2cf044f01')): $__env->markAsRenderedOnce('eb17382c-23e3-4509-ac8f-8ec2cf044f01');
+<?php if (! $__env->hasRenderedOnce('18ca3ff1-e3b4-4624-bab1-86a1256411e8')): $__env->markAsRenderedOnce('18ca3ff1-e3b4-4624-bab1-86a1256411e8');
 $__env->startPush('initscripts'); ?>
     <?php echo app('Illuminate\Foundation\Vite')('resources/js/navigation.js'); ?>
 <?php $__env->stopPush(); endif; ?>
 
-<?php if (! $__env->hasRenderedOnce('ec54fac4-0d75-4b81-b016-8eed25422297')): $__env->markAsRenderedOnce('ec54fac4-0d75-4b81-b016-8eed25422297');
+<?php if (! $__env->hasRenderedOnce('df088b28-b5b5-4269-a456-539a2575729b')): $__env->markAsRenderedOnce('df088b28-b5b5-4269-a456-539a2575729b');
 $__env->startPush('scripts'); ?>
     <script type="text/javascript" src="https://www.geogebra.org/apps/deployggb.js"></script>
 <?php $__env->stopPush(); endif; ?>
@@ -290,11 +290,15 @@ $__env->startPush('scripts'); ?>
                                 'url' => route('calculadora.estudiante.cav2.distribucion-del-acero'),
                                 'label' => 'Distribución del Acero',
                             ],
-                            [
-                                'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
-                                'label' => 'Vigas Continuas',
-                            ],
-                        ]]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+                             [
+                                 'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
+                                 'label' => 'Vigas Continuas',
+                             ],
+                             [
+                                 'url' => route('calculadora.estudiante.cav2.viga-t'),
+                                 'label' => 'Viga T',
+                             ],
+                         ]]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('dropdown-sub'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
@@ -338,11 +342,15 @@ $__env->startPush('scripts'); ?>
                                 'url' => route('calculadora.estudiante.cav2.distribucion-del-acero'),
                                 'label' => 'Distribución del Acero',
                             ],
-                            [
-                                'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
-                                'label' => 'Vigas Continuas',
-                            ],
-                        ])]); ?> <?php echo $__env->renderComponent(); ?>
+                             [
+                                 'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
+                                 'label' => 'Vigas Continuas',
+                             ],
+                             [
+                                 'url' => route('calculadora.estudiante.cav2.viga-t'),
+                                 'label' => 'Viga T',
+                             ],
+                         ])]); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal811a1e27e202fca2f58dcc131dfb2e96)): ?>
 <?php $attributes = $__attributesOriginal811a1e27e202fca2f58dcc131dfb2e96; ?>
@@ -1354,11 +1362,15 @@ $__env->startPush('scripts'); ?>
                         'url' => route('calculadora.estudiante.cav2.distribucion-del-acero'),
                         'label' => 'Distribución del Acero',
                     ],
-                    [
-                        'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
-                        'label' => 'Vigas Continuas',
-                    ],
-                ]]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+                     [
+                         'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
+                         'label' => 'Vigas Continuas',
+                     ],
+                     [
+                         'url' => route('calculadora.estudiante.cav2.viga-t'),
+                         'label' => 'Viga T',
+                     ],
+                 ]]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('dropdown-sub'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
@@ -1402,11 +1414,15 @@ $__env->startPush('scripts'); ?>
                         'url' => route('calculadora.estudiante.cav2.distribucion-del-acero'),
                         'label' => 'Distribución del Acero',
                     ],
-                    [
-                        'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
-                        'label' => 'Vigas Continuas',
-                    ],
-                ])]); ?> <?php echo $__env->renderComponent(); ?>
+                     [
+                         'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
+                         'label' => 'Vigas Continuas',
+                     ],
+                     [
+                         'url' => route('calculadora.estudiante.cav2.viga-t'),
+                         'label' => 'Viga T',
+                     ],
+                 ])]); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal811a1e27e202fca2f58dcc131dfb2e96)): ?>
 <?php $attributes = $__attributesOriginal811a1e27e202fca2f58dcc131dfb2e96; ?>
