@@ -413,11 +413,30 @@ document.addEventListener("DOMContentLoaded", () => {
   const excelCombosContainer = document.getElementById("excelCombosContainer");
   const excelCombosList = document.getElementById("excelCombosList");
   const excelCombosStatus = document.getElementById("excelCombosStatus");
+  const reactionExcelConfig = document.getElementById("reactionExcelConfig");
+  const reactionSheetInput = document.getElementById("reactionSheet");
+  const reactionStartRowInput = document.getElementById("reactionStartRow");
+  const reactionPointColumnInput = document.getElementById("reactionPointColumn");
+  const reactionComboColumnInput = document.getElementById("reactionComboColumn");
+  const reactionF2ColumnInput = document.getElementById("reactionF2Column");
+  const reactionMxColumnInput = document.getElementById("reactionMxColumn");
+  const reactionMyColumnInput = document.getElementById("reactionMyColumn");
+  const coordinateExcelConfig = document.getElementById("coordinateExcelConfig");
+  const coordinateSheetInput = document.getElementById("coordinateSheet");
+  const coordinateStartRowInput = document.getElementById("coordinateStartRow");
+  const coordinatePointColumnInput = document.getElementById("coordinatePointColumn");
+  const coordinateXColumnInput = document.getElementById("coordinateXColumn");
+  const coordinateYColumnInput = document.getElementById("coordinateYColumn");
   const propiedadesSection = document.getElementById("propiedadesSection");
   const calculoActions = document.getElementById("calculoActions");
+  let reactionWorkbook = null;
+  let reactionWorkbookFile = null;
+  let coordinateWorkbook = null;
+  let coordinateWorkbookFile = null;
   let jointReactionsRows = [];
   let pendingSelectedCombos = [];
   let pendingDatosGeneralesRows = [];
+  let selectedComboOrder = [];
 
   const readCellText = (row, columnNumber) => {
     const cellValue = row.getCell(columnNumber).value;
@@ -464,6 +483,118 @@ document.addEventListener("DOMContentLoaded", () => {
     excelCombosStatus.classList.toggle("dark:text-red-400", isError);
     excelCombosStatus.classList.toggle("text-gray-600", !isError);
     excelCombosStatus.classList.toggle("dark:text-gray-400", !isError);
+  };
+
+  const columnLabelToNumber = (label) => {
+    const cleanLabel = String(label ?? "")
+      .trim()
+      .toUpperCase();
+
+    if (/^\d+$/.test(cleanLabel)) {
+      const columnNumber = Number(cleanLabel);
+      if (columnNumber > 0) {
+        return columnNumber;
+      }
+    }
+
+    if (!/^[A-Z]+$/.test(cleanLabel)) {
+      throw new Error(`La columna "${label}" no es valida. Usa letras de Excel, por ejemplo A, C o AA.`);
+    }
+
+    return cleanLabel.split("").reduce((columnNumber, letter) => {
+      return columnNumber * 26 + letter.charCodeAt(0) - 64;
+    }, 0);
+  };
+
+  const getStartRow = (input, fallback = 5) => {
+    const startRow = Number(input.value);
+    return Number.isInteger(startRow) && startRow > 0 ? startRow : fallback;
+  };
+
+  const populateSheetSelect = (select, workbook, preferredSheetName) => {
+    const sheets = workbook.worksheets ?? [];
+    select.innerHTML = sheets
+      .map((worksheet) => `<option value="${escapeHtml(worksheet.name)}">${escapeHtml(worksheet.name)}</option>`)
+      .join("");
+
+    const preferredWorksheet = workbook.getWorksheet(preferredSheetName);
+    if (preferredWorksheet) {
+      select.value = preferredWorksheet.name;
+      return;
+    }
+
+    if (sheets[0]) {
+      select.value = sheets[0].name;
+    }
+  };
+
+  const validateExcelFile = (file, label) => {
+    if (!file) {
+      throw new Error(`Selecciona el Excel de ${label} antes de importar.`);
+    }
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
+      throw new Error(`El archivo de ${label} debe estar en formato .xlsx.`);
+    }
+    if (!window.ExcelJS) {
+      throw new Error("La libreria ExcelJS no esta disponible en esta pantalla.");
+    }
+  };
+
+  const loadWorkbook = async (file, label) => {
+    validateExcelFile(file, label);
+    const workbook = new window.ExcelJS.Workbook();
+    await workbook.xlsx.load(await file.arrayBuffer());
+    return workbook;
+  };
+
+  const resetImportedData = () => {
+    selectedComboOrder = [];
+    pendingSelectedCombos = [];
+    pendingDatosGeneralesRows = [];
+    jointReactionsRows = [];
+    excelCombosList.innerHTML = "";
+    excelCombosContainer.classList.add("hidden");
+    connectivityExcelFileInput.value = "";
+    connectivityExcelContainer.classList.add("hidden");
+    connectivityExcelFileInput.disabled = true;
+    importarConnectivityExcelButton.disabled = true;
+    coordinateExcelConfig.classList.add("hidden");
+    propiedadesSection.classList.add("hidden");
+    calculoActions.classList.add("hidden");
+  };
+
+  const resetCoordinateStep = () => {
+    pendingSelectedCombos = [];
+    pendingDatosGeneralesRows = [];
+    connectivityExcelFileInput.value = "";
+    connectivityExcelContainer.classList.add("hidden");
+    connectivityExcelFileInput.disabled = true;
+    importarConnectivityExcelButton.disabled = true;
+    coordinateExcelConfig.classList.add("hidden");
+    propiedadesSection.classList.add("hidden");
+    calculoActions.classList.add("hidden");
+  };
+
+  const getReactionImportConfig = () => {
+    return {
+      sheetName: reactionSheetInput.value || "Joint Reactions",
+      startRow: getStartRow(reactionStartRowInput),
+      pointColumn: columnLabelToNumber(reactionPointColumnInput.value || "C"),
+      comboColumn: columnLabelToNumber(reactionComboColumnInput.value || "D"),
+      f2Column: columnLabelToNumber(reactionF2ColumnInput.value || "K"),
+      mxColumn: columnLabelToNumber(reactionMxColumnInput.value || "L"),
+      myColumn: columnLabelToNumber(reactionMyColumnInput.value || "M"),
+    };
+  };
+
+  const getCoordinateImportConfig = () => {
+    return {
+      sheetName: coordinateSheetInput.value || "Point Object Connectivity",
+      startRow: getStartRow(coordinateStartRowInput),
+      pointColumn: columnLabelToNumber(coordinatePointColumnInput.value || "A"),
+      xColumn: columnLabelToNumber(coordinateXColumnInput.value || "F"),
+      yColumn: columnLabelToNumber(coordinateYColumnInput.value || "G"),
+    };
   };
 
   const buildDatosGeneralesRows = (selectedCombos, coordinatesByColumn = new Map()) => {
@@ -536,55 +667,55 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const readPointObjectConnectivity = async (file) => {
-    if (!file) {
-      throw new Error("Selecciona el Excel de coordenadas antes de importar.");
-    }
-    if (!file.name.toLowerCase().endsWith(".xlsx")) {
-      throw new Error("El archivo de coordenadas debe estar en formato .xlsx.");
-    }
-    if (!window.ExcelJS) {
-      throw new Error("La libreria ExcelJS no esta disponible en esta pantalla.");
+    if (!coordinateWorkbook || coordinateWorkbookFile !== file) {
+      coordinateWorkbook = await loadWorkbook(file, "coordenadas");
+      coordinateWorkbookFile = file;
+      populateSheetSelect(coordinateSheetInput, coordinateWorkbook, "Point Object Connectivity");
+      coordinateExcelConfig.classList.remove("hidden");
     }
 
-    const workbook = new window.ExcelJS.Workbook();
-    await workbook.xlsx.load(await file.arrayBuffer());
-    const worksheet = workbook.getWorksheet("Point Object Connectivity");
+    const config = getCoordinateImportConfig();
+    const worksheet = coordinateWorkbook.getWorksheet(config.sheetName);
 
     if (!worksheet) {
-      throw new Error("No se encontro la hoja Point Object Connectivity.");
+      throw new Error(`No se encontro la hoja ${config.sheetName}.`);
     }
 
     const coordinatesByColumn = new Map();
     worksheet.eachRow((row, rowNumber) => {
-      if (rowNumber < 5) {
+      if (rowNumber < config.startRow) {
         return;
       }
 
-      const pointName = readCellText(row, 1);
+      const pointName = readCellText(row, config.pointColumn);
       if (!pointName || coordinatesByColumn.has(pointName)) {
         return;
       }
 
       coordinatesByColumn.set(pointName, {
-        x: readCellNumber(row, 6),
-        y: readCellNumber(row, 7),
+        x: readCellNumber(row, config.xColumn),
+        y: readCellNumber(row, config.yColumn),
       });
     });
 
     if (!coordinatesByColumn.size) {
-      throw new Error("No se encontraron coordenadas desde A5/F5/G5.");
+      throw new Error(
+        `No se encontraron coordenadas desde la hoja ${config.sheetName}, fila ${config.startRow}.`
+      );
     }
 
     return coordinatesByColumn;
   };
 
   const renderJointReactionCombos = (combos) => {
+    selectedComboOrder = [];
     pendingSelectedCombos = [];
     pendingDatosGeneralesRows = [];
     connectivityExcelFileInput.value = "";
     connectivityExcelContainer.classList.add("hidden");
     connectivityExcelFileInput.disabled = true;
     importarConnectivityExcelButton.disabled = true;
+    coordinateExcelConfig.classList.add("hidden");
     propiedadesSection.classList.add("hidden");
     calculoActions.classList.add("hidden");
     excelCombosList.innerHTML = combos
@@ -601,36 +732,117 @@ document.addEventListener("DOMContentLoaded", () => {
 
     excelCombosList.querySelectorAll(".excel-combo-checkbox").forEach((checkbox) => {
       checkbox.addEventListener("change", async () => {
-        const selectedIndexes = [...excelCombosList.querySelectorAll(".excel-combo-checkbox:checked")].map((item) =>
-          Number(item.value)
-        );
+        const combo = combos[Number(checkbox.value)];
 
-        if (selectedIndexes.length > 3) {
+        if (checkbox.checked && selectedComboOrder.length === 3) {
           checkbox.checked = false;
           setExcelCombosStatus("Solo puedes seleccionar 3 combinaciones.", true);
           return;
         }
 
+        if (checkbox.checked) {
+          selectedComboOrder.push(combo);
+        } else {
+          selectedComboOrder = selectedComboOrder.filter((selectedCombo) => selectedCombo !== combo);
+        }
+
         excelCombosList.querySelectorAll(".excel-combo-checkbox:not(:checked)").forEach((item) => {
-          item.disabled = selectedIndexes.length === 3;
+          item.disabled = selectedComboOrder.length === 3;
         });
 
-        if (selectedIndexes.length === 3) {
-          await applyJointReactionSelection(selectedIndexes.map((selectedIndex) => combos[selectedIndex]));
+        if (selectedComboOrder.length === 3) {
+          await applyJointReactionSelection([...selectedComboOrder]);
         } else {
-          pendingSelectedCombos = [];
-          pendingDatosGeneralesRows = [];
-          connectivityExcelFileInput.value = "";
-          connectivityExcelContainer.classList.add("hidden");
-          connectivityExcelFileInput.disabled = true;
-          importarConnectivityExcelButton.disabled = true;
-          propiedadesSection.classList.add("hidden");
-          calculoActions.classList.add("hidden");
-          setExcelCombosStatus(`Selecciona ${3 - selectedIndexes.length} combinacion(es) mas.`);
+          resetCoordinateStep();
+          setExcelCombosStatus(`Selecciona ${3 - selectedComboOrder.length} combinacion(es) mas.`);
         }
       });
     });
   };
+
+  excelFileInput.addEventListener("change", async () => {
+    resetImportedData();
+    reactionWorkbook = null;
+    reactionWorkbookFile = null;
+    reactionExcelConfig.classList.add("hidden");
+
+    const file = excelFileInput.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      reactionWorkbook = await loadWorkbook(file, "reacciones");
+      reactionWorkbookFile = file;
+      populateSheetSelect(reactionSheetInput, reactionWorkbook, "Joint Reactions");
+      reactionExcelConfig.classList.remove("hidden");
+      excelCombosContainer.classList.remove("hidden");
+      setExcelCombosStatus("Configura hoja y columnas, luego importa las combinaciones.");
+    } catch (error) {
+      excelCombosContainer.classList.remove("hidden");
+      setExcelCombosStatus(error.message || "No se pudo leer el Excel de reacciones.", true);
+    }
+  });
+
+  connectivityExcelFileInput.addEventListener("change", async () => {
+    coordinateWorkbook = null;
+    coordinateWorkbookFile = null;
+    coordinateExcelConfig.classList.add("hidden");
+    propiedadesSection.classList.add("hidden");
+    calculoActions.classList.add("hidden");
+
+    const file = connectivityExcelFileInput.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      coordinateWorkbook = await loadWorkbook(file, "coordenadas");
+      coordinateWorkbookFile = file;
+      populateSheetSelect(coordinateSheetInput, coordinateWorkbook, "Point Object Connectivity");
+      coordinateExcelConfig.classList.remove("hidden");
+      setExcelCombosStatus("Configura hoja y columnas de coordenadas, luego importa coordenadas.");
+    } catch (error) {
+      setExcelCombosStatus(error.message || "No se pudo leer el Excel de coordenadas.", true);
+    }
+  });
+
+  [
+    reactionSheetInput,
+    reactionStartRowInput,
+    reactionPointColumnInput,
+    reactionComboColumnInput,
+    reactionF2ColumnInput,
+    reactionMxColumnInput,
+    reactionMyColumnInput,
+  ].forEach((input) => {
+    input.addEventListener("change", () => {
+      if (jointReactionsRows.length || selectedComboOrder.length) {
+        selectedComboOrder = [];
+        jointReactionsRows = [];
+        excelCombosList.innerHTML = "";
+        resetCoordinateStep();
+        setExcelCombosStatus("La configuracion cambio. Importa nuevamente las combinaciones.");
+      }
+    });
+  });
+
+  [coordinateSheetInput, coordinateStartRowInput, coordinatePointColumnInput, coordinateXColumnInput, coordinateYColumnInput].forEach(
+    (input) => {
+      input.addEventListener("change", () => {
+        propiedadesSection.classList.add("hidden");
+        calculoActions.classList.add("hidden");
+        if (pendingSelectedCombos.length === 3) {
+          pendingDatosGeneralesRows = buildDatosGeneralesRows(pendingSelectedCombos);
+          renderDatosGeneralesRows(
+            pendingSelectedCombos,
+            pendingDatosGeneralesRows,
+            "La configuracion de coordenadas cambio. Importa coordenadas nuevamente."
+          );
+        }
+      });
+    }
+  );
 
   importarConnectivityExcelButton.addEventListener("click", async () => {
     if (pendingSelectedCombos.length !== 3) {
@@ -674,34 +886,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   importarExcelButton.addEventListener("click", async () => {
     const file = excelFileInput.files?.[0];
-    if (!file) {
-      setExcelCombosStatus("Selecciona un archivo Excel antes de importar.", true);
-      excelCombosContainer.classList.remove("hidden");
-      return;
-    }
-    if (!file.name.toLowerCase().endsWith(".xlsx")) {
-      setExcelCombosStatus("El archivo debe estar en formato .xlsx.", true);
-      excelCombosContainer.classList.remove("hidden");
-      return;
-    }
-    if (!window.ExcelJS) {
-      swalTailwind.fire({
-        icon: "error",
-        title: "No se pudo leer Excel",
-        text: "La libreria ExcelJS no esta disponible en esta pantalla.",
-      });
-      return;
-    }
 
     try {
       setExcelCombosStatus("Leyendo archivo Excel...");
       excelCombosContainer.classList.remove("hidden");
-      const workbook = new window.ExcelJS.Workbook();
-      await workbook.xlsx.load(await file.arrayBuffer());
-      const worksheet = workbook.getWorksheet("Joint Reactions");
+      if (!reactionWorkbook || reactionWorkbookFile !== file) {
+        reactionWorkbook = await loadWorkbook(file, "reacciones");
+        reactionWorkbookFile = file;
+        populateSheetSelect(reactionSheetInput, reactionWorkbook, "Joint Reactions");
+        reactionExcelConfig.classList.remove("hidden");
+      }
+
+      const config = getReactionImportConfig();
+      const worksheet = reactionWorkbook.getWorksheet(config.sheetName);
 
       if (!worksheet) {
-        throw new Error("No se encontro la hoja Joint Reactions.");
+        throw new Error(`No se encontro la hoja ${config.sheetName}.`);
       }
 
       const combos = [];
@@ -709,22 +909,22 @@ document.addEventListener("DOMContentLoaded", () => {
       jointReactionsRows = [];
 
       worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber < 5) {
+        if (rowNumber < config.startRow) {
           return;
         }
 
-        const combo = readCellText(row, 4);
+        const combo = readCellText(row, config.comboColumn);
         if (!combo) {
           return;
         }
 
-        const column = readCellText(row, 3);
+        const column = readCellText(row, config.pointColumn);
         jointReactionsRows.push({
           column,
           combo,
-          f2: readCellNumber(row, 11),
-          mx: readCellNumber(row, 12),
-          my: readCellNumber(row, 13),
+          f2: readCellNumber(row, config.f2Column),
+          mx: readCellNumber(row, config.mxColumn),
+          my: readCellNumber(row, config.myColumn),
         });
 
         if (!seenCombos.has(combo)) {
@@ -734,7 +934,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       if (!combos.length) {
-        throw new Error("No se encontraron combinaciones desde D5.");
+        throw new Error(`No se encontraron combinaciones desde la hoja ${config.sheetName}, fila ${config.startRow}.`);
       }
 
       renderJointReactionCombos(combos);

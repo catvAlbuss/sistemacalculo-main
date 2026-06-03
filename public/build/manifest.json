@@ -407,7 +407,7 @@
     "src": "node_modules/jquery-ui/themes/base/images/ui-icons_ffffff_256x240.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-C1Yr580L.css",
+    "file": "assets/app-CKnPIcTF.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
@@ -745,7 +745,7 @@
     ]
   },
   "resources/js/adm_safecito.js": {
-    "file": "assets/adm_safecito-15O3CL3v.js",
+    "file": "assets/adm_safecito-BlNYcXDn.js",
     "name": "adm_safecito",
     "src": "resources/js/adm_safecito.js",
     "isEntry": true,
