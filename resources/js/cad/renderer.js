@@ -379,7 +379,7 @@ export class DiseñoRenderer {
     ctx.arc(p.x, p.y, node.selected ? 6 : 4, 0, Math.PI * 2);
     ctx.fillStyle = node.selected
       ? (context.displayColors?.selected || "#facc15")
-      : (context.displayColors?.node || "#9ca3af");
+      : (context.displayColors?.node || "#afa59c");
     ctx.fill();
 
     ctx.strokeStyle = "#111827";
@@ -4204,181 +4204,6 @@ export class DiseñoRenderer {
         ctx.fillText(`dx: ${this.formatValue(context, dx, "displacements", 6)}`, screen.x, screen.y);
         ctx.fillText(`dy: ${this.formatValue(context, dy, "displacements", 6)}`, screen.x, screen.y + 12);
       }
-// =======
-
-//     const deflecciones = Array.isArray(context.deflecciones)
-//       ? context.deflecciones
-//       : [];
-
-//     const matriz = Array.isArray(context.matrizDesplazamiento)
-//       ? context.matrizDesplazamiento
-//       : [];
-
-//     const nodes = Array.isArray(context.nodes) ? context.nodes : [];
-//     const shapes = Array.isArray(context.shapes) ? context.shapes : [];
-
-//     const scale = Number(
-//       context.displayOptions?.deformedScale ??
-//       context.displayOptions?.deformationScale ??
-//       context.options?.deflectionScale ??
-//       50
-//     );
-
-//     const getDisplacementFromRow = (node, index) => {
-//       const nodeId = node?.id;
-
-//       const fromNode =
-//         node?.analysisDisplacement ||
-//         node?.displacement ||
-//         null;
-
-//       if (fromNode) {
-//         return {
-//           ux: Number(fromNode.ux ?? fromNode.dx ?? 0),
-//           uy: Number(fromNode.uy ?? fromNode.dy ?? 0),
-//           uz: Number(fromNode.uz ?? fromNode.dz ?? 0),
-//         };
-//       }
-
-//       const fromResults = context.analysisResults?.nodes?.[nodeId]?.displacement;
-
-//       if (fromResults) {
-//         return {
-//           ux: Number(fromResults.ux ?? fromResults.dx ?? 0),
-//           uy: Number(fromResults.uy ?? fromResults.dy ?? 0),
-//           uz: Number(fromResults.uz ?? fromResults.dz ?? 0),
-//         };
-//       }
-
-//       const fromDef = deflecciones.find((item) => {
-//         return String(item?.nodeId ?? item?.id) === String(nodeId);
-//       });
-
-//       if (fromDef) {
-//         const d = fromDef.displacement || fromDef;
-
-//         return {
-//           ux: Number(d.ux ?? d.dx ?? 0),
-//           uy: Number(d.uy ?? d.dy ?? 0),
-//           uz: Number(d.uz ?? d.dz ?? 0),
-//         };
-//       }
-
-//       const row = matriz[index];
-
-//       if (Array.isArray(row)) {
-//         // Nuevo formato: [nodeId, ux, uy, uz, rx, ry, rz]
-//         if (row.length >= 4 && String(row[0]) === String(nodeId)) {
-//           return {
-//             ux: Number(row[1] || 0),
-//             uy: Number(row[2] || 0),
-//             uz: Number(row[3] || 0),
-//           };
-//         }
-
-//         // Formato antiguo: [ux, uy, uz]
-//         return {
-//           ux: Number(row[0] || 0),
-//           uy: Number(row[1] || 0),
-//           uz: Number(row[2] || 0),
-//         };
-//       }
-
-//       if (row && typeof row === "object") {
-//         return {
-//           ux: Number(row.ux ?? row.dx ?? 0),
-//           uy: Number(row.uy ?? row.dy ?? 0),
-//           uz: Number(row.uz ?? row.dz ?? 0),
-//         };
-//       }
-
-//       return {
-//         ux: 0,
-//         uy: 0,
-//         uz: 0,
-//       };
-//     };
-
-//     const getDeformedPosition = (node, index) => {
-//       const p = node?.position || {};
-//       const d = getDisplacementFromRow(node, index);
-
-//       return {
-//         x: Number(p.x || 0) + d.ux * scale,
-//         y: Number(p.y || 0) + d.uy * scale,
-//         z: Number(p.z || 0) + d.uz * scale,
-//       };
-//     };
-
-//     ctx.save();
-
-//     ctx.strokeStyle = "#38bdf8";
-//     ctx.fillStyle = "#38bdf8";
-//     ctx.lineWidth = 2;
-//     ctx.textAlign = "center";
-//     ctx.textBaseline = "middle";
-
-//     // Compatibilidad con formato antiguo: def.x = [x1,x2], def.y = [y1,y2]
-//     deflecciones.forEach((def) => {
-//       if (!Array.isArray(def?.x) || !Array.isArray(def?.y)) return;
-
-//       const [x1, x2] = def.x;
-//       const [y1, y2] = def.y;
-
-//       const p1 = context.grid.worldToScreen({ x: x1, y: y1 });
-//       const p2 = context.grid.worldToScreen({ x: x2, y: y2 });
-
-//       ctx.beginPath();
-//       ctx.setLineDash([5, 3]);
-//       ctx.moveTo(p1.x, p1.y);
-//       ctx.lineTo(p2.x, p2.y);
-//       ctx.stroke();
-//     });
-
-//     // Nuevo formato Analyze: dibujar barras deformadas desde nodos + desplazamientos
-//     shapes.forEach((shape) => {
-//       if (!shape?.node1 || !shape?.node2) return;
-
-//       if (typeof this.shouldDrawBeam === "function" && !this.shouldDrawBeam(shape, context)) {
-//         return;
-//       }
-
-//       const node1Index = nodes.findIndex((n) => String(n.id) === String(shape.node1.id));
-//       const node2Index = nodes.findIndex((n) => String(n.id) === String(shape.node2.id));
-
-//       const q1 = getDeformedPosition(shape.node1, node1Index);
-//       const q2 = getDeformedPosition(shape.node2, node2Index);
-
-//       const p1 = this.projectPoint({ position: q1 }, context);
-//       const p2 = this.projectPoint({ position: q2 }, context);
-
-//       ctx.beginPath();
-//       ctx.setLineDash([7, 4]);
-//       ctx.moveTo(p1.x, p1.y);
-//       ctx.lineTo(p2.x, p2.y);
-//       ctx.stroke();
-//     });
-
-//     ctx.setLineDash([]);
-
-//     // Dibujar nodos deformados y etiquetas dx/dy
-//     nodes.forEach((node, index) => {
-//       if (typeof this.shouldDrawNode === "function" && !this.shouldDrawNode(node, context)) {
-//         return;
-//       }
-
-//       const q = getDeformedPosition(node, index);
-//       const d = getDisplacementFromRow(node, index);
-//       const p = this.projectPoint({ position: q }, context);
-
-//       ctx.beginPath();
-//       ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-//       ctx.fill();
-
-//       ctx.font = "10px Arial";
-//       ctx.fillText(`dx: ${axisToFixed(d.ux)}`, p.x + 24, p.y - 6);
-//       ctx.fillText(`dy: ${axisToFixed(d.uy)}`, p.x + 24, p.y + 6);
-// >>>>>>> eab88042b6badc95272f8096c910734e6c5231f0
     });
 
     ctx.restore();
@@ -4468,6 +4293,7 @@ export class DiseñoRenderer {
     return true;
   }
 
+  // =====================================================
   // Aplica filtros de vista activa y oculta barras 3D-only.
   // =====================================================
   shouldDrawBeam(beam, CADSystem = null) {

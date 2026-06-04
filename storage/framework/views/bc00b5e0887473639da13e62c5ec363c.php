@@ -1,1 +1,0 @@
-<?php /**PATH C:\laragon\www\rizabalAsociadosActualizadoServer\resources\views\etabs2.blade.php ENDPATH**/ ?>

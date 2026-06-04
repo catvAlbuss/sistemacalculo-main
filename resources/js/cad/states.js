@@ -88,25 +88,44 @@ export class IdleState extends PanAndZoomState {
     }
 
     // =====================================================
-    // IDLE > LIMPIAR ESTILOS SIN ROMPER OBJETOS 3D
-    // Algunos nodos/barras creados desde 3D no tienen style.default.
-    // Por eso se usa optional chaining.
+    // IDLE > CTRL + CLIC PARA SELECCIÓN MÚLTIPLE DE BARRAS
+    // Clic normal: limpia selección previa.
+    // Ctrl + clic: conserva lo ya seleccionado.
     // =====================================================
-    context.nodes?.forEach((node) => {
-      node.selected = false;
-      node.isSelected = false;
-      node.is3DOnlyEndpointHover = false;
+    const isCtrlFrameSelect = event.ctrlKey === true;
 
-      node.style?.default?.();
-    });
+    if (!isCtrlFrameSelect) {
+      context.nodes?.forEach((node) => {
+        node.selected = false;
+        node.isSelected = false;
+        node.is3DOnlyEndpointHover = false;
 
-    context.shapes?.forEach((shape) => {
-      shape.selected = false;
-      shape.isSelected = false;
-      shape.highlighted3D = false;
+        node.style?.default?.();
+      });
 
-      shape.style?.default?.();
-    });
+      context.shapes?.forEach((shape) => {
+        shape.selected = false;
+        shape.isSelected = false;
+        shape.highlighted3D = false;
+
+        shape.style?.default?.();
+      });
+    } else {
+      // Con Ctrl NO limpiamos las barras seleccionadas.
+      context.nodes?.forEach((node) => {
+        node.is3DOnlyEndpointHover = false;
+
+        if (!node.selected && !node.isSelected) {
+          node.style?.default?.();
+        }
+      });
+
+      context.shapes?.forEach((shape) => {
+        if (!shape.selected && !shape.isSelected && !shape.highlighted3D) {
+          shape.style?.default?.();
+        }
+      });
+    }
 
     // =====================================================
     // IDLE > ALT + CLIC EN EXTREMO DE BARRA 3D-ONLY
@@ -185,16 +204,40 @@ export class IdleState extends PanAndZoomState {
 
     let selectedObject = context.closestNodeAtActiveView(mouse);
 
+    // =====================================================
+    // IDLE > CTRL + CLIC EN BARRA
+    // Tiene prioridad sobre nodos para poder seleccionar
+    // exactamente las barras que el usuario quiere.
+    // =====================================================
+    if (isCtrlFrameSelect) {
+      const ctrlSelectedBeam = context.closestBeamAtActiveView?.(mouse);
+
+      if (ctrlSelectedBeam) {
+        context.toggleFrameSelection?.(ctrlSelectedBeam);
+        return;
+      }
+    }
+
     if (selectedObject) {
       context.setState(context.moveObjectState, {
         selectedObject,
         isMoving: true,
       });
     } else if ((selectedObject = context.closestBeamAtActiveView(mouse))) {
-      context.setState(context.selectedBeamsState, {
-        selectedBeams: [selectedObject],
-      });
-    } else if ((selectedObject = context.closestParametric(mouse))) {
+      // Clic normal: selecciona solo esa barra.
+      if (typeof context.selectFramesForEdit === "function") {
+        context.selectFramesForEdit([selectedObject], {
+          reason: "2d single frame selection",
+        });
+      } else {
+        context.setState(context.selectedBeamsState, {
+          selectedBeams: [selectedObject],
+        });
+      }
+
+      return;
+    }
+    else if ((selectedObject = context.closestParametric(mouse))) {
       context.setState(context.selectedParametricState, {
         selectedParametric: [selectedObject],
       });
