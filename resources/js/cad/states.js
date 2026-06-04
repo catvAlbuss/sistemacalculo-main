@@ -75,7 +75,6 @@ export class PanAndZoomState extends StateBase {
 }
 
 export class IdleState extends PanAndZoomState {
-
   handleMouseDown(event, context, mouse) {
     super.handleMouseDown(...arguments);
 
@@ -489,7 +488,6 @@ export class IdleState extends PanAndZoomState {
 }
 
 export class SelectedObjectsState extends PanAndZoomState {
-
   constructor() {
     super();
     this.selectedObjects = [];
@@ -761,8 +759,8 @@ export class ReshapeObjectState extends PanAndZoomState {
     this.selectedBeam = null;
     this.selectedArea = null;
 
-    this.selectedNode = null;          // para barras
-    this.selectedVertexIndex = null;   // para áreas
+    this.selectedNode = null; // para barras
+    this.selectedVertexIndex = null; // para áreas
 
     this.isMoving = false;
   }
@@ -1389,6 +1387,18 @@ export class MoveObjectState extends IdleState {
     return (this.selectedObject.force.loads[this.currentLoad].y = y);
   }
 
+  // ========== NUEVO: getter y setter para Fz ==========
+  get nodeZ() {
+    return this.selectedObject?.force?.loads?.[this.currentLoad]?.z ?? 0;
+  }
+
+  set nodeZ(z) {
+    if (this.selectedObject?.force?.loads?.[this.currentLoad]) {
+      this.selectedObject.force.loads[this.currentLoad].z = z;
+    }
+  }
+  // ====================================================
+
   handleKeyDown(event, context) {
     super.handleKeyDown(...arguments);
     if (event.key === "Delete") {
@@ -1510,9 +1520,9 @@ export class TrussDrawingState extends PanAndZoomState {
     this.shape = this.createEmptyShape(context);
 
     // ========== NUEVAS PROPIEDADES PARA DIBUJO POR LONGITUD ==========
-    this.inputMode = false;        // Modo de entrada de longitud
-    this.inputBuffer = '';         // Buffer de texto para la longitud
-    this.inputStartPoint = null;   // Punto de inicio para modo entrada
+    this.inputMode = false; // Modo de entrada de longitud
+    this.inputBuffer = ""; // Buffer de texto para la longitud
+    this.inputStartPoint = null; // Punto de inicio para modo entrada
     // ================================================================
 
     // Permite mantener el primer punto cuando se pasa de planta a otra planta o a una elevación.
@@ -1583,11 +1593,31 @@ export class TrussDrawingState extends PanAndZoomState {
   }
 
   getOrCreateNode(context, point) {
-    const toleranceXY = 0.001;
-    const toleranceZ = 0.001;
+    const view = context.viewSet?.[context.activeViewIndex];
+
+    // Tolerancias más estrictas para elevaciones
+    let toleranceXY = 0.1;
+    let toleranceZ = 0.1;
+
+    // En vistas de elevación, usar tolerancias más estrictas
+    if (view?.type === "elevation") {
+      toleranceXY = 0.05;
+      toleranceZ = 0.05;
+    }
 
     let node = context.nodes.find((n) => {
       const p = n.position || n;
+
+      // En vistas de elevación, verificar que el nodo pertenezca a la vista
+      if (view?.type === "elevation" && view.axis === "X") {
+        const fixedX = Number(view.value || 0);
+        if (Math.abs((p.x || 0) - fixedX) > toleranceXY) return false;
+      }
+
+      if (view?.type === "elevation" && view.axis === "Y") {
+        const fixedY = Number(view.value || 0);
+        if (Math.abs((p.y || 0) - fixedY) > toleranceXY) return false;
+      }
 
       return (
         Math.abs(Number(p.x || 0) - Number(point.x || 0)) <= toleranceXY &&
@@ -1597,14 +1627,11 @@ export class TrussDrawingState extends PanAndZoomState {
     });
 
     if (node) {
+      if (!node.beams) node.beams = [];
       return node;
     }
 
-    node = new StructuralNode(
-      { x: point.x, y: point.y },
-      context.nodes.length + 1,
-      point.z
-    );
+    node = new StructuralNode({ x: point.x, y: point.y }, context.nodes.length + 1, point.z);
 
     if (!node.position) {
       node.position = {
@@ -1625,12 +1652,36 @@ export class TrussDrawingState extends PanAndZoomState {
     context.nodes.push(node);
 
     console.log(
-      `✅ Nodo creado ID: ${node.id} en (${point.x.toFixed(2)}, ${point.y.toFixed(2)}, ${point.z.toFixed(2)})`
+      `✅ Nodo creado ID: ${node.id} en (${point.x.toFixed(2)}, ${point.y.toFixed(2)}, ${point.z.toFixed(2)})`,
     );
 
     return node;
   }
 
+  // <<<<<<< HEAD
+
+  //   addNodeToCurrentShape(context, node) {
+  //     // Verificar si el nodo ya es el mismo que el primero (evitar auto-conexión)
+  //     if (this.shape.node1 === node) {
+  //       console.log("⚠️ No se puede conectar un nodo consigo mismo");
+  //       return;
+  //     }
+
+  //     // Verificar si ya existe una conexión entre estos nodos
+  //     const connectionExists = context.shapes.some((shape) => {
+  //       if (!shape?.node1 || !shape?.node2) return false;
+  //       return (
+  //         (shape.node1 === this.shape.node1 && shape.node2 === node) ||
+  //         (shape.node1 === node && shape.node2 === this.shape.node1)
+  //       );
+  //     });
+
+  //     if (connectionExists && this.shape.node1 && node) {
+  //       console.log("⚠️ Ya existe una conexión entre estos nodos");
+  //       context.showMessage?.("⚠️ Ya existe una viga entre estos puntos", "warning");
+  //       return;
+  //     }
+  // =======
   // Identifica la planta o elevación donde se hizo clic.
   // =====================================================
   getActiveViewSignature(context) {
@@ -1737,9 +1788,7 @@ export class TrussDrawingState extends PanAndZoomState {
       this.shape.node2.beams.push(this.shape);
     }
 
-    console.log(
-      `📐 Línea creada ID: ${this.shape.id} | tipo: ${this.elementType}`
-    );
+    console.log(`📐 Línea creada ID: ${this.shape.id} | tipo: ${this.elementType}`);
 
     const lastNode = this.shape.node2;
 
@@ -1755,73 +1804,106 @@ export class TrussDrawingState extends PanAndZoomState {
     context.sync3D?.();
   }
 
-  // ========== NUEVO: Obtener dirección actual desde el mouse (SIEMPRE actualizada) ==========
+
   getCurrentDirection(context) {
     if (!this.inputStartPoint) return null;
 
     const startWorld = this.inputStartPoint.position;
-    // 🔧 Usar la posición actual del mouse (context.mousePos se actualiza en cada handleMouseMove)
     const mouseWorld = context.mousePos;
     const view = context.viewSet?.[context.activeViewIndex];
-
-    let dx, dy, dz = 0;
+    let dx = 0,
+      dy = 0,
+      dz = 0;
+    let length = 0;
 
     if (view?.type === "elevation" && view.axis === "X") {
-      // Plano Y-Z
+      // Plano Y-Z: coordenadas de pantalla X = Y mundo, Y = Z mundo
+      // La dirección se calcula en el plano Y-Z
       dy = mouseWorld.x - startWorld.y;
       dz = mouseWorld.y - (startWorld.z || 0);
-      const len = Math.sqrt(dy * dy + dz * dz);
-      if (len > 0.001) {
-        return { dx: 0, dy: dy / len, dz: dz / len };
+      length = Math.sqrt(dy * dy + dz * dz);
+      if (length > 0.001) {
+        return { dx: 0, dy: dy / length, dz: dz / length };
       }
+      // Dirección por defecto hacia arriba en Y
+      return { dx: 0, dy: 1, dz: 0 };
     } else if (view?.type === "elevation" && view.axis === "Y") {
-      // Plano X-Z
+      // Plano X-Z: coordenadas de pantalla X = X mundo, Y = Z mundo
       dx = mouseWorld.x - startWorld.x;
       dz = mouseWorld.y - (startWorld.z || 0);
-      const len = Math.sqrt(dx * dx + dz * dz);
-      if (len > 0.001) {
-        return { dx: dx / len, dy: 0, dz: dz / len };
+      length = Math.sqrt(dx * dx + dz * dz);
+      if (length > 0.001) {
+        return { dx: dx / length, dy: 0, dz: dz / length };
       }
+      // Dirección por defecto hacia la derecha en X
+      return { dx: 1, dy: 0, dz: 0 };
     } else {
-      // Planta
+      // PLANTA: plano X-Y
       dx = mouseWorld.x - startWorld.x;
       dy = mouseWorld.y - startWorld.y;
-      const len = Math.sqrt(dx * dx + dy * dy);
-      if (len > 0.001) {
-        return { dx: dx / len, dy: dy / len, dz: 0 };
+      length = Math.sqrt(dx * dx + dy * dy);
+      if (length > 0.001) {
+        return { dx: dx / length, dy: dy / length, dz: 0 };
       }
+      // Dirección por defecto hacia la derecha en X
+      // Si no hay dirección válida, usar dirección por defecto (derecha)
+      return { dx: 1, dy: 0, dz: 0 };
     }
-
-    // Si no hay dirección válida, usar dirección por defecto (derecha)
-    return { dx: 1, dy: 0, dz: 0 };
   }
 
-  // ========== NUEVO: Iniciar modo entrada de longitud ==========
   startLengthInput(context, startPoint) {
     this.inputMode = true;
-    this.inputBuffer = '';
+    this.inputBuffer = "";
     this.inputStartPoint = startPoint;
 
-    context.showMessage?.('📏 Ingrese la longitud y presione Enter. Esc para cancelar');
+    const view = context.viewSet?.[context.activeViewIndex];
+
+    // Mensaje específico según la vista
+    if (view?.type === "elevation") {
+      context.showMessage?.(
+        "📏 Ingrese la longitud (en metros) y presione Enter. Esc para cancelar. Use el mouse para definir la dirección",
+      );
+    } else {
+      context.showMessage?.("📏 Ingrese la longitud y presione Enter. Esc para cancelar");
+    }
+
     context.redraw?.();
   }
 
-  // ========== NUEVO: Dibujar preview de la viga a construir (usando dirección actual) ==========
   drawLengthPreview(context) {
     if (!this.inputMode || !this.inputStartPoint) return;
 
     const startPoint = this.inputStartPoint.position;
     const length = parseFloat(this.inputBuffer) || 1;
 
-    // 🔧 Obtener dirección actualizada dinámicamente
+    // Obtener dirección actualizada dinámicamente
     const direction = this.getCurrentDirection(context);
+    const view = context.viewSet?.[context.activeViewIndex];
 
     const endPoint = {
       x: startPoint.x + direction.dx * length,
       y: startPoint.y + direction.dy * length,
-      z: (startPoint.z || 0) + direction.dz * length
+      z: (startPoint.z || 0) + direction.dz * length,
     };
 
+    // <<<<<<< HEAD
+    //     let p1, p2;
+
+    //     // Proyectar puntos según el tipo de vista
+    //     if (view?.type === "elevation" && view.axis === "X") {
+    //       // Vista elevación X (LETRAS): X fijo, plano Y-Z
+    //       p1 = context.grid.worldToScreen({ x: startPoint.y, y: startPoint.z || 0 });
+    //       p2 = context.grid.worldToScreen({ x: endPoint.y, y: endPoint.z });
+    //     } else if (view?.type === "elevation" && view.axis === "Y") {
+    //       // Vista elevación Y (NÚMEROS): Y fijo, plano X-Z
+    //       p1 = context.grid.worldToScreen({ x: startPoint.x, y: startPoint.z || 0 });
+    //       p2 = context.grid.worldToScreen({ x: endPoint.x, y: endPoint.z });
+    //     } else {
+    //       // Vista PLANTA normal
+    //       p1 = context.grid.worldToScreen({ x: startPoint.x, y: startPoint.y });
+    //       p2 = context.grid.worldToScreen({ x: endPoint.x, y: endPoint.y });
+    //     }
+    // =======
     const p1 = context.currentRenderer?.projectPoint
       ? context.currentRenderer.projectPoint({ position: startPoint }, context)
       : context.grid.worldToScreen(startPoint);
@@ -1829,11 +1911,12 @@ export class TrussDrawingState extends PanAndZoomState {
     const p2 = context.currentRenderer?.projectPoint
       ? context.currentRenderer.projectPoint({ position: endPoint }, context)
       : context.grid.worldToScreen(endPoint);
+    // >>>>>>> eab88042b6badc95272f8096c910734e6c5231f0
 
     context.ctx.save();
 
     // Línea de preview naranja PUNTEADA
-    context.ctx.strokeStyle = '#ffaa44';
+    context.ctx.strokeStyle = "#ffaa44";
     context.ctx.lineWidth = 2;
     context.ctx.setLineDash([8, 4]);
     context.ctx.beginPath();
@@ -1844,14 +1927,15 @@ export class TrussDrawingState extends PanAndZoomState {
     // Texto de longitud en el medio
     const midX = (p1.x + p2.x) / 2;
     const midY = (p1.y + p2.y) / 2;
-    context.ctx.fillStyle = '#ffaa44';
-    context.ctx.font = 'bold 12px monospace';
-    context.ctx.fillText(`${this.inputBuffer || '0'} m`, midX, midY - 10);
+    context.ctx.fillStyle = "#ffaa44";
+    context.ctx.font = "bold 12px monospace";
+    context.ctx.fillText(`${this.inputBuffer || "0"} m`, midX, midY - 10);
 
-    // Mostrar buffer de entrada
-    context.ctx.fillStyle = '#ffffff';
-    context.ctx.font = '14px monospace';
-    context.ctx.fillText(`Longitud: ${this.inputBuffer}_`, 20, 40);
+    // Mostrar buffer de entrada en la esquina
+    context.ctx.fillStyle = "#ffffff";
+    context.ctx.font = "14px monospace";
+    context.ctx.shadowBlur = 0;
+    context.ctx.fillText(`📏 Longitud: ${this.inputBuffer || "0"}_`, 20, 40);
 
     context.ctx.restore();
   }
@@ -1862,9 +1946,9 @@ export class TrussDrawingState extends PanAndZoomState {
 
     const length = parseFloat(this.inputBuffer);
     if (isNaN(length) || length <= 0) {
-      context.showMessage?.('❌ Longitud inválida', 'warning');
+      context.showMessage?.("❌ Longitud inválida", "warning");
       this.inputMode = false;
-      this.inputBuffer = '';
+      this.inputBuffer = "";
       this.inputStartPoint = null;
       context.redraw();
       return;
@@ -1878,23 +1962,21 @@ export class TrussDrawingState extends PanAndZoomState {
     const endPoint = {
       x: startPoint.x + direction.dx * length,
       y: startPoint.y + direction.dy * length,
-      z: (startPoint.z || 0) + direction.dz * length
+      z: (startPoint.z || 0) + direction.dz * length,
     };
 
     // Crear o buscar nodo final
-    let endNode = context.nodes.find(n => {
+    let endNode = context.nodes.find((n) => {
       const p = n.position;
-      return Math.abs(p.x - endPoint.x) < 0.001 &&
+      return (
+        Math.abs(p.x - endPoint.x) < 0.001 &&
         Math.abs(p.y - endPoint.y) < 0.001 &&
-        Math.abs((p.z || 0) - (endPoint.z || 0)) < 0.001;
+        Math.abs((p.z || 0) - (endPoint.z || 0)) < 0.001
+      );
     });
 
     if (!endNode) {
-      endNode = new StructuralNode(
-        { x: endPoint.x, y: endPoint.y },
-        context.nodes.length + 1,
-        endPoint.z
-      );
+      endNode = new StructuralNode({ x: endPoint.x, y: endPoint.y }, context.nodes.length + 1, endPoint.z);
       context.nodes.push(endNode);
     }
 
@@ -1920,7 +2002,7 @@ export class TrussDrawingState extends PanAndZoomState {
 
     // Limpiar modo entrada
     this.inputMode = false;
-    this.inputBuffer = '';
+    this.inputBuffer = "";
     this.inputStartPoint = null;
 
     // Continuar dibujando desde el nuevo nodo
@@ -1960,52 +2042,88 @@ export class TrussDrawingState extends PanAndZoomState {
     }
   }
 
-  // ========== handleMouseMove ==========
   handleMouseMove(event, context, mouse) {
     // Primero, el comportamiento de pan/zoom
     super.handleMouseMove(...arguments);
+    // Actualizar mousePos del contexto (en coordenadas del mundo)
+    context.mousePos = context.grid.screenToWorld(mouse);
 
-    // 🔧 IMPORTANTE: Actualizar mousePos del contexto (en coordenadas del mundo)
-    // context.mousePos = context.grid.screenToWorld(mouse);
+    const view = context.viewSet?.[context.activeViewIndex];
 
     // ==== LÍNEA DE PREVIEW ORIGINAL (AZUL PUNTEADA) ====
     const firstPoint = this.shape?.node1?.position;
 
-    if (!firstPoint) {
-      return;
+    if (firstPoint) {
+      let currentPoint;
+
+      if (this.inputMode && this.inputStartPoint) {
+        // En modo entrada, usar el punto inicial fijo
+        currentPoint = this.inputStartPoint.position;
+      } else {
+        // Obtener punto actual con snapping
+        currentPoint = this.getDrawingPoint(context, mouse);
+      }
+
+      let dx, dy, dz;
+
+      if (view?.type === "elevation" && view.axis === "X") {
+        dx = currentPoint.x - firstPoint.x;
+        dy = currentPoint.y - firstPoint.y;
+        dz = (currentPoint.z || 0) - (firstPoint.z || 0);
+      } else if (view?.type === "elevation" && view.axis === "Y") {
+        dx = currentPoint.x - firstPoint.x;
+        dy = currentPoint.y - firstPoint.y;
+        dz = (currentPoint.z || 0) - (firstPoint.z || 0);
+      } else {
+        dx = currentPoint.x - firstPoint.x;
+        dy = currentPoint.y - firstPoint.y;
+        dz = 0;
+      }
+
+      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+      if (context.distanceInput && distance > 0.001) {
+        let p1, p2;
+
+        // Proyectar puntos según vista
+        if (view?.type === "elevation" && view.axis === "X") {
+          p1 = context.currentRenderer.projectPoint
+            ? context.currentRenderer.projectPoint({ position: { x: firstPoint.y, y: firstPoint.z || 0 } }, context)
+            : context.grid.worldToScreen({ x: firstPoint.y, y: firstPoint.z || 0 });
+          p2 = context.currentRenderer.projectPoint
+            ? context.currentRenderer.projectPoint({ position: { x: currentPoint.y, y: currentPoint.z || 0 } }, context)
+            : context.grid.worldToScreen({ x: currentPoint.y, y: currentPoint.z || 0 });
+        } else if (view?.type === "elevation" && view.axis === "Y") {
+          p1 = context.currentRenderer.projectPoint
+            ? context.currentRenderer.projectPoint({ position: { x: firstPoint.x, y: firstPoint.z || 0 } }, context)
+            : context.grid.worldToScreen({ x: firstPoint.x, y: firstPoint.z || 0 });
+          p2 = context.currentRenderer.projectPoint
+            ? context.currentRenderer.projectPoint({ position: { x: currentPoint.x, y: currentPoint.z || 0 } }, context)
+            : context.grid.worldToScreen({ x: currentPoint.x, y: currentPoint.z || 0 });
+        } else {
+          p1 = context.currentRenderer.projectPoint
+            ? context.currentRenderer.projectPoint({ position: firstPoint }, context)
+            : context.grid.worldToScreen(firstPoint);
+          p2 = context.currentRenderer.projectPoint
+            ? context.currentRenderer.projectPoint({ position: currentPoint }, context)
+            : context.grid.worldToScreen(currentPoint);
+        }
+
+        const mid = {
+          x: (p1.x + p2.x) / 2,
+          y: (p1.y + p2.y) / 2,
+        };
+
+        context.distanceInput.style.left = `${mid.x + 20}px`;
+        context.distanceInput.style.top = `${mid.y - 20}px`;
+        context.distanceInput.value = context.formatOutput
+          ? context.formatOutput(distance, "lengths")
+          : distance.toFixed(2);
+      }
     }
 
-    const currentPoint = this.getDrawingPoint(context, mouse);
-
-    const dx = currentPoint.x - firstPoint.x;
-    const dy = currentPoint.y - firstPoint.y;
-    const dz = (currentPoint.z || 0) - (firstPoint.z || 0);
-
-    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-    if (context.distanceInput && distance > 0.001) {
-      const p1 = context.currentRenderer.projectPoint
-        ? context.currentRenderer.projectPoint({ position: firstPoint }, context)
-        : context.grid.worldToScreen(firstPoint);
-
-      const p2 = context.currentRenderer.projectPoint
-        ? context.currentRenderer.projectPoint({ position: currentPoint }, context)
-        : context.grid.worldToScreen(currentPoint);
-
-      const mid = {
-        x: (p1.x + p2.x) / 2,
-        y: (p1.y + p2.y) / 2,
-      };
-
-      context.distanceInput.style.left = `${mid.x + 20}px`;
-      context.distanceInput.style.top = `${mid.y - 20}px`;
-      context.distanceInput.value = context.formatOutput
-        ? context.formatOutput(distance, "lengths")
-        : distance.toFixed(2);
-    }
-
-    // 🔧 Si estamos en modo entrada, forzar redibujado para actualizar la línea naranja
-    if (this.inputMode) {
+    // Forzar redibujado para actualizar previews
+    if (this.inputMode || firstPoint) {
       context.redraw();
     } else {
       context.redraw?.();
@@ -2081,28 +2199,27 @@ export class TrussDrawingState extends PanAndZoomState {
     context.sync3D?.();
   }
 
-  // ========== handleKeyDown ==========
   handleKeyDown(event, context) {
     // Manejo de entrada numérica en modo entrada
     if (this.inputMode) {
-      if (event.key === 'Enter') {
+      if (event.key === "Enter") {
         this.createBeamWithLength(context);
         event.preventDefault();
         return;
-      } else if (event.key === 'Escape') {
+      } else if (event.key === "Escape") {
         this.inputMode = false;
-        this.inputBuffer = '';
+        this.inputBuffer = "";
         this.inputStartPoint = null;
-        context.showMessage?.('📏 Modo de entrada cancelado');
+        context.showMessage?.("📏 Modo de entrada cancelado");
         context.redraw();
         event.preventDefault();
         return;
-      } else if (event.key === 'Backspace') {
+      } else if (event.key === "Backspace") {
         this.inputBuffer = this.inputBuffer.slice(0, -1);
         context.redraw();
         event.preventDefault();
         return;
-      } else if (/[0-9.]/.test(event.key)) {
+      } else if (event.key === "." || /[0-9]/.test(event.key)) {
         this.inputBuffer += event.key;
         context.redraw();
         event.preventDefault();
@@ -2111,12 +2228,23 @@ export class TrussDrawingState extends PanAndZoomState {
     }
 
     // Tecla 'L' para activar modo entrada de longitud (después de tener primer punto)
-    if (event.key === 'l' || event.key === 'L') {
+    if (event.key === "l" || event.key === "L") {
       if (this.shape?.node1 && !this.shape.node2 && !this.inputMode) {
+        const view = context.viewSet?.[context.activeViewIndex];
+        const message =
+          view?.type === "elevation"
+            ? "📏 Modo longitud activado. Mueva el mouse para definir dirección, ingrese número y presione Enter"
+            : "📏 Modo longitud activado. Ingrese la longitud y presione Enter";
+        context.showMessage?.(message);
         this.startLengthInput(context, this.shape.node1);
         event.preventDefault();
         return;
+      } else if (!this.shape?.node1) {
+        context.showMessage?.("⚠️ Primero debe seleccionar el punto inicial", "warning");
+      } else if (this.shape.node2) {
+        context.showMessage?.("⚠️ Ya completó la viga actual. Comience una nueva", "warning");
       }
+      return;
     }
 
     // Escape para salir del estado
@@ -2155,12 +2283,50 @@ export class TrussDrawingState extends PanAndZoomState {
     super.exit();
     this.shape = this.createEmptyShape(this.context);
     this.inputMode = false;
-    this.inputBuffer = '';
+    this.inputBuffer = "";
     this.inputStartPoint = null;
     this.startViewSignature = null;
   }
 
   draw(renderer, context) {
+    // <<<<<<< HEAD
+    // Dibujar preview normal del estado (línea azul PUNTEADA original)
+    if (this.shape && this.shape.node1 && context.ctx) {
+      let p1, p2;
+      const view = context.viewSet?.[context.activeViewIndex];
+      const firstPoint = this.shape.node1.position;
+
+      // Obtener la posición del mouse en coordenadas consistentes
+      const mouseWorld = context.mousePos;
+
+      if (view?.type === "elevation" && view.axis === "X") {
+        // Vista elevación X (LETRAS): X fijo, plano Y-Z
+        p1 = context.grid.worldToScreen({ x: firstPoint.y, y: firstPoint.z || 0 });
+        p2 = context.grid.worldToScreen({ x: mouseWorld.x, y: mouseWorld.y });
+      } else if (view?.type === "elevation" && view.axis === "Y") {
+        // Vista elevación Y (NÚMEROS): Y fijo, plano X-Z
+        p1 = context.grid.worldToScreen({ x: firstPoint.x, y: firstPoint.z || 0 });
+        p2 = context.grid.worldToScreen({ x: mouseWorld.x, y: mouseWorld.y });
+      } else {
+        // Vista PLANTA normal
+        p1 = context.grid.worldToScreen({ x: firstPoint.x, y: firstPoint.y });
+        p2 = context.grid.worldToScreen({ x: mouseWorld.x, y: mouseWorld.y });
+      }
+
+      context.ctx.save();
+      context.ctx.strokeStyle = "#88aaff";
+      context.ctx.setLineDash([5, 5]);
+      context.ctx.lineWidth = 2;
+      context.ctx.beginPath();
+      context.ctx.moveTo(p1.x, p1.y);
+      context.ctx.lineTo(p2.x, p2.y);
+      context.ctx.stroke();
+      context.ctx.restore();
+    }
+
+    // Dibujar preview de entrada de longitud (línea naranja PUNTEADA)
+    //     if (this.inputMode && this.inputStartPoint) {
+    // =======
     if (renderer?.drawTrussDrawingState) {
       renderer.drawTrussDrawingState(this, context);
     }
@@ -2172,9 +2338,9 @@ export class TrussDrawingState extends PanAndZoomState {
 
   info() {
     if (this.inputMode) {
-      return `📏 Ingrese longitud: ${this.inputBuffer || '0'} | Enter = dibujar | Esc = cancelar`;
+      return `📏 Ingrese longitud: ${this.inputBuffer || "0"} | Enter = dibujar | Esc = cancelar`;
     }
-    return 'Dibujo de vigas: Clic para primer punto, luego L + longitud + Enter para dibujar. O simplemente clic para segundo punto. Esc para salir.';
+    return "Dibujo de vigas: Clic para primer punto, luego L + longitud + Enter para dibujar. O simplemente clic para segundo punto. Esc para salir.";
   }
 }
 
@@ -2588,11 +2754,7 @@ export class ColumnDrawingState extends PanAndZoomState {
       return node;
     }
 
-    node = new StructuralNode(
-      { x: Number(x || 0), y: Number(y || 0) },
-      context.nodes.length + 1,
-      Number(z || 0)
-    );
+    node = new StructuralNode({ x: Number(x || 0), y: Number(y || 0) }, context.nodes.length + 1, Number(z || 0));
 
     if (!node.position) {
       node.position = {
@@ -2619,15 +2781,11 @@ export class ColumnDrawingState extends PanAndZoomState {
     return context.shapes.some((shape) => {
       if (!shape?.node1 || !shape?.node2) return false;
 
-      const sameDirection =
-        shape.node1 === node1 && shape.node2 === node2;
+      const sameDirection = shape.node1 === node1 && shape.node2 === node2;
 
-      const reverseDirection =
-        shape.node1 === node2 && shape.node2 === node1;
+      const reverseDirection = shape.node1 === node2 && shape.node2 === node1;
 
-      const isColumn =
-        shape.elementType === "column" ||
-        shape.type === "column";
+      const isColumn = shape.elementType === "column" || shape.type === "column";
 
       return isColumn && (sameDirection || reverseDirection);
     });
@@ -2666,9 +2824,7 @@ export class ColumnDrawingState extends PanAndZoomState {
       node2.beams.push(column);
     }
 
-    console.log(
-      `│ Columna creada ID: ${column.id} desde Z=${z1.toFixed(2)} hasta Z=${z2.toFixed(2)}`
-    );
+    console.log(`│ Columna creada ID: ${column.id} desde Z=${z1.toFixed(2)} hasta Z=${z2.toFixed(2)}`);
 
     return column;
   }
@@ -2684,43 +2840,27 @@ export class ColumnDrawingState extends PanAndZoomState {
     const view = context.viewSet?.[context.activeViewIndex];
 
     if (!view || view.type !== "plan") {
-      context.showMessage?.(
-        "Create Columns solo funciona en planta",
-        "warning"
-      );
+      context.showMessage?.("Create Columns solo funciona en planta", "warning");
       return;
     }
 
     const point = this.getColumnPoint(context, mouse);
 
     if (!point) {
-      context.showMessage?.(
-        "No se pudo obtener el punto para crear la columna",
-        "warning"
-      );
+      context.showMessage?.("No se pudo obtener el punto para crear la columna", "warning");
       return;
     }
 
-    const currentZ =
-      Number(context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0);
+    const currentZ = Number(context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0);
 
     const nextZ = this.getNextStoryElevation(context, currentZ);
 
     if (nextZ === null || nextZ <= currentZ) {
-      context.showMessage?.(
-        "No existe un piso superior para crear la columna",
-        "warning"
-      );
+      context.showMessage?.("No existe un piso superior para crear la columna", "warning");
       return;
     }
 
-    this.createColumn(
-      context,
-      point.x,
-      point.y,
-      currentZ,
-      nextZ
-    );
+    this.createColumn(context, point.x, point.y, currentZ, nextZ);
 
     context.redraw?.();
     context.sync3D?.();
@@ -2885,9 +3025,7 @@ export class CreateLinesRegionClicksState extends PanAndZoomState {
       return Math.hypot(mouse.x - a.x, mouse.y - a.y);
     }
 
-    let t =
-      ((mouse.x - a.x) * dx + (mouse.y - a.y) * dy) /
-      (dx * dx + dy * dy);
+    let t = ((mouse.x - a.x) * dx + (mouse.y - a.y) * dy) / (dx * dx + dy * dy);
 
     t = Math.max(0, Math.min(1, t));
 
@@ -2958,18 +3096,11 @@ export class CreateLinesRegionClicksState extends PanAndZoomState {
     }
 
     if (!context.createFrameLineFromPoints) {
-      context.showMessage?.(
-        "Falta createFrameLineFromPoints en cad_sys.js",
-        "warning"
-      );
+      context.showMessage?.("Falta createFrameLineFromPoints en cad_sys.js", "warning");
       return false;
     }
 
-    const line = context.createFrameLineFromPoints(
-      segment.p1,
-      segment.p2,
-      segment.type || "beam"
-    );
+    const line = context.createFrameLineFromPoints(segment.p1, segment.p2, segment.type || "beam");
 
     if (line) {
       line.elementType = segment.type || "beam";
@@ -2992,12 +3123,7 @@ export class CreateLinesRegionClicksState extends PanAndZoomState {
   }
 
   pointInsideRect(point, rect) {
-    return (
-      point.x >= rect.left &&
-      point.x <= rect.right &&
-      point.y >= rect.top &&
-      point.y <= rect.bottom
-    );
+    return point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom;
   }
 
   // CREATE LINES IN REGION: para cada tramo de grilla, FIGURA ABIERTA (intersección con la región)
@@ -3020,10 +3146,7 @@ export class CreateLinesRegionClicksState extends PanAndZoomState {
 
   // CREATE LINES IN REGION: para cada tramo de grilla, FIGURA CERRADA (ambos puntos dentro de la región)
   segmentIntersectsRect(a, b, rect) {
-    return (
-      this.pointInsideRect(a, rect) &&
-      this.pointInsideRect(b, rect)
-    );
+    return this.pointInsideRect(a, rect) && this.pointInsideRect(b, rect);
   }
 
   getSegmentsInsideRegion(context) {
@@ -3153,20 +3276,10 @@ export class CreateLinesRegionClicksState extends PanAndZoomState {
     ctx.strokeStyle = "#facc15";
     ctx.lineWidth = 1.5;
 
-    ctx.strokeRect(
-      rect.left,
-      rect.top,
-      rect.right - rect.left,
-      rect.bottom - rect.top
-    );
+    ctx.strokeRect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
 
     ctx.fillStyle = "rgba(250, 204, 21, 0.12)";
-    ctx.fillRect(
-      rect.left,
-      rect.top,
-      rect.right - rect.left,
-      rect.bottom - rect.top
-    );
+    ctx.fillRect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
 
     ctx.restore();
   }
@@ -3221,9 +3334,7 @@ export class CreateSecondaryBeamsRegionClicksState extends PanAndZoomState {
   }
 
   getSortedValues(values = []) {
-    return [...values]
-      .map((v) => Number(v || 0))
-      .sort((a, b) => a - b);
+    return [...values].map((v) => Number(v || 0)).sort((a, b) => a - b);
   }
 
   findBayForPoint(context, point) {
@@ -3308,12 +3419,7 @@ export class CreateSecondaryBeamsRegionClicksState extends PanAndZoomState {
   }
 
   pointInsideRect(point, rect) {
-    return (
-      point.x >= rect.left &&
-      point.x <= rect.right &&
-      point.y >= rect.top &&
-      point.y <= rect.bottom
-    );
+    return point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom;
   }
 
   getBaysInsideRegion(context) {
@@ -3365,10 +3471,7 @@ export class CreateSecondaryBeamsRegionClicksState extends PanAndZoomState {
 
   createSecondaryBeam(context, p1, p2, silent = false) {
     if (!context.createFrameLineFromPoints) {
-      context.showMessage?.(
-        "Falta createFrameLineFromPoints en cad_sys.js",
-        "warning"
-      );
+      context.showMessage?.("Falta createFrameLineFromPoints en cad_sys.js", "warning");
       return false;
     }
 
@@ -3397,10 +3500,7 @@ export class CreateSecondaryBeamsRegionClicksState extends PanAndZoomState {
 
   createSecondaryBeamAtClick(context, mouse) {
     if (!this.isPlanView(context)) {
-      context.showMessage?.(
-        "Create Secondary Beams solo funciona en planta",
-        "warning"
-      );
+      context.showMessage?.("Create Secondary Beams solo funciona en planta", "warning");
       return;
     }
 
@@ -3408,10 +3508,7 @@ export class CreateSecondaryBeamsRegionClicksState extends PanAndZoomState {
     const bay = this.findBayForPoint(context, point);
 
     if (!bay) {
-      context.showMessage?.(
-        "Haz clic dentro de un paño de grilla",
-        "warning"
-      );
+      context.showMessage?.("Haz clic dentro de un paño de grilla", "warning");
       return;
     }
 
@@ -3420,25 +3517,15 @@ export class CreateSecondaryBeamsRegionClicksState extends PanAndZoomState {
     let created = 0;
 
     segments.forEach((segment) => {
-      const ok = this.createSecondaryBeam(
-        context,
-        segment.p1,
-        segment.p2,
-        true
-      );
+      const ok = this.createSecondaryBeam(context, segment.p1, segment.p2, true);
 
       if (ok) created++;
     });
 
     if (created > 0) {
-      context.showMessage?.(
-        `Se crearon ${created} vigas secundarias en el paño | Dir: ${this.direction}`
-      );
+      context.showMessage?.(`Se crearon ${created} vigas secundarias en el paño | Dir: ${this.direction}`);
     } else {
-      context.showMessage?.(
-        "No se crearon vigas nuevas; ya existían",
-        "warning"
-      );
+      context.showMessage?.("No se crearon vigas nuevas; ya existían", "warning");
     }
 
     context.redraw?.();
@@ -3476,20 +3563,14 @@ export class CreateSecondaryBeamsRegionClicksState extends PanAndZoomState {
 
   createSecondaryBeamsInRegion(context) {
     if (!this.isPlanView(context)) {
-      context.showMessage?.(
-        "Create Secondary Beams solo funciona en planta",
-        "warning"
-      );
+      context.showMessage?.("Create Secondary Beams solo funciona en planta", "warning");
       return;
     }
 
     const bays = this.getBaysInsideRegion(context);
 
     if (!bays.length) {
-      context.showMessage?.(
-        "No hay paños de grilla dentro de la región",
-        "warning"
-      );
+      context.showMessage?.("No hay paños de grilla dentro de la región", "warning");
       return;
     }
 
@@ -3499,12 +3580,7 @@ export class CreateSecondaryBeamsRegionClicksState extends PanAndZoomState {
       const segments = this.getSecondaryBeamSegmentsForBay(context, bay);
 
       segments.forEach((segment) => {
-        const ok = this.createSecondaryBeam(
-          context,
-          segment.p1,
-          segment.p2,
-          true
-        );
+        const ok = this.createSecondaryBeam(context, segment.p1, segment.p2, true);
 
         if (ok) created++;
       });
@@ -3512,13 +3588,10 @@ export class CreateSecondaryBeamsRegionClicksState extends PanAndZoomState {
 
     if (created > 0) {
       context.showMessage?.(
-        `Se crearon ${created} vigas secundarias | Dir: ${this.direction} | Cantidad por paño: ${this.beamCount}`
+        `Se crearon ${created} vigas secundarias | Dir: ${this.direction} | Cantidad por paño: ${this.beamCount}`,
       );
     } else {
-      context.showMessage?.(
-        "No se crearon vigas nuevas; ya existían",
-        "warning"
-      );
+      context.showMessage?.("No se crearon vigas nuevas; ya existían", "warning");
     }
 
     context.redraw?.();
@@ -3534,10 +3607,7 @@ export class CreateSecondaryBeamsRegionClicksState extends PanAndZoomState {
     super.handleMouseDown(...arguments);
 
     if (!this.isPlanView(context)) {
-      context.showMessage?.(
-        "Create Secondary Beams solo funciona en planta",
-        "warning"
-      );
+      context.showMessage?.("Create Secondary Beams solo funciona en planta", "warning");
       return;
     }
 
@@ -3596,26 +3666,20 @@ export class CreateSecondaryBeamsRegionClicksState extends PanAndZoomState {
 
     if (event.key.toLowerCase() === "r") {
       this.direction = this.direction === "X" ? "Y" : "X";
-      context.showMessage?.(
-        `Dirección de vigas secundarias: ${this.direction}`
-      );
+      context.showMessage?.(`Dirección de vigas secundarias: ${this.direction}`);
       context.redraw?.();
       return;
     }
 
     if (event.key === "+" || event.key === "=") {
       this.beamCount++;
-      context.showMessage?.(
-        `Cantidad de vigas secundarias por paño: ${this.beamCount}`
-      );
+      context.showMessage?.(`Cantidad de vigas secundarias por paño: ${this.beamCount}`);
       return;
     }
 
     if (event.key === "-") {
       this.beamCount = Math.max(1, this.beamCount - 1);
-      context.showMessage?.(
-        `Cantidad de vigas secundarias por paño: ${this.beamCount}`
-      );
+      context.showMessage?.(`Cantidad de vigas secundarias por paño: ${this.beamCount}`);
       return;
     }
 
@@ -3638,20 +3702,10 @@ export class CreateSecondaryBeamsRegionClicksState extends PanAndZoomState {
     ctx.strokeStyle = "#38bdf8";
     ctx.lineWidth = 1.5;
 
-    ctx.strokeRect(
-      rect.left,
-      rect.top,
-      rect.right - rect.left,
-      rect.bottom - rect.top
-    );
+    ctx.strokeRect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
 
     ctx.fillStyle = "rgba(56, 189, 248, 0.12)";
-    ctx.fillRect(
-      rect.left,
-      rect.top,
-      rect.right - rect.left,
-      rect.bottom - rect.top
-    );
+    ctx.fillRect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
 
     ctx.restore();
   }
@@ -3714,9 +3768,7 @@ export class ReferencePointDrawingState extends PanAndZoomState {
 
     context.referencePoints.push(point);
 
-    console.log(
-      `📌 Punto de referencia creado: ${point.label} en (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`
-    );
+    console.log(`📌 Punto de referencia creado: ${point.label} en (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
 
     context.redraw();
     context.sync3D?.();
@@ -3846,9 +3898,7 @@ export class AreaDrawingState extends PanAndZoomState {
 
       context.areas.push(area);
 
-      console.log(
-        `▭ Área creada ID: ${area.id}, tipo: ${this.areaType}, puntos: ${area.points.length}`
-      );
+      console.log(`▭ Área creada ID: ${area.id}, tipo: ${this.areaType}, puntos: ${area.points.length}`);
 
       this.resetPreview();
       context.redraw();
@@ -3865,7 +3915,7 @@ export class AreaDrawingState extends PanAndZoomState {
       return "Haz clic para empezar a dibujar el área.";
     }
 
-    return 'Haz clic para seguir marcando vértices. Enter = cerrar área, Backspace = borrar último punto, Esc = cancelar.';
+    return "Haz clic para seguir marcando vértices. Enter = cerrar área, Backspace = borrar último punto, Esc = cancelar.";
   }
 }
 
@@ -3915,10 +3965,7 @@ export class DimensionLineDrawingState extends PanAndZoomState {
       end: { ...endPoint },
       value: distance,
       // label: `${distance.toFixed(2)} m`,
-      label: `${context.formatOutput
-        ? context.formatOutput(distance, "lengths")
-        : distance.toFixed(2)
-        } m`,
+      label: `${context.formatOutput ? context.formatOutput(distance, "lengths") : distance.toFixed(2)} m`,
       visible: true,
     });
 
@@ -4203,82 +4250,3 @@ export class TrussDrawingState3D extends PanAndZoomState {
     return `✏️ DIBUJO 3D | Plano: ${planeNames[this.currentPlane]} | Snap: ${this.snapToGrid3D ? "ON" : "OFF"} | Grid: ${this.gridSize3D}m | Teclas: 1,2,3 (planos) | S (snap) | G (grid)`;
   }
 }
-
-// export class CopyState extends StateBase {
-//   handleMouseDown(event, context, mouse) {
-//     const cloneShape = closestLine({ x: x, y: y });
-//     if (cloneShape) {
-//       handleIsSelected = true;
-//       shape = structuredClone(cloneShape);
-//       shape = Object.assign(Object.create(Object.getPrototypeOf(cloneShape)), shape);
-//       shapes.push(shape);
-//       selectedObject = shape;
-//       shape = new Shape(true);
-//       switchTool(Tools.MOVE);
-//       canvas.style.cursor = "move";
-//     }
-//   }
-// }
-
-// export class EditState extends StateBase {
-//   handleMouseDown(event, context, mouse) {
-//     if (!context.canSelectInCurrentView()) {
-//       context.clearAllSelections();
-//       context.setState(context.idleState);
-//       return;
-//     }
-
-//     super.handleMouseDown(...arguments);
-
-//     if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
-//       return;
-//     }
-
-//     const selectedNode = context.closestNodeAtActiveView(mouse);
-//     if (selectedNode) {
-//       context.setState(context.selectedNodesState, {
-//         selectedNodes: [selectedNode],
-//       });
-//       return;
-//     }
-
-//     const selectedBeam = context.closestBeamAtActiveView(mouse);
-//     if (selectedBeam) {
-//       context.setState(context.selectedBeamsState, {
-//         selectedBeams: [selectedBeam],
-//       });
-//       return;
-//     }
-
-//     context.clearAllSelections();
-//     context.setState(context.idleState);
-//   }
-// }
-
-// export class ChangeSupport extends StateBase {
-//   handleMouseDown(event, context, mouse) {
-//     if (!context.canSelectInCurrentView()) {
-//       context.clearAllSelections();
-//       context.setState(context.idleState);
-//       return;
-//     }
-
-//     super.handleMouseDown(...arguments);
-
-//     if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
-//       return;
-//     }
-
-//     const selectedNode = context.closestNodeAtActiveView(mouse);
-
-//     if (!selectedNode) {
-//       context.clearAllSelections();
-//       context.setState(context.idleState);
-//       return;
-//     }
-
-//     context.setState(context.selectedNodesState, {
-//       selectedNodes: [selectedNode],
-//     });
-//   }
-// }
