@@ -572,45 +572,71 @@ function getFrameFromPickedMesh(pickedMesh, context) {
 }
 
 // =====================================================
-// 3D SELECTION > SELECCIONAR BARRA EN 3D
-// Marca la barra seleccionada y actualiza el visor 3D.
+// 3D SELECTION > SELECCIONAR BARRA DESDE 3D
+// Clic normal: selecciona solo una barra.
+// Ctrl + clic: agrega o quita barras sin límite.
 // =====================================================
-function selectFrameFrom3D(frame, context) {
+function selectFrameFrom3D(frame, context, options = {}) {
     if (!frame || !context) return;
 
+    const additive = options.additive === true;
+
+    // =====================================================
+    // CTRL + CLIC 3D > AGREGAR / QUITAR BARRA
+    // Usa la misma lógica que ya funciona en 2D.
+    // =====================================================
+    if (additive) {
+        if (typeof context.toggleFrameSelection === "function") {
+            context.toggleFrameSelection(frame);
+
+            console.log("🟨 Ctrl + clic 3D sobre barra:", {
+                id: frame.id,
+                seleccionadas: context.getCurrentlySelectedFrames?.().map((f) => f.id),
+            });
+
+            return;
+        }
+    }
+
+    // =====================================================
+    // CLIC NORMAL 3D > SELECCIÓN ÚNICA
+    // Limpia lo anterior y selecciona solo esta barra.
+    // =====================================================
+    if (typeof context.selectFramesForEdit === "function") {
+        context.multiSelectedFrames = [];
+
+        context.selectFramesForEdit([frame], {
+            reason: "3d single frame selection",
+        });
+
+        console.log("🖱️ Clic normal 3D sobre barra:", {
+            id: frame.id,
+        });
+
+        return;
+    }
+
+    // =====================================================
+    // RESPALDO ANTIGUO
+    // Por si todavía no existe selectFramesForEdit.
+    // =====================================================
     context.clearAllSelections?.();
 
     frame.selected = true;
     frame.isSelected = true;
     frame.highlighted3D = true;
 
-    context.selectedBeams = [frame];
-
-    if (context.selectedBeamsState) {
-        context.selectedBeamsState.selectedObjects = [frame];
-        context.selectedBeamsState.selectedBeams = [frame];
-    }
-
     context.setState?.(context.selectedBeamsState, {
         selectedBeams: [frame],
         selectedBeam: frame,
+        selectedObjects: [frame],
     });
 
-    context.showMessage?.(
-        frame.is3DOnlyFrame || frame.isCrossViewFrame || frame.showIn2D === false
-            ? "Barra 3D/inclinada seleccionada desde el visor 3D."
-            : "Barra seleccionada desde el visor 3D."
-    );
+    context.selectedBeams = [frame];
+    context.selectedObjects = [frame];
 
     context.redraw?.();
-
-    if (typeof context.sync3D === "function") {
-        context.sync3D();
-    }
-
-    requestAnimationFrame(() => {
-        context.sync3D?.();
-    });
+    context.sync3D?.();
 }
 
 // =====================================================
@@ -1431,7 +1457,9 @@ function enable3DFrameSelection(context) {
             showIn2D: frame.showIn2D,
         });
 
-        selectFrameFrom3D(frame, context);
+        selectFrameFrom3D(frame, context, {
+            additive: event?.ctrlKey === true,
+        });
     });
 
     console.log("✅ Selección directa de barras en 3D activada");
@@ -1675,5 +1703,15 @@ function clearModelElements() {
         });
     } catch (error) {
         console.warn("Error al limpiar elementos del modelo 3D:", error);
+    }
+}
+
+export function removeBeamMeshById(beamId) {
+    if (!VIEWER_STATE.scene) return;
+    const mesh = VIEWER_STATE.scene.getMeshByName(`beam_${beamId}`);
+    if (mesh && !mesh.isDisposed()) {
+        mesh.dispose();
+        VIEWER_STATE.elements = VIEWER_STATE.elements.filter(el => el !== mesh);
+        console.log(`🗑️ Malla 3D de la barra ${beamId} eliminada`);
     }
 }
