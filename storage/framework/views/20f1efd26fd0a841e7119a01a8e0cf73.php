@@ -1,1 +1,0 @@
-<?php /**PATH C:\laragon\www\rizabalAsociadosActualizadoServer\resources\views\hcalculo\admMemoriaDescriptiva.blade.php ENDPATH**/ ?>

@@ -52,23 +52,23 @@
         <x-cad.svg.wireframe></x-cad.svg.wireframe>
       </x-cad.ribbon-button>
       <!-- SECCION DE FUERZAZ -->
-      <x-cad.ribbon-button-subitem clickHandler="options.showForces = !options.showForces" label="Fuerzas"
+      <x-cad.ribbon-button-subitem clickHandler="showForces()" label="Fuerzas"
         toggle="options.showForces">
         <x-slot name="slot1"><x-cad.svg.force></x-cad.svg.force></x-slot>
         <x-slot name="slot2">
           <div class="flex flex-row justify-between gap-1">
             <label for="fCM">CM</label>
-            <input id="fCM" name="fCM" type="radio" value="CM" x-model="options.currentLoad">
+            <input id="fCM" name="fCM" type="radio" value="CM" x-model="options.currentLoad" @change="sync3D()">
             <label for="fCV">CV</label>
-            <input id="fCV" name="fCV" type="radio" value="CV" x-model="options.currentLoad">
+            <input id="fCV" name="fCV" type="radio" value="CV" x-model="options.currentLoad" @change="sync3D()">
             <label for="fCVVM">CVV-</label>
-            <input id="fCVVM" name="fCVVM" type="radio" value="CVVM" x-model="options.currentLoad">
+            <input id="fCVVM" name="fCVVM" type="radio" value="CVVM" x-model="options.currentLoad" @change="sync3D()">
             <label for="fCVVP">CVV+</label>
-            <input id="fCVVP" name="fCVVP" type="radio" value="CVVP" x-model="options.currentLoad">
+            <input id="fCVVP" name="fCVVP" type="radio" value="CVVP" x-model="options.currentLoad" @change="sync3D()">
             <label for="fCN">CN</label>
-            <input id="fCN" name="fCN" type="radio" value="CN" x-model="options.currentLoad">
+            <input id="fCN" name="fCN" type="radio" value="CN" x-model="options.currentLoad" @change="sync3D()">
             <label for="fCLL">CLL</label>
-            <input id="fCLL" name="fCLL" type="radio" value="CLL" x-model="options.currentLoad">
+            <input id="fCLL" name="fCLL" type="radio" value="CLL" x-model="options.currentLoad" @change="sync3D()">
           </div>
         </x-slot>
       </x-cad.ribbon-button-subitem>
@@ -84,7 +84,7 @@
     </x-cad.ribbon-group>
     <!-- -------------------------APARTADO DE LOS RESULTADOS------------------------ -->
     <x-cad.ribbon-group title="Resultados">
-      <x-cad.ribbon-button-subitem clickHandler="options.showDeflection = !options.showDeflection" label="Deflección"
+      <x-cad.ribbon-button-subitem clickHandler="showDeflections()" label="Deflección"
         toggle="options.showDeflection">
         <x-slot name="slot1">
           <x-cad.svg.deflection></x-cad.svg.deflection>
@@ -94,7 +94,7 @@
             x-model="options.deflectionScale" @input="updateDeflectionScale()">
         </x-slot>
       </x-cad.ribbon-button-subitem>
-      <x-cad.ribbon-button clickHandler="options.showReactions = !options.showReactions" toggle="options.showReactions"
+      <x-cad.ribbon-button clickHandler="showReactions()" toggle="options.showReactions"
         label="Reacción">
         <x-cad.svg.reaction></x-cad.svg.reaction>
       </x-cad.ribbon-button>
