@@ -128,6 +128,9 @@ Route::middleware(["auth", "verified"])->group(function () {
                 Route::view('/vigas', 'hcalculo.admdesingvigas')->name('vigas');
                 Route::view('/vigas-general', 'hcalculo.admvigageneral')->name('vigas-general');
 
+                // Escaleras
+                Route::view('/escaleras', 'hcalculo.admDesingEscaleras')->name('escaleras');
+
                 // Losas
                 Route::view('/losas-macizas', 'hcalculo.admlosasmacizas')->name('losas-macizas');
                 Route::view('/losas-aligeradas', 'hcalculo.admlosasaligeradas')->name('losas-aligeradas');
