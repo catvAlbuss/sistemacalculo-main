@@ -407,7 +407,7 @@
     "src": "node_modules/jquery-ui/themes/base/images/ui-icons_ffffff_256x240.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-DXMzwRcK.css",
+    "file": "assets/app-O82nCxni.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
@@ -995,6 +995,12 @@
     "file": "assets/adm_columnav2-Eq4iwM0X.js",
     "name": "adm_columnav2",
     "src": "resources/js/columnav2/adm_columnav2.js",
+    "isEntry": true
+  },
+  "resources/js/desingescaleras.js": {
+    "file": "assets/desingescaleras-Dvw7DG4s.js",
+    "name": "desingescaleras",
+    "src": "resources/js/desingescaleras.js",
     "isEntry": true
   },
   "resources/js/diseno_acero_data.js": {
