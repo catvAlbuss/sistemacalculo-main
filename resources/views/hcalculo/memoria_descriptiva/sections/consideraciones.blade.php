@@ -19,12 +19,40 @@
             };
             
             const defaultSismico = {
+                zona: '2',
+                factorZ: '0.25',
+                perfilSuelo: 'S3',
+                factorS: '1.40',
                 factorSuelo: 'S1',
                 tp: '1.00',
                 tl: '1.60',
                 categoria: 'A',
                 factorU: '1.50',
-                sistemaEstructural: 'Muros de Concreto Armado'
+                coeficienteR: '6',
+                coeficienteR_X: '6',
+                coeficienteR_Y: '6',
+                sistemaEstructural: 'Muros de Concreto Armado',
+                sistemaX: 'placas',
+                sistemaY: 'placas'
+            };
+            const defaultAnalisisX = {
+                factorZ: '0.25',
+                factorU: '1.50',
+                factorS: '1.40',
+                tp: '1.00',
+                tl: '1.60',
+                c: '2.50',
+                t: '6.00',
+                r: '6',
+                cr: '0.2188'
+            };
+            const defaultAnalisisY = {
+                ...defaultAnalisisX,
+                cr: '0.359'
+            };
+            const defaultCombinaciones = {
+                comb1: true, comb2: true, comb3: true, comb4: true, comb5: true,
+                comb6: true, comb7: true, comb8: true, comb9: true
             };
             
             const defaultSobrecargas = '- Sobrecarga en Aulas: 250 kg/m2\n- Sobrecarga en corredores: 400 kg/m2\n- Sobrecarga en techos: 50 kg/m2';
@@ -72,33 +100,39 @@
                         sobrecargas: sobrecargasPorModulo[i] || defaultSobrecargas,
                         recubrimientos: defaultRecubrimientos,
                         materiales: defaultMateriales,
-                        analisisX: {
-                            factorZ: '0.25',
-                            factorU: '1.50',
-                            factorS: '1.40',
-                            tp: '1.00',
-                            tl: '1.60',
-                            c: '2.50',
-                            t: '6.00',
-                            r: '6',
-                            cr: '0.2188'
-                        },
-                        analisisY: {
-                            factorZ: '0.25',
-                            factorU: '1.50',
-                            factorS: '1.40',
-                            tp: '1.00',
-                            tl: '1.60',
-                            c: '2.50',
-                            t: '6.00',
-                            r: '6',
-                            cr: '0.359'
-                        },
+                        analisisX: { ...defaultAnalisisX },
+                        analisisY: { ...defaultAnalisisY },
                         combinaciones: {
-                            comb1: true, comb2: true, comb3: true, comb4: true, comb5: true,
-                            comb6: true, comb7: true, comb8: true, comb9: true
+                            ...defaultCombinaciones
                         }
                     };
+                } else {
+                    const modulo = store.sections.consideraciones[i];
+                    modulo.geotecnia = {
+                        ...defaultGeotecnia,
+                        capacidadPortante: capacidadesPortantes[i] || defaultGeotecnia.capacidadPortante,
+                        profundidad: profundidadesEspeciales[i] || defaultGeotecnia.profundidad,
+                        ...(modulo.geotecnia || {})
+                    };
+                    modulo.sismico = {
+                        ...defaultSismico,
+                        ...(modulo.sismico || {})
+                    };
+                    modulo.analisisX = {
+                        ...defaultAnalisisX,
+                        ...(!Array.isArray(modulo.analisisX) ? (modulo.analisisX || {}) : {})
+                    };
+                    modulo.analisisY = {
+                        ...defaultAnalisisY,
+                        ...(!Array.isArray(modulo.analisisY) ? (modulo.analisisY || {}) : {})
+                    };
+                    modulo.combinaciones = {
+                        ...defaultCombinaciones,
+                        ...(modulo.combinaciones || {})
+                    };
+                    modulo.sobrecargas = modulo.sobrecargas || sobrecargasPorModulo[i] || defaultSobrecargas;
+                    modulo.recubrimientos = modulo.recubrimientos || defaultRecubrimientos;
+                    modulo.materiales = modulo.materiales || defaultMateriales;
                 }
             }
             
@@ -115,6 +149,9 @@
             };
             const categoria = $store.memoriaDescriptiva.sections.consideraciones[this.moduloActual]?.sismico?.categoria;
             if (categoria && factorByCategory[categoria]) {
+                if (!$store.memoriaDescriptiva.sections.consideraciones[this.moduloActual].sismico) {
+                    $store.memoriaDescriptiva.sections.consideraciones[this.moduloActual].sismico = {};
+                }
                 $store.memoriaDescriptiva.sections.consideraciones[this.moduloActual].sismico.factorU = factorByCategory[categoria];
                 $store.memoriaDescriptiva.save();
             }

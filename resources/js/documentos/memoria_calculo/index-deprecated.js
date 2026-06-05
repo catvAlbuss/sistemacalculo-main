@@ -1181,10 +1181,6 @@ function memoriaCalculo() {
                 reader.onerror = (error) => reject(error);
                 reader.readAsDataURL(file);
             });
-<<<<<<< HEAD:resources/js/memoria_calculo/index-deprecated.js
-=======
-
->>>>>>> origin/fiorela:resources/js/documentos/memoria_calculo/index-deprecated.js
       },
       generalDescription:
         "Para realizar el diseno de los elementos de la estructura metalica se tendra que rescatar los maximos valores de la envolvente de cada elemento estructural de las combinaciones segun la norma E.090 del R.N.E. vigente que vienen a ser:\n- 1.2D+1.6CVT+0.8CWP\n- 1.2D+1.6CVT+0.8CWN\n- 1.2D+0.5CVT+1.3CWP\n- 0.9D+1.3CWP\n- 0.9D+1.3CWN",
@@ -1552,10 +1548,6 @@ function memoriaCalculo() {
         if (!window.docx) {
           this.addError("libs", "La librerÃ­a 'docx' no se ha cargado correctamente desde el servidor externo.");
           return;
-<<<<<<< HEAD:resources/js/memoria_calculo/index-deprecated.js
-=======
-
->>>>>>> origin/fiorela:resources/js/documentos/memoria_calculo/index-deprecated.js
         }
 
         if (!window.saveAs) {

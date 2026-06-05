@@ -1381,6 +1381,7 @@ export function createMemoriaDescriptivaStore() {
     const initialState = saved
         ? deepMerge(defaults, saved)
         : defaults;
+    normalizeConsideraciones(initialState);
 
     // ─── El store real ────────────────────────────────────────────────────────
     const store = {
@@ -2257,4 +2258,72 @@ function deepMerge(target, source) {
 
 function isObject(item) {
     return item && typeof item === 'object' && !Array.isArray(item);
+}
+
+function normalizeConsideraciones(state) {
+    if (!state.sections) state.sections = {};
+    if (!isObject(state.sections.consideraciones)) {
+        state.sections.consideraciones = {};
+    }
+
+    const defaultGeotecnia = {
+        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
+        capacidadPortante: "0.50",
+        profundidad: "1.40",
+        agresividadSulfatos: "Ataque no perjudicial",
+        profNF: "A 1.40m y 1.50m"
+    };
+    const defaultSismico = {
+        zona: "2",
+        factorZ: "0.25",
+        perfilSuelo: "S3",
+        factorS: "1.40",
+        factorSuelo: "S1",
+        tp: "1.00",
+        tl: "1.60",
+        categoria: "A",
+        factorU: "1.50",
+        coeficienteR: "6",
+        coeficienteR_X: "6",
+        coeficienteR_Y: "6",
+        sistemaEstructural: "Muros de Concreto Armado",
+        sistemaX: "placas",
+        sistemaY: "placas"
+    };
+    const defaultAnalisis = {
+        factorZ: "0.25",
+        factorU: "1.50",
+        factorS: "1.40",
+        tp: "1.00",
+        tl: "1.60",
+        c: "2.50",
+        t: "6.00",
+        r: "6.00",
+        cr: "0.2188"
+    };
+    const defaultCombinaciones = {
+        comb1: true, comb2: true, comb3: true, comb4: true, comb5: true,
+        comb6: true, comb7: true, comb8: true, comb9: true
+    };
+
+    for (let i = 1; i <= 16; i++) {
+        const actual = isObject(state.sections.consideraciones[i])
+            ? state.sections.consideraciones[i]
+            : {};
+
+        actual.geotecnia = deepMerge(defaultGeotecnia, actual.geotecnia || {});
+        actual.sismico = deepMerge(defaultSismico, actual.sismico || {});
+        actual.analisisX = isObject(actual.analisisX)
+            ? deepMerge(defaultAnalisis, actual.analisisX)
+            : { ...defaultAnalisis };
+        actual.analisisY = isObject(actual.analisisY)
+            ? deepMerge({ ...defaultAnalisis, cr: "0.359" }, actual.analisisY)
+            : { ...defaultAnalisis, cr: "0.359" };
+        actual.combinaciones = deepMerge(defaultCombinaciones, actual.combinaciones || {});
+        actual.sobrecargas = actual.sobrecargas || "- Sobrecarga en Aulas: 250 kg/m2\n- Sobrecarga en corredores: 400 kg/m2\n- Sobrecarga en techos: 50 kg/m2";
+        actual.recubrimientos = actual.recubrimientos || "- Vigas y columnas: 40 mm\n- Losas: 20 mm\n- Zapatas: 70 mm";
+        actual.materiales = actual.materiales || "- Concreto: f'c = 210 kg/cm2\n- Acero: fy = 4200 kg/cm2";
+
+        state.sections.consideraciones[i] = actual;
+    }
 }
