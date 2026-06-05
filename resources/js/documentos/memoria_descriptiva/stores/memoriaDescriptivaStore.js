@@ -130,23 +130,24 @@ export function createMemoriaDescriptivaStore() {
                 ]
             },
             descripcionModulos: {
+
                 modulos: [
-                    { id: 1, nombre: "MÓDULO I", uso: "Grupo electrógeno, cuarto de tablero, maestranza, etc.", pisos: 1, sistemaX: "Sistema Dual", sistemaY: "Sistema de Albañilería confinada", elementosVerticales: "Placa L (PL 100x50x30x30 cm), Columnas CT (70x50x30x30cm), Muros de albañilería e=24cm", elementosHorizontales: "Vigas en X de V30xVar. cm, Vigas en Y de V30x50cm", techo: "Losa aligerada a dos aguas e=20cm", imagenes: [] },
-                    { id: 2, nombre: "MÓDULO II", uso: "1° Piso: SUM., Comedor / 2° Piso: Módulo de conectividad, depósito AIP y AIP", pisos: 2, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x120x30x30 cm), Placa PT (100x50x30x30cm)", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [] },
-                    { id: 3, nombre: "MÓDULO III", uso: "1° Piso: Biblioteca / 2° Piso: Taller creativo y depósito", pisos: 2, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x120x30x30 cm), Placa PT (100x50x30x30cm)", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [] },
-                    { id: 4, nombre: "MÓDULO IV", uso: "Escalera", pisos: 3, sistemaX: "Sistema de Albañilería Confinada", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x100x30x30 cm), Muro Portante e=24cm", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x50 cm", techo: "Losa aligerada e=20cm (1° y 2° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [] },
-                    { id: 5, nombre: "MÓDULO V", uso: "Aulas", pisos: 3, sistemaX: "Sistema de Albañilería Confinada", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x100x30x30 cm), Placa PT (50x100x30x30cm), Albañilería portante e=24cm", elementosHorizontales: "Vigas en X de V30x60 cm, Vigas en X de V30x50cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° y 2° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [] },
-                    { id: 6, nombre: "MÓDULO VI", uso: "Aulas y Escalera", pisos: 3, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Albañilería Confinada", elementosVerticales: "Placa PL (50x50x30x30 cm), Placa PL (65x50x30x30 cm), Placa PT (100x50x30x30cm)", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° y 2° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [] },
-                    { id: 7, nombre: "MÓDULO VII", uso: "Cocina, Almacén de alimentos, Cuarto de limpieza, Dep. combustible, etc.", pisos: 1, sistemaX: "Albañilería Confinada", sistemaY: "Albañilería Confinada", elementosVerticales: "Columnas (30x30 cm), Muro portante e=13cm, Placa e=13cm", elementosHorizontales: "Vigas en X de V30x40cm, Vigas en Y de V30x40cm", techo: "Losa aligerada a una sola agua e=20cm", imagenes: [] },
-                    { id: 8, nombre: "MÓDULO VIII", uso: "1° Piso: Residuos sólidos, Sala de Docentes, Tópico, secretaria, dirección y SS.HH. / 2° Piso: Sala de Docentes, Sala de Reuniones", pisos: 2, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Columna CL (50x50x30x30 cm), Placa PT (100x50x30x30cm), Placa 20x200cm", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [] },
-                    { id: 9, nombre: "MÓDULO IX", uso: "Aulas, deposito, almacén, SS.HH, etc.", pisos: 1, sistemaX: "Sistema Dual", sistemaY: "Albañilería confinada", elementosVerticales: "Placa PT (100x50x30x30 cm), Columnas CT (70x50x30x30cm)", elementosHorizontales: "Vigas en X de V30xVar. cm, Vigas en Y de V30x50cm", techo: "Losa aligerada a dos aguas e=20cm", imagenes: [] },
-                    { id: 10, nombre: "MÓDULO X", uso: "Cocina, depósitos, Comedor, SS.HH, etc.", pisos: 1, sistemaX: "Sistema de Dual", sistemaY: "Sistema de Muros Estructurales", elementosVerticales: "Placas PL (100x50x30x30 cm), Columnas CT (70x50x30x30cm), Placas e=15cm", elementosHorizontales: "Vigas en X de V30xVar. cm, Vigas en Y de V30x50cm", techo: "Losa aligerada a dos aguas e=20cm", imagenes: [] },
-                    { id: 11, nombre: "MÓDULO XI", uso: "Área de juego", pisos: 1, sistemaX: "Pórticos Ordinarios Resistentes a Momentos (OMF)", sistemaY: "Pórticos Especiales Resistentes a Momentos (SMF)", elementosVerticales: "Columna cuadrada metálico C30x30cm2 e=8mm.", elementosHorizontales: "Vigas W 10x45 en el eje Y y correas de 2x3x3mm. Tijerales en el eje X tubo HSS 4X4X3mm.", techo: "Cobertura parabólica de Aluzinc tipo TR4.", imagenes: [] },
-                    { id: 12, nombre: "MÓDULO XII", uso: "Cuarto de bombas y/o tanque elevado", pisos: 4, sistemaX: "", sistemaY: "", elementosVerticales: "Columnas CL 60x60x25x25 cm", elementosHorizontales: "Vigas en X de V25x60cm, Vigas en Y de V25x60cm", techo: "Losa maciza e=20cm", imagenes: [] },
-                    { id: 13, nombre: "MÓDULO XIII", uso: "Rampa", pisos: 3, sistemaX: "Muros estructurales", sistemaY: "Muros estructurales", elementosVerticales: "Columna rectangular (30x40cm), Placas e=30cm", elementosHorizontales: "Vigas en X de V30x60 cm, Vigas en Y de V30x60cm", techo: "Losa en rampa de 15cm, Losa aligerada de 20cm a dos aguas (Techo)", imagenes: [] },
-                    { id: 14, nombre: "MÓDULO XIV", uso: "Guardianía y SS.HH.", pisos: 1, sistemaX: "Albañilería Confinada", sistemaY: "Albañilería Confinada", elementosVerticales: "Columnas CL (40x40x25x25 cm)", elementosHorizontales: "Vigas en X de V25x40cm, Vigas en Y de V25x40cm", techo: "Losa aligerada a un agua e=20cm", imagenes: [] },
-                    { id: 15, nombre: "MÓDULO XV", uso: "SS.HH.", pisos: 3, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Albañilería Confinada", elementosVerticales: "Columna CL (50x50x30x30 cm), Placas e=20cm, Albañilería e=24cm", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa maciza e=20cm (1° y 2° Nivel), Losa aligerada en dos direcciones a dos aguas e=20cm (Techo)", imagenes: [] },
-                    { id: 16, nombre: "MÓDULO XVI", uso: "SUM EXTERIOR", pisos: 1, sistemaX: "Pórticos", sistemaY: "Pórticos", elementosVerticales: "Columna cuadrada de concreto armado C30x30cm2", elementosHorizontales: "Viga de concreto de 30x40cm2 en X. Tijerales en el eje Y tubo HSS 4\"X6\"X3mm.", techo: "Cobertura parabólica de Aluzinc tipo TR4.", imagenes: [] }
+                    { id: 1, nombre: "MÓDULO I", uso: "Grupo electrógeno, cuarto de tablero, maestranza, etc.", pisos: 1, sistemaX: "Sistema Dual", sistemaY: "Sistema de Albañilería confinada", elementosVerticales: "Placa L (PL 100x50x30x30 cm), Columnas CT (70x50x30x30cm), Muros de albañilería e=24cm", elementosHorizontales: "Vigas en X de V30xVar. cm, Vigas en Y de V30x50cm", techo: "Losa aligerada a dos aguas e=20cm", imagenes: [], subtitulosImagenes: [] },
+                    { id: 2, nombre: "MÓDULO II", uso: "1° Piso: SUM., Comedor / 2° Piso: Módulo de conectividad, depósito AIP y AIP", pisos: 2, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x120x30x30 cm), Placa PT (100x50x30x30cm)", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                    { id: 3, nombre: "MÓDULO III", uso: "1° Piso: Biblioteca / 2° Piso: Taller creativo y depósito", pisos: 2, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x120x30x30 cm), Placa PT (100x50x30x30cm)", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                    { id: 4, nombre: "MÓDULO IV", uso: "Escalera", pisos: 3, sistemaX: "Sistema de Albañilería Confinada", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x100x30x30 cm), Muro Portante e=24cm", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x50 cm", techo: "Losa aligerada e=20cm (1° y 2° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                    { id: 5, nombre: "MÓDULO V", uso: "Aulas", pisos: 3, sistemaX: "Sistema de Albañilería Confinada", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x100x30x30 cm), Placa PT (50x100x30x30cm), Albañilería portante e=24cm", elementosHorizontales: "Vigas en X de V30x60 cm, Vigas en X de V30x50cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° y 2° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                    { id: 6, nombre: "MÓDULO VI", uso: "Aulas y Escalera", pisos: 3, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Albañilería Confinada", elementosVerticales: "Placa PL (50x50x30x30 cm), Placa PL (65x50x30x30 cm), Placa PT (100x50x30x30cm)", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° y 2° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                    { id: 7, nombre: "MÓDULO VII", uso: "Cocina, Almacén de alimentos, Cuarto de limpieza, Dep. combustible, etc.", pisos: 1, sistemaX: "Albañilería Confinada", sistemaY: "Albañilería Confinada", elementosVerticales: "Columnas (30x30 cm), Muro portante e=13cm, Placa e=13cm", elementosHorizontales: "Vigas en X de V30x40cm, Vigas en Y de V30x40cm", techo: "Losa aligerada a una sola agua e=20cm", imagenes: [], subtitulosImagenes: [] },
+                    { id: 8, nombre: "MÓDULO VIII", uso: "1° Piso: Residuos sólidos, Sala de Docentes, Tópico, secretaria, dirección y SS.HH. / 2° Piso: Sala de Docentes, Sala de Reuniones", pisos: 2, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Columna CL (50x50x30x30 cm), Placa PT (100x50x30x30cm), Placa 20x200cm", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                    { id: 9, nombre: "MÓDULO IX", uso: "Aulas, deposito, almacén, SS.HH, etc.", pisos: 1, sistemaX: "Sistema Dual", sistemaY: "Albañilería confinada", elementosVerticales: "Placa PT (100x50x30x30 cm), Columnas CT (70x50x30x30cm)", elementosHorizontales: "Vigas en X de V30xVar. cm, Vigas en Y de V30x50cm", techo: "Losa aligerada a dos aguas e=20cm", imagenes: [], subtitulosImagenes: [] },
+                    { id: 10, nombre: "MÓDULO X", uso: "Cocina, depósitos, Comedor, SS.HH, etc.", pisos: 1, sistemaX: "Sistema de Dual", sistemaY: "Sistema de Muros Estructurales", elementosVerticales: "Placas PL (100x50x30x30 cm), Columnas CT (70x50x30x30cm), Placas e=15cm", elementosHorizontales: "Vigas en X de V30xVar. cm, Vigas en Y de V30x50cm", techo: "Losa aligerada a dos aguas e=20cm", imagenes: [], subtitulosImagenes: [] },
+                    { id: 11, nombre: "MÓDULO XI", uso: "Área de juego", pisos: 1, sistemaX: "Pórticos Ordinarios Resistentes a Momentos (OMF)", sistemaY: "Pórticos Especiales Resistentes a Momentos (SMF)", elementosVerticales: "Columna cuadrada metálico C30x30cm2 e=8mm.", elementosHorizontales: "Vigas W 10x45 en el eje Y y correas de 2x3x3mm. Tijerales en el eje X tubo HSS 4X4X3mm.", techo: "Cobertura parabólica de Aluzinc tipo TR4.", imagenes: [], subtitulosImagenes: [] },
+                    { id: 12, nombre: "MÓDULO XII", uso: "Cuarto de bombas y/o tanque elevado", pisos: 4, sistemaX: "", sistemaY: "", elementosVerticales: "Columnas CL 60x60x25x25 cm", elementosHorizontales: "Vigas en X de V25x60cm, Vigas en Y de V25x60cm", techo: "Losa maciza e=20cm", imagenes: [], subtitulosImagenes: [] },
+                    { id: 13, nombre: "MÓDULO XIII", uso: "Rampa", pisos: 3, sistemaX: "Muros estructurales", sistemaY: "Muros estructurales", elementosVerticales: "Columna rectangular (30x40cm), Placas e=30cm", elementosHorizontales: "Vigas en X de V30x60 cm, Vigas en Y de V30x60cm", techo: "Losa en rampa de 15cm, Losa aligerada de 20cm a dos aguas (Techo)", imagenes: [], subtitulosImagenes: [] },
+                    { id: 14, nombre: "MÓDULO XIV", uso: "Guardianía y SS.HH.", pisos: 1, sistemaX: "Albañilería Confinada", sistemaY: "Albañilería Confinada", elementosVerticales: "Columnas CL (40x40x25x25 cm)", elementosHorizontales: "Vigas en X de V25x40cm, Vigas en Y de V25x40cm", techo: "Losa aligerada a un agua e=20cm", imagenes: [], subtitulosImagenes: [] },
+                    { id: 15, nombre: "MÓDULO XV", uso: "SS.HH.", pisos: 3, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Albañilería Confinada", elementosVerticales: "Columna CL (50x50x30x30 cm), Placas e=20cm, Albañilería e=24cm", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa maciza e=20cm (1° y 2° Nivel), Losa aligerada en dos direcciones a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                    { id: 16, nombre: "MÓDULO XVI", uso: "SUM EXTERIOR", pisos: 1, sistemaX: "Pórticos", sistemaY: "Pórticos", elementosVerticales: "Columna cuadrada de concreto armado C30x30cm2", elementosHorizontales: "Viga de concreto de 30x40cm2 en X. Tijerales en el eje Y tubo HSS 4\"X6\"X3mm.", techo: "Cobertura parabólica de Aluzinc tipo TR4.", imagenes: [], subtitulosImagenes: [] }
                 ],
 
                 // 🔥 MAPEO DE IMÁGENES PARA MÓDULOS 01 AL 16
@@ -387,51 +388,21 @@ export function createMemoriaDescriptivaStore() {
                     formulaJunta: "S = 0.006 h ≥ 0.03 m"
                 }
             },
-
             consideraciones: {
-                1: {
-                    geotecnia: {
-                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
-                        capacidadPortante: "0.50",
-                        profundidad: "1.40",
-                        agresividadSulfatos: "Ataque no perjudicial",
-                        profNF: "A 1.40m y 1.50m"
-                    }
-                },
-                2: {
-                    geotecnia: {
-                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
-                        capacidadPortante: "0.60",
-                        profundidad: "1.40",
-                        agresividadSulfatos: "Ataque no perjudicial",
-                        profNF: "A 1.40m y 1.50m"
-                    }
-                },
-                recubrimientos: [
-                    "Concreto colocado contra el suelo y expuesto permanentemente a él: 70 mm",
-                    "Concreto en contacto permanente con el suelo o la intemperie:",
-                    "  - Barras de 3/4\" y mayores .............................................................. 50 mm",
-                    "  - Barras de 5/8\" y menores, mallas electrosoldadas ........................ 40 mm",
-                    "Concreto no expuesto a la intemperie ni en contacto con el suelo:",
-                    "  - Losas, muros, viguetas:",
-                    "      • Barras de 1 11/16\" y 2 1/4\" ........................................................ 40 mm",
-                    "      • Barras de 1 3/8\" y menores ........................................................ 20 mm",
-                    "  - Vigas y columnas:",
-                    "      • Armadura principal, estribos y espirales ....................................... 40 mm",
-                    "  - Cáscaras y losas plegadas:",
-                    "      • Barras de 3/4\" y mayores .................................................. 20 mm",
-                    "      • Barras de 5/8\" y menores ..................................... 15 mm",
-                    "      • Mallas electrosoldadas ....................................... 15 mm"
-                ],
-                materiales: [
-                    "Resistencia del concreto: f'c = 210 kg/cm2, 175 kg/cm2",
-                    "Resistencia de la albañilería: f'm = 85 kg/cm2",
-                    "Acero corrugado: ASTM A615-GRADO 60",
-                    "Cemento: Tipo I",
-                    "Módulo de elasticidad del concreto: E = 15000√(f'c) kg/cm2",
-                    "Resistencia de fluencia del acero: f'y = 4200 kg/cm2",
-                    "Amortiguamiento para el concreto: 0.05"
-                ],
+                // ========== DATOS GLOBALES (para Módulos II al XVI) ==========
+
+                // 2.X.3.1. RECUBRIMIENTOS DE ELEMENTOS - texto introductorio
+                recubrimientosIntro: "Según lo descrito en la partida 2.1.3.1.",
+                recubrimientosLista: [],  // vacío porque no hay lista
+
+                // 2.X.3.2. MATERIALES DE DISEÑO - texto introductorio
+                materialesIntro: "Según lo descrito en la partida 2.1.3.2.",
+                materialesLista: [],  // vacío porque no hay lista
+
+                // 2.X.3.3. SOBRECARGAS EMPLEADAS - texto introductorio
+                sobrecargasIntro: "La estimación de cargas verticales se evaluará conforme a la norma de Cargas, E-020 que forma parte del Reglamento Nacional de Edificaciones.\n\nPara el metrado de cargas en el diseño se utilizará las siguientes cargas:",
+
+                // Cargas muertas (comunes para todos)
                 sobrecargasMuertas: [
                     "Concreto: 2400 kg/m3",
                     "Albañilería: 1800 kg/m3",
@@ -439,12 +410,719 @@ export function createMemoriaDescriptivaStore() {
                     "Carga muerta general: 200 kg/m2",
                     "Tarrajeo: 2000 kg/m3"
                 ],
-                sobrecargasVivas: [
+
+                // Cargas vivas BASE (luego cada módulo puede tener las suyas)
+                sobrecargasVivasBase: [
                     "Sobrecarga de techos: 50 kg/m2"
-                ]
+                ],
 
+                // Texto de Carga Sísmica (común para todos)
+                cargaSismicaTexto: "El análisis sísmico contempla un análisis estático y un análisis dinámico empleando un modelo pseudotridimensional, formado por pórticos planos más placas de concreto o muros de albañilería confinada, en ambas direcciones los cuales están unidos entre sí por medio de un diafragma plano en cada entrepiso para compatibilizar desplazamientos. Además, unido a estos diafragmas de entrepiso se colocó la masa de cada nivel con tres coordenadas dinámicas por nivel. Para el modelo de los pórticos planos se tomó en cuenta las deformaciones por flexión, fuerza cortante y carga axial.\n\nPara el análisis dinámico se realizó el método de superposición espectral, considerando como criterio de superposición la combinación cuadrática completa (C.Q.C.) de los modos necesarios.\n\nEl valor de las fuerzas sísmicas que actúan sobre las estructuras se calculó considerando los siguientes parámetros:\n\nFactor de uso, U: La norma E-030 considera a este tipo de edificación como \"Edificaciones esencial\", correspondiéndole un factor de uso U = 1.5.",
+
+                // 2.X.3.4. MÉTODO DE DISEÑO - texto para módulos II al XVI
+                metodoDiseñoTexto: "Según lo descrito en la partida 2.1.3.4.",
+
+                // ========== MÓDULO I (2.1) ==========
+                1: {
+                    geotecnia: {
+                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
+                        capacidadPortante: "0.50",
+                        profundidad: "1.40",
+                        agresividadSulfatos: "Ataque no perjudicial",
+                        profNF: "A 1.40m y 1.50m"
+                    },
+                    recubrimientosIntro: "Según el RNE 0.60 Concreto Armado, indica los recubrimientos mínimos en el Inciso 7.7:\n\nDebe proporcionarse el siguiente recubrimiento mínimo de concreto al refuerzo, excepto cuando se requieran recubrimientos mayores según 7.7.5.1 ó se requiera protección especial contra el fuego:",
+                    recubrimientosLista: [
+                        "Concreto colocado contra el suelo y expuesto permanentemente a él: 70 mm",
+                        "Concreto en contacto permanente con el suelo o la intemperie:",
+                        "  - Barras de 3/4\" y mayores .............................................................. 50 mm",
+                        "  - Barras de 5/8\" y menores, mallas electrosoldadas ........................ 40 mm",
+                        "Concreto no expuesto a la intemperie ni en contacto con el suelo:",
+                        "  - Losas, muros, viguetas:",
+                        "      • Barras de 1 11/16\" y 2 1/4\" ........................................................ 40 mm",
+                        "      • Barras de 1 3/8\" y menores ........................................................ 20 mm",
+                        "  - Vigas y columnas:",
+                        "      • Armadura principal, estribos y espirales ....................................... 40 mm",
+                        "  - Cáscaras y losas plegadas:",
+                        "      • Barras de 3/4\" y mayores .................................................. 20 mm",
+                        "      • Barras de 5/8\" y menores ..................................... 15 mm",
+                        "      • Mallas electrosoldadas ....................................... 15 mm"
+                    ],
+                    materialesIntro: "Se consideró las siguientes características de los materiales que conforman esta estructura.",
+                    materialesLista: [
+                        "Resistencia del concreto: f'c = 210 kg/cm2, 175 kg/cm2",
+                        "Resistencia de la albañilería: f'm = 85 kg/cm2",
+                        "Acero corrugado: ASTM A615-GRADO 60",
+                        "Cemento: Tipo I",
+                        "Módulo de elasticidad del concreto: E = 15000√(f'c) kg/cm2",
+                        "Resistencia de fluencia del acero: f'y = 4200 kg/cm2",
+                        "Amortiguamiento para el concreto: 0.05"
+                    ],
+                    sobrecargasIntro: "La estimación de cargas verticales se evaluará conforme a la norma de Cargas, E-020 que forma parte del Reglamento Nacional de Edificaciones.\n\nPara el metrado de cargas en el diseño se utilizará las siguientes cargas:",
+                    sobrecargasMuertas: [
+                        "Concreto: 2400 kg/m3",
+                        "Albañilería: 1800 kg/m3",
+                        "Aligerado (h=20cm): 300 kg/m2",
+                        "Carga muerta general: 200 kg/m2",
+                        "Tarrajeo: 2000 kg/m3"
+                    ],
+                    sobrecargasVivas: [
+                        "Sobrecarga de techos: 50 kg/m2"
+                    ],
+                    cargaSismicaTexto: "El análisis sísmico contempla un análisis estático y un análisis dinámico empleando un modelo pseudotridimensional, formado por pórticos planos más placas de concreto o muros de albañilería confinada, en ambas direcciones los cuales están unidos entre sí por medio de un diafragma plano en cada entrepiso para compatibilizar desplazamientos. Además, unido a estos diafragmas de entrepiso se colocó la masa de cada nivel con tres coordenadas dinámicas por nivel. Para el modelo de los pórticos planos se tomó en cuenta las deformaciones por flexión, fuerza cortante y carga axial.\n\nPara el análisis dinámico se realizó el método de superposición espectral, considerando como criterio de superposición la combinación cuadrática completa (C.Q.C.) de los modos necesarios.\n\nEl valor de las fuerzas sísmicas que actúan sobre las estructuras se calculó considerando los siguientes parámetros:\n\nFactor de uso, U: La norma E-030 considera a este tipo de edificación como \"Edificaciones esencial\", correspondiéndole un factor de uso U = 1.5.",
+                    sismico: {
+                        coeficienteR_X: "6",
+                        coeficienteR_Y: "3",
+                        sistemaX: "columnas y muros estructurales",
+                        sistemaY: "albañilería confinada"
+                    },
+                    metodoDiseño: {
+                        texto: "En el análisis por cargas verticales todos los elementos son capaces de resistir las cargas que se generan como consecuencia del uso requerido. Las cargas no exceden los esfuerzos según la norma de diseño correspondiente.\n\nLas vigas, así como las columnas y placas, han sido diseñadas para soportar las cargas de gravedad transmitidas por las losas de techo, así como las cargas sísmicas que eventualmente se les impongan.\n\nCONCRETO ARMADO\nPara el diseño de estructuras de concreto armado (COLUMNAS, VIGAS, ZAPATAS, VIGAS DE CIMENTACION, PLACAS, ETC.) se utilizará el Diseño por Resistencia.\n\nDeberá proporcionarse a todas las secciones de los elementos estructurales Resistencias de diseño (ΦRn) adecuadas, de acuerdo con las disposiciones de la Norma E.060, utilizando los factores de carga (amplificación) y los factores de reducción de resistencia, Φ, especificados en el Capítulo 9 de la RNE E.060.\n\nCombinaciones de carga:\nC1: 1.4D + 1.7L\nC2: 1.25(D + L) + SX\nC3: 1.25(D + L) – SX\nC4: 1.25(D + L) + SY\nC5: 1.25(D + L) – SY\nC6: 0.9D + SX\nC7: 0.9D – SX\nC8: 0.9D + SY\nC9: 0.9D – SY"
+                    },
+                    // 🔥 NUEVO - ANÁLISIS DIRECCIÓN X
+                    analisisX: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.2188"
+                    },
+                    // 🔥 NUEVO - ANÁLISIS DIRECCIÓN Y
+                    analisisY: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.359"
+                    },
+                    // 🔥 NUEVO - TABLA DE ZONAS
+                    tablaZonas: {
+                        title: "Tabla N° 1 - FACTORES DE ZONA \"Z\"",
+                        rows: [
+                            { zona: "4", z: "0,45" },
+                            { zona: "3", z: "0,35" },
+                            { zona: "2", z: "0,25" },
+                            { zona: "1", z: "0,10" }
+                        ]
+                    }
+                },
+
+                // ========== MÓDULO II (2.2) ==========
+                2: {
+                    geotecnia: {
+                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
+                        capacidadPortante: "0.60",
+                        profundidad: "1.40",
+                        agresividadSulfatos: "Ataque no perjudicial",
+                        profNF: "A 1.40m y 1.50m"
+                    },
+                    sobrecargasVivas: [
+                        "Sobrecarga en AIP: 300 kg/m2",
+                        "Sobrecarga en Depósito AIP: 500 kg/m2",
+                        "Sobrecarga en corredor o pasadizo: 400 kg/m2",
+                        "Sobrecarga de techos: 50 kg/m2"
+                    ],
+                    sismico: {
+                        coeficienteR_X: "6",
+                        coeficienteR_Y: "6",
+                        sistemaX: "placas",
+                        sistemaY: "placas"
+                    },
+                    analisisX: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.2188"
+                    },
+                    analisisY: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.359"
+                    },
+                    tablaZonas: {
+                        title: "Tabla N° 1 - FACTORES DE ZONA \"Z\"",
+                        rows: [
+                            { zona: "4", z: "0,45" },
+                            { zona: "3", z: "0,35" },
+                            { zona: "2", z: "0,25" },
+                            { zona: "1", z: "0,10" }
+                        ]
+                    }
+                },
+
+                // ========== MÓDULO III (2.3) ==========
+                3: {
+                    geotecnia: {
+                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
+                        capacidadPortante: "0.60",
+                        profundidad: "1.40",
+                        agresividadSulfatos: "Ataque no perjudicial",
+                        profNF: "A 1.40m y 1.50m"
+                    },
+                    sobrecargasVivas: [
+                        "Sobrecarga en taller creativo: 350 kg/m2",
+                        "Sobrecarga en depósito: 500 kg/m2",
+                        "Sobrecarga en corredor o pasadizo: 400 kg/m2",
+                        "Sobrecarga de techos: 50 kg/m2"
+                    ],
+                    sismico: {
+                        coeficienteR_X: "6",
+                        coeficienteR_Y: "6",
+                        sistemaX: "placas",
+                        sistemaY: "placas"
+                    },
+                    analisisX: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.2188"
+                    },
+                    analisisY: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.359"
+                    },
+                    tablaZonas: {
+                        title: "Tabla N° 1 - FACTORES DE ZONA \"Z\"",
+                        rows: [
+                            { zona: "4", z: "0,45" },
+                            { zona: "3", z: "0,35" },
+                            { zona: "2", z: "0,25" },
+                            { zona: "1", z: "0,10" }
+                        ]
+                    }
+                },
+
+                // ========== MÓDULO IV (2.4) ==========
+                4: {
+                    geotecnia: {
+                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
+                        capacidadPortante: "0.60",
+                        profundidad: "1.40",
+                        agresividadSulfatos: "Ataque no perjudicial",
+                        profNF: "A 1.40m y 1.50m"
+                    },
+                    sobrecargasVivas: [
+                        "Sobrecarga en escaleras: 400 kg/m2",
+                        "Sobrecarga en corredor o pasadizo: 400 kg/m2",
+                        "Sobrecarga de techos: 50 kg/m2"
+                    ],
+                    sismico: {
+                        coeficienteR_X: "3",
+                        coeficienteR_Y: "6",
+                        sistemaX: "albañilería confinada",
+                        sistemaY: "placas"
+                    },
+                    analisisX: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.2188"
+                    },
+                    analisisY: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.359"
+                    },
+                    tablaZonas: {
+                        title: "Tabla N° 1 - FACTORES DE ZONA \"Z\"",
+                        rows: [
+                            { zona: "4", z: "0,45" },
+                            { zona: "3", z: "0,35" },
+                            { zona: "2", z: "0,25" },
+                            { zona: "1", z: "0,10" }
+                        ]
+                    }
+                },
+
+                // ========== MÓDULO V (2.5) ==========
+                5: {
+                    geotecnia: {
+                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
+                        capacidadPortante: "0.63",
+                        profundidad: "1.40",
+                        agresividadSulfatos: "Ataque no perjudicial",
+                        profNF: "A 1.40m y 1.50m"
+                    },
+                    sobrecargasVivas: [
+                        "Sobrecarga en Aulas: 250 kg/m2",
+                        "Sobrecarga en corredor o pasadizo: 400 kg/m2",
+                        "Sobrecarga de techos: 50 kg/m2"
+                    ],
+                    sismico: {
+                        coeficienteR_X: "3",
+                        coeficienteR_Y: "6",
+                        sistemaX: "albañilería confinada",
+                        sistemaY: "placas"
+                    },
+                    analisisX: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.2188"
+                    },
+                    analisisY: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.359"
+                    },
+                    tablaZonas: {
+                        title: "Tabla N° 1 - FACTORES DE ZONA \"Z\"",
+                        rows: [
+                            { zona: "4", z: "0,45" },
+                            { zona: "3", z: "0,35" },
+                            { zona: "2", z: "0,25" },
+                            { zona: "1", z: "0,10" }
+                        ]
+                    }
+                },
+
+                // ========== MÓDULO VI (2.6) ==========
+                6: {
+                    geotecnia: {
+                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
+                        capacidadPortante: "0.62",
+                        profundidad: "1.40",
+                        agresividadSulfatos: "Ataque no perjudicial",
+                        profNF: "A 1.40m y 1.50m"
+                    },
+                    sobrecargasVivas: [
+                        "Sobrecarga en Aulas: 250 kg/m2",
+                        "Sobrecarga en escaleras: 400 kg/m2",
+                        "Sobrecarga en corredor o pasadizo: 400 kg/m2",
+                        "Sobrecarga de techos: 100 kg/m2"
+                    ],
+                    sismico: {
+                        coeficienteR_X: "6",
+                        coeficienteR_Y: "3",
+                        sistemaX: "placas",
+                        sistemaY: "albañilería confinada"
+                    },
+                    analisisX: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.2188"
+                    },
+                    analisisY: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.359"
+                    },
+                    tablaZonas: {
+                        title: "Tabla N° 1 - FACTORES DE ZONA \"Z\"",
+                        rows: [
+                            { zona: "4", z: "0,45" },
+                            { zona: "3", z: "0,35" },
+                            { zona: "2", z: "0,25" },
+                            { zona: "1", z: "0,10" }
+                        ]
+                    }
+                },
+
+                // ========== MÓDULO VII (2.7) ==========
+                7: {
+                    geotecnia: {
+                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
+                        capacidadPortante: "0.50",
+                        profundidad: "1.40",
+                        agresividadSulfatos: "Ataque no perjudicial",
+                        profNF: "A 1.40m y 1.50m"
+                    },
+                    sobrecargasMuertas: [
+                        "Concreto: 2400 kg/m3",
+                        "Aligerado (h=20cm): 300 kg/m2",
+                        "Carga muerta general: 200 kg/m2",
+                        "Tarrajeo: 2000 kg/m3"
+                    ],
+                    sobrecargasVivas: [
+                        "Sobrecarga de techos: 50 kg/m2"
+                    ],
+                    sismico: {
+                        coeficienteR_X: "3",
+                        coeficienteR_Y: "3",
+                        sistemaX: "columnas y muros portantes",
+                        sistemaY: "columnas y muros portantes"
+                    },
+                    analisisX: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.2188"
+                    },
+                    analisisY: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.359"
+                    },
+                    tablaZonas: {
+                        title: "Tabla N° 1 - FACTORES DE ZONA \"Z\"",
+                        rows: [
+                            { zona: "4", z: "0,45" },
+                            { zona: "3", z: "0,35" },
+                            { zona: "2", z: "0,25" },
+                            { zona: "1", z: "0,10" }
+                        ]
+                    }
+                },
+
+                // ========== MÓDULO VIII (2.8) ==========
+                8: {
+                    geotecnia: {
+                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
+                        capacidadPortante: "0.60",
+                        profundidad: "1.40",
+                        agresividadSulfatos: "Ataque no perjudicial",
+                        profNF: "A 1.40m y 1.50m"
+                    },
+                    sobrecargasVivas: [
+                        "Sobrecarga Sala: 250 kg/m2",
+                        "Sobrecarga Estar y Bienestar: 250 kg/m2",
+                        "Sobrecarga en Depósito y archivo: 500 kg/m2",
+                        "Sobrecarga en corredor o pasadizo: 400 kg/m2",
+                        "Sobrecarga de techos: 50 kg/m2"
+                    ],
+                    sismico: {
+                        coeficienteR_X: "6",
+                        coeficienteR_Y: "6",
+                        sistemaX: "placas",
+                        sistemaY: "placas"
+                    },
+                    analisisX: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.2188"
+                    },
+                    analisisY: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.359"
+                    },
+                    tablaZonas: {
+                        title: "Tabla N° 1 - FACTORES DE ZONA \"Z\"",
+                        rows: [
+                            { zona: "4", z: "0,45" },
+                            { zona: "3", z: "0,35" },
+                            { zona: "2", z: "0,25" },
+                            { zona: "1", z: "0,10" }
+                        ]
+                    }
+                },
+
+                // ========== MÓDULO IX (2.9) ==========
+                9: {
+                    geotecnia: {
+                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
+                        capacidadPortante: "0.50",
+                        profundidad: "1.40",
+                        agresividadSulfatos: "Ataque no perjudicial",
+                        profNF: "A 1.40m y 1.50m"
+                    },
+                    sobrecargasVivas: [
+                        "Sobrecarga de techos: 50 kg/m2"
+                    ],
+                    sismico: {
+                        coeficienteR_X: "7",
+                        coeficienteR_Y: "3",
+                        sistemaX: "columnas y muros estructurales",
+                        sistemaY: "albañilería confinada"
+                    },
+                    analisisX: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.2188"
+                    },
+                    analisisY: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.359"
+                    },
+                    tablaZonas: {
+                        title: "Tabla N° 1 - FACTORES DE ZONA \"Z\"",
+                        rows: [
+                            { zona: "4", z: "0,45" },
+                            { zona: "3", z: "0,35" },
+                            { zona: "2", z: "0,25" },
+                            { zona: "1", z: "0,10" }
+                        ]
+                    }
+                },
+
+                // ========== MÓDULO X (2.10) ==========
+                10: {
+                    geotecnia: {
+                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
+                        capacidadPortante: "0.50",
+                        profundidad: "1.40",
+                        agresividadSulfatos: "Ataque no perjudicial",
+                        profNF: "A 1.40m y 1.50m"
+                    },
+                    sobrecargasVivas: [
+                        "Sobrecarga de techos: 50 kg/m2"
+                    ],
+                    sismico: {
+                        coeficienteR_X: "7",
+                        coeficienteR_Y: "6",
+                        sistemaX: "columnas y muros estructurales",
+                        sistemaY: "muros estructurales"
+                    },
+                    analisisX: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.2188"
+                    },
+                    analisisY: {
+                        factorZ: "0.25",
+                        factorU: "1.50",
+                        factorS: "1.40",
+                        tp: "1.00",
+                        tl: "1.60",
+                        c: "2.50",
+                        t: "6.00",
+                        r: "6.00",
+                        cr: "0.359"
+                    },
+                    tablaZonas: {
+                        title: "Tabla N° 1 - FACTORES DE ZONA \"Z\"",
+                        rows: [
+                            { zona: "4", z: "0,45" },
+                            { zona: "3", z: "0,35" },
+                            { zona: "2", z: "0,25" },
+                            { zona: "1", z: "0,10" }
+                        ]
+                    }
+                },
+
+                // ========== MÓDULO XI (2.11) - ESTRUCTURA METÁLICA ==========
+                11: {
+                    geotecnia: {
+                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
+                        capacidadPortante: "0.50",
+                        profundidad: "1.40",
+                        agresividadSulfatos: "Ataque no perjudicial",
+                        profNF: "A 1.40m y 1.50m"
+                    },
+                    sobrecargasMuertas: [
+                        "Concreto armado: 2400 kg/m3"
+                    ],
+                    sobrecargasVivas: [
+                        "Sobrecarga en techo: 30 kg/m2"
+                    ],
+                    metodoDiseñoTexto: "En el análisis por cargas verticales todos los elementos son capaces de resistir las cargas que se generan como consecuencia del uso requerido. Las cargas no exceden los esfuerzos según la norma de diseño correspondiente.\n\nLas vigas, así como las columnas, han sido diseñadas para soportar las cargas de gravedad transmitidas por las losas de techo, así como las cargas sísmicas que eventualmente se les impongan.\n\nCONCRETO ARMADO\nPara el diseño de estructuras de concreto armado (COLUMNAS, VIGAS, ZAPATAS, VIGAS DE CIMENTACION, PLACAS, ETC.) se utilizará el Diseño por Resistencia.\n\nDeberá proporcionarse a todas las secciones de los elementos estructurales Resistencias de diseño (ΦRn) adecuadas, de acuerdo con las disposiciones de la Norma E.060, utilizando los factores de carga (amplificación) y los factores de reducción de resistencia, Φ, especificados en el Capítulo 9 de la RNE E.060.\n\nESTRUCTURAS METALICAS\nPara el método LRFD la resistencia de diseño de cada sistema o componente estructural deberá ser igual o mayor a la resistencia requerida por las cargas factorizadas.\n\nLa resistencia de diseño ΦRn para cada estado limite se calculará multiplicando la resistencia nominal Rn por el factor de resistencia Φ.\n\nLa resistencia requerida se determinará para cada combinación de carga aplicable.\n\nPara el método ASD los esfuerzos debidos a las cargas externas en cada sistema o componente estructural no deberán exceder los esfuerzos admisibles que se presentan en los Capítulos 4 a 11. Los esfuerzos admisibles pueden incrementarse en 1/3 cuando actúan cargas de sismo o viento solas o en combinación con cargas vivas o de gravedad, de manera que la sección calculada bajo este criterio no sea menor que la requerida cuando no se hace el incremento de 1/3 de los esfuerzos admisibles."
+                    // No tiene sismico porque es estructura metálica
+                },
+
+                // ========== MÓDULO XII (2.12) - TANQUE ELEVADO ==========
+                12: {
+                    geotecnia: {
+                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
+                        capacidadPortante: "1.50",
+                        profundidad: "5.20",
+                        agresividadSulfatos: "Ataque no perjudicial",
+                        profNF: "A 1.40m y 1.50m"
+                    },
+                    sobrecargasMuertas: [
+                        "Concreto armado: 2400 kg/m3",
+                        "Carga muerta general: 200 kg/m2"
+                    ],
+                    sobrecargasVivas: [
+                        "Sobrecarga en entrepiso: 100 kg/m2",
+                        "Sobrecarga de techos: 50 kg/m2"
+                    ]
+                },
+
+                // ========== MÓDULO XIII (2.13) - RAMPA ==========
+                13: {
+                    geotecnia: {
+                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
+                        capacidadPortante: "0.50",
+                        profundidad: "1.40",
+                        agresividadSulfatos: "Ataque no perjudicial",
+                        profNF: "A 1.40m y 1.50m"
+                    },
+                    sobrecargasMuertas: [
+                        "Concreto: 2400 kg/m3",
+                        "Albañilería: 1800 kg/m3",
+                        "Carga muerta general: 200 kg/m2",
+                        "Carga muerta parapeto: 450 kg/m2",
+                        "Tarrajeo: 2000 kg/m3"
+                    ],
+                    sobrecargasVivas: [
+                        "Sobrecarga en rampa: 400 kg/m2"
+                    ]
+                },
+
+                // ========== MÓDULO XIV (2.14) ==========
+                14: {
+                    geotecnia: {
+                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
+                        capacidadPortante: "0.60",
+                        profundidad: "1.40",
+                        agresividadSulfatos: "Ataque no perjudicial",
+                        profNF: "A 1.40m y 1.50m"
+                    },
+                    sobrecargasVivas: [
+                        "Sobrecarga de techos: 50 kg/m2"
+                    ],
+                    sismico: {
+                        coeficienteR_X: "3",
+                        coeficienteR_Y: "3",
+                        sistemaX: "columnas y muros portantes",
+                        sistemaY: "columnas y muros portantes"
+                    }
+                },
+
+                // ========== MÓDULO XV (2.15) ==========
+                15: {
+                    geotecnia: {
+                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
+                        capacidadPortante: "0.66",
+                        profundidad: "1.40",
+                        agresividadSulfatos: "Ataque no perjudicial",
+                        profNF: "A 1.40m y 1.50m"
+                    },
+                    sobrecargasMuertas: [
+                        "Concreto: 2400 kg/m3",
+                        "Albañilería: 1800 kg/m3",
+                        "Aligerado 2D (h=20cm): 324 kg/m2",
+                        "Carga muerta general: 200 kg/m2",
+                        "Tarrajeo: 2000 kg/m3"
+                    ],
+                    sobrecargasVivas: [
+                        "Sobrecarga en SS.HH.: 250 kg/m2",
+                        "Sobrecarga en corredor o pasadizo: 400 kg/m2",
+                        "Sobrecarga de techos: 50 kg/m2"
+                    ],
+                    sismico: {
+                        coeficienteR_X: "6",
+                        coeficienteR_Y: "3",
+                        sistemaX: "placas",
+                        sistemaY: "albañilería confinada"
+                    }
+                },
+
+                // ========== MÓDULO XVI (2.16) - ESTRUCTURA METÁLICA ==========
+                16: {
+                    geotecnia: {
+                        perfilSuelo: "TIPO III -- SUELOS BLANDOS",
+                        capacidadPortante: "0.50",
+                        profundidad: "1.40",
+                        agresividadSulfatos: "Ataque no perjudicial",
+                        profNF: "A 1.40m y 1.50m"
+                    },
+                    sobrecargasMuertas: [
+                        "Concreto armado: 2400 kg/m3"
+                    ],
+                    sobrecargasVivas: [
+                        "Sobrecarga en techo: 30 kg/m2"
+                    ],
+                    metodoDiseñoTexto: "En el análisis por cargas verticales todos los elementos son capaces de resistir las cargas que se generan como consecuencia del uso requerido. Las cargas no exceden los esfuerzos según la norma de diseño correspondiente.\n\nLas vigas, así como las columnas, han sido diseñadas para soportar las cargas de gravedad transmitidas por las losas de techo, así como las cargas sísmicas que eventualmente se les impongan.\n\nCONCRETO ARMADO\nPara el diseño de estructuras de concreto armado (COLUMNAS, VIGAS, ZAPATAS, VIGAS DE CIMENTACION, PLACAS, ETC.) se utilizará el Diseño por Resistencia.\n\nDeberá proporcionarse a todas las secciones de los elementos estructurales Resistencias de diseño (ΦRn) adecuadas, de acuerdo con las disposiciones de la Norma E.060, utilizando los factores de carga (amplificación) y los factores de reducción de resistencia, Φ, especificados en el Capítulo 9 de la RNE E.060.\n\nESTRUCTURAS METALICAS\nPara el método LRFD la resistencia de diseño de cada sistema o componente estructural deberá ser igual o mayor a la resistencia requerida por las cargas factorizadas.\n\nLa resistencia de diseño ΦRn para cada estado limite se calculará multiplicando la resistencia nominal Rn por el factor de resistencia Φ.\n\nLa resistencia requerida se determinará para cada combinación de carga aplicable.\n\nPara el método ASD los esfuerzos debidos a las cargas externas en cada sistema o componente estructural no deberán exceder los esfuerzos admisibles que se presentan en los Capítulos 4 a 11. Los esfuerzos admisibles pueden incrementarse en 1/3 cuando actúan cargas de sismo o viento solas o en combinación con cargas vivas o de gravedad, de manera que la sección calculada bajo este criterio no sea menor que la requerida cuando no se hace el incremento de 1/3 de los esfuerzos admisibles."
+                }
             },
-
             predimensionamiento: {
                 1: {
                     techos: { tipo: "Losa aligerada e=20cm", luz: "5.20", espesor: "0.20" },
@@ -649,7 +1327,8 @@ export function createMemoriaDescriptivaStore() {
                     "OBRAS EXTERIORES N°3 (SARDINELES, CUNETAS Y VEREDAS) - Concreto simple deteriorado - DEMOLICIÓN TOTAL",
                     "OBRAS EXTERIORES N°4 (CERCO PERIMÉTRICO) - Muros de soga con patologías por humedad - DEMOLICIÓN TOTAL",
                     "OBRAS EXTERIORES N°5 (ANTENA METÁLICA) - REUBICACIÓN según nuevo diseño arquitectónico"
-                ]
+                ],
+                modulosImagenes: {},
             },
         },
 
@@ -740,6 +1419,15 @@ export function createMemoriaDescriptivaStore() {
             demolicionImages: [],
         },
 
+        getModuleImage(idx) {
+            return this.sections.demolicion.modulosImagenes?.[idx] || null;
+        },
+
+        triggerImageUpload(idx) {
+            const input = document.getElementById(`modulo-img-${idx}`);
+            if (input) input.click();
+        },
+
         // ── PERSISTENCIA: llamar save() en cada mutación importante ───────────
         save() {
             saveToStorage(this);
@@ -786,29 +1474,388 @@ export function createMemoriaDescriptivaStore() {
         },
 
         // ─── Módulos ───────────────────────────────────────────────────────────
-        addModulo() {
-            this.sections.descripcionModulos.modulos.push({
-                id: Date.now(),
-                nombre: `MÓDULO ${String(this.sections.descripcionModulos.modulos.length + 1).padStart(2, '0')}`,
-                uso: "", pisos: 1, sistemaX: "", sistemaY: "",
-                elementosVerticales: "", elementosHorizontales: "", techo: "", imagenes: [],
-            });
-            this.save();
+
+        getDefaultModulos() {
+            return [
+                { id: 1, nombre: "MÓDULO I", uso: "Grupo electrógeno, cuarto de tablero, maestranza, etc.", pisos: 1, sistemaX: "Sistema Dual", sistemaY: "Sistema de Albañilería confinada", elementosVerticales: "Placa L (PL 100x50x30x30 cm), Columnas CT (70x50x30x30cm), Muros de albañilería e=24cm", elementosHorizontales: "Vigas en X de V30xVar. cm, Vigas en Y de V30x50cm", techo: "Losa aligerada a dos aguas e=20cm", imagenes: [], subtitulosImagenes: [] },
+                { id: 2, nombre: "MÓDULO II", uso: "1° Piso: SUM., Comedor / 2° Piso: Módulo de conectividad, depósito AIP y AIP", pisos: 2, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x120x30x30 cm), Placa PT (100x50x30x30cm)", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                { id: 3, nombre: "MÓDULO III", uso: "1° Piso: Biblioteca / 2° Piso: Taller creativo y depósito", pisos: 2, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x120x30x30 cm), Placa PT (100x50x30x30cm)", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                { id: 4, nombre: "MÓDULO IV", uso: "Escalera", pisos: 3, sistemaX: "Sistema de Albañilería Confinada", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x100x30x30 cm), Muro Portante e=24cm", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x50 cm", techo: "Losa aligerada e=20cm (1° y 2° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                { id: 5, nombre: "MÓDULO V", uso: "Aulas", pisos: 3, sistemaX: "Sistema de Albañilería Confinada", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x100x30x30 cm), Placa PT (50x100x30x30cm), Albañilería portante e=24cm", elementosHorizontales: "Vigas en X de V30x60 cm, Vigas en X de V30x50cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° y 2° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                { id: 6, nombre: "MÓDULO VI", uso: "Aulas y Escalera", pisos: 3, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Albañilería Confinada", elementosVerticales: "Placa PL (50x50x30x30 cm), Placa PL (65x50x30x30 cm), Placa PT (100x50x30x30cm)", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° y 2° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                { id: 7, nombre: "MÓDULO VII", uso: "Cocina, Almacén de alimentos, Cuarto de limpieza, Dep. combustible, etc.", pisos: 1, sistemaX: "Albañilería Confinada", sistemaY: "Albañilería Confinada", elementosVerticales: "Columnas (30x30 cm), Muro portante e=13cm, Placa e=13cm", elementosHorizontales: "Vigas en X de V30x40cm, Vigas en Y de V30x40cm", techo: "Losa aligerada a una sola agua e=20cm", imagenes: [], subtitulosImagenes: [] },
+                { id: 8, nombre: "MÓDULO VIII", uso: "1° Piso: Residuos sólidos, Sala de Docentes, Tópico, secretaria, dirección y SS.HH. / 2° Piso: Sala de Docentes, Sala de Reuniones", pisos: 2, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Columna CL (50x50x30x30 cm), Placa PT (100x50x30x30cm), Placa 20x200cm", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                { id: 9, nombre: "MÓDULO IX", uso: "Aulas, deposito, almacén, SS.HH, etc.", pisos: 1, sistemaX: "Sistema Dual", sistemaY: "Albañilería confinada", elementosVerticales: "Placa PT (100x50x30x30 cm), Columnas CT (70x50x30x30cm)", elementosHorizontales: "Vigas en X de V30xVar. cm, Vigas en Y de V30x50cm", techo: "Losa aligerada a dos aguas e=20cm", imagenes: [], subtitulosImagenes: [] },
+                { id: 10, nombre: "MÓDULO X", uso: "Cocina, depósitos, Comedor, SS.HH, etc.", pisos: 1, sistemaX: "Sistema de Dual", sistemaY: "Sistema de Muros Estructurales", elementosVerticales: "Placas PL (100x50x30x30 cm), Columnas CT (70x50x30x30cm), Placas e=15cm", elementosHorizontales: "Vigas en X de V30xVar. cm, Vigas en Y de V30x50cm", techo: "Losa aligerada a dos aguas e=20cm", imagenes: [], subtitulosImagenes: [] },
+                { id: 11, nombre: "MÓDULO XI", uso: "Área de juego", pisos: 1, sistemaX: "Pórticos Ordinarios Resistentes a Momentos (OMF)", sistemaY: "Pórticos Especiales Resistentes a Momentos (SMF)", elementosVerticales: "Columna cuadrada metálico C30x30cm2 e=8mm.", elementosHorizontales: "Vigas W 10x45 en el eje Y y correas de 2x3x3mm. Tijerales en el eje X tubo HSS 4X4X3mm.", techo: "Cobertura parabólica de Aluzinc tipo TR4.", imagenes: [], subtitulosImagenes: [] },
+                { id: 12, nombre: "MÓDULO XII", uso: "Cuarto de bombas y/o tanque elevado", pisos: 4, sistemaX: "", sistemaY: "", elementosVerticales: "Columnas CL 60x60x25x25 cm", elementosHorizontales: "Vigas en X de V25x60cm, Vigas en Y de V25x60cm", techo: "Losa maciza e=20cm", imagenes: [], subtitulosImagenes: [] },
+                { id: 13, nombre: "MÓDULO XIII", uso: "Rampa", pisos: 3, sistemaX: "Muros estructurales", sistemaY: "Muros estructurales", elementosVerticales: "Columna rectangular (30x40cm), Placas e=30cm", elementosHorizontales: "Vigas en X de V30x60 cm, Vigas en Y de V30x60cm", techo: "Losa en rampa de 15cm, Losa aligerada de 20cm a dos aguas (Techo)", imagenes: [], subtitulosImagenes: [] },
+                { id: 14, nombre: "MÓDULO XIV", uso: "Guardianía y SS.HH.", pisos: 1, sistemaX: "Albañilería Confinada", sistemaY: "Albañilería Confinada", elementosVerticales: "Columnas CL (40x40x25x25 cm)", elementosHorizontales: "Vigas en X de V25x40cm, Vigas en Y de V25x40cm", techo: "Losa aligerada a un agua e=20cm", imagenes: [], subtitulosImagenes: [] },
+                { id: 15, nombre: "MÓDULO XV", uso: "SS.HH.", pisos: 3, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Albañilería Confinada", elementosVerticales: "Columna CL (50x50x30x30 cm), Placas e=20cm, Albañilería e=24cm", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa maciza e=20cm (1° y 2° Nivel), Losa aligerada en dos direcciones a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                { id: 16, nombre: "MÓDULO XVI", uso: "SUM EXTERIOR", pisos: 1, sistemaX: "Pórticos", sistemaY: "Pórticos", elementosVerticales: "Columna cuadrada de concreto armado C30x30cm2", elementosHorizontales: "Viga de concreto de 30x40cm2 en X. Tijerales en el eje Y tubo HSS 4\"X6\"X3mm.", techo: "Cobertura parabólica de Aluzinc tipo TR4.", imagenes: [], subtitulosImagenes: [] }
+            ];
         },
-        removeModulo(index) {
-            this.sections.descripcionModulos.modulos.splice(index, 1);
+
+        // ─── Módulos ───────────────────────────────────────────────────────────
+        addModulo() {
+            const store = this.$store.memoriaDescriptiva;
+            const modulosActuales = store.sections.descripcionModulos.modulos;
+
+            // Extraer números usando la nueva función
+            const numerosExistentes = modulosActuales
+                .map(m => this.extraerNumeroModulo(m.nombre))
+                .filter(n => n !== null)
+                .sort((a, b) => a - b);
+
+            console.log('📊 Números existentes:', numerosExistentes);
+
+            // Buscar primer número faltante entre 1 y 16
+            let numeroFaltante = null;
+            for (let i = 1; i <= 16; i++) {
+                if (!numerosExistentes.includes(i)) {
+                    numeroFaltante = i;
+                    break;
+                }
+            }
+
+            let nuevoNumero;
+            let usarPredefinido = false;
+
+            if (numeroFaltante !== null) {
+                nuevoNumero = numeroFaltante;
+                usarPredefinido = true;
+                console.log(`🔍 Número faltante detectado: ${nuevoNumero}`);
+            } else {
+                let maxNumero = 0;
+                for (const num of numerosExistentes) {
+                    if (num > maxNumero) maxNumero = num;
+                }
+                nuevoNumero = maxNumero + 1;
+                usarPredefinido = false;
+                console.log(`📈 Todos los números existen, creando: ${nuevoNumero}`);
+            }
+
+            let nuevoModulo;
+
+            if (usarPredefinido && nuevoNumero <= 16) {
+                const moduloPredefinido = store.getDefaultModulos()[nuevoNumero - 1];
+                if (moduloPredefinido) {
+                    nuevoModulo = {
+                        ...moduloPredefinido,
+                        id: Date.now(),
+                        imagenes: [],
+                        subtitulosImagenes: []
+                    };
+                    console.log(`✅ Módulo ${nuevoNumero} recuperado (predefinido)`);
+                } else {
+                    nuevoModulo = {
+                        id: Date.now(),
+                        nombre: `MÓDULO ${this.numeroARomano(nuevoNumero)}`,
+                        uso: "",
+                        pisos: 1,
+                        sistemaX: "",
+                        sistemaY: "",
+                        elementosVerticales: "",
+                        elementosHorizontales: "",
+                        techo: "",
+                        imagenes: [],
+                        subtitulosImagenes: []
+                    };
+                }
+            } else {
+                // Convertir número a romano para mantener consistencia
+                nuevoModulo = {
+                    id: Date.now(),
+                    nombre: `MÓDULO ${this.numeroARomano(nuevoNumero)}`,
+                    uso: "",
+                    pisos: 1,
+                    sistemaX: "",
+                    sistemaY: "",
+                    elementosVerticales: "",
+                    elementosHorizontales: "",
+                    techo: "",
+                    imagenes: [],
+                    subtitulosImagenes: []
+                };
+                console.log(`✅ Nuevo módulo ${nuevoNumero} (${this.numeroARomano(nuevoNumero)}) creado vacío`);
+            }
+
+            modulosActuales.push(nuevoModulo);
+
+            // Ordenar por número
+            modulosActuales.sort((a, b) => {
+                const numA = this.extraerNumeroModulo(a.nombre);
+                const numB = this.extraerNumeroModulo(b.nombre);
+                return numA - numB;
+            });
+
+            store.save();
+
+            // Sincronizar imágenes
+            const nuevoIndice = modulosActuales.findIndex(m => m.id === nuevoModulo.id);
+            if (nuevoIndice !== -1 && store.sincronizarImagenesPorPisos) {
+                store.sincronizarImagenesPorPisos(nuevoIndice);
+            }
+        },
+
+        // Convertir número a romano (para módulos > 16)
+        numeroARomano(num) {
+            const romanos = {
+                1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V',
+                6: 'VI', 7: 'VII', 8: 'VIII', 9: 'IX', 10: 'X',
+                11: 'XI', 12: 'XII', 13: 'XIII', 14: 'XIV', 15: 'XV', 16: 'XVI'
+            };
+            if (num <= 16) return romanos[num];
+            // Para números mayores a 16, usar número arábigo
+            return String(num).padStart(2, '0');
+        },
+
+        sincronizarImagenesPorPisos(moduloIndex) {
+            console.log('🔧 Método llamado - índice:', moduloIndex);
+
+            const modulos = this.sections.descripcionModulos.modulos;
+            const modulo = modulos[moduloIndex];
+
+            if (!modulo) {
+                console.error('❌ Módulo no encontrado');
+                return;
+            }
+
+            // 🔥 CONVERTIR PISOS A NÚMERO
+            const pisos = parseInt(modulo.pisos) || 1;
+            modulo.pisos = pisos;  // Guardar como número
+
+            const mapeoImagenes = this.sections.descripcionModulos.mapeoImagenes || {};
+            const imagenesOriginales = mapeoImagenes[modulo.id]?.archivos?.length || 0;
+
+            console.log('📸 Originales:', imagenesOriginales, 'Pisos:', pisos);
+
+            const adicionalesNecesarias = Math.max(0, pisos - imagenesOriginales);
+            console.log('➕ Adicionales:', adicionalesNecesarias);
+
+            if (!modulo.imagenes) modulo.imagenes = [];
+            if (!modulo.subtitulosImagenes) modulo.subtitulosImagenes = [];
+
+            // Ajustar arrays
+            while (modulo.imagenes.length < adicionalesNecesarias) modulo.imagenes.push(null);
+            while (modulo.imagenes.length > adicionalesNecesarias) modulo.imagenes.pop();
+
+            while (modulo.subtitulosImagenes.length < adicionalesNecesarias) modulo.subtitulosImagenes.push("");
+            while (modulo.subtitulosImagenes.length > adicionalesNecesarias) modulo.subtitulosImagenes.pop();
+
+            console.log('✅ Resultado - imagenes:', modulo.imagenes);
+
             this.save();
         },
 
+        // ========== MÉTODOS PARA ANÁLISIS SÍSMICO DINÁMICO ==========
+
+        agregarParametroAnalisis(moduloId, direccion) {
+            const modulo = this.sections.consideraciones[moduloId];
+            if (!modulo) return;
+
+            const nuevoParametro = {
+                nombre: "Nuevo parámetro",
+                valor: "",
+                unidad: ""
+            };
+
+            if (direccion === 'X') {
+                if (!modulo.analisisX) modulo.analisisX = [];
+                modulo.analisisX.push(nuevoParametro);
+            } else if (direccion === 'Y') {
+                if (!modulo.analisisY) modulo.analisisY = [];
+                modulo.analisisY.push(nuevoParametro);
+            }
+
+            this.save();
+        },
+
+        eliminarParametroAnalisis(moduloId, direccion, index) {
+            const modulo = this.sections.consideraciones[moduloId];
+            if (!modulo) return;
+
+            if (direccion === 'X' && modulo.analisisX) {
+                modulo.analisisX.splice(index, 1);
+            } else if (direccion === 'Y' && modulo.analisisY) {
+                modulo.analisisY.splice(index, 1);
+            }
+
+            this.save();
+        },
+
+        // Inicializar parámetros por defecto para cada módulo
+        inicializarAnalisisModulo(moduloId) {
+            const modulo = this.sections.consideraciones[moduloId];
+            if (!modulo) return;
+
+            // Parámetros por defecto para Dirección X
+            if (!modulo.analisisX || modulo.analisisX.length === 0) {
+                modulo.analisisX = [
+                    { nombre: "Factor Z", valor: "0.25", unidad: "" },
+                    { nombre: "Factor U", valor: "1.50", unidad: "" },
+                    { nombre: "Factor S", valor: "1.40", unidad: "" },
+                    { nombre: "Tp", valor: "1.00", unidad: "s" },
+                    { nombre: "Tl", valor: "1.60", unidad: "s" },
+                    { nombre: "C", valor: "2.50", unidad: "" },
+                    { nombre: "T", valor: "6.00", unidad: "s" },
+                    { nombre: "R", valor: "6.00", unidad: "" },
+                    { nombre: "C/R", valor: "0.2188", unidad: "" }
+                ];
+            }
+
+            // Parámetros por defecto para Dirección Y
+            if (!modulo.analisisY || modulo.analisisY.length === 0) {
+                modulo.analisisY = [
+                    { nombre: "Factor Z", valor: "0.25", unidad: "" },
+                    { nombre: "Factor U", valor: "1.50", unidad: "" },
+                    { nombre: "Factor S", valor: "1.40", unidad: "" },
+                    { nombre: "Tp", valor: "1.00", unidad: "s" },
+                    { nombre: "Tl", valor: "1.60", unidad: "s" },
+                    { nombre: "C", valor: "2.50", unidad: "" },
+                    { nombre: "T", valor: "6.00", unidad: "s" },
+                    { nombre: "R", valor: "6.00", unidad: "" },
+                    { nombre: "C/R", valor: "0.359", unidad: "" }
+                ];
+            }
+
+            this.save();
+        },
+
+        async subirImagenModulo(moduloIndex, nivelIndex, event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                alert('Seleccione una imagen válida');
+                return;
+            }
+            if (file.size > 10 * 1024 * 1024) {
+                alert('El archivo excede 10 MB');
+                return;
+            }
+
+            const modulos = this.sections.descripcionModulos.modulos;
+            const modulo = modulos[moduloIndex];
+            if (!modulo.imagenes) modulo.imagenes = [];
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                modulo.imagenes[nivelIndex] = e.target.result;
+                this.save();
+            };
+            reader.readAsDataURL(file);
+        },
+
+        eliminarImagenModulo(moduloIndex, nivelIndex) {
+            const modulos = this.sections.descripcionModulos.modulos;
+            const modulo = modulos[moduloIndex];
+            if (modulo && modulo.imagenes) {
+                modulo.imagenes[nivelIndex] = null;
+                this.save();
+            }
+        },
+
+
         // ─── Demolición ────────────────────────────────────────────────────────
         addModuloADemoler() {
+            if (!this.sections.demolicion.modulosADemoler) {
+                this.sections.demolicion.modulosADemoler = [];
+            }
+            if (!this.sections.demolicion.modulosImagenes) {
+                this.sections.demolicion.modulosImagenes = {};
+            }
             this.sections.demolicion.modulosADemoler.push("");
             this.save();
         },
+
+        removeModuloADemoler(idx) {
+            if (this.sections.demolicion.modulosADemoler) {
+                this.sections.demolicion.modulosADemoler.splice(idx, 1);
+
+                if (this.sections.demolicion.modulosImagenes) {
+                    delete this.sections.demolicion.modulosImagenes[idx];
+                    this.reindexModuleImages();
+                }
+                this.save();
+            }
+        },
+
+        reindexModuleImages() {
+            const oldImages = { ...(this.sections.demolicion.modulosImagenes || {}) };
+            const newImages = {};
+            const modulesLength = this.sections.demolicion.modulosADemoler?.length || 0;
+
+            Object.keys(oldImages).forEach(key => {
+                const newKey = parseInt(key);
+                if (newKey < modulesLength) {
+                    newImages[newKey] = oldImages[key];
+                }
+            });
+            this.sections.demolicion.modulosImagenes = newImages;
+            this.save();
+        },
+
+        triggerImageUpload(idx) {
+            const input = document.getElementById(`modulo-img-${idx}`);
+            if (input) input.click();
+        },
+
+        handleModuleImageUpload(idx, event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                alert('Selecciona una imagen válida');
+                return;
+            }
+
+            if (file.size > 5 * 1024 * 1024) {
+                alert('La imagen no puede superar los 5MB');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if (!this.sections.demolicion.modulosImagenes) {
+                    this.sections.demolicion.modulosImagenes = {};
+                }
+                this.sections.demolicion.modulosImagenes[idx] = e.target.result;
+                this.save();
+                event.target.value = '';
+            };
+            reader.readAsDataURL(file);
+        },
+
         addObraExteriorADemoler() {
+            if (!this.sections.demolicion.obrasExterioresADemoler) {
+                this.sections.demolicion.obrasExterioresADemoler = [];
+            }
             this.sections.demolicion.obrasExterioresADemoler.push("");
             this.save();
         },
+
+        removeObraExteriorADemoler(idx) {
+            if (this.sections.demolicion.obrasExterioresADemoler) {
+                this.sections.demolicion.obrasExterioresADemoler.splice(idx, 1);
+                this.save();
+            }
+        },
+
+
+        // Elimina la imagen de un módulo
+        removeModuleImage(idx) {
+            if (confirm('¿Eliminar esta imagen?')) {
+                if (this.sections.demolicion.modulosImagenes) {
+                    delete this.sections.demolicion.modulosImagenes[idx];
+                    this.save();
+                }
+            }
+        },
+        // Obtiene la imagen de un módulo de demolición
+        getModuleImage(idx) {
+            return this.sections.demolicion.modulosImagenes?.[idx] || null;
+        },
+
 
         // ─── Imágenes simples (dataURL) ────────────────────────────────────────
         updateImage(key, file, preview) {
@@ -833,30 +1880,160 @@ export function createMemoriaDescriptivaStore() {
             reader.readAsDataURL(file);
         },
 
-        // ─── Imágenes de módulos ───────────────────────────────────────────────
-        // ─── Imágenes de módulos ───────────────────────────────────────────────
-        updateModuloImage(moduloIndex, imageIndex, file, preview) {
-            // Asegurar que el array existe
-            if (!Array.isArray(this.images.moduloImages)) {
-                this.images.moduloImages = [];
-            }
-            if (!Array.isArray(this.previews.moduloImages)) {
-                this.previews.moduloImages = [];
-            }
 
-            // Asegurar que el módulo existe
-            if (!Array.isArray(this.images.moduloImages[moduloIndex])) {
-                this.images.moduloImages[moduloIndex] = [null, null];
-            }
-            if (!Array.isArray(this.previews.moduloImages[moduloIndex])) {
-                this.previews.moduloImages[moduloIndex] = [null, null];
-            }
+        // ============================================
+        // FUNCIONES AUXILIARES PARA MÓDULOS
+        // ============================================
 
-            // Guardar la imagen
-            this.images.moduloImages[moduloIndex][imageIndex] = file;
-            this.previews.moduloImages[moduloIndex][imageIndex] = preview;
-            this.save();
+        romanoANumero(romano) {
+            const romanos = {
+                'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5,
+                'VI': 6, 'VII': 7, 'VIII': 8, 'IX': 9, 'X': 10,
+                'XI': 11, 'XII': 12, 'XIII': 13, 'XIV': 14, 'XV': 15, 'XVI': 16
+            };
+            return romanos[romano.toUpperCase()] || null;
         },
+
+        extraerNumeroModulo(nombre) {
+            if (!nombre) return null;
+            const partes = nombre.split(' ');
+            const ultimo = partes[partes.length - 1];
+            if (!isNaN(parseInt(ultimo))) {
+                return parseInt(ultimo, 10);
+            }
+            return this.romanoANumero(ultimo);
+        },
+
+        numeroARomano(num) {
+            const romanos = {
+                1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V',
+                6: 'VI', 7: 'VII', 8: 'VIII', 9: 'IX', 10: 'X',
+                11: 'XI', 12: 'XII', 13: 'XIII', 14: 'XIV', 15: 'XV', 16: 'XVI'
+            };
+            if (num <= 16) return romanos[num];
+            return String(num).padStart(2, '0');
+        },
+
+        addModulo() {
+            const modulosActuales = this.sections.descripcionModulos.modulos;
+
+            // Función para convertir romano a número
+            const romanoANumero = (romano) => {
+                const romanos = {
+                    'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5,
+                    'VI': 6, 'VII': 7, 'VIII': 8, 'IX': 9, 'X': 10,
+                    'XI': 11, 'XII': 12, 'XIII': 13, 'XIV': 14, 'XV': 15, 'XVI': 16
+                };
+                return romanos[romano.toUpperCase()] || null;
+            };
+
+            // Función para extraer número del nombre
+            const extraerNumero = (nombre) => {
+                if (!nombre) return null;
+                const partes = nombre.split(' ');
+                const ultimo = partes[partes.length - 1];
+                if (!isNaN(parseInt(ultimo))) {
+                    return parseInt(ultimo, 10);
+                }
+                return romanoANumero(ultimo);
+            };
+
+            // Extraer números existentes
+            const numerosExistentes = modulosActuales
+                .map(m => extraerNumero(m.nombre))
+                .filter(n => n !== null)
+                .sort((a, b) => a - b);
+
+            // Buscar número faltante entre 1 y 16
+            let numeroFaltante = null;
+            for (let i = 1; i <= 16; i++) {
+                if (!numerosExistentes.includes(i)) {
+                    numeroFaltante = i;
+                    break;
+                }
+            }
+
+            let nuevoNumero;
+            let usarPredefinido = false;
+
+            if (numeroFaltante !== null) {
+                nuevoNumero = numeroFaltante;
+                usarPredefinido = true;
+            } else {
+                let maxNumero = 0;
+                for (const num of numerosExistentes) {
+                    if (num > maxNumero) maxNumero = num;
+                }
+                nuevoNumero = maxNumero + 1;
+                usarPredefinido = false;
+            }
+
+            let nuevoModulo;
+
+            if (usarPredefinido && nuevoNumero <= 16 && this.getDefaultModulos) {
+                const moduloPredefinido = this.getDefaultModulos()[nuevoNumero - 1];
+                if (moduloPredefinido) {
+                    nuevoModulo = {
+                        ...moduloPredefinido,
+                        id: Date.now(),
+                        imagenes: [],
+                        subtitulosImagenes: []
+                    };
+                } else {
+                    nuevoModulo = {
+                        id: Date.now(),
+                        nombre: `MÓDULO ${nuevoNumero}`,
+                        uso: "",
+                        pisos: 1,
+                        sistemaX: "",
+                        sistemaY: "",
+                        elementosVerticales: "",
+                        elementosHorizontales: "",
+                        techo: "",
+                        imagenes: [],
+                        subtitulosImagenes: []
+                    };
+                }
+            } else {
+                nuevoModulo = {
+                    id: Date.now(),
+                    nombre: `MÓDULO ${nuevoNumero}`,
+                    uso: "",
+                    pisos: 1,
+                    sistemaX: "",
+                    sistemaY: "",
+                    elementosVerticales: "",
+                    elementosHorizontales: "",
+                    techo: "",
+                    imagenes: [],
+                    subtitulosImagenes: []
+                };
+            }
+
+            modulosActuales.push(nuevoModulo);
+
+            // Ordenar
+            modulosActuales.sort((a, b) => {
+                const numA = extraerNumero(a.nombre);
+                const numB = extraerNumero(b.nombre);
+                return numA - numB;
+            });
+
+            this.save();
+
+            // Sincronizar imágenes
+            const nuevoIndice = modulosActuales.findIndex(m => m.id === nuevoModulo.id);
+            if (nuevoIndice !== -1 && this.sincronizarImagenesPorPisos) {
+                this.sincronizarImagenesPorPisos(nuevoIndice);
+            }
+        },
+
+        removeModulo(index) {
+            this.$store.memoriaDescriptiva.sections.descripcionModulos.modulos.splice(index, 1);
+        },
+
+        // ─── Imágenes de módulos ───────────────────────────────────────────────
+
 
         removeModuloImage(moduloIndex, imageIndex) {
             if (Array.isArray(this.images.moduloImages[moduloIndex])) {
@@ -868,24 +2045,27 @@ export function createMemoriaDescriptivaStore() {
             this.save();
         },
         // ─── Imágenes de módulos ───────────────────────────────────────────────
-        updateModuloImage(moduloIndex, imageIndex, file, preview) {
-            if (!Array.isArray(this.images.moduloImages[moduloIndex])) {
-                this.images.moduloImages[moduloIndex] = [];
-                this.previews.moduloImages[moduloIndex] = [];
+
+        removeModulo(idx) {
+            if (this.sections?.descripcionModulos?.modulos?.[idx]) {
+
+                // 1. Borramos el módulo de la lista
+                this.sections.descripcionModulos.modulos.splice(idx, 1);
+
+                // 2. Borramos sus carpetas de imágenes en la misma posición indexada
+                if (Array.isArray(this.images?.moduloImages)) {
+                    this.images.moduloImages.splice(idx, 1);
+                }
+                if (Array.isArray(this.previews?.moduloImages)) {
+                    this.previews.moduloImages.splice(idx, 1);
+                }
+
+                // 3. Guardamos los cambios
+                this.save();
             }
-            this.images.moduloImages[moduloIndex][imageIndex] = file;
-            this.previews.moduloImages[moduloIndex][imageIndex] = preview;
-            this.save();
-        },
-        removeModuloImage(moduloIndex, imageIndex) {
-            if (Array.isArray(this.images.moduloImages[moduloIndex]))
-                this.images.moduloImages[moduloIndex][imageIndex] = null;
-            if (Array.isArray(this.previews.moduloImages[moduloIndex]))
-                this.previews.moduloImages[moduloIndex][imageIndex] = null;
-            this.save();
         },
 
-        // 🔥 AGREGAR ESTE NUEVO MÉTODO AQUÍ 🔥
+
         initModuloImages() {
             const targetLength = 16;
             const slotsPerModule = 2;

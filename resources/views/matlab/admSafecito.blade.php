@@ -51,24 +51,60 @@
                                             class="rounded bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900 dark:text-blue-200">Joint
                                             Reactions</span>
                                     </div>
-                                    <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                                        <input id="excelFile" name="excelFile" type="file" accept=".xlsx"
-                                            class="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
-                                        <button type="button" id="importarExcel"
-                                            class="inline-flex h-10 items-center justify-center whitespace-nowrap rounded border-b-4 border-blue-700 bg-blue-500 px-4 py-2 text-sm font-bold text-white hover:border-blue-500 hover:bg-blue-400">Importar</button>
-                                    </div>
-                                </div>
+                                     <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                                         <input id="excelFile" name="excelFile" type="file" accept=".xlsx"
+                                             class="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
+                                         <button type="button" id="importarExcel"
+                                             class="inline-flex h-10 items-center justify-center whitespace-nowrap rounded border-b-4 border-blue-700 bg-blue-500 px-4 py-2 text-sm font-bold text-white hover:border-blue-500 hover:bg-blue-400">Importar</button>
+                                     </div>
+                                     <div id="reactionExcelConfig"
+                                         class="mt-3 hidden rounded-md border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+                                         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                             Configuracion de columnas</p>
+                                         <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+                                             <label class="text-xs font-medium text-gray-600 dark:text-gray-300">Hoja
+                                                 <select id="reactionSheet"
+                                                     class="mt-1 block w-full rounded border-gray-300 bg-gray-50 text-sm text-gray-800 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"></select>
+                                             </label>
+                                             <label class="text-xs font-medium text-gray-600 dark:text-gray-300">Fila inicial
+                                                 <input id="reactionStartRow" type="number" min="1" value="5"
+                                                     class="mt-1 block w-full rounded border-gray-300 bg-gray-50 text-sm text-gray-800 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
+                                             </label>
+                                             <label class="text-xs font-medium text-gray-600 dark:text-gray-300">Punto
+                                                 <input id="reactionPointColumn" type="text" value="C"
+                                                     class="mt-1 block w-full rounded border-gray-300 bg-gray-50 text-sm uppercase text-gray-800 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
+                                             </label>
+                                             <label class="text-xs font-medium text-gray-600 dark:text-gray-300">Combinacion
+                                                 <input id="reactionComboColumn" type="text" value="D"
+                                                     class="mt-1 block w-full rounded border-gray-300 bg-gray-50 text-sm uppercase text-gray-800 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
+                                             </label>
+                                             <label class="text-xs font-medium text-gray-600 dark:text-gray-300">F2
+                                                 <input id="reactionF2Column" type="text" value="K"
+                                                     class="mt-1 block w-full rounded border-gray-300 bg-gray-50 text-sm uppercase text-gray-800 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
+                                             </label>
+                                             <label class="text-xs font-medium text-gray-600 dark:text-gray-300">MX
+                                                 <input id="reactionMxColumn" type="text" value="L"
+                                                     class="mt-1 block w-full rounded border-gray-300 bg-gray-50 text-sm uppercase text-gray-800 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
+                                             </label>
+                                             <label class="text-xs font-medium text-gray-600 dark:text-gray-300">MY
+                                                 <input id="reactionMyColumn" type="text" value="M"
+                                                     class="mt-1 block w-full rounded border-gray-300 bg-gray-50 text-sm uppercase text-gray-800 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
+                                             </label>
+                                         </div>
+                                     </div>
+                                 </div>
                             </div>
 
                             <div id="excelCombosContainer"
                                 class="hidden rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-gray-900">
                                 <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                                    <div>
-                                        <p class="font-semibold text-gray-800 dark:text-gray-200">2. Selecciona 3
-                                            combinaciones</p>
-                                        <p class="text-sm text-gray-600 dark:text-gray-400">Se eliminan duplicados de la
-                                            columna D desde la fila 5.</p>
-                                    </div>
+                                     <div>
+                                         <p class="font-semibold text-gray-800 dark:text-gray-200">2. Selecciona 3
+                                             combinaciones</p>
+                                        <p class="text-sm text-gray-600 dark:text-gray-400">Se eliminan duplicados segun
+                                            la hoja, fila y columna configuradas. El orden de seleccion define PD, PL y
+                                            SISMO.</p>
+                                     </div>
                                     <p id="excelCombosStatus"
                                         class="text-sm font-medium text-gray-600 dark:text-gray-400">Selecciona 3
                                         combinaciones.</p>
@@ -81,25 +117,52 @@
                             <div id="connectivityExcelContainer"
                                 class="hidden rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-gray-900">
                                 <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                                    <div>
-                                        <p class="font-semibold text-gray-800 dark:text-gray-200">3. Excel de
-                                            coordenadas</p>
-                                        <p class="text-sm text-gray-600 dark:text-gray-400">Cruza la columna C del
-                                            primer Excel con la columna A de Point Object Connectivity.</p>
-                                    </div>
-                                    <span
-                                        class="rounded bg-green-100 px-2 py-1 text-xs font-semibold text-green-700 dark:bg-green-900 dark:text-green-200">F
-                                        = X, G = Y</span>
-                                </div>
+                                     <div>
+                                         <p class="font-semibold text-gray-800 dark:text-gray-200">3. Excel de
+                                             coordenadas</p>
+                                        <p class="text-sm text-gray-600 dark:text-gray-400">Cruza el identificador del
+                                            primer Excel con el identificador configurado del Excel de coordenadas.</p>
+                                     </div>
+                                     <span
+                                        class="rounded bg-green-100 px-2 py-1 text-xs font-semibold text-green-700 dark:bg-green-900 dark:text-green-200">Columnas
+                                        configurables</span>
+                                 </div>
                                 <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                                     <input id="connectivityExcelFile" name="connectivityExcelFile" type="file"
                                         accept=".xlsx" disabled
                                         class="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
-                                    <button type="button" id="importarConnectivityExcel" disabled
-                                        class="inline-flex h-10 items-center justify-center whitespace-nowrap rounded border-b-4 border-blue-700 bg-blue-500 px-4 py-2 text-sm font-bold text-white hover:border-blue-500 hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-60">Importar
-                                        coordenadas</button>
-                                </div>
-                            </div>
+                                     <button type="button" id="importarConnectivityExcel" disabled
+                                         class="inline-flex h-10 items-center justify-center whitespace-nowrap rounded border-b-4 border-blue-700 bg-blue-500 px-4 py-2 text-sm font-bold text-white hover:border-blue-500 hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-60">Importar
+                                         coordenadas</button>
+                                 </div>
+                                 <div id="coordinateExcelConfig"
+                                     class="mt-3 hidden rounded-md border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+                                     <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                         Configuracion de coordenadas</p>
+                                     <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                                         <label class="text-xs font-medium text-gray-600 dark:text-gray-300">Hoja
+                                             <select id="coordinateSheet"
+                                                 class="mt-1 block w-full rounded border-gray-300 bg-gray-50 text-sm text-gray-800 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"></select>
+                                         </label>
+                                         <label class="text-xs font-medium text-gray-600 dark:text-gray-300">Fila inicial
+                                             <input id="coordinateStartRow" type="number" min="1" value="5"
+                                                 class="mt-1 block w-full rounded border-gray-300 bg-gray-50 text-sm text-gray-800 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
+                                         </label>
+                                         <label class="text-xs font-medium text-gray-600 dark:text-gray-300">Punto
+                                             <input id="coordinatePointColumn" type="text" value="A"
+                                                 class="mt-1 block w-full rounded border-gray-300 bg-gray-50 text-sm uppercase text-gray-800 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
+                                         </label>
+                                         <label class="text-xs font-medium text-gray-600 dark:text-gray-300">X
+                                             <input id="coordinateXColumn" type="text" value="F"
+                                                 class="mt-1 block w-full rounded border-gray-300 bg-gray-50 text-sm uppercase text-gray-800 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
+                                         </label>
+                                         <label class="text-xs font-medium text-gray-600 dark:text-gray-300">Y
+                                             <input id="coordinateYColumn" type="text" value="G"
+                                                 class="mt-1 block w-full rounded border-gray-300 bg-gray-50 text-sm uppercase text-gray-800 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
+                                         </label>
+                                     </div>
+                                 </div>
+                             </div>
 
                             <div id="propiedadesSection"
                                 class="hidden rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">

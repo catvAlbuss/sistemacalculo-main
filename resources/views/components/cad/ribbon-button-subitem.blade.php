@@ -1,8 +1,8 @@
 <div class="relative flex-1" x-id="['drop']" x-data="{ isOpen: false }" @keydown.esc.window="isOpen = false">
   <!-- Toggle Button -->
   <button class="cad-ribbon-button-hover-bg flex flex-col items-center justify-center rounded p-1" :id="$id('drop')"
-    @click.self="{{ $clickHandler }}" x-data="{ toggle: false }" x-effect="toggle = {{ $toggle }}"
-    :class="toggle ? 'cad-ribbon-button-bg' : ''">
+    @click.self="{{ $clickHandler }}"
+    :class="{{ $toggle }} ? 'cad-ribbon-button-bg' : ''">
     <div class="flex h-7 w-7 self-center" @click.self="{{ $clickHandler }}">{{ $slot1 }}</div>
     <div class="flex flex-row">
       <label class="text-xs">{{ $label }}</label>
