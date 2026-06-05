@@ -154,6 +154,9 @@ $logout = function (Logout $logout) {
                                 'label' => 'Diseño de Vigas General',
                             ],
                         ]"></x-dropdown-sub>
+                        <x-dropdown-link :href="route('calculadora.asistente.escaleras')" :active="request()->routeIs('calculadora.asistente.escaleras')" {{-- wire:navigate --}}>
+                            {{ __('Escaleras') }}
+                        </x-dropdown-link>
                         <x-dropdown-sub label="{{ __('Losas') }}" :links="[
                             [
                                 'url' => route('calculadora.asistente.losas-macizas'),
