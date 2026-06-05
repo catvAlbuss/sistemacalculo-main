@@ -454,22 +454,47 @@ export class DocumentTransformerMD {
         text: `1.5.2.${numeroModulo}. MÓDULO ${numeroModuloStr}`
       });
 
-      // IMÁGENES (desde el store)
-      if (infoImagenes && infoImagenes.archivos && infoImagenes.archivos.length > 0) {
-        for (let imgIdx = 0; imgIdx < infoImagenes.archivos.length; imgIdx++) {
-          const archivo = infoImagenes.archivos[imgIdx];
-          const numeroFigura = infoImagenes.figuras[imgIdx];
-          const subtitulo = infoImagenes.subtitulos[imgIdx] || "";
+      // ========== 🔥 IMÁGENES (originales del Word + adicionales subidas) ==========
+      const imagenesOriginales = infoImagenes?.archivos || [];
+      const imagenesSubidas = modulo.imagenes || [];
+      const subtitulosSubidos = modulo.subtitulosImagenes || [];
+      const totalImagenes = Math.max(modulo.pisos || 1, imagenesOriginales.length);
 
-          nuevosModulos.push({
-            type: "image",
-            src: `/assets/img/memoria_decriptiva/modulos/${archivo}`,
-            width: 500,
-            height: 380,
-            caption: `Figura ${numeroFigura}${subtitulo}. Distribución Arquitectónica del Módulo ${numeroModuloStr}`,
-            alignment: "CENTER"
-          });
+      for (let imgIdx = 0; imgIdx < totalImagenes; imgIdx++) {
+        let src = "";
+        let numeroFigura = "";
+        let subtitulo = "";
+        let esImagenSubida = false;
+
+        // Verificar si existe imagen original para este nivel
+        if (imagenesOriginales[imgIdx]) {
+          src = `/assets/img/memoria_decriptiva/modulos/${imagenesOriginales[imgIdx]}`;
+          numeroFigura = infoImagenes.figuras[imgIdx];
+          subtitulo = infoImagenes.subtitulos[imgIdx] || "";
+          esImagenSubida = false;
         }
+        // Si no hay imagen original pero el usuario subió una
+        else if (imagenesSubidas[imgIdx]) {
+          src = imagenesSubidas[imgIdx];
+          // Generar número de figura automático
+          const ultimaFigura = infoImagenes?.figuras?.slice(-1)[0] || 54;
+          numeroFigura = ultimaFigura + (imgIdx - (imagenesOriginales.length - 1)) + 1;
+          subtitulo = subtitulosSubidos[imgIdx] || ` (Nivel ${imgIdx + 1})`;
+          esImagenSubida = true;
+        }
+        // Si no hay ninguna imagen, saltar
+        else {
+          continue;
+        }
+
+        nuevosModulos.push({
+          type: "image",
+          src: src,
+          width: 500,
+          height: 380,
+          caption: `Figura ${numeroFigura}${subtitulo}. Distribución Arquitectónica del Módulo ${numeroModuloStr}${esImagenSubida ? ' (Imagen adicional)' : ''}`,
+          alignment: "CENTER"
+        });
       }
 
       // TABLA del módulo
@@ -741,7 +766,7 @@ export class DocumentTransformerMD {
         // IMAGEN 3
         marcoTeorico.content.push({
           type: "image",
-          src: "/assets/img/memoria_decriptiva/modulos/figura4DiagramaEsfuerzo.png",
+          src: "/assets/img/memoria_decriptiva/modulos/figura4DiagramaAcero.png",
           width: 450,
           height: 350,
           caption: "Figura 4. Diagrama esfuerzo – deformación del acero (fy).",
@@ -790,7 +815,7 @@ export class DocumentTransformerMD {
       // IMAGEN - Diagrama esfuerzo-deformación del acero
       marcoTeorico.content.push({
         type: "image",
-        src: "/assets/img/memoria_decriptiva/modulos/figura4DiagramaEsfuerzo.png",
+        src: "public/assets/img/memoria_decriptiva/modulos/figura4DiagramaEsfuerzo.png",
         width: 450,
         height: 350,
         caption: "Figura 4. Diagrama esfuerzo – deformación del acero (fy).",
@@ -849,7 +874,7 @@ export class DocumentTransformerMD {
       // IMAGEN después del texto
       marcoTeorico.content.push({
         type: "image",
-        src: "/assets/img/memoria_decriptiva/modulos/figura28VentanaPresentacion.png",
+        src: "public/assets/img/memoria_decriptiva/modulos/figura28VentanaPresentacion.png",
         width: 500,
         height: 350,
         caption: "Figura. Ventana de presentación del programa ETABS V16.",
@@ -1045,24 +1070,12 @@ export class DocumentTransformerMD {
     const consideracionesData = this.sections.consideraciones || {};
     const content = [];
 
-    // Datos comunes (nivel raíz del store — no se repiten)
-    const recubrimientos = consideracionesData.recubrimientos || [];
-    const materiales = consideracionesData.materiales || [];
-    const sobrecargasMuertas = consideracionesData.sobrecargasMuertas || [];
-    const sobrecargasVivas = consideracionesData.sobrecargasVivas || [];
-
-    // Nombres de los módulos (igual al store de descripcionModulos)
+    // Nombres de los módulos
     const nombreModulos = [
       "MÓDULO I", "MÓDULO II", "MÓDULO III", "MÓDULO IV",
       "MÓDULO V", "MÓDULO VI", "MÓDULO VII", "MÓDULO VIII",
       "MÓDULO IX", "MÓDULO X", "MÓDULO XI", "MÓDULO XII",
       "MÓDULO XIII", "MÓDULO XIV", "MÓDULO XV", "MÓDULO XVI"
-    ];
-
-    // Numeración romana para subtítulos (2.1, 2.2 … 2.16)
-    const romanos = [
-      "I", "II", "III", "IV", "V", "VI", "VII", "VIII",
-      "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI"
     ];
 
     // ========== 3 IMÁGENES INICIALES ==========
@@ -1084,9 +1097,9 @@ export class DocumentTransformerMD {
 
     // ========== GENERAR LOS 16 MÓDULOS ==========
     for (let i = 1; i <= 16; i++) {
-      const geotecnia = consideracionesData[i]?.geotecnia || null;
+      const moduloData = consideracionesData[i] || {};
+      const geotecnia = moduloData.geotecnia || null;
       const num = `2.${i}`;
-      const romano = romanos[i - 1];
 
       // ── Título del módulo ──────────────────────────────────────────
       content.push({
@@ -1130,158 +1143,244 @@ export class DocumentTransformerMD {
         alignment: "JUSTIFIED"
       });
 
-      const imagenesSismicas = ["imagen4.png", "imagen5.png", "imagen6.png", "imagen7.png"];
-      for (const img of imagenesSismicas) {
-        content.push({
-          type: "image",
-          src: `/assets/img/memoria_decriptiva/consideraciones/${img}`,
-          width: 500, height: 400, caption: "", alignment: "CENTER"
-        });
+      // ========== TABLA N° 1 - FACTORES DE ZONA ==========
+      content.push({
+        type: "paragraph",
+        text: "Tabla N° 1 - FACTORES DE ZONA \"Z\"",
+        bold: true,
+        alignment: "CENTER"
+      });
+      content.push({
+        type: "table",
+        widthPercent: 50,
+        alignment: "CENTER",
+        rows: [
+          [
+            { text: "ZONA", shading: { fill: "0A1929" }, color: "FFFFFF", bold: true, alignment: "CENTER" },
+            { text: "Z", shading: { fill: "0A1929" }, color: "FFFFFF", bold: true, alignment: "CENTER" }
+          ],
+          [{ text: "4", alignment: "CENTER" }, { text: "0,45", alignment: "CENTER" }],
+          [{ text: "3", alignment: "CENTER" }, { text: "0,35", alignment: "CENTER" }],
+          [{ text: "2", alignment: "CENTER" }, { text: "0,25", alignment: "CENTER" }],
+          [{ text: "1", alignment: "CENTER" }, { text: "0,10", alignment: "CENTER" }]
+        ]
+      });
+
+      // ========== ANÁLISIS EN DIRECCIÓN X ==========
+      content.push({
+        type: "paragraph",
+        text: "ANÁLISIS EN DIRECCIÓN X",
+        bold: true,
+        alignment: "CENTER"
+      });
+
+      const parametrosX = [
+        { nombre: "Factor Z", valor: moduloData.analisisX?.factorZ || "0.25", unidad: "" },
+        { nombre: "Factor U", valor: moduloData.analisisX?.factorU || "1.50", unidad: "" },
+        { nombre: "Factor S", valor: moduloData.analisisX?.factorS || "1.40", unidad: "" },
+        { nombre: "Tp", valor: moduloData.analisisX?.tp || "1.00", unidad: "s" },
+        { nombre: "Tl", valor: moduloData.analisisX?.tl || "1.60", unidad: "s" },
+        { nombre: "C", valor: moduloData.analisisX?.c || "2.50", unidad: "" },
+        { nombre: "T", valor: moduloData.analisisX?.t || "6.00", unidad: "s" },
+        { nombre: "R", valor: moduloData.analisisX?.r || "6.00", unidad: "" },
+        { nombre: "C/R", valor: moduloData.analisisX?.cr || "0.2188", unidad: "" }
+      ];
+
+      // Construir filas de la tabla X
+      const filasX = [];
+      // Encabezado
+      filasX.push([
+        { text: "PARÁMETRO", shading: { fill: "0A1929" }, color: "FFFFFF", bold: true, alignment: "CENTER" },
+        { text: "VALOR", shading: { fill: "0A1929" }, color: "FFFFFF", bold: true, alignment: "CENTER" },
+        { text: "UNIDAD", shading: { fill: "0A1929" }, color: "FFFFFF", bold: true, alignment: "CENTER" }
+      ]);
+      // Datos
+      for (const p of parametrosX) {
+        filasX.push([
+          { text: p.nombre, alignment: "LEFT" },
+          { text: p.valor, alignment: "CENTER" },
+          { text: p.unidad, alignment: "CENTER" }
+        ]);
       }
 
+      content.push({
+        type: "table",
+        widthPercent: 75,
+        alignment: "CENTER",
+        rows: filasX
+      });
+
+      // ========== ANÁLISIS EN DIRECCIÓN Y ==========
+      content.push({
+        type: "paragraph",
+        text: "ANÁLISIS EN DIRECCIÓN Y",
+        bold: true,
+        alignment: "CENTER"
+      });
+
+      const parametrosY = [
+        { nombre: "Factor Z", valor: moduloData.analisisY?.factorZ || "0.25", unidad: "" },
+        { nombre: "Factor U", valor: moduloData.analisisY?.factorU || "1.50", unidad: "" },
+        { nombre: "Factor S", valor: moduloData.analisisY?.factorS || "1.40", unidad: "" },
+        { nombre: "Tp", valor: moduloData.analisisY?.tp || "1.00", unidad: "s" },
+        { nombre: "Tl", valor: moduloData.analisisY?.tl || "1.60", unidad: "s" },
+        { nombre: "C", valor: moduloData.analisisY?.c || "2.50", unidad: "" },
+        { nombre: "T", valor: moduloData.analisisY?.t || "6.00", unidad: "s" },
+        { nombre: "R", valor: moduloData.analisisY?.r || "6.00", unidad: "" },
+        { nombre: "C/R", valor: moduloData.analisisY?.cr || "0.359", unidad: "" }
+      ];
+
+      // Construir filas de la tabla Y
+      const filasY = [];
+      // Encabezado
+      filasY.push([
+        { text: "PARÁMETRO", shading: { fill: "0A1929" }, color: "FFFFFF", bold: true, alignment: "CENTER" },
+        { text: "VALOR", shading: { fill: "0A1929" }, color: "FFFFFF", bold: true, alignment: "CENTER" },
+        { text: "UNIDAD", shading: { fill: "0A1929" }, color: "FFFFFF", bold: true, alignment: "CENTER" }
+      ]);
+      // Datos
+      for (const p of parametrosY) {
+        filasY.push([
+          { text: p.nombre, alignment: "LEFT" },
+          { text: p.valor, alignment: "CENTER" },
+          { text: p.unidad, alignment: "CENTER" }
+        ]);
+      }
+
+      content.push({
+        type: "table",
+        widthPercent: 75,
+        alignment: "CENTER",
+        rows: filasY
+      });
       // ── 2.X.3. MÉTODO DE DISEÑO ───────────────────────────────────
       content.push({
         type: "heading", level: 3,
         text: `${num}.3. MÉTODO DE DISEÑO`
       });
 
-      // 2.X.3.1. RECUBRIMIENTOS
+      // 2.X.3.1. RECUBRIMIENTOS DE ELEMENTOS
       content.push({
         type: "heading", level: 4,
         text: `${num}.3.1. RECUBRIMIENTOS DE ELEMENTOS`
       });
-      content.push({
-        type: "paragraph",
-        text: "Según el RNE 0.60 Concreto Armado, indica los recubrimientos mínimos en el Inciso 7.7:",
-        alignment: "JUSTIFIED"
-      });
-      content.push({
-        type: "paragraph",
-        text: "Debe proporcionarse el siguiente recubrimiento mínimo de concreto al refuerzo, excepto cuando se requieran recubrimientos mayores según 7.7.5.1 ó se requiera protección especial contra el fuego:",
-        alignment: "JUSTIFIED"
-      });
-      if (recubrimientos.length > 0) {
-        content.push({ type: "list", listType: "bullet", items: recubrimientos });
+
+      const recubrimientosIntro = moduloData.recubrimientosIntro || "";
+      if (recubrimientosIntro) {
+        const parrafos = recubrimientosIntro.split('\n');
+        for (const parrafo of parrafos) {
+          if (parrafo.trim() === "") continue;
+          content.push({ type: "paragraph", text: parrafo, alignment: "JUSTIFIED" });
+        }
       }
 
-      // 2.X.3.2. MATERIALES
+      const recubrimientosLista = moduloData.recubrimientosLista || [];
+      if (recubrimientosLista.length > 0) {
+        content.push({ type: "list", listType: "bullet", items: recubrimientosLista });
+      }
+
+      // 2.X.3.2. MATERIALES DE DISEÑO
       content.push({
         type: "heading", level: 4,
         text: `${num}.3.2. MATERIALES DE DISEÑO`
       });
-      content.push({
-        type: "paragraph",
-        text: "Se consideró las siguientes características de los materiales que conforman esta estructura.",
-        alignment: "JUSTIFIED"
-      });
-      if (materiales.length > 0) {
-        content.push({ type: "list", listType: "bullet", items: materiales });
+
+      const materialesIntro = moduloData.materialesIntro || "";
+      if (materialesIntro) {
+        const parrafos = materialesIntro.split('\n');
+        for (const parrafo of parrafos) {
+          if (parrafo.trim() === "") continue;
+          content.push({ type: "paragraph", text: parrafo, alignment: "JUSTIFIED" });
+        }
       }
 
-      // 2.X.3.3. SOBRECARGAS
+      const materialesLista = moduloData.materialesLista || [];
+      if (materialesLista.length > 0) {
+        content.push({ type: "list", listType: "bullet", items: materialesLista });
+      }
+
+      // 2.X.3.3. SOBRECARGAS EMPLEADAS
       content.push({
         type: "heading", level: 4,
         text: `${num}.3.3. SOBRECARGAS EMPLEADAS`
       });
-      content.push({
-        type: "paragraph",
-        text: "La estimación de cargas verticales se evaluará conforme a la norma de Cargas, E-020 que forma parte del Reglamento Nacional de Edificaciones.",
-        alignment: "JUSTIFIED"
-      });
-      content.push({
-        type: "paragraph",
-        text: "Para el metrado de cargas en el diseño se utilizará las siguientes cargas:",
-        alignment: "JUSTIFIED"
-      });
 
-      if (sobrecargasMuertas.length > 0) {
+      const sobrecargasIntro = moduloData.sobrecargasIntro || "La estimación de cargas verticales se evaluará conforme a la norma de Cargas, E-020 que forma parte del Reglamento Nacional de Edificaciones.\n\nPara el metrado de cargas en el diseño se utilizará las siguientes cargas:";
+      const introParrafos = sobrecargasIntro.split('\n');
+      for (const parrafo of introParrafos) {
+        if (parrafo.trim() === "") continue;
+        content.push({ type: "paragraph", text: parrafo, alignment: "JUSTIFIED" });
+      }
+
+      const cargasMuertas = moduloData.sobrecargasMuertas || [];
+      if (cargasMuertas.length > 0) {
         content.push({ type: "paragraph", text: "Cargas muertas", bold: true, alignment: "JUSTIFIED" });
-        content.push({ type: "list", listType: "bullet", items: sobrecargasMuertas });
+        content.push({ type: "list", listType: "bullet", items: cargasMuertas });
       }
 
-      if (sobrecargasVivas.length > 0) {
+      const cargasVivas = moduloData.sobrecargasVivas || [];
+      if (cargasVivas.length > 0) {
         content.push({ type: "paragraph", text: "Cargas vivas", bold: true, alignment: "JUSTIFIED" });
-        content.push({ type: "list", listType: "bullet", items: sobrecargasVivas });
+        content.push({ type: "list", listType: "bullet", items: cargasVivas });
       }
 
-      // Carga Sísmica — texto fijo igual en todos los módulos
-      content.push({ type: "paragraph", text: "Carga Sísmica", bold: true, alignment: "JUSTIFIED" });
+      // CARGA SÍSMICA
+      const cargaSismicaTexto = moduloData.cargaSismicaTexto || "";
+      if (cargaSismicaTexto) {
+        content.push({ type: "paragraph", text: "Carga Sísmica", bold: true, alignment: "JUSTIFIED" });
+        const parrafosSismica = cargaSismicaTexto.split('\n');
+        for (const parrafo of parrafosSismica) {
+          if (parrafo.trim() === "") continue;
+          content.push({ type: "paragraph", text: parrafo, alignment: "JUSTIFIED" });
+        }
+      }
+
+      // COEFICIENTE R
+      const sismicoModulo = moduloData.sismico || {};
+      const rX = sismicoModulo.coeficienteR_X || "6";
+      const rY = sismicoModulo.coeficienteR_Y || "3";
+      const sistemaX = sismicoModulo.sistemaX || "columnas y muros estructurales";
+      const sistemaY = sismicoModulo.sistemaY || "albañilería confinada";
+
       content.push({
         type: "paragraph",
-        text: "El análisis sísmico contempla un análisis estático y un análisis dinámico empleando un modelo pseudotridimensional, formado por pórticos planos más placas de concreto o muros de albañilería confinada, en ambas direcciones los cuales están unidos entre sí por medio de un diafragma plano en cada entrepiso para compatibilizar desplazamientos. Además, unido a estos diagramas de entrepiso se colocó la masa de cada nivel con tres coordenadas dinámicas por nivel. Para el modelo de los pórticos planos se tomó en cuenta las deformaciones por flexión, fuerza cortante y carga axial.",
-        alignment: "JUSTIFIED"
-      });
-      content.push({
-        type: "paragraph",
-        text: "Para el análisis dinámico se realizó el método de superposición espectral, considerando como criterio de superposición la combinación cuadrática completa (C.Q.C.) de los modos necesarios.",
-        alignment: "JUSTIFIED"
-      });
-      content.push({
-        type: "paragraph",
-        text: "El valor de las fuerzas sísmicas que actúan sobre las estructuras se calculó considerando los siguientes parámetros:",
-        alignment: "JUSTIFIED"
-      });
-      content.push({
-        type: "paragraph",
-        text: "Factor de uso, U: La norma E-030 considera a este tipo de edificación como \"Edificaciones esencial\", correspondiéndole un factor de uso U = 1.5.",
-        alignment: "JUSTIFIED"
-      });
-      content.push({
-        type: "paragraph",
-        text: "Coeficiente de reducción sísmica, R: En la dirección XX las estructuras estarán configuradas en base a columnas y muros estructurales, entonces le corresponde un factor de reducción de R = 6; y en la dirección YY las estructuras estarán configuradas en base a albañilería confinada, entonces le corresponde un factor de reducción de R = 3.",
+        text: `Coeficiente de reducción sísmica, R: En la dirección XX las estructuras estarán configuradas en base a ${sistemaX}, entonces le corresponde un factor de reducción de R = ${rX}; y en la dirección YY las estructuras estarán configuradas en base a ${sistemaY}, entonces le corresponde un factor de reducción de R = ${rY}.`,
         alignment: "JUSTIFIED"
       });
 
-      // 2.X.3.4. MÉTODO DE DISEÑO — concreto armado
+      // 2.X.3.4. MÉTODO DE DISEÑO
       content.push({
         type: "heading", level: 4,
         text: `${num}.3.4. MÉTODO DE DISEÑO`
       });
-      content.push({
-        type: "paragraph",
-        text: "En el análisis por cargas verticales todos los elementos son capaces de resistir las cargas que se generan como consecuencia del uso requerido. Las cargas no exceden los esfuerzos según la norma de diseño correspondiente.",
-        alignment: "JUSTIFIED"
-      });
-      content.push({
-        type: "paragraph",
-        text: "Las vigas, así como las columnas y placas, han sido diseñadas para soportar las cargas de gravedad transmitidas por las losas de techo, así como las cargas sísmicas que eventualmente se les impongan.",
-        alignment: "JUSTIFIED"
-      });
-      content.push({ type: "paragraph", text: "CONCRETO ARMADO", bold: true, alignment: "JUSTIFIED" });
-      content.push({
-        type: "paragraph",
-        text: "Para el diseño de estructuras de concreto armado (COLUMNAS, VIGAS, ZAPATAS, VIGAS DE CIMENTACION, PLACAS, ETC.) se utilizará el Diseño por Resistencia.",
-        alignment: "JUSTIFIED"
-      });
-      content.push({
-        type: "paragraph",
-        text: "Deberá proporcionarse a todas las secciones de los elementos estructurales Resistencias de diseño (ΦRn) adecuadas, de acuerdo con las disposiciones de la Norma E.060, utilizando los factores de carga (amplificación) y los factores de reducción de resistencia, Φ, especificados en el Capítulo 9 de la RNE E.060.",
-        alignment: "JUSTIFIED"
-      });
-      content.push({ type: "paragraph", text: "Combinaciones de carga:", alignment: "JUSTIFIED" });
-      content.push({
-        type: "list", listType: "bullet",
-        items: [
-          "C1: 1.4D + 1.7L",
-          "C2: 1.25(D + L) + SX",
-          "C3: 1.25(D + L) – SX",
-          "C4: 1.25(D + L) + SY",
-          "C5: 1.25(D + L) – SY",
-          "C6: 0.9D + SX",
-          "C7: 0.9D – SX",
-          "C8: 0.9D + SY",
-          "C9: 0.9D – SY"
-        ]
-      });
-      content.push({ type: "paragraph", text: "Desplazamientos máximos permitidos:", bold: true, alignment: "JUSTIFIED" });
-      content.push({
-        type: "image",
-        src: "/assets/img/memoria_decriptiva/consideraciones/ultimaTabla.png",
-        width: 500,
-        height: 300,
-        caption: "",
-        alignment: "CENTER"
-      });
+
+      const metodoDiseñoTexto = moduloData.metodoDiseñoTexto || "";
+      if (metodoDiseñoTexto) {
+        const parrafos = metodoDiseñoTexto.split('\n');
+        for (const parrafo of parrafos) {
+          if (parrafo.trim() === "") continue;
+          const esTitulo = parrafo === parrafo.toUpperCase() && parrafo.length < 50;
+          content.push({
+            type: "paragraph",
+            text: parrafo,
+            bold: esTitulo,
+            alignment: "JUSTIFIED"
+          });
+        }
+      }
+
+      // DESPLAZAMIENTOS - SOLO MÓDULO I
+      if (i === 1) {
+        content.push({ type: "paragraph", text: "Desplazamientos máximos permitidos:", bold: true, alignment: "JUSTIFIED" });
+        content.push({
+          type: "image",
+          src: "/assets/img/memoria_decriptiva/consideraciones/UltimaTabla.png",
+          width: 500,
+          height: 300,
+          caption: "",
+          alignment: "CENTER"
+        });
+      }
 
       // Salto de página entre módulos (excepto el último)
       if (i < 16) {
@@ -1291,7 +1390,6 @@ export class DocumentTransformerMD {
 
     consideraciones.content = content;
   }
-
   // ============================================
   // SECCIÓN 3 - PREDIMENSIONAMIENTO (MEJORADO)
   // ============================================
