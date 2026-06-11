@@ -553,5 +553,142 @@ export function buildModalSpectralPayloadFromCadSystem(cadSystem, options = {}) 
         });
     }
 
+    // ============================================================
+    // BLOQUE 7X-A - Adjuntar soportes explícitos al payload
+    // ============================================================
+
+    const explicitSupports = buildModalSpectralSupportsFromCadSystem(cadSystem);
+
+    payload.supports = explicitSupports;
+
+    payload.model = {
+        ...(payload.model || {}),
+        supports: explicitSupports,
+    };
+
+    payload.jhack = {
+        ...(payload.jhack || {}),
+        supports: explicitSupports,
+        supportsSummary: {
+            explicitSupports: explicitSupports.length,
+            source: "cadSystem.nodes.restraints",
+        },
+    };
+
     return payload;
+}
+
+// ============================================================
+// BLOQUE 7X-A - Soportes / restraints explícitos tipo ETABS
+// ============================================================
+
+function normalizeModalSpectralRestraints(source = null) {
+    const data =
+        source?.restraints ||
+        source?.constraints ||
+        source?.assignment?.restraints ||
+        source?.support ||
+        source?.soporte ||
+        source ||
+        {};
+
+    const readBool = (...keys) => {
+        for (const key of keys) {
+            if (data?.[key] === true) return true;
+            if (data?.[key] === false) return false;
+            if (data?.[key] === 1 || data?.[key] === "1") return true;
+            if (data?.[key] === 0 || data?.[key] === "0") return false;
+        }
+
+        return false;
+    };
+
+    return {
+        ux: readBool("ux", "u1", "U1", "UX"),
+        uy: readBool("uy", "u2", "U2", "UY"),
+        uz: readBool("uz", "u3", "U3", "UZ"),
+        rx: readBool("rx", "r1", "R1", "RX"),
+        ry: readBool("ry", "r2", "R2", "RY"),
+        rz: readBool("rz", "r3", "R3", "RZ"),
+
+        type:
+            data?.type ||
+            data?.name ||
+            source?.restraintType ||
+            source?.supportType ||
+            "custom",
+
+        name:
+            data?.name ||
+            data?.type ||
+            source?.restraintType ||
+            source?.supportType ||
+            "Custom",
+    };
+}
+
+function modalSpectralRestraintsHasAny(restraints = null) {
+    return (
+        restraints?.ux === true ||
+        restraints?.uy === true ||
+        restraints?.uz === true ||
+        restraints?.rx === true ||
+        restraints?.ry === true ||
+        restraints?.rz === true
+    );
+}
+
+function buildModalSpectralSupportsFromCadSystem(cadSystem) {
+    const nodes = Array.isArray(cadSystem?.nodes) ? cadSystem.nodes : [];
+
+    return nodes
+        .map((node, index) => {
+            const nodeId =
+                node?.id ??
+                node?.nodeId ??
+                node?.jointId ??
+                index + 1;
+
+            const restraints = normalizeModalSpectralRestraints(node);
+
+            const hasRestraints =
+                node?.hasRestraints === true ||
+                modalSpectralRestraintsHasAny(restraints);
+
+            if (!hasRestraints) return null;
+
+            return {
+                id: `SUPPORT_${nodeId}`,
+
+                // Aliases para máxima compatibilidad backend/frontend
+                nodeId,
+                node_id: nodeId,
+                jointId: nodeId,
+                joint_id: nodeId,
+
+                type: restraints.type || "custom",
+                name: restraints.name || restraints.type || "Custom",
+                restraintType: restraints.type || "custom",
+                supportType: restraints.type || "custom",
+
+                ux: restraints.ux === true,
+                uy: restraints.uy === true,
+                uz: restraints.uz === true,
+                rx: restraints.rx === true,
+                ry: restraints.ry === true,
+                rz: restraints.rz === true,
+
+                restraints: {
+                    ux: restraints.ux === true,
+                    uy: restraints.uy === true,
+                    uz: restraints.uz === true,
+                    rx: restraints.rx === true,
+                    ry: restraints.ry === true,
+                    rz: restraints.rz === true,
+                },
+
+                source: "cadSystem.nodes.restraints",
+            };
+        })
+        .filter(Boolean);
 }

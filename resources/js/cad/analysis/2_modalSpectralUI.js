@@ -550,6 +550,8 @@ export async function showModalSpectralExecutionResult(cadSystem) {
 
         ${buildModalSpectralCompletionChecklistHtml(cadSystem, raw, table)}
 
+        ${buildModalSpectralSupportsSectionHtml(cadSystem, raw)}
+
         ${buildModalParticipationSectionHtml(raw)}
 
         ${buildStoryResponseSectionHtml(raw)}
@@ -634,6 +636,8 @@ export function openModalSpectralResultsDialog(cadSystem) {
         ${buildModalSpectralRunConfigSectionHtml(cadSystem, raw)}
 
         ${buildModalSpectralCompletionChecklistHtml(cadSystem, raw, table)}
+
+        ${buildModalSpectralSupportsSectionHtml(cadSystem, raw)}
 
         ${buildModalParticipationSectionHtml(raw)}
 
@@ -1261,6 +1265,201 @@ function buildModalSpectralCompletionChecklistHtml(cadSystem, raw = null, table 
       </div>
     </div>
   `;
+}
+
+// ============================================================
+// BLOQUE 7X-B - Resumen visual de soportes explícitos
+// ============================================================
+
+function buildModalSpectralSupportsSectionHtml(cadSystem, raw = null) {
+  const payloadSupports =
+    Array.isArray(cadSystem?.modalSpectralLastPayload?.supports)
+      ? cadSystem.modalSpectralLastPayload.supports
+      : [];
+
+  const jhackSupports =
+    Array.isArray(raw?.jhack?.supports)
+      ? raw.jhack.supports
+      : [];
+
+  const supports = payloadSupports.length
+    ? payloadSupports
+    : jhackSupports;
+
+  const validation = cadSystem?.modalSpectralLastValidation || null;
+  const validationSupports = Number(validation?.summary?.supports || 0);
+
+  if (!supports.length && validationSupports <= 0) {
+    return `
+      <div style="margin-bottom:12px; padding:12px; border:1px solid #78350f; border-radius:8px; background:#451a03; color:#fef3c7;">
+        <div style="font-weight:bold; margin-bottom:4px;">Support / Restraints Summary</div>
+        <div style="font-size:12px;">
+          No se detectaron apoyos explícitos en el payload. El backend podría usar fallback automático en nodos base.
+        </div>
+      </div>
+    `;
+  }
+
+  const rows = supports.map((support, index) => {
+    const restraints = support?.restraints || support || {};
+
+    return {
+      index: index + 1,
+      node: support?.nodeId ?? support?.node_id ?? support?.jointId ?? support?.joint_id ?? "-",
+      type: support?.type || support?.name || support?.supportType || support?.restraintType || "custom",
+      ux: restraints.ux === true || support?.ux === true,
+      uy: restraints.uy === true || support?.uy === true,
+      uz: restraints.uz === true || support?.uz === true,
+      rx: restraints.rx === true || support?.rx === true,
+      ry: restraints.ry === true || support?.ry === true,
+      rz: restraints.rz === true || support?.rz === true,
+    };
+  });
+
+  const fixedCount = rows.filter((row) =>
+    row.ux && row.uy && row.uz && row.rx && row.ry && row.rz
+  ).length;
+
+  return `
+    <div style="margin-bottom:12px; padding:12px; border:1px solid #14532d; border-radius:8px; background:#052e16;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:10px;">
+        <div>
+          <div style="font-size:15px; font-weight:bold; color:white;">
+            Support / Restraints Summary
+          </div>
+          <div style="font-size:12px; color:#bbf7d0; margin-top:3px;">
+            Apoyos explícitos detectados y enviados al análisis Modal Spectral.
+          </div>
+        </div>
+
+        <div style="text-align:right; color:#bbf7d0; font-size:12px;">
+          <b>${rows.length}</b> soporte(s)<br>
+          <b>${fixedCount}</b> fixed completo(s)
+        </div>
+      </div>
+
+      <div style="overflow:auto; border:1px solid #166534; border-radius:6px;">
+        <table style="width:100%; border-collapse:collapse; font-size:12px; color:#e5e7eb;">
+          <thead>
+            <tr style="background:#064e3b;">
+              <th style="padding:6px; border:1px solid #166534;">#</th>
+              <th style="padding:6px; border:1px solid #166534;">Node</th>
+              <th style="padding:6px; border:1px solid #166534;">Type</th>
+              <th style="padding:6px; border:1px solid #166534;">UX</th>
+              <th style="padding:6px; border:1px solid #166534;">UY</th>
+              <th style="padding:6px; border:1px solid #166534;">UZ</th>
+              <th style="padding:6px; border:1px solid #166534;">RX</th>
+              <th style="padding:6px; border:1px solid #166534;">RY</th>
+              <th style="padding:6px; border:1px solid #166534;">RZ</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            ${rows.map((row) => `
+              <tr>
+                <td style="padding:6px; border:1px solid #166534; text-align:center;">${row.index}</td>
+                <td style="padding:6px; border:1px solid #166534; text-align:center;">${escapeHtml(row.node)}</td>
+                <td style="padding:6px; border:1px solid #166534;">${escapeHtml(row.type)}</td>
+                <td style="padding:6px; border:1px solid #166534; text-align:center;">${row.ux ? "✓" : ""}</td>
+                <td style="padding:6px; border:1px solid #166534; text-align:center;">${row.uy ? "✓" : ""}</td>
+                <td style="padding:6px; border:1px solid #166534; text-align:center;">${row.uz ? "✓" : ""}</td>
+                <td style="padding:6px; border:1px solid #166534; text-align:center;">${row.rx ? "✓" : ""}</td>
+                <td style="padding:6px; border:1px solid #166534; text-align:center;">${row.ry ? "✓" : ""}</td>
+                <td style="padding:6px; border:1px solid #166534; text-align:center;">${row.rz ? "✓" : ""}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// BLOQUE 7X-C - Helpers de soportes para PDF / CSV Pack
+// ============================================================
+
+function getModalSpectralSupportsForReport(cadSystem = null, raw = null) {
+  const payloadSupports =
+    Array.isArray(cadSystem?.modalSpectralLastPayload?.supports)
+      ? cadSystem.modalSpectralLastPayload.supports
+      : [];
+
+  const rawJhackSupports =
+    Array.isArray(raw?.jhack?.supports)
+      ? raw.jhack.supports
+      : [];
+
+  const rawSupports =
+    Array.isArray(raw?.supports)
+      ? raw.supports
+      : [];
+
+  const rawModelSupports =
+    Array.isArray(raw?.model?.supports)
+      ? raw.model.supports
+      : [];
+
+  if (payloadSupports.length) return payloadSupports;
+  if (rawJhackSupports.length) return rawJhackSupports;
+  if (rawSupports.length) return rawSupports;
+  if (rawModelSupports.length) return rawModelSupports;
+
+  return [];
+}
+
+function buildModalSpectralSupportsRows(cadSystem = null, raw = null) {
+  const supports = getModalSpectralSupportsForReport(cadSystem, raw);
+
+  return supports.map((support, index) => {
+    const restraints = support?.restraints || support || {};
+
+    const ux = restraints.ux === true || support?.ux === true;
+    const uy = restraints.uy === true || support?.uy === true;
+    const uz = restraints.uz === true || support?.uz === true;
+    const rx = restraints.rx === true || support?.rx === true;
+    const ry = restraints.ry === true || support?.ry === true;
+    const rz = restraints.rz === true || support?.rz === true;
+
+    const restrainedDofs = [
+      ux ? "UX" : null,
+      uy ? "UY" : null,
+      uz ? "UZ" : null,
+      rx ? "RX" : null,
+      ry ? "RY" : null,
+      rz ? "RZ" : null,
+    ].filter(Boolean).join(", ");
+
+    return {
+      index: index + 1,
+      node: support?.nodeId ?? support?.node_id ?? support?.jointId ?? support?.joint_id ?? "-",
+      type: support?.type || support?.name || support?.supportType || support?.restraintType || "custom",
+      ux: ux ? "Yes" : "",
+      uy: uy ? "Yes" : "",
+      uz: uz ? "Yes" : "",
+      rx: rx ? "Yes" : "",
+      ry: ry ? "Yes" : "",
+      rz: rz ? "Yes" : "",
+      restrained_dofs: restrainedDofs || "-",
+      source: support?.source || "modal_spectral_payload",
+    };
+  });
+}
+
+function getModalSpectralSupportsColumns() {
+  return [
+    { key: "index", label: "#" },
+    { key: "node", label: "Node" },
+    { key: "type", label: "Type" },
+    { key: "ux", label: "UX" },
+    { key: "uy", label: "UY" },
+    { key: "uz", label: "UZ" },
+    { key: "rx", label: "RX" },
+    { key: "ry", label: "RY" },
+    { key: "rz", label: "RZ" },
+    { key: "restrained_dofs", label: "Restrained DOFs" },
+    { key: "source", label: "Source" },
+  ];
 }
 
 function buildModalSpectralChecklistItemHtml(item) {
@@ -2288,6 +2487,11 @@ function exportModalSpectralFullCsvPack() {
   const storyRows = buildStoryResponseExportRows(raw);
   const participationRows = buildModalParticipationExportRows(raw);
 
+  // ============================================================
+  // BLOQUE 7X-C - Soportes explícitos en Full CSV Pack
+  // ============================================================
+  const supportRows = buildModalSpectralSupportsRows(window?.cadSystem || null, raw);
+
   exportCsvWithSuffix(
     baseName,
     "01_comparison",
@@ -2323,6 +2527,18 @@ function exportModalSpectralFullCsvPack() {
     1200
   );
 
+  // ============================================================
+  // BLOQUE 7X-C - CSV adicional de soportes / restraints
+  // ============================================================
+  if (supportRows.length) {
+    exportCsvWithSuffix(
+      baseName,
+      "06_support_restraints",
+      supportRows,
+      1500
+    );
+  }
+
   registerModalSpectralReportHistory("full_csv_pack", {
     label: "Full CSV Pack",
     comparisonRows: comparisonRows.length,
@@ -2330,6 +2546,7 @@ function exportModalSpectralFullCsvPack() {
     calibratedRows: calibratedRows.length,
     storyRows: storyRows.length,
     participationRows: participationRows.length,
+    supportRows: supportRows.length,
     note: baseName,
   });
 }
@@ -2435,6 +2652,7 @@ function buildModalSpectralReportHistoryEntry(type, details = {}) {
       calibrated_estimate: details.calibratedRows ?? null,
       story_drift: details.storyRows ?? null,
       modal_participation: details.participationRows ?? null,
+      supports: details.supportRows ?? null,
     },
 
     note: details.note || "",
@@ -2496,6 +2714,7 @@ function buildModalSpectralReportHistoryHtml() {
         <td style="border:1px solid #555; padding:5px; text-align:center;">${item.total_cases ?? "-"}</td>
         <td style="border:1px solid #555; padding:5px; text-align:center;">${item.calibration_critical_cases ?? "-"}</td>
         <td style="border:1px solid #555; padding:5px; text-align:center;">${item.exported_rows?.calibrated_estimate ?? "-"}</td>
+        <td style="border:1px solid #555; padding:5px; text-align:center;">${item.exported_rows?.supports ?? "-"}</td>
         <td style="border:1px solid #555; padding:5px; text-align:center;">${escapeHtml(item.modal_combination || "-")}</td>
         <td style="border:1px solid #555; padding:5px; text-align:center;">${item.number_of_modes ?? "-"}</td>
       </tr>
@@ -2510,7 +2729,7 @@ function buildModalSpectralReportHistoryHtml() {
       </div>
 
       <div style="max-height:180px; overflow:auto; border:1px solid #555;">
-        <table style="min-width:840px; width:100%; border-collapse:collapse; font-size:11px;">
+        <table style="min-width:960px; width:100%; border-collapse:collapse; font-size:11px;">
           <thead>
             <tr style="background:#111827; color:white; position:sticky; top:0;">
               <th style="border:1px solid #555; padding:5px;">Fecha</th>
@@ -2518,6 +2737,7 @@ function buildModalSpectralReportHistoryHtml() {
               <th style="border:1px solid #555; padding:5px;">Casos</th>
               <th style="border:1px solid #555; padding:5px;">Críticos</th>
               <th style="border:1px solid #555; padding:5px;">Estim.</th>
+              <th style="border:1px solid #555; padding:5px;">Soportes</th>
               <th style="border:1px solid #555; padding:5px;">Comb.</th>
               <th style="border:1px solid #555; padding:5px;">Modos</th>
             </tr>
@@ -2677,6 +2897,8 @@ function buildPrintableModalSpectralReportHtml(raw) {
   const calibratedRows = buildCalibratedEstimateExportRows(raw);
   const storyRows = buildStoryResponseExportRows(raw);
   const participationRows = buildModalParticipationExportRows(raw);
+  const supportRows = buildModalSpectralSupportsRows(window?.cadSystem || null, raw);
+  const supportColumns = getModalSpectralSupportsColumns();
 
   const summary = raw?.analysis_summary || {};
   const modelSummary = raw?.model_summary || raw?.model?.summary || {};
@@ -3203,6 +3425,8 @@ function buildPrintableModalSpectralReportHtml(raw) {
 
   ${buildTableHtml("5. Modal Participating Mass Ratios", participationRows, participationColumns)}
 
+  ${supportRows.length ? buildTableHtml("6. Support / Restraints Summary", supportRows, supportColumns) : ""}
+
   <div class="note">
     <b>Technical note:</b>
     Calibration Diagnostics muestra factores recomendados.
@@ -3223,6 +3447,8 @@ function printModalSpectralReport() {
     alert("No hay resultados Modal Spectral para imprimir.");
     return;
   }
+
+  const supportRows = buildModalSpectralSupportsRows(window?.cadSystem || null, raw);
 
   const html = buildPrintableModalSpectralReportHtml(raw);
   const printWindow = window.open("", "_blank", "width=1200,height=800");
@@ -3245,6 +3471,7 @@ function printModalSpectralReport() {
     calibratedRows: buildCalibratedEstimateExportRows(raw).length,
     storyRows: buildStoryResponseExportRows(raw).length,
     participationRows: buildModalParticipationExportRows(raw).length,
+    supportRows: supportRows.length,
   });
 }
 

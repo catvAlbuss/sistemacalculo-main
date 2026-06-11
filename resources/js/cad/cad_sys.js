@@ -979,6 +979,141 @@ export default () => ({
 
       return finalReport;
     };
+
+    // =====================================================
+    // BLOQUE 7X-D - Verificación de persistencia de soportes
+    // Permite probar desde consola:
+    // window.jhackModalSpectralSupportsPersistenceCheck()
+    // =====================================================
+
+    window.jhackModalSpectralSupportsPersistenceCheck = () => {
+      const readRestraintsFromNode = (node = {}) => {
+        const data =
+          node.restraints ||
+          node.constraints ||
+          node.assignment?.restraints ||
+          node.support ||
+          node.soporte ||
+          {};
+
+        const readBool = (...keys) => {
+          for (const key of keys) {
+            if (data?.[key] === true) return true;
+            if (data?.[key] === false) return false;
+            if (data?.[key] === 1 || data?.[key] === "1") return true;
+            if (data?.[key] === 0 || data?.[key] === "0") return false;
+          }
+
+          return false;
+        };
+
+        return {
+          ux: readBool("ux", "u1", "U1", "UX"),
+          uy: readBool("uy", "u2", "U2", "UY"),
+          uz: readBool("uz", "u3", "U3", "UZ"),
+          rx: readBool("rx", "r1", "R1", "RX"),
+          ry: readBool("ry", "r2", "R2", "RY"),
+          rz: readBool("rz", "r3", "R3", "RZ"),
+          type:
+            data?.type ||
+            data?.name ||
+            node.restraintType ||
+            node.supportType ||
+            "custom",
+        };
+      };
+
+      const hasAnyRestraint = (restraints = {}) => {
+        return (
+          restraints.ux === true ||
+          restraints.uy === true ||
+          restraints.uz === true ||
+          restraints.rx === true ||
+          restraints.ry === true ||
+          restraints.rz === true
+        );
+      };
+
+      const nodes = Array.isArray(this.nodes) ? this.nodes : [];
+
+      const supportsFromNodes = nodes
+        .map((node, index) => {
+          const restraints = readRestraintsFromNode(node);
+          const nodeId =
+            node?.id ??
+            node?.nodeId ??
+            node?.jointId ??
+            index + 1;
+
+          if (!hasAnyRestraint(restraints)) return null;
+
+          return {
+            node: nodeId,
+            type: restraints.type,
+            ux: restraints.ux,
+            uy: restraints.uy,
+            uz: restraints.uz,
+            rx: restraints.rx,
+            ry: restraints.ry,
+            rz: restraints.rz,
+          };
+        })
+        .filter(Boolean);
+
+      const payloadSupports = Array.isArray(this.modalSpectralLastPayload?.supports)
+        ? this.modalSpectralLastPayload.supports
+        : [];
+
+      const validationSupports =
+        Number(this.modalSpectralLastValidation?.summary?.supports || 0);
+
+      const tableRows = Array.isArray(this.modalSpectralLastTable)
+        ? this.modalSpectralLastTable.length
+        : 0;
+
+      const hasResult = !!this.modalSpectralLastResult;
+
+      const report = {
+        status:
+          supportsFromNodes.length > 0 &&
+            validationSupports > 0 &&
+            payloadSupports.length > 0
+            ? "OK"
+            : supportsFromNodes.length > 0
+              ? "REVIEW"
+              : "CRITICAL",
+
+        supportsPersistedInNodes: supportsFromNodes.length,
+        supportsInLastPayload: payloadSupports.length,
+        supportsInValidation: validationSupports,
+
+        hasModalSpectralResult: hasResult,
+        modalSpectralTableRows: tableRows,
+
+        ready:
+          supportsFromNodes.length > 0 &&
+          payloadSupports.length > 0 &&
+          validationSupports > 0 &&
+          hasResult &&
+          tableRows > 0,
+
+        supports: supportsFromNodes,
+      };
+
+      console.log("✅ 7X-D Modal Spectral Supports Persistence Check:", report);
+
+      if (supportsFromNodes.length) {
+        console.table(supportsFromNodes);
+      }
+
+      if (report.ready) {
+        console.log("💾 Soportes + resultados Modal Spectral restaurados correctamente desde JSON.");
+      } else {
+        console.warn("⚠️ Persistencia Modal Spectral requiere revisión:", report);
+      }
+
+      return report;
+    };
   },
 
 
