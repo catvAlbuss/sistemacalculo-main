@@ -13,6 +13,12 @@ export class DocumentTransformerMD {
    * Aplica todas las transformaciones a la estructura
    */
   applyAll(structure) {
+    console.log('📸 ===== ESTADO DE IMÁGENES AL EXPORTAR =====');
+    console.log('📸 cover.coverImage:', this.cover.coverImage ? '✅ EXISTE (longitud: ' + this.cover.coverImage.length + ')' : '❌ NO EXISTE');
+    console.log('📸 previews.coverImage:', this.previews.coverImage ? '✅ EXISTE (longitud: ' + this.previews.coverImage.length + ')' : '❌ NO EXISTE');
+    console.log('📸 previews keys disponibles:', Object.keys(this.previews || {}));
+    console.log('=============================================');
+
     this.transformImagenesGeneralidades(structure);
     //this.transformUbicacion(structure);//
     this.transformIncompatibilidades(structure);
@@ -24,8 +30,6 @@ export class DocumentTransformerMD {
     this.transformConsideracionesGenerales(structure);
     this.transformPredimensionamiento(structure);
     this.transformDemolicion(structure);
-
-
   }
 
   // ============================================
@@ -40,8 +44,24 @@ export class DocumentTransformerMD {
     };
 
     const addImage = (content, previewKey, width, height, caption, pageBreakBefore = false) => {
-      if (this.previews[previewKey]) {
-        content.push({ type: "image", src: this.previews[previewKey], width, height, caption, alignment: "CENTER", pageBreakBefore });
+      console.log(`🔍 Buscando imagen para: ${previewKey}`);
+      console.log(`   - this.cover.coverImage: ${this.cover.coverImage ? '✅ EXISTE' : '❌ NO EXISTE'}`);
+      console.log(`   - this.previews[${previewKey}]: ${this.previews[previewKey] ? '✅ EXISTE' : '❌ NO EXISTE'}`);
+
+      let src = null;
+
+      if (previewKey === 'coverImage' && this.cover.coverImage) {
+        src = this.cover.coverImage;
+        console.log(`   ✅ Usando src desde cover.coverImage`);
+      } else if (this.previews[previewKey]) {
+        src = this.previews[previewKey];
+        console.log(`   ✅ Usando src desde previews[${previewKey}]`);
+      } else {
+        console.log(`   ❌ No se encontró imagen para ${previewKey}`);
+      }
+
+      if (src) {
+        content.push({ type: "image", src: src, width, height, caption, alignment: "CENTER", pageBreakBefore });
       }
     };
 
@@ -456,10 +476,11 @@ export class DocumentTransformerMD {
       const infoImagenes = mapeoImagenes[numeroModulo];
 
       // Título
+      // Título - USAR EL NOMBRE EDITADO POR EL USUARIO
       nuevosModulos.push({
         type: "heading",
         level: 3,
-        text: `1.5.2.${numeroModulo}. MÓDULO ${numeroModuloStr}`
+        text: `1.5.2.${numeroModulo}. ${modulo.nombre}`  // ← CAMBIADO: usa modulo.nombre directamente
       });
 
       // ========== 🔥 IMÁGENES (originales del Word + adicionales subidas) ==========
@@ -1384,7 +1405,7 @@ export class DocumentTransformerMD {
         content.push({ type: "paragraph", text: "Desplazamientos máximos permitidos:", bold: true, alignment: "JUSTIFIED" });
         content.push({
           type: "image",
-      src: "/assets/img/memoria_decriptiva/consideraciones/ultimaTabla.png",
+          src: "/assets/img/memoria_decriptiva/consideraciones/ultimaTabla.png",
           width: 500,
           height: 300,
           caption: "",

@@ -105,47 +105,51 @@
             }
         },
         
-        async handleDemolicionImageChange(index, event) {
-            const file = event.target.files?.[0];
-            if (!file) return;
-            if (!file.type.startsWith('image/')) {
-                alert('Seleccione una imagen válida');
-                return;
-            }
-            if (file.size > 10 * 1024 * 1024) {
-                alert('El archivo excede 10 MB');
-                return;
-            }
-            
-            const store = $store.memoriaDescriptiva;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                if (!store.previews.demolicionImages) {
-                    store.previews.demolicionImages = [];
-                }
-                store.previews.demolicionImages[index] = e.target.result;
-                store.save();
-            };
-            reader.readAsDataURL(file);
-        },
+     async handleDemolicionImageChange(index, event) {
+    const file = event.target.files?.[0];
+    console.log('🔍 Archivo seleccionado:', file?.name);
+    
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+        alert('Seleccione una imagen válida');
+        return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+        alert('El archivo excede 10 MB');
+        return;
+    }
+    
+    const store = $store.memoriaDescriptiva;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        console.log('🔍 Imagen convertida, longitud:', e.target.result.length);
         
-        async exportWord() {
-            this.isExporting = true;
-            try {
-                if ($store.memoriaDescriptiva?.exportToWord) {
-                    await $store.memoriaDescriptiva.exportToWord();
-                } else {
-                    console.warn('Función exportToWord no disponible en el store');
-                    alert('La función de exportación aún no está disponible');
-                }
-            } catch (error) {
-                console.error('Error al exportar:', error);
-                alert('Error al exportar el documento');
-            } finally {
-                this.isExporting = false;
-            }
+        if (!store.previews.demolicionImages) {
+            store.previews.demolicionImages = [];
         }
-    }" x-init="initDemolicion()">
+        store.previews.demolicionImages[index] = e.target.result;
+        
+        console.log('🔍 store.previews.demolicionImages después:', store.previews.demolicionImages);
+        console.log('🔍 Cantidad de imágenes:', store.previews.demolicionImages.filter(img => img).length);
+        
+        store.save();
+        console.log('✅ Imagen guardada en el store');
+    };
+    reader.readAsDataURL(file);
+},
+        
+async exportWord() {
+    this.isExporting = true;
+    try {
+        await $store.memoriaDescriptiva.exportWord();
+    } catch (error) {
+        console.error('Error al exportar:', error);
+        alert('Error al exportar el documento: ' + error.message);
+    } finally {
+        this.isExporting = false;
+    }
+}
+        }" x-init="initDemolicion()">
         <div class="container mx-auto px-4 max-w-7xl">
 
             {{-- ══════════════════════════════════════
@@ -352,57 +356,80 @@
                         </div>
                     </section>
 
-                    {{-- ══════════════════════════════════════
-                         4. EVIDENCIA FOTOGRÁFICA
-                    ══════════════════════════════════════ --}}
-                    <section class="bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                        <div class="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-800/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                            <div class="flex justify-between items-center">
-                                <h3 class="font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                                    <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                    </svg>
-                                    EVIDENCIA FOTOGRÁFICA
-                                </h3>
-                                <button type="button" @click="addDemolicionImage()" 
-                                        class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg transition flex items-center gap-1 shadow-sm">
-                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                    </svg>
-                                    Agregar Imagen
-                                </button>
-                            </div>
-                        </div>
-                        <div class="p-4">
-                            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                <template x-for="(img, idx) in ($store.memoriaDescriptiva?.previews?.demolicionImages || [])" :key="idx">
-                                    <div class="relative">
-                                        <template x-if="img">
-                                            <div class="relative group">
-                                                <img :src="img" class="h-32 w-full object-cover rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
-                                                <button @click="removeDemolicionImage(idx)" 
-                                                        class="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition shadow">✕</button>
-                                            </div>
-                                        </template>
-                                        <template x-if="!img">
-                                            <label class="flex flex-col items-center justify-center h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition group bg-white dark:bg-gray-800">
-                                                <svg class="w-8 h-8 text-gray-400 mb-1 group-hover:text-green-500 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                                </svg>
-                                                <span class="text-xs text-gray-500">Subir imagen</span>
-                                                <input type="file" accept="image/*" @change="handleDemolicionImageChange(idx, $event)" class="hidden">
-                                            </label>
-                                        </template>
-                                    </div>
-                                </template>
-                            </div>
-                            <div x-show="!$store.memoriaDescriptiva?.previews?.demolicionImages?.length" 
-                                 class="text-center py-8 text-gray-400 text-sm">
-                                No hay imágenes agregadas. Haga clic en "Agregar Imagen" para subir evidencias fotográficas.
-                            </div>
-                            <p class="text-xs text-gray-400 mt-3 text-center">💡 Las imágenes se mostrarán en una galería en el Word</p>
-                        </div>
-                    </section>
+                {{-- ══════════════════════════════════════
+     EVIDENCIA FOTOGRÁFICA
+══════════════════════════════════════ --}}
+<section class="bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-800/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex justify-between items-center">
+            <h3 class="font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                EVIDENCIA FOTOGRÁFICA
+            </h3>
+            <button type="button" @click="addDemolicionImage()" 
+                    class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg transition flex items-center gap-1 shadow-sm">
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Agregar Imagen
+            </button>
+        </div>
+    </div>
+    <div class="p-4">
+        <!-- Galería de imágenes -->
+        <div class="space-y-4">
+            <!-- Mostrar imágenes existentes -->
+            <template x-for="(img, idx) in ($store.memoriaDescriptiva?.previews?.demolicionImages || [])" :key="idx">
+                <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-800">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-xs font-semibold text-gray-500">Imagen <span x-text="idx + 1"></span></span>
+                        <button @click="removeDemolicionImage(idx)" 
+                                class="text-red-500 hover:text-red-700 text-sm px-2 py-1 rounded hover:bg-red-50 transition">
+                            Eliminar
+                        </button>
+                    </div>
+                    
+                    <!-- Vista previa de la imagen -->
+                    <div x-show="img" class="relative w-full">
+                        <img :src="img" 
+                             class="w-full max-h-64 object-contain rounded-lg border border-gray-200 dark:border-gray-600">
+                    </div>
+                    
+                    <!-- Botón para subir imagen (cuando no hay imagen) -->
+                    <label x-show="!img" 
+                           class="flex flex-col items-center justify-center h-48 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition bg-white dark:bg-gray-800">
+                        <svg class="w-12 h-12 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <span class="text-sm text-gray-500 font-medium">Subir imagen</span>
+                        <span class="text-xs text-gray-400 mt-1">JPG, PNG hasta 10MB</span>
+                        <input type="file" accept="image/*" @change="handleDemolicionImageChange(idx, $event)" class="hidden">
+                    </label>
+                </div>
+            </template>
+            
+            <!-- Mostrar un cuadro vacío por defecto si no hay imágenes -->
+            <div x-show="!$store.memoriaDescriptiva?.previews?.demolicionImages?.length" 
+                 class="border border-gray-200 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-800">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs font-semibold text-gray-500">Imagen 1</span>
+                </div>
+                <label class="flex flex-col items-center justify-center h-48 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition bg-white dark:bg-gray-800">
+                    <svg class="w-12 h-12 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <span class="text-sm text-gray-500 font-medium">Subir imagen</span>
+                    <span class="text-xs text-gray-400 mt-1">JPG, PNG hasta 10MB</span>
+                    <input type="file" accept="image/*" @change="handleDemolicionImageChange(0, $event)" class="hidden">
+                </label>
+            </div>
+        </div>
+        
+        <p class="text-xs text-gray-400 mt-3 text-center">💡 Cada imagen se mostrará en formato horizontal en el Word</p>
+    </div>
+</section>
 
                     {{-- ══════════════════════════════════════
                          NOTA IMPORTANTE
