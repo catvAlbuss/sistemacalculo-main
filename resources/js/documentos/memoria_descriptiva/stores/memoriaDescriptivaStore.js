@@ -3,14 +3,31 @@
 
 const STORAGE_KEY = 'memoriaDescriptiva_v1';
 
+function getStorageKey() {
+    return `${STORAGE_KEY}_${getStorageOwner()}`;
+}
+
+function getStorageOwner() {
+    return String(window.RZ_AUTH_USER_ID || 'guest');
+}
+
 /**
  * Lee el estado guardado en localStorage.
  * Retorna null si no existe o si hay error de parseo.
  */
 function loadFromStorage() {
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : null;
+        const storageKey = getStorageKey();
+        const raw = localStorage.getItem(storageKey);
+        if (raw) return JSON.parse(raw);
+
+        const legacy = localStorage.getItem(STORAGE_KEY);
+        if (!legacy) return null;
+
+        localStorage.setItem(storageKey, legacy);
+        localStorage.setItem(`${STORAGE_KEY}_owner`, getStorageOwner());
+        localStorage.removeItem(STORAGE_KEY);
+        return JSON.parse(legacy);
     } catch (e) {
         console.warn('⚠️ Error leyendo store desde localStorage:', e);
         return null;
@@ -30,7 +47,8 @@ function saveToStorage(state) {
             previews: state.previews,
             // images contiene objetos File() que no son serializables; omitir
         };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+        localStorage.setItem(getStorageKey(), JSON.stringify(toSave));
+        localStorage.setItem(`${STORAGE_KEY}_owner`, getStorageOwner());
     } catch (e) {
         console.warn('⚠️ Error guardando store en localStorage:', e);
     }
@@ -1436,7 +1454,8 @@ export function createMemoriaDescriptivaStore() {
 
         /** Borra todos los datos guardados y recarga la página */
         resetAll() {
-            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(getStorageKey());
+            localStorage.removeItem(`${STORAGE_KEY}_owner`);
             window.location.reload();
         },
 
@@ -1631,18 +1650,13 @@ export function createMemoriaDescriptivaStore() {
 
             console.log('📸 Originales:', imagenesOriginales, 'Pisos:', pisos);
 
-            const adicionalesNecesarias = Math.max(0, pisos - imagenesOriginales);
-            console.log('➕ Adicionales:', adicionalesNecesarias);
-
             if (!modulo.imagenes) modulo.imagenes = [];
             if (!modulo.subtitulosImagenes) modulo.subtitulosImagenes = [];
-
-            // Ajustar arrays
-            while (modulo.imagenes.length < adicionalesNecesarias) modulo.imagenes.push(null);
-            while (modulo.imagenes.length > adicionalesNecesarias) modulo.imagenes.pop();
-
-            while (modulo.subtitulosImagenes.length < adicionalesNecesarias) modulo.subtitulosImagenes.push("");
-            while (modulo.subtitulosImagenes.length > adicionalesNecesarias) modulo.subtitulosImagenes.pop();
+            // Las imagenes subidas usan el indice real del nivel. No recortar
+            // aqui, porque al navegar entre secciones se perderian uploads de
+            // modulos que ya tienen imagenes originales.
+            while (modulo.imagenes.length < pisos) modulo.imagenes.push(null);
+            while (modulo.subtitulosImagenes.length < pisos) modulo.subtitulosImagenes.push("");
 
             console.log('✅ Resultado - imagenes:', modulo.imagenes);
 
@@ -1738,11 +1752,13 @@ export function createMemoriaDescriptivaStore() {
             const modulos = this.sections.descripcionModulos.modulos;
             const modulo = modulos[moduloIndex];
             if (!modulo.imagenes) modulo.imagenes = [];
+            while (modulo.imagenes.length <= nivelIndex) modulo.imagenes.push(null);
 
             const reader = new FileReader();
             reader.onload = (e) => {
                 modulo.imagenes[nivelIndex] = e.target.result;
                 this.save();
+                event.target.value = '';
             };
             reader.readAsDataURL(file);
         },

@@ -466,23 +466,25 @@ export class DocumentTransformerMD {
         let subtitulo = "";
         let esImagenSubida = false;
 
-        // Verificar si existe imagen original para este nivel
-        if (imagenesOriginales[imgIdx]) {
+        // La imagen subida por el usuario reemplaza a la imagen default del mismo nivel.
+        if (imagenesSubidas[imgIdx]) {
+          src = imagenesSubidas[imgIdx];
+          if (imagenesOriginales[imgIdx]) {
+            numeroFigura = infoImagenes.figuras[imgIdx];
+            subtitulo = subtitulosSubidos[imgIdx] || infoImagenes.subtitulos[imgIdx] || "";
+          } else {
+            const ultimaFigura = infoImagenes?.figuras?.slice(-1)[0] || 54;
+            numeroFigura = ultimaFigura + (imgIdx - (imagenesOriginales.length - 1)) + 1;
+            subtitulo = subtitulosSubidos[imgIdx] || ` (Nivel ${imgIdx + 1})`;
+          }
+          esImagenSubida = true;
+        }
+        else if (imagenesOriginales[imgIdx]) {
           src = `/assets/img/memoria_decriptiva/modulos/${imagenesOriginales[imgIdx]}`;
           numeroFigura = infoImagenes.figuras[imgIdx];
           subtitulo = infoImagenes.subtitulos[imgIdx] || "";
           esImagenSubida = false;
         }
-        // Si no hay imagen original pero el usuario subió una
-        else if (imagenesSubidas[imgIdx]) {
-          src = imagenesSubidas[imgIdx];
-          // Generar número de figura automático
-          const ultimaFigura = infoImagenes?.figuras?.slice(-1)[0] || 54;
-          numeroFigura = ultimaFigura + (imgIdx - (imagenesOriginales.length - 1)) + 1;
-          subtitulo = subtitulosSubidos[imgIdx] || ` (Nivel ${imgIdx + 1})`;
-          esImagenSubida = true;
-        }
-        // Si no hay ninguna imagen, saltar
         else {
           continue;
         }
@@ -492,7 +494,7 @@ export class DocumentTransformerMD {
           src: src,
           width: 500,
           height: 380,
-          caption: `Figura ${numeroFigura}${subtitulo}. Distribución Arquitectónica del Módulo ${numeroModuloStr}${esImagenSubida ? ' (Imagen adicional)' : ''}`,
+          caption: `Figura ${numeroFigura}${subtitulo}. Distribución Arquitectónica del Módulo ${numeroModuloStr}${esImagenSubida && !imagenesOriginales[imgIdx] ? ' (Imagen adicional)' : ''}`,
           alignment: "CENTER"
         });
       }
@@ -766,7 +768,7 @@ export class DocumentTransformerMD {
         // IMAGEN 3
         marcoTeorico.content.push({
           type: "image",
-          src: "/assets/img/memoria_decriptiva/modulos/figura4DiagramaAcero.png",
+          src: "/assets/img/memoria_decriptiva/modulos/figura4DiagramaEsfuerzo.png",
           width: 450,
           height: 350,
           caption: "Figura 4. Diagrama esfuerzo – deformación del acero (fy).",
