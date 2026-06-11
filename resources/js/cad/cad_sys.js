@@ -1,3 +1,20 @@
+import {
+  ensureResponseSpectrumDefinitions,
+  openResponseSpectrumFunctionsDialog,
+  openResponseSpectrumCasesDialog
+} from "./analysis/7_responseSpectrumDefinitions.js";
+
+import {
+  runModalSpectralAnalysisFromSystem,
+  buildModalSpectralFinalReadinessReport
+} from "./analysis/3_modalSpectralController.js";
+
+import {
+  openModalSpectralAnalysisDialog as openModalSpectralAnalysisDialogUI,
+  openModalSpectralResultsDialog as openModalSpectralResultsDialogUI,
+  openModalSpectralOptionsDialog as openModalSpectralOptionsDialogUI
+} from "./analysis/2_modalSpectralUI.js";
+
 import { GridEditor } from "./grid_editor.js";
 
 import {
@@ -306,9 +323,15 @@ export default () => ({
     items: [],
     selectedSectionCut: null,
   },
+
   responseSpectrumFunctions: {
     items: [],
     selectedFunction: null,
+  },
+
+  responseSpectrumCases: {
+    items: [],
+    selectedCase: null,
   },
 
   timeHistoryFunctions: {
@@ -408,6 +431,45 @@ export default () => ({
   analysisResults: null,
   modelCheck: null,
 
+  // ===========================================================
+  // ========== MODAL SPECTRAL / ANÁLISIS ESPECTRAL ============
+  // ===========================================================
+  modalSpectralLastPayload: null,
+  modalSpectralLastResult: null,
+  modalSpectralLastTable: [],
+  modalSpectralStatus: "not_run", // not_run | running | completed | failed
+  modalSpectralLastRunAt: null,
+  modalSpectralLastError: null,
+
+  // BLOQUE 7Q-C
+  modalSpectralReportHistory: [],
+
+  // BLOQUE 7T-A
+  // Opciones persistentes Modal Spectral tipo ETABS
+  modalSpectralOptions: {
+    useRigidDiaphragms: true,
+    diaphragmMode: "rigid_by_story",
+    massSourceMode: "story_mass",
+    storyMassDistribution: "by_level",
+
+    modalCombination: "CQC", // CQC | SRSS | ABS
+    dampingRatio: 0.05,
+
+    numberOfModes: 12,
+    useRealModalPeriods: true,
+    useModalParticipatingMass: true,
+    useCombinedModalResults: true,
+  },
+
+  modalSpectralModelCalibration: {
+    enabled: false,
+    globalStiffnessScale: 1.0,
+    globalMassScale: 1.0,
+    axialStiffnessScale: 1.0,
+    bendingStiffnessScale: 1.0,
+    torsionStiffnessScale: 1.0,
+  },
+
   //Propiedades para la seccion de analisis
   dynamicParams: {
     numModes: 12,
@@ -481,8 +543,6 @@ export default () => ({
   frame3DStartWorkPlane: null,
   frame3DEndWorkPlane: null,
 
-
-
   initSys(canvas, distanceInput) {
     this.Arco = Arco;
     this.Triangle = Triangle;
@@ -506,6 +566,9 @@ export default () => ({
     };
 
     this.ensureDisplayOptions?.();
+    this.ensureResponseSpectrumDefinitions?.();
+    this.ensureModalSpectralOptions?.();
+    // this.buildModalSpectralFinalReadinessReport?.();
 
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
@@ -598,9 +661,9 @@ export default () => ({
     this.nextNodeId = 1;
     this.nextBeamId = 1;
     // Selección múltiple de barras con Ctrl + clic
-    multiSelectedFrames: [],
-      // this.threeElements = []; // ← NUEVA
-      this.prevState = null;
+    this.multiSelectedFrames = [];
+    // this.threeElements = []; // ← NUEVA
+    this.prevState = null;
     this.trussDrawingState3D = new TrussDrawingState3D(this);
 
     this.gridEditor = new GridEditor(this);
@@ -745,7 +808,179 @@ export default () => ({
 
     window.cadSystem = this;
     window.getViewer3DState = getViewer3DState;
+    // =====================================================
+    // MODAL SPECTRAL DEBUG HELPERS
+    // Permite probar desde consola:
+    // window.jhackRunModalSpectralFromCad()
+    // window.jhackModalSpectralReadiness()
+    // =====================================================
+
+    window.jhackModalSpectralReadiness = () => {
+      if (!this.modalSpectralLastResult) {
+        console.warn("⚠️ Primero ejecuta Modal Spectral Analysis.");
+        return null;
+      }
+
+      const report = buildModalSpectralFinalReadinessReport(this);
+
+      console.log("✅ Modal Spectral Final Readiness Report:", report);
+      return report;
+    };
+
+    window.jhackRunModalSpectralFromCad = async () => {
+      try {
+        return await this.runModalSpectralAnalysisFromMenu();
+      } catch (error) {
+        if (error?.name === "ModalSpectralValidationError") {
+          if (
+            window?.jhackModalSpectralDebug === true ||
+            window?.localStorage?.getItem("jhackModalSpectralDebug") === "true"
+          ) {
+            console.warn("⚠️ Modal Spectral bloqueado por validación técnica:", {
+              errors: error.validation?.errors || [],
+              warnings: error.validation?.warnings || [],
+              summary: error.validation?.summary || {},
+            });
+          }
+
+          return null;
+        }
+
+        throw error;
+      }
+    };
+
+    // =====================================================
+    // BLOQUE 7W-A - Prueba integral final Modal Spectral
+    // Permite probar desde consola:
+    // window.jhackModalSpectralFinalTest()
+    // =====================================================
+
+    window.jhackModalSpectralFinalTest = async () => {
+      const startedAt = new Date().toISOString();
+
+      console.log("🏁 7W Modal Spectral Final Test iniciado:", {
+        startedAt,
+      });
+
+      const analysisResult = await window.jhackRunModalSpectralFromCad();
+
+      if (!this.modalSpectralLastResult) {
+        const report = {
+          status: "CRITICAL",
+          readyForGithub: false,
+          reason: "No existe modalSpectralLastResult. El análisis no se ejecutó o fue bloqueado.",
+          startedAt,
+          finishedAt: new Date().toISOString(),
+        };
+
+        console.warn("⚠️ 7W Modal Spectral Final Test fallido:", report);
+        return report;
+      }
+
+      const readiness = buildModalSpectralFinalReadinessReport(this);
+
+      const raw =
+        this.modalSpectralLastResult?.raw ||
+        this.modalSpectralLastResult ||
+        {};
+
+      const table = Array.isArray(this.modalSpectralLastTable)
+        ? this.modalSpectralLastTable
+        : [];
+
+      const validation = this.modalSpectralLastValidation || null;
+      const summary = raw?.analysis_summary || {};
+      const modelSummary = raw?.model_summary || {};
+
+      const finalReport = {
+        status: readiness?.status || "UNKNOWN",
+
+        readyForGithub:
+          readiness?.readyForIntegralTest === true &&
+          table.length > 0 &&
+          validation?.ok === true,
+
+        readyForIntegralTest: readiness?.readyForIntegralTest === true,
+
+        startedAt,
+        finishedAt: new Date().toISOString(),
+
+        validation: {
+          ok: validation?.ok === true,
+          errors: validation?.errors || [],
+          warnings: validation?.warnings || [],
+          summary: validation?.summary || {},
+        },
+
+        analysis: {
+          engine: raw?.engine || null,
+          totalCases: summary.total_cases ?? table.length,
+          tableRows: table.length,
+          modalCombination:
+            summary.modal_combination ||
+            summary.modal_response_combination ||
+            this.modalSpectralOptions?.modalCombination ||
+            null,
+          numberOfModes:
+            summary.number_of_modes ||
+            this.modalSpectralOptions?.numberOfModes ||
+            null,
+        },
+
+        model: {
+          nodes:
+            validation?.summary?.nodes ??
+            modelSummary.nodes_created ??
+            0,
+          frames:
+            validation?.summary?.frames ??
+            modelSummary.frames_created ??
+            0,
+          supports:
+            validation?.summary?.supports ??
+            modelSummary.supports_created ??
+            0,
+          baseNodesFixed:
+            modelSummary.base_nodes_fixed ?? 0,
+          diaphragmsCreated:
+            modelSummary.diaphragms_created ?? 0,
+          massesAssigned:
+            modelSummary.masses_assigned ?? 0,
+        },
+
+        checks: readiness?.checks || [],
+        failed: readiness?.failed || [],
+        warnings: readiness?.warnings || [],
+      };
+
+      console.log("✅ 7W Modal Spectral Final Test Report:", finalReport);
+
+      if (Array.isArray(finalReport.checks) && finalReport.checks.length) {
+        console.table(
+          finalReport.checks.map((item) => ({
+            key: item.key,
+            label: item.label,
+            ok: item.ok,
+            warning: item.warning === true,
+            detail: item.detail,
+          }))
+        );
+      }
+
+      if (finalReport.readyForGithub) {
+        console.log("🚀 Modal Spectral listo para subir a GitHub.");
+      } else {
+        console.warn("⚠️ Modal Spectral todavía requiere revisión antes de GitHub:", {
+          failed: finalReport.failed,
+          warnings: finalReport.warnings,
+        });
+      }
+
+      return finalReport;
+    };
   },
+
 
   loadOptionsPreferences() {
     const preferenceData = localStorage.getItem("cad-preferences");
@@ -2543,6 +2778,10 @@ export default () => ({
 
       case "show-member-forces":
         this.openShowMemberForcesDialog();
+        break;
+
+      case "show-modal-spectral-results":
+        this.openModalSpectralResultsDialog();
         break;
 
       default:
@@ -12101,6 +12340,330 @@ export default () => ({
     this.redraw?.();
   },
 
+  // ============================================================
+  // BLOQUE 7T-A - Opciones persistentes Modal Spectral tipo ETABS
+  // ============================================================
+
+  getDefaultModalSpectralOptions() {
+    return {
+      useRigidDiaphragms: true,
+      diaphragmMode: "rigid_by_story",
+      massSourceMode: "story_mass",
+      storyMassDistribution: "by_level",
+
+      modalCombination: "CQC",
+      dampingRatio: 0.05,
+
+      numberOfModes: 12,
+      useRealModalPeriods: true,
+      useModalParticipatingMass: true,
+      useCombinedModalResults: true,
+    };
+  },
+
+  getDefaultModalSpectralModelCalibration() {
+    return {
+      enabled: false,
+      globalStiffnessScale: 1.0,
+      globalMassScale: 1.0,
+      axialStiffnessScale: 1.0,
+      bendingStiffnessScale: 1.0,
+      torsionStiffnessScale: 1.0,
+    };
+  },
+
+  toBooleanModalSpectralOption(value, fallback = false) {
+    if (typeof value === "boolean") return value;
+    if (value === "true") return true;
+    if (value === "false") return false;
+    return fallback;
+  },
+
+  toNumberModalSpectralOption(value, fallback = 0) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+  },
+
+  normalizeModalSpectralCombination(value) {
+    const combination = String(value || "CQC").trim().toUpperCase();
+
+    if (["CQC", "SRSS", "ABS"].includes(combination)) {
+      return combination;
+    }
+
+    return "CQC";
+  },
+
+  ensureModalSpectralOptions(source = {}) {
+    const defaultOptions = this.getDefaultModalSpectralOptions();
+    const defaultCalibration = this.getDefaultModalSpectralModelCalibration();
+
+    const importedOptions =
+      source.modalSpectralOptions ||
+      source.analysisOptions ||
+      {};
+
+    const importedCalibration =
+      source.modalSpectralModelCalibration ||
+      source.modelCalibration ||
+      {};
+
+    const mergedOptions = {
+      ...defaultOptions,
+      ...(this.modalSpectralOptions || {}),
+      ...importedOptions,
+    };
+
+    const mergedCalibration = {
+      ...defaultCalibration,
+      ...(this.modalSpectralModelCalibration || {}),
+      ...importedCalibration,
+    };
+
+    this.modalSpectralOptions = {
+      useRigidDiaphragms: this.toBooleanModalSpectralOption(
+        mergedOptions.useRigidDiaphragms,
+        true
+      ),
+
+      diaphragmMode:
+        mergedOptions.diaphragmMode || "rigid_by_story",
+
+      massSourceMode:
+        mergedOptions.massSourceMode || "story_mass",
+
+      storyMassDistribution:
+        mergedOptions.storyMassDistribution || "by_level",
+
+      modalCombination: this.normalizeModalSpectralCombination(
+        mergedOptions.modalCombination
+      ),
+
+      dampingRatio: this.toNumberModalSpectralOption(
+        mergedOptions.dampingRatio,
+        0.05
+      ),
+
+      numberOfModes: Math.max(
+        1,
+        Math.round(
+          this.toNumberModalSpectralOption(mergedOptions.numberOfModes, 12)
+        )
+      ),
+
+      useRealModalPeriods: this.toBooleanModalSpectralOption(
+        mergedOptions.useRealModalPeriods,
+        true
+      ),
+
+      useModalParticipatingMass: this.toBooleanModalSpectralOption(
+        mergedOptions.useModalParticipatingMass,
+        true
+      ),
+
+      useCombinedModalResults: this.toBooleanModalSpectralOption(
+        mergedOptions.useCombinedModalResults,
+        true
+      ),
+    };
+
+    this.modalSpectralModelCalibration = {
+      enabled: this.toBooleanModalSpectralOption(
+        mergedCalibration.enabled,
+        false
+      ),
+
+      globalStiffnessScale: this.toNumberModalSpectralOption(
+        mergedCalibration.globalStiffnessScale,
+        1.0
+      ),
+
+      globalMassScale: this.toNumberModalSpectralOption(
+        mergedCalibration.globalMassScale,
+        1.0
+      ),
+
+      axialStiffnessScale: this.toNumberModalSpectralOption(
+        mergedCalibration.axialStiffnessScale,
+        1.0
+      ),
+
+      bendingStiffnessScale: this.toNumberModalSpectralOption(
+        mergedCalibration.bendingStiffnessScale,
+        1.0
+      ),
+
+      torsionStiffnessScale: this.toNumberModalSpectralOption(
+        mergedCalibration.torsionStiffnessScale,
+        1.0
+      ),
+    };
+
+    return {
+      modalSpectralOptions: this.modalSpectralOptions,
+      modalSpectralModelCalibration: this.modalSpectralModelCalibration,
+    };
+  },
+
+  // ============================================================
+  // BLOQUE 7J - Guardar / restaurar resultados Modal Spectral
+  // ============================================================
+
+  buildModalSpectralSaveData() {
+    const clean = (value, fallback = null) => {
+      try {
+        return JSON.parse(JSON.stringify(value ?? fallback));
+      } catch (error) {
+        console.warn("No se pudo clonar Modal Spectral:", value, error);
+        return fallback;
+      }
+    };
+
+    this.ensureModalSpectralOptions?.();
+
+    return {
+      version: "7J",
+      savedAt: new Date().toISOString(),
+
+      status: this.modalSpectralStatus || "not_run",
+      lastRunAt: this.modalSpectralLastRunAt || null,
+      lastError: this.modalSpectralLastError || null,
+      lastPayload: clean(this.modalSpectralLastPayload, null),
+      lastResult: clean(this.modalSpectralLastResult, null),
+      lastTable: clean(this.modalSpectralLastTable, []),
+
+      // BLOQUE 7Q-C
+      reportHistory: clean(this.modalSpectralReportHistory, []),
+
+      // BLOQUE 7T-A
+      modalSpectralOptions: clean(
+        this.modalSpectralOptions,
+        this.getDefaultModalSpectralOptions?.() || {}
+      ),
+
+      modalSpectralModelCalibration: clean(
+        this.modalSpectralModelCalibration,
+        this.getDefaultModalSpectralModelCalibration?.() || {}
+      ),
+
+      // Alias útil para compatibilidad con el payload 7S-B
+      modelCalibration: clean(
+        this.modalSpectralModelCalibration,
+        this.getDefaultModalSpectralModelCalibration?.() || {}
+      ),
+
+      responseSpectrumFunctions: clean(this.responseSpectrumFunctions, {
+        items: [],
+        selectedFunction: null,
+      }),
+
+      responseSpectrumCases: clean(this.responseSpectrumCases, {
+        items: [],
+        selectedCase: null,
+      }),
+    };
+  },
+
+  restoreModalSpectralSaveData(modalSpectralData = null) {
+    if (!modalSpectralData || typeof modalSpectralData !== "object") {
+      console.warn("⚠️ No hay datos Modal Spectral para restaurar.");
+      return false;
+    }
+
+    this.modalSpectralStatus = modalSpectralData.status || "loaded_from_json";
+    this.modalSpectralLastRunAt = modalSpectralData.lastRunAt || null;
+    this.modalSpectralLastError = modalSpectralData.lastError || null;
+
+    this.modalSpectralLastPayload = modalSpectralData.lastPayload || null;
+    this.modalSpectralLastResult = modalSpectralData.lastResult || null;
+    this.modalSpectralLastTable = Array.isArray(modalSpectralData.lastTable)
+      ? modalSpectralData.lastTable
+      : [];
+
+    // BLOQUE 7Q-C
+    this.modalSpectralReportHistory = Array.isArray(modalSpectralData.reportHistory)
+      ? modalSpectralData.reportHistory
+      : [];
+
+    // ============================================================
+    // BLOQUE 7T-A - Restaurar opciones Modal Spectral desde JSON
+    // ============================================================
+
+    this.ensureModalSpectralOptions?.({
+      modalSpectralOptions:
+        modalSpectralData.modalSpectralOptions ||
+        modalSpectralData.analysisOptions ||
+        {},
+
+      modalSpectralModelCalibration:
+        modalSpectralData.modalSpectralModelCalibration ||
+        modalSpectralData.modelCalibration ||
+        {},
+    });
+
+    if (!this.responseSpectrumFunctions) {
+      this.responseSpectrumFunctions = {
+        items: [],
+        selectedFunction: null,
+      };
+    }
+
+    if (modalSpectralData.responseSpectrumFunctions?.items) {
+      this.responseSpectrumFunctions = {
+        items: modalSpectralData.responseSpectrumFunctions.items || [],
+        selectedFunction:
+          modalSpectralData.responseSpectrumFunctions.selectedFunction ?? null,
+      };
+    }
+
+    if (!this.responseSpectrumCases) {
+      this.responseSpectrumCases = {
+        items: [],
+        selectedCase: null,
+      };
+    }
+
+    if (modalSpectralData.responseSpectrumCases?.items) {
+      this.responseSpectrumCases = {
+        items: modalSpectralData.responseSpectrumCases.items || [],
+        selectedCase:
+          modalSpectralData.responseSpectrumCases.selectedCase ?? null,
+      };
+    }
+
+    if (!this.analysisResults) {
+      this.analysisResults = {};
+    }
+
+    this.analysisResults.modalSpectral = {
+      type: "modal-spectral-results-package",
+      restoredFromJson: true,
+      restoredAt: new Date().toISOString(),
+      raw: this.modalSpectralLastResult,
+      table: this.modalSpectralLastTable,
+      summary: this.modalSpectralLastResult?.analysis_summary || null,
+
+      // BLOQUE 7T-A
+      options: this.modalSpectralOptions || null,
+      modelCalibration: this.modalSpectralModelCalibration || null,
+    };
+
+    window.jhackModalSpectralLastResult = this.modalSpectralLastResult;
+    window.jhackModalSpectralLastTable = this.modalSpectralLastTable;
+
+    console.log("✅ Modal Spectral restaurado desde JSON:", {
+      status: this.modalSpectralStatus,
+      cases: this.modalSpectralLastTable.length,
+      hasResult: !!this.modalSpectralLastResult,
+
+      // BLOQUE 7T-A
+      options: this.modalSpectralOptions,
+      modelCalibration: this.modalSpectralModelCalibration,
+    });
+
+    return true;
+  },
+
   // Open / Save
   openModel() {
     const input = document.createElement("input");
@@ -13663,7 +14226,30 @@ export default () => ({
         groups: clean(this.groups?.items, []),
         sectionCuts: clean(this.sectionCuts?.items, []),
 
-        responseSpectrumFunctions: clean(this.responseSpectrumFunctions?.items, []),
+        responseSpectrumFunctions: clean(
+          this.responseSpectrumFunctions?.items,
+          []
+        ),
+        responseSpectrumFunctionsState: clean(
+          this.responseSpectrumFunctions,
+          {
+            items: [],
+            selectedFunction: null,
+          }
+        ),
+        responseSpectrumCases: clean(
+          this.responseSpectrumCases?.items,
+          []
+        ),
+        responseSpectrumCasesState: clean(
+          this.responseSpectrumCases,
+          {
+            items: [],
+            selectedCase: null,
+          }
+        ),
+
+        // responseSpectrumFunctions: clean(this.responseSpectrumFunctions?.items, []),
         timeHistoryFunctions: clean(this.timeHistoryFunctions?.items, []),
 
         staticLoadCases: clean(this.staticLoadCases?.items, []),
@@ -13684,6 +14270,18 @@ export default () => ({
         dynamicParams: clean(this.dynamicParams, {}),
         availableLoads: clean(this.availableLoads, []),
         analysisOptions: clean(this.analysisOptions || null),
+
+        // BLOQUE 7T-A
+        modalSpectralOptions: clean(
+          this.modalSpectralOptions,
+          this.getDefaultModalSpectralOptions?.() || {}
+        ),
+
+        modalSpectralModelCalibration: clean(
+          this.modalSpectralModelCalibration,
+          this.getDefaultModalSpectralModelCalibration?.() || {}
+        ),
+
         canvasTheme: this.activeCanvasTheme || "dark",
       },
 
@@ -13697,6 +14295,9 @@ export default () => ({
 
         analysisResults: clean(this.analysisResults, null),
         modelCheck: clean(this.modelCheck, null),
+
+        // BLOQUE 7J
+        modalSpectralAnalysis: clean(this.buildModalSpectralSaveData?.(), null),
       },
 
       // Compatibilidad con el formato anterior
@@ -13713,6 +14314,21 @@ export default () => ({
       groups: clean(this.groups?.items, []),
       massSource: clean(this.massSource),
       dynamicParams: clean(this.dynamicParams),
+
+      responseSpectrumFunctions: clean(this.responseSpectrumFunctions?.items, []),
+      responseSpectrumFunctionsState: clean(this.responseSpectrumFunctions, {
+        items: [],
+        selectedFunction: null,
+      }),
+
+      responseSpectrumCases: clean(this.responseSpectrumCases?.items, []),
+      responseSpectrumCasesState: clean(this.responseSpectrumCases, {
+        items: [],
+        selectedCase: null,
+      }),
+
+      // BLOQUE 7J
+      modalSpectralAnalysis: clean(this.buildModalSpectralSaveData?.(), null),
     };
 
     console.log("💾 Export JSON completo:", {
@@ -14318,10 +14934,73 @@ export default () => ({
       this.sectionCuts.items =
         cleanClone(definitions.sectionCuts || data.sectionCuts, []);
 
-      if (this.responseSpectrumFunctions) {
-        this.responseSpectrumFunctions.items =
-          cleanClone(definitions.responseSpectrumFunctions, []);
+      // ===============================
+      // RESPONSE SPECTRUM FUNCTIONS
+      // ===============================
+      if (!this.responseSpectrumFunctions) {
+        this.responseSpectrumFunctions = {
+          items: [],
+          selectedFunction: null,
+        };
       }
+
+      const importedResponseSpectrumFunctionsState =
+        definitions.responseSpectrumFunctionsState ||
+        data.responseSpectrumFunctionsState ||
+        null;
+
+      if (importedResponseSpectrumFunctionsState) {
+        this.responseSpectrumFunctions = {
+          items: cleanClone(importedResponseSpectrumFunctionsState.items, []),
+          selectedFunction:
+            importedResponseSpectrumFunctionsState.selectedFunction ?? null,
+        };
+      } else {
+        this.responseSpectrumFunctions.items =
+          cleanClone(
+            definitions.responseSpectrumFunctions ||
+            data.responseSpectrumFunctions,
+            []
+          );
+
+        this.responseSpectrumFunctions.selectedFunction =
+          this.responseSpectrumFunctions.items[0]?.id || null;
+      }
+
+      // ===============================
+      // RESPONSE SPECTRUM CASES
+      // ===============================
+      if (!this.responseSpectrumCases) {
+        this.responseSpectrumCases = {
+          items: [],
+          selectedCase: null,
+        };
+      }
+
+      const importedResponseSpectrumCasesState =
+        definitions.responseSpectrumCasesState ||
+        data.responseSpectrumCasesState ||
+        null;
+
+      if (importedResponseSpectrumCasesState) {
+        this.responseSpectrumCases = {
+          items: cleanClone(importedResponseSpectrumCasesState.items, []),
+          selectedCase:
+            importedResponseSpectrumCasesState.selectedCase ?? null,
+        };
+      } else {
+        this.responseSpectrumCases.items =
+          cleanClone(
+            definitions.responseSpectrumCases ||
+            data.responseSpectrumCases,
+            []
+          );
+
+        this.responseSpectrumCases.selectedCase =
+          this.responseSpectrumCases.items[0]?.id || null;
+      }
+
+      this.ensureResponseSpectrumDefinitions?.();
 
       if (this.timeHistoryFunctions) {
         this.timeHistoryFunctions.items =
@@ -14410,6 +15089,28 @@ export default () => ({
           cleanClone(options.analysisOptions || data.analysisOptions);
       }
 
+      // ============================================================
+      // BLOQUE 7T-A - Restaurar opciones Modal Spectral desde options
+      // ============================================================
+      if (
+        options.modalSpectralOptions ||
+        options.modalSpectralModelCalibration ||
+        data.modalSpectralOptions ||
+        data.modalSpectralModelCalibration
+      ) {
+        this.ensureModalSpectralOptions?.({
+          modalSpectralOptions:
+            options.modalSpectralOptions ||
+            data.modalSpectralOptions ||
+            {},
+
+          modalSpectralModelCalibration:
+            options.modalSpectralModelCalibration ||
+            data.modalSpectralModelCalibration ||
+            {},
+        });
+      }
+
       if (options.availableLoads) {
         this.availableLoads =
           cleanClone(options.availableLoads, []);
@@ -14445,6 +15146,26 @@ export default () => ({
 
       this.modelCheck =
         cleanClone(results.modelCheck, null);
+
+      // ============================================================
+      // BLOQUE 7J - Restaurar Modal Spectral desde JSON
+      // ============================================================
+      const importedModalSpectralData =
+        data.modalSpectralAnalysis ||
+        results.modalSpectralAnalysis ||
+        null;
+
+      if (importedModalSpectralData) {
+        this.restoreModalSpectralSaveData(importedModalSpectralData);
+      } else if (this.analysisResults?.modalSpectral?.raw) {
+        this.restoreModalSpectralSaveData({
+          version: "7J-legacy-analysisResults",
+          status: "loaded_from_analysisResults",
+          lastPayload: null,
+          lastResult: this.analysisResults.modalSpectral.raw,
+          lastTable: this.analysisResults.modalSpectral.table || [],
+        });
+      }
 
       if (this.analysisOptions && this.modelCheck) {
         this.analysisOptions.lastModelCheck = {
@@ -19233,49 +19954,16 @@ export default () => ({
     window.dispatchEvent(new CustomEvent("open-section-cuts-modal"));
   },
 
+  ensureResponseSpectrumDefinitions() {
+    return ensureResponseSpectrumDefinitions(this);
+  },
+
   openResponseSpectrumFunctions() {
-    window.dispatchEvent(new CustomEvent("open-response-spectrum-functions-modal"));
+    return openResponseSpectrumFunctionsDialog(this);
   },
 
   openResponseSpectrumCases() {
-    Swal.fire({
-      title: "Response Spectrum Cases",
-      html: `
-            <div class="text-left">
-                <div class="mb-3">
-                    <label class="block text-xs font-bold">Case Name</label>
-                    <input type="text" class="w-full px-2 py-1 border rounded text-sm" value="SPEC1">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="text-xs">Function</label>
-                        <select class="w-full px-2 py-1 border rounded text-sm">
-                            <option>ACCEL_X</option>
-                            <option>ACCEL_Y</option>
-                            <option>ACCEL_Z</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-xs">Scale Factor</label>
-                        <input type="number" step="0.1" class="w-full px-2 py-1 border rounded text-sm" value="1.0">
-                    </div>
-                    <div>
-                        <label class="text-xs">Damping Ratio</label>
-                        <input type="number" step="0.01" class="w-full px-2 py-1 border rounded text-sm" value="0.05">
-                    </div>
-                    <div>
-                        <label class="text-xs">Modal Combination</label>
-                        <select class="w-full px-2 py-1 border rounded text-sm">
-                            <option>CQC</option>
-                            <option>SRSS</option>
-                            <option>ABS</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-        `,
-      confirmButtonText: "OK",
-    });
+    return openResponseSpectrumCasesDialog(this);
   },
 
   // openPushoverCases() {
@@ -19585,6 +20273,28 @@ export default () => ({
 
   setAnalysisOptions() {
     window.dispatchEvent(new CustomEvent("open-analysis-options-modal"));
+  },
+
+  /**
+ * Puente desde cad_sys.js hacia el controlador Modal Spectral.
+ *
+ * La lógica pesada vive en:
+ * resources/js/cad/analysis/3_modalSpectralController.js
+ */
+  async runModalSpectralAnalysisFromMenu(customPayload = null) {
+    return await runModalSpectralAnalysisFromSystem(this, customPayload);
+  },
+
+  openModalSpectralAnalysisDialog() {
+    return openModalSpectralAnalysisDialogUI(this);
+  },
+
+  openModalSpectralOptionsDialog() {
+    return openModalSpectralOptionsDialogUI(this);
+  },
+
+  openModalSpectralResultsDialog() {
+    return openModalSpectralResultsDialogUI(this);
   },
 
   // =================================================
