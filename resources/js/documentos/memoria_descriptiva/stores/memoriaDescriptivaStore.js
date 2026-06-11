@@ -1,59 +1,152 @@
 // stores/memoriaDescriptivaStore.js - Store central para Memoria Descriptiva
-// CON PERSISTENCIA EN localStorage PARA NAVEGACIÓN MULTI-PÁGINA
+// Texto → localStorage | Imágenes → IndexedDB (sin límite de cuota)
 
 const STORAGE_KEY = 'memoriaDescriptiva_v1';
+const IDB_NAME    = 'memoriaDescriptiva_imgDB';
+const IDB_STORE   = 'images';
+let   _idb        = null;
 
-function getStorageKey() {
-    return `${STORAGE_KEY}_${getStorageOwner()}`;
+function getStorageKey()   { return `${STORAGE_KEY}_${getStorageOwner()}`; }
+function getStorageOwner() { return String(window.RZ_AUTH_USER_ID || 'guest'); }
+
+// ─── IndexedDB helpers ────────────────────────────────────────────────────────
+
+function openIDB() {
+    if (_idb) return Promise.resolve(_idb);
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(IDB_NAME, 1);
+        req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
+        req.onsuccess = e => { _idb = e.target.result; resolve(_idb); };
+        req.onerror   = () => reject(req.error);
+    });
 }
 
-function getStorageOwner() {
-    return String(window.RZ_AUTH_USER_ID || 'guest');
+async function saveImagesToIDB(userId, data) {
+    try {
+        const db = await openIDB();
+        return new Promise(resolve => {
+            const tx  = db.transaction(IDB_STORE, 'readwrite');
+            tx.objectStore(IDB_STORE).put(data, userId);
+            tx.oncomplete = () => resolve(true);
+            tx.onerror    = () => { console.warn('⚠️ IDB write error'); resolve(false); };
+        });
+    } catch (e) { console.warn('⚠️ IDB error:', e); return false; }
 }
 
-/**
- * Lee el estado guardado en localStorage.
- * Retorna null si no existe o si hay error de parseo.
- */
+async function loadImagesFromIDB(userId) {
+    try {
+        const db = await openIDB();
+        return new Promise(resolve => {
+            const tx  = db.transaction(IDB_STORE, 'readonly');
+            const req = tx.objectStore(IDB_STORE).get(userId);
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror   = () => resolve(null);
+        });
+    } catch (e) { return null; }
+}
+
+// ─── Secciones sin imágenes (para localStorage) ───────────────────────────────
+
+function sectionsWithoutImages(sections) {
+    const s = { ...sections };
+    if (s.descripcionModulos) {
+        s.descripcionModulos = {
+            ...s.descripcionModulos,
+            modulos: (s.descripcionModulos.modulos || []).map(m => ({ ...m, imagenes: [] })),
+        };
+    }
+    if (s.demolicion) {
+        s.demolicion = { ...s.demolicion, modulosImagenes: {} };
+    }
+    return s;
+}
+
+// ─── Extrae imágenes del state para guardar en IDB ───────────────────────────
+
+function extractImagesFromState(state) {
+    return {
+        previews:          state.previews || {},
+        moduloImagenes:    (state.sections?.descripcionModulos?.modulos || []).map(m => m.imagenes || []),
+        demolicionImagenes: state.sections?.demolicion?.modulosImagenes || {},
+    };
+}
+
+// ─── Aplica imágenes cargadas desde IDB al objeto de datos ───────────────────
+
+function applyImagesToData(data, images) {
+    if (!images) return;
+    if (images.previews) data.previews = images.previews;
+    if (images.moduloImagenes && data.sections?.descripcionModulos?.modulos) {
+        images.moduloImagenes.forEach((imgs, i) => {
+            const m = data.sections.descripcionModulos.modulos[i];
+            if (m && Array.isArray(imgs)) m.imagenes = imgs;
+        });
+    }
+    if (images.demolicionImagenes && data.sections?.demolicion) {
+        data.sections.demolicion.modulosImagenes = images.demolicionImagenes;
+    }
+}
+
+// ─── localStorage: solo texto ─────────────────────────────────────────────────
+
 function loadFromStorage() {
     try {
         const storageKey = getStorageKey();
-        const raw = localStorage.getItem(storageKey);
-        if (raw) return JSON.parse(raw);
+        const raw        = localStorage.getItem(storageKey);
 
+        if (raw) {
+            const data = JSON.parse(raw);
+            // Si el key aún tiene previews embebidas (formato viejo), migrar a IDB
+            if (data.previews) {
+                const imgs = extractImagesFromState(data);
+                saveImagesToIDB(getStorageOwner(), imgs).then(() => {
+                    // Reescribir solo texto
+                    try {
+                        const clean = { cover: data.cover, sections: sectionsWithoutImages(data.sections) };
+                        localStorage.setItem(storageKey, JSON.stringify(clean));
+                        // Liberar también el key viejo de imágenes si existe
+                        localStorage.removeItem(storageKey + '_images');
+                    } catch (_) {}
+                });
+                // Devolver con imágenes para que la sesión actual funcione
+            }
+            return data;
+        }
+
+        // Intentar con key legacy sin sufijo de usuario
         const legacy = localStorage.getItem(STORAGE_KEY);
         if (!legacy) return null;
-
-        localStorage.setItem(storageKey, legacy);
-        localStorage.setItem(`${STORAGE_KEY}_owner`, getStorageOwner());
-        localStorage.removeItem(STORAGE_KEY);
-        return JSON.parse(legacy);
+        const data = JSON.parse(legacy);
+        try {
+            const clean = { cover: data.cover, sections: sectionsWithoutImages(data.sections) };
+            localStorage.setItem(storageKey, JSON.stringify(clean));
+            localStorage.setItem(`${STORAGE_KEY}_owner`, getStorageOwner());
+            localStorage.removeItem(STORAGE_KEY);
+            // Migrar imágenes del formato legacy a IDB
+            saveImagesToIDB(getStorageOwner(), extractImagesFromState(data)).catch(() => {});
+        } catch (_) {}
+        return data;
     } catch (e) {
         console.warn('⚠️ Error leyendo store desde localStorage:', e);
         return null;
     }
 }
 
-/**
- * Guarda el estado actual en localStorage.
- * Se llama automáticamente desde el proxy de Alpine.
- */
+// Texto → localStorage (sync). Imágenes → IDB (async, fire-and-forget).
+// Devuelve true si el texto se guardó. Los errores de imagen no bloquean.
 function saveToStorage(state) {
+    const storageKey = getStorageKey();
     try {
-        // No guardamos archivos File() — sólo las previews (dataURL strings)
-        const toSave = {
-            cover: state.cover,
-            sections: state.sections,
-            previews: state.previews,
-            // images contiene objetos File() que no son serializables; omitir
-        };
-        localStorage.setItem(getStorageKey(), JSON.stringify(toSave));
+        const toSave = { cover: state.cover, sections: sectionsWithoutImages(state.sections) };
+        localStorage.setItem(storageKey, JSON.stringify(toSave));
         localStorage.setItem(`${STORAGE_KEY}_owner`, getStorageOwner());
-        return true;
     } catch (e) {
         console.warn('⚠️ Error guardando store en localStorage:', e);
         return false;
     }
+    // Guardar imágenes en IDB de forma asíncrona
+    saveImagesToIDB(getStorageOwner(), extractImagesFromState(state)).catch(() => {});
+    return true;
 }
 
 function readImageFileAsDataUrl(file, maxWidth = 1400, maxHeight = 1000, quality = 0.82) {
@@ -1800,14 +1893,9 @@ export function createMemoriaDescriptivaStore() {
             while (modulo.imagenes.length <= nivelIndex) modulo.imagenes.push(null);
 
             try {
-                const previousImage = modulo.imagenes[nivelIndex];
                 modulo.imagenes[nivelIndex] = await readImageFileAsDataUrl(file);
-                if (!this.save()) {
-                    modulo.imagenes[nivelIndex] = previousImage;
-                    alert('No se pudo guardar la imagen. Use una imagen más liviana o elimine otras imágenes personalizadas.');
-                    return;
-                }
-                event.target.value = '';
+                this.save();
+                if (event.target) event.target.value = '';
             } catch (error) {
                 console.error('Error al procesar imagen de modulo:', error);
                 alert('No se pudo procesar la imagen seleccionada');
@@ -1868,7 +1956,7 @@ export function createMemoriaDescriptivaStore() {
             if (input) input.click();
         },
 
-        handleModuleImageUpload(idx, event) {
+        async handleModuleImageUpload(idx, event) {
             const file = event.target.files?.[0];
             if (!file) return;
 
@@ -1877,21 +1965,23 @@ export function createMemoriaDescriptivaStore() {
                 return;
             }
 
-            if (file.size > 5 * 1024 * 1024) {
-                alert('La imagen no puede superar los 5MB');
+            if (file.size > 10 * 1024 * 1024) {
+                alert('La imagen no puede superar los 10MB');
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = (e) => {
+            try {
+                const dataUrl = await readImageFileAsDataUrl(file);
                 if (!this.sections.demolicion.modulosImagenes) {
                     this.sections.demolicion.modulosImagenes = {};
                 }
-                this.sections.demolicion.modulosImagenes[idx] = e.target.result;
+                this.sections.demolicion.modulosImagenes[idx] = dataUrl;
                 this.save();
-                event.target.value = '';
-            };
-            reader.readAsDataURL(file);
+                if (event.target) event.target.value = '';
+            } catch (error) {
+                console.error('Error al procesar imagen:', error);
+                alert('No se pudo procesar la imagen seleccionada');
+            }
         },
 
         addObraExteriorADemoler() {
@@ -1943,9 +2033,16 @@ export function createMemoriaDescriptivaStore() {
             if (!file) return;
             if (!file.type.startsWith('image/')) { alert('Seleccione una imagen válida'); return; }
             if (file.size > 10 * 1024 * 1024) { alert('El archivo excede 10 MB'); return; }
-            const reader = new FileReader();
-            reader.onload = (e) => { this.updateImage(key, file, e.target.result); };
-            reader.readAsDataURL(file);
+            try {
+                const dataUrl = await readImageFileAsDataUrl(file);
+                this.images[key] = file;
+                this.previews[key] = dataUrl;
+                this.save();
+                if (event.target) event.target.value = '';
+            } catch (error) {
+                console.error('Error al procesar imagen:', error);
+                alert('No se pudo procesar la imagen seleccionada');
+            }
         },
 
 
@@ -2209,12 +2306,14 @@ export function createMemoriaDescriptivaStore() {
                 alert('El archivo excede 10 MB');
                 return;
             }
-
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                this.updateModuloImage(moduloIndex, imageIndex, file, e.target.result);
-            };
-            reader.readAsDataURL(file);
+            try {
+                const dataUrl = await readImageFileAsDataUrl(file);
+                this.updateModuloImage(moduloIndex, imageIndex, file, dataUrl);
+                if (event.target) event.target.value = '';
+            } catch (error) {
+                console.error('Error al procesar imagen de módulo:', error);
+                alert('No se pudo procesar la imagen seleccionada');
+            }
         },
         removeModuloImage(moduloIndex, imageIndex) {
             if (Array.isArray(this.images.moduloImages[moduloIndex]))
@@ -2228,13 +2327,15 @@ export function createMemoriaDescriptivaStore() {
         async handleDemolicionImageChange(index, event) {
             const file = event.target.files?.[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
+            try {
+                const dataUrl = await readImageFileAsDataUrl(file);
                 if (!this.previews.demolicionImages) this.previews.demolicionImages = [];
-                this.previews.demolicionImages[index] = e.target.result;
+                this.previews.demolicionImages[index] = dataUrl;
                 this.save();
-            };
-            reader.readAsDataURL(file);
+                if (event.target) event.target.value = '';
+            } catch (error) {
+                console.error('Error al procesar imagen demolición:', error);
+            }
         },
         removeDemolicionImage(index) {
             if (this.previews.demolicionImages) {
@@ -2252,13 +2353,15 @@ export function createMemoriaDescriptivaStore() {
         async handlePredimLosaImageChange(modulo, event) {
             const file = event.target.files?.[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
+            try {
+                const dataUrl = await readImageFileAsDataUrl(file);
                 if (!this.previews.predimLosaImage) this.previews.predimLosaImage = {};
-                this.previews.predimLosaImage[modulo] = e.target.result;
+                this.previews.predimLosaImage[modulo] = dataUrl;
                 this.save();
-            };
-            reader.readAsDataURL(file);
+                if (event.target) event.target.value = '';
+            } catch (error) {
+                console.error('Error al procesar imagen predim losa:', error);
+            }
         },
         removePredimLosaImage(modulo) {
             if (this.previews.predimLosaImage) { delete this.previews.predimLosaImage[modulo]; this.save(); }
@@ -2266,13 +2369,15 @@ export function createMemoriaDescriptivaStore() {
         async handlePredimVigaImageChange(modulo, event) {
             const file = event.target.files?.[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
+            try {
+                const dataUrl = await readImageFileAsDataUrl(file);
                 if (!this.previews.predimVigaImage) this.previews.predimVigaImage = {};
-                this.previews.predimVigaImage[modulo] = e.target.result;
+                this.previews.predimVigaImage[modulo] = dataUrl;
                 this.save();
-            };
-            reader.readAsDataURL(file);
+                if (event.target) event.target.value = '';
+            } catch (error) {
+                console.error('Error al procesar imagen predim viga:', error);
+            }
         },
         removePredimVigaImage(modulo) {
             if (this.previews.predimVigaImage) { delete this.previews.predimVigaImage[modulo]; this.save(); }
@@ -2294,6 +2399,31 @@ export function createMemoriaDescriptivaStore() {
                 images: this.images,
                 previews: this.previews,
             };
+        },
+
+        // ─── Init: carga imágenes desde IDB después de montar el store ────────
+        async init() {
+            // Limpiar key viejo de imágenes en localStorage si aún existe
+            try { localStorage.removeItem(getStorageKey() + '_images'); } catch (_) {}
+
+            const images = await loadImagesFromIDB(getStorageOwner());
+            if (!images) return;
+
+            if (images.previews) {
+                Object.assign(this.previews, images.previews);
+            }
+            if (images.moduloImagenes && this.sections?.descripcionModulos?.modulos) {
+                images.moduloImagenes.forEach((imgs, i) => {
+                    const m = this.sections.descripcionModulos.modulos[i];
+                    if (m && Array.isArray(imgs) && imgs.length) m.imagenes = imgs;
+                });
+            }
+            if (images.demolicionImagenes && this.sections?.demolicion) {
+                Object.assign(
+                    this.sections.demolicion.modulosImagenes,
+                    images.demolicionImagenes
+                );
+            }
         },
     };
     store.initModuloImages();
