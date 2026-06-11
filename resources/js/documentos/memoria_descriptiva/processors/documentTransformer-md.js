@@ -442,7 +442,7 @@ export class DocumentTransformerMD {
     // ========== SECCIÓN: MÓDULOS 01 al 16 ==========
     for (let i = 0; i < modulos.length; i++) {
       const modulo = modulos[i];
-      const numeroModulo = i + 1;
+      const numeroModulo = this.extraerNumeroModulo?.(modulo.nombre) || i + 1;
       const numeroModuloStr = String(numeroModulo).padStart(2, '0');
 
       const infoImagenes = mapeoImagenes[numeroModulo];
@@ -1376,7 +1376,7 @@ export class DocumentTransformerMD {
         content.push({ type: "paragraph", text: "Desplazamientos máximos permitidos:", bold: true, alignment: "JUSTIFIED" });
         content.push({
           type: "image",
-          src: "/assets/img/memoria_decriptiva/consideraciones/UltimaTabla.png",
+      src: "/assets/img/memoria_decriptiva/consideraciones/ultimaTabla.png",
           width: 500,
           height: 300,
           caption: "",
@@ -1672,6 +1672,23 @@ export class DocumentTransformerMD {
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[-]/g, " ")
       .replace(/\s+/g, " ");
+  }
+
+  romanoANumero(romano) {
+    const romanos = {
+      I: 1, II: 2, III: 3, IV: 4, V: 5,
+      VI: 6, VII: 7, VIII: 8, IX: 9, X: 10,
+      XI: 11, XII: 12, XIII: 13, XIV: 14, XV: 15, XVI: 16
+    };
+    return romanos[String(romano || "").toUpperCase()] || null;
+  }
+
+  extraerNumeroModulo(nombre) {
+    if (!nombre) return null;
+    const partes = String(nombre).trim().split(/\s+/);
+    const ultimo = partes[partes.length - 1];
+    const numero = parseInt(ultimo, 10);
+    return Number.isFinite(numero) ? numero : this.romanoANumero(ultimo);
   }
 
   findDepartment(departmentName) {

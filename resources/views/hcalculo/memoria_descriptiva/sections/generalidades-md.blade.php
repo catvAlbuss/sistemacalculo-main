@@ -544,7 +544,10 @@
                                         <div class="md:col-span-2"
                                              x-data="{
                                                 get pisos() { return Math.max(1, parseInt(modulo.pisos) || 1); },
-                                                get mapeo() { return $store.memoriaDescriptiva.sections.descripcionModulos.mapeoImagenes[modulo.id] || null; },
+                                                 get mapeo() {
+                                                     const numero = $store.memoriaDescriptiva.extraerNumeroModulo?.(modulo.nombre) || modulo.id || (idx + 1);
+                                                     return $store.memoriaDescriptiva.sections.descripcionModulos.mapeoImagenes[numero] || null;
+                                                 },
                                                 tieneOriginal(n) {
                                                     return this.mapeo && this.mapeo.archivos && this.mapeo.archivos[n];
                                                 },

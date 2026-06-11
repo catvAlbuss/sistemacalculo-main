@@ -54,6 +54,42 @@ function saveToStorage(state) {
     }
 }
 
+function readImageFileAsDataUrl(file, maxWidth = 1600, maxHeight = 1200, quality = 0.9) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('No se pudo leer la imagen'));
+        reader.onload = (event) => {
+            const originalDataUrl = event.target.result;
+            const img = new Image();
+            img.onerror = () => resolve(originalDataUrl);
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+                const scale = Math.min(1, maxWidth / width, maxHeight / height);
+
+                if (scale === 1 && file.size <= 1024 * 1024) {
+                    resolve(originalDataUrl);
+                    return;
+                }
+
+                width = Math.round(width * scale);
+                height = Math.round(height * scale);
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, width, height);
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.src = originalDataUrl;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
 export function createMemoriaDescriptivaStore() {
 
     // ─── Estado inicial (valores por defecto) ───────────────────────────────
@@ -1754,13 +1790,14 @@ export function createMemoriaDescriptivaStore() {
             if (!modulo.imagenes) modulo.imagenes = [];
             while (modulo.imagenes.length <= nivelIndex) modulo.imagenes.push(null);
 
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                modulo.imagenes[nivelIndex] = e.target.result;
+            try {
+                modulo.imagenes[nivelIndex] = await readImageFileAsDataUrl(file);
                 this.save();
                 event.target.value = '';
-            };
-            reader.readAsDataURL(file);
+            } catch (error) {
+                console.error('Error al procesar imagen de modulo:', error);
+                alert('No se pudo procesar la imagen seleccionada');
+            }
         },
 
         eliminarImagenModulo(moduloIndex, nivelIndex) {
