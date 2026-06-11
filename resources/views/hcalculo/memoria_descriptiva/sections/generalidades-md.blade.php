@@ -1,4 +1,4 @@
-{{-- resources/views/hcalculo/memoria_descriptiva/sections/generalidades-md.blade.php --}}
+﻿{{-- resources/views/hcalculo/memoria_descriptiva/sections/generalidades-md.blade.php --}}
 <x-calc-layout title="Memoria Descriptiva - Generalidades">
     <div class="py-4" x-data="memoriaDescriptiva" x-init="init()">
         <div class="container mx-auto px-4 max-w-7xl">
@@ -69,9 +69,9 @@
                                 <p class="text-xs text-gray-400 mt-1">💡 Este texto aparecerá en el Word exactamente como lo escribas</p>
                             </div>
 
-                            {{-- Vías de Acceso --}}
+                            {{-- Vias de Acceso --}}
                             <div>
-                                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">VÍAS DE ACCESO</p>
+                                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">VIAS DE ACCESO</p>
                                 <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
                                     <table class="w-full border-collapse text-sm">
                                         <thead>
@@ -84,13 +84,17 @@
                                         </thead>
                                         <tbody class="bg-white dark:bg-gray-800">
                                             @foreach([
-                                                ['key'=>'limaHuanuco',       'label'=>'Lima - Huánuco',         'tipo'=>'Asfaltada'],
-                                                ['key'=>'huanucoTingo',      'label'=>'Huánuco - Tingo María',  'tipo'=>'Asfaltada'],
-                                                ['key'=>'tingoPucallpa',     'label'=>'Tingo María - Pucallpa', 'tipo'=>'Asfaltada'],
-                                                ['key'=>'pucallpaContamana', 'label'=>'Pucallpa - Contamana',   'tipo'=>'Rápido (Barco)'],
+                                                ['key'=>'limaHuanuco'],
+                                                ['key'=>'huanucoTingo'],
+                                                ['key'=>'tingoPucallpa'],
+                                                ['key'=>'pucallpaContamana'],
                                             ] as $tramo)
                                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                                <td class="border border-gray-200 dark:border-gray-600 p-2 font-medium text-gray-700 dark:text-gray-300">{{ $tramo['label'] }}</td>
+                                                <td class="border border-gray-200 dark:border-gray-600 p-2">
+                                                    <input type="text"
+                                                           x-model="$store.memoriaDescriptiva.sections.generalidades.acceso.{{ $tramo['key'] }}.tramo"
+                                                           class="w-full min-w-48 border border-gray-300 dark:border-gray-600 rounded p-1 text-sm font-medium bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                                </td>
                                                 <td class="border border-gray-200 dark:border-gray-600 p-2 text-center">
                                                     <input type="text"
                                                            x-model="$store.memoriaDescriptiva.sections.generalidades.acceso.{{ $tramo['key'] }}.distancia"
@@ -101,11 +105,19 @@
                                                            x-model="$store.memoriaDescriptiva.sections.generalidades.acceso.{{ $tramo['key'] }}.tiempo"
                                                            class="w-28 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
                                                 </td>
-                                                <td class="border border-gray-200 dark:border-gray-600 p-2 text-gray-600 dark:text-gray-400">{{ $tramo['tipo'] }}</td>
+                                                <td class="border border-gray-200 dark:border-gray-600 p-2">
+                                                    <input type="text"
+                                                           x-model="$store.memoriaDescriptiva.sections.generalidades.acceso.{{ $tramo['key'] }}.tipo"
+                                                           class="w-full min-w-32 border border-gray-300 dark:border-gray-600 rounded p-1 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                                </td>
                                             </tr>
                                             @endforeach
                                             <tr class="bg-green-50 dark:bg-green-900/20 font-bold">
-                                                <td class="border border-gray-200 dark:border-gray-600 p-2 text-gray-700 dark:text-gray-300">Total</td>
+                                                <td class="border border-gray-200 dark:border-gray-600 p-2">
+                                                    <input type="text"
+                                                           x-model="$store.memoriaDescriptiva.sections.generalidades.acceso.total.tramo"
+                                                           class="w-full min-w-48 border border-gray-300 dark:border-gray-600 rounded p-1 text-sm font-bold bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                                </td>
                                                 <td class="border border-gray-200 dark:border-gray-600 p-2 text-center">
                                                     <input type="text"
                                                            x-model="$store.memoriaDescriptiva.sections.generalidades.acceso.total.distancia"
@@ -116,13 +128,16 @@
                                                            x-model="$store.memoriaDescriptiva.sections.generalidades.acceso.total.tiempo"
                                                            class="w-28 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm font-bold bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
                                                 </td>
-                                                <td class="border border-gray-200 dark:border-gray-600 p-2"></td>
+                                                <td class="border border-gray-200 dark:border-gray-600 p-2">
+                                                    <input type="text"
+                                                           x-model="$store.memoriaDescriptiva.sections.generalidades.acceso.total.tipo"
+                                                           class="w-full min-w-32 border border-gray-300 dark:border-gray-600 rounded p-1 text-sm font-bold bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                                </td>
                                             </tr>
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
-
                             {{-- Demanda Educativa --}}
                             <div>
                                 <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">DEMANDA EDUCATIVA</p>

@@ -1,4 +1,4 @@
-
+﻿
 import incompatibilidadesData from "../data/incompatibilidades.json";
 export class DocumentTransformerMD {
   constructor(exportData, ubigeoData) {
@@ -104,11 +104,20 @@ export class DocumentTransformerMD {
 
   getTablaViasAcceso() {
     const acceso = this.sections.generalidades?.acceso || {};
+    const getVia = (key, fallback) => {
+      const via = acceso[key] || {};
+      return [
+        via.tramo || fallback.tramo,
+        via.distancia || fallback.distancia,
+        via.tiempo || fallback.tiempo,
+        via.tipo || fallback.tipo
+      ];
+    };
 
     return {
       type: "table",
       widthPercent: 85,
-      title: "Vías de Acceso",
+      title: "Vias de Acceso",
       columns: [
         { header: "TRAMO", width: 35 },
         { header: "DISTANCIA (km)", width: 20 },
@@ -116,15 +125,14 @@ export class DocumentTransformerMD {
         { header: "CARRETERA", width: 20 }
       ],
       rows: [
-        ["Lima - Huánuco", acceso.limaHuanuco?.distancia || "410", acceso.limaHuanuco?.tiempo || "8:00:00", "Asfaltada"],
-        ["Huánuco - Tingo María", acceso.huanucoTingo?.distancia || "120", acceso.huanucoTingo?.tiempo || "3:00:00", "Asfaltada"],
-        ["Tingo María - Pucallpa", acceso.tingoPucallpa?.distancia || "254", acceso.tingoPucallpa?.tiempo || "5:45:00", "Asfaltada"],
-        ["Pucallpa - Contamana", acceso.pucallpaContamana?.distancia || "248", acceso.pucallpaContamana?.tiempo || "8:00:00", "Rápido (Barco)"],
-        ["Total", acceso.total?.distancia || "1032", acceso.total?.tiempo || "24h y 45 min", ""]
+        getVia("limaHuanuco", { tramo: "Lima - Huanuco", distancia: "410", tiempo: "8:00:00", tipo: "Asfaltada" }),
+        getVia("huanucoTingo", { tramo: "Huanuco - Tingo Maria", distancia: "120", tiempo: "3:00:00", tipo: "Asfaltada" }),
+        getVia("tingoPucallpa", { tramo: "Tingo Maria - Pucallpa", distancia: "254", tiempo: "5:45:00", tipo: "Asfaltada" }),
+        getVia("pucallpaContamana", { tramo: "Pucallpa - Contamana", distancia: "248", tiempo: "8:00:00", tipo: "Rapido (Barco)" }),
+        getVia("total", { tramo: "Total", distancia: "1032", tiempo: "24h y 45 min", tipo: "" })
       ]
     };
   }
-
   // ============================================
   // SECCIÓN 1.2 - UBICACIÓN (ya lo tienes)
   // ============================================
@@ -1356,9 +1364,9 @@ export class DocumentTransformerMD {
         text: `${num}.3.4. MÉTODO DE DISEÑO`
       });
 
-      const metodoDiseñoTexto = moduloData.metodoDiseñoTexto || "";
-      if (metodoDiseñoTexto) {
-        const parrafos = metodoDiseñoTexto.split('\n');
+      const metodoDisenoTexto = moduloData.metodoDisenoTexto || moduloData["metodoDiseñoTexto"] || "";
+      if (metodoDisenoTexto) {
+        const parrafos = metodoDisenoTexto.split('\n');
         for (const parrafo of parrafos) {
           if (parrafo.trim() === "") continue;
           const esTitulo = parrafo === parrafo.toUpperCase() && parrafo.length < 50;

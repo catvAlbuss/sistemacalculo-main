@@ -49,12 +49,14 @@ function saveToStorage(state) {
         };
         localStorage.setItem(getStorageKey(), JSON.stringify(toSave));
         localStorage.setItem(`${STORAGE_KEY}_owner`, getStorageOwner());
+        return true;
     } catch (e) {
         console.warn('⚠️ Error guardando store en localStorage:', e);
+        return false;
     }
 }
 
-function readImageFileAsDataUrl(file, maxWidth = 1600, maxHeight = 1200, quality = 0.9) {
+function readImageFileAsDataUrl(file, maxWidth = 1400, maxHeight = 1000, quality = 0.82) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onerror = () => reject(new Error('No se pudo leer la imagen'));
@@ -82,7 +84,13 @@ function readImageFileAsDataUrl(file, maxWidth = 1600, maxHeight = 1200, quality
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, width, height);
                 ctx.drawImage(img, 0, 0, width, height);
-                resolve(canvas.toDataURL('image/jpeg', quality));
+                let output = canvas.toDataURL('image/jpeg', quality);
+                let currentQuality = quality;
+                while (output.length > 700000 && currentQuality > 0.45) {
+                    currentQuality -= 0.08;
+                    output = canvas.toDataURL('image/jpeg', currentQuality);
+                }
+                resolve(output);
             };
             img.src = originalDataUrl;
         };
@@ -146,11 +154,11 @@ export function createMemoriaDescriptivaStore() {
                     nombre: "",
                 },
                 acceso: {
-                    limaHuanuco: { distancia: "410", tiempo: "8:00:00" },
-                    huanucoTingo: { distancia: "120", tiempo: "3:00:00" },
-                    tingoPucallpa: { distancia: "254", tiempo: "5:45:00" },
-                    pucallpaContamana: { distancia: "248", tiempo: "8:00:00" },
-                    total: { distancia: "1032", tiempo: "24h y 45 min" },
+                    limaHuanuco: { tramo: "Lima - Huanuco", distancia: "410", tiempo: "8:00:00", tipo: "Asfaltada" },
+                    huanucoTingo: { tramo: "Huanuco - Tingo Maria", distancia: "120", tiempo: "3:00:00", tipo: "Asfaltada" },
+                    tingoPucallpa: { tramo: "Tingo Maria - Pucallpa", distancia: "254", tiempo: "5:45:00", tipo: "Asfaltada" },
+                    pucallpaContamana: { tramo: "Pucallpa - Contamana", distancia: "248", tiempo: "8:00:00", tipo: "Rapido (Barco)" },
+                    total: { tramo: "Total", distancia: "1032", tiempo: "24h y 45 min", tipo: "" },
                 },
                 objetivos: { general: "", especificos: [] },
                 marcoNormativo: [],
@@ -1435,6 +1443,7 @@ export function createMemoriaDescriptivaStore() {
     const initialState = saved
         ? deepMerge(defaults, saved)
         : defaults;
+    normalizeViasAcceso(initialState);
     normalizeConsideraciones(initialState);
 
     // ─── El store real ────────────────────────────────────────────────────────
@@ -1485,7 +1494,7 @@ export function createMemoriaDescriptivaStore() {
 
         // ── PERSISTENCIA: llamar save() en cada mutación importante ───────────
         save() {
-            saveToStorage(this);
+            return saveToStorage(this);
         },
 
         /** Borra todos los datos guardados y recarga la página */
@@ -1791,8 +1800,13 @@ export function createMemoriaDescriptivaStore() {
             while (modulo.imagenes.length <= nivelIndex) modulo.imagenes.push(null);
 
             try {
+                const previousImage = modulo.imagenes[nivelIndex];
                 modulo.imagenes[nivelIndex] = await readImageFileAsDataUrl(file);
-                this.save();
+                if (!this.save()) {
+                    modulo.imagenes[nivelIndex] = previousImage;
+                    alert('No se pudo guardar la imagen. Use una imagen más liviana o elimine otras imágenes personalizadas.');
+                    return;
+                }
                 event.target.value = '';
             } catch (error) {
                 console.error('Error al procesar imagen de modulo:', error);
@@ -2311,6 +2325,23 @@ function deepMerge(target, source) {
 
 function isObject(item) {
     return item && typeof item === 'object' && !Array.isArray(item);
+}
+
+function normalizeViasAcceso(state) {
+    const acceso = state.sections?.generalidades?.acceso;
+    if (!isObject(acceso)) return;
+
+    const defaults = {
+        limaHuanuco: { tramo: "Lima - Huanuco", distancia: "410", tiempo: "8:00:00", tipo: "Asfaltada" },
+        huanucoTingo: { tramo: "Huanuco - Tingo Maria", distancia: "120", tiempo: "3:00:00", tipo: "Asfaltada" },
+        tingoPucallpa: { tramo: "Tingo Maria - Pucallpa", distancia: "254", tiempo: "5:45:00", tipo: "Asfaltada" },
+        pucallpaContamana: { tramo: "Pucallpa - Contamana", distancia: "248", tiempo: "8:00:00", tipo: "Rapido (Barco)" },
+        total: { tramo: "Total", distancia: "1032", tiempo: "24h y 45 min", tipo: "" },
+    };
+
+    Object.entries(defaults).forEach(([key, fallback]) => {
+        acceso[key] = { ...fallback, ...(isObject(acceso[key]) ? acceso[key] : {}) };
+    });
 }
 
 function normalizeConsideraciones(state) {

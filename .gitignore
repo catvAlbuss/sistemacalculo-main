@@ -28,3 +28,4 @@ public/build/*
 !public/build/assets/
 public/build/assets/*
 !public/build/assets/*.css
+!public/build/assets/*.js
