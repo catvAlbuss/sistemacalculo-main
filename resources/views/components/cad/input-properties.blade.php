@@ -1,6 +1,6 @@
 <div class="mb-2 flex items-center" x-data="{ value: {{ $bind ?? ($minimun ?? 0) }} }"
   @isset($bind)
-    x-effect="value={{ $bind }}"
+    x-effect="value = (function(){ try { return ({{ $bind }}); } catch(_e) { return value; } })()"
 @endisset>
   <label class="w-1/3 text-xs font-bold text-gray-700" for="input">
     {{ $label }}

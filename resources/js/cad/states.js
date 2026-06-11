@@ -361,68 +361,38 @@ export class IdleState extends PanAndZoomState {
 
     // =====================================================
     // IDLE > OBJETOS PARAMÉTRICOS
-    // Mantiene tu lógica antigua, pero sin afectar barras normales.
     // =====================================================
     context.parametricModels?.find((p) => {
+      let hit = false;
+
       p.nodes?.find((n) => {
-        const shortestDistance = 10;
-        const distance = pointDistance(
-          mouse,
-          context.grid.worldToScreen(n.position)
-        );
-
-        if (distance <= shortestDistance) {
-          collidedParametric = true;
-        }
-
-        return collidedParametric;
+        const sp = context._projectPosToActiveView?.(n.position);
+        if (sp && pointDistance(mouse, sp) <= 10) hit = true;
+        return hit;
       });
 
-      p.shapes?.find((s) => {
-        if (!s?.node1?.position || !s?.node2?.position) return false;
+      if (!hit) {
+        p.shapes?.find((s) => {
+          if (!s?.node1?.position || !s?.node2?.position) return false;
+          const sp1 = context._projectPosToActiveView?.(s.node1.position);
+          const sp2 = context._projectPosToActiveView?.(s.node2.position);
+          if (!sp1 || !sp2) return false;
+          const lineLength = pointDistance(sp1, sp2);
+          const d1 = pointDistance(sp1, mouse);
+          const d2 = pointDistance(sp2, mouse);
+          if (d1 + d2 >= lineLength - 5 && d1 + d2 <= lineLength + 5) hit = true;
+          return hit;
+        });
+      }
 
-        // Si hay filtro de render, respétalo también aquí.
-        if (
-          context.currentRenderer?.shouldDrawBeam &&
-          !context.currentRenderer.shouldDrawBeam(s, context)
-        ) {
-          return false;
-        }
-
-        const shortestDistance = 5;
-
-        const lineLength = pointDistance(
-          context.grid.worldToScreen(s.node1.position),
-          context.grid.worldToScreen(s.node2.position)
-        );
-
-        const d1 = pointDistance(
-          context.grid.worldToScreen(s.node1.position),
-          mouse
-        );
-
-        const d2 = pointDistance(
-          context.grid.worldToScreen(s.node2.position),
-          mouse
-        );
-
-        if (
-          d1 + d2 >= lineLength - shortestDistance &&
-          d1 + d2 <= lineLength + shortestDistance
-        ) {
-          collidedParametric = true;
-        }
-
-        return collidedParametric;
-      });
-
-      if (collidedParametric) {
+      if (hit) {
+        collidedParametric = true;
         p.hover?.();
       } else {
         p.default?.();
       }
 
-      return collidedParametric;
+      return hit;
     });
 
     if (collidedParametric) {
@@ -560,6 +530,20 @@ export class SelectedObjectsState extends PanAndZoomState {
       let selectedObject = context.closestNodeAtActiveView(mouse);
 
       if (selectedObject) {
+        // Si el nodo clickeado está marcado como seleccionado y hay más de uno, mover el grupo
+        const clickedIsSelected = selectedObject.selected === true || selectedObject.isSelected === true;
+        const selectedNodes = clickedIsSelected
+          ? (context.nodes || []).filter((n) => n.selected === true || n.isSelected === true)
+          : [];
+
+        if (clickedIsSelected && selectedNodes.length > 1 && context.moveGroupState) {
+          context.setState(context.moveGroupState, {
+            nodes: selectedNodes,
+            startWorld: { ...context.mousePos },
+          });
+          return;
+        }
+
         context.setState(context.moveObjectState, {
           selectedObject: selectedObject,
           isMoving: true,
@@ -1166,8 +1150,9 @@ export class SelectionState extends PanAndZoomState {
       this.selectedBeams = context.shapes.filter((b) => {
         if (!context.currentRenderer.shouldDrawBeam(b, context)) return false;
 
-        const p1 = context.grid.worldToScreen(b.node1.position);
-        const p2 = context.grid.worldToScreen(b.node2.position);
+        const p1 = context._projectPosToActiveView?.(b.node1.position);
+        const p2 = context._projectPosToActiveView?.(b.node2.position);
+        if (!p1 || !p2) return false;
         const collided = pointRect(p1, start, end) && pointRect(p2, start, end);
 
         if (collided) b.style.hover();
@@ -1179,7 +1164,8 @@ export class SelectionState extends PanAndZoomState {
       this.selectedNodes = context.nodes.filter((n) => {
         if (!context.currentRenderer.shouldDrawNode(n, context)) return false;
 
-        const position = context.grid.worldToScreen(n.position);
+        const position = context._projectPosToActiveView?.(n.position);
+        if (!position) return false;
         const collided = pointRect(position, start, end);
 
         if (collided) n.style.hover();
@@ -1509,6 +1495,75 @@ export class MoveObjectState extends IdleState {
 
   info() {
     return 'Edita sus propiedades desde el menú o presiona "Supr" para eliminar.';
+  }
+}
+
+export class MoveGroupState extends PanAndZoomState {
+  constructor() {
+    super();
+    this.nodes = [];
+    this.nodeStartPositions = [];
+    this.startWorld = null;
+  }
+
+  enter(args) {
+    this.nodes = args.nodes || [];
+    this.startWorld = { ...(args.startWorld || { x: 0, y: 0 }) };
+    this.nodeStartPositions = this.nodes.map((n) => ({
+      x: n.position.x || 0,
+      y: n.position.y || 0,
+      z: n.position.z || 0,
+    }));
+    this.nodes.forEach((n) => n.style?.selected?.());
+  }
+
+  handleMouseMove(event, context, mouse) {
+    PanAndZoomState.prototype.handleMouseMove.call(this, ...arguments);
+
+    const cur = context.mousePos;
+    if (!cur || !this.startWorld) return;
+
+    const view = context.viewSet?.[context.activeViewIndex];
+    let dx = 0, dy = 0, dz = 0;
+
+    if (!view || view.type === "plan") {
+      dx = cur.x - this.startWorld.x;
+      dy = cur.y - this.startWorld.y;
+    } else if (view.type === "elevation" && view.axis === "X") {
+      // Plano Y-Z: mousePos.x = world Y (horizontal), mousePos.y = world Z (vertical)
+      dy = cur.x - this.startWorld.x;
+      dz = cur.y - this.startWorld.y;
+    } else if (view.type === "elevation" && view.axis === "Y") {
+      // Plano X-Z: mousePos.x = world X (horizontal), mousePos.y = world Z (vertical)
+      dx = cur.x - this.startWorld.x;
+      dz = cur.y - this.startWorld.y;
+    }
+
+    this.nodes.forEach((node, i) => {
+      const s = this.nodeStartPositions[i];
+      node.position.x = s.x + dx;
+      node.position.y = s.y + dy;
+      node.position.z = s.z + dz;
+    });
+
+    context.setCursor("grabbing");
+    context.redraw?.();
+  }
+
+  handleMouseUp(event, context, mouse) {
+    super.handleMouseUp(...arguments);
+    context.markAnalysisResultsOutdated?.("Mover grupo");
+    context.sync3D?.();
+    context.setState(context.selectedNodesState, { selectedNodes: this.nodes });
+  }
+
+  exit() {
+    super.exit();
+    this.nodes.forEach((n) => n.style?.selected?.());
+  }
+
+  info() {
+    return `Moviendo ${this.nodes.length} nodo(s). Suelta el ratón para confirmar.`;
   }
 }
 

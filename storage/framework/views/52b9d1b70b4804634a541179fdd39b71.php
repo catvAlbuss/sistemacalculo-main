@@ -89,6 +89,82 @@
         class="p-1 px-2 bg-yellow-600 text-white rounded text-xs ml-2">
         Sincronizar
       </button>
+
+      <!-- Botón para iniciar/detener animación -->
+      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'toggleDeflectionAnimation()','toggle' => 'false','label' => 'Animar Deflexión']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ribbon-button'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['clickHandler' => 'toggleDeflectionAnimation()','toggle' => 'false','label' => 'Animar Deflexión']); ?>
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+       <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
+<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
+<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
+<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
+<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php endif; ?>
+
+      <!-- Botón para cambiar velocidad -->
+      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'toggleDeflectionAnimationSpeed()','toggle' => 'false','label' => 'Velocidad']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ribbon-button'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['clickHandler' => 'toggleDeflectionAnimationSpeed()','toggle' => 'false','label' => 'Velocidad']); ?>
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+       <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
+<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
+<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
+<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
+<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php endif; ?>
+      
+      <!-- Botón para cambiar modo de animación -->
+      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'toggleDeflectionAnimationMode()','toggle' => 'false','label' => 'Modo Animación']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ribbon-button'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['clickHandler' => 'toggleDeflectionAnimationMode()','toggle' => 'false','label' => 'Modo Animación']); ?>
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+        </svg>
+       <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
+<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
+<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
+<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
+<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php endif; ?>
     </div>
   </div>
 

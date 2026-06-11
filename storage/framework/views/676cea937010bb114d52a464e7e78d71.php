@@ -980,7 +980,7 @@
             </div>
         </template>
         <template
-            x-if="currentState === selectedParametricState && selectedParametricState.selectedObjects[0] instanceof Arco">
+            x-if="currentState === selectedParametricState && selectedParametricState.selectedObjects.length > 0 && selectedParametricState.selectedObjects[0] instanceof Arco">
             <div class="p-2">
                 <?php if (isset($component)) { $__componentOriginal9b80de87d5999c048534245dcddffdf7 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal9b80de87d5999c048534245dcddffdf7 = $attributes; } ?>
@@ -994,14 +994,14 @@
 <?php $component->withAttributes(['title' => 'Parametros']); ?>
                     <?php if (isset($component)) { $__componentOriginalfe84b928e7c147f92bacfe110b145f66 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe84b928e7c147f92bacfe110b145f66 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Longitud','bind' => 'selectedParametricState.selectedObjects[0].longitud','handleInput' => 'selectedParametricState.selectedObjects[0].build()']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Longitud','bind' => 'selectedParametricState.selectedObjects[0].longitud','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('cad.input-properties'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['label' => 'Longitud','bind' => 'selectedParametricState.selectedObjects[0].longitud','handleInput' => 'selectedParametricState.selectedObjects[0].build()']); ?> <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['label' => 'Longitud','bind' => 'selectedParametricState.selectedObjects[0].longitud','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])']); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe84b928e7c147f92bacfe110b145f66)): ?>
 <?php $attributes = $__attributesOriginalfe84b928e7c147f92bacfe110b145f66; ?>
@@ -1013,14 +1013,14 @@
 <?php endif; ?>
                     <?php if (isset($component)) { $__componentOriginalfe84b928e7c147f92bacfe110b145f66 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe84b928e7c147f92bacfe110b145f66 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Flecha','bind' => 'selectedParametricState.selectedObjects[0].flecha','handleInput' => 'selectedParametricState.selectedObjects[0].build()']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Flecha','bind' => 'selectedParametricState.selectedObjects[0].flecha','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('cad.input-properties'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['label' => 'Flecha','bind' => 'selectedParametricState.selectedObjects[0].flecha','handleInput' => 'selectedParametricState.selectedObjects[0].build()']); ?> <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['label' => 'Flecha','bind' => 'selectedParametricState.selectedObjects[0].flecha','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])']); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe84b928e7c147f92bacfe110b145f66)): ?>
 <?php $attributes = $__attributesOriginalfe84b928e7c147f92bacfe110b145f66; ?>
@@ -1032,14 +1032,14 @@
 <?php endif; ?>
                     <?php if (isset($component)) { $__componentOriginalfe84b928e7c147f92bacfe110b145f66 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe84b928e7c147f92bacfe110b145f66 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Dovela','bind' => 'selectedParametricState.selectedObjects[0].dovela','handleInput' => 'selectedParametricState.selectedObjects[0].build()','minimun' => '0.001','step' => '0.1']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Dovela','bind' => 'selectedParametricState.selectedObjects[0].dovela','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])','minimun' => '0.001','step' => '0.1']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('cad.input-properties'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['label' => 'Dovela','bind' => 'selectedParametricState.selectedObjects[0].dovela','handleInput' => 'selectedParametricState.selectedObjects[0].build()','minimun' => '0.001','step' => '0.1']); ?> <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['label' => 'Dovela','bind' => 'selectedParametricState.selectedObjects[0].dovela','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])','minimun' => '0.001','step' => '0.1']); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe84b928e7c147f92bacfe110b145f66)): ?>
 <?php $attributes = $__attributesOriginalfe84b928e7c147f92bacfe110b145f66; ?>
@@ -1051,14 +1051,14 @@
 <?php endif; ?>
                     <?php if (isset($component)) { $__componentOriginalfe84b928e7c147f92bacfe110b145f66 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe84b928e7c147f92bacfe110b145f66 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Peralte','step' => '0.1','bind' => 'selectedParametricState.selectedObjects[0].peralte','handleInput' => 'selectedParametricState.selectedObjects[0].build()']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Peralte','step' => '0.1','bind' => 'selectedParametricState.selectedObjects[0].peralte','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('cad.input-properties'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['label' => 'Peralte','step' => '0.1','bind' => 'selectedParametricState.selectedObjects[0].peralte','handleInput' => 'selectedParametricState.selectedObjects[0].build()']); ?> <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['label' => 'Peralte','step' => '0.1','bind' => 'selectedParametricState.selectedObjects[0].peralte','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])']); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe84b928e7c147f92bacfe110b145f66)): ?>
 <?php $attributes = $__attributesOriginalfe84b928e7c147f92bacfe110b145f66; ?>
@@ -1216,7 +1216,7 @@
             </div>
         </template>
         <template
-            x-if="currentState === selectedParametricState && selectedParametricState.selectedObjects[0] instanceof Puente">
+            x-if="currentState === selectedParametricState && selectedParametricState.selectedObjects.length > 0 && selectedParametricState.selectedObjects[0] instanceof Puente">
             <div class="p-2">
                 <?php if (isset($component)) { $__componentOriginal9b80de87d5999c048534245dcddffdf7 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal9b80de87d5999c048534245dcddffdf7 = $attributes; } ?>
@@ -1230,14 +1230,14 @@
 <?php $component->withAttributes(['title' => 'Parametros']); ?>
                     <?php if (isset($component)) { $__componentOriginalfe84b928e7c147f92bacfe110b145f66 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe84b928e7c147f92bacfe110b145f66 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Alto','bind' => 'selectedParametricState.selectedObjects[0].width','handleInput' => 'selectedParametricState.selectedObjects[0].build()']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Alto','bind' => 'selectedParametricState.selectedObjects[0].width','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('cad.input-properties'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['label' => 'Alto','bind' => 'selectedParametricState.selectedObjects[0].width','handleInput' => 'selectedParametricState.selectedObjects[0].build()']); ?> <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['label' => 'Alto','bind' => 'selectedParametricState.selectedObjects[0].width','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])']); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe84b928e7c147f92bacfe110b145f66)): ?>
 <?php $attributes = $__attributesOriginalfe84b928e7c147f92bacfe110b145f66; ?>
@@ -1249,14 +1249,14 @@
 <?php endif; ?>
                     <?php if (isset($component)) { $__componentOriginalfe84b928e7c147f92bacfe110b145f66 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe84b928e7c147f92bacfe110b145f66 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Anchó','bind' => 'selectedParametricState.selectedObjects[0].height','handleInput' => 'selectedParametricState.selectedObjects[0].build()']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Anchó','bind' => 'selectedParametricState.selectedObjects[0].height','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('cad.input-properties'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['label' => 'Anchó','bind' => 'selectedParametricState.selectedObjects[0].height','handleInput' => 'selectedParametricState.selectedObjects[0].build()']); ?> <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['label' => 'Anchó','bind' => 'selectedParametricState.selectedObjects[0].height','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])']); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe84b928e7c147f92bacfe110b145f66)): ?>
 <?php $attributes = $__attributesOriginalfe84b928e7c147f92bacfe110b145f66; ?>
@@ -1268,14 +1268,14 @@
 <?php endif; ?>
                     <?php if (isset($component)) { $__componentOriginalfe84b928e7c147f92bacfe110b145f66 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe84b928e7c147f92bacfe110b145f66 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Peralte','bind' => 'selectedParametricState.selectedObjects[0].peralte','handleInput' => 'selectedParametricState.selectedObjects[0].build()']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Peralte','bind' => 'selectedParametricState.selectedObjects[0].peralte','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('cad.input-properties'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['label' => 'Peralte','bind' => 'selectedParametricState.selectedObjects[0].peralte','handleInput' => 'selectedParametricState.selectedObjects[0].build()']); ?> <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['label' => 'Peralte','bind' => 'selectedParametricState.selectedObjects[0].peralte','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])']); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe84b928e7c147f92bacfe110b145f66)): ?>
 <?php $attributes = $__attributesOriginalfe84b928e7c147f92bacfe110b145f66; ?>
@@ -1287,14 +1287,14 @@
 <?php endif; ?>
                     <?php if (isset($component)) { $__componentOriginalfe84b928e7c147f92bacfe110b145f66 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe84b928e7c147f92bacfe110b145f66 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Dovela','bind' => 'selectedParametricState.selectedObjects[0].dovela','handleInput' => 'selectedParametricState.selectedObjects[0].build()']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Dovela','bind' => 'selectedParametricState.selectedObjects[0].dovela','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('cad.input-properties'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['label' => 'Dovela','bind' => 'selectedParametricState.selectedObjects[0].dovela','handleInput' => 'selectedParametricState.selectedObjects[0].build()']); ?> <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['label' => 'Dovela','bind' => 'selectedParametricState.selectedObjects[0].dovela','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])']); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe84b928e7c147f92bacfe110b145f66)): ?>
 <?php $attributes = $__attributesOriginalfe84b928e7c147f92bacfe110b145f66; ?>
@@ -1336,7 +1336,7 @@
             </div>
         </template>
         <template
-            x-if="currentState === selectedParametricState && selectedParametricState.selectedObjects[0] instanceof Triangle">
+            x-if="currentState === selectedParametricState && selectedParametricState.selectedObjects.length > 0 && selectedParametricState.selectedObjects[0] instanceof Triangle">
             <div class="p-2">
                 <?php if (isset($component)) { $__componentOriginal9b80de87d5999c048534245dcddffdf7 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal9b80de87d5999c048534245dcddffdf7 = $attributes; } ?>
@@ -1350,14 +1350,14 @@
 <?php $component->withAttributes(['title' => 'Parametros']); ?>
                     <?php if (isset($component)) { $__componentOriginalfe84b928e7c147f92bacfe110b145f66 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe84b928e7c147f92bacfe110b145f66 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Altura','bind' => 'selectedParametricState.selectedObjects[0].altura','handleInput' => 'selectedParametricState.selectedObjects[0].build()']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Altura','bind' => 'selectedParametricState.selectedObjects[0].altura','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('cad.input-properties'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['label' => 'Altura','bind' => 'selectedParametricState.selectedObjects[0].altura','handleInput' => 'selectedParametricState.selectedObjects[0].build()']); ?> <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['label' => 'Altura','bind' => 'selectedParametricState.selectedObjects[0].altura','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])']); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe84b928e7c147f92bacfe110b145f66)): ?>
 <?php $attributes = $__attributesOriginalfe84b928e7c147f92bacfe110b145f66; ?>
@@ -1369,14 +1369,14 @@
 <?php endif; ?>
                     <?php if (isset($component)) { $__componentOriginalfe84b928e7c147f92bacfe110b145f66 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe84b928e7c147f92bacfe110b145f66 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Base','bind' => 'selectedParametricState.selectedObjects[0].base','handleInput' => 'selectedParametricState.selectedObjects[0].build()']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.input-properties','data' => ['label' => 'Base','bind' => 'selectedParametricState.selectedObjects[0].base','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('cad.input-properties'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['label' => 'Base','bind' => 'selectedParametricState.selectedObjects[0].base','handleInput' => 'selectedParametricState.selectedObjects[0].build()']); ?> <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['label' => 'Base','bind' => 'selectedParametricState.selectedObjects[0].base','handleInput' => 'selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])']); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe84b928e7c147f92bacfe110b145f66)): ?>
 <?php $attributes = $__attributesOriginalfe84b928e7c147f92bacfe110b145f66; ?>

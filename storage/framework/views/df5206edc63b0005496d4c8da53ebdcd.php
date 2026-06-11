@@ -1134,6 +1134,12 @@
                                 <span>➿</span>
                                 Point Springs...
                             </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateAssignMenuAction('joint-mass')">
+                                <span>⚖️</span>
+                                Masses...
+                            </button>
                          <?php $__env->endSlot(); ?>
                      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -1376,6 +1382,12 @@
                         <span>▶️</span>
                         <span class="flex-1 truncate">Run Analysis</span>
                         <span class="text-xs text-gray-500 italic">F5</span>
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.openSeismicAnalysisDialog()">
+                        <span>🌍</span>
+                        <span class="flex-1 truncate">Seismic Spectral Analysis...</span>
                     </button>
 
                 </div>

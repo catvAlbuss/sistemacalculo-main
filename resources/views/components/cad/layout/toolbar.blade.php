@@ -163,6 +163,13 @@
         </svg>
       </x-cad.ribbon-button>
 
+      <x-cad.ribbon-button clickHandler="testEdificioSismico()" toggle="false" label="Edificio Sísmico (Test)">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 21h18M3 10h18M3 7l9-4 9 4M4 10v11M20 10v11M8 10v11M12 10v11M16 10v11" />
+        </svg>
+      </x-cad.ribbon-button>
+
       <x-cad.ribbon-button clickHandler="testTorreConCargaExcentrica()" toggle="false" label="Torre Carga Excentrica">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

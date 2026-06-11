@@ -19,7 +19,8 @@ export class ParametricModel {
         this.hover();
       },
       selected: () => {
-        this.selected();
+        this.nodes.forEach((n) => n.style?.selected?.());
+        this.shapes.forEach((s) => s.style?.selected?.());
       },
     };
     this.build();
@@ -49,7 +50,7 @@ export class ParametricModel {
     connections.forEach((segments) => {
       const beams = [];
       for (let index = 0; index < segments.length - 1; index++) {
-        const beam = new Beam(210, "25x25-1.5");
+        const beam = new Beam(210e9, "25x25-1.5");
         beam.addNode(segments[index]);
         beam.addNode(segments[index + 1]);
         this.makeBeam(this, beam);

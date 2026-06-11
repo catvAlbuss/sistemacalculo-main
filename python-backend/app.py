@@ -2,6 +2,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import traceback
+import seismic_analysis as sa
 
 app = Flask(__name__)
 CORS(app)
@@ -10,16 +11,16 @@ CORS(app)
 try:
     import openseespywin.opensees as ops
     OPENSEES_AVAILABLE = True
-    print("✅ OpenSeesPyWin cargado correctamente")
+    print("OK: OpenSeesPyWin cargado correctamente")
 except ImportError:
     try:
         import openseespy.opensees as ops
         OPENSEES_AVAILABLE = True
-        print("✅ OpenSeesPy cargado correctamente")
+        print("OK: OpenSeesPy cargado correctamente")
     except ImportError as e:
         OPENSEES_AVAILABLE = False
-        print(f"⚠️ OpenSeesPy no disponible: {e}")
-        print("   El servidor funcionará en modo simulación")
+        print(f"AVISO: OpenSeesPy no disponible: {e}")
+        print("   El servidor funcionara en modo simulacion")
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -995,17 +996,173 @@ def run_opensees_analysis(data):
         'reactions': reactions,
         'message': f'Análisis completado (Truss)'
     }
+# ─────────────────────────────────────────────────────────────────────────────
+#  ANÁLISIS SÍSMICO ESPECTRAL
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.route('/api/seismic/parse-spectrum', methods=['POST'])
+def parse_spectrum():
+    """
+    Parsea un archivo de espectro de respuesta.
+
+    Acepta:
+      - multipart/form-data  con campo 'file'   (TXT, CSV, XLS, XLSX)
+      - application/json     con campo 'content' (texto plano) y 'filename'
+
+    Retorna:
+      { success, spectrum: [{T, Sa}], count, filename }
+    """
+    try:
+        filename = 'spectrum.txt'
+        file_bytes = None
+
+        if request.files and 'file' in request.files:
+            f = request.files['file']
+            filename = f.filename or filename
+            file_bytes = f.read()
+        elif request.is_json:
+            payload = request.get_json()
+            content = payload.get('content', '')
+            filename = payload.get('filename', filename)
+            file_bytes = content.encode('utf-8')
+        else:
+            return jsonify({'success': False,
+                            'error': 'Se requiere un archivo (form-data) o JSON con campo content'}), 400
+
+        data = sa.parse_spectrum_file(file_bytes, filename)
+
+        spectrum = [{'T': float(t), 'Sa': float(s)} for t, s in data]
+        return jsonify({
+            'success': True,
+            'spectrum': spectrum,
+            'count': len(spectrum),
+            'filename': filename,
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e),
+                        'traceback': traceback.format_exc()}), 500
+
+
+@app.route('/api/seismic/analyze', methods=['POST'])
+def seismic_analyze():
+    """
+    Análisis sísmico espectral completo.
+
+    Payload JSON:
+    {
+      "nodes":    [{ "id":1, "x":0, "y":0, "z":0, "mass_x":500, "mass_y":500 }],
+      "elements": [{ "id":1, "node_i":1, "node_j":2, "A":0.01, "E":2e11,
+                     "G":7.7e10, "Iz":1e-4, "Iy":1e-4, "J":1e-6 }],
+      "supports": [{ "node":1, "ux":1,"uy":1,"uz":1,"rx":0,"ry":0,"rz":0 }],
+      "loads":    [{ "node":2, "fz":-10000 }],         // cargas estáticas (opcional)
+      "spectrum_x": [{"T":0.0,"Sa":0.4},{"T":0.5,"Sa":1.2},{"T":2.0,"Sa":0.3}],
+      "spectrum_y": [...],                              // opcional, usa X si falta
+      "num_modes":    6,
+      "combination":  "CQC",                           // "SRSS" o "CQC"
+      "damping_ratio": 0.05,
+      "sa_in_g":  true,                                // true=g, false=m/s²
+      "g":        9.81
+    }
+
+    Retorna:
+    {
+      "success": true,
+      "modal": { "modes": [...], "num_modes_requested": 6 },
+      "seismic": {
+        "x": { "displacements": {}, "base_shear": 0, "modal_disps_detail": [] },
+        "y": { ... }
+      },
+      "static": { "displacements": {}, "reactions": {}, "forces": {} },
+      "envelope": { "by_node": {} }
+    }
+    """
+    if not OPENSEES_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'error': 'OpenSeesPy no está disponible',
+            'message': 'Instala openseespywin o openseespy para habilitar el análisis sísmico',
+        }), 503
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Payload JSON requerido'}), 400
+
+        # Validaciones básicas
+        if not data.get('nodes'):
+            return jsonify({'success': False, 'error': 'Se requiere al menos un nodo'}), 400
+        if not data.get('elements'):
+            return jsonify({'success': False, 'error': 'Se requiere al menos un elemento'}), 400
+        if not data.get('spectrum_x') and not data.get('spectrum_y'):
+            return jsonify({'success': False, 'error': 'Se requiere al menos un espectro (spectrum_x o spectrum_y)'}), 400
+
+        # Convertir espectros de [{T, Sa}] → [(T, Sa)] si vienen como dicts
+        for key in ('spectrum_x', 'spectrum_y'):
+            spec = data.get(key)
+            if spec and isinstance(spec[0], dict):
+                data[key] = [(float(p['T']), float(p['Sa'])) for p in spec]
+
+        result = sa.run_full_seismic_analysis(data)
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc(),
+        }), 500
+
+
+@app.route('/api/seismic/modal', methods=['POST'])
+def modal_only():
+    """
+    Solo análisis modal (eigenvalue), sin aplicar espectro.
+    Útil para verificar periodos y modos antes del RSA.
+
+    Payload: mismos campos nodes, elements, supports (sin spectrum ni loads).
+    Parámetro opcional: num_modes (default 6).
+    """
+    if not OPENSEES_AVAILABLE:
+        return jsonify({'success': False, 'error': 'OpenSeesPy no disponible'}), 503
+
+    try:
+        data = request.get_json() or {}
+        if not data.get('nodes') or not data.get('elements'):
+            return jsonify({'success': False, 'error': 'Se requieren nodes y elements'}), 400
+
+        num_modes = int(data.get('num_modes', 6))
+        nodes, elements = sa.build_model_3d(data)
+        num_modes = min(num_modes, max(1, len(nodes) * 2))
+        modal = sa.run_modal_analysis(nodes, num_modes)
+
+        return jsonify({
+            'success': True,
+            'modes': modal['modal_info'],
+            'num_modes': num_modes,
+            'num_nodes': len(nodes),
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e),
+                        'traceback': traceback.format_exc()}), 500
+
+
 if __name__ == '__main__':
     print("\n" + "="*60)
-    print("🚀 Servidor de Análisis Estructural")
+    print("Servidor de Análisis Estructural")
     print("="*60)
-    print(f"📡 OpenSeesPy disponible: {'✅ SI' if OPENSEES_AVAILABLE else '❌ NO'}")
-    print("📍 Endpoints:")
-    print("   - GET  /health")
-    print("   - GET  /api/opensees/status")
-    print("   - POST /api/analyze")
+    print(f"OpenSeesPy disponible: {'SI' if OPENSEES_AVAILABLE else 'NO'}")
+    print("Endpoints:")
+    print("   GET  /health")
+    print("   GET  /api/opensees/status")
+    print("   POST /api/analyze              (truss 2D)")
+    print("   POST /api/analyze-3d           (marco 3D estático)")
+    print("   POST /api/seismic/parse-spectrum  (importar espectro)")
+    print("   POST /api/seismic/modal           (análisis modal)")
+    print("   POST /api/seismic/analyze         (RSA completo)")
     print("="*60)
-    print("🌐 Servidor corriendo en http://localhost:5001")
+    print("Servidor corriendo en http://localhost:5001")
     print("="*60 + "\n")
-    
+
     app.run(debug=True, port=5001, host='0.0.0.0')

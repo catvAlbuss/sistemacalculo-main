@@ -1,6 +1,6 @@
 <div class="mb-2 flex items-center" x-data="{ value: <?php echo e($bind ?? ($minimun ?? 0)); ?> }"
   <?php if(isset($bind)): ?>
-    x-effect="value=<?php echo e($bind); ?>"
+    x-effect="value = (function(){ try { return (<?php echo e($bind); ?>); } catch(_e) { return value; } })()"
 <?php endif; ?>>
   <label class="w-1/3 text-xs font-bold text-gray-700" for="input">
     <?php echo e($label); ?>

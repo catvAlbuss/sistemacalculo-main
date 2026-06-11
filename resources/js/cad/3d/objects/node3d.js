@@ -20,8 +20,11 @@ export function createNode3D(scene, node, material) {
 
   mesh.isPickable = true;
   mesh.metadata = {
+    objectType: "node",
     type: "node",
     nodeId: node.id,
+    id: node.id,
+    sourceNode: node,
   };
 
   return mesh;
@@ -39,8 +42,12 @@ export function updateNode3D(mesh, node) {
 
   mesh.isPickable = true;
   mesh.metadata = {
+    ...(mesh.metadata || {}),
+    objectType: "node",
     type: "node",
     nodeId: node.id,
+    id: node.id,
+    sourceNode: node,
   };
 
   return mesh;

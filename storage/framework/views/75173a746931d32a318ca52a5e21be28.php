@@ -1,4 +1,4 @@
-<?php if (! $__env->hasRenderedOnce('8ddc9fe1-d2f1-4f33-9403-3d5e06bb52f3')): $__env->markAsRenderedOnce('8ddc9fe1-d2f1-4f33-9403-3d5e06bb52f3');
+<?php if (! $__env->hasRenderedOnce('2db49d2c-d065-46fe-a010-b40361df6b94')): $__env->markAsRenderedOnce('2db49d2c-d065-46fe-a010-b40361df6b94');
 $__env->startPush('initscripts'); ?>
     <?php echo app('Illuminate\Foundation\Vite')('resources/js/analisis_estructural_de_armaduras.js'); ?>
 <?php $__env->stopPush(); endif; ?>

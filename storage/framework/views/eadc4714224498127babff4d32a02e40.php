@@ -953,6 +953,31 @@
 
       <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'testEdificioSismico()','toggle' => 'false','label' => 'Edificio Sísmico (Test)']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ribbon-button'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['clickHandler' => 'testEdificioSismico()','toggle' => 'false','label' => 'Edificio Sísmico (Test)']); ?>
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 21h18M3 10h18M3 7l9-4 9 4M4 10v11M20 10v11M8 10v11M12 10v11M16 10v11" />
+        </svg>
+       <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
+<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
+<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
+<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
+<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php endif; ?>
+
+      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'testTorreConCargaExcentrica()','toggle' => 'false','label' => 'Torre Carga Excentrica']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('cad.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
