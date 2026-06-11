@@ -2,11 +2,11 @@
 // Texto → localStorage | Imágenes → IndexedDB (sin límite de cuota)
 
 const STORAGE_KEY = 'memoriaDescriptiva_v1';
-const IDB_NAME    = 'memoriaDescriptiva_imgDB';
-const IDB_STORE   = 'images';
-let   _idb        = null;
+const IDB_NAME = 'memoriaDescriptiva_imgDB';
+const IDB_STORE = 'images';
+let _idb = null;
 
-function getStorageKey()   { return `${STORAGE_KEY}_${getStorageOwner()}`; }
+function getStorageKey() { return `${STORAGE_KEY}_${getStorageOwner()}`; }
 function getStorageOwner() { return String(window.RZ_AUTH_USER_ID || 'guest'); }
 
 // ─── IndexedDB helpers ────────────────────────────────────────────────────────
@@ -17,30 +17,93 @@ function openIDB() {
         const req = indexedDB.open(IDB_NAME, 1);
         req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
         req.onsuccess = e => { _idb = e.target.result; resolve(_idb); };
-        req.onerror   = () => reject(req.error);
+        req.onerror = () => reject(req.error);
     });
 }
 
 async function saveImagesToIDB(userId, data) {
+    console.log('💾 ===== saveImagesToIDB =====');
+
+    const cleanData = {};
+
+    // Limpiar previews
+    if (data.previews) {
+        cleanData.previews = {};
+        Object.keys(data.previews).forEach(key => {
+            const value = data.previews[key];
+            if (typeof value === 'string') {
+                cleanData.previews[key] = value;
+            }
+        });
+    }
+
+    // Guardar generalidadesImages
+    if (data.generalidadesImages) {
+        cleanData.generalidadesImages = {};
+        Object.keys(data.generalidadesImages).forEach(key => {
+            const value = data.generalidadesImages[key];
+            if (typeof value === 'string') {
+                cleanData.generalidadesImages[key] = value;
+            }
+        });
+    }
+
+    // 🔥 GUARDAR moduloImagenes - SIN BORRAR
+    if (data.moduloImagenes && Array.isArray(data.moduloImagenes)) {
+        cleanData.moduloImagenes = data.moduloImagenes.map(modulo => {
+            if (Array.isArray(modulo)) {
+                return modulo.filter(img => typeof img === 'string' && img.startsWith('data:image'));
+            }
+            return [];
+        });
+        console.log('💾 moduloImagenes guardadas:', cleanData.moduloImagenes.map(arr => arr.length));
+    } else {
+        cleanData.moduloImagenes = [];
+    }
+
+    // Guardar coverImage
+    if (data.coverImage && typeof data.coverImage === 'string') {
+        cleanData.coverImage = data.coverImage;
+    }
+
+    // Guardar demolicionImagenes
+    cleanData.demolicionImagenes = data.demolicionImagenes || {};
+
     try {
         const db = await openIDB();
-        return new Promise(resolve => {
-            const tx  = db.transaction(IDB_STORE, 'readwrite');
-            tx.objectStore(IDB_STORE).put(data, userId);
-            tx.oncomplete = () => resolve(true);
-            tx.onerror    = () => { console.warn('⚠️ IDB write error'); resolve(false); };
-        });
-    } catch (e) { console.warn('⚠️ IDB error:', e); return false; }
-}
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_STORE, 'readwrite');
+            const store = tx.objectStore(IDB_STORE);
+            const putRequest = store.put(cleanData, userId);
 
+            putRequest.onsuccess = () => console.log('✅ PUT exitoso');
+            putRequest.onerror = (e) => {
+                console.error('❌ PUT error:', e.target.error);
+                reject(e.target.error);
+            };
+
+            tx.oncomplete = () => {
+                console.log('✅ Transacción completada');
+                resolve(true);
+            };
+            tx.onerror = (e) => {
+                console.error('❌ Transacción error:', e.target.error);
+                reject(e.target.error);
+            };
+        });
+    } catch (e) {
+        console.warn('⚠️ IDB error:', e);
+        return false;
+    }
+}
 async function loadImagesFromIDB(userId) {
     try {
         const db = await openIDB();
         return new Promise(resolve => {
-            const tx  = db.transaction(IDB_STORE, 'readonly');
+            const tx = db.transaction(IDB_STORE, 'readonly');
             const req = tx.objectStore(IDB_STORE).get(userId);
             req.onsuccess = () => resolve(req.result || null);
-            req.onerror   = () => resolve(null);
+            req.onerror = () => resolve(null);
         });
     } catch (e) { return null; }
 }
@@ -49,12 +112,7 @@ async function loadImagesFromIDB(userId) {
 
 function sectionsWithoutImages(sections) {
     const s = { ...sections };
-    if (s.descripcionModulos) {
-        s.descripcionModulos = {
-            ...s.descripcionModulos,
-            modulos: (s.descripcionModulos.modulos || []).map(m => ({ ...m, imagenes: [] })),
-        };
-    }
+    // ← Ya no borramos imagenes de módulos; se guardan directo en localStorage
     if (s.demolicion) {
         s.demolicion = { ...s.demolicion, modulosImagenes: {} };
     }
@@ -64,13 +122,38 @@ function sectionsWithoutImages(sections) {
 // ─── Extrae imágenes del state para guardar en IDB ───────────────────────────
 
 function extractImagesFromState(state) {
+    // Extraer imágenes de módulos correctamente
+    const moduloImagenes = [];
+    const modulos = state.sections?.descripcionModulos?.modulos || [];
+
+    for (let i = 0; i < modulos.length; i++) {
+        const modulo = modulos[i];
+        const imagenesModulo = [];
+
+        if (modulo.imagenes && Array.isArray(modulo.imagenes)) {
+            for (let j = 0; j < modulo.imagenes.length; j++) {
+                const img = modulo.imagenes[j];
+                // Solo guardar strings base64 válidas
+                if (typeof img === 'string' && img.startsWith('data:image')) {
+                    imagenesModulo.push(img);
+                } else {
+                    imagenesModulo.push(null);
+                }
+            }
+        }
+        moduloImagenes.push(imagenesModulo);
+    }
+
+    console.log('📸 extractImagesFromState - módulos con imágenes:', moduloImagenes.map(arr => arr.filter(i => i).length));
+
     return {
-        previews:          state.previews || {},
-        moduloImagenes:    (state.sections?.descripcionModulos?.modulos || []).map(m => m.imagenes || []),
+        previews: state.previews || {},
+        moduloImagenes: moduloImagenes,
         demolicionImagenes: state.sections?.demolicion?.modulosImagenes || {},
+        generalidadesImages: state.cover?.generalidadesImages || {},
+        coverImage: state.cover?.coverImage || null,
     };
 }
-
 // ─── Aplica imágenes cargadas desde IDB al objeto de datos ───────────────────
 
 function applyImagesToData(data, images) {
@@ -85,6 +168,14 @@ function applyImagesToData(data, images) {
     if (images.demolicionImagenes && data.sections?.demolicion) {
         data.sections.demolicion.modulosImagenes = images.demolicionImagenes;
     }
+    // 🔥 AGREGAR ESTAS DOS LÍNEAS
+    if (images.generalidadesImages) {
+        if (!data.cover.generalidadesImages) data.cover.generalidadesImages = {};
+        Object.assign(data.cover.generalidadesImages, images.generalidadesImages);
+    }
+    if (images.coverImage) {
+        data.cover.coverImage = images.coverImage;
+    }
 }
 
 // ─── localStorage: solo texto ─────────────────────────────────────────────────
@@ -92,7 +183,7 @@ function applyImagesToData(data, images) {
 function loadFromStorage() {
     try {
         const storageKey = getStorageKey();
-        const raw        = localStorage.getItem(storageKey);
+        const raw = localStorage.getItem(storageKey);
 
         if (raw) {
             const data = JSON.parse(raw);
@@ -106,7 +197,7 @@ function loadFromStorage() {
                         localStorage.setItem(storageKey, JSON.stringify(clean));
                         // Liberar también el key viejo de imágenes si existe
                         localStorage.removeItem(storageKey + '_images');
-                    } catch (_) {}
+                    } catch (_) { }
                 });
                 // Devolver con imágenes para que la sesión actual funcione
             }
@@ -123,8 +214,8 @@ function loadFromStorage() {
             localStorage.setItem(`${STORAGE_KEY}_owner`, getStorageOwner());
             localStorage.removeItem(STORAGE_KEY);
             // Migrar imágenes del formato legacy a IDB
-            saveImagesToIDB(getStorageOwner(), extractImagesFromState(data)).catch(() => {});
-        } catch (_) {}
+            saveImagesToIDB(getStorageOwner(), extractImagesFromState(data)).catch(() => { });
+        } catch (_) { }
         return data;
     } catch (e) {
         console.warn('⚠️ Error leyendo store desde localStorage:', e);
@@ -132,8 +223,6 @@ function loadFromStorage() {
     }
 }
 
-// Texto → localStorage (sync). Imágenes → IDB (async, fire-and-forget).
-// Devuelve true si el texto se guardó. Los errores de imagen no bloquean.
 function saveToStorage(state) {
     const storageKey = getStorageKey();
     try {
@@ -145,7 +234,7 @@ function saveToStorage(state) {
         return false;
     }
     // Guardar imágenes en IDB de forma asíncrona
-    saveImagesToIDB(getStorageOwner(), extractImagesFromState(state)).catch(() => {});
+    saveImagesToIDB(getStorageOwner(), extractImagesFromState(state)).catch(() => { });
     return true;
 }
 
@@ -2014,16 +2103,34 @@ export function createMemoriaDescriptivaStore() {
             return this.sections.demolicion.modulosImagenes?.[idx] || null;
         },
 
-
         // ─── Imágenes simples (dataURL) ────────────────────────────────────────
         updateImage(key, file, preview) {
             this.images[key] = file;      // File() — no persiste
             this.previews[key] = preview;   // dataURL — sí persiste
+
+            // 🔥 AGREGAR ESTO: Guardar también en cover para persistencia
+            if (key === 'coverImage') {
+                this.cover.coverImage = preview;
+            }
+
             this.save();
         },
+
         removeImage(key) {
             this.images[key] = null;
             this.previews[key] = null;
+
+            // Limpiar imagen de portada
+            if (key === 'coverImage') {
+                this.cover.coverImage = null;
+            }
+
+            // Limpiar imágenes de generalidades
+            const imagenesGeneralidades = ['demandaInicialImage', 'demandaPrimariaImage', 'ubicacionImage1', 'ubicacionImage2', 'ubicacionImage'];
+            if (imagenesGeneralidades.includes(key) && this.cover.generalidadesImages) {
+                delete this.cover.generalidadesImages[key];
+            }
+
             this.save();
         },
 
@@ -2037,6 +2144,21 @@ export function createMemoriaDescriptivaStore() {
                 const dataUrl = await readImageFileAsDataUrl(file);
                 this.images[key] = file;
                 this.previews[key] = dataUrl;
+
+                // 🔥 GUARDAR IMAGEN DE PORTADA
+                if (key === 'coverImage') {
+                    this.cover.coverImage = dataUrl;
+                }
+
+                // 🔥 GUARDAR IMÁGENES DE GENERALIDADES
+                const imagenesGeneralidades = ['demandaInicialImage', 'demandaPrimariaImage', 'ubicacionImage1', 'ubicacionImage2', 'ubicacionImage'];
+                if (imagenesGeneralidades.includes(key)) {
+                    if (!this.cover.generalidadesImages) {
+                        this.cover.generalidadesImages = {};
+                    }
+                    this.cover.generalidadesImages[key] = dataUrl;
+                }
+
                 this.save();
                 if (event.target) event.target.value = '';
             } catch (error) {
@@ -2400,18 +2522,97 @@ export function createMemoriaDescriptivaStore() {
                 previews: this.previews,
             };
         },
+        // ─── Export Word desde cualquier página ───────────────────────────────────
+        async exportWord() {
+            if (!window.docx || !window.saveAs) {
+                alert('Las librerías no están cargadas. Recarga la página e intenta de nuevo.');
+                return;
+            }
+
+            try {
+                const [
+                    { buildContentStructure, DEFAULT_MD_STRUCTURE },
+                    { ContentProcessorMD },
+                    { DocumentTransformerMD },
+                    ubigeoModule
+                ] = await Promise.all([
+                    import('../content-structure-md.js'),      // ← sube un nivel (../)
+                    import('../content-processor-md.js'),      // ← sube un nivel (../)
+                    import('../processors/documentTransformer-md.js'),  // ← sube un nivel (../)
+                    import('../ubigeo.json')                   // ← sube un nivel (../)
+                ]);
+
+                const ubigeoData = ubigeoModule.default || ubigeoModule;
+                const exportData = this.getExportData();
+
+                const structure = buildContentStructure({
+                    cover: exportData.cover,
+                    sections: exportData.sections,
+                    document: JSON.parse(JSON.stringify(DEFAULT_MD_STRUCTURE.document))
+                });
+
+                const transformer = new DocumentTransformerMD(exportData, ubigeoData);
+                transformer.applyAll(structure);
+
+                const processor = new ContentProcessorMD(window.docx, exportData);
+                const allImages = { ...exportData.images, ...exportData.previews };
+                const doc = await processor.buildDocument(structure, allImages);
+
+                const blob = await window.docx.Packer.toBlob(doc);
+                const date = new Date().toISOString().split('T')[0];
+                const project = (exportData.cover.project || 'memoria_descriptiva')
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, '_')
+                    .substring(0, 40);
+                window.saveAs(blob, `${project}_${date}.docx`);
+
+            } catch (error) {
+                console.error('❌ Error exportando:', error);
+                alert('Error al exportar: ' + error.message);
+            }
+        },
+
 
         // ─── Init: carga imágenes desde IDB después de montar el store ────────
         async init() {
-            // Limpiar key viejo de imágenes en localStorage si aún existe
-            try { localStorage.removeItem(getStorageKey() + '_images'); } catch (_) {}
+            try { localStorage.removeItem(getStorageKey() + '_images'); } catch (_) { }
 
             const images = await loadImagesFromIDB(getStorageOwner());
             if (!images) return;
 
-            if (images.previews) {
-                Object.assign(this.previews, images.previews);
+            console.log('📸 images recibidas en init:', Object.keys(images));
+
+            // 🔥 1. PRIMERO: Restaurar generalidadesImages y actualizar previews
+            if (images.generalidadesImages) {
+                if (!this.cover.generalidadesImages) {
+                    this.cover.generalidadesImages = {};
+                }
+                Object.assign(this.cover.generalidadesImages, images.generalidadesImages);
+
+                // Actualizar previews desde generalidadesImages
+                Object.keys(images.generalidadesImages).forEach(key => {
+                    this.previews[key] = images.generalidadesImages[key];
+                });
+                console.log('✅ generalidadesImages restauradas a previews');
             }
+
+            // 🔥 2. SEGUNDO: Restaurar coverImage
+            if (images.coverImage) {
+                this.cover.coverImage = images.coverImage;
+                this.previews.coverImage = images.coverImage;
+            }
+
+            // 🔥 3. TERCERO: Restaurar previews (pero sin sobrescribir las que ya pusimos)
+            if (images.previews) {
+                // No sobrescribir las que ya tienen imágenes de generalidades
+                Object.keys(images.previews).forEach(key => {
+                    if (!this.previews[key]) {
+                        this.previews[key] = images.previews[key];
+                    }
+                });
+            }
+
+            // Resto del código (módulos, demolición, etc.)
             if (images.moduloImagenes && this.sections?.descripcionModulos?.modulos) {
                 images.moduloImagenes.forEach((imgs, i) => {
                     const m = this.sections.descripcionModulos.modulos[i];
@@ -2424,6 +2625,8 @@ export function createMemoriaDescriptivaStore() {
                     images.demolicionImagenes
                 );
             }
+
+            console.log('✅ init completado - previews actualizadas:', Object.keys(this.previews || {}));
         },
     };
     store.initModuloImages();
@@ -2539,5 +2742,7 @@ function normalizeConsideraciones(state) {
         actual.materiales = actual.materiales || "- Concreto: f'c = 210 kg/cm2\n- Acero: fy = 4200 kg/cm2";
 
         state.sections.consideraciones[i] = actual;
+
     }
+
 }

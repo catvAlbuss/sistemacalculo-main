@@ -459,25 +459,29 @@ function memoriaDescriptiva() {
             this.$store.memoriaDescriptiva.sections.descripcionModulos.modulos.splice(index, 1);
         },
 
-        // ============================================
-        // MÉTODOS - Imágenes
-        // ============================================
-        async handleImageChange(key, event) {
-            const file = event.target.files?.[0];
-            if (!file) return;
-            if (!file.type.startsWith('image/')) {
-                alert('Por favor seleccione un archivo de imagen válido');
-                return;
+        // ─── Imágenes simples (dataURL) ────────────────────────────────────────
+        updateImage(key, file, preview) {
+            this.images[key] = file;      // File() — no persiste
+            this.previews[key] = preview;   // dataURL — sí persiste
+
+            // 🔥 AGREGAR ESTO: Guardar también en cover para persistencia
+            if (key === 'coverImage') {
+                this.cover.coverImage = preview;
             }
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                this.$store.memoriaDescriptiva.updateImage(key, file, e.target.result);
-            };
-            reader.readAsDataURL(file);
+
+            this.save();
         },
 
         removeImage(key) {
-            this.$store.memoriaDescriptiva.removeImage(key);
+            this.images[key] = null;
+            this.previews[key] = null;
+
+            // 🔥 AGREGAR ESTO: Limpiar también en cover
+            if (key === 'coverImage') {
+                this.cover.coverImage = null;
+            }
+
+            this.save();
         },
 
         async handleModuloImageChange(moduloIndex, imageIndex, event) {
