@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:public/build/assets/volumetricLightingBlendVolume.fragment-C2y2KZCw.js
 import{S as t}from"./analisis_estructural_de_armaduras-IcJOIdMp.js";import"./preload-helper-BfFHrpNk.js";import"./mat4js.read-DcrXhSIi.js";import"./_commonjsHelpers-_d1bhYXs.js";import"./___vite-browser-external_commonjs-proxy-BQ48sp8I.js";import"./predimensionamiento-CxryAhEz.js";const e="volumetricLightingBlendVolumePixelShader",r=`varying vUV: vec2f;var textureSamplerSampler: sampler;var textureSampler: texture_2d<f32>;var depthSampler: texture_2d<f32>;uniform invProjection: mat4x4<f32>;uniform outputTextureSize: vec2f;
+========
+import{S as t}from"./analisis_estructural_de_armaduras-MifHR-Uw.js";import"./preload-helper-BfFHrpNk.js";import"./mat4js.read-DcrXhSIi.js";import"./_commonjsHelpers-_d1bhYXs.js";import"./___vite-browser-external_commonjs-proxy-BQ48sp8I.js";import"./predimensionamiento-CxryAhEz.js";const e="volumetricLightingBlendVolumePixelShader",r=`varying vUV: vec2f;var textureSamplerSampler: sampler;var textureSampler: texture_2d<f32>;var depthSampler: texture_2d<f32>;uniform invProjection: mat4x4<f32>;uniform outputTextureSize: vec2f;
+>>>>>>>> origin/mayk:public/build/assets/volumetricLightingBlendVolume.fragment-ezwfc5Fn.js
 #ifdef USE_EXTINCTION
 uniform extinction: vec3f;
 #endif

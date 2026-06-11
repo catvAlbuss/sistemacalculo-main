@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:public/build/assets/volumetricLightingRenderVolume.fragment-DtNlRZJj.js
 import{S as t}from"./analisis_estructural_de_armaduras-IcJOIdMp.js";import"./preload-helper-BfFHrpNk.js";import"./mat4js.read-DcrXhSIi.js";import"./_commonjsHelpers-_d1bhYXs.js";import"./___vite-browser-external_commonjs-proxy-BQ48sp8I.js";import"./predimensionamiento-CxryAhEz.js";const e="volumetricLightingRenderVolumePixelShader",i=`#include<sceneUboDeclaration>
+========
+import{S as t}from"./analisis_estructural_de_armaduras-MifHR-Uw.js";import"./preload-helper-BfFHrpNk.js";import"./mat4js.read-DcrXhSIi.js";import"./_commonjsHelpers-_d1bhYXs.js";import"./___vite-browser-external_commonjs-proxy-BQ48sp8I.js";import"./predimensionamiento-CxryAhEz.js";const e="volumetricLightingRenderVolumePixelShader",i=`#include<sceneUboDeclaration>
+>>>>>>>> origin/mayk:public/build/assets/volumetricLightingRenderVolume.fragment-Bly1WzTQ.js
 #include<meshUboDeclaration>
 uniform invViewProjection: mat4x4<f32>;uniform lightDir: vec3f; 
 uniform outputTextureSize: vec2f;uniform extinctionPhaseG: vec4f;uniform lightPower: vec3f;uniform textureRatio: vec2f;var depthTexture: texture_2d<f32>;varying vWorldPos: vec4f;fn henyeyGreenstein(g: f32,cosTheta: f32)->f32 {let denom=1+g*g-2*g*cosTheta;return 1.0/(4.0*3.14159265)*(1.0-g*g)/(denom*sqrt(max(denom,0.0)));}

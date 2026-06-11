@@ -1,2 +1,6 @@
+<<<<<<<< HEAD:public/build/assets/oitFinalSimpleBlend.fragment-BVIG8c7Q.js
 import{S as r}from"./analisis_estructural_de_armaduras-IcJOIdMp.js";import"./preload-helper-BfFHrpNk.js";import"./mat4js.read-DcrXhSIi.js";import"./_commonjsHelpers-_d1bhYXs.js";import"./___vite-browser-external_commonjs-proxy-BQ48sp8I.js";import"./predimensionamiento-CxryAhEz.js";const o="oitFinalSimpleBlendPixelShader",e=`precision highp float;uniform sampler2D uFrontColor;void main() {ivec2 fragCoord=ivec2(gl_FragCoord.xy);vec4 frontColor=texelFetch(uFrontColor,fragCoord,0);glFragColor=frontColor;}
+========
+import{S as r}from"./analisis_estructural_de_armaduras-MifHR-Uw.js";import"./preload-helper-BfFHrpNk.js";import"./mat4js.read-DcrXhSIi.js";import"./_commonjsHelpers-_d1bhYXs.js";import"./___vite-browser-external_commonjs-proxy-BQ48sp8I.js";import"./predimensionamiento-CxryAhEz.js";const o="oitFinalSimpleBlendPixelShader",e=`precision highp float;uniform sampler2D uFrontColor;void main() {ivec2 fragCoord=ivec2(gl_FragCoord.xy);vec4 frontColor=texelFetch(uFrontColor,fragCoord,0);glFragColor=frontColor;}
+>>>>>>>> origin/mayk:public/build/assets/oitFinalSimpleBlend.fragment-DNxiwL-1.js
 `;r.ShadersStore[o]||(r.ShadersStore[o]=e);const d={name:o,shader:e};export{d as oitFinalSimpleBlendPixelShader};

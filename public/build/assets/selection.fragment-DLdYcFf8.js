@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:public/build/assets/selection.fragment-DLdYcFf8.js
 import{S as i}from"./analisis_estructural_de_armaduras-IcJOIdMp.js";import"./preload-helper-BfFHrpNk.js";import"./mat4js.read-DcrXhSIi.js";import"./_commonjsHelpers-_d1bhYXs.js";import"./___vite-browser-external_commonjs-proxy-BQ48sp8I.js";import"./predimensionamiento-CxryAhEz.js";const e="selectionPixelShader",d=`#ifdef INSTANCES
+========
+import{S as i}from"./analisis_estructural_de_armaduras-MifHR-Uw.js";import"./preload-helper-BfFHrpNk.js";import"./mat4js.read-DcrXhSIi.js";import"./_commonjsHelpers-_d1bhYXs.js";import"./___vite-browser-external_commonjs-proxy-BQ48sp8I.js";import"./predimensionamiento-CxryAhEz.js";const e="selectionPixelShader",d=`#ifdef INSTANCES
+>>>>>>>> origin/mayk:public/build/assets/selection.fragment-CGnh8soS.js
 flat varying float vSelectionId;
 #else
 uniform float selectionId;

@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:public/build/assets/gaussianSplattingVoxel.vertex-CTCMkq61.js
 import{S as e}from"./analisis_estructural_de_armaduras-IcJOIdMp.js";import"./preload-helper-BfFHrpNk.js";import"./mat4js.read-DcrXhSIi.js";import"./_commonjsHelpers-_d1bhYXs.js";import"./___vite-browser-external_commonjs-proxy-BQ48sp8I.js";import"./predimensionamiento-CxryAhEz.js";const t="gaussianSplattingVoxelVertexShader",r=`#include<sceneUboDeclaration>
+========
+import{S as e}from"./analisis_estructural_de_armaduras-MifHR-Uw.js";import"./preload-helper-BfFHrpNk.js";import"./mat4js.read-DcrXhSIi.js";import"./_commonjsHelpers-_d1bhYXs.js";import"./___vite-browser-external_commonjs-proxy-BQ48sp8I.js";import"./predimensionamiento-CxryAhEz.js";const t="gaussianSplattingVoxelVertexShader",r=`#include<sceneUboDeclaration>
+>>>>>>>> origin/mayk:public/build/assets/gaussianSplattingVoxel.vertex-CE3GV-wO.js
 #include<meshUboDeclaration>
 attribute splatIndex0: vec4f;attribute splatIndex1: vec4f;attribute splatIndex2: vec4f;attribute splatIndex3: vec4f;attribute position: vec3f;uniform dataTextureSize: vec2f;uniform alpha: f32;uniform invWorldScale: mat4x4f;uniform viewMatrix: mat4x4f;
 #if IS_COMPOUND
