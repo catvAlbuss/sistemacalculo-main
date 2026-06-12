@@ -96,19 +96,10 @@ async function loadImagesFromIDB(userId) {
 
 function sectionsWithoutImages(sections) {
     const s = JSON.parse(JSON.stringify(sections));
-
     if (s.demolicion) {
         s.demolicion.modulosImagenes = {};
     }
-
-    // FIX CRÍTICO: Limpiar imágenes base64 de módulos antes de guardar en localStorage
-    if (s.descripcionModulos && Array.isArray(s.descripcionModulos.modulos)) {
-        s.descripcionModulos.modulos = s.descripcionModulos.modulos.map(m => ({
-            ...m,
-            imagenes: (m.imagenes || []).map(() => null)
-        }));
-    }
-
+    // ← NO tocamos s.descripcionModulos.modulos[i].imagenes
     return s;
 }
 
@@ -170,10 +161,8 @@ function applyImagesToData(data, images) {
 // ─── Extrae cover sin imágenes para localStorage ──────────────────────────────
 
 function coverWithoutImages(cover) {
-    const c = { ...cover };
-    delete c.coverImage;
-    delete c.generalidadesImages;
-    return c;
+    // Las imágenes de portada y generalidades se guardan directo en cover → localStorage
+    return { ...cover };
 }
 
 // ─── localStorage: solo texto ─────────────────────────────────────────────────
@@ -182,14 +171,10 @@ function loadFromStorage() {
     try {
         const storageKey = getStorageKey();
         const raw = localStorage.getItem(storageKey);
-
         if (raw) {
             const data = JSON.parse(raw);
             // Imágenes SIEMPRE vienen de IDB, nunca de localStorage
-            if (data.cover) {
-                delete data.cover.coverImage;
-                delete data.cover.generalidadesImages;
-            }
+
             if (data.previews) {
                 const imgs = extractImagesFromState(data);
                 saveImagesToIDB(getStorageOwner(), imgs).then(() => {
@@ -227,26 +212,27 @@ function loadFromStorage() {
 function saveToStorage(state) {
     const storageKey = getStorageKey();
     try {
-        const toSave = { cover: coverWithoutImages(state.cover), sections: sectionsWithoutImages(state.sections) };
+        // Guardar cover completo (con imágenes base64) + sections sin imágenes de demolición
+        const toSave = {
+            cover: state.cover,           // ← cover completo incluyendo coverImage
+            sections: sectionsWithoutImages(state.sections),
+            previews: state.previews      // ← previews también en localStorage
+        };
         localStorage.setItem(storageKey, JSON.stringify(toSave));
         localStorage.setItem(`${STORAGE_KEY}_owner`, getStorageOwner());
     } catch (e) {
         if (e.name === 'QuotaExceededError' || e.code === 22) {
-            console.warn('localStorage lleno. Intentando limpiar datos antiguos...');
+            console.warn('localStorage lleno, intentando sin previews...');
             try {
-                const minimal = {
-                    cover: coverWithoutImages(state.cover),
-                    sections: sectionsWithoutImages(state.sections)
-                };
+                const minimal = { cover: state.cover, sections: sectionsWithoutImages(state.sections) };
                 localStorage.setItem(storageKey, JSON.stringify(minimal));
             } catch (e2) {
-                console.error('No se pudo guardar ni la versión mínima:', e2);
+                console.error('No se pudo guardar:', e2);
             }
-        } else {
-            console.warn('Error guardando store en localStorage:', e);
         }
         return false;
     }
+    // IDB solo como backup para módulos grandes
     saveImagesToIDB(getStorageOwner(), extractImagesFromState(state)).catch(() => { });
     return true;
 }
@@ -501,6 +487,45 @@ export function createMemoriaDescriptivaStore() {
         : defaults;
     normalizeViasAcceso(initialState);
     normalizeConsideraciones(initialState);
+    normalizeModulos(initialState);
+    // ← AQUÍ, pegarlo al final del archivo
+    function normalizeModulos(state) {
+        const modulos = state.sections?.descripcionModulos?.modulos;
+        if (!Array.isArray(modulos)) return;
+        const pisosPredefinidos = {
+            1: 1, 2: 2, 3: 2, 4: 3, 5: 3, 6: 3, 7: 1,
+            8: 2, 9: 1, 10: 1, 11: 1, 12: 4, 13: 3, 14: 1, 15: 3, 16: 1
+        };
+        const romanoANumero = (r) => {
+            const m = {
+                I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8,
+                IX: 9, X: 10, XI: 11, XII: 12, XIII: 13, XIV: 14, XV: 15, XVI: 16
+            };
+            return m[String(r || '').toUpperCase()] || null;
+        };
+        const extraerNumero = (nombre) => {
+            if (!nombre) return null;
+            const partes = String(nombre).trim().split(/\s+/);
+            const ultimo = partes[partes.length - 1];
+            const n = parseInt(ultimo, 10);
+            return Number.isFinite(n) ? n : romanoANumero(ultimo);
+        };
+        modulos.forEach(modulo => {
+            const num = extraerNumero(modulo.nombre);
+            if (!num) return;
+            if (!modulo.id || modulo.id > 100) {
+                modulo.id = num;
+            }
+            const pisosEsperados = pisosPredefinidos[num];
+            if (pisosEsperados && pisosEsperados > 1) {
+                const tieneImagenesUsuario = Array.isArray(modulo.imagenes) &&
+                    modulo.imagenes.some(img => img && typeof img === 'string' && img.startsWith('data:'));
+                if (!tieneImagenesUsuario) {
+                    modulo.pisos = pisosEsperados;
+                }
+            }
+        });
+    }
 
     const store = {
         ...initialState,
@@ -603,7 +628,7 @@ export function createMemoriaDescriptivaStore() {
             const modulosActuales = this.sections.descripcionModulos.modulos;
 
             const romanoANumero = (romano) => {
-                const m = { 'I':1,'II':2,'III':3,'IV':4,'V':5,'VI':6,'VII':7,'VIII':8,'IX':9,'X':10,'XI':11,'XII':12,'XIII':13,'XIV':14,'XV':15,'XVI':16 };
+                const m = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, 'VI': 6, 'VII': 7, 'VIII': 8, 'IX': 9, 'X': 10, 'XI': 11, 'XII': 12, 'XIII': 13, 'XIV': 14, 'XV': 15, 'XVI': 16 };
                 return m[String(romano).toUpperCase()] || null;
             };
 
@@ -655,7 +680,7 @@ export function createMemoriaDescriptivaStore() {
         },
 
         romanoANumero(romano) {
-            const m = {'I':1,'II':2,'III':3,'IV':4,'V':5,'VI':6,'VII':7,'VIII':8,'IX':9,'X':10,'XI':11,'XII':12,'XIII':13,'XIV':14,'XV':15,'XVI':16};
+            const m = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, 'VI': 6, 'VII': 7, 'VIII': 8, 'IX': 9, 'X': 10, 'XI': 11, 'XII': 12, 'XIII': 13, 'XIV': 14, 'XV': 15, 'XVI': 16 };
             return m[String(romano || '').toUpperCase()] || null;
         },
 
@@ -668,7 +693,7 @@ export function createMemoriaDescriptivaStore() {
         },
 
         numeroARomano(num) {
-            const m = {1:'I',2:'II',3:'III',4:'IV',5:'V',6:'VI',7:'VII',8:'VIII',9:'IX',10:'X',11:'XI',12:'XII',13:'XIII',14:'XIV',15:'XV',16:'XVI'};
+            const m = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V', 6: 'VI', 7: 'VII', 8: 'VIII', 9: 'IX', 10: 'X', 11: 'XI', 12: 'XII', 13: 'XIII', 14: 'XIV', 15: 'XV', 16: 'XVI' };
             return m[num] || String(num).padStart(2, '0');
         },
 
@@ -686,6 +711,18 @@ export function createMemoriaDescriptivaStore() {
             while (modulo.subtitulosImagenes.length < pisos) modulo.subtitulosImagenes.push("");
 
             this.save();
+        },
+
+
+        // ✅ AGREGAR ESTE MÉTODO JUSTO AQUÍ (después del anterior)
+        inicializarTodosLosModulos() {
+            const modulos = this.sections.descripcionModulos.modulos;
+            if (!modulos || modulos.length === 0) return;
+
+            for (let i = 0; i < modulos.length; i++) {
+                this.sincronizarImagenesPorPisos(i);
+            }
+            console.log('✅ Módulos inicializados con arrays de imágenes según sus pisos');
         },
 
         async subirImagenModulo(moduloIndex, nivelIndex, event) {
@@ -1016,6 +1053,8 @@ export function createMemoriaDescriptivaStore() {
         // Mantener init() por compatibilidad pero ahora es síncrono
         // La carga de imágenes se hace via loadImages() llamado desde Alpine
         init() {
+            this.inicializarTodosLosModulos();
+            this.saveTextOnly();
             this.loadImages().catch(e => console.warn('Error cargando imágenes desde IDB:', e));
         },
 
