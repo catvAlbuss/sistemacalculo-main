@@ -487,45 +487,42 @@ export function createMemoriaDescriptivaStore() {
         : defaults;
     normalizeViasAcceso(initialState);
     normalizeConsideraciones(initialState);
-    normalizeModulos(initialState);
+    //normalizeModulos(initialState);
     // ← AQUÍ, pegarlo al final del archivo
-    function normalizeModulos(state) {
-        const modulos = state.sections?.descripcionModulos?.modulos;
-        if (!Array.isArray(modulos)) return;
-        const pisosPredefinidos = {
-            1: 1, 2: 2, 3: 2, 4: 3, 5: 3, 6: 3, 7: 1,
-            8: 2, 9: 1, 10: 1, 11: 1, 12: 4, 13: 3, 14: 1, 15: 3, 16: 1
-        };
-        const romanoANumero = (r) => {
-            const m = {
-                I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8,
-                IX: 9, X: 10, XI: 11, XII: 12, XIII: 13, XIV: 14, XV: 15, XVI: 16
-            };
-            return m[String(r || '').toUpperCase()] || null;
-        };
-        const extraerNumero = (nombre) => {
-            if (!nombre) return null;
-            const partes = String(nombre).trim().split(/\s+/);
-            const ultimo = partes[partes.length - 1];
-            const n = parseInt(ultimo, 10);
-            return Number.isFinite(n) ? n : romanoANumero(ultimo);
-        };
-        modulos.forEach(modulo => {
-            const num = extraerNumero(modulo.nombre);
-            if (!num) return;
-            if (!modulo.id || modulo.id > 100) {
-                modulo.id = num;
-            }
-            const pisosEsperados = pisosPredefinidos[num];
-            if (pisosEsperados && pisosEsperados > 1) {
-                const tieneImagenesUsuario = Array.isArray(modulo.imagenes) &&
-                    modulo.imagenes.some(img => img && typeof img === 'string' && img.startsWith('data:'));
-                if (!tieneImagenesUsuario) {
-                    modulo.pisos = pisosEsperados;
-                }
-            }
-        });
-    }
+function normalizeModulos(state) {
+    const modulos = state.sections?.descripcionModulos?.modulos;
+    if (!Array.isArray(modulos)) return;
+    
+    const romanoANumero = (r) => {
+        const m = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8,
+                    IX: 9, X: 10, XI: 11, XII: 12, XIII: 13, XIV: 14, XV: 15, XVI: 16 };
+        return m[String(r || '').toUpperCase()] || null;
+    };
+    
+    const extraerNumero = (nombre) => {
+        if (!nombre) return null;
+        const partes = String(nombre).trim().split(/\s+/);
+        const ultimo = partes[partes.length - 1];
+        const n = parseInt(ultimo, 10);
+        return Number.isFinite(n) ? n : romanoANumero(ultimo);
+    };
+    
+    modulos.forEach(modulo => {
+        const num = extraerNumero(modulo.nombre);
+        if (!num) return;
+        
+        if (!modulo.id || modulo.id > 100) {
+            modulo.id = num;
+        }
+        
+        // 🔥 NO TOCAR pisos - respetar lo que el usuario guardó
+        // 🔥 NO TOCAR imagenes - respetar lo que el usuario guardó
+        
+        // Solo asegurar que existan los arrays
+        if (!modulo.imagenes) modulo.imagenes = [];
+        if (!modulo.subtitulosImagenes) modulo.subtitulosImagenes = [];
+    });
+}
 
     const store = {
         ...initialState,
@@ -697,21 +694,33 @@ export function createMemoriaDescriptivaStore() {
             return m[num] || String(num).padStart(2, '0');
         },
 
-        sincronizarImagenesPorPisos(moduloIndex) {
-            const modulos = this.sections.descripcionModulos.modulos;
-            const modulo = modulos[moduloIndex];
-            if (!modulo) return;
+sincronizarImagenesPorPisos(moduloIndex) {
+    const modulos = this.sections.descripcionModulos.modulos;
+    const modulo = modulos[moduloIndex];
+    if (!modulo) return;
 
-            const pisos = parseInt(modulo.pisos) || 1;
-            modulo.pisos = pisos;
+    const pisos = parseInt(modulo.pisos) || 1;
+    modulo.pisos = pisos;
 
-            if (!modulo.imagenes) modulo.imagenes = [];
-            if (!modulo.subtitulosImagenes) modulo.subtitulosImagenes = [];
-            while (modulo.imagenes.length < pisos) modulo.imagenes.push(null);
-            while (modulo.subtitulosImagenes.length < pisos) modulo.subtitulosImagenes.push("");
+    if (!modulo.imagenes) modulo.imagenes = [];
+    if (!modulo.subtitulosImagenes) modulo.subtitulosImagenes = [];
+    
+    while (modulo.imagenes.length < pisos) {
+        modulo.imagenes.push(null);
+    }
+    while (modulo.subtitulosImagenes.length < pisos) {
+        modulo.subtitulosImagenes.push("");
+    }
+    
+    if (modulo.imagenes.length > pisos) {
+        modulo.imagenes = modulo.imagenes.slice(0, pisos);
+        modulo.subtitulosImagenes = modulo.subtitulosImagenes.slice(0, pisos);
+    }
 
-            this.save();
-        },
+    // 🔥 Guardar en ambos lugares para asegurar persistencia
+    this.save();  // localStorage + IDB
+    console.log(`Módulo ${moduloIndex} - pisos guardado: ${modulo.pisos}`);
+},
 
 
         // ✅ AGREGAR ESTE MÉTODO JUSTO AQUÍ (después del anterior)
@@ -1053,10 +1062,36 @@ export function createMemoriaDescriptivaStore() {
         // Mantener init() por compatibilidad pero ahora es síncrono
         // La carga de imágenes se hace via loadImages() llamado desde Alpine
         init() {
-            this.inicializarTodosLosModulos();
-            this.saveTextOnly();
-            this.loadImages().catch(e => console.warn('Error cargando imágenes desde IDB:', e));
-        },
+    // 🔥 NO llamar a inicializarTodosLosModulos() si ya hay datos guardados
+    // Esto evita que se sobreescriban los pisos que el usuario cambió
+    
+    // Solo inicializar si los módulos no tienen arrays de imágenes
+    const modulos = this.sections.descripcionModulos.modulos;
+    let necesitaInicializacion = false;
+    
+    for (let i = 0; i < modulos.length; i++) {
+        const modulo = modulos[i];
+        if (!modulo.imagenes || !modulo.subtitulosImagenes) {
+            necesitaInicializacion = true;
+            break;
+        }
+        // También verificar que la longitud coincida con pisos
+        const pisos = parseInt(modulo.pisos) || 1;
+        if (modulo.imagenes.length !== pisos) {
+            necesitaInicializacion = true;
+            break;
+        }
+    }
+    
+    if (necesitaInicializacion) {
+        this.inicializarTodosLosModulos();
+    } else {
+        console.log('✅ Módulos ya inicializados, respetando valores guardados');
+    }
+    
+    this.saveTextOnly();
+    this.loadImages().catch(e => console.warn('Error cargando imágenes:', e));
+},
 
         // ─── Análisis sísmico ──────────────────────────────────────────────────
         inicializarAnalisisModulo(moduloId) {
