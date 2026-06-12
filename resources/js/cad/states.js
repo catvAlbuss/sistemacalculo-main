@@ -1713,30 +1713,6 @@ export class TrussDrawingState extends PanAndZoomState {
     return node;
   }
 
-// <<<<<<< HEAD
-
-//   addNodeToCurrentShape(context, node) {
-//     // Verificar si el nodo ya es el mismo que el primero (evitar auto-conexión)
-//     if (this.shape.node1 === node) {
-//       console.log("⚠️ No se puede conectar un nodo consigo mismo");
-//       return;
-//     }
-
-//     // Verificar si ya existe una conexión entre estos nodos
-//     const connectionExists = context.shapes.some((shape) => {
-//       if (!shape?.node1 || !shape?.node2) return false;
-//       return (
-//         (shape.node1 === this.shape.node1 && shape.node2 === node) ||
-//         (shape.node1 === node && shape.node2 === this.shape.node1)
-//       );
-//     });
-
-//     if (connectionExists && this.shape.node1 && node) {
-//       console.log("⚠️ Ya existe una conexión entre estos nodos");
-//       context.showMessage?.("⚠️ Ya existe una viga entre estos puntos", "warning");
-//       return;
-//     }
-// =======
   // Identifica la planta o elevación donde se hizo clic.
   // =====================================================
   getActiveViewSignature(context) {
@@ -1941,24 +1917,6 @@ export class TrussDrawingState extends PanAndZoomState {
       z: (startPoint.z || 0) + direction.dz * length,
     };
 
-// <<<<<<< HEAD
-//     let p1, p2;
-
-//     // Proyectar puntos según el tipo de vista
-//     if (view?.type === "elevation" && view.axis === "X") {
-//       // Vista elevación X (LETRAS): X fijo, plano Y-Z
-//       p1 = context.grid.worldToScreen({ x: startPoint.y, y: startPoint.z || 0 });
-//       p2 = context.grid.worldToScreen({ x: endPoint.y, y: endPoint.z });
-//     } else if (view?.type === "elevation" && view.axis === "Y") {
-//       // Vista elevación Y (NÚMEROS): Y fijo, plano X-Z
-//       p1 = context.grid.worldToScreen({ x: startPoint.x, y: startPoint.z || 0 });
-//       p2 = context.grid.worldToScreen({ x: endPoint.x, y: endPoint.z });
-//     } else {
-//       // Vista PLANTA normal
-//       p1 = context.grid.worldToScreen({ x: startPoint.x, y: startPoint.y });
-//       p2 = context.grid.worldToScreen({ x: endPoint.x, y: endPoint.y });
-//     }
-// =======
     const p1 = context.currentRenderer?.projectPoint
       ? context.currentRenderer.projectPoint({ position: startPoint }, context)
       : context.grid.worldToScreen(startPoint);
@@ -1966,7 +1924,6 @@ export class TrussDrawingState extends PanAndZoomState {
     const p2 = context.currentRenderer?.projectPoint
       ? context.currentRenderer.projectPoint({ position: endPoint }, context)
       : context.grid.worldToScreen(endPoint);
-// >>>>>>> eab88042b6badc95272f8096c910734e6c5231f0
 
     context.ctx.save();
 
@@ -2379,9 +2336,6 @@ export class TrussDrawingState extends PanAndZoomState {
       context.ctx.restore();
     }
 
-    // Dibujar preview de entrada de longitud (línea naranja PUNTEADA)
-//     if (this.inputMode && this.inputStartPoint) {
-// =======
     if (renderer?.drawTrussDrawingState) {
       renderer.drawTrussDrawingState(this, context);
     }
