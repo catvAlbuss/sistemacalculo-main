@@ -6,10 +6,15 @@ import { DocumentTransformerMD } from "./processors/documentTransformer-md.js";
 import ubigeoData from "./ubigeo.json";
 import { createMemoriaDescriptivaStore } from "./stores/memoriaDescriptivaStore.js";
 
-// Inicializar store globalmente
-if (typeof Alpine !== 'undefined' && !Alpine.store('memoriaDescriptiva')) {
-    Alpine.store('memoriaDescriptiva', createMemoriaDescriptivaStore());
-}
+// Registrar store y componente en el evento correcto del ciclo de vida de Alpine.
+// No usar typeof Alpine: en módulos Vite el global window.Alpine puede no estar
+// disponible en tiempo de evaluación del módulo. alpine:init garantiza el momento correcto.
+document.addEventListener('alpine:init', () => {
+    if (!window.Alpine.store('memoriaDescriptiva')) {
+        window.Alpine.store('memoriaDescriptiva', createMemoriaDescriptivaStore());
+    }
+    window.Alpine.data('memoriaDescriptiva', memoriaDescriptiva);
+});
 
 /**
  * Componente principal Alpine.js para Memoria Descriptiva
@@ -54,6 +59,9 @@ function memoriaDescriptiva() {
 
             this.initDefaultArrays();
             this.initDefaultData();
+
+            // Cargar imágenes desde IDB (siempre, incluso si el store.init() ya lo intentó)
+            this.$store.memoriaDescriptiva.loadImages().catch(e => console.warn('Error cargando imágenes desde IDB:', e));
 
             // ── AUTO-SAVE: cada vez que cualquier dato del store cambia, persistir ──
             // Observamos cover
@@ -719,7 +727,7 @@ function memoriaDescriptiva() {
     };
 }
 
-// Exportar función principal
+// Mantener en window como fallback para referencias legacy
 window.memoriaDescriptiva = memoriaDescriptiva;
 
 export default memoriaDescriptiva;

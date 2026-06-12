@@ -165,6 +165,15 @@ function applyImagesToData(data, images) {
     }
 }
 
+// ─── Extrae cover sin imágenes para localStorage ──────────────────────────────
+
+function coverWithoutImages(cover) {
+    const c = { ...cover };
+    delete c.coverImage;
+    delete c.generalidadesImages;
+    return c;
+}
+
 // ─── localStorage: solo texto ─────────────────────────────────────────────────
 
 function loadFromStorage() {
@@ -174,11 +183,16 @@ function loadFromStorage() {
 
         if (raw) {
             const data = JSON.parse(raw);
+            // Imágenes SIEMPRE vienen de IDB, nunca de localStorage
+            if (data.cover) {
+                delete data.cover.coverImage;
+                delete data.cover.generalidadesImages;
+            }
             if (data.previews) {
                 const imgs = extractImagesFromState(data);
                 saveImagesToIDB(getStorageOwner(), imgs).then(() => {
                     try {
-                        const clean = { cover: data.cover, sections: sectionsWithoutImages(data.sections) };
+                        const clean = { cover: coverWithoutImages(data.cover || {}), sections: sectionsWithoutImages(data.sections) };
                         localStorage.setItem(storageKey, JSON.stringify(clean));
                         localStorage.removeItem(storageKey + '_images');
                     } catch (_) { }
@@ -190,8 +204,12 @@ function loadFromStorage() {
         const legacy = localStorage.getItem(STORAGE_KEY);
         if (!legacy) return null;
         const data = JSON.parse(legacy);
+        if (data.cover) {
+            delete data.cover.coverImage;
+            delete data.cover.generalidadesImages;
+        }
         try {
-            const clean = { cover: data.cover, sections: sectionsWithoutImages(data.sections) };
+            const clean = { cover: coverWithoutImages(data.cover || {}), sections: sectionsWithoutImages(data.sections) };
             localStorage.setItem(storageKey, JSON.stringify(clean));
             localStorage.setItem(`${STORAGE_KEY}_owner`, getStorageOwner());
             localStorage.removeItem(STORAGE_KEY);
@@ -207,17 +225,15 @@ function loadFromStorage() {
 function saveToStorage(state) {
     const storageKey = getStorageKey();
     try {
-        const toSave = { cover: state.cover, sections: sectionsWithoutImages(state.sections) };
+        const toSave = { cover: coverWithoutImages(state.cover), sections: sectionsWithoutImages(state.sections) };
         localStorage.setItem(storageKey, JSON.stringify(toSave));
         localStorage.setItem(`${STORAGE_KEY}_owner`, getStorageOwner());
     } catch (e) {
-        // FIX: Capturar QuotaExceededError explícitamente
         if (e.name === 'QuotaExceededError' || e.code === 22) {
             console.warn('localStorage lleno. Intentando limpiar datos antiguos...');
             try {
-                // Intentar guardar versión mínima sin arrays grandes
                 const minimal = {
-                    cover: { ...state.cover, coverImage: null, generalidadesImages: {} },
+                    cover: coverWithoutImages(state.cover),
                     sections: sectionsWithoutImages(state.sections)
                 };
                 localStorage.setItem(storageKey, JSON.stringify(minimal));
