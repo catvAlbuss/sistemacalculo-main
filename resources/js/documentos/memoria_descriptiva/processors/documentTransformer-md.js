@@ -324,7 +324,7 @@ export class DocumentTransformerMD {
             const imagenesOriginales = infoImagenes?.archivos || [];
             const imagenesSubidas = modulo.imagenes || [];
             const subtitulosSubidos = modulo.subtitulosImagenes || [];
-            const totalImagenes = Math.max(modulo.pisos || 1, imagenesOriginales.length);
+            const totalImagenes = parseInt(modulo.pisos) || 1;
 
             for (let imgIdx = 0; imgIdx < totalImagenes; imgIdx++) {
                 let src = "";

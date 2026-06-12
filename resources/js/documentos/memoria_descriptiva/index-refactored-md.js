@@ -354,27 +354,20 @@ function memoriaDescriptiva() {
                     });
                 }
                 console.log('✅ 16 módulos cargados con subtitulosImagenes');
-           } else {
-    // MIGRAR MÓDULOS EXISTENTES
-    const pisosPredefinidos = {
-        1:1, 2:2, 3:2, 4:3, 5:3, 6:3, 7:1,
-        8:2, 9:1, 10:1, 11:1, 12:4, 13:3, 14:1, 15:3, 16:1
-    };
-    for (let i = 0; i < store.sections.descripcionModulos.modulos.length; i++) {
-        const modulo = store.sections.descripcionModulos.modulos[i];
-        if (!modulo.subtitulosImagenes) {
-            modulo.subtitulosImagenes = [];
-        }
-        if (!modulo.imagenes) {
-            modulo.imagenes = [];
-        }
-        // Corregir pisos si el usuario no subió imágenes propias
-        const pisosEsperados = pisosPredefinidos[modulo.id];
-        if (pisosEsperados) {
-           modulo.pisos = pisosEsperados;
-        }
-    }
-}
+            } else {
+                // MIGRAR MÓDULOS EXISTENTES - SIN FORZAR PISOS
+                for (let i = 0; i < store.sections.descripcionModulos.modulos.length; i++) {
+                    const modulo = store.sections.descripcionModulos.modulos[i];
+                    if (!modulo.subtitulosImagenes) {
+                        modulo.subtitulosImagenes = [];
+                    }
+                    if (!modulo.imagenes) {
+                        modulo.imagenes = [];
+                    }
+                    // 🔥 ELIMINADO: ya no se fuerzan los pisos
+                    // Los pisos se respetan tal como el usuario los dejó
+                }
+            }
 
             // Inicializar marcos normativos (estos métodos están en el componente)
             if (!store.sections.generalidades.marcoNormativo.length) {
