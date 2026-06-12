@@ -1356,6 +1356,14 @@
                         <span class="text-xs text-gray-500 italic">Options</span>
                     </button>
 
+                    
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.openModalSpectralOptionsDialog()">
+                        <span>🌊</span>
+                        <span class="flex-1 truncate">Modal Spectral Options...</span>
+                        <span class="text-xs text-green-400 italic">7T</span>
+                    </button>
+
                     <div class="border-t border-gray-700 my-1"></div>
 
                     
@@ -1385,9 +1393,10 @@
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
-                        @click.stop="cadSystem.openSeismicAnalysisDialog()">
-                        <span>🌍</span>
-                        <span class="flex-1 truncate">Seismic Spectral Analysis...</span>
+                        @click.stop="cadSystem.openModalSpectralAnalysisDialog()">
+                        <span>🌊</span>
+                        <span class="flex-1 truncate">Modal Spectral Analysis...</span>
+                        <span class="text-xs text-yellow-400 italic">Test</span>
                     </button>
 
                 </div>
@@ -1518,6 +1527,13 @@
                         @click.stop="cadSystem.activateDisplayMenuAction('show-member-forces')">
                         <span>📉</span>
                         Show Member Forces / Stress Diagram
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateDisplayMenuAction('show-modal-spectral-results')">
+                        <span>🌊</span>
+                        <span class="flex-1 truncate">Modal Spectral Results...</span>
+                        <span class="text-xs text-yellow-400 italic">Test</span>
                     </button>
 
                 </div>

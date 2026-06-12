@@ -1,5 +1,21 @@
 import Swal from "sweetalert2";
 
+import {
+  ensureResponseSpectrumDefinitions,
+  openResponseSpectrumFunctionsDialog,
+  openResponseSpectrumCasesDialog,
+} from "../analysis/7_responseSpectrumDefinitions.js";
+
+import {
+  runModalSpectralAnalysisFromSystem,
+} from "../analysis/3_modalSpectralController.js";
+
+import {
+  openModalSpectralAnalysisDialog as openModalSpectralAnalysisDialogUI,
+  openModalSpectralResultsDialog as openModalSpectralResultsDialogUI,
+  openModalSpectralOptionsDialog as openModalSpectralOptionsDialogUI,
+} from "../analysis/2_modalSpectralUI.js";
+
 /**
  * @mixin viewportMixin
  *
@@ -413,49 +429,55 @@ export const viewportMixin = {
     window.dispatchEvent(new CustomEvent("open-section-cuts-modal"));
   },
 
+  ensureResponseSpectrumDefinitions() {
+    return ensureResponseSpectrumDefinitions(this);
+  },
+
   openResponseSpectrumFunctions() {
-    window.dispatchEvent(new CustomEvent("open-response-spectrum-functions-modal"));
+    // window.dispatchEvent(new CustomEvent("open-response-spectrum-functions-modal"));
+    return openResponseSpectrumFunctionsDialog(this);
   },
 
   openResponseSpectrumCases() {
-    Swal.fire({
-      title: "Response Spectrum Cases",
-      html: `
-            <div class="text-left">
-                <div class="mb-3">
-                    <label class="block text-xs font-bold">Case Name</label>
-                    <input type="text" class="w-full px-2 py-1 border rounded text-sm" value="SPEC1">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="text-xs">Function</label>
-                        <select class="w-full px-2 py-1 border rounded text-sm">
-                            <option>ACCEL_X</option>
-                            <option>ACCEL_Y</option>
-                            <option>ACCEL_Z</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-xs">Scale Factor</label>
-                        <input type="number" step="0.1" class="w-full px-2 py-1 border rounded text-sm" value="1.0">
-                    </div>
-                    <div>
-                        <label class="text-xs">Damping Ratio</label>
-                        <input type="number" step="0.01" class="w-full px-2 py-1 border rounded text-sm" value="0.05">
-                    </div>
-                    <div>
-                        <label class="text-xs">Modal Combination</label>
-                        <select class="w-full px-2 py-1 border rounded text-sm">
-                            <option>CQC</option>
-                            <option>SRSS</option>
-                            <option>ABS</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-        `,
-      confirmButtonText: "OK",
-    });
+    // Swal.fire({
+    //   title: "Response Spectrum Cases",
+    //   html: `
+    //         <div class="text-left">
+    //             <div class="mb-3">
+    //                 <label class="block text-xs font-bold">Case Name</label>
+    //                 <input type="text" class="w-full px-2 py-1 border rounded text-sm" value="SPEC1">
+    //             </div>
+    //             <div class="grid grid-cols-2 gap-3">
+    //                 <div>
+    //                     <label class="text-xs">Function</label>
+    //                     <select class="w-full px-2 py-1 border rounded text-sm">
+    //                         <option>ACCEL_X</option>
+    //                         <option>ACCEL_Y</option>
+    //                         <option>ACCEL_Z</option>
+    //                     </select>
+    //                 </div>
+    //                 <div>
+    //                     <label class="text-xs">Scale Factor</label>
+    //                     <input type="number" step="0.1" class="w-full px-2 py-1 border rounded text-sm" value="1.0">
+    //                 </div>
+    //                 <div>
+    //                     <label class="text-xs">Damping Ratio</label>
+    //                     <input type="number" step="0.01" class="w-full px-2 py-1 border rounded text-sm" value="0.05">
+    //                 </div>
+    //                 <div>
+    //                     <label class="text-xs">Modal Combination</label>
+    //                     <select class="w-full px-2 py-1 border rounded text-sm">
+    //                         <option>CQC</option>
+    //                         <option>SRSS</option>
+    //                         <option>ABS</option>
+    //                     </select>
+    //                 </div>
+    //             </div>
+    //         </div>
+    //     `,
+    //   confirmButtonText: "OK",
+    // });
+    return openResponseSpectrumCasesDialog(this);
   },
 
   convertCombosToNonlinear() {
@@ -723,5 +745,27 @@ export const viewportMixin = {
 
   setAnalysisOptions() {
     window.dispatchEvent(new CustomEvent("open-analysis-options-modal"));
+  },
+
+  /**
+ * Puente desde cad_sys.js hacia el controlador Modal Spectral.
+ *
+ * La lógica pesada vive en:
+ * resources/js/cad/analysis/3_modalSpectralController.js
+ */
+  async runModalSpectralAnalysisFromMenu(customPayload = null) {
+    return await runModalSpectralAnalysisFromSystem(this, customPayload);
+  },
+
+  openModalSpectralAnalysisDialog() {
+    return openModalSpectralAnalysisDialogUI(this);
+  },
+
+  openModalSpectralOptionsDialog() {
+    return openModalSpectralOptionsDialogUI(this);
+  },
+
+  openModalSpectralResultsDialog() {
+    return openModalSpectralResultsDialogUI(this);
   },
 };

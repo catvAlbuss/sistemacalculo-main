@@ -130,6 +130,271 @@ export const fileIOMixin = {
     this.redraw?.();
   },
 
+  // ============================================================
+  // BLOQUE 7T-A - Opciones persistentes Modal Spectral tipo ETABS
+  // ============================================================
+
+  getDefaultModalSpectralOptions() {
+    return {
+      useRigidDiaphragms: true,
+      diaphragmMode: "rigid_by_story",
+      massSourceMode: "story_mass",
+      storyMassDistribution: "by_level",
+
+      modalCombination: "CQC",
+      dampingRatio: 0.05,
+
+      numberOfModes: 12,
+      useRealModalPeriods: true,
+      useModalParticipatingMass: true,
+      useCombinedModalResults: true,
+    };
+  },
+
+  getDefaultModalSpectralModelCalibration() {
+    return {
+      enabled: false,
+      globalStiffnessScale: 1.0,
+      globalMassScale: 1.0,
+      axialStiffnessScale: 1.0,
+      bendingStiffnessScale: 1.0,
+      torsionStiffnessScale: 1.0,
+    };
+  },
+
+  toBooleanModalSpectralOption(value, fallback = false) {
+    if (typeof value === "boolean") return value;
+    if (value === "true") return true;
+    if (value === "false") return false;
+    return fallback;
+  },
+
+  toNumberModalSpectralOption(value, fallback = 0) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+  },
+
+  normalizeModalSpectralCombination(value) {
+    const combination = String(value || "CQC")
+      .trim()
+      .toUpperCase();
+
+    if (["CQC", "SRSS", "ABS"].includes(combination)) {
+      return combination;
+    }
+
+    return "CQC";
+  },
+
+  ensureModalSpectralOptions(source = {}) {
+    const defaultOptions = this.getDefaultModalSpectralOptions();
+    const defaultCalibration = this.getDefaultModalSpectralModelCalibration();
+
+    const importedOptions = source.modalSpectralOptions || source.analysisOptions || {};
+
+    const importedCalibration = source.modalSpectralModelCalibration || source.modelCalibration || {};
+
+    const mergedOptions = {
+      ...defaultOptions,
+      ...(this.modalSpectralOptions || {}),
+      ...importedOptions,
+    };
+
+    const mergedCalibration = {
+      ...defaultCalibration,
+      ...(this.modalSpectralModelCalibration || {}),
+      ...importedCalibration,
+    };
+
+    this.modalSpectralOptions = {
+      useRigidDiaphragms: this.toBooleanModalSpectralOption(mergedOptions.useRigidDiaphragms, true),
+
+      diaphragmMode: mergedOptions.diaphragmMode || "rigid_by_story",
+
+      massSourceMode: mergedOptions.massSourceMode || "story_mass",
+
+      storyMassDistribution: mergedOptions.storyMassDistribution || "by_level",
+
+      modalCombination: this.normalizeModalSpectralCombination(mergedOptions.modalCombination),
+
+      dampingRatio: this.toNumberModalSpectralOption(mergedOptions.dampingRatio, 0.05),
+
+      numberOfModes: Math.max(1, Math.round(this.toNumberModalSpectralOption(mergedOptions.numberOfModes, 12))),
+
+      useRealModalPeriods: this.toBooleanModalSpectralOption(mergedOptions.useRealModalPeriods, true),
+
+      useModalParticipatingMass: this.toBooleanModalSpectralOption(mergedOptions.useModalParticipatingMass, true),
+
+      useCombinedModalResults: this.toBooleanModalSpectralOption(mergedOptions.useCombinedModalResults, true),
+    };
+
+    this.modalSpectralModelCalibration = {
+      enabled: this.toBooleanModalSpectralOption(mergedCalibration.enabled, false),
+
+      globalStiffnessScale: this.toNumberModalSpectralOption(mergedCalibration.globalStiffnessScale, 1.0),
+
+      globalMassScale: this.toNumberModalSpectralOption(mergedCalibration.globalMassScale, 1.0),
+
+      axialStiffnessScale: this.toNumberModalSpectralOption(mergedCalibration.axialStiffnessScale, 1.0),
+
+      bendingStiffnessScale: this.toNumberModalSpectralOption(mergedCalibration.bendingStiffnessScale, 1.0),
+
+      torsionStiffnessScale: this.toNumberModalSpectralOption(mergedCalibration.torsionStiffnessScale, 1.0),
+    };
+
+    return {
+      modalSpectralOptions: this.modalSpectralOptions,
+      modalSpectralModelCalibration: this.modalSpectralModelCalibration,
+    };
+  },
+
+  // ============================================================
+  // BLOQUE 7J - Guardar / restaurar resultados Modal Spectral
+  // ============================================================
+
+  buildModalSpectralSaveData() {
+    const clean = (value, fallback = null) => {
+      try {
+        return JSON.parse(JSON.stringify(value ?? fallback));
+      } catch (error) {
+        console.warn("No se pudo clonar Modal Spectral:", value, error);
+        return fallback;
+      }
+    };
+
+    this.ensureModalSpectralOptions?.();
+
+    return {
+      version: "7J",
+      savedAt: new Date().toISOString(),
+
+      status: this.modalSpectralStatus || "not_run",
+      lastRunAt: this.modalSpectralLastRunAt || null,
+      lastError: this.modalSpectralLastError || null,
+      lastPayload: clean(this.modalSpectralLastPayload, null),
+      lastResult: clean(this.modalSpectralLastResult, null),
+      lastTable: clean(this.modalSpectralLastTable, []),
+
+      // BLOQUE 7Q-C
+      reportHistory: clean(this.modalSpectralReportHistory, []),
+
+      // BLOQUE 7T-A
+      modalSpectralOptions: clean(this.modalSpectralOptions, this.getDefaultModalSpectralOptions?.() || {}),
+
+      modalSpectralModelCalibration: clean(
+        this.modalSpectralModelCalibration,
+        this.getDefaultModalSpectralModelCalibration?.() || {},
+      ),
+
+      // Alias útil para compatibilidad con el payload 7S-B
+      modelCalibration: clean(
+        this.modalSpectralModelCalibration,
+        this.getDefaultModalSpectralModelCalibration?.() || {},
+      ),
+
+      responseSpectrumFunctions: clean(this.responseSpectrumFunctions, {
+        items: [],
+        selectedFunction: null,
+      }),
+
+      responseSpectrumCases: clean(this.responseSpectrumCases, {
+        items: [],
+        selectedCase: null,
+      }),
+    };
+  },
+
+  restoreModalSpectralSaveData(modalSpectralData = null) {
+    if (!modalSpectralData || typeof modalSpectralData !== "object") {
+      console.warn("⚠️ No hay datos Modal Spectral para restaurar.");
+      return false;
+    }
+
+    this.modalSpectralStatus = modalSpectralData.status || "loaded_from_json";
+    this.modalSpectralLastRunAt = modalSpectralData.lastRunAt || null;
+    this.modalSpectralLastError = modalSpectralData.lastError || null;
+
+    this.modalSpectralLastPayload = modalSpectralData.lastPayload || null;
+    this.modalSpectralLastResult = modalSpectralData.lastResult || null;
+    this.modalSpectralLastTable = Array.isArray(modalSpectralData.lastTable) ? modalSpectralData.lastTable : [];
+
+    // BLOQUE 7Q-C
+    this.modalSpectralReportHistory = Array.isArray(modalSpectralData.reportHistory)
+      ? modalSpectralData.reportHistory
+      : [];
+
+    // ============================================================
+    // BLOQUE 7T-A - Restaurar opciones Modal Spectral desde JSON
+    // ============================================================
+
+    this.ensureModalSpectralOptions?.({
+      modalSpectralOptions: modalSpectralData.modalSpectralOptions || modalSpectralData.analysisOptions || {},
+
+      modalSpectralModelCalibration:
+        modalSpectralData.modalSpectralModelCalibration || modalSpectralData.modelCalibration || {},
+    });
+
+    if (!this.responseSpectrumFunctions) {
+      this.responseSpectrumFunctions = {
+        items: [],
+        selectedFunction: null,
+      };
+    }
+
+    if (modalSpectralData.responseSpectrumFunctions?.items) {
+      this.responseSpectrumFunctions = {
+        items: modalSpectralData.responseSpectrumFunctions.items || [],
+        selectedFunction: modalSpectralData.responseSpectrumFunctions.selectedFunction ?? null,
+      };
+    }
+
+    if (!this.responseSpectrumCases) {
+      this.responseSpectrumCases = {
+        items: [],
+        selectedCase: null,
+      };
+    }
+
+    if (modalSpectralData.responseSpectrumCases?.items) {
+      this.responseSpectrumCases = {
+        items: modalSpectralData.responseSpectrumCases.items || [],
+        selectedCase: modalSpectralData.responseSpectrumCases.selectedCase ?? null,
+      };
+    }
+
+    if (!this.analysisResults) {
+      this.analysisResults = {};
+    }
+
+    this.analysisResults.modalSpectral = {
+      type: "modal-spectral-results-package",
+      restoredFromJson: true,
+      restoredAt: new Date().toISOString(),
+      raw: this.modalSpectralLastResult,
+      table: this.modalSpectralLastTable,
+      summary: this.modalSpectralLastResult?.analysis_summary || null,
+
+      // BLOQUE 7T-A
+      options: this.modalSpectralOptions || null,
+      modelCalibration: this.modalSpectralModelCalibration || null,
+    };
+
+    window.jhackModalSpectralLastResult = this.modalSpectralLastResult;
+    window.jhackModalSpectralLastTable = this.modalSpectralLastTable;
+
+    console.log("✅ Modal Spectral restaurado desde JSON:", {
+      status: this.modalSpectralStatus,
+      cases: this.modalSpectralLastTable.length,
+      hasResult: !!this.modalSpectralLastResult,
+
+      // BLOQUE 7T-A
+      options: this.modalSpectralOptions,
+      modelCalibration: this.modalSpectralModelCalibration,
+    });
+
+    return true;
+  },
+
   // Open / Save
   openModel() {
     const input = document.createElement("input");
@@ -1649,7 +1914,17 @@ export const fileIOMixin = {
         groups: clean(this.groups?.items, []),
         sectionCuts: clean(this.sectionCuts?.items, []),
 
+        // responseSpectrumFunctions: clean(this.responseSpectrumFunctions?.items, []),
         responseSpectrumFunctions: clean(this.responseSpectrumFunctions?.items, []),
+        responseSpectrumFunctionsState: clean(this.responseSpectrumFunctions, {
+          items: [],
+          selectedFunction: null,
+        }),
+        responseSpectrumCases: clean(this.responseSpectrumCases?.items, []),
+        responseSpectrumCasesState: clean(this.responseSpectrumCases, {
+          items: [],
+          selectedCase: null,
+        }),
         timeHistoryFunctions: clean(this.timeHistoryFunctions?.items, []),
 
         staticLoadCases: clean(this.staticLoadCases?.items, []),
@@ -1670,6 +1945,13 @@ export const fileIOMixin = {
         dynamicParams: clean(this.dynamicParams, {}),
         availableLoads: clean(this.availableLoads, []),
         analysisOptions: clean(this.analysisOptions || null),
+        // BLOQUE 7T-A
+        modalSpectralOptions: clean(this.modalSpectralOptions, this.getDefaultModalSpectralOptions?.() || {}),
+
+        modalSpectralModelCalibration: clean(
+          this.modalSpectralModelCalibration,
+          this.getDefaultModalSpectralModelCalibration?.() || {},
+        ),
         canvasTheme: this.activeCanvasTheme || "dark",
       },
 
@@ -1683,6 +1965,8 @@ export const fileIOMixin = {
 
         analysisResults: clean(this.analysisResults, null),
         modelCheck: clean(this.modelCheck, null),
+
+        modalSpectralAnalysis: clean(this.buildModalSpectralSaveData?.(), null),
       },
 
       // Compatibilidad con el formato anterior
@@ -1699,6 +1983,21 @@ export const fileIOMixin = {
       groups: clean(this.groups?.items, []),
       massSource: clean(this.massSource),
       dynamicParams: clean(this.dynamicParams),
+
+      responseSpectrumFunctions: clean(this.responseSpectrumFunctions?.items, []),
+      responseSpectrumFunctionsState: clean(this.responseSpectrumFunctions, {
+        items: [],
+        selectedFunction: null,
+      }),
+
+      responseSpectrumCases: clean(this.responseSpectrumCases?.items, []),
+      responseSpectrumCasesState: clean(this.responseSpectrumCases, {
+        items: [],
+        selectedCase: null,
+      }),
+
+      // BLOQUE 7J
+      modalSpectralAnalysis: clean(this.buildModalSpectralSaveData?.(), null),
     };
 
     console.log("💾 Export JSON completo:", {
@@ -2200,9 +2499,61 @@ export const fileIOMixin = {
 
       this.sectionCuts.items = cleanClone(definitions.sectionCuts || data.sectionCuts, []);
 
-      if (this.responseSpectrumFunctions) {
-        this.responseSpectrumFunctions.items = cleanClone(definitions.responseSpectrumFunctions, []);
+      // ===============================
+      // RESPONSE SPECTRUM FUNCTIONS
+      // ===============================
+      if (!this.responseSpectrumFunctions) {
+        this.responseSpectrumFunctions = {
+          items: [],
+          selectedFunction: null,
+        };
       }
+
+      const importedResponseSpectrumFunctionsState =
+        definitions.responseSpectrumFunctionsState || data.responseSpectrumFunctionsState || null;
+
+      if (importedResponseSpectrumFunctionsState) {
+        this.responseSpectrumFunctions = {
+          items: cleanClone(importedResponseSpectrumFunctionsState.items, []),
+          selectedFunction: importedResponseSpectrumFunctionsState.selectedFunction ?? null,
+        };
+      } else {
+        this.responseSpectrumFunctions.items = cleanClone(
+          definitions.responseSpectrumFunctions || data.responseSpectrumFunctions,
+          [],
+        );
+
+        this.responseSpectrumFunctions.selectedFunction = this.responseSpectrumFunctions.items[0]?.id || null;
+      }
+
+      // ===============================
+      // RESPONSE SPECTRUM CASES
+      // ===============================
+      if (!this.responseSpectrumCases) {
+        this.responseSpectrumCases = {
+          items: [],
+          selectedCase: null,
+        };
+      }
+
+      const importedResponseSpectrumCasesState =
+        definitions.responseSpectrumCasesState || data.responseSpectrumCasesState || null;
+
+      if (importedResponseSpectrumCasesState) {
+        this.responseSpectrumCases = {
+          items: cleanClone(importedResponseSpectrumCasesState.items, []),
+          selectedCase: importedResponseSpectrumCasesState.selectedCase ?? null,
+        };
+      } else {
+        this.responseSpectrumCases.items = cleanClone(
+          definitions.responseSpectrumCases || data.responseSpectrumCases,
+          [],
+        );
+
+        this.responseSpectrumCases.selectedCase = this.responseSpectrumCases.items[0]?.id || null;
+      }
+
+      this.ensureResponseSpectrumDefinitions?.();
 
       if (this.timeHistoryFunctions) {
         this.timeHistoryFunctions.items = cleanClone(definitions.timeHistoryFunctions, []);
@@ -2284,6 +2635,28 @@ export const fileIOMixin = {
         this.analysisOptions = cleanClone(options.analysisOptions || data.analysisOptions);
       }
 
+      // ============================================================
+      // BLOQUE 7T-A - Restaurar opciones Modal Spectral desde options
+      // ============================================================
+      if (
+        options.modalSpectralOptions ||
+        options.modalSpectralModelCalibration ||
+        data.modalSpectralOptions ||
+        data.modalSpectralModelCalibration
+      ) {
+        this.ensureModalSpectralOptions?.({
+          modalSpectralOptions:
+            options.modalSpectralOptions ||
+            data.modalSpectralOptions ||
+            {},
+
+          modalSpectralModelCalibration:
+            options.modalSpectralModelCalibration ||
+            data.modalSpectralModelCalibration ||
+            {},
+        });
+      }
+
       if (options.availableLoads) {
         this.availableLoads = cleanClone(options.availableLoads, []);
       }
@@ -2310,6 +2683,26 @@ export const fileIOMixin = {
       this.analysisResults = cleanClone(results.analysisResults, null);
 
       this.modelCheck = cleanClone(results.modelCheck, null);
+
+      // ============================================================
+      // BLOQUE 7J - Restaurar Modal Spectral desde JSON
+      // ============================================================
+      const importedModalSpectralData =
+        data.modalSpectralAnalysis ||
+        results.modalSpectralAnalysis ||
+        null;
+
+      if (importedModalSpectralData) {
+        this.restoreModalSpectralSaveData(importedModalSpectralData);
+      } else if (this.analysisResults?.modalSpectral?.raw) {
+        this.restoreModalSpectralSaveData({
+          version: "7J-legacy-analysisResults",
+          status: "loaded_from_analysisResults",
+          lastPayload: null,
+          lastResult: this.analysisResults.modalSpectral.raw,
+          lastTable: this.analysisResults.modalSpectral.table || [],
+        });
+      }
 
       if (this.analysisOptions && this.modelCheck) {
         this.analysisOptions.lastModelCheck = {
@@ -3418,13 +3811,22 @@ export const fileIOMixin = {
     // Valores de sección: A=2840mm²=0.00284m², Iz=12.1e-6m⁴, Iy=1.83e-6m⁴, J=0.11e-6m⁴
     const sec = { A: 0.00284, E: 200e9, G: 77e9, Iz: 12.1e-6, Iy: 1.83e-6, J: 0.11e-6 };
 
-    const corners = [[0,0],[5,0],[5,5],[0,5]];
-    const base  = corners.map(([x,y]) => cadSystem.crearNodo3D(x, y, 0, 0, 0, 0, 'soporteUno'));
-    const piso1 = corners.map(([x,y]) => cadSystem.crearNodo3D(x, y, 3, 0, 0, 0, ''));
-    const piso2 = corners.map(([x,y]) => cadSystem.crearNodo3D(x, y, 6, 0, 0, 0, ''));
+    const corners = [
+      [0, 0],
+      [5, 0],
+      [5, 5],
+      [0, 5],
+    ];
+    const base = corners.map(([x, y]) => cadSystem.crearNodo3D(x, y, 0, 0, 0, 0, "soporteUno"));
+    const piso1 = corners.map(([x, y]) => cadSystem.crearNodo3D(x, y, 3, 0, 0, 0, ""));
+    const piso2 = corners.map(([x, y]) => cadSystem.crearNodo3D(x, y, 6, 0, 0, 0, ""));
 
     // Masa 10 t/nodo en cada piso = 40 t/nivel (típico losa residencial)
-    [...piso1, ...piso2].forEach(n => { n.mass_x = 10000; n.mass_y = 10000; n.mass = 10000; });
+    [...piso1, ...piso2].forEach((n) => {
+      n.mass_x = 10000;
+      n.mass_y = 10000;
+      n.mass = 10000;
+    });
 
     const addBeam = (ni, nj) => {
       const b = cadSystem.crearBarra3D(ni, nj);
@@ -3445,7 +3847,9 @@ export const fileIOMixin = {
 
     this.sync3D();
     this.redraw();
-    this.showMessage('Edificio sísmico de 2 pisos cargado. Asigna el espectro en Analyze → Seismic Spectral Analysis y verifica periodos T₁≈0.4–0.7s.');
+    this.showMessage(
+      "Edificio sísmico de 2 pisos cargado. Asigna el espectro en Analyze → Seismic Spectral Analysis y verifica periodos T₁≈0.4–0.7s.",
+    );
   },
 
   testTorreConCargaExcentrica() {
@@ -3529,5 +3933,4 @@ export const fileIOMixin = {
   toggleView3D() {
     return toggleView3D(this);
   },
-
 };

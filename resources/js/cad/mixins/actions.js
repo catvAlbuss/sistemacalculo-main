@@ -561,6 +561,9 @@ export const actionsMixin = {
       case "show-member-forces":
         this.openShowMemberForcesDialog();
         break;
+      case "show-modal-spectral-results":
+        this.openModalSpectralResultsDialog();
+        break;
 
       default:
         this.showMessage?.(`Acción Display no reconocida: ${action}`, "warning");
@@ -680,5 +683,4 @@ export const actionsMixin = {
       },
     };
   },
-
 };
