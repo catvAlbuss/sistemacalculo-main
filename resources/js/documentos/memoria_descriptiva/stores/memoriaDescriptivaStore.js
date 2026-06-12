@@ -59,7 +59,9 @@ async function saveImagesToIDB(userId, data) {
         cleanData.coverImage = data.coverImage;
     }
 
-    cleanData.demolicionImagenes = data.demolicionImagenes || {};
+    // Spread to plain object — Alpine reactive Proxies throw DataCloneError in IDB structured clone
+    const demolSrc = data.demolicionImagenes || {};
+    cleanData.demolicionImagenes = Object.keys(demolSrc).reduce((acc, k) => { acc[k] = demolSrc[k]; return acc; }, {});
 
     try {
         const db = await openIDB();
@@ -521,6 +523,20 @@ export function createMemoriaDescriptivaStore() {
 
         save() {
             return saveToStorage(this);
+        },
+
+        // Solo persiste texto en localStorage — NO toca IndexedDB.
+        // Usar en initDefaultData/initDefaultArrays para evitar sobrescribir
+        // imágenes en IDB con null antes de que loadImages() las recupere.
+        saveTextOnly() {
+            const storageKey = getStorageKey();
+            try {
+                const toSave = { cover: coverWithoutImages(this.cover), sections: sectionsWithoutImages(this.sections) };
+                localStorage.setItem(storageKey, JSON.stringify(toSave));
+                localStorage.setItem(`${STORAGE_KEY}_owner`, getStorageOwner());
+            } catch (e) {
+                console.warn('Error en saveTextOnly:', e);
+            }
         },
 
         resetAll() {

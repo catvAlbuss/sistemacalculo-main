@@ -335,8 +335,8 @@ function memoriaDescriptiva() {
                 dp.uei = store.cover.uei || "Municipalidad Provincial de Ucayali";
             }
 
-            // Guardar los cambios en localStorage
-            store.save();
+            // Guardar SOLO texto — no tocar IDB para no borrar imágenes antes de loadImages()
+            store.saveTextOnly();
 
         },
         initDefaultArrays() {
@@ -380,7 +380,8 @@ function memoriaDescriptiva() {
                 store.sections.marcoTeorico.elementosEstructurales = this.getDefaultElementosEstructurales();
             }
 
-            store.save();
+            // Guardar SOLO texto — no tocar IDB para no borrar imágenes antes de loadImages()
+            store.saveTextOnly();
         },
 
         getDefaultModulos() {
