@@ -15,7 +15,7 @@
                         class="mb-3 border-b border-gray-200 pb-2 text-xs font-semibold uppercase tracking-widest text-gray-600 dark:border-gray-700 dark:text-gray-400">
                         Versión de la Norma
                     </p>
-                    <div class="mb-6 grid grid-cols-3 gap-2">
+                    <div class="mb-6 grid grid-cols-4 gap-2">
                         <button
                             class="ver-btn rounded-lg border border-gray-300 bg-white py-2 text-center text-xs font-medium text-gray-700 transition hover:border-red-600 hover:bg-red-600 hover:text-white dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
                             data-v="1977" id="btn1977">RNC<br>1977</button>
@@ -34,6 +34,12 @@
                         <button
                             class="ver-btn rounded-lg border border-gray-300 bg-white py-2 text-center text-xs font-medium text-gray-700 transition hover:border-red-600 hover:bg-red-600 hover:text-white dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
                             data-v="2026" id="btn2026">E.030<br>2026★</button>
+                        <button
+                            class="ver-btn rounded-lg border border-gray-300 bg-white py-2 text-center text-xs font-medium text-gray-700 transition hover:border-red-600 hover:bg-red-600 hover:text-white dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                            data-v="e031" id="btne031">E.031<br>Aisla.</button>
+                        <button
+                            class="ver-btn rounded-lg border border-gray-300 bg-white py-2 text-center text-xs font-medium text-gray-700 transition hover:border-red-600 hover:bg-red-600 hover:text-white dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                            data-v="puentes" id="btnpuentes">Puentes<br>MTC</button>
                     </div>
 
                     {{-- Ubicación y Zona Sísmica --}}
@@ -73,6 +79,9 @@
                         </p>
                     </div>
 
+                    {{-- ── Zona + Suelo (oculto para Puentes) ── --}}
+                    <div id="grupo-zona-suelo">
+
                     {{-- Zona Z --}}
                     <div class="mb-4">
                         <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
@@ -95,6 +104,10 @@
                             class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500"></select>
                     </div>
 
+                    </div>{{-- /grupo-zona-suelo --}}
+
+                    {{-- ── Uso (oculto para Puentes) ── --}}
+                    <div id="grupo-uso">
                     {{-- Categoría U --}}
                     <div class="mb-4">
                         <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
@@ -104,13 +117,16 @@
                         </label>
                         <select id="uso"
                             class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500">
-                            <option value="1.5">A1 — Hospitales esenciales (U=1.5)</option>
+                            <option value="1.8">A1 — Imp. mayor / Hospitales (U=1.8)</option>
                             <option value="1.5">A2 — Hospitales, cuarteles (U=1.5)</option>
                             <option value="1.3">B — Importantes (U=1.3)</option>
                             <option value="1.0" selected>C — Comunes (U=1.0)</option>
-                            <option value="0.8">D — Temporales (U=0.8)</option>
                         </select>
                     </div>
+                    </div>{{-- /grupo-uso --}}
+
+                    {{-- ── Sistema + Ts + Irregularidades (solo E.030) ── --}}
+                    <div id="grupo-e030-estruct">
 
                     {{-- Sistema Estructural R --}}
                     <div class="mb-4">
@@ -198,6 +214,93 @@
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">— Según Art. 23-24 de E.030</p>
                     </div>
 
+                    </div>{{-- /grupo-e030-estruct --}}
+
+                    {{-- ── E.031 Aislamiento Sísmico ── --}}
+                    <div id="grupo-e031" style="display:none">
+                        <p class="mb-3 border-b border-gray-200 pb-2 text-xs font-semibold uppercase tracking-widest text-gray-600 dark:border-gray-700 dark:text-gray-400">
+                            Parámetros E.031 Aislamiento
+                        </p>
+                        <div class="mb-4">
+                            <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                Sistema de Aislamiento
+                                <span class="rounded border border-teal-300 bg-teal-50 px-2 py-0.5 text-xs text-teal-700 dark:border-teal-700 dark:bg-teal-900 dark:text-teal-300">Riso</span>
+                            </label>
+                            <select id="e031_R"
+                                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-teal-500">
+                                <option value="2">Elastomérico de bajo amortiguamiento (Riso=2)</option>
+                                <option value="2">Elastomérico de alto amortiguamiento (Riso=2)</option>
+                                <option value="2" selected>Péndulo de fricción (Riso=2)</option>
+                                <option value="1.5">Sistema mixto (Riso=1.5)</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                Factor de amortiguamiento efectivo
+                                <span class="rounded border border-teal-300 bg-teal-50 px-2 py-0.5 text-xs text-teal-700 dark:border-teal-700 dark:bg-teal-900 dark:text-teal-300">B</span>
+                            </label>
+                            <select id="e031_beta"
+                                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-teal-500">
+                                <option value="0.8">β ≤ 2 %  → B = 0.80</option>
+                                <option value="1.0" selected>β = 5 %  → B = 1.00</option>
+                                <option value="1.2">β = 10 % → B = 1.20</option>
+                                <option value="1.5">β = 20 % → B = 1.50</option>
+                                <option value="1.7">β = 30 % → B = 1.70</option>
+                                <option value="1.9">β = 40 % → B = 1.90</option>
+                                <option value="2.0">β ≥ 50 % → B = 2.00</option>
+                            </select>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">— Tabla 1 de NTE E.031</p>
+                        </div>
+                    </div>{{-- /grupo-e031 --}}
+
+                    {{-- ── Puentes MTC / AASHTO LRFD ── --}}
+                    <div id="grupo-puentes" style="display:none">
+                        <p class="mb-3 border-b border-gray-200 pb-2 text-xs font-semibold uppercase tracking-widest text-gray-600 dark:border-gray-700 dark:text-gray-400">
+                            Parámetros Puentes MTC
+                        </p>
+                        <div class="mb-4">
+                            <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                Coeficiente de aceleración
+                                <span class="rounded border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:border-blue-700 dark:bg-blue-900 dark:text-blue-300">A</span>
+                            </label>
+                            <select id="puente_A"
+                                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <option value="0.10">Zona 1 — A = 0.10 g</option>
+                                <option value="0.25">Zona 2 — A = 0.25 g</option>
+                                <option value="0.35">Zona 3 — A = 0.35 g</option>
+                                <option value="0.45" selected>Zona 4 — A = 0.45 g</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                Clase de sitio
+                                <span class="rounded border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:border-blue-700 dark:bg-blue-900 dark:text-blue-300">S</span>
+                            </label>
+                            <select id="puente_suelo"
+                                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <option value="I">I — Roca / Suelo duro (S=1.0)</option>
+                                <option value="II" selected>II — Suelo firme (S=1.2)</option>
+                                <option value="III">III — Suelo intermedio (S=1.5)</option>
+                                <option value="IV">IV — Suelo blando/profundo (S=2.0)</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                Factor de reducción
+                                <span class="rounded border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:border-blue-700 dark:bg-blue-900 dark:text-blue-300">R</span>
+                            </label>
+                            <select id="puente_R"
+                                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <option value="1.0">Esencialmente elástico (R=1.0)</option>
+                                <option value="1.5">Ductilidad limitada (R=1.5)</option>
+                                <option value="2.0" selected>Ductilidad moderada (R=2.0)</option>
+                                <option value="3.0">Ductilidad total (R=3.0)</option>
+                                <option value="5.0">Puente con aisladores (R=5.0)</option>
+                            </select>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">— Según Manual Puentes MTC Tabla 3.7.1</p>
+                        </div>
+                    </div>{{-- /grupo-puentes --}}
+
                     <hr class="my-4 border-gray-200 dark:border-gray-700">
 
                     {{-- Configuración del espectro --}}
@@ -240,7 +343,7 @@
                         ▶ GENERAR ESPECTRO
                     </button>
 
-                    <div id="params-out" class="mt-4 hidden grid grid-cols-2 gap-2"></div>
+                    <div id="params-out" class="mt-4 grid-cols-2 gap-2" style="display:none"></div>
 
                 </div>
 
@@ -301,7 +404,7 @@
                                     <tr class="border-b border-gray-200 text-xs text-gray-500 dark:border-gray-700">
                                         <th class="px-4 py-2 text-left font-medium">T (s)</th>
                                         <th class="px-4 py-2 text-left font-medium">Sa (g)</th>
-                                        <th class="px-4 py-2 text-left font-medium">C</th>
+                                        <th class="px-4 py-2 text-left font-medium" id="tabla-c-head">C</th>
                                         <th class="px-4 py-2 text-left font-medium">Sa (m/s²)</th>
                                     </tr>
                                 </thead>
