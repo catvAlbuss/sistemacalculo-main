@@ -6237,9 +6237,7 @@ export default () => ({
     this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
     this.redraw?.();
 
-    this.showMessage?.(
-      `Restraints asignados a ${selectedJoints.length} nodo(s).`
-    );
+    this.showMessage?.(`Restraints asignados a ${selectedJoints.length} nodo(s).`);
 
     console.log("✅ Joint Restraints asignados:", {
       restraints,
