@@ -96,6 +96,27 @@ function clearByPrefix(prefixes) {
   });
 }
 
+// También crea una función específica para limpiar labels
+function clearAllLabels() {
+  const viewer = getViewer3DState();
+  if (!viewer || !viewer.elements) return;
+
+  viewer.elements = viewer.elements.filter((el) => {
+    // Eliminar elementos que son labels
+    const isStoryLabel = el?.name?.startsWith("story_label_");
+    const isElevLabel = el?.name?.startsWith("elev_label_");
+    const isRefLabel = el?.name?.startsWith("ref_") && (el?.name?.includes("label") || el?.name?.includes("Label"));
+    const isStoryMat = el?.material?.name?.startsWith("story_mat_");
+    const isElevMat = el?.material?.name?.startsWith("elev_mat_");
+
+    if (isStoryLabel || isElevLabel || isRefLabel || isStoryMat || isElevMat) {
+      if (el?.dispose) el.dispose();
+      return false;
+    }
+    return true;
+  });
+}
+
 function getReferenceBounds(refGrid) {
   const minX = Math.min(...refGrid.xPositions);
   const maxX = Math.max(...refGrid.xPositions);
@@ -372,6 +393,23 @@ function drawReferenceStructure(refGrid) {
 
 export function clearReferenceGrid3D() {
   clearByPrefix(["ref_", "activeview_"]);
+
+  // Limpiar labels de pisos y elevaciones
+  const viewer = getViewer3DState();
+  if (viewer && viewer.elements) {
+    viewer.elements = viewer.elements.filter((el) => {
+      const isStoryLabel = el?.name?.startsWith("story_label_");
+      const isElevLabel = el?.name?.startsWith("elev_label_");
+      const isStoryMat = el?.material?.name?.startsWith("story_mat_");
+      const isElevMat = el?.material?.name?.startsWith("elev_mat_");
+
+      if (isStoryLabel || isElevLabel || isStoryMat || isElevMat) {
+        if (el?.dispose) el.dispose();
+        return false;
+      }
+      return true;
+    });
+  }
 }
 
 export function drawReferenceGrid3D(context) {
@@ -382,7 +420,26 @@ export function drawReferenceGrid3D(context) {
 
   if (!refGrid.xPositions?.length || !refGrid.yPositions?.length) return;
 
+  // 🔧 Limpiar completamente antes de redibujar
   clearReferenceGrid3D();
+
+  // También limpiar labels específicos que puedan quedar
+  const viewer = getViewer3DState();
+  if (viewer && viewer.elements) {
+    viewer.elements = viewer.elements.filter((el) => {
+      const shouldRemove =
+        el?.name?.startsWith("story_label_") ||
+        el?.name?.startsWith("elev_label_") ||
+        (el?.material && el.material.name && el.material.name.startsWith("story_mat_")) ||
+        (el?.material && el.material.name && el.material.name.startsWith("elev_mat_"));
+      if (shouldRemove && el?.dispose) {
+        el.dispose();
+        return false;
+      }
+      return true;
+    });
+  }
+
   drawReferenceStructure(refGrid);
   drawActiveView(refGrid, context);
 }
@@ -572,7 +629,7 @@ function getAxisElevationLabels(refGrid) {
       labels.push({
         text: label,
         position: mapToBabylon(x, minY - offset, 0),
-        type: 'x_bottom'
+        type: "x_bottom",
       });
     });
   }
@@ -584,53 +641,67 @@ function getAxisElevationLabels(refGrid) {
       labels.push({
         text: String(label),
         position: mapToBabylon(minX - offset, y, 0),
-        type: 'y_bottom'
+        type: "y_bottom",
       });
     });
   }
-  
+
   return labels;
 }
 
-function drawStoryElevationLabels(refGrid) {
-  const storyLabels = getStoryElevationLabels(refGrid);
-  const scene = getScene();
+let lastDrawnStories = null;
+let lastDrawnGrid = null;
 
-  if (!scene) {
-    console.warn("❌ No scene found");
-    return;
+function drawStoryElevationLabels(refGrid) {
+  const scene = getScene();
+  if (!scene) return;
+
+  // Limpiar labels de pisos anteriores ANTES de crear nuevos
+  const viewer = getViewer3DState();
+  if (viewer && viewer.elements) {
+    viewer.elements = viewer.elements.filter((el) => {
+      const isStoryLabel = el?.name?.startsWith("story_label_");
+      if (isStoryLabel) {
+        if (el?.dispose) el.dispose();
+        return false;
+      }
+      return true;
+    });
   }
 
+  const storyLabels = getStoryElevationLabels(refGrid);
+
   storyLabels.forEach((labelInfo) => {
-    
     const label = createStoryLabel3D(labelInfo.text, labelInfo.position, scene, COLORS.text);
     if (label) {
       registerElement(label);
-    } else {
-      console.warn("❌ Failed to create label:", labelInfo.text);
     }
   });
 }
 
 function drawAxisElevationLabels(refGrid) {
-  const axisLabels = getAxisElevationLabels(refGrid);
   const scene = getScene();
-
   if (!scene) return;
 
-  // Usar un Set para evitar duplicados por nombre
-  const createdLabels = new Set();
+  const axisLabels = getAxisElevationLabels(refGrid);
+
+  // Limpiar labels anteriores antes de crear nuevos
+  const viewer = getViewer3DState();
+  if (viewer && viewer.elements) {
+    viewer.elements = viewer.elements.filter((el) => {
+      const isElevLabel = el?.name?.startsWith("elev_label_");
+      if (isElevLabel) {
+        if (el?.dispose) el.dispose();
+        return false;
+      }
+      return true;
+    });
+  }
 
   axisLabels.forEach((labelInfo) => {
-    // Crear un ID único para evitar duplicados
-    const labelId = `${labelInfo.text}_${labelInfo.position.x}_${labelInfo.position.y}_${labelInfo.position.z}`;
-    
-    if (!createdLabels.has(labelId)) {
-      createdLabels.add(labelId);
-      const label = createElevationLabel3D(labelInfo.text, labelInfo.position, scene, COLORS.text);
-      if (label) {
-        registerElement(label);
-      }
+    const label = createElevationLabel3D(labelInfo.text, labelInfo.position, scene, COLORS.text);
+    if (label) {
+      registerElement(label);
     }
   });
 }

@@ -1,0 +1,2 @@
+
+<?php echo $__env->make('layouts.main', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH C:\laragon\www\sistemacalculo-main\resources\views/layouts/app.blade.php ENDPATH**/ ?>

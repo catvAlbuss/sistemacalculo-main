@@ -35,7 +35,7 @@
     </x-cad.ribbon-group>
     <!-- -------------------------APARTADO DE TAREAS -------------------------- -->
     <x-cad.ribbon-group title="Tareas">
-      <form class="flex flex-row" x-on:submit="calcularFuerzasHybrid">
+      <form class="flex flex-row" x-on:submit.prevent="calcularFuerzas" id="run-analysis-form">
         @csrf
         <x-cad.ribbon-button clickHandler="" toggle="false" label="Correr">
           <x-cad.svg.run></x-cad.svg.run>
@@ -52,23 +52,23 @@
         <x-cad.svg.wireframe></x-cad.svg.wireframe>
       </x-cad.ribbon-button>
       <!-- SECCION DE FUERZAZ -->
-      <x-cad.ribbon-button-subitem clickHandler="options.showForces = !options.showForces" label="Fuerzas"
+      <x-cad.ribbon-button-subitem clickHandler="showForces()" label="Fuerzas"
         toggle="options.showForces">
         <x-slot name="slot1"><x-cad.svg.force></x-cad.svg.force></x-slot>
         <x-slot name="slot2">
           <div class="flex flex-row justify-between gap-1">
             <label for="fCM">CM</label>
-            <input id="fCM" name="fCM" type="radio" value="CM" x-model="options.currentLoad">
+            <input id="fCM" name="fCM" type="radio" value="CM" x-model="options.currentLoad" @change="sync3D()">
             <label for="fCV">CV</label>
-            <input id="fCV" name="fCV" type="radio" value="CV" x-model="options.currentLoad">
+            <input id="fCV" name="fCV" type="radio" value="CV" x-model="options.currentLoad" @change="sync3D()">
             <label for="fCVVM">CVV-</label>
-            <input id="fCVVM" name="fCVVM" type="radio" value="CVVM" x-model="options.currentLoad">
+            <input id="fCVVM" name="fCVVM" type="radio" value="CVVM" x-model="options.currentLoad" @change="sync3D()">
             <label for="fCVVP">CVV+</label>
-            <input id="fCVVP" name="fCVVP" type="radio" value="CVVP" x-model="options.currentLoad">
+            <input id="fCVVP" name="fCVVP" type="radio" value="CVVP" x-model="options.currentLoad" @change="sync3D()">
             <label for="fCN">CN</label>
-            <input id="fCN" name="fCN" type="radio" value="CN" x-model="options.currentLoad">
+            <input id="fCN" name="fCN" type="radio" value="CN" x-model="options.currentLoad" @change="sync3D()">
             <label for="fCLL">CLL</label>
-            <input id="fCLL" name="fCLL" type="radio" value="CLL" x-model="options.currentLoad">
+            <input id="fCLL" name="fCLL" type="radio" value="CLL" x-model="options.currentLoad" @change="sync3D()">
           </div>
         </x-slot>
       </x-cad.ribbon-button-subitem>
@@ -84,17 +84,17 @@
     </x-cad.ribbon-group>
     <!-- -------------------------APARTADO DE LOS RESULTADOS------------------------ -->
     <x-cad.ribbon-group title="Resultados">
-      <x-cad.ribbon-button-subitem clickHandler="options.showDeflection = !options.showDeflection" label="Deflección"
+      <x-cad.ribbon-button-subitem clickHandler="showDeflections()" label="Deflección"
         toggle="options.showDeflection">
         <x-slot name="slot1">
           <x-cad.svg.deflection></x-cad.svg.deflection>
         </x-slot>
         <x-slot name="slot2">
           <input id="dEscala" name="dEscala" type="range" min="1" max="1000" step="1"
-            x-model="options.deflectionScale" x-on:input="calcularDeflecciones()">
+            x-model="options.deflectionScale" @input="updateDeflectionScale()">
         </x-slot>
       </x-cad.ribbon-button-subitem>
-      <x-cad.ribbon-button clickHandler="options.showReactions = !options.showReactions" toggle="options.showReactions"
+      <x-cad.ribbon-button clickHandler="showReactions()" toggle="options.showReactions"
         label="Reacción">
         <x-cad.svg.reaction></x-cad.svg.reaction>
       </x-cad.ribbon-button>
@@ -149,17 +149,31 @@
 
     <!-- Dentro del grupo "3D", añade: -->
     <x-cad.ribbon-group title="Edificio">
-      <x-cad.ribbon-button clickHandler="showTestFrame()" toggle="false" label="Pórtico Prueba">
+      <!-- <x-cad.ribbon-button clickHandler="showTestFrame()" toggle="false" label="Pórtico Prueba">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v18" />
         </svg>
-      </x-cad.ribbon-button>
+      </x-cad.ribbon-button> -->
 
       <!-- Elevar selección -->
       <x-cad.ribbon-button clickHandler="elevateSelectedNodes()" toggle="false" label="Elevar +1m">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+        </svg>
+      </x-cad.ribbon-button>
+
+      <x-cad.ribbon-button clickHandler="testEdificioSismico()" toggle="false" label="Edificio Sísmico (Test)">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 21h18M3 10h18M3 7l9-4 9 4M4 10v11M20 10v11M8 10v11M12 10v11M16 10v11" />
+        </svg>
+      </x-cad.ribbon-button>
+
+      <x-cad.ribbon-button clickHandler="testTorreConCargaExcentrica()" toggle="false" label="Torre Carga Excentrica">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 19v-6h13m0 0V5a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h3m7 0v6m-4 0h4" />
         </svg>
       </x-cad.ribbon-button>
 

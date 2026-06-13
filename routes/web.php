@@ -39,7 +39,7 @@ Route::get('/api/opensees/status', function () {
 Route::post('/api/opensees/analyze', [OpenSeesController::class, 'analyze']);
 
 //=======================Landing=========================================//
-Route::view('/servicios/diseño_estructural', 'landing.structural_design')->name('landing.services.structural_design');
+Route::view('/servicios/diseno_estructural', 'landing.structural_design')->name('landing.services.structural_design');
 Route::view('/servicios/software_estructural', 'landing.structural_software')->name('landing.services.structural_software');
 Route::view('/servicios/planos_estructurales', 'landing.structural_blueprint')->name('landing.services.structural_blueprint');
 Route::view('/servicios/metrados', 'landing.metrados')->name('landing.services.metrados');
@@ -118,9 +118,10 @@ Route::middleware(["auth", "verified"])->group(function () {
         //==================CALCULADORA ASISTENTE (Root, Gerencia, Asistente)//
         Route::middleware(['role:root|gerencia|asistente'])->group(function () {
             Route::prefix('asistente')->name('asistente.')->group(function () {
+                
+// Agrega la ruta de admMemoriaCalculo memoria-calculo
+        Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name('memoria-calculo');
 
-                // Agrega la ruta de admMemoriaCalculo memoria-calculo
-                Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name('memoria-calculo');
 
                 // Vigas
                 Route::view('/vigas', 'hcalculo.admdesingvigas')->name('vigas');
@@ -136,7 +137,7 @@ Route::middleware(["auth", "verified"])->group(function () {
                 // Muros
                 Route::view('/muros-de-contencionv2', 'muros-contencion.index')->name('muros-de-contencionv2');
                 Route::view('/muros-de-contencion', 'hcalculo.admMurosContencion')->name('muros-de-contencion');
-                Route::view('/muros-de-albañieria', 'hcalculo.admMurosAlbanieria')->name('muros-de-albañieria');
+                Route::view('/muros-de-albanieria', 'hcalculo.admMurosAlbanieria')->name('muros-de-albanieria');
 
                 // Cimiento
                 Route::view('/cimiento-corrido', 'hcalculo.admCimientoCorrido')->name('cimiento-corrido');
@@ -144,6 +145,7 @@ Route::middleware(["auth", "verified"])->group(function () {
                 // Columnas
                 Route::view('/columna-de-acero', 'hcalculo.admdesingcolumnaAcero')->name('columna-de-acero');
                 Route::view('/columna', 'hcalculo.admdesingcolumna')->name('columna');
+                Route::view('/columna-ii', 'hcalculo.adm_columnaII')->name('columna-ii');
 
                 // Zapata
                 Route::view('/zapata-combinada', 'hcalculo.admZapataCombinada')->name('zapata-combinada');
@@ -158,6 +160,9 @@ Route::middleware(["auth", "verified"])->group(function () {
 
                 // Irregularidades
                 Route::view('/irregularidades', 'hcalculo.admIrregularidades')->name('irregularidades');
+
+                // Espectro Sísmico
+                Route::view('/espectro-sismico', 'hcalculo.espectro-sismico')->name('espectro-sismico');
 
                 // Diseño en madera
                 Route::prefix('diseno-en-madera')->name('diseno-en-madera.')->group(function () {
@@ -178,6 +183,8 @@ Route::middleware(["auth", "verified"])->group(function () {
     });
     Route::prefix("software")->name("software.")->group(function () {
         Route::view('/analisis-estructural-de-armaduras', 'matlab.admAnalisisEstructuralDeArmaduras')->name("analisis-estructural-de-armaduras");
+        Route::view('/etabs2', 'etabs.index')->name("etabs2");
+        Route::view('/etabs', 'matlab.admAnalisisEstructuralDeArmaduras')->name("etabs");
         Route::view('/aligerados-v2', 'matlab.admAligeradosGrafico')->name("aligerados-v2");
         Route::view('/aligerados-v1', 'matlab.admFuerzasCortantesGrafico')->name("aligerados-v1");
         Route::view('/cimentacion-v2', 'matlab.admSafecito')->name("cimentacion-v2");
@@ -194,7 +201,7 @@ Route::middleware(["auth", "verified"])->group(function () {
         Route::view('/verificacion-viga-v1', 'hcalculo.verificaciones.admVigaverifica')->name("verificacion-viga-v1");
 
 
-        Route::view('/predim', 'predim.predim')->name('predim');
+        Route::view('/predimv2', 'predim.predim-new')->name('predimv2');
     });
 
     //===================RUTA DE LOSAS========================================//
@@ -216,12 +223,43 @@ Route::middleware(["auth", "verified"])->group(function () {
     Route::post('/suelos', [OctavePlotController::class, 'calcularSuelos'])->name('suelos');
     //===================OCTAVE===============================================//
     Route::post('/calcularFuerzasArmaduras', [OctavePlotController::class, 'calcularFuerzasArmaduras'])->name('calcularFuerzasArmaduras');
+    Route::post('/calcularFuerzasArmaduras3d', [OctavePlotController::class, 'calcularFuerzasArmaduras3d'])->name('calcularFuerzasArmaduras3d');
     Route::post('/fuerzasCortantes', [OctavePlotController::class, 'graficarFC'])->name('fuerzasCortantes');
     Route::post('/aligerados', [OctavePlotController::class, 'graficarAligerados'])->name('aligerados');
     Route::post('/zapatas', [OctavePlotController::class, 'graficarZapatas'])->name('zapatas');
 });
 
 require __DIR__ . '/auth.php';
+
+// =============================================
+// RUTAS MEMORIA DESCRIPTIVA - VERSIÓN SIMPLE
+// =============================================
+
+// Ruta principal del menú
+Route::get('/calculadora/asistente/memoria-descriptiva', function () {
+    return redirect()->to('/calculadora/asistente/memoria-descriptiva/portada');
+})->name('calculadora.asistente.memoria-descriptiva');
+
+// Rutas directas SIN grupos anidados
+Route::get('/calculadora/asistente/memoria-descriptiva/portada', function () {
+    return view('hcalculo.memoria_descriptiva.sections.portada');
+})->name('calculadora.asistente.memoria-descriptiva.portada');
+
+Route::get('/calculadora/asistente/memoria-descriptiva/generalidades', function () {
+    return view('hcalculo.memoria_descriptiva.sections.generalidades-md');
+})->name('calculadora.asistente.memoria-descriptiva.generalidades');
+
+Route::get('/calculadora/asistente/memoria-descriptiva/consideraciones', function () {
+    return view('hcalculo.memoria_descriptiva.sections.consideraciones');
+})->name('calculadora.asistente.memoria-descriptiva.consideraciones');
+
+Route::get('/calculadora/asistente/memoria-descriptiva/predimensionamiento', function () {
+    return view('hcalculo.memoria_descriptiva.sections.predimensionamiento');
+})->name('calculadora.asistente.memoria-descriptiva.predimensionamiento');
+
+Route::get('/calculadora/asistente/memoria-descriptiva/demolicion', function () {
+    return view('hcalculo.memoria_descriptiva.sections.demolicion');
+})->name('calculadora.asistente.memoria-descriptiva.demolicion');
 Route::prefix('storage')->group(function () {
     // Imágenes de perfil
     Route::get('/profile/{filename}', function ($filename) {
@@ -245,19 +283,3 @@ Route::prefix('storage')->group(function () {
         ]);
     })->name('get.firma');
 });
-
-// =================== RUTAS PARA OPENSEES =================== //
-// Route::middleware(["auth", "verified"])->group(function () {
-//     Route::post('/api/opensees/analyze', [OpenSeesController::class, 'analyze'])
-//         ->name('opensees.analyze');
-    
-//     // Ruta para verificar estado del servicio Python
-//     Route::get('/api/opensees/status', function () {
-//         try {
-//             $response = Http::timeout(2)->get('http://localhost:5001/health');
-//             return response()->json(['status' => 'online', 'version' => 'OpenSeesPy']);
-//         } catch (\Exception $e) {
-//             return response()->json(['status' => 'offline', 'fallback' => 'Octave']);
-//         }
-//     })->name('opensees.status');
-// });

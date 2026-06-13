@@ -6,7 +6,7 @@
                                 LOGO Y VERSIÓN
         ============================================================ --}}
         <div class="text-blue-400 font-bold text-sm px-2 whitespace-nowrap border-r border-gray-600">
-            ETABS v9.7.1
+            ANALISIS 3D ESTRUCTURAL - v0.1.0-alpha
         </div>
 
         {{-- ============================================================
@@ -557,7 +557,6 @@
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
-
                     {{-- ================= ELEMENTOS ESTRUCTURALES ================= --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
                         Elementos Estructurales
@@ -582,7 +581,6 @@
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
-
                     {{-- ================= FUNCIONES DE CARGA ================= --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
                         Funciones de Carga
@@ -601,7 +599,6 @@
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
-
                     {{-- ================= CASOS DE CARGA ================= --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
                         Casos de Carga
@@ -972,6 +969,12 @@
                                 @click.stop="cadSystem.activateAssignMenuAction('joint-springs')">
                                 <span>➿</span>
                                 Point Springs...
+                            </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateAssignMenuAction('joint-mass')">
+                                <span>⚖️</span>
+                                Masses...
                             </button>
                         </x-slot>
                     </x-cad.menu-subitem>

@@ -1025,18 +1025,26 @@
             },
 
             nodeHasRestraint(node) {
+                // 1. Revisar si existen restraints/constraints explícitos
                 const r = node?.restraints || node?.constraints;
+                if (r && (
+                        r.ux === true ||
+                        r.uy === true ||
+                        r.uz === true ||
+                        r.rx === true ||
+                        r.ry === true ||
+                        r.rz === true
+                    )) {
+                    return true;
+                }
 
-                if (!r) return false;
+                // 2. Revisar la propiedad antigua "soporte"
+                if (node?.soporte) {
+                    // Cualquier valor no vacío cuenta como apoyo
+                    return true;
+                }
 
-                return (
-                    r.ux === true ||
-                    r.uy === true ||
-                    r.uz === true ||
-                    r.rx === true ||
-                    r.ry === true ||
-                    r.rz === true
-                );
+                return false;
             },
 
             nodeHasSpring(node) {
