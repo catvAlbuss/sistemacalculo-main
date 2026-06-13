@@ -564,8 +564,12 @@
                                                      return $store.memoriaDescriptiva.sections.descripcionModulos.mapeoImagenes[numero] || null;
                                                  },
                                                 tieneOriginal(n) {
-                                                    return this.mapeo && this.mapeo.archivos && this.mapeo.archivos[n];
-                                                },
+    // Verificación más directa
+    if (!this.mapeo) return false;
+    if (!this.mapeo.archivos) return false;
+    if (!this.mapeo.archivos[n]) return false;
+    return true;
+},
                                                 srcOriginal(n) {
                                                     return this.mapeo ? ('/assets/img/memoria_decriptiva/modulos/' + this.mapeo.archivos[n]) : '';
                                                 },
@@ -612,9 +616,9 @@
                                                              class="h-28 mx-auto object-contain border border-gray-200 dark:border-gray-600 rounded"
                                                              loading="lazy">
                                                         <img x-show="!tieneSubida({{ $n }}) && tieneOriginal({{ $n }})"
-                                                             :src="tieneOriginal({{ $n }}) ? srcOriginal({{ $n }}) : ''"
-                                                             class="h-28 mx-auto object-contain rounded"
-                                                             loading="lazy">
+     :src="srcOriginal({{ $n }})"
+     class="h-28 mx-auto object-contain rounded"
+     loading="lazy">
 
                                                         <button type="button"
                                                                 x-show="tieneSubida({{ $n }})"
@@ -720,3 +724,4 @@
         @vite('resources/js/documentos/memoria_descriptiva/index-refactored-md.js')
     @endPushOnce
 </x-calc-layout>
+    

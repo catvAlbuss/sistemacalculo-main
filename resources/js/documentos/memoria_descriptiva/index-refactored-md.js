@@ -355,7 +355,7 @@ function memoriaDescriptiva() {
                 }
                 console.log('✅ 16 módulos cargados con subtitulosImagenes');
             } else {
-                // MIGRAR MÓDULOS EXISTENTES
+                // MIGRAR MÓDULOS EXISTENTES - SIN FORZAR PISOS
                 for (let i = 0; i < store.sections.descripcionModulos.modulos.length; i++) {
                     const modulo = store.sections.descripcionModulos.modulos[i];
                     if (!modulo.subtitulosImagenes) {
@@ -364,6 +364,8 @@ function memoriaDescriptiva() {
                     if (!modulo.imagenes) {
                         modulo.imagenes = [];
                     }
+                    // 🔥 ELIMINADO: ya no se fuerzan los pisos
+                    // Los pisos se respetan tal como el usuario los dejó
                 }
             }
 

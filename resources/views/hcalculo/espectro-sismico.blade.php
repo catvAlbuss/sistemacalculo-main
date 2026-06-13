@@ -365,7 +365,7 @@
                     </div>
 
                     {{-- Área del gráfico --}}
-                    <div class="relative min-h-[400px] flex-1 rounded-lg bg-gray-100 dark:bg-gray-900">
+                    <div class="relative min-h-100 flex-1 rounded-lg bg-gray-100 dark:bg-gray-900">
                         <div id="empty-state"
                             class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-gray-500 dark:text-gray-400">
                             <span class="text-5xl">📊</span>
