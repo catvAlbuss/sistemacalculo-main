@@ -1187,6 +1187,26 @@
 <?php $component = $__componentOriginal2ebbc2a723cc7df4e49bf0b33312d115; ?>
 <?php unset($__componentOriginal2ebbc2a723cc7df4e49bf0b33312d115); ?>
 <?php endif; ?>
+  <?php if (isset($component)) { $__componentOriginal1a486d7b399fbbff3d23858dd3c38a05 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal1a486d7b399fbbff3d23858dd3c38a05 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.modals.groups-modal','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.modals.groups-modal'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal1a486d7b399fbbff3d23858dd3c38a05)): ?>
+<?php $attributes = $__attributesOriginal1a486d7b399fbbff3d23858dd3c38a05; ?>
+<?php unset($__attributesOriginal1a486d7b399fbbff3d23858dd3c38a05); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal1a486d7b399fbbff3d23858dd3c38a05)): ?>
+<?php $component = $__componentOriginal1a486d7b399fbbff3d23858dd3c38a05; ?>
+<?php unset($__componentOriginal1a486d7b399fbbff3d23858dd3c38a05); ?>
+<?php endif; ?>
   <?php if (isset($component)) { $__componentOriginala3e8a56c221b98348f1909cdee600492 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginala3e8a56c221b98348f1909cdee600492 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.modals.response-spectrum-functions-modal','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>

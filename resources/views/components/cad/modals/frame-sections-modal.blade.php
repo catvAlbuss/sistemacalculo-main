@@ -108,6 +108,10 @@
                     <label class="block text-xs font-semibold text-gray-400 mb-2">Tipo de Sección</label>
                     <div class="flex gap-4 flex-wrap">
                         <label class="flex items-center gap-2">
+                            <input type="radio" value="rect" x-model="form.sectionType">
+                            <span class="text-sm">Rectangular (Concreto)</span>
+                        </label>
+                        <label class="flex items-center gap-2">
                             <input type="radio" value="wf" x-model="form.sectionType">
                             <span class="text-sm">Perfil W (Ala Ancha)</span>
                         </label>
@@ -210,34 +214,94 @@
                     </div>
                 </div>
 
+                {{-- Formulario para Sección Rectangular de Concreto --}}
+                <div x-show="form.sectionType === 'rect'">
+                    <div class="border-t border-gray-700 pt-3 mb-4">
+                        <label class="block text-xs font-semibold text-blue-400 mb-2">Sección Rectangular de Concreto</label>
+
+                        {{-- Material --}}
+                        <div class="mb-3">
+                            <label class="block text-xs text-gray-400">Material</label>
+                            <select x-model="form.rectMaterial" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <option value="">-- Seleccionar material --</option>
+                                <template x-for="mat in materialsList" :key="mat.name">
+                                    <option :value="mat.name" x-text="mat.name + (mat.descripcion ? ' (' + mat.descripcion + ')' : '')"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        {{-- Dimensiones --}}
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400">Ancho, b (cm)</label>
+                                <input type="number" step="0.1" x-model.number="form.rectB" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400">Peralte, h (cm)</label>
+                                <input type="number" step="0.1" x-model.number="form.rectH" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            </div>
+                        </div>
+
+                        {{-- Propiedades calculadas (solo lectura) --}}
+                        <div class="mt-3 p-2 bg-gray-900 rounded border border-gray-700">
+                            <div class="text-xs text-gray-400 mb-1">Propiedades calculadas (SI):</div>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-300 font-mono">
+                                <span>A = <span x-text="rectProps.A.toFixed(6)"></span> m²</span>
+                                <span>J ≈ <span x-text="rectProps.J.toFixed(6)"></span> m⁴</span>
+                                <span>Iz (mayor) = <span x-text="rectProps.Iz.toFixed(6)"></span> m⁴</span>
+                                <span>Iy (menor) = <span x-text="rectProps.Iy.toFixed(6)"></span> m⁴</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {{-- Formulario para Perfil W (Ala Ancha) --}}
                 <div x-show="form.sectionType === 'wf'">
                     <div class="border-t border-gray-700 pt-3 mb-4">
-                        <label class="block text-xs font-semibold text-blue-400 mb-2">Dimensiones del Perfil W</label>
+                        <label class="block text-xs font-semibold text-blue-400 mb-2">Perfil W (Ala Ancha) — dimensiones en cm</label>
+
+                        {{-- Material --}}
+                        <div class="mb-3">
+                            <label class="block text-xs text-gray-400">Material</label>
+                            <select x-model="form.wfMaterial" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <option value="">-- Seleccionar material --</option>
+                                <template x-for="mat in materialsList" :key="mat.name">
+                                    <option :value="mat.name" x-text="mat.name + (mat.descripcion ? ' (' + mat.descripcion + ')' : '')"></option>
+                                </template>
+                            </select>
+                        </div>
+
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-xs text-gray-400">Altura (d)</label>
-                                <input type="number" step="0.01" x-model="form.wfDepth" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <label class="block text-xs text-gray-400">Altura, d (cm)</label>
+                                <input type="number" step="0.01" x-model.number="form.wfDepth" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-400">Ancho de Ala (bf)</label>
-                                <input type="number" step="0.01" x-model="form.wfFlangeWidth" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <label class="block text-xs text-gray-400">Ancho de Ala, bf (cm)</label>
+                                <input type="number" step="0.01" x-model.number="form.wfFlangeWidth" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-400">Espesor de Ala (tf)</label>
-                                <input type="number" step="0.01" x-model="form.wfFlangeThick" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <label class="block text-xs text-gray-400">Espesor de Ala, tf (cm)</label>
+                                <input type="number" step="0.01" x-model.number="form.wfFlangeThick" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-400">Espesor de Alma (tw)</label>
-                                <input type="number" step="0.01" x-model="form.wfWebThick" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <label class="block text-xs text-gray-400">Espesor de Alma, tw (cm)</label>
+                                <input type="number" step="0.01" x-model.number="form.wfWebThick" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
                             </div>
                             <div>
                                 <label class="block text-xs text-gray-400">Peso (kg/m)</label>
-                                <input type="number" step="0.1" x-model="form.wfWeight" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <input type="number" step="0.1" x-model.number="form.wfWeight" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
                             </div>
-                            <div>
-                                <label class="block text-xs text-gray-400">Área (cm²)</label>
-                                <input type="number" step="0.01" x-model="form.wfArea" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                        </div>
+
+                        {{-- Propiedades calculadas (solo lectura) --}}
+                        <div class="mt-3 p-2 bg-gray-900 rounded border border-gray-700">
+                            <div class="text-xs text-gray-400 mb-1">Propiedades calculadas (SI):</div>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-300 font-mono">
+                                <span>A = <span x-text="wfProps.A.toFixed(6)"></span> m²</span>
+                                <span>J ≈ <span x-text="wfProps.J.toFixed(8)"></span> m⁴</span>
+                                <span>Iz (fuerte) = <span x-text="wfProps.Iz.toFixed(8)"></span> m⁴</span>
+                                <span>Iy (débil) = <span x-text="wfProps.Iy.toFixed(8)"></span> m⁴</span>
                             </div>
                         </div>
                     </div>
@@ -351,6 +415,9 @@
             selectedAvailableSections: [],
             selectedAutoSelections: [],
 
+            // Materiales disponibles (para secciones de concreto)
+            materialsList: [],
+
             wideFlangeList: [{
                     name: 'W10X12',
                     weight: 12,
@@ -456,7 +523,56 @@
                 wfWebThick: 0.19,
                 wfWeight: 12,
                 wfArea: 3.54,
+                wfMaterial: '',
+                // Sección rectangular de concreto (b, h en cm)
+                rectB: 30,
+                rectH: 40,
+                rectMaterial: '',
                 color: '#88ffaa'
+            },
+
+            // Propiedades geométricas de la sección rectangular, calculadas en vivo (en SI).
+            // b, h se ingresan en cm → se convierten a m. A=b·h, Iz=b·h³/12 (eje mayor),
+            // Iy=h·b³/12 (eje menor), J = constante de torsión de Saint-Venant para rectángulo.
+            get rectProps() {
+                const b = (Number(this.form.rectB) || 0) / 100; // m
+                const h = (Number(this.form.rectH) || 0) / 100; // m
+                if (b <= 0 || h <= 0) return { A: 0, Iz: 0, Iy: 0, J: 0 };
+                const A = b * h;
+                const Iz = (b * Math.pow(h, 3)) / 12; // flexión con h como peralte
+                const Iy = (h * Math.pow(b, 3)) / 12; // flexión con b como peralte
+                // Torsión: J = lng·crt³·[1/3 − 0.21·(crt/lng)·(1 − crt⁴/(12·lng⁴))], lng≥crt
+                const lng = Math.max(b, h);
+                const crt = Math.min(b, h);
+                const r = crt / lng;
+                const J = lng * Math.pow(crt, 3) * (1 / 3 - 0.21 * r * (1 - Math.pow(r, 4) / 12));
+                return { A, Iz, Iy, J };
+            },
+
+            // Propiedades de un perfil W (doble T) a partir de d, bf, tf, tw en cm.
+            // Devuelve A (m²), Iz/Iy (m⁴, ejes fuerte/débil) y J (m⁴). J usa la
+            // aproximación de pared delgada para secciones abiertas: J ≈ Σ b·t³ / 3.
+            wfPropsFrom(dCm, bfCm, tfCm, twCm) {
+                const d = (Number(dCm) || 0) / 100;   // m
+                const bf = (Number(bfCm) || 0) / 100; // m
+                const tf = (Number(tfCm) || 0) / 100; // m
+                const tw = (Number(twCm) || 0) / 100; // m
+                const hw = d - 2 * tf;                // altura libre del alma
+                if (d <= 0 || bf <= 0 || tf <= 0 || tw <= 0 || hw <= 0) {
+                    return { A: 0, Iz: 0, Iy: 0, J: 0 };
+                }
+                const A = 2 * (bf * tf) + hw * tw;
+                // Iz (eje fuerte): I de la sección llena menos los dos huecos del alma.
+                const Iz = (bf * Math.pow(d, 3) - (bf - tw) * Math.pow(hw, 3)) / 12;
+                // Iy (eje débil): inercia de las dos alas + el alma.
+                const Iy = (2 * tf * Math.pow(bf, 3) + hw * Math.pow(tw, 3)) / 12;
+                // J (torsión, sección abierta de pared delgada).
+                const J = (2 * bf * Math.pow(tf, 3) + hw * Math.pow(tw, 3)) / 3;
+                return { A, Iz, Iy, J };
+            },
+
+            get wfProps() {
+                return this.wfPropsFrom(this.form.wfDepth, this.form.wfFlangeWidth, this.form.wfFlangeThick, this.form.wfWebThick);
             },
 
             defaultSections: [{
@@ -581,10 +697,20 @@
 
             openModal: function() {
                 this.loadSections();
+                this.loadMaterials();
                 this.open = true;
                 this.view = 'list';
                 this.selectedSectionName = null;
                 this.searchText = '';
+            },
+
+            // Trae los materiales definidos para poder asignarlos a secciones de concreto.
+            loadMaterials: function() {
+                if (window.cadSystem && window.cadSystem.materialProperties && Array.isArray(window.cadSystem.materialProperties.materials)) {
+                    this.materialsList = window.cadSystem.materialProperties.materials;
+                } else {
+                    this.materialsList = [];
+                }
             },
 
             close: function() {
@@ -701,6 +827,10 @@
                     wfWebThick: section.webThick || 0.19,
                     wfWeight: section.weight || 12,
                     wfArea: section.area || 3.54,
+                    wfMaterial: section.type === 'wf' ? (section.material || '') : '',
+                    rectB: section.b != null ? section.b : 30,
+                    rectH: section.h != null ? section.h : 40,
+                    rectMaterial: section.material || '',
                     color: section.color || '#88ffaa'
                 };
             },
@@ -727,6 +857,10 @@
                     wfWebThick: 0.19,
                     wfWeight: 12,
                     wfArea: 3.54,
+                    wfMaterial: '',
+                    rectB: 30,
+                    rectH: 40,
+                    rectMaterial: '',
                     color: '#88ffaa'
                 };
             },
@@ -783,7 +917,25 @@
                     description: ''
                 };
 
-                if (this.form.sectionType === 'auto') {
+                if (this.form.sectionType === 'rect') {
+                    var b = Number(this.form.rectB) || 0;
+                    var h = Number(this.form.rectH) || 0;
+                    if (b <= 0 || h <= 0) {
+                        this.showToastMessage('Ingrese ancho y peralte válidos (cm)', 'error');
+                        return;
+                    }
+                    var p = this.rectProps; // {A, Iz, Iy, J} en SI
+                    sectionToSave.b = b;            // cm (para mostrar/editar)
+                    sectionToSave.h = h;            // cm
+                    sectionToSave.material = this.form.rectMaterial || null;
+                    sectionToSave.area = p.A;       // m²  (clave usada por el motor)
+                    sectionToSave.A = p.A;          // m²
+                    sectionToSave.Iz = p.Iz;        // m⁴ (eje mayor, I33)
+                    sectionToSave.Iy = p.Iy;        // m⁴ (eje menor, I22)
+                    sectionToSave.J = p.J;          // m⁴ (torsión)
+                    sectionToSave.description = 'Concreto ' + b + 'x' + h + ' cm' +
+                        (this.form.rectMaterial ? ' (' + this.form.rectMaterial + ')' : '');
+                } else if (this.form.sectionType === 'auto') {
                     sectionToSave.autoSectionName = this.form.autoSectionName;
                     sectionToSave.autoSelections = JSON.parse(JSON.stringify(this.autoSelections));
                     sectionToSave.startingSection = this.form.startingSection;
@@ -791,13 +943,20 @@
                     sectionToSave.overwrite = this.form.overwrite;
                     sectionToSave.description = 'Selección automática - ' + this.autoSelections.length + ' secciones';
                 } else if (this.form.sectionType === 'wf') {
+                    var wp = this.wfProps; // {A, Iz, Iy, J} en SI, desde d/bf/tf/tw (cm)
                     sectionToSave.depth = this.form.wfDepth;
                     sectionToSave.flangeWidth = this.form.wfFlangeWidth;
                     sectionToSave.flangeThick = this.form.wfFlangeThick;
                     sectionToSave.webThick = this.form.wfWebThick;
                     sectionToSave.weight = this.form.wfWeight;
-                    sectionToSave.area = this.form.wfArea;
-                    sectionToSave.description = 'Perfil W - ' + this.form.wfWeight + ' kg/m';
+                    sectionToSave.material = this.form.wfMaterial || null;
+                    sectionToSave.area = wp.A;      // m²  (clave usada por el motor)
+                    sectionToSave.A = wp.A;         // m²
+                    sectionToSave.Iz = wp.Iz;       // m⁴ (eje fuerte, I33)
+                    sectionToSave.Iy = wp.Iy;       // m⁴ (eje débil, I22)
+                    sectionToSave.J = wp.J;         // m⁴ (torsión)
+                    sectionToSave.description = 'Perfil W ' + this.form.wfDepth + 'x' + this.form.wfFlangeWidth + ' cm - ' + this.form.wfWeight + ' kg/m' +
+                        (this.form.wfMaterial ? ' (' + this.form.wfMaterial + ')' : '');
                 } else {
                     sectionToSave.description = 'Sección tipo ' + this.form.sectionType;
                 }
@@ -886,18 +1045,31 @@
             },
 
             importWideFlange: function(wf) {
-                // Crear la nueva sección automáticamente
+                // Las tablas AISC vienen en pulgadas → convertir a cm (×2.54) para
+                // mantener todo el modal en cm, y calcular A/Iz/Iy/J en SI.
+                var IN_TO_CM = 2.54;
+                var dCm = wf.depth * IN_TO_CM;
+                var bfCm = wf.flangeWidth * IN_TO_CM;
+                var tfCm = wf.flangeThick * IN_TO_CM;
+                var twCm = wf.webThick * IN_TO_CM;
+                var wp = this.wfPropsFrom(dCm, bfCm, tfCm, twCm); // SI
+
                 var newSection = {
                     name: wf.name,
                     type: 'wf',
-                    depth: wf.depth,
-                    flangeWidth: wf.flangeWidth,
-                    flangeThick: wf.flangeThick,
-                    webThick: wf.webThick,
+                    depth: dCm,
+                    flangeWidth: bfCm,
+                    flangeThick: tfCm,
+                    webThick: twCm,
                     weight: wf.weight,
-                    area: wf.area,
+                    material: null,
+                    area: wp.A,
+                    A: wp.A,
+                    Iz: wp.Iz,
+                    Iy: wp.Iy,
+                    J: wp.J,
                     color: '#88ffaa',
-                    description: 'Perfil W - ' + wf.weight + ' kg/m'
+                    description: 'Perfil W ' + wf.name + ' - ' + wf.weight + ' kg/m'
                 };
 
                 // Verificar si ya existe

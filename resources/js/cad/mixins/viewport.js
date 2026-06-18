@@ -398,23 +398,23 @@ export const viewportMixin = {
   // ------------------------------------------------------------------
 
   openMaterialProperties() {
-    openMaterialDialog(this);
+    window.dispatchEvent(new CustomEvent("open-material-properties-modal"));
   },
 
   openFrameSections() {
-    openSectionDialog(this);
+    window.dispatchEvent(new CustomEvent("open-frame-sections-modal"));
   },
 
   openLoadCases() {
-    openLoadCaseDialog(this);
+    window.dispatchEvent(new CustomEvent("open-static-load-cases-modal"));
   },
 
   openLoadCombinations() {
-    openCombinationDialog(this);
+    window.dispatchEvent(new CustomEvent("open-load-combinations-modal"));
   },
 
   openMassSource() {
-    openMassSourceDialog(this);
+    window.dispatchEvent(new CustomEvent("open-mass-source-modal"));
   },
 
   openDiaphragms() {
@@ -422,7 +422,7 @@ export const viewportMixin = {
   },
 
   openGroups() {
-    this.showMessage("👥 Groups - Próximamente");
+    window.dispatchEvent(new CustomEvent("open-groups-modal"));
   },
 
   openSectionCuts() {
@@ -479,6 +479,22 @@ export const viewportMixin = {
     // });
     return openResponseSpectrumCasesDialog(this);
   },
+
+  // ─── Define: stubs de features ETABS aún no implementadas ───────────────────
+  // Evitan el error "is not a function" al hacer clic en el menú Define.
+  // Avisan que están en desarrollo en lugar de crashear.
+  _defineTodo(nombre) {
+    this.showMessage?.(`"${nombre}" está en desarrollo — aún no disponible.`, "info");
+  },
+  openWallSlabSections() { this._defineTodo("Wall/Slab/Deck Sections"); },
+  openLinkProperties() { this._defineTodo("Link Properties"); },
+  openHingeProperties() { this._defineTodo("Frame Nonlinear Hinge Properties"); },
+  openTimeHistoryFunctions() { this._defineTodo("Time History Functions"); },
+  openTimeHistoryCases() { this._defineTodo("Time History Cases"); },
+  openPushoverCases() { this._defineTodo("Static Nonlinear / Pushover Cases"); },
+  openSequentialConstruction() { this._defineTodo("Sequential Construction Case"); },
+  addDefaultDesignCombos() { this._defineTodo("Add Default Design Combos"); },
+  openSeismicEffects() { this._defineTodo("Special Seismic Load Effects"); },
 
   convertCombosToNonlinear() {
     // 🔧 Verificar que combinations exista y sea un array

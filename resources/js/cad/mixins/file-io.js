@@ -27,7 +27,8 @@ import { Beam, Node as StructuralNode } from "../shapes.js";
 import { read as readmat } from "mat-for-js";
 import { axisToFixed, removeFromArray } from "../utils.js";
 import { Triangle, Puente, Arco } from "../parametricModels.js";
-import { elevateSelectedNodes, extrudeToNewFloor } from "../3d/modeling3d.js";
+import { elevateSelectedNodes, extrudeToNewFloor, lowerSelectedNodes, selectAllNodes, activate3DDrawingMode } from "../3d/modeling3d.js";
+import { toggleView3D } from "../3d/viewer3d.js";
 
 export const fileIOMixin = {
   creaArco() {
@@ -1749,6 +1750,14 @@ export const fileIOMixin = {
       constraints: clean(node.constraints || node.restraints),
       restraints: clean(node.restraints || node.constraints),
       hasRestraints: node.hasRestraints === true,
+      soporte: node.soporte || null,
+
+      mass_x: Number(node.mass_x) || 0,
+      mass_y: Number(node.mass_y) || 0,
+      mass_z: Number(node.mass_z) || 0,
+      mass: Number(node.mass_x) || 0,
+      massAssignment: clean(node.massAssignment),
+      hasMass: node.hasMass === true || (Number(node.mass_x) || 0) > 0 || (Number(node.mass_y) || 0) > 0,
 
       diaphragmId: node.diaphragmId || node.diaphragm?.id || null,
       diaphragmName: node.diaphragmName || node.diaphragm?.name || null,
@@ -2206,6 +2215,20 @@ export const fileIOMixin = {
           newNode.constraints = cleanClone(importedRestraints);
           newNode.hasRestraints = nodeData.hasRestraints ?? this.jointHasAnyRestraint?.(importedRestraints) ?? true;
         }
+
+        // Apoyo por string (soporteUno/Dos/...) — el otro formato de apoyo.
+        if (nodeData.soporte) {
+          newNode.soporte = nodeData.soporte;
+        }
+
+        // Masas nodales (sísmicas) — restaurar para que persistan al reabrir.
+        newNode.mass_x = Number(nodeData.mass_x ?? nodeData.mass ?? 0) || 0;
+        newNode.mass_y = Number(nodeData.mass_y ?? nodeData.mass ?? 0) || 0;
+        newNode.mass_z = Number(nodeData.mass_z ?? 0) || 0;
+        if (nodeData.massAssignment) {
+          newNode.massAssignment = cleanClone(nodeData.massAssignment);
+        }
+        newNode.hasMass = newNode.mass_x > 0 || newNode.mass_y > 0 || newNode.mass_z > 0;
 
         const importedDiaphragm =
           nodeData.diaphragm ||

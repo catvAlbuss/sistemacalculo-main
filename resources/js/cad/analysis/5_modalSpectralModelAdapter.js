@@ -157,6 +157,9 @@ function serializeFrame(frame, index = 0) {
 
         E: toNumber(frame?.E, null),
         A: toNumber(frame?._A ?? frame?.A ?? section?.A ?? section?.area, null),
+        Iz: toNumber(frame?.Iz ?? section?.Iz ?? section?.Izz, null),
+        Iy: toNumber(frame?.Iy ?? section?.Iy ?? section?.Iyy, null),
+        J: toNumber(frame?.J ?? section?.J, null),
 
         releases: clonePlain(frame?.releases || frame?.frameReleases || null),
         endOffsets: clonePlain(frame?.endOffsets || frame?.frameEndOffsets || null),
@@ -213,6 +216,9 @@ function extractSections(cadSystem) {
                 name: section.name || section.id || `SECTION_${index + 1}`,
                 type: section.type || section.sectionType || "frame",
                 A: toNumber(section.A ?? section.area, null),
+                Iz: toNumber(section.Iz ?? section.Izz, null),
+                Iy: toNumber(section.Iy ?? section.Iyy, null),
+                J: toNumber(section.J, null),
                 b: toNumber(section.b ?? section.width ?? section.base, null),
                 h: toNumber(section.h ?? section.height ?? section.peralte, null),
                 materialId: section.materialId ?? null,

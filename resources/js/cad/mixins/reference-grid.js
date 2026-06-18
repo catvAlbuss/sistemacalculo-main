@@ -32,36 +32,46 @@ import { pointDistance, pointDistanceToSegment } from "../utils.js";
  * - rebuild3DGridSnapPointsSoon(reason) → reconstruye el índice de snap 3D (debounced)
  */
 export const referenceGridMixin = {
-  buildXGrids(count, spacing) {
-    const labels = this.getXLabels(count);
-    const grids = [];
-
-    for (let i = 0; i < count; i++) {
-      grids.push({
-        id: labels[i],
-        ordinate: i * Number(spacing),
-        visible: true,
-        bubbleLoc: "End",
-      });
+  // Calcula las cotas (ordinates) de las líneas de grid.
+  //   spacing puede ser:
+  //     - número  → espaciamiento UNIFORME; genera `count` líneas en 0, s, 2s…
+  //     - array   → luces NO uniformes (ej. [6,6,5]); genera N+1 líneas en las
+  //                 sumas acumuladas (0, 6, 12, 17). `count` se ignora.
+  _gridOrdinates(count, spacing) {
+    if (Array.isArray(spacing) && spacing.length) {
+      const ords = [0];
+      let acc = 0;
+      for (const luz of spacing) {
+        acc += Number(luz) || 0;
+        ords.push(acc);
+      }
+      return ords; // N luces → N+1 líneas
     }
+    const n = Math.max(1, Number(count) || 1);
+    const sp = Number(spacing) || 0;
+    return Array.from({ length: n }, (_, i) => i * sp);
+  },
 
-    return grids;
+  buildXGrids(count, spacing) {
+    const ordinates = this._gridOrdinates(count, spacing);
+    const labels = this.getXLabels(ordinates.length);
+    return ordinates.map((ordinate, i) => ({
+      id: labels[i],
+      ordinate,
+      visible: true,
+      bubbleLoc: "End",
+    }));
   },
 
   buildYGrids(count, spacing) {
-    const labels = this.getYLabels(count);
-    const grids = [];
-
-    for (let i = 0; i < count; i++) {
-      grids.push({
-        id: String(labels[i]),
-        ordinate: i * Number(spacing),
-        visible: true,
-        bubbleLoc: "Start",
-      });
-    }
-
-    return grids;
+    const ordinates = this._gridOrdinates(count, spacing);
+    const labels = this.getYLabels(ordinates.length);
+    return ordinates.map((ordinate, i) => ({
+      id: String(labels[i]),
+      ordinate,
+      visible: true,
+      bubbleLoc: "Start",
+    }));
   },
 
   rebuildGeneralGrids(targetGrid = this.referenceGrid) {
@@ -306,9 +316,16 @@ export const referenceGridMixin = {
     this.desplazamientosPosition = [];
     this.matrizDesplazamiento = [];
 
+    // Luces no uniformes (array) tienen prioridad sobre el espaciamiento uniforme.
     this.referenceGrid = {
-      xGrids: this.buildXGrids(params.gridXCount, params.gridXSpacing),
-      yGrids: this.buildYGrids(params.gridYCount, params.gridYSpacing),
+      xGrids: this.buildXGrids(
+        params.gridXCount,
+        params.gridXSpacings?.length ? params.gridXSpacings : params.gridXSpacing,
+      ),
+      yGrids: this.buildYGrids(
+        params.gridYCount,
+        params.gridYSpacings?.length ? params.gridYSpacings : params.gridYSpacing,
+      ),
       generalGrids: [],
 
       xPositions: [],

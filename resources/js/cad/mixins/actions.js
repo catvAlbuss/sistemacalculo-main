@@ -422,12 +422,20 @@ export const actionsMixin = {
         this.openAssignJointRestraintsDialog();
         break;
 
+      case "auto-base-restraints":
+        this.autoFixBaseRestraints();
+        break;
+
       case "joint-springs":
         this.openAssignPointSpringsDialog();
         break;
 
       case "joint-mass":
         this.openAssignJointMassDialog();
+        break;
+
+      case "slab-mass":
+        this.generateSlabSeismicMass();
         break;
 
       // ===============================
@@ -563,6 +571,22 @@ export const actionsMixin = {
         break;
       case "show-modal-spectral-results":
         this.openModalSpectralResultsDialog();
+        break;
+
+      case "show-story-drifts":
+        this.showStoryDriftDiagram();
+        break;
+
+      case "show-story-shears":
+        this.showStoryShearDiagram();
+        break;
+
+      case "seismic-animation":
+        this.startSeismicAnimation();
+        break;
+
+      case "seismic-displacement-labels":
+        this.toggleSeismicDisplacementLabels();
         break;
 
       default:

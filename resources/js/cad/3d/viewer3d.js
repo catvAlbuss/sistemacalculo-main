@@ -2479,6 +2479,27 @@ export function isBabylonDeflectionAnimating() {
 // desplazamientos sísmicos almacenados en cada nodo.
 // =====================================================
 
+// Re-orienta un cilindro-barra entre dos puntos (midpoint + escala Y + giro),
+// conservando el diámetro (scaling.x/z). Réplica de applyTransform de beam3d.js.
+function _applySeismicBeamTransform(mesh, start, end) {
+  const dir = end.subtract(start);
+  const length = dir.length();
+  if (length < 1e-6) return;
+  mesh.position.copyFrom(start.add(end).scale(0.5));
+  mesh.scaling.y = length; // conserva scaling.x/z (diámetro)
+  const direction = dir.normalize();
+  const up = BABYLON.Vector3.Up();
+  const dot = BABYLON.Vector3.Dot(up, direction);
+  if (dot > 0.999999) {
+    mesh.rotationQuaternion = BABYLON.Quaternion.Identity();
+  } else if (dot < -0.999999) {
+    mesh.rotationQuaternion = BABYLON.Quaternion.RotationAxis(BABYLON.Vector3.Right(), Math.PI);
+  } else {
+    const axis = BABYLON.Vector3.Cross(up, direction).normalize();
+    mesh.rotationQuaternion = BABYLON.Quaternion.RotationAxis(axis, Math.acos(dot));
+  }
+}
+
 function _updateSeismicPositions(context, dispByNodeId, t, scale) {
   if (!VIEWER_STATE.originalPositions || !VIEWER_STATE.scene) return;
 
@@ -2500,34 +2521,74 @@ function _updateSeismicPositions(context, dispByNodeId, t, scale) {
     );
   });
 
-  VIEWER_STATE.elements.forEach((mesh) => {
-    if (mesh.metadata?.type === "node") {
-      const nodeId = mesh.metadata?.nodeId || mesh.metadata?.id;
-      if (newPositions[nodeId]) mesh.position = newPositions[nodeId];
-    }
+  const sceneMeshes = VIEWER_STATE.scene.meshes || [];
+
+  // ── Nodos: mover a su posición desplazada (cubre drawIn3D y renderModel3D) ──
+  sceneMeshes.forEach((mesh) => {
+    if (mesh?.metadata?.type !== "node") return;
+    const nodeId = mesh.metadata.nodeId ?? mesh.metadata.id;
+    const np = newPositions[nodeId];
+    if (np) mesh.position.copyFrom(np);
   });
 
-  const beamsToUpdate = VIEWER_STATE.elements.filter((m) => m.metadata?.type === "beam");
-  beamsToUpdate.forEach((beam) => {
-    const beamId = beam.metadata?.id;
-    const b = context.shapes?.find((s) => s.id === beamId);
-    if (b?.node1 && b?.node2) {
-      const p1 = newPositions[b.node1.id];
-      const p2 = newPositions[b.node2.id];
-      if (p1 && p2) {
-        const newLine = BABYLON.MeshBuilder.CreateLines(
-          `beam_${beamId}`,
-          { points: [p1, p2] },
-          VIEWER_STATE.scene,
-        );
-        newLine.color = beam.color;
-        newLine.metadata = beam.metadata;
-        const idx = VIEWER_STATE.elements.indexOf(beam);
-        if (idx !== -1) VIEWER_STATE.elements[idx] = newLine;
-        beam.dispose();
-      }
+  // ── Barras: los cilindros sólidos se re-transforman entre los nodos
+  //    desplazados (se mantienen sólidos, no rojos); las líneas overlay del
+  //    render legacy se ocultan durante la animación. ──
+  sceneMeshes.forEach((mesh) => {
+    if (mesh?.metadata?.type !== "beam") return;
+    if (mesh.getClassName?.() === "LinesMesh") {
+      mesh.setEnabled(false); // ocultar wireframe overlay
+      return;
     }
+    const beamId = mesh.metadata.beamId ?? mesh.metadata.id;
+    const b = context.shapes?.find((s) => String(s.id) === String(beamId));
+    if (!b?.node1 || !b?.node2) return;
+    const p1 = newPositions[b.node1.id];
+    const p2 = newPositions[b.node2.id];
+    if (p1 && p2) _applySeismicBeamTransform(mesh, p1, p2);
   });
+
+  // ── Losas / áreas: se trasladan rígidamente con el desplazamiento de su piso ──
+  // Así el edificio completo (no solo el esqueleto) se ve oscilar.
+  // Desplazamiento promedio por cota (Babylon-y = cota estructural z).
+  const floorDisp = {};
+  context.nodes.forEach((node, idx) => {
+    const orig = VIEWER_STATE.originalPositions[idx];
+    const d = dispByNodeId[node.id];
+    if (!orig || !d) return;
+    const key = Math.round(orig.y * 1000) / 1000;
+    if (!floorDisp[key]) floorDisp[key] = { dx: 0, dy: 0, dz: 0, n: 0 };
+    floorDisp[key].dx += d.dx || 0;
+    floorDisp[key].dy += d.dy || 0;
+    floorDisp[key].dz += d.dz || 0;
+    floorDisp[key].n++;
+  });
+  const floorKeys = Object.keys(floorDisp).map(Number);
+
+  if (floorKeys.length) {
+    const areaMeshes = (VIEWER_STATE.scene.meshes || []).filter((m) => m?.metadata?.type === "area");
+    areaMeshes.forEach((mesh) => {
+      if (!mesh.metadata._origPos) {
+        mesh.metadata._origPos = { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z };
+      }
+      const o = mesh.metadata._origPos;
+      // Piso más cercano por elevación (Babylon-y).
+      let best = null;
+      let bestDist = Infinity;
+      for (const k of floorKeys) {
+        const dist = Math.abs(k - o.y);
+        if (dist < bestDist) { bestDist = dist; best = floorDisp[k]; }
+      }
+      if (best && best.n) {
+        const ax = best.dx / best.n;
+        const ay = best.dy / best.n;
+        const az = best.dz / best.n;
+        mesh.position.x = o.x + scale * ax * t; // structural dx → Babylon x
+        mesh.position.z = o.z + scale * ay * t; // structural dy → Babylon z
+        mesh.position.y = o.y + scale * az * t; // structural dz → Babylon y (vertical)
+      }
+    });
+  }
 }
 
 //====================================================================
@@ -2544,12 +2605,18 @@ export function startBabylonSeismicAnimation(context, options = {}) {
     return false;
   }
 
+  // Campo de desplazamientos: el caller puede pasarlo explícito (p.ej. la
+  // dirección dominante del análisis) o se reconstruye desde el modelo.
   const dispByNodeId = {};
-  (context.nodes || []).forEach((n) => {
-    if (n.seismicDisplacement) {
-      dispByNodeId[n.id] = n.seismicDisplacement;
-    }
-  });
+  if (options.displacements && Object.keys(options.displacements).length) {
+    Object.assign(dispByNodeId, options.displacements);
+  } else {
+    (context.nodes || []).forEach((n) => {
+      if (n.seismicDisplacement) {
+        dispByNodeId[n.id] = n.seismicDisplacement;
+      }
+    });
+  }
 
   if (!Object.keys(dispByNodeId).length) {
     console.warn("startBabylonSeismicAnimation: ningún nodo tiene seismicDisplacement");
@@ -2558,14 +2625,14 @@ export function startBabylonSeismicAnimation(context, options = {}) {
 
   let startTime = null;
   let animFrameId = null;
-  // Mutable state so setSpeedFactor can adjust without restarting the loop.
-  const state = { effectivePeriod: period / speedFactor, period };
+  // Mutable state so setSpeedFactor / setScale can adjust without restarting.
+  const state = { effectivePeriod: period / speedFactor, period, scale };
 
   function animate(timestamp) {
     if (!startTime) startTime = timestamp;
     const elapsed = (timestamp - startTime) / 1000;
     const t = Math.sin((2 * Math.PI * elapsed) / state.effectivePeriod);
-    _updateSeismicPositions(context, dispByNodeId, t, scale);
+    _updateSeismicPositions(context, dispByNodeId, t, state.scale);
     animFrameId = requestAnimationFrame(animate);
   }
 
@@ -2585,6 +2652,10 @@ export function startBabylonSeismicAnimation(context, options = {}) {
       } else {
         state.effectivePeriod = state.period / sf;
       }
+    },
+    setScale(newScale) {
+      const s = Number(newScale);
+      if (Number.isFinite(s) && s > 0) state.scale = s;
     },
     stop() {
       if (animFrameId) {
@@ -2611,4 +2682,79 @@ export function isBabylonSeismicAnimating() {
 
 export function setSeismicAnimationSpeed(speedFactor) {
   VIEWER_STATE.seismicAnimator?.setSpeedFactor?.(speedFactor);
+}
+
+export function setSeismicAnimationScale(scale) {
+  VIEWER_STATE.seismicAnimator?.setScale?.(scale);
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  Etiquetas de desplazamiento sísmico sobre el modelo 3D
+//  (muestra el valor del desplazamiento de cada nodo, en mm, para comparar
+//   con ETABS). Usa DynamicTexture + plano billboard, igual que los ejes 3D.
+// ════════════════════════════════════════════════════════════════════════
+
+// Crea un plano de texto (billboard) en la posición dada.
+function _createDispLabel(text, position, scene) {
+  const id = `disp_${position.x.toFixed(2)}_${position.y.toFixed(2)}_${position.z.toFixed(2)}`;
+  const texture = new BABYLON.DynamicTexture(`dispTex_${id}`, { width: 180, height: 48 }, scene, true);
+  texture.hasAlpha = true;
+  texture.drawText(text, 6, 34, "bold 22px Arial", "#ffffff", "transparent", true); // amarillo
+
+  const mat = new BABYLON.StandardMaterial(`dispMat_${id}`, scene);
+  mat.diffuseTexture = texture;
+  mat.opacityTexture = texture;
+  mat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+  mat.disableLighting = true;
+  mat.backFaceCulling = false;
+
+  const plane = BABYLON.MeshBuilder.CreatePlane(`dispLabel_${id}`, { width: 1.4, height: 0.4 }, scene);
+  plane.material = mat;
+  plane.position = new BABYLON.Vector3(position.x, position.y + 0.5, position.z + 0.3);
+  plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+  plane.isPickable = false;
+  plane.metadata = { type: "seismicLabel" };
+  return plane;
+}
+
+/**
+ * Muestra el valor del desplazamiento sísmico (magnitud, en mm) en cada nodo
+ * del modelo 3D. Lee n.seismicDisplacement (puesto por el análisis).
+ * @returns {number} cantidad de etiquetas creadas.
+ */
+export function showSeismicDisplacementLabels(context) {
+  clearSeismicDisplacementLabels();
+  if (!VIEWER_STATE.scene) return 0;
+
+  const labels = [];
+  (context.nodes || []).forEach((n, idx) => {
+    const d = n.seismicDisplacement;
+    if (!d) return;
+    const magM = Math.sqrt((d.dx || 0) ** 2 + (d.dy || 0) ** 2 + (d.dz || 0) ** 2);
+    const mm = magM * 1000;
+    if (mm < 1e-4) return;
+
+    // Posición Babylon del nodo: estructural (x,y,z) → Babylon (x, z, y).
+    const orig = VIEWER_STATE.originalPositions?.[idx];
+    const pos = orig
+      ? orig.clone()
+      : new BABYLON.Vector3(Number(n.position?.x) || 0, Number(n.position?.z) || 0, Number(n.position?.y) || 0);
+
+    const label = _createDispLabel(`${mm.toFixed(1)} mm`, pos, VIEWER_STATE.scene);
+    if (label) labels.push(label);
+  });
+
+  VIEWER_STATE.seismicLabels = labels;
+  return labels.length;
+}
+
+export function clearSeismicDisplacementLabels() {
+  (VIEWER_STATE.seismicLabels || []).forEach((m) => {
+    try { if (m && !m.isDisposed()) m.dispose(); } catch (_) { /* noop */ }
+  });
+  VIEWER_STATE.seismicLabels = [];
+}
+
+export function isSeismicDisplacementLabelsVisible() {
+  return (VIEWER_STATE.seismicLabels?.length || 0) > 0;
 }

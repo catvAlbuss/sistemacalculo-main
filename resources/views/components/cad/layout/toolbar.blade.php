@@ -204,6 +204,7 @@
   <x-cad.modals.frame-sections-modal />
   <x-cad.modals.diaphragms-modal />
   <x-cad.modals.section-cuts-modal />
+  <x-cad.modals.groups-modal />
   <x-cad.modals.response-spectrum-functions-modal />
   <x-cad.modals.static-load-cases-modal />
   <x-cad.modals.load-combinations-modal />

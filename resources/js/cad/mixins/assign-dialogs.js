@@ -82,6 +82,10 @@ export const assignDialogsMixin = {
         const h = Number(section.h ?? section.height ?? section.peralte ?? 0);
         const A = Number(section.A ?? section.area ?? (b && h ? b * h : 0));
 
+        const Iz = section.Iz ?? section.Izz ?? null;
+        const Iy = section.Iy ?? section.Iyy ?? null;
+        const J = section.J ?? null;
+
         return {
           ...section,
           id,
@@ -89,6 +93,9 @@ export const assignDialogsMixin = {
           b,
           h,
           A,
+          Iz,
+          Iy,
+          J,
         };
       });
     }
@@ -193,6 +200,13 @@ export const assignDialogsMixin = {
 
       frame.A = section.A ?? section.area ?? frame.A ?? null;
       frame._A = section.A ?? section.area ?? frame._A ?? null;
+
+      // Inercias y torsión: el motor sísmico (seismic_analysis.py) las lee
+      // por elemento (Iz/Iy/J). Sin esto el frame se analiza con la rigidez
+      // por defecto del motor en vez de la de la sección asignada.
+      frame.Iz = section.Iz ?? section.Izz ?? frame.Iz ?? null;
+      frame.Iy = section.Iy ?? section.Iyy ?? frame.Iy ?? null;
+      frame.J = section.J ?? frame.J ?? null;
 
       frame.hasAssignedSection = true;
 
@@ -886,6 +900,45 @@ export const assignDialogsMixin = {
       restraints,
       selectedJoints,
     });
+  },
+
+  // Empotra automáticamente todos los nodos de la base (la cota Z mínima del
+  // modelo). Escribe restraints (objeto) + soporte (string) para que el apoyo
+  // se guarde, se vea en 3D y lo lea el motor sísmico por ambos caminos.
+  autoFixBaseRestraints() {
+    const nodes = this.nodes || [];
+    if (!nodes.length) {
+      this.showMessage?.("El modelo no tiene nodos.", "warning");
+      return;
+    }
+
+    const zOf = (n) => Number(n.position?.z ?? n.z) || 0;
+    const zmin = Math.min(...nodes.map(zOf));
+    const baseNodes = nodes.filter((n) => Math.abs(zOf(n) - zmin) < 0.05);
+    if (!baseNodes.length) {
+      this.showMessage?.("No se encontraron nodos en la base.", "warning");
+      return;
+    }
+
+    const fixed = this.getJointRestraintPreset("fixed"); // {name:'Fixed', ux..rz=true}
+    baseNodes.forEach((joint) => {
+      joint.restraints = JSON.parse(JSON.stringify(fixed));
+      joint.constraints = JSON.parse(JSON.stringify(fixed));
+      joint.assignment = {
+        ...(joint.assignment || {}),
+        restraints: JSON.parse(JSON.stringify(fixed)),
+      };
+      joint.hasRestraints = true;
+      joint.soporte = "soporteUno"; // empotrado, para el camino 'soporte' (3D / payload)
+    });
+
+    this.markAnalysisResultsOutdated?.("Se empotró la base automáticamente.");
+    this.redraw?.();
+    this.sync3D?.();
+    this.showMessage?.(
+      `Base empotrada: ${baseNodes.length} nodo(s) en z = ${zmin} m con apoyo fijo.`,
+      "success",
+    );
   },
 
   jointHasAnyRestraint(restraints) {

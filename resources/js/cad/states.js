@@ -3875,10 +3875,36 @@ export class AreaDrawingState extends PanAndZoomState {
     context.redraw();
   }
 
+  // Finaliza el área en progreso: la guarda en context.areas y refresca 2D + 3D.
+  _commitArea(context) {
+    if (this.points.length < 3) return false;
+
+    const currentZ = context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0;
+    const area = new Area(this.areaType, currentZ);
+
+    this.points.forEach((p) => area.addPoint(p));
+    area.id = context.areas.length + 1;
+
+    context.areas.push(area);
+    console.log(`▭ Área creada ID: ${area.id}, tipo: ${this.areaType}, puntos: ${area.points.length}, z: ${currentZ}`);
+
+    this.resetPreview();
+    context.redraw();
+    context.sync3D?.(); // mostrar el área en el modelo 3D
+    return true;
+  }
+
   handleKeyDown(event, context) {
     if (event.key === "Escape") {
-      this.resetPreview();
-      context.redraw();
+      // No perder el trabajo: si hay un área válida (≥3 puntos), finalizarla
+      // antes de salir; si no, cancelar.
+      if (this.points.length >= 3) {
+        this._commitArea(context);
+        context.showMessage?.("Área creada.", "success");
+      } else {
+        this.resetPreview();
+        context.redraw();
+      }
       context.setState(context.idleState);
       return;
     }
@@ -3898,19 +3924,8 @@ export class AreaDrawingState extends PanAndZoomState {
         context.showMessage?.("Se necesitan al menos 3 puntos para crear un área.", "warning");
         return;
       }
-
-      const currentZ = context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0;
-      const area = new Area(this.areaType, currentZ);
-
-      this.points.forEach((p) => area.addPoint(p));
-      area.id = context.areas.length + 1;
-
-      context.areas.push(area);
-
-      console.log(`▭ Área creada ID: ${area.id}, tipo: ${this.areaType}, puntos: ${area.points.length}`);
-
-      this.resetPreview();
-      context.redraw();
+      this._commitArea(context);
+      context.showMessage?.("Área creada. Sigue marcando vértices para otra, o Esc para salir.", "success");
       return;
     }
   }
@@ -3924,7 +3939,7 @@ export class AreaDrawingState extends PanAndZoomState {
       return "Haz clic para empezar a dibujar el área.";
     }
 
-    return "Haz clic para seguir marcando vértices. Enter = cerrar área, Backspace = borrar último punto, Esc = cancelar.";
+    return "Haz clic para seguir marcando vértices. Enter o Esc = cerrar área, Backspace = borrar último punto.";
   }
 }
 

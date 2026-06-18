@@ -52,6 +52,21 @@
                                     class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm">
                             </div>
                         </div>
+
+                        
+                        <div class="grid grid-cols-2 gap-3 mt-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Luces X no uniformes (m) — opcional</label>
+                                <input type="text" x-model="gridXSpacings" placeholder="ej: 6,6,5"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Luces Y no uniformes (m) — opcional</label>
+                                <input type="text" x-model="gridYSpacings" placeholder="ej: 6,5,3"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm">
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-gray-500 mt-1">Si llenas las luces no uniformes, se ignora el spacing uniforme y el nº de ejes se calcula solo.</p>
                     </div>
 
                     <!-- Grid Labels Preview -->
@@ -145,6 +160,8 @@
             gridYCount: 3,
             gridXSpacing: 5.0,
             gridYSpacing: 5.0,
+            gridXSpacings: '',
+            gridYSpacings: '',
             storyCount: 3,
             storyHeight: 3.0,
             selectedTemplate: 'grid-only',
@@ -165,6 +182,8 @@
                 this.gridYCount = 3;
                 this.gridXSpacing = 5.0;
                 this.gridYSpacing = 5.0;
+                this.gridXSpacings = '';
+                this.gridYSpacings = '';
                 this.storyCount = 3;
                 this.storyHeight = 3.0;
                 this.selectedTemplate = 'grid-only';
@@ -188,11 +207,26 @@
             },
 
             createModel() {
+                // Parsea "6,6,5" → [6,6,5] (ignora vacíos/negativos). Vacío → null.
+                const parseSpacings = (txt) => {
+                    if (!txt) return null;
+                    const arr = String(txt)
+                        .split(/[,;\s]+/)
+                        .map((v) => parseFloat(v))
+                        .filter((v) => Number.isFinite(v) && v > 0);
+                    return arr.length ? arr : null;
+                };
+                const xSpacings = parseSpacings(this.gridXSpacings);
+                const ySpacings = parseSpacings(this.gridYSpacings);
+
                 const params = {
-                    gridXCount: Number(this.gridXCount || 3),
-                    gridYCount: Number(this.gridYCount || 3),
+                    // Si hay luces no uniformes, el nº de ejes = nº de luces + 1.
+                    gridXCount: xSpacings ? xSpacings.length + 1 : Number(this.gridXCount || 3),
+                    gridYCount: ySpacings ? ySpacings.length + 1 : Number(this.gridYCount || 3),
                     gridXSpacing: Number(this.gridXSpacing || 5),
                     gridYSpacing: Number(this.gridYSpacing || 5),
+                    gridXSpacings: xSpacings, // array o null
+                    gridYSpacings: ySpacings, // array o null
                     storyCount: Number(this.storyCount || 3),
                     storyHeight: Number(this.storyHeight || 3),
                     selectedTemplate: this.selectedTemplate || 'grid-only'
