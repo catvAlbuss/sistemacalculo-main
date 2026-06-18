@@ -1006,11 +1006,11 @@ export const assignDialogsMixin = {
 
         <select id="assign-diaphragm-id" style="width:100%; padding:7px;">
           ${Object.entries(inputOptions)
-            .map(([value, label]) => {
-              const selected = String(value) === String(currentId) ? "selected" : "";
-              return `<option value="${value}" ${selected}>${label}</option>`;
-            })
-            .join("")}
+          .map(([value, label]) => {
+            const selected = String(value) === String(currentId) ? "selected" : "";
+            return `<option value="${value}" ${selected}>${label}</option>`;
+          })
+          .join("")}
         </select>
 
         <div style="margin-top:14px; padding:10px; border:1px solid #555; border-radius:6px;">
@@ -1512,12 +1512,12 @@ export const assignDialogsMixin = {
             <label style="display:block; margin-bottom:5px;">Load Case</label>
             <select id="joint-force-loadcase" style="width:100%; padding:7px;">
               ${loadCases
-                .map(
-                  (lc) => `
+          .map(
+            (lc) => `
                 <option value="${lc.name}">${lc.name} (${lc.type})</option>
               `,
-                )
-                .join("")}
+          )
+          .join("")}
             </select>
           </div>
 
@@ -1797,12 +1797,12 @@ export const assignDialogsMixin = {
             <label style="display:block; margin-bottom:5px;">Load Case</label>
             <select id="joint-disp-loadcase" style="width:100%; padding:7px;">
               ${loadCases
-                .map(
-                  (lc) => `
+          .map(
+            (lc) => `
                 <option value="${lc.name}">${lc.name} (${lc.type})</option>
               `,
-                )
-                .join("")}
+          )
+          .join("")}
             </select>
           </div>
 
@@ -2079,12 +2079,12 @@ export const assignDialogsMixin = {
             <label style="display:block; margin-bottom:5px;">Load Case</label>
             <select id="joint-temp-loadcase" style="width:100%; padding:7px;">
               ${loadCases
-                .map(
-                  (lc) => `
+          .map(
+            (lc) => `
                 <option value="${lc.name}">${lc.name} (${lc.type})</option>
               `,
-                )
-                .join("")}
+          )
+          .join("")}
             </select>
           </div>
 
@@ -2341,12 +2341,12 @@ export const assignDialogsMixin = {
             <label style="display:block; margin-bottom:5px;">Load Case</label>
             <select id="frame-point-loadcase" style="width:100%; padding:7px;">
               ${loadCases
-                .map(
-                  (lc) => `
+          .map(
+            (lc) => `
                 <option value="${lc.name}">${lc.name} (${lc.type})</option>
               `,
-                )
-                .join("")}
+          )
+          .join("")}
             </select>
           </div>
 
@@ -2553,6 +2553,8 @@ export const assignDialogsMixin = {
         frameLoads: frame.frameLoads,
         lineLoads: frame.lineLoads,
       };
+
+      this._syncFrameLoadAssignmentStoreForFrame?.(frame);
     });
 
     this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
@@ -2627,12 +2629,12 @@ export const assignDialogsMixin = {
             <label style="display:block; margin-bottom:5px;">Load Case</label>
             <select id="frame-dist-loadcase" style="width:100%; padding:7px;">
               ${loadCases
-                .map(
-                  (lc) => `
+          .map(
+            (lc) => `
                 <option value="${lc.name}">${lc.name} (${lc.type})</option>
               `,
-                )
-                .join("")}
+          )
+          .join("")}
             </select>
           </div>
 
@@ -2845,6 +2847,84 @@ export const assignDialogsMixin = {
     return Number(load?.startValue || 0) !== 0 || Number(load?.endValue || 0) !== 0;
   },
 
+  _syncFrameLoadAssignmentStoreForFrame(frame) {
+    if (!frame) return;
+
+    const frameId = Number(
+      frame.id ??
+      frame.frameId ??
+      frame.frame_id ??
+      frame.objectId ??
+      frame.object_id
+    );
+
+    if (!Number.isFinite(frameId)) return;
+
+    if (!this.frameLoadAssignmentsById || typeof this.frameLoadAssignmentsById !== "object") {
+      this.frameLoadAssignmentsById = {};
+    }
+
+    const rawLoads = [
+      ...(Array.isArray(frame.frameLoads) ? frame.frameLoads : []),
+      ...(Array.isArray(frame.lineLoads) ? frame.lineLoads : []),
+      ...(Array.isArray(frame.loads) ? frame.loads : []),
+      ...(Array.isArray(frame.distributedLoads) ? frame.distributedLoads : []),
+      ...(Array.isArray(frame.pointLoads) ? frame.pointLoads : []),
+      ...(Array.isArray(frame.assignment?.frameLoads) ? frame.assignment.frameLoads : []),
+      ...(Array.isArray(frame.assignment?.lineLoads) ? frame.assignment.lineLoads : []),
+      ...(Array.isArray(frame.assignments?.frameLoads) ? frame.assignments.frameLoads : []),
+      ...(Array.isArray(frame.assignments?.lineLoads) ? frame.assignments.lineLoads : []),
+    ];
+
+    const unique = [];
+    const seen = new Set();
+
+    rawLoads.forEach((load) => {
+      if (!load || typeof load !== "object") return;
+
+      const clean = JSON.parse(JSON.stringify(load));
+      clean.frameId = frameId;
+      clean.frame_id = frameId;
+
+      const key = [
+        clean.id,
+        clean.type,
+        clean.loadCase,
+        clean.direction,
+        clean.startValue,
+        clean.endValue,
+        clean.value,
+        clean.relativeDistance,
+      ].join("|");
+
+      if (seen.has(key)) return;
+
+      seen.add(key);
+      unique.push(clean);
+    });
+
+    if (unique.length > 0) {
+      this.frameLoadAssignmentsById[String(frameId)] = unique;
+    } else {
+      delete this.frameLoadAssignmentsById[String(frameId)];
+    }
+
+    this.frameLoadAssignments = Object.entries(this.frameLoadAssignmentsById)
+      .flatMap(([id, loads]) => {
+        return (loads || []).map(load => ({
+          ...load,
+          frameId: Number(id),
+          frame_id: Number(id),
+        }));
+      });
+
+    console.log("✅ Store global de cargas Frame actualizado:", {
+      frameId,
+      loads: this.frameLoadAssignmentsById[String(frameId)] || [],
+      frameLoadAssignments: this.frameLoadAssignments,
+    });
+  },
+
   assignFrameDistributedLoadToSelected(load) {
     const selectedFrames = this.getSelectedFramesForAssign();
 
@@ -2912,6 +2992,8 @@ export const assignDialogsMixin = {
         frameLoads: frame.frameLoads,
         lineLoads: frame.lineLoads,
       };
+
+      this._syncFrameLoadAssignmentStoreForFrame?.(frame);
     });
 
     this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
@@ -2981,12 +3063,12 @@ export const assignDialogsMixin = {
             <label style="display:block; margin-bottom:5px;">Load Case</label>
             <select id="frame-temp-loadcase" style="width:100%; padding:7px;">
               ${loadCases
-                .map(
-                  (lc) => `
+          .map(
+            (lc) => `
                 <option value="${lc.name}">${lc.name} (${lc.type})</option>
               `,
-                )
-                .join("")}
+          )
+          .join("")}
             </select>
           </div>
 
@@ -3812,17 +3894,15 @@ export const assignDialogsMixin = {
         <td style="border:1px solid #555; padding:6px;">${item.id}</td>
         <td style="border:1px solid #555; padding:6px;">${item.type}</td>
         <td style="border:1px solid #555; padding:6px;">
-          ${
-            isFrame
-              ? `Sección: ${item.section}<br>Material: ${item.material}<br>Releases: ${item.hasReleases ? "Sí" : "No"}<br>Offsets: ${item.hasEndOffsets ? "Sí" : "No"}`
-              : `Apoyo: ${item.restraints}<br>Diafragma: ${item.diaphragm}<br>Springs: ${item.hasPointSprings ? "Sí" : "No"}`
+          ${isFrame
+            ? `Sección: ${item.section}<br>Material: ${item.material}<br>Releases: ${item.hasReleases ? "Sí" : "No"}<br>Offsets: ${item.hasEndOffsets ? "Sí" : "No"}`
+            : `Apoyo: ${item.restraints}<br>Diafragma: ${item.diaphragm}<br>Springs: ${item.hasPointSprings ? "Sí" : "No"}`
           }
         </td>
         <td style="border:1px solid #555; padding:6px;">
-          ${
-            isFrame
-              ? `Point: ${item.frameLoads?.point || 0}<br>Distributed: ${item.frameLoads?.distributed || 0}<br>Temp: ${item.frameLoads?.temperature || 0}`
-              : `Force: ${item.jointLoads?.force || 0}<br>Ground Disp: ${item.jointLoads?.groundDisplacement || 0}<br>Temp: ${item.jointLoads?.temperature || 0}`
+          ${isFrame
+            ? `Point: ${item.frameLoads?.point || 0}<br>Distributed: ${item.frameLoads?.distributed || 0}<br>Temp: ${item.frameLoads?.temperature || 0}`
+            : `Force: ${item.jointLoads?.force || 0}<br>Ground Disp: ${item.jointLoads?.groundDisplacement || 0}<br>Temp: ${item.jointLoads?.temperature || 0}`
           }
         </td>
         <td style="border:1px solid #555; padding:6px;">
@@ -4036,7 +4116,7 @@ export const assignDialogsMixin = {
       joint.mass_x = mx;
       joint.mass_y = my;
       joint.mass_z = mz;
-      joint.mass   = mx;  // compatibilidad con código legado
+      joint.mass = mx;  // compatibilidad con código legado
 
       // Objeto masa completo
       joint.massAssignment = { mx, my, mz, rx, ry, rz };

@@ -144,17 +144,17 @@ export const viewportMixin = {
 
         <select id="view-plan-index" style="width:100%; padding:7px;">
           ${planViews
-            .map((view) => {
-              const z = Number(view.elevation ?? 0);
-              const selected = String(view.index) === defaultValue ? "selected" : "";
+          .map((view) => {
+            const z = Number(view.elevation ?? 0);
+            const selected = String(view.index) === defaultValue ? "selected" : "";
 
-              return `
+            return `
               <option value="${view.index}" ${selected}>
                 ${view.name || "Planta"} | Z = ${z.toFixed(2)} m
               </option>
             `;
-            })
-            .join("")}
+          })
+          .join("")}
         </select>
 
         <label style="display:flex; align-items:center; gap:8px; margin-top:12px;">
@@ -223,19 +223,19 @@ export const viewportMixin = {
 
         <select id="view-elevation-index" style="width:100%; padding:7px;">
           ${elevationViews
-            .map((view) => {
-              const fixedAxis = view.axis === "X" ? "X fijo" : "Y fijo";
-              const plane = view.axis === "X" ? "Plano Y-Z" : "Plano X-Z";
-              const value = Number(view.value ?? 0).toFixed(2);
-              const selected = view.index === defaultView.index ? "selected" : "";
+          .map((view) => {
+            const fixedAxis = view.axis === "X" ? "X fijo" : "Y fijo";
+            const plane = view.axis === "X" ? "Plano Y-Z" : "Plano X-Z";
+            const value = Number(view.value ?? 0).toFixed(2);
+            const selected = view.index === defaultView.index ? "selected" : "";
 
-              return `
+            return `
               <option value="${view.index}" ${selected}>
                 ${view.name || `Elevación ${view.label}`} | ${fixedAxis} = ${value} m | ${plane}
               </option>
             `;
-            })
-            .join("")}
+          })
+          .join("")}
         </select>
 
         <label style="display:flex; align-items:center; gap:8px; margin-top:12px;">
@@ -413,8 +413,346 @@ export const viewportMixin = {
     openCombinationDialog(this);
   },
 
+  // =====================================================
+  // DEFINE > MASS SOURCE
+  // =====================================================
+
+  getDefaultMassSourceDefinition() {
+    return {
+      enabled: true,
+      name: "MASS_SOURCE_1",
+
+      // Similar a ETABS:
+      // masa sísmica desde peso propio + cargas gravitacionales.
+      includeSelfWeight: true,
+      selfWeightMultiplier: 1.0,
+
+      loadPatterns: [
+        {
+          name: "DEAD",
+          type: "Dead",
+          factor: 1.0,
+        },
+        {
+          name: "LIVE",
+          type: "Live",
+          factor: 0.25,
+        },
+      ],
+
+      // Por ahora queda como configuración.
+      // En el siguiente paso se conectará al payload sísmico y backend.
+      convertWeightToMass: true,
+      gravity: 9.81,
+      distributeToDiaphragms: true,
+      distributeToStoryNodes: true,
+    };
+  },
+
+  ensureMassSourceDefinition() {
+    if (!this.massSource) {
+      this.massSource = this.getDefaultMassSourceDefinition();
+    }
+
+    if (!Array.isArray(this.massSource.loadPatterns)) {
+      this.massSource.loadPatterns = [];
+    }
+
+    return this.massSource;
+  },
+
+  getAvailableLoadPatternsForMassSource() {
+    const fromLoadCases = this.loadCases?.cases;
+    const fromStaticLoadCases = this.staticLoadCases?.items;
+    const fromAvailableLoads = this.availableLoads;
+
+    let source = [];
+
+    if (Array.isArray(fromLoadCases) && fromLoadCases.length > 0) {
+      source = fromLoadCases;
+    } else if (Array.isArray(fromStaticLoadCases) && fromStaticLoadCases.length > 0) {
+      source = fromStaticLoadCases;
+    } else if (Array.isArray(fromAvailableLoads) && fromAvailableLoads.length > 0) {
+      source = fromAvailableLoads;
+    }
+
+    if (!source.length) {
+      source = [
+        { name: "DEAD", type: "Dead" },
+        { name: "LIVE", type: "Live" },
+        { name: "ROOF LIVE", type: "Live" },
+      ];
+    }
+
+    return source.map((item) => ({
+      name: item.name || item.id || item.loadCase || "LOAD",
+      type: item.type || item.loadType || "Other",
+    }));
+  },
+
+  massSourceHasPattern(patternName) {
+    const cfg = this.ensureMassSourceDefinition();
+
+    return cfg.loadPatterns.some((item) => {
+      return String(item.name) === String(patternName);
+    });
+  },
+
+  getMassSourceFactor(patternName, defaultFactor = 0) {
+    const cfg = this.ensureMassSourceDefinition();
+
+    const found = cfg.loadPatterns.find((item) => {
+      return String(item.name) === String(patternName);
+    });
+
+    if (!found) return defaultFactor;
+
+    const value = Number(found.factor);
+
+    return Number.isFinite(value) ? value : defaultFactor;
+  },
+
+  async openMassSourceDialog() {
+    const cfg = this.ensureMassSourceDefinition();
+    const loadPatterns = this.getAvailableLoadPatternsForMassSource();
+
+    const patternRows = loadPatterns
+      .map((pattern, index) => {
+        const checked = this.massSourceHasPattern(pattern.name);
+        const fallbackFactor = String(pattern.name).toUpperCase().includes("DEAD")
+          ? 1.0
+          : String(pattern.name).toUpperCase().includes("LIVE")
+            ? 0.25
+            : 0.0;
+
+        const factor = this.getMassSourceFactor(pattern.name, fallbackFactor);
+
+        return `
+          <tr>
+            <td style="border:1px solid #475569; padding:6px; text-align:center;">
+              <input
+                type="checkbox"
+                class="mass-source-pattern-enabled"
+                data-index="${index}"
+                ${checked ? "checked" : ""}
+              >
+            </td>
+
+            <td style="border:1px solid #475569; padding:6px;">
+              ${pattern.name}
+              <input type="hidden" id="mass-source-pattern-name-${index}" value="${pattern.name}">
+            </td>
+
+            <td style="border:1px solid #475569; padding:6px;">
+              ${pattern.type}
+              <input type="hidden" id="mass-source-pattern-type-${index}" value="${pattern.type}">
+            </td>
+
+            <td style="border:1px solid #475569; padding:6px;">
+              <input
+                id="mass-source-pattern-factor-${index}"
+                type="number"
+                step="0.01"
+                min="0"
+                value="${factor}"
+                style="width:100%; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:5px 8px;"
+              >
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const result = await Swal.fire({
+      title: "Define Mass Source",
+      width: 820,
+      background: "#1a2035",
+      color: "#e2e8f0",
+      html: `
+        <div style="text-align:left; font-family:monospace; font-size:13px;">
+
+          <div style="margin-bottom:12px; color:#94a3b8;">
+            Define cómo se construirá la masa sísmica del modelo, similar a ETABS.
+          </div>
+
+          <fieldset style="border:1px solid #475569; border-radius:6px; padding:10px 14px; margin-bottom:12px;">
+            <legend style="padding:0 6px; color:#7eb8f7; font-size:12px; font-weight:600;">
+              General
+            </legend>
+
+            <div style="display:grid; grid-template-columns:160px 1fr; gap:8px; align-items:center; margin-bottom:8px;">
+              <label>Nombre:</label>
+              <input
+                id="mass-source-name"
+                type="text"
+                value="${cfg.name || "MASS_SOURCE_1"}"
+                style="background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:5px 8px;"
+              >
+            </div>
+
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+              <input id="mass-source-enabled" type="checkbox" ${cfg.enabled !== false ? "checked" : ""}>
+              Activar Mass Source para análisis sísmico
+            </label>
+
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+              <input id="mass-source-self-weight" type="checkbox" ${cfg.includeSelfWeight !== false ? "checked" : ""}>
+              Incluir peso propio de elementos
+            </label>
+
+            <div style="display:grid; grid-template-columns:160px 1fr; gap:8px; align-items:center; margin-bottom:8px;">
+              <label>Factor peso propio:</label>
+              <input
+                id="mass-source-self-weight-factor"
+                type="number"
+                step="0.01"
+                value="${Number(cfg.selfWeightMultiplier ?? 1)}"
+                style="background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:5px 8px;"
+              >
+            </div>
+
+            <div style="display:grid; grid-template-columns:160px 1fr; gap:8px; align-items:center;">
+              <label>Gravedad:</label>
+              <input
+                id="mass-source-gravity"
+                type="number"
+                step="0.01"
+                min="1"
+                value="${Number(cfg.gravity ?? 9.81)}"
+                style="background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:5px 8px;"
+              >
+            </div>
+          </fieldset>
+
+          <fieldset style="border:1px solid #475569; border-radius:6px; padding:10px 14px; margin-bottom:12px;">
+            <legend style="padding:0 6px; color:#7eb8f7; font-size:12px; font-weight:600;">
+              Load Patterns
+            </legend>
+
+            <table style="width:100%; border-collapse:collapse; font-size:12px;">
+              <thead>
+                <tr style="background:#0f172a;">
+                  <th style="border:1px solid #475569; padding:6px;">Usar</th>
+                  <th style="border:1px solid #475569; padding:6px;">Load Pattern</th>
+                  <th style="border:1px solid #475569; padding:6px;">Tipo</th>
+                  <th style="border:1px solid #475569; padding:6px;">Factor</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                ${patternRows}
+              </tbody>
+            </table>
+
+            <div style="margin-top:8px; color:#94a3b8; font-size:12px;">
+              Recomendación inicial: DEAD = 1.00, LIVE = 0.25.
+            </div>
+          </fieldset>
+
+          <fieldset style="border:1px solid #475569; border-radius:6px; padding:10px 14px;">
+            <legend style="padding:0 6px; color:#7eb8f7; font-size:12px; font-weight:600;">
+              Distribución
+            </legend>
+
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+              <input id="mass-source-to-diaphragms" type="checkbox" ${cfg.distributeToDiaphragms !== false ? "checked" : ""}>
+              Distribuir masa a diafragmas rígidos
+            </label>
+
+            <label style="display:flex; align-items:center; gap:8px;">
+              <input id="mass-source-to-story-nodes" type="checkbox" ${cfg.distributeToStoryNodes !== false ? "checked" : ""}>
+              Distribuir masa a nodos de piso
+            </label>
+          </fieldset>
+
+          <div style="margin-top:12px; color:#facc15; font-size:12px;">
+            Nota: en este paso se guarda la definición. En el siguiente bloque la conectaremos al payload sísmico y al backend.
+          </div>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: "Guardar",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#1d4ed8",
+      preConfirm: () => {
+        return this.readMassSourceFromDialog(loadPatterns.length);
+      },
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    this.saveMassSourceDefinition(result.value);
+  },
+
+  readMassSourceFromDialog(patternCount = 0) {
+    const readNumber = (id, fallback = 0) => {
+      const value = Number(document.getElementById(id)?.value ?? fallback);
+      return Number.isFinite(value) ? value : fallback;
+    };
+
+    const loadPatterns = [];
+
+    for (let index = 0; index < patternCount; index++) {
+      const enabled = document.querySelector(
+        `.mass-source-pattern-enabled[data-index="${index}"]`
+      )?.checked === true;
+
+      if (!enabled) continue;
+
+      const name = document.getElementById(`mass-source-pattern-name-${index}`)?.value || "";
+      const type = document.getElementById(`mass-source-pattern-type-${index}`)?.value || "Other";
+      const factor = readNumber(`mass-source-pattern-factor-${index}`, 0);
+
+      if (!name) continue;
+
+      loadPatterns.push({
+        name,
+        type,
+        factor,
+      });
+    }
+
+    if (!loadPatterns.length && document.getElementById("mass-source-self-weight")?.checked !== true) {
+      Swal.showValidationMessage("Selecciona al menos un Load Pattern o activa el peso propio.");
+      return false;
+    }
+
+    const gravity = readNumber("mass-source-gravity", 9.81);
+
+    if (gravity <= 0) {
+      Swal.showValidationMessage("La gravedad debe ser mayor que cero.");
+      return false;
+    }
+
+    return {
+      enabled: document.getElementById("mass-source-enabled")?.checked !== false,
+      name: document.getElementById("mass-source-name")?.value?.trim() || "MASS_SOURCE_1",
+
+      includeSelfWeight: document.getElementById("mass-source-self-weight")?.checked === true,
+      selfWeightMultiplier: readNumber("mass-source-self-weight-factor", 1.0),
+
+      loadPatterns,
+
+      convertWeightToMass: true,
+      gravity,
+
+      distributeToDiaphragms: document.getElementById("mass-source-to-diaphragms")?.checked === true,
+      distributeToStoryNodes: document.getElementById("mass-source-to-story-nodes")?.checked === true,
+    };
+  },
+
+  saveMassSourceDefinition(massSource) {
+    this.massSource = JSON.parse(JSON.stringify(massSource));
+
+    this.markAnalysisResultsOutdated?.("Define Mass Source");
+
+    this.showMessage?.("Mass Source guardado correctamente.", "success");
+
+    console.log("✅ Mass Source definido:", this.massSource);
+  },
+
   openMassSource() {
-    openMassSourceDialog(this);
+    return this.openMassSourceDialog();
   },
 
   openDiaphragms() {
@@ -496,15 +834,15 @@ export const viewportMixin = {
         <p class="text-sm text-gray-400 mb-3">Seleccione las combinaciones a convertir:</p>
         <div class="max-h-40 overflow-y-auto border rounded p-2">
           ${combinations
-            .map(
-              (combo, index) => `
+          .map(
+            (combo, index) => `
             <label class="flex items-center gap-2 py-1">
               <input type="checkbox" value="${combo.name}" class="combo-checkbox" data-index="${index}">
               <span class="text-sm">${combo.name}: ${combo.expression || combo.name}</span>
             </label>
           `,
-            )
-            .join("")}
+          )
+          .join("")}
         </div>
         <div class="mt-3">
           <label class="text-xs">Prefijo para Casos No Lineales</label>
@@ -573,8 +911,8 @@ export const viewportMixin = {
                         </thead>
                         <tbody>
                             ${this.nodes
-                              .map(
-                                (n) => `
+            .map(
+              (n) => `
                                 <tr class="border-t">
                                     <td class="p-2">${n.id}</td>
                                     <td class="p-2">${n.position.x.toFixed(3)}</td>
@@ -582,8 +920,8 @@ export const viewportMixin = {
                                     <td class="p-2">${(n.position.z || 0).toFixed(3)}</td>
                                 </tr>
                             `,
-                              )
-                              .join("")}
+            )
+            .join("")}
                             ${this.nodes.length === 0 ? '<tr><td colspan="4" class="p-4 text-center text-gray-400">No hay nodos</td></tr>' : ""}
                         </tbody>
                     </table>
@@ -602,11 +940,11 @@ export const viewportMixin = {
                         </thead>
                         <tbody>
                             ${this.shapes
-                              .map((b) => {
-                                const dx = b.node1.position.x - b.node2.position.x;
-                                const dy = b.node1.position.y - b.node2.position.y;
-                                const length = Math.sqrt(dx * dx + dy * dy).toFixed(3);
-                                return `
+            .map((b) => {
+              const dx = b.node1.position.x - b.node2.position.x;
+              const dy = b.node1.position.y - b.node2.position.y;
+              const length = Math.sqrt(dx * dx + dy * dy).toFixed(3);
+              return `
                                     <tr class="border-t">
                                         <td class="p-2">${b.id}</td>
                                         <td class="p-2">${b.node1.id}</td>
@@ -615,8 +953,8 @@ export const viewportMixin = {
                                         <td class="p-2">${b.material?.name || "MAT1"}</td>
                                     </tr>
                                 `;
-                              })
-                              .join("")}
+            })
+            .join("")}
                             ${this.shapes.length === 0 ? '<tr><td colspan="5" class="p-4 text-center text-gray-400">No hay elementos</td></tr>' : ""}
                         </tbody>
                     </table>
