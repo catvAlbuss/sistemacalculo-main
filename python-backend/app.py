@@ -3,6 +3,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import traceback
 import seismic_analysis as sa
+import math
 
 app = Flask(__name__)
 CORS(app)
