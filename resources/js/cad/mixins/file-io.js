@@ -983,6 +983,10 @@ export const fileIOMixin = {
         shapes: frames,
         areas,
 
+        // B10.11 — Store global de cargas Frame / Line Loads
+        frameLoadAssignmentsById: clean(frameLoadStore.frameLoadAssignmentsById, {}),
+        frameLoadAssignments: clean(frameLoadStore.frameLoadAssignments, []),
+
         activeViewIndex: 0,
         activeStory: 0,
         currentViewMode: "plan",
@@ -1179,8 +1183,8 @@ export const fileIOMixin = {
     stories.forEach((story) => {
       lines.push(
         `STORY "${story.name || `Story_${story.id}`}" ` +
-          `ID ${story.id ?? 0} ` +
-          `ELEV ${this.formatE2KNumber(story.elevation)}`,
+        `ID ${story.id ?? 0} ` +
+        `ELEV ${this.formatE2KNumber(story.elevation)}`,
       );
     });
     lines.push("");
@@ -1189,10 +1193,10 @@ export const fileIOMixin = {
     (referenceGrid.xGrids || []).forEach((grid) => {
       lines.push(
         `GRIDLINE DIR X ` +
-          `ID "${grid.id}" ` +
-          `ORD ${this.formatE2KNumber(grid.ordinate)} ` +
-          `VISIBLE ${grid.visible !== false ? "YES" : "NO"} ` +
-          `BUBBLE "${grid.bubbleLoc || "End"}"`,
+        `ID "${grid.id}" ` +
+        `ORD ${this.formatE2KNumber(grid.ordinate)} ` +
+        `VISIBLE ${grid.visible !== false ? "YES" : "NO"} ` +
+        `BUBBLE "${grid.bubbleLoc || "End"}"`,
       );
     });
     lines.push("");
@@ -1201,10 +1205,10 @@ export const fileIOMixin = {
     (referenceGrid.yGrids || []).forEach((grid) => {
       lines.push(
         `GRIDLINE DIR Y ` +
-          `ID "${grid.id}" ` +
-          `ORD ${this.formatE2KNumber(grid.ordinate)} ` +
-          `VISIBLE ${grid.visible !== false ? "YES" : "NO"} ` +
-          `BUBBLE "${grid.bubbleLoc || "Start"}"`,
+        `ID "${grid.id}" ` +
+        `ORD ${this.formatE2KNumber(grid.ordinate)} ` +
+        `VISIBLE ${grid.visible !== false ? "YES" : "NO"} ` +
+        `BUBBLE "${grid.bubbleLoc || "Start"}"`,
       );
     });
     lines.push("");
@@ -1213,12 +1217,12 @@ export const fileIOMixin = {
     (referenceGrid.generalGrids || []).forEach((grid) => {
       lines.push(
         `GENERALGRID "${grid.id || grid.label || "GRID"}" ` +
-          `X1 ${this.formatE2KNumber(grid.x1)} ` +
-          `Y1 ${this.formatE2KNumber(grid.y1)} ` +
-          `X2 ${this.formatE2KNumber(grid.x2)} ` +
-          `Y2 ${this.formatE2KNumber(grid.y2)} ` +
-          `SOURCE "${grid.source || "custom"}" ` +
-          `VISIBLE ${grid.visible !== false ? "YES" : "NO"}`,
+        `X1 ${this.formatE2KNumber(grid.x1)} ` +
+        `Y1 ${this.formatE2KNumber(grid.y1)} ` +
+        `X2 ${this.formatE2KNumber(grid.x2)} ` +
+        `Y2 ${this.formatE2KNumber(grid.y2)} ` +
+        `SOURCE "${grid.source || "custom"}" ` +
+        `VISIBLE ${grid.visible !== false ? "YES" : "NO"}`,
       );
     });
     lines.push("");
@@ -1230,9 +1234,9 @@ export const fileIOMixin = {
 
       lines.push(
         `MATERIAL "${id}" ` +
-          `NAME "${name}" ` +
-          `TYPE "${material.type || material.materialType || "Other"}" ` +
-          `E ${this.formatE2KNumber(material.E || material.modulusElasticity || 0)}`,
+        `NAME "${name}" ` +
+        `TYPE "${material.type || material.materialType || "Other"}" ` +
+        `E ${this.formatE2KNumber(material.E || material.modulusElasticity || 0)}`,
       );
     });
     lines.push("");
@@ -1244,9 +1248,9 @@ export const fileIOMixin = {
 
       lines.push(
         `FRAMESECTION "${id}" ` +
-          `NAME "${name}" ` +
-          `TYPE "${section.type || "General"}" ` +
-          `A ${this.formatE2KNumber(section.A || section.area || 0)}`,
+        `NAME "${name}" ` +
+        `TYPE "${section.type || "General"}" ` +
+        `A ${this.formatE2KNumber(section.A || section.area || 0)}`,
       );
     });
     lines.push("");
@@ -1255,9 +1259,9 @@ export const fileIOMixin = {
     nodes.forEach((node) => {
       lines.push(
         `POINT "${node.id}" ` +
-          `X ${this.formatE2KNumber(node.x ?? node.position?.x)} ` +
-          `Y ${this.formatE2KNumber(node.y ?? node.position?.y)} ` +
-          `Z ${this.formatE2KNumber(node.z ?? node.position?.z)}`,
+        `X ${this.formatE2KNumber(node.x ?? node.position?.x)} ` +
+        `Y ${this.formatE2KNumber(node.y ?? node.position?.y)} ` +
+        `Z ${this.formatE2KNumber(node.z ?? node.position?.z)}`,
       );
     });
     lines.push("");
@@ -1269,10 +1273,10 @@ export const fileIOMixin = {
 
       lines.push(
         `FRAME "${frame.id}" ` +
-          `I "${frame.node1Id ?? frame.node1}" ` +
-          `J "${frame.node2Id ?? frame.node2}" ` +
-          `TYPE "${frame.elementType || frame.type || "beam"}" ` +
-          `SECTION "${sectionName}"`,
+        `I "${frame.node1Id ?? frame.node1}" ` +
+        `J "${frame.node2Id ?? frame.node2}" ` +
+        `TYPE "${frame.elementType || frame.type || "beam"}" ` +
+        `SECTION "${sectionName}"`,
       );
     });
     lines.push("");
@@ -1281,11 +1285,11 @@ export const fileIOMixin = {
     areas.forEach((area) => {
       const points = Array.isArray(area.points)
         ? area.points
-            .map(
-              (point, index) =>
-                `P${index + 1}(${this.formatE2KNumber(point.x)},${this.formatE2KNumber(point.y)},${this.formatE2KNumber(point.z)})`,
-            )
-            .join(" ")
+          .map(
+            (point, index) =>
+              `P${index + 1}(${this.formatE2KNumber(point.x)},${this.formatE2KNumber(point.y)},${this.formatE2KNumber(point.z)})`,
+          )
+          .join(" ")
         : "";
 
       lines.push(`AREA "${area.id}" ` + `TYPE "${area.areaType || area.type || "area"}" ` + points);
@@ -1307,9 +1311,9 @@ export const fileIOMixin = {
       loads.forEach((load) => {
         lines.push(
           `JOINTLOAD POINT "${node.id}" ` +
-            `CASE "${load.loadCase || "DEAD"}" ` +
-            `TYPE "${load.type || "force"}" ` +
-            `DATA ${JSON.stringify(load)}`,
+          `CASE "${load.loadCase || "DEAD"}" ` +
+          `TYPE "${load.type || "force"}" ` +
+          `DATA ${JSON.stringify(load)}`,
         );
       });
     });
@@ -1322,9 +1326,9 @@ export const fileIOMixin = {
       loads.forEach((load) => {
         lines.push(
           `FRAMELOAD FRAME "${frame.id}" ` +
-            `CASE "${load.loadCase || "DEAD"}" ` +
-            `TYPE "${load.type || "distributed"}" ` +
-            `DATA ${JSON.stringify(load)}`,
+          `CASE "${load.loadCase || "DEAD"}" ` +
+          `TYPE "${load.type || "distributed"}" ` +
+          `DATA ${JSON.stringify(load)}`,
         );
       });
     });
@@ -1643,20 +1647,18 @@ export const fileIOMixin = {
         <div class="views">
           <div class="view-card">
             <div class="view-title">Vista 2D</div>
-            ${
-              image2D
-                ? `<img src="${image2D}" alt="Vista 2D">`
-                : `<div class="empty-capture">No se pudo capturar la vista 2D.</div>`
-            }
+            ${image2D
+        ? `<img src="${image2D}" alt="Vista 2D">`
+        : `<div class="empty-capture">No se pudo capturar la vista 2D.</div>`
+      }
           </div>
 
           <div class="view-card">
             <div class="view-title">Vista 3D</div>
-            ${
-              image3D
-                ? `<img src="${image3D}" alt="Vista 3D">`
-                : `<div class="empty-capture">No se pudo capturar la vista 3D. Si aparece vacío, sincroniza la vista 3D e intenta nuevamente.</div>`
-            }
+            ${image3D
+        ? `<img src="${image3D}" alt="Vista 3D">`
+        : `<div class="empty-capture">No se pudo capturar la vista 3D. Si aparece vacío, sincroniza la vista 3D e intenta nuevamente.</div>`
+      }
           </div>
         </div>
 
@@ -1729,6 +1731,113 @@ export const fileIOMixin = {
 
   // ========== MÉTODOS PARA EXPORTAR/IMPORTAR MODELO formato JSON ==========
 
+  _buildFrameLoadStoreForJSON(clean = null) {
+    const clone = clean || ((value, fallback = null) => {
+      try {
+        return JSON.parse(JSON.stringify(value ?? fallback));
+      } catch (error) {
+        console.warn("No se pudo clonar Frame Load:", value, error);
+        return fallback;
+      }
+    });
+
+    const storeById = {};
+    const seen = new Set();
+
+    const pushLoad = (frameId, load) => {
+      const id = Number(frameId);
+
+      if (!Number.isFinite(id)) return;
+      if (!load || typeof load !== "object") return;
+
+      const cleanLoad = clone(load, {});
+
+      cleanLoad.frameId = id;
+      cleanLoad.frame_id = id;
+
+      const key = [
+        id,
+        cleanLoad.id,
+        cleanLoad.type,
+        cleanLoad.loadCase,
+        cleanLoad.coordinateSystem,
+        cleanLoad.loadType,
+        cleanLoad.direction,
+        cleanLoad.distributionType,
+        cleanLoad.distanceType,
+        cleanLoad.startRelativeDistance,
+        cleanLoad.endRelativeDistance,
+        cleanLoad.startAbsoluteDistance,
+        cleanLoad.endAbsoluteDistance,
+        cleanLoad.startValue,
+        cleanLoad.endValue,
+        cleanLoad.value,
+        cleanLoad.relativeDistance,
+      ].join("|");
+
+      if (seen.has(key)) return;
+
+      seen.add(key);
+
+      if (!storeById[String(id)]) {
+        storeById[String(id)] = [];
+      }
+
+      storeById[String(id)].push(cleanLoad);
+    };
+
+    // 1) Fuente principal: store global creado por Assign Frame Loads
+    Object.entries(this.frameLoadAssignmentsById || {}).forEach(([frameId, loads]) => {
+      (Array.isArray(loads) ? loads : []).forEach((load) => {
+        pushLoad(frameId, load);
+      });
+    });
+
+    // 2) Compatibilidad: lista plana global
+    (Array.isArray(this.frameLoadAssignments) ? this.frameLoadAssignments : []).forEach((load) => {
+      const frameId = load?.frameId ?? load?.frame_id;
+      pushLoad(frameId, load);
+    });
+
+    // 3) Compatibilidad: cargas pegadas al objeto frame/beam
+    (this.shapes || []).forEach((frame) => {
+      const frameId = Number(frame.id);
+
+      const rawLoads = [
+        ...(Array.isArray(frame?.frameLoads) ? frame.frameLoads : []),
+        ...(Array.isArray(frame?.lineLoads) ? frame.lineLoads : []),
+        ...(Array.isArray(frame?.loads) ? frame.loads : []),
+        ...(Array.isArray(frame?.distributedLoads) ? frame.distributedLoads : []),
+        ...(Array.isArray(frame?.pointLoads) ? frame.pointLoads : []),
+
+        ...(Array.isArray(frame?.assignment?.loads) ? frame.assignment.loads : []),
+        ...(Array.isArray(frame?.assignment?.frameLoads) ? frame.assignment.frameLoads : []),
+        ...(Array.isArray(frame?.assignment?.lineLoads) ? frame.assignment.lineLoads : []),
+
+        ...(Array.isArray(frame?.assignments?.loads) ? frame.assignments.loads : []),
+        ...(Array.isArray(frame?.assignments?.frameLoads) ? frame.assignments.frameLoads : []),
+        ...(Array.isArray(frame?.assignments?.lineLoads) ? frame.assignments.lineLoads : []),
+      ];
+
+      rawLoads.forEach((load) => {
+        pushLoad(frameId, load);
+      });
+    });
+
+    const flat = Object.entries(storeById).flatMap(([frameId, loads]) => {
+      return (loads || []).map((load) => ({
+        ...clone(load, {}),
+        frameId: Number(frameId),
+        frame_id: Number(frameId),
+      }));
+    });
+
+    return {
+      frameLoadAssignmentsById: storeById,
+      frameLoadAssignments: flat,
+    };
+  },
+
   exportToJSON() {
     const clean = (data, fallback = null) => {
       try {
@@ -1759,6 +1868,10 @@ export const fileIOMixin = {
       massAssignment: clean(node.massAssignment),
       hasMass: node.hasMass === true || (Number(node.mass_x) || 0) > 0 || (Number(node.mass_y) || 0) > 0,
 
+      // B10.12 — Apoyos legacy / tipo soporte
+      soporte: node.soporte || null,
+      supportType: node.supportType || node.soporte || null,
+
       diaphragmId: node.diaphragmId || node.diaphragm?.id || null,
       diaphragmName: node.diaphragmName || node.diaphragm?.name || null,
       diaphragm: clean(node.diaphragm),
@@ -1768,12 +1881,31 @@ export const fileIOMixin = {
       springs: clean(node.springs),
       hasPointSprings: node.hasPointSprings === true,
 
-      pointLoads: clean(node.pointLoads, []),
-      jointLoads: clean(node.jointLoads, []),
-      hasPointLoads: node.hasPointLoads === true,
-      hasJointLoads: node.hasJointLoads === true,
+      // B3 — Mass / Mass Source
+      mass_x: Number(node.mass_x ?? node.massAssignment?.mx ?? node.assignment?.mass?.mx ?? node.mass ?? 0),
+      mass_y: Number(node.mass_y ?? node.massAssignment?.my ?? node.assignment?.mass?.my ?? node.mass ?? 0),
+      mass_z: Number(node.mass_z ?? node.massAssignment?.mz ?? node.assignment?.mass?.mz ?? 0),
 
-      groupIds: clean(node.groupIds, []),
+      mass: Number(node.mass ?? node.mass_x ?? node.massAssignment?.mx ?? node.assignment?.mass?.mx ?? 0),
+
+      massAssignment: clean(
+        node.massAssignment ||
+        node.jointMass ||
+        node.assignment?.mass ||
+        {
+          mx: Number(node.mass_x ?? node.mass ?? 0),
+          my: Number(node.mass_y ?? node.mass ?? 0),
+          mz: Number(node.mass_z ?? 0),
+          rx: Number(node.massAssignment?.rx ?? node.assignment?.mass?.rx ?? 0),
+          ry: Number(node.massAssignment?.ry ?? node.assignment?.mass?.ry ?? 0),
+          rz: Number(node.massAssignment?.rz ?? node.assignment?.mass?.rz ?? 0),
+        },
+        null
+      ),
+
+      jointMass: clean(node.jointMass || node.massAssignment || node.assignment?.mass, null),
+      hasMass: node.hasMass === true || Number(node.mass_x ?? node.mass ?? 0) > 0 || Number(node.mass_y ?? 0) > 0 || Number(node.mass_z ?? 0) > 0,
+
       groupNames: clean(node.groupNames, []),
       groups: clean(node.groups, []),
       hasGroups: node.hasGroups === true,
@@ -1844,6 +1976,11 @@ export const fileIOMixin = {
       steelJoistDesignResult: clean(frame.steelJoistDesignResult),
     }));
 
+    const frameLoadStore = this._buildFrameLoadStoreForJSON?.(clean) || {
+      frameLoadAssignmentsById: {},
+      frameLoadAssignments: [],
+    };
+
     const areas = (this.areas || []).map((area) => ({
       id: area.id ?? null,
       type: area.type || area.areaType || "area",
@@ -1905,6 +2042,10 @@ export const fileIOMixin = {
         beams: frames,
         shapes: frames,
         areas,
+
+        // B10.11 — Compatibilidad raíz
+        frameLoadAssignmentsById: clean(frameLoadStore.frameLoadAssignmentsById, {}),
+        frameLoadAssignments: clean(frameLoadStore.frameLoadAssignments, []),
       },
 
       definitions: {
@@ -2096,9 +2237,9 @@ export const fileIOMixin = {
       if (importedReferenceGrid) {
         const importedCustomGeneralGrids = Array.isArray(importedReferenceGrid.generalGrids)
           ? importedReferenceGrid.generalGrids.filter((grid) => {
-              const source = String(grid.source || "").toLowerCase();
-              return source === "custom" || (source !== "x" && source !== "y");
-            })
+            const source = String(grid.source || "").toLowerCase();
+            return source === "custom" || (source !== "x" && source !== "y");
+          })
           : [];
 
         this.referenceGrid = {
@@ -2216,9 +2357,37 @@ export const fileIOMixin = {
           newNode.hasRestraints = nodeData.hasRestraints ?? this.jointHasAnyRestraint?.(importedRestraints) ?? true;
         }
 
-        // Apoyo por string (soporteUno/Dos/...) — el otro formato de apoyo.
-        if (nodeData.soporte) {
-          newNode.soporte = nodeData.soporte;
+        // B10.12 — Restaurar apoyo legacy tipo soporte (soporteUno/Dos/...).
+        newNode.soporte = nodeData.soporte || nodeData.supportType || "";
+
+        if (newNode.soporte && !newNode.restraints && !newNode.constraints) {
+          const soporteToRestraints = (soporte) => {
+            if (soporte === "soporteUno") {
+              return { ux: 1, uy: 1, uz: 1, rx: 1, ry: 1, rz: 1 };
+            }
+
+            if (soporte === "soporteDos") {
+              return { ux: 1, uy: 1, uz: 1, rx: 0, ry: 0, rz: 0 };
+            }
+
+            if (soporte === "soporteTres") {
+              return { ux: 0, uy: 0, uz: 1, rx: 0, ry: 0, rz: 0 };
+            }
+
+            if (soporte === "soporteCuatro") {
+              return { ux: 0, uy: 0, uz: 1, rx: 0, ry: 0, rz: 0 };
+            }
+
+            return null;
+          };
+
+          const restoredRestraints = soporteToRestraints(newNode.soporte);
+
+          if (restoredRestraints) {
+            newNode.restraints = restoredRestraints;
+            newNode.constraints = cleanClone(restoredRestraints);
+            newNode.hasRestraints = true;
+          }
         }
 
         // Masas nodales (sísmicas) — restaurar para que persistan al reabrir.
@@ -2229,15 +2398,14 @@ export const fileIOMixin = {
           newNode.massAssignment = cleanClone(nodeData.massAssignment);
         }
         newNode.hasMass = newNode.mass_x > 0 || newNode.mass_y > 0 || newNode.mass_z > 0;
-
         const importedDiaphragm =
           nodeData.diaphragm ||
           (nodeData.diaphragmId
             ? {
-                id: nodeData.diaphragmId,
-                name: nodeData.diaphragmName || nodeData.diaphragmId,
-                type: "rigid",
-              }
+              id: nodeData.diaphragmId,
+              name: nodeData.diaphragmName || nodeData.diaphragmId,
+              type: "rigid",
+            }
             : null);
 
         if (importedDiaphragm) {
@@ -2278,6 +2446,49 @@ export const fileIOMixin = {
         newNode.hasGroups = nodeData.hasGroups ?? newNode.groupIds.length > 0;
 
         newNode.assignment = cleanClone(nodeData.assignment, {});
+
+        // B3 — Restaurar masa nodal
+        const importedMass =
+          nodeData.massAssignment ||
+          nodeData.jointMass ||
+          nodeData.assignment?.mass ||
+          null;
+
+        const mx = Number(nodeData.mass_x ?? importedMass?.mx ?? nodeData.mass ?? 0);
+        const my = Number(nodeData.mass_y ?? importedMass?.my ?? nodeData.mass ?? mx);
+        const mz = Number(nodeData.mass_z ?? importedMass?.mz ?? 0);
+
+        const rx = Number(importedMass?.rx ?? 0);
+        const ry = Number(importedMass?.ry ?? 0);
+        const rz = Number(importedMass?.rz ?? 0);
+
+        newNode.mass_x = Number.isFinite(mx) ? mx : 0;
+        newNode.mass_y = Number.isFinite(my) ? my : 0;
+        newNode.mass_z = Number.isFinite(mz) ? mz : 0;
+
+        newNode.mass = newNode.mass_x;
+
+        newNode.massAssignment = {
+          mx: newNode.mass_x,
+          my: newNode.mass_y,
+          mz: newNode.mass_z,
+          rx: Number.isFinite(rx) ? rx : 0,
+          ry: Number.isFinite(ry) ? ry : 0,
+          rz: Number.isFinite(rz) ? rz : 0,
+        };
+
+        newNode.jointMass = cleanClone(newNode.massAssignment);
+
+        newNode.hasMass =
+          nodeData.hasMass === true ||
+          newNode.mass_x > 0 ||
+          newNode.mass_y > 0 ||
+          newNode.mass_z > 0;
+
+        newNode.assignment = {
+          ...(newNode.assignment || {}),
+          mass: cleanClone(newNode.massAssignment),
+        };
 
         newNode.force = cleanClone(nodeData.force, this.getDefaultNodeForceForImport());
 
@@ -2423,6 +2634,139 @@ export const fileIOMixin = {
         .filter(Boolean);
 
       this.nextBeamId = Math.max(0, ...this.shapes.map((frame) => Number(frame.id || 0))) + 1;
+
+      // ============================================================
+      // B10.11 — Restaurar Frame / Line Loads global store desde JSON
+      // ============================================================
+      const importedFrameLoadAssignmentsById =
+        model.frameLoadAssignmentsById ||
+        definitions.frameLoadAssignmentsById ||
+        data.frameLoadAssignmentsById ||
+        {};
+
+      const importedFrameLoadAssignments =
+        model.frameLoadAssignments ||
+        definitions.frameLoadAssignments ||
+        data.frameLoadAssignments ||
+        [];
+
+      this.frameLoadAssignmentsById = {};
+      this.frameLoadAssignments = [];
+
+      const pushRestoredFrameLoad = (frameId, load) => {
+        const id = Number(frameId);
+
+        if (!Number.isFinite(id)) return;
+        if (!load || typeof load !== "object") return;
+
+        const cleanLoad = cleanClone(load, {});
+
+        cleanLoad.frameId = id;
+        cleanLoad.frame_id = id;
+
+        const key = [
+          id,
+          cleanLoad.id,
+          cleanLoad.type,
+          cleanLoad.loadCase,
+          cleanLoad.coordinateSystem,
+          cleanLoad.loadType,
+          cleanLoad.direction,
+          cleanLoad.distributionType,
+          cleanLoad.distanceType,
+          cleanLoad.startRelativeDistance,
+          cleanLoad.endRelativeDistance,
+          cleanLoad.startAbsoluteDistance,
+          cleanLoad.endAbsoluteDistance,
+          cleanLoad.startValue,
+          cleanLoad.endValue,
+          cleanLoad.value,
+          cleanLoad.relativeDistance,
+        ].join("|");
+
+        if (!pushRestoredFrameLoad.seen) {
+          pushRestoredFrameLoad.seen = new Set();
+        }
+
+        if (pushRestoredFrameLoad.seen.has(key)) return;
+
+        pushRestoredFrameLoad.seen.add(key);
+
+        if (!this.frameLoadAssignmentsById[String(id)]) {
+          this.frameLoadAssignmentsById[String(id)] = [];
+        }
+
+        this.frameLoadAssignmentsById[String(id)].push(cleanLoad);
+      };
+
+      // 1) Restaurar desde store por ID
+      Object.entries(importedFrameLoadAssignmentsById || {}).forEach(([frameId, loads]) => {
+        (Array.isArray(loads) ? loads : []).forEach((load) => {
+          pushRestoredFrameLoad(frameId, load);
+        });
+      });
+
+      // 2) Restaurar desde lista plana
+      (Array.isArray(importedFrameLoadAssignments) ? importedFrameLoadAssignments : []).forEach((load) => {
+        pushRestoredFrameLoad(load?.frameId ?? load?.frame_id, load);
+      });
+
+      // 3) Restaurar desde cargas guardadas dentro de cada frame
+      this.shapes.forEach((frame) => {
+        const frameId = Number(frame.id);
+
+        const rawLoads = [
+          ...(Array.isArray(frame?.frameLoads) ? frame.frameLoads : []),
+          ...(Array.isArray(frame?.lineLoads) ? frame.lineLoads : []),
+          ...(Array.isArray(frame?.loads) ? frame.loads : []),
+          ...(Array.isArray(frame?.distributedLoads) ? frame.distributedLoads : []),
+          ...(Array.isArray(frame?.pointLoads) ? frame.pointLoads : []),
+
+          ...(Array.isArray(frame?.assignment?.loads) ? frame.assignment.loads : []),
+          ...(Array.isArray(frame?.assignment?.frameLoads) ? frame.assignment.frameLoads : []),
+          ...(Array.isArray(frame?.assignment?.lineLoads) ? frame.assignment.lineLoads : []),
+        ];
+
+        rawLoads.forEach((load) => {
+          pushRestoredFrameLoad(frameId, load);
+        });
+      });
+
+      // 4) Sincronizar store restaurado de vuelta a cada frame
+      const frameMapForLoads = new Map(
+        this.shapes.map((frame) => [String(frame.id), frame])
+      );
+
+      Object.entries(this.frameLoadAssignmentsById || {}).forEach(([frameId, loads]) => {
+        const frame = frameMapForLoads.get(String(frameId));
+
+        if (!frame) return;
+
+        frame.frameLoads = cleanClone(loads, []);
+        frame.lineLoads = cleanClone(loads, []);
+        frame.hasFrameLoads = frame.frameLoads.length > 0;
+        frame.hasLineLoads = frame.lineLoads.length > 0;
+
+        frame.assignment = {
+          ...(frame.assignment || {}),
+          frameLoads: frame.frameLoads,
+          lineLoads: frame.lineLoads,
+        };
+      });
+
+      this.frameLoadAssignments = Object.entries(this.frameLoadAssignmentsById || {})
+        .flatMap(([frameId, loads]) => {
+          return (loads || []).map((load) => ({
+            ...cleanClone(load, {}),
+            frameId: Number(frameId),
+            frame_id: Number(frameId),
+          }));
+        });
+
+      console.log("✅ Frame Loads restaurados desde JSON:", {
+        frameLoadAssignmentsById: this.frameLoadAssignmentsById,
+        frameLoadAssignments: this.frameLoadAssignments,
+      });
 
       // ===============================
       // 7. Restaurar áreas
@@ -3067,10 +3411,10 @@ export const fileIOMixin = {
               // Asegurar que beam.style exista
               if (!beam.style) {
                 beam.style = {
-                  normal: () => {},
-                  compresion: () => {},
-                  traccion: () => {},
-                  default: () => {},
+                  normal: () => { },
+                  compresion: () => { },
+                  traccion: () => { },
+                  default: () => { },
                 };
               }
 

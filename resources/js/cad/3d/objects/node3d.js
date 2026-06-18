@@ -39,7 +39,6 @@ export function updateNode3D(mesh, node) {
   // modelo:  (x, y, z)
   // Babylon: (x, z, y)
   mesh.position.set(x, z, y);
-
   mesh.isPickable = true;
   mesh.metadata = {
     ...(mesh.metadata || {}),

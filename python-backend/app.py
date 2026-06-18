@@ -3,6 +3,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import traceback
 import seismic_analysis as sa
+import math
 
 app = Flask(__name__)
 CORS(app)
@@ -1235,7 +1236,8 @@ def run_opensees_analysis(data):
 #  ANÁLISIS SÍSMICO ESPECTRAL
 # ─────────────────────────────────────────────────────────────────────────────
 
-@app.route('/api/seismic/parse-spectrum', methods=['POST'])
+
+@app.route("/api/seismic/parse-spectrum", methods=["POST"])
 def parse_spectrum():
     """
     Parsea un archivo de espectro de respuesta.
@@ -1248,38 +1250,51 @@ def parse_spectrum():
       { success, spectrum: [{T, Sa}], count, filename }
     """
     try:
-        filename = 'spectrum.txt'
+        filename = "spectrum.txt"
         file_bytes = None
 
-        if request.files and 'file' in request.files:
-            f = request.files['file']
+        if request.files and "file" in request.files:
+            f = request.files["file"]
             filename = f.filename or filename
             file_bytes = f.read()
         elif request.is_json:
             payload = request.get_json()
-            content = payload.get('content', '')
-            filename = payload.get('filename', filename)
-            file_bytes = content.encode('utf-8')
+            content = payload.get("content", "")
+            filename = payload.get("filename", filename)
+            file_bytes = content.encode("utf-8")
         else:
-            return jsonify({'success': False,
-                            'error': 'Se requiere un archivo (form-data) o JSON con campo content'}), 400
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": "Se requiere un archivo (form-data) o JSON con campo content",
+                    }
+                ),
+                400,
+            )
 
         data = sa.parse_spectrum_file(file_bytes, filename)
 
-        spectrum = [{'T': float(t), 'Sa': float(s)} for t, s in data]
-        return jsonify({
-            'success': True,
-            'spectrum': spectrum,
-            'count': len(spectrum),
-            'filename': filename,
-        })
+        spectrum = [{"T": float(t), "Sa": float(s)} for t, s in data]
+        return jsonify(
+            {
+                "success": True,
+                "spectrum": spectrum,
+                "count": len(spectrum),
+                "filename": filename,
+            }
+        )
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e),
-                        'traceback': traceback.format_exc()}), 500
+        return (
+            jsonify(
+                {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+            ),
+            500,
+        )
 
 
-@app.route('/api/seismic/analyze', methods=['POST'])
+@app.route("/api/seismic/analyze", methods=["POST"])
 def seismic_analyze():
     """
     Análisis sísmico espectral completo.
@@ -1313,43 +1328,69 @@ def seismic_analyze():
     }
     """
     if not OPENSEES_AVAILABLE:
-        return jsonify({
-            'success': False,
-            'error': 'OpenSeesPy no está disponible',
-            'message': 'Instala openseespywin o openseespy para habilitar el análisis sísmico',
-        }), 503
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": "OpenSeesPy no está disponible",
+                    "message": "Instala openseespywin o openseespy para habilitar el análisis sísmico",
+                }
+            ),
+            503,
+        )
 
     try:
         data = request.get_json()
         if not data:
-            return jsonify({'success': False, 'error': 'Payload JSON requerido'}), 400
+            return jsonify({"success": False, "error": "Payload JSON requerido"}), 400
 
         # Validaciones básicas
-        if not data.get('nodes'):
-            return jsonify({'success': False, 'error': 'Se requiere al menos un nodo'}), 400
-        if not data.get('elements'):
-            return jsonify({'success': False, 'error': 'Se requiere al menos un elemento'}), 400
-        if not data.get('spectrum_x') and not data.get('spectrum_y'):
-            return jsonify({'success': False, 'error': 'Se requiere al menos un espectro (spectrum_x o spectrum_y)'}), 400
+        if not data.get("nodes"):
+            return (
+                jsonify({"success": False, "error": "Se requiere al menos un nodo"}),
+                400,
+            )
+        if not data.get("elements"):
+            return (
+                jsonify(
+                    {"success": False, "error": "Se requiere al menos un elemento"}
+                ),
+                400,
+            )
+        if not data.get("spectrum_x") and not data.get("spectrum_y"):
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": "Se requiere al menos un espectro (spectrum_x o spectrum_y)",
+                    }
+                ),
+                400,
+            )
 
         # Convertir espectros de [{T, Sa}] → [(T, Sa)] si vienen como dicts
-        for key in ('spectrum_x', 'spectrum_y'):
+        for key in ("spectrum_x", "spectrum_y"):
             spec = data.get(key)
             if spec and isinstance(spec[0], dict):
-                data[key] = [(float(p['T']), float(p['Sa'])) for p in spec]
+                data[key] = [(float(p["T"]), float(p["Sa"])) for p in spec]
 
         result = sa.run_full_seismic_analysis(data)
         return jsonify(result)
 
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'traceback': traceback.format_exc(),
-        }), 500
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                }
+            ),
+            500,
+        )
 
 
-@app.route('/api/seismic/modal', methods=['POST'])
+@app.route("/api/seismic/modal", methods=["POST"])
 def modal_only():
     """
     Solo análisis modal (eigenvalue), sin aplicar espectro.
@@ -1359,34 +1400,43 @@ def modal_only():
     Parámetro opcional: num_modes (default 6).
     """
     if not OPENSEES_AVAILABLE:
-        return jsonify({'success': False, 'error': 'OpenSeesPy no disponible'}), 503
+        return jsonify({"success": False, "error": "OpenSeesPy no disponible"}), 503
 
     try:
         data = request.get_json() or {}
-        if not data.get('nodes') or not data.get('elements'):
-            return jsonify({'success': False, 'error': 'Se requieren nodes y elements'}), 400
+        if not data.get("nodes") or not data.get("elements"):
+            return (
+                jsonify({"success": False, "error": "Se requieren nodes y elements"}),
+                400,
+            )
 
-        num_modes = int(data.get('num_modes', 6))
+        num_modes = int(data.get("num_modes", 6))
         nodes, elements = sa.build_model_3d(data)
         num_modes = min(num_modes, max(1, len(nodes) * 2))
         modal = sa.run_modal_analysis(nodes, num_modes)
 
-        return jsonify({
-            'success': True,
-            'modes': modal['modal_info'],
-            'num_modes': num_modes,
-            'num_nodes': len(nodes),
-        })
+        return jsonify(
+            {
+                "success": True,
+                "modes": modal["modal_info"],
+                "num_modes": num_modes,
+                "num_nodes": len(nodes),
+            }
+        )
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e),
-                        'traceback': traceback.format_exc()}), 500
+        return (
+            jsonify(
+                {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+            ),
+            500,
+        )
 
 
-if __name__ == '__main__':
-    print("\n" + "="*60)
+if __name__ == "__main__":
+    print("\n" + "=" * 60)
     print("Servidor de Análisis Estructural")
-    print("="*60)
+    print("=" * 60)
     print(f"OpenSeesPy disponible: {'SI' if OPENSEES_AVAILABLE else 'NO'}")
     print("Endpoints:")
     print("   GET  /health")
@@ -1396,10 +1446,9 @@ if __name__ == '__main__':
     print("   POST /api/seismic/parse-spectrum  (importar espectro)")
     print("   POST /api/seismic/modal           (análisis modal)")
     print("   POST /api/seismic/analyze         (RSA completo)")
-    print("="*60)
+    print("=" * 60)
     print("Servidor corriendo en http://localhost:5001")
-    print("="*60 + "\n")
-
+    print("=" * 60 + "\n")
 
 
 @app.route("/api/analyze/modal-spectral-test", methods=["GET", "POST"])
@@ -3370,7 +3419,7 @@ def build_opensees_model_from_payload(payload):
         print("\n⚖️ MASAS:")
 
         def apply_mass(node_tag, raw_node_id, mx, my, mz, mrx, mry, mrz, source):
-            
+
             # ============================================================
             # BLOQUE 7S-A - Aplicar calibración real de masa
             # ============================================================
@@ -3384,7 +3433,7 @@ def build_opensees_model_from_payload(payload):
                 mrz = mrz * global_mass_scale
 
                 source = f"{source}|model_calibration.mass_scale"
-            
+
             ops.mass(node_tag, mx, my, mz, mrx, mry, mrz)
             summary["masses_assigned"] += 1
             summary["masses_source"] = source
@@ -3766,11 +3815,11 @@ def build_opensees_model_from_payload(payload):
                 summary["warnings"].append(
                     "No se resolvieron materiales reales para los frames. Se usaron valores fallback."
                 )
-                
+
             if calibration_enabled:
                 summary["warnings"].append(
                     "Calibración real del modelo activada: se aplicaron factores de rigidez/masa desde payload.analysis.modelCalibration."
-            )
+                )
 
         print("\n📌 RESUMEN BLOQUE 7A:")
         print(f"   Nodos creados:     {summary['nodes_created']}")
@@ -6532,6 +6581,18 @@ def modal_spectral_analysis():
             ),
             500,
         )
+
+
+@app.route("/api/seismic/health", methods=["GET"])
+def seismic_health_check():
+    return jsonify(
+        {
+            "status": "ok",
+            "service": "jhack-seismic-backend",
+            "endpoint": "/api/seismic/analyze",
+            "message": "Backend sísmico Flask disponible",
+        }
+    )
 
 
 if __name__ == "__main__":

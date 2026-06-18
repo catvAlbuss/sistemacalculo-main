@@ -171,13 +171,13 @@ export class Shape {
     return this._propiedades;
   }
 
-  drawUnfinished() {}
+  drawUnfinished() { }
 
   drawTranslated(translation) {
     // draws a copy translated to a diference of vectors
   }
 
-  drawSelected() {}
+  drawSelected() { }
 }
 
 export class Marker {
@@ -276,6 +276,11 @@ export class Node {
   }
 }
 
+// ============================================================
+// Beam / Frame estructural
+// Compatible con flujo legacy y nuevo flujo tipo ETABS
+// ============================================================
+
 export class Beam {
   constructor(E, A) {
     this.id = null;
@@ -283,8 +288,33 @@ export class Beam {
     this.node1 = null;
     this.node2 = null;
 
-    this.E = E;
-    this._A = A;
+    // -------------------------------
+    // Propiedades legacy
+    // -------------------------------
+    // Se mantienen para no romper análisis antiguos.
+    this.E = E ?? null;
+    this._A = A ?? null;
+
+    // -------------------------------
+    // Propiedades estructurales reales
+    // -------------------------------
+    // Estas son las que debe leer Modal Spectral.
+    this.sectionId = typeof A === "string" ? A : null;
+    this.sectionName = typeof A === "string" ? A : null;
+    this.sectionLabel = typeof A === "string" ? A : null;
+
+    this.materialId = null;
+    this.materialName = null;
+    this.materialLabel = null;
+
+    // Aquí se podrán guardar propiedades ya resueltas en SI:
+    // A, Iy, Iz, J, E, G, density, weight, etc.
+    this.sectionProperties = null;
+    this.materialProperties = null;
+
+    // Rol estructural: beam | column | brace | frame
+    this.frameType = "beam";
+    this.structuralRole = "beam";
 
     this.angle = 0;
     this.fAxial = 0;
@@ -301,11 +331,145 @@ export class Beam {
   }
 
   set A(a) {
-    this._A = a;
+    this._A = a ?? null;
+
+    // Compatibilidad: si antes se asignaba A como nombre de sección,
+    // ahora también queda registrada como sección estructural.
+    if (typeof a === "string") {
+      this.sectionId = this.sectionId ?? a;
+      this.sectionName = this.sectionName ?? a;
+      this.sectionLabel = this.sectionLabel ?? a;
+    }
   }
 
   get A() {
+    // Legacy:
+    // Si _A es una clave de sections.js, devuelve el área.
+    // Si _A ya es número, devuelve el número.
     return sections?.[this._A] ?? this._A;
+  }
+
+  get rawArea() {
+    return this._A;
+  }
+
+  get area() {
+    return this.A;
+  }
+
+  assignSection(section) {
+    if (!section) return;
+
+    if (typeof section === "string") {
+      this.sectionId = section;
+      this.sectionName = section;
+      this.sectionLabel = section;
+      this._A = section;
+      this.sectionProperties = null;
+      return;
+    }
+
+    const id =
+      section.id ??
+      section.sectionId ??
+      section.name ??
+      section.label ??
+      section.key ??
+      null;
+
+    const name =
+      section.name ??
+      section.sectionName ??
+      section.label ??
+      id;
+
+    this.sectionId = id;
+    this.sectionName = name;
+    this.sectionLabel = section.label ?? name;
+
+    this.sectionProperties = {
+      ...section,
+    };
+
+    // Mantiene compatibilidad con el getter A.
+    if (section.A !== undefined && section.A !== null) {
+      this._A = section.A;
+    } else if (id) {
+      this._A = id;
+    }
+  }
+
+  assignMaterial(material) {
+    if (!material) return;
+
+    if (typeof material === "string") {
+      this.materialId = material;
+      this.materialName = material;
+      this.materialLabel = material;
+      this.materialProperties = null;
+      return;
+    }
+
+    const id =
+      material.id ??
+      material.materialId ??
+      material.name ??
+      material.label ??
+      material.key ??
+      null;
+
+    const name =
+      material.name ??
+      material.materialName ??
+      material.label ??
+      id;
+
+    this.materialId = id;
+    this.materialName = name;
+    this.materialLabel = material.label ?? name;
+
+    this.materialProperties = {
+      ...material,
+    };
+
+    // Si el material trae E, actualizamos E legacy también.
+    if (material.E !== undefined && material.E !== null) {
+      this.E = material.E;
+    }
+  }
+
+  setStructuralRole(role) {
+    const normalizedRole = String(role || "").toLowerCase();
+
+    if (["beam", "column", "brace", "frame"].includes(normalizedRole)) {
+      this.frameType = normalizedRole;
+      this.structuralRole = normalizedRole;
+      this.type = normalizedRole === "column" ? "column" : "beam";
+      this.elementType = this.type;
+    }
+  }
+
+  getStructuralAssignment() {
+    return {
+      id: this.id,
+      frameType: this.frameType,
+      structuralRole: this.structuralRole,
+
+      sectionId: this.sectionId,
+      sectionName: this.sectionName,
+      sectionLabel: this.sectionLabel,
+
+      materialId: this.materialId,
+      materialName: this.materialName,
+      materialLabel: this.materialLabel,
+
+      A: this.A,
+      rawArea: this.rawArea,
+      E: this.E,
+
+      sectionProperties: this.sectionProperties,
+      materialProperties: this.materialProperties,
+    };
   }
 
   addNode(node) {
@@ -363,5 +527,5 @@ export class Area extends Shape {
 }
 
 export class PointLoad {
-  constructor() {}
+  constructor() { }
 }
