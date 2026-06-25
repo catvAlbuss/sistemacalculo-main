@@ -29,6 +29,10 @@ import { axisToFixed, removeFromArray } from "../utils.js";
 import { Triangle, Puente, Arco } from "../parametricModels.js";
 import { elevateSelectedNodes, extrudeToNewFloor, lowerSelectedNodes, selectAllNodes, activate3DDrawingMode } from "../3d/modeling3d.js";
 import { toggleView3D } from "../3d/viewer3d.js";
+import {
+  serializeFrameForceModule,
+  restoreFrameForceModule,
+} from "../analysis/frameForcePersistence.js";
 
 export const fileIOMixin = {
   creaArco() {
@@ -2119,6 +2123,9 @@ export const fileIOMixin = {
         modalSpectralAnalysis: clean(this.buildModalSpectralSaveData?.(), null),
       },
 
+      // B-DIAG-20 — Persistencia de diagramas Frame Forces
+      frameForceModule: serializeFrameForceModule(this),
+
       // Compatibilidad con el formato anterior
       nodes,
       beams: frames,
@@ -2157,6 +2164,7 @@ export const fileIOMixin = {
       stories: modelData.model.stories.length,
       xGrids: modelData.model.referenceGrid?.xGrids?.length || 0,
       yGrids: modelData.model.referenceGrid?.yGrids?.length || 0,
+      frameForceModule: Boolean(modelData.frameForceModule?.hasResults),
     });
 
     return modelData;
@@ -3070,6 +3078,9 @@ export const fileIOMixin = {
           lastTable: this.analysisResults.modalSpectral.table || [],
         });
       }
+
+      // B-DIAG-20 — Restaurar diagramas Frame Forces desde JSON
+      restoreFrameForceModule(this, data);
 
       if (this.analysisOptions && this.modelCheck) {
         this.analysisOptions.lastModelCheck = {
