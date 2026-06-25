@@ -155,6 +155,9 @@
                             <optgroup label="Madera">
                                 <option value="7">Madera (R=7)</option>
                             </optgroup>
+                            <optgroup label="pendulo invertido">
+                                <option value="2.5">Pendulo Invertido (R=2.5)</option>
+                            </optgroup>
                         </select>
                     </div>
 
@@ -187,11 +190,12 @@
                         </label>
                         <select id="irreg_planta"
                             class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500">
-                            <option value="1.0" selected>Sin irregularidad (Ip=1.0)</option>
-                            <option value="0.9">Torsional (Ip=0.9)</option>
-                            <option value="0.7">Esquinas entrantes (Ip≈0.81)</option>
-                            <option value="0.9">Discontinuidad del diafragma (Ip=0.9)</option>
-                            <option value="0.9">Sistemas no paralelos (Ip=0.9)</option>
+                            <option value="1.0" selected>Sin irregularidad (Ip = 1.00)</option>
+                            <option value="0.75">Torsional (Ip = 0.75)</option>
+                            <option value="0.60">Torsional Extrema (Ip = 0.60)</option>
+                            <option value="0.90">Esquinas Entrantes (Ip = 0.90)</option>
+                            <option value="0.85">Discontinuidad del Diafragma (Ip = 0.85)</option>
+                            <option value="0.90">Sistemas No Paralelos (Ip = 0.90)</option>
                         </select>
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">— Aplica desde E.030-2016</p>
                     </div>
@@ -204,12 +208,14 @@
                         </label>
                         <select id="irreg_altura"
                             class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500">
-                            <option value="1.0" selected>Sin irregularidad (Ia=1.0)</option>
-                            <option value="0.9">Irregularidad de rigidez (Ia=0.9)</option>
-                            <option value="0.9">Irregularidad de masa (Ia=0.9)</option>
-                            <option value="0.8">Discontinuidad del sistema resist. (Ia=0.8)</option>
-                            <option value="0.75">Extrema rigidez (Ia=0.75)</option>
-                            <option value="0.6">Extrema discontinuidad (Ia=0.6)</option>
+                            <option value="1.0" selected>Sin irregularidad (Ia = 1.00)</option>
+                            <option value="0.75">Piso Blando – Rigidez (Ia = 0.75)</option>
+                            <option value="0.75">Piso Débil – Resistencia (Ia = 0.75)</option>
+                            <option value="0.90">Masa o Peso (Ia = 0.90)</option>
+                            <option value="0.90">Geométrica Vertical (Ia = 0.90)</option>
+                            <option value="0.80">Discontinuidad del Sistema Resistente (Ia = 0.80)</option>
+                            <option value="0.60">Extrema de Rigidez (Ia = 0.60)</option>
+                            <option value="0.60">Extrema de Resistencia (Ia = 0.60)</option>
                         </select>
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">— Según Art. 23-24 de E.030</p>
                     </div>

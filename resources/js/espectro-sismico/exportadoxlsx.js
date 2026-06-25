@@ -177,7 +177,7 @@ async function exportXLSX() {
   const IaEf = applyIrr ? Ia : 1.0;
   const IpEf = applyIrr ? Ip : 1.0;
   const R    = e031 ? R_base : R_base * IaEf * IpEf;
-  const SaMax = bridge ? Z * 2.5 * S / R : Z * U * 2.5 * S / (R * B);
+  const SaMax = bridge ? Z * 2.5 / R : Z * U * 2.5 * S / (R * B);
 
   const datosFiltrados = datosEspectro.filter(d => {
     const m = Math.round(d.T / pasoVal);
@@ -472,7 +472,7 @@ async function makeHojaInforme(wb, { normaVersion, zonaVal, sueloVal, U, R_base,
     [`Coef. aceleración (A)`, `AASHTO / Manual de Puentes`, Z.toFixed(2), `g`],
     [`Clase de suelo`, sueloVal, S.toFixed(2), `Factor S`],
     [`R efectivo`, `R = ${R_base}`, R.toFixed(2), `Coef. reducción`],
-    [`Csm máximo`, `T → 0`, (Z*2.5*S/R).toFixed(4), `g`],
+    [`Csm máximo`, `T → 0`, (Z*2.5/R).toFixed(4), `g`],
   ] : e031 ? [
     [`Factor de zona (Z)`, `Zona ${zonaVal}`, Z.toFixed(2), `g`],
     [`Perfil de suelo`, sueloVal, S.toFixed(2), `Factor S`],
@@ -505,7 +505,7 @@ async function makeHojaInforme(wb, { normaVersion, zonaVal, sueloVal, U, R_base,
   });
   row++;
 
-  const SaMax = bridge ? Z*2.5*S/R : Z*U*2.5*S/(R*B);
+  const SaMax = bridge ? Z*2.5/R : Z*U*2.5*S/(R*B);
   mg(ws,row,1,row,4); mg(ws,row,5,row,8);
   ws.getCell(row,1).value = bridge ? 'Csm MÁXIMO (T → 0)' : e031 ? 'Sa MÁXIMA AJUSTADA' : 'Sa MÁXIMO (T ≤ Tp)';
   applyStyle(ws.getCell(row,1),{font:{bold:true,size:10,color:{argb:'FF333333'}},fill:{type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF3E0'}},alignment:{horizontal:'center',vertical:'middle'}});
@@ -524,7 +524,7 @@ async function makeHojaInforme(wb, { normaVersion, zonaVal, sueloVal, U, R_base,
 
   mg(ws,row,1,row,8); ws.getCell(row,1).value='3.  TABLA DE ESPECTRO DE DISEÑO';
   applyStyle(ws.getCell(row,1), ST.seccion); ws.getRow(row).height=20; row++;
-  const cHead = bridge ? 'Csm' : e031 ? 'C/B' : 'C (factor)';
+  const cHead = bridge ? 'Csm' : 'C (factor)';
   [['T (s)',1,2],['Sa (g)',3,4],[cHead,5,6],['Sa (m/s²)',7,8]].forEach(([txt,c1,c2])=>{
     mg(ws,row,c1,row,c2); ws.getCell(row,c1).value=txt; applyStyle(ws.getCell(row,c1),ST.th);
   });
@@ -569,7 +569,7 @@ async function makeHojaEspectro(wb, { datosFiltrados, normaVersion, Tp, Tl, Z, S
   applyStyle(ws.getCell(1,1),{font:{bold:true,size:14,color:{argb:'FF1A3A5C'}},alignment:{horizontal:'center',vertical:'middle'}});
   ws.getRow(1).height=25;
 
-  const cHead = bridge ? 'Csm' : e031 ? 'C/B' : 'C';
+  const cHead = bridge ? 'Csm' : 'C';
   [['T (s)',1],['Sa (g)',2],[cHead,3],['Sa (m/s²)',4]].forEach(([txt,col])=>{
     ws.getCell(2,col).value=txt; applyStyle(ws.getCell(2,col),ST.th);
   });
@@ -604,7 +604,7 @@ async function makeHojaParams(wb, { normaVersion, zonaVal, sueloVal, U, R_base, 
   ws.columns=[{width:26},{width:16},{width:12}];
   const bridge = normaVersion === 'puentes';
   const e031   = normaVersion === 'e031';
-  const SaMax  = bridge ? Z*2.5*S/R : Z*U*2.5*S/(R*B);
+  const SaMax  = bridge ? Z*2.5/R : Z*U*2.5*S/(R*B);
 
   const filas = bridge ? [
     ['PARÁMETROS — PUENTES MTC','',''],

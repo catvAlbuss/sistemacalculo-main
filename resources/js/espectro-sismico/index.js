@@ -415,7 +415,7 @@ function renderTable(data, paso) {
 function renderParams(d) {
     const el = $("params-out");
     const SaMax = d.bridge
-        ? d.Z * 2.5 * d.S / d.R
+        ? d.Z * 2.5 / d.R
         : (d.Z * d.U * 2.5 * d.S) / (d.R * d.B);
     const c  = "rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/70";
     const hc = "rounded-lg border border-red-200 bg-red-50 px-3 py-2 dark:border-red-700 dark:bg-red-900/20";

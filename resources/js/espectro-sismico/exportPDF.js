@@ -210,7 +210,7 @@ function htmlPortada({ version, zonaVal, sueloVal, U, Z, S, Tp, Tl, R, B = 1.0, 
 function htmlParametros({ version, zonaVal, sueloVal, U, R_base, R, IaEf, IpEf, Z, S, Tp, Tl, Ts, B = 1.0 }) {
   const accent = VER_HEX[version] || '#0070C0';
   const dark   = VER_DARK[version] || '#003060';
-  const SaMax  = version === 'puentes' ? Z * 2.5 * S / R : Z * U * 2.5 * S / (R * B);
+  const SaMax  = version === 'puentes' ? Z * 2.5 / R : Z * U * 2.5 * S / (R * B);
   const applyIrr = ['2016','2018','2026'].includes(version);
   const fecha  = new Date().toLocaleDateString('es-PE', { day:'2-digit', month:'long', year:'numeric' });
 
@@ -337,7 +337,7 @@ function htmlTablaEspectro({ version, datos }) {
   const accent = VER_HEX[version] || '#0070C0';
   const dark   = VER_DARK[version] || '#003060';
   const fecha  = new Date().toLocaleDateString('es-PE', { day:'2-digit', month:'long', year:'numeric' });
-  const cHead  = version === 'puentes' ? 'Csm' : version === 'e031' ? 'C/B' : 'C';
+  const cHead  = version === 'puentes' ? 'Csm' : 'C';
 
   return `${estilosBase(accent, dark)}
     <div class="pdf-wrap">
@@ -516,7 +516,7 @@ async function exportPDF() {
   const IaEf  = applyIrr ? Ia : 1.0;
   const IpEf  = applyIrr ? Ip : 1.0;
   const R     = e031 ? R_base : R_base * IaEf * IpEf;
-  const SaMax = bridge ? Z * 2.5 * S / R : Z * U * 2.5 * S / (R * B);
+  const SaMax = bridge ? Z * 2.5 / R : Z * U * 2.5 * S / (R * B);
 
   const datosFiltrados = datosEspectro.filter(d => {
     const m = Math.round(d.T / pasoVal);
