@@ -20,6 +20,9 @@ import {
   showSeismicDisplacementLabels,
   clearSeismicDisplacementLabels,
   isSeismicDisplacementLabelsVisible,
+  showSeismicDriftLabels,
+  clearSeismicDriftLabels,
+  isSeismicDriftLabelsVisible,
 } from "../3d/viewer3d.js";
 import {
   createMockSeismicResult,
@@ -205,12 +208,20 @@ export const seismicMixin = {
       didOpen: () => {
         // Mostrar resumen de masas
         const massInfo = document.getElementById("seis-mass-info");
-        const totalMass = this._getTotalModelMass();
         if (massInfo) {
-          massInfo.textContent = totalMass > 0
-            ? `Masa total del modelo: ${totalMass.toFixed(2)} kg (${(this.nodes || []).filter(n => (n.mass || n.mass_x || 0) > 0).length} nodos con masa)`
-            : "Advertencia: Ningún nodo tiene masa asignada. Asigna masas en Assign > Assign Masses antes de correr el análisis sísmico.";
-          massInfo.style.color = totalMass > 0 ? "#86efac" : "#fbbf24";
+          const est = this._estimateSeismicMassKg();
+          if (est.total > 0 || est.hasSelfWeight) {
+            const parts = [];
+            if (est.stored > 0) parts.push(`nodal ${(est.stored / 1000).toFixed(1)} t`);
+            if (est.fromLoads > 0) parts.push(`cargas de área ${(est.fromLoads / 1000).toFixed(1)} t`);
+            if (est.hasSelfWeight) parts.push(`+ peso propio (lo agrega el motor)`);
+            massInfo.textContent = `Masa sísmica estimada: ${(est.total / 1000).toFixed(1)} t  (${parts.join(" + ")})`;
+            massInfo.style.color = "#86efac";
+          } else {
+            massInfo.textContent =
+              "Advertencia: no se generará masa. Asigna cargas de área a las losas (Assign → Area/Shell Loads) y activa la Fuente de Masa, o activa 'Masa Propia de Elementos'.";
+            massInfo.style.color = "#fbbf24";
+          }
         }
 
         // Preview inicial (por si ya había espectros cargados)
@@ -454,12 +465,54 @@ export const seismicMixin = {
       <rect x="${ML + plotW - 70}" y="${MT + 4 + i * 15}" width="10" height="10" fill="${s.color}"/>
       <text x="${ML + plotW - 56}" y="${MT + 13 + i * 15}" fill="#e2e8f0" font-size="10">${s.name}</text>`).join("");
 
+    // Guardo escalas para el hover (se usan en _attachSpectrumHover).
+    this._spectrumScale = { ML, MT, plotW, plotH, maxT, maxSa, W, H, series };
+
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" style="background:#0f172a;border-radius:6px">
         <rect x="${ML}" y="${MT}" width="${plotW}" height="${plotH}" fill="none" stroke="#334155"/>
         ${xticks}${yticks}${lines}${legend}
+        <g id="spec-cursor"></g>
         <text x="${ML + plotW / 2}" y="${H - 4}" text-anchor="middle" fill="#cbd5e1" font-size="10">Periodo T (s)</text>
         <text x="12" y="${MT + plotH / 2}" text-anchor="middle" fill="#cbd5e1" font-size="10" transform="rotate(-90 12 ${MT + plotH / 2})">Sa</text>
       </svg>`;
+  },
+
+  // Hover del cursor sobre el espectro: muestra T y Sa en vivo (como ETABS).
+  _attachSpectrumHover(box) {
+    const svg = box.querySelector("svg");
+    const sc = this._spectrumScale;
+    if (!svg || !sc) return;
+    const cursor = svg.querySelector("#spec-cursor");
+    const pts = [...(sc.series[0]?.points || [])].sort((a, b) => a.T - b.T);
+    if (!pts.length) return;
+    const sx = (t) => sc.ML + (t / sc.maxT) * sc.plotW;
+    const sy = (sa) => sc.MT + sc.plotH - (sa / sc.maxSa) * sc.plotH;
+    const saAt = (T) => {
+      if (T <= pts[0].T) return pts[0].Sa;
+      for (let i = 1; i < pts.length; i++) {
+        if (T <= pts[i].T) {
+          const a = pts[i - 1], b = pts[i];
+          return a.Sa + (T - a.T) / ((b.T - a.T) || 1) * (b.Sa - a.Sa);
+        }
+      }
+      return pts[pts.length - 1].Sa;
+    };
+    svg.style.cursor = "crosshair";
+    svg.addEventListener("mousemove", (e) => {
+      const rect = svg.getBoundingClientRect();
+      const px = (e.clientX - rect.left) * (sc.W / (rect.width || sc.W));
+      let T = (px - sc.ML) / sc.plotW * sc.maxT;
+      T = Math.max(0, Math.min(sc.maxT, T));
+      if (px < sc.ML || px > sc.ML + sc.plotW) { cursor.innerHTML = ""; return; }
+      const Sa = saAt(T), cx = sx(T), cy = sy(Sa);
+      const tx = Math.min(cx + 6, sc.ML + sc.plotW - 90);
+      cursor.innerHTML =
+        `<line x1="${cx}" y1="${sc.MT}" x2="${cx}" y2="${sc.MT + sc.plotH}" stroke="#64748b" stroke-dasharray="3"/>` +
+        `<circle cx="${cx}" cy="${cy}" r="3" fill="#ffffff"/>` +
+        `<rect x="${tx}" y="${cy - 22}" width="88" height="16" fill="#1e293b" stroke="#475569" rx="3"/>` +
+        `<text x="${tx + 4}" y="${cy - 10}" fill="#e2e8f0" font-size="9">T=${T.toFixed(2)}  Sa=${Sa.toFixed(4)}</text>`;
+    });
+    svg.addEventListener("mouseleave", () => { if (cursor) cursor.innerHTML = ""; });
   },
 
   // Inyecta el preview del espectro en el contenedor del diálogo.
@@ -475,6 +528,7 @@ export const seismicMixin = {
       return;
     }
     box.innerHTML = this._buildSpectrumSVG(series);
+    this._attachSpectrumHover(box);
   },
 
   // ─── Ejecutar análisis sísmico ─────────────────────────────────────────────
@@ -493,12 +547,11 @@ export const seismicMixin = {
       this.showMessage?.("El modelo no tiene elementos.", "error");
       return;
     }
-    const totalMass = this._getTotalModelMass();
-    if (totalMass <= 0) {
+    if (!this._willHaveSeismicMass()) {
       const cont = await Swal.fire({
         icon: "warning",
         title: "Sin masas definidas",
-        html: "Ningún nodo tiene masa asignada.<br>El análisis sísmico requiere masas.<br><br>¿Continuar de todas formas?",
+        html: "No se generará masa sísmica.<br>Asigna cargas de área a las losas (Assign → Area/Shell Loads) y define la Fuente de Masa, o activa 'Masa Propia de Elementos'.<br><br>¿Continuar de todas formas?",
         showCancelButton: true,
         confirmButtonText: "Continuar",
         cancelButtonText: "Cancelar",
@@ -535,7 +588,7 @@ export const seismicMixin = {
             numModes: cfg.numModes,
             combination: rc.combination,
             dampingRatio: rc.dampingRatio,
-            saInG: cfg.saInG,
+            saInG: rc.saInG ?? cfg.saInG,
             g: cfg.g,
             spectrum: rc.spectrumX,
             direction: rc.direction,
@@ -549,6 +602,9 @@ export const seismicMixin = {
             spectrumY: rc.spectrumY || [],
             combination: rc.combination,
             dampingRatio: rc.dampingRatio,
+            // Casos ETABS: espectro ya pre-escalado a m/s² (saInG=false) → el motor
+            // no re-multiplica por g. Fallback: función en g → saInG=cfg.saInG.
+            saInG: rc.saInG ?? cfg.saInG,
           };
           const payload = this._buildSeismicPayload(caseCfg, nodes, frames);
           const resp = await fetch(`${BACKEND_URL}/api/seismic/analyze`, {
@@ -685,12 +741,19 @@ export const seismicMixin = {
         id: c.id, name: c.name, direction,
         spectrumX: sx, spectrumY: sy.length >= 2 ? sy : null,
         combination: combOf(c), dampingRatio: dampOf(c),
+        // El scaleFactor del caso ETABS YA incluye g (p.ej. 9.81 = 1.0·g, igual
+        // que ETABS usa 9810 = 1.0·g en mm). Por eso aquí el espectro queda en
+        // m/s², y el motor NO debe volver a multiplicar por g → saInG:false.
+        // (Sin esto había doble escala: ×9.81 aquí y ×9.81 en run_rsa.)
+        saInG: false,
       });
     }
 
     if (out.length) return out;
 
     // Fallback: un solo caso con el espectro del diálogo de análisis.
+    // Aquí el espectro es la función CRUDA (sin pre-escalar): respeta el
+    // checkbox "Sa en [g]" del diálogo → saInG = cfg.saInG (el motor aplica g).
     return [{
       id: "SISMO",
       name: "Análisis sísmico",
@@ -699,6 +762,7 @@ export const seismicMixin = {
       spectrumY: (cfg.spectrumY && cfg.spectrumY.length) ? cfg.spectrumY : null,
       combination: cfg.combination || "CQC",
       dampingRatio: cfg.dampingRatio ?? 0.05,
+      saInG: cfg.saInG,
     }];
   },
 
@@ -823,6 +887,13 @@ export const seismicMixin = {
       || frame.material || frame.materialName;
     let mat = name ? mats.find((m) => String(m.name) === String(name)) : null;
     if (!mat && mats.length === 1) mat = mats[0]; // único material → usarlo
+    // Fallback robusto: si el nombre referenciado no existe (p.ej. "CONCRETO"
+    // vs "CONC"), preferir un material de concreto antes de caer a acero.
+    if (!mat) {
+      mat = mats.find((m) =>
+        String(m.designType || "").toLowerCase() === "concrete" ||
+        /conc/i.test(String(m.name || "")));
+    }
 
     const E = this._normalizeModulus(mat?.modulusElasticity ?? mat?.E ?? sec.E ?? sec.elasticModulus) ?? 200e9;
     const G = this._normalizeModulus(mat?.shearModulus ?? mat?.G ?? sec.G ?? sec.shearModulus) ?? 77e9;
@@ -1446,6 +1517,70 @@ export const seismicMixin = {
     };
   },
 
+  // Convierte las cargas de área (kgf/m²) de las losas en fuerzas nodales (fz, N),
+  // repartiendo cada panel a sus nodos de esquina (¼ c/u). Cuando los paneles
+  // cubren el piso, esto da automáticamente el reparto por área tributaria.
+  // El motor luego las vuelve masa vía la Fuente de Masa (factor del patrón).
+  _buildSeismicAreaLoadsForPayload(areas = []) {
+    const g = 9.81;
+    const out = [];
+    const slabs = (areas || []).filter(
+      (a) => Array.isArray(a?.points) && a.points.length >= 3,
+    );
+    for (const slab of slabs) {
+      const areaLoads = Array.isArray(slab.areaLoads)
+        ? slab.areaLoads
+        : Array.isArray(slab.loads)
+          ? slab.loads
+          : [];
+      const uniform = areaLoads.filter(
+        (l) => l && (l.type === "uniform" || l.type == null) && Number(l.value) > 0,
+      ).map((l) => ({ value: Number(l.value), loadCase: l.loadCase || "CM" }));
+
+      // Peso propio de la losa (de su Slab Section) → carga muerta CM automática.
+      const sw = Number(slab.slabSelfWeightKgM2) || 0;
+      if (sw > 0) uniform.push({ value: sw, loadCase: "CM" });
+
+      if (!uniform.length) continue;
+
+      const planArea = this._planArea(slab.points);
+      if (!(planArea > 0)) continue;
+
+      // Nodos del modelo que coinciden con las esquinas del panel.
+      const cornerIds = [];
+      for (const p of slab.points) {
+        const match = (this.nodes || []).find((n) => {
+          const nx = Number(n.position?.x ?? n.x) || 0;
+          const ny = Number(n.position?.y ?? n.y) || 0;
+          const nz = Number(n.position?.z ?? n.z) || 0;
+          return (
+            Math.abs(nx - (Number(p.x) || 0)) < 1e-3 &&
+            Math.abs(ny - (Number(p.y) || 0)) < 1e-3 &&
+            Math.abs(nz - (Number(p.z) || 0)) < 1e-3
+          );
+        });
+        if (match) cornerIds.push(Number(match.id));
+      }
+      if (!cornerIds.length) continue;
+
+      for (const l of uniform) {
+        const totalN = Number(l.value) * g * planArea; // peso total del panel [N]
+        const perNode = totalN / cornerIds.length;
+        for (const nid of cornerIds) {
+          out.push({
+            node: nid,
+            fx: 0,
+            fy: 0,
+            fz: -perNode, // gravitatoria (−Z); el motor usa abs()
+            loadCase: l.loadCase || "CM",
+            source: "area_load",
+          });
+        }
+      }
+    }
+    return out;
+  },
+
   _buildSeismicLoadsForPayload(nodes = []) {
     const loads = [];
 
@@ -2011,6 +2146,27 @@ export const seismicMixin = {
     return loads;
   },
 
+  // Vector vecxz (orientación del eje local) por elemento, para el motor.
+  //  - Columnas (verticales): [0,1,0] → eje fuerte Iz resiste X (calibrado vs ETABS).
+  //  - Vigas (horizontales): perpendicular horizontal a la viga → quedan "paradas"
+  //    (peralte vertical), usando su Iz fuerte en el plano vertical del pórtico.
+  //  - Inclinados/diagonales: null → que el motor auto-oriente.
+  _frameVecxzForSeismic(f) {
+    const a = this._massNodeCoord(this._resolveMassNode(f.node1));
+    const b = this._massNodeCoord(this._resolveMassNode(f.node2));
+    const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+    const L = Math.hypot(dx, dy, dz);
+    if (!(L > 0)) return null;
+    const vert = Math.abs(dz) / L;
+    if (vert > 0.9) return [0, 1, 0]; // columna
+    if (vert < 0.1) {
+      const hx = dy, hy = -dx;           // perpendicular horizontal a la viga
+      const hl = Math.hypot(hx, hy) || 1;
+      return [hx / hl, hy / hl, 0];      // viga "parada"
+    }
+    return null; // inclinado → auto
+  },
+
   // ─── Construir payload para el backend ────────────────────────────────────
   _buildSeismicPayload(cfg, nodes, frames) {
     const nodeList = nodes.map(n => ({
@@ -2063,12 +2219,18 @@ export const seismicMixin = {
           },
         };
 
+      // Orientación local (vecxz): columnas con eje fuerte calibrado tipo ETABS y
+      // vigas "paradas" (peralte vertical → Iz fuerte en el plano del pórtico).
+      // Sin esto el motor auto-orienta las vigas "acostadas" y sale demasiado flexible.
+      const vecxz = this._frameVecxzForSeismic(f);
+
       return {
         id: Number(f.id),
         node_i: Number(f.node1.id),
         node_j: Number(f.node2.id),
 
         A, E, G, Iz, Iy, J,
+        ...(vecxz ? { vecxz } : {}),
 
         unitWeight: physical.unitWeight,
         unit_weight: physical.unit_weight,
@@ -2116,7 +2278,12 @@ export const seismicMixin = {
       if (typeof this._buildSeismicLoadsForPayload === "function") {
         loads = this._buildSeismicLoadsForPayload(nodes);
         const frameEquivalentLoads = this._buildSeismicFrameEquivalentLoadsForPayload(frames);
-        loads = [...loads, ...frameEquivalentLoads];
+        const areaLoads = this._buildSeismicAreaLoadsForPayload(this.areas || []);
+        loads = [...loads, ...frameEquivalentLoads, ...areaLoads];
+
+        console.log("🔎 Cargas de área (losas) para masa sísmica:", {
+          areaLoadsCount: areaLoads.length,
+        });
 
         console.log("🔎 Frame loads equivalentes para análisis sísmico:", {
           frameEquivalentLoadsCount: frameEquivalentLoads.length,
@@ -3026,6 +3193,19 @@ export const seismicMixin = {
 
     const tableDefs = this._getEtabsResultsTableDefinitions(pkg);
 
+    // Selector de caso espectral (SDX / SDY / ...) — solo si corrió más de un caso.
+    // Permite cambiar el caso activo sin volver a correr el análisis ni usar la consola.
+    const caseOrder = this.seismicCaseOrder || [];
+    const activeCaseId = this.seismicActiveCase;
+    const caseSelectorHtml = caseOrder.length > 1
+      ? `<div style="display:flex; align-items:center; gap:8px; margin:0 0 10px; background:#0b1220; border:1px solid #334155; padding:6px 10px; border-radius:6px;">
+           <span style="color:#94a3b8; font-size:11px; white-space:nowrap;">Caso espectral:</span>
+           <select id="etabs-case-sel" style="flex:1; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:4px 6px; font-size:12px;">
+             ${caseOrder.map((c) => `<option value="${c.id}" ${c.id === activeCaseId ? "selected" : ""}>${c.name}</option>`).join("")}
+           </select>
+         </div>`
+      : "";
+
     const tabsHtml = tableDefs
       .map((table, index) => {
         return `
@@ -3160,6 +3340,8 @@ export const seismicMixin = {
             </div>
           </div>
 
+          ${caseSelectorHtml}
+
           ${this._buildEtabsResultsSummaryHtml(pkg)}
 
           <div style="
@@ -3203,6 +3385,17 @@ export const seismicMixin = {
               panel.style.display = panel.getAttribute("data-panel") === tabId ? "block" : "none";
             });
           });
+        });
+
+        // Cambio de caso espectral: activa el caso elegido y reabre el reporte con su paquete.
+        popup?.querySelector("#etabs-case-sel")?.addEventListener("change", (e) => {
+          const id = e.target.value;
+          if (!this.seismicResultsByCase?.[id]) return;
+          this.seismicActiveCase = id;
+          this.seismicResults = this.seismicResultsByCase[id];
+          this._applySeismicResultsToModel?.(this.seismicResults, { silent: true });
+          Swal.close();
+          this.openEtabsSeismicResultsDialog();
         });
 
         popup?.querySelector("#export-etabs-results-json")?.addEventListener("click", () => {
@@ -4280,6 +4473,25 @@ export const seismicMixin = {
     }
   },
 
+  // ─── Mostrar/ocultar la deriva de entrepiso (‰) en el modelo 3D ─────────────
+  toggleSeismicDriftLabels() {
+    if (!this.seismicResults) {
+      this.showMessage?.("Ejecute primero el análisis sísmico para ver las derivas.", "warning");
+      return;
+    }
+    if (isSeismicDriftLabelsVisible()) {
+      clearSeismicDriftLabels();
+      this.showMessage?.("Etiquetas de deriva ocultadas.");
+      return;
+    }
+    const n = showSeismicDriftLabels(this);
+    if (n > 0) {
+      this.showMessage?.(`Mostrando deriva de entrepiso (‰) en ${n} nodos.`, "success");
+    } else {
+      this.showMessage?.("No hay derivas para mostrar. Vuelva a ejecutar el análisis.", "warning");
+    }
+  },
+
   // ════════════════════════════════════════════════════════════════════════
   //  Losas → masa sísmica de piso (D — losas en el análisis sísmico)
   // ════════════════════════════════════════════════════════════════════════
@@ -4340,205 +4552,57 @@ export const seismicMixin = {
     return s === "soporteUno" || s === "soporteDos"; // empotrado o articulado
   },
 
-  // Genera masa sísmica a partir de las losas dibujadas y la reparte a los
-  // nodos de cada piso (mass_x, mass_y). Es lo que hace que la losa "pese" en
-  // el análisis sísmico (su masa es la masa sísmica dominante del piso).
-  async generateSlabSeismicMass() {
-    const slabs = (this.areas || []).filter(
-      (a) => (a.areaType || "slab") === "slab" && Array.isArray(a.points) && a.points.length >= 3,
-    );
-    const frames = (this.shapes || []).filter((f) => f?.node1 && f?.node2);
-    if (!(this.nodes || []).length) {
-      this.showMessage?.("El modelo no tiene nodos.", "warning");
-      return;
-    }
-    if (!slabs.length && !frames.length) {
-      this.showMessage?.("No hay losas ni elementos. Dibuja la estructura antes de generar masa.", "warning");
-      return;
-    }
-
-    const cfg = await Swal.fire({
-      title: "Masa sísmica automática por piso",
-      width: 520,
-      background: "#1a2035",
-      color: "#e2e8f0",
-      html: `
-        <div style="text-align:left; font-family:monospace; font-size:12px">
-          <div style="color:#94a3b8; margin-bottom:10px">
-            ${slabs.length} losa(s) y ${frames.length} elemento(s) detectados.
-            Masa = peso propio (vigas/columnas + losas) + cargas sobreimpuestas, repartida a los nodos de cada piso.
-          </div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px">
-            <div>
-              <label style="color:#cbd5e1; display:block; margin-bottom:3px">Espesor losa (m)</label>
-              <input id="slab-th" type="number" step="0.01" min="0" value="0.20" style="width:100%; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:5px">
-            </div>
-            <div>
-              <label style="color:#cbd5e1; display:block; margin-bottom:3px">Densidad concreto (kg/m³)</label>
-              <input id="slab-rho" type="number" step="50" min="1" value="2400" style="width:100%; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:5px">
-            </div>
-            <div>
-              <label style="color:#cbd5e1; display:block; margin-bottom:3px">CM adicional / acabados (kg/m²)</label>
-              <input id="slab-sdl" type="number" step="10" min="0" value="100" style="width:100%; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:5px">
-            </div>
-            <div>
-              <label style="color:#cbd5e1; display:block; margin-bottom:3px">Sobrecarga CV (kg/m²)</label>
-              <input id="slab-cv" type="number" step="10" min="0" value="200" style="width:100%; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:5px">
-            </div>
-            <div>
-              <label style="color:#cbd5e1; display:block; margin-bottom:3px">Factor masa de CV</label>
-              <input id="slab-cvf" type="number" step="0.05" min="0" max="1" value="0.25" style="width:100%; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:5px">
-            </div>
-          </div>
-          <label style="display:flex; align-items:center; gap:8px; margin-top:12px; color:#cbd5e1">
-            <input id="slab-frames" type="checkbox" checked> Incluir peso propio de vigas y columnas
-          </label>
-          <label style="display:flex; align-items:center; gap:8px; margin-top:8px; color:#cbd5e1">
-            <input id="slab-replace" type="checkbox" checked> Reemplazar masas nodales existentes
-          </label>
-          <div style="color:#64748b; font-size:10px; margin-top:8px">
-            Peso propio de vigas/columnas = A×L×densidad del material de su sección. El factor de CV sigue la E.030 (≈0.25 para vivienda/oficina, categoría C).
-          </div>
-        </div>`,
-      showCancelButton: true,
-      confirmButtonText: "Generar masa",
-      cancelButtonText: "Cancelar",
-      confirmButtonColor: "#0f766e",
-      preConfirm: () => ({
-        thickness: Math.max(0, parseFloat(document.getElementById("slab-th")?.value) || 0),
-        density: Math.max(0, parseFloat(document.getElementById("slab-rho")?.value) || 0),
-        sdl: Math.max(0, parseFloat(document.getElementById("slab-sdl")?.value) || 0),
-        cv: Math.max(0, parseFloat(document.getElementById("slab-cv")?.value) || 0),
-        cvFactor: Math.max(0, parseFloat(document.getElementById("slab-cvf")?.value) || 0),
-        includeFrames: document.getElementById("slab-frames")?.checked ?? true,
-        replace: document.getElementById("slab-replace")?.checked ?? true,
-      }),
-    });
-    if (!cfg.isConfirmed) return;
-    const { thickness, density, sdl, cv, cvFactor, includeFrames, replace } = cfg.value;
-    if (density <= 0) {
-      this.showMessage?.("La densidad del concreto debe ser mayor que cero.", "warning");
-      return;
-    }
-
-    // Si se reemplaza, limpiar masas previas de todos los nodos.
-    if (replace) {
-      (this.nodes || []).forEach((n) => { n.mass_x = 0; n.mass_y = 0; });
-    }
-
-    const round2 = (v) => Math.round(v * 100) / 100;
-
-    // ── 1) Peso propio de vigas y columnas: A × L × densidad(material) ──────
-    //    Se reparte la mitad de la masa de cada elemento a cada nodo extremo,
-    //    así las columnas dejan su masa entre el piso inferior y el superior.
-    let frameMass = 0;
-    // Suma media masa del elemento a un nodo, salvo que esté restringido
-    // lateralmente (apoyo de base) → su masa va a la cimentación y no participa.
-    const addHalfMass = (node, half) => {
-      if (this._isLaterallyRestrained(node)) return 0;
-      node.mass_x = (Number(node.mass_x) || 0) + half;
-      node.mass_y = (Number(node.mass_y) || 0) + half;
-      return half;
-    };
-    if (includeFrames) {
-      for (const f of frames) {
-        const a = this._resolveMassNode(f.node1);
-        const b = this._resolveMassNode(f.node2);
-        if (!a || !b) continue;
-        const pa = this._massNodeCoord(a);
-        const pb = this._massNodeCoord(b);
-        const L = Math.hypot(pa.x - pb.x, pa.y - pb.y, pa.z - pb.z);
-        const A = Number(f.A ?? f.frameSection?.A ?? f.frameSection?.area ?? f._A) || 0;
-        if (!(L > 0) || !(A > 0)) continue;
-        const matName = f.frameSection?.material || f.material || f.materialName;
-        const rho = this._materialDensityKg(matName, this._fallbackDensityForSection(f, density));
-        const m = A * L * rho; // kg
-        const half = m / 2;
-        frameMass += addHalfMass(a, half) + addHalfMass(b, half);
-      }
-    }
-
-    // ── 2) Masa de losas + cargas sobreimpuestas, repartida por piso ────────
-    //    Presión de masa por m²: peso propio de losa + CM adicional + factor·CV.
-    const areaPressure = thickness * density + sdl + cvFactor * cv; // kg/m²
-    let slabMass = 0;
-    const noFloorWarnings = [];
-    for (const slab of slabs) {
-      const planArea = this._planArea(slab.points);
-      const mass = planArea * areaPressure; // kg
-      if (mass <= 0) continue;
-
-      const z = slab.z ?? (slab.points.reduce((s, p) => s + (Number(p.z) || 0), 0) / slab.points.length);
-      const floorNodes = (this.nodes || []).filter(
-        (n) => Math.abs((Number(n.position?.z ?? n.z) || 0) - z) < 0.05 && !this._isLaterallyRestrained(n),
-      );
-      if (!floorNodes.length) {
-        noFloorWarnings.push(`Losa @z=${round2(z)}m (${round2(planArea)} m²) sin nodos en ese piso`);
-        continue;
-      }
-      const per = mass / floorNodes.length;
-      floorNodes.forEach((n) => {
-        n.mass_x = (Number(n.mass_x) || 0) + per;
-        n.mass_y = (Number(n.mass_y) || 0) + per;
-      });
-      slabMass += mass;
-    }
-
-    // ── 3) Resumen de masa final por piso (a partir de la masa nodal) ───────
-    const floorMap = new Map();
-    (this.nodes || []).forEach((n) => {
-      const mx = Number(n.mass_x) || 0;
-      if (mx <= 0) return;
-      const zKey = round2(Number(n.position?.z ?? n.z) || 0);
-      const e = floorMap.get(zKey) || { mass: 0, count: 0 };
-      e.mass += mx;
-      e.count += 1;
-      floorMap.set(zKey, e);
-    });
-    const floors = [...floorMap.entries()].sort((a, b) => a[0] - b[0]);
-    const grandTotal = frameMass + slabMass;
-
-    this.markAnalysisResultsOutdated?.("Se generó masa sísmica automática por piso.");
-    this.redraw?.();
-
-    const floorRows = floors.map(([z, e]) =>
-      `<tr><td style="padding:2px 8px">z=${z} m</td><td style="padding:2px 8px; text-align:right">${e.count}</td><td style="padding:2px 8px; text-align:right">${round2(e.mass)}</td><td style="padding:2px 8px; text-align:right">${round2(e.mass / 1000)}</td></tr>`,
-    ).join("");
-
-    await Swal.fire({
-      icon: "success",
-      title: "Masa sísmica automática generada",
-      width: 600,
-      background: "#1a2035",
-      color: "#e2e8f0",
-      html: `
-        <div style="text-align:left; font-family:monospace; font-size:12px">
-          <div style="color:#86efac; margin-bottom:8px">
-            Masa total: <b>${round2(grandTotal)} kg</b> (${round2(grandTotal / 1000)} t)
-            &nbsp;·&nbsp; vigas/columnas: ${round2(frameMass)} kg &nbsp;·&nbsp; losas+cargas: ${round2(slabMass)} kg
-          </div>
-          <table style="width:100%; border-collapse:collapse; color:#cbd5e1; margin-top:6px">
-            <thead><tr style="color:#94a3b8; border-bottom:1px solid #334155">
-              <th style="text-align:left; padding:2px 8px">Piso</th>
-              <th style="text-align:right; padding:2px 8px">Nodos</th>
-              <th style="text-align:right; padding:2px 8px">Masa (kg)</th>
-              <th style="text-align:right; padding:2px 8px">Masa (t)</th>
-            </tr></thead>
-            <tbody>${floorRows || `<tr><td colspan="4" style="padding:6px 8px; color:#fbbf24">Sin masa asignada</td></tr>`}</tbody>
-          </table>
-          ${noFloorWarnings.length ? `<div style="color:#fbbf24; font-size:11px; margin-top:8px">⚠ ${noFloorWarnings.join("; ")}</div>` : ""}
-          <div style="color:#94a3b8; font-size:11px; margin-top:10px">
-            Masas asignadas a los nodos (mass_x = mass_y). Corre el <b>Análisis Sísmico Espectral</b> para ver el efecto.
-          </div>
-        </div>`,
-      confirmButtonColor: "#1d4ed8",
-    });
-  },
-
   // ─── Utilidades ────────────────────────────────────────────────────────────
   _getTotalModelMass() {
     return (this.nodes || []).reduce((sum, n) => {
       return sum + Number(n.mass_x ?? n.mass?.x ?? n.mass ?? 0);
     }, 0);
+  },
+
+  // Estima la masa sísmica que generará el motor (flujo ETABS): masas nodales
+  // almacenadas + masa de las cargas de área × factor del patrón. El peso propio
+  // (Element Self Mass) lo añade el motor, así que solo se marca como bandera.
+  _estimateSeismicMassKg() {
+    const g = 9.81;
+    const ms = (typeof this._normalizeSeismicMassSource === "function")
+      ? this._normalizeSeismicMassSource(this.massSource)
+      : (this.massSource || {});
+    const stored = this._getTotalModelMass();
+    const enabled = ms.enabled !== false;
+
+    // Factor del patrón (con alias CM↔DEAD, CV↔LIVE).
+    const factorFor = (name) => {
+      const n = String(name || "").toUpperCase();
+      const pats = ms.loadPatterns || [];
+      const find = (k) => {
+        const p = pats.find((p) => String(p.name || "").toUpperCase() === k);
+        return p ? (Number(p.factor) || 0) : null;
+      };
+      let f = find(n);
+      if (f == null) {
+        if (n === "CM") f = find("DEAD");
+        else if (n === "CV") f = find("LIVE");
+        else if (n === "DEAD") f = find("CM");
+        else if (n === "LIVE") f = find("CV");
+      }
+      return f || 0;
+    };
+
+    let fromLoads = 0;
+    if (enabled && typeof this._buildSeismicAreaLoadsForPayload === "function") {
+      const areaLoads = this._buildSeismicAreaLoadsForPayload(this.areas || []);
+      for (const l of areaLoads) {
+        fromLoads += (Math.abs(Number(l.fz) || 0) * factorFor(l.loadCase)) / g;
+      }
+    }
+
+    const hasSelfWeight = enabled && !!(ms.includeSelfWeight ?? ms.elementSelfMass);
+    return { stored, fromLoads, hasSelfWeight, total: stored + fromLoads };
+  },
+
+  // ¿El análisis tendrá masa? (cualquiera de las fuentes: nodal, área, peso propio)
+  _willHaveSeismicMass() {
+    const est = this._estimateSeismicMassKg();
+    return est.total > 0 || est.hasSelfWeight;
   },
 };

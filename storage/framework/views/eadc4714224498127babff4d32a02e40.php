@@ -1287,6 +1287,26 @@
 <?php $component = $__componentOriginald494fff3d376581e3775a1a86cb3e5f0; ?>
 <?php unset($__componentOriginald494fff3d376581e3775a1a86cb3e5f0); ?>
 <?php endif; ?>
+  <?php if (isset($component)) { $__componentOriginal08d9d07176f2f93da525abb9c63fdfae = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal08d9d07176f2f93da525abb9c63fdfae = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.modals.slab-sections-modal','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.modals.slab-sections-modal'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal08d9d07176f2f93da525abb9c63fdfae)): ?>
+<?php $attributes = $__attributesOriginal08d9d07176f2f93da525abb9c63fdfae; ?>
+<?php unset($__attributesOriginal08d9d07176f2f93da525abb9c63fdfae); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal08d9d07176f2f93da525abb9c63fdfae)): ?>
+<?php $component = $__componentOriginal08d9d07176f2f93da525abb9c63fdfae; ?>
+<?php unset($__componentOriginal08d9d07176f2f93da525abb9c63fdfae); ?>
+<?php endif; ?>
   <!-- Seccion de analisis -->
   <?php if (isset($component)) { $__componentOriginal650f65d17b15431e40a66c2bf88a7041 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal650f65d17b15431e40a66c2bf88a7041 = $attributes; } ?>

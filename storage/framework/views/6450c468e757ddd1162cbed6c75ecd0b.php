@@ -79,84 +79,104 @@
                     <div class="w-8"></div>
                 </div>
 
-                <!-- Nombre del Material -->
-                <div class="mb-4">
-                    <label class="block text-xs font-semibold text-gray-400">Nombre del Material</label>
-                    <input x-model="form.name" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm">
-                </div>
-
-                <!-- Tipo de Material -->
-                <div class="mb-4">
-                    <label class="block text-xs font-semibold text-gray-400 mb-2">Tipo de Material</label>
-                    <div class="space-y-1">
-                        <label class="flex items-center gap-2">
-                            <input type="radio" value="Isotropic" x-model="form.type">
-                            <span class="text-sm">Isótropo</span>
-                        </label>
-                        <label class="flex items-center gap-2">
-                            <input type="radio" value="Orthotropic" x-model="form.type">
-                            <span class="text-sm">Ortótropo</span>
-                        </label>
+                
+                <fieldset class="border border-gray-700 rounded-md p-3 mb-4">
+                    <legend class="px-2 text-xs font-semibold text-blue-400">Datos Generales</legend>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="col-span-2">
+                            <label class="block text-xs text-gray-400">Nombre del Material</label>
+                            <input x-model="form.name" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400">Tipo de Material</label>
+                            <select x-model="form.designType" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <option value="Concrete">Concreto</option>
+                                <option value="Steel">Acero</option>
+                                <option value="No Design">Otro / Sin Diseño</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400">Tipo de Simetría Direccional</label>
+                            <select x-model="form.type" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <option value="Isotropic">Isótropo</option>
+                                <option value="Orthotropic">Ortótropo</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2 flex items-center gap-2">
+                            <label class="text-xs text-gray-400">Color de Visualización</label>
+                            <input type="color" x-model="form.color" class="w-10 h-7 rounded border border-gray-600">
+                        </div>
                     </div>
-                </div>
+                </fieldset>
 
-                <!-- Analysis Property Data -->
-                <div class="border-t border-gray-700 pt-3 mb-4">
-                    <label class="block text-xs font-semibold text-blue-400 mb-2">Datos de Propiedad de Análisis</label>
+                
+                <fieldset class="border border-gray-700 rounded-md p-3 mb-4">
+                    <legend class="px-2 text-xs font-semibold text-blue-400">Peso y Masa del Material</legend>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs text-gray-400">Masa por unidad de Volumen</label>
-                            <input type="number" step="any" x-model="form.massPerUnitVolume" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            <label class="block text-xs text-gray-400">Peso por Unidad de Volumen</label>
+                            <div class="flex items-center gap-1">
+                                <input type="number" step="any" x-model="form.weightPerUnitVolume" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <span class="text-[10px] text-gray-500 whitespace-nowrap">N/mm³</span>
+                            </div>
+                            <div class="text-[10px] text-gray-500 mt-0.5">≈ <span x-text="weightKgfM3.toFixed(0)"></span> kgf/m³</div>
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400">Peso por unidad de Volumen</label>
-                            <input type="number" step="any" x-model="form.weightPerUnitVolume" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            <label class="block text-xs text-gray-400">Masa por Unidad de Volumen</label>
+                            <div class="flex items-center gap-1">
+                                <input type="number" step="any" x-model="form.massPerUnitVolume" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <span class="text-[10px] text-gray-500 whitespace-nowrap">ton/mm³</span>
+                            </div>
+                            <div class="text-[10px] text-gray-500 mt-0.5">≈ <span x-text="massKgM3.toFixed(0)"></span> kg/m³</div>
+                        </div>
+                    </div>
+                </fieldset>
+
+                
+                <fieldset class="border border-gray-700 rounded-md p-3 mb-4">
+                    <legend class="px-2 text-xs font-semibold text-blue-400">Datos de Propiedades Mecánicas</legend>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-gray-400">Módulo de Elasticidad, E</label>
+                            <div class="flex items-center gap-1">
+                                <input type="number" step="any" x-model="form.modulusElasticity" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <span class="text-[10px] text-gray-500 whitespace-nowrap">MPa</span>
+                            </div>
+                            <div class="text-[10px] text-gray-500 mt-0.5">≈ <span x-text="eKgfMm2.toFixed(2)"></span> kgf/mm²</div>
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400">Módulo de Elasticidad</label>
-                            <input type="number" step="any" x-model="form.modulusElasticity" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs text-gray-400">Relación de Poisson</label>
+                            <label class="block text-xs text-gray-400">Relación de Poisson, U</label>
                             <input type="number" step="any" x-model="form.poissonRatio" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400">Coef. de Expansión Térmica</label>
-                            <input type="number" step="any" x-model="form.thermalExpansion" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            <label class="block text-xs text-gray-400">Coef. de Expansión Térmica, A</label>
+                            <div class="flex items-center gap-1">
+                                <input type="number" step="any" x-model="form.thermalExpansion" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <span class="text-[10px] text-gray-500 whitespace-nowrap">1/C</span>
+                            </div>
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400">Módulo de Corte</label>
-                            <input type="number" step="any" x-model="form.shearModulus" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            <label class="block text-xs text-gray-400">Módulo de Corte, G</label>
+                            <div class="flex items-center gap-1">
+                                <input type="number" step="any" x-model="form.shearModulus" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <span class="text-[10px] text-gray-500 whitespace-nowrap">MPa</span>
+                            </div>
+                            <div class="text-[10px] text-gray-500 mt-0.5">≈ <span x-text="gKgfMm2.toFixed(2)"></span> kgf/mm²</div>
                         </div>
                     </div>
-                </div>
+                </fieldset>
 
-                <!-- Color -->
-                <div class="mb-4">
-                    <label class="block text-xs font-semibold text-gray-400">Color de Visualización</label>
-                    <div class="flex items-center gap-2">
-                        <input type="color" x-model="form.color" class="w-10 h-8 rounded border border-gray-600">
-                        <span class="text-xs text-gray-400">Color</span>
-                    </div>
-                </div>
-
-                <!-- Tipo de Diseño -->
-                <div class="mb-4">
-                    <label class="block text-xs font-semibold text-gray-400 mb-2">Tipo de Diseño</label>
-                    <select x-model="form.designType" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm">
-                        <option value="Concrete">Concreto</option>
-                        <option value="Steel">Acero</option>
-                        <option value="No Design">Sin Diseño</option>
-                    </select>
-                </div>
-
-                <!-- Design Property Data -->
-                <div class="border-t border-gray-700 pt-3">
-                    <label class="block text-xs font-semibold text-blue-400 mb-2">Datos de Propiedad de Diseño [ACI 318-05/IBC 2003]</label>
+                
+                <fieldset class="border border-gray-700 rounded-md p-3">
+                    <legend class="px-2 text-xs font-semibold text-blue-400">Datos de Propiedad de Diseño</legend>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs text-gray-400">Resistencia del Concreto, f'c</label>
-                            <input type="number" step="any" x-model="form.fpc" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            <div class="flex items-center gap-1">
+                                <input type="number" step="any" x-model="form.fpc" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <span class="text-[10px] text-gray-500 whitespace-nowrap">MPa</span>
+                            </div>
+                            <div class="text-[10px] text-gray-500 mt-0.5">≈ <span x-text="fpcKgfMm2.toFixed(2)"></span> kgf/mm² (<span x-text="fpcKgCm2.toFixed(0)"></span> kg/cm²)</div>
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400">Esfuerzo Fluencia Acero, fy</label>
@@ -177,7 +197,7 @@
                             <span class="text-sm">Factor de Reducción de Corte</span>
                         </label>
                     </div>
-                </div>
+                </fieldset>
             </div>
         </div>
 
@@ -266,26 +286,39 @@
                 descripcion: ''
             },
 
+            // Equivalentes en unidades ETABS (kgf-mm) solo para MOSTRAR como referencia.
+            // Internamente los valores se ALMACENAN en el sistema N-mm/MPa que usa el motor
+            // (1 kgf/mm² = 9.80665 MPa). No tocar el almacenamiento o se descalibra el motor.
+            get eKgfMm2() { return (Number(this.form.modulusElasticity) || 0) / 9.80665; },
+            get gKgfMm2() { return (Number(this.form.shearModulus) || 0) / 9.80665; },
+            get fpcKgfMm2() { return (Number(this.form.fpc) || 0) / 9.80665; },
+            get fpcKgCm2() { return (Number(this.form.fpc) || 0) * 10.19716; },
+            get weightKgfM3() { return (Number(this.form.weightPerUnitVolume) || 0) * 1e9 / 9.80665; },
+            get massKgM3() { return (Number(this.form.massPerUnitVolume) || 0) * 1e12; },
+
             defaultMaterials: [{
+                    // Concreto f'c=210 kg/cm², definido igual que en ETABS.
+                    // E = 15000·√f'c(kg/cm²) = 15000·√210 = 217371 kg/cm² = 2173.71 kgf/mm²
+                    //   = 21318 MPa (=2.1318e10 Pa).  ν=0.15  →  G = E/(2(1+ν)) = 9269 MPa = 945.09 kgf/mm².
                     name: "CONC",
                     type: "Isotropic",
-                    fc: 4.0,
-                    fy: 60.0,
-                    E: 3600,
-                    weight: 8.68e-5,
-                    poisson: 0.2,
+                    fc: 21.0,
+                    fy: 420.0,
+                    E: 21318,
+                    weight: 2.40e-5,
+                    poisson: 0.15,
                     color: "#888888",
-                    descripcion: "Concreto",
-                    massPerUnitVolume: 2.246e-7,
-                    weightPerUnitVolume: 8.680e-5,
-                    modulusElasticity: 3600,
-                    poissonRatio: 0.2,
-                    thermalExpansion: 5.5e-6,
-                    shearModulus: 1500,
+                    descripcion: "Concreto f'c=210 kg/cm² (E=2173.71 kgf/mm²)",
+                    massPerUnitVolume: 2.40e-9,
+                    weightPerUnitVolume: 2.40e-5,
+                    modulusElasticity: 21318,
+                    poissonRatio: 0.15,
+                    thermalExpansion: 9.9e-6,
+                    shearModulus: 9269,
                     designType: "Concrete",
-                    fpc: 4.0,
-                    fy: 60.0,
-                    fys: 60.0,
+                    fpc: 21.0,
+                    fy: 420.0,
+                    fys: 420.0,
                     lightweight: false,
                     shearReduce: false
                 },
@@ -469,6 +502,10 @@
 
                 if (window.cadSystem) {
                     window.cadSystem.materialProperties.materials = this.materials;
+                    // Propaga el cambio del material a las secciones que lo usan
+                    // y, en cadena, a los frames de esas secciones (sin re-asignar).
+                    const n = window.cadSystem.refreshFramesForMaterial?.(materialToSave.name) || 0;
+                    if (n > 0) this.showToastMessage(`Material actualizado en ${n} elemento(s).`, 'success');
                     window.cadSystem.sync3D();
                 }
 

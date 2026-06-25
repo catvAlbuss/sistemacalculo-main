@@ -1011,12 +1011,6 @@
                                 <span>⚖️</span>
                                 Masses...
                             </button>
-
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="cadSystem.activateAssignMenuAction('slab-mass')">
-                                <span>🧱</span>
-                                Masa Sísmica Automática por Piso...
-                            </button>
                         </x-slot>
                     </x-cad.menu-subitem>
 
@@ -1098,6 +1092,24 @@
                                 @click.stop="cadSystem.activateAssignMenuAction('frame-load-temperature')">
                                 <span>🌡️</span>
                                 Temperature...
+                            </button>
+                        </x-slot>
+                    </x-cad.menu-subitem>
+
+                    {{-- ================= AREA / SHELL ================= --}}
+                    <x-cad.menu-subitem label="Area / Shell">
+                        <span>🧱</span>
+
+                        <x-slot name="submenu">
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateAssignMenuAction('area-slab-section')">
+                                <span>▦</span>
+                                Slab Section (sección de losa)...
+                            </button>
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateAssignMenuAction('area-load-uniform')">
+                                <span>🟦</span>
+                                Shell Loads → Uniform (Gravedad)...
                             </button>
                         </x-slot>
                     </x-cad.menu-subitem>
@@ -1316,6 +1328,13 @@
                     </div>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.openEtabsSeismicResultsDialog()">
+                        <span>📋</span>
+                        <span class="flex-1 truncate">Resultados Sísmicos tipo ETABS...</span>
+                        <span class="text-xs text-cyan-400 italic">Reporte</span>
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateDisplayMenuAction('show-story-drifts')">
                         <span>📐</span>
                         <span class="flex-1 truncate">Derivas de Piso...</span>
@@ -1341,6 +1360,13 @@
                         <span>🔢</span>
                         <span class="flex-1 truncate">Mostrar Desplazamientos 3D</span>
                         <span class="text-xs text-cyan-400 italic">mm</span>
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateDisplayMenuAction('seismic-drift-labels')">
+                        <span>📐</span>
+                        <span class="flex-1 truncate">Mostrar Derivas 3D</span>
+                        <span class="text-xs text-emerald-400 italic">‰</span>
                     </button>
 
                 </div>

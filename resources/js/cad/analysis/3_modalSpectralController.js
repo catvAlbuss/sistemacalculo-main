@@ -529,16 +529,30 @@ function validateModalSpectralCasesBeforeRun(payload, errors, warnings) {
 // BLOQUE 7U-E - Sincronizar Response Spectrum Definitions al payload
 // ============================================================
 
+// Re-deriva los campos single-direction (direction/scaleFactor) desde el combo
+// U1/U2 de un caso, usando la dirección PRIMARIA (la del mayor factor de escala).
+// Corrige casos ya guardados con el mapeo viejo (U1 fijo → SDY salía a 0.3 en X).
+// Mantiene `spectra` intacto; los casos sin `spectra` (o funciones) pasan igual.
+function applyCasePrimaryDirection(item) {
+    const s = item?.spectra;
+    if (!s) return item;
+    const opts = [
+        { dir: "X", fn: s.U1?.functionId, sf: Number(s.U1?.scaleFactor) },
+        { dir: "Y", fn: s.U2?.functionId, sf: Number(s.U2?.scaleFactor) },
+    ].filter((o) => o.fn && Number.isFinite(o.sf));
+    if (!opts.length) return item;
+    const p = opts.reduce((a, b) => (Math.abs(b.sf) > Math.abs(a.sf) ? b : a));
+    return { ...item, functionId: p.fn, direction: p.dir, scaleFactor: p.sf };
+}
+
 function normalizeResponseSpectrumStateItems(value) {
-    if (Array.isArray(value)) {
-        return value;
-    }
+    const arr = Array.isArray(value)
+        ? value
+        : Array.isArray(value?.items)
+            ? value.items
+            : [];
 
-    if (Array.isArray(value?.items)) {
-        return value.items;
-    }
-
-    return [];
+    return arr.map(applyCasePrimaryDirection);
 }
 
 function syncResponseSpectrumDefinitionsIntoPayload(payload, cadSystem = null) {

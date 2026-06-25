@@ -208,6 +208,14 @@ export const assignDialogsMixin = {
       frame.Iy = section.Iy ?? section.Iyy ?? frame.Iy ?? null;
       frame.J = section.J ?? frame.J ?? null;
 
+      // Módulo elástico tomado del MATERIAL de la sección (antes quedaba en el
+      // globalE viejo y el panel mostraba un valor desfasado del que definiste).
+      const matRes = this._resolveFrameMaterial?.(section, frame);
+      if (matRes && Number.isFinite(matRes.E)) {
+        frame.E = matRes.E;
+        if (matRes.materialName) frame.materialName = matRes.materialName;
+      }
+
       frame.hasAssignedSection = true;
 
       // Para que sea fácil verificar en tablas o depuración
@@ -233,6 +241,85 @@ export const assignDialogsMixin = {
       section,
       selectedFrames,
     });
+  },
+
+  // =====================================================
+  // PROPAGACIÓN AUTOMÁTICA  material → sección → frame
+  // (al editar un material o una sección, los elementos que la usan se
+  //  actualizan solos, sin tener que volver a seleccionarlos y re-asignar)
+  // =====================================================
+
+  // Todos los frames del modelo (líneas con dos nodos).
+  _allFramesForPropagation() {
+    return (this.shapes || []).filter((f) => f && f.node1 && f.node2);
+  },
+
+  // ¿El frame usa esta sección? (por id o por cualquiera de los nombres)
+  _frameUsesSection(frame, section) {
+    const sid = section.id, sname = section.name;
+    return (
+      (sid != null && String(frame.sectionId) === String(sid)) ||
+      (sname && (
+        String(frame.sectionName) === String(sname) ||
+        String(frame.frameSection?.name) === String(sname) ||
+        String(frame.section?.name) === String(sname)))
+    );
+  },
+
+  // Re-aplica geometría de la sección + E del material a TODOS los frames que la
+  // usan. Llamar al editar la sección. Devuelve cuántos frames se actualizaron.
+  refreshFramesForSection(section) {
+    if (!section) return 0;
+    let n = 0;
+    this._allFramesForPropagation().forEach((frame) => {
+      if (!this._frameUsesSection(frame, section)) return;
+
+      frame.frameSection = { ...section };
+      frame.section = { ...section };
+      frame.sectionId = section.id ?? frame.sectionId;
+      frame.sectionName = section.name ?? frame.sectionName;
+      frame.A = section.A ?? section.area ?? frame.A;
+      frame._A = frame.A;
+      frame.Iz = section.Iz ?? section.Izz ?? frame.Iz;
+      frame.Iy = section.Iy ?? section.Iyy ?? frame.Iy;
+      frame.J = section.J ?? frame.J;
+
+      const matRes = this._resolveFrameMaterial?.(section, frame);
+      if (matRes && Number.isFinite(matRes.E)) {
+        frame.E = matRes.E;
+        if (matRes.materialName) frame.materialName = matRes.materialName;
+      }
+      n++;
+    });
+    if (n) {
+      this.markAnalysisResultsOutdated?.("Se editó una sección usada por elementos del modelo.");
+      this.redraw?.();
+    }
+    return n;
+  },
+
+  // Al editar un MATERIAL: refresca las secciones que lo usan y, en cadena, los
+  // frames de esas secciones. Devuelve cuántos frames se actualizaron.
+  refreshFramesForMaterial(materialName) {
+    if (!materialName) return 0;
+    const sections = (this.frameSections?.sections || []).filter((s) =>
+      String(s.material ?? s.materialName ?? s.materialProperty ?? s.mat ?? "") === String(materialName));
+
+    let n = 0;
+    sections.forEach((s) => { n += this.refreshFramesForSection(s); });
+
+    // Frames que referencian el material directamente (sin sección con material).
+    this._allFramesForPropagation().forEach((frame) => {
+      if (String(frame.materialName ?? "") !== String(materialName)) return;
+      const matRes = this._resolveFrameMaterial?.(frame.frameSection || frame.section || {}, frame);
+      if (matRes && Number.isFinite(matRes.E)) { frame.E = matRes.E; n++; }
+    });
+
+    if (n) {
+      this.markAnalysisResultsOutdated?.("Se editó un material usado por elementos del modelo.");
+      this.redraw?.();
+    }
+    return n;
   },
 
   // =====================================================
@@ -1796,6 +1883,237 @@ export const assignDialogsMixin = {
       load,
       selectedJoints,
     });
+  },
+
+  // =====================================================
+  // ASSIGN > SHELL / AREA LOADS > UNIFORM  (como ETABS)
+  // =====================================================
+
+  // Áreas/losas seleccionadas (objetos con 'points', no frames ni nodos).
+  getSelectedAreasForAssign() {
+    const selectedObjects = this.getSelectedObjects?.() || [];
+    let areas = selectedObjects.filter((obj) => {
+      if (!obj) return false;
+      const isFrame = obj.node1 && obj.node2;
+      return !isFrame && Array.isArray(obj.points) && obj.points.length >= 3;
+    });
+    // Fallback: estado de selección de áreas del CAD.
+    if (!areas.length) {
+      const sel = this.selectedAreasState?.selectedObjects || [];
+      areas = sel.filter((a) => Array.isArray(a?.points) && a.points.length >= 3);
+    }
+    return areas;
+  },
+
+  async openAssignAreaUniformLoadDialog() {
+    const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
+    const slabZ = (a) =>
+      r2(a.z ?? (a.points.reduce((s, p) => s + (Number(p.z) || 0), 0) / a.points.length));
+
+    const selected = this.getSelectedAreasForAssign();
+    const allSlabs = (this.areas || []).filter(
+      (a) => (a.areaType || a.type || "slab") === "slab" && Array.isArray(a.points) && a.points.length >= 3,
+    );
+    if (!allSlabs.length) {
+      this.showMessage?.("No hay losas en el modelo. Dibuja losas primero.", "warning");
+      return;
+    }
+
+    // Losas por piso (z) para el alcance "por piso".
+    const byZ = new Map();
+    allSlabs.forEach((a) => {
+      const z = slabZ(a);
+      if (!byZ.has(z)) byZ.set(z, []);
+      byZ.get(z).push(a);
+    });
+    const floors = [...byZ.keys()].sort((a, b) => a - b);
+
+    // Opciones de alcance (como ETABS: selección / todo / por piso).
+    const scopeOpts = [];
+    if (selected.length) scopeOpts.push(`<option value="selected">Losas seleccionadas (${selected.length})</option>`);
+    scopeOpts.push(`<option value="all">Todas las losas (${allSlabs.length})</option>`);
+    floors.forEach((z) => scopeOpts.push(`<option value="z:${z}">Piso z=${z} m (${byZ.get(z).length} losa/s)</option>`));
+
+    const loadCases = this.getAvailableLoadCasesForAssign();
+    const result = await Swal.fire({
+      title: "Asignar Carga de Área — Uniforme (Shell)",
+      width: 560,
+      background: "#1a2035",
+      color: "#e2e8f0",
+      html: `
+        <div style="text-align:left; font-size:13px; font-family:monospace">
+          <div style="margin-bottom:10px">
+            <label style="display:block; margin-bottom:4px; color:#cbd5e1">Aplicar a</label>
+            <select id="area-load-scope" style="width:100%; padding:6px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px">
+              ${scopeOpts.join("")}
+            </select>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px">
+            <div>
+              <label style="display:block; margin-bottom:4px; color:#cbd5e1">Patrón de carga</label>
+              <select id="area-load-case" style="width:100%; padding:6px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px">
+                ${loadCases.map((lc) => `<option value="${lc.name}">${lc.name} (${lc.type})</option>`).join("")}
+              </select>
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:4px; color:#cbd5e1">Valor (kgf/m²)</label>
+              <input id="area-load-value" type="number" step="10" min="0" value="300" style="width:100%; padding:6px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px">
+            </div>
+          </div>
+          <div style="margin-top:10px">
+            <label style="display:block; margin-bottom:4px; color:#cbd5e1">Operación</label>
+            <select id="area-load-op" style="width:100%; padding:6px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px">
+              <option value="replace">Reemplazar cargas del mismo patrón</option>
+              <option value="add">Agregar a las existentes</option>
+              <option value="delete">Eliminar cargas del patrón</option>
+            </select>
+          </div>
+          <div style="color:#64748b; font-size:11px; margin-top:8px">
+            La carga se convierte en masa vía la Fuente de Masa (multiplicador del patrón). Típico: CM losa≈300, acabados≈100, tabiquería≈150; CV≈200–250.
+          </div>
+        </div>`,
+      showCancelButton: true,
+      confirmButtonText: "Asignar",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#1d4ed8",
+      preConfirm: () => ({
+        scope: document.getElementById("area-load-scope")?.value || "all",
+        loadCase: document.getElementById("area-load-case")?.value || (loadCases[0]?.name ?? "CM"),
+        value: Math.max(0, parseFloat(document.getElementById("area-load-value")?.value) || 0),
+        operation: document.getElementById("area-load-op")?.value || "replace",
+      }),
+    });
+    if (!result.isConfirmed) return;
+
+    // Resolver el conjunto destino según el alcance elegido.
+    let target;
+    const scope = result.value.scope;
+    if (scope === "selected") target = selected;
+    else if (scope === "all") target = allSlabs;
+    else if (scope.startsWith("z:")) target = byZ.get(Number(scope.slice(2))) || [];
+    else target = allSlabs;
+
+    this.assignAreaUniformLoadToAreas(target, result.value);
+  },
+
+  // Guarda la carga uniforme en area.areaLoads[] de cada losa.
+  assignAreaUniformLoadToAreas(areas, cfg) {
+    const { loadCase, value, operation } = cfg;
+    let count = 0;
+    areas.forEach((area) => {
+      if (!Array.isArray(area.areaLoads)) area.areaLoads = [];
+      // Quitar las del mismo patrón si replace/delete
+      if (operation === "replace" || operation === "delete") {
+        area.areaLoads = area.areaLoads.filter(
+          (l) => !(l.type === "uniform" && l.loadCase === loadCase),
+        );
+      }
+      if (operation !== "delete" && value > 0) {
+        area.areaLoads.push({ type: "uniform", loadCase, value, dir: "gravity" });
+      }
+      area.hasAreaLoads = area.areaLoads.length > 0;
+      area.loads = area.areaLoads; // alias compatible
+      count++;
+    });
+
+    this.markAnalysisResultsOutdated?.("Se modificaron cargas de área.");
+    this.redraw?.();
+    const verb = operation === "delete" ? "eliminadas" : "asignadas";
+    this.showMessage?.(`Cargas de área ${verb} (${loadCase} = ${value} kgf/m²) en ${count} losa(s).`);
+  },
+
+  // =====================================================
+  // ASSIGN > SHELL > SLAB SECTION  (como ETABS)
+  // =====================================================
+  async openAssignSlabSectionDialog() {
+    const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
+    const slabZ = (a) =>
+      r2(a.z ?? (a.points.reduce((s, p) => s + (Number(p.z) || 0), 0) / a.points.length));
+
+    const selected = this.getSelectedAreasForAssign();
+    const allSlabs = (this.areas || []).filter(
+      (a) => (a.areaType || a.type || "slab") === "slab" && Array.isArray(a.points) && a.points.length >= 3,
+    );
+    if (!allSlabs.length) {
+      this.showMessage?.("No hay losas en el modelo. Dibuja losas primero.", "warning");
+      return;
+    }
+
+    const sections = Array.isArray(this.slabSections) ? this.slabSections : [];
+    if (!sections.length) {
+      const ask = await Swal.fire({
+        icon: "info", title: "Sin secciones de losa",
+        text: "No hay secciones de losa definidas. ¿Abrir Define → Slab Sections para crearlas?",
+        showCancelButton: true, confirmButtonText: "Definir", cancelButtonText: "Cancelar",
+        background: "#1a2035", color: "#e2e8f0", confirmButtonColor: "#1d4ed8",
+      });
+      if (ask.isConfirmed) window.dispatchEvent(new CustomEvent("open-slab-sections-modal"));
+      return;
+    }
+
+    // Alcance (selección / todo / por piso)
+    const byZ = new Map();
+    allSlabs.forEach((a) => { const z = slabZ(a); if (!byZ.has(z)) byZ.set(z, []); byZ.get(z).push(a); });
+    const floors = [...byZ.keys()].sort((a, b) => a - b);
+    const scopeOpts = [];
+    if (selected.length) scopeOpts.push(`<option value="selected">Losas seleccionadas (${selected.length})</option>`);
+    scopeOpts.push(`<option value="all">Todas las losas (${allSlabs.length})</option>`);
+    floors.forEach((z) => scopeOpts.push(`<option value="z:${z}">Piso z=${z} m (${byZ.get(z).length})</option>`));
+
+    const secOpts = sections.map((s) =>
+      `<option value="${s.name}">${s.name} (${s.thickness} mm)</option>`).join("") +
+      `<option value="__none__">None (sin sección)</option>`;
+
+    const result = await Swal.fire({
+      title: "Asignar Sección de Losa (Shell)",
+      width: 460,
+      background: "#1a2035", color: "#e2e8f0",
+      html: `
+        <div style="text-align:left; font-size:13px; font-family:monospace">
+          <label style="display:block; margin-bottom:4px; color:#cbd5e1">Aplicar a</label>
+          <select id="slabsec-scope" style="width:100%; padding:6px; margin-bottom:10px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px">
+            ${scopeOpts.join("")}
+          </select>
+          <label style="display:block; margin-bottom:4px; color:#cbd5e1">Sección de Losa</label>
+          <select id="slabsec-name" style="width:100%; padding:6px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px">
+            ${secOpts}
+          </select>
+          <div style="color:#64748b; font-size:11px; margin-top:8px">
+            El espesor de la sección define el <b>peso propio</b> de la losa (CM automática). "Modify/Show" edita las definiciones.
+          </div>
+        </div>`,
+      showDenyButton: true,
+      denyButtonText: "Modify/Show Definitions...",
+      showCancelButton: true,
+      confirmButtonText: "Asignar",
+      cancelButtonText: "Cerrar",
+      confirmButtonColor: "#1d4ed8",
+      denyButtonColor: "#475569",
+      preConfirm: () => ({
+        scope: document.getElementById("slabsec-scope")?.value || "all",
+        name: document.getElementById("slabsec-name")?.value || "__none__",
+      }),
+    });
+
+    if (result.isDenied) { window.dispatchEvent(new CustomEvent("open-slab-sections-modal")); return; }
+    if (!result.isConfirmed) return;
+
+    const { scope, name } = result.value;
+    let target;
+    if (scope === "selected") target = selected;
+    else if (scope === "all") target = allSlabs;
+    else if (scope.startsWith("z:")) target = byZ.get(Number(scope.slice(2))) || [];
+    else target = allSlabs;
+
+    const sec = name === "__none__" ? null : sections.find((s) => s.name === name);
+    target.forEach((slab) => {
+      slab.slabSection = sec ? sec.name : null;
+      slab.slabSelfWeightKgM2 = sec ? Number(sec.selfWeightKgM2) || 0 : 0;
+      slab.section = sec ? { name: sec.name, thickness: sec.thickness, material: sec.material } : null;
+    });
+    this.markAnalysisResultsOutdated?.("Se asignó sección de losa.");
+    this.redraw?.();
+    this.showMessage?.(`Sección "${name === "__none__" ? "None" : name}" asignada a ${target.length} losa(s).`);
   },
 
   // =====================================================

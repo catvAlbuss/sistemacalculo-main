@@ -434,8 +434,15 @@ export const actionsMixin = {
         this.openAssignJointMassDialog();
         break;
 
-      case "slab-mass":
-        this.generateSlabSeismicMass();
+      // Carga de área uniforme en losas (como ETABS: Shell Loads > Uniform).
+      // La masa se deriva de estas cargas vía la Fuente de Masa.
+      case "area-load-uniform":
+        this.openAssignAreaUniformLoadDialog();
+        break;
+
+      // Asignar sección de losa (espesor/material) → peso propio automático.
+      case "area-slab-section":
+        this.openAssignSlabSectionDialog();
         break;
 
       // ===============================
@@ -587,6 +594,10 @@ export const actionsMixin = {
 
       case "seismic-displacement-labels":
         this.toggleSeismicDisplacementLabels();
+        break;
+
+      case "seismic-drift-labels":
+        this.toggleSeismicDriftLabels();
         break;
 
       default:

@@ -1175,12 +1175,6 @@
                                 <span>⚖️</span>
                                 Masses...
                             </button>
-
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="cadSystem.activateAssignMenuAction('slab-mass')">
-                                <span>🧱</span>
-                                Masa Sísmica Automática por Piso...
-                            </button>
                          <?php $__env->endSlot(); ?>
                      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -1316,6 +1310,42 @@
                                 @click.stop="cadSystem.activateAssignMenuAction('frame-load-temperature')">
                                 <span>🌡️</span>
                                 Temperature...
+                            </button>
+                         <?php $__env->endSlot(); ?>
+                     <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal004d07e9db4f299b47d6118b3775cb72)): ?>
+<?php $attributes = $__attributesOriginal004d07e9db4f299b47d6118b3775cb72; ?>
+<?php unset($__attributesOriginal004d07e9db4f299b47d6118b3775cb72); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal004d07e9db4f299b47d6118b3775cb72)): ?>
+<?php $component = $__componentOriginal004d07e9db4f299b47d6118b3775cb72; ?>
+<?php unset($__componentOriginal004d07e9db4f299b47d6118b3775cb72); ?>
+<?php endif; ?>
+
+                    
+                    <?php if (isset($component)) { $__componentOriginal004d07e9db4f299b47d6118b3775cb72 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal004d07e9db4f299b47d6118b3775cb72 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.menu-subitem','data' => ['label' => 'Area / Shell']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.menu-subitem'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['label' => 'Area / Shell']); ?>
+                        <span>🧱</span>
+
+                         <?php $__env->slot('submenu', null, []); ?> 
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateAssignMenuAction('area-slab-section')">
+                                <span>▦</span>
+                                Slab Section (sección de losa)...
+                            </button>
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateAssignMenuAction('area-load-uniform')">
+                                <span>🟦</span>
+                                Shell Loads → Uniform (Gravedad)...
                             </button>
                          <?php $__env->endSlot(); ?>
                      <?php echo $__env->renderComponent(); ?>
@@ -1593,6 +1623,13 @@
                     </div>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.openEtabsSeismicResultsDialog()">
+                        <span>📋</span>
+                        <span class="flex-1 truncate">Resultados Sísmicos tipo ETABS...</span>
+                        <span class="text-xs text-cyan-400 italic">Reporte</span>
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateDisplayMenuAction('show-story-drifts')">
                         <span>📐</span>
                         <span class="flex-1 truncate">Derivas de Piso...</span>
@@ -1618,6 +1655,13 @@
                         <span>🔢</span>
                         <span class="flex-1 truncate">Mostrar Desplazamientos 3D</span>
                         <span class="text-xs text-cyan-400 italic">mm</span>
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateDisplayMenuAction('seismic-drift-labels')">
+                        <span>📐</span>
+                        <span class="flex-1 truncate">Mostrar Derivas 3D</span>
+                        <span class="text-xs text-emerald-400 italic">‰</span>
                     </button>
 
                 </div>

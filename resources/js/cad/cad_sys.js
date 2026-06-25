@@ -561,7 +561,7 @@ export default () => ({
     this.mousePos = { x: 0, y: 0 };
     this.currentTab = "diseño";
     this.snap_enabled = true;
-    this.globalE = 210e9;
+    this.globalE = 2.132e10; // concreto f'c=210 kg/cm² (2.132e10 Pa); antes 210e9 (acero)
     this.globalA = "25x25-1.5";
     this.selectedObject = null;
     this.grid = new Grid(canvas);

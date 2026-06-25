@@ -753,10 +753,59 @@ def _build_diaphragm_groups(
     return groups
 
 
+def _data_wants_rigid_diaphragm_rotation(data: dict) -> bool:
+    """
+    Opt-in al diafragma rígido CON rotación (ops.rigidDiaphragm, amarra UX+UY+RZ).
+
+    DEFAULT = False → se usa equalDOF(UX,UY). Motivo: rigidDiaphragm introduce el
+    acoplamiento torsión-traslación real, pero con la masa repartida por nodo la
+    torsión queda demasiado flexible y casi degenerada con el modo X, lo que
+    amplifica la deriva X y la aleja de ETABS (que tiene la torsión más rígida y
+    separada). equalDOF reproduce mejor las derivas/cortantes de diseño de ETABS.
+    Se deja como opt-in para estudiar torsión cuando se calibre la rigidez torsional.
+    """
+    analysis = (
+        data.get("analysis")
+        or data.get("options")
+        or data.get("analysis_options")
+        or {}
+    )
+    for key in (
+        "rigidDiaphragmRotation",
+        "rigid_diaphragm_rotation",
+        "fullRigidDiaphragm",
+        "useRigidDiaphragmRZ",
+    ):
+        if key in data:
+            return _as_bool(data.get(key), False)
+        if isinstance(analysis, dict) and key in analysis:
+            return _as_bool(analysis.get(key), False)
+    return False
+
+
+def _apply_equaldof_diaphragm(retained: int, constrained: list) -> list:
+    """Amarra UX/UY de los esclavos al maestro (sin RZ → no captura torsión)."""
+    applied = []
+    for slave in constrained:
+        ops.equalDOF(int(retained), int(slave), 1, 2)
+        applied.append(int(slave))
+    return applied
+
+
 def _apply_rigid_diaphragms(data: dict, nodes: list, supports: list) -> dict:
     """
-    Diafragma rígido estable para RSA inicial.
-    Usa equalDOF en UX/UY.
+    Diafragma rígido por piso.
+
+    Método principal: ops.rigidDiaphragm(perpDirn=3, maestro, *esclavos), que
+    amarra UX, UY y RZ como cuerpo rígido en el plano XY → reproduce la rigidez
+    torsional (modo de torsión), a diferencia de equalDOF(1,2) que solo igualaba
+    UX/UY y mataba la rotación.
+
+    DEFAULT = equalDOF(UX,UY). rigidDiaphragm (con rotación RZ) es OPT-IN vía el
+    flag `rigidDiaphragmRotation` en el payload, porque introduce acoplamiento
+    torsión-traslación que con la masa por nodo deja la torsión casi degenerada
+    con el modo X y amplifica la deriva X fuera de ETABS. Si rigidDiaphragm falla
+    en un grupo, cae automáticamente a equalDOF para ese grupo.
     """
     report = {
         "requested": _data_wants_rigid_diaphragms(data),
@@ -776,6 +825,7 @@ def _apply_rigid_diaphragms(data: dict, nodes: list, supports: list) -> dict:
         return report
 
     node_by_id = {int(n["id"]): n for n in nodes}
+    use_rigid_rotation = _data_wants_rigid_diaphragm_rotation(data)
 
     for group in groups:
         node_ids = group.get("node_ids", [])
@@ -811,33 +861,59 @@ def _apply_rigid_diaphragms(data: dict, nodes: list, supports: list) -> dict:
             )
             continue
 
-        try:
-            equal_dof_applied = []
+        method = None
+        applied_slaves = []
+        fallback_reason = None
 
-            for slave in constrained:
-                ops.equalDOF(int(retained), int(slave), 1, 2)
-                equal_dof_applied.append(int(slave))
+        if use_rigid_rotation:
+            try:
+                # perpDirn=3 → plano del diafragma = XY (normal Z).
+                # Amarra UX, UY y RZ como cuerpo rígido.
+                ops.rigidDiaphragm(3, int(retained), *[int(s) for s in constrained])
+                method = "rigidDiaphragm_z"
+                applied_slaves = [int(s) for s in constrained]
+            except Exception as error:
+                fallback_reason = str(error)
+                method = None
 
-            report["applied"].append(
-                {
-                    "id": group.get("id"),
-                    "source": group.get("source"),
-                    "method": "equalDOF_ux_uy",
-                    "retained": int(retained),
-                    "constrained": equal_dof_applied,
-                    "node_ids": node_ids,
-                    "count": len(node_ids),
-                }
-            )
+        if method is None:
+            try:
+                applied_slaves = _apply_equaldof_diaphragm(retained, constrained)
+                method = (
+                    "equalDOF_ux_uy_fallback"
+                    if use_rigid_rotation
+                    else "equalDOF_ux_uy"
+                )
+                if fallback_reason:
+                    report["errors"].append(
+                        {
+                            "id": group.get("id"),
+                            "method": "rigidDiaphragm_z",
+                            "message": fallback_reason,
+                            "recovered_with": "equalDOF_ux_uy",
+                        }
+                    )
+            except Exception as error:
+                report["errors"].append(
+                    {
+                        "id": group.get("id"),
+                        "method": "equalDOF_ux_uy",
+                        "message": str(error),
+                    }
+                )
+                continue
 
-        except Exception as error:
-            report["errors"].append(
-                {
-                    "id": group.get("id"),
-                    "method": "equalDOF_ux_uy",
-                    "message": str(error),
-                }
-            )
+        report["applied"].append(
+            {
+                "id": group.get("id"),
+                "source": group.get("source"),
+                "method": method,
+                "retained": int(retained),
+                "constrained": applied_slaves,
+                "node_ids": node_ids,
+                "count": len(node_ids),
+            }
+        )
 
     return report
 
@@ -1685,6 +1761,45 @@ def run_modal_analysis(nodes: list, num_modes: int = 6) -> dict:
     total_mass_x = sum(m_x)
     total_mass_y = sum(m_y)
 
+    # Masa participativa CORRECTA vía OpenSees (incluye la rotación del
+    # diafragma rígido). La calcula con la matriz de masa real condensada por las
+    # restricciones, así que cada dirección suma ≤100%. La fórmula manual de abajo
+    # (meff=Ln²/Mn, sumando solo masas traslacionales por nodo) solo es válida con
+    # traslación pura (equalDOF); con rigidDiaphragm la rotación de los nodos
+    # lejanos descuadra la suma y pasa de 100%. Si modalProperties no está
+    # disponible, se cae a la fórmula manual.
+    mp = None
+    try:
+        mp = ops.modalProperties("-return")
+        if not isinstance(mp, dict):
+            mp = None
+    except Exception:
+        mp = None
+
+    def _mp_pct(key, i):
+        try:
+            seq = mp.get(key) if mp else None
+            if seq is None or i >= len(seq):
+                return None
+            value = seq[i]
+            value = float(value.real) if hasattr(value, "real") else float(value)
+            # nan/inf aparecen en modos degenerados (p.ej. torsión con equalDOF);
+            # devolver None para caer al cálculo manual limpio.
+            if value != value or value in (float("inf"), float("-inf")):
+                return None
+            return value
+        except Exception:
+            return None
+
+    # Usar OpenSees solo si entregó datos limpios para TODOS los modos (sin nan/inf
+    # en MX/MY). Si no (típico con equalDOF: el modo torsional degenerado da nan),
+    # se usa la fórmula manual completa, que con traslación pura es exacta.
+    mp_clean = mp is not None and all(
+        _mp_pct("partiMassRatiosMX", i) is not None
+        and _mp_pct("partiMassRatiosMY", i) is not None
+        for i in range(num_modes)
+    )
+
     modal_info = []
     cum_mpf_x = 0.0
     cum_mpf_y = 0.0
@@ -1695,7 +1810,7 @@ def run_modal_analysis(nodes: list, num_modes: int = 6) -> dict:
         mx_arr = np.array(m_x)
         my_arr = np.array(m_y)
 
-        # Modal mass: M_n = φ^T M φ
+        # Modal mass: M_n = φ^T M φ  (se conserva para gamma y superposición modal)
         Mn_x = float(np.dot(phi_xi, mx_arr * phi_xi))
         Mn_y = float(np.dot(phi_yi, my_arr * phi_yi))
 
@@ -1707,15 +1822,35 @@ def run_modal_analysis(nodes: list, num_modes: int = 6) -> dict:
         gamma_x = Ln_x / Mn_x if abs(Mn_x) > 1e-12 else 0.0
         gamma_y = Ln_y / Mn_y if abs(Mn_y) > 1e-12 else 0.0
 
-        # Masa modal efectiva: m*_n = (φ^T M {1})² / (φ^T M φ)
+        # Masa modal efectiva manual (fallback): m*_n = (φ^T M {1})² / (φ^T M φ)
         meff_x = Ln_x**2 / Mn_x if abs(Mn_x) > 1e-12 else 0.0
         meff_y = Ln_y**2 / Mn_y if abs(Mn_y) > 1e-12 else 0.0
+        manual_mpf_x = meff_x / total_mass_x * 100 if total_mass_x > 1e-12 else 0.0
+        manual_mpf_y = meff_y / total_mass_y * 100 if total_mass_y > 1e-12 else 0.0
 
-        mpf_x = meff_x / total_mass_x * 100 if total_mass_x > 1e-12 else 0.0
-        mpf_y = meff_y / total_mass_y * 100 if total_mass_y > 1e-12 else 0.0
-
-        cum_mpf_x += mpf_x
-        cum_mpf_y += mpf_y
+        if mp_clean:
+            # OpenSees (ya en %). RMZ = masa rotacional = torsión.
+            mpf_x = _mp_pct("partiMassRatiosMX", idx)
+            mpf_y = _mp_pct("partiMassRatiosMY", idx)
+            mpf_rz = _mp_pct("partiMassRatiosRMZ", idx) or 0.0
+            cum_x = _mp_pct("partiMassRatiosCumuMX", idx)
+            cum_y = _mp_pct("partiMassRatiosCumuMY", idx)
+            cum_rz = _mp_pct("partiMassRatiosCumuRMZ", idx) or 0.0
+            if cum_x is None:
+                cum_mpf_x += mpf_x
+                cum_x = cum_mpf_x
+            if cum_y is None:
+                cum_mpf_y += mpf_y
+                cum_y = cum_mpf_y
+        else:
+            mpf_x = manual_mpf_x
+            mpf_y = manual_mpf_y
+            mpf_rz = 0.0
+            cum_mpf_x += mpf_x
+            cum_mpf_y += mpf_y
+            cum_x = cum_mpf_x
+            cum_y = cum_mpf_y
+            cum_rz = 0.0
 
         modal_info.append(
             {
@@ -1729,8 +1864,12 @@ def run_modal_analysis(nodes: list, num_modes: int = 6) -> dict:
                 "modal_mass_y": float(Mn_y),
                 "mass_participation_x": float(mpf_x),
                 "mass_participation_y": float(mpf_y),
-                "cumulative_participation_x": float(cum_mpf_x),
-                "cumulative_participation_y": float(cum_mpf_y),
+                "mass_participation_rz": float(mpf_rz) if mpf_rz is not None else 0.0,
+                "cumulative_participation_x": float(cum_x),
+                "cumulative_participation_y": float(cum_y),
+                "cumulative_participation_rz": (
+                    float(cum_rz) if cum_rz is not None else 0.0
+                ),
             }
         )
 
@@ -2343,6 +2482,287 @@ def run_static_analysis(data: dict) -> dict:
     return _extract_results(nodes, elements)
 
 
+# ============================================================
+# FASE 1 — Fuerzas internas por barra (contrato jhack_frame_force_results)
+# ADITIVO y AISLADO: corre su propio análisis estático lineal por caso de
+# gravedad y arma el JSON del contrato. NO toca ni usa el pipeline sísmico
+# (run_full_seismic_analysis / run_rsa / run_modal_analysis).
+# ============================================================
+
+
+def _ff_kN(value) -> float:
+    """N → kN."""
+    try:
+        return float(value) / 1000.0
+    except Exception:
+        return 0.0
+
+
+def _ff_element_length(elem: dict, node_by_id: dict) -> float:
+    ni = node_by_id.get(int(elem["node_i"]))
+    nj = node_by_id.get(int(elem["node_j"]))
+    if not ni or not nj:
+        return 0.0
+    dx = float(nj.get("x", 0)) - float(ni.get("x", 0))
+    dy = float(nj.get("y", 0)) - float(ni.get("y", 0))
+    dz = float(nj.get("z", 0)) - float(ni.get("z", 0))
+    return (dx * dx + dy * dy + dz * dz) ** 0.5
+
+
+def _ff_local_axes(elem: dict, node_by_id: dict, nodes: list):
+    """
+    Vectores unitarios de los ejes locales 2 y 3 (estilo ETABS) para que el
+    frontend oriente el diagrama en 3D. local x = (j-i)/L; vecxz define el plano
+    x-z; local y = vecxz × x; local z = x × y.
+    """
+    ni = node_by_id.get(int(elem["node_i"]))
+    nj = node_by_id.get(int(elem["node_j"]))
+    if not ni or not nj:
+        return [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]
+    x = np.array(
+        [
+            float(nj.get("x", 0)) - float(ni.get("x", 0)),
+            float(nj.get("y", 0)) - float(ni.get("y", 0)),
+            float(nj.get("z", 0)) - float(ni.get("z", 0)),
+        ],
+        dtype=float,
+    )
+    nx = float(np.linalg.norm(x))
+    if nx < 1e-12:
+        return [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]
+    x /= nx
+
+    vecxz = elem.get("vecxz")
+    if not vecxz:
+        vecxz = _auto_vecxz(int(elem["node_i"]), int(elem["node_j"]), nodes)
+    vecxz = np.array(vecxz, dtype=float)
+
+    y = np.cross(vecxz, x)
+    ny = float(np.linalg.norm(y))
+    if ny < 1e-12:
+        # vecxz casi paralelo a x: elegir un eje auxiliar estable.
+        aux = np.array([0.0, 0.0, 1.0]) if abs(x[2]) < 0.9 else np.array([0.0, 1.0, 0.0])
+        y = np.cross(aux, x)
+        ny = float(np.linalg.norm(y)) or 1.0
+    y /= ny
+    z = np.cross(x, y)
+    nz = float(np.linalg.norm(z)) or 1.0
+    z /= nz
+
+    return [round(float(c), 6) for c in y], [round(float(c), 6) for c in z]
+
+
+def _ff_stations_from_end_forces(f_local, length: float, num_stations: int):
+    """
+    Diagrama de fuerzas internas a lo largo de la barra desde las fuerzas de
+    extremo en ejes locales (elasticBeamColumn SIN carga de tramo):
+      - P, V2, V3, T constantes.
+      - M2, M3 lineales (cortante integrado por la luz).
+    Mapa OpenSees localForce[0..5] (extremo i) → ETABS:
+      [0]=P (axial), [1]=V2 (cortante local 2), [2]=V3 (cortante local 3),
+      [3]=T (torsión), [4]=M2 (momento eje 2), [5]=M3 (momento eje 3).
+    NOTA: el criterio de signo (ETABS: tracción +) se reconcilia en la
+    integración visual; aquí se entrega la magnitud y un diagrama consistente.
+    """
+    n = max(2, int(num_stations or 5))
+    P_i = float(f_local[0])
+    V2_i = float(f_local[1])
+    V3_i = float(f_local[2])
+    T_i = float(f_local[3])
+    M2_i = float(f_local[4])
+    M3_i = float(f_local[5])
+    L = float(length or 0.0)
+
+    stations = []
+    for k in range(n):
+        rel = k / (n - 1)
+        s = rel * L
+        stations.append(
+            {
+                "station": round(s, 6),
+                "relativeStation": round(rel, 6),
+                "P": _ff_kN(P_i),
+                "V2": _ff_kN(V2_i),
+                "V3": _ff_kN(V3_i),
+                "T": _ff_kN(T_i),
+                "M2": _ff_kN(M2_i + V3_i * s),
+                "M3": _ff_kN(M3_i - V2_i * s),
+            }
+        )
+    return stations
+
+
+def _ff_extract_local_force(eid: int):
+    """localForce (12) en ejes locales; cae a eleForce global si no existe."""
+    for resp in ("localForce", "localForces"):
+        try:
+            v = ops.eleResponse(eid, resp)
+            if v and len(v) >= 6:
+                return list(v)
+        except Exception:
+            pass
+    try:
+        v = ops.eleForce(eid)
+        if v and len(v) >= 6:
+            return list(v)
+    except Exception:
+        pass
+    return [0.0] * 12
+
+
+def run_frame_force_results(data: dict, cases=None, num_stations: int = 5) -> dict:
+    """
+    FASE 1 del módulo de diagramas: fuerzas internas por barra (P, V2, V3, T,
+    M2, M3) por estaciones, para casos estáticos de gravedad, en el contrato
+    `jhack_frame_force_results`. Corre un análisis estático lineal propio por
+    caso; NO interfiere con el pipeline sísmico.
+    """
+    if ops is None:
+        return {"success": False, "error": "OpenSeesPy no está disponible."}
+
+    all_loads = data.get("loads", []) or []
+    elements = data.get("elements", []) or []
+
+    # Normalizar `cases` (acepta lista de ids o de objetos {id,...}).
+    if cases:
+        cases = [c.get("id") if isinstance(c, dict) else c for c in cases]
+        cases = [str(c) for c in cases if c]
+    if not cases:
+        seen = []
+        for ld in all_loads:
+            if isinstance(ld, dict):
+                cid = _b10_14_load_case(ld)
+                if cid and cid not in seen:
+                    seen.append(cid)
+        cases = seen or ["DEAD"]
+
+    case_meta = [{"id": c, "name": c, "type": "Linear Static"} for c in cases]
+
+    components = ["P", "V2", "V3", "T", "M2", "M3"]
+    frame_forces = []
+    joint_displacements = []
+    summary_acc = {
+        k: {"frameId": None, "caseId": None, "value": 0.0} for k in components
+    }
+
+    for case_id in cases:
+        # 1) Modelo limpio + cargas del caso + estático lineal.
+        nodes, _elements_built = build_model_3d(data)
+        node_by_id = {int(n["id"]): n for n in nodes}
+
+        ops.timeSeries("Linear", 1)
+        ops.pattern("Plain", 1, 1)
+        has_load = False
+
+        for ld in all_loads:
+            if not isinstance(ld, dict):
+                continue
+            if _b10_14_load_case(ld) != case_id:
+                continue
+            node = ld.get("node") or ld.get("nodeId") or ld.get("node_id")
+            if node is None:
+                continue
+            try:
+                nid = int(node)
+            except Exception:
+                continue
+            fx = _to_float(ld.get("fx", ld.get("FX", 0)), 0.0)
+            fy = _to_float(ld.get("fy", ld.get("FY", 0)), 0.0)
+            fz = _to_float(ld.get("fz", ld.get("FZ", ld.get("p", 0))), 0.0)
+            mx = _to_float(ld.get("mx", ld.get("MX", 0)), 0.0)
+            my = _to_float(ld.get("my", ld.get("MY", 0)), 0.0)
+            mz = _to_float(ld.get("mz", ld.get("MZ", 0)), 0.0)
+            if any(v != 0 for v in (fx, fy, fz, mx, my, mz)):
+                ops.load(nid, fx, fy, fz, mx, my, mz)
+                has_load = True
+
+        if has_load:
+            ops.constraints("Transformation")
+            ops.numberer("RCM")
+            ops.system("BandGeneral")
+            ops.test("NormDispIncr", 1e-8, 50)
+            ops.algorithm("Newton")
+            ops.integrator("LoadControl", 1.0)
+            ops.analysis("Static")
+            ops.analyze(1)
+            ops.reactions()
+
+        # 2) Desplazamientos nodales del caso (para la deformada).
+        for n in nodes:
+            nid = int(n["id"])
+            try:
+                d = ops.nodeDisp(nid)
+            except Exception:
+                d = [0, 0, 0, 0, 0, 0]
+            joint_displacements.append(
+                {
+                    "jointId": n.get("id"),
+                    "caseId": case_id,
+                    "ux": float(d[0]),
+                    "uy": float(d[1]),
+                    "uz": float(d[2]),
+                    "rx": float(d[3]),
+                    "ry": float(d[4]),
+                    "rz": float(d[5]),
+                }
+            )
+
+        # 3) Fuerzas internas por barra (ejes locales) y estaciones.
+        for elem in elements:
+            eid = int(elem["id"])
+            length = _ff_element_length(elem, node_by_id)
+            f_local = _ff_extract_local_force(eid)
+            stations = _ff_stations_from_end_forces(f_local, length, num_stations)
+            axis2, axis3 = _ff_local_axes(elem, node_by_id, nodes)
+
+            max_obj = {}
+            for comp in components:
+                best = max(stations, key=lambda st: abs(st[comp]))
+                max_obj[comp] = {"value": best[comp], "station": best["station"]}
+                if abs(best[comp]) > abs(summary_acc[comp]["value"]):
+                    summary_acc[comp] = {
+                        "frameId": elem.get("id"),
+                        "caseId": case_id,
+                        "value": best[comp],
+                    }
+
+            frame_forces.append(
+                {
+                    "frameId": elem.get("id"),
+                    "caseId": case_id,
+                    "comboId": None,
+                    "length": round(length, 6),
+                    "localAxes": {
+                        "axis1": "i_to_j",
+                        "axis2": axis2,
+                        "axis3": axis3,
+                    },
+                    "stations": stations,
+                    "max": max_obj,
+                }
+            )
+
+    summary = {f"maxAbs{k}": summary_acc[k] for k in components}
+
+    return {
+        "success": True,
+        "type": "jhack_frame_force_results",
+        "version": "B-FORCES-01",
+        "source": "backend_real",
+        "units": {
+            "force": "kN",
+            "moment": "kN-m",
+            "length": "m",
+            "displacement": "m",
+        },
+        "cases": case_meta,
+        "components": components,
+        "frameForces": frame_forces,
+        "jointDisplacements": joint_displacements,
+        "summary": summary,
+    }
+
+
 def _get_base_shear_value(seismic: dict, direction: str) -> float:
     """
     Obtiene el cortante basal desde result['seismic'].
@@ -2700,6 +3120,12 @@ def _b7_table_modal_periods(results: dict) -> list[dict]:
                 ),
                 "cumulative_y_percent": _b7_round(
                     mode.get("cumulative_participation_y"), 6
+                ),
+                "mass_participation_rz_percent": _b7_round(
+                    mode.get("mass_participation_rz"), 6
+                ),
+                "cumulative_rz_percent": _b7_round(
+                    mode.get("cumulative_participation_rz"), 6
                 ),
                 "gamma_x": _b7_round(mode.get("gamma_x"), 9),
                 "gamma_y": _b7_round(mode.get("gamma_y"), 9),

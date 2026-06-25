@@ -165,13 +165,8 @@
 
             
             <div class="border border-gray-700 rounded-md bg-gray-900 p-4 mb-4">
-                <div class="text-center text-gray-400 text-sm mb-2">Gráfico de la Función</div>
-                <div class="h-40 bg-gray-800 rounded flex items-center justify-center">
-                    <div class="text-gray-500 text-xs">Vista previa del espectro</div>
-                </div>
-                <div class="flex justify-end mt-2">
-                    <button @click="displayGraph()" class="px-3 py-1 bg-purple-600 hover:bg-purple-500 rounded text-white text-sm">Mostrar Gráfico</button>
-                </div>
+                <div class="text-center text-gray-400 text-sm mb-2">Gráfico de la Función — pasa el cursor para ver T y Sa</div>
+                <div x-html="graphSvg" @mousemove="onGraphHover($event)" @mouseleave="hover = null"></div>
             </div>
         </div>
 
@@ -210,6 +205,8 @@
             toastMessage: '',
             toastType: 'success',
             toastTimeout: null,
+
+            hover: null, // {T, Sa} bajo el cursor del gráfico
 
             ubc97Form: {
                 name: 'FUNC2',
@@ -419,8 +416,71 @@
                 this.showToastMessage('Conversión a función definida por usuario - Próximamente', 'info');
             },
 
-            displayGraph() {
-                this.showToastMessage('Mostrando gráfico del espectro', 'info');
+            // Geometría del gráfico (escalas + puntos ordenados).
+            _graphGeom() {
+                const pts = (this.ubc97Form.spectrumPoints || [])
+                    .map((p) => ({ T: Number(p.period) || 0, Sa: Number(p.acceleration) || 0 }))
+                    .filter((p) => Number.isFinite(p.T) && Number.isFinite(p.Sa))
+                    .sort((a, b) => a.T - b.T);
+                const W = 440, H = 200, ML = 46, MR = 12, MT = 10, MB = 28;
+                const plotW = W - ML - MR, plotH = H - MT - MB;
+                const maxT = Math.max(0.1, ...pts.map((p) => p.T));
+                const maxSa = Math.max(0.01, ...pts.map((p) => p.Sa)) * 1.1;
+                const sx = (t) => ML + (t / maxT) * plotW;
+                const sy = (s) => MT + plotH - (s / maxSa) * plotH;
+                return { pts, W, H, ML, MR, MT, MB, plotW, plotH, maxT, maxSa, sx, sy };
+            },
+
+            // SVG del espectro (reactivo: se redibuja al cambiar puntos o hover).
+            get graphSvg() {
+                const g = this._graphGeom();
+                if (!g.pts.length) {
+                    return '<div style="color:#64748b;text-align:center;padding:30px;font-size:12px">Sin puntos para graficar</div>';
+                }
+                const line = g.pts.map((p) => `${g.sx(p.T).toFixed(1)},${g.sy(p.Sa).toFixed(1)}`).join(' ');
+                const xt = [0, g.maxT / 2, g.maxT].map((t) =>
+                    `<line x1="${g.sx(t)}" y1="${g.MT + g.plotH}" x2="${g.sx(t)}" y2="${g.MT + g.plotH + 4}" stroke="#475569"/>` +
+                    `<text x="${g.sx(t)}" y="${g.MT + g.plotH + 15}" text-anchor="middle" fill="#94a3b8" font-size="9">${t.toFixed(2)}</text>`).join('');
+                const yt = [0, g.maxSa / 2, g.maxSa].map((s) =>
+                    `<line x1="${g.ML - 4}" y1="${g.sy(s)}" x2="${g.ML}" y2="${g.sy(s)}" stroke="#475569"/>` +
+                    `<text x="${g.ML - 7}" y="${g.sy(s) + 3}" text-anchor="end" fill="#94a3b8" font-size="9">${s.toFixed(3)}</text>`).join('');
+                let cur = '';
+                if (this.hover) {
+                    const cx = g.sx(this.hover.T), cy = g.sy(this.hover.Sa);
+                    const tx = Math.min(cx + 6, g.ML + g.plotW - 92);
+                    cur = `<line x1="${cx}" y1="${g.MT}" x2="${cx}" y2="${g.MT + g.plotH}" stroke="#64748b" stroke-dasharray="3"/>` +
+                        `<circle cx="${cx}" cy="${cy}" r="3" fill="#ffffff"/>` +
+                        `<rect x="${tx}" y="${cy - 22}" width="90" height="16" fill="#1e293b" stroke="#475569" rx="3"/>` +
+                        `<text x="${tx + 4}" y="${cy - 10}" fill="#e2e8f0" font-size="9">T=${this.hover.T.toFixed(2)}  Sa=${this.hover.Sa.toFixed(4)}</text>`;
+                }
+                return `<svg width="${g.W}" height="${g.H}" style="background:#0f172a;border-radius:4px;cursor:crosshair;width:100%;height:auto">` +
+                    `<rect x="${g.ML}" y="${g.MT}" width="${g.plotW}" height="${g.plotH}" fill="none" stroke="#334155"/>` +
+                    `${xt}${yt}<polyline points="${line}" fill="none" stroke="#a78bfa" stroke-width="2"/>${cur}` +
+                    `<text x="${g.ML + g.plotW / 2}" y="${g.H - 3}" text-anchor="middle" fill="#cbd5e1" font-size="9">Periodo T (s)</text>` +
+                    `<text x="11" y="${g.MT + g.plotH / 2}" text-anchor="middle" fill="#cbd5e1" font-size="9" transform="rotate(-90 11 ${g.MT + g.plotH / 2})">Sa</text>` +
+                    `</svg>`;
+            },
+
+            // Cursor sobre el gráfico → calcula T y Sa (interpolando la curva).
+            onGraphHover(e) {
+                const g = this._graphGeom();
+                const svg = e.currentTarget.querySelector('svg');
+                if (!g.pts.length || !svg) { this.hover = null; return; }
+                const rect = svg.getBoundingClientRect();
+                const px = (e.clientX - rect.left) * (g.W / (rect.width || g.W));
+                if (px < g.ML || px > g.ML + g.plotW) { this.hover = null; return; }
+                let T = Math.max(0, Math.min(g.maxT, (px - g.ML) / g.plotW * g.maxT));
+                const pts = g.pts;
+                let Sa = pts[pts.length - 1].Sa;
+                if (T <= pts[0].T) Sa = pts[0].Sa;
+                else for (let i = 1; i < pts.length; i++) {
+                    if (T <= pts[i].T) {
+                        const a = pts[i - 1], b = pts[i];
+                        Sa = a.Sa + (T - a.T) / ((b.T - a.T) || 1) * (b.Sa - a.Sa);
+                        break;
+                    }
+                }
+                this.hover = { T, Sa };
             },
 
             saveUBC97Function() {

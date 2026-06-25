@@ -752,7 +752,9 @@ export const viewportMixin = {
   },
 
   openMassSource() {
-    return this.openMassSourceDialog();
+    // Abre el modal estilo ETABS (lista de fuentes + editor). El diálogo Swal
+    // antiguo (openMassSourceDialog) queda obsoleto.
+    window.dispatchEvent(new CustomEvent("open-mass-source-modal"));
   },
 
   openDiaphragms() {
@@ -824,7 +826,9 @@ export const viewportMixin = {
   _defineTodo(nombre) {
     this.showMessage?.(`"${nombre}" está en desarrollo — aún no disponible.`, "info");
   },
-  openWallSlabSections() { this._defineTodo("Wall/Slab/Deck Sections"); },
+  openWallSlabSections() {
+    window.dispatchEvent(new CustomEvent("open-slab-sections-modal"));
+  },
   openLinkProperties() { this._defineTodo("Link Properties"); },
   openHingeProperties() { this._defineTodo("Frame Nonlinear Hinge Properties"); },
   openTimeHistoryFunctions() { this._defineTodo("Time History Functions"); },

@@ -242,14 +242,46 @@
                             </div>
                         </div>
 
+                        {{-- Gráfico de la sección con ejes locales 2 (peralte) y 3 (ancho), como ETABS --}}
+                        <div class="mt-3 p-2 bg-gray-900 rounded border border-gray-700 flex items-center justify-center">
+                            <svg viewBox="0 0 230 190" class="w-full" style="max-height:190px">
+                                <defs>
+                                    <marker id="fs-arr2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                                        <path d="M0,0 L6,3 L0,6 Z" fill="#22c55e"/>
+                                    </marker>
+                                    <marker id="fs-arr3" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                                        <path d="M0,0 L6,3 L0,6 Z" fill="#3b82f6"/>
+                                    </marker>
+                                </defs>
+                                {{-- Sección (peralte h = vertical, ancho b = horizontal) --}}
+                                <rect :x="secBox.x" :y="secBox.y" :width="secBox.W" :height="secBox.H"
+                                    fill="#374151" stroke="#9ca3af" stroke-width="1.5" rx="2"/>
+                                {{-- Barras de refuerzo (decorativas). x-for no sirve en SVG → x-html. --}}
+                                <g x-html="barsSvg"></g>
+                                {{-- Eje 2 (verde, vertical = peralte) --}}
+                                <line :x1="secBox.cx" :y1="secBox.cy" :x2="secBox.cx" y2="16"
+                                    stroke="#22c55e" stroke-width="2" marker-end="url(#fs-arr2)"/>
+                                <text :x="secBox.cx + 6" y="24" fill="#22c55e" font-size="13" font-weight="bold">2</text>
+                                {{-- Eje 3 (azul, horizontal = ancho) --}}
+                                <line :x1="secBox.cx" :y1="secBox.cy" x2="16" :y2="secBox.cy"
+                                    stroke="#3b82f6" stroke-width="2" marker-end="url(#fs-arr3)"/>
+                                <text x="22" :y="secBox.cy - 6" fill="#3b82f6" font-size="13" font-weight="bold">3</text>
+                                {{-- Cotas --}}
+                                <text :x="secBox.cx" :y="secBox.y + secBox.H + 14" fill="#94a3b8" font-size="9" text-anchor="middle"
+                                    x-text="'b = ' + form.rectB + ' cm (eje 3)'"></text>
+                                <text x="6" :y="secBox.cy + 30" fill="#94a3b8" font-size="9"
+                                    x-text="'h = ' + form.rectH + ' cm (eje 2)'"></text>
+                            </svg>
+                        </div>
+
                         {{-- Propiedades calculadas (solo lectura) --}}
                         <div class="mt-3 p-2 bg-gray-900 rounded border border-gray-700">
                             <div class="text-xs text-gray-400 mb-1">Propiedades calculadas (SI):</div>
                             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-300 font-mono">
                                 <span>A = <span x-text="rectProps.A.toFixed(6)"></span> m²</span>
                                 <span>J ≈ <span x-text="rectProps.J.toFixed(6)"></span> m⁴</span>
-                                <span>Iz (mayor) = <span x-text="rectProps.Iz.toFixed(6)"></span> m⁴</span>
-                                <span>Iy (menor) = <span x-text="rectProps.Iy.toFixed(6)"></span> m⁴</span>
+                                <span>I33 (mayor, eje 3) = <span x-text="rectProps.Iz.toFixed(6)"></span> m⁴</span>
+                                <span>I22 (menor, eje 2) = <span x-text="rectProps.Iy.toFixed(6)"></span> m⁴</span>
                             </div>
                         </div>
                     </div>
@@ -549,6 +581,38 @@
                 return { A, Iz, Iy, J };
             },
 
+            // Geometría del gráfico de la sección (ejes locales 2=peralte, 3=ancho).
+            // El centro de la sección está en (cx, cy); el peralte h va en vertical
+            // (eje 2 ↑) y el ancho b en horizontal (eje 3 ←), como en ETABS.
+            get secBox() {
+                const b = Number(this.form.rectB) || 1; // ancho (horizontal)
+                const h = Number(this.form.rectH) || 1; // peralte (vertical)
+                const m = Math.max(b, h) || 1;
+                const W = 120 * b / m;   // px
+                const H = 120 * h / m;   // px
+                const cx = 120, cy = 100;
+                const x = cx - W / 2, y = cy - H / 2;
+                // Barras de refuerzo: esquinas + una intermedia por lado
+                const bars = [];
+                const insX = Math.min(10, W / 4), insY = Math.min(10, H / 4);
+                const xs = [x + insX, cx, x + W - insX];
+                const ys = [y + insY, cy, y + H - insY];
+                let id = 0;
+                for (const bx of xs) for (const by of ys) {
+                    // saltar el centro (no hay barra al medio)
+                    if (bx === cx && by === cy) continue;
+                    bars.push({ id: id++, x: bx, y: by });
+                }
+                return { W, H, x, y, cx, cy, bars };
+            },
+
+            // Barras de refuerzo como string SVG (x-for no funciona dentro de <svg>).
+            get barsSvg() {
+                return this.secBox.bars
+                    .map((d) => `<circle cx="${d.x}" cy="${d.y}" r="2.2" fill="#cbd5e1"/>`)
+                    .join("");
+            },
+
             // Propiedades de un perfil W (doble T) a partir de d, bf, tf, tw en cm.
             // Devuelve A (m²), Iz/Iy (m⁴, ejes fuerte/débil) y J (m⁴). J usa la
             // aproximación de pared delgada para secciones abiertas: J ≈ Σ b·t³ / 3.
@@ -576,6 +640,37 @@
             },
 
             defaultSections: [{
+                    // Columna de concreto 30x40 cm (material CONC). Props en SI (m, m⁴),
+                    // calculadas con las mismas fórmulas de rectProps del modal.
+                    name: "C30X40",
+                    type: "rect",
+                    color: "#88ffaa",
+                    b: 30,
+                    h: 40,
+                    material: "CONC",
+                    area: 0.12,
+                    A: 0.12,
+                    Iz: 0.0016,
+                    Iy: 0.0009,
+                    J: 0.0019438505859375,
+                    description: "Concreto 30x40 cm (CONC)"
+                },
+                {
+                    // Viga de concreto 30x50 cm (material CONC).
+                    name: "V30X50",
+                    type: "rect",
+                    color: "#88aaff",
+                    b: 30,
+                    h: 50,
+                    material: "CONC",
+                    area: 0.15,
+                    A: 0.15,
+                    Iz: 0.003125,
+                    Iy: 0.001125,
+                    J: 0.0028173707999999994,
+                    description: "Concreto 30x50 cm (CONC)"
+                },
+                {
                     name: "W10X12",
                     type: "wf",
                     weight: 12,
@@ -1002,6 +1097,10 @@
                 if (window.cadSystem) {
                     if (!window.cadSystem.frameSections) window.cadSystem.frameSections = {};
                     window.cadSystem.frameSections.sections = this.sections;
+                    // Propaga la sección editada a TODOS los frames que la usan
+                    // (geometría A/Iz/Iy/J + E del material), sin re-asignar.
+                    const n = window.cadSystem.refreshFramesForSection?.(sectionToSave) || 0;
+                    if (n > 0) this.showToastMessage('Sección actualizada en ' + n + ' elemento(s).', 'success');
                     if (window.cadSystem.sync3D) window.cadSystem.sync3D();
                 }
 

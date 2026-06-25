@@ -4,7 +4,6 @@ import { openMaterialDialog } from '../dialogs/material-dialog.js';
 import { openSectionDialog } from '../dialogs/section-dialog.js';
 import { openLoadCaseDialog } from '../dialogs/loadcase-dialog.js';
 import { openCombinationDialog } from '../dialogs/combination-dialog.js';
-import { openMassSourceDialog } from '../dialogs/mass-source-dialog.js';
 
 export const defineMenu = {
     name: 'define',
@@ -100,7 +99,7 @@ export const defineMenu = {
     handlers: {
         openMaterialProperties: (cadSystem) => openMaterialDialog(cadSystem),
         openFrameSections: (cadSystem) => openSectionDialog(cadSystem),
-        openWallSlabSections: (cadSystem) => cadSystem.showMessage('🧱 Wall/Slab/Deck Sections - Próximamente'),
+        openWallSlabSections: () => window.dispatchEvent(new CustomEvent("open-slab-sections-modal")),
         openLinkProperties: (cadSystem) => cadSystem.showMessage('🔗 Link Properties - Próximamente'),
         openHingeProperties: (cadSystem) => cadSystem.showMessage('🌀 Frame Nonlinear Hinge Properties - Próximamente'),
         openDiaphragms: (cadSystem) => cadSystem.showMessage('🏢 Diaphragms - Próximamente'),
@@ -117,6 +116,6 @@ export const defineMenu = {
         addDefaultDesignCombos: (cadSystem) => cadSystem.addDefaultDesignCombos(),
         convertCombosToNonlinear: (cadSystem) => cadSystem.showMessage('🔄 Convert Combos to Nonlinear Cases - Próximamente'),
         openSeismicEffects: (cadSystem) => cadSystem.showMessage('🌍 Special Seismic Load Effects - Próximamente'),
-        openMassSource: (cadSystem) => openMassSourceDialog(cadSystem),
+        openMassSource: () => window.dispatchEvent(new CustomEvent("open-mass-source-modal")),
     }
 };

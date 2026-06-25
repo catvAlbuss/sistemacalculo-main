@@ -2758,3 +2758,101 @@ export function clearSeismicDisplacementLabels() {
 export function isSeismicDisplacementLabelsVisible() {
   return (VIEWER_STATE.seismicLabels?.length || 0) > 0;
 }
+
+// ════════════════════════════════════════════════════════════════════════
+//  Etiquetas de DERIVA de entrepiso (Δ/h, en ‰) sobre el modelo 3D
+//  Para cada nodo calcula la deriva respecto al nodo directamente debajo
+//  (misma columna x,y) = |Δdespl| / altura, y muestra la dirección gobernante.
+// ════════════════════════════════════════════════════════════════════════
+
+function _createDriftLabel(text, position, scene) {
+  const id = `drift_${position.x.toFixed(2)}_${position.y.toFixed(2)}_${position.z.toFixed(2)}`;
+  const texture = new BABYLON.DynamicTexture(`driftTex_${id}`, { width: 180, height: 48 }, scene, true);
+  texture.hasAlpha = true;
+  texture.drawText(text, 6, 34, "bold 22px Arial", "#34d399", "transparent", true); // verde
+  const mat = new BABYLON.StandardMaterial(`driftMat_${id}`, scene);
+  mat.diffuseTexture = texture;
+  mat.opacityTexture = texture;
+  mat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+  mat.disableLighting = true;
+  mat.backFaceCulling = false;
+
+  const plane = BABYLON.MeshBuilder.CreatePlane(`driftLabel_${id}`, { width: 1.4, height: 0.4 }, scene);
+  plane.material = mat;
+  // Offset en X para no tapar la etiqueta de desplazamiento del mismo nodo.
+  plane.position = new BABYLON.Vector3(position.x + 1.0, position.y + 0.5, position.z + 0.3);
+  plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+  plane.isPickable = false;
+  plane.metadata = { type: "seismicDriftLabel" };
+  return plane;
+}
+
+/**
+ * Muestra la deriva de entrepiso (‰) en cada nodo: |despl_nodo − despl_abajo| / h,
+ * tomando la dirección gobernante (máx entre X e Y). Lee n.seismicDisplacement.
+ * @returns {number} cantidad de etiquetas creadas.
+ */
+export function showSeismicDriftLabels(context) {
+  clearSeismicDriftLabels();
+  if (!VIEWER_STATE.scene) return 0;
+
+  // Cota de base del modelo (nodos de apoyo, desplazamiento = 0).
+  const allNodes = context.nodes || [];
+  const minZ = allNodes.length
+    ? Math.min(...allNodes.map((n) => Number(n.position?.z) || 0))
+    : 0;
+
+  // Agrupar nodos por columna vertical (x,y) para hallar el nodo de abajo.
+  const columns = new Map();
+  allNodes.forEach((n, idx) => {
+    if (!n.seismicDisplacement) return;
+    const kx = Math.round((Number(n.position?.x) || 0) * 1000);
+    const ky = Math.round((Number(n.position?.y) || 0) * 1000);
+    const key = `${kx}_${ky}`;
+    if (!columns.has(key)) columns.set(key, []);
+    columns.get(key).push({ idx, n, z: Number(n.position?.z) || 0, d: n.seismicDisplacement });
+  });
+
+  const labels = [];
+  columns.forEach((list) => {
+    list.sort((a, b) => a.z - b.z);
+    // Si la columna no llega a la base (apoyos sin desplazamiento en el envelope),
+    // anclar una base virtual con desplazamiento 0 → deriva del Piso 1 correcta.
+    if (list.length && list[0].z > minZ + 0.01) {
+      list.unshift({ idx: -1, n: null, z: minZ, d: { dx: 0, dy: 0, dz: 0 } });
+    }
+    for (let i = 1; i < list.length; i++) {
+      const cur = list[i];
+      const below = list[i - 1];
+      const h = cur.z - below.z;
+      if (!(h > 0)) continue;
+
+      const driftX = Math.abs((cur.d.dx || 0) - (below.d.dx || 0)) / h;
+      const driftY = Math.abs((cur.d.dy || 0) - (below.d.dy || 0)) / h;
+      const drift = Math.max(driftX, driftY); // gobernante
+      if (drift < 1e-6) continue;
+
+      const orig = VIEWER_STATE.originalPositions?.[cur.idx];
+      const pos = orig
+        ? orig.clone()
+        : new BABYLON.Vector3(Number(cur.n.position?.x) || 0, Number(cur.n.position?.z) || 0, Number(cur.n.position?.y) || 0);
+
+      const label = _createDriftLabel(`Δ ${(drift * 1000).toFixed(2)}‰`, pos, VIEWER_STATE.scene);
+      if (label) labels.push(label);
+    }
+  });
+
+  VIEWER_STATE.seismicDriftLabels = labels;
+  return labels.length;
+}
+
+export function clearSeismicDriftLabels() {
+  (VIEWER_STATE.seismicDriftLabels || []).forEach((m) => {
+    try { if (m && !m.isDisposed()) m.dispose(); } catch (_) { /* noop */ }
+  });
+  VIEWER_STATE.seismicDriftLabels = [];
+}
+
+export function isSeismicDriftLabelsVisible() {
+  return (VIEWER_STATE.seismicDriftLabels?.length || 0) > 0;
+}

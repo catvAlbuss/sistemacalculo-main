@@ -328,6 +328,8 @@ function showFunctionsListModal(cadSystem) {
                     box.innerHTML = fn?.points?.length
                         ? cadSystem._buildSpectrumSVG?.([{ name: fn.name, color: "#60a5fa", points: fn.points }]) || ""
                         : `<div style="color:#64748b; font-size:11px; padding:14px">Selecciona una función para ver su gráfico</div>`;
+                    // Hover de coordenadas (T, Sa) sobre el gráfico de la función seleccionada.
+                    if (fn?.points?.length) cadSystem._attachSpectrumHover?.(box);
                 };
                 renderGraph();
                 document.querySelectorAll('input[name="rsf-sel"]').forEach((r) => r.addEventListener("change", renderGraph));
@@ -426,6 +428,8 @@ async function openResponseSpectrumFunctionDefinitionDialog(cadSystem, existing)
                     box.innerHTML = draft.points.length
                         ? cadSystem._buildSpectrumSVG?.([{ name: draft.name, color: "#60a5fa", points: draft.points }]) || ""
                         : `<div style="color:#64748b; font-size:11px; padding:18px">Importa un archivo para ver el gráfico</div>`;
+                    // Activa el hover de coordenadas (T, Sa) sobre el gráfico, igual que el espectro del análisis sísmico.
+                    if (draft.points.length) cadSystem._attachSpectrumHover?.(box);
                 }
             };
             const recompute = () => {
@@ -677,9 +681,9 @@ async function openResponseSpectrumCaseDataDialog(cadSystem, existing) {
         excitationAngle: existing?.excitationAngle ?? 0,
         eccRatio: existing?.eccRatio ?? 0.05,
         spectra: {
-            U1: { functionId: existing?.spectra?.U1?.functionId ?? (functions[0]?.id || ""), scaleFactor: existing?.spectra?.U1?.scaleFactor ?? 1 },
-            U2: { functionId: existing?.spectra?.U2?.functionId ?? (functions[0]?.id || ""), scaleFactor: existing?.spectra?.U2?.scaleFactor ?? 1 },
-            UZ: { functionId: existing?.spectra?.UZ?.functionId ?? "", scaleFactor: existing?.spectra?.UZ?.scaleFactor ?? 1 },
+            U1: { functionId: existing?.spectra?.U1?.functionId ?? (functions[0]?.id || ""), scaleFactor: existing?.spectra?.U1?.scaleFactor ?? 9.81 },
+            U2: { functionId: existing?.spectra?.U2?.functionId ?? (functions[0]?.id || ""), scaleFactor: existing?.spectra?.U2?.scaleFactor ?? 2.943 },
+            UZ: { functionId: existing?.spectra?.UZ?.functionId ?? "", scaleFactor: existing?.spectra?.UZ?.scaleFactor ?? 6.540 },
         },
     };
 
@@ -690,11 +694,45 @@ async function openResponseSpectrumCaseDataDialog(cadSystem, existing) {
     const radio = (name, value, current, label) =>
         `<label style="margin-right:14px; color:#cbd5e1"><input type="radio" name="${name}" value="${value}" ${value === current ? "checked" : ""}> ${label}</label>`;
 
+    // Valores de escala predefinidos (g, 0.3g, 0.667g del sistema de ETABS).
+    const SF_PRESETS = [
+        { v: "9.81", label: "9.81 (1.0g)" },
+        { v: "2.943", label: "2.943 (0.3g)" },
+        { v: "6.54", label: "6.54 (0.667g)" },
+    ];
+    const sfPresetOptions =
+        `<option value="">—</option>` +
+        SF_PRESETS.map((p) => `<option value="${p.v}">${p.label}</option>`).join("");
+
+    // Evalúa el Scale Factor: acepta un número o una expresión aritmética con
+    // + - * / y paréntesis (estilo ETABS, p.ej. "9.81/3" o "9.81*0.3").
+    // Solo permite caracteres seguros; devuelve fallback si la expresión es inválida.
+    const evalScaleExpr = (raw, fallback) => {
+        const s = String(raw ?? "").trim();
+        if (s === "") return fallback;
+        if (!/^[0-9+\-*/().\s]+$/.test(s)) {
+            const p = parseFloat(s);
+            return Number.isFinite(p) ? p : fallback;
+        }
+        try {
+            const v = Function(`"use strict"; return (${s});`)();
+            return Number.isFinite(v) ? v : fallback;
+        } catch (_e) {
+            return fallback;
+        }
+    };
+    const roundSF = (v) => Math.round(v * 1000) / 1000; // hasta 3 decimales
+
     const dirRow = (key) => `
       <tr>
         <td style="padding:4px 6px; color:#cbd5e1">${key}</td>
         <td style="padding:4px 6px"><select id="rscd-fn-${key}" style="width:100%; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:4px">${fnOptions(c.spectra[key].functionId)}</select></td>
-        <td style="padding:4px 6px"><input id="rscd-sf-${key}" type="number" step="0.0001" value="${c.spectra[key].scaleFactor}" style="width:90px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:4px; text-align:right"></td>
+        <td style="padding:4px 6px">
+          <div style="display:flex; gap:4px; align-items:center">
+            <input id="rscd-sf-${key}" type="text" value="${c.spectra[key].scaleFactor}" title="Acepta operaciones: + - * /  (ej: 9.81/3)" style="width:84px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:4px; text-align:right">
+            <select id="rscd-sfsel-${key}" title="Valores predefinidos" style="width:58px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:4px">${sfPresetOptions}</select>
+          </div>
+        </td>
       </tr>`;
 
     const result = await Swal.fire({
@@ -756,12 +794,31 @@ async function openResponseSpectrumCaseDataDialog(cadSystem, existing) {
               <label style="color:#cbd5e1">Ecc. Ratio (All Diaph.) <input id="rscd-ecc" type="number" step="0.01" value="${c.eccRatio}" style="width:80px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:3px; margin-left:4px"></label>
             </fieldset>
           </div>`,
+        didOpen: () => {
+            ["U1", "U2", "UZ"].forEach((k) => {
+                const inp = document.getElementById(`rscd-sf-${k}`);
+                const sel = document.getElementById(`rscd-sfsel-${k}`);
+                // Seleccionar un valor predefinido lo coloca en el input y resetea el select.
+                sel?.addEventListener("change", () => {
+                    if (sel.value) {
+                        inp.value = sel.value;
+                        sel.value = "";
+                        inp.focus();
+                    }
+                });
+                // Al salir del input, evalúa la expresión y muestra el resultado redondeado.
+                inp?.addEventListener("blur", () => {
+                    const v = evalScaleExpr(inp.value, null);
+                    if (v !== null) inp.value = String(roundSF(v));
+                });
+            });
+        },
         preConfirm: () => {
             const name = document.getElementById("rscd-name")?.value?.trim();
             if (!name) { Swal.showValidationMessage("El nombre del caso es obligatorio."); return false; }
             const num = (id, d) => { const v = parseFloat(document.getElementById(id)?.value); return Number.isFinite(v) ? v : d; };
             const fnVal = (k) => document.getElementById(`rscd-fn-${k}`)?.value || "";
-            const sfVal = (k) => num(`rscd-sf-${k}`, 1);
+            const sfVal = (k) => roundSF(evalScaleExpr(document.getElementById(`rscd-sf-${k}`)?.value, 1));
             if (!fnVal("U1") && !fnVal("U2") && !fnVal("UZ")) {
                 Swal.showValidationMessage("Asigna al menos una función a U1, U2 o UZ.");
                 return false;
@@ -782,10 +839,21 @@ async function openResponseSpectrumCaseDataDialog(cadSystem, existing) {
                     U2: { functionId: fnVal("U2"), scaleFactor: sfVal("U2") },
                     UZ: { functionId: fnVal("UZ"), scaleFactor: sfVal("UZ") },
                 },
-                // compatibilidad con el pipeline del colaborador (campos legacy)
-                functionId: fnVal("U1") || c.functionId || null,
-                direction: fnVal("U1") ? "X" : (fnVal("U2") ? "Y" : (c.direction || "X")),
-                scaleFactor: sfVal("U1") || c.scaleFactor || 1,
+                // Mapeo al pipeline single-direction del colaborador (1 dirección + 1 factor).
+                // El backend NO combina U1+U2, así que se envía la dirección PRIMARIA =
+                // la del MAYOR factor de escala (el 100%), no siempre U1.
+                // (Bug anterior: tomaba U1 fijo → un caso SDY con U1=0.3/U2=1.0 salía a 0.3 y en X.)
+                // El combo completo queda guardado en `spectra` por si el motor lo soporta luego.
+                ...(() => {
+                    const opts = [
+                        { dir: "X", fn: fnVal("U1"), sf: sfVal("U1") },
+                        { dir: "Y", fn: fnVal("U2"), sf: sfVal("U2") },
+                    ].filter((o) => o.fn); // solo direcciones con función asignada
+                    const p = opts.length
+                        ? opts.reduce((a, b) => (Math.abs(b.sf) > Math.abs(a.sf) ? b : a))
+                        : { dir: c.direction || "X", fn: c.functionId || null, sf: c.scaleFactor || 1 };
+                    return { functionId: p.fn, direction: p.dir, scaleFactor: p.sf };
+                })(),
             };
         },
     });
