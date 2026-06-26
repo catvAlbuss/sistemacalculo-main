@@ -2610,7 +2610,359 @@ def _ff_extract_local_force(eid: int):
     return [0.0] * 12
 
 
-def run_frame_force_results(data: dict, cases=None, num_stations: int = 5) -> dict:
+def _ff_default_design_combos(available) -> list:
+    """
+    Combos de diseño por defecto (E.060 / como las que muestra ETABS).
+    Solo se incluye una combinación si TODOS sus casos referidos están presentes.
+    Con gravedad sola (CM, CV) salen 1.4CM+1.7CV, 1.25(CM+CV) y 0.9CM; las que
+    llevan ±SDX/±SDY aparecen cuando existan esos casos sísmicos.
+    """
+    av = set(str(c) for c in (available or []))
+    combos = []
+
+    if "CM" in av and "CV" in av:
+        combos.append(
+            {
+                "id": "01 1.4CM+1.7CV",
+                "name": "1.4 CM + 1.7 CV",
+                "type": "ADD",
+                "terms": [
+                    {"case": "CM", "factor": 1.4},
+                    {"case": "CV", "factor": 1.7},
+                ],
+            }
+        )
+        combos.append(
+            {
+                "id": "1.25(CM+CV)",
+                "name": "1.25 (CM + CV)",
+                "type": "ADD",
+                "terms": [
+                    {"case": "CM", "factor": 1.25},
+                    {"case": "CV", "factor": 1.25},
+                ],
+            }
+        )
+
+    if "CM" in av:
+        combos.append(
+            {
+                "id": "0.9CM",
+                "name": "0.9 CM",
+                "type": "ADD",
+                "terms": [{"case": "CM", "factor": 0.9}],
+            }
+        )
+
+    # Combos sísmicos (envolvente ±): solo si existe el caso sísmico correspondiente.
+    seismic_specs = [
+        ("SDX", "02 1.25(CM+CV)+SDX", "06 0.9CM+SDX"),
+        ("SDY", "04 1.25(CM+CV)+SDY", "08 0.9CM+SDY"),
+    ]
+    for sd, id_grav, id_dead in seismic_specs:
+        if sd not in av:
+            continue
+        if "CM" in av and "CV" in av:
+            combos.append(
+                {
+                    "id": id_grav,
+                    "name": f"1.25(CM+CV) ± {sd}",
+                    "type": "ENVELOPE",
+                    "terms": [
+                        {"case": "CM", "factor": 1.25},
+                        {"case": "CV", "factor": 1.25},
+                        {"case": sd, "factor": 1.0, "signless": True},
+                    ],
+                }
+            )
+        if "CM" in av:
+            combos.append(
+                {
+                    "id": id_dead,
+                    "name": f"0.9CM ± {sd}",
+                    "type": "ENVELOPE",
+                    "terms": [
+                        {"case": "CM", "factor": 0.9},
+                        {"case": sd, "factor": 1.0, "signless": True},
+                    ],
+                }
+            )
+
+    return combos
+
+
+def _ff_compute_combo_entries(combo: dict, elements: list, case_idx: dict, components: list) -> list:
+    """
+    Calcula las entradas frameForce de una combinación, estación por estación:
+      - ADD: valor = Σ factor·caso.
+      - ENVELOPE: genera _Max y _Min; los términos `signless` (sísmicos, sin
+        signo por CQC/SRSS) se suman como ±|valor| según la variante.
+    Reutiliza length / localAxes / posiciones de estación de los casos base.
+    """
+    ctype = str(combo.get("type", "ADD")).upper()
+    terms = combo.get("terms", []) or []
+    variants = [("_Max", 1), ("_Min", -1)] if ctype == "ENVELOPE" else [("", 1)]
+
+    entries = []
+    for elem in elements:
+        fid = elem.get("id")
+        base = None
+        for t in terms:
+            base = case_idx.get((fid, t["case"]))
+            if base:
+                break
+        if base is None:
+            continue
+
+        nst = len(base["stations"])
+        for suffix, sgn in variants:
+            stations = []
+            for k in range(nst):
+                row = {
+                    "station": base["stations"][k]["station"],
+                    "relativeStation": base["stations"][k]["relativeStation"],
+                }
+                for comp in components:
+                    total = 0.0
+                    for t in terms:
+                        ce = case_idx.get((fid, t["case"]))
+                        if not ce:
+                            continue
+                        val = ce["stations"][k][comp]
+                        if t.get("signless"):
+                            val = abs(val) * sgn
+                        total += float(t.get("factor", 1.0)) * val
+                    row[comp] = round(total, 6)
+                stations.append(row)
+
+            max_obj = {}
+            for comp in components:
+                best = max(stations, key=lambda st: abs(st[comp]))
+                max_obj[comp] = {"value": best[comp], "station": best["station"]}
+
+            entries.append(
+                {
+                    "frameId": fid,
+                    "caseId": None,
+                    "comboId": str(combo.get("id")) + suffix,
+                    "length": base["length"],
+                    "localAxes": base["localAxes"],
+                    "stations": stations,
+                    "max": max_obj,
+                }
+            )
+    return entries
+
+
+def _ff_norm_spectrum(spec):
+    """Normaliza espectro [{T,Sa}] o [[T,Sa]] → [(T, Sa)] para interpolate_spectrum."""
+    out = []
+    for p in spec or []:
+        if isinstance(p, dict):
+            t = p.get("T", p.get("t"))
+            s = p.get("Sa", p.get("sa"))
+            if t is not None and s is not None:
+                out.append((float(t), float(s)))
+        elif isinstance(p, (list, tuple)) and len(p) >= 2:
+            out.append((float(p[0]), float(p[1])))
+    return out
+
+
+def _ff_srss1d(values):
+    return float(np.sqrt(sum(float(v) * float(v) for v in values)))
+
+
+def _ff_cqc1d(values, omegas, zeta):
+    """Combinación CQC de una lista de respuestas modales (1 valor por modo)."""
+    total = 0.0
+    n = len(values)
+    for i in range(n):
+        for j in range(n):
+            rho = _cqc_rho(omegas[i], omegas[j], zeta)
+            total += rho * float(values[i]) * float(values[j])
+    return float(np.sqrt(abs(total)))
+
+
+def _ff_seismic_modal_base(data: dict, modal_data: dict, directions, elements: list) -> dict:
+    """
+    Para cada dirección (x/y) y modo, calcula las fuerzas locales de elemento bajo
+    la carga modal con Sa=1:  f = Γ_dir,n · M · φ_n  (solo masa traslacional).
+    Un análisis estático por (dir, modo). Por linealidad, la fuerza modal real es
+    este resultado × Sa_n(espectro, T_n) — así los espectros de cada caso solo
+    escalan, sin re-resolver. Rebuild por modo (modelo limpio) = robusto.
+    """
+    modal_info = modal_data["modal_info"]
+    phi_x = modal_data["phi_x"]
+    phi_y = modal_data["phi_y"]
+    m_x = modal_data["m_x"]
+    m_y = modal_data["m_y"]
+    node_ids = modal_data["node_ids"]
+    num_modes = len(modal_info)
+
+    base = {}
+    for dirn in directions:
+        base[dirn] = []
+        gkey = "gamma_x" if dirn == "x" else "gamma_y"
+        for idx in range(num_modes):
+            gamma = float(modal_info[idx].get(gkey, 0.0) or 0.0)
+            build_model_3d(data)  # modelo limpio para el estático de este modo
+            ops.timeSeries("Linear", 1)
+            ops.pattern("Plain", 1, 1)
+            loaded = False
+            for j, nid in enumerate(node_ids):
+                fx = gamma * float(m_x[j]) * float(phi_x[idx][j])
+                fy = gamma * float(m_y[j]) * float(phi_y[idx][j])
+                if fx != 0.0 or fy != 0.0:
+                    ops.load(int(nid), fx, fy, 0.0, 0.0, 0.0, 0.0)
+                    loaded = True
+            if loaded:
+                ops.constraints("Transformation")
+                ops.numberer("RCM")
+                ops.system("BandGeneral")
+                ops.test("NormDispIncr", 1e-8, 50)
+                ops.algorithm("Linear")
+                ops.integrator("LoadControl", 1.0)
+                ops.analysis("Static")
+                ops.analyze(1)
+            forces = {int(e["id"]): _ff_extract_local_force(int(e["id"])) for e in elements}
+            base[dirn].append(forces)
+    return base
+
+
+def _ff_compute_seismic_cases(data: dict, seismic_cases, elements: list, components, num_stations: int):
+    """
+    Fuerzas internas por barra para casos Response Spectrum (SDX/SDY), como
+    ENVOLVENTE sin signo: combinación modal (CQC/SRSS) y direccional (SRSS de X,Y).
+    Devuelve (entries, meta).
+    """
+    g = float(data.get("g", 9.81) or 9.81)
+
+    norm_cases = []
+    needed_dirs = set()
+    for sc in seismic_cases or []:
+        if not isinstance(sc, dict):
+            continue
+        sx = _ff_norm_spectrum(sc.get("spectrumX"))
+        sy = _ff_norm_spectrum(sc.get("spectrumY"))
+        if not sx and not sy:
+            continue
+        norm_cases.append(
+            {
+                "id": str(sc.get("id") or sc.get("name") or "SPEC"),
+                "name": str(sc.get("name") or sc.get("id") or "SPEC"),
+                "spectrumX": sx,
+                "spectrumY": sy,
+                "combination": str(sc.get("combination") or sc.get("modalCombination") or "CQC").upper(),
+                "damping": float(sc.get("damping", sc.get("dampingRatio", 0.05)) or 0.05),
+                "saInG": bool(sc.get("saInG", False)),
+            }
+        )
+        if sx:
+            needed_dirs.add("x")
+        if sy:
+            needed_dirs.add("y")
+
+    if not norm_cases:
+        return [], []
+
+    # Build + eigen UNA vez (los modos no dependen del espectro ni del caso).
+    nodes, _ = build_model_3d(data)
+    node_by_id = {int(n["id"]): n for n in nodes}
+    num_modes = int(data.get("num_modes", data.get("numModes", 6)) or 6)
+    num_modes = min(num_modes, max(1, len(nodes) * 2))
+    modal_data = run_modal_analysis(nodes, num_modes)
+    modal_info = modal_data["modal_info"]
+    omegas = [mi["omega"] for mi in modal_info]
+    periods = [mi["period"] for mi in modal_info]
+
+    # Fuerzas modales base (Sa=1) por dirección/modo — estáticos hechos una vez.
+    base = _ff_seismic_modal_base(data, modal_data, needed_dirs, elements)
+
+    lengths = {int(e["id"]): _ff_element_length(e, node_by_id) for e in elements}
+    axes = {int(e["id"]): _ff_local_axes(e, node_by_id, nodes) for e in elements}
+
+    entries = []
+    meta = []
+    for case in norm_cases:
+        zeta = case["damping"]
+        comb = case["combination"]
+
+        # R por dirección: {eid: [ {comp:val} por estación ]} (envolvente modal).
+        dir_results = {}
+        for dirn, spec in (("x", case["spectrumX"]), ("y", case["spectrumY"])):
+            if not spec or dirn not in base:
+                continue
+            scale = g if case["saInG"] else 1.0
+            sa_per_mode = [interpolate_spectrum(spec, T) * scale for T in periods]
+            res = {}
+            for e in elements:
+                eid = int(e["id"])
+                length = lengths[eid]
+                per_mode_stations = []
+                for idx in range(len(modal_info)):
+                    f_scaled = [c * sa_per_mode[idx] for c in base[dirn][idx][eid]]
+                    per_mode_stations.append(
+                        _ff_stations_from_end_forces(f_scaled, length, num_stations)
+                    )
+                nst = len(per_mode_stations[0]) if per_mode_stations else 0
+                combined = []
+                for k in range(nst):
+                    row = {}
+                    for comp in components:
+                        vals = [per_mode_stations[m][k][comp] for m in range(len(per_mode_stations))]
+                        row[comp] = (
+                            _ff_srss1d(vals) if comb == "SRSS" else _ff_cqc1d(vals, omegas, zeta)
+                        )
+                    combined.append(row)
+                res[eid] = combined
+            dir_results[dirn] = res
+
+        # Combinación direccional SRSS(R_x, R_y) → caso (sin signo).
+        for e in elements:
+            eid = int(e["id"])
+            length = lengths[eid]
+            axis2, axis3 = axes[eid]
+            rx = dir_results.get("x", {}).get(eid)
+            ry = dir_results.get("y", {}).get(eid)
+            ref = rx if rx is not None else ry
+            if ref is None:
+                continue
+            nst = len(ref)
+            stations = []
+            for k in range(nst):
+                rel = k / (nst - 1) if nst > 1 else 0.0
+                row = {"station": round(rel * length, 6), "relativeStation": round(rel, 6)}
+                for comp in components:
+                    vx = rx[k][comp] if rx is not None else 0.0
+                    vy = ry[k][comp] if ry is not None else 0.0
+                    row[comp] = round((vx * vx + vy * vy) ** 0.5, 6)
+                stations.append(row)
+            max_obj = {}
+            for comp in components:
+                best = max(stations, key=lambda st: abs(st[comp]))
+                max_obj[comp] = {"value": best[comp], "station": best["station"]}
+            entries.append(
+                {
+                    "frameId": e.get("id"),
+                    "caseId": case["id"],
+                    "comboId": None,
+                    "length": round(length, 6),
+                    "localAxes": {"axis1": "i_to_j", "axis2": axis2, "axis3": axis3},
+                    "stations": stations,
+                    "max": max_obj,
+                    "signless": True,
+                }
+            )
+        meta.append(
+            {"id": case["id"], "name": case["name"], "type": "Response Spectrum", "signless": True}
+        )
+
+    return entries, meta
+
+
+def run_frame_force_results(
+    data: dict, cases=None, combos=None, seismic_cases=None, num_stations: int = 5
+) -> dict:
     """
     FASE 1 del módulo de diagramas: fuerzas internas por barra (P, V2, V3, T,
     M2, M3) por estaciones, para casos estáticos de gravedad, en el contrato
@@ -2742,6 +3094,55 @@ def run_frame_force_results(data: dict, cases=None, num_stations: int = 5) -> di
                 }
             )
 
+    # ── Casos sísmicos (Response Spectrum → fuerzas de elemento, envolvente) ──
+    if seismic_cases:
+        seismic_entries, seismic_meta = _ff_compute_seismic_cases(
+            data, seismic_cases, elements, components, num_stations
+        )
+        frame_forces.extend(seismic_entries)
+        case_meta.extend(seismic_meta)
+
+    # ── Combinaciones de carga (ADD / ENVELOPE) ──────────────────────────────
+    available_case_ids = [c["id"] for c in case_meta]
+    if combos is None:
+        combo_defs = _ff_default_design_combos(available_case_ids)
+    else:
+        combo_defs = combos or []
+
+    case_idx = {}
+    for entry in frame_forces:
+        if entry.get("caseId") is not None:
+            case_idx[(entry["frameId"], entry["caseId"])] = entry
+
+    combo_meta = []
+    for combo in combo_defs:
+        combo_entries = _ff_compute_combo_entries(combo, elements, case_idx, components)
+        if not combo_entries:
+            continue
+        frame_forces.extend(combo_entries)
+        combo_meta.append(
+            {
+                "id": str(combo.get("id")),
+                "name": combo.get("name") or str(combo.get("id")),
+                "type": str(combo.get("type", "ADD")).upper(),
+            }
+        )
+
+    # ── Resumen global (máx |·| sobre casos Y combos) ────────────────────────
+    summary_acc = {
+        k: {"frameId": None, "caseId": None, "comboId": None, "value": 0.0}
+        for k in components
+    }
+    for entry in frame_forces:
+        for comp in components:
+            v = entry["max"][comp]["value"]
+            if abs(v) > abs(summary_acc[comp]["value"]):
+                summary_acc[comp] = {
+                    "frameId": entry.get("frameId"),
+                    "caseId": entry.get("caseId"),
+                    "comboId": entry.get("comboId"),
+                    "value": v,
+                }
     summary = {f"maxAbs{k}": summary_acc[k] for k in components}
 
     return {
@@ -2756,6 +3157,7 @@ def run_frame_force_results(data: dict, cases=None, num_stations: int = 5) -> di
             "displacement": "m",
         },
         "cases": case_meta,
+        "combos": combo_meta,
         "components": components,
         "frameForces": frame_forces,
         "jointDisplacements": joint_displacements,

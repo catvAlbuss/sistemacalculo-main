@@ -1,5 +1,25 @@
 import { BeamStyle, NodeStyle } from "./styles.js";
 import { pointDistance, axisToFixed, midPoint } from "./utils.js";
+import { generateMockFrameForceResults } from "./analysis/mockFrameForceResults.js";
+import { drawFrameForceDiagrams2D } from "./diagrams/frameForceDiagramRenderer.js";
+import { drawFrameLocalAxes2D } from "./diagrams/frameLocalAxesRenderer.js";
+import { drawFrameSectionProperties2D } from "./diagrams/frameSectionPropertiesRenderer.js";
+import {
+  showFrameForceTable,
+  hideFrameForceTable,
+  getFrameForceTableRows,
+} from "./diagrams/frameForceTable.js";
+
+import {
+  addDefaultCombosAndEnvelope,
+  getAvailableFrameForceCases,
+} from "./analysis/frameForceCombinations.js";
+
+import {
+  showFrameForceDisplayPanel,
+  hideFrameForceDisplayPanel,
+} from "./diagrams/frameForceDisplayPanel.js";
+
 
 function imgFromSVG(svg) {
   // Create an image from the SVG string
@@ -73,6 +93,7 @@ export class DiseñoRenderer {
 
   render(CADSystem) {
     this.clearBackground(CADSystem);
+
     if (CADSystem.options.showGrid) {
       CADSystem.grid.draw(this, CADSystem);
     }
@@ -89,8 +110,9 @@ export class DiseñoRenderer {
       if (!this.shouldDrawNode(n, CADSystem)) return;
       this.drawSupport(n, CADSystem);
     });
+
     if (!CADSystem.options.showWireframe) {
-      // 1. Siempre dibujar primero el modelo normal visible en la vista activa
+      // 1. Dibujar primero el modelo normal visible en la vista activa
       CADSystem.shapes.forEach((s) => {
         if (!this.shouldDrawBeam(s, CADSystem)) return;
         this.drawBeam(s, CADSystem);
@@ -103,7 +125,21 @@ export class DiseñoRenderer {
         });
       });
 
-      // 2. Si Display > Member Forces está activo, dibujar encima el diagrama axial
+      // 2. NUEVO B-DIAG-00: diagramas de fuerzas internas tipo ETABS
+      // Se dibuja encima de las barras, pero debajo de los nodos.
+      if (CADSystem.frameDiagramDisplay?.enabled) {
+        this.drawFrameForceDiagrams?.(CADSystem);
+      }
+
+      if (CADSystem.frameDiagramDisplay?.showLocalAxes) {
+        this.drawFrameLocalAxes?.(CADSystem);
+      }
+
+      if (CADSystem.sectionPropertyDisplay?.enabled) {
+        this.drawFrameSectionProperties?.(CADSystem);
+      }
+
+      // 3. Legacy: Display > Member Forces axial antiguo
       if (CADSystem.options.showFAxiales) {
         this.drawAxiales(CADSystem);
 
@@ -112,7 +148,7 @@ export class DiseñoRenderer {
         }
       }
 
-      // 3. Dibujar nodos visibles en la vista activa
+      // 4. Dibujar nodos visibles encima de barras y diagramas
       CADSystem.nodes.forEach((n) => {
         if (!this.shouldDrawNode(n, CADSystem)) return;
         this.drawNode(n, CADSystem);
@@ -125,18 +161,34 @@ export class DiseñoRenderer {
         });
       });
     } else {
-      // Wireframe normal
+      // 1. Wireframe normal
       CADSystem.shapes.forEach((s) => {
         if (!this.shouldDrawBeam(s, CADSystem)) return;
         this.drawWireBeam(s, CADSystem);
       });
 
-      CADSystem.nodes.forEach((n) => {
-        if (!this.shouldDrawNode(n, CADSystem)) return;
-        this.drawWireNode(n, CADSystem);
+      CADSystem.parametricModels.forEach((parametric) => {
+        parametric.shapes.forEach((s) => {
+          if (!this.shouldDrawBeam(s, CADSystem)) return;
+          this.drawWireBeam(s, CADSystem);
+        });
       });
 
-      // Axiales encima del wireframe
+      // 2. NUEVO B-DIAG-00: diagramas también sobre wireframe
+      // Importante: solo una vez.
+      if (CADSystem.frameDiagramDisplay?.enabled) {
+        this.drawFrameForceDiagrams?.(CADSystem);
+      }
+
+      if (CADSystem.frameDiagramDisplay?.showLocalAxes) {
+        this.drawFrameLocalAxes?.(CADSystem);
+      }
+
+      if (CADSystem.sectionPropertyDisplay?.enabled) {
+        this.drawFrameSectionProperties?.(CADSystem);
+      }
+
+      // 3. Axiales legacy encima del wireframe
       if (CADSystem.options.showFAxiales) {
         this.drawWireframeAxiales(CADSystem);
 
@@ -144,7 +196,21 @@ export class DiseñoRenderer {
           this.drawAxialesValues(CADSystem);
         }
       }
+
+      // 4. Nodos wireframe encima
+      CADSystem.nodes.forEach((n) => {
+        if (!this.shouldDrawNode(n, CADSystem)) return;
+        this.drawWireNode(n, CADSystem);
+      });
+
+      CADSystem.parametricModels.forEach((parametric) => {
+        parametric.nodes.forEach((n) => {
+          if (!this.shouldDrawNode(n, CADSystem)) return;
+          this.drawWireNode(n, CADSystem);
+        });
+      });
     }
+
     if (CADSystem.options.showIDs) {
       CADSystem.shapes.forEach((s) => {
         if (!this.shouldDrawBeam(s, CADSystem)) return;
@@ -156,25 +222,33 @@ export class DiseñoRenderer {
         this.drawNodeID(n, CADSystem);
       });
     }
+
     if (CADSystem.options.showForces) {
       CADSystem.ctx.save();
+
       CADSystem.nodes.forEach((n) => {
         if (!this.shouldDrawNode(n, CADSystem)) return;
         this.drawForce(n, CADSystem);
       });
+
       CADSystem.ctx.restore();
     }
+
     if (CADSystem.options.showReactions) {
       CADSystem.ctx.save();
+
       CADSystem.nodes.forEach((n) => {
         if (!this.shouldDrawNode(n, CADSystem)) return;
         this.drawReaction(n, CADSystem);
       });
+
       CADSystem.ctx.restore();
     }
+
     if (CADSystem.options.showDeflection) {
       this.drawDeflections(CADSystem);
     }
+
     if (CADSystem.options.showMaterials) {
       this.drawMaterials(CADSystem);
     }
@@ -182,6 +256,30 @@ export class DiseñoRenderer {
     this.drawDesignInfo?.(CADSystem);
 
     CADSystem.currentState.draw(this, CADSystem);
+  }
+
+  drawFrameForceDiagrams(CADSystem) {
+    drawFrameForceDiagrams2D({
+      CADSystem,
+      renderer: this,
+      ctx: CADSystem.ctx,
+    });
+  }
+
+  drawFrameLocalAxes(CADSystem) {
+    drawFrameLocalAxes2D({
+      CADSystem,
+      renderer: this,
+      ctx: CADSystem.ctx,
+    });
+  }
+
+  drawFrameSectionProperties(CADSystem) {
+    drawFrameSectionProperties2D({
+      CADSystem,
+      renderer: this,
+      ctx: CADSystem.ctx,
+    });
   }
 
   drawDesignInfo(CADSystem) {
@@ -644,50 +742,6 @@ export class DiseñoRenderer {
     context.ctx.fill();
     context.ctx.restore();
   }
-
-  // drawForce(node, context) {
-  //   //context.ctx.textAlign = "right";
-  //   // const p = context.grid.worldToScreen(node.position);
-  //   const p = this.projectPoint(node, context);
-  //   const colors = {
-  //     CM: "brown",
-  //     CV: "orange",
-  //     CVVM: "white",
-  //     CVVP: "black",
-  //     CN: "whitesmoke",
-  //     CLL: "lightblue",
-  //   };
-  //   /* Object.entries(node.force.loads).forEach(([load, { x, y }]) => { */
-  //   const { x, y } = node.force.loads[context.options.currentLoad];
-  //   const magX = x;
-  //   const magY = y;
-  //   const mag = pointDistance({ x: 0, y: 0 }, { x: magX, y: magY });
-  //   const uMag = { x: magX / mag, y: magY / mag };
-  //   const end = { x: p.x - uMag.x * 5 * mag, y: p.y + uMag.y * 5 * mag };
-
-  //   Object.assign(context.ctx, node.style.getModel().FORCE);
-
-  //   if (magX && magX !== 0) {
-  //     // this.drawHorizontalLine(context, magX, `${magX.toFixed(2)}kN`, p, colors[context.options.currentLoad]);
-  //     this.drawHorizontalLine(
-  //       context,
-  //       magX,
-  //       `${this.formatValue(context, magX, "forces", 2)}kN`,
-  //       p,
-  //       colors[context.options.currentLoad],
-  //     );
-  //   }
-  //   if (magY && magY !== 0) {
-  //     // this.drawVerticalLine(context, magY, `${magY.toFixed(2)}kN`, p, colors[context.options.currentLoad]);
-  //     this.drawVerticalLine(
-  //       context,
-  //       magY,
-  //       `${this.formatValue(context, magY, "forces", 2)}kN`,
-  //       p,
-  //       colors[context.options.currentLoad],
-  //     );
-  //   }
-  // }
 
   drawForce(node, context) {
     // Asegurar que el nodo es visible en la vista actual
@@ -3089,9 +3143,9 @@ export class DiseñoRenderer {
   getElementRenderStyle(beam, mode = "model", context = null) {
     const type = beam.elementType || beam.type || "beam";
 
-// <<<<<<< HEAD
-//     const beamColor = context ? this.getDisplayColor(context, "beam", "#d1d5db") : "#d1d5db";
-// =======
+    // <<<<<<< HEAD
+    //     const beamColor = context ? this.getDisplayColor(context, "beam", "#d1d5db") : "#d1d5db";
+    // =======
     // =====================================================
     // DISPLAY 2D > COLORES BASE
     // Forzamos amarillo para barras normales en 2D.
@@ -3102,9 +3156,9 @@ export class DiseñoRenderer {
 
     const columnColor = context ? this.getDisplayColor(context, "column", "#22c55e") : "#22c55e";
 
-// <<<<<<< HEAD
-//     const selectedColor = context ? this.getDisplayColor(context, "selected", "#facc15") : "#facc15";
-// =======
+    // <<<<<<< HEAD
+    //     const selectedColor = context ? this.getDisplayColor(context, "selected", "#facc15") : "#facc15";
+    // =======
     const selectedColor = "#fde047"; // amarillo más fuerte
 
     const textColor = context ? this.getDisplayColor(context, "text", "#ffffff") : "#ffffff";
@@ -3801,9 +3855,9 @@ export class DiseñoRenderer {
       ctx.setLineDash([]);
 
       const bubblePoint = line.bubbleLoc === "Start" ? p1 : p2;
-// <<<<<<< HEAD
-//       this.drawGridBubble(ctx, bubblePoint, line.id, line.source === "custom" ? "#bfc7d5" : lineColor, textColor);
-// =======
+      // <<<<<<< HEAD
+      //       this.drawGridBubble(ctx, bubblePoint, line.id, line.source === "custom" ? "#bfc7d5" : lineColor, textColor);
+      // =======
       this.drawGridBubble(
         ctx,
         bubblePoint,
@@ -4006,7 +4060,7 @@ export class DiseñoRenderer {
     ctx.restore();
   }
 
-  drawState(state) {}
+  drawState(state) { }
 
   drawSelectionState(state, context) {
     context.ctx.save();
@@ -4342,10 +4396,10 @@ export class DiseñoRenderer {
     const view = CADSystem.viewSet?.[CADSystem.activeViewIndex];
     if (!view) return true;
 
-// <<<<<<< HEAD
-//     // cota del área
-//     const areaZ = typeof area.z === "number" ? area.z : typeof area.points[0]?.z === "number" ? area.points[0].z : 0;
-// =======
+    // <<<<<<< HEAD
+    //     // cota del área
+    //     const areaZ = typeof area.z === "number" ? area.z : typeof area.points[0]?.z === "number" ? area.points[0].z : 0;
+    // =======
     const tol = CADSystem.getActiveViewTolerance?.() ?? 0.001;
 
     const points = area.points || [];
@@ -4636,4 +4690,741 @@ export class AxialRenderer extends DiseñoRenderer {
 
     CADSystem.currentState.draw(this, CADSystem);
   }
+}
+
+// HELPER FUNCTIONS FOR BROWSER ENVIRONMENT
+
+if (typeof window !== "undefined") {
+  window.generateMockFrameForceResults = generateMockFrameForceResults;
+}
+
+if (typeof window !== "undefined") {
+  window.DisenoRenderer = DiseñoRenderer;
+  window.DiseñoRenderer = DiseñoRenderer;
+
+  window.jhackRedraw2D = function (cad = window.cadSystem) {
+    if (!cad) {
+      console.warn("No existe window.cadSystem.");
+      return false;
+    }
+
+    if (!cad.ctx || !cad.grid) {
+      console.warn("El CADSystem no tiene ctx o grid. No puedo redibujar 2D.");
+      return false;
+    }
+
+    const renderer = new DiseñoRenderer();
+    renderer.render(cad);
+
+    return true;
+  };
+}
+
+if (typeof window !== "undefined") {
+  window.jhackShowMockFrameDiagram = function (
+    component = "M3",
+    caseId = "CM"
+  ) {
+    const cad = window.cadSystem;
+
+    if (!cad) {
+      console.warn("No existe window.cadSystem.");
+      return false;
+    }
+
+    cad.frameForceResults = window.generateMockFrameForceResults(
+      cad.shapes || [],
+      ["CM", "CVE", "SDX", "SDY"]
+    );
+
+    cad.frameDiagramDisplay = {
+      enabled: true,
+      caseId,
+      component,
+      source: "mock",
+      showValues: true,
+      showMaxMin: true,
+      filled: true,
+      autoScale: true,
+      scaleFactor: 1,
+      selectedOnly: false,
+      showLocalAxes: false,
+      showTable: false
+    };
+
+    cad.options.showMaterials = false;
+    cad.options.showFAxiales = false;
+    cad.options.showFAxialesValues = false;
+
+    cad.redraw();
+
+    console.log(`✅ Diagrama mock ${component} / ${caseId} activado.`);
+    return true;
+  };
+
+  window.jhackClearFrameDiagram = function () {
+    const cad = window.cadSystem;
+
+    if (!cad) return false;
+
+    cad.frameDiagramDisplay = {
+      ...(cad.frameDiagramDisplay || {}),
+      enabled: false
+    };
+
+    cad.redraw();
+
+    console.log("🧹 Diagrama de frame limpiado.");
+    return true;
+  };
+}
+
+if (typeof window !== "undefined") {
+  window.jhackShowLocalAxes = function () {
+    const cad = window.cadSystem;
+
+    if (!cad) {
+      console.warn("No existe window.cadSystem.");
+      return false;
+    }
+
+    cad.frameDiagramDisplay = {
+      ...(cad.frameDiagramDisplay || {}),
+      enabled: cad.frameDiagramDisplay?.enabled || false,
+      showLocalAxes: true,
+      selectedOnly: false,
+    };
+
+    cad.options.showMaterials = false;
+    cad.options.showIDs = false;
+    cad.options.showFAxiales = false;
+    cad.options.showFAxialesValues = false;
+
+    cad.redraw();
+
+    console.log("✅ Local Axes 1-2-3 activados.");
+    return true;
+  };
+
+  window.jhackHideLocalAxes = function () {
+    const cad = window.cadSystem;
+
+    if (!cad) return false;
+
+    cad.frameDiagramDisplay = {
+      ...(cad.frameDiagramDisplay || {}),
+      showLocalAxes: false,
+    };
+
+    cad.redraw();
+
+    console.log("🧹 Local Axes 1-2-3 ocultados.");
+    return true;
+  };
+}
+
+if (typeof window !== "undefined") {
+  window.jhackShowM3 = function (caseId = "CM") {
+    const cad = window.cadSystem;
+
+    if (!cad) {
+      console.warn("No existe window.cadSystem.");
+      return false;
+    }
+
+    window.cad = cad;
+
+    cad.frameForceResults = window.generateMockFrameForceResults(
+      cad.shapes || [],
+      ["CM", "CVE", "SDX", "SDY"]
+    );
+
+    cad.frameDiagramDisplay = {
+      enabled: true,
+      caseId,
+      component: "M3",
+      source: "mock",
+
+      showValues: true,
+      showMaxMin: true,
+      filled: true,
+      autoScale: true,
+      scaleFactor: 1,
+
+      selectedOnly: false,
+      showLocalAxes: false,
+      showTable: false,
+
+      showLegend: true,
+      showZeroLine: true,
+      showStationLines: true,
+      valueLabelMode: "max-min",
+      diagramHeightPx: 42,
+      decimals: 2,
+    };
+
+    cad.options.showMaterials = false;
+    cad.options.showIDs = false;
+    cad.options.showFAxiales = false;
+    cad.options.showFAxialesValues = false;
+
+    cad.redraw();
+
+    console.log(`✅ Diagrama Moment M3 activado para ${caseId}.`);
+    return true;
+  };
+}
+
+if (typeof window !== "undefined") {
+  window.jhackShowV3 = function (caseId = "CM") {
+    const cad = window.cadSystem;
+
+    if (!cad) {
+      console.warn("No existe window.cadSystem.");
+      return false;
+    }
+
+    window.cad = cad;
+
+    cad.frameForceResults = window.generateMockFrameForceResults(
+      cad.shapes || [],
+      ["CM", "CVE", "SDX", "SDY"]
+    );
+
+    cad.frameDiagramDisplay = {
+      enabled: true,
+      caseId,
+      component: "V3",
+      source: "mock",
+
+      showValues: true,
+      showMaxMin: true,
+      filled: true,
+      autoScale: true,
+      scaleFactor: 1,
+
+      selectedOnly: false,
+      showLocalAxes: false,
+      showTable: false,
+
+      showLegend: true,
+      showZeroLine: true,
+      showStationLines: true,
+      valueLabelMode: "max-min",
+      diagramHeightPx: 42,
+      decimals: 2,
+    };
+
+    cad.options.showMaterials = false;
+    cad.options.showIDs = false;
+    cad.options.showFAxiales = false;
+    cad.options.showFAxialesValues = false;
+
+    cad.redraw();
+
+    console.log(`✅ Diagrama Shear V3 activado para ${caseId}.`);
+    return true;
+  };
+}
+
+if (typeof window !== "undefined") {
+  window.jhackShowP = function (caseId = "CM") {
+    const cad = window.cadSystem;
+
+    if (!cad) {
+      console.warn("No existe window.cadSystem.");
+      return false;
+    }
+
+    window.cad = cad;
+
+    cad.frameForceResults = window.generateMockFrameForceResults(
+      cad.shapes || [],
+      ["CM", "CVE", "SDX", "SDY"]
+    );
+
+    cad.frameDiagramDisplay = {
+      enabled: true,
+      caseId,
+      component: "P",
+      source: "mock",
+
+      showValues: true,
+      showMaxMin: true,
+      filled: true,
+      autoScale: true,
+      scaleFactor: 1,
+
+      selectedOnly: false,
+      showLocalAxes: false,
+      showTable: false,
+
+      showLegend: true,
+      showZeroLine: true,
+      showStationLines: true,
+      valueLabelMode: "max-min",
+      diagramHeightPx: 42,
+      decimals: 2,
+    };
+
+    cad.options.showMaterials = false;
+    cad.options.showIDs = false;
+    cad.options.showFAxiales = false;
+    cad.options.showFAxialesValues = false;
+
+    cad.redraw();
+
+    console.log(`✅ Diagrama Axial P activado para ${caseId}.`);
+    return true;
+  };
+}
+
+if (typeof window !== "undefined") {
+  window.jhackShowM2 = function (caseId = "CM") {
+    const cad = window.cadSystem;
+
+    if (!cad) {
+      console.warn("No existe window.cadSystem.");
+      return false;
+    }
+
+    window.cad = cad;
+
+    cad.frameForceResults = window.generateMockFrameForceResults(
+      cad.shapes || [],
+      ["CM", "CVE", "SDX", "SDY"]
+    );
+
+    cad.frameDiagramDisplay = {
+      enabled: true,
+      caseId,
+      component: "M2",
+      source: "mock",
+
+      showValues: true,
+      showMaxMin: true,
+      filled: true,
+      autoScale: true,
+      scaleFactor: 1,
+
+      selectedOnly: false,
+      showLocalAxes: false,
+      showTable: false,
+
+      showLegend: true,
+      showZeroLine: true,
+      showStationLines: true,
+      valueLabelMode: "max-min",
+      diagramHeightPx: 42,
+      decimals: 2,
+    };
+
+    cad.options.showMaterials = false;
+    cad.options.showIDs = false;
+    cad.options.showFAxiales = false;
+    cad.options.showFAxialesValues = false;
+
+    cad.redraw();
+
+    console.log(`✅ Diagrama Moment M2 activado para ${caseId}.`);
+    return true;
+  };
+}
+
+if (typeof window !== "undefined") {
+  window.jhackShowV2 = function (caseId = "CM") {
+    const cad = window.cadSystem;
+
+    if (!cad) {
+      console.warn("No existe window.cadSystem.");
+      return false;
+    }
+
+    window.cad = cad;
+
+    cad.frameForceResults = window.generateMockFrameForceResults(
+      cad.shapes || [],
+      ["CM", "CVE", "SDX", "SDY"]
+    );
+
+    cad.frameDiagramDisplay = {
+      enabled: true,
+      caseId,
+      component: "V2",
+      source: "mock",
+
+      showValues: true,
+      showMaxMin: true,
+      filled: true,
+      autoScale: true,
+      scaleFactor: 1,
+
+      selectedOnly: false,
+      showLocalAxes: false,
+      showTable: false,
+
+      showLegend: true,
+      showZeroLine: true,
+      showStationLines: true,
+      valueLabelMode: "max-min",
+      diagramHeightPx: 42,
+      decimals: 2,
+    };
+
+    cad.options.showMaterials = false;
+    cad.options.showIDs = false;
+    cad.options.showFAxiales = false;
+    cad.options.showFAxialesValues = false;
+
+    cad.redraw();
+
+    console.log(`✅ Diagrama Shear V2 activado para ${caseId}.`);
+    return true;
+  };
+}
+
+if (typeof window !== "undefined") {
+  window.jhackShowT = function (caseId = "CM") {
+    const cad = window.cadSystem;
+
+    if (!cad) {
+      console.warn("No existe window.cadSystem.");
+      return false;
+    }
+
+    window.cad = cad;
+
+    cad.frameForceResults = window.generateMockFrameForceResults(
+      cad.shapes || [],
+      ["CM", "CVE", "SDX", "SDY"]
+    );
+
+    cad.frameDiagramDisplay = {
+      enabled: true,
+      caseId,
+      component: "T",
+      source: "mock",
+
+      showValues: true,
+      showMaxMin: true,
+      filled: true,
+      autoScale: true,
+      scaleFactor: 1,
+
+      selectedOnly: false,
+      showLocalAxes: false,
+      showTable: false,
+
+      showLegend: true,
+      showZeroLine: true,
+      showStationLines: true,
+      showTorsionSymbols: true,
+
+      valueLabelMode: "max-min",
+      diagramHeightPx: 42,
+      decimals: 2,
+    };
+
+    cad.options.showMaterials = false;
+    cad.options.showIDs = false;
+    cad.options.showFAxiales = false;
+    cad.options.showFAxialesValues = false;
+
+    cad.redraw();
+
+    console.log(`✅ Diagrama Torsion T activado para ${caseId}.`);
+    return true;
+  };
+}
+
+if (typeof window !== "undefined") {
+  window.jhackShowSectionProperties = function (mode = "labels") {
+    const cad = window.cadSystem;
+
+    if (!cad) {
+      console.warn("No existe window.cadSystem.");
+      return false;
+    }
+
+    window.cad = cad;
+
+    cad.frameDiagramDisplay = {
+      ...(cad.frameDiagramDisplay || {}),
+      enabled: false,
+      showLocalAxes: false,
+    };
+
+    cad.sectionPropertyDisplay = {
+      enabled: true,
+      mode,
+      selectedOnly: false,
+
+      showMaterial: true,
+      showA: true,
+      showI22: true,
+      showI33: true,
+      showJ: true,
+
+      colorBy: null,
+      decimals: 4,
+    };
+
+    cad.options.showMaterials = false;
+    cad.options.showIDs = false;
+    cad.options.showFAxiales = false;
+    cad.options.showFAxialesValues = false;
+
+    cad.redraw();
+
+    console.log("✅ Section / Inertia Display activado.");
+    return true;
+  };
+
+  window.jhackColorBySectionProperty = function (property = "A") {
+    const cad = window.cadSystem;
+
+    if (!cad) {
+      console.warn("No existe window.cadSystem.");
+      return false;
+    }
+
+    window.cad = cad;
+
+    cad.sectionPropertyDisplay = {
+      ...(cad.sectionPropertyDisplay || {}),
+      enabled: true,
+      mode: "compact",
+      colorBy: property,
+      selectedOnly: false,
+    };
+
+    cad.frameDiagramDisplay = {
+      ...(cad.frameDiagramDisplay || {}),
+      enabled: false,
+    };
+
+    cad.redraw();
+
+    console.log(`✅ Color by ${property} activado.`);
+    return true;
+  };
+
+  window.jhackHideSectionProperties = function () {
+    const cad = window.cadSystem;
+
+    if (!cad) return false;
+
+    cad.sectionPropertyDisplay = {
+      ...(cad.sectionPropertyDisplay || {}),
+      enabled: false,
+    };
+
+    cad.redraw();
+
+    console.log("🧹 Section / Inertia Display ocultado.");
+    return true;
+  };
+}
+
+if (typeof window !== "undefined") {
+  window.jhackShowFrameForceTable = function (caseId = "CM") {
+    const cad = window.cadSystem;
+
+    if (!cad) {
+      console.warn("No existe window.cadSystem.");
+      return false;
+    }
+
+    window.cad = cad;
+
+    if (!cad.frameForceResults?.frameForces?.length) {
+      cad.frameForceResults = window.generateMockFrameForceResults(
+        cad.shapes || [],
+        ["CM", "CVE", "SDX", "SDY"]
+      );
+    }
+
+    cad.frameDiagramDisplay = {
+      ...(cad.frameDiagramDisplay || {}),
+      caseId,
+      showTable: true,
+    };
+
+    return showFrameForceTable(cad, {
+      caseId,
+      selectedOnly: cad.frameDiagramDisplay?.selectedOnly || false,
+    });
+  };
+
+  window.jhackHideFrameForceTable = function () {
+    const cad = window.cadSystem;
+
+    if (cad) {
+      cad.frameDiagramDisplay = {
+        ...(cad.frameDiagramDisplay || {}),
+        showTable: false,
+      };
+    }
+
+    return hideFrameForceTable();
+  };
+
+  window.jhackGetFrameForceTableRows = function (caseId = "CM") {
+    const cad = window.cadSystem;
+
+    if (!cad) {
+      console.warn("No existe window.cadSystem.");
+      return [];
+    }
+
+    return getFrameForceTableRows(cad, {
+      caseId,
+      selectedOnly: cad.frameDiagramDisplay?.selectedOnly || false,
+    });
+  };
+}
+
+if (typeof window !== "undefined") {
+  window.jhackGenerateMockFrameResultsWithCombos = function () {
+    const cad = window.cadSystem;
+
+    if (!cad) {
+      console.warn("No existe window.cadSystem.");
+      return false;
+    }
+
+    window.cad = cad;
+
+    const baseResults = window.generateMockFrameForceResults(
+      cad.shapes || [],
+      ["CM", "CVE", "SDX", "SDY"]
+    );
+
+    cad.frameForceResults = addDefaultCombosAndEnvelope(baseResults);
+
+    console.log("✅ Mock frame force results con combos y envelope generados.");
+    console.log(getAvailableFrameForceCases(cad.frameForceResults));
+
+    return true;
+  };
+
+  window.jhackListFrameForceCases = function () {
+    const cad = window.cadSystem;
+
+    if (!cad?.frameForceResults) {
+      console.warn("No hay frameForceResults cargados.");
+      return null;
+    }
+
+    const available = getAvailableFrameForceCases(cad.frameForceResults);
+
+    console.table(
+      available.all.map((item) => ({
+        id: item.id,
+        name: item.name,
+        type: item.type,
+        selectorType: item.selectorType,
+      }))
+    );
+
+    return available;
+  };
+
+  window.jhackShowFrameCombo = function (
+    selectorId = "COMBO1",
+    component = "M3"
+  ) {
+    const cad = window.cadSystem;
+
+    if (!cad) {
+      console.warn("No existe window.cadSystem.");
+      return false;
+    }
+
+    window.cad = cad;
+
+    if (!cad.frameForceResults?.combinations?.length) {
+      window.jhackGenerateMockFrameResultsWithCombos();
+    }
+
+    cad.frameDiagramDisplay = {
+      enabled: true,
+      caseId: null,
+      comboId: selectorId,
+      component,
+      source: "mock",
+
+      showValues: true,
+      showMaxMin: true,
+      filled: true,
+      autoScale: true,
+      scaleFactor: 1,
+
+      selectedOnly: false,
+      showLocalAxes: false,
+      showTable: false,
+
+      showLegend: true,
+      showZeroLine: true,
+      showStationLines: true,
+      valueLabelMode: "max-min",
+      diagramHeightPx: 42,
+      decimals: 2,
+    };
+
+    cad.options.showMaterials = false;
+    cad.options.showIDs = false;
+    cad.options.showFAxiales = false;
+    cad.options.showFAxialesValues = false;
+
+    cad.redraw();
+
+    console.log(`✅ Diagrama ${component} para combo/envelope ${selectorId} activado.`);
+    return true;
+  };
+
+  window.jhackShowEnvelope = function (component = "M3") {
+    return window.jhackShowFrameCombo("ENV_MAX", component);
+  };
+}
+
+if (typeof window !== "undefined") {
+  window.jhackShowFrameComboTable = function (comboId = "COMBO1") {
+    const cad = window.cadSystem;
+
+    if (!cad) {
+      console.warn("No existe window.cadSystem.");
+      return false;
+    }
+
+    window.cad = cad;
+
+    if (!cad.frameForceResults?.combinations?.length) {
+      window.jhackGenerateMockFrameResultsWithCombos();
+    }
+
+    return showFrameForceTable(cad, {
+      comboId,
+      selectedOnly: cad.frameDiagramDisplay?.selectedOnly || false,
+    });
+  };
+}
+
+if (typeof window !== "undefined") {
+  window.jhackShowFrameForcePanel = function () {
+    const cad = window.cadSystem;
+
+    if (!cad) {
+      console.warn("No existe window.cadSystem.");
+      return false;
+    }
+
+    window.cad = cad;
+
+    return showFrameForceDisplayPanel(cad);
+  };
+
+  window.jhackHideFrameForcePanel = function () {
+    return hideFrameForceDisplayPanel();
+  };
 }

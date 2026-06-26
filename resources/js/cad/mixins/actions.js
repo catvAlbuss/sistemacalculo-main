@@ -19,6 +19,11 @@
  * - activateDesignMenuAction  → diseño estructural (Steel Frame, Steel Joist)
  * - ensureDesignOptions       → garantiza que designOptions esté inicializado
  */
+
+import {
+  showFrameForceDisplayPanel,
+} from "../diagrams/frameForceDisplayPanel.js";
+
 export const actionsMixin = {
   // ------------------------------------------------------------------
   // 6. ACCIONES DE LA BARRA DE HERRAMIENTAS (Diseñar, Tareas, Estructura, Resultados)
@@ -571,6 +576,10 @@ export const actionsMixin = {
 
       case "show-mode-shape":
         this.openShowModeShapeDialog();
+        break;
+
+      case "show-frame-force-diagrams":
+        showFrameForceDisplayPanel(this);
         break;
 
       case "show-member-forces":

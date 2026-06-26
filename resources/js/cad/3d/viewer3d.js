@@ -2,6 +2,10 @@ import * as BABYLON from "@babylonjs/core";
 import { drawCustomGeneralGrids3D } from "./grid3d.js";
 import { renderModel3D } from "./objects/renderModel3d.js";
 import { DeflectionAnimator, AnimationManager } from "./animation3d.js";
+import {
+  clearFrameForceDiagrams3D,
+  renderFrameForceDiagramLayer3D,
+} from "../diagrams/frameForceDiagram3d.js";
 
 const VIEWER_STATE = {
   engine: null,
@@ -484,6 +488,8 @@ export function toggleView3D(context) {
 
 export function clear3D() {
   if (!VIEWER_STATE.scene) return;
+
+  clearFrameForceDiagrams3D(VIEWER_STATE);
   clearModelElements();
 }
 
@@ -1700,8 +1706,8 @@ function drawFixedSupport(origin, id) {
 
   const stripPositions = [
     { x: -0.11, z: 0 },
-    { x:  0,    z: 0 },
-    { x:  0.11, z: 0 },
+    { x: 0, z: 0 },
+    { x: 0.11, z: 0 },
   ];
   stripPositions.forEach((pos, i) => {
     const strip = BABYLON.MeshBuilder.CreateBox(
@@ -1866,10 +1872,10 @@ function drawSupportsIn3D(context) {
     } else if (node.soporte) {
       // Compatibilidad con modelos guardados antes del sistema de restricciones
       switch (node.soporte) {
-        case "soporteUno":  supportType = "fixed";   break;
-        case "soporteDos":  supportType = "pinned";  break;
+        case "soporteUno": supportType = "fixed"; break;
+        case "soporteDos": supportType = "pinned"; break;
         case "soporteTres": supportType = "rollerZ"; break;
-        default:            supportType = "custom";
+        default: supportType = "custom";
       }
     }
 
@@ -1879,10 +1885,10 @@ function drawSupportsIn3D(context) {
     const id = node.id;
 
     switch (supportType) {
-      case "fixed":   drawFixedSupport(origin, id);   break;
-      case "pinned":  drawPinnedSupport(origin, id);  break;
+      case "fixed": drawFixedSupport(origin, id); break;
+      case "pinned": drawPinnedSupport(origin, id); break;
       case "rollerZ": drawRollerZSupport(origin, id); break;
-      default:        drawCustomSupport(origin, id);  break;
+      default: drawCustomSupport(origin, id); break;
     }
   });
 }
@@ -1978,7 +1984,7 @@ function drawReactionsIn3D(context) {
 export function drawIn3D(context, updateOnly = false) {
   if (!VIEWER_STATE.scene || !context.nodes) return;
 
-  // if (!VIEWER_STATE.scene || !context.nodes) return;
+  clearFrameForceDiagrams3D(VIEWER_STATE);
 
   console.log(
     `🎨 drawIn3D: ${context.nodes.length} nodos, showDeflection=${context.options?.showDeflection}, desplazamientos=${context.desplazamientosPosition?.length}`,
@@ -2044,6 +2050,8 @@ export function drawIn3D(context, updateOnly = false) {
   // Se envía context para detectar barras seleccionadas.
   // =====================================================
   renderModel3D(VIEWER_STATE, context.nodes, context.shapes, context.areas || [], context);
+
+  renderFrameForceDiagramLayer3D(VIEWER_STATE, context);
 
   // =====================================================
   // 3D SELECTION > ACTIVAR CLIC SOBRE BARRAS

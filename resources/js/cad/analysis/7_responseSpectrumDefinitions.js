@@ -560,24 +560,141 @@ export async function openResponseSpectrumCasesDialog(cadSystem) {
 }
 
 // Carga el caso seleccionado en NUESTRO flujo (seismicConfig): U1→X, U2→Y, con scale factor.
+// Carga el caso seleccionado en NUESTRO flujo (seismicConfig)
+// SDX / SDX ESCALADO / DER XX → X
+// SDY / SDY ESCALADO / DER YY → Y
+// Limpia scaleFactor heredados peligrosos: 9.81, 44.145, 2943, 9810, etc.
 function useCaseInSeismic(cadSystem, caseId) {
-    const c = cadSystem.responseSpectrumCases.items.find((x) => String(x.id) === String(caseId));
-    if (!c || !cadSystem.seismicConfig) return;
-    const functions = cadSystem.responseSpectrumFunctions.items;
+    if (!cadSystem?.responseSpectrumCases?.items || !cadSystem?.seismicConfig) return;
+
+    const cases = cadSystem.responseSpectrumCases.items;
+    const functions = cadSystem.responseSpectrumFunctions?.items || [];
     const fnOf = (id) => functions.find((f) => String(f.id) === String(id));
-    const scaled = (fn, sf) => (fn?.points || []).map((p) => ({ T: p.T, Sa: p.Sa * (Number(sf) || 1) }));
+
+    const inferCaseDirection = (responseCase) => {
+        const name = String(responseCase?.name || "").toUpperCase();
+        const direction = String(responseCase?.direction || "").toUpperCase();
+
+        // Primero manda el nombre, porque algunos JSON viejos tienen SDY guardado como X
+        if (name.includes("SDY") || name.includes("DER YY")) return "Y";
+        if (name.includes("SDX") || name.includes("DER XX")) return "X";
+
+        if (direction === "Y") return "Y";
+        return "X";
+    };
+
+    const pickFunctionId = (responseCase, axis) => {
+        const axisFunctionId = responseCase?.spectra?.[axis]?.functionId;
+        const legacyFunctionId = responseCase?.functionId;
+
+        if (axisFunctionId) return axisFunctionId;
+        if (legacyFunctionId) return legacyFunctionId;
+
+        const func2 = functions.find((f) => String(f.id).toUpperCase() === "FUNC2");
+        if (func2) return func2.id;
+
+        return functions[0]?.id || null;
+    };
+
+    const sanitizeStoredCaseForSeismic = (responseCase) => {
+        if (!responseCase) return responseCase;
+
+        const direction = inferCaseDirection(responseCase);
+        responseCase.direction = direction;
+
+        if (!responseCase.spectra) responseCase.spectra = {};
+        if (!responseCase.spectra.U1) responseCase.spectra.U1 = {};
+        if (!responseCase.spectra.U2) responseCase.spectra.U2 = {};
+
+        const u1FunctionId = pickFunctionId(responseCase, "U1");
+        const u2FunctionId = pickFunctionId(responseCase, "U2");
+
+        if (direction === "X") {
+            responseCase.spectra.U1.functionId = u1FunctionId;
+            responseCase.spectra.U1.scaleFactor = 1;
+
+            responseCase.spectra.U2.functionId = null;
+            responseCase.spectra.U2.scaleFactor = 1;
+
+            responseCase.scaleFactor = 1;
+        }
+
+        if (direction === "Y") {
+            responseCase.spectra.U1.functionId = null;
+            responseCase.spectra.U1.scaleFactor = 1;
+
+            responseCase.spectra.U2.functionId = u2FunctionId;
+            responseCase.spectra.U2.scaleFactor = 1;
+
+            responseCase.scaleFactor = 1;
+        }
+
+        return responseCase;
+    };
+
+    // Limpia todos los casos conocidos, no solo el seleccionado
+    cases.forEach(sanitizeStoredCaseForSeismic);
+
+    const c = cases.find((x) => String(x.id) === String(caseId));
+    if (!c) return;
+
+    const normalizeScaleFactorForSeismic = (value) => {
+        const sf = Number(value);
+
+        if (!Number.isFinite(sf) || sf <= 0) return 1;
+
+        const saInG = cadSystem.seismicConfig?.saInG !== false;
+
+        if (saInG && sf > 5) {
+            console.warn("⚠️ Scale Factor sospechoso para Sa en g. Se usará 1:", sf);
+            return 1;
+        }
+
+        return sf;
+    };
+
+    const scaled = (fn, sf) => {
+        const safeScale = normalizeScaleFactorForSeismic(sf);
+
+        return (fn?.points || []).map((p) => ({
+            T: Number(p.T),
+            Sa: Number(p.Sa) * safeScale,
+        }));
+    };
 
     const u1 = fnOf(c.spectra?.U1?.functionId);
     const u2 = fnOf(c.spectra?.U2?.functionId);
-    if (u1) cadSystem.seismicConfig.spectrumX = scaled(u1, c.spectra.U1.scaleFactor);
-    if (u2) cadSystem.seismicConfig.spectrumY = scaled(u2, c.spectra.U2.scaleFactor);
 
-    // Nuestro backend RSA soporta CQC/SRSS; ABS/GMC caen a CQC para el puente.
-    cadSystem.seismicConfig.combination = ["CQC", "SRSS"].includes(c.modalCombination) ? c.modalCombination : "CQC";
-    if (Number.isFinite(c.damping)) cadSystem.seismicConfig.dampingRatio = c.damping;
+    if (c.direction === "X") {
+        cadSystem.seismicConfig.spectrumX = u1
+            ? scaled(u1, c.spectra?.U1?.scaleFactor)
+            : [];
+
+        cadSystem.seismicConfig.spectrumY = [];
+    }
+
+    if (c.direction === "Y") {
+        cadSystem.seismicConfig.spectrumX = [];
+
+        cadSystem.seismicConfig.spectrumY = u2
+            ? scaled(u2, c.spectra?.U2?.scaleFactor)
+            : [];
+    }
+
+    cadSystem.seismicConfig.combination = ["CQC", "SRSS"].includes(c.modalCombination)
+        ? c.modalCombination
+        : "CQC";
+
+    if (Number.isFinite(Number(c.damping))) {
+        cadSystem.seismicConfig.dampingRatio = Number(c.damping);
+    }
+
     cadSystem.responseSpectrumCases.selectedCase = c.id;
 
-    cadSystem.showMessage?.(`Caso "${c.name}" cargado en el análisis sísmico (U1→X, U2→Y).`, "success");
+    cadSystem.showMessage?.(
+        `Caso "${c.name}" cargado en el análisis sísmico (${c.direction}).`,
+        "success"
+    );
 }
 
 /**

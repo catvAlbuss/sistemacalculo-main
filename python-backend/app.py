@@ -615,8 +615,16 @@ def frame_forces():
     try:
         data = request.get_json(force=True) or {}
         cases = data.get("cases") or None
+        combos = data.get("combos") if "combos" in data else None
+        seismic_cases = data.get("seismicCases") or data.get("seismic_cases") or None
         num_stations = data.get("numStations") or data.get("stations") or 5
-        result = sa.run_frame_force_results(data, cases=cases, num_stations=num_stations)
+        result = sa.run_frame_force_results(
+            data,
+            cases=cases,
+            combos=combos,
+            seismic_cases=seismic_cases,
+            num_stations=num_stations,
+        )
         return jsonify(result)
     except Exception as e:
         return (

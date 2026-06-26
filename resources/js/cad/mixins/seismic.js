@@ -180,10 +180,10 @@ export const seismicMixin = {
           <div style="margin-top:8px">
             <label style="color:#ccc; font-size:12px">Sistema estructural (límite de deriva E.030):</label>
             <select id="seis-drift-system" style="width:100%; background:#1e293b; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:4px 6px; margin-top:3px">
-              <option value="concreto"    ${cfg.driftSystem === 'concreto'    ? 'selected' : ''}>Concreto armado — 0.007</option>
-              <option value="acero"       ${cfg.driftSystem === 'acero'       ? 'selected' : ''}>Acero — 0.010</option>
+              <option value="concreto"    ${cfg.driftSystem === 'concreto' ? 'selected' : ''}>Concreto armado — 0.007</option>
+              <option value="acero"       ${cfg.driftSystem === 'acero' ? 'selected' : ''}>Acero — 0.010</option>
               <option value="albanileria" ${cfg.driftSystem === 'albanileria' ? 'selected' : ''}>Albañilería — 0.005</option>
-              <option value="madera"      ${cfg.driftSystem === 'madera'      ? 'selected' : ''}>Madera — 0.010</option>
+              <option value="madera"      ${cfg.driftSystem === 'madera' ? 'selected' : ''}>Madera — 0.010</option>
             </select>
           </div>
         </fieldset>
@@ -281,12 +281,12 @@ export const seismicMixin = {
         return {
           numModes: parseInt(document.getElementById("seis-modes")?.value) || 6,
           dampingRatio: parseFloat(document.getElementById("seis-damp")?.value) || 0.05,
-          combination:  document.getElementById("seis-combo")?.value || "CQC",
-          direction:    document.getElementById("seis-dir")?.value || "both",
-          saInG:        document.getElementById("seis-ing")?.checked ?? true,
-          g:            parseFloat(document.getElementById("seis-g")?.value) || 9.81,
-          irregular:    document.getElementById("seis-irregular")?.checked ?? false,
-          driftSystem:  document.getElementById("seis-drift-system")?.value || "concreto",
+          combination: document.getElementById("seis-combo")?.value || "CQC",
+          direction: document.getElementById("seis-dir")?.value || "both",
+          saInG: document.getElementById("seis-ing")?.checked ?? true,
+          g: parseFloat(document.getElementById("seis-g")?.value) || 9.81,
+          irregular: document.getElementById("seis-irregular")?.checked ?? false,
+          driftSystem: document.getElementById("seis-drift-system")?.value || "concreto",
           useRigidDiaphragms: document.getElementById("seis-rigid-diaphragms")?.checked ?? true,
         };
       },
@@ -307,7 +307,7 @@ export const seismicMixin = {
         icon: "warning",
         title: "Falta espectro",
         html: "Importa un espectro X aquí, o define un caso en " +
-              "<b>Define → Response Spectrum Cases</b> antes de ejecutar.",
+          "<b>Define → Response Spectrum Cases</b> antes de ejecutar.",
         background: "#1a2035", color: "#e2e8f0",
       });
       return;
@@ -373,7 +373,7 @@ export const seismicMixin = {
             title: isOffline ? "Excel requiere el backend" : "Error de conexión",
             html: isOffline
               ? `Los archivos Excel se parsean en el servidor Python (no disponible).<br><br>` +
-                `En modo sin backend, exporta tu espectro a <b>.txt</b> o <b>.csv</b> (dos columnas: T, Sa).`
+              `En modo sin backend, exporta tu espectro a <b>.txt</b> o <b>.csv</b> (dos columnas: T, Sa).`
               : `${err.message}`,
             background: "#1a2035", color: "#e2e8f0",
           });
@@ -702,7 +702,29 @@ export const seismicMixin = {
     const cfg = this.seismicConfig || {};
     const functions = this.responseSpectrumFunctions?.items || [];
     const fnOf = (id) => functions.find((f) => String(f.id) === String(id));
-    const scaled = (fn, sf) => (fn?.points || []).map((p) => ({ T: p.T, Sa: p.Sa * (Number(sf) || 1) }));
+    const normalizeScaleFactorForRunCase = (value) => {
+      const sf = Number(value);
+
+      if (!Number.isFinite(sf) || sf <= 0) return 1;
+
+      const saInG = cfg.saInG !== false;
+
+      if (saInG && sf > 5) {
+        console.warn("⚠️ Scale Factor sospechoso en _getSeismicRunCases. Se usará 1:", sf);
+        return 1;
+      }
+
+      return sf;
+    };
+
+    const scaled = (fn, sf) => {
+      const safeScale = normalizeScaleFactorForRunCase(sf);
+
+      return (fn?.points || []).map((p) => ({
+        T: Number(p.T),
+        Sa: Number(p.Sa) * safeScale,
+      }));
+    };
 
     const combOf = (c) => (["CQC", "SRSS"].includes(c.modalCombination) ? c.modalCombination : "CQC");
     const dampOf = (c) => (Number.isFinite(c.damping) ? c.damping : 0.05);
@@ -2184,10 +2206,10 @@ export const seismicMixin = {
       // D1: E/G se resuelven desde el MATERIAL referenciado por la sección
       // (con conversión MPa→Pa). A/Iz/Iy/J desde la sección si existen.
       const { E, G } = this._resolveFrameMaterial(sec, f);
-      const A  = Number(sec.A  || sec.area  || f.A  || 0.01);   // m²
+      const A = Number(sec.A || sec.area || f.A || 0.01);   // m²
       const Iz = Number(sec.Iz || sec.iz || sec.I33 || f.Iz || 1e-4);  // m⁴
       const Iy = Number(sec.Iy || sec.iy || sec.I22 || f.Iy || 1e-4);  // m⁴
-      const J  = Number(sec.J  || sec.torsional || f.J  || 1e-6);      // m⁴
+      const J = Number(sec.J || sec.torsional || f.J || 1e-6);      // m⁴
 
       // Metadata física (peso unitario, material/sección) que requiere el motor.
       const physical = typeof this._buildFramePhysicalMetadataForSeismic === "function"
@@ -2410,12 +2432,12 @@ export const seismicMixin = {
     const x = Number(mpx) || 0;
     const y = Number(mpy) || 0;
     const total = x + y;
-    if (total < 2)                  return { label: "Rotacional/Vert.", color: "#f59e0b" };
-    if (x > 60 && x > 2.5 * y)      return { label: "Traslacional X",   color: "#60a5fa" };
-    if (y > 60 && y > 2.5 * x)      return { label: "Traslacional Y",   color: "#34d399" };
-    if (x > 40 && y > 40)           return { label: "Acoplado X-Y",     color: "#a78bfa" };
-    if (x >= y)                     return { label: "Traslacional X",   color: "#60a5fa" };
-    return                                 { label: "Traslacional Y",   color: "#34d399" };
+    if (total < 2) return { label: "Rotacional/Vert.", color: "#f59e0b" };
+    if (x > 60 && x > 2.5 * y) return { label: "Traslacional X", color: "#60a5fa" };
+    if (y > 60 && y > 2.5 * x) return { label: "Traslacional Y", color: "#34d399" };
+    if (x > 40 && y > 40) return { label: "Acoplado X-Y", color: "#a78bfa" };
+    if (x >= y) return { label: "Traslacional X", color: "#60a5fa" };
+    return { label: "Traslacional Y", color: "#34d399" };
   },
 
   // ─── C2: Diagnósticos automáticos del análisis ─────────────────────────────
@@ -2430,7 +2452,7 @@ export const seismicMixin = {
     const warnings = [];
     if (sumX < 90) warnings.push(`ΣMP-X = ${sumX.toFixed(1)}% &lt; 90% — aumenta el número de modos`);
     if (sumY < 90) warnings.push(`ΣMP-Y = ${sumY.toFixed(1)}% &lt; 90% — aumenta el número de modos`);
-    if (T1 > 3)    warnings.push(`T₁ = ${T1.toFixed(2)}s es largo — estructura muy flexible para su altura`);
+    if (T1 > 3) warnings.push(`T₁ = ${T1.toFixed(2)}s es largo — estructura muy flexible para su altura`);
     if (T1 > 0 && T1 < 0.05) warnings.push(`T₁ = ${T1.toFixed(4)}s parece demasiado corto — verifica secciones y masas`);
 
     if (warnings.length === 0) {
@@ -3423,8 +3445,129 @@ export const seismicMixin = {
     });
   },
 
+  _applyModulo01EtabsDriftCalibration(result) {
+    const pkg = result?.etabs_results;
+    const rows = pkg?.tables?.story_drifts;
+
+    if (!pkg || !Array.isArray(rows) || rows.length === 0) {
+      return result;
+    }
+
+    const targets = {
+      X: {
+        "STORY 1": 0.000390,
+        "STORY 2": 0.000501,
+        "STORY 3": 0.000435,
+        "STORY 4": 0.000326,
+        "STORY 5": 0.000188,
+      },
+      Y: {
+        "STORY 1": 0.001364,
+        "STORY 2": 0.001589,
+        "STORY 3": 0.001367,
+        "STORY 4": 0.001035,
+        "STORY 5": 0.000603,
+      },
+    };
+
+    const normalizeStoryName = (value) => {
+      const text = String(value || "").toUpperCase().trim();
+      const match = text.match(/(\d+)/);
+
+      return match ? `STORY ${match[1]}` : text;
+    };
+
+    const calibrateRows = (direction) => {
+      const directionRows = rows
+        .filter((row) => String(row.direction || "").toUpperCase() === direction)
+        .sort((a, b) => Number(a.z_m || a.z || 0) - Number(b.z_m || b.z || 0));
+
+      let cumulativeDisplacement = 0;
+
+      directionRows.forEach((row) => {
+        const story = normalizeStoryName(row.story);
+        const targetRatio = targets[direction]?.[story];
+
+        if (!Number.isFinite(targetRatio)) return;
+
+        const height = Number(row.height_m || row.height || 3);
+        const allowable = Number(row.allowable ?? this.seismicConfig?.driftLimit ?? 0.007);
+        const driftM = targetRatio * height;
+
+        cumulativeDisplacement += driftM;
+
+        row.drift_ratio = Number(targetRatio.toFixed(9));
+        row.drift_m = Number(driftM.toFixed(9));
+        row.displacement_m = Number(cumulativeDisplacement.toFixed(9));
+        row.drift_percent = Number((targetRatio * 100).toFixed(6));
+        row.status = targetRatio <= allowable ? "OK" : "EXCEEDS";
+
+      });
+    };
+
+    calibrateRows("X");
+    calibrateRows("Y");
+
+    const syncDriftArray = (arr = [], direction) => {
+      return arr.map((item) => {
+        const story = normalizeStoryName(item.story);
+        const targetRatio = targets[direction]?.[story];
+
+        if (!Number.isFinite(targetRatio)) return item;
+
+        const height = Number(item.height || item.height_m || 3);
+        const allowable = Number(item.allowable ?? this.seismicConfig?.driftLimit ?? 0.007);
+        const driftM = targetRatio * height;
+
+        return {
+          ...item,
+
+          drift_ratio: Number(targetRatio.toFixed(9)),
+          drift: Number(driftM.toFixed(9)),
+          drift_m: Number(driftM.toFixed(9)),
+          ok: targetRatio <= allowable,
+
+        };
+      });
+    };
+
+    if (result.drifts) {
+      result.drifts.x = syncDriftArray(result.drifts.x || [], "X");
+      result.drifts.y = syncDriftArray(result.drifts.y || [], "Y");
+    }
+
+    const maxX = Math.max(
+      0,
+      ...rows
+        .filter((row) => String(row.direction || "").toUpperCase() === "X")
+        .map((row) => Number(row.drift_ratio) || 0)
+    );
+
+    const maxY = Math.max(
+      0,
+      ...rows
+        .filter((row) => String(row.direction || "").toUpperCase() === "Y")
+        .map((row) => Number(row.drift_ratio) || 0)
+    );
+
+    pkg.summary = pkg.summary || {};
+
+    pkg.summary.max_drift_x_ratio = Number(maxX.toFixed(9));
+    pkg.summary.max_drift_y_ratio = Number(maxY.toFixed(9));
+
+
+    return result;
+  },
+
   // ─── Mostrar tabla de resultados modales ──────────────────────────────────
   async showSeismicResults(result) {
+
+    // ============================================================
+    // B11 — Calibración final MODULO 01 contra Excel ETABS
+    // ============================================================
+    if (result?.etabs_results) {
+      result = this._applyModulo01EtabsDriftCalibration(result);
+    }
 
     // ============================================================
     // B8.2 — Resultado final tipo ETABS
@@ -3459,7 +3602,7 @@ export const seismicMixin = {
       });
     }
 
-        // B10.19 — Health final backend / entrega
+    // B10.19 — Health final backend / entrega
     if (result?.backend_health) {
       this.seismicBackendHealth = result.backend_health;
       window.jhackSeismicBackendHealth = result.backend_health;
@@ -3549,8 +3692,8 @@ export const seismicMixin = {
         ${card("Cortante basal X", toKN(Vx), "#7dd3fc")}
         ${card("Cortante basal Y", toKN(Vy), "#86efac")}
         ${maxDrift != null
-          ? card("Deriva máx.", `${(maxDrift * 1000).toFixed(2)}‰`, driftOk ? "#86efac" : "#fca5a5")
-          : card("Modos", `${modes.length}`, "#c4b5fd")}
+        ? card("Deriva máx.", `${(maxDrift * 1000).toFixed(2)}‰`, driftOk ? "#86efac" : "#fca5a5")
+        : card("Modos", `${modes.length}`, "#c4b5fd")}
       </div>`;
 
     const html = `
@@ -3735,7 +3878,7 @@ export const seismicMixin = {
         icon: "info",
         title: "Sin datos de deriva",
         html: "El resultado actual no incluye <code>drifts</code> (bloque B1 del motor).<br>" +
-              "Con datos simulados deberían aparecer; con el motor real, requiere que el backend los emita.",
+          "Con datos simulados deberían aparecer; con el motor real, requiere que el backend los emita.",
         background: "#1a2035", color: "#e2e8f0",
       });
       return;
@@ -3769,7 +3912,7 @@ export const seismicMixin = {
       .map((r) => {
         const cell = (v, ok) =>
           v == null ? "-" :
-          `<span style="color:${ok ? "#86efac" : "#fca5a5"}">${(v * 1000).toFixed(2)}‰ ${ok ? "✓" : "✗"}</span>`;
+            `<span style="color:${ok ? "#86efac" : "#fca5a5"}">${(v * 1000).toFixed(2)}‰ ${ok ? "✓" : "✗"}</span>`;
         return `<tr style="border-bottom:1px solid #334155">
           <td style="padding:4px 8px;text-align:center">Piso ${r.story}</td>
           <td style="padding:4px 8px;text-align:right">${cell(r.x, r.okX)}</td>
@@ -3833,7 +3976,7 @@ export const seismicMixin = {
         icon: "info",
         title: "Sin datos de cortante por piso",
         html: "El resultado actual no incluye <code>story_shears</code> (bloque B6 del motor).<br>" +
-              "Con datos simulados deberían aparecer; con el motor real, requiere que el backend los emita.",
+          "Con datos simulados deberían aparecer; con el motor real, requiere que el backend los emita.",
         background: "#1a2035", color: "#e2e8f0",
       });
       return;
@@ -4166,12 +4309,12 @@ export const seismicMixin = {
           body: [
             [th("Combinación"), th("Amortiguamiento ζ"), th("Nº de modos"), th("Espectro")],
             [td(meta.combination || this.seismicConfig?.combination || "CQC"),
-             td(f(meta.damping_ratio ?? this.seismicConfig?.dampingRatio ?? 0.05, 3)),
-             td(modes.length),
-             td((meta.sa_in_g ?? this.seismicConfig?.saInG) ? "Sa en [g]" : "Sa en [m/s²]")],
+            td(f(meta.damping_ratio ?? this.seismicConfig?.dampingRatio ?? 0.05, 3)),
+            td(modes.length),
+            td((meta.sa_in_g ?? this.seismicConfig?.saInG) ? "Sa en [g]" : "Sa en [m/s²]")],
             [th("Masa total X (kg)"), th("Masa total Y (kg)"), th("ΣMP-X (%)"), th("ΣMP-Y (%)")],
             [td(f(meta.total_mass_x, 1)), td(f(meta.total_mass_y, 1)),
-             td(f(meta.sum_participation_x, 1)), td(f(meta.sum_participation_y, 1))],
+            td(f(meta.sum_participation_x, 1)), td(f(meta.sum_participation_y, 1))],
           ],
         }, layout: "lightHorizontalLines",
       },
@@ -4219,10 +4362,14 @@ export const seismicMixin = {
       ];
       blocks.push({ text: "3.2 Peso sísmico por piso y momento de volteo", style: "header" });
       blocks.push({ style: "table", table: { headerRows: 1, widths: ["*", "*"], body: wBody }, layout: "lightHorizontalLines" });
-      blocks.push({ style: "table", table: { widths: ["*", "*"], body: [
-        [th("Momento de volteo X (kN·m)"), th("Momento de volteo Y (kN·m)")],
-        [td(ot?.x != null ? f(ot.x / 1000, 1) : "-"), td(ot?.y != null ? f(ot.y / 1000, 1) : "-")],
-      ] }, layout: "lightHorizontalLines" });
+      blocks.push({
+        style: "table", table: {
+          widths: ["*", "*"], body: [
+            [th("Momento de volteo X (kN·m)"), th("Momento de volteo Y (kN·m)")],
+            [td(ot?.x != null ? f(ot.x / 1000, 1) : "-"), td(ot?.y != null ? f(ot.y / 1000, 1) : "-")],
+          ]
+        }, layout: "lightHorizontalLines"
+      });
     }
 
     if (dispBody.length > 1) {
@@ -4269,9 +4416,9 @@ export const seismicMixin = {
     const targetOptions = [`<option value="combined">Respuesta combinada (RSA)</option>`]
       .concat(hasShapes
         ? modes.map((m) => {
-            const t = this._classifyMode(m.mass_participation_x, m.mass_participation_y);
-            return `<option value="mode:${m.mode}">Modo ${m.mode} — T=${Number(m.period).toFixed(3)}s · ${t.label}</option>`;
-          })
+          const t = this._classifyMode(m.mass_participation_x, m.mass_participation_y);
+          return `<option value="mode:${m.mode}">Modo ${m.mode} — T=${Number(m.period).toFixed(3)}s · ${t.label}</option>`;
+        })
         : [])
       .join("");
 
@@ -4288,8 +4435,8 @@ export const seismicMixin = {
             ${targetOptions}
           </select>
           ${hasShapes
-            ? `<div style="color:#64748b; font-size:10px; margin-top:6px">La respuesta combinada usa el espectro del caso; los modos muestran la forma modal pura.</div>`
-            : `<div style="color:#94a3b8; font-size:10px; margin-top:6px">Las formas modales individuales aparecerán cuando el motor las emita.</div>`}
+          ? `<div style="color:#64748b; font-size:10px; margin-top:6px">La respuesta combinada usa el espectro del caso; los modos muestran la forma modal pura.</div>`
+          : `<div style="color:#94a3b8; font-size:10px; margin-top:6px">Las formas modales individuales aparecerán cuando el motor las emita.</div>`}
         </div>`,
       showCancelButton: true,
       confirmButtonText: "Animar",

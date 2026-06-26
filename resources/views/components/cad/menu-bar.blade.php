@@ -1307,11 +1307,13 @@
                         Fuerzas y Diagramas
                     </div>
 
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
-                        @click.stop="cadSystem.activateDisplayMenuAction('show-member-forces')">
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateDisplayMenuAction('show-frame-force-diagrams')">
                         <span>📉</span>
-                        Show Member Forces / Stress Diagram
-                    </button>
+                        <span class="flex-1 truncate">Show Frame Forces / Diagrams...</span>
+                        <span class="text-xs text-cyan-400 italic">P, V2, V3, T, M2, M3</span>
+                    </button>   
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateDisplayMenuAction('show-modal-spectral-results')">
