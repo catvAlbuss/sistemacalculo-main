@@ -1,7 +1,7 @@
 <x-app-layout>
-<div class="relative">
-    {{-- HEADER --}}
-    <x-header title="Espectro Sísmico"></x-header>
+    <div class="relative">
+        {{-- HEADER --}}
+        <x-header title="Espectro Sísmico"></x-header>
 
         <div class="min-h-screen bg-gray-50 p-6 dark:bg-gray-950">
 
@@ -75,162 +75,167 @@
                         <div id="ubigeo-tag"
                             class="hidden rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-400">
                         </div>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">— Detecta automáticamente la Zona Sísmica (E.030 Anexo Nº 1)
+                        <p class="text-xs text-gray-500 dark:text-gray-400">— Detecta automáticamente la Zona Sísmica
+                            (E.030 Anexo Nº 1)
                         </p>
                     </div>
 
                     {{-- ── Zona + Suelo (oculto para Puentes) ── --}}
                     <div id="grupo-zona-suelo">
 
-                    {{-- Zona Z --}}
-                    <div class="mb-4">
-                        <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                            Zona Sísmica
-                            <span
-                                class="rounded border border-gray-300 bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">Z</span>
-                        </label>
-                        <select id="zona"
-                            class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500"></select>
-                    </div>
+                        {{-- Zona Z --}}
+                        <div class="mb-4">
+                            <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                Zona Sísmica
+                                <span
+                                    class="rounded border border-gray-300 bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">Z</span>
+                            </label>
+                            <select id="zona"
+                                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500"></select>
+                        </div>
 
-                    {{-- Perfil de Suelo --}}
-                    <div class="mb-4">
-                        <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                            Perfil de Suelo
-                            <span
-                                class="rounded border border-gray-300 bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">S</span>
-                        </label>
-                        <select id="suelo"
-                            class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500"></select>
-                    </div>
+                        {{-- Perfil de Suelo --}}
+                        <div class="mb-4">
+                            <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                Perfil de Suelo
+                                <span
+                                    class="rounded border border-gray-300 bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">S</span>
+                            </label>
+                            <select id="suelo"
+                                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500"></select>
+                        </div>
 
                     </div>{{-- /grupo-zona-suelo --}}
 
                     {{-- ── Uso (oculto para Puentes) ── --}}
                     <div id="grupo-uso">
-                    {{-- Categoría U --}}
-                    <div class="mb-4">
-                        <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                            Categoría de la Edificación
-                            <span
-                                class="rounded border border-gray-300 bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">U</span>
-                        </label>
-                        <select id="uso"
-                            class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500">
-                            <option value="1.8">A1 — Imp. mayor / Hospitales (U=1.8)</option>
-                            <option value="1.5">A2 — Hospitales, cuarteles (U=1.5)</option>
-                            <option value="1.3">B — Importantes (U=1.3)</option>
-                            <option value="1.0" selected>C — Comunes (U=1.0)</option>
-                        </select>
-                    </div>
+                        {{-- Categoría U --}}
+                        <div class="mb-4">
+                            <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                Categoría de la Edificación
+                                <span
+                                    class="rounded border border-gray-300 bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">U</span>
+                            </label>
+                            <select id="uso"
+                                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500">
+                                <option value="1.8">A1 — Imp. mayor / Hospitales (U=1.8)</option>
+                                <option value="1.5">A2 — Hospitales, cuarteles (U=1.5)</option>
+                                <option value="1.3">B — Importantes (U=1.3)</option>
+                                <option value="1.0" selected>C — Comunes (U=1.0)</option>
+                            </select>
+                        </div>
                     </div>{{-- /grupo-uso --}}
 
                     {{-- ── Sistema + Ts + Irregularidades (solo E.030) ── --}}
                     <div id="grupo-e030-estruct">
 
-                    {{-- Sistema Estructural R --}}
-                    <div class="mb-4">
-                        <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                            Sistema Estructural
-                            <span
-                                class="rounded border border-gray-300 bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">R</span>
-                        </label>
-                        <select id="sistema"
-                            class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500">
-                            <optgroup label="Concreto Armado">
-                                <option value="8">Pórticos (R=8)</option>
-                                <option value="7">Dual (R=7)</option>
-                                <option value="6">Muros estructurales (R=6)</option>
-                                <option value="3.5">Muros de ductilidad limitada (R=3.5)</option>
-                            </optgroup>
-                            <optgroup label="Estructuras de Acero">
-                                <option value="8">Pórticos especiales SMF (R=8)</option>
-                                <option value="7">Pórticos ordinarios OMF (R=7)</option>
-                                <option value="6">Arriostradas excéntricamente (R=6)</option>
-                                <option value="6">Arriostradas concentricamente (R=6)</option>
-                            </optgroup>
-                            <optgroup label="Albañilería">
-                                <option value="3">Confinada o armada (R=3)</option>
-                            </optgroup>
-                            <optgroup label="Madera">
-                                <option value="7">Madera (R=7)</option>
-                            </optgroup>
-                            <optgroup label="pendulo invertido">
-                                <option value="2.5">Pendulo Invertido (R=2.5)</option>
-                            </optgroup>
-                        </select>
-                    </div>
+                        {{-- Sistema Estructural R --}}
+                        <div class="mb-4">
+                            <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                Sistema Estructural
+                                <span
+                                    class="rounded border border-gray-300 bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">R</span>
+                            </label>
+                            <select id="sistema"
+                                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500">
+                                <optgroup label="Concreto Armado">
+                                    <option value="8">Pórticos (R=8)</option>
+                                    <option value="7">Dual (R=7)</option>
+                                    <option value="6">Muros estructurales (R=6)</option>
+                                    <option value="3.5">Muros de ductilidad limitada (R=3.5)</option>
+                                </optgroup>
+                                <optgroup label="Estructuras de Acero">
+                                    <option value="8">Pórticos especiales SMF (R=8)</option>
+                                    <option value="7">Pórticos ordinarios OMF (R=7)</option>
+                                    <option value="6">Arriostradas excéntricamente (R=6)</option>
+                                    <option value="6">Arriostradas concentricamente (R=6)</option>
+                                </optgroup>
+                                <optgroup label="Albañilería">
+                                    <option value="3">Confinada o armada (R=3)</option>
+                                </optgroup>
+                                <optgroup label="Madera">
+                                    <option value="7">Madera (R=7)</option>
+                                </optgroup>
+                                <optgroup label="pendulo invertido">
+                                    <option value="2.5">Pendulo Invertido (R=2.5)</option>
+                                </optgroup>
+                            </select>
+                        </div>
 
-                    {{-- Ts — solo E.030-2026 --}}
-                    <div id="ts-group" class="mb-4 hidden">
-                        <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                            Ts — Período Predominante del Terreno
-                            <span
-                                class="rounded border border-red-200 bg-red-50 px-2 py-0.5 text-xs text-red-700 dark:border-red-700 dark:bg-red-900 dark:text-red-300">NUEVO
-                                2026</span>
-                        </label>
-                        <input type="number" id="ts_value" value="0.0" step="0.1" min="0" max="5.0"
-                            class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500">
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">— Obligatorio para Cat. A y B en Zona 4.</p>
-                    </div>
+                        {{-- Ts — solo E.030-2026 --}}
+                        <div id="ts-group" class="mb-4 hidden">
+                            <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                Ts — Período Predominante del Terreno
+                                <span
+                                    class="rounded border border-red-200 bg-red-50 px-2 py-0.5 text-xs text-red-700 dark:border-red-700 dark:bg-red-900 dark:text-red-300">NUEVO
+                                    2026</span>
+                            </label>
+                            <input type="number" id="ts_value" value="0.0" step="0.1" min="0"
+                                max="5.0"
+                                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500">
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">— Obligatorio para Cat. A y B en
+                                Zona 4.</p>
+                        </div>
 
-                    <hr class="my-4 border-gray-200 dark:border-gray-700">
+                        <hr class="my-4 border-gray-200 dark:border-gray-700">
 
-                    {{-- Irregularidades --}}
-                    <p
-                        class="mb-3 border-b border-gray-200 pb-2 text-xs font-semibold uppercase tracking-widest text-gray-600 dark:border-gray-700 dark:text-gray-400">
-                        Irregularidades
-                    </p>
+                        {{-- Irregularidades --}}
+                        <p
+                            class="mb-3 border-b border-gray-200 pb-2 text-xs font-semibold uppercase tracking-widest text-gray-600 dark:border-gray-700 dark:text-gray-400">
+                            Irregularidades
+                        </p>
 
-                    <div class="mb-4">
-                        <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                            Irreg. en Planta
-                            <span
-                                class="rounded border border-gray-300 bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">Ip</span>
-                        </label>
-                        <select id="irreg_planta"
-                            class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500">
-                            <option value="1.0" selected>Sin irregularidad (Ip = 1.00)</option>
-                            <option value="0.75">Torsional (Ip = 0.75)</option>
-                            <option value="0.60">Torsional Extrema (Ip = 0.60)</option>
-                            <option value="0.90">Esquinas Entrantes (Ip = 0.90)</option>
-                            <option value="0.85">Discontinuidad del Diafragma (Ip = 0.85)</option>
-                            <option value="0.90">Sistemas No Paralelos (Ip = 0.90)</option>
-                        </select>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">— Aplica desde E.030-2016</p>
-                    </div>
+                        <div class="mb-4">
+                            <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                Irreg. en Planta
+                                <span
+                                    class="rounded border border-gray-300 bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">Ip</span>
+                            </label>
+                            <select id="irreg_planta"
+                                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500">
+                                <option value="1.0" selected>Sin irregularidad (Ip = 1.00)</option>
+                                <option value="0.75">Torsional (Ip = 0.75)</option>
+                                <option value="0.60">Torsional Extrema (Ip = 0.60)</option>
+                                <option value="0.90">Esquinas Entrantes (Ip = 0.90)</option>
+                                <option value="0.85">Discontinuidad del Diafragma (Ip = 0.85)</option>
+                                <option value="0.90">Sistemas No Paralelos (Ip = 0.90)</option>
+                            </select>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">— Aplica desde E.030-2016</p>
+                        </div>
 
-                    <div class="mb-4">
-                        <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                            Irreg. en Altura
-                            <span
-                                class="rounded border border-gray-300 bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">Ia</span>
-                        </label>
-                        <select id="irreg_altura"
-                            class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500">
-                            <option value="1.0" selected>Sin irregularidad (Ia = 1.00)</option>
-                            <option value="0.75">Piso Blando – Rigidez (Ia = 0.75)</option>
-                            <option value="0.75">Piso Débil – Resistencia (Ia = 0.75)</option>
-                            <option value="0.90">Masa o Peso (Ia = 0.90)</option>
-                            <option value="0.90">Geométrica Vertical (Ia = 0.90)</option>
-                            <option value="0.80">Discontinuidad del Sistema Resistente (Ia = 0.80)</option>
-                            <option value="0.60">Extrema de Rigidez (Ia = 0.60)</option>
-                            <option value="0.60">Extrema de Resistencia (Ia = 0.60)</option>
-                        </select>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">— Según Art. 23-24 de E.030</p>
-                    </div>
+                        <div class="mb-4">
+                            <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                Irreg. en Altura
+                                <span
+                                    class="rounded border border-gray-300 bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">Ia</span>
+                            </label>
+                            <select id="irreg_altura"
+                                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500">
+                                <option value="1.0" selected>Sin irregularidad (Ia = 1.00)</option>
+                                <option value="0.75">Piso Blando – Rigidez (Ia = 0.75)</option>
+                                <option value="0.75">Piso Débil – Resistencia (Ia = 0.75)</option>
+                                <option value="0.90">Masa o Peso (Ia = 0.90)</option>
+                                <option value="0.90">Geométrica Vertical (Ia = 0.90)</option>
+                                <option value="0.80">Discontinuidad del Sistema Resistente (Ia = 0.80)</option>
+                                <option value="0.60">Extrema de Rigidez (Ia = 0.60)</option>
+                                <option value="0.60">Extrema de Resistencia (Ia = 0.60)</option>
+                            </select>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">— Según Art. 23-24 de E.030</p>
+                        </div>
 
                     </div>{{-- /grupo-e030-estruct --}}
 
                     {{-- ── E.031 Aislamiento Sísmico ── --}}
                     <div id="grupo-e031" style="display:none">
-                        <p class="mb-3 border-b border-gray-200 pb-2 text-xs font-semibold uppercase tracking-widest text-gray-600 dark:border-gray-700 dark:text-gray-400">
+                        <p
+                            class="mb-3 border-b border-gray-200 pb-2 text-xs font-semibold uppercase tracking-widest text-gray-600 dark:border-gray-700 dark:text-gray-400">
                             Parámetros E.031 Aislamiento
                         </p>
                         <div class="mb-4">
                             <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                                 Sistema de Aislamiento
-                                <span class="rounded border border-teal-300 bg-teal-50 px-2 py-0.5 text-xs text-teal-700 dark:border-teal-700 dark:bg-teal-900 dark:text-teal-300">Riso</span>
+                                <span
+                                    class="rounded border border-teal-300 bg-teal-50 px-2 py-0.5 text-xs text-teal-700 dark:border-teal-700 dark:bg-teal-900 dark:text-teal-300">Riso</span>
                             </label>
                             <select id="e031_R"
                                 class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-teal-500">
@@ -243,12 +248,13 @@
                         <div class="mb-4">
                             <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                                 Factor de amortiguamiento efectivo
-                                <span class="rounded border border-teal-300 bg-teal-50 px-2 py-0.5 text-xs text-teal-700 dark:border-teal-700 dark:bg-teal-900 dark:text-teal-300">B</span>
+                                <span
+                                    class="rounded border border-teal-300 bg-teal-50 px-2 py-0.5 text-xs text-teal-700 dark:border-teal-700 dark:bg-teal-900 dark:text-teal-300">B</span>
                             </label>
                             <select id="e031_beta"
                                 class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-teal-500">
-                                <option value="0.8">β ≤ 2 %  → B = 0.80</option>
-                                <option value="1.0" selected>β = 5 %  → B = 1.00</option>
+                                <option value="0.8">β ≤ 2 % → B = 0.80</option>
+                                <option value="1.0" selected>β = 5 % → B = 1.00</option>
                                 <option value="1.2">β = 10 % → B = 1.20</option>
                                 <option value="1.5">β = 20 % → B = 1.50</option>
                                 <option value="1.7">β = 30 % → B = 1.70</option>
@@ -261,13 +267,15 @@
 
                     {{-- ── Puentes MTC / AASHTO LRFD ── --}}
                     <div id="grupo-puentes" style="display:none">
-                        <p class="mb-3 border-b border-gray-200 pb-2 text-xs font-semibold uppercase tracking-widest text-gray-600 dark:border-gray-700 dark:text-gray-400">
+                        <p
+                            class="mb-3 border-b border-gray-200 pb-2 text-xs font-semibold uppercase tracking-widest text-gray-600 dark:border-gray-700 dark:text-gray-400">
                             Parámetros Puentes MTC
                         </p>
                         <div class="mb-4">
                             <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                                 Coeficiente de aceleración
-                                <span class="rounded border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:border-blue-700 dark:bg-blue-900 dark:text-blue-300">A</span>
+                                <span
+                                    class="rounded border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:border-blue-700 dark:bg-blue-900 dark:text-blue-300">A</span>
                             </label>
                             <select id="puente_A"
                                 class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500">
@@ -280,7 +288,8 @@
                         <div class="mb-4">
                             <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                                 Clase de sitio
-                                <span class="rounded border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:border-blue-700 dark:bg-blue-900 dark:text-blue-300">S</span>
+                                <span
+                                    class="rounded border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:border-blue-700 dark:bg-blue-900 dark:text-blue-300">S</span>
                             </label>
                             <select id="puente_suelo"
                                 class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500">
@@ -293,7 +302,8 @@
                         <div class="mb-4">
                             <label class="mb-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                                 Factor de reducción
-                                <span class="rounded border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:border-blue-700 dark:bg-blue-900 dark:text-blue-300">R</span>
+                                <span
+                                    class="rounded border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:border-blue-700 dark:bg-blue-900 dark:text-blue-300">R</span>
                             </label>
                             <select id="puente_R"
                                 class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500">
@@ -303,7 +313,8 @@
                                 <option value="3.0">Ductilidad total (R=3.0)</option>
                                 <option value="5.0">Puente con aisladores (R=5.0)</option>
                             </select>
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">— Según Manual Puentes MTC Tabla 3.7.1</p>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">— Según Manual Puentes MTC Tabla
+                                3.7.1</p>
                         </div>
                     </div>{{-- /grupo-puentes --}}
 
@@ -359,10 +370,12 @@
                     {{-- Encabezado del gráfico --}}
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-base font-medium text-gray-900 dark:text-white" id="tit_diagrama">Espectro de
+                            <p class="text-base font-medium text-gray-900 dark:text-white" id="tit_diagrama">Espectro
+                                de
                                 Pseudo-aceleraciones
                             </p>
-                            <p class="font-mono text-xs text-gray-500 dark:text-gray-400" id="formula-label">Sa = Z·U·C·S/R · g</p>
+                            <p class="font-mono text-xs text-gray-500 dark:text-gray-400" id="formula-label">Sa =
+                                Z·U·C·S/R · g</p>
                         </div>
                         <span
                             class="rounded border border-gray-300 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-gray-600 dark:border-gray-700 dark:text-gray-400">
@@ -424,18 +437,18 @@
             </div>
         </div>
 
-    {{-- Dropdown ubigeo dentro del contenedor relativo --}}
-    <div class="ubigeo-dropdown hidden" id="ubigeo-dropdown"></div>
+        {{-- Dropdown ubigeo dentro del contenedor relativo --}}
+        <div class="ubigeo-dropdown hidden" id="ubigeo-dropdown"></div>
 
-    @pushOnce('scripts')
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-        @vite('resources/js/espectro-sismico/index.js')
-    @endpushOnce
+        @pushOnce('scripts')
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+            @vite('resources/js/espectro-sismico/index.js')
+        @endpushOnce
 
-</div>
+    </div>
 </x-app-layout>
