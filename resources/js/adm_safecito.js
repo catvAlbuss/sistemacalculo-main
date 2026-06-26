@@ -2058,7 +2058,7 @@ document.addEventListener("DOMContentLoaded", () => {
           const flat = Array.isArray(value?.[0]) ? value.flat(Infinity) : value;
           return (flat ?? []).map(Number);
         };
-        const limitPlotPoints = (points, limit = 6000) => {
+        const limitPlotPoints = (points, limit = 4000) => {
           if (points.length <= limit) {
             return points;
           }
@@ -2093,8 +2093,12 @@ document.addEventListener("DOMContentLoaded", () => {
               y: plotPoints.map(({ y }) => y),
               mode: "markers", // Scatter plot mode
               marker: {
-                size: 2, // Size of the markers
+                size: 3, // Size of the markers
                 color: plotPoints.map(({ z }) => z), // Color of the markers, based on Z data
+                opacity: 0.9,
+                line: {
+                  width: 0,
+                },
                 //colorscale: "Viridis", // Color scale
                 //colorscale: "Jet", // Color scale
                 /* showscale: true, // Show the color scale */
@@ -2104,7 +2108,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 3
               )}<br>σ<sub>max</sub> = ${max[index].toFixed(3)}</b><br>`,
               hoverinfo: "skip",
-              type: "scattergl",
+              type: "scatter",
               /* type: "pointcloudgl", // 3D scatter plot type */
             };
           });
