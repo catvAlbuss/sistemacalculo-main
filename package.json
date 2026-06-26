@@ -42,7 +42,6 @@
         "pdfmake": "^0.2.18",
         "plotly.js-dist-min": "2.35.3",
         "print-this": "^2.0.0",
-        "puppeteer": "^24.39.1",
         "sweetalert2": "^11.26.24",
         "tabulator-tables": "^6.3.1",
         "vue": "^3.5.31",

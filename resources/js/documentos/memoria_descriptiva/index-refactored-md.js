@@ -6,10 +6,15 @@ import { DocumentTransformerMD } from "./processors/documentTransformer-md.js";
 import ubigeoData from "./ubigeo.json";
 import { createMemoriaDescriptivaStore } from "./stores/memoriaDescriptivaStore.js";
 
-// Inicializar store globalmente
-if (typeof Alpine !== 'undefined' && !Alpine.store('memoriaDescriptiva')) {
-    Alpine.store('memoriaDescriptiva', createMemoriaDescriptivaStore());
-}
+// Registrar store y componente en el evento correcto del ciclo de vida de Alpine.
+// No usar typeof Alpine: en módulos Vite el global window.Alpine puede no estar
+// disponible en tiempo de evaluación del módulo. alpine:init garantiza el momento correcto.
+document.addEventListener('alpine:init', () => {
+    if (!window.Alpine.store('memoriaDescriptiva')) {
+        window.Alpine.store('memoriaDescriptiva', createMemoriaDescriptivaStore());
+    }
+    window.Alpine.data('memoriaDescriptiva', memoriaDescriptiva);
+});
 
 /**
  * Componente principal Alpine.js para Memoria Descriptiva
@@ -55,6 +60,9 @@ function memoriaDescriptiva() {
             this.initDefaultArrays();
             this.initDefaultData();
 
+            // Cargar imágenes desde IDB (siempre, incluso si el store.init() ya lo intentó)
+            this.$store.memoriaDescriptiva.loadImages().catch(e => console.warn('Error cargando imágenes desde IDB:', e));
+
             // ── AUTO-SAVE: cada vez que cualquier dato del store cambia, persistir ──
             // Observamos cover
             this.$watch('$store.memoriaDescriptiva.cover', () => {
@@ -98,10 +106,19 @@ function memoriaDescriptiva() {
             if (!store.cover.ubigeo.district) store.cover.ubigeo.district = "CONTAMANA";
 
             // Módulos por defecto (si está vacío)
+
+            // Módulos por defecto (si está vacío)
             if (store.sections.descripcionModulos.modulos.length === 0) {
-                store.sections.descripcionModulos.modulos = [
-                    { id: 1, nombre: "MÓDULO I", uso: "Grupo electrógeno, cuarto de tablero, maestranza", pisos: 1, sistemaX: "Sistema Dual", sistemaY: "Sistema de Albañilería confinada", elementosVerticales: "Placa L, Columnas CT, Muros de albañilería", elementosHorizontales: "Vigas V30", techo: "Losa aligerada" }
-                ];
+                const modulosPredefinidos = store.getDefaultModulos();  // ← CAMBIAR A store.getDefaultModulos()
+                store.sections.descripcionModulos.modulos = [];
+                for (let i = 0; i < modulosPredefinidos.length; i++) {
+                    store.sections.descripcionModulos.modulos.push({
+                        ...modulosPredefinidos[i],
+                        imagenes: [],
+                        subtitulosImagenes: []
+                    });
+                }
+                console.log('✅ 16 módulos cargados en initDefaultData');
             }
 
             // ==================== OBJETIVOS ====================
@@ -136,11 +153,11 @@ function memoriaDescriptiva() {
             // ==================== ANTECEDENTES ====================
             const textoAntecedentes = `La I.E 64193 es un centro educativo en Loreto que pertenece a la población Urbana, una institución educativa Escolarizada perteneciente a la DRE Loreto con código 160007 y que está supervisada por la UGEL Ucayali-Contamana.
 
-La Institución Educativa Inicial y Primaria N°64193, donde la fecha de incorporación al registro de servicios educativos del nivel inicial es el 10-03-2006 y del nivel primaria el 01-04-1911, año de su creación. En sus inicios los pobladores y autoridades, realizaron la donación de un terreno a la Dirección Regional de Educación de Loreto, con la única finalidad de que se construya una infraestructura educativa para el nivel primaria y posteriormente el inicial, con el fin de que los alumnos y el personal docente pueda contar con adecuados espacios pedagógicos, administrativos, complementarios y áreas de recreación, mejorando la calidad educativa de los alumnos. En la actualidad la I.E cuenta con 23 niños y dos docentes.
+            La Institución Educativa Inicial y Primaria N°64193, donde la fecha de incorporación al registro de servicios educativos del nivel inicial es el 10-03-2006 y del nivel primaria el 01-04-1911, año de su creación. En sus inicios los pobladores y autoridades, realizaron la donación de un terreno a la Dirección Regional de Educación de Loreto, con la única finalidad de que se construya una infraestructura educativa para el nivel primaria y posteriormente el inicial, con el fin de que los alumnos y el personal docente pueda contar con adecuados espacios pedagógicos, administrativos, complementarios y áreas de recreación, mejorando la calidad educativa de los alumnos. En la actualidad la I.E cuenta con 23 niños y dos docentes.
 
-Según el último censo educativo la institución educativa en el nivel Inicial - Jardín cuenta con clases en turno Mañana, con unas 3 secciones y tiene un total aproximado de 38 alumnos, contando con 20 varones y 18 mujeres. Con 3 docentes.
+            Según el último censo educativo la institución educativa en el nivel Inicial - Jardín cuenta con clases en turno Mañana, con unas 3 secciones y tiene un total aproximado de 38 alumnos, contando con 20 varones y 18 mujeres. Con 3 docentes.
 
-Así mismo la institución educativa en el nivel Primaria cuenta con clases en turno Mañana, con unas 6 secciones y tiene un total aproximado de 138 alumnos, contando con 74 varones y 64 mujeres. Con 7 docentes.`;
+            Así mismo la institución educativa en el nivel Primaria cuenta con clases en turno Mañana, con unas 6 secciones y tiene un total aproximado de 138 alumnos, contando con 74 varones y 64 mujeres. Con 7 docentes.`;
 
             if (!store.sections.generalidades.antecedentes.history) {
                 store.sections.generalidades.antecedentes.history = textoAntecedentes;
@@ -318,54 +335,75 @@ Así mismo la institución educativa en el nivel Primaria cuenta con clases en t
                 dp.uei = store.cover.uei || "Municipalidad Provincial de Ucayali";
             }
 
-            // Guardar los cambios en localStorage
-            store.save();
+            // Guardar SOLO texto — no tocar IDB para no borrar imágenes antes de loadImages()
+            store.saveTextOnly();
 
         },
-
         initDefaultArrays() {
             const store = this.$store.memoriaDescriptiva;
 
             // Inicializar módulos si está vacío
             if (!store.sections.descripcionModulos.modulos.length) {
-                store.sections.descripcionModulos.modulos = this.getDefaultModulos();
+                const modulosPredefinidos = store.getDefaultModulos();  // ← CAMBIAR A store.getDefaultModulos()
+                store.sections.descripcionModulos.modulos = [];
+                for (let i = 0; i < modulosPredefinidos.length; i++) {
+                    store.sections.descripcionModulos.modulos.push({
+                        ...modulosPredefinidos[i],
+                        imagenes: [],
+                        subtitulosImagenes: []
+                    });
+                }
+                console.log('✅ 16 módulos cargados con subtitulosImagenes');
+            } else {
+                // MIGRAR MÓDULOS EXISTENTES - SIN FORZAR PISOS
+                for (let i = 0; i < store.sections.descripcionModulos.modulos.length; i++) {
+                    const modulo = store.sections.descripcionModulos.modulos[i];
+                    if (!modulo.subtitulosImagenes) {
+                        modulo.subtitulosImagenes = [];
+                    }
+                    if (!modulo.imagenes) {
+                        modulo.imagenes = [];
+                    }
+                    // 🔥 ELIMINADO: ya no se fuerzan los pisos
+                    // Los pisos se respetan tal como el usuario los dejó
+                }
             }
 
-            // Inicializar marcos normativos
+            // Inicializar marcos normativos (estos métodos están en el componente)
             if (!store.sections.generalidades.marcoNormativo.length) {
                 store.sections.generalidades.marcoNormativo = this.getDefaultMarcoNormativo();
             }
 
-            // Inicializar criterios estructurales
             if (!store.sections.marcoTeorico.criteriosEstructurales.length) {
                 store.sections.marcoTeorico.criteriosEstructurales = this.getDefaultCriteriosEstructurales();
             }
 
-            // Inicializar elementos estructurales
             if (!store.sections.marcoTeorico.elementosEstructurales.length) {
                 store.sections.marcoTeorico.elementosEstructurales = this.getDefaultElementosEstructurales();
             }
+
+            // Guardar SOLO texto — no tocar IDB para no borrar imágenes antes de loadImages()
+            store.saveTextOnly();
         },
 
         getDefaultModulos() {
-            // 16 módulos basados en el Word de ejemplo
             return [
-                { id: 1, nombre: "MÓDULO I", uso: "Grupo electrógeno, cuarto de tablero, maestranza", pisos: 1, sistemaX: "Sistema Dual", sistemaY: "Sistema de Albañilería confinada", elementosVerticales: "Placa L (100x50x30x30 cm), Columnas CT (70x50x30x30cm), Muros de albañilería e=24cm", elementosHorizontales: "Vigas en X de V30xVar. cm, Vigas en Y de V30x50cm", techo: "Losa aligerada a dos aguas e=20cm", imagenes: [] },
-                { id: 2, nombre: "MÓDULO II", uso: "1° Piso: SUM., Comedor / 2° Piso: Módulo de conectividad, depósito AIP y AIP", pisos: 2, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x120x30x30 cm), Placa PT (100x50x30x30cm)", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [] },
-                { id: 3, nombre: "MÓDULO III", uso: "1° Piso: Biblioteca / 2° Piso: Taller creativo y depósito", pisos: 2, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x120x30x30 cm), Placa PT (100x50x30x30cm)", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [] },
-                { id: 4, nombre: "MÓDULO IV", uso: "Escalera", pisos: 3, sistemaX: "Sistema de Albañilería Confinada", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x100x30x30 cm), Muro Portante e=24cm", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x50 cm", techo: "Losa aligerada e=20cm (1° y 2° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [] },
-                { id: 5, nombre: "MÓDULO V", uso: "Aulas", pisos: 3, sistemaX: "Sistema de Albañilería Confinada", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x100x30x30 cm), Placa PT (50x100x30x30cm), Albañilería portante e=24cm", elementosHorizontales: "Vigas en X de V30x60 cm, Vigas en X de V30x50cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° y 2° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [] },
-                { id: 6, nombre: "MÓDULO VI", uso: "Aulas y Escalera", pisos: 3, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Albañilería Confinada", elementosVerticales: "Placa PL (50x50x30x30 cm), Placa PL (65x50x30x30 cm), Placa PT (100x50x30x30cm)", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° y 2° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [] },
-                { id: 7, nombre: "MÓDULO VII", uso: "Cocina, Almacén de alimentos, Cuarto de limpieza, Dep. combustible", pisos: 1, sistemaX: "Albañilería Confinada", sistemaY: "Albañilería Confinada", elementosVerticales: "Columnas (30x30 cm), Muro portante e=13cm, Placa e=13cm", elementosHorizontales: "Vigas en X de V30x40cm, Vigas en Y de V30x40cm", techo: "Losa aligerada a una sola agua e=20cm", imagenes: [] },
-                { id: 8, nombre: "MÓDULO VIII", uso: "1° Piso: Residuos sólidos, Sala de Docentes, Tópico, secretaria, dirección / 2° Piso: Sala de Docentes, Sala de Reuniones", pisos: 2, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Columna CL (50x50x30x30 cm), Placa PT (100x50x30x30cm), Placa 20x200cm", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [] },
-                { id: 9, nombre: "MÓDULO IX", uso: "Aulas, deposito, almacén, SS.HH", pisos: 1, sistemaX: "Sistema Dual", sistemaY: "Albañilería confinada", elementosVerticales: "Placa PT (100x50x30x30 cm), Columnas CT (70x50x30x30cm)", elementosHorizontales: "Vigas en X de V30xVar. cm, Vigas en Y de V30x50cm", techo: "Losa aligerada a dos aguas e=20cm", imagenes: [] },
-                { id: 10, nombre: "MÓDULO X", uso: "Cocina, depósitos, Comedor, SS.HH", pisos: 1, sistemaX: "Sistema de Dual", sistemaY: "Sistema de Muros Estructurales", elementosVerticales: "Placas PL (100x50x30x30 cm), Columnas CT (70x50x30x30cm), Placas e=15cm", elementosHorizontales: "Vigas en X de V30xVar. cm, Vigas en Y de V30x50cm", techo: "Losa aligerada a dos aguas e=20cm", imagenes: [] },
-                { id: 11, nombre: "MÓDULO XI", uso: "Área de juego", pisos: 1, sistemaX: "Pórticos Ordinarios Resistentes a Momentos (OMF)", sistemaY: "Pórticos Especiales Resistentes a Momentos (SMF)", elementosVerticales: "Columna cuadrada metálica C30x30cm2 e=8mm", elementosHorizontales: "Vigas W 10x45, correas 2x3x3mm, Tijerales tubo HSS 4X4X3mm", techo: "Cobertura parabólica de Aluzinc tipo TR4", imagenes: [] },
-                { id: 12, nombre: "MÓDULO XII", uso: "Cuarto de bombas y/o tanque elevado", pisos: 4, sistemaX: "No aplica", sistemaY: "No aplica", elementosVerticales: "Columnas CL 60x60x25x25 cm", elementosHorizontales: "Vigas en X de V25x60cm, Vigas en Y de V25x60cm", techo: "Losa maciza e=20cm", imagenes: [] },
-                { id: 13, nombre: "MÓDULO XIII", uso: "Rampa", pisos: 3, sistemaX: "Muros estructurales", sistemaY: "Muros estructurales", elementosVerticales: "Columna rectangular (30x40cm), Placas e=30cm", elementosHorizontales: "Vigas en X de V30x60 cm, Vigas en Y de V30x60cm", techo: "Losa en rampa de 15cm, Losa aligerada de 20cm a dos aguas", imagenes: [] },
-                { id: 14, nombre: "MÓDULO XIV", uso: "Guardianía y SS.HH", pisos: 1, sistemaX: "Albañilería Confinada", sistemaY: "Albañilería Confinada", elementosVerticales: "Columnas CL (40x40x25x25 cm)", elementosHorizontales: "Vigas en X de V25x40cm, Vigas en Y de V25x40cm", techo: "Losa aligerada a un agua e=20cm", imagenes: [] },
-                { id: 15, nombre: "MÓDULO XV", uso: "SS.HH", pisos: 3, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Albañilería Confinada", elementosVerticales: "Columna CL (50x50x30x30 cm), Placas e=20cm, Albañilería e=24cm", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa maciza e=20cm (1° y 2° Nivel), Losa aligerada dos aguas e=20cm (Techo)", imagenes: [] },
-                { id: 16, nombre: "MÓDULO XVI", uso: "SUM EXTERIOR", pisos: 1, sistemaX: "Pórticos", sistemaY: "Pórticos", elementosVerticales: "Columna cuadrada de concreto armado C30x30cm2", elementosHorizontales: "Viga de concreto de 30x40cm2 en X. Tijerales en Y tubo HSS 4X6X3mm", techo: "Cobertura parabólica de Aluzinc tipo TR4", imagenes: [] },
+                { id: 1, nombre: "MÓDULO I", uso: "Grupo electrógeno, cuarto de tablero, maestranza", pisos: 1, sistemaX: "Sistema Dual", sistemaY: "Sistema de Albañilería confinada", elementosVerticales: "Placa L (100x50x30x30 cm), Columnas CT (70x50x30x30cm), Muros de albañilería e=24cm", elementosHorizontales: "Vigas en X de V30xVar. cm, Vigas en Y de V30x50cm", techo: "Losa aligerada a dos aguas e=20cm", imagenes: [], subtitulosImagenes: [] },
+                { id: 2, nombre: "MÓDULO II", uso: "1° Piso: SUM., Comedor / 2° Piso: Módulo de conectividad, depósito AIP y AIP", pisos: 2, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x120x30x30 cm), Placa PT (100x50x30x30cm)", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                { id: 3, nombre: "MÓDULO III", uso: "1° Piso: Biblioteca / 2° Piso: Taller creativo y depósito", pisos: 2, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x120x30x30 cm), Placa PT (100x50x30x30cm)", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                { id: 4, nombre: "MÓDULO IV", uso: "Escalera", pisos: 3, sistemaX: "Sistema de Albañilería Confinada", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x100x30x30 cm), Muro Portante e=24cm", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x50 cm", techo: "Losa aligerada e=20cm (1° y 2° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                { id: 5, nombre: "MÓDULO V", uso: "Aulas", pisos: 3, sistemaX: "Sistema de Albañilería Confinada", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Placa PL (50x100x30x30 cm), Placa PT (50x100x30x30cm), Albañilería portante e=24cm", elementosHorizontales: "Vigas en X de V30x60 cm, Vigas en X de V30x50cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° y 2° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                { id: 6, nombre: "MÓDULO VI", uso: "Aulas y Escalera", pisos: 3, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Albañilería Confinada", elementosVerticales: "Placa PL (50x50x30x30 cm), Placa PL (65x50x30x30 cm), Placa PT (100x50x30x30cm)", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° y 2° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                { id: 7, nombre: "MÓDULO VII", uso: "Cocina, Almacén de alimentos, Cuarto de limpieza, Dep. combustible", pisos: 1, sistemaX: "Albañilería Confinada", sistemaY: "Albañilería Confinada", elementosVerticales: "Columnas (30x30 cm), Muro portante e=13cm, Placa e=13cm", elementosHorizontales: "Vigas en X de V30x40cm, Vigas en Y de V30x40cm", techo: "Losa aligerada a una sola agua e=20cm", imagenes: [], subtitulosImagenes: [] },
+                { id: 8, nombre: "MÓDULO VIII", uso: "1° Piso: Residuos sólidos, Sala de Docentes, Tópico, secretaria, dirección / 2° Piso: Sala de Docentes, Sala de Reuniones", pisos: 2, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Muros estructurales", elementosVerticales: "Columna CL (50x50x30x30 cm), Placa PT (100x50x30x30cm), Placa 20x200cm", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa aligerada e=20cm (1° Nivel), Losa aligerada a dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                { id: 9, nombre: "MÓDULO IX", uso: "Aulas, deposito, almacén, SS.HH", pisos: 1, sistemaX: "Sistema Dual", sistemaY: "Albañilería confinada", elementosVerticales: "Placa PT (100x50x30x30 cm), Columnas CT (70x50x30x30cm)", elementosHorizontales: "Vigas en X de V30xVar. cm, Vigas en Y de V30x50cm", techo: "Losa aligerada a dos aguas e=20cm", imagenes: [], subtitulosImagenes: [] },
+                { id: 10, nombre: "MÓDULO X", uso: "Cocina, depósitos, Comedor, SS.HH", pisos: 1, sistemaX: "Sistema de Dual", sistemaY: "Sistema de Muros Estructurales", elementosVerticales: "Placas PL (100x50x30x30 cm), Columnas CT (70x50x30x30cm), Placas e=15cm", elementosHorizontales: "Vigas en X de V30xVar. cm, Vigas en Y de V30x50cm", techo: "Losa aligerada a dos aguas e=20cm", imagenes: [], subtitulosImagenes: [] },
+                { id: 11, nombre: "MÓDULO XI", uso: "Área de juego", pisos: 1, sistemaX: "Pórticos Ordinarios Resistentes a Momentos (OMF)", sistemaY: "Pórticos Especiales Resistentes a Momentos (SMF)", elementosVerticales: "Columna cuadrada metálica C30x30cm2 e=8mm", elementosHorizontales: "Vigas W 10x45, correas 2x3x3mm, Tijerales tubo HSS 4X4X3mm", techo: "Cobertura parabólica de Aluzinc tipo TR4", imagenes: [], subtitulosImagenes: [] },
+                { id: 12, nombre: "MÓDULO XII", uso: "Cuarto de bombas y/o tanque elevado", pisos: 4, sistemaX: "No aplica", sistemaY: "No aplica", elementosVerticales: "Columnas CL 60x60x25x25 cm", elementosHorizontales: "Vigas en X de V25x60cm, Vigas en Y de V25x60cm", techo: "Losa maciza e=20cm", imagenes: [], subtitulosImagenes: [] },
+                { id: 13, nombre: "MÓDULO XIII", uso: "Rampa", pisos: 3, sistemaX: "Muros estructurales", sistemaY: "Muros estructurales", elementosVerticales: "Columna rectangular (30x40cm), Placas e=30cm", elementosHorizontales: "Vigas en X de V30x60 cm, Vigas en Y de V30x60cm", techo: "Losa en rampa de 15cm, Losa aligerada de 20cm a dos aguas", imagenes: [], subtitulosImagenes: [] },
+                { id: 14, nombre: "MÓDULO XIV", uso: "Guardianía y SS.HH", pisos: 1, sistemaX: "Albañilería Confinada", sistemaY: "Albañilería Confinada", elementosVerticales: "Columnas CL (40x40x25x25 cm)", elementosHorizontales: "Vigas en X de V25x40cm, Vigas en Y de V25x40cm", techo: "Losa aligerada a un agua e=20cm", imagenes: [], subtitulosImagenes: [] },
+                { id: 15, nombre: "MÓDULO XV", uso: "SS.HH", pisos: 3, sistemaX: "Sistema de Muros estructurales", sistemaY: "Sistema de Albañilería Confinada", elementosVerticales: "Columna CL (50x50x30x30 cm), Placas e=20cm, Albañilería e=24cm", elementosHorizontales: "Vigas en X de V30x50 cm, Vigas en Y de V30x60cm, Vigas en Y de V30x50cm", techo: "Losa maciza e=20cm (1° y 2° Nivel), Losa aligerada dos aguas e=20cm (Techo)", imagenes: [], subtitulosImagenes: [] },
+                { id: 16, nombre: "MÓDULO XVI", uso: "SUM EXTERIOR", pisos: 1, sistemaX: "Pórticos", sistemaY: "Pórticos", elementosVerticales: "Columna cuadrada de concreto armado C30x30cm2", elementosHorizontales: "Viga de concreto de 30x40cm2 en X. Tijerales en Y tubo HSS 4X6X3mm", techo: "Cobertura parabólica de Aluzinc tipo TR4", imagenes: [], subtitulosImagenes: [] },
             ];
         },
 
@@ -424,6 +462,7 @@ Así mismo la institución educativa en el nivel Primaria cuenta con clases en t
                 elementosHorizontales: "",
                 techo: "",
                 imagenes: [],
+                subtitulosImagenes: []
             });
         },
 
@@ -431,25 +470,29 @@ Así mismo la institución educativa en el nivel Primaria cuenta con clases en t
             this.$store.memoriaDescriptiva.sections.descripcionModulos.modulos.splice(index, 1);
         },
 
-        // ============================================
-        // MÉTODOS - Imágenes
-        // ============================================
-        async handleImageChange(key, event) {
-            const file = event.target.files?.[0];
-            if (!file) return;
-            if (!file.type.startsWith('image/')) {
-                alert('Por favor seleccione un archivo de imagen válido');
-                return;
+        // ─── Imágenes simples (dataURL) ────────────────────────────────────────
+        updateImage(key, file, preview) {
+            this.images[key] = file;      // File() — no persiste
+            this.previews[key] = preview;   // dataURL — sí persiste
+
+            // 🔥 AGREGAR ESTO: Guardar también en cover para persistencia
+            if (key === 'coverImage') {
+                this.cover.coverImage = preview;
             }
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                this.$store.memoriaDescriptiva.updateImage(key, file, e.target.result);
-            };
-            reader.readAsDataURL(file);
+
+            this.save();
         },
 
         removeImage(key) {
-            this.$store.memoriaDescriptiva.removeImage(key);
+            this.images[key] = null;
+            this.previews[key] = null;
+
+            // 🔥 AGREGAR ESTO: Limpiar también en cover
+            if (key === 'coverImage') {
+                this.cover.coverImage = null;
+            }
+
+            this.save();
         },
 
         async handleModuloImageChange(moduloIndex, imageIndex, event) {
@@ -468,6 +511,91 @@ Así mismo la institución educativa en el nivel Primaria cuenta con clases en t
 
         removeModuloImage(moduloIndex, imageIndex) {
             this.$store.memoriaDescriptiva.removeModuloImage(moduloIndex, imageIndex);
+        },
+
+        // ============================================
+        // MÉTODOS - DEMOLICIÓN
+        // ============================================
+
+        addModuloADemoler() {
+            const store = this.$store.memoriaDescriptiva;
+            if (!store.sections.demolicion.modulosADemoler) {
+                store.sections.demolicion.modulosADemoler = [];
+            }
+            store.sections.demolicion.modulosADemoler.push('');
+            store.save();
+        },
+
+        removeModuloADemoler(idx) {
+            const store = this.$store.memoriaDescriptiva;
+            if (store.sections.demolicion.modulosADemoler) {
+                store.sections.demolicion.modulosADemoler.splice(idx, 1);
+            }
+            // También eliminar la imagen asociada si existe
+            if (store.sections.demolicion.modulosImagenes) {
+                store.sections.demolicion.modulosImagenes.splice(idx, 1);
+            }
+            store.save();
+        },
+
+        addObraExteriorADemoler() {
+            const store = this.$store.memoriaDescriptiva;
+            if (!store.sections.demolicion.obrasExterioresADemoler) {
+                store.sections.demolicion.obrasExterioresADemoler = [];
+            }
+            store.sections.demolicion.obrasExterioresADemoler.push('');
+            store.save();
+        },
+
+        removeObraExteriorADemoler(idx) {
+            const store = this.$store.memoriaDescriptiva;
+            if (store.sections.demolicion.obrasExterioresADemoler) {
+                store.sections.demolicion.obrasExterioresADemoler.splice(idx, 1);
+            }
+            store.save();
+        },
+
+        openImageUpload(idx) {
+            const inputId = `modulo-img-${idx}`;
+            const input = document.getElementById(inputId);
+            if (input) input.click();
+        },
+
+        uploadModuleImage(idx, event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                alert('Por favor seleccione una imagen válida');
+                return;
+            }
+            if (file.size > 10 * 1024 * 1024) {
+                alert('La imagen no puede superar los 10 MB');
+                return;
+            }
+
+            const store = this.$store.memoriaDescriptiva;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if (!store.sections.demolicion.modulosImagenes) {
+                    store.sections.demolicion.modulosImagenes = [];
+                }
+                store.sections.demolicion.modulosImagenes[idx] = e.target.result;
+                store.save();
+            };
+            reader.readAsDataURL(file);
+        },
+
+        getModuleImage(idx) {
+            const store = this.$store.memoriaDescriptiva;
+            return store?.sections?.demolicion?.modulosImagenes?.[idx] || null;
+        },
+
+        removeModuleImage(idx) {
+            const store = this.$store.memoriaDescriptiva;
+            if (store.sections.demolicion.modulosImagenes) {
+                store.sections.demolicion.modulosImagenes[idx] = null;
+                store.save();
+            }
         },
 
         // ============================================
@@ -602,7 +730,7 @@ Así mismo la institución educativa en el nivel Primaria cuenta con clases en t
     };
 }
 
-// Exportar función principal
+// Mantener en window como fallback para referencias legacy
 window.memoriaDescriptiva = memoriaDescriptiva;
 
 export default memoriaDescriptiva;

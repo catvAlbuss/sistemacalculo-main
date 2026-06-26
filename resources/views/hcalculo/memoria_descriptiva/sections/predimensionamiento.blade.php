@@ -129,256 +129,320 @@
             store.save();
         },
         
-        async exportWord() {
-            this.isExporting = true;
-            try {
-                if ($store.memoriaDescriptiva?.exportToWord) {
-                    await $store.memoriaDescriptiva.exportToWord();
-                } else {
-                    console.warn('Función exportToWord no disponible en el store');
-                    alert('La función de exportación aún no está disponible');
-                }
-            } catch (error) {
-                console.error('Error al exportar:', error);
-                alert('Error al exportar el documento');
-            } finally {
-                this.isExporting = false;
-            }
-        }
+async exportWord() {
+    this.isExporting = true;
+    try {
+        await $store.memoriaDescriptiva.exportWord();
+    } catch (error) {
+        console.error('Error al exportar:', error);
+        alert('Error al exportar el documento: ' + error.message);
+    } finally {
+        this.isExporting = false;
+    }
+}
     }" x-init="initPredimensionamiento()">
         <div class="container mx-auto px-4 max-w-7xl">
 
-            {{-- Barra de navegación --}}
-            <div class="flex flex-wrap gap-2 mb-6 pb-4 border-b border-gray-200">
-                <a href="{{ route('calculadora.asistente.memoria-descriptiva.portada')}}" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition">📄 Portada</a>
-                <a href="{{ route('calculadora.asistente.memoria-descriptiva.generalidades') }}" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition">📋 1. GENERALIDADES</a>
-                <a href="{{ route('calculadora.asistente.memoria-descriptiva.consideraciones') }}" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition">⚙️ 2. CONSIDERACIONES</a>
-                <a href="{{ route('calculadora.asistente.memoria-descriptiva.predimensionamiento') }}" class="px-4 py-2 rounded-lg bg-green-600 text-white shadow-md">📐 3. PREDIMENSIONAMIENTO</a>
-                <a href="{{ route('calculadora.asistente.memoria-descriptiva.demolicion') }}" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition">💥 4. DEMOLICIÓN</a>
-            </div>
+            {{-- ══════════════════════════════════════
+                 BARRA DE NAVEGACIÓN
+            ══════════════════════════════════════ --}}
+            <nav class="flex flex-wrap gap-2 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                <a href="{{ route('calculadora.asistente.memoria-descriptiva.portada') }}"
+                   class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition text-sm font-medium">
+                    📄 Portada
+                </a>
+                <a href="{{ route('calculadora.asistente.memoria-descriptiva.generalidades') }}"
+                   class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition text-sm font-medium">
+                    📋 1. GENERALIDADES
+                </a>
+                <a href="{{ route('calculadora.asistente.memoria-descriptiva.consideraciones') }}"
+                   class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition text-sm font-medium">
+                    ⚙️ 2. CONSIDERACIONES
+                </a>
+                <a href="{{ route('calculadora.asistente.memoria-descriptiva.predimensionamiento') }}"
+                   class="px-4 py-2 rounded-lg bg-green-600 text-white shadow-md text-sm font-medium">
+                    📐 3. PREDIMENSIONAMIENTO
+                </a>
+                <a href="{{ route('calculadora.asistente.memoria-descriptiva.demolicion') }}"
+                   class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition text-sm font-medium">
+                    💥 4. DEMOLICIÓN
+                </a>
+            </nav>
 
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
-                
-                {{-- Header con gradiente --}}
-                <div class="bg-gradient-to-r from-cyan-600 to-cyan-800 px-6 py-4">
+
+                {{-- HEADER --}}
+                <div class="bg-gradient-to-r from-green-700 to-green-800 px-6 py-4">
                     <div class="flex items-center gap-3">
-                        <div class="h-12 w-12 rounded-xl bg-white/20 flex items-center justify-center">
+                        <div class="h-12 w-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
                             <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
                             </svg>
                         </div>
                         <div>
                             <h2 class="text-xl font-bold text-white">3. PREDIMENSIONAMIENTO DE ELEMENTOS ESTRUCTURALES</h2>
-                            <p class="text-cyan-100 text-sm">Dimensiones preliminares de los elementos estructurales por módulo</p>
+                            <p class="text-green-100 text-sm">Dimensiones preliminares de los elementos estructurales por módulo</p>
                         </div>
                     </div>
                 </div>
 
-                <div class="p-6">
-                    
-                    {{-- Selector de Módulo - 16 módulos --}}
-                    <div class="mb-8">
-                        <div class="flex items-center justify-between mb-3">
-                            <label class="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                <div class="p-6 space-y-8">
+
+                    {{-- ══════════════════════════════════════
+                         SELECTOR DE MÓDULO
+                    ══════════════════════════════════════ --}}
+                    <section class="bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                        <div class="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-800/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                            <h3 class="font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                                </svg>
                                 SELECCIONAR MÓDULO
-                            </label>
-                            <span class="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">16 módulos</span>
+                            </h3>
                         </div>
-                        <div class="grid grid-cols-4 sm:grid-cols-8 md:grid-cols-12 lg:grid-cols-16 gap-2">
-                            <template x-for="i in 16" :key="i">
-                                <button @click="moduloActual = i" 
-                                    :class="moduloActual === i ? 'bg-gradient-to-r from-cyan-600 to-cyan-700 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
-                                    class="px-2 py-2 rounded-lg text-xs font-semibold transition-all duration-200">
-                                    <span class="block text-center">M-<span x-text="String(i).padStart(2, '0')"></span></span>
-                                </button>
-                            </template>
+                        <div class="p-4">
+                            <div class="grid grid-cols-4 sm:grid-cols-8 md:grid-cols-12 lg:grid-cols-16 gap-2">
+                                <template x-for="i in 16" :key="i">
+                                    <button @click="moduloActual = i" 
+                                        :class="moduloActual === i ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
+                                        class="px-2 py-2 rounded-lg text-xs font-semibold transition-all duration-200">
+                                        <span class="block text-center">M-<span x-text="String(i).padStart(2, '0')"></span></span>
+                                    </button>
+                                </template>
+                            </div>
+                            <div class="text-center mt-4">
+                                <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 text-sm">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    </svg>
+                                    Módulo actual: <strong x-text="'M-' + String(moduloActual).padStart(2, '0')"></strong>
+                                </span>
+                            </div>
                         </div>
-                    </div>
+                    </section>
 
-                    {{-- Indicador visual del módulo seleccionado --}}
-                    <div class="text-center mb-6">
-                        <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                            Módulo actual: <strong x-text="'M-' + String(moduloActual).padStart(2, '0')"></strong>
-                        </span>
-                    </div>
-
-                    {{-- Datos del Módulo Actual --}}
+                    {{-- Formularios del módulo seleccionado --}}
                     <template x-if="$store.memoriaDescriptiva?.sections?.predimensionamiento?.[moduloActual]">
                         <div>
-                            {{-- ========== PREDIMENSIONAMIENTO DE TECHOS ========== --}}
-                            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+
+                            {{-- ══════════════════════════════════════
+                                 1. PREDIMENSIONAMIENTO DE TECHOS
+                            ══════════════════════════════════════ --}}
+                            <section class="bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
                                 <div class="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-800/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                                     <h3 class="font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                                        <svg class="w-5 h-5 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                                        <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                                        </svg>
                                         PREDIMENSIONAMIENTO DE TECHOS
                                     </h3>
                                 </div>
                                 <div class="p-4">
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div>
-                                            <label class="text-xs font-semibold text-gray-500 block mb-1">Tipo de techo</label>
+                                            <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 block mb-1">Tipo de techo</label>
                                             <input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].techos.tipo" 
-                                                   class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-cyan-500">
+                                                   class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent">
                                         </div>
                                         <div>
-                                            <label class="text-xs font-semibold text-gray-500 block mb-1">Luz mayor (m)</label>
+                                            <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 block mb-1">Luz mayor (m)</label>
                                             <input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].techos.luz" 
-                                                   class="w-full border rounded-lg p-2 text-sm">
+                                                   class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent">
                                         </div>
                                         <div>
-                                            <label class="text-xs font-semibold text-gray-500 block mb-1">Espesor propuesto (m)</label>
+                                            <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 block mb-1">Espesor propuesto (m)</label>
                                             <input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].techos.espesor" 
-                                                   class="w-full border rounded-lg p-2 text-sm">
+                                                   class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent">
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </section>
 
-                            {{-- ========== PREDIMENSIONAMIENTO DE VIGAS ========== --}}
-                            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+                            {{-- ══════════════════════════════════════
+                                 2. PREDIMENSIONAMIENTO DE VIGAS
+                            ══════════════════════════════════════ --}}
+                            <section class="bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
                                 <div class="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-800/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                                     <h3 class="font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                                        <svg class="w-5 h-5 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                                        <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                        </svg>
                                         PREDIMENSIONAMIENTO DE VIGAS
                                     </h3>
                                 </div>
                                 <div class="p-4">
-                                    <div class="overflow-x-auto">
-                                        <table class="w-full border-collapse border border-gray-300 text-sm">
+                                    <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
+                                        <table class="w-full border-collapse text-sm">
                                             <thead>
                                                 <tr class="bg-gray-100 dark:bg-gray-700">
-                                                    <th class="border p-2">Eje</th>
-                                                    <th class="border p-2">b (cm)</th>
-                                                    <th class="border p-2">h (cm)</th>
-                                                    <th class="border p-2">Luz (m)</th>
-                                                    <th class="border p-2">b/h</th>
+                                                    <th class="border border-gray-200 dark:border-gray-600 p-2 text-center text-xs font-semibold text-gray-600 dark:text-gray-300">Eje</th>
+                                                    <th class="border border-gray-200 dark:border-gray-600 p-2 text-center text-xs font-semibold text-gray-600 dark:text-gray-300">b (cm)</th>
+                                                    <th class="border border-gray-200 dark:border-gray-600 p-2 text-center text-xs font-semibold text-gray-600 dark:text-gray-300">h (cm)</th>
+                                                    <th class="border border-gray-200 dark:border-gray-600 p-2 text-center text-xs font-semibold text-gray-600 dark:text-gray-300">Luz (m)</th>
+                                                    <th class="border border-gray-200 dark:border-gray-600 p-2 text-center text-xs font-semibold text-gray-600 dark:text-gray-300">b/h</th>
                                                 </tr>
                                             </thead>
-                                            <tbody>
-                                                <tr>
-                                                    <td class="border p-2 font-semibold text-center">A</td>
-                                                    <td class="border p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeA.b" class="w-20 border rounded p-1 text-center"></td>
-                                                    <td class="border p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeA.h" class="w-20 border rounded p-1 text-center"></td>
-                                                    <td class="border p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeA.luz" class="w-20 border rounded p-1 text-center"></td>
-                                                    <td class="border p-2 text-center" x-text="($store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeA.b / $store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeA.h).toFixed(2)"></td>
+                                            <tbody class="bg-white dark:bg-gray-800">
+                                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2 font-semibold text-center text-gray-700 dark:text-gray-300">A</td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeA.b" class="w-20 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"></td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeA.h" class="w-20 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"></td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeA.luz" class="w-20 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"></td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2 text-center text-gray-600 dark:text-gray-400" x-text="($store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeA.b / $store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeA.h).toFixed(2)"></td>
                                                 </tr>
-                                                <tr>
-                                                    <td class="border p-2 font-semibold text-center">B</td>
-                                                    <td class="border p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeB.b" class="w-20 border rounded p-1 text-center"></td>
-                                                    <td class="border p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeB.h" class="w-20 border rounded p-1 text-center"></td>
-                                                    <td class="border p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeB.luz" class="w-20 border rounded p-1 text-center"></td>
-                                                    <td class="border p-2 text-center" x-text="($store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeB.b / $store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeB.h).toFixed(2)"></td>
+                                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2 font-semibold text-center text-gray-700 dark:text-gray-300">B</td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeB.b" class="w-20 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"></td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeB.h" class="w-20 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"></td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeB.luz" class="w-20 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"></td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2 text-center text-gray-600 dark:text-gray-400" x-text="($store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeB.b / $store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeB.h).toFixed(2)"></td>
                                                 </tr>
-                                                <tr>
-                                                    <td class="border p-2 font-semibold text-center">C</td>
-                                                    <td class="border p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeC.b" class="w-20 border rounded p-1 text-center"></td>
-                                                    <td class="border p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeC.h" class="w-20 border rounded p-1 text-center"></td>
-                                                    <td class="border p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeC.luz" class="w-20 border rounded p-1 text-center"></td>
-                                                    <td class="border p-2 text-center" x-text="($store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeC.b / $store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeC.h).toFixed(2)"></td>
+                                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2 font-semibold text-center text-gray-700 dark:text-gray-300">C</td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeC.b" class="w-20 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"></td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeC.h" class="w-20 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"></td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeC.luz" class="w-20 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"></td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2 text-center text-gray-600 dark:text-gray-400" x-text="($store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeC.b / $store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].vigas.principal.ejeC.h).toFixed(2)"></td>
                                                 </tr>
                                             </tbody>
                                         </table>
                                     </div>
                                 </div>
-                            </div>
+                            </section>
 
-                            {{-- ========== PREDIMENSIONAMIENTO DE COLUMNAS ========== --}}
-                            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+                            {{-- ══════════════════════════════════════
+                                 3. PREDIMENSIONAMIENTO DE COLUMNAS
+                            ══════════════════════════════════════ --}}
+                            <section class="bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
                                 <div class="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-800/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                                     <h3 class="font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                                        <svg class="w-5 h-5 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                                        <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                        </svg>
                                         PREDIMENSIONAMIENTO DE COLUMNAS
                                     </h3>
                                 </div>
                                 <div class="p-4">
-                                    <div class="overflow-x-auto">
-                                        <table class="w-full border-collapse border border-gray-300 text-sm">
+                                    <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
+                                        <table class="w-full border-collapse text-sm">
                                             <thead>
                                                 <tr class="bg-gray-100 dark:bg-gray-700">
-                                                    <th class="border p-2">Columna</th>
-                                                    <th class="border p-2">b (cm)</th>
-                                                    <th class="border p-2">h (cm)</th>
-                                                    <th class="border p-2">Área (cm²)</th>
-                                                    <th class="border p-2">Observación</th>
+                                                    <th class="border border-gray-200 dark:border-gray-600 p-2 text-center text-xs font-semibold text-gray-600 dark:text-gray-300">Columna</th>
+                                                    <th class="border border-gray-200 dark:border-gray-600 p-2 text-center text-xs font-semibold text-gray-600 dark:text-gray-300">b (cm)</th>
+                                                    <th class="border border-gray-200 dark:border-gray-600 p-2 text-center text-xs font-semibold text-gray-600 dark:text-gray-300">h (cm)</th>
+                                                    <th class="border border-gray-200 dark:border-gray-600 p-2 text-center text-xs font-semibold text-gray-600 dark:text-gray-300">Área (cm²)</th>
+                                                    <th class="border border-gray-200 dark:border-gray-600 p-2 text-center text-xs font-semibold text-gray-600 dark:text-gray-300">Observación</th>
                                                 </tr>
                                             </thead>
-                                            <tbody>
-                                                <tr>
-                                                    <td class="border p-2 font-semibold">C1 (esquina)</td>
-                                                    <td class="border p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c1.b" class="w-20 border rounded p-1 text-center"></td>
-                                                    <td class="border p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c1.h" class="w-20 border rounded p-1 text-center"></td>
-                                                    <td class="border p-2 text-center" x-text="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c1.b * $store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c1.h"></td>
-                                                    <td class="border p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c1.obs" class="w-full border rounded p-1"></td>
+                                            <tbody class="bg-white dark:bg-gray-800">
+                                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2 font-semibold text-gray-700 dark:text-gray-300">C1 (esquina)</td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c1.b" class="w-20 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"></td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c1.h" class="w-20 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"></td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2 text-center text-gray-600 dark:text-gray-400" x-text="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c1.b * $store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c1.h"></td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c1.obs" class="w-full border border-gray-300 dark:border-gray-600 rounded p-1 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"></td>
                                                 </tr>
-                                                <tr>
-                                                    <td class="border p-2 font-semibold">C2 (borde)</td>
-                                                    <td class="border p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c2.b" class="w-20 border rounded p-1 text-center"></td>
-                                                    <td class="border p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c2.h" class="w-20 border rounded p-1 text-center"></td>
-                                                    <td class="border p-2 text-center" x-text="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c2.b * $store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c2.h"></td>
-                                                    <td class="border p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c2.obs" class="w-full border rounded p-1"></td>
+                                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2 font-semibold text-gray-700 dark:text-gray-300">C2 (borde)</td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c2.b" class="w-20 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"></td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c2.h" class="w-20 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"></td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2 text-center text-gray-600 dark:text-gray-400" x-text="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c2.b * $store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c2.h"></td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c2.obs" class="w-full border border-gray-300 dark:border-gray-600 rounded p-1 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"></td>
                                                 </tr>
-                                                <tr>
-                                                    <td class="border p-2 font-semibold">C3 (central)</td>
-                                                    <td class="border p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c3.b" class="w-20 border rounded p-1 text-center"></td>
-                                                    <td class="border p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c3.h" class="w-20 border rounded p-1 text-center"></td>
-                                                    <td class="border p-2 text-center" x-text="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c3.b * $store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c3.h"></td>
-                                                    <td class="border p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c3.obs" class="w-full border rounded p-1"></td>
+                                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2 font-semibold text-gray-700 dark:text-gray-300">C3 (central)</td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c3.b" class="w-20 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"></td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c3.h" class="w-20 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"></td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2 text-center text-gray-600 dark:text-gray-400" x-text="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c3.b * $store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c3.h"></td>
+                                                    <td class="border border-gray-200 dark:border-gray-600 p-2"><input type="text" x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].columnas.c3.obs" class="w-full border border-gray-300 dark:border-gray-600 rounded p-1 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"></td>
                                                 </tr>
                                             </tbody>
                                         </table>
                                     </div>
                                 </div>
-                            </div>
+                            </section>
 
-                            {{-- Observaciones --}}
-                            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                            {{-- ══════════════════════════════════════
+                                 4. OBSERVACIONES
+                            ══════════════════════════════════════ --}}
+                            <section class="bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
                                 <div class="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-800/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                                     <h3 class="font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                                        <svg class="w-5 h-5 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
                                         OBSERVACIONES
                                     </h3>
                                 </div>
                                 <div class="p-4">
                                     <textarea x-model="$store.memoriaDescriptiva.sections.predimensionamiento[moduloActual].observaciones" 
-                                              rows="4" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-cyan-500"></textarea>
+                                              rows="4" 
+                                              class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent resize-y"></textarea>
                                 </div>
-                            </div>
+                            </section>
+
                         </div>
                     </template>
 
                     {{-- Mensaje de carga --}}
-                    <div x-show="!$store.memoriaDescriptiva?.sections?.predimensionamiento?.[moduloActual]" class="text-center py-16 text-gray-400">
-                        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                        <p>Cargando datos del módulo <span x-text="'M-' + String(moduloActual).padStart(2, '0')"></span>...</p>
+                    <div x-show="!$store.memoriaDescriptiva?.sections?.predimensionamiento?.[moduloActual]" 
+                         class="text-center py-16 text-gray-400 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700">
+                        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                        </svg>
+                        <p class="text-sm">Cargando datos del módulo <span x-text="'M-' + String(moduloActual).padStart(2, '0')"></span>...</p>
                     </div>
 
-                    {{-- Botones de navegación --}}
-                    <div class="flex justify-between items-center mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                        <a href="{{ route('calculadora.asistente.memoria-descriptiva.consideraciones') }}" class="px-5 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                    {{-- ══════════════════════════════════════
+                         BOTONES DE NAVEGACIÓN
+                    ══════════════════════════════════════ --}}
+                    <div class="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <a href="{{ route('calculadora.asistente.memoria-descriptiva.consideraciones') }}"
+                           class="px-5 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition flex items-center gap-2 text-sm font-medium">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                            </svg>
                             Anterior
                         </a>
+
                         <div class="flex gap-3">
-                            <button @click="moduloActual = moduloActual > 1 ? moduloActual - 1 : 16" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 transition">◀ Módulo anterior</button>
-                            <button @click="moduloActual = moduloActual < 16 ? moduloActual + 1 : 1" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 transition">Módulo siguiente ▶</button>
+                            <button @click="moduloActual = moduloActual > 1 ? moduloActual - 1 : 16" 
+                                    class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition text-sm font-medium flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                                </svg>
+                                Módulo anterior
+                            </button>
+                            <button @click="moduloActual = moduloActual < 16 ? moduloActual + 1 : 1" 
+                                    class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition text-sm font-medium flex items-center gap-1">
+                                Módulo siguiente
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </button>
                             <button @click="exportWord()" :disabled="isExporting" 
-                                class="px-5 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition flex items-center gap-2 shadow-md disabled:opacity-50">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                    class="px-5 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition flex items-center gap-2 shadow-md disabled:opacity-60 disabled:cursor-not-allowed text-sm font-medium">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
                                 <span x-text="isExporting ? 'Exportando...' : 'Exportar a Word'"></span>
                             </button>
                         </div>
-                        <a href="{{ route('calculadora.asistente.memoria-descriptiva.demolicion') }}" class="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2">
+
+                        <a href="{{ route('calculadora.asistente.memoria-descriptiva.demolicion') }}"
+                           class="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2 text-sm font-medium">
                             Siguiente
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
                         </a>
                     </div>
 
-                </div>
-            </div>
-        </div>
-    </div>
+                </div>{{-- /p-6 --}}
+            </div>{{-- /card --}}
+        </div>{{-- /container --}}
+    </div>{{-- /x-data --}}
 
     @pushOnce('initscripts')
         <script src="https://unpkg.com/docx@7.8.2/build/index.js"></script>

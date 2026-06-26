@@ -70,9 +70,10 @@ $logout = function (Logout $logout) {
                     $isStudentActive = request()->routeIs('calculadora.estudiante.*')
                         && !request()->routeIs(['calculadora.estudiante.arco_techo', 'calculadora.estudiante.cav2.hoja2']);
                     $isAssistantActive = request()->routeIs('calculadora.asistente.*') && ! $isMemoryActive;
+                    $canManagePlans = $user?->hasRole(['root', 'gerencia']) ?? false;
                 @endphp
 
-                @if ($user->hasRole(['root', 'gerencia']))
+                @if ($canManagePlans)
                     <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                         <x-dropdown-nav-item name="{{ __('Planes') }}" :active="request()->routeIs(['planUser.*', 'suscripciones.*'])">
                             <x-nav-link :href="route('planUser.index')" :active="request()->routeIs('planUser.index')">
@@ -134,11 +135,15 @@ $logout = function (Logout $logout) {
                                 'url' => route('calculadora.estudiante.cav2.distribucion-del-acero'),
                                 'label' => 'Distribución del Acero',
                             ],
-                            [
-                                'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
-                                'label' => 'Vigas Continuas',
-                            ],
-                        ]"></x-dropdown-sub>
+                             [
+                                 'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
+                                 'label' => 'Vigas Continuas',
+                             ],
+                             [
+                                 'url' => route('calculadora.estudiante.cav2.viga-t'),
+                                 'label' => 'Viga T',
+                             ],
+                         ]"></x-dropdown-sub>
                     </x-dropdown-nav-item>
                 </div>
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
@@ -150,6 +155,9 @@ $logout = function (Logout $logout) {
                                 'label' => 'Diseño de Vigas General',
                             ],
                         ]"></x-dropdown-sub>
+                        <x-dropdown-link :href="route('calculadora.asistente.escaleras')" :active="request()->routeIs('calculadora.asistente.escaleras')" {{-- wire:navigate --}}>
+                            {{ __('Escaleras') }}
+                        </x-dropdown-link>
                         <x-dropdown-sub label="{{ __('Losas') }}" :links="[
                             [
                                 'url' => route('calculadora.asistente.losas-macizas'),
@@ -363,7 +371,7 @@ $logout = function (Logout $logout) {
                 {{ __('Inicio') }}
             </x-responsive-nav-link>
         </div>
-        @if ($user->hasRole(['root', 'gerencia']))
+        @if ($canManagePlans)
             <div class="space-y-1 pb-3 pt-2">
                 <x-dropdown-nav-item name="{{ __('Planes') }}" component="responsive-nav-item" :active="request()->routeIs(['planUser.*', 'suscripciones.*'])">
                     <x-dropdown-link :href="route('planUser.index')" :active="request()->routeIs('planUser.index')">
@@ -424,11 +432,15 @@ $logout = function (Logout $logout) {
                         'url' => route('calculadora.estudiante.cav2.distribucion-del-acero'),
                         'label' => 'Distribución del Acero',
                     ],
-                    [
-                        'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
-                        'label' => 'Vigas Continuas',
-                    ],
-                ]"></x-dropdown-sub>
+                     [
+                         'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
+                         'label' => 'Vigas Continuas',
+                     ],
+                     [
+                         'url' => route('calculadora.estudiante.cav2.viga-t'),
+                         'label' => 'Viga T',
+                     ],
+                 ]"></x-dropdown-sub>
             </x-dropdown-nav-item>
         </div>
         <div class="space-y-1 pb-3 pt-2">

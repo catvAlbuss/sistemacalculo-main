@@ -3001,7 +3001,6 @@
     </script>
 
     @pushOnce('scripts')
-        <script src="https://cdn.tailwindcss.com"></script>
         <script src="https://unpkg.com/konva@9/konva.min.js"></script>
         <script src="https://d3js.org/d3.v7.min.js"></script>
         <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
