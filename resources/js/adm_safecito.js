@@ -1855,7 +1855,12 @@ document.addEventListener("DOMContentLoaded", () => {
             ...(await Promise.all(
               combinacionDeCargas.getData().map(async (_, index) => {
                 return {
-                  image: await Plotly.toImage(`zapata${index + 1}`),
+                  image: await Plotly.toImage(`zapata${index + 1}`, {
+                    format: "png",
+                    width: 900,
+                    height: 420,
+                    scale: 1,
+                  }),
                   width: 420,
                   margin: [50, 0, 50, 0],
                 };
@@ -1884,7 +1889,7 @@ document.addEventListener("DOMContentLoaded", () => {
             },
           },
         };
-        pdfMake.createPdf(docDefinition).download("aligerados.pdf");
+        pdfMake.createPdf(docDefinition).download("cimentacion.pdf");
         waitingPopup.hideLoading();
       });
     } catch (error) {
@@ -2053,6 +2058,14 @@ document.addEventListener("DOMContentLoaded", () => {
           const flat = Array.isArray(value?.[0]) ? value.flat(Infinity) : value;
           return (flat ?? []).map(Number);
         };
+        const limitPlotPoints = (points, limit = 6000) => {
+          if (points.length <= limit) {
+            return points;
+          }
+
+          const step = points.length / limit;
+          return Array.from({ length: limit }, (_, pointIndex) => points[Math.floor(pointIndex * step)]);
+        };
 
         combinacionDeCargas.getData().forEach((title, index) => {
           combinaciones = Object.values(zapatas2.data.resultados).map(({ XX, YY, ZZ, max, min }, poligonoN) => {
@@ -2073,14 +2086,15 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!points.length) {
               throw new Error(`No hay puntos validos para graficar el poligono ${poligonoN + 1}.`);
             }
+            const plotPoints = limitPlotPoints(points);
 
             return {
-              x: points.map(({ x }) => x),
-              y: points.map(({ y }) => y),
+              x: plotPoints.map(({ x }) => x),
+              y: plotPoints.map(({ y }) => y),
               mode: "markers", // Scatter plot mode
               marker: {
-                size: 3, // Size of the markers
-                color: points.map(({ z }) => z), // Color of the markers, based on Z data
+                size: 2, // Size of the markers
+                color: plotPoints.map(({ z }) => z), // Color of the markers, based on Z data
                 //colorscale: "Viridis", // Color scale
                 //colorscale: "Jet", // Color scale
                 /* showscale: true, // Show the color scale */
@@ -2089,9 +2103,8 @@ document.addEventListener("DOMContentLoaded", () => {
               name: `<b>Poligono ${poligonoN + 1}<br>σ<sub>min</sub> = ${min[index].toFixed(
                 3
               )}<br>σ<sub>max</sub> = ${max[index].toFixed(3)}</b><br>`,
-              hovertemplate:
-                "<b>x</b>: %{x}<br>" + "<b>y</b>: %{y}<br>" + "<b>z</b>: %{marker.color:.4f}" + "<extra></extra>",
-              type: "scatter",
+              hoverinfo: "skip",
+              type: "scattergl",
               /* type: "pointcloudgl", // 3D scatter plot type */
             };
           });
@@ -2131,6 +2144,7 @@ document.addEventListener("DOMContentLoaded", () => {
             },
             showlegend: true,
             legend: { x: 0, y: 0.5 },
+            hovermode: false,
             annotations: Object.values(zapatas2.data.resultados).map(({ XC: [xc], YC: [yc] }, index) => {
               return {
                 x: xc,
@@ -2154,7 +2168,10 @@ document.addEventListener("DOMContentLoaded", () => {
               },
             },
           };
-          Plotly.react(`zapata${index + 1}`, [...traces, ...markers], layout, { responsive: true });
+          Plotly.react(`zapata${index + 1}`, [...traces, ...markers], layout, {
+            responsive: true,
+            displaylogo: false,
+          });
         });
       })
       .catch((error) => {
