@@ -225,20 +225,20 @@
             </div>
         </template>
         <template
-            x-if="currentState === selectedParametricState && selectedParametricState.selectedObjects[0] instanceof Arco">
+            x-if="currentState === selectedParametricState && selectedParametricState.selectedObjects.length > 0 && selectedParametricState.selectedObjects[0] instanceof Arco">
             <div class="p-2">
                 <x-cad.panel-properties title="Parametros">
                     <x-cad.input-properties label="Longitud"
                         bind="selectedParametricState.selectedObjects[0].longitud"
-                        handleInput="selectedParametricState.selectedObjects[0].build()"></x-cad.input-properties>
+                        handleInput="selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])"></x-cad.input-properties>
                     <x-cad.input-properties label="Flecha" bind="selectedParametricState.selectedObjects[0].flecha"
-                        handleInput="selectedParametricState.selectedObjects[0].build()"></x-cad.input-properties>
+                        handleInput="selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])"></x-cad.input-properties>
                     <x-cad.input-properties label="Dovela" bind="selectedParametricState.selectedObjects[0].dovela"
-                        handleInput="selectedParametricState.selectedObjects[0].build()" minimun="0.001"
+                        handleInput="selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])" minimun="0.001"
                         step="0.1"></x-cad.input-properties>
                     <x-cad.input-properties label="Peralte" step="0.1"
                         bind="selectedParametricState.selectedObjects[0].peralte"
-                        handleInput="selectedParametricState.selectedObjects[0].build()"></x-cad.input-properties>
+                        handleInput="selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])"></x-cad.input-properties>
                     <x-cad.load-select bind="selectedParametricState.currentLoad"></x-cad.load-select>
                     <x-cad.input-properties label="Multiplicador"
                         bind="selectedParametricState.selectedObjects[0].loads[selectedParametricState.currentLoad].multiplier"
@@ -263,30 +263,30 @@
             </div>
         </template>
         <template
-            x-if="currentState === selectedParametricState && selectedParametricState.selectedObjects[0] instanceof Puente">
+            x-if="currentState === selectedParametricState && selectedParametricState.selectedObjects.length > 0 && selectedParametricState.selectedObjects[0] instanceof Puente">
             <div class="p-2">
                 <x-cad.panel-properties title="Parametros">
                     <x-cad.input-properties label="Alto" bind="selectedParametricState.selectedObjects[0].width"
-                        handleInput="selectedParametricState.selectedObjects[0].build()"></x-cad.input-properties>
+                        handleInput="selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])"></x-cad.input-properties>
                     <x-cad.input-properties label="Anchó" bind="selectedParametricState.selectedObjects[0].height"
-                        handleInput="selectedParametricState.selectedObjects[0].build()"></x-cad.input-properties>
+                        handleInput="selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])"></x-cad.input-properties>
                     <x-cad.input-properties label="Peralte" bind="selectedParametricState.selectedObjects[0].peralte"
-                        handleInput="selectedParametricState.selectedObjects[0].build()"></x-cad.input-properties>
+                        handleInput="selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])"></x-cad.input-properties>
                     <x-cad.input-properties label="Dovela" bind="selectedParametricState.selectedObjects[0].dovela"
-                        handleInput="selectedParametricState.selectedObjects[0].build()"></x-cad.input-properties>
+                        handleInput="selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])"></x-cad.input-properties>
                     <x-primary-button
                         @click="addToScene(selectedParametricState.selectedObjects[0])">Añadir</x-primary-button>
                 </x-cad.panel-properties>
             </div>
         </template>
         <template
-            x-if="currentState === selectedParametricState && selectedParametricState.selectedObjects[0] instanceof Triangle">
+            x-if="currentState === selectedParametricState && selectedParametricState.selectedObjects.length > 0 && selectedParametricState.selectedObjects[0] instanceof Triangle">
             <div class="p-2">
                 <x-cad.panel-properties title="Parametros">
                     <x-cad.input-properties label="Altura" bind="selectedParametricState.selectedObjects[0].altura"
-                        handleInput="selectedParametricState.selectedObjects[0].build()"></x-cad.input-properties>
+                        handleInput="selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])"></x-cad.input-properties>
                     <x-cad.input-properties label="Base" bind="selectedParametricState.selectedObjects[0].base"
-                        handleInput="selectedParametricState.selectedObjects[0].build()"></x-cad.input-properties>
+                        handleInput="selectedParametricState.selectedObjects[0].build(); _ajustarModeloElevacion(selectedParametricState.selectedObjects[0])"></x-cad.input-properties>
                     <x-primary-button
                         @click="addToScene(selectedParametricState.selectedObjects[0])">Añadir</x-primary-button>
                 </x-cad.panel-properties>

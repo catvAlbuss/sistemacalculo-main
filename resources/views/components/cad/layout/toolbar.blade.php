@@ -163,6 +163,13 @@
         </svg>
       </x-cad.ribbon-button>
 
+      <x-cad.ribbon-button clickHandler="testEdificioSismico()" toggle="false" label="Edificio Sísmico (Test)">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 21h18M3 10h18M3 7l9-4 9 4M4 10v11M20 10v11M8 10v11M12 10v11M16 10v11" />
+        </svg>
+      </x-cad.ribbon-button>
+
       <x-cad.ribbon-button clickHandler="testTorreConCargaExcentrica()" toggle="false" label="Torre Carga Excentrica">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -197,10 +204,12 @@
   <x-cad.modals.frame-sections-modal />
   <x-cad.modals.diaphragms-modal />
   <x-cad.modals.section-cuts-modal />
+  <x-cad.modals.groups-modal />
   <x-cad.modals.response-spectrum-functions-modal />
   <x-cad.modals.static-load-cases-modal />
   <x-cad.modals.load-combinations-modal />
   <x-cad.modals.mass-source-modal />
+  <x-cad.modals.slab-sections-modal />
   <!-- Seccion de analisis -->
   <x-cad.modals.analysis-options-modal />
   <x-cad.modals.check-model-modal />

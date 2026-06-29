@@ -361,68 +361,38 @@ export class IdleState extends PanAndZoomState {
 
     // =====================================================
     // IDLE > OBJETOS PARAMÉTRICOS
-    // Mantiene tu lógica antigua, pero sin afectar barras normales.
     // =====================================================
     context.parametricModels?.find((p) => {
+      let hit = false;
+
       p.nodes?.find((n) => {
-        const shortestDistance = 10;
-        const distance = pointDistance(
-          mouse,
-          context.grid.worldToScreen(n.position)
-        );
-
-        if (distance <= shortestDistance) {
-          collidedParametric = true;
-        }
-
-        return collidedParametric;
+        const sp = context._projectPosToActiveView?.(n.position);
+        if (sp && pointDistance(mouse, sp) <= 10) hit = true;
+        return hit;
       });
 
-      p.shapes?.find((s) => {
-        if (!s?.node1?.position || !s?.node2?.position) return false;
+      if (!hit) {
+        p.shapes?.find((s) => {
+          if (!s?.node1?.position || !s?.node2?.position) return false;
+          const sp1 = context._projectPosToActiveView?.(s.node1.position);
+          const sp2 = context._projectPosToActiveView?.(s.node2.position);
+          if (!sp1 || !sp2) return false;
+          const lineLength = pointDistance(sp1, sp2);
+          const d1 = pointDistance(sp1, mouse);
+          const d2 = pointDistance(sp2, mouse);
+          if (d1 + d2 >= lineLength - 5 && d1 + d2 <= lineLength + 5) hit = true;
+          return hit;
+        });
+      }
 
-        // Si hay filtro de render, respétalo también aquí.
-        if (
-          context.currentRenderer?.shouldDrawBeam &&
-          !context.currentRenderer.shouldDrawBeam(s, context)
-        ) {
-          return false;
-        }
-
-        const shortestDistance = 5;
-
-        const lineLength = pointDistance(
-          context.grid.worldToScreen(s.node1.position),
-          context.grid.worldToScreen(s.node2.position)
-        );
-
-        const d1 = pointDistance(
-          context.grid.worldToScreen(s.node1.position),
-          mouse
-        );
-
-        const d2 = pointDistance(
-          context.grid.worldToScreen(s.node2.position),
-          mouse
-        );
-
-        if (
-          d1 + d2 >= lineLength - shortestDistance &&
-          d1 + d2 <= lineLength + shortestDistance
-        ) {
-          collidedParametric = true;
-        }
-
-        return collidedParametric;
-      });
-
-      if (collidedParametric) {
+      if (hit) {
+        collidedParametric = true;
         p.hover?.();
       } else {
         p.default?.();
       }
 
-      return collidedParametric;
+      return hit;
     });
 
     if (collidedParametric) {
@@ -560,6 +530,20 @@ export class SelectedObjectsState extends PanAndZoomState {
       let selectedObject = context.closestNodeAtActiveView(mouse);
 
       if (selectedObject) {
+        // Si el nodo clickeado está marcado como seleccionado y hay más de uno, mover el grupo
+        const clickedIsSelected = selectedObject.selected === true || selectedObject.isSelected === true;
+        const selectedNodes = clickedIsSelected
+          ? (context.nodes || []).filter((n) => n.selected === true || n.isSelected === true)
+          : [];
+
+        if (clickedIsSelected && selectedNodes.length > 1 && context.moveGroupState) {
+          context.setState(context.moveGroupState, {
+            nodes: selectedNodes,
+            startWorld: { ...context.mousePos },
+          });
+          return;
+        }
+
         context.setState(context.moveObjectState, {
           selectedObject: selectedObject,
           isMoving: true,
@@ -1166,8 +1150,9 @@ export class SelectionState extends PanAndZoomState {
       this.selectedBeams = context.shapes.filter((b) => {
         if (!context.currentRenderer.shouldDrawBeam(b, context)) return false;
 
-        const p1 = context.grid.worldToScreen(b.node1.position);
-        const p2 = context.grid.worldToScreen(b.node2.position);
+        const p1 = context._projectPosToActiveView?.(b.node1.position);
+        const p2 = context._projectPosToActiveView?.(b.node2.position);
+        if (!p1 || !p2) return false;
         const collided = pointRect(p1, start, end) && pointRect(p2, start, end);
 
         if (collided) b.style.hover();
@@ -1179,7 +1164,8 @@ export class SelectionState extends PanAndZoomState {
       this.selectedNodes = context.nodes.filter((n) => {
         if (!context.currentRenderer.shouldDrawNode(n, context)) return false;
 
-        const position = context.grid.worldToScreen(n.position);
+        const position = context._projectPosToActiveView?.(n.position);
+        if (!position) return false;
         const collided = pointRect(position, start, end);
 
         if (collided) n.style.hover();
@@ -1512,6 +1498,75 @@ export class MoveObjectState extends IdleState {
   }
 }
 
+export class MoveGroupState extends PanAndZoomState {
+  constructor() {
+    super();
+    this.nodes = [];
+    this.nodeStartPositions = [];
+    this.startWorld = null;
+  }
+
+  enter(args) {
+    this.nodes = args.nodes || [];
+    this.startWorld = { ...(args.startWorld || { x: 0, y: 0 }) };
+    this.nodeStartPositions = this.nodes.map((n) => ({
+      x: n.position.x || 0,
+      y: n.position.y || 0,
+      z: n.position.z || 0,
+    }));
+    this.nodes.forEach((n) => n.style?.selected?.());
+  }
+
+  handleMouseMove(event, context, mouse) {
+    PanAndZoomState.prototype.handleMouseMove.call(this, ...arguments);
+
+    const cur = context.mousePos;
+    if (!cur || !this.startWorld) return;
+
+    const view = context.viewSet?.[context.activeViewIndex];
+    let dx = 0, dy = 0, dz = 0;
+
+    if (!view || view.type === "plan") {
+      dx = cur.x - this.startWorld.x;
+      dy = cur.y - this.startWorld.y;
+    } else if (view.type === "elevation" && view.axis === "X") {
+      // Plano Y-Z: mousePos.x = world Y (horizontal), mousePos.y = world Z (vertical)
+      dy = cur.x - this.startWorld.x;
+      dz = cur.y - this.startWorld.y;
+    } else if (view.type === "elevation" && view.axis === "Y") {
+      // Plano X-Z: mousePos.x = world X (horizontal), mousePos.y = world Z (vertical)
+      dx = cur.x - this.startWorld.x;
+      dz = cur.y - this.startWorld.y;
+    }
+
+    this.nodes.forEach((node, i) => {
+      const s = this.nodeStartPositions[i];
+      node.position.x = s.x + dx;
+      node.position.y = s.y + dy;
+      node.position.z = s.z + dz;
+    });
+
+    context.setCursor("grabbing");
+    context.redraw?.();
+  }
+
+  handleMouseUp(event, context, mouse) {
+    super.handleMouseUp(...arguments);
+    context.markAnalysisResultsOutdated?.("Mover grupo");
+    context.sync3D?.();
+    context.setState(context.selectedNodesState, { selectedNodes: this.nodes });
+  }
+
+  exit() {
+    super.exit();
+    this.nodes.forEach((n) => n.style?.selected?.());
+  }
+
+  info() {
+    return `Moviendo ${this.nodes.length} nodo(s). Suelta el ratón para confirmar.`;
+  }
+}
+
 export class TrussDrawingState extends PanAndZoomState {
   constructor(context, elementType = "beam") {
     super();
@@ -1658,30 +1713,6 @@ export class TrussDrawingState extends PanAndZoomState {
     return node;
   }
 
-// <<<<<<< HEAD
-
-//   addNodeToCurrentShape(context, node) {
-//     // Verificar si el nodo ya es el mismo que el primero (evitar auto-conexión)
-//     if (this.shape.node1 === node) {
-//       console.log("⚠️ No se puede conectar un nodo consigo mismo");
-//       return;
-//     }
-
-//     // Verificar si ya existe una conexión entre estos nodos
-//     const connectionExists = context.shapes.some((shape) => {
-//       if (!shape?.node1 || !shape?.node2) return false;
-//       return (
-//         (shape.node1 === this.shape.node1 && shape.node2 === node) ||
-//         (shape.node1 === node && shape.node2 === this.shape.node1)
-//       );
-//     });
-
-//     if (connectionExists && this.shape.node1 && node) {
-//       console.log("⚠️ Ya existe una conexión entre estos nodos");
-//       context.showMessage?.("⚠️ Ya existe una viga entre estos puntos", "warning");
-//       return;
-//     }
-// =======
   // Identifica la planta o elevación donde se hizo clic.
   // =====================================================
   getActiveViewSignature(context) {
@@ -1886,24 +1917,6 @@ export class TrussDrawingState extends PanAndZoomState {
       z: (startPoint.z || 0) + direction.dz * length,
     };
 
-// <<<<<<< HEAD
-//     let p1, p2;
-
-//     // Proyectar puntos según el tipo de vista
-//     if (view?.type === "elevation" && view.axis === "X") {
-//       // Vista elevación X (LETRAS): X fijo, plano Y-Z
-//       p1 = context.grid.worldToScreen({ x: startPoint.y, y: startPoint.z || 0 });
-//       p2 = context.grid.worldToScreen({ x: endPoint.y, y: endPoint.z });
-//     } else if (view?.type === "elevation" && view.axis === "Y") {
-//       // Vista elevación Y (NÚMEROS): Y fijo, plano X-Z
-//       p1 = context.grid.worldToScreen({ x: startPoint.x, y: startPoint.z || 0 });
-//       p2 = context.grid.worldToScreen({ x: endPoint.x, y: endPoint.z });
-//     } else {
-//       // Vista PLANTA normal
-//       p1 = context.grid.worldToScreen({ x: startPoint.x, y: startPoint.y });
-//       p2 = context.grid.worldToScreen({ x: endPoint.x, y: endPoint.y });
-//     }
-// =======
     const p1 = context.currentRenderer?.projectPoint
       ? context.currentRenderer.projectPoint({ position: startPoint }, context)
       : context.grid.worldToScreen(startPoint);
@@ -1911,7 +1924,6 @@ export class TrussDrawingState extends PanAndZoomState {
     const p2 = context.currentRenderer?.projectPoint
       ? context.currentRenderer.projectPoint({ position: endPoint }, context)
       : context.grid.worldToScreen(endPoint);
-// >>>>>>> eab88042b6badc95272f8096c910734e6c5231f0
 
     context.ctx.save();
 
@@ -2324,9 +2336,6 @@ export class TrussDrawingState extends PanAndZoomState {
       context.ctx.restore();
     }
 
-    // Dibujar preview de entrada de longitud (línea naranja PUNTEADA)
-//     if (this.inputMode && this.inputStartPoint) {
-// =======
     if (renderer?.drawTrussDrawingState) {
       renderer.drawTrussDrawingState(this, context);
     }
@@ -3866,10 +3875,36 @@ export class AreaDrawingState extends PanAndZoomState {
     context.redraw();
   }
 
+  // Finaliza el área en progreso: la guarda en context.areas y refresca 2D + 3D.
+  _commitArea(context) {
+    if (this.points.length < 3) return false;
+
+    const currentZ = context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0;
+    const area = new Area(this.areaType, currentZ);
+
+    this.points.forEach((p) => area.addPoint(p));
+    area.id = context.areas.length + 1;
+
+    context.areas.push(area);
+    console.log(`▭ Área creada ID: ${area.id}, tipo: ${this.areaType}, puntos: ${area.points.length}, z: ${currentZ}`);
+
+    this.resetPreview();
+    context.redraw();
+    context.sync3D?.(); // mostrar el área en el modelo 3D
+    return true;
+  }
+
   handleKeyDown(event, context) {
     if (event.key === "Escape") {
-      this.resetPreview();
-      context.redraw();
+      // No perder el trabajo: si hay un área válida (≥3 puntos), finalizarla
+      // antes de salir; si no, cancelar.
+      if (this.points.length >= 3) {
+        this._commitArea(context);
+        context.showMessage?.("Área creada.", "success");
+      } else {
+        this.resetPreview();
+        context.redraw();
+      }
       context.setState(context.idleState);
       return;
     }
@@ -3889,19 +3924,8 @@ export class AreaDrawingState extends PanAndZoomState {
         context.showMessage?.("Se necesitan al menos 3 puntos para crear un área.", "warning");
         return;
       }
-
-      const currentZ = context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0;
-      const area = new Area(this.areaType, currentZ);
-
-      this.points.forEach((p) => area.addPoint(p));
-      area.id = context.areas.length + 1;
-
-      context.areas.push(area);
-
-      console.log(`▭ Área creada ID: ${area.id}, tipo: ${this.areaType}, puntos: ${area.points.length}`);
-
-      this.resetPreview();
-      context.redraw();
+      this._commitArea(context);
+      context.showMessage?.("Área creada. Sigue marcando vértices para otra, o Esc para salir.", "success");
       return;
     }
   }
@@ -3915,7 +3939,7 @@ export class AreaDrawingState extends PanAndZoomState {
       return "Haz clic para empezar a dibujar el área.";
     }
 
-    return "Haz clic para seguir marcando vértices. Enter = cerrar área, Backspace = borrar último punto, Esc = cancelar.";
+    return "Haz clic para seguir marcando vértices. Enter o Esc = cerrar área, Backspace = borrar último punto.";
   }
 }
 

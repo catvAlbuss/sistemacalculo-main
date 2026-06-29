@@ -72,6 +72,13 @@ function isFrame3DOnly(frame) {
     return true;
   }
 
+  // Si los flags están explícitamente marcados como NO 3D-only, respetar eso
+  // sin caer al check geométrico (evita falsos positivos en diagonales de elevación).
+  if (frame.is3DOnlyFrame === false && frame.showIn2D === true) {
+    return false;
+  }
+
+  // Fallback geométrico solo si los flags no están definidos
   const p1 = frame.node1.position;
   const p2 = frame.node2.position;
 
@@ -250,16 +257,16 @@ function applyFrame3DVisualState(mesh, frame, scene, context = null) {
   const is3DOnly = isFrame3DOnly(frame);
   const isSelected = isFrameSelected3D(frame, context);
 
-  if (is3DOnly || isSelected) {
-    console.log("🎨 3D pintando barra:", {
-      id: frame.id,
-      is3DOnly,
-      isSelected,
-      selected: frame.selected,
-      isSelectedFlag: frame.isSelected,
-      highlighted3D: frame.highlighted3D,
-    });
-  }
+  // if (is3DOnly || isSelected) {
+  //   console.log("🎨 3D pintando barra:", {
+  //     id: frame.id,
+  //     is3DOnly,
+  //     isSelected,
+  //     selected: frame.selected,
+  //     isSelectedFlag: frame.isSelected,
+  //     highlighted3D: frame.highlighted3D,
+  //   });
+  // }
 
   const visualConfig = getFrameVisualConfig(scene, frame, context);
 
@@ -575,6 +582,33 @@ export function renderModel3D(viewer3D, nodes = [], shapes = [], areas = [], con
           };
         });
       }
+
+      // =====================================================
+      // 3D > COLOR DEL NODO SEGÚN ESTADO
+      // Azul: seleccionado. Rojo: activo. Gris tenue: inactivo.
+      // =====================================================
+      const isNodeSelected =
+        node.selected === true ||
+        context?.moveObjectState?.selectedObject?.id === node.id ||
+        context?.selectedNodesState?.selectedObjects?.some((n) => n?.id === node.id);
+
+      if (!nodeMesh.material || nodeMesh.material.isDisposed?.()) {
+        nodeMesh.material = new BABYLON.StandardMaterial(`nodeMat3D_${node.id}`, scene);
+      }
+
+      const mat = nodeMesh.material;
+
+      if (isNodeSelected) {
+        mat.diffuseColor = new BABYLON.Color3(0.1, 0.45, 1.0);
+        mat.emissiveColor = new BABYLON.Color3(0.02, 0.15, 0.5);
+        mat.alpha = 1;
+        nodeMesh.scaling.setAll(1.5);
+      } else {
+        mat.diffuseColor = new BABYLON.Color3(1.0, 0.3, 0.3);
+        mat.emissiveColor = new BABYLON.Color3(0.1, 0.04, 0.04);
+        mat.alpha = 1;
+        nodeMesh.scaling.setAll(1.0);
+      }
     }
   }
 
@@ -636,18 +670,19 @@ export function renderModel3D(viewer3D, nodes = [], shapes = [], areas = [], con
 
         beamMeshes.set(shape.id, beamMesh);
       }
-
-      // =====================================================
-      // 3D > HIGHLIGHT DE BARRA 3D-ONLY SELECCIONADA
-      // Dibuja una barra fucsia encima de la barra base.
-      // =====================================================
-      updateSelectedFrameHighlight3D(
-        scene,
-        beamHighlightMeshes,
-        { ...shape, node1, node2 },
-        context
-      );
     }
+
+    // =====================================================
+    // 3D > HIGHLIGHT DE BARRA 3D-ONLY SELECCIONADA
+    // Se actualiza en cada render para que el tubo de highlight
+    // se cree, mueva o elimine correctamente al deseleccionar.
+    // =====================================================
+    updateSelectedFrameHighlight3D(
+      scene,
+      beamHighlightMeshes,
+      { ...shape, node1, node2 },
+      context
+    );
   }
 
   for (const [beamId, mesh] of beamMeshes.entries()) {

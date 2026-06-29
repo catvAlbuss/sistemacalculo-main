@@ -222,6 +222,13 @@
                         <span class="text-xs text-gray-500 italic">Ctrl+P</span>
                     </button>
 
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.generarReporteSismico()">
+                        <span>📑</span>
+                        <span class="flex-1 truncate">Reporte Sísmico (PDF)...</span>
+                        <span class="text-xs text-cyan-400 italic">RSA</span>
+                    </button>
+
                 </div>
             </x-slot>
         </x-cad.menu-dropdown-item>
@@ -755,6 +762,28 @@
 
                     <div class="border-t border-gray-700 my-1"></div>
 
+                    {{-- ================= ÁREAS / LOSAS ================= --}}
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Áreas
+                    </div>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click="cadSystem.activateDrawMenuAction('draw-area-slab')">
+                        <span>🧱</span> Dibujar Losa / Área (Slab)
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click="cadSystem.activateDrawMenuAction('draw-area-wall')">
+                        <span>▥</span> Dibujar Muro / Panel (Wall)
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click="cadSystem.activateDrawMenuAction('draw-area-opening')">
+                        <span>⬚</span> Dibujar Abertura (Opening)
+                    </button>
+
+                    <div class="border-t border-gray-700 my-1"></div>
+
                     {{-- ================= SNAP ================= --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
                         Snap
@@ -966,9 +995,21 @@
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateAssignMenuAction('auto-base-restraints')">
+                                <span>🏗️</span>
+                                Empotrar Base (Automático)
+                            </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('joint-springs')">
                                 <span>➿</span>
                                 Point Springs...
+                            </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateAssignMenuAction('joint-mass')">
+                                <span>⚖️</span>
+                                Masses...
                             </button>
                         </x-slot>
                     </x-cad.menu-subitem>
@@ -1055,6 +1096,24 @@
                         </x-slot>
                     </x-cad.menu-subitem>
 
+                    {{-- ================= AREA / SHELL ================= --}}
+                    <x-cad.menu-subitem label="Area / Shell">
+                        <span>🧱</span>
+
+                        <x-slot name="submenu">
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateAssignMenuAction('area-slab-section')">
+                                <span>▦</span>
+                                Slab Section (sección de losa)...
+                            </button>
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateAssignMenuAction('area-load-uniform')">
+                                <span>🟦</span>
+                                Shell Loads → Uniform (Gravedad)...
+                            </button>
+                        </x-slot>
+                    </x-cad.menu-subitem>
+
                     <div class="border-t border-gray-700 my-1"></div>
 
                     {{-- ================= GRUPOS Y REVISIÓN ================= --}}
@@ -1107,6 +1166,14 @@
                         <span class="text-xs text-gray-500 italic">Options</span>
                     </button>
 
+                    {{-- BLOQUE 7T-E - Modal Spectral Options --}}
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.openModalSpectralOptionsDialog()">
+                        <span>🌊</span>
+                        <span class="flex-1 truncate">Modal Spectral Options...</span>
+                        <span class="text-xs text-green-400 italic">7T</span>
+                    </button>
+
                     <div class="border-t border-gray-700 my-1"></div>
 
                     {{-- ================= VALIDACIÓN DEL MODELO ================= --}}
@@ -1133,6 +1200,21 @@
                         <span>▶️</span>
                         <span class="flex-1 truncate">Run Analysis</span>
                         <span class="text-xs text-gray-500 italic">F5</span>
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.openModalSpectralAnalysisDialog()">
+                        <span>🌊</span>
+                        <span class="flex-1 truncate">Modal Spectral Analysis...</span>
+                        <span class="text-xs text-yellow-400 italic">Test</span>
+                    </button>
+
+                    {{-- Análisis Sísmico Dinámico (RSA) — espectro de respuesta --}}
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.openSeismicAnalysisDialog()">
+                        <span>🏗️</span>
+                        <span class="flex-1 truncate">Análisis Sísmico Espectral...</span>
+                        <span class="text-xs text-cyan-400 italic">RSA</span>
                     </button>
 
                 </div>
@@ -1225,10 +1307,68 @@
                         Fuerzas y Diagramas
                     </div>
 
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
-                        @click.stop="cadSystem.activateDisplayMenuAction('show-member-forces')">
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateDisplayMenuAction('show-frame-force-diagrams')">
                         <span>📉</span>
-                        Show Member Forces / Stress Diagram
+                        <span class="flex-1 truncate">Show Frame Forces / Diagrams...</span>
+                        <span class="text-xs text-cyan-400 italic">P, V2, V3, T, M2, M3</span>
+                    </button>   
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateDisplayMenuAction('show-modal-spectral-results')">
+                        <span>🌊</span>
+                        <span class="flex-1 truncate">Modal Spectral Results...</span>
+                        <span class="text-xs text-yellow-400 italic">Test</span>
+                    </button>
+
+                    <div class="border-t border-gray-700 my-1"></div>
+
+                    {{-- ================= RESPUESTA SÍSMICA (Story Response) ================= --}}
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Respuesta Sísmica
+                    </div>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.openEtabsSeismicResultsDialog()">
+                        <span>📋</span>
+                        <span class="flex-1 truncate">Resultados Sísmicos tipo ETABS...</span>
+                        <span class="text-xs text-cyan-400 italic">Reporte</span>
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateDisplayMenuAction('show-story-drifts')">
+                        <span>📐</span>
+                        <span class="flex-1 truncate">Derivas de Piso...</span>
+                        <span class="text-xs text-cyan-400 italic">Drift</span>
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateDisplayMenuAction('show-story-shears')">
+                        <span>📊</span>
+                        <span class="flex-1 truncate">Cortante por Piso...</span>
+                        <span class="text-xs text-cyan-400 italic">Shear</span>
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateDisplayMenuAction('seismic-animation')">
+                        <span>🎬</span>
+                        <span class="flex-1 truncate">Animar Sísmico...</span>
+                        <span class="text-xs text-cyan-400 italic">3D</span>
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateDisplayMenuAction('seismic-displacement-labels')">
+                        <span>🔢</span>
+                        <span class="flex-1 truncate">Mostrar Desplazamientos 3D</span>
+                        <span class="text-xs text-cyan-400 italic">mm</span>
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateDisplayMenuAction('seismic-drift-labels')">
+                        <span>📐</span>
+                        <span class="flex-1 truncate">Mostrar Derivas 3D</span>
+                        <span class="text-xs text-emerald-400 italic">‰</span>
                     </button>
 
                 </div>
