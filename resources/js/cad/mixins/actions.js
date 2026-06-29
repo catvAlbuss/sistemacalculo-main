@@ -24,6 +24,10 @@ import {
   showFrameForceDisplayPanel,
 } from "../diagrams/frameForceDisplayPanel.js";
 
+import {
+  loadRealFrameForceResults,
+} from "../analysis/frameForceBackend.js";
+
 export const actionsMixin = {
   // ------------------------------------------------------------------
   // 6. ACCIONES DE LA BARRA DE HERRAMIENTAS (Diseñar, Tareas, Estructura, Resultados)
@@ -579,7 +583,11 @@ export const actionsMixin = {
         break;
 
       case "show-frame-force-diagrams":
-        showFrameForceDisplayPanel(this);
+        // Carga las fuerzas REALES del motor (gravedad + sísmico) y luego abre
+        // el panel. Si el motor no responde, el panel cae a datos mock.
+        loadRealFrameForceResults(this)
+          .catch((err) => console.warn("Frame forces: motor no disponible, usando mock:", err))
+          .finally(() => showFrameForceDisplayPanel(this));
         break;
 
       case "show-member-forces":
