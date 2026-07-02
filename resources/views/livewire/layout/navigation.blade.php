@@ -174,6 +174,10 @@ $logout = function (Logout $logout) {
                                 'label' => 'Diseño de Muros de Contención',
                             ],
                             [
+                                'url' => route('calculadora.asistente.muros-de-contencionv2'),
+                                'label' => 'Muro de Contencion V2',
+                            ],
+                            [
                                 'url' => route('calculadora.asistente.muros-de-albanieria'),
                                 'label' => 'Diseño de Muros de Albañieria',
                             ],
@@ -457,6 +461,10 @@ $logout = function (Logout $logout) {
                     [
                         'url' => route('calculadora.asistente.muros-de-contencion'),
                         'label' => 'Diseño de Muros de Contención',
+                    ],
+                    [
+                        'url' => route('calculadora.asistente.muros-de-contencionv2'),
+                        'label' => 'Muro de Contencion V2',
                     ],
                     [
                         'url' => route('calculadora.asistente.muros-de-albanieria'),
