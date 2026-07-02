@@ -174,10 +174,6 @@ $logout = function (Logout $logout) {
                                 'label' => 'Diseño de Muros de Contención',
                             ],
                             [
-                                'url' => route('calculadora.asistente.muros-de-contencionv2'),
-                                'label' => 'Muro de Contencion V2',
-                            ],
-                            [
                                 'url' => route('calculadora.asistente.muros-de-albanieria'),
                                 'label' => 'Diseño de Muros de Albañieria',
                             ],
@@ -280,6 +276,10 @@ $logout = function (Logout $logout) {
                                 'label' => 'Analisis Estructural',
                             ],
                             ['url' => route('software.etabs2'), 'label' => 'Etabs 2'],
+                            [
+                                'url' => route('calculadora.asistente.muros-de-contencionv2'),
+                                'label' => 'Muros de Contencion V2',
+                            ],
                         ]"></x-dropdown-sub>
 
                         <x-dropdown-link :href="route('software.predimv2')" :active="request()->routeIs('software.predimv2')">
@@ -463,10 +463,6 @@ $logout = function (Logout $logout) {
                         'label' => 'Diseño de Muros de Contención',
                     ],
                     [
-                        'url' => route('calculadora.asistente.muros-de-contencionv2'),
-                        'label' => 'Muro de Contencion V2',
-                    ],
-                    [
                         'url' => route('calculadora.asistente.muros-de-albanieria'),
                         'label' => 'Diseño de Muros de Albañieria',
                     ],
@@ -563,6 +559,10 @@ $logout = function (Logout $logout) {
                     ['url' => route('software.cimentacion-v2'), 'label' => 'Cimentacion v2.0'],
                     ['url' => route('software.analisis-estructural-de-armaduras'), 'label' => 'Analisis Estructural'],
                     ['url' => route('software.etabs2'), 'label' => 'Etabs 2'],
+                    [
+                        'url' => route('calculadora.asistente.muros-de-contencionv2'),
+                        'label' => 'Muros de Contencion V2',
+                    ],
                 ]"></x-dropdown-sub>
                 <x-dropdown-link :href="route('software.predimv2')" :active="request()->routeIs('software.predimv2')">
                     {{ __('Predim') }}
