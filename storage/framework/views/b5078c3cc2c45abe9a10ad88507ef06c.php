@@ -1,5 +1,6 @@
-<?php if (! $__env->hasRenderedOnce('57f42b54-c742-4bde-b9cf-761418fb4c3f')): $__env->markAsRenderedOnce('57f42b54-c742-4bde-b9cf-761418fb4c3f');
+<?php if (! $__env->hasRenderedOnce('0dbfbc69-c3ad-4a09-8b16-7a0f78a9de5c')): $__env->markAsRenderedOnce('0dbfbc69-c3ad-4a09-8b16-7a0f78a9de5c');
 $__env->startPush('initscripts'); ?>
+<?php echo app('Illuminate\Foundation\Vite')('resources/js/adm_safecito.js'); ?>
 <?php echo app('Illuminate\Foundation\Vite')('resources/js/etabs/main.js'); ?>
 <?php $__env->stopPush(); endif; ?>
 

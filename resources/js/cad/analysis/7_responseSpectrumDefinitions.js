@@ -708,11 +708,13 @@ function showCasesListModal(cadSystem) {
     const rowsHtml = cases.map((c) => {
         const sel = String(c.id) === String(selectedId) ? "checked" : "";
         const comb = c.modalCombination || "CQC";
-        return `<label style="display:flex; align-items:center; gap:8px; padding:5px 8px; border-bottom:1px solid #334155; cursor:pointer">
-            <input type="radio" name="rsc-sel" value="${c.id}" ${sel}>
-            <span style="flex:1; color:#e2e8f0">${c.name}</span>
-            <span style="color:#64748b; font-size:11px">${comb}${c.enabled === false ? " · off" : ""}</span>
-          </label>`;
+        const on = c.enabled !== false ? "checked" : "";
+        return `<div style="display:flex; align-items:center; gap:8px; padding:5px 8px; border-bottom:1px solid #334155">
+            <input type="checkbox" class="rsc-on" data-id="${c.id}" ${on} title="Correr este caso en el análisis" style="cursor:pointer">
+            <input type="radio" name="rsc-sel" value="${c.id}" ${sel} style="cursor:pointer">
+            <span class="rsc-name" data-id="${c.id}" style="flex:1; color:#e2e8f0; cursor:pointer">${c.name}</span>
+            <span style="color:#64748b; font-size:11px">${comb}</span>
+          </div>`;
     }).join("") || `<div style="color:#64748b; padding:14px; text-align:center">Sin casos definidos</div>`;
 
     const btn = (id, label, color) =>
@@ -734,7 +736,7 @@ function showCasesListModal(cadSystem) {
             html: `
               <div style="display:grid; grid-template-columns: 1fr 230px; gap:14px; text-align:left; font-family:monospace">
                 <div>
-                  <div style="color:#7eb8f7; font-size:12px; font-weight:600; margin-bottom:6px">Spectra</div>
+                  <div style="color:#7eb8f7; font-size:12px; font-weight:600; margin-bottom:6px">Spectra <span style="color:#64748b; font-weight:400; font-size:10px">(☑ = se corre en el análisis)</span></div>
                   <div style="border:1px solid #475569; border-radius:6px; max-height:240px; overflow:auto">${rowsHtml}</div>
                 </div>
                 <div>
@@ -749,6 +751,23 @@ function showCasesListModal(cadSystem) {
               </div>`,
             didOpen: () => {
                 const getSel = () => document.querySelector('input[name="rsc-sel"]:checked')?.value || null;
+
+                // Checkbox por caso: define cuáles se corren en el análisis (flag enabled).
+                document.querySelectorAll(".rsc-on").forEach((cb) => {
+                    cb.addEventListener("change", () => {
+                        const id = cb.getAttribute("data-id");
+                        const item = cadSystem.responseSpectrumCases.items.find((x) => String(x.id) === String(id));
+                        if (item) item.enabled = cb.checked;
+                    });
+                });
+                // Click en el nombre selecciona el caso (para Modify / Delete / Usar).
+                document.querySelectorAll(".rsc-name").forEach((sp) => {
+                    sp.addEventListener("click", () => {
+                        const radio = document.querySelector(`input[name="rsc-sel"][value="${sp.getAttribute("data-id")}"]`);
+                        if (radio) radio.checked = true;
+                    });
+                });
+
                 document.getElementById("rsc-add")?.addEventListener("click", () => done({ type: "add" }));
                 document.getElementById("rsc-modify")?.addEventListener("click", () => done({ type: "modify", id: getSel() }));
                 document.getElementById("rsc-delete")?.addEventListener("click", () => done({ type: "delete", id: getSel() }));

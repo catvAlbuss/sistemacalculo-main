@@ -261,9 +261,9 @@ export default () => ({
     open: false,
     cases: [
       { name: "CM", type: "Dead", selfWeight: true, value: 1.0 },
-      { name: "CV", type: "Live", value: 1.0 },
-      { name: "CVV+", type: "Live", value: 0.5 },
-      { name: "CVV-", type: "Live", value: 0.5 },
+      { name: "CV", type: "Live", value: 0.25 },
+      { name: "CVE", type: "Live", value: 0.5 },
+      { name: "CVT", type: "Live", value: 0.5 },
       { name: "CN", type: "Live", value: 0.3 },
       { name: "CLL", type: "Live", value: 0.4 },
     ],
