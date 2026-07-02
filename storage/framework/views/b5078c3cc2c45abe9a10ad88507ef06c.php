@@ -1,4 +1,4 @@
-<?php if (! $__env->hasRenderedOnce('57f42b54-c742-4bde-b9cf-761418fb4c3f')): $__env->markAsRenderedOnce('57f42b54-c742-4bde-b9cf-761418fb4c3f');
+<?php if (! $__env->hasRenderedOnce('a91b31d1-f205-45da-908a-472f029f535a')): $__env->markAsRenderedOnce('a91b31d1-f205-45da-908a-472f029f535a');
 $__env->startPush('initscripts'); ?>
 <?php echo app('Illuminate\Foundation\Vite')('resources/js/etabs/main.js'); ?>
 <?php $__env->stopPush(); endif; ?>
