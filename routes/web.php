@@ -49,7 +49,7 @@ Route::post('/cotizarplano', [enviarCotizacionController::class, 'enviarCotizaci
 
 // Route::post('/capturar-viga-descarga', [VigaCaptureController::class, 'descargar']);
 
-Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento']);  
+Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento']);
 
 //==========================RUTA PARA LAS PRUEBAS PREDIM==================//
 Route::view('/info/arco_techo', 'landing.arco_techo')->name('landing.info.arco_techo');
@@ -111,17 +111,17 @@ Route::middleware(["auth", "verified"])->group(function () {
                 Route::view('/aligerados', 'hcalculo.CAV2.admAligerados')->name("aligerados");
                 Route::view('/distribucion-del-acero', 'hcalculo.CAV2.admDistribucionDelAcero')->name("distribucion-del-acero");
                 Route::view('/vigas-continuas', 'hcalculo.CAV2.admVigasContinuas')->name("vigas-continuas");
-                     Route::view('/hoja2', 'hcalculo.CAV2.admHoja2')->name("hoja2");
-                     Route::view('/viga-t', 'hcalculo.adm_vigas_T')->name("viga-t");
+                Route::view('/hoja2', 'hcalculo.CAV2.admHoja2')->name("hoja2");
+                Route::view('/viga-t', 'hcalculo.adm_vigas_T')->name("viga-t");
             });
         });
 
         //==================CALCULADORA ASISTENTE (Root, Gerencia, Asistente)//
         Route::middleware(['role:root|gerencia|asistente'])->group(function () {
             Route::prefix('asistente')->name('asistente.')->group(function () {
-                
-// Agrega la ruta de admMemoriaCalculo memoria-calculo
-        Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name('memoria-calculo');
+
+                // Agrega la ruta de admMemoriaCalculo memoria-calculo
+                Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name('memoria-calculo');
 
 
                 // Vigas
@@ -287,3 +287,59 @@ Route::prefix('storage')->group(function () {
         ]);
     })->name('get.firma');
 });
+
+Route::prefix('api/backend')
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+    ->group(function () {
+
+        Route::get('/health', function () {
+            $url = rtrim(env('PYTHON_BACKEND_URL', 'http://127.0.0.1:5001'), '/') . '/health';
+
+            $response = Http::timeout(10)->get($url);
+
+            return response($response->body(), $response->status())
+                ->header('Content-Type', 'application/json');
+        });
+
+        Route::get('/opensees/status', function () {
+            $url = rtrim(env('PYTHON_BACKEND_URL', 'http://127.0.0.1:5001'), '/') . '/api/opensees/status';
+
+            $response = Http::timeout(10)->get($url);
+
+            return response($response->body(), $response->status())
+                ->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/seismic/analyze', function () {
+            $url = rtrim(env('PYTHON_BACKEND_URL', 'http://127.0.0.1:5001'), '/') . '/api/seismic/analyze';
+
+            $response = Http::timeout(300)
+                ->withBody(request()->getContent(), 'application/json')
+                ->post($url);
+
+            return response($response->body(), $response->status())
+                ->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/frame-forces', function () {
+            $url = rtrim(env('PYTHON_BACKEND_URL', 'http://127.0.0.1:5001'), '/') . '/api/frame-forces';
+
+            $response = Http::timeout(300)
+                ->withBody(request()->getContent(), 'application/json')
+                ->post($url);
+
+            return response($response->body(), $response->status())
+                ->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/seismic/modal', function () {
+            $url = rtrim(env('PYTHON_BACKEND_URL', 'http://127.0.0.1:5001'), '/') . '/api/seismic/modal';
+
+            $response = Http::timeout(300)
+                ->withBody(request()->getContent(), 'application/json')
+                ->post($url);
+
+            return response($response->body(), $response->status())
+                ->header('Content-Type', 'application/json');
+        });
+    });

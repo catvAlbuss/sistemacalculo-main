@@ -1,0 +1,12 @@
+forrtl: error (200): program aborting due to control-C event
+Image              PC                Routine            Line        Source             
+opensees.pyd       0000000180033ED4  Unknown               Unknown  Unknown
+KERNELBASE.dll     00007FFFAF6A3F6D  Unknown               Unknown  Unknown
+KERNEL32.DLL       00007FFFB054E957  Unknown               Unknown  Unknown
+ntdll.dll          00007FFFB224AD6C  Unknown               Unknown  Unknown
+forrtl: error (200): program aborting due to window-CLOSE event
+Image              PC                Routine            Line        Source             
+opensees.pyd       0000000180033ED4  Unknown               Unknown  Unknown
+KERNELBASE.dll     00007FFFAF6A3F6D  Unknown               Unknown  Unknown
+KERNEL32.DLL       00007FFFB054E957  Unknown               Unknown  Unknown
+ntdll.dll          00007FFFB224AD6C  Unknown               Unknown  Unknown

@@ -1,4 +1,5 @@
 @pushOnce('initscripts')
+@vite('resources/js/adm_safecito.js')
 @vite('resources/js/etabs/main.js')
 @endPushOnce
 

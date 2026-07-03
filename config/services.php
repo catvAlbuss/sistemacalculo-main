@@ -34,5 +34,8 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+    'python_backend' => [
+        'url' => env('PYTHON_BACKEND_URL', 'http://127.0.0.1:5001'),
+    ],
 
 ];

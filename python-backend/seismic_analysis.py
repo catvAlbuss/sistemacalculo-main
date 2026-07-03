@@ -134,345 +134,6 @@ def interpolate_spectrum(spectrum: list[tuple[float, float]], period: float) -> 
     return sa_vals[-1]
 
 
-def _as_bool(value, default=False) -> bool:
-    """Convierte valores variados a booleano."""
-    if value is None:
-        return default
-
-    if isinstance(value, bool):
-        return value
-
-    if isinstance(value, (int, float)):
-        return value != 0
-
-    if isinstance(value, str):
-        text = value.strip().lower()
-        if text in ["true", "1", "yes", "y", "si", "sí", "on"]:
-            return True
-        if text in ["false", "0", "no", "off"]:
-            return False
-
-    return default
-
-
-def _data_wants_rigid_diaphragms(data: dict) -> bool:
-    """
-    Detecta si el payload pide diafragma rígido.
-    Acepta varias formas para ser compatible con frontend actual/futuro.
-    """
-    analysis = (
-        data.get("analysis")
-        or data.get("options")
-        or data.get("analysis_options")
-        or {}
-    )
-
-    keys = [
-        "useRigidDiaphragms",
-        "use_rigid_diaphragms",
-        "rigidDiaphragm",
-        "rigid_diaphragm",
-        "rigidDiaphragms",
-        "rigid_diaphragms",
-    ]
-
-    for key in keys:
-        if key in data:
-            return _as_bool(data.get(key), False)
-        if isinstance(analysis, dict) and key in analysis:
-            return _as_bool(analysis.get(key), False)
-
-    # Si llegan grupos explícitos, se entiende que deben aplicarse.
-    diaphragms = data.get("diaphragms") or data.get("diaphragm_groups") or []
-    return isinstance(diaphragms, list) and len(diaphragms) > 0
-
-
-def _extract_node_ids_from_group(group) -> list[int]:
-    """Extrae node ids de un grupo de diafragma aceptando varios formatos."""
-    if not isinstance(group, dict):
-        return []
-
-    raw_nodes = (
-        group.get("nodeIds")
-        or group.get("node_ids")
-        or group.get("nodes")
-        or group.get("jointIds")
-        or group.get("joint_ids")
-        or []
-    )
-
-    node_ids = []
-
-    for item in raw_nodes:
-        try:
-            if isinstance(item, dict):
-                raw_id = item.get("id") or item.get("node") or item.get("nodeId")
-            else:
-                raw_id = item
-
-            node_ids.append(int(raw_id))
-        except Exception:
-            continue
-
-    return sorted(set(node_ids))
-
-
-def _support_node_ids_from_payload(supports: list) -> set[int]:
-    """Obtiene ids de nodos apoyados/restringidos."""
-    support_ids = set()
-
-    for support in supports or []:
-        if not isinstance(support, dict):
-            continue
-
-        raw_id = (
-            support.get("node")
-            or support.get("nodeId")
-            or support.get("node_id")
-            or support.get("id")
-        )
-
-        try:
-            support_ids.add(int(raw_id))
-        except Exception:
-            continue
-
-    return support_ids
-
-
-def _choose_diaphragm_retained_node(node_ids: list[int], node_by_id: dict) -> int:
-    """
-    Elige nodo maestro del diafragma.
-    Se toma el nodo más cercano al centroide del grupo.
-    """
-    if not node_ids:
-        return None
-
-    if len(node_ids) == 1:
-        return node_ids[0]
-
-    xs = []
-    ys = []
-
-    for nid in node_ids:
-        node = node_by_id.get(int(nid))
-        if not node:
-            continue
-        xs.append(float(node.get("x", 0.0)))
-        ys.append(float(node.get("y", 0.0)))
-
-    if not xs or not ys:
-        return node_ids[0]
-
-    cx = sum(xs) / len(xs)
-    cy = sum(ys) / len(ys)
-
-    def distance_to_centroid(nid):
-        node = node_by_id.get(int(nid), {})
-        dx = float(node.get("x", 0.0)) - cx
-        dy = float(node.get("y", 0.0)) - cy
-        return dx * dx + dy * dy
-
-    return min(node_ids, key=distance_to_centroid)
-
-
-def _build_diaphragm_groups(
-    data: dict, nodes: list, supports: list, z_tolerance: float = 0.05
-) -> list[dict]:
-    """
-    Construye grupos de diafragma.
-
-    Prioridad:
-      1. Usar data.diaphragms si llega del frontend.
-      2. Si no llega, agrupar automáticamente por Z cuando useRigidDiaphragms=true.
-    """
-    node_by_id = {int(n["id"]): n for n in nodes}
-    valid_node_ids = set(node_by_id.keys())
-    support_node_ids = _support_node_ids_from_payload(supports)
-
-    explicit_groups = data.get("diaphragms") or data.get("diaphragm_groups") or []
-    groups = []
-
-    # ─────────────────────────────────────────────
-    # Caso 1: grupos explícitos desde frontend
-    # ─────────────────────────────────────────────
-    if isinstance(explicit_groups, list) and explicit_groups:
-        for index, group in enumerate(explicit_groups):
-            node_ids = _extract_node_ids_from_group(group)
-
-            node_ids = [
-                int(nid)
-                for nid in node_ids
-                if int(nid) in valid_node_ids and int(nid) not in support_node_ids
-            ]
-
-            if len(node_ids) < 2:
-                continue
-
-            groups.append(
-                {
-                    "id": str(group.get("id") or group.get("name") or f"D{index + 1}"),
-                    "source": "payload",
-                    "node_ids": sorted(set(node_ids)),
-                }
-            )
-
-        return groups
-
-    # ─────────────────────────────────────────────
-    # Caso 2: automático por nivel Z
-    # ─────────────────────────────────────────────
-    if not _data_wants_rigid_diaphragms(data):
-        return []
-
-    if not nodes:
-        return []
-
-    min_z = min(float(n.get("z", 0.0)) for n in nodes)
-
-    z_groups = []
-
-    for node in nodes:
-        nid = int(node["id"])
-        z = float(node.get("z", 0.0))
-
-        # No aplicar diafragma rígido a la base apoyada.
-        if abs(z - min_z) <= z_tolerance:
-            continue
-
-        # Evitar nodos con support/restricción.
-        if nid in support_node_ids:
-            continue
-
-        matched = None
-
-        for group in z_groups:
-            if abs(group["z"] - z) <= z_tolerance:
-                matched = group
-                break
-
-        if matched is None:
-            matched = {
-                "id": f"D_Z_{len(z_groups) + 1}",
-                "source": "auto_by_z",
-                "z": z,
-                "node_ids": [],
-            }
-            z_groups.append(matched)
-
-        matched["node_ids"].append(nid)
-
-    for group in z_groups:
-        node_ids = sorted(set(group["node_ids"]))
-        if len(node_ids) >= 2:
-            groups.append(
-                {
-                    "id": group["id"],
-                    "source": group["source"],
-                    "z": group.get("z"),
-                    "node_ids": node_ids,
-                }
-            )
-
-    return groups
-
-
-def _apply_rigid_diaphragms(data: dict, nodes: list, supports: list) -> dict:
-    """
-    Aplica diafragma rígido simplificado por piso usando equalDOF.
-
-    Versión estable para RSA inicial:
-    - DOF 1 = desplazamiento X
-    - DOF 2 = desplazamiento Y
-
-    Esto amarra los desplazamientos horizontales de los nodos del mismo piso.
-    Más adelante se puede volver a rigidDiaphragm real si el solver queda calibrado.
-    """
-    report = {
-        "requested": _data_wants_rigid_diaphragms(data),
-        "applied": [],
-        "skipped": [],
-        "errors": [],
-    }
-
-    if ops is None:
-        report["errors"].append("OpenSeesPy no está disponible.")
-        return report
-
-    groups = _build_diaphragm_groups(data, nodes, supports)
-
-    if not groups:
-        report["skipped"].append("No hay grupos de diafragma válidos.")
-        return report
-
-    node_by_id = {int(n["id"]): n for n in nodes}
-
-    for group in groups:
-        node_ids = group.get("node_ids", [])
-
-        if len(node_ids) < 2:
-            report["skipped"].append(
-                {
-                    "id": group.get("id"),
-                    "reason": "Menos de 2 nodos válidos.",
-                }
-            )
-            continue
-
-        retained = _choose_diaphragm_retained_node(node_ids, node_by_id)
-
-        if retained is None:
-            report["skipped"].append(
-                {
-                    "id": group.get("id"),
-                    "reason": "No se pudo elegir nodo maestro.",
-                }
-            )
-            continue
-
-        constrained = [int(nid) for nid in node_ids if int(nid) != int(retained)]
-
-        if not constrained:
-            report["skipped"].append(
-                {
-                    "id": group.get("id"),
-                    "reason": "No hay nodos esclavos.",
-                }
-            )
-            continue
-
-        try:
-            equal_dof_applied = []
-
-            for slave in constrained:
-                # DOF 1 = UX, DOF 2 = UY
-                ops.equalDOF(int(retained), int(slave), 1, 2)
-                equal_dof_applied.append(int(slave))
-
-            report["applied"].append(
-                {
-                    "id": group.get("id"),
-                    "source": group.get("source"),
-                    "method": "equalDOF_ux_uy",
-                    "retained": int(retained),
-                    "constrained": equal_dof_applied,
-                    "node_ids": node_ids,
-                    "count": len(node_ids),
-                }
-            )
-
-        except Exception as error:
-            report["errors"].append(
-                {
-                    "id": group.get("id"),
-                    "method": "equalDOF_ux_uy",
-                    "message": str(error),
-                }
-            )
-
-    return report
-
-
 # ─────────────────────────────────────────────────────────
 #  B2 + B3.6 - DIAFRAGMA RÍGIDO Y MASS SOURCE
 # ─────────────────────────────────────────────────────────
@@ -1810,21 +1471,31 @@ def run_modal_analysis(nodes: list, num_modes: int = 6) -> dict:
         mx_arr = np.array(m_x)
         my_arr = np.array(m_y)
 
-        # Modal mass: M_n = φ^T M φ  (se conserva para gamma y superposición modal)
+        # Modal mass por componente (parte X e Y de la masa generalizada).
         Mn_x = float(np.dot(phi_xi, mx_arr * phi_xi))
         Mn_y = float(np.dot(phi_yi, my_arr * phi_yi))
+
+        # Masa generalizada COMPLETA M_n = φ^T M φ (X + Y). Es propiedad del MODO,
+        # no de la dirección, así que va en el denominador de AMBOS gamma. Con
+        # rigidDiaphragm un modo de traslación X tiene también componente Y (la
+        # rotación del diafragma mueve los nodos excéntricos), por lo que la M_n
+        # correcta incluye ambas y reduce el sobre-estimado del desplazamiento.
+        # Con equalDOF (traslación pura) φ_y≈0 → M_n=Mn_x → esa ruta NO cambia.
+        # Esto hace la deriva (que usa gamma_x) consistente con el cortante (que ya
+        # usa la participación de modalProperties, torsión-aware). [fix rigidDiaphragm]
+        Mn_full = Mn_x + Mn_y
 
         # Participation factor: Γ_n = φ^T M {1} / M_n
         # {1} = vector de influencia unitaria en la dirección del sismo
         Ln_x = float(np.dot(phi_xi, mx_arr))  # suma de masas * φ (dirección X)
         Ln_y = float(np.dot(phi_yi, my_arr))
 
-        gamma_x = Ln_x / Mn_x if abs(Mn_x) > 1e-12 else 0.0
-        gamma_y = Ln_y / Mn_y if abs(Mn_y) > 1e-12 else 0.0
+        gamma_x = Ln_x / Mn_full if abs(Mn_full) > 1e-12 else 0.0
+        gamma_y = Ln_y / Mn_full if abs(Mn_full) > 1e-12 else 0.0
 
         # Masa modal efectiva manual (fallback): m*_n = (φ^T M {1})² / (φ^T M φ)
-        meff_x = Ln_x**2 / Mn_x if abs(Mn_x) > 1e-12 else 0.0
-        meff_y = Ln_y**2 / Mn_y if abs(Mn_y) > 1e-12 else 0.0
+        meff_x = Ln_x**2 / Mn_full if abs(Mn_full) > 1e-12 else 0.0
+        meff_y = Ln_y**2 / Mn_full if abs(Mn_full) > 1e-12 else 0.0
         manual_mpf_x = meff_x / total_mass_x * 100 if total_mass_x > 1e-12 else 0.0
         manual_mpf_y = meff_y / total_mass_y * 100 if total_mass_y > 1e-12 else 0.0
 
@@ -2014,6 +1685,21 @@ def run_rsa(
         "displacements": displacements,
         "base_shear": base_shear,
         "modal_disps_detail": modal_disps_detail,
+        # Desplazamientos POR MODO (en la dirección de este RSA) para la deriva
+        # CORRECTA = CQC de las derivas modales por línea de nodos (capta la esquina
+        # amplificada por torsión con rigidDiaphragm). node_ids da el orden de nodos;
+        # omegas + damping permiten la correlación CQC en _compute_story_drifts.
+        "node_ids": [int(n) for n in node_ids],
+        "modal_node_disps": (
+            modal_disps_x if direction == "x" else modal_disps_y
+        ).tolist(),
+        "omegas": [
+            float(mi["omega"].real)
+            if hasattr(mi["omega"], "real")
+            else float(mi["omega"])
+            for mi in modal_info
+        ],
+        "damping_ratio": float(damping_ratio),
     }
 
 
@@ -2277,9 +1963,83 @@ def _max_abs_story_displacement(
     return float(max(values))
 
 
+def _cqc_modal_story_drift(
+    rsa: dict, node_coord: dict, lower: dict, upper: dict, height: float
+):
+    """Deriva de entrepiso CORRECTA para un RSA de una dirección.
+
+    Para cada línea de nodos (x,y) calcula la deriva MODO POR MODO
+    (u_arriba_n − u_abajo_n), las combina con CQC, y toma el MÁXIMO entre líneas.
+    Esto capta la amplificación en esquinas por torsión (rigidDiaphragm).
+
+    El método antiguo (`_average_story_displacement` → restar desplazamientos ya
+    combinados con CQC) subestima cuando el piso ROTA y la respuesta se reparte
+    entre modos (traslación + torsión): restar dos magnitudes CQC no equivale a
+    combinar las derivas modales. Solo coincide con piso uniforme y un modo
+    dominante (caso equalDOF), por eso ese método calza con equalDOF pero falla con
+    rigidDiaphragm.
+
+    Devuelve la deriva (m) o None si no hay datos por modo (se cae al promedio).
+    """
+    md = rsa.get("modal_node_disps")
+    nids = rsa.get("node_ids")
+    omegas = rsa.get("omegas")
+    if not md or not nids or not omegas or height <= 1e-9:
+        return None
+
+    zeta = float(rsa.get("damping_ratio", 0.05))
+    idx_of = {int(n): i for i, n in enumerate(nids)}
+    num_modes = len(omegas)
+
+    def _xy_map(story):
+        m = {}
+        for nid in story.get("node_ids", []):
+            c = node_coord.get(int(nid))
+            if c is not None:
+                m[c] = int(nid)
+        return m
+
+    up_map = _xy_map(upper)
+    lo_map = _xy_map(lower)
+    if not up_map:
+        return None
+
+    drift_max = 0.0
+    for xy, n_up in up_map.items():
+        i_up = idx_of.get(n_up)
+        if i_up is None:
+            continue
+        n_lo = lo_map.get(xy)
+        i_lo = idx_of.get(n_lo) if n_lo is not None else None
+
+        # Deriva modal por línea: u_arriba_n − u_abajo_n (base fija => u_abajo=0).
+        dn = [
+            md[mo][i_up] - (md[mo][i_lo] if i_lo is not None else 0.0)
+            for mo in range(num_modes)
+        ]
+
+        tot = 0.0
+        for i in range(num_modes):
+            di = dn[i]
+            if di == 0.0:
+                continue
+            for j in range(num_modes):
+                tot += _cqc_rho(omegas[i], omegas[j], zeta) * di * dn[j]
+
+        d = float(np.sqrt(abs(tot)))
+        if d > drift_max:
+            drift_max = d
+
+    return drift_max
+
+
 def _compute_story_drifts(data: dict, nodes: list, seismic: dict) -> dict:
     """
     Calcula derivas de piso a partir de los desplazamientos RSA.
+
+    Deriva por dirección = CQC de las derivas modales por línea de nodos, máximo
+    entre líneas (ver _cqc_modal_story_drift). Si no hay datos por modo, cae al
+    método promedio antiguo.
 
     Retorna una tabla lista para UI:
       Piso | Elevación | Altura | Ux | Uy | Δx/h | Δy/h | Estado
@@ -2320,12 +2080,30 @@ def _compute_story_drifts(data: dict, nodes: list, seismic: dict) -> dict:
         else {}
     )
 
+    # RSA por dirección (incluye desplazamientos por modo para la deriva correcta).
+    rsa_x = seismic.get("x", {}) if isinstance(seismic, dict) else {}
+    rsa_y = seismic.get("y", {}) if isinstance(seismic, dict) else {}
+
+    # Coordenadas por nodo para emparejar líneas (x,y) entre pisos adyacentes.
+    node_coord = {}
+    for n in nodes or []:
+        try:
+            node_coord[int(n["id"])] = (
+                round(float(n.get("x", 0.0)), 3),
+                round(float(n.get("y", 0.0)), 3),
+            )
+        except Exception:
+            pass
+
     rows = []
 
     max_ratio_x = 0.0
     max_ratio_y = 0.0
     governing_story = None
     governing_direction = None
+    drift_method = "avg"      # se vuelve "cqc_modal" si hay datos por modo
+    cum_x = 0.0               # desplazamiento acumulado = suma de derivas (estilo ETABS)
+    cum_y = 0.0
 
     for index in range(1, len(stories)):
         lower = stories[index - 1]
@@ -2344,14 +2122,34 @@ def _compute_story_drifts(data: dict, nodes: list, seismic: dict) -> dict:
         uy_lower = _average_story_displacement(lower, displacements_y, "y")
         uy_upper = _average_story_displacement(upper, displacements_y, "y")
 
-        drift_x_signed = ux_upper - ux_lower
-        drift_y_signed = uy_upper - uy_lower
+        # ── Deriva CORRECTA: CQC de derivas modales por línea, máximo entre líneas.
+        # Si no hay datos por modo (payload viejo / caso fallback) cae al promedio.
+        drift_x_modal = _cqc_modal_story_drift(rsa_x, node_coord, lower, upper, height)
+        drift_y_modal = _cqc_modal_story_drift(rsa_y, node_coord, lower, upper, height)
 
-        drift_x = abs(drift_x_signed)
-        drift_y = abs(drift_y_signed)
+        if drift_x_modal is not None:
+            drift_method = "cqc_modal"
+            drift_x = drift_x_modal
+            drift_x_signed = drift_x_modal  # CQC entrega magnitud (+)
+        else:
+            drift_x_signed = ux_upper - ux_lower
+            drift_x = abs(drift_x_signed)
+
+        if drift_y_modal is not None:
+            drift_y = drift_y_modal
+            drift_y_signed = drift_y_modal
+        else:
+            drift_y_signed = uy_upper - uy_lower
+            drift_y = abs(drift_y_signed)
 
         ratio_x = drift_x / height if height > 1e-9 else 0.0
         ratio_y = drift_y / height if height > 1e-9 else 0.0
+
+        # Desplazamiento acumulado = suma de derivas (consistente con tabla ETABS).
+        cum_x += drift_x
+        cum_y += drift_y
+        disp_x_report = cum_x if drift_x_modal is not None else ux_upper
+        disp_y_report = cum_y if drift_y_modal is not None else uy_upper
 
         if ratio_x > max_ratio_x:
             max_ratio_x = ratio_x
@@ -2370,8 +2168,8 @@ def _compute_story_drifts(data: dict, nodes: list, seismic: dict) -> dict:
             "lower_elevation_m": float(lower_z),
             "height_m": float(height),
             "node_ids": upper.get("node_ids", []),
-            "displacement_x_m": float(ux_upper),
-            "displacement_y_m": float(uy_upper),
+            "displacement_x_m": float(disp_x_report),
+            "displacement_y_m": float(disp_y_report),
             "max_abs_displacement_x_m": float(
                 _max_abs_story_displacement(upper, displacements_x, "x")
             ),
@@ -2409,6 +2207,7 @@ def _compute_story_drifts(data: dict, nodes: list, seismic: dict) -> dict:
             "governing_direction": governing_direction,
             "governing_story": governing_story,
             "status": "OK" if governing_ratio <= drift_limit else "EXCEEDS",
+            "drift_method": drift_method,
         },
     }
 
@@ -3832,7 +3631,17 @@ def _b7_build_summary(results: dict) -> dict:
 
     model_quality = results.get("model_quality") or {}
 
+    # Método de deriva en uso (señal de qué código está cargado):
+    #   "cqc_modal" = fix activo (CQC de derivas modales por línea, capta torsión)
+    #   "avg"       = método promedio antiguo (Flask viejo / fallback sin datos por modo)
+    drift_method = (
+        ((results.get("story_drifts") or {}).get("summary") or {}).get("drift_method")
+    )
+
     return {
+        # Marcadores de versión del motor (verifican que el Flask cargó el código nuevo).
+        "engine_build": "2026-06-30-driftfix",
+        "drift_method": drift_method,
         "base_shear_x_N": base_shear[0]["base_shear_N"] if len(base_shear) > 0 else 0.0,
         "base_shear_y_N": base_shear[1]["base_shear_N"] if len(base_shear) > 1 else 0.0,
         "max_story_shear_x_N": _b7_round(max_story_shear_x, 6),

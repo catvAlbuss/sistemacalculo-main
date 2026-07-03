@@ -3057,6 +3057,27 @@ export const fileIOMixin = {
 
       this.analysisResults = cleanClone(results.analysisResults, null);
 
+      // ── Descartar resultados SÍSMICOS guardados que sean PRE-FIX ──────────
+      // Un JSON guardado antes del fix de deriva trae `analysisResults.seismic`
+      // con derivas viejas (X/Y invertidas) y SIN el marcador `engine_build`.
+      // El visor los tomaría por el fallback de `_getEtabsResultsPackage` y
+      // mostraría datos viejos aunque el backend recalcule bien. Si faltan los
+      // marcadores del fix, se limpian para forzar un re-cálculo fresco; la
+      // geometría/definiciones del modelo se conservan intactas.
+      const _savedSeismic = this.analysisResults?.seismic?.etabs_results;
+      const _seismicIsStale =
+        _savedSeismic && !_savedSeismic.summary?.engine_build;
+      if (_seismicIsStale) {
+        delete this.analysisResults.seismic;
+        this.seismicResults = null;
+        this.seismicResultsByCase = {};
+        this.seismicCaseOrder = [];
+        this.seismicActiveCase = null;
+        console.warn(
+          "⚠️ Resultados sísmicos del JSON son de una versión previa (sin engine_build) → descartados. Re-ejecuta el análisis sísmico para verlos actualizados."
+        );
+      }
+
       this.modelCheck = cleanClone(results.modelCheck, null);
 
       // ============================================================

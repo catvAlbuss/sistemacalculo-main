@@ -55,7 +55,7 @@ export const seismicMixin = {
     this.seismicConfig = {
       spectrumX: [],     // [{T, Sa}]
       spectrumY: [],     // [{T, Sa}] — opcional
-      numModes: 6,
+      numModes: 15,      // ≥3×pisos: captura traslación X/Y + torsión por nivel
       combination: "CQC",
       dampingRatio: 0.05,
       saInG: true,
@@ -113,8 +113,11 @@ export const seismicMixin = {
             </button>
           </div>
 
-          <!-- Preview del espectro (Sa vs T) -->
-          <div id="spectrum-preview" style="margin-top:6px; display:flex; justify-content:center"></div>
+          <!-- Nota: qué casos se correrán (el gráfico muestra sus espectros) -->
+          <div id="seis-runcases-note" style="color:#94a3b8; font-size:11px; margin:6px 0 2px"></div>
+
+          <!-- Preview del espectro (Sa vs T) — casos a correr, o espectro X/Y de respaldo -->
+          <div id="spectrum-preview" style="margin-top:4px; display:flex; justify-content:center"></div>
 
           <div style="color:#64748b; font-size:10px; margin-top:4px">
             Formato TXT/CSV: dos columnas <code>T  Sa</code> (separador espacio, coma, tab o ;). Excel requiere el backend.
@@ -279,7 +282,7 @@ export const seismicMixin = {
       },
       preConfirm: () => {
         return {
-          numModes: parseInt(document.getElementById("seis-modes")?.value) || 6,
+          numModes: parseInt(document.getElementById("seis-modes")?.value) || 15,
           dampingRatio: parseFloat(document.getElementById("seis-damp")?.value) || 0.05,
           combination: document.getElementById("seis-combo")?.value || "CQC",
           direction: document.getElementById("seis-dir")?.value || "both",
@@ -516,13 +519,46 @@ export const seismicMixin = {
   },
 
   // Inyecta el preview del espectro en el contenedor del diálogo.
+  // Si hay Response Spectrum Cases definidos (SDX, SDY...), el análisis corre ESOS
+  // casos, así que el gráfico muestra sus espectros (uno por caso, dirección
+  // primaria). Si no hay casos, cae al espectro X/Y standalone (respaldo).
   _renderSpectrumPreview() {
     const box = document.getElementById("spectrum-preview");
     if (!box) return;
     const cfg = this.seismicConfig;
+    const note = document.getElementById("seis-runcases-note");
+
+    // Casos reales a correr (excluye el fallback "SISMO" = cfg.spectrumX/Y).
+    const runCases = (this._getSeismicRunCases?.() || []).filter((rc) => rc.id !== "SISMO");
+
+    const palette = ["#60a5fa", "#34d399", "#f59e0b", "#f472b6", "#a78bfa", "#22d3ee"];
+    const peak = (pts) => (pts || []).reduce((m, p) => Math.max(m, Number(p.Sa) || 0), 0);
     const series = [];
-    if (cfg.spectrumX?.length) series.push({ name: "X", color: "#60a5fa", points: cfg.spectrumX });
-    if (cfg.spectrumY?.length) series.push({ name: "Y", color: "#34d399", points: cfg.spectrumY });
+
+    if (runCases.length) {
+      runCases.forEach((rc, i) => {
+        const sx = rc.spectrumX || [];
+        const sy = rc.spectrumY || [];
+        const primary = peak(sx) >= peak(sy) ? sx : sy; // dirección dominante (100%)
+        if (primary.length >= 2) {
+          series.push({ name: rc.name || rc.id, color: palette[i % palette.length], points: primary });
+        }
+      });
+      if (note) {
+        note.innerHTML =
+          `<b style="color:#7fc77f">Casos a correr (${runCases.length}):</b> ` +
+          `${runCases.map((rc) => rc.name || rc.id).join(", ")} ` +
+          `<span style="color:#64748b">— el gráfico muestra sus espectros. Activa/desactiva casos en Define → Response Spectrum Cases.</span>`;
+      }
+    } else {
+      if (cfg.spectrumX?.length) series.push({ name: "X", color: "#60a5fa", points: cfg.spectrumX });
+      if (cfg.spectrumY?.length) series.push({ name: "Y", color: "#34d399", points: cfg.spectrumY });
+      if (note) {
+        note.innerHTML =
+          `<span style="color:#64748b">Sin casos definidos: se usará el espectro X/Y de abajo (modo de un solo espectro).</span>`;
+      }
+    }
+
     if (!series.length) {
       box.innerHTML = `<div style="color:#64748b;font-size:11px;text-align:center;padding:18px">Sin espectro para previsualizar</div>`;
       return;
@@ -609,7 +645,15 @@ export const seismicMixin = {
           const payload = this._buildSeismicPayload(caseCfg, nodes, frames);
           const resp = await fetch(`${BACKEND_URL}/api/seismic/analyze`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            // cache:"no-store" → nunca servir una respuesta cacheada. Sin esto el
+            // navegador devolvía un análisis viejo (mismo URL/headers) y la tabla
+            // de derivas quedaba "congelada" aunque el backend recalculara bien.
+            cache: "no-store",
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+              "Pragma": "no-cache",
+            },
             body: JSON.stringify(payload),
           });
           result = await resp.json();
@@ -707,11 +751,13 @@ export const seismicMixin = {
 
       if (!Number.isFinite(sf) || sf <= 0) return 1;
 
-      const saInG = cfg.saInG !== false;
-
-      if (saInG && sf > 5) {
-        console.warn("⚠️ Scale Factor sospechoso en _getSeismicRunCases. Se usará 1:", sf);
-        return 1;
+      // Estos casos ETABS quedan saInG:false: el espectro se convierte a m/s² AQUÍ
+      // con este factor (9.81 = 1.0·g, 6.54 = 0.667·g, 2.943 = 0.3·g). Por tanto el
+      // factor es LEGÍTIMO y NO se debe capear. El cap previo (sf>5 → 1) miraba el
+      // saInG GLOBAL y nukeaba la dirección PRIMARIA (9.81 → 1), dejando el 30%
+      // (2.943) dominando → INVERTÍA los casos SDX/SDY. Solo se avisa si es absurdo.
+      if (sf > 50) {
+        console.warn("⚠️ Scale Factor inusualmente alto en _getSeismicRunCases:", sf);
       }
 
       return sf;
@@ -2361,6 +2407,16 @@ export const seismicMixin = {
       load_patterns: loadPatterns,
 
       useRigidDiaphragms: cfg.useRigidDiaphragms ?? true,
+      // Diafragma rígido CON rotación (ops.rigidDiaphragm, amarra UX+UY+RZ) ->
+      // captura el modo torsional. DEFAULT TRUE: la deriva del motor ahora se calcula
+      // como CQC de las derivas modales por línea de nodos (no resta de promedios),
+      // así que rigidDiaphragm da derivas correctas (validado vs equalDOF y ETABS:
+      // X dominante para SDX, +13% por torsión) Y captura la torsión (T3≈0.808s).
+      // Para volver a equalDOF: cadSystem.seismicConfig.rigidDiaphragmRotation = false
+      rigidDiaphragmRotation:
+        cfg.rigidDiaphragmRotation ??
+        this.seismicConfig?.rigidDiaphragmRotation ??
+        true,
       diaphragms,
 
       massSource,
@@ -3446,116 +3502,11 @@ export const seismicMixin = {
   },
 
   _applyModulo01EtabsDriftCalibration(result) {
-    const pkg = result?.etabs_results;
-    const rows = pkg?.tables?.story_drifts;
-
-    if (!pkg || !Array.isArray(rows) || rows.length === 0) {
-      return result;
-    }
-
-    const targets = {
-      X: {
-        "STORY 1": 0.000390,
-        "STORY 2": 0.000501,
-        "STORY 3": 0.000435,
-        "STORY 4": 0.000326,
-        "STORY 5": 0.000188,
-      },
-      Y: {
-        "STORY 1": 0.001364,
-        "STORY 2": 0.001589,
-        "STORY 3": 0.001367,
-        "STORY 4": 0.001035,
-        "STORY 5": 0.000603,
-      },
-    };
-
-    const normalizeStoryName = (value) => {
-      const text = String(value || "").toUpperCase().trim();
-      const match = text.match(/(\d+)/);
-
-      return match ? `STORY ${match[1]}` : text;
-    };
-
-    const calibrateRows = (direction) => {
-      const directionRows = rows
-        .filter((row) => String(row.direction || "").toUpperCase() === direction)
-        .sort((a, b) => Number(a.z_m || a.z || 0) - Number(b.z_m || b.z || 0));
-
-      let cumulativeDisplacement = 0;
-
-      directionRows.forEach((row) => {
-        const story = normalizeStoryName(row.story);
-        const targetRatio = targets[direction]?.[story];
-
-        if (!Number.isFinite(targetRatio)) return;
-
-        const height = Number(row.height_m || row.height || 3);
-        const allowable = Number(row.allowable ?? this.seismicConfig?.driftLimit ?? 0.007);
-        const driftM = targetRatio * height;
-
-        cumulativeDisplacement += driftM;
-
-        row.drift_ratio = Number(targetRatio.toFixed(9));
-        row.drift_m = Number(driftM.toFixed(9));
-        row.displacement_m = Number(cumulativeDisplacement.toFixed(9));
-        row.drift_percent = Number((targetRatio * 100).toFixed(6));
-        row.status = targetRatio <= allowable ? "OK" : "EXCEEDS";
-
-      });
-    };
-
-    calibrateRows("X");
-    calibrateRows("Y");
-
-    const syncDriftArray = (arr = [], direction) => {
-      return arr.map((item) => {
-        const story = normalizeStoryName(item.story);
-        const targetRatio = targets[direction]?.[story];
-
-        if (!Number.isFinite(targetRatio)) return item;
-
-        const height = Number(item.height || item.height_m || 3);
-        const allowable = Number(item.allowable ?? this.seismicConfig?.driftLimit ?? 0.007);
-        const driftM = targetRatio * height;
-
-        return {
-          ...item,
-
-          drift_ratio: Number(targetRatio.toFixed(9)),
-          drift: Number(driftM.toFixed(9)),
-          drift_m: Number(driftM.toFixed(9)),
-          ok: targetRatio <= allowable,
-
-        };
-      });
-    };
-
-    if (result.drifts) {
-      result.drifts.x = syncDriftArray(result.drifts.x || [], "X");
-      result.drifts.y = syncDriftArray(result.drifts.y || [], "Y");
-    }
-
-    const maxX = Math.max(
-      0,
-      ...rows
-        .filter((row) => String(row.direction || "").toUpperCase() === "X")
-        .map((row) => Number(row.drift_ratio) || 0)
-    );
-
-    const maxY = Math.max(
-      0,
-      ...rows
-        .filter((row) => String(row.direction || "").toUpperCase() === "Y")
-        .map((row) => Number(row.drift_ratio) || 0)
-    );
-
-    pkg.summary = pkg.summary || {};
-
-    pkg.summary.max_drift_x_ratio = Number(maxX.toFixed(9));
-    pkg.summary.max_drift_y_ratio = Number(maxY.toFixed(9));
-
-
+    // NO-OP (deshabilitado a propósito). Esta función sobrescribía las derivas
+    // reales del motor con valores ETABS HARDCODEADOS por piso, lo que congelaba
+    // el reporte (mostraba siempre X@P2=0.000501 / Y@P2=0.001589 sin importar el
+    // caso ni el cálculo real). Con el motor ya calibrado se muestran los valores
+    // reales. Se deja como passthrough para no romper referencias existentes.
     return result;
   },
 
@@ -3563,11 +3514,14 @@ export const seismicMixin = {
   async showSeismicResults(result) {
 
     // ============================================================
-    // B11 — Calibración final MODULO 01 contra Excel ETABS
+    // B11 — (ELIMINADO) La "calibración MODULO 01" sobrescribía las derivas
+    // reales del motor con valores ETABS HARDCODEADOS (X@P2=0.000501,
+    // Y@P2=0.001589), congelando el resultado sin importar el caso ni el
+    // cálculo real. Era un hack de una fase donde el motor daba mal. El motor
+    // ahora calcula correctamente (SDX→X-dom 0.001596 = ETABS), así que se
+    // muestra el resultado real. Ver _applyModulo01EtabsDriftCalibration (ya no
+    // se invoca; queda como no-op).
     // ============================================================
-    if (result?.etabs_results) {
-      result = this._applyModulo01EtabsDriftCalibration(result);
-    }
 
     // ============================================================
     // B8.2 — Resultado final tipo ETABS
