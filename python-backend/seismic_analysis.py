@@ -817,12 +817,18 @@ def _distribute_element_mass_to_nodes(
         _add_auto_mass_to_node(node_masses, nj, mass_kg * 0.5)
         return
 
+    # Elemento con un extremo apoyado (p.ej. columna del 1er piso): solo la
+    # MITAD tributaria del extremo libre participa en la masa modal. La otra
+    # mitad corresponde al nodo apoyado (base/fundación) y no vibra — igual
+    # que ETABS, que la reporta en "Base" del Mass Summary sin participar.
+    # (Antes se lumpeaba el 100% al nodo libre → sobreestimaba la masa
+    # sísmica en ~medio piso de columnas.)
     if ni_supported and not nj_supported:
-        _add_auto_mass_to_node(node_masses, nj, mass_kg)
+        _add_auto_mass_to_node(node_masses, nj, mass_kg * 0.5)
         return
 
     if nj_supported and not ni_supported:
-        _add_auto_mass_to_node(node_masses, ni, mass_kg)
+        _add_auto_mass_to_node(node_masses, ni, mass_kg * 0.5)
         return
 
     # Si ambos son apoyados, no aporta a masa modal libre.
@@ -1666,7 +1672,11 @@ def run_rsa(
         disp_y_comb = _srss_combine(modal_disps_y)
 
     # ── Fuerzas sísmicas equivalentes en base (cortante basal) ──
-    base_shear = _compute_base_shear(modal_info, spectrum, direction, scale, m_x, m_y)
+    # Respeta la combinación modal del caso (CQC como ETABS, o SRSS).
+    base_shear = _compute_base_shear(
+        modal_info, spectrum, direction, scale, m_x, m_y,
+        combination=combination, damping_ratio=damping_ratio,
+    )
 
     # ── Empaquetar por nodo ──────────────────────────────────
     displacements = {}
@@ -1760,8 +1770,20 @@ def _compute_base_shear(
     scale: float,
     m_x: np.ndarray,
     m_y: np.ndarray,
+    combination: str = "SRSS",
+    damping_ratio: float = 0.05,
 ) -> float:
-    """Cortante basal por combinación SRSS de fuerzas modales."""
+    """Cortante basal por combinación modal de fuerzas (V_n = meff_n · Sa_n).
+
+    combination:
+      - "CQC"  → V = √(ΣΣ ρ_ij·V_i·V_j), igual que ETABS. Con modos cercanos
+                 (rigidDiaphragm: traslación+torsión casi degeneradas) los
+                 términos cruzados suman y V_CQC ≥ V_SRSS — SRSS subestimaba
+                 el cortante ~5-10% frente a ETABS.
+      - otro   → SRSS (comportamiento histórico).
+    Las fuerzas modales V_n son ≥ 0 (masa efectiva positiva), por lo que la
+    correlación cruzada siempre suma.
+    """
     shears = []
     total_mass = float(np.sum(m_x)) if direction == "x" else float(np.sum(m_y))
     for mi in modal_info:
@@ -1774,6 +1796,22 @@ def _compute_base_shear(
         )
         V_n = (mpf / 100) * total_mass * Sa_n
         shears.append(V_n)
+
+    if str(combination or "").upper() == "CQC":
+        omegas = [
+            float(mi["omega"].real) if hasattr(mi["omega"], "real") else float(mi["omega"])
+            for mi in modal_info
+        ]
+        total = 0.0
+        for i, vi in enumerate(shears):
+            if vi == 0.0:
+                continue
+            for j, vj in enumerate(shears):
+                if vj == 0.0:
+                    continue
+                total += _cqc_rho(omegas[i], omegas[j], damping_ratio) * vi * vj
+        return float(np.sqrt(abs(total)))
+
     return float(np.sqrt(sum(v**2 for v in shears)))
 
 

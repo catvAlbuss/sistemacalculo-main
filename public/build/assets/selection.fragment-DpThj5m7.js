@@ -1,4 +1,4 @@
-import{S as i}from"./analisis_estructural_de_armaduras-BZz44bu-.js";import"./livewire.esm-CO6ZehnT.js";import"./predimensionamiento-CxryAhEz.js";import"./preload-helper-BfFHrpNk.js";import"./mat4js.read-DcrXhSIi.js";import"./_commonjsHelpers-_d1bhYXs.js";import"./___vite-browser-external_commonjs-proxy-BQ48sp8I.js";const e="selectionPixelShader",o=`#ifdef INSTANCES
+import{S as i}from"./analisis_estructural_de_armaduras-Z0y6guNK.js";import"./livewire.esm-CO6ZehnT.js";import"./predimensionamiento-CxryAhEz.js";import"./preload-helper-BfFHrpNk.js";import"./mat4js.read-DcrXhSIi.js";import"./_commonjsHelpers-_d1bhYXs.js";import"./___vite-browser-external_commonjs-proxy-BQ48sp8I.js";const e="selectionPixelShader",o=`#ifdef INSTANCES
 flat varying float vSelectionId;
 #else
 uniform float selectionId;

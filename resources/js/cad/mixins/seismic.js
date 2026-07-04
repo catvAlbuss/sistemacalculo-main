@@ -2658,7 +2658,107 @@ export const seismicMixin = {
       .replace("Mx", "MX")
       .replace("My", "MY")
       .replace("Mz", "MZ")
-      .replace("Rad S", "rad/s");
+      .replace("Rad S", "rad/s")
+      // Componentes de fuerza estilo ETABS (Base Reactions)
+      .replace(/\bFx\b/g, "FX")
+      .replace(/\bFy\b/g, "FY")
+      .replace(/\bFz\b/g, "FZ")
+      // Unidades del selector de visualización (tonf/kgf, m/cm, ton)
+      .replace(/\bTonf\b/g, "tonf")
+      .replace(/\bKgf\b/g, "kgf")
+      .replace(/\bCm\b/g, "cm")
+      .replace(/\bTon\b/g, "ton");
+  },
+
+  // =====================================================
+  // BASE SHEAR > FORMATO ETABS "BASE REACTIONS"
+  // Transforma las filas del motor (una por dirección: SPEC_X/SPEC_Y) al
+  // layout de la tabla Base Reactions de ETABS: una fila por caso con
+  // FX/FY/FZ. FX y FY son los cortantes del caso ACTIVO (la dirección
+  // primaria al 100% y la ortogonal al 30%). FZ no aplica en RSA horizontal.
+  // =====================================================
+  _buildEtabsStyleBaseShearRows(rows = []) {
+    if (!Array.isArray(rows) || rows.length === 0) return [];
+
+    const findShear = (dir) => {
+      const row = rows.find((r) => String(r?.direction || "").toUpperCase() === dir);
+      return Number(row?.base_shear_N) || 0;
+    };
+
+    const caseName =
+      this.seismicResults?._caseName ||
+      this.seismicActiveCase ||
+      rows[0]?.case ||
+      "SPEC";
+
+    return [
+      {
+        output_case: String(caseName),
+        case_type: "LinRespSpec",
+        step_type: "Max",
+        fx_N: findShear("X"),
+        fy_N: findShear("Y"),
+        fz_N: 0,
+      },
+    ];
+  },
+
+  // =====================================================
+  // UNIDADES > CONVERTIR FILAS DEL REPORTE A LA UNIDAD ACTIVA
+  // El paquete etabs_results SIEMPRE queda en SI (N, kg, m) — esta capa
+  // solo convierte para MOSTRAR según el selector del footer (tonf/kgf, m/cm).
+  // Detecta columnas por sufijo de la key (_N, _kg, _m, "(N)") y las renombra
+  // para que el encabezado autogenerado muestre la unidad correcta.
+  // Las columnas _kN se eliminan (redundantes con la de fuerza convertida).
+  // =====================================================
+  _convertEtabsRowsToDisplayUnits(rows = []) {
+    const u = window.cadUnits;
+
+    if (!u || !Array.isArray(rows) || rows.length === 0) return rows;
+
+    const labels = u.labels();
+    const F = labels.force;      // tonf | kgf
+    const L = labels.length;     // m | cm
+    const M = labels.mass;       // ton | kg
+
+    return rows.map((row) => {
+      if (!row || typeof row !== "object") return row;
+
+      const out = {};
+
+      Object.entries(row).forEach(([key, value]) => {
+        // Fuerza: base_shear_N, fx_N, lateral_force_N, vertical_weight_N...
+        if (/_N$/.test(key)) {
+          out[key.replace(/_N$/, `_${F}`)] = typeof value === "number" ? u.forceNToDisp(value) : value;
+          return;
+        }
+
+        // Fuerza en labels mapeados: "FZ (N)", "Total FX (N)", "Weight (N)"...
+        if (/\(N\)$/.test(key)) {
+          out[key.replace(/\(N\)$/, `(${F})`)] = typeof value === "number" ? u.forceNToDisp(value) : value;
+          return;
+        }
+
+        // Columnas kN: redundantes tras la conversión → se omiten.
+        if (/_kN$/.test(key) || /\(kN\)$/.test(key)) return;
+
+        // Masa: mass_kg, auto_mass_x_kg, effective_mx_kg...
+        if (/_kg$/.test(key)) {
+          out[key.replace(/_kg$/, `_${M}`)] = typeof value === "number" ? u.massKgToDisp(value) : value;
+          return;
+        }
+
+        // Longitud: displacement_m, drift_m, height_m, z_m, elevation_m...
+        if (/_m$/.test(key)) {
+          out[key.replace(/_m$/, `_${L}`)] = typeof value === "number" ? u.lenMToDisp(value) : value;
+          return;
+        }
+
+        out[key] = value;
+      });
+
+      return out;
+    });
   },
 
   _buildEtabsTableHtml(rows = []) {
@@ -2868,7 +2968,11 @@ export const seismicMixin = {
         label: "Modal Participating Mass Ratios",
         rows: this._mapEtabsRowsForDisplay(tables.participating_mass_ratios || [], participatingMassColumns),
       },
-      { id: "base_shear", label: "Base Shear", rows: tables.base_shear || [] },
+      {
+        id: "base_shear",
+        label: "Base Shear (Base Reactions)",
+        rows: this._buildEtabsStyleBaseShearRows(tables.base_shear || []),
+      },
 
       // B10.14 / B10.15 — Applied Loads tipo ETABS
       {
@@ -2904,19 +3008,30 @@ export const seismicMixin = {
       { id: "diaphragm_summary", label: "Diaphragms", rows: tables.diaphragm_summary || [] },
       { id: "model_quality", label: "Model Quality", rows: tables.model_quality || [] },
       { id: "element_properties", label: "Element Properties", rows: tables.element_properties || [] },
-    ];
+    ].map((tableDef) => ({
+      // Capa de unidades de visualización (selector del footer): convierte
+      // valores y renombra encabezados; los datos del paquete quedan en SI.
+      ...tableDef,
+      rows: this._convertEtabsRowsToDisplayUnits(tableDef.rows),
+    }));
   },
 
   _buildEtabsResultsSummaryHtml(pkg) {
     const summary = pkg?.summary || {};
 
+    // Unidades de visualización (selector del footer). Datos internos en SI.
+    const u = window.cadUnits;
+    const uLabels = u?.labels?.() || { force: "N", mass: "kg", length: "m" };
+    const toF = (n) => (u ? u.forceNToDisp(n) : n);
+    const toM = (kg) => (u ? u.massKgToDisp(kg) : kg);
+
     const cards = [
-      ["Base Shear X", summary.base_shear_x_N, "N"],
-      ["Base Shear Y", summary.base_shear_y_N, "N"],
+      ["Base Shear X", toF(summary.base_shear_x_N), uLabels.force],
+      ["Base Shear Y", toF(summary.base_shear_y_N), uLabels.force],
       ["Max Drift X", summary.max_drift_x_ratio, "ratio"],
       ["Max Drift Y", summary.max_drift_y_ratio, "ratio"],
-      ["Eff. Mass X", summary.total_effective_mx_kg, "kg"],
-      ["Eff. Mass Y", summary.total_effective_my_kg, "kg"],
+      ["Eff. Mass X", toM(summary.total_effective_mx_kg), uLabels.mass],
+      ["Eff. Mass Y", toM(summary.total_effective_my_kg), uLabels.mass],
       ["Modes", summary.modal_modes, ""],
       ["Stories", summary.stories, ""],
     ];

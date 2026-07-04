@@ -97,6 +97,7 @@ export const cadUnits = {
     return {
       force: F,
       length: L,
+      mass: MASS_LABEL[F],
       area: `${L}²`,
       inertia: `${L}⁴`,
       stress: `${F}/${L}²`,
@@ -106,6 +107,25 @@ export const cadUnits = {
       distLoad: `${F}/${L}`,
       areaLoad: `${F}/${L}²`,
     };
+  },
+
+  // =====================================================
+  // CONVERSIONES SIMPLES DESDE SI (para visores de resultados)
+  // =====================================================
+  forceNToDisp(n) {
+    return roundSig((Number(n) || 0) / this._FN());
+  },
+
+  massKgToDisp(kg) {
+    return roundSig((Number(kg) || 0) / this._MK());
+  },
+
+  lenMToDisp(m) {
+    return roundSig((Number(m) || 0) / this._LM());
+  },
+
+  momentNmToDisp(nm) {
+    return roundSig((Number(nm) || 0) / (this._FN() * this._LM()));
   },
 
   // ─── Factores base de la unidad activa ───
