@@ -75,6 +75,24 @@ function disposeViewer() {
   try {
     VIEWER_STATE.isUpdating = true;
 
+    // Limpieza del modo de selección por ventana y sus listeners.
+    try {
+      exitBoxSelectionMode3D();
+    } catch (e) { /* visor ya parcialmente destruido */ }
+
+    if (VIEWER_STATE.boxKeyHandler) {
+      window.removeEventListener("keydown", VIEWER_STATE.boxKeyHandler);
+      VIEWER_STATE.boxKeyHandler = null;
+    }
+
+    if (VIEWER_STATE.pointerOverHandlersBound) {
+      const container = getViewerContainer();
+      container?.removeEventListener("pointerenter", VIEWER_STATE.onViewerPointerEnter);
+      container?.removeEventListener("pointerleave", VIEWER_STATE.onViewerPointerLeave);
+      VIEWER_STATE.pointerOverHandlersBound = false;
+      VIEWER_STATE.pointerOverViewer = false;
+    }
+
     if (VIEWER_STATE.engine && VIEWER_STATE.renderLoop) {
       VIEWER_STATE.engine.stopRenderLoop(VIEWER_STATE.renderLoop);
       VIEWER_STATE.renderLoop = null;
@@ -657,6 +675,57 @@ function selectNodeFrom3D(node, context, options = {}) {
 }
 
 // =====================================================
+// 3D SELECTION > SELECCIONAR LOSA / ÁREA DESDE CLIC EN 3D
+// Clic normal: reemplaza selección con esa área.
+// Ctrl + clic: agrega o quita el área de la selección actual.
+// =====================================================
+function selectAreaFrom3D(area, context, options = {}) {
+  if (!area || !context) return;
+
+  const additive = options.additive === true;
+
+  const currentAreas = additive
+    ? (context.selectedAreasState?.selectedObjects || []).filter(Boolean)
+    : [];
+
+  const alreadySelected = currentAreas.some((a) => String(a?.id) === String(area.id));
+
+  const nextAreas = alreadySelected
+    ? currentAreas.filter((a) => String(a?.id) !== String(area.id))
+    : [...currentAreas, area];
+
+  if (!additive) {
+    context.clearAllSelections?.();
+  }
+
+  if (nextAreas.length === 0) {
+    context.setState?.(context.idleState);
+  } else {
+    context.setState?.(context.selectedAreasState, { selectedAreas: nextAreas });
+  }
+
+  nextAreas.forEach((a) => {
+    a.selected = true;
+    a.isSelected = true;
+  });
+
+  context.redraw?.();
+  context.sync3D?.();
+
+  context.showMessage?.(
+    nextAreas.length === 1
+      ? `Área ${nextAreas[0].id} seleccionada (${nextAreas[0].areaType || nextAreas[0].type || "slab"})`
+      : `${nextAreas.length} áreas seleccionadas`,
+  );
+
+  console.log("🖱️ Clic 3D sobre área:", {
+    id: area.id,
+    additive,
+    seleccionadas: nextAreas.map((a) => a.id),
+  });
+}
+
+// =====================================================
 // 3D DRAW > CONVERTIR PUNTO BABYLON A MODELO
 // En tu visor, el mapeo usado es:
 // Modelo:  x, y, z
@@ -828,8 +897,13 @@ function disable3DWorkPlanePickMesh() {
 window.__jhDisable3DWorkPlanePickMesh = disable3DWorkPlanePickMesh;
 
 // =====================================================
-// 3D DRAW > BLOQUEAR/DESBLOQUEAR CÁMARA
-// Evita que la cámara orbite cuando se está dibujando en 3D.
+// 3D DRAW > BLOQUEO PARCIAL DE CÁMARA (CÁMARA INTERACTIVA)
+// Durante el dibujo NO se apaga la cámara completa: solo se libera el
+// botón IZQUIERDO para dibujar. La vista sigue siendo navegable:
+//   - Botón DERECHO  → orbitar
+//   - Botón MEDIO    → pan (encuadre)
+//   - Rueda          → zoom
+// Así el usuario puede girar la estructura mientras une nodos.
 // =====================================================
 function set3DDrawCameraLock(locked) {
   const scene = VIEWER_STATE.scene;
@@ -838,21 +912,35 @@ function set3DDrawCameraLock(locked) {
   if (!scene || !scene.activeCamera || !canvas) return;
 
   const camera = scene.activeCamera;
+  const pointers = camera.inputs?.attached?.pointers;
 
   if (locked) {
     if (!scene.__jhCameraLockedForDraw) {
-      camera.detachControl(canvas);
+      if (pointers) {
+        scene.__jhCameraPrevButtons = Array.isArray(pointers.buttons) ? [...pointers.buttons] : [0, 1, 2];
+        scene.__jhCameraPrevPanButton = camera._panningMouseButton ?? 2;
+
+        // La cámara ignora el botón izquierdo (queda libre para dibujar).
+        pointers.buttons = [1, 2];
+        // Pan pasa al botón medio → el derecho queda para ORBITAR.
+        camera._panningMouseButton = 1;
+      }
+
       scene.__jhCameraLockedForDraw = true;
-      console.log("🔒 Cámara 3D bloqueada para dibujo");
+      console.log("🔒 Dibujo 3D: clic izq = dibujar | derecho = orbitar | medio = pan | rueda = zoom");
     }
 
     return;
   }
 
   if (scene.__jhCameraLockedForDraw) {
-    camera.attachControl(canvas, true);
+    if (pointers) {
+      pointers.buttons = scene.__jhCameraPrevButtons || [0, 1, 2];
+      camera._panningMouseButton = scene.__jhCameraPrevPanButton ?? 2;
+    }
+
     scene.__jhCameraLockedForDraw = false;
-    console.log("🔓 Cámara 3D desbloqueada");
+    console.log("🔓 Cámara 3D restaurada (controles normales)");
   }
 }
 
@@ -1148,6 +1236,354 @@ function update3DGridPointHoverReference(context, pointerInfo) {
 window.__jhSet3DDrawCameraLock = set3DDrawCameraLock;
 
 // =====================================================
+// 3D BOX SELECT > SELECCIÓN POR VENTANA (TECLA "S")
+// Estilo ETABS: presiona "S" sobre el visor 3D y arrastra un rectángulo.
+//   - Izquierda → derecha (ventana): selecciona lo COMPLETAMENTE dentro.
+//   - Derecha → izquierda (cruce):   selecciona todo lo que TOQUE el rectángulo.
+//   - Ctrl mientras arrastras: agrega a la selección existente.
+//   - Esc o "S" de nuevo: salir del modo.
+// Selecciona nodos, barras y losas/áreas a la vez.
+// =====================================================
+
+function isTypingTarget(el) {
+  if (!el) return false;
+
+  const tag = String(el.tagName || "").toUpperCase();
+
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable === true;
+}
+
+// =====================================================
+// 3D BOX SELECT > PROYECTAR PUNTO DE MODELO A PANTALLA
+// Devuelve coords en píxeles CSS relativos al canvas (o null si
+// el punto queda detrás de la cámara).
+// =====================================================
+function projectModelPointToScreen(point) {
+  const scene = VIEWER_STATE.scene;
+  const engine = VIEWER_STATE.engine;
+  const camera = VIEWER_STATE.camera;
+  const canvas = VIEWER_STATE.canvas;
+
+  if (!scene || !engine || !camera || !canvas || !point) return null;
+
+  const renderW = engine.getRenderWidth();
+  const renderH = engine.getRenderHeight();
+
+  const projected = BABYLON.Vector3.Project(
+    modelPointToBabylonPoint(point),
+    BABYLON.Matrix.Identity(),
+    scene.getTransformMatrix(),
+    camera.viewport.toGlobal(renderW, renderH),
+  );
+
+  // z fuera de [0,1] → detrás de la cámara o fuera del frustum en profundidad.
+  if (!Number.isFinite(projected.x) || !Number.isFinite(projected.y)) return null;
+  if (projected.z < 0 || projected.z > 1) return null;
+
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = rect.width > 0 ? rect.width / renderW : 1;
+  const scaleY = rect.height > 0 ? rect.height / renderH : 1;
+
+  return {
+    x: projected.x * scaleX,
+    y: projected.y * scaleY,
+  };
+}
+
+function pointInRect(p, rect) {
+  return p && p.x >= rect.x1 && p.x <= rect.x2 && p.y >= rect.y1 && p.y <= rect.y2;
+}
+
+// =====================================================
+// 3D BOX SELECT > INTERSECCIÓN SEGMENTO-RECTÁNGULO (2D pantalla)
+// Para el modo "cruce": una barra se selecciona si su línea
+// proyectada toca el rectángulo aunque sus extremos queden fuera.
+// =====================================================
+function segmentIntersectsRect(p1, p2, rect) {
+  if (!p1 || !p2) return false;
+  if (pointInRect(p1, rect) || pointInRect(p2, rect)) return true;
+
+  const sides = [
+    [{ x: rect.x1, y: rect.y1 }, { x: rect.x2, y: rect.y1 }],
+    [{ x: rect.x2, y: rect.y1 }, { x: rect.x2, y: rect.y2 }],
+    [{ x: rect.x2, y: rect.y2 }, { x: rect.x1, y: rect.y2 }],
+    [{ x: rect.x1, y: rect.y2 }, { x: rect.x1, y: rect.y1 }],
+  ];
+
+  const ccw = (a, b, c) => (c.y - a.y) * (b.x - a.x) - (b.y - a.y) * (c.x - a.x);
+
+  const segmentsCross = (a, b, c, d) => {
+    const d1 = ccw(a, b, c);
+    const d2 = ccw(a, b, d);
+    const d3 = ccw(c, d, a);
+    const d4 = ccw(c, d, b);
+    return d1 * d2 < 0 && d3 * d4 < 0;
+  };
+
+  return sides.some(([a, b]) => segmentsCross(p1, p2, a, b));
+}
+
+// =====================================================
+// 3D BOX SELECT > CALCULAR SELECCIÓN DEL RECTÁNGULO
+// window=false → modo cruce (basta tocar el rectángulo).
+// =====================================================
+function computeBoxSelection3D(context, rect, { windowMode = true } = {}) {
+  const nodes = [];
+  const frames = [];
+  const areas = [];
+
+  (context.nodes || []).forEach((node) => {
+    if (!node?.position || node.visible === false) return;
+
+    const p = projectModelPointToScreen(node.position);
+
+    if (pointInRect(p, rect)) nodes.push(node);
+  });
+
+  (context.shapes || []).forEach((frame) => {
+    if (!frame?.node1?.position || !frame?.node2?.position) return;
+    if (frame.visible === false) return;
+
+    const p1 = projectModelPointToScreen(frame.node1.position);
+    const p2 = projectModelPointToScreen(frame.node2.position);
+
+    const inside = pointInRect(p1, rect) && pointInRect(p2, rect);
+
+    if (windowMode ? inside : inside || segmentIntersectsRect(p1, p2, rect)) {
+      frames.push(frame);
+    }
+  });
+
+  (context.areas || []).forEach((area) => {
+    if (!Array.isArray(area?.points) || area.points.length < 3) return;
+    if (area.visible === false) return;
+
+    const projected = area.points.map((pt) => projectModelPointToScreen(pt));
+
+    if (projected.some((p) => !p)) return;
+
+    if (windowMode) {
+      if (projected.every((p) => pointInRect(p, rect))) areas.push(area);
+      return;
+    }
+
+    const touches =
+      projected.some((p) => pointInRect(p, rect)) ||
+      projected.some((p, i) => segmentIntersectsRect(p, projected[(i + 1) % projected.length], rect));
+
+    if (touches) areas.push(area);
+  });
+
+  return { nodes, frames, areas };
+}
+
+// =====================================================
+// 3D BOX SELECT > OVERLAY VISUAL DEL RECTÁNGULO
+// =====================================================
+function ensureBoxSelectionOverlay() {
+  const container = getViewerContainer();
+
+  if (!container) return null;
+
+  if (getComputedStyle(container).position === "static") {
+    container.style.position = "relative";
+  }
+
+  let overlay = container.querySelector("#jh-3d-box-select-overlay");
+
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "jh-3d-box-select-overlay";
+    overlay.style.cssText =
+      "position:absolute; display:none; pointer-events:none; z-index:50;" +
+      "border:1.5px dashed #60a5fa; background:rgba(96,165,250,0.12);";
+    container.appendChild(overlay);
+  }
+
+  return overlay;
+}
+
+function updateBoxSelectionOverlay(box) {
+  const overlay = ensureBoxSelectionOverlay();
+
+  if (!overlay || !box?.dragging) return;
+
+  const x = Math.min(box.startX, box.curX);
+  const y = Math.min(box.startY, box.curY);
+  const w = Math.abs(box.curX - box.startX);
+  const h = Math.abs(box.curY - box.startY);
+
+  const windowMode = box.curX >= box.startX;
+
+  overlay.style.left = `${x}px`;
+  overlay.style.top = `${y}px`;
+  overlay.style.width = `${w}px`;
+  overlay.style.height = `${h}px`;
+  overlay.style.display = "block";
+
+  // Convención CAD: ventana (izq→der) azul continua, cruce (der→izq) verde discontinua.
+  overlay.style.border = windowMode ? "1.5px solid #60a5fa" : "1.5px dashed #34d399";
+  overlay.style.background = windowMode ? "rgba(96,165,250,0.12)" : "rgba(52,211,153,0.10)";
+}
+
+function hideBoxSelectionOverlay() {
+  const container = getViewerContainer();
+  const overlay = container?.querySelector("#jh-3d-box-select-overlay");
+
+  if (overlay) overlay.style.display = "none";
+}
+
+// =====================================================
+// 3D BOX SELECT > ENTRAR / SALIR DEL MODO
+// =====================================================
+function enterBoxSelectionMode3D(context) {
+  const canvas = VIEWER_STATE.canvas;
+
+  if (!VIEWER_STATE.initialized || !canvas || VIEWER_STATE.boxSelect?.active) return;
+
+  // No mezclar con el dibujo de barras.
+  if (context?.activeDrawTool === "frame" || context?.isDrawingFrame3D === true) {
+    context?.showMessage?.("Termina o cancela el dibujo (Esc) antes de usar la selección por ventana.");
+    return;
+  }
+
+  const box = {
+    active: true,
+    context,
+    dragging: false,
+    additive: false,
+    startX: 0,
+    startY: 0,
+    curX: 0,
+    curY: 0,
+    prevCursor: canvas.style.cursor || "",
+  };
+
+  const toCanvasCoords = (event) => {
+    const rect = canvas.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  };
+
+  box.onPointerDown = (event) => {
+    if (event.button !== 0) return;
+
+    const p = toCanvasCoords(event);
+
+    box.dragging = true;
+    box.additive = event.ctrlKey === true;
+    box.startX = p.x;
+    box.startY = p.y;
+    box.curX = p.x;
+    box.curY = p.y;
+
+    updateBoxSelectionOverlay(box);
+    event.preventDefault();
+  };
+
+  box.onPointerMove = (event) => {
+    if (!box.dragging) return;
+
+    const p = toCanvasCoords(event);
+
+    box.curX = p.x;
+    box.curY = p.y;
+
+    updateBoxSelectionOverlay(box);
+  };
+
+  box.onPointerUp = (event) => {
+    if (event.button !== 0 || !box.dragging) return;
+
+    box.dragging = false;
+    hideBoxSelectionOverlay();
+
+    const w = Math.abs(box.curX - box.startX);
+    const h = Math.abs(box.curY - box.startY);
+
+    // Rectángulo demasiado pequeño = clic simple; lo maneja el pick normal.
+    if (w < 5 && h < 5) return;
+
+    const rect = {
+      x1: Math.min(box.startX, box.curX),
+      y1: Math.min(box.startY, box.curY),
+      x2: Math.max(box.startX, box.curX),
+      y2: Math.max(box.startY, box.curY),
+    };
+
+    const windowMode = box.curX >= box.startX;
+    const results = computeBoxSelection3D(box.context, rect, { windowMode });
+    const additive = box.additive || event.ctrlKey === true;
+
+    console.log("🔲 Selección por ventana 3D:", {
+      modo: windowMode ? "ventana (dentro)" : "cruce (toca)",
+      additive,
+      nodos: results.nodes.length,
+      barras: results.frames.length,
+      areas: results.areas.length,
+    });
+
+    if (typeof box.context?.select3DBoxResults === "function") {
+      box.context.select3DBoxResults({ ...results, additive });
+    } else if (results.frames.length && typeof box.context?.selectFramesForEdit === "function") {
+      // Respaldo: al menos las barras.
+      box.context.selectFramesForEdit(results.frames, { reason: "3d box selection" });
+    }
+
+    // Un rectángulo por activación (estilo ETABS). "S" reactiva el modo.
+    exitBoxSelectionMode3D();
+  };
+
+  canvas.addEventListener("pointerdown", box.onPointerDown);
+  canvas.addEventListener("pointermove", box.onPointerMove);
+  canvas.addEventListener("pointerup", box.onPointerUp);
+
+  canvas.style.cursor = "crosshair";
+  VIEWER_STATE.boxSelect = box;
+
+  // Cámara: izquierdo reservado al rectángulo; derecho orbita, medio pan.
+  set3DDrawCameraLock(true);
+
+  context?.showMessage?.(
+    "Selección por ventana: arrastra un rectángulo (izq→der = dentro, der→izq = cruce, Ctrl = agregar). Esc para salir.",
+  );
+}
+
+function exitBoxSelectionMode3D() {
+  const box = VIEWER_STATE.boxSelect;
+  const canvas = VIEWER_STATE.canvas;
+
+  if (!box) return;
+
+  if (canvas) {
+    canvas.removeEventListener("pointerdown", box.onPointerDown);
+    canvas.removeEventListener("pointermove", box.onPointerMove);
+    canvas.removeEventListener("pointerup", box.onPointerUp);
+    canvas.style.cursor = box.prevCursor || "";
+  }
+
+  hideBoxSelectionOverlay();
+  VIEWER_STATE.boxSelect = null;
+
+  // Restaurar cámara solo si no está dibujando una barra.
+  const context = box.context;
+  const stillDrawing = context?.activeDrawTool === "frame" || context?.isDrawingFrame3D === true;
+
+  if (!stillDrawing) {
+    set3DDrawCameraLock(false);
+  }
+}
+
+function toggleBoxSelectionMode3D(context) {
+  if (VIEWER_STATE.boxSelect?.active) {
+    exitBoxSelectionMode3D();
+    context?.showMessage?.("Selección por ventana desactivada.");
+    return;
+  }
+
+  enterBoxSelectionMode3D(context);
+}
+
+// =====================================================
 // 3D SELECTION / DRAW FRAME > INTERACCIÓN EN VISOR 3D
 // Si la herramienta Draw Frame está activa, el clic en 3D
 // sirve para dibujar barras usando nodos o grid points.
@@ -1210,10 +1646,10 @@ function enable3DFrameSelection(context) {
 
     // =====================================================
     // 3D DRAW > CONTROL DE CÁMARA SEGÚN HERRAMIENTA
-    // Si Draw Frame está activo, bloquea cámara antes del pick.
-    // Si no está activo, devuelve control normal.
+    // Con Draw Frame o Selección por Ventana activos, el botón izquierdo
+    // queda libre (dibujo/rectángulo) y la cámara usa derecho/medio/rueda.
     // =====================================================
-    set3DDrawCameraLock(frameToolActive === true);
+    set3DDrawCameraLock(frameToolActive === true || VIEWER_STATE.boxSelect?.active === true);
 
     // =====================================================
     // DRAW 3D > ASEGURAR PLANO PICKABLE
@@ -1431,6 +1867,22 @@ function enable3DFrameSelection(context) {
     }
 
     // =====================================================
+    // 3D SELECTION > CLIC EN LOSA / ÁREA / MURO
+    // Clic normal: selecciona solo esa área.
+    // Ctrl + clic: agrega o quita áreas de la selección.
+    // =====================================================
+    if (metadata.type === "area" || metadata.objectType === "area") {
+      const pickedArea = context.areas?.find(
+        (a) => String(a.id) === String(metadata.areaId ?? metadata.id),
+      );
+
+      if (pickedArea) {
+        selectAreaFrom3D(pickedArea, context, { additive: event?.ctrlKey === true });
+        return;
+      }
+    }
+
+    // =====================================================
     // 3D SELECTION > SELECCIONAR BARRA EN 3D
     // =====================================================
     if (metadata.objectType !== "frame" && metadata.type !== "beam") {
@@ -1470,7 +1922,55 @@ function enable3DFrameSelection(context) {
     });
   });
 
-  console.log("✅ Selección directa de barras en 3D activada");
+  // =====================================================
+  // 3D BOX SELECT > TECLA "S" PARA SELECCIÓN POR VENTANA
+  // Solo actúa cuando el puntero está sobre el visor 3D (o el
+  // viewport 3D está activo) y no se está escribiendo en un input.
+  // =====================================================
+  const container = getViewerContainer();
+
+  if (container && !VIEWER_STATE.pointerOverHandlersBound) {
+    VIEWER_STATE.onViewerPointerEnter = () => {
+      VIEWER_STATE.pointerOverViewer = true;
+    };
+    VIEWER_STATE.onViewerPointerLeave = () => {
+      VIEWER_STATE.pointerOverViewer = false;
+    };
+
+    container.addEventListener("pointerenter", VIEWER_STATE.onViewerPointerEnter);
+    container.addEventListener("pointerleave", VIEWER_STATE.onViewerPointerLeave);
+    VIEWER_STATE.pointerOverHandlersBound = true;
+  }
+
+  if (!VIEWER_STATE.boxKeyHandler) {
+    VIEWER_STATE.boxKeyHandler = (event) => {
+      if (isTypingTarget(document.activeElement)) return;
+
+      const key = String(event.key || "").toLowerCase();
+
+      // Con el modo activo: Esc o "S" salen del modo.
+      if (VIEWER_STATE.boxSelect?.active) {
+        if (key === "escape" || key === "s") {
+          exitBoxSelectionMode3D();
+          context?.showMessage?.("Selección por ventana desactivada.");
+          event.preventDefault();
+        }
+        return;
+      }
+
+      if (key !== "s" || event.ctrlKey || event.altKey || event.metaKey) return;
+
+      // Solo si el usuario está trabajando en el 3D.
+      if (VIEWER_STATE.pointerOverViewer !== true && context?.activeViewport !== "3d") return;
+
+      toggleBoxSelectionMode3D(context);
+      event.preventDefault();
+    };
+
+    window.addEventListener("keydown", VIEWER_STATE.boxKeyHandler);
+  }
+
+  console.log("✅ Selección directa de barras/nodos/losas en 3D activada (tecla S = selección por ventana)");
 }
 
 // =====================================================
@@ -2161,6 +2661,18 @@ function findNearest3DGridSnapPointUnderPointer(context, maxScreenDistance = 18)
 
   const viewport = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
 
+  // =====================================================
+  // FIX UNIDADES > BUFFER PX vs CSS PX
+  // scene.pointerX/Y están en píxeles CSS, pero Vector3.Project devuelve
+  // píxeles del buffer de render (CSS × devicePixelRatio con
+  // adaptToDeviceRatio). Sin esta conversión, con el escalado de Windows
+  // (125%/150%) la distancia salía corrida y el snap global de pisos
+  // NO activos nunca acertaba → el dibujo quedaba atado a la planta activa.
+  // css = buffer × hardwareScalingLevel (mismo factor que usan los rayos
+  // de picking internos de Babylon, ver ray.core.js).
+  // =====================================================
+  const toCssPx = engine.getHardwareScalingLevel?.() || 1;
+
   let closest = null;
   let bestDistance = maxScreenDistance;
 
@@ -2178,7 +2690,13 @@ function findNearest3DGridSnapPointUnderPointer(context, maxScreenDistance = 18)
       viewport,
     );
 
-    const distance = Math.hypot(screenPoint.x - pointerX, screenPoint.y - pointerY);
+    // Detrás de la cámara / fuera del rango de profundidad: no es candidato.
+    if (screenPoint.z < 0 || screenPoint.z > 1) return;
+
+    const distance = Math.hypot(
+      screenPoint.x * toCssPx - pointerX,
+      screenPoint.y * toCssPx - pointerY,
+    );
 
     if (distance <= bestDistance) {
       bestDistance = distance;

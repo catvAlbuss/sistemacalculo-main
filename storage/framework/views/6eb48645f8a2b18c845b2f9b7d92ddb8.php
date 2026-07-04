@@ -233,12 +233,12 @@
                         
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-xs text-gray-400">Ancho, b (cm)</label>
-                                <input type="number" step="0.1" x-model.number="form.rectB" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <label class="block text-xs text-gray-400" x-text="'Ancho, b (' + unitLabels.length + ')'"></label>
+                                <input type="number" step="any" x-model.number="dispRectB" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-400">Peralte, h (cm)</label>
-                                <input type="number" step="0.1" x-model.number="form.rectH" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <label class="block text-xs text-gray-400" x-text="'Peralte, h (' + unitLabels.length + ')'"></label>
+                                <input type="number" step="any" x-model.number="dispRectH" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
                             </div>
                         </div>
 
@@ -268,20 +268,20 @@
                                 <text x="22" :y="secBox.cy - 6" fill="#3b82f6" font-size="13" font-weight="bold">3</text>
                                 
                                 <text :x="secBox.cx" :y="secBox.y + secBox.H + 14" fill="#94a3b8" font-size="9" text-anchor="middle"
-                                    x-text="'b = ' + form.rectB + ' cm (eje 3)'"></text>
+                                    x-text="'b = ' + dispRectB + ' ' + unitLabels.length + ' (eje 3)'"></text>
                                 <text x="6" :y="secBox.cy + 30" fill="#94a3b8" font-size="9"
-                                    x-text="'h = ' + form.rectH + ' cm (eje 2)'"></text>
+                                    x-text="'h = ' + dispRectH + ' ' + unitLabels.length + ' (eje 2)'"></text>
                             </svg>
                         </div>
 
                         
                         <div class="mt-3 p-2 bg-gray-900 rounded border border-gray-700">
-                            <div class="text-xs text-gray-400 mb-1">Propiedades calculadas (SI):</div>
+                            <div class="text-xs text-gray-400 mb-1">Propiedades calculadas:</div>
                             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-300 font-mono">
-                                <span>A = <span x-text="rectProps.A.toFixed(6)"></span> m²</span>
-                                <span>J ≈ <span x-text="rectProps.J.toFixed(6)"></span> m⁴</span>
-                                <span>I33 (mayor, eje 3) = <span x-text="rectProps.Iz.toFixed(6)"></span> m⁴</span>
-                                <span>I22 (menor, eje 2) = <span x-text="rectProps.Iy.toFixed(6)"></span> m⁴</span>
+                                <span>A = <span x-text="rectPropsDisp.A"></span> <span x-text="unitLabels.area"></span></span>
+                                <span>J ≈ <span x-text="rectPropsDisp.J"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I33 (mayor, eje 3) = <span x-text="rectPropsDisp.Iz"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I22 (menor, eje 2) = <span x-text="rectPropsDisp.Iy"></span> <span x-text="unitLabels.inertia"></span></span>
                             </div>
                         </div>
                     </div>
@@ -563,6 +563,38 @@
                 color: '#88ffaa'
             },
 
+            // =====================================================
+            // UNIDADES DE VISUALIZACIÓN (window.cadUnits, selector del footer)
+            // b/h se ALMACENAN siempre en cm (convención interna); los inputs
+            // muestran/leen en la unidad de longitud elegida (m o cm).
+            // =====================================================
+            unitsVersion: 0,
+
+            get unitLabels() {
+                this.unitsVersion;
+                return window.cadUnits?.labels?.() || { length: 'cm', area: 'cm²', inertia: 'cm⁴' };
+            },
+
+            get dispRectB() { this.unitsVersion; return window.cadUnits ? window.cadUnits.lenCmToDisp(this.form.rectB) : Number(this.form.rectB) || 0; },
+            set dispRectB(v) { this.form.rectB = window.cadUnits ? window.cadUnits.lenDispToCm(v) : Number(v) || 0; },
+
+            get dispRectH() { this.unitsVersion; return window.cadUnits ? window.cadUnits.lenCmToDisp(this.form.rectH) : Number(this.form.rectH) || 0; },
+            set dispRectH(v) { this.form.rectH = window.cadUnits ? window.cadUnits.lenDispToCm(v) : Number(v) || 0; },
+
+            // Propiedades calculadas convertidas a la unidad de longitud activa.
+            get rectPropsDisp() {
+                this.unitsVersion;
+                const p = this.rectProps;
+                const u = window.cadUnits;
+                if (!u) return { A: p.A, Iz: p.Iz, Iy: p.Iy, J: p.J };
+                return {
+                    A: u.areaM2ToDisp(p.A),
+                    Iz: u.inertiaM4ToDisp(p.Iz),
+                    Iy: u.inertiaM4ToDisp(p.Iy),
+                    J: u.inertiaM4ToDisp(p.J),
+                };
+            },
+
             // Propiedades geométricas de la sección rectangular, calculadas en vivo (en SI).
             // b, h se ingresan en cm → se convierten a m. A=b·h, Iz=b·h³/12 (eje mayor),
             // Iy=h·b³/12 (eje menor), J = constante de torsión de Saint-Venant para rectángulo.
@@ -752,6 +784,11 @@
                 this.loadSections();
                 window.addEventListener('open-frame-sections-modal', () => {
                     this.openModal();
+                });
+
+                // Refrescar inputs/etiquetas al cambiar unidades en el footer.
+                window.addEventListener('cad-units-changed', () => {
+                    this.unitsVersion++;
                 });
             },
 

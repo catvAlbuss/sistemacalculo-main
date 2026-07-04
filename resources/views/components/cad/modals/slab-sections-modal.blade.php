@@ -24,7 +24,7 @@
                                 class="px-3 py-1.5 text-sm cursor-pointer hover:bg-gray-700 flex items-center justify-between"
                                 :class="{'bg-blue-900 text-white': selectedName === s.name, 'text-gray-300': selectedName !== s.name}">
                                 <span x-text="s.name"></span>
-                                <span class="text-[10px] text-gray-500" x-text="s.thickness + ' mm'"></span>
+                                <span class="text-[10px] text-gray-500" x-text="thicknessLabelFor(s.thickness)"></span>
                             </div>
                         </template>
                         <div x-show="sections.length === 0" class="px-3 py-4 text-center text-gray-500 text-sm">Sin propiedades</div>
@@ -101,13 +101,13 @@
                         </select>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span class="text-gray-300 w-40">Espesor (mm)</span>
-                        <input type="number" step="5" min="0" x-model.number="editing.thickness"
+                        <span class="text-gray-300 w-40" x-text="'Espesor (' + unitLabels.length + ')'"></span>
+                        <input type="number" step="any" min="0" x-model.number="dispThickness"
                             class="flex-1 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white">
                     </div>
                 </div>
                 <div class="mt-3 pt-2 border-t border-gray-700 text-xs text-emerald-300">
-                    Peso propio ≈ <b x-text="selfWeightKgM2.toFixed(0)"></b> kgf/m²
+                    Peso propio ≈ <b x-text="selfWeightDisp"></b> <span x-text="unitLabels.areaLoad"></span>
                     (espesor × densidad del material). Se agrega como carga muerta automática al analizar.
                 </div>
             </div>
@@ -165,6 +165,37 @@
                 return t * rho;
             },
 
+            // =====================================================
+            // UNIDADES DE VISUALIZACIÓN (window.cadUnits, selector del footer)
+            // El espesor se ALMACENA siempre en mm (convención interna);
+            // el input muestra/lee en la unidad de longitud elegida (m o cm).
+            // =====================================================
+            unitsVersion: 0,
+
+            get unitLabels() {
+                this.unitsVersion;
+                return window.cadUnits?.labels?.() || { length: 'mm', areaLoad: 'kgf/m²' };
+            },
+
+            get dispThickness() { this.unitsVersion; return window.cadUnits ? window.cadUnits.lenMmToDisp(this.editing.thickness) : Number(this.editing.thickness) || 0; },
+            set dispThickness(v) { this.editing.thickness = window.cadUnits ? window.cadUnits.lenDispToMm(v) : Number(v) || 0; },
+
+            // Peso propio convertido a la unidad de carga por área activa.
+            get selfWeightDisp() {
+                this.unitsVersion;
+                const u = window.cadUnits;
+                const val = u ? u.areaLoadKgfM2ToDisp(this.selfWeightKgM2) : this.selfWeightKgM2;
+                return Number(val).toLocaleString('en-US', { maximumFractionDigits: 4 });
+            },
+
+            // Etiqueta de espesor para la lista (convertida a la unidad activa).
+            thicknessLabelFor(mm) {
+                this.unitsVersion;
+                const u = window.cadUnits;
+                if (!u) return (Number(mm) || 0) + ' mm';
+                return u.lenMmToDisp(mm) + ' ' + u.labels().length;
+            },
+
             _densityFor(matName) {
                 const mats = window.cadSystem?.materialProperties?.materials || [];
                 const m = mats.find((x) => x.name === matName);
@@ -177,6 +208,11 @@
             init() {
                 this.loadSections();
                 window.addEventListener('open-slab-sections-modal', () => this.openModal());
+
+                // Refrescar inputs/etiquetas al cambiar unidades en el footer.
+                window.addEventListener('cad-units-changed', () => {
+                    this.unitsVersion++;
+                });
             },
 
             loadSections() {
@@ -267,7 +303,15 @@
 
             saveAll() {
                 if (window.cadSystem) {
-                    window.cadSystem.slabSections = JSON.parse(JSON.stringify(this.sections));
+                    // Recalcular el peso propio (kgf/m²) de CADA sección antes de guardar,
+                    // para que las secciones por defecto o sin editar por el editor también
+                    // lo lleven. Sin esto, slab.slabSelfWeightKgM2 queda 0 y el peso de la
+                    // losa nunca entra a CM (masa sísmica quedaba corta).
+                    const sections = this.sections.map((s) => ({
+                        ...s,
+                        selfWeightKgM2: (Number(s.thickness) || 0) / 1000 * this._densityFor(s.material),
+                    }));
+                    window.cadSystem.slabSections = JSON.parse(JSON.stringify(sections));
                     this.showToastMessage('✅ Propiedades de losa guardadas (' + this.sections.length + ')', 'success');
                     window.cadSystem.showMessage?.('Propiedades de losa guardadas: ' + this.sections.length + '.');
                 }

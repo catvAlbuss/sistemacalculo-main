@@ -116,16 +116,16 @@
                         <div>
                             <label class="block text-xs text-gray-400">Peso por Unidad de Volumen</label>
                             <div class="flex items-center gap-1">
-                                <input type="number" step="any" x-model="form.weightPerUnitVolume" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
-                                <span class="text-[10px] text-gray-500 whitespace-nowrap">N/mm³</span>
+                                <input type="number" step="any" x-model.number="dispWeight" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <span class="text-[10px] text-gray-500 whitespace-nowrap" x-text="unitLabels.unitWeight"></span>
                             </div>
                             <div class="text-[10px] text-gray-500 mt-0.5">≈ <span x-text="weightKgfM3.toFixed(0)"></span> kgf/m³</div>
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400">Masa por Unidad de Volumen</label>
                             <div class="flex items-center gap-1">
-                                <input type="number" step="any" x-model="form.massPerUnitVolume" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
-                                <span class="text-[10px] text-gray-500 whitespace-nowrap">ton/mm³</span>
+                                <input type="number" step="any" x-model.number="dispMass" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <span class="text-[10px] text-gray-500 whitespace-nowrap" x-text="unitLabels.massPerVol"></span>
                             </div>
                             <div class="text-[10px] text-gray-500 mt-0.5">≈ <span x-text="massKgM3.toFixed(0)"></span> kg/m³</div>
                         </div>
@@ -139,10 +139,10 @@
                         <div>
                             <label class="block text-xs text-gray-400">Módulo de Elasticidad, E</label>
                             <div class="flex items-center gap-1">
-                                <input type="number" step="any" x-model="form.modulusElasticity" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
-                                <span class="text-[10px] text-gray-500 whitespace-nowrap">MPa</span>
+                                <input type="number" step="any" x-model.number="dispE" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <span class="text-[10px] text-gray-500 whitespace-nowrap" x-text="unitLabels.stress"></span>
                             </div>
-                            <div class="text-[10px] text-gray-500 mt-0.5">≈ <span x-text="eKgfMm2.toFixed(2)"></span> kgf/mm²</div>
+                            <div class="text-[10px] text-gray-500 mt-0.5">≈ <span x-text="eKgfMm2.toFixed(2)"></span> kgf/mm² (<span x-text="(Number(form.modulusElasticity)||0).toFixed(0)"></span> MPa)</div>
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400">Relación de Poisson, U</label>
@@ -158,8 +158,8 @@
                         <div>
                             <label class="block text-xs text-gray-400">Módulo de Corte, G</label>
                             <div class="flex items-center gap-1">
-                                <input type="number" step="any" x-model="form.shearModulus" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
-                                <span class="text-[10px] text-gray-500 whitespace-nowrap">MPa</span>
+                                <input type="number" step="any" x-model.number="dispG" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <span class="text-[10px] text-gray-500 whitespace-nowrap" x-text="unitLabels.stress"></span>
                             </div>
                             <div class="text-[10px] text-gray-500 mt-0.5">≈ <span x-text="gKgfMm2.toFixed(2)"></span> kgf/mm²</div>
                         </div>
@@ -173,18 +173,24 @@
                         <div>
                             <label class="block text-xs text-gray-400">Resistencia del Concreto, f'c</label>
                             <div class="flex items-center gap-1">
-                                <input type="number" step="any" x-model="form.fpc" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
-                                <span class="text-[10px] text-gray-500 whitespace-nowrap">MPa</span>
+                                <input type="number" step="any" x-model.number="dispFpc" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <span class="text-[10px] text-gray-500 whitespace-nowrap" x-text="unitLabels.stress"></span>
                             </div>
                             <div class="text-[10px] text-gray-500 mt-0.5">≈ <span x-text="fpcKgfMm2.toFixed(2)"></span> kgf/mm² (<span x-text="fpcKgCm2.toFixed(0)"></span> kg/cm²)</div>
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400">Esfuerzo Fluencia Acero, fy</label>
-                            <input type="number" step="any" x-model="form.fy" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            <div class="flex items-center gap-1">
+                                <input type="number" step="any" x-model.number="dispFy" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <span class="text-[10px] text-gray-500 whitespace-nowrap" x-text="unitLabels.stress"></span>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400">Esfuerzo Fluencia Acero Corte, fys</label>
-                            <input type="number" step="any" x-model="form.fys" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            <div class="flex items-center gap-1">
+                                <input type="number" step="any" x-model.number="dispFys" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <span class="text-[10px] text-gray-500 whitespace-nowrap" x-text="unitLabels.stress"></span>
+                            </div>
                         </div>
                     </div>
                     <div class="mt-3 space-y-1">
@@ -296,6 +302,43 @@
             get weightKgfM3() { return (Number(this.form.weightPerUnitVolume) || 0) * 1e9 / 9.80665; },
             get massKgM3() { return (Number(this.form.massPerUnitVolume) || 0) * 1e12; },
 
+            // =====================================================
+            // UNIDADES DE VISUALIZACIÓN (window.cadUnits, selector del footer)
+            // Los inputs muestran/leen en la unidad elegida (tonf/kgf, m/cm);
+            // el form conserva SIEMPRE el sistema interno N-mm/MPa del motor.
+            // unitsVersion fuerza la reactividad al cambiar unidades.
+            // =====================================================
+            unitsVersion: 0,
+
+            get unitLabels() {
+                this.unitsVersion;
+                return window.cadUnits?.labels?.() || {
+                    stress: 'MPa', unitWeight: 'N/mm³', massPerVol: 'ton/mm³',
+                    length: 'm', area: 'm²', inertia: 'm⁴',
+                };
+            },
+
+            get dispE() { this.unitsVersion; return window.cadUnits ? window.cadUnits.stressMPaToDisp(this.form.modulusElasticity) : Number(this.form.modulusElasticity) || 0; },
+            set dispE(v) { this.form.modulusElasticity = window.cadUnits ? window.cadUnits.stressDispToMPa(v) : Number(v) || 0; },
+
+            get dispG() { this.unitsVersion; return window.cadUnits ? window.cadUnits.stressMPaToDisp(this.form.shearModulus) : Number(this.form.shearModulus) || 0; },
+            set dispG(v) { this.form.shearModulus = window.cadUnits ? window.cadUnits.stressDispToMPa(v) : Number(v) || 0; },
+
+            get dispFpc() { this.unitsVersion; return window.cadUnits ? window.cadUnits.stressMPaToDisp(this.form.fpc) : Number(this.form.fpc) || 0; },
+            set dispFpc(v) { this.form.fpc = window.cadUnits ? window.cadUnits.stressDispToMPa(v) : Number(v) || 0; },
+
+            get dispFy() { this.unitsVersion; return window.cadUnits ? window.cadUnits.stressMPaToDisp(this.form.fy) : Number(this.form.fy) || 0; },
+            set dispFy(v) { this.form.fy = window.cadUnits ? window.cadUnits.stressDispToMPa(v) : Number(v) || 0; },
+
+            get dispFys() { this.unitsVersion; return window.cadUnits ? window.cadUnits.stressMPaToDisp(this.form.fys) : Number(this.form.fys) || 0; },
+            set dispFys(v) { this.form.fys = window.cadUnits ? window.cadUnits.stressDispToMPa(v) : Number(v) || 0; },
+
+            get dispWeight() { this.unitsVersion; return window.cadUnits ? window.cadUnits.wNmm3ToDisp(this.form.weightPerUnitVolume) : Number(this.form.weightPerUnitVolume) || 0; },
+            set dispWeight(v) { this.form.weightPerUnitVolume = window.cadUnits ? window.cadUnits.wDispToNmm3(v) : Number(v) || 0; },
+
+            get dispMass() { this.unitsVersion; return window.cadUnits ? window.cadUnits.massTonMm3ToDisp(this.form.massPerUnitVolume) : Number(this.form.massPerUnitVolume) || 0; },
+            set dispMass(v) { this.form.massPerUnitVolume = window.cadUnits ? window.cadUnits.massDispToTonMm3(v) : Number(v) || 0; },
+
             defaultMaterials: [{
                     // Concreto f'c=210 kg/cm², definido igual que en ETABS.
                     // E = 15000·√f'c(kg/cm²) = 15000·√210 = 217371 kg/cm² = 2173.71 kgf/mm²
@@ -382,6 +425,11 @@
 
                 window.addEventListener('open-material-properties-modal', () => {
                     this.openModal();
+                });
+
+                // Refrescar inputs y etiquetas al cambiar unidades en el footer.
+                window.addEventListener('cad-units-changed', () => {
+                    this.unitsVersion++;
                 });
             },
 

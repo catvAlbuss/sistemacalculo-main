@@ -1507,6 +1507,13 @@ def run_modal_analysis(nodes: list, num_modes: int = 6) -> dict:
             cum_x = _mp_pct("partiMassRatiosCumuMX", idx)
             cum_y = _mp_pct("partiMassRatiosCumuMY", idx)
             cum_rz = _mp_pct("partiMassRatiosCumuRMZ", idx) or 0.0
+            # 6 GDL completos (para la tabla ETABS de masa participante).
+            mpf_uz = _mp_pct("partiMassRatiosMZ", idx) or 0.0
+            mpf_rx = _mp_pct("partiMassRatiosRMX", idx) or 0.0
+            mpf_ry = _mp_pct("partiMassRatiosRMY", idx) or 0.0
+            cum_uz = _mp_pct("partiMassRatiosCumuMZ", idx) or 0.0
+            cum_rx = _mp_pct("partiMassRatiosCumuRMX", idx) or 0.0
+            cum_ry = _mp_pct("partiMassRatiosCumuRMY", idx) or 0.0
             if cum_x is None:
                 cum_mpf_x += mpf_x
                 cum_x = cum_mpf_x
@@ -1522,6 +1529,8 @@ def run_modal_analysis(nodes: list, num_modes: int = 6) -> dict:
             cum_x = cum_mpf_x
             cum_y = cum_mpf_y
             cum_rz = 0.0
+            mpf_uz = mpf_rx = mpf_ry = 0.0
+            cum_uz = cum_rx = cum_ry = 0.0
 
         modal_info.append(
             {
@@ -1541,6 +1550,12 @@ def run_modal_analysis(nodes: list, num_modes: int = 6) -> dict:
                 "cumulative_participation_rz": (
                     float(cum_rz) if cum_rz is not None else 0.0
                 ),
+                "mass_participation_uz": float(mpf_uz),
+                "mass_participation_rx": float(mpf_rx),
+                "mass_participation_ry": float(mpf_ry),
+                "cumulative_participation_uz": float(cum_uz),
+                "cumulative_participation_rx": float(cum_rx),
+                "cumulative_participation_ry": float(cum_ry),
             }
         )
 
@@ -3302,12 +3317,15 @@ def _b7_table_modal_periods(results: dict) -> list[dict]:
     rows = []
 
     for mode in modes:
+        omega = _b7_float(mode.get("omega"), 0.0)
         rows.append(
             {
+                "case": "Modal",
                 "mode": int(mode.get("mode", len(rows) + 1)),
                 "period_s": _b7_round(mode.get("period"), 9),
                 "frequency_hz": _b7_round(mode.get("frequency"), 9),
                 "omega_rad_s": _b7_round(mode.get("omega"), 9),
+                "eigenvalue_rad2_s2": _b7_round(omega * omega, 6),
                 "modal_mass_x": _b7_round(mode.get("modal_mass_x"), 9),
                 "modal_mass_y": _b7_round(mode.get("modal_mass_y"), 9),
                 "mass_participation_x_percent": _b7_round(
@@ -3337,18 +3355,41 @@ def _b7_table_modal_periods(results: dict) -> list[dict]:
 
 
 def _b7_table_participating_mass(results: dict) -> list[dict]:
-    modal_rows = _b7_table_modal_periods(results)
+    modal = results.get("modal") or {}
+    modes = modal.get("modes") or []
 
-    return [
-        {
-            "mode": row["mode"],
-            "ux_percent": row["mass_participation_x_percent"],
-            "uy_percent": row["mass_participation_y_percent"],
-            "sum_ux_percent": row["cumulative_x_percent"],
-            "sum_uy_percent": row["cumulative_y_percent"],
-        }
-        for row in modal_rows
-    ]
+    def ratio(mode, key):
+        # La participacion se guarda en % (0-100); ETABS la muestra como ratio (0-1).
+        return _b7_round(_b7_float(mode.get(key), 0.0) / 100.0, 6)
+
+    rows = []
+    for mode in modes:
+        rows.append(
+            {
+                "case": "Modal",
+                "mode": int(mode.get("mode", len(rows) + 1)),
+                "period_s": _b7_round(mode.get("period"), 6),
+                "ux": ratio(mode, "mass_participation_x"),
+                "uy": ratio(mode, "mass_participation_y"),
+                "uz": ratio(mode, "mass_participation_uz"),
+                "sum_ux": ratio(mode, "cumulative_participation_x"),
+                "sum_uy": ratio(mode, "cumulative_participation_y"),
+                "sum_uz": ratio(mode, "cumulative_participation_uz"),
+                "rx": ratio(mode, "mass_participation_rx"),
+                "ry": ratio(mode, "mass_participation_ry"),
+                "rz": ratio(mode, "mass_participation_rz"),
+                "sum_rx": ratio(mode, "cumulative_participation_rx"),
+                "sum_ry": ratio(mode, "cumulative_participation_ry"),
+                "sum_rz": ratio(mode, "cumulative_participation_rz"),
+                # Claves legacy (compatibilidad con consumidores previos, en %).
+                "ux_percent": _b7_round(mode.get("mass_participation_x"), 6),
+                "uy_percent": _b7_round(mode.get("mass_participation_y"), 6),
+                "sum_ux_percent": _b7_round(mode.get("cumulative_participation_x"), 6),
+                "sum_uy_percent": _b7_round(mode.get("cumulative_participation_y"), 6),
+            }
+        )
+
+    return rows
 
 
 def _b7_get_base_shear_from_seismic(seismic: dict, direction: str):

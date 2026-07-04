@@ -1,3 +1,6 @@
+// Sistema de unidades de visualización (registra window.cadUnits).
+import "./units.js";
+
 import {
   ensureResponseSpectrumDefinitions,
   openResponseSpectrumFunctionsDialog,

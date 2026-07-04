@@ -290,6 +290,139 @@ export const selectionMixin = {
     });
   },
 
+  // =====================================================
+  // SELECTION > APLICAR SELECCIÓN POR VENTANA DEL VISOR 3D
+  // Recibe nodos, barras y áreas capturados por el rectángulo y
+  // los selecciona TODOS a la vez (additive = Ctrl suma a lo previo).
+  // El estado activo se decide por prioridad: barras > nodos > áreas,
+  // pero los tres tipos quedan marcados y sincronizados para que
+  // los diálogos de Assign (secciones, losas, etc.) los reciban.
+  // =====================================================
+  select3DBoxResults({ frames = [], nodes = [], areas = [], additive = false } = {}) {
+    // Resolver las barras reales del modelo (en 3D pueden llegar proxies).
+    const realFrames = frames
+      .map((frame) => this.resolveFrameFromModel?.(frame) || frame)
+      .filter((frame) => frame?.node1 && frame?.node2);
+
+    // Acumular con lo previo si es selección aditiva.
+    const mergeById = (previous = [], incoming = []) => {
+      const map = new Map();
+      [...previous, ...incoming].forEach((obj) => {
+        if (obj?.id != null) map.set(String(obj.id), obj);
+      });
+      return [...map.values()];
+    };
+
+    const prevFrames = additive ? this.getCurrentlySelectedFrames?.() || [] : [];
+    const prevNodes = additive ? (this.selectedNodesState?.selectedObjects || []).filter(Boolean) : [];
+    const prevAreas = additive ? (this.areas || []).filter((a) => a?.selected === true) : [];
+
+    const nextFrames = mergeById(prevFrames, realFrames);
+    const nextNodes = mergeById(prevNodes, nodes);
+    const nextAreas = mergeById(prevAreas, areas);
+
+    const total = nextFrames.length + nextNodes.length + nextAreas.length;
+
+    if (total === 0) {
+      if (!additive) {
+        this.clearAllSelections?.();
+        this.setState?.(this.idleState);
+        this.redraw?.();
+        this.sync3D?.();
+      }
+
+      this.showMessage?.("Ningún objeto dentro del rectángulo.");
+      return;
+    }
+
+    // Cambiar de estado PRIMERO (los exit() de estados previos limpian flags),
+    // y recién después marcar los flags de los tres tipos.
+    if (nextFrames.length > 0) {
+      this.setState?.(this.selectedBeamsState, {
+        selectedBeams: nextFrames,
+        selectedBeam: nextFrames[0],
+        selectedObjects: nextFrames,
+      });
+    } else if (nextNodes.length > 0) {
+      this.setState?.(this.selectedNodesState, { selectedNodes: nextNodes });
+    } else {
+      this.setState?.(this.selectedAreasState, { selectedAreas: nextAreas });
+    }
+
+    // Limpiar flags previos si la selección reemplaza.
+    if (!additive) {
+      this.shapes?.forEach((shape) => {
+        shape.selected = false;
+        shape.isSelected = false;
+        shape.highlighted3D = false;
+      });
+      this.nodes?.forEach((node) => {
+        node.selected = false;
+        node.isSelected = false;
+      });
+      this.areas?.forEach((area) => {
+        area.selected = false;
+        area.isSelected = false;
+      });
+    }
+
+    nextFrames.forEach((frame) => {
+      frame.selected = true;
+      frame.isSelected = true;
+      frame.highlighted3D = true;
+    });
+
+    nextNodes.forEach((node) => {
+      node.selected = true;
+      node.isSelected = true;
+    });
+
+    nextAreas.forEach((area) => {
+      area.selected = true;
+      area.isSelected = true;
+    });
+
+    // Sincronizar arreglos que consumen Assign/Edit y el resaltado 3D.
+    // OJO: selectedObjects debe llevar SOLO barras. Los ids de nodos/áreas
+    // colisionan con ids de barras (secuencias independientes) y el resaltado
+    // 3D compara por id → mezclar tipos pintaba barras ajenas al rectángulo.
+    // Nodos y áreas viajan por sus propios estados + flags selected.
+    this.multiSelectedFrames = nextFrames;
+    this.selectedBeams = nextFrames;
+    this.selectedObjects = nextFrames;
+
+    if (this.selectedBeamsState) {
+      this.selectedBeamsState.selectedBeams = nextFrames;
+      this.selectedBeamsState.selectedObjects = nextFrames;
+      this.selectedBeamsState.selectedBeam = nextFrames[0] || null;
+    }
+
+    if (this.selectedNodesState) {
+      this.selectedNodesState.selectedObjects = nextNodes;
+    }
+
+    if (this.selectedAreasState) {
+      this.selectedAreasState.selectedObjects = nextAreas;
+    }
+
+    this.redraw?.();
+    this.sync3D?.();
+
+    const parts = [];
+    if (nextFrames.length) parts.push(`${nextFrames.length} barra(s)`);
+    if (nextNodes.length) parts.push(`${nextNodes.length} nodo(s)`);
+    if (nextAreas.length) parts.push(`${nextAreas.length} losa(s)/área(s)`);
+
+    this.showMessage?.(`Seleccionado: ${parts.join(", ")}`);
+
+    console.log("🔲 Selección por ventana aplicada:", {
+      barras: nextFrames.map((f) => f.id),
+      nodos: nextNodes.map((n) => n.id),
+      areas: nextAreas.map((a) => a.id),
+      additive,
+    });
+  },
+
   selectObjects(objects = []) {
     objects.forEach((obj) => {
       this.setObjectSelected(obj, true);

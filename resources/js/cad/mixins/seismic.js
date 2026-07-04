@@ -2830,9 +2830,44 @@ export const seismicMixin = {
       { key: "total_weight_N", label: "Total Weight (N)" },
     ];
 
+    const modalPeriodsColumns = [
+      { key: "case", label: "Case" },
+      { key: "mode", label: "Mode" },
+      { key: "period_s", label: "Period sec" },
+      { key: "frequency_hz", label: "Frequency cyc/sec" },
+      { key: "omega_rad_s", label: "CircFreq rad/sec" },
+      { key: "eigenvalue_rad2_s2", label: "Eigenvalue rad²/sec²" },
+    ];
+
+    const participatingMassColumns = [
+      { key: "case", label: "Case" },
+      { key: "mode", label: "Mode" },
+      { key: "period_s", label: "Period sec" },
+      { key: "ux", label: "UX" },
+      { key: "uy", label: "UY" },
+      { key: "uz", label: "UZ" },
+      { key: "sum_ux", label: "SumUX" },
+      { key: "sum_uy", label: "SumUY" },
+      { key: "sum_uz", label: "SumUZ" },
+      { key: "rx", label: "RX" },
+      { key: "ry", label: "RY" },
+      { key: "rz", label: "RZ" },
+      { key: "sum_rx", label: "SumRX" },
+      { key: "sum_ry", label: "SumRY" },
+      { key: "sum_rz", label: "SumRZ" },
+    ];
+
     return [
-      { id: "modal_periods", label: "Modal Periods", rows: tables.modal_periods || [] },
-      { id: "participating_mass_ratios", label: "Participating Mass", rows: tables.participating_mass_ratios || [] },
+      {
+        id: "modal_periods",
+        label: "Modal Periods and Frequencies",
+        rows: this._mapEtabsRowsForDisplay(tables.modal_periods || [], modalPeriodsColumns),
+      },
+      {
+        id: "participating_mass_ratios",
+        label: "Modal Participating Mass Ratios",
+        rows: this._mapEtabsRowsForDisplay(tables.participating_mass_ratios || [], participatingMassColumns),
+      },
       { id: "base_shear", label: "Base Shear", rows: tables.base_shear || [] },
 
       // B10.14 / B10.15 — Applied Loads tipo ETABS
@@ -3284,8 +3319,31 @@ export const seismicMixin = {
          </div>`
       : "";
 
-    const tabsHtml = tableDefs
-      .map((table, index) => {
+    // Las dos vistas modales van dentro de un <select> (no como botones).
+    const modalViewIds = ["modal_periods", "participating_mass_ratios"];
+    const modalTableDefs = tableDefs.filter((t) => modalViewIds.includes(t.id));
+    const otherTableDefs = tableDefs.filter((t) => !modalViewIds.includes(t.id));
+
+    const modalViewSelectHtml = modalTableDefs.length
+      ? `<select
+            id="etabs-modal-view-sel"
+            style="
+              padding:7px 10px;
+              border:1px solid #2563eb;
+              border-radius:5px;
+              background:#2563eb;
+              color:#e2e8f0;
+              cursor:pointer;
+              font-size:12px;
+              white-space:nowrap;
+            "
+          >
+            ${modalTableDefs.map((t) => `<option value="${t.id}">${t.label}</option>`).join("")}
+          </select>`
+      : "";
+
+    const tabsHtml = otherTableDefs
+      .map((table) => {
         return `
           <button
             type="button"
@@ -3295,7 +3353,7 @@ export const seismicMixin = {
               padding:7px 10px;
               border:1px solid #334155;
               border-radius:5px;
-              background:${index === 0 ? "#2563eb" : "#0f172a"};
+              background:#0f172a;
               color:#e2e8f0;
               cursor:pointer;
               font-size:12px;
@@ -3430,6 +3488,7 @@ export const seismicMixin = {
             border-bottom:1px solid #334155;
             padding-bottom:8px;
           ">
+            ${modalViewSelectHtml}
             ${tabsHtml}
           </div>
 
@@ -3449,6 +3508,18 @@ export const seismicMixin = {
       didOpen: () => {
         const popup = Swal.getPopup();
 
+        const modalViewSel = popup?.querySelector("#etabs-modal-view-sel");
+        const showEtabsPanel = (id) => {
+          popup.querySelectorAll(".etabs-result-panel").forEach((panel) => {
+            panel.style.display = panel.getAttribute("data-panel") === id ? "block" : "none";
+          });
+        };
+        const setModalSelActive = (active) => {
+          if (!modalViewSel) return;
+          modalViewSel.style.background = active ? "#2563eb" : "#0f172a";
+          modalViewSel.style.borderColor = active ? "#2563eb" : "#334155";
+        };
+
         popup?.querySelectorAll(".etabs-result-tab").forEach((btn) => {
           btn.addEventListener("click", () => {
             const tabId = btn.getAttribute("data-tab");
@@ -3456,13 +3527,20 @@ export const seismicMixin = {
             popup.querySelectorAll(".etabs-result-tab").forEach((item) => {
               item.style.background = "#0f172a";
             });
-
             btn.style.background = "#2563eb";
+            setModalSelActive(false); // otra pestaña activa → select modal inactivo
 
-            popup.querySelectorAll(".etabs-result-panel").forEach((panel) => {
-              panel.style.display = panel.getAttribute("data-panel") === tabId ? "block" : "none";
-            });
+            showEtabsPanel(tabId);
           });
+        });
+
+        // Select con las dos vistas modales (Periods & Frequencies / Participating Mass Ratios).
+        modalViewSel?.addEventListener("change", () => {
+          popup.querySelectorAll(".etabs-result-tab").forEach((item) => {
+            item.style.background = "#0f172a";
+          });
+          setModalSelActive(true);
+          showEtabsPanel(modalViewSel.value);
         });
 
         // Cambio de caso espectral: activa el caso elegido y reabre el reporte con su paquete.

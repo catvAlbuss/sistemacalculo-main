@@ -86,8 +86,22 @@ function createMaterial(scene, area) {
     const style = getAreaStyle(area);
 
     const mat = new StandardMaterial(`areaMat-${area.id}`, scene);
-    mat.diffuseColor = style.color;
-    mat.alpha = style.alpha;
+
+    // =====================================================
+    // 3D SELECTION > ÁREA SELECCIONADA
+    // Naranja brillante (mismo lenguaje visual que las barras).
+    // =====================================================
+    const isSelected = area.selected === true || area.isSelected === true;
+
+    if (isSelected) {
+        mat.diffuseColor = new Color3(1.0, 0.6, 0.1);
+        mat.emissiveColor = new Color3(0.45, 0.25, 0.03);
+        mat.alpha = Math.min(0.8, style.alpha + 0.35);
+    } else {
+        mat.diffuseColor = style.color;
+        mat.alpha = style.alpha;
+    }
+
     mat.backFaceCulling = false;
     mat.specularColor = Color3.Black();
 

@@ -118,7 +118,12 @@ function isFrameSelected3D(frame, context = null) {
     ...(context?.currentState?.selectedObjects || []),
   ];
 
-  return selectedFromContext.some((selected) => selected?.id === frame?.id);
+  // Solo comparar contra BARRAS reales (node1+node2). Los ids de nodos y
+  // áreas son secuencias independientes que colisionan con los de barras:
+  // sin este filtro, seleccionar el nodo id=7 pintaba también la barra id=7.
+  return selectedFromContext.some(
+    (selected) => selected?.node1 && selected?.node2 && selected?.id === frame?.id,
+  );
 }
 
 // =====================================================

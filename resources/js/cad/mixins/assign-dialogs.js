@@ -2108,12 +2108,29 @@ export const assignDialogsMixin = {
     const sec = name === "__none__" ? null : sections.find((s) => s.name === name);
     target.forEach((slab) => {
       slab.slabSection = sec ? sec.name : null;
-      slab.slabSelfWeightKgM2 = sec ? Number(sec.selfWeightKgM2) || 0 : 0;
+      // Peso propio de la losa (kgf/m²). Usa el de la sección si lo trae; si no,
+      // lo calcula aquí: espesor(m) × densidad del material. Así no depende de
+      // que la sección se haya re-guardado por el modal de Slab Sections.
+      slab.slabSelfWeightKgM2 = sec ? this._slabSectionSelfWeightKgM2(sec) : 0;
       slab.section = sec ? { name: sec.name, thickness: sec.thickness, material: sec.material } : null;
     });
     this.markAnalysisResultsOutdated?.("Se asignó sección de losa.");
     this.redraw?.();
     this.showMessage?.(`Sección "${name === "__none__" ? "None" : name}" asignada a ${target.length} losa(s).`);
+  },
+
+  // Peso propio de una sección de losa en kgf/m² = espesor(m) × densidad(kg/m³).
+  // Usa selfWeightKgM2 si la sección lo trae; si no, lo calcula del material.
+  _slabSectionSelfWeightKgM2(sec) {
+    if (!sec) return 0;
+    const explicit = Number(sec.selfWeightKgM2);
+    if (explicit > 0) return explicit;
+    const t = (Number(sec.thickness) || 0) / 1000; // mm → m
+    const mats = this.materialProperties?.materials || [];
+    const mat = mats.find((m) => m.name === sec.material);
+    const mpv = Number(mat?.massPerUnitVolume); // ton/mm³ (ETABS N-mm) → ×1e12 = kg/m³
+    const rho = (mpv > 0 && mpv < 1e-3) ? mpv * 1e12 : 2400;
+    return t * rho;
   },
 
   // =====================================================
