@@ -412,7 +412,18 @@ export function clearReferenceGrid3D() {
   }
 }
 
-export function drawReferenceGrid3D(context) {
+// Firma de la ESTRUCTURA de la grilla (posiciones, pisos, altura). Solo cambia
+// si el usuario edita la grilla/stories, NO al cambiar de vista ni al dibujar.
+function referenceStructureSignature(refGrid) {
+  return JSON.stringify({
+    x: refGrid.xPositions,
+    y: refGrid.yPositions,
+    n: refGrid.storyCount,
+    h: refGrid.storyHeight,
+  });
+}
+
+export function drawReferenceGrid3D(context, options = {}) {
   const scene = getScene();
   if (!scene || !context?.referenceGrid) return;
 
@@ -420,28 +431,54 @@ export function drawReferenceGrid3D(context) {
 
   if (!refGrid.xPositions?.length || !refGrid.yPositions?.length) return;
 
-  // 🔧 Limpiar completamente antes de redibujar
-  clearReferenceGrid3D();
+  // ── OPTIMIZACIÓN: la estructura estática (mallas ref_*) es IDÉNTICA en todas
+  // las vistas. Solo se reconstruye si cambió la definición de la grilla
+  // (firma) o si aún no existe. Así el cambio de vista y el dibujo de vigas
+  // NO recrean toda la grilla: únicamente se actualiza el resaltado azul de la
+  // vista activa (drawActiveView, que toca solo las mallas activeview_*).
+  const signature = referenceStructureSignature(refGrid);
+  const structureExists = scene.meshes?.some((m) => m?.name?.startsWith("ref_floor_0"));
+  const rebuildStructure =
+    options.forceStructure === true ||
+    scene.__refGridSignature !== signature ||
+    !structureExists;
 
-  // También limpiar labels específicos que puedan quedar
-  const viewer = getViewer3DState();
-  if (viewer && viewer.elements) {
-    viewer.elements = viewer.elements.filter((el) => {
-      const shouldRemove =
-        el?.name?.startsWith("story_label_") ||
-        el?.name?.startsWith("elev_label_") ||
-        (el?.material && el.material.name && el.material.name.startsWith("story_mat_")) ||
-        (el?.material && el.material.name && el.material.name.startsWith("elev_mat_"));
-      if (shouldRemove && el?.dispose) {
-        el.dispose();
-        return false;
-      }
-      return true;
-    });
+  if (rebuildStructure) {
+    // 🔧 Limpiar completamente antes de redibujar
+    clearReferenceGrid3D();
+
+    // También limpiar labels específicos que puedan quedar
+    const viewer = getViewer3DState();
+    if (viewer && viewer.elements) {
+      viewer.elements = viewer.elements.filter((el) => {
+        const shouldRemove =
+          el?.name?.startsWith("story_label_") ||
+          el?.name?.startsWith("elev_label_") ||
+          (el?.material && el.material.name && el.material.name.startsWith("story_mat_")) ||
+          (el?.material && el.material.name && el.material.name.startsWith("elev_mat_"));
+        if (shouldRemove && el?.dispose) {
+          el.dispose();
+          return false;
+        }
+        return true;
+      });
+    }
+
+    drawReferenceStructure(refGrid);
+    scene.__refGridSignature = signature;
   }
 
-  drawReferenceStructure(refGrid);
+  // El resaltado azul de la vista activa siempre se actualiza (barato).
   drawActiveView(refGrid, context);
+}
+
+// Actualiza SOLO el resaltado azul de la vista activa, sin tocar la estructura.
+// Útil para el cambio de vista (base ↔ piso N) sin reconstruir la grilla.
+export function updateActiveView3D(context) {
+  const scene = getScene();
+  if (!scene || !context?.referenceGrid) return;
+  if (!context.referenceGrid.xPositions?.length) return;
+  drawActiveView(context.referenceGrid, context);
 }
 
 export function createFull3DGrid(scene) {
@@ -550,14 +587,25 @@ export function clearCustomGeneralGrids3D(scene) {
 export function drawCustomGeneralGrids3D(scene, referenceGrid, stories = []) {
   if (!scene || !referenceGrid) return;
 
-  clearCustomGeneralGrids3D(scene);
-
   const allGeneralGrids = referenceGrid.generalGrids || [];
   const customLines = allGeneralGrids.filter((line) => line.visible !== false && line.source === "custom");
+  const elevations = getStoryElevations(referenceGrid, stories);
+
+  // Cache por firma: no disponer+recrear si no cambiaron las líneas custom ni
+  // los niveles (evita rehacer estas mallas en cada sync3D/cambio de vista).
+  const signature = JSON.stringify({
+    lines: customLines.map((l) => [l.id, l.x1, l.y1, l.x2, l.y2]),
+    elevations,
+  });
+  const rootExists = scene.transformNodes?.some((n) => n?.metadata?.type === "customGeneralGrid3DRoot");
+  if (scene.__customGridSignature === signature && (rootExists || !customLines.length)) {
+    return;
+  }
+
+  clearCustomGeneralGrids3D(scene);
+  scene.__customGridSignature = signature;
 
   if (!customLines.length) return;
-
-  const elevations = getStoryElevations(referenceGrid, stories);
 
   const root = new TransformNode("customGeneralGrid3DRoot", scene);
   root.metadata = { type: "customGeneralGrid3DRoot" };

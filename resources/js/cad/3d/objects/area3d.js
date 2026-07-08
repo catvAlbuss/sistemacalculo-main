@@ -5,6 +5,7 @@ import {
     Vector3,
     Mesh,
     VertexData,
+    DynamicTexture,
 } from "@babylonjs/core";
 import earcut from "earcut";
 
@@ -205,6 +206,66 @@ function createGeneric3DPolygon(scene, area) {
     return mesh;
 }
 
+// Crea una etiqueta de texto (billboard) en el centro de la losa mostrando el
+// nombre de la sección asignada (o el tipo si no tiene). Se cuelga como HIJA del
+// mesh de la losa para que Babylon la elimine junto con ella; su material/textura
+// se liberan en onDisposeObservable para no fugar memoria.
+function attachAreaLabel3D(scene, parentMesh, area, elev) {
+    const label = area.slabSection || area.section?.name || area.areaType || area.type || "slab";
+
+    // Centroide del polígono en coords del modelo (X-Y de planta).
+    const n = area.points.length || 1;
+    const cx = area.points.reduce((s, p) => s + Number(p.x || 0), 0) / n;
+    const cy = area.points.reduce((s, p) => s + Number(p.y || 0), 0) / n;
+
+    // Textura dinámica con el texto centrado.
+    const W = 256, H = 64;
+    const texture = new DynamicTexture(`areaLabelTex-${area.id}`, { width: W, height: H }, scene, true);
+    texture.hasAlpha = true;
+    const ctx = texture.getContext();
+    ctx.clearRect(0, 0, W, H);
+    ctx.font = "bold 28px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(String(label), W / 2, H / 2);
+    texture.update();
+
+    const mat = new StandardMaterial(`areaLabelMat-${area.id}`, scene);
+    mat.diffuseTexture = texture;
+    mat.opacityTexture = texture;
+    mat.emissiveColor = new Color3(1, 1, 1);
+    mat.disableLighting = true;
+    mat.backFaceCulling = false;
+
+    const plane = MeshBuilder.CreatePlane(
+        `areaLabel-${area.id}`,
+        { width: 2.4, height: 0.6 },
+        scene
+    );
+    plane.material = mat;
+    plane.billboardMode = Mesh.BILLBOARDMODE_ALL;
+    plane.isPickable = false;
+    plane.metadata = { type: "areaLabel", areaId: area.id };
+
+    // Hija del mesh de la losa: el padre está en world (0, elev, 0) con la
+    // geometría en y=0, así que la posición LOCAL (cx, offset, cy) queda en el
+    // centro de la losa, ligeramente por encima.
+    plane.parent = parentMesh;
+    plane.position = new Vector3(cx, 0.15, cy);
+
+    // Liberar textura+material cuando la losa se elimina (Babylon dispone el
+    // mesh hijo por recursión, pero no su material/textura).
+    parentMesh.onDisposeObservable.add(() => {
+        try {
+            texture.dispose();
+            mat.dispose();
+        } catch (_) { /* noop */ }
+    });
+
+    return plane;
+}
+
 function createHorizontalArea3D(scene, area, options = {}) {
     const type = area.areaType || area.type || "slab";
     const elev = getAreaElevation(area);
@@ -244,6 +305,11 @@ function createHorizontalArea3D(scene, area, options = {}) {
         holeCount: holes.length,
         plane: "horizontal",
     };
+
+    // Etiqueta con el nombre de la sección asignada (o el tipo). Solo losas.
+    if (type === "slab") {
+        attachAreaLabel3D(scene, mesh, area, elev);
+    }
 
     return mesh;
 }

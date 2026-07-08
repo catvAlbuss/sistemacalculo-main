@@ -31,3 +31,8 @@ public/build/*
 public/build/assets/*
 !public/build/assets/*.css
 !public/build/assets/*.js
+
+# Python bytecode cache (autogenerado, no debe versionarse)
+__pycache__/
+*.pyc
+*.pyo

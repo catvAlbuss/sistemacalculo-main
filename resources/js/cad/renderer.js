@@ -1021,10 +1021,16 @@ export class DiseñoRenderer {
       ctx.fill();
     });
 
-    // Etiqueta simple para que el cliente vea qué tipo de área es
+    // Etiqueta del área: si tiene sección asignada, muestra su NOMBRE
+    // (p.ej. "Aligerado e=0.20"); si no, cae al tipo de área ("slab").
     if (!isPreview && pts.length >= 3) {
       const center = this.getProjectedPolygonCenter(pts);
-      const label = area.areaType || area.type || "area";
+      const label =
+        area.slabSection ||
+        area.section?.name ||
+        area.areaType ||
+        area.type ||
+        "area";
 
       ctx.font = "10px Arial";
       ctx.textAlign = "center";

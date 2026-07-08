@@ -146,6 +146,10 @@ function createCanvas(container) {
   canvas.width = rect.width || container.clientWidth || 800;
   canvas.height = rect.height || container.clientHeight || 600;
 
+  // El clic derecho se usa para orbitar la cámara y para terminar la
+  // polilínea de dibujo; se suprime el menú contextual del navegador.
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
   container.innerHTML = "";
   container.appendChild(canvas);
 
@@ -1182,51 +1186,10 @@ function update3DGridPointHoverReference(context, pointerInfo) {
     return;
   }
 
-  ensure3DWorkPlanePickMesh(context);
-
-  const event = pointerInfo?.event;
-
-  const pickInfo = scene.pick(scene.pointerX, scene.pointerY, (mesh) => {
-    if (!mesh) return false;
-
-    if (mesh.name === "jh_3d_grid_point_hover_marker") return false;
-    if (mesh.name === "jh_3d_frame_preview_line") return false;
-    if (mesh.name === "jh_3d_grid_point_hover_label") return false;
-
-    return mesh.isPickable === true;
-  });
-
-  const pickedPoint = pickInfo?.pickedPoint;
-
-  if (!pickedPoint) {
-    clear3DGridPointHoverReference();
-    return;
-  }
-
-  const approxModelPoint = babylonPointToModelPoint(pickedPoint);
-
-  const snappedPoint = context.snap3DModelPointToGridPoint?.(approxModelPoint);
-
-  if (!snappedPoint) {
-    clear3DGridPointHoverReference();
-    return;
-  }
-
-  const marker = ensure3DGridPointHoverMarker(context);
-
-  if (marker) {
-    marker.position = modelPointToBabylonPoint(snappedPoint);
-    marker.setEnabled(true);
-  }
-
-  context.hovered3DGridPoint = snappedPoint;
-
-  update3DGridPointHoverLabel(context, snappedPoint);
-  update3DFramePreviewLine(context, snappedPoint);
-
-  context.showMessage?.(
-    `Grid Point ${snappedPoint.xGridId || "-"}-${snappedPoint.yGridId || "-"} | X=${Number(snappedPoint.x || 0).toFixed(2)} Y=${Number(snappedPoint.y || 0).toFixed(2)} Z=${Number(snappedPoint.z || 0).toFixed(2)}`,
-  );
+  // Sin prioridad del piso activo: el hover reconoce SOLO vértices del grid
+  // (cualquier piso) vía el snap global de arriba. Si el cursor no está sobre
+  // un vértice, no se marca nada (antes caía al plano del piso 2D activo).
+  clear3DGridPointHoverReference();
 }
 
 // =====================================================
@@ -1603,6 +1566,10 @@ function enable3DFrameSelection(context) {
   let pointerDownPosition3D = null;
   let pointerWasDragged3D = false;
 
+  // Clic derecho: distingue un "tap" (termina polilínea) de un arrastre (orbitar).
+  let rightPointerDownPosition3D = null;
+  let rightPointerWasDragged3D = false;
+
   scene.onPointerObservable.add((pointerInfo) => {
     const event = pointerInfo.event;
 
@@ -1664,6 +1631,16 @@ function enable3DFrameSelection(context) {
     // Guardamos la posición inicial solo con clic izquierdo.
     // =====================================================
     if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN) {
+      // Clic derecho: registrar inicio para distinguir tap de orbitado.
+      if (event?.button === 2) {
+        rightPointerDownPosition3D = {
+          x: event?.clientX || 0,
+          y: event?.clientY || 0,
+        };
+        rightPointerWasDragged3D = false;
+        return;
+      }
+
       if (event?.button !== 0) return;
 
       pointerDownPosition3D = {
@@ -1672,6 +1649,31 @@ function enable3DFrameSelection(context) {
       };
 
       pointerWasDragged3D = false;
+      return;
+    }
+
+    // =====================================================
+    // 3D DRAW > TERMINAR POLILÍNEA CON CLIC DERECHO (ESTILO ETABS)
+    // Sólo si fue un tap (no un arrastre de orbitado de cámara) y
+    // la herramienta de barra está activa con una cadena en curso.
+    // =====================================================
+    if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERUP && event?.button === 2) {
+      const wasTap =
+        rightPointerDownPosition3D &&
+        !rightPointerWasDragged3D &&
+        Math.abs((event?.clientX || 0) - rightPointerDownPosition3D.x) <= 6 &&
+        Math.abs((event?.clientY || 0) - rightPointerDownPosition3D.y) <= 6;
+
+      rightPointerDownPosition3D = null;
+      rightPointerWasDragged3D = false;
+
+      const drawingFrame = frameToolActive || context?.isDrawingFrame3D === true;
+
+      if (wasTap && drawingFrame && context?.frame3DStartNode) {
+        event.preventDefault?.();
+        context.endFrame3DPolyline?.();
+      }
+
       return;
     }
 
@@ -1689,6 +1691,16 @@ function enable3DFrameSelection(context) {
       }
 
       return;
+    }
+
+    // Arrastre con botón derecho = orbitar cámara (no termina la polilínea).
+    if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERMOVE && rightPointerDownPosition3D) {
+      const dx = Math.abs((event?.clientX || 0) - rightPointerDownPosition3D.x);
+      const dy = Math.abs((event?.clientY || 0) - rightPointerDownPosition3D.y);
+
+      if (dx > 6 || dy > 6) {
+        rightPointerWasDragged3D = true;
+      }
     }
 
     if (pointerInfo.type !== BABYLON.PointerEventTypes.POINTERPICK) return;
