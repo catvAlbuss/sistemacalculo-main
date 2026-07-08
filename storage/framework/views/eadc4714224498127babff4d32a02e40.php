@@ -976,19 +976,21 @@
 <?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
 <?php endif; ?>
 
+      <!-- Show Deformed Shape (estilo ETABS): deformada estática/animada por caso sísmico -->
       <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'testTorreConCargaExcentrica()','toggle' => 'false','label' => 'Torre Carga Excentrica']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'openDeformedShapeDialog()','toggle' => 'false','label' => 'Deformada']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('cad.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['clickHandler' => 'testTorreConCargaExcentrica()','toggle' => 'false','label' => 'Torre Carga Excentrica']); ?>
+<?php $component->withAttributes(['clickHandler' => 'openDeformedShapeDialog()','toggle' => 'false','label' => 'Deformada']); ?>
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18" />
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M9 19v-6h13m0 0V5a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h3m7 0v6m-4 0h4" />
+            d="M6 21c0-6 4-8 4-14M14 21c0-6 4-8 4-14M10 7h8" />
         </svg>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>

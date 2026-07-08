@@ -709,6 +709,64 @@ def _element_area_for_mass_source(elem: dict) -> float:
     )
 
 
+def _build_column_depth_map(elements: list, node_by_id: dict) -> dict:
+    """Mapa nodo → peralte equivalente de columna (m) para la longitud libre.
+
+    Recorre los elementos VERTICALES (columnas) y, en cada nudo extremo,
+    registra su dimensión equivalente en planta = √A (lado del cuadrado de
+    igual área; exacto para columnas cuadradas, buena aprox. para rectangulares
+    y agnóstico a b/h). Un nudo con varias columnas conserva la mayor.
+    """
+    depth = {}
+    for elem in elements or []:
+        try:
+            ni = int(elem.get("node_i"))
+            nj = int(elem.get("node_j"))
+            node_i = node_by_id.get(ni)
+            node_j = node_by_id.get(nj)
+            if not node_i or not node_j:
+                continue
+            xi, yi, zi = _node_xyz_for_mass_source(node_i)
+            xj, yj, zj = _node_xyz_for_mass_source(node_j)
+            dz = abs(zj - zi)
+            horiz = ((xj - xi) ** 2 + (yj - yi) ** 2) ** 0.5
+            # Columna = predominantemente vertical.
+            if dz <= 1e-6 or dz < horiz:
+                continue
+            side = _element_area_for_mass_source(elem) ** 0.5
+            for nid in (ni, nj):
+                if side > depth.get(nid, 0.0):
+                    depth[nid] = side
+        except Exception:
+            continue
+    return depth
+
+
+def _beam_self_weight_length(elem: dict, node_by_id: dict, col_depth: dict) -> float:
+    """Longitud para el PESO PROPIO de una viga = longitud libre (centerline
+    menos medio peralte de columna en cada extremo apoyado en columna), como
+    ETABS. En columnas devuelve la longitud centerline (sin descuento).
+    Solo afecta la MASA; la rigidez sigue centerline (ETABS Rigid-zone=0).
+    """
+    length = _element_length_for_mass_source(elem, node_by_id)
+    if length <= 0:
+        return length
+
+    try:
+        ni = int(elem.get("node_i"))
+        nj = int(elem.get("node_j"))
+        node_i = node_by_id.get(ni)
+        node_j = node_by_id.get(nj)
+        xi, yi, zi = _node_xyz_for_mass_source(node_i)
+        xj, yj, zj = _node_xyz_for_mass_source(node_j)
+        if abs(zj - zi) > ((xj - xi) ** 2 + (yj - yi) ** 2) ** 0.5:
+            return length  # columna: sin descuento
+        deduction = 0.5 * col_depth.get(ni, 0.0) + 0.5 * col_depth.get(nj, 0.0)
+        return max(length - deduction, 0.1 * length)
+    except Exception:
+        return length
+
+
 def _element_unit_weight_for_mass_source(elem: dict, mass_source: dict) -> float:
     candidates = [
         elem.get("unitWeight"),
@@ -925,8 +983,22 @@ def _build_mass_source_nodal_masses(
     if mass_source.get("include_self_weight", True):
         self_weight_multiplier = mass_source.get("self_weight_multiplier", 1.0)
 
+        # Longitud libre de vigas (peso propio sobre la luz libre, descontando
+        # medio peralte de columna en cada extremo) como ETABS. Solo MASA, no
+        # rigidez. Opt-out con `beamClearLength: false` en el payload.
+        use_clear_length = bool(
+            data.get("beamClearLength", data.get("beam_clear_length", True))
+        )
+        col_depth = (
+            _build_column_depth_map(elements, node_by_id) if use_clear_length else {}
+        )
+
         for elem in elements or []:
-            length = _element_length_for_mass_source(elem, node_by_id)
+            length = (
+                _beam_self_weight_length(elem, node_by_id, col_depth)
+                if use_clear_length
+                else _element_length_for_mass_source(elem, node_by_id)
+            )
             area = _element_area_for_mass_source(elem)
             unit_weight = _element_unit_weight_for_mass_source(elem, mass_source)
 
@@ -1240,6 +1312,12 @@ def build_model_3d(data: dict):
     }
 
     # ── Elementos ─────────────────────────────────────────
+    # Deformación por corte (Timoshenko): ETABS la incluye por defecto y en
+    # pórticos de barras chatas (L/h < ~8) vale ~3% de periodo. Opt-out vía
+    # payload `shearDeformations: false` → vuelve a elasticBeamColumn (Euler).
+    use_shear_def = bool(
+        data.get("shearDeformations", data.get("shear_deformations", True))
+    )
     transf_cache = {}
 
     for i, elem in enumerate(elements):
@@ -1280,7 +1358,18 @@ def build_model_3d(data: dict):
 
         tid = transf_cache[transf_key]
 
-        ops.element("elasticBeamColumn", eid, ni, nj, A, E, G, J, Iy, Iz, tid)
+        # Área de corte 5/6·A (secciones rectangulares). Los elementos dummy
+        # (A≈0) se quedan en Euler: Timoshenko con Av→0 degenera numéricamente.
+        if use_shear_def and A > 1e-4:
+            Av = (5.0 / 6.0) * A
+            ops.element(
+                "ElasticTimoshenkoBeam",
+                eid, ni, nj, E, G, A, J, Iy, Iz, Av, Av, tid,
+            )
+            elem["_formulation"] = "ElasticTimoshenkoBeam"
+        else:
+            ops.element("elasticBeamColumn", eid, ni, nj, A, E, G, J, Iy, Iz, tid)
+            elem["_formulation"] = "elasticBeamColumn"
 
     # ── Apoyos ────────────────────────────────────────────
     if supports:
@@ -1350,6 +1439,70 @@ def _safe_eigenvalue(v) -> float:
         return 0.0
 
 
+# Periodo mínimo para considerar un modo como real. Los modos "basura" que
+# salen de las masas rotacionales placeholder (1e-9 en ops.mass) tienen
+# T≈1e-8 s; los modos estructurales reales de un edificio están órdenes de
+# magnitud por encima (>0.01 s incluso en modelos muy rígidos).
+MIN_VALID_MODE_PERIOD = 1e-4  # s
+
+
+def _max_dynamic_modes(data: dict, nodes: list) -> int:
+    """
+    Número máximo de modos con masa real que tiene el modelo.
+
+    Con masa sísmica solo horizontal (mz=0 en el Mass Source) y diafragmas
+    rígidos, los GDL dinámicos reales son ~3 por diafragma (UX, UY, RZ) — o 2
+    si el grupo cayó a equalDOF, que no amarra RZ — más los GDL con masa de
+    nodos fuera de diafragmas. Pedir más modos que esto obliga a eigen a
+    buscarlos en las masas placeholder y produce modos degenerados (T≈1e-8 s,
+    participación 0). Debe llamarse DESPUÉS de build_model_3d (usa los
+    reportes _rigid_diaphragm_report y _effective_mass_report del payload).
+    """
+    try:
+        applied = (data.get("_rigid_diaphragm_report") or {}).get("applied") or []
+        rows = ((data.get("_effective_mass_report") or {}).get("rows")) or []
+
+        supported = set()
+        for s in data.get("supports") or []:
+            try:
+                nid = s.get("node", s.get("nodeId", s.get("node_id")))
+                if nid is not None:
+                    supported.add(int(nid))
+            except Exception:
+                pass
+
+        in_diaphragm = set()
+        dofs = 0
+        for grp in applied:
+            members = {int(x) for x in (grp.get("constrained") or [])}
+            if grp.get("retained") is not None:
+                members.add(int(grp["retained"]))
+            in_diaphragm |= members
+            method = str(grp.get("method") or "")
+            dofs += 3 if method.startswith("rigidDiaphragm") else 2
+
+        for row in rows:
+            nid = int(row.get("node", -1))
+            if nid in supported:
+                continue
+            if nid in in_diaphragm:
+                # UX/UY/RZ ya están en los 3 GDL del diafragma, pero UZ no la
+                # amarra rigidDiaphragm: si el nodo tuviera masa vertical, su
+                # UZ es un GDL dinámico adicional.
+                if float(row.get("effective_mz", 0) or 0) > 0:
+                    dofs += 1
+                continue
+            dofs += sum(
+                1
+                for key in ("effective_mx", "effective_my", "effective_mz")
+                if float(row.get(key, 0) or 0) > 0
+            )
+
+        return max(1, dofs)
+    except Exception:
+        return max(1, len(nodes) * 2)
+
+
 def run_modal_analysis(nodes: list, num_modes: int = 6) -> dict:
     """
     Ejecuta análisis eigenvalue y calcula:
@@ -1400,13 +1553,30 @@ def run_modal_analysis(nodes: list, num_modes: int = 6) -> dict:
     periods = [2.0 * np.pi / w if w > 1e-9 else 0.0 for w in omega]
     frequencies = [1.0 / T if T > 1e-9 else 0.0 for T in periods]
 
+    # ── Filtrar modos degenerados (sin masa real) ───────────────────────────
+    # Si se pidieron más modos que GDL dinámicos con masa, eigen los encuentra
+    # sobre las masas rotacionales placeholder (1e-9) → T≈1e-8 s, participación
+    # nula. Se descartan de TODOS los arreglos (periodos, formas, participación)
+    # para no ensuciar tablas, combinaciones CQC ni reportes. `keep` guarda el
+    # índice original de cada modo retenido para leer eigenvectores y
+    # modalProperties con la numeración del solver.
+    keep = [i for i, T in enumerate(periods) if T >= MIN_VALID_MODE_PERIOD]
+    if not keep:
+        keep = list(range(len(periods)))
+    degenerate_dropped = len(periods) - len(keep)
+
+    omega = [omega[i] for i in keep]
+    periods = [periods[i] for i in keep]
+    frequencies = [frequencies[i] for i in keep]
+
     node_ids = [int(n["id"]) for n in nodes]
 
     # Formas modales (DOFs: 1=UX, 2=UY, 3=UZ)
-    phi_x = []  # shape: [num_modes][num_nodes]
+    phi_x = []  # shape: [modos retenidos][num_nodes]
     phi_y = []
 
-    for mode_idx in range(1, num_modes + 1):
+    for orig_idx in keep:
+        mode_idx = orig_idx + 1  # numeración 1-based del solver
         mode_x = []
         mode_y = []
         for nid in node_ids:
@@ -1464,16 +1634,19 @@ def run_modal_analysis(nodes: list, num_modes: int = 6) -> dict:
     mp_clean = mp is not None and all(
         _mp_pct("partiMassRatiosMX", i) is not None
         and _mp_pct("partiMassRatiosMY", i) is not None
-        for i in range(num_modes)
+        for i in keep
     )
 
     modal_info = []
     cum_mpf_x = 0.0
     cum_mpf_y = 0.0
 
-    for idx in range(num_modes):
-        phi_xi = np.array(phi_x[idx])
-        phi_yi = np.array(phi_y[idx])
+    # pos = índice en los arreglos filtrados; orig_idx = índice del solver
+    # (para leer modalProperties, que está indexado por modo original).
+    for pos, orig_idx in enumerate(keep):
+        idx = pos
+        phi_xi = np.array(phi_x[pos])
+        phi_yi = np.array(phi_y[pos])
         mx_arr = np.array(m_x)
         my_arr = np.array(m_y)
 
@@ -1507,19 +1680,20 @@ def run_modal_analysis(nodes: list, num_modes: int = 6) -> dict:
 
         if mp_clean:
             # OpenSees (ya en %). RMZ = masa rotacional = torsión.
-            mpf_x = _mp_pct("partiMassRatiosMX", idx)
-            mpf_y = _mp_pct("partiMassRatiosMY", idx)
-            mpf_rz = _mp_pct("partiMassRatiosRMZ", idx) or 0.0
-            cum_x = _mp_pct("partiMassRatiosCumuMX", idx)
-            cum_y = _mp_pct("partiMassRatiosCumuMY", idx)
-            cum_rz = _mp_pct("partiMassRatiosCumuRMZ", idx) or 0.0
+            # Indexado por modo ORIGINAL del solver (orig_idx), no filtrado.
+            mpf_x = _mp_pct("partiMassRatiosMX", orig_idx)
+            mpf_y = _mp_pct("partiMassRatiosMY", orig_idx)
+            mpf_rz = _mp_pct("partiMassRatiosRMZ", orig_idx) or 0.0
+            cum_x = _mp_pct("partiMassRatiosCumuMX", orig_idx)
+            cum_y = _mp_pct("partiMassRatiosCumuMY", orig_idx)
+            cum_rz = _mp_pct("partiMassRatiosCumuRMZ", orig_idx) or 0.0
             # 6 GDL completos (para la tabla ETABS de masa participante).
-            mpf_uz = _mp_pct("partiMassRatiosMZ", idx) or 0.0
-            mpf_rx = _mp_pct("partiMassRatiosRMX", idx) or 0.0
-            mpf_ry = _mp_pct("partiMassRatiosRMY", idx) or 0.0
-            cum_uz = _mp_pct("partiMassRatiosCumuMZ", idx) or 0.0
-            cum_rx = _mp_pct("partiMassRatiosCumuRMX", idx) or 0.0
-            cum_ry = _mp_pct("partiMassRatiosCumuRMY", idx) or 0.0
+            mpf_uz = _mp_pct("partiMassRatiosMZ", orig_idx) or 0.0
+            mpf_rx = _mp_pct("partiMassRatiosRMX", orig_idx) or 0.0
+            mpf_ry = _mp_pct("partiMassRatiosRMY", orig_idx) or 0.0
+            cum_uz = _mp_pct("partiMassRatiosCumuMZ", orig_idx) or 0.0
+            cum_rx = _mp_pct("partiMassRatiosCumuRMX", orig_idx) or 0.0
+            cum_ry = _mp_pct("partiMassRatiosCumuRMY", orig_idx) or 0.0
             if cum_x is None:
                 cum_mpf_x += mpf_x
                 cum_x = cum_mpf_x
@@ -1572,7 +1746,9 @@ def run_modal_analysis(nodes: list, num_modes: int = 6) -> dict:
         "m_x": m_x,
         "m_y": m_y,
         "node_ids": node_ids,
-        "num_modes": num_modes,
+        "num_modes": len(keep),
+        "num_modes_requested": num_modes,
+        "degenerate_modes_dropped": degenerate_dropped,
     }
 
 
@@ -1650,18 +1826,25 @@ def run_rsa(
         )
         Sd_n = Sa_n / (omega_n_safe**2) if omega_n_safe > 1e-9 else 0.0
 
+        # Respuesta modal ACOPLADA a la excitación en una dirección:
+        # u(nodo) = Σ_n φ_n(nodo) · Γ_dir,n · Sd_n. El MISMO modo mueve el nudo
+        # en X y en Y (la torsión del diafragma acopla ambas), así que bajo
+        # excitación X hay respuesta Y real (φ_y·Γ_x·Sd) y viceversa. El factor
+        # de participación Γ es el de la DIRECCIÓN EXCITADA; la forma modal
+        # aporta las dos componentes. Antes se ponía la transversal en cero
+        # (hallazgo #3), lo que anulaba el desplazamiento ortogonal que ETABS sí
+        # reporta. NO afecta la deriva primaria (usa modal_node_disps = la
+        # componente de la dir. excitada) ni el cortante basal (usa participación).
+        phi_xi = np.array(phi_x[idx])
+        phi_yi = np.array(phi_y[idx])
         if direction == "x":
             gamma = mi["gamma_x"]
-            phi = np.array(phi_x[idx])
-            modal_disps_x[idx] = gamma * phi * Sd_n
-            # En dirección transversal (Y) el sismo en X también genera respuesta Y
-            # para simplificar, solo se calcula en la dirección principal
-            modal_disps_y[idx] = np.zeros(num_nodes)
+            modal_disps_x[idx] = gamma * phi_xi * Sd_n   # primaria
+            modal_disps_y[idx] = gamma * phi_yi * Sd_n   # ortogonal acoplada
         else:  # 'y'
             gamma = mi["gamma_y"]
-            phi = np.array(phi_y[idx])
-            modal_disps_y[idx] = gamma * phi * Sd_n
-            modal_disps_x[idx] = np.zeros(num_nodes)
+            modal_disps_y[idx] = gamma * phi_yi * Sd_n   # primaria
+            modal_disps_x[idx] = gamma * phi_xi * Sd_n   # ortogonal acoplada
 
     # ── Combinación modal ──────────────────────────────────
     if combination.upper() == "CQC":
@@ -1718,6 +1901,13 @@ def run_rsa(
         "modal_node_disps": (
             modal_disps_x if direction == "x" else modal_disps_y
         ).tolist(),
+        # Ambas componentes modales POR SEPARADO para la combinación direccional
+        # de la deriva: bajo esta excitación el nudo se mueve en X (modal_disps_x)
+        # y en Y (modal_disps_y, la ortogonal acoplada por torsión). La deriva de
+        # un caso combina la componente primaria con la ortogonal acoplada del
+        # otro RSA (ver _compute_story_drifts).
+        "modal_node_disps_x": modal_disps_x.tolist(),
+        "modal_node_disps_y": modal_disps_y.tolist(),
         "omegas": [
             float(mi["omega"].real)
             if hasattr(mi["omega"], "real")
@@ -2017,13 +2207,20 @@ def _max_abs_story_displacement(
 
 
 def _cqc_modal_story_drift(
-    rsa: dict, node_coord: dict, lower: dict, upper: dict, height: float
+    rsa: dict, node_coord: dict, lower: dict, upper: dict, height: float,
+    component: str = None,
 ):
     """Deriva de entrepiso CORRECTA para un RSA de una dirección.
 
     Para cada línea de nodos (x,y) calcula la deriva MODO POR MODO
     (u_arriba_n − u_abajo_n), las combina con CQC, y toma el MÁXIMO entre líneas.
     Esto capta la amplificación en esquinas por torsión (rigidDiaphragm).
+
+    `component` selecciona qué componente del desplazamiento modal usar:
+      - None (default): la componente primaria de la dir. excitada
+        (`modal_node_disps`) — comportamiento histórico.
+      - "x"/"y": la componente X o Y (`modal_node_disps_x/_y`) para la
+        combinación direccional (deriva ortogonal acoplada por torsión).
 
     El método antiguo (`_average_story_displacement` → restar desplazamientos ya
     combinados con CQC) subestima cuando el piso ROTA y la respuesta se reparte
@@ -2034,7 +2231,8 @@ def _cqc_modal_story_drift(
 
     Devuelve la deriva (m) o None si no hay datos por modo (se cae al promedio).
     """
-    md = rsa.get("modal_node_disps")
+    key = "modal_node_disps" if component is None else f"modal_node_disps_{component}"
+    md = rsa.get(key)
     nids = rsa.get("node_ids")
     omegas = rsa.get("omegas")
     if not md or not nids or not omegas or height <= 1e-9:
@@ -2175,10 +2373,28 @@ def _compute_story_drifts(data: dict, nodes: list, seismic: dict) -> dict:
         uy_lower = _average_story_displacement(lower, displacements_y, "y")
         uy_upper = _average_story_displacement(upper, displacements_y, "y")
 
-        # ── Deriva CORRECTA: CQC de derivas modales por línea, máximo entre líneas.
-        # Si no hay datos por modo (payload viejo / caso fallback) cae al promedio.
-        drift_x_modal = _cqc_modal_story_drift(rsa_x, node_coord, lower, upper, height)
-        drift_y_modal = _cqc_modal_story_drift(rsa_y, node_coord, lower, upper, height)
+        # ── Deriva CORRECTA con COMBINACIÓN DIRECCIONAL (estilo ETABS) ──────────
+        # La deriva de un caso en la dirección d combina la respuesta d de AMBAS
+        # excitaciones (SRSS, no correlacionadas):
+        #   Δx = SRSS( Δx|exc.X (primaria) , Δx|exc.Y (ortogonal acoplada) )
+        #   Δy = SRSS( Δy|exc.Y (primaria) , Δy|exc.X (ortogonal acoplada) )
+        # rsa_x usa el espectro X del caso (100%) y rsa_y el Y (30% en SDX), así
+        # que los factores direccionales del caso ya están en el Sd de cada RSA.
+        # La componente ortogonal viene de modal_node_disps_x/_y (respuesta que el
+        # mismo modo genera en la dirección transversal por la torsión).
+        dx_from_x = _cqc_modal_story_drift(rsa_x, node_coord, lower, upper, height, "x")
+        dx_from_y = _cqc_modal_story_drift(rsa_y, node_coord, lower, upper, height, "x")
+        dy_from_y = _cqc_modal_story_drift(rsa_y, node_coord, lower, upper, height, "y")
+        dy_from_x = _cqc_modal_story_drift(rsa_x, node_coord, lower, upper, height, "y")
+
+        def _srss(*vals):
+            present = [v for v in vals if v is not None]
+            if not present:
+                return None
+            return float(np.sqrt(sum(v * v for v in present)))
+
+        drift_x_modal = _srss(dx_from_x, dx_from_y)
+        drift_y_modal = _srss(dy_from_y, dy_from_x)
 
         if drift_x_modal is not None:
             drift_method = "cqc_modal"
@@ -2722,6 +2938,8 @@ def _ff_compute_seismic_cases(data: dict, seismic_cases, elements: list, compone
     node_by_id = {int(n["id"]): n for n in nodes}
     num_modes = int(data.get("num_modes", data.get("numModes", 6)) or 6)
     num_modes = min(num_modes, max(1, len(nodes) * 2))
+    # No pedir más modos que GDL dinámicos con masa (evita modos degenerados).
+    num_modes = min(num_modes, _max_dynamic_modes(data, nodes))
     modal_data = run_modal_analysis(nodes, num_modes)
     modal_info = modal_data["modal_info"]
     omegas = [mi["omega"] for mi in modal_info]
@@ -3719,7 +3937,7 @@ def _b7_build_summary(results: dict) -> dict:
 
     return {
         # Marcadores de versión del motor (verifican que el Flask cargó el código nuevo).
-        "engine_build": "2026-06-30-driftfix",
+        "engine_build": "2026-07-07-clear-length",
         "drift_method": drift_method,
         "base_shear_x_N": base_shear[0]["base_shear_N"] if len(base_shear) > 0 else 0.0,
         "base_shear_y_N": base_shear[1]["base_shear_N"] if len(base_shear) > 1 else 0.0,
@@ -5499,10 +5717,15 @@ def run_full_seismic_analysis(data: dict) -> dict:
     # ── Paso 2: análisis modal ───────────────────────────────
     n_nodes = len(nodes)
     num_modes = min(num_modes, max(1, n_nodes * 2))
+    # No pedir más modos que GDL dinámicos con masa (evita modos degenerados
+    # con T≈1e-8 s sobre las masas rotacionales placeholder).
+    num_modes = min(num_modes, _max_dynamic_modes(data, nodes))
     modal_data = run_modal_analysis(nodes, num_modes)
     results["modal"] = {
         "modes": modal_data["modal_info"],
-        "num_modes_requested": num_modes,
+        "num_modes_requested": modal_data.get("num_modes_requested", num_modes),
+        "num_modes_effective": len(modal_data["modal_info"]),
+        "degenerate_modes_dropped": modal_data.get("degenerate_modes_dropped", 0),
     }
 
     # ── Paso 3 & 4: RSA en X y Y ───────────────────────────
@@ -5632,6 +5855,11 @@ def run_full_seismic_analysis(data: dict) -> dict:
             or len(results.get("periods", []) or [])
             or 1
         )
+        # No pedir formas modales más allá de los modos reales calculados
+        # (los degenerados se filtraron en run_modal_analysis).
+        effective_modes = len((results.get("modal") or {}).get("modes") or [])
+        if effective_modes:
+            animation_num_modes = min(animation_num_modes, effective_modes)
 
         results["modal_shapes"] = _b10_17_collect_opensees_modal_shapes(
             data.get("nodes", []), animation_num_modes

@@ -4251,48 +4251,6 @@ export const fileIOMixin = {
     );
   },
 
-  testTorreConCargaExcentrica() {
-    cadSystem.nodes = [];
-    cadSystem.shapes = [];
-
-    // Base cuadrada 4x4 m, altura 3 m
-    const base = [
-      cadSystem.crearNodo3D(0, 0, 0, 0, 0, 0, "soporteUno"),
-      cadSystem.crearNodo3D(4, 0, 0, 0, 0, 0, "soporteUno"),
-      cadSystem.crearNodo3D(4, 4, 0, 0, 0, 0, "soporteUno"),
-      cadSystem.crearNodo3D(0, 4, 0, 0, 0, 0, "soporteUno"),
-    ];
-    const top = [
-      cadSystem.crearNodo3D(0, 0, 3, 0, 0, 0, ""),
-      cadSystem.crearNodo3D(5, 0, 3, 0, 0, 0, ""),
-      cadSystem.crearNodo3D(5, 5, 3, 0, 0, 0, ""),
-      cadSystem.crearNodo3D(0, 5, 3, 0, 0, 0, ""),
-    ];
-
-    // Aplicar carga vertical de 500 kN en la esquina superior (0,4,3)
-    top[3].cargaY = () => -500;
-
-    // Columnas
-    for (let i = 0; i < 4; i++) cadSystem.crearBarra3D(base[i], top[i]);
-    // Vigas perimetrales base y techo
-    for (let i = 0; i < 4; i++) {
-      cadSystem.crearBarra3D(base[i], base[(i + 1) % 4]);
-      cadSystem.crearBarra3D(top[i], top[(i + 1) % 4]);
-    }
-    // Diagonales en caras
-    cadSystem.crearBarra3D(base[0], top[1]);
-    cadSystem.crearBarra3D(base[1], top[0]);
-    cadSystem.crearBarra3D(base[1], top[2]);
-    cadSystem.crearBarra3D(base[2], top[1]);
-    cadSystem.crearBarra3D(base[2], top[3]);
-    cadSystem.crearBarra3D(base[3], top[2]);
-    cadSystem.crearBarra3D(base[0], top[3]);
-    cadSystem.crearBarra3D(base[3], top[0]);
-
-    this.sync3D();
-    this.redraw();
-  },
-
   activate3DDrawingMode() {
     return activate3DDrawingMode(this);
   },

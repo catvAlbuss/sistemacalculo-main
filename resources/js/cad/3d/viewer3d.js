@@ -3202,6 +3202,47 @@ export function stopBabylonSeismicAnimation() {
   }
 }
 
+// =====================================================
+// DEFORMADA ESTÁTICA (Show Deformed Shape estilo ETABS)
+// Pinta la estructura desplazada UNA vez (t=1) con el campo de
+// desplazamientos del caso; sin oscilación. Restaurar con
+// resetBabylonSeismicPositions().
+// =====================================================
+export function showBabylonSeismicDeformedShape(context, options = {}) {
+  const { displacements = null, scale = 100 } = options;
+
+  if (!VIEWER_STATE.originalPositions || !VIEWER_STATE.originalPositions.length) {
+    console.warn("showBabylonSeismicDeformedShape: no hay posiciones originales (activa la vista 3D)");
+    return false;
+  }
+
+  if (!displacements || !Object.keys(displacements).length) {
+    console.warn("showBabylonSeismicDeformedShape: sin campo de desplazamientos");
+    return false;
+  }
+
+  // Detener cualquier animación activa para que no pise la estática.
+  stopBabylonSeismicAnimation();
+
+  _updateSeismicPositions(context, displacements, 1, scale);
+  return true;
+}
+
+// Devuelve la geometría 3D a su posición original (t=0) y re-habilita los
+// overlays de línea que _updateSeismicPositions oculta durante la deformada.
+export function resetBabylonSeismicPositions(context, displacements = {}) {
+  if (!VIEWER_STATE.originalPositions || !VIEWER_STATE.scene) return;
+
+  stopBabylonSeismicAnimation();
+  _updateSeismicPositions(context, displacements || {}, 0, 0);
+
+  (VIEWER_STATE.scene.meshes || []).forEach((mesh) => {
+    if (mesh?.metadata?.type === "beam" && mesh.getClassName?.() === "LinesMesh") {
+      mesh.setEnabled(true);
+    }
+  });
+}
+
 export function isBabylonSeismicAnimating() {
   return VIEWER_STATE.seismicAnimator?.animating === true;
 }
@@ -3223,7 +3264,7 @@ export function setSeismicAnimationScale(scale) {
 // Crea un plano de texto (billboard) en la posición dada.
 function _createDispLabel(text, position, scene) {
   const id = `disp_${position.x.toFixed(2)}_${position.y.toFixed(2)}_${position.z.toFixed(2)}`;
-  const texture = new BABYLON.DynamicTexture(`dispTex_${id}`, { width: 180, height: 48 }, scene, true);
+  const texture = new BABYLON.DynamicTexture(`dispTex_${id}`, { width: 256, height: 48 }, scene, true);
   texture.hasAlpha = true;
   texture.drawText(text, 6, 34, "bold 22px Arial", "#ffffff", "transparent", true); // amarillo
 
@@ -3234,7 +3275,7 @@ function _createDispLabel(text, position, scene) {
   mat.disableLighting = true;
   mat.backFaceCulling = false;
 
-  const plane = BABYLON.MeshBuilder.CreatePlane(`dispLabel_${id}`, { width: 1.4, height: 0.4 }, scene);
+  const plane = BABYLON.MeshBuilder.CreatePlane(`dispLabel_${id}`, { width: 2.0, height: 0.4 }, scene);
   plane.material = mat;
   plane.position = new BABYLON.Vector3(position.x, position.y + 0.5, position.z + 0.3);
   plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
@@ -3252,12 +3293,21 @@ export function showSeismicDisplacementLabels(context) {
   clearSeismicDisplacementLabels();
   if (!VIEWER_STATE.scene) return 0;
 
+  // Componente primaria del caso activo (UX en SDX, UY en SDY): se toma la
+  // dirección de mayor cortante basal, como el visor de tablas. Estilo ETABS:
+  // se muestra la componente de la dirección analizada, con 3 decimales (mm).
+  const seismic = context.seismicResults?.seismic || {};
+  const Vx = Number(seismic.x?.base_shear) || 0;
+  const Vy = Number(seismic.y?.base_shear) || 0;
+  const primary = Vx >= Vy ? "x" : "y";
+  const comp = primary === "x" ? "dx" : "dy";
+  const compLabel = primary === "x" ? "UX" : "UY";
+
   const labels = [];
   (context.nodes || []).forEach((n, idx) => {
     const d = n.seismicDisplacement;
     if (!d) return;
-    const magM = Math.sqrt((d.dx || 0) ** 2 + (d.dy || 0) ** 2 + (d.dz || 0) ** 2);
-    const mm = magM * 1000;
+    const mm = Math.abs(Number(d[comp]) || 0) * 1000;
     if (mm < 1e-4) return;
 
     // Posición Babylon del nodo: estructural (x,y,z) → Babylon (x, z, y).
@@ -3266,7 +3316,7 @@ export function showSeismicDisplacementLabels(context) {
       ? orig.clone()
       : new BABYLON.Vector3(Number(n.position?.x) || 0, Number(n.position?.z) || 0, Number(n.position?.y) || 0);
 
-    const label = _createDispLabel(`${mm.toFixed(1)} mm`, pos, VIEWER_STATE.scene);
+    const label = _createDispLabel(`${compLabel} ${mm.toFixed(3)} mm`, pos, VIEWER_STATE.scene);
     if (label) labels.push(label);
   });
 

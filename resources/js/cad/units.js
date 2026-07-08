@@ -120,6 +120,17 @@ export const cadUnits = {
     return roundSig((Number(kg) || 0) / this._MK());
   },
 
+  // Masa en unidades ETABS (F·s²/m): 1 tonf·s²/m = 9806.65 kg,
+  // 1 kgf·s²/m = 9.80665 kg. Es la unidad de las tablas de masa de
+  // ETABS (Mass Summary by Story, Assembled Joint Masses).
+  massKgToEtabsDisp(kg) {
+    return roundSig((Number(kg) || 0) / this._FN());
+  },
+
+  etabsMassLabel() {
+    return `${this.force}-s²/m`;
+  },
+
   lenMToDisp(m) {
     return roundSig((Number(m) || 0) / this._LM());
   },
