@@ -1253,6 +1253,46 @@ function projectModelPointToScreen(point) {
   };
 }
 
+// =====================================================
+// 3D SELECTION > NODO DE MODELO MÁS CERCANO AL CURSOR
+// Las esferas de nodo (0.18) son pequeñas y difíciles de acertar; esto
+// busca el nodo cuyo punto proyectado quede dentro de radiusPx del cursor.
+// Devuelve el nodo del modelo o null.
+// =====================================================
+function findNearestModelNodeUnderPointer(context, event, radiusPx = 12) {
+  const canvas = VIEWER_STATE.canvas;
+  const nodes = context?.nodes;
+
+  if (!canvas || !Array.isArray(nodes) || nodes.length === 0) return null;
+
+  const rect = canvas.getBoundingClientRect();
+  const px = (event?.clientX || 0) - rect.left;
+  const py = (event?.clientY || 0) - rect.top;
+
+  let best = null;
+  let bestDist = radiusPx;
+
+  for (const node of nodes) {
+    const modelPoint = {
+      x: Number(node.position?.x ?? node.x ?? 0),
+      y: Number(node.position?.y ?? node.y ?? 0),
+      z: Number(node.position?.z ?? node.z ?? 0),
+    };
+
+    const screen = projectModelPointToScreen(modelPoint);
+    if (!screen) continue;
+
+    const dist = Math.hypot(screen.x - px, screen.y - py);
+
+    if (dist <= bestDist) {
+      bestDist = dist;
+      best = node;
+    }
+  }
+
+  return best;
+}
+
 function pointInRect(p, rect) {
   return p && p.x >= rect.x1 && p.x <= rect.x2 && p.y >= rect.y1 && p.y <= rect.y2;
 }
@@ -1734,7 +1774,17 @@ function enable3DFrameSelection(context) {
 
     const pickedMesh = pointerInfo.pickInfo?.pickedMesh;
 
-    if (!pickedMesh) return;
+    // Selección: si el rayo no picó ninguna malla pero hay un nodo cerca del
+    // cursor, seleccionarlo igual (los nodos son pequeños y difíciles de acertar).
+    if (!pickedMesh) {
+      if (!frameToolActive) {
+        const nearNode = findNearestModelNodeUnderPointer(context, event, 12);
+        if (nearNode) {
+          selectNodeFrom3D(nearNode, context, { additive: event?.ctrlKey === true });
+        }
+      }
+      return;
+    }
 
     const metadata = pickedMesh.metadata || {};
 
@@ -1863,6 +1913,17 @@ function enable3DFrameSelection(context) {
     }
 
     const pickedPoint3D = pointerInfo.pickInfo?.pickedPoint;
+
+    // =====================================================
+    // 3D SELECTION > PRIORIDAD DE NODO CERCANO AL CURSOR
+    // Si hay un nodo del modelo dentro de ~12px del cursor, tiene prioridad
+    // sobre la barra/losa que haya debajo (facilita seleccionar nodos).
+    // =====================================================
+    const nearSelNode = findNearestModelNodeUnderPointer(context, event, 12);
+    if (nearSelNode) {
+      selectNodeFrom3D(nearSelNode, context, { additive: event?.ctrlKey === true });
+      return;
+    }
 
     // =====================================================
     // 3D SELECTION > CLIC EN ESFERA DE NODO

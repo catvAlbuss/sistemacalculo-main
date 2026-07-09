@@ -2301,7 +2301,17 @@ export const seismicMixin = {
     const L = Math.hypot(dx, dy, dz);
     if (!(L > 0)) return null;
     const vert = Math.abs(dz) / L;
-    if (vert > 0.9) return [0, 1, 0]; // columna
+    if (vert > 0.9) {
+      // Columna: eje base [0,1,0] (Iz resiste X, calibrado vs ETABS). Si la
+      // columna tiene rotación de eje local asignada, se gira ese vector en el
+      // plano horizontal (θ + antihorario): [0,1,0] → [-sinθ, cosθ, 0].
+      const angleDeg = Number(f.localAxisAngle || 0);
+      if (angleDeg) {
+        const t = (angleDeg * Math.PI) / 180;
+        return [-Math.sin(t), Math.cos(t), 0];
+      }
+      return [0, 1, 0]; // columna sin rotación
+    }
     if (vert < 0.1) {
       const hx = dy, hy = -dx;           // perpendicular horizontal a la viga
       const hl = Math.hypot(hx, hy) || 1;

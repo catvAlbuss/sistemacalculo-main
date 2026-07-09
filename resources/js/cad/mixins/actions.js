@@ -50,6 +50,23 @@ export const actionsMixin = {
         this.showMessage?.("Modo selección por puntero / ventana activado");
         break;
 
+      // Select by Property (estilo ETABS)
+      case "select-prop-frame-sections":
+        this.openSelectByPropertyDialog("frame");
+        break;
+
+      case "select-prop-slab-sections":
+        this.openSelectByPropertyDialog("slab");
+        break;
+
+      case "select-prop-deck-sections":
+        this.openSelectByPropertyDialog("deck");
+        break;
+
+      case "select-prop-wall-sections":
+        this.openSelectByPropertyDialog("wall");
+        break;
+
       default:
         this.showMessage?.(`Acción de selección no reconocida: ${action}`, "warning");
         break;
@@ -463,6 +480,10 @@ export const actionsMixin = {
 
       case "frame-releases":
         this.openAssignFrameReleasesDialog();
+        break;
+
+      case "frame-local-axes":
+        this.openAssignFrameLocalAxesDialog();
         break;
 
       case "frame-end-offsets":

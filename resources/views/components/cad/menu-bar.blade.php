@@ -862,11 +862,36 @@
                         por Grupos...
                     </button>
 
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
-                        @click="cadSystem.selectByFrameSections()">
-                        <span>📐</span>
-                        por Secciones de Marco
-                    </button>
+                    {{-- ================= PROPIEDADES (estilo ETABS) ================= --}}
+                    <x-cad.menu-subitem label="Propiedades">
+                        <span>📋</span>
+
+                        <x-slot name="submenu">
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click="cadSystem.activateSelectMenuAction('select-prop-frame-sections')">
+                                <span>📐</span>
+                                Frame Sections...
+                            </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click="cadSystem.activateSelectMenuAction('select-prop-slab-sections')">
+                                <span>▭</span>
+                                Slab Sections...
+                            </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click="cadSystem.activateSelectMenuAction('select-prop-deck-sections')">
+                                <span>▤</span>
+                                Deck Sections...
+                            </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click="cadSystem.activateSelectMenuAction('select-prop-wall-sections')">
+                                <span>▮</span>
+                                Wall Sections...
+                            </button>
+                        </x-slot>
+                    </x-cad.menu-subitem>
 
                     <div class="border-t border-gray-700 my-1"></div>
 
@@ -1035,6 +1060,12 @@
                                 @click.stop="cadSystem.activateAssignMenuAction('frame-end-offsets')">
                                 <span>📏</span>
                                 End (Length) Offsets...
+                            </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateAssignMenuAction('frame-local-axes')">
+                                <span>🧭</span>
+                                Local Axes (Rotation)...
                             </button>
                         </x-slot>
                     </x-cad.menu-subitem>

@@ -1,5 +1,5 @@
 import * as BABYLON from "@babylonjs/core";
-import { Beam, Node as StructuralNode } from "../shapes.js";
+import { Beam, Node as StructuralNode, Area } from "../shapes.js";
 import { getViewer3DState } from "./viewer3d.js";
 import { createSimpleAxisLabel } from "./axes3d.js";
 
@@ -152,17 +152,84 @@ export function lowerSelectedNodes(context, step = 1) {
   context.sync3D();
 }
 
+// Copia las asignaciones estructurales de un frame origen a uno nuevo:
+// sección (id/nombre/props SI), material, rotación de eje local y cargas.
+// Así el piso duplicado "respeta el frame" asignado (secciones, material, cargas).
+function copyFrameAssignments(src, dst) {
+  if (!src || !dst) return;
+
+  const clone = (v) => (v == null ? v : JSON.parse(JSON.stringify(v)));
+
+  // Sección
+  dst.sectionId = src.sectionId ?? null;
+  dst.sectionName = src.sectionName ?? null;
+  dst.sectionLabel = src.sectionLabel ?? null;
+  if (src.frameSection) dst.frameSection = clone(src.frameSection);
+  if (src.section) dst.section = clone(src.section);
+  if (src.sectionProperties) dst.sectionProperties = clone(src.sectionProperties);
+  dst.hasAssignedSection = src.hasAssignedSection === true;
+
+  // Propiedades SI que lee el motor (A/Iz/Iy/J/E)
+  dst._A = src._A ?? dst._A;
+  dst.A = src.A ?? dst.A;
+  dst.Iz = src.Iz ?? dst.Iz;
+  dst.Iy = src.Iy ?? dst.Iy;
+  dst.J = src.J ?? dst.J;
+  dst.E = src.E ?? dst.E;
+
+  // Material
+  dst.materialId = src.materialId ?? null;
+  dst.materialName = src.materialName ?? null;
+  dst.materialLabel = src.materialLabel ?? null;
+  if (src.materialProperties) dst.materialProperties = clone(src.materialProperties);
+
+  // Rotación de eje local (columnas rectangulares)
+  dst.localAxisAngle = src.localAxisAngle ?? 0;
+  if (src.angle != null) dst.angle = src.angle;
+
+  // Cargas del frame (distribuidas/puntuales/temperatura)
+  if (Array.isArray(src.frameLoads)) dst.frameLoads = clone(src.frameLoads);
+  if (Array.isArray(src.lineLoads)) dst.lineLoads = clone(src.lineLoads);
+  dst.hasFrameLoads = src.hasFrameLoads === true;
+  dst.hasLineLoads = src.hasLineLoads === true;
+
+  if (src.assignment) dst.assignment = clone(src.assignment);
+}
+
+// Copia las asignaciones de una losa/área a una nueva (sección de losa, cargas
+// de área, peso propio, diafragma, material).
+function copyAreaAssignments(src, dst) {
+  if (!src || !dst) return;
+
+  const clone = (v) => (v == null ? v : JSON.parse(JSON.stringify(v)));
+
+  const keys = [
+    "slabSection", "sectionId", "sectionName", "section",
+    "thickness", "material", "materialName",
+    "areaLoads", "loads", "slabSelfWeightKgM2", "slabSelfWeight",
+    "hasAssignedSection", "assignment",
+    "diaphragm", "diaphragmName", "diaphragmId",
+  ];
+
+  keys.forEach((k) => {
+    if (src[k] !== undefined) dst[k] = clone(src[k]);
+  });
+}
+
 export function extrudeToNewFloor(context, floorHeight = 3) {
   if (!context.nodes?.length) {
     context.showMessage?.("⚠️ No hay estructura para extruir", "warning");
     return;
   }
 
+  const EPS = 1e-6;
+  const zOf = (n) => Number(n?.position?.z || 0);
+
   const baseNodes = [...context.nodes];
-  const currentMaxZ = Math.max(...baseNodes.map((n) => n.position.z || 0));
+  const currentMaxZ = Math.max(...baseNodes.map(zOf));
   const newZ = currentMaxZ + floorHeight;
 
-  const topLevelNodes = baseNodes.filter((n) => (n.position.z || 0) === currentMaxZ);
+  const topLevelNodes = baseNodes.filter((n) => Math.abs(zOf(n) - currentMaxZ) < EPS);
   const nodeMap = new Map();
   const newNodes = [];
 
@@ -178,24 +245,51 @@ export function extrudeToNewFloor(context, floorHeight = 3) {
     nodeMap.set(node.id, newNode);
   });
 
+  // Columnas existentes que LLEGAN a currentMaxZ (nodo superior en ese nivel):
+  // se usan para copiar su sección/material a las nuevas columnas de arriba.
+  const columnByTopNodeId = new Map();
+  context.shapes.forEach((s) => {
+    if (!s.node1 || !s.node2) return;
+    const sameXY =
+      Math.abs(s.node1.position.x - s.node2.position.x) < EPS &&
+      Math.abs(s.node1.position.y - s.node2.position.y) < EPS;
+    const vertical = sameXY && Math.abs(zOf(s.node1) - zOf(s.node2)) > EPS;
+    if (!vertical) return;
+
+    const topNode = zOf(s.node1) > zOf(s.node2) ? s.node1 : s.node2;
+    if (Math.abs(zOf(topNode) - currentMaxZ) < EPS) {
+      columnByTopNodeId.set(topNode.id, s);
+    }
+  });
+
+  // Vigas del nivel superior (a replicar). Se capturan ANTES de agregar nada.
+  const topLevelBeams = context.shapes.filter(
+    (beam) =>
+      beam.node1 &&
+      beam.node2 &&
+      Math.abs(zOf(beam.node1) - currentMaxZ) < EPS &&
+      Math.abs(zOf(beam.node2) - currentMaxZ) < EPS,
+  );
+
+  // Nuevas columnas (currentMaxZ → newZ), copiando la sección de la columna de abajo.
   topLevelNodes.forEach((originalNode) => {
     const newNode = nodeMap.get(originalNode.id);
     if (!newNode) return;
 
     const column = new Beam(context.globalE, context.globalA);
+    column.frameType = "column";
+    column.structuralRole = "column";
+    column.elementType = "column";
+    column.type = "column";
     column.addNode(originalNode);
     column.addNode(newNode);
+
+    copyFrameAssignments(columnByTopNodeId.get(originalNode.id), column);
+
     context.shapes.push(column);
   });
 
-  const topLevelBeams = context.shapes.filter(
-    (beam) =>
-      beam.node1 &&
-      beam.node2 &&
-      (beam.node1.position.z || 0) === currentMaxZ &&
-      (beam.node2.position.z || 0) === currentMaxZ,
-  );
-
+  // Nuevas vigas (en newZ), copiando sección/material/cargas de la viga replicada.
   topLevelBeams.forEach((beam) => {
     const newNode1 = nodeMap.get(beam.node1.id);
     const newNode2 = nodeMap.get(beam.node2.id);
@@ -203,14 +297,51 @@ export function extrudeToNewFloor(context, floorHeight = 3) {
     if (!newNode1 || !newNode2) return;
 
     const newBeam = new Beam(context.globalE, context.globalA);
+    newBeam.frameType = beam.frameType || "beam";
+    newBeam.structuralRole = beam.structuralRole || "beam";
     newBeam.addNode(newNode1);
     newBeam.addNode(newNode2);
+
+    copyFrameAssignments(beam, newBeam);
+
     context.shapes.push(newBeam);
   });
 
+  // Nuevas losas/áreas (en newZ), copiando las del nivel superior con sus asignaciones.
+  const topLevelAreas = (context.areas || []).filter(
+    (a) =>
+      Array.isArray(a.points) &&
+      a.points.length >= 3 &&
+      a.points.every((p) => Math.abs(Number(p.z ?? a.z ?? 0) - currentMaxZ) < EPS),
+  );
+
+  if (topLevelAreas.length) {
+    let maxAreaId = (context.areas || []).reduce(
+      (m, a) => Math.max(m, Number(a.id) || 0),
+      0,
+    );
+
+    topLevelAreas.forEach((area) => {
+      const newArea = new Area(area.areaType || "slab", newZ);
+      newArea.id = ++maxAreaId;
+
+      area.points.forEach((p) => {
+        newArea.addPoint({ x: p.x, y: p.y, z: newZ });
+      });
+
+      copyAreaAssignments(area, newArea);
+
+      context.areas.push(newArea);
+    });
+  }
+
   renumberModel(context);
+  context.markAnalysisResultsOutdated?.("Se agregó un piso duplicado.");
   context.sync3D();
-  context.showMessage?.(`🏗️ Nuevo piso creado a ${newZ}m de altura`);
+  context.redraw?.();
+  context.showMessage?.(
+    `🏗️ Piso duplicado a ${newZ} m (columnas, vigas y losas con sus asignaciones).`,
+  );
 }
 
 export function extrudeTo3D(context, floorHeight = 3, numFloors = 1) {

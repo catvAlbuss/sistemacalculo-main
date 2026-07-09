@@ -54,7 +54,7 @@ export const assignMenu = {
                             Frame Releases / Partial Fixity...
                         </button>
 
-                        <button 
+                        <button
                             class="w-full text-left px-4 py-2 text-sm hover:bg-gray-700"
                             onclick="window.cadSystem?.activateAssignMenuAction?.('frame-end-offsets')">
                             End (Length) Offsets...

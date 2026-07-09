@@ -225,6 +225,20 @@ export const cadUnits = {
     const dispUnit = this._FN() / Math.pow(this._LM(), 2);
     return roundSig(nPerM2 / dispUnit);
   },
+
+  // =====================================================
+  // CARGA DISTRIBUIDA (fuerza/longitud) — interno del motor: N/m.
+  // Display: F/L de la unidad activa (tonf/m, kgf/cm, …). Usado por el
+  // modal de cargas distribuidas en frames.
+  // =====================================================
+  distLoadDispToNPerM(v) {
+    // 1 unidad display F/L = _FN() N / _LM() m.
+    return (Number(v) || 0) * (this._FN() / this._LM());
+  },
+
+  distLoadNPerMToDisp(nPerM) {
+    return roundSig((Number(nPerM) || 0) / (this._FN() / this._LM()));
+  },
 };
 
 // Exponer global para los modales Blade (componentes Alpine fuera del bundle).

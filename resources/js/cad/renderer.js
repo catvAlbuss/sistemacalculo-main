@@ -211,6 +211,10 @@ export class DiseñoRenderer {
       });
     }
 
+    // Huella de columnas en planta: se dibuja ENCIMA de los nodos para que el
+    // nodo no la tape al alejar el zoom (rectángulo b×h orientado por rotación).
+    this.drawColumnFootprints?.(CADSystem);
+
     if (CADSystem.options.showIDs) {
       CADSystem.shapes.forEach((s) => {
         if (!this.shouldDrawBeam(s, CADSystem)) return;
@@ -473,8 +477,15 @@ export class DiseñoRenderer {
 
     ctx.save();
 
+    // Radio del nodo escalado con el zoom (grid.scaleX = px/m): al alejar se
+    // reduce para no tapar la huella de la columna; se limita a un máximo al
+    // acercar. ~0.07 m de radio físico.
+    const scale = Number(context.grid?.scaleX) || 50;
+    const maxR = node.selected ? 6 : 4;
+    const r = Math.max(1.5, Math.min(maxR, 0.07 * scale));
+
     ctx.beginPath();
-    ctx.arc(p.x, p.y, node.selected ? 6 : 4, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
     ctx.fillStyle = node.selected
       ? (context.displayColors?.selected || "#facc15")
       : (context.displayColors?.node || "#afa59c");
@@ -920,6 +931,133 @@ export class DiseñoRenderer {
 
       this.drawObjectGroupLabel(context, midX + 8, midY + 16, groupLabel);
     }
+  }
+
+  // =====================================================
+  // DISPLAY 2D > RECTÁNGULO DE COLUMNA EN PLANTA (tipo ETABS)
+  // Dibuja la huella (b×h) de cada columna en los nodos donde está,
+  // orientada según su rotación de eje local (localAxisAngle).
+  // =====================================================
+  drawColumnFootprints(CADSystem) {
+    const view = CADSystem.viewSet?.[CADSystem.activeViewIndex];
+
+    // Solo tiene sentido en vista de planta (o sin vista definida → planta).
+    if (view && view.type !== "plan") return;
+
+    const EPS = 1e-3;
+    const planZ = view ? Number(view.elevation ?? view.z ?? 0) : null;
+
+    (CADSystem.shapes || []).forEach((beam) => {
+      const a = beam?.node1?.position;
+      const b = beam?.node2?.position;
+      if (!a || !b) return;
+
+      const dz = Math.abs((a.z || 0) - (b.z || 0));
+      const dxy = Math.hypot((a.x || 0) - (b.x || 0), (a.y || 0) - (b.y || 0));
+
+      // Columna = vertical (misma X,Y, distinta Z).
+      if (!(dz > EPS && dxy < EPS)) return;
+
+      // Se muestra en el plano cuyo Z cae dentro del tramo de la columna.
+      if (planZ != null) {
+        const zt = Math.max(a.z || 0, b.z || 0);
+        const zb = Math.min(a.z || 0, b.z || 0);
+        if (!(planZ >= zb - EPS && planZ <= zt + EPS)) return;
+      }
+
+      this.drawColumnPlanFootprint(beam, CADSystem);
+    });
+  }
+
+  // Dimensiones de la huella de columna en METROS (b = ancho, h = peralte).
+  // Las secciones guardan b/h (o width/height) de forma inconsistente: unas en
+  // metros (0.25, defaults) y otras en cm (25, del diálogo) o mm (perfiles I).
+  // Se normaliza por magnitud + tipo: ≤3 → ya en m; si no, perfil metálico → mm,
+  // rectangular → cm.
+  getColumnPlanDims(beam) {
+    const sec = beam.frameSection || beam.section || {};
+    const shape = String(sec.shape || sec.type || "").toLowerCase();
+    const metallic = ["i", "wf", "w", "channel", "c", "tube", "hss", "angle", "l"].includes(shape);
+
+    const toMeters = (v) => {
+      v = Number(v);
+      if (!(v > 0)) return 0;
+      if (v <= 3) return v;                 // ya en metros
+      return metallic ? v / 1000 : v / 100; // perfil: mm ; rectangular: cm
+    };
+
+    const b = toMeters(sec.b ?? sec.width ?? sec.base);
+    const h = toMeters(sec.h ?? sec.height ?? sec.peralte);
+
+    if (!(b > 0) || !(h > 0)) {
+      // Sin dimensiones → marcador cuadrado por defecto.
+      return { b: 0.3, h: 0.3, fallback: true };
+    }
+
+    return { b, h, fallback: false };
+  }
+
+  drawColumnPlanFootprint(beam, context) {
+    const center = beam.node1?.position || beam.node2?.position;
+    if (!center) return;
+
+    const { b, h, fallback } = this.getColumnPlanDims(beam);
+
+    const cx = center.x || 0;
+    const cy = center.y || 0;
+
+    // Rotación de eje local (grados, + antihorario).
+    const t = (Number(beam.localAxisAngle || 0) * Math.PI) / 180;
+    const cos = Math.cos(t);
+    const sin = Math.sin(t);
+
+    // Coherencia con el motor: a θ=0 (vecxz=[0,1,0]) el eje local y = +X y el
+    // peralte (h, eje fuerte Iz) queda a lo largo de X. Por eso h va en el eje
+    // pre-rotación X y b en Y; al girar por θ el rectángulo sigue al vecxz
+    // [-sinθ, cosθ, 0] (peralte en dirección (cosθ, sinθ)).
+    const halfPeralte = h / 2; // h → X a 0° (coincide con Iz del motor)
+    const halfWidth = b / 2;   // b → Y a 0°
+
+    // Esquinas en modelo (rotadas) → pantalla, así respeta zoom/pan.
+    const localCorners = [
+      [-halfPeralte, -halfWidth],
+      [halfPeralte, -halfWidth],
+      [halfPeralte, halfWidth],
+      [-halfPeralte, halfWidth],
+    ];
+
+    const screen = localCorners.map(([lx, ly]) => {
+      const mx = cx + (lx * cos - ly * sin);
+      const my = cy + (lx * sin + ly * cos);
+      return context.grid.worldToScreen({ x: mx, y: my });
+    });
+
+    const style = this.getElementRenderStyle(beam, "model", context);
+    const stroke = style?.strokeStyle || "#2563eb";
+    const selected = beam.selected === true || beam.isSelected === true;
+
+    const ctx = context.ctx;
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.moveTo(screen[0].x, screen[0].y);
+    for (let i = 1; i < screen.length; i++) {
+      ctx.lineTo(screen[i].x, screen[i].y);
+    }
+    ctx.closePath();
+
+    ctx.fillStyle = selected
+      ? "rgba(249, 158, 26, 0.75)"
+      : (fallback ? "rgba(37, 99, 235, 0.20)" : "rgba(37, 99, 235, 0.65)");
+    ctx.fill();
+
+    ctx.strokeStyle = selected ? "#f59e0b" : (fallback ? stroke : "#1d4ed8");
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash(fallback ? [3, 3] : []);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.restore();
   }
 
   getAreaRenderStyle(area, isPreview = false) {

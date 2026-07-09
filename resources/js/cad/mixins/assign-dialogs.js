@@ -116,9 +116,7 @@ export const assignDialogsMixin = {
   },
 
   getSelectedFramesForAssign() {
-    const selectedObjects = this.getSelectedObjects?.() || [];
-
-    return selectedObjects.filter((obj) => {
+    const isFrame = (obj) => {
       if (!obj) return false;
 
       const type = String(obj.elementType || obj.type || obj.objectType || obj.constructor?.name || "").toLowerCase();
@@ -135,7 +133,39 @@ export const assignDialogsMixin = {
         type === "frame" ||
         type === "line"
       );
+    };
+
+    // La asignación NO debe depender de la vista 2D activa: en el 3D se
+    // seleccionan vigas de varios pisos con Ctrl + clic izquierdo, y
+    // getSelectedObjects() filtra por vista activa (respectActiveView:true),
+    // descartándolas. Aquí se toma la selección de edición SIN ese filtro y se
+    // refuerza con la lista de multiselección (2D/3D).
+    const sources = [];
+
+    if (typeof this.getEditSelectedObjects === "function") {
+      sources.push(...this.getEditSelectedObjects({ respectActiveView: false }));
+    } else {
+      sources.push(...(this.getSelectedObjects?.() || []));
+    }
+
+    if (Array.isArray(this.multiSelectedFrames)) {
+      sources.push(...this.multiSelectedFrames);
+    }
+
+    const result = [];
+    const seen = new Set();
+
+    sources.forEach((obj) => {
+      if (!isFrame(obj)) return;
+
+      const key = obj.id != null ? String(obj.id) : obj;
+      if (seen.has(key)) return;
+
+      seen.add(key);
+      result.push(obj);
     });
+
+    return result;
   },
 
   async openAssignFrameSectionDialog() {
@@ -1891,18 +1921,35 @@ export const assignDialogsMixin = {
 
   // Áreas/losas seleccionadas (objetos con 'points', no frames ni nodos).
   getSelectedAreasForAssign() {
-    const selectedObjects = this.getSelectedObjects?.() || [];
-    let areas = selectedObjects.filter((obj) => {
-      if (!obj) return false;
-      const isFrame = obj.node1 && obj.node2;
-      return !isFrame && Array.isArray(obj.points) && obj.points.length >= 3;
-    });
-    // Fallback: estado de selección de áreas del CAD.
-    if (!areas.length) {
-      const sel = this.selectedAreasState?.selectedObjects || [];
-      areas = sel.filter((a) => Array.isArray(a?.points) && a.points.length >= 3);
+    const isArea = (obj) =>
+      obj && !(obj.node1 && obj.node2) && Array.isArray(obj.points) && obj.points.length >= 3;
+
+    // La asignación NO debe depender de la vista 2D activa: al seleccionar losas
+    // por propiedad (o en 3D) se eligen de varios pisos, y getSelectedObjects()
+    // filtra por vista activa (respectActiveView:true), descartándolas. Se toma
+    // la selección de edición SIN ese filtro + el estado propio de áreas.
+    const sources = [];
+
+    if (typeof this.getEditSelectedObjects === "function") {
+      sources.push(...this.getEditSelectedObjects({ respectActiveView: false }));
+    } else {
+      sources.push(...(this.getSelectedObjects?.() || []));
     }
-    return areas;
+
+    sources.push(...(this.selectedAreasState?.selectedObjects || []));
+
+    const result = [];
+    const seen = new Set();
+
+    sources.forEach((a) => {
+      if (!isArea(a)) return;
+      const key = a.id != null ? String(a.id) : a;
+      if (seen.has(key)) return;
+      seen.add(key);
+      result.push(a);
+    });
+
+    return result;
   },
 
   async openAssignAreaUniformLoadDialog() {
@@ -2970,7 +3017,7 @@ export const assignDialogsMixin = {
       coordinateSystem: "Global",
 
       loadType: "force", // force | moment
-      direction: "FZ",
+      direction: "Gravity", // Gravity | X | Y | Z (dirección de aplicación estilo ETABS)
 
       distributionType: "uniform", // uniform | trapezoidal
 
@@ -3002,173 +3049,163 @@ export const assignDialogsMixin = {
       current.loadCase = loadCases[0].name;
     }
 
+    const hasCM = loadCases.some((lc) => String(lc.name).toUpperCase() === "CM");
+
+    // Etiqueta de unidad de carga distribuida según el selector global (units.js):
+    // "tonf/m", "kgf/cm", etc. El modal se adapta a las unidades activas.
+    const distLabel = window.cadUnits?.labels?.().distLoad || "tonf/m";
+
     const result = await Swal.fire({
-      title: "Assign Frame / Line Loads - Distributed",
-      width: 820,
+      title: "Frame Load Assignment - Distributed",
+      width: 640,
+      background: "#1a2035",
+      color: "#e2e8f0",
+      confirmButtonColor: "#1d4ed8",
       html: `
-      <div style="text-align:left; font-size:13px;">
+      <style>
+        #fdist-body input, #fdist-body select {
+          background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px;
+        }
+        #fdist-body fieldset { color:#e2e8f0; }
+        #fdist-body legend { color:#7eb8f7; }
+        #fdist-body th { color:#94a3b8; font-weight:600; }
+      </style>
+      <div id="fdist-body" style="text-align:left; font-size:13px; color:#e2e8f0;">
 
-        <p style="margin-bottom:12px;">
-          Asigna una carga distribuida uniforme o trapezoidal sobre los elementos Frame / Line seleccionados.
-        </p>
-
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
-          <div>
-            <label style="display:block; margin-bottom:5px;">Load Case</label>
-            <select id="frame-dist-loadcase" style="width:100%; padding:7px;">
-              ${loadCases
+        <!-- Load Pattern Name -->
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <label style="min-width:150px; font-weight:600;">Load Pattern Name</label>
+          <select id="frame-dist-loadcase" style="flex:1; padding:7px;">
+            ${loadCases
           .map(
             (lc) => `
-                <option value="${lc.name}">${lc.name} (${lc.type})</option>
-              `,
+              <option value="${lc.name}" ${
+              (hasCM && String(lc.name).toUpperCase() === "CM") ? "selected" : ""
+            }>${lc.name}</option>
+            `,
           )
           .join("")}
-            </select>
-          </div>
-
-          <div>
-            <label style="display:block; margin-bottom:5px;">Coordinate System</label>
-            <select id="frame-dist-csys" style="width:100%; padding:7px;">
-              <option value="Global">Global</option>
-              <option value="Local">Local</option>
-            </select>
-          </div>
-
-          <div>
-            <label style="display:block; margin-bottom:5px;">Operation</label>
-            <select id="frame-dist-operation" style="width:100%; padding:7px;">
-              <option value="replace">Replace Existing Loads</option>
-              <option value="add">Add to Existing Loads</option>
-              <option value="delete">Delete Existing Loads</option>
-            </select>
-          </div>
+          </select>
         </div>
 
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
-          <div>
-            <label style="display:block; margin-bottom:5px;">Load Type</label>
-            <select id="frame-dist-loadtype" style="width:100%; padding:7px;">
-              <option value="force">Force</option>
-              <option value="moment">Moment</option>
-            </select>
-          </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:14px;">
 
-          <div>
-            <label style="display:block; margin-bottom:5px;">Direction</label>
+          <!-- Load Type and Direction -->
+          <fieldset style="border:1px solid #475569; border-radius:6px; padding:10px 12px; margin:0;">
+            <legend style="padding:0 6px; font-weight:600;">Load Type and Direction</legend>
+
+            <div style="display:flex; gap:20px; margin-bottom:12px;">
+              <label style="display:flex; align-items:center; gap:6px;">
+                <input type="radio" name="frame-dist-loadtype" value="force" checked> Forces
+              </label>
+              <label style="display:flex; align-items:center; gap:6px;">
+                <input type="radio" name="frame-dist-loadtype" value="moment"> Moments
+              </label>
+            </div>
+
+            <label style="display:block; margin-bottom:5px;">Direction of Load Application</label>
             <select id="frame-dist-direction" style="width:100%; padding:7px;">
-              <option value="FX">FX</option>
-              <option value="FY">FY</option>
-              <option value="FZ" selected>FZ</option>
-              <option value="MX">MX</option>
-              <option value="MY">MY</option>
-              <option value="MZ">MZ</option>
+              <option value="Gravity" selected>Gravity</option>
+              <option value="X">X</option>
+              <option value="Y">Y</option>
+              <option value="Z">Z</option>
             </select>
-          </div>
+          </fieldset>
 
-          <div>
-            <label style="display:block; margin-bottom:5px;">Distribution</label>
-            <select id="frame-dist-distribution" style="width:100%; padding:7px;">
-              <option value="uniform">Uniform</option>
-              <option value="trapezoidal">Trapezoidal</option>
-            </select>
-          </div>
+          <!-- Options -->
+          <fieldset style="border:1px solid #475569; border-radius:6px; padding:10px 12px; margin:0;">
+            <legend style="padding:0 6px; font-weight:600;">Options</legend>
+
+            <label style="display:flex; align-items:center; gap:6px; margin-bottom:9px;">
+              <input type="radio" name="frame-dist-operation" value="add"> Add to Existing Loads
+            </label>
+            <label style="display:flex; align-items:center; gap:6px; margin-bottom:9px;">
+              <input type="radio" name="frame-dist-operation" value="replace" checked> Replace Existing Loads
+            </label>
+            <label style="display:flex; align-items:center; gap:6px;">
+              <input type="radio" name="frame-dist-operation" value="delete"> Delete Existing Loads
+            </label>
+          </fieldset>
         </div>
 
-        <div style="border:1px solid #555; border-radius:6px; padding:10px; margin-bottom:12px;">
-          <div style="font-weight:bold; margin-bottom:8px;">
-            Load Location
+        <!-- Trapezoidal Loads -->
+        <fieldset style="border:1px solid #475569; border-radius:6px; padding:10px 12px; margin:0 0 14px;">
+          <legend style="padding:0 6px; font-weight:600;">Trapezoidal Loads</legend>
+
+          <table style="width:100%; border-collapse:collapse; text-align:center; font-size:12.5px;">
+            <thead>
+              <tr style="color:#94a3b8;">
+                <th style="width:70px;"></th><th>1.</th><th>2.</th><th>3.</th><th>4.</th><th style="width:56px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="text-align:left; padding:3px 0;">Distance</td>
+                <td><input id="frame-dist-d1" type="number" step="0.01" value="0"  style="width:64px; padding:5px;"></td>
+                <td><input id="frame-dist-d2" type="number" step="0.01" value="0.25" style="width:64px; padding:5px;"></td>
+                <td><input id="frame-dist-d3" type="number" step="0.01" value="0.75" style="width:64px; padding:5px;"></td>
+                <td><input id="frame-dist-d4" type="number" step="0.01" value="1"  style="width:64px; padding:5px;"></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td style="text-align:left; padding:3px 0;">Load</td>
+                <td><input id="frame-dist-l1" type="number" step="0.001" value="0" style="width:64px; padding:5px;"></td>
+                <td><input id="frame-dist-l2" type="number" step="0.001" value="0" style="width:64px; padding:5px;"></td>
+                <td><input id="frame-dist-l3" type="number" step="0.001" value="0" style="width:64px; padding:5px;"></td>
+                <td><input id="frame-dist-l4" type="number" step="0.001" value="0" style="width:64px; padding:5px;"></td>
+                <td style="color:#94a3b8;">${distLabel}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="display:flex; gap:20px; margin-top:12px;">
+            <label style="display:flex; align-items:center; gap:6px;">
+              <input type="radio" name="frame-dist-distance-type" value="relative" checked> Relative Distance from End-I
+            </label>
+            <label style="display:flex; align-items:center; gap:6px;">
+              <input type="radio" name="frame-dist-distance-type" value="absolute"> Absolute Distance from End-I
+            </label>
           </div>
+        </fieldset>
 
-          <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
-            <div>
-              <label style="display:block; margin-bottom:5px;">Distance Type</label>
-              <select id="frame-dist-distance-type" style="width:100%; padding:7px;">
-                <option value="relative">Relative Distance</option>
-                <option value="absolute">Absolute Distance from I-End</option>
-              </select>
-            </div>
-
-            <div>
-              <label style="display:block; margin-bottom:5px;">Start Relative</label>
-              <input id="frame-dist-start-relative" type="number" step="0.01" min="0" max="1" value="0"
-                style="width:100%; padding:7px;">
-            </div>
-
-            <div>
-              <label style="display:block; margin-bottom:5px;">End Relative</label>
-              <input id="frame-dist-end-relative" type="number" step="0.01" min="0" max="1" value="1"
-                style="width:100%; padding:7px;">
-            </div>
-
-            <div></div>
-
-            <div>
-              <label style="display:block; margin-bottom:5px;">Start Absolute</label>
-              <input id="frame-dist-start-absolute" type="number" step="0.001" min="0" value="0"
-                style="width:100%; padding:7px;">
-            </div>
-
-            <div>
-              <label style="display:block; margin-bottom:5px;">End Absolute</label>
-              <input id="frame-dist-end-absolute" type="number" step="0.001" min="0" value="0"
-                style="width:100%; padding:7px;">
-            </div>
+        <!-- Uniform Load -->
+        <fieldset style="border:1px solid #475569; border-radius:6px; padding:10px 12px; margin:0;">
+          <legend style="padding:0 6px; font-weight:600;">Uniform Load</legend>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <label style="min-width:56px;">Load</label>
+            <input id="frame-dist-uniform" type="number" step="0.001" value="0" style="width:120px; padding:7px;">
+            <span style="color:#94a3b8;">${distLabel}</span>
           </div>
+        </fieldset>
 
-          <p style="font-size:12px; color:#777; margin-top:8px;">
-            Relative Distance: 0 = extremo I, 1 = extremo J.
-          </p>
-        </div>
-
-        <div style="border:1px solid #555; border-radius:6px; padding:10px;">
-          <div style="font-weight:bold; margin-bottom:8px;">
-            Load Values
-          </div>
-
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-            <div>
-              <label style="display:block; margin-bottom:5px;">Value at Start</label>
-              <input id="frame-dist-start-value" type="number" step="0.001" value="-5"
-                style="width:100%; padding:7px;">
-            </div>
-
-            <div>
-              <label style="display:block; margin-bottom:5px;">Value at End</label>
-              <input id="frame-dist-end-value" type="number" step="0.001" value="-5"
-                style="width:100%; padding:7px;">
-            </div>
-          </div>
-
-          <p style="font-size:12px; color:#777; margin-top:8px;">
-            Para carga uniforme usa el mismo valor al inicio y al final.
-          </p>
-        </div>
-
-        <div style="margin-top:10px; color:#666; font-size:12px;">
-          Elementos Frame / Line seleccionados: <b>${selectedFrames.length}</b>
+        <div style="margin-top:12px; color:#94a3b8; font-size:12px;">
+          Frames seleccionados: <b>${selectedFrames.length}</b>. Para <b>Gravity</b> ingresa el valor positivo
+          (la carga actúa hacia abajo). Si usas <b>Uniform Load</b> tiene prioridad sobre la tabla trapezoidal.
         </div>
 
       </div>
     `,
       showCancelButton: true,
-      confirmButtonText: "Asignar",
-      cancelButtonText: "Cancelar",
+      confirmButtonText: "OK",
+      cancelButtonText: "Close",
 
       didOpen: () => {
-        const distributionSelect = document.getElementById("frame-dist-distribution");
-        const startValue = document.getElementById("frame-dist-start-value");
-        const endValue = document.getElementById("frame-dist-end-value");
+        // Al escribir en Uniform Load, se limpian los valores trapezoidales
+        // (y viceversa), como en ETABS: se usa una forma u otra, no ambas.
+        const uniform = document.getElementById("frame-dist-uniform");
+        const trapLoads = ["frame-dist-l1", "frame-dist-l2", "frame-dist-l3", "frame-dist-l4"]
+          .map((id) => document.getElementById(id));
 
-        distributionSelect?.addEventListener("change", () => {
-          if (distributionSelect.value === "uniform") {
-            endValue.value = startValue.value;
+        uniform?.addEventListener("input", () => {
+          if (Number(uniform.value) !== 0) {
+            trapLoads.forEach((el) => { if (el) el.value = "0"; });
           }
         });
 
-        startValue?.addEventListener("input", () => {
-          if (distributionSelect?.value === "uniform") {
-            endValue.value = startValue.value;
-          }
+        trapLoads.forEach((el) => {
+          el?.addEventListener("input", () => {
+            if (Number(el.value) !== 0 && uniform) uniform.value = "0";
+          });
         });
       },
 
@@ -3188,8 +3225,71 @@ export const assignDialogsMixin = {
       return Number.isFinite(value) ? value : 0;
     };
 
-    let startRelativeDistance = readNumber("frame-dist-start-relative");
-    let endRelativeDistance = readNumber("frame-dist-end-relative");
+    const readRadio = (name) =>
+      document.querySelector(`input[name="${name}"]:checked`)?.value;
+
+    // El usuario escribe en la unidad activa del selector (units.js): tonf/m,
+    // kgf/cm, etc. El motor consume la carga distribuida en N/m, así que se
+    // convierte con cadUnits (1 tonf/m = 9806.65 N/m, 1 kgf/cm = 980.665 N/m…).
+    // Fallback a tonf/m (×9806.65) si el módulo de unidades no está disponible.
+    const dispUnit = window.cadUnits?.labels?.().distLoad || "tonf/m";
+    const toNPerM = (v) =>
+      typeof window.cadUnits?.distLoadDispToNPerM === "function"
+        ? window.cadUnits.distLoadDispToNPerM(v)
+        : (Number(v) || 0) * 9806.65;
+
+    const loadCase = document.getElementById("frame-dist-loadcase")?.value || "DEAD";
+    const loadType = readRadio("frame-dist-loadtype") || "force";
+    const direction = document.getElementById("frame-dist-direction")?.value || "Gravity";
+    const operation = readRadio("frame-dist-operation") || "replace";
+    const distanceType = readRadio("frame-dist-distance-type") || "relative";
+
+    // Uniform Load tiene prioridad; si es 0 se usa la tabla trapezoidal.
+    const uniformDisp = readNumber("frame-dist-uniform");
+
+    const dist = [
+      readNumber("frame-dist-d1"),
+      readNumber("frame-dist-d2"),
+      readNumber("frame-dist-d3"),
+      readNumber("frame-dist-d4"),
+    ];
+    const loadDisp = [
+      readNumber("frame-dist-l1"),
+      readNumber("frame-dist-l2"),
+      readNumber("frame-dist-l3"),
+      readNumber("frame-dist-l4"),
+    ];
+
+    let distributionType;
+    let startDistance;
+    let endDistance;
+    let startValueDisp;
+    let endValueDisp;
+
+    if (Math.abs(uniformDisp) > 0) {
+      // Carga uniforme sobre todo el tramo (End-I → End-J).
+      distributionType = "uniform";
+      startDistance = 0;
+      endDistance = 1;
+      startValueDisp = uniformDisp;
+      endValueDisp = uniformDisp;
+    } else {
+      // Trapezoidal: se toman los puntos extremos (1 y 4) de la tabla.
+      distributionType = "trapezoidal";
+      startDistance = dist[0];
+      endDistance = dist[3];
+      startValueDisp = loadDisp[0];
+      endValueDisp = loadDisp[3];
+    }
+
+    // Conversión de la unidad activa → N/m para el motor.
+    const startValue = toNPerM(startValueDisp);
+    const endValue = toNPerM(endValueDisp);
+
+    const isRelative = distanceType === "relative";
+
+    let startRelativeDistance = isRelative ? startDistance : 0;
+    let endRelativeDistance = isRelative ? endDistance : 1;
 
     startRelativeDistance = Math.max(0, Math.min(1, startRelativeDistance));
     endRelativeDistance = Math.max(0, Math.min(1, endRelativeDistance));
@@ -3204,30 +3304,27 @@ export const assignDialogsMixin = {
       id: `FDIST_${Date.now()}`,
       type: "distributed",
 
-      loadCase: document.getElementById("frame-dist-loadcase")?.value || "DEAD",
-
-      coordinateSystem: document.getElementById("frame-dist-csys")?.value || "Global",
-
-      operation: document.getElementById("frame-dist-operation")?.value || "replace",
-
-      loadType: document.getElementById("frame-dist-loadtype")?.value || "force",
-
-      direction: document.getElementById("frame-dist-direction")?.value || "FZ",
-
-      distributionType: document.getElementById("frame-dist-distribution")?.value || "uniform",
-
-      distanceType: document.getElementById("frame-dist-distance-type")?.value || "relative",
+      loadCase,
+      coordinateSystem: "Global",
+      operation,
+      loadType,
+      direction,
+      distributionType,
+      distanceType,
 
       startRelativeDistance,
       endRelativeDistance,
 
-      startAbsoluteDistance: readNumber("frame-dist-start-absolute"),
+      startAbsoluteDistance: isRelative ? 0 : startDistance,
+      endAbsoluteDistance: isRelative ? 0 : endDistance,
 
-      endAbsoluteDistance: readNumber("frame-dist-end-absolute"),
-
-      startValue: readNumber("frame-dist-start-value"),
-
-      endValue: readNumber("frame-dist-end-value"),
+      // Valores en N/m (unidad interna del motor). Se guarda también el valor
+      // en la unidad de display y su etiqueta por trazabilidad / edición futura.
+      startValue,
+      endValue,
+      startValueDisp,
+      endValueDisp,
+      displayUnit: dispUnit,
     };
   },
 
@@ -3394,6 +3491,92 @@ export const assignDialogsMixin = {
     console.log("✅ Frame / Line Distributed Load asignado:", {
       load,
       selectedFrames,
+    });
+  },
+
+  // =====================================================
+  // ASSIGN > FRAME > LOCAL AXES (ROTACIÓN)
+  // Rotación del eje local en planta. Para columnas rectangulares define
+  // hacia dónde apunta el peralte (eje fuerte Iz). El motor lo usa en
+  // _frameVecxzForSeismic; la vista en planta dibuja el rectángulo girado.
+  // =====================================================
+  async openAssignFrameLocalAxesDialog() {
+    const selectedFrames = this.getSelectedFramesForAssign();
+
+    if (!selectedFrames.length) {
+      this.showMessage?.("Selecciona primero una o más columnas / elementos Frame.", "warning");
+      return;
+    }
+
+    const current = Number(selectedFrames[0]?.localAxisAngle || 0);
+
+    const result = await Swal.fire({
+      title: "Frame Local Axes - Rotation",
+      width: 470,
+      background: "#1a2035",
+      color: "#e2e8f0",
+      confirmButtonColor: "#1d4ed8",
+      html: `
+        <div style="text-align:left; font-size:13px; color:#e2e8f0;">
+          <p style="color:#94a3b8; margin-bottom:14px;">
+            Ángulo de rotación del eje local en planta. En columnas rectangulares
+            define hacia dónde apunta el peralte (eje fuerte Iz). Positivo = antihorario.
+          </p>
+
+          <div style="display:flex; align-items:center; gap:10px;">
+            <label style="min-width:110px; font-weight:600;">Angle (deg)</label>
+            <input id="frame-localaxis-angle" type="number" step="1" value="${current}"
+              style="width:120px; padding:7px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px;">
+            <span style="color:#94a3b8;">°</span>
+          </div>
+
+          <div style="margin-top:14px; color:#94a3b8; font-size:12px;">
+            Frames seleccionados: <b>${selectedFrames.length}</b>. 90° intercambia el eje fuerte entre X e Y.
+          </div>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: "OK",
+      cancelButtonText: "Close",
+      preConfirm: () => {
+        const v = Number(document.getElementById("frame-localaxis-angle")?.value);
+        return { angle: Number.isFinite(v) ? v : 0 };
+      },
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    this.assignFrameLocalAxesToSelected(result.value.angle);
+  },
+
+  assignFrameLocalAxesToSelected(angle) {
+    const selectedFrames = this.getSelectedFramesForAssign();
+
+    if (!selectedFrames.length) {
+      this.showMessage?.("No hay elementos Frame seleccionados.", "warning");
+      return;
+    }
+
+    // Normaliza a [0, 360)
+    let a = Number(angle) || 0;
+    a = ((a % 360) + 360) % 360;
+
+    selectedFrames.forEach((frame) => {
+      frame.localAxisAngle = a;
+      frame.assignment = {
+        ...(frame.assignment || {}),
+        localAxisAngle: a,
+      };
+    });
+
+    this.markAnalysisResultsOutdated?.("Se modificó la rotación de eje local de un frame.");
+    this.redraw?.();
+
+    this.showMessage?.(`Rotación de eje local (${a}°) asignada a ${selectedFrames.length} frame(s).`);
+
+    console.log("✅ Frame Local Axes (rotación) asignado:", {
+      angle: a,
+      selectedFrames: selectedFrames.map((f) => f.id),
     });
   },
 
