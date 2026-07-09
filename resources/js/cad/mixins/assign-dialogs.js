@@ -40,6 +40,20 @@ import Swal from "sweetalert2";
  * - getSelectedFramesForAssign()            → frames seleccionados para asignación
  */
 export const assignDialogsMixin = {
+
+  // Default ETABS load patterns (para compatibilidad con importación/exportación)
+  getEtabsReferenceLoadPatterns() {
+    return [
+      { name: "CM", type: "DEAD", implemented: true },
+      { name: "CVE", type: "LIVE", implemented: true },
+      { name: "CVT", type: "LIVE", implemented: true },
+
+      // Pendientes para completar el flujo tipo ETABS
+      { name: "SEX", type: "Seismic X", implemented: false },
+      { name: "SEY", type: "Seismic Y", implemented: false },
+    ];
+  },
+
   getDefaultFrameSectionsForAssign() {
     return [
       {
@@ -1572,44 +1586,45 @@ export const assignDialogsMixin = {
 
   // =====================================================
   // ASSIGN > JOINT / POINT LOADS > FORCE
+  // ETABS style: Joint Load Assignment - Force
   // =====================================================
 
   getAvailableLoadCasesForAssign() {
-    if (Array.isArray(this.loadCases?.cases) && this.loadCases.cases.length > 0) {
-      return this.loadCases.cases.map((loadCase) => ({
-        name: loadCase.name,
-        type: loadCase.type || "Static",
-      }));
-    }
-
-    if (Array.isArray(this.staticLoadCases?.items) && this.staticLoadCases.items.length > 0) {
-      return this.staticLoadCases.items.map((loadCase) => ({
-        name: loadCase.name,
-        type: loadCase.type || "Static",
-      }));
-    }
-
-    if (Array.isArray(this.availableLoads) && this.availableLoads.length > 0) {
-      return this.availableLoads.map((loadCase) => ({
-        name: loadCase.name,
-        type: loadCase.type || "Static",
-      }));
-    }
-
-    return [
-      { name: "DEAD", type: "Dead" },
-      { name: "LIVE", type: "Live" },
-      { name: "EQ_X", type: "Seismic" },
-      { name: "EQ_Y", type: "Seismic" },
-    ];
+    // Para entrega final: solo mostramos los patrones oficiales del proyecto.
+    // No mezclar aquí DEAD, LIVE, WIND_X, EQ_X, etc.
+    return this.getEtabsReferenceLoadPatterns();
   },
 
   getDefaultJointPointForceLoad() {
     return {
       id: `JLOAD_${Date.now()}`,
       type: "force",
-      loadCase: "DEAD",
+
+      // En ETABS el campo visible es Load Pattern Name.
+      loadPattern: "CM",
+
+      // Alias para compatibilidad con el código existente.
+      loadCase: "CM",
+
       coordinateSystem: "Global",
+      operation: "replace",
+
+      fx: 0,
+      fy: 0,
+      fz: 0,
+
+      mxx: 0,
+      myy: 0,
+      mzz: 0,
+
+      punchingX: 0,
+      punchingY: 0,
+
+      units: {
+        force: "tonf",
+        moment: "tonf-m",
+        length: "m",
+      },
 
       forces: {
         fx: 0,
@@ -1622,6 +1637,134 @@ export const assignDialogsMixin = {
     };
   },
 
+  _getJointAssignId(joint) {
+    return String(
+      joint?.id ??
+      joint?.jointId ??
+      joint?.nodeId ??
+      joint?.name ??
+      joint?._id ??
+      ""
+    );
+  },
+
+  _escapeAssignHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  },
+
+  getUnifiedAssignTheme() {
+    return {
+      bg: "#1a2035",
+      panel: "#0f172a",
+      border: "#475569",
+      text: "#e2e8f0",
+      label: "#cbd5e1",
+      muted: "#94a3b8",
+      legend: "#7eb8f7",
+      accent: "#1d4ed8",
+      accentAlt: "#2563eb",
+      secondary: "#64748b",
+      disabledBg: "#111827",
+      disabledText: "#64748b",
+    };
+  },
+
+  getUnifiedAssignWrapperStyle() {
+    const t = this.getUnifiedAssignTheme();
+    return `
+    text-align:left;
+    font-size:13px;
+    font-family:monospace;
+    color:${t.text};
+  `;
+  },
+
+  getUnifiedAssignSectionStyle() {
+    const t = this.getUnifiedAssignTheme();
+    return `
+    border:1px solid ${t.border};
+    border-radius:6px;
+    padding:10px 12px;
+    background:${t.bg};
+  `;
+  },
+
+  getUnifiedAssignFieldsetStyle() {
+    const t = this.getUnifiedAssignTheme();
+    return `
+    border:1px solid ${t.border};
+    border-radius:6px;
+    padding:10px 12px;
+    margin:0;
+    background:${t.bg};
+  `;
+  },
+
+  getUnifiedAssignLegendStyle() {
+    const t = this.getUnifiedAssignTheme();
+    return `
+    padding:0 6px;
+    color:${t.legend};
+    font-size:12px;
+    font-weight:600;
+  `;
+  },
+
+  getUnifiedAssignLabelStyle() {
+    const t = this.getUnifiedAssignTheme();
+    return `
+    display:block;
+    margin-bottom:4px;
+    color:${t.label};
+  `;
+  },
+
+  getUnifiedAssignFieldStyle(disabled = false) {
+    const t = this.getUnifiedAssignTheme();
+    return `
+    width:100%;
+    padding:6px 8px;
+    background:${disabled ? t.disabledBg : t.panel};
+    color:${disabled ? t.disabledText : t.text};
+    border:1px solid ${t.border};
+    border-radius:4px;
+    box-sizing:border-box;
+  `;
+  },
+
+  getUnifiedAssignNoteStyle() {
+    const t = this.getUnifiedAssignTheme();
+    return `
+    color:${t.muted};
+    font-size:11px;
+    margin-top:8px;
+  `;
+  },
+
+  getUnifiedAssignButtonStyle(type = "primary") {
+    const t = this.getUnifiedAssignTheme();
+
+    const bg = type === "primary" ? t.accent : t.secondary;
+
+    return `
+    min-width:100px;
+    height:42px;
+    padding:0 18px;
+    border:none;
+    border-radius:6px;
+    background:${bg};
+    color:white;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+  `;
+  },
+
   async openAssignJointPointForceDialog() {
     const selectedJoints = this.getSelectedJointsForAssign();
 
@@ -1630,173 +1773,417 @@ export const assignDialogsMixin = {
       return;
     }
 
-    const loadCases = this.getAvailableLoadCasesForAssign();
     const current = this.getDefaultJointPointForceLoad();
+    const t = this.getUnifiedAssignTheme();
 
-    if (loadCases.length > 0) {
-      current.loadCase = loadCases[0].name;
-    }
+    // Para entrega final: patrón inicial fijo del proyecto.
+    current.loadPattern = "CM";
+    current.loadCase = "CM";
 
-    const result = await Swal.fire({
-      title: "Assign Joint / Point Loads - Force",
-      width: 720,
+    // Usa el catálogo cerrado del proyecto:
+    // CM, CVE, CVT, SEX pendiente, SEY pendiente.
+    const patternOptions =
+      typeof this.buildLoadPatternOptionsHtml === "function"
+        ? this.buildLoadPatternOptionsHtml("CM")
+        : `
+        <option value="CM" selected>CM (DEAD)</option>
+        <option value="CVE">CVE (LIVE)</option>
+        <option value="CVT">CVT (LIVE)</option>
+        <option value="SEX">SEX (Seismic X) - Pendiente</option>
+        <option value="SEY">SEY (Seismic Y) - Pendiente</option>
+      `;
+
+    await Swal.fire({
+      title: "Joint Load Assignment - Force",
+      width: 620,
+      background: t.bg,
+      color: t.text,
+      showConfirmButton: false,
+      showCancelButton: false,
+      allowOutsideClick: false,
       html: `
-      <div style="text-align:left; font-size:13px;">
+      <div style="${this.getUnifiedAssignWrapperStyle()}">
 
-        <p style="margin-bottom:12px;">
-          Asigna fuerzas y momentos concentrados a los nodos seleccionados.
-        </p>
-
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
-          <div>
-            <label style="display:block; margin-bottom:5px;">Load Case</label>
-            <select id="joint-force-loadcase" style="width:100%; padding:7px;">
-              ${loadCases
-          .map(
-            (lc) => `
-                <option value="${lc.name}">${lc.name} (${lc.type})</option>
-              `,
-          )
-          .join("")}
-            </select>
-          </div>
-
-          <div>
-            <label style="display:block; margin-bottom:5px;">Coordinate System</label>
-            <select id="joint-force-csys" style="width:100%; padding:7px;">
-              <option value="Global">Global</option>
-              <option value="Local">Local</option>
-            </select>
-          </div>
-
-          <div>
-            <label style="display:block; margin-bottom:5px;">Operation</label>
-            <select id="joint-force-operation" style="width:100%; padding:7px;">
-              <option value="replace">Replace Existing Loads</option>
-              <option value="add">Add to Existing Loads</option>
-              <option value="delete">Delete Existing Loads</option>
-            </select>
-          </div>
+        <div style="${this.getUnifiedAssignSectionStyle()}; margin-bottom:12px;">
+          <label style="${this.getUnifiedAssignLabelStyle()}">Load Pattern Name</label>
+          <select id="joint-force-loadpattern" style="${this.getUnifiedAssignFieldStyle()}">
+            ${patternOptions}
+          </select>
         </div>
 
-        <table style="width:100%; border-collapse:collapse; font-size:12px;">
-          <thead>
-            <tr style="background:#1f2937; color:white;">
-              <th style="border:1px solid #555; padding:6px;">Componente</th>
-              <th style="border:1px solid #555; padding:6px;">Valor</th>
-              <th style="border:1px solid #555; padding:6px;">Unidad referencial</th>
-            </tr>
-          </thead>
+        <div style="
+          display:grid;
+          grid-template-columns: 1.3fr 1fr;
+          gap:12px;
+          margin-bottom:12px;
+        ">
+          <fieldset style="${this.getUnifiedAssignFieldsetStyle()}">
+            <legend style="${this.getUnifiedAssignLegendStyle()}">Loads</legend>
 
-          <tbody>
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">FX</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-force-fx" type="number" step="0.001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">kN</td>
-            </tr>
+            ${this.buildJointForceInputRow("Force Global X", "joint-force-fx", current.fx, "tonf")}
+            ${this.buildJointForceInputRow("Force Global Y", "joint-force-fy", current.fy, "tonf")}
+            ${this.buildJointForceInputRow("Force Global Z", "joint-force-fz", current.fz, "tonf")}
+            ${this.buildJointForceInputRow("Moment Global XX", "joint-force-mxx", current.mxx, "tonf-m")}
+            ${this.buildJointForceInputRow("Moment Global YY", "joint-force-myy", current.myy, "tonf-m")}
+            ${this.buildJointForceInputRow("Moment Global ZZ", "joint-force-mzz", current.mzz, "tonf-m")}
+          </fieldset>
 
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">FY</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-force-fy" type="number" step="0.001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">kN</td>
-            </tr>
+          <fieldset style="${this.getUnifiedAssignFieldsetStyle()}">
+            <legend style="${this.getUnifiedAssignLegendStyle()}">Options</legend>
 
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">FZ</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-force-fz" type="number" step="0.001" value="-10" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">kN</td>
-            </tr>
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; color:${t.text};">
+              <input type="radio" name="joint-force-operation" value="add">
+              Add to Existing Loads
+            </label>
 
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">MX</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-force-mx" type="number" step="0.001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">kN·m</td>
-            </tr>
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; color:${t.text};">
+              <input type="radio" name="joint-force-operation" value="replace" checked>
+              Replace Existing Loads
+            </label>
 
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">MY</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-force-my" type="number" step="0.001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">kN·m</td>
-            </tr>
-
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">MZ</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-force-mz" type="number" step="0.001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">kN·m</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div style="margin-top:10px; color:#666; font-size:12px;">
-          Nodos seleccionados: <b>${selectedJoints.length}</b>
+            <label style="display:flex; align-items:center; gap:8px; color:${t.text};">
+              <input type="radio" name="joint-force-operation" value="delete">
+              Delete Existing Loads
+            </label>
+          </fieldset>
         </div>
 
+        <fieldset style="${this.getUnifiedAssignFieldsetStyle()}; margin-bottom:12px;">
+          <legend style="${this.getUnifiedAssignLegendStyle()}">Size of Load for Punching Shear</legend>
+
+          ${this.buildJointForceInputRow("X Dimension", "joint-force-punching-x", current.punchingX, "m")}
+          ${this.buildJointForceInputRow("Y Dimension", "joint-force-punching-y", current.punchingY, "m")}
+        </fieldset>
+
+        <div style="${this.getUnifiedAssignNoteStyle()}">
+          Nodos seleccionados: <b style="color:${t.text};">${selectedJoints.length}</b>
+        </div>
+
+        <div style="
+          display:flex;
+          justify-content:center;
+          gap:14px;
+          margin-top:18px;
+        ">
+          <button id="joint-force-ok" style="${this.getUnifiedAssignButtonStyle("primary")}">OK</button>
+          <button id="joint-force-close" style="${this.getUnifiedAssignButtonStyle("secondary")}">Close</button>
+          <button id="joint-force-apply" style="${this.getUnifiedAssignButtonStyle("primary")}">Apply</button>
+        </div>
       </div>
     `,
-      showCancelButton: true,
-      confirmButtonText: "Asignar",
-      cancelButtonText: "Cancelar",
-      preConfirm: () => {
-        return this.readJointPointForceFromDialog();
+
+      didOpen: () => {
+        const applyAssignment = (shouldClose = false) => {
+          const load = this.readJointPointForceFromDialog();
+
+          if (!load) return;
+
+          const patternName = load.loadPattern || load.loadCase || "CM";
+
+          if (
+            typeof this.isLoadPatternImplemented === "function" &&
+            !this.isLoadPatternImplemented(patternName)
+          ) {
+            this.showMessage?.(
+              `El patrón ${patternName} existe como referencia ETABS, pero su implementación está pendiente.`,
+              "warning"
+            );
+            return;
+          }
+
+          this.assignJointPointForceToSelected(load);
+
+          if (shouldClose) {
+            Swal.close();
+          }
+        };
+
+        document.getElementById("joint-force-ok")?.addEventListener("click", () => {
+          applyAssignment(true);
+        });
+
+        document.getElementById("joint-force-apply")?.addEventListener("click", () => {
+          applyAssignment(false);
+        });
+
+        document.getElementById("joint-force-close")?.addEventListener("click", () => {
+          Swal.close();
+        });
+
+        const updateDeleteState = () => {
+          const operation =
+            document.querySelector('input[name="joint-force-operation"]:checked')?.value || "replace";
+
+          const disabled = operation === "delete";
+
+          [
+            "joint-force-fx",
+            "joint-force-fy",
+            "joint-force-fz",
+            "joint-force-mxx",
+            "joint-force-myy",
+            "joint-force-mzz",
+            "joint-force-punching-x",
+            "joint-force-punching-y",
+          ].forEach((id) => {
+            const input = document.getElementById(id);
+
+            if (input) {
+              input.disabled = disabled;
+              input.style.background = disabled ? t.disabledBg : t.panel;
+              input.style.color = disabled ? t.disabledText : t.text;
+            }
+          });
+        };
+
+        document.querySelectorAll('input[name="joint-force-operation"]').forEach((radio) => {
+          radio.addEventListener("change", updateDeleteState);
+        });
+
+        updateDeleteState();
       },
     });
+  },
 
-    if (!result.isConfirmed || !result.value) return;
+  buildJointForceInputRow(label, id, value, unit, disabled = false) {
+    const t = this.getUnifiedAssignTheme();
 
-    this.assignJointPointForceToSelected(result.value);
+    return `
+    <div style="
+      display:grid;
+      grid-template-columns:130px 1fr 55px;
+      align-items:center;
+      gap:8px;
+      margin-bottom:8px;
+    ">
+      <label for="${id}" style="color:${t.label};">${label}</label>
+
+      <input
+        id="${id}"
+        type="number"
+        step="any"
+        value="${Number(value || 0)}"
+        ${disabled ? "disabled" : ""}
+        style="${this.getUnifiedAssignFieldStyle(disabled)}"
+      >
+
+      <span style="color:${t.text}; font-size:12px;">${unit}</span>
+    </div>
+  `;
+  },
+
+  getEtabsDialogButtonStyle(type = "primary") {
+    return this.getUnifiedAssignButtonStyle(type);
   },
 
   readJointPointForceFromDialog() {
     const readNumber = (id) => {
-      const value = Number(document.getElementById(id)?.value || 0);
+      const raw = document.getElementById(id)?.value;
+      const value = Number(raw === "" || raw == null ? 0 : raw);
       return Number.isFinite(value) ? value : 0;
     };
+
+    const loadPattern = String(
+      document.getElementById("joint-force-loadpattern")?.value ||
+      document.getElementById("joint-force-loadcase")?.value ||
+      "CM"
+    ).trim();
+
+    const operation =
+      document.querySelector('input[name="joint-force-operation"]:checked')?.value ||
+      document.getElementById("joint-force-operation")?.value ||
+      "replace";
+
+    const fx = readNumber("joint-force-fx");
+    const fy = readNumber("joint-force-fy");
+    const fz = readNumber("joint-force-fz");
+
+    const mxx = readNumber("joint-force-mxx");
+    const myy = readNumber("joint-force-myy");
+    const mzz = readNumber("joint-force-mzz");
+
+    const punchingX = readNumber("joint-force-punching-x");
+    const punchingY = readNumber("joint-force-punching-y");
 
     return {
       id: `JLOAD_${Date.now()}`,
       type: "force",
 
-      loadCase: document.getElementById("joint-force-loadcase")?.value || "DEAD",
+      loadPattern,
+      loadCase: loadPattern,
 
-      coordinateSystem: document.getElementById("joint-force-csys")?.value || "Global",
+      coordinateSystem: "Global",
+      operation,
 
-      operation: document.getElementById("joint-force-operation")?.value || "replace",
+      fx,
+      fy,
+      fz,
+
+      mxx,
+      myy,
+      mzz,
+
+      // Alias antiguos para compatibilidad.
+      mx: mxx,
+      my: myy,
+      mz: mzz,
+
+      punchingX,
+      punchingY,
+
+      punching: {
+        x: punchingX,
+        y: punchingY,
+      },
+
+      units: {
+        force: "tonf",
+        moment: "tonf-m",
+        length: "m",
+      },
 
       forces: {
-        fx: readNumber("joint-force-fx"),
-        fy: readNumber("joint-force-fy"),
-        fz: readNumber("joint-force-fz"),
-        mx: readNumber("joint-force-mx"),
-        my: readNumber("joint-force-my"),
-        mz: readNumber("joint-force-mz"),
+        fx,
+        fy,
+        fz,
+        mx: mxx,
+        my: myy,
+        mz: mzz,
       },
     };
   },
 
   jointPointForceHasValues(load) {
-    if (!load?.forces) return false;
+    if (!load) return false;
 
-    const f = load.forces;
+    const f = load.forces || {};
 
     return (
-      Number(f.fx || 0) !== 0 ||
-      Number(f.fy || 0) !== 0 ||
-      Number(f.fz || 0) !== 0 ||
-      Number(f.mx || 0) !== 0 ||
-      Number(f.my || 0) !== 0 ||
-      Number(f.mz || 0) !== 0
+      Number(load.fx ?? f.fx ?? 0) !== 0 ||
+      Number(load.fy ?? f.fy ?? 0) !== 0 ||
+      Number(load.fz ?? f.fz ?? 0) !== 0 ||
+      Number(load.mxx ?? f.mx ?? 0) !== 0 ||
+      Number(load.myy ?? f.my ?? 0) !== 0 ||
+      Number(load.mzz ?? f.mz ?? 0) !== 0 ||
+      Number(load.punchingX ?? load.punching?.x ?? 0) !== 0 ||
+      Number(load.punchingY ?? load.punching?.y ?? 0) !== 0
+    );
+  },
+
+  normalizeJointForceLoad(load) {
+    const fx = Number(load.fx ?? load.forces?.fx ?? 0);
+    const fy = Number(load.fy ?? load.forces?.fy ?? 0);
+    const fz = Number(load.fz ?? load.forces?.fz ?? 0);
+
+    const mxx = Number(load.mxx ?? load.mx ?? load.forces?.mx ?? 0);
+    const myy = Number(load.myy ?? load.my ?? load.forces?.my ?? 0);
+    const mzz = Number(load.mzz ?? load.mz ?? load.forces?.mz ?? 0);
+
+    const punchingX = Number(load.punchingX ?? load.punching?.x ?? 0);
+    const punchingY = Number(load.punchingY ?? load.punching?.y ?? 0);
+
+    const loadPattern = load.loadPattern || load.loadCase || "CM";
+
+    const clean = {
+      ...JSON.parse(JSON.stringify(load)),
+
+      id: load.id || `JLOAD_${Date.now()}`,
+      type: "force",
+
+      loadPattern,
+      loadCase: loadPattern,
+
+      coordinateSystem: load.coordinateSystem || "Global",
+
+      fx,
+      fy,
+      fz,
+
+      mxx,
+      myy,
+      mzz,
+
+      mx: mxx,
+      my: myy,
+      mz: mzz,
+
+      punchingX,
+      punchingY,
+
+      punching: {
+        x: punchingX,
+        y: punchingY,
+      },
+
+      units: {
+        force: "tonf",
+        moment: "tonf-m",
+        length: "m",
+        ...(load.units || {}),
+      },
+
+      forces: {
+        fx,
+        fy,
+        fz,
+        mx: mxx,
+        my: myy,
+        mz: mzz,
+      },
+    };
+
+    delete clean.operation;
+
+    return clean;
+  },
+
+  mergeJointForceLoads(existing, incoming) {
+    const a = this.normalizeJointForceLoad(existing);
+    const b = this.normalizeJointForceLoad(incoming);
+
+    const merged = {
+      ...a,
+      id: a.id || b.id || `JLOAD_${Date.now()}`,
+
+      fx: Number(a.fx || 0) + Number(b.fx || 0),
+      fy: Number(a.fy || 0) + Number(b.fy || 0),
+      fz: Number(a.fz || 0) + Number(b.fz || 0),
+
+      mxx: Number(a.mxx || 0) + Number(b.mxx || 0),
+      myy: Number(a.myy || 0) + Number(b.myy || 0),
+      mzz: Number(a.mzz || 0) + Number(b.mzz || 0),
+
+      // Las dimensiones de punzonamiento no se suman; se reemplazan.
+      punchingX: Number(b.punchingX || 0),
+      punchingY: Number(b.punchingY || 0),
+    };
+
+    merged.mx = merged.mxx;
+    merged.my = merged.myy;
+    merged.mz = merged.mzz;
+
+    merged.forces = {
+      fx: merged.fx,
+      fy: merged.fy,
+      fz: merged.fz,
+      mx: merged.mxx,
+      my: merged.myy,
+      mz: merged.mzz,
+    };
+
+    merged.punching = {
+      x: merged.punchingX,
+      y: merged.punchingY,
+    };
+
+    return merged;
+  },
+
+  isSameJointForcePattern(item, loadPattern) {
+    return (
+      item &&
+      item.type === "force" &&
+      String(item.loadPattern || item.loadCase) === String(loadPattern)
     );
   },
 
@@ -1809,80 +2196,167 @@ export const assignDialogsMixin = {
     }
 
     const operation = load.operation || "replace";
-    const loadCase = load.loadCase || "DEAD";
+    const loadPattern = load.loadPattern || load.loadCase || "CM";
+    const cleanIncoming = this.normalizeJointForceLoad(load);
 
     selectedJoints.forEach((joint) => {
-      if (!Array.isArray(joint.pointLoads)) {
-        joint.pointLoads = [];
-      }
+      if (!Array.isArray(joint.pointLoads)) joint.pointLoads = [];
+      if (!Array.isArray(joint.jointLoads)) joint.jointLoads = [];
 
-      if (!Array.isArray(joint.jointLoads)) {
-        joint.jointLoads = [];
-      }
+      const existingForceLoads = joint.pointLoads.filter((item) => {
+        return this.isSameJointForcePattern(item, loadPattern);
+      });
+
+      const otherPointLoads = joint.pointLoads.filter((item) => {
+        return !this.isSameJointForcePattern(item, loadPattern);
+      });
+
+      const otherJointLoads = joint.jointLoads.filter((item) => {
+        return !this.isSameJointForcePattern(item, loadPattern);
+      });
+
+      let finalLoadsForPattern = [];
 
       if (operation === "delete") {
-        joint.pointLoads = joint.pointLoads.filter((item) => {
-          return !(item.type === "force" && item.loadCase === loadCase);
-        });
-
-        joint.jointLoads = joint.jointLoads.filter((item) => {
-          return !(item.type === "force" && item.loadCase === loadCase);
-        });
+        finalLoadsForPattern = [];
       }
 
       if (operation === "replace") {
-        joint.pointLoads = joint.pointLoads.filter((item) => {
-          return !(item.type === "force" && item.loadCase === loadCase);
-        });
-
-        joint.jointLoads = joint.jointLoads.filter((item) => {
-          return !(item.type === "force" && item.loadCase === loadCase);
-        });
-
-        if (this.jointPointForceHasValues(load)) {
-          const cleanLoad = {
-            ...JSON.parse(JSON.stringify(load)),
-            operation: undefined,
-          };
-
-          joint.pointLoads.push(cleanLoad);
-          joint.jointLoads.push(cleanLoad);
+        if (this.jointPointForceHasValues(cleanIncoming)) {
+          finalLoadsForPattern = [cleanIncoming];
         }
       }
 
       if (operation === "add") {
-        if (this.jointPointForceHasValues(load)) {
-          const cleanLoad = {
-            ...JSON.parse(JSON.stringify(load)),
-            operation: undefined,
-          };
+        if (this.jointPointForceHasValues(cleanIncoming)) {
+          if (existingForceLoads.length > 0) {
+            const base = existingForceLoads.reduce((acc, item) => {
+              return acc ? this.mergeJointForceLoads(acc, item) : this.normalizeJointForceLoad(item);
+            }, null);
 
-          joint.pointLoads.push(cleanLoad);
-          joint.jointLoads.push(cleanLoad);
+            finalLoadsForPattern = [
+              this.mergeJointForceLoads(base, cleanIncoming),
+            ];
+          } else {
+            finalLoadsForPattern = [cleanIncoming];
+          }
+        } else {
+          finalLoadsForPattern = existingForceLoads.map((item) => {
+            return this.normalizeJointForceLoad(item);
+          });
         }
       }
 
-      joint.hasPointLoads = Array.isArray(joint.pointLoads) && joint.pointLoads.length > 0;
-      joint.hasJointLoads = joint.hasPointLoads;
+      joint.pointLoads = [
+        ...otherPointLoads,
+        ...finalLoadsForPattern,
+      ];
+
+      joint.jointLoads = [
+        ...otherJointLoads,
+        ...finalLoadsForPattern,
+      ];
+
+      joint.hasPointLoads = joint.pointLoads.length > 0;
+      joint.hasJointLoads = joint.jointLoads.length > 0;
 
       joint.assignment = {
         ...(joint.assignment || {}),
-        pointLoads: joint.pointLoads,
-        jointLoads: joint.jointLoads,
+        pointLoads: JSON.parse(JSON.stringify(joint.pointLoads)),
+        jointLoads: JSON.parse(JSON.stringify(joint.jointLoads)),
       };
+
+      this._syncJointLoadAssignmentStoreForJoint?.(joint);
     });
 
-    this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
+    this.markAnalysisResultsOutdated?.("Se modificaron cargas puntuales en nodos.");
+    // this.redraw?.();
+    this.displayOptions = {
+      ...(this.displayOptions || {}),
+      showJointLoads: true,
+      jointLoadPattern: load.loadPattern || load.loadCase || "CM",
+      jointLoadDisplayType: "force",
+    };
+
     this.redraw?.();
+    this.sync3D?.();
 
-    const actionText = operation === "delete" ? "removidas" : "asignadas";
+    const actionText =
+      operation === "delete"
+        ? "eliminadas"
+        : operation === "add"
+          ? "agregadas"
+          : "asignadas";
 
-    this.showMessage?.(`Cargas puntuales ${actionText} en ${selectedJoints.length} nodo(s).`);
+    this.showMessage?.(
+      `Cargas Joint / Point Force ${actionText} en ${selectedJoints.length} nodo(s).`,
+      "success"
+    );
 
-    console.log("✅ Joint / Point Force asignado:", {
-      load,
+    console.log("✅ Joint Load Assignment - Force:", {
+      operation,
+      loadPattern,
+      load: cleanIncoming,
       selectedJoints,
+      jointLoadAssignments: this.jointLoadAssignments,
     });
+  },
+
+  _syncJointLoadAssignmentStoreForJoint(joint) {
+    if (!joint) return;
+
+    const jointId = this._getJointAssignId(joint);
+    if (!jointId) return;
+
+    if (!Array.isArray(this.jointLoadAssignments)) {
+      this.jointLoadAssignments = [];
+    }
+
+    // Quitar cargas anteriores de este nodo.
+    this.jointLoadAssignments = this.jointLoadAssignments.filter((item) => {
+      return String(item.jointId) !== String(jointId);
+    });
+
+    const loads = Array.isArray(joint.jointLoads)
+      ? joint.jointLoads
+      : Array.isArray(joint.pointLoads)
+        ? joint.pointLoads
+        : [];
+
+    const forceLoads = loads
+      .filter((load) => load && load.type === "force")
+      .map((load) => {
+        const clean = this.normalizeJointForceLoad(load);
+
+        return {
+          ...clean,
+          jointId,
+          nodeId: jointId,
+        };
+      });
+
+    this.jointLoadAssignments.push(...forceLoads);
+  },
+
+  buildLoadPatternOptionsHtml(selectedName = "CM") {
+    const patterns = this.getAvailableLoadCasesForAssign();
+
+    return patterns.map((lp) => {
+      const selected = String(lp.name) === String(selectedName) ? "selected" : "";
+      const suffix = lp.implemented ? "" : " - Pendiente";
+
+      return `
+      <option value="${lp.name}" ${selected}>
+        ${lp.name} (${lp.type})${suffix}
+      </option>
+    `;
+    }).join("");
+  },
+
+  isLoadPatternImplemented(name) {
+    const patterns = this.getAvailableLoadCasesForAssign();
+    const found = patterns.find((p) => String(p.name) === String(name));
+    return found ? found.implemented !== false : true;
   },
 
   // =====================================================
@@ -2155,6 +2629,7 @@ export const assignDialogsMixin = {
     };
   },
 
+  // Joint > Point Loads > Ground Displacement
   async openAssignJointGroundDisplacementDialog() {
     const selectedJoints = this.getSelectedJointsForAssign();
 
@@ -2163,132 +2638,123 @@ export const assignDialogsMixin = {
       return;
     }
 
-    const loadCases = this.getAvailableLoadCasesForAssign();
     const current = this.getDefaultJointGroundDisplacementLoad();
+    current.loadCase = "CM";
 
-    if (loadCases.length > 0) {
-      current.loadCase = loadCases[0].name;
-    }
+    const t = this.getUnifiedAssignTheme();
 
-    const result = await Swal.fire({
-      title: "Assign Joint / Point Loads - Ground Displacement",
-      width: 740,
+    await Swal.fire({
+      title: "Joint Load Assignment - Ground Displacement",
+      width: 620,
+      background: t.bg,
+      color: t.text,
+      showConfirmButton: false,
+      showCancelButton: false,
+      allowOutsideClick: false,
       html: `
-      <div style="text-align:left; font-size:13px;">
+      <div style="${this.getUnifiedAssignWrapperStyle()}">
 
-        <p style="margin-bottom:12px;">
-          Asigna desplazamientos impuestos a los nodos seleccionados.
-        </p>
-
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
-          <div>
-            <label style="display:block; margin-bottom:5px;">Load Case</label>
-            <select id="joint-disp-loadcase" style="width:100%; padding:7px;">
-              ${loadCases
-          .map(
-            (lc) => `
-                <option value="${lc.name}">${lc.name} (${lc.type})</option>
-              `,
-          )
-          .join("")}
-            </select>
-          </div>
-
-          <div>
-            <label style="display:block; margin-bottom:5px;">Coordinate System</label>
-            <select id="joint-disp-csys" style="width:100%; padding:7px;">
-              <option value="Global">Global</option>
-              <option value="Local">Local</option>
-            </select>
-          </div>
-
-          <div>
-            <label style="display:block; margin-bottom:5px;">Operation</label>
-            <select id="joint-disp-operation" style="width:100%; padding:7px;">
-              <option value="replace">Replace Existing Loads</option>
-              <option value="add">Add to Existing Loads</option>
-              <option value="delete">Delete Existing Loads</option>
-            </select>
-          </div>
+        <div style="${this.getUnifiedAssignSectionStyle()}; margin-bottom:12px;">
+          <label style="${this.getUnifiedAssignLabelStyle()}">Load Pattern Name</label>
+          <select id="joint-disp-loadpattern" style="${this.getUnifiedAssignFieldStyle()}">
+            ${this.buildLoadPatternOptionsHtml(current.loadCase)}
+          </select>
         </div>
 
-        <table style="width:100%; border-collapse:collapse; font-size:12px;">
-          <thead>
-            <tr style="background:#1f2937; color:white;">
-              <th style="border:1px solid #555; padding:6px;">Componente</th>
-              <th style="border:1px solid #555; padding:6px;">Valor</th>
-              <th style="border:1px solid #555; padding:6px;">Unidad referencial</th>
-            </tr>
-          </thead>
+        <div style="display:grid; grid-template-columns: 1.3fr 1fr; gap:12px; margin-bottom:12px;">
+          <fieldset style="${this.getUnifiedAssignFieldsetStyle()}">
+            <legend style="${this.getUnifiedAssignLegendStyle()}">Displacements</legend>
 
-          <tbody>
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">U1 / UX</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-disp-ux" type="number" step="0.000001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">m</td>
-            </tr>
+            ${this.buildJointForceInputRow("Translation X", "joint-disp-ux", 0, "m")}
+            ${this.buildJointForceInputRow("Translation Y", "joint-disp-uy", 0, "m")}
+            ${this.buildJointForceInputRow("Translation Z", "joint-disp-uz", 0, "m")}
+            ${this.buildJointForceInputRow("Rotation about XX", "joint-disp-rx", 0, "rad")}
+            ${this.buildJointForceInputRow("Rotation about YY", "joint-disp-ry", 0, "rad")}
+            ${this.buildJointForceInputRow("Rotation about ZZ", "joint-disp-rz", 0, "rad")}
+          </fieldset>
 
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">U2 / UY</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-disp-uy" type="number" step="0.000001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">m</td>
-            </tr>
+          <fieldset style="${this.getUnifiedAssignFieldsetStyle()}">
+            <legend style="${this.getUnifiedAssignLegendStyle()}">Options</legend>
 
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">U3 / UZ</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-disp-uz" type="number" step="0.000001" value="0.01" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">m</td>
-            </tr>
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; color:${t.text};">
+              <input type="radio" name="joint-disp-operation" value="add">
+              Add to Existing Loads
+            </label>
 
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">R1 / RX</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-disp-rx" type="number" step="0.000001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">rad</td>
-            </tr>
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; color:${t.text};">
+              <input type="radio" name="joint-disp-operation" value="replace" checked>
+              Replace Existing Loads
+            </label>
 
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">R2 / RY</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-disp-ry" type="number" step="0.000001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">rad</td>
-            </tr>
-
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">R3 / RZ</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-disp-rz" type="number" step="0.000001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">rad</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div style="margin-top:10px; color:#666; font-size:12px;">
-          Nodos seleccionados: <b>${selectedJoints.length}</b>
+            <label style="display:flex; align-items:center; gap:8px; color:${t.text};">
+              <input type="radio" name="joint-disp-operation" value="delete">
+              Delete Existing Loads
+            </label>
+          </fieldset>
         </div>
 
+        <div style="${this.getUnifiedAssignNoteStyle()}">
+          Nodos seleccionados: <b style="color:${t.text};">${selectedJoints.length}</b>
+        </div>
+
+        <div style="display:flex; justify-content:center; gap:14px; margin-top:18px;">
+          <button id="joint-disp-ok" style="${this.getUnifiedAssignButtonStyle("primary")}">OK</button>
+          <button id="joint-disp-close" style="${this.getUnifiedAssignButtonStyle("secondary")}">Close</button>
+          <button id="joint-disp-apply" style="${this.getUnifiedAssignButtonStyle("primary")}">Apply</button>
+        </div>
       </div>
     `,
-      showCancelButton: true,
-      confirmButtonText: "Asignar",
-      cancelButtonText: "Cancelar",
-      preConfirm: () => {
-        return this.readJointGroundDisplacementFromDialog();
+      didOpen: () => {
+        const applyAssignment = (shouldClose = false) => {
+          const load = this.readJointGroundDisplacementFromDialog();
+          if (!load) return;
+
+          if (!this.isLoadPatternImplemented(load.loadCase)) {
+            this.showMessage?.(
+              `El patrón ${load.loadCase} existe como referencia ETABS, pero su implementación está pendiente.`,
+              "warning"
+            );
+            return;
+          }
+
+          this.assignJointGroundDisplacementToSelected(load);
+          if (shouldClose) Swal.close();
+        };
+
+        document.getElementById("joint-disp-ok")?.addEventListener("click", () => applyAssignment(true));
+        document.getElementById("joint-disp-apply")?.addEventListener("click", () => applyAssignment(false));
+        document.getElementById("joint-disp-close")?.addEventListener("click", () => Swal.close());
+
+        const updateDeleteState = () => {
+          const operation =
+            document.querySelector('input[name="joint-disp-operation"]:checked')?.value || "replace";
+
+          const disabled = operation === "delete";
+
+          [
+            "joint-disp-ux",
+            "joint-disp-uy",
+            "joint-disp-uz",
+            "joint-disp-rx",
+            "joint-disp-ry",
+            "joint-disp-rz",
+          ].forEach((id) => {
+            const input = document.getElementById(id);
+            if (input) {
+              input.disabled = disabled;
+              input.style.background = disabled ? t.disabledBg : t.panel;
+              input.style.color = disabled ? t.disabledText : t.text;
+            }
+          });
+        };
+
+        document.querySelectorAll('input[name="joint-disp-operation"]').forEach((radio) => {
+          radio.addEventListener("change", updateDeleteState);
+        });
+
+        updateDeleteState();
       },
     });
-
-    if (!result.isConfirmed || !result.value) return;
-
-    this.assignJointGroundDisplacementToSelected(result.value);
   },
 
   readJointGroundDisplacementFromDialog() {
@@ -2301,11 +2767,13 @@ export const assignDialogsMixin = {
       id: `JDISP_${Date.now()}`,
       type: "ground-displacement",
 
-      loadCase: document.getElementById("joint-disp-loadcase")?.value || "DEAD",
+      loadCase: document.getElementById("joint-disp-loadpattern")?.value || "CM",
+      loadPattern: document.getElementById("joint-disp-loadpattern")?.value || "CM",
 
-      coordinateSystem: document.getElementById("joint-disp-csys")?.value || "Global",
+      coordinateSystem: "Global",
 
-      operation: document.getElementById("joint-disp-operation")?.value || "replace",
+      operation:
+        document.querySelector('input[name="joint-disp-operation"]:checked')?.value || "replace",
 
       displacements: {
         ux: readNumber("joint-disp-ux"),
@@ -2317,6 +2785,8 @@ export const assignDialogsMixin = {
       },
     };
   },
+
+
 
   jointGroundDisplacementHasValues(load) {
     if (!load?.displacements) return false;
@@ -2406,7 +2876,16 @@ export const assignDialogsMixin = {
     });
 
     this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
+    // this.redraw?.();
+    this.displayOptions = {
+      ...(this.displayOptions || {}),
+      showJointLoads: true,
+      jointLoadPattern: load.loadPattern || load.loadCase || "CM",
+      jointLoadDisplayType: "ground-displacement",
+    };
+
     this.redraw?.();
+    this.sync3D?.();
 
     const actionText = operation === "delete" ? "removidos" : "asignados";
 
@@ -2435,165 +2914,6 @@ export const assignDialogsMixin = {
         finalTemperature: 20,
       },
     };
-  },
-
-  async openAssignJointTemperatureDialog() {
-    const selectedJoints = this.getSelectedJointsForAssign();
-
-    if (!selectedJoints.length) {
-      this.showMessage?.("Selecciona primero uno o más nodos / puntos.", "warning");
-      return;
-    }
-
-    const loadCases = this.getAvailableLoadCasesForAssign();
-    const current = this.getDefaultJointTemperatureLoad();
-
-    if (loadCases.length > 0) {
-      current.loadCase = loadCases[0].name;
-    }
-
-    const result = await Swal.fire({
-      title: "Assign Joint / Point Loads - Temperature",
-      width: 650,
-      html: `
-      <div style="text-align:left; font-size:13px;">
-
-        <p style="margin-bottom:12px;">
-          Asigna carga de temperatura a los nodos seleccionados.
-        </p>
-
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
-          <div>
-            <label style="display:block; margin-bottom:5px;">Load Case</label>
-            <select id="joint-temp-loadcase" style="width:100%; padding:7px;">
-              ${loadCases
-          .map(
-            (lc) => `
-                <option value="${lc.name}">${lc.name} (${lc.type})</option>
-              `,
-          )
-          .join("")}
-            </select>
-          </div>
-
-          <div>
-            <label style="display:block; margin-bottom:5px;">Operation</label>
-            <select id="joint-temp-operation" style="width:100%; padding:7px;">
-              <option value="replace">Replace Existing Loads</option>
-              <option value="add">Add to Existing Loads</option>
-              <option value="delete">Delete Existing Loads</option>
-            </select>
-          </div>
-        </div>
-
-        <table style="width:100%; border-collapse:collapse; font-size:12px;">
-          <thead>
-            <tr style="background:#1f2937; color:white;">
-              <th style="border:1px solid #555; padding:6px;">Dato</th>
-              <th style="border:1px solid #555; padding:6px;">Valor</th>
-              <th style="border:1px solid #555; padding:6px;">Unidad</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">Initial Temperature</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-temp-initial" type="number" step="0.001" value="20" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">°C</td>
-            </tr>
-
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">Final Temperature</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-temp-final" type="number" step="0.001" value="30" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">°C</td>
-            </tr>
-
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">Temperature Change ΔT</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-temp-delta" type="number" step="0.001" value="10" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">°C</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div style="margin-top:12px; padding:10px; border:1px solid #555; border-radius:6px;">
-          <span style="font-size:12px; color:#777;">
-            En esta versión inicial se guarda la carga de temperatura en el nodo. Luego podrá conectarse al motor de análisis.
-          </span>
-        </div>
-
-        <div style="margin-top:10px; color:#666; font-size:12px;">
-          Nodos seleccionados: <b>${selectedJoints.length}</b>
-        </div>
-
-      </div>
-    `,
-      showCancelButton: true,
-      confirmButtonText: "Asignar",
-      cancelButtonText: "Cancelar",
-
-      didOpen: () => {
-        const initialInput = document.getElementById("joint-temp-initial");
-        const finalInput = document.getElementById("joint-temp-final");
-        const deltaInput = document.getElementById("joint-temp-delta");
-
-        const updateDelta = () => {
-          const ti = Number(initialInput?.value || 0);
-          const tf = Number(finalInput?.value || 0);
-          deltaInput.value = tf - ti;
-        };
-
-        initialInput?.addEventListener("input", updateDelta);
-        finalInput?.addEventListener("input", updateDelta);
-      },
-
-      preConfirm: () => {
-        return this.readJointTemperatureFromDialog();
-      },
-    });
-
-    if (!result.isConfirmed || !result.value) return;
-
-    this.assignJointTemperatureToSelected(result.value);
-  },
-
-  readJointTemperatureFromDialog() {
-    const readNumber = (id) => {
-      const value = Number(document.getElementById(id)?.value || 0);
-      return Number.isFinite(value) ? value : 0;
-    };
-
-    const initialTemperature = readNumber("joint-temp-initial");
-    const finalTemperature = readNumber("joint-temp-final");
-
-    return {
-      id: `JTEMP_${Date.now()}`,
-      type: "temperature",
-
-      loadCase: document.getElementById("joint-temp-loadcase")?.value || "DEAD",
-
-      operation: document.getElementById("joint-temp-operation")?.value || "replace",
-
-      temperature: {
-        initialTemperature,
-        finalTemperature,
-        deltaT: readNumber("joint-temp-delta"),
-      },
-    };
-  },
-
-  jointTemperatureHasValues(load) {
-    if (!load?.temperature) return false;
-
-    const t = load.temperature;
-
-    return Number(t.deltaT || 0) !== 0 || Number(t.initialTemperature || 0) !== Number(t.finalTemperature || 0);
   },
 
   assignJointTemperatureToSelected(load) {
@@ -2665,7 +2985,16 @@ export const assignDialogsMixin = {
     });
 
     this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
+    // this.redraw?.();
+    this.displayOptions = {
+      ...(this.displayOptions || {}),
+      showJointLoads: true,
+      jointLoadPattern: load.loadPattern || load.loadCase || "CM",
+      jointLoadDisplayType: "temperature",
+    };
+
     this.redraw?.();
+    this.sync3D?.();
 
     const actionText = operation === "delete" ? "removidas" : "asignadas";
 
@@ -3400,6 +3729,155 @@ export const assignDialogsMixin = {
   // =====================================================
   // ASSIGN > FRAME / LINE LOADS > TEMPERATURE
   // =====================================================
+
+  // Joint > Point Loads > Temperature
+  async openAssignJointTemperatureDialog() {
+    const selectedJoints = this.getSelectedJointsForAssign();
+
+    if (!selectedJoints.length) {
+      this.showMessage?.("Selecciona primero uno o más nodos / puntos.", "warning");
+      return;
+    }
+
+    const t = this.getUnifiedAssignTheme();
+
+    await Swal.fire({
+      title: "Joint Load Assignment - Temperature",
+      width: 620,
+      background: t.bg,
+      color: t.text,
+      showConfirmButton: false,
+      showCancelButton: false,
+      allowOutsideClick: false,
+      html: `
+      <div style="${this.getUnifiedAssignWrapperStyle()}">
+
+        <div style="${this.getUnifiedAssignSectionStyle()}; margin-bottom:12px;">
+          <label style="${this.getUnifiedAssignLabelStyle()}">Load Pattern Name</label>
+          <select id="joint-temp-loadpattern" style="${this.getUnifiedAssignFieldStyle()}">
+            ${this.buildLoadPatternOptionsHtml("CM")}
+          </select>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1.3fr 1fr; gap:12px; margin-bottom:12px;">
+          <fieldset style="${this.getUnifiedAssignFieldsetStyle()}">
+            <legend style="${this.getUnifiedAssignLegendStyle()}">Temperature</legend>
+            ${this.buildJointForceInputRow("Temperature", "joint-temp-value", 0, "C")}
+          </fieldset>
+
+          <fieldset style="${this.getUnifiedAssignFieldsetStyle()}">
+            <legend style="${this.getUnifiedAssignLegendStyle()}">Options</legend>
+
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; color:${t.text};">
+              <input type="radio" name="joint-temp-operation" value="add">
+              Add to Existing Values
+            </label>
+
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; color:${t.text};">
+              <input type="radio" name="joint-temp-operation" value="replace" checked>
+              Replace Existing Values
+            </label>
+
+            <label style="display:flex; align-items:center; gap:8px; color:${t.text};">
+              <input type="radio" name="joint-temp-operation" value="delete">
+              Delete Existing Values
+            </label>
+          </fieldset>
+        </div>
+
+        <div style="${this.getUnifiedAssignNoteStyle()}">
+          Nodos seleccionados: <b style="color:${t.text};">${selectedJoints.length}</b>
+        </div>
+
+        <div style="display:flex; justify-content:center; gap:14px; margin-top:18px;">
+          <button id="joint-temp-ok" style="${this.getUnifiedAssignButtonStyle("primary")}">OK</button>
+          <button id="joint-temp-close" style="${this.getUnifiedAssignButtonStyle("secondary")}">Close</button>
+          <button id="joint-temp-apply" style="${this.getUnifiedAssignButtonStyle("primary")}">Apply</button>
+        </div>
+      </div>
+    `,
+      didOpen: () => {
+        const applyAssignment = (shouldClose = false) => {
+          const load = this.readJointTemperatureFromDialog();
+          if (!load) return;
+
+          if (!this.isLoadPatternImplemented(load.loadCase)) {
+            this.showMessage?.(
+              `El patrón ${load.loadCase} existe como referencia ETABS, pero su implementación está pendiente.`,
+              "warning"
+            );
+            return;
+          }
+
+          this.assignJointTemperatureToSelected(load);
+          if (shouldClose) Swal.close();
+        };
+
+        document.getElementById("joint-temp-ok")?.addEventListener("click", () => applyAssignment(true));
+        document.getElementById("joint-temp-apply")?.addEventListener("click", () => applyAssignment(false));
+        document.getElementById("joint-temp-close")?.addEventListener("click", () => Swal.close());
+
+        const updateDeleteState = () => {
+          const operation =
+            document.querySelector('input[name="joint-temp-operation"]:checked')?.value || "replace";
+
+          const disabled = operation === "delete";
+          const input = document.getElementById("joint-temp-value");
+
+          if (input) {
+            input.disabled = disabled;
+            input.style.background = disabled ? t.disabledBg : t.panel;
+            input.style.color = disabled ? t.disabledText : t.text;
+          }
+        };
+
+        document.querySelectorAll('input[name="joint-temp-operation"]').forEach((radio) => {
+          radio.addEventListener("change", updateDeleteState);
+        });
+
+        updateDeleteState();
+      },
+    });
+  },
+
+  readJointTemperatureFromDialog() {
+    const readNumber = (id) => {
+      const value = Number(document.getElementById(id)?.value || 0);
+      return Number.isFinite(value) ? value : 0;
+    };
+
+    const tempValue = readNumber("joint-temp-value");
+
+    return {
+      id: `JTEMP_${Date.now()}`,
+      type: "temperature",
+
+      loadCase: document.getElementById("joint-temp-loadpattern")?.value || "CM",
+      loadPattern: document.getElementById("joint-temp-loadpattern")?.value || "CM",
+
+      operation:
+        document.querySelector('input[name="joint-temp-operation"]:checked')?.value || "replace",
+
+      temperature: {
+        value: tempValue,
+        deltaT: tempValue,
+        initialTemperature: 0,
+        finalTemperature: tempValue,
+      },
+    };
+  },
+
+  jointTemperatureHasValues(load) {
+    if (!load?.temperature) return false;
+
+    const t = load.temperature;
+
+    return (
+      Number(t.value || 0) !== 0 ||
+      Number(t.deltaT || 0) !== 0 ||
+      Number(t.initialTemperature || 0) !== Number(t.finalTemperature || 0)
+    );
+  },
 
   getDefaultFrameTemperatureLoad() {
     return {

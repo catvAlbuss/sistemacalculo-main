@@ -32,6 +32,7 @@ public/build/assets/*
 !public/build/assets/*.css
 !public/build/assets/*.js
 
+<<<<<<< HEAD
 # ETABS2 backend release generated files
 ETABS2_BACKEND_RELEASE/logs/
 ETABS2_BACKEND_RELEASE/tests/response_*.json
@@ -39,3 +40,9 @@ ETABS2_BACKEND_RELEASE/windows_exe/etabs2_backend_backup_*/
 ETABS2_BACKEND_RELEASE/windows_exe/etabs2_backend_error_encoding_*/
 python-backend/build/
 python-backend/dist/
+=======
+# Python bytecode cache (autogenerado, no debe versionarse)
+__pycache__/
+*.pyc
+*.pyo
+>>>>>>> fcf7dea5f4780ca4dcd2fef9553e9a21438fdafb

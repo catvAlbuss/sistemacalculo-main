@@ -1166,14 +1166,6 @@
                         <span class="text-xs text-gray-500 italic">Options</span>
                     </button>
 
-                    {{-- BLOQUE 7T-E - Modal Spectral Options --}}
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
-                        @click.stop="cadSystem.openModalSpectralOptionsDialog()">
-                        <span>🌊</span>
-                        <span class="flex-1 truncate">Modal Spectral Options...</span>
-                        <span class="text-xs text-green-400 italic">7T</span>
-                    </button>
-
                     <div class="border-t border-gray-700 my-1"></div>
 
                     {{-- ================= VALIDACIÓN DEL MODELO ================= --}}
@@ -1200,13 +1192,6 @@
                         <span>▶️</span>
                         <span class="flex-1 truncate">Run Analysis</span>
                         <span class="text-xs text-gray-500 italic">F5</span>
-                    </button>
-
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
-                        @click.stop="cadSystem.openModalSpectralAnalysisDialog()">
-                        <span>🌊</span>
-                        <span class="flex-1 truncate">Modal Spectral Analysis...</span>
-                        <span class="text-xs text-yellow-400 italic">Test</span>
                     </button>
 
                     {{-- Análisis Sísmico Dinámico (RSA) — espectro de respuesta --}}
@@ -1313,7 +1298,7 @@
                         <span>📉</span>
                         <span class="flex-1 truncate">Show Frame Forces / Diagrams...</span>
                         <span class="text-xs text-cyan-400 italic">P, V2, V3, T, M2, M3</span>
-                    </button>   
+                    </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateDisplayMenuAction('show-modal-spectral-results')">
@@ -1371,6 +1356,19 @@
                         <span class="text-xs text-emerald-400 italic">‰</span>
                     </button>
 
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Tablas
+                    </div>
+
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateDisplayMenuAction('show-tables')">
+                        <span>📋</span>
+                        <span class="flex-1 truncate">Show Tables...</span>
+                        <span class="text-xs text-cyan-400 italic">Modelo</span>
+                    </button>
+
+                    <div class="border-t border-gray-700 my-1"></div>   
                 </div>
             </x-slot>
         </x-cad.menu-dropdown-item>

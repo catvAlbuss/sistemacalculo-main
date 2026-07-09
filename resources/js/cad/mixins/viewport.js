@@ -6,16 +6,6 @@ import {
   openResponseSpectrumCasesDialog,
 } from "../analysis/7_responseSpectrumDefinitions.js";
 
-import {
-  runModalSpectralAnalysisFromSystem,
-} from "../analysis/3_modalSpectralController.js";
-
-import {
-  openModalSpectralAnalysisDialog as openModalSpectralAnalysisDialogUI,
-  openModalSpectralResultsDialog as openModalSpectralResultsDialogUI,
-  openModalSpectralOptionsDialog as openModalSpectralOptionsDialogUI,
-} from "../analysis/2_modalSpectralUI.js";
-
 /**
  * @mixin viewportMixin
  *
@@ -1103,27 +1093,5 @@ export const viewportMixin = {
 
   setAnalysisOptions() {
     window.dispatchEvent(new CustomEvent("open-analysis-options-modal"));
-  },
-
-  /**
- * Puente desde cad_sys.js hacia el controlador Modal Spectral.
- *
- * La lógica pesada vive en:
- * resources/js/cad/analysis/3_modalSpectralController.js
- */
-  async runModalSpectralAnalysisFromMenu(customPayload = null) {
-    return await runModalSpectralAnalysisFromSystem(this, customPayload);
-  },
-
-  openModalSpectralAnalysisDialog() {
-    return openModalSpectralAnalysisDialogUI(this);
-  },
-
-  openModalSpectralOptionsDialog() {
-    return openModalSpectralOptionsDialogUI(this);
-  },
-
-  openModalSpectralResultsDialog() {
-    return openModalSpectralResultsDialogUI(this);
   },
 };

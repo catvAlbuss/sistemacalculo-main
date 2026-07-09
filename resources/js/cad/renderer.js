@@ -508,15 +508,24 @@ export class DiseñoRenderer {
     }
 
     if (context.displayOptions?.showJointLoads) {
-      if (this.jointHasForceLoads(node)) {
+      if (
+        this.shouldDrawJointLoadDisplayType(context, "force") &&
+        this.jointHasForceLoads(node, context)
+      ) {
         this.drawJointPointForceSymbol(node, context, p);
       }
 
-      if (this.jointHasGroundDisplacementLoads(node)) {
+      if (
+        this.shouldDrawJointLoadDisplayType(context, "ground-displacement") &&
+        this.jointHasGroundDisplacementLoads(node, context)
+      ) {
         this.drawJointGroundDisplacementSymbol(node, context, p);
       }
 
-      if (this.jointHasTemperatureLoads(node)) {
+      if (
+        this.shouldDrawJointLoadDisplayType(context, "temperature") &&
+        this.jointHasTemperatureLoads(node, context)
+      ) {
         this.drawJointTemperatureSymbol(node, context, p);
       }
     }
@@ -1021,10 +1030,16 @@ export class DiseñoRenderer {
       ctx.fill();
     });
 
-    // Etiqueta simple para que el cliente vea qué tipo de área es
+    // Etiqueta del área: si tiene sección asignada, muestra su NOMBRE
+    // (p.ej. "Aligerado e=0.20"); si no, cae al tipo de área ("slab").
     if (!isPreview && pts.length >= 3) {
       const center = this.getProjectedPolygonCenter(pts);
-      const label = area.areaType || area.type || "area";
+      const label =
+        area.slabSection ||
+        area.section?.name ||
+        area.areaType ||
+        area.type ||
+        "area";
 
       ctx.font = "10px Arial";
       ctx.textAlign = "center";
@@ -2384,26 +2399,98 @@ export class DiseñoRenderer {
   getJointPointLoads(node) {
     if (!node) return [];
 
-    return (
-      node.pointLoads ||
-      node.jointLoads ||
-      node.assignment?.pointLoads ||
-      []
-    );
+    const rawLoads = [
+      ...(Array.isArray(node.pointLoads) ? node.pointLoads : []),
+      ...(Array.isArray(node.jointLoads) ? node.jointLoads : []),
+      ...(Array.isArray(node.assignment?.pointLoads) ? node.assignment.pointLoads : []),
+      ...(Array.isArray(node.assignment?.jointLoads) ? node.assignment.jointLoads : []),
+    ];
+
+    const seen = new Set();
+    const result = [];
+
+    rawLoads.forEach((load) => {
+      if (!load || typeof load !== "object") return;
+
+      const key =
+        load.id ||
+        [
+          load.type,
+          load.loadPattern || load.loadCase,
+          JSON.stringify(load.forces || {}),
+          JSON.stringify(load.displacements || {}),
+          JSON.stringify(load.temperature || {}),
+        ].join("|");
+
+      if (seen.has(key)) return;
+
+      seen.add(key);
+      result.push(load);
+    });
+
+    return result;
   }
 
-  getJointForceLoads(node) {
+  getActiveJointLoadPattern(context) {
+    return String(
+      context.displayOptions?.jointLoadPattern ||
+      context.displayOptions?.jointPointLoadPattern ||
+      context.options?.currentLoad ||
+      "CM"
+    ).trim();
+  }
+
+  getActiveJointLoadDisplayType(context) {
+    return String(
+      context.displayOptions?.jointLoadDisplayType ||
+      context.displayOptions?.jointLoadType ||
+      "force"
+    ).trim();
+  }
+
+  shouldDrawJointLoadDisplayType(context, type) {
+    const activeType = this.getActiveJointLoadDisplayType(context);
+
+    return activeType === "all" || activeType === type;
+  }
+
+  jointLoadMatchesPattern(load, context) {
+    const activePattern = this.getActiveJointLoadPattern(context);
+
+    if (!activePattern || activePattern === "ALL" || activePattern === "Todos") {
+      return true;
+    }
+
+    const loadPattern = String(load?.loadPattern || load?.loadCase || "CM").trim();
+
+    return loadPattern === activePattern;
+  }
+
+  getJointForceLoads(node, context = null) {
     return this.getJointPointLoads(node).filter((load) => {
-      return load?.type === "force" && load?.forces;
+      const hasForceData =
+        load?.forces ||
+        Number(load?.fx || 0) !== 0 ||
+        Number(load?.fy || 0) !== 0 ||
+        Number(load?.fz || 0) !== 0 ||
+        Number(load?.mxx || load?.mx || 0) !== 0 ||
+        Number(load?.myy || load?.my || 0) !== 0 ||
+        Number(load?.mzz || load?.mz || 0) !== 0;
+
+      return (
+        load?.type === "force" &&
+        hasForceData &&
+        (!context || this.jointLoadMatchesPattern(load, context))
+      );
     });
   }
 
-  jointHasForceLoads(node) {
-    return this.getJointForceLoads(node).length > 0;
+  jointHasForceLoads(node, context = null) {
+    return this.getJointForceLoads(node, context).length > 0;
   }
 
-  getJointForceLoadLabel(node) {
-    const loads = this.getJointForceLoads(node);
+  getJointForceLoadLabel(node, context = null) {
+    const loads = this.getJointForceLoads(node, context);
 
     if (!loads.length) return "";
 
@@ -2456,7 +2543,7 @@ export class DiseñoRenderer {
     const x = screenPoint.x;
     const y = screenPoint.y;
 
-    const label = this.getJointForceLoadLabel(node);
+    const label = this.getJointForceLoadLabel(node, context);
 
     ctx.save();
 
@@ -2483,18 +2570,22 @@ export class DiseñoRenderer {
   // VISUAL ASSIGN > JOINT / POINT LOADS > GROUND DISPLACEMENT
   // =====================================================
 
-  getJointGroundDisplacementLoads(node) {
+  getJointGroundDisplacementLoads(node, context = null) {
     return this.getJointPointLoads(node).filter((load) => {
-      return load?.type === "ground-displacement" && load?.displacements;
+      return (
+        load?.type === "ground-displacement" &&
+        load?.displacements &&
+        (!context || this.jointLoadMatchesPattern(load, context))
+      );
     });
   }
 
-  jointHasGroundDisplacementLoads(node) {
-    return this.getJointGroundDisplacementLoads(node).length > 0;
+  jointHasGroundDisplacementLoads(node, context = null) {
+    return this.getJointGroundDisplacementLoads(node, context).length > 0;
   }
 
-  getJointGroundDisplacementLabel(node) {
-    const loads = this.getJointGroundDisplacementLoads(node);
+  getJointGroundDisplacementLabel(node, context = null) {
+    const loads = this.getJointGroundDisplacementLoads(node, context);
 
     if (!loads.length) return "";
 
@@ -2510,20 +2601,24 @@ export class DiseñoRenderer {
     if (Number(d.ry || 0) !== 0) parts.push(`RY=${d.ry}`);
     if (Number(d.rz || 0) !== 0) parts.push(`RZ=${d.rz}`);
 
-    const loadCase = load.loadCase || "LOAD";
+    if (!parts.length) return "";
+
+    const loadCase = load.loadPattern || load.loadCase || "LOAD";
 
     return `${loadCase}: ${parts.join(", ")}`;
   }
 
   drawJointGroundDisplacementSymbol(node, context, screenPoint) {
-    if (!this.jointHasGroundDisplacementLoads(node)) return;
+    if (!this.jointHasGroundDisplacementLoads(node, context)) return;
 
     const ctx = context.ctx;
 
     const x = screenPoint.x + 34;
     const y = screenPoint.y + 4;
 
-    const label = this.getJointGroundDisplacementLabel(node);
+    const label = this.getJointGroundDisplacementLabel(node, context);
+
+    if (!label) return;
 
     ctx.save();
 
@@ -2590,18 +2685,22 @@ export class DiseñoRenderer {
   // VISUAL ASSIGN > JOINT / POINT LOADS > TEMPERATURE
   // =====================================================
 
-  getJointTemperatureLoads(node) {
+  getJointTemperatureLoads(node, context = null) {
     return this.getJointPointLoads(node).filter((load) => {
-      return load?.type === "temperature" && load?.temperature;
+      return (
+        load?.type === "temperature" &&
+        load?.temperature &&
+        (!context || this.jointLoadMatchesPattern(load, context))
+      );
     });
   }
 
-  jointHasTemperatureLoads(node) {
-    return this.getJointTemperatureLoads(node).length > 0;
+  jointHasTemperatureLoads(node, context = null) {
+    return this.getJointTemperatureLoads(node, context).length > 0;
   }
 
-  getJointTemperatureLabel(node) {
-    const loads = this.getJointTemperatureLoads(node);
+  getJointTemperatureLabel(node, context = null) {
+    const loads = this.getJointTemperatureLoads(node, context);
 
     if (!loads.length) return "";
 
@@ -2622,7 +2721,7 @@ export class DiseñoRenderer {
     const x = screenPoint.x + 34;
     const y = screenPoint.y - 28;
 
-    const label = this.getJointTemperatureLabel(node);
+    const label = this.getJointTemperatureLabel(node, context);
 
     ctx.save();
 

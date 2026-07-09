@@ -545,25 +545,69 @@ export const viewFilterMixin = {
 
     if (!createdFrame) return;
 
+    // =====================================================
+    // DRAW 3D > POLILÍNEA CONTINUA (ESTILO ETABS)
+    // El nodo final se convierte en el nuevo nodo inicial para
+    // encadenar la siguiente barra sin volver a hacer clic en él.
+    // El clic derecho termina la polilínea (endFrame3DPolyline).
+    // =====================================================
     startNode.selected = false;
     startNode.isSelected = false;
 
-    endNode.selected = false;
-    endNode.isSelected = false;
+    endNode.selected = true;
+    endNode.isSelected = true;
+
+    this.frame3DStartNode = endNode;
+    this.frame3DStartWorkPlane = {
+      ...this.frame3DEndWorkPlane,
+    };
+
+    this.frame3DEndNode = null;
+    this.frame3DEndWorkPlane = null;
+
+    // La herramienta sigue activa: el próximo clic cierra el siguiente tramo.
+    this.isDrawingFrame3D = true;
+
+    this.showMessage?.(
+      "Barra creada. Continúe la polilínea con otro nodo o haga clic derecho para terminar.",
+    );
+
+    console.log("✅ Tramo 3D creado (polilínea continua):", {
+      frameId: createdFrame.id,
+      nuevoNodoInicial: endNode.id,
+    });
+
+    this.redraw?.();
+    this.sync3D?.();
+  },
+
+  // =====================================================
+  // DRAW 3D > TERMINAR POLILÍNEA (CLIC DERECHO)
+  // Cierra la cadena actual pero MANTIENE la herramienta de barra
+  // activa, para poder empezar una polilínea nueva en otro nodo.
+  // =====================================================
+  endFrame3DPolyline() {
+    const hadChain = Boolean(this.frame3DStartNode);
+
+    if (this.frame3DStartNode) {
+      this.frame3DStartNode.selected = false;
+      this.frame3DStartNode.isSelected = false;
+    }
 
     this.frame3DStartNode = null;
     this.frame3DEndNode = null;
     this.frame3DStartWorkPlane = null;
     this.frame3DEndWorkPlane = null;
 
-    // La herramienta sigue activa para dibujar otra barra.
+    // La herramienta sigue activa: se puede iniciar otra polilínea.
     this.isDrawingFrame3D = false;
 
-    this.showMessage?.("Barra diagonal 3D creada correctamente.");
-
-    console.log("✅ Draw Frame 3D diagonal finalizado:", {
-      frameId: createdFrame.id,
-    });
+    if (hadChain) {
+      this.showMessage?.(
+        "Polilínea terminada. Seleccione otro nodo para empezar una nueva.",
+      );
+      console.log("🟦 Polilínea 3D terminada (clic derecho).");
+    }
 
     this.redraw?.();
     this.sync3D?.();
