@@ -1,3 +1,19 @@
+import sys
+import os
+
+# Forzar salida UTF-8 en Windows para evitar errores con emojis o caracteres especiales
+# cuando el backend se ejecuta como .exe, tarea programada o con logs redirigidos.
+try:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
+os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+os.environ.setdefault("PYTHONUTF8", "1")
+
 from waitress import serve
 from app import app
 

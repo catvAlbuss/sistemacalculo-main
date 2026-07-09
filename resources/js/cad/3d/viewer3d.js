@@ -2550,6 +2550,778 @@ function drawReactionsIn3D(context) {
 }
 
 // =====================================================
+// JLF-09C — 3D DRAW > JOINT / POINT LOADS TIPO ETABS
+// Lee cargas nuevas desde:
+// node.pointLoads / node.jointLoads / node.assignment.pointLoads
+// =====================================================
+
+function formatJointLoadNumber3D(value, decimals = 3) {
+  const number = Number(value || 0);
+
+  if (!Number.isFinite(number)) return "0";
+
+  return String(Number(number.toFixed(decimals)));
+}
+
+function getActiveJointLoadPattern3D(context) {
+  return String(
+    context.displayOptions?.jointLoadPattern ||
+    context.displayOptions?.jointPointLoadPattern ||
+    context.options?.currentLoad ||
+    "CM"
+  ).trim();
+}
+
+function getJointPointLoads3D(node) {
+  if (!node) return [];
+
+  const rawLoads = [
+    ...(Array.isArray(node.pointLoads) ? node.pointLoads : []),
+    ...(Array.isArray(node.jointLoads) ? node.jointLoads : []),
+    ...(Array.isArray(node.assignment?.pointLoads) ? node.assignment.pointLoads : []),
+    ...(Array.isArray(node.assignment?.jointLoads) ? node.assignment.jointLoads : []),
+  ];
+
+  const seen = new Set();
+  const result = [];
+
+  rawLoads.forEach((load) => {
+    if (!load || typeof load !== "object") return;
+
+    const key =
+      load.id ||
+      [
+        load.type,
+        load.loadPattern || load.loadCase,
+        JSON.stringify(load.forces || {}),
+        JSON.stringify(load.displacements || {}),
+        JSON.stringify(load.temperature || {}),
+      ].join("|");
+
+    if (seen.has(key)) return;
+
+    seen.add(key);
+    result.push(load);
+  });
+
+  return result;
+}
+
+function getActiveJointLoadDisplayType3D(context) {
+  return String(
+    context.displayOptions?.jointLoadDisplayType ||
+    context.displayOptions?.jointLoadType ||
+    "force"
+  ).trim();
+}
+
+function shouldShowJointLoad3D(load, activePattern, activeType = "force") {
+  if (!load) return false;
+
+  const pattern = String(load.loadPattern || load.loadCase || "CM").trim();
+
+  const patternMatches =
+    !activePattern ||
+    activePattern === "ALL" ||
+    activePattern === "Todos" ||
+    pattern === activePattern;
+
+  const typeMatches =
+    activeType === "all" ||
+    String(load.type || "") === String(activeType);
+
+  return patternMatches && typeMatches;
+}
+
+function getJointForceComponents3D(load) {
+  const f = load?.forces || {};
+
+  return {
+    fx: Number(load.fx ?? f.fx ?? 0) || 0,
+    fy: Number(load.fy ?? f.fy ?? 0) || 0,
+    fz: Number(load.fz ?? f.fz ?? 0) || 0,
+
+    mxx: Number(load.mxx ?? load.mx ?? f.mx ?? 0) || 0,
+    myy: Number(load.myy ?? load.my ?? f.my ?? 0) || 0,
+    mzz: Number(load.mzz ?? load.mz ?? f.mz ?? 0) || 0,
+  };
+}
+
+function getJointForceLabel3D(load) {
+  const c = getJointForceComponents3D(load);
+  const pattern = load.loadPattern || load.loadCase || "CM";
+
+  const parts = [];
+
+  if (Math.abs(c.fx) > 1e-9) parts.push(`FX=${formatJointLoadNumber3D(c.fx, 2)}`);
+  if (Math.abs(c.fy) > 1e-9) parts.push(`FY=${formatJointLoadNumber3D(c.fy, 2)}`);
+  if (Math.abs(c.fz) > 1e-9) parts.push(`FZ=${formatJointLoadNumber3D(c.fz, 2)}`);
+
+  if (Math.abs(c.mxx) > 1e-9) parts.push(`MXX=${formatJointLoadNumber3D(c.mxx, 2)}`);
+  if (Math.abs(c.myy) > 1e-9) parts.push(`MYY=${formatJointLoadNumber3D(c.myy, 2)}`);
+  if (Math.abs(c.mzz) > 1e-9) parts.push(`MZZ=${formatJointLoadNumber3D(c.mzz, 2)}`);
+
+  if (!parts.length) return "";
+
+  const shortParts = parts.length > 4 ? `${parts.slice(0, 4).join(" ")} ...` : parts.join(" ");
+
+  return `${pattern}: ${shortParts}`;
+}
+
+function getJointDisplacementLabel3D(load) {
+  const d = load?.displacements || {};
+  const pattern = load.loadPattern || load.loadCase || "CM";
+
+  const parts = [];
+
+  if (Math.abs(Number(d.ux || 0)) > 1e-9) parts.push(`UX=${formatJointLoadNumber3D(d.ux, 4)}`);
+  if (Math.abs(Number(d.uy || 0)) > 1e-9) parts.push(`UY=${formatJointLoadNumber3D(d.uy, 4)}`);
+  if (Math.abs(Number(d.uz || 0)) > 1e-9) parts.push(`UZ=${formatJointLoadNumber3D(d.uz, 4)}`);
+
+  if (Math.abs(Number(d.rx || 0)) > 1e-9) parts.push(`RX=${formatJointLoadNumber3D(d.rx, 4)}`);
+  if (Math.abs(Number(d.ry || 0)) > 1e-9) parts.push(`RY=${formatJointLoadNumber3D(d.ry, 4)}`);
+  if (Math.abs(Number(d.rz || 0)) > 1e-9) parts.push(`RZ=${formatJointLoadNumber3D(d.rz, 4)}`);
+
+  if (!parts.length) return "";
+
+  const shortParts = parts.length > 4 ? `${parts.slice(0, 4).join(" ")} ...` : parts.join(" ");
+
+  return `${pattern}: ${shortParts}`;
+}
+
+function getJointTemperatureLabel3D(load) {
+  const t = load?.temperature || {};
+  const pattern = load.loadPattern || load.loadCase || "CM";
+
+  const value = Number(t.value ?? t.deltaT ?? 0) || 0;
+
+  if (Math.abs(value) < 1e-9) return "";
+
+  return `${pattern}: ΔT=${formatJointLoadNumber3D(value, 2)}°C`;
+}
+
+function getArrowVisualLength3D(magnitude, scale = 0.08, maxLength = 1.2) {
+  let length = Math.min(Math.abs(Number(magnitude || 0)) * scale, maxLength);
+
+  if (length < 0.2) length = 0.2;
+
+  return length;
+}
+
+function createJointLoadMarker3D(name, position, color, diameter = 0.16) {
+  const scene = VIEWER_STATE.scene;
+
+  if (!scene) return null;
+
+  const marker = BABYLON.MeshBuilder.CreateSphere(
+    `${name}_${Date.now()}_${Math.random()}`,
+    {
+      diameter,
+      segments: 12,
+    },
+    scene
+  );
+
+  const mat = createColoredMaterial(`${name}_mat_${Date.now()}`, color, scene);
+
+  marker.position = position;
+  marker.material = mat;
+  marker.isPickable = false;
+  marker.metadata = {
+    type: "jointLoad3D",
+    objectType: "jointLoad3D",
+  };
+
+  VIEWER_STATE.elements.push(marker);
+
+  return marker;
+}
+
+function createJointLoadLabel3D(text, position, color, size = 0.42) {
+  if (!text) return null;
+
+  return createLabel3D(text, position, color, size);
+}
+
+function drawJointForceLoad3D(node, load, context, loadIndex = 0) {
+  const c = getJointForceComponents3D(load);
+
+  // Force Global X/Y/Z: rojo
+  const forceColor = new BABYLON.Color3(1.0, 0.12, 0.12);
+
+  // Moment Global XX/YY/ZZ: naranja
+  const momentColor = new BABYLON.Color3(1.0, 0.45, 0.15);
+
+  const base = getNodePosition3D(node, context);
+
+  const forceClearance = 0.20;
+  const momentClearance = 0.24;
+
+  // =====================================================
+  // Force 3D > Fuerzas FX / FY / FZ
+  // Estilo ETABS: flechas limpias casi pegadas al nodo.
+  // Sin valores flotantes; los valores irán en Show Tables.
+  // =====================================================
+
+  if (Math.abs(c.fx) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_load_fx",
+      nodePosition: base,
+
+      // Force Global X -> eje X Babylon
+      direction: new BABYLON.Vector3(1, 0, 0),
+      value: c.fx,
+      color: forceColor,
+
+      labelText: "",
+
+      endOffset: new BABYLON.Vector3(0, 0.10 + loadIndex * 0.04, 0),
+      nodeClearance: 0.20,
+
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  if (Math.abs(c.fy) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_load_fy",
+      nodePosition: base,
+
+      // Force Global Y estructural -> eje Z Babylon
+      direction: new BABYLON.Vector3(0, 0, 1),
+      value: c.fy,
+      color: forceColor,
+
+      labelText: "",
+
+      endOffset: new BABYLON.Vector3(0.10, 0.10 + loadIndex * 0.04, 0),
+      nodeClearance: 0.20,
+
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  if (Math.abs(c.fz) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_load_fz",
+      nodePosition: base,
+
+      // Force Global Z estructural -> eje Y Babylon
+      direction: new BABYLON.Vector3(0, 1, 0),
+      value: c.fz,
+      color: forceColor,
+
+      labelText: "",
+
+      endOffset: new BABYLON.Vector3(-0.10, 0, 0.10),
+      nodeClearance: 0.20,
+
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  // =====================================================
+  // Force 3D > Momentos MXX / MYY / MZZ
+  // Usamos misma configuración limpia que Ground Displacement.
+  // Sin bolitas ni etiquetas flotantes.
+  // =====================================================
+
+  const yBase = 0.16 + loadIndex * 0.08;
+
+  if (Math.abs(c.mxx) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_moment_mxx",
+      nodePosition: base,
+
+      // Moment Global XX -> eje X Babylon
+      direction: new BABYLON.Vector3(1, 0, 0),
+      value: c.mxx,
+      color: momentColor,
+
+      labelText: "",
+
+      endOffset: new BABYLON.Vector3(0, yBase + 0.08, 0.18),
+      nodeClearance: 0.20,
+
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  if (Math.abs(c.myy) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_moment_myy",
+      nodePosition: base,
+
+      // Moment Global YY estructural -> eje Z Babylon
+      direction: new BABYLON.Vector3(0, 0, 1),
+      value: c.myy,
+      color: momentColor,
+
+      labelText: "",
+
+      endOffset: new BABYLON.Vector3(0.18, yBase + 0.10, 0),
+      nodeClearance: 0.20,
+
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  if (Math.abs(c.mzz) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_moment_mzz",
+      nodePosition: base,
+
+      // Moment Global ZZ estructural -> eje Y Babylon
+      direction: new BABYLON.Vector3(0, 1, 0),
+      value: c.mzz,
+      color: momentColor,
+
+      labelText: "",
+
+      endOffset: new BABYLON.Vector3(-0.16, 0, 0.16),
+      nodeClearance: 0.20,
+
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+}
+
+function createEtabsJointArrowToNode3D({
+  name = "joint_disp_translation_arrow",
+  nodePosition,
+  direction,
+  value,
+  color,
+  labelText = "",
+  labelOffset = new BABYLON.Vector3(0.25, 0.25, 0.25),
+
+  // Configuración visual tipo ETABS
+  length = 1.05,
+  nodeClearance = 0.18,
+  endOffset = new BABYLON.Vector3(0, 0, 0),
+
+  // Grosor actual: lo mantenemos porque ya se ve bien
+  shaftRadius = 0.026,
+  headRadius = 0.075,
+  headLength = 0.22,
+}) {
+  const scene = VIEWER_STATE.scene;
+
+  if (!scene || !nodePosition || !direction) return null;
+
+  const sign = Math.sign(Number(value || 0)) || 1;
+  const dir = direction.clone().scale(sign).normalize();
+
+  // ETABS-like:
+  // La punta llega casi al nodo, pero no exactamente encima,
+  // para evitar que la esfera del nodo tape la flecha.
+  const arrowEnd = nodePosition
+    .clone()
+    .add(endOffset)
+    .subtract(dir.clone().scale(nodeClearance));
+
+  const arrowStart = arrowEnd.subtract(dir.clone().scale(length));
+
+  const shaftLength = Math.max(length - headLength, 0.15);
+  const shaftCenter = arrowStart.add(dir.clone().scale(shaftLength / 2));
+
+  const shaft = BABYLON.MeshBuilder.CreateCylinder(
+    `${name}_shaft_${Date.now()}_${Math.random()}`,
+    {
+      height: shaftLength,
+      diameter: shaftRadius * 2,
+      tessellation: 12,
+    },
+    scene
+  );
+
+  shaft.position = shaftCenter;
+  shaft.rotation = getRotationBetweenVectors(new BABYLON.Vector3(0, 1, 0), dir);
+  shaft.material = createColoredMaterial(`${name}_shaft_mat_${Date.now()}`, color, scene);
+  shaft.isPickable = false;
+  shaft.metadata = {
+    type: "jointLoad3D",
+    objectType: "jointLoad3D",
+  };
+
+  const head = BABYLON.MeshBuilder.CreateCylinder(
+    `${name}_head_${Date.now()}_${Math.random()}`,
+    {
+      height: headLength,
+      diameterTop: 0,
+      diameterBottom: headRadius * 2,
+      tessellation: 16,
+    },
+    scene
+  );
+
+  head.position = arrowEnd.subtract(dir.clone().scale(headLength / 2));
+  head.rotation = getRotationBetweenVectors(new BABYLON.Vector3(0, 1, 0), dir);
+  head.material = createColoredMaterial(`${name}_head_mat_${Date.now()}`, color, scene);
+  head.isPickable = false;
+  head.metadata = {
+    type: "jointLoad3D",
+    objectType: "jointLoad3D",
+  };
+
+  VIEWER_STATE.elements.push(shaft, head);
+
+  if (labelText) {
+    createEtabsJointValueLabel3D(
+      labelText,
+      arrowStart.add(labelOffset),
+      color,
+      0.30
+    );
+  }
+
+  return {
+    shaft,
+    head,
+  };
+}
+
+function drawJointGroundDisplacementLoad3D(node, load, context, loadIndex = 0) {
+  const d = load?.displacements || {};
+  const dispColor = new BABYLON.Color3(0.66, 0.33, 0.95);
+
+  const base = getNodePosition3D(node, context);
+
+  const ux = Number(d.ux || 0);
+  const uy = Number(d.uy || 0);
+  const uz = Number(d.uz || 0);
+
+  const rx = Number(d.rx || 0);
+  const ry = Number(d.ry || 0);
+  const rz = Number(d.rz || 0);
+
+  // =====================================================
+  // Ground Displacement 3D > Traslaciones UX / UY / UZ
+  // Estilo ETABS: flecha con punta llegando al nodo.
+  // =====================================================
+
+  if (Math.abs(ux) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_disp_ux",
+      nodePosition: base,
+
+      // Translation X -> eje X global
+      direction: new BABYLON.Vector3(1, 0, 0),
+      value: ux,
+      color: dispColor,
+      labelText: "",
+
+      // Separación pequeña para no taparse con el nodo
+      endOffset: new BABYLON.Vector3(0, 0.10, 0),
+      nodeClearance: 0.20,
+
+      labelOffset: new BABYLON.Vector3(-0.10, 0.16, 0),
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  if (Math.abs(uy) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_disp_uy",
+      nodePosition: base,
+
+      // Translation Y estructural -> eje Z en Babylon
+      direction: new BABYLON.Vector3(0, 0, 1),
+      value: uy,
+      color: dispColor,
+      labelText: "",
+
+      // Separación lateral pequeña para distinguirla de UX
+      endOffset: new BABYLON.Vector3(0.10, 0.10, 0),
+      nodeClearance: 0.20,
+
+      labelOffset: new BABYLON.Vector3(0.10, 0.16, -0.10),
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  if (Math.abs(uz) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_disp_uz",
+      nodePosition: base,
+
+      // Translation Z estructural -> eje Y en Babylon
+      direction: new BABYLON.Vector3(0, 1, 0),
+      value: uz,
+      color: dispColor,
+      labelText: "",
+
+      // Se separa un poco para que no quede dentro de la esfera del nodo
+      endOffset: new BABYLON.Vector3(-0.10, 0, 0.10),
+      nodeClearance: 0.20,
+
+      labelOffset: new BABYLON.Vector3(0.12, 0.12, 0.12),
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  // =====================================================
+  // Ground Displacement 3D > Rotaciones RX / RY / RZ
+  // ETABS normalmente no las dibuja igual que una fuerza lineal.
+  // Por eso usamos marcadores circulares alrededor del nodo.
+  // =====================================================
+  const rotationParts = [];
+
+  if (Math.abs(rx) > 1e-9) rotationParts.push(`RX=${formatJointLoadNumber3D(rx, 4)}`);
+  if (Math.abs(ry) > 1e-9) rotationParts.push(`RY=${formatJointLoadNumber3D(ry, 4)}`);
+  if (Math.abs(rz) > 1e-9) rotationParts.push(`RZ=${formatJointLoadNumber3D(rz, 4)}`);
+
+  if (rotationParts.length) {
+    drawJointGroundRotationMarkers3D(
+      base,
+      {
+        rx,
+        ry,
+        rz,
+      },
+      dispColor,
+      loadIndex
+    );
+  }
+
+  // Marcador general D
+  // createJointLoadMarker3D(
+  //   "joint_disp_marker",
+  //   base.add(new BABYLON.Vector3(-0.32, 0.32 + loadIndex * 0.22, 0.22)),
+  //   dispColor,
+  //   0.18
+  // );
+
+  // JLF-09D — Label flotante 3D desactivado.
+  // Los valores detallados se mostrarán después en Display / Show Tables.
+  // En 3D dejamos solo flechas limpias tipo ETABS.
+}
+
+function createEtabsJointValueLabel3D(text, position, color, size = 0.28) {
+  const scene = VIEWER_STATE.scene;
+
+  if (!scene || !text) return null;
+
+  const texture = new BABYLON.DynamicTexture(
+    `joint_value_label_${Date.now()}_${Math.random()}`,
+    { width: 128, height: 64 },
+    scene,
+    false
+  );
+
+  texture.hasAlpha = true;
+
+  const ctx = texture.getContext();
+  ctx.clearRect(0, 0, 128, 64);
+
+  ctx.font = "bold 26px Arial";
+  ctx.fillStyle = `rgba(${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)}, 1)`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(String(text), 64, 32);
+
+  texture.update();
+
+  const mat = new BABYLON.StandardMaterial(
+    `joint_value_label_mat_${Date.now()}_${Math.random()}`,
+    scene
+  );
+
+  mat.diffuseTexture = texture;
+  mat.emissiveTexture = texture;
+  mat.opacityTexture = texture;
+  mat.backFaceCulling = false;
+  mat.disableLighting = true;
+
+  const plane = BABYLON.MeshBuilder.CreatePlane(
+    `joint_value_label_plane_${Date.now()}_${Math.random()}`,
+    {
+      width: size * 1.2,
+      height: size * 0.55,
+    },
+    scene
+  );
+
+  plane.material = mat;
+  plane.position = position;
+  plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+  plane.isPickable = false;
+
+  plane.metadata = {
+    type: "jointLoad3D",
+    objectType: "jointLoad3D",
+  };
+
+  VIEWER_STATE.elements.push(plane);
+
+  return plane;
+}
+
+function drawJointGroundRotationMarkers3D(base, rotations, color, loadIndex = 0) {
+  const scene = VIEWER_STATE.scene;
+
+  if (!scene || !base) return;
+
+  const rx = Number(rotations.rx || 0);
+  const ry = Number(rotations.ry || 0);
+  const rz = Number(rotations.rz || 0);
+
+  const rotationColor = color || new BABYLON.Color3(0.66, 0.33, 0.95);
+
+  // Pequeño desplazamiento vertical para que no se tape con la esfera del nodo.
+  const yBase = 0.16 + loadIndex * 0.08;
+
+  // =====================================================
+  // RX — Rotation about XX
+  // Eje X estructural -> eje X Babylon
+  // =====================================================
+  if (Math.abs(rx) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_disp_rx",
+      nodePosition: base,
+
+      direction: new BABYLON.Vector3(1, 0, 0),
+      value: rx,
+      color: rotationColor,
+
+      // Sin texto flotante en 3D.
+      labelText: "",
+
+      // Casi pegada al nodo, pero sin taparse.
+      endOffset: new BABYLON.Vector3(0, yBase + 0.08, 0.18),
+      nodeClearance: 0.20,
+
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  // =====================================================
+  // RY — Rotation about YY
+  // Eje Y estructural -> eje Z Babylon
+  // =====================================================
+  if (Math.abs(ry) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_disp_ry",
+      nodePosition: base,
+
+      direction: new BABYLON.Vector3(0, 0, 1),
+      value: ry,
+      color: rotationColor,
+
+      // Sin texto flotante en 3D.
+      labelText: "",
+
+      // Desplazamiento lateral mínimo para distinguirla de RX.
+      endOffset: new BABYLON.Vector3(0.18, yBase + 0.10, 0),
+      nodeClearance: 0.20,
+
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  // =====================================================
+  // RZ — Rotation about ZZ
+  // Eje Z estructural -> eje Y Babylon
+  // =====================================================
+  if (Math.abs(rz) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_disp_rz",
+      nodePosition: base,
+
+      direction: new BABYLON.Vector3(0, 1, 0),
+      value: rz,
+      color: rotationColor,
+
+      // Sin texto flotante en 3D.
+      labelText: "",
+
+      // Separación mínima para que la flecha vertical no quede dentro del nodo.
+      endOffset: new BABYLON.Vector3(-0.16, 0, 0.16),
+      nodeClearance: 0.20,
+
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+}
+
+function drawJointTemperatureLoad3D(node, load, context, loadIndex = 0) {
+  // JLF-09D — Temperature 3D desactivado.
+  // Temperature no es una carga vectorial, por eso no se dibuja con flechas.
+  // Sus valores se mostrarán después en Display / Show Tables.
+  return;
+}
+
+function drawJointPointLoadsIn3D(context) {
+  if (!context.displayOptions?.showJointLoads) return;
+
+  const nodes = context.nodes || [];
+  const activePattern = getActiveJointLoadPattern3D(context);
+  const activeType = getActiveJointLoadDisplayType3D(context);
+
+  nodes.forEach((node) => {
+    if (!node?.position) return;
+
+    const loads = getJointPointLoads3D(node).filter((load) => {
+      return shouldShowJointLoad3D(load, activePattern, activeType);
+    });
+
+    if (!loads.length) return;
+
+    loads.forEach((load, index) => {
+      if (load.type === "force") {
+        drawJointForceLoad3D(node, load, context, index);
+        return;
+      }
+
+      if (load.type === "ground-displacement") {
+        drawJointGroundDisplacementLoad3D(node, load, context, index);
+        return;
+      }
+
+      if (load.type === "temperature") {
+        drawJointTemperatureLoad3D(node, load, context, index);
+      }
+    });
+  });
+}
+
+// =====================================================
 // DIBUJAR MODELO COMPLETO EN EL 3D
 // Envía también el context para que renderModel3D pueda
 // reconocer barras seleccionadas y barras 3D-only.
@@ -2650,12 +3422,19 @@ export function drawIn3D(context, updateOnly = false) {
   // Dibujar apoyos siempre (no tienen toggle)
   drawSupportsIn3D(context);
 
-  // Dibujar cargas solo si showForces está activo
+  // Dibujar cargas legacy solo si showForces está activo.
+  // Estas vienen de node.force.loads[currentLoad].
   if (context.options?.showForces) {
     drawForcesIn3D(context);
   }
 
-  // Dibujar reacciones solo si showReactions está activo
+  // JLF-09C — Dibujar Assign > Joint / Point Loads tipo ETABS.
+  // Estas vienen de node.pointLoads / node.jointLoads.
+  if (context.displayOptions?.showJointLoads) {
+    drawJointPointLoadsIn3D(context);
+  }
+
+  // Dibujar reacciones solo si showReactions está activo.
   if (context.options?.showReactions) {
     drawReactionsIn3D(context);
   }
@@ -2795,7 +3574,17 @@ function clearModelElements(keepLabels = false) {
   try {
     const modelTypes = new Set(["node", "beam", "frame", "line", "area", "slab", "wall", "opening"]);
     // Prefijos de las mallas de fuerzas y reacciones (excluyendo etiquetas)
-    const forcePrefixes = ["force_shaft_", "force_head_", "support_"];
+    const forcePrefixes = [
+      "force_shaft_",
+      "force_head_",
+      "support_",
+
+      // JLF-09C — Joint / Point Loads 3D
+      "joint_load_",
+      "joint_disp_",
+      "joint_temp_",
+      "joint_moment_",
+    ];
 
     // Las etiquetas solo se eliminan si keepLabels es false
     const labelPrefixes = keepLabels ? [] : ["label_plane_"];

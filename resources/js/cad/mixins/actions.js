@@ -642,6 +642,10 @@ export const actionsMixin = {
         this.showMessage?.(`Acción Display no reconocida: ${action}`, "warning");
         console.warn("Acción Display no reconocida:", action);
         break;
+
+      case "show-tables":
+        this.openShowTablesDialog?.();
+        break;
     }
   },
 
