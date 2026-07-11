@@ -1629,19 +1629,37 @@ export const seismicMixin = {
       0
     );
 
+    // Conversión de unidades → SI (N, N·m) para el motor. Las cargas nodales
+    // (joint forces) se guardan en la unidad de display declarada (p.ej. tonf);
+    // el payload y el backend trabajan en Newtons (masa = abs(fz)·factor / g).
+    // Si la carga no declara unidad, se asume ya en SI y no se convierte.
+    const FORCE_TO_N = { tonf: 9806.65, tf: 9806.65, ton: 9806.65, kgf: 9.80665, kg: 9.80665, n: 1, newton: 1 };
+    const declaredForceUnit = String(rawLoad.units?.force || rawLoad.forceUnit || "").toLowerCase().trim();
+    const fFactor = FORCE_TO_N[declaredForceUnit] || 1;
+
+    const fxSI = (Number.isFinite(fx) ? fx : 0) * fFactor;
+    const fySI = (Number.isFinite(fy) ? fy : 0) * fFactor;
+    const fzSI = (Number.isFinite(fz) ? fz : 0) * fFactor;
+    const mxSI = (Number.isFinite(mx) ? mx : 0) * fFactor; // tonf-m → N·m (longitud en m)
+    const mySI = (Number.isFinite(my) ? my : 0) * fFactor;
+    const mzSI = (Number.isFinite(mz) ? mz : 0) * fFactor;
+
     return {
       id: rawLoad.id || `LOAD_${nodeId || "N"}_${index + 1}`,
 
       node: nodeId,
       nodeId,
 
-      fx: Number.isFinite(fx) ? fx : 0,
-      fy: Number.isFinite(fy) ? fy : 0,
-      fz: Number.isFinite(fz) ? fz : 0,
+      fx: fxSI,
+      fy: fySI,
+      fz: fzSI,
 
-      mx: Number.isFinite(mx) ? mx : 0,
-      my: Number.isFinite(my) ? my : 0,
-      mz: Number.isFinite(mz) ? mz : 0,
+      mx: mxSI,
+      my: mySI,
+      mz: mzSI,
+
+      // Unidad original conservada por trazabilidad.
+      sourceForceUnit: declaredForceUnit || "SI",
 
       loadCase: patternName,
       load_case: patternName,

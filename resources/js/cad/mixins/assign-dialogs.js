@@ -739,26 +739,49 @@ export const assignDialogsMixin = {
   // =====================================================
 
   getSelectedJointsForAssign() {
-    const selectedObjects = this.getSelectedObjects?.() || [];
-
-    return selectedObjects.filter((obj) => {
+    const isJoint = (obj) => {
       if (!obj) return false;
+      if (obj.node1 && obj.node2) return false; // es un frame, no un nodo
 
       const type = String(obj.objectType || obj.type || obj.elementType || obj.constructor?.name || "").toLowerCase();
 
-      const hasPosition = !!obj.position;
-      const isFrame = obj.node1 && obj.node2;
-
       return (
-        !isFrame &&
-        (hasPosition ||
-          obj.isNode === true ||
-          type === "node" ||
-          type === "structuralnode" ||
-          type === "joint" ||
-          type === "point")
+        !!obj.position ||
+        obj.isNode === true ||
+        type === "node" ||
+        type === "structuralnode" ||
+        type === "joint" ||
+        type === "point"
       );
+    };
+
+    // La asignación NO debe depender de la vista 2D activa: los nodos se
+    // seleccionan en 2D o 3D y pueden ser de varios pisos, y getSelectedObjects()
+    // filtra por vista activa (respectActiveView:true), descartándolos. Se toma
+    // la selección de edición SIN ese filtro + el estado propio de nodos.
+    const sources = [];
+
+    if (typeof this.getEditSelectedObjects === "function") {
+      sources.push(...this.getEditSelectedObjects({ respectActiveView: false }));
+    } else {
+      sources.push(...(this.getSelectedObjects?.() || []));
+    }
+
+    sources.push(...(this.selectedNodesState?.selectedObjects || []));
+    sources.push(...(this.selectedNodesState?.selectedNodes || []));
+
+    const result = [];
+    const seen = new Set();
+
+    sources.forEach((n) => {
+      if (!isJoint(n)) return;
+      const key = n.id != null ? String(n.id) : n;
+      if (seen.has(key)) return;
+      seen.add(key);
+      result.push(n);
     });
+
+    return result;
   },
 
   getJointRestraintPreset(preset = "fixed") {

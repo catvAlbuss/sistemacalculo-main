@@ -618,6 +618,15 @@ export const referenceGridMixin = {
     if (!point) return "";
 
     switch (point.source) {
+      case "frame-line":
+        return point.label || "Line";
+
+      case "model-node":
+        return point.label || "Point";
+
+      case "grid-line":
+        return point.label || "Grid";
+
       case "general-grid-intersection":
         return `Intersection ${point.gridId} × ${point.baseGridId}`;
 
@@ -724,6 +733,151 @@ export const referenceGridMixin = {
     return best;
   },
 
+  // Snap sobre la LÍNEA de una viga (frame horizontal) en planta, estilo ETABS:
+  // proyecta el cursor sobre el eje de la viga y guarda la distancia desde el
+  // extremo I (node1) para dibujar la cota. Las columnas (verticales) son puntos
+  // en planta y no entran aquí (se cubren con el snap a nodo).
+  getNearestPlanFrameSnap(mouseWorld, mouseScreen) {
+    const shapes = this.shapes || [];
+    if (!shapes.length) return null;
+
+    const planZ = this.getActivePlanElevation?.() ?? 0;
+    const EPS = 1e-3;
+    let best = null;
+
+    shapes.forEach((f) => {
+      const n1 = f?.node1?.position;
+      const n2 = f?.node2?.position;
+      if (!n1 || !n2) return;
+
+      const z1 = Number(n1.z || 0);
+      const z2 = Number(n2.z || 0);
+      // Solo vigas horizontales del plano activo (se ven como línea en planta).
+      if (Math.abs(z1 - z2) > EPS) return;
+      if (Math.abs(z1 - planZ) > EPS) return;
+
+      const Lxy = Math.hypot(n2.x - n1.x, n2.y - n1.y);
+      if (Lxy < EPS) return; // columna u objeto puntual en planta
+
+      const cp = this.closestPointOnSegment(mouseWorld.x, mouseWorld.y, n1.x, n1.y, n2.x, n2.y);
+      const sp = this.grid.worldToScreen({ x: cp.x, y: cp.y });
+      const d = Math.hypot(mouseScreen.x - sp.x, mouseScreen.y - sp.y);
+
+      if (best === null || d < best.screenDistance) {
+        // Cota desde el NODO MÁS CERCANO de la viga (si estás más cerca del
+        // extremo A, mide desde A; si no, desde B).
+        const nearNode = cp.t < 0.5 ? n1 : n2;
+        const distFromNear = (cp.t < 0.5 ? cp.t : 1 - cp.t) * Lxy;
+
+        best = {
+          x: cp.x,
+          y: cp.y,
+          z: planZ,
+          label: "Line",
+          source: "frame-line",
+          frameId: f.id,
+          screenDistance: d,
+          dimension: {
+            fromX: nearNode.x,
+            fromY: nearNode.y,
+            toX: cp.x,
+            toY: cp.y,
+            value: distFromNear,
+          },
+        };
+      }
+    });
+
+    if (!best) return null;
+    if (best.screenDistance > this.planGridSnapScreenTolerance) return null;
+    return best;
+  },
+
+  // Snap sobre una LÍNEA de grid (eje/columna) en planta, con cota desde la
+  // intersección de grid más cercana ("Column Line Extension" de ETABS).
+  getNearestPlanGridLineSnap(mouseWorld, mouseScreen) {
+    const ref = this.referenceGrid;
+    if (!ref) return null;
+
+    const xs = Array.isArray(ref.xPositions) ? ref.xPositions : [];
+    const ys = Array.isArray(ref.yPositions) ? ref.yPositions : [];
+    if (!xs.length || !ys.length) return null;
+
+    const planZ = this.getActivePlanElevation?.() ?? 0;
+    const tol = this.planGridSnapScreenTolerance;
+
+    const nx = this.getNearestValueWithIndex(xs, mouseWorld.x);
+    const ny = this.getNearestValueWithIndex(ys, mouseWorld.y);
+    if (!nx || !ny) return null;
+
+    // Distancia en pantalla a la línea vertical (x=nx) y a la horizontal (y=ny).
+    const spV = this.grid.worldToScreen({ x: nx.value, y: mouseWorld.y });
+    const spH = this.grid.worldToScreen({ x: mouseWorld.x, y: ny.value });
+    const dV = Math.abs(mouseScreen.x - spV.x);
+    const dH = Math.abs(mouseScreen.y - spH.y);
+
+    let best = null;
+
+    if (dV <= dH && dV <= tol) {
+      // Línea VERTICAL: x fijo; cota vertical desde la intersección (nx, ny).
+      const value = Math.abs(mouseWorld.y - ny.value);
+      if (value < 0.05) return null; // en la intersección → lo maneja el snap de punto
+      best = {
+        x: nx.value, y: mouseWorld.y, z: planZ,
+        label: `Grid ${ref.xLabels?.[nx.index] ?? nx.index + 1}`,
+        source: "grid-line", screenDistance: dV,
+        dimension: { fromX: nx.value, fromY: ny.value, toX: nx.value, toY: mouseWorld.y, value },
+      };
+    } else if (dH <= tol) {
+      // Línea HORIZONTAL: y fijo; cota horizontal desde la intersección.
+      const value = Math.abs(mouseWorld.x - nx.value);
+      if (value < 0.05) return null;
+      best = {
+        x: mouseWorld.x, y: ny.value, z: planZ,
+        label: `Grid ${ref.yLabels?.[ny.index] ?? ny.index + 1}`,
+        source: "grid-line", screenDistance: dH,
+        dimension: { fromX: nx.value, fromY: ny.value, toX: mouseWorld.x, toY: ny.value, value },
+      };
+    }
+
+    return best;
+  },
+
+  // Snap a un NODO del modelo (columna/joint) en el plano activo.
+  getNearestPlanModelNodeSnap(mouseScreen) {
+    const nodes = this.nodes || [];
+    if (!nodes.length) return null;
+
+    const planZ = this.getActivePlanElevation?.() ?? 0;
+    const EPS = 1e-3;
+    let best = null;
+
+    nodes.forEach((n) => {
+      const p = n?.position;
+      if (!p) return;
+      if (Math.abs(Number(p.z || 0) - planZ) > EPS) return;
+
+      const sp = this.grid.worldToScreen({ x: p.x, y: p.y });
+      const d = Math.hypot(mouseScreen.x - sp.x, mouseScreen.y - sp.y);
+
+      if (best === null || d < best.screenDistance) {
+        best = {
+          x: p.x,
+          y: p.y,
+          z: planZ,
+          label: "Point",
+          source: "model-node",
+          nodeId: n.id,
+          screenDistance: d,
+        };
+      }
+    });
+
+    if (!best) return null;
+    if (best.screenDistance > this.planGridSnapScreenTolerance) return null;
+    return best;
+  },
+
   updatePlanGridSnap(mouseWorld, mouseScreen) {
     const view = this.viewSet?.[this.activeViewIndex];
     this.lastMouseScreen = mouseScreen;
@@ -738,6 +892,12 @@ export const referenceGridMixin = {
     const pointGeneral = this.getNearestPlanGeneralGridSnap(mouseWorld, mouseScreen);
     const pointXY = this.getNearestPlanGridPoint(mouseWorld, mouseScreen);
 
+    // Reconocer geometría del modelo (viga/columna) al dibujar puntos, estilo ETABS.
+    const drawingPoints = this.currentState === this.pointDrawingState;
+    const pointFrame = drawingPoints ? this.getNearestPlanFrameSnap(mouseWorld, mouseScreen) : null;
+    const pointNode = drawingPoints ? this.getNearestPlanModelNodeSnap(mouseScreen) : null;
+    const pointGridLine = drawingPoints ? this.getNearestPlanGridLineSnap(mouseWorld, mouseScreen) : null;
+
     const candidates = [];
 
     if (pointIntersection) {
@@ -747,10 +907,24 @@ export const referenceGridMixin = {
       });
     }
 
+    if (pointNode) {
+      candidates.push({
+        ...pointNode,
+        priorityWeight: 1,
+      });
+    }
+
     if (pointEndpoint) {
       candidates.push({
         ...pointEndpoint,
         priorityWeight: 2,
+      });
+    }
+
+    if (pointFrame) {
+      candidates.push({
+        ...pointFrame,
+        priorityWeight: 3,
       });
     }
 
@@ -765,6 +939,13 @@ export const referenceGridMixin = {
       candidates.push({
         ...pointXY,
         priorityWeight: 6,
+      });
+    }
+
+    if (pointGridLine) {
+      candidates.push({
+        ...pointGridLine,
+        priorityWeight: 7,
       });
     }
 

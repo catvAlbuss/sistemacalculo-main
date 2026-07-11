@@ -4294,6 +4294,77 @@ export class DiseñoRenderer {
     ctx.font = "12px Arial";
     ctx.fillText(point.displayLabel || point.label || "", p.x + 10, p.y - 10);
 
+    // Cota estilo ETABS: se dibuja DESPLAZADA al lado de la viga/grid (con
+    // líneas de extensión) para que no se solape y las flechas se vean.
+    if (point.dimension && (!view || view.type === "plan")) {
+      const A = context.grid.worldToScreen({ x: point.dimension.fromX, y: point.dimension.fromY });
+      const B = context.grid.worldToScreen({ x: point.dimension.toX, y: point.dimension.toY });
+
+      // Texto con pocos decimales (redondea a 3 y quita ceros sobrantes).
+      const u = window.cadUnits;
+      const disp = u?.lenMToDisp ? u.lenMToDisp(point.dimension.value) : point.dimension.value;
+      const num = String(Number(Number(disp).toFixed(3)));
+      const unit = u?.labels?.().length || "m";
+      const txt = `${num} ${unit}`;
+
+      // Eje de la cota y perpendicular (en pantalla); se desplaza hacia el lado
+      // que quede "hacia abajo" para consistencia.
+      const dx = B.x - A.x, dy = B.y - A.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len, uy = dy / len;
+      let px = -uy, py = ux;
+      if (py < 0) { px = -px; py = -py; }
+      const OFF = 22;
+
+      const A2 = { x: A.x + px * OFF, y: A.y + py * OFF };
+      const B2 = { x: B.x + px * OFF, y: B.y + py * OFF };
+
+      const lineColor = "#6b7280";
+      ctx.strokeStyle = lineColor;
+      ctx.fillStyle = lineColor;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+
+      // líneas de extensión (witness) desde la viga/grid hasta la línea de cota
+      ctx.beginPath();
+      ctx.moveTo(A.x, A.y); ctx.lineTo(A2.x + px * 4, A2.y + py * 4);
+      ctx.moveTo(B.x, B.y); ctx.lineTo(B2.x + px * 4, B2.y + py * 4);
+      ctx.stroke();
+
+      // línea de cota
+      ctx.beginPath();
+      ctx.moveTo(A2.x, A2.y); ctx.lineTo(B2.x, B2.y);
+      ctx.stroke();
+
+      // flechas visibles apuntando hacia afuera en cada extremo
+      const arrowAt = (tip, ax, ay) => {
+        const s = 8, w = 3.5;
+        const bx = tip.x - ax * s, by = tip.y - ay * s;
+        ctx.beginPath();
+        ctx.moveTo(tip.x, tip.y);
+        ctx.lineTo(bx + (-ay) * w, by + ax * w);
+        ctx.lineTo(bx - (-ay) * w, by - ax * w);
+        ctx.closePath();
+        ctx.fill();
+      };
+      arrowAt(A2, -ux, -uy);
+      arrowAt(B2, ux, uy);
+
+      // etiqueta de distancia (fondo claro), un poco más afuera de la línea de cota
+      const mx = (A2.x + B2.x) / 2 + px * 10;
+      const my = (A2.y + B2.y) / 2 + py * 10;
+      ctx.font = "12px Arial";
+      const tw = ctx.measureText(txt).width;
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillRect(mx - tw / 2 - 4, my - 9, tw + 8, 16);
+      ctx.fillStyle = "#374151";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(txt, mx, my);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+    }
+
     ctx.restore();
   }
 
