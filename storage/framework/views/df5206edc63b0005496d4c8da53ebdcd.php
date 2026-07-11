@@ -527,6 +527,25 @@
 
                     
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Vista Extruida (3D)
+                    </div>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateViewMenuAction('toggle-extrude-frames')">
+                        <span x-text="cadSystem.options?.extrudeFrames3D ? '☑' : '☐'"></span>
+                        <span class="flex-1 min-w-0 truncate">Extruir Frames (Vigas / Columnas)</span>
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateViewMenuAction('toggle-extrude-shells')">
+                        <span x-text="cadSystem.options?.extrudeShells3D ? '☑' : '☐'"></span>
+                        <span class="flex-1 min-w-0 truncate">Extruir Shells (Losas)</span>
+                    </button>
+
+                    <div class="border-t border-gray-700 my-1"></div>
+
+                    
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
                         Zoom
                     </div>
 

@@ -894,8 +894,18 @@ export const referenceGridMixin = {
 
     // Reconocer geometría del modelo (viga/columna) al dibujar puntos, estilo ETABS.
     const drawingPoints = this.currentState === this.pointDrawingState;
+
+    // Dibujando áreas (losa/muro/abertura) también queremos snap a NODOS (joints)
+    // del modelo, para que la losa se apoye exactamente en las columnas, igual
+    // que ETABS reconoce joints además de las grillas.
+    const drawingArea =
+      this.currentState === this.slabDrawingState ||
+      this.currentState === this.wallDrawingState ||
+      this.currentState === this.openingDrawingState;
+
     const pointFrame = drawingPoints ? this.getNearestPlanFrameSnap(mouseWorld, mouseScreen) : null;
-    const pointNode = drawingPoints ? this.getNearestPlanModelNodeSnap(mouseScreen) : null;
+    const pointNode =
+      drawingPoints || drawingArea ? this.getNearestPlanModelNodeSnap(mouseScreen) : null;
     const pointGridLine = drawingPoints ? this.getNearestPlanGridLineSnap(mouseWorld, mouseScreen) : null;
 
     const candidates = [];

@@ -256,6 +256,30 @@ function applyFrameVisualToMesh(mesh, visualConfig) {
 // APLICAR ESTADO VISUAL A BARRA EN EL 3D
 // Marca metadata y pinta según sea normal, 3D-only o seleccionada.
 // =====================================================
+// =====================================================
+// VISTA EXTRUIDA > espesor real de la losa (en metros)
+// Lee el espesor de la sección asignada (Datos de Propiedad de Losa). El valor
+// se guarda en MM (p.ej. 125 = 0.125 m). Si el área solo trae el nombre de la
+// sección, lo busca en context.slabSections. Default 0.20 m.
+// =====================================================
+function resolveSlabThicknessM(area, context) {
+  let raw = area?.section?.thickness ?? area?.thickness;
+
+  if (!(Number(raw) > 0)) {
+    const name = area?.slabSection || area?.section?.name;
+    const defs = context?.slabSections;
+    if (name && Array.isArray(defs)) {
+      const sec = defs.find((s) => s?.name === name);
+      if (sec) raw = sec.thickness;
+    }
+  }
+
+  let v = Number(raw);
+  if (!(v > 0)) return 0.2;   // default 20 cm
+  if (v > 3) v = v / 1000;    // mm → m
+  return v;
+}
+
 function applyFrame3DVisualState(mesh, frame, scene, context = null) {
   if (!mesh || !frame) return;
 
@@ -276,6 +300,19 @@ function applyFrame3DVisualState(mesh, frame, scene, context = null) {
   const visualConfig = getFrameVisualConfig(scene, frame, context);
 
   applyFrameVisualToMesh(mesh, visualConfig);
+
+  // Vista extruida: hacer el sólido más transparente (deja ver el interior y
+  // las barras detrás, estilo ETABS). visibility es por-mesh, no toca el
+  // material compartido.
+  if (mesh.metadata?.extruded) {
+    const v = 0.4;
+    mesh.visibility = v;
+    if (typeof mesh.getChildMeshes === "function") {
+      mesh.getChildMeshes().forEach((child) => {
+        child.visibility = v;
+      });
+    }
+  }
 
   mesh.isPickable = true;
 
@@ -529,6 +566,30 @@ export function renderModel3D(viewer3D, nodes = [], shapes = [], areas = [], con
     beamHighlightMeshes,
   } = scene.__structuralState;
 
+  // =====================================================
+  // VISTA EXTRUIDA (Extrude View tipo ETABS)
+  // Flags de context.options. Al cambiar el modo hay que RECONSTRUIR los meshes
+  // (línea/tubo ↔ sólido), porque cambia el tipo de geometría, no solo su pose.
+  // =====================================================
+  const extrudeFrames = context?.options?.extrudeFrames3D === true;
+  const extrudeShells = context?.options?.extrudeShells3D === true;
+
+  if (scene.__structuralState.lastExtrudeFrames !== extrudeFrames) {
+    for (const [, mesh] of beamMeshes.entries()) {
+      if (mesh && !mesh.isDisposed()) safeDisposeMeshAfterRender(mesh, scene);
+    }
+    beamMeshes.clear();
+    scene.__structuralState.lastExtrudeFrames = extrudeFrames;
+  }
+
+  if (scene.__structuralState.lastExtrudeShells !== extrudeShells) {
+    for (const [, mesh] of areaMeshes.entries()) {
+      if (mesh && !mesh.isDisposed()) safeDisposeMeshAfterRender(mesh, scene);
+    }
+    areaMeshes.clear();
+    scene.__structuralState.lastExtrudeShells = extrudeShells;
+  }
+
   const nodeIds = new Set();
   const beamIds = new Set();
   const areaIds = new Set();
@@ -668,7 +729,7 @@ export function renderModel3D(viewer3D, nodes = [], shapes = [], areas = [], con
         ...shape,
         node1,
         node2,
-      });
+      }, null, { extrude: extrudeFrames });
 
       if (beamMesh) {
         applyFrame3DVisualState(beamMesh, { ...shape, node1, node2 }, scene, context);
@@ -732,13 +793,19 @@ export function renderModel3D(viewer3D, nodes = [], shapes = [], areas = [], con
         ? openings.filter((opening) => openingBelongsToSlab(opening, area))
         : [];
 
+    const areaOpts = {
+      holes,
+      extrude: extrudeShells,
+      thickness: resolveSlabThicknessM(area, context),
+    };
+
     if (existingMesh && !existingMesh.isDisposed()) {
-      const updatedMesh = updateArea3D(existingMesh, scene, area, { holes });
+      const updatedMesh = updateArea3D(existingMesh, scene, area, areaOpts);
       if (updatedMesh) {
         areaMeshes.set(area.id, updatedMesh);
       }
     } else {
-      const areaMesh = createArea3D(scene, area, { holes });
+      const areaMesh = createArea3D(scene, area, areaOpts);
       if (areaMesh) {
         areaMeshes.set(area.id, areaMesh);
       }

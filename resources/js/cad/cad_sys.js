@@ -509,6 +509,10 @@ export default () => ({
       showFAxiales: false,
       showFAxialesValues: true,
       showMaterials: true,
+      // Vista extruida 3D tipo ETABS (Extrude View): dibuja frames como sólidos
+      // b×h y losas/shells con espesor. Default OFF (vista de líneas/tubos).
+      extrudeFrames3D: false,
+      extrudeShells3D: false,
     };
     this.oldOptions = {
       ...this.options,

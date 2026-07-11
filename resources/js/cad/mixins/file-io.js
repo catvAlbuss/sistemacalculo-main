@@ -126,6 +126,27 @@ export const fileIOMixin = {
         this.panView();
         break;
 
+      // ===============================
+      // VISTA EXTRUIDA 3D (Extrude View tipo ETABS)
+      // ===============================
+      case "toggle-extrude-frames":
+        this.options.extrudeFrames3D = !this.options.extrudeFrames3D;
+        this.showMessage?.(
+          `Frames extruidos (3D): ${this.options.extrudeFrames3D ? "ON" : "OFF"}`,
+          "info",
+        );
+        this.sync3D?.();
+        break;
+
+      case "toggle-extrude-shells":
+        this.options.extrudeShells3D = !this.options.extrudeShells3D;
+        this.showMessage?.(
+          `Shells extruidos (3D): ${this.options.extrudeShells3D ? "ON" : "OFF"}`,
+          "info",
+        );
+        this.sync3D?.();
+        break;
+
       default:
         this.showMessage?.(`Acción View no reconocida: ${action}`, "warning");
         console.warn("Acción View no reconocida:", action);

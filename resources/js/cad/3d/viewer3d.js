@@ -1084,24 +1084,32 @@ function update3DGridPointHoverLabel(context, snappedPoint) {
 
   if (!texture) return;
 
-  const labelText = `Grid Point ${snappedPoint.xGridId || "-"}-${snappedPoint.yGridId || "-"} | Z=${Number(snappedPoint.z || 0).toFixed(2)}`;
+  // El snap puede ser un NODO del modelo ("Point"/joint) o un vértice del grid
+  // ("Grid Point"). ETABS usa "Point" para joints y "Grid Point" para grillas.
+  const isModelNode =
+    snappedPoint.snapKind === "model-node" || snappedPoint.nodeId != null;
+
+  const labelText = isModelNode
+    ? `Point ${snappedPoint.nodeId ?? ""}`.trim()
+    : `Grid Point ${snappedPoint.xGridId || "-"}-${snappedPoint.yGridId || "-"}`;
 
   // Solo redibujar texto si cambió.
   if (labelPlane.metadata.lastText !== labelText) {
     const ctx = texture.getContext();
 
+    // Fondo transparente: limpiar sin pintar rectángulo.
     ctx.clearRect(0, 0, 512, 128);
 
-    ctx.fillStyle = "rgba(20, 20, 20, 0.78)";
-    ctx.fillRect(0, 0, 512, 128);
+    ctx.font = "bold 40px Arial";
+    ctx.textBaseline = "middle";
 
-    ctx.strokeStyle = "rgba(255, 200, 40, 1)";
-    ctx.lineWidth = 4;
-    ctx.strokeRect(2, 2, 508, 124);
+    // Contorno oscuro para que el texto se lea sobre cualquier fondo.
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
+    ctx.strokeText(labelText, 16, 70);
 
-    ctx.font = "bold 34px Arial";
-    ctx.fillStyle = "white";
-    ctx.fillText(labelText, 24, 78);
+    ctx.fillStyle = isModelNode ? "rgb(255, 90, 210)" : "rgb(255, 205, 60)";
+    ctx.fillText(labelText, 16, 70);
 
     texture.update();
 
@@ -1159,13 +1167,27 @@ function update3DGridPointHoverReference(context, pointerInfo) {
   }
 
   // =====================================================
-  // 3D SNAP > HOVER GLOBAL SOBRE GRID POINTS 3D
-  // Esto permite detectar puntos de otros pisos sin cambiar vista.
+  // 3D SNAP > HOVER GLOBAL SOBRE GRID POINTS Y NODOS (JOINTS)
+  // Reconoce vértices del grid ("Grid Point") y nodos del modelo ("Point"),
+  // de cualquier piso sin cambiar vista. Gana el más cercano al cursor; a
+  // igualdad, el NODO tiene prioridad (geometría real del modelo, como ETABS).
   // =====================================================
-  const nearestSnapPoint = findNearest3DGridSnapPointUnderPointer(context, 18);
+  const nearestGridPoint = findNearest3DGridSnapPointUnderPointer(context, 18);
+  const nearestNodePoint = findNearest3DModelNodeSnap(context, 18);
+
+  let nearestSnapPoint = null;
+  if (nearestNodePoint && nearestGridPoint) {
+    nearestSnapPoint =
+      nearestNodePoint.distance <= nearestGridPoint.distance + 3
+        ? nearestNodePoint
+        : nearestGridPoint;
+  } else {
+    nearestSnapPoint = nearestNodePoint || nearestGridPoint;
+  }
 
   if (nearestSnapPoint?.modelPoint) {
     const snappedPoint = nearestSnapPoint.modelPoint;
+    const isNode = snappedPoint.snapKind === "model-node";
 
     const marker = ensure3DGridPointHoverMarker(context);
 
@@ -1180,7 +1202,9 @@ function update3DGridPointHoverReference(context, pointerInfo) {
     update3DFramePreviewLine(context, snappedPoint);
 
     context.showMessage?.(
-      `Grid Point ${snappedPoint.xGridId || "-"}-${snappedPoint.yGridId || "-"} | X=${Number(snappedPoint.x || 0).toFixed(2)} Y=${Number(snappedPoint.y || 0).toFixed(2)} Z=${Number(snappedPoint.z || 0).toFixed(2)}`,
+      isNode
+        ? `Point ${snappedPoint.nodeId ?? ""} | X=${Number(snappedPoint.x || 0).toFixed(2)} Y=${Number(snappedPoint.y || 0).toFixed(2)} Z=${Number(snappedPoint.z || 0).toFixed(2)}`
+        : `Grid Point ${snappedPoint.xGridId || "-"}-${snappedPoint.yGridId || "-"} | X=${Number(snappedPoint.x || 0).toFixed(2)} Y=${Number(snappedPoint.y || 0).toFixed(2)} Z=${Number(snappedPoint.z || 0).toFixed(2)}`,
     );
 
     return;
@@ -1777,7 +1801,28 @@ function enable3DFrameSelection(context) {
     // Selección: si el rayo no picó ninguna malla pero hay un nodo cerca del
     // cursor, seleccionarlo igual (los nodos son pequeños y difíciles de acertar).
     if (!pickedMesh) {
-      if (!frameToolActive) {
+      if (frameToolActive) {
+        // Dibujando barras: si el cursor está sobre un nodo o vértice de grid
+        // aunque el rayo no picara la esfera, usarlo igual (snap por pantalla).
+        if (context?.isDrawingFrame3D !== true) {
+          context.startFrame3DDrawingMode?.();
+        }
+
+        const nearNodeSnap = findNearest3DModelNodeSnap(context, 18);
+        const nearGridSnap = findNearest3DGridSnapPointUnderPointer(context, 18);
+        const nodeWins =
+          nearNodeSnap &&
+          (!nearGridSnap || nearNodeSnap.distance <= nearGridSnap.distance + 3);
+
+        if (nodeWins && nearNodeSnap.node) {
+          context.handle3DFrameNodePicked?.(nearNodeSnap.node);
+        } else if (nearGridSnap?.modelPoint) {
+          const mp = nearGridSnap.modelPoint;
+          let n = context.findNodeAt3DPoint?.(mp, 0.001);
+          if (!n) n = context.createNodeAt3DGridPoint?.(mp);
+          if (n) context.handle3DFrameNodePicked?.(n);
+        }
+      } else {
         const nearNode = findNearestModelNodeUnderPointer(context, event, 12);
         if (nearNode) {
           selectNodeFrom3D(nearNode, context, { additive: event?.ctrlKey === true });
@@ -1796,6 +1841,23 @@ function enable3DFrameSelection(context) {
     if (frameToolActive) {
       if (context?.isDrawingFrame3D !== true) {
         context.startFrame3DDrawingMode?.();
+      }
+
+      // =====================================================
+      // DRAW 3D > CASO 0': CLIC EN NODO (JOINT) EXISTENTE POR CERCANÍA
+      // Si hay un nodo del modelo bajo el cursor y está más cerca que el
+      // vértice de grid, se usa ESE nodo (no se crea uno nuevo). Estilo ETABS:
+      // el joint tiene prioridad sobre la grilla.
+      // =====================================================
+      const nearestNodeSnap = findNearest3DModelNodeSnap(context, 18);
+      const nearestGridForNode = findNearest3DGridSnapPointUnderPointer(context, 18);
+      const nodeWins =
+        nearestNodeSnap &&
+        (!nearestGridForNode || nearestNodeSnap.distance <= nearestGridForNode.distance + 3);
+
+      if (nodeWins && nearestNodeSnap.node) {
+        context.handle3DFrameNodePicked?.(nearestNodeSnap.node);
+        return;
       }
 
       // =====================================================
@@ -2068,10 +2130,17 @@ function ensure3DGridPointHoverLabel(context) {
       false,
     );
 
+    // Fondo transparente: solo se ve el texto (sin rectángulo negro).
+    texture.hasAlpha = true;
+
     const mat = new BABYLON.StandardMaterial("mat_jh_3d_grid_point_hover_label", scene);
 
     mat.diffuseTexture = texture;
     mat.emissiveTexture = texture;
+    mat.opacityTexture = texture;
+    mat.useAlphaFromDiffuseTexture = true;
+    mat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+    mat.disableLighting = true;
     mat.backFaceCulling = false;
 
     labelPlane = BABYLON.MeshBuilder.CreatePlane(
@@ -3557,6 +3626,69 @@ function findNearest3DGridSnapPointUnderPointer(context, maxScreenDistance = 18)
         mesh,
         metadata: mesh.metadata || {},
         modelPoint: mesh.metadata?.modelPoint || null,
+        screenPoint,
+        distance,
+      };
+    }
+  });
+
+  return closest;
+}
+
+// =====================================================
+// 3D SNAP > NODO DEL MODELO (JOINT) BAJO EL CURSOR
+// Igual que findNearest3DGridSnapPointUnderPointer pero recorre los nodos del
+// modelo (context.nodes). Devuelve el punto de modelo con su nodeId para que el
+// dibujo (barras/losas) reconozca joints además de vértices de grid, estilo
+// ETABS ("Point" = joint, "Grid Point" = grilla). Usa scene.pointerX/Y en px CSS.
+// =====================================================
+function findNearest3DModelNodeSnap(context, maxScreenDistance = 18) {
+  const scene = VIEWER_STATE.scene;
+  const engine = VIEWER_STATE.engine;
+
+  if (!scene || !engine || !scene.activeCamera || !context) return null;
+
+  const nodes = context.nodes;
+  if (!Array.isArray(nodes) || nodes.length === 0) return null;
+
+  const camera = scene.activeCamera;
+  const pointerX = scene.pointerX;
+  const pointerY = scene.pointerY;
+
+  const viewport = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
+  const toCssPx = engine.getHardwareScalingLevel?.() || 1;
+
+  let closest = null;
+  let bestDistance = maxScreenDistance;
+
+  nodes.forEach((node) => {
+    if (!node || node.visible === false) return;
+
+    const modelPoint = {
+      x: Number(node.position?.x ?? node.x ?? 0),
+      y: Number(node.position?.y ?? node.y ?? 0),
+      z: Number(node.position?.z ?? node.z ?? 0),
+    };
+
+    const screenPoint = BABYLON.Vector3.Project(
+      modelPointToBabylonPoint(modelPoint),
+      BABYLON.Matrix.Identity(),
+      scene.getTransformMatrix(),
+      viewport,
+    );
+
+    if (screenPoint.z < 0 || screenPoint.z > 1) return;
+
+    const distance = Math.hypot(
+      screenPoint.x * toCssPx - pointerX,
+      screenPoint.y * toCssPx - pointerY,
+    );
+
+    if (distance <= bestDistance) {
+      bestDistance = distance;
+      closest = {
+        node,
+        modelPoint: { ...modelPoint, nodeId: node.id, snapKind: "model-node" },
         screenPoint,
         distance,
       };
