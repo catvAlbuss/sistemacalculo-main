@@ -50,7 +50,9 @@ __all__ = [
     "_srss_combine",
     "_story_shear_support_node_ids",
     "_zero_forces",
+    "_compute_story_accelerations",
     "run_frame_force_results",
+    "run_joint_reactions_rsa",
     "run_modal_analysis",
     "run_rsa",
     "run_static_analysis",
@@ -613,6 +615,179 @@ def _compute_base_shear(
         return float(np.sqrt(abs(total)))
 
     return float(np.sqrt(sum(v**2 for v in shears)))
+
+def run_joint_reactions_rsa(
+    data: dict,
+    modal_data: dict,
+    spectrum: list,
+    direction: str = "x",
+    combination: str = "CQC",
+    damping_ratio: float = 0.05,
+    sa_in_g: bool = True,
+    g: float = 9.81,
+) -> dict:
+    """
+    Reacciones por nudo de APOYO para una dirección de excitación (RSA).
+
+    Método (igual que ETABS): por cada modo n se aplica la fuerza estática modal
+    equivalente F_n = Γ_n · Sa_n · M · φ_n a los nudos libres, se resuelve un
+    estático lineal y se leen las reacciones en los apoyos; luego se combinan
+    entre modos (CQC/SRSS) por nudo y GDL.
+
+    AISLADO: reconstruye su propio modelo por modo (mismo idiom que
+    run_frame_force_results, que ya convive con el pipeline sin interferir) y no
+    modifica los resultados existentes. Ante cualquier problema devuelve {}.
+
+    Devuelve {node_id: [FX, FY, FZ, MX, MY, MZ]} en N y N·m (magnitudes ≥ 0).
+    """
+    if ops is None:
+        return {}
+
+    modal_info = modal_data.get("modal_info") or []
+    phi_x = modal_data.get("phi_x") or []
+    phi_y = modal_data.get("phi_y") or []
+    m_x = modal_data.get("m_x") or []
+    m_y = modal_data.get("m_y") or []
+    node_ids = modal_data.get("node_ids") or []
+    num_modes = len(modal_info)
+
+    if num_modes == 0 or not node_ids:
+        return {}
+
+    support_ids = []
+    for s in data.get("supports", []) or []:
+        try:
+            support_ids.append(int(s["node"]))
+        except Exception:
+            continue
+    if not support_ids:
+        return {}
+
+    scale = g if sa_in_g else 1.0
+    ndof = 6
+    modal_R = {sid: np.zeros((num_modes, ndof)) for sid in support_ids}
+
+    for n, mi in enumerate(modal_info):
+        Sa_n = interpolate_spectrum(spectrum, mi["period"]) * scale
+        gamma = mi["gamma_x"] if direction == "x" else mi["gamma_y"]
+
+        # Modelo propio y limpio por modo (aislado, como run_frame_force_results).
+        build_model_3d(data)
+
+        ops.timeSeries("Linear", 1)
+        ops.pattern("Plain", 1, 1)
+
+        applied = False
+        for i, nid in enumerate(node_ids):
+            fx = gamma * Sa_n * float(m_x[i]) * float(phi_x[n][i])
+            fy = gamma * Sa_n * float(m_y[i]) * float(phi_y[n][i])
+            if fx != 0.0 or fy != 0.0:
+                ops.load(int(nid), fx, fy, 0.0, 0.0, 0.0, 0.0)
+                applied = True
+
+        if not applied:
+            continue
+
+        ops.constraints("Transformation")
+        ops.numberer("RCM")
+        ops.system("BandGeneral")
+        ops.test("NormDispIncr", 1e-8, 50)
+        ops.algorithm("Linear")
+        ops.integrator("LoadControl", 1.0)
+        ops.analysis("Static")
+        ops.analyze(1)
+        ops.reactions()
+
+        for sid in support_ids:
+            try:
+                r = ops.nodeReaction(sid)
+            except Exception:
+                r = []
+            modal_R[sid][n] = [float(r[k]) if k < len(r) else 0.0 for k in range(ndof)]
+
+    combo = str(combination or "SRSS").upper()
+    out = {}
+    for sid in support_ids:
+        mat = modal_R[sid]  # (modos × 6)
+        combined = (
+            _cqc_combine(mat, modal_info, damping_ratio)
+            if combo == "CQC"
+            else _srss_combine(mat)
+        )
+        out[sid] = [float(v) for v in combined]
+
+    return out
+
+def _compute_story_accelerations(data: dict, nodes: list, seismic: dict) -> dict:
+    """
+    Aceleraciones absolutas por piso (RSA), estilo ETABS.
+
+    A_d(piso) = SRSS( CQC_n[ā_d,n | exc.X] , CQC_n[ā_d,n | exc.Y] ), donde la
+    aceleración modal del piso ā_d,n = (desplazamiento modal promedio del piso) ·
+    ω_n²  (pseudo-aceleración = ω²·desp). Combinación direccional del caso igual
+    que la deriva. Solo UX/UY: el motor no rastrea modos verticales/rotacionales,
+    así que UZ = RX = RY = RZ = 0. Es puro postproceso de los datos modales ya
+    calculados (no corre nada nuevo, no toca el resto).
+
+    Devuelve {"rows": [{story, z_m, ux, uy, uz, rx, ry, rz}]} en m/s² y rad/s².
+    """
+    stories = _group_nodes_by_story(data, nodes)
+    if not stories:
+        return {"rows": []}
+
+    rsa_x = seismic.get("x", {}) if isinstance(seismic, dict) else {}
+    rsa_y = seismic.get("y", {}) if isinstance(seismic, dict) else {}
+    node_ids = rsa_x.get("node_ids") or rsa_y.get("node_ids") or []
+    idx_of = {int(n): i for i, n in enumerate(node_ids)}
+    zeta = float(rsa_x.get("damping_ratio") or rsa_y.get("damping_ratio") or 0.05)
+
+    def story_modal_accel(rsa, comp, story):
+        disps = rsa.get(f"modal_node_disps_{comp}")
+        omegas = rsa.get("omegas") or []
+        if not disps or not omegas:
+            return None, None
+        arr = np.array(disps)  # (modos, nodos)
+        cols = [idx_of[int(s)] for s in story.get("node_ids", []) if int(s) in idx_of]
+        if not cols:
+            return None, None
+        story_disp = arr[:, cols].mean(axis=1)               # (modos,)
+        w2 = np.array([float(o) for o in omegas]) ** 2
+        return story_disp * w2, [float(o) for o in omegas]   # aceleración modal
+
+    def cqc_scalar(values, omegas):
+        total = 0.0
+        for i in range(len(values)):
+            for j in range(len(values)):
+                total += _cqc_rho(omegas[i], omegas[j], zeta) * values[i] * values[j]
+        return float(np.sqrt(max(total, 0.0)))
+
+    def dir_accel(story, out_comp):
+        parts = []
+        for rsa in (rsa_x, rsa_y):
+            a, om = story_modal_accel(rsa, out_comp, story)
+            if a is not None:
+                parts.append(cqc_scalar(a, om))
+        if not parts:
+            return 0.0
+        return float(np.sqrt(sum(p * p for p in parts)))
+
+    rows = []
+    for st in stories:
+        rows.append(
+            {
+                "story": st.get("name", ""),
+                "z_m": float(st.get("elevation", 0.0)),
+                "ux": dir_accel(st, "x"),
+                "uy": dir_accel(st, "y"),
+                "uz": 0.0,
+                "rx": 0.0,
+                "ry": 0.0,
+                "rz": 0.0,
+            }
+        )
+
+    rows.sort(key=lambda r: -r["z_m"])  # piso más alto arriba
+    return {"rows": rows}
 
 def _get_displacement_for_node(displacements: dict, node_id: int) -> dict:
     """

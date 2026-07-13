@@ -116,6 +116,13 @@ def run_full_seismic_analysis(data: dict) -> dict:
 
     results["story_drifts"] = story_drifts
 
+    # Aceleraciones por piso (postproceso modal, aislado).
+    try:
+        results["story_accelerations"] = _compute_story_accelerations(data, nodes, seismic)
+    except Exception as _acc_err:
+        print("⚠️ No se pudieron calcular aceleraciones por piso:", _acc_err)
+        results["story_accelerations"] = {"rows": []}
+
     # Contrato visual para el equipo frontend/animación.
     # Mantiene una forma simple: [{ level, z, height }]
     raw_levels = story_drifts.get("levels", [])
@@ -235,6 +242,37 @@ def run_full_seismic_analysis(data: dict) -> dict:
 
     # B10.17 — Payload para animación sísmica
     results["seismic_animation"] = _b10_17_build_animation_payload(data, results)
+
+    # ── Reacciones por nudo de apoyo (RSA) — AISLADO ───────
+    # Combina las dos excitaciones del caso (X e Y) por SRSS, igual que ETABS.
+    # Reconstruye su propio modelo (no toca los resultados ya calculados) y si
+    # algo falla deja las reacciones vacías sin romper el resto del pipeline.
+    try:
+        rx = (
+            run_joint_reactions_rsa(
+                data, modal_data, spectrum_x, direction="x",
+                combination=combination, damping_ratio=damping,
+                sa_in_g=sa_in_g, g=g,
+            )
+            if spectrum_x else {}
+        )
+        ry = (
+            run_joint_reactions_rsa(
+                data, modal_data, spectrum_y, direction="y",
+                combination=combination, damping_ratio=damping,
+                sa_in_g=sa_in_g, g=g,
+            )
+            if spectrum_y else {}
+        )
+        joint_reactions = {}
+        for sid in set(rx) | set(ry):
+            a = rx.get(sid, [0.0] * 6)
+            b = ry.get(sid, [0.0] * 6)
+            joint_reactions[sid] = [float(np.hypot(a[d], b[d])) for d in range(6)]
+        results["joint_reactions"] = joint_reactions
+    except Exception as error:
+        print("⚠️ No se pudieron calcular reacciones por nudo:", error)
+        results["joint_reactions"] = {}
 
     # ── B7: paquete final de resultados tipo ETABS ─────────
     results["etabs_results"] = _build_etabs_results_package(results)

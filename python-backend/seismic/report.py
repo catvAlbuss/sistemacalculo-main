@@ -54,9 +54,11 @@ __all__ = [
     "_b7_table_base_shear",
     "_b7_table_diaphragm_summary",
     "_b7_table_effective_mass",
+    "_b7_table_joint_reactions",
     "_b7_table_mass_source",
     "_b7_table_modal_periods",
     "_b7_table_participating_mass",
+    "_b7_table_story_accelerations",
     "_b7_table_story_drifts",
     "_b7_table_story_shears",
     "_build_etabs_results_package",
@@ -352,6 +354,54 @@ def _b7_table_effective_mass(results: dict) -> list[dict]:
             }
         )
 
+    return rows
+
+def _b7_table_story_accelerations(results: dict) -> list[dict]:
+    """Aceleraciones por piso (m/s², rad/s²). El frontend agrega el nombre del
+    caso; aquí van piso, Z y las 6 componentes (UZ/RX/RY/RZ = 0)."""
+    acc = results.get("story_accelerations") or {}
+    rows = []
+    for r in acc.get("rows", []) or []:
+        rows.append(
+            {
+                "story": r.get("story", ""),
+                "z_m": _b7_round(r.get("z_m"), 6),
+                "ux": _b7_round(r.get("ux"), 6),
+                "uy": _b7_round(r.get("uy"), 6),
+                "uz": _b7_round(r.get("uz"), 6),
+                "rx": _b7_round(r.get("rx"), 6),
+                "ry": _b7_round(r.get("ry"), 6),
+                "rz": _b7_round(r.get("rz"), 6),
+            }
+        )
+    return rows
+
+def _b7_table_joint_reactions(results: dict) -> list[dict]:
+    """Reacciones por nudo de apoyo (RSA) en N y N·m. El frontend agrega piso,
+    coordenadas y nombre del caso; aquí solo va la magnitud por nudo y GDL."""
+    reactions = results.get("joint_reactions") or {}
+    rows = []
+
+    for node, vals in reactions.items():
+        v = list(vals or [])
+        v = (v + [0.0] * 6)[:6]
+        try:
+            nid = int(node)
+        except Exception:
+            nid = node
+        rows.append(
+            {
+                "node": nid,
+                "fx_N": _b7_round(v[0], 6),
+                "fy_N": _b7_round(v[1], 6),
+                "fz_N": _b7_round(v[2], 6),
+                "mx_Nm": _b7_round(v[3], 6),
+                "my_Nm": _b7_round(v[4], 6),
+                "mz_Nm": _b7_round(v[5], 6),
+            }
+        )
+
+    rows.sort(key=lambda r: (r["node"] if isinstance(r["node"], int) else 0))
     return rows
 
 def _b7_table_diaphragm_summary(results: dict) -> list[dict]:
@@ -1656,6 +1706,8 @@ def _build_etabs_results_package(results: dict) -> dict:
         "story_shears": _b7_table_story_shears(results),
         "mass_source": _b7_table_mass_source(results),
         "effective_mass": _b7_table_effective_mass(results),
+        "joint_reactions": _b7_table_joint_reactions(results),
+        "story_accelerations": _b7_table_story_accelerations(results),
         "diaphragm_summary": _b7_table_diaphragm_summary(results),
         # B10.14 — Applied Loads
         "load_summary": results.get("load_summary_table", []),

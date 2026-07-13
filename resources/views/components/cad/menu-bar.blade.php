@@ -6,7 +6,7 @@
                                 LOGO Y VERSIÓN
         ============================================================ --}}
         <div class="text-blue-400 font-bold text-sm px-2 whitespace-nowrap border-r border-gray-600">
-            ANALISIS 3D ESTRUCTURAL - v0.1.0-alpha
+           MENU ETABBS 3.0  
         </div>
 
         {{-- ============================================================

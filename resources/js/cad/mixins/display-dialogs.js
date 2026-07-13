@@ -828,7 +828,386 @@ export const displayDialogsMixin = {
     });
   },
 
+  // ==========================================================
+  // SHOW TABLES > helpers de piso / unidades para las tablas nuevas
+  // ==========================================================
+  _showTablesZLevelsAsc() {
+    const zs = new Set();
+    (this.nodes || []).forEach((n) => {
+      zs.add(Number(n?.position?.z ?? n?.z ?? 0));
+    });
+    return Array.from(zs).sort((a, b) => a - b);
+  },
+
+  // Nombre de piso estilo ETABS por Z: base (z mínimo) → "BASE"; niveles
+  // superiores → "STORY 1", "STORY 2", ... (mayor Z = número mayor).
+  _showTablesStoryNameByZ(z) {
+    const levels = this._showTablesZLevelsAsc();
+    const idx = levels.indexOf(Number(z) || 0);
+    if (idx <= 0) return "BASE";
+    return `STORY ${idx}`;
+  },
+
+  _showTablesResolveNode(ref) {
+    if (ref && typeof ref === "object") return ref;
+    return (this.nodes || []).find((n) => String(n?.id) === String(ref)) || null;
+  },
+
+  _showTablesFrameTopZ(frame) {
+    const n1 = this._showTablesResolveNode(frame?.node1 ?? frame?.nodeI ?? frame?.i);
+    const n2 = this._showTablesResolveNode(frame?.node2 ?? frame?.nodeJ ?? frame?.j);
+    const z1 = Number(n1?.position?.z ?? n1?.z ?? 0);
+    const z2 = Number(n2?.position?.z ?? n2?.z ?? 0);
+    return Math.max(z1, z2);
+  },
+
+  _showTablesNToTonf(n) {
+    return (Number(n) || 0) / 9806.65; // N → tonf
+  },
+
+  _showTablesKgToMassDisp(kg) {
+    const u = window.cadUnits;
+    return u?.massKgToEtabsDisp ? u.massKgToEtabsDisp(Number(kg) || 0) : (Number(kg) || 0) / 9806.65;
+  },
+
+  _showTablesMassLabel() {
+    return window.cadUnits?.etabsMassLabel?.() || "tonf-s²/m";
+  },
+
+  _getShowTablesAnalysisTables() {
+    return (
+      this.seismicResults?.etabs_results?.tables ||
+      this.seismicResults?.tables ||
+      null
+    );
+  },
+
+  // ---- Frame Loads Assignments - Distributed (datos del modelo) ----
+  _getFrameDistributedLoadsForShowTables(frame) {
+    const buckets = [
+      frame?.distributedLoads,
+      frame?.frameLoads,
+      frame?.lineLoads,
+      frame?.loads,
+      frame?.assignment?.frameLoads,
+    ];
+    const seen = new Set();
+    const out = [];
+    buckets.forEach((arr) => {
+      if (!Array.isArray(arr)) return;
+      arr.forEach((l) => {
+        if (!l || String(l.type || "").trim() !== "distributed") return;
+        const key =
+          l.id || l.guid ||
+          JSON.stringify([l.loadCase, l.startValue, l.endValue, l.direction]);
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push(l);
+      });
+    });
+    return out;
+  },
+
+  _buildFrameDistributedAssignmentRows() {
+    const rows = [];
+    (this.shapes || []).forEach((frame) => {
+      const z = this._showTablesFrameTopZ(frame);
+      this._getFrameDistributedLoadsForShowTables(frame).forEach((load) => {
+        rows.push({
+          Story: this._showTablesStoryNameByZ(z),
+          Label: frame.label || frame.name || `B${frame.id}`,
+          UniqueName: frame.id ?? "",
+          "Load Pattern": load.loadCase || load.loadPattern || "CM",
+          "Load Type": load.loadType === "moment" ? "Moment" : "Force",
+          Direction: load.direction || "Gravity",
+          "Distance Type": load.distanceType === "absolute" ? "Absolute" : "Relative",
+          "Relative Distance A": this._numberForShowTables(load.startRelativeDistance, 0),
+          "Relative Distance B": this._numberForShowTables(load.endRelativeDistance, 0),
+          "Absolute Distance A": this._numberForShowTables(load.startAbsoluteDistance, 0),
+          "Absolute Distance B": this._numberForShowTables(load.endAbsoluteDistance, 0),
+          "Force A": this._numberForShowTables(this._showTablesNToTonf(load.startValue), 0),
+          "Force B": this._numberForShowTables(this._showTablesNToTonf(load.endValue), 0),
+          GUID: load.guid || load.id || "",
+        });
+      });
+    });
+    return this._sortShowTableRowsEtabsStyle(rows);
+  },
+
+  // ---- Area Load Assignments - Uniform (datos del modelo) ----
+  _buildAreaUniformAssignmentRows() {
+    const rows = [];
+    (this.areas || []).forEach((area) => {
+      const z = Number(area?.z ?? 0);
+      const loads = area?.areaLoads || area?.loads || [];
+      (Array.isArray(loads) ? loads : []).forEach((load) => {
+        if (!load || Number(load.value) === 0) return;
+        const kgfm2 = Number(load.value) || 0; // guardado en kgf/m²
+        rows.push({
+          Story: this._showTablesStoryNameByZ(z),
+          Label: area.label || `F${area.id}`,
+          UniqueName: area.id ?? "",
+          "Load Pattern": load.loadCase || load.case || load.loadPattern || "CM",
+          Direction: load.direction || "Gravity",
+          Load: this._numberForShowTables(kgfm2 / 1000, 0), // kgf/m² → tonf/m²
+          GUID: load.guid || load.id || "",
+        });
+      });
+    });
+    return this._sortShowTableRowsEtabsStyle(rows);
+  },
+
+  // ---- Mass Summary by Story (resultado del análisis) ----
+  _buildMassSummaryByStoryRows() {
+    const tables = this._getShowTablesAnalysisTables();
+    const src = tables?.story_shears;
+    if (!Array.isArray(src) || !src.length) return [];
+
+    const byStory = new Map();
+    src.forEach((r) => {
+      const story = String(r?.story ?? "");
+      if (!story) return;
+      if (!byStory.has(story)) {
+        byStory.set(story, { _z: Number(r?.z_m) || 0, Story: story, ux: 0, uy: 0, uz: 0 });
+      }
+      const out = byStory.get(story);
+      const mass = Number(r?.mass_kg) || 0;
+      const dir = String(r?.direction || "").toUpperCase();
+      if (dir === "X") out.ux = mass;
+      else if (dir === "Y") out.uy = mass;
+      else if (dir === "Z") out.uz = mass;
+    });
+
+    return Array.from(byStory.values())
+      .sort((a, b) => b._z - a._z) // piso más alto arriba
+      .map(({ Story, ux, uy, uz }) => ({
+        Story,
+        UX: this._numberForShowTables(this._showTablesKgToMassDisp(ux), 0),
+        UY: this._numberForShowTables(this._showTablesKgToMassDisp(uy), 0),
+        UZ: this._numberForShowTables(this._showTablesKgToMassDisp(uz), 0),
+      }));
+  },
+
+  // ---- Mass Summary by Group (resultado del análisis) ----
+  _buildMassSummaryByGroupRows() {
+    const storyRows = this._buildMassSummaryByStoryRows();
+    if (!storyRows.length) return [];
+    const sum = (k) => storyRows.reduce((s, r) => s + (Number(r[k]) || 0), 0);
+    return [
+      {
+        Group: "All",
+        "Self Mass": 0,
+        "Mass X": this._numberForShowTables(sum("UX"), 0),
+        "Mass Y": this._numberForShowTables(sum("UY"), 0),
+        "Mass Z": this._numberForShowTables(sum("UZ"), 0),
+      },
+    ];
+  },
+
+  // Tablas de resultados por caso (SDX, SDY, ...). Devuelve [{caseName, tables}].
+  _getShowTablesCasesTables() {
+    const out = [];
+    const byCase = this.seismicResultsByCase;
+    if (byCase && typeof byCase === "object") {
+      Object.values(byCase).forEach((res) => {
+        const t = res?.etabs_results?.tables;
+        if (t) out.push({ caseName: res?._caseName || res?.caseName || "SPEC", tables: t });
+      });
+    }
+    if (!out.length) {
+      const t = this._getShowTablesAnalysisTables();
+      if (t) out.push({ caseName: this.seismicResults?._caseName || "SPEC", tables: t });
+    }
+    return out;
+  },
+
+  // ---- Modal Periods and Frequencies (independiente del caso) ----
+  _buildModalPeriodsAndFreqRows() {
+    const src = this._getShowTablesAnalysisTables()?.modal_periods;
+    if (!Array.isArray(src) || !src.length) return [];
+    return src.map((r) => ({
+      Case: r.case || "Modal",
+      Mode: r.mode ?? "",
+      Period: this._numberForShowTables(r.period_s, 0),
+      Frequency: this._numberForShowTables(r.frequency_hz, 0),
+      CircFreq: this._numberForShowTables(r.omega_rad_s, 0),
+      Eigenvalue: this._numberForShowTables(r.eigenvalue_rad2_s2, 0),
+    }));
+  },
+
+  // ---- Modal Participating Mass Ratios (independiente del caso) ----
+  _buildModalParticipatingMassRows() {
+    const src = this._getShowTablesAnalysisTables()?.participating_mass_ratios;
+    if (!Array.isArray(src) || !src.length) return [];
+    const n = (v) => this._numberForShowTables(v, 0);
+    return src.map((r) => ({
+      Case: r.case || "Modal",
+      Mode: r.mode ?? "",
+      Period: n(r.period_s),
+      UX: n(r.ux), UY: n(r.uy), UZ: n(r.uz),
+      SumUX: n(r.sum_ux), SumUY: n(r.sum_uy), SumUZ: n(r.sum_uz),
+      RX: n(r.rx), RY: n(r.ry), RZ: n(r.rz),
+      SumRX: n(r.sum_rx), SumRY: n(r.sum_ry), SumRZ: n(r.sum_rz),
+    }));
+  },
+
+  // ---- Assembled Joint Masses (detalle por nudo; masa del análisis) ----
+  _buildAssembledJointMassesRows() {
+    const src = this._getShowTablesAnalysisTables()?.effective_mass;
+    if (!Array.isArray(src) || !src.length) return [];
+    const rows = src.map((r) => {
+      const node = this._showTablesResolveNode(r?.node);
+      const x = Number(node?.position?.x ?? node?.x ?? 0);
+      const y = Number(node?.position?.y ?? node?.y ?? 0);
+      const z = Number(node?.position?.z ?? node?.z ?? 0);
+      return {
+        _z: z,
+        Story: this._showTablesStoryNameByZ(z),
+        Label: r?.node ?? "",
+        "Point Element": r?.node ?? "",
+        UX: this._numberForShowTables(this._showTablesKgToMassDisp(r?.effective_mx_kg), 0),
+        UY: this._numberForShowTables(this._showTablesKgToMassDisp(r?.effective_my_kg), 0),
+        UZ: this._numberForShowTables(this._showTablesKgToMassDisp(r?.effective_mz_kg), 0),
+        RX: 0, RY: 0, RZ: 0,
+        X: this._numberForShowTables(x, 0),
+        Y: this._numberForShowTables(y, 0),
+        Z: this._numberForShowTables(z, 0),
+      };
+    });
+    return rows.sort((a, b) => b._z - a._z).map(({ _z, ...row }) => row);
+  },
+
+  // ---- Story Drifts (por caso: SDX, SDY) ----
+  _buildStoryDriftsShowRows() {
+    const rows = [];
+    this._getShowTablesCasesTables().forEach(({ caseName, tables }) => {
+      const src = tables?.story_drifts;
+      if (!Array.isArray(src)) return;
+      src.forEach((r) => {
+        const ratio = Number(r?.drift_ratio) || 0;
+        rows.push({
+          _z: Number(r?.z_m) || 0,
+          Story: r?.story ?? "",
+          "Output Case": caseName,
+          "Case Type": "LinRespSpec",
+          "Step Type": "Max",
+          Direction: String(r?.direction || "").toUpperCase(),
+          Drift: this._numberForShowTables(ratio, 0),
+          "Drift/": ratio > 0 ? `1/${Math.round(1 / ratio)}` : "",
+          Z: this._numberForShowTables(r?.z_m, 0),
+        });
+      });
+    });
+    return rows
+      .sort(
+        (a, b) =>
+          b._z - a._z ||
+          String(a["Output Case"]).localeCompare(String(b["Output Case"])) ||
+          String(a.Direction).localeCompare(String(b.Direction))
+      )
+      .map(({ _z, ...row }) => row);
+  },
+
+  // ---- Base Reactions (por caso). Motor A entrega FX/FY; momentos pendientes. ----
+  _buildBaseReactionsShowRows() {
+    const rows = [];
+    this._getShowTablesCasesTables().forEach(({ caseName, tables }) => {
+      const bs = tables?.base_shear;
+      if (!Array.isArray(bs) || !bs.length) return;
+      const findN = (dir) =>
+        Number(bs.find((r) => String(r?.direction || "").toUpperCase() === dir)?.base_shear_N) || 0;
+      rows.push({
+        "Output Case": caseName,
+        "Case Type": "LinRespSpec",
+        "Step Type": "Max",
+        FX: this._numberForShowTables(this._showTablesNToTonf(findN("X")), 0),
+        FY: this._numberForShowTables(this._showTablesNToTonf(findN("Y")), 0),
+        FZ: 0,
+        MX: 0,
+        MY: 0,
+        MZ: 0,
+      });
+    });
+    return rows;
+  },
+
+  // ---- Joint Reactions / Joint Design Reactions (por caso, del backend) ----
+  _buildJointReactionsShowRows() {
+    const rows = [];
+    this._getShowTablesCasesTables().forEach(({ caseName, tables }) => {
+      const src = tables?.joint_reactions;
+      if (!Array.isArray(src)) return;
+      src.forEach((r) => {
+        const node = this._showTablesResolveNode(r?.node);
+        const z = Number(node?.position?.z ?? node?.z ?? 0);
+        rows.push({
+          _z: z,
+          Story: this._showTablesStoryNameByZ(z),
+          Label: r?.node ?? "",
+          "Unique Name": r?.node ?? "",
+          "Output Case": caseName,
+          "Case Type": "LinRespSpec",
+          "Step Type": "Max",
+          FX: this._numberForShowTables(this._showTablesNToTonf(r?.fx_N), 0),
+          FY: this._numberForShowTables(this._showTablesNToTonf(r?.fy_N), 0),
+          FZ: this._numberForShowTables(this._showTablesNToTonf(r?.fz_N), 0),
+          MX: this._numberForShowTables(this._showTablesNToTonf(r?.mx_Nm), 0),
+          MY: this._numberForShowTables(this._showTablesNToTonf(r?.my_Nm), 0),
+          MZ: this._numberForShowTables(this._showTablesNToTonf(r?.mz_Nm), 0),
+        });
+      });
+    });
+    return rows
+      .sort(
+        (a, b) =>
+          b._z - a._z ||
+          String(a["Output Case"]).localeCompare(String(b["Output Case"])) ||
+          (Number(a.Label) || 0) - (Number(b.Label) || 0)
+      )
+      .map(({ _z, ...row }) => row);
+  },
+
+  // ---- Story Accelerations (por caso, del backend; UX/UY, resto 0) ----
+  _buildStoryAccelerationsShowRows() {
+    const rows = [];
+    this._getShowTablesCasesTables().forEach(({ caseName, tables }) => {
+      const src = tables?.story_accelerations;
+      if (!Array.isArray(src)) return;
+      src.forEach((r) => {
+        rows.push({
+          _z: Number(r?.z_m) || 0,
+          Story: r?.story ?? "",
+          "Output Case": caseName,
+          "Case Type": "LinRespSpec",
+          "Step Type": "Max",
+          UX: this._numberForShowTables(r?.ux, 0),
+          UY: this._numberForShowTables(r?.uy, 0),
+          UZ: this._numberForShowTables(r?.uz, 0),
+          RX: this._numberForShowTables(r?.rx, 0),
+          RY: this._numberForShowTables(r?.ry, 0),
+          RZ: this._numberForShowTables(r?.rz, 0),
+        });
+      });
+    });
+    return rows
+      .sort(
+        (a, b) =>
+          b._z - a._z || String(a["Output Case"]).localeCompare(String(b["Output Case"]))
+      )
+      .map(({ _z, ...row }) => row);
+  },
+
   _getModelShowTableDefinitions(options = {}) {
+    const massLabel = this._showTablesMassLabel();
+    const reactionCols = [
+      "Story", "Label", "Unique Name", "Output Case", "Case Type", "Step Type",
+      "FX", "FY", "FZ", "MX", "MY", "MZ",
+    ];
+    const reactionUnits = {
+      Story: "", Label: "", "Unique Name": "", "Output Case": "", "Case Type": "", "Step Type": "",
+      FX: "tonf", FY: "tonf", FZ: "tonf", MX: "tonf-m", MY: "tonf-m", MZ: "tonf-m",
+    };
+
     return [
       {
         id: "joint_loads_force",
@@ -918,6 +1297,178 @@ export const displayDialogsMixin = {
           GUID: "",
         },
         rows: this._buildJointTemperatureAssignmentRows(options),
+      },
+
+      {
+        id: "mass_summary_story",
+        label: "Mass Summary by Story",
+        columns: ["Story", "UX", "UY", "UZ"],
+        units: { Story: "", UX: massLabel, UY: massLabel, UZ: massLabel },
+        rows: this._buildMassSummaryByStoryRows(),
+      },
+
+      {
+        id: "mass_summary_group",
+        label: "Mass Summary by Group",
+        columns: ["Group", "Self Mass", "Mass X", "Mass Y", "Mass Z"],
+        units: {
+          Group: "",
+          "Self Mass": massLabel,
+          "Mass X": massLabel,
+          "Mass Y": massLabel,
+          "Mass Z": massLabel,
+        },
+        rows: this._buildMassSummaryByGroupRows(),
+      },
+
+      {
+        id: "frame_loads_distributed",
+        label: "Frame Loads Assignments - Distributed",
+        columns: [
+          "Story",
+          "Label",
+          "UniqueName",
+          "Load Pattern",
+          "Load Type",
+          "Direction",
+          "Distance Type",
+          "Relative Distance A",
+          "Relative Distance B",
+          "Absolute Distance A",
+          "Absolute Distance B",
+          "Force A",
+          "Force B",
+          "GUID",
+        ],
+        units: {
+          Story: "",
+          Label: "",
+          UniqueName: "",
+          "Load Pattern": "",
+          "Load Type": "",
+          Direction: "",
+          "Distance Type": "",
+          "Relative Distance A": "",
+          "Relative Distance B": "",
+          "Absolute Distance A": "m",
+          "Absolute Distance B": "m",
+          "Force A": "tonf/m",
+          "Force B": "tonf/m",
+          GUID: "",
+        },
+        rows: this._buildFrameDistributedAssignmentRows(),
+      },
+
+      {
+        id: "area_loads_uniform",
+        label: "Area Load Assignments - Uniform",
+        columns: ["Story", "Label", "UniqueName", "Load Pattern", "Direction", "Load", "GUID"],
+        units: {
+          Story: "",
+          Label: "",
+          UniqueName: "",
+          "Load Pattern": "",
+          Direction: "",
+          Load: "tonf/m²",
+          GUID: "",
+        },
+        rows: this._buildAreaUniformAssignmentRows(),
+      },
+
+      // ================= ANALYSIS RESULTS =================
+      {
+        id: "modal_periods_freq",
+        label: "Modal Periods And Frequencies",
+        columns: ["Case", "Mode", "Period", "Frequency", "CircFreq", "Eigenvalue"],
+        units: {
+          Case: "", Mode: "", Period: "sec", Frequency: "cyc/sec",
+          CircFreq: "rad/sec", Eigenvalue: "rad²/sec²",
+        },
+        rows: this._buildModalPeriodsAndFreqRows(),
+      },
+
+      {
+        id: "modal_participating_mass",
+        label: "Modal Participating Mass Ratios",
+        columns: [
+          "Case", "Mode", "Period", "UX", "UY", "UZ",
+          "SumUX", "SumUY", "SumUZ", "RX", "RY", "RZ", "SumRX", "SumRY", "SumRZ",
+        ],
+        units: { Case: "", Mode: "", Period: "sec" },
+        rows: this._buildModalParticipatingMassRows(),
+      },
+
+      {
+        id: "assembled_joint_masses",
+        label: "Assembled Joint Masses",
+        columns: [
+          "Story", "Label", "Point Element", "UX", "UY", "UZ",
+          "RX", "RY", "RZ", "X", "Y", "Z",
+        ],
+        units: {
+          Story: "", Label: "", "Point Element": "",
+          UX: massLabel, UY: massLabel, UZ: massLabel,
+          RX: "tonf-m-s²", RY: "tonf-m-s²", RZ: "tonf-m-s²",
+          X: "m", Y: "m", Z: "m",
+        },
+        rows: this._buildAssembledJointMassesRows(),
+      },
+
+      {
+        id: "story_drifts_result",
+        label: "Story Drifts",
+        columns: [
+          "Story", "Output Case", "Case Type", "Step Type", "Direction", "Drift", "Drift/", "Z",
+        ],
+        units: {
+          Story: "", "Output Case": "", "Case Type": "", "Step Type": "",
+          Direction: "", Drift: "", "Drift/": "", Z: "m",
+        },
+        rows: this._buildStoryDriftsShowRows(),
+      },
+
+      {
+        id: "base_reactions_result",
+        label: "Base Reactions",
+        columns: [
+          "Output Case", "Case Type", "Step Type", "FX", "FY", "FZ", "MX", "MY", "MZ",
+        ],
+        units: {
+          "Output Case": "", "Case Type": "", "Step Type": "",
+          FX: "tonf", FY: "tonf", FZ: "tonf",
+          MX: "tonf-m", MY: "tonf-m", MZ: "tonf-m",
+        },
+        rows: this._buildBaseReactionsShowRows(),
+      },
+
+      {
+        id: "joint_reactions_result",
+        label: "Joint Reactions",
+        columns: reactionCols,
+        units: reactionUnits,
+        rows: this._buildJointReactionsShowRows(),
+      },
+
+      {
+        id: "joint_design_reactions_result",
+        label: "Joint Design Reactions",
+        columns: reactionCols,
+        units: reactionUnits,
+        rows: this._buildJointReactionsShowRows(),
+      },
+
+      {
+        id: "story_accelerations_result",
+        label: "Story Accelerations",
+        columns: [
+          "Story", "Output Case", "Case Type", "Step Type", "UX", "UY", "UZ", "RX", "RY", "RZ",
+        ],
+        units: {
+          Story: "", "Output Case": "", "Case Type": "", "Step Type": "",
+          UX: "m/sec²", UY: "m/sec²", UZ: "m/sec²",
+          RX: "rad/sec²", RY: "rad/sec²", RZ: "rad/sec²",
+        },
+        rows: this._buildStoryAccelerationsShowRows(),
       },
     ];
   },
@@ -1078,7 +1629,34 @@ export const displayDialogsMixin = {
           { id: "system_data", label: "System Data", pending: true },
           { id: "property_definitions", label: "Property Definitions", pending: true },
           { id: "load_pattern_definitions", label: "Load Pattern Definitions", pending: true },
-          { id: "other_definitions", label: "Other Definitions", pending: true },
+          {
+            id: "other_definitions",
+            label: "Other Definitions",
+            type: "group",
+            expanded: true,
+            children: [
+              { id: "group_data", label: "Group Data", pending: true },
+              {
+                id: "mass_data",
+                label: "Mass Data",
+                type: "group",
+                expanded: true,
+                children: [
+                  {
+                    id: "mass_summary_story_node",
+                    label: "Table: Mass Summary by Story",
+                    tableId: "mass_summary_story",
+                  },
+                  {
+                    id: "mass_summary_group_node",
+                    label: "Table: Mass Summary by Group",
+                    tableId: "mass_summary_group",
+                  },
+                ],
+              },
+              { id: "miscellaneous", label: "Miscellaneous", pending: true },
+            ],
+          },
           { id: "load_case_definitions", label: "Load Case Definitions", pending: true },
           { id: "connectivity_data", label: "Connectivity Data", pending: true },
 
@@ -1133,10 +1711,143 @@ export const displayDialogsMixin = {
             ],
           },
 
-          { id: "frame_assignments", label: "Frame Assignments", pending: true },
-          { id: "area_assignments", label: "Area Assignments", pending: true },
+          {
+            id: "frame_assignments",
+            label: "Frame Assignments",
+            type: "group",
+            expanded: true,
+            children: [
+              { id: "frame_item_assignments", label: "Frame Item Assignments", pending: true },
+              {
+                id: "frame_load_assignments",
+                label: "Frame Load Assignments",
+                type: "group",
+                expanded: true,
+                children: [
+                  {
+                    id: "frame_loads_distributed_node",
+                    label: "Table: Frame Loads Assignments - Distributed",
+                    tableId: "frame_loads_distributed",
+                  },
+                  {
+                    id: "frame_loads_wind_node",
+                    label: "Table: Frame Loads Assignments - Open Structure Wind Parameters",
+                    pending: true,
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            id: "area_assignments",
+            label: "Area Assignments",
+            type: "group",
+            expanded: true,
+            children: [
+              { id: "area_item_assignments", label: "Area Item Assignments", pending: true },
+              {
+                id: "area_load_assignments",
+                label: "Area Load Assignments",
+                type: "group",
+                expanded: true,
+                children: [
+                  {
+                    id: "area_loads_uniform_node",
+                    label: "Table: Area Load Assignments - Uniform",
+                    tableId: "area_loads_uniform",
+                  },
+                ],
+              },
+            ],
+          },
           { id: "options_preferences_data", label: "Options and Preferences Data", pending: true },
           { id: "miscellaneous_data", label: "Miscellaneous Data", pending: true },
+        ],
+      },
+
+      {
+        id: "analysis_results",
+        label: "ANALYSIS RESULTS",
+        type: "group",
+        expanded: true,
+        children: [
+          { id: "run_information", label: "Run Information", pending: true },
+          {
+            id: "joint_output",
+            label: "Joint Output",
+            type: "group",
+            expanded: true,
+            children: [
+              {
+                id: "joint_output_displacements",
+                label: "Displacements",
+                type: "group",
+                expanded: true,
+                children: [
+                  { id: "joint_displacements_node", label: "Table: Joint Displacements", pending: true },
+                  { id: "story_drifts_node", label: "Table: Story Drifts", tableId: "story_drifts_result" },
+                  { id: "story_max_avg_disp_node", label: "Table: Story Max Over Avg Displacements", pending: true },
+                ],
+              },
+              {
+                id: "joint_output_reactions",
+                label: "Reactions",
+                type: "group",
+                expanded: true,
+                children: [
+                  { id: "joint_reactions_node", label: "Table: Joint Reactions", tableId: "joint_reactions_result" },
+                  { id: "joint_design_reactions_node", label: "Table: Joint Design Reactions", tableId: "joint_design_reactions_result" },
+                ],
+              },
+              {
+                id: "joint_output_velacc",
+                label: "Velocity and Acceleration",
+                type: "group",
+                expanded: true,
+                children: [
+                  { id: "story_accelerations_node", label: "Table: Story Accelerations", tableId: "story_accelerations_result" },
+                ],
+              },
+              {
+                id: "joint_output_masses",
+                label: "Joint Masses",
+                type: "group",
+                expanded: true,
+                children: [
+                  { id: "assembled_joint_masses_node", label: "Table: Assembled Joint Masses", tableId: "assembled_joint_masses" },
+                ],
+              },
+            ],
+          },
+          { id: "element_output", label: "Element Output", pending: true },
+          {
+            id: "structure_output",
+            label: "Structure Output",
+            type: "group",
+            expanded: true,
+            children: [
+              {
+                id: "base_reactions_group",
+                label: "Base Reactions",
+                type: "group",
+                expanded: true,
+                children: [
+                  { id: "base_reactions_node", label: "Table: Base Reactions", tableId: "base_reactions_result" },
+                ],
+              },
+              {
+                id: "modal_information",
+                label: "Modal Information",
+                type: "group",
+                expanded: true,
+                children: [
+                  { id: "modal_periods_node", label: "Table: Modal Periods And Frequencies", tableId: "modal_periods_freq" },
+                  { id: "modal_participating_node", label: "Table: Modal Participating Mass Ratios", tableId: "modal_participating_mass" },
+                  { id: "response_spectrum_modal_info_node", label: "Table: Response Spectrum Modal Info", pending: true },
+                ],
+              },
+            ],
+          },
         ],
       },
 

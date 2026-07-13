@@ -1176,202 +1176,454 @@ export const fileIOMixin = {
     return Number(number.toFixed(decimals));
   },
 
+  // ============================================================
+  //  EXPORTACIÓN .e2k NATIVA DE ETABS (Fases 1+2: geometría + cargas)
+  //  Colapsa el modelo 3D explícito a la representación por pisos
+  //  que usa ETABS (POINT en planta + ASSIGN por Story).
+  //  Unidades de salida: TONF, M (como el .e2k de referencia).
+  // ============================================================
+
+  // Factor MPa → tonf/m² (unidad de fuerza/área del .e2k en TONF·M)
+  _e2kMPaToTonfM2(v) {
+    return Number(v || 0) * 101.9716213;
+  },
+
+  // Cadena de restricción ETABS ("UX UY UZ RX RY RZ") desde {ux..rz}
+  _e2kRestraintStr(r) {
+    if (!r) return null;
+    const map = [["ux", "UX"], ["uy", "UY"], ["uz", "UZ"], ["rx", "RX"], ["ry", "RY"], ["rz", "RZ"]];
+    const on = map.filter(([k]) => Number(r[k]) === 1 || r[k] === true).map(([, v]) => v);
+    return on.length ? on.join(" ") : null;
+  },
+
   buildETABS_E2KText() {
     const data = this.exportToJSON?.() || {};
     const model = data.model || data;
+    const definitions = data.definitions || {};
 
     const referenceGrid = model.referenceGrid || this.referenceGrid || {};
-    const stories = model.stories || this.stories || [];
+    const rawStories = model.stories || this.stories || [];
     const nodes = model.nodes || data.nodes || [];
     const frames = model.frames || model.beams || data.beams || [];
     const areas = model.areas || data.areas || [];
 
-    const definitions = data.definitions || {};
     const frameSections = definitions.frameSections || data.frameSections || this.frameSections?.sections || [];
-
     const materials = definitions.materials || data.materials || this.materialProperties?.materials || [];
+    const loadCases = definitions.loadCases || data.loadCases || [];
+    const diaphragms = definitions.diaphragms || data.diaphragms || [];
+    const massSource = definitions.massSource || data.massSource || this.massSource || {};
+
+    const fmt = (v, dec = 6) => this.formatE2KNumber(v, dec);
+    const rnd = (v) => Number(Number(v || 0).toFixed(3));
+
+    // ---- Pisos: elevación → nombre; helper storyOfZ ---------------------
+    const stories = rawStories.slice().sort((a, b) => (a.elevation || 0) - (b.elevation || 0));
+    const elevToStory = new Map();
+    stories.forEach((s) => elevToStory.set(rnd(s.elevation), s.name || `Story${s.id}`));
+    const storyOfZ = (z) => {
+      const key = rnd(z);
+      if (elevToStory.has(key)) return elevToStory.get(key);
+      let best = stories[0]?.name || "Base";
+      stories.forEach((s) => {
+        if (rnd(s.elevation) <= key + 1e-6) best = s.name || `Story${s.id}`;
+      });
+      return best;
+    };
+
+    // ---- Puntos en planta: (x,y) únicos ---------------------------------
+    const planPoints = new Map(); // key → {name,x,y}
+    let ppCounter = 0;
+    const getPlanPoint = (x, y) => {
+      const k = `${rnd(x)}|${rnd(y)}`;
+      if (!planPoints.has(k)) {
+        ppCounter += 1;
+        planPoints.set(k, { name: String(ppCounter), x: rnd(x), y: rnd(y) });
+      }
+      return planPoints.get(k);
+    };
+
+    const nodeById = new Map();
+    nodes.forEach((n) => nodeById.set(n.id, n));
+    nodes.forEach((n) => getPlanPoint(n.x, n.y));
+    areas.forEach((a) => (a.points || []).forEach((p) => getPlanPoint(p.x, p.y)));
+
+    // ---- Diafragma rígido (si existe en definiciones) -------------------
+    const rigidDiaph = (diaphragms || []).find((d) => /rigid/i.test(d.rigidity || d.type || ""));
+    const rigidDiaphName = rigidDiaph?.name || null;
+
+    // ---- Colapso de LÍNEAS (columnas/vigas) -----------------------------
+    const lineDefs = new Map(); // dedupKey → {name,kind,pi,pj}
+    const lineAssigns = []; // {name, story, section, frame}
+    let colN = 0;
+    let beamN = 0;
+    let braceN = 0;
+    frames.forEach((f) => {
+      const n1 = nodeById.get(f.node1 ?? f.node1Id);
+      const n2 = nodeById.get(f.node2 ?? f.node2Id);
+      if (!n1 || !n2) return;
+      const pp1 = getPlanPoint(n1.x, n1.y);
+      const pp2 = getPlanPoint(n2.x, n2.y);
+      const et = String(f.elementType || f.type || "beam").toLowerCase();
+      // Clasificación GEOMÉTRICA (no por etiqueta): un elemento vertical
+      // (mismo punto en planta, distinta Z) es SIEMPRE columna en ETABS.
+      // Necesario porque +Nuevo Piso a veces duplica columnas como "beam".
+      const sameXY = pp1.name === pp2.name;
+      const dz = Math.abs(rnd(n1.z) - rnd(n2.z)) > 1e-6;
+      const kind = sameXY && dz ? "COLUMN" : et === "brace" ? "BRACE" : "BEAM";
+      const story = kind === "COLUMN" ? storyOfZ(Math.max(n1.z, n2.z)) : storyOfZ(n1.z);
+      const dedupKey = `${kind}|${[pp1.name, pp2.name].slice().sort().join("~")}`;
+      if (!lineDefs.has(dedupKey)) {
+        let name;
+        if (kind === "COLUMN") { colN += 1; name = `C${colN}`; }
+        else if (kind === "BRACE") { braceN += 1; name = `D${braceN}`; }
+        else { beamN += 1; name = `B${beamN}`; }
+        lineDefs.set(dedupKey, { name, kind, pi: pp1.name, pj: pp2.name });
+      }
+      const def = lineDefs.get(dedupKey);
+      lineAssigns.push({ name: def.name, story, section: f.sectionName || f.sectionId || "", frame: f });
+    });
+
+    // ---- Colapso de ÁREAS (losas) ---------------------------------------
+    const areaDefs = new Map(); // dedupKey → {name, pts:[names]}
+    const areaAssigns = []; // {name, story, section, area}
+    let areaN = 0;
+    areas.forEach((a) => {
+      const pts = (a.points || []).map((p) => getPlanPoint(p.x, p.y).name);
+      if (pts.length < 3) return;
+      const z = a.z ?? a.points?.[0]?.z ?? 0;
+      const story = storyOfZ(z);
+      const dedupKey = `A|${pts.slice().sort().join("~")}`;
+      if (!areaDefs.has(dedupKey)) { areaN += 1; areaDefs.set(dedupKey, { name: `F${areaN}`, pts }); }
+      const def = areaDefs.get(dedupKey);
+      areaAssigns.push({ name: def.name, story, section: a.section?.name || "", area: a });
+    });
+
+    // ---- Secciones / materiales realmente usados ------------------------
+    const usedFrameSecs = new Map();
+    frames.forEach((f) => {
+      const nm = f.sectionName || f.sectionId;
+      if (nm && !usedFrameSecs.has(nm)) {
+        usedFrameSecs.set(nm, frameSections.find((s) => s.name === nm) || { name: nm });
+      }
+    });
+    const slabSecs = new Map();
+    areas.forEach((a) => {
+      const s = a.section;
+      if (s && s.name && !slabSecs.has(s.name)) slabSecs.set(s.name, s);
+    });
+    const matByName = new Map();
+    (materials || []).forEach((m) => matByName.set(m.name, m));
+    const usedMats = new Map();
+    usedFrameSecs.forEach((s) => { const mn = s.material || "CONC"; if (!usedMats.has(mn)) usedMats.set(mn, matByName.get(mn) || { name: mn, designType: "Concrete" }); });
+    slabSecs.forEach((s) => { const mn = s.material || "CONC"; if (!usedMats.has(mn)) usedMats.set(mn, matByName.get(mn) || { name: mn, designType: "Concrete" }); });
+    if (usedMats.size === 0) usedMats.set("CONC", matByName.get("CONC") || { name: "CONC", designType: "Concrete" });
 
     const lines = [];
 
-    lines.push("$ ------------------------------------------------------------");
-    lines.push("$ JHACK ETABS WEB - E2K TEXT EXPORT");
-    lines.push("$ ESTADO: AVANCE INICIAL / NO OFICIAL");
-    lines.push("$ Export inicial tipo texto para intercambio/documentación");
-    lines.push("$ Este archivo NO es todavía un .e2k oficial completo de ETABS");
-    lines.push("$ Sirve como avance de exportación para revisión del cliente");
-    lines.push("$ ------------------------------------------------------------");
-    lines.push(`$ DATE "${new Date().toISOString()}"`);
-    lines.push(`$ UNITS "${this.preferences?.forceUnit || "kN"}" "${this.preferences?.lengthUnit || "m"}"`);
+    // ---- Cabecera -------------------------------------------------------
+    // La 1ª línea es la FIRMA que ETABS usa para validar el archivo:
+    // "$ File <nombre> saved DD/MM/YYYY HH:MM:SS" (formato exacto obligatorio).
+    const _now = new Date();
+    const _p = (n) => String(n).padStart(2, "0");
+    const _stamp =
+      `${_p(_now.getDate())}/${_p(_now.getMonth() + 1)}/${_now.getFullYear()} ` +
+      `${_p(_now.getHours())}:${_p(_now.getMinutes())}:${_p(_now.getSeconds())}`;
+    lines.push(`$ File ${this.getExportBaseName()}.e2k saved ${_stamp}`);
+    lines.push(" ");
+    lines.push("$ PROGRAM INFORMATION");
+    lines.push('  PROGRAM  "ETABS"  VERSION "22.7.0"  ');
+    lines.push("");
+    lines.push("$ CONTROLS");
+    lines.push('  UNITS  "TONF"  "M"  "C"  ');
+    lines.push('  TITLE1  "Exportado desde JHACK ETABS Web"  ');
+    lines.push("  PREFERENCE  MERGETOL 0.001");
     lines.push("");
 
-    lines.push("$ STORIES");
-    stories.forEach((story) => {
+    // ---- STORIES (de arriba hacia abajo) --------------------------------
+    lines.push("$ STORIES - IN SEQUENCE FROM TOP");
+    const topDown = stories.slice().sort((a, b) => (b.elevation || 0) - (a.elevation || 0));
+    topDown.forEach((story, idx) => {
+      const name = story.name || `Story${story.id}`;
+      const below = topDown[idx + 1];
+      if (below) {
+        const h = (story.elevation || 0) - (below.elevation || 0);
+        lines.push(`  STORY "${name}"  HEIGHT ${fmt(h)} `);
+      } else {
+        lines.push(`  STORY "${name}"  ELEV ${fmt(story.elevation)} `);
+      }
+    });
+    lines.push("");
+
+    // ---- GRIDS ----------------------------------------------------------
+    lines.push("$ GRIDS");
+    lines.push('  GRIDSYSTEM "G1"  TYPE "CARTESIAN"  BUBBLESIZE 1.25 ');
+    (referenceGrid.xGrids || []).forEach((g) => {
       lines.push(
-        `STORY "${story.name || `Story_${story.id}`}" ` +
-        `ID ${story.id ?? 0} ` +
-        `ELEV ${this.formatE2KNumber(story.elevation)}`,
+        `  GRID "G1"  LABEL "${g.id}"  DIR "X"  COORD ${fmt(g.ordinate)} VISIBLE "${g.visible !== false ? "Yes" : "No"}"  BUBBLELOC "${g.bubbleLoc || "End"}"  `,
+      );
+    });
+    (referenceGrid.yGrids || []).forEach((g) => {
+      lines.push(
+        `  GRID "G1"  LABEL "${g.id}"  DIR "Y"  COORD ${fmt(g.ordinate)} VISIBLE "${g.visible !== false ? "Yes" : "No"}"  BUBBLELOC "${g.bubbleLoc || "Start"}"  `,
       );
     });
     lines.push("");
 
-    lines.push("$ GRID LINES X");
-    (referenceGrid.xGrids || []).forEach((grid) => {
-      lines.push(
-        `GRIDLINE DIR X ` +
-        `ID "${grid.id}" ` +
-        `ORD ${this.formatE2KNumber(grid.ordinate)} ` +
-        `VISIBLE ${grid.visible !== false ? "YES" : "NO"} ` +
-        `BUBBLE "${grid.bubbleLoc || "End"}"`,
-      );
+    // ---- DIAPHRAGM NAMES ------------------------------------------------
+    if (rigidDiaphName) {
+      lines.push("$ DIAPHRAGM NAMES");
+      lines.push(`  DIAPHRAGM "${rigidDiaphName}"    TYPE RIGID`);
+      lines.push("");
+    }
+
+    // ---- MATERIAL PROPERTIES --------------------------------------------
+    lines.push("$ MATERIAL PROPERTIES");
+    usedMats.forEach((mat, name) => {
+      const dt = String(mat.designType || mat.type || "Concrete");
+      const etabsType = /steel/i.test(dt) ? "Steel" : /concrete/i.test(dt) ? "Concrete" : "Other";
+      const isConcrete = etabsType === "Concrete";
+      const wpv = isConcrete ? 2.4 : /steel/i.test(dt) ? 7.849 : 2.4;
+      const E = this._e2kMPaToTonfM2(mat.E || mat.modulusElasticity || 0);
+      const U = Number(mat.poisson ?? mat.poissonRatio ?? (isConcrete ? 0.2 : 0.3));
+      const A = Number(mat.thermalExpansion || 0.0000099);
+      lines.push(`  MATERIAL  "${name}"    TYPE "${etabsType}"    WEIGHTPERVOLUME ${fmt(wpv)}`);
+      lines.push(`  MATERIAL  "${name}"    SYMTYPE "Isotropic"  E ${fmt(E)}  U ${fmt(U)}  A ${fmt(A)}`);
+      if (isConcrete) {
+        const fc = this._e2kMPaToTonfM2(mat.fc || mat.fpc || 21);
+        lines.push(`  MATERIAL  "${name}"  FC ${fmt(fc)}`);
+      } else if (/steel/i.test(dt)) {
+        const fy = this._e2kMPaToTonfM2(mat.fy || mat.fys || 250);
+        lines.push(`  MATERIAL  "${name}"  FY ${fmt(fy)}  FU ${fmt(fy * 1.3)}`);
+      }
     });
     lines.push("");
 
-    lines.push("$ GRID LINES Y");
-    (referenceGrid.yGrids || []).forEach((grid) => {
-      lines.push(
-        `GRIDLINE DIR Y ` +
-        `ID "${grid.id}" ` +
-        `ORD ${this.formatE2KNumber(grid.ordinate)} ` +
-        `VISIBLE ${grid.visible !== false ? "YES" : "NO"} ` +
-        `BUBBLE "${grid.bubbleLoc || "Start"}"`,
-      );
-    });
-    lines.push("");
-
-    lines.push("$ GENERAL GRID LINES");
-    (referenceGrid.generalGrids || []).forEach((grid) => {
-      lines.push(
-        `GENERALGRID "${grid.id || grid.label || "GRID"}" ` +
-        `X1 ${this.formatE2KNumber(grid.x1)} ` +
-        `Y1 ${this.formatE2KNumber(grid.y1)} ` +
-        `X2 ${this.formatE2KNumber(grid.x2)} ` +
-        `Y2 ${this.formatE2KNumber(grid.y2)} ` +
-        `SOURCE "${grid.source || "custom"}" ` +
-        `VISIBLE ${grid.visible !== false ? "YES" : "NO"}`,
-      );
-    });
-    lines.push("");
-
-    lines.push("$ MATERIALS");
-    materials.forEach((material, index) => {
-      const id = material.id || material.name || `MAT_${index + 1}`;
-      const name = material.name || material.nombre || id;
-
-      lines.push(
-        `MATERIAL "${id}" ` +
-        `NAME "${name}" ` +
-        `TYPE "${material.type || material.materialType || "Other"}" ` +
-        `E ${this.formatE2KNumber(material.E || material.modulusElasticity || 0)}`,
-      );
-    });
-    lines.push("");
-
+    // ---- FRAME SECTIONS + CONCRETE SECTIONS -----------------------------
     lines.push("$ FRAME SECTIONS");
-    frameSections.forEach((section, index) => {
-      const id = section.id || section.name || `SEC_${index + 1}`;
-      const name = section.name || section.nombre || id;
-
-      lines.push(
-        `FRAMESECTION "${id}" ` +
-        `NAME "${name}" ` +
-        `TYPE "${section.type || "General"}" ` +
-        `A ${this.formatE2KNumber(section.A || section.area || 0)}`,
-      );
+    const concreteFrameSecs = [];
+    usedFrameSecs.forEach((s, name) => {
+      const mat = s.material || "CONC";
+      const type = String(s.type || "rect").toLowerCase();
+      if (type === "rect") {
+        const D = Number(s.h || 0) / 100;
+        const B = Number(s.b || 0) / 100;
+        lines.push(`  FRAMESECTION  "${name}"  MATERIAL "${mat}"  SHAPE "Concrete Rectangular"  D ${fmt(D)} B ${fmt(B)} `);
+        concreteFrameSecs.push({ name, isColumn: /^c/i.test(name) });
+      } else {
+        // Perfil no rectangular: exporta como General con área (aprox.)
+        lines.push(`  FRAMESECTION  "${name}"  MATERIAL "${mat}"  SHAPE "General"  AREA ${fmt(s.area || s.A || 0)} `);
+      }
     });
     lines.push("");
+    if (concreteFrameSecs.length) {
+      lines.push("$ CONCRETE SECTIONS");
+      concreteFrameSecs.forEach((s) => {
+        const kind = s.isColumn ? "Column" : "Beam";
+        lines.push(
+          `  CONCRETESECTION  "${s.name}"  LONGBARMATERIAL "fy=4200 kg/cm2"  CONFINEBARMATERIAL "fy=4200 kg/cm2"  TYPE "${kind}"  COVER 0.04 `,
+        );
+      });
+      lines.push("");
+    }
 
+    // ---- SLAB PROPERTIES ------------------------------------------------
+    if (slabSecs.size) {
+      lines.push("$ SLAB PROPERTIES");
+      slabSecs.forEach((s, name) => {
+        const mat = s.material || "CONC";
+        const th = Number(s.thickness || 0) / 1000; // mm → m
+        lines.push(
+          `  SHELLPROP  "${name}"  PROPTYPE  "Slab"  MATERIAL "${mat}"  MODELINGTYPE "Membrane"  SLABTYPE "Slab"  SLABTHICKNESS ${fmt(th)} `,
+        );
+      });
+      lines.push("");
+    }
+
+    // ---- POINT COORDINATES ----------------------------------------------
     lines.push("$ POINT COORDINATES");
-    nodes.forEach((node) => {
-      lines.push(
-        `POINT "${node.id}" ` +
-        `X ${this.formatE2KNumber(node.x ?? node.position?.x)} ` +
-        `Y ${this.formatE2KNumber(node.y ?? node.position?.y)} ` +
-        `Z ${this.formatE2KNumber(node.z ?? node.position?.z)}`,
-      );
+    planPoints.forEach((p) => {
+      lines.push(`  POINT "${p.name}"  ${fmt(p.x)} ${fmt(p.y)} `);
     });
     lines.push("");
 
-    lines.push("$ FRAME CONNECTIVITY");
-    frames.forEach((frame) => {
-      const sectionName =
-        frame.sectionName || frame.sectionId || frame.frameSection?.name || frame.section?.name || "NONE";
-
-      lines.push(
-        `FRAME "${frame.id}" ` +
-        `I "${frame.node1Id ?? frame.node1}" ` +
-        `J "${frame.node2Id ?? frame.node2}" ` +
-        `TYPE "${frame.elementType || frame.type || "beam"}" ` +
-        `SECTION "${sectionName}"`,
-      );
+    // ---- LINE CONNECTIVITIES --------------------------------------------
+    lines.push("$ LINE CONNECTIVITIES");
+    lineDefs.forEach((d) => {
+      const flag = d.kind === "COLUMN" ? 1 : 0;
+      lines.push(`  LINE  "${d.name}"  ${d.kind}  "${d.pi}"  "${d.pj}"  ${flag}`);
     });
     lines.push("");
 
-    lines.push("$ AREA OBJECTS");
-    areas.forEach((area) => {
-      const points = Array.isArray(area.points)
-        ? area.points
-          .map(
-            (point, index) =>
-              `P${index + 1}(${this.formatE2KNumber(point.x)},${this.formatE2KNumber(point.y)},${this.formatE2KNumber(point.z)})`,
-          )
-          .join(" ")
-        : "";
-
-      lines.push(`AREA "${area.id}" ` + `TYPE "${area.areaType || area.type || "area"}" ` + points);
+    // ---- AREA CONNECTIVITIES --------------------------------------------
+    lines.push("$ AREA CONNECTIVITIES");
+    areaDefs.forEach((d) => {
+      const pts = d.pts.map((n) => `"${n}"`).join("  ");
+      const zeros = d.pts.map(() => "0").join("  ");
+      lines.push(`  AREA "${d.name}"  FLOOR  ${d.pts.length}  ${pts}  ${zeros}  `);
     });
     lines.push("");
 
-    lines.push("$ ASSIGNMENTS - FRAME SECTIONS");
-    frames.forEach((frame) => {
-      if (!frame.sectionId && !frame.sectionName) return;
-
-      lines.push(`ASSIGN FRAME "${frame.id}" ` + `SECTION "${frame.sectionName || frame.sectionId}"`);
+    // ---- POINT ASSIGNS --------------------------------------------------
+    lines.push("$ POINT ASSIGNS");
+    nodes.forEach((n) => {
+      const pp = getPlanPoint(n.x, n.y);
+      const story = storyOfZ(n.z);
+      const restr = n.hasRestraints ? this._e2kRestraintStr(n.restraints || n.constraints) : null;
+      if (restr) {
+        lines.push(`  POINTASSIGN  "${pp.name}"  "${story}"  RESTRAINT "${restr}"  `);
+      } else {
+        let l = `  POINTASSIGN  "${pp.name}"  "${story}"  USERJOINT  "Yes"  `;
+        // Diafragma SOLO si el nodo lo tiene asignado explícitamente en los datos.
+        // La acción de diafragma la aportan las losas membrana (como en el .e2k
+        // de referencia); no se inyecta un D1 rígido para no sobre-restringir.
+        const dName = n.diaphragmName || n.diaphragm?.name || null;
+        if (dName && !/none/i.test(dName)) l += `DIAPH "${dName}"  `;
+        lines.push(l);
+      }
     });
     lines.push("");
 
-    lines.push("$ LOADS - JOINT");
-    nodes.forEach((node) => {
-      const loads = node.pointLoads || node.jointLoads || [];
+    // ---- LINE ASSIGNS ---------------------------------------------------
+    lines.push("$ LINE ASSIGNS");
+    lineAssigns.forEach((a) => {
+      lines.push(`  LINEASSIGN  "${a.name}"  "${a.story}"  SECTION "${a.section}"  MINNUMSTA 3 AUTOMESH "YES"  MESHATINTERSECTIONS "YES"  `);
+    });
+    lines.push("");
 
-      loads.forEach((load) => {
-        lines.push(
-          `JOINTLOAD POINT "${node.id}" ` +
-          `CASE "${load.loadCase || "DEAD"}" ` +
-          `TYPE "${load.type || "force"}" ` +
-          `DATA ${JSON.stringify(load)}`,
-        );
+    // ---- AREA ASSIGNS ---------------------------------------------------
+    lines.push("$ AREA ASSIGNS");
+    areaAssigns.forEach((a) => {
+      lines.push(`  AREAASSIGN  "${a.name}"  "${a.story}"  SECTION "${a.section}"  OBJMESHTYPE "DEFAULT"  CARDINALPOINT "TOP"  `);
+    });
+    lines.push("");
+
+    // ---- LOAD PATTERNS --------------------------------------------------
+    lines.push("$ LOAD PATTERNS");
+    const patternType = (c) => {
+      const t = String(c.type || "").toUpperCase();
+      if (t.includes("DEAD")) return "Dead";
+      if (t.includes("ROOF")) return "Roof Live";
+      if (t.includes("LIVE")) return "Live";
+      if (t.includes("SEISMIC") || t.includes("QUAKE")) return "Seismic";
+      return "Other";
+    };
+    const staticCases = (loadCases || []).filter((c) => c && c.name);
+    staticCases.forEach((c) => {
+      const pt = patternType(c);
+      const sw = pt === "Dead" ? 1 : 0;
+      lines.push(`  LOADPATTERN "${c.name}"  TYPE  "${pt}"  SELFWEIGHT  ${sw}`);
+    });
+    lines.push("");
+
+    // ---- POINT OBJECT LOADS ---------------------------------------------
+    lines.push("$ POINT OBJECT LOADS");
+    nodes.forEach((n) => {
+      const pp = getPlanPoint(n.x, n.y);
+      const story = storyOfZ(n.z);
+      (n.pointLoads || n.jointLoads || []).forEach((ld) => {
+        const lc = ld.loadCase || ld.loadPattern || "CM";
+        const comps = [];
+        const push = (k, v) => { if (Math.abs(Number(v || 0)) > 1e-9) comps.push(`${k} ${fmt(v)}`); };
+        push("FX", ld.fx); push("FY", ld.fy); push("FZ", ld.fz);
+        push("MX", ld.mx ?? ld.mxx); push("MY", ld.my ?? ld.myy); push("MZ", ld.mz ?? ld.mzz);
+        if (comps.length) {
+          lines.push(`  POINTLOAD  "${pp.name}"  "${story}"  TYPE "FORCE"  LC "${lc}"    ${comps.join(" ")}`);
+        }
       });
     });
     lines.push("");
 
-    lines.push("$ LOADS - FRAME");
-    frames.forEach((frame) => {
-      const loads = frame.frameLoads || frame.lineLoads || [];
-
-      loads.forEach((load) => {
-        lines.push(
-          `FRAMELOAD FRAME "${frame.id}" ` +
-          `CASE "${load.loadCase || "DEAD"}" ` +
-          `TYPE "${load.type || "distributed"}" ` +
-          `DATA ${JSON.stringify(load)}`,
-        );
+    // ---- FRAME OBJECT LOADS ---------------------------------------------
+    lines.push("$ FRAME OBJECT LOADS");
+    lineAssigns.forEach((a) => {
+      const f = a.frame;
+      (f.frameLoads || f.lineLoads || []).forEach((ld) => {
+        if (String(ld.type) !== "distributed") return;
+        const lc = ld.loadCase || ld.loadPattern || "CM";
+        const dir = /grav/i.test(ld.direction || "") ? "GRAV" : "GRAV";
+        const val = ld.startValueDisp ?? (Number(ld.startValue || 0) / 9806.65);
+        lines.push(`  LINELOAD  "${a.name}"  "${a.story}"  TYPE "UNIFF"  DIR "${dir}"  LC "${lc}"  FVAL ${fmt(val)}`);
       });
     });
     lines.push("");
 
-    lines.push("$ END OF JHACK ETABS WEB EXPORT");
+    // ---- SHELL OBJECT LOADS ---------------------------------------------
+    lines.push("$ SHELL OBJECT LOADS");
+    areaAssigns.forEach((a) => {
+      (a.area.areaLoads || a.area.loads || []).forEach((ld) => {
+        if (String(ld.type) !== "uniform") return;
+        const lc = ld.loadCase || ld.loadPattern || "CM";
+        const val = ld.valueDisp ?? (Number(ld.value || 0) / 1000); // kgf/m² → tonf/m²
+        lines.push(`  AREALOAD  "${a.name}"  "${a.story}"  TYPE "UNIFF"  DIR "GRAV"  LC "${lc}"  FVAL ${fmt(val)}`);
+      });
+    });
+    lines.push("");
 
-    return lines.join("\n");
+    // ---- ANALYSIS OPTIONS -----------------------------------------------
+    lines.push("$ ANALYSIS OPTIONS");
+    lines.push('  ACTIVEDOF "UX UY UZ RX RY RZ"  ');
+    lines.push('  PDELTA  METHOD "NONE"  ');
+    lines.push("");
+
+    // ---- MASS SOURCE ----------------------------------------------------
+    const msName = massSource.name || "MsSrc1";
+    const msLoads = massSource.loadMultipliers || massSource.loadPatterns || [];
+    if (msLoads.length) {
+      lines.push("$ MASS SOURCE");
+      lines.push(
+        `  MASSSOURCE  "${msName}"    INCLUDEELEMENTS "No"    INCLUDEADDEDMASS "No"    INCLUDELOADS "Yes"    LUMPATSTORIES "Yes"    ISDEFAULT "Yes"  `,
+      );
+      msLoads.forEach((l) => {
+        const nm = l.load || l.name;
+        const factor = l.multiplier ?? l.factor ?? 1;
+        if (nm) lines.push(`  MASSSOURCELOAD  "${msName}"  "${nm}"  ${fmt(factor)} `);
+      });
+      lines.push("");
+    }
+
+    // ---- LOAD CASES (Modal + estáticos lineales) ------------------------
+    // Un modelo ETABS válido siempre tiene casos de carga; sin esta sección
+    // ETABS considera el archivo incompleto/no válido.
+    lines.push("$ LOAD CASES");
+    const maxModes = Math.max(3, 3 * Math.max(1, stories.length - 1));
+    lines.push('  LOADCASE "Modal"  TYPE  "Modal - Eigen"  INITCOND  "PRESET"  ');
+    lines.push(`  LOADCASE "Modal"  MAXMODES  ${maxModes} MINMODES  1 `);
+    staticCases.forEach((c) => {
+      lines.push(`  LOADCASE "${c.name}"  TYPE  "Linear Static"  INITCOND  "PRESET"  `);
+      lines.push(`  LOADCASE "${c.name}"  LOADPAT  "${c.name}"  SF  1 `);
+    });
+    lines.push("");
+
+    // ---- PROJECT INFORMATION --------------------------------------------
+    lines.push("$ PROJECT INFORMATION");
+    lines.push(`  PROJECTINFO    MODELNAME "${this.getExportBaseName()}"  `);
+    lines.push("");
+
+    // ---- LOG ------------------------------------------------------------
+    // ETABS valida la versión del archivo por la firma del LOG; incluir la
+    // cadena "ETABS Ultimate  22.7.0 ..." es clave para que lo acepte.
+    lines.push("$ LOG");
+    lines.push("  STARTCOMMENTS  ");
+    lines.push("");
+    lines.push(`ETABS Ultimate  22.7.0 File saved as ${this.getExportBaseName()}.EDB at ${_stamp}`);
+    lines.push("  ENDCOMMENTS  ");
+    lines.push("");
+    lines.push("  END");
+
+    lines.push("$ END OF MODEL FILE");
+
+    // ETABS requiere finales de línea Windows (CRLF); si no, rechaza el archivo.
+    return lines.join("\r\n") + "\r\n";
   },
 
   exportETABS_E2K() {
     try {
       const content = this.buildETABS_E2KText();
-      const filename = `${this.getExportBaseName()}_AVANCE_INICIAL_E2K_NO_OFICIAL.e2k`;
+      const filename = `${this.getExportBaseName()}.e2k`;
 
       this.downloadTextFile(content, filename, "text/plain");
 
-      this.showMessage?.(`📤 Exportación .e2k inicial/no oficial generada: ${filename}`);
+      this.showMessage?.(`📤 Exportación .e2k (ETABS) generada: ${filename}`);
       console.log("📤 Export ETABS E2K:", {
         filename,
         nodes: this.nodes?.length || 0,
