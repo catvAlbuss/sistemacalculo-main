@@ -673,6 +673,206 @@ export const displayDialogsMixin = {
     return nodes.filter((node) => selectedIds.has(String(node.id)));
   },
 
+  // ==========================================================
+  // JOINT ASSIGNMENTS - RESTRAINTS
+  // Normalización de restricciones nodales para Show Tables.
+  // ==========================================================
+
+  _normalizeJointRestraintValue(value) {
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    if (typeof value === "number") {
+      return value !== 0;
+    }
+
+    const normalized = String(value ?? "")
+      .trim()
+      .toLowerCase();
+
+    return [
+      "1",
+      "true",
+      "yes",
+      "si",
+      "sí",
+      "restrained",
+      "fixed",
+    ].includes(normalized);
+  },
+
+  _getJointRestraintsForShowTables(node) {
+    if (!node) return null;
+
+    /*
+     * El panel Propiedades → Soporte modifica node.soporte.
+     * Cuando existe un soporte seleccionado, este debe tener prioridad
+     * sobre restraints antiguos que el nodo todavía pueda conservar.
+     */
+    const supportType = String(
+      node.soporte ||
+      node.supportType ||
+      ""
+    ).trim();
+
+    const supportRestraints = {
+      soporteUno: {
+        ux: true,
+        uy: true,
+        uz: true,
+        rx: true,
+        ry: true,
+        rz: true,
+      },
+
+      fixed: {
+        ux: true,
+        uy: true,
+        uz: true,
+        rx: true,
+        ry: true,
+        rz: true,
+      },
+
+      soporteDos: {
+        ux: true,
+        uy: true,
+        uz: true,
+        rx: false,
+        ry: false,
+        rz: false,
+      },
+
+      pinned: {
+        ux: true,
+        uy: true,
+        uz: true,
+        rx: false,
+        ry: false,
+        rz: false,
+      },
+
+      soporteTres: {
+        ux: false,
+        uy: false,
+        uz: true,
+        rx: false,
+        ry: false,
+        rz: false,
+      },
+
+      soporteCuatro: {
+        ux: false,
+        uy: false,
+        uz: true,
+        rx: false,
+        ry: false,
+        rz: false,
+      },
+
+      rollerZ: {
+        ux: false,
+        uy: false,
+        uz: true,
+        rx: false,
+        ry: false,
+        rz: false,
+      },
+    };
+
+    if (supportType && supportRestraints[supportType]) {
+      return {
+        ...supportRestraints[supportType],
+      };
+    }
+
+    /*
+     * Si no existe un soporte seleccionado desde el panel lateral,
+     * se leen las restricciones asignadas desde:
+     * Assign → Joint / Point → Restraints / Supports.
+     */
+    const rawRestraints =
+      node.restraints ||
+      node.constraints ||
+      node.assignment?.restraints ||
+      null;
+
+    if (!rawRestraints || typeof rawRestraints !== "object") {
+      return null;
+    }
+
+    return {
+      ux: this._normalizeJointRestraintValue(rawRestraints.ux),
+      uy: this._normalizeJointRestraintValue(rawRestraints.uy),
+      uz: this._normalizeJointRestraintValue(rawRestraints.uz),
+      rx: this._normalizeJointRestraintValue(rawRestraints.rx),
+      ry: this._normalizeJointRestraintValue(rawRestraints.ry),
+      rz: this._normalizeJointRestraintValue(rawRestraints.rz),
+    };
+  },
+
+  _jointHasAnyRestraintForShowTables(restraints) {
+    if (!restraints) return false;
+
+    return (
+      restraints.ux === true ||
+      restraints.uy === true ||
+      restraints.uz === true ||
+      restraints.rx === true ||
+      restraints.ry === true ||
+      restraints.rz === true
+    );
+  },
+
+  _formatJointRestraintForShowTables(value) {
+    return value === true ? "Yes" : "No";
+  },
+
+  _buildJointRestraintAssignmentRows(options = {}) {
+    const rows = [];
+
+    this._getShowTablesSourceNodes(options).forEach((node) => {
+      const restraints = this._getJointRestraintsForShowTables(node);
+
+      // La tabla muestra solamente nodos que realmente tienen
+      // al menos un grado de libertad restringido.
+      if (!this._jointHasAnyRestraintForShowTables(restraints)) {
+        return;
+      }
+
+      rows.push({
+        _z: this._getShowTablesNodeZ(node),
+
+        Story: this._getShowTablesStoryName(node),
+        Label: this._getShowTablesJointLabel(node),
+        UniqueName: this._getShowTablesJointUniqueName(node),
+
+        UX: this._formatJointRestraintForShowTables(restraints.ux),
+        UY: this._formatJointRestraintForShowTables(restraints.uy),
+        UZ: this._formatJointRestraintForShowTables(restraints.uz),
+
+        RX: this._formatJointRestraintForShowTables(restraints.rx),
+        RY: this._formatJointRestraintForShowTables(restraints.ry),
+        RZ: this._formatJointRestraintForShowTables(restraints.rz),
+      });
+    });
+
+    return rows
+      .sort((a, b) => {
+        if (a._z !== b._z) {
+          return b._z - a._z;
+        }
+
+        return String(a.Label || "").localeCompare(
+          String(b.Label || ""),
+          undefined,
+          { numeric: true }
+        );
+      })
+      .map(({ _z, ...row }) => row);
+  },
+
   _buildJointForceAssignmentRows(options = {}) {
     const rows = [];
 
@@ -1210,6 +1410,36 @@ export const displayDialogsMixin = {
 
     return [
       {
+        id: "joint_assignments_restraints",
+        label: "Joint Assignments - Restraints",
+
+        columns: [
+          "Story",
+          "Label",
+          "UniqueName",
+          "UX",
+          "UY",
+          "UZ",
+          "RX",
+          "RY",
+          "RZ",
+        ],
+
+        units: {
+          Story: "",
+          Label: "",
+          UniqueName: "",
+          UX: "",
+          UY: "",
+          UZ: "",
+          RX: "",
+          RY: "",
+          RZ: "",
+        },
+
+        rows: this._buildJointRestraintAssignmentRows(options),
+      },
+      {
         id: "joint_loads_force",
         label: "Joint Loads Assignments - Force",
         columns: [
@@ -1244,7 +1474,6 @@ export const displayDialogsMixin = {
         },
         rows: this._buildJointForceAssignmentRows(options),
       },
-
       {
         id: "joint_loads_ground_displacement",
         label: "Joint Loads Assignments - Ground Displacement",
@@ -1276,7 +1505,6 @@ export const displayDialogsMixin = {
         },
         rows: this._buildJointGroundDisplacementAssignmentRows(options),
       },
-
       {
         id: "joint_loads_temperature",
         label: "Joint Loads Assignments - Temperature",
@@ -1298,7 +1526,6 @@ export const displayDialogsMixin = {
         },
         rows: this._buildJointTemperatureAssignmentRows(options),
       },
-
       {
         id: "mass_summary_story",
         label: "Mass Summary by Story",
@@ -1306,7 +1533,6 @@ export const displayDialogsMixin = {
         units: { Story: "", UX: massLabel, UY: massLabel, UZ: massLabel },
         rows: this._buildMassSummaryByStoryRows(),
       },
-
       {
         id: "mass_summary_group",
         label: "Mass Summary by Group",
@@ -1320,7 +1546,6 @@ export const displayDialogsMixin = {
         },
         rows: this._buildMassSummaryByGroupRows(),
       },
-
       {
         id: "frame_loads_distributed",
         label: "Frame Loads Assignments - Distributed",
@@ -1358,7 +1583,6 @@ export const displayDialogsMixin = {
         },
         rows: this._buildFrameDistributedAssignmentRows(),
       },
-
       {
         id: "area_loads_uniform",
         label: "Area Load Assignments - Uniform",
@@ -1374,7 +1598,6 @@ export const displayDialogsMixin = {
         },
         rows: this._buildAreaUniformAssignmentRows(),
       },
-
       // ================= ANALYSIS RESULTS =================
       {
         id: "modal_periods_freq",
@@ -1386,7 +1609,6 @@ export const displayDialogsMixin = {
         },
         rows: this._buildModalPeriodsAndFreqRows(),
       },
-
       {
         id: "modal_participating_mass",
         label: "Modal Participating Mass Ratios",
@@ -1397,7 +1619,6 @@ export const displayDialogsMixin = {
         units: { Case: "", Mode: "", Period: "sec" },
         rows: this._buildModalParticipatingMassRows(),
       },
-
       {
         id: "assembled_joint_masses",
         label: "Assembled Joint Masses",
@@ -1413,7 +1634,6 @@ export const displayDialogsMixin = {
         },
         rows: this._buildAssembledJointMassesRows(),
       },
-
       {
         id: "story_drifts_result",
         label: "Story Drifts",
@@ -1426,7 +1646,6 @@ export const displayDialogsMixin = {
         },
         rows: this._buildStoryDriftsShowRows(),
       },
-
       {
         id: "base_reactions_result",
         label: "Base Reactions",
@@ -1440,7 +1659,6 @@ export const displayDialogsMixin = {
         },
         rows: this._buildBaseReactionsShowRows(),
       },
-
       {
         id: "joint_reactions_result",
         label: "Joint Reactions",
@@ -1448,7 +1666,6 @@ export const displayDialogsMixin = {
         units: reactionUnits,
         rows: this._buildJointReactionsShowRows(),
       },
-
       {
         id: "joint_design_reactions_result",
         label: "Joint Design Reactions",
@@ -1456,7 +1673,6 @@ export const displayDialogsMixin = {
         units: reactionUnits,
         rows: this._buildJointReactionsShowRows(),
       },
-
       {
         id: "story_accelerations_result",
         label: "Story Accelerations",
@@ -1678,9 +1894,9 @@ export const displayDialogsMixin = {
                     pending: true,
                   },
                   {
-                    id: "joint_assignments_restraints",
+                    id: "joint_assignments_restraints_node",
                     label: "Table: Joint Assignments - Restraints",
-                    pending: true,
+                    tableId: "joint_assignments_restraints",
                   },
                 ],
               },

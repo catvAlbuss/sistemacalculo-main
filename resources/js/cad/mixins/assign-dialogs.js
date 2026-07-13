@@ -1056,6 +1056,58 @@ export const assignDialogsMixin = {
     });
   },
 
+  clearJointSupportAssignments(joints = []) {
+    const targetJoints = (Array.isArray(joints) ? joints : [joints])
+      .filter(Boolean);
+
+    if (!targetJoints.length) {
+      this.showMessage?.("No hay nodos seleccionados.", "warning");
+      return;
+    }
+
+    const freeRestraints = {
+      ux: false,
+      uy: false,
+      uz: false,
+      rx: false,
+      ry: false,
+      rz: false,
+      type: "none",
+      name: "None",
+    };
+
+    targetJoints.forEach((joint) => {
+      // Soporte del panel de propiedades.
+      joint.soporte = "";
+      joint.supportType = "";
+
+      // Restricciones explícitamente libres.
+      joint.restraints = structuredClone(freeRestraints);
+      joint.constraints = structuredClone(freeRestraints);
+      joint.hasRestraints = false;
+
+      // Mantener sincronizado el contenedor general.
+      joint.assignment = {
+        ...(joint.assignment || {}),
+        restraints: structuredClone(freeRestraints),
+      };
+    });
+
+    this.markAnalysisResultsOutdated?.(
+      "Se eliminaron soportes y restricciones nodales."
+    );
+
+    this.redraw?.();
+    this.sync3D?.();
+
+    this.showMessage?.(
+      `Soporte removido de ${targetJoints.length} nodo(s).`,
+      "success"
+    );
+
+    console.log("✅ Soportes removidos:", targetJoints);
+  },
+
   // Empotra automáticamente todos los nodos de la base (la cota Z mínima del
   // modelo). Escribe restraints (objeto) + soporte (string) para que el apoyo
   // se guarde, se vea en 3D y lo lea el motor sísmico por ambos caminos.
@@ -3431,9 +3483,8 @@ export const assignDialogsMixin = {
             ${loadCases
           .map(
             (lc) => `
-              <option value="${lc.name}" ${
-              (hasCM && String(lc.name).toUpperCase() === "CM") ? "selected" : ""
-            }>${lc.name}</option>
+              <option value="${lc.name}" ${(hasCM && String(lc.name).toUpperCase() === "CM") ? "selected" : ""
+              }>${lc.name}</option>
             `,
           )
           .join("")}
