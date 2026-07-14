@@ -873,6 +873,135 @@ export const displayDialogsMixin = {
       .map(({ _z, ...row }) => row);
   },
 
+  // ==========================================================
+  // JOINT ASSIGNMENTS - SUMMARY
+  // Lectura neutral de diafragma y restricciones nodales.
+  // ==========================================================
+
+  _getJointDiaphragmForShowTables(node) {
+    if (!node) return "";
+
+    const diaphragm =
+      node.diaphragm ||
+      node.assignment?.diaphragm ||
+      null;
+
+    const directDiaphragm = String(
+      node.diaphragmName ||
+      diaphragm?.name ||
+      node.diaphragmId ||
+      diaphragm?.id ||
+      ""
+    ).trim();
+
+    const rawMode = String(
+      node.diaphragmMode ||
+      node.assignment?.diaphragmMode ||
+      ""
+    )
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_-]+/g, "");
+
+    // ========================================================
+    // NONE / DISCONNECT
+    // Tiene prioridad incluso si quedaron campos antiguos.
+    // ========================================================
+    if (
+      rawMode === "none" ||
+      rawMode === "disconnect" ||
+      rawMode === "disconnected"
+    ) {
+      return "";
+    }
+
+    // ========================================================
+    // DIRECT
+    // Solo muestra el nombre si existe una asignación válida.
+    // ========================================================
+    if (rawMode === "direct") {
+      return directDiaphragm || "";
+    }
+
+    // ========================================================
+    // FROM AREA
+    // No debe mostrar un diafragma directo residual.
+    // ========================================================
+    if (
+      rawMode === "fromarea" ||
+      rawMode === "fromshell" ||
+      rawMode === "fromshellobject"
+    ) {
+      return "FromArea";
+    }
+
+    // ========================================================
+    // COMPATIBILIDAD CON MODELOS ANTIGUOS
+    // Antes de diaphragmMode, un D1 guardado era directo.
+    // ========================================================
+    if (directDiaphragm) {
+      return directDiaphragm;
+    }
+
+    // Modelo antiguo sin información explícita.
+    return "FromArea";
+  },
+
+  _formatJointRestraintSummaryForShowTables(node) {
+    const restraints = this._getJointRestraintsForShowTables(node);
+
+    if (!this._jointHasAnyRestraintForShowTables(restraints)) {
+      return "";
+    }
+
+    const restrainedDegrees = [];
+
+    if (restraints.ux === true) restrainedDegrees.push("UX");
+    if (restraints.uy === true) restrainedDegrees.push("UY");
+    if (restraints.uz === true) restrainedDegrees.push("UZ");
+
+    if (restraints.rx === true) restrainedDegrees.push("RX");
+    if (restraints.ry === true) restrainedDegrees.push("RY");
+    if (restraints.rz === true) restrainedDegrees.push("RZ");
+
+    return restrainedDegrees.join(", ");
+  },
+
+  _buildJointAssignmentSummaryRows(options = {}) {
+    const sourceNodes = this._getShowTablesSourceNodes(options);
+
+    const rows = [];
+
+    sourceNodes.forEach((node) => {
+      rows.push({
+        _z: this._getShowTablesNodeZ(node),
+
+        Story: this._getShowTablesStoryName(node),
+        Label: this._getShowTablesJointLabel(node),
+        UniqueName: this._getShowTablesJointUniqueName(node),
+
+        Diaphragm: this._getJointDiaphragmForShowTables(node),
+
+        Restraints:
+          this._formatJointRestraintSummaryForShowTables(node),
+      });
+    });
+
+    return rows
+      .sort((a, b) => {
+        if (a._z !== b._z) {
+          return b._z - a._z;
+        }
+
+        return String(a.Label || "").localeCompare(
+          String(b.Label || ""),
+          undefined,
+          { numeric: true }
+        );
+      })
+      .map(({ _z, ...row }) => row);
+  },
+
   _buildJointForceAssignmentRows(options = {}) {
     const rows = [];
 
@@ -1410,6 +1539,28 @@ export const displayDialogsMixin = {
 
     return [
       {
+        id: "joint_assignments_summary",
+        label: "Joint Assignments - Summary",
+
+        columns: [
+          "Story",
+          "Label",
+          "UniqueName",
+          "Diaphragm",
+          "Restraints",
+        ],
+
+        units: {
+          Story: "",
+          Label: "",
+          UniqueName: "",
+          Diaphragm: "",
+          Restraints: "",
+        },
+
+        rows: this._buildJointAssignmentSummaryRows(options),
+      },
+      {
         id: "joint_assignments_restraints",
         label: "Joint Assignments - Restraints",
 
@@ -1889,9 +2040,9 @@ export const displayDialogsMixin = {
                 expanded: true,
                 children: [
                   {
-                    id: "joint_assignments_summary",
+                    id: "joint_assignments_summary_node",
                     label: "Table: Joint Assignments - Summary",
-                    pending: true,
+                    tableId: "joint_assignments_summary",
                   },
                   {
                     id: "joint_assignments_restraints_node",
@@ -2373,7 +2524,7 @@ export const displayDialogsMixin = {
                 color:${theme.modalText};
                 border-radius:4px;
               ">
-              <legend tyle="color:${theme.legendText}; font-size:12px;">
+              <legend style="color:${theme.legendText}; font-size:12px;">
                 Load Patterns (Model Def.)
               </legend>
 

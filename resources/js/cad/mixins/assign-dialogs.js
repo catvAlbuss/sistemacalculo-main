@@ -1243,14 +1243,34 @@ export const assignDialogsMixin = {
     const diaphragms = this.getAvailableDiaphragmsForAssign();
 
     const inputOptions = {
+      FROM_AREA: "From Area",
       NONE: "None / Sin diafragma",
     };
-
     diaphragms.forEach((diaphragm) => {
       inputOptions[diaphragm.id] = `${diaphragm.name} (${diaphragm.type || "rigid"})`;
     });
 
-    const currentId = selectedJoints[0]?.diaphragmId || selectedJoints[0]?.diaphragm?.id || "D1";
+    const currentJoint = selectedJoints[0];
+
+    const directDiaphragmId =
+      currentJoint?.diaphragmId ||
+      currentJoint?.diaphragm?.id ||
+      null;
+
+    const currentMode = String(
+      currentJoint?.diaphragmMode ||
+      currentJoint?.assignment?.diaphragmMode ||
+      (directDiaphragmId ? "direct" : "fromArea")
+    )
+      .trim()
+      .toLowerCase();
+
+    const currentId =
+      currentMode === "none"
+        ? "NONE"
+        : currentMode === "fromarea"
+          ? "FROM_AREA"
+          : directDiaphragmId || "FROM_AREA";
 
     const result = await Swal.fire({
       title: "Assign Diaphragm",
@@ -1288,7 +1308,10 @@ export const assignDialogsMixin = {
       confirmButtonText: "Asignar",
       cancelButtonText: "Cancelar",
       preConfirm: () => {
-        return document.getElementById("assign-diaphragm-id")?.value || "NONE";
+        return (
+          document.getElementById("assign-diaphragm-id")?.value ||
+          "FROM_AREA"
+        );
       },
     });
 
@@ -1301,12 +1324,27 @@ export const assignDialogsMixin = {
     const selectedJoints = this.getSelectedJointsForAssign();
 
     if (!selectedJoints.length) {
-      this.showMessage?.("No hay nodos seleccionados.", "warning");
+      this.showMessage?.(
+        "No hay nodos seleccionados.",
+        "warning"
+      );
       return;
     }
 
-    if (String(diaphragmId) === "NONE") {
+    const selectedValue = String(
+      diaphragmId || "FROM_AREA"
+    )
+      .trim()
+      .toUpperCase();
+
+    // =====================================================
+    // FROM AREA
+    // El nodo obtiene el diafragma desde un objeto de área.
+    // =====================================================
+    if (selectedValue === "FROM_AREA") {
       selectedJoints.forEach((joint) => {
+        joint.diaphragmMode = "fromArea";
+
         joint.diaphragmId = null;
         joint.diaphragmName = null;
         joint.diaphragm = null;
@@ -1314,33 +1352,103 @@ export const assignDialogsMixin = {
 
         joint.assignment = {
           ...(joint.assignment || {}),
+          diaphragmMode: "fromArea",
           diaphragm: null,
         };
       });
 
-      this.redraw?.();
+      this.markAnalysisResultsOutdated?.(
+        "Se modificó la asignación de diafragma nodal."
+      );
 
-      this.showMessage?.(`Diafragma removido de ${selectedJoints.length} nodo(s).`);
+      this.redraw?.();
+      this.sync3D?.();
+
+      this.showMessage?.(
+        `From Area asignado a ${selectedJoints.length} nodo(s).`,
+        "success"
+      );
+
+      console.log("✅ Joint Diaphragm: From Area", {
+        selectedJoints,
+      });
 
       return;
     }
 
-    const diaphragm = this.getDiaphragmForAssignById(diaphragmId);
+    // =====================================================
+    // NONE
+    // El nodo queda explícitamente sin diafragma.
+    // =====================================================
+    if (selectedValue === "NONE") {
+      selectedJoints.forEach((joint) => {
+        joint.diaphragmMode = "none";
+
+        joint.diaphragmId = null;
+        joint.diaphragmName = null;
+        joint.diaphragm = null;
+        joint.hasDiaphragm = false;
+
+        joint.assignment = {
+          ...(joint.assignment || {}),
+          diaphragmMode: "none",
+          diaphragm: null,
+        };
+      });
+
+      this.markAnalysisResultsOutdated?.(
+        "Se eliminó la asignación de diafragma nodal."
+      );
+
+      this.redraw?.();
+      this.sync3D?.();
+
+      this.showMessage?.(
+        `Diafragma removido de ${selectedJoints.length} nodo(s).`,
+        "success"
+      );
+
+      console.log("✅ Joint Diaphragm: None", {
+        selectedJoints,
+      });
+
+      return;
+    }
+
+    // =====================================================
+    // DIRECT
+    // Asignación directa: D1, D2, D3...
+    // =====================================================
+    const diaphragm =
+      this.getDiaphragmForAssignById(diaphragmId);
 
     if (!diaphragm) {
-      this.showMessage?.("El diafragma seleccionado no existe.", "warning");
-      console.warn("Diaphragm no encontrado:", diaphragmId);
+      this.showMessage?.(
+        "El diafragma seleccionado no existe.",
+        "warning"
+      );
+
+      console.warn(
+        "Diaphragm no encontrado:",
+        diaphragmId
+      );
+
       return;
     }
 
     selectedJoints.forEach((joint) => {
+      joint.diaphragmMode = "direct";
+
       joint.diaphragmId = diaphragm.id;
       joint.diaphragmName = diaphragm.name;
-      joint.diaphragm = JSON.parse(JSON.stringify(diaphragm));
+      joint.diaphragm = JSON.parse(
+        JSON.stringify(diaphragm)
+      );
       joint.hasDiaphragm = true;
 
       joint.assignment = {
         ...(joint.assignment || {}),
+        diaphragmMode: "direct",
         diaphragm: {
           id: diaphragm.id,
           name: diaphragm.name,
@@ -1349,11 +1457,19 @@ export const assignDialogsMixin = {
       };
     });
 
+    this.markAnalysisResultsOutdated?.(
+      "Se modificó la asignación de diafragma nodal."
+    );
+
     this.redraw?.();
+    this.sync3D?.();
 
-    this.showMessage?.(`Diafragma ${diaphragm.name} asignado a ${selectedJoints.length} nodo(s).`);
+    this.showMessage?.(
+      `Diafragma ${diaphragm.name} asignado a ${selectedJoints.length} nodo(s).`,
+      "success"
+    );
 
-    console.log("✅ Joint Diaphragm asignado:", {
+    console.log("✅ Joint Diaphragm directo:", {
       diaphragm,
       selectedJoints,
     });

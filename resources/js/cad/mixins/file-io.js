@@ -2149,6 +2149,15 @@ export const fileIOMixin = {
       soporte: node.soporte || null,
       supportType: node.supportType || node.soporte || null,
 
+      diaphragmMode:
+        node.diaphragmMode ||
+        node.assignment?.diaphragmMode ||
+        (
+          node.diaphragmId ||
+            node.diaphragm?.id
+            ? "direct"
+            : "fromArea"
+        ),
       diaphragmId: node.diaphragmId || node.diaphragm?.id || null,
       diaphragmName: node.diaphragmName || node.diaphragm?.name || null,
       diaphragm: clean(node.diaphragm),
@@ -2723,10 +2732,13 @@ export const fileIOMixin = {
         newNode.hasMass = newNode.mass_x > 0 || newNode.mass_y > 0 || newNode.mass_z > 0;
         const importedDiaphragm =
           nodeData.diaphragm ||
+          nodeData.assignment?.diaphragm ||
           (nodeData.diaphragmId
             ? {
               id: nodeData.diaphragmId,
-              name: nodeData.diaphragmName || nodeData.diaphragmId,
+              name:
+                nodeData.diaphragmName ||
+                nodeData.diaphragmId,
               type: "rigid",
             }
             : null);
@@ -2788,6 +2800,116 @@ export const fileIOMixin = {
           pointLoads: cleanClone(newNode.pointLoads, []),
           jointLoads: cleanClone(newNode.jointLoads, []),
         };
+
+        // ============================================================
+        // JAS-02F.3 — Restaurar modo de diafragma nodal
+        // Estados: fromArea | direct | none
+        // ============================================================
+
+        const hasImportedDirectDiaphragm = Boolean(
+          newNode.diaphragmId ||
+          newNode.diaphragm?.id ||
+          nodeData.diaphragmId ||
+          nodeData.diaphragm?.id ||
+          nodeData.assignment?.diaphragm?.id
+        );
+
+        const rawImportedDiaphragmMode = String(
+          nodeData.diaphragmMode ||
+          nodeData.assignment?.diaphragmMode ||
+          (
+            hasImportedDirectDiaphragm
+              ? "direct"
+              : "fromArea"
+          )
+        )
+          .trim()
+          .toLowerCase()
+          .replace(/[\s_-]+/g, "");
+
+        let importedDiaphragmMode = "fromArea";
+
+        if (
+          rawImportedDiaphragmMode === "none" ||
+          rawImportedDiaphragmMode === "disconnect" ||
+          rawImportedDiaphragmMode === "disconnected"
+        ) {
+          importedDiaphragmMode = "none";
+        } else if (
+          rawImportedDiaphragmMode === "direct" &&
+          hasImportedDirectDiaphragm
+        ) {
+          importedDiaphragmMode = "direct";
+        } else if (
+          rawImportedDiaphragmMode === "fromarea" ||
+          rawImportedDiaphragmMode === "fromshell" ||
+          rawImportedDiaphragmMode === "fromshellobject"
+        ) {
+          importedDiaphragmMode = "fromArea";
+        } else if (hasImportedDirectDiaphragm) {
+          // Compatibilidad con archivos antiguos que tenían D1,
+          // pero todavía no guardaban diaphragmMode.
+          importedDiaphragmMode = "direct";
+        }
+
+        newNode.diaphragmMode = importedDiaphragmMode;
+
+        newNode.assignment = {
+          ...(newNode.assignment || {}),
+          diaphragmMode: importedDiaphragmMode,
+        };
+
+        // ------------------------------------------------------------
+        // DIRECT: conservar y sincronizar el diafragma asignado.
+        // ------------------------------------------------------------
+        if (importedDiaphragmMode === "direct") {
+          const restoredDirectDiaphragm =
+            newNode.diaphragm ||
+            importedDiaphragm ||
+            nodeData.assignment?.diaphragm ||
+            null;
+
+          if (restoredDirectDiaphragm) {
+            newNode.diaphragm =
+              cleanClone(restoredDirectDiaphragm);
+
+            newNode.diaphragmId =
+              restoredDirectDiaphragm.id ||
+              nodeData.diaphragmId ||
+              null;
+
+            newNode.diaphragmName =
+              restoredDirectDiaphragm.name ||
+              nodeData.diaphragmName ||
+              newNode.diaphragmId ||
+              null;
+
+            newNode.hasDiaphragm = Boolean(
+              newNode.diaphragmId
+            );
+
+            newNode.assignment.diaphragm =
+              cleanClone(newNode.diaphragm);
+          } else {
+            // Si el archivo declara direct pero no contiene un
+            // diafragma válido, no inventamos uno.
+            newNode.diaphragmId = null;
+            newNode.diaphragmName = null;
+            newNode.diaphragm = null;
+            newNode.hasDiaphragm = false;
+            newNode.assignment.diaphragm = null;
+          }
+        } else {
+          // ----------------------------------------------------------
+          // FROM AREA y NONE no conservan asignaciones directas.
+          // ----------------------------------------------------------
+          newNode.diaphragmId = null;
+          newNode.diaphragmName = null;
+          newNode.diaphragm = null;
+          newNode.hasDiaphragm = false;
+
+          newNode.assignment.diaphragm = null;
+        }
 
         // B3 — Restaurar masa nodal
         const importedMass =
