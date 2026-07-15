@@ -13,6 +13,7 @@ use App\Http\Controllers\GestionUserRolSuscripcion;
 use App\Http\Controllers\OctavePlotController;
 use App\Http\Controllers\MuroAlbanieriaController;
 use App\Http\Controllers\OpenSeesController;
+use App\Http\Controllers\PythonEngineController;
 use App\Http\Controllers\SubscriptionPlanController;
 // use App\Http\Controllers\VigaCaptureController;
 use App\Http\Controllers\ZapatacombinadaController;
@@ -27,12 +28,9 @@ use Illuminate\Support\Facades\Route;
 Route::view('/', 'welcome')->name("landing.home");
 
 Route::get('/api/opensees/status', function () {
-    try {
-        $response = Illuminate\Support\Facades\Http::timeout(2)->get('http://localhost:5001/health');
-        return response()->json(['status' => 'online', 'version' => 'OpenSeesPy']);
-    } catch (\Exception $e) {
-        return response()->json(['status' => 'offline', 'fallback' => 'Octave']);
-    }
+    [$status, $body] = PythonEngineController::run('opensees-status', []);
+
+    return response($body, $status)->header('Content-Type', 'application/json');
 })->name('opensees.status');
 
 // Ruta POST para análisis (con autenticación)
@@ -301,54 +299,63 @@ Route::prefix('api/backend')
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->group(function () {
 
+        $jsonPayload = fn () => json_decode(request()->getContent(), true) ?? [];
+
         Route::get('/health', function () {
-            $url = rtrim(env('PYTHON_BACKEND_URL', 'http://127.0.0.1:5001'), '/') . '/health';
+            [$status, $body] = PythonEngineController::run('health', []);
 
-            $response = Http::timeout(10)->get($url);
-
-            return response($response->body(), $response->status())
-                ->header('Content-Type', 'application/json');
+            return response($body, $status)->header('Content-Type', 'application/json');
         });
 
         Route::get('/opensees/status', function () {
-            $url = rtrim(env('PYTHON_BACKEND_URL', 'http://127.0.0.1:5001'), '/') . '/api/opensees/status';
+            [$status, $body] = PythonEngineController::run('opensees-status', []);
 
-            $response = Http::timeout(10)->get($url);
-
-            return response($response->body(), $response->status())
-                ->header('Content-Type', 'application/json');
+            return response($body, $status)->header('Content-Type', 'application/json');
         });
 
-        Route::post('/seismic/analyze', function () {
-            $url = rtrim(env('PYTHON_BACKEND_URL', 'http://127.0.0.1:5001'), '/') . '/api/seismic/analyze';
+        Route::post('/analyze', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('analyze', $jsonPayload());
 
-            $response = Http::timeout(300)
-                ->withBody(request()->getContent(), 'application/json')
-                ->post($url);
-
-            return response($response->body(), $response->status())
-                ->header('Content-Type', 'application/json');
+            return response($body, $status)->header('Content-Type', 'application/json');
         });
 
-        Route::post('/frame-forces', function () {
-            $url = rtrim(env('PYTHON_BACKEND_URL', 'http://127.0.0.1:5001'), '/') . '/api/frame-forces';
+        Route::post('/analyze-3d', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('analyze-3d', $jsonPayload());
 
-            $response = Http::timeout(300)
-                ->withBody(request()->getContent(), 'application/json')
-                ->post($url);
-
-            return response($response->body(), $response->status())
-                ->header('Content-Type', 'application/json');
+            return response($body, $status)->header('Content-Type', 'application/json');
         });
 
-        Route::post('/seismic/modal', function () {
-            $url = rtrim(env('PYTHON_BACKEND_URL', 'http://127.0.0.1:5001'), '/') . '/api/seismic/modal';
+        Route::post('/seismic/analyze', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('seismic-analyze', $jsonPayload());
 
-            $response = Http::timeout(300)
-                ->withBody(request()->getContent(), 'application/json')
-                ->post($url);
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
 
-            return response($response->body(), $response->status())
-                ->header('Content-Type', 'application/json');
+        Route::post('/seismic/parse-spectrum', function () {
+            if (request()->files && request()->hasFile('file')) {
+                $file = request()->file('file');
+                $payload = [
+                    'filename' => $file->getClientOriginalName(),
+                    'content_base64' => base64_encode(file_get_contents($file->getRealPath())),
+                ];
+            } else {
+                $payload = json_decode(request()->getContent(), true) ?? [];
+            }
+
+            [$status, $body] = PythonEngineController::run('seismic-parse-spectrum', $payload);
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/frame-forces', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('frame-forces', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/seismic/modal', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('seismic-modal', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
         });
     });

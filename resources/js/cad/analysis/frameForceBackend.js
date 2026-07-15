@@ -23,7 +23,9 @@ import {
     DEFAULT_FRAME_FORCE_UNITS,
 } from "./frameForceResultsContract.js";
 
-const FRAME_FORCES_API_URL = "http://127.0.0.1:5001/api/frame-forces";
+// Ruta relativa: PythonEngineController reenvía a 127.0.0.1:5001 en Windows
+// local o invoca el motor como subproceso corto en producción (Hostinger).
+const FRAME_FORCES_API_URL = "/api/backend/frame-forces";
 
 const FF_COMPONENTS = ["P", "V2", "V3", "T", "M2", "M3"];
 
@@ -178,7 +180,7 @@ export async function loadRealFrameForceResults(cadSystem, opts = {}) {
 
         cadSystem.showMessage?.(
             offline
-                ? "Motor Python (localhost:5001) no disponible. Mostrando datos mock."
+                ? "Motor de cálculo no disponible. Mostrando datos mock."
                 : `No se cargaron fuerzas reales: ${error.message}. Mostrando datos mock.`,
             "warning"
         );

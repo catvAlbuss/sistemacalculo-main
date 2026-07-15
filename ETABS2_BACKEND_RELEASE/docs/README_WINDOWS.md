@@ -157,16 +157,24 @@ No incluir en entrega final carpetas de desarrollo como:
 - __pycache__/
 - node_modules/
 
-## 10. Uso recomendado en servidor Windows
+## 10. Alcance de este paquete: solo desarrollo local (Windows/Laragon)
 
-Para pruebas manuales, ejecutar:
+Este ejecutable Windows es para desarrollo local únicamente. El hosting de
+producción (Hostinger Business Web Hosting) es hosting compartido y no
+permite procesos persistentes ni puertos propios (Python solo está
+soportado por Hostinger en planes VPS), así que este `.exe` **no se sube al
+servidor de producción**.
+
+En producción, el mismo motor Python se instala directamente en la cuenta
+de Hostinger y se invoca como subproceso corto por cada request (mismo
+patrón ya usado en producción para Octave, vía `proc_open()`), sin
+servidor Flask corriendo en segundo plano. Ver:
+
+`ETABS2_BACKEND_RELEASE/docs/README_DEPLOY_HOSTINGER.md`
+
+Para pruebas manuales en tu PC, ejecutar:
 
 EJECUTAR_BACKEND_WINDOWS.bat
-
-Para producción, se recomienda configurar el backend para iniciar automáticamente en Windows Server mediante:
-
-- Programador de tareas de Windows
-- Servicio de Windows usando NSSM u otra herramienta equivalente
 
 ## 11. Comunicación con el frontend
 

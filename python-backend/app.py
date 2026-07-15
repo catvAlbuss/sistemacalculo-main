@@ -472,9 +472,13 @@ def parse_spectrum():
             file_bytes = f.read()
         elif request.is_json:
             payload = request.get_json()
-            content = payload.get("content", "")
             filename = payload.get("filename", filename)
-            file_bytes = content.encode("utf-8")
+            if payload.get("content_base64"):
+                import base64
+
+                file_bytes = base64.b64decode(payload["content_base64"])
+            else:
+                file_bytes = payload.get("content", "").encode("utf-8")
         else:
             return (
                 jsonify(

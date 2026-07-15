@@ -36,6 +36,9 @@ return [
     ],
     'python_backend' => [
         'url' => env('PYTHON_BACKEND_URL', 'http://127.0.0.1:5001'),
+        // Carpeta del motor CLI en producción Linux (venv + cli_entry.py).
+        // null → PythonEngineController usa base_path('python-backend').
+        'engine_home' => env('PYTHON_ENGINE_HOME'),
     ],
 
 ];

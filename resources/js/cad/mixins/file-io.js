@@ -5033,7 +5033,7 @@ export const fileIOMixin = {
     // ============================================================
     // 3. ENVIAR AL SERVIDOR PYTHON
     // ============================================================
-    const response = await fetch("http://localhost:5001/api/analyze", {
+    const response = await fetch("/api/backend/analyze", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -5180,7 +5180,7 @@ export const fileIOMixin = {
 
     console.log("📤 DATOS 3D ENVIADOS:", { nodes, elements, supports, loads });
 
-    const response = await fetch("http://localhost:5001/api/analyze-3d", {
+    const response = await fetch("/api/backend/analyze-3d", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nodes, elements, supports, loads }),

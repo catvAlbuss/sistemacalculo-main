@@ -31,13 +31,17 @@ import {
   validateSeismicContract,
 } from "../analysis/seismicContract.js";
 
-const BACKEND_URL = "http://localhost:5001";
+// Ruta relativa al dominio Laravel: en Windows local, PythonEngineController
+// reenvía por HTTP a 127.0.0.1:5001 (backend Flask/exe); en producción
+// (Hostinger) invoca el motor como subproceso corto, igual que Octave.
+// Nunca debe apuntar directo a localhost:5001 desde el navegador: el
+// navegador corre en la PC del cliente, no en el servidor.
+const BACKEND_URL = "/api/backend";
 
 // Bandera de origen de datos sísmicos.
 //   true  → usa datos SIMULADOS (mock) mientras el motor del compañero no está.
-//   false → usa el motor real en /api/seismic/analyze.
+//   false → usa el motor real en /api/backend/seismic/analyze.
 // Motor del colaborador integrado (merge 0749a5b): apunta al motor real.
-// Requiere el backend Python corriendo en localhost:5001.
 const USE_MOCK_SEISMIC = false;
 
 // Límites de deriva de entrepiso por sistema estructural (Perú E.030, Tabla 11).
@@ -330,7 +334,7 @@ export const seismicMixin = {
         try {
           const formData = new FormData();
           formData.append("file", file);
-          const resp = await fetch(`${BACKEND_URL}/api/seismic/parse-spectrum`, {
+          const resp = await fetch(`${BACKEND_URL}/seismic/parse-spectrum`, {
             method: "POST",
             body: formData,
           });
@@ -618,7 +622,7 @@ export const seismicMixin = {
             saInG: rc.saInG ?? cfg.saInG,
           };
           const payload = this._buildSeismicPayload(caseCfg, nodes, frames);
-          const resp = await fetch(`${BACKEND_URL}/api/seismic/analyze`, {
+          const resp = await fetch(`${BACKEND_URL}/seismic/analyze`, {
             method: "POST",
             // cache:"no-store" → nunca servir una respuesta cacheada. Sin esto el
             // navegador devolvía un análisis viejo (mismo URL/headers) y la tabla
@@ -701,11 +705,9 @@ export const seismicMixin = {
         icon: "error",
         title: isOffline ? "Backend no disponible" : "Error de conexión",
         html: isOffline
-          ? `El servidor Python (localhost:5001) no está corriendo.<br><br>
-              <code style="background:#0f172a;padding:6px 10px;border-radius:4px;font-size:12px;display:block;text-align:left">
-                cd python-backend<br>
-                venv\\Scripts\\python app.py
-              </code>`
+          ? `No se pudo conectar con el motor de cálculo.<br><br>
+              En local (Windows): abre <b>EJECUTAR_BACKEND_WINDOWS.bat</b> y vuelve a intentar.<br>
+              En el servidor: contacta al administrador si el problema persiste.`
           : `No se pudo conectar al backend Python.<br><small style="color:#94a3b8">${err.message}</small>`,
         background: "#1a2035", color: "#e2e8f0",
       });
