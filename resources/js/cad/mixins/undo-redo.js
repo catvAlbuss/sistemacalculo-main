@@ -372,6 +372,9 @@ export const undoRedoMixin = {
     }
 
     this.rebuildGroupMemberships?.();
+
+    // Deshacer/rehacer también cambian el modelo → autoguardar.
+    this.scheduleAutosave?.();
   },
 
   saveUndoState(label = "Edit action") {
@@ -396,6 +399,11 @@ export const undoRedoMixin = {
       undoCount: this.undoStack.length,
       redoCount: this.redoStack.length,
     });
+
+    // Autoguardado local (IndexedDB): cada cambio marca el modelo como sucio y
+    // agenda un guardado con debounce. Se pasa la ETIQUETA de la acción para el
+    // historial de snapshots (así cada cambio queda identificado).
+    this.scheduleAutosave?.(label);
   },
 
   undo() {

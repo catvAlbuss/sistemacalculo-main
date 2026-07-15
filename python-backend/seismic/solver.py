@@ -53,6 +53,7 @@ __all__ = [
     "_compute_story_accelerations",
     "run_frame_force_results",
     "run_joint_reactions_rsa",
+    "run_accidental_torsion_rsa",
     "run_modal_analysis",
     "run_rsa",
     "run_static_analysis",
@@ -718,6 +719,142 @@ def run_joint_reactions_rsa(
 
     return out
 
+def run_accidental_torsion_rsa(
+    data: dict,
+    modal_data: dict,
+    spectrum: list,
+    direction: str = "x",
+    combination: str = "CQC",
+    damping_ratio: float = 0.05,
+    sa_in_g: bool = True,
+    g: float = 9.81,
+    ecc_ratio: float = 0.05,
+) -> dict:
+    """
+    Contribución de la TORSIÓN ACCIDENTAL (E.030 art. 4.6 / ETABS ECC 0.05) a los
+    desplazamientos de piso, para una dirección de excitación, como caso ESTÁTICO
+    ADITIVO (el usuario eligió este método sobre el desplazamiento de CM+envolvente).
+
+    Por cada modo n se aplica en el NODO MAESTRO de cada diafragma un momento torsor
+    accidental M_z = e · F_piso,n, donde e = ecc_ratio · B_perp (B_perp = dimensión
+    del piso perpendicular a la dirección) y F_piso,n = Σ fuerza inercial modal del
+    piso en la dirección excitada (Γ_n·Sa_n·mᵢ·φᵢ). Se resuelve un estático lineal
+    y se leen los desplazamientos nodales; se combinan entre modos (CQC/SRSS).
+
+    AISLADO: reconstruye su propio modelo por modo (mismo idiom que
+    run_joint_reactions_rsa) → NO altera el flujo base. Solo tiene efecto cuando el
+    piso puede ROTAR (diafragma `rigidDiaphragm_z`); con `equalDOF` (sin RZ) la
+    contribución es 0 y devuelve {} (torsión imposible, físicamente correcto).
+
+    Devuelve un dict tipo-RSA reutilizable por `_cqc_modal_story_drift`:
+      { modal_node_disps_x/_y/[primaria], node_ids, omegas, damping_ratio }
+    con los desplazamientos accidentales POR MODO (m). {} si no aplica.
+    """
+    if ops is None:
+        return {}
+
+    modal_info = modal_data.get("modal_info") or []
+    phi_x = modal_data.get("phi_x") or []
+    phi_y = modal_data.get("phi_y") or []
+    m_x = modal_data.get("m_x") or []
+    m_y = modal_data.get("m_y") or []
+    node_ids = modal_data.get("node_ids") or []
+    num_modes = len(modal_info)
+    if num_modes == 0 or not node_ids or ecc_ratio <= 0:
+        return {}
+
+    node_by_id = {}
+    for nd in data.get("nodes", []) or []:
+        try:
+            node_by_id[int(nd["id"])] = nd
+        except Exception:
+            continue
+
+    # Construir el modelo una vez para leer los nodos maestros de los diafragmas
+    # que realmente ROTAN (rigidDiaphragm_z). Sin rotación → sin torsión accidental.
+    build_model_3d(data)
+    applied_diaph = (data.get("_rigid_diaphragm_report") or {}).get("applied") or []
+    story_masters = []  # [(retained, [node_ids], e)]
+    for grp in applied_diaph:
+        if grp.get("method") != "rigidDiaphragm_z":
+            continue
+        nids = [int(x) for x in grp.get("node_ids", []) or []]
+        try:
+            retained = int(grp.get("retained"))
+        except Exception:
+            continue
+        xs = [float(node_by_id[i].get("x", 0.0)) for i in nids if i in node_by_id]
+        ys = [float(node_by_id[i].get("y", 0.0)) for i in nids if i in node_by_id]
+        if not xs or not ys:
+            continue
+        b_perp = (max(ys) - min(ys)) if direction == "x" else (max(xs) - min(xs))
+        if b_perp <= 1e-9:
+            continue
+        story_masters.append((retained, nids, ecc_ratio * b_perp))
+
+    if not story_masters:
+        return {}  # ningún diafragma con rotación → torsión accidental nula
+
+    scale = g if sa_in_g else 1.0
+    idx_of = {int(n): i for i, n in enumerate(node_ids)}
+    nnodes = len(node_ids)
+    md_x = [[0.0] * nnodes for _ in range(num_modes)]
+    md_y = [[0.0] * nnodes for _ in range(num_modes)]
+    omegas = [float(mi["omega"]) for mi in modal_info]
+
+    for n, mi in enumerate(modal_info):
+        Sa_n = interpolate_spectrum(spectrum, mi["period"]) * scale
+        gamma = mi["gamma_x"] if direction == "x" else mi["gamma_y"]
+
+        build_model_3d(data)  # modelo fresco por modo (diafragmas ya aplicados)
+        ops.timeSeries("Linear", 1)
+        ops.pattern("Plain", 1, 1)
+
+        applied = False
+        for retained, nids, e in story_masters:
+            f_story = 0.0
+            for nid in nids:
+                i = idx_of.get(nid)
+                if i is None:
+                    continue
+                if direction == "x":
+                    f_story += gamma * Sa_n * float(m_x[i]) * float(phi_x[n][i])
+                else:
+                    f_story += gamma * Sa_n * float(m_y[i]) * float(phi_y[n][i])
+            m_acc = e * f_story  # momento torsor accidental del piso (modo n)
+            if abs(m_acc) > 1e-12:
+                ops.load(int(retained), 0.0, 0.0, 0.0, 0.0, 0.0, m_acc)
+                applied = True
+
+        if not applied:
+            continue
+
+        ops.constraints("Transformation")
+        ops.numberer("RCM")
+        ops.system("BandGeneral")
+        ops.test("NormDispIncr", 1e-8, 50)
+        ops.algorithm("Linear")
+        ops.integrator("LoadControl", 1.0)
+        ops.analysis("Static")
+        ops.analyze(1)
+
+        for k, nid in enumerate(node_ids):
+            try:
+                d = ops.nodeDisp(int(nid))
+            except Exception:
+                d = []
+            md_x[n][k] = float(d[0]) if len(d) > 0 else 0.0
+            md_y[n][k] = float(d[1]) if len(d) > 1 else 0.0
+
+    return {
+        "modal_node_disps_x": md_x,
+        "modal_node_disps_y": md_y,
+        "modal_node_disps": md_x if direction == "x" else md_y,
+        "node_ids": node_ids,
+        "omegas": omegas,
+        "damping_ratio": damping_ratio,
+    }
+
 def _compute_story_accelerations(data: dict, nodes: list, seismic: dict) -> dict:
     """
     Aceleraciones absolutas por piso (RSA), estilo ETABS.
@@ -1050,9 +1187,14 @@ def _cqc_modal_story_drift(
 
     return drift_max
 
-def _compute_story_drifts(data: dict, nodes: list, seismic: dict) -> dict:
+def _compute_story_drifts(data: dict, nodes: list, seismic: dict, accidental: dict = None) -> dict:
     """
     Calcula derivas de piso a partir de los desplazamientos RSA.
+
+    `accidental` (opt-in): dict {"x": rsa_acc, "y": rsa_acc} con la contribución de
+    TORSIÓN ACCIDENTAL por modo (de run_accidental_torsion_rsa). Si es None (default)
+    el cálculo es idéntico al histórico. Si viene, su deriva se SUMA a la base
+    (método estático aditivo) y se reportan `drift_*_base_m` / `drift_*_accidental_m`.
 
     Deriva por dirección = CQC de las derivas modales por línea de nodos, máximo
     entre líneas (ver _cqc_modal_story_drift). Si no hay datos por modo, cae al
@@ -1177,6 +1319,26 @@ def _compute_story_drifts(data: dict, nodes: list, seismic: dict) -> dict:
             drift_y_signed = uy_upper - uy_lower
             drift_y = abs(drift_y_signed)
 
+        # ── Torsión accidental (opt-in, aditiva) ──────────────────────────────
+        # Deriva accidental por dirección = SRSS de la respuesta accidental de
+        # ambas excitaciones (igual criterio direccional que la base). Se SUMA a
+        # la deriva base. Sin `accidental` → dax=day=0 (comportamiento histórico).
+        drift_x_base = drift_x
+        drift_y_base = drift_y
+        dax = 0.0
+        day = 0.0
+        if accidental:
+            acc_x = accidental.get("x") or {}
+            acc_y = accidental.get("y") or {}
+            ax_from_x = _cqc_modal_story_drift(acc_x, node_coord, lower, upper, height, "x")
+            ax_from_y = _cqc_modal_story_drift(acc_y, node_coord, lower, upper, height, "x")
+            ay_from_y = _cqc_modal_story_drift(acc_y, node_coord, lower, upper, height, "y")
+            ay_from_x = _cqc_modal_story_drift(acc_x, node_coord, lower, upper, height, "y")
+            dax = _srss(ax_from_x, ax_from_y) or 0.0
+            day = _srss(ay_from_y, ay_from_x) or 0.0
+            drift_x = drift_x_base + dax
+            drift_y = drift_y_base + day
+
         ratio_x = drift_x / height if height > 1e-9 else 0.0
         ratio_y = drift_y / height if height > 1e-9 else 0.0
 
@@ -1213,6 +1375,10 @@ def _compute_story_drifts(data: dict, nodes: list, seismic: dict) -> dict:
             ),
             "drift_x_m": float(drift_x),
             "drift_y_m": float(drift_y),
+            "drift_x_base_m": float(drift_x_base),
+            "drift_y_base_m": float(drift_y_base),
+            "drift_x_accidental_m": float(dax),
+            "drift_y_accidental_m": float(day),
             "drift_x_signed_m": float(drift_x_signed),
             "drift_y_signed_m": float(drift_y_signed),
             "drift_ratio_x": float(ratio_x),

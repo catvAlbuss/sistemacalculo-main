@@ -189,6 +189,15 @@ Route::middleware(["auth", "verified"])->group(function () {
         Route::view('/analisis-estructural-de-armaduras', 'matlab.admAnalisisEstructuralDeArmaduras')->name("analisis-estructural-de-armaduras");
         Route::view('/etabs2', 'etabs.index')->name("etabs2");
         Route::view('/etabs', 'matlab.admAnalisisEstructuralDeArmaduras')->name("etabs");
+        // Autoguardado del modelo CAD a la BD (por usuario). Complementa IndexedDB.
+        Route::post('/etabs/model/autosave', [\App\Http\Controllers\CadModelController::class, 'autosave'])->name('etabs.model.autosave');
+        Route::get('/etabs/model/latest', [\App\Http\Controllers\CadModelController::class, 'latest'])->name('etabs.model.latest');
+        // Fase 2 — "Mis modelos": listar / abrir / guardar como / renombrar / borrar.
+        Route::get('/etabs/models', [\App\Http\Controllers\CadModelController::class, 'index'])->name('etabs.models.index');
+        Route::post('/etabs/models', [\App\Http\Controllers\CadModelController::class, 'store'])->name('etabs.models.store');
+        Route::get('/etabs/models/{id}', [\App\Http\Controllers\CadModelController::class, 'show'])->whereNumber('id')->name('etabs.models.show');
+        Route::put('/etabs/models/{id}', [\App\Http\Controllers\CadModelController::class, 'update'])->whereNumber('id')->name('etabs.models.update');
+        Route::delete('/etabs/models/{id}', [\App\Http\Controllers\CadModelController::class, 'destroy'])->whereNumber('id')->name('etabs.models.destroy');
         Route::view('/aligerados-v2', 'matlab.admAligeradosGrafico')->name("aligerados-v2");
         Route::view('/aligerados-v1', 'matlab.admFuerzasCortantesGrafico')->name("aligerados-v1");
         Route::view('/cimentacion-v2', 'matlab.admSafecito')->name("cimentacion-v2");

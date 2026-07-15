@@ -68,6 +68,29 @@
                         Formato recomendado para guardar y recuperar completamente el modelo.
                     </div>
 
+                    
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Nube (mi cuenta)
+                    </div>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.saveNow()">
+                        <span>💾</span>
+                        <span class="flex-1 truncate">Guardar ahora</span>
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.openMyModels()">
+                        <span>☁️</span>
+                        <span class="flex-1 truncate">Mis modelos...</span>
+                        <span class="text-xs text-green-400 italic">Autoguardado</span>
+                    </button>
+
+                    <div class="px-3 py-1 text-[11px] text-gray-400 bg-gray-900">
+                        Tus modelos guardados en tu cuenta
+                        "Guardar ahora" fuerza el guardado inmediato en la nube.
+                    </div>
+
                     <div class="border-t border-gray-700 my-1"></div>
 
                     
@@ -97,8 +120,8 @@
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.importETABS_E2K()">
                                 <span>📄</span>
-                                <span class="flex-1 truncate">Importar .e2k inicial...</span>
-                                <span class="text-xs text-yellow-400 italic">Próximo</span>
+                                <span class="flex-1 truncate">Importar .e2k</span>
+                                <span class="text-xs text-green-400 italic">Estable</span>
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
@@ -198,8 +221,8 @@
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.exportETABS_E2K()">
                                 <span>📄</span>
-                                <span class="flex-1 truncate">Exportar .e2k inicial / no oficial</span>
-                                <span class="text-xs text-yellow-400 italic">Avance</span>
+                                <span class="flex-1 truncate">Exportar .e2k</span>
+                                <span class="text-xs text-green-400 italic">Estable</span>
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
@@ -722,7 +745,7 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openLoadCases()">
                         <span>⚖️</span>
-                        Static Load Cases...
+                        Load Patterns...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"

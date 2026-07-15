@@ -271,10 +271,17 @@ export function extrudeToNewFloor(context, floorHeight = 3) {
       Math.abs(zOf(beam.node2) - currentMaxZ) < EPS,
   );
 
-  // Nuevas columnas (currentMaxZ → newZ), copiando la sección de la columna de abajo.
+  // Nuevas columnas (currentMaxZ → newZ). Solo se replica la columna donde YA
+  // llega una: el botón propaga la distribución existente hacia arriba, no la
+  // inventa (igual que Replicate > Story de ETABS). Si el usuario no dibujó
+  // columnas, el piso nuevo se duplica sin ellas.
+  let newColumnCount = 0;
   topLevelNodes.forEach((originalNode) => {
     const newNode = nodeMap.get(originalNode.id);
     if (!newNode) return;
+
+    const columnBelow = columnByTopNodeId.get(originalNode.id);
+    if (!columnBelow) return;
 
     const column = new Beam(context.globalE, context.globalA);
     column.frameType = "column";
@@ -284,9 +291,10 @@ export function extrudeToNewFloor(context, floorHeight = 3) {
     column.addNode(originalNode);
     column.addNode(newNode);
 
-    copyFrameAssignments(columnByTopNodeId.get(originalNode.id), column);
+    copyFrameAssignments(columnBelow, column);
 
     context.shapes.push(column);
+    newColumnCount++;
   });
 
   // Nuevas vigas (en newZ), copiando sección/material/cargas de la viga replicada.
@@ -335,13 +343,47 @@ export function extrudeToNewFloor(context, floorHeight = 3) {
     });
   }
 
+  // Al no forzar una columna por nodo, un nodo replicado podría quedar sin nada
+  // que lo use (ni columna, ni viga, ni esquina de losa). Se descarta para no
+  // dejar nodos huérfanos flotando en el nivel nuevo.
+  const usedNodeIds = new Set();
+  context.shapes.forEach((s) => {
+    if (s.node1) usedNodeIds.add(s.node1.id);
+    if (s.node2) usedNodeIds.add(s.node2.id);
+  });
+  const isAreaCorner = (n) =>
+    (context.areas || []).some(
+      (a) =>
+        Array.isArray(a.points) &&
+        a.points.some(
+          (p) =>
+            Math.abs(Number(p.z ?? a.z ?? 0) - newZ) < EPS &&
+            Math.abs(p.x - n.position.x) < EPS &&
+            Math.abs(p.y - n.position.y) < EPS,
+        ),
+    );
+  const orphans = newNodes.filter((n) => !usedNodeIds.has(n.id) && !isAreaCorner(n));
+  if (orphans.length) {
+    const orphanSet = new Set(orphans);
+    context.nodes = context.nodes.filter((n) => !orphanSet.has(n));
+  }
+
   renumberModel(context);
   context.markAnalysisResultsOutdated?.("Se agregó un piso duplicado.");
   context.sync3D();
   context.redraw?.();
-  context.showMessage?.(
-    `🏗️ Piso duplicado a ${newZ} m (columnas, vigas y losas con sus asignaciones).`,
-  );
+
+  if (!columnByTopNodeId.size) {
+    context.showMessage?.(
+      `🏗️ Piso duplicado a ${newZ} m (vigas y losas). ⚠️ No se crearon columnas ` +
+      `porque el nivel de abajo no tiene: dibújalas para conectar los pisos.`,
+      "warning",
+    );
+  } else {
+    context.showMessage?.(
+      `🏗️ Piso duplicado a ${newZ} m (${newColumnCount} columnas, vigas y losas con sus asignaciones).`,
+    );
+  }
 }
 
 export function extrudeTo3D(context, floorHeight = 3, numFloors = 1) {

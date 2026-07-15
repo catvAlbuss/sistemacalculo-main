@@ -4,12 +4,12 @@ use App\Livewire\Actions\Logout;
 
 ?>
 
-<?php if (! $__env->hasRenderedOnce('fcd42851-7b08-47a9-a738-c4027d359488')): $__env->markAsRenderedOnce('fcd42851-7b08-47a9-a738-c4027d359488');
+<?php if (! $__env->hasRenderedOnce('3930b148-da69-4cb6-add4-685127106a6c')): $__env->markAsRenderedOnce('3930b148-da69-4cb6-add4-685127106a6c');
 $__env->startPush('initscripts'); ?>
     <?php echo app('Illuminate\Foundation\Vite')('resources/js/navigation.js'); ?>
 <?php $__env->stopPush(); endif; ?>
 
-<?php if (! $__env->hasRenderedOnce('f1049563-5483-4a51-be61-01753cc26444')): $__env->markAsRenderedOnce('f1049563-5483-4a51-be61-01753cc26444');
+<?php if (! $__env->hasRenderedOnce('a7986f07-cd32-4bde-a6fc-ecfa88933d20')): $__env->markAsRenderedOnce('a7986f07-cd32-4bde-a6fc-ecfa88933d20');
 $__env->startPush('scripts'); ?>
     <script type="text/javascript" src="https://www.geogebra.org/apps/deployggb.js"></script>
 <?php $__env->stopPush(); endif; ?>

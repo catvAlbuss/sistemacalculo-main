@@ -1,6 +1,6 @@
 {{-- resources/views/components/cad/layout/cad-area.blade.php --}}
 <!-- Canvas - Vista dividida 2D + 3D -->
-<main class="relative flex basis-3/4 flex-col bg-white">
+<main class="relative flex basis-5/6 flex-col bg-white">
   <input class="absolute w-28 -translate-x-1/2 -translate-y-1/2 z-10" id="distance" name="distance" type="number"
     x-show="currentState === trussDrawingState && currentState.shape.node1" x-ref="distanceInput"
     @keyup.enter="trussDrawingState.createBeam($data)">
@@ -111,6 +111,17 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
         </svg>
       </x-cad.ribbon-button>
+
+
+    </div>
+
+    {{-- Estado de selección (estilo ETABS), alineado a la derecha --}}
+    <div class="flex flex-row items-center pr-3">
+      <span
+        x-show="getSelectionStatusLabel() !== ''"
+        x-text="getSelectionStatusLabel()"
+        :title="getSelectionStatusLabel()"
+        class="text-xs text-white font-mono truncate max-w-[520px]"></span>
     </div>
   </div>
 
