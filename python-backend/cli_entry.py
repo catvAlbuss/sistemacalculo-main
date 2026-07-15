@@ -19,10 +19,8 @@
 
 import sys
 import os
-import io
 import json
 import base64
-import contextlib
 import traceback
 
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
@@ -34,13 +32,31 @@ if hasattr(sys.stdin, "reconfigure"):
     sys.stdin.reconfigure(encoding="utf-8", errors="replace")
 
 
-def _import_app_silently():
-    """app.py imprime banners al importar (deteccion de OpenSeesPy). Esos
-    prints no deben llegar a stdout: romperian el contrato de "una sola
-    linea JSON" que lee PHP del otro lado del pipe."""
-    buf = io.StringIO()
-    with contextlib.redirect_stdout(buf):
-        import app as flask_app  # noqa: WPS433 (import diferido a proposito)
+def _redirect_stdout_fd_to_stderr():
+    """Blinda el fd 1 (stdout) a NIVEL DE SISTEMA OPERATIVO.
+
+    OpenSeesPy es C++ y escribe basura directamente al descriptor de archivo
+    (ej. "[hwloc/linux] ...", "Process 0 Terminating"), saltándose sys.stdout
+    de Python — por eso un `contextlib.redirect_stdout` NO alcanza. Si eso
+    llega al pipe, corrompe el JSON que lee PHP.
+
+    Guardamos una copia del stdout real y apuntamos el fd 1 a stderr, de modo
+    que TODO ruido (Python o C++) caiga en stderr. El JSON final se escribe
+    directo al fd guardado. Devuelve ese fd (o None si no se pudo, ej. en un
+    entorno sin dup2 real).
+    """
+    try:
+        sys.stdout.flush()
+        saved_fd = os.dup(1)
+        os.dup2(2, 1)  # fd 1 → stderr
+        return saved_fd
+    except (OSError, AttributeError):
+        return None
+
+
+def _import_app():
+    import app as flask_app  # noqa: WPS433 (import diferido a proposito)
+
     return flask_app
 
 
@@ -145,9 +161,20 @@ def _dispatch(mode, data, flask_app, sa):
     return {"success": False, "error": f"Modo desconocido: {mode}"}
 
 
+def _emit(result, out_fd):
+    """Escribe el JSON final. Si tenemos el fd real guardado, va directo ahí
+    (evitando el fd 1 ya redirigido a stderr); si no, cae a stdout normal."""
+    line = json.dumps(result, ensure_ascii=False) + "\n"
+    if out_fd is not None:
+        os.write(out_fd, line.encode("utf-8"))
+    else:
+        sys.stdout.write(line)
+        sys.stdout.flush()
+
+
 def main():
     if len(sys.argv) < 2:
-        print(json.dumps({"success": False, "error": "Falta el modo (argv[1])"}))
+        _emit({"success": False, "error": "Falta el modo (argv[1])"}, None)
         return 0
 
     mode = sys.argv[1]
@@ -155,11 +182,14 @@ def main():
     try:
         data = _read_payload()
     except json.JSONDecodeError as e:
-        print(json.dumps({"success": False, "error": f"JSON invalido en stdin: {e}"}))
+        _emit({"success": False, "error": f"JSON invalido en stdin: {e}"}, None)
         return 0
 
+    # A partir de aquí importamos OpenSeesPy (ruido C++): blindar stdout.
+    out_fd = _redirect_stdout_fd_to_stderr()
+
     try:
-        flask_app = _import_app_silently()
+        flask_app = _import_app()
         import seismic_analysis as sa  # noqa: WPS433
 
         result = _dispatch(mode, data, flask_app, sa)
@@ -170,7 +200,7 @@ def main():
             "traceback": traceback.format_exc(),
         }
 
-    print(json.dumps(result, ensure_ascii=False))
+    _emit(result, out_fd)
     return 0
 
 

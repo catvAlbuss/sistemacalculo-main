@@ -95,7 +95,7 @@ class PythonEngineController extends Controller
         ];
 
         $command = escapeshellarg($python) . ' ' . escapeshellarg($cliEntry) . ' ' . escapeshellarg($mode);
-        $process = proc_open($command, $descriptorSpec, $pipes, $engineHome);
+        $process = proc_open($command, $descriptorSpec, $pipes, $engineHome, self::cliEnv($engineHome));
 
         if (!is_resource($process)) {
             return [500, json_encode(['success' => false, 'error' => 'No se pudo iniciar el motor Python.'])];
@@ -121,6 +121,31 @@ class PythonEngineController extends Controller
             ])];
         }
 
-        return [200, $stdout];
+        return [200, trim((string) $stdout)];
+    }
+
+    /**
+     * Entorno para el subproceso. OpenSeesPy (openseespylinux) necesita
+     * libblas.so.3, que viene empaquetada dentro del propio paquete pip en
+     * openseespylinux/lib/ pero no está en el LD_LIBRARY_PATH del sistema
+     * (hosting compartido, sin root para instalar BLAS). Mismo enfoque que
+     * OctavePlotController usa con el bundle de Octave.
+     *
+     * proc_open() reemplaza TODO el entorno del hijo cuando se le pasa $env,
+     * así que partimos del entorno actual (getenv()) para preservar PATH, etc.
+     */
+    private static function cliEnv(string $engineHome): ?array
+    {
+        $libDirs = glob("{$engineHome}/venv/lib/python*/site-packages/openseespylinux/lib");
+        if (empty($libDirs)) {
+            return null; // sin la carpeta, mejor heredar entorno tal cual
+        }
+
+        $env = getenv();
+        $ld = $libDirs[0];
+        $existing = $env['LD_LIBRARY_PATH'] ?? '';
+        $env['LD_LIBRARY_PATH'] = $existing !== '' ? "{$ld}:{$existing}" : $ld;
+
+        return $env;
     }
 }
