@@ -1050,24 +1050,527 @@ export const fileIOMixin = {
     };
   },
 
+  // ¿El texto es un .e2k REAL de ETABS (formato por pisos) y no el nuestro viejo?
+  isRealETABS_E2K(text) {
+    const t = String(text || "");
+    return /\$\s*POINT COORDINATES/i.test(t) ||
+      (/PROGRAM\s+"ETABS"/i.test(t) && /\$\s*LINE CONNECTIVITIES/i.test(t));
+  },
+
+  // Propiedades de una sección rectangular b×h (en metros): A, Iz, Iy, J.
+  // Iz = eje fuerte (peralte h). J = fórmula de torsión de Saint-Venant.
+  _rectSectionProps(b, h) {
+    const A = b * h;
+    const Iz = (b * Math.pow(h, 3)) / 12;
+    const Iy = (h * Math.pow(b, 3)) / 12;
+    const t1 = Math.min(b, h);
+    const t2 = Math.max(b, h);
+    const J = Math.pow(t1, 3) * t2 * (1 / 3 - 0.21 * (t1 / t2) * (1 - Math.pow(t1, 4) / (12 * Math.pow(t2, 4))));
+    return { A, area: A, Iz, Iy, J };
+  },
+
+  // ============================================================
+  //  IMPORTACIÓN .e2k NATIVA DE ETABS (Fases 1+2: geometría + cargas)
+  //  Expande la representación por pisos de ETABS (POINT en planta +
+  //  ASSIGN por Story) al modelo 3D explícito del CAD. Inverso del export.
+  //  Entrada en TONF·M → se convierte a las unidades internas del app.
+  // ============================================================
+  parseETABS_E2K(text) {
+    const lines = String(text || "")
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith("$"));
+
+    const TONF_TO_N = 9806.65;
+    const TONFM2_TO_MPA = 0.00980665; // 1 tonf/m² = 0.00980665 MPa
+    const round3 = (v) => Math.round((Number(v) || 0) * 1000) / 1000;
+
+    const quotedAll = (line) => [...String(line).matchAll(/"([^"]*)"/g)].map((m) => m[1]);
+    const bareNums = (line) =>
+      [...String(line).replace(/"[^"]*"/g, " ").matchAll(/-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g)].map((m) => Number(m[0]));
+    const q = (line, key) => this.getQuotedValue(line, key);
+    // Extracción numérica con límite de palabra (evita que la "E" de
+    // WEIGHTPERVOLUME capture el número, etc.).
+    const kvNum = (line, key, fb = 0) => {
+      const m = String(line).match(new RegExp(`(?:^|\\s)${key}\\s+(-?\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)`, "i"));
+      return m ? Number(m[1]) : fb;
+    };
+    const hasKey = (line, key) => new RegExp(`(?:^|\\s)${key}\\s`, "i").test(line);
+
+    // ── Acumuladores de definiciones ──
+    const storyOrder = []; // top-down: {name, height, elev|null}
+    const xGrids = [];
+    const yGrids = [];
+    const materialMap = new Map();
+    const frameSecMap = new Map();
+    const slabSecMap = new Map();
+    const pointCoords = new Map(); // pointId → {x,y}
+    const lineConn = new Map(); // lineName → {kind, pi, pj}
+    const areaConn = new Map(); // areaName → [ptIds]
+    const diaphragmDefs = [];
+    const loadPatternDefs = [];
+    const massSourceLoads = [];
+    let massSourceName = "MASS_SOURCE_1";
+    // Fase 3 (sísmico): funciones de espectro + casos Response Spectrum.
+    const rsFuncMap = new Map(); // name → {name, id, points:[{T,Sa}], damping, spectype}
+    const rsCaseMap = new Map(); // name → {name, type, spectra, damping, eccRatio}
+
+    // ── PASO 1: definiciones (orden de aparición) ──
+    lines.forEach((line) => {
+      if (/^STORY\s/i.test(line)) {
+        storyOrder.push({
+          name: quotedAll(line)[0] || "Story",
+          height: kvNum(line, "HEIGHT", 0),
+          elev: hasKey(line, "ELEV") ? kvNum(line, "ELEV", 0) : null,
+        });
+      } else if (/^GRID\s/i.test(line)) {
+        const dir = (q(line, "DIR") || "").toUpperCase();
+        const g = {
+          id: q(line, "LABEL") || "",
+          ordinate: kvNum(line, "COORD", 0),
+          visible: !/VISIBLE\s+"?No/i.test(line),
+          bubbleLoc: q(line, "BUBBLELOC") || (dir === "X" ? "End" : "Start"),
+        };
+        if (dir === "X") xGrids.push(g);
+        else if (dir === "Y") yGrids.push(g);
+      } else if (/^DIAPHRAGM\s/i.test(line)) {
+        const name = quotedAll(line)[0];
+        if (name) diaphragmDefs.push({ name, rigidity: /RIGID/i.test(line) ? "Rigid" : "Semi Rigid", description: `Diafragma ${name}` });
+      } else if (/^MATERIAL\s/i.test(line)) {
+        const name = quotedAll(line)[0];
+        if (!name) return;
+        let m = materialMap.get(name);
+        if (!m) { m = { name, type: "Isotropic", designType: "Other" }; materialMap.set(name, m); }
+        // TYPE con límite de palabra: evita capturar HYSTYPE/SYMTYPE/SSTYPE/PROPTYPE.
+        const typeMatch = line.match(/(?:^|\s)TYPE\s+"([^"]*)"/i);
+        const type = typeMatch ? typeMatch[1] : null;
+        if (type) m.designType = /concrete/i.test(type) ? "Concrete" : /steel/i.test(type) ? "Steel" : /rebar/i.test(type) ? "Rebar" : /tendon/i.test(type) ? "Tendon" : /masonry/i.test(type) ? "Masonry" : type;
+        if (hasKey(line, "WEIGHTPERVOLUME")) {
+          const wpv = kvNum(line, "WEIGHTPERVOLUME", 0); // tonf/m³
+          m.unitWeight = wpv * TONF_TO_N; // N/m³ (lo que lee el mass source)
+          m.weightPerUnitVolume = (wpv * TONF_TO_N) / 1e9; // N/mm³ (convención del app)
+          m.weight = m.weightPerUnitVolume;
+          m.massPerUnitVolume = wpv * 1e-9; // ton/mm³ (densidad; _densityFor ×1e12 → kg/m³)
+        }
+        if (hasKey(line, "E")) { const E = kvNum(line, "E", 0) * TONFM2_TO_MPA; if (E) { m.E = E; m.modulusElasticity = E; } }
+        if (hasKey(line, "U")) { const U = kvNum(line, "U", 0); m.poisson = U; m.poissonRatio = U; }
+        // A en la línea SYMTYPE = coeficiente de expansión térmica.
+        if (hasKey(line, "SYMTYPE") && hasKey(line, "A")) m.thermalExpansion = kvNum(line, "A", 0);
+        if (hasKey(line, "FC")) { m.fc = kvNum(line, "FC", 0) * TONFM2_TO_MPA; m.fpc = m.fc; }
+        if (hasKey(line, "FY")) { m.fy = kvNum(line, "FY", 0) * TONFM2_TO_MPA; m.fys = m.fy; }
+        if (m.E != null && m.poisson != null) m.shearModulus = m.E / (2 * (1 + m.poisson));
+      } else if (/^FRAMESECTION\s/i.test(line)) {
+        const name = quotedAll(line)[0];
+        const material = q(line, "MATERIAL") || "";
+        if (/rectangular/i.test(q(line, "SHAPE") || "")) {
+          const D = kvNum(line, "D", 0); // peralte m
+          const B = kvNum(line, "B", 0); // ancho m
+          frameSecMap.set(name, { name, type: "rect", material, b: B * 100, h: D * 100, ...this._rectSectionProps(B, D), description: name });
+        } else {
+          const A = kvNum(line, "AREA", 0);
+          frameSecMap.set(name, { name, type: "general", material, A, area: A });
+        }
+      } else if (/^SHELLPROP\s/i.test(line)) {
+        const name = quotedAll(line)[0];
+        const proptype = q(line, "PROPTYPE") || "Slab";
+        const thM = /WALL/i.test(proptype)
+          ? kvNum(line, "WALLTHICKNESS", 0)
+          : kvNum(line, "SLABTHICKNESS", kvNum(line, "DECKSLABDEPTH", 0));
+        slabSecMap.set(name, {
+          name,
+          thickness: thM * 1000,
+          material: q(line, "MATERIAL") || q(line, "CONCMATERIAL") || "CONC",
+          kind: proptype,
+          modelingType: q(line, "MODELINGTYPE") || "Membrane",
+        });
+      } else if (/^POINT\s/i.test(line)) {
+        const id = quotedAll(line)[0];
+        const nums = bareNums(line);
+        if (id != null && nums.length >= 2) pointCoords.set(id, { x: nums[0], y: nums[1] });
+      } else if (/^LINE\s/i.test(line)) {
+        const toks = quotedAll(line);
+        const km = String(line).match(/"[^"]*"\s+(COLUMN|BEAM|BRACE)\b/i);
+        if (toks[0] && toks[1] != null && toks[2] != null) {
+          lineConn.set(toks[0], { kind: km ? km[1].toUpperCase() : "BEAM", pi: toks[1], pj: toks[2] });
+        }
+      } else if (/^AREA\s/i.test(line)) {
+        const toks = quotedAll(line);
+        const nums = bareNums(line);
+        const nPts = nums.length ? nums[0] : toks.length - 1;
+        const pts = toks.slice(1, 1 + nPts);
+        if (toks[0] && pts.length >= 3) areaConn.set(toks[0], pts);
+      } else if (/^LOADPATTERN\s/i.test(line)) {
+        const name = quotedAll(line)[0];
+        if (name) loadPatternDefs.push({ name, type: q(line, "TYPE") || "Other", selfWeightMultiplier: kvNum(line, "SELFWEIGHT", 0) });
+      } else if (/^MASSSOURCE\s/i.test(line)) {
+        massSourceName = quotedAll(line)[0] || massSourceName;
+      } else if (/^MASSSOURCELOAD\s/i.test(line)) {
+        const toks = quotedAll(line);
+        const nums = bareNums(line);
+        const pat = toks[1];
+        const factor = nums.length ? nums[nums.length - 1] : 1;
+        if (pat) massSourceLoads.push({ load: pat, name: pat, multiplier: factor, factor, type: "Other" });
+      } else if (/^FUNCTION\s/i.test(line)) {
+        const name = quotedAll(line)[0];
+        if (!name) return;
+        let f = rsFuncMap.get(name);
+        if (!f) { f = { name, id: name, type: "response-spectrum", units: "Sa en g", damping: 0.05, spectype: "", functype: "", points: [] }; rsFuncMap.set(name, f); }
+        if (hasKey(line, "FUNCTYPE")) f.functype = q(line, "FUNCTYPE") || f.functype;
+        if (hasKey(line, "DAMPRATIO")) f.damping = kvNum(line, "DAMPRATIO", 0.05);
+        const spectype = q(line, "SPECTYPE");
+        if (spectype) f.spectype = spectype;
+        if (hasKey(line, "TIMEVAL")) {
+          // Los pares "T Sa T Sa..." van DENTRO de las comillas de TIMEVAL, así
+          // que se extraen del contenido citado (bareNums quita lo entrecomillado).
+          const tv = q(line, "TIMEVAL") || "";
+          const nums = [...tv.matchAll(/-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g)].map((mm) => Number(mm[0]));
+          for (let i = 0; i + 1 < nums.length; i += 2) f.points.push({ T: nums[i], Sa: nums[i + 1] });
+        }
+      } else if (/^LOADCASE\s/i.test(line)) {
+        const name = quotedAll(line)[0];
+        if (!name) return;
+        let c = rsCaseMap.get(name);
+        if (!c) { c = { name, type: "", spectra: {}, damping: 0.05, eccRatio: 0 }; rsCaseMap.set(name, c); }
+        const typeMatch = line.match(/(?:^|\s)TYPE\s+"([^"]*)"/i);
+        if (typeMatch) c.type = typeMatch[1];
+        if (hasKey(line, "MAXMODES")) c.maxModes = kvNum(line, "MAXMODES", 0);
+        if (hasKey(line, "ACCEL")) {
+          const dir = q(line, "ACCEL"); // U1/U2/U3
+          const func = q(line, "FUNC");
+          const sf = kvNum(line, "SF", 1);
+          if (dir && func) c.spectra[dir === "U3" ? "UZ" : dir] = { functionId: func, scaleFactor: sf };
+        }
+        if (hasKey(line, "CONSTDAMP")) c.damping = kvNum(line, "CONSTDAMP", 0.05);
+        if (hasKey(line, "ECCENRATIOTYPICAL")) c.eccRatio = kvNum(line, "ECCENRATIOTYPICAL", 0);
+        const combo = q(line, "MODALCOMBO");
+        if (combo) c.modalCombination = combo;
+      }
+    });
+
+    // ── Completar campos de material que ETABS deja implícitos ──
+    materialMap.forEach((m) => {
+      m.type = "Isotropic";
+      if (m.designType === "Concrete" && m.fy == null) { m.fy = 420; m.fys = 420; } // acero de refuerzo estándar (MPa)
+      if (m.fys == null) m.fys = m.fy ?? null;
+      if (m.fpc == null) m.fpc = m.fc ?? 0;
+      if (m.thermalExpansion == null) m.thermalExpansion = 9.9e-6;
+      if (m.shearModulus == null && m.E != null) m.shearModulus = m.E / (2 * (1 + (m.poisson ?? 0.2)));
+      m.lightweight = false;
+      m.shearReduce = false;
+      m.color = m.color || "#888888";
+      m.descripcion = m.descripcion || m.name;
+    });
+
+    // ── Elevaciones de piso (acumular de abajo hacia arriba) ──
+    const storiesAsc = storyOrder.slice().reverse(); // Base primero
+    const storyElev = new Map();
+    let elev = 0;
+    storiesAsc.forEach((s, i) => {
+      elev = i === 0 ? (s.elev != null ? s.elev : 0) : elev + (s.height || 0);
+      s._elev = elev;
+      storyElev.set(s.name, elev);
+    });
+    const belowElevOf = (name) => {
+      const idx = storiesAsc.findIndex((s) => s.name === name);
+      return idx <= 0 ? 0 : storiesAsc[idx - 1]._elev;
+    };
+
+    // ── Nodos (dedup por x,y,z) ──
+    const nodes = [];
+    const nodeIdByKey = new Map();
+    const getNode = (x, y, z) => {
+      const k = `${round3(x)}|${round3(y)}|${round3(z)}`;
+      if (nodeIdByKey.has(k)) return nodeIdByKey.get(k);
+      const id = nodes.length + 1;
+      nodes.push({ id, x: round3(x), y: round3(y), z: round3(z), visible: true });
+      nodeIdByKey.set(k, id);
+      return id;
+    };
+
+    // ── PASO 2: asignaciones + cargas ──
+    const frames = [];
+    const areas = [];
+    const frameByKey = new Map(); // "line|story" → frame
+    const areaByKey = new Map(); // "area|story" → area
+
+    lines.forEach((line) => {
+      if (/^POINTASSIGN\s/i.test(line)) {
+        const toks = quotedAll(line);
+        const coords = pointCoords.get(toks[0]);
+        if (!coords) return;
+        const z = storyElev.has(toks[1]) ? storyElev.get(toks[1]) : 0;
+        const nd = nodes[getNode(coords.x, coords.y, z) - 1];
+        const restr = q(line, "RESTRAINT");
+        if (restr) {
+          const r = { ux: 0, uy: 0, uz: 0, rx: 0, ry: 0, rz: 0 };
+          restr.split(/\s+/).forEach((d) => { const k = d.toLowerCase(); if (k in r) r[k] = 1; });
+          nd.restraints = r; nd.constraints = r; nd.hasRestraints = true;
+          if (r.ux && r.uy && r.uz && r.rx && r.ry && r.rz) nd.soporte = "soporteUno";
+        }
+        const diaph = q(line, "DIAPH");
+        if (diaph && !/none/i.test(diaph)) { nd.diaphragmName = diaph; nd.hasDiaphragm = true; }
+      } else if (/^LINEASSIGN\s/i.test(line)) {
+        const toks = quotedAll(line);
+        const conn = lineConn.get(toks[0]);
+        if (!conn) return;
+        const pi = pointCoords.get(conn.pi);
+        const pj = pointCoords.get(conn.pj);
+        if (!pi || !pj) return;
+        const section = q(line, "SECTION") || "";
+        let n1;
+        let n2;
+        if (conn.kind === "COLUMN") {
+          n1 = getNode(pi.x, pi.y, belowElevOf(toks[1]));
+          n2 = getNode(pi.x, pi.y, storyElev.get(toks[1]) ?? 0);
+        } else {
+          const z = storyElev.get(toks[1]) ?? 0;
+          n1 = getNode(pi.x, pi.y, z);
+          n2 = getNode(pj.x, pj.y, z);
+        }
+        const kindLc = conn.kind === "COLUMN" ? "column" : conn.kind === "BRACE" ? "brace" : "beam";
+        const secObj = frameSecMap.get(section) || { name: section };
+        const frame = {
+          id: frames.length + 1,
+          node1: n1, node2: n2, node1Id: n1, node2Id: n2,
+          type: kindLc, elementType: kindLc, objectType: "frame",
+          sectionName: section, sectionId: section,
+          section: secObj, frameSection: secObj, hasAssignedSection: true,
+          A: secObj.A ?? null, _A: secObj.A ?? null,
+          material: secObj.material || null,
+          frameLoads: [], lineLoads: [], visible: true,
+        };
+        frames.push(frame);
+        frameByKey.set(`${toks[0]}|${toks[1]}`, frame);
+      } else if (/^AREAASSIGN\s/i.test(line)) {
+        const toks = quotedAll(line);
+        const conn = areaConn.get(toks[0]);
+        if (!conn) return;
+        const z = storyElev.get(toks[1]) ?? 0;
+        const pts = conn
+          .map((ptId) => { const c = pointCoords.get(ptId); return c ? { x: round3(c.x), y: round3(c.y), z: round3(z), visible: true, color: null } : null; })
+          .filter(Boolean);
+        if (pts.length < 3) return;
+        pts.forEach((p) => getNode(p.x, p.y, z));
+        const section = q(line, "SECTION") || "";
+        const slab = slabSecMap.get(section) || { name: section, thickness: 0, material: "CONC" };
+        // Peso propio de la losa (kgf/m² = espesor(m) × densidad). ETABS lo incluye
+        // vía SELFWEIGHT del patrón CM (losa membrana); el motor lo lee de este
+        // campo. Sin esto la masa sale ~9% baja y los periodos ~5% cortos.
+        const slabMat = materialMap.get(slab.material);
+        const slabMpv = Number(slabMat?.massPerUnitVolume);
+        const slabRho = slabMpv > 0 && slabMpv < 1e-3 ? slabMpv * 1e12 : 2400; // kg/m³
+        const slabSelfWeightKgM2 = ((Number(slab.thickness) || 0) / 1000) * slabRho;
+        const area = {
+          id: areas.length + 1,
+          type: "slab", areaType: "slab",
+          points: pts, z: round3(z),
+          slabSection: section,
+          slabSelfWeightKgM2,
+          section: { name: section, thickness: slab.thickness, material: slab.material || "CONC" },
+          areaLoads: [], loads: [], visible: true,
+        };
+        areas.push(area);
+        areaByKey.set(`${toks[0]}|${toks[1]}`, area);
+      } else if (/^POINTLOAD\s/i.test(line)) {
+        const toks = quotedAll(line);
+        const coords = pointCoords.get(toks[0]);
+        if (!coords) return;
+        const z = storyElev.get(toks[1]) ?? 0;
+        const nd = nodes[getNode(coords.x, coords.y, z) - 1];
+        const lc = q(line, "LC") || "CM";
+        const fx = kvNum(line, "FX", 0), fy = kvNum(line, "FY", 0), fz = kvNum(line, "FZ", 0);
+        const mx = kvNum(line, "MX", 0), my = kvNum(line, "MY", 0), mz = kvNum(line, "MZ", 0);
+        if (!nd.pointLoads) nd.pointLoads = [];
+        nd.pointLoads.push({
+          id: `JLOAD_${Date.now()}_${nd.pointLoads.length}`,
+          type: "force", loadCase: lc, loadPattern: lc, coordinateSystem: "Global",
+          fx, fy, fz, mx, my, mz, mxx: mx, myy: my, mzz: mz,
+          units: { force: "tonf", moment: "tonf-m", length: "m" },
+          forces: { fx, fy, fz, mx, my, mz },
+        });
+        nd.hasPointLoads = true;
+        nd.hasJointLoads = true;
+      } else if (/^LINELOAD\s/i.test(line)) {
+        const toks = quotedAll(line);
+        const frame = frameByKey.get(`${toks[0]}|${toks[1]}`);
+        if (!frame) return;
+        const lc = q(line, "LC") || "CM";
+        const fval = kvNum(line, "FVAL", 0); // tonf/m
+        const load = {
+          id: `FDIST_${Date.now()}_${frame.frameLoads.length}`,
+          type: "distributed", loadCase: lc, coordinateSystem: "Global",
+          loadType: "force", direction: "Gravity", distributionType: "uniform",
+          distanceType: "relative", startRelativeDistance: 0, endRelativeDistance: 1,
+          startAbsoluteDistance: 0, endAbsoluteDistance: 0,
+          startValue: fval * TONF_TO_N, endValue: fval * TONF_TO_N,
+          startValueDisp: fval, endValueDisp: fval, displayUnit: "tonf/m",
+        };
+        frame.frameLoads.push(load);
+        frame.lineLoads.push(load);
+        frame.hasFrameLoads = true;
+      } else if (/^AREALOAD\s/i.test(line)) {
+        const toks = quotedAll(line);
+        const area = areaByKey.get(`${toks[0]}|${toks[1]}`);
+        if (!area) return;
+        const lc = q(line, "LC") || "CM";
+        const fval = kvNum(line, "FVAL", 0); // tonf/m²
+        const load = { type: "uniform", loadCase: lc, value: fval * 1000, dir: "gravity" }; // kgf/m²
+        area.areaLoads.push(load);
+        area.loads.push(load);
+      }
+    });
+
+    // ── Ensamblado del modelo interno ──
+    const stories = storiesAsc.map((s, i) => ({ id: i, name: s.name, elevation: s._elev }));
+
+    const loadCases = loadPatternDefs.map((p) => {
+      const t = String(p.type || "").toUpperCase();
+      const type = t.includes("DEAD") ? "Dead" : t.includes("ROOF") ? "Live" : t.includes("LIVE") ? "Live" : t.includes("SEISMIC") ? "Seismic" : "Other";
+      const swm = Number(p.selfWeightMultiplier) || 0;
+      // Forma que espera el modal Load Patterns: selfWeight (check) + value (mult).
+      // ETABS SELFWEIGHT del patrón → Self Weight Multiplier que controla el peso propio.
+      return { name: p.name, type, selfWeight: swm > 0, value: swm || 1, selfWeightMultiplier: swm, autoLateralLoad: "0" };
+    });
+    // Store REAL del modal Define ▸ Load Patterns (static-load-cases-modal):
+    // items con `selfWeightMultiplier` directo. Este es el que lee el motor para
+    // el peso propio estilo ETABS (ver seismic.js _buildSeismicMassSourceForPayload).
+    const staticLoadCases = loadPatternDefs.map((p) => {
+      const t = String(p.type || "").toUpperCase();
+      const type = t.includes("DEAD") ? "DEAD" : t.includes("ROOF") ? "LIVE" : t.includes("LIVE") ? "LIVE" : t.includes("SEISMIC") ? "SEISMIC" : "OTHER";
+      return {
+        name: p.name, type,
+        selfWeightMultiplier: Number(p.selfWeightMultiplier) || 0,
+        autoLateralLoad: /seismic/i.test(t) ? "User Coefficient" : "0",
+      };
+    });
+
+    const massSource = massSourceLoads.length
+      ? {
+          enabled: true, name: massSourceName,
+          includeSelfWeight: true, selfWeightMultiplier: 1,
+          loadPatterns: massSourceLoads,
+          loadMultipliers: massSourceLoads.map((l) => ({ load: l.load, multiplier: l.multiplier })),
+          convertWeightToMass: true, gravity: 9.81,
+          includeLateralMass: true, includeVerticalMass: false,
+          lumpLateralMassAtStoryLevels: true, specifiedLoadPatterns: true, elementSelfMass: true,
+        }
+      : null;
+
+    const materials = [...materialMap.values()];
+    const frameSections = [...frameSecMap.values()];
+    // Secciones de losa (PROPTYPE Slab/Deck; los muros van aparte). Forma que
+    // espera la lista del modal Wall/Slab Sections (this.slabSections).
+    const slabSections = [...slabSecMap.values()]
+      .filter((s) => !/wall/i.test(s.kind || ""))
+      .map((s) => ({
+        name: s.name,
+        material: s.material || "CONC",
+        modelingType: s.modelingType || "Membrane",
+        type: "Slab",
+        thickness: s.thickness, // mm
+        color: "#9ca3af",
+      }));
+
+    // ── Fase 3: funciones de espectro (USER con puntos) + casos Response Spectrum ──
+    const responseSpectrumFunctions = [...rsFuncMap.values()]
+      .filter((f) => /spectrum/i.test(f.functype || "") && Array.isArray(f.points) && f.points.length >= 2)
+      .map((f) => ({ id: f.id, name: f.name, type: "response-spectrum", units: f.units, damping: f.damping, points: f.points }));
+
+    const responseSpectrumCases = [...rsCaseMap.values()]
+      .filter((c) => /response\s*spectrum/i.test(c.type) && Object.keys(c.spectra).length)
+      .map((c) => {
+        const u1 = c.spectra.U1?.scaleFactor || 0;
+        const u2 = c.spectra.U2?.scaleFactor || 0;
+        const direction = u1 >= u2 ? "X" : "Y";
+        return {
+          id: String(c.name).replace(/\s+/g, "_").toUpperCase(),
+          name: c.name, enabled: true,
+          damping: c.damping ?? 0.05,
+          modalCombination: c.modalCombination || "CQC",
+          f1: 0, f2: 0,
+          directionalCombination: "SRSS", orthogonalSF: 1, excitationAngle: 0,
+          eccRatio: c.eccRatio ?? 0,
+          spectra: c.spectra,
+          functionId: (direction === "X" ? c.spectra.U1 : c.spectra.U2)?.functionId || Object.values(c.spectra)[0]?.functionId || "",
+          direction, scaleFactor: Math.max(u1, u2) || 1,
+        };
+      });
+
+    console.log("📥 Import ETABS .e2k:", {
+      stories: stories.length, nodes: nodes.length, frames: frames.length, areas: areas.length,
+      materials: materials.length, sections: frameSections.length,
+      rsFunctions: responseSpectrumFunctions.length, rsCases: responseSpectrumCases.length,
+    });
+
+    return {
+      app: "JHACK-ETABS-WEB",
+      fileType: "internal-model-json-imported-from-etabs-e2k",
+      schemaVersion: "1.0.0",
+      importedAt: new Date().toISOString(),
+      model: {
+        referenceGrid: {
+          xGrids, yGrids, generalGrids: [],
+          xPositions: xGrids.map((g) => g.ordinate), yPositions: yGrids.map((g) => g.ordinate),
+          xLabels: xGrids.map((g) => g.id), yLabels: yGrids.map((g) => g.id),
+          storyCount: Math.max(0, stories.length - 1), storyHeight: storiesAsc[1]?.height || 3,
+        },
+        stories,
+        nodes, frames, beams: frames, shapes: frames, areas,
+        activeViewIndex: 0, activeStory: 0, currentViewMode: "plan", currentStory: "BASE",
+        currentElevationX: "none", currentElevationZ: "none",
+        referencePlanes: [], referencePoints: [], dimensionLines: [],
+      },
+      definitions: {
+        materials, frameSections,
+        slabSections,
+        loadCases,
+        staticLoadCases,
+        diaphragms: diaphragmDefs,
+        massSource,
+        responseSpectrumFunctions,
+        responseSpectrumCases,
+        groups: [],
+      },
+      options: {
+        preferences: this.preferences || {},
+        canvasTheme: this.activeCanvasTheme || "dark",
+      },
+      results: {},
+    };
+  },
+
   async importETABS_E2K() {
     try {
       const selected = await this.openTextFileForImport(".e2k,.txt");
 
       if (!selected) return;
 
-      const data = this.parseInitialE2KText(selected.text);
+      // Auto-detectar: .e2k REAL de ETABS (por pisos) vs nuestro viejo formato.
+      const isReal = this.isRealETABS_E2K(selected.text);
+      const data = isReal
+        ? this.parseETABS_E2K(selected.text)
+        : this.parseInitialE2KText(selected.text);
 
       const loaded = this.loadFromJSON(data);
 
       if (!loaded) {
-        this.showMessage?.("❌ No se pudo importar el .e2k inicial.", "error");
+        this.showMessage?.("❌ No se pudo importar el .e2k.", "error");
         return;
+      }
+
+      // Las secciones de losa no viajan por importFromJSON: se asignan directo a
+      // this.slabSections (lo que lee el modal Wall/Slab Sections y renderModel3d).
+      if (isReal && Array.isArray(data.definitions?.slabSections) && data.definitions.slabSections.length) {
+        this.slabSections = data.definitions.slabSections;
       }
 
       this.currentFileName = selected.file.name.replace(/\.[^/.]+$/, "") + "_importado_desde_e2k.json";
 
-      this.showMessage?.(`📥 Importación .e2k inicial/no oficial completada: ${selected.file.name}`);
+      this.showMessage?.(
+        isReal
+          ? `📥 Importación .e2k de ETABS completada: ${selected.file.name}`
+          : `📥 Importación .e2k (formato interno) completada: ${selected.file.name}`,
+      );
 
       console.log("📥 Import E2K inicial/no oficial:", {
         fileName: selected.file.name,
@@ -1212,6 +1715,14 @@ export const fileIOMixin = {
     const loadCases = definitions.loadCases || data.loadCases || [];
     const diaphragms = definitions.diaphragms || data.diaphragms || [];
     const massSource = definitions.massSource || data.massSource || this.massSource || {};
+
+    // Fase 3 — sísmico: funciones de espectro + casos Response Spectrum.
+    const rsFunctions =
+      definitions.responseSpectrumFunctions || data.responseSpectrumFunctions ||
+      this.responseSpectrumFunctions?.items || [];
+    const rsCases =
+      definitions.responseSpectrumCases || data.responseSpectrumCases ||
+      this.responseSpectrumCases?.items || [];
 
     const fmt = (v, dec = 6) => this.formatE2KNumber(v, dec);
     const rnd = (v) => Number(Number(v || 0).toFixed(3));
@@ -1581,7 +2092,46 @@ export const fileIOMixin = {
       lines.push("");
     }
 
-    // ---- LOAD CASES (Modal + estáticos lineales) ------------------------
+    // ---- FASE 3: FUNCTIONS (espectros de respuesta) ---------------------
+    // Casos RS utilizables (habilitados y con al menos una dirección con función).
+    const rsDirKeys = ["U1", "U2", "UZ", "U3"];
+    const rsUsable = (rsCases || []).filter((c) => {
+      if (!c || c.enabled === false) return false;
+      const sp = c.spectra || {};
+      return rsDirKeys.some((d) => sp[d]?.functionId) || c.functionId;
+    });
+
+    // Funciones realmente referenciadas por esos casos.
+    const usedFuncIds = new Set();
+    rsUsable.forEach((c) => {
+      const sp = c.spectra || {};
+      rsDirKeys.forEach((d) => { if (sp[d]?.functionId) usedFuncIds.add(sp[d].functionId); });
+      if (c.functionId) usedFuncIds.add(c.functionId);
+    });
+    // Mapa functionId → nombre ETABS emitido (para referencias consistentes en ACCEL).
+    const funcNameById = {};
+    const rsFuncsUsed = (rsFunctions || []).filter(
+      (f) => usedFuncIds.has(f.id) || usedFuncIds.has(f.name),
+    );
+    rsFuncsUsed.forEach((f) => { funcNameById[f.id] = f.name || f.id; });
+
+    if (rsFuncsUsed.length) {
+      lines.push("$ FUNCTIONS");
+      rsFuncsUsed.forEach((f) => {
+        const fname = f.name || f.id;
+        const damp = Number(f.damping ?? 0.05);
+        lines.push(`  FUNCTION "${fname}"  FUNCTYPE "SPECTRUM"  DAMPRATIO ${fmt(damp)}  SPECTYPE "USER"  `);
+        const pts = f.points || [];
+        // Pares planos "T  Sa" en chunks de ~8 por línea, como ETABS.
+        const flat = pts.map((p) => `${fmt(p.T ?? p.t ?? 0)}  ${fmt(p.Sa ?? p.sa ?? 0)}`);
+        for (let i = 0; i < flat.length; i += 8) {
+          lines.push(`  FUNCTION "${fname}"  TIMEVAL "${flat.slice(i, i + 8).join("  ")}"  `);
+        }
+      });
+      lines.push("");
+    }
+
+    // ---- LOAD CASES (Modal + estáticos + Response Spectrum) -------------
     // Un modelo ETABS válido siempre tiene casos de carga; sin esta sección
     // ETABS considera el archivo incompleto/no válido.
     lines.push("$ LOAD CASES");
@@ -1591,6 +2141,33 @@ export const fileIOMixin = {
     staticCases.forEach((c) => {
       lines.push(`  LOADCASE "${c.name}"  TYPE  "Linear Static"  INITCOND  "PRESET"  `);
       lines.push(`  LOADCASE "${c.name}"  LOADPAT  "${c.name}"  SF  1 `);
+    });
+
+    // Casos Response Spectrum (Fase 3). U1=X, U2=Y, UZ/U3=vertical.
+    const rsDirToE2k = { U1: "U1", U2: "U2", UZ: "U3", U3: "U3" };
+    rsUsable.forEach((c) => {
+      const name = c.name || c.id;
+      lines.push(`  LOADCASE "${name}"  TYPE  "Response Spectrum"  MODALCASE  "Modal"  `);
+      const sp = c.spectra || {};
+      const emitted = new Set();
+      rsDirKeys.forEach((srcDir) => {
+        const s = sp[srcDir];
+        const e2kDir = rsDirToE2k[srcDir];
+        if (!s || !s.functionId || emitted.has(e2kDir)) return;
+        const fname = funcNameById[s.functionId] || s.functionId;
+        const sf = Number(s.scaleFactor ?? c.scaleFactor ?? 1);
+        lines.push(`  LOADCASE "${name}"  ACCEL  "${e2kDir}"  FUNC  "${fname}"  SF  ${fmt(sf)} `);
+        emitted.add(e2kDir);
+      });
+      // Fallback: caso plano (functionId/direction sin spectra desglosado).
+      if (emitted.size === 0 && c.functionId) {
+        const fname = funcNameById[c.functionId] || c.functionId;
+        const e2kDir = String(c.direction || "X").toUpperCase() === "Y" ? "U2" : "U1";
+        lines.push(`  LOADCASE "${name}"  ACCEL  "${e2kDir}"  FUNC  "${fname}"  SF  ${fmt(Number(c.scaleFactor ?? 1))} `);
+      }
+      lines.push(`  LOADCASE "${name}"  MODALDAMPTYPE  "Constant"  CONSTDAMP  ${fmt(Number(c.damping ?? 0.05))} `);
+      const ecc = Number(c.eccRatio ?? 0);
+      if (ecc > 0) lines.push(`  LOADCASE "${name}"  ECCENRATIOTYPICAL  ${fmt(ecc)} `);
     });
     lines.push("");
 

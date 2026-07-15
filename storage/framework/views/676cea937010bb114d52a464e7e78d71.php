@@ -1,5 +1,5 @@
 <!-- Side Panel -->
-<aside class="cad-bg cad-border flex h-full basis-1/4 flex-col border-r-4">
+<aside class="cad-bg cad-border flex h-full basis-1/6 flex-col border-r-4">
     <!-- Panel de Grillas Diagonales -->
     <?php if (isset($component)) { $__componentOriginale3e7a63da297dc0fc9b8062fd9d48470 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginale3e7a63da297dc0fc9b8062fd9d48470 = $attributes; } ?>

@@ -895,6 +895,19 @@ export const referenceGridMixin = {
     // Reconocer geometría del modelo (viga/columna) al dibujar puntos, estilo ETABS.
     const drawingPoints = this.currentState === this.pointDrawingState;
 
+    // Dibujando frames (línea/viga/columna) también debe reconocer los NODOS
+    // existentes, estén o no sobre una línea de grid — antes solo el modo
+    // "punto" tenía este snap y al trazar columnas/vigas se ignoraban los
+    // joints que no cayeran justo en una intersección de grid. (Los estados de
+    // "región" —CreateLinesRegionClicksState/CreateSecondaryBeamsRegionClicksState—
+    // generan las barras a partir de los ejes de grid, no de activeGridPoint,
+    // así que no necesitan este snap.)
+    const drawingFrameLine =
+      this.currentState === this.trussDrawingState ||
+      this.currentState === this.braceDrawingState ||
+      this.currentState === this.beamDrawingState ||
+      this.currentState === this.columnDrawingState;
+
     // Dibujando áreas (losa/muro/abertura) también queremos snap a NODOS (joints)
     // del modelo, para que la losa se apoye exactamente en las columnas, igual
     // que ETABS reconoce joints además de las grillas.
@@ -903,10 +916,12 @@ export const referenceGridMixin = {
       this.currentState === this.wallDrawingState ||
       this.currentState === this.openingDrawingState;
 
-    const pointFrame = drawingPoints ? this.getNearestPlanFrameSnap(mouseWorld, mouseScreen) : null;
+    const wantsGeometrySnap = drawingPoints || drawingFrameLine;
+
+    const pointFrame = wantsGeometrySnap ? this.getNearestPlanFrameSnap(mouseWorld, mouseScreen) : null;
     const pointNode =
-      drawingPoints || drawingArea ? this.getNearestPlanModelNodeSnap(mouseScreen) : null;
-    const pointGridLine = drawingPoints ? this.getNearestPlanGridLineSnap(mouseWorld, mouseScreen) : null;
+      wantsGeometrySnap || drawingArea ? this.getNearestPlanModelNodeSnap(mouseScreen) : null;
+    const pointGridLine = wantsGeometrySnap ? this.getNearestPlanGridLineSnap(mouseWorld, mouseScreen) : null;
 
     const candidates = [];
 

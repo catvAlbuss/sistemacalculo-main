@@ -74,13 +74,6 @@ import * as BABYLON from "@babylonjs/core";
 import { TrussDrawingState3D } from "./states.js";
 import { Beam, Node as StructuralNode } from "./shapes.js";
 
-import { openMaterialDialog } from "./dialogs/material-dialog.js";
-import { openSectionDialog } from "./dialogs/section-dialog.js";
-import { openLoadCaseDialog } from "./dialogs/loadcase-dialog.js";
-import { openCombinationDialog } from "./dialogs/combination-dialog.js";
-import { openMassSourceDialog } from "./dialogs/mass-source-dialog.js";
-
-import { menus, getMenuContent } from "./menus/index.js";
 
 // Mixin imports
 import { optionsMixin } from "./mixins/options.js";
@@ -107,12 +100,19 @@ import { elevationDrawingMixin } from "./mixins/elevation-drawing.js";
 import { reportMixin } from "./mixins/report.js";
 import { animationMixin } from "./mixins/animation.js";
 import { seismicMixin } from "./mixins/seismic.js";
+import { autosaveMixin } from "./mixins/autosave.js";
 
 export default () => ({
   // ------------------------------------------------------------------
   // 1. PROPIEDADES REACTIVAS (Alpine)
   // ------------------------------------------------------------------
-  init() {},
+  init() {
+    this.initAutosave?.();
+  },
+
+  // Contador reactivo para refrescar la barra de estado de selección (estilo
+  // ETABS). Lo bumpea redraw() → Alpine re-evalúa getSelectionStatusLabel().
+  _selectionTick: 0,
 
   show3DView: false,
   pendingGrid3D: false,
@@ -282,8 +282,6 @@ export default () => ({
     includeLateralMassOnly: false,
     lumpLateralMassAtStoryLevels: false,
   },
-  menus: Object.values(menus),
-  getMenuContent,
 
   materialModalOpen: false,
   linkProperties: {
@@ -823,4 +821,5 @@ export default () => ({
   ...reportMixin,
   ...animationMixin,
   ...seismicMixin,
+  ...autosaveMixin,
 });

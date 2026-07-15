@@ -6,6 +6,7 @@
     x-init="initSys($refs.cad, $refs.distanceInput, $id('materiales'));
     $el.scrollIntoView({ behavior: 'smooth' })">
     <x-cad.modals.new-model/>
+    <x-cad.modals.my-models-modal/>
     <!-- Se Agrego el modal de grid -->
     <x-cad.modals.diagonal-grid-modal/>
     <input id="_token" name="_token" type="hidden" value="{{ csrf_token() }}" />

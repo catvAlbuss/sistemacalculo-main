@@ -112,7 +112,49 @@ def run_full_seismic_analysis(data: dict) -> dict:
 
     results["seismic"] = seismic
 
-    story_drifts = _compute_story_drifts(data, nodes, seismic)
+    # ── Torsión accidental E.030 (opt-in, método estático aditivo) ──────────
+    # Solo si el usuario la habilita (accidentalEccentricity > 0). Aislada: no
+    # toca la RSA base. Solo aporta si el modelo tiene diafragmas que rotan.
+    ecc_ratio = float(
+        data.get("accidentalEccentricity", data.get("accidental_eccentricity", 0.0)) or 0.0
+    )
+    accidental = None
+    if ecc_ratio > 0:
+        try:
+            acc = {}
+            if spectrum_x:
+                acc["x"] = run_accidental_torsion_rsa(
+                    data, modal_data, spectrum_x, direction="x",
+                    combination=combination, damping_ratio=damping,
+                    sa_in_g=sa_in_g, g=g, ecc_ratio=ecc_ratio,
+                )
+            if spectrum_y:
+                acc["y"] = run_accidental_torsion_rsa(
+                    data, modal_data, spectrum_y, direction="y",
+                    combination=combination, damping_ratio=damping,
+                    sa_in_g=sa_in_g, g=g, ecc_ratio=ecc_ratio,
+                )
+            if acc.get("x") or acc.get("y"):
+                accidental = acc
+        except Exception as _acc_err:
+            print("⚠️ No se pudo calcular la torsión accidental:", _acc_err)
+            accidental = None
+
+        # run_accidental_torsion_rsa reconstruye el modelo por modo (ops.wipe),
+        # destruyendo el estado EIGEN que un paso posterior (animación,
+        # _b10_17_collect_opensees_modal_shapes) lee vivo desde OpenSees. Se
+        # restaura re-corriendo el modal sobre un modelo fresco (mismo num_modes)
+        # para dejar el dominio como lo espera el resto del pipeline. Sin esto
+        # OpenSees aborta con "eigenvectors have not been set".
+        try:
+            build_model_3d(data)
+            run_modal_analysis(nodes, num_modes)
+        except Exception as _restore_err:
+            print("⚠️ No se pudo restaurar el estado modal tras torsión accidental:", _restore_err)
+
+    story_drifts = _compute_story_drifts(data, nodes, seismic, accidental=accidental)
+    story_drifts["accidental_eccentricity"] = ecc_ratio
+    story_drifts["accidental_applied"] = bool(accidental)
 
     results["story_drifts"] = story_drifts
 
