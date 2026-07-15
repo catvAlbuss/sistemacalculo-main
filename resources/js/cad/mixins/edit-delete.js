@@ -250,10 +250,35 @@ export const editDeleteMixin = {
   },
 
   deleteSelected() {
-    const selectedObjects =
+    // =====================================================
+    // DELETE > RESPETAR SELECCIÓN HECHA EN EL VISOR 3D
+    // Con respectActiveView=true la selección se filtra al plano de la
+    // vista 2D activa, y lo seleccionado en 3D en OTROS pisos (columnas
+    // multi-piso, vigas/losas de otra planta) quedaba fuera → "no hay
+    // selección". Si la última interacción fue en el 3D, se borra TODO
+    // lo seleccionado sin filtrar por la planta activa (estilo ETABS).
+    // El flujo 2D conserva el comportamiento original.
+    // =====================================================
+    const respectActiveView = this.activeViewport !== "3d";
+
+    let selectedObjects =
       this.getEditSelectedObjects?.({
-        respectActiveView: true,
+        respectActiveView,
       }) || [];
+
+    // Respaldo: si el filtro de vista dejó la lista vacía pero SÍ hay
+    // objetos marcados como seleccionados, usarlos (selección viva del 3D).
+    if (!selectedObjects.length && respectActiveView) {
+      const unfiltered =
+        this.getEditSelectedObjects?.({
+          respectActiveView: false,
+        }) || [];
+
+      if (unfiltered.length) {
+        console.log("🗑️ EDIT Delete: usando selección sin filtro de vista (origen 3D):", unfiltered.length);
+        selectedObjects = unfiltered;
+      }
+    }
 
     if (!selectedObjects.length) {
       this.showMessage?.("🗑️ Seleccione un elemento para eliminar", "warning");

@@ -6,16 +6,6 @@ import {
   openResponseSpectrumCasesDialog,
 } from "../analysis/7_responseSpectrumDefinitions.js";
 
-import {
-  runModalSpectralAnalysisFromSystem,
-} from "../analysis/3_modalSpectralController.js";
-
-import {
-  openModalSpectralAnalysisDialog as openModalSpectralAnalysisDialogUI,
-  openModalSpectralResultsDialog as openModalSpectralResultsDialogUI,
-  openModalSpectralOptionsDialog as openModalSpectralOptionsDialogUI,
-} from "../analysis/2_modalSpectralUI.js";
-
 /**
  * @mixin viewportMixin
  *
@@ -1030,7 +1020,271 @@ export const viewportMixin = {
   // ------------------------------------------------------------------
 
   selectByFrameSections() {
-    this.showMessage("📐 Selección por secciones de pórtico - Próximamente");
+    this.openSelectByPropertyDialog("frame");
+  },
+
+  // =====================================================
+  // SELECT BY PROPERTY (estilo ETABS)
+  // Frame / Slab / Deck / Wall Sections → modal con lista + Select/Deselect.
+  // =====================================================
+  _frameSectionNameForSelect(f) {
+    return (
+      f.sectionName ||
+      f.frameSection?.name ||
+      f.section?.name ||
+      f.sectionId ||
+      "None"
+    );
+  },
+
+  _areaPropertyNameForSelect(a, kind) {
+    if (kind === "wall") return a.wallSection || a.slabSection || "None";
+    if (kind === "deck") return a.deckSection || "None";
+    return a.slabSection || "None"; // slab
+  },
+
+  _areaMatchesKind(a, kind) {
+    const t = a.areaType || a.type || "slab";
+    return kind === "slab" ? t === "slab" : t === kind;
+  },
+
+  // Devuelve [{ name, count }] de las propiedades disponibles para el tipo.
+  _getSelectablePropertyList(kind) {
+    const map = new Map();
+    const add = (name, n = 1) => map.set(name, (map.get(name) || 0) + n);
+
+    if (kind === "frame") {
+      (this.shapes || [])
+        .filter((f) => f?.node1 && f?.node2)
+        .forEach((f) => add(this._frameSectionNameForSelect(f)));
+
+      (this.frameSections?.sections || []).forEach((s) => {
+        const nm = s.name || s.id;
+        if (nm && !map.has(nm)) map.set(nm, 0);
+      });
+    } else {
+      (this.areas || [])
+        .filter((a) => Array.isArray(a.points) && a.points.length >= 3 && this._areaMatchesKind(a, kind))
+        .forEach((a) => add(this._areaPropertyNameForSelect(a, kind)));
+
+      const defs =
+        kind === "slab" ? this.slabSections :
+          kind === "wall" ? this.wallSections :
+            kind === "deck" ? this.deckSections : [];
+
+      (Array.isArray(defs) ? defs : []).forEach((s) => {
+        const nm = s.name || s.id;
+        if (nm && !map.has(nm)) map.set(nm, 0);
+      });
+    }
+
+    return [...map.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  },
+
+  async openSelectByPropertyDialog(kind = "frame") {
+    const titles = {
+      frame: "Select by Frame Property",
+      slab: "Select by Slab Property",
+      deck: "Select by Deck Property",
+      wall: "Select by Wall Property",
+    };
+    const listLabels = { frame: "Frame Properties", slab: "Slabs", deck: "Decks", wall: "Walls" };
+
+    const props = this._getSelectablePropertyList(kind);
+
+    if (!props.length) {
+      this.showMessage?.(`No hay propiedades de tipo "${kind}" en el modelo.`, "warning");
+      return;
+    }
+
+    const rowsHtml = props
+      .map((p) => {
+        const count = p.count
+          ? `<span style="color:#94a3b8"> (${p.count})</span>`
+          : `<span style="color:#64748b"> (0)</span>`;
+        return `<div class="selprop-item" data-name="${encodeURIComponent(p.name)}"
+            style="padding:4px 10px; cursor:pointer; white-space:nowrap;">${p.name}${count}</div>`;
+      })
+      .join("");
+
+    await Swal.fire({
+      title: titles[kind] || "Select by Property",
+      width: 400,
+      background: "#1a2035",
+      color: "#e2e8f0",
+      showConfirmButton: false,
+      html: `
+        <div style="text-align:left; font-size:13px;">
+          <fieldset style="border:1px solid #475569; border-radius:6px; padding:8px 10px; margin-bottom:10px;">
+            <legend style="padding:0 6px; color:#7eb8f7;">Filter</legend>
+            <div style="display:flex; gap:8px;">
+              <input id="selprop-filter" type="text"
+                style="flex:1; padding:6px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px;">
+              <button id="selprop-clear" type="button"
+                style="padding:6px 10px; background:#334155; color:#e2e8f0; border:1px solid #475569; border-radius:4px; cursor:pointer;">Clear Filter</button>
+            </div>
+          </fieldset>
+
+          <fieldset style="border:1px solid #475569; border-radius:6px; padding:8px 10px;">
+            <legend style="padding:0 6px; color:#7eb8f7;">${listLabels[kind]}</legend>
+            <div id="selprop-list" style="height:220px; overflow:auto; background:#0f172a; border:1px solid #475569; border-radius:4px;">
+              ${rowsHtml}
+            </div>
+          </fieldset>
+
+          <div style="display:flex; justify-content:center; gap:10px; margin-top:14px;">
+            <button id="selprop-select" type="button"
+              style="padding:6px 18px; background:#1d4ed8; color:#fff; border:none; border-radius:4px; cursor:pointer;">Select</button>
+            <button id="selprop-deselect" type="button"
+              style="padding:6px 18px; background:#475569; color:#fff; border:none; border-radius:4px; cursor:pointer;">Deselect</button>
+            <button id="selprop-close" type="button"
+              style="padding:6px 18px; background:#334155; color:#e2e8f0; border:1px solid #475569; border-radius:4px; cursor:pointer;">Close</button>
+          </div>
+        </div>
+      `,
+      didOpen: () => {
+        const listEl = document.getElementById("selprop-list");
+        const filterEl = document.getElementById("selprop-filter");
+        const highlighted = new Set();
+
+        const items = Array.from(listEl.querySelectorAll(".selprop-item"));
+
+        const paint = (item, on) => {
+          item.style.background = on ? "#1d4ed8" : "";
+          item.style.color = on ? "#ffffff" : "#e2e8f0";
+        };
+
+        items.forEach((item) => {
+          item.addEventListener("click", (ev) => {
+            const name = decodeURIComponent(item.dataset.name);
+
+            if (ev.ctrlKey || ev.metaKey) {
+              // Ctrl/Cmd + clic: agrega o quita de la selección múltiple.
+              if (highlighted.has(name)) {
+                highlighted.delete(name);
+                paint(item, false);
+              } else {
+                highlighted.add(name);
+                paint(item, true);
+              }
+            } else {
+              // Clic simple: selecciona SOLO esta propiedad.
+              highlighted.clear();
+              items.forEach((it) => paint(it, false));
+              highlighted.add(name);
+              paint(item, true);
+            }
+          });
+        });
+
+        // Preselecciona la primera fila (como ETABS).
+        if (items.length) {
+          highlighted.add(decodeURIComponent(items[0].dataset.name));
+          paint(items[0], true);
+        }
+
+        const applyFilter = () => {
+          const q = (filterEl.value || "").trim().toLowerCase();
+          items.forEach((item) => {
+            const name = decodeURIComponent(item.dataset.name).toLowerCase();
+            item.style.display = name.includes(q) ? "" : "none";
+          });
+        };
+
+        filterEl?.addEventListener("input", applyFilter);
+        document.getElementById("selprop-clear")?.addEventListener("click", () => {
+          filterEl.value = "";
+          applyFilter();
+        });
+
+        document.getElementById("selprop-select")?.addEventListener("click", () => {
+          if (!highlighted.size) { this.showMessage?.("Elige una propiedad de la lista.", "warning"); return; }
+          this._applyPropertySelection(kind, [...highlighted], "select");
+        });
+        document.getElementById("selprop-deselect")?.addEventListener("click", () => {
+          if (!highlighted.size) { this.showMessage?.("Elige una propiedad de la lista.", "warning"); return; }
+          this._applyPropertySelection(kind, [...highlighted], "deselect");
+        });
+        document.getElementById("selprop-close")?.addEventListener("click", () => Swal.close());
+      },
+    });
+  },
+
+  _applyPropertySelection(kind, names, mode) {
+    const nameSet = new Set(names);
+
+    if (kind === "frame") {
+      const matching = (this.shapes || []).filter(
+        (f) => f?.node1 && f?.node2 && nameSet.has(this._frameSectionNameForSelect(f)),
+      );
+
+      const current = Array.isArray(this.multiSelectedFrames) ? [...this.multiSelectedFrames] : [];
+      let next;
+
+      if (mode === "select") {
+        const seen = new Set(current.map((f) => String(f.id)));
+        next = [...current];
+        matching.forEach((f) => {
+          if (!seen.has(String(f.id))) { seen.add(String(f.id)); next.push(f); }
+        });
+      } else {
+        const remove = new Set(matching.map((f) => String(f.id)));
+        next = current.filter((f) => !remove.has(String(f.id)));
+      }
+
+      this.selectFramesForEdit?.(next, { reason: "select by frame property" });
+      this.showMessage?.(
+        `${mode === "select" ? "Seleccionadas" : "Deseleccionadas"} ${matching.length} barra(s) por propiedad.`,
+      );
+      return;
+    }
+
+    // Áreas (slab / wall / deck)
+    const matching = (this.areas || []).filter(
+      (a) =>
+        Array.isArray(a.points) && a.points.length >= 3 &&
+        this._areaMatchesKind(a, kind) &&
+        nameSet.has(this._areaPropertyNameForSelect(a, kind)),
+    );
+
+    const current = (this.selectedAreasState?.selectedObjects || []).filter(Boolean);
+    let next;
+
+    if (mode === "select") {
+      const seen = new Set(current.map((a) => String(a.id)));
+      next = [...current];
+      matching.forEach((a) => {
+        if (!seen.has(String(a.id))) { seen.add(String(a.id)); next.push(a); }
+      });
+    } else {
+      const remove = new Set(matching.map((a) => String(a.id)));
+      next = current.filter((a) => !remove.has(String(a.id)));
+    }
+
+    this._applyAreaSelectionSet(next);
+    this.showMessage?.(
+      `${mode === "select" ? "Seleccionadas" : "Deseleccionadas"} ${matching.length} área(s) por propiedad.`,
+    );
+
+    this.redraw?.();
+    this.sync3D?.();
+  },
+
+  _applyAreaSelectionSet(areas) {
+    (this.areas || []).forEach((a) => { a.selected = false; a.isSelected = false; });
+    areas.forEach((a) => { a.selected = true; a.isSelected = true; });
+
+    if (this.selectedAreasState) {
+      this.selectedAreasState.selectedObjects = areas;
+    }
+
+    if (areas.length > 0) {
+      this.setState?.(this.selectedAreasState, { selectedAreas: areas });
+    } else {
+      this.setState?.(this.idleState);
+    }
   },
 
   selectByLinkProperties() {
@@ -1103,27 +1357,5 @@ export const viewportMixin = {
 
   setAnalysisOptions() {
     window.dispatchEvent(new CustomEvent("open-analysis-options-modal"));
-  },
-
-  /**
- * Puente desde cad_sys.js hacia el controlador Modal Spectral.
- *
- * La lógica pesada vive en:
- * resources/js/cad/analysis/3_modalSpectralController.js
- */
-  async runModalSpectralAnalysisFromMenu(customPayload = null) {
-    return await runModalSpectralAnalysisFromSystem(this, customPayload);
-  },
-
-  openModalSpectralAnalysisDialog() {
-    return openModalSpectralAnalysisDialogUI(this);
-  },
-
-  openModalSpectralOptionsDialog() {
-    return openModalSpectralOptionsDialogUI(this);
-  },
-
-  openModalSpectralResultsDialog() {
-    return openModalSpectralResultsDialogUI(this);
   },
 };

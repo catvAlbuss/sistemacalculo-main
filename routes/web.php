@@ -13,6 +13,7 @@ use App\Http\Controllers\GestionUserRolSuscripcion;
 use App\Http\Controllers\OctavePlotController;
 use App\Http\Controllers\MuroAlbanieriaController;
 use App\Http\Controllers\OpenSeesController;
+use App\Http\Controllers\PythonEngineController;
 use App\Http\Controllers\SubscriptionPlanController;
 // use App\Http\Controllers\VigaCaptureController;
 use App\Http\Controllers\ZapatacombinadaController;
@@ -27,12 +28,9 @@ use Illuminate\Support\Facades\Route;
 Route::view('/', 'welcome')->name("landing.home");
 
 Route::get('/api/opensees/status', function () {
-    try {
-        $response = Illuminate\Support\Facades\Http::timeout(2)->get('http://localhost:5001/health');
-        return response()->json(['status' => 'online', 'version' => 'OpenSeesPy']);
-    } catch (\Exception $e) {
-        return response()->json(['status' => 'offline', 'fallback' => 'Octave']);
-    }
+    [$status, $body] = PythonEngineController::run('opensees-status', []);
+
+    return response($body, $status)->header('Content-Type', 'application/json');
 })->name('opensees.status');
 
 // Ruta POST para análisis (con autenticación)
@@ -49,7 +47,7 @@ Route::post('/cotizarplano', [enviarCotizacionController::class, 'enviarCotizaci
 
 // Route::post('/capturar-viga-descarga', [VigaCaptureController::class, 'descargar']);
 
-Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento']);  
+Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento']);
 
 //==========================RUTA PARA LAS PRUEBAS PREDIM==================//
 Route::view('/info/arco_techo', 'landing.arco_techo')->name('landing.info.arco_techo');
@@ -111,17 +109,17 @@ Route::middleware(["auth", "verified"])->group(function () {
                 Route::view('/aligerados', 'hcalculo.CAV2.admAligerados')->name("aligerados");
                 Route::view('/distribucion-del-acero', 'hcalculo.CAV2.admDistribucionDelAcero')->name("distribucion-del-acero");
                 Route::view('/vigas-continuas', 'hcalculo.CAV2.admVigasContinuas')->name("vigas-continuas");
-                     Route::view('/hoja2', 'hcalculo.CAV2.admHoja2')->name("hoja2");
-                     Route::view('/viga-t', 'hcalculo.adm_vigas_T')->name("viga-t");
+                Route::view('/hoja2', 'hcalculo.CAV2.admHoja2')->name("hoja2");
+                Route::view('/viga-t', 'hcalculo.adm_vigas_T')->name("viga-t");
             });
         });
 
         //==================CALCULADORA ASISTENTE (Root, Gerencia, Asistente)//
         Route::middleware(['role:root|gerencia|asistente'])->group(function () {
             Route::prefix('asistente')->name('asistente.')->group(function () {
-                
-// Agrega la ruta de admMemoriaCalculo memoria-calculo
-        Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name('memoria-calculo');
+
+                // Agrega la ruta de admMemoriaCalculo memoria-calculo
+                Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name('memoria-calculo');
 
 
                 // Vigas
@@ -287,3 +285,68 @@ Route::prefix('storage')->group(function () {
         ]);
     })->name('get.firma');
 });
+
+Route::prefix('api/backend')
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+    ->group(function () {
+
+        $jsonPayload = fn () => json_decode(request()->getContent(), true) ?? [];
+
+        Route::get('/health', function () {
+            [$status, $body] = PythonEngineController::run('health', []);
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::get('/opensees/status', function () {
+            [$status, $body] = PythonEngineController::run('opensees-status', []);
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/analyze', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('analyze', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/analyze-3d', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('analyze-3d', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/seismic/analyze', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('seismic-analyze', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/seismic/parse-spectrum', function () {
+            if (request()->files && request()->hasFile('file')) {
+                $file = request()->file('file');
+                $payload = [
+                    'filename' => $file->getClientOriginalName(),
+                    'content_base64' => base64_encode(file_get_contents($file->getRealPath())),
+                ];
+            } else {
+                $payload = json_decode(request()->getContent(), true) ?? [];
+            }
+
+            [$status, $body] = PythonEngineController::run('seismic-parse-spectrum', $payload);
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/frame-forces', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('frame-forces', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/seismic/modal', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('seismic-modal', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+    });

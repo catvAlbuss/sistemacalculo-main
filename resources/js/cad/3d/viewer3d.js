@@ -75,6 +75,24 @@ function disposeViewer() {
   try {
     VIEWER_STATE.isUpdating = true;
 
+    // Limpieza del modo de selección por ventana y sus listeners.
+    try {
+      exitBoxSelectionMode3D();
+    } catch (e) { /* visor ya parcialmente destruido */ }
+
+    if (VIEWER_STATE.boxKeyHandler) {
+      window.removeEventListener("keydown", VIEWER_STATE.boxKeyHandler);
+      VIEWER_STATE.boxKeyHandler = null;
+    }
+
+    if (VIEWER_STATE.pointerOverHandlersBound) {
+      const container = getViewerContainer();
+      container?.removeEventListener("pointerenter", VIEWER_STATE.onViewerPointerEnter);
+      container?.removeEventListener("pointerleave", VIEWER_STATE.onViewerPointerLeave);
+      VIEWER_STATE.pointerOverHandlersBound = false;
+      VIEWER_STATE.pointerOverViewer = false;
+    }
+
     if (VIEWER_STATE.engine && VIEWER_STATE.renderLoop) {
       VIEWER_STATE.engine.stopRenderLoop(VIEWER_STATE.renderLoop);
       VIEWER_STATE.renderLoop = null;
@@ -127,6 +145,10 @@ function createCanvas(container) {
   const rect = container.getBoundingClientRect();
   canvas.width = rect.width || container.clientWidth || 800;
   canvas.height = rect.height || container.clientHeight || 600;
+
+  // El clic derecho se usa para orbitar la cámara y para terminar la
+  // polilínea de dibujo; se suprime el menú contextual del navegador.
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
   container.innerHTML = "";
   container.appendChild(canvas);
@@ -657,6 +679,57 @@ function selectNodeFrom3D(node, context, options = {}) {
 }
 
 // =====================================================
+// 3D SELECTION > SELECCIONAR LOSA / ÁREA DESDE CLIC EN 3D
+// Clic normal: reemplaza selección con esa área.
+// Ctrl + clic: agrega o quita el área de la selección actual.
+// =====================================================
+function selectAreaFrom3D(area, context, options = {}) {
+  if (!area || !context) return;
+
+  const additive = options.additive === true;
+
+  const currentAreas = additive
+    ? (context.selectedAreasState?.selectedObjects || []).filter(Boolean)
+    : [];
+
+  const alreadySelected = currentAreas.some((a) => String(a?.id) === String(area.id));
+
+  const nextAreas = alreadySelected
+    ? currentAreas.filter((a) => String(a?.id) !== String(area.id))
+    : [...currentAreas, area];
+
+  if (!additive) {
+    context.clearAllSelections?.();
+  }
+
+  if (nextAreas.length === 0) {
+    context.setState?.(context.idleState);
+  } else {
+    context.setState?.(context.selectedAreasState, { selectedAreas: nextAreas });
+  }
+
+  nextAreas.forEach((a) => {
+    a.selected = true;
+    a.isSelected = true;
+  });
+
+  context.redraw?.();
+  context.sync3D?.();
+
+  context.showMessage?.(
+    nextAreas.length === 1
+      ? `Área ${nextAreas[0].id} seleccionada (${nextAreas[0].areaType || nextAreas[0].type || "slab"})`
+      : `${nextAreas.length} áreas seleccionadas`,
+  );
+
+  console.log("🖱️ Clic 3D sobre área:", {
+    id: area.id,
+    additive,
+    seleccionadas: nextAreas.map((a) => a.id),
+  });
+}
+
+// =====================================================
 // 3D DRAW > CONVERTIR PUNTO BABYLON A MODELO
 // En tu visor, el mapeo usado es:
 // Modelo:  x, y, z
@@ -828,8 +901,13 @@ function disable3DWorkPlanePickMesh() {
 window.__jhDisable3DWorkPlanePickMesh = disable3DWorkPlanePickMesh;
 
 // =====================================================
-// 3D DRAW > BLOQUEAR/DESBLOQUEAR CÁMARA
-// Evita que la cámara orbite cuando se está dibujando en 3D.
+// 3D DRAW > BLOQUEO PARCIAL DE CÁMARA (CÁMARA INTERACTIVA)
+// Durante el dibujo NO se apaga la cámara completa: solo se libera el
+// botón IZQUIERDO para dibujar. La vista sigue siendo navegable:
+//   - Botón DERECHO  → orbitar
+//   - Botón MEDIO    → pan (encuadre)
+//   - Rueda          → zoom
+// Así el usuario puede girar la estructura mientras une nodos.
 // =====================================================
 function set3DDrawCameraLock(locked) {
   const scene = VIEWER_STATE.scene;
@@ -838,21 +916,35 @@ function set3DDrawCameraLock(locked) {
   if (!scene || !scene.activeCamera || !canvas) return;
 
   const camera = scene.activeCamera;
+  const pointers = camera.inputs?.attached?.pointers;
 
   if (locked) {
     if (!scene.__jhCameraLockedForDraw) {
-      camera.detachControl(canvas);
+      if (pointers) {
+        scene.__jhCameraPrevButtons = Array.isArray(pointers.buttons) ? [...pointers.buttons] : [0, 1, 2];
+        scene.__jhCameraPrevPanButton = camera._panningMouseButton ?? 2;
+
+        // La cámara ignora el botón izquierdo (queda libre para dibujar).
+        pointers.buttons = [1, 2];
+        // Pan pasa al botón medio → el derecho queda para ORBITAR.
+        camera._panningMouseButton = 1;
+      }
+
       scene.__jhCameraLockedForDraw = true;
-      console.log("🔒 Cámara 3D bloqueada para dibujo");
+      console.log("🔒 Dibujo 3D: clic izq = dibujar | derecho = orbitar | medio = pan | rueda = zoom");
     }
 
     return;
   }
 
   if (scene.__jhCameraLockedForDraw) {
-    camera.attachControl(canvas, true);
+    if (pointers) {
+      pointers.buttons = scene.__jhCameraPrevButtons || [0, 1, 2];
+      camera._panningMouseButton = scene.__jhCameraPrevPanButton ?? 2;
+    }
+
     scene.__jhCameraLockedForDraw = false;
-    console.log("🔓 Cámara 3D desbloqueada");
+    console.log("🔓 Cámara 3D restaurada (controles normales)");
   }
 }
 
@@ -992,24 +1084,32 @@ function update3DGridPointHoverLabel(context, snappedPoint) {
 
   if (!texture) return;
 
-  const labelText = `Grid Point ${snappedPoint.xGridId || "-"}-${snappedPoint.yGridId || "-"} | Z=${Number(snappedPoint.z || 0).toFixed(2)}`;
+  // El snap puede ser un NODO del modelo ("Point"/joint) o un vértice del grid
+  // ("Grid Point"). ETABS usa "Point" para joints y "Grid Point" para grillas.
+  const isModelNode =
+    snappedPoint.snapKind === "model-node" || snappedPoint.nodeId != null;
+
+  const labelText = isModelNode
+    ? `Point ${snappedPoint.nodeId ?? ""}`.trim()
+    : `Grid Point ${snappedPoint.xGridId || "-"}-${snappedPoint.yGridId || "-"}`;
 
   // Solo redibujar texto si cambió.
   if (labelPlane.metadata.lastText !== labelText) {
     const ctx = texture.getContext();
 
+    // Fondo transparente: limpiar sin pintar rectángulo.
     ctx.clearRect(0, 0, 512, 128);
 
-    ctx.fillStyle = "rgba(20, 20, 20, 0.78)";
-    ctx.fillRect(0, 0, 512, 128);
+    ctx.font = "bold 40px Arial";
+    ctx.textBaseline = "middle";
 
-    ctx.strokeStyle = "rgba(255, 200, 40, 1)";
-    ctx.lineWidth = 4;
-    ctx.strokeRect(2, 2, 508, 124);
+    // Contorno oscuro para que el texto se lea sobre cualquier fondo.
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
+    ctx.strokeText(labelText, 16, 70);
 
-    ctx.font = "bold 34px Arial";
-    ctx.fillStyle = "white";
-    ctx.fillText(labelText, 24, 78);
+    ctx.fillStyle = isModelNode ? "rgb(255, 90, 210)" : "rgb(255, 205, 60)";
+    ctx.fillText(labelText, 16, 70);
 
     texture.update();
 
@@ -1067,13 +1167,27 @@ function update3DGridPointHoverReference(context, pointerInfo) {
   }
 
   // =====================================================
-  // 3D SNAP > HOVER GLOBAL SOBRE GRID POINTS 3D
-  // Esto permite detectar puntos de otros pisos sin cambiar vista.
+  // 3D SNAP > HOVER GLOBAL SOBRE GRID POINTS Y NODOS (JOINTS)
+  // Reconoce vértices del grid ("Grid Point") y nodos del modelo ("Point"),
+  // de cualquier piso sin cambiar vista. Gana el más cercano al cursor; a
+  // igualdad, el NODO tiene prioridad (geometría real del modelo, como ETABS).
   // =====================================================
-  const nearestSnapPoint = findNearest3DGridSnapPointUnderPointer(context, 18);
+  const nearestGridPoint = findNearest3DGridSnapPointUnderPointer(context, 18);
+  const nearestNodePoint = findNearest3DModelNodeSnap(context, 18);
+
+  let nearestSnapPoint = null;
+  if (nearestNodePoint && nearestGridPoint) {
+    nearestSnapPoint =
+      nearestNodePoint.distance <= nearestGridPoint.distance + 3
+        ? nearestNodePoint
+        : nearestGridPoint;
+  } else {
+    nearestSnapPoint = nearestNodePoint || nearestGridPoint;
+  }
 
   if (nearestSnapPoint?.modelPoint) {
     const snappedPoint = nearestSnapPoint.modelPoint;
+    const isNode = snappedPoint.snapKind === "model-node";
 
     const marker = ensure3DGridPointHoverMarker(context);
 
@@ -1088,57 +1202,18 @@ function update3DGridPointHoverReference(context, pointerInfo) {
     update3DFramePreviewLine(context, snappedPoint);
 
     context.showMessage?.(
-      `Grid Point ${snappedPoint.xGridId || "-"}-${snappedPoint.yGridId || "-"} | X=${Number(snappedPoint.x || 0).toFixed(2)} Y=${Number(snappedPoint.y || 0).toFixed(2)} Z=${Number(snappedPoint.z || 0).toFixed(2)}`,
+      isNode
+        ? `Point ${snappedPoint.nodeId ?? ""} | X=${Number(snappedPoint.x || 0).toFixed(2)} Y=${Number(snappedPoint.y || 0).toFixed(2)} Z=${Number(snappedPoint.z || 0).toFixed(2)}`
+        : `Grid Point ${snappedPoint.xGridId || "-"}-${snappedPoint.yGridId || "-"} | X=${Number(snappedPoint.x || 0).toFixed(2)} Y=${Number(snappedPoint.y || 0).toFixed(2)} Z=${Number(snappedPoint.z || 0).toFixed(2)}`,
     );
 
     return;
   }
 
-  ensure3DWorkPlanePickMesh(context);
-
-  const event = pointerInfo?.event;
-
-  const pickInfo = scene.pick(scene.pointerX, scene.pointerY, (mesh) => {
-    if (!mesh) return false;
-
-    if (mesh.name === "jh_3d_grid_point_hover_marker") return false;
-    if (mesh.name === "jh_3d_frame_preview_line") return false;
-    if (mesh.name === "jh_3d_grid_point_hover_label") return false;
-
-    return mesh.isPickable === true;
-  });
-
-  const pickedPoint = pickInfo?.pickedPoint;
-
-  if (!pickedPoint) {
-    clear3DGridPointHoverReference();
-    return;
-  }
-
-  const approxModelPoint = babylonPointToModelPoint(pickedPoint);
-
-  const snappedPoint = context.snap3DModelPointToGridPoint?.(approxModelPoint);
-
-  if (!snappedPoint) {
-    clear3DGridPointHoverReference();
-    return;
-  }
-
-  const marker = ensure3DGridPointHoverMarker(context);
-
-  if (marker) {
-    marker.position = modelPointToBabylonPoint(snappedPoint);
-    marker.setEnabled(true);
-  }
-
-  context.hovered3DGridPoint = snappedPoint;
-
-  update3DGridPointHoverLabel(context, snappedPoint);
-  update3DFramePreviewLine(context, snappedPoint);
-
-  context.showMessage?.(
-    `Grid Point ${snappedPoint.xGridId || "-"}-${snappedPoint.yGridId || "-"} | X=${Number(snappedPoint.x || 0).toFixed(2)} Y=${Number(snappedPoint.y || 0).toFixed(2)} Z=${Number(snappedPoint.z || 0).toFixed(2)}`,
-  );
+  // Sin prioridad del piso activo: el hover reconoce SOLO vértices del grid
+  // (cualquier piso) vía el snap global de arriba. Si el cursor no está sobre
+  // un vértice, no se marca nada (antes caía al plano del piso 2D activo).
+  clear3DGridPointHoverReference();
 }
 
 // =====================================================
@@ -1146,6 +1221,394 @@ function update3DGridPointHoverReference(context, pointerInfo) {
 // Permite que cad_sys.js desbloquee la cámara al presionar Esc.
 // =====================================================
 window.__jhSet3DDrawCameraLock = set3DDrawCameraLock;
+
+// =====================================================
+// 3D BOX SELECT > SELECCIÓN POR VENTANA (TECLA "S")
+// Estilo ETABS: presiona "S" sobre el visor 3D y arrastra un rectángulo.
+//   - Izquierda → derecha (ventana): selecciona lo COMPLETAMENTE dentro.
+//   - Derecha → izquierda (cruce):   selecciona todo lo que TOQUE el rectángulo.
+//   - Ctrl mientras arrastras: agrega a la selección existente.
+//   - Esc o "S" de nuevo: salir del modo.
+// Selecciona nodos, barras y losas/áreas a la vez.
+// =====================================================
+
+function isTypingTarget(el) {
+  if (!el) return false;
+
+  const tag = String(el.tagName || "").toUpperCase();
+
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable === true;
+}
+
+// =====================================================
+// 3D BOX SELECT > PROYECTAR PUNTO DE MODELO A PANTALLA
+// Devuelve coords en píxeles CSS relativos al canvas (o null si
+// el punto queda detrás de la cámara).
+// =====================================================
+function projectModelPointToScreen(point) {
+  const scene = VIEWER_STATE.scene;
+  const engine = VIEWER_STATE.engine;
+  const camera = VIEWER_STATE.camera;
+  const canvas = VIEWER_STATE.canvas;
+
+  if (!scene || !engine || !camera || !canvas || !point) return null;
+
+  const renderW = engine.getRenderWidth();
+  const renderH = engine.getRenderHeight();
+
+  const projected = BABYLON.Vector3.Project(
+    modelPointToBabylonPoint(point),
+    BABYLON.Matrix.Identity(),
+    scene.getTransformMatrix(),
+    camera.viewport.toGlobal(renderW, renderH),
+  );
+
+  // z fuera de [0,1] → detrás de la cámara o fuera del frustum en profundidad.
+  if (!Number.isFinite(projected.x) || !Number.isFinite(projected.y)) return null;
+  if (projected.z < 0 || projected.z > 1) return null;
+
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = rect.width > 0 ? rect.width / renderW : 1;
+  const scaleY = rect.height > 0 ? rect.height / renderH : 1;
+
+  return {
+    x: projected.x * scaleX,
+    y: projected.y * scaleY,
+  };
+}
+
+// =====================================================
+// 3D SELECTION > NODO DE MODELO MÁS CERCANO AL CURSOR
+// Las esferas de nodo (0.18) son pequeñas y difíciles de acertar; esto
+// busca el nodo cuyo punto proyectado quede dentro de radiusPx del cursor.
+// Devuelve el nodo del modelo o null.
+// =====================================================
+function findNearestModelNodeUnderPointer(context, event, radiusPx = 12) {
+  const canvas = VIEWER_STATE.canvas;
+  const nodes = context?.nodes;
+
+  if (!canvas || !Array.isArray(nodes) || nodes.length === 0) return null;
+
+  const rect = canvas.getBoundingClientRect();
+  const px = (event?.clientX || 0) - rect.left;
+  const py = (event?.clientY || 0) - rect.top;
+
+  let best = null;
+  let bestDist = radiusPx;
+
+  for (const node of nodes) {
+    const modelPoint = {
+      x: Number(node.position?.x ?? node.x ?? 0),
+      y: Number(node.position?.y ?? node.y ?? 0),
+      z: Number(node.position?.z ?? node.z ?? 0),
+    };
+
+    const screen = projectModelPointToScreen(modelPoint);
+    if (!screen) continue;
+
+    const dist = Math.hypot(screen.x - px, screen.y - py);
+
+    if (dist <= bestDist) {
+      bestDist = dist;
+      best = node;
+    }
+  }
+
+  return best;
+}
+
+function pointInRect(p, rect) {
+  return p && p.x >= rect.x1 && p.x <= rect.x2 && p.y >= rect.y1 && p.y <= rect.y2;
+}
+
+// =====================================================
+// 3D BOX SELECT > INTERSECCIÓN SEGMENTO-RECTÁNGULO (2D pantalla)
+// Para el modo "cruce": una barra se selecciona si su línea
+// proyectada toca el rectángulo aunque sus extremos queden fuera.
+// =====================================================
+function segmentIntersectsRect(p1, p2, rect) {
+  if (!p1 || !p2) return false;
+  if (pointInRect(p1, rect) || pointInRect(p2, rect)) return true;
+
+  const sides = [
+    [{ x: rect.x1, y: rect.y1 }, { x: rect.x2, y: rect.y1 }],
+    [{ x: rect.x2, y: rect.y1 }, { x: rect.x2, y: rect.y2 }],
+    [{ x: rect.x2, y: rect.y2 }, { x: rect.x1, y: rect.y2 }],
+    [{ x: rect.x1, y: rect.y2 }, { x: rect.x1, y: rect.y1 }],
+  ];
+
+  const ccw = (a, b, c) => (c.y - a.y) * (b.x - a.x) - (b.y - a.y) * (c.x - a.x);
+
+  const segmentsCross = (a, b, c, d) => {
+    const d1 = ccw(a, b, c);
+    const d2 = ccw(a, b, d);
+    const d3 = ccw(c, d, a);
+    const d4 = ccw(c, d, b);
+    return d1 * d2 < 0 && d3 * d4 < 0;
+  };
+
+  return sides.some(([a, b]) => segmentsCross(p1, p2, a, b));
+}
+
+// =====================================================
+// 3D BOX SELECT > CALCULAR SELECCIÓN DEL RECTÁNGULO
+// window=false → modo cruce (basta tocar el rectángulo).
+// =====================================================
+function computeBoxSelection3D(context, rect, { windowMode = true } = {}) {
+  const nodes = [];
+  const frames = [];
+  const areas = [];
+
+  (context.nodes || []).forEach((node) => {
+    if (!node?.position || node.visible === false) return;
+
+    const p = projectModelPointToScreen(node.position);
+
+    if (pointInRect(p, rect)) nodes.push(node);
+  });
+
+  (context.shapes || []).forEach((frame) => {
+    if (!frame?.node1?.position || !frame?.node2?.position) return;
+    if (frame.visible === false) return;
+
+    const p1 = projectModelPointToScreen(frame.node1.position);
+    const p2 = projectModelPointToScreen(frame.node2.position);
+
+    const inside = pointInRect(p1, rect) && pointInRect(p2, rect);
+
+    if (windowMode ? inside : inside || segmentIntersectsRect(p1, p2, rect)) {
+      frames.push(frame);
+    }
+  });
+
+  (context.areas || []).forEach((area) => {
+    if (!Array.isArray(area?.points) || area.points.length < 3) return;
+    if (area.visible === false) return;
+
+    const projected = area.points.map((pt) => projectModelPointToScreen(pt));
+
+    if (projected.some((p) => !p)) return;
+
+    if (windowMode) {
+      if (projected.every((p) => pointInRect(p, rect))) areas.push(area);
+      return;
+    }
+
+    const touches =
+      projected.some((p) => pointInRect(p, rect)) ||
+      projected.some((p, i) => segmentIntersectsRect(p, projected[(i + 1) % projected.length], rect));
+
+    if (touches) areas.push(area);
+  });
+
+  return { nodes, frames, areas };
+}
+
+// =====================================================
+// 3D BOX SELECT > OVERLAY VISUAL DEL RECTÁNGULO
+// =====================================================
+function ensureBoxSelectionOverlay() {
+  const container = getViewerContainer();
+
+  if (!container) return null;
+
+  if (getComputedStyle(container).position === "static") {
+    container.style.position = "relative";
+  }
+
+  let overlay = container.querySelector("#jh-3d-box-select-overlay");
+
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "jh-3d-box-select-overlay";
+    overlay.style.cssText =
+      "position:absolute; display:none; pointer-events:none; z-index:50;" +
+      "border:1.5px dashed #60a5fa; background:rgba(96,165,250,0.12);";
+    container.appendChild(overlay);
+  }
+
+  return overlay;
+}
+
+function updateBoxSelectionOverlay(box) {
+  const overlay = ensureBoxSelectionOverlay();
+
+  if (!overlay || !box?.dragging) return;
+
+  const x = Math.min(box.startX, box.curX);
+  const y = Math.min(box.startY, box.curY);
+  const w = Math.abs(box.curX - box.startX);
+  const h = Math.abs(box.curY - box.startY);
+
+  const windowMode = box.curX >= box.startX;
+
+  overlay.style.left = `${x}px`;
+  overlay.style.top = `${y}px`;
+  overlay.style.width = `${w}px`;
+  overlay.style.height = `${h}px`;
+  overlay.style.display = "block";
+
+  // Convención CAD: ventana (izq→der) azul continua, cruce (der→izq) verde discontinua.
+  overlay.style.border = windowMode ? "1.5px solid #60a5fa" : "1.5px dashed #34d399";
+  overlay.style.background = windowMode ? "rgba(96,165,250,0.12)" : "rgba(52,211,153,0.10)";
+}
+
+function hideBoxSelectionOverlay() {
+  const container = getViewerContainer();
+  const overlay = container?.querySelector("#jh-3d-box-select-overlay");
+
+  if (overlay) overlay.style.display = "none";
+}
+
+// =====================================================
+// 3D BOX SELECT > ENTRAR / SALIR DEL MODO
+// =====================================================
+function enterBoxSelectionMode3D(context) {
+  const canvas = VIEWER_STATE.canvas;
+
+  if (!VIEWER_STATE.initialized || !canvas || VIEWER_STATE.boxSelect?.active) return;
+
+  // No mezclar con el dibujo de barras.
+  if (context?.activeDrawTool === "frame" || context?.isDrawingFrame3D === true) {
+    context?.showMessage?.("Termina o cancela el dibujo (Esc) antes de usar la selección por ventana.");
+    return;
+  }
+
+  const box = {
+    active: true,
+    context,
+    dragging: false,
+    additive: false,
+    startX: 0,
+    startY: 0,
+    curX: 0,
+    curY: 0,
+    prevCursor: canvas.style.cursor || "",
+  };
+
+  const toCanvasCoords = (event) => {
+    const rect = canvas.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  };
+
+  box.onPointerDown = (event) => {
+    if (event.button !== 0) return;
+
+    const p = toCanvasCoords(event);
+
+    box.dragging = true;
+    box.additive = event.ctrlKey === true;
+    box.startX = p.x;
+    box.startY = p.y;
+    box.curX = p.x;
+    box.curY = p.y;
+
+    updateBoxSelectionOverlay(box);
+    event.preventDefault();
+  };
+
+  box.onPointerMove = (event) => {
+    if (!box.dragging) return;
+
+    const p = toCanvasCoords(event);
+
+    box.curX = p.x;
+    box.curY = p.y;
+
+    updateBoxSelectionOverlay(box);
+  };
+
+  box.onPointerUp = (event) => {
+    if (event.button !== 0 || !box.dragging) return;
+
+    box.dragging = false;
+    hideBoxSelectionOverlay();
+
+    const w = Math.abs(box.curX - box.startX);
+    const h = Math.abs(box.curY - box.startY);
+
+    // Rectángulo demasiado pequeño = clic simple; lo maneja el pick normal.
+    if (w < 5 && h < 5) return;
+
+    const rect = {
+      x1: Math.min(box.startX, box.curX),
+      y1: Math.min(box.startY, box.curY),
+      x2: Math.max(box.startX, box.curX),
+      y2: Math.max(box.startY, box.curY),
+    };
+
+    const windowMode = box.curX >= box.startX;
+    const results = computeBoxSelection3D(box.context, rect, { windowMode });
+    const additive = box.additive || event.ctrlKey === true;
+
+    console.log("🔲 Selección por ventana 3D:", {
+      modo: windowMode ? "ventana (dentro)" : "cruce (toca)",
+      additive,
+      nodos: results.nodes.length,
+      barras: results.frames.length,
+      areas: results.areas.length,
+    });
+
+    if (typeof box.context?.select3DBoxResults === "function") {
+      box.context.select3DBoxResults({ ...results, additive });
+    } else if (results.frames.length && typeof box.context?.selectFramesForEdit === "function") {
+      // Respaldo: al menos las barras.
+      box.context.selectFramesForEdit(results.frames, { reason: "3d box selection" });
+    }
+
+    // Un rectángulo por activación (estilo ETABS). "S" reactiva el modo.
+    exitBoxSelectionMode3D();
+  };
+
+  canvas.addEventListener("pointerdown", box.onPointerDown);
+  canvas.addEventListener("pointermove", box.onPointerMove);
+  canvas.addEventListener("pointerup", box.onPointerUp);
+
+  canvas.style.cursor = "crosshair";
+  VIEWER_STATE.boxSelect = box;
+
+  // Cámara: izquierdo reservado al rectángulo; derecho orbita, medio pan.
+  set3DDrawCameraLock(true);
+
+  context?.showMessage?.(
+    "Selección por ventana: arrastra un rectángulo (izq→der = dentro, der→izq = cruce, Ctrl = agregar). Esc para salir.",
+  );
+}
+
+function exitBoxSelectionMode3D() {
+  const box = VIEWER_STATE.boxSelect;
+  const canvas = VIEWER_STATE.canvas;
+
+  if (!box) return;
+
+  if (canvas) {
+    canvas.removeEventListener("pointerdown", box.onPointerDown);
+    canvas.removeEventListener("pointermove", box.onPointerMove);
+    canvas.removeEventListener("pointerup", box.onPointerUp);
+    canvas.style.cursor = box.prevCursor || "";
+  }
+
+  hideBoxSelectionOverlay();
+  VIEWER_STATE.boxSelect = null;
+
+  // Restaurar cámara solo si no está dibujando una barra.
+  const context = box.context;
+  const stillDrawing = context?.activeDrawTool === "frame" || context?.isDrawingFrame3D === true;
+
+  if (!stillDrawing) {
+    set3DDrawCameraLock(false);
+  }
+}
+
+function toggleBoxSelectionMode3D(context) {
+  if (VIEWER_STATE.boxSelect?.active) {
+    exitBoxSelectionMode3D();
+    context?.showMessage?.("Selección por ventana desactivada.");
+    return;
+  }
+
+  enterBoxSelectionMode3D(context);
+}
 
 // =====================================================
 // 3D SELECTION / DRAW FRAME > INTERACCIÓN EN VISOR 3D
@@ -1166,6 +1629,10 @@ function enable3DFrameSelection(context) {
   // =====================================================
   let pointerDownPosition3D = null;
   let pointerWasDragged3D = false;
+
+  // Clic derecho: distingue un "tap" (termina polilínea) de un arrastre (orbitar).
+  let rightPointerDownPosition3D = null;
+  let rightPointerWasDragged3D = false;
 
   scene.onPointerObservable.add((pointerInfo) => {
     const event = pointerInfo.event;
@@ -1210,10 +1677,10 @@ function enable3DFrameSelection(context) {
 
     // =====================================================
     // 3D DRAW > CONTROL DE CÁMARA SEGÚN HERRAMIENTA
-    // Si Draw Frame está activo, bloquea cámara antes del pick.
-    // Si no está activo, devuelve control normal.
+    // Con Draw Frame o Selección por Ventana activos, el botón izquierdo
+    // queda libre (dibujo/rectángulo) y la cámara usa derecho/medio/rueda.
     // =====================================================
-    set3DDrawCameraLock(frameToolActive === true);
+    set3DDrawCameraLock(frameToolActive === true || VIEWER_STATE.boxSelect?.active === true);
 
     // =====================================================
     // DRAW 3D > ASEGURAR PLANO PICKABLE
@@ -1228,6 +1695,16 @@ function enable3DFrameSelection(context) {
     // Guardamos la posición inicial solo con clic izquierdo.
     // =====================================================
     if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN) {
+      // Clic derecho: registrar inicio para distinguir tap de orbitado.
+      if (event?.button === 2) {
+        rightPointerDownPosition3D = {
+          x: event?.clientX || 0,
+          y: event?.clientY || 0,
+        };
+        rightPointerWasDragged3D = false;
+        return;
+      }
+
       if (event?.button !== 0) return;
 
       pointerDownPosition3D = {
@@ -1236,6 +1713,31 @@ function enable3DFrameSelection(context) {
       };
 
       pointerWasDragged3D = false;
+      return;
+    }
+
+    // =====================================================
+    // 3D DRAW > TERMINAR POLILÍNEA CON CLIC DERECHO (ESTILO ETABS)
+    // Sólo si fue un tap (no un arrastre de orbitado de cámara) y
+    // la herramienta de barra está activa con una cadena en curso.
+    // =====================================================
+    if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERUP && event?.button === 2) {
+      const wasTap =
+        rightPointerDownPosition3D &&
+        !rightPointerWasDragged3D &&
+        Math.abs((event?.clientX || 0) - rightPointerDownPosition3D.x) <= 6 &&
+        Math.abs((event?.clientY || 0) - rightPointerDownPosition3D.y) <= 6;
+
+      rightPointerDownPosition3D = null;
+      rightPointerWasDragged3D = false;
+
+      const drawingFrame = frameToolActive || context?.isDrawingFrame3D === true;
+
+      if (wasTap && drawingFrame && context?.frame3DStartNode) {
+        event.preventDefault?.();
+        context.endFrame3DPolyline?.();
+      }
+
       return;
     }
 
@@ -1253,6 +1755,16 @@ function enable3DFrameSelection(context) {
       }
 
       return;
+    }
+
+    // Arrastre con botón derecho = orbitar cámara (no termina la polilínea).
+    if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERMOVE && rightPointerDownPosition3D) {
+      const dx = Math.abs((event?.clientX || 0) - rightPointerDownPosition3D.x);
+      const dy = Math.abs((event?.clientY || 0) - rightPointerDownPosition3D.y);
+
+      if (dx > 6 || dy > 6) {
+        rightPointerWasDragged3D = true;
+      }
     }
 
     if (pointerInfo.type !== BABYLON.PointerEventTypes.POINTERPICK) return;
@@ -1286,7 +1798,38 @@ function enable3DFrameSelection(context) {
 
     const pickedMesh = pointerInfo.pickInfo?.pickedMesh;
 
-    if (!pickedMesh) return;
+    // Selección: si el rayo no picó ninguna malla pero hay un nodo cerca del
+    // cursor, seleccionarlo igual (los nodos son pequeños y difíciles de acertar).
+    if (!pickedMesh) {
+      if (frameToolActive) {
+        // Dibujando barras: si el cursor está sobre un nodo o vértice de grid
+        // aunque el rayo no picara la esfera, usarlo igual (snap por pantalla).
+        if (context?.isDrawingFrame3D !== true) {
+          context.startFrame3DDrawingMode?.();
+        }
+
+        const nearNodeSnap = findNearest3DModelNodeSnap(context, 18);
+        const nearGridSnap = findNearest3DGridSnapPointUnderPointer(context, 18);
+        const nodeWins =
+          nearNodeSnap &&
+          (!nearGridSnap || nearNodeSnap.distance <= nearGridSnap.distance + 3);
+
+        if (nodeWins && nearNodeSnap.node) {
+          context.handle3DFrameNodePicked?.(nearNodeSnap.node);
+        } else if (nearGridSnap?.modelPoint) {
+          const mp = nearGridSnap.modelPoint;
+          let n = context.findNodeAt3DPoint?.(mp, 0.001);
+          if (!n) n = context.createNodeAt3DGridPoint?.(mp);
+          if (n) context.handle3DFrameNodePicked?.(n);
+        }
+      } else {
+        const nearNode = findNearestModelNodeUnderPointer(context, event, 12);
+        if (nearNode) {
+          selectNodeFrom3D(nearNode, context, { additive: event?.ctrlKey === true });
+        }
+      }
+      return;
+    }
 
     const metadata = pickedMesh.metadata || {};
 
@@ -1298,6 +1841,23 @@ function enable3DFrameSelection(context) {
     if (frameToolActive) {
       if (context?.isDrawingFrame3D !== true) {
         context.startFrame3DDrawingMode?.();
+      }
+
+      // =====================================================
+      // DRAW 3D > CASO 0': CLIC EN NODO (JOINT) EXISTENTE POR CERCANÍA
+      // Si hay un nodo del modelo bajo el cursor y está más cerca que el
+      // vértice de grid, se usa ESE nodo (no se crea uno nuevo). Estilo ETABS:
+      // el joint tiene prioridad sobre la grilla.
+      // =====================================================
+      const nearestNodeSnap = findNearest3DModelNodeSnap(context, 18);
+      const nearestGridForNode = findNearest3DGridSnapPointUnderPointer(context, 18);
+      const nodeWins =
+        nearestNodeSnap &&
+        (!nearestGridForNode || nearestNodeSnap.distance <= nearestGridForNode.distance + 3);
+
+      if (nodeWins && nearestNodeSnap.node) {
+        context.handle3DFrameNodePicked?.(nearestNodeSnap.node);
+        return;
       }
 
       // =====================================================
@@ -1417,6 +1977,17 @@ function enable3DFrameSelection(context) {
     const pickedPoint3D = pointerInfo.pickInfo?.pickedPoint;
 
     // =====================================================
+    // 3D SELECTION > PRIORIDAD DE NODO CERCANO AL CURSOR
+    // Si hay un nodo del modelo dentro de ~12px del cursor, tiene prioridad
+    // sobre la barra/losa que haya debajo (facilita seleccionar nodos).
+    // =====================================================
+    const nearSelNode = findNearestModelNodeUnderPointer(context, event, 12);
+    if (nearSelNode) {
+      selectNodeFrom3D(nearSelNode, context, { additive: event?.ctrlKey === true });
+      return;
+    }
+
+    // =====================================================
     // 3D SELECTION > CLIC EN ESFERA DE NODO
     // =====================================================
     if (metadata.objectType === "node" || metadata.type === "node") {
@@ -1426,6 +1997,22 @@ function enable3DFrameSelection(context) {
 
       if (pickedNode) {
         selectNodeFrom3D(pickedNode, context, { additive: event?.ctrlKey === true });
+        return;
+      }
+    }
+
+    // =====================================================
+    // 3D SELECTION > CLIC EN LOSA / ÁREA / MURO
+    // Clic normal: selecciona solo esa área.
+    // Ctrl + clic: agrega o quita áreas de la selección.
+    // =====================================================
+    if (metadata.type === "area" || metadata.objectType === "area") {
+      const pickedArea = context.areas?.find(
+        (a) => String(a.id) === String(metadata.areaId ?? metadata.id),
+      );
+
+      if (pickedArea) {
+        selectAreaFrom3D(pickedArea, context, { additive: event?.ctrlKey === true });
         return;
       }
     }
@@ -1470,7 +2057,55 @@ function enable3DFrameSelection(context) {
     });
   });
 
-  console.log("✅ Selección directa de barras en 3D activada");
+  // =====================================================
+  // 3D BOX SELECT > TECLA "S" PARA SELECCIÓN POR VENTANA
+  // Solo actúa cuando el puntero está sobre el visor 3D (o el
+  // viewport 3D está activo) y no se está escribiendo en un input.
+  // =====================================================
+  const container = getViewerContainer();
+
+  if (container && !VIEWER_STATE.pointerOverHandlersBound) {
+    VIEWER_STATE.onViewerPointerEnter = () => {
+      VIEWER_STATE.pointerOverViewer = true;
+    };
+    VIEWER_STATE.onViewerPointerLeave = () => {
+      VIEWER_STATE.pointerOverViewer = false;
+    };
+
+    container.addEventListener("pointerenter", VIEWER_STATE.onViewerPointerEnter);
+    container.addEventListener("pointerleave", VIEWER_STATE.onViewerPointerLeave);
+    VIEWER_STATE.pointerOverHandlersBound = true;
+  }
+
+  if (!VIEWER_STATE.boxKeyHandler) {
+    VIEWER_STATE.boxKeyHandler = (event) => {
+      if (isTypingTarget(document.activeElement)) return;
+
+      const key = String(event.key || "").toLowerCase();
+
+      // Con el modo activo: Esc o "S" salen del modo.
+      if (VIEWER_STATE.boxSelect?.active) {
+        if (key === "escape" || key === "s") {
+          exitBoxSelectionMode3D();
+          context?.showMessage?.("Selección por ventana desactivada.");
+          event.preventDefault();
+        }
+        return;
+      }
+
+      if (key !== "s" || event.ctrlKey || event.altKey || event.metaKey) return;
+
+      // Solo si el usuario está trabajando en el 3D.
+      if (VIEWER_STATE.pointerOverViewer !== true && context?.activeViewport !== "3d") return;
+
+      toggleBoxSelectionMode3D(context);
+      event.preventDefault();
+    };
+
+    window.addEventListener("keydown", VIEWER_STATE.boxKeyHandler);
+  }
+
+  console.log("✅ Selección directa de barras/nodos/losas en 3D activada (tecla S = selección por ventana)");
 }
 
 // =====================================================
@@ -1495,10 +2130,17 @@ function ensure3DGridPointHoverLabel(context) {
       false,
     );
 
+    // Fondo transparente: solo se ve el texto (sin rectángulo negro).
+    texture.hasAlpha = true;
+
     const mat = new BABYLON.StandardMaterial("mat_jh_3d_grid_point_hover_label", scene);
 
     mat.diffuseTexture = texture;
     mat.emissiveTexture = texture;
+    mat.opacityTexture = texture;
+    mat.useAlphaFromDiffuseTexture = true;
+    mat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+    mat.disableLighting = true;
     mat.backFaceCulling = false;
 
     labelPlane = BABYLON.MeshBuilder.CreatePlane(
@@ -1977,6 +2619,778 @@ function drawReactionsIn3D(context) {
 }
 
 // =====================================================
+// JLF-09C — 3D DRAW > JOINT / POINT LOADS TIPO ETABS
+// Lee cargas nuevas desde:
+// node.pointLoads / node.jointLoads / node.assignment.pointLoads
+// =====================================================
+
+function formatJointLoadNumber3D(value, decimals = 3) {
+  const number = Number(value || 0);
+
+  if (!Number.isFinite(number)) return "0";
+
+  return String(Number(number.toFixed(decimals)));
+}
+
+function getActiveJointLoadPattern3D(context) {
+  return String(
+    context.displayOptions?.jointLoadPattern ||
+    context.displayOptions?.jointPointLoadPattern ||
+    context.options?.currentLoad ||
+    "CM"
+  ).trim();
+}
+
+function getJointPointLoads3D(node) {
+  if (!node) return [];
+
+  const rawLoads = [
+    ...(Array.isArray(node.pointLoads) ? node.pointLoads : []),
+    ...(Array.isArray(node.jointLoads) ? node.jointLoads : []),
+    ...(Array.isArray(node.assignment?.pointLoads) ? node.assignment.pointLoads : []),
+    ...(Array.isArray(node.assignment?.jointLoads) ? node.assignment.jointLoads : []),
+  ];
+
+  const seen = new Set();
+  const result = [];
+
+  rawLoads.forEach((load) => {
+    if (!load || typeof load !== "object") return;
+
+    const key =
+      load.id ||
+      [
+        load.type,
+        load.loadPattern || load.loadCase,
+        JSON.stringify(load.forces || {}),
+        JSON.stringify(load.displacements || {}),
+        JSON.stringify(load.temperature || {}),
+      ].join("|");
+
+    if (seen.has(key)) return;
+
+    seen.add(key);
+    result.push(load);
+  });
+
+  return result;
+}
+
+function getActiveJointLoadDisplayType3D(context) {
+  return String(
+    context.displayOptions?.jointLoadDisplayType ||
+    context.displayOptions?.jointLoadType ||
+    "force"
+  ).trim();
+}
+
+function shouldShowJointLoad3D(load, activePattern, activeType = "force") {
+  if (!load) return false;
+
+  const pattern = String(load.loadPattern || load.loadCase || "CM").trim();
+
+  const patternMatches =
+    !activePattern ||
+    activePattern === "ALL" ||
+    activePattern === "Todos" ||
+    pattern === activePattern;
+
+  const typeMatches =
+    activeType === "all" ||
+    String(load.type || "") === String(activeType);
+
+  return patternMatches && typeMatches;
+}
+
+function getJointForceComponents3D(load) {
+  const f = load?.forces || {};
+
+  return {
+    fx: Number(load.fx ?? f.fx ?? 0) || 0,
+    fy: Number(load.fy ?? f.fy ?? 0) || 0,
+    fz: Number(load.fz ?? f.fz ?? 0) || 0,
+
+    mxx: Number(load.mxx ?? load.mx ?? f.mx ?? 0) || 0,
+    myy: Number(load.myy ?? load.my ?? f.my ?? 0) || 0,
+    mzz: Number(load.mzz ?? load.mz ?? f.mz ?? 0) || 0,
+  };
+}
+
+function getJointForceLabel3D(load) {
+  const c = getJointForceComponents3D(load);
+  const pattern = load.loadPattern || load.loadCase || "CM";
+
+  const parts = [];
+
+  if (Math.abs(c.fx) > 1e-9) parts.push(`FX=${formatJointLoadNumber3D(c.fx, 2)}`);
+  if (Math.abs(c.fy) > 1e-9) parts.push(`FY=${formatJointLoadNumber3D(c.fy, 2)}`);
+  if (Math.abs(c.fz) > 1e-9) parts.push(`FZ=${formatJointLoadNumber3D(c.fz, 2)}`);
+
+  if (Math.abs(c.mxx) > 1e-9) parts.push(`MXX=${formatJointLoadNumber3D(c.mxx, 2)}`);
+  if (Math.abs(c.myy) > 1e-9) parts.push(`MYY=${formatJointLoadNumber3D(c.myy, 2)}`);
+  if (Math.abs(c.mzz) > 1e-9) parts.push(`MZZ=${formatJointLoadNumber3D(c.mzz, 2)}`);
+
+  if (!parts.length) return "";
+
+  const shortParts = parts.length > 4 ? `${parts.slice(0, 4).join(" ")} ...` : parts.join(" ");
+
+  return `${pattern}: ${shortParts}`;
+}
+
+function getJointDisplacementLabel3D(load) {
+  const d = load?.displacements || {};
+  const pattern = load.loadPattern || load.loadCase || "CM";
+
+  const parts = [];
+
+  if (Math.abs(Number(d.ux || 0)) > 1e-9) parts.push(`UX=${formatJointLoadNumber3D(d.ux, 4)}`);
+  if (Math.abs(Number(d.uy || 0)) > 1e-9) parts.push(`UY=${formatJointLoadNumber3D(d.uy, 4)}`);
+  if (Math.abs(Number(d.uz || 0)) > 1e-9) parts.push(`UZ=${formatJointLoadNumber3D(d.uz, 4)}`);
+
+  if (Math.abs(Number(d.rx || 0)) > 1e-9) parts.push(`RX=${formatJointLoadNumber3D(d.rx, 4)}`);
+  if (Math.abs(Number(d.ry || 0)) > 1e-9) parts.push(`RY=${formatJointLoadNumber3D(d.ry, 4)}`);
+  if (Math.abs(Number(d.rz || 0)) > 1e-9) parts.push(`RZ=${formatJointLoadNumber3D(d.rz, 4)}`);
+
+  if (!parts.length) return "";
+
+  const shortParts = parts.length > 4 ? `${parts.slice(0, 4).join(" ")} ...` : parts.join(" ");
+
+  return `${pattern}: ${shortParts}`;
+}
+
+function getJointTemperatureLabel3D(load) {
+  const t = load?.temperature || {};
+  const pattern = load.loadPattern || load.loadCase || "CM";
+
+  const value = Number(t.value ?? t.deltaT ?? 0) || 0;
+
+  if (Math.abs(value) < 1e-9) return "";
+
+  return `${pattern}: ΔT=${formatJointLoadNumber3D(value, 2)}°C`;
+}
+
+function getArrowVisualLength3D(magnitude, scale = 0.08, maxLength = 1.2) {
+  let length = Math.min(Math.abs(Number(magnitude || 0)) * scale, maxLength);
+
+  if (length < 0.2) length = 0.2;
+
+  return length;
+}
+
+function createJointLoadMarker3D(name, position, color, diameter = 0.16) {
+  const scene = VIEWER_STATE.scene;
+
+  if (!scene) return null;
+
+  const marker = BABYLON.MeshBuilder.CreateSphere(
+    `${name}_${Date.now()}_${Math.random()}`,
+    {
+      diameter,
+      segments: 12,
+    },
+    scene
+  );
+
+  const mat = createColoredMaterial(`${name}_mat_${Date.now()}`, color, scene);
+
+  marker.position = position;
+  marker.material = mat;
+  marker.isPickable = false;
+  marker.metadata = {
+    type: "jointLoad3D",
+    objectType: "jointLoad3D",
+  };
+
+  VIEWER_STATE.elements.push(marker);
+
+  return marker;
+}
+
+function createJointLoadLabel3D(text, position, color, size = 0.42) {
+  if (!text) return null;
+
+  return createLabel3D(text, position, color, size);
+}
+
+function drawJointForceLoad3D(node, load, context, loadIndex = 0) {
+  const c = getJointForceComponents3D(load);
+
+  // Force Global X/Y/Z: rojo
+  const forceColor = new BABYLON.Color3(1.0, 0.12, 0.12);
+
+  // Moment Global XX/YY/ZZ: naranja
+  const momentColor = new BABYLON.Color3(1.0, 0.45, 0.15);
+
+  const base = getNodePosition3D(node, context);
+
+  const forceClearance = 0.20;
+  const momentClearance = 0.24;
+
+  // =====================================================
+  // Force 3D > Fuerzas FX / FY / FZ
+  // Estilo ETABS: flechas limpias casi pegadas al nodo.
+  // Sin valores flotantes; los valores irán en Show Tables.
+  // =====================================================
+
+  if (Math.abs(c.fx) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_load_fx",
+      nodePosition: base,
+
+      // Force Global X -> eje X Babylon
+      direction: new BABYLON.Vector3(1, 0, 0),
+      value: c.fx,
+      color: forceColor,
+
+      labelText: "",
+
+      endOffset: new BABYLON.Vector3(0, 0.10 + loadIndex * 0.04, 0),
+      nodeClearance: 0.20,
+
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  if (Math.abs(c.fy) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_load_fy",
+      nodePosition: base,
+
+      // Force Global Y estructural -> eje Z Babylon
+      direction: new BABYLON.Vector3(0, 0, 1),
+      value: c.fy,
+      color: forceColor,
+
+      labelText: "",
+
+      endOffset: new BABYLON.Vector3(0.10, 0.10 + loadIndex * 0.04, 0),
+      nodeClearance: 0.20,
+
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  if (Math.abs(c.fz) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_load_fz",
+      nodePosition: base,
+
+      // Force Global Z estructural -> eje Y Babylon
+      direction: new BABYLON.Vector3(0, 1, 0),
+      value: c.fz,
+      color: forceColor,
+
+      labelText: "",
+
+      endOffset: new BABYLON.Vector3(-0.10, 0, 0.10),
+      nodeClearance: 0.20,
+
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  // =====================================================
+  // Force 3D > Momentos MXX / MYY / MZZ
+  // Usamos misma configuración limpia que Ground Displacement.
+  // Sin bolitas ni etiquetas flotantes.
+  // =====================================================
+
+  const yBase = 0.16 + loadIndex * 0.08;
+
+  if (Math.abs(c.mxx) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_moment_mxx",
+      nodePosition: base,
+
+      // Moment Global XX -> eje X Babylon
+      direction: new BABYLON.Vector3(1, 0, 0),
+      value: c.mxx,
+      color: momentColor,
+
+      labelText: "",
+
+      endOffset: new BABYLON.Vector3(0, yBase + 0.08, 0.18),
+      nodeClearance: 0.20,
+
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  if (Math.abs(c.myy) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_moment_myy",
+      nodePosition: base,
+
+      // Moment Global YY estructural -> eje Z Babylon
+      direction: new BABYLON.Vector3(0, 0, 1),
+      value: c.myy,
+      color: momentColor,
+
+      labelText: "",
+
+      endOffset: new BABYLON.Vector3(0.18, yBase + 0.10, 0),
+      nodeClearance: 0.20,
+
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  if (Math.abs(c.mzz) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_moment_mzz",
+      nodePosition: base,
+
+      // Moment Global ZZ estructural -> eje Y Babylon
+      direction: new BABYLON.Vector3(0, 1, 0),
+      value: c.mzz,
+      color: momentColor,
+
+      labelText: "",
+
+      endOffset: new BABYLON.Vector3(-0.16, 0, 0.16),
+      nodeClearance: 0.20,
+
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+}
+
+function createEtabsJointArrowToNode3D({
+  name = "joint_disp_translation_arrow",
+  nodePosition,
+  direction,
+  value,
+  color,
+  labelText = "",
+  labelOffset = new BABYLON.Vector3(0.25, 0.25, 0.25),
+
+  // Configuración visual tipo ETABS
+  length = 1.05,
+  nodeClearance = 0.18,
+  endOffset = new BABYLON.Vector3(0, 0, 0),
+
+  // Grosor actual: lo mantenemos porque ya se ve bien
+  shaftRadius = 0.026,
+  headRadius = 0.075,
+  headLength = 0.22,
+}) {
+  const scene = VIEWER_STATE.scene;
+
+  if (!scene || !nodePosition || !direction) return null;
+
+  const sign = Math.sign(Number(value || 0)) || 1;
+  const dir = direction.clone().scale(sign).normalize();
+
+  // ETABS-like:
+  // La punta llega casi al nodo, pero no exactamente encima,
+  // para evitar que la esfera del nodo tape la flecha.
+  const arrowEnd = nodePosition
+    .clone()
+    .add(endOffset)
+    .subtract(dir.clone().scale(nodeClearance));
+
+  const arrowStart = arrowEnd.subtract(dir.clone().scale(length));
+
+  const shaftLength = Math.max(length - headLength, 0.15);
+  const shaftCenter = arrowStart.add(dir.clone().scale(shaftLength / 2));
+
+  const shaft = BABYLON.MeshBuilder.CreateCylinder(
+    `${name}_shaft_${Date.now()}_${Math.random()}`,
+    {
+      height: shaftLength,
+      diameter: shaftRadius * 2,
+      tessellation: 12,
+    },
+    scene
+  );
+
+  shaft.position = shaftCenter;
+  shaft.rotation = getRotationBetweenVectors(new BABYLON.Vector3(0, 1, 0), dir);
+  shaft.material = createColoredMaterial(`${name}_shaft_mat_${Date.now()}`, color, scene);
+  shaft.isPickable = false;
+  shaft.metadata = {
+    type: "jointLoad3D",
+    objectType: "jointLoad3D",
+  };
+
+  const head = BABYLON.MeshBuilder.CreateCylinder(
+    `${name}_head_${Date.now()}_${Math.random()}`,
+    {
+      height: headLength,
+      diameterTop: 0,
+      diameterBottom: headRadius * 2,
+      tessellation: 16,
+    },
+    scene
+  );
+
+  head.position = arrowEnd.subtract(dir.clone().scale(headLength / 2));
+  head.rotation = getRotationBetweenVectors(new BABYLON.Vector3(0, 1, 0), dir);
+  head.material = createColoredMaterial(`${name}_head_mat_${Date.now()}`, color, scene);
+  head.isPickable = false;
+  head.metadata = {
+    type: "jointLoad3D",
+    objectType: "jointLoad3D",
+  };
+
+  VIEWER_STATE.elements.push(shaft, head);
+
+  if (labelText) {
+    createEtabsJointValueLabel3D(
+      labelText,
+      arrowStart.add(labelOffset),
+      color,
+      0.30
+    );
+  }
+
+  return {
+    shaft,
+    head,
+  };
+}
+
+function drawJointGroundDisplacementLoad3D(node, load, context, loadIndex = 0) {
+  const d = load?.displacements || {};
+  const dispColor = new BABYLON.Color3(0.66, 0.33, 0.95);
+
+  const base = getNodePosition3D(node, context);
+
+  const ux = Number(d.ux || 0);
+  const uy = Number(d.uy || 0);
+  const uz = Number(d.uz || 0);
+
+  const rx = Number(d.rx || 0);
+  const ry = Number(d.ry || 0);
+  const rz = Number(d.rz || 0);
+
+  // =====================================================
+  // Ground Displacement 3D > Traslaciones UX / UY / UZ
+  // Estilo ETABS: flecha con punta llegando al nodo.
+  // =====================================================
+
+  if (Math.abs(ux) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_disp_ux",
+      nodePosition: base,
+
+      // Translation X -> eje X global
+      direction: new BABYLON.Vector3(1, 0, 0),
+      value: ux,
+      color: dispColor,
+      labelText: "",
+
+      // Separación pequeña para no taparse con el nodo
+      endOffset: new BABYLON.Vector3(0, 0.10, 0),
+      nodeClearance: 0.20,
+
+      labelOffset: new BABYLON.Vector3(-0.10, 0.16, 0),
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  if (Math.abs(uy) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_disp_uy",
+      nodePosition: base,
+
+      // Translation Y estructural -> eje Z en Babylon
+      direction: new BABYLON.Vector3(0, 0, 1),
+      value: uy,
+      color: dispColor,
+      labelText: "",
+
+      // Separación lateral pequeña para distinguirla de UX
+      endOffset: new BABYLON.Vector3(0.10, 0.10, 0),
+      nodeClearance: 0.20,
+
+      labelOffset: new BABYLON.Vector3(0.10, 0.16, -0.10),
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  if (Math.abs(uz) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_disp_uz",
+      nodePosition: base,
+
+      // Translation Z estructural -> eje Y en Babylon
+      direction: new BABYLON.Vector3(0, 1, 0),
+      value: uz,
+      color: dispColor,
+      labelText: "",
+
+      // Se separa un poco para que no quede dentro de la esfera del nodo
+      endOffset: new BABYLON.Vector3(-0.10, 0, 0.10),
+      nodeClearance: 0.20,
+
+      labelOffset: new BABYLON.Vector3(0.12, 0.12, 0.12),
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  // =====================================================
+  // Ground Displacement 3D > Rotaciones RX / RY / RZ
+  // ETABS normalmente no las dibuja igual que una fuerza lineal.
+  // Por eso usamos marcadores circulares alrededor del nodo.
+  // =====================================================
+  const rotationParts = [];
+
+  if (Math.abs(rx) > 1e-9) rotationParts.push(`RX=${formatJointLoadNumber3D(rx, 4)}`);
+  if (Math.abs(ry) > 1e-9) rotationParts.push(`RY=${formatJointLoadNumber3D(ry, 4)}`);
+  if (Math.abs(rz) > 1e-9) rotationParts.push(`RZ=${formatJointLoadNumber3D(rz, 4)}`);
+
+  if (rotationParts.length) {
+    drawJointGroundRotationMarkers3D(
+      base,
+      {
+        rx,
+        ry,
+        rz,
+      },
+      dispColor,
+      loadIndex
+    );
+  }
+
+  // Marcador general D
+  // createJointLoadMarker3D(
+  //   "joint_disp_marker",
+  //   base.add(new BABYLON.Vector3(-0.32, 0.32 + loadIndex * 0.22, 0.22)),
+  //   dispColor,
+  //   0.18
+  // );
+
+  // JLF-09D — Label flotante 3D desactivado.
+  // Los valores detallados se mostrarán después en Display / Show Tables.
+  // En 3D dejamos solo flechas limpias tipo ETABS.
+}
+
+function createEtabsJointValueLabel3D(text, position, color, size = 0.28) {
+  const scene = VIEWER_STATE.scene;
+
+  if (!scene || !text) return null;
+
+  const texture = new BABYLON.DynamicTexture(
+    `joint_value_label_${Date.now()}_${Math.random()}`,
+    { width: 128, height: 64 },
+    scene,
+    false
+  );
+
+  texture.hasAlpha = true;
+
+  const ctx = texture.getContext();
+  ctx.clearRect(0, 0, 128, 64);
+
+  ctx.font = "bold 26px Arial";
+  ctx.fillStyle = `rgba(${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)}, 1)`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(String(text), 64, 32);
+
+  texture.update();
+
+  const mat = new BABYLON.StandardMaterial(
+    `joint_value_label_mat_${Date.now()}_${Math.random()}`,
+    scene
+  );
+
+  mat.diffuseTexture = texture;
+  mat.emissiveTexture = texture;
+  mat.opacityTexture = texture;
+  mat.backFaceCulling = false;
+  mat.disableLighting = true;
+
+  const plane = BABYLON.MeshBuilder.CreatePlane(
+    `joint_value_label_plane_${Date.now()}_${Math.random()}`,
+    {
+      width: size * 1.2,
+      height: size * 0.55,
+    },
+    scene
+  );
+
+  plane.material = mat;
+  plane.position = position;
+  plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+  plane.isPickable = false;
+
+  plane.metadata = {
+    type: "jointLoad3D",
+    objectType: "jointLoad3D",
+  };
+
+  VIEWER_STATE.elements.push(plane);
+
+  return plane;
+}
+
+function drawJointGroundRotationMarkers3D(base, rotations, color, loadIndex = 0) {
+  const scene = VIEWER_STATE.scene;
+
+  if (!scene || !base) return;
+
+  const rx = Number(rotations.rx || 0);
+  const ry = Number(rotations.ry || 0);
+  const rz = Number(rotations.rz || 0);
+
+  const rotationColor = color || new BABYLON.Color3(0.66, 0.33, 0.95);
+
+  // Pequeño desplazamiento vertical para que no se tape con la esfera del nodo.
+  const yBase = 0.16 + loadIndex * 0.08;
+
+  // =====================================================
+  // RX — Rotation about XX
+  // Eje X estructural -> eje X Babylon
+  // =====================================================
+  if (Math.abs(rx) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_disp_rx",
+      nodePosition: base,
+
+      direction: new BABYLON.Vector3(1, 0, 0),
+      value: rx,
+      color: rotationColor,
+
+      // Sin texto flotante en 3D.
+      labelText: "",
+
+      // Casi pegada al nodo, pero sin taparse.
+      endOffset: new BABYLON.Vector3(0, yBase + 0.08, 0.18),
+      nodeClearance: 0.20,
+
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  // =====================================================
+  // RY — Rotation about YY
+  // Eje Y estructural -> eje Z Babylon
+  // =====================================================
+  if (Math.abs(ry) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_disp_ry",
+      nodePosition: base,
+
+      direction: new BABYLON.Vector3(0, 0, 1),
+      value: ry,
+      color: rotationColor,
+
+      // Sin texto flotante en 3D.
+      labelText: "",
+
+      // Desplazamiento lateral mínimo para distinguirla de RX.
+      endOffset: new BABYLON.Vector3(0.18, yBase + 0.10, 0),
+      nodeClearance: 0.20,
+
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+
+  // =====================================================
+  // RZ — Rotation about ZZ
+  // Eje Z estructural -> eje Y Babylon
+  // =====================================================
+  if (Math.abs(rz) > 1e-9) {
+    createEtabsJointArrowToNode3D({
+      name: "joint_disp_rz",
+      nodePosition: base,
+
+      direction: new BABYLON.Vector3(0, 1, 0),
+      value: rz,
+      color: rotationColor,
+
+      // Sin texto flotante en 3D.
+      labelText: "",
+
+      // Separación mínima para que la flecha vertical no quede dentro del nodo.
+      endOffset: new BABYLON.Vector3(-0.16, 0, 0.16),
+      nodeClearance: 0.20,
+
+      length: 1.05,
+      shaftRadius: 0.026,
+      headRadius: 0.075,
+      headLength: 0.22,
+    });
+  }
+}
+
+function drawJointTemperatureLoad3D(node, load, context, loadIndex = 0) {
+  // JLF-09D — Temperature 3D desactivado.
+  // Temperature no es una carga vectorial, por eso no se dibuja con flechas.
+  // Sus valores se mostrarán después en Display / Show Tables.
+  return;
+}
+
+function drawJointPointLoadsIn3D(context) {
+  if (!context.displayOptions?.showJointLoads) return;
+
+  const nodes = context.nodes || [];
+  const activePattern = getActiveJointLoadPattern3D(context);
+  const activeType = getActiveJointLoadDisplayType3D(context);
+
+  nodes.forEach((node) => {
+    if (!node?.position) return;
+
+    const loads = getJointPointLoads3D(node).filter((load) => {
+      return shouldShowJointLoad3D(load, activePattern, activeType);
+    });
+
+    if (!loads.length) return;
+
+    loads.forEach((load, index) => {
+      if (load.type === "force") {
+        drawJointForceLoad3D(node, load, context, index);
+        return;
+      }
+
+      if (load.type === "ground-displacement") {
+        drawJointGroundDisplacementLoad3D(node, load, context, index);
+        return;
+      }
+
+      if (load.type === "temperature") {
+        drawJointTemperatureLoad3D(node, load, context, index);
+      }
+    });
+  });
+}
+
+// =====================================================
 // DIBUJAR MODELO COMPLETO EN EL 3D
 // Envía también el context para que renderModel3D pueda
 // reconocer barras seleccionadas y barras 3D-only.
@@ -2077,12 +3491,19 @@ export function drawIn3D(context, updateOnly = false) {
   // Dibujar apoyos siempre (no tienen toggle)
   drawSupportsIn3D(context);
 
-  // Dibujar cargas solo si showForces está activo
+  // Dibujar cargas legacy solo si showForces está activo.
+  // Estas vienen de node.force.loads[currentLoad].
   if (context.options?.showForces) {
     drawForcesIn3D(context);
   }
 
-  // Dibujar reacciones solo si showReactions está activo
+  // JLF-09C — Dibujar Assign > Joint / Point Loads tipo ETABS.
+  // Estas vienen de node.pointLoads / node.jointLoads.
+  if (context.displayOptions?.showJointLoads) {
+    drawJointPointLoadsIn3D(context);
+  }
+
+  // Dibujar reacciones solo si showReactions está activo.
   if (context.options?.showReactions) {
     drawReactionsIn3D(context);
   }
@@ -2161,6 +3582,18 @@ function findNearest3DGridSnapPointUnderPointer(context, maxScreenDistance = 18)
 
   const viewport = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
 
+  // =====================================================
+  // FIX UNIDADES > BUFFER PX vs CSS PX
+  // scene.pointerX/Y están en píxeles CSS, pero Vector3.Project devuelve
+  // píxeles del buffer de render (CSS × devicePixelRatio con
+  // adaptToDeviceRatio). Sin esta conversión, con el escalado de Windows
+  // (125%/150%) la distancia salía corrida y el snap global de pisos
+  // NO activos nunca acertaba → el dibujo quedaba atado a la planta activa.
+  // css = buffer × hardwareScalingLevel (mismo factor que usan los rayos
+  // de picking internos de Babylon, ver ray.core.js).
+  // =====================================================
+  const toCssPx = engine.getHardwareScalingLevel?.() || 1;
+
   let closest = null;
   let bestDistance = maxScreenDistance;
 
@@ -2178,7 +3611,13 @@ function findNearest3DGridSnapPointUnderPointer(context, maxScreenDistance = 18)
       viewport,
     );
 
-    const distance = Math.hypot(screenPoint.x - pointerX, screenPoint.y - pointerY);
+    // Detrás de la cámara / fuera del rango de profundidad: no es candidato.
+    if (screenPoint.z < 0 || screenPoint.z > 1) return;
+
+    const distance = Math.hypot(
+      screenPoint.x * toCssPx - pointerX,
+      screenPoint.y * toCssPx - pointerY,
+    );
 
     if (distance <= bestDistance) {
       bestDistance = distance;
@@ -2196,6 +3635,69 @@ function findNearest3DGridSnapPointUnderPointer(context, maxScreenDistance = 18)
   return closest;
 }
 
+// =====================================================
+// 3D SNAP > NODO DEL MODELO (JOINT) BAJO EL CURSOR
+// Igual que findNearest3DGridSnapPointUnderPointer pero recorre los nodos del
+// modelo (context.nodes). Devuelve el punto de modelo con su nodeId para que el
+// dibujo (barras/losas) reconozca joints además de vértices de grid, estilo
+// ETABS ("Point" = joint, "Grid Point" = grilla). Usa scene.pointerX/Y en px CSS.
+// =====================================================
+function findNearest3DModelNodeSnap(context, maxScreenDistance = 18) {
+  const scene = VIEWER_STATE.scene;
+  const engine = VIEWER_STATE.engine;
+
+  if (!scene || !engine || !scene.activeCamera || !context) return null;
+
+  const nodes = context.nodes;
+  if (!Array.isArray(nodes) || nodes.length === 0) return null;
+
+  const camera = scene.activeCamera;
+  const pointerX = scene.pointerX;
+  const pointerY = scene.pointerY;
+
+  const viewport = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
+  const toCssPx = engine.getHardwareScalingLevel?.() || 1;
+
+  let closest = null;
+  let bestDistance = maxScreenDistance;
+
+  nodes.forEach((node) => {
+    if (!node || node.visible === false) return;
+
+    const modelPoint = {
+      x: Number(node.position?.x ?? node.x ?? 0),
+      y: Number(node.position?.y ?? node.y ?? 0),
+      z: Number(node.position?.z ?? node.z ?? 0),
+    };
+
+    const screenPoint = BABYLON.Vector3.Project(
+      modelPointToBabylonPoint(modelPoint),
+      BABYLON.Matrix.Identity(),
+      scene.getTransformMatrix(),
+      viewport,
+    );
+
+    if (screenPoint.z < 0 || screenPoint.z > 1) return;
+
+    const distance = Math.hypot(
+      screenPoint.x * toCssPx - pointerX,
+      screenPoint.y * toCssPx - pointerY,
+    );
+
+    if (distance <= bestDistance) {
+      bestDistance = distance;
+      closest = {
+        node,
+        modelPoint: { ...modelPoint, nodeId: node.id, snapKind: "model-node" },
+        screenPoint,
+        distance,
+      };
+    }
+  });
+
+  return closest;
+}
+
 export function getViewer3DState() {
   return VIEWER_STATE;
 }
@@ -2204,7 +3706,17 @@ function clearModelElements(keepLabels = false) {
   try {
     const modelTypes = new Set(["node", "beam", "frame", "line", "area", "slab", "wall", "opening"]);
     // Prefijos de las mallas de fuerzas y reacciones (excluyendo etiquetas)
-    const forcePrefixes = ["force_shaft_", "force_head_", "support_"];
+    const forcePrefixes = [
+      "force_shaft_",
+      "force_head_",
+      "support_",
+
+      // JLF-09C — Joint / Point Loads 3D
+      "joint_load_",
+      "joint_disp_",
+      "joint_temp_",
+      "joint_moment_",
+    ];
 
     // Las etiquetas solo se eliminan si keepLabels es false
     const labelPrefixes = keepLabels ? [] : ["label_plane_"];
@@ -2684,6 +4196,47 @@ export function stopBabylonSeismicAnimation() {
   }
 }
 
+// =====================================================
+// DEFORMADA ESTÁTICA (Show Deformed Shape estilo ETABS)
+// Pinta la estructura desplazada UNA vez (t=1) con el campo de
+// desplazamientos del caso; sin oscilación. Restaurar con
+// resetBabylonSeismicPositions().
+// =====================================================
+export function showBabylonSeismicDeformedShape(context, options = {}) {
+  const { displacements = null, scale = 100 } = options;
+
+  if (!VIEWER_STATE.originalPositions || !VIEWER_STATE.originalPositions.length) {
+    console.warn("showBabylonSeismicDeformedShape: no hay posiciones originales (activa la vista 3D)");
+    return false;
+  }
+
+  if (!displacements || !Object.keys(displacements).length) {
+    console.warn("showBabylonSeismicDeformedShape: sin campo de desplazamientos");
+    return false;
+  }
+
+  // Detener cualquier animación activa para que no pise la estática.
+  stopBabylonSeismicAnimation();
+
+  _updateSeismicPositions(context, displacements, 1, scale);
+  return true;
+}
+
+// Devuelve la geometría 3D a su posición original (t=0) y re-habilita los
+// overlays de línea que _updateSeismicPositions oculta durante la deformada.
+export function resetBabylonSeismicPositions(context, displacements = {}) {
+  if (!VIEWER_STATE.originalPositions || !VIEWER_STATE.scene) return;
+
+  stopBabylonSeismicAnimation();
+  _updateSeismicPositions(context, displacements || {}, 0, 0);
+
+  (VIEWER_STATE.scene.meshes || []).forEach((mesh) => {
+    if (mesh?.metadata?.type === "beam" && mesh.getClassName?.() === "LinesMesh") {
+      mesh.setEnabled(true);
+    }
+  });
+}
+
 export function isBabylonSeismicAnimating() {
   return VIEWER_STATE.seismicAnimator?.animating === true;
 }
@@ -2705,7 +4258,7 @@ export function setSeismicAnimationScale(scale) {
 // Crea un plano de texto (billboard) en la posición dada.
 function _createDispLabel(text, position, scene) {
   const id = `disp_${position.x.toFixed(2)}_${position.y.toFixed(2)}_${position.z.toFixed(2)}`;
-  const texture = new BABYLON.DynamicTexture(`dispTex_${id}`, { width: 180, height: 48 }, scene, true);
+  const texture = new BABYLON.DynamicTexture(`dispTex_${id}`, { width: 256, height: 48 }, scene, true);
   texture.hasAlpha = true;
   texture.drawText(text, 6, 34, "bold 22px Arial", "#ffffff", "transparent", true); // amarillo
 
@@ -2716,7 +4269,7 @@ function _createDispLabel(text, position, scene) {
   mat.disableLighting = true;
   mat.backFaceCulling = false;
 
-  const plane = BABYLON.MeshBuilder.CreatePlane(`dispLabel_${id}`, { width: 1.4, height: 0.4 }, scene);
+  const plane = BABYLON.MeshBuilder.CreatePlane(`dispLabel_${id}`, { width: 2.0, height: 0.4 }, scene);
   plane.material = mat;
   plane.position = new BABYLON.Vector3(position.x, position.y + 0.5, position.z + 0.3);
   plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
@@ -2734,12 +4287,21 @@ export function showSeismicDisplacementLabels(context) {
   clearSeismicDisplacementLabels();
   if (!VIEWER_STATE.scene) return 0;
 
+  // Componente primaria del caso activo (UX en SDX, UY en SDY): se toma la
+  // dirección de mayor cortante basal, como el visor de tablas. Estilo ETABS:
+  // se muestra la componente de la dirección analizada, con 3 decimales (mm).
+  const seismic = context.seismicResults?.seismic || {};
+  const Vx = Number(seismic.x?.base_shear) || 0;
+  const Vy = Number(seismic.y?.base_shear) || 0;
+  const primary = Vx >= Vy ? "x" : "y";
+  const comp = primary === "x" ? "dx" : "dy";
+  const compLabel = primary === "x" ? "UX" : "UY";
+
   const labels = [];
   (context.nodes || []).forEach((n, idx) => {
     const d = n.seismicDisplacement;
     if (!d) return;
-    const magM = Math.sqrt((d.dx || 0) ** 2 + (d.dy || 0) ** 2 + (d.dz || 0) ** 2);
-    const mm = magM * 1000;
+    const mm = Math.abs(Number(d[comp]) || 0) * 1000;
     if (mm < 1e-4) return;
 
     // Posición Babylon del nodo: estructural (x,y,z) → Babylon (x, z, y).
@@ -2748,7 +4310,7 @@ export function showSeismicDisplacementLabels(context) {
       ? orig.clone()
       : new BABYLON.Vector3(Number(n.position?.x) || 0, Number(n.position?.z) || 0, Number(n.position?.y) || 0);
 
-    const label = _createDispLabel(`${mm.toFixed(1)} mm`, pos, VIEWER_STATE.scene);
+    const label = _createDispLabel(`${compLabel} ${mm.toFixed(3)} mm`, pos, VIEWER_STATE.scene);
     if (label) labels.push(label);
   });
 

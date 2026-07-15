@@ -5,6 +5,7 @@ import {
     Vector3,
     Mesh,
     VertexData,
+    DynamicTexture,
 } from "@babylonjs/core";
 import earcut from "earcut";
 
@@ -86,8 +87,22 @@ function createMaterial(scene, area) {
     const style = getAreaStyle(area);
 
     const mat = new StandardMaterial(`areaMat-${area.id}`, scene);
-    mat.diffuseColor = style.color;
-    mat.alpha = style.alpha;
+
+    // =====================================================
+    // 3D SELECTION > ÁREA SELECCIONADA
+    // Naranja brillante (mismo lenguaje visual que las barras).
+    // =====================================================
+    const isSelected = area.selected === true || area.isSelected === true;
+
+    if (isSelected) {
+        mat.diffuseColor = new Color3(1.0, 0.6, 0.1);
+        mat.emissiveColor = new Color3(0.45, 0.25, 0.03);
+        mat.alpha = Math.min(0.8, style.alpha + 0.35);
+    } else {
+        mat.diffuseColor = style.color;
+        mat.alpha = style.alpha;
+    }
+
     mat.backFaceCulling = false;
     mat.specularColor = Color3.Black();
 
@@ -191,6 +206,77 @@ function createGeneric3DPolygon(scene, area) {
     return mesh;
 }
 
+// Crea una etiqueta de texto (billboard) en el centro de la losa mostrando el
+// nombre de la sección asignada (o el tipo si no tiene). Se cuelga como HIJA del
+// mesh de la losa para que Babylon la elimine junto con ella; su material/textura
+// se liberan en onDisposeObservable para no fugar memoria.
+function attachAreaLabel3D(scene, parentMesh, area, elev) {
+    const label = area.slabSection || area.section?.name || area.areaType || area.type || "slab";
+
+    // Centroide del polígono en coords del modelo (X-Y de planta).
+    const n = area.points.length || 1;
+    const cx = area.points.reduce((s, p) => s + Number(p.x || 0), 0) / n;
+    const cy = area.points.reduce((s, p) => s + Number(p.y || 0), 0) / n;
+
+    // Textura dinámica con el texto centrado.
+    const W = 256, H = 64;
+    const texture = new DynamicTexture(`areaLabelTex-${area.id}`, { width: W, height: H }, scene, true);
+    texture.hasAlpha = true;
+    const ctx = texture.getContext();
+    ctx.clearRect(0, 0, W, H);
+    ctx.font = "bold 28px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(String(label), W / 2, H / 2);
+    texture.update();
+
+    const mat = new StandardMaterial(`areaLabelMat-${area.id}`, scene);
+    mat.diffuseTexture = texture;
+    mat.opacityTexture = texture;
+    mat.emissiveColor = new Color3(1, 1, 1);
+    mat.disableLighting = true;
+    mat.backFaceCulling = false;
+
+    const plane = MeshBuilder.CreatePlane(
+        `areaLabel-${area.id}`,
+        { width: 2.4, height: 0.6 },
+        scene
+    );
+    plane.material = mat;
+    plane.billboardMode = Mesh.BILLBOARDMODE_ALL;
+    plane.isPickable = false;
+    plane.metadata = { type: "areaLabel", areaId: area.id };
+
+    // Hija del mesh de la losa: el padre está en world (0, elev, 0) con la
+    // geometría en y=0, así que la posición LOCAL (cx, offset, cy) queda en el
+    // centro de la losa, ligeramente por encima.
+    plane.parent = parentMesh;
+    plane.position = new Vector3(cx, 0.15, cy);
+
+    // Liberar textura+material cuando la losa se elimina (Babylon dispone el
+    // mesh hijo por recursión, pero no su material/textura).
+    parentMesh.onDisposeObservable.add(() => {
+        try {
+            texture.dispose();
+            mat.dispose();
+        } catch (_) { /* noop */ }
+    });
+
+    return plane;
+}
+
+// Espesor de la losa en metros. La sección (Datos de Propiedad de Losa) guarda
+// el espesor en MM (p.ej. 125 = 0.125 m), por eso se divide entre 1000.
+function getSlabThickness(area) {
+    const sec = area.section || area.slabSectionObj || {};
+    const raw = area.thickness ?? sec.thickness ?? sec.t ?? sec.h ?? sec.depth;
+    let v = Number(raw);
+    if (!(v > 0)) return 0.2;      // default 20 cm
+    if (v > 3) v = v / 1000;       // mm → m (así lo guarda slabSections)
+    return v;
+}
+
 function createHorizontalArea3D(scene, area, options = {}) {
     const type = area.areaType || area.type || "slab";
     const elev = getAreaElevation(area);
@@ -206,19 +292,43 @@ function createHorizontalArea3D(scene, area, options = {}) {
                 .map((h) => toHorizontalPolygonShape(h.points))
             : [];
 
-    const mesh = MeshBuilder.CreatePolygon(
-        `area-${area.id}`,
-        {
-            shape,
-            holes,
-            sideOrientation: Mesh.DOUBLESIDE,
-            updatable: false,
-        },
-        scene,
-        earcut
-    );
+    // =====================================================
+    // VISTA EXTRUIDA (Extrude View tipo ETABS)
+    // La losa se dibuja con espesor real (prisma) colgando bajo el nivel.
+    // =====================================================
+    const extrude = options.extrude === true && type === "slab";
 
-    // Z del modelo pasa a Y de Babylon.
+    // El espesor viene resuelto por renderModel3D (lee la sección/slabSections);
+    // si no, se calcula desde la propia área como respaldo.
+    const thickness = Number(options.thickness) > 0 ? Number(options.thickness) : getSlabThickness(area);
+
+    const mesh = extrude
+        ? MeshBuilder.ExtrudePolygon(
+            `area-${area.id}`,
+            {
+                shape,
+                holes,
+                depth: thickness,
+                sideOrientation: Mesh.DOUBLESIDE,
+                updatable: false,
+            },
+            scene,
+            earcut
+        )
+        : MeshBuilder.CreatePolygon(
+            `area-${area.id}`,
+            {
+                shape,
+                holes,
+                sideOrientation: Mesh.DOUBLESIDE,
+                updatable: false,
+            },
+            scene,
+            earcut
+        );
+
+    // Z del modelo pasa a Y de Babylon. ExtrudePolygon deja la cara superior en
+    // y=0 y extruye hacia abajo, así que la losa queda justo bajo el nivel.
     mesh.position.y = elev;
 
     mesh.material = createMaterial(scene, area);
@@ -230,6 +340,11 @@ function createHorizontalArea3D(scene, area, options = {}) {
         holeCount: holes.length,
         plane: "horizontal",
     };
+
+    // Etiqueta con el nombre de la sección asignada (o el tipo). Solo losas.
+    if (type === "slab") {
+        attachAreaLabel3D(scene, mesh, area, elev);
+    }
 
     return mesh;
 }

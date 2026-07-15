@@ -319,6 +319,10 @@ export class Beam {
     this.angle = 0;
     this.fAxial = 0;
 
+    // Rotación del eje local en planta (grados, + antihorario). Para columnas
+    // rectangulares define hacia dónde apunta el peralte (eje fuerte Iz).
+    this.localAxisAngle = 0;
+
     this.elementType = "beam";
     this.type = "beam";
     this.objectType = "frame";

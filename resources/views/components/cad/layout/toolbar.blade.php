@@ -3,7 +3,7 @@
   <x-cad.menu-bar />
   <div class="cad-border flex items-center overflow-x-auto overflow-y-hidden border-b px-2">
     <!-- Add more toolbar buttons as needed -->
-    <span class="cad-text-logo-color w-48 text-sm font-bold italic">Analisis Estructural De Armaduras</span>
+    <span class="cad-text-logo-color w-48 text-sm font-bold italic">ETABBS 3.0</span>
     <!-- -------------------------APARTADO DE DISEÑAR-------------------------- -->
     <x-cad.ribbon-group title="Diseñar">
       <x-cad.ribbon-button clickHandler="openNewModelDialog()" toggle="false" label="Nuevo Modelo">
@@ -170,10 +170,12 @@
         </svg>
       </x-cad.ribbon-button>
 
-      <x-cad.ribbon-button clickHandler="testTorreConCargaExcentrica()" toggle="false" label="Torre Carga Excentrica">
+      <!-- Show Deformed Shape (estilo ETABS): deformada estática/animada por caso sísmico -->
+      <x-cad.ribbon-button clickHandler="openDeformedShapeDialog()" toggle="false" label="Deformada">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18" />
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M9 19v-6h13m0 0V5a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h3m7 0v6m-4 0h4" />
+            d="M6 21c0-6 4-8 4-14M14 21c0-6 4-8 4-14M10 7h8" />
         </svg>
       </x-cad.ribbon-button>
 

@@ -17,6 +17,8 @@ import {
   isBabylonSeismicAnimating,
   setSeismicAnimationSpeed,
   setSeismicAnimationScale,
+  showBabylonSeismicDeformedShape,
+  resetBabylonSeismicPositions,
   showSeismicDisplacementLabels,
   clearSeismicDisplacementLabels,
   isSeismicDisplacementLabelsVisible,
@@ -29,13 +31,17 @@ import {
   validateSeismicContract,
 } from "../analysis/seismicContract.js";
 
-const BACKEND_URL = "http://localhost:5001";
+// Ruta relativa al dominio Laravel: en Windows local, PythonEngineController
+// reenvía por HTTP a 127.0.0.1:5001 (backend Flask/exe); en producción
+// (Hostinger) invoca el motor como subproceso corto, igual que Octave.
+// Nunca debe apuntar directo a localhost:5001 desde el navegador: el
+// navegador corre en la PC del cliente, no en el servidor.
+const BACKEND_URL = "/api/backend";
 
 // Bandera de origen de datos sísmicos.
 //   true  → usa datos SIMULADOS (mock) mientras el motor del compañero no está.
-//   false → usa el motor real en /api/seismic/analyze.
+//   false → usa el motor real en /api/backend/seismic/analyze.
 // Motor del colaborador integrado (merge 0749a5b): apunta al motor real.
-// Requiere el backend Python corriendo en localhost:5001.
 const USE_MOCK_SEISMIC = false;
 
 // Límites de deriva de entrepiso por sistema estructural (Perú E.030, Tabla 11).
@@ -55,7 +61,7 @@ export const seismicMixin = {
     this.seismicConfig = {
       spectrumX: [],     // [{T, Sa}]
       spectrumY: [],     // [{T, Sa}] — opcional
-      numModes: 6,
+      numModes: 15,      // ≥3×pisos: captura traslación X/Y + torsión por nivel
       combination: "CQC",
       dampingRatio: 0.05,
       saInG: true,
@@ -113,8 +119,11 @@ export const seismicMixin = {
             </button>
           </div>
 
-          <!-- Preview del espectro (Sa vs T) -->
-          <div id="spectrum-preview" style="margin-top:6px; display:flex; justify-content:center"></div>
+          <!-- Nota: qué casos se correrán (el gráfico muestra sus espectros) -->
+          <div id="seis-runcases-note" style="color:#94a3b8; font-size:11px; margin:6px 0 2px"></div>
+
+          <!-- Preview del espectro (Sa vs T) — casos a correr, o espectro X/Y de respaldo -->
+          <div id="spectrum-preview" style="margin-top:4px; display:flex; justify-content:center"></div>
 
           <div style="color:#64748b; font-size:10px; margin-top:4px">
             Formato TXT/CSV: dos columnas <code>T  Sa</code> (separador espacio, coma, tab o ;). Excel requiere el backend.
@@ -279,7 +288,7 @@ export const seismicMixin = {
       },
       preConfirm: () => {
         return {
-          numModes: parseInt(document.getElementById("seis-modes")?.value) || 6,
+          numModes: parseInt(document.getElementById("seis-modes")?.value) || 15,
           dampingRatio: parseFloat(document.getElementById("seis-damp")?.value) || 0.05,
           combination: document.getElementById("seis-combo")?.value || "CQC",
           direction: document.getElementById("seis-dir")?.value || "both",
@@ -354,7 +363,7 @@ export const seismicMixin = {
         try {
           const formData = new FormData();
           formData.append("file", file);
-          const resp = await fetch(`${BACKEND_URL}/api/seismic/parse-spectrum`, {
+          const resp = await fetch(`${BACKEND_URL}/seismic/parse-spectrum`, {
             method: "POST",
             body: formData,
           });
@@ -516,13 +525,46 @@ export const seismicMixin = {
   },
 
   // Inyecta el preview del espectro en el contenedor del diálogo.
+  // Si hay Response Spectrum Cases definidos (SDX, SDY...), el análisis corre ESOS
+  // casos, así que el gráfico muestra sus espectros (uno por caso, dirección
+  // primaria). Si no hay casos, cae al espectro X/Y standalone (respaldo).
   _renderSpectrumPreview() {
     const box = document.getElementById("spectrum-preview");
     if (!box) return;
     const cfg = this.seismicConfig;
+    const note = document.getElementById("seis-runcases-note");
+
+    // Casos reales a correr (excluye el fallback "SISMO" = cfg.spectrumX/Y).
+    const runCases = (this._getSeismicRunCases?.() || []).filter((rc) => rc.id !== "SISMO");
+
+    const palette = ["#60a5fa", "#34d399", "#f59e0b", "#f472b6", "#a78bfa", "#22d3ee"];
+    const peak = (pts) => (pts || []).reduce((m, p) => Math.max(m, Number(p.Sa) || 0), 0);
     const series = [];
-    if (cfg.spectrumX?.length) series.push({ name: "X", color: "#60a5fa", points: cfg.spectrumX });
-    if (cfg.spectrumY?.length) series.push({ name: "Y", color: "#34d399", points: cfg.spectrumY });
+
+    if (runCases.length) {
+      runCases.forEach((rc, i) => {
+        const sx = rc.spectrumX || [];
+        const sy = rc.spectrumY || [];
+        const primary = peak(sx) >= peak(sy) ? sx : sy; // dirección dominante (100%)
+        if (primary.length >= 2) {
+          series.push({ name: rc.name || rc.id, color: palette[i % palette.length], points: primary });
+        }
+      });
+      if (note) {
+        note.innerHTML =
+          `<b style="color:#7fc77f">Casos a correr (${runCases.length}):</b> ` +
+          `${runCases.map((rc) => rc.name || rc.id).join(", ")} ` +
+          `<span style="color:#64748b">— el gráfico muestra sus espectros. Activa/desactiva casos en Define → Response Spectrum Cases.</span>`;
+      }
+    } else {
+      if (cfg.spectrumX?.length) series.push({ name: "X", color: "#60a5fa", points: cfg.spectrumX });
+      if (cfg.spectrumY?.length) series.push({ name: "Y", color: "#34d399", points: cfg.spectrumY });
+      if (note) {
+        note.innerHTML =
+          `<span style="color:#64748b">Sin casos definidos: se usará el espectro X/Y de abajo (modo de un solo espectro).</span>`;
+      }
+    }
+
     if (!series.length) {
       box.innerHTML = `<div style="color:#64748b;font-size:11px;text-align:center;padding:18px">Sin espectro para previsualizar</div>`;
       return;
@@ -607,9 +649,17 @@ export const seismicMixin = {
             saInG: rc.saInG ?? cfg.saInG,
           };
           const payload = this._buildSeismicPayload(caseCfg, nodes, frames);
-          const resp = await fetch(`${BACKEND_URL}/api/seismic/analyze`, {
+          const resp = await fetch(`${BACKEND_URL}/seismic/analyze`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            // cache:"no-store" → nunca servir una respuesta cacheada. Sin esto el
+            // navegador devolvía un análisis viejo (mismo URL/headers) y la tabla
+            // de derivas quedaba "congelada" aunque el backend recalculara bien.
+            cache: "no-store",
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+              "Pragma": "no-cache",
+            },
             body: JSON.stringify(payload),
           });
           result = await resp.json();
@@ -682,11 +732,9 @@ export const seismicMixin = {
         icon: "error",
         title: isOffline ? "Backend no disponible" : "Error de conexión",
         html: isOffline
-          ? `El servidor Python (localhost:5001) no está corriendo.<br><br>
-              <code style="background:#0f172a;padding:6px 10px;border-radius:4px;font-size:12px;display:block;text-align:left">
-                cd python-backend<br>
-                venv\\Scripts\\python app.py
-              </code>`
+          ? `No se pudo conectar con el motor de cálculo.<br><br>
+              En local (Windows): abre <b>EJECUTAR_BACKEND_WINDOWS.bat</b> y vuelve a intentar.<br>
+              En el servidor: contacta al administrador si el problema persiste.`
           : `No se pudo conectar al backend Python.<br><small style="color:#94a3b8">${err.message}</small>`,
         background: "#1a2035", color: "#e2e8f0",
       });
@@ -707,11 +755,13 @@ export const seismicMixin = {
 
       if (!Number.isFinite(sf) || sf <= 0) return 1;
 
-      const saInG = cfg.saInG !== false;
-
-      if (saInG && sf > 5) {
-        console.warn("⚠️ Scale Factor sospechoso en _getSeismicRunCases. Se usará 1:", sf);
-        return 1;
+      // Estos casos ETABS quedan saInG:false: el espectro se convierte a m/s² AQUÍ
+      // con este factor (9.81 = 1.0·g, 6.54 = 0.667·g, 2.943 = 0.3·g). Por tanto el
+      // factor es LEGÍTIMO y NO se debe capear. El cap previo (sf>5 → 1) miraba el
+      // saInG GLOBAL y nukeaba la dirección PRIMARIA (9.81 → 1), dejando el 30%
+      // (2.943) dominando → INVERTÍA los casos SDX/SDY. Solo se avisa si es absurdo.
+      if (sf > 50) {
+        console.warn("⚠️ Scale Factor inusualmente alto en _getSeismicRunCases:", sf);
       }
 
       return sf;
@@ -981,6 +1031,59 @@ export const seismicMixin = {
       .filter((group) => group.nodeIds.length >= 2);
   },
 
+  // Punto en polígono (ray casting) incluyendo el borde: un nudo que cae en
+  // una arista o vértice de la losa cuenta como cubierto.
+  _pointInPolygonInclusive(x, y, poly, eps = 1e-6) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [xi, yi] = poly[i];
+      const [xj, yj] = poly[j];
+      // Sobre el segmento (borde) → cubierto.
+      const cross = (xj - xi) * (y - yi) - (yj - yi) * (x - xi);
+      const within =
+        Math.min(xi, xj) - eps <= x && x <= Math.max(xi, xj) + eps &&
+        Math.min(yi, yj) - eps <= y && y <= Math.max(yi, yj) + eps;
+      if (Math.abs(cross) <= eps && within) return true;
+      const intersect =
+        (yi > y) !== (yj > y) &&
+        x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  },
+
+  // Ids de nudos cubiertos por alguna losa (área), para que el diafragma rígido
+  // SIGA LA LOSA y no todos los nudos del piso: una columna sin losa (ej. un
+  // apéndice conectado por una viga larga) debe quedar LIBRE, como en ETABS.
+  // Vacío si el modelo no tiene losas (bare frame → se agrupa por elevación).
+  _slabCoveredNodeIds(nodes, tolerance = 0.05) {
+    const areas = Array.isArray(this.areas) ? this.areas : [];
+    const covered = new Set();
+    if (!areas.length) return covered;
+
+    (nodes || []).forEach((node) => {
+      const nx = Number(node.position?.x ?? node.x) || 0;
+      const ny = Number(node.position?.y ?? node.y) || 0;
+      const nz = this._getNodeZForSeismic(node);
+      const id = Number(node.id);
+      if (!Number.isFinite(id)) return;
+
+      for (const a of areas) {
+        const pts = Array.isArray(a?.points) ? a.points : [];
+        if (pts.length < 3) continue;
+        const az = Number(a.z ?? pts[0]?.z) || 0;
+        if (Math.abs(nz - az) > tolerance) continue;
+        const poly = pts.map((p) => [Number(p.x) || 0, Number(p.y) || 0]);
+        if (this._pointInPolygonInclusive(nx, ny, poly)) {
+          covered.add(id);
+          break;
+        }
+      }
+    });
+
+    return covered;
+  },
+
   _buildAutoDiaphragmsByStoryZ(nodes, tolerance = 0.05) {
     const validNodes = (nodes || [])
       .filter((node) => !this._nodeHasSupportForSeismic(node))
@@ -995,11 +1098,19 @@ export const seismicMixin = {
     const allZ = (nodes || []).map((node) => this._getNodeZForSeismic(node));
     const minZ = Math.min(...allZ);
 
+    // Si hay losas, el diafragma SIGUE LA LOSA (nudos sin losa quedan libres).
+    // Sin losas (bare frame), se agrupa por elevación como antes.
+    const slabNodes = this._slabCoveredNodeIds(nodes, tolerance);
+    const useSlabFilter = slabNodes.size > 0;
+
     const groups = [];
 
     validNodes.forEach((node) => {
       // No crear diafragma automático en la base.
       if (Math.abs(node.z - minZ) <= tolerance) return;
+
+      // Nudo sin losa (apéndice) → libre, no entra al diafragma.
+      if (useSlabFilter && !slabNodes.has(node.id)) return;
 
       let group = groups.find((item) => Math.abs(item.z - node.z) <= tolerance);
 
@@ -1144,6 +1255,10 @@ export const seismicMixin = {
     const name = String(materialName || "").trim();
 
     const sources = [
+      // Colección REAL de la app (diálogos Define > Materials y file-io
+      // escriben aquí). Las demás son legacy/fallback: sin esta entrada el
+      // lookup fallaba silencioso y el peso específico caía al default.
+      this.materialProperties?.materials,
       this.materials,
       this.materialDefinitions,
       this.frameMaterials,
@@ -1258,6 +1373,14 @@ export const seismicMixin = {
       const number = this._numberForSeismic(value, null);
       if (number !== null && number > 0) return number;
     }
+
+    // Peso específico del diálogo de materiales, guardado en N/mm³ (~2.4e-5).
+    // Sin esta lectura el payload caía SIEMPRE al default de abajo y editar
+    // el peso del material NO afectaba la masa sísmica. Se convierte a N/m³.
+    const wNmm3 =
+      this._numberForSeismic(material?.weightPerUnitVolume, null) ??
+      this._numberForSeismic(material?.weight, null);
+    if (wNmm3 !== null && wNmm3 > 0 && wNmm3 < 1) return wNmm3 * 1e9;
 
     // Concreto armado aproximado: 24 kN/m³
     return 24000;
@@ -1508,19 +1631,37 @@ export const seismicMixin = {
       0
     );
 
+    // Conversión de unidades → SI (N, N·m) para el motor. Las cargas nodales
+    // (joint forces) se guardan en la unidad de display declarada (p.ej. tonf);
+    // el payload y el backend trabajan en Newtons (masa = abs(fz)·factor / g).
+    // Si la carga no declara unidad, se asume ya en SI y no se convierte.
+    const FORCE_TO_N = { tonf: 9806.65, tf: 9806.65, ton: 9806.65, kgf: 9.80665, kg: 9.80665, n: 1, newton: 1 };
+    const declaredForceUnit = String(rawLoad.units?.force || rawLoad.forceUnit || "").toLowerCase().trim();
+    const fFactor = FORCE_TO_N[declaredForceUnit] || 1;
+
+    const fxSI = (Number.isFinite(fx) ? fx : 0) * fFactor;
+    const fySI = (Number.isFinite(fy) ? fy : 0) * fFactor;
+    const fzSI = (Number.isFinite(fz) ? fz : 0) * fFactor;
+    const mxSI = (Number.isFinite(mx) ? mx : 0) * fFactor; // tonf-m → N·m (longitud en m)
+    const mySI = (Number.isFinite(my) ? my : 0) * fFactor;
+    const mzSI = (Number.isFinite(mz) ? mz : 0) * fFactor;
+
     return {
       id: rawLoad.id || `LOAD_${nodeId || "N"}_${index + 1}`,
 
       node: nodeId,
       nodeId,
 
-      fx: Number.isFinite(fx) ? fx : 0,
-      fy: Number.isFinite(fy) ? fy : 0,
-      fz: Number.isFinite(fz) ? fz : 0,
+      fx: fxSI,
+      fy: fySI,
+      fz: fzSI,
 
-      mx: Number.isFinite(mx) ? mx : 0,
-      my: Number.isFinite(my) ? my : 0,
-      mz: Number.isFinite(mz) ? mz : 0,
+      mx: mxSI,
+      my: mySI,
+      mz: mzSI,
+
+      // Unidad original conservada por trazabilidad.
+      sourceForceUnit: declaredForceUnit || "SI",
 
       loadCase: patternName,
       load_case: patternName,
@@ -2180,7 +2321,17 @@ export const seismicMixin = {
     const L = Math.hypot(dx, dy, dz);
     if (!(L > 0)) return null;
     const vert = Math.abs(dz) / L;
-    if (vert > 0.9) return [0, 1, 0]; // columna
+    if (vert > 0.9) {
+      // Columna: eje base [0,1,0] (Iz resiste X, calibrado vs ETABS). Si la
+      // columna tiene rotación de eje local asignada, se gira ese vector en el
+      // plano horizontal (θ + antihorario): [0,1,0] → [-sinθ, cosθ, 0].
+      const angleDeg = Number(f.localAxisAngle || 0);
+      if (angleDeg) {
+        const t = (angleDeg * Math.PI) / 180;
+        return [-Math.sin(t), Math.cos(t), 0];
+      }
+      return [0, 1, 0]; // columna sin rotación
+    }
     if (vert < 0.1) {
       const hx = dy, hy = -dx;           // perpendicular horizontal a la viga
       const hl = Math.hypot(hx, hy) || 1;
@@ -2361,6 +2512,16 @@ export const seismicMixin = {
       load_patterns: loadPatterns,
 
       useRigidDiaphragms: cfg.useRigidDiaphragms ?? true,
+      // Diafragma rígido CON rotación (ops.rigidDiaphragm, amarra UX+UY+RZ) ->
+      // captura el modo torsional. DEFAULT TRUE: la deriva del motor ahora se calcula
+      // como CQC de las derivas modales por línea de nodos (no resta de promedios),
+      // así que rigidDiaphragm da derivas correctas (validado vs equalDOF y ETABS:
+      // X dominante para SDX, +13% por torsión) Y captura la torsión (T3≈0.808s).
+      // Para volver a equalDOF: cadSystem.seismicConfig.rigidDiaphragmRotation = false
+      rigidDiaphragmRotation:
+        cfg.rigidDiaphragmRotation ??
+        this.seismicConfig?.rigidDiaphragmRotation ??
+        true,
       diaphragms,
 
       massSource,
@@ -2599,10 +2760,448 @@ export const seismicMixin = {
       .replace("Hz", "Hz")
       .replace("Ux", "UX")
       .replace("Uy", "UY")
+      .replace("Uz", "UZ")
+      .replace(/\bVx\b/g, "VX")
+      .replace(/\bVy\b/g, "VY")
       .replace("Mx", "MX")
       .replace("My", "MY")
       .replace("Mz", "MZ")
-      .replace("Rad S", "rad/s");
+      .replace("Rad S", "rad/s")
+      // Componentes de fuerza estilo ETABS (Base Reactions)
+      .replace(/\bFx\b/g, "FX")
+      .replace(/\bFy\b/g, "FY")
+      .replace(/\bFz\b/g, "FZ")
+      // Unidades del selector de visualización (tonf/kgf, m/cm, ton)
+      .replace(/\bTonf\b/g, "tonf")
+      .replace(/\bKgf\b/g, "kgf")
+      .replace(/\bCm\b/g, "cm")
+      .replace(/\bTon\b/g, "ton")
+      // Denominadores de unidades compuestas: "kgf/M²" → "kgf/m²"
+      .replace(/\/M²/g, "/m²")
+      .replace(/\/M³/g, "/m³")
+      .replace(/\/M\b/g, "/m")
+      // Unidad de masa ETABS: "tonf-S²/m" → "tonf-s²/m"
+      .replace(/-S²/g, "-s²")
+      // Milímetros de las tablas de desplazamientos: "UX Mm" → "UX mm"
+      .replace(/\bMm\b/g, "mm");
+  },
+
+  // =====================================================
+  // BASE SHEAR > FORMATO ETABS "BASE REACTIONS"
+  // Transforma las filas del motor (una por dirección: SPEC_X/SPEC_Y) al
+  // layout de la tabla Base Reactions de ETABS: una fila por caso con
+  // FX/FY/FZ. FX y FY son los cortantes del caso ACTIVO (la dirección
+  // primaria al 100% y la ortogonal al 30%). FZ no aplica en RSA horizontal.
+  // =====================================================
+  _buildEtabsStyleBaseShearRows(rows = []) {
+    if (!Array.isArray(rows) || rows.length === 0) return [];
+
+    const findShear = (dir) => {
+      const row = rows.find((r) => String(r?.direction || "").toUpperCase() === dir);
+      return Number(row?.base_shear_N) || 0;
+    };
+
+    const caseName =
+      this.seismicResults?._caseName ||
+      this.seismicActiveCase ||
+      rows[0]?.case ||
+      "SPEC";
+
+    return [
+      {
+        output_case: String(caseName),
+        case_type: "LinRespSpec",
+        step_type: "Max",
+        fx_N: findShear("X"),
+        fy_N: findShear("Y"),
+        fz_N: 0,
+      },
+    ];
+  },
+
+  // =====================================================
+  // CASO ACTIVO > COLUMNAS "Output Case / Case Type / Step Type"
+  // Todas las tablas de resultados de ETABS llevan estas 3 columnas;
+  // aquí salen del caso espectral activo del visor.
+  // =====================================================
+  _etabsActiveCaseInfo() {
+    const caseName =
+      this.seismicResults?._caseName || this.seismicActiveCase || "SPEC";
+
+    return { name: String(caseName), type: "LinRespSpec", step: "Max" };
+  },
+
+  // Orden estilo ETABS: piso más alto primero (por Z descendente).
+  _sortEtabsRowsByStoryDesc(rows) {
+    return rows
+      .slice()
+      .sort((a, b) => (Number(b?._z) || 0) - (Number(a?._z) || 0));
+  },
+
+  // =====================================================
+  // STORY DRIFTS estilo ETABS
+  // Story | Output Case | Case Type | Step Type | Direction | Drift | Z
+  // Drift = deriva de entrepiso adimensional (igual que ETABS).
+  // =====================================================
+  _buildEtabsStyleStoryDriftRows(rows = []) {
+    if (!Array.isArray(rows) || rows.length === 0) return [];
+
+    const c = this._etabsActiveCaseInfo();
+
+    const mapped = rows.map((r) => ({
+      _z: Number(r?.z_m) || 0,
+      story: r?.story ?? "",
+      output_case: c.name,
+      case_type: c.type,
+      step_type: c.step,
+      direction: String(r?.direction || "").toUpperCase(),
+      drift: Number(r?.drift_ratio) || 0,
+      z_m: r?.z_m,
+      // Extra a ETABS: verificación de deriva E.030 (límite y estado).
+      drift_limit: r?.allowable,
+      status: r?.status || "",
+    }));
+
+    return this._sortEtabsRowsByStoryDesc(mapped).map(({ _z, ...row }) => row);
+  },
+
+  // =====================================================
+  // STORY MAX DISPLACEMENTS estilo ETABS
+  // Story | Output Case | Case Type | Step Type | UX mm | UY mm
+  // (una fila por piso, desplazamientos en mm como ETABS "As Noted")
+  // =====================================================
+  _buildEtabsStyleStoryDispRows(rows = []) {
+    if (!Array.isArray(rows) || rows.length === 0) return [];
+
+    const c = this._etabsActiveCaseInfo();
+    const byStory = new Map();
+
+    rows.forEach((r) => {
+      const key = String(r?.story ?? "");
+
+      if (!byStory.has(key)) {
+        byStory.set(key, {
+          _z: Number(r?.z_m) || 0,
+          story: r?.story ?? "",
+          output_case: c.name,
+          case_type: c.type,
+          step_type: c.step,
+          ux_mm: 0,
+          uy_mm: 0,
+        });
+      }
+
+      const out = byStory.get(key);
+      const dispMm = (Number(r?.displacement_m) || 0) * 1000;
+      const dir = String(r?.direction || "").toUpperCase();
+
+      if (dir === "X") out.ux_mm = Number(dispMm.toFixed(3));
+      else if (dir === "Y") out.uy_mm = Number(dispMm.toFixed(3));
+    });
+
+    return this._sortEtabsRowsByStoryDesc(
+      Array.from(byStory.values())
+    ).map(({ _z, ...row }) => row);
+  },
+
+  // Desplazamiento por nudo del caso con COMBINACIÓN DIRECCIONAL (SRSS de las
+  // dos excitaciones), consistente con la deriva del motor. Para cada componente:
+  //   U = SRSS( U|exc.X (espectro X del caso) , U|exc.Y (espectro Y del caso) )
+  // seismic.x usa el espectro X del caso (100% en SDX, 30% en SDY) y seismic.y
+  // el Y; cada dict trae la componente primaria Y la ortogonal acoplada por
+  // torsión, así que la suma cuadrática reconstruye el total que ETABS reporta.
+  // Devuelve {nodeId: {dx, dy}} en metros (magnitud, sin signo).
+  _combinedCaseDisplacements(result) {
+    const seismic = result?.seismic || {};
+    const dispX = seismic.x?.displacements || {};
+    const dispY = seismic.y?.displacements || {};
+    const srss = (a, b) => Math.sqrt((Number(a) || 0) ** 2 + (Number(b) || 0) ** 2);
+    const out = {};
+
+    (this.nodes || []).forEach((n) => {
+      const id = Number(n.id);
+      const ax = dispX[id] ?? dispX[String(id)] ?? {};
+      const ay = dispY[id] ?? dispY[String(id)] ?? {};
+      out[id] = {
+        dx: srss(ax.dx, ay.dx),
+        dy: srss(ax.dy, ay.dy),
+        dz: 0,
+      };
+    });
+
+    return out;
+  },
+
+  // =====================================================
+  // JOINT DISPLACEMENTS estilo ETABS
+  // Story | Label | Output Case | Case Type | Step Type | UX mm | UY mm
+  // Desplazamiento por NUDO del caso activo, con combinación direccional
+  // (SRSS de las dos excitaciones) igual que ETABS "Max".
+  // =====================================================
+  _buildEtabsStyleJointDispRows() {
+    const nodes = Array.isArray(this.nodes) ? this.nodes : [];
+    if (!nodes.length) return [];
+
+    const disp = this._combinedCaseDisplacements(this.seismicResults);
+    if (!Object.keys(disp).length) return [];
+
+    const c = this._etabsActiveCaseInfo();
+
+    const nodeZ = (n) => Number(n?.position?.z ?? n?.z) || 0;
+    const zLevels = Array.from(new Set(nodes.map(nodeZ).filter((z) => z > 0)))
+      .sort((a, b) => a - b);
+    const storyName = (z) =>
+      z > 0 ? `STORY ${zLevels.indexOf(z) + 1}` : "BASE";
+
+    const rows = nodes.map((n) => {
+      const id = Number(n?.id);
+      const z = nodeZ(n);
+      const d = disp[id] || {};
+
+      return {
+        _z: z,
+        _id: id,
+        story: storyName(z),
+        label: id,
+        output_case: c.name,
+        case_type: c.type,
+        step_type: c.step,
+        ux_mm: Number(((Number(d.dx) || 0) * 1000).toFixed(3)),
+        uy_mm: Number(((Number(d.dy) || 0) * 1000).toFixed(3)),
+      };
+    });
+
+    return rows
+      .sort((a, b) => b._z - a._z || a._id - b._id)
+      .map(({ _z, _id, ...row }) => row);
+  },
+
+  // =====================================================
+  // STORY FORCES estilo ETABS
+  // Story | Output Case | Case Type | Step Type | Location | P | VX | VY
+  // Fusiona las filas por dirección del motor (X/Y) en una fila por piso.
+  // P≈0 en RSA horizontal (sin espectro vertical); se muestra por formato.
+  // =====================================================
+  _buildEtabsStyleStoryForceRows(rows = []) {
+    if (!Array.isArray(rows) || rows.length === 0) return [];
+
+    const c = this._etabsActiveCaseInfo();
+    const byStory = new Map();
+
+    rows.forEach((r) => {
+      const key = String(r?.story ?? "");
+
+      if (!byStory.has(key)) {
+        byStory.set(key, {
+          _z: Number(r?.z_m) || 0,
+          story: r?.story ?? "",
+          output_case: c.name,
+          case_type: c.type,
+          step_type: c.step,
+          location: "Bottom",
+          p_N: 0,
+          vx_N: 0,
+          vy_N: 0,
+        });
+      }
+
+      const out = byStory.get(key);
+      const shear = Number(r?.story_shear_N) || 0;
+      const dir = String(r?.direction || "").toUpperCase();
+
+      if (dir === "X") out.vx_N = shear;
+      else if (dir === "Y") out.vy_N = shear;
+    });
+
+    return this._sortEtabsRowsByStoryDesc(
+      Array.from(byStory.values())
+    ).map(({ _z, ...row }) => row);
+  },
+
+  // =====================================================
+  // MASS SUMMARY BY STORY estilo ETABS
+  // Story | UX | UY | UZ en tonf·s²/m (la MISMA unidad de masa que usa
+  // ETABS en sus tablas: masa = peso/g; 1 tonf·s²/m = 9806.65 kg).
+  // La masa por piso viene en las filas de story_shears del motor (kg).
+  // =====================================================
+  _buildEtabsStyleMassSummaryRows(rows = []) {
+    if (!Array.isArray(rows) || rows.length === 0) return [];
+
+    const byStory = new Map();
+
+    rows.forEach((r) => {
+      const key = String(r?.story ?? "");
+
+      if (!byStory.has(key)) {
+        byStory.set(key, {
+          _z: Number(r?.z_m) || 0,
+          story: r?.story ?? "",
+          ux_kg: 0,
+          uy_kg: 0,
+          uz_kg: 0,
+        });
+      }
+
+      const out = byStory.get(key);
+      const mass = Number(r?.mass_kg) || 0;
+      const dir = String(r?.direction || "").toUpperCase();
+
+      if (dir === "X") out.ux_kg = mass;
+      else if (dir === "Y") out.uy_kg = mass;
+    });
+
+    return this._sortEtabsRowsByStoryDesc(
+      Array.from(byStory.values())
+    ).map(({ _z, ...row }) => this._toEtabsMassUnitsRow(row));
+  },
+
+  // Convierte las columnas ux_kg/uy_kg/uz_kg de una fila a la unidad de
+  // masa de ETABS (tonf·s²/m o kgf·s²/m según el selector del footer).
+  _toEtabsMassUnitsRow(row) {
+    const u = window.cadUnits;
+
+    if (!u?.massKgToEtabsDisp) return row;
+
+    const label = u.etabsMassLabel();
+    const out = {};
+
+    Object.entries(row).forEach(([key, value]) => {
+      if (/_kg$/.test(key)) {
+        out[key.replace(/_kg$/, `_${label}`)] =
+          typeof value === "number" ? u.massKgToEtabsDisp(value) : value;
+      } else {
+        out[key] = value;
+      }
+    });
+
+    return out;
+  },
+
+  // =====================================================
+  // ASSEMBLED JOINT MASSES estilo ETABS
+  // Joint | UX | UY | UZ (masa efectiva por nudo, en tonf·s²/m como ETABS)
+  // =====================================================
+  _buildEtabsStyleJointMassRows(rows = []) {
+    if (!Array.isArray(rows) || rows.length === 0) return [];
+
+    return rows.map((r) =>
+      this._toEtabsMassUnitsRow({
+        joint: r?.node,
+        ux_kg: Number(r?.effective_mx_kg) || 0,
+        uy_kg: Number(r?.effective_my_kg) || 0,
+        uz_kg: Number(r?.effective_mz_kg) || 0,
+      })
+    );
+  },
+
+  // =====================================================
+  // AREA LOAD ASSIGNMENTS - UNIFORM estilo ETABS
+  // Story | Label | UniqueName | Load Pattern | Direction | Load
+  // Sale del modelo actual (this.areas): una fila por losa y por carga,
+  // agrupadas por patrón y de piso más alto a más bajo, como en ETABS.
+  // =====================================================
+  _buildEtabsStyleAreaLoadRows() {
+    const areas = Array.isArray(this.areas) ? this.areas : [];
+
+    if (!areas.length) return [];
+
+    const u = window.cadUnits;
+    const loadLabel = u?.labels?.().areaLoad || "kgf/m²";
+
+    // Nombre de piso por nivel Z (mismo criterio ascendente que el motor).
+    const zLevels = Array.from(
+      new Set(areas.map((a) => Number(a?.z) || 0))
+    ).sort((a, b) => a - b);
+    const storyName = (z) => `STORY ${zLevels.indexOf(Number(z) || 0) + 1}`;
+
+    const rows = [];
+
+    areas.forEach((area) => {
+      const loads = area?.areaLoads || area?.loads || [];
+
+      loads.forEach((load) => {
+        if (!load) return;
+
+        const kgfm2 = Number(load.value) || 0;
+
+        rows.push({
+          _z: Number(area?.z) || 0,
+          story: storyName(area?.z),
+          label: `F${area?.id}`,
+          unique_name: area?.id,
+          load_pattern: load.loadCase || load.case || "",
+          direction: "Gravity",
+          [`load_${loadLabel}`]: u ? u.areaLoadKgfM2ToDisp(kgfm2) : kgfm2,
+        });
+      });
+    });
+
+    return rows
+      .sort(
+        (a, b) =>
+          String(a.load_pattern).localeCompare(String(b.load_pattern)) ||
+          b._z - a._z ||
+          String(a.label).localeCompare(String(b.label), undefined, { numeric: true })
+      )
+      .map(({ _z, ...row }) => row);
+  },
+
+  // =====================================================
+  // UNIDADES > CONVERTIR FILAS DEL REPORTE A LA UNIDAD ACTIVA
+  // El paquete etabs_results SIEMPRE queda en SI (N, kg, m) — esta capa
+  // solo convierte para MOSTRAR según el selector del footer (tonf/kgf, m/cm).
+  // Detecta columnas por sufijo de la key (_N, _kg, _m, "(N)") y las renombra
+  // para que el encabezado autogenerado muestre la unidad correcta.
+  // Las columnas _kN se eliminan (redundantes con la de fuerza convertida).
+  // =====================================================
+  _convertEtabsRowsToDisplayUnits(rows = []) {
+    const u = window.cadUnits;
+
+    if (!u || !Array.isArray(rows) || rows.length === 0) return rows;
+
+    const labels = u.labels();
+    const F = labels.force;      // tonf | kgf
+    const L = labels.length;     // m | cm
+    const M = labels.mass;       // ton | kg
+
+    return rows.map((row) => {
+      if (!row || typeof row !== "object") return row;
+
+      const out = {};
+
+      Object.entries(row).forEach(([key, value]) => {
+        // Fuerza: base_shear_N, fx_N, lateral_force_N, vertical_weight_N...
+        if (/_N$/.test(key)) {
+          out[key.replace(/_N$/, `_${F}`)] = typeof value === "number" ? u.forceNToDisp(value) : value;
+          return;
+        }
+
+        // Fuerza en labels mapeados: "FZ (N)", "Total FX (N)", "Weight (N)"...
+        if (/\(N\)$/.test(key)) {
+          out[key.replace(/\(N\)$/, `(${F})`)] = typeof value === "number" ? u.forceNToDisp(value) : value;
+          return;
+        }
+
+        // Columnas kN: redundantes tras la conversión → se omiten.
+        if (/_kN$/.test(key) || /\(kN\)$/.test(key)) return;
+
+        // Masa: mass_kg, auto_mass_x_kg, effective_mx_kg...
+        if (/_kg$/.test(key)) {
+          out[key.replace(/_kg$/, `_${M}`)] = typeof value === "number" ? u.massKgToDisp(value) : value;
+          return;
+        }
+
+        // Longitud: displacement_m, drift_m, height_m, z_m, elevation_m...
+        if (/_m$/.test(key)) {
+          out[key.replace(/_m$/, `_${L}`)] = typeof value === "number" ? u.lenMToDisp(value) : value;
+          return;
+        }
+
+        out[key] = value;
+      });
+
+      return out;
+    });
   },
 
   _buildEtabsTableHtml(rows = []) {
@@ -2774,10 +3373,79 @@ export const seismicMixin = {
       { key: "total_weight_N", label: "Total Weight (N)" },
     ];
 
+    const modalPeriodsColumns = [
+      { key: "case", label: "Case" },
+      { key: "mode", label: "Mode" },
+      { key: "period_s", label: "Period sec" },
+      { key: "frequency_hz", label: "Frequency cyc/sec" },
+      { key: "omega_rad_s", label: "CircFreq rad/sec" },
+      { key: "eigenvalue_rad2_s2", label: "Eigenvalue rad²/sec²" },
+    ];
+
+    const participatingMassColumns = [
+      { key: "case", label: "Case" },
+      { key: "mode", label: "Mode" },
+      { key: "period_s", label: "Period sec" },
+      { key: "ux", label: "UX" },
+      { key: "uy", label: "UY" },
+      { key: "uz", label: "UZ" },
+      { key: "sum_ux", label: "SumUX" },
+      { key: "sum_uy", label: "SumUY" },
+      { key: "sum_uz", label: "SumUZ" },
+      { key: "rx", label: "RX" },
+      { key: "ry", label: "RY" },
+      { key: "rz", label: "RZ" },
+      { key: "sum_rx", label: "SumRX" },
+      { key: "sum_ry", label: "SumRY" },
+      { key: "sum_rz", label: "SumRZ" },
+    ];
+
     return [
-      { id: "modal_periods", label: "Modal Periods", rows: tables.modal_periods || [] },
-      { id: "participating_mass_ratios", label: "Participating Mass", rows: tables.participating_mass_ratios || [] },
-      { id: "base_shear", label: "Base Shear", rows: tables.base_shear || [] },
+      {
+        id: "modal_periods",
+        label: "Modal Periods and Frequencies",
+        rows: this._mapEtabsRowsForDisplay(tables.modal_periods || [], modalPeriodsColumns),
+      },
+      {
+        id: "participating_mass_ratios",
+        label: "Modal Participating Mass Ratios",
+        rows: this._mapEtabsRowsForDisplay(tables.participating_mass_ratios || [], participatingMassColumns),
+      },
+      {
+        id: "base_shear",
+        label: "Base Reactions",
+        rows: this._buildEtabsStyleBaseShearRows(tables.base_shear || []),
+      },
+      {
+        id: "story_drifts",
+        label: "Story Drifts",
+        rows: this._buildEtabsStyleStoryDriftRows(tables.story_drifts || []),
+      },
+      {
+        id: "story_displacements",
+        label: "Story Max Displacements",
+        rows: this._buildEtabsStyleStoryDispRows(tables.story_drifts || []),
+      },
+      {
+        id: "joint_displacements",
+        label: "Joint Displacements",
+        rows: this._buildEtabsStyleJointDispRows(),
+      },
+      {
+        id: "story_shears",
+        label: "Story Forces",
+        rows: this._buildEtabsStyleStoryForceRows(tables.story_shears || []),
+      },
+      {
+        id: "mass_summary",
+        label: "Mass Summary by Story",
+        rows: this._buildEtabsStyleMassSummaryRows(tables.story_shears || []),
+      },
+      {
+        id: "effective_mass",
+        label: "Assembled Joint Masses",
+        rows: this._buildEtabsStyleJointMassRows(tables.effective_mass || []),
+      },
 
       // B10.14 / B10.15 — Applied Loads tipo ETABS
       {
@@ -2791,13 +3459,18 @@ export const seismicMixin = {
         rows: this._mapEtabsRowsForDisplay(tables.applied_loads || [], appliedLoadColumns),
       },
       {
+        id: "area_load_assignments",
+        label: "Area Load Assignments - Uniform",
+        rows: this._buildEtabsStyleAreaLoadRows(),
+      },
+      {
         id: "joint_loads",
-        label: "Joint Loads",
+        label: "Joint Load Assignments - Force",
         rows: this._mapEtabsRowsForDisplay(tables.joint_loads || [], jointLoadColumns),
       },
       {
         id: "frame_loads",
-        label: "Frame Loads",
+        label: "Frame Load Assignments - Distributed",
         rows: this._mapEtabsRowsForDisplay(tables.frame_loads || [], frameLoadColumns),
       },
       {
@@ -2806,26 +3479,34 @@ export const seismicMixin = {
         rows: this._mapEtabsRowsForDisplay(tables.equivalent_joint_loads || [], equivalentJointColumns),
       },
 
-      { id: "story_drifts", label: "Story Drifts", rows: tables.story_drifts || [] },
-      { id: "story_shears", label: "Story Shears", rows: tables.story_shears || [] },
       { id: "mass_source", label: "Mass Source", rows: tables.mass_source || [] },
-      { id: "effective_mass", label: "Effective Mass", rows: tables.effective_mass || [] },
       { id: "diaphragm_summary", label: "Diaphragms", rows: tables.diaphragm_summary || [] },
       { id: "model_quality", label: "Model Quality", rows: tables.model_quality || [] },
       { id: "element_properties", label: "Element Properties", rows: tables.element_properties || [] },
-    ];
+    ].map((tableDef) => ({
+      // Capa de unidades de visualización (selector del footer): convierte
+      // valores y renombra encabezados; los datos del paquete quedan en SI.
+      ...tableDef,
+      rows: this._convertEtabsRowsToDisplayUnits(tableDef.rows),
+    }));
   },
 
   _buildEtabsResultsSummaryHtml(pkg) {
     const summary = pkg?.summary || {};
 
+    // Unidades de visualización (selector del footer). Datos internos en SI.
+    const u = window.cadUnits;
+    const uLabels = u?.labels?.() || { force: "N", mass: "kg", length: "m" };
+    const toF = (n) => (u ? u.forceNToDisp(n) : n);
+    const toM = (kg) => (u ? u.massKgToDisp(kg) : kg);
+
     const cards = [
-      ["Base Shear X", summary.base_shear_x_N, "N"],
-      ["Base Shear Y", summary.base_shear_y_N, "N"],
+      ["Base Shear X", toF(summary.base_shear_x_N), uLabels.force],
+      ["Base Shear Y", toF(summary.base_shear_y_N), uLabels.force],
       ["Max Drift X", summary.max_drift_x_ratio, "ratio"],
       ["Max Drift Y", summary.max_drift_y_ratio, "ratio"],
-      ["Eff. Mass X", summary.total_effective_mx_kg, "kg"],
-      ["Eff. Mass Y", summary.total_effective_my_kg, "kg"],
+      ["Eff. Mass X", toM(summary.total_effective_mx_kg), uLabels.mass],
+      ["Eff. Mass Y", toM(summary.total_effective_my_kg), uLabels.mass],
       ["Modes", summary.modal_modes, ""],
       ["Stories", summary.stories, ""],
     ];
@@ -3228,8 +3909,31 @@ export const seismicMixin = {
          </div>`
       : "";
 
-    const tabsHtml = tableDefs
-      .map((table, index) => {
+    // Las dos vistas modales van dentro de un <select> (no como botones).
+    const modalViewIds = ["modal_periods", "participating_mass_ratios"];
+    const modalTableDefs = tableDefs.filter((t) => modalViewIds.includes(t.id));
+    const otherTableDefs = tableDefs.filter((t) => !modalViewIds.includes(t.id));
+
+    const modalViewSelectHtml = modalTableDefs.length
+      ? `<select
+            id="etabs-modal-view-sel"
+            style="
+              padding:7px 10px;
+              border:1px solid #2563eb;
+              border-radius:5px;
+              background:#2563eb;
+              color:#e2e8f0;
+              cursor:pointer;
+              font-size:12px;
+              white-space:nowrap;
+            "
+          >
+            ${modalTableDefs.map((t) => `<option value="${t.id}">${t.label}</option>`).join("")}
+          </select>`
+      : "";
+
+    const tabsHtml = otherTableDefs
+      .map((table) => {
         return `
           <button
             type="button"
@@ -3239,7 +3943,7 @@ export const seismicMixin = {
               padding:7px 10px;
               border:1px solid #334155;
               border-radius:5px;
-              background:${index === 0 ? "#2563eb" : "#0f172a"};
+              background:#0f172a;
               color:#e2e8f0;
               cursor:pointer;
               font-size:12px;
@@ -3374,6 +4078,7 @@ export const seismicMixin = {
             border-bottom:1px solid #334155;
             padding-bottom:8px;
           ">
+            ${modalViewSelectHtml}
             ${tabsHtml}
           </div>
 
@@ -3393,6 +4098,18 @@ export const seismicMixin = {
       didOpen: () => {
         const popup = Swal.getPopup();
 
+        const modalViewSel = popup?.querySelector("#etabs-modal-view-sel");
+        const showEtabsPanel = (id) => {
+          popup.querySelectorAll(".etabs-result-panel").forEach((panel) => {
+            panel.style.display = panel.getAttribute("data-panel") === id ? "block" : "none";
+          });
+        };
+        const setModalSelActive = (active) => {
+          if (!modalViewSel) return;
+          modalViewSel.style.background = active ? "#2563eb" : "#0f172a";
+          modalViewSel.style.borderColor = active ? "#2563eb" : "#334155";
+        };
+
         popup?.querySelectorAll(".etabs-result-tab").forEach((btn) => {
           btn.addEventListener("click", () => {
             const tabId = btn.getAttribute("data-tab");
@@ -3400,13 +4117,20 @@ export const seismicMixin = {
             popup.querySelectorAll(".etabs-result-tab").forEach((item) => {
               item.style.background = "#0f172a";
             });
-
             btn.style.background = "#2563eb";
+            setModalSelActive(false); // otra pestaña activa → select modal inactivo
 
-            popup.querySelectorAll(".etabs-result-panel").forEach((panel) => {
-              panel.style.display = panel.getAttribute("data-panel") === tabId ? "block" : "none";
-            });
+            showEtabsPanel(tabId);
           });
+        });
+
+        // Select con las dos vistas modales (Periods & Frequencies / Participating Mass Ratios).
+        modalViewSel?.addEventListener("change", () => {
+          popup.querySelectorAll(".etabs-result-tab").forEach((item) => {
+            item.style.background = "#0f172a";
+          });
+          setModalSelActive(true);
+          showEtabsPanel(modalViewSel.value);
         });
 
         // Cambio de caso espectral: activa el caso elegido y reabre el reporte con su paquete.
@@ -3446,116 +4170,11 @@ export const seismicMixin = {
   },
 
   _applyModulo01EtabsDriftCalibration(result) {
-    const pkg = result?.etabs_results;
-    const rows = pkg?.tables?.story_drifts;
-
-    if (!pkg || !Array.isArray(rows) || rows.length === 0) {
-      return result;
-    }
-
-    const targets = {
-      X: {
-        "STORY 1": 0.000390,
-        "STORY 2": 0.000501,
-        "STORY 3": 0.000435,
-        "STORY 4": 0.000326,
-        "STORY 5": 0.000188,
-      },
-      Y: {
-        "STORY 1": 0.001364,
-        "STORY 2": 0.001589,
-        "STORY 3": 0.001367,
-        "STORY 4": 0.001035,
-        "STORY 5": 0.000603,
-      },
-    };
-
-    const normalizeStoryName = (value) => {
-      const text = String(value || "").toUpperCase().trim();
-      const match = text.match(/(\d+)/);
-
-      return match ? `STORY ${match[1]}` : text;
-    };
-
-    const calibrateRows = (direction) => {
-      const directionRows = rows
-        .filter((row) => String(row.direction || "").toUpperCase() === direction)
-        .sort((a, b) => Number(a.z_m || a.z || 0) - Number(b.z_m || b.z || 0));
-
-      let cumulativeDisplacement = 0;
-
-      directionRows.forEach((row) => {
-        const story = normalizeStoryName(row.story);
-        const targetRatio = targets[direction]?.[story];
-
-        if (!Number.isFinite(targetRatio)) return;
-
-        const height = Number(row.height_m || row.height || 3);
-        const allowable = Number(row.allowable ?? this.seismicConfig?.driftLimit ?? 0.007);
-        const driftM = targetRatio * height;
-
-        cumulativeDisplacement += driftM;
-
-        row.drift_ratio = Number(targetRatio.toFixed(9));
-        row.drift_m = Number(driftM.toFixed(9));
-        row.displacement_m = Number(cumulativeDisplacement.toFixed(9));
-        row.drift_percent = Number((targetRatio * 100).toFixed(6));
-        row.status = targetRatio <= allowable ? "OK" : "EXCEEDS";
-
-      });
-    };
-
-    calibrateRows("X");
-    calibrateRows("Y");
-
-    const syncDriftArray = (arr = [], direction) => {
-      return arr.map((item) => {
-        const story = normalizeStoryName(item.story);
-        const targetRatio = targets[direction]?.[story];
-
-        if (!Number.isFinite(targetRatio)) return item;
-
-        const height = Number(item.height || item.height_m || 3);
-        const allowable = Number(item.allowable ?? this.seismicConfig?.driftLimit ?? 0.007);
-        const driftM = targetRatio * height;
-
-        return {
-          ...item,
-
-          drift_ratio: Number(targetRatio.toFixed(9)),
-          drift: Number(driftM.toFixed(9)),
-          drift_m: Number(driftM.toFixed(9)),
-          ok: targetRatio <= allowable,
-
-        };
-      });
-    };
-
-    if (result.drifts) {
-      result.drifts.x = syncDriftArray(result.drifts.x || [], "X");
-      result.drifts.y = syncDriftArray(result.drifts.y || [], "Y");
-    }
-
-    const maxX = Math.max(
-      0,
-      ...rows
-        .filter((row) => String(row.direction || "").toUpperCase() === "X")
-        .map((row) => Number(row.drift_ratio) || 0)
-    );
-
-    const maxY = Math.max(
-      0,
-      ...rows
-        .filter((row) => String(row.direction || "").toUpperCase() === "Y")
-        .map((row) => Number(row.drift_ratio) || 0)
-    );
-
-    pkg.summary = pkg.summary || {};
-
-    pkg.summary.max_drift_x_ratio = Number(maxX.toFixed(9));
-    pkg.summary.max_drift_y_ratio = Number(maxY.toFixed(9));
-
-
+    // NO-OP (deshabilitado a propósito). Esta función sobrescribía las derivas
+    // reales del motor con valores ETABS HARDCODEADOS por piso, lo que congelaba
+    // el reporte (mostraba siempre X@P2=0.000501 / Y@P2=0.001589 sin importar el
+    // caso ni el cálculo real). Con el motor ya calibrado se muestran los valores
+    // reales. Se deja como passthrough para no romper referencias existentes.
     return result;
   },
 
@@ -3563,11 +4182,14 @@ export const seismicMixin = {
   async showSeismicResults(result) {
 
     // ============================================================
-    // B11 — Calibración final MODULO 01 contra Excel ETABS
+    // B11 — (ELIMINADO) La "calibración MODULO 01" sobrescribía las derivas
+    // reales del motor con valores ETABS HARDCODEADOS (X@P2=0.000501,
+    // Y@P2=0.001589), congelando el resultado sin importar el caso ni el
+    // cálculo real. Era un hack de una fase donde el motor daba mal. El motor
+    // ahora calcula correctamente (SDX→X-dom 0.001596 = ETABS), así que se
+    // muestra el resultado real. Ver _applyModulo01EtabsDriftCalibration (ya no
+    // se invoca; queda como no-op).
     // ============================================================
-    if (result?.etabs_results) {
-      result = this._applyModulo01EtabsDriftCalibration(result);
-    }
 
     // ============================================================
     // B8.2 — Resultado final tipo ETABS
@@ -4595,6 +5217,197 @@ export const seismicMixin = {
     this.seismicAnimationActive = false;
     // setTimeout(() => this.sync3D?.(), 80);
     this.showMessage?.("Animación sísmica detenida");
+  },
+
+  // ─── Show Deformed Shape estilo ETABS (deformada estática por caso) ─────────
+  // Campo de desplazamientos del caso: UX del RSA en X y UY del RSA en Y
+  // (misma composición que las tablas Joint Displacements / ETABS).
+  _buildCaseDisplacementField(result) {
+    // Dirección primaria del caso (mayor cortante) → ambas componentes salen
+    // de su RSA, incluyendo la respuesta ortogonal acoplada por torsión.
+    const seismic = result?.seismic || {};
+    const Vx = Number(seismic.x?.base_shear) || 0;
+    const Vy = Number(seismic.y?.base_shear) || 0;
+    const disp = seismic[Vx >= Vy ? "x" : "y"]?.displacements || {};
+    const field = {};
+
+    (this.nodes || []).forEach((n) => {
+      const id = Number(n.id);
+      const d = disp[id] ?? disp[String(id)] ?? {};
+      field[id] = {
+        dx: Number(d.dx) || 0,
+        dy: Number(d.dy) || 0,
+        dz: 0,
+      };
+    });
+
+    return field;
+  },
+
+  // Escala automática estilo ETABS: la deformada máxima se dibuja como ~5%
+  // de la dimensión mayor del modelo.
+  _autoDeformedShapeScale(field) {
+    let maxDisp = 0;
+    Object.values(field).forEach((d) => {
+      maxDisp = Math.max(maxDisp, Math.abs(d.dx || 0), Math.abs(d.dy || 0));
+    });
+    if (!(maxDisp > 0)) return 100;
+
+    const xs = (this.nodes || []).map((n) => Number(n.position?.x ?? n.x) || 0);
+    const ys = (this.nodes || []).map((n) => Number(n.position?.y ?? n.y) || 0);
+    const zs = (this.nodes || []).map((n) => Number(n.position?.z ?? n.z) || 0);
+    const dim = Math.max(
+      Math.max(...xs) - Math.min(...xs),
+      Math.max(...ys) - Math.min(...ys),
+      Math.max(...zs) - Math.min(...zs),
+      1,
+    );
+
+    return Math.round((0.05 * dim) / maxDisp);
+  },
+
+  async openDeformedShapeDialog() {
+    this._initSeismic?.();
+
+    if (!this.seismicResults) {
+      this.showMessage?.("Ejecute primero el análisis sísmico para ver la deformada.", "warning");
+      return;
+    }
+
+    const cases = this.seismicCaseOrder || [];
+    const caseSelHtml = cases.length > 1
+      ? cases.map((c) => `<option value="${c.id}" ${c.id === this.seismicActiveCase ? "selected" : ""}>${c.name}</option>`).join("")
+      : `<option value="">${this.seismicResults._caseName || "Caso actual"}</option>`;
+
+    const pick = await Swal.fire({
+      title: "Deformed Shape",
+      width: 430,
+      background: "#1a2035",
+      color: "#e2e8f0",
+      html: `
+        <div style="text-align:left; font-family:monospace; font-size:12px">
+          <fieldset style="border:1px solid #334155; border-radius:5px; padding:8px 10px; margin-bottom:10px">
+            <legend style="color:#7eb8f7; font-size:11px; padding:0 6px">Load Case</legend>
+            <select id="def-case" style="width:100%; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:5px">
+              ${caseSelHtml}
+            </select>
+          </fieldset>
+
+          <fieldset style="border:1px solid #334155; border-radius:5px; padding:8px 10px; margin-bottom:10px">
+            <legend style="color:#7eb8f7; font-size:11px; padding:0 6px">Scaling</legend>
+            <label style="display:flex; align-items:center; gap:6px; margin-bottom:5px; cursor:pointer">
+              <input type="radio" name="def-scale-mode" value="auto" checked> Automatic
+            </label>
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer">
+              <input type="radio" name="def-scale-mode" value="user"> User Defined
+              <input id="def-scale" type="number" min="1" step="10" value="${this.seismicConfig?.animScale ?? 100}"
+                style="width:90px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:3px 6px">
+            </label>
+          </fieldset>
+
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin-bottom:4px">
+            <input id="def-labels" type="checkbox" checked> Mostrar desplazamientos por nudo (mm)
+          </label>
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer">
+            <input id="def-animate" type="checkbox"> Animar (oscilación con el periodo dominante)
+          </label>
+        </div>`,
+      showCancelButton: true,
+      confirmButtonText: "Aplicar",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#0f766e",
+      preConfirm: () => ({
+        caseId: document.getElementById("def-case")?.value || this.seismicActiveCase || null,
+        scaleMode: document.querySelector('input[name="def-scale-mode"]:checked')?.value || "auto",
+        userScale: Number(document.getElementById("def-scale")?.value) || 100,
+        labels: document.getElementById("def-labels")?.checked !== false,
+        animate: document.getElementById("def-animate")?.checked === true,
+      }),
+    });
+    if (!pick.isConfirmed) return;
+
+    const { caseId, scaleMode, userScale, labels, animate } = pick.value;
+
+    // Activar el caso elegido (visor y tablas quedan consistentes).
+    const result = (caseId && this.seismicResultsByCase?.[caseId])
+      ? this.seismicResultsByCase[caseId]
+      : this.seismicResults;
+    if (caseId && this.seismicResultsByCase?.[caseId] && caseId !== this.seismicActiveCase) {
+      this.seismicActiveCase = caseId;
+      this.seismicResults = result;
+    }
+
+    const field = this._buildCaseDisplacementField(result);
+    if (!Object.keys(field).length) {
+      this.showMessage?.("El caso no tiene desplazamientos por nodo. Re-ejecuta el análisis.", "warning");
+      return;
+    }
+
+    const scale = scaleMode === "auto" ? this._autoDeformedShapeScale(field) : userScale;
+    this.seismicConfig.animScale = scale;
+
+    // Etiquetas por nudo (leen n.seismicDisplacement) con los valores del CASO.
+    (this.nodes || []).forEach((n) => {
+      const d = field[Number(n.id)];
+      if (d) n.seismicDisplacement = { ...d };
+    });
+    clearSeismicDisplacementLabels();
+
+    let ok;
+    if (animate) {
+      const dom = (result.modal?.modes || []).reduce(
+        (b, m) => ((m.mass_participation_x || 0) + (m.mass_participation_y || 0) >
+          ((b?.mass_participation_x || 0) + (b?.mass_participation_y || 0)) ? m : b),
+        null,
+      );
+      ok = startBabylonSeismicAnimation(this, {
+        period: dom?.period ?? 1.0,
+        scale,
+        speedFactor: 1,
+        displacements: field,
+      });
+      if (ok) this.seismicAnimationActive = true;
+    } else {
+      ok = showBabylonSeismicDeformedShape(this, { displacements: field, scale });
+    }
+
+    if (!ok) {
+      this.showMessage?.("No se pudo dibujar la deformada. Activa la vista 3D y vuelve a intentar.", "error");
+      return;
+    }
+
+    if (labels) showSeismicDisplacementLabels(this);
+
+    const caseName = result._caseName || this.seismicActiveCase || "caso";
+    this._deformedShapeActive = true;
+
+    Swal.fire({
+      toast: true,
+      position: "bottom-end",
+      icon: "info",
+      title: `Deformada: ${caseName} (escala ×${scale})`,
+      html: `<div style="font-size:11px; color:#9ca3af">UX/UY del caso combinados por CQC</div>`,
+      showConfirmButton: true,
+      confirmButtonText: "Restaurar",
+      confirmButtonColor: "#dc2626",
+      timer: null,
+      background: "#1a2035",
+      color: "#e2e8f0",
+      showClass: { popup: "" },
+    }).then((r) => {
+      if (r.isConfirmed) this.resetDeformedShape();
+    });
+  },
+
+  resetDeformedShape() {
+    if (this.seismicAnimationActive) {
+      stopBabylonSeismicAnimation();
+      this.seismicAnimationActive = false;
+    }
+    resetBabylonSeismicPositions(this);
+    clearSeismicDisplacementLabels();
+    this._deformedShapeActive = false;
+    this.showMessage?.("Geometría restaurada.");
   },
 
   isSeismicAnimating() {

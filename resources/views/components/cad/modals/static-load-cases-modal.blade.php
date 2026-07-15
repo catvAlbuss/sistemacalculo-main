@@ -385,6 +385,12 @@
                 if (window.cadSystem) {
                     if (!window.cadSystem.staticLoadCases) window.cadSystem.staticLoadCases = {};
                     window.cadSystem.staticLoadCases.items = this.loadCases;
+                    // Espejo a loadCases.cases: es la lista que leen el dropdown de patrón
+                    // en Assign (getAvailableLoadCasesForAssign) y el Mass Source
+                    // (getAvailableLoadPatternsForMassSource). Sin esto quedaban dos
+                    // listas desincronizadas y lo definido aquí no aparecía al asignar.
+                    if (!window.cadSystem.loadCases) window.cadSystem.loadCases = {};
+                    window.cadSystem.loadCases.cases = this.loadCases;
                 }
                 this.close();
                 this.showToastMessage('Casos de carga guardados', 'success');

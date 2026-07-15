@@ -6,7 +6,7 @@
                                 LOGO Y VERSIÓN
         ============================================================ --}}
         <div class="text-blue-400 font-bold text-sm px-2 whitespace-nowrap border-r border-gray-600">
-            ANALISIS 3D ESTRUCTURAL - v0.1.0-alpha
+           MENU ETABBS 3.0  
         </div>
 
         {{-- ============================================================
@@ -452,6 +452,25 @@
 
                     <div class="border-t border-gray-700 my-1"></div>
 
+                    {{-- ================= VISTA EXTRUIDA (Extrude View) ================= --}}
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Vista Extruida (3D)
+                    </div>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateViewMenuAction('toggle-extrude-frames')">
+                        <span x-text="cadSystem.options?.extrudeFrames3D ? '☑' : '☐'"></span>
+                        <span class="flex-1 min-w-0 truncate">Extruir Frames (Vigas / Columnas)</span>
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateViewMenuAction('toggle-extrude-shells')">
+                        <span x-text="cadSystem.options?.extrudeShells3D ? '☑' : '☐'"></span>
+                        <span class="flex-1 min-w-0 truncate">Extruir Shells (Losas)</span>
+                    </button>
+
+                    <div class="border-t border-gray-700 my-1"></div>
+
                     {{-- ================= ZOOM ================= --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
                         Zoom
@@ -862,11 +881,36 @@
                         por Grupos...
                     </button>
 
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
-                        @click="cadSystem.selectByFrameSections()">
-                        <span>📐</span>
-                        por Secciones de Marco
-                    </button>
+                    {{-- ================= PROPIEDADES (estilo ETABS) ================= --}}
+                    <x-cad.menu-subitem label="Propiedades">
+                        <span>📋</span>
+
+                        <x-slot name="submenu">
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click="cadSystem.activateSelectMenuAction('select-prop-frame-sections')">
+                                <span>📐</span>
+                                Frame Sections...
+                            </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click="cadSystem.activateSelectMenuAction('select-prop-slab-sections')">
+                                <span>▭</span>
+                                Slab Sections...
+                            </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click="cadSystem.activateSelectMenuAction('select-prop-deck-sections')">
+                                <span>▤</span>
+                                Deck Sections...
+                            </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click="cadSystem.activateSelectMenuAction('select-prop-wall-sections')">
+                                <span>▮</span>
+                                Wall Sections...
+                            </button>
+                        </x-slot>
+                    </x-cad.menu-subitem>
 
                     <div class="border-t border-gray-700 my-1"></div>
 
@@ -1036,6 +1080,12 @@
                                 <span>📏</span>
                                 End (Length) Offsets...
                             </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateAssignMenuAction('frame-local-axes')">
+                                <span>🧭</span>
+                                Local Axes (Rotation)...
+                            </button>
                         </x-slot>
                     </x-cad.menu-subitem>
 
@@ -1166,14 +1216,6 @@
                         <span class="text-xs text-gray-500 italic">Options</span>
                     </button>
 
-                    {{-- BLOQUE 7T-E - Modal Spectral Options --}}
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
-                        @click.stop="cadSystem.openModalSpectralOptionsDialog()">
-                        <span>🌊</span>
-                        <span class="flex-1 truncate">Modal Spectral Options...</span>
-                        <span class="text-xs text-green-400 italic">7T</span>
-                    </button>
-
                     <div class="border-t border-gray-700 my-1"></div>
 
                     {{-- ================= VALIDACIÓN DEL MODELO ================= --}}
@@ -1200,13 +1242,6 @@
                         <span>▶️</span>
                         <span class="flex-1 truncate">Run Analysis</span>
                         <span class="text-xs text-gray-500 italic">F5</span>
-                    </button>
-
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
-                        @click.stop="cadSystem.openModalSpectralAnalysisDialog()">
-                        <span>🌊</span>
-                        <span class="flex-1 truncate">Modal Spectral Analysis...</span>
-                        <span class="text-xs text-yellow-400 italic">Test</span>
                     </button>
 
                     {{-- Análisis Sísmico Dinámico (RSA) — espectro de respuesta --}}
@@ -1313,7 +1348,7 @@
                         <span>📉</span>
                         <span class="flex-1 truncate">Show Frame Forces / Diagrams...</span>
                         <span class="text-xs text-cyan-400 italic">P, V2, V3, T, M2, M3</span>
-                    </button>   
+                    </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateDisplayMenuAction('show-modal-spectral-results')">
@@ -1371,6 +1406,19 @@
                         <span class="text-xs text-emerald-400 italic">‰</span>
                     </button>
 
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Tablas
+                    </div>
+
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateDisplayMenuAction('show-tables')">
+                        <span>📋</span>
+                        <span class="flex-1 truncate">Show Tables...</span>
+                        <span class="text-xs text-cyan-400 italic">Modelo</span>
+                    </button>
+
+                    <div class="border-t border-gray-700 my-1"></div>   
                 </div>
             </x-slot>
         </x-cad.menu-dropdown-item>

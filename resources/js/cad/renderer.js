@@ -211,6 +211,10 @@ export class DiseñoRenderer {
       });
     }
 
+    // Huella de columnas en planta: se dibuja ENCIMA de los nodos para que el
+    // nodo no la tape al alejar el zoom (rectángulo b×h orientado por rotación).
+    this.drawColumnFootprints?.(CADSystem);
+
     if (CADSystem.options.showIDs) {
       CADSystem.shapes.forEach((s) => {
         if (!this.shouldDrawBeam(s, CADSystem)) return;
@@ -473,8 +477,15 @@ export class DiseñoRenderer {
 
     ctx.save();
 
+    // Radio del nodo escalado con el zoom (grid.scaleX = px/m): al alejar se
+    // reduce para no tapar la huella de la columna; se limita a un máximo al
+    // acercar. ~0.07 m de radio físico.
+    const scale = Number(context.grid?.scaleX) || 50;
+    const maxR = node.selected ? 6 : 4;
+    const r = Math.max(1.5, Math.min(maxR, 0.07 * scale));
+
     ctx.beginPath();
-    ctx.arc(p.x, p.y, node.selected ? 6 : 4, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
     ctx.fillStyle = node.selected
       ? (context.displayColors?.selected || "#facc15")
       : (context.displayColors?.node || "#afa59c");
@@ -508,15 +519,24 @@ export class DiseñoRenderer {
     }
 
     if (context.displayOptions?.showJointLoads) {
-      if (this.jointHasForceLoads(node)) {
+      if (
+        this.shouldDrawJointLoadDisplayType(context, "force") &&
+        this.jointHasForceLoads(node, context)
+      ) {
         this.drawJointPointForceSymbol(node, context, p);
       }
 
-      if (this.jointHasGroundDisplacementLoads(node)) {
+      if (
+        this.shouldDrawJointLoadDisplayType(context, "ground-displacement") &&
+        this.jointHasGroundDisplacementLoads(node, context)
+      ) {
         this.drawJointGroundDisplacementSymbol(node, context, p);
       }
 
-      if (this.jointHasTemperatureLoads(node)) {
+      if (
+        this.shouldDrawJointLoadDisplayType(context, "temperature") &&
+        this.jointHasTemperatureLoads(node, context)
+      ) {
         this.drawJointTemperatureSymbol(node, context, p);
       }
     }
@@ -922,6 +942,133 @@ export class DiseñoRenderer {
     }
   }
 
+  // =====================================================
+  // DISPLAY 2D > RECTÁNGULO DE COLUMNA EN PLANTA (tipo ETABS)
+  // Dibuja la huella (b×h) de cada columna en los nodos donde está,
+  // orientada según su rotación de eje local (localAxisAngle).
+  // =====================================================
+  drawColumnFootprints(CADSystem) {
+    const view = CADSystem.viewSet?.[CADSystem.activeViewIndex];
+
+    // Solo tiene sentido en vista de planta (o sin vista definida → planta).
+    if (view && view.type !== "plan") return;
+
+    const EPS = 1e-3;
+    const planZ = view ? Number(view.elevation ?? view.z ?? 0) : null;
+
+    (CADSystem.shapes || []).forEach((beam) => {
+      const a = beam?.node1?.position;
+      const b = beam?.node2?.position;
+      if (!a || !b) return;
+
+      const dz = Math.abs((a.z || 0) - (b.z || 0));
+      const dxy = Math.hypot((a.x || 0) - (b.x || 0), (a.y || 0) - (b.y || 0));
+
+      // Columna = vertical (misma X,Y, distinta Z).
+      if (!(dz > EPS && dxy < EPS)) return;
+
+      // Se muestra en el plano cuyo Z cae dentro del tramo de la columna.
+      if (planZ != null) {
+        const zt = Math.max(a.z || 0, b.z || 0);
+        const zb = Math.min(a.z || 0, b.z || 0);
+        if (!(planZ >= zb - EPS && planZ <= zt + EPS)) return;
+      }
+
+      this.drawColumnPlanFootprint(beam, CADSystem);
+    });
+  }
+
+  // Dimensiones de la huella de columna en METROS (b = ancho, h = peralte).
+  // Las secciones guardan b/h (o width/height) de forma inconsistente: unas en
+  // metros (0.25, defaults) y otras en cm (25, del diálogo) o mm (perfiles I).
+  // Se normaliza por magnitud + tipo: ≤3 → ya en m; si no, perfil metálico → mm,
+  // rectangular → cm.
+  getColumnPlanDims(beam) {
+    const sec = beam.frameSection || beam.section || {};
+    const shape = String(sec.shape || sec.type || "").toLowerCase();
+    const metallic = ["i", "wf", "w", "channel", "c", "tube", "hss", "angle", "l"].includes(shape);
+
+    const toMeters = (v) => {
+      v = Number(v);
+      if (!(v > 0)) return 0;
+      if (v <= 3) return v;                 // ya en metros
+      return metallic ? v / 1000 : v / 100; // perfil: mm ; rectangular: cm
+    };
+
+    const b = toMeters(sec.b ?? sec.width ?? sec.base);
+    const h = toMeters(sec.h ?? sec.height ?? sec.peralte);
+
+    if (!(b > 0) || !(h > 0)) {
+      // Sin dimensiones → marcador cuadrado por defecto.
+      return { b: 0.3, h: 0.3, fallback: true };
+    }
+
+    return { b, h, fallback: false };
+  }
+
+  drawColumnPlanFootprint(beam, context) {
+    const center = beam.node1?.position || beam.node2?.position;
+    if (!center) return;
+
+    const { b, h, fallback } = this.getColumnPlanDims(beam);
+
+    const cx = center.x || 0;
+    const cy = center.y || 0;
+
+    // Rotación de eje local (grados, + antihorario).
+    const t = (Number(beam.localAxisAngle || 0) * Math.PI) / 180;
+    const cos = Math.cos(t);
+    const sin = Math.sin(t);
+
+    // Coherencia con el motor: a θ=0 (vecxz=[0,1,0]) el eje local y = +X y el
+    // peralte (h, eje fuerte Iz) queda a lo largo de X. Por eso h va en el eje
+    // pre-rotación X y b en Y; al girar por θ el rectángulo sigue al vecxz
+    // [-sinθ, cosθ, 0] (peralte en dirección (cosθ, sinθ)).
+    const halfPeralte = h / 2; // h → X a 0° (coincide con Iz del motor)
+    const halfWidth = b / 2;   // b → Y a 0°
+
+    // Esquinas en modelo (rotadas) → pantalla, así respeta zoom/pan.
+    const localCorners = [
+      [-halfPeralte, -halfWidth],
+      [halfPeralte, -halfWidth],
+      [halfPeralte, halfWidth],
+      [-halfPeralte, halfWidth],
+    ];
+
+    const screen = localCorners.map(([lx, ly]) => {
+      const mx = cx + (lx * cos - ly * sin);
+      const my = cy + (lx * sin + ly * cos);
+      return context.grid.worldToScreen({ x: mx, y: my });
+    });
+
+    const style = this.getElementRenderStyle(beam, "model", context);
+    const stroke = style?.strokeStyle || "#2563eb";
+    const selected = beam.selected === true || beam.isSelected === true;
+
+    const ctx = context.ctx;
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.moveTo(screen[0].x, screen[0].y);
+    for (let i = 1; i < screen.length; i++) {
+      ctx.lineTo(screen[i].x, screen[i].y);
+    }
+    ctx.closePath();
+
+    ctx.fillStyle = selected
+      ? "rgba(249, 158, 26, 0.75)"
+      : (fallback ? "rgba(37, 99, 235, 0.20)" : "rgba(37, 99, 235, 0.65)");
+    ctx.fill();
+
+    ctx.strokeStyle = selected ? "#f59e0b" : (fallback ? stroke : "#1d4ed8");
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash(fallback ? [3, 3] : []);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.restore();
+  }
+
   getAreaRenderStyle(area, isPreview = false) {
     const type = area.areaType || "slab";
 
@@ -1021,10 +1168,16 @@ export class DiseñoRenderer {
       ctx.fill();
     });
 
-    // Etiqueta simple para que el cliente vea qué tipo de área es
+    // Etiqueta del área: si tiene sección asignada, muestra su NOMBRE
+    // (p.ej. "Aligerado e=0.20"); si no, cae al tipo de área ("slab").
     if (!isPreview && pts.length >= 3) {
       const center = this.getProjectedPolygonCenter(pts);
-      const label = area.areaType || area.type || "area";
+      const label =
+        area.slabSection ||
+        area.section?.name ||
+        area.areaType ||
+        area.type ||
+        "area";
 
       ctx.font = "10px Arial";
       ctx.textAlign = "center";
@@ -2384,26 +2537,98 @@ export class DiseñoRenderer {
   getJointPointLoads(node) {
     if (!node) return [];
 
-    return (
-      node.pointLoads ||
-      node.jointLoads ||
-      node.assignment?.pointLoads ||
-      []
-    );
+    const rawLoads = [
+      ...(Array.isArray(node.pointLoads) ? node.pointLoads : []),
+      ...(Array.isArray(node.jointLoads) ? node.jointLoads : []),
+      ...(Array.isArray(node.assignment?.pointLoads) ? node.assignment.pointLoads : []),
+      ...(Array.isArray(node.assignment?.jointLoads) ? node.assignment.jointLoads : []),
+    ];
+
+    const seen = new Set();
+    const result = [];
+
+    rawLoads.forEach((load) => {
+      if (!load || typeof load !== "object") return;
+
+      const key =
+        load.id ||
+        [
+          load.type,
+          load.loadPattern || load.loadCase,
+          JSON.stringify(load.forces || {}),
+          JSON.stringify(load.displacements || {}),
+          JSON.stringify(load.temperature || {}),
+        ].join("|");
+
+      if (seen.has(key)) return;
+
+      seen.add(key);
+      result.push(load);
+    });
+
+    return result;
   }
 
-  getJointForceLoads(node) {
+  getActiveJointLoadPattern(context) {
+    return String(
+      context.displayOptions?.jointLoadPattern ||
+      context.displayOptions?.jointPointLoadPattern ||
+      context.options?.currentLoad ||
+      "CM"
+    ).trim();
+  }
+
+  getActiveJointLoadDisplayType(context) {
+    return String(
+      context.displayOptions?.jointLoadDisplayType ||
+      context.displayOptions?.jointLoadType ||
+      "force"
+    ).trim();
+  }
+
+  shouldDrawJointLoadDisplayType(context, type) {
+    const activeType = this.getActiveJointLoadDisplayType(context);
+
+    return activeType === "all" || activeType === type;
+  }
+
+  jointLoadMatchesPattern(load, context) {
+    const activePattern = this.getActiveJointLoadPattern(context);
+
+    if (!activePattern || activePattern === "ALL" || activePattern === "Todos") {
+      return true;
+    }
+
+    const loadPattern = String(load?.loadPattern || load?.loadCase || "CM").trim();
+
+    return loadPattern === activePattern;
+  }
+
+  getJointForceLoads(node, context = null) {
     return this.getJointPointLoads(node).filter((load) => {
-      return load?.type === "force" && load?.forces;
+      const hasForceData =
+        load?.forces ||
+        Number(load?.fx || 0) !== 0 ||
+        Number(load?.fy || 0) !== 0 ||
+        Number(load?.fz || 0) !== 0 ||
+        Number(load?.mxx || load?.mx || 0) !== 0 ||
+        Number(load?.myy || load?.my || 0) !== 0 ||
+        Number(load?.mzz || load?.mz || 0) !== 0;
+
+      return (
+        load?.type === "force" &&
+        hasForceData &&
+        (!context || this.jointLoadMatchesPattern(load, context))
+      );
     });
   }
 
-  jointHasForceLoads(node) {
-    return this.getJointForceLoads(node).length > 0;
+  jointHasForceLoads(node, context = null) {
+    return this.getJointForceLoads(node, context).length > 0;
   }
 
-  getJointForceLoadLabel(node) {
-    const loads = this.getJointForceLoads(node);
+  getJointForceLoadLabel(node, context = null) {
+    const loads = this.getJointForceLoads(node, context);
 
     if (!loads.length) return "";
 
@@ -2456,7 +2681,7 @@ export class DiseñoRenderer {
     const x = screenPoint.x;
     const y = screenPoint.y;
 
-    const label = this.getJointForceLoadLabel(node);
+    const label = this.getJointForceLoadLabel(node, context);
 
     ctx.save();
 
@@ -2483,18 +2708,22 @@ export class DiseñoRenderer {
   // VISUAL ASSIGN > JOINT / POINT LOADS > GROUND DISPLACEMENT
   // =====================================================
 
-  getJointGroundDisplacementLoads(node) {
+  getJointGroundDisplacementLoads(node, context = null) {
     return this.getJointPointLoads(node).filter((load) => {
-      return load?.type === "ground-displacement" && load?.displacements;
+      return (
+        load?.type === "ground-displacement" &&
+        load?.displacements &&
+        (!context || this.jointLoadMatchesPattern(load, context))
+      );
     });
   }
 
-  jointHasGroundDisplacementLoads(node) {
-    return this.getJointGroundDisplacementLoads(node).length > 0;
+  jointHasGroundDisplacementLoads(node, context = null) {
+    return this.getJointGroundDisplacementLoads(node, context).length > 0;
   }
 
-  getJointGroundDisplacementLabel(node) {
-    const loads = this.getJointGroundDisplacementLoads(node);
+  getJointGroundDisplacementLabel(node, context = null) {
+    const loads = this.getJointGroundDisplacementLoads(node, context);
 
     if (!loads.length) return "";
 
@@ -2510,20 +2739,24 @@ export class DiseñoRenderer {
     if (Number(d.ry || 0) !== 0) parts.push(`RY=${d.ry}`);
     if (Number(d.rz || 0) !== 0) parts.push(`RZ=${d.rz}`);
 
-    const loadCase = load.loadCase || "LOAD";
+    if (!parts.length) return "";
+
+    const loadCase = load.loadPattern || load.loadCase || "LOAD";
 
     return `${loadCase}: ${parts.join(", ")}`;
   }
 
   drawJointGroundDisplacementSymbol(node, context, screenPoint) {
-    if (!this.jointHasGroundDisplacementLoads(node)) return;
+    if (!this.jointHasGroundDisplacementLoads(node, context)) return;
 
     const ctx = context.ctx;
 
     const x = screenPoint.x + 34;
     const y = screenPoint.y + 4;
 
-    const label = this.getJointGroundDisplacementLabel(node);
+    const label = this.getJointGroundDisplacementLabel(node, context);
+
+    if (!label) return;
 
     ctx.save();
 
@@ -2590,18 +2823,22 @@ export class DiseñoRenderer {
   // VISUAL ASSIGN > JOINT / POINT LOADS > TEMPERATURE
   // =====================================================
 
-  getJointTemperatureLoads(node) {
+  getJointTemperatureLoads(node, context = null) {
     return this.getJointPointLoads(node).filter((load) => {
-      return load?.type === "temperature" && load?.temperature;
+      return (
+        load?.type === "temperature" &&
+        load?.temperature &&
+        (!context || this.jointLoadMatchesPattern(load, context))
+      );
     });
   }
 
-  jointHasTemperatureLoads(node) {
-    return this.getJointTemperatureLoads(node).length > 0;
+  jointHasTemperatureLoads(node, context = null) {
+    return this.getJointTemperatureLoads(node, context).length > 0;
   }
 
-  getJointTemperatureLabel(node) {
-    const loads = this.getJointTemperatureLoads(node);
+  getJointTemperatureLabel(node, context = null) {
+    const loads = this.getJointTemperatureLoads(node, context);
 
     if (!loads.length) return "";
 
@@ -2622,7 +2859,7 @@ export class DiseñoRenderer {
     const x = screenPoint.x + 34;
     const y = screenPoint.y - 28;
 
-    const label = this.getJointTemperatureLabel(node);
+    const label = this.getJointTemperatureLabel(node, context);
 
     ctx.save();
 
@@ -4056,6 +4293,77 @@ export class DiseñoRenderer {
     ctx.fillStyle = "#111";
     ctx.font = "12px Arial";
     ctx.fillText(point.displayLabel || point.label || "", p.x + 10, p.y - 10);
+
+    // Cota estilo ETABS: se dibuja DESPLAZADA al lado de la viga/grid (con
+    // líneas de extensión) para que no se solape y las flechas se vean.
+    if (point.dimension && (!view || view.type === "plan")) {
+      const A = context.grid.worldToScreen({ x: point.dimension.fromX, y: point.dimension.fromY });
+      const B = context.grid.worldToScreen({ x: point.dimension.toX, y: point.dimension.toY });
+
+      // Texto con pocos decimales (redondea a 3 y quita ceros sobrantes).
+      const u = window.cadUnits;
+      const disp = u?.lenMToDisp ? u.lenMToDisp(point.dimension.value) : point.dimension.value;
+      const num = String(Number(Number(disp).toFixed(3)));
+      const unit = u?.labels?.().length || "m";
+      const txt = `${num} ${unit}`;
+
+      // Eje de la cota y perpendicular (en pantalla); se desplaza hacia el lado
+      // que quede "hacia abajo" para consistencia.
+      const dx = B.x - A.x, dy = B.y - A.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len, uy = dy / len;
+      let px = -uy, py = ux;
+      if (py < 0) { px = -px; py = -py; }
+      const OFF = 22;
+
+      const A2 = { x: A.x + px * OFF, y: A.y + py * OFF };
+      const B2 = { x: B.x + px * OFF, y: B.y + py * OFF };
+
+      const lineColor = "#6b7280";
+      ctx.strokeStyle = lineColor;
+      ctx.fillStyle = lineColor;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+
+      // líneas de extensión (witness) desde la viga/grid hasta la línea de cota
+      ctx.beginPath();
+      ctx.moveTo(A.x, A.y); ctx.lineTo(A2.x + px * 4, A2.y + py * 4);
+      ctx.moveTo(B.x, B.y); ctx.lineTo(B2.x + px * 4, B2.y + py * 4);
+      ctx.stroke();
+
+      // línea de cota
+      ctx.beginPath();
+      ctx.moveTo(A2.x, A2.y); ctx.lineTo(B2.x, B2.y);
+      ctx.stroke();
+
+      // flechas visibles apuntando hacia afuera en cada extremo
+      const arrowAt = (tip, ax, ay) => {
+        const s = 8, w = 3.5;
+        const bx = tip.x - ax * s, by = tip.y - ay * s;
+        ctx.beginPath();
+        ctx.moveTo(tip.x, tip.y);
+        ctx.lineTo(bx + (-ay) * w, by + ax * w);
+        ctx.lineTo(bx - (-ay) * w, by - ax * w);
+        ctx.closePath();
+        ctx.fill();
+      };
+      arrowAt(A2, -ux, -uy);
+      arrowAt(B2, ux, uy);
+
+      // etiqueta de distancia (fondo claro), un poco más afuera de la línea de cota
+      const mx = (A2.x + B2.x) / 2 + px * 10;
+      const my = (A2.y + B2.y) / 2 + py * 10;
+      ctx.font = "12px Arial";
+      const tw = ctx.measureText(txt).width;
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillRect(mx - tw / 2 - 4, my - 9, tw + 8, 16);
+      ctx.fillStyle = "#374151";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(txt, mx, my);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+    }
 
     ctx.restore();
   }

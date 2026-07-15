@@ -1,19 +1,11 @@
+// Sistema de unidades de visualización (registra window.cadUnits).
+import "./units.js";
+
 import {
   ensureResponseSpectrumDefinitions,
   openResponseSpectrumFunctionsDialog,
   openResponseSpectrumCasesDialog
 } from "./analysis/7_responseSpectrumDefinitions.js";
-
-import {
-  runModalSpectralAnalysisFromSystem,
-  buildModalSpectralFinalReadinessReport
-} from "./analysis/3_modalSpectralController.js";
-
-import {
-  openModalSpectralAnalysisDialog as openModalSpectralAnalysisDialogUI,
-  openModalSpectralResultsDialog as openModalSpectralResultsDialogUI,
-  openModalSpectralOptionsDialog as openModalSpectralOptionsDialogUI
-} from "./analysis/2_modalSpectralUI.js";
 
 import { GridEditor } from "./grid_editor.js";
 
@@ -261,9 +253,9 @@ export default () => ({
     open: false,
     cases: [
       { name: "CM", type: "Dead", selfWeight: true, value: 1.0 },
-      { name: "CV", type: "Live", value: 1.0 },
-      { name: "CVV+", type: "Live", value: 0.5 },
-      { name: "CVV-", type: "Live", value: 0.5 },
+      { name: "CV", type: "Live", value: 0.25 },
+      { name: "CVE", type: "Live", value: 0.5 },
+      { name: "CVT", type: "Live", value: 0.5 },
       { name: "CN", type: "Live", value: 0.3 },
       { name: "CLL", type: "Live", value: 0.4 },
     ],
@@ -517,6 +509,10 @@ export default () => ({
       showFAxiales: false,
       showFAxialesValues: true,
       showMaterials: true,
+      // Vista extruida 3D tipo ETABS (Extrude View): dibuja frames como sólidos
+      // b×h y losas/shells con espesor. Default OFF (vista de líneas/tubos).
+      extrudeFrames3D: false,
+      extrudeShells3D: false,
     };
     this.oldOptions = {
       ...this.options,
@@ -737,312 +733,6 @@ export default () => ({
 
     window.cadSystem = this;
     window.getViewer3DState = getViewer3DState;
-    // =====================================================
-    // MODAL SPECTRAL DEBUG HELPERS
-    // Permite probar desde consola:
-    // window.jhackRunModalSpectralFromCad()
-    // window.jhackModalSpectralReadiness()
-    // =====================================================
-
-    window.jhackModalSpectralReadiness = () => {
-      if (!this.modalSpectralLastResult) {
-        console.warn("⚠️ Primero ejecuta Modal Spectral Analysis.");
-        return null;
-      }
-
-      const report = buildModalSpectralFinalReadinessReport(this);
-
-      console.log("✅ Modal Spectral Final Readiness Report:", report);
-      return report;
-    };
-
-    window.jhackRunModalSpectralFromCad = async () => {
-      try {
-        return await this.runModalSpectralAnalysisFromMenu();
-      } catch (error) {
-        if (error?.name === "ModalSpectralValidationError") {
-          if (
-            window?.jhackModalSpectralDebug === true ||
-            window?.localStorage?.getItem("jhackModalSpectralDebug") === "true"
-          ) {
-            console.warn("⚠️ Modal Spectral bloqueado por validación técnica:", {
-              errors: error.validation?.errors || [],
-              warnings: error.validation?.warnings || [],
-              summary: error.validation?.summary || {},
-            });
-          }
-
-          return null;
-        }
-
-        throw error;
-      }
-    };
-
-    // =====================================================
-    // BLOQUE 7W-A - Prueba integral final Modal Spectral
-    // Permite probar desde consola:
-    // window.jhackModalSpectralFinalTest()
-    // =====================================================
-
-    window.jhackModalSpectralFinalTest = async () => {
-      const startedAt = new Date().toISOString();
-
-      console.log("🏁 7W Modal Spectral Final Test iniciado:", {
-        startedAt,
-      });
-
-      const analysisResult = await window.jhackRunModalSpectralFromCad();
-
-      if (!this.modalSpectralLastResult) {
-        const report = {
-          status: "CRITICAL",
-          readyForGithub: false,
-          reason: "No existe modalSpectralLastResult. El análisis no se ejecutó o fue bloqueado.",
-          startedAt,
-          finishedAt: new Date().toISOString(),
-        };
-
-        console.warn("⚠️ 7W Modal Spectral Final Test fallido:", report);
-        return report;
-      }
-
-      const readiness = buildModalSpectralFinalReadinessReport(this);
-
-      const raw =
-        this.modalSpectralLastResult?.raw ||
-        this.modalSpectralLastResult ||
-        {};
-
-      const table = Array.isArray(this.modalSpectralLastTable)
-        ? this.modalSpectralLastTable
-        : [];
-
-      const validation = this.modalSpectralLastValidation || null;
-      const summary = raw?.analysis_summary || {};
-      const modelSummary = raw?.model_summary || {};
-
-      const finalReport = {
-        status: readiness?.status || "UNKNOWN",
-
-        readyForGithub:
-          readiness?.readyForIntegralTest === true &&
-          table.length > 0 &&
-          validation?.ok === true,
-
-        readyForIntegralTest: readiness?.readyForIntegralTest === true,
-
-        startedAt,
-        finishedAt: new Date().toISOString(),
-
-        validation: {
-          ok: validation?.ok === true,
-          errors: validation?.errors || [],
-          warnings: validation?.warnings || [],
-          summary: validation?.summary || {},
-        },
-
-        analysis: {
-          engine: raw?.engine || null,
-          totalCases: summary.total_cases ?? table.length,
-          tableRows: table.length,
-          modalCombination:
-            summary.modal_combination ||
-            summary.modal_response_combination ||
-            this.modalSpectralOptions?.modalCombination ||
-            null,
-          numberOfModes:
-            summary.number_of_modes ||
-            this.modalSpectralOptions?.numberOfModes ||
-            null,
-        },
-
-        model: {
-          nodes:
-            validation?.summary?.nodes ??
-            modelSummary.nodes_created ??
-            0,
-          frames:
-            validation?.summary?.frames ??
-            modelSummary.frames_created ??
-            0,
-          supports:
-            validation?.summary?.supports ??
-            modelSummary.supports_created ??
-            0,
-          baseNodesFixed:
-            modelSummary.base_nodes_fixed ?? 0,
-          diaphragmsCreated:
-            modelSummary.diaphragms_created ?? 0,
-          massesAssigned:
-            modelSummary.masses_assigned ?? 0,
-        },
-
-        checks: readiness?.checks || [],
-        failed: readiness?.failed || [],
-        warnings: readiness?.warnings || [],
-      };
-
-      console.log("✅ 7W Modal Spectral Final Test Report:", finalReport);
-
-      if (Array.isArray(finalReport.checks) && finalReport.checks.length) {
-        console.table(
-          finalReport.checks.map((item) => ({
-            key: item.key,
-            label: item.label,
-            ok: item.ok,
-            warning: item.warning === true,
-            detail: item.detail,
-          }))
-        );
-      }
-
-      if (finalReport.readyForGithub) {
-        console.log("🚀 Modal Spectral listo para subir a GitHub.");
-      } else {
-        console.warn("⚠️ Modal Spectral todavía requiere revisión antes de GitHub:", {
-          failed: finalReport.failed,
-          warnings: finalReport.warnings,
-        });
-      }
-
-      return finalReport;
-    };
-
-    // =====================================================
-    // BLOQUE 7X-D - Verificación de persistencia de soportes
-    // Permite probar desde consola:
-    // window.jhackModalSpectralSupportsPersistenceCheck()
-    // =====================================================
-
-    window.jhackModalSpectralSupportsPersistenceCheck = () => {
-      const readRestraintsFromNode = (node = {}) => {
-        const data =
-          node.restraints ||
-          node.constraints ||
-          node.assignment?.restraints ||
-          node.support ||
-          node.soporte ||
-          {};
-
-        const readBool = (...keys) => {
-          for (const key of keys) {
-            if (data?.[key] === true) return true;
-            if (data?.[key] === false) return false;
-            if (data?.[key] === 1 || data?.[key] === "1") return true;
-            if (data?.[key] === 0 || data?.[key] === "0") return false;
-          }
-
-          return false;
-        };
-
-        return {
-          ux: readBool("ux", "u1", "U1", "UX"),
-          uy: readBool("uy", "u2", "U2", "UY"),
-          uz: readBool("uz", "u3", "U3", "UZ"),
-          rx: readBool("rx", "r1", "R1", "RX"),
-          ry: readBool("ry", "r2", "R2", "RY"),
-          rz: readBool("rz", "r3", "R3", "RZ"),
-          type:
-            data?.type ||
-            data?.name ||
-            node.restraintType ||
-            node.supportType ||
-            "custom",
-        };
-      };
-
-      const hasAnyRestraint = (restraints = {}) => {
-        return (
-          restraints.ux === true ||
-          restraints.uy === true ||
-          restraints.uz === true ||
-          restraints.rx === true ||
-          restraints.ry === true ||
-          restraints.rz === true
-        );
-      };
-
-      const nodes = Array.isArray(this.nodes) ? this.nodes : [];
-
-      const supportsFromNodes = nodes
-        .map((node, index) => {
-          const restraints = readRestraintsFromNode(node);
-          const nodeId =
-            node?.id ??
-            node?.nodeId ??
-            node?.jointId ??
-            index + 1;
-
-          if (!hasAnyRestraint(restraints)) return null;
-
-          return {
-            node: nodeId,
-            type: restraints.type,
-            ux: restraints.ux,
-            uy: restraints.uy,
-            uz: restraints.uz,
-            rx: restraints.rx,
-            ry: restraints.ry,
-            rz: restraints.rz,
-          };
-        })
-        .filter(Boolean);
-
-      const payloadSupports = Array.isArray(this.modalSpectralLastPayload?.supports)
-        ? this.modalSpectralLastPayload.supports
-        : [];
-
-      const validationSupports =
-        Number(this.modalSpectralLastValidation?.summary?.supports || 0);
-
-      const tableRows = Array.isArray(this.modalSpectralLastTable)
-        ? this.modalSpectralLastTable.length
-        : 0;
-
-      const hasResult = !!this.modalSpectralLastResult;
-
-      const report = {
-        status:
-          supportsFromNodes.length > 0 &&
-            validationSupports > 0 &&
-            payloadSupports.length > 0
-            ? "OK"
-            : supportsFromNodes.length > 0
-              ? "REVIEW"
-              : "CRITICAL",
-
-        supportsPersistedInNodes: supportsFromNodes.length,
-        supportsInLastPayload: payloadSupports.length,
-        supportsInValidation: validationSupports,
-
-        hasModalSpectralResult: hasResult,
-        modalSpectralTableRows: tableRows,
-
-        ready:
-          supportsFromNodes.length > 0 &&
-          payloadSupports.length > 0 &&
-          validationSupports > 0 &&
-          hasResult &&
-          tableRows > 0,
-
-        supports: supportsFromNodes,
-      };
-
-      console.log("✅ 7X-D Modal Spectral Supports Persistence Check:", report);
-
-      if (supportsFromNodes.length) {
-        console.table(supportsFromNodes);
-      }
-
-      if (report.ready) {
-        console.log("💾 Soportes + resultados Modal Spectral restaurados correctamente desde JSON.");
-      } else {
-        console.warn("⚠️ Persistencia Modal Spectral requiere revisión:", report);
-      }
-
-      return report;
-    };
   },
 
   // ------------------------------------------------------------------

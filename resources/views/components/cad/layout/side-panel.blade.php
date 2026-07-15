@@ -103,7 +103,7 @@
                     <x-cad.panel-properties title="Soporte">
                         <div class="flex flex-row justify-between">
                             <x-cad.ribbon-button
-                                clickHandler="moveObjectState.selectedObject && (moveObjectState.selectedObject.soporte = '')"
+                                clickHandler="cadSystem.clearJointSupportAssignments(moveObjectState.selectedObject)"
                                 toggle="moveObjectState.selectedObject?.soporte === ''"
                                 label=""
                                 class="cad-ribbon-button-hover-bg transition-colors duration-200 p-2 rounded">
@@ -164,11 +164,13 @@
                 <x-cad.panel-properties title="Soporte">
                     <div class="row flex">
                         <x-cad.ribbon-button
-                            clickHandler="currentState.selectedObjects.forEach((n) => {
-                                      n.soporte = '';
-                                  });selected = ''"
+                            clickHandler="cadSystem.clearJointSupportAssignments(
+        Array.from(currentState.selectedObjects || [])
+    ); selected = ''"
                             toggle="selected === ''"
-                            label=""><x-cad.svg.sinsoporte></x-cad.svg.sinsoporte></x-cad.ribbon-button>
+                            label="">
+                            <x-cad.svg.sinsoporte></x-cad.svg.sinsoporte>
+                        </x-cad.ribbon-button>
                         <x-cad.ribbon-button
                             clickHandler="currentState.selectedObjects.forEach((n) => {
                                       n.soporte = 'soporteUno';

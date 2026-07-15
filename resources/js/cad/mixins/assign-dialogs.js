@@ -40,6 +40,20 @@ import Swal from "sweetalert2";
  * - getSelectedFramesForAssign()            → frames seleccionados para asignación
  */
 export const assignDialogsMixin = {
+
+  // Default ETABS load patterns (para compatibilidad con importación/exportación)
+  getEtabsReferenceLoadPatterns() {
+    return [
+      { name: "CM", type: "DEAD", implemented: true },
+      { name: "CVE", type: "LIVE", implemented: true },
+      { name: "CVT", type: "LIVE", implemented: true },
+
+      // Pendientes para completar el flujo tipo ETABS
+      { name: "SEX", type: "Seismic X", implemented: false },
+      { name: "SEY", type: "Seismic Y", implemented: false },
+    ];
+  },
+
   getDefaultFrameSectionsForAssign() {
     return [
       {
@@ -116,9 +130,7 @@ export const assignDialogsMixin = {
   },
 
   getSelectedFramesForAssign() {
-    const selectedObjects = this.getSelectedObjects?.() || [];
-
-    return selectedObjects.filter((obj) => {
+    const isFrame = (obj) => {
       if (!obj) return false;
 
       const type = String(obj.elementType || obj.type || obj.objectType || obj.constructor?.name || "").toLowerCase();
@@ -135,7 +147,39 @@ export const assignDialogsMixin = {
         type === "frame" ||
         type === "line"
       );
+    };
+
+    // La asignación NO debe depender de la vista 2D activa: en el 3D se
+    // seleccionan vigas de varios pisos con Ctrl + clic izquierdo, y
+    // getSelectedObjects() filtra por vista activa (respectActiveView:true),
+    // descartándolas. Aquí se toma la selección de edición SIN ese filtro y se
+    // refuerza con la lista de multiselección (2D/3D).
+    const sources = [];
+
+    if (typeof this.getEditSelectedObjects === "function") {
+      sources.push(...this.getEditSelectedObjects({ respectActiveView: false }));
+    } else {
+      sources.push(...(this.getSelectedObjects?.() || []));
+    }
+
+    if (Array.isArray(this.multiSelectedFrames)) {
+      sources.push(...this.multiSelectedFrames);
+    }
+
+    const result = [];
+    const seen = new Set();
+
+    sources.forEach((obj) => {
+      if (!isFrame(obj)) return;
+
+      const key = obj.id != null ? String(obj.id) : obj;
+      if (seen.has(key)) return;
+
+      seen.add(key);
+      result.push(obj);
     });
+
+    return result;
   },
 
   async openAssignFrameSectionDialog() {
@@ -695,26 +739,49 @@ export const assignDialogsMixin = {
   // =====================================================
 
   getSelectedJointsForAssign() {
-    const selectedObjects = this.getSelectedObjects?.() || [];
-
-    return selectedObjects.filter((obj) => {
+    const isJoint = (obj) => {
       if (!obj) return false;
+      if (obj.node1 && obj.node2) return false; // es un frame, no un nodo
 
       const type = String(obj.objectType || obj.type || obj.elementType || obj.constructor?.name || "").toLowerCase();
 
-      const hasPosition = !!obj.position;
-      const isFrame = obj.node1 && obj.node2;
-
       return (
-        !isFrame &&
-        (hasPosition ||
-          obj.isNode === true ||
-          type === "node" ||
-          type === "structuralnode" ||
-          type === "joint" ||
-          type === "point")
+        !!obj.position ||
+        obj.isNode === true ||
+        type === "node" ||
+        type === "structuralnode" ||
+        type === "joint" ||
+        type === "point"
       );
+    };
+
+    // La asignación NO debe depender de la vista 2D activa: los nodos se
+    // seleccionan en 2D o 3D y pueden ser de varios pisos, y getSelectedObjects()
+    // filtra por vista activa (respectActiveView:true), descartándolos. Se toma
+    // la selección de edición SIN ese filtro + el estado propio de nodos.
+    const sources = [];
+
+    if (typeof this.getEditSelectedObjects === "function") {
+      sources.push(...this.getEditSelectedObjects({ respectActiveView: false }));
+    } else {
+      sources.push(...(this.getSelectedObjects?.() || []));
+    }
+
+    sources.push(...(this.selectedNodesState?.selectedObjects || []));
+    sources.push(...(this.selectedNodesState?.selectedNodes || []));
+
+    const result = [];
+    const seen = new Set();
+
+    sources.forEach((n) => {
+      if (!isJoint(n)) return;
+      const key = n.id != null ? String(n.id) : n;
+      if (seen.has(key)) return;
+      seen.add(key);
+      result.push(n);
     });
+
+    return result;
   },
 
   getJointRestraintPreset(preset = "fixed") {
@@ -989,6 +1056,58 @@ export const assignDialogsMixin = {
     });
   },
 
+  clearJointSupportAssignments(joints = []) {
+    const targetJoints = (Array.isArray(joints) ? joints : [joints])
+      .filter(Boolean);
+
+    if (!targetJoints.length) {
+      this.showMessage?.("No hay nodos seleccionados.", "warning");
+      return;
+    }
+
+    const freeRestraints = {
+      ux: false,
+      uy: false,
+      uz: false,
+      rx: false,
+      ry: false,
+      rz: false,
+      type: "none",
+      name: "None",
+    };
+
+    targetJoints.forEach((joint) => {
+      // Soporte del panel de propiedades.
+      joint.soporte = "";
+      joint.supportType = "";
+
+      // Restricciones explícitamente libres.
+      joint.restraints = structuredClone(freeRestraints);
+      joint.constraints = structuredClone(freeRestraints);
+      joint.hasRestraints = false;
+
+      // Mantener sincronizado el contenedor general.
+      joint.assignment = {
+        ...(joint.assignment || {}),
+        restraints: structuredClone(freeRestraints),
+      };
+    });
+
+    this.markAnalysisResultsOutdated?.(
+      "Se eliminaron soportes y restricciones nodales."
+    );
+
+    this.redraw?.();
+    this.sync3D?.();
+
+    this.showMessage?.(
+      `Soporte removido de ${targetJoints.length} nodo(s).`,
+      "success"
+    );
+
+    console.log("✅ Soportes removidos:", targetJoints);
+  },
+
   // Empotra automáticamente todos los nodos de la base (la cota Z mínima del
   // modelo). Escribe restraints (objeto) + soporte (string) para que el apoyo
   // se guarde, se vea en 3D y lo lea el motor sísmico por ambos caminos.
@@ -1124,14 +1243,34 @@ export const assignDialogsMixin = {
     const diaphragms = this.getAvailableDiaphragmsForAssign();
 
     const inputOptions = {
+      FROM_AREA: "From Area",
       NONE: "None / Sin diafragma",
     };
-
     diaphragms.forEach((diaphragm) => {
       inputOptions[diaphragm.id] = `${diaphragm.name} (${diaphragm.type || "rigid"})`;
     });
 
-    const currentId = selectedJoints[0]?.diaphragmId || selectedJoints[0]?.diaphragm?.id || "D1";
+    const currentJoint = selectedJoints[0];
+
+    const directDiaphragmId =
+      currentJoint?.diaphragmId ||
+      currentJoint?.diaphragm?.id ||
+      null;
+
+    const currentMode = String(
+      currentJoint?.diaphragmMode ||
+      currentJoint?.assignment?.diaphragmMode ||
+      (directDiaphragmId ? "direct" : "fromArea")
+    )
+      .trim()
+      .toLowerCase();
+
+    const currentId =
+      currentMode === "none"
+        ? "NONE"
+        : currentMode === "fromarea"
+          ? "FROM_AREA"
+          : directDiaphragmId || "FROM_AREA";
 
     const result = await Swal.fire({
       title: "Assign Diaphragm",
@@ -1169,7 +1308,10 @@ export const assignDialogsMixin = {
       confirmButtonText: "Asignar",
       cancelButtonText: "Cancelar",
       preConfirm: () => {
-        return document.getElementById("assign-diaphragm-id")?.value || "NONE";
+        return (
+          document.getElementById("assign-diaphragm-id")?.value ||
+          "FROM_AREA"
+        );
       },
     });
 
@@ -1182,12 +1324,27 @@ export const assignDialogsMixin = {
     const selectedJoints = this.getSelectedJointsForAssign();
 
     if (!selectedJoints.length) {
-      this.showMessage?.("No hay nodos seleccionados.", "warning");
+      this.showMessage?.(
+        "No hay nodos seleccionados.",
+        "warning"
+      );
       return;
     }
 
-    if (String(diaphragmId) === "NONE") {
+    const selectedValue = String(
+      diaphragmId || "FROM_AREA"
+    )
+      .trim()
+      .toUpperCase();
+
+    // =====================================================
+    // FROM AREA
+    // El nodo obtiene el diafragma desde un objeto de área.
+    // =====================================================
+    if (selectedValue === "FROM_AREA") {
       selectedJoints.forEach((joint) => {
+        joint.diaphragmMode = "fromArea";
+
         joint.diaphragmId = null;
         joint.diaphragmName = null;
         joint.diaphragm = null;
@@ -1195,33 +1352,103 @@ export const assignDialogsMixin = {
 
         joint.assignment = {
           ...(joint.assignment || {}),
+          diaphragmMode: "fromArea",
           diaphragm: null,
         };
       });
 
-      this.redraw?.();
+      this.markAnalysisResultsOutdated?.(
+        "Se modificó la asignación de diafragma nodal."
+      );
 
-      this.showMessage?.(`Diafragma removido de ${selectedJoints.length} nodo(s).`);
+      this.redraw?.();
+      this.sync3D?.();
+
+      this.showMessage?.(
+        `From Area asignado a ${selectedJoints.length} nodo(s).`,
+        "success"
+      );
+
+      console.log("✅ Joint Diaphragm: From Area", {
+        selectedJoints,
+      });
 
       return;
     }
 
-    const diaphragm = this.getDiaphragmForAssignById(diaphragmId);
+    // =====================================================
+    // NONE
+    // El nodo queda explícitamente sin diafragma.
+    // =====================================================
+    if (selectedValue === "NONE") {
+      selectedJoints.forEach((joint) => {
+        joint.diaphragmMode = "none";
+
+        joint.diaphragmId = null;
+        joint.diaphragmName = null;
+        joint.diaphragm = null;
+        joint.hasDiaphragm = false;
+
+        joint.assignment = {
+          ...(joint.assignment || {}),
+          diaphragmMode: "none",
+          diaphragm: null,
+        };
+      });
+
+      this.markAnalysisResultsOutdated?.(
+        "Se eliminó la asignación de diafragma nodal."
+      );
+
+      this.redraw?.();
+      this.sync3D?.();
+
+      this.showMessage?.(
+        `Diafragma removido de ${selectedJoints.length} nodo(s).`,
+        "success"
+      );
+
+      console.log("✅ Joint Diaphragm: None", {
+        selectedJoints,
+      });
+
+      return;
+    }
+
+    // =====================================================
+    // DIRECT
+    // Asignación directa: D1, D2, D3...
+    // =====================================================
+    const diaphragm =
+      this.getDiaphragmForAssignById(diaphragmId);
 
     if (!diaphragm) {
-      this.showMessage?.("El diafragma seleccionado no existe.", "warning");
-      console.warn("Diaphragm no encontrado:", diaphragmId);
+      this.showMessage?.(
+        "El diafragma seleccionado no existe.",
+        "warning"
+      );
+
+      console.warn(
+        "Diaphragm no encontrado:",
+        diaphragmId
+      );
+
       return;
     }
 
     selectedJoints.forEach((joint) => {
+      joint.diaphragmMode = "direct";
+
       joint.diaphragmId = diaphragm.id;
       joint.diaphragmName = diaphragm.name;
-      joint.diaphragm = JSON.parse(JSON.stringify(diaphragm));
+      joint.diaphragm = JSON.parse(
+        JSON.stringify(diaphragm)
+      );
       joint.hasDiaphragm = true;
 
       joint.assignment = {
         ...(joint.assignment || {}),
+        diaphragmMode: "direct",
         diaphragm: {
           id: diaphragm.id,
           name: diaphragm.name,
@@ -1230,11 +1457,19 @@ export const assignDialogsMixin = {
       };
     });
 
+    this.markAnalysisResultsOutdated?.(
+      "Se modificó la asignación de diafragma nodal."
+    );
+
     this.redraw?.();
+    this.sync3D?.();
 
-    this.showMessage?.(`Diafragma ${diaphragm.name} asignado a ${selectedJoints.length} nodo(s).`);
+    this.showMessage?.(
+      `Diafragma ${diaphragm.name} asignado a ${selectedJoints.length} nodo(s).`,
+      "success"
+    );
 
-    console.log("✅ Joint Diaphragm asignado:", {
+    console.log("✅ Joint Diaphragm directo:", {
       diaphragm,
       selectedJoints,
     });
@@ -1572,44 +1807,45 @@ export const assignDialogsMixin = {
 
   // =====================================================
   // ASSIGN > JOINT / POINT LOADS > FORCE
+  // ETABS style: Joint Load Assignment - Force
   // =====================================================
 
   getAvailableLoadCasesForAssign() {
-    if (Array.isArray(this.loadCases?.cases) && this.loadCases.cases.length > 0) {
-      return this.loadCases.cases.map((loadCase) => ({
-        name: loadCase.name,
-        type: loadCase.type || "Static",
-      }));
-    }
-
-    if (Array.isArray(this.staticLoadCases?.items) && this.staticLoadCases.items.length > 0) {
-      return this.staticLoadCases.items.map((loadCase) => ({
-        name: loadCase.name,
-        type: loadCase.type || "Static",
-      }));
-    }
-
-    if (Array.isArray(this.availableLoads) && this.availableLoads.length > 0) {
-      return this.availableLoads.map((loadCase) => ({
-        name: loadCase.name,
-        type: loadCase.type || "Static",
-      }));
-    }
-
-    return [
-      { name: "DEAD", type: "Dead" },
-      { name: "LIVE", type: "Live" },
-      { name: "EQ_X", type: "Seismic" },
-      { name: "EQ_Y", type: "Seismic" },
-    ];
+    // Para entrega final: solo mostramos los patrones oficiales del proyecto.
+    // No mezclar aquí DEAD, LIVE, WIND_X, EQ_X, etc.
+    return this.getEtabsReferenceLoadPatterns();
   },
 
   getDefaultJointPointForceLoad() {
     return {
       id: `JLOAD_${Date.now()}`,
       type: "force",
-      loadCase: "DEAD",
+
+      // En ETABS el campo visible es Load Pattern Name.
+      loadPattern: "CM",
+
+      // Alias para compatibilidad con el código existente.
+      loadCase: "CM",
+
       coordinateSystem: "Global",
+      operation: "replace",
+
+      fx: 0,
+      fy: 0,
+      fz: 0,
+
+      mxx: 0,
+      myy: 0,
+      mzz: 0,
+
+      punchingX: 0,
+      punchingY: 0,
+
+      units: {
+        force: "tonf",
+        moment: "tonf-m",
+        length: "m",
+      },
 
       forces: {
         fx: 0,
@@ -1622,6 +1858,134 @@ export const assignDialogsMixin = {
     };
   },
 
+  _getJointAssignId(joint) {
+    return String(
+      joint?.id ??
+      joint?.jointId ??
+      joint?.nodeId ??
+      joint?.name ??
+      joint?._id ??
+      ""
+    );
+  },
+
+  _escapeAssignHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  },
+
+  getUnifiedAssignTheme() {
+    return {
+      bg: "#1a2035",
+      panel: "#0f172a",
+      border: "#475569",
+      text: "#e2e8f0",
+      label: "#cbd5e1",
+      muted: "#94a3b8",
+      legend: "#7eb8f7",
+      accent: "#1d4ed8",
+      accentAlt: "#2563eb",
+      secondary: "#64748b",
+      disabledBg: "#111827",
+      disabledText: "#64748b",
+    };
+  },
+
+  getUnifiedAssignWrapperStyle() {
+    const t = this.getUnifiedAssignTheme();
+    return `
+    text-align:left;
+    font-size:13px;
+    font-family:monospace;
+    color:${t.text};
+  `;
+  },
+
+  getUnifiedAssignSectionStyle() {
+    const t = this.getUnifiedAssignTheme();
+    return `
+    border:1px solid ${t.border};
+    border-radius:6px;
+    padding:10px 12px;
+    background:${t.bg};
+  `;
+  },
+
+  getUnifiedAssignFieldsetStyle() {
+    const t = this.getUnifiedAssignTheme();
+    return `
+    border:1px solid ${t.border};
+    border-radius:6px;
+    padding:10px 12px;
+    margin:0;
+    background:${t.bg};
+  `;
+  },
+
+  getUnifiedAssignLegendStyle() {
+    const t = this.getUnifiedAssignTheme();
+    return `
+    padding:0 6px;
+    color:${t.legend};
+    font-size:12px;
+    font-weight:600;
+  `;
+  },
+
+  getUnifiedAssignLabelStyle() {
+    const t = this.getUnifiedAssignTheme();
+    return `
+    display:block;
+    margin-bottom:4px;
+    color:${t.label};
+  `;
+  },
+
+  getUnifiedAssignFieldStyle(disabled = false) {
+    const t = this.getUnifiedAssignTheme();
+    return `
+    width:100%;
+    padding:6px 8px;
+    background:${disabled ? t.disabledBg : t.panel};
+    color:${disabled ? t.disabledText : t.text};
+    border:1px solid ${t.border};
+    border-radius:4px;
+    box-sizing:border-box;
+  `;
+  },
+
+  getUnifiedAssignNoteStyle() {
+    const t = this.getUnifiedAssignTheme();
+    return `
+    color:${t.muted};
+    font-size:11px;
+    margin-top:8px;
+  `;
+  },
+
+  getUnifiedAssignButtonStyle(type = "primary") {
+    const t = this.getUnifiedAssignTheme();
+
+    const bg = type === "primary" ? t.accent : t.secondary;
+
+    return `
+    min-width:100px;
+    height:42px;
+    padding:0 18px;
+    border:none;
+    border-radius:6px;
+    background:${bg};
+    color:white;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+  `;
+  },
+
   async openAssignJointPointForceDialog() {
     const selectedJoints = this.getSelectedJointsForAssign();
 
@@ -1630,173 +1994,417 @@ export const assignDialogsMixin = {
       return;
     }
 
-    const loadCases = this.getAvailableLoadCasesForAssign();
     const current = this.getDefaultJointPointForceLoad();
+    const t = this.getUnifiedAssignTheme();
 
-    if (loadCases.length > 0) {
-      current.loadCase = loadCases[0].name;
-    }
+    // Para entrega final: patrón inicial fijo del proyecto.
+    current.loadPattern = "CM";
+    current.loadCase = "CM";
 
-    const result = await Swal.fire({
-      title: "Assign Joint / Point Loads - Force",
-      width: 720,
+    // Usa el catálogo cerrado del proyecto:
+    // CM, CVE, CVT, SEX pendiente, SEY pendiente.
+    const patternOptions =
+      typeof this.buildLoadPatternOptionsHtml === "function"
+        ? this.buildLoadPatternOptionsHtml("CM")
+        : `
+        <option value="CM" selected>CM (DEAD)</option>
+        <option value="CVE">CVE (LIVE)</option>
+        <option value="CVT">CVT (LIVE)</option>
+        <option value="SEX">SEX (Seismic X) - Pendiente</option>
+        <option value="SEY">SEY (Seismic Y) - Pendiente</option>
+      `;
+
+    await Swal.fire({
+      title: "Joint Load Assignment - Force",
+      width: 620,
+      background: t.bg,
+      color: t.text,
+      showConfirmButton: false,
+      showCancelButton: false,
+      allowOutsideClick: false,
       html: `
-      <div style="text-align:left; font-size:13px;">
+      <div style="${this.getUnifiedAssignWrapperStyle()}">
 
-        <p style="margin-bottom:12px;">
-          Asigna fuerzas y momentos concentrados a los nodos seleccionados.
-        </p>
-
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
-          <div>
-            <label style="display:block; margin-bottom:5px;">Load Case</label>
-            <select id="joint-force-loadcase" style="width:100%; padding:7px;">
-              ${loadCases
-          .map(
-            (lc) => `
-                <option value="${lc.name}">${lc.name} (${lc.type})</option>
-              `,
-          )
-          .join("")}
-            </select>
-          </div>
-
-          <div>
-            <label style="display:block; margin-bottom:5px;">Coordinate System</label>
-            <select id="joint-force-csys" style="width:100%; padding:7px;">
-              <option value="Global">Global</option>
-              <option value="Local">Local</option>
-            </select>
-          </div>
-
-          <div>
-            <label style="display:block; margin-bottom:5px;">Operation</label>
-            <select id="joint-force-operation" style="width:100%; padding:7px;">
-              <option value="replace">Replace Existing Loads</option>
-              <option value="add">Add to Existing Loads</option>
-              <option value="delete">Delete Existing Loads</option>
-            </select>
-          </div>
+        <div style="${this.getUnifiedAssignSectionStyle()}; margin-bottom:12px;">
+          <label style="${this.getUnifiedAssignLabelStyle()}">Load Pattern Name</label>
+          <select id="joint-force-loadpattern" style="${this.getUnifiedAssignFieldStyle()}">
+            ${patternOptions}
+          </select>
         </div>
 
-        <table style="width:100%; border-collapse:collapse; font-size:12px;">
-          <thead>
-            <tr style="background:#1f2937; color:white;">
-              <th style="border:1px solid #555; padding:6px;">Componente</th>
-              <th style="border:1px solid #555; padding:6px;">Valor</th>
-              <th style="border:1px solid #555; padding:6px;">Unidad referencial</th>
-            </tr>
-          </thead>
+        <div style="
+          display:grid;
+          grid-template-columns: 1.3fr 1fr;
+          gap:12px;
+          margin-bottom:12px;
+        ">
+          <fieldset style="${this.getUnifiedAssignFieldsetStyle()}">
+            <legend style="${this.getUnifiedAssignLegendStyle()}">Loads</legend>
 
-          <tbody>
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">FX</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-force-fx" type="number" step="0.001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">kN</td>
-            </tr>
+            ${this.buildJointForceInputRow("Force Global X", "joint-force-fx", current.fx, "tonf")}
+            ${this.buildJointForceInputRow("Force Global Y", "joint-force-fy", current.fy, "tonf")}
+            ${this.buildJointForceInputRow("Force Global Z", "joint-force-fz", current.fz, "tonf")}
+            ${this.buildJointForceInputRow("Moment Global XX", "joint-force-mxx", current.mxx, "tonf-m")}
+            ${this.buildJointForceInputRow("Moment Global YY", "joint-force-myy", current.myy, "tonf-m")}
+            ${this.buildJointForceInputRow("Moment Global ZZ", "joint-force-mzz", current.mzz, "tonf-m")}
+          </fieldset>
 
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">FY</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-force-fy" type="number" step="0.001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">kN</td>
-            </tr>
+          <fieldset style="${this.getUnifiedAssignFieldsetStyle()}">
+            <legend style="${this.getUnifiedAssignLegendStyle()}">Options</legend>
 
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">FZ</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-force-fz" type="number" step="0.001" value="-10" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">kN</td>
-            </tr>
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; color:${t.text};">
+              <input type="radio" name="joint-force-operation" value="add">
+              Add to Existing Loads
+            </label>
 
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">MX</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-force-mx" type="number" step="0.001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">kN·m</td>
-            </tr>
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; color:${t.text};">
+              <input type="radio" name="joint-force-operation" value="replace" checked>
+              Replace Existing Loads
+            </label>
 
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">MY</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-force-my" type="number" step="0.001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">kN·m</td>
-            </tr>
-
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">MZ</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-force-mz" type="number" step="0.001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">kN·m</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div style="margin-top:10px; color:#666; font-size:12px;">
-          Nodos seleccionados: <b>${selectedJoints.length}</b>
+            <label style="display:flex; align-items:center; gap:8px; color:${t.text};">
+              <input type="radio" name="joint-force-operation" value="delete">
+              Delete Existing Loads
+            </label>
+          </fieldset>
         </div>
 
+        <fieldset style="${this.getUnifiedAssignFieldsetStyle()}; margin-bottom:12px;">
+          <legend style="${this.getUnifiedAssignLegendStyle()}">Size of Load for Punching Shear</legend>
+
+          ${this.buildJointForceInputRow("X Dimension", "joint-force-punching-x", current.punchingX, "m")}
+          ${this.buildJointForceInputRow("Y Dimension", "joint-force-punching-y", current.punchingY, "m")}
+        </fieldset>
+
+        <div style="${this.getUnifiedAssignNoteStyle()}">
+          Nodos seleccionados: <b style="color:${t.text};">${selectedJoints.length}</b>
+        </div>
+
+        <div style="
+          display:flex;
+          justify-content:center;
+          gap:14px;
+          margin-top:18px;
+        ">
+          <button id="joint-force-ok" style="${this.getUnifiedAssignButtonStyle("primary")}">OK</button>
+          <button id="joint-force-close" style="${this.getUnifiedAssignButtonStyle("secondary")}">Close</button>
+          <button id="joint-force-apply" style="${this.getUnifiedAssignButtonStyle("primary")}">Apply</button>
+        </div>
       </div>
     `,
-      showCancelButton: true,
-      confirmButtonText: "Asignar",
-      cancelButtonText: "Cancelar",
-      preConfirm: () => {
-        return this.readJointPointForceFromDialog();
+
+      didOpen: () => {
+        const applyAssignment = (shouldClose = false) => {
+          const load = this.readJointPointForceFromDialog();
+
+          if (!load) return;
+
+          const patternName = load.loadPattern || load.loadCase || "CM";
+
+          if (
+            typeof this.isLoadPatternImplemented === "function" &&
+            !this.isLoadPatternImplemented(patternName)
+          ) {
+            this.showMessage?.(
+              `El patrón ${patternName} existe como referencia ETABS, pero su implementación está pendiente.`,
+              "warning"
+            );
+            return;
+          }
+
+          this.assignJointPointForceToSelected(load);
+
+          if (shouldClose) {
+            Swal.close();
+          }
+        };
+
+        document.getElementById("joint-force-ok")?.addEventListener("click", () => {
+          applyAssignment(true);
+        });
+
+        document.getElementById("joint-force-apply")?.addEventListener("click", () => {
+          applyAssignment(false);
+        });
+
+        document.getElementById("joint-force-close")?.addEventListener("click", () => {
+          Swal.close();
+        });
+
+        const updateDeleteState = () => {
+          const operation =
+            document.querySelector('input[name="joint-force-operation"]:checked')?.value || "replace";
+
+          const disabled = operation === "delete";
+
+          [
+            "joint-force-fx",
+            "joint-force-fy",
+            "joint-force-fz",
+            "joint-force-mxx",
+            "joint-force-myy",
+            "joint-force-mzz",
+            "joint-force-punching-x",
+            "joint-force-punching-y",
+          ].forEach((id) => {
+            const input = document.getElementById(id);
+
+            if (input) {
+              input.disabled = disabled;
+              input.style.background = disabled ? t.disabledBg : t.panel;
+              input.style.color = disabled ? t.disabledText : t.text;
+            }
+          });
+        };
+
+        document.querySelectorAll('input[name="joint-force-operation"]').forEach((radio) => {
+          radio.addEventListener("change", updateDeleteState);
+        });
+
+        updateDeleteState();
       },
     });
+  },
 
-    if (!result.isConfirmed || !result.value) return;
+  buildJointForceInputRow(label, id, value, unit, disabled = false) {
+    const t = this.getUnifiedAssignTheme();
 
-    this.assignJointPointForceToSelected(result.value);
+    return `
+    <div style="
+      display:grid;
+      grid-template-columns:130px 1fr 55px;
+      align-items:center;
+      gap:8px;
+      margin-bottom:8px;
+    ">
+      <label for="${id}" style="color:${t.label};">${label}</label>
+
+      <input
+        id="${id}"
+        type="number"
+        step="any"
+        value="${Number(value || 0)}"
+        ${disabled ? "disabled" : ""}
+        style="${this.getUnifiedAssignFieldStyle(disabled)}"
+      >
+
+      <span style="color:${t.text}; font-size:12px;">${unit}</span>
+    </div>
+  `;
+  },
+
+  getEtabsDialogButtonStyle(type = "primary") {
+    return this.getUnifiedAssignButtonStyle(type);
   },
 
   readJointPointForceFromDialog() {
     const readNumber = (id) => {
-      const value = Number(document.getElementById(id)?.value || 0);
+      const raw = document.getElementById(id)?.value;
+      const value = Number(raw === "" || raw == null ? 0 : raw);
       return Number.isFinite(value) ? value : 0;
     };
+
+    const loadPattern = String(
+      document.getElementById("joint-force-loadpattern")?.value ||
+      document.getElementById("joint-force-loadcase")?.value ||
+      "CM"
+    ).trim();
+
+    const operation =
+      document.querySelector('input[name="joint-force-operation"]:checked')?.value ||
+      document.getElementById("joint-force-operation")?.value ||
+      "replace";
+
+    const fx = readNumber("joint-force-fx");
+    const fy = readNumber("joint-force-fy");
+    const fz = readNumber("joint-force-fz");
+
+    const mxx = readNumber("joint-force-mxx");
+    const myy = readNumber("joint-force-myy");
+    const mzz = readNumber("joint-force-mzz");
+
+    const punchingX = readNumber("joint-force-punching-x");
+    const punchingY = readNumber("joint-force-punching-y");
 
     return {
       id: `JLOAD_${Date.now()}`,
       type: "force",
 
-      loadCase: document.getElementById("joint-force-loadcase")?.value || "DEAD",
+      loadPattern,
+      loadCase: loadPattern,
 
-      coordinateSystem: document.getElementById("joint-force-csys")?.value || "Global",
+      coordinateSystem: "Global",
+      operation,
 
-      operation: document.getElementById("joint-force-operation")?.value || "replace",
+      fx,
+      fy,
+      fz,
+
+      mxx,
+      myy,
+      mzz,
+
+      // Alias antiguos para compatibilidad.
+      mx: mxx,
+      my: myy,
+      mz: mzz,
+
+      punchingX,
+      punchingY,
+
+      punching: {
+        x: punchingX,
+        y: punchingY,
+      },
+
+      units: {
+        force: "tonf",
+        moment: "tonf-m",
+        length: "m",
+      },
 
       forces: {
-        fx: readNumber("joint-force-fx"),
-        fy: readNumber("joint-force-fy"),
-        fz: readNumber("joint-force-fz"),
-        mx: readNumber("joint-force-mx"),
-        my: readNumber("joint-force-my"),
-        mz: readNumber("joint-force-mz"),
+        fx,
+        fy,
+        fz,
+        mx: mxx,
+        my: myy,
+        mz: mzz,
       },
     };
   },
 
   jointPointForceHasValues(load) {
-    if (!load?.forces) return false;
+    if (!load) return false;
 
-    const f = load.forces;
+    const f = load.forces || {};
 
     return (
-      Number(f.fx || 0) !== 0 ||
-      Number(f.fy || 0) !== 0 ||
-      Number(f.fz || 0) !== 0 ||
-      Number(f.mx || 0) !== 0 ||
-      Number(f.my || 0) !== 0 ||
-      Number(f.mz || 0) !== 0
+      Number(load.fx ?? f.fx ?? 0) !== 0 ||
+      Number(load.fy ?? f.fy ?? 0) !== 0 ||
+      Number(load.fz ?? f.fz ?? 0) !== 0 ||
+      Number(load.mxx ?? f.mx ?? 0) !== 0 ||
+      Number(load.myy ?? f.my ?? 0) !== 0 ||
+      Number(load.mzz ?? f.mz ?? 0) !== 0 ||
+      Number(load.punchingX ?? load.punching?.x ?? 0) !== 0 ||
+      Number(load.punchingY ?? load.punching?.y ?? 0) !== 0
+    );
+  },
+
+  normalizeJointForceLoad(load) {
+    const fx = Number(load.fx ?? load.forces?.fx ?? 0);
+    const fy = Number(load.fy ?? load.forces?.fy ?? 0);
+    const fz = Number(load.fz ?? load.forces?.fz ?? 0);
+
+    const mxx = Number(load.mxx ?? load.mx ?? load.forces?.mx ?? 0);
+    const myy = Number(load.myy ?? load.my ?? load.forces?.my ?? 0);
+    const mzz = Number(load.mzz ?? load.mz ?? load.forces?.mz ?? 0);
+
+    const punchingX = Number(load.punchingX ?? load.punching?.x ?? 0);
+    const punchingY = Number(load.punchingY ?? load.punching?.y ?? 0);
+
+    const loadPattern = load.loadPattern || load.loadCase || "CM";
+
+    const clean = {
+      ...JSON.parse(JSON.stringify(load)),
+
+      id: load.id || `JLOAD_${Date.now()}`,
+      type: "force",
+
+      loadPattern,
+      loadCase: loadPattern,
+
+      coordinateSystem: load.coordinateSystem || "Global",
+
+      fx,
+      fy,
+      fz,
+
+      mxx,
+      myy,
+      mzz,
+
+      mx: mxx,
+      my: myy,
+      mz: mzz,
+
+      punchingX,
+      punchingY,
+
+      punching: {
+        x: punchingX,
+        y: punchingY,
+      },
+
+      units: {
+        force: "tonf",
+        moment: "tonf-m",
+        length: "m",
+        ...(load.units || {}),
+      },
+
+      forces: {
+        fx,
+        fy,
+        fz,
+        mx: mxx,
+        my: myy,
+        mz: mzz,
+      },
+    };
+
+    delete clean.operation;
+
+    return clean;
+  },
+
+  mergeJointForceLoads(existing, incoming) {
+    const a = this.normalizeJointForceLoad(existing);
+    const b = this.normalizeJointForceLoad(incoming);
+
+    const merged = {
+      ...a,
+      id: a.id || b.id || `JLOAD_${Date.now()}`,
+
+      fx: Number(a.fx || 0) + Number(b.fx || 0),
+      fy: Number(a.fy || 0) + Number(b.fy || 0),
+      fz: Number(a.fz || 0) + Number(b.fz || 0),
+
+      mxx: Number(a.mxx || 0) + Number(b.mxx || 0),
+      myy: Number(a.myy || 0) + Number(b.myy || 0),
+      mzz: Number(a.mzz || 0) + Number(b.mzz || 0),
+
+      // Las dimensiones de punzonamiento no se suman; se reemplazan.
+      punchingX: Number(b.punchingX || 0),
+      punchingY: Number(b.punchingY || 0),
+    };
+
+    merged.mx = merged.mxx;
+    merged.my = merged.myy;
+    merged.mz = merged.mzz;
+
+    merged.forces = {
+      fx: merged.fx,
+      fy: merged.fy,
+      fz: merged.fz,
+      mx: merged.mxx,
+      my: merged.myy,
+      mz: merged.mzz,
+    };
+
+    merged.punching = {
+      x: merged.punchingX,
+      y: merged.punchingY,
+    };
+
+    return merged;
+  },
+
+  isSameJointForcePattern(item, loadPattern) {
+    return (
+      item &&
+      item.type === "force" &&
+      String(item.loadPattern || item.loadCase) === String(loadPattern)
     );
   },
 
@@ -1809,80 +2417,167 @@ export const assignDialogsMixin = {
     }
 
     const operation = load.operation || "replace";
-    const loadCase = load.loadCase || "DEAD";
+    const loadPattern = load.loadPattern || load.loadCase || "CM";
+    const cleanIncoming = this.normalizeJointForceLoad(load);
 
     selectedJoints.forEach((joint) => {
-      if (!Array.isArray(joint.pointLoads)) {
-        joint.pointLoads = [];
-      }
+      if (!Array.isArray(joint.pointLoads)) joint.pointLoads = [];
+      if (!Array.isArray(joint.jointLoads)) joint.jointLoads = [];
 
-      if (!Array.isArray(joint.jointLoads)) {
-        joint.jointLoads = [];
-      }
+      const existingForceLoads = joint.pointLoads.filter((item) => {
+        return this.isSameJointForcePattern(item, loadPattern);
+      });
+
+      const otherPointLoads = joint.pointLoads.filter((item) => {
+        return !this.isSameJointForcePattern(item, loadPattern);
+      });
+
+      const otherJointLoads = joint.jointLoads.filter((item) => {
+        return !this.isSameJointForcePattern(item, loadPattern);
+      });
+
+      let finalLoadsForPattern = [];
 
       if (operation === "delete") {
-        joint.pointLoads = joint.pointLoads.filter((item) => {
-          return !(item.type === "force" && item.loadCase === loadCase);
-        });
-
-        joint.jointLoads = joint.jointLoads.filter((item) => {
-          return !(item.type === "force" && item.loadCase === loadCase);
-        });
+        finalLoadsForPattern = [];
       }
 
       if (operation === "replace") {
-        joint.pointLoads = joint.pointLoads.filter((item) => {
-          return !(item.type === "force" && item.loadCase === loadCase);
-        });
-
-        joint.jointLoads = joint.jointLoads.filter((item) => {
-          return !(item.type === "force" && item.loadCase === loadCase);
-        });
-
-        if (this.jointPointForceHasValues(load)) {
-          const cleanLoad = {
-            ...JSON.parse(JSON.stringify(load)),
-            operation: undefined,
-          };
-
-          joint.pointLoads.push(cleanLoad);
-          joint.jointLoads.push(cleanLoad);
+        if (this.jointPointForceHasValues(cleanIncoming)) {
+          finalLoadsForPattern = [cleanIncoming];
         }
       }
 
       if (operation === "add") {
-        if (this.jointPointForceHasValues(load)) {
-          const cleanLoad = {
-            ...JSON.parse(JSON.stringify(load)),
-            operation: undefined,
-          };
+        if (this.jointPointForceHasValues(cleanIncoming)) {
+          if (existingForceLoads.length > 0) {
+            const base = existingForceLoads.reduce((acc, item) => {
+              return acc ? this.mergeJointForceLoads(acc, item) : this.normalizeJointForceLoad(item);
+            }, null);
 
-          joint.pointLoads.push(cleanLoad);
-          joint.jointLoads.push(cleanLoad);
+            finalLoadsForPattern = [
+              this.mergeJointForceLoads(base, cleanIncoming),
+            ];
+          } else {
+            finalLoadsForPattern = [cleanIncoming];
+          }
+        } else {
+          finalLoadsForPattern = existingForceLoads.map((item) => {
+            return this.normalizeJointForceLoad(item);
+          });
         }
       }
 
-      joint.hasPointLoads = Array.isArray(joint.pointLoads) && joint.pointLoads.length > 0;
-      joint.hasJointLoads = joint.hasPointLoads;
+      joint.pointLoads = [
+        ...otherPointLoads,
+        ...finalLoadsForPattern,
+      ];
+
+      joint.jointLoads = [
+        ...otherJointLoads,
+        ...finalLoadsForPattern,
+      ];
+
+      joint.hasPointLoads = joint.pointLoads.length > 0;
+      joint.hasJointLoads = joint.jointLoads.length > 0;
 
       joint.assignment = {
         ...(joint.assignment || {}),
-        pointLoads: joint.pointLoads,
-        jointLoads: joint.jointLoads,
+        pointLoads: JSON.parse(JSON.stringify(joint.pointLoads)),
+        jointLoads: JSON.parse(JSON.stringify(joint.jointLoads)),
       };
+
+      this._syncJointLoadAssignmentStoreForJoint?.(joint);
     });
 
-    this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
+    this.markAnalysisResultsOutdated?.("Se modificaron cargas puntuales en nodos.");
+    // this.redraw?.();
+    this.displayOptions = {
+      ...(this.displayOptions || {}),
+      showJointLoads: true,
+      jointLoadPattern: load.loadPattern || load.loadCase || "CM",
+      jointLoadDisplayType: "force",
+    };
+
     this.redraw?.();
+    this.sync3D?.();
 
-    const actionText = operation === "delete" ? "removidas" : "asignadas";
+    const actionText =
+      operation === "delete"
+        ? "eliminadas"
+        : operation === "add"
+          ? "agregadas"
+          : "asignadas";
 
-    this.showMessage?.(`Cargas puntuales ${actionText} en ${selectedJoints.length} nodo(s).`);
+    this.showMessage?.(
+      `Cargas Joint / Point Force ${actionText} en ${selectedJoints.length} nodo(s).`,
+      "success"
+    );
 
-    console.log("✅ Joint / Point Force asignado:", {
-      load,
+    console.log("✅ Joint Load Assignment - Force:", {
+      operation,
+      loadPattern,
+      load: cleanIncoming,
       selectedJoints,
+      jointLoadAssignments: this.jointLoadAssignments,
     });
+  },
+
+  _syncJointLoadAssignmentStoreForJoint(joint) {
+    if (!joint) return;
+
+    const jointId = this._getJointAssignId(joint);
+    if (!jointId) return;
+
+    if (!Array.isArray(this.jointLoadAssignments)) {
+      this.jointLoadAssignments = [];
+    }
+
+    // Quitar cargas anteriores de este nodo.
+    this.jointLoadAssignments = this.jointLoadAssignments.filter((item) => {
+      return String(item.jointId) !== String(jointId);
+    });
+
+    const loads = Array.isArray(joint.jointLoads)
+      ? joint.jointLoads
+      : Array.isArray(joint.pointLoads)
+        ? joint.pointLoads
+        : [];
+
+    const forceLoads = loads
+      .filter((load) => load && load.type === "force")
+      .map((load) => {
+        const clean = this.normalizeJointForceLoad(load);
+
+        return {
+          ...clean,
+          jointId,
+          nodeId: jointId,
+        };
+      });
+
+    this.jointLoadAssignments.push(...forceLoads);
+  },
+
+  buildLoadPatternOptionsHtml(selectedName = "CM") {
+    const patterns = this.getAvailableLoadCasesForAssign();
+
+    return patterns.map((lp) => {
+      const selected = String(lp.name) === String(selectedName) ? "selected" : "";
+      const suffix = lp.implemented ? "" : " - Pendiente";
+
+      return `
+      <option value="${lp.name}" ${selected}>
+        ${lp.name} (${lp.type})${suffix}
+      </option>
+    `;
+    }).join("");
+  },
+
+  isLoadPatternImplemented(name) {
+    const patterns = this.getAvailableLoadCasesForAssign();
+    const found = patterns.find((p) => String(p.name) === String(name));
+    return found ? found.implemented !== false : true;
   },
 
   // =====================================================
@@ -1891,18 +2586,35 @@ export const assignDialogsMixin = {
 
   // Áreas/losas seleccionadas (objetos con 'points', no frames ni nodos).
   getSelectedAreasForAssign() {
-    const selectedObjects = this.getSelectedObjects?.() || [];
-    let areas = selectedObjects.filter((obj) => {
-      if (!obj) return false;
-      const isFrame = obj.node1 && obj.node2;
-      return !isFrame && Array.isArray(obj.points) && obj.points.length >= 3;
-    });
-    // Fallback: estado de selección de áreas del CAD.
-    if (!areas.length) {
-      const sel = this.selectedAreasState?.selectedObjects || [];
-      areas = sel.filter((a) => Array.isArray(a?.points) && a.points.length >= 3);
+    const isArea = (obj) =>
+      obj && !(obj.node1 && obj.node2) && Array.isArray(obj.points) && obj.points.length >= 3;
+
+    // La asignación NO debe depender de la vista 2D activa: al seleccionar losas
+    // por propiedad (o en 3D) se eligen de varios pisos, y getSelectedObjects()
+    // filtra por vista activa (respectActiveView:true), descartándolas. Se toma
+    // la selección de edición SIN ese filtro + el estado propio de áreas.
+    const sources = [];
+
+    if (typeof this.getEditSelectedObjects === "function") {
+      sources.push(...this.getEditSelectedObjects({ respectActiveView: false }));
+    } else {
+      sources.push(...(this.getSelectedObjects?.() || []));
     }
-    return areas;
+
+    sources.push(...(this.selectedAreasState?.selectedObjects || []));
+
+    const result = [];
+    const seen = new Set();
+
+    sources.forEach((a) => {
+      if (!isArea(a)) return;
+      const key = a.id != null ? String(a.id) : a;
+      if (seen.has(key)) return;
+      seen.add(key);
+      result.push(a);
+    });
+
+    return result;
   },
 
   async openAssignAreaUniformLoadDialog() {
@@ -2108,12 +2820,29 @@ export const assignDialogsMixin = {
     const sec = name === "__none__" ? null : sections.find((s) => s.name === name);
     target.forEach((slab) => {
       slab.slabSection = sec ? sec.name : null;
-      slab.slabSelfWeightKgM2 = sec ? Number(sec.selfWeightKgM2) || 0 : 0;
+      // Peso propio de la losa (kgf/m²). Usa el de la sección si lo trae; si no,
+      // lo calcula aquí: espesor(m) × densidad del material. Así no depende de
+      // que la sección se haya re-guardado por el modal de Slab Sections.
+      slab.slabSelfWeightKgM2 = sec ? this._slabSectionSelfWeightKgM2(sec) : 0;
       slab.section = sec ? { name: sec.name, thickness: sec.thickness, material: sec.material } : null;
     });
     this.markAnalysisResultsOutdated?.("Se asignó sección de losa.");
     this.redraw?.();
     this.showMessage?.(`Sección "${name === "__none__" ? "None" : name}" asignada a ${target.length} losa(s).`);
+  },
+
+  // Peso propio de una sección de losa en kgf/m² = espesor(m) × densidad(kg/m³).
+  // Usa selfWeightKgM2 si la sección lo trae; si no, lo calcula del material.
+  _slabSectionSelfWeightKgM2(sec) {
+    if (!sec) return 0;
+    const explicit = Number(sec.selfWeightKgM2);
+    if (explicit > 0) return explicit;
+    const t = (Number(sec.thickness) || 0) / 1000; // mm → m
+    const mats = this.materialProperties?.materials || [];
+    const mat = mats.find((m) => m.name === sec.material);
+    const mpv = Number(mat?.massPerUnitVolume); // ton/mm³ (ETABS N-mm) → ×1e12 = kg/m³
+    const rho = (mpv > 0 && mpv < 1e-3) ? mpv * 1e12 : 2400;
+    return t * rho;
   },
 
   // =====================================================
@@ -2138,6 +2867,7 @@ export const assignDialogsMixin = {
     };
   },
 
+  // Joint > Point Loads > Ground Displacement
   async openAssignJointGroundDisplacementDialog() {
     const selectedJoints = this.getSelectedJointsForAssign();
 
@@ -2146,132 +2876,123 @@ export const assignDialogsMixin = {
       return;
     }
 
-    const loadCases = this.getAvailableLoadCasesForAssign();
     const current = this.getDefaultJointGroundDisplacementLoad();
+    current.loadCase = "CM";
 
-    if (loadCases.length > 0) {
-      current.loadCase = loadCases[0].name;
-    }
+    const t = this.getUnifiedAssignTheme();
 
-    const result = await Swal.fire({
-      title: "Assign Joint / Point Loads - Ground Displacement",
-      width: 740,
+    await Swal.fire({
+      title: "Joint Load Assignment - Ground Displacement",
+      width: 620,
+      background: t.bg,
+      color: t.text,
+      showConfirmButton: false,
+      showCancelButton: false,
+      allowOutsideClick: false,
       html: `
-      <div style="text-align:left; font-size:13px;">
+      <div style="${this.getUnifiedAssignWrapperStyle()}">
 
-        <p style="margin-bottom:12px;">
-          Asigna desplazamientos impuestos a los nodos seleccionados.
-        </p>
-
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
-          <div>
-            <label style="display:block; margin-bottom:5px;">Load Case</label>
-            <select id="joint-disp-loadcase" style="width:100%; padding:7px;">
-              ${loadCases
-          .map(
-            (lc) => `
-                <option value="${lc.name}">${lc.name} (${lc.type})</option>
-              `,
-          )
-          .join("")}
-            </select>
-          </div>
-
-          <div>
-            <label style="display:block; margin-bottom:5px;">Coordinate System</label>
-            <select id="joint-disp-csys" style="width:100%; padding:7px;">
-              <option value="Global">Global</option>
-              <option value="Local">Local</option>
-            </select>
-          </div>
-
-          <div>
-            <label style="display:block; margin-bottom:5px;">Operation</label>
-            <select id="joint-disp-operation" style="width:100%; padding:7px;">
-              <option value="replace">Replace Existing Loads</option>
-              <option value="add">Add to Existing Loads</option>
-              <option value="delete">Delete Existing Loads</option>
-            </select>
-          </div>
+        <div style="${this.getUnifiedAssignSectionStyle()}; margin-bottom:12px;">
+          <label style="${this.getUnifiedAssignLabelStyle()}">Load Pattern Name</label>
+          <select id="joint-disp-loadpattern" style="${this.getUnifiedAssignFieldStyle()}">
+            ${this.buildLoadPatternOptionsHtml(current.loadCase)}
+          </select>
         </div>
 
-        <table style="width:100%; border-collapse:collapse; font-size:12px;">
-          <thead>
-            <tr style="background:#1f2937; color:white;">
-              <th style="border:1px solid #555; padding:6px;">Componente</th>
-              <th style="border:1px solid #555; padding:6px;">Valor</th>
-              <th style="border:1px solid #555; padding:6px;">Unidad referencial</th>
-            </tr>
-          </thead>
+        <div style="display:grid; grid-template-columns: 1.3fr 1fr; gap:12px; margin-bottom:12px;">
+          <fieldset style="${this.getUnifiedAssignFieldsetStyle()}">
+            <legend style="${this.getUnifiedAssignLegendStyle()}">Displacements</legend>
 
-          <tbody>
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">U1 / UX</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-disp-ux" type="number" step="0.000001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">m</td>
-            </tr>
+            ${this.buildJointForceInputRow("Translation X", "joint-disp-ux", 0, "m")}
+            ${this.buildJointForceInputRow("Translation Y", "joint-disp-uy", 0, "m")}
+            ${this.buildJointForceInputRow("Translation Z", "joint-disp-uz", 0, "m")}
+            ${this.buildJointForceInputRow("Rotation about XX", "joint-disp-rx", 0, "rad")}
+            ${this.buildJointForceInputRow("Rotation about YY", "joint-disp-ry", 0, "rad")}
+            ${this.buildJointForceInputRow("Rotation about ZZ", "joint-disp-rz", 0, "rad")}
+          </fieldset>
 
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">U2 / UY</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-disp-uy" type="number" step="0.000001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">m</td>
-            </tr>
+          <fieldset style="${this.getUnifiedAssignFieldsetStyle()}">
+            <legend style="${this.getUnifiedAssignLegendStyle()}">Options</legend>
 
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">U3 / UZ</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-disp-uz" type="number" step="0.000001" value="0.01" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">m</td>
-            </tr>
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; color:${t.text};">
+              <input type="radio" name="joint-disp-operation" value="add">
+              Add to Existing Loads
+            </label>
 
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">R1 / RX</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-disp-rx" type="number" step="0.000001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">rad</td>
-            </tr>
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; color:${t.text};">
+              <input type="radio" name="joint-disp-operation" value="replace" checked>
+              Replace Existing Loads
+            </label>
 
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">R2 / RY</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-disp-ry" type="number" step="0.000001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">rad</td>
-            </tr>
-
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">R3 / RZ</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-disp-rz" type="number" step="0.000001" value="0" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">rad</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div style="margin-top:10px; color:#666; font-size:12px;">
-          Nodos seleccionados: <b>${selectedJoints.length}</b>
+            <label style="display:flex; align-items:center; gap:8px; color:${t.text};">
+              <input type="radio" name="joint-disp-operation" value="delete">
+              Delete Existing Loads
+            </label>
+          </fieldset>
         </div>
 
+        <div style="${this.getUnifiedAssignNoteStyle()}">
+          Nodos seleccionados: <b style="color:${t.text};">${selectedJoints.length}</b>
+        </div>
+
+        <div style="display:flex; justify-content:center; gap:14px; margin-top:18px;">
+          <button id="joint-disp-ok" style="${this.getUnifiedAssignButtonStyle("primary")}">OK</button>
+          <button id="joint-disp-close" style="${this.getUnifiedAssignButtonStyle("secondary")}">Close</button>
+          <button id="joint-disp-apply" style="${this.getUnifiedAssignButtonStyle("primary")}">Apply</button>
+        </div>
       </div>
     `,
-      showCancelButton: true,
-      confirmButtonText: "Asignar",
-      cancelButtonText: "Cancelar",
-      preConfirm: () => {
-        return this.readJointGroundDisplacementFromDialog();
+      didOpen: () => {
+        const applyAssignment = (shouldClose = false) => {
+          const load = this.readJointGroundDisplacementFromDialog();
+          if (!load) return;
+
+          if (!this.isLoadPatternImplemented(load.loadCase)) {
+            this.showMessage?.(
+              `El patrón ${load.loadCase} existe como referencia ETABS, pero su implementación está pendiente.`,
+              "warning"
+            );
+            return;
+          }
+
+          this.assignJointGroundDisplacementToSelected(load);
+          if (shouldClose) Swal.close();
+        };
+
+        document.getElementById("joint-disp-ok")?.addEventListener("click", () => applyAssignment(true));
+        document.getElementById("joint-disp-apply")?.addEventListener("click", () => applyAssignment(false));
+        document.getElementById("joint-disp-close")?.addEventListener("click", () => Swal.close());
+
+        const updateDeleteState = () => {
+          const operation =
+            document.querySelector('input[name="joint-disp-operation"]:checked')?.value || "replace";
+
+          const disabled = operation === "delete";
+
+          [
+            "joint-disp-ux",
+            "joint-disp-uy",
+            "joint-disp-uz",
+            "joint-disp-rx",
+            "joint-disp-ry",
+            "joint-disp-rz",
+          ].forEach((id) => {
+            const input = document.getElementById(id);
+            if (input) {
+              input.disabled = disabled;
+              input.style.background = disabled ? t.disabledBg : t.panel;
+              input.style.color = disabled ? t.disabledText : t.text;
+            }
+          });
+        };
+
+        document.querySelectorAll('input[name="joint-disp-operation"]').forEach((radio) => {
+          radio.addEventListener("change", updateDeleteState);
+        });
+
+        updateDeleteState();
       },
     });
-
-    if (!result.isConfirmed || !result.value) return;
-
-    this.assignJointGroundDisplacementToSelected(result.value);
   },
 
   readJointGroundDisplacementFromDialog() {
@@ -2284,11 +3005,13 @@ export const assignDialogsMixin = {
       id: `JDISP_${Date.now()}`,
       type: "ground-displacement",
 
-      loadCase: document.getElementById("joint-disp-loadcase")?.value || "DEAD",
+      loadCase: document.getElementById("joint-disp-loadpattern")?.value || "CM",
+      loadPattern: document.getElementById("joint-disp-loadpattern")?.value || "CM",
 
-      coordinateSystem: document.getElementById("joint-disp-csys")?.value || "Global",
+      coordinateSystem: "Global",
 
-      operation: document.getElementById("joint-disp-operation")?.value || "replace",
+      operation:
+        document.querySelector('input[name="joint-disp-operation"]:checked')?.value || "replace",
 
       displacements: {
         ux: readNumber("joint-disp-ux"),
@@ -2300,6 +3023,8 @@ export const assignDialogsMixin = {
       },
     };
   },
+
+
 
   jointGroundDisplacementHasValues(load) {
     if (!load?.displacements) return false;
@@ -2389,7 +3114,16 @@ export const assignDialogsMixin = {
     });
 
     this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
+    // this.redraw?.();
+    this.displayOptions = {
+      ...(this.displayOptions || {}),
+      showJointLoads: true,
+      jointLoadPattern: load.loadPattern || load.loadCase || "CM",
+      jointLoadDisplayType: "ground-displacement",
+    };
+
     this.redraw?.();
+    this.sync3D?.();
 
     const actionText = operation === "delete" ? "removidos" : "asignados";
 
@@ -2418,165 +3152,6 @@ export const assignDialogsMixin = {
         finalTemperature: 20,
       },
     };
-  },
-
-  async openAssignJointTemperatureDialog() {
-    const selectedJoints = this.getSelectedJointsForAssign();
-
-    if (!selectedJoints.length) {
-      this.showMessage?.("Selecciona primero uno o más nodos / puntos.", "warning");
-      return;
-    }
-
-    const loadCases = this.getAvailableLoadCasesForAssign();
-    const current = this.getDefaultJointTemperatureLoad();
-
-    if (loadCases.length > 0) {
-      current.loadCase = loadCases[0].name;
-    }
-
-    const result = await Swal.fire({
-      title: "Assign Joint / Point Loads - Temperature",
-      width: 650,
-      html: `
-      <div style="text-align:left; font-size:13px;">
-
-        <p style="margin-bottom:12px;">
-          Asigna carga de temperatura a los nodos seleccionados.
-        </p>
-
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
-          <div>
-            <label style="display:block; margin-bottom:5px;">Load Case</label>
-            <select id="joint-temp-loadcase" style="width:100%; padding:7px;">
-              ${loadCases
-          .map(
-            (lc) => `
-                <option value="${lc.name}">${lc.name} (${lc.type})</option>
-              `,
-          )
-          .join("")}
-            </select>
-          </div>
-
-          <div>
-            <label style="display:block; margin-bottom:5px;">Operation</label>
-            <select id="joint-temp-operation" style="width:100%; padding:7px;">
-              <option value="replace">Replace Existing Loads</option>
-              <option value="add">Add to Existing Loads</option>
-              <option value="delete">Delete Existing Loads</option>
-            </select>
-          </div>
-        </div>
-
-        <table style="width:100%; border-collapse:collapse; font-size:12px;">
-          <thead>
-            <tr style="background:#1f2937; color:white;">
-              <th style="border:1px solid #555; padding:6px;">Dato</th>
-              <th style="border:1px solid #555; padding:6px;">Valor</th>
-              <th style="border:1px solid #555; padding:6px;">Unidad</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">Initial Temperature</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-temp-initial" type="number" step="0.001" value="20" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">°C</td>
-            </tr>
-
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">Final Temperature</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-temp-final" type="number" step="0.001" value="30" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">°C</td>
-            </tr>
-
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">Temperature Change ΔT</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="joint-temp-delta" type="number" step="0.001" value="10" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">°C</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div style="margin-top:12px; padding:10px; border:1px solid #555; border-radius:6px;">
-          <span style="font-size:12px; color:#777;">
-            En esta versión inicial se guarda la carga de temperatura en el nodo. Luego podrá conectarse al motor de análisis.
-          </span>
-        </div>
-
-        <div style="margin-top:10px; color:#666; font-size:12px;">
-          Nodos seleccionados: <b>${selectedJoints.length}</b>
-        </div>
-
-      </div>
-    `,
-      showCancelButton: true,
-      confirmButtonText: "Asignar",
-      cancelButtonText: "Cancelar",
-
-      didOpen: () => {
-        const initialInput = document.getElementById("joint-temp-initial");
-        const finalInput = document.getElementById("joint-temp-final");
-        const deltaInput = document.getElementById("joint-temp-delta");
-
-        const updateDelta = () => {
-          const ti = Number(initialInput?.value || 0);
-          const tf = Number(finalInput?.value || 0);
-          deltaInput.value = tf - ti;
-        };
-
-        initialInput?.addEventListener("input", updateDelta);
-        finalInput?.addEventListener("input", updateDelta);
-      },
-
-      preConfirm: () => {
-        return this.readJointTemperatureFromDialog();
-      },
-    });
-
-    if (!result.isConfirmed || !result.value) return;
-
-    this.assignJointTemperatureToSelected(result.value);
-  },
-
-  readJointTemperatureFromDialog() {
-    const readNumber = (id) => {
-      const value = Number(document.getElementById(id)?.value || 0);
-      return Number.isFinite(value) ? value : 0;
-    };
-
-    const initialTemperature = readNumber("joint-temp-initial");
-    const finalTemperature = readNumber("joint-temp-final");
-
-    return {
-      id: `JTEMP_${Date.now()}`,
-      type: "temperature",
-
-      loadCase: document.getElementById("joint-temp-loadcase")?.value || "DEAD",
-
-      operation: document.getElementById("joint-temp-operation")?.value || "replace",
-
-      temperature: {
-        initialTemperature,
-        finalTemperature,
-        deltaT: readNumber("joint-temp-delta"),
-      },
-    };
-  },
-
-  jointTemperatureHasValues(load) {
-    if (!load?.temperature) return false;
-
-    const t = load.temperature;
-
-    return Number(t.deltaT || 0) !== 0 || Number(t.initialTemperature || 0) !== Number(t.finalTemperature || 0);
   },
 
   assignJointTemperatureToSelected(load) {
@@ -2648,7 +3223,16 @@ export const assignDialogsMixin = {
     });
 
     this.markAnalysisResultsOutdated?.("Se modificó el modelo o sus asignaciones.");
+    // this.redraw?.();
+    this.displayOptions = {
+      ...(this.displayOptions || {}),
+      showJointLoads: true,
+      jointLoadPattern: load.loadPattern || load.loadCase || "CM",
+      jointLoadDisplayType: "temperature",
+    };
+
     this.redraw?.();
+    this.sync3D?.();
 
     const actionText = operation === "delete" ? "removidas" : "asignadas";
 
@@ -2953,7 +3537,7 @@ export const assignDialogsMixin = {
       coordinateSystem: "Global",
 
       loadType: "force", // force | moment
-      direction: "FZ",
+      direction: "Gravity", // Gravity | X | Y | Z (dirección de aplicación estilo ETABS)
 
       distributionType: "uniform", // uniform | trapezoidal
 
@@ -2985,173 +3569,162 @@ export const assignDialogsMixin = {
       current.loadCase = loadCases[0].name;
     }
 
+    const hasCM = loadCases.some((lc) => String(lc.name).toUpperCase() === "CM");
+
+    // Etiqueta de unidad de carga distribuida según el selector global (units.js):
+    // "tonf/m", "kgf/cm", etc. El modal se adapta a las unidades activas.
+    const distLabel = window.cadUnits?.labels?.().distLoad || "tonf/m";
+
     const result = await Swal.fire({
-      title: "Assign Frame / Line Loads - Distributed",
-      width: 820,
+      title: "Frame Load Assignment - Distributed",
+      width: 640,
+      background: "#1a2035",
+      color: "#e2e8f0",
+      confirmButtonColor: "#1d4ed8",
       html: `
-      <div style="text-align:left; font-size:13px;">
+      <style>
+        #fdist-body input, #fdist-body select {
+          background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px;
+        }
+        #fdist-body fieldset { color:#e2e8f0; }
+        #fdist-body legend { color:#7eb8f7; }
+        #fdist-body th { color:#94a3b8; font-weight:600; }
+      </style>
+      <div id="fdist-body" style="text-align:left; font-size:13px; color:#e2e8f0;">
 
-        <p style="margin-bottom:12px;">
-          Asigna una carga distribuida uniforme o trapezoidal sobre los elementos Frame / Line seleccionados.
-        </p>
-
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
-          <div>
-            <label style="display:block; margin-bottom:5px;">Load Case</label>
-            <select id="frame-dist-loadcase" style="width:100%; padding:7px;">
-              ${loadCases
+        <!-- Load Pattern Name -->
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <label style="min-width:150px; font-weight:600;">Load Pattern Name</label>
+          <select id="frame-dist-loadcase" style="flex:1; padding:7px;">
+            ${loadCases
           .map(
             (lc) => `
-                <option value="${lc.name}">${lc.name} (${lc.type})</option>
-              `,
+              <option value="${lc.name}" ${(hasCM && String(lc.name).toUpperCase() === "CM") ? "selected" : ""
+              }>${lc.name}</option>
+            `,
           )
           .join("")}
-            </select>
-          </div>
-
-          <div>
-            <label style="display:block; margin-bottom:5px;">Coordinate System</label>
-            <select id="frame-dist-csys" style="width:100%; padding:7px;">
-              <option value="Global">Global</option>
-              <option value="Local">Local</option>
-            </select>
-          </div>
-
-          <div>
-            <label style="display:block; margin-bottom:5px;">Operation</label>
-            <select id="frame-dist-operation" style="width:100%; padding:7px;">
-              <option value="replace">Replace Existing Loads</option>
-              <option value="add">Add to Existing Loads</option>
-              <option value="delete">Delete Existing Loads</option>
-            </select>
-          </div>
+          </select>
         </div>
 
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
-          <div>
-            <label style="display:block; margin-bottom:5px;">Load Type</label>
-            <select id="frame-dist-loadtype" style="width:100%; padding:7px;">
-              <option value="force">Force</option>
-              <option value="moment">Moment</option>
-            </select>
-          </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:14px;">
 
-          <div>
-            <label style="display:block; margin-bottom:5px;">Direction</label>
+          <!-- Load Type and Direction -->
+          <fieldset style="border:1px solid #475569; border-radius:6px; padding:10px 12px; margin:0;">
+            <legend style="padding:0 6px; font-weight:600;">Load Type and Direction</legend>
+
+            <div style="display:flex; gap:20px; margin-bottom:12px;">
+              <label style="display:flex; align-items:center; gap:6px;">
+                <input type="radio" name="frame-dist-loadtype" value="force" checked> Forces
+              </label>
+              <label style="display:flex; align-items:center; gap:6px;">
+                <input type="radio" name="frame-dist-loadtype" value="moment"> Moments
+              </label>
+            </div>
+
+            <label style="display:block; margin-bottom:5px;">Direction of Load Application</label>
             <select id="frame-dist-direction" style="width:100%; padding:7px;">
-              <option value="FX">FX</option>
-              <option value="FY">FY</option>
-              <option value="FZ" selected>FZ</option>
-              <option value="MX">MX</option>
-              <option value="MY">MY</option>
-              <option value="MZ">MZ</option>
+              <option value="Gravity" selected>Gravity</option>
+              <option value="X">X</option>
+              <option value="Y">Y</option>
+              <option value="Z">Z</option>
             </select>
-          </div>
+          </fieldset>
 
-          <div>
-            <label style="display:block; margin-bottom:5px;">Distribution</label>
-            <select id="frame-dist-distribution" style="width:100%; padding:7px;">
-              <option value="uniform">Uniform</option>
-              <option value="trapezoidal">Trapezoidal</option>
-            </select>
-          </div>
+          <!-- Options -->
+          <fieldset style="border:1px solid #475569; border-radius:6px; padding:10px 12px; margin:0;">
+            <legend style="padding:0 6px; font-weight:600;">Options</legend>
+
+            <label style="display:flex; align-items:center; gap:6px; margin-bottom:9px;">
+              <input type="radio" name="frame-dist-operation" value="add"> Add to Existing Loads
+            </label>
+            <label style="display:flex; align-items:center; gap:6px; margin-bottom:9px;">
+              <input type="radio" name="frame-dist-operation" value="replace" checked> Replace Existing Loads
+            </label>
+            <label style="display:flex; align-items:center; gap:6px;">
+              <input type="radio" name="frame-dist-operation" value="delete"> Delete Existing Loads
+            </label>
+          </fieldset>
         </div>
 
-        <div style="border:1px solid #555; border-radius:6px; padding:10px; margin-bottom:12px;">
-          <div style="font-weight:bold; margin-bottom:8px;">
-            Load Location
+        <!-- Trapezoidal Loads -->
+        <fieldset style="border:1px solid #475569; border-radius:6px; padding:10px 12px; margin:0 0 14px;">
+          <legend style="padding:0 6px; font-weight:600;">Trapezoidal Loads</legend>
+
+          <table style="width:100%; border-collapse:collapse; text-align:center; font-size:12.5px;">
+            <thead>
+              <tr style="color:#94a3b8;">
+                <th style="width:70px;"></th><th>1.</th><th>2.</th><th>3.</th><th>4.</th><th style="width:56px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="text-align:left; padding:3px 0;">Distance</td>
+                <td><input id="frame-dist-d1" type="number" step="0.01" value="0"  style="width:64px; padding:5px;"></td>
+                <td><input id="frame-dist-d2" type="number" step="0.01" value="0.25" style="width:64px; padding:5px;"></td>
+                <td><input id="frame-dist-d3" type="number" step="0.01" value="0.75" style="width:64px; padding:5px;"></td>
+                <td><input id="frame-dist-d4" type="number" step="0.01" value="1"  style="width:64px; padding:5px;"></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td style="text-align:left; padding:3px 0;">Load</td>
+                <td><input id="frame-dist-l1" type="number" step="0.001" value="0" style="width:64px; padding:5px;"></td>
+                <td><input id="frame-dist-l2" type="number" step="0.001" value="0" style="width:64px; padding:5px;"></td>
+                <td><input id="frame-dist-l3" type="number" step="0.001" value="0" style="width:64px; padding:5px;"></td>
+                <td><input id="frame-dist-l4" type="number" step="0.001" value="0" style="width:64px; padding:5px;"></td>
+                <td style="color:#94a3b8;">${distLabel}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="display:flex; gap:20px; margin-top:12px;">
+            <label style="display:flex; align-items:center; gap:6px;">
+              <input type="radio" name="frame-dist-distance-type" value="relative" checked> Relative Distance from End-I
+            </label>
+            <label style="display:flex; align-items:center; gap:6px;">
+              <input type="radio" name="frame-dist-distance-type" value="absolute"> Absolute Distance from End-I
+            </label>
           </div>
+        </fieldset>
 
-          <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
-            <div>
-              <label style="display:block; margin-bottom:5px;">Distance Type</label>
-              <select id="frame-dist-distance-type" style="width:100%; padding:7px;">
-                <option value="relative">Relative Distance</option>
-                <option value="absolute">Absolute Distance from I-End</option>
-              </select>
-            </div>
-
-            <div>
-              <label style="display:block; margin-bottom:5px;">Start Relative</label>
-              <input id="frame-dist-start-relative" type="number" step="0.01" min="0" max="1" value="0"
-                style="width:100%; padding:7px;">
-            </div>
-
-            <div>
-              <label style="display:block; margin-bottom:5px;">End Relative</label>
-              <input id="frame-dist-end-relative" type="number" step="0.01" min="0" max="1" value="1"
-                style="width:100%; padding:7px;">
-            </div>
-
-            <div></div>
-
-            <div>
-              <label style="display:block; margin-bottom:5px;">Start Absolute</label>
-              <input id="frame-dist-start-absolute" type="number" step="0.001" min="0" value="0"
-                style="width:100%; padding:7px;">
-            </div>
-
-            <div>
-              <label style="display:block; margin-bottom:5px;">End Absolute</label>
-              <input id="frame-dist-end-absolute" type="number" step="0.001" min="0" value="0"
-                style="width:100%; padding:7px;">
-            </div>
+        <!-- Uniform Load -->
+        <fieldset style="border:1px solid #475569; border-radius:6px; padding:10px 12px; margin:0;">
+          <legend style="padding:0 6px; font-weight:600;">Uniform Load</legend>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <label style="min-width:56px;">Load</label>
+            <input id="frame-dist-uniform" type="number" step="0.001" value="0" style="width:120px; padding:7px;">
+            <span style="color:#94a3b8;">${distLabel}</span>
           </div>
+        </fieldset>
 
-          <p style="font-size:12px; color:#777; margin-top:8px;">
-            Relative Distance: 0 = extremo I, 1 = extremo J.
-          </p>
-        </div>
-
-        <div style="border:1px solid #555; border-radius:6px; padding:10px;">
-          <div style="font-weight:bold; margin-bottom:8px;">
-            Load Values
-          </div>
-
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-            <div>
-              <label style="display:block; margin-bottom:5px;">Value at Start</label>
-              <input id="frame-dist-start-value" type="number" step="0.001" value="-5"
-                style="width:100%; padding:7px;">
-            </div>
-
-            <div>
-              <label style="display:block; margin-bottom:5px;">Value at End</label>
-              <input id="frame-dist-end-value" type="number" step="0.001" value="-5"
-                style="width:100%; padding:7px;">
-            </div>
-          </div>
-
-          <p style="font-size:12px; color:#777; margin-top:8px;">
-            Para carga uniforme usa el mismo valor al inicio y al final.
-          </p>
-        </div>
-
-        <div style="margin-top:10px; color:#666; font-size:12px;">
-          Elementos Frame / Line seleccionados: <b>${selectedFrames.length}</b>
+        <div style="margin-top:12px; color:#94a3b8; font-size:12px;">
+          Frames seleccionados: <b>${selectedFrames.length}</b>. Para <b>Gravity</b> ingresa el valor positivo
+          (la carga actúa hacia abajo). Si usas <b>Uniform Load</b> tiene prioridad sobre la tabla trapezoidal.
         </div>
 
       </div>
     `,
       showCancelButton: true,
-      confirmButtonText: "Asignar",
-      cancelButtonText: "Cancelar",
+      confirmButtonText: "OK",
+      cancelButtonText: "Close",
 
       didOpen: () => {
-        const distributionSelect = document.getElementById("frame-dist-distribution");
-        const startValue = document.getElementById("frame-dist-start-value");
-        const endValue = document.getElementById("frame-dist-end-value");
+        // Al escribir en Uniform Load, se limpian los valores trapezoidales
+        // (y viceversa), como en ETABS: se usa una forma u otra, no ambas.
+        const uniform = document.getElementById("frame-dist-uniform");
+        const trapLoads = ["frame-dist-l1", "frame-dist-l2", "frame-dist-l3", "frame-dist-l4"]
+          .map((id) => document.getElementById(id));
 
-        distributionSelect?.addEventListener("change", () => {
-          if (distributionSelect.value === "uniform") {
-            endValue.value = startValue.value;
+        uniform?.addEventListener("input", () => {
+          if (Number(uniform.value) !== 0) {
+            trapLoads.forEach((el) => { if (el) el.value = "0"; });
           }
         });
 
-        startValue?.addEventListener("input", () => {
-          if (distributionSelect?.value === "uniform") {
-            endValue.value = startValue.value;
-          }
+        trapLoads.forEach((el) => {
+          el?.addEventListener("input", () => {
+            if (Number(el.value) !== 0 && uniform) uniform.value = "0";
+          });
         });
       },
 
@@ -3171,8 +3744,71 @@ export const assignDialogsMixin = {
       return Number.isFinite(value) ? value : 0;
     };
 
-    let startRelativeDistance = readNumber("frame-dist-start-relative");
-    let endRelativeDistance = readNumber("frame-dist-end-relative");
+    const readRadio = (name) =>
+      document.querySelector(`input[name="${name}"]:checked`)?.value;
+
+    // El usuario escribe en la unidad activa del selector (units.js): tonf/m,
+    // kgf/cm, etc. El motor consume la carga distribuida en N/m, así que se
+    // convierte con cadUnits (1 tonf/m = 9806.65 N/m, 1 kgf/cm = 980.665 N/m…).
+    // Fallback a tonf/m (×9806.65) si el módulo de unidades no está disponible.
+    const dispUnit = window.cadUnits?.labels?.().distLoad || "tonf/m";
+    const toNPerM = (v) =>
+      typeof window.cadUnits?.distLoadDispToNPerM === "function"
+        ? window.cadUnits.distLoadDispToNPerM(v)
+        : (Number(v) || 0) * 9806.65;
+
+    const loadCase = document.getElementById("frame-dist-loadcase")?.value || "DEAD";
+    const loadType = readRadio("frame-dist-loadtype") || "force";
+    const direction = document.getElementById("frame-dist-direction")?.value || "Gravity";
+    const operation = readRadio("frame-dist-operation") || "replace";
+    const distanceType = readRadio("frame-dist-distance-type") || "relative";
+
+    // Uniform Load tiene prioridad; si es 0 se usa la tabla trapezoidal.
+    const uniformDisp = readNumber("frame-dist-uniform");
+
+    const dist = [
+      readNumber("frame-dist-d1"),
+      readNumber("frame-dist-d2"),
+      readNumber("frame-dist-d3"),
+      readNumber("frame-dist-d4"),
+    ];
+    const loadDisp = [
+      readNumber("frame-dist-l1"),
+      readNumber("frame-dist-l2"),
+      readNumber("frame-dist-l3"),
+      readNumber("frame-dist-l4"),
+    ];
+
+    let distributionType;
+    let startDistance;
+    let endDistance;
+    let startValueDisp;
+    let endValueDisp;
+
+    if (Math.abs(uniformDisp) > 0) {
+      // Carga uniforme sobre todo el tramo (End-I → End-J).
+      distributionType = "uniform";
+      startDistance = 0;
+      endDistance = 1;
+      startValueDisp = uniformDisp;
+      endValueDisp = uniformDisp;
+    } else {
+      // Trapezoidal: se toman los puntos extremos (1 y 4) de la tabla.
+      distributionType = "trapezoidal";
+      startDistance = dist[0];
+      endDistance = dist[3];
+      startValueDisp = loadDisp[0];
+      endValueDisp = loadDisp[3];
+    }
+
+    // Conversión de la unidad activa → N/m para el motor.
+    const startValue = toNPerM(startValueDisp);
+    const endValue = toNPerM(endValueDisp);
+
+    const isRelative = distanceType === "relative";
+
+    let startRelativeDistance = isRelative ? startDistance : 0;
+    let endRelativeDistance = isRelative ? endDistance : 1;
 
     startRelativeDistance = Math.max(0, Math.min(1, startRelativeDistance));
     endRelativeDistance = Math.max(0, Math.min(1, endRelativeDistance));
@@ -3187,30 +3823,27 @@ export const assignDialogsMixin = {
       id: `FDIST_${Date.now()}`,
       type: "distributed",
 
-      loadCase: document.getElementById("frame-dist-loadcase")?.value || "DEAD",
-
-      coordinateSystem: document.getElementById("frame-dist-csys")?.value || "Global",
-
-      operation: document.getElementById("frame-dist-operation")?.value || "replace",
-
-      loadType: document.getElementById("frame-dist-loadtype")?.value || "force",
-
-      direction: document.getElementById("frame-dist-direction")?.value || "FZ",
-
-      distributionType: document.getElementById("frame-dist-distribution")?.value || "uniform",
-
-      distanceType: document.getElementById("frame-dist-distance-type")?.value || "relative",
+      loadCase,
+      coordinateSystem: "Global",
+      operation,
+      loadType,
+      direction,
+      distributionType,
+      distanceType,
 
       startRelativeDistance,
       endRelativeDistance,
 
-      startAbsoluteDistance: readNumber("frame-dist-start-absolute"),
+      startAbsoluteDistance: isRelative ? 0 : startDistance,
+      endAbsoluteDistance: isRelative ? 0 : endDistance,
 
-      endAbsoluteDistance: readNumber("frame-dist-end-absolute"),
-
-      startValue: readNumber("frame-dist-start-value"),
-
-      endValue: readNumber("frame-dist-end-value"),
+      // Valores en N/m (unidad interna del motor). Se guarda también el valor
+      // en la unidad de display y su etiqueta por trazabilidad / edición futura.
+      startValue,
+      endValue,
+      startValueDisp,
+      endValueDisp,
+      displayUnit: dispUnit,
     };
   },
 
@@ -3381,8 +4014,243 @@ export const assignDialogsMixin = {
   },
 
   // =====================================================
+  // ASSIGN > FRAME > LOCAL AXES (ROTACIÓN)
+  // Rotación del eje local en planta. Para columnas rectangulares define
+  // hacia dónde apunta el peralte (eje fuerte Iz). El motor lo usa en
+  // _frameVecxzForSeismic; la vista en planta dibuja el rectángulo girado.
+  // =====================================================
+  async openAssignFrameLocalAxesDialog() {
+    const selectedFrames = this.getSelectedFramesForAssign();
+
+    if (!selectedFrames.length) {
+      this.showMessage?.("Selecciona primero una o más columnas / elementos Frame.", "warning");
+      return;
+    }
+
+    const current = Number(selectedFrames[0]?.localAxisAngle || 0);
+
+    const result = await Swal.fire({
+      title: "Frame Local Axes - Rotation",
+      width: 470,
+      background: "#1a2035",
+      color: "#e2e8f0",
+      confirmButtonColor: "#1d4ed8",
+      html: `
+        <div style="text-align:left; font-size:13px; color:#e2e8f0;">
+          <p style="color:#94a3b8; margin-bottom:14px;">
+            Ángulo de rotación del eje local en planta. En columnas rectangulares
+            define hacia dónde apunta el peralte (eje fuerte Iz). Positivo = antihorario.
+          </p>
+
+          <div style="display:flex; align-items:center; gap:10px;">
+            <label style="min-width:110px; font-weight:600;">Angle (deg)</label>
+            <input id="frame-localaxis-angle" type="number" step="1" value="${current}"
+              style="width:120px; padding:7px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px;">
+            <span style="color:#94a3b8;">°</span>
+          </div>
+
+          <div style="margin-top:14px; color:#94a3b8; font-size:12px;">
+            Frames seleccionados: <b>${selectedFrames.length}</b>. 90° intercambia el eje fuerte entre X e Y.
+          </div>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: "OK",
+      cancelButtonText: "Close",
+      preConfirm: () => {
+        const v = Number(document.getElementById("frame-localaxis-angle")?.value);
+        return { angle: Number.isFinite(v) ? v : 0 };
+      },
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    this.assignFrameLocalAxesToSelected(result.value.angle);
+  },
+
+  assignFrameLocalAxesToSelected(angle) {
+    const selectedFrames = this.getSelectedFramesForAssign();
+
+    if (!selectedFrames.length) {
+      this.showMessage?.("No hay elementos Frame seleccionados.", "warning");
+      return;
+    }
+
+    // Normaliza a [0, 360)
+    let a = Number(angle) || 0;
+    a = ((a % 360) + 360) % 360;
+
+    selectedFrames.forEach((frame) => {
+      frame.localAxisAngle = a;
+      frame.assignment = {
+        ...(frame.assignment || {}),
+        localAxisAngle: a,
+      };
+    });
+
+    this.markAnalysisResultsOutdated?.("Se modificó la rotación de eje local de un frame.");
+    this.redraw?.();
+
+    this.showMessage?.(`Rotación de eje local (${a}°) asignada a ${selectedFrames.length} frame(s).`);
+
+    console.log("✅ Frame Local Axes (rotación) asignado:", {
+      angle: a,
+      selectedFrames: selectedFrames.map((f) => f.id),
+    });
+  },
+
+  // =====================================================
   // ASSIGN > FRAME / LINE LOADS > TEMPERATURE
   // =====================================================
+
+  // Joint > Point Loads > Temperature
+  async openAssignJointTemperatureDialog() {
+    const selectedJoints = this.getSelectedJointsForAssign();
+
+    if (!selectedJoints.length) {
+      this.showMessage?.("Selecciona primero uno o más nodos / puntos.", "warning");
+      return;
+    }
+
+    const t = this.getUnifiedAssignTheme();
+
+    await Swal.fire({
+      title: "Joint Load Assignment - Temperature",
+      width: 620,
+      background: t.bg,
+      color: t.text,
+      showConfirmButton: false,
+      showCancelButton: false,
+      allowOutsideClick: false,
+      html: `
+      <div style="${this.getUnifiedAssignWrapperStyle()}">
+
+        <div style="${this.getUnifiedAssignSectionStyle()}; margin-bottom:12px;">
+          <label style="${this.getUnifiedAssignLabelStyle()}">Load Pattern Name</label>
+          <select id="joint-temp-loadpattern" style="${this.getUnifiedAssignFieldStyle()}">
+            ${this.buildLoadPatternOptionsHtml("CM")}
+          </select>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1.3fr 1fr; gap:12px; margin-bottom:12px;">
+          <fieldset style="${this.getUnifiedAssignFieldsetStyle()}">
+            <legend style="${this.getUnifiedAssignLegendStyle()}">Temperature</legend>
+            ${this.buildJointForceInputRow("Temperature", "joint-temp-value", 0, "C")}
+          </fieldset>
+
+          <fieldset style="${this.getUnifiedAssignFieldsetStyle()}">
+            <legend style="${this.getUnifiedAssignLegendStyle()}">Options</legend>
+
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; color:${t.text};">
+              <input type="radio" name="joint-temp-operation" value="add">
+              Add to Existing Values
+            </label>
+
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; color:${t.text};">
+              <input type="radio" name="joint-temp-operation" value="replace" checked>
+              Replace Existing Values
+            </label>
+
+            <label style="display:flex; align-items:center; gap:8px; color:${t.text};">
+              <input type="radio" name="joint-temp-operation" value="delete">
+              Delete Existing Values
+            </label>
+          </fieldset>
+        </div>
+
+        <div style="${this.getUnifiedAssignNoteStyle()}">
+          Nodos seleccionados: <b style="color:${t.text};">${selectedJoints.length}</b>
+        </div>
+
+        <div style="display:flex; justify-content:center; gap:14px; margin-top:18px;">
+          <button id="joint-temp-ok" style="${this.getUnifiedAssignButtonStyle("primary")}">OK</button>
+          <button id="joint-temp-close" style="${this.getUnifiedAssignButtonStyle("secondary")}">Close</button>
+          <button id="joint-temp-apply" style="${this.getUnifiedAssignButtonStyle("primary")}">Apply</button>
+        </div>
+      </div>
+    `,
+      didOpen: () => {
+        const applyAssignment = (shouldClose = false) => {
+          const load = this.readJointTemperatureFromDialog();
+          if (!load) return;
+
+          if (!this.isLoadPatternImplemented(load.loadCase)) {
+            this.showMessage?.(
+              `El patrón ${load.loadCase} existe como referencia ETABS, pero su implementación está pendiente.`,
+              "warning"
+            );
+            return;
+          }
+
+          this.assignJointTemperatureToSelected(load);
+          if (shouldClose) Swal.close();
+        };
+
+        document.getElementById("joint-temp-ok")?.addEventListener("click", () => applyAssignment(true));
+        document.getElementById("joint-temp-apply")?.addEventListener("click", () => applyAssignment(false));
+        document.getElementById("joint-temp-close")?.addEventListener("click", () => Swal.close());
+
+        const updateDeleteState = () => {
+          const operation =
+            document.querySelector('input[name="joint-temp-operation"]:checked')?.value || "replace";
+
+          const disabled = operation === "delete";
+          const input = document.getElementById("joint-temp-value");
+
+          if (input) {
+            input.disabled = disabled;
+            input.style.background = disabled ? t.disabledBg : t.panel;
+            input.style.color = disabled ? t.disabledText : t.text;
+          }
+        };
+
+        document.querySelectorAll('input[name="joint-temp-operation"]').forEach((radio) => {
+          radio.addEventListener("change", updateDeleteState);
+        });
+
+        updateDeleteState();
+      },
+    });
+  },
+
+  readJointTemperatureFromDialog() {
+    const readNumber = (id) => {
+      const value = Number(document.getElementById(id)?.value || 0);
+      return Number.isFinite(value) ? value : 0;
+    };
+
+    const tempValue = readNumber("joint-temp-value");
+
+    return {
+      id: `JTEMP_${Date.now()}`,
+      type: "temperature",
+
+      loadCase: document.getElementById("joint-temp-loadpattern")?.value || "CM",
+      loadPattern: document.getElementById("joint-temp-loadpattern")?.value || "CM",
+
+      operation:
+        document.querySelector('input[name="joint-temp-operation"]:checked')?.value || "replace",
+
+      temperature: {
+        value: tempValue,
+        deltaT: tempValue,
+        initialTemperature: 0,
+        finalTemperature: tempValue,
+      },
+    };
+  },
+
+  jointTemperatureHasValues(load) {
+    if (!load?.temperature) return false;
+
+    const t = load.temperature;
+
+    return (
+      Number(t.value || 0) !== 0 ||
+      Number(t.deltaT || 0) !== 0 ||
+      Number(t.initialTemperature || 0) !== Number(t.finalTemperature || 0)
+    );
+  },
 
   getDefaultFrameTemperatureLoad() {
     return {

@@ -4,7 +4,7 @@
     <div class="flex items-center px-2 py-1 gap-4 border-t border-gray-700">
         
         <div class="text-blue-400 font-bold text-sm px-2 whitespace-nowrap border-r border-gray-600">
-            ANALISIS 3D ESTRUCTURAL - v0.1.0-alpha
+           MENU ETABBS 3.0  
         </div>
 
         
@@ -527,6 +527,25 @@
 
                     
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Vista Extruida (3D)
+                    </div>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateViewMenuAction('toggle-extrude-frames')">
+                        <span x-text="cadSystem.options?.extrudeFrames3D ? '☑' : '☐'"></span>
+                        <span class="flex-1 min-w-0 truncate">Extruir Frames (Vigas / Columnas)</span>
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateViewMenuAction('toggle-extrude-shells')">
+                        <span x-text="cadSystem.options?.extrudeShells3D ? '☑' : '☐'"></span>
+                        <span class="flex-1 min-w-0 truncate">Extruir Shells (Losas)</span>
+                    </button>
+
+                    <div class="border-t border-gray-700 my-1"></div>
+
+                    
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
                         Zoom
                     </div>
 
@@ -983,11 +1002,54 @@
                         por Grupos...
                     </button>
 
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
-                        @click="cadSystem.selectByFrameSections()">
-                        <span>📐</span>
-                        por Secciones de Marco
-                    </button>
+                    
+                    <?php if (isset($component)) { $__componentOriginal004d07e9db4f299b47d6118b3775cb72 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal004d07e9db4f299b47d6118b3775cb72 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.menu-subitem','data' => ['label' => 'Propiedades']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.menu-subitem'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['label' => 'Propiedades']); ?>
+                        <span>📋</span>
+
+                         <?php $__env->slot('submenu', null, []); ?> 
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click="cadSystem.activateSelectMenuAction('select-prop-frame-sections')">
+                                <span>📐</span>
+                                Frame Sections...
+                            </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click="cadSystem.activateSelectMenuAction('select-prop-slab-sections')">
+                                <span>▭</span>
+                                Slab Sections...
+                            </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click="cadSystem.activateSelectMenuAction('select-prop-deck-sections')">
+                                <span>▤</span>
+                                Deck Sections...
+                            </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click="cadSystem.activateSelectMenuAction('select-prop-wall-sections')">
+                                <span>▮</span>
+                                Wall Sections...
+                            </button>
+                         <?php $__env->endSlot(); ?>
+                     <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal004d07e9db4f299b47d6118b3775cb72)): ?>
+<?php $attributes = $__attributesOriginal004d07e9db4f299b47d6118b3775cb72; ?>
+<?php unset($__attributesOriginal004d07e9db4f299b47d6118b3775cb72); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal004d07e9db4f299b47d6118b3775cb72)): ?>
+<?php $component = $__componentOriginal004d07e9db4f299b47d6118b3775cb72; ?>
+<?php unset($__componentOriginal004d07e9db4f299b47d6118b3775cb72); ?>
+<?php endif; ?>
 
                     <div class="border-t border-gray-700 my-1"></div>
 
@@ -1218,6 +1280,12 @@
                                 <span>📏</span>
                                 End (Length) Offsets...
                             </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateAssignMenuAction('frame-local-axes')">
+                                <span>🧭</span>
+                                Local Axes (Rotation)...
+                            </button>
                          <?php $__env->endSlot(); ?>
                      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -1427,14 +1495,6 @@
                         <span class="text-xs text-gray-500 italic">Options</span>
                     </button>
 
-                    
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
-                        @click.stop="cadSystem.openModalSpectralOptionsDialog()">
-                        <span>🌊</span>
-                        <span class="flex-1 truncate">Modal Spectral Options...</span>
-                        <span class="text-xs text-green-400 italic">7T</span>
-                    </button>
-
                     <div class="border-t border-gray-700 my-1"></div>
 
                     
@@ -1461,13 +1521,6 @@
                         <span>▶️</span>
                         <span class="flex-1 truncate">Run Analysis</span>
                         <span class="text-xs text-gray-500 italic">F5</span>
-                    </button>
-
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
-                        @click.stop="cadSystem.openModalSpectralAnalysisDialog()">
-                        <span>🌊</span>
-                        <span class="flex-1 truncate">Modal Spectral Analysis...</span>
-                        <span class="text-xs text-yellow-400 italic">Test</span>
                     </button>
 
                     
@@ -1608,7 +1661,7 @@
                         <span>📉</span>
                         <span class="flex-1 truncate">Show Frame Forces / Diagrams...</span>
                         <span class="text-xs text-cyan-400 italic">P, V2, V3, T, M2, M3</span>
-                    </button>   
+                    </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateDisplayMenuAction('show-modal-spectral-results')">
@@ -1666,6 +1719,19 @@
                         <span class="text-xs text-emerald-400 italic">‰</span>
                     </button>
 
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Tablas
+                    </div>
+
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateDisplayMenuAction('show-tables')">
+                        <span>📋</span>
+                        <span class="flex-1 truncate">Show Tables...</span>
+                        <span class="text-xs text-cyan-400 italic">Modelo</span>
+                    </button>
+
+                    <div class="border-t border-gray-700 my-1"></div>   
                 </div>
              <?php $__env->endSlot(); ?>
          <?php echo $__env->renderComponent(); ?>
