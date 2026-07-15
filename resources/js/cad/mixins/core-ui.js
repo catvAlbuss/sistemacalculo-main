@@ -46,6 +46,11 @@ export const coreUiMixin = {
       this.currentState.draw(this.currentRenderer, this);
     }
 
+    // Refresca la barra de estado de selección (estilo ETABS) — redraw() se
+    // dispara tras cambios de selección, así que bumpear el tick mantiene el
+    // label actualizado sin depender de la reactividad profunda del modelo.
+    this._selectionTick = (this._selectionTick || 0) + 1;
+
     if (window.babylonInitialized && window.babylonScene) {
       if (this._syncTimeout) clearTimeout(this._syncTimeout);
       this._syncTimeout = setTimeout(() => {

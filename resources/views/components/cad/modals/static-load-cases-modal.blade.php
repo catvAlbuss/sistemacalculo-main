@@ -9,7 +9,7 @@
     {{-- Modal Principal - Lista de Casos de Carga Estáticos --}}
     <div x-show="view === 'list'" x-cloak class="bg-gray-800 rounded-lg shadow-2xl w-[650px] border border-gray-700">
         <div class="px-4 py-3 border-b border-gray-700 bg-gray-900">
-            <h3 class="text-lg font-semibold text-white">Definir Nombres de Casos de Carga Estáticos</h3>
+            <h3 class="text-lg font-semibold text-white">Definir Patrones de Carga (Load Patterns)</h3>
             <button @click="close()" class="float-right text-gray-400 hover:text-white">✕</button>
         </div>
 

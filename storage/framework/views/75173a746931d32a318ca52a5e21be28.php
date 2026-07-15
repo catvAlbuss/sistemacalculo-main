@@ -1,4 +1,4 @@
-<?php if (! $__env->hasRenderedOnce('c2dde773-d3b7-40a6-b9cc-535f1bc056c3')): $__env->markAsRenderedOnce('c2dde773-d3b7-40a6-b9cc-535f1bc056c3');
+<?php if (! $__env->hasRenderedOnce('f4a99036-3185-4211-b9fe-60ae6caaea1c')): $__env->markAsRenderedOnce('f4a99036-3185-4211-b9fe-60ae6caaea1c');
 $__env->startPush('initscripts'); ?>
     <?php echo app('Illuminate\Foundation\Vite')('resources/js/analisis_estructural_de_armaduras.js'); ?>
 <?php $__env->stopPush(); endif; ?>
@@ -25,6 +25,26 @@ $__env->startPush('initscripts'); ?>
 <?php if (isset($__componentOriginal6daf3514aefd5c5674d0056447e18f58)): ?>
 <?php $component = $__componentOriginal6daf3514aefd5c5674d0056447e18f58; ?>
 <?php unset($__componentOriginal6daf3514aefd5c5674d0056447e18f58); ?>
+<?php endif; ?>
+    <?php if (isset($component)) { $__componentOriginal4b5e379039aff0e55fb4fe086f6ec50b = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal4b5e379039aff0e55fb4fe086f6ec50b = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.modals.my-models-modal','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.modals.my-models-modal'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal4b5e379039aff0e55fb4fe086f6ec50b)): ?>
+<?php $attributes = $__attributesOriginal4b5e379039aff0e55fb4fe086f6ec50b; ?>
+<?php unset($__attributesOriginal4b5e379039aff0e55fb4fe086f6ec50b); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal4b5e379039aff0e55fb4fe086f6ec50b)): ?>
+<?php $component = $__componentOriginal4b5e379039aff0e55fb4fe086f6ec50b; ?>
+<?php unset($__componentOriginal4b5e379039aff0e55fb4fe086f6ec50b); ?>
 <?php endif; ?>
     <!-- Se Agrego el modal de grid -->
     <?php if (isset($component)) { $__componentOriginal10074ea6e2498d0a9fd9f1711561b84c = $component; } ?>

@@ -94,6 +94,50 @@ export const selectionMixin = {
     return this.getSelectableObjects().filter((obj) => obj.selected === true);
   },
 
+  // ─── Barra de estado de selección (estilo ETABS) ──────────────────────────
+  // Devuelve el texto "N Nodos, M Frames, K Losas seleccionados". Si están los
+  // 3 tipos seleccionados a la vez, agrega los nombres de los objetos.
+  // Se re-evalúa vía _selectionTick (lo bumpea redraw()).
+  getSelectionStatusLabel() {
+    void this._selectionTick; // dependencia reactiva para Alpine
+
+    const isSlab = (a) => {
+      const t = String(a?.type ?? a?.areaType ?? "").toLowerCase();
+      return /slab|losa|floor|deck/.test(t) || (!/wall|muro|opening|abertura/.test(t) && t !== "");
+    };
+
+    const nodes = (this.nodes || []).filter((n) => n && n.selected === true);
+    const frames = (this.shapes || []).filter((f) => f && f.selected === true);
+    const slabs = (this.areas || []).filter((a) => a && a.selected === true && isSlab(a));
+
+    const total = nodes.length + frames.length + slabs.length;
+    if (total === 0) return "";
+
+    const plural = (n) => (n !== 1 ? "s" : "");
+    const parts = [];
+    if (nodes.length) parts.push(`${nodes.length} Nodo${plural(nodes.length)}`);
+    if (frames.length) parts.push(`${frames.length} Frame${plural(frames.length)}`);
+    if (slabs.length) parts.push(`${slabs.length} Losa${plural(slabs.length)}`);
+
+    let text = `${parts.join(", ")} seleccionado${plural(total)}`;
+
+    // Si están los 3 tipos seleccionados → mostrar los nombres de los objetos.
+    // if (nodes.length && frames.length && slabs.length) {
+    //   const nameOf = (o, prefix) => String(o.name ?? o.label ?? `${prefix}${o.id}`);
+    //   const names = [
+    //     ...nodes.map((n) => nameOf(n, "N")),
+    //     ...frames.map((f) => nameOf(f, "F")),
+    //     ...slabs.map((s) => nameOf(s, "L")),
+    //   ];
+    //   const CAP = 20;
+    //   const shown = names.slice(0, CAP).join(", ");
+    //   const extra = names.length > CAP ? ` … (+${names.length - CAP} más)` : "";
+    //   text += ` — ${shown}${extra}`;
+    // }
+
+    return text;
+  },
+
   setObjectSelected(obj, selected = true) {
     if (!obj) return;
 

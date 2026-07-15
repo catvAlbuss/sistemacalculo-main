@@ -90,35 +90,6 @@ export const seismicMixin = {
         <fieldset style="border:1px solid #555; border-radius:6px; padding:10px 14px; margin-bottom:12px">
           <legend style="padding:0 6px; color:#7eb8f7; font-size:12px; font-weight:600">Espectros de Diseño</legend>
 
-          <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px">
-            <label style="width:90px; color:#ccc">Dirección X:</label>
-            <span id="spx-label" style="flex:1; color:${cfg.spectrumX.length ? '#7fc77f' : '#aaa'}">
-              ${cfg.spectrumX.length ? `${cfg.spectrumX.length} puntos cargados` : 'Sin espectro'}
-            </span>
-            <button id="btn-import-x" style="background:#2d5a8e; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:12px">
-              Importar...
-            </button>
-          </div>
-
-          <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px">
-            <label style="width:90px; color:#ccc">Dirección Y:</label>
-            <span id="spy-label" style="flex:1; color:${cfg.spectrumY.length ? '#7fc77f' : '#aaa'}">
-              ${cfg.spectrumY.length ? `${cfg.spectrumY.length} puntos cargados` : 'Usar mismo que X'}
-            </span>
-            <button id="btn-import-y" style="background:#2d5a8e; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:12px">
-              Importar...
-            </button>
-          </div>
-
-          <div style="display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-bottom:8px">
-            <button id="btn-default-spectrum" style="background:#0f766e; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:11px">
-              Usar espectro por defecto
-            </button>
-            <button id="btn-clear-spectrum" style="background:#7f1d1d; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:11px">
-              Limpiar
-            </button>
-          </div>
-
           <!-- Nota: qué casos se correrán (el gráfico muestra sus espectros) -->
           <div id="seis-runcases-note" style="color:#94a3b8; font-size:11px; margin:6px 0 2px"></div>
 
@@ -644,6 +615,8 @@ export const seismicMixin = {
             spectrumY: rc.spectrumY || [],
             combination: rc.combination,
             dampingRatio: rc.dampingRatio,
+            // Excentricidad accidental E.030 del caso (input del diálogo del caso RS).
+            eccRatio: rc.eccRatio ?? 0,
             // Casos ETABS: espectro ya pre-escalado a m/s² (saInG=false) → el motor
             // no re-multiplica por g. Fallback: función en g → saInG=cfg.saInG.
             saInG: rc.saInG ?? cfg.saInG,
@@ -813,6 +786,9 @@ export const seismicMixin = {
         id: c.id, name: c.name, direction,
         spectrumX: sx, spectrumY: sy.length >= 2 ? sy : null,
         combination: combOf(c), dampingRatio: dampOf(c),
+        // Excentricidad accidental E.030 del caso (input "Ecc. Ratio (All Diaph.)"
+        // del diálogo del caso RS, como ETABS ECCENRATIOTYPICAL). 0 = desactivada.
+        eccRatio: Number(c.eccRatio) || 0,
         // El scaleFactor del caso ETABS YA incluye g (p.ej. 9.81 = 1.0·g, igual
         // que ETABS usa 9810 = 1.0·g en mm). Por eso aquí el espectro queda en
         // m/s², y el motor NO debe volver a multiplicar por g → saInG:false.
@@ -834,6 +810,7 @@ export const seismicMixin = {
       spectrumY: (cfg.spectrumY && cfg.spectrumY.length) ? cfg.spectrumY : null,
       combination: cfg.combination || "CQC",
       dampingRatio: cfg.dampingRatio ?? 0.05,
+      eccRatio: 0, // el diálogo simple no define excentricidad (es por-caso RS)
       saInG: cfg.saInG,
     }];
   },
@@ -1217,6 +1194,45 @@ export const seismicMixin = {
 
   _buildSeismicMassSourceForPayload() {
     const massSource = this._normalizeSeismicMassSource(this.massSource);
+
+    // ── Peso propio estilo ETABS: lo controla el "Multiplicador de Peso Propio"
+    // de los Load Patterns (Define ▸ Load Patterns, modal static-load-cases), NO
+    // un check aparte. El motor recibe un multiplicador EFECTIVO de peso propio =
+    // Σ (factor del Mass Source × SWM del patrón). Así el Mass Source solo SUMA
+    // cargas (como ETABS INCLUDEELEMENTS "No") y el peso propio entra por CM
+    // (SWM=1), sin doble conteo.
+    // El store real de los Load Patterns es `staticLoadCases.items` (cada item con
+    // `selfWeightMultiplier`); fallback al legacy `loadCases.cases` (check+value).
+    // Solo se sobrescribe cuando al menos un patrón del Mass Source COINCIDE por
+    // nombre con un Load Pattern (evita romper modelos con stores inconsistentes).
+    const items =
+      (Array.isArray(this.staticLoadCases?.items) && this.staticLoadCases.items.length
+        ? this.staticLoadCases.items
+        : (Array.isArray(this.loadCases?.cases) ? this.loadCases.cases : []));
+    const msPatterns = massSource.loadPatterns || massSource.loadMultipliers || [];
+    if (items.length && msPatterns.length) {
+      const swmOf = (c) => {
+        if (!c) return 0;
+        if (c.selfWeightMultiplier !== undefined) return Number(c.selfWeightMultiplier) || 0;
+        if (c.selfWeight !== undefined) return c.selfWeight ? (Number(c.value ?? 1) || 0) : 0;
+        return 0;
+      };
+      let eff = 0;
+      let matched = false;
+      msPatterns.forEach((p) => {
+        const name = String(p.name || p.load || "").trim();
+        const item = items.find((x) => String(x.name).trim() === name);
+        if (item) {
+          matched = true;
+          eff += (Number(p.factor ?? p.multiplier ?? 0) || 0) * swmOf(item);
+        }
+      });
+      if (matched) {
+        massSource.selfWeightMultiplier = eff;
+        massSource.includeSelfWeight = eff > 0;
+        massSource.elementSelfMass = eff > 0;
+      }
+    }
 
     // Guardamos una copia normalizada en el sistema para depuración.
     this.massSource = this._cloneForSeismicPayload(massSource, massSource);
@@ -2539,6 +2555,11 @@ export const seismicMixin = {
       damping_ratio: cfg.dampingRatio,
       sa_in_g: cfg.saInG,
       g: cfg.g,
+
+      // Torsión accidental E.030 (opt-in, método estático aditivo). 0 = desactivada.
+      // Viene del "Ecc. Ratio (All Diaph.)" del CASO RS (como ETABS ECCENRATIOTYPICAL),
+      // no de un control global → una sola fuente de verdad, por caso.
+      accidentalEccentricity: Number(cfg.eccRatio) || 0,
     };
 
     if (cfg.spectrumY && cfg.spectrumY.length > 0) {

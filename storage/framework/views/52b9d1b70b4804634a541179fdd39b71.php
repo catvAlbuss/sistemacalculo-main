@@ -1,6 +1,6 @@
 
 <!-- Canvas - Vista dividida 2D + 3D -->
-<main class="relative flex basis-3/4 flex-col bg-white">
+<main class="relative flex basis-5/6 flex-col bg-white">
   <input class="absolute w-28 -translate-x-1/2 -translate-y-1/2 z-10" id="distance" name="distance" type="number"
     x-show="currentState === trussDrawingState && currentState.shape.node1" x-ref="distanceInput"
     @keyup.enter="trussDrawingState.createBeam($data)">
@@ -165,6 +165,17 @@
 <?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
 <?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
 <?php endif; ?>
+
+
+    </div>
+
+    
+    <div class="flex flex-row items-center pr-3">
+      <span
+        x-show="getSelectionStatusLabel() !== ''"
+        x-text="getSelectionStatusLabel()"
+        :title="getSelectionStatusLabel()"
+        class="text-xs text-white font-mono truncate max-w-[520px]"></span>
     </div>
   </div>
 
