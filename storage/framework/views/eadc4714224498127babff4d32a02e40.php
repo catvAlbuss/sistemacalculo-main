@@ -22,7 +22,7 @@
 <?php endif; ?>
   <div class="cad-border flex items-center overflow-x-auto overflow-y-hidden border-b px-2">
     <!-- Add more toolbar buttons as needed -->
-    <span class="cad-text-logo-color w-48 text-sm font-bold italic">ETABBS 3.0</span>
+    <span class="cad-text-logo-color w-48 text-sm font-bold italic">BARRA DE HERRAMIENTAS</span>
     <!-- -------------------------APARTADO DE DISEÑAR-------------------------- -->
     <?php if (isset($component)) { $__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31 = $attributes; } ?>

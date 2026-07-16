@@ -3,7 +3,7 @@
   <x-cad.menu-bar />
   <div class="cad-border flex items-center overflow-x-auto overflow-y-hidden border-b px-2">
     <!-- Add more toolbar buttons as needed -->
-    <span class="cad-text-logo-color w-48 text-sm font-bold italic">ETABBS 3.0</span>
+    <span class="cad-text-logo-color w-48 text-sm font-bold italic">BARRA DE HERRAMIENTAS</span>
     <!-- -------------------------APARTADO DE DISEÑAR-------------------------- -->
     <x-cad.ribbon-group title="Diseñar">
       <x-cad.ribbon-button clickHandler="openNewModelDialog()" toggle="false" label="Nuevo Modelo">

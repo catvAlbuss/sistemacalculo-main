@@ -330,14 +330,14 @@
                         <div class="flex flex-row justify-between">
                             <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'moveObjectState.selectedObject && (moveObjectState.selectedObject.soporte = \'\')','toggle' => 'moveObjectState.selectedObject?.soporte === \'\'','label' => '','class' => 'cad-ribbon-button-hover-bg transition-colors duration-200 p-2 rounded']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'cadSystem.clearJointSupportAssignments(moveObjectState.selectedObject)','toggle' => 'moveObjectState.selectedObject?.soporte === \'\'','label' => '','class' => 'cad-ribbon-button-hover-bg transition-colors duration-200 p-2 rounded']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('cad.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['clickHandler' => 'moveObjectState.selectedObject && (moveObjectState.selectedObject.soporte = \'\')','toggle' => 'moveObjectState.selectedObject?.soporte === \'\'','label' => '','class' => 'cad-ribbon-button-hover-bg transition-colors duration-200 p-2 rounded']); ?>
+<?php $component->withAttributes(['clickHandler' => 'cadSystem.clearJointSupportAssignments(moveObjectState.selectedObject)','toggle' => 'moveObjectState.selectedObject?.soporte === \'\'','label' => '','class' => 'cad-ribbon-button-hover-bg transition-colors duration-200 p-2 rounded']); ?>
                                 <div class="flex flex-col items-center">
                                     <?php if (isset($component)) { $__componentOriginal9cc99d2f7e4fb901b1869ed11f23383b = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal9cc99d2f7e4fb901b1869ed11f23383b = $attributes; } ?>
@@ -612,18 +612,19 @@
                     <div class="row flex">
                         <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'currentState.selectedObjects.forEach((n) => {
-                                      n.soporte = \'\';
-                                  });selected = \'\'','toggle' => 'selected === \'\'','label' => '']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'cadSystem.clearJointSupportAssignments(
+        Array.from(currentState.selectedObjects || [])
+    ); selected = \'\'','toggle' => 'selected === \'\'','label' => '']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('cad.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['clickHandler' => 'currentState.selectedObjects.forEach((n) => {
-                                      n.soporte = \'\';
-                                  });selected = \'\'','toggle' => 'selected === \'\'','label' => '']); ?><?php if (isset($component)) { $__componentOriginal9cc99d2f7e4fb901b1869ed11f23383b = $component; } ?>
+<?php $component->withAttributes(['clickHandler' => 'cadSystem.clearJointSupportAssignments(
+        Array.from(currentState.selectedObjects || [])
+    ); selected = \'\'','toggle' => 'selected === \'\'','label' => '']); ?>
+                            <?php if (isset($component)) { $__componentOriginal9cc99d2f7e4fb901b1869ed11f23383b = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal9cc99d2f7e4fb901b1869ed11f23383b = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.svg.sinsoporte','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('cad.svg.sinsoporte'); ?>
@@ -641,7 +642,8 @@
 <?php if (isset($__componentOriginal9cc99d2f7e4fb901b1869ed11f23383b)): ?>
 <?php $component = $__componentOriginal9cc99d2f7e4fb901b1869ed11f23383b; ?>
 <?php unset($__componentOriginal9cc99d2f7e4fb901b1869ed11f23383b); ?>
-<?php endif; ?> <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+                         <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
 <?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>

@@ -4,12 +4,12 @@ use App\Livewire\Actions\Logout;
 
 ?>
 
-<?php if (! $__env->hasRenderedOnce('3930b148-da69-4cb6-add4-685127106a6c')): $__env->markAsRenderedOnce('3930b148-da69-4cb6-add4-685127106a6c');
+<?php if (! $__env->hasRenderedOnce('366c376f-2089-4a0a-a516-a8be0327f56d')): $__env->markAsRenderedOnce('366c376f-2089-4a0a-a516-a8be0327f56d');
 $__env->startPush('initscripts'); ?>
     <?php echo app('Illuminate\Foundation\Vite')('resources/js/navigation.js'); ?>
 <?php $__env->stopPush(); endif; ?>
 
-<?php if (! $__env->hasRenderedOnce('a7986f07-cd32-4bde-a6fc-ecfa88933d20')): $__env->markAsRenderedOnce('a7986f07-cd32-4bde-a6fc-ecfa88933d20');
+<?php if (! $__env->hasRenderedOnce('0a0790dc-3d8f-48c5-89f2-77c4aa93b9f9')): $__env->markAsRenderedOnce('0a0790dc-3d8f-48c5-89f2-77c4aa93b9f9');
 $__env->startPush('scripts'); ?>
     <script type="text/javascript" src="https://www.geogebra.org/apps/deployggb.js"></script>
 <?php $__env->stopPush(); endif; ?>
@@ -877,7 +877,11 @@ $__env->startPush('scripts'); ?>
                                 'url' => route('software.analisis-estructural-de-armaduras'),
                                 'label' => 'Analisis Estructural',
                             ],
-                            ['url' => route('software.etabs2'), 'label' => 'Etabs 2'],
+                            ['url' => route('software.etabs2'), 'label' => 'Predim 2'],
+                            [
+                                'url' => route('calculadora.asistente.muros-de-contencionv2'),
+                                'label' => 'Muros de Contencion V2',
+                            ],
                         ]]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('dropdown-sub'); ?>
 <?php if ($component->shouldRender()): ?>
@@ -894,7 +898,11 @@ $__env->startPush('scripts'); ?>
                                 'url' => route('software.analisis-estructural-de-armaduras'),
                                 'label' => 'Analisis Estructural',
                             ],
-                            ['url' => route('software.etabs2'), 'label' => 'Etabs 2'],
+                            ['url' => route('software.etabs2'), 'label' => 'Predim 2'],
+                            [
+                                'url' => route('calculadora.asistente.muros-de-contencionv2'),
+                                'label' => 'Muros de Contencion V2',
+                            ],
                         ])]); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal811a1e27e202fca2f58dcc131dfb2e96)): ?>
@@ -1923,6 +1931,10 @@ $__env->startPush('scripts'); ?>
                     ['url' => route('software.cimentacion-v2'), 'label' => 'Cimentacion v2.0'],
                     ['url' => route('software.analisis-estructural-de-armaduras'), 'label' => 'Analisis Estructural'],
                     ['url' => route('software.etabs2'), 'label' => 'Etabs 2'],
+                    [
+                        'url' => route('calculadora.asistente.muros-de-contencionv2'),
+                        'label' => 'Muros de Contencion V2',
+                    ],
                 ]]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('dropdown-sub'); ?>
 <?php if ($component->shouldRender()): ?>
@@ -1937,6 +1949,10 @@ $__env->startPush('scripts'); ?>
                     ['url' => route('software.cimentacion-v2'), 'label' => 'Cimentacion v2.0'],
                     ['url' => route('software.analisis-estructural-de-armaduras'), 'label' => 'Analisis Estructural'],
                     ['url' => route('software.etabs2'), 'label' => 'Etabs 2'],
+                    [
+                        'url' => route('calculadora.asistente.muros-de-contencionv2'),
+                        'label' => 'Muros de Contencion V2',
+                    ],
                 ])]); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal811a1e27e202fca2f58dcc131dfb2e96)): ?>

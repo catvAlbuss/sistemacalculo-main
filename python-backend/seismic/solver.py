@@ -54,6 +54,7 @@ __all__ = [
     "run_frame_force_results",
     "run_joint_reactions_rsa",
     "run_accidental_torsion_rsa",
+    "run_shifted_cm_torsion_rsa",
     "run_modal_analysis",
     "run_rsa",
     "run_static_analysis",
@@ -855,6 +856,171 @@ def run_accidental_torsion_rsa(
         "damping_ratio": damping_ratio,
     }
 
+def run_shifted_cm_torsion_rsa(
+    data: dict,
+    spectrum: list,
+    direction: str = "x",
+    combination: str = "CQC",
+    damping_ratio: float = 0.05,
+    sa_in_g: bool = True,
+    g: float = 9.81,
+    ecc_ratio: float = 0.05,
+    num_modes: int = 12,
+    sign: int = 1,
+) -> dict:
+    """
+    Torsión accidental E.030/ETABS por DESPLAZAMIENTO DEL CENTRO DE MASA: en vez
+    de sumar un momento estático sobre los modos SIN excentricidad (como
+    `run_accidental_torsion_rsa`), se REDISTRIBUYE la masa nodal del diafragma
+    (sin tocar posiciones ni elementos) para que el centroide de masa quede
+    desplazado ±e = ecc_ratio·B_perp, perpendicular a `direction`, y se vuelve a
+    correr el MODAL COMPLETO con esa masa. Así los periodos y formas modales
+    capturan el acoplamiento torsión-traslación real de la excentricidad, no una
+    respuesta estática montada sobre los modos base.
+
+    Intento previo descartado (documentado por si se reintenta): mover el punto
+    de referencia (nodo maestro) del `rigidDiaphragm` en vez de la masa. Se
+    comprobó EMPÍRICAMENTE que es un NO-OP: los periodos salían IDÉNTICOS sin
+    importar ecc_ratio (0.05 vs 0.25 daban los mismos 15+ dígitos). Motivo: para
+    un cuerpo rígido ya perfectamente amarrado, el punto que se declara como
+    "maestro" es solo un cambio de coordenadas para describir las MISMAS 3 DOF
+    físicas (Ux, Uy, Rz) — un cambio de base no puede alterar los autovalores de
+    un sistema físico. La masa real (en los nodos esclavos) nunca se movía. Para
+    que el acoplamiento traslación-rotación cambie de verdad hay que cambiar la
+    distribución FÍSICA de masa, no la referencia cinemática.
+
+    Redistribución (por grupo de diafragma, en la coordenada perpendicular a
+    `direction`, p = y si direction="x", p = x si direction="y"):
+        Δm_i = m_i · sign·e·(p_i − p_cm) / I_mass,   I_mass = Σ m_i·(p_i−p_cm)²
+        m_i' = m_i + Δm_i
+    Por construcción Σm_i' = Σm_i (masa total preservada, Σm_i·(p_i−p_cm)=0 por
+    definición de centroide) y el nuevo centroide pesado da exactamente p_cm+e.
+    Es la forma estándar de "excentricidad de masa" sin mover nodos ni masa
+    total. Solo se REDISTRIBUYE mx/my (mismo factor en ambos ejes, es la misma
+    masa física); mz no se toca.
+
+    `sign` = +1 o -1: hay que llamar dos veces (una por signo) y envolver
+    (máximo) con la base en `_compute_story_drifts` (mode="envelope") — así lo
+    hace ETABS con la excentricidad, no se suma a un caso sin excentricidad.
+
+    AISLADO: usa un `data` COPIADO (nodes con masa ajustada), no modifica el
+    original. Requiere un modal fresco (`run_modal_analysis`) → destruye el
+    estado eigen del modelo base, igual que `run_accidental_torsion_rsa`: el
+    pipeline debe restaurarlo después (build_model_3d + run_modal_analysis sobre
+    el modelo original) por la misma razón ya documentada ahí.
+
+    Devuelve un dict con la forma de `run_rsa()` (modal_node_disps_x/_y,
+    node_ids, omegas, damping_ratio) YA sobre el modelo CON excentricidad — se
+    usa DIRECTO para esa variante (no es un delta a sumar). {} si no aplica
+    (sin OpenSees, sin excentricidad, o sin diafragmas rotantes).
+    """
+    if ops is None or ecc_ratio <= 0:
+        return {}
+
+    # 1) Construir una vez el modelo BASE (sin copiar) solo para leer los grupos
+    # de diafragma que rotan y la masa nodal efectiva (Mass Source ya resuelto).
+    build_model_3d(data)
+    applied = (data.get("_rigid_diaphragm_report") or {}).get("applied") or []
+    rotating = [grp for grp in applied if grp.get("method") == "rigidDiaphragm_z"]
+    if not rotating:
+        return {}
+
+    node_by_id = {}
+    for nd in data.get("nodes", []) or []:
+        try:
+            node_by_id[int(nd["id"])] = nd
+        except Exception:
+            continue
+
+    # Copia SUPERFICIAL de la lista + copia de los dicts de los nodos que se
+    # van a tocar (no mutar los nodos del `data` original).
+    scaled_by_id = {}
+
+    for grp in rotating:
+        nids = [int(x) for x in grp.get("node_ids", []) or []]
+        members = [node_by_id[i] for i in nids if i in node_by_id]
+        if not members:
+            continue
+
+        def node_mass(nd):
+            mx = float(nd.get("_effective_mass_x", 0.0) or 0.0)
+            my = float(nd.get("_effective_mass_y", 0.0) or 0.0)
+            return max(mx, my, 0.0)
+
+        masses = [node_mass(m) for m in members]
+        xs = [float(m.get("x", 0.0)) for m in members]
+        ys = [float(m.get("y", 0.0)) for m in members]
+        wsum = sum(masses)
+        if wsum <= 1e-9:
+            continue  # sin masa resuelta en el grupo: no hay centroide que desplazar
+
+        x_cm = sum(w * x for w, x in zip(masses, xs)) / wsum
+        y_cm = sum(w * y for w, y in zip(masses, ys)) / wsum
+
+        b_perp = (max(ys) - min(ys)) if direction == "x" else (max(xs) - min(xs))
+        if b_perp <= 1e-9:
+            continue
+        e = ecc_ratio * b_perp
+
+        positions = ys if direction == "x" else xs
+        p_cm = y_cm if direction == "x" else x_cm
+        i_mass = sum(w * (p - p_cm) ** 2 for w, p in zip(masses, positions))
+        if i_mass <= 1e-9:
+            continue  # todos los nodos en la misma línea perpendicular: no hay brazo
+
+        # Δmᵢ = mᵢ·sign·e·M·(pᵢ−p_cm)/I_mass. El factor M (masa total del grupo)
+        # es OBLIGATORIO: el momento de masa que desplaza el centroide e metros
+        # es M·e, no e. Sin él, Σ Δmᵢ·(pᵢ−p_cm)=e → desplazamiento real e/M
+        # (micras con pisos de ~80 t) → efecto 0.0% (bug detectado en el modelo
+        # L real: las 4 variantes corrían pero aportaban exactamente nada).
+        for nd, w, p in zip(members, masses, positions):
+            factor = 1.0 + sign * e * wsum * (p - p_cm) / i_mass
+            factor = max(factor, 0.0)  # no permitir masa negativa
+            nid = int(nd["id"])
+            new_mx = float(nd.get("_effective_mass_x", 0.0) or 0.0) * factor
+            new_my = float(nd.get("_effective_mass_y", 0.0) or 0.0) * factor
+            scaled_by_id[nid] = (new_mx, new_my)
+
+    if not scaled_by_id:
+        return {}
+
+    # TODOS los nodos pasan su masa efectiva YA RESUELTA (self-weight + Mass
+    # Source + manual, del build base del paso 1) como masa manual, y se
+    # desactiva el Mass Source para esta corrida aislada — si no, build_model_3d
+    # recalcularía el auto y lo SUMARÍA de nuevo encima (masa duplicada). Los
+    # nodos del grupo excéntrico llevan la versión REDISTRIBUIDA (scaled_by_id);
+    # el resto del edificio (otros pisos, etc.) conserva su masa tal cual, no
+    # solo el grupo tocado (si no, el resto del edificio quedaría sin masa).
+    variant_nodes = []
+    for nd in data.get("nodes", []) or []:
+        nid = int(nd.get("id"))
+        nd2 = dict(nd)
+        if nid in scaled_by_id:
+            nd2["mass_x"], nd2["mass_y"] = scaled_by_id[nid]
+        else:
+            nd2["mass_x"] = float(nd.get("_effective_mass_x", 0.0) or 0.0)
+            nd2["mass_y"] = float(nd.get("_effective_mass_y", 0.0) or 0.0)
+        nd2["mass_z"] = float(nd.get("_effective_mass_z", 0.0) or 0.0)
+        variant_nodes.append(nd2)
+
+    data_variant = dict(data)
+    data_variant["nodes"] = variant_nodes
+    mass_source_variant = dict(data.get("massSource") or data.get("mass_source") or {})
+    mass_source_variant["enabled"] = False
+    mass_source_variant["include_self_weight"] = False
+    data_variant["massSource"] = mass_source_variant
+    data_variant["mass_source"] = mass_source_variant
+
+    build_model_3d(data_variant)
+    modal_variant = run_modal_analysis(data_variant["nodes"], num_modes)
+    if not modal_variant or not modal_variant.get("modal_info"):
+        return {}
+
+    return run_rsa(
+        modal_variant, spectrum, direction=direction, combination=combination,
+        damping_ratio=damping_ratio, sa_in_g=sa_in_g, g=g,
+    )
+
 def _compute_story_accelerations(data: dict, nodes: list, seismic: dict) -> dict:
     """
     Aceleraciones absolutas por piso (RSA), estilo ETABS.
@@ -1191,10 +1357,21 @@ def _compute_story_drifts(data: dict, nodes: list, seismic: dict, accidental: di
     """
     Calcula derivas de piso a partir de los desplazamientos RSA.
 
-    `accidental` (opt-in): dict {"x": rsa_acc, "y": rsa_acc} con la contribución de
-    TORSIÓN ACCIDENTAL por modo (de run_accidental_torsion_rsa). Si es None (default)
-    el cálculo es idéntico al histórico. Si viene, su deriva se SUMA a la base
-    (método estático aditivo) y se reportan `drift_*_base_m` / `drift_*_accidental_m`.
+    `accidental` (opt-in): TORSIÓN ACCIDENTAL. Si es None (default) el cálculo es
+    idéntico al histórico. Tres formas según `accidental.get("mode")`:
+      - "both" (default del pipeline): {"mode":"both", "cm": {...como envelope},
+        "add": {...como aditiva}} → deriva final = MÁXIMO(base, envolvente CM±e,
+        base + aditiva). Cubre la cancelación CQC del CM±e (modos acoplados de
+        frecuencia cercana) con el torque estático, y viceversa.
+      - "envelope" (CM±e solo — de run_shifted_cm_torsion_rsa): dict
+        {"mode":"envelope", "x":{"plus":rsa,"minus":rsa}, "y":{...}} con el
+        modelo re-corrido con la masa del diafragma redistribuida ±e. La
+        deriva final es el ENVOLVENTE (máximo) entre la base y ambas variantes.
+      - aditiva (de run_accidental_torsion_rsa): dict {"x": rsa_acc,
+        "y": rsa_acc} con la contribución por modo SOBRE los modos base; se
+        SUMA a la deriva base.
+    En ambos casos se reportan `drift_*_base_m` / `drift_*_accidental_m` (esta
+    última = el incremento sobre la base, sea por suma o por envolvente).
 
     Deriva por dirección = CQC de las derivas modales por línea de nodos, máximo
     entre líneas (ver _cqc_modal_story_drift). Si no hay datos por modo, cae al
@@ -1319,25 +1496,87 @@ def _compute_story_drifts(data: dict, nodes: list, seismic: dict, accidental: di
             drift_y_signed = uy_upper - uy_lower
             drift_y = abs(drift_y_signed)
 
-        # ── Torsión accidental (opt-in, aditiva) ──────────────────────────────
-        # Deriva accidental por dirección = SRSS de la respuesta accidental de
-        # ambas excitaciones (igual criterio direccional que la base). Se SUMA a
-        # la deriva base. Sin `accidental` → dax=day=0 (comportamiento histórico).
+        # ── Torsión accidental (opt-in) ───────────────────────────────────────
+        # Dos métodos, seleccionados por accidental.get("mode"):
+        #  - "additive" (histórico): la deriva accidental (SRSS de ambas
+        #    excitaciones, de run_accidental_torsion_rsa) se SUMA a la base.
+        #  - "envelope" (CM±e, método ETABS): accidental["x"/"y"] traen variantes
+        #    {"plus":rsa,"minus":rsa} sobre un modelo con el nodo maestro del
+        #    diafragma desplazado ±e = eccRatio·B_perp (de
+        #    run_shifted_cm_torsion_rsa). La deriva final es el ENVOLVENTE
+        #    (máximo) entre la base y ambas variantes — reemplaza la base, no se
+        #    suma (así lo hace ETABS: la excentricidad IES la condición de
+        #    análisis, no un extra sobre el caso sin excentricidad).
+        #    Simplificación documentada: el acoplamiento ortogonal (p.ej. la
+        #    componente Y de la deriva X) se toma de la base SIN excentricidad
+        #    cruzada (no se desplaza el CM en la dirección ortogonal a la vez) —
+        #    evita 4 variantes cruzadas adicionales por dirección.
+        # Sin `accidental` → deriva idéntica a la histórica.
         drift_x_base = drift_x
         drift_y_base = drift_y
         dax = 0.0
         day = 0.0
         if accidental:
-            acc_x = accidental.get("x") or {}
-            acc_y = accidental.get("y") or {}
-            ax_from_x = _cqc_modal_story_drift(acc_x, node_coord, lower, upper, height, "x")
-            ax_from_y = _cqc_modal_story_drift(acc_y, node_coord, lower, upper, height, "x")
-            ay_from_y = _cqc_modal_story_drift(acc_y, node_coord, lower, upper, height, "y")
-            ay_from_x = _cqc_modal_story_drift(acc_x, node_coord, lower, upper, height, "y")
-            dax = _srss(ax_from_x, ax_from_y) or 0.0
-            day = _srss(ay_from_y, ay_from_x) or 0.0
-            drift_x = drift_x_base + dax
-            drift_y = drift_y_base + day
+            # "both" (default actual): máximo entre base, CM±e y base+aditivo.
+            # Motivo (validado vs ETABS, modelo simétrico 2026-07-15): el CM±e
+            # sufre CANCELACIÓN CQC cuando el modo traslacional queda con
+            # frecuencia muy cercana al torsional (los modos acoplados se
+            # correlacionan y la torsión se anula → +0% donde ETABS da +22%);
+            # el aditivo (torque estático, como ETABS) no se cancela nunca pero
+            # subestima el acoplamiento real en plantas irregulares. La
+            # envolvente de ambos cubre los dos regímenes.
+            _mode = accidental.get("mode") or "additive"
+            cm_part = (
+                accidental.get("cm") if _mode == "both"
+                else (accidental if _mode == "envelope" else None)
+            )
+            add_part = (
+                accidental.get("add") if _mode == "both"
+                else (accidental if _mode not in ("envelope", "both") else None)
+            )
+
+            cand_x = [drift_x_base]
+            cand_y = [drift_y_base]
+
+            if cm_part:
+                acc_x = cm_part.get("x") or {}
+                acc_y = cm_part.get("y") or {}
+
+                def _envelope_total(acc_dir, component, orthogonal_base):
+                    best = None
+                    for variant_key in ("plus", "minus"):
+                        variant = acc_dir.get(variant_key)
+                        if not variant:
+                            continue
+                        primary = _cqc_modal_story_drift(variant, node_coord, lower, upper, height, component)
+                        total = _srss(primary, orthogonal_base)
+                        if total is not None and (best is None or total > best):
+                            best = total
+                    return best
+
+                env_x = _envelope_total(acc_x, "x", dx_from_y)
+                env_y = _envelope_total(acc_y, "y", dy_from_x)
+                if env_x is not None:
+                    cand_x.append(env_x)
+                if env_y is not None:
+                    cand_y.append(env_y)
+
+            if add_part:
+                acc_x = add_part.get("x") or {}
+                acc_y = add_part.get("y") or {}
+                ax_from_x = _cqc_modal_story_drift(acc_x, node_coord, lower, upper, height, "x")
+                ax_from_y = _cqc_modal_story_drift(acc_y, node_coord, lower, upper, height, "x")
+                ay_from_y = _cqc_modal_story_drift(acc_y, node_coord, lower, upper, height, "y")
+                ay_from_x = _cqc_modal_story_drift(acc_x, node_coord, lower, upper, height, "y")
+                add_x = _srss(ax_from_x, ax_from_y) or 0.0
+                add_y = _srss(ay_from_y, ay_from_x) or 0.0
+                cand_x.append(drift_x_base + add_x)
+                cand_y.append(drift_y_base + add_y)
+
+            drift_x = max(cand_x)
+            drift_y = max(cand_y)
+            dax = drift_x - drift_x_base
+            day = drift_y - drift_y_base
 
         ratio_x = drift_x / height if height > 1e-9 else 0.0
         ratio_y = drift_y / height if height > 1e-9 else 0.0
