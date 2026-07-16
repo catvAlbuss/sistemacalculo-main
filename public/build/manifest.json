@@ -102,7 +102,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/lod3D.fragment.js": {
-    "file": "assets/lod3D.fragment-CS8la9WD.js",
+    "file": "assets/lod3D.fragment-Bf0Wjuu3.js",
     "name": "lod3D.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/lod3D.fragment.js",
     "isDynamicEntry": true,
@@ -117,7 +117,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/oitFinalSimpleBlend.fragment.js": {
-    "file": "assets/oitFinalSimpleBlend.fragment-DIl4Ketb.js",
+    "file": "assets/oitFinalSimpleBlend.fragment-BoTT7osn.js",
     "name": "oitFinalSimpleBlend.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/oitFinalSimpleBlend.fragment.js",
     "isDynamicEntry": true,
@@ -132,7 +132,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/selection.fragment.js": {
-    "file": "assets/selection.fragment-CgMZbVlw.js",
+    "file": "assets/selection.fragment-Zw9p0mmQ.js",
     "name": "selection.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/selection.fragment.js",
     "isDynamicEntry": true,
@@ -147,7 +147,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/selection.vertex.js": {
-    "file": "assets/selection.vertex-ytnPukug.js",
+    "file": "assets/selection.vertex-BoaIeYN1.js",
     "name": "selection.vertex",
     "src": "node_modules/@babylonjs/core/Shaders/selection.vertex.js",
     "isDynamicEntry": true,
@@ -162,7 +162,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/selectionOutline.fragment.js": {
-    "file": "assets/selectionOutline.fragment-c4mpon5h.js",
+    "file": "assets/selectionOutline.fragment-Cua7jHbz.js",
     "name": "selectionOutline.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/selectionOutline.fragment.js",
     "isDynamicEntry": true,
@@ -177,7 +177,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/volumetricLightingBlendVolume.fragment.js": {
-    "file": "assets/volumetricLightingBlendVolume.fragment-BiLCpoIY.js",
+    "file": "assets/volumetricLightingBlendVolume.fragment-s4WH9xph.js",
     "name": "volumetricLightingBlendVolume.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/volumetricLightingBlendVolume.fragment.js",
     "isDynamicEntry": true,
@@ -192,7 +192,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.fragment.js": {
-    "file": "assets/volumetricLightingRenderVolume.fragment-B18-uflt.js",
+    "file": "assets/volumetricLightingRenderVolume.fragment-CyAaHlM8.js",
     "name": "volumetricLightingRenderVolume.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.fragment.js",
     "isDynamicEntry": true,
@@ -207,7 +207,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.vertex.js": {
-    "file": "assets/volumetricLightingRenderVolume.vertex-B546wCh4.js",
+    "file": "assets/volumetricLightingRenderVolume.vertex-BCodLutP.js",
     "name": "volumetricLightingRenderVolume.vertex",
     "src": "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.vertex.js",
     "isDynamicEntry": true,
@@ -222,7 +222,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.fragment.js": {
-    "file": "assets/gaussianSplattingVoxel.fragment-DQ2cIEwj.js",
+    "file": "assets/gaussianSplattingVoxel.fragment-2wyH1qJc.js",
     "name": "gaussianSplattingVoxel.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.fragment.js",
     "isDynamicEntry": true,
@@ -237,7 +237,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.vertex.js": {
-    "file": "assets/gaussianSplattingVoxel.vertex-Cq8zusn_.js",
+    "file": "assets/gaussianSplattingVoxel.vertex-BmvAzcmo.js",
     "name": "gaussianSplattingVoxel.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.vertex.js",
     "isDynamicEntry": true,
@@ -252,7 +252,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/lod3D.fragment.js": {
-    "file": "assets/lod3D.fragment-atpC7Jtv.js",
+    "file": "assets/lod3D.fragment-f8cSQoQX.js",
     "name": "lod3D.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/lod3D.fragment.js",
     "isDynamicEntry": true,
@@ -267,7 +267,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/oitFinalSimpleBlend.fragment.js": {
-    "file": "assets/oitFinalSimpleBlend.fragment-oQBKFBvE.js",
+    "file": "assets/oitFinalSimpleBlend.fragment-BJmYksHo.js",
     "name": "oitFinalSimpleBlend.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/oitFinalSimpleBlend.fragment.js",
     "isDynamicEntry": true,
@@ -282,7 +282,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/screenSpaceCurvature.fragment.js": {
-    "file": "assets/screenSpaceCurvature.fragment-DihyO73N.js",
+    "file": "assets/screenSpaceCurvature.fragment-4JqYrNWI.js",
     "name": "screenSpaceCurvature.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/screenSpaceCurvature.fragment.js",
     "isDynamicEntry": true,
@@ -297,7 +297,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/selection.fragment.js": {
-    "file": "assets/selection.fragment-BEAiqcFT.js",
+    "file": "assets/selection.fragment-C417gs1d.js",
     "name": "selection.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/selection.fragment.js",
     "isDynamicEntry": true,
@@ -312,7 +312,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/selection.vertex.js": {
-    "file": "assets/selection.vertex-CMaS2qQL.js",
+    "file": "assets/selection.vertex-CoQR2C7L.js",
     "name": "selection.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/selection.vertex.js",
     "isDynamicEntry": true,
@@ -327,7 +327,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/selectionOutline.fragment.js": {
-    "file": "assets/selectionOutline.fragment-DVSM2LB8.js",
+    "file": "assets/selectionOutline.fragment-Cm8d27dA.js",
     "name": "selectionOutline.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/selectionOutline.fragment.js",
     "isDynamicEntry": true,
@@ -342,7 +342,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingBlendVolume.fragment.js": {
-    "file": "assets/volumetricLightingBlendVolume.fragment-D2SP33SZ.js",
+    "file": "assets/volumetricLightingBlendVolume.fragment-DB9qHq6M.js",
     "name": "volumetricLightingBlendVolume.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingBlendVolume.fragment.js",
     "isDynamicEntry": true,
@@ -357,7 +357,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.fragment.js": {
-    "file": "assets/volumetricLightingRenderVolume.fragment-BJBq7rk1.js",
+    "file": "assets/volumetricLightingRenderVolume.fragment-PVU0KrSu.js",
     "name": "volumetricLightingRenderVolume.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.fragment.js",
     "isDynamicEntry": true,
@@ -372,7 +372,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.vertex.js": {
-    "file": "assets/volumetricLightingRenderVolume.vertex-BUJVVD2e.js",
+    "file": "assets/volumetricLightingRenderVolume.vertex-C5oW9tky.js",
     "name": "volumetricLightingRenderVolume.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.vertex.js",
     "isDynamicEntry": true,
@@ -411,7 +411,7 @@
     "src": "node_modules/jquery-ui/themes/base/images/ui-icons_ffffff_256x240.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-srXWw5Qu.css",
+    "file": "assets/app-ihc4YpiW.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
@@ -775,7 +775,7 @@
     ]
   },
   "resources/js/adm_vigas_general.js": {
-    "file": "assets/adm_vigas_general-Dje9AWM8.js",
+    "file": "assets/adm_vigas_general-CsGRvn3A.js",
     "name": "adm_vigas_general",
     "src": "resources/js/adm_vigas_general.js",
     "isEntry": true,
@@ -832,7 +832,7 @@
     ]
   },
   "resources/js/analisis_estructural_de_armaduras.js": {
-    "file": "assets/analisis_estructural_de_armaduras-KyqQRvW4.js",
+    "file": "assets/analisis_estructural_de_armaduras-CDuGj-Hn.js",
     "name": "analisis_estructural_de_armaduras",
     "src": "resources/js/analisis_estructural_de_armaduras.js",
     "isEntry": true,
