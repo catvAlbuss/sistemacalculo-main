@@ -185,7 +185,7 @@ Route::middleware(["auth", "verified"])->group(function () {
     });
     Route::prefix("software")->name("software.")->group(function () {
         Route::view('/analisis-estructural-de-armaduras', 'matlab.admAnalisisEstructuralDeArmaduras')->name("analisis-estructural-de-armaduras");
-        Route::view('/etabs2', 'etabs.index')->name("etabs2");
+        Route::view('/predim2', 'etabs.index')->name("etabs2");
         Route::view('/etabs', 'matlab.admAnalisisEstructuralDeArmaduras')->name("etabs");
         // Autoguardado del modelo CAD a la BD (por usuario). Complementa IndexedDB.
         Route::post('/etabs/model/autosave', [\App\Http\Controllers\CadModelController::class, 'autosave'])->name('etabs.model.autosave');

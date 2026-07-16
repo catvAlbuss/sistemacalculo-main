@@ -112,40 +112,105 @@ def run_full_seismic_analysis(data: dict) -> dict:
 
     results["seismic"] = seismic
 
-    # ── Torsión accidental E.030 (opt-in, método estático aditivo) ──────────
+    # ── Torsión accidental E.030 (opt-in) ────────────────────────────────────
     # Solo si el usuario la habilita (accidentalEccentricity > 0). Aislada: no
-    # toca la RSA base. Solo aporta si el modelo tiene diafragmas que rotan.
+    # toca la RSA base. Solo aporta si el modelo tiene diafragmas que rotan
+    # (rigidDiaphragm_z). Métodos, seleccionables por payload
+    # `accidentalTorsionMethod` ("both" default | "cm" | "additive"):
+    #  - "cm": CM±e + re-eigen (run_shifted_cm_torsion_rsa) — redistribuye la
+    #    masa del diafragma ±e y re-corre el modal; ENVOLVENTE con la base.
+    #    Punto ciego: cancelación CQC cuando el modo traslacional y el torsional
+    #    tienen frecuencias cercanas (validado vs ETABS: +0% donde ETABS +22%).
+    #  - "additive": torque estático por modo (run_accidental_torsion_rsa) —
+    #    M=e·F_piso sobre los modos SIN excentricidad; se SUMA a la base. Es el
+    #    esquema de ETABS para casos RS; nunca se cancela, pero subestima el
+    #    acoplamiento real en plantas irregulares.
+    #  - "both" (default): corre ambos y la deriva final es el MÁXIMO — cubre
+    #    los dos regímenes.
     ecc_ratio = float(
         data.get("accidentalEccentricity", data.get("accidental_eccentricity", 0.0)) or 0.0
     )
+    ecc_method = str(
+        data.get("accidentalTorsionMethod", data.get("accidental_torsion_method", "both")) or "both"
+    ).lower()
     accidental = None
     if ecc_ratio > 0:
+        want_add = ecc_method.startswith("add") or ecc_method == "both"
+        want_cm = (not ecc_method.startswith("add")) or ecc_method == "both"
         try:
-            acc = {}
-            if spectrum_x:
-                acc["x"] = run_accidental_torsion_rsa(
-                    data, modal_data, spectrum_x, direction="x",
-                    combination=combination, damping_ratio=damping,
-                    sa_in_g=sa_in_g, g=g, ecc_ratio=ecc_ratio,
+            add_part = {}
+            if want_add:
+                if spectrum_x:
+                    add_part["x"] = run_accidental_torsion_rsa(
+                        data, modal_data, spectrum_x, direction="x",
+                        combination=combination, damping_ratio=damping,
+                        sa_in_g=sa_in_g, g=g, ecc_ratio=ecc_ratio,
+                    )
+                if spectrum_y:
+                    add_part["y"] = run_accidental_torsion_rsa(
+                        data, modal_data, spectrum_y, direction="y",
+                        combination=combination, damping_ratio=damping,
+                        sa_in_g=sa_in_g, g=g, ecc_ratio=ecc_ratio,
+                    )
+            has_add = bool(add_part.get("x") or add_part.get("y"))
+
+            cm_part = {}
+            if want_cm:
+                if spectrum_x:
+                    cm_part["x"] = {
+                        "plus": run_shifted_cm_torsion_rsa(
+                            data, spectrum_x, direction="x", combination=combination,
+                            damping_ratio=damping, sa_in_g=sa_in_g, g=g,
+                            ecc_ratio=ecc_ratio, num_modes=num_modes, sign=1,
+                        ),
+                        "minus": run_shifted_cm_torsion_rsa(
+                            data, spectrum_x, direction="x", combination=combination,
+                            damping_ratio=damping, sa_in_g=sa_in_g, g=g,
+                            ecc_ratio=ecc_ratio, num_modes=num_modes, sign=-1,
+                        ),
+                    }
+                if spectrum_y:
+                    cm_part["y"] = {
+                        "plus": run_shifted_cm_torsion_rsa(
+                            data, spectrum_y, direction="y", combination=combination,
+                            damping_ratio=damping, sa_in_g=sa_in_g, g=g,
+                            ecc_ratio=ecc_ratio, num_modes=num_modes, sign=1,
+                        ),
+                        "minus": run_shifted_cm_torsion_rsa(
+                            data, spectrum_y, direction="y", combination=combination,
+                            damping_ratio=damping, sa_in_g=sa_in_g, g=g,
+                            ecc_ratio=ecc_ratio, num_modes=num_modes, sign=-1,
+                        ),
+                    }
+            has_cm = bool(
+                cm_part.get("x", {}).get("plus") or cm_part.get("x", {}).get("minus")
+                or cm_part.get("y", {}).get("plus") or cm_part.get("y", {}).get("minus")
+            )
+
+            if has_cm and has_add:
+                accidental = {"mode": "both", "cm": cm_part, "add": add_part}
+                print(f"🔁 Torsión accidental COMBINADA (CM±e + aditiva) aplicada (ecc={ecc_ratio}).")
+            elif has_cm:
+                accidental = {"mode": "envelope", **cm_part}
+                print(f"🔁 Torsión accidental CM±e aplicada (ecc={ecc_ratio}).")
+            elif has_add:
+                accidental = add_part
+                print(f"🔁 Torsión accidental ADITIVA aplicada (ecc={ecc_ratio}).")
+            else:
+                print(
+                    f"⚠️ Torsión accidental habilitada (ecc={ecc_ratio}, método={ecc_method}) SIN efecto: "
+                    "¿el modelo no tiene diafragmas con rotación (rigidDiaphragm_z) o sin masa?"
                 )
-            if spectrum_y:
-                acc["y"] = run_accidental_torsion_rsa(
-                    data, modal_data, spectrum_y, direction="y",
-                    combination=combination, damping_ratio=damping,
-                    sa_in_g=sa_in_g, g=g, ecc_ratio=ecc_ratio,
-                )
-            if acc.get("x") or acc.get("y"):
-                accidental = acc
         except Exception as _acc_err:
             print("⚠️ No se pudo calcular la torsión accidental:", _acc_err)
             accidental = None
 
-        # run_accidental_torsion_rsa reconstruye el modelo por modo (ops.wipe),
-        # destruyendo el estado EIGEN que un paso posterior (animación,
+        # Ambos métodos reconstruyen el modelo (ops.wipe), destruyendo el estado
+        # EIGEN que un paso posterior (animación,
         # _b10_17_collect_opensees_modal_shapes) lee vivo desde OpenSees. Se
-        # restaura re-corriendo el modal sobre un modelo fresco (mismo num_modes)
-        # para dejar el dominio como lo espera el resto del pipeline. Sin esto
-        # OpenSees aborta con "eigenvectors have not been set".
+        # restaura re-corriendo el modal sobre el modelo ORIGINAL (mismo
+        # num_modes) para dejar el dominio como lo espera el resto del pipeline.
+        # Sin esto OpenSees aborta con "eigenvectors have not been set".
         try:
             build_model_3d(data)
             run_modal_analysis(nodes, num_modes)
@@ -155,6 +220,25 @@ def run_full_seismic_analysis(data: dict) -> dict:
     story_drifts = _compute_story_drifts(data, nodes, seismic, accidental=accidental)
     story_drifts["accidental_eccentricity"] = ecc_ratio
     story_drifts["accidental_applied"] = bool(accidental)
+    story_drifts["accidental_method"] = ecc_method if accidental else None
+
+    # Diagnóstico: cuánto agregó la excentricidad por piso (base vs total).
+    if accidental:
+        try:
+            for _r in story_drifts.get("rows", []) or []:
+                _bx = float(_r.get("drift_x_base_m") or 0.0)
+                _ax = float(_r.get("drift_x_accidental_m") or 0.0)
+                _by = float(_r.get("drift_y_base_m") or 0.0)
+                _ay = float(_r.get("drift_y_accidental_m") or 0.0)
+                _px = (100.0 * _ax / _bx) if _bx > 1e-12 else 0.0
+                _py = (100.0 * _ay / _by) if _by > 1e-12 else 0.0
+                print(
+                    f"   ecc {_r.get('story')}: ΔX +{_px:.1f}% "
+                    f"({_bx:.6f}→{_bx + _ax:.6f}) | ΔY +{_py:.1f}% "
+                    f"({_by:.6f}→{_by + _ay:.6f})"
+                )
+        except Exception:
+            pass
 
     results["story_drifts"] = story_drifts
 

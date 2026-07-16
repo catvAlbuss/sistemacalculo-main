@@ -2556,10 +2556,19 @@ export const seismicMixin = {
       sa_in_g: cfg.saInG,
       g: cfg.g,
 
-      // Torsión accidental E.030 (opt-in, método estático aditivo). 0 = desactivada.
+      // Torsión accidental E.030 (opt-in). 0 = desactivada.
       // Viene del "Ecc. Ratio (All Diaph.)" del CASO RS (como ETABS ECCENRATIOTYPICAL),
       // no de un control global → una sola fuente de verdad, por caso.
       accidentalEccentricity: Number(cfg.eccRatio) || 0,
+      // Método: "both" (default — máximo entre CM±e y aditivo; el CM±e sufre
+      // cancelación CQC con modos traslacional/torsional de frecuencia cercana
+      // y el aditivo cubre ese hueco), "cm" (solo CM±e) o "additive" (solo
+      // torque estático). Cambiar desde consola:
+      //   cadSystem._initSeismic?.(); cadSystem.seismicConfig.accidentalTorsionMethod = "cm"
+      accidentalTorsionMethod:
+        cfg.accidentalTorsionMethod ||
+        this.seismicConfig?.accidentalTorsionMethod ||
+        "both",
     };
 
     if (cfg.spectrumY && cfg.spectrumY.length > 0) {
