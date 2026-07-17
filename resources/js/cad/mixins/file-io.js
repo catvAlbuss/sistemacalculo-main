@@ -1446,14 +1446,14 @@ export const fileIOMixin = {
 
     const massSource = massSourceLoads.length
       ? {
-          enabled: true, name: massSourceName,
-          includeSelfWeight: true, selfWeightMultiplier: 1,
-          loadPatterns: massSourceLoads,
-          loadMultipliers: massSourceLoads.map((l) => ({ load: l.load, multiplier: l.multiplier })),
-          convertWeightToMass: true, gravity: 9.81,
-          includeLateralMass: true, includeVerticalMass: false,
-          lumpLateralMassAtStoryLevels: true, specifiedLoadPatterns: true, elementSelfMass: true,
-        }
+        enabled: true, name: massSourceName,
+        includeSelfWeight: true, selfWeightMultiplier: 1,
+        loadPatterns: massSourceLoads,
+        loadMultipliers: massSourceLoads.map((l) => ({ load: l.load, multiplier: l.multiplier })),
+        convertWeightToMass: true, gravity: 9.81,
+        includeLateralMass: true, includeVerticalMass: false,
+        lumpLateralMassAtStoryLevels: true, specifiedLoadPatterns: true, elementSelfMass: true,
+      }
       : null;
 
     const materials = [...materialMap.values()];
@@ -1715,6 +1715,20 @@ export const fileIOMixin = {
     const loadCases = definitions.loadCases || data.loadCases || [];
     const diaphragms = definitions.diaphragms || data.diaphragms || [];
     const massSource = definitions.massSource || data.massSource || this.massSource || {};
+
+    // ---- MASS SOURCE (preparación temprana para garantizar coherencia) ----
+    const msName = massSource.name ? massSource.name.replace(/[^a-zA-Z0-9_]/g, "_") : "MsSrc1";
+    let msLoads = massSource.loadMultipliers || massSource.loadPatterns || [];
+
+    // Asegurar que todos los patrones de masa existan en loadCases ANTES de escribir $ LOAD PATTERNS
+    const existingLoadCaseNames = new Set((loadCases || []).map(c => c.name));
+    msLoads.forEach((l) => {
+      const nm = l.load || l.name;
+      if (nm && !existingLoadCaseNames.has(nm)) {
+        loadCases.push({ name: nm, type: "Dead", selfWeight: 0 });
+        existingLoadCaseNames.add(nm);
+      }
+    });
 
     // Fase 3 — sísmico: funciones de espectro + casos Response Spectrum.
     const rsFunctions =
@@ -2077,17 +2091,16 @@ export const fileIOMixin = {
     lines.push("");
 
     // ---- MASS SOURCE ----------------------------------------------------
-    const msName = massSource.name || "MsSrc1";
-    const msLoads = massSource.loadMultipliers || massSource.loadPatterns || [];
     if (msLoads.length) {
       lines.push("$ MASS SOURCE");
       lines.push(
-        `  MASSSOURCE  "${msName}"    INCLUDEELEMENTS "No"    INCLUDEADDEDMASS "No"    INCLUDELOADS "Yes"    LUMPATSTORIES "Yes"    ISDEFAULT "Yes"  `,
+        `  MASSSOURCE  "${msName}"    INCLUDEELEMENTS "No"    INCLUDEADDEDMASS "No"    INCLUDELOADS "Yes"    LUMPATSTORIES "Yes"    ISDEFAULT "Yes"  `
       );
       msLoads.forEach((l) => {
         const nm = l.load || l.name;
-        const factor = l.multiplier ?? l.factor ?? 1;
-        if (nm) lines.push(`  MASSSOURCELOAD  "${msName}"  "${nm}"  ${fmt(factor)} `);
+        let factor = l.multiplier ?? l.factor ?? 1;
+        const factorValue = Number.isInteger(factor) ? factor : Math.round(factor * 10) / 10;
+        if (nm) lines.push(`  MASSSOURCELOAD  "${msName}"  "${nm}"  ${factorValue}`);
       });
       lines.push("");
     }

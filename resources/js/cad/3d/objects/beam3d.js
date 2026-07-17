@@ -32,6 +32,10 @@ export function createBeam3D(scene, beam, material = null, opts = {}) {
   // =====================================================
   const extrude = opts.extrude === true;
 
+  const dims = getFrameDims(beam);
+  // Diámetro basado en el promedio de ancho y alto de la sección (en metros)
+  const sectionDiameter = ((dims.b + dims.h) / 2) || 0.15;
+
   const mesh = extrude
     ? MeshBuilder.CreateBox(
         `beam-${beam.id}`,
@@ -40,7 +44,7 @@ export function createBeam3D(scene, beam, material = null, opts = {}) {
       )
     : MeshBuilder.CreateCylinder(
         `beam-${beam.id}`,
-        { height: 1, diameter: style.diameter, tessellation: 12 },
+        { height: 1, diameter: sectionDiameter, tessellation: 12 },
         scene
       );
 
@@ -105,14 +109,14 @@ export function updateBeam3D(mesh, beam, node1, node2) {
   applyTransform(mesh, start, end, length);
 
   // actualizar grosor si cambia el tipo
-  mesh.scaling.x = 1;
-  mesh.scaling.z = 1;
+  // mesh.scaling.x = 1;
+  // mesh.scaling.z = 1;
 
-  // Si quieres aparentar más grosor por tipo sin recrear el mesh:
-  const baseDiameter = 0.15;
-  const factor = style.diameter / baseDiameter;
-  mesh.scaling.x = factor;
-  mesh.scaling.z = factor;
+  // // Si quieres aparentar más grosor por tipo sin recrear el mesh:
+  // const baseDiameter = 0.15;
+  // const factor = style.diameter / baseDiameter;
+  // mesh.scaling.x = factor;
+  // mesh.scaling.z = factor;
 
   if (mesh.material) {
     mesh.material.diffuseColor = style.color;

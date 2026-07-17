@@ -928,21 +928,21 @@ export const referenceGridMixin = {
     if (pointIntersection) {
       candidates.push({
         ...pointIntersection,
-        priorityWeight: 0,
+        priorityWeight: 2,
       });
     }
 
     if (pointNode) {
       candidates.push({
         ...pointNode,
-        priorityWeight: 1,
+        priorityWeight: 0,
       });
     }
 
     if (pointEndpoint) {
       candidates.push({
         ...pointEndpoint,
-        priorityWeight: 2,
+        priorityWeight: 4,
       });
     }
 
@@ -956,21 +956,21 @@ export const referenceGridMixin = {
     if (pointGeneral) {
       candidates.push({
         ...pointGeneral,
-        priorityWeight: 4,
+        priorityWeight: 6,
       });
     }
 
     if (pointXY) {
       candidates.push({
         ...pointXY,
-        priorityWeight: 6,
+        priorityWeight: 1,
       });
     }
 
     if (pointGridLine) {
       candidates.push({
         ...pointGridLine,
-        priorityWeight: 7,
+        priorityWeight: 5,
       });
     }
 
