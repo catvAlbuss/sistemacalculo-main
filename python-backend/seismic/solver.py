@@ -21,6 +21,7 @@ __all__ = [
     "_build_story_levels_for_shear",
     "_compute_base_shear",
     "_compute_envelope",
+    "_compute_centers_of_mass_rigidity",
     "_compute_story_drifts",
     "_compute_story_shear_direction",
     "_compute_story_shears",
@@ -1352,6 +1353,97 @@ def _cqc_modal_story_drift(
             drift_max = d
 
     return drift_max
+
+def _compute_centers_of_mass_rigidity(data: dict, nodes: list) -> list:
+    """
+    Tabla "Centers of Mass and Rigidity" estilo ETABS, por diafragma y piso.
+
+    XCM/YCM = centroide de la masa sísmica EFECTIVA de los nudos del diafragma
+    (los mismos `_effective_mass_x/_y` que usa el modal: self-weight + Mass
+    Source + masas manuales, resueltos por build_model_3d). Cum/XCCM/YCCM
+    acumulan de arriba hacia abajo, como ETABS. XCR/YCR (centro de rigidez)
+    requieren 3 soluciones estáticas por piso y aún NO se calculan → quedan
+    vacíos, igual que la tabla de ETABS cuando no se piden.
+
+    Cada fila lleva además `z_m` para que el frontend reubique la "araña" del
+    diafragma en planta al CM real tras el análisis.
+    """
+    groups = data.get("diaphragms") or data.get("diaphragm_groups") or []
+    if not isinstance(groups, list) or not groups:
+        return []
+
+    node_by_id = {}
+    for n in nodes or []:
+        try:
+            node_by_id[int(n["id"])] = n
+        except Exception:
+            pass
+
+    # Nombre de piso por elevación (reusa la misma agrupación que las derivas).
+    stories = _group_nodes_by_story(data, nodes)
+    def story_name_of(z):
+        for s in stories:
+            if abs(_to_float(s.get("elevation", 0.0), 0.0) - z) <= 0.05:
+                return s.get("name")
+        return f"z={round(z, 2)} m"
+
+    entries = []
+    for g in groups:
+        if not isinstance(g, dict):
+            continue
+        node_ids = g.get("nodeIds") or g.get("node_ids") or []
+        mx = my = sx = sy = 0.0
+        for raw in node_ids:
+            nd = node_by_id.get(int(raw)) if str(raw).lstrip("-").isdigit() else None
+            if nd is None:
+                continue
+            m_x = _to_float(nd.get("_effective_mass_x", 0.0), 0.0)
+            m_y = _to_float(nd.get("_effective_mass_y", 0.0), 0.0)
+            x = _to_float(nd.get("x", 0.0), 0.0)
+            y = _to_float(nd.get("y", 0.0), 0.0)
+            mx += m_x
+            my += m_y
+            sx += m_x * x
+            sy += m_y * y
+        if mx <= 1e-9 and my <= 1e-9:
+            continue
+        z = _to_float(g.get("z", 0.0), 0.0)
+        entries.append({
+            "name": str(g.get("name") or g.get("id") or "D1"),
+            "z": z,
+            "mass_x": mx,
+            "mass_y": my,
+            "xcm": sx / mx if mx > 1e-9 else 0.0,
+            "ycm": sy / my if my > 1e-9 else 0.0,
+        })
+
+    # De arriba hacia abajo + acumulado desde el techo (convención ETABS).
+    entries.sort(key=lambda e: -e["z"])
+    rows = []
+    cum_mx = cum_my = cum_sx = cum_sy = 0.0
+    for e in entries:
+        cum_mx += e["mass_x"]
+        cum_my += e["mass_y"]
+        cum_sx += e["mass_x"] * e["xcm"]
+        cum_sy += e["mass_y"] * e["ycm"]
+        rows.append({
+            "story": story_name_of(e["z"]),
+            "diaphragm": e["name"],
+            "mass_x_kg": round(e["mass_x"], 3),
+            "mass_y_kg": round(e["mass_y"], 3),
+            "xcm_m": round(e["xcm"], 4),
+            "ycm_m": round(e["ycm"], 4),
+            "cum_mass_x_kg": round(cum_mx, 3),
+            "cum_mass_y_kg": round(cum_my, 3),
+            "xccm_m": round(cum_sx / cum_mx, 4) if cum_mx > 1e-9 else 0.0,
+            "yccm_m": round(cum_sy / cum_my, 4) if cum_my > 1e-9 else 0.0,
+            "xcr_m": "",
+            "ycr_m": "",
+            "z_m": round(e["z"], 3),
+        })
+
+    return rows
+
 
 def _compute_story_drifts(data: dict, nodes: list, seismic: dict, accidental: dict = None) -> dict:
     """

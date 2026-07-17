@@ -978,34 +978,83 @@ export const seismicMixin = {
     );
   },
 
-  _buildExplicitDiaphragmsFromNodes(nodes) {
-    const groups = new Map();
+  /**
+   * Grupos EXPLÍCITOS de diafragma (asignaciones del usuario), por piso.
+   * Fuentes, con precedencia estilo ETABS:
+   *  1. Joint directo (Assign ▸ Joint ▸ Diaphragms): manda sobre el área.
+   *     `diaphragmMode:"none"` = Disconnect → el nudo queda excluido siempre.
+   *  2. Área con diafragma (Assign ▸ Shell ▸ Diaphragms): los nudos del piso
+   *     dentro del polígono lo heredan ("FromArea").
+   * Cada instancia es POR PISO: D1 asignado en 5 pisos genera 5 diafragmas
+   * independientes (D1@3, D1@6, ...) — un solo grupo amarraría los pisos entre
+   * sí, rigidizando el edificio completo.
+   * También lo consume el renderer 2D para dibujar la "araña" del diafragma.
+   */
+  getExplicitDiaphragmGroups(nodes) {
+    const zKey = (z) => Math.round((Number(z) || 0) * 100) / 100;
+    const groups = new Map(); // `${name}@${z}` → {id, name, z, nodeIds:Set}
 
+    // Precedencia por nudo: asignación directa (nombre) o "none" (null).
+    const directByNode = new Map();
     (nodes || []).forEach((node) => {
-      const diaphragmId = this._getNodeDiaphragmIdForSeismic(node);
-      if (!diaphragmId) return;
-
-      const nodeId = Number(node.id);
-      if (!Number.isFinite(nodeId)) return;
-
-      if (!groups.has(diaphragmId)) {
-        groups.set(diaphragmId, {
-          id: String(diaphragmId),
-          source: "node_assignment",
-          nodeIds: [],
-          z: this._getNodeZForSeismic(node),
-        });
+      const id = Number(node.id);
+      if (!Number.isFinite(id)) return;
+      const mode = node.diaphragmMode || node.assignment?.diaphragmMode || null;
+      if (mode === "none") {
+        directByNode.set(id, null);
+        return;
       }
+      const dId = this._getNodeDiaphragmIdForSeismic(node);
+      if (dId) directByNode.set(id, String(dId));
+    });
 
-      groups.get(diaphragmId).nodeIds.push(nodeId);
+    const push = (name, node) => {
+      const id = Number(node.id);
+      if (!Number.isFinite(id)) return;
+      // Un nudo empotrado no entra al diafragma (conflicto constraint/restraint).
+      if (this._nodeHasSupportForSeismic?.(node)) return;
+      const z = this._getNodeZForSeismic(node);
+      const key = `${name}@${zKey(z)}`;
+      if (!groups.has(key)) {
+        groups.set(key, { id: key, name: String(name), source: "assignment", z, nodeIds: new Set() });
+      }
+      groups.get(key).nodeIds.add(id);
+    };
+
+    // 1) Joints con asignación directa.
+    (nodes || []).forEach((node) => {
+      const name = directByNode.get(Number(node.id));
+      if (name) push(name, node);
+    });
+
+    // 2) Áreas con diafragma asignado → nudos cubiertos por el polígono.
+    const tol = 0.05;
+    (this.areas || []).forEach((a) => {
+      const name = a.diaphragmName || a.diaphragm?.name || a.diaphragmId;
+      if (!name) return;
+      const pts = Array.isArray(a.points) ? a.points : [];
+      if (pts.length < 3) return;
+      const az = Number(a.z ?? pts[0]?.z) || 0;
+      const poly = pts.map((p) => [Number(p.x) || 0, Number(p.y) || 0]);
+
+      (nodes || []).forEach((node) => {
+        const id = Number(node.id);
+        if (!Number.isFinite(id)) return;
+        if (directByNode.has(id)) return; // directo o "none" tienen precedencia
+        if (Math.abs(this._getNodeZForSeismic(node) - az) > tol) return;
+        const nx = Number(node.position?.x ?? node.x) || 0;
+        const ny = Number(node.position?.y ?? node.y) || 0;
+        if (this._pointInPolygonInclusive(nx, ny, poly)) push(String(name), node);
+      });
     });
 
     return Array.from(groups.values())
       .map((group) => ({
         ...group,
-        nodeIds: [...new Set(group.nodeIds)].sort((a, b) => a - b),
+        nodeIds: [...group.nodeIds].sort((a, b) => a - b),
       }))
-      .filter((group) => group.nodeIds.length >= 2);
+      .filter((group) => group.nodeIds.length >= 2)
+      .sort((a, b) => a.z - b.z);
   },
 
   // Punto en polígono (ray casting) incluyendo el borde: un nudo que cae en
@@ -1113,12 +1162,42 @@ export const seismicMixin = {
       .sort((a, b) => a.z - b.z);
   },
 
+  /**
+   * CM REAL (con masas efectivas) de un diafragma, del último análisis, para
+   * que la araña 2D se reubique como en ETABS. Devuelve {x, y} o null si no
+   * hay resultados frescos (→ el renderer usa el centroide geométrico).
+   * Empareja por nombre + elevación contra la tabla Centers of Mass and
+   * Rigidity que devuelve el motor.
+   */
+  getDiaphragmCMForDraw(name, z) {
+    if (this.analysisOptions?.analysisStatus === "outdated") return null;
+    const rows =
+      this.seismicResults?.tables?.centers_of_mass_rigidity ||
+      this.seismicResults?.etabs_results?.tables?.centers_of_mass_rigidity ||
+      [];
+    if (!rows.length) return null;
+
+    const target = rows.find(
+      (r) =>
+        Math.abs((Number(r.z_m) || 0) - (Number(z) || 0)) <= 0.05 &&
+        (!name || String(r.diaphragm) === String(name)),
+    ) || rows.find((r) => Math.abs((Number(r.z_m) || 0) - (Number(z) || 0)) <= 0.05);
+
+    if (!target) return null;
+    const x = Number(target.xcm_m);
+    const y = Number(target.ycm_m);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return { x, y };
+  },
+
   _buildSeismicDiaphragms(cfg, nodes) {
     const useRigidDiaphragms = cfg?.useRigidDiaphragms ?? true;
 
     if (!useRigidDiaphragms) return [];
 
-    const explicit = this._buildExplicitDiaphragmsFromNodes(nodes);
+    // Asignaciones explícitas del usuario (joint directo + áreas) mandan; sin
+    // ninguna, se cae al agrupado automático por piso (siguiendo la losa).
+    const explicit = this.getExplicitDiaphragmGroups(nodes);
 
     if (explicit.length) {
       return explicit;
@@ -2560,15 +2639,20 @@ export const seismicMixin = {
       // Viene del "Ecc. Ratio (All Diaph.)" del CASO RS (como ETABS ECCENRATIOTYPICAL),
       // no de un control global → una sola fuente de verdad, por caso.
       accidentalEccentricity: Number(cfg.eccRatio) || 0,
-      // Método: "both" (default — máximo entre CM±e y aditivo; el CM±e sufre
-      // cancelación CQC con modos traslacional/torsional de frecuencia cercana
-      // y el aditivo cubre ese hueco), "cm" (solo CM±e) o "additive" (solo
-      // torque estático). Cambiar desde consola:
-      //   cadSystem._initSeismic?.(); cadSystem.seismicConfig.accidentalTorsionMethod = "cm"
+      // Método de torsión accidental:
+      //  - "additive" (default): torque estático por modo — es el algoritmo
+      //    interno de ETABS para casos RS; validado a ±3% vs ETABS en modelo
+      //    simétrico e irregular (2026-07-16).
+      //  - "both": máximo entre CM±e y aditivo — envolvente conservadora
+      //    (+5-10% sobre ETABS en plantas irregulares, nunca por debajo).
+      //  - "cm": solo CM±e (sufre cancelación CQC cuando el modo traslacional
+      //    y el torsional tienen frecuencias cercanas).
+      // Cambiar desde consola:
+      //   cadSystem._initSeismic?.(); cadSystem.seismicConfig.accidentalTorsionMethod = "both"
       accidentalTorsionMethod:
         cfg.accidentalTorsionMethod ||
         this.seismicConfig?.accidentalTorsionMethod ||
-        "both",
+        "additive",
     };
 
     if (cfg.spectrumY && cfg.spectrumY.length > 0) {
@@ -3511,6 +3595,11 @@ export const seismicMixin = {
 
       { id: "mass_source", label: "Mass Source", rows: tables.mass_source || [] },
       { id: "diaphragm_summary", label: "Diaphragms", rows: tables.diaphragm_summary || [] },
+      {
+        id: "centers_of_mass_rigidity",
+        label: "Centers of Mass and Rigidity",
+        rows: tables.centers_of_mass_rigidity || [],
+      },
       { id: "model_quality", label: "Model Quality", rows: tables.model_quality || [] },
       { id: "element_properties", label: "Element Properties", rows: tables.element_properties || [] },
     ].map((tableDef) => ({

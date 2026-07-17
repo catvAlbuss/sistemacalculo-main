@@ -116,22 +116,23 @@ def run_full_seismic_analysis(data: dict) -> dict:
     # Solo si el usuario la habilita (accidentalEccentricity > 0). Aislada: no
     # toca la RSA base. Solo aporta si el modelo tiene diafragmas que rotan
     # (rigidDiaphragm_z). Métodos, seleccionables por payload
-    # `accidentalTorsionMethod` ("both" default | "cm" | "additive"):
+    # `accidentalTorsionMethod` ("additive" default | "both" | "cm"):
+    #  - "additive" (default): torque estático por modo
+    #    (run_accidental_torsion_rsa) — M=e·F_piso sobre los modos SIN
+    #    excentricidad; se SUMA a la base. Es el esquema interno de ETABS para
+    #    casos RS: validado a ±3% vs ETABS con diafragma+ecc en modelo
+    #    simétrico e irregular (2026-07-16). Nunca se cancela.
     #  - "cm": CM±e + re-eigen (run_shifted_cm_torsion_rsa) — redistribuye la
     #    masa del diafragma ±e y re-corre el modal; ENVOLVENTE con la base.
     #    Punto ciego: cancelación CQC cuando el modo traslacional y el torsional
     #    tienen frecuencias cercanas (validado vs ETABS: +0% donde ETABS +22%).
-    #  - "additive": torque estático por modo (run_accidental_torsion_rsa) —
-    #    M=e·F_piso sobre los modos SIN excentricidad; se SUMA a la base. Es el
-    #    esquema de ETABS para casos RS; nunca se cancela, pero subestima el
-    #    acoplamiento real en plantas irregulares.
-    #  - "both" (default): corre ambos y la deriva final es el MÁXIMO — cubre
-    #    los dos regímenes.
+    #  - "both": corre ambos y la deriva final es el MÁXIMO — envolvente
+    #    conservadora (+5-10% sobre ETABS en plantas irregulares).
     ecc_ratio = float(
         data.get("accidentalEccentricity", data.get("accidental_eccentricity", 0.0)) or 0.0
     )
     ecc_method = str(
-        data.get("accidentalTorsionMethod", data.get("accidental_torsion_method", "both")) or "both"
+        data.get("accidentalTorsionMethod", data.get("accidental_torsion_method", "additive")) or "additive"
     ).lower()
     accidental = None
     if ecc_ratio > 0:
@@ -248,6 +249,14 @@ def run_full_seismic_analysis(data: dict) -> dict:
     except Exception as _acc_err:
         print("⚠️ No se pudieron calcular aceleraciones por piso:", _acc_err)
         results["story_accelerations"] = {"rows": []}
+
+    # Centers of Mass and Rigidity (estilo ETABS): CM real con masas efectivas
+    # por diafragma/piso. También reubica la "araña" del diafragma en el 2D.
+    try:
+        results["centers_of_mass_rigidity"] = _compute_centers_of_mass_rigidity(data, nodes)
+    except Exception as _cm_err:
+        print("⚠️ No se pudo calcular Centers of Mass and Rigidity:", _cm_err)
+        results["centers_of_mass_rigidity"] = []
 
     # Contrato visual para el equipo frontend/animación.
     # Mantiene una forma simple: [{ level, z, height }]

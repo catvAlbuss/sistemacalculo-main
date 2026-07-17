@@ -62,7 +62,7 @@
         </div>
     </div>
 
-    {{-- ══════════ PASO 2: EDITOR "MASS SOURCE DATA" (imagen 1) ══════════ --}}
+    {{-- ══════════ PASO 2: EDITOR "MASS SOURCE DATA" ══════════ --}}
     <div x-show="view === 'editor'" class="bg-gray-800 rounded-lg shadow-2xl w-[760px] max-h-[92vh] overflow-hidden border border-gray-700">
         <div class="px-4 py-3 border-b border-gray-700 bg-gray-900">
             <h3 class="text-lg font-semibold text-white">Datos de Fuente de Masa (Mass Source Data)</h3>

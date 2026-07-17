@@ -1469,6 +1469,15 @@ export const assignDialogsMixin = {
       "success"
     );
 
+    // El motor aún no modela losa membrana/shell: un diafragma "Semi Rigid"
+    // se analiza como RÍGIDO. Avisar para que la opción del Define no engañe.
+    if (/semi/i.test(String(diaphragm.type || diaphragm.rigidity || ""))) {
+      this.showMessage?.(
+        `⚠️ "${diaphragm.name}" está definido como Semi Rígido, pero el motor lo tratará como RÍGIDO (losa membrana/shell aún no implementada).`,
+        "warning",
+      );
+    }
+
     console.log("✅ Joint Diaphragm directo:", {
       diaphragm,
       selectedJoints,
@@ -2585,6 +2594,140 @@ export const assignDialogsMixin = {
   // =====================================================
 
   // Áreas/losas seleccionadas (objetos con 'points', no frames ni nodos).
+  // ──────────────────────────────────────────────────────────────────────────
+  // ASSIGN > SHELL > DIAPHRAGMS (estilo ETABS: el diafragma se asigna a la
+  // LOSA y los nudos que ésta cubre lo heredan "FromArea"; ver
+  // getExplicitDiaphragmGroups en seismic.js, que arma los grupos por piso).
+  // ──────────────────────────────────────────────────────────────────────────
+  async openAssignShellDiaphragmsDialog() {
+    const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
+    const areaZ = (a) =>
+      r2(a.z ?? (a.points.reduce((s, p) => s + (Number(p.z) || 0), 0) / a.points.length));
+
+    const selected = this.getSelectedAreasForAssign();
+    const allAreas = (this.areas || []).filter(
+      (a) => Array.isArray(a.points) && a.points.length >= 3,
+    );
+    if (!allAreas.length) {
+      this.showMessage?.("No hay losas/áreas en el modelo. Dibuja losas primero.", "warning");
+      return;
+    }
+
+    const byZ = new Map();
+    allAreas.forEach((a) => {
+      const z = areaZ(a);
+      if (!byZ.has(z)) byZ.set(z, []);
+      byZ.get(z).push(a);
+    });
+    const floors = [...byZ.keys()].sort((a, b) => a - b);
+
+    const scopeOpts = [];
+    if (selected.length) scopeOpts.push(`<option value="selected">Áreas seleccionadas (${selected.length})</option>`);
+    scopeOpts.push(`<option value="all">Todas las áreas (${allAreas.length})</option>`);
+    floors.forEach((z) => scopeOpts.push(`<option value="z:${z}">Piso z=${z} m (${byZ.get(z).length} área/s)</option>`));
+
+    this.ensureDefaultDiaphragmExists?.();
+    const diaphragms = this.getAvailableDiaphragmsForAssign();
+    const diaphOpts = diaphragms
+      .map((d) => `<option value="${d.id}">${d.name} (${d.type || d.rigidity || "rigid"})</option>`)
+      .join("");
+
+    const result = await Swal.fire({
+      title: "Asignar Diafragma (Shell)",
+      width: 520,
+      background: "#1a2035",
+      color: "#e2e8f0",
+      html: `
+        <div style="text-align:left; font-size:13px; font-family:monospace">
+          <div style="margin-bottom:10px">
+            <label style="display:block; margin-bottom:4px; color:#cbd5e1">Aplicar a</label>
+            <select id="shell-diaph-scope" style="width:100%; padding:6px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px">
+              ${scopeOpts.join("")}
+            </select>
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="display:block; margin-bottom:4px; color:#cbd5e1">Diaphragm</label>
+            <select id="shell-diaph-id" style="width:100%; padding:6px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px">
+              ${diaphOpts}
+              <option value="__NONE__">None (quitar diafragma)</option>
+            </select>
+          </div>
+          <div style="color:#64748b; font-size:11px">
+            Los nudos que toca la losa heredan el diafragma ("From Area", como ETABS).
+            Una asignación directa en el nudo (Assign ▸ Joint ▸ Diaphragms) tiene precedencia.
+            El dibujo en planta muestra las líneas punteadas al centro de masa.
+          </div>
+        </div>`,
+      showCancelButton: true,
+      confirmButtonText: "Asignar",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#1d4ed8",
+      preConfirm: () => ({
+        scope: document.getElementById("shell-diaph-scope")?.value || "all",
+        diaphragmId: document.getElementById("shell-diaph-id")?.value || "__NONE__",
+      }),
+    });
+    if (!result.isConfirmed) return;
+
+    let target;
+    const scope = result.value.scope;
+    if (scope === "selected") target = selected;
+    else if (scope.startsWith("z:")) target = byZ.get(Number(scope.slice(2))) || [];
+    else target = allAreas;
+
+    this.assignShellDiaphragmToTargets(target, result.value.diaphragmId);
+  },
+
+  assignShellDiaphragmToTargets(areas, diaphragmId) {
+    if (!Array.isArray(areas) || !areas.length) {
+      this.showMessage?.("No hay áreas a las que asignar.", "warning");
+      return;
+    }
+
+    this.saveUndoState?.("Asignar diafragma a losas");
+
+    if (diaphragmId === "__NONE__") {
+      areas.forEach((a) => {
+        a.diaphragm = null;
+        a.diaphragmName = null;
+        a.diaphragmId = null;
+      });
+      this.markAnalysisResultsOutdated?.("Cambió la asignación de diafragmas.");
+      this.redraw?.();
+      this.showMessage?.(`Diafragma removido de ${areas.length} área(s).`);
+      return;
+    }
+
+    const diaphragm = this.getDiaphragmForAssignById(diaphragmId);
+    if (!diaphragm) {
+      this.showMessage?.(`Diafragma "${diaphragmId}" no encontrado. Defínelo en Define ▸ Diaphragms.`, "warning");
+      return;
+    }
+
+    areas.forEach((a) => {
+      a.diaphragmId = diaphragm.id;
+      a.diaphragmName = diaphragm.name;
+      a.diaphragm = {
+        id: diaphragm.id,
+        name: diaphragm.name,
+        type: diaphragm.type || diaphragm.rigidity || "rigid",
+      };
+    });
+
+    this.markAnalysisResultsOutdated?.("Cambió la asignación de diafragmas.");
+    this.redraw?.();
+    this.showMessage?.(`Diafragma ${diaphragm.name} asignado a ${areas.length} área(s).`);
+
+    // El motor aún no modela losa membrana/shell: un diafragma "Semi Rigid"
+    // se analiza como RÍGIDO. Avisar para que la opción del Define no engañe.
+    if (/semi/i.test(String(diaphragm.type || diaphragm.rigidity || ""))) {
+      this.showMessage?.(
+        `⚠️ "${diaphragm.name}" está definido como Semi Rígido, pero el motor lo tratará como RÍGIDO (losa membrana/shell aún no implementada).`,
+        "warning",
+      );
+    }
+  },
+
   getSelectedAreasForAssign() {
     const isArea = (obj) =>
       obj && !(obj.node1 && obj.node2) && Array.isArray(obj.points) && obj.points.length >= 3;
