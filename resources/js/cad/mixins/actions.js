@@ -471,6 +471,11 @@ export const actionsMixin = {
         this.openAssignSlabSectionDialog();
         break;
 
+      // Asignar diafragma a losas (los nudos lo heredan "From Area", como ETABS).
+      case "area-diaphragms":
+        this.openAssignShellDiaphragmsDialog();
+        break;
+
       // ===============================
       // FRAME / LINE
       // ===============================

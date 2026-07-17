@@ -123,6 +123,19 @@ export const eventsMixin = {
 
     const key = String(event.key || "").toLowerCase();
 
+    // Ctrl+A: seleccionar TODO el modelo (nodos + barras + áreas), estilo ETABS.
+    // No interceptar cuando el foco está en un input/textarea (ahí Ctrl+A debe
+    // seguir seleccionando el texto).
+    if (event.ctrlKey && key === "a") {
+      const tag = String(event.target?.tagName || "").toLowerCase();
+      const typing = tag === "input" || tag === "textarea" || tag === "select" || event.target?.isContentEditable;
+      if (!typing) {
+        event.preventDefault();
+        this.selectAllEverything?.();
+        return;
+      }
+    }
+
     if (event.ctrlKey && key === "z") {
       event.preventDefault();
       this.undo?.();

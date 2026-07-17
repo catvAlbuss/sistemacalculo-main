@@ -215,6 +215,9 @@ export class DiseñoRenderer {
     // nodo no la tape al alejar el zoom (rectángulo b×h orientado por rotación).
     this.drawColumnFootprints?.(CADSystem);
 
+    // Diafragmas asignados (araña punteada al CM + etiqueta, estilo ETABS).
+    this.drawPlanDiaphragms?.(CADSystem);
+
     if (CADSystem.options.showIDs) {
       CADSystem.shapes.forEach((s) => {
         if (!this.shouldDrawBeam(s, CADSystem)) return;
@@ -947,6 +950,81 @@ export class DiseñoRenderer {
   // Dibuja la huella (b×h) de cada columna en los nodos donde está,
   // orientada según su rotación de eje local (localAxisAngle).
   // =====================================================
+  // Dibuja los diafragmas ASIGNADOS del piso activo, estilo ETABS: líneas
+  // punteadas desde el centro del diafragma a cada nudo miembro, punto rojo
+  // en el centro y etiqueta con el nombre (D1...). Solo asignaciones explícitas
+  // (joint directo o losa con diafragma) — el agrupado automático del análisis
+  // no se dibuja, igual que ETABS no dibuja nada si no asignaste.
+  // El centro es el centroide geométrico de los nudos miembros (aproximación
+  // visual del CM; el CM real con masas lo calcula el motor).
+  drawPlanDiaphragms(CADSystem) {
+    const view = CADSystem.viewSet?.[CADSystem.activeViewIndex];
+    if (view && view.type !== "plan") return;
+    if (typeof CADSystem.getExplicitDiaphragmGroups !== "function") return;
+
+    const groups = CADSystem.getExplicitDiaphragmGroups(CADSystem.nodes || []);
+    if (!groups.length) return;
+
+    const planZ = view ? Number(view.elevation ?? view.z ?? 0) : 0;
+    const nodesById = new Map(
+      (CADSystem.nodes || []).map((n) => [Number(n.id), n]),
+    );
+    const ctx = CADSystem.ctx;
+
+    groups.forEach((group) => {
+      if (Math.abs((group.z || 0) - planZ) > 0.05) return;
+
+      const pts = group.nodeIds
+        .map((id) => nodesById.get(Number(id)))
+        .filter(Boolean)
+        .map((n) => ({
+          x: Number(n.position?.x ?? n.x) || 0,
+          y: Number(n.position?.y ?? n.y) || 0,
+        }));
+      if (pts.length < 2) return;
+
+      // Centro: CM REAL con masas del último análisis (como ETABS tras correr);
+      // si no hay resultados frescos, centroide geométrico provisional.
+      const realCM = CADSystem.getDiaphragmCMForDraw?.(group.name, group.z);
+      const cx = realCM?.x ?? pts.reduce((s, p) => s + p.x, 0) / pts.length;
+      const cy = realCM?.y ?? pts.reduce((s, p) => s + p.y, 0) / pts.length;
+      const center = CADSystem.grid.worldToScreen({ x: cx, y: cy });
+
+      ctx.save();
+
+      // Araña punteada centro → nudos.
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.85)";
+      ctx.lineWidth = 1;
+      pts.forEach((p) => {
+        const s = CADSystem.grid.worldToScreen(p);
+        ctx.beginPath();
+        ctx.moveTo(center.x, center.y);
+        ctx.lineTo(s.x, s.y);
+        ctx.stroke();
+      });
+
+      // Punto central (CM) rojo con anillo.
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = "#ef4444";
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#7f1d1d";
+      ctx.stroke();
+
+      // Etiqueta con el nombre del diafragma.
+      ctx.font = "bold 11px monospace";
+      ctx.fillStyle = "#fca5a5";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(group.name || group.id, center.x + 9, center.y - 6);
+
+      ctx.restore();
+    });
+  }
+
   drawColumnFootprints(CADSystem) {
     const view = CADSystem.viewSet?.[CADSystem.activeViewIndex];
 

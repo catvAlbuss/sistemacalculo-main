@@ -1495,12 +1495,19 @@ export const fileIOMixin = {
         const slabMpv = Number(slabMat?.massPerUnitVolume);
         const slabRho = slabMpv > 0 && slabMpv < 1e-3 ? slabMpv * 1e12 : 2400; // kg/m³
         const slabSelfWeightKgM2 = ((Number(slab.thickness) || 0) / 1000) * slabRho;
+        // Diafragma asignado a la losa en ETABS (DIAPH "D1") → los nudos lo
+        // heredan "From Area" (getExplicitDiaphragmGroups en seismic.js).
+        const areaDiaph = q(line, "DIAPH");
+        const areaDiaphName = areaDiaph && !/none/i.test(areaDiaph) ? areaDiaph : null;
         const area = {
           id: areas.length + 1,
           type: "slab", areaType: "slab",
           points: pts, z: round3(z),
           slabSection: section,
           slabSelfWeightKgM2,
+          diaphragmName: areaDiaphName,
+          diaphragmId: areaDiaphName,
+          diaphragm: areaDiaphName ? { id: areaDiaphName, name: areaDiaphName, type: "rigid" } : null,
           section: { name: section, thickness: slab.thickness, material: slab.material || "CONC" },
           areaLoads: [], loads: [], visible: true,
         };
@@ -2139,7 +2146,11 @@ export const fileIOMixin = {
     // ---- AREA ASSIGNS ---------------------------------------------------
     lines.push("$ AREA ASSIGNS");
     areaAssigns.forEach((a) => {
-      lines.push(`  AREAASSIGN  "${a.name}"  "${a.story}"  SECTION "${a.section}"  OBJMESHTYPE "DEFAULT"  CARDINALPOINT "TOP"  `);
+      // Diafragma asignado a la losa (Assign ▸ Shell ▸ Diaphragms) → DIAPH,
+      // igual que ETABS; los nudos lo heredan "From Area" al importar allá.
+      const dName = a.area?.diaphragmName || a.area?.diaphragm?.name || null;
+      const diaph = dName && !/none/i.test(dName) ? `DIAPH "${dName}"  ` : "";
+      lines.push(`  AREAASSIGN  "${a.name}"  "${a.story}"  SECTION "${a.section}"  ${diaph}OBJMESHTYPE "DEFAULT"  CARDINALPOINT "TOP"  `);
     });
     lines.push("");
 

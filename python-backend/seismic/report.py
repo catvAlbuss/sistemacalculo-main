@@ -1709,6 +1709,9 @@ def _build_etabs_results_package(results: dict) -> dict:
         "joint_reactions": _b7_table_joint_reactions(results),
         "story_accelerations": _b7_table_story_accelerations(results),
         "diaphragm_summary": _b7_table_diaphragm_summary(results),
+        # Centers of Mass and Rigidity (ETABS: Analysis Results > Structure
+        # Output > Other Output Items). XCR/YCR aún no se calculan (vacíos).
+        "centers_of_mass_rigidity": results.get("centers_of_mass_rigidity", []),
         # B10.14 — Applied Loads
         "load_summary": results.get("load_summary_table", []),
         "applied_loads": (results.get("applied_load_tables") or {}).get(
