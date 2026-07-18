@@ -1526,6 +1526,33 @@ export const displayDialogsMixin = {
       .map(({ _z, ...row }) => row);
   },
 
+  // ---- Centers of Mass and Rigidity (ETABS: Structure Output > Other Output
+  // Items). El CM es igual para todos los casos (misma masa) → se toma del
+  // primer caso que tenga la tabla. XCR/YCR aún no se calculan (vacíos).
+  _buildCentersOfMassRigidityShowRows() {
+    const cases = this._getShowTablesCasesTables();
+    for (const { tables } of cases) {
+      const src = tables?.centers_of_mass_rigidity;
+      if (Array.isArray(src) && src.length) {
+        return src.map((r) => ({
+          Story: r?.story ?? "",
+          Diaphragm: r?.diaphragm ?? "",
+          "Mass X": this._numberForShowTables(r?.mass_x_kg, 0),
+          "Mass Y": this._numberForShowTables(r?.mass_y_kg, 0),
+          XCM: this._numberForShowTables(r?.xcm_m, 0),
+          YCM: this._numberForShowTables(r?.ycm_m, 0),
+          "Cum Mass X": this._numberForShowTables(r?.cum_mass_x_kg, 0),
+          "Cum Mass Y": this._numberForShowTables(r?.cum_mass_y_kg, 0),
+          XCCM: this._numberForShowTables(r?.xccm_m, 0),
+          YCCM: this._numberForShowTables(r?.yccm_m, 0),
+          XCR: r?.xcr_m ?? "",
+          YCR: r?.ycr_m ?? "",
+        }));
+      }
+    }
+    return [];
+  },
+
   _getModelShowTableDefinitions(options = {}) {
     const massLabel = this._showTablesMassLabel();
     const reactionCols = [
@@ -1836,6 +1863,21 @@ export const displayDialogsMixin = {
           RX: "rad/sec²", RY: "rad/sec²", RZ: "rad/sec²",
         },
         rows: this._buildStoryAccelerationsShowRows(),
+      },
+      {
+        id: "centers_mass_rigidity",
+        label: "Centers Of Mass And Rigidity",
+        columns: [
+          "Story", "Diaphragm", "Mass X", "Mass Y", "XCM", "YCM",
+          "Cum Mass X", "Cum Mass Y", "XCCM", "YCCM", "XCR", "YCR",
+        ],
+        units: {
+          Story: "", Diaphragm: "",
+          "Mass X": "kg", "Mass Y": "kg", XCM: "m", YCM: "m",
+          "Cum Mass X": "kg", "Cum Mass Y": "kg", XCCM: "m", YCCM: "m",
+          XCR: "m", YCR: "m",
+        },
+        rows: this._buildCentersOfMassRigidityShowRows(),
       },
     ];
   },
@@ -2213,6 +2255,19 @@ export const displayDialogsMixin = {
                   { id: "response_spectrum_modal_info_node", label: "Table: Response Spectrum Modal Info", pending: true },
                 ],
               },
+              {
+                id: "other_output_items",
+                label: "Other Output Items",
+                type: "group",
+                expanded: true,
+                children: [
+                  {
+                    id: "centers_mass_rigidity_node",
+                    label: "Table: Centers Of Mass And Rigidity",
+                    tableId: "centers_mass_rigidity",
+                  },
+                ],
+              },
             ],
           },
         ],
@@ -2262,7 +2317,12 @@ export const displayDialogsMixin = {
           : !isImplementedLeaf;
 
         const checkboxClass = isGroup ? "show-table-group-check" : "show-table-check";
-        const checked = isImplementedLeaf && rowCount > 0 ? "checked" : "";
+        // Como ETABS: el diálogo abre SIN tablas marcadas — el usuario elige
+        // exactamente qué quiere ver.
+        const checked = "";
+        // Compacto: solo los grupos raíz (MODEL DEFINITION / ANALYSIS RESULTS /
+        // DESIGN DATA) abren expandidos; los subgrupos se expanden a demanda.
+        const collapsed = node.expanded === false || depth >= 1;
         const pendingBadge = !isGroup && !isImplementedLeaf
           ? `<span style="
              margin-left:6px;
@@ -2299,7 +2359,7 @@ export const displayDialogsMixin = {
                cursor:pointer;
                font-size:11px;
              "
-           >${node.expanded === false ? "+" : "−"}</button>`
+           >${collapsed ? "+" : "−"}</button>`
           : `<span style="width:16px; display:inline-block;"></span>`;
 
         const checkbox = `
@@ -2318,7 +2378,7 @@ export const displayDialogsMixin = {
           ? `<div
              class="show-table-tree-children"
              data-parent="${node.id}"
-             style="display:${node.expanded === false ? "none" : "block"};"
+             style="display:${collapsed ? "none" : "block"};"
            >
              ${this._buildShowTablesTreeHtml(node.children, tableById, depth + 1)}
            </div>`
@@ -2330,11 +2390,11 @@ export const displayDialogsMixin = {
             display:flex;
             align-items:center;
             gap:4px;
-            min-height:20px;
-            padding:2px 4px;
-            padding-left:${depth * 18 + 4}px;
+            min-height:16px;
+            padding:1px 3px;
+            padding-left:${depth * 14 + 3}px;
             color:${disabled ? "#64748b" : theme.treeText};
-            font-size:12px;
+            font-size:11px;
             white-space:nowrap;
           ">
             ${expander}

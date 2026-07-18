@@ -1069,6 +1069,60 @@ export const fileIOMixin = {
     return { A, area: A, Iz, Iy, J };
   },
 
+  // Propiedades de una sección "L" de concreto (FRAMESECTION SHAPE "Concrete L" /
+  // SDSECTION SHAPETYPE "CONC L"). D=peralte total, B=ancho total, TF=espesor
+  // del ala horizontal, TW=espesor del alma vertical. Origen (0,0) en la
+  // esquina exterior donde se unen las dos alas. Iz/Iy se calculan sobre los
+  // ejes horizontal/vertical (NO se rota a ejes principales: se ignora el
+  // producto de inercia Iyz, aproximación consistente con el resto del
+  // importador para secciones no simétricas). J por fórmula de pared delgada
+  // abierta (suma de las dos alas), aproximada. Devuelve también {cx,cy}: el
+  // centroide relativo a esa esquina, para poder trasladarlo en una SDSECTION.
+  _lSectionProps(D, B, TF, TW) {
+    D = Number(D) || 0; B = Number(B) || 0; TF = Number(TF) || 0; TW = Number(TW) || 0;
+    if (D <= 0 || B <= 0 || TF <= 0 || TW <= 0 || TW >= B || TF >= D) return null;
+
+    const A1 = TW * D; // ala vertical (alma)
+    const A2 = (B - TW) * TF; // ala horizontal (resto, sin duplicar la esquina)
+    const A = A1 + A2;
+    if (A <= 0) return null;
+
+    const cx1 = TW / 2, cy1 = D / 2;
+    const cx2 = (TW + B) / 2, cy2 = TF / 2;
+    const cx = (A1 * cx1 + A2 * cx2) / A;
+    const cy = (A1 * cy1 + A2 * cy2) / A;
+
+    const Ixx1 = (TW * Math.pow(D, 3)) / 12, Iyy1 = (D * Math.pow(TW, 3)) / 12;
+    const Ixx2 = ((B - TW) * Math.pow(TF, 3)) / 12, Iyy2 = (TF * Math.pow(B - TW, 3)) / 12;
+    const Iz = Ixx1 + A1 * Math.pow(cy1 - cy, 2) + Ixx2 + A2 * Math.pow(cy2 - cy, 2); // eje horizontal (usa D)
+    const Iy = Iyy1 + A1 * Math.pow(cx1 - cx, 2) + Iyy2 + A2 * Math.pow(cx2 - cx, 2); // eje vertical (usa B)
+    const J = (D * Math.pow(TW, 3) + B * Math.pow(TF, 3)) / 3; // aprox. pared delgada abierta
+
+    return { A, area: A, Iz, Iy, J, cx, cy };
+  },
+
+  // Combina las piezas de concreto de una SDSECTION (ETABS Section Designer:
+  // placas/columnas con forma compuesta, p.ej. muros en L) en propiedades
+  // elásticas equivalentes sobre el centroide del conjunto. Ignora el acero de
+  // refuerzo (SHAPETYPE REBAR/LINE REBAR): para análisis elástico sin
+  // agrietamiento se usa la sección bruta de concreto, igual que el resto del
+  // modelo (ver memoria de calibración ETABS: NO agrietamiento). Cada pieza ya
+  // viene trasladada a coordenadas de la SDSECTION: {A,Iz,Iy,J,X,Y}.
+  _sdCompositeProps(pieces) {
+    const parts = (pieces || []).filter((p) => p && p.A > 0);
+    if (!parts.length) return null;
+    const Atot = parts.reduce((s, p) => s + p.A, 0);
+    const Xc = parts.reduce((s, p) => s + p.A * p.X, 0) / Atot;
+    const Yc = parts.reduce((s, p) => s + p.A * p.Y, 0) / Atot;
+    let Iz = 0, Iy = 0, J = 0;
+    parts.forEach((p) => {
+      Iz += p.Iz + p.A * Math.pow(p.Y - Yc, 2);
+      Iy += p.Iy + p.A * Math.pow(p.X - Xc, 2);
+      J += p.J || 0;
+    });
+    return { A: Atot, area: Atot, Iz, Iy, J };
+  },
+
   // ============================================================
   //  IMPORTACIÓN .e2k NATIVA DE ETABS (Fases 1+2: geometría + cargas)
   //  Expande la representación por pisos de ETABS (POINT en planta +
@@ -1103,6 +1157,7 @@ export const fileIOMixin = {
     const yGrids = [];
     const materialMap = new Map();
     const frameSecMap = new Map();
+    const sdSectionMap = new Map(); // name → {angle, pieces:[{A,Iz,Iy,J,X,Y}]} (Section Designer)
     const slabSecMap = new Map();
     const pointCoords = new Map(); // pointId → {x,y}
     const lineConn = new Map(); // lineName → {kind, pi, pj}
@@ -1161,15 +1216,68 @@ export const fileIOMixin = {
         if (m.E != null && m.poisson != null) m.shearModulus = m.E / (2 * (1 + m.poisson));
       } else if (/^FRAMESECTION\s/i.test(line)) {
         const name = quotedAll(line)[0];
+        const shape = q(line, "SHAPE");
+        // Líneas de MODIFICADOR sin SHAPE (p.ej. `FRAMESECTION "X" JMOD 0.001`)
+        // son continuaciones de una sección YA definida arriba en el archivo:
+        // si se procesaban igual, pisaban la definición buena con una vacía
+        // (A=0, sección "general" sin Iz/Iy). Se ignoran.
+        if (!shape) return;
         const material = q(line, "MATERIAL") || "";
-        if (/rectangular/i.test(q(line, "SHAPE") || "")) {
+        if (/rectangular/i.test(shape)) {
           const D = kvNum(line, "D", 0); // peralte m
           const B = kvNum(line, "B", 0); // ancho m
           frameSecMap.set(name, { name, type: "rect", material, b: B * 100, h: D * 100, ...this._rectSectionProps(B, D), description: name });
+        } else if (/^concrete l$/i.test(shape)) {
+          const D = kvNum(line, "D", 0), B = kvNum(line, "B", 0), TF = kvNum(line, "TF", 0), TW = kvNum(line, "TW", 0);
+          const props = this._lSectionProps(D, B, TF, TW);
+          frameSecMap.set(name, props
+            ? { name, type: "L", material, b: B * 100, h: D * 100, A: props.A, area: props.area, Iz: props.Iz, Iy: props.Iy, J: props.J, description: name }
+            : { name, type: "general", material, A: 0.01, area: 0.01, Iz: 1e-4, Iy: 1e-4 });
+        } else if (/sd section/i.test(shape)) {
+          // Sección de Section Designer (muros/columnas de forma compuesta):
+          // se resuelve después de leer todas las SDSECTION del archivo.
+          frameSecMap.set(name, { name, type: "sd-pending", material });
         } else {
-          const A = kvNum(line, "AREA", 0);
-          frameSecMap.set(name, { name, type: "general", material, A, area: A });
+          // Perfiles no modelados a detalle (Steel Tube, Concrete Tee, etc.):
+          // mejor una sección rectangular MACIZA equivalente D×B (sobreestima
+          // algo la rigidez de perfiles huecos) que quedar prácticamente sin
+          // rigidez — antes caían aquí con A=0 por no traer campo AREA.
+          const D = kvNum(line, "D", 0), B = kvNum(line, "B", 0);
+          if (D > 0 && B > 0) {
+            frameSecMap.set(name, { name, type: "rect-approx", material, b: B * 100, h: D * 100, ...this._rectSectionProps(B, D), description: name });
+          } else {
+            const A = kvNum(line, "AREA", 0);
+            frameSecMap.set(name, { name, type: "general", material, A, area: A });
+          }
         }
+      } else if (/^SDSECTION\s/i.test(line)) {
+        const name = quotedAll(line)[0];
+        if (!name) return;
+        let sd = sdSectionMap.get(name);
+        if (!sd) { sd = { angle: 0, pieces: [] }; sdSectionMap.set(name, sd); }
+
+        const shapeLine = /(?:^|\s)SHAPE\s+\d/i.test(line); // "SHAPE 1" (bare) = pieza; si no, es la cabecera
+        if (!shapeLine) {
+          if (hasKey(line, "ANGLE")) sd.angle = kvNum(line, "ANGLE", 0);
+          return;
+        }
+
+        const shapeType = q(line, "SHAPETYPE") || "";
+        if (!/^conc/i.test(shapeType)) return; // ignora acero de refuerzo (REBAR / LINE REBAR)
+
+        const XC = kvNum(line, "XC", 0), YC = kvNum(line, "YC", 0);
+        if (/^conc rectangular$|^conc rectangle$/i.test(shapeType)) {
+          const D = kvNum(line, "D", 0), B = kvNum(line, "B", 0);
+          const p = this._rectSectionProps(B, D);
+          if (p.A > 0) sd.pieces.push({ A: p.A, Iz: p.Iz, Iy: p.Iy, J: p.J, X: XC, Y: YC });
+        } else if (/^conc l$/i.test(shapeType)) {
+          const D = kvNum(line, "D", 0), B = kvNum(line, "B", 0), TF = kvNum(line, "TF", 0), TW = kvNum(line, "TW", 0);
+          const p = this._lSectionProps(D, B, TF, TW);
+          if (p) sd.pieces.push({ A: p.A, Iz: p.Iz, Iy: p.Iy, J: p.J, X: XC + p.cx, Y: YC + p.cy });
+        }
+        // Otras formas de concreto (CONC CIRCLE, CONC I, CONC T, CONC CROSS...)
+        // no están implementadas: se ignoran (la sección queda con las piezas
+        // que sí se pudieron leer, o sin ninguna si no había ninguna soportada).
       } else if (/^SHELLPROP\s/i.test(line)) {
         const name = quotedAll(line)[0];
         const proptype = q(line, "PROPTYPE") || "Slab";
@@ -1244,6 +1352,33 @@ export const fileIOMixin = {
         if (hasKey(line, "ECCENRATIOTYPICAL")) c.eccRatio = kvNum(line, "ECCENRATIOTYPICAL", 0);
         const combo = q(line, "MODALCOMBO");
         if (combo) c.modalCombination = combo;
+      }
+    });
+
+    // ── Resolver secciones "SD Section" (Section Designer) pendientes ──
+    // Se combinan las piezas de concreto de la SDSECTION correspondiente en
+    // A/Iz/Iy/J equivalentes. Si ANGLE≈90 (mod 180), los ejes locales de la
+    // sección están rotados 90° respecto a como se definieron las piezas →
+    // se intercambian Iz/Iy (dentro de la misma aproximación de ejes no
+    // principales usada en _lSectionProps/_sdCompositeProps).
+    frameSecMap.forEach((sec, name) => {
+      if (sec.type !== "sd-pending") return;
+      const sd = sdSectionMap.get(name);
+      const props = sd ? this._sdCompositeProps(sd.pieces) : null;
+      if (props) {
+        const angleMod = (((sd.angle % 180) + 180) % 180);
+        const swap = Math.abs(angleMod - 90) < 1e-6;
+        frameSecMap.set(name, {
+          name, type: "sd", material: sec.material,
+          A: props.A, area: props.area,
+          Iz: swap ? props.Iy : props.Iz,
+          Iy: swap ? props.Iz : props.Iy,
+          J: props.J,
+          description: name,
+        });
+      } else {
+        console.warn(`⚠️ SDSECTION "${name}" sin piezas de concreto reconocidas (CONC L/CONC RECTANGULAR) — sección con rigidez mínima de respaldo.`);
+        frameSecMap.set(name, { name, type: "general", material: sec.material, A: 0.01, area: 0.01, Iz: 1e-4, Iy: 1e-4 });
       }
     });
 
@@ -1360,12 +1495,19 @@ export const fileIOMixin = {
         const slabMpv = Number(slabMat?.massPerUnitVolume);
         const slabRho = slabMpv > 0 && slabMpv < 1e-3 ? slabMpv * 1e12 : 2400; // kg/m³
         const slabSelfWeightKgM2 = ((Number(slab.thickness) || 0) / 1000) * slabRho;
+        // Diafragma asignado a la losa en ETABS (DIAPH "D1") → los nudos lo
+        // heredan "From Area" (getExplicitDiaphragmGroups en seismic.js).
+        const areaDiaph = q(line, "DIAPH");
+        const areaDiaphName = areaDiaph && !/none/i.test(areaDiaph) ? areaDiaph : null;
         const area = {
           id: areas.length + 1,
           type: "slab", areaType: "slab",
           points: pts, z: round3(z),
           slabSection: section,
           slabSelfWeightKgM2,
+          diaphragmName: areaDiaphName,
+          diaphragmId: areaDiaphName,
+          diaphragm: areaDiaphName ? { id: areaDiaphName, name: areaDiaphName, type: "rigid" } : null,
           section: { name: section, thickness: slab.thickness, material: slab.material || "CONC" },
           areaLoads: [], loads: [], visible: true,
         };
@@ -2018,7 +2160,11 @@ export const fileIOMixin = {
     // ---- AREA ASSIGNS ---------------------------------------------------
     lines.push("$ AREA ASSIGNS");
     areaAssigns.forEach((a) => {
-      lines.push(`  AREAASSIGN  "${a.name}"  "${a.story}"  SECTION "${a.section}"  OBJMESHTYPE "DEFAULT"  CARDINALPOINT "TOP"  `);
+      // Diafragma asignado a la losa (Assign ▸ Shell ▸ Diaphragms) → DIAPH,
+      // igual que ETABS; los nudos lo heredan "From Area" al importar allá.
+      const dName = a.area?.diaphragmName || a.area?.diaphragm?.name || null;
+      const diaph = dName && !/none/i.test(dName) ? `DIAPH "${dName}"  ` : "";
+      lines.push(`  AREAASSIGN  "${a.name}"  "${a.story}"  SECTION "${a.section}"  ${diaph}OBJMESHTYPE "DEFAULT"  CARDINALPOINT "TOP"  `);
     });
     lines.push("");
 

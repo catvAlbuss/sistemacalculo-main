@@ -617,44 +617,10 @@ export const elevationDrawingMixin = {
     return Array.from(sections);
   },
 
-  async selectByFrameSections() {
-    const sections = this.getUsedFrameSections();
-
-    if (!sections.length) {
-      this.showMessage?.("No hay secciones de marco disponibles", "warning");
-      return;
-    }
-
-    const inputOptions = {};
-
-    sections.forEach((section) => {
-      inputOptions[section] = section;
-    });
-
-    const result = await Swal.fire({
-      title: "Seleccionar por Secciones de Marco",
-      input: "select",
-      inputOptions,
-      inputPlaceholder: "Selecciona una sección",
-      showCancelButton: true,
-      confirmButtonText: "Seleccionar",
-      cancelButtonText: "Cancelar",
-    });
-
-    if (!result.isConfirmed || !result.value) return;
-
-    const selectedSection = result.value;
-
-    const objects = this.getFrameObjects().filter((frame) => {
-      return this.getFrameSectionKey(frame) === selectedSection;
-    });
-
-    this.deselectAllFromMenu?.();
-
-    this.selectObjects(objects);
-
-    this.showMessage?.(`Sección ${selectedSection}: ${objects.length} elementos seleccionados`);
-  },
+  // NOTA: selectByFrameSections() vive en viewport.js (delega al modal Select
+  // by Property estilo ETABS). La versión vieja con Swal que había AQUÍ pisaba
+  // a la de viewport por el orden de spread (elevationDrawingMixin va después
+  // en cad_sys.js) y dejaba muerto el modal nuevo → eliminada 2026-07-16.
 
   async deselectByFrameSections() {
     const sections = this.getUsedFrameSections();

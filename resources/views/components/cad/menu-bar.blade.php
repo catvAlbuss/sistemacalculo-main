@@ -6,7 +6,7 @@
                                 LOGO Y VERSIÓN
         ============================================================ --}}
         <div class="text-blue-400 font-bold text-sm px-2 whitespace-nowrap border-r border-gray-600">
-           MENU ETABBS 3.0  
+           ANALISIS ESTRUCTURAL
         </div>
 
         {{-- ============================================================
@@ -1112,6 +1112,22 @@
                         </x-slot>
                     </x-cad.menu-subitem>
 
+                    <x-cad.menu-subitem label="Shell">
+                        <x-slot name="submenu">
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateAssignMenuAction('area-slab-section')">
+                                <span>▦</span>
+                                Slab Section (sección de losa)...
+                            </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateAssignMenuAction('area-diaphragms')">
+                                <span>🏢</span>
+                                Diaphragms...
+                            </button>
+                        </x-slot>
+                    </x-cad.menu-subitem>
+
                     <div class="border-t border-gray-700 my-1"></div>
 
                     {{-- ================= CARGAS ================= --}}
@@ -1170,15 +1186,9 @@
                     </x-cad.menu-subitem>
 
                     {{-- ================= AREA / SHELL ================= --}}
-                    <x-cad.menu-subitem label="Area / Shell">
+                    <x-cad.menu-subitem label="Shell load">
                         <span>🧱</span>
-
                         <x-slot name="submenu">
-                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="cadSystem.activateAssignMenuAction('area-slab-section')">
-                                <span>▦</span>
-                                Slab Section (sección de losa)...
-                            </button>
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('area-load-uniform')">
                                 <span>🟦</span>

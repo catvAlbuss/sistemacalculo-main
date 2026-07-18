@@ -2,51 +2,17 @@ import UBIGEO_DATA from "../../data/ubigeo.js";
 import { exportTXT }  from "./exporttxt.js";
 import { exportXLSX } from "./exportadoxlsx.js";
 import { exportPDF }  from "./exportPDF.js";
+// Tablas normativas y matemática pura → core.js (compartido con el generador
+// del CAD: Define ▸ Response Spectrum Functions ▸ Generar Espectro).
+import { resolveParams, factorC, csPuentes } from "./core.js";
+
+export { resolveParams };
 
 export let normaVersion = "2026";
 export let datosEspectro = [];
 let ubigeoSeleccionado = null;
 
 const versions = ["1977","1997","2003","2016","2018","2026","e031","puentes"];
-
-const zoneZ = {
-    "1977": { 1:0.4,  2:0.7,  3:1    },
-    "1997": { 1:0.15, 2:0.3,  3:0.4  },
-    "2003": { 1:0.15, 2:0.3,  3:0.4  },
-    "2016": { 1:0.1,  2:0.25, 3:0.35, 4:0.45 },
-    "2018": { 1:0.1,  2:0.25, 3:0.35, 4:0.45 },
-    "2026": { 1:0.1,  2:0.25, 3:0.35, 4:0.45 },
-    "e031": { 1:0.1,  2:0.25, 3:0.35, 4:0.45 },
-};
-
-const sueloOld = {
-    "1977": { S1:{S:1,Tp:0.4}, S2:{S:1.2,Tp:0.6}, S3:{S:1.5,Tp:0.9} },
-    "1997": { S1:{S:1,Tp:0.4}, S2:{S:1.2,Tp:0.6}, S3:{S:1.4,Tp:0.9}, S4:{S:1.4,Tp:0.9} },
-    "2003": { S1:{S:1,Tp:0.4}, S2:{S:1.2,Tp:0.6}, S3:{S:1.4,Tp:0.9}, S4:{S:1.4,Tp:0.9} },
-};
-
-const factorS2016 = {
-    Z4_S0:0.8, Z4_S1:1, Z4_S2:1.05, Z4_S3:1.1,
-    Z3_S0:0.8, Z3_S1:1, Z3_S2:1.15, Z3_S3:1.2,
-    Z2_S0:0.8, Z2_S1:1, Z2_S2:1.2,  Z2_S3:1.4,
-    Z1_S0:0.8, Z1_S1:1, Z1_S2:1.6,  Z1_S3:2,
-};
-
-const factorS2026 = {
-    ...factorS2016,
-    Z4_S4:1.1, Z4_S5:1.1,
-    Z3_S4:1.2, Z3_S5:1.2,
-    Z2_S4:1.4, Z2_S5:1.4,
-    Z1_S4:2,   Z1_S5:2,
-};
-
-const sueloModern = {
-    S0:{Tp:0.3,Tl:3}, S1:{Tp:0.4,Tl:2.5}, S2:{Tp:0.6,Tl:2},
-    S3:{Tp:1,Tl:1.6}, S4:{Tp:1,Tl:1.6},   S5:{Tp:1,Tl:1.6},
-};
-
-// Puentes MTC/AASHTO: factor de sitio por clase
-const sueloPuentes = { I:{S:1.0}, II:{S:1.2}, III:{S:1.5}, IV:{S:2.0} };
 
 const versionColor = {
     "1977":"#f72585","1997":"#ffd166","2003":"#ff6b35",
@@ -203,48 +169,6 @@ function setVersion(version) {
 function show(id, visible) {
     const el = $(id); if (!el) return;
     el.style.display = visible ? "block" : "none";
-}
-
-// ── RESOLVE PARAMS ────────────────────────────────────────────────────────────
-export function resolveParams(version, zonaVal, sueloVal) {
-    if (version === "puentes") {
-        const soil = sueloPuentes[sueloVal];
-        return soil ? { Z:Number(zonaVal), S:soil.S, Tp:null, Tl:null } : null;
-    }
-    if (version === "1977" || version === "1997" || version === "2003") {
-        const soil = sueloOld[version][sueloVal];
-        return soil ? { Z:zoneZ[version][zonaVal], S:soil.S, Tp:soil.Tp, Tl:null } : null;
-    }
-    if (version === "e031") {
-        const S    = factorS2016[`Z${zonaVal}_${sueloVal}`];
-        const soil = sueloModern[sueloVal];
-        return S && soil ? { Z:zoneZ.e031[zonaVal], S, Tp:soil.Tp, Tl:soil.Tl } : null;
-    }
-    const factors = version === "2026" ? factorS2026 : factorS2016;
-    const S    = factors[`Z${zonaVal}_${sueloVal}`];
-    const soil = sueloModern[sueloVal];
-    return S && soil ? { Z:zoneZ[version][zonaVal], S, Tp:soil.Tp, Tl:soil.Tl } : null;
-}
-
-// ── FACTOR C ──────────────────────────────────────────────────────────────────
-function factorC(T, Tp, Tl, version) {
-    if (version === "1977") return T === 0 ? 2.5 : Math.min(2.5, (Tp/T)**(2/3));
-    if (version === "1997" || version === "2003") return T < Tp ? 2.5 : 2.5*(Tp/T);
-    if (version === "2016" || version === "2018" || version === "e031") {
-        if (T <= Tp) return 2.5;
-        if (T <= Tl) return 2.5*(Tp/T);
-        return (2.5*Tp*Tl)/(T*T);
-    }
-    // 2026
-    if (T < 0.2*Tp) return 1 + 7.5*(T/Tp);
-    if (T <= Tp)    return 2.5;
-    if (T <= Tl)    return 2.5*(Tp/T);
-    return (2.5*Tp*Tl)/(T*T);
-}
-
-function csPuentes(T, A, S) {
-    if (T === 0) return 2.5*A;
-    return Math.min(2.5*A, (1.2*A*S)/(T**(2/3)));
 }
 
 // ── CALCULAR ──────────────────────────────────────────────────────────────────

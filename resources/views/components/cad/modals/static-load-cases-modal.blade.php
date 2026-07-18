@@ -241,13 +241,13 @@
             },
 
             defaultLoadCases: [{
-                    name: "DEAD",
+                    name: "CM",
                     type: "DEAD",
                     selfWeightMultiplier: 1,
                     autoLateralLoad: "0"
                 },
                 {
-                    name: "LIVE",
+                    name: "CVE",
                     type: "LIVE",
                     selfWeightMultiplier: 0,
                     autoLateralLoad: "1"

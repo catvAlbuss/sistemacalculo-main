@@ -210,6 +210,44 @@ export const selectionMixin = {
   // Clic normal: reemplaza selección.
   // Ctrl + clic: toggleFrameSelection manda una lista acumulada.
   // =====================================================
+  /**
+   * Ctrl+A: selecciona TODO el modelo (barras + nodos + áreas), estilo ETABS.
+   * Orden importante: selectFramesForEdit LIMPIA nodos y áreas al empezar, así
+   * que se llama primero y luego se marcan nodos y áreas encima.
+   */
+  selectAllEverything() {
+    const frames = (this.shapes || []).filter((s) => s.node1 && s.node2);
+    if (frames.length) {
+      this.selectFramesForEdit?.(frames, { reason: "select all (Ctrl+A)" });
+    }
+
+    const nodes = this.nodes || [];
+    nodes.forEach((n) => {
+      n.selected = true;
+      n.isSelected = true;
+    });
+    if (this.selectedNodesState) {
+      this.selectedNodesState.selectedObjects = [...nodes];
+    }
+
+    const areas = (this.areas || []).filter(
+      (a) => Array.isArray(a.points) && a.points.length >= 3,
+    );
+    areas.forEach((a) => {
+      a.selected = true;
+      a.isSelected = true;
+    });
+    if (this.selectedAreasState) {
+      this.selectedAreasState.selectedObjects = [...areas];
+    }
+
+    this.redraw?.();
+    this.sync3D?.();
+    this.showMessage?.(
+      `Seleccionado todo: ${nodes.length} nodo(s), ${frames.length} barra(s), ${areas.length} área(s).`,
+    );
+  },
+
   selectFramesForEdit(frames = [], options = {}) {
     if (!Array.isArray(this.multiSelectedFrames)) {
       this.multiSelectedFrames = [];
