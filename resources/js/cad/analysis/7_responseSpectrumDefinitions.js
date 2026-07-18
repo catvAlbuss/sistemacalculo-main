@@ -7,6 +7,14 @@ import {
     DEFAULT_MODAL_SPECTRAL_CASES
 } from "./4_modalSpectralPayload.js";
 
+// Matemática normativa compartida con la vista Espectro Sísmico (core puro,
+// sin DOM ni ubigeo) — resources/js/espectro-sismico/core.js.
+import { computeSpectrum } from "../../espectro-sismico/core.js";
+
+// UBIGEO Perú (Departamento→Provincia→Distrito→{zone, zFactor}) para asignar
+// la zona sísmica automáticamente, igual que la vista Espectro Sísmico.
+import UBIGEO_DATA from "../../../data/ubigeo.js";
+
 function clonePlain(data) {
     return JSON.parse(JSON.stringify(data ?? null));
 }
@@ -204,7 +212,9 @@ export async function openResponseSpectrumFunctionsDialog(cadSystem) {
 
         switch (action.type) {
             case "add":
-                if (action.addType === "default") {
+                if (action.addType === "generate") {
+                    await openGenerateSpectrumDialog(cadSystem);
+                } else if (action.addType === "default") {
                     const id = genFunctionId(cadSystem);
                     const points = cadSystem._defaultDesignSpectrum?.() || [];
                     cadSystem.responseSpectrumFunctions.items.push({
@@ -309,6 +319,7 @@ function showFunctionsListModal(cadSystem) {
                   <div style="color:#7eb8f7; font-size:12px; font-weight:600; margin-bottom:6px">Choose Function Type to Add</div>
                   <select id="rsf-type" style="width:100%; margin-bottom:12px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:6px">
                     <option value="file">Spectrum from File</option>
+                    <option value="generate">Generar Espectro (E.030)</option>
                     <option value="default">Espectro por defecto</option>
                   </select>
                   <div style="color:#94a3b8; font-size:11px; margin-bottom:6px">Click to:</div>
@@ -354,6 +365,317 @@ function showFunctionsListModal(cadSystem) {
             else resolve({ type: "cancel" });
         });
     });
+}
+
+/**
+ * Modal "Generar Espectro de Diseño" (E.030 y normas previas): versión compacta
+ * de la vista Espectro Sísmico (resources/views/hcalculo/espectro-sismico.blade.php)
+ * — mismos parámetros y misma matemática (espectro-sismico/core.js), pero sin
+ * tabla de valores y con el gráfico chico del diálogo de funciones. Al aceptar
+ * crea una Response Spectrum Function con los puntos (T, Sa en g).
+ */
+async function openGenerateSpectrumDialog(cadSystem) {
+    const zonasPorVersion = {
+        "1977": [[1, "Z = 0.40"], [2, "Z = 0.70"], [3, "Z = 1.00"]],
+        "1997": [[1, "Z = 0.15"], [2, "Z = 0.30"], [3, "Z = 0.40"]],
+        "2003": [[1, "Z = 0.15"], [2, "Z = 0.30"], [3, "Z = 0.40"]],
+        "2016": [[1, "Z = 0.10"], [2, "Z = 0.25"], [3, "Z = 0.35"], [4, "Z = 0.45"]],
+        "2018": [[1, "Z = 0.10"], [2, "Z = 0.25"], [3, "Z = 0.35"], [4, "Z = 0.45"]],
+        "2026": [[1, "Z = 0.10"], [2, "Z = 0.25"], [3, "Z = 0.35"], [4, "Z = 0.45"]],
+    };
+    const suelosPorVersion = {
+        "1977": ["S1", "S2", "S3"],
+        "1997": ["S1", "S2", "S3", "S4"],
+        "2003": ["S1", "S2", "S3", "S4"],
+        "2016": ["S0", "S1", "S2", "S3"],
+        "2018": ["S0", "S1", "S2", "S3"],
+        "2026": ["S0", "S1", "S2", "S3", "S4", "S5"],
+    };
+    const sueloLabel = {
+        S0: "Roca dura", S1: "Roca / suelo muy rígido", S2: "Suelos rígidos",
+        S3: "Suelos intermedios a blandos", S4: "Suelos blandos", S5: "Excepcional",
+    };
+
+    const inp = 'style="width:100%; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:5px"';
+    const lbl = 'style="color:#cbd5e1; display:block; margin-bottom:2px; font-size:11px"';
+
+    let lastResult = null; // {points, meta} del último cálculo válido
+
+    const result = await Swal.fire({
+        title: "Generar Espectro de Diseño",
+        width: 700,
+        background: "#1a2035",
+        color: "#e2e8f0",
+        showCancelButton: true,
+        confirmButtonText: "Agregar Función",
+        cancelButtonText: "Cancelar",
+        confirmButtonColor: "#1d4ed8",
+        html: `
+          <div style="text-align:left; font-family:monospace; font-size:12px">
+            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:6px">
+              <div>
+                <label ${lbl}>Departamento (opcional)</label>
+                <select id="gsp-dep" ${inp}></select>
+              </div>
+              <div>
+                <label ${lbl}>Provincia</label>
+                <select id="gsp-prov" ${inp} disabled></select>
+              </div>
+              <div>
+                <label ${lbl}>Distrito</label>
+                <select id="gsp-dist" ${inp} disabled></select>
+              </div>
+            </div>
+            <div id="gsp-ubigeo-tag" style="display:none; color:#f87171; font-size:11px; margin-bottom:8px"></div>
+
+            <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-bottom:8px">
+              <div style="grid-column:span 2">
+                <label ${lbl}>Norma</label>
+                <select id="gsp-version" ${inp}>
+                  <option value="2026">E.030 — 2026 (RM 183-2026)</option>
+                  <option value="2018" selected>E.030 — 2018</option>
+                  <option value="2016">E.030 — 2016</option>
+                  <option value="2003">E.030 — 2003</option>
+                  <option value="1997">E.030 — 1997</option>
+                  <option value="1977">RNC — 1977</option>
+                </select>
+              </div>
+              <div>
+                <label ${lbl}>Zona</label>
+                <select id="gsp-zona" ${inp}></select>
+              </div>
+              <div>
+                <label ${lbl}>Suelo</label>
+                <select id="gsp-suelo" ${inp}></select>
+              </div>
+
+              <div>
+                <label ${lbl}>Uso U</label>
+                <select id="gsp-uso" ${inp}>
+                  <option value="1">1.0 — C Común</option>
+                  <option value="1.3">1.3 — B Importante</option>
+                  <option value="1.5">1.5 — A Esencial</option>
+                </select>
+              </div>
+              <div>
+                <label ${lbl}>R (básico)</label>
+                <input id="gsp-r" type="number" step="0.5" min="1" value="8" ${inp}>
+              </div>
+              <div>
+                <label ${lbl}>Ia</label>
+                <input id="gsp-ia" type="number" step="0.05" min="0.5" max="1" value="1" ${inp}>
+              </div>
+              <div>
+                <label ${lbl}>Ip</label>
+                <input id="gsp-ip" type="number" step="0.05" min="0.5" max="1" value="1" ${inp}>
+              </div>
+
+              <div>
+                <label ${lbl}>T máx (s)</label>
+                <input id="gsp-tmax" type="number" step="0.5" min="1" value="10" ${inp}>
+              </div>
+              <div>
+                <label ${lbl}>Paso (s)</label>
+                <input id="gsp-paso" type="number" step="0.01" min="0.01" value="0.05" ${inp}>
+              </div>
+              <div id="gsp-ts-box" style="display:none">
+                <label ${lbl}>Ts suelo (s)</label>
+                <input id="gsp-ts" type="number" step="0.05" min="0" value="0" ${inp}>
+              </div>
+              <div style="grid-column:span 1">
+                <label ${lbl}>Nombre</label>
+                <input id="gsp-name" value="" ${inp}>
+              </div>
+            </div>
+
+            <div id="gsp-summary" style="color:#94a3b8; font-size:11px; margin-bottom:6px; min-height:16px"></div>
+            <div id="gsp-error" style="color:#f87171; font-size:11px; margin-bottom:6px; display:none"></div>
+            <div id="gsp-graph" style="display:flex; justify-content:center"></div>
+          </div>`,
+        didOpen: () => {
+            const $ = (id) => document.getElementById(id);
+
+            let ubigeoSel = null; // {dep, prov, dist, zone}
+
+            const fillZonaSuelo = () => {
+                const v = $("gsp-version").value;
+                const zonas = zonasPorVersion[v] || [];
+                const suelos = suelosPorVersion[v] || [];
+                $("gsp-zona").innerHTML = zonas
+                    .map(([z, l]) => `<option value="${z}" ${z === zonas[zonas.length - 1][0] ? "selected" : ""}>Zona ${z} — ${l}</option>`)
+                    .join("");
+                $("gsp-suelo").innerHTML = suelos
+                    .map((s) => `<option value="${s}" ${s === "S2" ? "selected" : ""}>${s} — ${sueloLabel[s] || s}</option>`)
+                    .join("");
+                $("gsp-ts-box").style.display = v === "2026" ? "block" : "none";
+                applyUbigeoZone(); // re-aplicar la zona del distrito al cambiar de norma
+            };
+
+            // ── UBIGEO: Departamento → Provincia → Distrito → zona automática ──
+            const opt = (v, l, sel = false) => `<option value="${v}" ${sel ? "selected" : ""}>${l}</option>`;
+            const cap = (t = "") => t.charAt(0) + t.slice(1).toLowerCase();
+
+            const applyUbigeoZone = () => {
+                const tag = $("gsp-ubigeo-tag");
+                if (!ubigeoSel) { if (tag) tag.style.display = "none"; return; }
+                const v = $("gsp-version").value;
+                // Normas viejas solo tienen 3 zonas: la zona 4 moderna mapea a 3.
+                const eff = ["1977", "1997", "2003"].includes(v) && ubigeoSel.zone === 4 ? 3 : ubigeoSel.zone;
+                if ([...$("gsp-zona").options].some((o) => Number(o.value) === eff)) {
+                    $("gsp-zona").value = String(eff);
+                }
+                if (tag) {
+                    tag.style.display = "block";
+                    tag.innerHTML = `Zona ${ubigeoSel.zone} asignada — ${cap(ubigeoSel.dist)}, ${cap(ubigeoSel.prov)}, ${cap(ubigeoSel.dep)}`;
+                }
+            };
+
+            const initUbigeo = () => {
+                $("gsp-dep").innerHTML = opt("", "— Departamento —", true) +
+                    UBIGEO_DATA.map((d, i) => opt(i, cap(d.name))).join("");
+                $("gsp-prov").innerHTML = opt("", "— Provincia —", true);
+                $("gsp-dist").innerHTML = opt("", "— Distrito —", true);
+
+                $("gsp-dep").addEventListener("change", () => {
+                    const di = Number($("gsp-dep").value);
+                    ubigeoSel = null; applyUbigeoZone();
+                    $("gsp-dist").innerHTML = opt("", "— Distrito —", true);
+                    $("gsp-dist").disabled = true;
+                    if (Number.isNaN(di) || $("gsp-dep").value === "") {
+                        $("gsp-prov").innerHTML = opt("", "— Provincia —", true);
+                        $("gsp-prov").disabled = true;
+                        return;
+                    }
+                    $("gsp-prov").disabled = false;
+                    $("gsp-prov").innerHTML = opt("", "— Provincia —", true) +
+                        UBIGEO_DATA[di].provinces.map((p, i) => opt(i, cap(p.name))).join("");
+                });
+
+                $("gsp-prov").addEventListener("change", () => {
+                    const di = Number($("gsp-dep").value), pi = Number($("gsp-prov").value);
+                    ubigeoSel = null; applyUbigeoZone();
+                    if (Number.isNaN(di) || Number.isNaN(pi) || $("gsp-prov").value === "") {
+                        $("gsp-dist").innerHTML = opt("", "— Distrito —", true);
+                        $("gsp-dist").disabled = true;
+                        return;
+                    }
+                    $("gsp-dist").disabled = false;
+                    $("gsp-dist").innerHTML = opt("", "— Distrito —", true) +
+                        UBIGEO_DATA[di].provinces[pi].districts.map((d, i) => opt(i, cap(d.name))).join("");
+                });
+
+                $("gsp-dist").addEventListener("change", () => {
+                    const di = Number($("gsp-dep").value), pi = Number($("gsp-prov").value), ki = Number($("gsp-dist").value);
+                    if (Number.isNaN(di) || Number.isNaN(pi) || Number.isNaN(ki) || $("gsp-dist").value === "") {
+                        ubigeoSel = null; applyUbigeoZone(); return;
+                    }
+                    const dep = UBIGEO_DATA[di], prov = dep.provinces[pi], dist = prov.districts[ki];
+                    ubigeoSel = { dep: dep.name, prov: prov.name, dist: dist.name, zone: Number(dist.zone) };
+                    applyUbigeoZone();
+                    $("gsp-name").value = autoName();
+                    recalc();
+                });
+            };
+
+            const autoName = () =>
+                `E030-${$("gsp-version").value} Z${$("gsp-zona").value}${$("gsp-suelo").value} R${$("gsp-r").value}`;
+
+            const recalc = () => {
+                const out = computeSpectrum({
+                    version: $("gsp-version").value,
+                    zona: Number($("gsp-zona").value),
+                    suelo: $("gsp-suelo").value,
+                    U: parseFloat($("gsp-uso").value) || 1,
+                    Rbase: parseFloat($("gsp-r").value) || 0,
+                    Ia: parseFloat($("gsp-ia").value) || 1,
+                    Ip: parseFloat($("gsp-ip").value) || 1,
+                    Ts: parseFloat($("gsp-ts")?.value) || 0,
+                    Tmax: parseFloat($("gsp-tmax").value) || 0,
+                    paso: parseFloat($("gsp-paso").value) || 0,
+                });
+
+                const err = $("gsp-error");
+                const graph = $("gsp-graph");
+                const summary = $("gsp-summary");
+
+                if (out.error) {
+                    lastResult = null;
+                    err.textContent = out.error;
+                    err.style.display = "block";
+                    graph.innerHTML = "";
+                    summary.textContent = "";
+                    return;
+                }
+
+                // Trazabilidad: ubicación elegida (si la hay) viaja en la meta.
+                out.meta.ubicacion = ubigeoSel
+                    ? { dep: ubigeoSel.dep, prov: ubigeoSel.prov, dist: ubigeoSel.dist, zone: ubigeoSel.zone }
+                    : null;
+                lastResult = out;
+                err.style.display = "none";
+                const m = out.meta;
+                summary.innerHTML =
+                    `Z=${m.Z}  U=${m.U}  S=${m.S}  Tp=${m.Tp ?? "—"}  TL=${m.Tl ?? "—"}  ` +
+                    `R=${m.R.toFixed(2)}  →  <b style="color:#4ade80">Sa máx = ${m.SaMax} g</b>` +
+                    (m.sueloModificado ? `  <span style="color:#facc15">(suelo degradado a ${m.sueloEfectivo} por Ts)</span>` : "");
+                graph.innerHTML = cadSystem._buildSpectrumSVG?.([{
+                    name: $("gsp-name").value || autoName(),
+                    color: "#4ade80",
+                    points: out.points,
+                }]) || "";
+                cadSystem._attachSpectrumHover?.(graph);
+            };
+
+            initUbigeo();
+            fillZonaSuelo();
+            $("gsp-name").value = autoName();
+            recalc();
+
+            ["gsp-zona", "gsp-suelo", "gsp-uso", "gsp-r", "gsp-ia", "gsp-ip", "gsp-ts", "gsp-tmax", "gsp-paso"]
+                .forEach((id) => $(id)?.addEventListener("change", () => { $("gsp-name").value = autoName(); recalc(); }));
+            $("gsp-version").addEventListener("change", () => { fillZonaSuelo(); $("gsp-name").value = autoName(); recalc(); });
+        },
+        preConfirm: () => {
+            if (!lastResult?.points?.length) {
+                Swal.showValidationMessage("Corrige los parámetros: el espectro no se pudo calcular.");
+                return false;
+            }
+            return {
+                name: document.getElementById("gsp-name")?.value?.trim() || "",
+                computed: lastResult,
+            };
+        },
+    });
+
+    if (!result.isConfirmed || !result.value?.computed) return;
+
+    const { name, computed } = result.value;
+    const items = cadSystem.responseSpectrumFunctions.items;
+    const id = genFunctionId(cadSystem);
+    let finalName = name || id;
+    let n = 2;
+    while (items.some((f) => String(f.name) === finalName)) finalName = `${name || id} (${n++})`;
+
+    items.push({
+        id,
+        name: finalName,
+        type: "response-spectrum",
+        units: "Sa en g",
+        damping: 0.05,
+        valuesAre: "period",
+        headerLines: 0,
+        fileName: `(generado E.030 ${computed.meta.version})`,
+        rawText: "",
+        points: computed.points.map((p) => ({ T: p.T, Sa: p.Sa })),
+        source: "generated",
+        generatorParams: { ...computed.meta },
+    });
+    cadSystem.responseSpectrumFunctions.selectedFunction = id;
+    cadSystem.showMessage?.(
+        `Función "${finalName}" generada (${computed.points.length} puntos, Sa máx ${computed.meta.SaMax} g).`,
+        "success",
+    );
+    cadSystem.saveUndoState?.("Generar espectro de diseño");
 }
 
 /**
