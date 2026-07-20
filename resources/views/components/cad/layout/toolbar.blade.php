@@ -5,54 +5,54 @@
     <!-- Add more toolbar buttons as needed -->
     <span class="cad-text-logo-color w-48 text-sm font-bold italic">BARRA DE HERRAMIENTAS</span>
     <!-- -------------------------APARTADO DE DISEÑAR-------------------------- -->
-    <x-cad.ribbon-group title="Diseñar">
-      <x-cad.ribbon-button clickHandler="openNewModelDialog()" toggle="false" label="Nuevo Modelo">
+    <x-cad.ui.ribbon-group title="Diseñar">
+      <x-cad.ui.ribbon-button clickHandler="openNewModelDialog()" toggle="false" label="Nuevo Modelo">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
-      </x-cad.ribbon-button>
-      <x-cad.ribbon-button clickHandler="setState(trussDrawingState)" toggle="currentState === trussDrawingState"
+      </x-cad.ui.ribbon-button>
+      <x-cad.ui.ribbon-button clickHandler="setState(trussDrawingState)" toggle="currentState === trussDrawingState"
         label="Barra">
         <x-cad.svg.beam></x-cad.svg.beam>
-      </x-cad.ribbon-button>
-      <x-cad.ribbon-button clickHandler="snap_enabled = !snap_enabled" toggle="snap_enabled" label="Snap">
+      </x-cad.ui.ribbon-button>
+      <x-cad.ui.ribbon-button clickHandler="snap_enabled = !snap_enabled" toggle="snap_enabled" label="Snap">
         <x-cad.svg.grid-snap></x-cad.svg.grid-snap>
-      </x-cad.ribbon-button>
-      <x-cad.ribbon-button clickHandler="options.showGrid = !options.showGrid" toggle="options.showGrid" label="Grid">
+      </x-cad.ui.ribbon-button>
+      <x-cad.ui.ribbon-button clickHandler="options.showGrid = !options.showGrid" toggle="options.showGrid" label="Grid">
         <x-cad.svg.grid></x-cad.svg.grid>
-      </x-cad.ribbon-button>
-      <x-cad.ribbon-button clickHandler="fitContentToScreen" toggle="false" label="Centrar">
+      </x-cad.ui.ribbon-button>
+      <x-cad.ui.ribbon-button clickHandler="fitContentToScreen" toggle="false" label="Centrar">
         <x-cad.svg.center></x-cad.svg.center>
-      </x-cad.ribbon-button>
-      {{-- <x-cad.ribbon-button-subitem clickHandler="options.showDeflection = !options.showDeflection" label="Escala"
+      </x-cad.ui.ribbon-button>
+      {{-- <x-cad.ui.ribbon-button-subitem clickHandler="options.showDeflection = !options.showDeflection" label="Escala"
             toggle="options.showDeflection">
             <x-slot name="slot1"></x-slot>
             <x-slot name="slot2">
                 <input type="range" name="dEscala" id="dEscala" min="1" max="1000" step="1"
                     x-model="options.deflectionScale" x-on:input="calcularDeflecciones()">
             </x-slot>
-        </x-cad.ribbon-button-subitem> --}}
-    </x-cad.ribbon-group>
+        </x-cad.ui.ribbon-button-subitem> --}}
+    </x-cad.ui.ribbon-group>
     <!-- -------------------------APARTADO DE TAREAS -------------------------- -->
-    <x-cad.ribbon-group title="Tareas">
+    <x-cad.ui.ribbon-group title="Tareas">
       <form class="flex flex-row" x-on:submit.prevent="calcularFuerzas" id="run-analysis-form">
         @csrf
-        <x-cad.ribbon-button clickHandler="" toggle="false" label="Correr">
+        <x-cad.ui.ribbon-button clickHandler="" toggle="false" label="Correr">
           <x-cad.svg.run></x-cad.svg.run>
-        </x-cad.ribbon-button>
+        </x-cad.ui.ribbon-button>
       </form>
-      <x-cad.ribbon-button clickHandler="generarReporte" toggle="false" label="Reporte">
+      <x-cad.ui.ribbon-button clickHandler="generarReporte" toggle="false" label="Reporte">
         <x-cad.svg.pdf></x-cad.svg.pdf>
-      </x-cad.ribbon-button>
-    </x-cad.ribbon-group>
+      </x-cad.ui.ribbon-button>
+    </x-cad.ui.ribbon-group>
     <!-- -------------------------APARTADO DE ESTRUCTURA ----------------------- -->
-    <x-cad.ribbon-group title="Estructura">
-      <x-cad.ribbon-button clickHandler="options.showWireframe = !options.showWireframe" toggle="options.showWireframe"
+    <x-cad.ui.ribbon-group title="Estructura">
+      <x-cad.ui.ribbon-button clickHandler="options.showWireframe = !options.showWireframe" toggle="options.showWireframe"
         label="Wireframe">
         <x-cad.svg.wireframe></x-cad.svg.wireframe>
-      </x-cad.ribbon-button>
+      </x-cad.ui.ribbon-button>
       <!-- SECCION DE FUERZAZ -->
-      <x-cad.ribbon-button-subitem clickHandler="showForces()" label="Fuerzas"
+      <x-cad.ui.ribbon-button-subitem clickHandler="showForces()" label="Fuerzas"
         toggle="options.showForces">
         <x-slot name="slot1"><x-cad.svg.force></x-cad.svg.force></x-slot>
         <x-slot name="slot2">
@@ -71,20 +71,20 @@
             <input id="fCLL" name="fCLL" type="radio" value="CLL" x-model="options.currentLoad" @change="sync3D()">
           </div>
         </x-slot>
-      </x-cad.ribbon-button-subitem>
+      </x-cad.ui.ribbon-button-subitem>
       <!-- SECCION DE MATERIALES -->
-      <x-cad.ribbon-button clickHandler="options.showMaterials = !options.showMaterials" toggle="options.showMaterials"
+      <x-cad.ui.ribbon-button clickHandler="options.showMaterials = !options.showMaterials" toggle="options.showMaterials"
         label="Materiales">
         <x-cad.svg.material></x-cad.svg.material>
-      </x-cad.ribbon-button>
+      </x-cad.ui.ribbon-button>
       <!-- SECCION ID -->
-      <x-cad.ribbon-button clickHandler="options.showIDs = !options.showIDs" toggle="options.showIDs" label="ID">
+      <x-cad.ui.ribbon-button clickHandler="options.showIDs = !options.showIDs" toggle="options.showIDs" label="ID">
         <x-cad.svg.id></x-cad.svg.id>
-      </x-cad.ribbon-button>
-    </x-cad.ribbon-group>
+      </x-cad.ui.ribbon-button>
+    </x-cad.ui.ribbon-group>
     <!-- -------------------------APARTADO DE LOS RESULTADOS------------------------ -->
-    <x-cad.ribbon-group title="Resultados">
-      <x-cad.ribbon-button-subitem clickHandler="showDeflections()" label="Deflección"
+    <x-cad.ui.ribbon-group title="Resultados">
+      <x-cad.ui.ribbon-button-subitem clickHandler="showDeflections()" label="Deflección"
         toggle="options.showDeflection">
         <x-slot name="slot1">
           <x-cad.svg.deflection></x-cad.svg.deflection>
@@ -93,12 +93,12 @@
           <input id="dEscala" name="dEscala" type="range" min="1" max="1000" step="1"
             x-model="options.deflectionScale" @input="updateDeflectionScale()">
         </x-slot>
-      </x-cad.ribbon-button-subitem>
-      <x-cad.ribbon-button clickHandler="showReactions()" toggle="options.showReactions"
+      </x-cad.ui.ribbon-button-subitem>
+      <x-cad.ui.ribbon-button clickHandler="showReactions()" toggle="options.showReactions"
         label="Reacción">
         <x-cad.svg.reaction></x-cad.svg.reaction>
-      </x-cad.ribbon-button>
-      <x-cad.ribbon-button-subitem clickHandler="options.showFAxiales = !options.showFAxiales" label="Axial"
+      </x-cad.ui.ribbon-button>
+      <x-cad.ui.ribbon-button-subitem clickHandler="options.showFAxiales = !options.showFAxiales" label="Axial"
         toggle="options.showFAxiales">
         <x-slot name="slot1"><x-cad.svg.axial></x-cad.svg.axial></x-slot>
         <x-slot name="slot2">
@@ -107,23 +107,23 @@
             <input id="fAxialesValues" name="fAxialesValues" type="checkbox" x-model="options.showFAxialesValues">
           </div>
         </x-slot>
-      </x-cad.ribbon-button-subitem>
-    </x-cad.ribbon-group>
+      </x-cad.ui.ribbon-button-subitem>
+    </x-cad.ui.ribbon-group>
     <!-- -------------------------APARTADO DE PARAMETRIZADO ----------------------- -->
-    <x-cad.ribbon-group title="Parametrizado">
-      <x-cad.ribbon-button clickHandler="creaArco()" toggle="false" label="Arco">
+    <x-cad.ui.ribbon-group title="Parametrizado">
+      <x-cad.ui.ribbon-button clickHandler="creaArco()" toggle="false" label="Arco">
         <x-cad.svg.arco></x-cad.svg.arco>
-      </x-cad.ribbon-button>
-      <x-cad.ribbon-button clickHandler="creaTriangulo()" toggle="false" label="Triangulo">
+      </x-cad.ui.ribbon-button>
+      <x-cad.ui.ribbon-button clickHandler="creaTriangulo()" toggle="false" label="Triangulo">
         <x-cad.svg.triangle></x-cad.svg.triangle>
-      </x-cad.ribbon-button>
-      <x-cad.ribbon-button clickHandler="creaElipse()" toggle="false" label="Elipse">
+      </x-cad.ui.ribbon-button>
+      <x-cad.ui.ribbon-button clickHandler="creaElipse()" toggle="false" label="Elipse">
         <x-cad.svg.ellipse></x-cad.svg.ellipse>
-      </x-cad.ribbon-button>
-    </x-cad.ribbon-group>
+      </x-cad.ui.ribbon-button>
+    </x-cad.ui.ribbon-group>
     <!-- -------------------------APARTADO DE 3D ----------------------- -->
 
-    <x-cad.ribbon-group title="Grillas">
+    <x-cad.ui.ribbon-group title="Grillas">
       <button
         id="btn-open-grid-editor"
         type="button"
@@ -131,9 +131,9 @@
         <x-cad.svg.grid></x-cad.svg.grid>
         <span class="mt-1 text-[11px]">Editar</span>
       </button>
-    </x-cad.ribbon-group>
+    </x-cad.ui.ribbon-group>
 
-    <x-cad.ribbon-group title="Vistas">
+    <x-cad.ui.ribbon-group title="Vistas">
       <div class="flex flex-col px-2 py-1 text-xs text-white">
         <label class="mb-1 text-gray-300">Vista activa</label>
 
@@ -145,55 +145,55 @@
           </template>
         </select>
       </div>
-    </x-cad.ribbon-group>
+    </x-cad.ui.ribbon-group>
 
     <!-- Dentro del grupo "3D", añade: -->
-    <x-cad.ribbon-group title="Edificio">
-      <!-- <x-cad.ribbon-button clickHandler="showTestFrame()" toggle="false" label="Pórtico Prueba">
+    <x-cad.ui.ribbon-group title="Edificio">
+      <!-- <x-cad.ui.ribbon-button clickHandler="showTestFrame()" toggle="false" label="Pórtico Prueba">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v18" />
         </svg>
-      </x-cad.ribbon-button> -->
+      </x-cad.ui.ribbon-button> -->
 
       <!-- Elevar selección -->
-      <x-cad.ribbon-button clickHandler="elevateSelectedNodes()" toggle="false" label="Elevar +1m">
+      <x-cad.ui.ribbon-button clickHandler="elevateSelectedNodes()" toggle="false" label="Elevar +1m">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
         </svg>
-      </x-cad.ribbon-button>
+      </x-cad.ui.ribbon-button>
 
-      <x-cad.ribbon-button clickHandler="testEdificioSismico()" toggle="false" label="Edificio Sísmico (Test)">
+      <x-cad.ui.ribbon-button clickHandler="testEdificioSismico()" toggle="false" label="Edificio Sísmico (Test)">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M3 21h18M3 10h18M3 7l9-4 9 4M4 10v11M20 10v11M8 10v11M12 10v11M16 10v11" />
         </svg>
-      </x-cad.ribbon-button>
+      </x-cad.ui.ribbon-button>
 
       <!-- Show Deformed Shape (estilo ETABS): deformada estática/animada por caso sísmico -->
-      <x-cad.ribbon-button clickHandler="openDeformedShapeDialog()" toggle="false" label="Deformada">
+      <x-cad.ui.ribbon-button clickHandler="openDeformedShapeDialog()" toggle="false" label="Deformada">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18" />
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M6 21c0-6 4-8 4-14M14 21c0-6 4-8 4-14M10 7h8" />
         </svg>
-      </x-cad.ribbon-button>
+      </x-cad.ui.ribbon-button>
 
       <!-- Bajar selección -->
-      <x-cad.ribbon-button clickHandler="lowerSelectedNodes()" toggle="false" label="Bajar -1m">
+      <x-cad.ui.ribbon-button clickHandler="lowerSelectedNodes()" toggle="false" label="Bajar -1m">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
         </svg>
-      </x-cad.ribbon-button>
+      </x-cad.ui.ribbon-button>
 
       <!-- Extruir a nuevo piso -->
-      <x-cad.ribbon-button clickHandler="extrudeToNewFloor()" toggle="false" label="+ Nuevo Piso">
+      <x-cad.ui.ribbon-button clickHandler="extrudeToNewFloor()" toggle="false" label="+ Nuevo Piso">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v18" />
         </svg>
-      </x-cad.ribbon-button>
-    </x-cad.ribbon-group>
+      </x-cad.ui.ribbon-button>
+    </x-cad.ui.ribbon-group>
   </div>
   <!-- Modal para File > New Model -->
   <x-cad.modals.new-model />

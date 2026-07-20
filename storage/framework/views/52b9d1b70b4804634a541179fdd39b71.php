@@ -91,10 +91,10 @@
       </button>
 
       <!-- Botón para iniciar/detener animación -->
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'toggleDeflectionAnimation()','toggle' => 'false','label' => 'Animar Deflexión']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'toggleDeflectionAnimation()','toggle' => 'false','label' => 'Animar Deflexión']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -107,20 +107,20 @@
         </svg>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
 
       <!-- Botón para cambiar velocidad -->
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'toggleDeflectionAnimationSpeed()','toggle' => 'false','label' => 'Velocidad']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'toggleDeflectionAnimationSpeed()','toggle' => 'false','label' => 'Velocidad']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -132,20 +132,20 @@
         </svg>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
       
       <!-- Botón para cambiar modo de animación -->
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'toggleDeflectionAnimationMode()','toggle' => 'false','label' => 'Modo Animación']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'toggleDeflectionAnimationMode()','toggle' => 'false','label' => 'Modo Animación']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -157,13 +157,13 @@
         </svg>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
 
 

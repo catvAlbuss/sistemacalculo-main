@@ -28,42 +28,49 @@ function imgFromSVG(svg) {
   return img;
 }
 
+// Soportes 2D: misma GEOMETRÍA que los componentes Blade
+// components/cad/svg/soporte{1,2,3}.blade.php (relleno translúcido + patas),
+// con el trazo aclarado (#e2e8f0) porque el canvas del modelo es oscuro — el
+// #2c3e50 original de las vistas está pensado para fondos claros.
+const SOP_STROKE = "#e2e8f0";
+const SOP_FILL = "rgba(148, 163, 184, 0.35)";
+
 const soporteUno = `
   <svg viewBox="90 20 70 60" width="30" height="30" xmlns="http://www.w3.org/2000/svg">
-    <polygon points="120,20 140,60 100,60" fill="none" stroke="white" stroke-width="2"/>
-    <line x1="90" y1="60" x2="150" y2="60" stroke="white" stroke-width="2"/>
-    <line x1="90" y1="60" x2="100" y2="70" stroke="white" stroke-width="2"/>
-    <line x1="100" y1="60" x2="110" y2="70" stroke="white" stroke-width="2"/>
-    <line x1="110" y1="60" x2="120" y2="70" stroke="white" stroke-width="2"/>
-    <line x1="120" y1="60" x2="130" y2="70" stroke="white" stroke-width="2"/>
-    <line x1="130" y1="60" x2="140" y2="70" stroke="white" stroke-width="2"/>
-    <line x1="140" y1="60" x2="150" y2="70" stroke="white" stroke-width="2"/>
-    <line x1="150" y1="60" x2="160" y2="70" stroke="white" stroke-width="2"/>
+    <polygon points="120,20 140,60 100,60" fill="${SOP_FILL}" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="90" y1="60" x2="150" y2="60" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="90" y1="60" x2="100" y2="70" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="100" y1="60" x2="110" y2="70" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="110" y1="60" x2="120" y2="70" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="120" y1="60" x2="130" y2="70" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="130" y1="60" x2="140" y2="70" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="140" y1="60" x2="150" y2="70" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="150" y1="60" x2="160" y2="70" stroke="${SOP_STROKE}" stroke-width="2"/>
   </svg>`;
 
 const soporteDos = `
   <svg viewBox="90 20 70 60" width="30" height="30" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="120" cy="40" r="20" fill="none" stroke="white" stroke-width="2"/>
-    <line x1="90" y1="60" x2="150" y2="60" stroke="white" stroke-width="2"/>
-    <line x1="90" y1="60" x2="100" y2="70" stroke="white" stroke-width="2"/>
-    <line x1="100" y1="60" x2="110" y2="70" stroke="white" stroke-width="2"/>
-    <line x1="110" y1="60" x2="120" y2="70" stroke="white" stroke-width="2"/>
-    <line x1="120" y1="60" x2="130" y2="70" stroke="white" stroke-width="2"/>
-    <line x1="130" y1="60" x2="140" y2="70" stroke="white" stroke-width="2"/>
-    <line x1="140" y1="60" x2="150" y2="70" stroke="white" stroke-width="2"/>
-    <line x1="150" y1="60" x2="160" y2="70" stroke="white" stroke-width="2"/>
+    <circle cx="120" cy="40" r="20" fill="${SOP_FILL}" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="90" y1="60" x2="150" y2="60" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="90" y1="60" x2="100" y2="70" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="100" y1="60" x2="110" y2="70" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="110" y1="60" x2="120" y2="70" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="120" y1="60" x2="130" y2="70" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="130" y1="60" x2="140" y2="70" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="140" y1="60" x2="150" y2="70" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="150" y1="60" x2="160" y2="70" stroke="${SOP_STROKE}" stroke-width="2"/>
   </svg>`;
 
 const soporteTres = `
   <svg viewBox="20 90 60 70" width="30" height="30" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="40" cy="120" r="20" fill="none" stroke="white" stroke-width="2"/>
-    <line x1="25" y1="150" x2="25" y2="90" stroke="white" stroke-width="2"/>
-    <line x1="10" y1="150" x2="25" y2="140" stroke="white" stroke-width="2"/>
-    <line x1="10" y1="140" x2="25" y2="130" stroke="white" stroke-width="2"/>
-    <line x1="10" y1="130" x2="25" y2="120" stroke="white" stroke-width="2"/>
-    <line x1="10" y1="120" x2="25" y2="110" stroke="white" stroke-width="2"/>
-    <line x1="10" y1="110" x2="25" y2="100" stroke="white" stroke-width="2"/>
-    <line x1="10" y1="100" x2="25" y2="90" stroke="white" stroke-width="2"/>
+    <circle cx="40" cy="120" r="20" fill="${SOP_FILL}" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="25" y1="150" x2="25" y2="90" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="10" y1="150" x2="25" y2="140" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="10" y1="140" x2="25" y2="130" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="10" y1="130" x2="25" y2="120" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="10" y1="120" x2="25" y2="110" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="10" y1="110" x2="25" y2="100" stroke="${SOP_STROKE}" stroke-width="2"/>
+    <line x1="10" y1="100" x2="25" y2="90" stroke="${SOP_STROKE}" stroke-width="2"/>
   </svg>`;
 
 export const soportes = {
@@ -506,10 +513,8 @@ export class DiseñoRenderer {
 
     ctx.restore();
 
-    // Símbolo visual de apoyo / restricción
-    if (this.jointHasAnyRestraint(node)) {
-      this.drawJointSupportSymbol(node, context, p);
-    }
+    // Soporte: lo dibuja drawSupport() con los SVG del proyecto (soporte1/2/3);
+    // el badge paralelo (caja roja F, etc.) se eliminó para no superponer diseños.
 
     // Símbolo visual de diafragma
     if (this.jointHasDiaphragm(node)) {
@@ -612,15 +617,36 @@ export class DiseñoRenderer {
     ctx.restore();
   }
 
+  // Clave del ícono de soporte para el nodo. Prioriza `node.soporte` (legacy /
+  // import) y si no existe INFIERE de los restraints (los asignados con el
+  // modal Assign ▸ Joint ▸ Restraints solo setean restraints/constraints):
+  // todo restringido → empotrado; traslaciones → articulado; solo UZ → rodillo;
+  // cualquier otra combinación con algo restringido → articulado genérico.
+  getSupportKey(node) {
+    if (node.soporte) return node.soporte;
+
+    const r = node.restraints || node.constraints || node.assignment?.restraints;
+    if (!r) return null;
+
+    const t = (r.ux ? 1 : 0) + (r.uy ? 1 : 0) + (r.uz ? 1 : 0);
+    const rot = (r.rx ? 1 : 0) + (r.ry ? 1 : 0) + (r.rz ? 1 : 0);
+
+    if (!t && !rot) return null;
+    if (t === 3 && rot === 3) return "soporteUno";
+    if (t === 3) return "soporteDos";
+    if (r.uz && t === 1 && !rot) return "soporteTres";
+    return "soporteDos";
+  }
+
   drawSupport(node, context) {
-    // const p = context.grid.worldToScreen(node.position);
     const p = this.projectPoint(node, context);
-    if (node.soporte) {
-      if (node.soporte !== "soporteTres") {
-        context.ctx.drawImage(soportes[node.soporte], p.x - 15, p.y);
-      } else {
-        context.ctx.drawImage(soportes[node.soporte], p.x - 20, p.y - 10);
-      }
+    const key = this.getSupportKey(node);
+    if (!key || !soportes[key]) return;
+
+    if (key !== "soporteTres") {
+      context.ctx.drawImage(soportes[key], p.x - 15, p.y);
+    } else {
+      context.ctx.drawImage(soportes[key], p.x - 20, p.y - 10);
     }
   }
 
@@ -2163,269 +2189,6 @@ export class DiseñoRenderer {
   // =====================================================
   // VISUAL ASSIGN > JOINT / POINT > RESTRAINTS
   // =====================================================
-
-  getJointRestraints(node) {
-    if (!node) return null;
-
-    return (
-      node.restraints ||
-      node.constraints ||
-      node.assignment?.restraints ||
-      null
-    );
-  }
-
-  jointHasAnyRestraint(node) {
-    const r = this.getJointRestraints(node);
-
-    if (!r) return false;
-
-    return (
-      r.ux === true ||
-      r.uy === true ||
-      r.uz === true ||
-      r.rx === true ||
-      r.ry === true ||
-      r.rz === true
-    );
-  }
-
-  getJointSupportType(node) {
-    const r = this.getJointRestraints(node);
-
-    if (!r) return "free";
-
-    if (r.type) return r.type;
-
-    const ux = r.ux === true;
-    const uy = r.uy === true;
-    const uz = r.uz === true;
-    const rx = r.rx === true;
-    const ry = r.ry === true;
-    const rz = r.rz === true;
-
-    if (ux && uy && uz && rx && ry && rz) return "fixed";
-    if (ux && uy && uz && !rx && !ry && !rz) return "pinned";
-    if (!ux && uy && uz && !rx && !ry && !rz) return "rollerX";
-    if (ux && !uy && uz && !rx && !ry && !rz) return "rollerY";
-    if (!ux && !uy && !uz && !rx && !ry && !rz) return "free";
-
-    return "custom";
-  }
-
-  drawJointSupportSymbol(node, context, screenPoint) {
-    if (!this.jointHasAnyRestraint(node)) return;
-
-    const type = this.getJointSupportType(node);
-    const x = screenPoint.x;
-    const y = screenPoint.y;
-
-    switch (type) {
-      case "fixed":
-        this.drawFixedSupport(context, x, y);
-        break;
-
-      case "pinned":
-        this.drawPinnedSupport(context, x, y);
-        break;
-
-      case "rollerX":
-        this.drawRollerXSupport(context, x, y);
-        break;
-
-      case "rollerY":
-        this.drawRollerYSupport(context, x, y);
-        break;
-
-      case "free":
-        break;
-
-      default:
-        this.drawCustomSupport(context, x, y);
-        break;
-    }
-  }
-
-  drawFixedSupport(context, x, y) {
-    const ctx = context.ctx;
-
-    ctx.save();
-
-    // Cuadrado de apoyo fijo
-    ctx.fillStyle = "#ef4444";
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 1.5;
-
-    ctx.beginPath();
-    ctx.rect(x - 8, y + 7, 16, 10);
-    ctx.fill();
-    ctx.stroke();
-
-    // Hachurado
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 1;
-
-    for (let i = -8; i <= 8; i += 4) {
-      ctx.beginPath();
-      ctx.moveTo(x + i, y + 17);
-      ctx.lineTo(x + i - 5, y + 23);
-      ctx.stroke();
-    }
-
-    // Letra
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "9px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("F", x, y + 15);
-
-    ctx.restore();
-  }
-
-  drawPinnedSupport(context, x, y) {
-    const ctx = context.ctx;
-
-    ctx.save();
-
-    ctx.fillStyle = "#facc15";
-    ctx.strokeStyle = "#111827";
-    ctx.lineWidth = 1.5;
-
-    // Triángulo
-    ctx.beginPath();
-    ctx.moveTo(x, y + 7);
-    ctx.lineTo(x - 10, y + 22);
-    ctx.lineTo(x + 10, y + 22);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Base
-    ctx.beginPath();
-    ctx.moveTo(x - 13, y + 23);
-    ctx.lineTo(x + 13, y + 23);
-    ctx.stroke();
-
-    ctx.fillStyle = "#111827";
-    ctx.font = "9px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("P", x, y + 20);
-
-    ctx.restore();
-  }
-
-  drawRollerXSupport(context, x, y) {
-    const ctx = context.ctx;
-
-    ctx.save();
-
-    // Triángulo principal
-    ctx.fillStyle = "#38bdf8";
-    ctx.strokeStyle = "#111827";
-    ctx.lineWidth = 1.5;
-
-    ctx.beginPath();
-    ctx.moveTo(x, y + 7);
-    ctx.lineTo(x - 10, y + 20);
-    ctx.lineTo(x + 10, y + 20);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Rueditas horizontales
-    ctx.fillStyle = "#ffffff";
-    ctx.strokeStyle = "#111827";
-
-    ctx.beginPath();
-    ctx.arc(x - 6, y + 25, 3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(x + 6, y + 25, 3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    // Base
-    ctx.beginPath();
-    ctx.moveTo(x - 14, y + 30);
-    ctx.lineTo(x + 14, y + 30);
-    ctx.stroke();
-
-    ctx.fillStyle = "#111827";
-    ctx.font = "8px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("RX", x, y + 18);
-
-    ctx.restore();
-  }
-
-  drawRollerYSupport(context, x, y) {
-    const ctx = context.ctx;
-
-    ctx.save();
-
-    // Triángulo lateral para diferenciarlo
-    ctx.fillStyle = "#34d399";
-    ctx.strokeStyle = "#111827";
-    ctx.lineWidth = 1.5;
-
-    ctx.beginPath();
-    ctx.moveTo(x + 8, y);
-    ctx.lineTo(x + 22, y - 10);
-    ctx.lineTo(x + 22, y + 10);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Rueditas verticales
-    ctx.fillStyle = "#ffffff";
-    ctx.strokeStyle = "#111827";
-
-    ctx.beginPath();
-    ctx.arc(x + 27, y - 6, 3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(x + 27, y + 6, 3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    // Base vertical
-    ctx.beginPath();
-    ctx.moveTo(x + 32, y - 14);
-    ctx.lineTo(x + 32, y + 14);
-    ctx.stroke();
-
-    ctx.fillStyle = "#111827";
-    ctx.font = "8px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("RY", x + 18, y + 3);
-
-    ctx.restore();
-  }
-
-  drawCustomSupport(context, x, y) {
-    const ctx = context.ctx;
-
-    ctx.save();
-
-    ctx.beginPath();
-    ctx.arc(x, y + 15, 9, 0, Math.PI * 2);
-    ctx.fillStyle = "#a855f7";
-    ctx.fill();
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "9px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("C", x, y + 15);
-
-    ctx.restore();
-  }
 
   // =====================================================
   // VISUAL ASSIGN > JOINT / POINT > DIAPHRAGMS

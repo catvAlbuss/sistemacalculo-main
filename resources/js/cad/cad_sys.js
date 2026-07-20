@@ -76,31 +76,31 @@ import { Beam, Node as StructuralNode } from "./shapes.js";
 
 
 // Mixin imports
-import { optionsMixin } from "./mixins/options.js";
-import { eventsMixin } from "./mixins/events.js";
-import { selectionMixin } from "./mixins/selection.js";
-import { actionsMixin } from "./mixins/actions.js";
-import { modelQueriesMixin } from "./mixins/model-queries.js";
-import { editDeleteMixin } from "./mixins/edit-delete.js";
-import { editClipboardMixin } from "./mixins/edit-clipboard.js";
-import { undoRedoMixin } from "./mixins/undo-redo.js";
-import { editGeometryMixin } from "./mixins/edit-geometry.js";
-import { viewFilterMixin } from "./mixins/view-filter.js";
-import { designMixin } from "./mixins/design.js";
-import { displayDialogsMixin } from "./mixins/display-dialogs.js";
-import { assignDialogsMixin } from "./mixins/assign-dialogs.js";
-import { coreUiMixin } from "./mixins/core-ui.js";
-import { fileIOMixin } from "./mixins/file-io.js";
-import { modelFactoryMixin } from "./mixins/model-factory.js";
-import { storyGridMixin } from "./mixins/story-grid.js";
-import { viewportMixin } from "./mixins/viewport.js";
-import { analysisMixin } from "./mixins/analysis.js";
-import { referenceGridMixin } from "./mixins/reference-grid.js";
-import { elevationDrawingMixin } from "./mixins/elevation-drawing.js";
-import { reportMixin } from "./mixins/report.js";
-import { animationMixin } from "./mixins/animation.js";
-import { seismicMixin } from "./mixins/seismic.js";
-import { autosaveMixin } from "./mixins/autosave.js";
+import { optionsMixin } from "./mixins/core/options.js";
+import { eventsMixin } from "./mixins/core/events.js";
+import { selectionMixin } from "./mixins/select/selection.js";
+import { actionsMixin } from "./mixins/core/actions.js";
+import { modelQueriesMixin } from "./mixins/edit/model-queries.js";
+import { editDeleteMixin } from "./mixins/edit/edit-delete.js";
+import { editClipboardMixin } from "./mixins/edit/edit-clipboard.js";
+import { undoRedoMixin } from "./mixins/edit/undo-redo.js";
+import { editGeometryMixin } from "./mixins/edit/edit-geometry.js";
+import { viewFilterMixin } from "./mixins/select/view-filter.js";
+import { designMixin } from "./mixins/analysis/design.js";
+import { displayDialogsMixin } from "./mixins/dialogs/display-dialogs.js";
+import { assignDialogsMixin } from "./mixins/dialogs/assign-dialogs.js";
+import { coreUiMixin } from "./mixins/core/core-ui.js";
+import { fileIOMixin } from "./mixins/io/file-io.js";
+import { modelFactoryMixin } from "./mixins/edit/model-factory.js";
+import { storyGridMixin } from "./mixins/grids/story-grid.js";
+import { viewportMixin } from "./mixins/select/viewport.js";
+import { analysisMixin } from "./mixins/analysis/analysis.js";
+import { referenceGridMixin } from "./mixins/grids/reference-grid.js";
+import { elevationDrawingMixin } from "./mixins/grids/elevation-drawing.js";
+import { reportMixin } from "./mixins/analysis/report.js";
+import { animationMixin } from "./mixins/analysis/animation.js";
+import { seismicMixin } from "./mixins/analysis/seismic.js";
+import { autosaveMixin } from "./mixins/io/autosave.js";
 
 export default () => ({
   // ------------------------------------------------------------------

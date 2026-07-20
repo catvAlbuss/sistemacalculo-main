@@ -24,20 +24,20 @@
     <!-- Add more toolbar buttons as needed -->
     <span class="cad-text-logo-color w-48 text-sm font-bold italic">BARRA DE HERRAMIENTAS</span>
     <!-- -------------------------APARTADO DE DISEÑAR-------------------------- -->
-    <?php if (isset($component)) { $__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-group','data' => ['title' => 'Diseñar']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-group'); ?>
+    <?php if (isset($component)) { $__componentOriginald9b1ac6f27f646361ec9ff2ac956492f = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-group','data' => ['title' => 'Diseñar']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-group'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['title' => 'Diseñar']); ?>
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'openNewModelDialog()','toggle' => 'false','label' => 'Nuevo Modelo']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'openNewModelDialog()','toggle' => 'false','label' => 'Nuevo Modelo']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -49,18 +49,18 @@
         </svg>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'setState(trussDrawingState)','toggle' => 'currentState === trussDrawingState','label' => 'Barra']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'setState(trussDrawingState)','toggle' => 'currentState === trussDrawingState','label' => 'Barra']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -88,18 +88,18 @@
 <?php endif; ?>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'snap_enabled = !snap_enabled','toggle' => 'snap_enabled','label' => 'Snap']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'snap_enabled = !snap_enabled','toggle' => 'snap_enabled','label' => 'Snap']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -127,18 +127,18 @@
 <?php endif; ?>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'options.showGrid = !options.showGrid','toggle' => 'options.showGrid','label' => 'Grid']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'options.showGrid = !options.showGrid','toggle' => 'options.showGrid','label' => 'Grid']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -166,18 +166,18 @@
 <?php endif; ?>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'fitContentToScreen','toggle' => 'false','label' => 'Centrar']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'fitContentToScreen','toggle' => 'false','label' => 'Centrar']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -205,30 +205,30 @@
 <?php endif; ?>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
       
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31)): ?>
-<?php $attributes = $__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31; ?>
-<?php unset($__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31); ?>
+<?php if (isset($__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f)): ?>
+<?php $attributes = $__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f; ?>
+<?php unset($__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31)): ?>
-<?php $component = $__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31; ?>
-<?php unset($__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31); ?>
+<?php if (isset($__componentOriginald9b1ac6f27f646361ec9ff2ac956492f)): ?>
+<?php $component = $__componentOriginald9b1ac6f27f646361ec9ff2ac956492f; ?>
+<?php unset($__componentOriginald9b1ac6f27f646361ec9ff2ac956492f); ?>
 <?php endif; ?>
     <!-- -------------------------APARTADO DE TAREAS -------------------------- -->
-    <?php if (isset($component)) { $__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-group','data' => ['title' => 'Tareas']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-group'); ?>
+    <?php if (isset($component)) { $__componentOriginald9b1ac6f27f646361ec9ff2ac956492f = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-group','data' => ['title' => 'Tareas']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-group'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -237,10 +237,10 @@
 <?php $component->withAttributes(['title' => 'Tareas']); ?>
       <form class="flex flex-row" x-on:submit.prevent="calcularFuerzas" id="run-analysis-form">
         <?php echo csrf_field(); ?>
-        <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => '','toggle' => 'false','label' => 'Correr']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+        <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => '','toggle' => 'false','label' => 'Correr']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -268,19 +268,19 @@
 <?php endif; ?>
          <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
       </form>
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'generarReporte','toggle' => 'false','label' => 'Reporte']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'generarReporte','toggle' => 'false','label' => 'Reporte']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -308,39 +308,39 @@
 <?php endif; ?>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31)): ?>
-<?php $attributes = $__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31; ?>
-<?php unset($__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31); ?>
+<?php if (isset($__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f)): ?>
+<?php $attributes = $__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f; ?>
+<?php unset($__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31)): ?>
-<?php $component = $__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31; ?>
-<?php unset($__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31); ?>
+<?php if (isset($__componentOriginald9b1ac6f27f646361ec9ff2ac956492f)): ?>
+<?php $component = $__componentOriginald9b1ac6f27f646361ec9ff2ac956492f; ?>
+<?php unset($__componentOriginald9b1ac6f27f646361ec9ff2ac956492f); ?>
 <?php endif; ?>
     <!-- -------------------------APARTADO DE ESTRUCTURA ----------------------- -->
-    <?php if (isset($component)) { $__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-group','data' => ['title' => 'Estructura']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-group'); ?>
+    <?php if (isset($component)) { $__componentOriginald9b1ac6f27f646361ec9ff2ac956492f = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-group','data' => ['title' => 'Estructura']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-group'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['title' => 'Estructura']); ?>
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'options.showWireframe = !options.showWireframe','toggle' => 'options.showWireframe','label' => 'Wireframe']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'options.showWireframe = !options.showWireframe','toggle' => 'options.showWireframe','label' => 'Wireframe']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -368,19 +368,19 @@
 <?php endif; ?>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
       <!-- SECCION DE FUERZAZ -->
-      <?php if (isset($component)) { $__componentOriginal61bbe411231f7dfd50aa8cc0d5919f24 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal61bbe411231f7dfd50aa8cc0d5919f24 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button-subitem','data' => ['clickHandler' => 'showForces()','label' => 'Fuerzas','toggle' => 'options.showForces']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button-subitem'); ?>
+      <?php if (isset($component)) { $__componentOriginal7e1c9e4b7d1050f09dedd0bbc62ec352 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal7e1c9e4b7d1050f09dedd0bbc62ec352 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button-subitem','data' => ['clickHandler' => 'showForces()','label' => 'Fuerzas','toggle' => 'options.showForces']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button-subitem'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -424,19 +424,19 @@
          <?php $__env->endSlot(); ?>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginal61bbe411231f7dfd50aa8cc0d5919f24)): ?>
-<?php $attributes = $__attributesOriginal61bbe411231f7dfd50aa8cc0d5919f24; ?>
-<?php unset($__attributesOriginal61bbe411231f7dfd50aa8cc0d5919f24); ?>
+<?php if (isset($__attributesOriginal7e1c9e4b7d1050f09dedd0bbc62ec352)): ?>
+<?php $attributes = $__attributesOriginal7e1c9e4b7d1050f09dedd0bbc62ec352; ?>
+<?php unset($__attributesOriginal7e1c9e4b7d1050f09dedd0bbc62ec352); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginal61bbe411231f7dfd50aa8cc0d5919f24)): ?>
-<?php $component = $__componentOriginal61bbe411231f7dfd50aa8cc0d5919f24; ?>
-<?php unset($__componentOriginal61bbe411231f7dfd50aa8cc0d5919f24); ?>
+<?php if (isset($__componentOriginal7e1c9e4b7d1050f09dedd0bbc62ec352)): ?>
+<?php $component = $__componentOriginal7e1c9e4b7d1050f09dedd0bbc62ec352; ?>
+<?php unset($__componentOriginal7e1c9e4b7d1050f09dedd0bbc62ec352); ?>
 <?php endif; ?>
       <!-- SECCION DE MATERIALES -->
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'options.showMaterials = !options.showMaterials','toggle' => 'options.showMaterials','label' => 'Materiales']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'options.showMaterials = !options.showMaterials','toggle' => 'options.showMaterials','label' => 'Materiales']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -464,19 +464,19 @@
 <?php endif; ?>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
       <!-- SECCION ID -->
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'options.showIDs = !options.showIDs','toggle' => 'options.showIDs','label' => 'ID']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'options.showIDs = !options.showIDs','toggle' => 'options.showIDs','label' => 'ID']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -504,39 +504,39 @@
 <?php endif; ?>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31)): ?>
-<?php $attributes = $__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31; ?>
-<?php unset($__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31); ?>
+<?php if (isset($__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f)): ?>
+<?php $attributes = $__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f; ?>
+<?php unset($__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31)): ?>
-<?php $component = $__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31; ?>
-<?php unset($__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31); ?>
+<?php if (isset($__componentOriginald9b1ac6f27f646361ec9ff2ac956492f)): ?>
+<?php $component = $__componentOriginald9b1ac6f27f646361ec9ff2ac956492f; ?>
+<?php unset($__componentOriginald9b1ac6f27f646361ec9ff2ac956492f); ?>
 <?php endif; ?>
     <!-- -------------------------APARTADO DE LOS RESULTADOS------------------------ -->
-    <?php if (isset($component)) { $__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-group','data' => ['title' => 'Resultados']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-group'); ?>
+    <?php if (isset($component)) { $__componentOriginald9b1ac6f27f646361ec9ff2ac956492f = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-group','data' => ['title' => 'Resultados']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-group'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['title' => 'Resultados']); ?>
-      <?php if (isset($component)) { $__componentOriginal61bbe411231f7dfd50aa8cc0d5919f24 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal61bbe411231f7dfd50aa8cc0d5919f24 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button-subitem','data' => ['clickHandler' => 'showDeflections()','label' => 'Deflección','toggle' => 'options.showDeflection']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button-subitem'); ?>
+      <?php if (isset($component)) { $__componentOriginal7e1c9e4b7d1050f09dedd0bbc62ec352 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal7e1c9e4b7d1050f09dedd0bbc62ec352 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button-subitem','data' => ['clickHandler' => 'showDeflections()','label' => 'Deflección','toggle' => 'options.showDeflection']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button-subitem'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -570,18 +570,18 @@
          <?php $__env->endSlot(); ?>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginal61bbe411231f7dfd50aa8cc0d5919f24)): ?>
-<?php $attributes = $__attributesOriginal61bbe411231f7dfd50aa8cc0d5919f24; ?>
-<?php unset($__attributesOriginal61bbe411231f7dfd50aa8cc0d5919f24); ?>
+<?php if (isset($__attributesOriginal7e1c9e4b7d1050f09dedd0bbc62ec352)): ?>
+<?php $attributes = $__attributesOriginal7e1c9e4b7d1050f09dedd0bbc62ec352; ?>
+<?php unset($__attributesOriginal7e1c9e4b7d1050f09dedd0bbc62ec352); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginal61bbe411231f7dfd50aa8cc0d5919f24)): ?>
-<?php $component = $__componentOriginal61bbe411231f7dfd50aa8cc0d5919f24; ?>
-<?php unset($__componentOriginal61bbe411231f7dfd50aa8cc0d5919f24); ?>
+<?php if (isset($__componentOriginal7e1c9e4b7d1050f09dedd0bbc62ec352)): ?>
+<?php $component = $__componentOriginal7e1c9e4b7d1050f09dedd0bbc62ec352; ?>
+<?php unset($__componentOriginal7e1c9e4b7d1050f09dedd0bbc62ec352); ?>
 <?php endif; ?>
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'showReactions()','toggle' => 'options.showReactions','label' => 'Reacción']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'showReactions()','toggle' => 'options.showReactions','label' => 'Reacción']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -609,18 +609,18 @@
 <?php endif; ?>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-      <?php if (isset($component)) { $__componentOriginal61bbe411231f7dfd50aa8cc0d5919f24 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal61bbe411231f7dfd50aa8cc0d5919f24 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button-subitem','data' => ['clickHandler' => 'options.showFAxiales = !options.showFAxiales','label' => 'Axial','toggle' => 'options.showFAxiales']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button-subitem'); ?>
+      <?php if (isset($component)) { $__componentOriginal7e1c9e4b7d1050f09dedd0bbc62ec352 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal7e1c9e4b7d1050f09dedd0bbc62ec352 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button-subitem','data' => ['clickHandler' => 'options.showFAxiales = !options.showFAxiales','label' => 'Axial','toggle' => 'options.showFAxiales']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button-subitem'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -654,39 +654,39 @@
          <?php $__env->endSlot(); ?>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginal61bbe411231f7dfd50aa8cc0d5919f24)): ?>
-<?php $attributes = $__attributesOriginal61bbe411231f7dfd50aa8cc0d5919f24; ?>
-<?php unset($__attributesOriginal61bbe411231f7dfd50aa8cc0d5919f24); ?>
+<?php if (isset($__attributesOriginal7e1c9e4b7d1050f09dedd0bbc62ec352)): ?>
+<?php $attributes = $__attributesOriginal7e1c9e4b7d1050f09dedd0bbc62ec352; ?>
+<?php unset($__attributesOriginal7e1c9e4b7d1050f09dedd0bbc62ec352); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginal61bbe411231f7dfd50aa8cc0d5919f24)): ?>
-<?php $component = $__componentOriginal61bbe411231f7dfd50aa8cc0d5919f24; ?>
-<?php unset($__componentOriginal61bbe411231f7dfd50aa8cc0d5919f24); ?>
+<?php if (isset($__componentOriginal7e1c9e4b7d1050f09dedd0bbc62ec352)): ?>
+<?php $component = $__componentOriginal7e1c9e4b7d1050f09dedd0bbc62ec352; ?>
+<?php unset($__componentOriginal7e1c9e4b7d1050f09dedd0bbc62ec352); ?>
 <?php endif; ?>
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31)): ?>
-<?php $attributes = $__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31; ?>
-<?php unset($__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31); ?>
+<?php if (isset($__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f)): ?>
+<?php $attributes = $__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f; ?>
+<?php unset($__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31)): ?>
-<?php $component = $__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31; ?>
-<?php unset($__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31); ?>
+<?php if (isset($__componentOriginald9b1ac6f27f646361ec9ff2ac956492f)): ?>
+<?php $component = $__componentOriginald9b1ac6f27f646361ec9ff2ac956492f; ?>
+<?php unset($__componentOriginald9b1ac6f27f646361ec9ff2ac956492f); ?>
 <?php endif; ?>
     <!-- -------------------------APARTADO DE PARAMETRIZADO ----------------------- -->
-    <?php if (isset($component)) { $__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-group','data' => ['title' => 'Parametrizado']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-group'); ?>
+    <?php if (isset($component)) { $__componentOriginald9b1ac6f27f646361ec9ff2ac956492f = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-group','data' => ['title' => 'Parametrizado']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-group'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['title' => 'Parametrizado']); ?>
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'creaArco()','toggle' => 'false','label' => 'Arco']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'creaArco()','toggle' => 'false','label' => 'Arco']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -714,18 +714,18 @@
 <?php endif; ?>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'creaTriangulo()','toggle' => 'false','label' => 'Triangulo']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'creaTriangulo()','toggle' => 'false','label' => 'Triangulo']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -753,18 +753,18 @@
 <?php endif; ?>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'creaElipse()','toggle' => 'false','label' => 'Elipse']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'creaElipse()','toggle' => 'false','label' => 'Elipse']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -792,30 +792,30 @@
 <?php endif; ?>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31)): ?>
-<?php $attributes = $__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31; ?>
-<?php unset($__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31); ?>
+<?php if (isset($__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f)): ?>
+<?php $attributes = $__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f; ?>
+<?php unset($__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31)): ?>
-<?php $component = $__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31; ?>
-<?php unset($__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31); ?>
+<?php if (isset($__componentOriginald9b1ac6f27f646361ec9ff2ac956492f)): ?>
+<?php $component = $__componentOriginald9b1ac6f27f646361ec9ff2ac956492f; ?>
+<?php unset($__componentOriginald9b1ac6f27f646361ec9ff2ac956492f); ?>
 <?php endif; ?>
     <!-- -------------------------APARTADO DE 3D ----------------------- -->
 
-    <?php if (isset($component)) { $__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-group','data' => ['title' => 'Grillas']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-group'); ?>
+    <?php if (isset($component)) { $__componentOriginald9b1ac6f27f646361ec9ff2ac956492f = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-group','data' => ['title' => 'Grillas']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-group'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -849,19 +849,19 @@
       </button>
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31)): ?>
-<?php $attributes = $__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31; ?>
-<?php unset($__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31); ?>
+<?php if (isset($__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f)): ?>
+<?php $attributes = $__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f; ?>
+<?php unset($__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31)): ?>
-<?php $component = $__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31; ?>
-<?php unset($__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31); ?>
+<?php if (isset($__componentOriginald9b1ac6f27f646361ec9ff2ac956492f)): ?>
+<?php $component = $__componentOriginald9b1ac6f27f646361ec9ff2ac956492f; ?>
+<?php unset($__componentOriginald9b1ac6f27f646361ec9ff2ac956492f); ?>
 <?php endif; ?>
 
-    <?php if (isset($component)) { $__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-group','data' => ['title' => 'Vistas']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-group'); ?>
+    <?php if (isset($component)) { $__componentOriginald9b1ac6f27f646361ec9ff2ac956492f = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-group','data' => ['title' => 'Vistas']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-group'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -881,30 +881,30 @@
       </div>
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31)): ?>
-<?php $attributes = $__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31; ?>
-<?php unset($__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31); ?>
+<?php if (isset($__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f)): ?>
+<?php $attributes = $__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f; ?>
+<?php unset($__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31)): ?>
-<?php $component = $__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31; ?>
-<?php unset($__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31); ?>
+<?php if (isset($__componentOriginald9b1ac6f27f646361ec9ff2ac956492f)): ?>
+<?php $component = $__componentOriginald9b1ac6f27f646361ec9ff2ac956492f; ?>
+<?php unset($__componentOriginald9b1ac6f27f646361ec9ff2ac956492f); ?>
 <?php endif; ?>
 
     <!-- Dentro del grupo "3D", añade: -->
-    <?php if (isset($component)) { $__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-group','data' => ['title' => 'Edificio']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-group'); ?>
+    <?php if (isset($component)) { $__componentOriginald9b1ac6f27f646361ec9ff2ac956492f = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-group','data' => ['title' => 'Edificio']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-group'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['title' => 'Edificio']); ?>
-      <!-- <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'showTestFrame()','toggle' => 'false','label' => 'Pórtico Prueba']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <!-- <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'showTestFrame()','toggle' => 'false','label' => 'Pórtico Prueba']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -917,20 +917,20 @@
         </svg>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?> -->
 
       <!-- Elevar selección -->
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'elevateSelectedNodes()','toggle' => 'false','label' => 'Elevar +1m']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'elevateSelectedNodes()','toggle' => 'false','label' => 'Elevar +1m']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -942,19 +942,19 @@
         </svg>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
 
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'testEdificioSismico()','toggle' => 'false','label' => 'Edificio Sísmico (Test)']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'testEdificioSismico()','toggle' => 'false','label' => 'Edificio Sísmico (Test)']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -967,20 +967,20 @@
         </svg>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
 
       <!-- Show Deformed Shape (estilo ETABS): deformada estática/animada por caso sísmico -->
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'openDeformedShapeDialog()','toggle' => 'false','label' => 'Deformada']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'openDeformedShapeDialog()','toggle' => 'false','label' => 'Deformada']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -994,20 +994,20 @@
         </svg>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
 
       <!-- Bajar selección -->
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'lowerSelectedNodes()','toggle' => 'false','label' => 'Bajar -1m']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'lowerSelectedNodes()','toggle' => 'false','label' => 'Bajar -1m']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -1019,20 +1019,20 @@
         </svg>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
 
       <!-- Extruir a nuevo piso -->
-      <?php if (isset($component)) { $__componentOriginalb8b1bca81d700db9d94581eefb1ea877 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ribbon-button','data' => ['clickHandler' => 'extrudeToNewFloor()','toggle' => 'false','label' => '+ Nuevo Piso']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ribbon-button'); ?>
+      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'extrudeToNewFloor()','toggle' => 'false','label' => '+ Nuevo Piso']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -1045,23 +1045,23 @@
         </svg>
        <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $attributes = $__attributesOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__attributesOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877)): ?>
-<?php $component = $__componentOriginalb8b1bca81d700db9d94581eefb1ea877; ?>
-<?php unset($__componentOriginalb8b1bca81d700db9d94581eefb1ea877); ?>
+<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
+<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
+<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31)): ?>
-<?php $attributes = $__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31; ?>
-<?php unset($__attributesOriginal2f54f64a680554883b3f6b0c3c3b4d31); ?>
+<?php if (isset($__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f)): ?>
+<?php $attributes = $__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f; ?>
+<?php unset($__attributesOriginald9b1ac6f27f646361ec9ff2ac956492f); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31)): ?>
-<?php $component = $__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31; ?>
-<?php unset($__componentOriginal2f54f64a680554883b3f6b0c3c3b4d31); ?>
+<?php if (isset($__componentOriginald9b1ac6f27f646361ec9ff2ac956492f)): ?>
+<?php $component = $__componentOriginald9b1ac6f27f646361ec9ff2ac956492f; ?>
+<?php unset($__componentOriginald9b1ac6f27f646361ec9ff2ac956492f); ?>
 <?php endif; ?>
   </div>
   <!-- Modal para File > New Model -->

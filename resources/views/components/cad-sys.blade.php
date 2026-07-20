@@ -7,6 +7,13 @@
     $el.scrollIntoView({ behavior: 'smooth' })">
     <x-cad.modals.new-model/>
     <x-cad.modals.my-models-modal/>
+    <x-cad.modals.joint-restraints-modal/>
+    <x-cad.modals.joint-diaphragms-modal/>
+    <x-cad.modals.shell-diaphragms-modal/>
+    <x-cad.modals.frame-local-axes-modal/>
+    <x-cad.modals.joint-force-modal/>
+    <x-cad.modals.frame-point-load-modal/>
+    <x-cad.modals.frame-distributed-load-modal/>
     <!-- Se Agrego el modal de grid -->
     <x-cad.modals.diagonal-grid-modal/>
     <input id="_token" name="_token" type="hidden" value="{{ csrf_token() }}" />
