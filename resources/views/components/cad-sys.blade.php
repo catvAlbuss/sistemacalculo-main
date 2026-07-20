@@ -14,6 +14,14 @@
     <x-cad.modals.joint-force-modal/>
     <x-cad.modals.frame-point-load-modal/>
     <x-cad.modals.frame-distributed-load-modal/>
+    <x-cad.modals.frame-section-modal/>
+    <x-cad.modals.slab-section-modal/>
+    <x-cad.modals.area-uniform-load-modal/>
+    <x-cad.modals.frame-releases-modal/>
+    <x-cad.modals.frame-end-offsets-modal/>
+    <x-cad.modals.joint-mass-modal/>
+    <x-cad.modals.group-names-modal/>
+    <x-cad.modals.point-springs-modal/>
     <!-- Se Agrego el modal de grid -->
     <x-cad.modals.diagonal-grid-modal/>
     <input id="_token" name="_token" type="hidden" value="{{ csrf_token() }}" />

@@ -1,4 +1,4 @@
-import { Beam, Node as StructuralNode } from "../../shapes.js";
+import { Beam, Node as StructuralNode } from "../../model/shapes.js";
 
 /**
  * @mixin editClipboardMixin

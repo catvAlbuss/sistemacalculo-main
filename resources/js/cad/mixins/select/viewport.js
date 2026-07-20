@@ -4,7 +4,7 @@ import {
   ensureResponseSpectrumDefinitions,
   openResponseSpectrumFunctionsDialog,
   openResponseSpectrumCasesDialog,
-} from "../../analysis/7_responseSpectrumDefinitions.js";
+} from "../../engine/7_responseSpectrumDefinitions.js";
 
 /**
  * @mixin viewportMixin

@@ -1,13 +1,13 @@
 // Sistema de unidades de visualización (registra window.cadUnits).
-import "./units.js";
+import "./lib/units.js";
 
 import {
   ensureResponseSpectrumDefinitions,
   openResponseSpectrumFunctionsDialog,
   openResponseSpectrumCasesDialog
-} from "./analysis/7_responseSpectrumDefinitions.js";
+} from "./engine/7_responseSpectrumDefinitions.js";
 
-import { GridEditor } from "./grid_editor.js";
+import { GridEditor } from "./canvas2d/grid_editor.js";
 
 import {
   activate3DDrawingMode,
@@ -38,8 +38,8 @@ import {
 
 import { createFull3DGrid, drawReferenceGrid3D, clearReferenceGrid3D } from "./3d/grid3d.js";
 
-import { Grid } from "./grid.js";
-import { DiseñoRenderer, DeflexionRenderer, AxialRenderer } from "./renderer.js";
+import { Grid } from "./canvas2d/grid.js";
+import { DiseñoRenderer, DeflexionRenderer, AxialRenderer } from "./canvas2d/renderer.js";
 import {
   IdleState,
   PanAndZoomState,
@@ -63,16 +63,16 @@ import {
   SelectedParametricState,
   SelectedNodesState,
   SelectionState,
-} from "./states.js";
-import { pointDistance, mousePositionFrom, removeFromArray, axisToFixed, pointDistanceToSegment } from "./utils.js";
+} from "./canvas2d/states.js";
+import { pointDistance, mousePositionFrom, removeFromArray, axisToFixed, pointDistanceToSegment } from "./lib/utils.js";
 import { read as readmat } from "mat-for-js";
-import { Triangle, Puente, Arco } from "./parametricModels.js";
+import { Triangle, Puente, Arco } from "./model/parametricModels.js";
 import Swal from "sweetalert2";
-import sections from "./sections.js";
+import sections from "./model/sections.js";
 
 import * as BABYLON from "@babylonjs/core";
-import { TrussDrawingState3D } from "./states.js";
-import { Beam, Node as StructuralNode } from "./shapes.js";
+import { TrussDrawingState3D } from "./canvas2d/states.js";
+import { Beam, Node as StructuralNode } from "./model/shapes.js";
 
 
 // Mixin imports
@@ -506,7 +506,7 @@ export default () => ({
       showReactions: true,
       showFAxiales: false,
       showFAxialesValues: true,
-      showMaterials: true,
+      showMaterials: false,
       // Vista extruida 3D tipo ETABS (Extrude View): dibuja frames como sólidos
       // b×h y losas/shells con espesor. Default OFF (vista de líneas/tubos).
       extrudeFrames3D: false,

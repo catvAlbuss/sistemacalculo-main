@@ -1,4 +1,4 @@
-import { pointDistance } from "./utils.js";
+import { pointDistance } from "../lib/utils.js";
 import { NodeStyle, BeamStyle } from "./styles.js";
 
 import sections from "./sections.js";

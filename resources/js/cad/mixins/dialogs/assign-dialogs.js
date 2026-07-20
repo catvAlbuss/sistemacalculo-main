@@ -182,7 +182,8 @@ export const assignDialogsMixin = {
     return result;
   },
 
-  async openAssignFrameSectionDialog() {
+  // Migración Swal→Blade: HTML en components/cad/modals/frame-section-modal.blade.php.
+  openAssignFrameSectionDialog() {
     const selectedFrames = this.getSelectedFramesForAssign();
 
     if (!selectedFrames.length) {
@@ -197,25 +198,19 @@ export const assignDialogsMixin = {
       return;
     }
 
-    const inputOptions = {};
+    const current = selectedFrames[0]?.sectionId ?? null;
+    window.dispatchEvent(new CustomEvent("open-frame-section-modal", {
+      detail: {
+        sections: sections.map((s) => ({ id: s.id, label: `${s.name}${s.A ? ` | A=${s.A}` : ""}` })),
+        current,
+        count: selectedFrames.length,
+      },
+    }));
+  },
 
-    sections.forEach((section) => {
-      inputOptions[section.id] = `${section.name}${section.A ? ` | A=${section.A}` : ""}`;
-    });
-
-    const result = await Swal.fire({
-      title: "Assign Frame Section",
-      input: "select",
-      inputOptions,
-      inputPlaceholder: "Selecciona una sección",
-      showCancelButton: true,
-      confirmButtonText: "Asignar",
-      cancelButtonText: "Cancelar",
-    });
-
-    if (!result.isConfirmed || !result.value) return;
-
-    this.assignFrameSectionToSelected(result.value);
+  applyFrameSectionFromModal(sectionId) {
+    this.saveUndoState?.("Asignar sección de frame");
+    this.assignFrameSectionToSelected(sectionId);
   },
 
   assignFrameSectionToSelected(sectionId) {
@@ -410,7 +405,8 @@ export const assignDialogsMixin = {
     };
   },
 
-  async openAssignFrameReleasesDialog() {
+  // Migración Swal→Blade: HTML en components/cad/modals/frame-releases-modal.blade.php.
+  openAssignFrameReleasesDialog() {
     const selectedFrames = this.getSelectedFramesForAssign();
 
     if (!selectedFrames.length) {
@@ -418,90 +414,22 @@ export const assignDialogsMixin = {
       return;
     }
 
-    const result = await Swal.fire({
-      title: "Assign Frame Releases / Partial Fixity",
-      width: 760,
-      html: `
-      <div style="text-align:left; font-size:13px;">
-        <p style="margin-bottom:10px;">
-          Selecciona los grados de libertad liberados en el extremo I y/o J del elemento Frame / Line.
-        </p>
-
-        <table style="width:100%; border-collapse:collapse; font-size:12px;">
-          <thead>
-            <tr style="background:#1f2937; color:white;">
-              <th style="border:1px solid #555; padding:6px;">Grado de libertad</th>
-              <th style="border:1px solid #555; padding:6px;">Extremo I</th>
-              <th style="border:1px solid #555; padding:6px;">Extremo J</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            ${this.buildFrameReleaseRow("Axial / P", "axial")}
-            ${this.buildFrameReleaseRow("Shear 2 / V2", "shear2")}
-            ${this.buildFrameReleaseRow("Shear 3 / V3", "shear3")}
-            ${this.buildFrameReleaseRow("Torsion / T", "torsion")}
-            ${this.buildFrameReleaseRow("Moment 22 / M2", "moment22")}
-            ${this.buildFrameReleaseRow("Moment 33 / M3", "moment33")}
-          </tbody>
-        </table>
-
-        <div style="margin-top:14px; padding:10px; border:1px solid #555; border-radius:6px;">
-          <label style="display:flex; align-items:center; gap:8px;">
-            <input id="partial-fixity-enabled" type="checkbox">
-            Activar Partial Fixity / Resortes rotacionales iniciales
-          </label>
-
-          <p style="font-size:12px; color:#777; margin-top:6px;">
-            En esta primera versión se guardará la configuración, pero el cálculo estructural lo usará después cuando conectemos el motor de análisis.
-          </p>
-        </div>
-
-        <div style="margin-top:10px; color:#666; font-size:12px;">
-          Elementos seleccionados: <b>${selectedFrames.length}</b>
-        </div>
-      </div>
-    `,
-      showCancelButton: true,
-      confirmButtonText: "Asignar",
-      cancelButtonText: "Cancelar",
-      preConfirm: () => {
-        return this.readFrameReleasesFromDialog();
-      },
-    });
-
-    if (!result.isConfirmed || !result.value) return;
-
-    this.assignFrameReleasesToSelected(result.value);
+    const current = selectedFrames[0]?.releases || selectedFrames[0]?.frameReleases || this.getDefaultFrameReleases();
+    window.dispatchEvent(new CustomEvent("open-frame-releases-modal", {
+      detail: { current, count: selectedFrames.length },
+    }));
   },
 
-  buildFrameReleaseRow(label, key) {
-    return `
-    <tr>
-      <td style="border:1px solid #555; padding:6px;">${label}</td>
-      <td style="border:1px solid #555; padding:6px; text-align:center;">
-        <input type="checkbox" id="release-i-${key}">
-      </td>
-      <td style="border:1px solid #555; padding:6px; text-align:center;">
-        <input type="checkbox" id="release-j-${key}">
-      </td>
-    </tr>
-  `;
-  },
-
-  readFrameReleasesFromDialog() {
+  applyFrameReleasesFromModal(v) {
     const keys = ["axial", "shear2", "shear3", "torsion", "moment22", "moment33"];
-
     const releases = this.getDefaultFrameReleases();
-
-    keys.forEach((key) => {
-      releases.iEnd[key] = document.getElementById(`release-i-${key}`)?.checked === true;
-      releases.jEnd[key] = document.getElementById(`release-j-${key}`)?.checked === true;
+    keys.forEach((k) => {
+      releases.iEnd[k] = !!v.iEnd?.[k];
+      releases.jEnd[k] = !!v.jEnd?.[k];
     });
-
-    releases.partialFixity.enabled = document.getElementById("partial-fixity-enabled")?.checked === true;
-
-    return releases;
+    releases.partialFixity.enabled = !!v.partialFixity;
+    this.saveUndoState?.("Asignar frame releases");
+    this.assignFrameReleasesToSelected(releases);
   },
 
   assignFrameReleasesToSelected(releases) {
@@ -569,7 +497,8 @@ export const assignDialogsMixin = {
     };
   },
 
-  async openAssignFrameEndOffsetsDialog() {
+  // Migración Swal→Blade: HTML en components/cad/modals/frame-end-offsets-modal.blade.php.
+  openAssignFrameEndOffsetsDialog() {
     const selectedFrames = this.getSelectedFramesForAssign();
 
     if (!selectedFrames.length) {
@@ -579,110 +508,20 @@ export const assignDialogsMixin = {
 
     const current =
       selectedFrames[0]?.endOffsets || selectedFrames[0]?.frameEndOffsets || this.getDefaultFrameEndOffsets();
-
-    const result = await Swal.fire({
-      title: "Assign End (Length) Offsets",
-      width: 620,
-      html: `
-      <div style="text-align:left; font-size:13px;">
-
-        <p style="margin-bottom:12px;">
-          Asigna offsets de longitud en los extremos I y J del elemento Frame / Line.
-        </p>
-
-        <div style="border:1px solid #555; border-radius:6px; padding:10px; margin-bottom:12px;">
-          <label style="display:flex; align-items:center; gap:8px;">
-            <input id="offset-auto" type="checkbox" ${current.autoOffset ? "checked" : ""}>
-            Automatic from Connectivity
-          </label>
-
-          <p style="font-size:12px; color:#777; margin-top:6px;">
-            En esta versión inicial, esta opción solo queda guardada como propiedad del elemento.
-          </p>
-        </div>
-
-        <table style="width:100%; border-collapse:collapse; font-size:12px;">
-          <thead>
-            <tr style="background:#1f2937; color:white;">
-              <th style="border:1px solid #555; padding:6px;">Extremo</th>
-              <th style="border:1px solid #555; padding:6px;">Offset Length</th>
-              <th style="border:1px solid #555; padding:6px;">Rigid Zone Factor</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">I-End</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="offset-i-length" type="number" step="0.001"
-                  value="${current.iEnd?.offsetLength ?? 0}"
-                  style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="offset-i-rigid" type="number" step="0.01" min="0" max="1"
-                  value="${current.iEnd?.rigidZoneFactor ?? 0}"
-                  style="width:100%; padding:5px;">
-              </td>
-            </tr>
-
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">J-End</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="offset-j-length" type="number" step="0.001"
-                  value="${current.jEnd?.offsetLength ?? 0}"
-                  style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="offset-j-rigid" type="number" step="0.01" min="0" max="1"
-                  value="${current.jEnd?.rigidZoneFactor ?? 0}"
-                  style="width:100%; padding:5px;">
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div style="margin-top:12px;">
-          <label style="display:flex; align-items:center; gap:8px;">
-            <input id="offset-use-rigid-zone" type="checkbox" ${current.useRigidZoneFactor ? "checked" : ""}>
-            Use Rigid Zone Factor
-          </label>
-        </div>
-
-        <div style="margin-top:10px; color:#666; font-size:12px;">
-          Elementos seleccionados: <b>${selectedFrames.length}</b>
-        </div>
-
-      </div>
-    `,
-      showCancelButton: true,
-      confirmButtonText: "Asignar",
-      cancelButtonText: "Cancelar",
-      preConfirm: () => {
-        return this.readFrameEndOffsetsFromDialog();
-      },
-    });
-
-    if (!result.isConfirmed || !result.value) return;
-
-    this.assignFrameEndOffsetsToSelected(result.value);
+    window.dispatchEvent(new CustomEvent("open-frame-end-offsets-modal", {
+      detail: { current, count: selectedFrames.length },
+    }));
   },
 
-  readFrameEndOffsetsFromDialog() {
-    return {
-      autoOffset: document.getElementById("offset-auto")?.checked === true,
-
-      iEnd: {
-        offsetLength: Number(document.getElementById("offset-i-length")?.value || 0),
-        rigidZoneFactor: Number(document.getElementById("offset-i-rigid")?.value || 0),
-      },
-
-      jEnd: {
-        offsetLength: Number(document.getElementById("offset-j-length")?.value || 0),
-        rigidZoneFactor: Number(document.getElementById("offset-j-rigid")?.value || 0),
-      },
-
-      useRigidZoneFactor: document.getElementById("offset-use-rigid-zone")?.checked === true,
+  applyFrameEndOffsetsFromModal(v) {
+    const endOffsets = {
+      autoOffset: !!v.autoOffset,
+      iEnd: { offsetLength: Number(v.iLen) || 0, rigidZoneFactor: Number(v.iRigid) || 0 },
+      jEnd: { offsetLength: Number(v.jLen) || 0, rigidZoneFactor: Number(v.jRigid) || 0 },
+      useRigidZoneFactor: !!v.useRigidZoneFactor,
     };
+    this.saveUndoState?.("Asignar end offsets");
+    this.assignFrameEndOffsetsToSelected(endOffsets);
   },
 
   assignFrameEndOffsetsToSelected(endOffsets) {
@@ -1428,7 +1267,8 @@ export const assignDialogsMixin = {
     return JSON.parse(JSON.stringify(presets[preset] || presets.custom));
   },
 
-  async openAssignPointSpringsDialog() {
+  // Migración Swal→Blade: HTML en components/cad/modals/point-springs-modal.blade.php.
+  openAssignPointSpringsDialog() {
     const selectedJoints = this.getSelectedJointsForAssign();
 
     if (!selectedJoints.length) {
@@ -1437,173 +1277,20 @@ export const assignDialogsMixin = {
     }
 
     const current = selectedJoints[0]?.pointSprings || selectedJoints[0]?.springs || this.getDefaultPointSprings();
-
-    const k = current.stiffness || {};
-
-    const result = await Swal.fire({
-      title: "Assign Point Springs",
-      width: 700,
-      html: `
-      <div style="text-align:left; font-size:13px;">
-
-        <p style="margin-bottom:12px;">
-          Asigna rigideces de resorte a los nodos seleccionados.
-        </p>
-
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
-          <div>
-            <label style="display:block; margin-bottom:5px;">Preset</label>
-            <select id="point-spring-preset" style="width:100%; padding:7px;">
-              <option value="custom">Custom</option>
-              <option value="vertical">Vertical Spring</option>
-              <option value="horizontal">Horizontal Springs</option>
-              <option value="soil">Soil Springs XYZ</option>
-              <option value="rotational">Rotational Springs</option>
-            </select>
-          </div>
-
-          <div>
-            <label style="display:block; margin-bottom:5px;">Coordinate System</label>
-            <select id="point-spring-csys" style="width:100%; padding:7px;">
-              <option value="Global">Global</option>
-              <option value="Local">Local</option>
-            </select>
-          </div>
-        </div>
-
-        <table style="width:100%; border-collapse:collapse; font-size:12px;">
-          <thead>
-            <tr style="background:#1f2937; color:white;">
-              <th style="border:1px solid #555; padding:6px;">DOF</th>
-              <th style="border:1px solid #555; padding:6px;">Stiffness</th>
-              <th style="border:1px solid #555; padding:6px;">Unidad referencial</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">U1 / UX</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="spring-ux" type="number" step="0.001" value="${Number(k.ux || 0)}" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">kN/m</td>
-            </tr>
-
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">U2 / UY</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="spring-uy" type="number" step="0.001" value="${Number(k.uy || 0)}" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">kN/m</td>
-            </tr>
-
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">U3 / UZ</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="spring-uz" type="number" step="0.001" value="${Number(k.uz || 0)}" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">kN/m</td>
-            </tr>
-
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">R1 / RX</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="spring-rx" type="number" step="0.001" value="${Number(k.rx || 0)}" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">kN·m/rad</td>
-            </tr>
-
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">R2 / RY</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="spring-ry" type="number" step="0.001" value="${Number(k.ry || 0)}" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">kN·m/rad</td>
-            </tr>
-
-            <tr>
-              <td style="border:1px solid #555; padding:6px;">R3 / RZ</td>
-              <td style="border:1px solid #555; padding:6px;">
-                <input id="spring-rz" type="number" step="0.001" value="${Number(k.rz || 0)}" style="width:100%; padding:5px;">
-              </td>
-              <td style="border:1px solid #555; padding:6px;">kN·m/rad</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div style="margin-top:10px; color:#666; font-size:12px;">
-          Nodos seleccionados: <b>${selectedJoints.length}</b>
-        </div>
-
-      </div>
-    `,
-      showCancelButton: true,
-      showDenyButton: true,
-      confirmButtonText: "Asignar",
-      denyButtonText: "Remover",
-      cancelButtonText: "Cancelar",
-
-      didOpen: () => {
-        document.getElementById("point-spring-csys").value = current.coordinateSystem || "Global";
-
-        const applyPreset = (preset) => {
-          if (preset === "custom") return;
-
-          const values = this.getPointSpringPreset(preset);
-          const stiffness = values.stiffness;
-
-          document.getElementById("spring-ux").value = stiffness.ux;
-          document.getElementById("spring-uy").value = stiffness.uy;
-          document.getElementById("spring-uz").value = stiffness.uz;
-          document.getElementById("spring-rx").value = stiffness.rx;
-          document.getElementById("spring-ry").value = stiffness.ry;
-          document.getElementById("spring-rz").value = stiffness.rz;
-        };
-
-        document.getElementById("point-spring-preset")?.addEventListener("change", (event) => {
-          applyPreset(event.target.value);
-        });
-      },
-
-      preConfirm: () => {
-        return this.readPointSpringsFromDialog();
-      },
-    });
-
-    if (result.isDenied) {
-      this.removePointSpringsFromSelected();
-      return;
-    }
-
-    if (!result.isConfirmed || !result.value) return;
-
-    this.assignPointSpringsToSelected(result.value);
+    window.dispatchEvent(new CustomEvent("open-point-springs-modal", {
+      detail: { current, count: selectedJoints.length },
+    }));
   },
 
-  readPointSpringsFromDialog() {
-    const readNumber = (id) => {
-      const value = Number(document.getElementById(id)?.value || 0);
-      return Number.isFinite(value) ? value : 0;
-    };
-
-    const preset = document.getElementById("point-spring-preset")?.value || "custom";
-
-    return {
+  applyPointSpringsFromModal(v) {
+    const preset = v.preset || "custom";
+    this.saveUndoState?.("Asignar resortes");
+    this.assignPointSpringsToSelected({
       name: preset === "custom" ? "Point Spring" : this.getPointSpringPreset(preset).name,
-
       preset,
-
-      coordinateSystem: document.getElementById("point-spring-csys")?.value || "Global",
-
-      stiffness: {
-        ux: readNumber("spring-ux"),
-        uy: readNumber("spring-uy"),
-        uz: readNumber("spring-uz"),
-        rx: readNumber("spring-rx"),
-        ry: readNumber("spring-ry"),
-        rz: readNumber("spring-rz"),
-      },
-    };
+      coordinateSystem: v.coordinateSystem || "Global",
+      stiffness: { ...v.stiffness },
+    });
   },
 
   assignPointSpringsToSelected(pointSprings) {
@@ -2391,95 +2078,53 @@ export const assignDialogsMixin = {
     return result;
   },
 
-  async openAssignAreaUniformLoadDialog() {
+  // Losas del modelo + opciones de alcance (selección/todas/por-piso) — compartido
+  // por los diálogos de carga de área y sección de losa.
+  _slabAssignData() {
     const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
-    const slabZ = (a) =>
-      r2(a.z ?? (a.points.reduce((s, p) => s + (Number(p.z) || 0), 0) / a.points.length));
-
+    const slabZ = (a) => r2(a.z ?? (a.points.reduce((s, p) => s + (Number(p.z) || 0), 0) / a.points.length));
     const selected = this.getSelectedAreasForAssign();
     const allSlabs = (this.areas || []).filter(
       (a) => (a.areaType || a.type || "slab") === "slab" && Array.isArray(a.points) && a.points.length >= 3,
     );
+    const byZ = new Map();
+    allSlabs.forEach((a) => { const z = slabZ(a); if (!byZ.has(z)) byZ.set(z, []); byZ.get(z).push(a); });
+    const floors = [...byZ.keys()].sort((a, b) => a - b);
+    const scopes = [];
+    if (selected.length) scopes.push({ value: "selected", label: `Losas seleccionadas (${selected.length})` });
+    scopes.push({ value: "all", label: `Todas las losas (${allSlabs.length})` });
+    floors.forEach((z) => scopes.push({ value: `z:${z}`, label: `Piso z=${z} m (${byZ.get(z).length} losa/s)` }));
+    return { selected, allSlabs, byZ, scopes };
+  },
+
+  _resolveSlabScopeTarget(scope) {
+    const { selected, allSlabs, byZ } = this._slabAssignData();
+    if (scope === "selected") return selected;
+    if (String(scope).startsWith("z:")) return byZ.get(Number(String(scope).slice(2))) || [];
+    return allSlabs;
+  },
+
+  // Migración Swal→Blade: HTML en components/cad/modals/area-uniform-load-modal.blade.php.
+  openAssignAreaUniformLoadDialog() {
+    const { allSlabs, scopes } = this._slabAssignData();
     if (!allSlabs.length) {
       this.showMessage?.("No hay losas en el modelo. Dibuja losas primero.", "warning");
       return;
     }
+    const loadCases = this.getAvailableLoadCasesForAssign().map((lc) => ({
+      name: lc.name, label: `${lc.name}${lc.type ? " (" + lc.type + ")" : ""}`,
+    }));
+    window.dispatchEvent(new CustomEvent("open-area-uniform-load-modal", {
+      detail: { scopes, loadCases },
+    }));
+  },
 
-    // Losas por piso (z) para el alcance "por piso".
-    const byZ = new Map();
-    allSlabs.forEach((a) => {
-      const z = slabZ(a);
-      if (!byZ.has(z)) byZ.set(z, []);
-      byZ.get(z).push(a);
+  applyAreaUniformLoadFromModal(v) {
+    const value = Math.max(0, Number(v.value) || 0);
+    this.saveUndoState?.("Asignar carga de área");
+    this.assignAreaUniformLoadToAreas(this._resolveSlabScopeTarget(v.scope), {
+      loadCase: v.loadCase || "CM", value, operation: v.operation || "replace",
     });
-    const floors = [...byZ.keys()].sort((a, b) => a - b);
-
-    // Opciones de alcance (como ETABS: selección / todo / por piso).
-    const scopeOpts = [];
-    if (selected.length) scopeOpts.push(`<option value="selected">Losas seleccionadas (${selected.length})</option>`);
-    scopeOpts.push(`<option value="all">Todas las losas (${allSlabs.length})</option>`);
-    floors.forEach((z) => scopeOpts.push(`<option value="z:${z}">Piso z=${z} m (${byZ.get(z).length} losa/s)</option>`));
-
-    const loadCases = this.getAvailableLoadCasesForAssign();
-    const result = await Swal.fire({
-      title: "Asignar Carga de Área — Uniforme (Shell)",
-      width: 560,
-      background: "#1a2035",
-      color: "#e2e8f0",
-      html: `
-        <div style="text-align:left; font-size:13px; font-family:monospace">
-          <div style="margin-bottom:10px">
-            <label style="display:block; margin-bottom:4px; color:#cbd5e1">Aplicar a</label>
-            <select id="area-load-scope" style="width:100%; padding:6px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px">
-              ${scopeOpts.join("")}
-            </select>
-          </div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px">
-            <div>
-              <label style="display:block; margin-bottom:4px; color:#cbd5e1">Patrón de carga</label>
-              <select id="area-load-case" style="width:100%; padding:6px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px">
-                ${loadCases.map((lc) => `<option value="${lc.name}">${lc.name} (${lc.type})</option>`).join("")}
-              </select>
-            </div>
-            <div>
-              <label style="display:block; margin-bottom:4px; color:#cbd5e1">Valor (kgf/m²)</label>
-              <input id="area-load-value" type="number" step="10" min="0" value="300" style="width:100%; padding:6px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px">
-            </div>
-          </div>
-          <div style="margin-top:10px">
-            <label style="display:block; margin-bottom:4px; color:#cbd5e1">Operación</label>
-            <select id="area-load-op" style="width:100%; padding:6px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px">
-              <option value="replace">Reemplazar cargas del mismo patrón</option>
-              <option value="add">Agregar a las existentes</option>
-              <option value="delete">Eliminar cargas del patrón</option>
-            </select>
-          </div>
-          <div style="color:#64748b; font-size:11px; margin-top:8px">
-            La carga se convierte en masa vía la Fuente de Masa (multiplicador del patrón). Típico: CM losa≈300, acabados≈100, tabiquería≈150; CV≈200–250.
-          </div>
-        </div>`,
-      showCancelButton: true,
-      confirmButtonText: "Asignar",
-      cancelButtonText: "Cancelar",
-      confirmButtonColor: "#1d4ed8",
-      preConfirm: () => ({
-        scope: document.getElementById("area-load-scope")?.value || "all",
-        loadCase: document.getElementById("area-load-case")?.value || (loadCases[0]?.name ?? "CM"),
-        value: Math.max(0, parseFloat(document.getElementById("area-load-value")?.value) || 0),
-        operation: document.getElementById("area-load-op")?.value || "replace",
-      }),
-    });
-    if (!result.isConfirmed) return;
-
-    // Resolver el conjunto destino según el alcance elegido.
-    let target;
-    const scope = result.value.scope;
-    if (scope === "selected") target = selected;
-    else if (scope === "all") target = allSlabs;
-    else if (scope.startsWith("z:")) target = byZ.get(Number(scope.slice(2))) || [];
-    else target = allSlabs;
-
-    this.assignAreaUniformLoadToAreas(target, result.value);
   },
 
   // Guarda la carga uniforme en area.areaLoads[] de cada losa.
@@ -2511,92 +2156,36 @@ export const assignDialogsMixin = {
   // =====================================================
   // ASSIGN > SHELL > SLAB SECTION  (como ETABS)
   // =====================================================
-  async openAssignSlabSectionDialog() {
-    const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
-    const slabZ = (a) =>
-      r2(a.z ?? (a.points.reduce((s, p) => s + (Number(p.z) || 0), 0) / a.points.length));
-
-    const selected = this.getSelectedAreasForAssign();
-    const allSlabs = (this.areas || []).filter(
-      (a) => (a.areaType || a.type || "slab") === "slab" && Array.isArray(a.points) && a.points.length >= 3,
-    );
+  // Migración Swal→Blade: HTML en components/cad/modals/slab-section-modal.blade.php.
+  openAssignSlabSectionDialog() {
+    const { allSlabs, scopes } = this._slabAssignData();
     if (!allSlabs.length) {
       this.showMessage?.("No hay losas en el modelo. Dibuja losas primero.", "warning");
       return;
     }
-
     const sections = Array.isArray(this.slabSections) ? this.slabSections : [];
     if (!sections.length) {
-      const ask = await Swal.fire({
-        icon: "info", title: "Sin secciones de losa",
-        text: "No hay secciones de losa definidas. ¿Abrir Define → Slab Sections para crearlas?",
-        showCancelButton: true, confirmButtonText: "Definir", cancelButtonText: "Cancelar",
-        background: "#1a2035", color: "#e2e8f0", confirmButtonColor: "#1d4ed8",
-      });
-      if (ask.isConfirmed) window.dispatchEvent(new CustomEvent("open-slab-sections-modal"));
+      this.showMessage?.("No hay secciones de losa definidas. Ábrelas en Define → Slab Sections.", "warning");
+      window.dispatchEvent(new CustomEvent("open-slab-sections-modal"));
       return;
     }
+    window.dispatchEvent(new CustomEvent("open-slab-section-modal", {
+      detail: {
+        scopes,
+        sections: sections.map((s) => ({ name: s.name, label: `${s.name} (${s.thickness} mm)` })),
+      },
+    }));
+  },
 
-    // Alcance (selección / todo / por piso)
-    const byZ = new Map();
-    allSlabs.forEach((a) => { const z = slabZ(a); if (!byZ.has(z)) byZ.set(z, []); byZ.get(z).push(a); });
-    const floors = [...byZ.keys()].sort((a, b) => a - b);
-    const scopeOpts = [];
-    if (selected.length) scopeOpts.push(`<option value="selected">Losas seleccionadas (${selected.length})</option>`);
-    scopeOpts.push(`<option value="all">Todas las losas (${allSlabs.length})</option>`);
-    floors.forEach((z) => scopeOpts.push(`<option value="z:${z}">Piso z=${z} m (${byZ.get(z).length})</option>`));
-
-    const secOpts = sections.map((s) =>
-      `<option value="${s.name}">${s.name} (${s.thickness} mm)</option>`).join("") +
-      `<option value="__none__">None (sin sección)</option>`;
-
-    const result = await Swal.fire({
-      title: "Asignar Sección de Losa (Shell)",
-      width: 460,
-      background: "#1a2035", color: "#e2e8f0",
-      html: `
-        <div style="text-align:left; font-size:13px; font-family:monospace">
-          <label style="display:block; margin-bottom:4px; color:#cbd5e1">Aplicar a</label>
-          <select id="slabsec-scope" style="width:100%; padding:6px; margin-bottom:10px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px">
-            ${scopeOpts.join("")}
-          </select>
-          <label style="display:block; margin-bottom:4px; color:#cbd5e1">Sección de Losa</label>
-          <select id="slabsec-name" style="width:100%; padding:6px; background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px">
-            ${secOpts}
-          </select>
-          <div style="color:#64748b; font-size:11px; margin-top:8px">
-            El espesor de la sección define el <b>peso propio</b> de la losa (CM automática). "Modify/Show" edita las definiciones.
-          </div>
-        </div>`,
-      showDenyButton: true,
-      denyButtonText: "Modify/Show Definitions...",
-      showCancelButton: true,
-      confirmButtonText: "Asignar",
-      cancelButtonText: "Cerrar",
-      confirmButtonColor: "#1d4ed8",
-      denyButtonColor: "#475569",
-      preConfirm: () => ({
-        scope: document.getElementById("slabsec-scope")?.value || "all",
-        name: document.getElementById("slabsec-name")?.value || "__none__",
-      }),
-    });
-
-    if (result.isDenied) { window.dispatchEvent(new CustomEvent("open-slab-sections-modal")); return; }
-    if (!result.isConfirmed) return;
-
-    const { scope, name } = result.value;
-    let target;
-    if (scope === "selected") target = selected;
-    else if (scope === "all") target = allSlabs;
-    else if (scope.startsWith("z:")) target = byZ.get(Number(scope.slice(2))) || [];
-    else target = allSlabs;
-
+  applySlabSectionFromModal(scope, name) {
+    const sections = Array.isArray(this.slabSections) ? this.slabSections : [];
+    const target = this._resolveSlabScopeTarget(scope);
     const sec = name === "__none__" ? null : sections.find((s) => s.name === name);
+
+    this.saveUndoState?.("Asignar sección de losa");
     target.forEach((slab) => {
       slab.slabSection = sec ? sec.name : null;
-      // Peso propio de la losa (kgf/m²). Usa el de la sección si lo trae; si no,
-      // lo calcula aquí: espesor(m) × densidad del material. Así no depende de
-      // que la sección se haya re-guardado por el modal de Slab Sections.
+      // Peso propio de la losa (kgf/m²): espesor(m) × densidad del material.
       slab.slabSelfWeightKgM2 = sec ? this._slabSectionSelfWeightKgM2(sec) : 0;
       slab.section = sec ? { name: sec.name, thickness: sec.thickness, material: sec.material } : null;
     });
@@ -4096,7 +3685,9 @@ export const assignDialogsMixin = {
     return newGroup;
   },
 
-  async openAssignGroupNamesDialog() {
+  // Migración Swal→Blade: HTML en components/cad/modals/group-names-modal.blade.php.
+  // El modal crea grupos llamando a createGroupForAssign / getAvailableGroupsForAssign.
+  openAssignGroupNamesDialog() {
     const selectedObjects = this.getSelectedObjectsForGroupAssign();
 
     if (!selectedObjects.length) {
@@ -4104,125 +3695,17 @@ export const assignDialogsMixin = {
       return;
     }
 
-    const groups = this.getAvailableGroupsForAssign();
-
-    const groupRows = groups
-      .map((group, index) => {
-        return `
-      <label style="display:flex; align-items:center; gap:8px; padding:6px; border-bottom:1px solid #444;">
-        <input type="checkbox" class="assign-group-checkbox" value="${group.id}">
-        <span>${group.name}</span>
-      </label>
-    `;
-      })
-      .join("");
-
-    const result = await Swal.fire({
-      title: "Assign Group Names",
-      width: 620,
-      html: `
-      <div style="text-align:left; font-size:13px;">
-
-        <p style="margin-bottom:12px;">
-          Asigna los objetos seleccionados a uno o más grupos.
-        </p>
-
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
-          <div>
-            <label style="display:block; margin-bottom:5px;">Operation</label>
-            <select id="assign-group-operation" style="width:100%; padding:7px;">
-              <option value="add">Add to Groups</option>
-              <option value="replace">Replace Groups</option>
-              <option value="remove">Remove from Groups</option>
-            </select>
-          </div>
-
-          <div>
-            <label style="display:block; margin-bottom:5px;">New Group Name</label>
-            <input id="assign-group-new-name" type="text" placeholder="Ej: Vigas_Piso_1"
-              style="width:100%; padding:7px;">
-          </div>
-        </div>
-
-        <button id="assign-group-create-btn"
-          style="padding:7px 12px; background:#2563eb; color:white; border:none; border-radius:5px; margin-bottom:12px;">
-          Crear grupo
-        </button>
-
-        <div style="border:1px solid #555; border-radius:6px; max-height:220px; overflow:auto;">
-          <div id="assign-group-list">
-            ${groupRows}
-          </div>
-        </div>
-
-        <div style="margin-top:12px; padding:10px; border:1px solid #555; border-radius:6px;">
-          Objetos seleccionados: <b>${selectedObjects.length}</b>
-        </div>
-
-      </div>
-    `,
-      showCancelButton: true,
-      confirmButtonText: "Asignar",
-      cancelButtonText: "Cancelar",
-
-      didOpen: () => {
-        const createBtn = document.getElementById("assign-group-create-btn");
-        const input = document.getElementById("assign-group-new-name");
-        const list = document.getElementById("assign-group-list");
-
-        createBtn?.addEventListener("click", () => {
-          const name = input?.value?.trim();
-
-          if (!name) {
-            this.showMessage?.("Escribe un nombre de grupo.", "warning");
-            return;
-          }
-
-          const group = this.createGroupForAssign(name);
-
-          if (!group) return;
-
-          const alreadyRendered = list.querySelector(`input[value="${group.id}"]`);
-
-          if (!alreadyRendered) {
-            const wrapper = document.createElement("label");
-            wrapper.style.cssText =
-              "display:flex; align-items:center; gap:8px; padding:6px; border-bottom:1px solid #444;";
-
-            wrapper.innerHTML = `
-            <input type="checkbox" class="assign-group-checkbox" value="${group.id}" checked>
-            <span>${group.name}</span>
-          `;
-
-            list.appendChild(wrapper);
-          }
-
-          input.value = "";
-        });
+    window.dispatchEvent(new CustomEvent("open-group-names-modal", {
+      detail: {
+        groups: this.getAvailableGroupsForAssign().map((g) => ({ id: g.id, name: g.name })),
+        count: selectedObjects.length,
       },
+    }));
+  },
 
-      preConfirm: () => {
-        const checked = Array.from(document.querySelectorAll(".assign-group-checkbox:checked")).map(
-          (item) => item.value,
-        );
-
-        const operation = document.getElementById("assign-group-operation")?.value || "add";
-
-        if (!checked.length) {
-          Swal.showValidationMessage("Selecciona al menos un grupo.");
-          return false;
-        }
-
-        return {
-          operation,
-          groupIds: checked,
-        };
-      },
-    });
-
-    if (!result.isConfirmed || !result.value) return;
-
-    this.assignGroupNamesToSelected(result.value);
+  applyGroupNamesFromModal(v) {
+    this.saveUndoState?.("Asignar grupos");
+    this.assignGroupNamesToSelected({ operation: v.operation || "add", groupIds: v.groupIds || [] });
   },
 
   assignGroupNamesToSelected(config) {
@@ -4634,7 +4117,8 @@ export const assignDialogsMixin = {
   //  ASSIGN JOINT MASS
   // ─────────────────────────────────────────────────────────────────────────
 
-  async openAssignJointMassDialog() {
+  // Migración Swal→Blade: HTML en components/cad/modals/joint-mass-modal.blade.php.
+  openAssignJointMassDialog() {
     const selectedJoints = this.getSelectedJointsForAssign();
 
     if (!selectedJoints.length) {
@@ -4642,106 +4126,25 @@ export const assignDialogsMixin = {
       return;
     }
 
-    // Leer masa actual del primer nodo seleccionado como valores por defecto
     const first = selectedJoints[0];
-    const curMx = Number(first.mass_x ?? first.mass?.x ?? first.mass ?? 0);
-    const curMy = Number(first.mass_y ?? first.mass?.y ?? curMx);
-    const curMz = Number(first.mass_z ?? first.mass?.z ?? 0);
-    const curSame = curMx === curMy;
-
-    const result = await Swal.fire({
-      title: "Assign Joint Mass",
-      background: "#1a2035",
-      color: "#e2e8f0",
-      html: `
-        <div style="font-family:monospace; font-size:13px; text-align:left">
-
-          <div style="color:#94a3b8; font-size:12px; margin-bottom:12px">
-            Nodos seleccionados: <strong style="color:#e2e8f0">${selectedJoints.length}</strong>
-          </div>
-
-          <fieldset style="border:1px solid #475569; border-radius:6px; padding:10px 14px; margin-bottom:12px">
-            <legend style="padding:0 6px; color:#7eb8f7; font-size:12px; font-weight:600">Masa traslacional (kg)</legend>
-
-            <div style="display:grid; grid-template-columns:80px 1fr; gap:8px; align-items:center; margin-bottom:8px">
-              <label style="color:#cbd5e1">U1 (X):</label>
-              <input id="mass-ux" type="number" min="0" step="any" value="${curMx}"
-                style="background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:5px 8px; width:100%">
-            </div>
-            <div style="display:grid; grid-template-columns:80px 1fr; gap:8px; align-items:center; margin-bottom:8px">
-              <label style="color:#cbd5e1">U2 (Y):</label>
-              <input id="mass-uy" type="number" min="0" step="any" value="${curMy}"
-                style="background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:5px 8px; width:100%">
-            </div>
-            <div style="display:grid; grid-template-columns:80px 1fr; gap:8px; align-items:center; margin-bottom:4px">
-              <label style="color:#cbd5e1">U3 (Z):</label>
-              <input id="mass-uz" type="number" min="0" step="any" value="${curMz}"
-                style="background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:5px 8px; width:100%">
-            </div>
-
-            <label style="display:flex; align-items:center; gap:8px; margin-top:10px; color:#94a3b8; font-size:12px; cursor:pointer">
-              <input id="mass-same-xy" type="checkbox" ${curSame ? "checked" : ""}>
-              Igual en X e Y (isótropo horizontal)
-            </label>
-          </fieldset>
-
-          <fieldset style="border:1px solid #475569; border-radius:6px; padding:10px 14px">
-            <legend style="padding:0 6px; color:#7eb8f7; font-size:12px; font-weight:600">Inercia rotacional (kg·m²)</legend>
-            <div style="color:#64748b; font-size:11px; margin-bottom:6px">Normalmente 0 para masas puntuales de pisos</div>
-            <div style="display:grid; grid-template-columns:80px 1fr; gap:8px; align-items:center; margin-bottom:8px">
-              <label style="color:#cbd5e1">R1 (XX):</label>
-              <input id="mass-rx" type="number" min="0" step="any" value="0"
-                style="background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:5px 8px; width:100%">
-            </div>
-            <div style="display:grid; grid-template-columns:80px 1fr; gap:8px; align-items:center; margin-bottom:8px">
-              <label style="color:#cbd5e1">R2 (YY):</label>
-              <input id="mass-ry" type="number" min="0" step="any" value="0"
-                style="background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:5px 8px; width:100%">
-            </div>
-            <div style="display:grid; grid-template-columns:80px 1fr; gap:8px; align-items:center">
-              <label style="color:#cbd5e1">R3 (ZZ):</label>
-              <input id="mass-rz" type="number" min="0" step="any" value="0"
-                style="background:#0f172a; color:#e2e8f0; border:1px solid #475569; border-radius:4px; padding:5px 8px; width:100%">
-            </div>
-          </fieldset>
-
-        </div>
-      `,
-      showCancelButton: true,
-      confirmButtonText: "Asignar",
-      cancelButtonText: "Cancelar",
-      confirmButtonColor: "#1d4ed8",
-      didOpen: () => {
-        const uxInput = document.getElementById("mass-ux");
-        const uyInput = document.getElementById("mass-uy");
-        const sameChk = document.getElementById("mass-same-xy");
-
-        // Sincronizar UX → UY cuando está marcado "igual en X e Y"
-        uxInput?.addEventListener("input", () => {
-          if (sameChk?.checked) uyInput.value = uxInput.value;
-        });
-        sameChk?.addEventListener("change", () => {
-          if (sameChk.checked) uyInput.value = uxInput.value;
-        });
+    const ux = Number(first.mass_x ?? first.mass?.x ?? first.mass ?? 0);
+    const uy = Number(first.mass_y ?? first.mass?.y ?? ux);
+    const uz = Number(first.mass_z ?? first.mass?.z ?? 0);
+    const m = first.massAssignment || {};
+    window.dispatchEvent(new CustomEvent("open-joint-mass-modal", {
+      detail: {
+        current: { ux, uy, uz, rx: Number(m.rx) || 0, ry: Number(m.ry) || 0, rz: Number(m.rz) || 0 },
+        count: selectedJoints.length,
       },
-      preConfirm: () => {
-        const mx = parseFloat(document.getElementById("mass-ux")?.value) || 0;
-        const my = parseFloat(document.getElementById("mass-uy")?.value) || 0;
-        const mz = parseFloat(document.getElementById("mass-uz")?.value) || 0;
-        const rx = parseFloat(document.getElementById("mass-rx")?.value) || 0;
-        const ry = parseFloat(document.getElementById("mass-ry")?.value) || 0;
-        const rz = parseFloat(document.getElementById("mass-rz")?.value) || 0;
-        if (mx < 0 || my < 0 || mz < 0) {
-          Swal.showValidationMessage("Las masas no pueden ser negativas");
-          return false;
-        }
-        return { mx, my, mz, rx, ry, rz };
-      },
+    }));
+  },
+
+  applyJointMassFromModal(v) {
+    this.saveUndoState?.("Asignar masa en nudo");
+    this.assignJointMassToSelected({
+      mx: Number(v.ux) || 0, my: Number(v.uy) || 0, mz: Number(v.uz) || 0,
+      rx: Number(v.rx) || 0, ry: Number(v.ry) || 0, rz: Number(v.rz) || 0,
     });
-
-    if (!result.isConfirmed || !result.value) return;
-
-    this.assignJointMassToSelected(result.value);
   },
 
   assignJointMassToSelected({ mx, my, mz, rx, ry, rz }) {

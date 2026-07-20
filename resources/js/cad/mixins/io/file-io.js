@@ -23,16 +23,16 @@
  * - importFromMatFile()        → importa resultados desde archivo .mat (Octave/MATLAB)
  */
 import Swal from "sweetalert2";
-import { Beam, Node as StructuralNode } from "../../shapes.js";
+import { Beam, Node as StructuralNode } from "../../model/shapes.js";
 import { read as readmat } from "mat-for-js";
-import { axisToFixed, removeFromArray } from "../../utils.js";
-import { Triangle, Puente, Arco } from "../../parametricModels.js";
+import { axisToFixed, removeFromArray } from "../../lib/utils.js";
+import { Triangle, Puente, Arco } from "../../model/parametricModels.js";
 import { elevateSelectedNodes, extrudeToNewFloor, lowerSelectedNodes, selectAllNodes, activate3DDrawingMode } from "../../3d/modeling3d.js";
 import { toggleView3D } from "../../3d/viewer3d.js";
 import {
   serializeFrameForceModule,
   restoreFrameForceModule,
-} from "../../analysis/frameForcePersistence.js";
+} from "../../engine/frameForcePersistence.js";
 
 export const fileIOMixin = {
   creaArco() {

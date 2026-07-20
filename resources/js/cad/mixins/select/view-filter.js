@@ -1,6 +1,6 @@
-import { pointDistance, pointDistanceToSegment, removeFromArray } from "../../utils.js";
+import { pointDistance, pointDistanceToSegment, removeFromArray } from "../../lib/utils.js";
 import Swal from "sweetalert2";
-import { Beam, Node as StructuralNode } from "../../shapes.js";
+import { Beam, Node as StructuralNode } from "../../model/shapes.js";
 
 /**
  * @mixin viewFilterMixin

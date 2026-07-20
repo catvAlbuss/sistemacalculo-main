@@ -1,4 +1,4 @@
-<?php if (! $__env->hasRenderedOnce('9df07e17-7460-411b-9acb-b8ee5a2aa182')): $__env->markAsRenderedOnce('9df07e17-7460-411b-9acb-b8ee5a2aa182');
+<?php if (! $__env->hasRenderedOnce('eea138fa-2be6-4f1c-a99a-9c6eabc7fd44')): $__env->markAsRenderedOnce('eea138fa-2be6-4f1c-a99a-9c6eabc7fd44');
 $__env->startPush('initscripts'); ?>
     <?php echo app('Illuminate\Foundation\Vite')('resources/js/analisis_estructural_de_armaduras.js'); ?>
 <?php $__env->stopPush(); endif; ?>
@@ -185,6 +185,166 @@ $__env->startPush('initscripts'); ?>
 <?php if (isset($__componentOriginalfcd8d459ab88c57b9a7e801b182d513d)): ?>
 <?php $component = $__componentOriginalfcd8d459ab88c57b9a7e801b182d513d; ?>
 <?php unset($__componentOriginalfcd8d459ab88c57b9a7e801b182d513d); ?>
+<?php endif; ?>
+    <?php if (isset($component)) { $__componentOriginal148cf21bf41dfce5eafb6db4cac357c2 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal148cf21bf41dfce5eafb6db4cac357c2 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.modals.frame-section-modal','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.modals.frame-section-modal'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal148cf21bf41dfce5eafb6db4cac357c2)): ?>
+<?php $attributes = $__attributesOriginal148cf21bf41dfce5eafb6db4cac357c2; ?>
+<?php unset($__attributesOriginal148cf21bf41dfce5eafb6db4cac357c2); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal148cf21bf41dfce5eafb6db4cac357c2)): ?>
+<?php $component = $__componentOriginal148cf21bf41dfce5eafb6db4cac357c2; ?>
+<?php unset($__componentOriginal148cf21bf41dfce5eafb6db4cac357c2); ?>
+<?php endif; ?>
+    <?php if (isset($component)) { $__componentOriginal9636c419182beb9ecb979d1af6b2906c = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal9636c419182beb9ecb979d1af6b2906c = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.modals.slab-section-modal','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.modals.slab-section-modal'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal9636c419182beb9ecb979d1af6b2906c)): ?>
+<?php $attributes = $__attributesOriginal9636c419182beb9ecb979d1af6b2906c; ?>
+<?php unset($__attributesOriginal9636c419182beb9ecb979d1af6b2906c); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal9636c419182beb9ecb979d1af6b2906c)): ?>
+<?php $component = $__componentOriginal9636c419182beb9ecb979d1af6b2906c; ?>
+<?php unset($__componentOriginal9636c419182beb9ecb979d1af6b2906c); ?>
+<?php endif; ?>
+    <?php if (isset($component)) { $__componentOriginal1c754ebf1dcda921004e6c1a24ce8bfa = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal1c754ebf1dcda921004e6c1a24ce8bfa = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.modals.area-uniform-load-modal','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.modals.area-uniform-load-modal'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal1c754ebf1dcda921004e6c1a24ce8bfa)): ?>
+<?php $attributes = $__attributesOriginal1c754ebf1dcda921004e6c1a24ce8bfa; ?>
+<?php unset($__attributesOriginal1c754ebf1dcda921004e6c1a24ce8bfa); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal1c754ebf1dcda921004e6c1a24ce8bfa)): ?>
+<?php $component = $__componentOriginal1c754ebf1dcda921004e6c1a24ce8bfa; ?>
+<?php unset($__componentOriginal1c754ebf1dcda921004e6c1a24ce8bfa); ?>
+<?php endif; ?>
+    <?php if (isset($component)) { $__componentOriginal18ae8e4d6abaf64b198a941180f2d135 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal18ae8e4d6abaf64b198a941180f2d135 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.modals.frame-releases-modal','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.modals.frame-releases-modal'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal18ae8e4d6abaf64b198a941180f2d135)): ?>
+<?php $attributes = $__attributesOriginal18ae8e4d6abaf64b198a941180f2d135; ?>
+<?php unset($__attributesOriginal18ae8e4d6abaf64b198a941180f2d135); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal18ae8e4d6abaf64b198a941180f2d135)): ?>
+<?php $component = $__componentOriginal18ae8e4d6abaf64b198a941180f2d135; ?>
+<?php unset($__componentOriginal18ae8e4d6abaf64b198a941180f2d135); ?>
+<?php endif; ?>
+    <?php if (isset($component)) { $__componentOriginald343fad3f5497283f8b86e0cdb24e3ea = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginald343fad3f5497283f8b86e0cdb24e3ea = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.modals.frame-end-offsets-modal','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.modals.frame-end-offsets-modal'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginald343fad3f5497283f8b86e0cdb24e3ea)): ?>
+<?php $attributes = $__attributesOriginald343fad3f5497283f8b86e0cdb24e3ea; ?>
+<?php unset($__attributesOriginald343fad3f5497283f8b86e0cdb24e3ea); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginald343fad3f5497283f8b86e0cdb24e3ea)): ?>
+<?php $component = $__componentOriginald343fad3f5497283f8b86e0cdb24e3ea; ?>
+<?php unset($__componentOriginald343fad3f5497283f8b86e0cdb24e3ea); ?>
+<?php endif; ?>
+    <?php if (isset($component)) { $__componentOriginal83317544aca1cf157ee997f26eaace01 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal83317544aca1cf157ee997f26eaace01 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.modals.joint-mass-modal','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.modals.joint-mass-modal'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal83317544aca1cf157ee997f26eaace01)): ?>
+<?php $attributes = $__attributesOriginal83317544aca1cf157ee997f26eaace01; ?>
+<?php unset($__attributesOriginal83317544aca1cf157ee997f26eaace01); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal83317544aca1cf157ee997f26eaace01)): ?>
+<?php $component = $__componentOriginal83317544aca1cf157ee997f26eaace01; ?>
+<?php unset($__componentOriginal83317544aca1cf157ee997f26eaace01); ?>
+<?php endif; ?>
+    <?php if (isset($component)) { $__componentOriginala2ef3e9e4d5b9cedcd384157135beb2f = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginala2ef3e9e4d5b9cedcd384157135beb2f = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.modals.group-names-modal','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.modals.group-names-modal'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginala2ef3e9e4d5b9cedcd384157135beb2f)): ?>
+<?php $attributes = $__attributesOriginala2ef3e9e4d5b9cedcd384157135beb2f; ?>
+<?php unset($__attributesOriginala2ef3e9e4d5b9cedcd384157135beb2f); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginala2ef3e9e4d5b9cedcd384157135beb2f)): ?>
+<?php $component = $__componentOriginala2ef3e9e4d5b9cedcd384157135beb2f; ?>
+<?php unset($__componentOriginala2ef3e9e4d5b9cedcd384157135beb2f); ?>
+<?php endif; ?>
+    <?php if (isset($component)) { $__componentOriginalf15ae427511bdd2f0af8d808515e799f = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginalf15ae427511bdd2f0af8d808515e799f = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.modals.point-springs-modal','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.modals.point-springs-modal'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginalf15ae427511bdd2f0af8d808515e799f)): ?>
+<?php $attributes = $__attributesOriginalf15ae427511bdd2f0af8d808515e799f; ?>
+<?php unset($__attributesOriginalf15ae427511bdd2f0af8d808515e799f); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginalf15ae427511bdd2f0af8d808515e799f)): ?>
+<?php $component = $__componentOriginalf15ae427511bdd2f0af8d808515e799f; ?>
+<?php unset($__componentOriginalf15ae427511bdd2f0af8d808515e799f); ?>
 <?php endif; ?>
     <!-- Se Agrego el modal de grid -->
     <?php if (isset($component)) { $__componentOriginal10074ea6e2498d0a9fd9f1711561b84c = $component; } ?>

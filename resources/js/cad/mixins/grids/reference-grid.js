@@ -1,4 +1,4 @@
-import { pointDistance, pointDistanceToSegment } from "../../utils.js";
+import { pointDistance, pointDistanceToSegment } from "../../lib/utils.js";
 
 /**
  * @mixin referenceGridMixin

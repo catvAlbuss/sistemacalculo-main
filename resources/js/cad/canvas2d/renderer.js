@@ -1,24 +1,24 @@
-import { BeamStyle, NodeStyle } from "./styles.js";
-import { pointDistance, axisToFixed, midPoint } from "./utils.js";
-import { generateMockFrameForceResults } from "./analysis/mockFrameForceResults.js";
-import { drawFrameForceDiagrams2D } from "./diagrams/frameForceDiagramRenderer.js";
-import { drawFrameLocalAxes2D } from "./diagrams/frameLocalAxesRenderer.js";
-import { drawFrameSectionProperties2D } from "./diagrams/frameSectionPropertiesRenderer.js";
+import { BeamStyle, NodeStyle } from "../model/styles.js";
+import { pointDistance, axisToFixed, midPoint } from "../lib/utils.js";
+import { generateMockFrameForceResults } from "../engine/mockFrameForceResults.js";
+import { drawFrameForceDiagrams2D } from "../diagrams/frameForceDiagramRenderer.js";
+import { drawFrameLocalAxes2D } from "../diagrams/frameLocalAxesRenderer.js";
+import { drawFrameSectionProperties2D } from "../diagrams/frameSectionPropertiesRenderer.js";
 import {
   showFrameForceTable,
   hideFrameForceTable,
   getFrameForceTableRows,
-} from "./diagrams/frameForceTable.js";
+} from "../diagrams/frameForceTable.js";
 
 import {
   addDefaultCombosAndEnvelope,
   getAvailableFrameForceCases,
-} from "./analysis/frameForceCombinations.js";
+} from "../engine/frameForceCombinations.js";
 
 import {
   showFrameForceDisplayPanel,
   hideFrameForceDisplayPanel,
-} from "./diagrams/frameForceDisplayPanel.js";
+} from "../diagrams/frameForceDisplayPanel.js";
 
 
 function imgFromSVG(svg) {

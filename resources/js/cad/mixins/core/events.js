@@ -1,4 +1,4 @@
-import { mousePositionFrom } from "../../utils.js";
+import { mousePositionFrom } from "../../lib/utils.js";
 
 /**
  * @mixin eventsMixin

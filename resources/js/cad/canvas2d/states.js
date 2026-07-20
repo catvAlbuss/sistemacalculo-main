@@ -1,6 +1,6 @@
-import { Beam, Node as StructuralNode, Shape, Area } from "./shapes.js";
-import { pointDistance, removeFromArray } from "./utils.js";
-import { MOUSE_BUTTONS, isMouseButton } from "./utils.js";
+import { Beam, Node as StructuralNode, Shape, Area } from "../model/shapes.js";
+import { pointDistance, removeFromArray } from "../lib/utils.js";
+import { MOUSE_BUTTONS, isMouseButton } from "../lib/utils.js";
 
 export class StateBase {
   constructor() {}

@@ -1,5 +1,5 @@
-import { Beam, Node as StructuralNode } from "../../shapes.js";
-import { pointDistance, pointDistanceToSegment } from "../../utils.js";
+import { Beam, Node as StructuralNode } from "../../model/shapes.js";
+import { pointDistance, pointDistanceToSegment } from "../../lib/utils.js";
 
 /**
  * @mixin modelFactoryMixin

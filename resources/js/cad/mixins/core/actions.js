@@ -26,7 +26,7 @@ import {
 
 import {
   loadRealFrameForceResults,
-} from "../../analysis/frameForceBackend.js";
+} from "../../engine/frameForceBackend.js";
 
 export const actionsMixin = {
   // ------------------------------------------------------------------

@@ -1,5 +1,5 @@
 import * as BABYLON from "@babylonjs/core";
-import { Beam, Node as StructuralNode, Area } from "../shapes.js";
+import { Beam, Node as StructuralNode, Area } from "../model/shapes.js";
 import { getViewer3DState } from "./viewer3d.js";
 import { createSimpleAxisLabel } from "./axes3d.js";
 

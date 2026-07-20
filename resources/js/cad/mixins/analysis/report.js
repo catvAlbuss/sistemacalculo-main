@@ -1,4 +1,4 @@
-import { axisToFixed, pointDistance } from "../../utils.js";
+import { axisToFixed, pointDistance } from "../../lib/utils.js";
 
 /**
  * @mixin reportMixin

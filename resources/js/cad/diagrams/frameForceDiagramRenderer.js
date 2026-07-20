@@ -1,7 +1,7 @@
 import {
     validateFrameForceResults,
     getFrameForceComponent,
-} from "../analysis/frameForceResultsContract.js";
+} from "../engine/frameForceResultsContract.js";
 
 import {
     getFrameDiagramDisplay,

@@ -1,5 +1,5 @@
 import Swal from "sweetalert2";
-import { Beam, Node as StructuralNode } from "../../shapes.js";
+import { Beam, Node as StructuralNode } from "../../model/shapes.js";
 
 /**
  * @mixin editGeometryMixin

@@ -1,5 +1,5 @@
 import { Beam, Node } from "./shapes.js";
-import { midPoint, pointDistance, removeFromArray, unitVector } from "./utils.js";
+import { midPoint, pointDistance, removeFromArray, unitVector } from "../lib/utils.js";
 
 import { create, all } from "mathjs";
 
