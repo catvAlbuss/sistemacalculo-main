@@ -154,6 +154,12 @@ export const actionsMixin = {
         this.showMessage("Modo dibujar losa / área activado");
         break;
 
+      case "draw-area-zapata":
+        this.clearAllSelections?.();
+        this.setState(this.zapataDrawingState);
+        this.showMessage("Modo dibujar zapata activado");
+        break;
+
       case "draw-area-wall":
         this.clearAllSelections?.();
         this.setState(this.wallDrawingState);

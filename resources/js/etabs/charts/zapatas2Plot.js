@@ -81,7 +81,9 @@ function buildPolygonTrace(polygon, comboIndex, options = {}) {
             polygon.max[comboIndex]
         )}</b>`,
         hoverinfo: "skip",
-        type: "scatter",
+        // scattergl (WebGL) en vez de scatter (SVG): con hasta ~1600 puntos
+        // por polígono esto evita crear miles de nodos DOM por gráfico.
+        type: "scattergl",
     };
 }
 

@@ -59,6 +59,7 @@ __all__ = [
     "run_modal_analysis",
     "run_rsa",
     "run_static_analysis",
+    "run_static_analysis_by_type",
 ]
 
 
@@ -1743,14 +1744,14 @@ def _compute_story_drifts(data: dict, nodes: list, seismic: dict, accidental: di
         },
     }
 
-def run_static_analysis(data: dict) -> dict:
-    """Análisis estático lineal. Retorna desplazamientos, reacciones y fuerzas."""
-    nodes, elements = build_model_3d(data)
-
+def _run_static_with_loads(nodes: list, elements: list, loads: list) -> dict:
+    """Aplica `loads` sobre un modelo ya construido (nodes/elements de
+    build_model_3d) y resuelve un estático lineal. Cuerpo compartido por
+    run_static_analysis (todas las cargas) y run_static_analysis_by_type
+    (solo un subconjunto, p. ej. muerta o viva por separado para /zapatas2)."""
     ops.timeSeries("Linear", 1)
     ops.pattern("Plain", 1, 1)
 
-    loads = data.get("loads", [])
     has_load = False
 
     for load in loads:
@@ -1805,6 +1806,27 @@ def run_static_analysis(data: dict) -> dict:
 
     ops.reactions()
     return _extract_results(nodes, elements)
+
+def run_static_analysis(data: dict) -> dict:
+    """Análisis estático lineal con todas las cargas. Retorna desplazamientos,
+    reacciones y fuerzas."""
+    nodes, elements = build_model_3d(data)
+    return _run_static_with_loads(nodes, elements, data.get("loads", []))
+
+def run_static_analysis_by_type(data: dict, types: set) -> dict:
+    """Igual que run_static_analysis pero solo con las cargas cuyo
+    type/loadType esté en `types` (p. ej. {"Dead"} o {"Live", "RoofLive"}).
+    Usado para separar reacciones muerta/viva para el cálculo de zapatas
+    (/zapatas2), que las necesita como filas independientes en las
+    combinaciones de diseño."""
+    nodes, elements = build_model_3d(data)
+    loads = [
+        load
+        for load in data.get("loads", [])
+        if isinstance(load, dict)
+        and str(load.get("type") or load.get("loadType") or "").strip() in types
+    ]
+    return _run_static_with_loads(nodes, elements, loads)
 
 def _ff_kN(value) -> float:
     """N → kN."""

@@ -360,11 +360,18 @@ class OctavePlotController extends Controller
             $ix0 += $cross * ($y2 ** 2 + $y2 * $y1 + $y1 ** 2);
         }
 
-        $area = abs($a0 / 2);
+        // OJO: el área con signo (antes de abs()) es la que hay que usar para
+        // dividir XC/YC — es la fórmula estándar del centroide de un polígono.
+        // Envolver el resultado final en abs() (como estaba antes) descarta en
+        // qué cuadrante cae el centroide respecto al origen, lo cual rompe el
+        // centrado del polígono en calcularZapatas2EnPhp() cuando el centroide
+        // real tiene X o Y negativa.
+        $signedArea = $a0 / 2;
+        $area = abs($signedArea);
         return [
             'A' => $area,
-            'XC' => abs($xc / (6 * $area)),
-            'YC' => abs($yc / (6 * $area)),
+            'XC' => $signedArea != 0.0 ? $xc / (6 * $signedArea) : 0.0,
+            'YC' => $signedArea != 0.0 ? $yc / (6 * $signedArea) : 0.0,
             'IX' => abs($ix0 / 12),
             'IY' => abs($iy0 / 12),
         ];
