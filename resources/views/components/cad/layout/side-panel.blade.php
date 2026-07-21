@@ -1,95 +1,120 @@
 <!-- Side Panel -->
-<aside class="cad-bg cad-border flex h-full basis-1/6 flex-col border-r-4">
+<aside class="cad-bg cad-border relative flex h-full w-20 shrink-0 flex-col border-r-4" x-data="{ itemsPanelCollapsed: false }">
     {{-- ============================================================
          BARRA DE HERRAMIENTAS RÁPIDAS
          Accesos directos a las acciones más usadas. Cada botón llama al
          MISMO handler que su ítem de menú (así comparten la lógica y los
          modales Blade migrados). Los de dibujo resaltan cuando su modo
-         está activo (:class por currentState). --}}
+         está activo (:class por currentState). El aside queda angosto
+         (solo lo que necesita esta barra) para que el canvas (flex-1 en
+         cad-area.blade.php) siempre tenga el máximo espacio disponible;
+         el panel de Items/Propiedades ya NO comparte ese ancho — flota
+         encima del canvas (ver más abajo). --}}
     @php
     $qt = 'flex flex-col items-center justify-center gap-0.5 rounded p-1.5 text-[9px] leading-tight text-center hover:bg-blue-600 hover:text-white transition-colors';
     @endphp
-    <div class="flex flex-1 overflow-hidden">
-        <div class="cad-bg cad-border flex h-full basis-1/6 flex-col border-r-4">
+
+    {{-- Flecha para mostrar/ocultar el panel flotante de Items/Propiedades. --}}
+    <button @click="itemsPanelCollapsed = !itemsPanelCollapsed"
+        title="Mostrar / ocultar panel de Items y Propiedades"
+        class="flex items-center justify-center gap-1 p-1.5 text-[9px] hover:bg-gray-700 text-gray-300 border-b cad-border">
+        <svg class="h-3.5 w-3.5 transition-transform duration-200" :class="itemsPanelCollapsed ? '' : 'rotate-180'"
+            xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+        <span>Panel</span>
+    </button>
+
+    <div class="flex flex-1 flex-col overflow-y-auto">
 
             {{-- Dibujar --}}
-            <div class="flex flex-col items-center justify-center gap-0.5 p-1.5 text-[9px] uppercase text-gray-500 border-b">Dibujar</div>
-            
+            <div class="flex flex-col items-center justify-center gap-0.5 p-1.5 text-[9px] uppercase cad-text-logo-color border-b">Dibujar</div>
+
             <div class="flex flex-col gap-1">
                 <button title="Dibujar columna con un punto (solo en planta)"
                     @click="cadSystem.activateDrawMenuAction('create-columns-region-clicks')"
                     :class="currentState === columnDrawingState ? 'bg-blue-600 text-white' : 'text-gray-200'"
                     class="{{ $qt }}">
-                    <span class="text-base leading-none">🏛️</span><span>Columna</span>
+                    <span class="text-base leading-none"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M6 5h12a1 1 0 0 1 1 1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1a1 1 0 0 1 1-1m15-3v2H3V2zm-6 6h2v14h-2zM7 8h2v14H7zm4 0h2v14h-2z"/></svg></span><span>Columna</span>
                 </button>
                 <button title="Dibujar frame / barra (funciona en 2D y 3D)"
                     @click="cadSystem.activateDrawFrameTool()"
                     :class="cadSystem?.activeDrawTool === 'frame' ? 'bg-blue-600 text-white' : 'text-gray-200'"
                     class="{{ $qt }}">
-                    <span class="text-base leading-none">➖</span><span>Frame</span>
+                    <span class="text-base leading-none"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"/></svg></span><span>Frame</span>
                 </button>
                 <button title="Dibujar losa / área"
                     @click="cadSystem.activateDrawMenuAction('draw-area-slab')"
                     :class="currentState === slabDrawingState ? 'bg-blue-600 text-white' : 'text-gray-200'"
                     class="{{ $qt }}">
-                    <span class="text-base leading-none">▦</span><span>Losa</span>
+                    <span class="text-base leading-none"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><rect fill="currentColor" width="7" height="7" x="3" y="3" rx="1"/><rect fill="currentColor" width="7" height="7" x="14" y="3" rx="1"/><rect fill="currentColor" width="7" height="7" x="14" y="14" rx="1"/><rect fill="currentColor" width="7" height="7" x="3" y="14" rx="1"/></g></svg></span><span>Losa</span>
                 </button>
             </div>
 
             {{-- soportes --}}
-            <div class="flex flex-col items-center justify-center gap-0.5 p-1.5 text-[9px] uppercase text-gray-500 border-y">apoyos</div>
+            <div class="flex flex-col items-center justify-center gap-0.5 p-1.5 text-[9px] uppercase cad-text-logo-color border-y">apoyos</div>
             <div class="flex flex-col gap-1">
                 <!-- <button title="Seleccionar objetos (frames / shells)"
                     @click="cadSystem.activateDrawMenuAction('select-object')"
                     :class="currentState === reshapeObjectState ? '' : ''"
                     class="{{ $qt }} text-gray-200">
-                    <span class="text-base leading-none">▭</span><span>Seleccionar</span>
+                    <span class="text-base leading-none"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 4.1L12 6M5.1 8l-2.9-.8M6 12l-1.9 2M7.2 2.2L8 5.1m1.037 4.59a.498.498 0 0 1 .653-.653l11 4.5a.5.5 0 0 1-.074.949l-4.349 1.041a1 1 0 0 0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074z"/></svg></span><span>Seleccionar</span>
                 </button> -->
                 <button title="Asignar soportes / restraints a los nodos seleccionados"
                     @click="cadSystem.activateAssignMenuAction('joint-restraints')"
                     class="{{ $qt }} text-gray-200">
-                    <span class="scale-90">
+                    <span class="scale-90 cad-text-logo-color">
                         <x-cad.svg.soporte1 />
                     </span><span>Soporte</span>
                 </button>
             </div>
 
             {{-- Cargas --}}
-            <div class="flex flex-col items-center justify-center gap-0.5 p-1.5 text-[9px] uppercase text-gray-500 border-y">cargas</div>
+            <div class="flex flex-col items-center justify-center gap-0.5 p-1.5 text-[9px] uppercase cad-text-logo-color border-y">cargas</div>
             <div class="flex flex-col gap-1">
                 <button title="Carga distribuida en vigas / frames seleccionados"
                     @click="cadSystem.activateAssignMenuAction('frame-load-distributed')"
                     class="{{ $qt }} text-gray-200">
-                    <span class="text-base leading-none">📊</span><span>Viga</span>
+                    <span class="text-base leading-none"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m7 6l5 5l5-5M7 13l5 5l5-5"/></svg></span><span>Viga</span>
                 </button>
                 <button title="Carga puntual (fuerza) en nodos seleccionados"
                     @click="cadSystem.activateAssignMenuAction('joint-load-force')"
                     class="{{ $qt }} text-gray-200">
-                    <span class="text-base leading-none">🔴</span><span>Nodo</span>
+                    <span class="text-base leading-none"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M22 12h-4M6 12H2m10-6V2m0 20v-4"/></svg></span><span>Nodo</span>
                 </button>
                 <button title="Carga uniforme de área en losas seleccionadas"
                     @click="cadSystem.activateAssignMenuAction('area-load-uniform')"
                     class="{{ $qt }} text-gray-200">
-                    <span class="text-base leading-none">🟦</span><span>Losa</span>
+                    <span class="text-base leading-none"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v8m-4-4l4 4l4-4"/></svg></span><span>Losa</span>
                 </button>
             </div>
 
             {{-- Secciones --}}
-            <div class="flex flex-col items-center justify-center gap-0.5 p-1.5 text-[9px] uppercase text-gray-500 border-y">secciones</div>
+            <div class="flex flex-col items-center justify-center gap-0.5 p-1.5 text-[9px] uppercase cad-text-logo-color border-y">secciones</div>
             <div class="flex flex-col gap-1">
                 <button title="Asignar sección de frame a los frames seleccionados"
                     @click="cadSystem.activateAssignMenuAction('frame-section')"
                     class="{{ $qt }} text-gray-200">
-                    <span class="text-base leading-none">📐</span><span>Frame Sec.</span>
+                    <span class="text-base leading-none"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><rect width="20" height="12" x="2" y="6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" rx="2"/></svg></span><span>Frame Sec.</span>
                 </button>
                 <button title="Asignar sección de losa a las losas seleccionadas"
                     @click="cadSystem.activateAssignMenuAction('area-slab-section')"
                     class="{{ $qt }} text-gray-200">
-                    <span class="text-base leading-none">▤</span><span>Slab Sec.</span>
+                    <span class="text-base leading-none"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 10c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2m0 12c-1.1 0-2-.9-2-2v-4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2"/><rect width="8" height="8" x="14" y="14" rx="2"/></g></svg></span><span>Slab Sec.</span>
                 </button>
             </div>
         </div>
-        <div class="cad-bg cad-border flex h-full basis-5/6 flex-col border-r-4">
+
+    {{-- ============================================================
+         PANEL DE ITEMS / PROPIEDADES — OVERLAY FLOTANTE
+         Ya no comparte ancho con la barra rápida ni con el canvas: se
+         posiciona "position:absolute" pegado al borde derecho del aside
+         (left-full, aside es "relative") y se SUPERPONE sobre el canvas
+         2D cuando está abierto. Así el canvas siempre tiene su ancho
+         completo (flex-1 en cad-area.blade.php); el panel solo "flota"
+         encima mientras el usuario lo necesita. --}}
+    <div x-show="!itemsPanelCollapsed" x-cloak x-transition
+        class="cad-bg cad-border absolute left-full top-0 z-20 flex h-full w-64 flex-col overflow-y-auto border-r-4 shadow-2xl">
 
             <!-- Panel de Grillas Diagonales -->
             <x-cad.ui.panel title="Items" init="isOpen = false">
@@ -405,6 +430,5 @@
                     </div>
                 </template>
             </x-cad.ui.panel>
-        </div>
     </div>
 </aside>

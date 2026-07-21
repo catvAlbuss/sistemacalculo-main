@@ -1,4 +1,5 @@
 import { pointDistance, pointDistanceToSegment } from "../../lib/utils.js";
+import { buildVertexSpatialIndex } from "./plan-import.js";
 
 /**
  * @mixin referenceGridMixin
@@ -72,6 +73,57 @@ export const referenceGridMixin = {
       visible: true,
       bubbleLoc: "Start",
     }));
+  },
+
+  // Agrega un eje de grid REAL (X u Y) en la ordenada dada — usado por la
+  // herramienta de dibujo manual (GridAxisDrawingState en states.js): clic en
+  // el plano importado (o en cualquier punto) y se crea un eje vertical (X) u
+  // horizontal (Y) que pasa por ahí, con la misma semántica de Edit Grid Data
+  // (ordinate + label autoincremental), para que se integre con Create Columns/
+  // Beams in Region y todo lo demás que ya depende de xGrids/yGrids.
+  // Relabela TODOS los ejes de esa dirección según su posición ordenada (A,B,C...
+  // / 1,2,3...) para que la letra/número siempre coincida con el orden real en
+  // planta, incluso si el usuario dibuja los ejes fuera de orden.
+  addGridAxisAtOrdinate(axis, ordinate) {
+    if (!this.referenceGrid) {
+      this.referenceGrid = {
+        xGrids: [], yGrids: [], generalGrids: [],
+        xPositions: [], yPositions: [], xLabels: [], yLabels: [],
+        storyCount: 0, storyHeight: 0,
+      };
+    }
+
+    const value = Number(ordinate);
+    if (!Number.isFinite(value)) return;
+
+    const key = axis === "X" ? "xGrids" : "yGrids";
+    if (!Array.isArray(this.referenceGrid[key])) this.referenceGrid[key] = [];
+    const list = this.referenceGrid[key];
+
+    const already = list.some((g) => Math.abs(Number(g.ordinate) - value) < 0.001);
+    if (already) {
+      this.showMessage?.(`Ya existe un eje ${axis} en esa posición.`, "warning");
+      return;
+    }
+
+    this.saveUndoState?.(`Agregar eje ${axis}`);
+
+    list.push({ id: "", ordinate: value, visible: true, bubbleLoc: axis === "X" ? "End" : "Start" });
+    list.sort((a, b) => Number(a.ordinate) - Number(b.ordinate));
+    const labels = axis === "X" ? this.getXLabels(list.length) : this.getYLabels(list.length);
+    list.forEach((g, i) => { g.id = String(labels[i]); });
+
+    const added = list.find((g) => Math.abs(Number(g.ordinate) - value) < 0.001);
+
+    this.rebuildReferenceGridCaches?.();
+    this.rebuildGeneralGrids?.();
+    this.rebuildViewSetFromReferenceGrid?.();
+    this.rebuildElevationListsFromReferenceGrid?.();
+    this.redraw?.();
+    this.sync3D?.();
+    this.rebuild3DGridSnapPointsSoon?.(`addGridAxisAtOrdinate ${axis}`);
+
+    this.showMessage?.(`Eje ${axis} "${added?.id ?? ""}" agregado en ${value.toFixed(3)} m.`);
   },
 
   rebuildGeneralGrids(targetGrid = this.referenceGrid) {
@@ -843,6 +895,62 @@ export const referenceGridMixin = {
     return best;
   },
 
+  // Snap a los VÉRTICES del plano DXF importado (mixins/grids/plan-import.js).
+  // Solo en la vista de planta BASE, y siempre que el plano esté visible —
+  // se calcula sin restringir por herramienta activa (a diferencia de
+  // pointNode/pointFrame) porque el usuario lo usa para trazar líneas de
+  // referencia manualmente con CUALQUIER herramienta de dibujo.
+  getNearestImportedPlanVertexSnap(mouseScreen) {
+    const plan = this.importedPlan;
+    if (!plan || !plan.visible || !plan.vertices?.length) return null;
+    if (!this.isBasePlanViewActive?.()) return null;
+
+    // Self-healing: `vertexIndex` es un Map, JSON.stringify lo serializa como
+    // "{}" (objeto plano, no Map) — tras restaurar un modelo guardado
+    // (autosave/abrir) hay que detectarlo por tipo, no solo por truthy, y
+    // reconstruirlo. Se cachea una sola vez en el propio objeto del plano.
+    if (!(plan.vertexIndex instanceof Map)) {
+      const built = buildVertexSpatialIndex(plan.vertices, plan.bounds);
+      plan.vertexIndex = built.index;
+      plan.vertexIndexCellSize = built.cellSize;
+    }
+
+    const planZ = this.getActivePlanElevation?.() ?? 0;
+    const mouseWorld = this.grid.screenToWorld(mouseScreen);
+    const cellSize = plan.vertexIndexCellSize || 1;
+
+    // Solo revisamos la vecindad del mouse (radio adaptado al zoom, acotado a
+    // un máximo de celdas) en vez de TODOS los vértices — con un DWG/DXF real
+    // (miles de vértices tras expandir bloques/arcos) escanear todo en cada
+    // mousemove congelaba el navegador.
+    const worldTolerance = this.planGridSnapScreenTolerance / (this.grid.scaleX || 1);
+    const cellRadius = Math.min(4, Math.max(1, Math.ceil(worldTolerance / cellSize)));
+    const cx = Math.floor(mouseWorld.x / cellSize);
+    const cy = Math.floor(mouseWorld.y / cellSize);
+
+    let best = null;
+    for (let dx = -cellRadius; dx <= cellRadius; dx++) {
+      for (let dy = -cellRadius; dy <= cellRadius; dy++) {
+        const bucket = plan.vertexIndex.get(`${cx + dx}:${cy + dy}`);
+        if (!bucket) continue;
+
+        for (const i of bucket) {
+          const v = plan.vertices[i];
+          const sp = this.grid.worldToScreen({ x: v.x, y: v.y });
+          const d = Math.hypot(mouseScreen.x - sp.x, mouseScreen.y - sp.y);
+
+          if (best === null || d < best.screenDistance) {
+            best = { x: v.x, y: v.y, z: planZ, label: "Plan Vertex", source: "imported-plan", screenDistance: d };
+          }
+        }
+      }
+    }
+
+    if (!best) return null;
+    if (best.screenDistance > this.planGridSnapScreenTolerance) return null;
+    return best;
+  },
+
   // Snap a un NODO del modelo (columna/joint) en el plano activo.
   getNearestPlanModelNodeSnap(mouseScreen) {
     const nodes = this.nodes || [];
@@ -891,6 +999,7 @@ export const referenceGridMixin = {
     const pointEndpoint = this.getNearestPlanGeneralGridEndpointSnap(mouseScreen);
     const pointGeneral = this.getNearestPlanGeneralGridSnap(mouseWorld, mouseScreen);
     const pointXY = this.getNearestPlanGridPoint(mouseWorld, mouseScreen);
+    const pointPlanVertex = this.getNearestImportedPlanVertexSnap(mouseScreen);
 
     // Reconocer geometría del modelo (viga/columna) al dibujar puntos, estilo ETABS.
     const drawingPoints = this.currentState === this.pointDrawingState;
@@ -936,6 +1045,13 @@ export const referenceGridMixin = {
       candidates.push({
         ...pointNode,
         priorityWeight: 0,
+      });
+    }
+
+    if (pointPlanVertex) {
+      candidates.push({
+        ...pointPlanVertex,
+        priorityWeight: 0.5,
       });
     }
 

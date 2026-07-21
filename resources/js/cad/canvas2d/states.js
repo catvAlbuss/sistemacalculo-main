@@ -2696,6 +2696,50 @@ export class PointDrawingState extends PanAndZoomState {
   }
 }
 
+// Herramienta de dibujo manual de EJES DE GRID reales (no líneas de
+// referencia libres): cada clic agrega un eje X (vertical) o Y (horizontal)
+// que pasa por el punto clickeado — pensado para trazar la grilla a mano
+// sobre un plano DXF/DWG importado (snapea a sus vértices vía
+// context.activeGridPoint, igual que PointDrawingState/ColumnDrawingState).
+// La lógica de inserción/relabeling vive en addGridAxisAtOrdinate
+// (mixins/grids/reference-grid.js) para que sea reusable y testeable aparte.
+export class GridAxisDrawingState extends PanAndZoomState {
+  constructor(context, axis) {
+    super();
+    this.context = context;
+    this.axis = axis; // "X" | "Y"
+  }
+
+  handleMouseDown(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseDown(event, context, mouse);
+      return;
+    }
+
+    super.handleMouseDown(...arguments);
+
+    const view = context.viewSet?.[context.activeViewIndex];
+    if (view && view.type !== "plan") {
+      context.showMessage?.("Dibujar ejes de grid solo está disponible en vista de planta", "warning");
+      return;
+    }
+
+    const worldPos = context.grid.screenToWorld(mouse);
+    const snapPoint = context.activeGridPoint ?? null;
+    const x = snapPoint ? Number(snapPoint.x) : Number(worldPos.x);
+    const y = snapPoint ? Number(snapPoint.y) : Number(worldPos.y);
+    const ordinate = this.axis === "X" ? x : y;
+
+    context.addGridAxisAtOrdinate?.(this.axis, ordinate);
+  }
+
+  info() {
+    return this.axis === "X"
+      ? "Clic para agregar un eje vertical (X) en ese punto. Esc para salir."
+      : "Clic para agregar un eje horizontal (Y) en ese punto. Esc para salir.";
+  }
+}
+
 export class ColumnDrawingState extends PanAndZoomState {
   constructor(context) {
     super();

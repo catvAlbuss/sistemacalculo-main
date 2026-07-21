@@ -2313,6 +2313,37 @@ function createForceArrow3D(
 // 3D DRAW > HELPERS PARA SOPORTES
 // =====================================================
 
+// Factor de escala visual del modelo: los glifos de soporte y el marcador de
+// nodo tenían dimensiones FIJAS en metros (ej. placa de 0.38m) pensadas para
+// un edificio "normal" de varios metros de luz. Sobre un modelo chico (un
+// cuarto de pocos metros, importado de un plano), esas mismas dimensiones
+// ocupan una fracción enorme de la estructura y se ve como una "maqueta" en
+// vez de un edificio real. Este factor (0.3–1) reduce proporcionalmente esos
+// glifos según el tamaño real del modelo (diagonal del bounding box de los
+// nodos), con un piso para que nunca desaparezcan ni queden inclickeables.
+const MODEL_SCALE_REFERENCE_DIAG = 15; // metros — "tamaño normal" de referencia
+const MODEL_SCALE_MIN = 0.3;
+
+function getModelVisualScale3D(context) {
+  const nodes = context?.nodes;
+  if (!Array.isArray(nodes) || nodes.length < 2) return 1;
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  nodes.forEach((n) => {
+    const p = n?.position;
+    if (!p) return;
+    minX = Math.min(minX, Number(p.x) || 0);
+    maxX = Math.max(maxX, Number(p.x) || 0);
+    minY = Math.min(minY, Number(p.y) || 0);
+    maxY = Math.max(maxY, Number(p.y) || 0);
+  });
+
+  const diag = Math.hypot(maxX - minX, maxY - minY);
+  if (!Number.isFinite(diag) || diag <= 0) return 1;
+
+  return Math.min(1, Math.max(MODEL_SCALE_MIN, diag / MODEL_SCALE_REFERENCE_DIAG));
+}
+
 /** Registra un mesh de soporte en VIEWER_STATE para limpieza posterior. */
 function addSupportMesh(mesh) {
   mesh.isPickable = false;
@@ -2325,7 +2356,7 @@ function addSupportMesh(mesh) {
  * Restringe traslación X, Y, Z y rotación X, Y, Z.
  * Color: naranja, estilo ETABS.
  */
-function drawFixedSupport(origin, id) {
+function drawFixedSupport(origin, id, scale = 1) {
   const scene = VIEWER_STATE.scene;
   const color = new BABYLON.Color3(0.85, 0.45, 0.1);
   const mat = createColoredMaterial(`support_mat_${id}`, color, scene);
@@ -2334,10 +2365,10 @@ function drawFixedSupport(origin, id) {
   // Placa base horizontal
   const plate = BABYLON.MeshBuilder.CreateBox(
     `support_${id}_plate`,
-    { width: 0.38, height: 0.05, depth: 0.38 },
+    { width: 0.38 * scale, height: 0.05 * scale, depth: 0.38 * scale },
     scene,
   );
-  plate.position = new BABYLON.Vector3(origin.x, origin.y - 0.025, origin.z);
+  plate.position = new BABYLON.Vector3(origin.x, origin.y - 0.025 * scale, origin.z);
   plate.material = mat;
   addSupportMesh(plate);
 
@@ -2347,19 +2378,19 @@ function drawFixedSupport(origin, id) {
   stripMat.alpha = 0.92;
 
   const stripPositions = [
-    { x: -0.11, z: 0 },
+    { x: -0.11 * scale, z: 0 },
     { x: 0, z: 0 },
-    { x: 0.11, z: 0 },
+    { x: 0.11 * scale, z: 0 },
   ];
   stripPositions.forEach((pos, i) => {
     const strip = BABYLON.MeshBuilder.CreateBox(
       `support_${id}_strip_${i}`,
-      { width: 0.04, height: 0.07, depth: 0.28 },
+      { width: 0.04 * scale, height: 0.07 * scale, depth: 0.28 * scale },
       scene,
     );
     strip.position = new BABYLON.Vector3(
       origin.x + pos.x,
-      origin.y + 0.035,
+      origin.y + 0.035 * scale,
       origin.z + pos.z,
     );
     strip.rotation.y = Math.PI / 4;
@@ -2373,13 +2404,13 @@ function drawFixedSupport(origin, id) {
  * Restringe traslación X, Y, Z; libre en rotación.
  * Color: verde, estilo ETABS.
  */
-function drawPinnedSupport(origin, id) {
+function drawPinnedSupport(origin, id, scale = 1) {
   const scene = VIEWER_STATE.scene;
   const color = new BABYLON.Color3(0.18, 0.72, 0.32);
   const mat = createColoredMaterial(`support_mat_${id}`, color, scene);
   mat.alpha = 0.92;
 
-  const pyramidHeight = 0.28;
+  const pyramidHeight = 0.28 * scale;
 
   // Pirámide: diameterTop=0 → apex en la parte superior (+Y)
   // position.y = origin.y - pyramidHeight/2 → apex roza el nodo
@@ -2387,7 +2418,7 @@ function drawPinnedSupport(origin, id) {
     `support_${id}_pyramid`,
     {
       diameterTop: 0,
-      diameterBottom: 0.32,
+      diameterBottom: 0.32 * scale,
       height: pyramidHeight,
       tessellation: 4,
     },
@@ -2401,10 +2432,10 @@ function drawPinnedSupport(origin, id) {
   // Placa base
   const base = BABYLON.MeshBuilder.CreateBox(
     `support_${id}_base`,
-    { width: 0.38, height: 0.04, depth: 0.38 },
+    { width: 0.38 * scale, height: 0.04 * scale, depth: 0.38 * scale },
     scene,
   );
-  base.position = new BABYLON.Vector3(origin.x, origin.y - pyramidHeight - 0.02, origin.z);
+  base.position = new BABYLON.Vector3(origin.x, origin.y - pyramidHeight - 0.02 * scale, origin.z);
   base.material = mat;
   addSupportMesh(base);
 }
@@ -2414,19 +2445,19 @@ function drawPinnedSupport(origin, id) {
  * Restringe solo traslación Z; libre en X, Y y rotaciones.
  * Color: azul, estilo ETABS.
  */
-function drawRollerZSupport(origin, id) {
+function drawRollerZSupport(origin, id, scale = 1) {
   const scene = VIEWER_STATE.scene;
   const color = new BABYLON.Color3(0.22, 0.44, 0.92);
   const mat = createColoredMaterial(`support_mat_${id}`, color, scene);
   mat.alpha = 0.92;
 
-  const pyramidHeight = 0.28;
+  const pyramidHeight = 0.28 * scale;
 
   const pyramid = BABYLON.MeshBuilder.CreateCylinder(
     `support_${id}_pyramid`,
     {
       diameterTop: 0,
-      diameterBottom: 0.32,
+      diameterBottom: 0.32 * scale,
       height: pyramidHeight,
       tessellation: 4,
     },
@@ -2442,15 +2473,15 @@ function drawRollerZSupport(origin, id) {
   const rollerMat = createColoredMaterial(`support_mat_${id}_roller`, rollerColor, scene);
   rollerMat.alpha = 0.92;
 
-  [-0.12, 0, 0.12].forEach((offset, i) => {
+  [-0.12 * scale, 0, 0.12 * scale].forEach((offset, i) => {
     const roller = BABYLON.MeshBuilder.CreateCylinder(
       `support_${id}_roller_${i}`,
-      { diameter: 0.07, height: 0.34, tessellation: 12 },
+      { diameter: 0.07 * scale, height: 0.34 * scale, tessellation: 12 },
       scene,
     );
     roller.position = new BABYLON.Vector3(
       origin.x + offset,
-      origin.y - pyramidHeight - 0.035,
+      origin.y - pyramidHeight - 0.035 * scale,
       origin.z,
     );
     roller.rotation.z = Math.PI / 2;
@@ -2461,26 +2492,26 @@ function drawRollerZSupport(origin, id) {
   // Placa base bajo los rodillos
   const base = BABYLON.MeshBuilder.CreateBox(
     `support_${id}_base`,
-    { width: 0.44, height: 0.03, depth: 0.38 },
+    { width: 0.44 * scale, height: 0.03 * scale, depth: 0.38 * scale },
     scene,
   );
-  base.position = new BABYLON.Vector3(origin.x, origin.y - pyramidHeight - 0.075, origin.z);
+  base.position = new BABYLON.Vector3(origin.x, origin.y - pyramidHeight - 0.075 * scale, origin.z);
   base.material = mat;
   addSupportMesh(base);
 }
 
 /** Soporte personalizado: restricciones parciales no estándar — cubo gris. */
-function drawCustomSupport(origin, id) {
+function drawCustomSupport(origin, id, scale = 1) {
   const scene = VIEWER_STATE.scene;
   const mat = createColoredMaterial(`support_mat_${id}`, new BABYLON.Color3(0.55, 0.55, 0.55), scene);
   mat.alpha = 0.82;
 
   const box = BABYLON.MeshBuilder.CreateBox(
     `support_${id}`,
-    { width: 0.22, height: 0.1, depth: 0.22 },
+    { width: 0.22 * scale, height: 0.1 * scale, depth: 0.22 * scale },
     scene,
   );
-  box.position = new BABYLON.Vector3(origin.x, origin.y - 0.05, origin.z);
+  box.position = new BABYLON.Vector3(origin.x, origin.y - 0.05 * scale, origin.z);
   box.material = mat;
   addSupportMesh(box);
 }
@@ -2494,6 +2525,8 @@ function drawCustomSupport(origin, id) {
 function drawSupportsIn3D(context) {
   const nodes = context.nodes;
   if (!nodes) return;
+
+  const scale = getModelVisualScale3D(context);
 
   nodes.forEach((node) => {
     const r = node.restraints || node.constraints || {};
@@ -2527,10 +2560,10 @@ function drawSupportsIn3D(context) {
     const id = node.id;
 
     switch (supportType) {
-      case "fixed": drawFixedSupport(origin, id); break;
-      case "pinned": drawPinnedSupport(origin, id); break;
-      case "rollerZ": drawRollerZSupport(origin, id); break;
-      default: drawCustomSupport(origin, id); break;
+      case "fixed": drawFixedSupport(origin, id, scale); break;
+      case "pinned": drawPinnedSupport(origin, id, scale); break;
+      case "rollerZ": drawRollerZSupport(origin, id, scale); break;
+      default: drawCustomSupport(origin, id, scale); break;
     }
   });
 }
@@ -3408,12 +3441,16 @@ export function drawIn3D(context, updateOnly = false) {
   // Limpiar elementos anteriores del modelo (nodos y barras)
   clearModelElements(keepLabels);
 
+  // Ver comentario junto a getModelVisualScale3D: en un modelo chico (un
+  // cuarto de pocos metros) un nodo de 0.08m fijo se ve desproporcionado.
+  const nodeScale = getModelVisualScale3D(context);
+
   // Dibujar nodos deformados (si corresponde)
   context.nodes.forEach((node) => {
     const pos3d = getNodePosition3D(node, context);
     const sphere = BABYLON.MeshBuilder.CreateSphere(
       `node_${node.id}`,
-      { diameter: 0.08, segments: 8 },
+      { diameter: 0.08 * nodeScale, segments: 8 },
       VIEWER_STATE.scene,
     );
     sphere.position = pos3d;

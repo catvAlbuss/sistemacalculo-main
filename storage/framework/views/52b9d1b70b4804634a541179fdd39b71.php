@@ -1,6 +1,6 @@
 
 <!-- Canvas - Vista dividida 2D + 3D -->
-<main class="relative flex basis-5/6 flex-col bg-white">
+<main class="relative flex flex-1 flex-col bg-white">
   <input class="absolute w-28 -translate-x-1/2 -translate-y-1/2 z-10" id="distance" name="distance" type="number"
     x-show="currentState === trussDrawingState && currentState.shape.node1" x-ref="distanceInput"
     @keyup.enter="trussDrawingState.createBeam($data)">

@@ -238,6 +238,39 @@ export const storyGridMixin = {
   },
 
   // =========================================
+  // ===== GENERAR PISOS DESDE LA GRILLA =====
+  // =========================================
+  // Diálogo dedicado (Blade), encadenado al flujo de "importar plano → trazar
+  // ejes a mano → generar pisos" — distinto de editStoryData/Swal, pero
+  // reusa applyStoryData() (misma semántica, ya probada) como implementación:
+  // la grilla de ejes (xGrids/yGrids) es global, no por piso, así que en
+  // cuanto existen más niveles, la MISMA grilla trazada en la Base aparece
+  // en todos ellos sin trabajo extra.
+  openGenerateStoriesDialog() {
+    const hasAxes = (this.referenceGrid?.xGrids?.length || 0) > 0 || (this.referenceGrid?.yGrids?.length || 0) > 0;
+
+    window.dispatchEvent(new CustomEvent("open-generate-stories-modal", {
+      detail: {
+        storyCount: Number(this.referenceGrid?.storyCount || 1),
+        storyHeight: Number(this.referenceGrid?.storyHeight || 3),
+        hasAxes,
+      },
+    }));
+  },
+
+  applyGenerateStoriesFromModal(v) {
+    const storyCount = Math.max(0, Math.floor(Number(v.storyCount) || 0));
+    const storyHeight = Number(v.storyHeight);
+
+    if (!Number.isFinite(storyHeight) || storyHeight <= 0) {
+      this.showMessage?.("La altura de piso debe ser mayor que cero.", "warning");
+      return;
+    }
+
+    this.applyStoryData(storyCount, storyHeight);
+  },
+
+  // =========================================
   // ===== EDIT: REFERENCE LINES =============
   // =========================================
 

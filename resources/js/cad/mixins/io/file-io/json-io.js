@@ -5,7 +5,7 @@ import { Beam, Node as StructuralNode } from "../../../model/shapes.js";
 import { read as readmat } from "mat-for-js";
 import { axisToFixed, removeFromArray } from "../../../lib/utils.js";
 import { Triangle, Puente, Arco } from "../../../model/parametricModels.js";
-import { elevateSelectedNodes, extrudeToNewFloor, lowerSelectedNodes, selectAllNodes, activate3DDrawingMode } from "../../../3d/modeling3d.js";
+import { extrudeToNewFloor, selectAllNodes, activate3DDrawingMode } from "../../../3d/modeling3d.js";
 import { toggleView3D } from "../../../3d/viewer3d.js";
 import {
   serializeFrameForceModule,
@@ -372,6 +372,9 @@ export const jsonIoMixin = {
         referencePlanes: clean(this.referencePlanes, []),
         referencePoints: clean(this.referencePoints, []),
         dimensionLines: clean(this.dimensionLines, []),
+
+        // Plano DXF importado (fondo + snap en Planta - Base). Ver mixins/grids/plan-import.js.
+        importedPlan: clean(this.importedPlan, null),
 
         nodes,
         frames,
@@ -1260,6 +1263,7 @@ export const jsonIoMixin = {
       this.referencePlanes = cleanClone(model.referencePlanes, []);
       this.referencePoints = cleanClone(model.referencePoints, []);
       this.dimensionLines = cleanClone(model.dimensionLines, []);
+      this.importedPlan = cleanClone(model.importedPlan, null);
 
       // ===============================
       // 9. Restaurar definiciones

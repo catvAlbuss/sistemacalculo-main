@@ -158,7 +158,13 @@ function createVerticalGridX(prefix, xConst, yPositions, maxZ, storyHeight, colo
   const minY = Math.min(...yPositions);
   const maxY = Math.max(...yPositions);
 
-  for (let z = 0; z <= maxZ + 0.0001; z += storyHeight) {
+  // Guarda contra storyHeight <= 0 (aún no se corrió "Generar Pisos", así que
+  // storyHeight sigue en su default 0) — sin esto, z += 0 nunca avanza y el
+  // loop queda infinito, congelando el navegador. Con storyHeight<=0, maxZ
+  // también es 0 (maxZ = storyCount*storyHeight), así que 1 sola iteración
+  // en z=0 es exactamente lo correcto (no hay pisos que dibujar todavía).
+  const stepZ = Number(storyHeight) > 0 ? Number(storyHeight) : Math.max(Number(maxZ) || 1, 1);
+  for (let z = 0; z <= maxZ + 0.0001; z += stepZ) {
     createLine(
       `${prefix}_h_${z.toFixed(2)}`,
       mapToBabylon(xConst, minY, z),
@@ -190,7 +196,10 @@ function createVerticalGridY(prefix, yConst, xPositions, maxZ, storyHeight, colo
   const minX = Math.min(...xPositions);
   const maxX = Math.max(...xPositions);
 
-  for (let z = 0; z <= maxZ + 0.0001; z += storyHeight) {
+  // Ver comentario equivalente en createVerticalGridX: guarda contra
+  // storyHeight <= 0 para no producir un loop infinito.
+  const stepZ = Number(storyHeight) > 0 ? Number(storyHeight) : Math.max(Number(maxZ) || 1, 1);
+  for (let z = 0; z <= maxZ + 0.0001; z += stepZ) {
     createLine(
       `${prefix}_h_${z.toFixed(2)}`,
       mapToBabylon(minX, yConst, z),
@@ -427,9 +436,29 @@ export function drawReferenceGrid3D(context, options = {}) {
   const scene = getScene();
   if (!scene || !context?.referenceGrid) return;
 
-  const refGrid = context.referenceGrid;
+  const rawGrid = context.referenceGrid;
+  const hasX = rawGrid.xPositions?.length > 0;
+  const hasY = rawGrid.yPositions?.length > 0;
 
-  if (!refGrid.xPositions?.length || !refGrid.yPositions?.length) return;
+  // Antes se exigía tener AMBAS direcciones para dibujar algo — significaba
+  // que si el usuario recién trazó un eje X (a mano, uno a la vez) no se veía
+  // NADA en 3D hasta dibujar también un eje Y. Ahora, si falta una dirección,
+  // se le da una extensión sintética (NO se persiste, solo para renderizar)
+  // así el eje recién dibujado se ve de inmediato.
+  if (!hasX && !hasY) return;
+
+  const refGrid = (hasX && hasY) ? rawGrid : (() => {
+    const otherPositions = hasX ? rawGrid.xPositions : rawGrid.yPositions;
+    const span = otherPositions.length > 1
+      ? Math.max(...otherPositions) - Math.min(...otherPositions)
+      : 10;
+    const fallback = [0, Math.max(span, 5)];
+    return {
+      ...rawGrid,
+      xPositions: hasX ? rawGrid.xPositions : fallback,
+      yPositions: hasY ? rawGrid.yPositions : fallback,
+    };
+  })();
 
   // ── OPTIMIZACIÓN: la estructura estática (mallas ref_*) es IDÉNTICA en todas
   // las vistas. Solo se reconstruye si cambió la definición de la grilla
@@ -489,6 +518,8 @@ export function createFull3DGrid(scene) {
   const size = 10;
   const spacing = 1;
 
+  // Solo el plano XY (planta) — antes también dibujaba los planos verticales
+  // XZ e YZ (paredes), que el usuario no quiere ver por defecto.
   for (let x = -size; x <= size; x += spacing) {
     createLine(
       `ref_base_xy_x_${x}`,
@@ -509,45 +540,17 @@ export function createFull3DGrid(scene) {
     );
   }
 
-  for (let x = -size; x <= size; x += spacing) {
-    createLine(
-      `ref_base_xz_x_${x}`,
-      new BABYLON.Vector3(x, -size, 0),
-      new BABYLON.Vector3(x, size, 0),
-      COLORS.base,
-      0.06,
-    );
-  }
-
-  for (let y = -size; y <= size; y += spacing) {
-    createLine(
-      `ref_base_xz_y_${y}`,
-      new BABYLON.Vector3(-size, y, 0),
-      new BABYLON.Vector3(size, y, 0),
-      COLORS.base,
-      0.06,
-    );
-  }
-
-  for (let z = -size; z <= size; z += spacing) {
-    createLine(
-      `ref_base_yz_z_${z}`,
-      new BABYLON.Vector3(0, -size, z),
-      new BABYLON.Vector3(0, size, z),
-      COLORS.base,
-      0.06,
-    );
-  }
-
-  for (let y = -size; y <= size; y += spacing) {
-    createLine(
-      `ref_base_yz_y_${y}`,
-      new BABYLON.Vector3(0, y, -size),
-      new BABYLON.Vector3(0, y, size),
-      COLORS.base,
-      0.06,
-    );
-  }
+  // Triada de ejes X/Y/Z SIEMPRE visible en el origen, independiente de si
+  // existe una grilla de referencia (drawReferenceStructure/drawAxisLabels
+  // requieren xPositions/yPositions no vacíos). Da orientación mínima mientras
+  // el usuario arma su grilla a mano sobre un plano importado.
+  const axisLen = 2;
+  createLine("origin_axis_x", mapToBabylon(0, 0, 0), mapToBabylon(axisLen, 0, 0), COLORS.axisX, 1);
+  createLine("origin_axis_y", mapToBabylon(0, 0, 0), mapToBabylon(0, axisLen, 0), COLORS.axisY, 1);
+  createLine("origin_axis_z", mapToBabylon(0, 0, 0), mapToBabylon(0, 0, axisLen), COLORS.axisZ, 1);
+  createLabel("origin_axis_x_label", "X", COLORS.axisX, mapToBabylon(axisLen + 0.3, 0, 0));
+  createLabel("origin_axis_y_label", "Y", COLORS.axisY, mapToBabylon(0, axisLen + 0.3, 0));
+  createLabel("origin_axis_z_label", "Z", COLORS.axisZ, mapToBabylon(0, 0, axisLen + 0.3));
 
   console.log("✅ Grid base 3D creado");
 }

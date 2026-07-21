@@ -951,31 +951,6 @@
 <?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
 
-      <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'testEdificioSismico()','toggle' => 'false','label' => 'Edificio Sísmico (Test)']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.ui.ribbon-button'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['clickHandler' => 'testEdificioSismico()','toggle' => 'false','label' => 'Edificio Sísmico (Test)']); ?>
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M3 21h18M3 10h18M3 7l9-4 9 4M4 10v11M20 10v11M8 10v11M12 10v11M16 10v11" />
-        </svg>
-       <?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
-<?php $attributes = $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
-<?php unset($__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924)): ?>
-<?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
-<?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
-<?php endif; ?>
-
       <!-- Show Deformed Shape (estilo ETABS): deformada estática/animada por caso sísmico -->
       <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>

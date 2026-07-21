@@ -105,6 +105,10 @@ export class DiseñoRenderer {
       CADSystem.grid.draw(this, CADSystem);
     }
 
+    this.drawImportedPlanBackground(CADSystem);
+    this.drawAxisIndicator(CADSystem);
+    this.drawGridAxisPreview(CADSystem);
+
     this.drawReferencePlanes(CADSystem);
     this.drawReferencePoints(CADSystem);
     this.drawActiveGridPoint(CADSystem);
@@ -638,15 +642,152 @@ export class DiseñoRenderer {
     return "soporteDos";
   }
 
+  // Fondo del plano DXF importado (mixins/grids/plan-import.js): solo en la
+  // vista de planta BASE (storyId 0) — en pisos superiores ya no aplica, ahí
+  // se usa la grilla de referencia derivada. Se dibuja ANTES que la geometría
+  // del modelo para que quede debajo; opacidad configurable desde el modal.
+  drawImportedPlanBackground(context) {
+    const plan = context.importedPlan;
+    if (!plan || !plan.visible || !plan.segments?.length) return;
+    if (typeof context.isBasePlanViewActive === "function" && !context.isBasePlanViewActive()) return;
+
+    const ctx = context.ctx;
+    const grid = context.grid;
+    // Un DWG/DXF real (tras expandir bloques + teselar arcos) puede tener
+    // miles de segmentos. Antes se hacía un beginPath+stroke() POR SEGMENTO,
+    // en cada frame (60/seg) — eso congelaba el navegador con planos grandes.
+    // Ahora: 1 solo path + 1 solo stroke() para TODO el plano, y se descartan
+    // (sin transformar) los segmentos fuera del área visible.
+    const bounds = typeof grid.getVisibleWorldBounds === "function" ? grid.getVisibleWorldBounds() : null;
+
+    ctx.save();
+    ctx.globalAlpha = Number(plan.opacity ?? 0.5);
+    ctx.strokeStyle = "#94a3b8";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+
+    plan.segments.forEach((s) => {
+      if (bounds) {
+        const segMinX = Math.min(s.x1, s.x2), segMaxX = Math.max(s.x1, s.x2);
+        const segMinY = Math.min(s.y1, s.y2), segMaxY = Math.max(s.y1, s.y2);
+        if (segMaxX < bounds.minX || segMinX > bounds.maxX) return;
+        if (segMaxY < bounds.minY || segMinY > bounds.maxY) return;
+      }
+      const p1 = grid.worldToScreen({ x: s.x1, y: s.y1 });
+      const p2 = grid.worldToScreen({ x: s.x2, y: s.y2 });
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+    });
+
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Indicador de ejes X/Y SIEMPRE visible en planta (independiente de si hay
+  // grilla de referencia dibujada) — para que el usuario nunca pierda la
+  // orientación del origen mientras arma su grilla a mano sobre un plano
+  // importado. Tamaño fijo en pantalla (no en mundo) para que no crezca/
+  // encoja con el zoom. Colores alineados con el gizmo del visor 3D
+  // (grid3d.js: X rojo, Y verde, Z celeste).
+  drawAxisIndicator(context) {
+    if (context.currentViewMode && context.currentViewMode !== "plan") return;
+    const ctx = context.ctx;
+    const origin = context.grid.worldToScreen({ x: 0, y: 0 });
+    const len = 34;
+
+    ctx.save();
+    ctx.lineWidth = 2;
+    ctx.font = "bold 11px Arial";
+
+    // Eje X (rojo)
+    ctx.strokeStyle = "#ef4444";
+    ctx.fillStyle = "#ef4444";
+    ctx.beginPath();
+    ctx.moveTo(origin.x, origin.y);
+    ctx.lineTo(origin.x + len, origin.y);
+    ctx.stroke();
+    ctx.fillText("X", origin.x + len + 4, origin.y + 4);
+
+    // Eje Y (verde) — screen Y crece hacia abajo, mundo Y crece hacia arriba
+    ctx.strokeStyle = "#22c55e";
+    ctx.fillStyle = "#22c55e";
+    ctx.beginPath();
+    ctx.moveTo(origin.x, origin.y);
+    ctx.lineTo(origin.x, origin.y - len);
+    ctx.stroke();
+    ctx.fillText("Y", origin.x - 4, origin.y - len - 6);
+
+    // Eje Z (celeste) — sale de la pantalla en planta: solo un punto marcado
+    ctx.fillStyle = "#38bdf8";
+    ctx.beginPath();
+    ctx.arc(origin.x, origin.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#0b1220";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillText("Z", origin.x + 8, origin.y - 8);
+
+    ctx.restore();
+  }
+
+  // Línea "fantasma" que sigue al mouse mientras la herramienta de dibujo de
+  // ejes (GridAxisDrawingState) está activa — da feedback visual de dónde
+  // quedaría el eje ANTES de hacer clic, sin necesidad de una interacción de
+  // arrastre real (más simple/liviano, mismo resultado práctico).
+  drawGridAxisPreview(context) {
+    const state = context.currentState;
+    const isX = state && state === context.gridAxisXDrawingState;
+    const isY = state && state === context.gridAxisYDrawingState;
+    if (!isX && !isY) return;
+
+    const mouseScreen = context.lastMouseScreen;
+    if (!mouseScreen) return;
+
+    const grid = context.grid;
+    const snap = context.activeGridPoint;
+    const mouseWorld = snap || grid.screenToWorld(mouseScreen);
+
+    const ctx = context.ctx;
+    ctx.save();
+    ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = isX ? "#ef4444" : "#22c55e";
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+
+    if (isX) {
+      const sx = grid.worldToScreen({ x: mouseWorld.x, y: 0 }).x;
+      ctx.moveTo(sx, 0);
+      ctx.lineTo(sx, context.canvas.height);
+    } else {
+      const sy = grid.worldToScreen({ x: 0, y: mouseWorld.y }).y;
+      ctx.moveTo(0, sy);
+      ctx.lineTo(context.canvas.width, sy);
+    }
+
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
   drawSupport(node, context) {
     const p = this.projectPoint(node, context);
     const key = this.getSupportKey(node);
     if (!key || !soportes[key]) return;
 
+    // Antes se dibujaba SIEMPRE a 30px nativos, sin importar el zoom — en un
+    // modelo chico (un cuarto de unos pocos metros) hay que acercar mucho la
+    // vista para verlo bien, y ese ícono de tamaño fijo terminaba viéndose
+    // gigante/tipo "maqueta" en proporción a la estructura. Ahora escala con
+    // el zoom igual que drawNode (tamaño físico ~0.5m × px/m), acotado para
+    // que nunca desaparezca ni se vuelva absurdo.
+    const px = Math.max(14, Math.min(40, 0.5 * (Number(context.grid?.scaleX) || 50)));
+    const half = px / 2;
+
     if (key !== "soporteTres") {
-      context.ctx.drawImage(soportes[key], p.x - 15, p.y);
+      context.ctx.drawImage(soportes[key], p.x - half, p.y, px, px);
     } else {
-      context.ctx.drawImage(soportes[key], p.x - 20, p.y - 10);
+      context.ctx.drawImage(soportes[key], p.x - (px * 2 / 3), p.y - px / 3, px, px);
     }
   }
 
@@ -3462,46 +3603,68 @@ export class DiseñoRenderer {
   }
 
   // DRAW GRID ORIGINAL
+  // Grid "hoja de cuaderno" que se dibuja cuando NO hay grilla de referencia
+  // (modelo en blanco). Estilo ETABS: cuadrícula fina adaptativa al zoom, con
+  // líneas mayores cada 5 divisiones, SIN etiquetas ni burbujas de grid — es
+  // solo un fondo visual para tener referencia mientras dibujas / importas un
+  // plano. El espaciado se elige para que las líneas nunca queden ni saturadas
+  // ni demasiado separadas, sin importar el zoom.
   drawStandardGrid(grid, context) {
-    const ctx = context.ctx; // Assuming you're using a canvas context
+    const ctx = context.ctx;
     ctx.save();
 
     const topLeft = grid.screenToWorld({ x: 0, y: 0 });
-    const bottomRigth = grid.screenToWorld({ x: grid.width, y: grid.height });
+    const bottomRight = grid.screenToWorld({ x: grid.width, y: grid.height });
 
-    const spacing = 1; /* grid.gridSpacing */
+    const scale = Math.abs(grid.scaleX) || 1;
+    // Espaciado "bonito" (1·10ᵏ, 2·10ᵏ, 5·10ᵏ) que en pantalla mida ~24px.
+    const targetPx = 24;
+    const raw = targetPx / scale;
+    const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+    const mant = raw / pow;
+    const niceMant = mant <= 1 ? 1 : mant <= 2 ? 2 : mant <= 5 ? 5 : 10;
+    const spacing = niceMant * pow;
+    if (!(spacing > 0) || !Number.isFinite(spacing)) { ctx.restore(); return; }
 
-    /* const startX = Math.floor(topLeft.x) - (topLeft.x - spacing); */
-    const startX = spacing - (topLeft.x % spacing);
+    const minX = Math.min(topLeft.x, bottomRight.x);
+    const maxX = Math.max(topLeft.x, bottomRight.x);
+    const minY = Math.min(topLeft.y, bottomRight.y);
+    const maxY = Math.max(topLeft.y, bottomRight.y);
 
-    ctx.lineWidth = 0.1;
-    ctx.strokeStyle = this.getDisplayColor(context, "gridLine", "#2f5f7f");
-    ctx.fillStyle = this.getDisplayColor(context, "text", "#ffffff");
-    const textAlign = ctx.textAlign;
-    ctx.textAlign = "center";
-    for (let x = topLeft.x + startX; x <= bottomRigth.x; x += spacing) {
-      const start = grid.worldToScreen({ x: x, y: topLeft.y });
-      const end = grid.worldToScreen({ x: x, y: bottomRigth.y });
+    const minorColor = this.getDisplayColor(context, "gridLine", "rgba(148,163,184,0.14)");
+    const majorColor = this.getDisplayColor(context, "gridLineMajor", "rgba(148,163,184,0.30)");
+    const majorEvery = 5; // línea mayor cada 5 divisiones
+
+    // Verticales
+    const firstX = Math.ceil(minX / spacing);
+    for (let i = firstX; i * spacing <= maxX; i++) {
+      const wx = i * spacing;
+      const isMajor = i % majorEvery === 0;
+      const a = grid.worldToScreen({ x: wx, y: minY });
+      const b = grid.worldToScreen({ x: wx, y: maxY });
       ctx.beginPath();
-      ctx.moveTo(start.x, start.y);
-      ctx.lineTo(end.x, end.y);
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.lineWidth = isMajor ? 1 : 0.5;
+      ctx.strokeStyle = isMajor ? majorColor : minorColor;
       ctx.stroke();
-      ctx.fillText(`${x.toFixed(0)}`, end.x, grid.height);
     }
 
-    ctx.textAlign = textAlign;
-    ctx.textBaseline = "middle";
-    /* const startY = Math.floor(topLeft.y) - (topLeft.y - spacing); */
-    const startY = spacing - (topLeft.y % spacing);
-    for (let y = topLeft.y + startY; y >= bottomRigth.y; y -= spacing) {
-      const start = grid.worldToScreen({ x: topLeft.x, y: y });
-      const end = grid.worldToScreen({ x: bottomRigth.x, y: y });
+    // Horizontales
+    const firstY = Math.ceil(minY / spacing);
+    for (let j = firstY; j * spacing <= maxY; j++) {
+      const wy = j * spacing;
+      const isMajor = j % majorEvery === 0;
+      const a = grid.worldToScreen({ x: minX, y: wy });
+      const b = grid.worldToScreen({ x: maxX, y: wy });
       ctx.beginPath();
-      ctx.moveTo(start.x, start.y);
-      ctx.lineTo(end.x, end.y);
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.lineWidth = isMajor ? 1 : 0.5;
+      ctx.strokeStyle = isMajor ? majorColor : minorColor;
       ctx.stroke();
-      ctx.fillText(`${y.toFixed(0)}`, 0, start.y);
     }
+
     ctx.restore();
   }
 

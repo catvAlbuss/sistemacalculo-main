@@ -81,6 +81,38 @@ export class Grid {
     this.offestY = centerY + this.height / (2 * newScale);
   }
 
+  // Encuadra la vista sobre un rectángulo dado EN COORDENADAS DE MUNDO
+  // (metros). Se usa al importar un plano DXF/DWG: sus coordenadas pueden
+  // venir en cualquier escala/origen (un puente normalizado de 0.1 u, o un
+  // levantamiento topográfico a 200 000 m del origen), así que centramos y
+  // ajustamos el zoom para que SIEMPRE quede visible sin depender del zoom
+  // previo del usuario. Hermano de zoomToScreenRect, pero en mundo.
+  zoomToWorldBounds(bounds, padding = 40) {
+    if (!bounds) return;
+    const { minX, minY, maxX, maxY } = bounds;
+    if (![minX, minY, maxX, maxY].every(Number.isFinite)) return;
+
+    const worldWidth = Math.abs(maxX - minX) || 1;
+    const worldHeight = Math.abs(maxY - minY) || 1;
+
+    const availableWidth = Math.max(this.width - padding * 2, 100);
+    const availableHeight = Math.max(this.height - padding * 2, 100);
+
+    const newScale = Math.min(
+      availableWidth / worldWidth,
+      availableHeight / worldHeight
+    );
+    if (!Number.isFinite(newScale) || newScale <= 0) return;
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    this.scaleX = newScale;
+    this.scaleY = newScale;
+    this.offestX = centerX - this.width / (2 * newScale);
+    this.offestY = centerY + this.height / (2 * newScale);
+  }
+
   draw(renderer, ctx, cad) {
     renderer.drawGrid(this, ctx, cad);
   }

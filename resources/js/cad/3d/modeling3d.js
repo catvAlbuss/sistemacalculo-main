@@ -108,50 +108,6 @@ export function activate3DDrawingMode(context) {
   }
 }
 
-export function elevateSelectedNodes(context, step = 1) {
-  const nodes = getNodesToModify(context);
-
-  if (!nodes.length) {
-    context.showMessage?.("⚠️ No hay nodos para elevar", "warning");
-    return;
-  }
-
-  nodes.forEach((node) => {
-    node.position.z = (node.position.z || 0) + step;
-  });
-
-  const selected = getSelectedNodes(context);
-  const message =
-    selected.length > 0
-      ? `⬆️ ${selected.length} nodos elevados +${step}m`
-      : `⬆️ Todos los nodos elevados +${step}m`;
-
-  context.showMessage?.(message);
-  context.sync3D();
-}
-
-export function lowerSelectedNodes(context, step = 1) {
-  const nodes = getNodesToModify(context);
-
-  if (!nodes.length) {
-    context.showMessage?.("⚠️ No hay nodos para bajar", "warning");
-    return;
-  }
-
-  nodes.forEach((node) => {
-    node.position.z = Math.max(0, (node.position.z || 0) - step);
-  });
-
-  const selected = getSelectedNodes(context);
-  const message =
-    selected.length > 0
-      ? `⬇️ ${selected.length} nodos bajados -${step}m`
-      : `⬇️ Todos los nodos bajados -${step}m`;
-
-  context.showMessage?.(message);
-  context.sync3D();
-}
-
 // Copia las asignaciones estructurales de un frame origen a uno nuevo:
 // sección (id/nombre/props SI), material, rotación de eje local y cargas.
 // Así el piso duplicado "respeta el frame" asignado (secciones, material, cargas).

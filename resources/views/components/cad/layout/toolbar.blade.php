@@ -163,13 +163,6 @@
         </svg>
       </x-cad.ui.ribbon-button>
 
-      <x-cad.ui.ribbon-button clickHandler="testEdificioSismico()" toggle="false" label="Edificio Sísmico (Test)">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M3 21h18M3 10h18M3 7l9-4 9 4M4 10v11M20 10v11M8 10v11M12 10v11M16 10v11" />
-        </svg>
-      </x-cad.ui.ribbon-button>
-
       <!-- Show Deformed Shape (estilo ETABS): deformada estática/animada por caso sísmico -->
       <x-cad.ui.ribbon-button clickHandler="openDeformedShapeDialog()" toggle="false" label="Deformada">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

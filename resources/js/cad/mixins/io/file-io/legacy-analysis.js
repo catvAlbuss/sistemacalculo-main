@@ -5,7 +5,7 @@ import { Beam, Node as StructuralNode } from "../../../model/shapes.js";
 import { read as readmat } from "mat-for-js";
 import { axisToFixed, removeFromArray } from "../../../lib/utils.js";
 import { Triangle, Puente, Arco } from "../../../model/parametricModels.js";
-import { elevateSelectedNodes, extrudeToNewFloor, lowerSelectedNodes, selectAllNodes, activate3DDrawingMode } from "../../../3d/modeling3d.js";
+import { extrudeToNewFloor, selectAllNodes, activate3DDrawingMode } from "../../../3d/modeling3d.js";
 import { toggleView3D } from "../../../3d/viewer3d.js";
 import {
   serializeFrameForceModule,
@@ -1008,69 +1008,22 @@ export const legacyAnalysisMixin = {
     return beam;
   },
 
-  testEdificioSismico() {
-    this.nodes = [];
-    this.shapes = [];
-
-    // Edificio 2 pisos, planta 5x5m, altura 3m/piso, acero W150x22
-    // Valores de sección: A=2840mm²=0.00284m², Iz=12.1e-6m⁴, Iy=1.83e-6m⁴, J=0.11e-6m⁴
-    const sec = { A: 0.00284, E: 200e9, G: 77e9, Iz: 12.1e-6, Iy: 1.83e-6, J: 0.11e-6 };
-
-    const corners = [
-      [0, 0],
-      [5, 0],
-      [5, 5],
-      [0, 5],
-    ];
-    const base = corners.map(([x, y]) => cadSystem.crearNodo3D(x, y, 0, 0, 0, 0, "soporteUno"));
-    const piso1 = corners.map(([x, y]) => cadSystem.crearNodo3D(x, y, 3, 0, 0, 0, ""));
-    const piso2 = corners.map(([x, y]) => cadSystem.crearNodo3D(x, y, 6, 0, 0, 0, ""));
-
-    // Masa 10 t/nodo en cada piso = 40 t/nivel (típico losa residencial)
-    [...piso1, ...piso2].forEach((n) => {
-      n.mass_x = 10000;
-      n.mass_y = 10000;
-      n.mass = 10000;
-    });
-
-    const addBeam = (ni, nj) => {
-      const b = cadSystem.crearBarra3D(ni, nj);
-      b.frameSection = { ...sec };
-      return b;
-    };
-
-    // Columnas piso 1 y 2
-    for (let i = 0; i < 4; i++) {
-      addBeam(base[i], piso1[i]);
-      addBeam(piso1[i], piso2[i]);
-    }
-    // Vigas perimetrales piso 1 y 2
-    for (let i = 0; i < 4; i++) {
-      addBeam(piso1[i], piso1[(i + 1) % 4]);
-      addBeam(piso2[i], piso2[(i + 1) % 4]);
-    }
-
-    this.sync3D();
-    this.redraw();
-    this.showMessage(
-      "Edificio sísmico de 2 pisos cargado. Asigna el espectro en Analyze → Seismic Spectral Analysis y verifica periodos T₁≈0.4–0.7s.",
-    );
-  },
-
   activate3DDrawingMode() {
     return activate3DDrawingMode(this);
   },
 
-  elevateSelectedNodes() {
-    return elevateSelectedNodes(this);
-  },
-
-  lowerSelectedNodes() {
-    return lowerSelectedNodes(this);
-  },
-
   extrudeToNewFloor() {
-    return extrudeToNewFloor(this);
+    // La altura del piso nuevo debe respetar la definida en el modelo (modal
+    // "Nuevo Modelo" o "Generar Pisos desde la Grilla" — ambos escriben en
+    // referenceGrid.storyHeight, la misma fuente de verdad que usa el resto
+    // del sistema de grilla/vistas). Antes se llamaba sin height, así que
+    // SIEMPRE usaba el default de 3m de la función pura sin importar lo que
+    // el usuario hubiera definido — el piso extruido quedaba desalineado de
+    // la grilla en cuanto storyHeight era distinto de 3.
+    const floorHeight = Number(this.referenceGrid?.storyHeight) > 0
+      ? Number(this.referenceGrid.storyHeight)
+      : 3;
+    return extrudeToNewFloor(this, floorHeight);
   },
 
   extrudeTo3D(floorHeight = 3, numFloors = 1) {

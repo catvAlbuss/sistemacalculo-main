@@ -1,11 +1,11 @@
 {{-- resources/views/components/cad/menu-bar.blade.php — contenedor delgado: cada menú vive en cad/menu/<slug>.blade.php (Fase 1 reestructuración) --}}
-<div class="bg-gray-800 border-b border-gray-700 shadow-lg">
+<div class="cad-bg cad-border border-b shadow-lg">
 
     <div class="flex items-center px-2 py-1 gap-4 border-t border-gray-700">
         {{-- ============================================================
                                 LOGO Y VERSIÓN
         ============================================================ --}}
-        <div class="text-blue-400 font-bold text-sm px-2 whitespace-nowrap border-r border-gray-600">
+        <div class="cad-text-logo-color font-bold text-sm px-2 whitespace-nowrap border-r border-gray-600">
            ANALISIS ESTRUCTURAL
         </div>
 

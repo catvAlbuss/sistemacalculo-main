@@ -11,8 +11,6 @@ import { GridEditor } from "./canvas2d/grid_editor.js";
 
 import {
   activate3DDrawingMode,
-  elevateSelectedNodes,
-  lowerSelectedNodes,
   extrudeToNewFloor,
   extrudeTo3D,
   selectAllNodes,
@@ -47,6 +45,7 @@ import {
   TrussDrawingState,
   CrossViewFrameDrawingState,
   PointDrawingState,
+  GridAxisDrawingState,
   ColumnDrawingState,
   CreateLinesRegionClicksState,
   CreateSecondaryBeamsRegionClicksState,
@@ -97,6 +96,7 @@ import { viewportMixin } from "./mixins/select/viewport.js";
 import { analysisMixin } from "./mixins/analysis/analysis.js";
 import { referenceGridMixin } from "./mixins/grids/reference-grid.js";
 import { elevationDrawingMixin } from "./mixins/grids/elevation-drawing.js";
+import { planImportMixin } from "./mixins/grids/plan-import.js";
 import { reportMixin } from "./mixins/analysis/report.js";
 import { animationMixin } from "./mixins/analysis/animation.js";
 import { seismicMixin } from "./mixins/analysis/seismic.js";
@@ -570,6 +570,8 @@ export default () => ({
     this.moveState = new PanAndZoomState();
     this.trussDrawingState = new TrussDrawingState(this);
     this.pointDrawingState = new PointDrawingState(this);
+    this.gridAxisXDrawingState = new GridAxisDrawingState(this, "X");
+    this.gridAxisYDrawingState = new GridAxisDrawingState(this, "Y");
     this.braceDrawingState = new TrussDrawingState(this, "brace");
     this.beamDrawingState = new TrussDrawingState(this, "beam");
     this.crossViewFrameDrawingState = new CrossViewFrameDrawingState(this, "beam");
@@ -818,6 +820,7 @@ export default () => ({
   ...analysisMixin,
   ...referenceGridMixin,
   ...elevationDrawingMixin,
+  ...planImportMixin,
   ...reportMixin,
   ...animationMixin,
   ...seismicMixin,

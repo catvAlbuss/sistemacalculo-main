@@ -18,6 +18,38 @@
             <x-slot name="dropdown">
                 <div class="cad-menu-panel py-1" style="min-width: 320px;">
 
+                    {{-- ================= PLANO DE REFERENCIA (DXF) ================= --}}
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Plano de referencia
+                    </div>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click="cadSystem.openImportPlanDialog()">
+                        <span>📄</span> Importar Plano (DXF / DWG)...
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click="cadSystem.toggleImportedPlanVisibility()">
+                        <span>👁️</span> Mostrar / Ocultar Plano
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click="cadSystem.activateDrawMenuAction('draw-grid-axis-x')">
+                        <span>│</span> Dibujar Eje X (vertical)
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click="cadSystem.activateDrawMenuAction('draw-grid-axis-y')">
+                        <span>─</span> Dibujar Eje Y (horizontal)
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click="cadSystem.openGenerateStoriesDialog()">
+                        <span>🏢</span> Generar Pisos desde la Grilla...
+                    </button>
+
+                    <div class="border-t border-gray-700 my-1"></div>
+
                     {{-- ================= SELECCIÓN Y EDICIÓN ================= --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
                         Selección y edición

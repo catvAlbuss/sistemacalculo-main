@@ -246,6 +246,25 @@ export const autosaveMixin = {
         return; // no pisar el servidor con un modelo vacío
       }
 
+      // El respaldo en la NUBE no necesita la geometría pesada del plano
+      // importado (segments/vertices — pueden ser miles tras expandir bloques
+      // de un DWG real). Subirla infla el payload, hace el POST más lento y
+      // aumenta la chance de que dos autoguardados se crucen y choquen en
+      // versión (409 Conflict). Se sube solo metadata liviana; la copia LOCAL
+      // (IndexedDB, _doAutosave) sí guarda el plano completo — si el usuario
+      // restaura desde la nube en otra máquina, tendría que reimportar el
+      // archivo DXF/DWG (decisión aceptada explícitamente por el usuario).
+      const importedPlan = model.model?.importedPlan;
+      if (importedPlan) {
+        model.model.importedPlan = {
+          fileName: importedPlan.fileName,
+          unitToMeters: importedPlan.unitToMeters,
+          opacity: importedPlan.opacity,
+          visible: importedPlan.visible,
+          bounds: importedPlan.bounds,
+        };
+      }
+
       const compressed = await gzipToBase64(JSON.stringify(model));
       const resp = await fetch(SERVER_AUTOSAVE_URL, {
         method: "POST",

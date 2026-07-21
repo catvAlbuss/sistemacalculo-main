@@ -96,6 +96,18 @@ export const actionsMixin = {
         this.showMessage("Modo dibujar puntos activado");
         break;
 
+      case "draw-grid-axis-x":
+        this.clearAllSelections?.();
+        this.setState(this.gridAxisXDrawingState);
+        this.showMessage("Dibujar eje X: clic en el punto por donde pasa. Esc para salir.");
+        break;
+
+      case "draw-grid-axis-y":
+        this.clearAllSelections?.();
+        this.setState(this.gridAxisYDrawingState);
+        this.showMessage("Dibujar eje Y: clic en el punto por donde pasa. Esc para salir.");
+        break;
+
       case "draw-lines":
         this.clearAllSelections?.();
         this.setState(this.beamDrawingState || this.trussDrawingState);
