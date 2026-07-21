@@ -1,4 +1,4 @@
-<?php if (! $__env->hasRenderedOnce('eea138fa-2be6-4f1c-a99a-9c6eabc7fd44')): $__env->markAsRenderedOnce('eea138fa-2be6-4f1c-a99a-9c6eabc7fd44');
+<?php if (! $__env->hasRenderedOnce('62047e02-3de7-4104-aba4-ef185532e9ec')): $__env->markAsRenderedOnce('62047e02-3de7-4104-aba4-ef185532e9ec');
 $__env->startPush('initscripts'); ?>
     <?php echo app('Illuminate\Foundation\Vite')('resources/js/analisis_estructural_de_armaduras.js'); ?>
 <?php $__env->stopPush(); endif; ?>
@@ -345,6 +345,26 @@ $__env->startPush('initscripts'); ?>
 <?php if (isset($__componentOriginalf15ae427511bdd2f0af8d808515e799f)): ?>
 <?php $component = $__componentOriginalf15ae427511bdd2f0af8d808515e799f; ?>
 <?php unset($__componentOriginalf15ae427511bdd2f0af8d808515e799f); ?>
+<?php endif; ?>
+    <?php if (isset($component)) { $__componentOriginalb0eff727dd9f4217ea5fbb0553b4ea9d = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginalb0eff727dd9f4217ea5fbb0553b4ea9d = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.modals.zapata-results-modal','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.modals.zapata-results-modal'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginalb0eff727dd9f4217ea5fbb0553b4ea9d)): ?>
+<?php $attributes = $__attributesOriginalb0eff727dd9f4217ea5fbb0553b4ea9d; ?>
+<?php unset($__attributesOriginalb0eff727dd9f4217ea5fbb0553b4ea9d); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginalb0eff727dd9f4217ea5fbb0553b4ea9d)): ?>
+<?php $component = $__componentOriginalb0eff727dd9f4217ea5fbb0553b4ea9d; ?>
+<?php unset($__componentOriginalb0eff727dd9f4217ea5fbb0553b4ea9d); ?>
 <?php endif; ?>
     <!-- Se Agrego el modal de grid -->
     <?php if (isset($component)) { $__componentOriginal10074ea6e2498d0a9fd9f1711561b84c = $component; } ?>

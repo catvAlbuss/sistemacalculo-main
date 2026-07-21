@@ -22,6 +22,7 @@
     <x-cad.modals.joint-mass-modal/>
     <x-cad.modals.group-names-modal/>
     <x-cad.modals.point-springs-modal/>
+    <x-cad.modals.zapata-results-modal/>
     <!-- Se Agrego el modal de grid -->
     <x-cad.modals.diagonal-grid-modal/>
     <input id="_token" name="_token" type="hidden" value="{{ csrf_token() }}" />

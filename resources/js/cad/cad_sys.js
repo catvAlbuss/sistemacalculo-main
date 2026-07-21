@@ -100,6 +100,7 @@ import { elevationDrawingMixin } from "./mixins/grids/elevation-drawing.js";
 import { reportMixin } from "./mixins/analysis/report.js";
 import { animationMixin } from "./mixins/analysis/animation.js";
 import { seismicMixin } from "./mixins/analysis/seismic.js";
+import { foundationMixin } from "./mixins/analysis/foundation.js";
 import { autosaveMixin } from "./mixins/io/autosave.js";
 
 export default () => ({
@@ -581,6 +582,7 @@ export default () => ({
     this.slabDrawingState = new AreaDrawingState(this, "slab");
     this.wallDrawingState = new AreaDrawingState(this, "wall");
     this.openingDrawingState = new AreaDrawingState(this, "opening");
+    this.zapataDrawingState = new AreaDrawingState(this, "zapata");
     this.moveObjectState = new MoveObjectState();
     this.moveGroupState = new MoveGroupState();
     this.selectedNodesState = new SelectedNodesState();
@@ -821,5 +823,6 @@ export default () => ({
   ...reportMixin,
   ...animationMixin,
   ...seismicMixin,
+  ...foundationMixin,
   ...autosaveMixin,
 });

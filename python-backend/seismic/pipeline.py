@@ -56,6 +56,20 @@ def run_full_seismic_analysis(data: dict) -> dict:
     except Exception as e:
         results["static"] = {"success": False, "error": str(e)}
 
+    # ── Paso 1b: estático separado muerta/viva (para /zapatas2) ──
+    # run_static_analysis combina todas las cargas en un solo análisis; el
+    # cálculo de zapatas necesita pd (muerta) y pl (viva) como filas
+    # independientes en sus combinaciones de diseño.
+    try:
+        results["static_dead"] = run_static_analysis_by_type(data, {"Dead"})
+    except Exception as e:
+        results["static_dead"] = {"success": False, "error": str(e)}
+
+    try:
+        results["static_live"] = run_static_analysis_by_type(data, {"Live", "RoofLive"})
+    except Exception as e:
+        results["static_live"] = {"success": False, "error": str(e)}
+
     # ── Construir modelo para modal (necesita masas) ─────────
     nodes, elements = build_model_3d(data)
 

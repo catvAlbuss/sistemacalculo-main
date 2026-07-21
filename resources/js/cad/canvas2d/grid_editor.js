@@ -191,19 +191,19 @@ export class GridEditor {
     }
 
     inputClass() {
-        return "w-full rounded border border-gray-300 px-2 py-1 text-sm text-gray-800 bg-white";
+        return "w-full rounded border border-gray-600 bg-gray-700 !important px-2 py-1 text-sm text-white !important";
     }
 
     selectClass() {
-        return "w-full rounded border border-gray-300 px-2 py-1 text-sm text-gray-800 bg-white";
+        return "w-full rounded border border-gray-600 bg-gray-700 px-2 py-1 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500";
     }
 
     checkboxClass() {
-        return "h-4 w-4 accent-blue-600";
+        return "h-4 w-4 accent-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500";
     }
 
     deleteButtonClass() {
-        return "rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600";
+        return "rounded bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-500 transition-colors";
     }
 
     open() {
@@ -442,7 +442,7 @@ export class GridEditor {
         this.generalBody.innerHTML = this.draftGrid.generalGrids.map((row, index) => {
             const isCustom = row.source === "custom";
             const disabled = isCustom ? "" : "disabled";
-            const disabledClass = isCustom ? "" : "bg-gray-100 cursor-not-allowed";
+            const disabledClass = isCustom ? "" : "bg-gray-700 cursor-not-allowed opacity-60";
 
             return `
       <tr class="border-b">

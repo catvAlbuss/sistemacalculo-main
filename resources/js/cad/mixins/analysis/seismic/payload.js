@@ -945,6 +945,104 @@ export const seismicPayloadMixin = {
     return out;
   },
 
+  // Peso propio de columnas/vigas → carga muerta CM automática (mismo criterio
+  // que el peso propio de losa en _buildSeismicAreaLoadsForPayload, línea ~904).
+  // _getFrameUnitWeightForSeismic() ya calcula el peso específico del frame,
+  // pero antes de esto SOLO se usaba para la masa sísmica (modal/RSA) — nunca
+  // se convertía en una fuerza estática. Sin esto, run_static_analysis (que
+  // solo aplica lo que llega en data.loads) calculaba reacciones "CM"/"CVE"
+  // sin el peso propio de la estructura, subestimando pd1/pl1 en "Calcular
+  // zapatas" (verificado contra un caso real de ETABS: ~54% del peso muerto
+  // faltaba en las reacciones de base).
+  // √A de cada columna (lado equivalente en planta) por nudo extremo — mismo
+  // criterio que _build_column_depth_map en python-backend/seismic/inputs.py.
+  _buildColumnDepthMapForSeismic(frames = []) {
+    const depth = new Map();
+
+    (frames || []).forEach((frame) => {
+      const a = this._massNodeCoord(this._resolveMassNode(frame.node1));
+      const b = this._massNodeCoord(this._resolveMassNode(frame.node2));
+      const dz = Math.abs(b.z - a.z);
+      const horiz = Math.hypot(b.x - a.x, b.y - a.y);
+      if (dz <= 1e-6 || dz < horiz) return; // no es columna (predominantemente vertical)
+
+      const sectionName = this._getFrameSectionNameForSeismic(frame);
+      const section = this._getSectionDefinitionForSeismic(sectionName);
+      const A = Number(section?.A ?? section?.area ?? section?.sectionArea ?? frame.A ?? frame._A) || 0;
+      if (!(A > 0)) return;
+
+      const side = Math.sqrt(A);
+      const node1Id = Number(this._resolveMassNode(frame.node1)?.id ?? frame.node1);
+      const node2Id = Number(this._resolveMassNode(frame.node2)?.id ?? frame.node2);
+
+      [node1Id, node2Id].forEach((nid) => {
+        if (!Number.isFinite(nid)) return;
+        if (side > (depth.get(nid) || 0)) depth.set(nid, side);
+      });
+    });
+
+    return depth;
+  },
+
+  _buildSeismicFrameSelfWeightForPayload(frames = []) {
+    const out = [];
+    const colDepth = this._buildColumnDepthMapForSeismic(frames);
+
+    (frames || []).forEach((frame) => {
+      const a = this._massNodeCoord(this._resolveMassNode(frame.node1));
+      const b = this._massNodeCoord(this._resolveMassNode(frame.node2));
+      const centerlineLength = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+      if (!(centerlineLength > 0)) return;
+
+      const sectionName = this._getFrameSectionNameForSeismic(frame);
+      const section = this._getSectionDefinitionForSeismic(sectionName);
+      const A = Number(section?.A ?? section?.area ?? section?.sectionArea ?? frame.A ?? frame._A) || 0;
+      if (!(A > 0)) return;
+
+      const node1Id = Number(this._resolveMassNode(frame.node1)?.id ?? frame.node1);
+      const node2Id = Number(this._resolveMassNode(frame.node2)?.id ?? frame.node2);
+
+      // Vigas: longitud libre (centerline menos medio peralte de columna en
+      // cada extremo apoyado en columna), igual que ETABS y que
+      // _beam_self_weight_length en el backend — el peso propio de una viga
+      // no incluye el tramo que ya "pertenece" a la columna. Columnas: sin
+      // descuento (longitud centerline completa).
+      const dz = Math.abs(b.z - a.z);
+      const horiz = Math.hypot(b.x - a.x, b.y - a.y);
+      const isColumn = dz > 1e-6 && dz >= horiz;
+
+      let length = centerlineLength;
+      if (!isColumn) {
+        const deduction = 0.5 * (colDepth.get(node1Id) || 0) + 0.5 * (colDepth.get(node2Id) || 0);
+        length = Math.max(centerlineLength - deduction, 0.1 * centerlineLength);
+      }
+
+      const unitWeight = Number(this._getFrameUnitWeightForSeismic(frame)) || 0; // N/m3
+      const totalN = unitWeight * A * length; // peso total del elemento [N]
+      if (!(totalN > 0)) return;
+
+      // Reparto mitad-mitad a cada nudo extremo (consistente con una barra
+      // prismática recta; no es una carga distribuida real sobre el elemento,
+      // solo su equivalente nodal para el análisis estático).
+      const perNode = totalN / 2;
+
+      [node1Id, node2Id].forEach((nid) => {
+        if (!Number.isFinite(nid)) return;
+
+        out.push({
+          node: nid,
+          fx: 0,
+          fy: 0,
+          fz: -perNode,
+          loadCase: "CM",
+          source: "frame_self_weight",
+        });
+      });
+    });
+
+    return out;
+  },
+
   _buildSeismicLoadsForPayload(nodes = []) {
     const loads = [];
 
@@ -1652,8 +1750,13 @@ export const seismicPayloadMixin = {
       if (typeof this._buildSeismicLoadsForPayload === "function") {
         loads = this._buildSeismicLoadsForPayload(nodes);
         const frameEquivalentLoads = this._buildSeismicFrameEquivalentLoadsForPayload(frames);
+        const frameSelfWeightLoads = this._buildSeismicFrameSelfWeightForPayload(frames);
         const areaLoads = this._buildSeismicAreaLoadsForPayload(this.areas || []);
-        loads = [...loads, ...frameEquivalentLoads, ...areaLoads];
+        loads = [...loads, ...frameEquivalentLoads, ...frameSelfWeightLoads, ...areaLoads];
+
+        console.log("🔎 Peso propio de frames (columnas/vigas) para reacciones estáticas:", {
+          frameSelfWeightLoadsCount: frameSelfWeightLoads.length,
+        });
 
         console.log("🔎 Cargas de área (losas) para masa sísmica:", {
           areaLoadsCount: areaLoads.length,

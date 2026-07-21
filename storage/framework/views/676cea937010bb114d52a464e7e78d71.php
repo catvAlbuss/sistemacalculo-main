@@ -29,6 +29,12 @@
                     class="<?php echo e($qt); ?>">
                     <span class="text-base leading-none">▦</span><span>Losa</span>
                 </button>
+                <button title="Dibujar zapata (polígono alrededor de columnas)"
+                    @click="cadSystem.activateDrawMenuAction('draw-area-zapata')"
+                    :class="currentState === zapataDrawingState ? 'bg-blue-600 text-white' : 'text-gray-200'"
+                    class="<?php echo e($qt); ?>">
+                    <span class="text-base leading-none">🟫</span><span>Zapata</span>
+                </button>
             </div>
 
             
@@ -100,6 +106,16 @@
                     @click="cadSystem.activateAssignMenuAction('area-slab-section')"
                     class="<?php echo e($qt); ?> text-gray-200">
                     <span class="text-base leading-none">▤</span><span>Slab Sec.</span>
+                </button>
+            </div>
+
+            
+            <div class="flex flex-col items-center justify-center gap-0.5 p-1.5 text-[9px] uppercase text-gray-500 border-y">cimentación</div>
+            <div class="flex flex-col gap-1">
+                <button title="Calcular zapatas a partir del análisis ya corrido (dead/live/sismo por columna)"
+                    @click="cadSystem.calculateZapatas()"
+                    class="<?php echo e($qt); ?> text-gray-200">
+                    <span class="text-base leading-none">🧮</span><span>Calc. Zapatas</span>
                 </button>
             </div>
         </div>
