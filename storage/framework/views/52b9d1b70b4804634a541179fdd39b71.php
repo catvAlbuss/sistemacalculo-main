@@ -43,7 +43,7 @@
 
       
       <div
-        class="absolute top-3 left-3 z-20 rounded px-3 py-1 text-sm font-medium shadow"
+        class="absolute right-3 top-3 z-20 rounded px-3 py-1 text-sm font-medium shadow"
         :class="getActiveViewBadgeClass()"
         x-text="getActiveViewLabel()">
       </div>

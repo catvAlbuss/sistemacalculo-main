@@ -1548,6 +1548,15 @@ export const viewFilterMixin = {
     this.areas.forEach((area) => {
       if (!area.visible || !area.points || area.points.length < 3) return;
 
+      // En planta, losas de distintos pisos con la MISMA huella X,Y (típico
+      // tras usar "+Nuevo Piso", que duplica la losa hacia arriba) proyectan
+      // al mismo punto de pantalla — sin este filtro, el hit-test las
+      // atraviesa TODAS y se queda con la última del array (normalmente la
+      // del piso más alto), sin importar en qué vista/piso estés parado.
+      // shouldDrawArea ya filtra por Z de la vista activa para el DIBUJO;
+      // se reusa acá para que "lo que ves" sea "lo que podés seleccionar".
+      if (!this.currentRenderer.shouldDrawArea(area, this)) return;
+
       const pts = area.points.map((p) => this.currentRenderer.projectPoint({ position: p }, this));
 
       // Si el clic cae dentro del polígono, seleccionar directo
@@ -1580,6 +1589,10 @@ export const viewFilterMixin = {
 
     areas.forEach((a) => {
       if (!a?.points?.length) return;
+      // Mismo filtro que closestAreaAtActiveView: sin `area` explícito, no
+      // limitar la búsqueda a losas del piso/vista activa mezclaría vértices
+      // de losas apiladas en la misma huella X,Y (ver comentario ahí).
+      if (!area && !this.currentRenderer.shouldDrawArea(a, this)) return;
 
       a.points.forEach((pt, index) => {
         const screenPt = this.currentRenderer.projectPoint({ position: pt }, this);

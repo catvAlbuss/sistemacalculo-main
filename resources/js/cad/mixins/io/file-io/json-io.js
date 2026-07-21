@@ -336,6 +336,15 @@ export const jsonIoMixin = {
       groupNames: clean(area.groupNames, []),
       groups: clean(area.groups, []),
 
+      // Diafragma asignado (Assign ▸ Shell ▸ Diaphragms, assignShellDiaphragmToTargets
+      // en assign-dialogs.js escribe estos 3 campos) — faltaban acá, así que se
+      // perdían en CUALQUIER guardado del modelo (JSON local, autosave, Y el
+      // export .e2k, que lee este mismo exportToJSON()). Por eso el diafragma
+      // nunca llegaba al .e2k pese a que buildETABS_E2KText() sí sabe escribirlo.
+      diaphragmId: area.diaphragmId ?? null,
+      diaphragmName: area.diaphragmName ?? null,
+      diaphragm: clean(area.diaphragm, null),
+
       assignment: clean(area.assignment, {}),
     }));
 

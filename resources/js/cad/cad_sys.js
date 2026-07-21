@@ -278,7 +278,7 @@ export default () => ({
       multiplier: 1.0,
     },
     massDefinition: "self",
-    loadMultipliers: [{ load: "DEAD", multiplier: 1 }],
+    loadMultipliers: [{ load: "CM", multiplier: 1 }],
     includeLateralMassOnly: false,
     lumpLateralMassAtStoryLevels: false,
   },

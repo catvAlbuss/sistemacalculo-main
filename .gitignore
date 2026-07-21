@@ -22,7 +22,7 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
-"/storage/framework/views/*.php" 
+/storage/framework/views/*.php
 !/storage/framework/views/
 !/storage/framework/views/.gitignore
 public/build/*
