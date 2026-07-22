@@ -207,6 +207,8 @@ export const seismicResultsMixin = {
       .replace(/\bFx\b/g, "FX")
       .replace(/\bFy\b/g, "FY")
       .replace(/\bFz\b/g, "FZ")
+      // Unidad de momento "tonf-M" → "tonf-m" (la humanización capitaliza la M).
+      .replace(/-M\b/g, "-m")
       // Unidades del selector de visualización (tonf/kgf, m/cm, ton)
       .replace(/\bTonf\b/g, "tonf")
       .replace(/\bKgf\b/g, "kgf")
@@ -232,16 +234,25 @@ export const seismicResultsMixin = {
   _buildEtabsStyleBaseShearRows(rows = []) {
     if (!Array.isArray(rows) || rows.length === 0) return [];
 
-    const findShear = (dir) => {
-      const row = rows.find((r) => String(r?.direction || "").toUpperCase() === dir);
-      return Number(row?.base_shear_N) || 0;
-    };
+    const rowByDir = (dir) => rows.find((r) => String(r?.direction || "").toUpperCase() === dir) || {};
+    const findShear = (dir) => Number(rowByDir(dir)?.base_shear_N) || 0;
 
     const caseName =
       this.seismicResults?._caseName ||
       this.seismicActiveCase ||
       rows[0]?.case ||
       "SPEC";
+
+    // Momentos de base (volteo MX/MY + torsión MZ). Cada componente recibe
+    // aporte de AMBAS ramas RSA del caso: la rama X (ya escalada por U1) y la
+    // rama Y (ya escalada por U2 — p.ej. 0.30 en un caso 100/30), combinadas
+    // por SRSS = la MISMA combinación direccional que ETABS y que ya usan las
+    // derivas. Sin esto, el volteo ACOPLADO (MX de SDX = 30% del volteo Y
+    // primario) faltaba y salía ~3× bajo. FX/FY NO se combinan entre sí: son
+    // componentes distintos (reacción en X vs en Y), cada uno de su rama.
+    const xRow = rowByDir("X");
+    const yRow = rowByDir("Y");
+    const srss = (a, b) => Math.sqrt((Number(a) || 0) ** 2 + (Number(b) || 0) ** 2);
 
     return [
       {
@@ -251,6 +262,9 @@ export const seismicResultsMixin = {
         fx_N: findShear("X"),
         fy_N: findShear("Y"),
         fz_N: 0,
+        mx_Nm: srss(xRow?.base_moment_mx_Nm, yRow?.base_moment_mx_Nm),
+        my_Nm: srss(xRow?.base_moment_my_Nm, yRow?.base_moment_my_Nm),
+        mz_Nm: srss(xRow?.base_moment_mz_Nm, yRow?.base_moment_mz_Nm),
       },
     ];
   },
@@ -606,6 +620,14 @@ export const seismicResultsMixin = {
       const out = {};
 
       Object.entries(row).forEach(([key, value]) => {
+        // Momento: base_moment_mx_Nm, my_Nm, mz_Nm → tonf-m (misma división que
+        // la fuerza: N·m / 9806.65 = tonf·m). DEBE ir antes del caso `_m$`
+        // (longitud), que si no capturaría estas claves por terminar en "m".
+        if (/_Nm$/.test(key)) {
+          out[key.replace(/_Nm$/, `_${F}-m`)] = typeof value === "number" ? u.forceNToDisp(value) : value;
+          return;
+        }
+
         // Fuerza: base_shear_N, fx_N, lateral_force_N, vertical_weight_N...
         if (/_N$/.test(key)) {
           out[key.replace(/_N$/, `_${F}`)] = typeof value === "number" ? u.forceNToDisp(value) : value;

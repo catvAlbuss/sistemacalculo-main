@@ -19,7 +19,7 @@ import {
   showTestFrame,
 } from "./3d/modeling3d.js";
 
-import { setViewPlan, setViewIso, setViewFront, setViewSide, zoomExtents } from "./3d/camera3d.js";
+import { setViewPlan, setViewIso, setViewFront, setViewSide, zoomExtents, recenterCameraOnGrid } from "./3d/camera3d.js";
 
 import {
   initViewer3D,
@@ -794,6 +794,10 @@ export default () => ({
 
   zoomExtents() {
     return zoomExtents(this);
+  },
+
+  recenterCameraOnGrid() {
+    return recenterCameraOnGrid(this);
   },
 
   // ------------------------------------------------------------------

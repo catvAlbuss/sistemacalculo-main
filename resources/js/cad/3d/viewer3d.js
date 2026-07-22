@@ -1,5 +1,6 @@
 import * as BABYLON from "@babylonjs/core";
 import { drawCustomGeneralGrids3D } from "./grid3d.js";
+import { getModelPivotTarget } from "./camera3d.js";
 import { renderModel3D } from "./objects/renderModel3d.js";
 import { DeflectionAnimator, AnimationManager } from "./animation3d.js";
 import {
@@ -156,8 +157,12 @@ function createCanvas(container) {
   return canvas;
 }
 
-function createCamera(scene, canvas) {
-  const camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 4, Math.PI / 5, 20, BABYLON.Vector3.Zero(), scene);
+function createCamera(scene, canvas, context) {
+  // Pivote inicial: centro de la grilla/modelo si ya hay ejes X/Y y pisos
+  // definidos (típico al reabrir un modelo guardado); si no, el origen —
+  // ver comentario en getModelPivotTarget (camera3d.js).
+  const initialTarget = getModelPivotTarget(context);
+  const camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 4, Math.PI / 5, 20, initialTarget, scene);
 
   camera.attachControl(canvas, true);
   camera.panningSensibility = 50;
@@ -171,7 +176,13 @@ function createCamera(scene, canvas) {
   camera.useFramingBehavior = true;
 
   if (camera.framingBehavior) {
-    camera.framingBehavior.elevationReturnTime = 500;
+    // elevationReturnTime > 0 es el "auto-retorno" de Babylon: si dejás de
+    // interactuar con la cámara mientras mirás desde abajo (beta grande), la
+    // FramingBehavior la anima sola de vuelta a una vista "cómoda" de frente.
+    // -1 desactiva ESE retorno automático específicamente, sin tocar el resto
+    // de FramingBehavior (zoomOnBoundingInfo sigue funcionando igual). Así la
+    // cámara se queda donde el usuario la dejó, mire desde donde mire.
+    camera.framingBehavior.elevationReturnTime = -1;
     camera.framingBehavior.zoomOnBoundingInfo = true;
   }
 
@@ -416,7 +427,7 @@ export function initViewer3D(context, container) {
     const scene = new BABYLON.Scene(engine);
     scene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.1, 1);
 
-    const camera = createCamera(scene, canvas);
+    const camera = createCamera(scene, canvas, context);
     createLights(scene);
 
     VIEWER_STATE.engine = engine;

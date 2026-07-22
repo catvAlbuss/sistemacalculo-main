@@ -1647,6 +1647,10 @@ export const jsonIoMixin = {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           this.sync3D?.();
+          // El modelo abierto/restaurado trae su propia grilla+pisos — centrar
+          // el pivote de órbita 3D ahí (createModelFromDialog ya lo hacía para
+          // "Nuevo Modelo"; acá faltaba para abrir/restaurar uno guardado).
+          this.recenterCameraOnGrid?.();
         });
       });
 

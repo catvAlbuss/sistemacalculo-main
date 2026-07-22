@@ -51,6 +51,23 @@
                         </g>
                     </svg></span><span>Losa</span>
             </button>
+            <button title="Dibujar zapata (polígono alrededor de columnas)"
+                @click="cadSystem.activateDrawMenuAction('draw-area-zapata')"
+                :class="currentState === zapataDrawingState ? 'bg-blue-600 text-white' : 'text-gray-200'"
+                class="<?php echo e($qt); ?>">
+                <span class="text-base leading-none">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <!-- Base de concreto de la zapata aislada (Cimiento) -->
+                        <path d="M4 17h16v4H4z" />
+
+                        <!-- Columna única central -->
+                        <path d="M10 17V7h4v10" />
+
+                        <!-- Línea de carga / Eje vertical central -->
+                        <path d="M12 3v4" />
+                    </svg>
+                </span><span>Zapata</span>
+            </button>
         </div>
 
         

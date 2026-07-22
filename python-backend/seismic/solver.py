@@ -366,6 +366,13 @@ def run_modal_analysis(nodes: list, num_modes: int = 6) -> dict:
             }
         )
 
+    # Coordenadas [x, y, z] alineadas con node_ids — para los momentos de base
+    # (brazo de palanca de cada fuerza inercial modal respecto al origen).
+    node_coords = [
+        [float(n.get("x", 0.0)), float(n.get("y", 0.0)), float(n.get("z", 0.0))]
+        for n in nodes
+    ]
+
     return {
         "modal_info": modal_info,
         "phi_x": phi_x,
@@ -373,6 +380,7 @@ def run_modal_analysis(nodes: list, num_modes: int = 6) -> dict:
         "m_x": m_x,
         "m_y": m_y,
         "node_ids": node_ids,
+        "node_coords": node_coords,
         "num_modes": len(keep),
         "num_modes_requested": num_modes,
         "degenerate_modes_dropped": degenerate_dropped,
@@ -481,6 +489,45 @@ def run_rsa(
         combination=combination, damping_ratio=damping_ratio,
     )
 
+    # ── Momentos de reacción en la base (volteo MX/MY + torsión MZ) ──
+    # ETABS los reporta junto al cortante. Se calculan modo a modo con las
+    # fuerzas inerciales modales F = m·Γ·φ·Sa por nudo (misma Γ de la dirección
+    # excitada que usan los desplazamientos acoplados arriba), su brazo de
+    # palanca respecto al origen (0,0,0), y se combinan entre modos con la MISMA
+    # regla (CQC/SRSS) que el cortante:
+    #   MY = Σ Fx·z   (volteo alrededor del eje Y, por las fuerzas en X)
+    #   MX = Σ Fy·z   (volteo alrededor del eje X, por las fuerzas en Y acopladas)
+    #   MZ = Σ (Fy·x − Fx·y)   (torsión en planta)
+    coords = modal_data.get("node_coords") or [[0.0, 0.0, 0.0]] * num_nodes
+    xc = np.array([c[0] for c in coords])
+    yc = np.array([c[1] for c in coords])
+    zc = np.array([c[2] for c in coords])
+
+    mx_modal, my_modal, mz_modal = [], [], []
+    for idx, mi in enumerate(modal_info):
+        Sa_n = interpolate_spectrum(spectrum, mi["period"]) * scale
+        gamma_dir = mi["gamma_x"] if direction == "x" else mi["gamma_y"]
+        fx_n = m_x * gamma_dir * np.array(phi_x[idx]) * Sa_n
+        fy_n = m_y * gamma_dir * np.array(phi_y[idx]) * Sa_n
+        my_modal.append(float(np.sum(fx_n * zc)))
+        mx_modal.append(float(np.sum(fy_n * zc)))
+        mz_modal.append(float(np.sum(fy_n * xc - fx_n * yc)))
+
+    def _combine_modal_scalar(vals):
+        if str(combination or "").upper() == "CQC":
+            total = 0.0
+            for i, vi in enumerate(vals):
+                for j, vj in enumerate(vals):
+                    total += _cqc_rho(
+                        modal_info[i]["omega"], modal_info[j]["omega"], damping_ratio
+                    ) * vi * vj
+            return float(np.sqrt(abs(total)))
+        return float(np.sqrt(sum(v * v for v in vals)))
+
+    base_moment_mx = _combine_modal_scalar(mx_modal)
+    base_moment_my = _combine_modal_scalar(my_modal)
+    base_moment_mz = _combine_modal_scalar(mz_modal)
+
     # ── Empaquetar por nodo ──────────────────────────────────
     displacements = {}
     for i, nid in enumerate(node_ids):
@@ -512,6 +559,9 @@ def run_rsa(
     return {
         "displacements": displacements,
         "base_shear": base_shear,
+        "base_moment_mx": base_moment_mx,
+        "base_moment_my": base_moment_my,
+        "base_moment_mz": base_moment_mz,
         "modal_disps_detail": modal_disps_detail,
         # Desplazamientos POR MODO (en la dirección de este RSA) para la deriva
         # CORRECTA = CQC de las derivas modales por línea de nodos (capta la esquina

@@ -187,6 +187,25 @@
         </svg>
       </x-cad.ui.ribbon-button>
     </x-cad.ui.ribbon-group>
+
+    <x-cad.ui.ribbon-group title="Cimentación">
+
+      <x-cad.ui.ribbon-button clickHandler="calculateZapatas()" toggle="false" label="Calcular Zapatas">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <!-- Base de concreto de la zapata combinada (Rectángulo inferior) -->
+          <path d="M2 17h20v4H2z" />
+
+          <!-- Columna Izquierda (Tronco y líneas de carga vertical) -->
+          <path d="M6 17V7h4v10" />
+          <path d="M8 3v4" />
+
+          <!-- Columna Derecha (Tronco y líneas de carga vertical) -->
+          <path d="M14 17V7h4v10" />
+          <path d="M16 3v4" />
+        </svg>
+
+      </x-cad.ui.ribbon-button>
+    </x-cad.ui.ribbon-group>
   </div>
   <!-- Modal para File > New Model -->
   <x-cad.modals.new-model />

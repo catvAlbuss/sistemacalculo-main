@@ -196,6 +196,18 @@ def _b7_get_base_shear_from_seismic(seismic: dict, direction: str):
 
     return 0.0
 
+def _b7_get_base_moment_from_seismic(seismic: dict, direction: str, comp: str):
+    """Momento de reacción en la base (comp = 'mx' | 'my' | 'mz') de la rama
+    RSA de la dirección dada. Devuelto por run_response_spectrum_analysis."""
+    if not isinstance(seismic, dict):
+        return 0.0
+    branch = seismic.get(direction.lower()) or seismic.get(direction.upper()) or {}
+    if isinstance(branch, dict):
+        number = _b7_float(branch.get(f"base_moment_{comp}"), None)
+        if number is not None:
+            return abs(number)
+    return 0.0
+
 def _b7_table_base_shear(results: dict) -> list[dict]:
     seismic = results.get("seismic") or {}
 
@@ -208,12 +220,19 @@ def _b7_table_base_shear(results: dict) -> list[dict]:
             "direction": "X",
             "base_shear_N": _b7_round(vb_x, 6),
             "base_shear_kN": _b7_round(vb_x / 1000.0, 6),
+            # Momentos de reacción en la base (volteo MX/MY + torsión MZ), N·m.
+            "base_moment_mx_Nm": _b7_round(_b7_get_base_moment_from_seismic(seismic, "x", "mx"), 6),
+            "base_moment_my_Nm": _b7_round(_b7_get_base_moment_from_seismic(seismic, "x", "my"), 6),
+            "base_moment_mz_Nm": _b7_round(_b7_get_base_moment_from_seismic(seismic, "x", "mz"), 6),
         },
         {
             "case": "SPEC_Y",
             "direction": "Y",
             "base_shear_N": _b7_round(vb_y, 6),
             "base_shear_kN": _b7_round(vb_y / 1000.0, 6),
+            "base_moment_mx_Nm": _b7_round(_b7_get_base_moment_from_seismic(seismic, "y", "mx"), 6),
+            "base_moment_my_Nm": _b7_round(_b7_get_base_moment_from_seismic(seismic, "y", "my"), 6),
+            "base_moment_mz_Nm": _b7_round(_b7_get_base_moment_from_seismic(seismic, "y", "mz"), 6),
         },
     ]
 

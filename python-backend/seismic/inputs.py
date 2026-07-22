@@ -981,9 +981,24 @@ def _build_mass_source_nodal_masses(
             pattern_factors["CV"] = factor
             pattern_factors["CARGA VIVA"] = factor
 
+    # El frontend manda el peso propio de columnas/vigas TAMBIÉN como cargas
+    # nodales bajo el patrón CM (source="frame_self_weight"), para que aparezca
+    # en las reacciones estáticas (zapatas). Pero si el Mass Source ya cuenta el
+    # peso propio de elementos (include_self_weight, bloque 1 arriba), sumar
+    # además esas cargas lo DUPLICA en la masa sísmica → periodos largos y masa
+    # ~30% alta vs ETABS. El peso propio de LOSA (source="area_load") NO se
+    # duplica: las losas no son "elements", así que su masa solo entra por acá.
+    include_self_weight_active = bool(mass_source.get("include_self_weight", True))
+
     if pattern_factors:
         for load in data.get("loads", []) or []:
             if not isinstance(load, dict):
+                continue
+
+            if (
+                include_self_weight_active
+                and str(load.get("source", "")).strip().lower() == "frame_self_weight"
+            ):
                 continue
 
             load_case = (

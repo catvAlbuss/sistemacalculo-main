@@ -416,6 +416,17 @@ export const seismicCoreMixin = {
       this.seismicActiveCase = order[0].id;
       this.seismicResults = byCase[order[0].id];
 
+      // El análisis sísmico recién corrió → sus resultados (incl. la tabla de
+      // Centers of Mass que reubica el marcador D1 del diafragma al CM real)
+      // están FRESCOS. getDiaphragmCMForDraw se auto-bloquea si el estado quedó
+      // en "outdated" (p.ej. por un análisis estático previo + cambio de modelo);
+      // sin resetearlo acá, el CM correcto se calcula pero el marcador se quedaba
+      // en el centroide geométrico. Un cambio de modelo posterior lo vuelve a
+      // marcar "outdated" (markAnalysisResultsOutdated), ocultándolo de nuevo.
+      if (this.analysisOptions) {
+        this.analysisOptions.analysisStatus = "completed";
+      }
+
       this._applySeismicResultsToModel(this.seismicResults);
       await this.showSeismicResults(this.seismicResults);
 

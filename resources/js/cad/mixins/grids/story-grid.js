@@ -226,6 +226,9 @@ export const storyGridMixin = {
 
     this.redraw?.();
     this.sync3D?.();
+    // Los pisos cambiaron (cuenta/altura) → recentrar el pivote de órbita 3D
+    // sobre el centro real del modelo (estilo ETABS).
+    this.recenterCameraOnGrid?.();
 
     this.showMessage?.(`Edit Story Data aplicado: ${storyCount} piso(s), altura ${storyHeight} m.`);
 

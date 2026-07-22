@@ -122,6 +122,9 @@ export const referenceGridMixin = {
     this.redraw?.();
     this.sync3D?.();
     this.rebuild3DGridSnapPointsSoon?.(`addGridAxisAtOrdinate ${axis}`);
+    // La grilla cambió de extensión → recentrar el pivote de órbita 3D sobre
+    // ella (estilo ETABS), no en cada edición cualquiera del modelo.
+    this.recenterCameraOnGrid?.();
 
     this.showMessage?.(`Eje ${axis} "${added?.id ?? ""}" agregado en ${value.toFixed(3)} m.`);
   },
@@ -440,6 +443,9 @@ export const referenceGridMixin = {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           this.sync3D?.();
+          // Grilla + pisos recién creados de una — centrar el pivote de
+          // órbita 3D ahí desde el arranque (estilo ETABS).
+          this.recenterCameraOnGrid?.();
 
           // =====================================================
           // 3D SNAP > RECONSTRUIR SNAP POINTS DESPUÉS DEL MODELO
