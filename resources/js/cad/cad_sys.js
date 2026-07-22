@@ -179,7 +179,7 @@ export default () => ({
     lengthUnit: "m",
     forceUnit: "kN",
     modelTolerance: 0.001,
-    snapScreenTolerance: 14,
+    snapScreenTolerance: 25,
     snapWorldTolerance: 1.0,
   },
   steelFrameDesign: {
@@ -237,7 +237,7 @@ export default () => ({
   activeGridPoint: null,
   statusCoordinates: "X 0.00  Y 0.00  Z 0.00",
   planGridSnapTolerance: 1.0,
-  planGridSnapScreenTolerance: 14,
+  planGridSnapScreenTolerance: 25,
   lastMouseScreen: { x: 0, y: 0 },
 
   materialProperties: {

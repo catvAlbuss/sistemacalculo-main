@@ -29,6 +29,21 @@ export class GridEditor {
         this.btnAddY = document.getElementById("btn-add-y-grid");
         this.btnAddGeneral = document.getElementById("btn-add-general-grid");
 
+        // Campos "estilo ETABS" nuevos (Grid System Name / Origin / Story
+        // Range / Reference Points-Planes). Ver ARCHITECTURE / plan: Origin
+        // es funcional de verdad, Rotation y Story Range quedan marcados
+        // como pendientes (no fingen funcionar).
+        this.nameInput = document.getElementById("grid-system-name");
+        this.originXInput = document.getElementById("grid-origin-x");
+        this.originYInput = document.getElementById("grid-origin-y");
+        this.storyRangeAllInput = document.getElementById("grid-story-range-all");
+        this.storyRangeCustomInput = document.getElementById("grid-story-range-custom");
+        this.topStorySelect = document.getElementById("grid-top-story");
+        this.bottomStorySelect = document.getElementById("grid-bottom-story");
+        this.previewSvg = document.getElementById("grid-preview-svg");
+        this.btnReferencePoints = document.getElementById("btn-grid-reference-points");
+        this.btnReferencePlanes = document.getElementById("btn-grid-reference-planes");
+
         this.bindStaticEvents();
     }
 
@@ -111,6 +126,7 @@ export class GridEditor {
         this.syncDisplayRowsFromDraft();
         this.renderX();
         this.renderY();
+        this.renderPreview();
     }
 
     getXValueFieldName() {
@@ -139,6 +155,7 @@ export class GridEditor {
                 });
             }
             this.renderX();
+            this.renderPreview();
         });
 
         this.btnAddY?.addEventListener("click", () => {
@@ -158,6 +175,7 @@ export class GridEditor {
                 });
             }
             this.renderY();
+            this.renderPreview();
         });
 
         this.btnAddGeneral?.addEventListener("click", () => {
@@ -172,6 +190,7 @@ export class GridEditor {
                 source: "custom",
             });
             this.renderGeneral();
+            this.renderPreview();
         });
 
         this.btnCancel?.addEventListener("click", () => this.close());
@@ -187,6 +206,28 @@ export class GridEditor {
             if (this.modeSpacingInput.checked) {
                 this.setDisplayMode("spacing");
             }
+        });
+
+        // System Origin: solo X/Y desplazan de verdad (ver reference-grid.js).
+        this.originXInput?.addEventListener("input", () => this.renderPreview());
+        this.originYInput?.addEventListener("input", () => this.renderPreview());
+
+        // Story Range: la selección se guarda, pero todavía NO restringe qué
+        // pisos muestran la grilla (ver plan/ARCHITECTURE) — por eso solo
+        // habilita/deshabilita los selects, sin más efecto.
+        const syncStoryRangeInputsState = () => {
+            const isCustom = !!this.storyRangeCustomInput?.checked;
+            if (this.topStorySelect) this.topStorySelect.disabled = !isCustom;
+            if (this.bottomStorySelect) this.bottomStorySelect.disabled = !isCustom;
+        };
+        this.storyRangeAllInput?.addEventListener("change", syncStoryRangeInputsState);
+        this.storyRangeCustomInput?.addEventListener("change", syncStoryRangeInputsState);
+
+        this.btnReferencePoints?.addEventListener("click", () => {
+            this.cad.showMessage?.("Reference Points — próximamente.", "info");
+        });
+        this.btnReferencePlanes?.addEventListener("click", () => {
+            this.cad.showMessage?.("Reference Planes — próximamente.", "info");
         });
     }
 
@@ -234,10 +275,35 @@ export class GridEditor {
             this.modeSpacingInput.checked = this.displayMode === "spacing";
         }
 
+        // Campos "estilo ETABS": se leen del draftGrid ya normalizado por
+        // rebuildReferenceGridCaches() (siempre trae name/originX/originY/
+        // storyRangeMode, incluso en modelos guardados antes de que existieran).
+        if (this.nameInput) this.nameInput.value = this.draftGrid.name ?? "G1";
+        if (this.originXInput) this.originXInput.value = this.draftGrid.originX ?? 0;
+        if (this.originYInput) this.originYInput.value = this.draftGrid.originY ?? 0;
+
+        const isCustomRange = this.draftGrid.storyRangeMode === "custom";
+        if (this.storyRangeAllInput) this.storyRangeAllInput.checked = !isCustomRange;
+        if (this.storyRangeCustomInput) this.storyRangeCustomInput.checked = isCustomRange;
+
+        const storyNames = (this.cad.stories || []).map((s) => s.name).filter(Boolean);
+        const storyOptions = storyNames.map((name) => `<option value="${name}">${name}</option>`).join("");
+        if (this.topStorySelect) {
+            this.topStorySelect.innerHTML = storyOptions;
+            this.topStorySelect.value = this.draftGrid.topStory ?? storyNames[0] ?? "";
+            this.topStorySelect.disabled = !isCustomRange;
+        }
+        if (this.bottomStorySelect) {
+            this.bottomStorySelect.innerHTML = storyOptions;
+            this.bottomStorySelect.value = this.draftGrid.bottomStory ?? storyNames[storyNames.length - 1] ?? "";
+            this.bottomStorySelect.disabled = !isCustomRange;
+        }
+
         this.syncDisplayRowsFromDraft();
         this.renderX();
         this.renderY();
         this.renderGeneral();
+        this.renderPreview();
 
         if (this.modal) {
             this.modal.hidden = false;
@@ -294,6 +360,16 @@ export class GridEditor {
         this.cad.referenceGrid.generalGrids = JSON.parse(
             JSON.stringify(this.draftGrid?.generalGrids || [])
         );
+
+        // Campos "estilo ETABS". Origin es lo único que afecta el dibujo real
+        // (ver rebuildReferenceGridCaches/rebuildGeneralGrids); name y
+        // story-range solo se guardan por ahora.
+        this.cad.referenceGrid.name = this.nameInput?.value?.trim() || "G1";
+        this.cad.referenceGrid.originX = Number(this.originXInput?.value) || 0;
+        this.cad.referenceGrid.originY = Number(this.originYInput?.value) || 0;
+        this.cad.referenceGrid.storyRangeMode = this.storyRangeCustomInput?.checked ? "custom" : "all";
+        this.cad.referenceGrid.topStory = this.topStorySelect?.value || null;
+        this.cad.referenceGrid.bottomStory = this.bottomStorySelect?.value || null;
 
         this.cad.gridDisplayMode = this.displayMode;
 
@@ -354,7 +430,7 @@ export class GridEditor {
         const deleteButtonClass = this.deleteButtonClass();
 
         const fieldName = this.getXValueFieldName();
-        const headerText = this.displayMode === "ordinates" ? "X Ordinate" : "X Spacing";
+        const headerText = this.displayMode === "ordinates" ? "Posición X" : "Distancia X";
 
         const table = this.xBody.closest("table");
         if (table) {
@@ -363,7 +439,7 @@ export class GridEditor {
         }
 
         this.xBody.innerHTML = this.xRows.map((row, index) => `
-    <tr class="border-b">
+    <tr class="border-b border-gray-700">
       <td class="p-2">
         <input class="${inputClass}" data-kind="x" data-index="${index}" data-field="id" value="${row.id}">
       </td>
@@ -375,8 +451,8 @@ export class GridEditor {
       </td>
       <td class="p-2">
         <select class="${selectClass}" data-kind="x" data-index="${index}" data-field="bubbleLoc">
-          <option value="Start" ${row.bubbleLoc === "Start" ? "selected" : ""}>Start</option>
-          <option value="End" ${row.bubbleLoc === "End" ? "selected" : ""}>End</option>
+          <option value="Start" ${row.bubbleLoc === "Start" ? "selected" : ""}>Inicio</option>
+          <option value="End" ${row.bubbleLoc === "End" ? "selected" : ""}>Fin</option>
         </select>
       </td>
       <td class="p-2 text-center">
@@ -397,7 +473,7 @@ export class GridEditor {
         const deleteButtonClass = this.deleteButtonClass();
 
         const fieldName = this.getYValueFieldName();
-        const headerText = this.displayMode === "ordinates" ? "Y Ordinate" : "Y Spacing";
+        const headerText = this.displayMode === "ordinates" ? "Posición Y" : "Distancia Y";
 
         const table = this.yBody.closest("table");
         if (table) {
@@ -406,7 +482,7 @@ export class GridEditor {
         }
 
         this.yBody.innerHTML = this.yRows.map((row, index) => `
-    <tr class="border-b">
+    <tr class="border-b border-gray-700">
       <td class="p-2">
         <input class="${inputClass}" data-kind="y" data-index="${index}" data-field="id" value="${row.id}">
       </td>
@@ -418,8 +494,8 @@ export class GridEditor {
       </td>
       <td class="p-2">
         <select class="${selectClass}" data-kind="y" data-index="${index}" data-field="bubbleLoc">
-          <option value="Start" ${row.bubbleLoc === "Start" ? "selected" : ""}>Start</option>
-          <option value="End" ${row.bubbleLoc === "End" ? "selected" : ""}>End</option>
+          <option value="Start" ${row.bubbleLoc === "Start" ? "selected" : ""}>Inicio</option>
+          <option value="End" ${row.bubbleLoc === "End" ? "selected" : ""}>Fin</option>
         </select>
       </td>
       <td class="p-2 text-center">
@@ -445,7 +521,7 @@ export class GridEditor {
             const disabledClass = isCustom ? "" : "bg-gray-700 cursor-not-allowed opacity-60";
 
             return `
-      <tr class="border-b">
+      <tr class="border-b border-gray-700">
         <td class="p-2">
           <input class="${inputClass} ${disabledClass}" data-kind="general" data-index="${index}" data-field="id" value="${row.id}" ${disabled}>
         </td>
@@ -466,19 +542,115 @@ export class GridEditor {
         </td>
         <td class="p-2">
           <select class="${selectClass} ${disabledClass}" data-kind="general" data-index="${index}" data-field="bubbleLoc" ${disabled}>
-            <option value="Start" ${row.bubbleLoc === "Start" ? "selected" : ""}>Start</option>
-            <option value="End" ${row.bubbleLoc === "End" ? "selected" : ""}>End</option>
+            <option value="Start" ${row.bubbleLoc === "Start" ? "selected" : ""}>Inicio</option>
+            <option value="End" ${row.bubbleLoc === "End" ? "selected" : ""}>Fin</option>
           </select>
         </td>
-        <td class="p-2 text-center font-medium text-gray-700">${row.source}</td>
         <td class="p-2 text-center">
-          ${isCustom ? `<button class="${deleteButtonClass}" type="button" data-remove="general" data-index="${index}">Eliminar</button>` : ""}
+          ${isCustom ? `<button class="${deleteButtonClass}" type="button" data-remove="general" data-index="${index}">Eliminar</button>` : `<span class="text-[10px] text-gray-500">Desde grilla X/Y</span>`}
         </td>
       </tr>
     `;
         }).join("");
 
         this.bindDynamicEvents(this.generalBody);
+    }
+
+    // Vista previa en vivo (SVG) del sistema de grillas, mientras se edita —
+    // mismo espíritu que el diagrama de ETABS en "Grid System Data". Lee
+    // this.xRows/yRows (conviertiéndolos primero a ordenadas absolutas si el
+    // modo activo es "spacing", vía rebuildDraftGridFromDisplayRows) + el
+    // origen tecleado en vivo (aunque todavía no se haya aplicado) + las
+    // líneas generales "custom" (diagonales). Y se dibuja invertida (mayor Y
+    // = más arriba) para que se lea como una planta, no como pantalla.
+    renderPreview() {
+        if (!this.previewSvg || !this.draftGrid) return;
+
+        this.rebuildDraftGridFromDisplayRows();
+
+        const originX = Number(this.originXInput?.value) || 0;
+        const originY = Number(this.originYInput?.value) || 0;
+        const toSvgY = (y) => -y;
+
+        const xLines = (this.draftGrid.xGrids || []).filter((g) => g.visible !== false);
+        const yLines = (this.draftGrid.yGrids || []).filter((g) => g.visible !== false);
+        const customLines = (this.draftGrid.generalGrids || []).filter(
+            (g) => g.source === "custom" && g.visible !== false
+        );
+
+        if (!xLines.length && !yLines.length && !customLines.length) {
+            this.previewSvg.removeAttribute("viewBox");
+            this.previewSvg.innerHTML =
+                '<text x="50%" y="50%" text-anchor="middle" fill="#6b7280" font-size="12">Sin ejes todavía</text>';
+            return;
+        }
+
+        const xs = [0];
+        const ys = [0];
+        xLines.forEach((g) => xs.push(Number(g.ordinate) + originX));
+        yLines.forEach((g) => ys.push(Number(g.ordinate) + originY));
+        customLines.forEach((g) => {
+            xs.push(Number(g.x1), Number(g.x2));
+            ys.push(Number(g.y1), Number(g.y2));
+        });
+
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs, minX + 1);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys, minY + 1);
+
+        const padX = Math.max((maxX - minX) * 0.18, 1);
+        const padY = Math.max((maxY - minY) * 0.18, 1);
+        const scale = Math.max(maxX - minX, maxY - minY, 1);
+        const strokeW = scale * 0.004;
+        const bubbleR = scale * 0.022;
+        const fontSize = scale * 0.024;
+
+        const lo = { x: minX - padX, y: minY - padY };
+        const hi = { x: maxX + padX, y: maxY + padY };
+
+        const parts = [];
+
+        xLines.forEach((g) => {
+            const x = Number(g.ordinate) + originX;
+            parts.push(
+                `<line x1="${x}" y1="${toSvgY(lo.y)}" x2="${x}" y2="${toSvgY(hi.y)}" stroke="#3b82f6" stroke-width="${strokeW}" />`
+            );
+            const labelY = g.bubbleLoc === "Start" ? lo.y - padY * 0.35 : hi.y + padY * 0.35;
+            parts.push(
+                `<circle cx="${x}" cy="${toSvgY(labelY)}" r="${bubbleR}" fill="#111827" stroke="#3b82f6" stroke-width="${strokeW}" />`,
+                `<text x="${x}" y="${toSvgY(labelY)}" text-anchor="middle" dominant-baseline="central" fill="#93c5fd" font-size="${fontSize}">${g.id}</text>`
+            );
+        });
+
+        yLines.forEach((g) => {
+            const y = Number(g.ordinate) + originY;
+            parts.push(
+                `<line x1="${lo.x}" y1="${toSvgY(y)}" x2="${hi.x}" y2="${toSvgY(y)}" stroke="#3b82f6" stroke-width="${strokeW}" />`
+            );
+            const labelX = g.bubbleLoc === "Start" ? lo.x - padX * 0.35 : hi.x + padX * 0.35;
+            parts.push(
+                `<circle cx="${labelX}" cy="${toSvgY(y)}" r="${bubbleR}" fill="#111827" stroke="#3b82f6" stroke-width="${strokeW}" />`,
+                `<text x="${labelX}" y="${toSvgY(y)}" text-anchor="middle" dominant-baseline="central" fill="#93c5fd" font-size="${fontSize}">${g.id}</text>`
+            );
+        });
+
+        customLines.forEach((g) => {
+            parts.push(
+                `<line x1="${g.x1}" y1="${toSvgY(g.y1)}" x2="${g.x2}" y2="${toSvgY(g.y2)}" stroke="#f59e0b" stroke-width="${strokeW}" stroke-dasharray="${scale * 0.012},${scale * 0.008}" />`
+            );
+        });
+
+        // Marcador del origen del sistema (System Origin).
+        parts.push(`<circle cx="${originX}" cy="${toSvgY(originY)}" r="${bubbleR * 0.6}" fill="#22c55e" />`);
+
+        const vbX = lo.x - padX * 0.6;
+        const vbY = toSvgY(hi.y) - padY * 0.6;
+        const vbW = hi.x - lo.x + padX * 1.2;
+        const vbH = hi.y - lo.y + padY * 1.2;
+
+        this.previewSvg.setAttribute("viewBox", `${vbX} ${vbY} ${vbW} ${vbH}`);
+        this.previewSvg.innerHTML = parts.join("");
     }
 
     bindDynamicEvents(container) {
@@ -512,6 +684,8 @@ export class GridEditor {
                         this.draftGrid.generalGrids[index][field] = event.target.value;
                     }
                 }
+
+                this.renderPreview();
             });
 
             el.addEventListener("change", (event) => {
@@ -543,6 +717,8 @@ export class GridEditor {
                         this.draftGrid.generalGrids[index][field] = event.target.value;
                     }
                 }
+
+                this.renderPreview();
             });
         });
 
@@ -561,6 +737,7 @@ export class GridEditor {
                     this.draftGrid.generalGrids.splice(index, 1);
                     this.renderGeneral();
                 }
+                this.renderPreview();
             });
         });
     }
