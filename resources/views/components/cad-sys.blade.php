@@ -2,7 +2,7 @@
     @vite('resources/js/analisis_estructural_de_armaduras.js')
 @endPushOnce
 
-<div class="cad-text-color cad-bg cad-border flex h-screen flex-col" x-id="['materiales']" x-data="cadSys"
+<div class="cad-text-color cad-bg cad-border flex h-full flex-col" x-id="['materiales']" x-data="cadSys"
     x-init="initSys($refs.cad, $refs.distanceInput, $id('materiales'));
     $el.scrollIntoView({ behavior: 'smooth' })">
     <x-cad.modals.new-model/>

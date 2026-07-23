@@ -13,9 +13,23 @@
     </svg>
   </button>
   <!-- Dropdown Menu -->
-  <div class="cad-bg cad-border z-50 border p-1 text-xs" role="menu" x-anchor="document.getElementById($id('drop'))"
+  <!-- <div class="cad-bg cad-border z-50 border mt-15 p-1 text-xs" role="menu" x-anchor="document.getElementById($id('drop'))"
     x-show="isOpen" @click.outside="isOpen = false" @keydown.down.prevent="$focus.wrap().next()"
     @keydown.up.prevent="$focus.wrap().previous()">
     {{ $slot2 }}
-  </div>
+  </div> -->
+
+  <!-- Dropdown Menu: se teletransporta a <body> para escapar el
+       overflow-y-hidden del toolbar (si no, el navegador lo recorta ahí
+       mismo, sin importar top/left ni z-index) y así flotar sobre el
+       canvas 2D/3D en vez de quedar atrapado detrás. x-anchor conserva la
+       referencia al botón aunque el nodo ya no esté al lado en el DOM. -->
+  <template x-teleport="body">
+    <div class="cad-bg cad-border z-50 border p-1 text-xs text-white" role="menu"
+      x-anchor.bottom-start.offset.4="document.getElementById($id('drop'))"
+      x-show="isOpen" x-cloak @click.outside="isOpen = false" @keydown.down.prevent="$focus.wrap().next()"
+      @keydown.up.prevent="$focus.wrap().previous()">
+      {{ $slot2 }}
+    </div>
+  </template>
 </div>

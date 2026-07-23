@@ -22,75 +22,75 @@
 
                     {{-- ================= PREFERENCIAS ================= --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
-                        Preferences
+                        Preferencias
                     </div>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.activateOptionsMenuAction('dimensions-tolerances')">
                         <span>📏</span>
-                        Dimensions / Tolerances...
+                        Dimensiones / Tolerancias...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.activateOptionsMenuAction('output-decimals')">
                         <span>🔢</span>
-                        Output Decimals...
+                        Decimales de Salida...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.activateOptionsMenuAction('steel-frame-design')">
                         <span>🏗️</span>
-                        Steel Frame Design...
+                        Diseño de Marcos de Acero...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.activateOptionsMenuAction('reinforcement-bar-sizes')">
                         <span>🔩</span>
-                        Reinforcement Bar Sizes...
+                        Tamaños de Varillas de Refuerzo...
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
 
                     {{-- ================= COLORES ================= --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
-                        Colors
+                        Colores
                     </div>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.activateOptionsMenuAction('theme-dark')">
                         <span>🌙</span>
-                        Dark Canvas
+                        Lienzo Oscuro
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.activateOptionsMenuAction('theme-light')">
                         <span>☀️</span>
-                        Light Canvas
+                        Lienzo Claro
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
 
                     {{-- ================= VENTANAS ================= --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
-                        Windows
+                        Ventanas
                     </div>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.activateOptionsMenuAction('window-one')">
                         <span>▣</span>
-                        One
+                        Una
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.activateOptionsMenuAction('window-two-vertical')">
                         <span>▥</span>
-                        Two Tiled Vertically
+                        Dos en Mosaico Vertical
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.activateOptionsMenuAction('window-two-horizontal')">
                         <span>▤</span>
-                        Two Tiled Horizontally
+                        Dos en Mosaico Horizontal
                     </button>
 
                 </div>

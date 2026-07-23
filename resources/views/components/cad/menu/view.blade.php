@@ -28,19 +28,19 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateViewMenuAction('set-3d-view')">
                         <span>🎥</span>
-                        Set 3D View...
+                        Definir Vista 3D...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateViewMenuAction('set-plan-view')">
                         <span>🗺️</span>
-                        Set Plan View...
+                        Definir Vista en Planta...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateViewMenuAction('set-elevation-view')">
                         <span>📐</span>
-                        Set Elevation View...
+                        Definir Vista de Elevación...
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
@@ -72,31 +72,31 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateViewMenuAction('rubber-band-zoom')">
                         <span>🔍</span>
-                        Rubber Band Zoom
+                        Zoom por Ventana (Rubber Band)
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateViewMenuAction('restore-full-view')">
                         <span>🖼️</span>
-                        Restore Full View
+                        Restaurar Vista Completa
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateViewMenuAction('previous-zoom')">
                         <span>⏪</span>
-                        Previous Zoom
+                        Zoom Anterior
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateViewMenuAction('zoom-in-one-step')">
                         <span>🔍+</span>
-                        Zoom In One Step
+                        Acercar un Paso
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateViewMenuAction('zoom-out-one-step')">
                         <span>🔍-</span>
-                        Zoom Out One Step
+                        Alejar un Paso
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
@@ -109,7 +109,7 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateViewMenuAction('pan')">
                         <span>✋</span>
-                        Pan
+                        Desplazar (Pan)
                     </button>
 
                 </div>

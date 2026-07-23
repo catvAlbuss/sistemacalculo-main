@@ -26,13 +26,13 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateDisplayMenuAction('show-undeformed-shape')">
                         <span>📐</span>
-                        Show Undeformed Shape
+                        Mostrar Forma No Deformada
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateDisplayMenuAction('show-reference-planes')">
                         <span>🟨</span>
-                        Show Reference Planes
+                        Mostrar Planos de Referencia
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
@@ -43,20 +43,20 @@
                     </div>
 
                     {{-- ================= SHOW LOADS ================= --}}
-                    <x-cad.ui.menu-subitem label="Show Loads">
+                    <x-cad.ui.menu-subitem label="Mostrar Cargas">
                         <span>📊</span>
 
                         <x-slot name="submenu">
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateDisplayMenuAction('show-joint-loads')">
                                 <span>⚫</span>
-                                Joint / Point...
+                                Nudo / Punto...
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateDisplayMenuAction('show-frame-loads')">
                                 <span>━━</span>
-                                Frame / Line...
+                                Barra / Línea...
                             </button>
                         </x-slot>
                     </x-cad.ui.menu-subitem>
@@ -71,13 +71,13 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateDisplayMenuAction('show-deformed-shape')">
                         <span>📈</span>
-                        Show Deformed Shape...
+                        Mostrar Forma Deformada...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateDisplayMenuAction('show-mode-shape')">
                         <span>🎵</span>
-                        Show Mode Shape...
+                        Mostrar Forma Modal...
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
@@ -91,15 +91,15 @@
                         class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateDisplayMenuAction('show-frame-force-diagrams')">
                         <span>📉</span>
-                        <span class="flex-1 truncate">Show Frame Forces / Diagrams...</span>
+                        <span class="flex-1 truncate">Mostrar Fuerzas/Diagramas de Barra...</span>
                         <span class="text-xs text-cyan-400 italic">P, V2, V3, T, M2, M3</span>
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateDisplayMenuAction('show-modal-spectral-results')">
                         <span>🌊</span>
-                        <span class="flex-1 truncate">Modal Spectral Results...</span>
-                        <span class="text-xs text-yellow-400 italic">Test</span>
+                        <span class="flex-1 truncate">Resultados Modal Espectral...</span>
+                        <span class="text-xs text-yellow-400 italic">Prueba</span>
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
@@ -120,14 +120,14 @@
                         @click.stop="cadSystem.activateDisplayMenuAction('show-story-drifts')">
                         <span>📐</span>
                         <span class="flex-1 truncate">Derivas de Piso...</span>
-                        <span class="text-xs text-cyan-400 italic">Drift</span>
+                        <span class="text-xs text-cyan-400 italic">Deriva</span>
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateDisplayMenuAction('show-story-shears')">
                         <span>📊</span>
                         <span class="flex-1 truncate">Cortante por Piso...</span>
-                        <span class="text-xs text-cyan-400 italic">Shear</span>
+                        <span class="text-xs text-cyan-400 italic">Cortante</span>
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
@@ -159,11 +159,11 @@
                         class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateDisplayMenuAction('show-tables')">
                         <span>📋</span>
-                        <span class="flex-1 truncate">Show Tables...</span>
+                        <span class="flex-1 truncate">Mostrar Tablas...</span>
                         <span class="text-xs text-cyan-400 italic">Modelo</span>
                     </button>
 
-                    <div class="border-t border-gray-700 my-1"></div>   
+                    <div class="border-t border-gray-700 my-1"></div>
                 </div>
             </x-slot>
         </x-cad.ui.menu-dropdown-item>

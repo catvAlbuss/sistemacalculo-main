@@ -17,7 +17,7 @@
     {{-- Flecha para mostrar/ocultar el panel flotante de Items/Propiedades. --}}
     <button @click="itemsPanelCollapsed = !itemsPanelCollapsed"
         title="Mostrar / ocultar panel de Items y Propiedades"
-        class="flex items-center justify-center gap-1 p-1.5 text-[9px] hover:bg-gray-700 text-gray-300 border-b cad-border">
+        class="flex items-center justify-center gap-1 border-b py-1.5 text-[9px] font-semibold uppercase tracking-wide text-gray-400 transition-colors hover:bg-gray-700 hover:text-white cad-border">
         <svg class="h-3.5 w-3.5 transition-transform duration-200" :class="itemsPanelCollapsed ? '' : 'rotate-180'"
             xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -28,7 +28,7 @@
     <div class="flex flex-1 flex-col overflow-y-auto">
 
         {{-- Dibujar --}}
-        <div class="flex flex-col items-center justify-center gap-0.5 p-1.5 text-[9px] uppercase cad-text-logo-color border-b">Dibujar</div>
+        <div class="border-b border-gray-700/70 bg-gray-900/30 py-1 text-center text-[9px] font-semibold uppercase tracking-wide text-gray-400">Dibujar</div>
 
         <div class="flex flex-col gap-1">
             <button title="Dibujar columna con un punto (solo en planta)"
@@ -80,7 +80,7 @@
         </div>
 
         {{-- soportes --}}
-        <div class="flex flex-col items-center justify-center gap-0.5 p-1.5 text-[9px] uppercase cad-text-logo-color border-y">apoyos</div>
+        <div class="border-y border-gray-700/70 bg-gray-900/30 py-1 text-center text-[9px] font-semibold uppercase tracking-wide text-gray-400">Apoyos</div>
         <div class="flex flex-col gap-1">
             <!-- <button title="Seleccionar objetos (frames / shells)"
                     @click="cadSystem.activateDrawMenuAction('select-object')"
@@ -98,7 +98,7 @@
         </div>
 
         {{-- Cargas --}}
-        <div class="flex flex-col items-center justify-center gap-0.5 p-1.5 text-[9px] uppercase cad-text-logo-color border-y">cargas</div>
+        <div class="border-y border-gray-700/70 bg-gray-900/30 py-1 text-center text-[9px] font-semibold uppercase tracking-wide text-gray-400">Cargas</div>
         <div class="flex flex-col gap-1">
             <button title="Carga distribuida en vigas / frames seleccionados"
                 @click="cadSystem.activateAssignMenuAction('frame-load-distributed')"
@@ -126,7 +126,7 @@
         </div>
 
         {{-- Secciones --}}
-        <div class="flex flex-col items-center justify-center gap-0.5 p-1.5 text-[9px] uppercase cad-text-logo-color border-y">secciones</div>
+        <div class="border-y border-gray-700/70 bg-gray-900/30 py-1 text-center text-[9px] font-semibold uppercase tracking-wide text-gray-400">Secciones</div>
         <div class="flex flex-col gap-1">
             <button title="Asignar sección de frame a los frames seleccionados"
                 @click="cadSystem.activateAssignMenuAction('frame-section')"
@@ -156,7 +156,7 @@
          2D cuando está abierto. Así el canvas siempre tiene su ancho
          completo (flex-1 en cad-area.blade.php); el panel solo "flota"
          encima mientras el usuario lo necesita. --}}
-    <div x-show="!itemsPanelCollapsed" x-cloak x-transition class="cad-bg cad-border absolute left-full top-0 z-20 flex h-full w-92 flex-col overflow-y-auto border-r-4 shadow-2xl">
+    <div x-show="!itemsPanelCollapsed" x-cloak x-transition class="cad-bg cad-border absolute left-full top-0 z-20 flex h-full w-80 flex-col overflow-y-auto rounded-r-md border-r-4 shadow-2xl">
 
         <!-- Panel de Grillas Diagonales -->
         <x-cad.ui.panel title="Items" init="isOpen = false">

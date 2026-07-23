@@ -75,32 +75,34 @@
   </div>
 
   
-  <div class="cad-bg cad-border flex flex-row border-r-4 text-xs items-center justify-between">
-    <div class="flex flex-row">
-      <button class="p-1" :class="currentRenderer === diseñoRenderer ? 'bg-gray-100' : ''"
-        @click="currentRenderer = diseñoRenderer;setState(idleState)">Diseño</button>
-      <button class="p-1" :class="currentRenderer === deflexionRenderer ? 'bg-gray-100' : ''"
-        @click="currentRenderer = deflexionRenderer;setState(idleState)">Deflexion</button>
-      <button class="p-1" :class="currentRenderer === axialRenderer ? 'bg-gray-100' : ''"
-        @click="currentRenderer = axialRenderer;setState(idleState)">Axial</button>
+  <div class="cad-bg cad-border flex h-9 flex-row items-center justify-between border-t px-1 text-xs">
+    <div class="flex flex-row items-center gap-2">
+      
+      <div class="flex items-center overflow-hidden rounded border border-gray-600">
+        <button class="px-2 py-1 text-xs transition-colors"
+          :class="currentRenderer === diseñoRenderer ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'"
+          @click="currentRenderer = diseñoRenderer;setState(idleState)">Diseño</button>
+        <button class="border-l border-gray-600 px-2 py-1 text-xs transition-colors"
+          :class="currentRenderer === deflexionRenderer ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'"
+          @click="currentRenderer = deflexionRenderer;setState(idleState)">Deflexión</button>
+        <button class="border-l border-gray-600 px-2 py-1 text-xs transition-colors"
+          :class="currentRenderer === axialRenderer ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'"
+          @click="currentRenderer = axialRenderer;setState(idleState)">Axial</button>
+      </div>
 
-      <!-- para probar la sincronizacion -->
-      <button @click="sync3D()"
-        class="p-1 px-2 bg-yellow-600 text-white rounded text-xs ml-2">
-        Sincronizar
-      </button>
+      <div class="h-5 w-px bg-gray-700"></div>
 
       <!-- Botón para iniciar/detener animación -->
       <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'toggleDeflectionAnimation()','toggle' => 'false','label' => 'Animar Deflexión']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'toggleDeflectionAnimation()','toggle' => 'false','label' => 'Animar']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['clickHandler' => 'toggleDeflectionAnimation()','toggle' => 'false','label' => 'Animar Deflexión']); ?>
+<?php $component->withAttributes(['clickHandler' => 'toggleDeflectionAnimation()','toggle' => 'false','label' => 'Animar']); ?>
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -140,18 +142,18 @@
 <?php $component = $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924; ?>
 <?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
-      
+
       <!-- Botón para cambiar modo de animación -->
       <?php if (isset($component)) { $__componentOriginale5ab7f77198f02f7c9ee0cc79b050924 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginale5ab7f77198f02f7c9ee0cc79b050924 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'toggleDeflectionAnimationMode()','toggle' => 'false','label' => 'Modo Animación']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.ui.ribbon-button','data' => ['clickHandler' => 'toggleDeflectionAnimationMode()','toggle' => 'false','label' => 'Modo']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('cad.ui.ribbon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['clickHandler' => 'toggleDeflectionAnimationMode()','toggle' => 'false','label' => 'Modo Animación']); ?>
+<?php $component->withAttributes(['clickHandler' => 'toggleDeflectionAnimationMode()','toggle' => 'false','label' => 'Modo']); ?>
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
         </svg>
@@ -166,7 +168,13 @@
 <?php unset($__componentOriginale5ab7f77198f02f7c9ee0cc79b050924); ?>
 <?php endif; ?>
 
+      <div class="h-5 w-px bg-gray-700"></div>
 
+      <!-- Sincronizar 2D/3D -->
+      <button @click="sync3D()"
+        class="rounded border border-gray-600 px-2 py-1 text-xs text-gray-300 transition-colors hover:bg-gray-700 hover:text-white">
+        Sincronizar
+      </button>
     </div>
 
     

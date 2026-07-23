@@ -24,20 +24,20 @@
                     </div>
 
                     {{-- ================= JOINT / POINT ================= --}}
-                    <x-cad.ui.menu-subitem label="Joint / Point">
+                    <x-cad.ui.menu-subitem label="Nudo / Punto">
                         <span>⚫</span>
 
                         <x-slot name="submenu">
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('joint-diaphragms')">
                                 <span>🏢</span>
-                                Diaphragms...
+                                Diafragmas...
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('joint-restraints')">
                                 <span>⚓</span>
-                                Restraints / Supports...
+                                Restricciones / Apoyos...
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
@@ -49,60 +49,60 @@
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('joint-springs')">
                                 <span>➿</span>
-                                Point Springs...
+                                Resortes de Punto...
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('joint-mass')">
                                 <span>⚖️</span>
-                                Masses...
+                                Masas...
                             </button>
                         </x-slot>
                     </x-cad.ui.menu-subitem>
 
                     {{-- ================= FRAME / LINE ================= --}}
-                    <x-cad.ui.menu-subitem label="Frame / Line">
+                    <x-cad.ui.menu-subitem label="Barra / Línea">
                         <span>━━</span>
 
                         <x-slot name="submenu">
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('frame-section')">
                                 <span>📐</span>
-                                Frame Section...
+                                Sección de Barra...
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('frame-releases')">
                                 <span>🔓</span>
-                                Frame Releases / Partial Fixity...
+                                Liberaciones de Barra / Fijación Parcial...
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('frame-end-offsets')">
                                 <span>📏</span>
-                                End (Length) Offsets...
+                                Desplazamientos de Extremo (Longitud)...
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('frame-local-axes')">
                                 <span>🧭</span>
-                                Local Axes (Rotation)...
+                                Ejes Locales (Rotación)...
                             </button>
                         </x-slot>
                     </x-cad.ui.menu-subitem>
 
-                    <x-cad.ui.menu-subitem label="Shell">
+                    <x-cad.ui.menu-subitem label="Losa / Muro">
                         <x-slot name="submenu">
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('area-slab-section')">
                                 <span>▦</span>
-                                Slab Section (sección de losa)...
+                                Sección de Losa...
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('area-diaphragms')">
                                 <span>🏢</span>
-                                Diaphragms...
+                                Diafragmas...
                             </button>
                         </x-slot>
                     </x-cad.ui.menu-subitem>
@@ -115,63 +115,63 @@
                     </div>
 
                     {{-- ================= JOINT / POINT LOADS ================= --}}
-                    <x-cad.ui.menu-subitem label="Joint / Point Loads">
+                    <x-cad.ui.menu-subitem label="Cargas en Nudo / Punto">
                         <span>🔴</span>
 
                         <x-slot name="submenu">
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('joint-load-force')">
                                 <span>🎯</span>
-                                Force...
+                                Fuerza...
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('joint-load-ground-displacement')">
                                 <span>🌍</span>
-                                Ground Displacement...
+                                Desplazamiento de Terreno...
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('joint-load-temperature')">
                                 <span>🌡️</span>
-                                Temperature...
+                                Temperatura...
                             </button>
                         </x-slot>
                     </x-cad.ui.menu-subitem>
 
                     {{-- ================= FRAME / LINE LOADS ================= --}}
-                    <x-cad.ui.menu-subitem label="Frame / Line Loads">
+                    <x-cad.ui.menu-subitem label="Cargas en Barra / Línea">
                         <span>📊</span>
 
                         <x-slot name="submenu">
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('frame-load-point')">
                                 <span>📍</span>
-                                Point...
+                                Puntual...
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('frame-load-distributed')">
                                 <span>📊</span>
-                                Distributed...
+                                Distribuida...
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('frame-load-temperature')">
                                 <span>🌡️</span>
-                                Temperature...
+                                Temperatura...
                             </button>
                         </x-slot>
                     </x-cad.ui.menu-subitem>
 
                     {{-- ================= AREA / SHELL ================= --}}
-                    <x-cad.ui.menu-subitem label="Shell load">
+                    <x-cad.ui.menu-subitem label="Carga de Losa">
                         <span>🧱</span>
                         <x-slot name="submenu">
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('area-load-uniform')">
                                 <span>🟦</span>
-                                Shell Loads → Uniform (Gravedad)...
+                                Carga Uniforme de Losa (Gravedad)...
                             </button>
                         </x-slot>
                     </x-cad.ui.menu-subitem>
@@ -186,13 +186,13 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                         @click.stop="cadSystem.activateAssignMenuAction('group-names')">
                         <span>🧩</span>
-                        Group Names...
+                        Nombres de Grupos...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                         @click.stop="cadSystem.activateAssignMenuAction('show-selected-assignments')">
                         <span>📋</span>
-                        Show Selected Assignments...
+                        Mostrar Asignaciones Seleccionadas...
                     </button>
 
                 </div>

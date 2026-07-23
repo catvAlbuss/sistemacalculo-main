@@ -68,25 +68,25 @@
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click="cadSystem.activateSelectMenuAction('select-prop-frame-sections')">
                                 <span>📐</span>
-                                Frame Sections...
+                                Secciones de Barra...
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click="cadSystem.activateSelectMenuAction('select-prop-slab-sections')">
                                 <span>▭</span>
-                                Slab Sections...
+                                Secciones de Losa...
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click="cadSystem.activateSelectMenuAction('select-prop-deck-sections')">
                                 <span>▤</span>
-                                Deck Sections...
+                                Secciones de Deck...
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click="cadSystem.activateSelectMenuAction('select-prop-wall-sections')">
                                 <span>▮</span>
-                                Wall Sections...
+                                Secciones de Muro...
                             </button>
                         </x-slot>
                     </x-cad.ui.menu-subitem>

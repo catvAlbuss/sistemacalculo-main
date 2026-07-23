@@ -855,6 +855,12 @@ def run_accidental_torsion_rsa(
     md_y = [[0.0] * nnodes for _ in range(num_modes)]
     omegas = [float(mi["omega"]) for mi in modal_info]
 
+    # Momento torsor accidental TOTAL en la base por modo = Σ_piso (e·F_piso,n).
+    # Los torques de piso se suman directo a la base (torsión sobre el eje
+    # vertical, sin brazo). Se combinan entre modos abajo (CQC/SRSS) para dar el
+    # aporte accidental a la reacción MZ de base — el mismo que ETABS suma al MZ.
+    base_torsion_modal = [0.0] * num_modes
+
     for n, mi in enumerate(modal_info):
         Sa_n = interpolate_spectrum(spectrum, mi["period"]) * scale
         gamma = mi["gamma_x"] if direction == "x" else mi["gamma_y"]
@@ -875,6 +881,7 @@ def run_accidental_torsion_rsa(
                 else:
                     f_story += gamma * Sa_n * float(m_y[i]) * float(phi_y[n][i])
             m_acc = e * f_story  # momento torsor accidental del piso (modo n)
+            base_torsion_modal[n] += m_acc
             if abs(m_acc) > 1e-12:
                 ops.load(int(retained), 0.0, 0.0, 0.0, 0.0, 0.0, m_acc)
                 applied = True
@@ -899,6 +906,16 @@ def run_accidental_torsion_rsa(
             md_x[n][k] = float(d[0]) if len(d) > 0 else 0.0
             md_y[n][k] = float(d[1]) if len(d) > 1 else 0.0
 
+    # Combinación modal (CQC/SRSS) del momento torsor accidental de base.
+    if str(combination or "").upper() == "CQC":
+        _tot = 0.0
+        for i, vi in enumerate(base_torsion_modal):
+            for j, vj in enumerate(base_torsion_modal):
+                _tot += _cqc_rho(omegas[i], omegas[j], damping_ratio) * vi * vj
+        base_accidental_mz = float(np.sqrt(abs(_tot)))
+    else:
+        base_accidental_mz = float(np.sqrt(sum(v * v for v in base_torsion_modal)))
+
     return {
         "modal_node_disps_x": md_x,
         "modal_node_disps_y": md_y,
@@ -906,6 +923,10 @@ def run_accidental_torsion_rsa(
         "node_ids": node_ids,
         "omegas": omegas,
         "damping_ratio": damping_ratio,
+        # Aporte de la torsión accidental a la reacción MZ de base (N·m). El
+        # pipeline lo SUMA al base_moment_mz nominal de la rama correspondiente
+        # (torsión accidental es aditiva, no SRSS) para igualar a ETABS.
+        "base_accidental_mz": base_accidental_mz,
     }
 
 def run_shifted_cm_torsion_rsa(

@@ -16,7 +16,7 @@
 
             {{-- CONTENIDO DEL MENÚ --}}
             <x-slot name="dropdown">
-                <div class="cad-menu-panel py-1" style="min-width: 320px;">
+                <div class="cad-menu-panel py-1" style="min-width: 360px;">
 
                     {{-- ================= PLANO DE REFERENCIA (DXF) ================= --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
@@ -81,27 +81,27 @@
 
                     {{-- ================= OBJETOS LINEALES ================= --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
-                        Draw Line Objects
+                        Dibujar objetos lineales
                     </div>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.activateDrawFrameTool()">
-                        <span>📏</span> Draw Lines (Plan, Elev, 3D)
+                        <span>📏</span> Dibujar Líneas (Planta, Elevación, 3D)
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.activateDrawMenuAction('create-lines-region-clicks')">
-                        <span>▦</span> Create Lines in Region or at Clicks (Plan, Elev, 3D)
+                        <span>▦</span> Crear Líneas en Región(Planta, Elevación)
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.activateDrawMenuAction('create-columns-region-clicks')">
-                        <span>│</span> Create Columns in Region or at Clicks (Plan)
+                        <span>│</span> Crear Columnas por Clics (Planta)
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.activateDrawMenuAction('create-secondary-beams-region-clicks')">
-                        <span>═</span> Create Secondary Beams in Region or at Clicks (Plan)
+                        <span>═</span> Crear Vigas Secundarias en Región (Planta)
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>

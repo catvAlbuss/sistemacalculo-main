@@ -1,9 +1,9 @@
-<?php if (! $__env->hasRenderedOnce('fc403b91-f9ec-4a85-9cbe-bdeeb73882e0')): $__env->markAsRenderedOnce('fc403b91-f9ec-4a85-9cbe-bdeeb73882e0');
+<?php if (! $__env->hasRenderedOnce('d7f9550b-4028-43af-825e-e6ad3d9fd761')): $__env->markAsRenderedOnce('d7f9550b-4028-43af-825e-e6ad3d9fd761');
 $__env->startPush('initscripts'); ?>
     <?php echo app('Illuminate\Foundation\Vite')('resources/js/analisis_estructural_de_armaduras.js'); ?>
 <?php $__env->stopPush(); endif; ?>
 
-<div class="cad-text-color cad-bg cad-border flex h-screen flex-col" x-id="['materiales']" x-data="cadSys"
+<div class="cad-text-color cad-bg cad-border flex h-full flex-col" x-id="['materiales']" x-data="cadSys"
     x-init="initSys($refs.cad, $refs.distanceInput, $id('materiales'));
     $el.scrollIntoView({ behavior: 'smooth' })">
     <?php if (isset($component)) { $__componentOriginal6daf3514aefd5c5674d0056447e18f58 = $component; } ?>

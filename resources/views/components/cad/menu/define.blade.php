@@ -4,7 +4,7 @@
         {{-- ============================================================
                                 MENÚ DEFINE / DEFINIR
         ============================================================ --}}
-        <x-cad.ui.menu-dropdown-item label="Define">
+        <x-cad.ui.menu-dropdown-item label="Definir">
 
             {{-- ÍCONO DEL MENÚ --}}
             <x-slot name="slot">
@@ -16,7 +16,7 @@
 
             {{-- CONTENIDO DEL MENÚ --}}
             <x-slot name="dropdown">
-                <div class="cad-menu-panel py-1" style="min-width: 350px;">
+                <div class="cad-menu-panel py-1" style="min-width: 360px;">
 
                     {{-- ================= PROPIEDADES DE MATERIAL ================= --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
@@ -26,7 +26,7 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openMaterialProperties()">
                         <span>📐</span>
-                        Material Properties...
+                        Propiedades de Material...
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
@@ -39,25 +39,25 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openFrameSections()">
                         <span>📐</span>
-                        Frame Sections...
+                        Secciones de Barra...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openWallSlabSections()">
                         <span>🧱</span>
-                        Wall/Slab/Deck Sections...
+                        Secciones de Muro/Losa/Deck...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openLinkProperties()">
                         <span>🔗</span>
-                        Link Properties...
+                        Propiedades de Link...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openHingeProperties()">
                         <span>🌀</span>
-                        Frame Nonlinear Hinge Properties...
+                        Propiedades de Rótula No Lineal de Barra...
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
@@ -69,19 +69,19 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openDiaphragms()">
                         <span>🏢</span>
-                        Diaphragms...
+                        Diafragmas...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openGroups()">
                         <span>👥</span>
-                        Groups...
+                        Grupos...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openSectionCuts()">
                         <span>✂️</span>
-                        Section Cuts...
+                        Cortes de Sección...
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
@@ -93,13 +93,13 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openResponseSpectrumFunctions()">
                         <span>📊</span>
-                        Response Spectrum Functions...
+                        Funciones de Espectro de Respuesta...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openTimeHistoryFunctions()">
                         <span>⏱️</span>
-                        Time History Functions...
+                        Funciones de Historia en el Tiempo...
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
@@ -111,31 +111,31 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openLoadCases()">
                         <span>⚖️</span>
-                        Load Patterns...
+                        Patrones de Carga...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openResponseSpectrumCases()">
                         <span>🌊</span>
-                        Response Spectrum Cases...
+                        Casos de Espectro de Respuesta...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openTimeHistoryCases()">
                         <span>📈</span>
-                        Time History Cases...
+                        Casos de Historia en el Tiempo...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openPushoverCases()">
                         <span>📉</span>
-                        Static Nonlinear/Pushover Cases...
+                        Casos Estáticos No Lineales/Pushover...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openSequentialConstruction()">
                         <span>🏗️</span>
-                        Add Sequential Construction Case
+                        Agregar Caso de Construcción Secuencial
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
@@ -148,25 +148,25 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openLoadCombinations()">
                         <span>🔢</span>
-                        Load Combinations...
+                        Combinaciones de Carga...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.addDefaultDesignCombos()">
                         <span>📋</span>
-                        Add Default Design Combos...
+                        Agregar Combos de Diseño por Defecto...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.convertCombosToNonlinear()">
                         <span>🔄</span>
-                        Convert Combos to Nonlinear Cases...
+                        Convertir Combos a Casos No Lineales...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openSeismicEffects()">
                         <span>🌍</span>
-                        Special Seismic Load Effects...
+                        Efectos Especiales de Carga Sísmica...
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
@@ -179,7 +179,7 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openMassSource()">
                         <span>⚖️</span>
-                        Mass Source...
+                        Fuente de Masa...
                     </button>
 
                 </div>
