@@ -133,6 +133,9 @@ export const referenceGridMixin = {
     if (!targetGrid) return;
 
     const ref = targetGrid;
+    this._ensureReferenceGridDefaults(ref);
+    const originX = ref.originX;
+    const originY = ref.originY;
 
     const customLines = Array.isArray(ref.generalGrids) ? ref.generalGrids.filter((g) => g.source === "custom") : [];
 
@@ -140,16 +143,20 @@ export const referenceGridMixin = {
 
     const yValues = Array.isArray(ref.yGrids) ? ref.yGrids.map((g) => Number(g.ordinate) || 0) : [];
 
-    const minX = xValues.length ? Math.min(...xValues) : 0;
-    const maxX = xValues.length ? Math.max(...xValues) : 10;
-    const minY = yValues.length ? Math.min(...yValues) : 0;
-    const maxY = yValues.length ? Math.max(...yValues) : 10;
+    const minY = (yValues.length ? Math.min(...yValues) : 0) + originY;
+    const maxY = (yValues.length ? Math.max(...yValues) : 10) + originY;
+    const minX = (xValues.length ? Math.min(...xValues) : 0) + originX;
+    const maxX = (xValues.length ? Math.max(...xValues) : 10) + originX;
 
+    // System Origin: mismo desplazamiento que rebuildReferenceGridCaches()
+    // — estas x1/y1/x2/y2 son las que dibuja drawPlanGrid() en el canvas.
+    // Las líneas `custom` (diagonales) se dejan sin tocar (ver comentario
+    // en rebuildReferenceGridCaches).
     const xLines = (ref.xGrids || []).map((g) => ({
       id: g.id,
-      x1: Number(g.ordinate) || 0,
+      x1: Number(g.ordinate) + originX,
       y1: minY,
-      x2: Number(g.ordinate) || 0,
+      x2: Number(g.ordinate) + originX,
       y2: maxY,
       visible: g.visible !== false,
       bubbleLoc: g.bubbleLoc || "End",
@@ -159,9 +166,9 @@ export const referenceGridMixin = {
     const yLines = (ref.yGrids || []).map((g) => ({
       id: g.id,
       x1: minX,
-      y1: Number(g.ordinate) || 0,
+      y1: Number(g.ordinate) + originY,
       x2: maxX,
-      y2: Number(g.ordinate) || 0,
+      y2: Number(g.ordinate) + originY,
       visible: g.visible !== false,
       bubbleLoc: g.bubbleLoc || "Start",
       source: "y",
@@ -170,8 +177,8 @@ export const referenceGridMixin = {
     ref.generalGrids = [...xLines, ...yLines, ...customLines];
 
     // Compatibilidad con tu sistema actual
-    ref.xPositions = (ref.xGrids || []).map((g) => Number(g.ordinate) || 0);
-    ref.yPositions = (ref.yGrids || []).map((g) => Number(g.ordinate) || 0);
+    ref.xPositions = (ref.xGrids || []).map((g) => Number(g.ordinate) + originX);
+    ref.yPositions = (ref.yGrids || []).map((g) => Number(g.ordinate) + originY);
     ref.xLabels = (ref.xGrids || []).map((g) => g.id);
     ref.yLabels = (ref.yGrids || []).map((g) => g.id);
   },
@@ -206,10 +213,25 @@ export const referenceGridMixin = {
     return [...lines].sort((a, b) => Number(a.ordinate) - Number(b.ordinate));
   },
 
+  // Defaults de campos "estilo ETABS" (Grid System Name / Origin / Story
+  // Range) para modelos guardados ANTES de que existieran — se rellenan acá
+  // en vez de en cada sitio que crea un referenceGrid, porque esta función
+  // ya corre en cada mutación de la grilla (single source of truth).
+  _ensureReferenceGridDefaults(ref) {
+    if (ref.name == null) ref.name = "G1";
+    ref.originX = Number(ref.originX) || 0;
+    ref.originY = Number(ref.originY) || 0;
+    ref.rotation = Number(ref.rotation) || 0; // guardado, aún no aplicado (ver ARCHITECTURE)
+    if (ref.storyRangeMode == null) ref.storyRangeMode = "all";
+    if (ref.topStory === undefined) ref.topStory = null;
+    if (ref.bottomStory === undefined) ref.bottomStory = null;
+  },
+
   rebuildReferenceGridCaches() {
     if (!this.referenceGrid) return;
 
     const ref = this.referenceGrid;
+    this._ensureReferenceGridDefaults(ref);
 
     ref.xGrids = this.sortGridsByOrdinate((ref.xGrids || []).map((g, i) => this.normalizeGridLine(g, `X${i + 1}`)));
 
@@ -217,8 +239,12 @@ export const referenceGridMixin = {
 
     ref.generalGrids = (ref.generalGrids || []).map((g, i) => this.normalizeGeneralGridLine(g, `G${i + 1}`));
 
-    ref.xPositions = ref.xGrids.map((g) => Number(g.ordinate));
-    ref.yPositions = ref.yGrids.map((g) => Number(g.ordinate));
+    // System Origin: desplaza TODA la grilla (snap/2D/3D/elevaciones leen
+    // de xPositions/yPositions, nunca de xGrids/yGrids directo — sumar acá
+    // alcanza para todo el sistema). Las líneas `custom` (diagonales) NO se
+    // desplazan: quedan en coordenadas absolutas, igual que antes.
+    ref.xPositions = ref.xGrids.map((g) => Number(g.ordinate) + ref.originX);
+    ref.yPositions = ref.yGrids.map((g) => Number(g.ordinate) + ref.originY);
     ref.xLabels = ref.xGrids.map((g) => g.id);
     ref.yLabels = ref.yGrids.map((g) => g.id);
   },
