@@ -235,7 +235,6 @@ export const seismicResultsMixin = {
     if (!Array.isArray(rows) || rows.length === 0) return [];
 
     const rowByDir = (dir) => rows.find((r) => String(r?.direction || "").toUpperCase() === dir) || {};
-    const findShear = (dir) => Number(rowByDir(dir)?.base_shear_N) || 0;
 
     const caseName =
       this.seismicResults?._caseName ||
@@ -243,13 +242,18 @@ export const seismicResultsMixin = {
       rows[0]?.case ||
       "SPEC";
 
-    // Momentos de base (volteo MX/MY + torsión MZ). Cada componente recibe
-    // aporte de AMBAS ramas RSA del caso: la rama X (ya escalada por U1) y la
-    // rama Y (ya escalada por U2 — p.ej. 0.30 en un caso 100/30), combinadas
+    // Reacciones de base estilo ETABS. Cada componente (FX, FY, MX, MY, MZ)
+    // recibe aporte de AMBAS ramas RSA del caso: la rama X (escalada por U1) y
+    // la rama Y (escalada por U2 — p.ej. 0.30 en un caso 100/30), combinadas
     // por SRSS = la MISMA combinación direccional que ETABS y que ya usan las
-    // derivas. Sin esto, el volteo ACOPLADO (MX de SDX = 30% del volteo Y
-    // primario) faltaba y salía ~3× bajo. FX/FY NO se combinan entre sí: son
-    // componentes distintos (reacción en X vs en Y), cada uno de su rama.
+    // derivas.
+    //
+    // CLAVE (fix cortante acoplado): FX se arma con la componente FX de CADA
+    // rama (base_shear_fx_N), NO con el cortante basal "primario" de cada
+    // dirección. La rama Y aporta una FX ACOPLADA (reacción X bajo excitación
+    // Y) que en modelos con muros es grande — antes se ignoraba (se usaba
+    // base_shear_N, solo la componente primaria) y la reacción cruzada salía
+    // ~2.5× baja vs ETABS. Ídem FY con la componente FY de cada rama.
     const xRow = rowByDir("X");
     const yRow = rowByDir("Y");
     const srss = (a, b) => Math.sqrt((Number(a) || 0) ** 2 + (Number(b) || 0) ** 2);
@@ -259,8 +263,10 @@ export const seismicResultsMixin = {
         output_case: String(caseName),
         case_type: "LinRespSpec",
         step_type: "Max",
-        fx_N: findShear("X"),
-        fy_N: findShear("Y"),
+        // Fallback (backend antiguo sin componentes acopladas): usa el cortante
+        // primario de cada rama → reproduce el comportamiento previo, no da 0.
+        fx_N: srss(xRow?.base_shear_fx_N ?? xRow?.base_shear_N, yRow?.base_shear_fx_N ?? 0),
+        fy_N: srss(yRow?.base_shear_fy_N ?? yRow?.base_shear_N, xRow?.base_shear_fy_N ?? 0),
         fz_N: 0,
         mx_Nm: srss(xRow?.base_moment_mx_Nm, yRow?.base_moment_mx_Nm),
         my_Nm: srss(xRow?.base_moment_my_Nm, yRow?.base_moment_my_Nm),

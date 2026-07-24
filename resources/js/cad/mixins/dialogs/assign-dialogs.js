@@ -2209,6 +2209,92 @@ export const assignDialogsMixin = {
   },
 
   // =====================================================
+  // ASSIGN > SHELL > WALL SECTION (espejo de SLAB SECTION arriba)
+  // Espesor + material acá NO son solo decorativos como en una losa: definen
+  // el panel shell que arma el motor sísmico (ver payload.js
+  // _buildSeismicWallsForPayload) — sin sección asignada, el muro queda
+  // fuera del análisis sísmico (mismo criterio que "losa sin sección").
+  // =====================================================
+  _wallAssignData() {
+    const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
+    const selected = this.getSelectedAreasForAssign().filter(
+      (a) => (a.areaType || a.type) === "wall",
+    );
+    const allWalls = (this.areas || []).filter(
+      (a) => (a.areaType || a.type) === "wall" && Array.isArray(a.points) && a.points.length >= 3,
+    );
+    const byZ = new Map();
+    allWalls.forEach((a) => {
+      const z = r2(a.z ?? (a.points.reduce((s, p) => s + (Number(p.z) || 0), 0) / a.points.length));
+      if (!byZ.has(z)) byZ.set(z, []);
+      byZ.get(z).push(a);
+    });
+    const floors = [...byZ.keys()].sort((a, b) => a - b);
+    const scopes = [];
+    if (selected.length) scopes.push({ value: "selected", label: `Muros seleccionados (${selected.length})` });
+    scopes.push({ value: "all", label: `Todos los muros (${allWalls.length})` });
+    floors.forEach((z) => scopes.push({ value: `z:${z}`, label: `Piso z=${z} m (${byZ.get(z).length} muro/s)` }));
+    return { selected, allWalls, byZ, scopes };
+  },
+
+  _resolveWallScopeTarget(scope) {
+    const { selected, allWalls, byZ } = this._wallAssignData();
+    if (scope === "selected") return selected;
+    if (String(scope).startsWith("z:")) return byZ.get(Number(String(scope).slice(2))) || [];
+    return allWalls;
+  },
+
+  // Migración del patrón slab-section-modal: HTML en components/cad/modals/wall-section-modal.blade.php.
+  openAssignWallSectionDialog() {
+    const { allWalls, scopes } = this._wallAssignData();
+    if (!allWalls.length) {
+      this.showMessage?.("No hay muros en el modelo. Dibuja muros primero.", "warning");
+      return;
+    }
+    const sections = Array.isArray(this.wallSections) ? this.wallSections : [];
+    if (!sections.length) {
+      this.showMessage?.("No hay secciones de muro definidas. Ábrelas en Define → Wall Sections.", "warning");
+      window.dispatchEvent(new CustomEvent("open-wall-sections-modal"));
+      return;
+    }
+    window.dispatchEvent(new CustomEvent("open-wall-section-modal", {
+      detail: {
+        scopes,
+        sections: sections.map((s) => ({ name: s.name, label: `${s.name} (${s.thickness} mm)` })),
+      },
+    }));
+  },
+
+  applyWallSectionFromModal(scope, name) {
+    const sections = Array.isArray(this.wallSections) ? this.wallSections : [];
+    const target = this._resolveWallScopeTarget(scope);
+    const sec = name === "__none__" ? null : sections.find((s) => s.name === name);
+
+    this.saveUndoState?.("Asignar sección de muro");
+    target.forEach((wall) => {
+      wall.wallSection = sec ? sec.name : null;
+      wall.wallSelfWeightKgM2 = sec ? this._wallSectionSelfWeightKgM2(sec) : 0;
+      wall.section = sec ? { name: sec.name, thickness: sec.thickness, material: sec.material } : null;
+    });
+    this.markAnalysisResultsOutdated?.("Se asignó sección de muro.");
+    this.redraw?.();
+    this.showMessage?.(`Sección "${name === "__none__" ? "None" : name}" asignada a ${target.length} muro(s).`);
+  },
+
+  // Peso propio de una sección de muro en kgf/m² = espesor(m) × densidad(kg/m³).
+  _wallSectionSelfWeightKgM2(sec) {
+    if (!sec) return 0;
+    const explicit = Number(sec.selfWeightKgM2);
+    if (explicit > 0) return explicit;
+    const t = (Number(sec.thickness) || 0) / 1000; // mm → m
+    const mats = this.materialProperties?.materials || [];
+    const mat = mats.find((m) => m.name === sec.material);
+    const mpv = Number(mat?.massPerUnitVolume);
+    const rho = (mpv > 0 && mpv < 1e-3) ? mpv * 1e12 : 2400;
+    return t * rho;
+  },
+
+  // =====================================================
   // ASSIGN > JOINT / POINT LOADS > GROUND DISPLACEMENT
   // =====================================================
 

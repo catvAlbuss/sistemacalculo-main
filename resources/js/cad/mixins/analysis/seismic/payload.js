@@ -55,6 +55,38 @@ export const seismicPayloadMixin = {
     return { E, G, materialName: mat?.name || null };
   },
 
+  // Resuelve E, G, poissonRatio y peso unitario (N/m³) para un MURO por el
+  // nombre de su material (wall.section.material — string, ver
+  // wall-sections-modal.blade.php). A diferencia de _resolveFrameMaterial no
+  // hay indirección por "sección de frame"; el muro referencia el material
+  // directo. G se deriva de E/poissonRatio cuando el material no trae G
+  // explícito (isotrópico: G = E / (2·(1+ν))), necesario para el elemento
+  // shell (ElasticIsotropic) en el motor.
+  _resolveWallMaterial(materialName) {
+    const mats = this.materialProperties?.materials || [];
+    let mat = materialName ? mats.find((m) => String(m.name) === String(materialName)) : null;
+    if (!mat && mats.length === 1) mat = mats[0];
+    if (!mat) {
+      mat = mats.find((m) =>
+        String(m.designType || "").toLowerCase() === "concrete" ||
+        /conc/i.test(String(m.name || "")));
+    }
+
+    const E = this._normalizeModulus(mat?.modulusElasticity ?? mat?.E) ?? 200e9;
+
+    let poissonRatio = this._numberForSeismic(mat?.poissonRatio ?? mat?.poisson ?? mat?.u, null);
+    if (poissonRatio === null || poissonRatio <= 0 || poissonRatio >= 0.5) poissonRatio = 0.2;
+
+    const G = this._normalizeModulus(mat?.shearModulus ?? mat?.G) ?? (E / (2 * (1 + poissonRatio)));
+
+    // Mismo criterio que _getFrameUnitWeightForSeismic: weightPerUnitVolume
+    // del diálogo de materiales viene en N/mm³ (~2.4e-5) → ×1e9 = N/m³.
+    const wNmm3 = this._numberForSeismic(mat?.weightPerUnitVolume, null) ?? this._numberForSeismic(mat?.weight, null);
+    const unitWeightNPerM3 = (wNmm3 !== null && wNmm3 > 0 && wNmm3 < 1) ? wNmm3 * 1e9 : 24000;
+
+    return { E, G, poissonRatio, unitWeightNPerM3, name: mat?.name || materialName || null };
+  },
+
   // ─── Diafragmas rígidos para análisis sísmico ─────────────────────────────
   _getNodeZForSeismic(node) {
     return Number(node?.position?.z ?? node?.z ?? 0);
@@ -888,8 +920,12 @@ export const seismicPayloadMixin = {
   _buildSeismicAreaLoadsForPayload(areas = []) {
     const g = 9.81;
     const out = [];
+    // Explícito por areaType — antes filtraba cualquier área con >=3 puntos y
+    // los muros quedaban afuera solo por accidente (su proyección en planta
+    // XY da área ~0, ver _planArea). Los muros van por su propio camino:
+    // _buildSeismicWallsForPayload (shell elements), no por acá.
     const slabs = (areas || []).filter(
-      (a) => Array.isArray(a?.points) && a.points.length >= 3,
+      (a) => (a.areaType || a.type || "slab") === "slab" && Array.isArray(a?.points) && a.points.length >= 3,
     );
     for (const slab of slabs) {
       const areaLoads = Array.isArray(slab.areaLoads)
@@ -943,6 +979,39 @@ export const seismicPayloadMixin = {
       }
     }
     return out;
+  },
+
+  // Panel de muro → payload `walls[]` para el motor (shell elements). No pasa
+  // por acá la masa/rigidez del frame — el backend malla cada muro con
+  // ShellMITC4 y calcula su propia masa (área × espesor × peso unitario) y
+  // rigidez (E, G, poissonRatio, espesor). Un muro SIN sección asignada
+  // (wall.section == null) se omite: mismo criterio que una losa sin sección
+  // no aporta peso propio.
+  _buildSeismicWallsForPayload(areas = []) {
+    const walls = (areas || []).filter(
+      (a) => (a.areaType || a.type) === "wall" &&
+        a.section &&
+        Array.isArray(a.points) &&
+        a.points.length === 4,
+    );
+
+    return walls
+      .map((wall) => {
+        const material = this._resolveWallMaterial(wall.section?.material);
+        const thickness = (Number(wall.section?.thickness) || 0) / 1000; // mm → m
+
+        return {
+          id: Number(wall.id),
+          corners: wall.points.map((p) => ({
+            x: Number(p.x) || 0,
+            y: Number(p.y) || 0,
+            z: Number(p.z) || 0,
+          })),
+          thickness,
+          material,
+        };
+      })
+      .filter((w) => w.thickness > 0);
   },
 
   // Peso propio de columnas/vigas → carga muerta CM automática (mismo criterio
@@ -1809,6 +1878,7 @@ export const seismicPayloadMixin = {
     const payload = {
       nodes: nodeList,
       elements: elemList,
+      walls: this._buildSeismicWallsForPayload(this.areas || []),
       supports,
 
       loads,

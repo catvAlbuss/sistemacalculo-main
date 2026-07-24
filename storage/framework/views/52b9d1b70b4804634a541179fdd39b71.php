@@ -188,112 +188,190 @@
   </div>
 
   
-  <div id="grid-editor-modal" hidden style="
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.35);
-    z-index: 9999;
-    display: none;
-    align-items: center;
-    justify-content: center;
-  ">
-    <div style="
-      width: 1200px;
-      max-width: 96vw;
-      max-height: 90vh;
-      overflow: auto;
-      background: #ffffff;
-      border-radius: 10px;
-      padding: 18px;
-      box-shadow: 0 12px 30px rgba(0,0,0,0.25);
-    ">
-      <h2 style="margin-top: 0; color: #111827;">Grid System Data</h2>
-      <div style="display:flex; gap:20px; align-items:center; margin-bottom:16px;">
-        <label style="display:flex; align-items:center; gap:6px; color:#111827;">
-          <input type="radio" name="grid-display-mode" id="grid-mode-ordinates" value="ordinates" checked>
-          Display Grid Data as Ordinates
-        </label>
+  <div id="grid-editor-modal" hidden
+    style="position:fixed; inset:0; z-index:9999; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.5)">
 
-        <label style="display:flex; align-items:center; gap:6px; color:#111827;">
-          <input type="radio" name="grid-display-mode" id="grid-mode-spacing" value="spacing">
-          Display Grid Data as Spacing
-        </label>
+    <div class="bg-gray-800 rounded-lg shadow-xl border border-gray-700 flex flex-col" style="width:1280px; max-width:96vw; max-height:92vh">
+      <div class="flex items-center justify-between px-4 py-2 border-b border-gray-700 bg-gray-900 rounded-t-lg">
+        <h3 class="text-sm font-semibold text-white">Sistema de Grillas (Grid System Data)</h3>
       </div>
 
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px;">
-        <section>
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="color: #111827;">X Grid Data</h3>
-            <button id="btn-add-x-grid" type="button">Agregar X</button>
+      <div class="p-4 text-sm text-gray-200 overflow-auto">
+
+        <?php
+          $pendingBadge = '<span class="ml-1.5 px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 text-[9px] font-bold uppercase tracking-wide align-middle">Pendiente</span>';
+        ?>
+
+        
+        <div class="grid gap-4 mb-4 items-start" style="grid-template-columns: minmax(0,0.85fr) minmax(0,0.9fr) minmax(0,0.7fr) minmax(220px,300px)">
+
+          
+          <div class="flex flex-col gap-2.5">
+            <div class="bg-gray-900 border border-gray-700 rounded p-2.5">
+              <label class="block text-[11px] uppercase text-gray-400 mb-1">Nombre del sistema</label>
+              <input id="grid-system-name" type="text"
+                class="w-full rounded border border-gray-600 bg-gray-700 px-2 py-1 text-sm text-white" value="G1">
+            </div>
+
+            <div class="bg-gray-900 border border-gray-700 rounded p-2.5">
+              <p class="text-[11px] uppercase text-gray-400 mb-1.5">Origen del sistema</p>
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-2">
+                  <label for="grid-origin-x" class="text-xs text-gray-300 w-14 shrink-0">Global X</label>
+                  <input id="grid-origin-x" type="number" step="any"
+                    class="min-w-0 flex-1 rounded border border-gray-600 bg-gray-700 px-2 py-1 text-sm text-white" value="0">
+                  <span class="text-[10px] text-gray-500 w-3 shrink-0">m</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <label for="grid-origin-y" class="text-xs text-gray-300 w-14 shrink-0">Global Y</label>
+                  <input id="grid-origin-y" type="number" step="any"
+                    class="min-w-0 flex-1 rounded border border-gray-600 bg-gray-700 px-2 py-1 text-sm text-white" value="0">
+                  <span class="text-[10px] text-gray-500 w-3 shrink-0">m</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <label class="text-xs text-gray-500 w-14 shrink-0">Rotación</label>
+                  <input type="number" disabled title="Requiere rediseñar el motor de grilla para grillas no alineadas a los ejes."
+                    class="min-w-0 flex-1 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm text-gray-500 cursor-not-allowed" value="0">
+                  <span class="text-[10px] text-gray-500 w-3 shrink-0">°</span>
+                </div>
+              </div>
+              <div class="mt-1.5"><?php echo $pendingBadge; ?></div>
+            </div>
           </div>
 
-          <table class="w-full border-collapse text-sm" border="1" width="100%" cellspacing="0" cellpadding="6" style="color:#111827;">
-            <thead style="background:#f3f4f6;">
-              <tr>
-                <th>Grid ID</th>
-                <th>X Ordinate</th>
-                <th>Visible</th>
-                <th>Bubble Loc</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="x-grid-body"></tbody>
-          </table>
-        </section>
-
-        <section>
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="color: #111827;">Y Grid Data</h3>
-            <button id="btn-add-y-grid" type="button">Agregar Y</button>
+          
+          <div class="bg-gray-900 border border-gray-700 rounded p-2.5">
+            <p class="text-[11px] uppercase text-gray-400 mb-1">Pisos donde aplica <?php echo $pendingBadge; ?></p>
+            <label class="flex items-center gap-1.5 text-xs text-gray-300 mb-1">
+              <input class="accent-blue-600" type="radio" name="grid-story-range" id="grid-story-range-all" value="all" checked>
+              Todos los pisos (por defecto)
+            </label>
+            <label class="flex items-center gap-1.5 text-xs text-gray-300 mb-1.5">
+              <input class="accent-blue-600" type="radio" name="grid-story-range" id="grid-story-range-custom" value="custom">
+              Solo entre estos pisos
+            </label>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="text-[11px] text-gray-400">Piso superior
+                <select id="grid-top-story" disabled
+                  class="mt-0.5 w-full rounded border border-gray-600 bg-gray-700 px-1.5 py-1 text-xs text-white"></select>
+              </label>
+              <label class="text-[11px] text-gray-400">Piso inferior
+                <select id="grid-bottom-story" disabled
+                  class="mt-0.5 w-full rounded border border-gray-600 bg-gray-700 px-1.5 py-1 text-xs text-white"></select>
+              </label>
+            </div>
+            <p class="text-[10px] text-gray-500 mt-1.5">Se guarda, aún no oculta la grilla fuera de este rango.</p>
           </div>
 
-          <table class="w-full border-collapse text-sm" border="1" width="100%" cellspacing="0" cellpadding="6" style="color:#111827;">
-            <thead style="background:#f3f4f6;">
-              <tr>
-                <th>Grid ID</th>
-                <th>Y Ordinate</th>
-                <th>Visible</th>
-                <th>Bubble Loc</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="y-grid-body"></tbody>
-          </table>
-        </section>
-      </div>
+          
+          <div class="bg-gray-900 border border-gray-700 rounded p-2.5">
+            <p class="text-[11px] uppercase text-gray-400 mb-1.5">Referencias <?php echo $pendingBadge; ?></p>
+            <div class="flex flex-col gap-1.5">
+              <button id="btn-grid-reference-points" type="button"
+                class="px-2 py-1.5 rounded text-xs bg-gray-700 border border-gray-600 text-gray-200 hover:bg-gray-600">Puntos de referencia...</button>
+              <button id="btn-grid-reference-planes" type="button"
+                class="px-2 py-1.5 rounded text-xs bg-gray-700 border border-gray-600 text-gray-200 hover:bg-gray-600">Planos de referencia...</button>
+            </div>
+          </div>
 
-      <section>
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <h3 style="color: #111827;">General Grids</h3>
-          <button id="btn-add-general-grid" type="button">Agregar grids diagonales</button>
+          
+          <div class="bg-gray-900 border border-gray-700 rounded p-2.5 flex flex-col">
+            <svg id="grid-preview-svg" class="flex-1 w-full rounded border border-gray-700" style="background:#0f172a; min-height:150px"></svg>
+            <p class="text-center text-[10px] text-gray-500 mt-1">Vista previa</p>
+          </div>
         </div>
 
-        <table class="w-full border-collapse text-sm" border="1" width="100%" cellspacing="0" cellpadding="6" style="color:#111827;">
-          <thead style="background:#f3f4f6;">
-            <tr>
-              <th>Grid ID</th>
-              <th>X1</th>
-              <th>Y1</th>
-              <th>X2</th>
-              <th>Y2</th>
-              <th>Visible</th>
-              <th>Bubble Loc</th>
-              <th>Source</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="general-grid-body"></tbody>
-        </table>
+        <div class="flex gap-5 items-center mb-4">
+          <label class="flex items-center gap-1.5 text-gray-200">
+            <input class="accent-blue-600" type="radio" name="grid-display-mode" id="grid-mode-ordinates" value="ordinates" checked>
+            Ver como posición desde el origen
+          </label>
 
-        <p style="margin-top:10px; color:#555;">
-          Las líneas con source <strong>x</strong> y <strong>y</strong> se editan desde X Grid Data y Y Grid Data.
-          Las líneas con source <strong>custom</strong> sirven para grillas inclinadas o no ortogonales.
-        </p>
-      </section>
+          <label class="flex items-center gap-1.5 text-gray-200">
+            <input class="accent-blue-600" type="radio" name="grid-display-mode" id="grid-mode-spacing" value="spacing">
+            Ver como distancia entre ejes
+          </label>
+        </div>
 
-      <div style="margin-top:18px; display:flex; justify-content:flex-end; gap:10px;">
-        <button id="btn-grid-editor-cancel" type="button">Cancelar</button>
-        <button id="btn-grid-editor-apply" type="button">Aplicar</button>
+        <div class="grid grid-cols-2 gap-5 mb-5">
+          <section>
+            <div class="flex justify-between items-center mb-1">
+              <h4 class="text-xs font-semibold text-gray-300 uppercase">Ejes en X (verticales)</h4>
+              <button id="btn-add-x-grid" type="button"
+                class="px-2 py-1 rounded text-xs bg-gray-700 border border-gray-600 text-gray-200 hover:bg-gray-600">Agregar eje X</button>
+            </div>
+
+            <table class="w-full border-collapse text-xs text-gray-200">
+              <thead class="bg-gray-900">
+                <tr>
+                  <th class="p-2 text-left font-medium text-gray-400">Nombre</th>
+                  <th class="p-2 text-left font-medium text-gray-400">Posición X (m)</th>
+                  <th class="p-2 text-left font-medium text-gray-400">Visible</th>
+                  <th class="p-2 text-left font-medium text-gray-400">Etiqueta</th>
+                  <th class="p-2"></th>
+                </tr>
+              </thead>
+              <tbody id="x-grid-body"></tbody>
+            </table>
+          </section>
+
+          <section>
+            <div class="flex justify-between items-center mb-1">
+              <h4 class="text-xs font-semibold text-gray-300 uppercase">Ejes en Y (horizontales)</h4>
+              <button id="btn-add-y-grid" type="button"
+                class="px-2 py-1 rounded text-xs bg-gray-700 border border-gray-600 text-gray-200 hover:bg-gray-600">Agregar eje Y</button>
+            </div>
+
+            <table class="w-full border-collapse text-xs text-gray-200">
+              <thead class="bg-gray-900">
+                <tr>
+                  <th class="p-2 text-left font-medium text-gray-400">Nombre</th>
+                  <th class="p-2 text-left font-medium text-gray-400">Posición Y (m)</th>
+                  <th class="p-2 text-left font-medium text-gray-400">Visible</th>
+                  <th class="p-2 text-left font-medium text-gray-400">Etiqueta</th>
+                  <th class="p-2"></th>
+                </tr>
+              </thead>
+              <tbody id="y-grid-body"></tbody>
+            </table>
+          </section>
+        </div>
+
+        <section>
+          <div class="flex justify-between items-center mb-1">
+            <h4 class="text-xs font-semibold text-gray-300 uppercase">Grillas diagonales / no ortogonales</h4>
+            <button id="btn-add-general-grid" type="button"
+              class="px-2 py-1 rounded text-xs bg-gray-700 border border-gray-600 text-gray-200 hover:bg-gray-600">Agregar grilla diagonal</button>
+          </div>
+
+          <table class="w-full border-collapse text-xs text-gray-200">
+            <thead class="bg-gray-900">
+              <tr>
+                <th class="p-2 text-left font-medium text-gray-400">Nombre</th>
+                <th class="p-2 text-left font-medium text-gray-400">X1</th>
+                <th class="p-2 text-left font-medium text-gray-400">Y1</th>
+                <th class="p-2 text-left font-medium text-gray-400">X2</th>
+                <th class="p-2 text-left font-medium text-gray-400">Y2</th>
+                <th class="p-2 text-left font-medium text-gray-400">Visible</th>
+                <th class="p-2 text-left font-medium text-gray-400">Etiqueta</th>
+                <th class="p-2"></th>
+              </tr>
+            </thead>
+            <tbody id="general-grid-body"></tbody>
+          </table>
+
+          <p class="mt-2 text-[11px] text-gray-400">
+            Las filas marcadas "Desde grilla X/Y" se editan arriba, en Ejes en X / Ejes en Y — acá solo se agregan
+            grillas inclinadas que no son ni verticales ni horizontales.
+          </p>
+        </section>
+      </div>
+
+      <div class="flex justify-end gap-2 px-4 py-3 border-t border-gray-700">
+        <button id="btn-grid-editor-cancel" type="button"
+          class="px-4 py-1.5 bg-gray-600 hover:bg-gray-500 text-white rounded text-sm">Cancelar</button>
+        <button id="btn-grid-editor-apply" type="button"
+          class="px-5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm">Aplicar</button>
       </div>
     </div>
   </div>

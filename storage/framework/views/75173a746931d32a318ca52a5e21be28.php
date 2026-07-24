@@ -1,4 +1,4 @@
-<?php if (! $__env->hasRenderedOnce('d7f9550b-4028-43af-825e-e6ad3d9fd761')): $__env->markAsRenderedOnce('d7f9550b-4028-43af-825e-e6ad3d9fd761');
+<?php if (! $__env->hasRenderedOnce('fa9a7554-a53a-458e-8bda-10405026cd01')): $__env->markAsRenderedOnce('fa9a7554-a53a-458e-8bda-10405026cd01');
 $__env->startPush('initscripts'); ?>
     <?php echo app('Illuminate\Foundation\Vite')('resources/js/analisis_estructural_de_armaduras.js'); ?>
 <?php $__env->stopPush(); endif; ?>
@@ -225,6 +225,26 @@ $__env->startPush('initscripts'); ?>
 <?php if (isset($__componentOriginal9636c419182beb9ecb979d1af6b2906c)): ?>
 <?php $component = $__componentOriginal9636c419182beb9ecb979d1af6b2906c; ?>
 <?php unset($__componentOriginal9636c419182beb9ecb979d1af6b2906c); ?>
+<?php endif; ?>
+    <?php if (isset($component)) { $__componentOriginalcd759017b3c9204456b9d1b8b7044ea8 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginalcd759017b3c9204456b9d1b8b7044ea8 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.modals.wall-section-modal','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.modals.wall-section-modal'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginalcd759017b3c9204456b9d1b8b7044ea8)): ?>
+<?php $attributes = $__attributesOriginalcd759017b3c9204456b9d1b8b7044ea8; ?>
+<?php unset($__attributesOriginalcd759017b3c9204456b9d1b8b7044ea8); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginalcd759017b3c9204456b9d1b8b7044ea8)): ?>
+<?php $component = $__componentOriginalcd759017b3c9204456b9d1b8b7044ea8; ?>
+<?php unset($__componentOriginalcd759017b3c9204456b9d1b8b7044ea8); ?>
 <?php endif; ?>
     <?php if (isset($component)) { $__componentOriginal1c754ebf1dcda921004e6c1a24ce8bfa = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal1c754ebf1dcda921004e6c1a24ce8bfa = $attributes; } ?>

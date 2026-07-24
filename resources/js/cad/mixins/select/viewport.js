@@ -816,8 +816,14 @@ export const viewportMixin = {
   _defineTodo(nombre) {
     this.showMessage?.(`"${nombre}" está en desarrollo — aún no disponible.`, "info");
   },
-  openWallSlabSections() {
+  // Losas y Muros son secciones separadas (como ETABS: Wall Properties es un
+  // diálogo distinto de Slab Properties, no un combo). Antes un solo botón
+  // "Wall/Slab/Deck Sections..." abría siempre el modal de losas.
+  openSlabSectionsDefine() {
     window.dispatchEvent(new CustomEvent("open-slab-sections-modal"));
+  },
+  openWallSectionsDefine() {
+    window.dispatchEvent(new CustomEvent("open-wall-sections-modal"));
   },
   openLinkProperties() { this._defineTodo("Link Properties"); },
   openHingeProperties() { this._defineTodo("Frame Nonlinear Hinge Properties"); },

@@ -503,7 +503,17 @@ def run_rsa(
     yc = np.array([c[1] for c in coords])
     zc = np.array([c[2] for c in coords])
 
+    # Además de los momentos, se acumulan las COMPONENTES DE FUERZA basal en X e
+    # Y a partir de las MISMAS fuerzas inerciales modales. Esto captura el
+    # cortante ACOPLADO (p.ej. la reacción FX bajo excitación Y, que en modelos
+    # con muros —modos muy acoplados UX/UY— es grande): Σ fx_n bajo excitación Y
+    # = γ_y·Sa·Σ(m_x·φ_x) = componente X acoplada. El cortante basal "clásico"
+    # (_compute_base_shear, vía participación) solo daba la componente PRIMARIA
+    # (la de la dirección excitada) y omitía esta — por eso la reacción cruzada
+    # salía ~2.5× baja vs ETABS. Se combinan entre modos con la MISMA regla
+    # (CQC/SRSS) que momentos y cortante.
     mx_modal, my_modal, mz_modal = [], [], []
+    fx_base_modal, fy_base_modal = [], []
     for idx, mi in enumerate(modal_info):
         Sa_n = interpolate_spectrum(spectrum, mi["period"]) * scale
         gamma_dir = mi["gamma_x"] if direction == "x" else mi["gamma_y"]
@@ -512,6 +522,8 @@ def run_rsa(
         my_modal.append(float(np.sum(fx_n * zc)))
         mx_modal.append(float(np.sum(fy_n * zc)))
         mz_modal.append(float(np.sum(fy_n * xc - fx_n * yc)))
+        fx_base_modal.append(float(np.sum(fx_n)))
+        fy_base_modal.append(float(np.sum(fy_n)))
 
     def _combine_modal_scalar(vals):
         if str(combination or "").upper() == "CQC":
@@ -527,6 +539,8 @@ def run_rsa(
     base_moment_mx = _combine_modal_scalar(mx_modal)
     base_moment_my = _combine_modal_scalar(my_modal)
     base_moment_mz = _combine_modal_scalar(mz_modal)
+    base_shear_fx = _combine_modal_scalar(fx_base_modal)
+    base_shear_fy = _combine_modal_scalar(fy_base_modal)
 
     # ── Empaquetar por nodo ──────────────────────────────────
     displacements = {}
@@ -562,6 +576,10 @@ def run_rsa(
         "base_moment_mx": base_moment_mx,
         "base_moment_my": base_moment_my,
         "base_moment_mz": base_moment_mz,
+        # Componentes de fuerza basal (X e Y) de ESTA rama de excitación,
+        # incluye el acoplamiento cruzado — ver comentario en el loop de arriba.
+        "base_shear_fx": base_shear_fx,
+        "base_shear_fy": base_shear_fy,
         "modal_disps_detail": modal_disps_detail,
         # Desplazamientos POR MODO (en la dirección de este RSA) para la deriva
         # CORRECTA = CQC de las derivas modales por línea de nodos (capta la esquina

@@ -100,6 +100,12 @@
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.activateAssignMenuAction('area-wall-section')">
+                                <span>▮</span>
+                                Sección de Muro...
+                            </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('area-diaphragms')">
                                 <span>🏢</span>
                                 Diafragmas...

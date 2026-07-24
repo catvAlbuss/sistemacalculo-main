@@ -16,6 +16,7 @@
     <x-cad.modals.frame-distributed-load-modal/>
     <x-cad.modals.frame-section-modal/>
     <x-cad.modals.slab-section-modal/>
+    <x-cad.modals.wall-section-modal/>
     <x-cad.modals.area-uniform-load-modal/>
     <x-cad.modals.frame-releases-modal/>
     <x-cad.modals.frame-end-offsets-modal/>

@@ -15,6 +15,8 @@
 // Esta es una simplificación de ingeniería razonable pero debe confirmarla
 // un ingeniero estructural antes de usarse en un cálculo de producción.
 
+import { Shape } from "../model/shapes.js";
+
 export function pointInPolygon(point, polygonPoints) {
   const x = Number(point.x);
   const y = Number(point.y);
@@ -163,17 +165,25 @@ export function normalizeZapatas2Resultados(resultados) {
 
 /**
  * Propiedades geométricas de un polígono de zapata (perímetro, área,
- * momentos de inercia, centroide) + sus puntos. Reusa Shape.calcularPropiedades()
- * / .propiedades() ya definido en resources/js/cad/model/shapes.js — no
- * duplica la matemática.
+ * momentos de inercia, centroide) + sus puntos. Reusa
+ * Shape.calcularPropiedades()/.propiedades() ya definido en
+ * resources/js/cad/model/shapes.js — no duplica la matemática.
+ *
+ * `zapata` puede ser una instancia real de Area (recién dibujada) o un
+ * objeto plano sin métodos: tras abrir/restaurar un modelo desde JSON
+ * (Abrir modelo, autoguardado, Mis modelos), `this.areas` se reconstruye
+ * como objetos literales (ver mixins/io/file-io/json-io.js) que pierden la
+ * clase Area/Shape en el round-trip. Se toma el método directamente del
+ * prototipo de Shape con .call() — funciona igual en ambos casos, sin
+ * necesitar que `zapata` sea un `instanceof Shape`.
  */
 export function buildZapataPolygonProperties(zapatas) {
   return zapatas.map((zapata, index) => {
-    zapata.calcularPropiedades();
+    Shape.prototype.calcularPropiedades.call(zapata);
 
     return {
       name: `Polígono ${index + 1}`,
-      properties: zapata.propiedades(),
+      properties: Shape.prototype.propiedades.call(zapata),
       points: (zapata.points || []).map((point) => ({ x: point.x, y: point.y })),
     };
   });

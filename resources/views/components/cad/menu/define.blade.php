@@ -43,9 +43,15 @@
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
-                        @click="cadSystem.openWallSlabSections()">
+                        @click="cadSystem.openSlabSectionsDefine()">
                         <span>🧱</span>
-                        Secciones de Muro/Losa/Deck...
+                        Secciones de Losa (Slab)...
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click="cadSystem.openWallSectionsDefine()">
+                        <span>▮</span>
+                        Secciones de Muro (Wall)...
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"

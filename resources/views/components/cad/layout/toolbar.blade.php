@@ -259,6 +259,7 @@
   <x-cad.modals.load-combinations-modal />
   <x-cad.modals.mass-source-modal />
   <x-cad.modals.slab-sections-modal />
+  <x-cad.modals.wall-sections-modal />
   <!-- Seccion de analisis -->
   <x-cad.modals.analysis-options-modal />
   <x-cad.modals.check-model-modal />

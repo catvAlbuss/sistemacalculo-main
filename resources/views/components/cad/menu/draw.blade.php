@@ -117,6 +117,11 @@
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click="cadSystem.activateDrawMenuAction('draw-area-slab-rectangle')">
+                        <span>▭</span> Dibujar Losa Rectangular (2 clics)
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.activateDrawMenuAction('draw-area-wall')">
                         <span>▥</span> Dibujar Muro / Panel (Wall)
                     </button>

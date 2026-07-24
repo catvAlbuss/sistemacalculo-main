@@ -47,6 +47,7 @@ import {
   PointDrawingState,
   GridAxisDrawingState,
   ColumnDrawingState,
+  ColumnsRegionState,
   CreateLinesRegionClicksState,
   CreateSecondaryBeamsRegionClicksState,
   ReferencePointDrawingState,
@@ -54,6 +55,8 @@ import {
   SelectedDimensionLinesState,
   ReshapeObjectState,
   AreaDrawingState,
+  WallDrawingState,
+  SlabRegionState,
   SelectedAreasState,
   MoveObjectState,
   MoveGroupState,
@@ -180,7 +183,7 @@ export default () => ({
     forceUnit: "kN",
     modelTolerance: 0.001,
     snapScreenTolerance: 25,
-    snapWorldTolerance: 1.0,
+    snapWorldTolerance: 1.5,
   },
   steelFrameDesign: {
     code: "AISC 360-16",
@@ -236,10 +239,10 @@ export default () => ({
   gridEditor: null,
   activeGridPoint: null,
   statusCoordinates: "X 0.00  Y 0.00  Z 0.00",
-  planGridSnapTolerance: 1.0,
-  planGridSnapScreenTolerance: 25,
+  planGridSnapTolerance: 1.5,
+  planGridSnapScreenTolerance: 30,
   lastMouseScreen: { x: 0, y: 0 },
-
+  
   materialProperties: {
     open: false,
     materials: [],
@@ -577,12 +580,15 @@ export default () => ({
     this.beamDrawingState = new TrussDrawingState(this, "beam");
     this.crossViewFrameDrawingState = new CrossViewFrameDrawingState(this, "beam");
     this.columnDrawingState = new ColumnDrawingState(this);
+    this.columnsRegionState = new ColumnsRegionState(this);
     this.createLinesRegionClicksState = new CreateLinesRegionClicksState(this);
     this.createSecondaryBeamsRegionClicksState = new CreateSecondaryBeamsRegionClicksState(this);
     this.referencePointDrawingState = new ReferencePointDrawingState(this);
     this.dimensionLineDrawingState = new DimensionLineDrawingState(this);
     this.slabDrawingState = new AreaDrawingState(this, "slab");
+    this.slabRegionState = new SlabRegionState(this);
     this.wallDrawingState = new AreaDrawingState(this, "wall");
+    this.wallSegmentDrawingState = new WallDrawingState(this);
     this.openingDrawingState = new AreaDrawingState(this, "opening");
     this.zapataDrawingState = new AreaDrawingState(this, "zapata");
     this.moveObjectState = new MoveObjectState();

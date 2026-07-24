@@ -33,6 +33,27 @@ import { buildVertexSpatialIndex } from "./plan-import.js";
  * - rebuild3DGridSnapPointsSoon(reason) → reconstruye el índice de snap 3D (debounced)
  */
 export const referenceGridMixin = {
+  // Radio de reconocimiento de VÉRTICES (nodo del modelo, intersección de
+  // grid, endpoint de grid general, vértice de plano importado) — a
+  // propósito MÁS GRANDE que getLineSnapScreenTolerance() (usado por los
+  // snaps de "seguir la línea" de referencia: getNearestPlanGridLineSnap,
+  // getNearestPlanGeneralGridSnap, getNearestPlanFrameSnap). Un vértice es un
+  // blanco puntual difícil de acertar con el mouse; deslizar sobre una línea
+  // ya es más fácil de por sí (solo importa la distancia perpendicular).
+  getVertexSnapScreenTolerance() {
+    return (Number(this.planGridSnapScreenTolerance) || 40);
+  },
+
+  // Radio de reconocimiento para "seguir la línea" de referencia (grid,
+  // grid general/custom, línea de viga) — DESACOPLADO de
+  // planGridSnapScreenTolerance a propósito: el usuario lo pidió más chico
+  // que antes (la línea "enganchaba" desde muy lejos, competía de más con
+  // el snap al vértice). Solo mide distancia PERPENDICULAR a la línea, así
+  // que un radio chico ya es cómodo de acertar.
+  getLineSnapScreenTolerance() {
+    return 14;
+  },
+
   // Calcula las cotas (ordinates) de las líneas de grid.
   //   spacing puede ser:
   //     - número  → espaciamiento UNIFORME; genera `count` líneas en 0, s, 2s…
@@ -621,7 +642,7 @@ export const referenceGridMixin = {
     const dyScreen = mouseScreen.y - screenPoint.y;
     const screenDistance = Math.sqrt(dxScreen * dxScreen + dyScreen * dyScreen);
 
-    if (screenDistance > this.planGridSnapScreenTolerance) {
+    if (screenDistance > this.getVertexSnapScreenTolerance()) {
       return null;
     }
 
@@ -750,7 +771,7 @@ export const referenceGridMixin = {
     });
 
     if (!best) return null;
-    if (best.screenDistance > this.planGridSnapScreenTolerance) return null;
+    if (best.screenDistance > this.getVertexSnapScreenTolerance()) return null;
 
     return best;
   },
@@ -812,7 +833,7 @@ export const referenceGridMixin = {
     });
 
     if (!best) return null;
-    if (best.screenDistance > this.planGridSnapScreenTolerance) return null;
+    if (best.screenDistance > this.getLineSnapScreenTolerance()) return null;
 
     return best;
   },
@@ -873,7 +894,7 @@ export const referenceGridMixin = {
     });
 
     if (!best) return null;
-    if (best.screenDistance > this.planGridSnapScreenTolerance) return null;
+    if (best.screenDistance > this.getLineSnapScreenTolerance()) return null;
     return best;
   },
 
@@ -888,7 +909,7 @@ export const referenceGridMixin = {
     if (!xs.length || !ys.length) return null;
 
     const planZ = this.getActivePlanElevation?.() ?? 0;
-    const tol = this.planGridSnapScreenTolerance;
+    const tol = this.getLineSnapScreenTolerance();
 
     const nx = this.getNearestValueWithIndex(xs, mouseWorld.x);
     const ny = this.getNearestValueWithIndex(ys, mouseWorld.y);
@@ -955,7 +976,7 @@ export const referenceGridMixin = {
     // un máximo de celdas) en vez de TODOS los vértices — con un DWG/DXF real
     // (miles de vértices tras expandir bloques/arcos) escanear todo en cada
     // mousemove congelaba el navegador.
-    const worldTolerance = this.planGridSnapScreenTolerance / (this.grid.scaleX || 1);
+    const worldTolerance = this.getVertexSnapScreenTolerance() / (this.grid.scaleX || 1);
     const cellRadius = Math.min(4, Math.max(1, Math.ceil(worldTolerance / cellSize)));
     const cx = Math.floor(mouseWorld.x / cellSize);
     const cy = Math.floor(mouseWorld.y / cellSize);
@@ -979,7 +1000,7 @@ export const referenceGridMixin = {
     }
 
     if (!best) return null;
-    if (best.screenDistance > this.planGridSnapScreenTolerance) return null;
+    if (best.screenDistance > this.getVertexSnapScreenTolerance()) return null;
     return best;
   },
 
@@ -1014,7 +1035,7 @@ export const referenceGridMixin = {
     });
 
     if (!best) return null;
-    if (best.screenDistance > this.planGridSnapScreenTolerance) return null;
+    if (best.screenDistance > this.getVertexSnapScreenTolerance()) return null;
     return best;
   },
 
@@ -1043,17 +1064,32 @@ export const referenceGridMixin = {
     // "región" —CreateLinesRegionClicksState/CreateSecondaryBeamsRegionClicksState—
     // generan las barras a partir de los ejes de grid, no de activeGridPoint,
     // así que no necesitan este snap.)
+    //
+    // OJO: la herramienta general "Frame" (activateDrawFrameTool) NO entra a
+    // trussDrawingState de inmediato al activarla — se queda en idleState y
+    // recién cambia de estado en el PRIMER clic (ver handleMouseDown en
+    // mixins/core/events.js). Sin `this.activeDrawTool === "frame"` acá, el
+    // hover ANTES de ese primer clic usaba un snap reducido (sin nodo/frame/
+    // grid-line), distinto al de Columna (que sí entra a columnDrawingState
+    // apenas se activa) — por eso el snap "cambiaba" recién después de
+    // dibujar el primer nodo. Incluir la bandera del tool activo iguala el
+    // hover al del clic real.
+    // wallSegmentDrawingState (muro de 2 clics estilo ETABS) también necesita
+    // el snap completo: clic sobre línea de grid/viga O sobre vértice/nodo.
     const drawingFrameLine =
       this.currentState === this.trussDrawingState ||
       this.currentState === this.braceDrawingState ||
       this.currentState === this.beamDrawingState ||
-      this.currentState === this.columnDrawingState;
+      this.currentState === this.columnDrawingState ||
+      this.currentState === this.wallSegmentDrawingState ||
+      this.activeDrawTool === "frame";
 
     // Dibujando áreas (losa/muro/abertura) también queremos snap a NODOS (joints)
     // del modelo, para que la losa se apoye exactamente en las columnas, igual
     // que ETABS reconoce joints además de las grillas.
     const drawingArea =
       this.currentState === this.slabDrawingState ||
+      this.currentState === this.slabRegionState ||
       this.currentState === this.wallDrawingState ||
       this.currentState === this.openingDrawingState;
 
@@ -1198,7 +1234,7 @@ export const referenceGridMixin = {
     });
 
     if (!best) return null;
-    if (best.screenDistance > this.planGridSnapScreenTolerance) return null;
+    if (best.screenDistance > this.getVertexSnapScreenTolerance()) return null;
 
     return best;
   },
