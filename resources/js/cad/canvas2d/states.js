@@ -1,6 +1,7 @@
 import { Beam, Node as StructuralNode, Shape, Area } from "../model/shapes.js";
 import { pointDistance, removeFromArray } from "../lib/utils.js";
 import { MOUSE_BUTTONS, isMouseButton } from "../lib/utils.js";
+import { pointInPolygon } from "../engine/foundationContract.js";
 
 export class StateBase {
   constructor() {}
@@ -242,9 +243,17 @@ export class IdleState extends PanAndZoomState {
         selectedParametric: [selectedObject],
       });
     } else if ((selectedObject = context.closestAreaAtActiveView(mouse))) {
-      context.setState(context.selectedAreasState, {
-        selectedAreas: [selectedObject],
-      });
+      // Zapata: clic directo ya la deja editable (vértices arrastrables),
+      // sin pasar por Draw > "Modificar objeto" primero. El resto de áreas
+      // (losa/muro/opening) sigue con su comportamiento normal (solo
+      // selección/borrado) — no es territorio de zapata, no se toca.
+      if (selectedObject.areaType === "zapata") {
+        context.setState(context.reshapeObjectState, { selectedArea: selectedObject });
+      } else {
+        context.setState(context.selectedAreasState, {
+          selectedAreas: [selectedObject],
+        });
+      }
     } else if ((selectedObject = context.closestDimensionLineAtActiveView(mouse))) {
       context.setState(context.selectedDimensionLinesState, {
         selectedDimensionLines: [selectedObject],
@@ -553,9 +562,15 @@ export class SelectedObjectsState extends PanAndZoomState {
           selectedBeams: [selectedObject],
         });
       } else if ((selectedObject = context.closestAreaAtActiveView(mouse))) {
-        context.setState(context.selectedAreasState, {
-          selectedAreas: [selectedObject],
-        });
+        // Mismo criterio que la otra rama de clic: zapata entra directo a
+        // editar vértices; el resto de áreas no se toca.
+        if (selectedObject.areaType === "zapata") {
+          context.setState(context.reshapeObjectState, { selectedArea: selectedObject });
+        } else {
+          context.setState(context.selectedAreasState, {
+            selectedAreas: [selectedObject],
+          });
+        }
       } else if ((selectedObject = context.closestDimensionLineAtActiveView(mouse))) {
         context.setState(context.selectedDimensionLinesState, {
           selectedDimensionLines: [selectedObject],
@@ -747,6 +762,12 @@ export class ReshapeObjectState extends PanAndZoomState {
     this.selectedVertexIndex = null; // para áreas
 
     this.isMoving = false;
+
+    // Solo zapata: mover el polígono completo en bloque (no un vértice) —
+    // ver handleMouseDown/handleMouseMove.
+    this.isMovingWholeArea = false;
+    this._moveStartWorld = null;
+    this._moveStartPoints = null;
   }
 
   enter(args = {}) {
@@ -794,6 +815,10 @@ export class ReshapeObjectState extends PanAndZoomState {
     this.selectedNode = null;
     this.selectedVertexIndex = null;
     this.isMoving = false;
+
+    this.isMovingWholeArea = false;
+    this._moveStartWorld = null;
+    this._moveStartPoints = null;
   }
 
   handleMouseDown(event, context, mouse) {
@@ -841,6 +866,21 @@ export class ReshapeObjectState extends PanAndZoomState {
         this.isMoving = true;
         context.setCursor("grabbing");
         return;
+      }
+
+      // Zapata: si el clic cae DENTRO del polígono (no sobre un vértice),
+      // mueve toda la zapata en bloque en vez de un solo punto. El resto
+      // de áreas no gana este comportamiento — no es territorio de zapata.
+      if (this.selectedArea.areaType === "zapata") {
+        const worldPos = context.grid.screenToWorld(mouse);
+
+        if (pointInPolygon(worldPos, this.selectedArea.points)) {
+          this.isMovingWholeArea = true;
+          this._moveStartWorld = worldPos;
+          this._moveStartPoints = this.selectedArea.points.map((p) => ({ ...p }));
+          context.setCursor("grabbing");
+          return;
+        }
       }
 
       // Si no tocó vértice, intentar cambiar de área
@@ -900,6 +940,25 @@ export class ReshapeObjectState extends PanAndZoomState {
   handleMouseMove(event, context, mouse) {
     PanAndZoomState.prototype.handleMouseMove.call(this, ...arguments);
 
+    // =========================================
+    // Zapata: mover el polígono completo en bloque
+    // =========================================
+    if (this.isMovingWholeArea && this.selectedArea) {
+      const worldPos = context.grid.screenToWorld(mouse);
+      const snapPoint = context.getCurrentSnapPoint(worldPos);
+      const dx = snapPoint.x - this._moveStartWorld.x;
+      const dy = snapPoint.y - this._moveStartWorld.y;
+
+      this.selectedArea.points.forEach((pt, index) => {
+        const start = this._moveStartPoints[index];
+        pt.x = start.x + dx;
+        pt.y = start.y + dy;
+      });
+
+      context.redraw();
+      return;
+    }
+
     if (!this.isMoving) return;
 
     const worldPos = context.grid.screenToWorld(mouse);
@@ -925,17 +984,117 @@ export class ReshapeObjectState extends PanAndZoomState {
       this.selectedVertexIndex !== null &&
       this.selectedArea.points?.[this.selectedVertexIndex]
     ) {
+      let target = snapPoint;
+      if (this.selectedArea.areaType === "zapata") {
+        target = context.options?.orthoMode
+          ? this._orthoLockVertexMove(context, snapPoint, mouse)
+          : this._magnetVertexToCorner(context, snapPoint, mouse) ?? snapPoint;
+      }
+
       const pt = this.selectedArea.points[this.selectedVertexIndex];
-      pt.x = snapPoint.x;
-      pt.y = snapPoint.y;
-      pt.z = snapPoint.z;
+      pt.x = target.x;
+      pt.y = target.y;
+      pt.z = target.z;
 
       context.redraw();
     }
   }
 
+  // Ortho también al EDITAR (no solo al dibujar): bloquea el vértice que se
+  // arrastra a 0°/90°/180°/270° respecto a sus dos vecinos en el polígono
+  // (anterior y siguiente) — mismo criterio de "esquina" que ya usa el
+  // dibujo (getSnapPoint en AreaDrawingState), para poder enderezar una
+  // zapata ya dibujada sin tener que borrarla y rehacerla.
+  //
+  // El diamante (esquina, mezcla X de un vecino + Y del otro) tiene
+  // PRIORIDAD sobre los candidatos de un solo eje cuando el mouse ya está
+  // razonablemente cerca — comparar solo "distancia cruda" no alcanza: un
+  // candidato de un solo eje SIEMPRE sigue al mouse exacto en el eje libre,
+  // así que casi siempre gana esa comparación aunque el diamante sea la
+  // opción correcta. Por eso se revisa el diamante primero, con tolerancia.
+  _orthoLockVertexMove(context, snapPoint, mouse) {
+    const points = this.selectedArea.points;
+    const n = points.length;
+    const i = this.selectedVertexIndex;
+    const prev = points[(i - 1 + n) % n];
+    const next = points[(i + 1) % n];
+
+    if (!prev || !next || prev === next) return snapPoint;
+
+    const corners = [
+      { ...snapPoint, x: prev.x, y: next.y },
+      { ...snapPoint, x: next.x, y: prev.y },
+    ];
+
+    const cornerToleranceScreenPx = 22;
+    const cornerHits = mouse
+      ? corners
+          .map((corner) => ({
+            corner,
+            screenDistance: pointDistance(mouse, context.grid.worldToScreen(corner)),
+          }))
+          .filter((hit) => hit.screenDistance <= cornerToleranceScreenPx)
+          .sort((a, b) => a.screenDistance - b.screenDistance)
+      : [];
+
+    if (cornerHits.length) {
+      return cornerHits[0].corner;
+    }
+
+    const axisCandidates = [
+      { ...snapPoint, y: prev.y },
+      { ...snapPoint, x: prev.x },
+      { ...snapPoint, y: next.y },
+      { ...snapPoint, x: next.x },
+    ];
+
+    axisCandidates.sort((a, b) => pointDistance(snapPoint, a) - pointDistance(snapPoint, b));
+
+    return axisCandidates[0];
+  }
+
+  // Imán con tolerancia (sin necesitar Ortho prendido) — mismo criterio que
+  // el snap de grilla/nodo que ya usa el dibujo de barras
+  // (closestNodeAtActiveView, 10px en pantalla): si el vértice que se
+  // arrastra pasa CERCA de la esquina recta respecto a sus dos vecinos, se
+  // pega ahí; si no, se mueve libre. A diferencia de Ortho (que siempre
+  // fuerza), esto solo actúa cuando ya estás casi ahí.
+  _magnetVertexToCorner(context, snapPoint, mouse) {
+    const points = this.selectedArea.points;
+    const n = points.length;
+    const i = this.selectedVertexIndex;
+    const prev = points[(i - 1 + n) % n];
+    const next = points[(i + 1) % n];
+
+    if (!prev || !next || prev === next) return null;
+
+    const corners = [
+      { ...snapPoint, x: prev.x, y: next.y },
+      { ...snapPoint, x: next.x, y: prev.y },
+    ];
+
+    for (const corner of corners) {
+      const cornerScreen = context.grid.worldToScreen(corner);
+      if (pointDistance(mouse, cornerScreen) <= 10) {
+        return corner;
+      }
+    }
+
+    return null;
+  }
+
   handleMouseUp(event, context, mouse) {
     super.handleMouseUp(...arguments);
+
+    if (this.isMovingWholeArea) {
+      this.isMovingWholeArea = false;
+      this._moveStartWorld = null;
+      this._moveStartPoints = null;
+
+      context.setCursor("default");
+      context.sync3D?.();
+      return;
+    }
 
     if (this.isMoving) {
       this.isMoving = false;
@@ -953,6 +1112,19 @@ export class ReshapeObjectState extends PanAndZoomState {
   }
 
   handleKeyDown(event, context) {
+    // Ortho también con F8 al editar (no solo al dibujar), para poder
+    // enderezar una zapata sin ir hasta el botón del side-panel.
+    if (event.key === "F8" && this.selectedArea?.areaType === "zapata") {
+      event.preventDefault();
+      context.options.orthoMode = !context.options.orthoMode;
+      context.showMessage?.(
+        context.options.orthoMode ? "Ortho activado (F8)." : "Ortho desactivado (F8).",
+        "info"
+      );
+      context.redraw();
+      return;
+    }
+
     if (event.key === "Escape") {
       context.setState(context.idleState);
       return;
@@ -982,8 +1154,16 @@ export class ReshapeObjectState extends PanAndZoomState {
       return "Arrastra el vértice seleccionado del área. Usa Esc para salir.";
     }
 
+    if (this.isMovingWholeArea) {
+      return "Arrastrando la zapata completa. Usa Esc para salir.";
+    }
+
     if (this.selectedBeam) {
       return 'Haz clic en uno de los extremos de la barra para moverlo. "Supr" para eliminar.';
+    }
+
+    if (this.selectedArea?.areaType === "zapata") {
+      return 'Arrastra un vértice para moverlo solo, o el interior de la zapata para moverla completa. "Supr" para eliminar.';
     }
 
     if (this.selectedArea) {
@@ -4168,18 +4348,40 @@ export class AreaDrawingState extends PanAndZoomState {
       const last = this.points[this.points.length - 1];
       const first = this.points[0];
 
-      const candidates = [
-        { ...snapped, y: last.y },             // horizontal desde el último punto
-        { ...snapped, x: last.x },             // vertical desde el último punto
-        { ...snapped, y: first.y },            // horizontal desde el inicio
-        { ...snapped, x: first.x },            // vertical desde el inicio
+      // El diamante (esquina de cierre) tiene PRIORIDAD sobre los
+      // candidatos de un solo eje cuando el mouse ya está razonablemente
+      // cerca — comparar solo "distancia cruda" no alcanza: un candidato de
+      // un solo eje SIEMPRE sigue al mouse exacto en el eje libre, así que
+      // casi siempre gana esa comparación aunque el diamante sea la opción
+      // correcta. Mismo criterio que ReshapeObjectState::_orthoLockVertexMove.
+      const corners = [
         { ...snapped, x: first.x, y: last.y }, // esquina de cierre: X inicio + Y último
         { ...snapped, x: last.x, y: first.y }, // esquina de cierre: X último + Y inicio
       ];
 
-      candidates.sort((a, b) => pointDistance(snapped, a) - pointDistance(snapped, b));
+      const cornerToleranceScreenPx = 22;
+      const cornerHits = corners
+        .map((corner) => ({
+          corner,
+          screenDistance: pointDistance(mouse, context.grid.worldToScreen(corner)),
+        }))
+        .filter((hit) => hit.screenDistance <= cornerToleranceScreenPx)
+        .sort((a, b) => a.screenDistance - b.screenDistance);
 
-      return candidates[0];
+      if (cornerHits.length) {
+        return cornerHits[0].corner;
+      }
+
+      const axisCandidates = [
+        { ...snapped, y: last.y },  // horizontal desde el último punto
+        { ...snapped, x: last.x },  // vertical desde el último punto
+        { ...snapped, y: first.y }, // horizontal desde el inicio
+        { ...snapped, x: first.x }, // vertical desde el inicio
+      ];
+
+      axisCandidates.sort((a, b) => pointDistance(snapped, a) - pointDistance(snapped, b));
+
+      return axisCandidates[0];
     }
 
     return snapped;

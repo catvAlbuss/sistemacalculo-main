@@ -1614,23 +1614,52 @@ export class DiseñoRenderer {
   }
 
   /**
-   * Guías de alineación estilo AutoCAD para el modo Ortho de "Zapata a mano
-   * alzada": líneas punteadas horizontal/vertical que cruzan todo el canvas
-   * a la altura/posición del punto de inicio y del último punto colocado —
-   * para que el usuario VEA cuándo el cursor está alineado con cualquiera
-   * de los dos anclajes antes de hacer clic (no solo que el valor final
-   * quede forzado). Ver AreaDrawingState::getSnapPoint en canvas2d/states.js.
+   * Guías de alineación estilo AutoCAD para el modo Ortho: líneas punteadas
+   * horizontal/vertical que cruzan todo el canvas a la altura/posición de
+   * cada ancla — para que el usuario VEA cuándo el cursor está alineado
+   * antes de soltar el clic (no solo que el valor final quede forzado).
+   * Dos casos, mismo dibujo:
+   *  - Dibujando "Zapata a mano alzada": anclas = punto de inicio + último
+   *    punto colocado (ver AreaDrawingState::getSnapPoint).
+   *  - Editando (arrastrando un vértice de una zapata ya dibujada): anclas
+   *    = los dos vértices vecinos en el polígono (ver
+   *    ReshapeObjectState::_orthoLockVertexMove).
    */
   drawOrthoGuides(context) {
     if (!context.options?.orthoMode) return;
 
     const state = context.currentState;
-    if (state?.areaType !== "zapata" || !Array.isArray(state.points) || !state.points.length) return;
+    if (!state) return;
 
+    // Caso 1: dibujando una zapata a mano alzada.
+    if (state.areaType === "zapata" && Array.isArray(state.points) && state.points.length) {
+      this._drawOrthoGuideLines(context, [state.points[0], state.points[state.points.length - 1]]);
+      return;
+    }
+
+    // Caso 2: editando un vértice de una zapata ya dibujada.
+    if (
+      state.isMoving &&
+      state.selectedArea?.areaType === "zapata" &&
+      state.selectedVertexIndex !== null &&
+      Array.isArray(state.selectedArea.points)
+    ) {
+      const points = state.selectedArea.points;
+      const n = points.length;
+      const i = state.selectedVertexIndex;
+      const prev = points[(i - 1 + n) % n];
+      const next = points[(i + 1) % n];
+
+      if (prev && next) {
+        this._drawOrthoGuideLines(context, prev === next ? [prev] : [prev, next]);
+      }
+    }
+  }
+
+  _drawOrthoGuideLines(context, anchors) {
     const ctx = context.ctx;
     if (!ctx) return;
 
-    const anchors = [state.points[0], state.points[state.points.length - 1]];
     const drawn = new Set();
 
     ctx.save();
@@ -1657,6 +1686,33 @@ export class DiseñoRenderer {
     });
 
     ctx.setLineDash([]);
+
+    // Marca con un diamante los puntos donde se CRUZAN las guías: las dos
+    // anclas y las dos "esquinas" (mezcla del X de una con el Y de la
+    // otra) — son justo los puntos donde Ortho puede enganchar el
+    // siguiente punto/vértice, para que se vean antes de soltar el clic.
+    if (anchors.length === 2 && anchors[0] !== anchors[1]) {
+      const [a, b] = anchors;
+      const crossings = [a, b, { x: a.x, y: b.y }, { x: b.x, y: a.y }];
+
+      ctx.fillStyle = "#facc15";
+      ctx.strokeStyle = "#78350f";
+      ctx.lineWidth = 1;
+
+      crossings.forEach((point) => {
+        const p = this.projectPoint({ position: point }, context);
+
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y - 5);
+        ctx.lineTo(p.x + 5, p.y);
+        ctx.lineTo(p.x, p.y + 5);
+        ctx.lineTo(p.x - 5, p.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      });
+    }
+
     ctx.restore();
   }
 
@@ -1731,6 +1787,52 @@ export class DiseñoRenderer {
         ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
+      });
+    }
+
+    // =========================
+    // ZAPATA: al mover un vértice, mide en vivo los dos lados que tocan ese
+    // vértice (al anterior y al siguiente) — para ver cuánto se está
+    // estirando cada lado, mismo estilo que drawAreaEdgeLengths (el que ya
+    // se usa al dibujar).
+    // =========================
+    if (
+      state.isMoving &&
+      state.selectedArea?.areaType === "zapata" &&
+      state.selectedVertexIndex !== null &&
+      Array.isArray(state.selectedArea.points) &&
+      state.selectedArea.points.length >= 2
+    ) {
+      const worldPoints = state.selectedArea.points;
+      const n = worldPoints.length;
+      const i = state.selectedVertexIndex;
+      const prevIndex = (i - 1 + n) % n;
+      const nextIndex = (i + 1) % n;
+
+      const neighborIndexes = prevIndex === nextIndex ? [prevIndex] : [prevIndex, nextIndex];
+
+      ctx.font = "10px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      neighborIndexes.forEach((neighborIndex) => {
+        const a = worldPoints[i];
+        const b = worldPoints[neighborIndex];
+        if (!a || !b) return;
+
+        const distance = Math.hypot(Number(b.x) - Number(a.x), Number(b.y) - Number(a.y));
+        const label = `${context.formatOutput ? context.formatOutput(distance, "lengths") : distance.toFixed(2)} m`;
+
+        const pa = this.projectPoint({ position: a }, context);
+        const pb = this.projectPoint({ position: b }, context);
+        const mid = { x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2 };
+
+        const textWidth = ctx.measureText(label).width;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+        ctx.fillRect(mid.x - textWidth / 2 - 3, mid.y - 7, textWidth + 6, 14);
+
+        ctx.fillStyle = "#facc15";
+        ctx.fillText(label, mid.x, mid.y);
       });
     }
 
