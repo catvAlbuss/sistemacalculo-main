@@ -1,6 +1,7 @@
 """seismic.inputs — ENTRADAS: parseo de espectros, soportes, diafragmas, fuente de masa, normalización de unidades y construcción del modelo OpenSees."""
 
 import io
+import math
 import traceback
 import numpy as np
 
@@ -24,8 +25,10 @@ __all__ = [
     "_build_column_depth_map",
     "_build_diaphragm_groups",
     "_build_mass_source_nodal_masses",
+    "_build_wall_mesh_plan",
     "_canonical_load_pattern_name",
     "_choose_diaphragm_retained_node",
+    "_create_wall_shell_elements",
     "_data_wants_rigid_diaphragm_rotation",
     "_data_wants_rigid_diaphragms",
     "_distribute_element_mass_to_nodes",
@@ -1130,6 +1133,279 @@ def _normalize_unit_weight_to_n_m3(value, fallback=24000.0) -> tuple[float, str]
 
     return number, "n_m3"
 
+
+# ── Muros (elementos shell) ────────────────────────────────────────────────
+# Rango de tags dedicado para nodos/elementos SOLO de la malla de muros, para
+# no chocar nunca con los ids que manda el frontend (nodes[]/elements[] usan
+# ids chicos y secuenciales — ver getOrCreateStructuralNode en el frontend).
+WALL_NODE_TAG_BASE = 9_000_000
+WALL_ELEMENT_TAG_BASE = 9_000_000
+# Tamaño de elemento objetivo para el mallado automático (m). Deliberadamente
+# GRANDE — mantiene la mayoría de los muros (1 piso, ~3-5m de ancho x story
+# height ~3m) en malla 1x1 (sin subdividir).
+#
+# Calibración (2026-07-23) CON EL MODELO REAL del usuario (11 muros, edificio
+# de 3 pisos, MODELO (2)2.e2k volcado vía DUMP_SEISMIC_PAYLOAD): probé 6.0m,
+# 3.0m, 1.5m y 1.0m contra los períodos reales de ETABS (T1=0.235, T2=0.219,
+# T3=0.198). Resultado, T1 por tamaño de malla:
+#   6.0m (1x1, sin nodos nuevos) -> 0.2345  (¡a -0.2% de ETABS!)
+#   3.0m ->                         0.2410  (+2.6%)
+#   1.5m ->                         0.2500  (+6.4%)
+#   1.0m ->                         0.2509  (+6.8%)
+# Mallar MÁS FINO ablanda el muro monótonamente (más nodos con solo masa
+# placeholder entre los de columna, más flexibilidad "parásita" del panel) —
+# lo OPUESTO a lo que un comentario anterior de este mismo archivo asumía
+# (que decía que 1x1 salía "demasiado rígida"; esa conclusión salió de un
+# modelo sintético de 2 muros, no de datos reales — quedó refutada acá con el
+# modelo real). 6.0m (1x1 para el caso normal) es el que mejor calza.
+_WALL_TARGET_ELEMENT_SIZE_M = 6.0
+
+# NOTA (2026-07-24): hubo un refinamiento de malla EXTRA para muros en anillo
+# cerrado (_WALL_RING_TARGET_ELEMENT_SIZE_M = 4.0 + detección por puentes de
+# grafo). SE QUITÓ. Estaba sobreajustado a UN solo modelo (33 muros, anillo en
+# los 3 pisos, T1 -4.7% con 6.0m → -1.8% con 4.0m). Al probar un SEGUNDO modelo
+# de anillo real (22 muros, pisos 1 y 3 con hueco en el 2) el refinamiento 4.0m
+# lo dejaba +5.3% (demasiado flexible) mientras 6.0m lo clavaba (+0.0%/+0.2%/
+# +0.5% en T1-3). Los dos anillos preferían mallas OPUESTAS → el refinamiento
+# no era un fix general sino overfit. El modificador de flexión fuera-de-plano
+# (abajo) es la palanca robusta: ablanda la flexión parásita de las esquinas
+# del anillo (que era parte de la sobre-rigidez original) sin sobreajustar.
+# Con malla uniforme 6.0m + modificador 0.1, el modelo de 22 muros queda
+# casi perfecto. Ver [[project_wall_shell_stiffness]] rondas 4-6.
+
+# Modificador de rigidez de flexión FUERA-DEL-PLANO del muro (6º arg de
+# ElasticMembranePlateSection). 1.0 = shell completo (flexión out-of-plane
+# real, sin reducir). <1.0 = acerca el muro a comportamiento MEMBRANA (solo
+# rigidez en el plano), que es como ETABS modela sus muros para sismo.
+#
+# Por qué NO 1.0: validado (2026-07-24) con el payload real de un modelo con
+# muros en UNA sola dirección (3 muros coplanares apilados, plano YZ):
+#   - En-plano (modo Y, la acción de muro de corte): calza casi perfecto con
+#     ETABS con o sin modificador (el modificador NO toca la membrana —
+#     verificado: k_in idéntico para mod=1.0/0.1/0.01).
+#   - Fuera-de-plano (modo X, dirección perpendicular al muro): con shell
+#     completo (1.0) el muro aporta ~3% de rigidez de flexión que ETABS NO
+#     considera → modo 1 salía -3.8%. ETABS trata el muro como membrana ahí.
+# Un modificador <1.0 baja esa rigidez parásita para calzar ETABS sin tocar
+# la acción en-plano (que ya es exacta). No se pone 0.0 exacto para no volver
+# el panel un mecanismo fuera-de-plano (fila de nodos sin restricción → matriz
+# singular); un valor pequeño pero finito da masa/estabilidad sin rigidez
+# apreciable.
+#
+# Barrido con el modelo real (3 muros coplanares, modo 1 = fuera-de-plano):
+#   mod=1.0  -> modo1 -3.8%   (shell completo, demasiado rígido fuera de plano)
+#   mod=0.1  -> modo1 -0.9%   (VALOR ELEGIDO — gran mejora, conservador)
+#   mod=0.05 -> modo1 -0.4%
+#   mod=0.02 -> modo1 -0.1%   (clava este modelo, pero sobreajustado a él)
+# En TODOS los casos el modo en-plano se mantiene ~perfecto (el modificador NO
+# toca la membrana). Se eligió 0.1 y NO 0.02 a propósito: 0.02 clava ESTE
+# modelo pero es sobreajuste a un solo caso (mismo error que casi se comete con
+# el tamaño de malla); 0.1 es una reducción fuerte y defendible (convención
+# usada en la práctica para modificadores de flexión de muros) que retiene algo
+# de rigidez fuera-de-plano por robustez.
+#
+# Validado además con un modelo real de ANILLO CERRADO (22 muros, pisos 1 y 3):
+# con malla uniforme 6.0m + este modificador, T1-3 quedan +0.0%/+0.2%/+0.5% y
+# los 9 modos dentro de ~4% — sin necesidad de refinar la malla del anillo (ese
+# refinamiento se probó y resultó overfit, ver NOTA en _WALL_TARGET_ELEMENT_SIZE_M).
+_WALL_OUT_OF_PLANE_BENDING_MODIFIER = 0.1
+
+
+def _build_wall_mesh_plan(data: dict, nodes: list):
+    """
+    Malla cada muro de `data["walls"]` (4 esquinas + espesor + material) en
+    una grilla de elementos ShellMITC4, interpolando bilinealmente entre las
+    esquinas. Reusa nodos EXISTENTES del frontend cuando una esquina/punto de
+    la malla coincide con uno (así el muro queda conectado al pórtico de
+    barras ahí); crea nodos OpenSees nuevos, con tags en WALL_NODE_TAG_BASE+,
+    para el resto.
+
+    Se ejecuta ANTES de aplicar masas nodales (ver build_model_3d) porque
+    ops.mass(tag, ...) en OpenSees REEMPLAZA la masa del nodo, no la suma: si
+    una esquina de muro coincide con un nodo de columna que ya tiene masa de
+    Mass Source, hay que sumar ambas en Python antes de un único ops.mass().
+
+    Devuelve (wall_node_mass, wall_element_specs, wall_node_ids):
+      - wall_node_mass: dict tag -> [mx, my, mz] en kg, a fusionar con la masa
+        de Mass Source/manual antes de aplicar ops.mass().
+      - wall_element_specs: lista de (eid, n1, n2, n3, n4, sec_tag) lista
+        para crear después de los elementos frame (ver _create_wall_shell_elements).
+      - wall_node_ids: set de tags NUEVOS (no existían en data["nodes"]) — el
+        loop de masas de build_model_3d itera sobre `nodes`, así que estos se
+        aplican aparte.
+    """
+    walls = data.get("walls", []) or []
+    wall_node_mass: dict = {}
+    wall_element_specs: list = []
+    wall_node_ids: set = set()
+
+    if not walls or ops is None:
+        return wall_node_mass, wall_element_specs, wall_node_ids
+
+    def _round_key(x, y, z):
+        return (round(float(x), 3), round(float(y), 3), round(float(z), 3))
+
+    node_lookup = {}
+    for n in nodes:
+        node_lookup[_round_key(n.get("x", 0), n.get("y", 0), n.get("z", 0))] = int(n["id"])
+
+    mat_cache: dict = {}
+    sec_cache: dict = {}
+    next_mat_tag = 1
+    next_sec_tag = 1
+    next_new_node_tag = WALL_NODE_TAG_BASE
+    next_eid = WALL_ELEMENT_TAG_BASE
+
+    for wall in walls:
+        corners = wall.get("corners") or []
+        if len(corners) != 4:
+            continue
+
+        thickness = float(wall.get("thickness", 0) or 0)
+        if thickness <= 0:
+            continue
+
+        material = wall.get("material") or {}
+        E, _ = _normalize_modulus_to_pa(material.get("E", 25e9), 25e9)
+        poisson = float(material.get("poissonRatio", 0.2) or 0.2)
+        if not (0 < poisson < 0.5):
+            poisson = 0.2
+        unit_weight_n_m3 = float(material.get("unitWeightNPerM3", 24000) or 24000)
+
+        def _pt(c):
+            return (float(c.get("x", 0)), float(c.get("y", 0)), float(c.get("z", 0)))
+
+        # Orden esperado del frontend (WallDrawingState.createWallPanel):
+        # p1-abajo, p2-abajo, p2-arriba, p1-arriba — perímetro sin cruces.
+        p00, p10, p11, p01 = (_pt(c) for c in corners)
+
+        length = math.dist(p00, p10)
+        height = math.dist(p00, p01)
+        if length < 1e-3 or height < 1e-3:
+            continue
+
+        nx = max(1, min(4, round(length / _WALL_TARGET_ELEMENT_SIZE_M)))
+        ny = max(1, min(2, round(height / _WALL_TARGET_ELEMENT_SIZE_M)))
+
+        # Sección elástica de shell con modificador de flexión fuera-de-plano
+        # (6º arg de ElasticMembranePlateSection): reduce SOLO la rigidez de
+        # flexión (out-of-plane) dejando la membrana (in-plane) intacta —
+        # equivalente al "bending stiffness modifier" de un muro en ETABS.
+        # Ver _WALL_OUT_OF_PLANE_BENDING_MODIFIER para el porqué del valor.
+        sec_key = (round(E, -3), round(poisson, 3), round(thickness, 4))
+        sec_tag = sec_cache.get(sec_key)
+        if sec_tag is None:
+            sec_tag = next_sec_tag
+            next_sec_tag += 1
+            ops.section(
+                "ElasticMembranePlateSection",
+                sec_tag,
+                E,
+                poisson,
+                thickness,
+                0.0,
+                _WALL_OUT_OF_PLANE_BENDING_MODIFIER,
+            )
+            sec_cache[sec_key] = sec_tag
+
+        # Grilla (ny+1) x (nx+1) por interpolación bilineal de las 4 esquinas.
+        grid_tags = []
+        for row in range(ny + 1):
+            v = row / ny
+            row_tags = []
+            for col in range(nx + 1):
+                u = col / nx
+                x = ((1 - u) * (1 - v) * p00[0] + u * (1 - v) * p10[0]
+                     + u * v * p11[0] + (1 - u) * v * p01[0])
+                y = ((1 - u) * (1 - v) * p00[1] + u * (1 - v) * p10[1]
+                     + u * v * p11[1] + (1 - u) * v * p01[1])
+                z = ((1 - u) * (1 - v) * p00[2] + u * (1 - v) * p10[2]
+                     + u * v * p11[2] + (1 - u) * v * p01[2])
+
+                key = _round_key(x, y, z)
+                tag = node_lookup.get(key)
+                if tag is None:
+                    tag = next_new_node_tag
+                    next_new_node_tag += 1
+                    ops.node(tag, x, y, z)
+                    node_lookup[key] = tag
+                    wall_node_ids.add(tag)
+
+                row_tags.append(tag)
+            grid_tags.append(row_tags)
+
+        # Masa: peso total del panel repartido en partes iguales entre los
+        # nodos de la malla (lumped simple) — mismo espíritu de reparto que
+        # _distribute_element_mass_to_nodes usa para frames. SOLO horizontal
+        # (mx, my) — sin mz. Mismo criterio que ya documenta
+        # _max_dynamic_modes en solver.py ("masa sísmica solo horizontal,
+        # mz=0 en el Mass Source"): darle mz a los nodos de la malla no aporta
+        # nada al RSA (horizontal por definición) y cada nodo con mz>0 cuenta
+        # como un GDL dinámico más para _max_dynamic_modes, disparando la
+        # cantidad de modos pedidos sin necesidad.
+        area = length * height
+        total_mass_kg = area * thickness * (unit_weight_n_m3 / 9.81)
+
+        # Masa del muro SOLO a los nodos de la malla que coinciden con nodos
+        # EXISTENTES del frontend (columnas) — que están en el diafragma del
+        # piso, restringidos en el plano. Todos los nodos EXCLUSIVOS de la
+        # malla (mid-anchura, media altura, interiores) reciben solo masa
+        # placeholder (1e-9).
+        #
+        # Por qué: un nodo de la malla LIBRE (no en diafragma) CON masa
+        # horizontal produce un modo local de baja frecuencia (flexión fuera
+        # del plano del panel, o vibración in-plane del borde) que ETABS no
+        # muestra — ETABS constriñe los nodos de la malla del muro al
+        # diafragma del piso. Con muchos muros esos modos espurios contaminan
+        # los modos globales (validado: modelo del usuario con muros en todo
+        # un piso → 4-5 modos espurios entre 0.17-0.22s, ETABS solo 3 modos
+        # ahí). Al poner la masa solo en los nodos de columna/diafragma, esos
+        # nodos se mueven con la estructura global (no local) y los nodos
+        # libres, casi sin masa, quedan en alta frecuencia (fuera de los modos
+        # pedidos). La RIGIDEZ del panel NO depende de dónde esté la masa, así
+        # que el mallado fino (más flexible, calibrado vs ETABS) se conserva.
+        # Es además lo físicamente correcto: la masa del muro tributa a los
+        # diafragmas, como en ETABS.
+        shared_tags = [t for row in grid_tags for t in row if t not in wall_node_ids]
+        if shared_tags:
+            per_shared = total_mass_kg / len(shared_tags)
+            for tag in shared_tags:
+                acc = wall_node_mass.setdefault(tag, [0.0, 0.0, 0.0])
+                acc[0] += per_shared
+                acc[1] += per_shared
+        # Placeholder mínimo para los nodos exclusivos de la malla (evita
+        # singularidad del eigen-solve; despreciable, no genera modos bajos).
+        for row_tags in grid_tags:
+            for tag in row_tags:
+                if tag in wall_node_ids:
+                    acc = wall_node_mass.setdefault(tag, [0.0, 0.0, 0.0])
+                    acc[0] += 1e-9
+                    acc[1] += 1e-9
+
+        # Elementos: orden antihorario n1(abajo-izq) → n2(abajo-der) →
+        # n3(arriba-der) → n4(arriba-izq) por celda de la grilla.
+        for row in range(ny):
+            for col in range(nx):
+                n1 = grid_tags[row][col]
+                n2 = grid_tags[row][col + 1]
+                n3 = grid_tags[row + 1][col + 1]
+                n4 = grid_tags[row + 1][col]
+                wall_element_specs.append((next_eid, n1, n2, n3, n4, sec_tag))
+                next_eid += 1
+
+    return wall_node_mass, wall_element_specs, wall_node_ids
+
+
+def _create_wall_shell_elements(wall_element_specs: list):
+    """Crea los elementos ShellMITC4 planeados por _build_wall_mesh_plan — se
+    llama DESPUÉS del loop de elementos frame en build_model_3d (los nodos ya
+    existen para ambos casos en ese punto)."""
+    if ops is None:
+        return
+    for eid, n1, n2, n3, n4, sec_tag in wall_element_specs:
+        ops.element("ShellMITC4", eid, n1, n2, n3, n4, sec_tag)
+
+
 def build_model_3d(data: dict):
     """
     Construye el modelo OpenSees 3D (6 DOF/nodo) a partir del payload del CAD.
@@ -1161,6 +1437,13 @@ def build_model_3d(data: dict):
             float(n.get("y", 0)),
             float(n.get("z", 0)),
         )
+
+    # ── Muros (malla shell) ─────────────────────────────────
+    # ANTES de aplicar masas: si una esquina de muro coincide con un nodo de
+    # columna, su masa debe sumarse a la de Mass Source en el mismo ops.mass()
+    # (ver docstring de _build_wall_mesh_plan — ops.mass() reemplaza, no suma).
+    wall_node_mass, wall_element_specs, wall_node_ids = _build_wall_mesh_plan(data, nodes)
+    data["_wall_node_ids"] = sorted(wall_node_ids)
 
     # ── Mass Source tipo ETABS ─────────────────────────────
     mass_source_report = _build_mass_source_nodal_masses(
@@ -1196,6 +1479,14 @@ def build_model_3d(data: dict):
         my = manual_my + auto_my
         mz = manual_mz + auto_mz
 
+        # Esquina de muro coincidente con este nodo (columna) → sumar acá, un
+        # solo ops.mass() por tag (ver _build_wall_mesh_plan).
+        wall_extra = wall_node_mass.get(node_id)
+        if wall_extra:
+            mx += wall_extra[0]
+            my += wall_extra[1]
+            mz += wall_extra[2]
+
         n["_effective_mass_x"] = mx
         n["_effective_mass_y"] = my
         n["_effective_mass_z"] = mz
@@ -1217,6 +1508,16 @@ def build_model_3d(data: dict):
 
         if mx > 0 or my > 0 or mz > 0:
             ops.mass(node_id, mx, my, mz, 1e-9, 1e-9, 1e-9)
+
+    # Nodos NUEVOS creados solo para la malla de muros (no vienen en
+    # data["nodes"], así que el loop de arriba no los toca).
+    for tag in wall_node_ids:
+        wmass = wall_node_mass.get(tag)
+        if not wmass:
+            continue
+        wmx, wmy, wmz = wmass
+        if wmx > 0 or wmy > 0 or wmz > 0:
+            ops.mass(tag, wmx, wmy, wmz, 1e-9, 1e-9, 1e-9)
 
     data["_effective_mass_report"] = {
         "rows": effective_mass_rows,
@@ -1301,6 +1602,11 @@ def build_model_3d(data: dict):
         else:
             ops.element("elasticBeamColumn", eid, ni, nj, A, E, G, J, Iy, Iz, tid)
             elem["_formulation"] = "elasticBeamColumn"
+
+    # ── Muros (elementos shell) ─────────────────────────────
+    # Los nodos de la malla ya existen (creados en _build_wall_mesh_plan,
+    # arriba); acá solo se instancian los ShellMITC4.
+    _create_wall_shell_elements(wall_element_specs)
 
     # ── Apoyos ────────────────────────────────────────────
     if supports:

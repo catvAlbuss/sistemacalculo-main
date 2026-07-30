@@ -2924,6 +2924,287 @@ export class ColumnDrawingState extends PanAndZoomState {
   }
 }
 
+// =====================================================
+// COLUMNAS POR REGIÓN — estilo ETABS ("Create Columns in Region or at
+// Clicks"): clic cerca de UN vértice de grilla crea una sola columna (igual
+// que ColumnDrawingState); arrastrar un rectángulo crea una columna en CADA
+// vértice de grilla que caiga adentro. Reusa exactamente la misma mecánica
+// de creación de nodo/columna que ColumnDrawingState (mismo getOrCreateNodeAt
+// + getNextStoryElevation) para no duplicar comportamiento.
+// =====================================================
+export class ColumnsRegionState extends PanAndZoomState {
+  constructor(context) {
+    super();
+    this.context = context;
+
+    this.isDraggingRegion = false;
+    this.regionStart = null;
+    this.regionEnd = null;
+    this.dragThreshold = 8;
+  }
+
+  isPlanViewActive(context) {
+    const view = context.viewSet?.[context.activeViewIndex];
+    return view?.type === "plan";
+  }
+
+  getGridVertices(context) {
+    const ref = context.referenceGrid;
+    const xs = Array.isArray(ref?.xPositions) ? ref.xPositions : [];
+    const ys = Array.isArray(ref?.yPositions) ? ref.yPositions : [];
+    const z = Number(context.getActivePlanElevation?.() ?? 0);
+
+    const verts = [];
+    xs.forEach((x) => {
+      ys.forEach((y) => {
+        verts.push({ x: Number(x), y: Number(y), z });
+      });
+    });
+    return verts;
+  }
+
+  getNextStoryElevation(context, currentZ) {
+    const stories = Array.isArray(context.stories) ? context.stories : [];
+
+    const upperStory = stories
+      .filter((story) => Number(story.elevation) > Number(currentZ))
+      .sort((a, b) => Number(a.elevation) - Number(b.elevation))[0];
+
+    if (upperStory) return Number(upperStory.elevation);
+
+    const storyHeight = Number(context.referenceGrid?.storyHeight ?? 0);
+    if (storyHeight > 0) return Number(currentZ) + storyHeight;
+
+    return null;
+  }
+
+  getOrCreateNodeAt(context, x, y, z) {
+    const toleranceXY = 0.001;
+    const toleranceZ = 0.001;
+
+    let node = context.nodes.find((n) => {
+      const p = n.position || n;
+      return (
+        Math.abs(Number(p.x || 0) - Number(x || 0)) <= toleranceXY &&
+        Math.abs(Number(p.y || 0) - Number(y || 0)) <= toleranceXY &&
+        Math.abs(Number(p.z || 0) - Number(z || 0)) <= toleranceZ
+      );
+    });
+
+    if (node) {
+      if (!node.beams) node.beams = [];
+      return node;
+    }
+
+    node = new StructuralNode({ x: Number(x || 0), y: Number(y || 0) }, context.nodes.length + 1, Number(z || 0));
+
+    if (!node.position) {
+      node.position = { x: Number(x || 0), y: Number(y || 0), z: Number(z || 0) };
+    }
+
+    node.position.x = Number(x || 0);
+    node.position.y = Number(y || 0);
+    node.position.z = Number(z || 0);
+
+    if (!node.beams) node.beams = [];
+
+    context.nodes.push(node);
+    return node;
+  }
+
+  columnAlreadyExists(context, node1, node2) {
+    return context.shapes.some((shape) => {
+      if (!shape?.node1 || !shape?.node2) return false;
+      const sameDirection = shape.node1 === node1 && shape.node2 === node2;
+      const reverseDirection = shape.node1 === node2 && shape.node2 === node1;
+      const isColumn = shape.elementType === "column" || shape.type === "column";
+      return isColumn && (sameDirection || reverseDirection);
+    });
+  }
+
+  createColumnAt(context, x, y, z1, z2) {
+    const node1 = this.getOrCreateNodeAt(context, x, y, z1);
+    const node2 = this.getOrCreateNodeAt(context, x, y, z2);
+
+    if (this.columnAlreadyExists(context, node1, node2)) return false;
+
+    const column = new Beam(context.globalE, context.globalA);
+    column.elementType = "column";
+    column.type = "column";
+    column.objectType = "frame";
+    column.visible = true;
+    column.addNode(node1);
+    column.addNode(node2);
+    column.id = context.shapes.length + 1;
+    context.shapes.push(column);
+
+    if (!node1.beams) node1.beams = [];
+    if (!node2.beams) node2.beams = [];
+    if (!node1.beams.includes(column)) node1.beams.push(column);
+    if (!node2.beams.includes(column)) node2.beams.push(column);
+
+    return true;
+  }
+
+  createColumnAtVertex(context, vertex) {
+    const nextZ = this.getNextStoryElevation(context, vertex.z);
+    if (nextZ === null || nextZ <= vertex.z) return false;
+    return this.createColumnAt(context, vertex.x, vertex.y, vertex.z, nextZ);
+  }
+
+  findClosestVertex(context, mouse) {
+    const verts = this.getGridVertices(context);
+    let best = null;
+    let bestDistance = 14;
+
+    verts.forEach((v) => {
+      const sp = context.grid.worldToScreen({ x: v.x, y: v.y });
+      const d = Math.hypot(mouse.x - sp.x, mouse.y - sp.y);
+      if (d < bestDistance) {
+        bestDistance = d;
+        best = v;
+      }
+    });
+
+    return best;
+  }
+
+  getRegionRect() {
+    if (!this.regionStart || !this.regionEnd) return null;
+    return {
+      left: Math.min(this.regionStart.x, this.regionEnd.x),
+      right: Math.max(this.regionStart.x, this.regionEnd.x),
+      top: Math.min(this.regionStart.y, this.regionEnd.y),
+      bottom: Math.max(this.regionStart.y, this.regionEnd.y),
+    };
+  }
+
+  pointInsideRect(point, rect) {
+    return point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom;
+  }
+
+  getVerticesInsideRegion(context) {
+    const rect = this.getRegionRect();
+    if (!rect) return [];
+
+    return this.getGridVertices(context).filter((v) => {
+      const sp = context.grid.worldToScreen({ x: v.x, y: v.y });
+      return this.pointInsideRect(sp, rect);
+    });
+  }
+
+  createColumnsInRegion(context) {
+    const verts = this.getVerticesInsideRegion(context);
+
+    if (!verts.length) {
+      context.showMessage?.("No hay vértices de grilla dentro de la región", "warning");
+      return;
+    }
+
+    let created = 0;
+    verts.forEach((v) => {
+      if (this.createColumnAtVertex(context, v)) created++;
+    });
+
+    if (created > 0) {
+      context.showMessage?.(`Se crearon ${created} columna(s) en la región`);
+    } else {
+      context.showMessage?.("No se crearon columnas nuevas; ya existían", "warning");
+    }
+  }
+
+  handleMouseDown(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseDown(event, context, mouse);
+      return;
+    }
+
+    super.handleMouseDown(...arguments);
+
+    if (!this.isPlanViewActive(context)) {
+      context.showMessage?.("Create Columns solo funciona en planta", "warning");
+      return;
+    }
+
+    this.isDraggingRegion = true;
+    this.regionStart = { x: mouse.x, y: mouse.y };
+    this.regionEnd = { x: mouse.x, y: mouse.y };
+  }
+
+  handleMouseMove(event, context, mouse) {
+    super.handleMouseMove(...arguments);
+    if (!this.isDraggingRegion) return;
+    this.regionEnd = { x: mouse.x, y: mouse.y };
+    context.redraw?.();
+  }
+
+  handleMouseUp(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseUp(event, context, mouse);
+      return;
+    }
+
+    if (!this.isDraggingRegion) return;
+
+    this.regionEnd = { x: mouse.x, y: mouse.y };
+
+    const dx = this.regionEnd.x - this.regionStart.x;
+    const dy = this.regionEnd.y - this.regionStart.y;
+    const dragDistance = Math.hypot(dx, dy);
+
+    if (dragDistance <= this.dragThreshold) {
+      const vertex = this.findClosestVertex(context, mouse);
+      if (!vertex) {
+        context.showMessage?.("Haz clic cerca de un vértice de grilla", "warning");
+      } else if (!this.createColumnAtVertex(context, vertex)) {
+        context.showMessage?.("Ya existe una columna en ese punto, o no hay piso superior", "warning");
+      }
+    } else {
+      this.createColumnsInRegion(context);
+    }
+
+    this.isDraggingRegion = false;
+    this.regionStart = null;
+    this.regionEnd = null;
+
+    context.redraw?.();
+    context.sync3D?.();
+  }
+
+  handleKeyDown(event, context) {
+    if (event.key === "Escape") {
+      this.isDraggingRegion = false;
+      this.regionStart = null;
+      this.regionEnd = null;
+      context.setState(context.idleState);
+      context.redraw?.();
+      return;
+    }
+    super.handleKeyDown(event, context);
+  }
+
+  draw(renderer, context) {
+    if (!this.isDraggingRegion || !this.regionStart || !this.regionEnd) return;
+
+    const ctx = context.ctx;
+    const rect = this.getRegionRect();
+    if (!ctx || !rect) return;
+
+    ctx.save();
+    ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = "#22c55e";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
+    ctx.fillStyle = "rgba(34, 197, 94, 0.12)";
+    ctx.fillRect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
+    ctx.restore();
+  }
+
+  info() {
+    return "Columnas: clic cerca de un vértice de grilla para una sola, o arrastra una región para varias. Esc para salir.";
+  }
+}
+
 export class CreateLinesRegionClicksState extends PanAndZoomState {
   constructor(context) {
     super();
@@ -4204,6 +4485,367 @@ export class AreaDrawingState extends PanAndZoomState {
     }
 
     return "Haz clic para seguir marcando vértices. Enter o Esc = cerrar área, Backspace = borrar último punto.";
+  }
+}
+
+// =====================================================
+// MURO ESTILO ETABS (dos clics) — distinto del AreaDrawingState("wall")
+// polígono manual (ARRIBA): acá se hace clic UNA vez para el punto inicial
+// (vértice de grid, nodo del modelo, o cualquier punto sobre una línea de
+// grid/viga — reutiliza exactamente el mismo `activeGridPoint` que usan
+// Columna/Frame) y OTRA para el punto final; con esos dos puntos en planta
+// se arma automáticamente el panel VERTICAL del muro (rectángulo) entre el
+// piso de abajo y el piso donde estás parado — igual que "Draw Walls" en
+// ETABS: el muro dibujado en el piso N ocupa el tramo N-1 → N.
+export class WallDrawingState extends PanAndZoomState {
+  constructor(context) {
+    super();
+    this.context = context;
+    this.startPoint = null;
+    this.previewPoint = null;
+  }
+
+  // La Base no tiene piso debajo — no hay tramo vertical que rellenar.
+  isPlanViewEligible(context) {
+    const view = context.viewSet?.[context.activeViewIndex];
+    if (view?.type !== "plan") return false;
+    if (context.isBasePlanViewActive?.()) return false;
+    return true;
+  }
+
+  getSnapPoint(context, mouse) {
+    const worldPos = context.grid.screenToWorld(mouse);
+    return context.getCurrentSnapPoint(worldPos);
+  }
+
+  // Elevación del piso INMEDIATAMENTE debajo de `currentZ` (Base si no hay
+  // ninguno definido entre medio) — espejo de ColumnDrawingState.getNextStoryElevation
+  // pero mirando hacia abajo, para el fondo del panel del muro.
+  getStoryElevationBelow(context, currentZ) {
+    const stories = Array.isArray(context.stories) ? context.stories : [];
+
+    const lowerStory = stories
+      .filter((story) => Number(story.elevation) < Number(currentZ) - 1e-6)
+      .sort((a, b) => Number(b.elevation) - Number(a.elevation))[0];
+
+    if (lowerStory) return Number(lowerStory.elevation);
+
+    const storyHeight = Number(context.referenceGrid?.storyHeight ?? 0);
+    if (storyHeight > 0) return Math.max(0, Number(currentZ) - storyHeight);
+
+    return 0;
+  }
+
+  createWallPanel(context, p1, p2, bottomZ, topZ) {
+    const wall = new Area("wall", topZ);
+
+    // Rectángulo vertical, perímetro sin cruces: p1-abajo → p2-abajo →
+    // p2-arriba → p1-arriba.
+    wall.addPoint({ x: p1.x, y: p1.y, z: bottomZ });
+    wall.addPoint({ x: p2.x, y: p2.y, z: bottomZ });
+    wall.addPoint({ x: p2.x, y: p2.y, z: topZ });
+    wall.addPoint({ x: p1.x, y: p1.y, z: topZ });
+
+    wall.id = context.areas.length + 1;
+    context.areas.push(wall);
+
+    // Si el muro baja hasta la BASE real (Z=0), asegurar nodos en sus dos
+    // esquinas inferiores — igual que una columna, para que pueda recibir
+    // restricciones/apoyos (Assign > Joint > Restraints) más adelante.
+    if (Math.abs(bottomZ) < 1e-6 && typeof context.getOrCreateStructuralNode === "function") {
+      context.getOrCreateStructuralNode({ x: p1.x, y: p1.y, z: bottomZ });
+      context.getOrCreateStructuralNode({ x: p2.x, y: p2.y, z: bottomZ });
+    }
+
+    return wall;
+  }
+
+  // Distancia punto-a-segmento en coordenadas de PANTALLA (mismo patrón que
+  // CreateLinesRegionClicksState.distanceToSegment).
+  _distanceToScreenSegment(mouse, a, b) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    if (Math.abs(dx) < 1e-9 && Math.abs(dy) < 1e-9) {
+      return Math.hypot(mouse.x - a.x, mouse.y - a.y);
+    }
+    let t = ((mouse.x - a.x) * dx + (mouse.y - a.y) * dy) / (dx * dx + dy * dy);
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(mouse.x - (a.x + t * dx), mouse.y - (a.y + t * dy));
+  }
+
+  // Busca, cerca del clic, UNA viga/columna existente (mismo Z en ambos
+  // extremos = horizontal, visible en planta) o UN lado de la grilla (aunque
+  // no haya nada dibujado ahí todavía) — lo que esté más cerca. Permite
+  // dibujar el muro con UN SOLO clic siguiendo ese tramo completo, en vez de
+  // marcar manualmente los 2 extremos.
+  findWallBaseSegment(context, mouse) {
+    const view = context.viewSet?.[context.activeViewIndex];
+    if (view?.type !== "plan") return null;
+
+    const z = Number(context.getActivePlanElevation?.() ?? 0);
+    const EPS = 1e-3;
+    let best = null;
+    let bestDistance = 14;
+
+    (context.shapes || []).forEach((f) => {
+      const n1 = f?.node1?.position;
+      const n2 = f?.node2?.position;
+      if (!n1 || !n2) return;
+      if (Math.abs(Number(n1.z || 0) - z) > EPS || Math.abs(Number(n2.z || 0) - z) > EPS) return;
+      if (Math.hypot(n2.x - n1.x, n2.y - n1.y) < EPS) return; // columna/punto
+
+      const s1 = context.grid.worldToScreen({ x: n1.x, y: n1.y });
+      const s2 = context.grid.worldToScreen({ x: n2.x, y: n2.y });
+      const d = this._distanceToScreenSegment(mouse, s1, s2);
+      if (d < bestDistance) {
+        bestDistance = d;
+        best = { x1: n1.x, y1: n1.y, x2: n2.x, y2: n2.y };
+      }
+    });
+
+    const ref = context.referenceGrid;
+    const xs = Array.isArray(ref?.xPositions) ? ref.xPositions : [];
+    const ys = Array.isArray(ref?.yPositions) ? ref.yPositions : [];
+
+    xs.forEach((x) => {
+      for (let j = 0; j < ys.length - 1; j++) {
+        const a = { x: Number(x), y: Number(ys[j]) };
+        const b = { x: Number(x), y: Number(ys[j + 1]) };
+        const s1 = context.grid.worldToScreen(a);
+        const s2 = context.grid.worldToScreen(b);
+        const d = this._distanceToScreenSegment(mouse, s1, s2);
+        if (d < bestDistance) {
+          bestDistance = d;
+          best = { x1: a.x, y1: a.y, x2: b.x, y2: b.y };
+        }
+      }
+    });
+
+    ys.forEach((y) => {
+      for (let i = 0; i < xs.length - 1; i++) {
+        const a = { x: Number(xs[i]), y: Number(y) };
+        const b = { x: Number(xs[i + 1]), y: Number(y) };
+        const s1 = context.grid.worldToScreen(a);
+        const s2 = context.grid.worldToScreen(b);
+        const d = this._distanceToScreenSegment(mouse, s1, s2);
+        if (d < bestDistance) {
+          bestDistance = d;
+          best = { x1: a.x, y1: a.y, x2: b.x, y2: b.y };
+        }
+      }
+    });
+
+    return best;
+  }
+
+  handleMouseDown(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseDown(event, context, mouse);
+      return;
+    }
+
+    super.handleMouseDown(...arguments);
+
+    if (!this.isPlanViewEligible(context)) {
+      context.showMessage?.(
+        "Dibuja muros desde un piso (no desde la Base): el panel se arma entre el piso de abajo y el actual.",
+        "warning"
+      );
+      return;
+    }
+
+    // Modo rápido: un solo clic cerca de una viga existente o un lado de la
+    // grilla arma el muro completo con ese tramo — sin pedir el 2do clic.
+    if (!this.startPoint) {
+      const seg = this.findWallBaseSegment(context, mouse);
+      if (seg) {
+        const topZ = context.getActivePlanElevation?.() ?? 0;
+        const bottomZ = this.getStoryElevationBelow(context, topZ);
+        this.createWallPanel(context, { x: seg.x1, y: seg.y1 }, { x: seg.x2, y: seg.y2 }, bottomZ, topZ);
+        context.showMessage?.("Muro creado (clic sobre viga/línea de grid).", "success");
+        context.redraw();
+        context.sync3D?.();
+        return;
+      }
+    }
+
+    const snapPoint = this.getSnapPoint(context, mouse);
+
+    if (!this.startPoint) {
+      this.startPoint = { ...snapPoint };
+      this.previewPoint = { ...snapPoint };
+      context.redraw();
+      return;
+    }
+
+    const dx = snapPoint.x - this.startPoint.x;
+    const dy = snapPoint.y - this.startPoint.y;
+
+    if (Math.hypot(dx, dy) < 1e-6) {
+      return; // mismo punto que el inicio: ignorar el clic
+    }
+
+    const topZ = context.getActivePlanElevation?.() ?? 0;
+    const bottomZ = this.getStoryElevationBelow(context, topZ);
+
+    this.createWallPanel(context, this.startPoint, snapPoint, bottomZ, topZ);
+
+    context.showMessage?.("Muro creado.", "success");
+
+    this.startPoint = null;
+    this.previewPoint = null;
+    context.redraw();
+    context.sync3D?.();
+  }
+
+  handleMouseMove(event, context, mouse) {
+    super.handleMouseMove(...arguments);
+
+    if (!this.startPoint) return;
+    if (!this.isPlanViewEligible(context)) return;
+
+    this.previewPoint = this.getSnapPoint(context, mouse);
+    context.redraw();
+  }
+
+  handleKeyDown(event, context) {
+    if (event.key === "Escape") {
+      this.startPoint = null;
+      this.previewPoint = null;
+      context.redraw();
+      context.setState(context.idleState);
+    }
+  }
+
+  draw(renderer, context) {
+    // El rubber-band (línea + cota) se dibuja gratis desde
+    // renderer.drawDimensionPreview(context) — lee startPoint/previewPoint
+    // de currentState, sin necesitar código específico acá.
+  }
+
+  info() {
+    if (!this.startPoint) {
+      return "Muro: clic sobre una viga o un lado de la grilla = muro completo en 1 clic. O clic en un vértice/nodo para elegir el largo manualmente.";
+    }
+    return "Muro: clic en el punto final (línea o vértice). Esc para cancelar.";
+  }
+}
+
+// =====================================================
+// LOSA POR RECTÁNGULO — estilo ETABS ("Draw Rectangular Area"): 2 clics
+// (esquinas opuestas) arman directo un área de 4 vértices, sin tener que
+// marcar cada esquina a mano como en el AreaDrawingState viejo (que sigue
+// disponible para formas irregulares).
+// =====================================================
+export class SlabRegionState extends PanAndZoomState {
+  constructor(context) {
+    super();
+    this.context = context;
+    this.startPoint = null;
+    this.previewPoint = null;
+  }
+
+  getSnapPoint(context, mouse) {
+    const worldPos = context.grid.screenToWorld(mouse);
+    return context.getCurrentSnapPoint(worldPos);
+  }
+
+  createSlabRectangle(context, p1, p2, z) {
+    const area = new Area("slab", z);
+    area.addPoint({ x: p1.x, y: p1.y, z });
+    area.addPoint({ x: p2.x, y: p1.y, z });
+    area.addPoint({ x: p2.x, y: p2.y, z });
+    area.addPoint({ x: p1.x, y: p2.y, z });
+    area.id = context.areas.length + 1;
+    context.areas.push(area);
+    return area;
+  }
+
+  handleMouseDown(event, context, mouse) {
+    if (isMouseButton(event, MOUSE_BUTTONS.MIDDLE)) {
+      super.handleMouseDown(event, context, mouse);
+      return;
+    }
+
+    super.handleMouseDown(...arguments);
+
+    const view = context.viewSet?.[context.activeViewIndex];
+    if (view?.type !== "plan") {
+      context.showMessage?.("Las losas se dibujan en planta.", "warning");
+      return;
+    }
+
+    const snapPoint = this.getSnapPoint(context, mouse);
+
+    if (!this.startPoint) {
+      this.startPoint = { ...snapPoint };
+      this.previewPoint = { ...snapPoint };
+      context.redraw();
+      return;
+    }
+
+    const dx = snapPoint.x - this.startPoint.x;
+    const dy = snapPoint.y - this.startPoint.y;
+    if (Math.hypot(dx, dy) < 1e-6) {
+      return;
+    }
+
+    const z = context.getActivePlanElevation?.() ?? this.startPoint.z ?? 0;
+    const area = this.createSlabRectangle(context, this.startPoint, snapPoint, z);
+
+    context.showMessage?.(`Losa creada, ID: ${area.id}`, "success");
+
+    this.startPoint = null;
+    this.previewPoint = null;
+    context.redraw();
+    context.sync3D?.();
+  }
+
+  handleMouseMove(event, context, mouse) {
+    super.handleMouseMove(...arguments);
+    if (!this.startPoint) return;
+    this.previewPoint = this.getSnapPoint(context, mouse);
+    context.redraw();
+  }
+
+  handleKeyDown(event, context) {
+    if (event.key === "Escape") {
+      this.startPoint = null;
+      this.previewPoint = null;
+      context.redraw();
+      context.setState(context.idleState);
+    }
+  }
+
+  draw(renderer, context) {
+    if (!this.startPoint || !this.previewPoint) return;
+
+    const ctx = context.ctx;
+    if (!ctx) return;
+
+    const p1 = context.grid.worldToScreen({ x: this.startPoint.x, y: this.startPoint.y });
+    const p2 = context.grid.worldToScreen({ x: this.previewPoint.x, y: this.previewPoint.y });
+
+    const left = Math.min(p1.x, p2.x);
+    const right = Math.max(p1.x, p2.x);
+    const top = Math.min(p1.y, p2.y);
+    const bottom = Math.max(p1.y, p2.y);
+
+    ctx.save();
+    ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = "#38bdf8";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(left, top, right - left, bottom - top);
+    ctx.fillStyle = "rgba(56, 189, 248, 0.15)";
+    ctx.fillRect(left, top, right - left, bottom - top);
+    ctx.restore();
+  }
+
+  info() {
+    if (!this.startPoint) {
+      return "Losa rectangular: clic en una esquina.";
+    }
+    return "Losa rectangular: clic en la esquina opuesta. Esc para cancelar.";
   }
 }
 

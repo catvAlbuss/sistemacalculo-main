@@ -129,8 +129,8 @@ export const actionsMixin = {
         }
 
         this.clearAllSelections?.();
-        this.setState(this.columnDrawingState);
-        this.showMessage("Create Columns in Region or at Clicks activado");
+        this.setState(this.columnsRegionState);
+        this.showMessage("Create Columns in Region or at Clicks: clic en un vértice, o arrastra un rectángulo.");
         break;
       }
 
@@ -154,6 +154,20 @@ export const actionsMixin = {
         this.showMessage("Modo dibujar losa / área activado");
         break;
 
+      case "draw-area-slab-rectangle": {
+        const view = this.viewSet?.[this.activeViewIndex];
+
+        if (!view || view.type !== "plan") {
+          this.showMessage("Las losas se dibujan en planta.", "warning");
+          break;
+        }
+
+        this.clearAllSelections?.();
+        this.setState(this.slabRegionState);
+        this.showMessage("Losa rectangular: clic en una esquina, luego en la opuesta.");
+        break;
+      }
+
       case "draw-area-zapata":
         this.clearAllSelections?.();
         this.setState(this.zapataDrawingState);
@@ -165,6 +179,21 @@ export const actionsMixin = {
         this.setState(this.wallDrawingState);
         this.showMessage("Modo dibujar muro / panel activado");
         break;
+
+      case "draw-wall-segment": {
+        if (this.isBasePlanViewActive?.()) {
+          this.showMessage(
+            "Dibuja muros desde un piso (no desde la Base): el panel se arma entre el piso de abajo y el actual.",
+            "warning"
+          );
+          break;
+        }
+
+        this.clearAllSelections?.();
+        this.setState(this.wallSegmentDrawingState);
+        this.showMessage("Muro (2 clics): elegí el punto inicial y el final sobre una línea de grid/viga o un vértice/nodo.");
+        break;
+      }
 
       case "draw-area-opening":
         this.clearAllSelections?.();
@@ -487,6 +516,10 @@ export const actionsMixin = {
       // Asignar sección de losa (espesor/material) → peso propio automático.
       case "area-slab-section":
         this.openAssignSlabSectionDialog();
+        break;
+
+      case "area-wall-section":
+        this.openAssignWallSectionDialog();
         break;
 
       // Asignar diafragma a losas (los nudos lo heredan "From Area", como ETABS).

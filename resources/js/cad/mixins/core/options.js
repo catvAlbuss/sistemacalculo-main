@@ -408,9 +408,9 @@ export const optionsMixin = {
   },
 
   applyDimensionsTolerances() {
-    this.planGridSnapScreenTolerance = Number(this.preferences?.snapScreenTolerance ?? 14);
+    this.planGridSnapScreenTolerance = Number(this.preferences?.snapScreenTolerance ?? 40);
 
-    this.planGridSnapTolerance = Number(this.preferences?.snapWorldTolerance ?? 1.0);
+    this.planGridSnapTolerance = Number(this.preferences?.snapWorldTolerance ?? 1.5);
   },
 
   getModelTolerance() {

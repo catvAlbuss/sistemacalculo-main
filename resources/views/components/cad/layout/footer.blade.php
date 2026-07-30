@@ -1,9 +1,9 @@
 <!-- Footer -->
-<footer class="cad-bg cad-border flex h-6 items-center justify-between border-t px-2 text-sm text-gray-600">
-  <span x-text="currentState.info()"></span>
+<footer class="cad-bg cad-border flex h-6 items-center justify-between border-t px-2 text-xs text-gray-400">
+  <span class="truncate" x-text="currentState.info()"></span>
 
   <div class="flex items-center gap-3">
-    <span
+    <span class="font-mono text-[11px]"
       x-text="`${statusCoordinates || 'X 0.00  Y 0.00  Z 0.00'} | Zoom: ${grid.scaleX.toFixed(2)}`"></span>
 
     {{-- Selector de unidades estilo ETABS (fuerza, longitud) --}}

@@ -685,6 +685,7 @@ export const e2kImportMixin = {
     const pointCoords = new Map(); // pointId → {x,y}
     const lineConn = new Map(); // lineName → {kind, pi, pj}
     const areaConn = new Map(); // areaName → [ptIds]
+    const areaKind = new Map(); // areaName → "wall" (PANEL) | "slab" (FLOOR)
     const diaphragmDefs = [];
     const loadPatternDefs = [];
     const massSourceLoads = [];
@@ -830,6 +831,11 @@ export const e2kImportMixin = {
         const nPts = nums.length ? nums[0] : toks.length - 1;
         const pts = toks.slice(1, 1 + nPts);
         if (toks[0] && pts.length >= 3) areaConn.set(toks[0], pts);
+        // PANEL = muro (traza en planta que se extruye vertical por piso),
+        // FLOOR = losa (polígono horizontal). Determina cómo se reconstruye la
+        // geometría en AREAASSIGN.
+        const kindM = String(line).match(/^\s*AREA\s+"[^"]*"\s+(PANEL|FLOOR)\b/i);
+        if (toks[0] && kindM) areaKind.set(toks[0], /panel/i.test(kindM[1]) ? "wall" : "slab");
       } else if (/^LOADPATTERN\s/i.test(line)) {
         const name = quotedAll(line)[0];
         if (name) loadPatternDefs.push({ name, type: q(line, "TYPE") || "Other", selfWeightMultiplier: kvNum(line, "SELFWEIGHT", 0) });
@@ -1003,13 +1009,62 @@ export const e2kImportMixin = {
         const toks = quotedAll(line);
         const conn = areaConn.get(toks[0]);
         if (!conn) return;
+        const section = q(line, "SECTION") || "";
+        const secDef = slabSecMap.get(section) || { name: section, thickness: 0, material: "CONC", kind: "Slab" };
+        const isWall = areaKind.get(toks[0]) === "wall" || /wall/i.test(secDef.kind || "");
+
+        // ── MURO (PANEL) ────────────────────────────────────────────────
+        // El AREA "PANEL" trae la traza en planta (2 puntos únicos, repetidos
+        // como [P1,P2,P2,P1]); se extruye vertical entre el piso de abajo y el
+        // piso asignado — igual que ETABS dibuja el muro por piso. Sin esto,
+        // el muro caía por el camino de losa: 4 puntos al MISMO Z (plano) con
+        // solo 2 distintos → área cero, no se importaba nada.
+        if (isWall) {
+          const topZ = storyElev.get(toks[1]) ?? 0;
+          const botZ = belowElevOf(toks[1]);
+          const uniqPlan = [];
+          const seen = new Set();
+          for (const ptId of conn) {
+            if (seen.has(ptId)) continue;
+            seen.add(ptId);
+            const c = pointCoords.get(ptId);
+            if (c) uniqPlan.push({ x: round3(c.x), y: round3(c.y) });
+          }
+          if (uniqPlan.length < 2) return;
+          const [pa, pb] = uniqPlan;
+          // Mismo orden que WallDrawingState.createWallPanel (perímetro sin
+          // cruces): a-abajo, b-abajo, b-arriba, a-arriba.
+          const wpts = [
+            { x: pa.x, y: pa.y, z: round3(botZ), visible: true, color: null },
+            { x: pb.x, y: pb.y, z: round3(botZ), visible: true, color: null },
+            { x: pb.x, y: pb.y, z: round3(topZ), visible: true, color: null },
+            { x: pa.x, y: pa.y, z: round3(topZ), visible: true, color: null },
+          ];
+          wpts.forEach((p) => getNode(p.x, p.y, p.z));
+          const wallMat = materialMap.get(secDef.material);
+          const wallMpv = Number(wallMat?.massPerUnitVolume);
+          const wallRho = wallMpv > 0 && wallMpv < 1e-3 ? wallMpv * 1e12 : 2400;
+          const wallSelfWeightKgM2 = ((Number(secDef.thickness) || 0) / 1000) * wallRho;
+          const wallArea = {
+            id: areas.length + 1,
+            type: "wall", areaType: "wall",
+            points: wpts, z: round3(topZ),
+            wallSection: section,
+            wallSelfWeightKgM2,
+            section: { name: section, thickness: secDef.thickness, material: secDef.material || "CONC" },
+            areaLoads: [], loads: [], visible: true,
+          };
+          areas.push(wallArea);
+          areaByKey.set(`${toks[0]}|${toks[1]}`, wallArea);
+          return;
+        }
+
         const z = storyElev.get(toks[1]) ?? 0;
         const pts = conn
           .map((ptId) => { const c = pointCoords.get(ptId); return c ? { x: round3(c.x), y: round3(c.y), z: round3(z), visible: true, color: null } : null; })
           .filter(Boolean);
         if (pts.length < 3) return;
         pts.forEach((p) => getNode(p.x, p.y, z));
-        const section = q(line, "SECTION") || "";
         const slab = slabSecMap.get(section) || { name: section, thickness: 0, material: "CONC" };
         // Peso propio de la losa (kgf/m² = espesor(m) × densidad). ETABS lo incluye
         // vía SELFWEIGHT del patrón CM (losa membrana); el motor lo lee de este
@@ -1123,8 +1178,9 @@ export const e2kImportMixin = {
 
     const materials = [...materialMap.values()];
     const frameSections = [...frameSecMap.values()];
-    // Secciones de losa (PROPTYPE Slab/Deck; los muros van aparte). Forma que
-    // espera la lista del modal Wall/Slab Sections (this.slabSections).
+    // Secciones de losa (PROPTYPE Slab/Deck; los muros van aparte, ver
+    // wallSections abajo). Forma que espera la lista del modal Slab Sections
+    // (this.slabSections).
     const slabSections = [...slabSecMap.values()]
       .filter((s) => !/wall/i.test(s.kind || ""))
       .map((s) => ({
@@ -1134,6 +1190,21 @@ export const e2kImportMixin = {
         type: "Slab",
         thickness: s.thickness, // mm
         color: "#9ca3af",
+      }));
+
+    // Secciones de muro (SHELLPROP PROPTYPE "Wall" — WALL PROPERTIES en el
+    // .e2k). Misma forma que espera el modal Wall Sections (this.wallSections,
+    // ver wall-sections-modal.blade.php) — name/material/thickness(mm)/color.
+    const wallSections = [...slabSecMap.values()]
+      .filter((s) => /wall/i.test(s.kind || ""))
+      .map((s) => ({
+        name: s.name,
+        material: s.material || "CONC",
+        // El .e2k manda "ShellThin"/"ShellThick" (sin guion) — normalizar al
+        // valor que usa el <select> del modal (wall-sections-modal.blade.php).
+        modelingType: /thick/i.test(s.modelingType || "") ? "Shell-Thick" : "Shell-Thin",
+        thickness: s.thickness, // mm
+        color: "#78716c",
       }));
 
     // ── Fase 3: funciones de espectro (USER con puntos) + casos Response Spectrum ──
@@ -1188,6 +1259,7 @@ export const e2kImportMixin = {
       definitions: {
         materials, frameSections,
         slabSections,
+        wallSections,
         loadCases,
         staticLoadCases,
         diaphragms: diaphragmDefs,
@@ -1223,10 +1295,14 @@ export const e2kImportMixin = {
         return;
       }
 
-      // Las secciones de losa no viajan por importFromJSON: se asignan directo a
-      // this.slabSections (lo que lee el modal Wall/Slab Sections y renderModel3d).
+      // Las secciones de losa/muro no viajan por importFromJSON: se asignan
+      // directo a this.slabSections/this.wallSections (lo que leen los
+      // modales Slab Sections / Wall Sections y renderModel3d).
       if (isReal && Array.isArray(data.definitions?.slabSections) && data.definitions.slabSections.length) {
         this.slabSections = data.definitions.slabSections;
+      }
+      if (isReal && Array.isArray(data.definitions?.wallSections) && data.definitions.wallSections.length) {
+        this.wallSections = data.definitions.wallSections;
       }
 
       this.currentFileName = selected.file.name.replace(/\.[^/.]+$/, "") + "_importado_desde_e2k.json";

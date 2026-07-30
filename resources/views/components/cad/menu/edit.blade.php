@@ -16,7 +16,7 @@
 
             {{-- CONTENIDO DEL MENÚ --}}
             <x-slot name="dropdown">
-                <div class="cad-menu-panel py-1" style="min-width: 390px;">
+                <div class="cad-menu-panel py-1" style="min-width: 360px;">
 
                     {{-- ================= HISTORIAL ================= --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
@@ -26,14 +26,14 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('undo')">
                         <span>↩️</span>
-                        <span class="flex-1 min-w-0 truncate">Undo</span>
+                        <span class="flex-1 min-w-0 truncate">Deshacer</span>
                         <span class="text-xs text-gray-500 italic">Ctrl+Z</span>
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('redo')">
                         <span>↪️</span>
-                        <span class="flex-1 min-w-0 truncate">Redo</span>
+                        <span class="flex-1 min-w-0 truncate">Rehacer</span>
                         <span class="text-xs text-gray-500 italic">Ctrl+Y</span>
                     </button>
 
@@ -47,29 +47,29 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('cut')">
                         <span>✂️</span>
-                        <span class="flex-1 min-w-0 truncate">Cut</span>
+                        <span class="flex-1 min-w-0 truncate">Cortar</span>
                         <span class="text-xs text-gray-500 italic">Ctrl+X</span>
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('copy')">
                         <span>📋</span>
-                        <span class="flex-1 min-w-0 truncate">Copy</span>
+                        <span class="flex-1 min-w-0 truncate">Copiar</span>
                         <span class="text-xs text-gray-500 italic">Ctrl+C</span>
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('paste')">
                         <span>📌</span>
-                        <span class="flex-1 min-w-0 truncate">Paste</span>
+                        <span class="flex-1 min-w-0 truncate">Pegar</span>
                         <span class="text-xs text-gray-500 italic">Ctrl+V</span>
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('delete')">
                         <span>🗑️</span>
-                        <span class="flex-1 min-w-0 truncate">Delete</span>
-                        <span class="text-xs text-gray-500 italic">Del</span>
+                        <span class="flex-1 min-w-0 truncate">Eliminar</span>
+                        <span class="text-xs text-gray-500 italic">Supr</span>
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
@@ -82,7 +82,7 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('replicate')">
                         <span>🔄</span>
-                        <span class="flex-1 min-w-0 truncate">Replicate...</span>
+                        <span class="flex-1 min-w-0 truncate">Replicar...</span>
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
@@ -95,25 +95,25 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('edit-grid-data')">
                         <span>📏</span>
-                        <span class="flex-1 min-w-0 truncate">Edit Grid Data</span>
+                        <span class="flex-1 min-w-0 truncate">Editar Datos de Grilla</span>
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('edit-story-data')">
                         <span>🏢</span>
-                        <span class="flex-1 min-w-0 truncate">Edit Story Data</span>
+                        <span class="flex-1 min-w-0 truncate">Editar Datos de Piso</span>
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('edit-reference-planes')">
                         <span>📐</span>
-                        <span class="flex-1 min-w-0 truncate">Edit Reference Planes...</span>
+                        <span class="flex-1 min-w-0 truncate">Editar Planos de Referencia...</span>
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('edit-reference-lines')">
                         <span>━━</span>
-                        <span class="flex-1 min-w-0 truncate">Edit Reference Lines...</span>
+                        <span class="flex-1 min-w-0 truncate">Editar Líneas de Referencia...</span>
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
@@ -126,31 +126,31 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('merge-points')">
                         <span>🔗</span>
-                        <span class="flex-1 min-w-0 truncate">Merge Points...</span>
+                        <span class="flex-1 min-w-0 truncate">Fusionar Puntos...</span>
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('align-points-lines-edges')">
                         <span>📍</span>
-                        <span class="flex-1 min-w-0 truncate">Align Points/Lines/Edges...</span>
+                        <span class="flex-1 min-w-0 truncate">Alinear Puntos/Líneas/Bordes...</span>
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('move-points-lines-areas')">
                         <span>↔️</span>
-                        <span class="flex-1 min-w-0 truncate">Move Points/Lines/Areas...</span>
+                        <span class="flex-1 min-w-0 truncate">Mover Puntos/Líneas/Áreas...</span>
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('join-lines')">
                         <span>⛓️</span>
-                        <span class="flex-1 min-w-0 truncate">Join Lines</span>
+                        <span class="flex-1 min-w-0 truncate">Unir Líneas</span>
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('divide-lines')">
                         <span>✂️</span>
-                        <span class="flex-1 min-w-0 truncate">Divide Lines...</span>
+                        <span class="flex-1 min-w-0 truncate">Dividir Líneas...</span>
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
@@ -163,13 +163,13 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('extrude-points-to-lines')">
                         <span>📍</span>
-                        <span class="flex-1 min-w-0 truncate">Extrude Points to Lines...</span>
+                        <span class="flex-1 min-w-0 truncate">Extruir Puntos a Líneas...</span>
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('extrude-lines-to-areas')">
                         <span>▭</span>
-                        <span class="flex-1 min-w-0 truncate">Extrude Lines to Areas...</span>
+                        <span class="flex-1 min-w-0 truncate">Extruir Líneas a Áreas...</span>
                     </button>
 
                 </div>

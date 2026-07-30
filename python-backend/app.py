@@ -4,6 +4,28 @@ from flask_cors import CORS
 import traceback
 import seismic_analysis as sa
 import math
+import os
+import json
+
+
+def _dump_seismic_payload_if_enabled(data):
+    """Vuelca el payload sísmico recibido a disco para pruebas controladas
+    (calibración vs ETABS, etc.). OPT-IN: se activa con la env var
+    DUMP_SEISMIC_PAYLOAD=1 al arrancar Flask; en uso normal NO hace nada.
+    Escribe _debug_payloads/last_seismic_payload.json (gitignored).
+    (Es código de servidor: NO afecta el navegador ni recarga la página.)
+    """
+    if os.environ.get("DUMP_SEISMIC_PAYLOAD", "").strip().lower() not in ("1", "true", "on", "yes"):
+        return
+    try:
+        out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_debug_payloads")
+        os.makedirs(out_dir, exist_ok=True)
+        path = os.path.join(out_dir, "last_seismic_payload.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, ensure_ascii=False)
+        print(f"DUMP: payload sismico guardado en {path}")
+    except Exception as exc:
+        print(f"AVISO: no se pudo volcar el payload sismico: {exc}")
 
 app = Flask(__name__)
 CORS(app)
@@ -560,6 +582,8 @@ def seismic_analyze():
         data = request.get_json()
         if not data:
             return jsonify({"success": False, "error": "Payload JSON requerido"}), 400
+
+        _dump_seismic_payload_if_enabled(data)
 
         # Validaciones básicas
         if not data.get("nodes"):

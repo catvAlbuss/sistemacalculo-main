@@ -10,11 +10,13 @@ function createTextTexture({
   textureName,
 }) {
   const texture = new BABYLON.DynamicTexture(textureName, { width, height }, scene, true);
+  // Sin esto, Babylon ignora el canal alfa del canvas y el StandardMaterial
+  // pinta el fondo transparente como negro sólido (el "fondo negro" detrás
+  // de las etiquetas A,B,C / 1,2,3 / X,Y,Z).
+  texture.hasAlpha = true;
 
   const ctx = texture.getContext();
   ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "rgba(0,0,0,0)";
-  ctx.fillRect(0, 0, width, height);
   ctx.font = font;
   ctx.fillStyle = fillStyle;
   ctx.textAlign = "center";
@@ -28,6 +30,7 @@ function createTextTexture({
 function createLabelMaterial(name, texture, color, scene) {
   const material = new BABYLON.StandardMaterial(name, scene);
   material.diffuseTexture = texture;
+  material.useAlphaFromDiffuseTexture = true;
   material.emissiveColor = color ?? new BABYLON.Color3(1, 1, 1);
   material.specularColor = new BABYLON.Color3(0, 0, 0);
   material.backFaceCulling = false;
@@ -285,9 +288,9 @@ export function createStoryLabel3D(text, position, scene, color = null) {
       true,
     );
 
+    texture.hasAlpha = true;
     const ctx = texture.getContext();
-    ctx.fillStyle = "rgba(0,0,0,0.7)";
-    ctx.fillRect(0, 0, 512, 256);
+    ctx.clearRect(0, 0, 512, 256);
     ctx.font = "Bold 43px Arial";
     ctx.fillStyle = `rgb(${textColor.r * 255}, ${textColor.g * 255}, ${textColor.b * 255})`;
     ctx.textAlign = "center";
@@ -307,6 +310,7 @@ export function createStoryLabel3D(text, position, scene, color = null) {
 
     const material = new BABYLON.StandardMaterial(`story_mat_${text}`, scene);
     material.diffuseTexture = texture;
+    material.useAlphaFromDiffuseTexture = true;
     material.emissiveColor = textColor;
     material.specularColor = new BABYLON.Color3(0, 0, 0);
     material.backFaceCulling = false;
@@ -339,18 +343,19 @@ export function createElevationLabel3D(text, position, scene, color = null) {
       true
     );
     
+    texture.hasAlpha = true;
     const ctx = texture.getContext();
-    ctx.fillStyle = "rgba(0,0,0,0.8)";
-    ctx.fillRect(0, 0, 256, 128);
+    ctx.clearRect(0, 0, 256, 128);
     ctx.font = "Bold 38px Arial"; // Fuente más grande
     ctx.fillStyle = `rgb(${textColor.r * 255}, ${textColor.g * 255}, ${textColor.b * 255})`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(text, 128, 64);
     texture.update();
-    
+
     const material = new BABYLON.StandardMaterial(`elev_mat_${text}`, scene);
     material.diffuseTexture = texture;
+    material.useAlphaFromDiffuseTexture = true;
     material.emissiveColor = textColor;
     material.specularColor = new BABYLON.Color3(0, 0, 0);
     material.backFaceCulling = false;

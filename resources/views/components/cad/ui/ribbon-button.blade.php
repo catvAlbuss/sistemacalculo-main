@@ -1,6 +1,6 @@
-<button class="flex flex-col self-center justify-center text-center h-full p-1 rounded cad-ribbon-button-hover-bg"
+<button class="flex h-full flex-col items-center justify-center self-center rounded px-1.5 py-1 text-center cad-ribbon-button-hover-bg"
     @click="{{ $clickHandler }}"
     :class="{{ $toggle }} ? 'cad-ribbon-button-bg' : ''">
-    <div class="w-7 h-7 flex self-center">{{ $slot }}</div>
-    <label class="text-xs">{{ $label }}</label>
+    <div class="flex h-6 w-6 self-center">{{ $slot }}</div>
+    <label class="text-[10px] leading-tight">{{ $label }}</label>
 </button>

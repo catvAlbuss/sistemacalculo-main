@@ -24,39 +24,39 @@
                     </div>
 
                     {{-- ================= STEEL FRAME DESIGN ================= --}}
-                    <x-cad.ui.menu-subitem label="Steel Frame Design">
+                    <x-cad.ui.menu-subitem label="Diseño de Marcos de Acero">
                         <span>Ⅰ</span>
 
                         <x-slot name="submenu">
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-frame-select-combo') : cadSystem.showMessage?.('Design pendiente: Select Design Combo', 'warning')">
+                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-frame-select-combo') : cadSystem.showMessage?.('Diseño pendiente: Seleccionar Combo de Diseño', 'warning')">
                                 <span>📋</span>
-                                Select Design Combo...
+                                Seleccionar Combo de Diseño...
                             </button>
 
                             <div class="border-t border-gray-700 my-1"></div>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-frame-overwrites') : cadSystem.showMessage?.('Design pendiente: View/Revise Overwrites', 'warning')">
+                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-frame-overwrites') : cadSystem.showMessage?.('Diseño pendiente: Ver/Revisar Sobrescrituras', 'warning')">
                                 <span>📝</span>
-                                View/Revise Overwrites...
+                                Ver/Revisar Sobrescrituras...
                             </button>
 
                             <div class="border-t border-gray-700 my-1"></div>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-frame-start-check') : cadSystem.showMessage?.('Design pendiente: Start Design/Check', 'warning')">
+                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-frame-start-check') : cadSystem.showMessage?.('Diseño pendiente: Iniciar Diseño/Verificación', 'warning')">
                                 <span>▶️</span>
-                                Start Design/Check of Structure
+                                Iniciar Diseño/Verificación de la Estructura
                             </button>
 
                             <div class="border-t border-gray-700 my-1"></div>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-frame-display-info') : cadSystem.showMessage?.('Design pendiente: Display Design Info', 'warning')">
+                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-frame-display-info') : cadSystem.showMessage?.('Diseño pendiente: Mostrar Información de Diseño', 'warning')">
                                 <span>📊</span>
-                                Display Design Info...
+                                Mostrar Información de Diseño...
                             </button>
 
                         </x-slot>
@@ -70,45 +70,45 @@
                     </div>
 
                     {{-- ================= STEEL JOIST DESIGN ================= --}}
-                    <x-cad.ui.menu-subitem label="Steel Joist Design">
+                    <x-cad.ui.menu-subitem label="Diseño de Joist de Acero">
                         <span>▰</span>
 
                         <x-slot name="submenu">
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-joist-select-combo') : cadSystem.showMessage?.('Steel Joist Design pendiente: Select Design Combo', 'warning')">
+                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-joist-select-combo') : cadSystem.showMessage?.('Diseño de Joist pendiente: Seleccionar Combo de Diseño', 'warning')">
                                 <span>📋</span>
-                                Select Design Combo...
+                                Seleccionar Combo de Diseño...
                             </button>
 
                             <div class="border-t border-gray-700 my-1"></div>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-joist-overwrites') : cadSystem.showMessage?.('Steel Joist Design pendiente: View/Revise Overwrites', 'warning')">
+                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-joist-overwrites') : cadSystem.showMessage?.('Diseño de Joist pendiente: Ver/Revisar Sobrescrituras', 'warning')">
                                 <span>📝</span>
-                                View/Revise Overwrites...
+                                Ver/Revisar Sobrescrituras...
                             </button>
 
                             <div class="border-t border-gray-700 my-1"></div>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-joist-start-using-similarity') : cadSystem.showMessage?.('Steel Joist Design pendiente: Start Design Using Similarity', 'warning')">
+                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-joist-start-using-similarity') : cadSystem.showMessage?.('Diseño de Joist pendiente: Iniciar Diseño por Similitud', 'warning')">
                                 <span>▶️</span>
-                                Start Design Using Similarity
+                                Iniciar Diseño por Similitud
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-joist-start-without-similarity') : cadSystem.showMessage?.('Steel Joist Design pendiente: Start Design Without Similarity', 'warning')">
+                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-joist-start-without-similarity') : cadSystem.showMessage?.('Diseño de Joist pendiente: Iniciar Diseño sin Similitud', 'warning')">
                                 <span>▶️</span>
-                                Start Design Without Similarity
+                                Iniciar Diseño sin Similitud
                             </button>
 
                             <div class="border-t border-gray-700 my-1"></div>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
-                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-joist-display-info') : cadSystem.showMessage?.('Steel Joist Design pendiente: Display Design Info', 'warning')">
+                                @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('steel-joist-display-info') : cadSystem.showMessage?.('Diseño de Joist pendiente: Mostrar Información de Diseño', 'warning')">
                                 <span>📊</span>
-                                Display Design Info...
+                                Mostrar Información de Diseño...
                             </button>
 
                         </x-slot>

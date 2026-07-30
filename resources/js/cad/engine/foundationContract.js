@@ -15,6 +15,8 @@
 // Esta es una simplificación de ingeniería razonable pero debe confirmarla
 // un ingeniero estructural antes de usarse en un cálculo de producción.
 
+import { Shape } from "../model/shapes.js";
+
 export function pointInPolygon(point, polygonPoints) {
   const x = Number(point.x);
   const y = Number(point.y);
@@ -201,10 +203,11 @@ function computeRectangularDimensions(points, edges) {
  * / .propiedades() ya definido en resources/js/cad/model/shapes.js — no
  * duplica la matemática. Suma los lados (`edges`) y, si es un rectángulo de
  * 4 vértices, sus dimensiones B x L (`dimensions`).
+
  */
 export function buildZapataPolygonProperties(zapatas) {
   return zapatas.map((zapata, index) => {
-    zapata.calcularPropiedades();
+    Shape.prototype.calcularPropiedades.call(zapata);
 
     const points = (zapata.points || []).map((point) => ({ x: point.x, y: point.y }));
     const edges = computeEdgeLengths(points);
@@ -215,6 +218,7 @@ export function buildZapataPolygonProperties(zapatas) {
       points,
       edges,
       dimensions: computeRectangularDimensions(points, edges),
+
     };
   });
 }

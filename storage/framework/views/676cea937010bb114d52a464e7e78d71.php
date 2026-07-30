@@ -8,7 +8,7 @@
     
     <button @click="itemsPanelCollapsed = !itemsPanelCollapsed"
         title="Mostrar / ocultar panel de Items y Propiedades"
-        class="flex items-center justify-center gap-1 p-1.5 text-[9px] hover:bg-gray-700 text-gray-300 border-b cad-border">
+        class="flex items-center justify-center gap-1 border-b py-1.5 text-[9px] font-semibold uppercase tracking-wide text-gray-400 transition-colors hover:bg-gray-700 hover:text-white cad-border">
         <svg class="h-3.5 w-3.5 transition-transform duration-200" :class="itemsPanelCollapsed ? '' : 'rotate-180'"
             xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -19,12 +19,12 @@
     <div class="flex flex-1 flex-col overflow-y-auto">
 
         
-        <div class="flex flex-col items-center justify-center gap-0.5 p-1.5 text-[9px] uppercase cad-text-logo-color border-b">Dibujar</div>
+        <div class="border-b border-gray-700/70 bg-gray-900/30 py-1 text-center text-[9px] font-semibold uppercase tracking-wide text-gray-400">Dibujar</div>
 
         <div class="flex flex-col gap-1">
-            <button title="Dibujar columna con un punto (solo en planta)"
+            <button title="Columnas: clic en un vértice de grilla para una sola, o arrastra un rectángulo para varias (solo en planta)"
                 @click="cadSystem.activateDrawMenuAction('create-columns-region-clicks')"
-                :class="currentState === columnDrawingState ? 'bg-blue-600 text-white' : 'text-gray-200'"
+                :class="currentState === columnsRegionState ? 'bg-blue-600 text-white' : 'text-gray-200'"
                 class="<?php echo e($qt); ?>">
                 <span class="text-base leading-none"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
                         <path fill="currentColor" d="M6 5h12a1 1 0 0 1 1 1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1a1 1 0 0 1 1-1m15-3v2H3V2zm-6 6h2v14h-2zM7 8h2v14H7zm4 0h2v14h-2z" />
@@ -38,7 +38,18 @@
                         <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14" />
                     </svg></span><span>Frame</span>
             </button>
-            <button title="Dibujar losa / área"
+            <button title="Vigas por región: clic cerca de un lado de grilla para una sola, o arrastra un rectángulo para varias (planta o elevación)"
+                @click="cadSystem.activateDrawMenuAction('create-lines-region-clicks')"
+                :class="currentState === createLinesRegionClicksState ? 'bg-blue-600 text-white' : 'text-gray-200'"
+                class="<?php echo e($qt); ?>">
+                <span class="text-base leading-none"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+                        <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="1" stroke-dasharray="3 2" />
+                            <path d="M8 8h8M8 16h8" />
+                        </g>
+                    </svg></span><span>Vigas Reg.</span>
+            </button>
+            <button title="Dibujar losa / área (clic por clic, formas irregulares)"
                 @click="cadSystem.activateDrawMenuAction('draw-area-slab')"
                 :class="currentState === slabDrawingState ? 'bg-blue-600 text-white' : 'text-gray-200'"
                 class="<?php echo e($qt); ?>">
@@ -50,6 +61,28 @@
                             <rect fill="currentColor" width="7" height="7" x="3" y="14" rx="1" />
                         </g>
                     </svg></span><span>Losa</span>
+            </button>
+            <button title="Losa rectangular: 2 clics (esquinas opuestas)"
+                @click="cadSystem.activateDrawMenuAction('draw-area-slab-rectangle')"
+                :class="currentState === slabRegionState ? 'bg-blue-600 text-white' : 'text-gray-200'"
+                class="<?php echo e($qt); ?>">
+                <span class="text-base leading-none"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+                        <rect fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" width="16" height="16" x="4" y="4" rx="1" />
+                    </svg></span><span>Losa Rect.</span>
+            </button>
+            <button title="Muro: clic sobre una viga o un lado de grilla = muro completo en 1 clic. O 2 clics en vértices/nodos para un largo custom (solo desde un piso, no la Base)"
+                @click="cadSystem.activateDrawMenuAction('draw-wall-segment')"
+                :disabled="cadSystem.isBasePlanViewActive?.()"
+                :class="currentState === wallSegmentDrawingState
+                    ? 'bg-blue-600 text-white'
+                    : (cadSystem.isBasePlanViewActive?.() ? 'text-gray-500 opacity-40 cursor-not-allowed' : 'text-gray-200')"
+                class="<?php echo e($qt); ?>">
+                <span class="text-base leading-none"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+                        <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="16" rx="1" />
+                            <path d="M3 10h18M3 16h18M9 4v6M15 10v6M9 16v4" />
+                        </g>
+                    </svg></span><span>Muro</span>
             </button>
             <button title="Dibujar zapata (polígono alrededor de columnas)"
                 @click="cadSystem.activateDrawMenuAction('draw-area-zapata')"
@@ -71,7 +104,7 @@
         </div>
 
         
-        <div class="flex flex-col items-center justify-center gap-0.5 p-1.5 text-[9px] uppercase cad-text-logo-color border-y">apoyos</div>
+        <div class="border-y border-gray-700/70 bg-gray-900/30 py-1 text-center text-[9px] font-semibold uppercase tracking-wide text-gray-400">Apoyos</div>
         <div class="flex flex-col gap-1">
             <!-- <button title="Seleccionar objetos (frames / shells)"
                     @click="cadSystem.activateDrawMenuAction('select-object')"
@@ -108,7 +141,7 @@
         </div>
 
         
-        <div class="flex flex-col items-center justify-center gap-0.5 p-1.5 text-[9px] uppercase cad-text-logo-color border-y">cargas</div>
+        <div class="border-y border-gray-700/70 bg-gray-900/30 py-1 text-center text-[9px] font-semibold uppercase tracking-wide text-gray-400">Cargas</div>
         <div class="flex flex-col gap-1">
             <button title="Carga distribuida en vigas / frames seleccionados"
                 @click="cadSystem.activateAssignMenuAction('frame-load-distributed')"
@@ -136,7 +169,7 @@
         </div>
 
         
-        <div class="flex flex-col items-center justify-center gap-0.5 p-1.5 text-[9px] uppercase cad-text-logo-color border-y">secciones</div>
+        <div class="border-y border-gray-700/70 bg-gray-900/30 py-1 text-center text-[9px] font-semibold uppercase tracking-wide text-gray-400">Secciones</div>
         <div class="flex flex-col gap-1">
             <button title="Asignar sección de frame a los frames seleccionados"
                 @click="cadSystem.activateAssignMenuAction('frame-section')"
@@ -159,7 +192,7 @@
     </div>
 
     
-    <div x-show="!itemsPanelCollapsed" x-cloak x-transition class="cad-bg cad-border absolute left-full top-0 z-20 flex h-full w-92 flex-col overflow-y-auto border-r-4 shadow-2xl">
+    <div x-show="!itemsPanelCollapsed" x-cloak x-transition class="cad-bg cad-border absolute left-full top-0 z-20 flex h-full w-80 flex-col overflow-y-auto rounded-r-md border-r-4 shadow-2xl">
 
         <!-- Panel de Grillas Diagonales -->
         <?php if (isset($component)) { $__componentOriginal459fdb1625573d7d1c176936449fb749 = $component; } ?>

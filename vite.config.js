@@ -112,5 +112,17 @@ export default defineConfig({
     server: {
         host: 'localhost',
         port: 5173,
+        watch: {
+            // Sin esto, Vite vigila TODO el proyecto por defecto (no hay
+            // `root` propio para el backend). python-backend/ es código
+            // Python ajeno al build — pero cambia seguido (recompilaciones,
+            // y sobre todo _debug_payloads/*.json en cada análisis sísmico
+            // con DUMP_SEISMIC_PAYLOAD=1). Como no es un módulo JS/CSS que
+            // Vite pueda actualizar en caliente, cada cambio ahí disparaba
+            // un full page reload en medio del análisis. storage/framework
+            // (vistas Blade compiladas) tiene el mismo problema — cambia en
+            // cada request PHP — así que se excluye también.
+            ignored: ['**/python-backend/**', '**/storage/framework/**'],
+        },
     },
 });

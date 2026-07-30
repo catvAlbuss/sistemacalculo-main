@@ -169,6 +169,24 @@ def run_full_seismic_analysis(data: dict) -> dict:
                     )
             has_add = bool(add_part.get("x") or add_part.get("y"))
 
+            # Sumar el aporte de la torsión accidental a la reacción MZ de base
+            # nominal de cada rama (aditivo, como ETABS — NO SRSS). El frontend
+            # luego combina direccionalmente (SRSS X/Y) las dos ramas ya con su
+            # accidental incluido. Solo el método aditivo produce este término;
+            # con "cm" (masa desplazada + re-eigen) la torsión ya está dentro de
+            # la respuesta desplazada, no como sumando explícito de base.
+            if want_add:
+                acc_mz_x = float((add_part.get("x") or {}).get("base_accidental_mz", 0.0) or 0.0)
+                acc_mz_y = float((add_part.get("y") or {}).get("base_accidental_mz", 0.0) or 0.0)
+                if "x" in seismic and acc_mz_x:
+                    seismic["x"]["base_moment_mz"] = (
+                        float(seismic["x"].get("base_moment_mz", 0.0) or 0.0) + abs(acc_mz_x)
+                    )
+                if "y" in seismic and acc_mz_y:
+                    seismic["y"]["base_moment_mz"] = (
+                        float(seismic["y"].get("base_moment_mz", 0.0) or 0.0) + abs(acc_mz_y)
+                    )
+
             cm_part = {}
             if want_cm:
                 if spectrum_x:

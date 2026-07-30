@@ -125,6 +125,7 @@ export const autosaveMixin = {
     this._serverTimer = null;
     this._serverModelId = null;
     this._serverVersion = 0;
+    this._serverSaveInFlight = false;
     this._serverAvailable = typeof window.CompressionStream === "function";
 
     if (!window.indexedDB) {
@@ -236,6 +237,18 @@ export const autosaveMixin = {
       if (!silent) this.showMessage?.("⚠️ Sin conexión: no se pudo guardar en la nube.", "warning");
       return;
     }
+    if (this._serverSaveInFlight) {
+      // Ya hay un guardado en curso: el timer PERIÓDICO (cada SERVER_DEBOUNCE_MS)
+      // y el debounce de edición corren en relojes independientes y pueden
+      // superponerse. Si disparamos dos POST en paralelo, ambos parten de la
+      // MISMA `version`; el que responde segundo llega con una versión ya
+      // vieja y el servidor lo rechaza con 409 (aunque no hubo edición en
+      // otra pestaña/dispositivo). Dejamos `_serverDirty` para que el
+      // próximo timer recoja el cambio en vez de duplicar el request.
+      this._serverDirty = true;
+      return;
+    }
+    this._serverSaveInFlight = true;
     try {
       if (typeof this.exportToJSON !== "function") return;
       const model = this.exportToJSON();
@@ -314,6 +327,8 @@ export const autosaveMixin = {
     } catch (error) {
       console.warn("⚠️ Autoguardado servidor error:", error);
       if (!silent) this.showMessage?.("⚠️ Error guardando en la nube: " + error.message, "warning");
+    } finally {
+      this._serverSaveInFlight = false;
     }
   },
 

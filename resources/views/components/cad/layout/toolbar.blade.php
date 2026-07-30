@@ -1,9 +1,7 @@
 <!-- Toolbar -->
 <div>
   <x-cad.menu-bar />
-  <div class="cad-border flex items-center overflow-x-auto overflow-y-hidden border-b px-2">
-    <!-- Add more toolbar buttons as needed -->
-    <span class="cad-text-logo-color w-48 text-sm font-bold italic">BARRA DE HERRAMIENTAS</span>
+  <div class="cad-border flex h-[64px] items-stretch overflow-x-auto overflow-y-hidden border-b px-1">
     <!-- -------------------------APARTADO DE DISEÑAR-------------------------- -->
     <x-cad.ui.ribbon-group title="Diseñar">
       <x-cad.ui.ribbon-button clickHandler="openNewModelDialog()" toggle="false" label="Nuevo Modelo">
@@ -131,18 +129,16 @@
       <button
         id="btn-open-grid-editor"
         type="button"
-        class="hover:bg-opacity-80 cad-text-logo-color flex min-w-[72px] flex-col items-center justify-center rounded px-3 py-2 text-xs transition hover:bg-gray-700">
-        <x-cad.svg.grid></x-cad.svg.grid>
-        <span class="mt-1 text-[11px]">Editar</span>
+        class="flex h-full flex-col items-center justify-center rounded px-1.5 py-1 text-center cad-ribbon-button-hover-bg cad-text-logo-color">
+        <div class="flex h-6 w-6 self-center"><x-cad.svg.grid></x-cad.svg.grid></div>
+        <span class="text-[10px] leading-tight">Editar</span>
       </button>
     </x-cad.ui.ribbon-group>
 
     <x-cad.ui.ribbon-group title="Vistas">
-      <div class="flex flex-col px-2 py-1 text-xs text-white">
-        <label class="mb-1 text-gray-300">Vista activa</label>
-
+      <div class="flex flex-col justify-center gap-0.5 px-1.5 text-xs text-white">
         <select
-          class="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm"
+          class="rounded border border-gray-600 bg-gray-800 px-1.5 py-1 text-xs text-white"
           @change="setViewFromSet($event.target.value)">
           <template x-for="(view, index) in viewSet" :key="index">
             <option :value="index" x-text="view.name"></option>
@@ -210,6 +206,45 @@
 
       </x-cad.ui.ribbon-button>
     </x-cad.ui.ribbon-group>
+    <x-cad.ui.ribbon-group title="Otros">
+      <x-cad.ui.ribbon-button clickHandler="cadSystem.activateEditMenuAction('divide-lines')" toggle="false" label="Dividir lineas">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <!-- Segmento de línea Izquierdo -->
+          <path d="M3 12h6" />
+
+          <!-- Segmento de línea Derecho -->
+          <path d="M15 12h6" />
+
+          <!-- Marca de corte / Cuchilla de división central (Inclinada) -->
+          <path d="M14 6l-4 12" />
+
+          <!-- Puntos indicadores de los nuevos extremos creados -->
+          <circle cx="9" cy="12" r="1" fill="currentColor" />
+          <circle cx="15" cy="12" r="1" fill="currentColor" />
+        </svg>
+
+
+      </x-cad.ui.ribbon-button>
+      <x-cad.ui.ribbon-button clickHandler="cadSystem.activateEditMenuAction('replicate')" toggle="false" label="Replicar">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <!-- Fila Superior de Nodos (Círculos) -->
+          <circle cx="6" cy="6" r="1.5" />
+          <circle cx="12" cy="6" r="1.5" />
+          <circle cx="18" cy="6" r="1.5" />
+
+          <!-- Líneas de Conexión Verticales (Ejes de Replicación) -->
+          <path d="M6 10v4" />
+          <path d="M12 10v4" />
+          <path d="M18 10v4" />
+
+          <!-- Fila Inferior de Nodos (Círculos Replicados) -->
+          <circle cx="6" cy="18" r="1.5" />
+          <circle cx="12" cy="18" r="1.5" />
+          <circle cx="18" cy="18" r="1.5" />
+        </svg>
+
+      </x-cad.ui.ribbon-button>
+    </x-cad.ui.ribbon-group>
   </div>
   <!-- Modal para File > New Model -->
   <x-cad.modals.new-model />
@@ -229,6 +264,9 @@
   <x-cad.modals.mass-source-modal />
   <x-cad.modals.slab-sections-modal />
   <x-cad.modals.reactions-display-modal />
+
+  <x-cad.modals.wall-sections-modal />
+ 
   <!-- Seccion de analisis -->
   <x-cad.modals.analysis-options-modal />
   <x-cad.modals.check-model-modal />

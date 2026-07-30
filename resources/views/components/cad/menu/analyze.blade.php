@@ -20,41 +20,41 @@
 
                     {{-- ================= CONFIGURACIÓN DEL ANÁLISIS ================= --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
-                        Analysis Setup
+                        Configuración del Análisis
                     </div>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.setAnalysisOptions()">
                         <span>⚙️</span>
-                        <span class="flex-1 truncate">Set Analysis Options...</span>
-                        <span class="text-xs text-gray-500 italic">Options</span>
+                        <span class="flex-1 truncate">Definir Opciones de Análisis...</span>
+                        <span class="text-xs text-gray-500 italic">Opciones</span>
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
 
                     {{-- ================= VALIDACIÓN DEL MODELO ================= --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
-                        Model Validation
+                        Validación del Modelo
                     </div>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.checkModel()">
                         <span>🔍</span>
-                        <span class="flex-1 truncate">Check Model...</span>
-                        <span class="text-xs text-gray-500 italic">Pre-run</span>
+                        <span class="flex-1 truncate">Verificar Modelo...</span>
+                        <span class="text-xs text-gray-500 italic">Previo</span>
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
 
                     {{-- ================= EJECUCIÓN DEL ANÁLISIS ================= --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
-                        Analysis Run
+                        Ejecución del Análisis
                     </div>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.runAnalysis()">
                         <span>▶️</span>
-                        <span class="flex-1 truncate">Run Analysis</span>
+                        <span class="flex-1 truncate">Ejecutar Análisis</span>
                         <span class="text-xs text-gray-500 italic">F5</span>
                     </button>
 

@@ -55,9 +55,9 @@
 
     .cad-menu-panel {
         width: max-content;
-        min-width: 320px;
-        max-width: none !important;
-        max-height: none !important;
+        min-width: 280px;
+        max-width: 320px !important;
+        max-height: 600px !important;
         overflow: visible !important;
     }
 
@@ -69,8 +69,8 @@
     div.absolute:has(.cad-menu-panel),
     div[x-show]:has(.cad-menu-panel),
     div:has(> .cad-menu-panel) {
-        max-height: none !important;
-        overflow: visible !important;
+        max-height: 600px !important;
+        /* overflow-y: auto !important; */
     }
 
     /*
