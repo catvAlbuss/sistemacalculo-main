@@ -98,6 +98,10 @@
         label="Reacción">
         <x-cad.svg.reaction></x-cad.svg.reaction>
       </x-cad.ui.ribbon-button>
+      <x-cad.ui.ribbon-button clickHandler="openReactionsDisplay()" toggle="reactionsDisplay?.enabled"
+        label="Reacciones por Caso...">
+        <x-cad.svg.reaction></x-cad.svg.reaction>
+      </x-cad.ui.ribbon-button>
       <x-cad.ui.ribbon-button-subitem clickHandler="options.showFAxiales = !options.showFAxiales" label="Axial"
         toggle="options.showFAxiales">
         <x-slot name="slot1"><x-cad.svg.axial></x-cad.svg.axial></x-slot>
@@ -224,6 +228,7 @@
   <x-cad.modals.load-combinations-modal />
   <x-cad.modals.mass-source-modal />
   <x-cad.modals.slab-sections-modal />
+  <x-cad.modals.reactions-display-modal />
   <!-- Seccion de analisis -->
   <x-cad.modals.analysis-options-modal />
   <x-cad.modals.check-model-modal />

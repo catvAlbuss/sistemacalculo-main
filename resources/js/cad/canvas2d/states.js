@@ -3868,7 +3868,40 @@ export class AreaDrawingState extends PanAndZoomState {
 
   getSnapPoint(context, mouse) {
     const worldPos = context.grid.screenToWorld(mouse);
-    return context.getCurrentSnapPoint(worldPos);
+    const snapped = context.getCurrentSnapPoint(worldPos);
+
+    // Modo Ortho (F8, como AutoCAD) con tracking de esquina: bloquea el
+    // punto a 0°/90°/180°/270°, evaluando TODAS las combinaciones posibles
+    // entre el último punto y el de inicio — no solo "horizontal o
+    // vertical desde UN ancla", sino también la ESQUINA que mezcla el eje X
+    // de un ancla con el eje Y de la otra. Esa combinación es justo lo que
+    // hace falta para que el lado de CIERRE de una zapata rectangular salga
+    // recto: su X debe coincidir con el inicio (cierre vertical) mientras
+    // su Y sigue al último punto (continuación horizontal del lado
+    // anterior) — un solo ancla nunca puede dar eso a la vez. Se usa el
+    // candidato más cercano a hacia dónde realmente apunta el mouse (sin
+    // desviación diagonal). Por ahora solo para zapatas (pedido del cliente
+    // para dibujarlas simétricas a mano); el resto de áreas (losa, muro)
+    // sigue con ángulo libre.
+    if (this.areaType === "zapata" && context.options?.orthoMode && this.points.length > 0) {
+      const last = this.points[this.points.length - 1];
+      const first = this.points[0];
+
+      const candidates = [
+        { ...snapped, y: last.y },             // horizontal desde el último punto
+        { ...snapped, x: last.x },             // vertical desde el último punto
+        { ...snapped, y: first.y },            // horizontal desde el inicio
+        { ...snapped, x: first.x },            // vertical desde el inicio
+        { ...snapped, x: first.x, y: last.y }, // esquina de cierre: X inicio + Y último
+        { ...snapped, x: last.x, y: first.y }, // esquina de cierre: X último + Y inicio
+      ];
+
+      candidates.sort((a, b) => pointDistance(snapped, a) - pointDistance(snapped, b));
+
+      return candidates[0];
+    }
+
+    return snapped;
   }
 
   handleMouseDown(event, context, mouse) {
@@ -3885,6 +3918,21 @@ export class AreaDrawingState extends PanAndZoomState {
     if (view?.type !== "plan") {
       context.showMessage?.("Por ahora las áreas solo se dibujan en planta.", "warning");
       return;
+    }
+
+    // Clic cerca del punto de inicio: mismo criterio que "encontrar un nodo
+    // existente" al dibujar barras (closestNodeAtActiveView en
+    // mixins/edit/model-factory.js, tolerancia de 10px en pantalla) — en
+    // vez de agregar un vértice casi duplicado, unifica ahí mismo y cierra
+    // el polígono. Por ahora solo para zapatas (mismo alcance que Ortho).
+    if (this.areaType === "zapata" && this.points.length >= 3) {
+      const startScreen = context.grid.worldToScreen(this.points[0]);
+
+      if (pointDistance(mouse, startScreen) <= 10) {
+        this._commitArea(context);
+        context.showMessage?.("Zapata cerrada en el punto de inicio.", "success");
+        return;
+      }
     }
 
     const snapPoint = this.getSnapPoint(context, mouse);
@@ -3916,7 +3964,48 @@ export class AreaDrawingState extends PanAndZoomState {
 
     this.previewPoint = this.getSnapPoint(context, mouse);
     this.buildPreviewArea(context);
+
+    if (this.areaType === "zapata") {
+      this._updateZapataDistanceInput(context);
+    }
+
     context.redraw();
+  }
+
+  // Mismo mecanismo que ya usan las barras (context.distanceInput, input
+  // real flotante — ver #distance en cad-area.blade.php): se mantiene
+  // siempre visible con la distancia en vivo desde el último punto,
+  // pudiendo escribirse encima para un lado exacto (Enter la confirma vía
+  // commitZapataLengthInput). Nada de teclas para activarlo — igual que en
+  // Safecito/Cimentación 2.0 y en el dibujo de barras de este mismo CAD.
+  // Solo para zapata — el resto de áreas (Losa/Muro/Opening) es de otro
+  // desarrollador del equipo, no se toca.
+  _updateZapataDistanceInput(context) {
+    if (!context.distanceInput) return;
+
+    const last = this.points[this.points.length - 1];
+    const current = this.previewPoint || last;
+
+    const dx = current.x - last.x;
+    const dy = current.y - last.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (!(distance > 0.001)) return;
+
+    const p1 = context.currentRenderer?.projectPoint
+      ? context.currentRenderer.projectPoint({ position: last }, context)
+      : context.grid.worldToScreen(last);
+    const p2 = context.currentRenderer?.projectPoint
+      ? context.currentRenderer.projectPoint({ position: current }, context)
+      : context.grid.worldToScreen(current);
+
+    const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+
+    context.distanceInput.style.left = `${mid.x + 20}px`;
+    context.distanceInput.style.top = `${mid.y - 20}px`;
+    context.distanceInput.value = context.formatOutput
+      ? context.formatOutput(distance, "lengths")
+      : distance.toFixed(2);
   }
 
   // Finaliza el área en progreso: la guarda en context.areas y refresca 2D + 3D.
@@ -3938,7 +4027,123 @@ export class AreaDrawingState extends PanAndZoomState {
     return true;
   }
 
+  // Dirección del próximo lado bloqueada al eje 0°/90°/180°/270° más cercano
+  // a hacia dónde apunta el mouse ahora mismo, respecto al último punto —
+  // igual criterio que el Ortho normal, pero como VECTOR unitario (no un
+  // punto) para poder multiplicarlo por la distancia del input flotante.
+  // Solo para zapata.
+  _getZapataLengthDirection(context) {
+    const last = this.points[this.points.length - 1];
+    const mouseWorld = context.mousePos || last;
+    const dx = mouseWorld.x - last.x;
+    const dy = mouseWorld.y - last.y;
+
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      return { dx: dx >= 0 ? 1 : -1, dy: 0 };
+    }
+
+    return { dx: 0, dy: dy >= 0 ? 1 : -1 };
+  }
+
+  // Imán de cierre: la longitud tecleada solo fija UN punto respecto al
+  // ÚLTIMO punto (dirección horizontal o vertical) — a diferencia del clic
+  // normal (getSnapPoint), no sabe nada del punto de INICIO. Si el punto
+  // resultante queda cerca (en píxeles de pantalla, mismo margen que el
+  // cierre por clic) de la esquina que lo alinearía en 90° también con el
+  // inicio, se ajusta exacto ahí — así el lado de cierre sale recto con el
+  // 1er punto, no solo con el anterior, tecleando o no.
+  _magnetToStartCorner(context, point, direction) {
+    if (this.areaType !== "zapata" || this.points.length < 2) return point;
+
+    const first = this.points[0];
+    const corner = direction.dy === 0
+      ? { ...point, x: first.x } // veníamos horizontal desde el último punto → probar X del inicio
+      : { ...point, y: first.y }; // veníamos vertical desde el último punto → probar Y del inicio
+
+    const pointScreen = context.grid.worldToScreen(point);
+    const cornerScreen = context.grid.worldToScreen(corner);
+
+    return pointDistance(pointScreen, cornerScreen) <= 10 ? corner : point;
+  }
+
+  // Confirmado desde el input real #distance (cad-area.blade.php,
+  // @keyup.enter) — mismo mecanismo que trussDrawingState.createBeam: toma
+  // lo que haya en context.distanceInput.value (la distancia en vivo, o lo
+  // que el usuario haya escrito encima) y agrega el punto en esa dirección.
+  commitZapataLengthInput(context) {
+    const length = parseFloat(context.distanceInput?.value);
+
+    if (!Number.isFinite(length) || length <= 0) {
+      return;
+    }
+
+    const last = this.points[this.points.length - 1];
+    const direction = this._getZapataLengthDirection(context);
+
+    const newPoint = this._magnetToStartCorner(
+      context,
+      {
+        x: last.x + direction.dx * length,
+        y: last.y + direction.dy * length,
+        z: last.z || 0,
+      },
+      direction
+    );
+
+    this.points.push(newPoint);
+    this.previewPoint = { ...newPoint };
+    this.buildPreviewArea(context);
+
+    // Limpiar y quitar el foco del recuadro: si quedara el número viejo y
+    // el foco puesto, el próximo dígito se pegaría al anterior en vez de
+    // reemplazarlo — así el "dynamic input" queda listo para el siguiente
+    // lado con solo teclear, sin arrastrar el valor anterior.
+    if (context.distanceInput) {
+      context.distanceInput.value = "";
+      context.distanceInput.blur();
+    }
+
+    context.redraw();
+    context.showMessage?.(
+      `Lado de ${length.toFixed(2)} m agregado. Sigue marcando, o cierra cerca del punto de inicio.`,
+      "success"
+    );
+  }
+
   handleKeyDown(event, context) {
+    // "Dynamic input" estilo AutoCAD: apenas empiezas a teclear un número
+    // (sin haber hecho clic dentro del recuadro), se activa el input de
+    // distancia solo, con ese primer dígito ya puesto — para escribir la
+    // distancia exacta sin frenar a apuntar-y-clicar en el recuadro cada
+    // vez. Dirección = hacia donde apunte el mouse en ese momento (igual
+    // que siempre, ver _getZapataLengthDirection). Solo para zapata — el
+    // resto de áreas (Losa/Muro/Opening) es de otro desarrollador del
+    // equipo, no se toca.
+    if (
+      this.areaType === "zapata" &&
+      this.points.length > 0 &&
+      context.distanceInput &&
+      document.activeElement !== context.distanceInput &&
+      /^[0-9.]$/.test(event.key)
+    ) {
+      event.preventDefault();
+      context.distanceInput.value = event.key;
+      context.distanceInput.focus();
+      return;
+    }
+
+    if (event.key === "F8" && this.areaType === "zapata") {
+      event.preventDefault();
+      context.options.orthoMode = !context.options.orthoMode;
+      context.showMessage?.(
+        context.options.orthoMode ? "Ortho activado (F8)." : "Ortho desactivado (F8).",
+        "info"
+      );
+      this.buildPreviewArea(context);
+      context.redraw();
+      return;
+    }
+
     if (event.key === "Escape") {
       // No perder el trabajo: si hay un área válida (≥3 puntos), finalizarla
       // antes de salir; si no, cancelar.
@@ -3954,6 +4159,10 @@ export class AreaDrawingState extends PanAndZoomState {
     }
 
     if (event.key === "Backspace") {
+      // Si el foco está en el input de distancia, que edite el número —
+      // no borrar el último vértice del polígono.
+      if (context.distanceInput && document.activeElement === context.distanceInput) return;
+
       event.preventDefault();
       if (this.points.length > 0) {
         this.points.pop();
@@ -3964,6 +4173,11 @@ export class AreaDrawingState extends PanAndZoomState {
     }
 
     if (event.key === "Enter") {
+      // Si el input de distancia flotante tiene el foco, su propio
+      // @keyup.enter ya agregó el punto (commitZapataLengthInput) — no
+      // cerrar el polígono además.
+      if (context.distanceInput && document.activeElement === context.distanceInput) return;
+
       if (this.points.length < 3) {
         context.showMessage?.("Se necesitan al menos 3 puntos para crear un área.", "warning");
         return;
@@ -3975,12 +4189,18 @@ export class AreaDrawingState extends PanAndZoomState {
   }
 
   draw(renderer, context) {
-    // El preview ya se dibuja desde renderer.drawAreaPreview(context)
+    // El preview del polígono (incluida la medida del lado en curso) ya se
+    // dibuja desde renderer.drawAreaPreview(context) — nada más que hacer
+    // acá; la distancia editable vive en el input real #distance.
   }
 
   info() {
     if (this.points.length === 0) {
       return "Haz clic para empezar a dibujar el área.";
+    }
+
+    if (this.areaType === "zapata") {
+      return "Clic para marcar vértices, o escribe la distancia exacta y Enter. Enter/Esc = cerrar, Backspace = borrar último punto, F8 = Ortho.";
     }
 
     return "Haz clic para seguir marcando vértices. Enter o Esc = cerrar área, Backspace = borrar último punto.";

@@ -101,6 +101,7 @@ import { reportMixin } from "./mixins/analysis/report.js";
 import { animationMixin } from "./mixins/analysis/animation.js";
 import { seismicMixin } from "./mixins/analysis/seismic.js";
 import { foundationMixin } from "./mixins/analysis/foundation.js";
+import { reactionsDisplayMixin } from "./mixins/analysis/seismic/reactions-display.js";
 import { autosaveMixin } from "./mixins/io/autosave.js";
 
 export default () => ({
@@ -512,6 +513,10 @@ export default () => ({
       // b×h y losas/shells con espesor. Default OFF (vista de líneas/tubos).
       extrudeFrames3D: false,
       extrudeShells3D: false,
+      // Modo Ortho (F8, como AutoCAD) para "Zapata a mano alzada": fuerza cada
+      // lado nuevo a salir horizontal o vertical respecto al punto anterior.
+      // Por ahora solo aplica a zapatas (ver AreaDrawingState en states.js).
+      orthoMode: false,
     };
     this.oldOptions = {
       ...this.options,
@@ -831,5 +836,6 @@ export default () => ({
   ...animationMixin,
   ...seismicMixin,
   ...foundationMixin,
+  ...reactionsDisplayMixin,
   ...autosaveMixin,
 });

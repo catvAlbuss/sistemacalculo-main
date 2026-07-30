@@ -655,6 +655,7 @@ export const seismicPayloadMixin = {
       name.includes("LIVE") ||
       name === "L" ||
       name === "CV" ||
+      name === "CVE" ||
       name.includes("CARGA VIVA") ||
       name.includes("VIVA")
     ) {
@@ -930,13 +931,22 @@ export const seismicPayloadMixin = {
       for (const l of uniform) {
         const totalN = Number(l.value) * g * planArea; // peso total del panel [N]
         const perNode = totalN / cornerIds.length;
+        const loadCase = l.loadCase || "CM";
+        // run_static_analysis_by_type (Python) filtra por type/loadType, no
+        // por loadCase — mismo problema que tenía el peso propio de frames
+        // (ver _buildSeismicFrameSelfWeightForPayload). Sin esto, cualquier
+        // carga de losa (incluida su propio peso propio) quedaba fuera de
+        // static_dead/static_live.
+        const patternType = this._getLoadPatternTypeForSeismic(loadCase);
         for (const nid of cornerIds) {
           out.push({
             node: nid,
             fx: 0,
             fy: 0,
             fz: -perNode, // gravitatoria (−Z); el motor usa abs()
-            loadCase: l.loadCase || "CM",
+            loadCase,
+            type: patternType,
+            loadType: patternType,
             source: "area_load",
           });
         }
@@ -1035,6 +1045,11 @@ export const seismicPayloadMixin = {
           fy: 0,
           fz: -perNode,
           loadCase: "CM",
+          // run_static_analysis_by_type (Python) filtra por type/loadType, no
+          // por loadCase — sin esto el peso propio quedaba excluido de
+          // static_dead (CM salía en 0 en "Reacciones por Caso").
+          type: "Dead",
+          loadType: "Dead",
           source: "frame_self_weight",
         });
       });

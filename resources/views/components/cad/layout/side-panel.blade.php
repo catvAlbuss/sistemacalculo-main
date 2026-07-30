@@ -60,7 +60,7 @@
                         </g>
                     </svg></span><span>Losa</span>
             </button>
-            <button title="Dibujar zapata (polígono alrededor de columnas)"
+            <button title="Zapata a mano alzada (dibuja el polígono alrededor de columnas)"
                 @click="cadSystem.activateDrawMenuAction('draw-area-zapata')"
                 :class="currentState === zapataDrawingState ? 'bg-blue-600 text-white' : 'text-gray-200'"
                 class="{{ $qt }}">
@@ -75,7 +75,18 @@
                         <!-- Línea de carga / Eje vertical central -->
                         <path d="M12 3v4" />
                     </svg>
-                </span><span>Zapata</span>
+                </span><span>Zapata a mano alzada</span>
+            </button>
+            <button title="Ortho (F8): al dibujar Zapata a mano alzada, fuerza cada lado nuevo a salir horizontal o vertical respecto al anterior, para hacerla simétrica."
+                @click="cadSystem.options.orthoMode = !cadSystem.options.orthoMode"
+                :class="cadSystem.options.orthoMode ? 'bg-blue-600 text-white' : 'text-gray-200'"
+                class="{{ $qt }}">
+                <span class="text-base leading-none">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <path d="M4 4v16h16" />
+                        <path d="M4 12h16M12 4v16" stroke-dasharray="2 2" />
+                    </svg>
+                </span><span>Ortho (F8)</span>
             </button>
         </div>
 

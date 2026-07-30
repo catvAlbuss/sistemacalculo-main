@@ -1,5 +1,6 @@
 import { BeamStyle, NodeStyle } from "../model/styles.js";
 import { pointDistance, axisToFixed, midPoint } from "../lib/utils.js";
+import { getNodeReactionForCase } from "../engine/reactionsDisplayContract.js";
 import { generateMockFrameForceResults } from "../engine/mockFrameForceResults.js";
 import { drawFrameForceDiagrams2D } from "../diagrams/frameForceDiagramRenderer.js";
 import { drawFrameLocalAxes2D } from "../diagrams/frameLocalAxesRenderer.js";
@@ -116,6 +117,7 @@ export class DiseñoRenderer {
     this.drawDimensionPreview(CADSystem);
     this.drawAreas(CADSystem);
     this.drawAreaPreview(CADSystem);
+    this.drawOrthoGuides(CADSystem);
 
     CADSystem.nodes.forEach((n) => {
       if (!this.shouldDrawNode(n, CADSystem)) return;
@@ -261,6 +263,10 @@ export class DiseñoRenderer {
       });
 
       CADSystem.ctx.restore();
+    }
+
+    if (CADSystem.reactionsDisplay?.enabled) {
+      this.drawJointReactionLabels(CADSystem);
     }
 
     if (CADSystem.options.showDeflection) {
@@ -1034,6 +1040,60 @@ export class DiseñoRenderer {
     }
   }
 
+  // =====================================================
+  // DISPLAY 2D > "Reacciones por Caso" (CM/CVE/SDX/SDY)
+  // Caja de texto flotante junto a cada nodo con soporte, con los
+  // componentes marcados en context.reactionsDisplay.components — mismo
+  // estilo visual que drawAreaEdgeLengths (caja oscura + texto).
+  // =====================================================
+  drawJointReactionLabels(context) {
+    const display = context.reactionsDisplay;
+    if (!display?.enabled || !Array.isArray(context.nodes)) return;
+
+    const componentKeys = ["fx", "fy", "fz", "mx", "my", "mz"];
+    const labels = { fx: "Fx", fy: "Fy", fz: "Fz", mx: "Mx", my: "My", mz: "Mz" };
+    const activeComponents = componentKeys.filter((k) => display.components?.[labels[k]]);
+    if (!activeComponents.length) return;
+
+    const ctx = context.ctx;
+    if (!ctx) return;
+
+    context.nodes.forEach((node) => {
+      if (!node?.soporte) return;
+      if (!this.shouldDrawNode(node, context)) return;
+
+      const reaction = getNodeReactionForCase(context, node.id, display.caseId);
+      if (!reaction) return;
+
+      const lines = activeComponents.map(
+        (k) => `${labels[k]} = ${reaction[k].toFixed(4)}`
+      );
+      if (!lines.length) return;
+
+      const p = this.projectPoint(node, context);
+      const x = p.x + 10;
+      const y = p.y - 10;
+
+      ctx.save();
+      ctx.font = "10px Arial";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+
+      const lineHeight = 12;
+      const textWidth = Math.max(...lines.map((l) => ctx.measureText(l).width));
+
+      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+      ctx.fillRect(x - 3, y - 2, textWidth + 6, lines.length * lineHeight + 4);
+
+      ctx.fillStyle = "#38bdf8";
+      lines.forEach((line, index) => {
+        ctx.fillText(line, x, y + index * lineHeight);
+      });
+
+      ctx.restore();
+    });
+  }
+
   drawWireBeam(beam, context) {
     const p1 = this.projectPoint(beam.node1, context);
     const p2 = this.projectPoint(beam.node2, context);
@@ -1405,6 +1465,14 @@ export class DiseñoRenderer {
     ctx.stroke();
     ctx.setLineDash([]);
 
+    // Mientras se está dibujando el área (p.ej. una zapata), muestra la
+    // longitud real de cada lado ya trazado — igual que al dibujar una
+    // barra, para que el usuario vea sus dimensiones sin tener que abrir
+    // el modal de resultados después.
+    if (isPreview) {
+      this.drawAreaEdgeLengths(pts, area, context);
+    }
+
     // Vértices
     pts.forEach((p) => {
       ctx.beginPath();
@@ -1435,6 +1503,58 @@ export class DiseñoRenderer {
 
       ctx.fillStyle = "#ffffff";
       ctx.fillText(label, center.x, center.y);
+    }
+
+    ctx.restore();
+  }
+
+  /**
+   * Etiqueta con la longitud real (en metros) de cada lado ya trazado del
+   * área en curso. Usa `area.points` (coordenadas de mundo) para la
+   * distancia y `pts` (ya proyectados a pantalla) solo para ubicar el
+   * texto — igual criterio que el resto del renderer (proyecta, no mide
+   * en pantalla). Cierra el último lado (punto final → primero) solo
+   * cuando ya hay 3+ puntos, igual que el `ctx.closePath()` de arriba.
+   */
+  drawAreaEdgeLengths(pts, area, context) {
+    const worldPoints = area?.points || [];
+    if (!Array.isArray(pts) || pts.length < 2 || worldPoints.length < 2) return;
+
+    const edgeCount = pts.length >= 3 ? pts.length : pts.length - 1;
+    const ctx = context.ctx;
+
+    ctx.save();
+    ctx.font = "10px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    for (let i = 0; i < edgeCount; i++) {
+      const wa = worldPoints[i];
+      const wb = worldPoints[(i + 1) % worldPoints.length];
+      const pa = pts[i];
+      const pb = pts[(i + 1) % pts.length];
+      if (!wa || !wb || !pa || !pb) continue;
+
+      const distance = Math.hypot(Number(wb.x) - Number(wa.x), Number(wb.y) - Number(wa.y));
+      const label = `${context.formatOutput ? context.formatOutput(distance, "lengths") : distance.toFixed(2)} m`;
+
+      // Punto medio de la pantalla, desplazado perpendicular al lado para
+      // no quedar encima de la línea dibujada.
+      const dx = pb.x - pa.x;
+      const dy = pb.y - pa.y;
+      const segLength = Math.hypot(dx, dy) || 1;
+      const offsetX = (-dy / segLength) * 12;
+      const offsetY = (dx / segLength) * 12;
+
+      const labelX = (pa.x + pb.x) / 2 + offsetX;
+      const labelY = (pa.y + pb.y) / 2 + offsetY;
+
+      const textWidth = ctx.measureText(label).width;
+      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+      ctx.fillRect(labelX - textWidth / 2 - 3, labelY - 7, textWidth + 6, 14);
+
+      ctx.fillStyle = "#facc15";
+      ctx.fillText(label, labelX, labelY);
     }
 
     ctx.restore();
@@ -1491,6 +1611,53 @@ export class DiseñoRenderer {
     if (!this.shouldDrawArea(state.previewArea, context)) return;
 
     this.drawArea(state.previewArea, context, true);
+  }
+
+  /**
+   * Guías de alineación estilo AutoCAD para el modo Ortho de "Zapata a mano
+   * alzada": líneas punteadas horizontal/vertical que cruzan todo el canvas
+   * a la altura/posición del punto de inicio y del último punto colocado —
+   * para que el usuario VEA cuándo el cursor está alineado con cualquiera
+   * de los dos anclajes antes de hacer clic (no solo que el valor final
+   * quede forzado). Ver AreaDrawingState::getSnapPoint en canvas2d/states.js.
+   */
+  drawOrthoGuides(context) {
+    if (!context.options?.orthoMode) return;
+
+    const state = context.currentState;
+    if (state?.areaType !== "zapata" || !Array.isArray(state.points) || !state.points.length) return;
+
+    const ctx = context.ctx;
+    if (!ctx) return;
+
+    const anchors = [state.points[0], state.points[state.points.length - 1]];
+    const drawn = new Set();
+
+    ctx.save();
+    ctx.strokeStyle = "#facc15";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+
+    anchors.forEach((anchor) => {
+      const key = `${anchor.x},${anchor.y}`;
+      if (drawn.has(key)) return;
+      drawn.add(key);
+
+      const p = this.projectPoint({ position: anchor }, context);
+
+      ctx.beginPath();
+      ctx.moveTo(0, p.y);
+      ctx.lineTo(ctx.canvas.width, p.y);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(p.x, 0);
+      ctx.lineTo(p.x, ctx.canvas.height);
+      ctx.stroke();
+    });
+
+    ctx.setLineDash([]);
+    ctx.restore();
   }
 
   drawReshapeObjectState(state, context) {
@@ -4892,6 +5059,10 @@ export class DeflexionRenderer extends DiseñoRenderer {
       CADSystem.ctx.restore();
     }
 
+    if (CADSystem.reactionsDisplay?.enabled) {
+      this.drawJointReactionLabels(CADSystem);
+    }
+
     if (CADSystem.options.showDeflection) {
       this.drawDeflections(CADSystem);
     }
@@ -4998,6 +5169,10 @@ export class AxialRenderer extends DiseñoRenderer {
         this.drawReaction(n, CADSystem);
       });
       CADSystem.ctx.restore();
+    }
+
+    if (CADSystem.reactionsDisplay?.enabled) {
+      this.drawJointReactionLabels(CADSystem);
     }
 
     CADSystem.currentState.draw(this, CADSystem);

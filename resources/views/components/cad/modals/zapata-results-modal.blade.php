@@ -51,6 +51,26 @@
             <template x-for="polygon in polygonProperties" :key="polygon.name">
                 <fieldset class="border border-gray-600 rounded px-2 pb-2 pt-1 mb-3">
                     <legend class="px-1 text-xs text-gray-400" x-text="polygon.name"></legend>
+
+                    <div class="mb-2">
+                        <p class="text-[11px] font-semibold text-gray-300 mb-1">Dimensiones</p>
+                        <template x-if="polygon.dimensions">
+                            <p class="text-xs">
+                                B = <strong x-text="formatNumber(polygon.dimensions.B)"></strong> m
+                                &times;
+                                L = <strong x-text="formatNumber(polygon.dimensions.L)"></strong> m
+                            </p>
+                        </template>
+                        <template x-if="!polygon.dimensions">
+                            <p class="text-xs text-gray-300">
+                                Lados:
+                                <template x-for="(edge, index) in polygon.edges" :key="index">
+                                    <span class="mr-2" x-text="formatNumber(edge) + ' m'"></span>
+                                </template>
+                            </p>
+                        </template>
+                    </div>
+
                     <div class="grid gap-3" style="grid-template-columns: minmax(0,1fr) minmax(0,1fr)">
                         <div>
                             <p class="text-[11px] font-semibold text-gray-300 mb-1">Propiedades</p>
