@@ -2,8 +2,9 @@
 <!-- Canvas - Vista dividida 2D + 3D -->
 <main class="relative flex flex-1 flex-col bg-white">
   <input class="absolute w-28 -translate-x-1/2 -translate-y-1/2 z-10" id="distance" name="distance" type="number"
-    x-show="currentState === trussDrawingState && currentState.shape.node1" x-ref="distanceInput"
-    @keyup.enter="trussDrawingState.createBeam($data)">
+    x-show="(currentState === trussDrawingState && currentState.shape.node1) || (currentState === zapataDrawingState && currentState.points.length > 0)"
+    x-ref="distanceInput"
+    @keyup.enter="currentState === trussDrawingState ? trussDrawingState.createBeam($data) : zapataDrawingState.commitZapataLengthInput($data)">
 
   {{-- Contenedor de vistas: controlado desde Options > Windows --}}
   <div id="cad-workspace"

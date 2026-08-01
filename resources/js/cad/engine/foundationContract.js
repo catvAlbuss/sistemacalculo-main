@@ -55,9 +55,9 @@ export function findSupportNodesInPolygon(nodes, polygonPoints) {
 // asume implícitamente toneladas-fuerza y metros en todo el pipeline. Sin
 // esta conversión, las presiones resultantes quedan mal por un factor de
 // ~9807x (1 Tonf = 1000 kgf = 9806.65 N).
-const N_PER_TONF = 9806.65;
+export const N_PER_TONF = 9806.65;
 
-function newtonToTonf(value) {
+export function newtonToTonf(value) {
   return (Number(value) || 0) / N_PER_TONF;
 }
 
@@ -163,28 +163,62 @@ export function normalizeZapatas2Resultados(resultados) {
   });
 }
 
+/** Longitud de cada lado del polígono (points[i] → points[i+1], cerrando al final). */
+function computeEdgeLengths(points) {
+  const n = points.length;
+  const edges = [];
+
+  for (let i = 0; i < n; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % n];
+    edges.push(Math.hypot(Number(b.x) - Number(a.x), Number(b.y) - Number(a.y)));
+  }
+
+  return edges;
+}
+
+/**
+ * Si el polígono tiene 4 vértices, lo trata como un rectángulo (posiblemente
+ * rotado) y devuelve sus dos dimensiones B (menor) / L (mayor) a partir de
+ * dos lados consecutivos — válido aunque el rectángulo no esté alineado a
+ * los ejes X/Y (a diferencia de usar el bounding box). Para cualquier otro
+ * número de vértices no hay una "B x L" única, así que se deja `null` y el
+ * llamador debe mostrar los lados individuales (`edges`).
+ */
+function computeRectangularDimensions(points, edges) {
+  if (points.length !== 4) return null;
+
+  const side1 = edges[0];
+  const side2 = edges[1];
+
+  return {
+    B: Math.min(side1, side2),
+    L: Math.max(side1, side2),
+  };
+}
+
 /**
  * Propiedades geométricas de un polígono de zapata (perímetro, área,
- * momentos de inercia, centroide) + sus puntos. Reusa
- * Shape.calcularPropiedades()/.propiedades() ya definido en
- * resources/js/cad/model/shapes.js — no duplica la matemática.
- *
- * `zapata` puede ser una instancia real de Area (recién dibujada) o un
- * objeto plano sin métodos: tras abrir/restaurar un modelo desde JSON
- * (Abrir modelo, autoguardado, Mis modelos), `this.areas` se reconstruye
- * como objetos literales (ver mixins/io/file-io/json-io.js) que pierden la
- * clase Area/Shape en el round-trip. Se toma el método directamente del
- * prototipo de Shape con .call() — funciona igual en ambos casos, sin
- * necesitar que `zapata` sea un `instanceof Shape`.
+ * momentos de inercia, centroide) + sus puntos. Reusa Shape.calcularPropiedades()
+ * / .propiedades() ya definido en resources/js/cad/model/shapes.js — no
+ * duplica la matemática. Suma los lados (`edges`) y, si es un rectángulo de
+ * 4 vértices, sus dimensiones B x L (`dimensions`).
+
  */
 export function buildZapataPolygonProperties(zapatas) {
   return zapatas.map((zapata, index) => {
     Shape.prototype.calcularPropiedades.call(zapata);
 
+    const points = (zapata.points || []).map((point) => ({ x: point.x, y: point.y }));
+    const edges = computeEdgeLengths(points);
+
     return {
       name: `Polígono ${index + 1}`,
-      properties: Shape.prototype.propiedades.call(zapata),
-      points: (zapata.points || []).map((point) => ({ x: point.x, y: point.y })),
+      properties: zapata.propiedades(),
+      points,
+      edges,
+      dimensions: computeRectangularDimensions(points, edges),
+
     };
   });
 }

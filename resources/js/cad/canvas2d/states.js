@@ -1,6 +1,7 @@
 import { Beam, Node as StructuralNode, Shape, Area } from "../model/shapes.js";
 import { pointDistance, removeFromArray } from "../lib/utils.js";
 import { MOUSE_BUTTONS, isMouseButton } from "../lib/utils.js";
+import { pointInPolygon } from "../engine/foundationContract.js";
 
 export class StateBase {
   constructor() {}
@@ -242,9 +243,27 @@ export class IdleState extends PanAndZoomState {
         selectedParametric: [selectedObject],
       });
     } else if ((selectedObject = context.closestAreaAtActiveView(mouse))) {
-      context.setState(context.selectedAreasState, {
-        selectedAreas: [selectedObject],
-      });
+      // Zapata: clic directo ya la deja editable (vértices arrastrables),
+      // sin pasar por Draw > "Modificar objeto" primero. El resto de áreas
+      // (losa/muro/opening) sigue con su comportamiento normal (solo
+      // selección/borrado) — no es territorio de zapata, no se toca.
+      if (selectedObject.areaType === "zapata") {
+        context.setState(context.reshapeObjectState, { selectedArea: selectedObject });
+      } else {
+        context.setState(context.selectedAreasState, {
+          selectedAreas: [selectedObject],
+        });
+        // La selección en 2D deja `area.selected = true` sincrónicamente,
+        // pero setState() solo re-sincroniza el 3D si `this.show3DView` ya
+        // estaba en true en ese instante exacto; en la práctica eso no
+        // siempre alcanza a reflejar el resaltado naranja en el visor 3D
+        // (mismo motivo por el que la selección de barras 2D-3D de arriba
+        // ya usa este mismo refuerzo). Forzamos un sync extra para que la
+        // losa seleccionada en 2D también se vea resaltada en 3D.
+        requestAnimationFrame(() => {
+          context.sync3D?.();
+        });
+      }
     } else if ((selectedObject = context.closestDimensionLineAtActiveView(mouse))) {
       context.setState(context.selectedDimensionLinesState, {
         selectedDimensionLines: [selectedObject],
@@ -553,9 +572,18 @@ export class SelectedObjectsState extends PanAndZoomState {
           selectedBeams: [selectedObject],
         });
       } else if ((selectedObject = context.closestAreaAtActiveView(mouse))) {
-        context.setState(context.selectedAreasState, {
-          selectedAreas: [selectedObject],
-        });
+        // Mismo criterio que la otra rama de clic: zapata entra directo a
+        // editar vértices; el resto de áreas no se toca.
+        if (selectedObject.areaType === "zapata") {
+          context.setState(context.reshapeObjectState, { selectedArea: selectedObject });
+        } else {
+          context.setState(context.selectedAreasState, {
+            selectedAreas: [selectedObject],
+          });
+          requestAnimationFrame(() => {
+            context.sync3D?.();
+          });
+        }
       } else if ((selectedObject = context.closestDimensionLineAtActiveView(mouse))) {
         context.setState(context.selectedDimensionLinesState, {
           selectedDimensionLines: [selectedObject],
@@ -664,6 +692,9 @@ export class SelectedAreasState extends PanAndZoomState {
       context.setState(context.selectedAreasState, {
         selectedAreas: [selectedArea],
       });
+      requestAnimationFrame(() => {
+        context.sync3D?.();
+      });
     } else {
       context.setState(context.idleState);
     }
@@ -747,6 +778,12 @@ export class ReshapeObjectState extends PanAndZoomState {
     this.selectedVertexIndex = null; // para áreas
 
     this.isMoving = false;
+
+    // Solo zapata: mover el polígono completo en bloque (no un vértice) —
+    // ver handleMouseDown/handleMouseMove.
+    this.isMovingWholeArea = false;
+    this._moveStartWorld = null;
+    this._moveStartPoints = null;
   }
 
   enter(args = {}) {
@@ -794,6 +831,10 @@ export class ReshapeObjectState extends PanAndZoomState {
     this.selectedNode = null;
     this.selectedVertexIndex = null;
     this.isMoving = false;
+
+    this.isMovingWholeArea = false;
+    this._moveStartWorld = null;
+    this._moveStartPoints = null;
   }
 
   handleMouseDown(event, context, mouse) {
@@ -841,6 +882,21 @@ export class ReshapeObjectState extends PanAndZoomState {
         this.isMoving = true;
         context.setCursor("grabbing");
         return;
+      }
+
+      // Zapata: si el clic cae DENTRO del polígono (no sobre un vértice),
+      // mueve toda la zapata en bloque en vez de un solo punto. El resto
+      // de áreas no gana este comportamiento — no es territorio de zapata.
+      if (this.selectedArea.areaType === "zapata") {
+        const worldPos = context.grid.screenToWorld(mouse);
+
+        if (pointInPolygon(worldPos, this.selectedArea.points)) {
+          this.isMovingWholeArea = true;
+          this._moveStartWorld = worldPos;
+          this._moveStartPoints = this.selectedArea.points.map((p) => ({ ...p }));
+          context.setCursor("grabbing");
+          return;
+        }
       }
 
       // Si no tocó vértice, intentar cambiar de área
@@ -900,6 +956,25 @@ export class ReshapeObjectState extends PanAndZoomState {
   handleMouseMove(event, context, mouse) {
     PanAndZoomState.prototype.handleMouseMove.call(this, ...arguments);
 
+    // =========================================
+    // Zapata: mover el polígono completo en bloque
+    // =========================================
+    if (this.isMovingWholeArea && this.selectedArea) {
+      const worldPos = context.grid.screenToWorld(mouse);
+      const snapPoint = context.getCurrentSnapPoint(worldPos);
+      const dx = snapPoint.x - this._moveStartWorld.x;
+      const dy = snapPoint.y - this._moveStartWorld.y;
+
+      this.selectedArea.points.forEach((pt, index) => {
+        const start = this._moveStartPoints[index];
+        pt.x = start.x + dx;
+        pt.y = start.y + dy;
+      });
+
+      context.redraw();
+      return;
+    }
+
     if (!this.isMoving) return;
 
     const worldPos = context.grid.screenToWorld(mouse);
@@ -925,17 +1000,117 @@ export class ReshapeObjectState extends PanAndZoomState {
       this.selectedVertexIndex !== null &&
       this.selectedArea.points?.[this.selectedVertexIndex]
     ) {
+      let target = snapPoint;
+      if (this.selectedArea.areaType === "zapata") {
+        target = context.options?.orthoMode
+          ? this._orthoLockVertexMove(context, snapPoint, mouse)
+          : this._magnetVertexToCorner(context, snapPoint, mouse) ?? snapPoint;
+      }
+
       const pt = this.selectedArea.points[this.selectedVertexIndex];
-      pt.x = snapPoint.x;
-      pt.y = snapPoint.y;
-      pt.z = snapPoint.z;
+      pt.x = target.x;
+      pt.y = target.y;
+      pt.z = target.z;
 
       context.redraw();
     }
   }
 
+  // Ortho también al EDITAR (no solo al dibujar): bloquea el vértice que se
+  // arrastra a 0°/90°/180°/270° respecto a sus dos vecinos en el polígono
+  // (anterior y siguiente) — mismo criterio de "esquina" que ya usa el
+  // dibujo (getSnapPoint en AreaDrawingState), para poder enderezar una
+  // zapata ya dibujada sin tener que borrarla y rehacerla.
+  //
+  // El diamante (esquina, mezcla X de un vecino + Y del otro) tiene
+  // PRIORIDAD sobre los candidatos de un solo eje cuando el mouse ya está
+  // razonablemente cerca — comparar solo "distancia cruda" no alcanza: un
+  // candidato de un solo eje SIEMPRE sigue al mouse exacto en el eje libre,
+  // así que casi siempre gana esa comparación aunque el diamante sea la
+  // opción correcta. Por eso se revisa el diamante primero, con tolerancia.
+  _orthoLockVertexMove(context, snapPoint, mouse) {
+    const points = this.selectedArea.points;
+    const n = points.length;
+    const i = this.selectedVertexIndex;
+    const prev = points[(i - 1 + n) % n];
+    const next = points[(i + 1) % n];
+
+    if (!prev || !next || prev === next) return snapPoint;
+
+    const corners = [
+      { ...snapPoint, x: prev.x, y: next.y },
+      { ...snapPoint, x: next.x, y: prev.y },
+    ];
+
+    const cornerToleranceScreenPx = 22;
+    const cornerHits = mouse
+      ? corners
+          .map((corner) => ({
+            corner,
+            screenDistance: pointDistance(mouse, context.grid.worldToScreen(corner)),
+          }))
+          .filter((hit) => hit.screenDistance <= cornerToleranceScreenPx)
+          .sort((a, b) => a.screenDistance - b.screenDistance)
+      : [];
+
+    if (cornerHits.length) {
+      return cornerHits[0].corner;
+    }
+
+    const axisCandidates = [
+      { ...snapPoint, y: prev.y },
+      { ...snapPoint, x: prev.x },
+      { ...snapPoint, y: next.y },
+      { ...snapPoint, x: next.x },
+    ];
+
+    axisCandidates.sort((a, b) => pointDistance(snapPoint, a) - pointDistance(snapPoint, b));
+
+    return axisCandidates[0];
+  }
+
+  // Imán con tolerancia (sin necesitar Ortho prendido) — mismo criterio que
+  // el snap de grilla/nodo que ya usa el dibujo de barras
+  // (closestNodeAtActiveView, 10px en pantalla): si el vértice que se
+  // arrastra pasa CERCA de la esquina recta respecto a sus dos vecinos, se
+  // pega ahí; si no, se mueve libre. A diferencia de Ortho (que siempre
+  // fuerza), esto solo actúa cuando ya estás casi ahí.
+  _magnetVertexToCorner(context, snapPoint, mouse) {
+    const points = this.selectedArea.points;
+    const n = points.length;
+    const i = this.selectedVertexIndex;
+    const prev = points[(i - 1 + n) % n];
+    const next = points[(i + 1) % n];
+
+    if (!prev || !next || prev === next) return null;
+
+    const corners = [
+      { ...snapPoint, x: prev.x, y: next.y },
+      { ...snapPoint, x: next.x, y: prev.y },
+    ];
+
+    for (const corner of corners) {
+      const cornerScreen = context.grid.worldToScreen(corner);
+      if (pointDistance(mouse, cornerScreen) <= 10) {
+        return corner;
+      }
+    }
+
+    return null;
+  }
+
   handleMouseUp(event, context, mouse) {
     super.handleMouseUp(...arguments);
+
+    if (this.isMovingWholeArea) {
+      this.isMovingWholeArea = false;
+      this._moveStartWorld = null;
+      this._moveStartPoints = null;
+
+      context.setCursor("default");
+      context.sync3D?.();
+      return;
+    }
 
     if (this.isMoving) {
       this.isMoving = false;
@@ -953,6 +1128,19 @@ export class ReshapeObjectState extends PanAndZoomState {
   }
 
   handleKeyDown(event, context) {
+    // Ortho también con F8 al editar (no solo al dibujar), para poder
+    // enderezar una zapata sin ir hasta el botón del side-panel.
+    if (event.key === "F8" && this.selectedArea?.areaType === "zapata") {
+      event.preventDefault();
+      context.options.orthoMode = !context.options.orthoMode;
+      context.showMessage?.(
+        context.options.orthoMode ? "Ortho activado (F8)." : "Ortho desactivado (F8).",
+        "info"
+      );
+      context.redraw();
+      return;
+    }
+
     if (event.key === "Escape") {
       context.setState(context.idleState);
       return;
@@ -982,8 +1170,16 @@ export class ReshapeObjectState extends PanAndZoomState {
       return "Arrastra el vértice seleccionado del área. Usa Esc para salir.";
     }
 
+    if (this.isMovingWholeArea) {
+      return "Arrastrando la zapata completa. Usa Esc para salir.";
+    }
+
     if (this.selectedBeam) {
       return 'Haz clic en uno de los extremos de la barra para moverlo. "Supr" para eliminar.';
+    }
+
+    if (this.selectedArea?.areaType === "zapata") {
+      return 'Arrastra un vértice para moverlo solo, o el interior de la zapata para moverla completa. "Supr" para eliminar.';
     }
 
     if (this.selectedArea) {
@@ -4149,7 +4345,62 @@ export class AreaDrawingState extends PanAndZoomState {
 
   getSnapPoint(context, mouse) {
     const worldPos = context.grid.screenToWorld(mouse);
-    return context.getCurrentSnapPoint(worldPos);
+    const snapped = context.getCurrentSnapPoint(worldPos);
+
+    // Modo Ortho (F8, como AutoCAD) con tracking de esquina: bloquea el
+    // punto a 0°/90°/180°/270°, evaluando TODAS las combinaciones posibles
+    // entre el último punto y el de inicio — no solo "horizontal o
+    // vertical desde UN ancla", sino también la ESQUINA que mezcla el eje X
+    // de un ancla con el eje Y de la otra. Esa combinación es justo lo que
+    // hace falta para que el lado de CIERRE de una zapata rectangular salga
+    // recto: su X debe coincidir con el inicio (cierre vertical) mientras
+    // su Y sigue al último punto (continuación horizontal del lado
+    // anterior) — un solo ancla nunca puede dar eso a la vez. Se usa el
+    // candidato más cercano a hacia dónde realmente apunta el mouse (sin
+    // desviación diagonal). Por ahora solo para zapatas (pedido del cliente
+    // para dibujarlas simétricas a mano); el resto de áreas (losa, muro)
+    // sigue con ángulo libre.
+    if (this.areaType === "zapata" && context.options?.orthoMode && this.points.length > 0) {
+      const last = this.points[this.points.length - 1];
+      const first = this.points[0];
+
+      // El diamante (esquina de cierre) tiene PRIORIDAD sobre los
+      // candidatos de un solo eje cuando el mouse ya está razonablemente
+      // cerca — comparar solo "distancia cruda" no alcanza: un candidato de
+      // un solo eje SIEMPRE sigue al mouse exacto en el eje libre, así que
+      // casi siempre gana esa comparación aunque el diamante sea la opción
+      // correcta. Mismo criterio que ReshapeObjectState::_orthoLockVertexMove.
+      const corners = [
+        { ...snapped, x: first.x, y: last.y }, // esquina de cierre: X inicio + Y último
+        { ...snapped, x: last.x, y: first.y }, // esquina de cierre: X último + Y inicio
+      ];
+
+      const cornerToleranceScreenPx = 22;
+      const cornerHits = corners
+        .map((corner) => ({
+          corner,
+          screenDistance: pointDistance(mouse, context.grid.worldToScreen(corner)),
+        }))
+        .filter((hit) => hit.screenDistance <= cornerToleranceScreenPx)
+        .sort((a, b) => a.screenDistance - b.screenDistance);
+
+      if (cornerHits.length) {
+        return cornerHits[0].corner;
+      }
+
+      const axisCandidates = [
+        { ...snapped, y: last.y },  // horizontal desde el último punto
+        { ...snapped, x: last.x },  // vertical desde el último punto
+        { ...snapped, y: first.y }, // horizontal desde el inicio
+        { ...snapped, x: first.x }, // vertical desde el inicio
+      ];
+
+      axisCandidates.sort((a, b) => pointDistance(snapped, a) - pointDistance(snapped, b));
+
+      return axisCandidates[0];
+    }
+
+    return snapped;
   }
 
   handleMouseDown(event, context, mouse) {
@@ -4166,6 +4417,21 @@ export class AreaDrawingState extends PanAndZoomState {
     if (view?.type !== "plan") {
       context.showMessage?.("Por ahora las áreas solo se dibujan en planta.", "warning");
       return;
+    }
+
+    // Clic cerca del punto de inicio: mismo criterio que "encontrar un nodo
+    // existente" al dibujar barras (closestNodeAtActiveView en
+    // mixins/edit/model-factory.js, tolerancia de 10px en pantalla) — en
+    // vez de agregar un vértice casi duplicado, unifica ahí mismo y cierra
+    // el polígono. Por ahora solo para zapatas (mismo alcance que Ortho).
+    if (this.areaType === "zapata" && this.points.length >= 3) {
+      const startScreen = context.grid.worldToScreen(this.points[0]);
+
+      if (pointDistance(mouse, startScreen) <= 10) {
+        this._commitArea(context);
+        context.showMessage?.("Zapata cerrada en el punto de inicio.", "success");
+        return;
+      }
     }
 
     const snapPoint = this.getSnapPoint(context, mouse);
@@ -4197,7 +4463,48 @@ export class AreaDrawingState extends PanAndZoomState {
 
     this.previewPoint = this.getSnapPoint(context, mouse);
     this.buildPreviewArea(context);
+
+    if (this.areaType === "zapata") {
+      this._updateZapataDistanceInput(context);
+    }
+
     context.redraw();
+  }
+
+  // Mismo mecanismo que ya usan las barras (context.distanceInput, input
+  // real flotante — ver #distance en cad-area.blade.php): se mantiene
+  // siempre visible con la distancia en vivo desde el último punto,
+  // pudiendo escribirse encima para un lado exacto (Enter la confirma vía
+  // commitZapataLengthInput). Nada de teclas para activarlo — igual que en
+  // Safecito/Cimentación 2.0 y en el dibujo de barras de este mismo CAD.
+  // Solo para zapata — el resto de áreas (Losa/Muro/Opening) es de otro
+  // desarrollador del equipo, no se toca.
+  _updateZapataDistanceInput(context) {
+    if (!context.distanceInput) return;
+
+    const last = this.points[this.points.length - 1];
+    const current = this.previewPoint || last;
+
+    const dx = current.x - last.x;
+    const dy = current.y - last.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (!(distance > 0.001)) return;
+
+    const p1 = context.currentRenderer?.projectPoint
+      ? context.currentRenderer.projectPoint({ position: last }, context)
+      : context.grid.worldToScreen(last);
+    const p2 = context.currentRenderer?.projectPoint
+      ? context.currentRenderer.projectPoint({ position: current }, context)
+      : context.grid.worldToScreen(current);
+
+    const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+
+    context.distanceInput.style.left = `${mid.x + 20}px`;
+    context.distanceInput.style.top = `${mid.y - 20}px`;
+    context.distanceInput.value = context.formatOutput
+      ? context.formatOutput(distance, "lengths")
+      : distance.toFixed(2);
   }
 
   // Finaliza el área en progreso: la guarda en context.areas y refresca 2D + 3D.
@@ -4219,7 +4526,123 @@ export class AreaDrawingState extends PanAndZoomState {
     return true;
   }
 
+  // Dirección del próximo lado bloqueada al eje 0°/90°/180°/270° más cercano
+  // a hacia dónde apunta el mouse ahora mismo, respecto al último punto —
+  // igual criterio que el Ortho normal, pero como VECTOR unitario (no un
+  // punto) para poder multiplicarlo por la distancia del input flotante.
+  // Solo para zapata.
+  _getZapataLengthDirection(context) {
+    const last = this.points[this.points.length - 1];
+    const mouseWorld = context.mousePos || last;
+    const dx = mouseWorld.x - last.x;
+    const dy = mouseWorld.y - last.y;
+
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      return { dx: dx >= 0 ? 1 : -1, dy: 0 };
+    }
+
+    return { dx: 0, dy: dy >= 0 ? 1 : -1 };
+  }
+
+  // Imán de cierre: la longitud tecleada solo fija UN punto respecto al
+  // ÚLTIMO punto (dirección horizontal o vertical) — a diferencia del clic
+  // normal (getSnapPoint), no sabe nada del punto de INICIO. Si el punto
+  // resultante queda cerca (en píxeles de pantalla, mismo margen que el
+  // cierre por clic) de la esquina que lo alinearía en 90° también con el
+  // inicio, se ajusta exacto ahí — así el lado de cierre sale recto con el
+  // 1er punto, no solo con el anterior, tecleando o no.
+  _magnetToStartCorner(context, point, direction) {
+    if (this.areaType !== "zapata" || this.points.length < 2) return point;
+
+    const first = this.points[0];
+    const corner = direction.dy === 0
+      ? { ...point, x: first.x } // veníamos horizontal desde el último punto → probar X del inicio
+      : { ...point, y: first.y }; // veníamos vertical desde el último punto → probar Y del inicio
+
+    const pointScreen = context.grid.worldToScreen(point);
+    const cornerScreen = context.grid.worldToScreen(corner);
+
+    return pointDistance(pointScreen, cornerScreen) <= 10 ? corner : point;
+  }
+
+  // Confirmado desde el input real #distance (cad-area.blade.php,
+  // @keyup.enter) — mismo mecanismo que trussDrawingState.createBeam: toma
+  // lo que haya en context.distanceInput.value (la distancia en vivo, o lo
+  // que el usuario haya escrito encima) y agrega el punto en esa dirección.
+  commitZapataLengthInput(context) {
+    const length = parseFloat(context.distanceInput?.value);
+
+    if (!Number.isFinite(length) || length <= 0) {
+      return;
+    }
+
+    const last = this.points[this.points.length - 1];
+    const direction = this._getZapataLengthDirection(context);
+
+    const newPoint = this._magnetToStartCorner(
+      context,
+      {
+        x: last.x + direction.dx * length,
+        y: last.y + direction.dy * length,
+        z: last.z || 0,
+      },
+      direction
+    );
+
+    this.points.push(newPoint);
+    this.previewPoint = { ...newPoint };
+    this.buildPreviewArea(context);
+
+    // Limpiar y quitar el foco del recuadro: si quedara el número viejo y
+    // el foco puesto, el próximo dígito se pegaría al anterior en vez de
+    // reemplazarlo — así el "dynamic input" queda listo para el siguiente
+    // lado con solo teclear, sin arrastrar el valor anterior.
+    if (context.distanceInput) {
+      context.distanceInput.value = "";
+      context.distanceInput.blur();
+    }
+
+    context.redraw();
+    context.showMessage?.(
+      `Lado de ${length.toFixed(2)} m agregado. Sigue marcando, o cierra cerca del punto de inicio.`,
+      "success"
+    );
+  }
+
   handleKeyDown(event, context) {
+    // "Dynamic input" estilo AutoCAD: apenas empiezas a teclear un número
+    // (sin haber hecho clic dentro del recuadro), se activa el input de
+    // distancia solo, con ese primer dígito ya puesto — para escribir la
+    // distancia exacta sin frenar a apuntar-y-clicar en el recuadro cada
+    // vez. Dirección = hacia donde apunte el mouse en ese momento (igual
+    // que siempre, ver _getZapataLengthDirection). Solo para zapata — el
+    // resto de áreas (Losa/Muro/Opening) es de otro desarrollador del
+    // equipo, no se toca.
+    if (
+      this.areaType === "zapata" &&
+      this.points.length > 0 &&
+      context.distanceInput &&
+      document.activeElement !== context.distanceInput &&
+      /^[0-9.]$/.test(event.key)
+    ) {
+      event.preventDefault();
+      context.distanceInput.value = event.key;
+      context.distanceInput.focus();
+      return;
+    }
+
+    if (event.key === "F8" && this.areaType === "zapata") {
+      event.preventDefault();
+      context.options.orthoMode = !context.options.orthoMode;
+      context.showMessage?.(
+        context.options.orthoMode ? "Ortho activado (F8)." : "Ortho desactivado (F8).",
+        "info"
+      );
+      this.buildPreviewArea(context);
+      context.redraw();
+      return;
+    }
+
     if (event.key === "Escape") {
       // No perder el trabajo: si hay un área válida (≥3 puntos), finalizarla
       // antes de salir; si no, cancelar.
@@ -4235,6 +4658,10 @@ export class AreaDrawingState extends PanAndZoomState {
     }
 
     if (event.key === "Backspace") {
+      // Si el foco está en el input de distancia, que edite el número —
+      // no borrar el último vértice del polígono.
+      if (context.distanceInput && document.activeElement === context.distanceInput) return;
+
       event.preventDefault();
       if (this.points.length > 0) {
         this.points.pop();
@@ -4245,6 +4672,11 @@ export class AreaDrawingState extends PanAndZoomState {
     }
 
     if (event.key === "Enter") {
+      // Si el input de distancia flotante tiene el foco, su propio
+      // @keyup.enter ya agregó el punto (commitZapataLengthInput) — no
+      // cerrar el polígono además.
+      if (context.distanceInput && document.activeElement === context.distanceInput) return;
+
       if (this.points.length < 3) {
         context.showMessage?.("Se necesitan al menos 3 puntos para crear un área.", "warning");
         return;
@@ -4256,12 +4688,18 @@ export class AreaDrawingState extends PanAndZoomState {
   }
 
   draw(renderer, context) {
-    // El preview ya se dibuja desde renderer.drawAreaPreview(context)
+    // El preview del polígono (incluida la medida del lado en curso) ya se
+    // dibuja desde renderer.drawAreaPreview(context) — nada más que hacer
+    // acá; la distancia editable vive en el input real #distance.
   }
 
   info() {
     if (this.points.length === 0) {
       return "Haz clic para empezar a dibujar el área.";
+    }
+
+    if (this.areaType === "zapata") {
+      return "Clic para marcar vértices, o escribe la distancia exacta y Enter. Enter/Esc = cerrar, Backspace = borrar último punto, F8 = Ortho.";
     }
 
     return "Haz clic para seguir marcando vértices. Enter o Esc = cerrar área, Backspace = borrar último punto.";

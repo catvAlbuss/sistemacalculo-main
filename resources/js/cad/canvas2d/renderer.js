@@ -1,5 +1,6 @@
 import { BeamStyle, NodeStyle } from "../model/styles.js";
 import { pointDistance, axisToFixed, midPoint } from "../lib/utils.js";
+import { getNodeReactionForCase } from "../engine/reactionsDisplayContract.js";
 import { generateMockFrameForceResults } from "../engine/mockFrameForceResults.js";
 import { drawFrameForceDiagrams2D } from "../diagrams/frameForceDiagramRenderer.js";
 import { drawFrameLocalAxes2D } from "../diagrams/frameLocalAxesRenderer.js";
@@ -116,6 +117,7 @@ export class DiseñoRenderer {
     this.drawDimensionPreview(CADSystem);
     this.drawAreas(CADSystem);
     this.drawAreaPreview(CADSystem);
+    this.drawOrthoGuides(CADSystem);
 
     CADSystem.nodes.forEach((n) => {
       if (!this.shouldDrawNode(n, CADSystem)) return;
@@ -261,6 +263,10 @@ export class DiseñoRenderer {
       });
 
       CADSystem.ctx.restore();
+    }
+
+    if (CADSystem.reactionsDisplay?.enabled) {
+      this.drawJointReactionLabels(CADSystem);
     }
 
     if (CADSystem.options.showDeflection) {
@@ -1034,6 +1040,60 @@ export class DiseñoRenderer {
     }
   }
 
+  // =====================================================
+  // DISPLAY 2D > "Reacciones por Caso" (CM/CVE/SDX/SDY)
+  // Caja de texto flotante junto a cada nodo con soporte, con los
+  // componentes marcados en context.reactionsDisplay.components — mismo
+  // estilo visual que drawAreaEdgeLengths (caja oscura + texto).
+  // =====================================================
+  drawJointReactionLabels(context) {
+    const display = context.reactionsDisplay;
+    if (!display?.enabled || !Array.isArray(context.nodes)) return;
+
+    const componentKeys = ["fx", "fy", "fz", "mx", "my", "mz"];
+    const labels = { fx: "Fx", fy: "Fy", fz: "Fz", mx: "Mx", my: "My", mz: "Mz" };
+    const activeComponents = componentKeys.filter((k) => display.components?.[labels[k]]);
+    if (!activeComponents.length) return;
+
+    const ctx = context.ctx;
+    if (!ctx) return;
+
+    context.nodes.forEach((node) => {
+      if (!node?.soporte) return;
+      if (!this.shouldDrawNode(node, context)) return;
+
+      const reaction = getNodeReactionForCase(context, node.id, display.caseId);
+      if (!reaction) return;
+
+      const lines = activeComponents.map(
+        (k) => `${labels[k]} = ${reaction[k].toFixed(4)}`
+      );
+      if (!lines.length) return;
+
+      const p = this.projectPoint(node, context);
+      const x = p.x + 10;
+      const y = p.y - 10;
+
+      ctx.save();
+      ctx.font = "10px Arial";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+
+      const lineHeight = 12;
+      const textWidth = Math.max(...lines.map((l) => ctx.measureText(l).width));
+
+      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+      ctx.fillRect(x - 3, y - 2, textWidth + 6, lines.length * lineHeight + 4);
+
+      ctx.fillStyle = "#38bdf8";
+      lines.forEach((line, index) => {
+        ctx.fillText(line, x, y + index * lineHeight);
+      });
+
+      ctx.restore();
+    });
+  }
+
   drawWireBeam(beam, context) {
     const p1 = this.projectPoint(beam.node1, context);
     const p2 = this.projectPoint(beam.node2, context);
@@ -1448,6 +1508,14 @@ export class DiseñoRenderer {
     ctx.stroke();
     ctx.setLineDash([]);
 
+    // Mientras se está dibujando el área (p.ej. una zapata), muestra la
+    // longitud real de cada lado ya trazado — igual que al dibujar una
+    // barra, para que el usuario vea sus dimensiones sin tener que abrir
+    // el modal de resultados después.
+    if (isPreview) {
+      this.drawAreaEdgeLengths(pts, area, context);
+    }
+
     // Vértices
     pts.forEach((p) => {
       ctx.beginPath();
@@ -1483,6 +1551,58 @@ export class DiseñoRenderer {
 
       ctx.fillStyle = "#ffffff";
       ctx.fillText(label, center.x, center.y);
+    }
+
+    ctx.restore();
+  }
+
+  /**
+   * Etiqueta con la longitud real (en metros) de cada lado ya trazado del
+   * área en curso. Usa `area.points` (coordenadas de mundo) para la
+   * distancia y `pts` (ya proyectados a pantalla) solo para ubicar el
+   * texto — igual criterio que el resto del renderer (proyecta, no mide
+   * en pantalla). Cierra el último lado (punto final → primero) solo
+   * cuando ya hay 3+ puntos, igual que el `ctx.closePath()` de arriba.
+   */
+  drawAreaEdgeLengths(pts, area, context) {
+    const worldPoints = area?.points || [];
+    if (!Array.isArray(pts) || pts.length < 2 || worldPoints.length < 2) return;
+
+    const edgeCount = pts.length >= 3 ? pts.length : pts.length - 1;
+    const ctx = context.ctx;
+
+    ctx.save();
+    ctx.font = "10px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    for (let i = 0; i < edgeCount; i++) {
+      const wa = worldPoints[i];
+      const wb = worldPoints[(i + 1) % worldPoints.length];
+      const pa = pts[i];
+      const pb = pts[(i + 1) % pts.length];
+      if (!wa || !wb || !pa || !pb) continue;
+
+      const distance = Math.hypot(Number(wb.x) - Number(wa.x), Number(wb.y) - Number(wa.y));
+      const label = `${context.formatOutput ? context.formatOutput(distance, "lengths") : distance.toFixed(2)} m`;
+
+      // Punto medio de la pantalla, desplazado perpendicular al lado para
+      // no quedar encima de la línea dibujada.
+      const dx = pb.x - pa.x;
+      const dy = pb.y - pa.y;
+      const segLength = Math.hypot(dx, dy) || 1;
+      const offsetX = (-dy / segLength) * 12;
+      const offsetY = (dx / segLength) * 12;
+
+      const labelX = (pa.x + pb.x) / 2 + offsetX;
+      const labelY = (pa.y + pb.y) / 2 + offsetY;
+
+      const textWidth = ctx.measureText(label).width;
+      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+      ctx.fillRect(labelX - textWidth / 2 - 3, labelY - 7, textWidth + 6, 14);
+
+      ctx.fillStyle = "#facc15";
+      ctx.fillText(label, labelX, labelY);
     }
 
     ctx.restore();
@@ -1539,6 +1659,109 @@ export class DiseñoRenderer {
     if (!this.shouldDrawArea(state.previewArea, context)) return;
 
     this.drawArea(state.previewArea, context, true);
+  }
+
+  /**
+   * Guías de alineación estilo AutoCAD para el modo Ortho: líneas punteadas
+   * horizontal/vertical que cruzan todo el canvas a la altura/posición de
+   * cada ancla — para que el usuario VEA cuándo el cursor está alineado
+   * antes de soltar el clic (no solo que el valor final quede forzado).
+   * Dos casos, mismo dibujo:
+   *  - Dibujando "Zapata a mano alzada": anclas = punto de inicio + último
+   *    punto colocado (ver AreaDrawingState::getSnapPoint).
+   *  - Editando (arrastrando un vértice de una zapata ya dibujada): anclas
+   *    = los dos vértices vecinos en el polígono (ver
+   *    ReshapeObjectState::_orthoLockVertexMove).
+   */
+  drawOrthoGuides(context) {
+    if (!context.options?.orthoMode) return;
+
+    const state = context.currentState;
+    if (!state) return;
+
+    // Caso 1: dibujando una zapata a mano alzada.
+    if (state.areaType === "zapata" && Array.isArray(state.points) && state.points.length) {
+      this._drawOrthoGuideLines(context, [state.points[0], state.points[state.points.length - 1]]);
+      return;
+    }
+
+    // Caso 2: editando un vértice de una zapata ya dibujada.
+    if (
+      state.isMoving &&
+      state.selectedArea?.areaType === "zapata" &&
+      state.selectedVertexIndex !== null &&
+      Array.isArray(state.selectedArea.points)
+    ) {
+      const points = state.selectedArea.points;
+      const n = points.length;
+      const i = state.selectedVertexIndex;
+      const prev = points[(i - 1 + n) % n];
+      const next = points[(i + 1) % n];
+
+      if (prev && next) {
+        this._drawOrthoGuideLines(context, prev === next ? [prev] : [prev, next]);
+      }
+    }
+  }
+
+  _drawOrthoGuideLines(context, anchors) {
+    const ctx = context.ctx;
+    if (!ctx) return;
+
+    const drawn = new Set();
+
+    ctx.save();
+    ctx.strokeStyle = "#facc15";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+
+    anchors.forEach((anchor) => {
+      const key = `${anchor.x},${anchor.y}`;
+      if (drawn.has(key)) return;
+      drawn.add(key);
+
+      const p = this.projectPoint({ position: anchor }, context);
+
+      ctx.beginPath();
+      ctx.moveTo(0, p.y);
+      ctx.lineTo(ctx.canvas.width, p.y);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(p.x, 0);
+      ctx.lineTo(p.x, ctx.canvas.height);
+      ctx.stroke();
+    });
+
+    ctx.setLineDash([]);
+
+    // Marca con un diamante los puntos donde se CRUZAN las guías: las dos
+    // anclas y las dos "esquinas" (mezcla del X de una con el Y de la
+    // otra) — son justo los puntos donde Ortho puede enganchar el
+    // siguiente punto/vértice, para que se vean antes de soltar el clic.
+    if (anchors.length === 2 && anchors[0] !== anchors[1]) {
+      const [a, b] = anchors;
+      const crossings = [a, b, { x: a.x, y: b.y }, { x: b.x, y: a.y }];
+
+      ctx.fillStyle = "#facc15";
+      ctx.strokeStyle = "#78350f";
+      ctx.lineWidth = 1;
+
+      crossings.forEach((point) => {
+        const p = this.projectPoint({ position: point }, context);
+
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y - 5);
+        ctx.lineTo(p.x + 5, p.y);
+        ctx.lineTo(p.x, p.y + 5);
+        ctx.lineTo(p.x - 5, p.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      });
+    }
+
+    ctx.restore();
   }
 
   drawReshapeObjectState(state, context) {
@@ -1612,6 +1835,52 @@ export class DiseñoRenderer {
         ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
+      });
+    }
+
+    // =========================
+    // ZAPATA: al mover un vértice, mide en vivo los dos lados que tocan ese
+    // vértice (al anterior y al siguiente) — para ver cuánto se está
+    // estirando cada lado, mismo estilo que drawAreaEdgeLengths (el que ya
+    // se usa al dibujar).
+    // =========================
+    if (
+      state.isMoving &&
+      state.selectedArea?.areaType === "zapata" &&
+      state.selectedVertexIndex !== null &&
+      Array.isArray(state.selectedArea.points) &&
+      state.selectedArea.points.length >= 2
+    ) {
+      const worldPoints = state.selectedArea.points;
+      const n = worldPoints.length;
+      const i = state.selectedVertexIndex;
+      const prevIndex = (i - 1 + n) % n;
+      const nextIndex = (i + 1) % n;
+
+      const neighborIndexes = prevIndex === nextIndex ? [prevIndex] : [prevIndex, nextIndex];
+
+      ctx.font = "10px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      neighborIndexes.forEach((neighborIndex) => {
+        const a = worldPoints[i];
+        const b = worldPoints[neighborIndex];
+        if (!a || !b) return;
+
+        const distance = Math.hypot(Number(b.x) - Number(a.x), Number(b.y) - Number(a.y));
+        const label = `${context.formatOutput ? context.formatOutput(distance, "lengths") : distance.toFixed(2)} m`;
+
+        const pa = this.projectPoint({ position: a }, context);
+        const pb = this.projectPoint({ position: b }, context);
+        const mid = { x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2 };
+
+        const textWidth = ctx.measureText(label).width;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+        ctx.fillRect(mid.x - textWidth / 2 - 3, mid.y - 7, textWidth + 6, 14);
+
+        ctx.fillStyle = "#facc15";
+        ctx.fillText(label, mid.x, mid.y);
       });
     }
 
@@ -4992,6 +5261,10 @@ export class DeflexionRenderer extends DiseñoRenderer {
       CADSystem.ctx.restore();
     }
 
+    if (CADSystem.reactionsDisplay?.enabled) {
+      this.drawJointReactionLabels(CADSystem);
+    }
+
     if (CADSystem.options.showDeflection) {
       this.drawDeflections(CADSystem);
     }
@@ -5098,6 +5371,10 @@ export class AxialRenderer extends DiseñoRenderer {
         this.drawReaction(n, CADSystem);
       });
       CADSystem.ctx.restore();
+    }
+
+    if (CADSystem.reactionsDisplay?.enabled) {
+      this.drawJointReactionLabels(CADSystem);
     }
 
     CADSystem.currentState.draw(this, CADSystem);

@@ -349,7 +349,39 @@ function createHorizontalArea3D(scene, area, options = {}) {
         attachAreaLabel3D(scene, mesh, area, elev);
     }
 
+    // Borde del contorno: sin esto, losas vecinas del mismo tipo/color
+    // (p.ej. tras "Dividir Áreas") se ven como un único bloque continuo en
+    // 3D — no hay forma de distinguir que en realidad son varias losas
+    // separadas. Se dibuja como hijo del mesh (se libera junto con él).
+    attachAreaOutline3D(scene, mesh, shape, extrude ? thickness : 0);
+
     return mesh;
+}
+
+// Líneas del contorno de la losa, ligeramente por encima de la cara superior
+// para evitar z-fighting con el relleno. En vista extruida se dibuja también
+// el contorno de la cara inferior, para que el "bloque" siga leyéndose como
+// una pieza independiente desde cualquier ángulo.
+function attachAreaOutline3D(scene, parentMesh, shape, depth = 0) {
+    if (!shape?.length) return;
+
+    const topPoints = shape.map((p) => new Vector3(p.x, 0.01, p.z));
+    topPoints.push(topPoints[0].clone());
+
+    const linesMeshes = [MeshBuilder.CreateLines("area-outline-top", { points: topPoints }, scene)];
+
+    if (depth > 0) {
+        const bottomPoints = shape.map((p) => new Vector3(p.x, -depth - 0.01, p.z));
+        bottomPoints.push(bottomPoints[0].clone());
+        linesMeshes.push(MeshBuilder.CreateLines("area-outline-bottom", { points: bottomPoints }, scene));
+    }
+
+    linesMeshes.forEach((lines) => {
+        lines.color = new Color3(0.05, 0.05, 0.05);
+        lines.alpha = 0.9;
+        lines.isPickable = false;
+        lines.parent = parentMesh;
+    });
 }
 
 function createAreaOutline3D(scene, area) {
