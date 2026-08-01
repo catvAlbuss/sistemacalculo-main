@@ -295,9 +295,15 @@ export const elevationDrawingMixin = {
     const lineColor = "#3a6a9a";
     const textColor = "#8aadcc";
 
-    // Líneas horizontales (niveles Z)
+    // Líneas horizontales (niveles Z) — elevación REAL de cada piso
+    // (this.stories, respeta alturas distintas por piso; un modelo importado
+    // con pisos de 3.2/3.2/3.4/2.1 m mostraba STORY3 en 9.6 en vez de 9.8).
+    // Fallback a altura uniforme solo si no hay stories.
     for (let floor = 0; floor <= storyCount; floor++) {
-      const z = floor * storyHeight;
+      const st = this.stories?.[floor];
+      const z = st && Number.isFinite(Number(st.elevation))
+        ? Number(st.elevation)
+        : floor * storyHeight;
       const screenY = tempGrid.worldToScreen({ x: 0, y: z }).y;
 
       ctx.beginPath();
@@ -310,12 +316,12 @@ export const elevationDrawingMixin = {
 
       ctx.fillStyle = floor === 0 ? axisColor : textColor;
       ctx.font = floor === 0 ? "bold 10px Arial" : "10px Arial";
-      const label = floor === 0 ? "BASE" : `STORY${floor}`;
+      const label = floor === 0 ? "BASE" : (st?.name ? String(st.name).toUpperCase() : `STORY${floor}`);
       ctx.fillText(label, 10, screenY - 5);
 
       ctx.fillStyle = "#666";
       ctx.font = "9px Arial";
-      ctx.fillText(`${z}m`, 80, screenY - 5);
+      ctx.fillText(`${Math.round(z * 100) / 100}m`, 80, screenY - 5);
     }
 
     // Líneas verticales del plano X-Z (ejes A, B, C, D...)
@@ -462,9 +468,13 @@ export const elevationDrawingMixin = {
     const lineColor = "#3a6a9a";
     const textColor = "#8aadcc";
 
-    // Líneas horizontales (pisos)
+    // Líneas horizontales (pisos) — elevación REAL (ver comentario en la
+    // vista X: this.stories respeta alturas de piso distintas).
     for (let floor = 0; floor <= storyCount; floor++) {
-      const z = floor * storyHeight;
+      const st = this.stories?.[floor];
+      const z = st && Number.isFinite(Number(st.elevation))
+        ? Number(st.elevation)
+        : floor * storyHeight;
       const screenY = tempGrid.worldToScreen({ x: 0, y: z }).y;
 
       ctx.beginPath();
@@ -477,11 +487,11 @@ export const elevationDrawingMixin = {
 
       ctx.fillStyle = floor === 0 ? axisColor : textColor;
       ctx.font = floor === 0 ? "bold 10px Arial" : "10px Arial";
-      const label = floor === 0 ? "BASE" : `STORY${floor}`;
+      const label = floor === 0 ? "BASE" : (st?.name ? String(st.name).toUpperCase() : `STORY${floor}`);
       ctx.fillText(label, 10, screenY - 5);
       ctx.fillStyle = "#666";
       ctx.font = "9px Arial";
-      ctx.fillText(`${z}m`, 80, screenY - 5);
+      ctx.fillText(`${Math.round(z * 100) / 100}m`, 80, screenY - 5);
     }
 
     // Líneas verticales (ejes Y - 1, 2, 3...)

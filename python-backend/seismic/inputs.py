@@ -39,6 +39,7 @@ __all__ = [
     "_get_base_shear_value",
     "_get_mass_source_from_payload",
     "_get_node_id_from_support",
+    "_lump_mass_to_story_levels",
     "_node_xyz_for_mass_source",
     "_normalize_modulus_to_pa",
     "_normalize_unit_weight_to_n_m3",
@@ -603,9 +604,22 @@ def _get_mass_source_from_payload(data: dict) -> dict:
             raw.get("defaultUnitWeight", raw.get("default_unit_weight", 24000.0)),
             24000.0,
         ),
+        # Prioridad: elección explícita > flag LUMPATSTORIES del .e2k
+        # (lumpLateralMassAtStoryLevels) > default False. Ver comentario en
+        # payload.js _normalizeSeismicMassSource: honrar el flag de ETABS es
+        # clave para que la estructura modal de techos de armadura calce
+        # (la conclusión previa de que el lumping "sobre-corregía" era un
+        # artefacto de medirlo con las diagonales todavía rígidas SIN los
+        # otros fixes — con el modelo corregido, lump + rígido = ETABS).
         "distribute_to_story_nodes": _as_bool(
-            raw.get("distributeToStoryNodes", raw.get("distribute_to_story_nodes")),
-            True,
+            raw.get(
+                "distributeToStoryNodes",
+                raw.get(
+                    "distribute_to_story_nodes",
+                    raw.get("lumpLateralMassAtStoryLevels"),
+                ),
+            ),
+            False,
         ),
     }
 
@@ -861,6 +875,122 @@ def _canonical_load_pattern_name(name) -> str:
 
     return upper
 
+def _lump_mass_to_story_levels(node_masses: dict, nodes: list, stories: list, tolerance: float = 0.05) -> dict:
+    """
+    Estilo ETABS `LUMPATSTORIES "Yes"`: la masa de un nodo que NO está
+    exactamente en la elevación de su piso tributario (p.ej. nudos
+    intermedios de una armadura de techo, entre el piso N-1 y el nivel de
+    techo N) se traslada a los nodos que SÍ están en esa elevación (nudos del
+    diafragma / nivel de piso), repartida en partes iguales entre ellos.
+
+    Sin esto la masa del techo queda distribuida en las alturas REALES de
+    cada nudo de la armadura -> menor inercia de balanceo (masa×altura²) que
+    ETABS, que consolida toda la masa del piso en su nivel. Validado con el
+    payload real de MODULO 5: sin lumping T1=0.243 (armadura completa,
+    3.86-6.29m); lumpeando al nivel de techo (6.29m, 2 nudos de cumbrera)
+    T1=0.389 vs ETABS 0.358 — mucho más cerca que sin lumping.
+
+    Regla de reparto: TRIBUTARIO LINEAL entre los dos niveles adyacentes
+    (como ETABS): un nodo a fracción f de la altura entre el piso inferior y
+    el superior aporta f de su masa al nivel de arriba y (1-f) al de abajo.
+    VALIDADO contra ETABS (2026-07-31, MODULO 5, distribución real de masa
+    por Z del payload): tributario da Story2=1046 kg vs 1051 kg reales de
+    ETABS (0.5%); la regla anterior ("todo al piso de arriba") daba 1838 kg
+    (+75%) — con la masa por Z de MODULO 6 el patrón era idéntico (+69%).
+    Nodos bajo el primer nivel o sobre el último van completos al nivel
+    extremo correspondiente.
+
+    Si un nivel no tiene NINGÚN nodo exactamente en su elevación (sin
+    referencia donde lumpear), esa porción de masa se queda en el nodo
+    original — degradación segura, no se pierde masa.
+    """
+    if not isinstance(stories, list) or len(stories) < 2:
+        return node_masses
+
+    levels = sorted(
+        (
+            {"z": _ms_float(s.get("elevation", s.get("z")), 0.0)}
+            for s in stories
+            if isinstance(s, dict)
+        ),
+        key=lambda s: s["z"],
+    )
+    if len(levels) < 2:
+        return node_masses
+
+    node_z = {}
+    for n in nodes or []:
+        try:
+            node_z[int(n["id"])] = _ms_float(n.get("z", 0.0), 0.0)
+        except Exception:
+            continue
+
+    # Nodos EXACTAMENTE en cada nivel — candidatos a recibir la masa lumpeada.
+    level_target_nodes = [[] for _ in levels]
+    for nid, z in node_z.items():
+        for i, lvl in enumerate(levels):
+            if abs(z - lvl["z"]) <= tolerance:
+                level_target_nodes[i].append(nid)
+                break
+
+    lumped: dict = {}
+
+    def _merge(nid, mx, my, mz):
+        entry = lumped.setdefault(nid, {"mx": 0.0, "my": 0.0, "mz": 0.0, "source": "mass_source"})
+        entry["mx"] += mx
+        entry["my"] += my
+        entry["mz"] += mz
+
+    for raw_id, mass in node_masses.items():
+        try:
+            nid = int(raw_id)
+        except Exception:
+            _merge(raw_id, mass.get("mx", 0.0), mass.get("my", 0.0), mass.get("mz", 0.0))
+            continue
+
+        z = node_z.get(nid)
+
+        # Sin coordenada conocida, o ya en un nivel -> se queda donde está.
+        if z is None or any(abs(z - lvl["z"]) <= tolerance for lvl in levels):
+            _merge(nid, mass.get("mx", 0.0), mass.get("my", 0.0), mass.get("mz", 0.0))
+            continue
+
+        # Nivel superior tributario (primer nivel con z_lvl >= z) y su inferior.
+        upper_idx = next(
+            (i for i, lvl in enumerate(levels) if lvl["z"] >= z - tolerance),
+            len(levels) - 1,
+        )
+        lower_idx = max(0, upper_idx - 1)
+
+        z_up = levels[upper_idx]["z"]
+        z_lo = levels[lower_idx]["z"]
+        span = z_up - z_lo
+
+        # Fracción tributaria al nivel SUPERIOR (1.0 si el nodo está fuera de
+        # rango o los niveles coinciden).
+        if upper_idx == lower_idx or span <= tolerance:
+            frac_up = 1.0
+        else:
+            frac_up = min(1.0, max(0.0, (z - z_lo) / span))
+
+        for idx, frac in ((upper_idx, frac_up), (lower_idx, 1.0 - frac_up)):
+            if frac <= 0.0:
+                continue
+            targets = level_target_nodes[idx]
+            if not targets:
+                # Sin nodos de referencia en ese nivel: esa porción se queda
+                # en el nodo original (no se pierde masa).
+                _merge(nid, mass.get("mx", 0.0) * frac, mass.get("my", 0.0) * frac, mass.get("mz", 0.0) * frac)
+                continue
+            share_mx = mass.get("mx", 0.0) * frac / len(targets)
+            share_my = mass.get("my", 0.0) * frac / len(targets)
+            share_mz = mass.get("mz", 0.0) * frac / len(targets)
+            for t in targets:
+                _merge(t, share_mx, share_my, share_mz)
+
+    return lumped
+
+
 def _build_mass_source_nodal_masses(
     data: dict,
     nodes: list,
@@ -1061,6 +1191,14 @@ def _build_mass_source_nodal_masses(
 
             _add_auto_mass_to_node(node_masses, node_id, mass_kg)
 
+    # 3. Lumping a nivel de piso (ETABS LUMPATSTORIES "Yes") — opt-out con
+    # distributeToStoryNodes: false en el Mass Source del payload.
+    if mass_source.get("distribute_to_story_nodes", False):
+        stories = data.get("stories") or data.get("story_levels") or data.get("levels") or []
+        if isinstance(stories, list) and stories:
+            node_masses = _lump_mass_to_story_levels(node_masses, nodes, stories)
+            report["node_masses"] = node_masses
+
     report["summary"]["auto_mass_x_kg"] = sum(
         item.get("mx", 0.0) for item in node_masses.values()
     )
@@ -1159,6 +1297,13 @@ WALL_ELEMENT_TAG_BASE = 9_000_000
 # modelo sintético de 2 muros, no de datos reales — quedó refutada acá con el
 # modelo real). 6.0m (1x1 para el caso normal) es el que mejor calza.
 _WALL_TARGET_ELEMENT_SIZE_M = 6.0
+
+# Tamaño de elemento vertical objetivo SOLO para muros esbeltos (alto/largo >
+# 2, ver uso más abajo en _build_wall_mesh_plan) — evita el "membrane
+# locking" de un pilar angosto mallado 1x1. Calibrado (2026-07-31, MODULO 5)
+# por convergencia de malla real, no por tanteo — ver comentario junto a su
+# uso para el barrido completo.
+_WALL_SLENDER_TARGET_ELEMENT_SIZE_M = 0.42
 
 # NOTA (2026-07-24): hubo un refinamiento de malla EXTRA para muros en anillo
 # cerrado (_WALL_RING_TARGET_ELEMENT_SIZE_M = 4.0 + detección por puentes de
@@ -1286,6 +1431,37 @@ def _build_wall_mesh_plan(data: dict, nodes: list):
 
         nx = max(1, min(4, round(length / _WALL_TARGET_ELEMENT_SIZE_M)))
         ny = max(1, min(2, round(height / _WALL_TARGET_ELEMENT_SIZE_M)))
+
+        # Muros ANGOSTOS Y ALTOS (pilares esbeltos, largo << alto) necesitan
+        # más subdivisión VERTICAL sin importar el tamaño objetivo de 6.0m —
+        # si no, quedan en malla 1x1 (un solo elemento membrana bilineal) y
+        # ese único elemento NO puede representar curvatura de flexión
+        # (membrane locking, problema clásico de FEM): sale artificialmente
+        # rígido para un pilar que en realidad flexiona como una ménsula.
+        #
+        # Descubierto (2026-07-31, MODULO 5, payload real): 4 muros angostos
+        # (0.6-0.85m de largo × 3.36m de alto, relación ~4-5.6:1) resultaban
+        # ~2x más rígidos de lo debido en el cortante basal — FX salía en 49%
+        # de ETABS y NO respondía a ningún otro parámetro probado (columnas
+        # reales ×100, rigidez de la armadura del techo). Barrido de
+        # convergencia de malla (mismo payload real, ny forzado, sin el cap
+        # de "esbeltez" de abajo):
+        #   ny=1 (original)  -> FX=0.4469  FY=1.3863
+        #   ny=6              -> FX=0.5362  FY=1.6441
+        #   ny=8              -> FX=0.5644  FY=1.7254
+        #   ny=12             -> FX=0.5644  FY=1.7254  (idéntico a ny=8)
+        #   ny=20             -> FX=0.5644  FY=1.7254  (idéntico — CONVERGIÓ)
+        # Converge en ny≈8 (tamaño de elemento ≈3.36/8=0.42m) — más allá no
+        # cambia nada, es la respuesta FEM correcta para esta rigidez de
+        # muro, no un artefacto de malla. Cierra ~ la mitad de la brecha
+        # (FX 49%→62%, FY 75%→94% de ETABS) — el resto de la brecha (sobre
+        # todo en FX) queda como pendiente, ya no es cosa de malla.
+        # Objetivo de tamaño de elemento vertical más fino (0.42m) SOLO para
+        # muros esbeltos, en vez de reusar el objetivo general (6.0m) que
+        # dejaba estos pilares en malla 1x1.
+        if length > 1e-6 and (height / length) > 2.0:
+            ny = max(ny, min(10, round(height / _WALL_SLENDER_TARGET_ELEMENT_SIZE_M)))
+
 
         # Sección elástica de shell con modificador de flexión fuera-de-plano
         # (6º arg de ElasticMembranePlateSection): reduce SOLO la rigidez de
@@ -1552,6 +1728,60 @@ def build_model_3d(data: dict):
     )
     transf_cache = {}
 
+    # Elementos "Brace" (ETABS: LINE CONNECTIVITIES ... BRACE, sin RELEASE
+    # explícito) se modelan con rigidez a flexión/torsión REDUCIDA (no full
+    # frame rígido) en vez de mantener el 100% de Iz/Iy/J. La axial (A) NO se
+    # toca — sigue siendo la que da la acción de cercha.
+    #
+    # HISTORIA (2026-07-31, MODULO 5 — ver [[project_modulo5_period_calibration]]):
+    # este modificador se calibró primero en 0.01 y luego en 0.08 para calzar
+    # T1 con ETABS... pero resultó ser una COMPENSACIÓN del verdadero
+    # faltante: el lumping de masa a nivel de piso (ETABS LUMPATSTORIES
+    # "Yes", ahora honrado vía massSource.lumpLateralMassAtStoryLevels →
+    # ver _get_mass_source_from_payload). Con la masa lumpeada como ETABS y
+    # las diagonales RÍGIDAS (1.0 — físicamente consistente con un .e2k sin
+    # RELEASE), el modelo reproduce SOLO la estructura modal completa de
+    # ETABS: T1=0.3514 (vs 0.36 ETABS), UN modo Y dominante (89.5%@0.057),
+    # UN modo X dominante (99.6%@0.054) y el resto de modos locales SIN masa
+    # — igual que ETABS. Ablandar las diagonales con la masa ya lumpeada
+    # ROMPE eso (T1 se alarga de más). Default 1.0 = sin efecto; el
+    # mecanismo queda disponible vía payload `braceBendingModifier` para
+    # experimentos/modelos sin lumping.
+    _BRACE_BENDING_MODIFIER = 1.0
+    brace_bending_modifier = _ms_float(
+        data.get("braceBendingModifier", data.get("brace_bending_modifier")),
+        _BRACE_BENDING_MODIFIER,
+    )
+    apply_brace_modifier = bool(
+        data.get("braceAsTruss", data.get("brace_as_truss", True))
+    )
+
+    # "Columnas" que en realidad son PARANTES VERTICALES de una armadura de
+    # techo (ETABS les pone LINE ... COLUMN solo por ser verticales — el tipo
+    # de línea es geometría, no rol estructural). Descubierto (2026-07-31,
+    # MODULO 5, payload real) al ver que el cortante basal FX no se movía NADA
+    # con el modifier de los BRACE (0.4469 tonf fijo entre modifier=0.01 y
+    # modifier=1.0, vs ETABS 0.9051): de las 26 "columnas" del modelo, solo 4
+    # son columnas reales de concreto (Base->Story1, sección T 70x50x30cm);
+    # las otras 22 son postes de tubo de acero (75x75x3mm) que van de Story1
+    # HACIA ARRIBA, dentro de la armadura — quedaban 100% rígidas (sin el
+    # modifier, que solo tocaba "brace") actuando como una "pata" extra rígida
+    # que ataba el techo al diafragma de Story1, sobre-rigidizando el modo de
+    # traslación X (mode 11, T=0.027 vs el T≈0.048 de ETABS).
+    #
+    # Distinción robusta (verificada 100% limpia en el payload real): un
+    # parante de armadura SIEMPRE toca al menos un nodo que también es
+    # endpoint de un elemento BRACE (mismo nudo de la armadura); una columna
+    # real de edificio no. Se tratan igual que los BRACE (mismo modifier).
+    brace_touched_node_ids = set()
+    for elem in elements:
+        if str(elem.get("elementType") or elem.get("element_type") or "").lower() == "brace":
+            try:
+                brace_touched_node_ids.add(int(elem["node_i"]))
+                brace_touched_node_ids.add(int(elem["node_j"]))
+            except Exception:
+                continue
+
     for i, elem in enumerate(elements):
         eid = int(elem["id"])
         ni = int(elem["node_i"])
@@ -1568,6 +1798,18 @@ def build_model_3d(data: dict):
         Iz = float(elem.get("Iz", 1e-4) or 1e-4)
         Iy = float(elem.get("Iy", 1e-4) or 1e-4)
         J = float(elem.get("J", 1e-6) or 1e-6)
+
+        element_type = str(elem.get("elementType") or elem.get("element_type") or "").lower()
+        is_truss_vertical_column = (
+            element_type == "column"
+            and (ni in brace_touched_node_ids or nj in brace_touched_node_ids)
+        )
+
+        if apply_brace_modifier and (element_type == "brace" or is_truss_vertical_column):
+            Iz *= brace_bending_modifier
+            Iy *= brace_bending_modifier
+            J *= brace_bending_modifier
+            elem["_brace_bending_modifier_applied"] = brace_bending_modifier
 
         elem["_E_raw"] = raw_E
         elem["_G_raw"] = raw_G

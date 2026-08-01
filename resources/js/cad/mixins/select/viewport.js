@@ -435,7 +435,13 @@ export const viewportMixin = {
       convertWeightToMass: true,
       gravity: 9.81,
       distributeToDiaphragms: true,
-      distributeToStoryNodes: true,
+      // OFF por defecto (opt-in): lumpear la masa al nivel del piso (ETABS
+      // LUMPATSTORIES "Yes") sobre-corrige en techos de armadura/inclinados
+      // — validado con MODULO 5, ver project_modulo5_period_calibration y el
+      // comentario igual en payload.js _getDefaultSeismicMassSource (ESTE es
+      // el default que de verdad se usa — payload.js llama a
+      // getDefaultMassSourceDefinition() cuando existe, que es siempre).
+      distributeToStoryNodes: false,
     };
   },
 

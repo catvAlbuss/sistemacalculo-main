@@ -120,6 +120,43 @@ export const displayDialogsMixin = {
     });
   },
 
+  // Oculta / muestra las etiquetas (nombres) de sección sobre las barras en el
+  // canvas 2D. Botón del toolbar (junto a Replicar). Sin diálogo — toggle directo.
+  toggleFrameSectionLabels() {
+    this.ensureDisplayOptions?.();
+    if (!this.displayOptions) this.displayOptions = {};
+    const next = this.displayOptions.showFrameSectionLabels === false;
+    this.displayOptions.showFrameSectionLabels = next;
+
+    this.redraw?.();
+
+    this.showMessage?.(
+      next
+        ? "Etiquetas de sección visibles."
+        : "Etiquetas de sección ocultas.",
+    );
+  },
+
+  // Oculta / muestra las etiquetas (nombre de sección) de LOSAS y MUROS, en
+  // 2D y en 3D. Botón del toolbar, sin diálogo. En 3D cada etiqueta es un
+  // plano billboard con su propia DynamicTexture: en modelos con muchas losas
+  // (p.ej. .e2k importados, cientos de franjas) el render se vuelve lento, así
+  // que ocultarlas las elimina de la escena, no solo las hace invisibles.
+  toggleAreaSectionLabels() {
+    this.ensureDisplayOptions?.();
+    if (!this.displayOptions) this.displayOptions = {};
+    const next = this.displayOptions.showAreaSectionLabels === false;
+    this.displayOptions.showAreaSectionLabels = next;
+
+    this.redraw?.();
+
+    this.showMessage?.(
+      next
+        ? "Etiquetas de losas y muros visibles."
+        : "Etiquetas de losas y muros ocultas.",
+    );
+  },
+
   openShowDeformedShapeDialog() {
     this.ensureDisplayOptions();
 

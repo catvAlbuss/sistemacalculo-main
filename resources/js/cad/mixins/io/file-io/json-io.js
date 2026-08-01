@@ -1025,6 +1025,13 @@ export const jsonIoMixin = {
           newFrame.elementType = frameData.elementType || frameData.type || "beam";
           newFrame.objectType = frameData.objectType || "frame";
 
+          // Rotación del eje local (ETABS ANG / Assign ▸ Local Axes). Sin
+          // copiarla, una columna T/L rotada perdía su orientación al
+          // importar/restaurar y quedaba con rigidez X↔Y intercambiada.
+          if (Number(frameData.localAxisAngle)) {
+            newFrame.localAxisAngle = Number(frameData.localAxisAngle);
+          }
+
           newFrame.visible = frameData.visible !== false;
 
           newFrame.material = cleanClone(frameData.material);

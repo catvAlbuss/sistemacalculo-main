@@ -360,6 +360,48 @@ function createNodeMesh(node, context) {
 // CREAR MALLA DE BARRA EN EL 3D
 // Pinta barras normales, barras 3D-only y barras seleccionadas.
 // =====================================================
+// Convierte "#rrggbb" a BABYLON.Color3; null si el string no es válido.
+function hexToColor3(hex) {
+  if (typeof hex !== "string") return null;
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return new BABYLON.Color3(
+    ((n >> 16) & 255) / 255,
+    ((n >> 8) & 255) / 255,
+    (n & 255) / 255,
+  );
+}
+
+// Color de DISPLAY de la sección del frame (campo "color" del modal Frame
+// Sections), como Color3; null si la barra no tiene sección con color propio.
+// Espejo de renderer.getFrameSectionColor para el visor 3D.
+function getBeamSectionColor3D(beam, context = null) {
+  if (!beam) return null;
+  const direct =
+    beam.section?.color || beam.frameSection?.color || beam.sectionColor || null;
+  if (direct) return hexToColor3(direct);
+
+  const label =
+    beam.sectionName ||
+    beam.frameSection?.name ||
+    beam.frameSection?.id ||
+    beam.section?.name ||
+    beam.section?.id ||
+    beam.sectionId ||
+    "";
+  if (!label) return null;
+
+  const list =
+    context?.frameSections?.sections ||
+    (typeof window !== "undefined" && window.cadSystem?.frameSections?.sections) ||
+    null;
+  if (!Array.isArray(list)) return null;
+
+  const match = list.find((s) => s && (s.name === label || s.id === label));
+  return match?.color ? hexToColor3(match.color) : null;
+}
+
 function createBeamMesh(beam, context) {
   const start = mapNodePositionTo3D(beam.node1);
   const end = mapNodePositionTo3D(beam.node2);
@@ -377,18 +419,24 @@ function createBeamMesh(beam, context) {
   // Normal activa: amarillo.
   // Normal inactiva: gris.
   // =====================================================
+  // Color propio de la sección (si el usuario le puso uno en el modal). Tiene
+  // prioridad sobre el color por estado, EXCEPTO cuando la barra está
+  // seleccionada (ahí manda el resalte). Aplica a la vista activa y, atenuado,
+  // a las inactivas.
+  const sectionColor = getBeamSectionColor3D(beam, context);
+
   if (isSelected) {
     lines.color = is3DOnly ? COLORS_3D.frame3DOnlySelected : COLORS_3D.selectedModel;
 
     lines.alpha = 1;
   } else if (is3DOnly) {
-    lines.color = COLORS_3D.frame3DOnly;
+    lines.color = sectionColor || COLORS_3D.frame3DOnly;
     lines.alpha = 1;
   } else if (isActiveView) {
-    lines.color = COLORS_3D.activeModel;
+    lines.color = sectionColor || COLORS_3D.activeModel;
     lines.alpha = 1;
   } else {
-    lines.color = COLORS_3D.inactiveModel;
+    lines.color = sectionColor || COLORS_3D.inactiveModel;
     lines.alpha = 0.1;
   }
 

@@ -1070,8 +1070,11 @@ export class DiseñoRenderer {
     context.ctx.setLineDash([]);
     context.ctx.restore();
 
-    // Etiqueta de sección asignada
-    if (this.hasAssignedFrameSection(beam)) {
+    // Etiqueta de sección asignada (se puede ocultar con el botón del toolbar)
+    if (
+      context.displayOptions?.showFrameSectionLabels !== false &&
+      this.hasAssignedFrameSection(beam)
+    ) {
       this.drawFrameSectionLabel(beam, context, p1, p2);
     }
 
@@ -1251,6 +1254,48 @@ export class DiseñoRenderer {
     return { b, h, fallback: false };
   }
 
+  // Polígono LOCAL de la huella según la forma de la sección (Tee / L),
+  // en metros, con el eje local u = peralte (X a 0°, coincide con Iz del motor)
+  // y v = ancho (Y a 0°), centrado en el nodo (bounding box). Devuelve null si
+  // la forma no es Tee ni L → el dibujo cae al rectángulo b×h por defecto.
+  getColumnFootprintLocalPolygon(beam) {
+    const sec = beam.frameSection || beam.section || {};
+    const type = String(sec.type || sec.shape || "").toLowerCase();
+    // Dims de tee/L guardadas en cm por el importador; >3 ⇒ cm → m.
+    const toM = (v) => { v = Number(v); if (!(v > 0)) return 0; return v > 3 ? v / 100 : v; };
+
+    if (type === "tee") {
+      const D = toM(sec.teeDepth), B = toM(sec.teeWidth);
+      const TF = toM(sec.teeFlangeThick), TW = toM(sec.teeWebThick);
+      if (D > 0 && B > 0 && TF > 0 && TW > 0 && TF < D) {
+        const hd = D / 2, hb = B / 2, ht = TW / 2, uf = D / 2 - TF;
+        // Ala en +u (arriba del peralte), alma centrada en v bajando.
+        return [
+          [hd, -hb], [hd, hb], [uf, hb], [uf, ht],
+          [-hd, ht], [-hd, -ht], [uf, -ht], [uf, -hb],
+        ];
+      }
+    }
+
+    if (type === "l") {
+      const D = toM(sec.h), B = toM(sec.b); // h=peralte(D), b=ancho(B)
+      const TF = toM(sec.lFlangeThick), TW = toM(sec.lWebThick);
+      if (D > 0 && B > 0 && TF > 0 && TW > 0 && TW < B && TF < D) {
+        const hd = D / 2, hb = B / 2;
+        // Ala vertical (alma, ancho TW) sobre −v; ala horizontal (espesor TF) en −u.
+        let poly = [
+          [-hd, -hb], [hd, -hb], [hd, -hb + TW],
+          [-hd + TF, -hb + TW], [-hd + TF, hb], [-hd, hb],
+        ];
+        if (sec.lMirror3) poly = poly.map(([u, v]) => [u, -v]);
+        if (sec.lMirror2) poly = poly.map(([u, v]) => [-u, v]);
+        return poly;
+      }
+    }
+
+    return null;
+  }
+
   drawColumnPlanFootprint(beam, context) {
     const center = beam.node1?.position || beam.node2?.position;
     if (!center) return;
@@ -1265,15 +1310,13 @@ export class DiseñoRenderer {
     const cos = Math.cos(t);
     const sin = Math.sin(t);
 
-    // Coherencia con el motor: a θ=0 (vecxz=[0,1,0]) el eje local y = +X y el
-    // peralte (h, eje fuerte Iz) queda a lo largo de X. Por eso h va en el eje
-    // pre-rotación X y b en Y; al girar por θ el rectángulo sigue al vecxz
-    // [-sinθ, cosθ, 0] (peralte en dirección (cosθ, sinθ)).
-    const halfPeralte = h / 2; // h → X a 0° (coincide con Iz del motor)
+    // Polígono de la forma real (Tee/L) si aplica; si no, rectángulo b×h.
+    // Coherencia con el motor: a θ=0 (vecxz=[0,1,0]) el peralte (eje fuerte Iz)
+    // va a lo largo de X (u); al girar por θ la huella sigue al vecxz.
+    const shapePoly = this.getColumnFootprintLocalPolygon(beam);
+    const halfPeralte = h / 2; // h → X a 0°
     const halfWidth = b / 2;   // b → Y a 0°
-
-    // Esquinas en modelo (rotadas) → pantalla, así respeta zoom/pan.
-    const localCorners = [
+    const localCorners = shapePoly || [
       [-halfPeralte, -halfWidth],
       [halfPeralte, -halfWidth],
       [halfPeralte, halfWidth],
@@ -1415,7 +1458,12 @@ export class DiseñoRenderer {
 
     // Etiqueta del área: si tiene sección asignada, muestra su NOMBRE
     // (p.ej. "Aligerado e=0.20"); si no, cae al tipo de área ("slab").
-    if (!isPreview && pts.length >= 3) {
+    // Se puede ocultar desde el toolbar (toggleAreaSectionLabels).
+    if (
+      !isPreview &&
+      pts.length >= 3 &&
+      context.displayOptions?.showAreaSectionLabels !== false
+    ) {
       const center = this.getProjectedPolygonCenter(pts);
       const label =
         area.slabSection ||
@@ -2030,6 +2078,36 @@ export class DiseñoRenderer {
 
   hasAssignedFrameSection(beam) {
     return !!this.getFrameSectionLabel(beam);
+  }
+
+  // Color de DISPLAY definido para la sección del frame (campo "color" del modal
+  // Frame Sections). Devuelve null si la barra no tiene sección con color propio
+  // (→ el render cae al color por defecto por tipo). Busca primero en el objeto
+  // de sección que la barra ya trae, luego en la lista global de secciones
+  // (window.cadSystem.frameSections.sections) por nombre. Así el color que el
+  // usuario asigna a "100x100x3mm" se aplica a todas las barras de esa sección.
+  getFrameSectionColor(beam, context = null) {
+    if (!beam) return null;
+    const direct =
+      beam.section?.color ||
+      beam.frameSection?.color ||
+      beam.sectionColor ||
+      null;
+    if (direct) return direct;
+
+    const label = this.getFrameSectionLabel(beam);
+    if (!label) return null;
+
+    const list =
+      context?.frameSections?.sections ||
+      (typeof window !== "undefined" && window.cadSystem?.frameSections?.sections) ||
+      null;
+    if (!Array.isArray(list)) return null;
+
+    const match = list.find(
+      (s) => s && (s.name === label || s.id === label),
+    );
+    return match?.color || null;
   }
 
   drawFrameSectionLabel(beam, context, p1, p2) {
@@ -3408,8 +3486,12 @@ export class DiseñoRenderer {
     // El texto puede seguir mostrándose normal.
     // =====================================================
     if (this.hasAssignedFrameSection(beam)) {
+      // Color propio de la sección (campo "color" del modal) si está definido;
+      // si no, amarillo por defecto. Así el color asignado por el usuario a la
+      // sección se refleja en la barra en 2D.
+      const sectionColor = this.getFrameSectionColor(beam, context);
       return {
-        strokeStyle: beamColor,
+        strokeStyle: sectionColor || beamColor,
         lineWidth: mode === "wireframe" ? 2.2 : 3,
         lineDash: [],
         textColor: "#ffffff",
@@ -3817,9 +3899,13 @@ export class DiseñoRenderer {
     ctx.font = "11px 'Segoe UI', Arial";
     ctx.setLineDash([]);
 
-    // Líneas horizontales (niveles Z)
+    // Líneas horizontales (niveles Z) — elevación REAL de cada piso
+    // (context.stories, respeta alturas distintas; fallback uniforme).
     for (let floor = 0; floor <= storyCount; floor++) {
-      const z = floor * storyHeight;
+      const st = context.stories?.[floor];
+      const z = st && Number.isFinite(Number(st.elevation))
+        ? Number(st.elevation)
+        : floor * storyHeight;
       const screenY = grid.worldToScreen({ x: 0, y: z }).y;
 
       ctx.beginPath();
@@ -3832,12 +3918,12 @@ export class DiseñoRenderer {
 
       ctx.fillStyle = floor === 0 ? axisColor : textColor;
       ctx.font = floor === 0 ? "bold 10px Arial" : "10px Arial";
-      const label = floor === 0 ? "BASE" : `STORY${floor}`;
+      const label = floor === 0 ? "BASE" : (st?.name ? String(st.name).toUpperCase() : `STORY${floor}`);
       ctx.fillText(label, 10, screenY - 5);
 
       ctx.fillStyle = textColor;
       ctx.font = "9px Arial";
-      ctx.fillText(`${z}m`, 80, screenY - 5);
+      ctx.fillText(`${Math.round(z * 100) / 100}m`, 80, screenY - 5);
     }
 
     // Líneas verticales del plano X-Z (A, B, C, D...)
@@ -3912,8 +3998,12 @@ export class DiseñoRenderer {
     ctx.font = "11px 'Segoe UI', Arial";
     ctx.setLineDash([]);
 
+    // Elevación REAL de cada piso (context.stories; fallback uniforme).
     for (let floor = 0; floor <= storyCount; floor++) {
-      const z = floor * storyHeight;
+      const st = context.stories?.[floor];
+      const z = st && Number.isFinite(Number(st.elevation))
+        ? Number(st.elevation)
+        : floor * storyHeight;
       const screenY = grid.worldToScreen({ x: 0, y: z }).y;
 
       ctx.beginPath();
@@ -3926,12 +4016,12 @@ export class DiseñoRenderer {
 
       ctx.fillStyle = floor === 0 ? axisColor : textColor;
       ctx.font = floor === 0 ? "bold 10px Arial" : "10px Arial";
-      const label = floor === 0 ? "BASE" : `STORY${floor}`;
+      const label = floor === 0 ? "BASE" : (st?.name ? String(st.name).toUpperCase() : `STORY${floor}`);
       ctx.fillText(label, 10, screenY - 5);
 
       ctx.fillStyle = textColor;
       ctx.font = "9px Arial";
-      ctx.fillText(`${z}m`, 80, screenY - 5);
+      ctx.fillText(`${Math.round(z * 100) / 100}m`, 80, screenY - 5);
     }
 
     yPositions.forEach((y, index) => {
@@ -4734,6 +4824,16 @@ export class DiseñoRenderer {
       const maxZ = Math.max(...zs);
 
       const allOnPlan = zs.every((z) => Math.abs(z - activeZ) <= tol);
+
+      // Muro (panel vertical) → se muestra SOLO en la planta de su piso
+      // SUPERIOR (maxZ), como ETABS: el muro "pertenece" a la story a la que
+      // sube. Así NO aparece en la Base (su borde inferior) ni en niveles
+      // intermedios. Sin esto cruzaba todas las plantas entre min y max y se
+      // veía duplicado (p.ej. en Base además de en Story1).
+      const isWall = (area.areaType || area.type) === "wall";
+      if (isWall) {
+        return Math.abs(maxZ - activeZ) <= tol;
+      }
 
       const crossesPlan =
         activeZ >= minZ - tol &&

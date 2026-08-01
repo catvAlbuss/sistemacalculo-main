@@ -240,6 +240,50 @@
         </svg>
 
       </x-cad.ui.ribbon-button>
+      <x-cad.ui.ribbon-button clickHandler="cadSystem.activateEditMenuAction('merge-points')" toggle="false" label="Unir puntos">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <!-- Conexiones o líneas estructurales internas -->
+          <path d="M6 14l6-6 6 6" />
+          <path d="M12 8v8" />
+
+          <!-- Nodo Superior Central -->
+          <circle cx="12" cy="6" r="1.5" />
+
+          <!-- Nodo Inferior Izquierdo -->
+          <circle cx="5" cy="15" r="1.5" />
+
+          <!-- Nodo Inferior Derecho -->
+          <circle cx="19" cy="15" r="1.5" />
+
+          <!-- Detalles base o líneas de apoyo inclinadas -->
+          <path d="M4 18l2-2" />
+          <path d="M20 18l-2-2" />
+        </svg>
+
+
+      </x-cad.ui.ribbon-button>
+      <x-cad.ui.ribbon-button clickHandler="cadSystem.toggleFrameSectionLabels()" toggle="false" label="Ocultar etiquetas">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <!-- Etiqueta -->
+          <path d="M3 8l6-4h9a2 2 0 0 1 2 2v3" />
+          <path d="M3 8v6a2 2 0 0 0 2 2h6" />
+          <!-- Ojo tachado (ocultar) -->
+          <path d="M14 15.5a3 3 0 0 0 4 2.5" />
+          <path d="M20.5 12.5A8 8 0 0 1 13 18" />
+          <line x1="3" y1="3" x2="21" y2="21" />
+        </svg>
+      </x-cad.ui.ribbon-button>
+      <x-cad.ui.ribbon-button clickHandler="cadSystem.toggleAreaSectionLabels()" toggle="false" label="Ocultar etiq. losas">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <!-- Losa (paralelogramo en perspectiva) -->
+          <path d="M2 9l7-4 13 4-7 4z" />
+          <path d="M2 9v3l13 5v-3" />
+          <!-- Ojo tachado (ocultar) -->
+          <path d="M14 17.5a3 3 0 0 0 4 2.5" />
+          <path d="M21 15a8 8 0 0 1-6 5" />
+          <line x1="3" y1="3" x2="21" y2="21" />
+        </svg>
+      </x-cad.ui.ribbon-button>
     </x-cad.ui.ribbon-group>
   </div>
   <!-- Modal para File > New Model -->

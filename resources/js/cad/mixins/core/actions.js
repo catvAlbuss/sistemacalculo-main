@@ -610,6 +610,13 @@ export const actionsMixin = {
       showJointLoads: this.displayOptions.showJointLoads ?? false,
       showFrameLoads: this.displayOptions.showFrameLoads ?? false,
 
+      // Etiquetas de sección (toggles del toolbar). Van en esta lista blanca
+      // porque ensureDisplayOptions RECONSTRUYE el objeto: sin estar acá, se
+      // perdían al abrir cualquier diálogo de Display y las etiquetas volvían
+      // a aparecer solas.
+      showFrameSectionLabels: this.displayOptions.showFrameSectionLabels ?? true,
+      showAreaSectionLabels: this.displayOptions.showAreaSectionLabels ?? true,
+
       showDeformedShape: this.displayOptions.showDeformedShape ?? false,
       showModeShape: this.displayOptions.showModeShape ?? false,
 

@@ -155,6 +155,49 @@ function getFrameMaterial(scene, key, color) {
   return material;
 }
 
+// Convierte "#rrggbb" a BABYLON.Color3; null si no es válido.
+function hexToColor3(hex) {
+  const BABYLONRef = BABYLON;
+  if (!BABYLONRef || typeof hex !== "string") return null;
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return new BABYLONRef.Color3(
+    ((n >> 16) & 255) / 255,
+    ((n >> 8) & 255) / 255,
+    (n & 255) / 255,
+  );
+}
+
+// Color de DISPLAY de la sección del frame (campo "color" del modal Frame
+// Sections). Devuelve el hex o null. Espejo del helper de renderer 2D — así el
+// color que el usuario asigna a una sección se refleja también en el 3D.
+function getFrameSectionColorHex(frame, context = null) {
+  if (!frame) return null;
+  const direct =
+    frame.section?.color || frame.frameSection?.color || frame.sectionColor || null;
+  if (direct) return direct;
+
+  const label =
+    frame.sectionName ||
+    frame.frameSection?.name ||
+    frame.frameSection?.id ||
+    frame.section?.name ||
+    frame.section?.id ||
+    frame.sectionId ||
+    "";
+  if (!label) return null;
+
+  const list =
+    context?.frameSections?.sections ||
+    (typeof window !== "undefined" && window.cadSystem?.frameSections?.sections) ||
+    null;
+  if (!Array.isArray(list)) return null;
+
+  const match = list.find((s) => s && (s.name === label || s.id === label));
+  return match?.color || null;
+}
+
 // =====================================================
 // 3D > OBTENER COLOR/MATERIAL DE BARRA
 // Barra 3D-only normal: amarillo.
@@ -199,25 +242,33 @@ function getFrameVisualConfig(scene, frame, context = null) {
   // 3D > BARRA 3D-ONLY NORMAL
   // Amarillo cuando no está seleccionada.
   // =====================================================
+  // Color propio de la sección (campo "color" del modal), si está definido.
+  // Tiene prioridad sobre el amarillo por defecto, tanto para barras normales
+  // como 3D-only. Material cacheado por color (una clave por hex).
+  const sectionHex = getFrameSectionColorHex(frame, context);
+  const sectionColor = sectionHex ? hexToColor3(sectionHex) : null;
+
   if (is3DOnly) {
-    const color = new BABYLONRef.Color3(1.0, 0.85, 0.05); // amarillo
+    const color = sectionColor || new BABYLONRef.Color3(1.0, 0.85, 0.05); // amarillo
+    const key = sectionColor ? `mat_frame_sec_${sectionHex}` : "mat_frame_3d_only";
 
     return {
       color,
-      material: getFrameMaterial(scene, "mat_frame_3d_only", color),
+      material: getFrameMaterial(scene, key, color),
       alpha: 1,
     };
   }
 
   // =====================================================
   // 3D > BARRA NORMAL NO SELECCIONADA
-  // Amarillo para que coincida con el canvas 2D.
+  // Color de la sección si tiene; si no, amarillo (para coincidir con 2D).
   // =====================================================
-  const color = new BABYLONRef.Color3(1.0, 0.85, 0.05); // amarillo
+  const color = sectionColor || new BABYLONRef.Color3(1.0, 0.85, 0.05); // amarillo
+  const key = sectionColor ? `mat_frame_sec_${sectionHex}` : "mat_frame_normal";
 
   return {
     color,
-    material: getFrameMaterial(scene, "mat_frame_normal", color),
+    material: getFrameMaterial(scene, key, color),
     alpha: 1,
   };
 }
@@ -797,6 +848,10 @@ export function renderModel3D(viewer3D, nodes = [], shapes = [], areas = [], con
       holes,
       extrude: extrudeShells,
       thickness: resolveSlabThicknessM(area, context),
+      // Etiquetas de losa (nombre de sección): se pueden ocultar desde el
+      // toolbar para aligerar modelos con muchas losas — cada etiqueta es un
+      // billboard con DynamicTexture propia.
+      showLabels: context.displayOptions?.showAreaSectionLabels !== false,
     };
 
     if (existingMesh && !existingMesh.isDisposed()) {
