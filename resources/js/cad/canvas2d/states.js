@@ -253,6 +253,16 @@ export class IdleState extends PanAndZoomState {
         context.setState(context.selectedAreasState, {
           selectedAreas: [selectedObject],
         });
+        // La selección en 2D deja `area.selected = true` sincrónicamente,
+        // pero setState() solo re-sincroniza el 3D si `this.show3DView` ya
+        // estaba en true en ese instante exacto; en la práctica eso no
+        // siempre alcanza a reflejar el resaltado naranja en el visor 3D
+        // (mismo motivo por el que la selección de barras 2D-3D de arriba
+        // ya usa este mismo refuerzo). Forzamos un sync extra para que la
+        // losa seleccionada en 2D también se vea resaltada en 3D.
+        requestAnimationFrame(() => {
+          context.sync3D?.();
+        });
       }
     } else if ((selectedObject = context.closestDimensionLineAtActiveView(mouse))) {
       context.setState(context.selectedDimensionLinesState, {
@@ -570,6 +580,9 @@ export class SelectedObjectsState extends PanAndZoomState {
           context.setState(context.selectedAreasState, {
             selectedAreas: [selectedObject],
           });
+          requestAnimationFrame(() => {
+            context.sync3D?.();
+          });
         }
       } else if ((selectedObject = context.closestDimensionLineAtActiveView(mouse))) {
         context.setState(context.selectedDimensionLinesState, {
@@ -678,6 +691,9 @@ export class SelectedAreasState extends PanAndZoomState {
     if (selectedArea) {
       context.setState(context.selectedAreasState, {
         selectedAreas: [selectedArea],
+      });
+      requestAnimationFrame(() => {
+        context.sync3D?.();
       });
     } else {
       context.setState(context.idleState);

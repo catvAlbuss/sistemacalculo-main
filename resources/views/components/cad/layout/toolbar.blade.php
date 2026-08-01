@@ -264,6 +264,7 @@
   <x-cad.modals.mass-source-modal />
   <x-cad.modals.slab-sections-modal />
   <x-cad.modals.reactions-display-modal />
+  <x-cad.modals.edit.divide-areas-modal />
 
   <x-cad.modals.wall-sections-modal />
  

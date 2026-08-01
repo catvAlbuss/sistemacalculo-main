@@ -153,6 +153,12 @@
                         <span class="flex-1 min-w-0 truncate">Dividir Líneas...</span>
                     </button>
 
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.activateEditMenuAction('divide-areas')">
+                        <span>▦</span>
+                        <span class="flex-1 min-w-0 truncate">Dividir Áreas...</span>
+                    </button>
+
                     <div class="border-t border-gray-700 my-1"></div>
 
                     {{-- ================= EXTRUSIÓN ================= --}}

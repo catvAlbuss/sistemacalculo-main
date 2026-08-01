@@ -1,5 +1,5 @@
 import Swal from "sweetalert2";
-import { Beam, Node as StructuralNode } from "../../model/shapes.js";
+import { Beam, Node as StructuralNode, Area } from "../../model/shapes.js";
 
 /**
  * @mixin editGeometryMixin
@@ -2218,6 +2218,147 @@ export const editGeometryMixin = {
       createdFrames: newFrames.length,
       createdNodes: createdNodes.length,
     };
+  },
+
+  // =========================================
+  // ========== EDIT: DIVIDE AREAS ===========
+  // =========================================
+  // "Dividir Áreas" estilo ETABS (Edit > Edit Areas > Divide Areas >
+  // Divide Quadrilaterals/Triangles into Columns by Rows Areas). Solo
+  // cuadriláteros (4 vértices) por ahora — es 100% geometría de frontend,
+  // no toca python-backend/ para nada.
+
+  openDivideAreasDialog() {
+    const selectedAreas =
+      this.getEditSelectedAreas?.({
+        respectActiveView: false,
+      }) || [];
+
+    if (!selectedAreas.length) {
+      this.showMessage?.("▦ Selecciona una o más áreas (losas) para dividir.", "warning");
+      return;
+    }
+
+    const notQuads = selectedAreas.filter((area) => (area.points || []).length !== 4);
+    if (notQuads.length) {
+      this.showMessage?.(
+        `▦ Solo se pueden dividir áreas de 4 vértices (cuadriláteros). ${notQuads.length} de las seleccionadas tienen otra cantidad de puntos.`,
+        "warning"
+      );
+      return;
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("open-divide-areas-modal", { detail: { areaCount: selectedAreas.length } })
+    );
+  },
+
+  // Llamado por divide-areas-modal.blade.php al confirmar.
+  applyDivideAreas({ cols, rows } = {}) {
+    this.saveUndoState?.("Divide Areas");
+
+    const summary = this.divideSelectedAreas({ cols, rows });
+
+    // Las áreas originales ya no existen (se reemplazaron por la grilla) —
+    // si seguían "seleccionadas" (currentState === selectedAreasState),
+    // ese estado retiene referencias a objetos ya removidos de this.areas
+    // con `.selected = true` colgado; volver a Idle limpia esa selección
+    // stale antes de re-sincronizar el 3D.
+    if (this.currentState === this.selectedAreasState) {
+      this.setState?.(this.idleState);
+    }
+
+    this.redraw?.();
+    this.sync3D?.();
+
+    this.showMessage?.(
+      `▦ Divide Areas: ${summary.divided} área(s) reemplazada(s) por ${summary.created} área(s) nueva(s).`
+    );
+  },
+
+  // Interpolación bilineal sobre los 4 vértices de `area` (en el orden que
+  // ya tiene el polígono): point(u,v) = (1-u)(1-v)P0 + u(1-v)P1 + uv·P2 + (1-u)v·P3.
+  _bilinearAreaPoint(area, u, v) {
+    const [p0, p1, p2, p3] = area.points;
+
+    return {
+      x:
+        (1 - u) * (1 - v) * p0.x +
+        u * (1 - v) * p1.x +
+        u * v * p2.x +
+        (1 - u) * v * p3.x,
+      y:
+        (1 - u) * (1 - v) * p0.y +
+        u * (1 - v) * p1.y +
+        u * v * p2.y +
+        (1 - u) * v * p3.y,
+    };
+  },
+
+  divideSelectedAreas({ cols, rows } = {}) {
+    const selectedAreas =
+      this.getEditSelectedAreas?.({
+        respectActiveView: false,
+      }) || [];
+
+    const summary = { divided: 0, created: 0 };
+
+    // IDs únicos: `this.areas.length + 1` no sirve aquí porque el arreglo
+    // crece y encoge (push de sub-áreas + splice del área original) dentro
+    // del mismo forEach, generando colisiones de id entre sub-áreas de
+    // distintas áreas divididas (el 3D indexa mallas por area.id en un Map,
+    // así que una colisión pisa/actualiza la malla equivocada en vez de
+    // crear una nueva).
+    let nextAreaId = this.areas.reduce((max, a) => Math.max(max, Number(a.id) || 0), 0) + 1;
+
+    selectedAreas.forEach((area) => {
+      if ((area.points || []).length !== 4) return;
+
+      const z = Number(area.z ?? area.elevation ?? 0);
+      const grid = [];
+
+      for (let j = 0; j <= rows; j++) {
+        const row = [];
+        for (let i = 0; i <= cols; i++) {
+          row.push(this._bilinearAreaPoint(area, i / cols, j / rows));
+        }
+        grid.push(row);
+      }
+
+      for (let j = 0; j < rows; j++) {
+        for (let i = 0; i < cols; i++) {
+          const newArea = new Area(area.areaType, z);
+
+          [grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]].forEach((p) =>
+            newArea.addPoint(p)
+          );
+
+          // Conserva secciones/propiedades asignadas (slab, zapata, etc.)
+          // en vez de perderlas al dividir.
+          if (area.slabSection) newArea.slabSection = area.slabSection;
+          if (area.section) newArea.section = area.section;
+          if (area.zapataSection) newArea.zapataSection = area.zapataSection;
+          if (area.slabSelfWeightKgM2 != null) newArea.slabSelfWeightKgM2 = area.slabSelfWeightKgM2;
+
+          newArea.id = nextAreaId++;
+          this.areas.push(newArea);
+          summary.created += 1;
+        }
+      }
+
+      // Limpia el flag de selección antes de quitarla — si el área seguía
+      // referenciada por `selectedAreasState.selectedObjects` (estado del
+      // que no siempre se sale antes de dividir), no debe quedar marcada
+      // `selected = true` colgando en un objeto ya fuera de `this.areas`.
+      area.selected = false;
+      area.isSelected = false;
+
+      const index = this.areas.indexOf(area);
+      if (index !== -1) this.areas.splice(index, 1);
+      summary.divided += 1;
+    });
+
+    return summary;
   },
 
   // =========================================

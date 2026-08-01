@@ -443,6 +443,14 @@ export const actionsMixin = {
         }
         break;
 
+      case "divide-areas":
+        if (typeof this.openDivideAreasDialog === "function") {
+          this.openDivideAreasDialog();
+        } else {
+          this.showEditNotImplemented("Divide Areas");
+        }
+        break;
+
       // ===============================
       // EXTRUSIÓN
       // ===============================
