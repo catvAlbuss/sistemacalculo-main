@@ -592,6 +592,26 @@ export const e2kImportMixin = {
     return { A, area: A, Iz, Iy, J };
   },
 
+  // Propiedades de un TUBO rectangular hueco (SHAPE "Steel Tube" / HSS). D=peralte,
+  // B=ancho, TF=espesor pared arriba/abajo, TW=espesor pared lados (todo en m).
+  // Sección hueca = exterior D×B menos el interior. J por Bredt (pared delgada
+  // cerrada). Valida contra ETABS: 100x100x3mm → A=0.00116, I33=1.83e-6,
+  // J=2.7e-6 (ETABS: 0.0012 / 0.000002 / 0.000003). Iz usa D³ (eje mayor 33),
+  // Iy usa B³ (eje menor 22).
+  _tubeSectionProps(D, B, TF, TW) {
+    if (!(D > 0 && B > 0 && TF > 0 && TW > 0)) return null;
+    const Di = Math.max(0, D - 2 * TF);
+    const Bi = Math.max(0, B - 2 * TW);
+    const A = B * D - Bi * Di;
+    const Iz = (B * Math.pow(D, 3)) / 12 - (Bi * Math.pow(Di, 3)) / 12;
+    const Iy = (D * Math.pow(B, 3)) / 12 - (Di * Math.pow(Bi, 3)) / 12;
+    const t = (TF + TW) / 2;
+    const Am = (D - TF) * (B - TW);
+    const pm = 2 * ((D - TF) + (B - TW));
+    const J = pm > 0 ? (4 * Am * Am * t) / pm : 0;
+    return { A, area: A, Iz, Iy, J };
+  },
+
   // Propiedades de una sección "L" de concreto (FRAMESECTION SHAPE "Concrete L" /
   // SDSECTION SHAPETYPE "CONC L"). D=peralte total, B=ancho total, TF=espesor
   // del ala horizontal, TW=espesor del alma vertical. Origen (0,0) en la
@@ -622,6 +642,41 @@ export const e2kImportMixin = {
     const J = (D * Math.pow(TW, 3) + B * Math.pow(TF, 3)) / 3; // aprox. pared delgada abierta
 
     return { A, area: A, Iz, Iy, J, cx, cy };
+  },
+
+  // Propiedades de una sección "T" (Tee) de concreto (FRAMESECTION SHAPE
+  // "Concrete Tee"). Ala superior de ancho B × espesor TF; alma debajo de
+  // altura (D−TF), ancho TW en el ala y TWB en la punta (si difieren se usa el
+  // promedio → alma rectangular equivalente; en columnas de concreto TW=TWB
+  // casi siempre). Simétrica respecto al eje vertical central. Iz = eje fuerte
+  // (flexión con D como peralte), Iy = eje débil (usa B). J por suma de
+  // rectángulos (St-Venant, sección abierta), aproximada.
+  _teeSectionProps(D, B, TF, TW, TWB) {
+    D = Number(D) || 0; B = Number(B) || 0; TF = Number(TF) || 0;
+    TW = Number(TW) || 0; TWB = Number(TWB) || TW;
+    const tw = (TW + TWB) / 2; // ancho de alma equivalente
+    if (D <= 0 || B <= 0 || TF <= 0 || tw <= 0 || TF >= D || tw > B) return null;
+
+    const hw = D - TF;                 // altura del alma
+    const Af = B * TF, Aw = tw * hw;   // áreas ala / alma
+    const A = Af + Aw;
+    if (A <= 0) return null;
+
+    // Centroide medido desde el TOPE (y hacia abajo).
+    const yf = TF / 2;                 // centroide del ala
+    const yw = TF + hw / 2;            // centroide del alma
+    const yc = (Af * yf + Aw * yw) / A;
+
+    // Iz (eje horizontal centroidal = eje fuerte, usa el peralte D).
+    const Iz =
+      (B * Math.pow(TF, 3)) / 12 + Af * Math.pow(yc - yf, 2) +
+      (tw * Math.pow(hw, 3)) / 12 + Aw * Math.pow(yc - yw, 2);
+    // Iy (eje vertical centroidal = eje débil; ala y alma centradas en él).
+    const Iy = (TF * Math.pow(B, 3)) / 12 + (hw * Math.pow(tw, 3)) / 12;
+    // J: suma de rectángulos (sección abierta), aproximada.
+    const J = (B * Math.pow(TF, 3) + hw * Math.pow(tw, 3)) / 3;
+
+    return { A, area: A, Iz, Iy, J, cy: yc };
   },
 
   // Combina las piezas de concreto de una SDSECTION (ETABS Section Designer:
@@ -690,6 +745,15 @@ export const e2kImportMixin = {
     const loadPatternDefs = [];
     const massSourceLoads = [];
     let massSourceName = "MASS_SOURCE_1";
+    // INCLUDEELEMENTS del MASSSOURCE: si el .e2k trae "No" (ETABS no suma peso
+    // propio de barras a la masa sísmica, solo INCLUDELOADS con los factores
+    // de MASSSOURCELOAD — normalmente porque el propio Load Pattern CM ya
+    // incluye el peso propio con su SELFWEIGHT multiplier), se debe respetar:
+    // hardcodearlo en true duplicaba/inflaba la masa vs ETABS (validado con
+    // MODULO 5: sin este fix, 1838 kg en el techo vs 1051 kg reales de ETABS —
+    // ver project_modulo5_period_calibration). Default true (ETABS lo trae
+    // así por defecto si el .e2k no declara MASSSOURCE en absoluto).
+    let massSourceIncludeElements = true;
     // Fase 3 (sísmico): funciones de espectro + casos Response Spectrum.
     const rsFuncMap = new Map(); // name → {name, id, points:[{T,Sa}], damping, spectype}
     const rsCaseMap = new Map(); // name → {name, type, spectra, damping, eccRatio}
@@ -754,9 +818,50 @@ export const e2kImportMixin = {
         } else if (/^concrete l$/i.test(shape)) {
           const D = kvNum(line, "D", 0), B = kvNum(line, "B", 0), TF = kvNum(line, "TF", 0), TW = kvNum(line, "TW", 0);
           const props = this._lSectionProps(D, B, TF, TW);
+          // TF/TW y flags de espejo (MIRROR2/3) se guardan para poder dibujar
+          // la huella real en forma de L en las vistas de planta/stories.
+          const mirror2 = /MIRROR2\s+"?Yes/i.test(line);
+          const mirror3 = /MIRROR3\s+"?Yes/i.test(line);
           frameSecMap.set(name, props
-            ? { name, type: "L", material, b: B * 100, h: D * 100, A: props.A, area: props.area, Iz: props.Iz, Iy: props.Iy, J: props.J, description: name }
+            ? { name, type: "L", material, b: B * 100, h: D * 100,
+                lFlangeThick: TF * 100, lWebThick: TW * 100, lMirror2: mirror2, lMirror3: mirror3,
+                A: props.A, area: props.area, Iz: props.Iz, Iy: props.Iy, J: props.J, description: name }
             : { name, type: "general", material, A: 0.01, area: 0.01, Iz: 1e-4, Iy: 1e-4 });
+        } else if (/concrete tee|(^|\s)tee($|\s)/i.test(shape)) {
+          // Sección T (Tee) de concreto → type "tee" (el que reconoce el modal)
+          // con propiedades reales de sección en T — antes caía al else y se
+          // aproximaba como rectángulo macizo D×B (sobreestimaba área e inercia).
+          // Dimensiones en cm para el modal. TWB opcional (ancho de alma en la
+          // punta); si falta se asume = TW.
+          const D = kvNum(line, "D", 0), B = kvNum(line, "B", 0);
+          const TF = kvNum(line, "TF", 0), TW = kvNum(line, "TW", 0), TWB = kvNum(line, "TWB", TW);
+          const props = this._teeSectionProps(D, B, TF, TW, TWB);
+          frameSecMap.set(name, props
+            ? {
+                name, type: "tee", material,
+                teeDepth: D * 100, teeWidth: B * 100,
+                teeFlangeThick: TF * 100, teeWebThick: TW * 100, teeWebTipThick: TWB * 100,
+                A: props.A, area: props.area, Iz: props.Iz, Iy: props.Iy, J: props.J,
+                description: name,
+              }
+            : { name, type: "general", material, A: 0.01, area: 0.01, Iz: 1e-4, Iy: 1e-4 });
+        } else if (/steel tube|(^|\s)tube($|\s)|\bhss\b/i.test(shape)) {
+          // Tubo de acero hueco (HSS). Se importa como type "tube" (el que
+          // reconoce el modal Frame Sections) con propiedades de sección HUECA
+          // reales — NO como rectángulo macizo (antes caía al else y sobreestimaba
+          // el área ~8×). Dimensiones guardadas en cm para el modal.
+          const D = kvNum(line, "D", 0), B = kvNum(line, "B", 0);
+          const TF = kvNum(line, "TF", 0), TW = kvNum(line, "TW", 0);
+          const props = this._tubeSectionProps(D, B, TF, TW);
+          frameSecMap.set(name, props
+            ? {
+                name, type: "tube", material,
+                tubeDepth: D * 100, tubeWidth: B * 100,
+                tubeFlangeThick: TF * 100, tubeWebThick: TW * 100,
+                A: props.A, area: props.area, Iz: props.Iz, Iy: props.Iy, J: props.J,
+                description: name,
+              }
+            : { name, type: "general", material, A: 1e-3, area: 1e-3, Iz: 1e-6, Iy: 1e-6 });
         } else if (/sd section/i.test(shape)) {
           // Sección de Section Designer (muros/columnas de forma compuesta):
           // se resuelve después de leer todas las SDSECTION del archivo.
@@ -818,7 +923,17 @@ export const e2kImportMixin = {
       } else if (/^POINT\s/i.test(line)) {
         const id = quotedAll(line)[0];
         const nums = bareNums(line);
-        if (id != null && nums.length >= 2) pointCoords.set(id, { x: nums[0], y: nums[1] });
+        // 3er valor (opcional) = offset Z del punto sobre la elevación del piso
+        // al que se asigna el miembro. ETABS lo usa para geometría inclinada:
+        // vértices de tijerales/armaduras de techo, rampas, etc. Sin capturarlo,
+        // todo el techo se aplana a la elevación del piso (la armadura desaparece).
+        if (id != null && nums.length >= 2) {
+          pointCoords.set(id, {
+            x: nums[0],
+            y: nums[1],
+            z: nums.length >= 3 ? nums[2] : null,
+          });
+        }
       } else if (/^LINE\s/i.test(line)) {
         const toks = quotedAll(line);
         const km = String(line).match(/"[^"]*"\s+(COLUMN|BEAM|BRACE)\b/i);
@@ -841,6 +956,8 @@ export const e2kImportMixin = {
         if (name) loadPatternDefs.push({ name, type: q(line, "TYPE") || "Other", selfWeightMultiplier: kvNum(line, "SELFWEIGHT", 0) });
       } else if (/^MASSSOURCE\s/i.test(line)) {
         massSourceName = quotedAll(line)[0] || massSourceName;
+        if (/INCLUDEELEMENTS\s+"No"/i.test(line)) massSourceIncludeElements = false;
+        else if (/INCLUDEELEMENTS\s+"Yes"/i.test(line)) massSourceIncludeElements = true;
       } else if (/^MASSSOURCELOAD\s/i.test(line)) {
         const toks = quotedAll(line);
         const nums = bareNums(line);
@@ -938,6 +1055,10 @@ export const e2kImportMixin = {
       const idx = storiesAsc.findIndex((s) => s.name === name);
       return idx <= 0 ? 0 : storiesAsc[idx - 1]._elev;
     };
+    const belowStoryNameOf = (name) => {
+      const idx = storiesAsc.findIndex((s) => s.name === name);
+      return idx <= 0 ? "Base" : storiesAsc[idx - 1].name;
+    };
 
     // ── Nodos (dedup por x,y,z) ──
     const nodes = [];
@@ -952,17 +1073,281 @@ export const e2kImportMixin = {
     };
 
     // ── PASO 2: asignaciones + cargas ──
+    // En ETABS el 3er valor del POINT es la PROFUNDIDAD del punto BAJO la
+    // elevación del piso al que se asigna el miembro. La elevación del piso
+    // (p.ej. Story2 = 6.29) es el nivel de la CUMBRERA del techo: el punto de
+    // la cumbrera trae offset ~0 (queda en 6.29, el más alto) y los aleros el
+    // offset mayor (bajan). Por eso la cota real = elevPiso − offset, dando un
+    // techo a dos aguas (gable) con el pico al centro — confirmado con la vista
+    // de elevación de ETABS (joint de la cumbrera en X=5.675, Z=6.29). Los
+    // puntos SIN offset quedan en la elevación del piso (la cumbrera).
     const frames = [];
     const areas = [];
     const frameByKey = new Map(); // "line|story" → frame
     const areaByKey = new Map(); // "area|story" → area
+
+    // ── Pre-pase: resolver la COTA de cada punto que participa en la geometría
+    // de techo (tijeral), para que TODOS los miembros la usen consistente.
+    // Un tijeral se asigna a un piso (p.ej. Story2, elev 6.29) pero abarca del
+    // cordón inferior (piso de abajo, belowElev 3.36) a la cumbrera (elev del
+    // piso). Reglas por punto:
+    //   - con offset  → ALFARDA: z = elevPiso − offset.
+    //   - sin offset, extremo INFERIOR de un vertical (COLUMN) cuyo OTRO extremo
+    //     es alfarda (con offset) → CORDÓN INFERIOR: z = belowElev.
+    //   - sin offset y no marcado → CUMBRERA: z = elevPiso (se resuelve al colocar).
+    // Sin esto los puntos sin offset caían todos en la elevación del piso y el
+    // techo salía como zigzag (cordón inferior arriba, alfardas abajo).
+    // Pisos en los que aparece cada punto (por LINEASSIGN / AREAASSIGN /
+    // POINTASSIGN). Sirve para distinguir, entre los puntos de techo SIN
+    // offset, la CUMBRERA (existe solo en el piso del techo → z = elevación
+    // de ese piso) de un ALERO (existe TAMBIÉN en pisos inferiores porque es
+    // el tope de una columna/muro donde apoya el techo → z = piso de abajo).
+    // Sin esta distinción los aleros salían disparados a la elevación del
+    // piso superior (MODULO 1: extremos del techo en los ejes 1 y 4).
+    const pointStories = new Map(); // pointId → Set(nombre de piso)
+    const addPointStory = (ptId, storyName) => {
+      if (ptId == null || !storyName) return;
+      let set = pointStories.get(ptId);
+      if (!set) { set = new Set(); pointStories.set(ptId, set); }
+      set.add(storyName);
+    };
+    lines.forEach((line) => {
+      if (/^LINEASSIGN\s/i.test(line)) {
+        const toks = quotedAll(line);
+        const c = lineConn.get(toks[0]);
+        if (c) { addPointStory(c.pi, toks[1]); addPointStory(c.pj, toks[1]); }
+      } else if (/^AREAASSIGN\s/i.test(line)) {
+        const toks = quotedAll(line);
+        const c = areaConn.get(toks[0]);
+        if (c) c.forEach((ptId) => addPointStory(ptId, toks[1]));
+      } else if (/^POINTASSIGN\s/i.test(line)) {
+        const toks = quotedAll(line);
+        addPointStory(toks[0], toks[1]);
+      }
+    });
+    const pointExistsBelow = (ptId, storyName) => {
+      const set = pointStories.get(ptId);
+      if (!set) return false;
+      const zRef = storyElev.get(storyName);
+      if (zRef == null) return false;
+      for (const s of set) {
+        const zs = storyElev.get(s);
+        if (zs != null && zs < zRef - 1e-6) return true;
+      }
+      return false;
+    };
+
+    // Pisos que CONTIENEN geometría de techo (algún elemento asignado a ese
+    // piso usa un punto con offset). Solo dentro de ellos se aplica la regla
+    // (b) de línea de techo sin offsets — ver isRoofLine abajo.
+    const roofStories = new Set();
+    lines.forEach((line) => {
+      if (/^LINEASSIGN\s/i.test(line)) {
+        const toks = quotedAll(line);
+        const c = lineConn.get(toks[0]);
+        if (!c) return;
+        if (pointCoords.get(c.pi)?.z != null || pointCoords.get(c.pj)?.z != null) roofStories.add(toks[1]);
+      } else if (/^AREAASSIGN\s/i.test(line)) {
+        const toks = quotedAll(line);
+        const c = areaConn.get(toks[0]);
+        if (!c) return;
+        if (c.some((ptId) => pointCoords.get(ptId)?.z != null)) roofStories.add(toks[1]);
+      }
+    });
+
+    // Puntos que son extremo de ALGÚN vertical (COLUMN), incluido el pendolón
+    // de cumbrera (self-loop "30"-"30" de MODULO 5). NO deben pasar por la
+    // regla de ALERO: su cota ya la resuelve la regla de COLUMN (base →
+    // belowElev) o el propio branch de columna al colocarlos. Sin esta
+    // exclusión, la cumbrera —que también "existe abajo" porque el pendolón
+    // arranca del cordón inferior— se resolvía a belowElev y las diagonales
+    // del techo bajaban a 3.36 en vez de llegar al vértice en 6.29,
+    // dejando el nodo de cumbrera suelto.
+    const columnEndpointIds = new Set();
+    lines.forEach((line) => {
+      if (!/^LINE\s/i.test(line)) return;
+      if (!/"[^"]*"\s+COLUMN\b/i.test(String(line))) return;
+      const toks = quotedAll(line);
+      if (toks[1] != null) columnEndpointIds.add(toks[1]);
+      if (toks[2] != null) columnEndpointIds.add(toks[2]);
+    });
+
+    // ── Extrapolación de la PENDIENTE del techo ──────────────────────────
+    // Un punto SIN offset en el extremo de una cadena de techo puede ser la
+    // CUMBRERA (offset→0, z = elevación del piso) o un ALERO (offset máximo,
+    // z = piso de abajo). "Existe en un piso inferior" NO los distingue: en
+    // MODULO 5-vigas los tres (2 aleros + cumbrera) aparecen en Story1+Story2
+    // y ninguno es extremo de columna. Lo que SÍ los distingue es la propia
+    // geometría: los offsets varían linealmente a lo largo del faldón, así que
+    // extrapolando el tramo vecino se obtiene el offset del extremo.
+    // Verificado con los datos reales de MODULO 5-vigas (faldón izquierdo,
+    // pendiente 0.4287/m): hacia la cumbrera (x=5.67) da offset≈0.001 → 6.29;
+    // hacia el alero (x=-1.17) da 2.930 → 3.359. El resultado se AJUSTA al
+    // nivel de piso más cercano (6.29 / 3.36) para que el nudo coincida
+    // exactamente con el resto de la estructura y no quede a 1 mm.
+    const roofAdj = new Map(); // `${story}|${pt}` → [{other, dist}]
+    const planDist = (a, b) => Math.hypot((a.x || 0) - (b.x || 0), (a.y || 0) - (b.y || 0));
+    lines.forEach((line) => {
+      if (!/^LINEASSIGN\s/i.test(line)) return;
+      const toks = quotedAll(line);
+      const c = lineConn.get(toks[0]);
+      if (!c || c.pi === c.pj) return;
+      const pi = pointCoords.get(c.pi);
+      const pj = pointCoords.get(c.pj);
+      if (!pi || !pj) return;
+      if (pi.z == null && pj.z == null) return; // sin geometría de techo
+      const d = planDist(pi, pj);
+      if (!(d > 1e-6)) return;
+      const push = (a, b) => {
+        const k = `${toks[1]}|${a}`;
+        if (!roofAdj.has(k)) roofAdj.set(k, []);
+        roofAdj.get(k).push({ other: b, dist: d });
+      };
+      push(c.pi, c.pj);
+      push(c.pj, c.pi);
+    });
+
+    // Devuelve la z extrapolada (ya ajustada al nivel de piso más cercano) o
+    // null si no hay dos puntos con offset encadenados para estimar pendiente.
+    const extrapolateRoofZ = (ptId, storyName) => {
+      const p = pointCoords.get(ptId);
+      if (!p || p.z != null) return null;
+      const zStoryLocal = storyElev.get(storyName);
+      if (zStoryLocal == null) return null;
+      const zBelowLocal = belowElevOf(storyName);
+
+      for (const { other: qId, dist: dPQ } of roofAdj.get(`${storyName}|${ptId}`) || []) {
+        const q = pointCoords.get(qId);
+        if (!q || q.z == null) continue;
+        for (const { other: rId, dist: dQR } of roofAdj.get(`${storyName}|${qId}`) || []) {
+          if (rId === ptId) continue;
+          const r = pointCoords.get(rId);
+          if (!r || r.z == null || !(dQR > 1e-6)) continue;
+          // offset(P) = offset(Q) + pendiente(R→Q) · distancia(Q→P)
+          const offP = q.z + ((q.z - r.z) / dQR) * dPQ;
+          const zP = zStoryLocal - offP;
+          return Math.abs(zP - zStoryLocal) <= Math.abs(zP - zBelowLocal)
+            ? zStoryLocal
+            : zBelowLocal;
+        }
+      }
+      return null;
+    };
+
+    const pointRoofZ = new Map(); // pointId → z absoluto resuelto
+    // Piso en cuyo CONTEXTO se resolvió cada punto (el story del LINEASSIGN de
+    // techo que lo tocó). Un mismo punto puede aparecer en POINTASSIGN de OTRO
+    // piso (p.ej. "21" en "Base" para su restricción de apoyo real, además de
+    // en "Story1"/"Story2" por su rol en el techo) — pointRoofZ solo debe
+    // aplicarse cuando el story coincide, si no, un apoyo en Base terminaría
+    // reubicado a la cota del techo (ver uso en POINTASSIGN más abajo).
+    const pointRoofStory = new Map(); // pointId → nombre de piso
+    lines.forEach((line) => {
+      if (!/^LINEASSIGN\s/i.test(line)) return;
+      const toks = quotedAll(line);
+      const conn = lineConn.get(toks[0]);
+      if (!conn) return;
+      const pi = pointCoords.get(conn.pi);
+      const pj = pointCoords.get(conn.pj);
+      if (!pi || !pj) return;
+      // ¿Es geometría de TECHO? Dos formas:
+      //  a) algún extremo con offset (pendiente explícita), o
+      //  b) en un piso QUE TIENE techo (roofStories), una línea que une un
+      //     punto de techo (cumbrera: sin offset y exclusivo del piso) con un
+      //     punto anclado abajo (alero) → es una limatesa/par inclinado aunque
+      //     NINGÚN extremo traiga offset. Caso real MODULO 1 elevación F: la
+      //     arista del hastial son B28 (eje 1 → cumbrera) y D6 (cumbrera →
+      //     eje 4), ambas sin offsets: salían como una barra recta a 11.9 en
+      //     vez de la "^" que va de Story3 a Story4 y de vuelta a Story3.
+      // El caso (b) exige que los DOS extremos sean de clase distinta: una
+      // viga plana normal (ambos extremos anclados abajo) NO entra, así que
+      // los pisos con losa plana + techo conviven sin romperse.
+      const isRoofPoint = (ptId, c) => c.z != null || !pointExistsBelow(ptId, toks[1]);
+      const roofI = isRoofPoint(conn.pi, pi);
+      const roofJ = isRoofPoint(conn.pj, pj);
+      const isRoofLine =
+        pi.z != null || pj.z != null ||
+        (roofStories.has(toks[1]) && roofI !== roofJ);
+      if (!isRoofLine) return;
+      const zStory = storyElev.get(toks[1]) ?? 0;
+      const zBelow = belowElevOf(toks[1]);
+      if (pi.z != null) { pointRoofZ.set(conn.pi, zStory - pi.z); pointRoofStory.set(conn.pi, toks[1]); }
+      if (pj.z != null) { pointRoofZ.set(conn.pj, zStory - pj.z); pointRoofStory.set(conn.pj, toks[1]); }
+      // Vertical (COLUMN) con un extremo alfarda → el extremo sin offset es
+      // cordón inferior (no lo pisa si ya se resolvió como alfarda).
+      if (conn.kind === "COLUMN") {
+        if (pi.z == null && pj.z != null && !pointRoofZ.has(conn.pi)) {
+          pointRoofZ.set(conn.pi, zBelow);
+          pointRoofStory.set(conn.pi, belowStoryNameOf(toks[1]));
+        }
+        if (pj.z == null && pi.z != null && !pointRoofZ.has(conn.pj)) {
+          pointRoofZ.set(conn.pj, zBelow);
+          pointRoofStory.set(conn.pj, belowStoryNameOf(toks[1]));
+        }
+      }
+      // ALERO en viga/diagonal de techo: extremo SIN offset que TAMBIÉN
+      // existe en un piso inferior = apoyo del techo sobre columna/muro de
+      // ese nivel (ver pointExistsBelow). La CUMBRERA (punto exclusivo del
+      // piso del techo) NO entra acá y conserva z = elevación del piso.
+      // Extremo SIN offset: primero se intenta resolver por la PENDIENTE del
+      // faldón (distingue cumbrera de alero, ver extrapolateRoofZ); si no hay
+      // datos para extrapolar, se cae a la regla de alero por "existe abajo".
+      [conn.pi, conn.pj].forEach((ptId) => {
+        const p = pointCoords.get(ptId);
+        if (!p || p.z != null || pointRoofZ.has(ptId)) return;
+
+        const zExtrap = extrapolateRoofZ(ptId, toks[1]);
+        if (zExtrap != null) {
+          pointRoofZ.set(ptId, zExtrap);
+          pointRoofStory.set(
+            ptId,
+            Math.abs(zExtrap - zStory) <= 1e-6 ? toks[1] : belowStoryNameOf(toks[1]),
+          );
+          return;
+        }
+
+        if (!columnEndpointIds.has(ptId) && pointExistsBelow(ptId, toks[1])) {
+          pointRoofZ.set(ptId, zBelow);
+          pointRoofStory.set(ptId, belowStoryNameOf(toks[1]));
+        }
+      });
+    });
+
+    // NOTA (2026-07-31): acá existía una "propagación por BEAM" — copiar la
+    // cota de un extremo resuelto al otro extremo sin offset de cada viga,
+    // iterativamente. La REEMPLAZA la regla de ALERO de arriba
+    // (pointExistsBelow), que es más precisa porque distingue POR QUÉ un
+    // punto no tiene offset: si existe en un piso inferior es un apoyo (va a
+    // belowElev), si es exclusivo del piso del techo es la cumbrera (se queda
+    // en la elevación del piso). La propagación no hacía esa distinción y
+    // arrastraba la CUMBRERA hacia abajo con la cota de su vecino inclinado
+    // (MODULO 1: cumbrera a 10.75 en vez de 11.90). Verificado con volcado
+    // completo de geometría (nodos+frames+áreas): MODULO 5 y MODULO 6 salen
+    // BIT A BIT IDÉNTICOS sin ella — ya no aporta nada que la regla de alero
+    // no cubra.
 
     lines.forEach((line) => {
       if (/^POINTASSIGN\s/i.test(line)) {
         const toks = quotedAll(line);
         const coords = pointCoords.get(toks[0]);
         if (!coords) return;
-        const z = storyElev.has(toks[1]) ? storyElev.get(toks[1]) : 0;
+        // Si el punto es parte de la geometría de techo (pointRoofZ ya resuelto
+        // por el pre-pase) Y este POINTASSIGN es del MISMO piso en cuyo
+        // contexto se resolvió, usar ESA cota — no la elevación cruda del
+        // piso. Sin esto, un POINTASSIGN de un punto de alfarda (p.ej. "104",
+        // asignado a Story2 con USERJOINT) creaba un nodo HUÉRFANO en la
+        // elevación del piso (6.29) además del nodo real ya colocado por
+        // LINEASSIGN en su cota correcta (4.384).
+        // El chequeo de piso es NECESARIO: un mismo punto puede tener OTRO
+        // POINTASSIGN en un piso distinto (p.ej. "21" en "Base" con su
+        // RESTRAINT de apoyo real, además de en "Story1" por su rol de base
+        // del tijeral) — sin el chequeo, el apoyo de Base se reubicaba
+        // incorrectamente a la cota del techo (3.36 en vez de 0).
+        const zRoof = pointRoofZ.get(toks[0]);
+        const roofStory = pointRoofStory.get(toks[0]);
+        const z = (zRoof != null && roofStory === toks[1])
+          ? zRoof
+          : (storyElev.has(toks[1]) ? storyElev.get(toks[1]) : 0);
         const nd = nodes[getNode(coords.x, coords.y, z) - 1];
         const restr = q(line, "RESTRAINT");
         if (restr) {
@@ -983,16 +1368,66 @@ export const e2kImportMixin = {
         const section = q(line, "SECTION") || "";
         let n1;
         let n2;
-        if (conn.kind === "COLUMN") {
+        // Cota resuelta de cada extremo por el pre-pase de techo (pointRoofZ):
+        // alfarda (elevPiso−offset), cordón inferior (belowElev) o cumbrera
+        // (elevPiso). Si NINGÚN extremo es punto de techo, se usa la lógica
+        // estándar (columna belowElev→storyElev, viga/brace horizontal al piso).
+        //
+        // Un self-loop de COLUMN (pi===pj, patrón ETABS de "columna de piso
+        // completo": misma etiqueta de punto arriba y abajo, la vertical la
+        // define el piso) SIEMPRE usa la lógica estándar de columna, NUNCA
+        // pointRoofZ. Motivo: un self-loop no tiene "dos puntos" distintos que
+        // resolver; si su punto resulta ser también base del tijeral (resuelto
+        // en pointRoofZ a belowElev), ambos extremos tomarían esa misma cota y
+        // la columna de SOPORTE real colapsaba a longitud cero (ej. "Columna T
+        // 70x50x30cm" self-loop "24"-"24" en Story1 → quedaba 3.36→3.36 en vez
+        // de Base 0→3.36).
+        //
+        // NOTA: para los NO-self-loop se usa pointRoofZ SIN chequear el piso a
+        // propósito — un miembro de techo (brace/vertical asignado a Story2)
+        // conecta legítimamente puntos resueltos en contextos de piso DISTINTOS
+        // (la alfarda en "Story2", el cordón inferior en "Story1"=belowElev).
+        // Chequear el piso aquí rompía el techo (el cordón inferior caía a la
+        // cumbrera → zigzag). El chequeo de piso SÍ va, pero solo en
+        // POINTASSIGN (para no reubicar apoyos de Base), no aquí.
+        const zStory = storyElev.get(toks[1]) ?? 0;
+        const isSelfLoopColumn = conn.kind === "COLUMN" && conn.pi === conn.pj;
+        // La cota de techo de un punto SOLO aplica en el piso donde se
+        // resolvió (o en el piso inmediatamente superior, que es donde vive la
+        // línea cuando el punto quedó anclado al nivel de abajo — caso alero/
+        // base de columna). Un ALERO existe también en pisos inferiores (ver
+        // pointExistsBelow): sin este filtro, su cota de techo se aplicaba
+        // TAMBIÉN a sus vigas de Story1/Story2 y esas vigas salían disparadas
+        // al nivel del techo (MODULO 1, punto del eje 1).
+        const roofZAppliesHere = (ptId) => {
+          if (!pointRoofZ.has(ptId)) return false;
+          const st = pointRoofStory.get(ptId);
+          if (st == null) return true;
+          return st === toks[1] || st === belowStoryNameOf(toks[1]);
+        };
+        const ziForced = isSelfLoopColumn || !roofZAppliesHere(conn.pi) ? null : pointRoofZ.get(conn.pi);
+        const zjForced = isSelfLoopColumn || !roofZAppliesHere(conn.pj) ? null : pointRoofZ.get(conn.pj);
+        if (ziForced != null || zjForced != null) {
+          // Al menos un extremo es punto de techo resuelto. El extremo sin
+          // resolver (cumbrera, punto sin offset no marcado) va a la elevación
+          // del piso (nivel de cumbrera).
+          n1 = getNode(pi.x, pi.y, ziForced != null ? ziForced : zStory);
+          n2 = getNode(pj.x, pj.y, zjForced != null ? zjForced : zStory);
+        } else if (conn.kind === "COLUMN") {
           n1 = getNode(pi.x, pi.y, belowElevOf(toks[1]));
-          n2 = getNode(pi.x, pi.y, storyElev.get(toks[1]) ?? 0);
+          n2 = getNode(pi.x, pi.y, zStory);
         } else {
-          const z = storyElev.get(toks[1]) ?? 0;
-          n1 = getNode(pi.x, pi.y, z);
-          n2 = getNode(pj.x, pj.y, z);
+          n1 = getNode(pi.x, pi.y, zStory);
+          n2 = getNode(pj.x, pj.y, zStory);
         }
         const kindLc = conn.kind === "COLUMN" ? "column" : conn.kind === "BRACE" ? "brace" : "beam";
         const secObj = frameSecMap.get(section) || { name: section };
+        // Rotación del eje local (LINEASSIGN ... ANG 90): sin esto, una
+        // columna T/L rotada quedaba con sus ejes fuerte/débil INTERCAMBIADOS
+        // (rigidez X↔Y mal). El payload sísmico ya sabe girar el vecxz con
+        // localAxisAngle (payload.js _frameVecxzForSeismic) — solo faltaba
+        // que el import lo leyera. MODULO 5 y 6 traen columnas con ANG 90/270.
+        const localAngle = kvNum(line, "ANG", 0);
         const frame = {
           id: frames.length + 1,
           node1: n1, node2: n2, node1Id: n1, node2Id: n2,
@@ -1001,6 +1436,7 @@ export const e2kImportMixin = {
           section: secObj, frameSection: secObj, hasAssignedSection: true,
           A: secObj.A ?? null, _A: secObj.A ?? null,
           material: secObj.material || null,
+          ...(localAngle ? { localAxisAngle: localAngle } : {}),
           frameLoads: [], lineLoads: [], visible: true,
         };
         frames.push(frame);
@@ -1011,7 +1447,18 @@ export const e2kImportMixin = {
         if (!conn) return;
         const section = q(line, "SECTION") || "";
         const secDef = slabSecMap.get(section) || { name: section, thickness: 0, material: "CONC", kind: "Slab" };
-        const isWall = areaKind.get(toks[0]) === "wall" || /wall/i.test(secDef.kind || "");
+
+        // Un AREA "PANEL" NO siempre es un muro: ETABS también usa PANEL para
+        // FRANJAS INCLINADAS de techo (losa a dos aguas — MODULO 1: 48 PANELs
+        // con sección de LOSA "Aligerado e=0.20" y 4 puntos únicos con offset
+        // Z). Muro real = PANEL con sección de MURO, o con traza degenerada en
+        // planta ([P1,P2,P2,P1] → 2 puntos únicos, la forma en que ETABS
+        // exporta el muro por piso). PANEL con ≥3 puntos únicos y sección de
+        // losa → superficie inclinada real: va por el camino de LOSA con las
+        // cotas reales de sus puntos (offsets), NO extruido vertical.
+        const uniqIdCount = new Set(conn).size;
+        const isWallSection = /wall/i.test(secDef.kind || "");
+        const isWall = areaKind.get(toks[0]) === "wall" && (isWallSection || uniqIdCount <= 2);
 
         // ── MURO (PANEL) ────────────────────────────────────────────────
         // El AREA "PANEL" trae la traza en planta (2 puntos únicos, repetidos
@@ -1022,24 +1469,43 @@ export const e2kImportMixin = {
         if (isWall) {
           const topZ = storyElev.get(toks[1]) ?? 0;
           const botZ = belowElevOf(toks[1]);
-          const uniqPlan = [];
-          const seen = new Set();
-          for (const ptId of conn) {
-            if (seen.has(ptId)) continue;
-            seen.add(ptId);
-            const c = pointCoords.get(ptId);
-            if (c) uniqPlan.push({ x: round3(c.x), y: round3(c.y) });
+          // Geometría por VÉRTICE (perímetro ETABS: abajo, abajo, arriba,
+          // arriba — mismo orden que WallDrawingState.createWallPanel):
+          //  - punto CON offset → z = elevPiso − offset (tope siguiendo el
+          //    techo inclinado: tímpanos/hastiales bajo una losa a dos aguas,
+          //    p.ej. MODULO 1 W10: 2 puntos planos abajo + 2 con offset).
+          //  - punto SIN offset → base (posiciones 0-1) o tope plano (2-3) —
+          //    reproduce también la traza degenerada [P1,P2,P2,P1] clásica.
+          let wpts = null;
+          if (conn.length === 4) {
+            const cs = conn.map((ptId) => pointCoords.get(ptId));
+            if (cs.every(Boolean)) {
+              wpts = cs.map((c, k) => ({
+                x: round3(c.x),
+                y: round3(c.y),
+                z: round3(c.z != null ? topZ - c.z : (k < 2 ? botZ : topZ)),
+                visible: true, color: null,
+              }));
+            }
           }
-          if (uniqPlan.length < 2) return;
-          const [pa, pb] = uniqPlan;
-          // Mismo orden que WallDrawingState.createWallPanel (perímetro sin
-          // cruces): a-abajo, b-abajo, b-arriba, a-arriba.
-          const wpts = [
-            { x: pa.x, y: pa.y, z: round3(botZ), visible: true, color: null },
-            { x: pb.x, y: pb.y, z: round3(botZ), visible: true, color: null },
-            { x: pb.x, y: pb.y, z: round3(topZ), visible: true, color: null },
-            { x: pa.x, y: pa.y, z: round3(topZ), visible: true, color: null },
-          ];
+          if (!wpts) {
+            const uniqPlan = [];
+            const seen = new Set();
+            for (const ptId of conn) {
+              if (seen.has(ptId)) continue;
+              seen.add(ptId);
+              const c = pointCoords.get(ptId);
+              if (c) uniqPlan.push({ x: round3(c.x), y: round3(c.y) });
+            }
+            if (uniqPlan.length < 2) return;
+            const [pa, pb] = uniqPlan;
+            wpts = [
+              { x: pa.x, y: pa.y, z: round3(botZ), visible: true, color: null },
+              { x: pb.x, y: pb.y, z: round3(botZ), visible: true, color: null },
+              { x: pb.x, y: pb.y, z: round3(topZ), visible: true, color: null },
+              { x: pa.x, y: pa.y, z: round3(topZ), visible: true, color: null },
+            ];
+          }
           wpts.forEach((p) => getNode(p.x, p.y, p.z));
           const wallMat = materialMap.get(secDef.material);
           const wallMpv = Number(wallMat?.massPerUnitVolume);
@@ -1060,11 +1526,31 @@ export const e2kImportMixin = {
         }
 
         const z = storyElev.get(toks[1]) ?? 0;
+        // Cota REAL por punto: el 3er valor del POINT es un offset BAJO la
+        // elevación del piso (mismo esquema que las líneas de techo:
+        // Z = elevPiso − offset). Losas planas normales (sin offset) quedan
+        // exactamente como antes (z = elevPiso); las franjas de techo
+        // inclinado (FLOOR o PANEL-losa con puntos con offset) salen con su
+        // pendiente real en vez de aplanadas al nivel del piso.
+        // ¿Es una franja de techo inclinado? (algún vértice con offset). Solo
+        // ahí un vértice SIN offset puede ser un ALERO: si el punto existe
+        // también en un piso inferior, apoya ahí (ver pointExistsBelow) —
+        // si no, es cumbrera y se queda en la elevación del piso. En una losa
+        // plana normal (ningún vértice con offset) nada de esto aplica.
+        const areaHasOffset = conn.some((ptId) => pointCoords.get(ptId)?.z != null);
+        const zBelowArea = belowElevOf(toks[1]);
         const pts = conn
-          .map((ptId) => { const c = pointCoords.get(ptId); return c ? { x: round3(c.x), y: round3(c.y), z: round3(z), visible: true, color: null } : null; })
+          .map((ptId) => {
+            const c = pointCoords.get(ptId);
+            if (!c) return null;
+            let zPt = z;
+            if (c.z != null) zPt = z - c.z;
+            else if (areaHasOffset && pointExistsBelow(ptId, toks[1])) zPt = zBelowArea;
+            return { x: round3(c.x), y: round3(c.y), z: round3(zPt), visible: true, color: null };
+          })
           .filter(Boolean);
         if (pts.length < 3) return;
-        pts.forEach((p) => getNode(p.x, p.y, z));
+        pts.forEach((p) => getNode(p.x, p.y, p.z));
         const slab = slabSecMap.get(section) || { name: section, thickness: 0, material: "CONC" };
         // Peso propio de la losa (kgf/m² = espesor(m) × densidad). ETABS lo incluye
         // vía SELFWEIGHT del patrón CM (losa membrana); el motor lo lee de este
@@ -1167,12 +1653,15 @@ export const e2kImportMixin = {
     const massSource = massSourceLoads.length
       ? {
         enabled: true, name: massSourceName,
-        includeSelfWeight: true, selfWeightMultiplier: 1,
+        // INCLUDEELEMENTS del .e2k (ver arriba) — NO hardcodear true: si es
+        // "No", el peso propio de barras NO debe sumarse a la masa sísmica
+        // (solo INCLUDELOADS vía massSourceLoads/MASSSOURCELOAD arriba).
+        includeSelfWeight: massSourceIncludeElements, selfWeightMultiplier: 1,
         loadPatterns: massSourceLoads,
         loadMultipliers: massSourceLoads.map((l) => ({ load: l.load, multiplier: l.multiplier })),
         convertWeightToMass: true, gravity: 9.81,
         includeLateralMass: true, includeVerticalMass: false,
-        lumpLateralMassAtStoryLevels: true, specifiedLoadPatterns: true, elementSelfMass: true,
+        lumpLateralMassAtStoryLevels: true, specifiedLoadPatterns: true, elementSelfMass: massSourceIncludeElements,
       }
       : null;
 
@@ -1303,6 +1792,14 @@ export const e2kImportMixin = {
       }
       if (isReal && Array.isArray(data.definitions?.wallSections) && data.definitions.wallSections.length) {
         this.wallSections = data.definitions.wallSections;
+      }
+      // Secciones de frame → store que lee el modal Frame Sections
+      // (window.cadSystem.frameSections.sections) y del que el render 2D/3D
+      // toma el color por sección. Sin esto, las secciones importadas no
+      // aparecen en el modal para asignarles color.
+      if (isReal && Array.isArray(data.definitions?.frameSections) && data.definitions.frameSections.length) {
+        if (!this.frameSections) this.frameSections = {};
+        this.frameSections.sections = data.definitions.frameSections;
       }
 
       this.currentFileName = selected.file.name.replace(/\.[^/.]+$/, "") + "_importado_desde_e2k.json";

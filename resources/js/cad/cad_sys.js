@@ -467,6 +467,11 @@ export default () => ({
     showReferencePlanes: true,
     showJointLoads: false,
     showFrameLoads: false,
+    showFrameSectionLabels: true,
+    // Etiquetas (nombre de sección) sobre losas y muros, en 2D y 3D. En 3D
+    // cada etiqueta es un plano billboard con su propia DynamicTexture, así
+    // que un modelo con muchas losas se vuelve pesado — de ahí el toggle.
+    showAreaSectionLabels: true,
     showDeformedShape: false,
     showModeShape: false,
     showMemberForces: false,
@@ -507,7 +512,7 @@ export default () => ({
       showForces: true,
       currentLoad: "CM",
       renderScale: 1,
-      showIDs: true,
+      showIDs: false,
       showReactions: true,
       showFAxiales: false,
       showFAxialesValues: true,

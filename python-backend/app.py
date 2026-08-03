@@ -27,6 +27,92 @@ def _dump_seismic_payload_if_enabled(data):
     except Exception as exc:
         print(f"AVISO: no se pudo volcar el payload sismico: {exc}")
 
+
+def _dump_seismic_result_if_enabled(data, result):
+    """Depuración TEMPORAL (2026-07-31) para el caso MODULO 5: vuelca las
+    ramas X/Y crudas del RSA (base_shear_fx/fy, momentos) junto con la
+    combinación SRSS final (la MISMA fórmula que el frontend usa en
+    _buildEtabsStyleBaseShearRows, results.js — sin factor 0.3 extra: ya
+    viene incorporado en spectrum_x/spectrum_y por caso) para comparar
+    directo contra las tablas "Base Reactions" que exporta ETABS.
+    OPT-IN: misma env var DUMP_SEISMIC_PAYLOAD=1. Escribe
+    _debug_payloads/last_seismic_result.json (gitignored) y también
+    imprime un resumen en la consola de Flask.
+    QUITAR cuando se cierre project_modulo5_period_calibration (ver memoria).
+    """
+    if os.environ.get("DUMP_SEISMIC_PAYLOAD", "").strip().lower() not in ("1", "true", "on", "yes"):
+        return
+    try:
+        seismic = (result or {}).get("seismic") or {}
+        rx = seismic.get("x") or {}
+        ry = seismic.get("y") or {}
+
+        def _srss(a, b):
+            a = float(a or 0.0)
+            b = float(b or 0.0)
+            return (a * a + b * b) ** 0.5
+
+        TONF = 9806.65  # 1 tonf = 9806.65 N (mismo factor usado en todo el proyecto)
+
+        fx_N = _srss(rx.get("base_shear_fx"), ry.get("base_shear_fx"))
+        fy_N = _srss(rx.get("base_shear_fy"), ry.get("base_shear_fy"))
+        mx_Nm = _srss(rx.get("base_moment_mx"), ry.get("base_moment_mx"))
+        my_Nm = _srss(rx.get("base_moment_my"), ry.get("base_moment_my"))
+        mz_Nm = _srss(rx.get("base_moment_mz"), ry.get("base_moment_mz"))
+
+        spectrum_x = data.get("spectrum_x") or []
+        spectrum_y = data.get("spectrum_y") or []
+        modal_modes = ((result or {}).get("modal") or {}).get("modes") or []
+
+        summary = {
+            "spectrum_x_sample": spectrum_x[:8],
+            "spectrum_y_sample": spectrum_y[:8],
+            "num_modes": data.get("num_modes"),
+            "combination": data.get("combination"),
+            "damping_ratio": data.get("damping_ratio"),
+            "branch_x": {
+                "base_shear_fx_N": rx.get("base_shear_fx"),
+                "base_shear_fy_N": rx.get("base_shear_fy"),
+                "base_moment_mx_Nm": rx.get("base_moment_mx"),
+                "base_moment_my_Nm": rx.get("base_moment_my"),
+                "base_moment_mz_Nm": rx.get("base_moment_mz"),
+            },
+            "branch_y": {
+                "base_shear_fx_N": ry.get("base_shear_fx"),
+                "base_shear_fy_N": ry.get("base_shear_fy"),
+                "base_moment_mx_Nm": ry.get("base_moment_mx"),
+                "base_moment_my_Nm": ry.get("base_moment_my"),
+                "base_moment_mz_Nm": ry.get("base_moment_mz"),
+            },
+            "combined_srss_tonf_tonfm": {
+                "FX": fx_N / TONF,
+                "FY": fy_N / TONF,
+                "MX": mx_Nm / TONF,
+                "MY": my_Nm / TONF,
+                "MZ": mz_Nm / TONF,
+            },
+            "first_5_periods": [m.get("period") for m in modal_modes[:5]],
+        }
+
+        out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_debug_payloads")
+        os.makedirs(out_dir, exist_ok=True)
+        path = os.path.join(out_dir, "last_seismic_result.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(summary, fh, ensure_ascii=False, indent=2)
+
+        print("DUMP: resultado sismico (resumen) guardado en", path)
+        print(
+            "DUMP RESULT: Combinado SRSS -> "
+            f"FX={summary['combined_srss_tonf_tonfm']['FX']:.4f} tonf  "
+            f"FY={summary['combined_srss_tonf_tonfm']['FY']:.4f} tonf  "
+            f"MX={summary['combined_srss_tonf_tonfm']['MX']:.4f} tonf-m  "
+            f"MY={summary['combined_srss_tonf_tonfm']['MY']:.4f} tonf-m  "
+            f"MZ={summary['combined_srss_tonf_tonfm']['MZ']:.4f} tonf-m"
+        )
+    except Exception as exc:
+        print(f"AVISO: no se pudo volcar el resultado sismico: {exc}")
+
+
 app = Flask(__name__)
 CORS(app)
 
@@ -616,6 +702,7 @@ def seismic_analyze():
                 data[key] = [(float(p["T"]), float(p["Sa"])) for p in spec]
 
         result = sa.run_full_seismic_analysis(data)
+        _dump_seismic_result_if_enabled(data, result)
         return jsonify(result)
 
     except Exception as e:

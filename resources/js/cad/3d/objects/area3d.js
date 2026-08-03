@@ -342,7 +342,10 @@ function createHorizontalArea3D(scene, area, options = {}) {
     };
 
     // Etiqueta con el nombre de la sección asignada (o el tipo). Solo losas.
-    if (type === "slab") {
+    // `showLabels: false` (toolbar ▸ Ocultar etiq. losas) las omite por
+    // completo — no se crean el plano ni su DynamicTexture, que es lo que
+    // pesa en modelos con muchas losas.
+    if (type === "slab" && options.showLabels !== false) {
         attachAreaLabel3D(scene, mesh, area, elev);
     }
 

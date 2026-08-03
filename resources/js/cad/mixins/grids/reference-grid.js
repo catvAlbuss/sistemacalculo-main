@@ -320,11 +320,18 @@ export const referenceGridMixin = {
     });
 
     for (let i = 1; i <= (ref.storyCount || 0); i++) {
+      // Elevación REAL del piso (this.stories, respeta alturas distintas) o
+      // uniforme como fallback. Sin esto, un modelo importado con pisos de
+      // altura distinta ubicaba las vistas de planta en múltiplos de storyHeight.
+      const st = this.stories?.[i];
+      const elev = st && Number.isFinite(Number(st.elevation))
+        ? Number(st.elevation)
+        : i * (ref.storyHeight || 0);
       this.viewSet.push({
         type: "plan",
         storyId: i,
-        name: `Planta - Piso ${i}`,
-        elevation: i * (ref.storyHeight || 0),
+        name: st?.name ? `Planta - ${st.name}` : `Planta - Piso ${i}`,
+        elevation: elev,
       });
     }
 
@@ -1459,9 +1466,13 @@ export const referenceGridMixin = {
     let levels = [{ label: "BASE", z: 0 }];
 
     for (let i = 1; i <= storyCount; i++) {
+      const st = this.stories?.[i];
+      const z = st && Number.isFinite(Number(st.elevation))
+        ? Number(st.elevation)
+        : i * storyHeight;
       levels.push({
-        label: `STORY${i}`,
-        z: i * storyHeight,
+        label: st?.name || `STORY${i}`,
+        z,
       });
     }
 

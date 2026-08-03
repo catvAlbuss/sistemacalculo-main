@@ -2654,81 +2654,140 @@ def _build_story_levels_for_shear(
     data: dict, nodes: list, z_tolerance: float = 0.05
 ) -> list[dict]:
     """
-    Agrupa nodos por nivel Z para calcular cortante por piso.
+    Agrupa nodos por nivel para calcular cortante por piso.
     Excluye base y nodos apoyados.
+
+    Prioridad (igual que _group_nodes_by_story, ver ahí el porqué): si el
+    payload trae `stories` reales, se usan (evita reconstruir un "piso" por
+    cada Z distinto — bug de las 11 filas en un modelo de 2 pisos con techo
+    de armadura, ver project_modulo5_period_calibration). Sin stories, cae al
+    agrupado automático por Z de siempre.
     """
     if not nodes:
         return []
 
     support_ids = _story_shear_support_node_ids(data)
-
-    z_values = []
+    node_by_id = {}
     for node in nodes:
         try:
-            z_values.append(float(node.get("z", 0.0)))
+            node_by_id[int(node.get("id"))] = node
         except Exception:
-            pass
+            continue
 
+    z_values = [float(node.get("z", 0.0)) for node in nodes if _to_float(node.get("z"), None) is not None]
     if not z_values:
         return []
 
     base_z = min(z_values)
 
-    groups = []
-
-    for node in nodes:
-        try:
-            node_id = int(node.get("id"))
-            z = float(node.get("z", 0.0))
-        except Exception:
-            continue
-
-        # No calcular piso en la base.
-        if abs(z - base_z) <= z_tolerance:
-            continue
-
-        # No usar nodos apoyados.
-        if node_id in support_ids:
-            continue
-
-        found = None
-        for group in groups:
-            if abs(group["z"] - z) <= z_tolerance:
-                found = group
-                break
-
-        if found is None:
-            found = {
-                "z": z,
-                "node_ids": [],
-                "nodes": [],
-            }
-            groups.append(found)
-
-        found["node_ids"].append(node_id)
-        found["nodes"].append(node)
-
-    groups = sorted(groups, key=lambda item: item["z"])
+    raw_stories = (
+        data.get("stories") or data.get("story_levels") or data.get("levels") or []
+    )
 
     levels = []
-    previous_z = base_z
 
-    for index, group in enumerate(groups, start=1):
-        z = float(group["z"])
-        height = z - previous_z
-
-        levels.append(
-            {
-                "story": f"STORY {index}",
-                "level": f"STORY {index}",
-                "z": z,
-                "height": height,
-                "node_ids": sorted(set(group["node_ids"])),
-                "nodes": group["nodes"],
-            }
+    if isinstance(raw_stories, list) and raw_stories:
+        sorted_stories = sorted(
+            (s for s in raw_stories if isinstance(s, dict)),
+            key=lambda s: _to_float(s.get("z", s.get("elevation", 0.0)), 0.0),
         )
 
-        previous_z = z
+        previous_z = base_z
+
+        for story in sorted_stories:
+            z = _to_float(story.get("z", story.get("elevation", 0.0)), 0.0)
+
+            # No calcular piso en la base.
+            if abs(z - base_z) <= z_tolerance:
+                previous_z = z
+                continue
+
+            raw_node_ids = (
+                story.get("nodeIds") or story.get("node_ids") or story.get("nodes") or []
+            )
+
+            node_ids = []
+            story_nodes = []
+
+            for raw_id in raw_node_ids:
+                try:
+                    nid = int(raw_id)
+                except Exception:
+                    continue
+                if nid in support_ids or nid not in node_by_id:
+                    continue
+                node_ids.append(nid)
+                story_nodes.append(node_by_id[nid])
+
+            if node_ids:
+                levels.append(
+                    {
+                        "story": str(story.get("name") or story.get("label") or f"STORY {len(levels) + 1}"),
+                        "level": str(story.get("name") or story.get("label") or f"STORY {len(levels) + 1}"),
+                        "z": z,
+                        "height": z - previous_z,
+                        "node_ids": sorted(set(node_ids)),
+                        "nodes": story_nodes,
+                    }
+                )
+
+            previous_z = z
+
+    if not levels:
+        groups = []
+
+        for node in nodes:
+            try:
+                node_id = int(node.get("id"))
+                z = float(node.get("z", 0.0))
+            except Exception:
+                continue
+
+            # No calcular piso en la base.
+            if abs(z - base_z) <= z_tolerance:
+                continue
+
+            # No usar nodos apoyados.
+            if node_id in support_ids:
+                continue
+
+            found = None
+            for group in groups:
+                if abs(group["z"] - z) <= z_tolerance:
+                    found = group
+                    break
+
+            if found is None:
+                found = {
+                    "z": z,
+                    "node_ids": [],
+                    "nodes": [],
+                }
+                groups.append(found)
+
+            found["node_ids"].append(node_id)
+            found["nodes"].append(node)
+
+        groups = sorted(groups, key=lambda item: item["z"])
+
+        previous_z = base_z
+
+        for index, group in enumerate(groups, start=1):
+            z = float(group["z"])
+            height = z - previous_z
+
+            levels.append(
+                {
+                    "story": f"STORY {index}",
+                    "level": f"STORY {index}",
+                    "z": z,
+                    "height": height,
+                    "node_ids": sorted(set(group["node_ids"])),
+                    "nodes": group["nodes"],
+                }
+            )
+
+            previous_z = z
 
     return levels
 

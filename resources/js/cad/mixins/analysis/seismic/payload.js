@@ -221,7 +221,17 @@ export const seismicPayloadMixin = {
   // apéndice conectado por una viga larga) debe quedar LIBRE, como en ETABS.
   // Vacío si el modelo no tiene losas (bare frame → se agrupa por elevación).
   _slabCoveredNodeIds(nodes, tolerance = 0.05) {
-    const areas = Array.isArray(this.areas) ? this.areas : [];
+    // Solo LOSAS — no muros. Los muros también viven en this.areas
+    // (areaType === "wall") pero su polígono es un panel VERTICAL (p1-abajo,
+    // p2-abajo, p2-arriba, p1-arriba), no una losa horizontal: sin este
+    // filtro, cualquier nudo cerca del plano de un muro contaba como
+    // "cubierto por losa", activando el filtro de diafragma (useSlabFilter)
+    // y dejando SIN diafragma auto a pisos que en realidad no tienen ninguna
+    // losa (bare frame con solo muros, p.ej. techo de armadura + muros de
+    // fachada) — el diafragma debía caer al modo "agrupar por elevación"
+    // pero quedaba atrapado en "sin losa = nudo libre" para TODOS los nudos.
+    const areas = (Array.isArray(this.areas) ? this.areas : [])
+      .filter((a) => (a?.areaType || a?.type || "slab") !== "wall");
     const covered = new Set();
     if (!areas.length) return covered;
 
@@ -301,6 +311,61 @@ export const seismicPayloadMixin = {
   },
 
   /**
+   * Pisos REALES del modelo (this.stories) con los nodos de cada uno asignados
+   * por ELEVACIÓN, en el formato que espera el motor (_group_nodes_by_story,
+   * Caso 1 con nodeIds). Sin esto el motor no recibe pisos y los reconstruye
+   * agrupando por cada Z distinto de los nodos → un edificio de 2 pisos con
+   * techo de armadura salía con 11 "pisos" (uno por cada Z de la armadura) en
+   * la tabla de derivas.
+   *
+   * Regla de asignación (estilo ETABS): un nodo pertenece al PRIMER piso cuya
+   * elevación es >= z (el nivel en o inmediatamente sobre el nodo). Así todos
+   * los nodos intermedios de una armadura (entre el piso N-1 y el nivel de
+   * techo N) caen en el piso N, no en pisos ficticios propios.
+   */
+  _buildSeismicStoriesForPayload(nodeList = [], tolerance = 0.05) {
+    const sorted = (Array.isArray(this.stories) ? this.stories : [])
+      .map((s) => ({
+        name: String(s.name ?? s.label ?? "Story"),
+        elevation: Number(s.elevation ?? s.z ?? 0),
+      }))
+      .filter((s) => Number.isFinite(s.elevation))
+      .sort((a, b) => a.elevation - b.elevation);
+
+    // Con menos de 2 niveles no hay derivas que calcular; se deja que el motor
+    // agrupe por Z (comportamiento previo) en vez de forzar un piso único.
+    if (sorted.length < 2) return [];
+
+    const buckets = sorted.map((s) => ({
+      name: s.name,
+      elevation: s.elevation,
+      nodeIds: [],
+    }));
+    const topIndex = sorted.length - 1;
+
+    (nodeList || []).forEach((n) => {
+      const id = Number(n.id);
+      const z = Number(n.z ?? 0);
+      if (!Number.isFinite(id)) return;
+
+      // Primer piso cuya elevación >= z (dentro de tolerancia). Si el nodo
+      // queda por encima del último nivel, se asigna al último.
+      let idx = sorted.findIndex((s) => s.elevation >= z - tolerance);
+      if (idx === -1) idx = topIndex;
+      buckets[idx].nodeIds.push(id);
+    });
+
+    return buckets
+      .map((b) => ({
+        name: b.name,
+        elevation: b.elevation,
+        z: b.elevation,
+        nodeIds: [...new Set(b.nodeIds)].sort((a, c) => a - c),
+      }))
+      .filter((b) => b.nodeIds.length > 0);
+  },
+
+  /**
    * CM REAL (con masas efectivas) de un diafragma, del último análisis, para
    * que la araña 2D se reubique como en ETABS. Devuelve {x, y} o null si no
    * hay resultados frescos (→ el renderer usa el centroide geométrico).
@@ -359,7 +424,21 @@ export const seismicPayloadMixin = {
       convertWeightToMass: true,
       gravity: 9.81,
       distributeToDiaphragms: true,
-      distributeToStoryNodes: true,
+      // OFF por defecto (opt-in): lumpear la masa al nivel del piso (ETABS
+      // LUMPATSTORIES "Yes", motor: inputs.py _lump_mass_to_story_levels) es
+      // un NO-OP en pisos planos normales (todo nodo ya está en su nivel),
+      // pero en techos de armadura/inclinados concentra TODA la masa en los
+      // pocos nudos que coinciden exactamente con la elevación del piso
+      // (p.ej. solo la cumbrera). Validado (2026-07-31) con el payload real
+      // de MODULO 5: T1 pasó de 0.243 (sin lumping, -32% vs ETABS 0.358) a
+      // 0.474 (con lumping, +32% vs ETABS) — SOBRE-corrige en la dirección
+      // opuesta, no lo arregla. Causa probable: un diafragma rígido solo
+      // amarra los GDL en el plano (UX/UY/RZ), no el balanceo fuera del
+      // plano (RX/RY) que gobierna este modo — concentrar TODA la masa en 2
+      // nudos infla artificialmente esa inercia rotacional. Se deja como
+      // opción (activable por modelo) hasta calibrar una regla mejor, no
+      // como comportamiento por defecto.
+      distributeToStoryNodes: false,
     };
   },
 
@@ -405,7 +484,18 @@ export const seismicPayloadMixin = {
       gravity: Number.isFinite(gravity) && gravity > 0 ? gravity : 9.81,
 
       distributeToDiaphragms: raw.distributeToDiaphragms !== false,
-      distributeToStoryNodes: raw.distributeToStoryNodes !== false,
+      // Prioridad: elección explícita del usuario > flag LUMPATSTORIES del
+      // .e2k importado (lumpLateralMassAtStoryLevels, lo guarda e2k-import) >
+      // default OFF. Honrar el flag de ETABS es CLAVE en techos de armadura:
+      // con la masa lumpeada al nivel de piso (como ETABS) y las diagonales
+      // rígidas (sin modificador), la estructura modal completa calza con
+      // ETABS (T1≈0.35 y modos locales SIN masa); sin lumpear, la masa
+      // repartida en los nudos de la armadura crea modos locales con masa
+      // que ETABS no tiene. Ver project_modulo5_period_calibration.
+      distributeToStoryNodes:
+        raw.distributeToStoryNodes ??
+        raw.lumpLateralMassAtStoryLevels ??
+        defaults.distributeToStoryNodes,
     };
   },
 
@@ -1723,6 +1813,73 @@ export const seismicPayloadMixin = {
     return null; // inclinado → auto
   },
 
+  /**
+   * Quita del payload los nodos SIN NINGUNA RIGIDEZ (no son extremo de barra,
+   * ni esquina de muro, ni apoyo) y re-asigna sus cargas al nodo conectado más
+   * cercano del mismo nivel. Ver el comentario en _buildSeismicPayload para el
+   * porqué (matriz singular en OpenSees con losas subdivididas de un .e2k).
+   *
+   * Devuelve { nodes, loads, dropped }. Si no hay nodos sueltos, devuelve los
+   * arreglos originales sin tocar (coste ~0 en modelos normales).
+   */
+  _dropUnsupportedNodesForSeismic(nodeList = [], elemList = [], supports = [], walls = [], loads = []) {
+    const connected = new Set();
+
+    (elemList || []).forEach((e) => {
+      connected.add(Number(e.node_i));
+      connected.add(Number(e.node_j));
+    });
+    (supports || []).forEach((s) => connected.add(Number(s.node)));
+
+    // Esquinas de muro: el motor las empareja por COORDENADA para coser la
+    // malla del muro al pórtico (ver _build_wall_mesh_plan), así que esos
+    // nodos deben seguir viajando aunque no tengan barra.
+    if (walls?.length) {
+      const key = (x, y, z) => `${Math.round(x * 1000)}|${Math.round(y * 1000)}|${Math.round(z * 1000)}`;
+      const wallCorners = new Set();
+      walls.forEach((w) => (w.corners || []).forEach((c) => {
+        wallCorners.add(key(Number(c.x) || 0, Number(c.y) || 0, Number(c.z) || 0));
+      }));
+      nodeList.forEach((n) => {
+        if (wallCorners.has(key(n.x, n.y, n.z))) connected.add(Number(n.id));
+      });
+    }
+
+    const orphans = nodeList.filter((n) => !connected.has(Number(n.id)));
+    if (!orphans.length) return { nodes: nodeList, loads, dropped: 0 };
+
+    // Nodo conectado más cercano (mismo nivel si lo hay; si no, el más cercano
+    // en 3D) para heredar la carga del nodo suelto.
+    const connectedNodes = nodeList.filter((n) => connected.has(Number(n.id)));
+    if (!connectedNodes.length) return { nodes: nodeList, loads, dropped: 0 };
+
+    const remap = new Map();
+    orphans.forEach((o) => {
+      let best = null;
+      let bestScore = Infinity;
+      for (const c of connectedNodes) {
+        const sameLevel = Math.abs(c.z - o.z) <= 0.05 ? 0 : 1;
+        const d = (c.x - o.x) ** 2 + (c.y - o.y) ** 2 + (c.z - o.z) ** 2;
+        const score = sameLevel * 1e9 + d;
+        if (score < bestScore) { bestScore = score; best = c; }
+      }
+      if (best) remap.set(Number(o.id), Number(best.id));
+    });
+
+    const remappedLoads = (loads || []).map((l) => {
+      const nid = Number(l?.node ?? l?.nodeId ?? l?.node_id);
+      if (!remap.has(nid)) return l;
+      const target = remap.get(nid);
+      return { ...l, node: target, nodeId: target, node_id: target };
+    });
+
+    return {
+      nodes: connectedNodes,
+      loads: remappedLoads,
+      dropped: orphans.length,
+    };
+  },
+
   // ─── Construir payload para el backend ────────────────────────────────────
   _buildSeismicPayload(cfg, nodes, frames) {
     const nodeList = nodes.map(n => ({
@@ -1788,6 +1945,11 @@ export const seismicPayloadMixin = {
         A, E, G, Iz, Iy, J,
         ...(vecxz ? { vecxz } : {}),
 
+        // Clasificación ETABS (COLUMN/BEAM/BRACE, ver e2k-import.js kindLc) —
+        // el motor la usa para decidir si un "brace" se modela como
+        // elemento truss (pin-pin, solo axial) en vez de frame rígido.
+        elementType: f.type || f.elementType || null,
+
         unitWeight: physical.unitWeight,
         unit_weight: physical.unit_weight,
         unitWeightNPerM3: physical.unitWeightNPerM3,
@@ -1826,6 +1988,7 @@ export const seismicPayloadMixin = {
 
     const diaphragms = this._buildSeismicDiaphragms(cfg, nodes);
     const massSource = this._buildSeismicMassSourceForPayload();
+    const walls = this._buildSeismicWallsForPayload(this.areas || []);
 
     // B10.4 — Cargas normalizadas
     let loads = [];
@@ -1868,6 +2031,39 @@ export const seismicPayloadMixin = {
       loads = [];
     }
 
+    // ── Nodos SIN RIGIDEZ fuera del payload ──────────────────────────────
+    // Un nodo que no es extremo de ninguna barra, ni esquina de muro, ni
+    // apoyo, no tiene NINGUNA rigidez: si viaja al motor, OpenSees falla con
+    // "BandGen/FullGenLinLapackSolver::solve() - factorization failed, matrix
+    // singular U(i,i) = 0". Aparecen al importar un .e2k cuyas losas vienen
+    // subdivididas en muchos paneles (MODULO 1: 120 paneles por piso → 266
+    // nodos de malla sin viga, más los de las franjas de techo inclinado).
+    // OJO: el diafragma rígido NO los salva — solo amarra UX/UY/RZ, y UZ/RX/RY
+    // quedan igual de libres.
+    // La masa NO se pierde: la carga de esos nodos se re-asigna al nodo
+    // CONECTADO más cercano del mismo nivel (que es además con el que
+    // comparten diafragma, así que el reparto lateral es equivalente).
+    const { nodes: nodeListConnected, loads: loadsRemapped, dropped: droppedNodeCount } =
+      this._dropUnsupportedNodesForSeismic(nodeList, elemList, supports, walls, loads);
+
+    // Los diafragmas se armaron con TODOS los nodos: quitarles los que ya no
+    // viajan (el motor los buscaría y no existirían).
+    if (droppedNodeCount > 0) {
+      const keptIds = new Set(nodeListConnected.map((n) => Number(n.id)));
+      for (const group of diaphragms) {
+        if (Array.isArray(group?.nodeIds)) {
+          group.nodeIds = group.nodeIds.filter((id) => keptIds.has(Number(id)));
+        }
+      }
+    }
+
+    if (droppedNodeCount > 0) {
+      console.log(
+        `🔎 Nodos sin rigidez excluidos del payload sísmico: ${droppedNodeCount} ` +
+        `(de ${nodeList.length}). Sus cargas se re-asignaron al nodo conectado más cercano.`,
+      );
+    }
+
     // B10.4 — Load Patterns normalizados
     let loadPatterns = [];
 
@@ -1891,12 +2087,12 @@ export const seismicPayloadMixin = {
     }
 
     const payload = {
-      nodes: nodeList,
+      nodes: nodeListConnected,
       elements: elemList,
-      walls: this._buildSeismicWallsForPayload(this.areas || []),
+      walls,
       supports,
 
-      loads,
+      loads: loadsRemapped,
       loadPatterns,
       load_patterns: loadPatterns,
 
@@ -1912,6 +2108,12 @@ export const seismicPayloadMixin = {
         this.seismicConfig?.rigidDiaphragmRotation ??
         true,
       diaphragms,
+
+      // Pisos REALES del modelo (Base + niveles definidos) con sus nodos por
+      // elevación, para que el motor calcule derivas sobre los pisos correctos
+      // en vez de reconstruir un "piso" por cada Z distinto (bug de las 11
+      // filas en un modelo de 2 pisos con techo de armadura).
+      stories: this._buildSeismicStoriesForPayload(nodeListConnected),
 
       massSource,
       mass_source: massSource,
