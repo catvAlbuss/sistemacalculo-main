@@ -84,7 +84,7 @@ export const foundationMixin = {
       return;
     }
 
-    const columns = buildZapataColumnRows(Array.from(columnsById.values()), this.seismicResults);
+    const columns = buildZapataColumnRows(Array.from(columnsById.values()), this);
     const polygonProperties = buildZapataPolygonProperties(zapatas);
 
     try {

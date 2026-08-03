@@ -773,6 +773,16 @@ export const seismicPayloadMixin = {
       return "Dead";
     }
 
+    // Techo/azotea antes que "viva" genérica: "CVT" (Carga Viva de Techo) y
+    // variantes con "TECHO" contienen "VIVA" y calzarían con el chequeo de
+    // Live de abajo si se evaluara después — el motor filtra Live vs
+    // RoofLive por separado (run_static_analysis_by_type), así que una CVT
+    // mal clasificada como "Other" queda fuera de AMBOS filtros y su carga
+    // desaparece silenciosamente de Pv en el cálculo de cimentación.
+    if (name === "CVT" || name.includes("ROOF") || name.includes("TECHO")) {
+      return "RoofLive";
+    }
+
     if (
       name.includes("LIVE") ||
       name === "L" ||
@@ -782,10 +792,6 @@ export const seismicPayloadMixin = {
       name.includes("VIVA")
     ) {
       return "Live";
-    }
-
-    if (name.includes("ROOF")) {
-      return "RoofLive";
     }
 
     if (name.includes("SX") || name.includes("SDX") || name.includes("SPEC_X")) {
