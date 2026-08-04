@@ -77,6 +77,10 @@ def run_full_seismic_analysis(data: dict) -> dict:
         "rigid_diaphragms": data.get("_rigid_diaphragm_report", {}),
         "mass_source": data.get("_mass_source_report", {}),
         "effective_mass": data.get("_effective_mass_report", {}),
+        # Qué losas se mallaron como shell y cuáles se saltaron (y por qué) —
+        # sin esto, una losa inclinada sin sección asignada quedaría fuera del
+        # modelo en silencio.
+        "slab_shells": data.get("_slab_shell_report", {}),
     }
 
     results["mass_source"] = data.get("_mass_source_report", {})

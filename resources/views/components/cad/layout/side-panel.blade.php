@@ -58,9 +58,9 @@
                         </g>
                     </svg></span><span>Vigas Reg.</span>
             </button>
-            <button title="Dibujar losa / área (clic por clic, formas irregulares)"
+            <button title="Dibujar losa / área clic por clic (formas irregulares). Funciona en 2D y en 3D: en el visor 3D se marcan los vértices sobre los nudos, y si están a distinta altura la losa sale inclinada (techos). Clic derecho o Enter cierra."
                 @click="cadSystem.activateDrawMenuAction('draw-area-slab')"
-                :class="currentState === slabDrawingState ? 'bg-blue-600 text-white' : 'text-gray-200'"
+                :class="(currentState === slabDrawingState || cadSystem?.activeDrawTool === 'slab') ? 'bg-blue-600 text-white' : 'text-gray-200'"
                 class="{{ $qt }}">
                 <span class="text-base leading-none"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
                         <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">

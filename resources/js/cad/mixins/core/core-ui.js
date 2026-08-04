@@ -108,6 +108,13 @@ export const coreUiMixin = {
     this.frame3DStartNode = null;
     this.frame3DEndNode = null;
 
+    // Solo puede haber UNA herramienta activa: si venía dibujando una losa en
+    // 3D, su polígono a medio marcar se descarta (si no, quedaría fantasma en
+    // el preview y el próximo Esc cancelaría la losa en vez de la barra).
+    this.slab3DPoints = [];
+    this.isDrawingSlab3D = false;
+    window.__jhRefresh3DSlabPreview?.();
+
     this.clearAllSelections?.();
 
     if (this.idleState) {
@@ -180,6 +187,67 @@ export const coreUiMixin = {
   // =====================================================
   isFrameDrawingToolActive() {
     return this.activeDrawTool === "frame";
+  },
+
+  // =====================================================
+  // DRAW SLAB > ACTIVAR HERRAMIENTA GENERAL DE LOSAS
+  // Espejo de startFrameDrawingMode: una sola herramienta que sirve para el
+  // canvas 2D (AreaDrawingState, vista en planta) y para el visor 3D
+  // (observable de Babylon → handle3DSlabPointPicked). El estado 2D lo
+  // asigna el despachador del menú; acá solo se marca la herramienta.
+  // =====================================================
+  startSlabDrawingMode() {
+    this.activeDrawTool = "slab";
+
+    this.isDrawingSlab3D = false;
+    this.slab3DPoints = [];
+
+    window.__jhRefresh3DSlabPreview?.();
+
+    console.log("🟢 Draw Slab general activado:", {
+      activeDrawTool: this.activeDrawTool,
+      activeViewport: this.activeViewport,
+    });
+  },
+
+  // =====================================================
+  // DRAW SLAB > CANCELAR HERRAMIENTA GENERAL DE LOSAS
+  // Limpia también el polígono 3D a medio marcar y libera la cámara/plano
+  // invisible del visor (si no, el 3D queda con el clic izquierdo tomado).
+  // =====================================================
+  // `silent` = se está cambiando a otra herramienta de dibujo; el mensaje lo
+  // pone esa otra herramienta y no hace falta reasignar el estado 2D.
+  cancelSlabDrawingMode({ silent = false } = {}) {
+    this.activeDrawTool = null;
+
+    this.isDrawingSlab3D = false;
+    this.slab3DPoints = [];
+
+    if (!silent && this.idleState) {
+      this.setState?.(this.idleState);
+    }
+
+    window.__jhSet3DDrawCameraLock?.(false);
+    window.__jhClear3DGridPointHoverReference?.();
+    window.__jhDisable3DWorkPlanePickMesh?.();
+    window.__jhRefresh3DSlabPreview?.();
+
+    this.redraw?.();
+    this.sync3D?.();
+
+    if (!silent) {
+      this.showMessage?.("Herramienta de losa cancelada.");
+    }
+
+    console.log("🟡 Draw Slab general cancelado");
+  },
+
+  // =====================================================
+  // DRAW SLAB > VALIDAR SI LA HERRAMIENTA ESTÁ ACTIVA
+  // La usa el visor 3D para decidir si el clic dibuja o selecciona.
+  // =====================================================
+  isSlabDrawingToolActive() {
+    return this.activeDrawTool === "slab";
   },
 
   // =====================================================

@@ -740,6 +740,7 @@ export const e2kImportMixin = {
     const pointCoords = new Map(); // pointId → {x,y}
     const lineConn = new Map(); // lineName → {kind, pi, pj}
     const areaConn = new Map(); // areaName → [ptIds]
+    const areaStoryOffsets = new Map(); // areaName → [storyOffset por vértice]
     const areaKind = new Map(); // areaName → "wall" (PANEL) | "slab" (FLOOR)
     const diaphragmDefs = [];
     const loadPatternDefs = [];
@@ -938,7 +939,20 @@ export const e2kImportMixin = {
         const toks = quotedAll(line);
         const km = String(line).match(/"[^"]*"\s+(COLUMN|BEAM|BRACE)\b/i);
         if (toks[0] && toks[1] != null && toks[2] != null) {
-          lineConn.set(toks[0], { kind: km ? km[1].toUpperCase() : "BEAM", pi: toks[1], pj: toks[2] });
+          // El número final es cuántos PISOS abarca la línea hacia abajo desde
+          // el piso al que se asigna: 0 en una viga (vive en su piso), 1 en
+          // una columna normal (piso anterior → piso asignado), 2 o más en una
+          // columna que atraviesa niveles intermedios.
+          //   LINE "C35"  COLUMN  "20"  "308"  2   → de Story1 a Story3
+          // Se asumía SIEMPRE 1 (belowElevOf) y esas columnas arrancaban un
+          // piso demasiado arriba (MODULO 1: 6.4 en vez de 3.2).
+          const span = bareNums(line)[0];
+          lineConn.set(toks[0], {
+            kind: km ? km[1].toUpperCase() : "BEAM",
+            pi: toks[1],
+            pj: toks[2],
+            storySpan: Number.isFinite(span) && span >= 1 ? Math.round(span) : 1,
+          });
         }
       } else if (/^AREA\s/i.test(line)) {
         const toks = quotedAll(line);
@@ -946,6 +960,16 @@ export const e2kImportMixin = {
         const nPts = nums.length ? nums[0] : toks.length - 1;
         const pts = toks.slice(1, 1 + nPts);
         if (toks[0] && pts.length >= 3) areaConn.set(toks[0], pts);
+        // Los N números que siguen al conteo son el STORY OFFSET de cada
+        // vértice: 0 = el piso al que se asigna el área, 1 = un piso abajo, …
+        //   AREA "W14" PANEL 4 "95" "117" "58" "28"  1 0 0 1
+        // Es como ETABS describe un muro (1,1,0,0 = de abajo hacia arriba) y
+        // también el ALERO de un techo, cuyo borde baja al piso anterior.
+        // Antes se descartaban y la cota del vértice se ADIVINABA
+        // (pointExistsBelow); con el dato explícito no hay que adivinar.
+        if (toks[0] && pts.length >= 3 && nums.length >= 1 + pts.length) {
+          areaStoryOffsets.set(toks[0], nums.slice(1, 1 + pts.length).map((v) => Number(v) || 0));
+        }
         // PANEL = muro (traza en planta que se extruye vertical por piso),
         // FLOOR = losa (polígono horizontal). Determina cómo se reconstruye la
         // geometría en AREAASSIGN.
@@ -1058,6 +1082,14 @@ export const e2kImportMixin = {
     const belowStoryNameOf = (name) => {
       const idx = storiesAsc.findIndex((s) => s.name === name);
       return idx <= 0 ? "Base" : storiesAsc[idx - 1].name;
+    };
+    // Elevación N pisos por debajo del indicado (N = story offset del vértice
+    // en la línea AREA). N=0 → el propio piso. Se satura en la Base.
+    const elevNStoriesBelow = (name, n) => {
+      const idx = storiesAsc.findIndex((s) => s.name === name);
+      if (idx < 0) return storyElev.get(name) ?? 0;
+      const target = Math.max(0, idx - Math.max(0, Math.round(Number(n) || 0)));
+      return storiesAsc[target]._elev;
     };
 
     // ── Nodos (dedup por x,y,z) ──
@@ -1356,8 +1388,28 @@ export const e2kImportMixin = {
           nd.restraints = r; nd.constraints = r; nd.hasRestraints = true;
           if (r.ux && r.uy && r.uz && r.rx && r.ry && r.rz) nd.soporte = "soporteUno";
         }
+        // DIAPH del POINTASSIGN. ETABS marca "DISCONNECTED" cuando el nudo NO
+        // pertenece a ningún diafragma — es lo OPUESTO a una asignación, y se
+        // estaba guardando como si fuera un diafragma LLAMADO "DISCONNECTED"
+        // (solo se filtraba "none"), amarrando entre sí a todos los nudos
+        // sueltos de un piso. En MODULO 5 son 38 nudos (16 en Base, 22 en el
+        // techo, que ETABS tiene como semi-rígido).
         const diaph = q(line, "DIAPH");
-        if (diaph && !/none/i.test(diaph)) { nd.diaphragmName = diaph; nd.hasDiaphragm = true; }
+        if (diaph) {
+          if (/none|disconnect/i.test(diaph)) {
+            // Igual que "Disconnect" en Assign ▸ Joint ▸ Diaphragms: excluye
+            // el nudo de cualquier diafragma, con precedencia sobre el que
+            // pudiera heredar del área (ver getExplicitDiaphragmGroups).
+            nd.diaphragmMode = "none";
+            nd.diaphragmName = null;
+            nd.diaphragmId = null;
+            nd.hasDiaphragm = false;
+          } else {
+            nd.diaphragmName = diaph;
+            nd.diaphragmId = diaph;
+            nd.hasDiaphragm = true;
+          }
+        }
       } else if (/^LINEASSIGN\s/i.test(line)) {
         const toks = quotedAll(line);
         const conn = lineConn.get(toks[0]);
@@ -1407,14 +1459,40 @@ export const e2kImportMixin = {
         };
         const ziForced = isSelfLoopColumn || !roofZAppliesHere(conn.pi) ? null : pointRoofZ.get(conn.pi);
         const zjForced = isSelfLoopColumn || !roofZAppliesHere(conn.pj) ? null : pointRoofZ.get(conn.pj);
-        if (ziForced != null || zjForced != null) {
+
+        // Base de la línea según su STORY SPAN (ver lineConn.storySpan): una
+        // columna con span 2 arranca DOS pisos abajo, no uno.
+        const zLineBottom = elevNStoriesBelow(toks[1], conn.storySpan ?? 1);
+
+        // ── COLUMNA QUE ATRAVIESA VARIOS PISOS (span ≥ 2) ─────────────────
+        // Se resuelve por la semántica explícita del .e2k y NO por la
+        // heurística de techo (pointRoofZ): el extremo con offset Z va a
+        // elevPiso − offset, y el que no tiene, a la base que marca el span.
+        // Sin esto, MODULO 1 importaba sus 8 columnas C30X60cm de 6.4 a 7.55
+        // en vez de 3.2 a 7.547 (ETABS, elevación E) — quedaba un hueco entre
+        // Story1 y el techo y el modelo salía 4× más flexible.
+        // Se exige span ≥ 2 a propósito: con span 1 (la columna normal, y los
+        // parantes de armadura marcados COLUMN) manda la heurística de techo,
+        // que es la que está calibrada — este camino solo atiende el caso que
+        // esa heurística no puede conocer.
+        const ziOffset = pointCoords.get(conn.pi)?.z;
+        const zjOffset = pointCoords.get(conn.pj)?.z;
+        if (
+          conn.kind === "COLUMN" &&
+          !isSelfLoopColumn &&
+          (conn.storySpan ?? 1) >= 2 &&
+          (ziOffset != null) !== (zjOffset != null)
+        ) {
+          n1 = getNode(pi.x, pi.y, ziOffset != null ? zStory - ziOffset : zLineBottom);
+          n2 = getNode(pj.x, pj.y, zjOffset != null ? zStory - zjOffset : zLineBottom);
+        } else if (ziForced != null || zjForced != null) {
           // Al menos un extremo es punto de techo resuelto. El extremo sin
           // resolver (cumbrera, punto sin offset no marcado) va a la elevación
           // del piso (nivel de cumbrera).
           n1 = getNode(pi.x, pi.y, ziForced != null ? ziForced : zStory);
           n2 = getNode(pj.x, pj.y, zjForced != null ? zjForced : zStory);
         } else if (conn.kind === "COLUMN") {
-          n1 = getNode(pi.x, pi.y, belowElevOf(toks[1]));
+          n1 = getNode(pi.x, pi.y, zLineBottom);
           n2 = getNode(pi.x, pi.y, zStory);
         } else {
           n1 = getNode(pi.x, pi.y, zStory);
@@ -1539,13 +1617,27 @@ export const e2kImportMixin = {
         // plana normal (ningún vértice con offset) nada de esto aplica.
         const areaHasOffset = conn.some((ptId) => pointCoords.get(ptId)?.z != null);
         const zBelowArea = belowElevOf(toks[1]);
+        // Story offsets EXPLÍCITOS de la línea AREA (ver areaStoryOffsets):
+        // dicen a qué piso pertenece cada vértice. Mandan sobre la heurística
+        // de alero — es el dato de ETABS, no una suposición. Sin esto, el
+        // borde bajo de un faldón (que ETABS marca con offset 1) se quedaba en
+        // la elevación de la cumbrera y el panel salía casi VERTICAL
+        // (MODULO 5: W14 y W20, los dos aleros del techo).
+        const storyOffsets = areaStoryOffsets.get(toks[0]) || null;
         const pts = conn
-          .map((ptId) => {
+          .map((ptId, i) => {
             const c = pointCoords.get(ptId);
             if (!c) return null;
-            let zPt = z;
-            if (c.z != null) zPt = z - c.z;
-            else if (areaHasOffset && pointExistsBelow(ptId, toks[1])) zPt = zBelowArea;
+            const so = storyOffsets ? Number(storyOffsets[i]) || 0 : 0;
+            // Piso de ESTE vértice (el asignado, o N pisos más abajo).
+            const zStoryPt = so > 0 ? elevNStoriesBelow(toks[1], so) : z;
+            let zPt = zStoryPt;
+            if (c.z != null) zPt = zStoryPt - c.z;
+            else if (!storyOffsets && areaHasOffset && pointExistsBelow(ptId, toks[1])) {
+              // Sin story offsets en el archivo (formatos viejos) se mantiene
+              // la heurística anterior para no cambiar lo que ya funcionaba.
+              zPt = zBelowArea;
+            }
             return { x: round3(c.x), y: round3(c.y), z: round3(zPt), visible: true, color: null };
           })
           .filter(Boolean);

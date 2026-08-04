@@ -60,6 +60,51 @@ export const eventsMixin = {
     }
 
     // =====================================================
+    // DRAW SLAB 3D > ENTER / BACKSPACE / ESC
+    // Mismos atajos que el dibujo de losa en 2D (AreaDrawingState), pero para
+    // el polígono que se está marcando sobre nudos en el visor 3D.
+    // Solo actúan si hay vértices marcados en 3D; si no, el 2D sigue mandando.
+    // =====================================================
+    if (this.activeDrawTool === "slab" && this.isDrawingSlab3D === true) {
+      if (event.key === "Enter") {
+        this.finishSlab3DArea?.();
+
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+
+      if (event.key === "Backspace") {
+        this.undoLastSlab3DPoint?.();
+
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+
+      if (event.key === "Escape") {
+        this.cancelSlab3DDrawing?.();
+
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+    }
+
+    // Esc sin polígono 3D en curso: apaga la herramienta de losa por completo.
+    // Antes se le pasa el Escape al estado 2D: si había un polígono a medio
+    // marcar en planta, AreaDrawingState lo cierra (≥3 vértices) o lo cancela
+    // — apagar la herramienta de una sin avisarle perdería ese trabajo.
+    if (event.key === "Escape" && this.activeDrawTool === "slab") {
+      this.currentState?.handleKeyDown?.(event, this);
+      this.cancelSlabDrawingMode?.();
+
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    // =====================================================
     // SELECTION > ESC GLOBAL PARA LIMPIAR SELECCIÓN
     // Limpia nodos, barras normales, barras 3D-only y estados internos.
     // =====================================================
@@ -218,6 +263,17 @@ export const eventsMixin = {
           state: frame2DState?.constructor?.name,
         });
       }
+    }
+
+    // =====================================================
+    // DRAW SLAB > VOLVER AL CANVAS 2D
+    // Si venía marcando una losa en 3D y ahora hace clic en planta, se
+    // descarta el polígono 3D: el AreaDrawingState arranca uno nuevo y no
+    // tendría forma de continuar aquel (son dos cadenas de puntos distintas).
+    // =====================================================
+    if (this.activeDrawTool === "slab" && this.isDrawingSlab3D === true) {
+      this.activeViewport = "2d";
+      this.cancelSlab3DDrawing?.();
     }
 
     const mouse = mousePositionFrom(this.canvas, event);

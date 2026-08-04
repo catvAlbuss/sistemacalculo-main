@@ -44,7 +44,7 @@ cad/
     ├── core/           ← options, events, actions (despachador de menús), core-ui
     ├── select/         ← selection, viewport (select-by-property), view-filter
     ├── edit/           ← edit-geometry, edit-clipboard, edit-delete, undo-redo,
-    │                     model-factory, model-queries
+    │                     model-factory, model-queries, draw-slab-3d
     ├── grids/          ← reference-grid, story-grid, elevation-drawing
     ├── dialogs/        ← assign-dialogs, display-dialogs (los diálogos de asignación)
     ├── analysis/       ← analysis, animation, report, design + seismic/ (sub-partido:
@@ -149,6 +149,7 @@ Los diálogos se están moviendo de SweetAlert (HTML embebido en JS) a modales B
 | Un modal de asignación falla | `modals/<x>-modal.blade.php` + `mixins/dialogs/assign-dialogs.js` (`applyXxxFromModal`) |
 | Algo se dibuja mal en 2D | `canvas2d/renderer.js` (visual) o `canvas2d/states.js` (interacción) |
 | Algo se ve mal en 3D | `3d/viewer3d.js` o `3d/objects/*.js` |
+| Dibujar en 3D (barra o losa) no toma el clic | `3d/viewer3d.js` (`onPointerObservable`, `activeDrawTool`) + `mixins/select/view-filter.js` (barras) o `mixins/edit/draw-slab-3d.js` (losas) |
 | Cálculo sísmico raro (periodos/derivas/masa) | `python-backend/seismic/solver.py` + `pipeline.py`; payload en `mixins/analysis/seismic/payload.js` |
 | Tabla de resultados ETABS incorrecta | `mixins/analysis/seismic/results.js` |
 | Import/export `.e2k` roto | `mixins/io/file-io/e2k-import.js` o `e2k-export.js` |
@@ -185,3 +186,70 @@ Si mantienes ese espejo, desde cualquier síntoma sabes las 2-3 puertas que toca
 - **Tras editar Python**: reiniciar Flask.
 - **Sin tests JS aún** (solo PHPUnit del backend Laravel). Pendiente: Vitest sobre la lógica pura
   (units, parser `.e2k`, espectro) — la red de seguridad para regresiones numéricas.
+
+
+
+esto me aparece en la terminal de python cuando analice el modelo:
+DUMP: payload sismico guardado en C:\laragon\www\sistemacalculo-main\python-backend\_debug_payloads\last_seismic_payload.json
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 10 iterations  current Norm: 2.85512e+15 (max: 1e-06, Norm deltaR: 3.2715e+06)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 1
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 10 iterations  current Norm: 2.47445e+14 (max: 1e-06, Norm deltaR: 1.22623e+06)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 1
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 10 iterations  current Norm: 1.15824e+15 (max: 1e-06, Norm deltaR: 1.4006e+06)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 1
+OpenSees > analyze failed, returned: -3 error flag
+WARNING analysis Transient - no Algorithm yet specified, 
+ NewtonRaphson default will be used
+WARNING analysis Transient - no Integrator specified, 
+ TransientIntegrator default will be used
+Using DomainModalProperties - Developed by: Massimo Petracca, Guido Camata, ASDEA Software Technology
+🔁 Torsión accidental ADITIVA aplicada (ecc=0.05).
+WARNING analysis Transient - no Algorithm yet specified, 
+ NewtonRaphson default will be used
+WARNING analysis Transient - no Integrator specified, 
+ TransientIntegrator default will be used
+   ecc Story1: ΔX +2.5% (0.000139→0.000143) | ΔY +14.7% (0.000033→0.000038)
+   ecc Story3: ΔX +0.0% (0.023745→0.023750) | ΔY +0.0% (0.022927→0.022935)
+🎬 Modal shapes reales para animación: {'modes': 15, 'nodes': 150}
+DUMP: resultado sismico (resumen) guardado en C:\laragon\www\sistemacalculo-main\python-backend\_debug_payloads\last_seismic_result.json
+DUMP RESULT: Combinado SRSS -> FX=12.9896 tonf  FY=3.7227 tonf  MX=14.0054 tonf-m  MY=44.5997 tonf-m  MZ=71.9516 tonf-m
+127.0.0.1 - - [03/Aug/2026 12:23:49] "POST /api/seismic/analyze HTTP/1.1" 200 -
+DUMP: payload sismico guardado en C:\laragon\www\sistemacalculo-main\python-backend\_debug_payloads\last_seismic_payload.json
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 10 iterations  current Norm: 2.85512e+15 (max: 1e-06, Norm deltaR: 3.2715e+06)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 1
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 10 iterations  current Norm: 2.47445e+14 (max: 1e-06, Norm deltaR: 1.22623e+06)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 1
+OpenSees > analyze failed, returned: -3 error flag
+WARNING: CTestNormDispIncr::test() - failed to converge 
+after: 10 iterations  current Norm: 1.15824e+15 (max: 1e-06, Norm deltaR: 1.4006e+06)
+NewtonRaphson::solveCurrentStep() -the ConvergenceTest object failed in test()
+StaticAnalysis::analyze() - the Algorithm failed at step: 0 with domain at load factor 1
+OpenSees > analyze failed, returned: -3 error flag
+WARNING analysis Transient - no Algorithm yet specified, 
+ NewtonRaphson default will be used
+WARNING analysis Transient - no Integrator specified, 
+ TransientIntegrator default will be used
+🔁 Torsión accidental ADITIVA aplicada (ecc=0.05).
+WARNING analysis Transient - no Algorithm yet specified, 
+ NewtonRaphson default will be used
+WARNING analysis Transient - no Integrator specified, 
+ TransientIntegrator default will be used
+   ecc Story1: ΔX +11.6% (0.000044→0.000049) | ΔY +8.2% (0.000086→0.000093)
+   ecc Story3: ΔX +0.1% (0.011638→0.011645) | ΔY +0.0% (0.027393→0.027406)
+🎬 Modal shapes reales para animación: {'modes': 15, 'nodes': 150}
+DUMP: resultado sismico (resumen) guardado en C:\laragon\www\sistemacalculo-main\python-backend\_debug_payloads\last_seismic_result.json
+DUMP RESULT: Combinado SRSS -> FX=3.9572 tonf  FY=12.1952 tonf  MX=43.1663 tonf-m  MY=14.4025 tonf-m  MZ=107.4965 tonf-m
+127.0.0.1 - - [03/Aug/2026 12:24:10] "POST /api/seismic/analyze HTTP/1.1" 200 -

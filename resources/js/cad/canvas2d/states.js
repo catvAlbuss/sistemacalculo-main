@@ -4343,9 +4343,69 @@ export class AreaDrawingState extends PanAndZoomState {
     this.previewArea = area;
   }
 
+  /**
+   * Cota REAL de un nudo existente bajo el cursor, para dibujar losas
+   * INCLINADAS. En vista de planta `getCurrentSnapPoint` siempre devuelve la
+   * cota del piso activo, así que toda losa salía plana y no había forma de
+   * modelar un techo a dos aguas de concreto (que necesita ser un shell con
+   * pendiente real, no solo masa).
+   *
+   * Regla: entre los nudos que caen bajo el cursor EN PLANTA, se toma el más
+   * ALTO cuya cota esté dentro del piso activo (entre el piso de abajo y la
+   * cota del piso, con tolerancia). En una losa plana normal ese nudo es
+   * justamente el del nivel del piso → mismo resultado de siempre; sobre un
+   * techo ya dibujado/importado (vigas o tijerales), es el nudo del faldón →
+   * la losa hereda la pendiente, igual que al dibujar sobre joints en ETABS.
+   * Devuelve null si no hay ningún nudo bajo el cursor.
+   */
+  _snapZFromExistingNode(context, mouse) {
+    const view = context.viewSet?.[context.activeViewIndex];
+    if (view && view.type !== "plan") return null;
+    if (!Array.isArray(context.nodes) || !context.nodes.length) return null;
+
+    const currentZ = context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0;
+
+    // Cota del piso inmediatamente inferior (límite bajo del rango válido).
+    const elevs = (context.stories || [])
+      .map((s) => Number(s.elevation))
+      .filter((z) => Number.isFinite(z))
+      .sort((a, b) => a - b);
+    const below = elevs.filter((z) => z < currentZ - 1e-6).pop();
+    const zLow = below != null
+      ? below
+      : currentZ - Number(context.referenceGrid?.storyHeight || 3);
+
+    const tolPx = 12;
+    const tolZ = 1e-6;
+    let best = null;
+
+    for (const node of context.nodes) {
+      const nx = Number(node.position?.x ?? node.x) || 0;
+      const ny = Number(node.position?.y ?? node.y) || 0;
+      const nz = Number(node.position?.z ?? node.z) || 0;
+
+      if (nz < zLow - tolZ || nz > currentZ + tolZ) continue;
+
+      const screen = context.grid.worldToScreen({ x: nx, y: ny });
+      if (pointDistance(mouse, screen) > tolPx) continue;
+
+      if (best == null || nz > best) best = nz;
+    }
+
+    return best;
+  }
+
   getSnapPoint(context, mouse) {
     const worldPos = context.grid.screenToWorld(mouse);
     const snapped = context.getCurrentSnapPoint(worldPos);
+
+    // Losas con pendiente: hereda la cota real del nudo bajo el cursor (ver
+    // _snapZFromExistingNode). Los muros NO — su geometría vertical la arma
+    // WallDrawingState entre dos pisos, no por vértice.
+    if (this.areaType !== "wall") {
+      const zNode = this._snapZFromExistingNode(context, mouse);
+      if (zNode != null) snapped.z = zNode;
+    }
 
     // Modo Ortho (F8, como AutoCAD) con tracking de esquina: bloquea el
     // punto a 0°/90°/180°/270°, evaluando TODAS las combinaciones posibles

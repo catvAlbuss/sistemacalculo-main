@@ -87,6 +87,7 @@ import { editDeleteMixin } from "./mixins/edit/edit-delete.js";
 import { editClipboardMixin } from "./mixins/edit/edit-clipboard.js";
 import { undoRedoMixin } from "./mixins/edit/undo-redo.js";
 import { editGeometryMixin } from "./mixins/edit/edit-geometry.js";
+import { drawSlab3DMixin } from "./mixins/edit/draw-slab-3d.js";
 import { viewFilterMixin } from "./mixins/select/view-filter.js";
 import { designMixin } from "./mixins/analysis/design.js";
 import { displayDialogsMixin } from "./mixins/dialogs/display-dialogs.js";
@@ -548,6 +549,17 @@ export default () => ({
     this.redoStack = [];
     this.maxUndoSteps = 30;
 
+    // Dibujo de losa en el visor 3D (mixins/edit/draw-slab-3d.js): vértices
+    // marcados sobre nudos/grilla 3D antes de cerrar el área.
+    this.slab3DPoints = [];
+    this.isDrawingSlab3D = false;
+
+    // Lo crea openReactionsDisplay() (mixins/analysis/seismic/reactions-display.js),
+    // pero el botón del toolbar lo lee al montar (`toggle="reactionsDisplay?.enabled"`)
+    // y sin declararlo acá Alpine tiraba "reactionsDisplay is not defined" en
+    // cada carga — el optional chaining no salva a una variable inexistente.
+    this.reactionsDisplay = null;
+
     this.editClipboard = null;
     this.editPasteCount = 0;
     this.parametricModels = [];
@@ -830,6 +842,7 @@ export default () => ({
   ...editClipboardMixin,
   ...undoRedoMixin,
   ...editGeometryMixin,
+  ...drawSlab3DMixin,
   ...viewFilterMixin,
   ...designMixin,
   ...displayDialogsMixin,

@@ -25,9 +25,11 @@ __all__ = [
     "_build_column_depth_map",
     "_build_diaphragm_groups",
     "_build_mass_source_nodal_masses",
+    "_build_slab_mesh_plan",
     "_build_wall_mesh_plan",
     "_canonical_load_pattern_name",
     "_choose_diaphragm_retained_node",
+    "_create_slab_shell_elements",
     "_create_wall_shell_elements",
     "_data_wants_rigid_diaphragm_rotation",
     "_data_wants_rigid_diaphragms",
@@ -39,10 +41,16 @@ __all__ = [
     "_get_base_shear_value",
     "_get_mass_source_from_payload",
     "_get_node_id_from_support",
+    "_element_is_steel",
     "_lump_mass_to_story_levels",
+    "_lump_steel_roof_mass_to_supports",
     "_node_xyz_for_mass_source",
+    "_no_diaphragm_node_ids",
     "_normalize_modulus_to_pa",
     "_normalize_unit_weight_to_n_m3",
+    "_slab_is_sloped",
+    "_slab_polygon_to_quads",
+    "_slab_should_mesh_as_shell",
     "_parse_spectrum_excel",
     "_parse_spectrum_text",
     "_support_node_ids_from_payload",
@@ -276,12 +284,45 @@ def _choose_diaphragm_retained_node(node_ids: list[int], node_by_id: dict):
 
     return min(node_ids, key=distance_to_centroid)
 
+def _no_diaphragm_node_ids(data: dict) -> set:
+    """
+    Nudos que NUNCA entran a un diafragma rígido, vengan de donde vengan.
+
+    Los llena el frontend (`payload.js _slopedSlabFreeNodeIdsForSeismic`) con
+    los nudos de LOSAS INCLINADAS que no pertenecen además a una losa plana.
+    Es la mitad "sin constraint" del comportamiento SEMI-RÍGIDO de ETABS: la
+    losa inclinada aporta rigidez como shell real (ver _build_slab_mesh_plan),
+    no amarrando sus nudos a un plano rígido.
+
+    Por qué importa: amarrar la cumbrera y los faldones de un techo a dos aguas
+    con un diafragma rígido los obliga a moverse como un plano horizontal
+    rígido — justo la deformación que un techo inclinado NO tiene. Sin esto, el
+    shell que acabamos de agregar quedaría cortocircuitado por el constraint.
+    """
+    raw = (
+        data.get("noDiaphragmNodes")
+        or data.get("no_diaphragm_nodes")
+        or data.get("freeNodes")
+        or []
+    )
+    out = set()
+    if not isinstance(raw, (list, tuple, set)):
+        return out
+    for nid in raw:
+        try:
+            out.add(int(nid))
+        except Exception:
+            continue
+    return out
+
+
 def _build_diaphragm_groups(
     data: dict, nodes: list, supports: list, z_tolerance: float = 0.05
 ) -> list[dict]:
     node_by_id = {int(n["id"]): n for n in nodes}
     valid_node_ids = set(node_by_id.keys())
     support_node_ids = _support_node_ids_or_base_nodes(nodes, supports, z_tolerance)
+    excluded_node_ids = _no_diaphragm_node_ids(data)
 
     explicit_groups = data.get("diaphragms") or data.get("diaphragm_groups") or []
     groups = []
@@ -293,7 +334,9 @@ def _build_diaphragm_groups(
             node_ids = [
                 int(nid)
                 for nid in node_ids
-                if int(nid) in valid_node_ids and int(nid) not in support_node_ids
+                if int(nid) in valid_node_ids
+                and int(nid) not in support_node_ids
+                and int(nid) not in excluded_node_ids
             ]
 
             if len(node_ids) < 2:
@@ -330,6 +373,10 @@ def _build_diaphragm_groups(
             continue
 
         if nid in support_node_ids:
+            continue
+
+        # Losa inclinada → sin diafragma (semi-rígido, ver _no_diaphragm_node_ids).
+        if nid in excluded_node_ids:
             continue
 
         matched = None
@@ -875,6 +922,117 @@ def _canonical_load_pattern_name(name) -> str:
 
     return upper
 
+def _element_is_steel(elem: dict) -> bool:
+    """Elemento de ACERO: por designType del material (lo manda el frontend,
+    ver _buildFramePhysicalMetadataForSeismic) o, como respaldo para payloads
+    viejos, por peso específico (acero ~77-79 kN/m³ vs concreto ~24)."""
+    for src in (elem, elem.get("material") or {}, elem.get("section") or {}):
+        if not isinstance(src, dict):
+            continue
+        dt = str(src.get("designType") or src.get("design_type") or "").strip().lower()
+        if dt:
+            return dt.startswith("steel") or dt.startswith("acero")
+
+    uw = _ms_float(
+        elem.get("unitWeight", elem.get("unit_weight", elem.get("unitWeightNPerM3"))),
+        0.0,
+    )
+    return uw >= 60000.0
+
+
+def _lump_steel_roof_mass_to_supports(node_masses: dict, nodes: list, elements: list) -> tuple[dict, dict]:
+    """
+    TECHO METÁLICO COMO SOLO MASA (opt-out: `steelRoofMassOnly: false`).
+
+    Un techo de acero (tijeral/armadura) es MUY liviano comparado con la
+    estructura de concreto que lo sostiene. Si su masa se deja repartida en los
+    nudos de la propia armadura, el eigen encuentra MODOS LOCALES del techo con
+    períodos largos y casi sin masa participante, que se cuelan como "modo 1" y
+    tapan los modos reales de la estructura.
+
+    Medido con el modelo real MODULO 5 (2026-08-03), variando SOLO dónde vive la
+    masa del techo (1049 kg de cobertura + 1425 kg de peso propio del acero):
+        masa en la cumbrera (lumping por piso) -> T1=0.3583  (modo de balanceo,
+                                                  6% de masa; ETABS da 0.360
+                                                  porque lumpea igual)
+        masa en cabeza de columnas, tijeral con
+        su masa propia                         -> T1=0.1693
+        SIN masa propia del tijeral (esta func) -> T1=0.0967  <- período real
+        tijeral ELIMINADO (solo masa, sin rigidez) -> T1=5172 s = MECANISMO
+    Por eso acá NO se toca la rigidez: los elementos de acero siguen armándose
+    completos (si se quitan, nada amarra las cabezas de columna y el modelo
+    degenera). Solo se REUBICA su masa.
+
+    Destino: los nudos de INTERFAZ, donde el acero se apoya sobre el resto de la
+    estructura (un nudo tocado por un elemento de acero Y por uno que no lo es —
+    típicamente la cabeza de columna). La masa de los nudos EXCLUSIVOS del techo
+    metálico se reparte en partes iguales entre ellos.
+
+    Si no hay interfaz (estructura 100% de acero) NO se hace nada: no habría
+    dónde apoyar la masa y moverla sería inventar. Devuelve (node_masses, info).
+    """
+    info = {"applied": False, "moved_kg": 0.0, "from_nodes": 0, "to_nodes": 0}
+
+    steel_nodes: set[int] = set()
+    other_nodes: set[int] = set()
+
+    for elem in elements or []:
+        try:
+            ni = int(elem["node_i"])
+            nj = int(elem["node_j"])
+        except Exception:
+            continue
+        target = steel_nodes if _element_is_steel(elem) else other_nodes
+        target.add(ni)
+        target.add(nj)
+
+    if not steel_nodes:
+        return node_masses, info
+
+    # Interfaz = tocado por acero y por no-acero (cabeza de columna/muro).
+    support_ids = sorted(steel_nodes & other_nodes)
+    roof_only_ids = steel_nodes - other_nodes
+
+    if not support_ids or not roof_only_ids:
+        return node_masses, info
+
+    moved = {"mx": 0.0, "my": 0.0, "mz": 0.0}
+    kept: dict = {}
+
+    for raw_id, mass in node_masses.items():
+        try:
+            nid = int(raw_id)
+        except Exception:
+            kept[raw_id] = mass
+            continue
+
+        if nid in roof_only_ids:
+            for comp in ("mx", "my", "mz"):
+                moved[comp] += float(mass.get(comp, 0.0) or 0.0)
+            info["from_nodes"] += 1
+        else:
+            kept[nid] = mass
+
+    if moved["mx"] <= 0 and moved["my"] <= 0 and moved["mz"] <= 0:
+        return node_masses, info
+
+    share = {comp: moved[comp] / len(support_ids) for comp in moved}
+
+    for nid in support_ids:
+        entry = kept.setdefault(
+            nid, {"mx": 0.0, "my": 0.0, "mz": 0.0, "source": "mass_source"}
+        )
+        for comp in ("mx", "my", "mz"):
+            entry[comp] = float(entry.get(comp, 0.0) or 0.0) + share[comp]
+
+    info.update(
+        applied=True,
+        moved_kg=round(moved["mx"], 3),
+        to_nodes=len(support_ids),
+    )
+    return kept, info
+
+
 def _lump_mass_to_story_levels(node_masses: dict, nodes: list, stories: list, tolerance: float = 0.05) -> dict:
     """
     Estilo ETABS `LUMPATSTORIES "Yes"`: la masa de un nodo que NO está
@@ -1191,6 +1349,22 @@ def _build_mass_source_nodal_masses(
 
             _add_auto_mass_to_node(node_masses, node_id, mass_kg)
 
+    # 2b. Techo METÁLICO como solo masa: se reubica la masa de los nudos
+    # exclusivos del acero a los nudos donde el techo se apoya (ver
+    # _lump_steel_roof_mass_to_supports). Va ANTES del lumping por piso porque
+    # los nudos de interfaz ya están a nivel de piso, así que el lumping
+    # posterior los deja donde están. Opt-out: steelRoofMassOnly: false.
+    if _as_bool(
+        data.get("steelRoofMassOnly", data.get("steel_roof_mass_only")),
+        True,
+    ):
+        node_masses, steel_info = _lump_steel_roof_mass_to_supports(
+            node_masses, nodes, elements
+        )
+        report["steel_roof_mass_only"] = steel_info
+        if steel_info.get("applied"):
+            report["node_masses"] = node_masses
+
     # 3. Lumping a nivel de piso (ETABS LUMPATSTORIES "Yes") — opt-out con
     # distributeToStoryNodes: false en el Mass Source del payload.
     if mass_source.get("distribute_to_story_nodes", False):
@@ -1356,7 +1530,7 @@ _WALL_SLENDER_TARGET_ELEMENT_SIZE_M = 0.42
 _WALL_OUT_OF_PLANE_BENDING_MODIFIER = 0.1
 
 
-def _build_wall_mesh_plan(data: dict, nodes: list):
+def _build_wall_mesh_plan(data: dict, nodes: list, node_lookup_out: dict = None):
     """
     Malla cada muro de `data["walls"]` (4 esquinas + espesor + material) en
     una grilla de elementos ShellMITC4, interpolando bilinealmente entre las
@@ -1378,21 +1552,27 @@ def _build_wall_mesh_plan(data: dict, nodes: list):
       - wall_node_ids: set de tags NUEVOS (no existían en data["nodes"]) — el
         loop de masas de build_model_3d itera sobre `nodes`, así que estos se
         aplican aparte.
+
+    `node_lookup_out` (opcional): si se pasa un dict, queda con el mapa
+    coordenada→tag ya poblado (nodos del payload + los nuevos de la malla de
+    muro). Lo usa el mallado de LOSAS para coser su malla a la de los muros en
+    vez de duplicar nodos en el mismo punto.
     """
     walls = data.get("walls", []) or []
     wall_node_mass: dict = {}
     wall_element_specs: list = []
     wall_node_ids: set = set()
 
-    if not walls or ops is None:
-        return wall_node_mass, wall_element_specs, wall_node_ids
-
     def _round_key(x, y, z):
         return (round(float(x), 3), round(float(y), 3), round(float(z), 3))
 
-    node_lookup = {}
+    # Se puebla SIEMPRE (aunque no haya muros): el mallado de losas lo reusa.
+    node_lookup = node_lookup_out if node_lookup_out is not None else {}
     for n in nodes:
         node_lookup[_round_key(n.get("x", 0), n.get("y", 0), n.get("z", 0))] = int(n["id"])
+
+    if not walls or ops is None:
+        return wall_node_mass, wall_element_specs, wall_node_ids
 
     mat_cache: dict = {}
     sec_cache: dict = {}
@@ -1582,6 +1762,428 @@ def _create_wall_shell_elements(wall_element_specs: list):
         ops.element("ShellMITC4", eid, n1, n2, n3, n4, sec_tag)
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# LOSAS COMO SHELL (ShellMITC4) — espejo del mallado de muros
+# ═══════════════════════════════════════════════════════════════════════
+# Tags separados de los de muro (WALL_*_TAG_BASE = 9_000_000) con medio millón
+# de margen: los muros nunca generan tantos nodos de malla.
+SLAB_NODE_TAG_BASE = 9_500_000
+SLAB_ELEMENT_TAG_BASE = 9_500_000
+# Los tags de sección son GLOBALES en OpenSees y los muros arrancan en 1 →
+# las secciones de losa arrancan lejos para no pisarlas.
+SLAB_SECTION_TAG_BASE = 5_000
+
+# Tamaño de elemento objetivo (m) del mallado de losa. MUCHO más fino que el de
+# muro (6.0 m, que deja casi todos los muros en malla 1x1) porque acá la acción
+# estructural es la FLEXIÓN de placa: un solo MITC4 por faldón no puede
+# representar la curvatura y sale artificialmente rígido (el mismo membrane
+# locking que obligó a refinar los muros esbeltos, ver
+# _WALL_SLENDER_TARGET_ELEMENT_SIZE_M). El tope de divisiones acota el costo:
+# un panel grande queda en 6x6 = 36 elementos, no en cientos.
+_SLAB_TARGET_ELEMENT_SIZE_M = 2.0
+_SLAB_MAX_DIVISIONS = 6
+
+# Una losa cuyos vértices difieren en Z más que esto se considera INCLINADA
+# (techo) — 1 cm, muy por encima del ruido de coordenadas y muy por debajo de
+# cualquier pendiente real.
+_SLAB_SLOPE_TOLERANCE_M = 0.01
+
+# Modificador de flexión fuera-del-plano de la losa, según el MODELINGTYPE que
+# trae el .e2k (lo manda el frontend en cada slab):
+#
+#  - "Shell" (Thin/Thick) -> 1.0, shell COMPLETO. A diferencia del muro
+#    (_WALL_OUT_OF_PLANE_BENDING_MODIFIER = 0.1, casi membrana porque así
+#    modela ETABS un muro de corte para sismo), en una losa —sobre todo en un
+#    techo inclinado sin diafragma— la flexión de placa ES la acción
+#    estructural que la sostiene: reducirla la volvería un mecanismo.
+#
+#  - "Membrane" -> TAMBIÉN 1.0 desde 2026-08-03. En ETABS una losa Membrane no
+#    tiene rigidez fuera del plano, así que este valor arrancó en 0.1 (mismo
+#    criterio que el muro). Los datos lo desmintieron: ese 0.1 se eligió con un
+#    barrido sobre MODULO 1 cuando el IMPORT todavía estaba roto (las columnas
+#    C30X60 arrancaban en 6.4 en vez de 3.2, ver el story span en
+#    e2k-import.js). Con el import arreglado el óptimo se dio vuelta.
+#
+#    Barrido con el payload real de MODULO 1 ya corregido
+#    (ETABS T1-T3 = 0.441/0.363/0.288):
+#      0.1 -> 0.4549 / 0.3747 / 0.3321   SumUX 99.6%  SumUY  62.2%
+#      1.0 -> 0.4363 / 0.3583 / 0.3167   SumUX  100%  SumUY   100%   ← ELEGIDO
+#
+#    Lo decisivo NO es el período (aunque 1.0 también gana: −1.1%/−1.3% vs
+#    +3.2%/+3.2%) sino la MASA PARTICIPANTE: con 0.1 las losas desarrollan
+#    modos locales blandos (0.134, 0.128 s) que se llevan la masa en Y a modos
+#    fuera de los 15 pedidos y dejan SumUY en 62% — por debajo del 90% que
+#    exige la E.030, o sea cortante subestimado.
+#
+# El parámetro se conserva (no se colapsa en uno solo) para poder volver a
+# probar comportamiento membrana sin reescribir el mallador.
+_SLAB_OUT_OF_PLANE_BENDING_MODIFIER = 1.0
+_SLAB_MEMBRANE_BENDING_MODIFIER = 1.0
+
+
+def _slab_bending_modifier(slab: dict) -> float:
+    """Modificador de flexión según el MODELINGTYPE de la sección de la losa.
+    Sin dato -> shell completo (una losa dibujada a mano, sin sección de .e2k,
+    se comporta como hasta ahora; importa para los techos inclinados)."""
+    raw = str(slab.get("modelingType", slab.get("modeling_type", "")) or "").strip()
+    if raw and "membrane" in raw.lower():
+        return _SLAB_MEMBRANE_BENDING_MODIFIER
+    return _SLAB_OUT_OF_PLANE_BENDING_MODIFIER
+
+
+def _slab_is_sloped(points: list) -> bool:
+    """True si los vértices no están todos a la misma cota (techo inclinado)."""
+    zs = [float(p.get("z", 0) or 0) for p in points]
+    if not zs:
+        return False
+    return (max(zs) - min(zs)) > _SLAB_SLOPE_TOLERANCE_M
+
+
+def _slab_plan_area(points: list) -> float:
+    """Área de la proyección en planta (fórmula del zapatero). Sirve para
+    descartar paneles VERTICALES que llegaron marcados como losa (esos son
+    muros: su proyección en planta es ~0 y el mallado bilineal degeneraría)."""
+    n = len(points)
+    if n < 3:
+        return 0.0
+    total = 0.0
+    for i in range(n):
+        x1 = float(points[i].get("x", 0) or 0)
+        y1 = float(points[i].get("y", 0) or 0)
+        x2 = float(points[(i + 1) % n].get("x", 0) or 0)
+        y2 = float(points[(i + 1) % n].get("y", 0) or 0)
+        total += x1 * y2 - x2 * y1
+    return abs(total) * 0.5
+
+
+def _point_in_polygon_2d(x: float, y: float, poly: list) -> bool:
+    """Ray casting sobre la proyección en planta."""
+    inside = False
+    n = len(poly)
+    j = n - 1
+    for i in range(n):
+        xi = float(poly[i].get("x", 0) or 0)
+        yi = float(poly[i].get("y", 0) or 0)
+        xj = float(poly[j].get("x", 0) or 0)
+        yj = float(poly[j].get("y", 0) or 0)
+        if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi + 1e-30) + xi):
+            inside = not inside
+        j = i
+    return inside
+
+
+def _slab_polygon_to_quads(points: list) -> list:
+    """
+    Convierte un polígono de N vértices (N != 4) en N cuadriláteros:
+    centroide + punto medio de cada lado. Es la subdivisión estándar de una
+    cara en cuadriláteros (misma idea que Catmull-Clark) y da cuads válidos
+    para cualquier polígono CONVEXO, incluido el triángulo (→ 3 cuads).
+
+    Cada cuad va (medio del lado anterior → vértice → medio del lado siguiente
+    → centroide), que recorre el perímetro sin cruces.
+
+    Devuelve [] si el centroide cae FUERA de la planta del polígono (cóncavo
+    marcado): ahí esta subdivisión produciría cuads invertidos y es mejor
+    saltar la losa que meter elementos degenerados en el modelo.
+    """
+    n = len(points)
+    if n < 3:
+        return []
+
+    cx = sum(float(p.get("x", 0) or 0) for p in points) / n
+    cy = sum(float(p.get("y", 0) or 0) for p in points) / n
+    cz = sum(float(p.get("z", 0) or 0) for p in points) / n
+
+    if not _point_in_polygon_2d(cx, cy, points):
+        return []
+
+    centroid = {"x": cx, "y": cy, "z": cz}
+
+    def _mid(a, b):
+        return {
+            "x": (float(a.get("x", 0) or 0) + float(b.get("x", 0) or 0)) * 0.5,
+            "y": (float(a.get("y", 0) or 0) + float(b.get("y", 0) or 0)) * 0.5,
+            "z": (float(a.get("z", 0) or 0) + float(b.get("z", 0) or 0)) * 0.5,
+        }
+
+    mids = [_mid(points[i], points[(i + 1) % n]) for i in range(n)]
+
+    quads = []
+    for i in range(n):
+        quads.append((mids[i - 1], points[i], mids[i], centroid))
+    return quads
+
+
+def _slab_should_mesh_as_shell(slab: dict, mode: str) -> bool:
+    """
+    Decide si una losa se malla como shell.
+
+    El frontend ya manda `meshAsShell` calculado (fuente de verdad única, ver
+    payload.js `_buildSeismicSlabsForPayload`); esto es el respaldo para
+    payloads viejos o armados a mano.
+
+    DEFAULT `mode = "all"` — TODAS las losas, igual que ETABS, que malla cada
+    área del modelo. La flexión fuera del plano que eso agrega se controla por
+    MODELINGTYPE (ver _slab_bending_modifier), no salteando el mallado.
+
+    Antes el default era "sloped" (solo las inclinadas). Se cambió con el
+    payload real de MODULO 1 (2026-08-03): las losas PLANAS son las que
+    conectan al pórtico partes de la estructura que las vigas no conectan —
+    ahí una fila de 5 vigas sin ninguna columna ni apoyo quedaba flotando,
+    dando dos modos de cuerpo rígido (18.4 s y 2.63 s, masa 0) y reventando el
+    análisis estático con matriz singular. Mallándolas, los dos modos
+    desaparecen y el estático converge.
+    `"sloped"` y `"off"` siguen disponibles para experimentar.
+    """
+    explicit = slab.get("meshAsShell", slab.get("mesh_as_shell"))
+    if explicit is not None:
+        return _as_bool(explicit, False)
+
+    if mode == "off":
+        return False
+    if mode == "sloped":
+        return _slab_is_sloped(slab.get("points") or [])
+
+    return True
+
+
+def _build_slab_mesh_plan(
+    data: dict,
+    nodes: list,
+    node_lookup: dict = None,
+    start_node_tag: int = SLAB_NODE_TAG_BASE,
+    start_element_tag: int = SLAB_ELEMENT_TAG_BASE,
+):
+    """
+    Malla las losas de `data["slabs"]` en elementos ShellMITC4.
+
+    Espejo de _build_wall_mesh_plan, con TRES diferencias que importan:
+
+    1. NO APORTA MASA. El peso propio de la losa (y sus cargas de área) YA
+       llega al motor como fuerzas nodales fz desde el frontend
+       (`_buildSeismicAreaLoadsForPayload`), que el Mass Source convierte en
+       masa. Si además la sumáramos acá, la masa de losa se contaría DOS
+       VECES. Los nodos NUEVOS de la malla solo reciben masa placeholder
+       (1e-9) para no dejar GDL sin masa en el eigen — misma técnica que los
+       nodos exclusivos de la malla de muro.
+
+    2. Malla más FINA (ver _SLAB_TARGET_ELEMENT_SIZE_M): acá la acción es la
+       flexión de placa, y un solo elemento por panel no la representa.
+
+    3. Acepta polígonos de CUALQUIER número de vértices. Con 4 se usa la malla
+       bilineal nx×ny (igual que el muro); con 3 o >4 se subdivide primero en
+       cuadriláteros (_slab_polygon_to_quads) y cada uno se malla bilineal.
+
+    El caso INCLINADO no necesita nada especial: la interpolación bilineal es
+    en 3D y las divisiones se calculan con distancias 3D (largo real del
+    faldón, no su proyección en planta), así que la malla sigue la pendiente.
+
+    Devuelve (slab_node_mass, slab_element_specs, slab_node_ids, report).
+    """
+    slabs = data.get("slabs") or data.get("slab_shells") or []
+    slab_node_mass: dict = {}
+    slab_element_specs: list = []
+    slab_node_ids: set = set()
+    report = {
+        "requested": len(slabs) if isinstance(slabs, list) else 0,
+        "meshed": [],
+        "skipped": [],
+        "element_count": 0,
+        "new_node_count": 0,
+    }
+
+    if not slabs or ops is None:
+        return slab_node_mass, slab_element_specs, slab_node_ids, report
+
+    mode = str(
+        data.get("slabShellMode", data.get("slab_shell_mode", "all")) or "all"
+    ).strip().lower()
+    report["mode"] = mode
+
+    def _round_key(x, y, z):
+        return (round(float(x), 3), round(float(y), 3), round(float(z), 3))
+
+    # Reusa el lookup que dejó el mallado de muros (así una losa que apoya
+    # sobre un muro comparte los nodos de su malla en vez de duplicarlos); si
+    # no vino, se arma desde los nodos del payload.
+    if node_lookup is None:
+        node_lookup = {}
+        for n in nodes:
+            node_lookup[_round_key(n.get("x", 0), n.get("y", 0), n.get("z", 0))] = int(n["id"])
+
+    sec_cache: dict = {}
+    next_sec_tag = SLAB_SECTION_TAG_BASE
+    next_new_node_tag = start_node_tag
+    next_eid = start_element_tag
+
+    def _mesh_quad(corners, sec_tag):
+        """Malla bilineal nx×ny de un cuadrilátero (p00, p10, p11, p01)."""
+        nonlocal next_new_node_tag, next_eid
+
+        p00, p10, p11, p01 = [
+            (float(c.get("x", 0) or 0), float(c.get("y", 0) or 0), float(c.get("z", 0) or 0))
+            for c in corners
+        ]
+
+        # Longitudes REALES en 3D (en un faldón inclinado el largo del plano
+        # es mayor que su proyección en planta — usar la proyección dejaría la
+        # malla más gruesa de lo pedido justo en el caso que nos interesa).
+        len_u = max(math.dist(p00, p10), math.dist(p01, p11))
+        len_v = max(math.dist(p00, p01), math.dist(p10, p11))
+
+        if len_u < 1e-4 or len_v < 1e-4:
+            return 0
+
+        nx = max(1, min(_SLAB_MAX_DIVISIONS, round(len_u / _SLAB_TARGET_ELEMENT_SIZE_M)))
+        ny = max(1, min(_SLAB_MAX_DIVISIONS, round(len_v / _SLAB_TARGET_ELEMENT_SIZE_M)))
+
+        grid_tags = []
+        for row in range(ny + 1):
+            v = row / ny
+            row_tags = []
+            for col in range(nx + 1):
+                u = col / nx
+                x = ((1 - u) * (1 - v) * p00[0] + u * (1 - v) * p10[0]
+                     + u * v * p11[0] + (1 - u) * v * p01[0])
+                y = ((1 - u) * (1 - v) * p00[1] + u * (1 - v) * p10[1]
+                     + u * v * p11[1] + (1 - u) * v * p01[1])
+                z = ((1 - u) * (1 - v) * p00[2] + u * (1 - v) * p10[2]
+                     + u * v * p11[2] + (1 - u) * v * p01[2])
+
+                key = _round_key(x, y, z)
+                tag = node_lookup.get(key)
+                if tag is None:
+                    tag = next_new_node_tag
+                    next_new_node_tag += 1
+                    ops.node(tag, x, y, z)
+                    node_lookup[key] = tag
+                    slab_node_ids.add(tag)
+                    # Masa placeholder: sin esto el nodo queda con GDL sin masa
+                    # en el eigen. NO es masa de losa (esa ya viene por cargas
+                    # de área → Mass Source; ver docstring).
+                    acc = slab_node_mass.setdefault(tag, [0.0, 0.0, 0.0])
+                    acc[0] += 1e-9
+                    acc[1] += 1e-9
+
+                row_tags.append(tag)
+            grid_tags.append(row_tags)
+
+        created = 0
+        for row in range(ny):
+            for col in range(nx):
+                n1 = grid_tags[row][col]
+                n2 = grid_tags[row][col + 1]
+                n3 = grid_tags[row + 1][col + 1]
+                n4 = grid_tags[row + 1][col]
+                # Un cuad degenerado (dos esquinas colapsadas en el mismo nodo)
+                # hace fallar a ShellMITC4 — se descarta la celda, no la losa.
+                if len({n1, n2, n3, n4}) < 4:
+                    continue
+                slab_element_specs.append((next_eid, n1, n2, n3, n4, sec_tag))
+                next_eid += 1
+                created += 1
+        return created
+
+    for slab in slabs:
+        slab_id = slab.get("id")
+        points = slab.get("points") or slab.get("corners") or []
+
+        if len(points) < 3:
+            report["skipped"].append({"id": slab_id, "reason": "menos de 3 vértices"})
+            continue
+
+        if not _slab_should_mesh_as_shell(slab, mode):
+            report["skipped"].append(
+                {"id": slab_id, "reason": f"fuera del modo de mallado ({mode})"}
+            )
+            continue
+
+        thickness = float(slab.get("thickness", 0) or 0)
+        if thickness <= 0:
+            report["skipped"].append({"id": slab_id, "reason": "sin espesor (sección no asignada)"})
+            continue
+
+        if _slab_plan_area(points) < 1e-6:
+            report["skipped"].append(
+                {"id": slab_id, "reason": "proyección en planta nula (¿panel vertical?)"}
+            )
+            continue
+
+        material = slab.get("material") or {}
+        E, _ = _normalize_modulus_to_pa(material.get("E", 25e9), 25e9)
+        poisson = float(material.get("poissonRatio", 0.2) or 0.2)
+        if not (0 < poisson < 0.5):
+            poisson = 0.2
+
+        bending = _slab_bending_modifier(slab)
+
+        sec_key = (round(E, -3), round(poisson, 3), round(thickness, 4), round(bending, 4))
+        sec_tag = sec_cache.get(sec_key)
+        if sec_tag is None:
+            sec_tag = next_sec_tag
+            next_sec_tag += 1
+            # rho = 0.0 a propósito: la masa de la losa NO sale del shell.
+            ops.section(
+                "ElasticMembranePlateSection",
+                sec_tag,
+                E,
+                poisson,
+                thickness,
+                0.0,
+                bending,
+            )
+            sec_cache[sec_key] = sec_tag
+
+        if len(points) == 4:
+            quads = [tuple(points)]
+        else:
+            quads = _slab_polygon_to_quads(points)
+            if not quads:
+                report["skipped"].append(
+                    {
+                        "id": slab_id,
+                        "reason": "polígono no convexo (el centroide cae fuera): "
+                                  "divídelo en paneles de 4 vértices",
+                    }
+                )
+                continue
+
+        created = 0
+        for quad in quads:
+            created += _mesh_quad(quad, sec_tag)
+
+        if created == 0:
+            report["skipped"].append({"id": slab_id, "reason": "no se generó ningún elemento"})
+            continue
+
+        report["meshed"].append(
+            {
+                "id": slab_id,
+                "vertices": len(points),
+                "sloped": _slab_is_sloped(points),
+                "thickness_m": thickness,
+                "modeling_type": slab.get("modelingType", slab.get("modeling_type")),
+                "bending_modifier": bending,
+                "elements": created,
+            }
+        )
+        report["element_count"] += created
+
+    report["new_node_count"] = len(slab_node_ids)
+
+    return slab_node_mass, slab_element_specs, slab_node_ids, report
+
+
+def _create_slab_shell_elements(slab_element_specs: list):
+    """Crea los ShellMITC4 planeados por _build_slab_mesh_plan — igual que los
+    de muro, se llama DESPUÉS del loop de elementos frame (ahí ya existen todos
+    los nodos)."""
+    if ops is None:
+        return
+    for eid, n1, n2, n3, n4, sec_tag in slab_element_specs:
+        ops.element("ShellMITC4", eid, n1, n2, n3, n4, sec_tag)
+
+
 def build_model_3d(data: dict):
     """
     Construye el modelo OpenSees 3D (6 DOF/nodo) a partir del payload del CAD.
@@ -1618,8 +2220,22 @@ def build_model_3d(data: dict):
     # ANTES de aplicar masas: si una esquina de muro coincide con un nodo de
     # columna, su masa debe sumarse a la de Mass Source en el mismo ops.mass()
     # (ver docstring de _build_wall_mesh_plan — ops.mass() reemplaza, no suma).
-    wall_node_mass, wall_element_specs, wall_node_ids = _build_wall_mesh_plan(data, nodes)
+    shell_node_lookup: dict = {}
+    wall_node_mass, wall_element_specs, wall_node_ids = _build_wall_mesh_plan(
+        data, nodes, node_lookup_out=shell_node_lookup
+    )
     data["_wall_node_ids"] = sorted(wall_node_ids)
+
+    # ── Losas (malla shell) ─────────────────────────────────
+    # Mismo momento del build que los muros (antes de las masas) y mismo
+    # lookup de nodos, para que una losa que apoya sobre un muro comparta los
+    # nodos de su malla. OJO: la losa NO aporta masa acá — su peso propio ya
+    # viaja como cargas de área (ver docstring de _build_slab_mesh_plan).
+    slab_node_mass, slab_element_specs, slab_node_ids, slab_report = _build_slab_mesh_plan(
+        data, nodes, node_lookup=shell_node_lookup
+    )
+    data["_slab_node_ids"] = sorted(slab_node_ids)
+    data["_slab_shell_report"] = slab_report
 
     # ── Mass Source tipo ETABS ─────────────────────────────
     mass_source_report = _build_mass_source_nodal_masses(
@@ -1694,6 +2310,16 @@ def build_model_3d(data: dict):
         wmx, wmy, wmz = wmass
         if wmx > 0 or wmy > 0 or wmz > 0:
             ops.mass(tag, wmx, wmy, wmz, 1e-9, 1e-9, 1e-9)
+
+    # Ídem para los nodos nuevos de la malla de losas — solo el placeholder
+    # 1e-9 (la masa real de la losa ya entró arriba vía cargas de área).
+    for tag in slab_node_ids:
+        smass = slab_node_mass.get(tag)
+        if not smass:
+            continue
+        smx, smy, smz = smass
+        if smx > 0 or smy > 0 or smz > 0:
+            ops.mass(tag, smx, smy, smz, 1e-9, 1e-9, 1e-9)
 
     data["_effective_mass_report"] = {
         "rows": effective_mass_rows,
@@ -1849,6 +2475,30 @@ def build_model_3d(data: dict):
     # Los nodos de la malla ya existen (creados en _build_wall_mesh_plan,
     # arriba); acá solo se instancian los ShellMITC4.
     _create_wall_shell_elements(wall_element_specs)
+
+    # ── Losas (elementos shell) ─────────────────────────────
+    _create_slab_shell_elements(slab_element_specs)
+
+    # ── Barras SIN sección estructural ────────────────────
+    # El frontend marca las barras cuya sección no aporta A/I: viajan con los
+    # fallbacks de arriba (A=0.01, I=1e-4) y el análisis corre igual, pero son
+    # barras de papel que ablandan todo el modelo sin que nada lo diga. Ver
+    # payload.js (`framesWithoutSection`). MODULO 1, 2026-08-03: 8 columnas así
+    # dejaban T1 en 1.74 s; con sección real, 0.38 s (ETABS 0.44).
+    missing_section = [
+        int(e.get("id", -1))
+        for e in elements
+        if _as_bool(e.get("sectionMissing", e.get("section_missing")), False)
+    ]
+    if missing_section:
+        preview = ", ".join(str(i) for i in missing_section[:10])
+        extra = "…" if len(missing_section) > 10 else ""
+        print(
+            f"⚠️ {len(missing_section)} barra(s) SIN sección estructural asignada "
+            f"(ids {preview}{extra}) — se analizan con propiedades por defecto "
+            f"(A=0.01 m², I=1e-4 m⁴). El modelo saldrá más flexible de lo real."
+        )
+    data["_frames_without_section"] = missing_section
 
     # ── Apoyos ────────────────────────────────────────────
     if supports:

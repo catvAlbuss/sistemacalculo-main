@@ -77,6 +77,14 @@ export const actionsMixin = {
   },
 
   activateDrawMenuAction(action) {
+    // Una sola herramienta de dibujo activa a la vez: al cambiar de
+    // herramienta se descarta la losa 3D en curso. Si no, su polígono a medio
+    // marcar quedaría fantasma en el visor y el clic izquierdo del 3D seguiría
+    // tomado por el dibujo de losa.
+    if (action !== "draw-area-slab" && this.activeDrawTool === "slab") {
+      this.cancelSlabDrawingMode?.({ silent: true });
+    }
+
     switch (action) {
       case "select-object":
         this.clearAllSelections?.();
@@ -150,8 +158,13 @@ export const actionsMixin = {
 
       case "draw-area-slab":
         this.clearAllSelections?.();
+        // Igual que Draw Frame: UNA herramienta que sirve en los dos visores.
+        // En 2D dibuja el AreaDrawingState (planta); en 3D el observable de
+        // Babylon marca vértices sobre nudos reales (mixins/edit/draw-slab-3d.js),
+        // que es lo que permite armar un techo inclinado viendo la pendiente.
+        this.startSlabDrawingMode?.();
         this.setState(this.slabDrawingState);
-        this.showMessage("Modo dibujar losa / área activado");
+        this.showMessage("Modo dibujar losa / área activado. Marque vértices en planta o sobre nudos en 3D.");
         break;
 
       case "draw-area-slab-rectangle": {

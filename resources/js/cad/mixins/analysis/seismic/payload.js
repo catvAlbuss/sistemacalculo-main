@@ -322,6 +322,19 @@ export const seismicPayloadMixin = {
    * elevación es >= z (el nivel en o inmediatamente sobre el nodo). Así todos
    * los nodos intermedios de una armadura (entre el piso N-1 y el nivel de
    * techo N) caen en el piso N, no en pisos ficticios propios.
+   *
+   * Se mandan TAMBIÉN los pisos que quedaron SIN NINGÚN NODO. Parece inútil,
+   * pero el motor los usa como NIVELES para el lumping de masa
+   * (`_lump_mass_to_story_levels`, que reparte tributariamente entre los dos
+   * niveles adyacentes): si falta un nivel intermedio, el tramo tributario se
+   * estira hasta el nivel siguiente y arrastra masa a un piso que no le toca.
+   * Medido con MODULO 1 (.e2k con Base/Story1 3.2/Story2 6.4/Story3 9.8/
+   * Story4 11.9, techo entre 6.6 y 8.7): filtrando los vacíos, el techo
+   * repartía contra Story1 3.2 y dejaba Story1 +25% y Story3 −38% vs ETABS;
+   * mandando los 5 niveles queda −4.5% / −8.4%.
+   * Para las DERIVAS no molestan: `_group_nodes_by_story` (solver.py) hace
+   * `continue` sobre los pisos sin nodos, así que no aparecen en las tablas —
+   * igual que ETABS, que los lista con masa 0.
    */
   _buildSeismicStoriesForPayload(nodeList = [], tolerance = 0.05) {
     const sorted = (Array.isArray(this.stories) ? this.stories : [])
@@ -355,14 +368,12 @@ export const seismicPayloadMixin = {
       buckets[idx].nodeIds.push(id);
     });
 
-    return buckets
-      .map((b) => ({
-        name: b.name,
-        elevation: b.elevation,
-        z: b.elevation,
-        nodeIds: [...new Set(b.nodeIds)].sort((a, c) => a - c),
-      }))
-      .filter((b) => b.nodeIds.length > 0);
+    return buckets.map((b) => ({
+      name: b.name,
+      elevation: b.elevation,
+      z: b.elevation,
+      nodeIds: [...new Set(b.nodeIds)].sort((a, c) => a - c),
+    }));
   },
 
   /**
@@ -723,8 +734,16 @@ export const seismicPayloadMixin = {
       unit_weight: unitWeight,
       unitWeightNPerM3: unitWeight,
 
+      // Tipo de material (Steel / Concrete / ...) — el import lo guarda en
+      // materialProperties.materials[].designType. El motor lo necesita para
+      // tratar un techo METÁLICO como solo masa (ver steelRoofMassOnly en
+      // inputs.py); antes solo viajaba el nombre y el peso específico, así que
+      // no había forma de distinguir acero de concreto del lado del motor.
+      designType: material?.designType || material?.type || null,
+
       material: {
         name: materialName,
+        designType: material?.designType || material?.type || null,
         unitWeight,
         unit_weight: unitWeight,
         unitWeightNPerM3: unitWeight,
@@ -1112,6 +1131,179 @@ export const seismicPayloadMixin = {
         };
       })
       .filter((w) => w.thickness > 0);
+  },
+
+  // ─── Losas como shell (ShellMITC4) ────────────────────────────────────────
+
+  // Una losa es INCLINADA (techo) si sus vértices no están todos a la misma
+  // cota. 1 cm de tolerancia: muy por encima del ruido de coordenadas y muy
+  // por debajo de cualquier pendiente real. Mismo criterio que
+  // `_slab_is_sloped` en python-backend/seismic/inputs.py.
+  _isSlopedAreaForSeismic(area) {
+    const pts = Array.isArray(area?.points) ? area.points : [];
+    if (pts.length < 3) return false;
+    const zs = pts.map((p) => Number(p.z) || 0);
+    return Math.max(...zs) - Math.min(...zs) > 0.01;
+  },
+
+  /**
+   * Losas → payload `slabs[]` para que el motor las malle con ShellMITC4
+   * (espejo de _buildSeismicWallsForPayload).
+   *
+   * `meshAsShell` se decide ACÁ (fuente de verdad única; el motor solo respeta
+   * lo que llega). DEFAULT `"all"`: se mallan TODAS, igual que ETABS, que
+   * mallea cada área del modelo.
+   *
+   * Antes el default era `"sloped"` (solo las inclinadas), para no meterle
+   * flexión de placa a las losas de piso que ya viven en un diafragma rígido.
+   * Se cambió con datos de MODULO 1 (2026-08-03): las losas planas son las que
+   * conectan al pórtico partes de la estructura que las vigas no conectan —
+   * ahí había una fila de 5 vigas en y=0 SIN ninguna columna ni apoyo, unida
+   * al resto solo por las losas. Sin mallarlas, esa fila quedaba flotando: dos
+   * modos de cuerpo rígido (T=18.4 s y 2.63 s con masa 0) y el análisis
+   * ESTÁTICO reventaba con `factorization failed / matrix singular`. Mallando
+   * todas: los dos modos desaparecen, el estático converge y T1-T3 quedan
+   * 0.368/0.303/0.279 vs 0.441/0.363/0.288 de ETABS.
+   *
+   * `modelingType` viaja para que el motor no le meta flexión de placa a una
+   * losa que ETABS modela como MEMBRANA (ver _resolveSlabModelingTypeForSeismic).
+   *
+   * Una losa SIN sección asignada se omite, igual que un muro sin sección: sin
+   * espesor ni material no hay shell que armar.
+   */
+  _buildSeismicSlabsForPayload(areas = [], mode = "all") {
+    const slabs = (areas || []).filter(
+      (a) =>
+        (a.areaType || a.type || "slab") === "slab" &&
+        a.section &&
+        Array.isArray(a.points) &&
+        a.points.length >= 3,
+    );
+
+    return slabs
+      .map((slab) => {
+        const material = this._resolveWallMaterial(slab.section?.material);
+        const thickness = (Number(slab.section?.thickness) || 0) / 1000; // mm → m
+        const sloped = this._isSlopedAreaForSeismic(slab);
+
+        return {
+          id: Number(slab.id),
+          points: slab.points.map((p) => ({
+            x: Number(p.x) || 0,
+            y: Number(p.y) || 0,
+            z: Number(p.z) || 0,
+          })),
+          thickness,
+          material,
+          sloped,
+          modelingType: this._resolveSlabModelingTypeForSeismic(slab),
+          meshAsShell: mode === "off" ? false : mode === "sloped" ? sloped : true,
+        };
+      })
+      .filter((s) => s.thickness > 0);
+  },
+
+  /**
+   * "Membrane" / "Shell-Thin" / "Shell-Thick" de la sección de la losa — el
+   * `MODELINGTYPE` que trae el .e2k y que el modal de Slab Sections también
+   * deja elegir. El dato vive en la DEFINICIÓN de la sección (this.slabSections),
+   * no en la copia que se guarda en el área (`slab.section`, que solo lleva
+   * name/thickness/material), así que se resuelve por nombre.
+   *
+   * Fallback deliberado a shell completo (no a membrana): una losa dibujada a
+   * mano en el CAD, sin sección importada, sigue comportándose como hasta
+   * ahora — importa sobre todo para un techo inclinado, que se sostiene
+   * justamente por su flexión de placa.
+   */
+  _resolveSlabModelingTypeForSeismic(slab) {
+    const name = slab?.section?.name || slab?.slabSection;
+    if (!name) return "Shell";
+
+    const sections = Array.isArray(this.slabSections) ? this.slabSections : [];
+    const sec = sections.find((s) => String(s?.name) === String(name));
+    const raw = String(sec?.modelingType || "").trim();
+
+    if (!raw) return "Shell";
+    return /membrane/i.test(raw) ? "Membrane" : "Shell";
+  },
+
+  /**
+   * Nudos que NO deben entrar a ningún diafragma rígido: los de las LOSAS
+   * INCLINADAS. Es la mitad "sin constraint" del semi-rígido de ETABS — la
+   * losa inclinada aporta rigidez como shell real, no amarrando sus nudos a un
+   * plano horizontal rígido (que es justo la deformación que un techo a dos
+   * aguas no tiene).
+   *
+   * DOS EXCEPCIONES, ambas por la misma razón: el nudo pertenece al entrepiso,
+   * no al faldón.
+   *  1. Está cubierto por una losa PLANA (el piso sobre el que apoya el
+   *     techo). Sin esto, un techo apoyado en el último piso desconectaría
+   *     todo el perímetro de ese diafragma.
+   *  2. Tiene una asignación EXPLÍCITA de diafragma — del .e2k
+   *     (`POINTASSIGN ... DIAPH "D1"`) o hecha a mano en Assign ▸ Joint ▸
+   *     Diaphragms. Un dato explícito le gana siempre a esta heurística:
+   *     si ETABS dice que ese nudo está en D1, va en D1. En MODULO 5 son los
+   *     4 aleros que bajan hasta la cota del piso 1 (nudos 33, 34, 51, 52).
+   */
+  _slopedSlabFreeNodeIdsForSeismic(nodes = [], tolerance = 1e-3) {
+    const areas = Array.isArray(this.areas) ? this.areas : [];
+    const sloped = areas.filter(
+      (a) =>
+        (a.areaType || a.type || "slab") === "slab" &&
+        Array.isArray(a.points) &&
+        a.points.length >= 3 &&
+        this._isSlopedAreaForSeismic(a),
+    );
+
+    if (!sloped.length) return [];
+
+    const key = (x, y, z) =>
+      `${Math.round(x / tolerance)}|${Math.round(y / tolerance)}|${Math.round(z / tolerance)}`;
+
+    const slopedVertexKeys = new Set();
+    sloped.forEach((a) =>
+      a.points.forEach((p) =>
+        slopedVertexKeys.add(key(Number(p.x) || 0, Number(p.y) || 0, Number(p.z) || 0)),
+      ),
+    );
+
+    // Losas PLANAS: sus nudos conservan el diafragma de su piso.
+    const flat = areas.filter(
+      (a) =>
+        (a.areaType || a.type || "slab") === "slab" &&
+        Array.isArray(a.points) &&
+        a.points.length >= 3 &&
+        !this._isSlopedAreaForSeismic(a),
+    );
+
+    const out = [];
+
+    (nodes || []).forEach((node) => {
+      const id = Number(node.id);
+      if (!Number.isFinite(id)) return;
+
+      const nx = Number(node.position?.x ?? node.x) || 0;
+      const ny = Number(node.position?.y ?? node.y) || 0;
+      const nz = this._getNodeZForSeismic(node);
+
+      if (!slopedVertexKeys.has(key(nx, ny, nz))) return;
+
+      // Asignación explícita (del .e2k o del diálogo) → manda sobre la
+      // heurística. `diaphragmMode: "none"` es lo contrario: sí queda fuera.
+      const mode = node.diaphragmMode || node.assignment?.diaphragmMode || null;
+      if (mode !== "none" && this._getNodeDiaphragmIdForSeismic(node)) return;
+
+      const onFlatSlab = flat.some((a) => {
+        const az = Number(a.z ?? a.points[0]?.z) || 0;
+        if (Math.abs(nz - az) > 0.05) return false;
+        const poly = a.points.map((p) => [Number(p.x) || 0, Number(p.y) || 0]);
+        return this._pointInPolygonInclusive(nx, ny, poly);
+      });
+
+      if (!onFlatSlab) out.push(id);
+    });
+
+    return [...new Set(out)].sort((a, b) => a - b);
   },
 
   // Peso propio de columnas/vigas → carga muerta CM automática (mismo criterio
@@ -1822,7 +2014,9 @@ export const seismicPayloadMixin = {
    * Devuelve { nodes, loads, dropped }. Si no hay nodos sueltos, devuelve los
    * arreglos originales sin tocar (coste ~0 en modelos normales).
    */
-  _dropUnsupportedNodesForSeismic(nodeList = [], elemList = [], supports = [], walls = [], loads = []) {
+  _dropUnsupportedNodesForSeismic(
+    nodeList = [], elemList = [], supports = [], walls = [], loads = [], meshedSlabs = [],
+  ) {
     const connected = new Set();
 
     (elemList || []).forEach((e) => {
@@ -1831,17 +2025,33 @@ export const seismicPayloadMixin = {
     });
     (supports || []).forEach((s) => connected.add(Number(s.node)));
 
+    const key = (x, y, z) => `${Math.round(x * 1000)}|${Math.round(y * 1000)}|${Math.round(z * 1000)}`;
+
     // Esquinas de muro: el motor las empareja por COORDENADA para coser la
     // malla del muro al pórtico (ver _build_wall_mesh_plan), así que esos
     // nodos deben seguir viajando aunque no tengan barra.
     if (walls?.length) {
-      const key = (x, y, z) => `${Math.round(x * 1000)}|${Math.round(y * 1000)}|${Math.round(z * 1000)}`;
       const wallCorners = new Set();
       walls.forEach((w) => (w.corners || []).forEach((c) => {
         wallCorners.add(key(Number(c.x) || 0, Number(c.y) || 0, Number(c.z) || 0));
       }));
       nodeList.forEach((n) => {
         if (wallCorners.has(key(n.x, n.y, n.z))) connected.add(Number(n.id));
+      });
+    }
+
+    // Ídem para los vértices de las losas que SÍ se mallan como shell: desde
+    // que la losa aporta rigidez, su vértice ya no es un nudo huérfano aunque
+    // no tenga viga (caso típico de la cumbrera de un techo inclinado).
+    // Solo las malladas — un vértice de losa plana sin barra sigue siendo
+    // huérfano y debe salir, como hasta ahora.
+    if (meshedSlabs?.length) {
+      const slabVertices = new Set();
+      meshedSlabs.forEach((s) => (s.points || []).forEach((p) => {
+        slabVertices.add(key(Number(p.x) || 0, Number(p.y) || 0, Number(p.z) || 0));
+      }));
+      nodeList.forEach((n) => {
+        if (slabVertices.has(key(n.x, n.y, n.z))) connected.add(Number(n.id));
       });
     }
 
@@ -1892,6 +2102,12 @@ export const seismicPayloadMixin = {
       mass_z: Number(n.mass_z ?? n.mass?.z ?? 0),
     }));
 
+    // Barras cuya sección NO aporta propiedades estructurales: caen a los
+    // fallbacks (A=0.01, I=1e-4) y el análisis corre igual, en silencio, con
+    // una barra de papel. Se juntan acá para avisarlo — ver el bloque de
+    // advertencia después del map.
+    const framesWithoutSection = [];
+
     const elemList = frames.map(f => {
       const sec = f.frameSection || f.section || {};
       // D1: E/G se resuelven desde el MATERIAL referenciado por la sección
@@ -1901,6 +2117,22 @@ export const seismicPayloadMixin = {
       const Iz = Number(sec.Iz || sec.iz || sec.I33 || f.Iz || 1e-4);  // m⁴
       const Iy = Number(sec.Iy || sec.iy || sec.I22 || f.Iy || 1e-4);  // m⁴
       const J = Number(sec.J || sec.torsional || f.J || 1e-6);      // m⁴
+
+      // La sección tiene que aportar AL MENOS un área y una inercia; si no,
+      // lo que viaja son los fallbacks (o la sección global del CAD, que es
+      // una barra de armadura de 1.5 cm²).
+      const sectionHasArea = Number(sec.A || sec.area) > 0;
+      const sectionHasInertia = Number(sec.Iz || sec.iz || sec.I33) > 0;
+      const sectionMissing = !sectionHasArea || !sectionHasInertia;
+      if (sectionMissing) {
+        framesWithoutSection.push({
+          id: Number(f.id),
+          seccion: typeof sec === "object" ? (sec.name ?? null) : String(sec),
+          A,
+          Iz,
+          Iy,
+        });
+      }
 
       // Metadata física (peso unitario, material/sección) que requiere el motor.
       const physical = typeof this._buildFramePhysicalMetadataForSeismic === "function"
@@ -1950,6 +2182,10 @@ export const seismicPayloadMixin = {
         // elemento truss (pin-pin, solo axial) en vez de frame rígido.
         elementType: f.type || f.elementType || null,
 
+        // Bandera para que el motor pueda avisar lo mismo en su consola (ver
+        // build_model_3d): esta barra viaja con propiedades por defecto.
+        ...(sectionMissing ? { sectionMissing: true } : {}),
+
         unitWeight: physical.unitWeight,
         unit_weight: physical.unit_weight,
         unitWeightNPerM3: physical.unitWeightNPerM3,
@@ -1961,6 +2197,30 @@ export const seismicPayloadMixin = {
         section: physical.section,
       };
     });
+
+    // ── Barras SIN sección estructural ───────────────────────────────────
+    // Una barra sin sección asignada no falla: viaja con los fallbacks
+    // (A=0.01 m², I=1e-4 m⁴) o con la sección global del CAD ("25x25-1.5",
+    // que es una barra de armadura de 1.5 cm²), y el análisis corre igual —
+    // pero esa barra es de papel y el modelo entero sale flexible sin que
+    // nada lo diga. Pasó con MODULO 1 (2026-08-03): 8 columnas dibujadas a
+    // mano en el tramo 3.2→6.4 sin sección dejaban T1 en 1.74 s; con sección
+    // real, 0.38 s (ETABS 0.44).
+    if (framesWithoutSection.length) {
+      const ids = framesWithoutSection.map((f) => f.id);
+      console.warn(
+        `⚠️ ${framesWithoutSection.length} barra(s) SIN sección estructural asignada — ` +
+        "viajan con propiedades por defecto y ablandan el modelo. " +
+        "Asignales una sección (Assign ▸ Frame ▸ Frame Sections):",
+        framesWithoutSection,
+      );
+      this.showMessage?.(
+        `⚠️ ${framesWithoutSection.length} barra(s) sin sección asignada ` +
+        `(id ${ids.slice(0, 6).join(", ")}${ids.length > 6 ? "…" : ""}). ` +
+        "El análisis las toma con propiedades por defecto.",
+        "warning",
+      );
+    }
 
     const _soporteToRestraints = (soporte) => {
       if (soporte === "soporteUno") return { ux: 1, uy: 1, uz: 1, rx: 1, ry: 1, rz: 1 };
@@ -1986,9 +2246,45 @@ export const seismicPayloadMixin = {
         };
       });
 
-    const diaphragms = this._buildSeismicDiaphragms(cfg, nodes);
     const massSource = this._buildSeismicMassSourceForPayload();
     const walls = this._buildSeismicWallsForPayload(this.areas || []);
+
+    // ── Losas como shell + su exclusión del diafragma ────────────────────
+    // Las dos mitades del comportamiento SEMI-RÍGIDO de ETABS para un techo
+    // inclinado: rigidez real de shell (slabs[]) y sin constraint de plano
+    // rígido (noDiaphragmNodes). Van juntas a propósito — el shell quedaría
+    // cortocircuitado si sus nudos siguieran amarrados al diafragma.
+    const slabShellMode = String(
+      cfg.slabShellMode ?? this.seismicConfig?.slabShellMode ?? "all",
+    ).toLowerCase();
+    const slabs = this._buildSeismicSlabsForPayload(this.areas || [], slabShellMode);
+    const noDiaphragmNodes =
+      slabShellMode === "off" ? [] : this._slopedSlabFreeNodeIdsForSeismic(nodes);
+
+    const meshedSlabs = slabs.filter((s) => s.meshAsShell);
+    if (meshedSlabs.length || noDiaphragmNodes.length) {
+      console.log("🔎 Losas como shell (ShellMITC4) para el motor:", {
+        modo: slabShellMode,
+        losasEnviadas: slabs.length,
+        losasMalladas: meshedSlabs.length,
+        inclinadas: slabs.filter((s) => s.sloped).length,
+        nudosSinDiafragma: noDiaphragmNodes.length,
+      });
+    }
+
+    const diaphragms = this._buildSeismicDiaphragms(cfg, nodes);
+
+    // Los grupos se arman con TODOS los nudos del piso; acá se sacan los de
+    // losa inclinada (el motor también filtra, esto mantiene coherente lo que
+    // se ve en el payload y en la "araña" del diafragma).
+    if (noDiaphragmNodes.length) {
+      const excluded = new Set(noDiaphragmNodes);
+      diaphragms.forEach((group) => {
+        if (Array.isArray(group?.nodeIds)) {
+          group.nodeIds = group.nodeIds.filter((id) => !excluded.has(Number(id)));
+        }
+      });
+    }
 
     // B10.4 — Cargas normalizadas
     let loads = [];
@@ -2044,7 +2340,7 @@ export const seismicPayloadMixin = {
     // CONECTADO más cercano del mismo nivel (que es además con el que
     // comparten diafragma, así que el reparto lateral es equivalente).
     const { nodes: nodeListConnected, loads: loadsRemapped, dropped: droppedNodeCount } =
-      this._dropUnsupportedNodesForSeismic(nodeList, elemList, supports, walls, loads);
+      this._dropUnsupportedNodesForSeismic(nodeList, elemList, supports, walls, loads, meshedSlabs);
 
     // Los diafragmas se armaron con TODOS los nodos: quitarles los que ya no
     // viajan (el motor los buscaría y no existirían).
@@ -2090,6 +2386,16 @@ export const seismicPayloadMixin = {
       nodes: nodeListConnected,
       elements: elemList,
       walls,
+
+      // Losas que el motor malla con ShellMITC4. `meshAsShell` viene decidido
+      // desde acá (ver _buildSeismicSlabsForPayload); `slabShellMode` va
+      // igual para que el motor pueda reportar bajo qué criterio corrió.
+      slabs,
+      slabShellMode,
+
+      // Nudos excluidos de TODO diafragma rígido (losa inclinada = semi-rígido).
+      noDiaphragmNodes,
+
       supports,
 
       loads: loadsRemapped,
