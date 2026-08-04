@@ -156,6 +156,29 @@ export function buildZapatas2PlotData(calculationResults, comboIndex, options = 
         return buildPolygonTrace(polygon, comboIndex, options);
     });
 
+    // Rango de color explícito (cmin/cmax), en vez de dejar que Plotly lo
+    // auto-calcule: el contenedor se reutiliza entre pestañas de combinación
+    // (Plotly.react() sobre el MISMO div, ver renderZapataPlot), y el
+    // autorango de un coloraxis compartido puede arrastrar estado de la
+    // combinación anterior o no eecalcularse igual en cada combo — eso hacía
+    // que un mismo color no representara la misma presión entre polígonos.
+    // Fijarlo a mano con el mínimo/máximo real de ESTA combinación garantiza
+    // que los colores sean comparables entre todos los polígonos mostrados.
+    const allZValues = traces.flatMap((trace) => trace.marker.color).filter(Number.isFinite);
+    let cmin = allZValues.length ? Math.min(...allZValues) : undefined;
+    let cmax = allZValues.length ? Math.max(...allZValues) : undefined;
+
+    // Rango plano (todos los polígonos con el mismo valor, p.ej. sin
+    // excentricidad de momento): cmin === cmax deja a Plotly normalizando
+    // (v-cmin)/(cmax-cmin) = 0/0, que cada traza resuelve distinto — incluso
+    // con el MISMO valor exacto, salían en colores distintos. Se ensancha un
+    // poco el rango para que todas las trazas caigan en el mismo color.
+    if (cmin !== undefined && cmax !== undefined && cmin === cmax) {
+        const pad = Math.max(Math.abs(cmin) * 1e-3, 1e-6);
+        cmin -= pad;
+        cmax += pad;
+    }
+
     const markers = buildColumnMarkers(columns);
 
     const layout = {
@@ -188,6 +211,8 @@ export function buildZapatas2PlotData(calculationResults, comboIndex, options = 
         },
         coloraxis: {
             colorscale: matlabColorScale,
+            cmin,
+            cmax,
             colorbar: {
                 title: {
                     text: "Presión admisible",

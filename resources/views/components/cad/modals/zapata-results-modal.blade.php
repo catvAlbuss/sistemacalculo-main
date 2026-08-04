@@ -73,13 +73,21 @@
 
                     <div class="grid gap-3" style="grid-template-columns: minmax(0,1fr) minmax(0,1fr)">
                         <div>
-                            <p class="text-[11px] font-semibold text-gray-300 mb-1">Propiedades</p>
+                            <p class="text-[11px] font-semibold text-gray-300 mb-1">Propiedades geométricas del polígono</p>
+                            <p class="text-[10px] text-gray-500 mb-1">Solo geometría de la forma dibujada — no son cargas ni momentos de la estructura.</p>
                             <table class="w-full text-xs">
                                 <tbody>
-                                    <template x-for="key in ['P','A','IX','IY','XC','YC','MX','MY','IXY']" :key="key">
+                                    <template x-for="row in [
+                                        { key: 'A', label: 'Área (m²)' },
+                                        { key: 'P', label: 'Perímetro (m)' },
+                                        { key: 'IX', label: 'Momento de inercia Ix' },
+                                        { key: 'IY', label: 'Momento de inercia Iy' },
+                                        { key: 'XC', label: 'Centroide X' },
+                                        { key: 'YC', label: 'Centroide Y' },
+                                    ]" :key="row.key">
                                         <tr class="border-t border-gray-700">
-                                            <td class="py-1 pr-2 text-gray-400" x-text="key"></td>
-                                            <td class="py-1" x-text="formatNumber(polygon.properties?.[key])"></td>
+                                            <td class="py-1 pr-2 text-gray-400" x-text="row.label"></td>
+                                            <td class="py-1" x-text="formatNumber(polygon.properties?.[row.key])"></td>
                                         </tr>
                                     </template>
                                 </tbody>
