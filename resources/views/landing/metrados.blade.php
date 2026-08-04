@@ -12,10 +12,10 @@
           Calculamos con precisión la cantidad de materiales necesarios para tu proyecto, ayudándote a gestionar tu
           presupuesto de manera eficiente y evitando desperdicios. Nuestros metrados son la clave para proyectos
           estructurales bien planificados.</p>
-        <img src="{{ Vite::asset('resources/img/desingra/Elaboración_Metrados_Estructurales.png') }}" alt="Metrados">
+        <img src="{{ Vite::asset('resources/img/desingra/Elaboraci.png') }}" alt="Metrados">
       </div>
       <div class="hidden rounded bg-white p-6 shadow md:block">
-        <img src="{{ Vite::asset('resources/img/desingra/Elaboración_Metrados_Estructurales.png') }}" alt="Metrados">
+        <img src="{{ Vite::asset('resources/img/desingra/Elaboraci.png') }}" alt="Metrados">
       </div>
       <!-- First row, second column -->
       <div class="rounded bg-white p-6 shadow">

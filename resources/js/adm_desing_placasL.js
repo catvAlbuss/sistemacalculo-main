@@ -1019,6 +1019,12 @@ document.addEventListener('DOMContentLoaded', function () {
         formDataObject
       );
       diagramI(filtroTS2);
+      
+      var diagramsCard = document.getElementById('diagramsCard');
+      if (diagramsCard) {
+        diagramsCard.style.display = filtroTS2 && filtroTS2.length > 0 ? 'block' : 'none';
+      }
+      
       document.getElementById('content2').classList.add('d-none');
       document.getElementById('content3').classList.add('d-none');
       document.getElementById('content4').classList.remove('d-none');

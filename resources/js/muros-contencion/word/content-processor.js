@@ -369,34 +369,47 @@ export class ContentProcessor {
 
     // Crear imagen
     async createImage(item) {
-        const { Paragraph, TextRun, ImageRun, AlignmentType } = this.docx;
+        const { Paragraph, ImageRun } = this.docx;
+        const imageUrl = this.normalizeStaticImageSrc(item.src);
 
-        let imageUrl = item.src;
+        try {
+            const response = await fetch(imageUrl);
+            if (!response.ok) {
+                throw new Error(`No se pudo cargar la imagen: ${imageUrl}`);
+            }
+            const imageBuffer = await response.arrayBuffer();
 
-        // Si es ruta interna (no empieza con http ni data:)
-        if (!/^https?:|^data:/.test(item.src)) {
-            imageUrl = new URL(item.src, import.meta.url).href;
+            return new Paragraph({
+                children: [
+                    new ImageRun({
+                        data: imageBuffer,
+                        transformation: {
+                            width: item.width || 1080,
+                            height: item.height || 233
+                        }
+                    })
+                ],
+                alignment: this.getAlignment(item.alignment || "CENTER"),
+                spacing: { before: 200, after: 200 }
+            });
+        } catch (error) {
+            console.error('Error cargando imagen estatica:', error);
+            return this.createErrorParagraph(`Error: ${error.message}`);
+        }
+    }
+
+    normalizeStaticImageSrc(src) {
+        if (!src || src.startsWith('data:') || src.startsWith('blob:') || /^https?:\/\//.test(src)) {
+            return src;
         }
 
-        const response = await fetch(imageUrl);
-        if (!response.ok) {
-            throw new Error(`No se pudo cargar la imagen: ${imageUrl}`);
-        }
-        const imageBuffer = await response.arrayBuffer();
+        const normalized = src.replace(/^(\/)?public\//, '/');
 
-        return new Paragraph({
-            children: [
-                new ImageRun({
-                    data: imageBuffer,
-                    transformation: {
-                        width: item.width || 1080,
-                        height: item.height || 233
-                    }
-                })
-            ],
-            alignment: this.getAlignment(item.alignment || "CENTER"),
-            spacing: { before: 200, after: 200 }
-        });
+        if (normalized.startsWith('/')) {
+            return `${window.location.origin}${normalized}`;
+        }
+
+        return new URL(normalized, import.meta.url).href;
     }
 
     // Procesar contenido dinámico

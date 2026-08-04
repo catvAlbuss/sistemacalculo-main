@@ -2,8 +2,7 @@
 @props(['label', 'links'])
 
 @php
-  // $isActive = array_any($links, fn($link) => request()->routeIs($link['url']));
-  $isActive = count(array_filter($links, fn($link) => request()->routeIs($link['url']))) > 0;
+  $isActive = count(array_filter($links, fn($link) => request()->is(ltrim($link['url'], '/')))) > 0;
 @endphp
 
 <div class="relative" x-data="{ openSubmenu: false }" @click.outside="openSubmenu = false">
@@ -26,7 +25,7 @@
   <div class="absolute left-full top-0 mt-2 w-40 rounded-md bg-white shadow-lg sm:w-48 dark:bg-gray-700"
     x-show="openSubmenu">
     @foreach ($links as $link)
-      <x-dropdown-link :href="url(route($link['url']))" :active="request()->routeIs($link['url'])">
+      <x-dropdown-link :href="$link['url']" :active="request()->is(ltrim($link['url'], '/'))">
         {{ $link['label'] }}
       </x-dropdown-link>
     @endforeach

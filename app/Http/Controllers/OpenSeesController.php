@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class OpenSeesController extends Controller
@@ -28,21 +27,21 @@ class OpenSeesController extends Controller
         ];
 
         try {
-            // Llamar al servicio Python
-            $response = Http::timeout(30)->post('http://localhost:5001/api/analyze', $modelData);
-            
-            if ($response->successful()) {
-                return response()->json($response->json());
+            // Llamar al motor Python (HTTP en Windows local, subproceso CLI en Linux/producción)
+            [$status, $body] = PythonEngineController::run('analyze', $modelData);
+
+            if ($status >= 200 && $status < 300) {
+                return response($body, $status)->header('Content-Type', 'application/json');
             }
-            
+
             return response()->json([
                 'success' => false,
                 'error' => 'Error en el servicio de cálculo'
             ], 500);
-            
+
         } catch (\Exception $e) {
             Log::error('OpenSeesPy error: ' . $e->getMessage());
-            
+
             // Fallback: usar Octave si OpenSeesPy no está disponible
             return $this->fallbackToOctave($request);
         }

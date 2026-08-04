@@ -1,8 +1,10 @@
+<!-- HOLA -->
 {{-- resources/views/components/cad/modals/new-model.blade.php --}}
 <div x-data="newModelModal()"
+    x-init="init()"
     x-show="open"
     x-cloak
-    @keydown.escape.window="closeModal()"
+    @keydown.escape.window="forceCloseModal()"
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
     style="display: none;">
 
@@ -10,7 +12,9 @@
         <!-- Header -->
         <div class="flex justify-between items-center p-4 border-b border-gray-700">
             <h2 class="text-lg font-semibold text-white">Definición de Modelo</h2>
-            <button @click="closeModal()" class="text-gray-400 hover:text-white">
+            <button type="button"
+                @click.prevent.stop="forceCloseModal()"
+                class="text-gray-400 hover:text-white">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -48,6 +52,22 @@
                                     class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm">
                             </div>
                         </div>
+
+                        {{-- Luces NO uniformes (opcional). Si se llenan, tienen prioridad
+                             sobre el spacing uniforme. Ej: 6,6,5 --}}
+                        <div class="grid grid-cols-2 gap-3 mt-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Luces X no uniformes (m) — opcional</label>
+                                <input type="text" x-model="gridXSpacings" placeholder="ej: 6,6,5"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Luces Y no uniformes (m) — opcional</label>
+                                <input type="text" x-model="gridYSpacings" placeholder="ej: 6,5,3"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm">
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-gray-500 mt-1">Si llenas las luces no uniformes, se ignora el spacing uniforme y el nº de ejes se calcula solo.</p>
                     </div>
 
                     <!-- Grid Labels Preview -->
@@ -109,16 +129,17 @@
         </div>
 
         <!-- Footer -->
-        <div class="flex justify-end gap-2 p-4 border-t border-gray-700">
-            <button @click="closeModal()"
-                class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded transition">
-                Cancel
-            </button>
-            <button @click="createModel()"
-                class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded transition">
-                OK
-            </button>
-        </div>
+        <button type="button"
+            @click.prevent.stop="forceCloseModal()"
+            class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded transition">
+            Cancel
+        </button>
+
+        <button type="button"
+            @click.prevent.stop="createModel()"
+            class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded transition">
+            OK
+        </button>
     </div>
 </div>
 
@@ -130,12 +151,18 @@
                 window.addEventListener('open-new-model-modal', () => {
                     this.openModal();
                 });
+
+                window.addEventListener('close-all-new-model-modals', () => {
+                    this.closeModal();
+                });
             },
             open: false,
             gridXCount: 3,
             gridYCount: 3,
-            gridXSpacing: 3.0,
-            gridYSpacing: 3.0,
+            gridXSpacing: 5.0,
+            gridYSpacing: 5.0,
+            gridXSpacings: '',
+            gridYSpacings: '',
             storyCount: 3,
             storyHeight: 3.0,
             selectedTemplate: 'grid-only',
@@ -154,8 +181,10 @@
             openModal() {
                 this.gridXCount = 3;
                 this.gridYCount = 3;
-                this.gridXSpacing = 3.0;
-                this.gridYSpacing = 3.0;
+                this.gridXSpacing = 5.0;
+                this.gridYSpacing = 5.0;
+                this.gridXSpacings = '';
+                this.gridYSpacings = '';
                 this.storyCount = 3;
                 this.storyHeight = 3.0;
                 this.selectedTemplate = 'grid-only';
@@ -166,19 +195,70 @@
                 this.open = false;
             },
 
-            createModel() {
-                if (window.cadSystem && window.cadSystem.createModelFromDialog) {
-                    window.cadSystem.createModelFromDialog({
-                        gridXCount: this.gridXCount,
-                        gridYCount: this.gridYCount,
-                        gridXSpacing: this.gridXSpacing,
-                        gridYSpacing: this.gridYSpacing,
-                        storyCount: this.storyCount,
-                        storyHeight: this.storyHeight,
-                        selectedTemplate: this.selectedTemplate
-                    });
-                }
+            forceCloseModal() {
+                // Cierra esta instancia
                 this.open = false;
+
+                // Cierra cualquier otra instancia duplicada del modal
+                window.dispatchEvent(new CustomEvent('close-all-new-model-modals'));
+
+                this.$nextTick(() => {
+                    this.open = false;
+                });
+            },
+
+            createModel() {
+                // Parsea "6,6,5" → [6,6,5] (ignora vacíos/negativos). Vacío → null.
+                const parseSpacings = (txt) => {
+                    if (!txt) return null;
+                    const arr = String(txt)
+                        .split(/[,;\s]+/)
+                        .map((v) => parseFloat(v))
+                        .filter((v) => Number.isFinite(v) && v > 0);
+                    return arr.length ? arr : null;
+                };
+                const xSpacings = parseSpacings(this.gridXSpacings);
+                const ySpacings = parseSpacings(this.gridYSpacings);
+
+                const params = {
+                    // Si hay luces no uniformes, el nº de ejes = nº de luces + 1.
+                    gridXCount: xSpacings ? xSpacings.length + 1 : Number(this.gridXCount || 3),
+                    gridYCount: ySpacings ? ySpacings.length + 1 : Number(this.gridYCount || 3),
+                    gridXSpacing: Number(this.gridXSpacing || 5),
+                    gridYSpacing: Number(this.gridYSpacing || 5),
+                    gridXSpacings: xSpacings, // array o null
+                    gridYSpacings: ySpacings, // array o null
+                    storyCount: Number(this.storyCount || 3),
+                    storyHeight: Number(this.storyHeight || 3),
+                    selectedTemplate: this.selectedTemplate || 'grid-only'
+                };
+
+                // Cerrar inmediatamente el modal con el primer click
+                this.open = false;
+
+                // Por si existe otro modal duplicado escuchando el mismo evento
+                window.dispatchEvent(new CustomEvent('close-all-new-model-modals'));
+
+                setTimeout(() => {
+                    try {
+                        if (window.cadSystem && typeof window.cadSystem.createModelFromDialog === 'function') {
+                            window.cadSystem.createModelFromDialog(params);
+                        } else {
+                            console.warn('No se encontró cadSystem.createModelFromDialog');
+                        }
+                    } catch (error) {
+                        console.error('Error al crear el nuevo modelo:', error);
+
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error al crear modelo',
+                                text: 'No se pudo crear el nuevo modelo. Revisa la consola.',
+                                confirmButtonText: 'Entendido'
+                            });
+                        }
+                    }
+                }, 50);
             }
         };
     }

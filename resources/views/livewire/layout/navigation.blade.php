@@ -37,19 +37,45 @@ $logout = function (Logout $logout) {
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" {{-- wire:navigate --}}>
                         {{ __('Inicio') }}
                     </x-nav-link>
-
-                    <x-nav-link :href="route('calculadora.asistente.memoria-calculo')"
-                        :active="request()->routeIs('calculadora.asistente.memoria-calculo')">
-                        {{ __('Memoria Calculo') }}
-                    </x-nav-link>
                 </div>
                 @php
                     $user = auth()->user();
+                    $memoryRoutes = [
+                        'calculadora.asistente.memoria-calculo',
+                        'calculadora.asistente.memoria-descriptiva*',
+                    ];
+                    $reviewerRoutes = [
+                        'software.anclaje-v1',
+                        'software.base-dinamica-v1',
+                        'software.estribo-columna-placa-v1',
+                        'software.estribo-placa-v1',
+                        'software.predim-viga-v1',
+                        'software.verificacion-viga-v1',
+                        'calculadora.estudiante.cav2.hoja2',
+                    ];
+                    $designerRoutes = [
+                        'software.suelos.*',
+                        'software.aligerados-v1',
+                        'software.aligerados-v2',
+                        'software.cimentacion-v1',
+                        'software.cimentacion-v2',
+                        'software.analisis-estructural-de-armaduras',
+                        'software.etabs2',
+                        'software.predimv2',
+                        'calculadora.estudiante.arco_techo',
+                    ];
+                    $isMemoryActive = request()->routeIs($memoryRoutes);
+                    $isReviewerActive = request()->routeIs($reviewerRoutes);
+                    $isDesignerActive = request()->routeIs($designerRoutes);
+                    $isStudentActive = request()->routeIs('calculadora.estudiante.*')
+                        && !request()->routeIs(['calculadora.estudiante.arco_techo', 'calculadora.estudiante.cav2.hoja2']);
+                    $isAssistantActive = request()->routeIs('calculadora.asistente.*') && ! $isMemoryActive;
+                    $canManagePlans = $user?->hasRole(['root', 'gerencia']) ?? false;
                 @endphp
 
-                @if ($user->hasRole(['root', 'gerencia']))
+                @if ($canManagePlans)
                     <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                        <x-dropdown-nav-item name="{{ __('Planes/User') }}" :active="request()->routeIs('suscripciones.*')">
+                        <x-dropdown-nav-item name="{{ __('Planes') }}" :active="request()->routeIs(['planUser.*', 'suscripciones.*'])">
                             <x-nav-link :href="route('planUser.index')" :active="request()->routeIs('planUser.index')">
                                 {{ __('Gestion de Usuario') }}
                             </x-nav-link>
@@ -61,73 +87,94 @@ $logout = function (Logout $logout) {
                 @endif
 
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-dropdown-nav-item name="{{ __('Estudiante') }}" :active="request()->routeIs('calculadora.estudiante.*')">
-                        
-                        <x-dropdown-sub label="{{ __('Concreto Armado') }}" :links="[
-                            [
-                                'url' => 'calculadora.estudiante.cav2.metrados',
-                                'label' => 'Metrados',
-                            ],
-                            [
-                                'url' => 'calculadora.estudiante.cav2.escaleras',
-                                'label' => 'Escaleras',
-                            ],
-                            [
-                                'url' => 'calculadora.estudiante.cav2.zapatas',
-                                'label' => 'Zapatas',
-                            ],
-                            [
-                                'url' => 'calculadora.estudiante.cav2.combinacion-de-cargas',
-                                'label' => 'Combinacion de Cargas',
-                            ],
-                            [
-                                'url' => 'calculadora.estudiante.cav2.viguetas',
-                                'label' => 'Viguetas',
-                            ],
-                            [
-                                'url' => 'calculadora.estudiante.cav2.voladitos',
-                                'label' => 'Voladitos',
-                            ],
-                            [
-                                'url' => 'calculadora.estudiante.cav2.verificacion-de-deflexiones',
-                                'label' => 'Verificacion de Deflexiones',
-                            ],
-                            [
-                                'url' => 'calculadora.estudiante.cav2.aligerados',
-                                'label' => 'Aligerados',
-                            ],
-                            [
-                                'url' => 'calculadora.estudiante.cav2.distribucion-del-acero',
-                                'label' => 'Distribución del Acero',
-                            ],
-                            [
-                                'url' => 'calculadora.estudiante.cav2.vigas-continuas',
-                                'label' => 'Vigas Continuas',
-                            ],
-
-                        ]"></x-dropdown-sub>
+                    <x-dropdown-nav-item name="{{ __('Memoria') }}" :active="$isMemoryActive">
+                        <x-dropdown-link :href="route('calculadora.asistente.memoria-calculo')" :active="request()->routeIs('calculadora.asistente.memoria-calculo')">
+                            {{ __('Memoria Calculo') }}
+                        </x-dropdown-link>
+                        <x-dropdown-link :href="route('calculadora.asistente.memoria-descriptiva')" :active="request()->routeIs('calculadora.asistente.memoria-descriptiva*')">
+                            {{ __('Memoria Descriptiva') }}
+                        </x-dropdown-link>
                     </x-dropdown-nav-item>
                 </div>
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-dropdown-nav-item name="{{ __('Asistente') }}" :active="request()->routeIs('calculadora.asistente.*')">
-                        <x-dropdown-sub label="{{ __('Vigas') }}" :links="[
-                            ['url' => 'calculadora.asistente.vigas', 'label' => 'Diseño de Vigas'],
-                            ['url' => 'calculadora.asistente.vigas-general', 'label' => 'Diseño de Vigas General'],
-                        ]"></x-dropdown-sub>
-                        <x-dropdown-sub label="{{ __('Losas') }}" :links="[
-                            ['url' => 'calculadora.asistente.losas-macizas', 'label' => 'Diseño de Losas Macizas'],
+                    <x-dropdown-nav-item name="{{ __('Estudiante') }}" :active="$isStudentActive">
+                        <x-dropdown-sub label="{{ __('Concreto Armado') }}" :links="[
                             [
-                                'url' => 'calculadora.asistente.losas-aligeradas',
+                                'url' => route('calculadora.estudiante.cav2.metrados'),
+                                'label' => 'Metrados',
+                            ],
+                            [
+                                'url' => route('calculadora.estudiante.cav2.escaleras'),
+                                'label' => 'Escaleras',
+                            ],
+                            [
+                                'url' => route('calculadora.estudiante.cav2.zapatas'),
+                                'label' => 'Zapatas',
+                            ],
+                            [
+                                'url' => route('calculadora.estudiante.cav2.combinacion-de-cargas'),
+                                'label' => 'Combinacion de Cargas',
+                            ],
+                            [
+                                'url' => route('calculadora.estudiante.cav2.viguetas'),
+                                'label' => 'Viguetas',
+                            ],
+                            [
+                                'url' => route('calculadora.estudiante.cav2.voladitos'),
+                                'label' => 'Voladitos',
+                            ],
+                            [
+                                'url' => route('calculadora.estudiante.cav2.verificacion-de-deflexiones'),
+                                'label' => 'Verificacion de Deflexiones',
+                            ],
+                            [
+                                'url' => route('calculadora.estudiante.cav2.aligerados'),
+                                'label' => 'Aligerados',
+                            ],
+                            [
+                                'url' => route('calculadora.estudiante.cav2.distribucion-del-acero'),
+                                'label' => 'Distribución del Acero',
+                            ],
+                             [
+                                 'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
+                                 'label' => 'Vigas Continuas',
+                             ],
+                             [
+                                 'url' => route('calculadora.estudiante.cav2.viga-t'),
+                                 'label' => 'Viga T',
+                             ],
+                         ]"></x-dropdown-sub>
+                    </x-dropdown-nav-item>
+                </div>
+                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                    <x-dropdown-nav-item name="{{ __('Asistente') }}" :active="$isAssistantActive">
+                        <x-dropdown-sub label="{{ __('Vigas') }}" :links="[
+                            ['url' => route('calculadora.asistente.vigas'), 'label' => 'Diseño de Vigas'],
+                            [
+                                'url' => route('calculadora.asistente.vigas-general'),
+                                'label' => 'Diseño de Vigas General',
+                            ],
+                        ]"></x-dropdown-sub>
+                        <x-dropdown-link :href="route('calculadora.asistente.escaleras')" :active="request()->routeIs('calculadora.asistente.escaleras')" {{-- wire:navigate --}}>
+                            {{ __('Escaleras') }}
+                        </x-dropdown-link>
+                        <x-dropdown-sub label="{{ __('Losas') }}" :links="[
+                            [
+                                'url' => route('calculadora.asistente.losas-macizas'),
+                                'label' => 'Diseño de Losas Macizas',
+                            ],
+                            [
+                                'url' => route('calculadora.asistente.losas-aligeradas'),
                                 'label' => 'Diseño de Losas Aligeradas',
                             ],
                         ]"></x-dropdown-sub>
                         <x-dropdown-sub label="{{ __('Muros') }}" :links="[
                             [
-                                'url' => 'calculadora.asistente.muros-de-contencion',
+                                'url' => route('calculadora.asistente.muros-de-contencion'),
                                 'label' => 'Diseño de Muros de Contención',
                             ],
                             [
-                                'url' => 'calculadora.asistente.muros-de-albañieria',
+                                'url' => route('calculadora.asistente.muros-de-albanieria'),
                                 'label' => 'Diseño de Muros de Albañieria',
                             ],
                         ]"></x-dropdown-sub>
@@ -136,31 +183,35 @@ $logout = function (Logout $logout) {
                         </x-dropdown-link>
                         <x-dropdown-sub label="{{ __('Columnas') }}" :links="[
                             [
-                                'url' => 'calculadora.asistente.columna-de-acero',
+                                'url' => route('calculadora.asistente.columna-de-acero'),
                                 'label' => 'Diseño de Columnas de Acero',
                             ],
                             [
-                                'url' => 'calculadora.asistente.columna',
+                                'url' => route('calculadora.asistente.columna'),
                                 'label' => 'Diseño de Columnas',
+                            ],
+                            [
+                                'url' => route('calculadora.asistente.columna-ii'),
+                                'label' => 'Diseño de Columnas II',
                             ],
                         ]"></x-dropdown-sub>
                         <x-dropdown-sub label="{{ __('Zapatas') }}" :links="[
                             [
-                                'url' => 'calculadora.asistente.zapata-combinada',
+                                'url' => route('calculadora.asistente.zapata-combinada'),
                                 'label' => 'Diseño de Zapata Combinada',
                             ],
                             [
-                                'url' => 'calculadora.asistente.zapata-conectada',
+                                'url' => route('calculadora.asistente.zapata-conectada'),
                                 'label' => 'Diseño de Zapata Conectada',
                             ],
                             [
-                                'url' => 'calculadora.asistente.zapata-general',
+                                'url' => route('calculadora.asistente.zapata-general'),
                                 'label' => 'Diseño de Zapata General',
                             ],
                         ]"></x-dropdown-sub>
                         <x-dropdown-sub label="{{ __('Placas') }}" :links="[
                             [
-                                'url' => 'calculadora.asistente.placas-L',
+                                'url' => route('calculadora.asistente.placas-L'),
                                 'label' => 'Diseño de Placas L',
                             ],
                         ]"></x-dropdown-sub>
@@ -170,55 +221,68 @@ $logout = function (Logout $logout) {
                         <x-dropdown-link :href="route('calculadora.asistente.irregularidades')" :active="request()->routeIs('calculadora.asistente.irregularidades')" {{-- wire:navigate --}}>
                             {{ __('Irregularidades') }}
                         </x-dropdown-link>
+                        <x-dropdown-link :href="route('calculadora.asistente.espectro-sismico')" :active="request()->routeIs('calculadora.asistente.espectro-sismico')" {{-- wire:navigate --}}>
+                            {{ __('Epectro Simico') }}
+                        </x-dropdown-link>
                         <x-dropdown-sub label="{{ __('Diseño En Madera') }}" :links="[
-                            ['url' => 'calculadora.asistente.diseño-en-madera.correas', 'label' => 'Diseño de Correas'],
                             [
-                                'url' => 'calculadora.asistente.diseño-en-madera.flexo-compresion',
+                                'url' => route('calculadora.asistente.diseno-en-madera.correas'),
+                                'label' => 'Diseño de Correas',
+                            ],
+                            [
+                                'url' => route('calculadora.asistente.diseno-en-madera.flexo-compresion'),
                                 'label' => 'Flexocompresion',
                             ],
                             [
-                                'url' => 'calculadora.asistente.diseño-en-madera.compresion',
+                                'url' => route('calculadora.asistente.diseno-en-madera.compresion'),
                                 'label' => 'Compresion',
                             ],
                             [
-                                'url' => 'calculadora.asistente.diseño-en-madera.traccion',
+                                'url' => route('calculadora.asistente.diseno-en-madera.traccion'),
                                 'label' => 'Traccion',
                             ],
                             [
-                                'url' => 'calculadora.asistente.diseño-en-madera.flexo-traccion',
+                                'url' => route('calculadora.asistente.diseno-en-madera.flexo-traccion'),
                                 'label' => 'Flexotraccion',
                             ],
                         ]"></x-dropdown-sub>
                         <x-dropdown-sub label="{{ __('Diseño En Acero') }}" :links="[
                             [
-                                'url' => 'calculadora.asistente.diseño-en-acero.compresion',
+                                'url' => route('calculadora.asistente.diseno-en-acero.compresion'),
                                 'label' => 'Compresion',
                             ],
                             [
-                                'url' => 'calculadora.asistente.diseño-en-acero.traccion',
+                                'url' => route('calculadora.asistente.diseno-en-acero.traccion'),
                                 'label' => 'Traccion',
                             ],
                         ]"></x-dropdown-sub>
                     </x-dropdown-nav-item>
                 </div>
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-dropdown-nav-item name="{{ __('Diseñador') }}" :active="request()->routeIs('software.*')">
+                    <x-dropdown-nav-item name="{{ __('Diseñador') }}" :active="$isDesignerActive">
                         <x-dropdown-sub label="{{ __('Suelos') }}" :links="[
                             [
-                                'url' => 'software.suelos.distribucion-de-esfuerzos',
+                                'url' => route('software.suelos.distribucion-de-esfuerzos'),
                                 'label' => 'Distribucion de Esfuerzos',
                             ],
                         ]"></x-dropdown-sub>
                         <x-dropdown-sub label="{{ __('Programas') }}" :links="[
-                            ['url' => 'software.aligerados-v1', 'label' => 'Aligerados v1.0'],
-                            ['url' => 'software.aligerados-v2', 'label' => 'Aligerados v2.0'],
-                            ['url' => 'software.cimentacion-v1', 'label' => 'Cimentacion v1.0'],
-                            ['url' => 'software.cimentacion-v2', 'label' => 'Cimentacion v2.0'],
-                            ['url' => 'software.analisis-estructural-de-armaduras', 'label' => 'Analisis Estructural'],
-                            ['url' => 'calculadora.asistente.muros-de-contencionv2','label' => 'Diseño de Muros de ContenciónV2'],
+                            ['url' => route('software.aligerados-v1'), 'label' => 'Aligerados v1.0'],
+                            ['url' => route('software.aligerados-v2'), 'label' => 'Aligerados v2.0'],
+                            ['url' => route('software.cimentacion-v1'), 'label' => 'Cimentacion v1.0'],
+                            ['url' => route('software.cimentacion-v2'), 'label' => 'Cimentacion v2.0'],
+                            [
+                                'url' => route('software.analisis-estructural-de-armaduras'),
+                                'label' => 'Analisis Estructural',
+                            ],
+                            ['url' => route('software.etabs2'), 'label' => 'Predim 2'],
+                            [
+                                'url' => route('calculadora.asistente.muros-de-contencionv2'),
+                                'label' => 'Muros de Contencion V2',
+                            ],
                         ]"></x-dropdown-sub>
 
-                        <x-dropdown-link :href="route('software.predim')" :active="request()->routeIs('software.predim')">
+                        <x-dropdown-link :href="route('software.predimv2')" :active="request()->routeIs('software.predimv2')">
                             {{ __('Predim') }}
                         </x-dropdown-link>
                         <x-dropdown-link :href="route('calculadora.estudiante.arco_techo')" :active="request()->routeIs('calculadora.estudiante.arco_techo')">
@@ -227,21 +291,21 @@ $logout = function (Logout $logout) {
                     </x-dropdown-nav-item>
                 </div>
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-dropdown-nav-item name="{{ __('Revisor') }}" :active="request()->routeIs('software.*')">
-                        
+                    <x-dropdown-nav-item name="{{ __('Revisor') }}" :active="$isReviewerActive">
+
                         <x-dropdown-sub label="{{ __('Verificacion') }}" :links="[
-                            ['url' => 'software.anclaje-v1', 'label' => 'Anclaje'],
-                            ['url' => 'software.base-dinamica-v1', 'label' => 'Bases Dinamicas'],
-                            ['url' => 'software.estribo-columna-placa-v1', 'label' => 'Estribo Columna Placa'],
-                            ['url' => 'software.estribo-placa-v1', 'label' => 'Estribo de Placas'],
-                            ['url' => 'software.predim-viga-v1', 'label' => 'Predim Viga'],
-                            ['url' => 'software.verificacion-viga-v1', 'label' => 'Viga Verifica'],
-                            ['url' => 'calculadora.estudiante.cav2.hoja2','label' => 'VRD-ALIG'],
+                            ['url' => route('software.anclaje-v1'), 'label' => 'Anclaje'],
+                            ['url' => route('software.base-dinamica-v1'), 'label' => 'Bases Dinamicas'],
+                            ['url' => route('software.estribo-columna-placa-v1'), 'label' => 'Estribo Columna Placa'],
+                            ['url' => route('software.estribo-placa-v1'), 'label' => 'Estribo de Placas'],
+                            ['url' => route('software.predim-viga-v1'), 'label' => 'Predim Viga'],
+                            ['url' => route('software.verificacion-viga-v1'), 'label' => 'Viga Verifica'],
+                            ['url' => route('calculadora.estudiante.cav2.hoja2'), 'label' => 'VRD-ALIG'],
                         ]"></x-dropdown-sub>
 
                     </x-dropdown-nav-item>
-                </div>   
-                
+                </div>
+
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                     <x-nav-item @click="toggle()"><x-svg.calculator class="h-5"></x-svg.calculator></x-nav-item>
                 </div>
@@ -308,86 +372,98 @@ $logout = function (Logout $logout) {
         <div class="space-y-1 pb-3 pt-2">
             <x-responsive-nav-link component="responsive-nav-item" :href="route('dashboard')" :active="request()->routeIs('dashboard')"
                 {{-- wire:navigate --}}>
-                {{ __('Dashboard') }}
-            </x-responsive-nav-link>
-            <x-responsive-nav-link component="responsive-nav-item" :href="route('calculadora.asistente.memoria-calculo')"
-                :active="request()->routeIs('calculadora.asistente.memoria-calculo')">
-                {{ __('Memoria Calculo') }}
+                {{ __('Inicio') }}
             </x-responsive-nav-link>
         </div>
+        @if ($canManagePlans)
+            <div class="space-y-1 pb-3 pt-2">
+                <x-dropdown-nav-item name="{{ __('Planes') }}" component="responsive-nav-item" :active="request()->routeIs(['planUser.*', 'suscripciones.*'])">
+                    <x-dropdown-link :href="route('planUser.index')" :active="request()->routeIs('planUser.index')">
+                        {{ __('Gestion de Usuario') }}
+                    </x-dropdown-link>
+                    <x-dropdown-link :href="route('suscripciones.index')" :active="request()->routeIs('suscripciones.index')">
+                        {{ __('Gestion de planes') }}
+                    </x-dropdown-link>
+                </x-dropdown-nav-item>
+            </div>
+        @endif
         <div class="space-y-1 pb-3 pt-2">
-            <x-dropdown-nav-item name="{{ __('Estudiante') }}" component="responsive-nav-item" :active="request()->routeIs('calculadora.estudiante.*')">
-                <x-dropdown-link :href="route('software.predim')" :active="request()->routeIs('software.predim')">
-                    {{ __('Predim') }}
+            <x-dropdown-nav-item name="{{ __('Memoria') }}" component="responsive-nav-item" :active="$isMemoryActive">
+                <x-dropdown-link :href="route('calculadora.asistente.memoria-calculo')" :active="request()->routeIs('calculadora.asistente.memoria-calculo')">
+                    {{ __('Memoria Calculo') }}
                 </x-dropdown-link>
-                <x-dropdown-link :href="route('calculadora.estudiante.arco_techo')" :active="request()->routeIs('calculadora.estudiante.arco_techo')">
-                    {{ __('Arco Techo') }}
+                <x-dropdown-link :href="route('calculadora.asistente.memoria-descriptiva')" :active="request()->routeIs('calculadora.asistente.memoria-descriptiva*')">
+                    {{ __('Memoria Descriptiva') }}
                 </x-dropdown-link>
-                <x-dropdown-sub label="{{ __('Concreto Armado') }}" :links="[
-                    [
-                        'url' => 'calculadora.estudiante.cav2.metrados',
-                        'label' => 'Metrados',
-                    ],
-                    [
-                        'url' => 'calculadora.estudiante.cav2.escaleras',
-                        'label' => 'Escaleras',
-                    ],
-                    [
-                        'url' => 'calculadora.estudiante.cav2.zapatas',
-                        'label' => 'Zapatas',
-                    ],
-                    [
-                        'url' => 'calculadora.estudiante.cav2.combinacion-de-cargas',
-                        'label' => 'Combinacion de Cargas',
-                    ],
-                    [
-                        'url' => 'calculadora.estudiante.cav2.viguetas',
-                        'label' => 'Viguetas',
-                    ],
-                    [
-                        'url' => 'calculadora.estudiante.cav2.voladitos',
-                        'label' => 'Voladitos',
-                    ],
-                    [
-                        'url' => 'calculadora.estudiante.cav2.verificacion-de-deflexiones',
-                        'label' => 'Verificacion de Deflexiones',
-                    ],
-                    [
-                        'url' => 'calculadora.estudiante.cav2.aligerados',
-                        'label' => 'Aligerados',
-                    ],
-                    [
-                        'url' => 'calculadora.estudiante.cav2.distribucion-del-acero',
-                        'label' => 'Distribución del Acero',
-                    ],
-                    [
-                        'url' => 'calculadora.estudiante.cav2.vigas-continuas',
-                        'label' => 'Vigas Continuas',
-                    ],
-                    [
-                        'url' => 'calculadora.estudiante.cav2.hoja2',
-                        'label' => 'Hoja2',
-                    ],
-                ]"></x-dropdown-sub>
             </x-dropdown-nav-item>
         </div>
         <div class="space-y-1 pb-3 pt-2">
-            <x-dropdown-nav-item name="{{ __('Asistente') }}" component="responsive-nav-item" :active="request()->routeIs('calculadora.asistente.*')">
+            <x-dropdown-nav-item name="{{ __('Estudiante') }}" component="responsive-nav-item" :active="$isStudentActive">
+                <x-dropdown-sub label="{{ __('Concreto Armado') }}" :links="[
+                    [
+                        'url' => route('calculadora.estudiante.cav2.metrados'),
+                        'label' => 'Metrados',
+                    ],
+                    [
+                        'url' => route('calculadora.estudiante.cav2.escaleras'),
+                        'label' => 'Escaleras',
+                    ],
+                    [
+                        'url' => route('calculadora.estudiante.cav2.zapatas'),
+                        'label' => 'Zapatas',
+                    ],
+                    [
+                        'url' => route('calculadora.estudiante.cav2.combinacion-de-cargas'),
+                        'label' => 'Combinacion de Cargas',
+                    ],
+                    [
+                        'url' => route('calculadora.estudiante.cav2.viguetas'),
+                        'label' => 'Viguetas',
+                    ],
+                    [
+                        'url' => route('calculadora.estudiante.cav2.voladitos'),
+                        'label' => 'Voladitos',
+                    ],
+                    [
+                        'url' => route('calculadora.estudiante.cav2.verificacion-de-deflexiones'),
+                        'label' => 'Verificacion de Deflexiones',
+                    ],
+                    [
+                        'url' => route('calculadora.estudiante.cav2.aligerados'),
+                        'label' => 'Aligerados',
+                    ],
+                    [
+                        'url' => route('calculadora.estudiante.cav2.distribucion-del-acero'),
+                        'label' => 'Distribución del Acero',
+                    ],
+                     [
+                         'url' => route('calculadora.estudiante.cav2.vigas-continuas'),
+                         'label' => 'Vigas Continuas',
+                     ],
+                     [
+                         'url' => route('calculadora.estudiante.cav2.viga-t'),
+                         'label' => 'Viga T',
+                     ],
+                 ]"></x-dropdown-sub>
+            </x-dropdown-nav-item>
+        </div>
+        <div class="space-y-1 pb-3 pt-2">
+            <x-dropdown-nav-item name="{{ __('Asistente') }}" component="responsive-nav-item" :active="$isAssistantActive">
                 <x-dropdown-sub label="{{ __('Vigas') }}" :links="[
-                    ['url' => 'calculadora.asistente.vigas', 'label' => 'Diseño de Vigas'],
-                    ['url' => 'calculadora.asistente.vigas-general', 'label' => 'Diseño de Vigas General'],
+                    ['url' => route('calculadora.asistente.vigas'), 'label' => 'Diseño de Vigas'],
+                    ['url' => route('calculadora.asistente.vigas-general'), 'label' => 'Diseño de Vigas General'],
                 ]"></x-dropdown-sub>
                 <x-dropdown-sub label="{{ __('Losas') }}" :links="[
-                    ['url' => 'calculadora.asistente.losas-macizas', 'label' => 'Diseño de Losas Macizas'],
-                    ['url' => 'calculadora.asistente.losas-aligeradas', 'label' => 'Diseño de Losas Aligeradas'],
+                    ['url' => route('calculadora.asistente.losas-macizas'), 'label' => 'Diseño de Losas Macizas'],
+                    ['url' => route('calculadora.asistente.losas-aligeradas'), 'label' => 'Diseño de Losas Aligeradas'],
                 ]"></x-dropdown-sub>
                 <x-dropdown-sub label="{{ __('Muros') }}" :links="[
                     [
-                        'url' => 'calculadora.asistente.muros-de-contencion',
+                        'url' => route('calculadora.asistente.muros-de-contencion'),
                         'label' => 'Diseño de Muros de Contención',
                     ],
                     [
-                        'url' => 'calculadora.asistente.muros-de-albañieria',
+                        'url' => route('calculadora.asistente.muros-de-albanieria'),
                         'label' => 'Diseño de Muros de Albañieria',
                     ],
                 ]"></x-dropdown-sub>
@@ -396,31 +472,35 @@ $logout = function (Logout $logout) {
                 </x-dropdown-link>
                 <x-dropdown-sub label="{{ __('Columnas') }}" :links="[
                     [
-                        'url' => 'calculadora.asistente.columna-de-acero',
+                        'url' => route('calculadora.asistente.columna-de-acero'),
                         'label' => 'Diseño de Columnas de Acero',
                     ],
                     [
-                        'url' => 'calculadora.asistente.columna',
+                        'url' => route('calculadora.asistente.columna'),
                         'label' => 'Diseño de Columnas',
+                    ],
+                    [
+                        'url' => route('calculadora.asistente.columna-ii'),
+                        'label' => 'Diseño de Columnas II',
                     ],
                 ]"></x-dropdown-sub>
                 <x-dropdown-sub label="{{ __('Zapatas') }}" :links="[
                     [
-                        'url' => 'calculadora.asistente.zapata-combinada',
+                        'url' => route('calculadora.asistente.zapata-combinada'),
                         'label' => 'Diseño de Zapata Combinada',
                     ],
                     [
-                        'url' => 'calculadora.asistente.zapata-conectada',
+                        'url' => route('calculadora.asistente.zapata-conectada'),
                         'label' => 'Diseño de Zapata Conectada',
                     ],
                     [
-                        'url' => 'calculadora.asistente.zapata-general',
+                        'url' => route('calculadora.asistente.zapata-general'),
                         'label' => 'Diseño de Zapata General',
                     ],
                 ]"></x-dropdown-sub>
                 <x-dropdown-sub label="{{ __('Placas') }}" :links="[
                     [
-                        'url' => 'calculadora.asistente.placas-L',
+                        'url' => route('calculadora.asistente.placas-L'),
                         'label' => 'Diseño de Placas L',
                     ],
                 ]"></x-dropdown-sub>
@@ -430,45 +510,78 @@ $logout = function (Logout $logout) {
                 <x-dropdown-link :href="route('calculadora.asistente.irregularidades')" :active="request()->routeIs('calculadora.asistente.irregularidades')" {{-- wire:navigate --}}>
                     {{ __('Irregularidades') }}
                 </x-dropdown-link>
+                <x-dropdown-link :href="route('calculadora.asistente.espectro-sismico')" :active="request()->routeIs('calculadora.asistente.espectro-sismico')" {{-- wire:navigate --}}>
+                    {{ __('Epectro Simico') }}
+                </x-dropdown-link>
                 <x-dropdown-sub label="{{ __('Diseño En Madera') }}" :links="[
-                    ['url' => 'calculadora.asistente.diseño-en-madera.correas', 'label' => 'Diseño de Correas'],
+                    ['url' => route('calculadora.asistente.diseno-en-madera.correas'), 'label' => 'Diseño de Correas'],
                     [
-                        'url' => 'calculadora.asistente.diseño-en-madera.flexo-compresion',
+                        'url' => route('calculadora.asistente.diseno-en-madera.flexo-compresion'),
                         'label' => 'Flexocompresion',
                     ],
                     [
-                        'url' => 'calculadora.asistente.diseño-en-madera.compresion',
+                        'url' => route('calculadora.asistente.diseno-en-madera.compresion'),
                         'label' => 'Compresion',
                     ],
                     [
-                        'url' => 'calculadora.asistente.diseño-en-madera.traccion',
+                        'url' => route('calculadora.asistente.diseno-en-madera.traccion'),
                         'label' => 'Traccion',
                     ],
                     [
-                        'url' => 'calculadora.asistente.diseño-en-madera.flexo-traccion',
+                        'url' => route('calculadora.asistente.diseno-en-madera.flexo-traccion'),
                         'label' => 'Flexotraccion',
                     ],
                 ]"></x-dropdown-sub>
                 <x-dropdown-sub label="{{ __('Diseño En Acero') }}" :links="[
                     [
-                        'url' => 'calculadora.asistente.diseño-en-acero.compresion',
+                        'url' => route('calculadora.asistente.diseno-en-acero.compresion'),
                         'label' => 'Compresion',
                     ],
                     [
-                        'url' => 'calculadora.asistente.diseño-en-acero.traccion',
+                        'url' => route('calculadora.asistente.diseno-en-acero.traccion'),
                         'label' => 'Traccion',
                     ],
                 ]"></x-dropdown-sub>
             </x-dropdown-nav-item>
         </div>
         <div class="space-y-1 pb-3 pt-2">
-            <x-dropdown-nav-item name="{{ __('Diseñador') }}" component="responsive-nav-item" :active="request()->routeIs('software.*')">
+            <x-dropdown-nav-item name="{{ __('Diseñador') }}" component="responsive-nav-item" :active="$isDesignerActive">
+                <x-dropdown-sub label="{{ __('Suelos') }}" :links="[
+                    [
+                        'url' => route('software.suelos.distribucion-de-esfuerzos'),
+                        'label' => 'Distribucion de Esfuerzos',
+                    ],
+                ]"></x-dropdown-sub>
                 <x-dropdown-sub label="{{ __('Programas') }}" :links="[
-                    ['url' => 'software.aligerados-v1', 'label' => 'Aligerados v1.0'],
-                    ['url' => 'software.aligerados-v2', 'label' => 'Aligerados v2.0'],
-                    ['url' => 'software.cimentacion-v1', 'label' => 'Cimentacion v1.0'],
-                    ['url' => 'software.cimentacion-v2', 'label' => 'Cimentacion v2.0'],
-                    ['url' => 'software.analisis-estructural-de-armaduras', 'label' => 'Analisis Estructural'],
+                    ['url' => route('software.aligerados-v1'), 'label' => 'Aligerados v1.0'],
+                    ['url' => route('software.aligerados-v2'), 'label' => 'Aligerados v2.0'],
+                    ['url' => route('software.cimentacion-v1'), 'label' => 'Cimentacion v1.0'],
+                    ['url' => route('software.cimentacion-v2'), 'label' => 'Cimentacion v2.0'],
+                    ['url' => route('software.analisis-estructural-de-armaduras'), 'label' => 'Analisis Estructural'],
+                    ['url' => route('software.etabs2'), 'label' => 'Etabs 2'],
+                    [
+                        'url' => route('calculadora.asistente.muros-de-contencionv2'),
+                        'label' => 'Muros de Contencion V2',
+                    ],
+                ]"></x-dropdown-sub>
+                <x-dropdown-link :href="route('software.predimv2')" :active="request()->routeIs('software.predimv2')">
+                    {{ __('Predim') }}
+                </x-dropdown-link>
+                <x-dropdown-link :href="route('calculadora.estudiante.arco_techo')" :active="request()->routeIs('calculadora.estudiante.arco_techo')">
+                    {{ __('Arco Techo') }}
+                </x-dropdown-link>
+            </x-dropdown-nav-item>
+        </div>
+        <div class="space-y-1 pb-3 pt-2">
+            <x-dropdown-nav-item name="{{ __('Revisor') }}" component="responsive-nav-item" :active="$isReviewerActive">
+                <x-dropdown-sub label="{{ __('Verificacion') }}" :links="[
+                    ['url' => route('software.anclaje-v1'), 'label' => 'Anclaje'],
+                    ['url' => route('software.base-dinamica-v1'), 'label' => 'Bases Dinamicas'],
+                    ['url' => route('software.estribo-columna-placa-v1'), 'label' => 'Estribo Columna Placa'],
+                    ['url' => route('software.estribo-placa-v1'), 'label' => 'Estribo de Placas'],
+                    ['url' => route('software.predim-viga-v1'), 'label' => 'Predim Viga'],
+                    ['url' => route('software.verificacion-viga-v1'), 'label' => 'Viga Verifica'],
+                    ['url' => route('calculadora.estudiante.cav2.hoja2'), 'label' => 'VRD-ALIG'],
                 ]"></x-dropdown-sub>
             </x-dropdown-nav-item>
         </div>

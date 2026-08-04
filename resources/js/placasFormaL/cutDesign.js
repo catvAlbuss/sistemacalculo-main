@@ -4,7 +4,10 @@ export var tableData3 = [];
 
 /* ------------------------ Análsis en X ------------------------ */
 export function cutDesignT1X(contenedor, initialData, formData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
   // Tipo sistema Estructural = Muros Estructurales
@@ -433,7 +436,10 @@ export function cutDesignT1X(contenedor, initialData, formData) {
 
 //Tabla Análisis en Dirección "2 x"
 export function cutDesignT2X(contenedor, formData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
   var initialData = tableData1;
   var data = [];
 
@@ -556,7 +562,10 @@ export function cutDesignT2X(contenedor, formData) {
 
 //Tabla Análisis en Dirección "3 x"
 export function cutDesignT3X(contenedor, formData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
 
@@ -851,7 +860,10 @@ export function cutDesignT3X(contenedor, formData) {
 
 //Tabla Análisis en Dirección "4 x"
 export function cutDesignT4X(contenedor) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
 
@@ -912,7 +924,10 @@ var tableData2Y = [];
 export var tableData3Y = [];
 
 export function cutDesignT1Y(contenedor, initialData, formData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
   // Tipo sistema Estructural = Muros Estructurales
@@ -1336,7 +1351,10 @@ export function cutDesignT1Y(contenedor, initialData, formData) {
 
 //Tabla Análisis en Dirección "2 Y"
 export function cutDesignT2Y(contenedor, formData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
   var initialData = tableData1Y;
   var data = [];
 
@@ -1459,7 +1477,10 @@ export function cutDesignT2Y(contenedor, formData) {
 
 //Tabla Análisis en Dirección "3 Y"
 export function cutDesignT3Y(contenedor, formData) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
 
@@ -1755,7 +1776,10 @@ export function cutDesignT3Y(contenedor, formData) {
 
 //Tabla Análisis en Dirección "4 Y"
 export function cutDesignT4Y(contenedor) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
 

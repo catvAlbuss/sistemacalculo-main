@@ -626,8 +626,8 @@ export function memoriacalculo() {
                         console.log('✅ Instancia ECharts encontrada, forzando renderizado...');
 
                         try {
-                            // Forzar redimensionado y renderizado
-                            echartsInstance.resize();
+                            // Forzar redimensionado y renderizado sin bloquear la exportacion
+                            this.safeResizeECharts(echartsInstance);
 
                             // Esperar a que termine el renderizado
                             await new Promise(resolve => {
@@ -840,11 +840,21 @@ export function memoriacalculo() {
                 const echartsInstance = window.echarts?.getInstanceByDom?.(element);
                 if (echartsInstance && !echartsInstance.isDisposed()) {
                     console.log('🎨 Preparando ECharts...');
-                    echartsInstance.resize();
+                    this.safeResizeECharts(echartsInstance);
                     await new Promise(resolve => setTimeout(resolve, 500));
                 }
             } catch (error) {
                 console.warn('Error preparando ECharts:', error);
+            }
+        },
+
+        safeResizeECharts(echartsInstance) {
+            try {
+                echartsInstance.resize();
+                return true;
+            } catch (error) {
+                console.warn('No se pudo redimensionar ECharts antes de exportar; se usara el render actual.', error);
+                return false;
             }
         },
 

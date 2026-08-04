@@ -35,6 +35,85 @@ const swalTailwind = Swal.mixin({
 ("use strict");
 
 document.addEventListener("DOMContentLoaded", () => {
+  const datosGeneralesColumns = (headers = ["PD", "PL", "SISMO"]) => [
+    makeCreateDeleteColumn("#datosGenerales"),
+    {
+      title: "Columna",
+      field: "column",
+      editor: "number",
+    },
+    {
+      title: "X",
+      field: "x",
+      editor: "number",
+    },
+    {
+      title: "Y",
+      field: "y",
+      editor: "number",
+    },
+    {
+      title: headers[0] ?? "PD",
+      columns: [
+        {
+          title: "F2",
+          field: "pd1",
+          editor: "number",
+        },
+        {
+          title: "MX",
+          field: "pd2",
+          editor: "number",
+        },
+        {
+          title: "MY",
+          field: "pd3",
+          editor: "number",
+        },
+      ],
+    },
+    {
+      title: headers[1] ?? "PL",
+      columns: [
+        {
+          title: "F2",
+          field: "pl1",
+          editor: "number",
+        },
+        {
+          title: "MX",
+          field: "pl2",
+          editor: "number",
+        },
+        {
+          title: "MY",
+          field: "pl3",
+          editor: "number",
+        },
+      ],
+    },
+    {
+      title: headers[2] ?? "SISMO",
+      columns: [
+        {
+          title: "F2",
+          field: "sismo1",
+          editor: "number",
+        },
+        {
+          title: "MX",
+          field: "sismo2",
+          editor: "number",
+        },
+        {
+          title: "MY",
+          field: "sismo3",
+          editor: "number",
+        },
+      ],
+    },
+  ];
+
   const datosGeneralesModel = (id) => {
     return {
       id: id,
@@ -253,84 +332,7 @@ document.addEventListener("DOMContentLoaded", () => {
       config: {
         /* layout: "fitDataTable", */
         height: 480,
-        columns: [
-          makeCreateDeleteColumn(id),
-          {
-            title: "Columna",
-            field: "column",
-            editor: "number",
-          },
-          {
-            title: "X",
-            field: "x",
-            editor: "number",
-          },
-          {
-            title: "Y",
-            field: "y",
-            editor: "number",
-          },
-          {
-            title: "PD",
-            columns: [
-              {
-                title: "",
-                field: "pd1",
-                editor: "number",
-              },
-              {
-                title: "",
-                field: "pd2",
-                editor: "number",
-              },
-              {
-                title: "",
-                field: "pd3",
-                editor: "number",
-              },
-            ],
-          },
-          {
-            title: "PL",
-            columns: [
-              {
-                title: "",
-                field: "pl1",
-                editor: "number",
-              },
-              {
-                title: "",
-                field: "pl2",
-                editor: "number",
-              },
-              {
-                title: "",
-                field: "pl3",
-                editor: "number",
-              },
-            ],
-          },
-          {
-            title: "SISMO",
-            columns: [
-              {
-                title: "",
-                field: "sismo1",
-                editor: "number",
-              },
-              {
-                title: "",
-                field: "sismo2",
-                editor: "number",
-              },
-              {
-                title: "",
-                field: "sismo3",
-                editor: "number",
-              },
-            ],
-          },
-        ],
+        columns: datosGeneralesColumns(),
       },
     };
   };
@@ -403,6 +405,549 @@ document.addEventListener("DOMContentLoaded", () => {
   let combinaciones;
   const datosGenerales = createSpreeadSheetTable(datosGeneralesModel("#datosGenerales"));
   const combinacionDeCargas = createSpreeadSheetTable(combinacionDeCargasModel("#combinacionDeCargas"));
+  const excelFileInput = document.getElementById("excelFile");
+  const importarExcelButton = document.getElementById("importarExcel");
+  const connectivityExcelFileInput = document.getElementById("connectivityExcelFile");
+  const importarConnectivityExcelButton = document.getElementById("importarConnectivityExcel");
+  const connectivityExcelContainer = document.getElementById("connectivityExcelContainer");
+  const excelCombosContainer = document.getElementById("excelCombosContainer");
+  const excelCombosList = document.getElementById("excelCombosList");
+  const excelCombosStatus = document.getElementById("excelCombosStatus");
+  const reactionExcelConfig = document.getElementById("reactionExcelConfig");
+  const reactionSheetInput = document.getElementById("reactionSheet");
+  const reactionStartRowInput = document.getElementById("reactionStartRow");
+  const reactionPointColumnInput = document.getElementById("reactionPointColumn");
+  const reactionComboColumnInput = document.getElementById("reactionComboColumn");
+  const reactionF2ColumnInput = document.getElementById("reactionF2Column");
+  const reactionMxColumnInput = document.getElementById("reactionMxColumn");
+  const reactionMyColumnInput = document.getElementById("reactionMyColumn");
+  const coordinateExcelConfig = document.getElementById("coordinateExcelConfig");
+  const coordinateSheetInput = document.getElementById("coordinateSheet");
+  const coordinateStartRowInput = document.getElementById("coordinateStartRow");
+  const coordinatePointColumnInput = document.getElementById("coordinatePointColumn");
+  const coordinateXColumnInput = document.getElementById("coordinateXColumn");
+  const coordinateYColumnInput = document.getElementById("coordinateYColumn");
+  const propiedadesSection = document.getElementById("propiedadesSection");
+  const calculoActions = document.getElementById("calculoActions");
+  let reactionWorkbook = null;
+  let reactionWorkbookFile = null;
+  let coordinateWorkbook = null;
+  let coordinateWorkbookFile = null;
+  let jointReactionsRows = [];
+  let pendingSelectedCombos = [];
+  let pendingDatosGeneralesRows = [];
+  let selectedComboOrder = [];
+
+  const readCellText = (row, columnNumber) => {
+    const cellValue = row.getCell(columnNumber).value;
+    if (cellValue === null || cellValue === undefined) {
+      return "";
+    }
+    if (typeof cellValue === "object") {
+      if (cellValue.text !== undefined) {
+        return String(cellValue.text).trim();
+      }
+      if (cellValue.result !== undefined) {
+        return String(cellValue.result).trim();
+      }
+      if (Array.isArray(cellValue.richText)) {
+        return cellValue.richText.map((item) => item.text).join("").trim();
+      }
+    }
+    return String(cellValue).trim();
+  };
+
+  const readCellNumber = (row, columnNumber) => {
+    const value = row.getCell(columnNumber).value;
+    if (value === null || value === undefined || value === "") {
+      return "";
+    }
+    if (typeof value === "object" && value.result !== undefined) {
+      return value.result;
+    }
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? value : parsed;
+  };
+
+  const escapeHtml = (value) =>
+    String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+
+  const setExcelCombosStatus = (message, isError = false) => {
+    excelCombosStatus.textContent = message;
+    excelCombosStatus.classList.toggle("text-red-600", isError);
+    excelCombosStatus.classList.toggle("dark:text-red-400", isError);
+    excelCombosStatus.classList.toggle("text-gray-600", !isError);
+    excelCombosStatus.classList.toggle("dark:text-gray-400", !isError);
+  };
+
+  const columnLabelToNumber = (label) => {
+    const cleanLabel = String(label ?? "")
+      .trim()
+      .toUpperCase();
+
+    if (/^\d+$/.test(cleanLabel)) {
+      const columnNumber = Number(cleanLabel);
+      if (columnNumber > 0) {
+        return columnNumber;
+      }
+    }
+
+    if (!/^[A-Z]+$/.test(cleanLabel)) {
+      throw new Error(`La columna "${label}" no es valida. Usa letras de Excel, por ejemplo A, C o AA.`);
+    }
+
+    return cleanLabel.split("").reduce((columnNumber, letter) => {
+      return columnNumber * 26 + letter.charCodeAt(0) - 64;
+    }, 0);
+  };
+
+  const getStartRow = (input, fallback = 5) => {
+    const startRow = Number(input.value);
+    return Number.isInteger(startRow) && startRow > 0 ? startRow : fallback;
+  };
+
+  const populateSheetSelect = (select, workbook, preferredSheetName) => {
+    const sheets = workbook.worksheets ?? [];
+    select.innerHTML = sheets
+      .map((worksheet) => `<option value="${escapeHtml(worksheet.name)}">${escapeHtml(worksheet.name)}</option>`)
+      .join("");
+
+    const preferredWorksheet = workbook.getWorksheet(preferredSheetName);
+    if (preferredWorksheet) {
+      select.value = preferredWorksheet.name;
+      return;
+    }
+
+    if (sheets[0]) {
+      select.value = sheets[0].name;
+    }
+  };
+
+  const validateExcelFile = (file, label) => {
+    if (!file) {
+      throw new Error(`Selecciona el Excel de ${label} antes de importar.`);
+    }
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
+      throw new Error(`El archivo de ${label} debe estar en formato .xlsx.`);
+    }
+    if (!window.ExcelJS) {
+      throw new Error("La libreria ExcelJS no esta disponible en esta pantalla.");
+    }
+  };
+
+  const loadWorkbook = async (file, label) => {
+    validateExcelFile(file, label);
+    const workbook = new window.ExcelJS.Workbook();
+    await workbook.xlsx.load(await file.arrayBuffer());
+    return workbook;
+  };
+
+  const resetImportedData = () => {
+    selectedComboOrder = [];
+    pendingSelectedCombos = [];
+    pendingDatosGeneralesRows = [];
+    jointReactionsRows = [];
+    excelCombosList.innerHTML = "";
+    excelCombosContainer.classList.add("hidden");
+    connectivityExcelFileInput.value = "";
+    connectivityExcelContainer.classList.add("hidden");
+    connectivityExcelFileInput.disabled = true;
+    importarConnectivityExcelButton.disabled = true;
+    coordinateExcelConfig.classList.add("hidden");
+    propiedadesSection.classList.add("hidden");
+    calculoActions.classList.add("hidden");
+  };
+
+  const resetCoordinateStep = () => {
+    pendingSelectedCombos = [];
+    pendingDatosGeneralesRows = [];
+    connectivityExcelFileInput.value = "";
+    connectivityExcelContainer.classList.add("hidden");
+    connectivityExcelFileInput.disabled = true;
+    importarConnectivityExcelButton.disabled = true;
+    coordinateExcelConfig.classList.add("hidden");
+    propiedadesSection.classList.add("hidden");
+    calculoActions.classList.add("hidden");
+  };
+
+  const getReactionImportConfig = () => {
+    return {
+      sheetName: reactionSheetInput.value || "Joint Reactions",
+      startRow: getStartRow(reactionStartRowInput),
+      pointColumn: columnLabelToNumber(reactionPointColumnInput.value || "C"),
+      comboColumn: columnLabelToNumber(reactionComboColumnInput.value || "D"),
+      f2Column: columnLabelToNumber(reactionF2ColumnInput.value || "K"),
+      mxColumn: columnLabelToNumber(reactionMxColumnInput.value || "L"),
+      myColumn: columnLabelToNumber(reactionMyColumnInput.value || "M"),
+    };
+  };
+
+  const getCoordinateImportConfig = () => {
+    return {
+      sheetName: coordinateSheetInput.value || "Point Object Connectivity",
+      startRow: getStartRow(coordinateStartRowInput),
+      pointColumn: columnLabelToNumber(coordinatePointColumnInput.value || "A"),
+      xColumn: columnLabelToNumber(coordinateXColumnInput.value || "F"),
+      yColumn: columnLabelToNumber(coordinateYColumnInput.value || "G"),
+    };
+  };
+
+  const buildDatosGeneralesRows = (selectedCombos, coordinatesByColumn = new Map()) => {
+    const comboFields = [
+      ["pd1", "pd2", "pd3"],
+      ["pl1", "pl2", "pl3"],
+      ["sismo1", "sismo2", "sismo3"],
+    ];
+    const rowsByColumn = new Map();
+
+    jointReactionsRows.forEach((sourceRow) => {
+      const comboIndex = selectedCombos.indexOf(sourceRow.combo);
+      if (comboIndex === -1 || !sourceRow.column) {
+        return;
+      }
+
+      if (!rowsByColumn.has(sourceRow.column)) {
+        const coordinates = coordinatesByColumn.get(sourceRow.column) ?? {};
+        rowsByColumn.set(sourceRow.column, {
+          id: rowsByColumn.size + 1,
+          column: sourceRow.column,
+          x: coordinates.x ?? "",
+          y: coordinates.y ?? "",
+          pd1: "",
+          pd2: "",
+          pd3: "",
+          pl1: "",
+          pl2: "",
+          pl3: "",
+          sismo1: "",
+          sismo2: "",
+          sismo3: "",
+        });
+      }
+
+      const targetRow = rowsByColumn.get(sourceRow.column);
+      const [f2Field, mxField, myField] = comboFields[comboIndex];
+      targetRow[f2Field] = sourceRow.f2;
+      targetRow[mxField] = sourceRow.mx;
+      targetRow[myField] = sourceRow.my;
+    });
+
+    return [...rowsByColumn.values()];
+  };
+
+  const renderDatosGeneralesRows = async (selectedCombos, rows, successMessage) => {
+    await datosGenerales.setColumns(datosGeneralesColumns(selectedCombos));
+    await datosGenerales.setData(rows);
+    datosGenerales.clearHistory();
+    datosGenerales.redraw();
+    setExcelCombosStatus(successMessage);
+  };
+
+  const applyJointReactionSelection = async (selectedCombos) => {
+    pendingSelectedCombos = selectedCombos;
+    pendingDatosGeneralesRows = buildDatosGeneralesRows(selectedCombos);
+    connectivityExcelContainer.classList.remove("hidden");
+    connectivityExcelFileInput.disabled = false;
+    importarConnectivityExcelButton.disabled = false;
+    await renderDatosGeneralesRows(
+      selectedCombos,
+      pendingDatosGeneralesRows,
+      `${pendingDatosGeneralesRows.length} columnas importadas. Ahora importa el Excel de coordenadas.`
+    );
+    swalTailwind.fire({
+      icon: "info",
+      title: "Reacciones importadas",
+      text: `Se importaron ${pendingDatosGeneralesRows.length} filas. Falta importar el Excel de coordenadas.`,
+    });
+  };
+
+  const readPointObjectConnectivity = async (file) => {
+    if (!coordinateWorkbook || coordinateWorkbookFile !== file) {
+      coordinateWorkbook = await loadWorkbook(file, "coordenadas");
+      coordinateWorkbookFile = file;
+      populateSheetSelect(coordinateSheetInput, coordinateWorkbook, "Point Object Connectivity");
+      coordinateExcelConfig.classList.remove("hidden");
+    }
+
+    const config = getCoordinateImportConfig();
+    const worksheet = coordinateWorkbook.getWorksheet(config.sheetName);
+
+    if (!worksheet) {
+      throw new Error(`No se encontro la hoja ${config.sheetName}.`);
+    }
+
+    const coordinatesByColumn = new Map();
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber < config.startRow) {
+        return;
+      }
+
+      const pointName = readCellText(row, config.pointColumn);
+      if (!pointName || coordinatesByColumn.has(pointName)) {
+        return;
+      }
+
+      coordinatesByColumn.set(pointName, {
+        x: readCellNumber(row, config.xColumn),
+        y: readCellNumber(row, config.yColumn),
+      });
+    });
+
+    if (!coordinatesByColumn.size) {
+      throw new Error(
+        `No se encontraron coordenadas desde la hoja ${config.sheetName}, fila ${config.startRow}.`
+      );
+    }
+
+    return coordinatesByColumn;
+  };
+
+  const renderJointReactionCombos = (combos) => {
+    selectedComboOrder = [];
+    pendingSelectedCombos = [];
+    pendingDatosGeneralesRows = [];
+    connectivityExcelFileInput.value = "";
+    connectivityExcelContainer.classList.add("hidden");
+    connectivityExcelFileInput.disabled = true;
+    importarConnectivityExcelButton.disabled = true;
+    coordinateExcelConfig.classList.add("hidden");
+    propiedadesSection.classList.add("hidden");
+    calculoActions.classList.add("hidden");
+    excelCombosList.innerHTML = combos
+      .map(
+        (combo, index) => `
+          <label class="flex items-center gap-2 rounded border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
+            <input class="excel-combo-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" type="checkbox" value="${index}">
+            <span>${escapeHtml(combo)}</span>
+          </label>`
+      )
+      .join("");
+    excelCombosContainer.classList.remove("hidden");
+    setExcelCombosStatus("Selecciona 3 combinaciones.");
+
+    excelCombosList.querySelectorAll(".excel-combo-checkbox").forEach((checkbox) => {
+      checkbox.addEventListener("change", async () => {
+        const combo = combos[Number(checkbox.value)];
+
+        if (checkbox.checked && selectedComboOrder.length === 3) {
+          checkbox.checked = false;
+          setExcelCombosStatus("Solo puedes seleccionar 3 combinaciones.", true);
+          return;
+        }
+
+        if (checkbox.checked) {
+          selectedComboOrder.push(combo);
+        } else {
+          selectedComboOrder = selectedComboOrder.filter((selectedCombo) => selectedCombo !== combo);
+        }
+
+        excelCombosList.querySelectorAll(".excel-combo-checkbox:not(:checked)").forEach((item) => {
+          item.disabled = selectedComboOrder.length === 3;
+        });
+
+        if (selectedComboOrder.length === 3) {
+          await applyJointReactionSelection([...selectedComboOrder]);
+        } else {
+          resetCoordinateStep();
+          setExcelCombosStatus(`Selecciona ${3 - selectedComboOrder.length} combinacion(es) mas.`);
+        }
+      });
+    });
+  };
+
+  excelFileInput.addEventListener("change", async () => {
+    resetImportedData();
+    reactionWorkbook = null;
+    reactionWorkbookFile = null;
+    reactionExcelConfig.classList.add("hidden");
+
+    const file = excelFileInput.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      reactionWorkbook = await loadWorkbook(file, "reacciones");
+      reactionWorkbookFile = file;
+      populateSheetSelect(reactionSheetInput, reactionWorkbook, "Joint Reactions");
+      reactionExcelConfig.classList.remove("hidden");
+      excelCombosContainer.classList.remove("hidden");
+      setExcelCombosStatus("Configura hoja y columnas, luego importa las combinaciones.");
+    } catch (error) {
+      excelCombosContainer.classList.remove("hidden");
+      setExcelCombosStatus(error.message || "No se pudo leer el Excel de reacciones.", true);
+    }
+  });
+
+  connectivityExcelFileInput.addEventListener("change", async () => {
+    coordinateWorkbook = null;
+    coordinateWorkbookFile = null;
+    coordinateExcelConfig.classList.add("hidden");
+    propiedadesSection.classList.add("hidden");
+    calculoActions.classList.add("hidden");
+
+    const file = connectivityExcelFileInput.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      coordinateWorkbook = await loadWorkbook(file, "coordenadas");
+      coordinateWorkbookFile = file;
+      populateSheetSelect(coordinateSheetInput, coordinateWorkbook, "Point Object Connectivity");
+      coordinateExcelConfig.classList.remove("hidden");
+      setExcelCombosStatus("Configura hoja y columnas de coordenadas, luego importa coordenadas.");
+    } catch (error) {
+      setExcelCombosStatus(error.message || "No se pudo leer el Excel de coordenadas.", true);
+    }
+  });
+
+  [
+    reactionSheetInput,
+    reactionStartRowInput,
+    reactionPointColumnInput,
+    reactionComboColumnInput,
+    reactionF2ColumnInput,
+    reactionMxColumnInput,
+    reactionMyColumnInput,
+  ].forEach((input) => {
+    input.addEventListener("change", () => {
+      if (jointReactionsRows.length || selectedComboOrder.length) {
+        selectedComboOrder = [];
+        jointReactionsRows = [];
+        excelCombosList.innerHTML = "";
+        resetCoordinateStep();
+        setExcelCombosStatus("La configuracion cambio. Importa nuevamente las combinaciones.");
+      }
+    });
+  });
+
+  [coordinateSheetInput, coordinateStartRowInput, coordinatePointColumnInput, coordinateXColumnInput, coordinateYColumnInput].forEach(
+    (input) => {
+      input.addEventListener("change", () => {
+        propiedadesSection.classList.add("hidden");
+        calculoActions.classList.add("hidden");
+        if (pendingSelectedCombos.length === 3) {
+          pendingDatosGeneralesRows = buildDatosGeneralesRows(pendingSelectedCombos);
+          renderDatosGeneralesRows(
+            pendingSelectedCombos,
+            pendingDatosGeneralesRows,
+            "La configuracion de coordenadas cambio. Importa coordenadas nuevamente."
+          );
+        }
+      });
+    }
+  );
+
+  importarConnectivityExcelButton.addEventListener("click", async () => {
+    if (pendingSelectedCombos.length !== 3) {
+      setExcelCombosStatus("Selecciona primero 3 combinaciones del Excel de reacciones.", true);
+      excelCombosContainer.classList.remove("hidden");
+      return;
+    }
+
+    try {
+      setExcelCombosStatus("Leyendo Excel de coordenadas...");
+      const coordinatesByColumn = await readPointObjectConnectivity(connectivityExcelFileInput.files?.[0]);
+      const rows = buildDatosGeneralesRows(pendingSelectedCombos, coordinatesByColumn);
+      const rowsWithCoordinates = rows.filter((row) => row.x !== "" || row.y !== "").length;
+      const rowsWithoutCoordinates = rows.length - rowsWithCoordinates;
+      pendingDatosGeneralesRows = rows;
+
+      await renderDatosGeneralesRows(
+        pendingSelectedCombos,
+        rows,
+        `${rows.length} columnas importadas con ${rowsWithCoordinates} coordenadas encontradas.`
+      );
+      propiedadesSection.classList.remove("hidden");
+      calculoActions.classList.remove("hidden");
+
+      swalTailwind.fire({
+        icon: rowsWithoutCoordinates ? "warning" : "success",
+        title: "Coordenadas importadas",
+        text: rowsWithoutCoordinates
+          ? `Se rellenaron ${rowsWithCoordinates} filas. ${rowsWithoutCoordinates} no tuvieron coincidencia en Point Object Connectivity.`
+          : `Se rellenaron X/Y para ${rowsWithCoordinates} filas.`,
+      });
+    } catch (error) {
+      setExcelCombosStatus(error.message || "No se pudo importar el Excel de coordenadas.", true);
+      swalTailwind.fire({
+        icon: "error",
+        title: "Importacion fallida",
+        text: error.message || "No se pudo importar el Excel de coordenadas.",
+      });
+    }
+  });
+
+  importarExcelButton.addEventListener("click", async () => {
+    const file = excelFileInput.files?.[0];
+
+    try {
+      setExcelCombosStatus("Leyendo archivo Excel...");
+      excelCombosContainer.classList.remove("hidden");
+      if (!reactionWorkbook || reactionWorkbookFile !== file) {
+        reactionWorkbook = await loadWorkbook(file, "reacciones");
+        reactionWorkbookFile = file;
+        populateSheetSelect(reactionSheetInput, reactionWorkbook, "Joint Reactions");
+        reactionExcelConfig.classList.remove("hidden");
+      }
+
+      const config = getReactionImportConfig();
+      const worksheet = reactionWorkbook.getWorksheet(config.sheetName);
+
+      if (!worksheet) {
+        throw new Error(`No se encontro la hoja ${config.sheetName}.`);
+      }
+
+      const combos = [];
+      const seenCombos = new Set();
+      jointReactionsRows = [];
+
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber < config.startRow) {
+          return;
+        }
+
+        const combo = readCellText(row, config.comboColumn);
+        if (!combo) {
+          return;
+        }
+
+        const column = readCellText(row, config.pointColumn);
+        jointReactionsRows.push({
+          column,
+          combo,
+          f2: readCellNumber(row, config.f2Column),
+          mx: readCellNumber(row, config.mxColumn),
+          my: readCellNumber(row, config.myColumn),
+        });
+
+        if (!seenCombos.has(combo)) {
+          seenCombos.add(combo);
+          combos.push(combo);
+        }
+      });
+
+      if (!combos.length) {
+        throw new Error(`No se encontraron combinaciones desde la hoja ${config.sheetName}, fila ${config.startRow}.`);
+      }
+
+      renderJointReactionCombos(combos);
+    } catch (error) {
+      excelCombosList.innerHTML = "";
+      setExcelCombosStatus(error.message || "No se pudo importar el archivo Excel.", true);
+      swalTailwind.fire({
+        icon: "error",
+        title: "Importacion fallida",
+        text: error.message || "No se pudo importar el archivo Excel.",
+      });
+    }
+  });
   // Init GUI Components
   const canvas = document.querySelector("#plot canvas");
 
@@ -495,6 +1040,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let handleIsSelected = false;
   let selectedHandleIndex = 0;
+  let polygonsHtmlCache = "";
   // Functions
   function windowResize() {
     // Set actual size in memory (scaled to account for extra pixel density).
@@ -678,7 +1224,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.fillText(modeText, x_pos, y_pos);
     ctx.restore();
 
-    document.getElementById("polygons").innerHTML = `
+    const polygonsHtml = `
          ${shapes.reduce((body, shape, index) => {
            const propiedades = shape.propiedades();
            return (
@@ -783,6 +1329,10 @@ document.addEventListener("DOMContentLoaded", () => {
            );
          }, "")}
           `;
+    if (polygonsHtml !== polygonsHtmlCache) {
+      document.getElementById("polygons").innerHTML = polygonsHtml;
+      polygonsHtmlCache = polygonsHtml;
+    }
   }
   shape = new Shape(true);
   grid = new Grid();
@@ -1305,7 +1855,12 @@ document.addEventListener("DOMContentLoaded", () => {
             ...(await Promise.all(
               combinacionDeCargas.getData().map(async (_, index) => {
                 return {
-                  image: await Plotly.toImage(`zapata${index + 1}`),
+                  image: await Plotly.toImage(`zapata${index + 1}`, {
+                    format: "png",
+                    width: 900,
+                    height: 420,
+                    scale: 1,
+                  }),
                   width: 420,
                   margin: [50, 0, 50, 0],
                 };
@@ -1334,7 +1889,7 @@ document.addEventListener("DOMContentLoaded", () => {
             },
           },
         };
-        pdfMake.createPdf(docDefinition).download("aligerados.pdf");
+        pdfMake.createPdf(docDefinition).download("cimentacion.pdf");
         waitingPopup.hideLoading();
       });
     } catch (error) {
@@ -1343,14 +1898,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("calcularZapatas2").addEventListener("submit", (event) => {
-    const waitingPopup = swalTailwind.fire({
-      title: "Calculando!",
-      html: "Por favor espere!<br>",
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-      },
-    });
     event.preventDefault();
     const octaveMatrix = (table, ...fields) => {
       return (
@@ -1364,6 +1911,70 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     };
     const columns = datosGenerales.getData();
+    const createDefaultCalculationShape = (rows) => {
+      const points = rows
+        .map((row) => ({ x: Number(row.x), y: Number(row.y) }))
+        .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+
+      if (!points.length) {
+        return null;
+      }
+
+      const xs = points.map((point) => point.x);
+      const ys = points.map((point) => point.y);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      const rangeX = Math.max(Math.abs(maxX - minX), 1);
+      const rangeY = Math.max(Math.abs(maxY - minY), 1);
+      const margin = Math.max(rangeX, rangeY) * 0.05;
+      const defaultShape = new Shape(true);
+
+      defaultShape.points = [
+        new Point(minX - margin, minY - margin, true, null),
+        new Point(maxX + margin, minY - margin, true, null),
+        new Point(maxX + margin, maxY + margin, true, null),
+        new Point(minX - margin, maxY + margin, true, null),
+      ];
+      defaultShape.calcularPropiedades();
+
+      return defaultShape;
+    };
+
+    const manualShapes = shape.points.length >= 3 ? [...shapes, shape] : shapes;
+    const calculationShapes = manualShapes.length ? manualShapes : [createDefaultCalculationShape(columns)].filter(Boolean);
+
+    if (!calculationShapes.length || calculationShapes.some((shape) => shape.points.length < 3)) {
+      swalTailwind.fire({
+        icon: "warning",
+        title: "Coordenadas incompletas",
+        text: "Importa o completa coordenadas X/Y antes de calcular.",
+        showConfirmButton: true,
+      });
+      return;
+    }
+
+    const invalidCoordinateRow = columns.find((row) => !Number.isFinite(Number(row.x)) || !Number.isFinite(Number(row.y)));
+    if (invalidCoordinateRow) {
+      swalTailwind.fire({
+        icon: "warning",
+        title: "Coordenadas incompletas",
+        text: `Revisa X/Y de la columna ${invalidCoordinateRow.column}.`,
+        showConfirmButton: true,
+      });
+      return;
+    }
+
+    const waitingPopup = swalTailwind.fire({
+      title: "Calculando!",
+      html: "Por favor espere!<br>",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+
     const formData = new FormData(event.target);
     formData.append("column", octaveMatrix(columns, "column", "x", "y"));
     formData.append("PD", octaveMatrix(columns, "column", "pd1", "pd2", "pd3"));
@@ -1389,7 +2000,7 @@ document.addEventListener("DOMContentLoaded", () => {
     );
     formData.append(
       "poligonos",
-      `struct(${shapes
+      `struct(${calculationShapes
         .map((shape, index) => {
           return `'poligono${index + 1}', [${[...shape.points, shape.points[0]]
             .map((p) => `${p.x.toFixed(3)},${p.y.toFixed(3)}`)
@@ -1398,16 +2009,17 @@ document.addEventListener("DOMContentLoaded", () => {
         .join(",")})`
     );
     const graficos = document.getElementById("graficos");
-    graficos.innerHTML = "";
-    combinacionDeCargas.getData().forEach((_, index) => {
-      // Plot the chart using Plotly
-      graficos.innerHTML += `
+    graficos.innerHTML = combinacionDeCargas
+      .getData()
+      .map((_, index) => {
+        return `
         <tr class="bg-gray-100 dark:bg-gray-600">
           <td class="py-2 px-4" colspan="4">
-              <div id="zapata${index + 1}"></div>
+              <div id="zapata${index + 1}" style="width: 100%; height: 420px;"></div>
           </td>
         </tr>`;
-    });
+      })
+      .join("");
 
     console.log(Object.fromEntries(formData));
     fetch("/zapatas2", {
@@ -1417,16 +2029,44 @@ document.addEventListener("DOMContentLoaded", () => {
       .then(async (response) => {
         const contentType = response.headers.get("Content-Type");
         if (contentType && contentType.includes("application/octet-stream")) {
-          return response.arrayBuffer();
-        } else {
-          const error = await response.text();
-          return Promise.reject(error);
+          return {
+            type: "mat",
+            data: await response.arrayBuffer(),
+          };
         }
+        if (contentType && contentType.includes("application/json")) {
+          const data = await response.json();
+          if (!response.ok) {
+            return Promise.reject(data.message || "No se pudo calcular la grafica.");
+          }
+          return {
+            type: "json",
+            data,
+          };
+        }
+        const error = await response.text();
+        return Promise.reject(error);
       })
-      .then((matData) => {
+      .then((calculationResponse) => {
         waitingPopup.hideLoading();
-        const zapatas2 = readmat(matData);
+        const zapatas2 =
+          calculationResponse.type === "json"
+            ? { data: calculationResponse.data }
+            : readmat(calculationResponse.data);
         console.log(zapatas2);
+        const flattenNumeric = (value) => {
+          const flat = Array.isArray(value?.[0]) ? value.flat(Infinity) : value;
+          return (flat ?? []).map(Number);
+        };
+        const limitPlotPoints = (points, limit = 4000) => {
+          if (points.length <= limit) {
+            return points;
+          }
+
+          const step = points.length / limit;
+          return Array.from({ length: limit }, (_, pointIndex) => points[Math.floor(pointIndex * step)]);
+        };
+
         combinacionDeCargas.getData().forEach((title, index) => {
           combinaciones = Object.values(zapatas2.data.resultados).map(({ XX, YY, ZZ, max, min }, poligonoN) => {
             return {
@@ -1436,15 +2076,29 @@ document.addEventListener("DOMContentLoaded", () => {
             };
           });
           const traces = Object.values(zapatas2.data.resultados).map(({ XX, YY, ZZ, max, min }, poligonoN) => {
-            const ZEscale = ZZ[index].length ? ZZ[index] : ZZ;
+            const ZEscale = flattenNumeric(ZZ[index]?.length ? ZZ[index] : ZZ);
+            const xValues = flattenNumeric(XX);
+            const yValues = flattenNumeric(YY);
+            const points = xValues
+              .map((x, pointIndex) => ({ x, y: yValues[pointIndex], z: ZEscale[pointIndex] }))
+              .filter(({ x, y, z }) => Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z));
+
+            if (!points.length) {
+              throw new Error(`No hay puntos validos para graficar el poligono ${poligonoN + 1}.`);
+            }
+            const plotPoints = limitPlotPoints(points);
+
             return {
-              x: XX, // X-axis data
-              y: YY, // Y-axis data
-              z: ZEscale,
+              x: plotPoints.map(({ x }) => x),
+              y: plotPoints.map(({ y }) => y),
               mode: "markers", // Scatter plot mode
               marker: {
-                size: 2, // Size of the markers
-                color: ZEscale, // Color of the markers, based on Z data
+                size: 3, // Size of the markers
+                color: plotPoints.map(({ z }) => z), // Color of the markers, based on Z data
+                opacity: 0.9,
+                line: {
+                  width: 0,
+                },
                 //colorscale: "Viridis", // Color scale
                 //colorscale: "Jet", // Color scale
                 /* showscale: true, // Show the color scale */
@@ -1453,9 +2107,8 @@ document.addEventListener("DOMContentLoaded", () => {
               name: `<b>Poligono ${poligonoN + 1}<br>σ<sub>min</sub> = ${min[index].toFixed(
                 3
               )}<br>σ<sub>max</sub> = ${max[index].toFixed(3)}</b><br>`,
-              hovertemplate:
-                "<b>x</b>: %{x}<br>" + "<b>y</b>: %{y}<br>" + "<b>z</b>: %{marker.color:.4f}" + "<extra></extra>",
-              type: "scattergl", // 3D scatter plot type
+              hoverinfo: "skip",
+              type: "scatter",
               /* type: "pointcloudgl", // 3D scatter plot type */
             };
           });
@@ -1465,7 +2118,7 @@ document.addEventListener("DOMContentLoaded", () => {
               y: [row.y],
               text: [`${row.column}`],
               mode: "markers+text",
-              type: "scattergl",
+              type: "scatter",
               textposition: "top right",
               textfont: {
                 family: "Arial",
@@ -1476,6 +2129,7 @@ document.addEventListener("DOMContentLoaded", () => {
             };
           });
           const layout = {
+            autosize: true,
             xaxis: {
               scaleanchor: "y",
               scaleratio: 1,
@@ -1494,6 +2148,7 @@ document.addEventListener("DOMContentLoaded", () => {
             },
             showlegend: true,
             legend: { x: 0, y: 0.5 },
+            hovermode: false,
             annotations: Object.values(zapatas2.data.resultados).map(({ XC: [xc], YC: [yc] }, index) => {
               return {
                 x: xc,
@@ -1517,16 +2172,22 @@ document.addEventListener("DOMContentLoaded", () => {
               },
             },
           };
-          Plotly.react(`zapata${index + 1}`, [...traces, ...markers], layout, { responsive: false });
+          Plotly.react(`zapata${index + 1}`, [...traces, ...markers], layout, {
+            responsive: true,
+            displaylogo: false,
+          });
         });
       })
       .catch((error) => {
         waitingPopup.hideLoading();
+        const errorMessage =
+          typeof error === "string"
+            ? error.trim() || "No se pudo calcular la grafica. Revisa que Octave este disponible y que exista un poligono cerrado."
+            : error?.message?.trim() || "No se pudo calcular la grafica. Revisa que Octave este disponible y que exista un poligono cerrado.";
         swalTailwind.fire({
           icon: "error",
-          html: `
-              ${error}
-            `,
+          title: "Calculo fallido",
+          html: errorMessage,
           showConfirmButton: true,
         });
       });

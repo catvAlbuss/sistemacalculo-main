@@ -7,7 +7,15 @@ export function ddT1X(
   tableData3DC,
   tableData3YDC
 ) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
+
+  if (!tableData3DC || tableData3DC.length === 0) {
+    alert('Debe completar el diseño por flexión en X-X primero');
+    return;
+  }
 
   var data = [];
 
@@ -293,7 +301,10 @@ export function ddT1Y(
   dataT1X,
   tableData3YDC
 ) {
+  if (!contenedor) return;
+  
   var container = contenedor;
+  container.innerHTML = '';
 
   var data = [];
 

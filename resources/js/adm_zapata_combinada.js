@@ -88,6 +88,8 @@ var PPY11;
 var PPY12;
 var PPY13;
 
+var charts = {};
+
 import html2canvas from "html2canvas";
 import "print-this";
 
@@ -172,13 +174,27 @@ $(document).ready(function () {
                 data: $(this).serialize(),
                 success: function (response) {
                     $('#ObtenerResultadosZComb').html(response);
-                    obtenerPuntosCorte("fila1_col1", "fila1_col2");
-                    dibujarCortePunzo();
-                    vistaPlanta();
-                    dibujarZapataIzquierda();
+                    
+                    if ($('#valor_b').length && $('#valor_L').length) {
+                        obtenerPuntosCorte("fila1_col1", "fila1_col2");
+                        dibujarCortePunzo();
+                        vistaPlanta();
+                        dibujarZapataIzquierda();
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'No se pudieron obtener los resultados del cálculo. Por favor verifique los datos ingresados.'
+                        });
+                    }
                 },
                 error: function (xhr, status, error) {
                     console.error('Error al enviar la solicitud AJAX', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Hubo un error al procesar el cálculo. Por favor verifique los datos ingresados.'
+                    });
                 }
             });
         });
@@ -352,6 +368,11 @@ if (btnCaptura) {
 }
 
 function dibujarZapataIzquierda() {
+    if (charts["predimencionamiento"]) {
+        charts["predimencionamiento"].destroy();
+        charts["predimencionamiento"] = null;
+    }
+    
     var P_t1_col1 = parseFloat(document.getElementById("t1_col1").value);
     var P_t1_col2 = parseFloat(document.getElementById("t1_col2").value);
     var PLe = parseFloat(document.getElementById("Le").value);
@@ -429,9 +450,15 @@ function dibujarZapataIzquierda() {
         data: data,
         options: options,
     });
+    charts["predimencionamiento"] = myChart;
 }
 
 function obtenerPuntosCorte(fila_columna1, fila_columna2) {
+    if (charts["myChart"]) {
+        charts["myChart"].destroy();
+        charts["myChart"] = null;
+    }
+    
     // Datos de los puntos (x, y)
     var t1_col1 = document.getElementById("t1_col1").value;
     var Le = document.getElementById("Le").value;
@@ -455,8 +482,26 @@ function obtenerPuntosCorte(fila_columna1, fila_columna2) {
 
     var filaSeleccionada = document.getElementById(fila_columna1);
 
+    if (!filaSeleccionada) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se encontró la fila de datos para la columna 1. Por favor seleccione una combinación de cargas válida.'
+        });
+        return;
+    }
+
     // Acceder a las celdas dentro de la fila seleccionada
     var celdasTabla = filaSeleccionada.querySelectorAll("td");
+
+    if (celdasTabla.length < 3) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'La fila de datos de la columna 1 no tiene suficientes datos.'
+        });
+        return;
+    }
 
     // Obtener los valores de cada celda
     var P_COL1 = celdasTabla[0].textContent.trim(); // Valor de la primera celda
@@ -467,11 +512,38 @@ function obtenerPuntosCorte(fila_columna1, fila_columna2) {
     MX_COL1 = parseFloat(MX_COL1);
     MY_COL1 = parseFloat(MY_COL1);
 
+    if (isNaN(P_COL1) || isNaN(MX_COL1) || isNaN(MY_COL1)) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Los valores de carga de la columna 1 no son válidos. Por favor verifique los datos ingresados.'
+        });
+        return;
+    }
+
     // Obtener la fila seleccionada por su ID
     var filaSeleccionada2 = document.getElementById(fila_columna2);
 
+    if (!filaSeleccionada2) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se encontró la fila de datos para la columna 2. Por favor seleccione una combinación de cargas válida.'
+        });
+        return;
+    }
+
     // Acceder a las celdas dentro de la fila seleccionada
     var celdasTabla2 = filaSeleccionada2.querySelectorAll("td");
+
+    if (celdasTabla2.length < 3) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'La fila de datos de la columna 2 no tiene suficientes datos.'
+        });
+        return;
+    }
 
     // Obtener los valores de cada celda
     var P_COL2 = celdasTabla2[0].textContent.trim(); // Valor de la primera celda
@@ -481,11 +553,42 @@ function obtenerPuntosCorte(fila_columna1, fila_columna2) {
     P_COL2 = parseFloat(P_COL2);
     MX_COL2 = parseFloat(MX_COL2);
     MY_COL2 = parseFloat(MY_COL2);
+
+    if (isNaN(P_COL2) || isNaN(MX_COL2) || isNaN(MY_COL2)) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Los valores de carga de la columna 2 no son válidos. Por favor verifique los datos ingresados.'
+        });
+        return;
+    }
+    
     // Obtener el elemento por su ID
-    var B = document.getElementById("valor_b").innerHTML;
-    var L = document.getElementById("valor_L").innerHTML;
+    var BElement = document.getElementById("valor_b");
+    var LElement = document.getElementById("valor_L");
+    
+    if (!BElement || !LElement) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se encontraron los valores de dimensiones B y L. Por favor ejecute el cálculo primero.'
+        });
+        return;
+    }
+    
+    var B = BElement.innerHTML;
+    var L = LElement.innerHTML;
     B = parseFloat(B);
     L = parseFloat(L);
+
+    if (isNaN(B) || isNaN(L) || B <= 0 || L <= 0) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Los valores de dimensiones B y L no son válidos. Por favor ejecute el cálculo primero.'
+        });
+        return;
+    }
     //CM+CV
     P = P_COL1 + P_COL2;
     MX = MX_COL1 + MX_COL2;
@@ -559,10 +662,16 @@ function obtenerPuntosCorte(fila_columna1, fila_columna2) {
         data: data,
         options: options,
     });
+    charts["myChart"] = lineChart;
     generarGraficoLinealCurvo(puntoY4, puntoY3);
 }
 
 function generarGraficoLinealCurvo(puntoY4, puntoY3) {
+    if (charts["VC_flexion"]) {
+        charts["VC_flexion"].destroy();
+        charts["VC_flexion"] = null;
+    }
+    
     var t1_col1F = document.getElementById("t1_col1").value;
     var t1_col1 = document.getElementById("t1_col1").value;
     var Le_F = document.getElementById("Le").value;
@@ -601,8 +710,27 @@ function generarGraficoLinealCurvo(puntoY4, puntoY3) {
     var filaSelect1 = document.getElementById("selectVFColumna1").value;
 
     var filaSeleccionadaF = document.getElementById(filaSelect1);
+    
+    if (!filaSeleccionadaF) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se encontró la fila de datos para verificación de flexión Columna 1.'
+        });
+        return;
+    }
+    
     // Acceder a las celdas dentro de la fila seleccionada
     var celdasTablaF = filaSeleccionadaF.querySelectorAll("td");
+
+    if (celdasTablaF.length < 3) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'La fila de datos de verificación de flexión Columna 1 no tiene suficientes datos.'
+        });
+        return;
+    }
 
     // Obtener los valores de cada celda
     var P_COLF1 = celdasTablaF[0].textContent.trim(); // Valor de la primera celda
@@ -613,13 +741,40 @@ function generarGraficoLinealCurvo(puntoY4, puntoY3) {
     MX_COLF1 = parseFloat(MX_COLF1);
     MY_COLF1 = parseFloat(MY_COLF1);
 
+    if (isNaN(P_COLF1) || isNaN(MX_COLF1) || isNaN(MY_COLF1)) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Los valores de verificación de flexión Columna 1 no son válidos.'
+        });
+        return;
+    }
+
     var filaSelect2 = document.getElementById("selectVFColumna2").value;
 
     // Obtener la fila seleccionada por su ID
     var filaSeleccionadaF2 = document.getElementById(filaSelect2);
+    
+    if (!filaSeleccionadaF2) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se encontró la fila de datos para verificación de flexión Columna 2.'
+        });
+        return;
+    }
 
     // Acceder a las celdas dentro de la fila seleccionada
     var celdasTablaF2 = filaSeleccionadaF2.querySelectorAll("td");
+    
+    if (celdasTablaF2.length < 3) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'La fila de datos de verificación de flexión Columna 2 no tiene suficientes datos.'
+        });
+        return;
+    }
 
     // Obtener los valores de cada celda
     var P_COLF2 = celdasTablaF2[0].textContent.trim(); // Valor de la primera celda
@@ -630,9 +785,30 @@ function generarGraficoLinealCurvo(puntoY4, puntoY3) {
     MX_COLF2 = parseFloat(MX_COLF2);
     MY_COLF2 = parseFloat(MY_COLF2);
 
+    if (isNaN(P_COLF2) || isNaN(MX_COLF2) || isNaN(MY_COLF2)) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Los valores de verificación de flexión Columna 2 no son válidos.'
+        });
+        return;
+    }
+
     // Obtener el elemento por su ID
-    var BF = document.getElementById("valor_b").innerHTML;
-    var LF = document.getElementById("valor_L").innerHTML;
+    var BFElement = document.getElementById("valor_b");
+    var LFElement = document.getElementById("valor_L");
+    
+    if (!BFElement || !LFElement) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se encontraron los valores de dimensiones para verificación de flexión.'
+        });
+        return;
+    }
+    
+    var BF = BFElement.innerHTML;
+    var LF = LFElement.innerHTML;
     BF = parseFloat(BF);
     LF = parseFloat(LF);
     //CM+CV
@@ -649,7 +825,7 @@ function generarGraficoLinealCurvo(puntoY4, puntoY3) {
     COL1_OF = PF / (BF * LF) + (MYF * CYF) / LXF;
     COL2_OF = PF / (BF * LF) - (MYF * CYF) / LXF;
     OF = Math.max(COL1_OF, COL2_OF);
-    OFF = O * BF;
+    OFF = OF * BF;
 
     //PUNTOS Y
     PY1 = parseFloat((-1 * 0.5 * OFF * PX1 * PX1).toFixed(2));
@@ -722,9 +898,15 @@ function generarGraficoLinealCurvo(puntoY4, puntoY3) {
             },
         },
     });
+    charts["VC_flexion"] = curvedLineChart;
 }
 
 function dibujarCortePunzo() {
+    if (charts["corte_punzonamiento"]) {
+        charts["corte_punzonamiento"].destroy();
+        charts["corte_punzonamiento"] = null;
+    }
+    
     //Datos necesarios
     var CP_t1_col1 = parseFloat(document.getElementById("t1_col1").value);
     var CP_t1_col2 = parseFloat(document.getElementById("t1_col2").value);
@@ -931,8 +1113,14 @@ function dibujarCortePunzo() {
         data: data,
         options: options,
     });
+    charts["corte_punzonamiento"] = myChart;
 }
 function vistaPlanta() {
+    if (charts["vistaplanta"]) {
+        charts["vistaplanta"].destroy();
+        charts["vistaplanta"] = null;
+    }
+    
     //Datos necesarios
     var VP_t1_col1 = parseFloat(document.getElementById("t1_col1").value);
     var VP_t1_col2 = parseFloat(document.getElementById("t1_col2").value);
@@ -1075,4 +1263,5 @@ function vistaPlanta() {
         data: data,
         options: options,
     });
+    charts["vistaplanta"] = myChart;
 }

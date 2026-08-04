@@ -13,6 +13,7 @@ use App\Http\Controllers\GestionUserRolSuscripcion;
 use App\Http\Controllers\OctavePlotController;
 use App\Http\Controllers\MuroAlbanieriaController;
 use App\Http\Controllers\OpenSeesController;
+use App\Http\Controllers\PythonEngineController;
 use App\Http\Controllers\SubscriptionPlanController;
 // use App\Http\Controllers\VigaCaptureController;
 use App\Http\Controllers\ZapatacombinadaController;
@@ -27,19 +28,16 @@ use Illuminate\Support\Facades\Route;
 Route::view('/', 'welcome')->name("landing.home");
 
 Route::get('/api/opensees/status', function () {
-    try {
-        $response = Illuminate\Support\Facades\Http::timeout(2)->get('http://localhost:5001/health');
-        return response()->json(['status' => 'online', 'version' => 'OpenSeesPy']);
-    } catch (\Exception $e) {
-        return response()->json(['status' => 'offline', 'fallback' => 'Octave']);
-    }
+    [$status, $body] = PythonEngineController::run('opensees-status', []);
+
+    return response($body, $status)->header('Content-Type', 'application/json');
 })->name('opensees.status');
 
 // Ruta POST para análisis (con autenticación)
 Route::post('/api/opensees/analyze', [OpenSeesController::class, 'analyze']);
 
 //=======================Landing=========================================//
-Route::view('/servicios/diseño_estructural', 'landing.structural_design')->name('landing.services.structural_design');
+Route::view('/servicios/diseno_estructural', 'landing.structural_design')->name('landing.services.structural_design');
 Route::view('/servicios/software_estructural', 'landing.structural_software')->name('landing.services.structural_software');
 Route::view('/servicios/planos_estructurales', 'landing.structural_blueprint')->name('landing.services.structural_blueprint');
 Route::view('/servicios/metrados', 'landing.metrados')->name('landing.services.metrados');
@@ -49,7 +47,7 @@ Route::post('/cotizarplano', [enviarCotizacionController::class, 'enviarCotizaci
 
 // Route::post('/capturar-viga-descarga', [VigaCaptureController::class, 'descargar']);
 
-Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento']);  
+Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento']);
 
 //==========================RUTA PARA LAS PRUEBAS PREDIM==================//
 Route::view('/info/arco_techo', 'landing.arco_techo')->name('landing.info.arco_techo');
@@ -112,6 +110,7 @@ Route::middleware(["auth", "verified"])->group(function () {
                 Route::view('/distribucion-del-acero', 'hcalculo.CAV2.admDistribucionDelAcero')->name("distribucion-del-acero");
                 Route::view('/vigas-continuas', 'hcalculo.CAV2.admVigasContinuas')->name("vigas-continuas");
                 Route::view('/hoja2', 'hcalculo.CAV2.admHoja2')->name("hoja2");
+                Route::view('/viga-t', 'hcalculo.adm_vigas_T')->name("viga-t");
             });
         });
 
@@ -122,21 +121,25 @@ Route::middleware(["auth", "verified"])->group(function () {
                 // Agrega la ruta de admMemoriaCalculo memoria-calculo
                 Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name('memoria-calculo');
 
+
                 // Vigas
                 Route::view('/vigas', 'hcalculo.admdesingvigas')->name('vigas');
                 Route::view('/vigas-general', 'hcalculo.admvigageneral')->name('vigas-general');
+
+                // Escaleras
+                Route::view('/escaleras', 'hcalculo.admDesingEscaleras')->name('escaleras');
 
                 // Losas
                 Route::view('/losas-macizas', 'hcalculo.admlosasmacizas')->name('losas-macizas');
                 Route::view('/losas-aligeradas', 'hcalculo.admlosasaligeradas')->name('losas-aligeradas');
 
                 // Diseño en madera
-                Route::view('/diseño-en-madera', 'hcalculo.diseño_en_madera_flexocompresion')->name('diseño-en-madera');
+                Route::view('/diseno-en-madera', 'hcalculo.diseno_en_madera_flexocompresion')->name('diseno-en-madera');
 
                 // Muros
                 Route::view('/muros-de-contencionv2', 'muros-contencion.index')->name('muros-de-contencionv2');
                 Route::view('/muros-de-contencion', 'hcalculo.admMurosContencion')->name('muros-de-contencion');
-                Route::view('/muros-de-albañieria', 'hcalculo.admMurosAlbanieria')->name('muros-de-albañieria');
+                Route::view('/muros-de-albanieria', 'hcalculo.admMurosAlbanieria')->name('muros-de-albanieria');
 
                 // Cimiento
                 Route::view('/cimiento-corrido', 'hcalculo.admCimientoCorrido')->name('cimiento-corrido');
@@ -144,6 +147,7 @@ Route::middleware(["auth", "verified"])->group(function () {
                 // Columnas
                 Route::view('/columna-de-acero', 'hcalculo.admdesingcolumnaAcero')->name('columna-de-acero');
                 Route::view('/columna', 'hcalculo.admdesingcolumna')->name('columna');
+                Route::view('/columna-ii', 'hcalculo.adm_columnaII')->name('columna-ii');
 
                 // Zapata
                 Route::view('/zapata-combinada', 'hcalculo.admZapataCombinada')->name('zapata-combinada');
@@ -159,25 +163,39 @@ Route::middleware(["auth", "verified"])->group(function () {
                 // Irregularidades
                 Route::view('/irregularidades', 'hcalculo.admIrregularidades')->name('irregularidades');
 
+                // Espectro Sísmico
+                Route::view('/espectro-sismico', 'hcalculo.espectro-sismico')->name('espectro-sismico');
+
                 // Diseño en madera
-                Route::prefix('diseño-en-madera')->name('diseño-en-madera.')->group(function () {
+                Route::prefix('diseno-en-madera')->name('diseno-en-madera.')->group(function () {
                     Route::view('/correas', 'hcalculo.admdesingcorreas')->name('correas');
-                    Route::view('/flexo-compresion', 'hcalculo.diseño_en_madera.flexo_compresion')->name('flexo-compresion');
-                    Route::view('/compresion', 'hcalculo.diseño_en_madera.compresion')->name('compresion');
-                    Route::view('/traccion', 'hcalculo.diseño_en_madera.traccion')->name('traccion');
-                    Route::view('/flexo-traccion', 'hcalculo.diseño_en_madera.flexo_traccion')->name('flexo-traccion');
+                    Route::view('/flexo-compresion', 'hcalculo.diseno_en_madera.flexo_compresion')->name('flexo-compresion');
+                    Route::view('/compresion', 'hcalculo.diseno_en_madera.compresion')->name('compresion');
+                    Route::view('/traccion', 'hcalculo.diseno_en_madera.traccion')->name('traccion');
+                    Route::view('/flexo-traccion', 'hcalculo.diseno_en_madera.flexo_traccion')->name('flexo-traccion');
                 });
 
                 // Diseño en acero
-                Route::prefix('diseño-en-acero')->name('diseño-en-acero.')->group(function () {
-                    Route::view('/compresion', 'hcalculo.diseño_en_acero.compresion')->name('compresion');
-                    Route::view('/traccion', 'hcalculo.diseño_en_acero.traccion')->name('traccion');
+                Route::prefix('diseno-en-acero')->name('diseno-en-acero.')->group(function () {
+                    Route::view('/compresion', 'hcalculo.diseno_en_acero.compresion')->name('compresion');
+                    Route::view('/traccion', 'hcalculo.diseno_en_acero.traccion')->name('traccion');
                 });
             });
         });
     });
     Route::prefix("software")->name("software.")->group(function () {
         Route::view('/analisis-estructural-de-armaduras', 'matlab.admAnalisisEstructuralDeArmaduras')->name("analisis-estructural-de-armaduras");
+        Route::view('/predim2', 'etabs.index')->name("etabs2");
+        Route::view('/etabs', 'matlab.admAnalisisEstructuralDeArmaduras')->name("etabs");
+        // Autoguardado del modelo CAD a la BD (por usuario). Complementa IndexedDB.
+        Route::post('/etabs/model/autosave', [\App\Http\Controllers\CadModelController::class, 'autosave'])->name('etabs.model.autosave');
+        Route::get('/etabs/model/latest', [\App\Http\Controllers\CadModelController::class, 'latest'])->name('etabs.model.latest');
+        // Fase 2 — "Mis modelos": listar / abrir / guardar como / renombrar / borrar.
+        Route::get('/etabs/models', [\App\Http\Controllers\CadModelController::class, 'index'])->name('etabs.models.index');
+        Route::post('/etabs/models', [\App\Http\Controllers\CadModelController::class, 'store'])->name('etabs.models.store');
+        Route::get('/etabs/models/{id}', [\App\Http\Controllers\CadModelController::class, 'show'])->whereNumber('id')->name('etabs.models.show');
+        Route::put('/etabs/models/{id}', [\App\Http\Controllers\CadModelController::class, 'update'])->whereNumber('id')->name('etabs.models.update');
+        Route::delete('/etabs/models/{id}', [\App\Http\Controllers\CadModelController::class, 'destroy'])->whereNumber('id')->name('etabs.models.destroy');
         Route::view('/aligerados-v2', 'matlab.admAligeradosGrafico')->name("aligerados-v2");
         Route::view('/aligerados-v1', 'matlab.admFuerzasCortantesGrafico')->name("aligerados-v1");
         Route::view('/cimentacion-v2', 'matlab.admSafecito')->name("cimentacion-v2");
@@ -194,7 +212,7 @@ Route::middleware(["auth", "verified"])->group(function () {
         Route::view('/verificacion-viga-v1', 'hcalculo.verificaciones.admVigaverifica')->name("verificacion-viga-v1");
 
 
-        Route::view('/predim', 'predim.predim')->name('predim');
+        Route::view('/predimv2', 'predim.predim-new')->name('predimv2');
     });
 
     //===================RUTA DE LOSAS========================================//
@@ -216,12 +234,43 @@ Route::middleware(["auth", "verified"])->group(function () {
     Route::post('/suelos', [OctavePlotController::class, 'calcularSuelos'])->name('suelos');
     //===================OCTAVE===============================================//
     Route::post('/calcularFuerzasArmaduras', [OctavePlotController::class, 'calcularFuerzasArmaduras'])->name('calcularFuerzasArmaduras');
+    Route::post('/calcularFuerzasArmaduras3d', [OctavePlotController::class, 'calcularFuerzasArmaduras3d'])->name('calcularFuerzasArmaduras3d');
     Route::post('/fuerzasCortantes', [OctavePlotController::class, 'graficarFC'])->name('fuerzasCortantes');
     Route::post('/aligerados', [OctavePlotController::class, 'graficarAligerados'])->name('aligerados');
     Route::post('/zapatas', [OctavePlotController::class, 'graficarZapatas'])->name('zapatas');
 });
 
 require __DIR__ . '/auth.php';
+
+// =============================================
+// RUTAS MEMORIA DESCRIPTIVA - VERSIÓN SIMPLE
+// =============================================
+
+// Ruta principal del menú
+Route::get('/calculadora/asistente/memoria-descriptiva', function () {
+    return redirect()->to('/calculadora/asistente/memoria-descriptiva/portada');
+})->name('calculadora.asistente.memoria-descriptiva');
+
+// Rutas directas SIN grupos anidados
+Route::get('/calculadora/asistente/memoria-descriptiva/portada', function () {
+    return view('hcalculo.memoria_descriptiva.sections.portada');
+})->name('calculadora.asistente.memoria-descriptiva.portada');
+
+Route::get('/calculadora/asistente/memoria-descriptiva/generalidades', function () {
+    return view('hcalculo.memoria_descriptiva.sections.generalidades-md');
+})->name('calculadora.asistente.memoria-descriptiva.generalidades');
+
+Route::get('/calculadora/asistente/memoria-descriptiva/consideraciones', function () {
+    return view('hcalculo.memoria_descriptiva.sections.consideraciones');
+})->name('calculadora.asistente.memoria-descriptiva.consideraciones');
+
+Route::get('/calculadora/asistente/memoria-descriptiva/predimensionamiento', function () {
+    return view('hcalculo.memoria_descriptiva.sections.predimensionamiento');
+})->name('calculadora.asistente.memoria-descriptiva.predimensionamiento');
+
+Route::get('/calculadora/asistente/memoria-descriptiva/demolicion', function () {
+    return view('hcalculo.memoria_descriptiva.sections.demolicion');
+})->name('calculadora.asistente.memoria-descriptiva.demolicion');
 Route::prefix('storage')->group(function () {
     // Imágenes de perfil
     Route::get('/profile/{filename}', function ($filename) {
@@ -246,18 +295,67 @@ Route::prefix('storage')->group(function () {
     })->name('get.firma');
 });
 
-// =================== RUTAS PARA OPENSEES =================== //
-// Route::middleware(["auth", "verified"])->group(function () {
-//     Route::post('/api/opensees/analyze', [OpenSeesController::class, 'analyze'])
-//         ->name('opensees.analyze');
-    
-//     // Ruta para verificar estado del servicio Python
-//     Route::get('/api/opensees/status', function () {
-//         try {
-//             $response = Http::timeout(2)->get('http://localhost:5001/health');
-//             return response()->json(['status' => 'online', 'version' => 'OpenSeesPy']);
-//         } catch (\Exception $e) {
-//             return response()->json(['status' => 'offline', 'fallback' => 'Octave']);
-//         }
-//     })->name('opensees.status');
-// });
+Route::prefix('api/backend')
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+    ->group(function () {
+
+        $jsonPayload = fn () => json_decode(request()->getContent(), true) ?? [];
+
+        Route::get('/health', function () {
+            [$status, $body] = PythonEngineController::run('health', []);
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::get('/opensees/status', function () {
+            [$status, $body] = PythonEngineController::run('opensees-status', []);
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/analyze', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('analyze', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/analyze-3d', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('analyze-3d', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/seismic/analyze', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('seismic-analyze', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/seismic/parse-spectrum', function () {
+            if (request()->files && request()->hasFile('file')) {
+                $file = request()->file('file');
+                $payload = [
+                    'filename' => $file->getClientOriginalName(),
+                    'content_base64' => base64_encode(file_get_contents($file->getRealPath())),
+                ];
+            } else {
+                $payload = json_decode(request()->getContent(), true) ?? [];
+            }
+
+            [$status, $body] = PythonEngineController::run('seismic-parse-spectrum', $payload);
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/frame-forces', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('frame-forces', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/seismic/modal', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('seismic-modal', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+    });
