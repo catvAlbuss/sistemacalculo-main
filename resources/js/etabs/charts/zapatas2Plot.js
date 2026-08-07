@@ -4,7 +4,10 @@
 import Plotly from "plotly.js-dist-min";
 import { matlabColorScale } from "../../matlab/color_scale.js";
 
-function flattenNumeric(value) {
+// Exportadas para reutilizarlas tal cual en canvas2d/zapataPressureLayer.js
+// (pintar σ directamente sobre la zapata en el 2D) — mismo point cloud,
+// mismo criterio de aplanado/combinación, sin duplicar la lógica.
+export function flattenNumeric(value) {
     if (value === null || value === undefined) {
         return [];
     }
@@ -18,7 +21,7 @@ function flattenNumeric(value) {
     return flat.map(Number).filter((number) => Number.isFinite(number));
 }
 
-function limitPlotPoints(points, limit = 4000) {
+export function limitPlotPoints(points, limit = 4000) {
     if (points.length <= limit) {
         return points;
     }
@@ -30,7 +33,7 @@ function limitPlotPoints(points, limit = 4000) {
     });
 }
 
-function getZValuesForCombo(ZZ, comboIndex) {
+export function getZValuesForCombo(ZZ, comboIndex) {
     if (Array.isArray(ZZ?.[comboIndex]) && ZZ[comboIndex].length) {
         return flattenNumeric(ZZ[comboIndex]);
     }

@@ -541,6 +541,11 @@ export default () => ({
     this.shapes = [];
     this.nodes = [];
     this.areas = [];
+    // Capa de presión σ sobre zapatas en el 2D (ver
+    // canvas2d/zapataPressureLayer.js) — pedido del cliente, reutiliza el
+    // mismo point cloud que ya calcula "Calcular zapatas".
+    this.showZapataPressureLayer = false;
+    this.zapataPressureComboIndex = 0;
     this.referencePoints = [];
     this.referencePlanes = this.referencePlanes || [];
     this.dimensionLines = [];

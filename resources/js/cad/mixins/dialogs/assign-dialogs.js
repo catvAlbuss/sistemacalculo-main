@@ -2080,25 +2080,32 @@ export const assignDialogsMixin = {
 
   // Losas del modelo + opciones de alcance (selección/todas/por-piso) — compartido
   // por los diálogos de carga de área y sección de losa.
-  _slabAssignData() {
+  // `types` acota qué áreas cuentan como "asignables" — por defecto solo
+  // "slab" (comportamiento de siempre, usado por ej. por el diálogo de
+  // Cargas de Área). El diálogo de Sección de Losa pasa explícitamente
+  // ["slab", "zapata"] (ver openAssignSlabSectionDialog) para que las
+  // zapatas también puedan recibir espesor + material — sin tocar este
+  // valor por defecto, ningún otro diálogo cambia de comportamiento.
+  _slabAssignData(types = ["slab"]) {
     const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
     const slabZ = (a) => r2(a.z ?? (a.points.reduce((s, p) => s + (Number(p.z) || 0), 0) / a.points.length));
     const selected = this.getSelectedAreasForAssign();
     const allSlabs = (this.areas || []).filter(
-      (a) => (a.areaType || a.type || "slab") === "slab" && Array.isArray(a.points) && a.points.length >= 3,
+      (a) => types.includes(a.areaType || a.type || "slab") && Array.isArray(a.points) && a.points.length >= 3,
     );
     const byZ = new Map();
     allSlabs.forEach((a) => { const z = slabZ(a); if (!byZ.has(z)) byZ.set(z, []); byZ.get(z).push(a); });
     const floors = [...byZ.keys()].sort((a, b) => a - b);
+    const isMixed = types.length > 1;
     const scopes = [];
-    if (selected.length) scopes.push({ value: "selected", label: `Losas seleccionadas (${selected.length})` });
-    scopes.push({ value: "all", label: `Todas las losas (${allSlabs.length})` });
-    floors.forEach((z) => scopes.push({ value: `z:${z}`, label: `Piso z=${z} m (${byZ.get(z).length} losa/s)` }));
+    if (selected.length) scopes.push({ value: "selected", label: `${isMixed ? "Elementos" : "Losas"} seleccionados (${selected.length})` });
+    scopes.push({ value: "all", label: `Todas las ${isMixed ? "losas/zapatas" : "losas"} (${allSlabs.length})` });
+    floors.forEach((z) => scopes.push({ value: `z:${z}`, label: `Piso z=${z} m (${byZ.get(z).length} ${isMixed ? "elemento/s" : "losa/s"})` }));
     return { selected, allSlabs, byZ, scopes };
   },
 
-  _resolveSlabScopeTarget(scope) {
-    const { selected, allSlabs, byZ } = this._slabAssignData();
+  _resolveSlabScopeTarget(scope, types = ["slab"]) {
+    const { selected, allSlabs, byZ } = this._slabAssignData(types);
     if (scope === "selected") return selected;
     if (String(scope).startsWith("z:")) return byZ.get(Number(String(scope).slice(2))) || [];
     return allSlabs;
@@ -2157,10 +2164,17 @@ export const assignDialogsMixin = {
   // ASSIGN > SHELL > SLAB SECTION  (como ETABS)
   // =====================================================
   // Migración Swal→Blade: HTML en components/cad/modals/slab-section-modal.blade.php.
+  // Incluye "zapata" además de "slab" (ver _slabAssignData) — las zapatas
+  // también necesitan espesor + material, para el diseño de acero/cortante
+  // (Bloque 4). Verificado que esto NO afecta el peso sísmico del
+  // edificio: _buildSeismicAreaLoadsForPayload (payload.js) tiene su
+  // propio filtro independiente que sigue excluyendo zapatas de la
+  // masa/peso sísmico, así que slabSelfWeightKgM2 en una zapata queda
+  // inerte (guardado pero nunca leído por ese cálculo).
   openAssignSlabSectionDialog() {
-    const { allSlabs, scopes } = this._slabAssignData();
+    const { allSlabs, scopes } = this._slabAssignData(["slab", "zapata"]);
     if (!allSlabs.length) {
-      this.showMessage?.("No hay losas en el modelo. Dibuja losas primero.", "warning");
+      this.showMessage?.("No hay losas ni zapatas en el modelo. Dibuja alguna primero.", "warning");
       return;
     }
     const sections = Array.isArray(this.slabSections) ? this.slabSections : [];
@@ -2179,7 +2193,7 @@ export const assignDialogsMixin = {
 
   applySlabSectionFromModal(scope, name) {
     const sections = Array.isArray(this.slabSections) ? this.slabSections : [];
-    const target = this._resolveSlabScopeTarget(scope);
+    const target = this._resolveSlabScopeTarget(scope, ["slab", "zapata"]);
     const sec = name === "__none__" ? null : sections.find((s) => s.name === name);
 
     this.saveUndoState?.("Asignar sección de losa");
@@ -2187,11 +2201,11 @@ export const assignDialogsMixin = {
       slab.slabSection = sec ? sec.name : null;
       // Peso propio de la losa (kgf/m²): espesor(m) × densidad del material.
       slab.slabSelfWeightKgM2 = sec ? this._slabSectionSelfWeightKgM2(sec) : 0;
-      slab.section = sec ? { name: sec.name, thickness: sec.thickness, material: sec.material } : null;
+      slab.section = sec ? { name: sec.name, thickness: sec.thickness, material: sec.material, recubrimiento: sec.recubrimiento } : null;
     });
     this.markAnalysisResultsOutdated?.("Se asignó sección de losa.");
     this.redraw?.();
-    this.showMessage?.(`Sección "${name === "__none__" ? "None" : name}" asignada a ${target.length} losa(s).`);
+    this.showMessage?.(`Sección "${name === "__none__" ? "None" : name}" asignada a ${target.length} elemento(s).`);
   },
 
   // Peso propio de una sección de losa en kgf/m² = espesor(m) × densidad(kg/m³).

@@ -21,6 +21,8 @@ import {
   hideFrameForceDisplayPanel,
 } from "../diagrams/frameForceDisplayPanel.js";
 
+import { computeSigmaColorRange, buildSigmaColorBins, drawSigmaLegend } from "./zapataPressureLayer.js";
+
 
 function imgFromSVG(svg) {
   // Create an image from the SVG string
@@ -116,6 +118,7 @@ export class DiseñoRenderer {
     this.drawDimensionLines(CADSystem);
     this.drawDimensionPreview(CADSystem);
     this.drawAreas(CADSystem);
+    this.drawZapataPressureLayer(CADSystem);
     this.drawAreaPreview(CADSystem);
     this.drawOrthoGuides(CADSystem);
 
@@ -1651,6 +1654,112 @@ export class DiseñoRenderer {
       if (!this.shouldDrawArea(area, context)) return;
       this.drawArea(area, context, false);
     });
+  }
+
+  /**
+   * Pinta σ (presión de contacto) sobre cada zapata, reutilizando el mismo
+   * point cloud que ya devuelve /zapatas2 (ver zapataPressureLayer.js) —
+   * pedido del cliente, sin tocar el backend. Se activa/desactiva con
+   * `context.showZapataPressureLayer` y usa la combinación
+   * `context.zapataPressureComboIndex` (ambos en cad_sys.js).
+   */
+  drawZapataPressureLayer(context) {
+    if (!context.showZapataPressureLayer) return;
+
+    const results = context._lastZapataCalculationResults;
+    const polygons = results?.normalizedPolygons;
+    if (!polygons?.length) return;
+
+    const comboIndex = context.zapataPressureComboIndex ?? 0;
+    const ctx = context.ctx;
+
+    // Recorrer decenas de miles de puntos y agruparlos por color es caro
+    // — este render corre a 60 fps, pero esos datos NO cambian entre
+    // frames, solo cuando cambia la combinación mostrada o se vuelve a
+    // correr "Calcular zapatas". Se cachea acá y solo se recalcula si
+    // alguna de esas dos cosas cambió; lo que sí cambia cada frame (pan/
+    // zoom) es barato — proyectar puntos ya agrupados.
+    let cache = this._zapataPressureCache;
+    if (!cache || cache.results !== results || cache.comboIndex !== comboIndex) {
+      const { cmin, cmax } = computeSigmaColorRange(polygons, comboIndex);
+      cache = {
+        results,
+        comboIndex,
+        cmin,
+        cmax,
+        perPolygon: polygons.map((polygon) => ({ polygon, ...buildSigmaColorBins(polygon, comboIndex, cmin, cmax) })),
+      };
+      this._zapataPressureCache = cache;
+    }
+
+    const { cmin, cmax } = cache;
+    // Píxeles por metro al zoom actual — mismo factor que usa
+    // grid.worldToScreen. Con esto el tamaño de cada celda se convierte de
+    // metros reales a píxeles de pantalla, así que siempre cubre el mismo
+    // pedazo de terreno sin importar cuánto acerques/alejes.
+    const pixelsPerMeter = context.grid?.scaleX || 1;
+
+    cache.perPolygon.forEach(({ polygon, bins, cellWidthMeters, cellHeightMeters }) => {
+      // Celdas del tamaño real de la cuadrícula (no un radio aproximado):
+      // encajan como mosaico, sin huecos ni superposición, a cualquier
+      // zoom — ver estimateGridStep en zapataPressureLayer.js.
+      const cellWidth = Math.max(1.5, cellWidthMeters * pixelsPerMeter);
+      const cellHeight = Math.max(1.5, cellHeightMeters * pixelsPerMeter);
+
+      ctx.save();
+
+      // Recorta el pintado al contorno REAL de la zapata — sin esto, las
+      // celdas cercanas al borde se salen visiblemente del contorno
+      // dibujado.
+      const screenPts = polygon.points?.length >= 3
+        ? polygon.points.map((pt) => this.projectPoint({ position: { x: pt.x, y: pt.y, z: 0 } }, context))
+        : null;
+
+      if (screenPts) {
+        const clipPath = new Path2D();
+        clipPath.moveTo(screenPts[0].x, screenPts[0].y);
+        for (let i = 1; i < screenPts.length; i++) {
+          clipPath.lineTo(screenPts[i].x, screenPts[i].y);
+        }
+        clipPath.closePath();
+        ctx.clip(clipPath);
+      }
+
+      bins.forEach(({ color, points }) => {
+        const path = new Path2D();
+
+        points.forEach(({ x, y }) => {
+          const p = this.projectPoint({ position: { x, y, z: 0 } }, context);
+          path.rect(p.x - cellWidth / 2, p.y - cellHeight / 2, cellWidth, cellHeight);
+        });
+
+        ctx.fillStyle = color;
+        ctx.fill(path);
+      });
+
+      ctx.restore();
+
+      // Vuelve a trazar el contorno de la zapata ENCIMA de las celdas ya
+      // recortadas: contra un borde inclinado, el recorte deja un patrón
+      // levemente dentado (cada celda cuadrada se corta individualmente).
+      // El grosor del trazo se ajusta al tamaño real de la celda (no un
+      // valor fijo) — zapatas chicas (una sola columna) reciben menos
+      // puntos del backend, o sea celdas más grandes y un escalón más
+      // notorio, que necesita un trazo más grueso para taparlo.
+      if (screenPts) {
+        ctx.beginPath();
+        ctx.moveTo(screenPts[0].x, screenPts[0].y);
+        for (let i = 1; i < screenPts.length; i++) {
+          ctx.lineTo(screenPts[i].x, screenPts[i].y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = Math.min(20, Math.max(1.5, Math.max(cellWidth, cellHeight) * 0.75));
+        ctx.stroke();
+      }
+    });
+
+    drawSigmaLegend(ctx, ctx.canvas.width, ctx.canvas.height, cmin, cmax);
   }
 
   drawAreaPreview(context) {

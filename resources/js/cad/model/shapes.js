@@ -146,11 +146,18 @@ export class Shape {
     }
 
     const P = Math.abs(P0);
-    const A = Math.abs(A0 / 2);
+    // El área CON signo (antes de abs()) es la que hay que usar para
+    // dividir XC/YC — es la fórmula estándar del centroide de un
+    // polígono. Envolver en abs() primero (como estaba) descarta en qué
+    // cuadrante cae el centroide respecto al origen, y rompe el centrado
+    // cuando el centroide real tiene X o Y negativa (mismo bug que ya
+    // tenía — y ya corrigió — el cliente en calcularZapatas2EnPhp/zapatas2.m).
+    const signedArea = A0 / 2;
+    const A = Math.abs(signedArea);
     const IX = Math.abs(IX0 / 12);
     const IY = Math.abs(IY0 / 12);
-    XC = XC / (6 * A);
-    YC = YC / (6 * A);
+    XC = signedArea !== 0 ? XC / (6 * signedArea) : 0;
+    YC = signedArea !== 0 ? YC / (6 * signedArea) : 0;
     const MX = Math.abs(MX0 / 6);
     const MY = Math.abs(MY0 / 6);
     const IXY = Math.abs(IXY0 / 24);
