@@ -52,6 +52,18 @@
                 <fieldset class="border border-gray-600 rounded px-2 pb-2 pt-1 mb-3">
                     <legend class="px-1 text-xs text-gray-400" x-text="polygon.name"></legend>
 
+                    {{-- σmin<0 en algún combo: el suelo no puede transmitir
+                         tracción, así que el área de apoyo real es menor
+                         que el polígono dibujado — el método lineal P/A±M/I
+                         ya no es válido. Se avisa ANTES de los bloques de
+                         diseño porque afecta la validez de todos ellos, no
+                         solo de la presión. --}}
+                    <template x-if="polygon.hasNegativePressure">
+                        <p class="text-xs text-red-400 font-semibold mb-2 px-2 py-1 bg-red-950/40 border border-red-800 rounded">
+                            ⚠️ σmin &lt; 0 en al menos una combinación: el suelo no puede "jalar" la zapata (solo transmite compresión). El área de apoyo real es menor que el polígono dibujado — reposiciona o agranda la zapata; los cálculos de acero/cortante de abajo son un envolvente conservador, no reemplazan corregir la geometría.
+                        </p>
+                    </template>
+
                     <div class="mb-2">
                         <p class="text-[11px] font-semibold text-gray-300 mb-1">Dimensiones</p>
                         <template x-if="polygon.dimensions">
@@ -113,6 +125,102 @@
                             </table>
                         </div>
                     </div>
+
+                    {{-- Bloque 4: espesor/recubrimiento/materiales, de la
+                         sección de losa asignada a esta zapata (Assign >
+                         Losa/Muro > Sección de Losa) — necesarios para el
+                         acero y cortante que siguen (Bloques 5-6). --}}
+                    <div class="mt-2 pt-2 border-t border-gray-700">
+                        <p class="text-[11px] font-semibold text-gray-300 mb-1">Datos de diseño (Bloque 4)</p>
+                        <template x-if="polygon.designInputs">
+                            <p class="text-xs text-gray-300">
+                                Espesor = <strong x-text="formatNumber(polygon.designInputs.thicknessM * 100)"></strong> cm
+                                &middot;
+                                Recub. = <strong x-text="formatNumber(polygon.designInputs.recubrimientoM * 100)"></strong> cm
+                                &middot;
+                                f'c = <strong x-text="polygon.designInputs.fpc ?? '—'"></strong>
+                                &middot;
+                                fy = <strong x-text="polygon.designInputs.fy ?? '—'"></strong>
+                            </p>
+                        </template>
+                        <template x-if="!polygon.designInputs">
+                            <p class="text-[11px] text-amber-400">
+                                Sin sección asignada — usa Assign ▸ Losa/Muro ▸ Sección de Losa para definir espesor y material de esta zapata.
+                            </p>
+                        </template>
+                    </div>
+
+                    {{-- Bloque 5: acero por flexión — envuelve el Mu (Bloque
+                         3, peor combinación) con f'c/fy/espesor/recubrimiento
+                         (Bloque 4) para dar As requerido (cm²/m) + Ø y
+                         espaciamiento sugerido (ver engine/footingSteel.js).
+                         Aislada → As-X/As-Y (ambos acero inferior, el
+                         voladizo siempre tracciona el fondo). Combinada →
+                         As+ (inferior, cerca de columnas) / As- (superior,
+                         en el vano) — mismo criterio de signos que la tabla
+                         de momentos de abajo. --}}
+                    <div class="mt-2 pt-2 border-t border-gray-700">
+                        <p class="text-[11px] font-semibold text-gray-300 mb-1">Acero por flexión (Bloque 5)</p>
+
+                        <template x-if="!polygon.designInputs">
+                            <p class="text-[11px] text-gray-500">Depende del Bloque 4 — asigna una sección primero.</p>
+                        </template>
+
+                        <template x-if="polygon.designInputs && polygon.steelDesign?.needsReview">
+                            <p class="text-[11px] text-amber-400">Zapata ramificada — requiere revisión adicional, no se calcula acero automáticamente.</p>
+                        </template>
+
+                        <template x-if="polygon.designInputs && polygon.steelDesign?.type === 'isolated'">
+                            <div class="text-xs text-gray-300 space-y-0.5">
+                                <p x-text="steelLine('As-X (inferior)', polygon.steelDesign.x)"></p>
+                                <p x-text="steelLine('As-Y (inferior)', polygon.steelDesign.y)"></p>
+                            </div>
+                        </template>
+
+                        <template x-if="polygon.designInputs && polygon.steelDesign?.type === 'combined' && !polygon.steelDesign?.needsReview">
+                            <div class="text-xs text-gray-300 space-y-0.5">
+                                <p x-text="steelLine('As+ (inferior)', polygon.steelDesign.positivo)"></p>
+                                <p x-text="steelLine('As- (superior)', polygon.steelDesign.negativo)"></p>
+                            </div>
+                        </template>
+                    </div>
+
+                    {{-- Bloque 6: cortante — punzonamiento por columna (Vu=
+                         Pu-qu×Ácrit vs φVc, aisladas y combinadas) + cortante
+                         por flexión: a distancia d de la cara en aisladas,
+                         envolvente del cortante máximo de la viga en
+                         combinadas (footingMoments.js ya integra V(x) junto
+                         al momento — ver engine/footingShear.js). Ramificadas
+                         (L/T) siguen sin calcularse (needsReview), no por el
+                         cortante sino por el mismo límite de footingMoments.js. --}}
+                    <div class="mt-2 pt-2 border-t border-gray-700">
+                        <p class="text-[11px] font-semibold text-gray-300 mb-1">Verificación de cortante (Bloque 6)</p>
+
+                        <template x-if="!polygon.designInputs">
+                            <p class="text-[11px] text-gray-500">Depende del Bloque 4 — asigna una sección primero.</p>
+                        </template>
+
+                        <template x-if="polygon.designInputs && polygon.shearDesign?.needsReview">
+                            <p class="text-[11px] text-amber-400">Zapata ramificada — requiere revisión adicional, no se calcula cortante automáticamente.</p>
+                        </template>
+
+                        <template x-if="polygon.designInputs && polygon.shearDesign?.type === 'isolated'">
+                            <div class="text-xs text-gray-300 space-y-0.5">
+                                <p x-text="shearLine('Punzonamiento', polygon.shearDesign.punching)"></p>
+                                <p x-text="shearLine('Cortante-X', polygon.shearDesign.oneWayX)"></p>
+                                <p x-text="shearLine('Cortante-Y', polygon.shearDesign.oneWayY)"></p>
+                            </div>
+                        </template>
+
+                        <template x-if="polygon.designInputs && polygon.shearDesign?.type === 'combined' && !polygon.shearDesign?.needsReview">
+                            <div class="text-xs text-gray-300 space-y-0.5">
+                                <template x-for="col in polygon.shearDesign.punchingByColumn" :key="col.column">
+                                    <p x-text="shearLine('Punzonamiento col. ' + col.column, col.result)"></p>
+                                </template>
+                                <p x-text="shearLine('Cortante por flexión (viga)', polygon.shearDesign.oneWay)"></p>
+                            </div>
+                        </template>
+                    </div>
                 </fieldset>
             </template>
 
@@ -136,10 +244,14 @@
                     <thead>
                         <tr class="text-gray-400 text-left">
                             <th class="py-1 pr-2">Polígono</th>
-                            <th class="py-1 pr-2">σmin</th>
-                            <th class="py-1 pr-2">σmax</th>
+                            <th class="py-1 pr-2">σmin (Tn/m²)</th>
+                            <th class="py-1 pr-2">σmax (Tn/m²)</th>
                             <th class="py-1 pr-2">XC</th>
                             <th class="py-1 pr-2">YC</th>
+                            <th class="py-1 pr-2">Mu-X (Tn·m/m)</th>
+                            <th class="py-1 pr-2">Mu-Y (Tn·m/m)</th>
+                            <th class="py-1 pr-2">Mu+ acero inferior (Tn·m/m)</th>
+                            <th class="py-1 pr-2">Mu- acero superior (Tn·m/m)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -150,6 +262,10 @@
                                 <td class="py-1 pr-2" x-text="formatNumber(row.max)"></td>
                                 <td class="py-1 pr-2" x-text="formatNumber(row.XC)"></td>
                                 <td class="py-1 pr-2" x-text="formatNumber(row.YC)"></td>
+                                <td class="py-1 pr-2" x-text="row.designMoment ? formatNumber(row.designMoment.momentoVoladizoX) : '—'"></td>
+                                <td class="py-1 pr-2" x-text="row.designMoment ? formatNumber(row.designMoment.momentoVoladizoY) : '—'"></td>
+                                <td class="py-1 pr-2" x-text="combinedSummary(row).positivo"></td>
+                                <td class="py-1 pr-2" x-text="combinedSummary(row).negativo"></td>
                             </tr>
                         </template>
                     </tbody>
@@ -175,6 +291,55 @@
             formatNumber(value) {
                 const number = Number(value);
                 return Number.isFinite(number) ? number.toFixed(2) : '-';
+            },
+            // Bloque 5 — línea de texto para un resultado de footingSteel.js
+            // ({as, asMin, governedBy, overReinforced, rebar}). `steel` es
+            // null si falta el Bloque 4 (ver buildSteelResult en foundation.js).
+            steelLine(label, steel) {
+                if (!steel) return `${label}: —`;
+                if (steel.overReinforced) return `${label}: sección insuficiente — aumentar espesor`;
+                if (steel.as == null) return `${label}: —`;
+
+                const govTxt = steel.governedBy === 'min' ? ' (cuantía mínima)' : '';
+                let rebarTxt = '';
+                if (steel.rebar) {
+                    rebarTxt = ` → Ø${steel.rebar.label} @ ${steel.rebar.spacingCm}cm`;
+                    if (steel.rebar.tooTight) rebarTxt += ' ⚠️ espaciamiento muy apretado — considera 2 capas, otra barra, o mayor espesor';
+                }
+                return `${label}: As=${steel.as.toFixed(2)} cm²/m${govTxt}${rebarTxt}`;
+            },
+            // Bloque 6 — línea de texto para un resultado de footingShear.js
+            // ({vuTon, phiVcTon, ratio, ok}). `shear` es null si faltan datos
+            // (columna/espesor inválidos) — ver computePunchingShear/computeOneWayShear.
+            shearLine(label, shear) {
+                if (!shear) return `${label}: —`;
+                const estado = shear.ok ? 'OK' : 'NO CUMPLE';
+                return `${label}: Vu=${shear.vuTon.toFixed(2)} Tn / φVc=${shear.phiVcTon.toFixed(2)} Tn (${estado})`;
+            },
+            // Zapata combinada: peor momento entre TODOS los brazos. Una
+            // zapata combinada es una viga "al revés" respecto a una viga de
+            // piso normal (el suelo empuja hacia arriba, las columnas hacia
+            // abajo) — por eso "positivo" (típicamente cerca de columnas)
+            // pide acero INFERIOR, y "negativo" (típicamente en el vano)
+            // pide acero SUPERIOR — ver footingMoments.js. '—' si es aislada
+            // o sin datos todavía. Zapatas ramificadas (tipo L o T) NO se
+            // calculan por diseño (no es una limitación pendiente): separar
+            // en brazos independientes no equilibra bien la carga en la
+            // esquina compartida — ni ETABS/SAFE lo resuelven sin malla de
+            // elementos finitos refinada — así que se avisa en vez de
+            // mostrar un número incorrecto.
+            combinedSummary(row) {
+                if (row.combinedNeedsReview) {
+                    return { positivo: 'Zapata ramificada — requiere revisión adicional', negativo: '' };
+                }
+
+                const legs = row.combinedMoments || [];
+                if (!legs.length) return { positivo: '—', negativo: '—' };
+
+                const positivo = Math.max(...legs.map((leg) => leg?.momentoPositivoMax ?? 0));
+                const negativo = Math.min(...legs.map((leg) => leg?.momentoNegativoMax ?? 0));
+
+                return { positivo: this.formatNumber(positivo), negativo: this.formatNumber(negativo) };
             },
             init() {
                 window.addEventListener('open-zapata-results-modal', async (e) => {
