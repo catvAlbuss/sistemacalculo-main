@@ -18,6 +18,10 @@
     "file": "assets/color_scale-BGSv3LvJ.js",
     "name": "color_scale"
   },
+  "_deflectionCalculator-DCKf5BFK.js": {
+    "file": "assets/deflectionCalculator-DCKf5BFK.js",
+    "name": "deflectionCalculator"
+  },
   "_html2canvas.esm-5Cw11iw4.js": {
     "file": "assets/html2canvas.esm-5Cw11iw4.js",
     "name": "html2canvas.esm"
@@ -41,8 +45,8 @@
     "file": "assets/livewire.esm-CO6ZehnT.js",
     "name": "livewire.esm"
   },
-  "_mat4js.read-DcrXhSIi.js": {
-    "file": "assets/mat4js.read-DcrXhSIi.js",
+  "_mat4js.read-CN22nOIi.js": {
+    "file": "assets/mat4js.read-CN22nOIi.js",
     "name": "mat4js.read",
     "imports": [
       "__commonjsHelpers-_d1bhYXs.js"
@@ -52,13 +56,6 @@
     "file": "assets/pdfmake-Crw6JYIP.js",
     "name": "pdfmake",
     "isDynamicEntry": true,
-    "imports": [
-      "__commonjsHelpers-_d1bhYXs.js"
-    ]
-  },
-  "_plotly.min-c8EnIP7c.js": {
-    "file": "assets/plotly.min-c8EnIP7c.js",
-    "name": "plotly.min",
     "imports": [
       "__commonjsHelpers-_d1bhYXs.js"
     ]
@@ -93,6 +90,10 @@
     "file": "assets/tabs-CX56sy7k.js",
     "name": "tabs"
   },
+  "_ubigeo-Cak7qga5.js": {
+    "file": "assets/ubigeo-Cak7qga5.js",
+    "name": "ubigeo"
+  },
   "_vfs_fonts-BfAcB2M0.js": {
     "file": "assets/vfs_fonts-BfAcB2M0.js",
     "name": "vfs_fonts",
@@ -101,8 +102,16 @@
       "__commonjsHelpers-_d1bhYXs.js"
     ]
   },
+  "_zapatas2Core-CNeTvPye.js": {
+    "file": "assets/zapatas2Core-CNeTvPye.js",
+    "name": "zapatas2Core",
+    "imports": [
+      "_mat4js.read-CN22nOIi.js",
+      "_color_scale-BGSv3LvJ.js"
+    ]
+  },
   "node_modules/@babylonjs/core/Shaders/lod3D.fragment.js": {
-    "file": "assets/lod3D.fragment-CS8la9WD.js",
+    "file": "assets/lod3D.fragment-FeC3ktc2.js",
     "name": "lod3D.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/lod3D.fragment.js",
     "isDynamicEntry": true,
@@ -111,13 +120,17 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/oitFinalSimpleBlend.fragment.js": {
-    "file": "assets/oitFinalSimpleBlend.fragment-DIl4Ketb.js",
+    "file": "assets/oitFinalSimpleBlend.fragment-g6ZgIthN.js",
     "name": "oitFinalSimpleBlend.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/oitFinalSimpleBlend.fragment.js",
     "isDynamicEntry": true,
@@ -126,13 +139,17 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/selection.fragment.js": {
-    "file": "assets/selection.fragment-CgMZbVlw.js",
+    "file": "assets/selection.fragment-DUq-Pr2i.js",
     "name": "selection.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/selection.fragment.js",
     "isDynamicEntry": true,
@@ -141,13 +158,17 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/selection.vertex.js": {
-    "file": "assets/selection.vertex-ytnPukug.js",
+    "file": "assets/selection.vertex-DNtCZlZ3.js",
     "name": "selection.vertex",
     "src": "node_modules/@babylonjs/core/Shaders/selection.vertex.js",
     "isDynamicEntry": true,
@@ -156,13 +177,17 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/selectionOutline.fragment.js": {
-    "file": "assets/selectionOutline.fragment-c4mpon5h.js",
+    "file": "assets/selectionOutline.fragment-CRXwMFBw.js",
     "name": "selectionOutline.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/selectionOutline.fragment.js",
     "isDynamicEntry": true,
@@ -171,13 +196,17 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/volumetricLightingBlendVolume.fragment.js": {
-    "file": "assets/volumetricLightingBlendVolume.fragment-BiLCpoIY.js",
+    "file": "assets/volumetricLightingBlendVolume.fragment-Ce7BU76T.js",
     "name": "volumetricLightingBlendVolume.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/volumetricLightingBlendVolume.fragment.js",
     "isDynamicEntry": true,
@@ -186,13 +215,17 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.fragment.js": {
-    "file": "assets/volumetricLightingRenderVolume.fragment-B18-uflt.js",
+    "file": "assets/volumetricLightingRenderVolume.fragment-gqAbBI6T.js",
     "name": "volumetricLightingRenderVolume.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.fragment.js",
     "isDynamicEntry": true,
@@ -201,13 +234,17 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.vertex.js": {
-    "file": "assets/volumetricLightingRenderVolume.vertex-B546wCh4.js",
+    "file": "assets/volumetricLightingRenderVolume.vertex-DCv8J7uJ.js",
     "name": "volumetricLightingRenderVolume.vertex",
     "src": "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.vertex.js",
     "isDynamicEntry": true,
@@ -216,13 +253,17 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.fragment.js": {
-    "file": "assets/gaussianSplattingVoxel.fragment-DQ2cIEwj.js",
+    "file": "assets/gaussianSplattingVoxel.fragment-DcfjoJcb.js",
     "name": "gaussianSplattingVoxel.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.fragment.js",
     "isDynamicEntry": true,
@@ -231,13 +272,17 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.vertex.js": {
-    "file": "assets/gaussianSplattingVoxel.vertex-Cq8zusn_.js",
+    "file": "assets/gaussianSplattingVoxel.vertex-DpuWcfj_.js",
     "name": "gaussianSplattingVoxel.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.vertex.js",
     "isDynamicEntry": true,
@@ -246,13 +291,17 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/lod3D.fragment.js": {
-    "file": "assets/lod3D.fragment-atpC7Jtv.js",
+    "file": "assets/lod3D.fragment-C18aAsOj.js",
     "name": "lod3D.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/lod3D.fragment.js",
     "isDynamicEntry": true,
@@ -261,13 +310,17 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/oitFinalSimpleBlend.fragment.js": {
-    "file": "assets/oitFinalSimpleBlend.fragment-oQBKFBvE.js",
+    "file": "assets/oitFinalSimpleBlend.fragment--u1IeX9U.js",
     "name": "oitFinalSimpleBlend.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/oitFinalSimpleBlend.fragment.js",
     "isDynamicEntry": true,
@@ -276,13 +329,17 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/screenSpaceCurvature.fragment.js": {
-    "file": "assets/screenSpaceCurvature.fragment-DihyO73N.js",
+    "file": "assets/screenSpaceCurvature.fragment-BNnjOkbz.js",
     "name": "screenSpaceCurvature.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/screenSpaceCurvature.fragment.js",
     "isDynamicEntry": true,
@@ -291,13 +348,17 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/selection.fragment.js": {
-    "file": "assets/selection.fragment-BEAiqcFT.js",
+    "file": "assets/selection.fragment-BPuq1zqz.js",
     "name": "selection.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/selection.fragment.js",
     "isDynamicEntry": true,
@@ -306,13 +367,17 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/selection.vertex.js": {
-    "file": "assets/selection.vertex-CMaS2qQL.js",
+    "file": "assets/selection.vertex-CpFqXPEA.js",
     "name": "selection.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/selection.vertex.js",
     "isDynamicEntry": true,
@@ -321,13 +386,17 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/selectionOutline.fragment.js": {
-    "file": "assets/selectionOutline.fragment-DVSM2LB8.js",
+    "file": "assets/selectionOutline.fragment-Cjr09U2N.js",
     "name": "selectionOutline.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/selectionOutline.fragment.js",
     "isDynamicEntry": true,
@@ -336,13 +405,17 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingBlendVolume.fragment.js": {
-    "file": "assets/volumetricLightingBlendVolume.fragment-D2SP33SZ.js",
+    "file": "assets/volumetricLightingBlendVolume.fragment-a7zPdMNj.js",
     "name": "volumetricLightingBlendVolume.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingBlendVolume.fragment.js",
     "isDynamicEntry": true,
@@ -351,13 +424,17 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.fragment.js": {
-    "file": "assets/volumetricLightingRenderVolume.fragment-BJBq7rk1.js",
+    "file": "assets/volumetricLightingRenderVolume.fragment-lrIDa668.js",
     "name": "volumetricLightingRenderVolume.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.fragment.js",
     "isDynamicEntry": true,
@@ -366,13 +443,17 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.vertex.js": {
-    "file": "assets/volumetricLightingRenderVolume.vertex-BUJVVD2e.js",
+    "file": "assets/volumetricLightingRenderVolume.vertex-ClUdY7MA.js",
     "name": "volumetricLightingRenderVolume.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.vertex.js",
     "isDynamicEntry": true,
@@ -381,9 +462,25 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
+    ]
+  },
+  "node_modules/@mlightcad/libredwg-web/dist/libredwg-web.js": {
+    "file": "assets/libredwg-web-DtN_VLZE.js",
+    "name": "libredwg-web",
+    "src": "node_modules/@mlightcad/libredwg-web/dist/libredwg-web.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_preload-helper-BfFHrpNk.js"
+    ],
+    "dynamicImports": [
+      "resources/js/shims/empty-node-module.js"
     ]
   },
   "node_modules/jquery-ui/themes/base/images/ui-icons_444444_256x240.png": {
@@ -411,7 +508,7 @@
     "src": "node_modules/jquery-ui/themes/base/images/ui-icons_ffffff_256x240.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-srXWw5Qu.css",
+    "file": "assets/app-CrPQeIn8.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
@@ -603,14 +700,13 @@
     "isEntry": true
   },
   "resources/js/adm_aligerados_grafico.js": {
-    "file": "assets/adm_aligerados_grafico-DoDgLtL_.js",
+    "file": "assets/adm_aligerados_grafico-hoaiR1cL.js",
     "name": "adm_aligerados_grafico",
     "src": "resources/js/adm_aligerados_grafico.js",
     "isEntry": true,
     "imports": [
-      "_mat4js.read-DcrXhSIi.js",
+      "_mat4js.read-CN22nOIi.js",
       "_table_factory-iqyiJ1FX.js",
-      "_plotly.min-c8EnIP7c.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-DHREaxkb.js",
@@ -692,14 +788,13 @@
     ]
   },
   "resources/js/adm_fuerzas_cortantes_grafico.js": {
-    "file": "assets/adm_fuerzas_cortantes_grafico-XjK0Zpo8.js",
+    "file": "assets/adm_fuerzas_cortantes_grafico-XTnbLKK9.js",
     "name": "adm_fuerzas_cortantes_grafico",
     "src": "resources/js/adm_fuerzas_cortantes_grafico.js",
     "isEntry": true,
     "imports": [
-      "_mat4js.read-DcrXhSIi.js",
+      "_mat4js.read-CN22nOIi.js",
       "_table_factory-iqyiJ1FX.js",
-      "_plotly.min-c8EnIP7c.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-DHREaxkb.js",
@@ -749,39 +844,38 @@
     ]
   },
   "resources/js/adm_safecito.js": {
-    "file": "assets/adm_safecito-Z_z0JtVV.js",
+    "file": "assets/adm_safecito-20Y-GPtp.js",
     "name": "adm_safecito",
     "src": "resources/js/adm_safecito.js",
     "isEntry": true,
     "imports": [
       "_color_scale-BGSv3LvJ.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_mat4js.read-CN22nOIi.js",
       "_table_factory-iqyiJ1FX.js",
-      "_plotly.min-c8EnIP7c.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_rizabalasociados-DHREaxkb.js",
       "__commonjsHelpers-_d1bhYXs.js"
     ]
   },
   "resources/js/adm_suelos.js": {
-    "file": "assets/adm_suelos-BYsiNboF.js",
+    "file": "assets/adm_suelos-Ctcd2Uox.js",
     "name": "adm_suelos",
     "src": "resources/js/adm_suelos.js",
     "isEntry": true,
     "imports": [
-      "_mat4js.read-DcrXhSIi.js",
-      "_plotly.min-c8EnIP7c.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js"
     ]
   },
   "resources/js/adm_vigas_general.js": {
-    "file": "assets/adm_vigas_general-CsGRvn3A.js",
+    "file": "assets/adm_vigas_general-BLaNGU8m.js",
     "name": "adm_vigas_general",
     "src": "resources/js/adm_vigas_general.js",
     "isEntry": true,
     "imports": [
       "_preload-helper-BfFHrpNk.js",
       "_table_factory-iqyiJ1FX.js",
+      "_deflectionCalculator-DCKf5BFK.js",
       "resources/js/muros-contencion/predimensionamiento.js"
     ],
     "dynamicImports": [
@@ -819,20 +913,19 @@
     ]
   },
   "resources/js/adm_zapatas_grafico.js": {
-    "file": "assets/adm_zapatas_grafico-BIVh1j4j.js",
+    "file": "assets/adm_zapatas_grafico-g4QVE7oQ.js",
     "name": "adm_zapatas_grafico",
     "src": "resources/js/adm_zapatas_grafico.js",
     "isEntry": true,
     "imports": [
-      "_mat4js.read-DcrXhSIi.js",
+      "_mat4js.read-CN22nOIi.js",
       "_table_factory-iqyiJ1FX.js",
-      "_plotly.min-c8EnIP7c.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "__commonjsHelpers-_d1bhYXs.js"
     ]
   },
   "resources/js/analisis_estructural_de_armaduras.js": {
-    "file": "assets/analisis_estructural_de_armaduras-KyqQRvW4.js",
+    "file": "assets/analisis_estructural_de_armaduras-DtkCWcOo.js",
     "name": "analisis_estructural_de_armaduras",
     "src": "resources/js/analisis_estructural_de_armaduras.js",
     "isEntry": true,
@@ -840,9 +933,13 @@
       "_livewire.esm-CO6ZehnT.js",
       "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
-      "_mat4js.read-DcrXhSIi.js",
+      "_color_scale-BGSv3LvJ.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
+      "_deflectionCalculator-DCKf5BFK.js",
+      "_ubigeo-Cak7qga5.js"
     ],
     "dynamicImports": [
       "node_modules/@babylonjs/core/Shaders/lod3D.fragment.js",
@@ -863,7 +960,8 @@
       "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.vertex.js",
       "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.fragment.js",
       "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.vertex.js",
-      "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.fragment.js"
+      "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.fragment.js",
+      "node_modules/@mlightcad/libredwg-web/dist/libredwg-web.js"
     ]
   },
   "resources/js/app_begin.js": {
@@ -1044,13 +1142,16 @@
     ]
   },
   "resources/js/espectro-sismico/index.js": {
-    "file": "assets/index-CfwIN4Be.js",
+    "file": "assets/index-CHgzBnwp.js",
     "name": "index",
     "src": "resources/js/espectro-sismico/index.js",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "_ubigeo-Cak7qga5.js"
+    ]
   },
   "resources/js/etabs/main.js": {
-    "file": "assets/main-YgM-sHSz.js",
+    "file": "assets/main-Zl5po-GM.js",
     "name": "main",
     "src": "resources/js/etabs/main.js",
     "isEntry": true,
@@ -1058,8 +1159,8 @@
       "_preload-helper-BfFHrpNk.js",
       "_index-C5az9QE8.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "_mat4js.read-DcrXhSIi.js",
-      "_plotly.min-c8EnIP7c.js",
+      "_zapatas2Core-CNeTvPye.js",
+      "_mat4js.read-CN22nOIi.js",
       "_color_scale-BGSv3LvJ.js"
     ],
     "css": [
@@ -1242,6 +1343,12 @@
       "assets/ui-icons_cc0000_256x240-BXUJj0NM.png",
       "assets/ui-icons_777777_256x240-Buv9k6Yo.png"
     ]
+  },
+  "resources/js/shims/empty-node-module.js": {
+    "file": "assets/empty-node-module-CeSR8oYU.js",
+    "name": "empty-node-module",
+    "src": "resources/js/shims/empty-node-module.js",
+    "isDynamicEntry": true
   },
   "resources/js/vigas/utils/pdfGenerator.js": {
     "file": "assets/pdfGenerator-CvAjeBdY.js",
