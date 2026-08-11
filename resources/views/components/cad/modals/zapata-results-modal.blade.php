@@ -246,7 +246,6 @@
                             <th class="py-1 pr-2">Polígono</th>
                             <th class="py-1 pr-2">σmin (Tn/m²)</th>
                             <th class="py-1 pr-2">σmax (Tn/m²)</th>
-                            <th class="py-1 pr-2" title="Listo para pegar en Assign > Carga Uniforme de Losa, que pide kgf/m² (1 Tn/m² = 1000 kgf/m²)">σmax (kgf/m²)</th>
                             <th class="py-1 pr-2">XC</th>
                             <th class="py-1 pr-2">YC</th>
                             <th class="py-1 pr-2">Mu-X (Tn·m/m)</th>
@@ -261,7 +260,6 @@
                                 <td class="py-1 pr-2" x-text="row.polygon"></td>
                                 <td class="py-1 pr-2" x-text="formatNumber(row.min)"></td>
                                 <td class="py-1 pr-2" x-text="formatNumber(row.max)"></td>
-                                <td class="py-1 pr-2 text-emerald-300" x-text="sigmaKgfM2(row.max)"></td>
                                 <td class="py-1 pr-2" x-text="formatNumber(row.XC)"></td>
                                 <td class="py-1 pr-2" x-text="formatNumber(row.YC)"></td>
                                 <td class="py-1 pr-2" x-text="row.designMoment ? formatNumber(row.designMoment.momentoVoladizoX) : '—'"></td>
@@ -290,15 +288,6 @@
             summary: { df: null, gammaE: null, columnsCount: 0 },
             selectedComboIndex: 0,
             summaryRows: [],
-            // Listo para pegar en Assign > Carga Uniforme de Losa (Csuelo): ese
-            // diálogo pide kgf/m², nosotros mostramos Tn/m² en todo el resto del
-            // modal — 1 Tn/m² = 1000 kgf/m² (ver conversación: el factor de 1000
-            // que se presta a confusión si se copia el número a mano).
-            sigmaKgfM2(value) {
-                const number = Number(value);
-                if (!Number.isFinite(number)) return '-';
-                return Math.round(number * 1000).toLocaleString('en-US');
-            },
             formatNumber(value) {
                 const number = Number(value);
                 return Number.isFinite(number) ? number.toFixed(2) : '-';

@@ -205,6 +205,28 @@ export const foundationMixin = {
       // volver esto a `true` reactiva la envolvente sin tocar nada más.
       const USE_ENVELOPE_FOR_SIGMA_MAX_AUTOFILL = false;
 
+      // TEMPORAL (ver conversación — confirmado con el papel del ingeniero,
+      // no una suposición): su método del voladizo mide L desde el borde
+      // de la zapata hasta el CENTRO de la columna, ignorando el ancho de
+      // la columna (a diferencia de nuestro método, que resta la mitad del
+      // ancho para medir hasta la CARA — la sección crítica que define
+      // E.060/ACI). A diferencia de los otros dos toggles de arriba, este
+      // arranca EN `true` a propósito — el cliente pidió activarlo ya para
+      // la prueba y mostrárselo. Apaga esto (`false`) para volver al
+      // método riguroso (a la cara) en cualquier momento.
+      //
+      // Cómo funciona: getColumnSectionSize ya devuelve {b:0,h:0} cuando
+      // una columna no tiene sección asignada, y computeIsolatedOverhangs/
+      // computeIsolatedMomentAtPoint YA manejan ese caso correctamente
+      // (dan L completo hasta el centro) — no hubo que tocar
+      // footingMoments.js, solo forzar ese mismo "sin ancho" para TODAS
+      // las columnas acá, no solo las que de verdad no tienen sección.
+      // OJO: esto NO debe usarse para punzonamiento (Bloque 6) — ahí el
+      // ancho real de la columna sí es físicamente necesario, por eso
+      // `columnSize` (la variable real) se sigue usando tal cual en
+      // computePunchingShear más abajo, sin pasar por este toggle.
+      const MEASURE_L_TO_COLUMN_CENTER = true;
+
       // Bloque 5 — Acero por flexión: envuelve Mu (Bloque 3) con f'c/fy/
       // espesor/recubrimiento (Bloque 4, ya en polygonProperties[index].
       // designInputs) para dar el As requerido + Ø/espaciamiento sugerido.
@@ -285,7 +307,26 @@ export const foundationMixin = {
 
         if (meta.type === "isolated" && meta.column) {
           const columnSize = getColumnSectionSize(this.shapes || [], meta.column.id);
-          const overhangs = computeIsolatedOverhangs(meta.polygonPoints, meta.column.position, columnSize);
+          // Ver MEASURE_L_TO_COLUMN_CENTER arriba: {b:0,h:0} hace que
+          // computeIsolatedOverhangs/computeIsolatedMomentAtPoint midan L
+          // hasta el centro de la columna en vez de su cara — mismo camino
+          // que ya usan cuando una columna no tiene sección asignada.
+          //
+          // A propósito se calculan DOS overhangs distintos: `overhangs`
+          // (con momentColumnSize) alimenta SOLO el momento (Mu de este
+          // bloque + el mapa 2D) — es lo único que pidió comparar el
+          // ingeniero. `overhangsForShear` (con la columna REAL) alimenta
+          // el cortante por flexión de Bloque 6 más abajo, que sigue
+          // usando la cara real de la columna — el toggle no se pidió para
+          // cortante, y cambiarlo ahí también sería un efecto secundario
+          // no solicitado (el cortante crítico SÍ depende físicamente de
+          // dónde está la cara real de la columna, no es una simplificación
+          // razonable ignorarla ahí).
+          const momentColumnSize = MEASURE_L_TO_COLUMN_CENTER ? { b: 0, h: 0 } : columnSize;
+          const overhangs = computeIsolatedOverhangs(meta.polygonPoints, meta.column.position, momentColumnSize);
+          const overhangsForShear = MEASURE_L_TO_COLUMN_CENTER
+            ? computeIsolatedOverhangs(meta.polygonPoints, meta.column.position, columnSize)
+            : overhangs;
 
           polygon.designMoments = DEFAULT_LOAD_COMBINATIONS.map((_, comboIndex) => {
             return computeIsolatedFootingMoment(overhangs, netSigma(polygon.max?.[comboIndex]));
@@ -308,7 +349,7 @@ export const foundationMixin = {
               const myRow = new Array(xs.length);
 
               for (let i = 0; i < xs.length; i++) {
-                const point = computeIsolatedMomentAtPoint(xs[i], ys[i], meta.column.position, columnSize, sigma, overhangs.bounds);
+                const point = computeIsolatedMomentAtPoint(xs[i], ys[i], meta.column.position, momentColumnSize, sigma, overhangs.bounds);
                 mxRow[i] = point.mx;
                 myRow[i] = point.my;
               }
@@ -349,14 +390,14 @@ export const foundationMixin = {
                     recubrimientoM: designInputs.recubrimientoM,
                   }),
                   oneWayX: computeOneWayShear({
-                    overhangM: overhangs.Lx,
+                    overhangM: overhangsForShear.Lx,
                     quTonM2: quEnv,
                     fpcMPa: designInputs.fpc,
                     thicknessM: designInputs.thicknessM,
                     recubrimientoM: designInputs.recubrimientoM,
                   }),
                   oneWayY: computeOneWayShear({
-                    overhangM: overhangs.Ly,
+                    overhangM: overhangsForShear.Ly,
                     quTonM2: quEnv,
                     fpcMPa: designInputs.fpc,
                     thicknessM: designInputs.thicknessM,
