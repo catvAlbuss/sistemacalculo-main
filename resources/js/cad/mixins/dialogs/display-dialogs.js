@@ -157,6 +157,30 @@ export const displayDialogsMixin = {
     );
   },
 
+  /**
+   * Flecha del sentido de reparto de la carga en las losas de UNA VÍA
+   * (aligerados), como la que dibuja ETABS. Decide a qué vigas les entrega la
+   * carga el panel — van las PERPENDICULARES a la flecha. Sirve para cazar de
+   * un vistazo un `ANG` importado con 90° de error: la carga total se conserva
+   * igual, así que un giro no rompe nada visible salvo esto.
+   */
+  toggleSlabLoadDirection() {
+    this.ensureDisplayOptions?.();
+    if (!this.displayOptions) this.displayOptions = {};
+    const next = this.displayOptions.showSlabLoadDirection === false;
+    this.displayOptions.showSlabLoadDirection = next;
+
+    this.redraw?.();
+
+    const oneWay = (this.areas || []).filter((a) => a?.oneWayLoadDist === true).length;
+
+    this.showMessage?.(
+      next
+        ? `Sentido de armado visible en ${oneWay} losa(s) de una vía.`
+        : "Sentido de armado oculto.",
+    );
+  },
+
   openShowDeformedShapeDialog() {
     this.ensureDisplayOptions();
 

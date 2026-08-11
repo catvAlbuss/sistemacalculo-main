@@ -11,30 +11,9 @@
 // definido por separado (uno por dirección) — solo están disponibles si
 // ese caso corrió y quedó guardado en seismicResultsByCase.
 
-import { newtonToTonf } from "./foundationContract.js";
+import { newtonToTonf, findStaticField } from "./foundationContract.js";
 
 export const REACTION_CASES = ["CM", "CVE", "SDX", "SDY"];
-
-// CM/CVE (estático muerta/viva) NO dependen de qué caso sísmico esté
-// activo — es el mismo análisis sin importar si el usuario está viendo
-// SDX o SDY. Por eso no basta con mirar solo `cadSystem.seismicResults`
-// (el caso "activo" en este momento): si el usuario cambió de caso activo
-// después de correr el análisis, ese objeto puntual puede no traer
-// static_dead/static_live consigo aunque YA se hayan calculado. Se busca
-// primero en el resultado activo y, si falta, en cualquier entrada de
-// seismicResultsByCase (todas comparten el mismo static_dead/static_live).
-function findStaticField(cadSystem, field) {
-  if (cadSystem?.seismicResults?.[field]?.reactions) {
-    return cadSystem.seismicResults[field];
-  }
-
-  const byCase = cadSystem?.seismicResultsByCase || {};
-  for (const result of Object.values(byCase)) {
-    if (result?.[field]?.reactions) return result[field];
-  }
-
-  return null;
-}
 
 /** ¿Qué casos tienen datos disponibles ahora mismo para mostrar? */
 export function getAvailableReactionCases(cadSystem) {

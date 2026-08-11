@@ -16,6 +16,7 @@ const VIEWER_STATE = {
   elements: [],
   initialized: false,
   resizeHandler: null,
+  resizeObserver: null,
 
   // Evita renderizar mientras se limpian o recrean objetos 3D
   isUpdating: false,
@@ -115,6 +116,11 @@ function disposeViewer() {
     if (VIEWER_STATE.resizeHandler) {
       window.removeEventListener("resize", VIEWER_STATE.resizeHandler);
       VIEWER_STATE.resizeHandler = null;
+    }
+
+    if (VIEWER_STATE.resizeObserver) {
+      VIEWER_STATE.resizeObserver.disconnect();
+      VIEWER_STATE.resizeObserver = null;
     }
 
     if (VIEWER_STATE.camera) {
@@ -223,6 +229,23 @@ function setupResizeHandler() {
   };
 
   window.addEventListener("resize", VIEWER_STATE.resizeHandler);
+
+  // window.resize por sí solo no alcanza: el tamaño real de #viewer3d-container
+  // depende del layout flex de la página (puede cambiar sin que la ventana
+  // del navegador cambie de tamaño — ej. la barra de navegación termina de
+  // hidratar después del primer paint). Si el motor de Babylon no se entera,
+  // su buffer interno (canvas.width/height) queda desincronizado del tamaño
+  // real en pantalla, y el picking (unproject de mouse a rayo 3D) calcula mal
+  // — clics cerca de un nodo/vértice de grilla "enganchan" el vecino
+  // equivocado. Abrir DevTools "arregla" esto de casualidad porque dispara un
+  // resize de ventana real; un ResizeObserver lo corrige sin depender de eso.
+  if (typeof ResizeObserver !== "undefined") {
+    const container = getViewerContainer();
+    if (container) {
+      VIEWER_STATE.resizeObserver = new ResizeObserver(() => VIEWER_STATE.resizeHandler?.());
+      VIEWER_STATE.resizeObserver.observe(container);
+    }
+  }
 }
 
 function mapNodePositionTo3D(node) {
@@ -1922,6 +1945,37 @@ function enable3DFrameSelection(context) {
   let pointerDownPosition3D = null;
   let pointerWasDragged3D = false;
 
+  // =====================================================
+  // 3D > CLIC DERECHO SOBRE UNA BARRA → SUS DIAGRAMAS
+  // Se resuelve en el evento `contextmenu` del canvas y NO en el observable de
+  // Babylon: es el único que garantiza (a) que llegue siempre el clic derecho y
+  // (b) que se pueda suprimir el menú del navegador en el mismo lugar. El pick
+  // se hace a mano con scene.pick sobre las coordenadas del evento.
+  // =====================================================
+  const canvas3d = VIEWER_STATE.engine?.getRenderingCanvas?.();
+
+  if (canvas3d && !canvas3d.__frameDiagramContextMenu) {
+    canvas3d.__frameDiagramContextMenu = true;
+
+    canvas3d.addEventListener("contextmenu", (ev) => {
+      ev.preventDefault(); // nunca el menú del navegador sobre el visor
+
+      // Con herramienta de dibujo activa el clic derecho cierra la polilínea.
+      if (context?.isFrameDrawingToolActive?.() === true) return;
+      if (context?.isSlabDrawingToolActive?.() === true) return;
+      if (context?.activeDrawTool === "frame" || context?.activeDrawTool === "slab") return;
+      if (context?.isDrawingFrame3D === true) return;
+
+      const rect = canvas3d.getBoundingClientRect();
+      const pick = scene.pick(ev.clientX - rect.left, ev.clientY - rect.top);
+      const mesh = pick?.hit ? pick.pickedMesh : null;
+
+      if (mesh?.metadata?.type === "beam" && mesh.metadata.id != null) {
+        context?.showFrameMemberDiagram?.(mesh.metadata.id);
+      }
+    });
+  }
+
   // Clic derecho: distingue un "tap" (termina polilínea) de un arrastre (orbitar).
   let rightPointerDownPosition3D = null;
   let rightPointerWasDragged3D = false;
@@ -2086,6 +2140,11 @@ function enable3DFrameSelection(context) {
     }
 
     if (pointerInfo.type !== BABYLON.PointerEventTypes.POINTERPICK) return;
+
+    // El clic derecho lo atiende el listener de `contextmenu` del canvas (ver
+    // arriba), que es el único que llega siempre y permite suprimir el menú del
+    // navegador en el mismo lugar.
+    if (event?.button === 2) return;
 
     // Solo clic izquierdo
     if (event?.button !== 0) return;

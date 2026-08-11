@@ -355,6 +355,18 @@ def _build_diaphragm_groups(
     if not _data_wants_rigid_diaphragms(data):
         return []
 
+    # Sin grupos explícitos, el motor agrupaba por Z e INVENTABA un diafragma
+    # rígido por cada elevación con ≥2 nudos. El frontend ya decide esto (ver
+    # `_buildSeismicDiaphragms` en payload.js) y manda `autoDiaphragms: false`
+    # cuando el modelo no tiene NINGUNA asignación — ETABS tampoco inventa.
+    # Sin este chequeo el motor rehacía los grupos que el frontend acababa de
+    # descartar: en MODULO 6 (sin losas, .e2k sin `DIAPH`) eso metía 8
+    # diafragmas que dejaban el modo Y −60% y T1 en 0.158 en vez de 0.273.
+    # Default True solo por compatibilidad con payloads viejos que no traen la
+    # bandera y esperaban el comportamiento anterior.
+    if not _as_bool(data.get("autoDiaphragms", data.get("auto_diaphragms")), True):
+        return []
+
     if not nodes:
         return []
 
@@ -1353,10 +1365,27 @@ def _build_mass_source_nodal_masses(
     # exclusivos del acero a los nudos donde el techo se apoya (ver
     # _lump_steel_roof_mass_to_supports). Va ANTES del lumping por piso porque
     # los nudos de interfaz ya están a nivel de piso, así que el lumping
-    # posterior los deja donde están. Opt-out: steelRoofMassOnly: false.
+    # posterior los deja donde están.
+    #
+    # DEFAULT **FALSE** desde 2026-08-03 (antes True). Es una DECISIÓN DE
+    # MODELADO, no un fix, y MODULO 6 mostró que el default equivocado era True:
+    #     Story1  4.3022 (+3.4%)  ->  4.1816 (+0.5%)   [ETABS 4.1606]
+    #     Story2  0.0        ✗    ->  0.1205 (−1.3%)   [ETABS 0.1221]
+    #     modos   3               ->  6                [ETABS 15]
+    # Con True movía 2972 kg de 102 nudos a 14, dejaba el piso superior SIN masa
+    # y el modelo caía a 3 GDL dinámicos. Con False la masa por piso clava y el
+    # modo local del techo aparece con la MISMA participación que ETABS (4.7% vs
+    # 4.9%) — o sea ETABS SÍ tiene ese modo, no es un artefacto.
+    #
+    # Activarlo sigue siendo válido para leer mejor los modos de un techo de
+    # tijeral metálico (el caso de MODULO 5 con armadura, donde mataba un modo
+    # local de 0.358 s con 6% de masa):
+    #     cadSystem.seismicConfig.steelRoofMassOnly = true
+    # Comparar los dos escenarios de cualquier modelo con
+    # `python-backend/comparar_steel_roof.py`.
     if _as_bool(
         data.get("steelRoofMassOnly", data.get("steel_roof_mass_only")),
-        True,
+        False,
     ):
         node_masses, steel_info = _lump_steel_roof_mass_to_supports(
             node_masses, nodes, elements
@@ -1527,7 +1556,56 @@ _WALL_SLENDER_TARGET_ELEMENT_SIZE_M = 0.42
 # con malla uniforme 6.0m + este modificador, T1-3 quedan +0.0%/+0.2%/+0.5% y
 # los 9 modos dentro de ~4% — sin necesidad de refinar la malla del anillo (ese
 # refinamiento se probó y resultó overfit, ver NOTA en _WALL_TARGET_ELEMENT_SIZE_M).
-_WALL_OUT_OF_PLANE_BENDING_MODIFIER = 0.1
+#
+# ─────────────────────────────────────────────────────────────────────────
+# REVISADO 2026-08-03: el valor pasa de 0.1 a **1.0** (shell completo).
+#
+# Todo lo de arriba se midió contra UN modelo con diafragma rígido, donde la
+# flexión fuera-del-plano del muro es marginal: entre 1.0 y 0.1 había 3% y
+# ganaba 0.1 por poco (−3.8% vs −0.9%). MODULO 6 —10 muros, CERO losas y sin
+# ningún diafragma, o sea el muro es TODA la rigidez— mostró que ahí ese mismo
+# 0.1 lo ablanda un 52%:
+#
+#            MODULO 6 T1      MODULO 5 T1/T2      MODULO 1 T1/T2
+#   0.1      0.4129 (+52%)    +11.1% / +9.6%      −0.8% / −0.5%
+#   0.5      0.2963  (+9%)     +9.3% / +9.0%      −0.9% / −0.5%
+#   1.0      0.2733 (+0.5%)    +7.6% / +8.2%      −0.9% / −0.6%   <- ELEGIDO
+#            (ETABS 0.272)    (ETABS .127/.090)   (ETABS .44/.36)
+#
+# Con 1.0 el modo Y dominante de MODULO 6 también clava: 0.0802 con 41.3% de
+# participación contra 0.080 / 41.5% de ETABS. MODULO 1 no se mueve (sus 141
+# losas malladas dominan la rigidez y los 8 muros aportan poco).
+#
+# Trade-off asumido a conciencia: el modelo de 3 muros coplanares con el que se
+# calibró el 0.1 se degrada de −0.9% a −3.8%. Se acepta ese 3% a cambio de
+# corregir un +52%; el 0.1 era, como otros parámetros revisados el mismo día,
+# un sobreajuste a un caso donde el efecto era chico.
+# ─────────────────────────────────────────────────────────────────────────
+_WALL_OUT_OF_PLANE_BENDING_MODIFIER = 1.0
+
+# MURO DE ALBAÑILERÍA — modificador APARTE, validado 2026-08-11 (payload real,
+# "MODELO (2)1", 11 muros de tabique e=0.13m + diafragma rígido D1). Con el
+# modificador general (1.0, arriba) el motor salía MÁS RÍGIDO que ETABS: T1
+# −4.8%, creciendo hasta T9 −17.4% (la flexión fuera-de-plano de estos muros
+# de tabique es rigidez "extra" que ETABS no le da tanto peso). Con 0.1 el
+# error baja a −1.1%/−6.2% — mucha mejor. Probar el mismo 0.1 en el modificador
+# GENERAL ya se descartó antes (rompe MODULO 6 +52%, ver comentario de arriba)
+# porque esos otros modelos son de muros de CORTE de concreto, no tabiquería —
+# la distinción real no es el espesor (aunque acá también es delgado, 0.13m
+# vs 0.40m+ de MODULO 5/6), es que la albañilería de tabique se excluye/reduce
+# de la rigidez lateral por práctica de diseño (E.070), tenga el espesor que
+# tenga — así que el modificador se separa por `designType` del material del
+# muro (Masonry vs el resto), no por un único valor global. Sin re-validar
+# contra un tabique MÁS grueso todavía — si aparece uno y este valor no calza,
+# revisar antes de asumir que 0.1 generaliza a toda albañilería.
+_WALL_MASONRY_OUT_OF_PLANE_BENDING_MODIFIER = 0.1
+
+
+def _wall_bending_modifier(material: dict) -> float:
+    design_type = str((material or {}).get("designType") or "").strip().lower()
+    if design_type == "masonry":
+        return _WALL_MASONRY_OUT_OF_PLANE_BENDING_MODIFIER
+    return _WALL_OUT_OF_PLANE_BENDING_MODIFIER
 
 
 def _build_wall_mesh_plan(data: dict, nodes: list, node_lookup_out: dict = None):
@@ -1647,8 +1725,10 @@ def _build_wall_mesh_plan(data: dict, nodes: list, node_lookup_out: dict = None)
         # (6º arg de ElasticMembranePlateSection): reduce SOLO la rigidez de
         # flexión (out-of-plane) dejando la membrana (in-plane) intacta —
         # equivalente al "bending stiffness modifier" de un muro en ETABS.
-        # Ver _WALL_OUT_OF_PLANE_BENDING_MODIFIER para el porqué del valor.
-        sec_key = (round(E, -3), round(poisson, 3), round(thickness, 4))
+        # Depende del material (Masonry vs el resto) — ver
+        # _wall_bending_modifier / _WALL_MASONRY_OUT_OF_PLANE_BENDING_MODIFIER.
+        bending_modifier = _wall_bending_modifier(material)
+        sec_key = (round(E, -3), round(poisson, 3), round(thickness, 4), bending_modifier)
         sec_tag = sec_cache.get(sec_key)
         if sec_tag is None:
             sec_tag = next_sec_tag
@@ -1660,7 +1740,7 @@ def _build_wall_mesh_plan(data: dict, nodes: list, node_lookup_out: dict = None)
                 poisson,
                 thickness,
                 0.0,
-                _WALL_OUT_OF_PLANE_BENDING_MODIFIER,
+                bending_modifier,
             )
             sec_cache[sec_key] = sec_tag
 
@@ -1780,6 +1860,16 @@ SLAB_SECTION_TAG_BASE = 5_000
 # locking que obligó a refinar los muros esbeltos, ver
 # _WALL_SLENDER_TARGET_ELEMENT_SIZE_M). El tope de divisiones acota el costo:
 # un panel grande queda en 6x6 = 36 elementos, no en cientos.
+#
+# PROBADO Y DESCARTADO (2026-08-06): la tabla real "Objects and Elements" de
+# ETABS confirma que ETABS mismo mapea cada AREA 1:1 a un solo elemento (no
+# subdivide por tamaño) — pero replicar eso acá (target=1000, nunca subdivide)
+# mejoró el período del modo 3 de MODULO 1 (0.3164->0.3054 s, ETABS 0.288) a
+# costa de EMPEORAR mucho las derivas reales de Story1 (SDX X -12%->-42%,
+# SDY X -34%->-54%, SDY Y -19%->-26% vs ETABS) y el cortante basal. La forma
+# en que ETABS logra rigidez equivalente sin subdividir (probablemente
+# costillas/discretización interna que el .e2k no exporta) no se puede
+# replicar solo con menos elementos por panel — se revirtió a 2.0/6.
 _SLAB_TARGET_ELEMENT_SIZE_M = 2.0
 _SLAB_MAX_DIVISIONS = 6
 
@@ -1791,34 +1881,46 @@ _SLAB_SLOPE_TOLERANCE_M = 0.01
 # Modificador de flexión fuera-del-plano de la losa, según el MODELINGTYPE que
 # trae el .e2k (lo manda el frontend en cada slab):
 #
-#  - "Shell" (Thin/Thick) -> 1.0, shell COMPLETO. A diferencia del muro
-#    (_WALL_OUT_OF_PLANE_BENDING_MODIFIER = 0.1, casi membrana porque así
-#    modela ETABS un muro de corte para sismo), en una losa —sobre todo en un
-#    techo inclinado sin diafragma— la flexión de placa ES la acción
+#  - "Shell" (Thin/Thick) -> 1.0, shell COMPLETO. En una losa —sobre todo en
+#    un techo inclinado sin diafragma— la flexión de placa ES la acción
 #    estructural que la sostiene: reducirla la volvería un mecanismo.
+#    (El muro terminó en el mismo 1.0 por su propio camino, ver
+#    _WALL_OUT_OF_PLANE_BENDING_MODIFIER.)
 #
-#  - "Membrane" -> TAMBIÉN 1.0 desde 2026-08-03. En ETABS una losa Membrane no
-#    tiene rigidez fuera del plano, así que este valor arrancó en 0.1 (mismo
-#    criterio que el muro). Los datos lo desmintieron: ese 0.1 se eligió con un
-#    barrido sobre MODULO 1 cuando el IMPORT todavía estaba roto (las columnas
-#    C30X60 arrancaban en 6.4 en vez de 3.2, ver el story span en
-#    e2k-import.js). Con el import arreglado el óptimo se dio vuelta.
+#  - "Membrane" -> 0.1, que es lo que ETABS realmente hace: una losa Membrane
+#    NO tiene rigidez fuera del plano. (No se pone 0 porque el shell quedaría
+#    sin rigidez out-of-plane y la matriz sale singular.)
 #
-#    Barrido con el payload real de MODULO 1 ya corregido
-#    (ETABS T1-T3 = 0.441/0.363/0.288):
-#      0.1 -> 0.4549 / 0.3747 / 0.3321   SumUX 99.6%  SumUY  62.2%
-#      1.0 -> 0.4363 / 0.3583 / 0.3167   SumUX  100%  SumUY   100%   ← ELEGIDO
+#    Este valor fue y vino. Estuvo en 0.1, se subió a 1.0 el 2026-08-03 porque
+#    un barrido daba SumUY 62% con 0.1 (modos locales blandos de losa que se
+#    llevaban la masa en Y fuera de los 15 modos pedidos), y volvió a 0.1 el
+#    2026-08-10. Aquel 62% YA NO OCURRE: se midió antes del fix de ejes locales
+#    de barras inclinadas y de los otros arreglos de import que entraron después.
 #
-#    Lo decisivo NO es el período (aunque 1.0 también gana: −1.1%/−1.3% vs
-#    +3.2%/+3.2%) sino la MASA PARTICIPANTE: con 0.1 las losas desarrollan
-#    modos locales blandos (0.134, 0.128 s) que se llevan la masa en Y a modos
-#    fuera de los 15 pedidos y dejan SumUY en 62% — por debajo del 90% que
-#    exige la E.030, o sea cortante subestimado.
+#    Barrido 2026-08-10 sobre el payload real de MODULO 1, separando losa PLANA
+#    de INCLINADA (61 planas = Story1, 80 inclinadas = Story3), midiendo A LA VEZ
+#    las vigas contra ETABS y la masa participante.
+#    Vigas = mediana del ratio app/ETABS del pico de M3 en SDX (1.00 calza).
+#    ETABS T1-T3 = 0.441 / 0.363 / 0.288.
 #
-# El parámetro se conserva (no se colapsa en uno solo) para poder volver a
-# probar comportamiento membrana sin reescribir el mallador.
+#      plana/inclin   Story1  Story3      T1     T2     T3    SumUX  SumUY
+#      1.0 / 1.0       0.85    0.69     0.418  0.342  0.272   100%   100%
+#      0.1 / 0.1       0.94    0.95     0.431  0.355  0.279   99.6%  97.4%  ← ELEGIDO
+#      0.1 / 1.0       0.92    0.69     0.422  0.344  0.273   100%   100%
+#      1.0 / 0.1       0.87    0.95     0.427  0.353  0.278   99.6%  97.0%
+#      1.0 / 0.3       0.87    0.82     0.423  0.348  0.276   99.6%  99.9%
+#
+#    0.1 en TODAS gana en las cinco métricas a la vez: las vigas de los dos
+#    pisos y los tres períodos se acercan a ETABS, y SumUX/SumUY quedan bien por
+#    encima del 90% de la E.030. No hizo falta separar por pendiente.
+#
+#    Con 1.0 la losa trabajaba como ALA COMPUESTA de la viga y le robaba momento:
+#    esa era la causa del déficit sistemático de las vigas.
+#
+# El parámetro se conserva separado del de Shell (Thin/Thick), que sí tiene
+# flexión de placa real y se queda en 1.0.
 _SLAB_OUT_OF_PLANE_BENDING_MODIFIER = 1.0
-_SLAB_MEMBRANE_BENDING_MODIFIER = 1.0
+_SLAB_MEMBRANE_BENDING_MODIFIER = 0.1
 
 
 def _slab_bending_modifier(slab: dict) -> float:

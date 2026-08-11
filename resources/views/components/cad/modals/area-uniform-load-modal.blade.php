@@ -14,13 +14,13 @@
 
         <div class="p-4 text-sm text-gray-200">
             <label class="block text-xs text-gray-400 mb-1">Aplicar a</label>
-            <select x-model="v.scope" class="w-full px-2 py-1.5 mb-3 bg-gray-900 border border-gray-600 rounded text-gray-200">
+            <select x-model="v.scope" @change="onScopeChange()" class="w-full px-2 py-1.5 mb-3 bg-gray-900 border border-gray-600 rounded text-gray-200">
                 <template x-for="s in scopes" :key="s.value">
                     <option :value="s.value" x-text="s.label"></option>
                 </template>
             </select>
 
-            <div class="grid grid-cols-2 gap-3 mb-3">
+            <div class="grid grid-cols-2 gap-3 mb-1">
                 <div>
                     <label class="block text-xs text-gray-400 mb-1">Patrón de carga</label>
                     <select x-model="v.loadCase" class="w-full px-2 py-1.5 bg-gray-900 border border-gray-600 rounded text-gray-200">
@@ -30,10 +30,13 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-400 mb-1">Valor (kgf/m²)</label>
-                    <input type="number" step="10" min="0" x-model.number="v.value"
+                    <label class="block text-xs text-gray-400 mb-1" x-text="'Valor (' + unitLabels.areaLoad + ')'"></label>
+                    <input type="number" step="any" x-model.number="dispValue" @input="autoFilled = false"
                            class="w-full px-2 py-1.5 bg-gray-900 border border-gray-600 rounded text-gray-200">
                 </div>
+            </div>
+            <div class="mb-2 h-3">
+                <span x-show="autoFilled" class="text-[10px] text-emerald-400">✓ autocompletado con el σmax de esta zapata (Calcular Zapatas)</span>
             </div>
 
             <label class="block text-xs text-gray-400 mb-1">Operación</label>
@@ -44,8 +47,10 @@
             </select>
 
             <div class="mt-2 text-[11px] text-gray-400">
-                La carga se convierte en masa vía la Fuente de Masa. Típico: CM losa≈300, acabados≈100,
-                tabiquería≈150; CV≈200–250.
+                Se puede asignar a losas y zapatas. La carga se convierte en masa sísmica solo en losas
+                (nunca en zapatas). Típico en kgf/m² (referencia fija, sin importar tu unidad activa):
+                CM losa≈300, acabados≈100, tabiquería≈150; CV≈200–250.
+                <b>Valor negativo</b> = empuja hacia arriba (ej. presión de suelo sobre una zapata).
             </div>
         </div>
 
@@ -60,8 +65,15 @@
 <script>
     function areaUniformLoadModal() {
         return {
-            open: false, scopes: [], loadCases: [],
+            open: false, scopes: [], loadCases: [], autoFilled: false,
+            // v.value SIEMPRE en kgf/m² (convención interna del motor, ver
+            // lib/units.js) — es lo que de verdad se guarda en area.areaLoads
+            // y lo que lee la masa sísmica. El input de abajo NO se conecta a
+            // v.value directo, se conecta a dispValue (ver getter/setter),
+            // que lo muestra/lee en la unidad activa del selector del pie de
+            // página (tonf/m² o kgf/m² según tengas configurado).
             v: { scope: 'all', loadCase: 'CM', value: 300, operation: 'replace' },
+            unitsVersion: 0,
             init() {
                 window.addEventListener('open-area-uniform-load-modal', (e) => {
                     this.scopes = e.detail?.scopes || [];
@@ -70,8 +82,38 @@
                     this.v.loadCase = this.loadCases[0]?.name || 'CM';
                     this.v.value = 300;
                     this.v.operation = 'replace';
+                    this.autoFilled = false;
                     this.open = true;
+                    // Por si el "Aplicar a" inicial ya resuelve a una sola
+                    // zapata (ej. tenías exactamente una seleccionada antes
+                    // de abrir el diálogo).
+                    this.onScopeChange();
                 });
+                window.addEventListener('cad-units-changed', () => { this.unitsVersion++; });
+            },
+            get unitLabels() {
+                this.unitsVersion;
+                return window.cadUnits?.labels?.() || { areaLoad: 'kgf/m²' };
+            },
+            get dispValue() {
+                this.unitsVersion;
+                return window.cadUnits ? window.cadUnits.areaLoadKgfM2ToDisp(this.v.value) : Number(this.v.value) || 0;
+            },
+            set dispValue(val) {
+                this.v.value = window.cadUnits ? window.cadUnits.areaLoadDispToKgfM2(val) : Number(val) || 0;
+            },
+            // Autocompleta "Valor" con el σmax (kgf/m²) de la zapata elegida
+            // — SOLO si "Aplicar a" resuelve a una sola zapata (nunca losas,
+            // nunca si hay varias: ahí el usuario elige a mano, ver
+            // getZapataSigmaMaxKgfM2ForScope en assign-dialogs.js).
+            onScopeChange() {
+                const kgfm2 = window.cadSystem?.getZapataSigmaMaxKgfM2ForScope?.(this.v.scope);
+                if (kgfm2 !== null && kgfm2 !== undefined) {
+                    this.v.value = kgfm2;
+                    this.autoFilled = true;
+                } else {
+                    this.autoFilled = false;
+                }
             },
             close() { this.open = false; },
             apply() { window.cadSystem?.applyAreaUniformLoadFromModal?.({ ...this.v }); },

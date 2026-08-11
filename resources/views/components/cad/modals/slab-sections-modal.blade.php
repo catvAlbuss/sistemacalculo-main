@@ -81,6 +81,22 @@
                             <option value="Shell-Thick">Shell-Thick</option>
                         </select>
                     </div>
+                    {{-- Equivalente del ONEWAYLOADDIST de ETABS: decide si la losa entrega
+                         su carga a DOS vigas (una vía) o a las cuatro del contorno. --}}
+                    <div class="flex items-start gap-2">
+                        <span class="text-gray-300 w-40 pt-1">Reparto de Carga</span>
+                        <div class="flex-1">
+                            <label class="flex items-center gap-2 text-white">
+                                <input type="checkbox" x-model="editing.oneWayLoadDist"
+                                    class="bg-gray-700 border-gray-600 rounded">
+                                <span>Una vía (aligerado / nervado)</span>
+                            </label>
+                            <p class="text-xs text-gray-400 mt-1">
+                                Entrega la carga solo a las dos vigas perpendiculares al sentido
+                                de armado. Sin marcar, reparte a las cuatro del contorno.
+                            </p>
+                        </div>
+                    </div>
                     <div class="flex items-center gap-2">
                         <span class="text-gray-300 w-40">Color</span>
                         <input type="color" x-model="editing.color" class="w-12 h-7 bg-gray-700 border border-gray-600 rounded">
@@ -105,6 +121,11 @@
                         <input type="number" step="any" min="0" x-model.number="dispThickness"
                             class="flex-1 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white">
                     </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-gray-300 w-40" x-text="'Recubrimiento (' + unitLabels.length + ')'"></span>
+                        <input type="number" step="any" min="0" x-model.number="dispRecubrimiento"
+                            class="flex-1 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white">
+                    </div>
                 </div>
                 <div class="mt-3 pt-2 border-t border-gray-700 text-xs text-emerald-300">
                     Peso propio ≈ <b x-text="selfWeightDisp"></b> <span x-text="unitLabels.areaLoad"></span>
@@ -115,6 +136,7 @@
             <div class="text-[11px] text-gray-500 leading-snug">
                 El espesor define el <b>peso propio de la losa</b> (kgf/m² = espesor × densidad). Para losa aligerada usa el
                 <b>espesor equivalente</b> (p. ej. aligerado 0.20 ≈ 125 mm → ~300 kgf/m²). Acabados, tabiquería y CV se asignan aparte como cargas de área.
+                El <b>recubrimiento</b> se usa para el diseño de acero de esta sección (p. ej. en zapatas, para calcular el peralte efectivo).
             </div>
         </div>
 
@@ -143,9 +165,11 @@
             selectedName: null,
 
             // Nunca null (Alpine evalúa el editor aunque esté oculto).
+            // recubrimiento (mm): 75mm = 7.5cm por defecto — típico para
+            // elementos en contacto con el suelo (zapatas), ver E.060.
             editing: {
                 name: '', material: 'CONC', modelingType: 'Membrane',
-                type: 'Slab', thickness: 200, color: '#888888',
+                type: 'Slab', thickness: 200, recubrimiento: 75, color: '#888888',
             },
             editingOriginalName: null,
             isNew: false,
@@ -179,6 +203,9 @@
 
             get dispThickness() { this.unitsVersion; return window.cadUnits ? window.cadUnits.lenMmToDisp(this.editing.thickness) : Number(this.editing.thickness) || 0; },
             set dispThickness(v) { this.editing.thickness = window.cadUnits ? window.cadUnits.lenDispToMm(v) : Number(v) || 0; },
+
+            get dispRecubrimiento() { this.unitsVersion; return window.cadUnits ? window.cadUnits.lenMmToDisp(this.editing.recubrimiento) : Number(this.editing.recubrimiento) || 0; },
+            set dispRecubrimiento(v) { this.editing.recubrimiento = window.cadUnits ? window.cadUnits.lenDispToMm(v) : Number(v) || 0; },
 
             // Peso propio convertido a la unidad de carga por área activa.
             get selfWeightDisp() {
@@ -220,8 +247,8 @@
                 let list = Array.isArray(cs.slabSections) ? cs.slabSections : null;
                 if (!list || !list.length) {
                     list = [
-                        { name: 'Aligerado e=0.20', material: 'CONC', modelingType: 'Membrane', type: 'Slab', thickness: 125, color: '#9ca3af' },
-                        { name: 'Losa Maciza e=0.20', material: 'CONC', modelingType: 'Membrane', type: 'Slab', thickness: 200, color: '#6b7280' },
+                        { name: 'Aligerado e=0.20', material: 'CONC', modelingType: 'Membrane', type: 'Slab', thickness: 125, recubrimiento: 20, color: '#9ca3af' },
+                        { name: 'Losa Maciza e=0.20', material: 'CONC', modelingType: 'Membrane', type: 'Slab', thickness: 200, recubrimiento: 20, color: '#6b7280' },
                     ];
                 }
                 this.sections = JSON.parse(JSON.stringify(list));
@@ -241,7 +268,7 @@
             getSelected() { return this.sections.find((s) => s.name === this.selectedName) || null; },
 
             defaultEditing(name) {
-                return { name: name || '', material: this.availableMaterials[0] || 'CONC', modelingType: 'Membrane', type: 'Slab', thickness: 200, color: '#888888' };
+                return { name: name || '', material: this.availableMaterials[0] || 'CONC', modelingType: 'Membrane', type: 'Slab', thickness: 200, recubrimiento: 75, color: '#888888' };
             },
 
             addNew() {
@@ -288,8 +315,15 @@
                     modelingType: this.editing.modelingType,
                     type: this.editing.type,
                     thickness: Number(this.editing.thickness) || 0,   // mm
+                    recubrimiento: Number(this.editing.recubrimiento) || 0, // mm
                     color: this.editing.color,
                     selfWeightKgM2: this.selfWeightKgM2,                // kgf/m² (peso propio)
+                    // Equivalente del ONEWAYLOADDIST de ETABS: decide si la
+                    // losa entrega su carga a DOS vigas (una vía: aligerado,
+                    // nervado) o a las cuatro del contorno. Sin este dato la
+                    // losa no dibuja flecha de sentido de armado y reparte a
+                    // todo el contorno.
+                    oneWayLoadDist: !!this.editing.oneWayLoadDist,
                 };
                 if (this.isNew) this.sections.push(stored);
                 else {

@@ -21,6 +21,10 @@ import {
   hideFrameForceDisplayPanel,
 } from "../diagrams/frameForceDisplayPanel.js";
 
+import { computeSigmaColorRange, buildSigmaColorBins, drawSigmaLegend } from "./zapataPressureLayer.js";
+import { computeMomentColorRange, buildMomentColorBins, drawMomentLegend } from "./zapataMomentLayer.js";
+import { lookupGridIndex, drawHoverTooltip } from "./zapataGridIndex.js";
+
 
 function imgFromSVG(svg) {
   // Create an image from the SVG string
@@ -116,6 +120,8 @@ export class DiseñoRenderer {
     this.drawDimensionLines(CADSystem);
     this.drawDimensionPreview(CADSystem);
     this.drawAreas(CADSystem);
+    this.drawZapataPressureLayer(CADSystem);
+    this.drawZapataMomentLayer(CADSystem);
     this.drawAreaPreview(CADSystem);
     this.drawOrthoGuides(CADSystem);
 
@@ -1553,7 +1559,110 @@ export class DiseñoRenderer {
       ctx.fillText(label, center.x, center.y);
     }
 
+    if (!isPreview && pts.length >= 3) {
+      this.drawSlabLoadDirection(pts, area, context);
+    }
+
     ctx.restore();
+  }
+
+  /**
+   * Sentido de reparto de la carga de la losa, como la flecha que ETABS dibuja
+   * sobre las losas de UNA VÍA (aligerados).
+   *
+   * No es decoración: el sentido decide A QUÉ VIGAS les entrega la carga el
+   * panel (van las PERPENDICULARES a la flecha, que son las que hacen de apoyo
+   * en los dos extremos de la luz — ver _buildSeismicSlabToBeamLoadsForPayload
+   * en payload.js). Sin dibujarlo, ese criterio es invisible y un error de 90°
+   * en el `ANG` importado del .e2k mandaría la carga a las vigas equivocadas
+   * sin que nada lo delate: la carga total se conserva igual y las reacciones
+   * cierran lo mismo.
+   *
+   * Losas de DOS VÍAS no llevan flecha, igual que en ETABS: reparten a todo el
+   * contorno y no hay dirección que mostrar.
+   */
+  drawSlabLoadDirection(pts, area, context) {
+    if (area.oneWayLoadDist !== true) return;
+    if (context.displayOptions?.showSlabLoadDirection === false) return;
+
+    const ctx = context.ctx;
+    const center = this.getProjectedPolygonCenter(pts);
+
+    // Extensión del panel en pantalla, para escalar la flecha con el zoom.
+    const xs = pts.map((p) => p.x);
+    const ys = pts.map((p) => p.y);
+    const spanPx = Math.min(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+
+    if (spanPx < 28) return; // panel diminuto en pantalla: no vale la pena
+
+    // El ángulo viene en coordenadas de MUNDO; se proyecta un vector unitario
+    // desde el centro del panel para que la flecha siga la vista (planta,
+    // elevación, isométrica) en vez de asumir que la pantalla es el plano XY.
+    const ang = ((Number(area.loadDistAngle) || 0) * Math.PI) / 180;
+    const c = this.getPolygonCenterWorld(area.points);
+    if (!c) return;
+
+    const p0 = this.projectPoint({ position: c }, context);
+    const p1 = this.projectPoint(
+      { position: { x: c.x + Math.cos(ang), y: c.y + Math.sin(ang), z: c.z } },
+      context,
+    );
+
+    const vx = p1.x - p0.x;
+    const vy = p1.y - p0.y;
+    const vlen = Math.hypot(vx, vy);
+    if (vlen < 1e-6) return; // la dirección se proyecta como punto
+
+    const ux = vx / vlen;
+    const uy = vy / vlen;
+    const half = Math.min(spanPx * 0.32, 60);
+
+    const ax = center.x - ux * half;
+    const ay = center.y - uy * half;
+    const bx = center.x + ux * half;
+    const by = center.y + uy * half;
+
+    ctx.save();
+    ctx.strokeStyle = "rgba(56, 189, 248, 0.9)";
+    ctx.fillStyle = "rgba(56, 189, 248, 0.9)";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([]);
+
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(bx, by);
+    ctx.stroke();
+
+    // Punta en los dos extremos: la carga salva de apoyo a apoyo, no "va"
+    // hacia un lado. Es como lo dibuja ETABS.
+    const head = 6;
+    [[bx, by, ux, uy], [ax, ay, -ux, -uy]].forEach(([hx, hy, dx, dy]) => {
+      ctx.beginPath();
+      ctx.moveTo(hx, hy);
+      ctx.lineTo(hx - dx * head - dy * head * 0.5, hy - dy * head + dx * head * 0.5);
+      ctx.lineTo(hx - dx * head + dy * head * 0.5, hy - dy * head - dx * head * 0.5);
+      ctx.closePath();
+      ctx.fill();
+    });
+
+    ctx.restore();
+  }
+
+  /** Centro (promedio de vértices) de un polígono en coordenadas de MUNDO. */
+  getPolygonCenterWorld(points = []) {
+    if (!Array.isArray(points) || !points.length) return null;
+
+    let x = 0;
+    let y = 0;
+    let z = 0;
+
+    points.forEach((p) => {
+      x += Number(p.x) || 0;
+      y += Number(p.y) || 0;
+      z += Number(p.z) || 0;
+    });
+
+    return { x: x / points.length, y: y / points.length, z: z / points.length };
   }
 
   /**
@@ -1651,6 +1760,241 @@ export class DiseñoRenderer {
       if (!this.shouldDrawArea(area, context)) return;
       this.drawArea(area, context, false);
     });
+  }
+
+  /**
+   * Pinta σ (presión de contacto) sobre cada zapata, reutilizando el mismo
+   * point cloud que ya devuelve /zapatas2 (ver zapataPressureLayer.js) —
+   * pedido del cliente, sin tocar el backend. Se activa/desactiva con
+   * `context.showZapataPressureLayer` y usa la combinación
+   * `context.zapataPressureComboIndex` (ambos en cad_sys.js).
+   */
+  drawZapataPressureLayer(context) {
+    if (!context.showZapataPressureLayer) return;
+
+    const results = context._lastZapataCalculationResults;
+    const polygons = results?.normalizedPolygons;
+    if (!polygons?.length) return;
+
+    const comboIndex = context.zapataPressureComboIndex ?? 0;
+    const ctx = context.ctx;
+
+    // Recorrer decenas de miles de puntos y agruparlos por color es caro
+    // — este render corre a 60 fps, pero esos datos NO cambian entre
+    // frames, solo cuando cambia la combinación mostrada o se vuelve a
+    // correr "Calcular zapatas". Se cachea acá y solo se recalcula si
+    // alguna de esas dos cosas cambió; lo que sí cambia cada frame (pan/
+    // zoom) es barato — proyectar puntos ya agrupados.
+    let cache = this._zapataPressureCache;
+    if (!cache || cache.results !== results || cache.comboIndex !== comboIndex) {
+      const { cmin, cmax } = computeSigmaColorRange(polygons, comboIndex);
+      cache = {
+        results,
+        comboIndex,
+        cmin,
+        cmax,
+        perPolygon: polygons.map((polygon) => ({ polygon, ...buildSigmaColorBins(polygon, comboIndex, cmin, cmax) })),
+      };
+      this._zapataPressureCache = cache;
+    }
+
+    const { cmin, cmax } = cache;
+    // Píxeles por metro al zoom actual — mismo factor que usa
+    // grid.worldToScreen. Con esto el tamaño de cada celda se convierte de
+    // metros reales a píxeles de pantalla, así que siempre cubre el mismo
+    // pedazo de terreno sin importar cuánto acerques/alejes.
+    const pixelsPerMeter = context.grid?.scaleX || 1;
+
+    cache.perPolygon.forEach(({ polygon, bins, cellWidthMeters, cellHeightMeters }) => {
+      // Celdas del tamaño real de la cuadrícula (no un radio aproximado):
+      // encajan como mosaico, sin huecos ni superposición, a cualquier
+      // zoom — ver estimateGridStep en zapataPressureLayer.js.
+      const cellWidth = Math.max(1.5, cellWidthMeters * pixelsPerMeter);
+      const cellHeight = Math.max(1.5, cellHeightMeters * pixelsPerMeter);
+
+      ctx.save();
+
+      // Recorta el pintado al contorno REAL de la zapata — sin esto, las
+      // celdas cercanas al borde se salen visiblemente del contorno
+      // dibujado.
+      const screenPts = polygon.points?.length >= 3
+        ? polygon.points.map((pt) => this.projectPoint({ position: { x: pt.x, y: pt.y, z: 0 } }, context))
+        : null;
+
+      if (screenPts) {
+        const clipPath = new Path2D();
+        clipPath.moveTo(screenPts[0].x, screenPts[0].y);
+        for (let i = 1; i < screenPts.length; i++) {
+          clipPath.lineTo(screenPts[i].x, screenPts[i].y);
+        }
+        clipPath.closePath();
+        ctx.clip(clipPath);
+      }
+
+      bins.forEach(({ color, points }) => {
+        const path = new Path2D();
+
+        points.forEach(({ x, y }) => {
+          const p = this.projectPoint({ position: { x, y, z: 0 } }, context);
+          path.rect(p.x - cellWidth / 2, p.y - cellHeight / 2, cellWidth, cellHeight);
+        });
+
+        ctx.fillStyle = color;
+        ctx.fill(path);
+      });
+
+      ctx.restore();
+
+      // Vuelve a trazar el contorno de la zapata ENCIMA de las celdas ya
+      // recortadas: contra un borde inclinado, el recorte deja un patrón
+      // levemente dentado (cada celda cuadrada se corta individualmente).
+      // El grosor del trazo se ajusta al tamaño real de la celda (no un
+      // valor fijo) — zapatas chicas (una sola columna) reciben menos
+      // puntos del backend, o sea celdas más grandes y un escalón más
+      // notorio, que necesita un trazo más grueso para taparlo.
+      if (screenPts) {
+        ctx.beginPath();
+        ctx.moveTo(screenPts[0].x, screenPts[0].y);
+        for (let i = 1; i < screenPts.length; i++) {
+          ctx.lineTo(screenPts[i].x, screenPts[i].y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = Math.min(20, Math.max(1.5, Math.max(cellWidth, cellHeight) * 0.75));
+        ctx.stroke();
+      }
+    });
+
+    // Tooltip con el valor exacto donde está el cursor — pedido del
+    // cliente para comparar punto a punto contra "Shell Forces/Stresses"
+    // de ETABS. `context.mousePos` ya lo actualiza handleMouseMove
+    // (mixins/core/events.js) en CADA movimiento del mouse sin importar
+    // qué herramienta esté activa — no hace falta un listener nuevo.
+    if (context.mousePos) {
+      for (const { hover } of cache.perPolygon) {
+        const idx = lookupGridIndex(hover?.index, context.mousePos.x, context.mousePos.y);
+        if (idx === null) continue;
+        const value = hover.values[idx];
+        if (!Number.isFinite(value)) continue;
+        const screenPt = this.projectPoint({ position: { x: hover.xs[idx], y: hover.ys[idx], z: 0 } }, context);
+        drawHoverTooltip(ctx, screenPt.x, screenPt.y, value, "σ", "Tn/m²");
+        break; // una sola zapata a la vez (no deberían solaparse)
+      }
+    }
+
+    drawSigmaLegend(ctx, ctx.canvas.width, ctx.canvas.height, cmin, cmax);
+  }
+
+  /**
+   * Pinta el momento de diseño (Bloque 3, evaluado punto a punto — ver
+   * zapataMomentLayer.js) sobre cada zapata en el 2D. Mismo mecanismo que
+   * drawZapataPressureLayer (celdas + caché + leyenda), pero leyendo
+   * `polygon.momentField` (calculado en foundation.js) en vez de `ZZ`. Se
+   * activa con `context.showZapataMomentLayer`, combinación con
+   * `context.zapataMomentComboIndex`, dirección (solo aisladas) con
+   * `context.zapataMomentDirection` ('x'|'y') — los tres en cad_sys.js.
+   */
+  drawZapataMomentLayer(context) {
+    if (!context.showZapataMomentLayer) return;
+
+    const results = context._lastZapataCalculationResults;
+    const polygons = (results?.normalizedPolygons || []).filter((p) => p.momentField);
+    if (!polygons.length) return;
+
+    const comboIndex = context.zapataMomentComboIndex ?? 0;
+    const direction = context.zapataMomentDirection || "x";
+    const ctx = context.ctx;
+
+    let cache = this._zapataMomentCache;
+    if (!cache || cache.results !== results || cache.comboIndex !== comboIndex || cache.direction !== direction) {
+      const { cmin, cmax } = computeMomentColorRange(polygons, comboIndex, direction);
+      cache = {
+        results,
+        comboIndex,
+        direction,
+        cmin,
+        cmax,
+        perPolygon: polygons.map((polygon) => ({
+          polygon,
+          isCombined: polygon.momentField?.type === "combined",
+          ...buildMomentColorBins(polygon, comboIndex, direction, cmin, cmax),
+        })),
+      };
+      this._zapataMomentCache = cache;
+    }
+
+    const { cmin, cmax } = cache;
+    const pixelsPerMeter = context.grid?.scaleX || 1;
+    let anyCombined = false;
+
+    cache.perPolygon.forEach(({ polygon, isCombined, bins, cellWidthMeters, cellHeightMeters }) => {
+      if (isCombined) anyCombined = true;
+
+      const cellWidth = Math.max(1.5, cellWidthMeters * pixelsPerMeter);
+      const cellHeight = Math.max(1.5, cellHeightMeters * pixelsPerMeter);
+
+      ctx.save();
+
+      const screenPts = polygon.points?.length >= 3
+        ? polygon.points.map((pt) => this.projectPoint({ position: { x: pt.x, y: pt.y, z: 0 } }, context))
+        : null;
+
+      if (screenPts) {
+        const clipPath = new Path2D();
+        clipPath.moveTo(screenPts[0].x, screenPts[0].y);
+        for (let i = 1; i < screenPts.length; i++) {
+          clipPath.lineTo(screenPts[i].x, screenPts[i].y);
+        }
+        clipPath.closePath();
+        ctx.clip(clipPath);
+      }
+
+      bins.forEach(({ color, points }) => {
+        const path = new Path2D();
+
+        points.forEach(({ x, y }) => {
+          const p = this.projectPoint({ position: { x, y, z: 0 } }, context);
+          path.rect(p.x - cellWidth / 2, p.y - cellHeight / 2, cellWidth, cellHeight);
+        });
+
+        ctx.fillStyle = color;
+        ctx.fill(path);
+      });
+
+      ctx.restore();
+
+      if (screenPts) {
+        ctx.beginPath();
+        ctx.moveTo(screenPts[0].x, screenPts[0].y);
+        for (let i = 1; i < screenPts.length; i++) {
+          ctx.lineTo(screenPts[i].x, screenPts[i].y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = "#f472b6";
+        ctx.lineWidth = Math.min(20, Math.max(1.5, Math.max(cellWidth, cellHeight) * 0.75));
+        ctx.stroke();
+      }
+    });
+
+    // Tooltip con el valor exacto donde está el cursor — mismo mecanismo
+    // que la capa de presión (ver ahí el porqué de context.mousePos).
+    if (context.mousePos) {
+      const label = anyCombined ? "M" : direction === "y" ? "My" : "Mx";
+      for (const { isCombined, hover } of cache.perPolygon) {
+        const idx = lookupGridIndex(hover?.index, context.mousePos.x, context.mousePos.y);
+        if (idx === null) continue;
+        const value = hover.values[idx];
+        if (!Number.isFinite(value)) continue;
+        const screenPt = this.projectPoint({ position: { x: hover.xs[idx], y: hover.ys[idx], z: 0 } }, context);
+        drawHoverTooltip(ctx, screenPt.x, screenPt.y, value, isCombined ? "M" : label, "Tn·m/m");
+        break;
+      }
+    }
+
+    // Si hay zapatas aisladas Y combinadas visibles a la vez, la etiqueta
+    // de dirección (Mx/My) solo aplica a las aisladas — se muestra la
+    // genérica "M" en ese caso mixto para no rotular mal a las combinadas.
+    drawMomentLegend(ctx, ctx.canvas.width, ctx.canvas.height, cmin, cmax, direction, anyCombined);
   }
 
   drawAreaPreview(context) {

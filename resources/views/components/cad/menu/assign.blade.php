@@ -100,6 +100,19 @@
                             </button>
 
                             <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.openAssignSlabLoadDirectionDialog()">
+                                <span>⇕</span>
+                                <span class="flex-1 truncate">Sentido de Armado...</span>
+                                <span class="text-xs text-cyan-400 italic">1 vía</span>
+                            </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.rotateSlabLoadDirection()">
+                                <span>↻</span>
+                                <span class="flex-1 truncate">Girar Armado 90°</span>
+                            </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
                                 @click.stop="cadSystem.activateAssignMenuAction('area-wall-section')">
                                 <span>▮</span>
                                 Sección de Muro...

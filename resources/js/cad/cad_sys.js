@@ -90,6 +90,9 @@ import { editGeometryMixin } from "./mixins/edit/edit-geometry.js";
 import { drawSlab3DMixin } from "./mixins/edit/draw-slab-3d.js";
 import { viewFilterMixin } from "./mixins/select/view-filter.js";
 import { designMixin } from "./mixins/analysis/design.js";
+import { rcSectionMaterialMixin } from "./mixins/analysis/rcSectionMaterial.js";
+import { rcBeamDesignMixin } from "./mixins/analysis/rcBeamDesign.js";
+import { rcColumnDesignMixin } from "./mixins/analysis/rcColumnDesign.js";
 import { displayDialogsMixin } from "./mixins/dialogs/display-dialogs.js";
 import { assignDialogsMixin } from "./mixins/dialogs/assign-dialogs.js";
 import { coreUiMixin } from "./mixins/core/core-ui.js";
@@ -472,7 +475,12 @@ export default () => ({
     // Etiquetas (nombre de sección) sobre losas y muros, en 2D y 3D. En 3D
     // cada etiqueta es un plano billboard con su propia DynamicTexture, así
     // que un modelo con muchas losas se vuelve pesado — de ahí el toggle.
-    showAreaSectionLabels: true,
+    showAreaSectionLabels: false,
+    // Flecha del sentido de armado en losas de UNA VÍA (aligerados), como la
+    // de ETABS. Arranca ENCENDIDA porque ese sentido decide a qué vigas les
+    // llega la carga del panel, y es la única forma de ver de un vistazo si el
+    // ANG importado del .e2k quedó girado 90°.
+    showSlabLoadDirection: true,
     showDeformedShape: false,
     showModeShape: false,
     showMemberForces: false,
@@ -542,6 +550,17 @@ export default () => ({
     this.shapes = [];
     this.nodes = [];
     this.areas = [];
+    // Capa de presión σ sobre zapatas en el 2D (ver
+    // canvas2d/zapataPressureLayer.js) — pedido del cliente, reutiliza el
+    // mismo point cloud que ya calcula "Calcular zapatas".
+    this.showZapataPressureLayer = false;
+    this.zapataPressureComboIndex = 0;
+    // Mapa de momento 2D (Bloque 3, evaluado punto a punto — ver
+    // canvas2d/zapataMomentLayer.js) — mismo patrón que la capa de σ de
+    // arriba, pero pintando momento en vez de presión.
+    this.showZapataMomentLayer = false;
+    this.zapataMomentComboIndex = 0;
+    this.zapataMomentDirection = "x";
     this.referencePoints = [];
     this.referencePlanes = this.referencePlanes || [];
     this.dimensionLines = [];
@@ -640,6 +659,16 @@ export default () => ({
 
     window.onresize = () => this.windowResize();
 
+    // window.onresize por sí solo no alcanza: el tamaño real del canvas
+    // depende del layout flex de su contenedor (#cad-panel-2d), que puede
+    // cambiar SIN que la ventana del navegador cambie de tamaño (ej. la
+    // barra de navegación superior termina de hidratar y cambia de alto
+    // después del primer paint) — un ResizeObserver reacciona a eso
+    // también, no solo al resize real de la ventana.
+    if (typeof ResizeObserver !== "undefined") {
+      new ResizeObserver(() => this.windowResize()).observe(canvas.parentElement || canvas);
+    }
+
     this.windowResize();
 
     canvas.oncontextmenu = () => {
@@ -676,13 +705,45 @@ export default () => ({
       this.handleMouseMove(event);
     };
 
-    const renderLoop = () => {
-      this.shapes.forEach((s) => {
-        const p1 = this.grid.worldToScreen(s.node1.position);
-        const p2 = this.grid.worldToScreen(s.node2.position);
-        s.angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-      });
-      this.redraw();
+    // Cualquier interacción con el canvas ensucia la vista. Se marca acá, en un
+    // solo lugar, en vez de confiar en que cada handler llame a redraw().
+    ["wheel", "mousedown", "mouseup", "mousemove", "click", "keydown"].forEach(
+      (evt) => canvas.addEventListener(evt, () => this.invalidate(), { passive: true }),
+    );
+
+    // ── Bucle de dibujo bajo demanda (como ETABS) ───────────────────────────
+    // Antes esto recalculaba el ángulo de TODAS las barras y redibujaba el
+    // canvas entero 60 veces por segundo, para siempre, aunque no cambiara
+    // nada. Con el diagrama de fuerzas encendido eso significaba redibujar
+    // miles de segmentos 60 veces por segundo sin motivo: de ahí la lentitud
+    // general de la página.
+    //
+    // Ahora solo se dibuja cuando la vista está "sucia" (`invalidate()`, que es
+    // lo que llama `redraw()`). El latido de seguridad repinta igual cada
+    // HEARTBEAT_MS por si alguna ruta muta el modelo sin marcar nada: cuesta
+    // ~2 cuadros por segundo y evita que el canvas quede congelado si a algún
+    // camino se le olvida invalidar.
+    const HEARTBEAT_MS = 500;
+    // -Infinity fuerza el primer pintado en el primer cuadro (con 0, el canvas
+    // podía quedar en blanco hasta medio segundo al abrir).
+    let lastPaint = -Infinity;
+
+    const renderLoop = (now = 0) => {
+      const heartbeat = now - lastPaint >= HEARTBEAT_MS;
+
+      if (this._needsRedraw || heartbeat) {
+        this._needsRedraw = false;
+        lastPaint = now;
+
+        this.shapes.forEach((s) => {
+          const p1 = this.grid.worldToScreen(s.node1.position);
+          const p2 = this.grid.worldToScreen(s.node2.position);
+          s.angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+        });
+
+        this.renderNow();
+      }
+
       window.requestAnimationFrame(renderLoop);
     };
     window.requestAnimationFrame(renderLoop);
@@ -845,6 +906,9 @@ export default () => ({
   ...drawSlab3DMixin,
   ...viewFilterMixin,
   ...designMixin,
+  ...rcSectionMaterialMixin,
+  ...rcBeamDesignMixin,
+  ...rcColumnDesignMixin,
   ...displayDialogsMixin,
   ...assignDialogsMixin,
   ...coreUiMixin,

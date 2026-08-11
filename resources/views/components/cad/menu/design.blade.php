@@ -18,6 +18,25 @@
             <x-slot name="dropdown">
                 <div class="cad-menu-panel py-1" style="min-width: 320px;">
 
+                    {{-- ================= DISEÑO DE CONCRETO ARMADO ================= --}}
+                    <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
+                        Diseño de Concreto Armado
+                    </div>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('rc-beam-design') : cadSystem.showMessage?.('Diseño de viga no disponible', 'warning')">
+                        <span>🏗️</span>
+                        Diseñar Viga Seleccionada (ACI-318 / E.060)...
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('rc-column-design') : cadSystem.showMessage?.('Diseño de columna no disponible', 'warning')">
+                        <span>🏛️</span>
+                        Diseñar Columna(s) Seleccionada(s) (ACI-318)...
+                    </button>
+
+                    <div class="border-t border-gray-700 my-1"></div>
+
                     {{-- ================= DISEÑO DE MARCOS DE ACERO ================= --}}
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
                         Diseño de Marcos de Acero

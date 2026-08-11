@@ -6,6 +6,8 @@ import seismic_analysis as sa
 import math
 import os
 import json
+from design.column_interaction import compute_pmm_surface, capacity_at_demand, beta1_from_fc
+from design.column_shear import column_shear_design
 
 
 def _dump_seismic_payload_if_enabled(data):
@@ -750,6 +752,154 @@ def frame_forces():
                     "traceback": traceback.format_exc(),
                 }
             ),
+            500,
+        )
+
+
+def _run_column_interaction(data):
+    """
+    Diagrama de interacción P-M-M biaxial (ACI-318) para una columna
+    rectangular con armado real (ver python-backend/design/column_interaction.py
+    y el plan de columnas — Paso 2). Sin dependencia de OpenSeesPy, no
+    requiere análisis previo: es geometría + materiales puros. Compartida
+    entre el endpoint Flask (Windows) y cli_entry.py (Linux, subproceso).
+
+    Payload (SI): { b, h, fc, fy, cover, barDiameter, n3, n2, barArea,
+                     tied?, numAngles?, numC?,
+                     demandPoints?: [{P, M2, M3}, ...] } — todo en metros/Pa.
+
+    `demandPoints` (opcional): además de la superficie de 24 curvas (útil
+    como referencia visual), calcula la capacidad EXACTA en el ángulo real
+    de cada punto de demanda (bisección sobre c, sin interpolar entre
+    ángulos ni entre puntos de curva — ver capacity_at_demand). Se devuelve
+    en `demandChecks`, en el mismo orden que `demandPoints`.
+    """
+    required = ["b", "h", "fc", "fy", "cover", "barDiameter", "n3", "n2", "barArea"]
+    missing = [k for k in required if data.get(k) is None]
+    if missing:
+        return {"success": False, "error": f"Faltan campos: {', '.join(missing)}"}
+
+    b = float(data["b"])
+    h = float(data["h"])
+    fc = float(data["fc"])
+    fy = float(data["fy"])
+    cover = float(data["cover"])
+    bar_diameter = float(data["barDiameter"])
+    n3 = int(data["n3"])
+    n2 = int(data["n2"])
+    bar_area = float(data["barArea"])
+    tied = bool(data.get("tied", True))
+    beta1 = beta1_from_fc(fc)
+
+    surface = compute_pmm_surface(
+        b=b, h=h, fc=fc, fy=fy, cover=cover, bar_diameter=bar_diameter,
+        n3=n3, n2=n2, bar_area=bar_area, tied=tied,
+        num_angles=int(data.get("numAngles", 24)),
+        num_c=int(data.get("numC", 21)),
+    )
+
+    if surface is None:
+        return {"success": False, "error": "Geometría/patrón de armado inválido (no se pudo ubicar varilla)."}
+
+    demand_checks = None
+    demand_points = data.get("demandPoints")
+    if isinstance(demand_points, list) and demand_points:
+        demand_checks = []
+        for pt in demand_points:
+            p_u = float(pt.get("P", 0.0))
+            m2_u = float(pt.get("M2", 0.0))
+            m3_u = float(pt.get("M3", 0.0))
+            theta = math.atan2(m3_u, m2_u)
+            cap = capacity_at_demand(
+                b=b, h=h, fc=fc, fy=fy, cover=cover, bar_diameter=bar_diameter,
+                n3=n3, n2=n2, bar_area=bar_area, beta1=beta1,
+                theta=theta, target_p=p_u,
+            )
+            if cap is None:
+                demand_checks.append({"error": "sin capacidad calculable"})
+                continue
+            phi_mn_cap = math.hypot(cap["phiM2n"], cap["phiM3n"])
+            mu_resultant = math.hypot(m2_u, m3_u)
+            ratio = (mu_resultant / phi_mn_cap) if phi_mn_cap > 0 else float("inf")
+            demand_checks.append({
+                "thetaDeg": math.degrees(theta) % 360,
+                "phi": cap["phi"],
+                "phiMnCap": phi_mn_cap,
+                "muResultant": mu_resultant,
+                "ratio": ratio,
+                "status": "OK" if ratio <= 1 else "NG",
+            })
+
+    response = {"success": True, **surface}
+    if demand_checks is not None:
+        response["demandChecks"] = demand_checks
+
+    return response
+
+
+@app.route("/api/column-interaction", methods=["POST"])
+def column_interaction():
+    try:
+        data = request.get_json(force=True) or {}
+        response = _run_column_interaction(data)
+        status = 200 if response.get("success") else 400
+        return jsonify(response), status
+
+    except Exception as e:
+        return (
+            jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}),
+            500,
+        )
+
+
+def _run_column_shear(data):
+    """
+    Corte por diseño de capacidad + confinamiento de una columna rectangular
+    (ver python-backend/design/column_shear.py). Compartida entre el
+    endpoint Flask (Windows) y cli_entry.py (Linux, subproceso) — mismo
+    patrón que _run_column_interaction.
+
+    Payload (SI): { b, h, fc, fy, cover, barDiameter, n3, n2, barArea,
+                     confineFy, confineBarArea, confineBarDiameter,
+                     confineBarSpacing, numConfineBars2, numConfineBars3,
+                     clearHeight, axialMin, axialMax, vuAnalysis2, vuAnalysis3 }
+    """
+    required = [
+        "b", "h", "fc", "fy", "cover", "barDiameter", "n3", "n2", "barArea",
+        "confineFy", "confineBarArea", "confineBarDiameter", "confineBarSpacing",
+        "numConfineBars2", "numConfineBars3", "clearHeight",
+        "axialMin", "axialMax", "vuAnalysis2", "vuAnalysis3",
+    ]
+    missing = [k for k in required if data.get(k) is None]
+    if missing:
+        return {"success": False, "error": f"Faltan campos: {', '.join(missing)}"}
+
+    result = column_shear_design(
+        b=float(data["b"]), h=float(data["h"]), fc=float(data["fc"]), fy=float(data["fy"]),
+        cover=float(data["cover"]), bar_diameter=float(data["barDiameter"]),
+        n3=int(data["n3"]), n2=int(data["n2"]), bar_area=float(data["barArea"]),
+        fyt=float(data["confineFy"]), confine_bar_area=float(data["confineBarArea"]),
+        confine_bar_diameter=float(data["confineBarDiameter"]),
+        confine_bar_spacing=float(data["confineBarSpacing"]),
+        num_confine_bars2=int(data["numConfineBars2"]), num_confine_bars3=int(data["numConfineBars3"]),
+        clear_height=float(data["clearHeight"]), axial_min=float(data["axialMin"]),
+        axial_max=float(data["axialMax"]), vu_analysis2=float(data["vuAnalysis2"]),
+        vu_analysis3=float(data["vuAnalysis3"]),
+    )
+    return {"success": True, **result}
+
+
+@app.route("/api/column-shear", methods=["POST"])
+def column_shear():
+    try:
+        data = request.get_json(force=True) or {}
+        response = _run_column_shear(data)
+        status = 200 if response.get("success") else 400
+        return jsonify(response), status
+
+    except Exception as e:
+        return (
+            jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}),
             500,
         )
 

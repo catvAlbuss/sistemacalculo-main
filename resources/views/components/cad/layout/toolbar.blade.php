@@ -9,10 +9,10 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
       </x-cad.ui.ribbon-button>
-      <x-cad.ui.ribbon-button clickHandler="setState(trussDrawingState)" toggle="currentState === trussDrawingState"
+      <!-- <x-cad.ui.ribbon-button clickHandler="setState(trussDrawingState)" toggle="currentState === trussDrawingState"
         label="Barra">
         <x-cad.svg.beam></x-cad.svg.beam>
-      </x-cad.ui.ribbon-button>
+      </x-cad.ui.ribbon-button> -->
       <x-cad.ui.ribbon-button clickHandler="snap_enabled = !snap_enabled" toggle="snap_enabled" label="Snap">
         <x-cad.svg.grid-snap></x-cad.svg.grid-snap>
       </x-cad.ui.ribbon-button>
@@ -33,12 +33,12 @@
     </x-cad.ui.ribbon-group>
     <!-- -------------------------APARTADO DE TAREAS -------------------------- -->
     <x-cad.ui.ribbon-group title="Tareas">
-      <form class="flex flex-row" x-on:submit.prevent="calcularFuerzas" id="run-analysis-form">
+      <!-- <form class="flex flex-row" x-on:submit.prevent="calcularFuerzas" id="run-analysis-form">
         @csrf
         <x-cad.ui.ribbon-button clickHandler="" toggle="false" label="Correr">
           <x-cad.svg.run></x-cad.svg.run>
         </x-cad.ui.ribbon-button>
-      </form>
+      </form> -->
       <x-cad.ui.ribbon-button clickHandler="generarReporte" toggle="false" label="Reporte">
         <x-cad.svg.pdf></x-cad.svg.pdf>
       </x-cad.ui.ribbon-button>
@@ -92,10 +92,10 @@
             x-model="options.deflectionScale" @input="updateDeflectionScale()">
         </x-slot>
       </x-cad.ui.ribbon-button-subitem>
-      <x-cad.ui.ribbon-button clickHandler="showReactions()" toggle="options.showReactions"
+      <!-- <x-cad.ui.ribbon-button clickHandler="showReactions()" toggle="options.showReactions"
         label="Reacción">
         <x-cad.svg.reaction></x-cad.svg.reaction>
-      </x-cad.ui.ribbon-button>
+      </x-cad.ui.ribbon-button> -->
       <x-cad.ui.ribbon-button clickHandler="openReactionsDisplay()" toggle="reactionsDisplay?.enabled"
         label="Reacciones por Caso...">
         <x-cad.svg.reaction></x-cad.svg.reaction>
@@ -157,11 +157,11 @@
       </x-cad.ui.ribbon-button> -->
 
       <!-- Elevar selección -->
-      <x-cad.ui.ribbon-button clickHandler="elevateSelectedNodes()" toggle="false" label="Elevar +1m">
+      <!-- <x-cad.ui.ribbon-button clickHandler="elevateSelectedNodes()" toggle="false" label="Elevar +1m">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
         </svg>
-      </x-cad.ui.ribbon-button>
+      </x-cad.ui.ribbon-button> -->
 
       <!-- Show Deformed Shape (estilo ETABS): deformada estática/animada por caso sísmico -->
       <x-cad.ui.ribbon-button clickHandler="openDeformedShapeDialog()" toggle="false" label="Deformada">
@@ -173,11 +173,11 @@
       </x-cad.ui.ribbon-button>
 
       <!-- Bajar selección -->
-      <x-cad.ui.ribbon-button clickHandler="lowerSelectedNodes()" toggle="false" label="Bajar -1m">
+      <!-- <x-cad.ui.ribbon-button clickHandler="lowerSelectedNodes()" toggle="false" label="Bajar -1m">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
         </svg>
-      </x-cad.ui.ribbon-button>
+      </x-cad.ui.ribbon-button> -->
 
       <!-- Extruir a nuevo piso -->
       <x-cad.ui.ribbon-button clickHandler="extrudeToNewFloor()" toggle="false" label="+ Nuevo Piso">
@@ -189,6 +189,31 @@
     </x-cad.ui.ribbon-group>
 
     <x-cad.ui.ribbon-group title="Cimentación">
+
+      <x-cad.ui.ribbon-button clickHandler="cadSystem.activateDrawMenuAction('draw-area-zapata')"
+        toggle="currentState === zapataDrawingState || cadSystem.options.orthoMode" label="Zapata a mano alzada">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <!-- Base de concreto de la zapata aislada (Cimiento) -->
+          <path d="M4 17h16v4H4z" />
+
+          <!-- Columna única central -->
+          <path d="M10 17V7h4v10" />
+
+          <!-- Línea de carga / Eje vertical central -->
+          <path d="M12 3v4" />
+        </svg>
+      </x-cad.ui.ribbon-button>
+
+      {{-- Ortho también marca el botón de Zapata (arriba): trabajan juntos
+           al dibujar/editar el polígono a mano alzada, así que se resaltan
+           los dos a la vez cuando Ortho está activo. --}}
+      <x-cad.ui.ribbon-button clickHandler="cadSystem.options.orthoMode = !cadSystem.options.orthoMode"
+        toggle="cadSystem.options.orthoMode" label="Ortho (F8) Zapata">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <path d="M4 4v16h16" />
+          <path d="M4 12h16M12 4v16" stroke-dasharray="2 2" />
+        </svg>
+      </x-cad.ui.ribbon-button>
 
       <x-cad.ui.ribbon-button clickHandler="calculateZapatas()" toggle="false" label="Calcular Zapatas">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
@@ -205,6 +230,72 @@
         </svg>
 
       </x-cad.ui.ribbon-button>
+
+      {{-- Mueve la zapata seleccionada para que su centroide geométrico
+           coincida con su(s) columna(s) — réplica manual de la herramienta
+           "Mover" del editor original del cliente (adm_safecito.js), que
+           evita que quede una excentricidad artificial por dibujo
+           descuadrado (ver conversación sobre calcularZapatas2EnPhp /
+           zapatas2.m, ninguno de los dos corrige esto en la fórmula). --}}
+      <x-cad.ui.ribbon-button clickHandler="centerZapataOnColumn()" toggle="false" label="Centrar en Columna">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <rect x="4" y="4" width="16" height="16" rx="2" />
+          <circle cx="12" cy="12" r="2.5" />
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+        </svg>
+      </x-cad.ui.ribbon-button>
+
+      {{-- Pinta σ (presión de contacto) directamente sobre la zapata en el
+           2D, reutilizando el point cloud que ya calcula "Calcular
+           Zapatas" (ver canvas2d/zapataPressureLayer.js) — pedido del
+           cliente, sin backend. --}}
+      <x-cad.ui.ribbon-button clickHandler="showZapataPressureLayer = !showZapataPressureLayer"
+        toggle="showZapataPressureLayer" label="Presión 2D">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+        </svg>
+      </x-cad.ui.ribbon-button>
+
+      <div class="flex h-full flex-col items-center justify-center self-center gap-0.5 px-1" x-show="showZapataPressureLayer" x-cloak>
+        <select x-model.number="zapataPressureComboIndex"
+          class="w-[70px] rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200 outline-none focus:border-blue-500">
+          <template x-for="n in 11" :key="n">
+            <option :value="n - 1" x-text="'Comb ' + n"></option>
+          </template>
+        </select>
+        <label class="text-[9px] leading-tight text-gray-500">Combo</label>
+      </div>
+
+      {{-- Mapa de momento 2D (Bloque 3, evaluado punto a punto — ver
+           canvas2d/zapataMomentLayer.js). Aproximación derivada de la
+           misma fórmula de voladizo/viga del método rígido, NO un M11 de
+           elementos finitos — ver el comentario en ese archivo. --}}
+      <x-cad.ui.ribbon-button clickHandler="showZapataMomentLayer = !showZapataMomentLayer"
+        toggle="showZapataMomentLayer" label="Momento 2D">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="12" r="4.5" />
+          <circle cx="12" cy="12" r="1" fill="currentColor" />
+        </svg>
+      </x-cad.ui.ribbon-button>
+
+      <div class="flex h-full flex-col items-center justify-center self-center gap-0.5 px-1" x-show="showZapataMomentLayer" x-cloak>
+        <div class="flex gap-1">
+          <select x-model.number="zapataMomentComboIndex"
+            class="w-[70px] rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200 outline-none focus:border-blue-500">
+            <template x-for="n in 11" :key="n">
+              <option :value="n - 1" x-text="'Comb ' + n"></option>
+            </template>
+          </select>
+          <select x-model="zapataMomentDirection"
+            class="w-[46px] rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200 outline-none focus:border-blue-500">
+            <option value="x">Mx</option>
+            <option value="y">My</option>
+          </select>
+        </div>
+        <label class="text-[9px] leading-tight text-gray-500">Combo / Dirección</label>
+      </div>
     </x-cad.ui.ribbon-group>
     <x-cad.ui.ribbon-group title="Otros">
       <x-cad.ui.ribbon-button clickHandler="cadSystem.activateEditMenuAction('divide-lines')" toggle="false" label="Dividir lineas">
@@ -311,7 +402,7 @@
   <x-cad.modals.edit.divide-areas-modal />
 
   <x-cad.modals.wall-sections-modal />
- 
+
   <!-- Seccion de analisis -->
   <x-cad.modals.analysis-options-modal />
   <x-cad.modals.check-model-modal />

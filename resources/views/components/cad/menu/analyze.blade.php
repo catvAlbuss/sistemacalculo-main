@@ -51,12 +51,12 @@
                         Ejecución del Análisis
                     </div>
 
-                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                    <!-- <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.runAnalysis()">
                         <span>▶️</span>
                         <span class="flex-1 truncate">Ejecutar Análisis</span>
                         <span class="text-xs text-gray-500 italic">F5</span>
-                    </button>
+                    </button> -->
 
                     {{-- Análisis Sísmico Dinámico (RSA) — espectro de respuesta --}}
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"

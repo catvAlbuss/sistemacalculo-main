@@ -58,6 +58,13 @@
                                 <span>━━</span>
                                 Barra / Línea...
                             </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.toggleSlabLoadDirection()">
+                                <span>⇕</span>
+                                <span class="flex-1 truncate">Sentido de Armado de Losas</span>
+                                <span class="text-xs text-cyan-400 italic">1 vía</span>
+                            </button>
                         </x-slot>
                     </x-cad.ui.menu-subitem>
 

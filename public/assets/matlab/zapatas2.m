@@ -75,8 +75,25 @@ function zapatas2(poligonos, column, PD, PL, SISMO, CoValue, Df, pesoEspecifico)
       K2=find(PL==FFA);         %BUSCA EL PUNTO EN LA MATRIZ
       K3=find(SISMO==FFA);      %BUSCA EL PUNTO EN LA MATRIZ
       PD1=PD(K1,:);             %SALECCIONA LA FILA BUSCADA
-      PL1=PL(K1,:);             %SALECCIONA LA FILA BUSCADA
-      SISMO1=SISMO(K2,:);       %SALECCIONA LA FILA BUSCADA
+      PL1=PL(K2,:);             %SALECCIONA LA FILA BUSCADA (K2, no K1 -- mismo problema que SISMO1 abajo)
+      SISMO1=SISMO(K3,:);       %SALECCIONA LA FILA BUSCADA (K3, no K2 -- cada fila usaba el indice de la fila ANTERIOR en vez del propio; hoy da lo mismo porque PD/PL/SISMO siempre llegan en el mismo orden desde zapatas2Core.js, pero usar el indice correcto no depende de ese supuesto)
+      %% EXCENTRICIDAD COLUMNA-CENTROIDE: si esta columna no cae exactamente
+      %% en el centroide (XC,YC) de la zapata, su carga axial P genera un
+      %% momento adicional P*(x-XC) / P*(y-YC) que el analisis estructural
+      %% de la columna NO reporta (ese momento no existe en la columna,
+      %% existe por la excentricidad geometrica de aplicar P fuera del
+      %% centroide de la zapata -- misma logica que mover una fuerza a un
+      %% punto de referencia distinto en estatica). Sin esto, una zapata NO
+      %% centrada calculaba una presion incorrecta (uniforme/optimista) sin
+      %% avisar. Se suma con signo (x-XC) puede ser negativo) y da
+      %% exactamente 0 cuando la zapata SI esta centrada -- no cambia
+      %% ningun resultado ya validado con zapatas centradas.
+      Kxy = find(column(:,1)==FFA);
+      exi = column(Kxy,2) - XC;
+      eyi = column(Kxy,3) - YC;
+      PD1(3)    = PD1(3)    + PD1(2)*exi;    PD1(4)    = PD1(4)    + PD1(2)*eyi;
+      PL1(3)    = PL1(3)    + PL1(2)*exi;    PL1(4)    = PL1(4)    + PL1(2)*eyi;
+      SISMO1(3) = SISMO1(3) + SISMO1(2)*exi; SISMO1(4) = SISMO1(4) + SISMO1(2)*eyi;
       FBA=[PD1;PL1;SISMO1]+FBA; %MATRIZ ARMADA CON FILAS BUSCADAS SUMADA A LOS DEMAS PUNTOS
     end
     %CARGAS sismicas

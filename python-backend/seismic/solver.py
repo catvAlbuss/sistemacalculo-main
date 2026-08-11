@@ -27,16 +27,24 @@ __all__ = [
     "_compute_story_shears",
     "_cqc_combine",
     "_cqc_modal_story_drift",
+    "_cqc_modal_story_drift_per_line",
+    "_combined_max_story_drift",
     "_cqc_rho",
     "_extract_results",
+    "_ff_apply_member_loads",
     "_ff_compute_combo_entries",
     "_ff_compute_seismic_cases",
     "_ff_cqc1d",
     "_ff_default_design_combos",
     "_ff_element_length",
+    "_ff_envelope_over_combos",
     "_ff_extract_local_force",
+    "_ff_fixed_end_forces",
     "_ff_kN",
     "_ff_local_axes",
+    "_ff_local_basis",
+    "_ff_local_span_load",
+    "_ff_member_loads_by_case",
     "_ff_norm_spectrum",
     "_ff_seismic_modal_base",
     "_ff_srss1d",
@@ -1367,19 +1375,18 @@ def _max_abs_story_displacement(
 
     return float(max(values))
 
-def _cqc_modal_story_drift(
+def _cqc_modal_story_drift_per_line(
     rsa: dict, node_coord: dict, lower: dict, upper: dict, height: float,
     component: str = None,
 ):
-    """Deriva de entrepiso CORRECTA para un RSA de una dirección.
-
-    Para cada línea de nodos (x,y) calcula la deriva MODO POR MODO
-    (u_arriba_n − u_abajo_n), las combina con CQC, y toma el MÁXIMO entre líneas.
-    Esto capta la amplificación en esquinas por torsión (rigidDiaphragm).
+    """Deriva de entrepiso CQC de CADA línea de nodos (x,y), sin colapsar al
+    máximo — eso lo hace el caller, DESPUÉS de combinar direccionalmente (ver
+    _cqc_modal_story_drift más abajo, que sí colapsa, y el porqué de separar
+    esto en su propia función).
 
     `component` selecciona qué componente del desplazamiento modal usar:
       - None (default): la componente primaria de la dir. excitada
-        (`modal_node_disps`) — comportamiento histórico.
+        (`modal_node_disps`).
       - "x"/"y": la componente X o Y (`modal_node_disps_x/_y`) para la
         combinación direccional (deriva ortogonal acoplada por torsión).
 
@@ -1390,14 +1397,14 @@ def _cqc_modal_story_drift(
     dominante (caso equalDOF), por eso ese método calza con equalDOF pero falla con
     rigidDiaphragm.
 
-    Devuelve la deriva (m) o None si no hay datos por modo (se cae al promedio).
+    Devuelve {(x,y): deriva_m} o {} si no hay datos por modo (se cae al promedio).
     """
     key = "modal_node_disps" if component is None else f"modal_node_disps_{component}"
     md = rsa.get(key)
     nids = rsa.get("node_ids")
     omegas = rsa.get("omegas")
     if not md or not nids or not omegas or height <= 1e-9:
-        return None
+        return {}
 
     zeta = float(rsa.get("damping_ratio", 0.05))
     idx_of = {int(n): i for i, n in enumerate(nids)}
@@ -1414,10 +1421,31 @@ def _cqc_modal_story_drift(
     up_map = _xy_map(upper)
     lo_map = _xy_map(lower)
     if not up_map:
-        return None
+        return {}
 
-    drift_max = 0.0
-    for xy, n_up in up_map.items():
+    # Solo líneas con nudo en AMBOS pisos (continuidad vertical), como ETABS.
+    # Un nudo del piso superior SIN nada verticalmente debajo no define una
+    # deriva de ENTREPISO: abajo se toma 0.0 y el cociente pasa a ser el
+    # desplazamiento ABSOLUTO dividido por la altura del piso, que es otra cosa
+    # y siempre sale mayor. Como el caller toma el MÁXIMO entre líneas, basta
+    # un nudo colgado para gobernar toda la fila.
+    #
+    # Medido en MODULO 6 (2026-08-03), Story1 tiene 72 líneas pero solo 20 con
+    # nudo en Base:
+    #     con par abajo (columnas) -> 0.000037     ETABS 0.000048
+    #     sin par abajo            -> 0.000172  ← era la que ganaba (+258%)
+    # Y ETABS reporta su máximo en (14.27, 5.655), que SÍ es línea de columna,
+    # mientras el nuestro salía en (4.47, 6.83), que no tiene nada debajo.
+    # Story2 no se ve afectado: sus 52 líneas tienen par en Story1.
+    #
+    # Fallback al comportamiento anterior si NINGUNA línea tiene par abajo
+    # (p.ej. un techo cuyos nudos no se alinean con el piso de abajo): ahí es
+    # preferible una deriva aproximada que ninguna.
+    paired = [(xy, n_up) for xy, n_up in up_map.items() if xy in lo_map]
+    lines = paired if paired else list(up_map.items())
+
+    result: dict = {}
+    for xy, n_up in lines:
         i_up = idx_of.get(n_up)
         if i_up is None:
             continue
@@ -1438,11 +1466,69 @@ def _cqc_modal_story_drift(
             for j in range(num_modes):
                 tot += _cqc_rho(omegas[i], omegas[j], zeta) * di * dn[j]
 
-        d = float(np.sqrt(abs(tot)))
-        if d > drift_max:
-            drift_max = d
+        result[xy] = float(np.sqrt(abs(tot)))
 
-    return drift_max
+    return result
+
+
+def _cqc_modal_story_drift(
+    rsa: dict, node_coord: dict, lower: dict, upper: dict, height: float,
+    component: str = None,
+):
+    """Deriva de entrepiso: máximo entre líneas de UNA sola componente/RSA.
+
+    Wrapper de compatibilidad sobre `_cqc_modal_story_drift_per_line` para el
+    caso de una sola dirección sin combinar — NO usar para armar la deriva
+    direccional de un caso (SDX/SDY), que necesita combinar la primaria y la
+    ortogonal ANTES de tomar el máximo (ver `_combined_max_story_drift`,
+    y por qué separarlo importa en su docstring).
+
+    Devuelve la deriva (m) o None si no hay datos por modo.
+    """
+    per_line = _cqc_modal_story_drift_per_line(
+        rsa, node_coord, lower, upper, height, component,
+    )
+    if not per_line:
+        return None
+    return max(per_line.values())
+
+
+def _combined_max_story_drift(rsa_a, rsa_b, node_coord, lower, upper, height, component):
+    """Deriva direccional de un caso (SDX/SDY): SRSS de la respuesta primaria
+    (`rsa_a`) y la ortogonal acoplada (`rsa_b`) EN CADA LÍNEA, y RECIÉN
+    DESPUÉS el máximo entre líneas.
+
+    Por qué no alcanza con combinar los dos máximos por separado (el bug que
+    reemplaza esta función, 2026-08-03): `max(SRSS(a,b))` para cada línea NO
+    es lo mismo que `SRSS(max(a), max(b))` si el máximo de `a` y el de `b`
+    caen en líneas DISTINTAS — la segunda forma sobreestima, porque suma dos
+    picos que nunca ocurren juntos en el mismo punto del edificio. ETABS
+    combina las componentes en el punto, no las magnitudes máximas.
+
+    Medido en MODULO 1 (payload real, 2026-08-03): la sobreestimación fue
+    chica en este modelo (0.5%-7.3%, el resto de la brecha con ETABS era
+    otra cosa), pero el error crece con cuánto se separen los picos de la
+    primaria y la ortogonal — no hay garantía de que sea siempre chico.
+
+    Devuelve la deriva (m), o None si ninguna de las dos RSA tiene datos por
+    modo (se cae al promedio, igual que antes).
+    """
+    a = _cqc_modal_story_drift_per_line(rsa_a, node_coord, lower, upper, height, component)
+    b = _cqc_modal_story_drift_per_line(rsa_b, node_coord, lower, upper, height, component)
+
+    if not a and not b:
+        return None
+
+    keys = set(a) | set(b)
+    best = 0.0
+    for xy in keys:
+        va = a.get(xy, 0.0)
+        vb = b.get(xy, 0.0)
+        d = float(np.sqrt(va * va + vb * vb))
+        if d > best:
+            best = d
+    return best
+
 
 def _compute_centers_of_mass_rigidity(data: dict, nodes: list) -> list:
     """
@@ -1649,10 +1735,17 @@ def _compute_story_drifts(data: dict, nodes: list, seismic: dict, accidental: di
         # que los factores direccionales del caso ya están en el Sd de cada RSA.
         # La componente ortogonal viene de modal_node_disps_x/_y (respuesta que el
         # mismo modo genera en la dirección transversal por la torsión).
-        dx_from_x = _cqc_modal_story_drift(rsa_x, node_coord, lower, upper, height, "x")
-        dx_from_y = _cqc_modal_story_drift(rsa_y, node_coord, lower, upper, height, "x")
-        dy_from_y = _cqc_modal_story_drift(rsa_y, node_coord, lower, upper, height, "y")
-        dy_from_x = _cqc_modal_story_drift(rsa_x, node_coord, lower, upper, height, "y")
+        #
+        # `_combined_max_story_drift` combina AMBAS excitaciones EN CADA LÍNEA y
+        # recién ahí toma el máximo — no al revés (2026-08-03, ver su docstring:
+        # combinar los máximos por separado sobreestima cuando los picos de la
+        # primaria y la ortogonal caen en nudos distintos).
+        drift_x_modal = _combined_max_story_drift(
+            rsa_x, rsa_y, node_coord, lower, upper, height, "x",
+        )
+        drift_y_modal = _combined_max_story_drift(
+            rsa_y, rsa_x, node_coord, lower, upper, height, "y",
+        )
 
         def _srss(*vals):
             present = [v for v in vals if v is not None]
@@ -1660,8 +1753,14 @@ def _compute_story_drifts(data: dict, nodes: list, seismic: dict, accidental: di
                 return None
             return float(np.sqrt(sum(v * v for v in present)))
 
-        drift_x_modal = _srss(dx_from_x, dx_from_y)
-        drift_y_modal = _srss(dy_from_y, dy_from_x)
+        # Solo para el envolvente CM±e de abajo (`_envelope_total`), que
+        # necesita la contribución ortogonal de la BASE como un escalar ya
+        # combinado con la del CM desplazado — no dos líneas independientes
+        # que combinar entre sí. Mismo cálculo de siempre (máximo por línea,
+        # sin el fix de combinación-antes-de-maximizar); es una aproximación
+        # ya documentada en el docstring del bloque de torsión accidental.
+        dx_from_y = _cqc_modal_story_drift(rsa_y, node_coord, lower, upper, height, "x")
+        dy_from_x = _cqc_modal_story_drift(rsa_x, node_coord, lower, upper, height, "y")
 
         if drift_x_modal is not None:
             drift_method = "cqc_modal"
@@ -1746,12 +1845,14 @@ def _compute_story_drifts(data: dict, nodes: list, seismic: dict, accidental: di
             if add_part:
                 acc_x = add_part.get("x") or {}
                 acc_y = add_part.get("y") or {}
-                ax_from_x = _cqc_modal_story_drift(acc_x, node_coord, lower, upper, height, "x")
-                ax_from_y = _cqc_modal_story_drift(acc_y, node_coord, lower, upper, height, "x")
-                ay_from_y = _cqc_modal_story_drift(acc_y, node_coord, lower, upper, height, "y")
-                ay_from_x = _cqc_modal_story_drift(acc_x, node_coord, lower, upper, height, "y")
-                add_x = _srss(ax_from_x, ax_from_y) or 0.0
-                add_y = _srss(ay_from_y, ay_from_x) or 0.0
+                # Mismo fix que la deriva base: combinar en cada línea antes
+                # de maximizar (ver _combined_max_story_drift).
+                add_x = _combined_max_story_drift(
+                    acc_x, acc_y, node_coord, lower, upper, height, "x",
+                ) or 0.0
+                add_y = _combined_max_story_drift(
+                    acc_y, acc_x, node_coord, lower, upper, height, "y",
+                ) or 0.0
                 cand_x.append(drift_x_base + add_x)
                 cand_y.append(drift_y_base + add_y)
 
@@ -1934,16 +2035,23 @@ def _ff_element_length(elem: dict, node_by_id: dict) -> float:
     dz = float(nj.get("z", 0)) - float(ni.get("z", 0))
     return (dx * dx + dy * dy + dz * dz) ** 0.5
 
-def _ff_local_axes(elem: dict, node_by_id: dict, nodes: list):
+def _ff_local_basis(elem: dict, node_by_id: dict, nodes: list):
     """
-    Vectores unitarios de los ejes locales 2 y 3 (estilo ETABS) para que el
-    frontend oriente el diagrama en 3D. local x = (j-i)/L; vecxz define el plano
-    x-z; local y = vecxz × x; local z = x × y.
+    Base local (x, y, z) del elemento como arrays unitarios. Reproduce la misma
+    convención que usa `geomTransf Linear` con el `vecxz` del payload:
+    local x = (j-i)/L; local y = vecxz × x; local z = x × y.
     """
+    fallback = (
+        np.array([1.0, 0.0, 0.0]),
+        np.array([0.0, 1.0, 0.0]),
+        np.array([0.0, 0.0, 1.0]),
+    )
+
     ni = node_by_id.get(int(elem["node_i"]))
     nj = node_by_id.get(int(elem["node_j"]))
     if not ni or not nj:
-        return [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]
+        return fallback
+
     x = np.array(
         [
             float(nj.get("x", 0)) - float(ni.get("x", 0)),
@@ -1954,7 +2062,7 @@ def _ff_local_axes(elem: dict, node_by_id: dict, nodes: list):
     )
     nx = float(np.linalg.norm(x))
     if nx < 1e-12:
-        return [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]
+        return fallback
     x /= nx
 
     vecxz = elem.get("vecxz")
@@ -1974,43 +2082,369 @@ def _ff_local_axes(elem: dict, node_by_id: dict, nodes: list):
     nz = float(np.linalg.norm(z)) or 1.0
     z /= nz
 
+    return x, y, z
+
+def _ff_local_axes(elem: dict, node_by_id: dict, nodes: list):
+    """
+    Vectores unitarios de los ejes locales 2 y 3 (estilo ETABS) para que el
+    frontend oriente el diagrama en 3D.
+    """
+    _x, y, z = _ff_local_basis(elem, node_by_id, nodes)
     return [round(float(c), 6) for c in y], [round(float(c), 6) for c in z]
 
-def _ff_stations_from_end_forces(f_local, length: float, num_stations: int):
+def _ff_member_loads_by_case(data: dict) -> dict:
     """
-    Diagrama de fuerzas internas a lo largo de la barra desde las fuerzas de
-    extremo en ejes locales (elasticBeamColumn SIN carga de tramo):
-      - P, V2, V3, T constantes.
-      - M2, M3 lineales (cortante integrado por la luz).
+    Agrupa `memberLoads[]` del payload por caso de carga y por elemento, en
+    coordenadas GLOBALES (la proyección a ejes locales se hace por elemento en
+    _ff_local_span_load).
+
+    Devuelve {case_id: {element_id: {"w": [wx, wy, wz],
+                                     "points": [(px, py, pz, relDist), ...]}}}
+    """
+    raw = data.get("memberLoads") or data.get("member_loads") or []
+    out: dict = {}
+
+    for ml in raw:
+        if not isinstance(ml, dict):
+            continue
+
+        eid = ml.get("element", ml.get("elementId", ml.get("frameId")))
+        if eid is None:
+            continue
+        try:
+            eid = int(eid)
+        except Exception:
+            continue
+
+        case_id = _b10_14_load_case(ml)
+        if not case_id:
+            continue
+
+        slot = out.setdefault(case_id, {}).setdefault(
+            eid, {"w": [0.0, 0.0, 0.0], "points": []}
+        )
+
+        kind = str(ml.get("kind", ml.get("loadKind", "uniform"))).lower()
+
+        if "point" in kind:
+            px = _to_float(ml.get("px", ml.get("PX", 0)), 0.0)
+            py = _to_float(ml.get("py", ml.get("PY", 0)), 0.0)
+            pz = _to_float(ml.get("pz", ml.get("PZ", 0)), 0.0)
+            if px or py or pz:
+                rel = _to_float(ml.get("relDist", ml.get("relativeDistance", 0.5)), 0.5)
+                rel = min(max(rel, 0.0), 1.0)
+                slot["points"].append((px, py, pz, rel))
+            continue
+
+        slot["w"][0] += _to_float(ml.get("wx", ml.get("WX", 0)), 0.0)
+        slot["w"][1] += _to_float(ml.get("wy", ml.get("WY", 0)), 0.0)
+        slot["w"][2] += _to_float(ml.get("wz", ml.get("WZ", 0)), 0.0)
+
+    return out
+
+def _ff_local_span_load(entry: dict, elem: dict, node_by_id: dict, nodes: list, length: float):
+    """
+    Carga de tramo GLOBAL → ejes locales del elemento, en el formato que
+    consumen _ff_apply_member_loads (eleLoad) y _ff_stations_from_end_forces:
+      {"w": (wx, wy, wz), "points": [(px, py, pz, a_en_metros), ...]}
+    Devuelve None si la barra no tiene carga de tramo.
+    """
+    if not entry:
+        return None
+
+    x, y, z = _ff_local_basis(elem, node_by_id, nodes)
+
+    wg = np.array(entry.get("w", [0.0, 0.0, 0.0]), dtype=float)
+    w_local = (
+        float(np.dot(wg, x)),
+        float(np.dot(wg, y)),
+        float(np.dot(wg, z)),
+    )
+
+    points = []
+    for px, py, pz, rel in entry.get("points", []) or []:
+        pg = np.array([px, py, pz], dtype=float)
+        points.append(
+            (
+                float(np.dot(pg, x)),
+                float(np.dot(pg, y)),
+                float(np.dot(pg, z)),
+                float(rel) * float(length or 0.0),
+            )
+        )
+
+    if not any(abs(c) > 0 for c in w_local) and not points:
+        return None
+
+    # ElasticTimoshenkoBeam NO implementa addLoad: `eleLoad` imprime
+    # "load type unknown" y sigue de largo, sin lanzar excepción. Como es el
+    # elemento por DEFECTO del motor (shearDeformations=True), hay que ir por
+    # el camino de cargas nodales equivalentes + corrección de empotramiento.
+    formulation = str(elem.get("_formulation", "elasticBeamColumn"))
+
+    return {
+        "w": w_local,
+        "points": points,
+        "_length": float(length or 0.0),
+        "_basis": (x, y, z),
+        "_nodes": (int(elem["node_i"]), int(elem["node_j"])),
+        "_eleload": formulation == "elasticBeamColumn",
+    }
+
+def _ff_fixed_end_forces(span: dict):
+    """
+    Fuerzas de empotramiento perfecto del tramo, en la MISMA convención que el
+    vector `p` de OpenSees (localForce), para los 12 gdl: (i0..i5, j0..j5).
+
+    Los signos se midieron contra OpenSees con un elemento biempotrado (ver
+    scratchpad ff_fem.py): carga uniforme y puntual en los tres ejes locales.
+    Son las expresiones clásicas de Euler-Bernoulli; para una carga UNIFORME
+    coinciden con las de Timoshenko (la corrección por cortante se cancela por
+    simetría). Para una carga PUNTUAL sobre un elemento Timoshenko quedan
+    aproximadas en el orden de Ω = 12EI/(G·Av·L²) — típicamente 2-4 % en vigas
+    de pórtico.
+    """
+    L = float(span.get("_length", 0.0) or 0.0)
+    if L <= 0:
+        return [0.0] * 12
+
+    wx, wy, wz = span["w"]
+
+    fi = [0.0] * 6
+    fj = [0.0] * 6
+
+    # ── Uniforme ──
+    fi[0] += -wx * L / 2.0
+    fj[0] += -wx * L / 2.0
+    fi[1] += -wy * L / 2.0
+    fj[1] += -wy * L / 2.0
+    fi[2] += -wz * L / 2.0
+    fj[2] += -wz * L / 2.0
+    fi[4] += wz * L * L / 12.0
+    fj[4] += -wz * L * L / 12.0
+    fi[5] += -wy * L * L / 12.0
+    fj[5] += wy * L * L / 12.0
+
+    # ── Puntual ──
+    for px, py, pz, a in span.get("points", ()) or ():
+        b = L - a
+        fi[0] += -px * b / L
+        fj[0] += -px * a / L
+        fi[1] += -py * b * b * (3.0 * a + b) / L**3
+        fj[1] += -py * a * a * (a + 3.0 * b) / L**3
+        fi[2] += -pz * b * b * (3.0 * a + b) / L**3
+        fj[2] += -pz * a * a * (a + 3.0 * b) / L**3
+        fi[4] += pz * a * b * b / L**2
+        fj[4] += -pz * a * a * b / L**2
+        fi[5] += -py * a * b * b / L**2
+        fj[5] += py * a * a * b / L**2
+
+    return fi + fj
+
+def _ff_apply_member_loads(spans: dict) -> bool:
+    """
+    Aplica las cargas de tramo. Dos caminos según la formulación del elemento:
+
+      - elasticBeamColumn → `eleLoad` directo (ejes LOCALES, que es lo que
+        esperan `-beamUniform` / `-beamPoint`). `localForce` ya devuelve las
+        fuerzas de extremo CON el empotramiento incluido.
+
+      - ElasticTimoshenkoBeam → no acepta eleLoad. Se aplica el vector de
+        cargas nodales equivalentes (−f_FEM, pasado a ejes globales) en los dos
+        extremos, que da EXACTAMENTE los mismos desplazamientos, y se guarda
+        `span["fem"]` para sumárselo después a las fuerzas de extremo — porque
+        por este camino `localForce` solo trae k·v.
+
+    Devuelve True si aplicó al menos una carga.
+    """
+    applied = False
+
+    for eid, span in (spans or {}).items():
+        if not span:
+            continue
+
+        wx, wy, wz = span["w"]
+        length = span.get("_length", 0.0)
+
+        if span.get("_eleload", True):
+            try:
+                if any(abs(c) > 0 for c in (wx, wy, wz)):
+                    ops.eleLoad("-ele", int(eid), "-type", "-beamUniform", wy, wz, wx)
+                    applied = True
+
+                for px, py, pz, a in span["points"]:
+                    rel = (a / length) if length else 0.0
+                    ops.eleLoad("-ele", int(eid), "-type", "-beamPoint", py, pz, rel, px)
+                    applied = True
+            except Exception as exc:  # elemento no creado / tipo inesperado
+                print(f"[frame-forces] eleLoad falló en el elemento {eid}: {exc}")
+
+            continue
+
+        fem = _ff_fixed_end_forces(span)
+        span["fem"] = fem[:6]
+
+        x, y, z = span["_basis"]
+        ni, nj = span["_nodes"]
+
+        for node_id, f in ((ni, fem[:6]), (nj, fem[6:])):
+            # Carga nodal equivalente = −f_FEM, de ejes locales a globales.
+            force = -(f[0] * x + f[1] * y + f[2] * z)
+            moment = -(f[3] * x + f[4] * y + f[5] * z)
+
+            if any(abs(c) > 1e-12 for c in (*force, *moment)):
+                ops.load(
+                    int(node_id),
+                    float(force[0]), float(force[1]), float(force[2]),
+                    float(moment[0]), float(moment[1]), float(moment[2]),
+                )
+                applied = True
+
+    return applied
+
+# Factor de conversión del criterio de signo de OpenSees al de ETABS, por
+# componente. CERRADO el 2026-08-06 contra ETABS 22.7.0 con el pórtico de
+# validacion-etabs/ (mismo modelo en los dos programas):
+#
+#              ETABS (tonf, tonf-m)      motor sin corregir      veredicto
+#   P  viga        -3.0401                   -3.017              coincide
+#   V2 viga x=0.2  -9.6096                   +9.53               INVERTIDO
+#   M3 viga x=3.0  +9.2533                   -9.180              INVERTIDO
+#   V3 viga (SY)   -0.2663                   +0.266              INVERTIDO
+#   T  viga (SY)   -1.408                    -1.407              coincide
+#   M2 viga (SY)   -0.7458                   -0.746              coincide
+#
+# Las magnitudes calzaron dentro del 1% (el resto es que ETABS aplica brazos
+# rígidos de nudo automáticos y reporta en la luz libre 0.2–5.8; el motor no
+# los modela y reporta 0–6.0). Verificado también con el caso SX, donde no hay
+# peso propio de por medio y el calce es del 0.01%.
+#
+# OJO: M3 y V2 se invierten JUNTOS, y M2 con V3 queda como está. Es
+# consistente: la estática de barra exige dM3/ds = −V2 y dM2/ds = +V3, y
+# ETABS usa dM2/dx = −V3 — o sea que su par 2 y su par 3 tienen signos
+# relativos opuestos entre sí, igual que acá después de la corrección.
+_FF_SIGN_TO_ETABS = {"P": -1.0, "V2": -1.0, "V3": -1.0, "T": -1.0, "M2": 1.0, "M3": -1.0}
+
+def _ff_element_end_offsets(elem: dict) -> tuple:
+    """
+    Brazos rígidos de nudo (i, j) en metros, del payload. Los emite el frontend
+    (_buildBeamEndOffsetsForSeismic) como medio ancho de la columna proyectado
+    sobre la viga — lo mismo que deduce ETABS solo.
+    """
+    try:
+        oi = float(elem.get("endOffsetI", 0) or 0.0)
+        oj = float(elem.get("endOffsetJ", 0) or 0.0)
+    except Exception:
+        return 0.0, 0.0
+
+    return max(oi, 0.0), max(oj, 0.0)
+
+def _ff_stations_from_end_forces(
+    f_local, length: float, num_stations: int, span=None, offsets=(0.0, 0.0)
+):
+    """
+    Diagrama de fuerzas internas a lo largo de la barra, por estática, desde las
+    fuerzas de extremo en ejes locales MÁS la carga de tramo aplicada al
+    elemento (eleLoad).
+
     Mapa OpenSees localForce[0..5] (extremo i) → ETABS:
       [0]=P (axial), [1]=V2 (cortante local 2), [2]=V3 (cortante local 3),
       [3]=T (torsión), [4]=M2 (momento eje 2), [5]=M3 (momento eje 3).
-    NOTA: el criterio de signo (ETABS: tracción +) se reconcilia en la
-    integración visual; aquí se entrega la magnitud y un diagrama consistente.
+
+    `span` es el resultado de _ff_local_span_load: la carga de tramo YA en ejes
+    locales, {"w": (wx, wy, wz), "points": [(px, py, pz, a_metros), ...]}.
+    Sin carga de tramo (span=None) queda el caso viejo: P/V/T constantes y M
+    lineal.
+
+    Fórmulas (s desde el nudo i, H = Heaviside):
+      P(s)  = P_i  + wx·s + Σ Px·H(s−a)
+      V2(s) = V2_i + wy·s + Σ Py·H(s−a)
+      V3(s) = V3_i + wz·s + Σ Pz·H(s−a)
+      T(s)  = T_i
+      M2(s) = M2_i + V3_i·s + wz·s²/2 + Σ Pz·(s−a)·H(s−a)
+      M3(s) = M3_i − V2_i·s − wy·s²/2 − Σ Py·(s−a)·H(s−a)
+
+    Verificadas contra OpenSees (uniforme en x/y/z, puntual en x/y/z y caso
+    hiperestático combinado): el valor en s=L iguala el negativo de la fuerza
+    de extremo j, que es la condición de consistencia del diagrama continuo.
+
+    SIGNO DE P Y T — se invierten al publicar (ver _FF_SIGN_TO_ETABS). En
+    elasticBeamColumn el vector p de OpenSees vale p(0) = −N y p(3) = −T, así
+    que tal cual salían con el signo cambiado respecto de ETABS: una columna con
+    100 kN de COMPRESIÓN se reportaba como P = +100 kN (y el visor la pintaba
+    verde de "tracción"). ETABS usa tracción positiva. Medido: 100 kN de
+    compresión → localForce[0] = +100 kN; torsor aplicado de +50 kN·m →
+    localForce[3] = −50 kN·m.
+
+    La inversión es inocua para los casos Response Spectrum: se aplica antes de
+    combinar, y tanto CQC como SRSS son invariantes a un cambio de signo global
+    de la componente.
+
+    V2/V3/M2/M3 NO se tocan — su criterio contra ETABS sigue sin confirmar.
     """
     n = max(2, int(num_stations or 5))
-    P_i = float(f_local[0])
-    V2_i = float(f_local[1])
-    V3_i = float(f_local[2])
-    T_i = float(f_local[3])
-    M2_i = float(f_local[4])
-    M3_i = float(f_local[5])
     L = float(length or 0.0)
+
+    wx = wy = wz = 0.0
+    points = ()
+    # Elementos sin soporte de eleLoad: la carga entró como nodal equivalente,
+    # así que localForce trae solo k·v y hay que devolverle el empotramiento.
+    fem = (span or {}).get("fem") or (0.0,) * 6
+
+    end = [float(f_local[k]) + float(fem[k]) for k in range(6)]
+    P_i, V2_i, V3_i, T_i, M2_i, M3_i = end
+
+    if span:
+        wx, wy, wz = span.get("w", (0.0, 0.0, 0.0))
+        points = span.get("points", ()) or ()
+
+    sg = _FF_SIGN_TO_ETABS
+
+    # Rango de reporte: la LUZ LIBRE, entre las caras de los apoyos, igual que
+    # ETABS. `station` sigue siendo la distancia absoluta desde el nudo i (así
+    # arranca en 0.225 y no en 0), y `relativeStation` va 0..1 sobre esa luz
+    # libre — con lo cual los combos del frontend, que cruzan por
+    # relativeStation, y el adaptador de diseño RC, que lee 0 / 0.5 / 1, siguen
+    # funcionando y ahora se refieren a la cara del apoyo.
+    #
+    # Las fórmulas de abajo NO cambian: `s` es la misma distancia desde i, solo
+    # se muestrea en otro rango. Las fuerzas son las mismas evaluadas en otra
+    # estación, no fuerzas distintas.
+    off_i, off_j = offsets if offsets else (0.0, 0.0)
+    s_start = min(max(off_i, 0.0), L)
+    s_end = max(min(L - off_j, L), s_start)
 
     stations = []
     for k in range(n):
         rel = k / (n - 1)
-        s = rel * L
+        s = s_start + rel * (s_end - s_start)
+
+        # Aporte de las cargas puntuales de tramo ya pasadas (s >= a).
+        hx = hy = hz = 0.0
+        m2p = m3p = 0.0
+        for px, py, pz, a in points:
+            if s < a - 1e-9:
+                continue
+            hx += px
+            hy += py
+            hz += pz
+            m2p += pz * (s - a)
+            m3p -= py * (s - a)
+
         stations.append(
             {
                 "station": round(s, 6),
                 "relativeStation": round(rel, 6),
-                "P": _ff_kN(P_i),
-                "V2": _ff_kN(V2_i),
-                "V3": _ff_kN(V3_i),
-                "T": _ff_kN(T_i),
-                "M2": _ff_kN(M2_i + V3_i * s),
-                "M3": _ff_kN(M3_i - V2_i * s),
+                # El diagrama se calcula en la convención de OpenSees y recién
+                # acá se pasa a la de ETABS, componente por componente
+                # (_FF_SIGN_TO_ETABS). Así la estática de arriba queda intacta
+                # y el criterio de signo vive en UN solo lugar.
+                "P": _ff_kN(sg["P"] * (P_i + wx * s + hx)),
+                "V2": _ff_kN(sg["V2"] * (V2_i + wy * s + hy)),
+                "V3": _ff_kN(sg["V3"] * (V3_i + wz * s + hz)),
+                "T": _ff_kN(sg["T"] * T_i),
+                "M2": _ff_kN(sg["M2"] * (M2_i + V3_i * s + wz * s * s / 2.0 + m2p)),
+                "M3": _ff_kN(sg["M3"] * (M3_i - V2_i * s - wy * s * s / 2.0 + m3p)),
             }
         )
     return stations
@@ -2034,83 +2468,195 @@ def _ff_extract_local_force(eid: int):
 
 def _ff_default_design_combos(available) -> list:
     """
-    Combos de diseño por defecto (E.060 / como las que muestra ETABS).
-    Solo se incluye una combinación si TODOS sus casos referidos están presentes.
-    Con gravedad sola (CM, CV) salen 1.4CM+1.7CV, 1.25(CM+CV) y 0.9CM; las que
-    llevan ±SDX/±SDY aparecen cuando existan esos casos sísmicos.
+    Combos de diseño por defecto según **E.060 art. 9.2** (norma peruana).
+
+    OJO: NO son las de ETABS "por defecto". ETABS genera sus combos a partir del
+    código de diseño elegido, y no trae E.060 en la lista de códigos de concreto
+    (solo ACI, Eurocódigo, CSA, NZS, IS, GB...). La práctica peruana es elegir
+    ACI 318 y definir las combinaciones de E.060 a mano — que es lo que hace
+    esta función. Los factores NO coinciden con ACI:
+        E.060: 1.4CM+1.7CV, 1.25(CM+CV)±CS, 0.9CM±CS
+        ACI:   1.4D, 1.2D+1.6L, 1.2D+1.0E+1.0L, 0.9D±1.0E
+
+    Acepta la lista de METADATOS de casos ([{id, name, type, patternType}, ...])
+    o, por compatibilidad, una lista plana de ids.
+
+    Los casos se clasifican por su TIPO, no por su nombre:
+      - sísmicos: `type` == "Response Spectrum" (vienen del diálogo de Response
+        Spectrum con el id que le haya puesto el usuario);
+      - muerta / viva: `patternType` "Dead" / "Live"-"RoofLive".
+    Antes se buscaban los literales "CM", "CV", "SDX" y "SDY", así que un modelo
+    que nombrara distinto sus patrones se quedaba SIN NINGÚN combo, en silencio.
+    Como fallback, si no llega `patternType` se usan los nombres CM/CV.
+
+    La carga viva de TECHO entra con el mismo factor que la viva: E.060 no la
+    separa como el Lr de ACI.
     """
-    av = set(str(c) for c in (available or []))
+    metas = []
+    for c in available or []:
+        if isinstance(c, dict):
+            metas.append(c)
+        else:
+            metas.append({"id": str(c), "type": "Linear Static"})
+
+    def _pt(meta):
+        return str(meta.get("patternType", "")).strip().lower()
+
+    seismic = [
+        m
+        for m in metas
+        if str(m.get("type", "")).strip().lower() == "response spectrum"
+        or m.get("signless")
+    ]
+    seismic_ids = {str(m.get("id")) for m in seismic}
+
+    dead = [str(m["id"]) for m in metas if _pt(m) == "dead"]
+    live = [str(m["id"]) for m in metas if _pt(m) in ("live", "rooflive")]
+
+    # Fallback POR ROL (no todo-o-nada): un payload viejo puede traer el tipo de
+    # unos casos y de otros no, y ahí el rol que falta se resuelve por nombre.
+    gravity_ids = [
+        str(m.get("id")) for m in metas if str(m.get("id")) not in seismic_ids
+    ]
+    if not dead:
+        dead = [c for c in gravity_ids if c.upper() in ("CM", "DEAD", "D")]
+    if not live:
+        live = [c for c in gravity_ids if c.upper() in ("CV", "CVE", "LIVE", "L")]
+
+    def terms(f_dead, f_live=None, seismic_id=None):
+        out = [{"case": c, "factor": f_dead} for c in dead]
+        if f_live is not None:
+            out += [{"case": c, "factor": f_live} for c in live]
+        if seismic_id is not None:
+            out.append({"case": seismic_id, "factor": 1.0, "signless": True})
+        return out
+
+    label_d = " + ".join(dead) or "CM"
+    label_l = " + ".join(live) or "CV"
+
     combos = []
 
-    if "CM" in av and "CV" in av:
+    if dead and live:
         combos.append(
             {
                 "id": "01 1.4CM+1.7CV",
-                "name": "1.4 CM + 1.7 CV",
+                "name": f"1.4 ({label_d}) + 1.7 ({label_l})",
                 "type": "ADD",
-                "terms": [
-                    {"case": "CM", "factor": 1.4},
-                    {"case": "CV", "factor": 1.7},
-                ],
+                "terms": terms(1.4, 1.7),
             }
         )
         combos.append(
             {
                 "id": "1.25(CM+CV)",
-                "name": "1.25 (CM + CV)",
+                "name": f"1.25 ({label_d} + {label_l})",
                 "type": "ADD",
-                "terms": [
-                    {"case": "CM", "factor": 1.25},
-                    {"case": "CV", "factor": 1.25},
-                ],
+                "terms": terms(1.25, 1.25),
             }
         )
 
-    if "CM" in av:
+    if dead:
         combos.append(
             {
                 "id": "0.9CM",
-                "name": "0.9 CM",
+                "name": f"0.9 ({label_d})",
                 "type": "ADD",
-                "terms": [{"case": "CM", "factor": 0.9}],
+                "terms": terms(0.9),
             }
         )
 
-    # Combos sísmicos (envolvente ±): solo si existe el caso sísmico correspondiente.
-    seismic_specs = [
-        ("SDX", "02 1.25(CM+CV)+SDX", "06 0.9CM+SDX"),
-        ("SDY", "04 1.25(CM+CV)+SDY", "08 0.9CM+SDY"),
-    ]
-    for sd, id_grav, id_dead in seismic_specs:
-        if sd not in av:
-            continue
-        if "CM" in av and "CV" in av:
+    # Combos sísmicos, uno por cada caso Response Spectrum del modelo. Son de
+    # tipo ENVELOPE porque el caso RS viene SIN signo (CQC/SRSS da magnitudes),
+    # así que hay que evaluar las dos ramas ±, igual que ETABS.
+    n = len(combos)
+    for sm in seismic:
+        sd = str(sm.get("id"))
+        n += 1
+        id_grav = f"{n:02d} 1.25(CM+CV)±{sd}"
+        n += 1
+        id_dead = f"{n:02d} 0.9CM±{sd}"
+        if dead and live:
             combos.append(
                 {
                     "id": id_grav,
-                    "name": f"1.25(CM+CV) ± {sd}",
+                    "name": f"1.25({label_d} + {label_l}) ± {sd}",
                     "type": "ENVELOPE",
-                    "terms": [
-                        {"case": "CM", "factor": 1.25},
-                        {"case": "CV", "factor": 1.25},
-                        {"case": sd, "factor": 1.0, "signless": True},
-                    ],
+                    "terms": terms(1.25, 1.25, sd),
                 }
             )
-        if "CM" in av:
+        if dead:
             combos.append(
                 {
                     "id": id_dead,
-                    "name": f"0.9CM ± {sd}",
+                    "name": f"0.9({label_d}) ± {sd}",
                     "type": "ENVELOPE",
-                    "terms": [
-                        {"case": "CM", "factor": 0.9},
-                        {"case": sd, "factor": 1.0, "signless": True},
-                    ],
+                    "terms": terms(0.9, None, sd),
                 }
             )
 
     return combos
+
+def _ff_envelope_over_combos(combo_entries: list, components: list) -> tuple:
+    """
+    Envolvente de DISEÑO: máximo y mínimo, estación por estación, sobre todas
+    las combinaciones ya factorizadas.
+
+    Envolver los casos base SIN factorar (que es lo que hacía el frontend) no
+    corresponde a nada: la envolvente de diseño se toma sobre los combos.
+    Se devuelven Max y Min por separado —no un "max absoluto"— porque en una
+    viga el momento positivo de vano y el negativo de apoyo gobiernan armaduras
+    distintas, igual que en ETABS.
+
+    Devuelve (entries, meta).
+    """
+    by_frame: dict = {}
+    for e in combo_entries:
+        by_frame.setdefault(e["frameId"], []).append(e)
+
+    entries = []
+    for fid, group in by_frame.items():
+        base = group[0]
+        nst = len(base["stations"])
+        # Un combo con otra malla de estaciones no se puede envolver por índice.
+        group = [g for g in group if len(g["stations"]) == nst]
+
+        for label, pick in (("Max", max), ("Min", min)):
+            stations = []
+            for k in range(nst):
+                row = {
+                    "station": base["stations"][k]["station"],
+                    "relativeStation": base["stations"][k]["relativeStation"],
+                }
+                for comp in components:
+                    row[comp] = round(
+                        pick(float(g["stations"][k][comp]) for g in group), 6
+                    )
+                stations.append(row)
+
+            max_obj = {}
+            for comp in components:
+                best = max(stations, key=lambda st: abs(st[comp]))
+                max_obj[comp] = {"value": best[comp], "station": best["station"]}
+
+            entries.append(
+                {
+                    "frameId": fid,
+                    "caseId": None,
+                    "comboId": f"ENV {label}",
+                    "length": base["length"],
+                    "localAxes": base["localAxes"],
+                    "stations": stations,
+                    "max": max_obj,
+                }
+            )
+
+    meta = []
+    if entries:
+        meta = [
+            {"id": "ENV Max", "name": "Envolvente (máx)", "type": "ENVELOPE_ALL"},
+            {"id": "ENV Min", "name": "Envolvente (mín)", "type": "ENVELOPE_ALL"},
+        ]
+
+    return entries, meta
 
 def _ff_compute_combo_entries(combo: dict, elements: list, case_idx: dict, components: list) -> list:
     """
@@ -2245,6 +2791,119 @@ def _ff_seismic_modal_base(data: dict, modal_data: dict, directions, elements: l
             base[dirn].append(forces)
     return base
 
+def _ff_seismic_modal_accidental(
+    data: dict, modal_data: dict, directions, elements: list, ecc_ratio: float
+) -> dict:
+    """
+    Igual que `_ff_seismic_modal_base` pero para la TORSIÓN ACCIDENTAL
+    (E.030 art. 4.6 / ETABS `ECCENRATIOTYPICAL`): por cada (dirección, modo)
+    aplica en el NODO MAESTRO de cada diafragma que ROTA el momento torsor
+    accidental `M_z = e · F_piso,n`, con `e = ecc_ratio · B_perp`, y devuelve las
+    fuerzas locales de elemento. Con **Sa = 1**, igual que la base, para que el
+    espectro de cada caso solo escale después sin re-resolver.
+
+    Método ADITIVO: el mismo que `run_accidental_torsion_rsa` usa para derivas y
+    para el MZ de base, y el que se validó contra ETABS (ver esa función). Acá se
+    repite el armado en vez de reusarla porque aquella devuelve DESPLAZAMIENTOS
+    nodales y esto necesita fuerzas locales de elemento.
+
+    Sin esto las fuerzas sísmicas de barra salían SIN torsión accidental — del
+    lado inseguro — mientras el cortante basal sí la incluía.
+
+    Devuelve {} si `ecc_ratio <= 0` o si ningún diafragma rota (con `equalDOF`,
+    sin RZ amarrado, el piso no puede rotar y la torsión accidental es nula).
+    """
+    if ops is None or ecc_ratio <= 0:
+        return {}
+
+    modal_info = modal_data.get("modal_info") or []
+    phi_x = modal_data.get("phi_x") or []
+    phi_y = modal_data.get("phi_y") or []
+    m_x = modal_data.get("m_x") or []
+    m_y = modal_data.get("m_y") or []
+    node_ids = modal_data.get("node_ids") or []
+    num_modes = len(modal_info)
+
+    if num_modes == 0 or not node_ids:
+        return {}
+
+    node_by_id = {}
+    for nd in data.get("nodes", []) or []:
+        try:
+            node_by_id[int(nd["id"])] = nd
+        except Exception:
+            continue
+
+    # Un build para leer los maestros de los diafragmas que rotan.
+    build_model_3d(data)
+    applied_diaph = (data.get("_rigid_diaphragm_report") or {}).get("applied") or []
+
+    # {dirn: [(retained, [nids], e)]} — e depende de la dirección (B_perp).
+    masters_by_dir = {}
+    for dirn in directions:
+        story_masters = []
+        for grp in applied_diaph:
+            if grp.get("method") != "rigidDiaphragm_z":
+                continue
+            nids = [int(x) for x in grp.get("node_ids", []) or []]
+            try:
+                retained = int(grp.get("retained"))
+            except Exception:
+                continue
+            xs = [float(node_by_id[i].get("x", 0.0)) for i in nids if i in node_by_id]
+            ys = [float(node_by_id[i].get("y", 0.0)) for i in nids if i in node_by_id]
+            if not xs or not ys:
+                continue
+            b_perp = (max(ys) - min(ys)) if dirn == "x" else (max(xs) - min(xs))
+            if b_perp <= 1e-9:
+                continue
+            story_masters.append((retained, nids, ecc_ratio * b_perp))
+        if story_masters:
+            masters_by_dir[dirn] = story_masters
+
+    if not masters_by_dir:
+        return {}
+
+    idx_of = {int(n): i for i, n in enumerate(node_ids)}
+    acc = {}
+
+    for dirn, story_masters in masters_by_dir.items():
+        acc[dirn] = []
+        gkey = "gamma_x" if dirn == "x" else "gamma_y"
+        for idx in range(num_modes):
+            gamma = float(modal_info[idx].get(gkey, 0.0) or 0.0)
+            build_model_3d(data)  # modelo limpio para el estático de este modo
+            ops.timeSeries("Linear", 1)
+            ops.pattern("Plain", 1, 1)
+            applied = False
+            for retained, nids, ecc in story_masters:
+                f_story = 0.0
+                for nid in nids:
+                    i = idx_of.get(nid)
+                    if i is None:
+                        continue
+                    if dirn == "x":
+                        f_story += gamma * float(m_x[i]) * float(phi_x[idx][i])
+                    else:
+                        f_story += gamma * float(m_y[i]) * float(phi_y[idx][i])
+                m_acc = ecc * f_story
+                if abs(m_acc) > 1e-12:
+                    ops.load(int(retained), 0.0, 0.0, 0.0, 0.0, 0.0, m_acc)
+                    applied = True
+            if applied:
+                ops.constraints("Transformation")
+                ops.numberer("RCM")
+                ops.system("BandGeneral")
+                ops.test("NormDispIncr", 1e-8, 50)
+                ops.algorithm("Linear")
+                ops.integrator("LoadControl", 1.0)
+                ops.analysis("Static")
+                ops.analyze(1)
+            forces = {int(e["id"]): _ff_extract_local_force(int(e["id"])) for e in elements}
+            acc[dirn].append(forces)
+
+    return acc
+
 def _ff_compute_seismic_cases(data: dict, seismic_cases, elements: list, components, num_stations: int):
     """
     Fuerzas internas por barra para casos Response Spectrum (SDX/SDY), como
@@ -2271,6 +2930,10 @@ def _ff_compute_seismic_cases(data: dict, seismic_cases, elements: list, compone
                 "combination": str(sc.get("combination") or sc.get("modalCombination") or "CQC").upper(),
                 "damping": float(sc.get("damping", sc.get("dampingRatio", 0.05)) or 0.05),
                 "saInG": bool(sc.get("saInG", False)),
+                # Excentricidad accidental del caso (ETABS ECCENRATIOTYPICAL).
+                # Se caía acá: las fuerzas de barra sísmicas salían SIN torsión
+                # accidental aunque el cortante basal sí la incluyera.
+                "eccRatio": max(float(sc.get("eccRatio", 0.0) or 0.0), 0.0),
             }
         )
         if sx:
@@ -2296,14 +2959,29 @@ def _ff_compute_seismic_cases(data: dict, seismic_cases, elements: list, compone
     # Fuerzas modales base (Sa=1) por dirección/modo — estáticos hechos una vez.
     base = _ff_seismic_modal_base(data, modal_data, needed_dirs, elements)
 
+    # Ídem para la torsión accidental, una corrida por valor distinto de
+    # eccRatio (normalmente uno solo: 0.05 en todos los casos).
+    acc_by_ecc = {}
+    for case in norm_cases:
+        ecc = float(case.get("eccRatio") or 0.0)
+        if ecc <= 0 or ecc in acc_by_ecc:
+            continue
+        acc_by_ecc[ecc] = _ff_seismic_modal_accidental(
+            data, modal_data, needed_dirs, elements, ecc
+        )
+
     lengths = {int(e["id"]): _ff_element_length(e, node_by_id) for e in elements}
     axes = {int(e["id"]): _ff_local_axes(e, node_by_id, nodes) for e in elements}
+    offsets = {int(e["id"]): _ff_element_end_offsets(e) for e in elements}
 
     entries = []
     meta = []
     for case in norm_cases:
         zeta = case["damping"]
         comb = case["combination"]
+
+        # Torsión accidental del caso, si la tiene y si hay diafragmas que roten.
+        acc = acc_by_ecc.get(float(case.get("eccRatio") or 0.0)) or {}
 
         # R por dirección: {eid: [ {comp:val} por estación ]} (envolvente modal).
         dir_results = {}
@@ -2312,25 +2990,73 @@ def _ff_compute_seismic_cases(data: dict, seismic_cases, elements: list, compone
                 continue
             scale = g if case["saInG"] else 1.0
             sa_per_mode = [interpolate_spectrum(spec, T) * scale for T in periods]
+            acc_dir = acc.get(dirn)
             res = {}
             for e in elements:
                 eid = int(e["id"])
                 length = lengths[eid]
                 per_mode_stations = []
+                per_mode_acc = [] if acc_dir else None
                 for idx in range(len(modal_info)):
                     f_scaled = [c * sa_per_mode[idx] for c in base[dirn][idx][eid]]
                     per_mode_stations.append(
-                        _ff_stations_from_end_forces(f_scaled, length, num_stations)
+                        _ff_stations_from_end_forces(
+                            f_scaled, length, num_stations, None, offsets[eid]
+                        )
                     )
+                    if acc_dir:
+                        f_acc = [c * sa_per_mode[idx] for c in acc_dir[idx][eid]]
+                        per_mode_acc.append(
+                            _ff_stations_from_end_forces(
+                                f_acc, length, num_stations, None, offsets[eid]
+                            )
+                        )
                 nst = len(per_mode_stations[0]) if per_mode_stations else 0
+                nmodes = len(per_mode_stations)
                 combined = []
                 for k in range(nst):
                     row = {}
                     for comp in components:
-                        vals = [per_mode_stations[m][k][comp] for m in range(len(per_mode_stations))]
-                        row[comp] = (
+                        vals = [per_mode_stations[m][k][comp] for m in range(nmodes)]
+                        val = (
                             _ff_srss1d(vals) if comb == "SRSS" else _ff_cqc1d(vals, omegas, zeta)
                         )
+                        if per_mode_acc:
+                            avals = [per_mode_acc[m][k][comp] for m in range(nmodes)]
+                            acc_val = (
+                                _ff_srss1d(avals)
+                                if comb == "SRSS"
+                                else _ff_cqc1d(avals, omegas, zeta)
+                            )
+                            # SRSS entre la respuesta base y la accidental, NO
+                            # suma directa. CALIBRADO contra ETABS con las 36
+                            # columnas del MODELO (2)1 (SDX), comparando los tres
+                            # esquemas contra la misma tabla de ETABS:
+                            #
+                            #                    aditivo      base      SRSS
+                            #   eje mayor     +6.4%/9.5%  +0.0/6.9  +1.3/7.0
+                            #   eje menor    +16.3%/16.8% +0.0/6.4  +1.6/6.5
+                            #   axial         +4.2%/9.2%  -0.9/7.7  -0.6/7.7
+                            #   torsión T    +47.3%/47.3% -53.6/53.6 +11.2/19.6
+                            #
+                            # Lo decisivo es la TORSIÓN: estaba rota en los dos
+                            # extremos (+47% sumando, −54% sin accidental) y solo
+                            # el SRSS la deja en +11%. Un esquema que arregla la
+                            # componente que ninguno de los dos límites podía no
+                            # es un ajuste de conveniencia.
+                            #
+                            # Físicamente: ETABS mete la excentricidad DENTRO de
+                            # la combinación modal, así que el aporte accidental
+                            # no está perfectamente correlacionado con la base.
+                            # Sumar asume correlación total (cota superior);
+                            # SRSS asume independencia, y los datos dicen que la
+                            # independencia está mucho más cerca.
+                            #
+                            # OJO: esto REDUCE las fuerzas de diseño ~14% frente
+                            # a sumar. Se justifica porque calza con ETABS, que
+                            # es la referencia — no por ser menos conservador.
+                            val = (val * val + acc_val * acc_val) ** 0.5
+                        row[comp] = val
                     combined.append(row)
                 res[eid] = combined
             dir_results[dirn] = res
@@ -2346,10 +3072,20 @@ def _ff_compute_seismic_cases(data: dict, seismic_cases, elements: list, compone
             if ref is None:
                 continue
             nst = len(ref)
+            # Mismo rango que el camino estático: la luz libre entre caras de
+            # apoyo. Sin esto la envolvente sísmica quedaba con las estaciones
+            # de eje a eje y no cruzaba contra las de gravedad.
+            off_i, off_j = offsets[eid]
+            s_start = min(max(off_i, 0.0), length)
+            s_end = max(min(length - off_j, length), s_start)
+
             stations = []
             for k in range(nst):
                 rel = k / (nst - 1) if nst > 1 else 0.0
-                row = {"station": round(rel * length, 6), "relativeStation": round(rel, 6)}
+                row = {
+                    "station": round(s_start + rel * (s_end - s_start), 6),
+                    "relativeStation": round(rel, 6),
+                }
                 for comp in components:
                     vx = rx[k][comp] if rx is not None else 0.0
                     vy = ry[k][comp] if ry is not None else 0.0
@@ -2372,7 +3108,18 @@ def _ff_compute_seismic_cases(data: dict, seismic_cases, elements: list, compone
                 }
             )
         meta.append(
-            {"id": case["id"], "name": case["name"], "type": "Response Spectrum", "signless": True}
+            {
+                "id": case["id"],
+                "name": case["name"],
+                "type": "Response Spectrum",
+                "signless": True,
+                # Para poder verificar desde el frontend si la torsión accidental
+                # entró de verdad (eccRatio>0 pero sin diafragmas que roten → 0).
+                "eccRatio": case.get("eccRatio", 0.0),
+                "accidentalTorsion": bool(
+                    acc_by_ecc.get(float(case.get("eccRatio") or 0.0))
+                ),
+            }
         )
 
     return entries, meta
@@ -2392,6 +3139,32 @@ def run_frame_force_results(
     all_loads = data.get("loads", []) or []
     elements = data.get("elements", []) or []
 
+    # ── Cargas de TRAMO ──────────────────────────────────────────────────────
+    # Si el payload trae `memberLoads`, la carga de vano se aplica al ELEMENTO
+    # (eleLoad), como hace ETABS, y se DESCARTA su equivalente nodal wL/2 de
+    # `loads` para no contarla dos veces. Sin esa carga sobre el miembro toda
+    # viga salía con M3 = 0 y V2 constante: el wL/2 en los nudos se va directo
+    # a los apoyos sin flectar la barra.
+    #
+    # `loads` no se toca en ningún otro análisis (masa, modal, reacciones), así
+    # que este cambio queda confinado al módulo de diagramas. Un payload viejo
+    # sin `memberLoads` se comporta exactamente como antes.
+    member_loads_by_case = _ff_member_loads_by_case(data)
+    has_member_loads = bool(member_loads_by_case)
+    superseded_sources = {"frame_load_equivalent", "frame_self_weight"}
+
+    # Losas cuya carga YA viaja repartida sobre sus vigas ("Area Load to
+    # Frame"). Su equivalente nodal de esquina se descarta SOLO para estos
+    # paneles: un panel sin vigas de contorno detectadas no genera carga de
+    # tramo y tiene que seguir entrando por los nudos, o su carga desaparece.
+    superseded_slab_ids = {
+        ml.get("slabId")
+        for ml in (data.get("memberLoads") or data.get("member_loads") or [])
+        if isinstance(ml, dict)
+        and str(ml.get("source", "")) == "slab_to_beam"
+        and ml.get("slabId") is not None
+    }
+
     # Normalizar `cases` (acepta lista de ids o de objetos {id,...}).
     if cases:
         cases = [c.get("id") if isinstance(c, dict) else c for c in cases]
@@ -2403,9 +3176,35 @@ def run_frame_force_results(
                 cid = _b10_14_load_case(ld)
                 if cid and cid not in seen:
                     seen.append(cid)
+        # Un caso puede existir solo como carga de tramo (p.ej. una viga con
+        # carga distribuida y ningún nudo cargado en ese patrón).
+        for cid in member_loads_by_case:
+            if cid not in seen:
+                seen.append(cid)
         cases = seen or ["DEAD"]
 
-    case_meta = [{"id": c, "name": c, "type": "Linear Static"} for c in cases]
+    # `patternType` (Dead/Live/RoofLive) sale del `type`/`loadType` que ya trae
+    # cada carga; lo usan los combos por defecto para clasificar los casos por
+    # tipo en vez de por nombre (ver _ff_default_design_combos).
+    def _pattern_type_of(case_id):
+        raw_member = data.get("memberLoads") or data.get("member_loads") or []
+        for ld in list(all_loads) + list(raw_member):
+            if not isinstance(ld, dict) or _b10_14_load_case(ld) != case_id:
+                continue
+            pt = str(ld.get("type") or ld.get("loadType") or "").strip()
+            if pt:
+                return pt
+        return ""
+
+    case_meta = [
+        {
+            "id": c,
+            "name": c,
+            "type": "Linear Static",
+            "patternType": _pattern_type_of(c),
+        }
+        for c in cases
+    ]
 
     components = ["P", "V2", "V3", "T", "M2", "M3"]
     frame_forces = []
@@ -2428,6 +3227,16 @@ def run_frame_force_results(
                 continue
             if _b10_14_load_case(ld) != case_id:
                 continue
+            # Equivalente nodal reemplazado por su carga de tramo real.
+            source = str(ld.get("source", ""))
+            if has_member_loads and source in superseded_sources:
+                continue
+            if (
+                source == "area_load"
+                and ld.get("slabId") is not None
+                and ld.get("slabId") in superseded_slab_ids
+            ):
+                continue
             node = ld.get("node") or ld.get("nodeId") or ld.get("node_id")
             if node is None:
                 continue
@@ -2444,6 +3253,24 @@ def run_frame_force_results(
             if any(v != 0 for v in (fx, fy, fz, mx, my, mz)):
                 ops.load(nid, fx, fy, fz, mx, my, mz)
                 has_load = True
+
+        # Carga de tramo del caso: global → ejes locales → eleLoad. `spans` se
+        # reusa abajo para integrar el diagrama entre estaciones.
+        spans = {}
+        for elem in elements:
+            eid = int(elem["id"])
+            span = _ff_local_span_load(
+                member_loads_by_case.get(case_id, {}).get(eid),
+                elem,
+                node_by_id,
+                nodes,
+                _ff_element_length(elem, node_by_id),
+            )
+            if span:
+                spans[eid] = span
+
+        if _ff_apply_member_loads(spans):
+            has_load = True
 
         if has_load:
             ops.constraints("Transformation")
@@ -2481,7 +3308,10 @@ def run_frame_force_results(
             eid = int(elem["id"])
             length = _ff_element_length(elem, node_by_id)
             f_local = _ff_extract_local_force(eid)
-            stations = _ff_stations_from_end_forces(f_local, length, num_stations)
+            stations = _ff_stations_from_end_forces(
+                f_local, length, num_stations, spans.get(eid),
+                _ff_element_end_offsets(elem),
+            )
             axis2, axis3 = _ff_local_axes(elem, node_by_id, nodes)
 
             max_obj = {}
@@ -2520,9 +3350,10 @@ def run_frame_force_results(
         case_meta.extend(seismic_meta)
 
     # ── Combinaciones de carga (ADD / ENVELOPE) ──────────────────────────────
-    available_case_ids = [c["id"] for c in case_meta]
+    # Se le pasa el METADATO completo (no solo los ids) para que los casos
+    # Response Spectrum se reconozcan por su `type` y no por llamarse "SDX".
     if combos is None:
-        combo_defs = _ff_default_design_combos(available_case_ids)
+        combo_defs = _ff_default_design_combos(case_meta)
     else:
         combo_defs = combos or []
 
@@ -2532,11 +3363,13 @@ def run_frame_force_results(
             case_idx[(entry["frameId"], entry["caseId"])] = entry
 
     combo_meta = []
+    all_combo_entries = []
     for combo in combo_defs:
         combo_entries = _ff_compute_combo_entries(combo, elements, case_idx, components)
         if not combo_entries:
             continue
         frame_forces.extend(combo_entries)
+        all_combo_entries.extend(combo_entries)
         combo_meta.append(
             {
                 "id": str(combo.get("id")),
@@ -2562,6 +3395,14 @@ def run_frame_force_results(
                 }
     summary = {f"maxAbs{k}": summary_acc[k] for k in components}
 
+    # La envolvente va DESPUÉS del resumen: su valor coincide con el del combo
+    # que gobierna, y si entrara antes el `summary` diría "ENV Max" en vez del
+    # combo real que produjo el máximo.
+    envelope_entries, envelope_meta = _ff_envelope_over_combos(
+        all_combo_entries, components
+    )
+    frame_forces.extend(envelope_entries)
+
     return {
         "success": True,
         "type": "jhack_frame_force_results",
@@ -2575,6 +3416,7 @@ def run_frame_force_results(
         },
         "cases": case_meta,
         "combos": combo_meta,
+        "envelopes": envelope_meta,
         "components": components,
         "frameForces": frame_forces,
         "jointDisplacements": joint_displacements,

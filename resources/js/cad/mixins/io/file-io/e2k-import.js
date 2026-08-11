@@ -4,6 +4,7 @@ import Swal from "sweetalert2";
 import { Beam, Node as StructuralNode } from "../../../model/shapes.js";
 import { read as readmat } from "mat-for-js";
 import { axisToFixed, removeFromArray } from "../../../lib/utils.js";
+import { parseE2kLoadCombos, comboExpression } from "./e2k-load-combos.js";
 import { Triangle, Puente, Arco } from "../../../model/parametricModels.js";
 import { extrudeToNewFloor, selectAllNodes, activate3DDrawingMode } from "../../../3d/modeling3d.js";
 import { toggleView3D } from "../../../3d/viewer3d.js";
@@ -736,6 +737,8 @@ export const e2kImportMixin = {
     const materialMap = new Map();
     const frameSecMap = new Map();
     const sdSectionMap = new Map(); // name → {angle, pieces:[{A,Iz,Iy,J,X,Y}]} (Section Designer)
+    const rebarDefMap = new Map(); // "#4" → {area, dia} (catálogo REBARDEFINITION, en m²/m)
+    const concreteSectionMap = new Map(); // name → datos crudos de CONCRETESECTION (armado), fusiona a frameSecMap al final
     const slabSecMap = new Map();
     const pointCoords = new Map(); // pointId → {x,y}
     const lineConn = new Map(); // lineName → {kind, pi, pj}
@@ -880,6 +883,37 @@ export const e2kImportMixin = {
             frameSecMap.set(name, { name, type: "general", material, A, area: A });
           }
         }
+      } else if (/^REBARDEFINITION\s/i.test(line)) {
+        // Catálogo de diámetros de varilla: "#4" → {area m², dia m}. Sirve para
+        // resolver el diámetro real de LONGBARAREA/CONFINEBARAREA de
+        // CONCRETESECTION (que solo trae el área, no el número de varilla).
+        const name = quotedAll(line)[0];
+        if (name) {
+          rebarDefMap.set(name, { area: kvNum(line, "AREA", 0), dia: kvNum(line, "DIA", 0) });
+        }
+      } else if (/^CONCRETESECTION\s/i.test(line)) {
+        // Datos de diseño/armado de una sección (columna o viga) que ETABS ya
+        // trae resueltos — hoy se descartaban por completo. Guardados aparte
+        // (no en frameSecMap todavía) porque CONCRETESECTION puede venir antes
+        // o después de la FRAMESECTION del mismo nombre en el archivo; se
+        // fusionan al final, mismo patrón que sdSectionMap/"sd-pending".
+        const name = quotedAll(line)[0];
+        if (name) {
+          concreteSectionMap.set(name, {
+            sectionType: q(line, "TYPE") || "", // "Column" | "Beam"
+            patternRaw: q(line, "PATTERN") || "",
+            cover: kvNum(line, "COVER", 0),
+            coverTop: kvNum(line, "COVERTOP", 0),
+            coverBottom: kvNum(line, "COVERBOTTOM", 0),
+            longBarArea: kvNum(line, "LONGBARAREA", 0),
+            confineBarArea: kvNum(line, "CONFINEBARAREA", 0),
+            confineBarSpacing: kvNum(line, "CONFINEBARSPACING", 0),
+            numConfineBars2: kvNum(line, "NUMCONFINEBARS2", 0),
+            numConfineBars3: kvNum(line, "NUMCONFINEBARS3", 0),
+            longBarMaterialName: q(line, "LONGBARMATERIAL") || "",
+            confineBarMaterialName: q(line, "CONFINEBARMATERIAL") || "",
+          });
+        }
       } else if (/^SDSECTION\s/i.test(line)) {
         const name = quotedAll(line)[0];
         if (!name) return;
@@ -920,6 +954,13 @@ export const e2kImportMixin = {
           material: q(line, "MATERIAL") || q(line, "CONCMATERIAL") || "CONC",
           kind: proptype,
           modelingType: q(line, "MODELINGTYPE") || "Membrane",
+          // Reparto de la carga de área a las vigas del contorno. En ETABS una
+          // losa `Membrane` NO tiene rigidez a flexión: existe solo para
+          // entregarle su carga a las vigas que la sostienen, y
+          // ONEWAYLOADDIST decide si lo hace en una dirección (aligerado,
+          // aporticado en un sentido) o en dos (regla de 45°). El ángulo del
+          // sentido de armado viene por barra en AREAASSIGN ... ANG.
+          oneWayLoadDist: /ONEWAYLOADDIST\s+"?Yes/i.test(line),
         });
       } else if (/^POINT\s/i.test(line)) {
         const id = quotedAll(line)[0];
@@ -994,6 +1035,8 @@ export const e2kImportMixin = {
         let f = rsFuncMap.get(name);
         if (!f) { f = { name, id: name, type: "response-spectrum", units: "Sa en g", damping: 0.05, spectype: "", functype: "", points: [] }; rsFuncMap.set(name, f); }
         if (hasKey(line, "FUNCTYPE")) f.functype = q(line, "FUNCTYPE") || f.functype;
+        // Espectro en archivo aparte: los puntos NO están en el .e2k.
+        if (hasKey(line, "FILE")) f.externalFile = q(line, "FILE") || f.externalFile;
         if (hasKey(line, "DAMPRATIO")) f.damping = kvNum(line, "DAMPRATIO", 0.05);
         const spectype = q(line, "SPECTYPE");
         if (spectype) f.spectype = spectype;
@@ -1050,6 +1093,57 @@ export const e2kImportMixin = {
         console.warn(`⚠️ SDSECTION "${name}" sin piezas de concreto reconocidas (CONC L/CONC RECTANGULAR) — sección con rigidez mínima de respaldo.`);
         frameSecMap.set(name, { name, type: "general", material: sec.material, A: 0.01, area: 0.01, Iz: 1e-4, Iy: 1e-4 });
       }
+    });
+
+    // ── Fusionar CONCRETESECTION (armado) en frameSecMap ──
+    // Resuelve el diámetro real de la varilla longitudinal buscando en el
+    // catálogo REBARDEFINITION el área más cercana a LONGBARAREA (solo trae el
+    // área, no el número de varilla). PATTERN "R-n2-n3" (rectangular, esquinas
+    // incluidas) o "C-n" (circular, n varillas en el perímetro). El orden
+    // n2-luego-n3 (NO n3-n2, que es lo que decía la doc de CSI leída antes) se
+    // confirmó contra el diálogo real "Frame Section Property Reinforcement
+    // Data" de ETABS del usuario: para una C45x45 con PATTERN "R-5-3", ETABS
+    // mostraba 3 varillas en la cara 3-dir y 5 en la 2-dir — invertido de lo
+    // que asumíamos, ver project_rc_design_v2_v3_convention. Sin PATTERN
+    // reconocido, se guarda type:"unknown" (el adaptador de columnas lo trata
+    // como no-soportado, no intenta calcular).
+    const nearestRebarDiameter = (area) => {
+      if (!(area > 0) || !rebarDefMap.size) return 0;
+      let best = null;
+      let bestDist = Infinity;
+      rebarDefMap.forEach((def) => {
+        const d = Math.abs(def.area - area);
+        if (d < bestDist) { bestDist = d; best = def; }
+      });
+      return best ? best.dia : 0;
+    };
+
+    const parseRebarPattern = (raw) => {
+      const rect = /^R-(\d+)-(\d+)$/i.exec(String(raw || "").trim());
+      if (rect) return { type: "rectangular", n2: Number(rect[1]), n3: Number(rect[2]) };
+      const circ = /^C-(\d+)$/i.exec(String(raw || "").trim());
+      if (circ) return { type: "circular", n: Number(circ[1]) };
+      return { type: "unknown", raw };
+    };
+
+    concreteSectionMap.forEach((cs, name) => {
+      const sec = frameSecMap.get(name);
+      if (!sec) return; // CONCRETESECTION sin FRAMESECTION geométrica: no hay a qué fusionar.
+
+      sec.concreteDesignType = cs.sectionType; // "Column" | "Beam"
+      sec.rebarPattern = parseRebarPattern(cs.patternRaw);
+      sec.cover = cs.cover * 100 || cs.coverTop * 100 || 0; // cm (columnas: COVER; vigas: COVERTOP/COVERBOTTOM)
+      sec.coverTop = cs.coverTop * 100 || 0;
+      sec.coverBottom = cs.coverBottom * 100 || 0;
+      sec.longBarArea = cs.longBarArea; // m² (se deja en SI, el motor de interacción trabaja en SI)
+      sec.longBarDiameter = nearestRebarDiameter(cs.longBarArea); // m
+      sec.confineBarArea = cs.confineBarArea; // m²
+      sec.confineBarDiameter = nearestRebarDiameter(cs.confineBarArea); // m
+      sec.confineBarSpacing = cs.confineBarSpacing * 100 || 0; // cm
+      sec.numConfineBars2 = cs.numConfineBars2;
+      sec.numConfineBars3 = cs.numConfineBars3;
+      sec.longBarMaterialName = cs.longBarMaterialName;
+      sec.confineBarMaterialName = cs.confineBarMaterialName;
     });
 
     // ── Completar campos de material que ETABS deja implícitos ──
@@ -1388,27 +1482,34 @@ export const e2kImportMixin = {
           nd.restraints = r; nd.constraints = r; nd.hasRestraints = true;
           if (r.ux && r.uy && r.uz && r.rx && r.ry && r.rz) nd.soporte = "soporteUno";
         }
-        // DIAPH del POINTASSIGN. ETABS marca "DISCONNECTED" cuando el nudo NO
-        // pertenece a ningún diafragma — es lo OPUESTO a una asignación, y se
-        // estaba guardando como si fuera un diafragma LLAMADO "DISCONNECTED"
-        // (solo se filtraba "none"), amarrando entre sí a todos los nudos
-        // sueltos de un piso. En MODULO 5 son 38 nudos (16 en Base, 22 en el
-        // techo, que ETABS tiene como semi-rígido).
+        // DIAPH del POINTASSIGN.
+        //
+        // "DISCONNECTED" es el estado DEFAULT que ETABS exporta para
+        // cualquier nudo SIN asignación directa de diafragma a nivel de
+        // joint — NO significa "excluido a propósito". Confirmado con dos
+        // .e2k reales (2026-08-03/05): en MODULO 6 (sin losas) los nudos
+        // DISCONNECTED no tienen NADA de qué heredar, así que da igual cómo
+        // se traten; pero en MODULO 1 (4).e2k, los MISMOS 89 nudos
+        // DISCONNECTED de Story1 (todos con USERJOINT "Yes", marca de
+        // exportación estándar, no de una decisión del usuario) están
+        // cubiertos por 61 losas con `DIAPH "D1"` — el diafragma real vive
+        // en la ASIGNACIÓN DE ÁREA (ver más abajo, AREAASSIGN), no en el
+        // joint. Un fix anterior trataba DISCONNECTED como exclusión CON
+        // PRECEDENCIA sobre el área (ver getExplicitDiaphragmGroups) — eso
+        // arreglaba MODULO 6 pero anulaba el D1 real de MODULO 1: el
+        // diafragma llegaba vacío al motor pese a existir en el .e2k.
+        //
+        // Por eso DISCONNECTED se trata como NEUTRO: no toca nd.diaphragm* en
+        // absoluto, dejando que la asignación de ÁREA (si existe) lo defina.
+        // Sigue sin haber forma de "excluir a propósito" un nudo cubierto por
+        // un área con diafragma vía .e2k — eso es Assign ▸ Joint ▸ Diaphragms
+        // ▸ Disconnect DESDE LA APP (que sí escribe diaphragmMode="none" con
+        // precedencia real, un caso distinto de este import).
         const diaph = q(line, "DIAPH");
-        if (diaph) {
-          if (/none|disconnect/i.test(diaph)) {
-            // Igual que "Disconnect" en Assign ▸ Joint ▸ Diaphragms: excluye
-            // el nudo de cualquier diafragma, con precedencia sobre el que
-            // pudiera heredar del área (ver getExplicitDiaphragmGroups).
-            nd.diaphragmMode = "none";
-            nd.diaphragmName = null;
-            nd.diaphragmId = null;
-            nd.hasDiaphragm = false;
-          } else {
-            nd.diaphragmName = diaph;
-            nd.diaphragmId = diaph;
-            nd.hasDiaphragm = true;
-          }
+        if (diaph && !/disconnect/i.test(diaph)) {
+          nd.diaphragmName = diaph;
+          nd.diaphragmId = diaph;
+          nd.hasDiaphragm = true;
         }
       } else if (/^LINEASSIGN\s/i.test(line)) {
         const toks = quotedAll(line);
@@ -1508,6 +1609,13 @@ export const e2kImportMixin = {
         const localAngle = kvNum(line, "ANG", 0);
         const frame = {
           id: frames.length + 1,
+          // Identidad ORIGINAL en ETABS (LINEASSIGN "<Label>" "<Story>"). El id
+          // de la app es un correlativo y no sirve para cruzar contra las
+          // tablas que exporta ETABS, que van por Story + Label. Guardarlos acá
+          // es lo que permite comparar barra por barra
+          // (ver python-backend/comparar_frame_forces.py).
+          e2kName: toks[0] || null,
+          e2kStory: toks[1] || null,
           node1: n1, node2: n2, node1Id: n1, node2Id: n2,
           type: kindLc, elementType: kindLc, objectType: "frame",
           sectionName: section, sectionId: section,
@@ -1665,6 +1773,13 @@ export const e2kImportMixin = {
           diaphragmId: areaDiaphName,
           diaphragm: areaDiaphName ? { id: areaDiaphName, name: areaDiaphName, type: "rigid" } : null,
           section: { name: section, thickness: slab.thickness, material: slab.material || "CONC" },
+          // Cómo entrega la losa su carga a las vigas del contorno:
+          //  - oneWay=true  → en un solo sentido (aligerado). El sentido lo da
+          //    `loadDistAngle` (AREAASSIGN ... ANG, en grados desde +X).
+          //  - oneWay=false → dos sentidos, regla de 45°.
+          // Lo consume _buildSeismicSlabToBeamLoadsForPayload (payload.js).
+          oneWayLoadDist: slab.oneWayLoadDist === true,
+          loadDistAngle: kvNum(line, "ANG", 0),
           areaLoads: [], loads: [], visible: true,
         };
         areas.push(area);
@@ -1788,7 +1903,33 @@ export const e2kImportMixin = {
         color: "#78716c",
       }));
 
+    // ── Combinaciones de carga (COMBO …) ──
+    // Aplanadas: el .e2k permite que un combo referencie OTRO combo y el motor
+    // solo entiende términos que apuntan a casos. Ver e2k-load-combos.js.
+    const { combos: loadCombinations, skipped: skippedCombos } =
+      parseE2kLoadCombos(lines);
+
+    if (skippedCombos.length) {
+      console.warn("⚠️ Combos del .e2k NO importados:", skippedCombos);
+    }
+
     // ── Fase 3: funciones de espectro (USER con puntos) + casos Response Spectrum ──
+    // Espectros que el .e2k referencia por ARCHIVO EXTERNO: la línea trae
+    //   FUNCTION "Func1" FUNCTYPE "SPECTRUM" FILE "C:\...\Espectro.txt"
+    // y los PUNTOS no viajan en el .e2k. Los casos que usen esa función se
+    // quedan sin espectro y después desaparecen del selector de diagramas sin
+    // explicación. Se avisa acá, que es donde se sabe el motivo real.
+    const spectrumFilesMissing = [...rsFuncMap.values()].filter(
+      (f) => /spectrum/i.test(f.functype || "") && f.externalFile && !(f.points || []).length,
+    );
+
+    if (spectrumFilesMissing.length) {
+      console.warn(
+        "⚠️ Espectros referenciados por ARCHIVO EXTERNO (sus puntos NO están en el .e2k):",
+        spectrumFilesMissing.map((f) => `${f.name} → ${f.externalFile}`),
+      );
+    }
+
     const responseSpectrumFunctions = [...rsFuncMap.values()]
       .filter((f) => /spectrum/i.test(f.functype || "") && Array.isArray(f.points) && f.points.length >= 2)
       .map((f) => ({ id: f.id, name: f.name, type: "response-spectrum", units: f.units, damping: f.damping, points: f.points }));
@@ -1817,6 +1958,8 @@ export const e2kImportMixin = {
       stories: stories.length, nodes: nodes.length, frames: frames.length, areas: areas.length,
       materials: materials.length, sections: frameSections.length,
       rsFunctions: responseSpectrumFunctions.length, rsCases: responseSpectrumCases.length,
+      combos: loadCombinations.length,
+      espectrosSinPuntos: spectrumFilesMissing.length,
     });
 
     return {
@@ -1847,6 +1990,12 @@ export const e2kImportMixin = {
         massSource,
         responseSpectrumFunctions,
         responseSpectrumCases,
+        loadCombinations,
+        // El modal Define ▸ Combinaciones lee `combinations` como texto.
+        loadCombinationExpressions: loadCombinations.map((c) => ({
+          name: c.id,
+          expression: comboExpression(c),
+        })),
         groups: [],
       },
       options: {

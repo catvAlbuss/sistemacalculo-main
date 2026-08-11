@@ -1371,8 +1371,19 @@ export const assignDialogsMixin = {
   // =====================================================
 
   getAvailableLoadCasesForAssign() {
-    // Para entrega final: solo mostramos los patrones oficiales del proyecto.
-    // No mezclar aquí DEAD, LIVE, WIND_X, EQ_X, etc.
+    // BUG (ver conversación: "no veo mi Csuelo en Patrón de carga"): esto
+    // devolvía SIEMPRE la lista de referencia hardcodeada de abajo,
+    // ignorando por completo lo que el usuario define en Define > Patrones
+    // de Carga (static-load-cases-modal.blade.php) — que además ya
+    // documentaba, en su propio comentario, que ESTA función debía leer
+    // `window.cadSystem.loadCases.cases`. Ahora sí lo hace: si el usuario
+    // ya guardó patrones propios (aunque sea solo CM/CVE por defecto), se
+    // usan esos; si nunca abrió ese diálogo en este modelo, se cae de
+    // vuelta a la lista de referencia para no dejar el dropdown vacío.
+    const userDefined = this.loadCases?.cases;
+    if (Array.isArray(userDefined) && userDefined.length) {
+      return userDefined.map((lc) => ({ name: lc.name, type: lc.type, implemented: true }));
+    }
     return this.getEtabsReferenceLoadPatterns();
   },
 
@@ -2080,35 +2091,96 @@ export const assignDialogsMixin = {
 
   // Losas del modelo + opciones de alcance (selección/todas/por-piso) — compartido
   // por los diálogos de carga de área y sección de losa.
-  _slabAssignData() {
+  // `types` acota qué áreas cuentan como "asignables" — por defecto solo
+  // "slab" (comportamiento de siempre, usado por ej. por el diálogo de
+  // Cargas de Área). El diálogo de Sección de Losa pasa explícitamente
+  // ["slab", "zapata"] (ver openAssignSlabSectionDialog) para que las
+  // zapatas también puedan recibir espesor + material — sin tocar este
+  // valor por defecto, ningún otro diálogo cambia de comportamiento.
+  _slabAssignData(types = ["slab"]) {
     const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
     const slabZ = (a) => r2(a.z ?? (a.points.reduce((s, p) => s + (Number(p.z) || 0), 0) / a.points.length));
     const selected = this.getSelectedAreasForAssign();
     const allSlabs = (this.areas || []).filter(
-      (a) => (a.areaType || a.type || "slab") === "slab" && Array.isArray(a.points) && a.points.length >= 3,
+      (a) => types.includes(a.areaType || a.type || "slab") && Array.isArray(a.points) && a.points.length >= 3,
     );
     const byZ = new Map();
     allSlabs.forEach((a) => { const z = slabZ(a); if (!byZ.has(z)) byZ.set(z, []); byZ.get(z).push(a); });
     const floors = [...byZ.keys()].sort((a, b) => a - b);
+    const isMixed = types.length > 1;
     const scopes = [];
-    if (selected.length) scopes.push({ value: "selected", label: `Losas seleccionadas (${selected.length})` });
-    scopes.push({ value: "all", label: `Todas las losas (${allSlabs.length})` });
-    floors.forEach((z) => scopes.push({ value: `z:${z}`, label: `Piso z=${z} m (${byZ.get(z).length} losa/s)` }));
+    if (selected.length) scopes.push({ value: "selected", label: `${isMixed ? "Elementos" : "Losas"} seleccionados (${selected.length})` });
+    scopes.push({ value: "all", label: `Todas las ${isMixed ? "losas/zapatas" : "losas"} (${allSlabs.length})` });
+    floors.forEach((z) => scopes.push({ value: `z:${z}`, label: `Piso z=${z} m (${byZ.get(z).length} ${isMixed ? "elemento/s" : "losa/s"})` }));
+
+    // Una entrada por CADA elemento individual — para asignar un valor
+    // distinto por zapata (ej. cada una con su propio σmax) sin tener que
+    // seleccionarla antes a mano en el canvas. El centro aproximado en la
+    // etiqueta es solo para reconocerla contra el plano — no es la
+    // propiedad geométrica exacta de Bloque 1 (esto corre ANTES de
+    // "Calcular Zapatas", puede que ese cálculo ni exista todavía).
+    allSlabs.forEach((a) => {
+      const cx = r2((a.points || []).reduce((s, p) => s + (Number(p.x) || 0), 0) / (a.points?.length || 1));
+      const cy = r2((a.points || []).reduce((s, p) => s + (Number(p.y) || 0), 0) / (a.points?.length || 1));
+      const kind = a.areaType === "zapata" ? "Zapata" : "Losa";
+      scopes.push({ value: `id:${a.id}`, label: `${kind} #${a.id} (≈${cx}, ${cy})` });
+    });
+
     return { selected, allSlabs, byZ, scopes };
   },
 
-  _resolveSlabScopeTarget(scope) {
-    const { selected, allSlabs, byZ } = this._slabAssignData();
+  _resolveSlabScopeTarget(scope, types = ["slab"]) {
+    const { selected, allSlabs, byZ } = this._slabAssignData(types);
     if (scope === "selected") return selected;
     if (String(scope).startsWith("z:")) return byZ.get(Number(String(scope).slice(2))) || [];
+    if (String(scope).startsWith("id:")) {
+      const id = Number(String(scope).slice(3));
+      return allSlabs.filter((a) => Number(a.id) === id);
+    }
     return allSlabs;
   },
 
+  // Autocompletar Csuelo: si el "Aplicar a" elegido resuelve a UNA sola
+  // zapata (por ID, o porque hay exactamente una seleccionada en el
+  // canvas) y esa zapata ya tiene σmax guardado (de la última "Calcular
+  // Zapatas", ver foundation.js), devuelve su valor ya convertido a
+  // kgf/m² — listo para el campo "Valor". Si resuelve a varias (ej.
+  // "Todas las zapatas") o a una losa, devuelve null a propósito: ahí el
+  // usuario elige el valor a mano, como pidió explícitamente. Nunca toca
+  // losas (areaType!=="zapata" siempre da null) — no cambia el flujo que
+  // ya usa tu compañero para su análisis estructural.
+  //
+  // NEGATIVO a propósito: el único uso confirmado de esto (Csuelo, ver
+  // conversación) es representar la reacción del suelo empujando hacia
+  // ARRIBA contra la zapata — mismo truco de signo que ya usa el cliente
+  // en ETABS ("Direction: Gravity" + valor negativo). Si el usuario
+  // necesita otro signo para otro patrón, sigue pudiendo editarlo a mano
+  // después de que se autocomplete — esto es un punto de partida, no un
+  // candado.
+  getZapataSigmaMaxKgfM2ForScope(scope) {
+    const target = this._resolveSlabScopeTarget(scope, ["slab", "zapata"]);
+    if (target.length !== 1) return null;
+
+    const area = target[0];
+    if (area.areaType !== "zapata") return null;
+
+    const tonM2 = area._sigmaMaxTonM2;
+    return Number.isFinite(tonM2) ? -Math.round(tonM2 * 1000) : null;
+  },
+
   // Migración Swal→Blade: HTML en components/cad/modals/area-uniform-load-modal.blade.php.
+  //
+  // Incluye "zapata" además de "slab" (ver conversación: flujo de
+  // validación cruzada del cliente contra ETABS — carga "Csuelo" aplicada
+  // directo sobre el shell de la zapata, con signo negativo para que
+  // empuje hacia arriba). Verificado seguro: _buildSeismicAreaLoadsForPayload
+  // (payload.js) filtra por areaType==="slab" ANTES de mirar areaLoads, así
+  // que una zapata con carga acá nunca se cuela en la masa sísmica del
+  // edificio, sin importar qué se le asigne desde este diálogo.
   openAssignAreaUniformLoadDialog() {
-    const { allSlabs, scopes } = this._slabAssignData();
+    const { allSlabs, scopes } = this._slabAssignData(["slab", "zapata"]);
     if (!allSlabs.length) {
-      this.showMessage?.("No hay losas en el modelo. Dibuja losas primero.", "warning");
+      this.showMessage?.("No hay losas ni zapatas en el modelo. Dibuja alguna primero.", "warning");
       return;
     }
     const loadCases = this.getAvailableLoadCasesForAssign().map((lc) => ({
@@ -2120,14 +2192,17 @@ export const assignDialogsMixin = {
   },
 
   applyAreaUniformLoadFromModal(v) {
-    const value = Math.max(0, Number(v.value) || 0);
+    // Sin Math.max(0, ...): un valor negativo es válido a propósito (ver
+    // comentario arriba) — mismo truco de signo que usa el cliente en
+    // ETABS ("Direction: Gravity" + valor negativo = empuja hacia arriba).
+    const value = Number(v.value) || 0;
     this.saveUndoState?.("Asignar carga de área");
-    this.assignAreaUniformLoadToAreas(this._resolveSlabScopeTarget(v.scope), {
+    this.assignAreaUniformLoadToAreas(this._resolveSlabScopeTarget(v.scope, ["slab", "zapata"]), {
       loadCase: v.loadCase || "CM", value, operation: v.operation || "replace",
     });
   },
 
-  // Guarda la carga uniforme en area.areaLoads[] de cada losa.
+  // Guarda la carga uniforme en area.areaLoads[] de cada losa/zapata.
   assignAreaUniformLoadToAreas(areas, cfg) {
     const { loadCase, value, operation } = cfg;
     let count = 0;
@@ -2139,7 +2214,9 @@ export const assignDialogsMixin = {
           (l) => !(l.type === "uniform" && l.loadCase === loadCase),
         );
       }
-      if (operation !== "delete" && value > 0) {
+      // value !== 0 (no "value > 0"): un valor negativo es una carga real
+      // (empuja hacia arriba), no algo para descartar como el 0 de "sin carga".
+      if (operation !== "delete" && value !== 0) {
         area.areaLoads.push({ type: "uniform", loadCase, value, dir: "gravity" });
       }
       area.hasAreaLoads = area.areaLoads.length > 0;
@@ -2157,10 +2234,116 @@ export const assignDialogsMixin = {
   // ASSIGN > SHELL > SLAB SECTION  (como ETABS)
   // =====================================================
   // Migración Swal→Blade: HTML en components/cad/modals/slab-section-modal.blade.php.
-  openAssignSlabSectionDialog() {
+  /**
+   * Sentido de armado de la losa (una vía) — el `ANG` de ETABS.
+   *
+   * NO es un dato cosmético: decide a qué vigas les entrega la losa su carga.
+   * Van las PERPENDICULARES a la flecha, que son las que hacen de apoyo en los
+   * dos extremos de la luz (ver _buildSeismicSlabToBeamLoadsForPayload en
+   * payload.js). Girarlo 90° manda la carga a las otras vigas, y como la carga
+   * TOTAL se conserva, las reacciones cierran igual: por eso hace falta poder
+   * verlo (la flecha) y poder corregirlo (este diálogo).
+   */
+  async openAssignSlabLoadDirectionDialog() {
     const { allSlabs, scopes } = this._slabAssignData();
+
     if (!allSlabs.length) {
-      this.showMessage?.("No hay losas en el modelo. Dibuja losas primero.", "warning");
+      this.showMessage?.("No hay losas en el modelo.", "warning");
+      return;
+    }
+
+    const scopeOptions = scopes
+      .map((s) => `<option value="${s.value}">${s.label}</option>`)
+      .join("");
+
+    const { value: form } = await Swal.fire({
+      title: "Sentido de armado de losa",
+      html: `
+        <div style="text-align:left;font-size:13px;color:#cbd5e1">
+          <p style="margin-bottom:10px">
+            La carga del panel va a las vigas <b>perpendiculares</b> a este sentido.
+          </p>
+          <label style="display:block;margin-bottom:4px">Aplicar a</label>
+          <select id="sld-scope" class="swal2-select" style="width:100%;margin:0 0 12px">
+            ${scopeOptions}
+          </select>
+          <label style="display:block;margin-bottom:4px">Ángulo (grados desde +X)</label>
+          <input id="sld-ang" type="number" step="5" value="0" class="swal2-input"
+                 style="width:100%;margin:0 0 12px">
+          <label style="display:flex;align-items:center;gap:8px">
+            <input id="sld-oneway" type="checkbox" checked>
+            <span>Reparto en <b>una vía</b> (aligerado)</span>
+          </label>
+          <p style="margin-top:8px;font-size:12px;color:#94a3b8">
+            Sin marcar, reparte a las cuatro vigas del contorno y no se dibuja flecha.
+            0° = la carga salva en X · 90° = salva en Y.
+          </p>
+        </div>`,
+      showCancelButton: true,
+      confirmButtonText: "Aplicar",
+      cancelButtonText: "Cancelar",
+      background: "#1a2035",
+      color: "#e2e8f0",
+      preConfirm: () => ({
+        scope: document.getElementById("sld-scope")?.value || "all",
+        ang: Number(document.getElementById("sld-ang")?.value) || 0,
+        oneWay: document.getElementById("sld-oneway")?.checked !== false,
+      }),
+    });
+
+    if (!form) return;
+
+    const target = this._resolveSlabScopeTarget(form.scope);
+
+    this.saveUndoState?.("Sentido de armado de losa");
+
+    target.forEach((slab) => {
+      slab.oneWayLoadDist = form.oneWay;
+      slab.loadDistAngle = form.ang;
+    });
+
+    // Cambia a qué vigas les llega la carga → los diagramas guardados dejan de
+    // valer. La firma del payload lo detecta sola, pero avisar es más honesto.
+    this.markAnalysisResultsOutdated?.("Cambió el sentido de armado de una losa.");
+    this.redraw?.();
+
+    this.showMessage?.(
+      form.oneWay
+        ? `Sentido de armado ${form.ang}° en ${target.length} losa(s).`
+        : `Reparto en dos vías en ${target.length} losa(s).`,
+    );
+  },
+
+  /** Gira 90° el sentido de armado de las losas seleccionadas (o de todas). */
+  rotateSlabLoadDirection() {
+    const { selected, allSlabs } = this._slabAssignData();
+    const target = selected.length ? selected : allSlabs;
+
+    if (!target.length) {
+      this.showMessage?.("No hay losas en el modelo.", "warning");
+      return;
+    }
+
+    this.saveUndoState?.("Girar sentido de armado 90°");
+
+    target.forEach((slab) => {
+      slab.oneWayLoadDist = true;
+      slab.loadDistAngle = ((Number(slab.loadDistAngle) || 0) + 90) % 180;
+    });
+
+    this.markAnalysisResultsOutdated?.("Cambió el sentido de armado de una losa.");
+    this.redraw?.();
+
+    this.showMessage?.(
+      `Sentido de armado girado 90° en ${target.length} losa(s)` +
+        `${selected.length ? "" : " (todas, no había selección)"}.`,
+    );
+  },
+
+  openAssignSlabSectionDialog() {
+    const { allSlabs, scopes } = this._slabAssignData(["slab", "zapata"]);
+    if (!allSlabs.length) {
+      this.showMessage?.("No hay losas ni zapatas en el modelo. Dibuja alguna primero.", "warning");
       return;
     }
     const sections = Array.isArray(this.slabSections) ? this.slabSections : [];
@@ -2179,7 +2362,7 @@ export const assignDialogsMixin = {
 
   applySlabSectionFromModal(scope, name) {
     const sections = Array.isArray(this.slabSections) ? this.slabSections : [];
-    const target = this._resolveSlabScopeTarget(scope);
+    const target = this._resolveSlabScopeTarget(scope, ["slab", "zapata"]);
     const sec = name === "__none__" ? null : sections.find((s) => s.name === name);
 
     this.saveUndoState?.("Asignar sección de losa");
@@ -2188,10 +2371,39 @@ export const assignDialogsMixin = {
       // Peso propio de la losa (kgf/m²): espesor(m) × densidad del material.
       slab.slabSelfWeightKgM2 = sec ? this._slabSectionSelfWeightKgM2(sec) : 0;
       slab.section = sec ? { name: sec.name, thickness: sec.thickness, material: sec.material } : null;
+
+      // Reparto de la carga a las vigas. En ETABS este dato vive en la SECCIÓN
+      // (`SHELLPROP ... ONEWAYLOADDIST`), así que acá se hereda igual: una losa
+      // dibujada en la app y con sección asignada tiene que comportarse como
+      // una importada del .e2k. Sin esto, la losa quedaba sin sentido de
+      // armado, no dibujaba flecha y repartía la carga a las cuatro vigas.
+      if (sec) {
+        slab.oneWayLoadDist = this._slabSectionIsOneWay(sec);
+        if (slab.loadDistAngle == null) slab.loadDistAngle = 0;
+      }
     });
     this.markAnalysisResultsOutdated?.("Se asignó sección de losa.");
     this.redraw?.();
-    this.showMessage?.(`Sección "${name === "__none__" ? "None" : name}" asignada a ${target.length} losa(s).`);
+    this.showMessage?.(`Sección "${name === "__none__" ? "None" : name}" asignada a ${target.length} elemento(s).`);
+  },
+
+  /**
+   * ¿La sección reparte su carga en UNA VÍA?
+   *
+   * Si la definición lo declara (`oneWayLoadDist`), manda eso — es el
+   * equivalente del `ONEWAYLOADDIST` de ETABS. Si no lo declara (secciones
+   * viejas, creadas antes de que existiera el campo), se deduce del NOMBRE:
+   * un aligerado, un nervado o una losa de viguetas son de una vía por
+   * definición constructiva, no por configuración. Una losa maciza no.
+   *
+   * El usuario siempre puede corregirlo en Asignar ▸ Losa ▸ Sentido de Armado.
+   */
+  _slabSectionIsOneWay(sec) {
+    if (typeof sec?.oneWayLoadDist === "boolean") return sec.oneWayLoadDist;
+
+    const name = String(sec?.name || "").toLowerCase();
+
+    return /aligerad|nervad|vigueta|one\s*way|una\s*v[ií]a|unidireccional/.test(name);
   },
 
   // Peso propio de una sección de losa en kgf/m² = espesor(m) × densidad(kg/m³).
