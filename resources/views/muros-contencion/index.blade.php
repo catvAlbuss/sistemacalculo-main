@@ -2614,6 +2614,54 @@
     </div>
 
     <script>
+        const HTML2CANVAS_UNSUPPORTED_COLOR = /\b(oklch|oklab|color-mix|lab|lch)\s*\(|\bvar\s*\(/i;
+        const HTML2CANVAS_COLOR_PROPERTIES = [
+            'color',
+            'backgroundColor',
+            'borderTopColor',
+            'borderRightColor',
+            'borderBottomColor',
+            'borderLeftColor',
+            'outlineColor',
+            'textDecorationColor',
+            'fill',
+            'stroke'
+        ];
+
+        function sanitizeColorForHtml2Canvas(value, propertyName) {
+            if (!value || value === 'initial' || value === 'inherit') {
+                return propertyName === 'backgroundColor' ? 'transparent' : '#000000';
+            }
+
+            if (HTML2CANVAS_UNSUPPORTED_COLOR.test(value)) {
+                return propertyName === 'backgroundColor' ? 'transparent' : '#000000';
+            }
+
+            return value;
+        }
+
+        function sanitizeCloneColorsForHtml2Canvas(originalRoot, clonedRoot) {
+            if (!originalRoot || !clonedRoot) return;
+
+            const originalElements = [originalRoot, ...originalRoot.querySelectorAll('*')];
+            const clonedElements = [clonedRoot, ...clonedRoot.querySelectorAll('*')];
+            const count = Math.min(originalElements.length, clonedElements.length);
+
+            for (let i = 0; i < count; i++) {
+                const original = originalElements[i];
+                const cloned = clonedElements[i];
+                const styles = window.getComputedStyle(original);
+
+                HTML2CANVAS_COLOR_PROPERTIES.forEach(propertyName => {
+                    const value = styles[propertyName];
+                    cloned.style[propertyName] = sanitizeColorForHtml2Canvas(value, propertyName);
+                });
+
+                if (styles.backgroundImage && HTML2CANVAS_UNSUPPORTED_COLOR.test(styles.backgroundImage)) {
+                    cloned.style.backgroundImage = 'none';
+                }
+            }
+        }
         // Función mejorada para capturar contenido Alpine.js
         async function captureElementContent(elementId, options = {}) {
             console.log(`🎯 Iniciando captura de: ${elementId}`);
@@ -2657,6 +2705,8 @@
                             clonedElement.style.position = 'static';
                             clonedElement.style.transform = 'none';
                         }
+
+                        sanitizeCloneColorsForHtml2Canvas(originalElement, clonedElement);
                     }
                 });
 
@@ -2788,6 +2838,8 @@
                     removeContainer: false,
                     imageTimeout: 15000, // Más tiempo para contenido largo
                     onclone: (clonedDoc, clonedElement) => {
+                        const originalElement = document.getElementById(elementId);
+
                         // Asegurar que el clon tenga las dimensiones correctas
                         clonedElement.style.width = realDimensions.width + 'px';
                         clonedElement.style.height = 'auto';
@@ -2796,6 +2848,8 @@
                         clonedElement.style.visibility = 'visible';
                         clonedElement.style.opacity = '1';
                         clonedElement.style.overflow = 'visible';
+
+                        sanitizeCloneColorsForHtml2Canvas(originalElement, clonedElement);
                     }
                 });
 
@@ -2878,6 +2932,7 @@
                             clonedElement.style.display = 'block';
                             clonedElement.style.visibility = 'visible';
                             clonedElement.style.opacity = '1';
+                            sanitizeCloneColorsForHtml2Canvas(section, clonedElement);
                         }
                     });
 

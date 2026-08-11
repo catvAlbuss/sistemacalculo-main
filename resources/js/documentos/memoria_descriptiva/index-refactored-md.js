@@ -6,10 +6,15 @@ import { DocumentTransformerMD } from "./processors/documentTransformer-md.js";
 import ubigeoData from "./ubigeo.json";
 import { createMemoriaDescriptivaStore } from "./stores/memoriaDescriptivaStore.js";
 
-// Inicializar store globalmente
-if (typeof Alpine !== 'undefined' && !Alpine.store('memoriaDescriptiva')) {
-    Alpine.store('memoriaDescriptiva', createMemoriaDescriptivaStore());
-}
+// Registrar store y componente en el evento correcto del ciclo de vida de Alpine.
+// No usar typeof Alpine: en módulos Vite el global window.Alpine puede no estar
+// disponible en tiempo de evaluación del módulo. alpine:init garantiza el momento correcto.
+document.addEventListener('alpine:init', () => {
+    if (!window.Alpine.store('memoriaDescriptiva')) {
+        window.Alpine.store('memoriaDescriptiva', createMemoriaDescriptivaStore());
+    }
+    window.Alpine.data('memoriaDescriptiva', memoriaDescriptiva);
+});
 
 /**
  * Componente principal Alpine.js para Memoria Descriptiva
@@ -54,6 +59,9 @@ function memoriaDescriptiva() {
 
             this.initDefaultArrays();
             this.initDefaultData();
+
+            // Cargar imágenes desde IDB (siempre, incluso si el store.init() ya lo intentó)
+            this.$store.memoriaDescriptiva.loadImages().catch(e => console.warn('Error cargando imágenes desde IDB:', e));
 
             // ── AUTO-SAVE: cada vez que cualquier dato del store cambia, persistir ──
             // Observamos cover
@@ -327,8 +335,8 @@ function memoriaDescriptiva() {
                 dp.uei = store.cover.uei || "Municipalidad Provincial de Ucayali";
             }
 
-            // Guardar los cambios en localStorage
-            store.save();
+            // Guardar SOLO texto — no tocar IDB para no borrar imágenes antes de loadImages()
+            store.saveTextOnly();
 
         },
         initDefaultArrays() {
@@ -347,7 +355,7 @@ function memoriaDescriptiva() {
                 }
                 console.log('✅ 16 módulos cargados con subtitulosImagenes');
             } else {
-                // MIGRAR MÓDULOS EXISTENTES
+                // MIGRAR MÓDULOS EXISTENTES - SIN FORZAR PISOS
                 for (let i = 0; i < store.sections.descripcionModulos.modulos.length; i++) {
                     const modulo = store.sections.descripcionModulos.modulos[i];
                     if (!modulo.subtitulosImagenes) {
@@ -356,6 +364,8 @@ function memoriaDescriptiva() {
                     if (!modulo.imagenes) {
                         modulo.imagenes = [];
                     }
+                    // 🔥 ELIMINADO: ya no se fuerzan los pisos
+                    // Los pisos se respetan tal como el usuario los dejó
                 }
             }
 
@@ -372,7 +382,8 @@ function memoriaDescriptiva() {
                 store.sections.marcoTeorico.elementosEstructurales = this.getDefaultElementosEstructurales();
             }
 
-            store.save();
+            // Guardar SOLO texto — no tocar IDB para no borrar imágenes antes de loadImages()
+            store.saveTextOnly();
         },
 
         getDefaultModulos() {
@@ -459,25 +470,29 @@ function memoriaDescriptiva() {
             this.$store.memoriaDescriptiva.sections.descripcionModulos.modulos.splice(index, 1);
         },
 
-        // ============================================
-        // MÉTODOS - Imágenes
-        // ============================================
-        async handleImageChange(key, event) {
-            const file = event.target.files?.[0];
-            if (!file) return;
-            if (!file.type.startsWith('image/')) {
-                alert('Por favor seleccione un archivo de imagen válido');
-                return;
+        // ─── Imágenes simples (dataURL) ────────────────────────────────────────
+        updateImage(key, file, preview) {
+            this.images[key] = file;      // File() — no persiste
+            this.previews[key] = preview;   // dataURL — sí persiste
+
+            // 🔥 AGREGAR ESTO: Guardar también en cover para persistencia
+            if (key === 'coverImage') {
+                this.cover.coverImage = preview;
             }
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                this.$store.memoriaDescriptiva.updateImage(key, file, e.target.result);
-            };
-            reader.readAsDataURL(file);
+
+            this.save();
         },
 
         removeImage(key) {
-            this.$store.memoriaDescriptiva.removeImage(key);
+            this.images[key] = null;
+            this.previews[key] = null;
+
+            // 🔥 AGREGAR ESTO: Limpiar también en cover
+            if (key === 'coverImage') {
+                this.cover.coverImage = null;
+            }
+
+            this.save();
         },
 
         async handleModuloImageChange(moduloIndex, imageIndex, event) {
@@ -715,7 +730,7 @@ function memoriaDescriptiva() {
     };
 }
 
-// Exportar función principal
+// Mantener en window como fallback para referencias legacy
 window.memoriaDescriptiva = memoriaDescriptiva;
 
 export default memoriaDescriptiva;

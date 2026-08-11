@@ -6,7 +6,7 @@ import {
   Quaternion,
 } from "@babylonjs/core";
 
-export function createBeam3D(scene, beam, material = null) {
+export function createBeam3D(scene, beam, material = null, opts = {}) {
   const p1 = beam.node1?.position ?? beam.node1;
   const p2 = beam.node2?.position ?? beam.node2;
 
@@ -25,15 +25,28 @@ export function createBeam3D(scene, beam, material = null) {
   const elementKind = inferElementKind(beam, p1, p2);
   const style = getElementStyle(elementKind);
 
-  const mesh = MeshBuilder.CreateCylinder(
-    `beam-${beam.id}`,
-    {
-      height: 1,
-      diameter: style.diameter,
-      tessellation: 12,
-    },
-    scene
-  );
+  // =====================================================
+  // VISTA EXTRUIDA (Extrude View tipo ETABS)
+  // Dibuja el frame como un prisma rectangular b×h de su sección, orientado
+  // por el eje del elemento y (en columnas) por su rotación de eje local.
+  // =====================================================
+  const extrude = opts.extrude === true;
+
+  // Vista ESTÁNDAR: cilindros con grosor VISUAL fijo por tipo (como las líneas
+  // de ETABS) — con el diámetro real de la sección ((b+h)/2) los modelos
+  // importados (todas las secciones asignadas, p.ej. 30×40 → Ø0.35 m) se veían
+  // con el doble de grosor. La proporción REAL b×h la da la vista extruida.
+  const mesh = extrude
+    ? MeshBuilder.CreateBox(
+        `beam-${beam.id}`,
+        { width: 1, height: 1, depth: 1 },
+        scene
+      )
+    : MeshBuilder.CreateCylinder(
+        `beam-${beam.id}`,
+        { height: 1, diameter: style.diameter, tessellation: 12 },
+        scene
+      );
 
   // material
   if (material) {
@@ -45,13 +58,18 @@ export function createBeam3D(scene, beam, material = null) {
     mesh.material = mat;
   }
 
-  applyTransform(mesh, start, end, length);
+  if (extrude) {
+    orientExtrudedFrame(mesh, start, end, elementKind, getFrameDims(beam), beam.localAxisAngle);
+  } else {
+    applyTransform(mesh, start, end, length);
+  }
 
   mesh.isPickable = true;
   mesh.metadata = {
     type: "beam",          // mantener "beam" para no romper tu selección actual
     beamId: beam.id,
     elementKind,           // beam | column | brace
+    extruded: extrude,
   };
 
   return mesh;
@@ -76,13 +94,23 @@ export function updateBeam3D(mesh, beam, node1, node2) {
   const elementKind = inferElementKind(beam, p1, p2);
   const style = getElementStyle(elementKind);
 
+  // Mesh extruido (box b×h): reorientar/redimensionar con su propia lógica.
+  if (mesh.metadata?.extruded) {
+    orientExtrudedFrame(mesh, start, end, elementKind, getFrameDims(beam), beam.localAxisAngle);
+
+    if (mesh.material) {
+      mesh.material.diffuseColor = style.color;
+    }
+
+    mesh.metadata = { type: "beam", beamId: beam.id, elementKind, extruded: true };
+    return mesh;
+  }
+
   applyTransform(mesh, start, end, length);
 
-  // actualizar grosor si cambia el tipo
-  mesh.scaling.x = 1;
-  mesh.scaling.z = 1;
-
-  // Si quieres aparentar más grosor por tipo sin recrear el mesh:
+  // Actualizar grosor si cambia el tipo (viga↔columna↔brace) sin recrear el
+  // mesh (comportamiento original, restaurado tras el cambio de "proporción
+  // 3D" que engordaba los modelos importados).
   const baseDiameter = 0.15;
   const factor = style.diameter / baseDiameter;
   mesh.scaling.x = factor;
@@ -99,6 +127,71 @@ export function updateBeam3D(mesh, beam, node1, node2) {
   };
 
   return mesh;
+}
+
+// ===============================
+// VISTA EXTRUIDA > dimensiones de sección (b×h en metros)
+// Reutiliza la misma normalización de unidades que la huella 2D de columnas.
+// ===============================
+function getFrameDims(beam) {
+  const sec = beam.frameSection || beam.section || {};
+  const shape = String(sec.shape || sec.type || "").toLowerCase();
+  const metallic = ["i", "wf", "w", "channel", "c", "tube", "hss", "angle", "l"].includes(shape);
+
+  const toMeters = (v) => {
+    v = Number(v);
+    if (!(v > 0)) return 0;
+    if (v <= 3) return v;                 // ya en metros
+    return metallic ? v / 1000 : v / 100; // perfil: mm ; rectangular: cm
+  };
+
+  const b = toMeters(sec.b ?? sec.width ?? sec.base);
+  const h = toMeters(sec.h ?? sec.height ?? sec.peralte);
+
+  return { b, h };
+}
+
+// ===============================
+// VISTA EXTRUIDA > orientar y dimensionar el prisma del frame
+// El box unitario se escala a (b, largo, h) y se rota para que su eje local Y
+// siga la barra. En columnas la sección respeta la rotación de eje local
+// (localAxisAngle); en vigas/diagonales el peralte h queda vertical.
+// ===============================
+function orientExtrudedFrame(mesh, start, end, kind, dims, rollDeg) {
+  const axisVec = end.subtract(start);
+  const length = axisVec.length();
+  if (length < 1e-6) return;
+
+  const yL = axisVec.normalize(); // eje de extrusión (largo de la barra)
+
+  const b = dims.b > 0 ? dims.b : 0.3;
+  const h = dims.h > 0 ? dims.h : (kind === "column" ? 0.3 : 0.5);
+
+  const vertical = Math.abs(yL.y) > 0.9; // Babylon Y = Z del modelo (altura)
+
+  let bDir;
+  let hDir;
+
+  if (vertical) {
+    // Columna: sección en el plano horizontal (Babylon X-Z).
+    // θ=0 → peralte h sobre X del modelo (Babylon X); ancho b sobre Y (Babylon Z).
+    const t = (Number(rollDeg || 0) * Math.PI) / 180;
+    const c = Math.cos(t);
+    const s = Math.sin(t);
+    hDir = new Vector3(c, 0, s);
+    bDir = new Vector3(-s, 0, c);
+  } else {
+    // Viga / diagonal: peralte h hacia arriba, ancho b perpendicular horizontal.
+    let bd = Vector3.Cross(yL, Vector3.Up());
+    if (bd.length() < 1e-6) bd = new Vector3(1, 0, 0);
+    bDir = bd.normalize();
+    hDir = Vector3.Cross(bDir, yL).normalize();
+  }
+
+  mesh.rotationQuaternion = null;
+  mesh.rotation = Vector3.RotationFromAxis(bDir, yL, hDir);
+  mesh.position.copyFrom(start.add(end).scale(0.5));
+  mesh.scaling.set(b, length, h);
 }
 
 // ===============================
@@ -172,7 +265,10 @@ function getElementStyle(kind) {
     case "column":
       return {
         color: new Color3(0.2, 0.9, 0.6), // verde-agua
-        diameter: 0.18,
+        // Mismo grosor visual que una barra normal (el usuario dibuja columnas
+        // con el botón y deben verse como líneas, no como tubos); el tipo se
+        // distingue por color. La sección real b×h la muestra la vista extruida.
+        diameter: 0.1,
       };
 
     case "brace":

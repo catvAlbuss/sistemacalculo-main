@@ -1855,7 +1855,12 @@ document.addEventListener("DOMContentLoaded", () => {
             ...(await Promise.all(
               combinacionDeCargas.getData().map(async (_, index) => {
                 return {
-                  image: await Plotly.toImage(`zapata${index + 1}`),
+                  image: await Plotly.toImage(`zapata${index + 1}`, {
+                    format: "png",
+                    width: 900,
+                    height: 420,
+                    scale: 1,
+                  }),
                   width: 420,
                   margin: [50, 0, 50, 0],
                 };
@@ -1884,7 +1889,7 @@ document.addEventListener("DOMContentLoaded", () => {
             },
           },
         };
-        pdfMake.createPdf(docDefinition).download("aligerados.pdf");
+        pdfMake.createPdf(docDefinition).download("cimentacion.pdf");
         waitingPopup.hideLoading();
       });
     } catch (error) {
@@ -1893,14 +1898,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("calcularZapatas2").addEventListener("submit", (event) => {
-    const waitingPopup = swalTailwind.fire({
-      title: "Calculando!",
-      html: "Por favor espere!<br>",
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-      },
-    });
     event.preventDefault();
     const octaveMatrix = (table, ...fields) => {
       return (
@@ -1914,6 +1911,70 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     };
     const columns = datosGenerales.getData();
+    const createDefaultCalculationShape = (rows) => {
+      const points = rows
+        .map((row) => ({ x: Number(row.x), y: Number(row.y) }))
+        .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+
+      if (!points.length) {
+        return null;
+      }
+
+      const xs = points.map((point) => point.x);
+      const ys = points.map((point) => point.y);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      const rangeX = Math.max(Math.abs(maxX - minX), 1);
+      const rangeY = Math.max(Math.abs(maxY - minY), 1);
+      const margin = Math.max(rangeX, rangeY) * 0.05;
+      const defaultShape = new Shape(true);
+
+      defaultShape.points = [
+        new Point(minX - margin, minY - margin, true, null),
+        new Point(maxX + margin, minY - margin, true, null),
+        new Point(maxX + margin, maxY + margin, true, null),
+        new Point(minX - margin, maxY + margin, true, null),
+      ];
+      defaultShape.calcularPropiedades();
+
+      return defaultShape;
+    };
+
+    const manualShapes = shape.points.length >= 3 ? [...shapes, shape] : shapes;
+    const calculationShapes = manualShapes.length ? manualShapes : [createDefaultCalculationShape(columns)].filter(Boolean);
+
+    if (!calculationShapes.length || calculationShapes.some((shape) => shape.points.length < 3)) {
+      swalTailwind.fire({
+        icon: "warning",
+        title: "Coordenadas incompletas",
+        text: "Importa o completa coordenadas X/Y antes de calcular.",
+        showConfirmButton: true,
+      });
+      return;
+    }
+
+    const invalidCoordinateRow = columns.find((row) => !Number.isFinite(Number(row.x)) || !Number.isFinite(Number(row.y)));
+    if (invalidCoordinateRow) {
+      swalTailwind.fire({
+        icon: "warning",
+        title: "Coordenadas incompletas",
+        text: `Revisa X/Y de la columna ${invalidCoordinateRow.column}.`,
+        showConfirmButton: true,
+      });
+      return;
+    }
+
+    const waitingPopup = swalTailwind.fire({
+      title: "Calculando!",
+      html: "Por favor espere!<br>",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+
     const formData = new FormData(event.target);
     formData.append("column", octaveMatrix(columns, "column", "x", "y"));
     formData.append("PD", octaveMatrix(columns, "column", "pd1", "pd2", "pd3"));
@@ -1939,7 +2000,7 @@ document.addEventListener("DOMContentLoaded", () => {
     );
     formData.append(
       "poligonos",
-      `struct(${shapes
+      `struct(${calculationShapes
         .map((shape, index) => {
           return `'poligono${index + 1}', [${[...shape.points, shape.points[0]]
             .map((p) => `${p.x.toFixed(3)},${p.y.toFixed(3)}`)
@@ -1954,7 +2015,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return `
         <tr class="bg-gray-100 dark:bg-gray-600">
           <td class="py-2 px-4" colspan="4">
-              <div id="zapata${index + 1}"></div>
+              <div id="zapata${index + 1}" style="width: 100%; height: 420px;"></div>
           </td>
         </tr>`;
       })
@@ -1968,16 +2029,44 @@ document.addEventListener("DOMContentLoaded", () => {
       .then(async (response) => {
         const contentType = response.headers.get("Content-Type");
         if (contentType && contentType.includes("application/octet-stream")) {
-          return response.arrayBuffer();
-        } else {
-          const error = await response.text();
-          return Promise.reject(error);
+          return {
+            type: "mat",
+            data: await response.arrayBuffer(),
+          };
         }
+        if (contentType && contentType.includes("application/json")) {
+          const data = await response.json();
+          if (!response.ok) {
+            return Promise.reject(data.message || "No se pudo calcular la grafica.");
+          }
+          return {
+            type: "json",
+            data,
+          };
+        }
+        const error = await response.text();
+        return Promise.reject(error);
       })
-      .then((matData) => {
+      .then((calculationResponse) => {
         waitingPopup.hideLoading();
-        const zapatas2 = readmat(matData);
+        const zapatas2 =
+          calculationResponse.type === "json"
+            ? { data: calculationResponse.data }
+            : readmat(calculationResponse.data);
         console.log(zapatas2);
+        const flattenNumeric = (value) => {
+          const flat = Array.isArray(value?.[0]) ? value.flat(Infinity) : value;
+          return (flat ?? []).map(Number);
+        };
+        const limitPlotPoints = (points, limit = 4000) => {
+          if (points.length <= limit) {
+            return points;
+          }
+
+          const step = points.length / limit;
+          return Array.from({ length: limit }, (_, pointIndex) => points[Math.floor(pointIndex * step)]);
+        };
+
         combinacionDeCargas.getData().forEach((title, index) => {
           combinaciones = Object.values(zapatas2.data.resultados).map(({ XX, YY, ZZ, max, min }, poligonoN) => {
             return {
@@ -1987,15 +2076,29 @@ document.addEventListener("DOMContentLoaded", () => {
             };
           });
           const traces = Object.values(zapatas2.data.resultados).map(({ XX, YY, ZZ, max, min }, poligonoN) => {
-            const ZEscale = ZZ[index].length ? ZZ[index] : ZZ;
+            const ZEscale = flattenNumeric(ZZ[index]?.length ? ZZ[index] : ZZ);
+            const xValues = flattenNumeric(XX);
+            const yValues = flattenNumeric(YY);
+            const points = xValues
+              .map((x, pointIndex) => ({ x, y: yValues[pointIndex], z: ZEscale[pointIndex] }))
+              .filter(({ x, y, z }) => Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z));
+
+            if (!points.length) {
+              throw new Error(`No hay puntos validos para graficar el poligono ${poligonoN + 1}.`);
+            }
+            const plotPoints = limitPlotPoints(points);
+
             return {
-              x: XX, // X-axis data
-              y: YY, // Y-axis data
-              z: ZEscale,
+              x: plotPoints.map(({ x }) => x),
+              y: plotPoints.map(({ y }) => y),
               mode: "markers", // Scatter plot mode
               marker: {
-                size: 2, // Size of the markers
-                color: ZEscale, // Color of the markers, based on Z data
+                size: 3, // Size of the markers
+                color: plotPoints.map(({ z }) => z), // Color of the markers, based on Z data
+                opacity: 0.9,
+                line: {
+                  width: 0,
+                },
                 //colorscale: "Viridis", // Color scale
                 //colorscale: "Jet", // Color scale
                 /* showscale: true, // Show the color scale */
@@ -2004,9 +2107,8 @@ document.addEventListener("DOMContentLoaded", () => {
               name: `<b>Poligono ${poligonoN + 1}<br>σ<sub>min</sub> = ${min[index].toFixed(
                 3
               )}<br>σ<sub>max</sub> = ${max[index].toFixed(3)}</b><br>`,
-              hovertemplate:
-                "<b>x</b>: %{x}<br>" + "<b>y</b>: %{y}<br>" + "<b>z</b>: %{marker.color:.4f}" + "<extra></extra>",
-              type: "scattergl", // 3D scatter plot type
+              hoverinfo: "skip",
+              type: "scatter",
               /* type: "pointcloudgl", // 3D scatter plot type */
             };
           });
@@ -2016,7 +2118,7 @@ document.addEventListener("DOMContentLoaded", () => {
               y: [row.y],
               text: [`${row.column}`],
               mode: "markers+text",
-              type: "scattergl",
+              type: "scatter",
               textposition: "top right",
               textfont: {
                 family: "Arial",
@@ -2027,6 +2129,7 @@ document.addEventListener("DOMContentLoaded", () => {
             };
           });
           const layout = {
+            autosize: true,
             xaxis: {
               scaleanchor: "y",
               scaleratio: 1,
@@ -2045,6 +2148,7 @@ document.addEventListener("DOMContentLoaded", () => {
             },
             showlegend: true,
             legend: { x: 0, y: 0.5 },
+            hovermode: false,
             annotations: Object.values(zapatas2.data.resultados).map(({ XC: [xc], YC: [yc] }, index) => {
               return {
                 x: xc,
@@ -2068,16 +2172,22 @@ document.addEventListener("DOMContentLoaded", () => {
               },
             },
           };
-          Plotly.react(`zapata${index + 1}`, [...traces, ...markers], layout, { responsive: false });
+          Plotly.react(`zapata${index + 1}`, [...traces, ...markers], layout, {
+            responsive: true,
+            displaylogo: false,
+          });
         });
       })
       .catch((error) => {
         waitingPopup.hideLoading();
+        const errorMessage =
+          typeof error === "string"
+            ? error.trim() || "No se pudo calcular la grafica. Revisa que Octave este disponible y que exista un poligono cerrado."
+            : error?.message?.trim() || "No se pudo calcular la grafica. Revisa que Octave este disponible y que exista un poligono cerrado.";
         swalTailwind.fire({
           icon: "error",
-          html: `
-              ${error}
-            `,
+          title: "Calculo fallido",
+          html: errorMessage,
           showConfirmButton: true,
         });
       });

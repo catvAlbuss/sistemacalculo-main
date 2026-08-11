@@ -1,385 +1,425 @@
 <template>
-  <div class="cad-viewer-page h-screen w-full relative">
-    <!-- Toolbar -->
-    <div class="cad-viewer-toolbar flex items-center gap-3 p-3 bg-slate-900 text-white z-20 relative">
-      <label class="cursor-pointer rounded bg-slate-700 px-3 py-2 text-sm font-medium hover:bg-slate-600">
-        📁 Cargar CAD
-        <input type="file" accept=".dwg,.dxf" @change="onFileChange" class="hidden" />
-      </label>
+  <div class="etabs-cad-app">
+    <MlCadViewer ref="cadViewerRef" locale="default" :background="0x1a1a2e" theme="dark" :local-file="selectedFile"
+      :mode="writeMode" class="etabs-cad-viewer" />
 
-      <div class="w-px h-8 bg-slate-600 mx-2"></div>
+    <FoundationOverlay :enabled="cimentacionPanelVisible" :tool="foundationTool" :columns="currentColumns"
+      :clear-signal="foundationClearSignal" :fit-signal="foundationFitSignal"
+      @polygons-change="onFoundationPolygonsChange" />
 
-      <button
-        @click="activateDrawingTool('barra')"
-        :class="[
-          'rounded px-3 py-2 text-sm font-medium',
-          drawingState === 'barra' ? 'bg-blue-600' : 'bg-blue-700 hover:bg-blue-600',
-        ]"
-        title="Dibujar barra"
-      >
-        📐 Barra
-      </button>
-      <button
-        @click="toggleSnap"
-        :class="['rounded px-3 py-2 text-sm font-medium', snapEnabled ? 'bg-green-600' : 'bg-gray-700']"
-        title="Snap a grid"
-      >
-        🔒 Snap
-      </button>
-      <button
-        @click="toggleGrid"
-        :class="['rounded px-3 py-2 text-sm font-medium', showGrid ? 'bg-green-600' : 'bg-gray-700']"
-        title="Mostrar/Ocultar grid"
-      >
-        🔲 Grid
-      </button>
-      <button
-        @click="fitContent"
-        class="rounded bg-purple-700 px-3 py-2 text-sm font-medium hover:bg-purple-600"
-        title="Centrar contenido"
-      >
-        🎯 Centrar
-      </button>
+    <button class="etabs-cimentacion-open" @click="cimentacionPanelVisible = !cimentacionPanelVisible">
+      📘 Cimentación 2.0
+    </button>
 
-      <div class="w-px h-8 bg-slate-600 mx-2"></div>
+    <aside v-if="cimentacionPanelVisible" class="etabs-cimentacion-dock">
+      <header class="etabs-cimentacion-header">
+        <div>
+          <h2>Cimentación 2.0</h2>
+          <p>Dibuja zapatas directamente sobre el visor principal de ETABS2.</p>
+        </div>
 
-      <button
-        @click="calculateForces"
-        class="rounded bg-yellow-700 px-3 py-2 text-sm font-medium hover:bg-yellow-600"
-        title="Calcular fuerzas"
-      >
-        ⚡ Calcular
-      </button>
-      <button
-        @click="generateReport"
-        class="rounded bg-red-700 px-3 py-2 text-sm font-medium hover:bg-red-600"
-        title="Generar reporte"
-      >
-        📄 Reporte
-      </button>
-      <button
-        @click="calibrateScale"
-        class="rounded bg-orange-700 px-3 py-2 text-sm font-medium hover:bg-orange-600"
-        title="Calibrar escala"
-      >
-        📏 Calibrar
-      </button>
+        <button class="etabs-cimentacion-close" @click="cimentacionPanelVisible = false">
+          ✕
+        </button>
+      </header>
 
-      <button
-        @click="toggleManualDrawing"
-        :class="['rounded px-3 py-2 text-sm font-medium', manualDrawing ? 'bg-green-600' : 'bg-gray-700']"
-      >
-        ✏️ Dibujo Manual
-      </button>
-    </div>
+      <div class="etabs-cimentacion-summary">
+        <span>Columnas: {{ currentColumns.length }}</span>
+        <span>Polígonos: {{ foundationPolygons.length }}</span>
+        <span>Herramienta: {{ foundationTool }}</span>
+      </div>
 
-    <!-- Contenedor principal -->
-    <div class="cad-viewer-container relative h-[calc(100%-56px)] w-full">
-      <MlCadViewer
-        ref="cadViewerRef"
-        locale="default"
-        :background="0x1a1a2e"
-        theme="dark"
-        :local-file="selectedFile"
-        class="cad-viewer-fullscreen"
-      />
-    </div>
+      <DatosGeneralesPanel :polygons-count="foundationPolygons.length" :active-foundation-tool="foundationTool"
+        @import-excel="onImportExcel" @joint-reactions="onJointReactions" @columns-change="onColumnsChange"
+        @set-foundation-tool="onSetFoundationTool" @clear-foundation-polygons="onClearFoundationPolygons"
+        @fit-foundation-view="onFitFoundationView" @calculate-zapatas="onCalculateZapatas"
+        @capture-cad-polyline="onCaptureCadPolyline" />
 
-    <div class="fixed bottom-4 right-4 bg-black/70 text-white px-3 py-1 rounded text-xs z-20 font-mono">
-      📊 Nodos: {{ nodeCount }} | Barras: {{ beamCount }}
-      <span v-if="drawingState !== 'idle'" class="ml-2 text-yellow-400"> ✏️ Dibujando... </span>
-    </div>
+      <div v-if="loading || error || localError" class="etabs-cimentacion-status">
+        <div v-if="loading" class="etabs-loading">
+          Calculando zapatas con /zapatas2...
+        </div>
+
+        <div v-if="error || localError" class="etabs-error">
+          <strong>Error de cálculo</strong>
+          <p>{{ error || localError }}</p>
+        </div>
+      </div>
+    </aside>
+
+    <section v-if="results" class="etabs-resultados-dock">
+      <header class="etabs-resultados-header">
+        <div>
+          <h2>Resultados de cimentación</h2>
+          <p>Presiones generadas por /zapatas2.</p>
+        </div>
+
+        <button class="etabs-resultados-close" @click="onClearCimentacionResults">
+          Limpiar
+        </button>
+      </header>
+
+      <ResultadosCimentacionInline :results="results" />
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
-import { cadEngine } from "./cadEngine.js";
+import {
+  captureLastClosedPolygon,
+  validateCapturedPolygons,
+} from "./composables/usePolygonCapture.js";
+import { ref } from "vue";
+import { MlCadViewer } from "@mlightcad/cad-viewer";
+import { AcEdOpenMode } from "@mlightcad/cad-simple-viewer";
 
-const cadContainerRef = ref(null);
+import DatosGeneralesPanel from "./components/DatosGeneralesPanel.vue";
+import FoundationOverlay from "./components/FoundationOverlay.vue";
+import ResultadosCimentacionInline from "./components/ResultadosCimentacionInline.vue";
+
+import { useZapatas2 } from "./composables/useZapatas2.js";
 
 const cadViewerRef = ref(null);
 const selectedFile = ref(undefined);
-const drawingState = ref("idle");
-const snapEnabled = ref(true);
-const showGrid = ref(true);
-const nodeCount = ref(0);
-const beamCount = ref(0);
+const writeMode = AcEdOpenMode.Write;
 
-let cadSys = null;
-let updateInterval = null;
+const cimentacionPanelVisible = ref(false);
 
-const onFileChange = (event) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
+const currentColumns = ref([]);
+const foundationPolygons = ref([]);
+const foundationTool = ref("move");
 
-  const extension = file.name.split(".").pop()?.toLowerCase();
-  if (!["dwg", "dxf"].includes(extension)) {
-    alert("Solo se permiten archivos DWG o DXF.");
-    event.target.value = "";
-    return;
-  }
+const foundationClearSignal = ref(0);
+const foundationFitSignal = ref(0);
 
-  selectedFile.value = file;
+const localError = ref("");
 
-  // Activar grid cuando se carga un CAD
-  showGrid.value = true;
-  if (cadSys) {
-    cadSys.options.showGrid = true;
-  }
+const {
+  loading,
+  error,
+  results,
+  calculateZapatas2,
+  clearResults,
+} = useZapatas2();
+
+const onClearCimentacionResults = () => {
+  localError.value = "";
+  clearResults();
 };
 
-const activateDrawingTool = (tool) => {
-  if (!cadSys) return;
-  if (tool === "barra") {
-    cadSys.setState(cadSys.trussDrawingState);
-    drawingState.value = "barra";
-  }
+const onImportExcel = (file) => {
+  localError.value = "";
+  clearResults();
+
+  console.log("📊 Excel de reacciones seleccionado:", file?.name);
 };
 
-const toggleSnap = () => {
-  snapEnabled.value = !snapEnabled.value;
-  if (cadSys) cadSys.snap_enabled = snapEnabled.value;
+const onJointReactions = () => {
+  localError.value = "";
+  console.log("📊 Importando Joint Reactions en Cimentación 2.0.");
 };
 
-const toggleGrid = () => {
-  showGrid.value = !showGrid.value;
-  if (cadSys) {
-    cadSys.options.showGrid = showGrid.value;
-    cadSys.redraw();
-  }
-};
+const onColumnsChange = (columns) => {
+  currentColumns.value = Array.isArray(columns) ? columns : [];
 
-const fitContent = () => {
-  if (cadSys && cadSys.fitContentToScreen) cadSys.fitContentToScreen();
-};
+  localError.value = "";
+  clearResults();
 
-const calculateForces = () => {
-  if (cadSys && cadSys.calcularFuerzas) {
-    cadSys.calcularFuerzas({ preventDefault: () => {} });
+  if (currentColumns.value.length > 0) {
+    foundationFitSignal.value += 1;
   }
 };
 
-const generateReport = () => {
-  if (cadSys && cadSys.generarReporte) cadSys.generarReporte();
+const onFoundationPolygonsChange = (polygons) => {
+  foundationPolygons.value = Array.isArray(polygons) ? polygons : [];
+
+  localError.value = "";
+  clearResults();
 };
 
-const updateCounts = () => {
-  if (cadSys) {
-    nodeCount.value = cadSys.nodes?.length || 0;
-    beamCount.value = cadSys.shapes?.length || 0;
-    drawingState.value = cadSys.currentState === cadSys.trussDrawingState ? "barra" : "idle";
-  }
+const onSetFoundationTool = (tool) => {
+  foundationTool.value = tool;
 };
 
-let isCadSysInitialized = false;
+const onClearFoundationPolygons = () => {
+  foundationClearSignal.value += 1;
+  foundationPolygons.value = [];
 
-const connectToCadSys = () => {
-  if (isCadSysInitialized) return;
+  localError.value = "";
+  clearResults();
+};
 
-  const alpineElement = document.getElementById("alpine-cadsys-container");
+const onFitFoundationView = () => {
+  foundationFitSignal.value += 1;
+};
 
-  if (alpineElement && alpineElement._x_dataStack) {
-    cadSys = alpineElement._x_dataStack[0];
+const onCalculateZapatas = async (payload) => {
+  try {
+    localError.value = "";
 
-    if (cadSys && cadSys.initSys && !isCadSysInitialized) {
-      isCadSysInitialized = true;
-
-      cadSys.initSys(null, null);
-
-      const cadCanvas = document.querySelector(".ml-cad-container canvas");
-      if (cadCanvas) {
-        cadCanvas.addEventListener("click", onCadCanvasClick);
-      }
-
-      // Si el motor ya está inicializado, conectar ahora
-      if (cadEngine && cadEngine.docManager) {
-        cadSys.connectEngine(cadEngine);
-      }
-
-      updateInterval = setInterval(updateCounts, 500);
-      console.log("✅ cadSys inicializado sobre canvas del CAD");
+    if (!currentColumns.value.length) {
+      throw new Error("Primero importa las columnas desde Point Object Connectivity.");
     }
-  } else {
-    setTimeout(connectToCadSys, 500);
-  }
-};
 
-const calibrateScale = () => {
-  if (!cadSys || !cadSys.cadEngine) return;
-
-  // Obtener dos puntos de referencia del CAD
-  // Por ahora, usamos un factor de escala estimado
-  const estimatedScale = 1000; // 1 metro = 1000 unidades CAD (mm)
-
-  cadSys.calibrationFactor = estimatedScale;
-  console.log(`Escala calibrada: 1 metro = ${estimatedScale} unidades CAD`);
-};
-
-// Estado para dibujo manual
-const manualDrawing = ref(false);
-let lastNode = null;
-
-const toggleManualDrawing = () => {
-  manualDrawing.value = !manualDrawing.value;
-  if (manualDrawing.value) {
-    lastNode = null;
-    alert("Modo dibujo manual activado. Haz clic para crear nodos y vigas.");
-  } else {
-    alert("Modo dibujo manual desactivado.");
-  }
-};
-
-// Función que se llamará desde el evento click del canvas del CAD
-const onCadCanvasClick = (event) => {
-  if (!manualDrawing.value) return;
-  if (!cadSys) return;
-
-  // Obtener coordenadas del mouse en el canvas del CAD (evento original)
-  const rect = event.target.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
-
-  const worldPos = cadSys.screenToWorld({ x, y });
-  console.log("Click manual en mundo:", worldPos);
-
-  // Crear nuevo nodo
-  const newNode = {
-    id: cadSys.nodes.length + 1,
-    position: { x: worldPos.x, y: worldPos.y },
-    beams: [],
-  };
-  cadSys.nodes.push(newNode);
-
-  // Si hay nodo anterior, crear viga
-  if (lastNode) {
-    const beam = {
-      id: cadSys.shapes.length + 1,
-      node1: lastNode,
-      node2: newNode,
-      length: Math.hypot(worldPos.x - lastNode.position.x, worldPos.y - lastNode.position.y),
-    };
-    cadSys.shapes.push(beam);
-    lastNode.beams.push(beam);
-    newNode.beams.push(beam);
-  }
-  lastNode = newNode;
-  cadSys.redraw();
-};
-
-onMounted(() => {
-  // Inicializar motor CAD
-  setTimeout(() => {
-    const container = document.querySelector(".ml-cad-viewer-container");
-    if (container) {
-      cadEngine.init(container);
-      console.log("✅ Motor CAD inicializado desde App.vue");
-
-      // Conectar cadSys con el motor
-      if (cadSys) {
-        cadSys.connectEngine(cadEngine);
-        console.log("✅ cadSys conectado al motor CAD");
-      }
+    if (!foundationPolygons.value.length) {
+      throw new Error("Dibuja al menos un polígono cerrado sobre el visor ETABS2.");
     }
-  }, 1000);
 
-  // Conectar cadSys cuando esté listo
-  setTimeout(connectToCadSys, 500);
-});
+    const calculationResults = await calculateZapatas2({
+      ...payload,
+      columns: currentColumns.value,
+      polygons: foundationPolygons.value,
+    });
 
-onUnmounted(() => {
-  const cadCanvas = document.querySelector(".ml-cad-container canvas");
-  if (cadCanvas) {
-    cadCanvas.removeEventListener("click", onCadCanvasClick);
+    console.log("✅ Resultados de zapatas:", calculationResults);
+  } catch (calculationError) {
+    localError.value =
+      calculationError?.message || "No se pudo calcular zapatas.";
+
+    console.error("❌ No se pudo calcular zapatas:", calculationError);
   }
-  if (updateInterval) clearInterval(updateInterval);
-  // Limpiar el intervalo de sincronización si existe
-  if (cadSys && cadSys.syncInterval) {
-    clearInterval(cadSys.syncInterval);
+};
+
+const onCaptureCadPolyline = () => {
+  try {
+    localError.value = "";
+    clearResults();
+
+    const polygon = captureLastClosedPolygon();
+
+    if (!polygon) {
+      throw new Error(
+        "No se encontró una Polyline CAD cerrada. Dibuja una zapata con Home > Polyline, ciérrala y vuelve a capturar."
+      );
+    }
+
+    const validation = validateCapturedPolygons([polygon]);
+
+    if (!validation.ok) {
+      throw new Error(validation.message);
+    }
+
+    foundationPolygons.value = validation.validPolygons;
+
+    console.log("✅ Polyline CAD capturada como zapata:", {
+      polygon: validation.validPolygons[0],
+      total: validation.validPolygons.length,
+    });
+  } catch (captureError) {
+    localError.value =
+      captureError?.message || "No se pudo capturar la Polyline CAD.";
+
+    console.error("❌ No se pudo capturar la Polyline CAD:", captureError);
   }
-});
+};
 </script>
 
-<style>
-.cad-viewer-page {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
-}
-
-.cad-viewer-container {
+<style scoped>
+.etabs-cad-app {
   position: relative;
-  flex: 1;
+  height: calc(100vh - 4rem);
+  width: 100%;
   overflow: hidden;
   background: #1a1a2e;
 }
 
-.cad-viewer-fullscreen {
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  z-index: 1 !important;
+.etabs-cad-viewer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
-/* Ocultar UI del CAD */
-.ml-cad-header,
-.ml-ribbon-toolbar-container,
-.ml-vertical-toolbar-container,
-.ml-cad-footer,
-.ml-status-bar,
-.ml-cli-container,
-.ml-ribbon,
-header,
-footer,
-[class*="ml-ribbon"],
-[class*="ml-toolbar"] {
-  display: none !important;
+.etabs-cimentacion-open {
+  position: absolute;
+  top: 140px;
+  right: 14px;
+  z-index: 100;
+  cursor: pointer;
+  border: 1px solid #60a5fa;
+  border-radius: 10px;
+  background: #2563eb;
+  color: #fff;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
 }
 
-/* El canvas del CAD debe recibir eventos para dibujar */
-.ml-cad-container canvas {
-  /* cursor: crosshair !important;
-  pointer-events: auto !important; */
-  touch-action: none !important;
+.etabs-cimentacion-open:hover {
+  background: #1d4ed8;
 }
 
-.cad-viewer-toolbar {
-  z-index: 20;
-  position: relative;
+.etabs-cimentacion-dock {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  bottom: 12px;
+  z-index: 95;
+  width: 460px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 12px;
+  color: #e2e8f0;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
 }
 
-/* El canvas del CAD debe recibir eventos para zoom/pan y dibujo */
-.ml-cad-container canvas {
-  cursor: crosshair !important;
-  pointer-events: auto !important;
+.etabs-cimentacion-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-/* Ocultar UI del CAD */
-.ml-cad-header,
-.ml-ribbon-toolbar-container,
-.ml-vertical-toolbar-container,
-.ml-cad-footer,
-.ml-status-bar,
-.ml-cli-container,
-.ml-ribbon,
-header,
-footer,
-[class*="ml-ribbon"],
-[class*="ml-toolbar"] {
-  display: none !important;
+.etabs-cimentacion-header h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 900;
 }
 
-/* Canvas overlay para dibujo */
-#drawing-overlay-canvas {
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  background: transparent !important;
-  pointer-events: none !important;
-  z-index: 20 !important;
+.etabs-cimentacion-header p {
+  margin: 3px 0 0;
+  color: #93c5fd;
+  font-size: 12px;
+}
+
+.etabs-cimentacion-close {
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  background: #dc2626;
+  color: #fff;
+  padding: 6px 9px;
+  font-weight: 800;
+}
+
+.etabs-cimentacion-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.etabs-cimentacion-summary span {
+  background: #020617;
+  border: 1px solid #334155;
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #bfdbfe;
+}
+
+.etabs-cimentacion-status {
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 12px;
+}
+
+.etabs-loading {
+  color: #bfdbfe;
+}
+
+.etabs-error {
+  color: #fecaca;
+}
+
+.etabs-error strong {
+  color: #fca5a5;
+}
+
+.etabs-error p {
+  margin: 5px 0 0;
+}
+
+.etabs-resultados-dock {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 96;
+  width: min(760px, calc(100vw - 500px));
+  max-height: 56vh;
+  overflow: auto;
+  background: rgba(15, 23, 42, 0.97);
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 12px;
+  color: #e2e8f0;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+}
+
+.etabs-resultados-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.etabs-resultados-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.etabs-resultados-header p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: #93c5fd;
+}
+
+.etabs-resultados-close {
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  background: #334155;
+  color: #fff;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+:deep(.dg-panel) {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  flex: 1;
+  box-shadow: none;
+  border-radius: 10px;
+}
+
+:deep(.dg-config-grid) {
+  grid-template-columns: repeat(2, minmax(80px, 1fr));
+}
+
+:deep(.dg-expression-input) {
+  width: 150px;
+}
+
+:deep(.dg-table-wrap-large) {
+  max-height: 220px;
+}
+
+@media (max-width: 1100px) {
+  .etabs-cimentacion-dock {
+    width: calc(100vw - 24px);
+    right: 12px;
+    bottom: auto;
+    max-height: 65vh;
+  }
+
+  .etabs-resultados-dock {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: 42vh;
+  }
 }
 </style>

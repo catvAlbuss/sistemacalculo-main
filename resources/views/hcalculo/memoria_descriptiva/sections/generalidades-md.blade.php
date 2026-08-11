@@ -1,4 +1,4 @@
-{{-- resources/views/hcalculo/memoria_descriptiva/sections/generalidades-md.blade.php --}}
+﻿{{-- resources/views/hcalculo/memoria_descriptiva/sections/generalidades-md.blade.php --}}
 <x-calc-layout title="Memoria Descriptiva - Generalidades">
     <div class="py-4" x-data="memoriaDescriptiva" x-init="init()">
         <div class="container mx-auto px-4 max-w-7xl">
@@ -69,9 +69,9 @@
                                 <p class="text-xs text-gray-400 mt-1">💡 Este texto aparecerá en el Word exactamente como lo escribas</p>
                             </div>
 
-                            {{-- Vías de Acceso --}}
+                            {{-- Vias de Acceso --}}
                             <div>
-                                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">VÍAS DE ACCESO</p>
+                                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">VIAS DE ACCESO</p>
                                 <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
                                     <table class="w-full border-collapse text-sm">
                                         <thead>
@@ -84,13 +84,17 @@
                                         </thead>
                                         <tbody class="bg-white dark:bg-gray-800">
                                             @foreach([
-                                                ['key'=>'limaHuanuco',       'label'=>'Lima - Huánuco',         'tipo'=>'Asfaltada'],
-                                                ['key'=>'huanucoTingo',      'label'=>'Huánuco - Tingo María',  'tipo'=>'Asfaltada'],
-                                                ['key'=>'tingoPucallpa',     'label'=>'Tingo María - Pucallpa', 'tipo'=>'Asfaltada'],
-                                                ['key'=>'pucallpaContamana', 'label'=>'Pucallpa - Contamana',   'tipo'=>'Rápido (Barco)'],
+                                                ['key'=>'limaHuanuco'],
+                                                ['key'=>'huanucoTingo'],
+                                                ['key'=>'tingoPucallpa'],
+                                                ['key'=>'pucallpaContamana'],
                                             ] as $tramo)
                                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                                <td class="border border-gray-200 dark:border-gray-600 p-2 font-medium text-gray-700 dark:text-gray-300">{{ $tramo['label'] }}</td>
+                                                <td class="border border-gray-200 dark:border-gray-600 p-2">
+                                                    <input type="text"
+                                                           x-model="$store.memoriaDescriptiva.sections.generalidades.acceso.{{ $tramo['key'] }}.tramo"
+                                                           class="w-full min-w-48 border border-gray-300 dark:border-gray-600 rounded p-1 text-sm font-medium bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                                </td>
                                                 <td class="border border-gray-200 dark:border-gray-600 p-2 text-center">
                                                     <input type="text"
                                                            x-model="$store.memoriaDescriptiva.sections.generalidades.acceso.{{ $tramo['key'] }}.distancia"
@@ -101,11 +105,19 @@
                                                            x-model="$store.memoriaDescriptiva.sections.generalidades.acceso.{{ $tramo['key'] }}.tiempo"
                                                            class="w-28 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
                                                 </td>
-                                                <td class="border border-gray-200 dark:border-gray-600 p-2 text-gray-600 dark:text-gray-400">{{ $tramo['tipo'] }}</td>
+                                                <td class="border border-gray-200 dark:border-gray-600 p-2">
+                                                    <input type="text"
+                                                           x-model="$store.memoriaDescriptiva.sections.generalidades.acceso.{{ $tramo['key'] }}.tipo"
+                                                           class="w-full min-w-32 border border-gray-300 dark:border-gray-600 rounded p-1 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                                </td>
                                             </tr>
                                             @endforeach
                                             <tr class="bg-green-50 dark:bg-green-900/20 font-bold">
-                                                <td class="border border-gray-200 dark:border-gray-600 p-2 text-gray-700 dark:text-gray-300">Total</td>
+                                                <td class="border border-gray-200 dark:border-gray-600 p-2">
+                                                    <input type="text"
+                                                           x-model="$store.memoriaDescriptiva.sections.generalidades.acceso.total.tramo"
+                                                           class="w-full min-w-48 border border-gray-300 dark:border-gray-600 rounded p-1 text-sm font-bold bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                                </td>
                                                 <td class="border border-gray-200 dark:border-gray-600 p-2 text-center">
                                                     <input type="text"
                                                            x-model="$store.memoriaDescriptiva.sections.generalidades.acceso.total.distancia"
@@ -116,13 +128,16 @@
                                                            x-model="$store.memoriaDescriptiva.sections.generalidades.acceso.total.tiempo"
                                                            class="w-28 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm font-bold bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
                                                 </td>
-                                                <td class="border border-gray-200 dark:border-gray-600 p-2"></td>
+                                                <td class="border border-gray-200 dark:border-gray-600 p-2">
+                                                    <input type="text"
+                                                           x-model="$store.memoriaDescriptiva.sections.generalidades.acceso.total.tipo"
+                                                           class="w-full min-w-32 border border-gray-300 dark:border-gray-600 rounded p-1 text-sm font-bold bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                                </td>
                                             </tr>
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
-
                             {{-- Demanda Educativa --}}
                             <div>
                                 <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">DEMANDA EDUCATIVA</p>
@@ -544,10 +559,17 @@
                                         <div class="md:col-span-2"
                                              x-data="{
                                                 get pisos() { return Math.max(1, parseInt(modulo.pisos) || 1); },
-                                                get mapeo() { return $store.memoriaDescriptiva.sections.descripcionModulos.mapeoImagenes[modulo.id] || null; },
+                                                 get mapeo() {
+                                                     const numero = $store.memoriaDescriptiva.extraerNumeroModulo?.(modulo.nombre) || modulo.id || (idx + 1);
+                                                     return $store.memoriaDescriptiva.sections.descripcionModulos.mapeoImagenes[numero] || null;
+                                                 },
                                                 tieneOriginal(n) {
-                                                    return this.mapeo && this.mapeo.archivos && this.mapeo.archivos[n];
-                                                },
+    // Verificación más directa
+    if (!this.mapeo) return false;
+    if (!this.mapeo.archivos) return false;
+    if (!this.mapeo.archivos[n]) return false;
+    return true;
+},
                                                 srcOriginal(n) {
                                                     return this.mapeo ? ('/assets/img/memoria_decriptiva/modulos/' + this.mapeo.archivos[n]) : '';
                                                 },
@@ -588,51 +610,53 @@
                                                 <div x-show="{{ $n }} < pisos"
                                                      class="border border-gray-200 dark:border-gray-600 rounded-lg p-2 text-center bg-gray-50 dark:bg-gray-800/50">
 
-                                                    {{-- Imagen ORIGINAL del Word --}}
-                                                    <div x-show="tieneOriginal({{ $n }})">
-                                                        <img :src="tieneOriginal({{ $n }}) ? srcOriginal({{ $n }}) : ''"
-                                                             class="h-28 mx-auto object-contain rounded"
+                                                    <div class="relative inline-block w-full">
+                                                        <img x-show="tieneSubida({{ $n }})"
+                                                             :src="srcSubida({{ $n }})"
+                                                             class="h-28 mx-auto object-contain border border-gray-200 dark:border-gray-600 rounded"
                                                              loading="lazy">
-                                                        <p class="text-xs text-gray-500 mt-1">
-                                                            📷 Original — Figura
-                                                            <span x-text="figuraOriginal({{ $n }})"></span>
-                                                            <span x-text="subtituloOriginal({{ $n }})"></span>
-                                                        </p>
+                                                        <img x-show="!tieneSubida({{ $n }}) && tieneOriginal({{ $n }})"
+     :src="srcOriginal({{ $n }})"
+     class="h-28 mx-auto object-contain rounded"
+     loading="lazy">
+
+                                                        <button type="button"
+                                                                x-show="tieneSubida({{ $n }})"
+                                                                @click="$store.memoriaDescriptiva.eliminarImagenModulo(idx, {{ $n }})"
+                                                                class="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow">x</button>
                                                     </div>
 
-                                                    {{-- Sin imagen original: upload o preview --}}
-                                                    <div x-show="!tieneOriginal({{ $n }})">
+                                                    <label x-show="!tieneSubida({{ $n }}) && !tieneOriginal({{ $n }})"
+                                                           class="flex flex-col items-center justify-center h-28 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition">
+                                                        <svg class="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                                        </svg>
+                                                        <span class="text-xs text-gray-500 mt-1">Subir nivel {{ $n + 1 }}</span>
+                                                        <input type="file" accept="image/*"
+                                                               @change="$store.memoriaDescriptiva.subirImagenModulo(idx, {{ $n }}, $event)"
+                                                               class="hidden">
+                                                    </label>
 
-                                                        {{-- Preview imagen subida --}}
-                                                        <div x-show="tieneSubida({{ $n }})" class="relative inline-block w-full">
-                                                            <img :src="srcSubida({{ $n }})"
-                                                                 class="h-28 mx-auto object-contain border border-gray-200 dark:border-gray-600 rounded"
-                                                                 loading="lazy">
-                                                            <button type="button"
-                                                                    @click="$store.memoriaDescriptiva.eliminarImagenModulo(idx, {{ $n }})"
-                                                                    class="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow">✕</button>
-                                                        </div>
+                                                    <p class="text-xs text-gray-500 mt-1">
+                                                        <span x-show="tieneSubida({{ $n }})">Imagen personalizada</span>
+                                                        <span x-show="!tieneSubida({{ $n }}) && tieneOriginal({{ $n }})">
+                                                            Original - Figura <span x-text="figuraOriginal({{ $n }})"></span><span x-text="subtituloOriginal({{ $n }})"></span>
+                                                        </span>
+                                                    </p>
 
-                                                        {{-- Placeholder upload --}}
-                                                        <label x-show="!tieneSubida({{ $n }})"
-                                                               class="flex flex-col items-center justify-center h-28 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition">
-                                                            <svg class="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                                            </svg>
-                                                            <span class="text-xs text-gray-500 mt-1">Subir nivel {{ $n + 1 }}</span>
-                                                            <input type="file" accept="image/*"
-                                                                   @change="$store.memoriaDescriptiva.subirImagenModulo(idx, {{ $n }}, $event)"
-                                                                   class="hidden">
-                                                        </label>
+                                                    <label class="inline-flex items-center justify-center mt-2 px-3 py-1.5 text-xs bg-green-600 hover:bg-green-700 text-white rounded-lg cursor-pointer transition">
+                                                        <span x-text="tieneSubida({{ $n }}) || tieneOriginal({{ $n }}) ? 'Cambiar imagen' : 'Subir imagen'"></span>
+                                                        <input type="file" accept="image/*"
+                                                               @change="$store.memoriaDescriptiva.subirImagenModulo(idx, {{ $n }}, $event)"
+                                                               class="hidden">
+                                                    </label>
 
-                                                        {{-- Subtítulo --}}
-                                                        <input type="text"
-                                                               :value="subtituloSubida({{ $n }})"
-                                                               @input="setSubtitulo({{ $n }}, $event.target.value)"
-                                                               class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-1 text-xs mt-2 text-center bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:ring-1 focus:ring-green-500"
-                                                               placeholder="Subtítulo opcional">
-                                                    </div>
+                                                    <input type="text"
+                                                           :value="subtituloSubida({{ $n }})"
+                                                           @input="setSubtitulo({{ $n }}, $event.target.value)"
+                                                           class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-1 text-xs mt-2 text-center bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:ring-1 focus:ring-green-500"
+                                                           placeholder="Subtitulo opcional">
 
                                                     <p class="text-xs font-semibold text-gray-400 mt-1" x-text="etiqueta({{ $n }})"></p>
                                                 </div>
@@ -700,3 +724,4 @@
         @vite('resources/js/documentos/memoria_descriptiva/index-refactored-md.js')
     @endPushOnce
 </x-calc-layout>
+    

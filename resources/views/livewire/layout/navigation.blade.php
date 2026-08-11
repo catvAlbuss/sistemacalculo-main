@@ -70,9 +70,10 @@ $logout = function (Logout $logout) {
                     $isStudentActive = request()->routeIs('calculadora.estudiante.*')
                         && !request()->routeIs(['calculadora.estudiante.arco_techo', 'calculadora.estudiante.cav2.hoja2']);
                     $isAssistantActive = request()->routeIs('calculadora.asistente.*') && ! $isMemoryActive;
+                    $canManagePlans = $user?->hasRole(['root', 'gerencia']) ?? false;
                 @endphp
 
-                @if ($user->hasRole(['root', 'gerencia']))
+                @if ($canManagePlans)
                     <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                         <x-dropdown-nav-item name="{{ __('Planes') }}" :active="request()->routeIs(['planUser.*', 'suscripciones.*'])">
                             <x-nav-link :href="route('planUser.index')" :active="request()->routeIs('planUser.index')">
@@ -274,7 +275,11 @@ $logout = function (Logout $logout) {
                                 'url' => route('software.analisis-estructural-de-armaduras'),
                                 'label' => 'Analisis Estructural',
                             ],
-                            ['url' => route('software.etabs2'), 'label' => 'Etabs 2'],
+                            ['url' => route('software.etabs2'), 'label' => 'Predim 2'],
+                            [
+                                'url' => route('calculadora.asistente.muros-de-contencionv2'),
+                                'label' => 'Muros de Contencion V2',
+                            ],
                         ]"></x-dropdown-sub>
 
                         <x-dropdown-link :href="route('software.predimv2')" :active="request()->routeIs('software.predimv2')">
@@ -370,7 +375,7 @@ $logout = function (Logout $logout) {
                 {{ __('Inicio') }}
             </x-responsive-nav-link>
         </div>
-        @if ($user->hasRole(['root', 'gerencia']))
+        @if ($canManagePlans)
             <div class="space-y-1 pb-3 pt-2">
                 <x-dropdown-nav-item name="{{ __('Planes') }}" component="responsive-nav-item" :active="request()->routeIs(['planUser.*', 'suscripciones.*'])">
                     <x-dropdown-link :href="route('planUser.index')" :active="request()->routeIs('planUser.index')">
@@ -554,6 +559,10 @@ $logout = function (Logout $logout) {
                     ['url' => route('software.cimentacion-v2'), 'label' => 'Cimentacion v2.0'],
                     ['url' => route('software.analisis-estructural-de-armaduras'), 'label' => 'Analisis Estructural'],
                     ['url' => route('software.etabs2'), 'label' => 'Etabs 2'],
+                    [
+                        'url' => route('calculadora.asistente.muros-de-contencionv2'),
+                        'label' => 'Muros de Contencion V2',
+                    ],
                 ]"></x-dropdown-sub>
                 <x-dropdown-link :href="route('software.predimv2')" :active="request()->routeIs('software.predimv2')">
                     {{ __('Predim') }}

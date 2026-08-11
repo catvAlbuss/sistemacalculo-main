@@ -14,6 +14,10 @@
     "file": "assets/calc_layout-DEJi0Xsr.js",
     "name": "calc_layout"
   },
+  "_color_scale-BGSv3LvJ.js": {
+    "file": "assets/color_scale-BGSv3LvJ.js",
+    "name": "color_scale"
+  },
   "_html2canvas.esm-5Cw11iw4.js": {
     "file": "assets/html2canvas.esm-5Cw11iw4.js",
     "name": "html2canvas.esm"
@@ -98,288 +102,288 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/lod3D.fragment.js": {
-    "file": "assets/lod3D.fragment-CpMaUmiP.js",
+    "file": "assets/lod3D.fragment-CS8la9WD.js",
     "name": "lod3D.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/lod3D.fragment.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/oitFinalSimpleBlend.fragment.js": {
-    "file": "assets/oitFinalSimpleBlend.fragment-F_quCkJv.js",
+    "file": "assets/oitFinalSimpleBlend.fragment-DIl4Ketb.js",
     "name": "oitFinalSimpleBlend.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/oitFinalSimpleBlend.fragment.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/selection.fragment.js": {
-    "file": "assets/selection.fragment-BiPy4tjh.js",
+    "file": "assets/selection.fragment-CgMZbVlw.js",
     "name": "selection.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/selection.fragment.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/selection.vertex.js": {
-    "file": "assets/selection.vertex-DgrtCYSj.js",
+    "file": "assets/selection.vertex-ytnPukug.js",
     "name": "selection.vertex",
     "src": "node_modules/@babylonjs/core/Shaders/selection.vertex.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/selectionOutline.fragment.js": {
-    "file": "assets/selectionOutline.fragment-CcEa9jUf.js",
+    "file": "assets/selectionOutline.fragment-c4mpon5h.js",
     "name": "selectionOutline.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/selectionOutline.fragment.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/volumetricLightingBlendVolume.fragment.js": {
-    "file": "assets/volumetricLightingBlendVolume.fragment-WA7vGq-B.js",
+    "file": "assets/volumetricLightingBlendVolume.fragment-BiLCpoIY.js",
     "name": "volumetricLightingBlendVolume.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/volumetricLightingBlendVolume.fragment.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.fragment.js": {
-    "file": "assets/volumetricLightingRenderVolume.fragment-BZt40UC_.js",
+    "file": "assets/volumetricLightingRenderVolume.fragment-B18-uflt.js",
     "name": "volumetricLightingRenderVolume.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.fragment.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.vertex.js": {
-    "file": "assets/volumetricLightingRenderVolume.vertex-BGm_N2Yt.js",
+    "file": "assets/volumetricLightingRenderVolume.vertex-B546wCh4.js",
     "name": "volumetricLightingRenderVolume.vertex",
     "src": "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.vertex.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.fragment.js": {
-    "file": "assets/gaussianSplattingVoxel.fragment-DgQf4e-D.js",
+    "file": "assets/gaussianSplattingVoxel.fragment-DQ2cIEwj.js",
     "name": "gaussianSplattingVoxel.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.fragment.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.vertex.js": {
-    "file": "assets/gaussianSplattingVoxel.vertex-DsfpaYvA.js",
+    "file": "assets/gaussianSplattingVoxel.vertex-Cq8zusn_.js",
     "name": "gaussianSplattingVoxel.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.vertex.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/lod3D.fragment.js": {
-    "file": "assets/lod3D.fragment-DBgu-kYo.js",
+    "file": "assets/lod3D.fragment-atpC7Jtv.js",
     "name": "lod3D.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/lod3D.fragment.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/oitFinalSimpleBlend.fragment.js": {
-    "file": "assets/oitFinalSimpleBlend.fragment-B4MjV3Qf.js",
+    "file": "assets/oitFinalSimpleBlend.fragment-oQBKFBvE.js",
     "name": "oitFinalSimpleBlend.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/oitFinalSimpleBlend.fragment.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/screenSpaceCurvature.fragment.js": {
-    "file": "assets/screenSpaceCurvature.fragment-38fftznm.js",
+    "file": "assets/screenSpaceCurvature.fragment-DihyO73N.js",
     "name": "screenSpaceCurvature.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/screenSpaceCurvature.fragment.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/selection.fragment.js": {
-    "file": "assets/selection.fragment-CC5V0E_V.js",
+    "file": "assets/selection.fragment-BEAiqcFT.js",
     "name": "selection.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/selection.fragment.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/selection.vertex.js": {
-    "file": "assets/selection.vertex-BaR6YtcV.js",
+    "file": "assets/selection.vertex-CMaS2qQL.js",
     "name": "selection.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/selection.vertex.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/selectionOutline.fragment.js": {
-    "file": "assets/selectionOutline.fragment-DnufBKoF.js",
+    "file": "assets/selectionOutline.fragment-DVSM2LB8.js",
     "name": "selectionOutline.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/selectionOutline.fragment.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingBlendVolume.fragment.js": {
-    "file": "assets/volumetricLightingBlendVolume.fragment-xGAx9fkf.js",
+    "file": "assets/volumetricLightingBlendVolume.fragment-D2SP33SZ.js",
     "name": "volumetricLightingBlendVolume.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingBlendVolume.fragment.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.fragment.js": {
-    "file": "assets/volumetricLightingRenderVolume.fragment-CcA0geSV.js",
+    "file": "assets/volumetricLightingRenderVolume.fragment-BJBq7rk1.js",
     "name": "volumetricLightingRenderVolume.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.fragment.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.vertex.js": {
-    "file": "assets/volumetricLightingRenderVolume.vertex-0JO8qN8z.js",
+    "file": "assets/volumetricLightingRenderVolume.vertex-BUJVVD2e.js",
     "name": "volumetricLightingRenderVolume.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.vertex.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/analisis_estructural_de_armaduras.js",
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ]
   },
   "node_modules/jquery-ui/themes/base/images/ui-icons_444444_256x240.png": {
@@ -407,7 +411,7 @@
     "src": "node_modules/jquery-ui/themes/base/images/ui-icons_ffffff_256x240.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-O82nCxni.css",
+    "file": "assets/app-srXWw5Qu.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
@@ -745,11 +749,12 @@
     ]
   },
   "resources/js/adm_safecito.js": {
-    "file": "assets/adm_safecito-BlNYcXDn.js",
+    "file": "assets/adm_safecito-Z_z0JtVV.js",
     "name": "adm_safecito",
     "src": "resources/js/adm_safecito.js",
     "isEntry": true,
     "imports": [
+      "_color_scale-BGSv3LvJ.js",
       "_mat4js.read-DcrXhSIi.js",
       "_table_factory-iqyiJ1FX.js",
       "_plotly.min-c8EnIP7c.js",
@@ -827,17 +832,17 @@
     ]
   },
   "resources/js/analisis_estructural_de_armaduras.js": {
-    "file": "assets/analisis_estructural_de_armaduras-CX2mi5p2.js",
+    "file": "assets/analisis_estructural_de_armaduras-KyqQRvW4.js",
     "name": "analisis_estructural_de_armaduras",
     "src": "resources/js/analisis_estructural_de_armaduras.js",
     "isEntry": true,
     "imports": [
       "_livewire.esm-CO6ZehnT.js",
+      "resources/js/muros-contencion/predimensionamiento.js",
       "_preload-helper-BfFHrpNk.js",
       "_mat4js.read-DcrXhSIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
-      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "resources/js/muros-contencion/predimensionamiento.js"
+      "____vite-browser-external_commonjs-proxy-BQ48sp8I.js"
     ],
     "dynamicImports": [
       "node_modules/@babylonjs/core/Shaders/lod3D.fragment.js",
@@ -1030,29 +1035,35 @@
     ]
   },
   "resources/js/documentos/memoria_descriptiva/index-refactored-md.js": {
-    "file": "assets/index-refactored-md-DmHo1qK_.js",
+    "file": "assets/index-refactored-md-tjwHEiLi.js",
     "name": "index-refactored-md",
     "src": "resources/js/documentos/memoria_descriptiva/index-refactored-md.js",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "_preload-helper-BfFHrpNk.js"
+    ]
   },
   "resources/js/espectro-sismico/index.js": {
-    "file": "assets/index-D4UfNd1v.js",
+    "file": "assets/index-CfwIN4Be.js",
     "name": "index",
     "src": "resources/js/espectro-sismico/index.js",
     "isEntry": true
   },
   "resources/js/etabs/main.js": {
-    "file": "assets/main-D4NBFjR1.js",
+    "file": "assets/main-YgM-sHSz.js",
     "name": "main",
     "src": "resources/js/etabs/main.js",
     "isEntry": true,
     "imports": [
       "_preload-helper-BfFHrpNk.js",
       "_index-C5az9QE8.js",
-      "__commonjsHelpers-_d1bhYXs.js"
+      "__commonjsHelpers-_d1bhYXs.js",
+      "_mat4js.read-DcrXhSIi.js",
+      "_plotly.min-c8EnIP7c.js",
+      "_color_scale-BGSv3LvJ.js"
     ],
     "css": [
-      "assets/main-Cc1HGVGa.css"
+      "assets/main-DwKv0X6n.css"
     ]
   },
   "resources/js/irregularidades.js": {
@@ -1123,7 +1134,7 @@
     ]
   },
   "resources/js/muros-contencion/init.js": {
-    "file": "assets/init-Cc2Bw4Pk.js",
+    "file": "assets/init-t4-F8Qn1.js",
     "name": "init",
     "src": "resources/js/muros-contencion/init.js",
     "isEntry": true,

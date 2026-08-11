@@ -72,6 +72,13 @@ function isFrame3DOnly(frame) {
     return true;
   }
 
+  // Si los flags están explícitamente marcados como NO 3D-only, respetar eso
+  // sin caer al check geométrico (evita falsos positivos en diagonales de elevación).
+  if (frame.is3DOnlyFrame === false && frame.showIn2D === true) {
+    return false;
+  }
+
+  // Fallback geométrico solo si los flags no están definidos
   const p1 = frame.node1.position;
   const p2 = frame.node2.position;
 
@@ -111,7 +118,12 @@ function isFrameSelected3D(frame, context = null) {
     ...(context?.currentState?.selectedObjects || []),
   ];
 
-  return selectedFromContext.some((selected) => selected?.id === frame?.id);
+  // Solo comparar contra BARRAS reales (node1+node2). Los ids de nodos y
+  // áreas son secuencias independientes que colisionan con los de barras:
+  // sin este filtro, seleccionar el nodo id=7 pintaba también la barra id=7.
+  return selectedFromContext.some(
+    (selected) => selected?.node1 && selected?.node2 && selected?.id === frame?.id,
+  );
 }
 
 // =====================================================
@@ -141,6 +153,49 @@ function getFrameMaterial(scene, key, color) {
   material.specularColor = new BABYLONRef.Color3(0.2, 0.2, 0.2);
 
   return material;
+}
+
+// Convierte "#rrggbb" a BABYLON.Color3; null si no es válido.
+function hexToColor3(hex) {
+  const BABYLONRef = BABYLON;
+  if (!BABYLONRef || typeof hex !== "string") return null;
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return new BABYLONRef.Color3(
+    ((n >> 16) & 255) / 255,
+    ((n >> 8) & 255) / 255,
+    (n & 255) / 255,
+  );
+}
+
+// Color de DISPLAY de la sección del frame (campo "color" del modal Frame
+// Sections). Devuelve el hex o null. Espejo del helper de renderer 2D — así el
+// color que el usuario asigna a una sección se refleja también en el 3D.
+function getFrameSectionColorHex(frame, context = null) {
+  if (!frame) return null;
+  const direct =
+    frame.section?.color || frame.frameSection?.color || frame.sectionColor || null;
+  if (direct) return direct;
+
+  const label =
+    frame.sectionName ||
+    frame.frameSection?.name ||
+    frame.frameSection?.id ||
+    frame.section?.name ||
+    frame.section?.id ||
+    frame.sectionId ||
+    "";
+  if (!label) return null;
+
+  const list =
+    context?.frameSections?.sections ||
+    (typeof window !== "undefined" && window.cadSystem?.frameSections?.sections) ||
+    null;
+  if (!Array.isArray(list)) return null;
+
+  const match = list.find((s) => s && (s.name === label || s.id === label));
+  return match?.color || null;
 }
 
 // =====================================================
@@ -187,25 +242,33 @@ function getFrameVisualConfig(scene, frame, context = null) {
   // 3D > BARRA 3D-ONLY NORMAL
   // Amarillo cuando no está seleccionada.
   // =====================================================
+  // Color propio de la sección (campo "color" del modal), si está definido.
+  // Tiene prioridad sobre el amarillo por defecto, tanto para barras normales
+  // como 3D-only. Material cacheado por color (una clave por hex).
+  const sectionHex = getFrameSectionColorHex(frame, context);
+  const sectionColor = sectionHex ? hexToColor3(sectionHex) : null;
+
   if (is3DOnly) {
-    const color = new BABYLONRef.Color3(1.0, 0.85, 0.05); // amarillo
+    const color = sectionColor || new BABYLONRef.Color3(1.0, 0.85, 0.05); // amarillo
+    const key = sectionColor ? `mat_frame_sec_${sectionHex}` : "mat_frame_3d_only";
 
     return {
       color,
-      material: getFrameMaterial(scene, "mat_frame_3d_only", color),
+      material: getFrameMaterial(scene, key, color),
       alpha: 1,
     };
   }
 
   // =====================================================
   // 3D > BARRA NORMAL NO SELECCIONADA
-  // Amarillo para que coincida con el canvas 2D.
+  // Color de la sección si tiene; si no, amarillo (para coincidir con 2D).
   // =====================================================
-  const color = new BABYLONRef.Color3(1.0, 0.85, 0.05); // amarillo
+  const color = sectionColor || new BABYLONRef.Color3(1.0, 0.85, 0.05); // amarillo
+  const key = sectionColor ? `mat_frame_sec_${sectionHex}` : "mat_frame_normal";
 
   return {
     color,
-    material: getFrameMaterial(scene, "mat_frame_normal", color),
+    material: getFrameMaterial(scene, key, color),
     alpha: 1,
   };
 }
@@ -244,26 +307,63 @@ function applyFrameVisualToMesh(mesh, visualConfig) {
 // APLICAR ESTADO VISUAL A BARRA EN EL 3D
 // Marca metadata y pinta según sea normal, 3D-only o seleccionada.
 // =====================================================
+// =====================================================
+// VISTA EXTRUIDA > espesor real de la losa (en metros)
+// Lee el espesor de la sección asignada (Datos de Propiedad de Losa). El valor
+// se guarda en MM (p.ej. 125 = 0.125 m). Si el área solo trae el nombre de la
+// sección, lo busca en context.slabSections. Default 0.20 m.
+// =====================================================
+function resolveSlabThicknessM(area, context) {
+  let raw = area?.section?.thickness ?? area?.thickness;
+
+  if (!(Number(raw) > 0)) {
+    const name = area?.slabSection || area?.section?.name;
+    const defs = context?.slabSections;
+    if (name && Array.isArray(defs)) {
+      const sec = defs.find((s) => s?.name === name);
+      if (sec) raw = sec.thickness;
+    }
+  }
+
+  let v = Number(raw);
+  if (!(v > 0)) return 0.2;   // default 20 cm
+  if (v > 3) v = v / 1000;    // mm → m
+  return v;
+}
+
 function applyFrame3DVisualState(mesh, frame, scene, context = null) {
   if (!mesh || !frame) return;
 
   const is3DOnly = isFrame3DOnly(frame);
   const isSelected = isFrameSelected3D(frame, context);
 
-  if (is3DOnly || isSelected) {
-    console.log("🎨 3D pintando barra:", {
-      id: frame.id,
-      is3DOnly,
-      isSelected,
-      selected: frame.selected,
-      isSelectedFlag: frame.isSelected,
-      highlighted3D: frame.highlighted3D,
-    });
-  }
+  // if (is3DOnly || isSelected) {
+  //   console.log("🎨 3D pintando barra:", {
+  //     id: frame.id,
+  //     is3DOnly,
+  //     isSelected,
+  //     selected: frame.selected,
+  //     isSelectedFlag: frame.isSelected,
+  //     highlighted3D: frame.highlighted3D,
+  //   });
+  // }
 
   const visualConfig = getFrameVisualConfig(scene, frame, context);
 
   applyFrameVisualToMesh(mesh, visualConfig);
+
+  // Vista extruida: hacer el sólido más transparente (deja ver el interior y
+  // las barras detrás, estilo ETABS). visibility es por-mesh, no toca el
+  // material compartido.
+  if (mesh.metadata?.extruded) {
+    const v = 0.4;
+    mesh.visibility = v;
+    if (typeof mesh.getChildMeshes === "function") {
+      mesh.getChildMeshes().forEach((child) => {
+        child.visibility = v;
+      });
+    }
+  }
 
   mesh.isPickable = true;
 
@@ -517,6 +617,30 @@ export function renderModel3D(viewer3D, nodes = [], shapes = [], areas = [], con
     beamHighlightMeshes,
   } = scene.__structuralState;
 
+  // =====================================================
+  // VISTA EXTRUIDA (Extrude View tipo ETABS)
+  // Flags de context.options. Al cambiar el modo hay que RECONSTRUIR los meshes
+  // (línea/tubo ↔ sólido), porque cambia el tipo de geometría, no solo su pose.
+  // =====================================================
+  const extrudeFrames = context?.options?.extrudeFrames3D === true;
+  const extrudeShells = context?.options?.extrudeShells3D === true;
+
+  if (scene.__structuralState.lastExtrudeFrames !== extrudeFrames) {
+    for (const [, mesh] of beamMeshes.entries()) {
+      if (mesh && !mesh.isDisposed()) safeDisposeMeshAfterRender(mesh, scene);
+    }
+    beamMeshes.clear();
+    scene.__structuralState.lastExtrudeFrames = extrudeFrames;
+  }
+
+  if (scene.__structuralState.lastExtrudeShells !== extrudeShells) {
+    for (const [, mesh] of areaMeshes.entries()) {
+      if (mesh && !mesh.isDisposed()) safeDisposeMeshAfterRender(mesh, scene);
+    }
+    areaMeshes.clear();
+    scene.__structuralState.lastExtrudeShells = extrudeShells;
+  }
+
   const nodeIds = new Set();
   const beamIds = new Set();
   const areaIds = new Set();
@@ -575,6 +699,33 @@ export function renderModel3D(viewer3D, nodes = [], shapes = [], areas = [], con
           };
         });
       }
+
+      // =====================================================
+      // 3D > COLOR DEL NODO SEGÚN ESTADO
+      // Azul: seleccionado. Rojo: activo. Gris tenue: inactivo.
+      // =====================================================
+      const isNodeSelected =
+        node.selected === true ||
+        context?.moveObjectState?.selectedObject?.id === node.id ||
+        context?.selectedNodesState?.selectedObjects?.some((n) => n?.id === node.id);
+
+      if (!nodeMesh.material || nodeMesh.material.isDisposed?.()) {
+        nodeMesh.material = new BABYLON.StandardMaterial(`nodeMat3D_${node.id}`, scene);
+      }
+
+      const mat = nodeMesh.material;
+
+      if (isNodeSelected) {
+        mat.diffuseColor = new BABYLON.Color3(0.1, 0.45, 1.0);
+        mat.emissiveColor = new BABYLON.Color3(0.02, 0.15, 0.5);
+        mat.alpha = 1;
+        nodeMesh.scaling.setAll(1.5);
+      } else {
+        mat.diffuseColor = new BABYLON.Color3(1.0, 0.3, 0.3);
+        mat.emissiveColor = new BABYLON.Color3(0.1, 0.04, 0.04);
+        mat.alpha = 1;
+        nodeMesh.scaling.setAll(1.0);
+      }
     }
   }
 
@@ -629,25 +780,26 @@ export function renderModel3D(viewer3D, nodes = [], shapes = [], areas = [], con
         ...shape,
         node1,
         node2,
-      });
+      }, null, { extrude: extrudeFrames });
 
       if (beamMesh) {
         applyFrame3DVisualState(beamMesh, { ...shape, node1, node2 }, scene, context);
 
         beamMeshes.set(shape.id, beamMesh);
       }
-
-      // =====================================================
-      // 3D > HIGHLIGHT DE BARRA 3D-ONLY SELECCIONADA
-      // Dibuja una barra fucsia encima de la barra base.
-      // =====================================================
-      updateSelectedFrameHighlight3D(
-        scene,
-        beamHighlightMeshes,
-        { ...shape, node1, node2 },
-        context
-      );
     }
+
+    // =====================================================
+    // 3D > HIGHLIGHT DE BARRA 3D-ONLY SELECCIONADA
+    // Se actualiza en cada render para que el tubo de highlight
+    // se cree, mueva o elimine correctamente al deseleccionar.
+    // =====================================================
+    updateSelectedFrameHighlight3D(
+      scene,
+      beamHighlightMeshes,
+      { ...shape, node1, node2 },
+      context
+    );
   }
 
   for (const [beamId, mesh] of beamMeshes.entries()) {
@@ -692,13 +844,23 @@ export function renderModel3D(viewer3D, nodes = [], shapes = [], areas = [], con
         ? openings.filter((opening) => openingBelongsToSlab(opening, area))
         : [];
 
+    const areaOpts = {
+      holes,
+      extrude: extrudeShells,
+      thickness: resolveSlabThicknessM(area, context),
+      // Etiquetas de losa (nombre de sección): se pueden ocultar desde el
+      // toolbar para aligerar modelos con muchas losas — cada etiqueta es un
+      // billboard con DynamicTexture propia.
+      showLabels: context.displayOptions?.showAreaSectionLabels !== false,
+    };
+
     if (existingMesh && !existingMesh.isDisposed()) {
-      const updatedMesh = updateArea3D(existingMesh, scene, area, { holes });
+      const updatedMesh = updateArea3D(existingMesh, scene, area, areaOpts);
       if (updatedMesh) {
         areaMeshes.set(area.id, updatedMesh);
       }
     } else {
-      const areaMesh = createArea3D(scene, area, { holes });
+      const areaMesh = createArea3D(scene, area, areaOpts);
       if (areaMesh) {
         areaMeshes.set(area.id, areaMesh);
       }

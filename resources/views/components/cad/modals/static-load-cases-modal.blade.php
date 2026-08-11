@@ -9,7 +9,7 @@
     {{-- Modal Principal - Lista de Casos de Carga Estáticos --}}
     <div x-show="view === 'list'" x-cloak class="bg-gray-800 rounded-lg shadow-2xl w-[650px] border border-gray-700">
         <div class="px-4 py-3 border-b border-gray-700 bg-gray-900">
-            <h3 class="text-lg font-semibold text-white">Definir Nombres de Casos de Carga Estáticos</h3>
+            <h3 class="text-lg font-semibold text-white">Definir Patrones de Carga (Load Patterns)</h3>
             <button @click="close()" class="float-right text-gray-400 hover:text-white">✕</button>
         </div>
 
@@ -241,13 +241,13 @@
             },
 
             defaultLoadCases: [{
-                    name: "DEAD",
+                    name: "CM",
                     type: "DEAD",
                     selfWeightMultiplier: 1,
                     autoLateralLoad: "0"
                 },
                 {
-                    name: "LIVE",
+                    name: "CVE",
                     type: "LIVE",
                     selfWeightMultiplier: 0,
                     autoLateralLoad: "1"
@@ -385,6 +385,12 @@
                 if (window.cadSystem) {
                     if (!window.cadSystem.staticLoadCases) window.cadSystem.staticLoadCases = {};
                     window.cadSystem.staticLoadCases.items = this.loadCases;
+                    // Espejo a loadCases.cases: es la lista que leen el dropdown de patrón
+                    // en Assign (getAvailableLoadCasesForAssign) y el Mass Source
+                    // (getAvailableLoadPatternsForMassSource). Sin esto quedaban dos
+                    // listas desincronizadas y lo definido aquí no aparecía al asignar.
+                    if (!window.cadSystem.loadCases) window.cadSystem.loadCases = {};
+                    window.cadSystem.loadCases.cases = this.loadCases;
                 }
                 this.close();
                 this.showToastMessage('Casos de carga guardados', 'success');

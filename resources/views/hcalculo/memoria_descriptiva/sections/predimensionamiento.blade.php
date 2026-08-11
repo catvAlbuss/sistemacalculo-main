@@ -129,22 +129,17 @@
             store.save();
         },
         
-        async exportWord() {
-            this.isExporting = true;
-            try {
-                if ($store.memoriaDescriptiva?.exportToWord) {
-                    await $store.memoriaDescriptiva.exportToWord();
-                } else {
-                    console.warn('Función exportToWord no disponible en el store');
-                    alert('La función de exportación aún no está disponible');
-                }
-            } catch (error) {
-                console.error('Error al exportar:', error);
-                alert('Error al exportar el documento');
-            } finally {
-                this.isExporting = false;
-            }
-        }
+async exportWord() {
+    this.isExporting = true;
+    try {
+        await $store.memoriaDescriptiva.exportWord();
+    } catch (error) {
+        console.error('Error al exportar:', error);
+        alert('Error al exportar el documento: ' + error.message);
+    } finally {
+        this.isExporting = false;
+    }
+}
     }" x-init="initPredimensionamiento()">
         <div class="container mx-auto px-4 max-w-7xl">
 
