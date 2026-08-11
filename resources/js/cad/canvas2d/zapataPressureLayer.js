@@ -12,6 +12,7 @@
 
 import { matlabColorScale } from "../../matlab/color_scale.js";
 import { flattenNumeric, getZValuesForCombo } from "../../etabs/charts/zapatas2Plot.js";
+import { buildGridIndex } from "./zapataGridIndex.js";
 
 // Cuántos "tonos" distintos de la paleta se usan para agrupar los puntos
 // (menos que los 256 de la paleta completa, pero de sobra para que el ojo
@@ -95,6 +96,11 @@ export function buildSigmaColorBins(polygon, comboIndex, cmin, cmax) {
   const bins = new Map();
   const validXs = [];
   const validYs = [];
+  // Paralelo a validXs/validYs (mismo índice) — para el tooltip de hover
+  // más abajo. OJO: no se puede usar `zs` directo ahí, tiene el largo
+  // original sin filtrar, los índices no coincidirían con validXs/validYs
+  // en cuanto se salte algún punto no-finito.
+  const validZs = [];
 
   for (let i = 0; i < xs.length; i++) {
     const x = xs[i];
@@ -104,6 +110,7 @@ export function buildSigmaColorBins(polygon, comboIndex, cmin, cmax) {
 
     validXs.push(x);
     validYs.push(y);
+    validZs.push(z);
 
     const t = Math.min(1, Math.max(0, (z - cmin) / range));
     const binIndex = Math.round(t * (COLOR_BINS - 1));
@@ -129,7 +136,12 @@ export function buildSigmaColorBins(polygon, comboIndex, cmin, cmax) {
     .sort(([a], [b]) => a - b)
     .map(([, value]) => value);
 
-  return { bins: sortedBins, cellWidthMeters, cellHeightMeters };
+  // Índice espacial para el tooltip de hover (ver zapataGridIndex.js) —
+  // se arma acá mismo (ya se tienen validXs/validYs a mano) para no
+  // recorrer la nube una segunda vez.
+  const hover = { index: buildGridIndex(validXs, validYs), xs: validXs, ys: validYs, values: validZs };
+
+  return { bins: sortedBins, cellWidthMeters, cellHeightMeters, hover };
 }
 
 const LEGEND_WIDTH = 32;

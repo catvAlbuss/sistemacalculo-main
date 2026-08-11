@@ -107,6 +107,10 @@ export function computeIsolatedOverhangs(polygonPoints, column, columnSize) {
   return {
     Lx: Math.max(lxPos, lxNeg, 0),
     Ly: Math.max(lyPos, lyNeg, 0),
+    // Bounding box del polígono — lo reusa computeIsolatedMomentAtPoint
+    // para el mapa de momento 2D, para no recalcularlo por cada punto de
+    // la nube (puede haber miles).
+    bounds: { minX, maxX, minY, maxY },
   };
 }
 
@@ -122,6 +126,54 @@ export function computeIsolatedFootingMoment(overhangs, sigmaUlt) {
   return {
     momentoVoladizoX: (sigma * (overhangs?.Lx || 0) ** 2) / 2,
     momentoVoladizoY: (sigma * (overhangs?.Ly || 0) ** 2) / 2,
+  };
+}
+
+/**
+ * Igual que computeIsolatedFootingMoment, pero evaluado en UN punto
+ * cualquiera de la zapata (no solo el peor caso) — mismo Mu=σu·d²/2, pero
+ * `d` es la distancia de ESE punto al BORDE LIBRE de su lado, no a la
+ * columna. Sirve para pintar el mapa de momento 2D (estilo M11 de ETABS).
+ *
+ * CORREGIDO (ver conversación, confirmado con captura real de ETABS: el
+ * pico de momento está pegado a la columna, no en el borde): la primera
+ * versión de esto usaba `d` = distancia AL COLUMNA, dando 0 en la columna
+ * y máximo en el borde — resultado invertido respecto a la física real.
+ * Un voladizo (viga en cara de columna) tiene su momento MÁXIMO en el
+ * apoyo (la cara de la columna, la sección crítica de diseño de E.060/
+ * ACI — de ahí sale Mu=σu·L²/2) y CERO en el extremo libre (el borde) —
+ * es la misma estática de una viga en voladizo: M(x)=w·(L−x)²/2, medido
+ * desde el apoyo, no desde la punta. Bloque 3 (computeIsolatedFootingMoment)
+ * siempre estuvo bien — ese usa L completo, no un punto intermedio, así
+ * que el bug no afectaba ni Acero (Bloque 5) ni Cortante (Bloque 6),
+ * solo este mapa 2D.
+ *
+ * `bounds` = {minX,maxX,minY,maxY} del polígono (ver computeIsolatedOverhangs).
+ */
+export function computeIsolatedMomentAtPoint(pointX, pointY, column, columnSize, sigmaUlt, bounds) {
+  const halfB = (Number(columnSize?.b) || 0) / 2;
+  const halfH = (Number(columnSize?.h) || 0) / 2;
+  const columnX = Number(column?.x) || 0;
+  const columnY = Number(column?.y) || 0;
+  const sigma = Number(sigmaUlt) || 0;
+  const x = Number(pointX) || 0;
+  const y = Number(pointY) || 0;
+
+  // Distancia de este punto al borde libre de SU lado — se "recorta" en
+  // la cara de la columna (Math.max/min contra columnX±halfB) para que el
+  // momento quede PLANO (en su máximo) sobre toda la huella de la
+  // columna, en vez de seguir creciendo más allá de la cara — el mismo
+  // criterio de "sección crítica en la cara" que usa el Mu escalar.
+  const edgeDistX = x >= columnX
+    ? Math.max(0, (bounds?.maxX ?? x) - Math.max(x, columnX + halfB))
+    : Math.max(0, Math.min(x, columnX - halfB) - (bounds?.minX ?? x));
+  const edgeDistY = y >= columnY
+    ? Math.max(0, (bounds?.maxY ?? y) - Math.max(y, columnY + halfH))
+    : Math.max(0, Math.min(y, columnY - halfH) - (bounds?.minY ?? y));
+
+  return {
+    mx: (sigma * edgeDistX * edgeDistX) / 2,
+    my: (sigma * edgeDistY * edgeDistY) / 2,
   };
 }
 
@@ -374,6 +426,12 @@ export function computeContinuousBeamMoment(leg, columnsInLeg, sigmaUlt, axialEx
   let momentoPositivoMax = 0;
   let momentoNegativoMax = 0;
   let cortanteMax = 0;
+  // Perfil de momento a lo largo de la viga — mismos puntos que ya se
+  // samplean para el envolvente, solo que acá se GUARDAN en vez de
+  // descartarse. Lo usa el mapa de momento 2D (canvas2d/zapataMomentLayer.js)
+  // para pintar cada punto de la nube de σ con su momento correspondiente,
+  // sin volver a resolver la viga por cada punto.
+  const momentProfile = [];
 
   for (let i = 0; i <= sampleCount; i++) {
     const x = (length * i) / sampleCount;
@@ -381,9 +439,10 @@ export function computeContinuousBeamMoment(leg, columnsInLeg, sigmaUlt, axialEx
     momentoPositivoMax = Math.max(momentoPositivoMax, moment);
     momentoNegativoMax = Math.min(momentoNegativoMax, moment);
     cortanteMax = Math.max(cortanteMax, Math.abs(shearAt(x)));
+    momentProfile.push({ x, moment });
   }
 
-  return { momentoPositivoMax, momentoNegativoMax, cortanteMax, beamAxis, length, width };
+  return { momentoPositivoMax, momentoNegativoMax, cortanteMax, beamAxis, length, width, origin, momentProfile };
 }
 
 // ===========================================================================
@@ -482,6 +541,11 @@ export function computeTrapezoidalBeamMoment(polygonPoints, columnsInPolygon, si
   let momentoPositivoMax = 0;
   let momentoNegativoMax = 0;
   let cortanteMax = 0;
+  // Perfil de momento a lo largo de la viga — ver mismo comentario en
+  // computeContinuousBeamMoment. Acá el momento es acumulado (no forma
+  // cerrada), así que este es el ÚNICO lugar donde se puede capturar sin
+  // recalcular todo desde cero por cada punto que se quiera consultar.
+  const momentProfile = [];
 
   for (let i = 1; i <= sampleCount; i++) {
     const x0 = (i - 1) * step;
@@ -503,9 +567,19 @@ export function computeTrapezoidalBeamMoment(polygonPoints, columnsInPolygon, si
     // Bloque 6: cortante máximo a lo largo del tramo (ya se calculaba
     // para integrar el momento — antes se descartaba, ahora se guarda).
     cortanteMax = Math.max(cortanteMax, Math.abs(shear));
+    momentProfile.push({ x: x1, moment });
   }
 
-  return { momentoPositivoMax, momentoNegativoMax, cortanteMax, beamAxis, length, width: widthAt(length / 2) };
+  return {
+    momentoPositivoMax,
+    momentoNegativoMax,
+    cortanteMax,
+    beamAxis,
+    length,
+    width: widthAt(length / 2),
+    origin,
+    momentProfile,
+  };
 }
 
 /**
@@ -564,4 +638,32 @@ export function computeCombinedFootingMoments(polygonPoints, columnsInPolygon, l
       ),
     })),
   };
+}
+
+/**
+ * Busca el momento más cercano dentro de un `momentProfile` (el arreglo
+ * {x, moment}, ORDENADO por x, que devuelven computeContinuousBeamMoment/
+ * computeTrapezoidalBeamMoment) para una posición local `x` cualquiera —
+ * vecino más cercano, no interpolación: con 200-400 muestras a lo largo
+ * de la viga el error es despreciable para un mapa de color. Búsqueda
+ * binaria (no lineal) porque esto se llama una vez por cada punto de la
+ * nube de σ, que puede pasar de 20 000 puntos por zapata.
+ */
+export function lookupMomentProfile(momentProfile, x) {
+  if (!Array.isArray(momentProfile) || !momentProfile.length) return 0;
+
+  let lo = 0;
+  let hi = momentProfile.length - 1;
+
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (momentProfile[mid].x < x) lo = mid + 1;
+    else hi = mid;
+  }
+
+  if (lo > 0 && Math.abs(momentProfile[lo - 1].x - x) < Math.abs(momentProfile[lo].x - x)) {
+    return momentProfile[lo - 1].moment;
+  }
+
+  return momentProfile[lo].moment;
 }

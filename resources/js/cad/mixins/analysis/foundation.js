@@ -24,8 +24,10 @@ import {
   getColumnSectionSize,
   computeIsolatedOverhangs,
   computeIsolatedFootingMoment,
+  computeIsolatedMomentAtPoint,
   computeCombinedFootingMoments,
   evaluateAxialExpression,
+  lookupMomentProfile,
 } from "../../engine/footingMoments.js";
 
 import {
@@ -47,6 +49,7 @@ import {
 import {
   renderZapatas2Plot,
   purgeZapatas2Plot,
+  flattenNumeric,
 } from "../../../etabs/charts/zapatas2Plot.js";
 
 import { Shape } from "../../model/shapes.js";
@@ -109,6 +112,11 @@ export const foundationMixin = {
         column: supportNodes.length === 1 ? supportNodes[0] : null,
         supportNodeIds: supportNodes.map((node) => Number(node.id)),
         polygonPoints,
+        // Referencia al area/zapata original (no solo sus puntos) — para
+        // poder guardarle el σmax encima más abajo, y así Assign > Carga
+        // Uniforme de Losa lo pueda autocompletar por ID sin tener que
+        // buscar por índice (ver conversación: autocompletar Csuelo).
+        areaRef: zapata,
       });
     }
 
@@ -170,8 +178,32 @@ export const foundationMixin = {
       // ninguna columna. Se resta antes de usarla como carga de diseño
       // ("presión neta"), para no inflar Mu con algo que ninguna columna
       // tiene que resistir.
+      //
+      // TEMPORAL (ver conversación): el cliente está validando este flujo
+      // aplicando σ BRUTA (sin restar el relleno) como carga directa sobre
+      // un shell en ETABS — para poder comparar Mu manzana con manzana
+      // mientras se corre el flujo completo, se desactiva la resta acá
+      // también. La resta sigue siendo lo técnicamente correcto (por eso
+      // se deja el mecanismo intacto, no se borra) — cuando se calibre
+      // contra el resultado neto, volver `APPLY_OVERBURDEN_DEDUCTION` a
+      // `true` reactiva el comportamiento de siempre sin tocar nada más.
+      const APPLY_OVERBURDEN_DEDUCTION = false;
       const overburden = DEFAULT_GAMMA_E * DEFAULT_DF;
-      const netSigma = (sigma) => Math.max(0, (Number(sigma) || 0) - overburden);
+      const netSigma = (sigma) => {
+        const raw = Number(sigma) || 0;
+        return Math.max(0, APPLY_OVERBURDEN_DEDUCTION ? raw - overburden : raw);
+      };
+
+      // TEMPORAL (ver conversación, mismo criterio de "pendiente de
+      // calibrar con el cliente" que APPLY_OVERBURDEN_DEDUCTION): el σmax
+      // que se autocompleta en Assign > Carga Uniforme de Losa (Csuelo)
+      // usa por ahora SOLO la Combinación 1 (índice 0), no la envolvente
+      // de las 11 — para que coincida con la combinación puntual que se ve
+      // en la pestaña activa del modal de resultados al validar contra
+      // ETABS. Cuando se defina con el cliente si el flujo de Csuelo debe
+      // usar el peor caso de diseño en vez de una combinación puntual,
+      // volver esto a `true` reactiva la envolvente sin tocar nada más.
+      const USE_ENVELOPE_FOR_SIGMA_MAX_AUTOFILL = false;
 
       // Bloque 5 — Acero por flexión: envuelve Mu (Bloque 3) con f'c/fy/
       // espesor/recubrimiento (Bloque 4, ya en polygonProperties[index].
@@ -219,6 +251,24 @@ export const foundationMixin = {
         // al polígono exacto, sin desbordar el borde.
         polygon.points = meta.polygonPoints;
 
+        // σmax BRUTA, guardada directo en el area/zapata (no en `polygon`,
+        // que se descarta al cerrar el modal) — para que Assign > Carga
+        // Uniforme de Losa la pueda autocompletar por ID sin tener que
+        // volver a calcular nada. A propósito NO usa netSigma (que hoy está
+        // en modo "bruta" por el toggle temporal de calibración) — esto
+        // siempre refleja σmax tal cual, sea cual sea el estado de ese
+        // toggle, porque es justo lo que pidió el cliente para su Csuelo
+        // ("esa presión en sí"). Combinación 1 por ahora, no la envolvente
+        // de las 11 — ver USE_ENVELOPE_FOR_SIGMA_MAX_AUTOFILL arriba.
+        if (meta.areaRef) {
+          const rawMaxima = (polygon.max || []).map((v) => Number(v) || 0);
+          meta.areaRef._sigmaMaxTonM2 = !rawMaxima.length
+            ? null
+            : USE_ENVELOPE_FOR_SIGMA_MAX_AUTOFILL
+              ? Math.max(...rawMaxima)
+              : rawMaxima[0];
+        }
+
         // σmin<0 en cualquier combo = el suelo tendría que "jalar" la
         // zapata hacia abajo en esa zona, algo que el suelo no puede
         // hacer (el contacto suelo-zapata solo transmite compresión). En
@@ -240,6 +290,35 @@ export const foundationMixin = {
           polygon.designMoments = DEFAULT_LOAD_COMBINATIONS.map((_, comboIndex) => {
             return computeIsolatedFootingMoment(overhangs, netSigma(polygon.max?.[comboIndex]));
           });
+
+          // Mapa de momento 2D: mismo principio que el mapa de presión de
+          // Bloque 2 (zapataPressureLayer.js) — se evalúa la MISMA fórmula
+          // de voladizo de Mu, punto por punto, sobre la nube de σ que ya
+          // trae /zapatas2 (XX/YY), en vez de solo en el borde. Ver
+          // computeIsolatedMomentAtPoint (footingMoments.js).
+          {
+            const xs = flattenNumeric(polygon.XX);
+            const ys = flattenNumeric(polygon.YY);
+            const mxByCombo = [];
+            const myByCombo = [];
+
+            DEFAULT_LOAD_COMBINATIONS.forEach((_, comboIndex) => {
+              const sigma = netSigma(polygon.max?.[comboIndex]);
+              const mxRow = new Array(xs.length);
+              const myRow = new Array(xs.length);
+
+              for (let i = 0; i < xs.length; i++) {
+                const point = computeIsolatedMomentAtPoint(xs[i], ys[i], meta.column.position, columnSize, sigma, overhangs.bounds);
+                mxRow[i] = point.mx;
+                myRow[i] = point.my;
+              }
+
+              mxByCombo.push(mxRow);
+              myByCombo.push(myRow);
+            });
+
+            polygon.momentField = { type: "isolated", mx: mxByCombo, my: myByCombo };
+          }
 
           const designInputs = polygonProperties[index]?.designInputs;
           const muXEnvelope = Math.max(...polygon.designMoments.map((m) => m.momentoVoladizoX));
@@ -299,6 +378,33 @@ export const foundationMixin = {
             DEFAULT_LOAD_COMBINATIONS,
             netSigmaByCombo
           );
+
+          // Mapa de momento 2D para combinadas: reutiliza el momentProfile
+          // que ya trae cada momentsByCombo[i] (footingMoments.js) —
+          // proyecta cada punto de la nube de σ sobre el eje de la viga y
+          // busca su momento con lookupMomentProfile (vecino más cercano).
+          // Constante a lo ancho de la viga (mismo criterio 1D que ya usa
+          // el propio cálculo del momento envolvente) — se ve como franjas
+          // en vez del patrón concéntrico de las aisladas, y es honesto:
+          // así es exactamente la simplificación que ya hacíamos.
+          if (polygon.combinedMoments?.supported) {
+            const leg = polygon.combinedMoments.legs[0];
+            const xs = flattenNumeric(polygon.XX);
+            const ys = flattenNumeric(polygon.YY);
+            const valueByCombo = DEFAULT_LOAD_COMBINATIONS.map((_, comboIndex) => {
+              const combo = leg.momentsByCombo[comboIndex];
+              const axis = combo?.beamAxis;
+              const origin = Number(combo?.origin) || 0;
+              const profile = combo?.momentProfile;
+
+              return xs.map((x, i) => {
+                const localPos = (axis === "x" ? x : ys[i]) - origin;
+                return lookupMomentProfile(profile, localPos);
+              });
+            });
+
+            polygon.momentField = { type: "combined", value: valueByCombo };
+          }
 
           if (!polygonProperties[index]) return;
 

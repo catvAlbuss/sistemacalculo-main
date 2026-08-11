@@ -241,6 +241,36 @@
         </select>
         <label class="text-[9px] leading-tight text-gray-500">Combo</label>
       </div>
+
+      {{-- Mapa de momento 2D (Bloque 3, evaluado punto a punto — ver
+           canvas2d/zapataMomentLayer.js). Aproximación derivada de la
+           misma fórmula de voladizo/viga del método rígido, NO un M11 de
+           elementos finitos — ver el comentario en ese archivo. --}}
+      <x-cad.ui.ribbon-button clickHandler="showZapataMomentLayer = !showZapataMomentLayer"
+        toggle="showZapataMomentLayer" label="Momento 2D">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="12" r="4.5" />
+          <circle cx="12" cy="12" r="1" fill="currentColor" />
+        </svg>
+      </x-cad.ui.ribbon-button>
+
+      <div class="flex h-full flex-col items-center justify-center self-center gap-0.5 px-1" x-show="showZapataMomentLayer" x-cloak>
+        <div class="flex gap-1">
+          <select x-model.number="zapataMomentComboIndex"
+            class="w-[70px] rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200 outline-none focus:border-blue-500">
+            <template x-for="n in 11" :key="n">
+              <option :value="n - 1" x-text="'Comb ' + n"></option>
+            </template>
+          </select>
+          <select x-model="zapataMomentDirection"
+            class="w-[46px] rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200 outline-none focus:border-blue-500">
+            <option value="x">Mx</option>
+            <option value="y">My</option>
+          </select>
+        </div>
+        <label class="text-[9px] leading-tight text-gray-500">Combo / Dirección</label>
+      </div>
     </x-cad.ui.ribbon-group>
     <x-cad.ui.ribbon-group title="Otros">
       <x-cad.ui.ribbon-button clickHandler="cadSystem.activateEditMenuAction('divide-lines')" toggle="false" label="Dividir lineas">

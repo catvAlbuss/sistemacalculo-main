@@ -22,6 +22,8 @@ import {
 } from "../diagrams/frameForceDisplayPanel.js";
 
 import { computeSigmaColorRange, buildSigmaColorBins, drawSigmaLegend } from "./zapataPressureLayer.js";
+import { computeMomentColorRange, buildMomentColorBins, drawMomentLegend } from "./zapataMomentLayer.js";
+import { lookupGridIndex, drawHoverTooltip } from "./zapataGridIndex.js";
 
 
 function imgFromSVG(svg) {
@@ -119,6 +121,7 @@ export class DiseñoRenderer {
     this.drawDimensionPreview(CADSystem);
     this.drawAreas(CADSystem);
     this.drawZapataPressureLayer(CADSystem);
+    this.drawZapataMomentLayer(CADSystem);
     this.drawAreaPreview(CADSystem);
     this.drawOrthoGuides(CADSystem);
 
@@ -1759,7 +1762,136 @@ export class DiseñoRenderer {
       }
     });
 
+    // Tooltip con el valor exacto donde está el cursor — pedido del
+    // cliente para comparar punto a punto contra "Shell Forces/Stresses"
+    // de ETABS. `context.mousePos` ya lo actualiza handleMouseMove
+    // (mixins/core/events.js) en CADA movimiento del mouse sin importar
+    // qué herramienta esté activa — no hace falta un listener nuevo.
+    if (context.mousePos) {
+      for (const { hover } of cache.perPolygon) {
+        const idx = lookupGridIndex(hover?.index, context.mousePos.x, context.mousePos.y);
+        if (idx === null) continue;
+        const value = hover.values[idx];
+        if (!Number.isFinite(value)) continue;
+        const screenPt = this.projectPoint({ position: { x: hover.xs[idx], y: hover.ys[idx], z: 0 } }, context);
+        drawHoverTooltip(ctx, screenPt.x, screenPt.y, value, "σ", "Tn/m²");
+        break; // una sola zapata a la vez (no deberían solaparse)
+      }
+    }
+
     drawSigmaLegend(ctx, ctx.canvas.width, ctx.canvas.height, cmin, cmax);
+  }
+
+  /**
+   * Pinta el momento de diseño (Bloque 3, evaluado punto a punto — ver
+   * zapataMomentLayer.js) sobre cada zapata en el 2D. Mismo mecanismo que
+   * drawZapataPressureLayer (celdas + caché + leyenda), pero leyendo
+   * `polygon.momentField` (calculado en foundation.js) en vez de `ZZ`. Se
+   * activa con `context.showZapataMomentLayer`, combinación con
+   * `context.zapataMomentComboIndex`, dirección (solo aisladas) con
+   * `context.zapataMomentDirection` ('x'|'y') — los tres en cad_sys.js.
+   */
+  drawZapataMomentLayer(context) {
+    if (!context.showZapataMomentLayer) return;
+
+    const results = context._lastZapataCalculationResults;
+    const polygons = (results?.normalizedPolygons || []).filter((p) => p.momentField);
+    if (!polygons.length) return;
+
+    const comboIndex = context.zapataMomentComboIndex ?? 0;
+    const direction = context.zapataMomentDirection || "x";
+    const ctx = context.ctx;
+
+    let cache = this._zapataMomentCache;
+    if (!cache || cache.results !== results || cache.comboIndex !== comboIndex || cache.direction !== direction) {
+      const { cmin, cmax } = computeMomentColorRange(polygons, comboIndex, direction);
+      cache = {
+        results,
+        comboIndex,
+        direction,
+        cmin,
+        cmax,
+        perPolygon: polygons.map((polygon) => ({
+          polygon,
+          isCombined: polygon.momentField?.type === "combined",
+          ...buildMomentColorBins(polygon, comboIndex, direction, cmin, cmax),
+        })),
+      };
+      this._zapataMomentCache = cache;
+    }
+
+    const { cmin, cmax } = cache;
+    const pixelsPerMeter = context.grid?.scaleX || 1;
+    let anyCombined = false;
+
+    cache.perPolygon.forEach(({ polygon, isCombined, bins, cellWidthMeters, cellHeightMeters }) => {
+      if (isCombined) anyCombined = true;
+
+      const cellWidth = Math.max(1.5, cellWidthMeters * pixelsPerMeter);
+      const cellHeight = Math.max(1.5, cellHeightMeters * pixelsPerMeter);
+
+      ctx.save();
+
+      const screenPts = polygon.points?.length >= 3
+        ? polygon.points.map((pt) => this.projectPoint({ position: { x: pt.x, y: pt.y, z: 0 } }, context))
+        : null;
+
+      if (screenPts) {
+        const clipPath = new Path2D();
+        clipPath.moveTo(screenPts[0].x, screenPts[0].y);
+        for (let i = 1; i < screenPts.length; i++) {
+          clipPath.lineTo(screenPts[i].x, screenPts[i].y);
+        }
+        clipPath.closePath();
+        ctx.clip(clipPath);
+      }
+
+      bins.forEach(({ color, points }) => {
+        const path = new Path2D();
+
+        points.forEach(({ x, y }) => {
+          const p = this.projectPoint({ position: { x, y, z: 0 } }, context);
+          path.rect(p.x - cellWidth / 2, p.y - cellHeight / 2, cellWidth, cellHeight);
+        });
+
+        ctx.fillStyle = color;
+        ctx.fill(path);
+      });
+
+      ctx.restore();
+
+      if (screenPts) {
+        ctx.beginPath();
+        ctx.moveTo(screenPts[0].x, screenPts[0].y);
+        for (let i = 1; i < screenPts.length; i++) {
+          ctx.lineTo(screenPts[i].x, screenPts[i].y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = "#f472b6";
+        ctx.lineWidth = Math.min(20, Math.max(1.5, Math.max(cellWidth, cellHeight) * 0.75));
+        ctx.stroke();
+      }
+    });
+
+    // Tooltip con el valor exacto donde está el cursor — mismo mecanismo
+    // que la capa de presión (ver ahí el porqué de context.mousePos).
+    if (context.mousePos) {
+      const label = anyCombined ? "M" : direction === "y" ? "My" : "Mx";
+      for (const { isCombined, hover } of cache.perPolygon) {
+        const idx = lookupGridIndex(hover?.index, context.mousePos.x, context.mousePos.y);
+        if (idx === null) continue;
+        const value = hover.values[idx];
+        if (!Number.isFinite(value)) continue;
+        const screenPt = this.projectPoint({ position: { x: hover.xs[idx], y: hover.ys[idx], z: 0 } }, context);
+        drawHoverTooltip(ctx, screenPt.x, screenPt.y, value, isCombined ? "M" : label, "Tn·m/m");
+        break;
+      }
+    }
+
+    // Si hay zapatas aisladas Y combinadas visibles a la vez, la etiqueta
+    // de dirección (Mx/My) solo aplica a las aisladas — se muestra la
+    // genérica "M" en ese caso mixto para no rotular mal a las combinadas.
+    drawMomentLegend(ctx, ctx.canvas.width, ctx.canvas.height, cmin, cmax, direction, anyCombined);
   }
 
   drawAreaPreview(context) {
