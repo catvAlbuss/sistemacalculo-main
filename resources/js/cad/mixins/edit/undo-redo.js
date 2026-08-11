@@ -1,4 +1,4 @@
-import { Beam, Node as StructuralNode } from "../../model/shapes.js";
+import { Beam, Node as StructuralNode, Area } from "../../model/shapes.js";
 
 /**
  * @mixin undoRedoMixin
@@ -308,7 +308,23 @@ export const undoRedoMixin = {
       if (!node2.beams.includes(frame)) node2.beams.push(frame);
     });
 
-    this.areas = this.cloneEditPlainData(snapshot.areas || []) || [];
+    // BUG (ver conversación: "zapata.propiedades is not a function"):
+    // cloneEditPlainData hace JSON.parse(JSON.stringify(...)) — eso deja
+    // datos planos, sin la clase Area/Shape ni sus métodos (.propiedades(),
+    // .calcularPropiedades()). nodes/frames arriba SÍ se reconstruyen como
+    // instancias reales; areas quedaba como el único que no, así que
+    // después de un undo/redo, calcularZapatas() fallaba al llamar
+    // zapata.propiedades() sobre un objeto plano. Se reconstruye cada área
+    // como instancia real de Area, con TODOS sus campos (Object.assign, no
+    // uno por uno — las áreas cargan datos muy distintos según su tipo:
+    // section+recubrimiento en zapatas, slabSection en losas, etc.) y se
+    // recalculan sus propiedades geométricas ya con los puntos puestos.
+    this.areas = (this.cloneEditPlainData(snapshot.areas || []) || []).map((areaData) => {
+      const area = new Area(areaData?.areaType || "slab", areaData?.z || 0);
+      Object.assign(area, areaData);
+      area.calcularPropiedades();
+      return area;
+    });
     this.dimensionLines = this.cloneEditPlainData(snapshot.dimensionLines || []) || [];
     this.referencePoints = this.cloneEditPlainData(snapshot.referencePoints || []) || [];
     this.referencePlanes = this.cloneEditPlainData(snapshot.referencePlanes || []) || [];

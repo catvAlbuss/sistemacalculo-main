@@ -1702,6 +1702,13 @@ export const jsonIoMixin = {
           // el pivote de órbita 3D ahí (createModelFromDialog ya lo hacía para
           // "Nuevo Modelo"; acá faltaba para abrir/restaurar uno guardado).
           this.recenterCameraOnGrid?.();
+          // Y reconstruir el índice de snap de grilla 3D (mallas
+          // "gridSnapPoint3D" que usa el hover al dibujar en 3D) — sin esto
+          // quedaba con el índice vacío del "Nuevo Modelo" inicial (0 grids) y
+          // el hover sobre un vértice de grilla NUNCA lo detectaba (el nodo SÍ
+          // se creaba al hacer clic, porque ese camino calcula la grilla en
+          // vivo desde los datos, no desde estas mallas cacheadas).
+          this.rebuild3DGridSnapPointsSoon?.("importFromJSON");
         });
       });
 

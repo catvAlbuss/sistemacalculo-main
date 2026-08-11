@@ -240,10 +240,15 @@ class OctavePlotController extends Controller
         $poligonoIndex = 1;
 
         foreach ($poligonos as $vertices) {
+            $props = $this->polygonProperties($vertices);
+
             $idsDentro = [];
+            $posiciones = [];
             foreach ($columnas as $row) {
                 if (count($row) >= 3 && $this->pointInPolygon((float) $row[1], (float) $row[2], $vertices)) {
-                    $idsDentro[] = (string) $row[0];
+                    $id = (string) $row[0];
+                    $idsDentro[] = $id;
+                    $posiciones[$id] = [(float) $row[1], (float) $row[2]];
                 }
             }
 
@@ -254,24 +259,35 @@ class OctavePlotController extends Controller
             ];
 
             foreach ($idsDentro as $id) {
+                // EXCENTRICIDAD COLUMNA-CENTROIDE: ver mismo comentario en
+                // zapatas2.m. $ex/$ey dan 0 si la columna ya cae en el
+                // centroide -- no cambia ningún resultado ya validado con
+                // zapatas centradas, solo corrige el caso descentrado
+                // (antes silenciosamente ignorado).
+                [$xi, $yi] = $posiciones[$id];
+                $ex = $xi - $props['XC'];
+                $ey = $yi - $props['YC'];
+
                 if (isset($pd[$id])) {
-                    $fuerzas['pm'] += (float) ($pd[$id][1] ?? 0);
-                    $fuerzas['mxm'] += (float) ($pd[$id][2] ?? 0);
-                    $fuerzas['mym'] += (float) ($pd[$id][3] ?? 0);
+                    $p = (float) ($pd[$id][1] ?? 0);
+                    $fuerzas['pm'] += $p;
+                    $fuerzas['mxm'] += (float) ($pd[$id][2] ?? 0) + $p * $ex;
+                    $fuerzas['mym'] += (float) ($pd[$id][3] ?? 0) + $p * $ey;
                 }
                 if (isset($pl[$id])) {
-                    $fuerzas['pv'] += (float) ($pl[$id][1] ?? 0);
-                    $fuerzas['mxv'] += (float) ($pl[$id][2] ?? 0);
-                    $fuerzas['myv'] += (float) ($pl[$id][3] ?? 0);
+                    $p = (float) ($pl[$id][1] ?? 0);
+                    $fuerzas['pv'] += $p;
+                    $fuerzas['mxv'] += (float) ($pl[$id][2] ?? 0) + $p * $ex;
+                    $fuerzas['myv'] += (float) ($pl[$id][3] ?? 0) + $p * $ey;
                 }
                 if (isset($sismo[$id])) {
-                    $fuerzas['ps'] += (float) ($sismo[$id][1] ?? 0);
-                    $fuerzas['mxs'] += (float) ($sismo[$id][2] ?? 0);
-                    $fuerzas['mys'] += (float) ($sismo[$id][3] ?? 0);
+                    $p = (float) ($sismo[$id][1] ?? 0);
+                    $fuerzas['ps'] += $p;
+                    $fuerzas['mxs'] += (float) ($sismo[$id][2] ?? 0) + $p * $ex;
+                    $fuerzas['mys'] += (float) ($sismo[$id][3] ?? 0) + $p * $ey;
                 }
             }
 
-            $props = $this->polygonProperties($vertices);
             $centered = array_map(fn ($point) => [$point[0] - $props['XC'], $point[1] - $props['YC']], $vertices);
             $centeredProps = $this->polygonProperties($centered);
             $grid = $this->polygonGrid($centered);

@@ -1583,6 +1583,30 @@ _WALL_SLENDER_TARGET_ELEMENT_SIZE_M = 0.42
 # ─────────────────────────────────────────────────────────────────────────
 _WALL_OUT_OF_PLANE_BENDING_MODIFIER = 1.0
 
+# MURO DE ALBAÑILERÍA — modificador APARTE, validado 2026-08-11 (payload real,
+# "MODELO (2)1", 11 muros de tabique e=0.13m + diafragma rígido D1). Con el
+# modificador general (1.0, arriba) el motor salía MÁS RÍGIDO que ETABS: T1
+# −4.8%, creciendo hasta T9 −17.4% (la flexión fuera-de-plano de estos muros
+# de tabique es rigidez "extra" que ETABS no le da tanto peso). Con 0.1 el
+# error baja a −1.1%/−6.2% — mucha mejor. Probar el mismo 0.1 en el modificador
+# GENERAL ya se descartó antes (rompe MODULO 6 +52%, ver comentario de arriba)
+# porque esos otros modelos son de muros de CORTE de concreto, no tabiquería —
+# la distinción real no es el espesor (aunque acá también es delgado, 0.13m
+# vs 0.40m+ de MODULO 5/6), es que la albañilería de tabique se excluye/reduce
+# de la rigidez lateral por práctica de diseño (E.070), tenga el espesor que
+# tenga — así que el modificador se separa por `designType` del material del
+# muro (Masonry vs el resto), no por un único valor global. Sin re-validar
+# contra un tabique MÁS grueso todavía — si aparece uno y este valor no calza,
+# revisar antes de asumir que 0.1 generaliza a toda albañilería.
+_WALL_MASONRY_OUT_OF_PLANE_BENDING_MODIFIER = 0.1
+
+
+def _wall_bending_modifier(material: dict) -> float:
+    design_type = str((material or {}).get("designType") or "").strip().lower()
+    if design_type == "masonry":
+        return _WALL_MASONRY_OUT_OF_PLANE_BENDING_MODIFIER
+    return _WALL_OUT_OF_PLANE_BENDING_MODIFIER
+
 
 def _build_wall_mesh_plan(data: dict, nodes: list, node_lookup_out: dict = None):
     """
@@ -1701,8 +1725,10 @@ def _build_wall_mesh_plan(data: dict, nodes: list, node_lookup_out: dict = None)
         # (6º arg de ElasticMembranePlateSection): reduce SOLO la rigidez de
         # flexión (out-of-plane) dejando la membrana (in-plane) intacta —
         # equivalente al "bending stiffness modifier" de un muro en ETABS.
-        # Ver _WALL_OUT_OF_PLANE_BENDING_MODIFIER para el porqué del valor.
-        sec_key = (round(E, -3), round(poisson, 3), round(thickness, 4))
+        # Depende del material (Masonry vs el resto) — ver
+        # _wall_bending_modifier / _WALL_MASONRY_OUT_OF_PLANE_BENDING_MODIFIER.
+        bending_modifier = _wall_bending_modifier(material)
+        sec_key = (round(E, -3), round(poisson, 3), round(thickness, 4), bending_modifier)
         sec_tag = sec_cache.get(sec_key)
         if sec_tag is None:
             sec_tag = next_sec_tag
@@ -1714,7 +1740,7 @@ def _build_wall_mesh_plan(data: dict, nodes: list, node_lookup_out: dict = None)
                 poisson,
                 thickness,
                 0.0,
-                _WALL_OUT_OF_PLANE_BENDING_MODIFIER,
+                bending_modifier,
             )
             sec_cache[sec_key] = sec_tag
 

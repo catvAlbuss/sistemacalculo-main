@@ -226,6 +226,15 @@ export const cadUnits = {
     return roundSig(nPerM2 / dispUnit);
   },
 
+  // Inverso de la de arriba — faltaba (esa era de solo lectura, para
+  // mostrar peso propio de losa). Se necesita para inputs editables como
+  // el de Carga de Área (Assign > Carga Uniforme de Losa).
+  areaLoadDispToKgfM2(v) {
+    const dispUnit = this._FN() / Math.pow(this._LM(), 2);
+    const nPerM2 = (Number(v) || 0) * dispUnit;
+    return roundSig(nPerM2 / FORCE_TO_N.kgf);
+  },
+
   // =====================================================
   // CARGA DISTRIBUIDA (fuerza/longitud) — interno del motor: N/m.
   // Display: F/L de la unidad activa (tonf/m, kgf/cm, …). Usado por el

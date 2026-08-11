@@ -86,7 +86,10 @@ export const seismicPayloadMixin = {
     const wNmm3 = this._numberForSeismic(mat?.weightPerUnitVolume, null) ?? this._numberForSeismic(mat?.weight, null);
     const unitWeightNPerM3 = (wNmm3 !== null && wNmm3 > 0 && wNmm3 < 1) ? wNmm3 * 1e9 : 24000;
 
-    return { E, G, poissonRatio, unitWeightNPerM3, name: mat?.name || materialName || null };
+    // designType (Concrete/Masonry/...) — el motor lo usa para decidir el
+    // modificador de flexión fuera-de-plano del muro: la albañilería (tabique)
+    // se excluye/reduce por práctica de diseño, independiente del espesor.
+    return { E, G, poissonRatio, unitWeightNPerM3, designType: mat?.designType || null, name: mat?.name || materialName || null };
   },
 
   // ─── Diafragmas rígidos para análisis sísmico ─────────────────────────────
