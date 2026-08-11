@@ -1,5 +1,12 @@
 import * as BABYLON from "@babylonjs/core";
 
+import {
+    getFrameForceIndex,
+    getDiagramSide,
+} from "./frameForceDiagramUtils.js";
+import { toDisplayUnits } from "./frameForceUnits.js";
+import { getDiagramTargetHeightModel } from "./frameForceDiagramScale.js";
+
 const LAYER_KEY = "__jhFrameForceDiagram3D";
 
 const COMPONENT_COLORS = {
@@ -81,22 +88,58 @@ function isFrameSelected(frame, context) {
     );
 }
 
+// Mismo índice cacheado que usa el renderer 2D: evita un `.find()` sobre todos
+// los registros por cada barra del modelo en cada reconstrucción de la escena.
 function findFrameForceRecord(results, frameId, display) {
-    const records = Array.isArray(results?.frameForces)
-        ? results.frameForces
-        : [];
+    const index = getFrameForceIndex(
+        results,
+        display?.caseId || "CM",
+        display?.comboId,
+    );
 
-    return records.find((record) => {
-        if (String(record?.frameId) !== String(frameId)) {
-            return false;
-        }
+    return index ? index.byFrame.get(String(frameId)) : undefined;
+}
 
-        if (display?.comboId) {
-            return String(record?.comboId) === String(display.comboId);
-        }
+/**
+ * Ejes locales que REPORTÓ EL MOTOR para esa barra, pasados a Babylon.
+ *
+ * Es la única fuente válida: el motor los deriva del `vecxz` con el que armó el
+ * elemento en OpenSees, así que son los ejes en los que están expresados P, V2,
+ * V3, T, M2 y M3. `calculateFrameLocalAxes3D` los ADIVINA por geometría y para
+ * las COLUMNAS da otra cosa:
+ *
+ *   columna vertical → motor:  local2 = +X mundo   (vecxz [0,1,0], calibrado
+ *                                                   contra ETABS)
+ *                    → visor:  local2 = +Y mundo
+ *
+ * O sea 90° cruzados: el diagrama de M3 de las columnas se dibujaba en el plano
+ * equivocado, y según el ángulo de cámara se leía como invertido. Encima la
+ * adivinanza geométrica ignora `localAxisAngle` (columnas rotadas), que el
+ * motor sí respeta.
+ *
+ * Mapeo mundo → Babylon: (x, y, z) → (x, z, y), igual que mapPointToBabylon.
+ */
+function axesFromRecord3D(record, fallback) {
+    const a2 = record?.localAxes?.axis2;
+    const a3 = record?.localAxes?.axis3;
 
-        return String(record?.caseId) === String(display?.caseId || "CM");
-    });
+    if (!Array.isArray(a2) || !Array.isArray(a3) || !fallback) return fallback;
+
+    const toBabylon = (v) =>
+        new BABYLON.Vector3(Number(v[0]) || 0, Number(v[2]) || 0, Number(v[1]) || 0);
+
+    const local2 = toBabylon(a2);
+    const local3 = toBabylon(a3);
+
+    if (local2.lengthSquared() < 1e-12 || local3.lengthSquared() < 1e-12) {
+        return fallback;
+    }
+
+    return {
+        local1: fallback.local1,
+        local2: local2.normalize(),
+        local3: local3.normalize(),
+    };
 }
 
 export function calculateFrameLocalAxes3D(start, end) {
@@ -121,12 +164,14 @@ export function calculateFrameLocalAxes3D(start, end) {
     return { local1, local2, local3 };
 }
 
+// El lado de cada componente sale de `getDiagramSide` (frameForceDiagramUtils.js),
+// que es la fuente ÚNICA para el 2D, el 3D y el diálogo por barra. Vivía
+// duplicado acá y el 2D ni la tenía → M3 salía espejado entre las dos vistas.
 function getDiagramDirection(component, axes) {
-    if (component === "V3" || component === "M2") {
-        return axes.local3;
-    }
+    const axis = component === "V3" || component === "M2" ? axes.local3 : axes.local2;
+    const side = getDiagramSide(component);
 
-    return axes.local2;
+    return side === 1 ? axis : axis.scale(-1);
 }
 
 export function clearFrameForceDiagrams3D(viewerState) {
@@ -141,13 +186,49 @@ export function clearFrameForceDiagrams3D(viewerState) {
 
     layer.meshes.forEach((mesh) => {
         if (mesh && !mesh.isDisposed?.()) {
-            mesh.dispose(false, true);
+            // Etiquetas y lotes comparten materiales cacheados en la escena
+            // (LABEL_MATERIAL_CACHE / DIAGRAM_MATERIAL_CACHE), así que su
+            // material NO se destruye con el mesh: si se destruyera, el resto
+            // se quedaría con una textura muerta y habría que recrearla en cada
+            // reconstrucción, que es justamente lo que hacía lento esto.
+            const sharesMaterial =
+                mesh.metadata?.sharedMaterial === true ||
+                mesh.metadata?.objectKind === "etabsValueLabel3D";
+
+            mesh.dispose(false, !sharesMaterial);
             removed += 1;
         }
     });
 
     layer.meshes = [];
     layer.summary = null;
+
+    return removed;
+}
+
+/**
+ * Libera los materiales de etiqueta cacheados. Solo hace falta al desmontar la
+ * escena — mientras se siga mostrando diagramas, conviene que sobrevivan.
+ */
+export function disposeFrameForceLabelCache3D(viewerState) {
+    const scene = viewerState?.scene;
+
+    if (!scene) return 0;
+
+    let removed = 0;
+
+    [LABEL_MATERIAL_CACHE, DIAGRAM_MATERIAL_CACHE].forEach((cacheKey) => {
+        const cache = scene[cacheKey];
+
+        if (!cache) return;
+
+        cache.forEach((material) => {
+            material?.dispose?.(true, true);
+            removed += 1;
+        });
+
+        cache.clear();
+    });
 
     return removed;
 }
@@ -194,24 +275,12 @@ function getModelSpan(context) {
     );
 }
 
+// La regla vive en frameForceDiagramScale.js, compartida con el 2D: tenerla
+// duplicada fue justo lo que dejó al 2D dibujando con 42 px fijos mientras el
+// 3D usaba una fracción del modelo, y las dos vistas mostraban la misma barra
+// con panzas distintas.
 function getTargetDiagramHeight(context, display) {
-    const modelSpan = getModelSpan(context);
-    const heightControl = clamp(
-        Number(display?.diagramHeightPx || 42) / 42,
-        0.2,
-        4,
-    );
-
-    const manualFactor =
-        display?.autoScale === false
-            ? clamp(Number(display?.scaleFactor || 1), 0.05, 10)
-            : 1;
-
-    return clamp(
-        modelSpan * 0.08 * heightControl * manualFactor,
-        0.20,
-        modelSpan * 0.40,
-    );
+    return getDiagramTargetHeightModel(getModelSpan(context), display);
 }
 
 function registerDiagramMesh(layer, mesh, metadata) {
@@ -228,21 +297,173 @@ function registerDiagramMesh(layer, mesh, metadata) {
     return mesh;
 }
 
-function createDiagramMaterial(scene, frameId, color) {
+// ── Batching estilo ETABS ────────────────────────────────────────────────
+//
+// Antes se creaba una malla Y UN MATERIAL POR SEGMENTO de diagrama: con 11
+// estaciones son 10 segmentos por barra, así que un modelo de 190 barras
+// generaba ~4400 mallas y ~1900 materiales — o sea ~4400 draw calls y otros
+// tantos cambios de shader en CADA cuadro que dibuja Babylon. De ahí la
+// lentitud, no del cálculo.
+//
+// ETABS dibuja el diagrama completo en unos pocos lotes. Acá se acumula toda
+// la geometría del modelo en buckets por (color, alpha) y se emite UNA malla
+// por bucket: el diagrama entero queda en ~6 mallas y ~2 materiales,
+// independientemente de cuántas barras tenga el modelo.
+
+const DIAGRAM_MATERIAL_CACHE = "__jhDiagramMatCache";
+
+// Tope de barras rotuladas en 3D (ver renderFrameForceDiagramLayer3D).
+//
+// Las etiquetas sobre el modelo están APAGADAS por defecto
+// (`display.showValues`, ver DEFAULT_FRAME_DIAGRAM_DISPLAY): rotular cientos de
+// barras a la vez es ilegible y caro (cada etiqueta es un plano con billboard).
+// Para leer valores se hace **clic derecho sobre la barra** y se abre el
+// diálogo con SUS diagramas, como en ETABS — ver frameForceMemberDialog.js.
+// Este tope solo actúa si el usuario las vuelve a encender a mano.
+const MAX_LABELED_FRAMES_3D = 60;
+
+function colorKey3D(color) {
+    return `${color.r.toFixed(3)}_${color.g.toFixed(3)}_${color.b.toFixed(3)}`;
+}
+
+function getCachedDiagramMaterial3D(scene, color, alpha) {
+    if (!scene[DIAGRAM_MATERIAL_CACHE]) {
+        scene[DIAGRAM_MATERIAL_CACHE] = new Map();
+    }
+
+    const cache = scene[DIAGRAM_MATERIAL_CACHE];
+    const key = `${colorKey3D(color)}_${alpha.toFixed(3)}`;
+    const hit = cache.get(key);
+
+    if (hit) return hit;
+
     const material = new BABYLON.StandardMaterial(
-        `jh_frame_force_3d_mat_${frameId}_${Date.now()}`,
+        `jh_ff_batch_mat_${cache.size}`,
         scene,
     );
 
     material.diffuseColor = color;
     material.emissiveColor = color.scale(0.35);
     material.specularColor = BABYLON.Color3.Black();
-    material.alpha = 0.32;
+    material.alpha = alpha;
     material.backFaceCulling = false;
     material.disableLighting = true;
     material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
 
+    cache.set(key, material);
+
     return material;
+}
+
+function createDiagramBatch() {
+    return { fills: new Map(), lines: new Map() };
+}
+
+/** Acumula el cuadrilátero de un segmento (2 triángulos) en su bucket de color. */
+function pushBatchQuad(batch, color, alpha, a, b, c, d) {
+    if (!batch) return false;
+
+    const key = `${colorKey3D(color)}_${alpha.toFixed(3)}`;
+    let bucket = batch.fills.get(key);
+
+    if (!bucket) {
+        bucket = { color, alpha, positions: [], indices: [], count: 0 };
+        batch.fills.set(key, bucket);
+    }
+
+    const i0 = bucket.count;
+
+    [a, b, c, d].forEach((p) => bucket.positions.push(p.x, p.y, p.z));
+    bucket.count += 4;
+    bucket.indices.push(i0, i0 + 1, i0 + 2, i0, i0 + 2, i0 + 3);
+
+    return true;
+}
+
+/** Acumula un tramo de línea en su bucket de (color, alpha, grupo de render). */
+function pushBatchLine(batch, color, alpha, renderingGroupId, p1, p2) {
+    if (!batch) return false;
+
+    const key = `${colorKey3D(color)}_${alpha.toFixed(3)}_${renderingGroupId}`;
+    let bucket = batch.lines.get(key);
+
+    if (!bucket) {
+        bucket = { color, alpha, renderingGroupId, lines: [] };
+        batch.lines.set(key, bucket);
+    }
+
+    bucket.lines.push([p1, p2]);
+
+    return true;
+}
+
+function pushBatchPolyline(batch, color, alpha, renderingGroupId, points) {
+    if (!batch || !points?.length) return false;
+
+    for (let i = 0; i < points.length - 1; i += 1) {
+        pushBatchLine(batch, color, alpha, renderingGroupId, points[i], points[i + 1]);
+    }
+
+    return true;
+}
+
+/** Emite las mallas de los buckets acumulados. Una por bucket. */
+function flushDiagramBatch(scene, layer, batch, metadata = {}) {
+    if (!batch) return 0;
+
+    let emitted = 0;
+
+    batch.fills.forEach((bucket, key) => {
+        if (!bucket.indices.length) return;
+
+        const mesh = new BABYLON.Mesh(`jh_ff_fill_batch_${key}`, scene);
+        const data = new BABYLON.VertexData();
+        const normals = [];
+
+        BABYLON.VertexData.ComputeNormals(bucket.positions, bucket.indices, normals);
+
+        data.positions = bucket.positions;
+        data.indices = bucket.indices;
+        data.normals = normals;
+        data.applyToMesh(mesh);
+
+        mesh.material = getCachedDiagramMaterial3D(scene, bucket.color, bucket.alpha);
+        mesh.renderingGroupId = 1;
+        mesh.alphaIndex = 10;
+        mesh.isPickable = false;
+
+        registerDiagramMesh(layer, mesh, {
+            ...metadata,
+            objectKind: "etabsSignedFillBatch",
+            sharedMaterial: true,
+        });
+
+        emitted += 1;
+    });
+
+    batch.lines.forEach((bucket, key) => {
+        if (!bucket.lines.length) return;
+
+        const mesh = BABYLON.MeshBuilder.CreateLineSystem(
+            `jh_ff_line_batch_${key}`,
+            { lines: bucket.lines },
+            scene,
+        );
+
+        mesh.color = bucket.color;
+        mesh.alpha = bucket.alpha;
+        mesh.renderingGroupId = bucket.renderingGroupId;
+        mesh.isPickable = false;
+
+        registerDiagramMesh(layer, mesh, {
+            ...metadata,
+            objectKind: "etabsLineBatch",
+        });
+
+        emitted += 1;
+    });
+
+    return emitted;
 }
 
 function getEtabsSignedColor(value, fallbackColor) {
@@ -379,6 +600,7 @@ function createEtabsSignedDiagramSegments3D({
     display,
     fallbackColor,
     metadata,
+    batch,
 }) {
     if (baselinePoints.length < 2 || diagramPoints.length < 2) {
         return;
@@ -388,32 +610,58 @@ function createEtabsSignedDiagramSegments3D({
         const valueA = Number(stationValues[i] || 0);
         const valueB = Number(stationValues[i + 1] || 0);
         const signValue = Math.abs(valueA) >= Math.abs(valueB) ? valueA : valueB;
+        const color = getEtabsSignedColor(signValue, fallbackColor);
 
         if (display.filled !== false) {
-            createEtabsSegmentRibbon3D({
+            // Al lote (una malla por color para todo el modelo). Si no hay lote
+            // —camino viejo—, se cae a la cinta por segmento.
+            const batched = pushBatchQuad(
+                batch,
+                color,
+                getEtabsSegmentAlpha(signValue),
+                baselinePoints[i],
+                baselinePoints[i + 1],
+                diagramPoints[i + 1],
+                diagramPoints[i],
+            );
+
+            if (!batched) {
+                createEtabsSegmentRibbon3D({
+                    scene,
+                    layer,
+                    frame,
+                    baselineA: baselinePoints[i],
+                    baselineB: baselinePoints[i + 1],
+                    diagramA: diagramPoints[i],
+                    diagramB: diagramPoints[i + 1],
+                    signValue,
+                    fallbackColor,
+                    metadata,
+                });
+            }
+        }
+
+        const edgeBatched = pushBatchLine(
+            batch,
+            color,
+            ETABS_3D_STYLE.edgeAlpha,
+            2,
+            diagramPoints[i],
+            diagramPoints[i + 1],
+        );
+
+        if (!edgeBatched) {
+            createEtabsSegmentEdge3D({
                 scene,
                 layer,
                 frame,
-                baselineA: baselinePoints[i],
-                baselineB: baselinePoints[i + 1],
-                diagramA: diagramPoints[i],
-                diagramB: diagramPoints[i + 1],
+                p1: diagramPoints[i],
+                p2: diagramPoints[i + 1],
                 signValue,
                 fallbackColor,
                 metadata,
             });
         }
-
-        createEtabsSegmentEdge3D({
-            scene,
-            layer,
-            frame,
-            p1: diagramPoints[i],
-            p2: diagramPoints[i + 1],
-            signValue,
-            fallbackColor,
-            metadata,
-        });
     }
 }
 
@@ -426,12 +674,27 @@ function createEtabsStationLines3D({
     stationValues,
     fallbackColor,
     metadata,
+    batch,
 }) {
     const linesByColor = new Map();
 
     baselinePoints.forEach((basePoint, index) => {
         const value = Number(stationValues[index] || 0);
         const color = getEtabsSignedColor(value, fallbackColor);
+
+        if (
+            pushBatchLine(
+                batch,
+                color,
+                ETABS_3D_STYLE.stationAlpha,
+                2,
+                basePoint,
+                diagramPoints[index],
+            )
+        ) {
+            return;
+        }
+
         const key = `${color.r}-${color.g}-${color.b}`;
 
         if (!linesByColor.has(key)) {
@@ -468,8 +731,11 @@ function createEtabsStationLines3D({
     });
 }
 
+// Las etiquetas del 3D también van en las unidades de presentación
+// (frameForceUnits.js): si no, el mismo valor se leía en kN sobre el modelo y en
+// tonf en el diálogo y la tabla.
 function formatDiagramValue3D(value, decimals = 2) {
-    const number = Number(value);
+    const number = toDisplayUnits(value);
 
     if (!Number.isFinite(number)) {
         return "0";
@@ -478,13 +744,36 @@ function formatDiagramValue3D(value, decimals = 2) {
     return number.toFixed(decimals);
 }
 
+// Tamaño de la textura de etiqueta. Era 512×160 (327 KB de RGBA por etiqueta):
+// con unos cientos de barras eran cientos de texturas creadas y subidas a la
+// GPU en CADA reconstrucción de la escena — ahí se congelaba el programa al
+// mostrar un diagrama. 160×48 alcanza de sobra para 6-7 dígitos y usa 11 veces
+// menos memoria.
+const LABEL_TEX_W = 160;
+const LABEL_TEX_H = 48;
+
+// Caché de materiales por (texto + color) dentro de una misma escena: las
+// etiquetas repetidas (muy comunes: muchas barras con el mismo valor
+// redondeado, y sobre todo los "0.00") reusan una sola textura.
+const LABEL_MATERIAL_CACHE = "__jhLabelMatCache";
+
 function createDiagramLabelMaterial3D(scene, text, color) {
+    const key = `${text}|${color.r.toFixed(3)},${color.g.toFixed(3)},${color.b.toFixed(3)}`;
+
+    if (!scene[LABEL_MATERIAL_CACHE]) {
+        scene[LABEL_MATERIAL_CACHE] = new Map();
+    }
+
+    const cache = scene[LABEL_MATERIAL_CACHE];
+    const hit = cache.get(key);
+
+    // El ciclo de vida lo maneja disposeFrameForceLabelCache3D; los meshes de
+    // etiqueta ya no destruyen su material al morir.
+    if (hit) return hit;
+
     const texture = new BABYLON.DynamicTexture(
-        `jh_etabs_3d_label_tex_${Date.now()}_${Math.random()}`,
-        {
-            width: 512,
-            height: 160,
-        },
+        `jh_etabs_3d_label_tex_${cache.size}`,
+        { width: LABEL_TEX_W, height: LABEL_TEX_H },
         scene,
         false
     );
@@ -493,27 +782,27 @@ function createDiagramLabelMaterial3D(scene, text, color) {
 
     const ctx = texture.getContext();
 
-    ctx.clearRect(0, 0, 512, 160);
+    ctx.clearRect(0, 0, LABEL_TEX_W, LABEL_TEX_H);
 
     ctx.fillStyle = "rgba(5, 8, 15, 0.82)";
-    ctx.fillRect(0, 0, 512, 160);
+    ctx.fillRect(0, 0, LABEL_TEX_W, LABEL_TEX_H);
 
     ctx.strokeStyle = `rgba(${Math.round(color.r * 255)}, ${Math.round(
         color.g * 255
     )}, ${Math.round(color.b * 255)}, 1)`;
-    ctx.lineWidth = 5;
-    ctx.strokeRect(4, 4, 504, 152);
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1, 1, LABEL_TEX_W - 2, LABEL_TEX_H - 2);
 
-    ctx.font = "bold 44px Arial";
+    ctx.font = "bold 26px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "white";
-    ctx.fillText(text, 256, 82);
+    ctx.fillText(text, LABEL_TEX_W / 2, LABEL_TEX_H / 2 + 1);
 
     texture.update();
 
     const material = new BABYLON.StandardMaterial(
-        `jh_etabs_3d_label_mat_${Date.now()}_${Math.random()}`,
+        `jh_etabs_3d_label_mat_${cache.size}`,
         scene
     );
 
@@ -523,6 +812,8 @@ function createDiagramLabelMaterial3D(scene, text, color) {
     material.backFaceCulling = false;
     material.disableLighting = true;
     material.specularColor = BABYLON.Color3.Black();
+
+    cache.set(key, material);
 
     return material;
 }
@@ -643,7 +934,10 @@ function createEtabsDiagramValueLabels3D({
     }
 
     const decimals = Number(display.decimals ?? 2);
-    const labelOffsetA = axes.local2.scale(targetHeight * 0.10);
+    // La etiqueta se aparta hacia el MISMO lado en que se dibujó el diagrama
+    // (ver getDiagramSide): si no, en las componentes que van del lado opuesto
+    // —M3— quedaba corrida hacia la barra y encima del propio diagrama.
+    const labelOffsetA = getDiagramDirection(component, axes).scale(targetHeight * 0.10);
     const labelOffsetB = axes.local3.scale(targetHeight * 0.08);
 
     indexes.forEach((index) => {
@@ -689,6 +983,8 @@ function createPlanarFrameDiagram3D({
     axes,
     maxAbs,
     targetHeight,
+    batch,
+    allowLabels = true,
 }) {
     const stations = Array.isArray(record?.stations)
         ? record.stations
@@ -733,23 +1029,33 @@ function createPlanarFrameDiagram3D({
     };
 
     if (display.showZeroLine !== false) {
-        const baseline = BABYLON.MeshBuilder.CreateLines(
-            `jh_etabs_3d_zero_${component}_${frame.id}`,
-            {
-                points: baselinePoints,
-            },
-            scene
+        const batched = pushBatchPolyline(
+            batch,
+            ETABS_3D_STYLE.zeroColor,
+            ETABS_3D_STYLE.zeroLineAlpha,
+            2,
+            baselinePoints,
         );
 
-        baseline.color = ETABS_3D_STYLE.zeroColor;
-        baseline.alpha = ETABS_3D_STYLE.zeroLineAlpha;
-        baseline.renderingGroupId = 2;
-        baseline.isPickable = false;
+        if (!batched) {
+            const baseline = BABYLON.MeshBuilder.CreateLines(
+                `jh_etabs_3d_zero_${component}_${frame.id}`,
+                {
+                    points: baselinePoints,
+                },
+                scene
+            );
 
-        registerDiagramMesh(layer, baseline, {
-            ...metadata,
-            objectKind: "zeroLine",
-        });
+            baseline.color = ETABS_3D_STYLE.zeroColor;
+            baseline.alpha = ETABS_3D_STYLE.zeroLineAlpha;
+            baseline.renderingGroupId = 2;
+            baseline.isPickable = false;
+
+            registerDiagramMesh(layer, baseline, {
+                ...metadata,
+                objectKind: "zeroLine",
+            });
+        }
     }
 
     createEtabsSignedDiagramSegments3D({
@@ -762,6 +1068,7 @@ function createPlanarFrameDiagram3D({
         display,
         fallbackColor: color,
         metadata,
+        batch,
     });
 
     if (display.showStationLines !== false) {
@@ -774,53 +1081,30 @@ function createPlanarFrameDiagram3D({
             stationValues,
             fallbackColor: color,
             metadata,
+            batch,
         });
     }
 
-    createEtabsDiagramValueLabels3D({
-        scene,
-        layer,
-        frame,
-        display,
-        component,
-        diagramPoints,
-        stationValues,
-        axes,
-        fallbackColor: color,
-        targetHeight,
-        metadata,
-    });
+    if (allowLabels) {
+        createEtabsDiagramValueLabels3D({
+            scene,
+            layer,
+            frame,
+            display,
+            component,
+            diagramPoints,
+            stationValues,
+            axes,
+            fallbackColor: color,
+            targetHeight,
+            metadata,
+        });
+    }
 
     return true;
 }
 
 // Función para crear un sistema de líneas de diagrama de marco 3D
-function createFrameDiagramLineSystem({
-    scene,
-    layer,
-    name,
-    lines,
-    color,
-    alpha = 0.85,
-    metadata = {},
-}) {
-    if (!lines?.length) return null;
-
-    const mesh = BABYLON.MeshBuilder.CreateLineSystem(
-        name,
-        { lines },
-        scene
-    );
-
-    mesh.color = color;
-    mesh.alpha = alpha;
-    mesh.renderingGroupId = 2;
-
-    registerDiagramMesh(layer, mesh, metadata);
-
-    return mesh;
-}
-
 // Función para crear una curva de diagrama de marco 3D
 function createFrameDiagramCurve({
     scene,
@@ -903,6 +1187,8 @@ function createAxialFrameDiagram3D({
     axes,
     maxAbs,
     targetHeight,
+    batch,
+    allowLabels = true,
 }) {
     const stations = Array.isArray(record?.stations)
         ? record.stations
@@ -938,18 +1224,28 @@ function createAxialFrameDiagram3D({
     const stationValues = stations.map((station) => Number(station?.[component] || 0));
 
     if (display.showZeroLine !== false) {
-        createFrameDiagramCurve({
-            scene,
-            layer,
-            name: `jh_etabs_3d_p_zero_${frame.id}`,
-            points: baselinePoints,
-            color: ETABS_3D_STYLE.zeroColor,
-            alpha: ETABS_3D_STYLE.zeroLineAlpha,
-            metadata: {
-                ...metadata,
-                objectKind: "zeroLine",
-            },
-        });
+        const batched = pushBatchPolyline(
+            batch,
+            ETABS_3D_STYLE.zeroColor,
+            ETABS_3D_STYLE.zeroLineAlpha,
+            2,
+            baselinePoints,
+        );
+
+        if (!batched) {
+            createFrameDiagramCurve({
+                scene,
+                layer,
+                name: `jh_etabs_3d_p_zero_${frame.id}`,
+                points: baselinePoints,
+                color: ETABS_3D_STYLE.zeroColor,
+                alpha: ETABS_3D_STYLE.zeroLineAlpha,
+                metadata: {
+                    ...metadata,
+                    objectKind: "zeroLine",
+                },
+            });
+        }
     }
 
     createEtabsSignedDiagramSegments3D({
@@ -962,6 +1258,7 @@ function createAxialFrameDiagram3D({
         display,
         fallbackColor: color,
         metadata,
+        batch,
     });
 
     if (display.showStationLines !== false) {
@@ -974,21 +1271,24 @@ function createAxialFrameDiagram3D({
             stationValues,
             fallbackColor: color,
             metadata,
+            batch,
         });
 
-        createEtabsDiagramValueLabels3D({
-            scene,
-            layer,
-            frame,
-            display,
-            component,
-            diagramPoints,
-            stationValues,
-            axes,
-            fallbackColor: color,
-            targetHeight,
-            metadata,
-        });
+        if (allowLabels) {
+            createEtabsDiagramValueLabels3D({
+                scene,
+                layer,
+                frame,
+                display,
+                component,
+                diagramPoints,
+                stationValues,
+                axes,
+                fallbackColor: color,
+                targetHeight,
+                metadata,
+            });
+        }
     }
 
     return true;
@@ -1133,6 +1433,7 @@ function createTorsionFrameDiagram3D({
     axes,
     maxAbs,
     targetHeight,
+    allowLabels = true,
 }) {
     const stations = Array.isArray(record?.stations)
         ? record.stations
@@ -1206,19 +1507,21 @@ function createTorsionFrameDiagram3D({
             metadata,
         });
 
-        createEtabsDiagramValueLabels3D({
-            scene,
-            layer,
-            frame,
-            display,
-            component,
-            diagramPoints,
-            stationValues,
-            axes,
-            fallbackColor: color,
-            targetHeight,
-            metadata,
-        });
+        if (allowLabels) {
+            createEtabsDiagramValueLabels3D({
+                scene,
+                layer,
+                frame,
+                display,
+                component,
+                diagramPoints,
+                stationValues,
+                axes,
+                fallbackColor: color,
+                targetHeight,
+                metadata,
+            });
+        }
     }
 
     createTorsionSymbolsForFrame3D({
@@ -1289,9 +1592,13 @@ export function renderFrameForceDiagramLayer3D(viewerState, context) {
 
         const start = mapPointToBabylon(node1.position);
         const end = mapPointToBabylon(node2.position);
-        const axes = calculateFrameLocalAxes3D(start, end);
+        const geomAxes = calculateFrameLocalAxes3D(start, end);
 
-        if (!axes) return;
+        if (!geomAxes) return;
+
+        // Los ejes del MOTOR mandan; la geometría solo cubre el caso de que el
+        // registro no los traiga (datos mock o de una versión vieja).
+        const axes = axesFromRecord3D(record, geomAxes);
 
         renderableFrames.push({
             frame,
@@ -1313,8 +1620,30 @@ export function renderFrameForceDiagramLayer3D(viewerState, context) {
         });
     });
 
+    // Las etiquetas son el único elemento que NO se puede batchear: cada una es
+    // un plano con billboard propio. Se limitan a las barras más solicitadas
+    // —igual que ETABS, que no rotula todas las barras del modelo— para que un
+    // modelo grande no genere cientos de planos ilegibles y superpuestos.
+    const labelFrameIds = new Set(
+        renderableFrames
+            .map((item) => ({
+                id: String(item.frame.id),
+                peak: (item.record.stations || []).reduce(
+                    (m, st) => Math.max(m, Math.abs(Number(st?.[component] || 0))),
+                    0,
+                ),
+            }))
+            .sort((a, b) => b.peak - a.peak)
+            .slice(0, MAX_LABELED_FRAMES_3D)
+            .map((item) => item.id),
+    );
+
     const targetHeight = getTargetDiagramHeight(context, display);
     let rendered = 0;
+
+    // Acumulador de geometría: relleno y líneas de TODAS las barras se juntan
+    // por color y salen en un puñado de mallas al final (flushDiagramBatch).
+    const batch = createDiagramBatch();
 
     renderableFrames.forEach((item) => {
         if (PLANAR_COMPONENTS.has(component)) {
@@ -1327,6 +1656,8 @@ export function renderFrameForceDiagramLayer3D(viewerState, context) {
                 color,
                 maxAbs,
                 targetHeight,
+                batch,
+                allowLabels: labelFrameIds.has(String(item.frame.id)),
             });
 
             if (created) rendered += 1;
@@ -1343,6 +1674,8 @@ export function renderFrameForceDiagramLayer3D(viewerState, context) {
                 color,
                 maxAbs,
                 targetHeight,
+                batch,
+                allowLabels: labelFrameIds.has(String(item.frame.id)),
             });
 
             if (created) rendered += 1;
@@ -1359,6 +1692,7 @@ export function renderFrameForceDiagramLayer3D(viewerState, context) {
                 color,
                 maxAbs,
                 targetHeight,
+                allowLabels: labelFrameIds.has(String(item.frame.id)),
             });
 
             if (created) rendered += 1;
@@ -1366,8 +1700,16 @@ export function renderFrameForceDiagramLayer3D(viewerState, context) {
         }
     });
 
+    const batchedMeshes = flushDiagramBatch(scene, layer, batch, {
+        caseId: display.caseId || null,
+        comboId: display.comboId || null,
+        component,
+    });
+
     layer.summary = {
         rendered,
+        batchedMeshes,
+        meshCount: layer.meshes.length,
         component,
         selectorId: display.comboId || display.caseId || "CM",
         maxAbs,

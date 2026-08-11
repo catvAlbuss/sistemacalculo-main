@@ -1,3 +1,35 @@
+import { toDisplayUnits, unitLabelFor } from "./frameForceUnits.js";
+
+const FRAME_FORCE_COMPONENTS = ["P", "V2", "V3", "T", "M2", "M3"];
+
+// Por debajo de esta longitud en pantalla, una barra dibuja su diagrama pero
+// NO sus etiquetas de valor: con el modelo alejado son miles de cajitas negras
+// ilegibles, y cada una cuesta un measureText + save/restore del contexto.
+export const MIN_PX_FOR_VALUE_LABELS = 48;
+
+/**
+ * De qué lado del eje de la barra se dibuja cada componente. **FUENTE ÚNICA**:
+ * la importan el visor 2D, el 3D y el diálogo por barra.
+ *
+ * ETABS plotea los MOMENTOS del lado de la TRACCIÓN: el momento de vano
+ * tracciona abajo, así que su diagrama CUELGA. Por eso M3 va invertido.
+ * M2 NO se invierte, por la asimetría de los signos (dM3/ds = −V2 contra
+ * dM2/ds = +V3). Los CORTANTES no tienen lado de tracción: se dejan como están.
+ *
+ * Vale también para los casos SIN SIGNO (espectro de respuesta): se probó
+ * exceptuarlos —razonando que una magnitud no tiene lado de tracción— y quedó
+ * espejado contra ETABS. Verificado con capturas; no volver a intentarlo.
+ *
+ * OJO: esta tabla vivía DUPLICADA en frameForceDiagram3d.js y en
+ * frameForceMemberDialog.js, y el visor 2D directamente no la tenía → el M3 del
+ * 2D salía del lado contrario al del 3D. De ahí que se unificara acá.
+ */
+export const DIAGRAM_SIDE = { P: 1, V2: 1, V3: 1, T: 1, M2: 1, M3: -1 };
+
+export function getDiagramSide(component) {
+    return DIAGRAM_SIDE[component] ?? 1;
+}
+
 export const DEFAULT_FRAME_DIAGRAM_DISPLAY = {
     enabled: false,
     caseId: "CM",
@@ -5,8 +37,12 @@ export const DEFAULT_FRAME_DIAGRAM_DISPLAY = {
     component: "M3",
     source: "mock",
 
-    showValues: true,
-    showMaxMin: true,
+    // Etiquetas de valor SOBRE el modelo: apagadas por defecto. Rotular todas
+    // las barras a la vez es ilegible y costoso; para leer valores se hace clic
+    // derecho sobre la barra y se abre su diálogo de diagramas, como en ETABS
+    // (ver frameForceMemberDialog.js). Se pueden reactivar desde el panel.
+    showValues: false,
+    showMaxMin: false,
     filled: true,
     autoScale: true,
     scaleFactor: 1,
@@ -180,26 +216,40 @@ export function shouldDrawFrameDiagram(frame, CADSystem, renderer, display) {
     return true;
 }
 
-export function getFrameForceRecord(results, frameId, caseId, comboId = null) {
+/**
+ * Índice {frameId → registro} + máximos por componente, para una selección
+ * (caso o combo) dada.
+ *
+ * Antes cada barra hacía `frameForces.find(...)` con `String(...)` en la
+ * comparación: O(barras × registros) por REDIBUJADO. En un modelo de ~1000
+ * barras con ~1300 registros son más de un millón de comparaciones de string
+ * cada vez que se mueve el mouse — de ahí el congelamiento.
+ *
+ * El caché vive en el propio objeto de resultados y no es enumerable, así que
+ * un `frameForceResults` nuevo (otro análisis) trae índice nuevo y el
+ * JSON.stringify de guardado no lo arrastra.
+ */
+const RECORD_INDEX_KEY = "__ffIndex";
+
+export function getFrameForceIndex(results, caseId, comboId) {
     if (!results?.frameForces?.length) return null;
 
-    return results.frameForces.find((item) => {
-        const sameFrame = String(item.frameId) === String(frameId);
+    if (!Object.prototype.hasOwnProperty.call(results, RECORD_INDEX_KEY)) {
+        Object.defineProperty(results, RECORD_INDEX_KEY, {
+            value: new Map(),
+            enumerable: false,
+            writable: true,
+            configurable: true,
+        });
+    }
 
-        if (!sameFrame) return false;
+    const cache = results[RECORD_INDEX_KEY];
+    const key = comboId ? `combo:${comboId}` : `case:${caseId}`;
 
-        if (comboId) {
-            return String(item.comboId) === String(comboId);
-        }
+    if (cache.has(key)) return cache.get(key);
 
-        return String(item.caseId) === String(caseId);
-    });
-}
-
-export function getMaxAbsValue(results, caseId, comboId, component) {
-    let maxAbs = 0;
-
-    if (!results?.frameForces?.length) return 1;
+    const byFrame = new Map();
+    const maxAbs = {};
 
     results.frameForces.forEach((record) => {
         if (comboId) {
@@ -208,13 +258,30 @@ export function getMaxAbsValue(results, caseId, comboId, component) {
             if (String(record.caseId) !== String(caseId)) return;
         }
 
+        byFrame.set(String(record.frameId), record);
+
         record.stations?.forEach((station) => {
-            const value = Math.abs(Number(station[component] ?? 0));
-            if (value > maxAbs) maxAbs = value;
+            FRAME_FORCE_COMPONENTS.forEach((comp) => {
+                const value = Math.abs(Number(station[comp] ?? 0));
+                if (value > (maxAbs[comp] || 0)) maxAbs[comp] = value;
+            });
         });
     });
 
-    return maxAbs || 1;
+    const index = { byFrame, maxAbs };
+    cache.set(key, index);
+
+    return index;
+}
+
+export function getFrameForceRecord(results, frameId, caseId, comboId = null) {
+    const index = getFrameForceIndex(results, caseId, comboId);
+    return index ? index.byFrame.get(String(frameId)) || null : null;
+}
+
+export function getMaxAbsValue(results, caseId, comboId, component) {
+    const index = getFrameForceIndex(results, caseId, comboId);
+    return (index?.maxAbs?.[component] || 0) || 1;
 }
 
 export function getRecordExtrema(record, component) {
@@ -261,6 +328,35 @@ export function getFrameScreenGeometry(CADSystem, renderer, frame) {
     const ux = dx / lengthPx;
     const uy = dy / lengthPx;
 
+    // Normal del diagrama, ORIENTADA para que signifique lo mismo que en 3D.
+    //
+    // La perpendicular cruda (-uy, ux) tiene dos problemas:
+    //   1. Apunta HACIA ABAJO en pantalla para una viga dibujada de izquierda a
+    //      derecha, mientras que el `local2` del 3D apunta HACIA ARRIBA. Como
+    //      las dos vistas aplican después el mismo `getDiagramSide`, el M3
+    //      salía ESPEJADO entre 2D y 3D (visto en MODELO (2)1 con el combo
+    //      1.4CM+1.7CV: el 3D dibujaba la panza de tramo abajo —tracción abajo,
+    //      que es lo correcto— y el 2D la dibujaba arriba).
+    //   2. Depende del ORDEN de los nudos: invertir i y j daba vuelta el
+    //      diagrama. El `local2` del 3D es invariante (ver
+    //      calculateFrameLocalAxes3D), así que el 2D tenía una fuente de
+    //      inconsistencia que el 3D no.
+    //
+    // Regla: se elige la perpendicular que apunta hacia ARRIBA en pantalla
+    // (ny < 0, porque el canvas crece hacia abajo). Para barras verticales,
+    // donde "arriba" no desempata, se usa la que apunta a la derecha (nx > 0),
+    // que es exactamente lo que ya hacían las columnas dibujadas de abajo hacia
+    // arriba — por eso las columnas se veían bien y las vigas no.
+    let nx = -uy;
+    let ny = ux;
+
+    const flip = Math.abs(ny) > 1e-9 ? ny > 0 : nx < 0;
+
+    if (flip) {
+        nx = -nx;
+        ny = -ny;
+    }
+
     return {
         p1,
         p2,
@@ -269,13 +365,30 @@ export function getFrameScreenGeometry(CADSystem, renderer, frame) {
         lengthPx,
         ux,
         uy,
-        nx: -uy,
-        ny: ux,
+        nx,
+        ny,
     };
 }
 
-export function getScalePxPerUnit(display, maxAbs) {
+/**
+ * Píxeles por unidad de fuerza para dibujar el diagrama.
+ *
+ * `targetHeightPx` es la altura que debe tener el diagrama del valor MÁXIMO.
+ * La calcula `frameForceDiagramScale.js` a partir del tamaño del modelo, igual
+ * que el 3D — antes acá se usaban 42 px fijos, que no eran proporcionales al
+ * edificio ni estables al zoom, y el 2D salía mucho más grande que el 3D y que
+ * la elevación de ETABS.
+ *
+ * Sin `targetHeightPx` se cae al comportamiento viejo, para no romper a ningún
+ * llamador que todavía no lo pase.
+ */
+export function getScalePxPerUnit(display, maxAbs, targetHeightPx = null) {
     const safeMaxAbs = Math.max(Math.abs(Number(maxAbs || 1)), 1e-9);
+
+    if (Number(targetHeightPx) > 0) {
+        return Number(targetHeightPx) / safeMaxAbs;
+    }
+
     const baseHeight = Number(display.diagramHeightPx || 42);
 
     if (display.autoScale === false) {
@@ -313,23 +426,15 @@ export function formatFrameDiagramValue(CADSystem, value, componentInfo, decimal
 
     if (!Number.isFinite(number)) return "0";
 
-    const unitType = componentInfo?.unitType;
-
-    if (typeof CADSystem.formatOutput === "function") {
-        if (unitType === "moment") {
-            return CADSystem.formatOutput(number, "moments");
-        }
-
-        return CADSystem.formatOutput(number, "forces");
-    }
-
-    return number.toFixed(decimals);
+    // El motor manda kN/kN-m; se convierte SOLO acá, al mostrar (ver
+    // frameForceUnits.js). `CADSystem.formatOutput` se dejó de usar para estos
+    // valores porque aplica su propio sistema de unidades y volvía a convertir
+    // encima, con lo que el número quedaba escalado dos veces.
+    return toDisplayUnits(number).toFixed(decimals);
 }
 
 export function getUnitLabel(results, componentInfo) {
-    if (!results?.units || !componentInfo?.unitType) return "";
-
-    return results.units[componentInfo.unitType] || "";
+    return unitLabelFor(componentInfo?.unitType || componentInfo?.id || "");
 }
 
 export function almostSamePoint(a, b) {

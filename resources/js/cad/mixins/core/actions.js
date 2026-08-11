@@ -28,7 +28,21 @@ import {
   loadRealFrameForceResults,
 } from "../../engine/frameForceBackend.js";
 
+import {
+  showFrameMemberDiagram,
+} from "../../diagrams/frameForceMemberDialog.js";
+
 export const actionsMixin = {
+
+  /**
+   * Diagramas de UNA barra (clic derecho sobre ella en 3D), estilo ETABS.
+   * Lo llama viewer3d.js desde el observable del puntero. No dispara análisis:
+   * lee el `frameForceResults` que ya está cargado.
+   */
+  showFrameMemberDiagram(frameId) {
+    return showFrameMemberDiagram(this, frameId);
+  },
+
   // ------------------------------------------------------------------
   // 6. ACCIONES DE LA BARRA DE HERRAMIENTAS (Diseñar, Tareas, Estructura, Resultados)
   // ------------------------------------------------------------------
@@ -737,6 +751,17 @@ export const actionsMixin = {
     console.log("Design action:", action);
 
     switch (action) {
+      // ===============================
+      // RC BEAM DESIGN (ACI-318 / E.060)
+      // ===============================
+      case "rc-beam-design":
+        this.openRcBeamDesignDialog();
+        break;
+
+      case "rc-column-design":
+        this.openRcColumnDesignDialog();
+        break;
+
       // ===============================
       // STEEL FRAME DESIGN
       // ===============================

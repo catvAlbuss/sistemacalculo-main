@@ -81,6 +81,22 @@
                             <option value="Shell-Thick">Shell-Thick</option>
                         </select>
                     </div>
+                    {{-- Equivalente del ONEWAYLOADDIST de ETABS: decide si la losa entrega
+                         su carga a DOS vigas (una vía) o a las cuatro del contorno. --}}
+                    <div class="flex items-start gap-2">
+                        <span class="text-gray-300 w-40 pt-1">Reparto de Carga</span>
+                        <div class="flex-1">
+                            <label class="flex items-center gap-2 text-white">
+                                <input type="checkbox" x-model="editing.oneWayLoadDist"
+                                    class="bg-gray-700 border-gray-600 rounded">
+                                <span>Una vía (aligerado / nervado)</span>
+                            </label>
+                            <p class="text-xs text-gray-400 mt-1">
+                                Entrega la carga solo a las dos vigas perpendiculares al sentido
+                                de armado. Sin marcar, reparte a las cuatro del contorno.
+                            </p>
+                        </div>
+                    </div>
                     <div class="flex items-center gap-2">
                         <span class="text-gray-300 w-40">Color</span>
                         <input type="color" x-model="editing.color" class="w-12 h-7 bg-gray-700 border border-gray-600 rounded">
@@ -145,7 +161,7 @@
             // Nunca null (Alpine evalúa el editor aunque esté oculto).
             editing: {
                 name: '', material: 'CONC', modelingType: 'Membrane',
-                type: 'Slab', thickness: 200, color: '#888888',
+                type: 'Slab', thickness: 200, color: '#888888', oneWayLoadDist: false,
             },
             editingOriginalName: null,
             isNew: false,
@@ -220,8 +236,8 @@
                 let list = Array.isArray(cs.slabSections) ? cs.slabSections : null;
                 if (!list || !list.length) {
                     list = [
-                        { name: 'Aligerado e=0.20', material: 'CONC', modelingType: 'Membrane', type: 'Slab', thickness: 125, color: '#9ca3af' },
-                        { name: 'Losa Maciza e=0.20', material: 'CONC', modelingType: 'Membrane', type: 'Slab', thickness: 200, color: '#6b7280' },
+                        { name: 'Aligerado e=0.20', material: 'CONC', modelingType: 'Membrane', type: 'Slab', thickness: 125, color: '#9ca3af', oneWayLoadDist: true },
+                        { name: 'Losa Maciza e=0.20', material: 'CONC', modelingType: 'Membrane', type: 'Slab', thickness: 200, color: '#6b7280', oneWayLoadDist: false },
                     ];
                 }
                 this.sections = JSON.parse(JSON.stringify(list));
@@ -241,7 +257,7 @@
             getSelected() { return this.sections.find((s) => s.name === this.selectedName) || null; },
 
             defaultEditing(name) {
-                return { name: name || '', material: this.availableMaterials[0] || 'CONC', modelingType: 'Membrane', type: 'Slab', thickness: 200, color: '#888888' };
+                return { name: name || '', material: this.availableMaterials[0] || 'CONC', modelingType: 'Membrane', type: 'Slab', thickness: 200, color: '#888888', oneWayLoadDist: false };
             },
 
             addNew() {
@@ -290,6 +306,12 @@
                     thickness: Number(this.editing.thickness) || 0,   // mm
                     color: this.editing.color,
                     selfWeightKgM2: this.selfWeightKgM2,                // kgf/m² (peso propio)
+                    // Equivalente del ONEWAYLOADDIST de ETABS: decide si la
+                    // losa entrega su carga a DOS vigas (una vía: aligerado,
+                    // nervado) o a las cuatro del contorno. Sin este dato la
+                    // losa no dibuja flecha de sentido de armado y reparte a
+                    // todo el contorno.
+                    oneWayLoadDist: !!this.editing.oneWayLoadDist,
                 };
                 if (this.isNew) this.sections.push(stored);
                 else {

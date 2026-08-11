@@ -29,6 +29,8 @@ class PythonEngineController extends Controller
         'seismic-analyze' => ['POST', '/api/seismic/analyze'],
         'seismic-modal' => ['POST', '/api/seismic/modal'],
         'frame-forces' => ['POST', '/api/frame-forces'],
+        'column-interaction' => ['POST', '/api/column-interaction'],
+        'column-shear' => ['POST', '/api/column-shear'],
         'seismic-parse-spectrum' => ['POST', '/api/seismic/parse-spectrum'],
     ];
 

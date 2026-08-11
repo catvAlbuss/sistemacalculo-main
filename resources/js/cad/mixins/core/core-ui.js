@@ -39,7 +39,29 @@ export const coreUiMixin = {
   // 7. MÉTODOS DE DIBUJO Y RENDERIZADO (2D y 3D)
   // ------------------------------------------------------------------
 
+  /**
+   * Marca la vista como "sucia". NO dibuja: el bucle de rAF (ver cad_sys.js)
+   * repinta una sola vez por cuadro, aunque se la haya llamado veinte veces.
+   *
+   * Antes esto dibujaba de forma síncrona en cada llamada, y encima el bucle
+   * repintaba a 60 fps pasara lo que pasara. Con el diagrama de fuerzas
+   * encendido eso son miles de segmentos redibujados 60 veces por segundo sin
+   * que nada haya cambiado — que es de donde venía la lentitud general.
+   * ETABS hace lo mismo: repinta cuando algo cambió, no en bucle.
+   */
   redraw() {
+    this.invalidate();
+  },
+
+  invalidate() {
+    this._needsRedraw = true;
+  },
+
+  /** Dibujo real. Lo llama el bucle de rAF; usar solo si se necesita el canvas
+   *  ya pintado en la misma vuelta (p. ej. para exportar la imagen). */
+  renderNow() {
+    this._needsRedraw = false;
+
     this.currentRenderer.render(this);
 
     if (this.currentState?.draw) {
@@ -51,12 +73,15 @@ export const coreUiMixin = {
     // label actualizado sin depender de la reactividad profunda del modelo.
     this._selectionTick = (this._selectionTick || 0) + 1;
 
-    if (window.babylonInitialized && window.babylonScene) {
-      if (this._syncTimeout) clearTimeout(this._syncTimeout);
-      this._syncTimeout = setTimeout(() => {
-        this.drawIn3D();
-      }, 50);
-    }
+    // Acá había un `setTimeout(() => this.drawIn3D(), 50)` con clearTimeout.
+    // Era INALCANZABLE: el bucle llamaba a redraw() cada ~16 ms, así que el
+    // debounce se reseteaba antes de cumplir sus 50 ms y drawIn3D() no corría
+    // NUNCA por esta vía. Con el dibujo bajo demanda sí llegaría a dispararse
+    // —y reconstruiría la escena 3D entera un par de veces por segundo, mucho
+    // peor que el problema original—, así que se quita.
+    // El 3D se sincroniza donde corresponde: por las llamadas explícitas a
+    // sync3D()/drawIn3D() de modeling3d.js, viewer3d.js y
+    // frameForcePersistence.js, que corren cuando el modelo realmente cambia.
   },
 
   windowResize() {

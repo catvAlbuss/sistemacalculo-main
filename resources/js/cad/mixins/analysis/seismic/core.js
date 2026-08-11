@@ -508,7 +508,19 @@ export const seismicCoreMixin = {
         const u2id = c.spectra.U2?.functionId;
         let motivo;
         if (!u1id && !u2id) motivo = "no tiene función asignada en U1 ni U2";
-        else if ((u1id && !u1) || (u2id && !u2)) motivo = "su función no existe (¿se eliminó o renombró?)";
+        // "no existe" era engañoso: la causa habitual es que el .e2k referencia
+        // el espectro por ARCHIVO EXTERNO (FUNCTION … FILE "…\Espectro.txt") y
+        // los puntos no viajan en el archivo, así que la función se descarta al
+        // importar. Se nombra la función para poder ir a buscarla.
+        else if ((u1id && !u1) || (u2id && !u2)) {
+          const falta = [u1id && !u1 ? u1id : null, u2id && !u2 ? u2id : null]
+            .filter(Boolean)
+            .join(" / ");
+          motivo =
+            `usa la función "${falta}", que no quedó cargada — suele pasar cuando el ` +
+            `.e2k la referencia por ARCHIVO EXTERNO y los puntos del espectro no ` +
+            `vienen dentro del .e2k`;
+        }
         else motivo = "su función no tiene al menos 2 puntos (T, Sa)";
         this._seismicCaseSkips.push(`"${c.name}" ${motivo}`);
         continue;

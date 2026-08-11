@@ -1553,7 +1553,110 @@ export class DiseñoRenderer {
       ctx.fillText(label, center.x, center.y);
     }
 
+    if (!isPreview && pts.length >= 3) {
+      this.drawSlabLoadDirection(pts, area, context);
+    }
+
     ctx.restore();
+  }
+
+  /**
+   * Sentido de reparto de la carga de la losa, como la flecha que ETABS dibuja
+   * sobre las losas de UNA VÍA (aligerados).
+   *
+   * No es decoración: el sentido decide A QUÉ VIGAS les entrega la carga el
+   * panel (van las PERPENDICULARES a la flecha, que son las que hacen de apoyo
+   * en los dos extremos de la luz — ver _buildSeismicSlabToBeamLoadsForPayload
+   * en payload.js). Sin dibujarlo, ese criterio es invisible y un error de 90°
+   * en el `ANG` importado del .e2k mandaría la carga a las vigas equivocadas
+   * sin que nada lo delate: la carga total se conserva igual y las reacciones
+   * cierran lo mismo.
+   *
+   * Losas de DOS VÍAS no llevan flecha, igual que en ETABS: reparten a todo el
+   * contorno y no hay dirección que mostrar.
+   */
+  drawSlabLoadDirection(pts, area, context) {
+    if (area.oneWayLoadDist !== true) return;
+    if (context.displayOptions?.showSlabLoadDirection === false) return;
+
+    const ctx = context.ctx;
+    const center = this.getProjectedPolygonCenter(pts);
+
+    // Extensión del panel en pantalla, para escalar la flecha con el zoom.
+    const xs = pts.map((p) => p.x);
+    const ys = pts.map((p) => p.y);
+    const spanPx = Math.min(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+
+    if (spanPx < 28) return; // panel diminuto en pantalla: no vale la pena
+
+    // El ángulo viene en coordenadas de MUNDO; se proyecta un vector unitario
+    // desde el centro del panel para que la flecha siga la vista (planta,
+    // elevación, isométrica) en vez de asumir que la pantalla es el plano XY.
+    const ang = ((Number(area.loadDistAngle) || 0) * Math.PI) / 180;
+    const c = this.getPolygonCenterWorld(area.points);
+    if (!c) return;
+
+    const p0 = this.projectPoint({ position: c }, context);
+    const p1 = this.projectPoint(
+      { position: { x: c.x + Math.cos(ang), y: c.y + Math.sin(ang), z: c.z } },
+      context,
+    );
+
+    const vx = p1.x - p0.x;
+    const vy = p1.y - p0.y;
+    const vlen = Math.hypot(vx, vy);
+    if (vlen < 1e-6) return; // la dirección se proyecta como punto
+
+    const ux = vx / vlen;
+    const uy = vy / vlen;
+    const half = Math.min(spanPx * 0.32, 60);
+
+    const ax = center.x - ux * half;
+    const ay = center.y - uy * half;
+    const bx = center.x + ux * half;
+    const by = center.y + uy * half;
+
+    ctx.save();
+    ctx.strokeStyle = "rgba(56, 189, 248, 0.9)";
+    ctx.fillStyle = "rgba(56, 189, 248, 0.9)";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([]);
+
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(bx, by);
+    ctx.stroke();
+
+    // Punta en los dos extremos: la carga salva de apoyo a apoyo, no "va"
+    // hacia un lado. Es como lo dibuja ETABS.
+    const head = 6;
+    [[bx, by, ux, uy], [ax, ay, -ux, -uy]].forEach(([hx, hy, dx, dy]) => {
+      ctx.beginPath();
+      ctx.moveTo(hx, hy);
+      ctx.lineTo(hx - dx * head - dy * head * 0.5, hy - dy * head + dx * head * 0.5);
+      ctx.lineTo(hx - dx * head + dy * head * 0.5, hy - dy * head - dx * head * 0.5);
+      ctx.closePath();
+      ctx.fill();
+    });
+
+    ctx.restore();
+  }
+
+  /** Centro (promedio de vértices) de un polígono en coordenadas de MUNDO. */
+  getPolygonCenterWorld(points = []) {
+    if (!Array.isArray(points) || !points.length) return null;
+
+    let x = 0;
+    let y = 0;
+    let z = 0;
+
+    points.forEach((p) => {
+      x += Number(p.x) || 0;
+      y += Number(p.y) || 0;
+      z += Number(p.z) || 0;
+    });
+
+    return { x: x / points.length, y: y / points.length, z: z / points.length };
   }
 
   /**

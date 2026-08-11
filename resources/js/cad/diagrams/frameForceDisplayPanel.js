@@ -10,6 +10,8 @@ import {
     hideFrameForceTable,
 } from "./frameForceTable.js";
 
+import { loadRealFrameForceResults } from "../engine/frameForceBackend.js";
+
 const COMPONENTS = [
     { id: "P", label: "Axial Force P" },
     { id: "V2", label: "Shear Force V2" },
@@ -85,8 +87,11 @@ function getCurrentDisplay(CADSystem) {
         component: "M3",
         source: "mock",
 
-        showValues: true,
-        showMaxMin: true,
+        // Apagadas por defecto: los valores se leen con clic derecho sobre la
+        // barra (frameForceMemberDialog.js), como en ETABS. Se pueden encender
+        // desde este mismo panel si se quiere rotular el modelo.
+        showValues: false,
+        showMaxMin: false,
         filled: true,
         autoScale: true,
         scaleFactor: 1,
@@ -397,6 +402,14 @@ function buildPanelHtml(CADSystem) {
 
     <div class="flex flex-wrap justify-end gap-2 border-t border-slate-700 px-4 py-3">
       <button
+        id="jhack-frame-force-recalc"
+        class="mr-auto rounded bg-slate-700 px-4 py-2 text-xs font-bold text-white hover:bg-slate-600"
+        title="Vuelve a correr el motor aunque el modelo no haya cambiado"
+      >
+        Recalcular
+      </button>
+
+      <button
         id="jhack-frame-force-apply"
         class="rounded bg-cyan-600 px-4 py-2 text-xs font-bold text-white hover:bg-cyan-500"
       >
@@ -672,6 +685,19 @@ export function showFrameForceDisplayPanel(CADSystem) {
 
     document.getElementById("jhack-frame-force-clear")?.addEventListener("click", () => {
         clearFrameForceDisplay(CADSystem);
+    });
+
+    document.getElementById("jhack-frame-force-recalc")?.addEventListener("click", () => {
+        // Única vía para volver a correr el motor sin haber tocado el modelo
+        // (p. ej. si se reinició el backend o se cambió algo fuera del payload).
+        loadRealFrameForceResults(CADSystem, { force: true })
+            .then(() => {
+                hideFrameForceDisplayPanel();
+                showFrameForceDisplayPanel(CADSystem);
+            })
+            .catch((error) => {
+                console.warn("No se pudo recalcular fuerzas internas:", error);
+            });
     });
 
     return true;

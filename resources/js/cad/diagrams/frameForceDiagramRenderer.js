@@ -8,16 +8,22 @@ import {
     getComponentStyle,
     getAllFrames,
     shouldDrawFrameDiagram,
-    getFrameForceRecord,
-    getMaxAbsValue,
+    getFrameForceIndex,
     getRecordExtrema,
+    MIN_PX_FOR_VALUE_LABELS,
     getFrameScreenGeometry,
     getScalePxPerUnit,
     buildDiagramPoints,
     formatFrameDiagramValue,
     getUnitLabel,
     almostSamePoint,
+    getDiagramSide,
 } from "./frameForceDiagramUtils.js";
+import {
+    getDiagramTargetHeightModel,
+    getModelSpanFromNodes,
+    getPixelsPerModelUnit,
+} from "./frameForceDiagramScale.js";
 
 function drawLabelBox(ctx, text, x, y, options = {}) {
     if (!text) return;
@@ -1431,14 +1437,36 @@ function drawSingleFrameForceDiagram({
     componentInfo,
     display,
     maxAbs,
+    targetHeightPx,
 }) {
     const ctx = CADSystem.ctx;
     const geometry = getFrameScreenGeometry(CADSystem, renderer, frame);
 
     if (!geometry) return;
 
+    // Barra corta en pantalla (modelo alejado): se dibuja el diagrama pero no
+    // las etiquetas ni las líneas de estación. Cada etiqueta cuesta un
+    // measureText + save/restore, y a esa escala son cajitas negras
+    // superpuestas que no se leen igual. Se filtra acá, en un solo punto, para
+    // que valga para las seis componentes.
+    if (geometry.lengthPx < MIN_PX_FOR_VALUE_LABELS) {
+        display = {
+            ...display,
+            showValues: false,
+            showMaxMin: false,
+            showStationLines: false,
+        };
+    }
+
     const style = getComponentStyle(component);
-    const scalePxPerUnit = getScalePxPerUnit(display, maxAbs);
+
+    // El lado del diagrama (`getDiagramSide`) FALTABA en el 2D: el 3D volteaba
+    // M3 para ponerlo del lado de la tracción como ETABS y el 2D no, así que
+    // las dos vistas del mismo modelo mostraban el M3 espejado entre sí. Al ir
+    // en la escala, el volteo arrastra parejo el relleno, el contorno y las
+    // etiquetas — no hay que tocarlos uno por uno.
+    const scalePxPerUnit =
+        getScalePxPerUnit(display, maxAbs, targetHeightPx) * getDiagramSide(component);
     const points = buildDiagramPoints(record, component, geometry, scalePxPerUnit);
 
     if (!points.length) return;
@@ -1593,24 +1621,28 @@ export function drawFrameForceDiagrams2D({ CADSystem, renderer, ctx }) {
     }
 
     const frames = getAllFrames(CADSystem);
-    const maxAbs = getMaxAbsValue(
-        results,
-        display.caseId,
-        display.comboId,
-        component
-    );
+
+    // Un solo barrido de `frameForces` por selección (cacheado en el objeto de
+    // resultados), en vez de un `.find()` por barra en cada redibujado.
+    const index = getFrameForceIndex(results, display.caseId, display.comboId);
+
+    if (!index) return;
+
+    const maxAbs = (index.maxAbs[component] || 0) || 1;
+
+    // Amplitud del diagrama: se calcula UNA vez por barrido (no por barra) y
+    // con la misma regla que el 3D — fracción del tamaño del modelo, en metros,
+    // pasada a píxeles con el zoom actual. Ver frameForceDiagramScale.js.
+    const targetHeightPx =
+        getDiagramTargetHeightModel(getModelSpanFromNodes(CADSystem.nodes || []), display) *
+        getPixelsPerModelUnit(CADSystem);
 
     ctx.save();
 
     frames.forEach((frame) => {
         if (!shouldDrawFrameDiagram(frame, CADSystem, renderer, display)) return;
 
-        const record = getFrameForceRecord(
-            results,
-            frame.id,
-            display.caseId,
-            display.comboId
-        );
+        const record = index.byFrame.get(String(frame.id));
 
         if (!record) return;
 
@@ -1623,6 +1655,7 @@ export function drawFrameForceDiagrams2D({ CADSystem, renderer, ctx }) {
             componentInfo,
             display,
             maxAbs,
+            targetHeightPx,
         });
     });
 

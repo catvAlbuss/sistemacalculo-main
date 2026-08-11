@@ -2157,6 +2157,112 @@ export const assignDialogsMixin = {
   // ASSIGN > SHELL > SLAB SECTION  (como ETABS)
   // =====================================================
   // Migración Swal→Blade: HTML en components/cad/modals/slab-section-modal.blade.php.
+  /**
+   * Sentido de armado de la losa (una vía) — el `ANG` de ETABS.
+   *
+   * NO es un dato cosmético: decide a qué vigas les entrega la losa su carga.
+   * Van las PERPENDICULARES a la flecha, que son las que hacen de apoyo en los
+   * dos extremos de la luz (ver _buildSeismicSlabToBeamLoadsForPayload en
+   * payload.js). Girarlo 90° manda la carga a las otras vigas, y como la carga
+   * TOTAL se conserva, las reacciones cierran igual: por eso hace falta poder
+   * verlo (la flecha) y poder corregirlo (este diálogo).
+   */
+  async openAssignSlabLoadDirectionDialog() {
+    const { allSlabs, scopes } = this._slabAssignData();
+
+    if (!allSlabs.length) {
+      this.showMessage?.("No hay losas en el modelo.", "warning");
+      return;
+    }
+
+    const scopeOptions = scopes
+      .map((s) => `<option value="${s.value}">${s.label}</option>`)
+      .join("");
+
+    const { value: form } = await Swal.fire({
+      title: "Sentido de armado de losa",
+      html: `
+        <div style="text-align:left;font-size:13px;color:#cbd5e1">
+          <p style="margin-bottom:10px">
+            La carga del panel va a las vigas <b>perpendiculares</b> a este sentido.
+          </p>
+          <label style="display:block;margin-bottom:4px">Aplicar a</label>
+          <select id="sld-scope" class="swal2-select" style="width:100%;margin:0 0 12px">
+            ${scopeOptions}
+          </select>
+          <label style="display:block;margin-bottom:4px">Ángulo (grados desde +X)</label>
+          <input id="sld-ang" type="number" step="5" value="0" class="swal2-input"
+                 style="width:100%;margin:0 0 12px">
+          <label style="display:flex;align-items:center;gap:8px">
+            <input id="sld-oneway" type="checkbox" checked>
+            <span>Reparto en <b>una vía</b> (aligerado)</span>
+          </label>
+          <p style="margin-top:8px;font-size:12px;color:#94a3b8">
+            Sin marcar, reparte a las cuatro vigas del contorno y no se dibuja flecha.
+            0° = la carga salva en X · 90° = salva en Y.
+          </p>
+        </div>`,
+      showCancelButton: true,
+      confirmButtonText: "Aplicar",
+      cancelButtonText: "Cancelar",
+      background: "#1a2035",
+      color: "#e2e8f0",
+      preConfirm: () => ({
+        scope: document.getElementById("sld-scope")?.value || "all",
+        ang: Number(document.getElementById("sld-ang")?.value) || 0,
+        oneWay: document.getElementById("sld-oneway")?.checked !== false,
+      }),
+    });
+
+    if (!form) return;
+
+    const target = this._resolveSlabScopeTarget(form.scope);
+
+    this.saveUndoState?.("Sentido de armado de losa");
+
+    target.forEach((slab) => {
+      slab.oneWayLoadDist = form.oneWay;
+      slab.loadDistAngle = form.ang;
+    });
+
+    // Cambia a qué vigas les llega la carga → los diagramas guardados dejan de
+    // valer. La firma del payload lo detecta sola, pero avisar es más honesto.
+    this.markAnalysisResultsOutdated?.("Cambió el sentido de armado de una losa.");
+    this.redraw?.();
+
+    this.showMessage?.(
+      form.oneWay
+        ? `Sentido de armado ${form.ang}° en ${target.length} losa(s).`
+        : `Reparto en dos vías en ${target.length} losa(s).`,
+    );
+  },
+
+  /** Gira 90° el sentido de armado de las losas seleccionadas (o de todas). */
+  rotateSlabLoadDirection() {
+    const { selected, allSlabs } = this._slabAssignData();
+    const target = selected.length ? selected : allSlabs;
+
+    if (!target.length) {
+      this.showMessage?.("No hay losas en el modelo.", "warning");
+      return;
+    }
+
+    this.saveUndoState?.("Girar sentido de armado 90°");
+
+    target.forEach((slab) => {
+      slab.oneWayLoadDist = true;
+      slab.loadDistAngle = ((Number(slab.loadDistAngle) || 0) + 90) % 180;
+    });
+
+    this.markAnalysisResultsOutdated?.("Cambió el sentido de armado de una losa.");
+    this.redraw?.();
+
+    this.showMessage?.(
+      `Sentido de armado girado 90° en ${target.length} losa(s)` +
+        `${selected.length ? "" : " (todas, no había selección)"}.`,
+    );
+  },
+
   openAssignSlabSectionDialog() {
     const { allSlabs, scopes } = this._slabAssignData();
     if (!allSlabs.length) {
@@ -2188,10 +2294,39 @@ export const assignDialogsMixin = {
       // Peso propio de la losa (kgf/m²): espesor(m) × densidad del material.
       slab.slabSelfWeightKgM2 = sec ? this._slabSectionSelfWeightKgM2(sec) : 0;
       slab.section = sec ? { name: sec.name, thickness: sec.thickness, material: sec.material } : null;
+
+      // Reparto de la carga a las vigas. En ETABS este dato vive en la SECCIÓN
+      // (`SHELLPROP ... ONEWAYLOADDIST`), así que acá se hereda igual: una losa
+      // dibujada en la app y con sección asignada tiene que comportarse como
+      // una importada del .e2k. Sin esto, la losa quedaba sin sentido de
+      // armado, no dibujaba flecha y repartía la carga a las cuatro vigas.
+      if (sec) {
+        slab.oneWayLoadDist = this._slabSectionIsOneWay(sec);
+        if (slab.loadDistAngle == null) slab.loadDistAngle = 0;
+      }
     });
     this.markAnalysisResultsOutdated?.("Se asignó sección de losa.");
     this.redraw?.();
     this.showMessage?.(`Sección "${name === "__none__" ? "None" : name}" asignada a ${target.length} losa(s).`);
+  },
+
+  /**
+   * ¿La sección reparte su carga en UNA VÍA?
+   *
+   * Si la definición lo declara (`oneWayLoadDist`), manda eso — es el
+   * equivalente del `ONEWAYLOADDIST` de ETABS. Si no lo declara (secciones
+   * viejas, creadas antes de que existiera el campo), se deduce del NOMBRE:
+   * un aligerado, un nervado o una losa de viguetas son de una vía por
+   * definición constructiva, no por configuración. Una losa maciza no.
+   *
+   * El usuario siempre puede corregirlo en Asignar ▸ Losa ▸ Sentido de Armado.
+   */
+  _slabSectionIsOneWay(sec) {
+    if (typeof sec?.oneWayLoadDist === "boolean") return sec.oneWayLoadDist;
+
+    const name = String(sec?.name || "").toLowerCase();
+
+    return /aligerad|nervad|vigueta|one\s*way|una\s*v[ií]a|unidireccional/.test(name);
   },
 
   // Peso propio de una sección de losa en kgf/m² = espesor(m) × densidad(kg/m³).
