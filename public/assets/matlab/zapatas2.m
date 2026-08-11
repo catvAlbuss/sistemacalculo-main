@@ -24,9 +24,10 @@ function zapatas2(poligonos, column, PD, PL, SISMO, CoValue, Df, pesoEspecifico)
         YC =(x1*y2-x2*y1)*(y2+y1)+YC; % centro de gravedad y
         A0 =(x1*y2-x2*y1)+A0;         % area
     end
-    A  = abs(A0/2);      % AREA
-    XC = abs(XC/(6*A));  % CG EN X
-    YC = abs(YC/(6*A));  % CG EN Y
+    A0s = A0/2;           % area CON signo (segun sentido de giro del poligono)
+    A  = abs(A0s);        % AREA
+    XC = XC/(6*A0s);      % CG EN X (con signo real; abs() aqui rompe el centrado si CG < 0)
+    YC = YC/(6*A0s);      % CG EN Y
     %% Codigo para mover el centro del plano al centro de gravedad
     hj = ones(length(vertices),1); % vector de unos de la cantidad de coordenadas
     p2 = [hj*XC hj*YC];            % matriz repetida de centros de gravedad para mover el plano cartesiano

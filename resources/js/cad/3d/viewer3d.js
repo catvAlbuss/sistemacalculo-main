@@ -1,5 +1,6 @@
 import * as BABYLON from "@babylonjs/core";
 import { drawCustomGeneralGrids3D } from "./grid3d.js";
+import { getModelPivotTarget } from "./camera3d.js";
 import { renderModel3D } from "./objects/renderModel3d.js";
 import { DeflectionAnimator, AnimationManager } from "./animation3d.js";
 import {
@@ -31,6 +32,11 @@ const VIEWER_STATE = {
 
   // Estado para animación sísmica
   seismicAnimator: null,
+
+  // Último contexto (componente Alpine) visto por el observable de dibujo.
+  // Lo necesitan los helpers expuestos en window.__jh* que se llaman desde los
+  // mixins, donde no llega el contexto por parámetro.
+  drawContext: null,
 };
 
 let currentAnimator = null;
@@ -156,8 +162,12 @@ function createCanvas(container) {
   return canvas;
 }
 
-function createCamera(scene, canvas) {
-  const camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 4, Math.PI / 5, 20, BABYLON.Vector3.Zero(), scene);
+function createCamera(scene, canvas, context) {
+  // Pivote inicial: centro de la grilla/modelo si ya hay ejes X/Y y pisos
+  // definidos (típico al reabrir un modelo guardado); si no, el origen —
+  // ver comentario en getModelPivotTarget (camera3d.js).
+  const initialTarget = getModelPivotTarget(context);
+  const camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 4, Math.PI / 5, 20, initialTarget, scene);
 
   camera.attachControl(canvas, true);
   camera.panningSensibility = 50;
@@ -171,7 +181,13 @@ function createCamera(scene, canvas) {
   camera.useFramingBehavior = true;
 
   if (camera.framingBehavior) {
-    camera.framingBehavior.elevationReturnTime = 500;
+    // elevationReturnTime > 0 es el "auto-retorno" de Babylon: si dejás de
+    // interactuar con la cámara mientras mirás desde abajo (beta grande), la
+    // FramingBehavior la anima sola de vuelta a una vista "cómoda" de frente.
+    // -1 desactiva ESE retorno automático específicamente, sin tocar el resto
+    // de FramingBehavior (zoomOnBoundingInfo sigue funcionando igual). Así la
+    // cámara se queda donde el usuario la dejó, mire desde donde mire.
+    camera.framingBehavior.elevationReturnTime = -1;
     camera.framingBehavior.zoomOnBoundingInfo = true;
   }
 
@@ -349,6 +365,48 @@ function createNodeMesh(node, context) {
 // CREAR MALLA DE BARRA EN EL 3D
 // Pinta barras normales, barras 3D-only y barras seleccionadas.
 // =====================================================
+// Convierte "#rrggbb" a BABYLON.Color3; null si el string no es válido.
+function hexToColor3(hex) {
+  if (typeof hex !== "string") return null;
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return new BABYLON.Color3(
+    ((n >> 16) & 255) / 255,
+    ((n >> 8) & 255) / 255,
+    (n & 255) / 255,
+  );
+}
+
+// Color de DISPLAY de la sección del frame (campo "color" del modal Frame
+// Sections), como Color3; null si la barra no tiene sección con color propio.
+// Espejo de renderer.getFrameSectionColor para el visor 3D.
+function getBeamSectionColor3D(beam, context = null) {
+  if (!beam) return null;
+  const direct =
+    beam.section?.color || beam.frameSection?.color || beam.sectionColor || null;
+  if (direct) return hexToColor3(direct);
+
+  const label =
+    beam.sectionName ||
+    beam.frameSection?.name ||
+    beam.frameSection?.id ||
+    beam.section?.name ||
+    beam.section?.id ||
+    beam.sectionId ||
+    "";
+  if (!label) return null;
+
+  const list =
+    context?.frameSections?.sections ||
+    (typeof window !== "undefined" && window.cadSystem?.frameSections?.sections) ||
+    null;
+  if (!Array.isArray(list)) return null;
+
+  const match = list.find((s) => s && (s.name === label || s.id === label));
+  return match?.color ? hexToColor3(match.color) : null;
+}
+
 function createBeamMesh(beam, context) {
   const start = mapNodePositionTo3D(beam.node1);
   const end = mapNodePositionTo3D(beam.node2);
@@ -366,18 +424,24 @@ function createBeamMesh(beam, context) {
   // Normal activa: amarillo.
   // Normal inactiva: gris.
   // =====================================================
+  // Color propio de la sección (si el usuario le puso uno en el modal). Tiene
+  // prioridad sobre el color por estado, EXCEPTO cuando la barra está
+  // seleccionada (ahí manda el resalte). Aplica a la vista activa y, atenuado,
+  // a las inactivas.
+  const sectionColor = getBeamSectionColor3D(beam, context);
+
   if (isSelected) {
     lines.color = is3DOnly ? COLORS_3D.frame3DOnlySelected : COLORS_3D.selectedModel;
 
     lines.alpha = 1;
   } else if (is3DOnly) {
-    lines.color = COLORS_3D.frame3DOnly;
+    lines.color = sectionColor || COLORS_3D.frame3DOnly;
     lines.alpha = 1;
   } else if (isActiveView) {
-    lines.color = COLORS_3D.activeModel;
+    lines.color = sectionColor || COLORS_3D.activeModel;
     lines.alpha = 1;
   } else {
-    lines.color = COLORS_3D.inactiveModel;
+    lines.color = sectionColor || COLORS_3D.inactiveModel;
     lines.alpha = 0.1;
   }
 
@@ -416,7 +480,7 @@ export function initViewer3D(context, container) {
     const scene = new BABYLON.Scene(engine);
     scene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.1, 1);
 
-    const camera = createCamera(scene, canvas);
+    const camera = createCamera(scene, canvas, context);
     createLights(scene);
 
     VIEWER_STATE.engine = engine;
@@ -874,7 +938,10 @@ function ensure3DWorkPlanePickMesh(context) {
     workPlane.rotation.z = 0;
   }
 
-  workPlane.isPickable = context?.activeDrawTool === "frame" || context?.isDrawingFrame3D === true;
+  workPlane.isPickable =
+    context?.activeDrawTool === "frame" ||
+    context?.activeDrawTool === "slab" ||
+    context?.isDrawingFrame3D === true;
 
   workPlane.setEnabled(true);
 
@@ -1068,6 +1135,210 @@ function update3DFramePreviewLine(context, snappedPoint) {
 }
 
 // =====================================================
+// 3D DRAW SLAB > PREVIEW DEL POLÍGONO DE LOSA EN CURSO
+// A diferencia del preview de barra (una sola línea start→cursor), acá se
+// muestra TODA la cadena de vértices ya marcados, cerrada contra el primero,
+// más un relleno translúcido para leer la pendiente del faldón. El relleno se
+// triangula en abanico desde el primer vértice: es solo una guía visual, no
+// la geometría final (esa la arma `area3d.js` con createGeneric3DPolygon).
+//
+// El preview de barra es SIEMPRE de 2 puntos; acá la cantidad de vértices
+// cambia con cada clic, y `CreateLines` con `instance` exige el MISMO número
+// de puntos que la malla original. Por eso: si el conteo no cambió se
+// actualiza en sitio (el caso de cada movimiento del mouse, donde solo se
+// mueve el vértice del cursor); si cambió, se recrea la malla.
+// =====================================================
+function ensure3DSlabPreviewLine(points) {
+  const scene = VIEWER_STATE.scene;
+
+  if (!scene) return null;
+
+  const existing = scene.getMeshByName("jh_3d_slab_preview_line");
+
+  if (existing && existing.metadata?.pointCount === points.length) {
+    BABYLON.MeshBuilder.CreateLines(
+      "jh_3d_slab_preview_line",
+      {
+        points,
+        instance: existing,
+      },
+      scene,
+    );
+
+    return existing;
+  }
+
+  existing?.dispose(false, true);
+
+  const line = BABYLON.MeshBuilder.CreateLines(
+    "jh_3d_slab_preview_line",
+    {
+      points,
+      updatable: true,
+    },
+    scene,
+  );
+
+  line.color = new BABYLON.Color3(0.25, 0.95, 0.65);
+  line.isPickable = false;
+
+  line.metadata = {
+    objectType: "draw3DSlabPreviewLine",
+    type: "draw3DSlabPreviewLine",
+    pointCount: points.length,
+  };
+
+  return line;
+}
+
+function ensure3DSlabPreviewFill() {
+  const scene = VIEWER_STATE.scene;
+
+  if (!scene) return null;
+
+  let fill = scene.getMeshByName("jh_3d_slab_preview_fill");
+
+  if (!fill) {
+    fill = new BABYLON.Mesh("jh_3d_slab_preview_fill", scene);
+
+    const mat = new BABYLON.StandardMaterial("mat_jh_3d_slab_preview_fill", scene);
+
+    mat.diffuseColor = new BABYLON.Color3(0.15, 0.8, 0.55);
+    mat.emissiveColor = new BABYLON.Color3(0.08, 0.35, 0.25);
+    mat.alpha = 0.28;
+    mat.backFaceCulling = false;
+
+    fill.material = mat;
+    fill.isPickable = false;
+    fill.setEnabled(false);
+
+    fill.metadata = {
+      objectType: "draw3DSlabPreviewFill",
+      type: "draw3DSlabPreviewFill",
+    };
+  }
+
+  return fill;
+}
+
+// =====================================================
+// 3D DRAW SLAB > ACTUALIZAR PREVIEW
+// `hoverPoint` es el punto bajo el cursor (puede ser null cuando el cursor
+// no está sobre ningún snap: ahí se muestra solo lo ya marcado, para que el
+// polígono no parpadee al pasar por zonas vacías).
+// =====================================================
+function update3DSlabPreview(context, hoverPoint = null) {
+  const scene = VIEWER_STATE.scene;
+
+  if (!scene) return;
+
+  const marked = context?.getSlab3DPreviewPoints?.() || [];
+  const points = hoverPoint ? [...marked, hoverPoint] : [...marked];
+
+  if (points.length < 2) {
+    clear3DSlabPreview();
+    return;
+  }
+
+  const babylonPoints = points.map((p) => modelPointToBabylonPoint(p));
+
+  // Con 3+ vértices se cierra el contorno contra el primero (así se ve el
+  // polígono completo antes de confirmarlo).
+  const linePoints =
+    babylonPoints.length >= 3 ? [...babylonPoints, babylonPoints[0]] : babylonPoints;
+
+  const line = ensure3DSlabPreviewLine(linePoints);
+  const fill = ensure3DSlabPreviewFill();
+
+  line?.setEnabled(true);
+
+  if (fill) {
+    if (babylonPoints.length < 3) {
+      fill.setEnabled(false);
+    } else {
+      const positions = [];
+      const indices = [];
+      const normals = [];
+
+      babylonPoints.forEach((p) => positions.push(p.x, p.y, p.z));
+
+      for (let i = 1; i < babylonPoints.length - 1; i += 1) {
+        indices.push(0, i, i + 1);
+      }
+
+      BABYLON.VertexData.ComputeNormals(positions, indices, normals);
+
+      const vertexData = new BABYLON.VertexData();
+      vertexData.positions = positions;
+      vertexData.indices = indices;
+      vertexData.normals = normals;
+      vertexData.applyToMesh(fill, true);
+
+      fill.setEnabled(true);
+    }
+  }
+}
+
+function clear3DSlabPreview() {
+  const scene = VIEWER_STATE.scene;
+
+  if (!scene) return;
+
+  scene.getMeshByName("jh_3d_slab_preview_line")?.setEnabled(false);
+  scene.getMeshByName("jh_3d_slab_preview_fill")?.setEnabled(false);
+}
+
+// =====================================================
+// 3D DRAW SLAB > RESOLVER EL PUNTO DEL CLIC
+// Mismo orden de prioridad que el dibujo de barras (nudo del modelo > vértice
+// de grilla), pero devuelve el PUNTO, no un nodo: una losa se define por sus
+// vértices y no necesita crear joints.
+// Si no hay snap, solo se acepta el plano de trabajo invisible; picar la malla
+// de una viga devolvería un punto sobre su superficie (vértice sucio).
+// =====================================================
+function resolve3DSlabPointFromPick(context, pointerInfo) {
+  const nodeSnap = findNearest3DModelNodeSnap(context, 18);
+  const gridSnap = findNearest3DGridSnapPointUnderPointer(context, 18);
+
+  const nodeWins = nodeSnap && (!gridSnap || nodeSnap.distance <= gridSnap.distance + 3);
+
+  if (nodeWins && nodeSnap.modelPoint) {
+    return { ...nodeSnap.modelPoint };
+  }
+
+  if (gridSnap?.modelPoint) {
+    return { ...gridSnap.modelPoint };
+  }
+
+  const pickedMesh = pointerInfo?.pickInfo?.pickedMesh;
+  const pickedPoint = pointerInfo?.pickInfo?.pickedPoint;
+  const metadata = pickedMesh?.metadata || {};
+  const isWorkPlane = metadata.objectType === "workPlane3D" || metadata.type === "workPlane3D";
+
+  if (isWorkPlane && pickedPoint) {
+    return babylonPointToModelPoint(pickedPoint);
+  }
+
+  return null;
+}
+
+// =====================================================
+// 3D DRAW SLAB > EXPONER REFRESCO DEL PREVIEW
+// El mixin (draw-slab-3d.js) lo llama tras cada clic/backspace para que el
+// polígono se actualice sin esperar al próximo movimiento del mouse.
+// =====================================================
+window.__jhRefresh3DSlabPreview = () => {
+  const context = VIEWER_STATE.drawContext;
+
+  if (!context || context.isSlabDrawingToolActive?.() !== true) {
+    clear3DSlabPreview();
+    return;
+  }
+
+  update3DSlabPreview(context, null);
+};
+
+// =====================================================
 // 3D DRAW > ACTUALIZAR ETIQUETA DEL GRID POINT
 // No elimina ni recrea el mesh en cada movimiento.
 // =====================================================
@@ -1160,8 +1431,9 @@ function update3DGridPointHoverReference(context, pointerInfo) {
   if (!scene || !context) return;
 
   const frameToolActive = context?.isFrameDrawingToolActive?.() === true || context?.activeDrawTool === "frame";
+  const slabToolActive = context?.isSlabDrawingToolActive?.() === true || context?.activeDrawTool === "slab";
 
-  if (!frameToolActive) {
+  if (!frameToolActive && !slabToolActive) {
     clear3DGridPointHoverReference();
     return;
   }
@@ -1199,7 +1471,14 @@ function update3DGridPointHoverReference(context, pointerInfo) {
     context.hovered3DGridPoint = snappedPoint;
 
     update3DGridPointHoverLabel(context, snappedPoint);
-    update3DFramePreviewLine(context, snappedPoint);
+
+    // Cada herramienta tiene su propio preview: la barra, una línea desde el
+    // nodo inicial; la losa, el polígono acumulado + el vértice bajo el cursor.
+    if (slabToolActive) {
+      update3DSlabPreview(context, snappedPoint);
+    } else {
+      update3DFramePreviewLine(context, snappedPoint);
+    }
 
     context.showMessage?.(
       isNode
@@ -1214,6 +1493,12 @@ function update3DGridPointHoverReference(context, pointerInfo) {
   // (cualquier piso) vía el snap global de arriba. Si el cursor no está sobre
   // un vértice, no se marca nada (antes caía al plano del piso 2D activo).
   clear3DGridPointHoverReference();
+
+  // El polígono de losa ya marcado NO es parte del hover: debe seguir viéndose
+  // aunque el cursor pase por una zona vacía (si no, parpadea en cada movida).
+  if (slabToolActive) {
+    update3DSlabPreview(context, null);
+  }
 }
 
 // =====================================================
@@ -1468,8 +1753,12 @@ function enterBoxSelectionMode3D(context) {
 
   if (!VIEWER_STATE.initialized || !canvas || VIEWER_STATE.boxSelect?.active) return;
 
-  // No mezclar con el dibujo de barras.
-  if (context?.activeDrawTool === "frame" || context?.isDrawingFrame3D === true) {
+  // No mezclar con el dibujo de barras ni de losas.
+  if (
+    context?.activeDrawTool === "frame" ||
+    context?.activeDrawTool === "slab" ||
+    context?.isDrawingFrame3D === true
+  ) {
     context?.showMessage?.("Termina o cancela el dibujo (Esc) antes de usar la selección por ventana.");
     return;
   }
@@ -1591,9 +1880,12 @@ function exitBoxSelectionMode3D() {
   hideBoxSelectionOverlay();
   VIEWER_STATE.boxSelect = null;
 
-  // Restaurar cámara solo si no está dibujando una barra.
+  // Restaurar cámara solo si no está dibujando una barra o una losa.
   const context = box.context;
-  const stillDrawing = context?.activeDrawTool === "frame" || context?.isDrawingFrame3D === true;
+  const stillDrawing =
+    context?.activeDrawTool === "frame" ||
+    context?.activeDrawTool === "slab" ||
+    context?.isDrawingFrame3D === true;
 
   if (!stillDrawing) {
     set3DDrawCameraLock(false);
@@ -1644,10 +1936,21 @@ function enable3DFrameSelection(context) {
     const frameToolActive = context?.isFrameDrawingToolActive?.() === true || context?.activeDrawTool === "frame";
 
     // =====================================================
+    // DRAW SLAB > VALIDAR HERRAMIENTA DE LOSA ACTIVA
+    // Segundo camino del MISMO observable: mismo hover, mismo snap a nudos y
+    // mismo plano de trabajo que las barras, pero acumulando vértices para
+    // armar un área (ver mixins/edit/draw-slab-3d.js).
+    // =====================================================
+    const slabToolActive = context?.isSlabDrawingToolActive?.() === true || context?.activeDrawTool === "slab";
+    const drawToolActive = frameToolActive || slabToolActive;
+
+    VIEWER_STATE.drawContext = context;
+
+    // =====================================================
     // 3D SELECTION > SI NO ESTOY DIBUJANDO, APAGAR PLANO PICK
     // Evita que el plano invisible intercepte clics sobre barras.
     // =====================================================
-    if (!frameToolActive && context?.isDrawingFrame3D !== true) {
+    if (!drawToolActive && context?.isDrawingFrame3D !== true) {
       disable3DWorkPlanePickMesh();
     }
 
@@ -1656,10 +1959,11 @@ function enable3DFrameSelection(context) {
     // Muestra referencia visual tipo ETABS al pasar por un vértice.
     // =====================================================
     if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERMOVE) {
-      if (frameToolActive) {
+      if (drawToolActive) {
         update3DGridPointHoverReference(context, pointerInfo);
       } else {
         clear3DGridPointHoverReference();
+        clear3DSlabPreview();
       }
     }
 
@@ -1680,13 +1984,13 @@ function enable3DFrameSelection(context) {
     // Con Draw Frame o Selección por Ventana activos, el botón izquierdo
     // queda libre (dibujo/rectángulo) y la cámara usa derecho/medio/rueda.
     // =====================================================
-    set3DDrawCameraLock(frameToolActive === true || VIEWER_STATE.boxSelect?.active === true);
+    set3DDrawCameraLock(drawToolActive === true || VIEWER_STATE.boxSelect?.active === true);
 
     // =====================================================
     // DRAW 3D > ASEGURAR PLANO PICKABLE
     // Permite hacer clic en puntos vacíos de la grilla 3D.
     // =====================================================
-    if (frameToolActive || context?.isDrawingFrame3D === true) {
+    if (drawToolActive || context?.isDrawingFrame3D === true) {
       ensure3DWorkPlanePickMesh(context);
     }
 
@@ -1736,6 +2040,20 @@ function enable3DFrameSelection(context) {
       if (wasTap && drawingFrame && context?.frame3DStartNode) {
         event.preventDefault?.();
         context.endFrame3DPolyline?.();
+      }
+
+      // Losa: el clic derecho cierra el polígono (equivalente al Enter del
+      // dibujo 2D). Con menos de 3 vértices no hay área que crear → se cancela.
+      const slabVertexCount = context?.getSlab3DPreviewPoints?.()?.length || 0;
+
+      if (wasTap && slabToolActive && slabVertexCount > 0) {
+        event.preventDefault?.();
+
+        if (slabVertexCount >= 3) {
+          context.finishSlab3DArea?.();
+        } else {
+          context.cancelSlab3DDrawing?.();
+        }
       }
 
       return;
@@ -1797,6 +2115,26 @@ function enable3DFrameSelection(context) {
     pointerWasDragged3D = false;
 
     const pickedMesh = pointerInfo.pickInfo?.pickedMesh;
+
+    // =====================================================
+    // DRAW SLAB > MARCAR VÉRTICE DE LA LOSA EN 3D
+    // Va ANTES del resto (incluido el caso "no se picó nada"): con la
+    // herramienta de losa activa el clic izquierdo siempre marca vértice,
+    // nunca selecciona. Cada vértice conserva su Z real → techos inclinados.
+    // =====================================================
+    if (slabToolActive) {
+      const slabPoint = resolve3DSlabPointFromPick(context, pointerInfo);
+
+      if (slabPoint) {
+        context.handle3DSlabPointPicked?.(slabPoint);
+      } else {
+        context.showMessage?.(
+          "Herramienta de losa activa: haga clic en un nudo o punto de grilla 3D.",
+        );
+      }
+
+      return;
+    }
 
     // Selección: si el rayo no picó ninguna malla pero hay un nodo cerca del
     // cursor, seleccionarlo igual (los nodos son pequeños y difíciles de acertar).
@@ -2313,6 +2651,37 @@ function createForceArrow3D(
 // 3D DRAW > HELPERS PARA SOPORTES
 // =====================================================
 
+// Factor de escala visual del modelo: los glifos de soporte y el marcador de
+// nodo tenían dimensiones FIJAS en metros (ej. placa de 0.38m) pensadas para
+// un edificio "normal" de varios metros de luz. Sobre un modelo chico (un
+// cuarto de pocos metros, importado de un plano), esas mismas dimensiones
+// ocupan una fracción enorme de la estructura y se ve como una "maqueta" en
+// vez de un edificio real. Este factor (0.3–1) reduce proporcionalmente esos
+// glifos según el tamaño real del modelo (diagonal del bounding box de los
+// nodos), con un piso para que nunca desaparezcan ni queden inclickeables.
+const MODEL_SCALE_REFERENCE_DIAG = 15; // metros — "tamaño normal" de referencia
+const MODEL_SCALE_MIN = 0.3;
+
+function getModelVisualScale3D(context) {
+  const nodes = context?.nodes;
+  if (!Array.isArray(nodes) || nodes.length < 2) return 1;
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  nodes.forEach((n) => {
+    const p = n?.position;
+    if (!p) return;
+    minX = Math.min(minX, Number(p.x) || 0);
+    maxX = Math.max(maxX, Number(p.x) || 0);
+    minY = Math.min(minY, Number(p.y) || 0);
+    maxY = Math.max(maxY, Number(p.y) || 0);
+  });
+
+  const diag = Math.hypot(maxX - minX, maxY - minY);
+  if (!Number.isFinite(diag) || diag <= 0) return 1;
+
+  return Math.min(1, Math.max(MODEL_SCALE_MIN, diag / MODEL_SCALE_REFERENCE_DIAG));
+}
+
 /** Registra un mesh de soporte en VIEWER_STATE para limpieza posterior. */
 function addSupportMesh(mesh) {
   mesh.isPickable = false;
@@ -2325,7 +2694,7 @@ function addSupportMesh(mesh) {
  * Restringe traslación X, Y, Z y rotación X, Y, Z.
  * Color: naranja, estilo ETABS.
  */
-function drawFixedSupport(origin, id) {
+function drawFixedSupport(origin, id, scale = 1) {
   const scene = VIEWER_STATE.scene;
   const color = new BABYLON.Color3(0.85, 0.45, 0.1);
   const mat = createColoredMaterial(`support_mat_${id}`, color, scene);
@@ -2334,10 +2703,10 @@ function drawFixedSupport(origin, id) {
   // Placa base horizontal
   const plate = BABYLON.MeshBuilder.CreateBox(
     `support_${id}_plate`,
-    { width: 0.38, height: 0.05, depth: 0.38 },
+    { width: 0.38 * scale, height: 0.05 * scale, depth: 0.38 * scale },
     scene,
   );
-  plate.position = new BABYLON.Vector3(origin.x, origin.y - 0.025, origin.z);
+  plate.position = new BABYLON.Vector3(origin.x, origin.y - 0.025 * scale, origin.z);
   plate.material = mat;
   addSupportMesh(plate);
 
@@ -2347,19 +2716,19 @@ function drawFixedSupport(origin, id) {
   stripMat.alpha = 0.92;
 
   const stripPositions = [
-    { x: -0.11, z: 0 },
+    { x: -0.11 * scale, z: 0 },
     { x: 0, z: 0 },
-    { x: 0.11, z: 0 },
+    { x: 0.11 * scale, z: 0 },
   ];
   stripPositions.forEach((pos, i) => {
     const strip = BABYLON.MeshBuilder.CreateBox(
       `support_${id}_strip_${i}`,
-      { width: 0.04, height: 0.07, depth: 0.28 },
+      { width: 0.04 * scale, height: 0.07 * scale, depth: 0.28 * scale },
       scene,
     );
     strip.position = new BABYLON.Vector3(
       origin.x + pos.x,
-      origin.y + 0.035,
+      origin.y + 0.035 * scale,
       origin.z + pos.z,
     );
     strip.rotation.y = Math.PI / 4;
@@ -2373,13 +2742,13 @@ function drawFixedSupport(origin, id) {
  * Restringe traslación X, Y, Z; libre en rotación.
  * Color: verde, estilo ETABS.
  */
-function drawPinnedSupport(origin, id) {
+function drawPinnedSupport(origin, id, scale = 1) {
   const scene = VIEWER_STATE.scene;
   const color = new BABYLON.Color3(0.18, 0.72, 0.32);
   const mat = createColoredMaterial(`support_mat_${id}`, color, scene);
   mat.alpha = 0.92;
 
-  const pyramidHeight = 0.28;
+  const pyramidHeight = 0.28 * scale;
 
   // Pirámide: diameterTop=0 → apex en la parte superior (+Y)
   // position.y = origin.y - pyramidHeight/2 → apex roza el nodo
@@ -2387,7 +2756,7 @@ function drawPinnedSupport(origin, id) {
     `support_${id}_pyramid`,
     {
       diameterTop: 0,
-      diameterBottom: 0.32,
+      diameterBottom: 0.32 * scale,
       height: pyramidHeight,
       tessellation: 4,
     },
@@ -2401,10 +2770,10 @@ function drawPinnedSupport(origin, id) {
   // Placa base
   const base = BABYLON.MeshBuilder.CreateBox(
     `support_${id}_base`,
-    { width: 0.38, height: 0.04, depth: 0.38 },
+    { width: 0.38 * scale, height: 0.04 * scale, depth: 0.38 * scale },
     scene,
   );
-  base.position = new BABYLON.Vector3(origin.x, origin.y - pyramidHeight - 0.02, origin.z);
+  base.position = new BABYLON.Vector3(origin.x, origin.y - pyramidHeight - 0.02 * scale, origin.z);
   base.material = mat;
   addSupportMesh(base);
 }
@@ -2414,19 +2783,19 @@ function drawPinnedSupport(origin, id) {
  * Restringe solo traslación Z; libre en X, Y y rotaciones.
  * Color: azul, estilo ETABS.
  */
-function drawRollerZSupport(origin, id) {
+function drawRollerZSupport(origin, id, scale = 1) {
   const scene = VIEWER_STATE.scene;
   const color = new BABYLON.Color3(0.22, 0.44, 0.92);
   const mat = createColoredMaterial(`support_mat_${id}`, color, scene);
   mat.alpha = 0.92;
 
-  const pyramidHeight = 0.28;
+  const pyramidHeight = 0.28 * scale;
 
   const pyramid = BABYLON.MeshBuilder.CreateCylinder(
     `support_${id}_pyramid`,
     {
       diameterTop: 0,
-      diameterBottom: 0.32,
+      diameterBottom: 0.32 * scale,
       height: pyramidHeight,
       tessellation: 4,
     },
@@ -2442,15 +2811,15 @@ function drawRollerZSupport(origin, id) {
   const rollerMat = createColoredMaterial(`support_mat_${id}_roller`, rollerColor, scene);
   rollerMat.alpha = 0.92;
 
-  [-0.12, 0, 0.12].forEach((offset, i) => {
+  [-0.12 * scale, 0, 0.12 * scale].forEach((offset, i) => {
     const roller = BABYLON.MeshBuilder.CreateCylinder(
       `support_${id}_roller_${i}`,
-      { diameter: 0.07, height: 0.34, tessellation: 12 },
+      { diameter: 0.07 * scale, height: 0.34 * scale, tessellation: 12 },
       scene,
     );
     roller.position = new BABYLON.Vector3(
       origin.x + offset,
-      origin.y - pyramidHeight - 0.035,
+      origin.y - pyramidHeight - 0.035 * scale,
       origin.z,
     );
     roller.rotation.z = Math.PI / 2;
@@ -2461,26 +2830,26 @@ function drawRollerZSupport(origin, id) {
   // Placa base bajo los rodillos
   const base = BABYLON.MeshBuilder.CreateBox(
     `support_${id}_base`,
-    { width: 0.44, height: 0.03, depth: 0.38 },
+    { width: 0.44 * scale, height: 0.03 * scale, depth: 0.38 * scale },
     scene,
   );
-  base.position = new BABYLON.Vector3(origin.x, origin.y - pyramidHeight - 0.075, origin.z);
+  base.position = new BABYLON.Vector3(origin.x, origin.y - pyramidHeight - 0.075 * scale, origin.z);
   base.material = mat;
   addSupportMesh(base);
 }
 
 /** Soporte personalizado: restricciones parciales no estándar — cubo gris. */
-function drawCustomSupport(origin, id) {
+function drawCustomSupport(origin, id, scale = 1) {
   const scene = VIEWER_STATE.scene;
   const mat = createColoredMaterial(`support_mat_${id}`, new BABYLON.Color3(0.55, 0.55, 0.55), scene);
   mat.alpha = 0.82;
 
   const box = BABYLON.MeshBuilder.CreateBox(
     `support_${id}`,
-    { width: 0.22, height: 0.1, depth: 0.22 },
+    { width: 0.22 * scale, height: 0.1 * scale, depth: 0.22 * scale },
     scene,
   );
-  box.position = new BABYLON.Vector3(origin.x, origin.y - 0.05, origin.z);
+  box.position = new BABYLON.Vector3(origin.x, origin.y - 0.05 * scale, origin.z);
   box.material = mat;
   addSupportMesh(box);
 }
@@ -2494,6 +2863,8 @@ function drawCustomSupport(origin, id) {
 function drawSupportsIn3D(context) {
   const nodes = context.nodes;
   if (!nodes) return;
+
+  const scale = getModelVisualScale3D(context);
 
   nodes.forEach((node) => {
     const r = node.restraints || node.constraints || {};
@@ -2527,10 +2898,10 @@ function drawSupportsIn3D(context) {
     const id = node.id;
 
     switch (supportType) {
-      case "fixed": drawFixedSupport(origin, id); break;
-      case "pinned": drawPinnedSupport(origin, id); break;
-      case "rollerZ": drawRollerZSupport(origin, id); break;
-      default: drawCustomSupport(origin, id); break;
+      case "fixed": drawFixedSupport(origin, id, scale); break;
+      case "pinned": drawPinnedSupport(origin, id, scale); break;
+      case "rollerZ": drawRollerZSupport(origin, id, scale); break;
+      default: drawCustomSupport(origin, id, scale); break;
     }
   });
 }
@@ -3408,12 +3779,16 @@ export function drawIn3D(context, updateOnly = false) {
   // Limpiar elementos anteriores del modelo (nodos y barras)
   clearModelElements(keepLabels);
 
+  // Ver comentario junto a getModelVisualScale3D: en un modelo chico (un
+  // cuarto de pocos metros) un nodo de 0.08m fijo se ve desproporcionado.
+  const nodeScale = getModelVisualScale3D(context);
+
   // Dibujar nodos deformados (si corresponde)
   context.nodes.forEach((node) => {
     const pos3d = getNodePosition3D(node, context);
     const sphere = BABYLON.MeshBuilder.CreateSphere(
       `node_${node.id}`,
-      { diameter: 0.08, segments: 8 },
+      { diameter: 0.08 * nodeScale, segments: 8 },
       VIEWER_STATE.scene,
     );
     sphere.position = pos3d;

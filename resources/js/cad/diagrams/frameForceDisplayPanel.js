@@ -1,9 +1,9 @@
-import { generateMockFrameForceResults } from "../analysis/mockFrameForceResults.js";
+import { generateMockFrameForceResults } from "../engine/mockFrameForceResults.js";
 
 import {
     addDefaultCombosAndEnvelope,
     getAvailableFrameForceCases,
-} from "../analysis/frameForceCombinations.js";
+} from "../engine/frameForceCombinations.js";
 
 import {
     showFrameForceTable,

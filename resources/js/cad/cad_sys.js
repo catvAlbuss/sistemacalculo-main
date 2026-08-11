@@ -1,18 +1,16 @@
 // Sistema de unidades de visualización (registra window.cadUnits).
-import "./units.js";
+import "./lib/units.js";
 
 import {
   ensureResponseSpectrumDefinitions,
   openResponseSpectrumFunctionsDialog,
   openResponseSpectrumCasesDialog
-} from "./analysis/7_responseSpectrumDefinitions.js";
+} from "./engine/7_responseSpectrumDefinitions.js";
 
-import { GridEditor } from "./grid_editor.js";
+import { GridEditor } from "./canvas2d/grid_editor.js";
 
 import {
   activate3DDrawingMode,
-  elevateSelectedNodes,
-  lowerSelectedNodes,
   extrudeToNewFloor,
   extrudeTo3D,
   selectAllNodes,
@@ -21,7 +19,7 @@ import {
   showTestFrame,
 } from "./3d/modeling3d.js";
 
-import { setViewPlan, setViewIso, setViewFront, setViewSide, zoomExtents } from "./3d/camera3d.js";
+import { setViewPlan, setViewIso, setViewFront, setViewSide, zoomExtents, recenterCameraOnGrid } from "./3d/camera3d.js";
 
 import {
   initViewer3D,
@@ -38,8 +36,8 @@ import {
 
 import { createFull3DGrid, drawReferenceGrid3D, clearReferenceGrid3D } from "./3d/grid3d.js";
 
-import { Grid } from "./grid.js";
-import { DiseñoRenderer, DeflexionRenderer, AxialRenderer } from "./renderer.js";
+import { Grid } from "./canvas2d/grid.js";
+import { DiseñoRenderer, DeflexionRenderer, AxialRenderer } from "./canvas2d/renderer.js";
 import {
   IdleState,
   PanAndZoomState,
@@ -47,7 +45,9 @@ import {
   TrussDrawingState,
   CrossViewFrameDrawingState,
   PointDrawingState,
+  GridAxisDrawingState,
   ColumnDrawingState,
+  ColumnsRegionState,
   CreateLinesRegionClicksState,
   CreateSecondaryBeamsRegionClicksState,
   ReferencePointDrawingState,
@@ -55,6 +55,8 @@ import {
   SelectedDimensionLinesState,
   ReshapeObjectState,
   AreaDrawingState,
+  WallDrawingState,
+  SlabRegionState,
   SelectedAreasState,
   MoveObjectState,
   MoveGroupState,
@@ -63,44 +65,48 @@ import {
   SelectedParametricState,
   SelectedNodesState,
   SelectionState,
-} from "./states.js";
-import { pointDistance, mousePositionFrom, removeFromArray, axisToFixed, pointDistanceToSegment } from "./utils.js";
+} from "./canvas2d/states.js";
+import { pointDistance, mousePositionFrom, removeFromArray, axisToFixed, pointDistanceToSegment } from "./lib/utils.js";
 import { read as readmat } from "mat-for-js";
-import { Triangle, Puente, Arco } from "./parametricModels.js";
+import { Triangle, Puente, Arco } from "./model/parametricModels.js";
 import Swal from "sweetalert2";
-import sections from "./sections.js";
+import sections from "./model/sections.js";
 
 import * as BABYLON from "@babylonjs/core";
-import { TrussDrawingState3D } from "./states.js";
-import { Beam, Node as StructuralNode } from "./shapes.js";
+import { TrussDrawingState3D } from "./canvas2d/states.js";
+import { Beam, Node as StructuralNode } from "./model/shapes.js";
 
 
 // Mixin imports
-import { optionsMixin } from "./mixins/options.js";
-import { eventsMixin } from "./mixins/events.js";
-import { selectionMixin } from "./mixins/selection.js";
-import { actionsMixin } from "./mixins/actions.js";
-import { modelQueriesMixin } from "./mixins/model-queries.js";
-import { editDeleteMixin } from "./mixins/edit-delete.js";
-import { editClipboardMixin } from "./mixins/edit-clipboard.js";
-import { undoRedoMixin } from "./mixins/undo-redo.js";
-import { editGeometryMixin } from "./mixins/edit-geometry.js";
-import { viewFilterMixin } from "./mixins/view-filter.js";
-import { designMixin } from "./mixins/design.js";
-import { displayDialogsMixin } from "./mixins/display-dialogs.js";
-import { assignDialogsMixin } from "./mixins/assign-dialogs.js";
-import { coreUiMixin } from "./mixins/core-ui.js";
-import { fileIOMixin } from "./mixins/file-io.js";
-import { modelFactoryMixin } from "./mixins/model-factory.js";
-import { storyGridMixin } from "./mixins/story-grid.js";
-import { viewportMixin } from "./mixins/viewport.js";
-import { analysisMixin } from "./mixins/analysis.js";
-import { referenceGridMixin } from "./mixins/reference-grid.js";
-import { elevationDrawingMixin } from "./mixins/elevation-drawing.js";
-import { reportMixin } from "./mixins/report.js";
-import { animationMixin } from "./mixins/animation.js";
-import { seismicMixin } from "./mixins/seismic.js";
-import { autosaveMixin } from "./mixins/autosave.js";
+import { optionsMixin } from "./mixins/core/options.js";
+import { eventsMixin } from "./mixins/core/events.js";
+import { selectionMixin } from "./mixins/select/selection.js";
+import { actionsMixin } from "./mixins/core/actions.js";
+import { modelQueriesMixin } from "./mixins/edit/model-queries.js";
+import { editDeleteMixin } from "./mixins/edit/edit-delete.js";
+import { editClipboardMixin } from "./mixins/edit/edit-clipboard.js";
+import { undoRedoMixin } from "./mixins/edit/undo-redo.js";
+import { editGeometryMixin } from "./mixins/edit/edit-geometry.js";
+import { drawSlab3DMixin } from "./mixins/edit/draw-slab-3d.js";
+import { viewFilterMixin } from "./mixins/select/view-filter.js";
+import { designMixin } from "./mixins/analysis/design.js";
+import { displayDialogsMixin } from "./mixins/dialogs/display-dialogs.js";
+import { assignDialogsMixin } from "./mixins/dialogs/assign-dialogs.js";
+import { coreUiMixin } from "./mixins/core/core-ui.js";
+import { fileIOMixin } from "./mixins/io/file-io.js";
+import { modelFactoryMixin } from "./mixins/edit/model-factory.js";
+import { storyGridMixin } from "./mixins/grids/story-grid.js";
+import { viewportMixin } from "./mixins/select/viewport.js";
+import { analysisMixin } from "./mixins/analysis/analysis.js";
+import { referenceGridMixin } from "./mixins/grids/reference-grid.js";
+import { elevationDrawingMixin } from "./mixins/grids/elevation-drawing.js";
+import { planImportMixin } from "./mixins/grids/plan-import.js";
+import { reportMixin } from "./mixins/analysis/report.js";
+import { animationMixin } from "./mixins/analysis/animation.js";
+import { seismicMixin } from "./mixins/analysis/seismic.js";
+import { foundationMixin } from "./mixins/analysis/foundation.js";
+import { reactionsDisplayMixin } from "./mixins/analysis/seismic/reactions-display.js";
+import { autosaveMixin } from "./mixins/io/autosave.js";
 
 export default () => ({
   // ------------------------------------------------------------------
@@ -178,8 +184,8 @@ export default () => ({
     lengthUnit: "m",
     forceUnit: "kN",
     modelTolerance: 0.001,
-    snapScreenTolerance: 14,
-    snapWorldTolerance: 1.0,
+    snapScreenTolerance: 25,
+    snapWorldTolerance: 1.5,
   },
   steelFrameDesign: {
     code: "AISC 360-16",
@@ -235,10 +241,10 @@ export default () => ({
   gridEditor: null,
   activeGridPoint: null,
   statusCoordinates: "X 0.00  Y 0.00  Z 0.00",
-  planGridSnapTolerance: 1.0,
-  planGridSnapScreenTolerance: 14,
+  planGridSnapTolerance: 1.5,
+  planGridSnapScreenTolerance: 30,
   lastMouseScreen: { x: 0, y: 0 },
-
+  
   materialProperties: {
     open: false,
     materials: [],
@@ -278,7 +284,7 @@ export default () => ({
       multiplier: 1.0,
     },
     massDefinition: "self",
-    loadMultipliers: [{ load: "DEAD", multiplier: 1 }],
+    loadMultipliers: [{ load: "CM", multiplier: 1 }],
     includeLateralMassOnly: false,
     lumpLateralMassAtStoryLevels: false,
   },
@@ -462,6 +468,11 @@ export default () => ({
     showReferencePlanes: true,
     showJointLoads: false,
     showFrameLoads: false,
+    showFrameSectionLabels: true,
+    // Etiquetas (nombre de sección) sobre losas y muros, en 2D y 3D. En 3D
+    // cada etiqueta es un plano billboard con su propia DynamicTexture, así
+    // que un modelo con muchas losas se vuelve pesado — de ahí el toggle.
+    showAreaSectionLabels: true,
     showDeformedShape: false,
     showModeShape: false,
     showMemberForces: false,
@@ -502,15 +513,19 @@ export default () => ({
       showForces: true,
       currentLoad: "CM",
       renderScale: 1,
-      showIDs: true,
+      showIDs: false,
       showReactions: true,
       showFAxiales: false,
       showFAxialesValues: true,
-      showMaterials: true,
+      showMaterials: false,
       // Vista extruida 3D tipo ETABS (Extrude View): dibuja frames como sólidos
       // b×h y losas/shells con espesor. Default OFF (vista de líneas/tubos).
       extrudeFrames3D: false,
       extrudeShells3D: false,
+      // Modo Ortho (F8, como AutoCAD) para "Zapata a mano alzada": fuerza cada
+      // lado nuevo a salir horizontal o vertical respecto al punto anterior.
+      // Por ahora solo aplica a zapatas (ver AreaDrawingState en states.js).
+      orthoMode: false,
     };
     this.oldOptions = {
       ...this.options,
@@ -533,6 +548,17 @@ export default () => ({
     this.undoStack = [];
     this.redoStack = [];
     this.maxUndoSteps = 30;
+
+    // Dibujo de losa en el visor 3D (mixins/edit/draw-slab-3d.js): vértices
+    // marcados sobre nudos/grilla 3D antes de cerrar el área.
+    this.slab3DPoints = [];
+    this.isDrawingSlab3D = false;
+
+    // Lo crea openReactionsDisplay() (mixins/analysis/seismic/reactions-display.js),
+    // pero el botón del toolbar lo lee al montar (`toggle="reactionsDisplay?.enabled"`)
+    // y sin declararlo acá Alpine tiraba "reactionsDisplay is not defined" en
+    // cada carga — el optional chaining no salva a una variable inexistente.
+    this.reactionsDisplay = null;
 
     this.editClipboard = null;
     this.editPasteCount = 0;
@@ -570,17 +596,23 @@ export default () => ({
     this.moveState = new PanAndZoomState();
     this.trussDrawingState = new TrussDrawingState(this);
     this.pointDrawingState = new PointDrawingState(this);
+    this.gridAxisXDrawingState = new GridAxisDrawingState(this, "X");
+    this.gridAxisYDrawingState = new GridAxisDrawingState(this, "Y");
     this.braceDrawingState = new TrussDrawingState(this, "brace");
     this.beamDrawingState = new TrussDrawingState(this, "beam");
     this.crossViewFrameDrawingState = new CrossViewFrameDrawingState(this, "beam");
     this.columnDrawingState = new ColumnDrawingState(this);
+    this.columnsRegionState = new ColumnsRegionState(this);
     this.createLinesRegionClicksState = new CreateLinesRegionClicksState(this);
     this.createSecondaryBeamsRegionClicksState = new CreateSecondaryBeamsRegionClicksState(this);
     this.referencePointDrawingState = new ReferencePointDrawingState(this);
     this.dimensionLineDrawingState = new DimensionLineDrawingState(this);
     this.slabDrawingState = new AreaDrawingState(this, "slab");
+    this.slabRegionState = new SlabRegionState(this);
     this.wallDrawingState = new AreaDrawingState(this, "wall");
+    this.wallSegmentDrawingState = new WallDrawingState(this);
     this.openingDrawingState = new AreaDrawingState(this, "opening");
+    this.zapataDrawingState = new AreaDrawingState(this, "zapata");
     this.moveObjectState = new MoveObjectState();
     this.moveGroupState = new MoveGroupState();
     this.selectedNodesState = new SelectedNodesState();
@@ -792,6 +824,10 @@ export default () => ({
     return zoomExtents(this);
   },
 
+  recenterCameraOnGrid() {
+    return recenterCameraOnGrid(this);
+  },
+
   // ------------------------------------------------------------------
   // 4. MIXINS
   // Orden de propagación: selectionMixin antes que elevationDrawingMixin para que
@@ -806,6 +842,7 @@ export default () => ({
   ...editClipboardMixin,
   ...undoRedoMixin,
   ...editGeometryMixin,
+  ...drawSlab3DMixin,
   ...viewFilterMixin,
   ...designMixin,
   ...displayDialogsMixin,
@@ -818,8 +855,11 @@ export default () => ({
   ...analysisMixin,
   ...referenceGridMixin,
   ...elevationDrawingMixin,
+  ...planImportMixin,
   ...reportMixin,
   ...animationMixin,
   ...seismicMixin,
+  ...foundationMixin,
+  ...reactionsDisplayMixin,
   ...autosaveMixin,
 });

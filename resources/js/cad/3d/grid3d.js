@@ -126,6 +126,38 @@ function getReferenceBounds(refGrid) {
   return { minX, maxX, minY, maxY };
 }
 
+// Niveles REALES del modelo (this.stories, respeta alturas de piso distintas)
+// con fallback a storyCount*storyHeight uniforme (grilla dibujada a mano, sin
+// stories importados). Sin esto, un modelo con pisos de altura distinta (p.ej.
+// Story1=3.36m, Story2=2.93m) dibujaba el nivel de Story2 en 2*3.36=6.72 en
+// vez de 3.36+2.93=6.29, desalineando la grilla con la geometría importada.
+function getStoryLevels(refGrid, stories = []) {
+  if (Array.isArray(stories) && stories.length) {
+    const map = new Map();
+
+    stories.forEach((s) => {
+      const z = Number(s.elevation ?? s.z ?? 0);
+      if (!Number.isFinite(z)) return;
+      const key = z.toFixed(6);
+      if (!map.has(key)) map.set(key, { z, name: String(s.name || "") });
+    });
+
+    if (!map.has((0).toFixed(6))) map.set((0).toFixed(6), { z: 0, name: "Base" });
+
+    return [...map.values()].sort((a, b) => a.z - b.z);
+  }
+
+  const storyCount = Number(refGrid?.storyCount ?? 0);
+  const storyHeight = Number(refGrid?.storyHeight ?? 3);
+  const levels = [];
+
+  for (let i = 0; i <= storyCount; i++) {
+    levels.push({ z: i * storyHeight, name: i === 0 ? "Base" : `Story ${i}` });
+  }
+
+  return levels;
+}
+
 function createHorizontalGrid(prefix, xPositions, yPositions, z, color, alpha = 0.3) {
   const minX = Math.min(...xPositions);
   const maxX = Math.max(...xPositions);
@@ -154,11 +186,15 @@ function createHorizontalGrid(prefix, xPositions, yPositions, z, color, alpha = 
   );
 }
 
-function createVerticalGridX(prefix, xConst, yPositions, maxZ, storyHeight, color, alpha = 0.3) {
+function createVerticalGridX(prefix, xConst, yPositions, maxZ, levels, color, alpha = 0.3) {
   const minY = Math.min(...yPositions);
   const maxY = Math.max(...yPositions);
 
-  for (let z = 0; z <= maxZ + 0.0001; z += storyHeight) {
+  // Rungs horizontales en las elevaciones REALES de los niveles (no un paso
+  // uniforme) — ver comentario en getStoryLevels. Guarda contra lista vacía
+  // (aún no se corrió "Generar Pisos"): dibuja al menos el rung en z=0.
+  const zs = Array.isArray(levels) && levels.length ? levels.map((l) => l.z) : [0];
+  zs.forEach((z) => {
     createLine(
       `${prefix}_h_${z.toFixed(2)}`,
       mapToBabylon(xConst, minY, z),
@@ -166,7 +202,7 @@ function createVerticalGridX(prefix, xConst, yPositions, maxZ, storyHeight, colo
       color,
       alpha,
     );
-  }
+  });
 
   yPositions.forEach((y, i) => {
     createLine(`${prefix}_v_${i}`, mapToBabylon(xConst, y, 0), mapToBabylon(xConst, y, maxZ), color, alpha);
@@ -186,11 +222,13 @@ function createVerticalGridX(prefix, xConst, yPositions, maxZ, storyHeight, colo
   );
 }
 
-function createVerticalGridY(prefix, yConst, xPositions, maxZ, storyHeight, color, alpha = 0.3) {
+function createVerticalGridY(prefix, yConst, xPositions, maxZ, levels, color, alpha = 0.3) {
   const minX = Math.min(...xPositions);
   const maxX = Math.max(...xPositions);
 
-  for (let z = 0; z <= maxZ + 0.0001; z += storyHeight) {
+  // Ver comentario equivalente en createVerticalGridX.
+  const zs = Array.isArray(levels) && levels.length ? levels.map((l) => l.z) : [0];
+  zs.forEach((z) => {
     createLine(
       `${prefix}_h_${z.toFixed(2)}`,
       mapToBabylon(minX, yConst, z),
@@ -198,7 +236,7 @@ function createVerticalGridY(prefix, yConst, xPositions, maxZ, storyHeight, colo
       color,
       alpha,
     );
-  }
+  });
 
   xPositions.forEach((x, i) => {
     createLine(`${prefix}_v_${i}`, mapToBabylon(x, yConst, 0), mapToBabylon(x, yConst, maxZ), color, alpha);
@@ -218,18 +256,17 @@ function createVerticalGridY(prefix, yConst, xPositions, maxZ, storyHeight, colo
   );
 }
 
-function drawStoryLabels(refGrid, maxZ) {
+function drawStoryLabels(refGrid, maxZ, levels) {
   const { minX, minY } = getReferenceBounds(refGrid);
   const offsetX = minX - refGrid.xSpacing * 0.45;
   const offsetY = minY - refGrid.ySpacing * 0.45;
 
-  for (let i = 0; i <= refGrid.storyCount; i++) {
-    const z = i * refGrid.storyHeight;
-    const label = i === 0 ? "BASE" : `P${i}`;
+  levels.forEach((level, i) => {
+    const label = i === 0 ? "BASE" : (level.name || `P${i}`);
     // Asegurar que z no supere maxZ
-    const finalZ = Math.min(z, maxZ);
+    const finalZ = Math.min(level.z, maxZ);
     createLabel(`ref_story_label_${i}`, label, COLORS.text, mapToBabylon(offsetX, offsetY, finalZ));
-  }
+  });
 }
 
 function drawAxisLabels(refGrid) {
@@ -267,7 +304,8 @@ function drawActiveView(refGrid, context) {
   const view = context?.viewSet?.[context?.activeViewIndex];
   if (!view) return;
 
-  const maxZ = refGrid.storyCount * refGrid.storyHeight;
+  const levels = getStoryLevels(refGrid, context?.stories);
+  const maxZ = levels[levels.length - 1]?.z ?? 0;
 
   clearByPrefix(["activeview_"]);
 
@@ -291,7 +329,7 @@ function drawActiveView(refGrid, context) {
         view.value,
         refGrid.yPositions,
         maxZ,
-        refGrid.storyHeight,
+        levels,
         COLORS.active,
         1,
       );
@@ -310,7 +348,7 @@ function drawActiveView(refGrid, context) {
         view.value,
         refGrid.xPositions,
         maxZ,
-        refGrid.storyHeight,
+        levels,
         COLORS.active,
         1,
       );
@@ -325,20 +363,21 @@ function drawActiveView(refGrid, context) {
   }
 }
 
-function drawReferenceStructure(refGrid) {
-  const maxZ = refGrid.storyCount * refGrid.storyHeight;
+function drawReferenceStructure(refGrid, stories) {
+  const levels = getStoryLevels(refGrid, stories);
+  const maxZ = levels[levels.length - 1]?.z ?? 0;
 
-  // Planos horizontales por nivel
-  for (let i = 0; i <= refGrid.storyCount; i++) {
+  // Planos horizontales por nivel (elevación REAL de cada piso)
+  levels.forEach((level, i) => {
     createHorizontalGrid(
       `ref_floor_${i}`,
       refGrid.xPositions,
       refGrid.yPositions,
-      i * refGrid.storyHeight,
+      level.z,
       COLORS.ref,
       0.22,
     );
-  }
+  });
 
   // Planos verticales perimetrales
   createVerticalGridX(
@@ -346,7 +385,7 @@ function drawReferenceStructure(refGrid) {
     Math.min(...refGrid.xPositions),
     refGrid.yPositions,
     maxZ,
-    refGrid.storyHeight,
+    levels,
     COLORS.ref,
     0.16,
   );
@@ -356,7 +395,7 @@ function drawReferenceStructure(refGrid) {
     Math.max(...refGrid.xPositions),
     refGrid.yPositions,
     maxZ,
-    refGrid.storyHeight,
+    levels,
     COLORS.ref,
     0.16,
   );
@@ -366,7 +405,7 @@ function drawReferenceStructure(refGrid) {
     Math.min(...refGrid.yPositions),
     refGrid.xPositions,
     maxZ,
-    refGrid.storyHeight,
+    levels,
     COLORS.ref,
     0.16,
   );
@@ -376,18 +415,18 @@ function drawReferenceStructure(refGrid) {
     Math.max(...refGrid.yPositions),
     refGrid.xPositions,
     maxZ,
-    refGrid.storyHeight,
+    levels,
     COLORS.ref,
     0.16,
   );
 
   // 🔧 Ahora maxZ ya está definido
   drawAxisLabels(refGrid);
-  drawStoryLabels(refGrid, maxZ);
+  drawStoryLabels(refGrid, maxZ, levels);
   drawWorldAxes(refGrid, maxZ);
 
   // ========== NUEVO: Dibujar labels de pisos y elevaciones en 3D ==========
-  drawStoryElevationLabels(refGrid);
+  drawStoryElevationLabels(refGrid, levels);
   drawAxisElevationLabels(refGrid);
 }
 
@@ -414,12 +453,16 @@ export function clearReferenceGrid3D() {
 
 // Firma de la ESTRUCTURA de la grilla (posiciones, pisos, altura). Solo cambia
 // si el usuario edita la grilla/stories, NO al cambiar de vista ni al dibujar.
-function referenceStructureSignature(refGrid) {
+// Incluye las elevaciones reales (levels) — sin esto, importar un modelo con
+// alturas de piso distintas a las anteriores no invalidaba la caché si
+// storyCount/storyHeight quedaban iguales.
+function referenceStructureSignature(refGrid, levels) {
   return JSON.stringify({
     x: refGrid.xPositions,
     y: refGrid.yPositions,
     n: refGrid.storyCount,
     h: refGrid.storyHeight,
+    levels: levels.map((l) => l.z),
   });
 }
 
@@ -427,16 +470,37 @@ export function drawReferenceGrid3D(context, options = {}) {
   const scene = getScene();
   if (!scene || !context?.referenceGrid) return;
 
-  const refGrid = context.referenceGrid;
+  const rawGrid = context.referenceGrid;
+  const hasX = rawGrid.xPositions?.length > 0;
+  const hasY = rawGrid.yPositions?.length > 0;
 
-  if (!refGrid.xPositions?.length || !refGrid.yPositions?.length) return;
+  // Antes se exigía tener AMBAS direcciones para dibujar algo — significaba
+  // que si el usuario recién trazó un eje X (a mano, uno a la vez) no se veía
+  // NADA en 3D hasta dibujar también un eje Y. Ahora, si falta una dirección,
+  // se le da una extensión sintética (NO se persiste, solo para renderizar)
+  // así el eje recién dibujado se ve de inmediato.
+  if (!hasX && !hasY) return;
+
+  const refGrid = (hasX && hasY) ? rawGrid : (() => {
+    const otherPositions = hasX ? rawGrid.xPositions : rawGrid.yPositions;
+    const span = otherPositions.length > 1
+      ? Math.max(...otherPositions) - Math.min(...otherPositions)
+      : 10;
+    const fallback = [0, Math.max(span, 5)];
+    return {
+      ...rawGrid,
+      xPositions: hasX ? rawGrid.xPositions : fallback,
+      yPositions: hasY ? rawGrid.yPositions : fallback,
+    };
+  })();
 
   // ── OPTIMIZACIÓN: la estructura estática (mallas ref_*) es IDÉNTICA en todas
   // las vistas. Solo se reconstruye si cambió la definición de la grilla
   // (firma) o si aún no existe. Así el cambio de vista y el dibujo de vigas
   // NO recrean toda la grilla: únicamente se actualiza el resaltado azul de la
   // vista activa (drawActiveView, que toca solo las mallas activeview_*).
-  const signature = referenceStructureSignature(refGrid);
+  const levels = getStoryLevels(refGrid, context.stories);
+  const signature = referenceStructureSignature(refGrid, levels);
   const structureExists = scene.meshes?.some((m) => m?.name?.startsWith("ref_floor_0"));
   const rebuildStructure =
     options.forceStructure === true ||
@@ -464,7 +528,7 @@ export function drawReferenceGrid3D(context, options = {}) {
       });
     }
 
-    drawReferenceStructure(refGrid);
+    drawReferenceStructure(refGrid, context.stories);
     scene.__refGridSignature = signature;
   }
 
@@ -489,6 +553,8 @@ export function createFull3DGrid(scene) {
   const size = 10;
   const spacing = 1;
 
+  // Solo el plano XY (planta) — antes también dibujaba los planos verticales
+  // XZ e YZ (paredes), que el usuario no quiere ver por defecto.
   for (let x = -size; x <= size; x += spacing) {
     createLine(
       `ref_base_xy_x_${x}`,
@@ -509,45 +575,17 @@ export function createFull3DGrid(scene) {
     );
   }
 
-  for (let x = -size; x <= size; x += spacing) {
-    createLine(
-      `ref_base_xz_x_${x}`,
-      new BABYLON.Vector3(x, -size, 0),
-      new BABYLON.Vector3(x, size, 0),
-      COLORS.base,
-      0.06,
-    );
-  }
-
-  for (let y = -size; y <= size; y += spacing) {
-    createLine(
-      `ref_base_xz_y_${y}`,
-      new BABYLON.Vector3(-size, y, 0),
-      new BABYLON.Vector3(size, y, 0),
-      COLORS.base,
-      0.06,
-    );
-  }
-
-  for (let z = -size; z <= size; z += spacing) {
-    createLine(
-      `ref_base_yz_z_${z}`,
-      new BABYLON.Vector3(0, -size, z),
-      new BABYLON.Vector3(0, size, z),
-      COLORS.base,
-      0.06,
-    );
-  }
-
-  for (let y = -size; y <= size; y += spacing) {
-    createLine(
-      `ref_base_yz_y_${y}`,
-      new BABYLON.Vector3(0, y, -size),
-      new BABYLON.Vector3(0, y, size),
-      COLORS.base,
-      0.06,
-    );
-  }
+  // Triada de ejes X/Y/Z SIEMPRE visible en el origen, independiente de si
+  // existe una grilla de referencia (drawReferenceStructure/drawAxisLabels
+  // requieren xPositions/yPositions no vacíos). Da orientación mínima mientras
+  // el usuario arma su grilla a mano sobre un plano importado.
+  const axisLen = 2;
+  createLine("origin_axis_x", mapToBabylon(0, 0, 0), mapToBabylon(axisLen, 0, 0), COLORS.axisX, 1);
+  createLine("origin_axis_y", mapToBabylon(0, 0, 0), mapToBabylon(0, axisLen, 0), COLORS.axisY, 1);
+  createLine("origin_axis_z", mapToBabylon(0, 0, 0), mapToBabylon(0, 0, axisLen), COLORS.axisZ, 1);
+  createLabel("origin_axis_x_label", "X", COLORS.axisX, mapToBabylon(axisLen + 0.3, 0, 0));
+  createLabel("origin_axis_y_label", "Y", COLORS.axisY, mapToBabylon(0, axisLen + 0.3, 0));
+  createLabel("origin_axis_z_label", "Z", COLORS.axisZ, mapToBabylon(0, 0, axisLen + 0.3));
 
   console.log("✅ Grid base 3D creado");
 }
@@ -638,18 +676,16 @@ export function drawCustomGeneralGrids3D(scene, referenceGrid, stories = []) {
 
 // Coloca estas funciones antes de drawReferenceStructure
 
-function getStoryElevationLabels(refGrid) {
+function getStoryElevationLabels(refGrid, levels) {
   const labels = [];
-  const storyCount = refGrid.storyCount;
-  const storyHeight = refGrid.storyHeight;
 
   const { minX, minY } = getReferenceBounds(refGrid);
   const offsetX = minX - (refGrid.xSpacing || 1) * 0.6;
   const offsetY = minY - (refGrid.ySpacing || 1) * 0.6;
 
-  for (let i = 0; i <= storyCount; i++) {
-    const z = i * storyHeight;
-    const labelName = i === 0 ? "BASE" : `PISO ${i}`;
+  levels.forEach((level, i) => {
+    const z = level.z;
+    const labelName = i === 0 ? "BASE" : (level.name || `PISO ${i}`).toUpperCase();
     const elevationText = `${labelName}\nEL. ${z.toFixed(2)}m`;
 
     const position = mapToBabylon(offsetX, offsetY, z);
@@ -660,7 +696,7 @@ function getStoryElevationLabels(refGrid) {
       z: z,
       storyIndex: i,
     });
-  }
+  });
 
   return labels;
 }
@@ -700,7 +736,7 @@ function getAxisElevationLabels(refGrid) {
 let lastDrawnStories = null;
 let lastDrawnGrid = null;
 
-function drawStoryElevationLabels(refGrid) {
+function drawStoryElevationLabels(refGrid, levels) {
   const scene = getScene();
   if (!scene) return;
 
@@ -717,7 +753,7 @@ function drawStoryElevationLabels(refGrid) {
     });
   }
 
-  const storyLabels = getStoryElevationLabels(refGrid);
+  const storyLabels = getStoryElevationLabels(refGrid, levels);
 
   storyLabels.forEach((labelInfo) => {
     const label = createStoryLabel3D(labelInfo.text, labelInfo.position, scene, COLORS.text);

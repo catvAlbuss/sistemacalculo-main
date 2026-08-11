@@ -5,6 +5,11 @@ import vue from '@vitejs/plugin-vue';
 import { resolve, dirname } from 'path';
 import fs from 'fs';
 
+// Stub para el builtin "module" de Node que el glue emscripten de
+// @mlightcad/libredwg-web referencia en una rama solo-Node (código muerto en el
+// navegador). Ver resources/js/shims/empty-node-module.js.
+const emptyNodeModuleShim = resolve(__dirname, 'resources/js/shims/empty-node-module.js');
+
 // Copy worker files from @mlightcad packages to public output
 const copyWorkers = () => {
     const workerFiles = [
@@ -78,6 +83,23 @@ export default defineConfig({
         }),
         copyWorkers(),
     ],
+    // libredwg-web (conversor DWG→DXF que carga el módulo CAD bajo demanda al
+    // importar un plano .dwg) trae dentro un `await import("module")` de
+    // emscripten guardado por ENVIRONMENT_IS_NODE. Es código muerto en el
+    // navegador, pero el pre-bundler (esbuild) de Vite lo analiza estáticamente
+    // y falla. Excluyéndolo, Vite lo sirve como ESM nativo y esa rama nunca se
+    // evalúa en el browser. El WASM va embebido (data-URI), no necesita servirse.
+    optimizeDeps: {
+        exclude: ['@mlightcad/libredwg-web'],
+    },
+    resolve: {
+        alias: {
+            // Redirige el builtin "module" (Node) a un stub vacío para que el
+            // bundle browser de libredwg-web no rompa al analizarlo. Ver el
+            // comentario en optimizeDeps arriba.
+            module: emptyNodeModuleShim,
+        },
+    },
     build: {
         rollupOptions: {
             context: "window",
@@ -90,5 +112,17 @@ export default defineConfig({
     server: {
         host: 'localhost',
         port: 5173,
+        watch: {
+            // Sin esto, Vite vigila TODO el proyecto por defecto (no hay
+            // `root` propio para el backend). python-backend/ es código
+            // Python ajeno al build — pero cambia seguido (recompilaciones,
+            // y sobre todo _debug_payloads/*.json en cada análisis sísmico
+            // con DUMP_SEISMIC_PAYLOAD=1). Como no es un módulo JS/CSS que
+            // Vite pueda actualizar en caliente, cada cambio ahí disparaba
+            // un full page reload en medio del análisis. storage/framework
+            // (vistas Blade compiladas) tiene el mismo problema — cambia en
+            // cada request PHP — así que se excluye también.
+            ignored: ['**/python-backend/**', '**/storage/framework/**'],
+        },
     },
 });

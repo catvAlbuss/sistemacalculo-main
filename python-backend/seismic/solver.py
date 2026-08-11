@@ -59,6 +59,7 @@ __all__ = [
     "run_modal_analysis",
     "run_rsa",
     "run_static_analysis",
+    "run_static_analysis_by_type",
 ]
 
 
@@ -365,6 +366,13 @@ def run_modal_analysis(nodes: list, num_modes: int = 6) -> dict:
             }
         )
 
+    # Coordenadas [x, y, z] alineadas con node_ids — para los momentos de base
+    # (brazo de palanca de cada fuerza inercial modal respecto al origen).
+    node_coords = [
+        [float(n.get("x", 0.0)), float(n.get("y", 0.0)), float(n.get("z", 0.0))]
+        for n in nodes
+    ]
+
     return {
         "modal_info": modal_info,
         "phi_x": phi_x,
@@ -372,6 +380,7 @@ def run_modal_analysis(nodes: list, num_modes: int = 6) -> dict:
         "m_x": m_x,
         "m_y": m_y,
         "node_ids": node_ids,
+        "node_coords": node_coords,
         "num_modes": len(keep),
         "num_modes_requested": num_modes,
         "degenerate_modes_dropped": degenerate_dropped,
@@ -480,6 +489,59 @@ def run_rsa(
         combination=combination, damping_ratio=damping_ratio,
     )
 
+    # ── Momentos de reacción en la base (volteo MX/MY + torsión MZ) ──
+    # ETABS los reporta junto al cortante. Se calculan modo a modo con las
+    # fuerzas inerciales modales F = m·Γ·φ·Sa por nudo (misma Γ de la dirección
+    # excitada que usan los desplazamientos acoplados arriba), su brazo de
+    # palanca respecto al origen (0,0,0), y se combinan entre modos con la MISMA
+    # regla (CQC/SRSS) que el cortante:
+    #   MY = Σ Fx·z   (volteo alrededor del eje Y, por las fuerzas en X)
+    #   MX = Σ Fy·z   (volteo alrededor del eje X, por las fuerzas en Y acopladas)
+    #   MZ = Σ (Fy·x − Fx·y)   (torsión en planta)
+    coords = modal_data.get("node_coords") or [[0.0, 0.0, 0.0]] * num_nodes
+    xc = np.array([c[0] for c in coords])
+    yc = np.array([c[1] for c in coords])
+    zc = np.array([c[2] for c in coords])
+
+    # Además de los momentos, se acumulan las COMPONENTES DE FUERZA basal en X e
+    # Y a partir de las MISMAS fuerzas inerciales modales. Esto captura el
+    # cortante ACOPLADO (p.ej. la reacción FX bajo excitación Y, que en modelos
+    # con muros —modos muy acoplados UX/UY— es grande): Σ fx_n bajo excitación Y
+    # = γ_y·Sa·Σ(m_x·φ_x) = componente X acoplada. El cortante basal "clásico"
+    # (_compute_base_shear, vía participación) solo daba la componente PRIMARIA
+    # (la de la dirección excitada) y omitía esta — por eso la reacción cruzada
+    # salía ~2.5× baja vs ETABS. Se combinan entre modos con la MISMA regla
+    # (CQC/SRSS) que momentos y cortante.
+    mx_modal, my_modal, mz_modal = [], [], []
+    fx_base_modal, fy_base_modal = [], []
+    for idx, mi in enumerate(modal_info):
+        Sa_n = interpolate_spectrum(spectrum, mi["period"]) * scale
+        gamma_dir = mi["gamma_x"] if direction == "x" else mi["gamma_y"]
+        fx_n = m_x * gamma_dir * np.array(phi_x[idx]) * Sa_n
+        fy_n = m_y * gamma_dir * np.array(phi_y[idx]) * Sa_n
+        my_modal.append(float(np.sum(fx_n * zc)))
+        mx_modal.append(float(np.sum(fy_n * zc)))
+        mz_modal.append(float(np.sum(fy_n * xc - fx_n * yc)))
+        fx_base_modal.append(float(np.sum(fx_n)))
+        fy_base_modal.append(float(np.sum(fy_n)))
+
+    def _combine_modal_scalar(vals):
+        if str(combination or "").upper() == "CQC":
+            total = 0.0
+            for i, vi in enumerate(vals):
+                for j, vj in enumerate(vals):
+                    total += _cqc_rho(
+                        modal_info[i]["omega"], modal_info[j]["omega"], damping_ratio
+                    ) * vi * vj
+            return float(np.sqrt(abs(total)))
+        return float(np.sqrt(sum(v * v for v in vals)))
+
+    base_moment_mx = _combine_modal_scalar(mx_modal)
+    base_moment_my = _combine_modal_scalar(my_modal)
+    base_moment_mz = _combine_modal_scalar(mz_modal)
+    base_shear_fx = _combine_modal_scalar(fx_base_modal)
+    base_shear_fy = _combine_modal_scalar(fy_base_modal)
+
     # ── Empaquetar por nodo ──────────────────────────────────
     displacements = {}
     for i, nid in enumerate(node_ids):
@@ -511,6 +573,13 @@ def run_rsa(
     return {
         "displacements": displacements,
         "base_shear": base_shear,
+        "base_moment_mx": base_moment_mx,
+        "base_moment_my": base_moment_my,
+        "base_moment_mz": base_moment_mz,
+        # Componentes de fuerza basal (X e Y) de ESTA rama de excitación,
+        # incluye el acoplamiento cruzado — ver comentario en el loop de arriba.
+        "base_shear_fx": base_shear_fx,
+        "base_shear_fy": base_shear_fy,
         "modal_disps_detail": modal_disps_detail,
         # Desplazamientos POR MODO (en la dirección de este RSA) para la deriva
         # CORRECTA = CQC de las derivas modales por línea de nodos (capta la esquina
@@ -804,6 +873,12 @@ def run_accidental_torsion_rsa(
     md_y = [[0.0] * nnodes for _ in range(num_modes)]
     omegas = [float(mi["omega"]) for mi in modal_info]
 
+    # Momento torsor accidental TOTAL en la base por modo = Σ_piso (e·F_piso,n).
+    # Los torques de piso se suman directo a la base (torsión sobre el eje
+    # vertical, sin brazo). Se combinan entre modos abajo (CQC/SRSS) para dar el
+    # aporte accidental a la reacción MZ de base — el mismo que ETABS suma al MZ.
+    base_torsion_modal = [0.0] * num_modes
+
     for n, mi in enumerate(modal_info):
         Sa_n = interpolate_spectrum(spectrum, mi["period"]) * scale
         gamma = mi["gamma_x"] if direction == "x" else mi["gamma_y"]
@@ -824,6 +899,7 @@ def run_accidental_torsion_rsa(
                 else:
                     f_story += gamma * Sa_n * float(m_y[i]) * float(phi_y[n][i])
             m_acc = e * f_story  # momento torsor accidental del piso (modo n)
+            base_torsion_modal[n] += m_acc
             if abs(m_acc) > 1e-12:
                 ops.load(int(retained), 0.0, 0.0, 0.0, 0.0, 0.0, m_acc)
                 applied = True
@@ -848,6 +924,16 @@ def run_accidental_torsion_rsa(
             md_x[n][k] = float(d[0]) if len(d) > 0 else 0.0
             md_y[n][k] = float(d[1]) if len(d) > 1 else 0.0
 
+    # Combinación modal (CQC/SRSS) del momento torsor accidental de base.
+    if str(combination or "").upper() == "CQC":
+        _tot = 0.0
+        for i, vi in enumerate(base_torsion_modal):
+            for j, vj in enumerate(base_torsion_modal):
+                _tot += _cqc_rho(omegas[i], omegas[j], damping_ratio) * vi * vj
+        base_accidental_mz = float(np.sqrt(abs(_tot)))
+    else:
+        base_accidental_mz = float(np.sqrt(sum(v * v for v in base_torsion_modal)))
+
     return {
         "modal_node_disps_x": md_x,
         "modal_node_disps_y": md_y,
@@ -855,6 +941,10 @@ def run_accidental_torsion_rsa(
         "node_ids": node_ids,
         "omegas": omegas,
         "damping_ratio": damping_ratio,
+        # Aporte de la torsión accidental a la reacción MZ de base (N·m). El
+        # pipeline lo SUMA al base_moment_mz nominal de la rama correspondiente
+        # (torsión accidental es aditiva, no SRSS) para igualar a ETABS.
+        "base_accidental_mz": base_accidental_mz,
     }
 
 def run_shifted_cm_torsion_rsa(
@@ -1743,14 +1833,14 @@ def _compute_story_drifts(data: dict, nodes: list, seismic: dict, accidental: di
         },
     }
 
-def run_static_analysis(data: dict) -> dict:
-    """Análisis estático lineal. Retorna desplazamientos, reacciones y fuerzas."""
-    nodes, elements = build_model_3d(data)
-
+def _run_static_with_loads(nodes: list, elements: list, loads: list) -> dict:
+    """Aplica `loads` sobre un modelo ya construido (nodes/elements de
+    build_model_3d) y resuelve un estático lineal. Cuerpo compartido por
+    run_static_analysis (todas las cargas) y run_static_analysis_by_type
+    (solo un subconjunto, p. ej. muerta o viva por separado para /zapatas2)."""
     ops.timeSeries("Linear", 1)
     ops.pattern("Plain", 1, 1)
 
-    loads = data.get("loads", [])
     has_load = False
 
     for load in loads:
@@ -1805,6 +1895,27 @@ def run_static_analysis(data: dict) -> dict:
 
     ops.reactions()
     return _extract_results(nodes, elements)
+
+def run_static_analysis(data: dict) -> dict:
+    """Análisis estático lineal con todas las cargas. Retorna desplazamientos,
+    reacciones y fuerzas."""
+    nodes, elements = build_model_3d(data)
+    return _run_static_with_loads(nodes, elements, data.get("loads", []))
+
+def run_static_analysis_by_type(data: dict, types: set) -> dict:
+    """Igual que run_static_analysis pero solo con las cargas cuyo
+    type/loadType esté en `types` (p. ej. {"Dead"} o {"Live", "RoofLive"}).
+    Usado para separar reacciones muerta/viva para el cálculo de zapatas
+    (/zapatas2), que las necesita como filas independientes en las
+    combinaciones de diseño."""
+    nodes, elements = build_model_3d(data)
+    loads = [
+        load
+        for load in data.get("loads", [])
+        if isinstance(load, dict)
+        and str(load.get("type") or load.get("loadType") or "").strip() in types
+    ]
+    return _run_static_with_loads(nodes, elements, loads)
 
 def _ff_kN(value) -> float:
     """N → kN."""
@@ -2543,81 +2654,140 @@ def _build_story_levels_for_shear(
     data: dict, nodes: list, z_tolerance: float = 0.05
 ) -> list[dict]:
     """
-    Agrupa nodos por nivel Z para calcular cortante por piso.
+    Agrupa nodos por nivel para calcular cortante por piso.
     Excluye base y nodos apoyados.
+
+    Prioridad (igual que _group_nodes_by_story, ver ahí el porqué): si el
+    payload trae `stories` reales, se usan (evita reconstruir un "piso" por
+    cada Z distinto — bug de las 11 filas en un modelo de 2 pisos con techo
+    de armadura, ver project_modulo5_period_calibration). Sin stories, cae al
+    agrupado automático por Z de siempre.
     """
     if not nodes:
         return []
 
     support_ids = _story_shear_support_node_ids(data)
-
-    z_values = []
+    node_by_id = {}
     for node in nodes:
         try:
-            z_values.append(float(node.get("z", 0.0)))
+            node_by_id[int(node.get("id"))] = node
         except Exception:
-            pass
+            continue
 
+    z_values = [float(node.get("z", 0.0)) for node in nodes if _to_float(node.get("z"), None) is not None]
     if not z_values:
         return []
 
     base_z = min(z_values)
 
-    groups = []
-
-    for node in nodes:
-        try:
-            node_id = int(node.get("id"))
-            z = float(node.get("z", 0.0))
-        except Exception:
-            continue
-
-        # No calcular piso en la base.
-        if abs(z - base_z) <= z_tolerance:
-            continue
-
-        # No usar nodos apoyados.
-        if node_id in support_ids:
-            continue
-
-        found = None
-        for group in groups:
-            if abs(group["z"] - z) <= z_tolerance:
-                found = group
-                break
-
-        if found is None:
-            found = {
-                "z": z,
-                "node_ids": [],
-                "nodes": [],
-            }
-            groups.append(found)
-
-        found["node_ids"].append(node_id)
-        found["nodes"].append(node)
-
-    groups = sorted(groups, key=lambda item: item["z"])
+    raw_stories = (
+        data.get("stories") or data.get("story_levels") or data.get("levels") or []
+    )
 
     levels = []
-    previous_z = base_z
 
-    for index, group in enumerate(groups, start=1):
-        z = float(group["z"])
-        height = z - previous_z
-
-        levels.append(
-            {
-                "story": f"STORY {index}",
-                "level": f"STORY {index}",
-                "z": z,
-                "height": height,
-                "node_ids": sorted(set(group["node_ids"])),
-                "nodes": group["nodes"],
-            }
+    if isinstance(raw_stories, list) and raw_stories:
+        sorted_stories = sorted(
+            (s for s in raw_stories if isinstance(s, dict)),
+            key=lambda s: _to_float(s.get("z", s.get("elevation", 0.0)), 0.0),
         )
 
-        previous_z = z
+        previous_z = base_z
+
+        for story in sorted_stories:
+            z = _to_float(story.get("z", story.get("elevation", 0.0)), 0.0)
+
+            # No calcular piso en la base.
+            if abs(z - base_z) <= z_tolerance:
+                previous_z = z
+                continue
+
+            raw_node_ids = (
+                story.get("nodeIds") or story.get("node_ids") or story.get("nodes") or []
+            )
+
+            node_ids = []
+            story_nodes = []
+
+            for raw_id in raw_node_ids:
+                try:
+                    nid = int(raw_id)
+                except Exception:
+                    continue
+                if nid in support_ids or nid not in node_by_id:
+                    continue
+                node_ids.append(nid)
+                story_nodes.append(node_by_id[nid])
+
+            if node_ids:
+                levels.append(
+                    {
+                        "story": str(story.get("name") or story.get("label") or f"STORY {len(levels) + 1}"),
+                        "level": str(story.get("name") or story.get("label") or f"STORY {len(levels) + 1}"),
+                        "z": z,
+                        "height": z - previous_z,
+                        "node_ids": sorted(set(node_ids)),
+                        "nodes": story_nodes,
+                    }
+                )
+
+            previous_z = z
+
+    if not levels:
+        groups = []
+
+        for node in nodes:
+            try:
+                node_id = int(node.get("id"))
+                z = float(node.get("z", 0.0))
+            except Exception:
+                continue
+
+            # No calcular piso en la base.
+            if abs(z - base_z) <= z_tolerance:
+                continue
+
+            # No usar nodos apoyados.
+            if node_id in support_ids:
+                continue
+
+            found = None
+            for group in groups:
+                if abs(group["z"] - z) <= z_tolerance:
+                    found = group
+                    break
+
+            if found is None:
+                found = {
+                    "z": z,
+                    "node_ids": [],
+                    "nodes": [],
+                }
+                groups.append(found)
+
+            found["node_ids"].append(node_id)
+            found["nodes"].append(node)
+
+        groups = sorted(groups, key=lambda item: item["z"])
+
+        previous_z = base_z
+
+        for index, group in enumerate(groups, start=1):
+            z = float(group["z"])
+            height = z - previous_z
+
+            levels.append(
+                {
+                    "story": f"STORY {index}",
+                    "level": f"STORY {index}",
+                    "z": z,
+                    "height": height,
+                    "node_ids": sorted(set(group["node_ids"])),
+                    "nodes": group["nodes"],
+                }
+            )
+
+            previous_z = z
 
     return levels
 

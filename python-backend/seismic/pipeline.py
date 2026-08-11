@@ -56,6 +56,20 @@ def run_full_seismic_analysis(data: dict) -> dict:
     except Exception as e:
         results["static"] = {"success": False, "error": str(e)}
 
+    # ── Paso 1b: estático separado muerta/viva (para /zapatas2) ──
+    # run_static_analysis combina todas las cargas en un solo análisis; el
+    # cálculo de zapatas necesita pd (muerta) y pl (viva) como filas
+    # independientes en sus combinaciones de diseño.
+    try:
+        results["static_dead"] = run_static_analysis_by_type(data, {"Dead"})
+    except Exception as e:
+        results["static_dead"] = {"success": False, "error": str(e)}
+
+    try:
+        results["static_live"] = run_static_analysis_by_type(data, {"Live", "RoofLive"})
+    except Exception as e:
+        results["static_live"] = {"success": False, "error": str(e)}
+
     # ── Construir modelo para modal (necesita masas) ─────────
     nodes, elements = build_model_3d(data)
 
@@ -63,6 +77,10 @@ def run_full_seismic_analysis(data: dict) -> dict:
         "rigid_diaphragms": data.get("_rigid_diaphragm_report", {}),
         "mass_source": data.get("_mass_source_report", {}),
         "effective_mass": data.get("_effective_mass_report", {}),
+        # Qué losas se mallaron como shell y cuáles se saltaron (y por qué) —
+        # sin esto, una losa inclinada sin sección asignada quedaría fuera del
+        # modelo en silencio.
+        "slab_shells": data.get("_slab_shell_report", {}),
     }
 
     results["mass_source"] = data.get("_mass_source_report", {})
@@ -154,6 +172,24 @@ def run_full_seismic_analysis(data: dict) -> dict:
                         sa_in_g=sa_in_g, g=g, ecc_ratio=ecc_ratio,
                     )
             has_add = bool(add_part.get("x") or add_part.get("y"))
+
+            # Sumar el aporte de la torsión accidental a la reacción MZ de base
+            # nominal de cada rama (aditivo, como ETABS — NO SRSS). El frontend
+            # luego combina direccionalmente (SRSS X/Y) las dos ramas ya con su
+            # accidental incluido. Solo el método aditivo produce este término;
+            # con "cm" (masa desplazada + re-eigen) la torsión ya está dentro de
+            # la respuesta desplazada, no como sumando explícito de base.
+            if want_add:
+                acc_mz_x = float((add_part.get("x") or {}).get("base_accidental_mz", 0.0) or 0.0)
+                acc_mz_y = float((add_part.get("y") or {}).get("base_accidental_mz", 0.0) or 0.0)
+                if "x" in seismic and acc_mz_x:
+                    seismic["x"]["base_moment_mz"] = (
+                        float(seismic["x"].get("base_moment_mz", 0.0) or 0.0) + abs(acc_mz_x)
+                    )
+                if "y" in seismic and acc_mz_y:
+                    seismic["y"]["base_moment_mz"] = (
+                        float(seismic["y"].get("base_moment_mz", 0.0) or 0.0) + abs(acc_mz_y)
+                    )
 
             cm_part = {}
             if want_cm:

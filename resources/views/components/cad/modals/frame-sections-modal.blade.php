@@ -112,6 +112,10 @@
                             <span class="text-sm">Rectangular (Concreto)</span>
                         </label>
                         <label class="flex items-center gap-2">
+                            <input type="radio" value="tee" x-model="form.sectionType">
+                            <span class="text-sm">T (Concreto Tee)</span>
+                        </label>
+                        <label class="flex items-center gap-2">
                             <input type="radio" value="wf" x-model="form.sectionType">
                             <span class="text-sm">Perfil W (Ala Ancha)</span>
                         </label>
@@ -287,6 +291,74 @@
                     </div>
                 </div>
 
+                {{-- Formulario para T (Concrete Tee) estilo ETABS --}}
+                <div x-show="form.sectionType === 'tee'">
+                    <div class="border-t border-gray-700 pt-3 mb-4">
+                        <label class="block text-xs font-semibold text-blue-400 mb-2">T (Concreto Tee) — dimensiones en cm</label>
+
+                        {{-- Material --}}
+                        <div class="mb-3">
+                            <label class="block text-xs text-gray-400">Material</label>
+                            <select x-model="form.teeMaterial" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <option value="">-- Seleccionar material --</option>
+                                <template x-for="mat in materialsList" :key="mat.name">
+                                    <option :value="mat.name" x-text="mat.name + (mat.descripcion ? ' (' + mat.descripcion + ')' : '')"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400">Peralte total, D (cm)</label>
+                                <input type="number" step="0.1" x-model.number="form.teeDepth" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400">Ancho de ala, B (cm)</label>
+                                <input type="number" step="0.1" x-model.number="form.teeWidth" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400">Espesor de ala, TF (cm)</label>
+                                <input type="number" step="0.1" x-model.number="form.teeFlangeThick" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400">Espesor de alma en ala, TW (cm)</label>
+                                <input type="number" step="0.1" x-model.number="form.teeWebThick" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400">Espesor de alma en punta, TWB (cm)</label>
+                                <input type="number" step="0.1" x-model.number="form.teeWebTipThick" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            </div>
+                        </div>
+
+                        {{-- Gráfico de la T (ala arriba, alma abajo; ejes 2=peralte, 3=ancho) --}}
+                        <div class="mt-3 p-2 bg-gray-900 rounded border border-gray-700 flex items-center justify-center">
+                            <svg viewBox="0 0 230 190" class="w-full" style="max-height:170px">
+                                <rect :x="teeBox.flangeX" :y="teeBox.flangeY" :width="teeBox.flangeW" :height="teeBox.flangeH"
+                                    fill="#374151" stroke="#9ca3af" stroke-width="1.5"/>
+                                <rect :x="teeBox.webX" :y="teeBox.webY" :width="teeBox.webW" :height="teeBox.webH"
+                                    fill="#374151" stroke="#9ca3af" stroke-width="1.5"/>
+                                <line :x1="teeBox.cx" :y1="teeBox.cy" :x2="teeBox.cx" y2="16"
+                                    stroke="#22c55e" stroke-width="2"/>
+                                <text :x="teeBox.cx + 6" y="24" fill="#22c55e" font-size="13" font-weight="bold">2</text>
+                                <line :x1="teeBox.cx" :y1="teeBox.cy" x2="16" :y2="teeBox.cy"
+                                    stroke="#3b82f6" stroke-width="2"/>
+                                <text x="22" :y="teeBox.cy - 6" fill="#3b82f6" font-size="13" font-weight="bold">3</text>
+                            </svg>
+                        </div>
+
+                        {{-- Propiedades calculadas (solo lectura, unidad activa) --}}
+                        <div class="mt-3 p-2 bg-gray-900 rounded border border-gray-700">
+                            <div class="text-xs text-gray-400 mb-1">Propiedades calculadas:</div>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-300 font-mono">
+                                <span>A = <span x-text="teePropsDisp.A"></span> <span x-text="unitLabels.area"></span></span>
+                                <span>J ≈ <span x-text="teePropsDisp.J"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I33 (mayor, eje 3) = <span x-text="teePropsDisp.Iz"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I22 (menor, eje 2) = <span x-text="teePropsDisp.Iy"></span> <span x-text="unitLabels.inertia"></span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {{-- Formulario para Perfil W (Ala Ancha) --}}
                 <div x-show="form.sectionType === 'wf'">
                     <div class="border-t border-gray-700 pt-3 mb-4">
@@ -334,6 +406,70 @@
                                 <span>J ≈ <span x-text="wfProps.J.toFixed(8)"></span> m⁴</span>
                                 <span>Iz (fuerte) = <span x-text="wfProps.Iz.toFixed(8)"></span> m⁴</span>
                                 <span>Iy (débil) = <span x-text="wfProps.Iy.toFixed(8)"></span> m⁴</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Formulario para Tubo (HSS) — Steel Tube estilo ETABS --}}
+                <div x-show="form.sectionType === 'tube'">
+                    <div class="border-t border-gray-700 pt-3 mb-4">
+                        <label class="block text-xs font-semibold text-blue-400 mb-2">Tubo (HSS) — dimensiones en cm</label>
+
+                        {{-- Material (típicamente acero) --}}
+                        <div class="mb-3">
+                            <label class="block text-xs text-gray-400">Material</label>
+                            <select x-model="form.tubeMaterial" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <option value="">-- Seleccionar material --</option>
+                                <template x-for="mat in materialsList" :key="mat.name">
+                                    <option :value="mat.name" x-text="mat.name + (mat.descripcion ? ' (' + mat.descripcion + ')' : '')"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400">Peralte total, D (cm)</label>
+                                <input type="number" step="0.01" x-model.number="form.tubeDepth" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400">Ancho total, B (cm)</label>
+                                <input type="number" step="0.01" x-model.number="form.tubeWidth" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400">Espesor de ala, tf (cm)</label>
+                                <input type="number" step="0.001" x-model.number="form.tubeFlangeThick" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400">Espesor de alma, tw (cm)</label>
+                                <input type="number" step="0.001" x-model.number="form.tubeWebThick" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            </div>
+                        </div>
+
+                        {{-- Gráfico del tubo hueco (ejes locales 2=peralte, 3=ancho) --}}
+                        <div class="mt-3 p-2 bg-gray-900 rounded border border-gray-700 flex items-center justify-center">
+                            <svg viewBox="0 0 230 190" class="w-full" style="max-height:170px">
+                                <rect :x="tubeBox.x" :y="tubeBox.y" :width="tubeBox.W" :height="tubeBox.H"
+                                    fill="#374151" stroke="#9ca3af" stroke-width="1.5"/>
+                                <rect :x="tubeBox.ix" :y="tubeBox.iy" :width="tubeBox.iW" :height="tubeBox.iH"
+                                    fill="#0b1220" stroke="#6b7280" stroke-width="1"/>
+                                <line :x1="tubeBox.cx" :y1="tubeBox.cy" :x2="tubeBox.cx" y2="16"
+                                    stroke="#22c55e" stroke-width="2"/>
+                                <text :x="tubeBox.cx + 6" y="24" fill="#22c55e" font-size="13" font-weight="bold">2</text>
+                                <line :x1="tubeBox.cx" :y1="tubeBox.cy" x2="16" :y2="tubeBox.cy"
+                                    stroke="#3b82f6" stroke-width="2"/>
+                                <text x="22" :y="tubeBox.cy - 6" fill="#3b82f6" font-size="13" font-weight="bold">3</text>
+                            </svg>
+                        </div>
+
+                        {{-- Propiedades calculadas (solo lectura, unidad activa) --}}
+                        <div class="mt-3 p-2 bg-gray-900 rounded border border-gray-700">
+                            <div class="text-xs text-gray-400 mb-1">Propiedades calculadas:</div>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-300 font-mono">
+                                <span>A = <span x-text="tubePropsDisp.A"></span> <span x-text="unitLabels.area"></span></span>
+                                <span>J ≈ <span x-text="tubePropsDisp.J"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I33 (mayor, eje 3) = <span x-text="tubePropsDisp.Iz"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I22 (menor, eje 2) = <span x-text="tubePropsDisp.Iy"></span> <span x-text="unitLabels.inertia"></span></span>
                             </div>
                         </div>
                     </div>
@@ -560,6 +696,21 @@
                 rectB: 30,
                 rectH: 40,
                 rectMaterial: '',
+                // Sección tubo (HSS) — dimensiones en cm; el tubo típico de acero
+                // (ETABS Steel Tube): peralte × ancho × espesor de pared.
+                tubeDepth: 10,        // cm (Total Depth)
+                tubeWidth: 10,        // cm (Total Width)
+                tubeFlangeThick: 0.3, // cm (espesor pared arriba/abajo)
+                tubeWebThick: 0.3,    // cm (espesor pared lados)
+                tubeMaterial: '',
+                // Sección T (Concrete Tee) — dimensiones en cm. Ala superior
+                // (ancho × espesor) + alma debajo. Estilo ETABS Concrete Tee.
+                teeDepth: 50,          // cm (Total Depth)
+                teeWidth: 70,          // cm (Total Width = ancho del ala)
+                teeFlangeThick: 30,    // cm (Flange Thickness)
+                teeWebThick: 30,       // cm (Web Thickness At Flange)
+                teeWebTipThick: 30,    // cm (Web Thickness At Tip)
+                teeMaterial: '',
                 color: '#88ffaa'
             },
 
@@ -611,6 +762,114 @@
                 const r = crt / lng;
                 const J = lng * Math.pow(crt, 3) * (1 / 3 - 0.21 * r * (1 - Math.pow(r, 4) / 12));
                 return { A, Iz, Iy, J };
+            },
+
+            // Propiedades de un TUBO rectangular hueco (HSS/Steel Tube), en SI.
+            // Dimensiones en cm → m. D=peralte, B=ancho, tf=espesor arriba/abajo,
+            // tw=espesor lados. Sección hueca = exterior D×B menos interior.
+            // Iz (eje 3, mayor) usa D³; Iy (eje 2) usa B³. J: fórmula de sección
+            // cerrada de pared delgada J = 4·Am²·t / perímetro medio (aprox.).
+            get tubeProps() {
+                const D = (Number(this.form.tubeDepth) || 0) / 100;
+                const B = (Number(this.form.tubeWidth) || 0) / 100;
+                const tf = (Number(this.form.tubeFlangeThick) || 0) / 100;
+                const tw = (Number(this.form.tubeWebThick) || 0) / 100;
+                if (D <= 0 || B <= 0 || tf <= 0 || tw <= 0) return { A: 0, Iz: 0, Iy: 0, J: 0 };
+                const Di = Math.max(0, D - 2 * tf);
+                const Bi = Math.max(0, B - 2 * tw);
+                const A = B * D - Bi * Di;
+                const Iz = (B * Math.pow(D, 3)) / 12 - (Bi * Math.pow(Di, 3)) / 12;
+                const Iy = (D * Math.pow(B, 3)) / 12 - (Di * Math.pow(Bi, 3)) / 12;
+                // Torsión (Bredt, pared delgada cerrada): Am = área encerrada por la
+                // línea media; t medio; perímetro medio. Cae con precisión razonable
+                // para paredes delgadas típicas de HSS.
+                const t = (tf + tw) / 2;
+                const Am = (D - tf) * (B - tw);
+                const pm = 2 * ((D - tf) + (B - tw));
+                const J = pm > 0 ? (4 * Am * Am * t) / pm : 0;
+                return { A, Iz, Iy, J };
+            },
+
+            get tubePropsDisp() {
+                this.unitsVersion;
+                const p = this.tubeProps;
+                const u = window.cadUnits;
+                if (!u) return { A: p.A, Iz: p.Iz, Iy: p.Iy, J: p.J };
+                return {
+                    A: u.areaM2ToDisp(p.A),
+                    Iz: u.inertiaM4ToDisp(p.Iz),
+                    Iy: u.inertiaM4ToDisp(p.Iy),
+                    J: u.inertiaM4ToDisp(p.J),
+                };
+            },
+
+            // Propiedades de una sección T (Tee) de concreto, en SI. Dimensiones
+            // en cm → m. Ala superior (ancho B × espesor TF) + alma debajo
+            // (altura D−TF, ancho promedio de TW y TWB). Iz=eje fuerte (usa D),
+            // Iy=eje débil (usa B). J por suma de rectángulos (sección abierta).
+            get teeProps() {
+                const D = (Number(this.form.teeDepth) || 0) / 100;
+                const B = (Number(this.form.teeWidth) || 0) / 100;
+                const TF = (Number(this.form.teeFlangeThick) || 0) / 100;
+                const TW = (Number(this.form.teeWebThick) || 0) / 100;
+                const TWB = (Number(this.form.teeWebTipThick) || 0) / 100 || TW;
+                const tw = (TW + TWB) / 2;
+                if (D <= 0 || B <= 0 || TF <= 0 || tw <= 0 || TF >= D || tw > B) return { A: 0, Iz: 0, Iy: 0, J: 0 };
+                const hw = D - TF;
+                const Af = B * TF, Aw = tw * hw;
+                const A = Af + Aw;
+                const yf = TF / 2, yw = TF + hw / 2;
+                const yc = (Af * yf + Aw * yw) / A;
+                const Iz = (B * Math.pow(TF, 3)) / 12 + Af * Math.pow(yc - yf, 2)
+                    + (tw * Math.pow(hw, 3)) / 12 + Aw * Math.pow(yc - yw, 2);
+                const Iy = (TF * Math.pow(B, 3)) / 12 + (hw * Math.pow(tw, 3)) / 12;
+                const J = (B * Math.pow(TF, 3) + hw * Math.pow(tw, 3)) / 3;
+                return { A, Iz, Iy, J };
+            },
+
+            get teePropsDisp() {
+                this.unitsVersion;
+                const p = this.teeProps;
+                const u = window.cadUnits;
+                if (!u) return { A: p.A, Iz: p.Iz, Iy: p.Iy, J: p.J };
+                return {
+                    A: u.areaM2ToDisp(p.A),
+                    Iz: u.inertiaM4ToDisp(p.Iz),
+                    Iy: u.inertiaM4ToDisp(p.Iy),
+                    J: u.inertiaM4ToDisp(p.J),
+                };
+            },
+
+            // Geometría del gráfico de la T (ala arriba + alma abajo), como ETABS.
+            get teeBox() {
+                const D = Number(this.form.teeDepth) || 1;      // peralte total (vertical)
+                const B = Number(this.form.teeWidth) || 1;      // ancho ala (horizontal)
+                const TF = Number(this.form.teeFlangeThick) || 0;
+                const tw = ((Number(this.form.teeWebThick) || 0) + (Number(this.form.teeWebTipThick) || 0)) / 2 || 1;
+                const m = Math.max(B, D) || 1;
+                const W = 120 * B / m, H = 120 * D / m;
+                const cx = 120, cy = 100;
+                const x = cx - W / 2, yTop = cy - H / 2;
+                const fH = H * TF / D;                 // altura del ala (px)
+                const wW = W * tw / B;                 // ancho del alma (px)
+                return { cx, cy, flangeX: x, flangeY: yTop, flangeW: W, flangeH: fH,
+                         webX: cx - wW / 2, webY: yTop + fH, webW: wW, webH: H - fH };
+            },
+
+            // Geometría del gráfico del tubo (exterior D×B + hueco interior).
+            get tubeBox() {
+                const D = Number(this.form.tubeDepth) || 1; // peralte (vertical)
+                const B = Number(this.form.tubeWidth) || 1; // ancho (horizontal)
+                const tf = Number(this.form.tubeFlangeThick) || 0;
+                const tw = Number(this.form.tubeWebThick) || 0;
+                const m = Math.max(B, D) || 1;
+                const W = 120 * B / m, H = 120 * D / m;
+                const cx = 120, cy = 100;
+                const x = cx - W / 2, y = cy - H / 2;
+                const iW = Math.max(0, W * (B - 2 * tw) / B);
+                const iH = Math.max(0, H * (D - 2 * tf) / D);
+                const ix = cx - iW / 2, iy = cy - iH / 2;
+                return { W, H, x, y, cx, cy, iW, iH, ix, iy };
             },
 
             // Geometría del gráfico de la sección (ejes locales 2=peralte, 3=ancho).
@@ -962,7 +1221,18 @@
                     wfMaterial: section.type === 'wf' ? (section.material || '') : '',
                     rectB: section.b != null ? section.b : 30,
                     rectH: section.h != null ? section.h : 40,
-                    rectMaterial: section.material || '',
+                    rectMaterial: section.type === 'rect' ? (section.material || '') : '',
+                    tubeDepth: section.tubeDepth != null ? section.tubeDepth : 10,
+                    tubeWidth: section.tubeWidth != null ? section.tubeWidth : 10,
+                    tubeFlangeThick: section.tubeFlangeThick != null ? section.tubeFlangeThick : 0.3,
+                    tubeWebThick: section.tubeWebThick != null ? section.tubeWebThick : 0.3,
+                    tubeMaterial: section.type === 'tube' ? (section.material || '') : '',
+                    teeDepth: section.teeDepth != null ? section.teeDepth : 50,
+                    teeWidth: section.teeWidth != null ? section.teeWidth : 70,
+                    teeFlangeThick: section.teeFlangeThick != null ? section.teeFlangeThick : 30,
+                    teeWebThick: section.teeWebThick != null ? section.teeWebThick : 30,
+                    teeWebTipThick: section.teeWebTipThick != null ? section.teeWebTipThick : 30,
+                    teeMaterial: section.type === 'tee' ? (section.material || '') : '',
                     color: section.color || '#88ffaa'
                 };
             },
@@ -1067,6 +1337,30 @@
                     sectionToSave.J = p.J;          // m⁴ (torsión)
                     sectionToSave.description = 'Concreto ' + b + 'x' + h + ' cm' +
                         (this.form.rectMaterial ? ' (' + this.form.rectMaterial + ')' : '');
+                } else if (this.form.sectionType === 'tee') {
+                    var tD = Number(this.form.teeDepth) || 0;
+                    var tB = Number(this.form.teeWidth) || 0;
+                    var tTF = Number(this.form.teeFlangeThick) || 0;
+                    var tTW = Number(this.form.teeWebThick) || 0;
+                    var tTWB = Number(this.form.teeWebTipThick) || tTW;
+                    if (tD <= 0 || tB <= 0 || tTF <= 0 || tTW <= 0 || tTF >= tD) {
+                        this.showToastMessage('Ingrese peralte, ancho y espesores válidos (TF < D)', 'error');
+                        return;
+                    }
+                    var tp = this.teeProps; // {A, Iz, Iy, J} en SI
+                    sectionToSave.teeDepth = tD;         // cm (para mostrar/editar)
+                    sectionToSave.teeWidth = tB;
+                    sectionToSave.teeFlangeThick = tTF;
+                    sectionToSave.teeWebThick = tTW;
+                    sectionToSave.teeWebTipThick = tTWB;
+                    sectionToSave.material = this.form.teeMaterial || null;
+                    sectionToSave.area = tp.A;           // m²
+                    sectionToSave.A = tp.A;              // m²
+                    sectionToSave.Iz = tp.Iz;            // m⁴ (eje mayor, I33)
+                    sectionToSave.Iy = tp.Iy;            // m⁴ (eje menor, I22)
+                    sectionToSave.J = tp.J;              // m⁴ (torsión)
+                    sectionToSave.description = 'Concreto T ' + tD + 'x' + tB + ' cm' +
+                        (this.form.teeMaterial ? ' (' + this.form.teeMaterial + ')' : '');
                 } else if (this.form.sectionType === 'auto') {
                     sectionToSave.autoSectionName = this.form.autoSectionName;
                     sectionToSave.autoSelections = JSON.parse(JSON.stringify(this.autoSelections));
@@ -1089,6 +1383,28 @@
                     sectionToSave.J = wp.J;         // m⁴ (torsión)
                     sectionToSave.description = 'Perfil W ' + this.form.wfDepth + 'x' + this.form.wfFlangeWidth + ' cm - ' + this.form.wfWeight + ' kg/m' +
                         (this.form.wfMaterial ? ' (' + this.form.wfMaterial + ')' : '');
+                } else if (this.form.sectionType === 'tube') {
+                    var td = Number(this.form.tubeDepth) || 0;
+                    var tbw = Number(this.form.tubeWidth) || 0;
+                    var ttf = Number(this.form.tubeFlangeThick) || 0;
+                    var ttw = Number(this.form.tubeWebThick) || 0;
+                    if (td <= 0 || tbw <= 0 || ttf <= 0 || ttw <= 0) {
+                        this.showToastMessage('Ingrese peralte, ancho y espesores válidos (cm)', 'error');
+                        return;
+                    }
+                    var tp = this.tubeProps; // {A, Iz, Iy, J} en SI
+                    sectionToSave.tubeDepth = td;           // cm (para mostrar/editar)
+                    sectionToSave.tubeWidth = tbw;          // cm
+                    sectionToSave.tubeFlangeThick = ttf;    // cm
+                    sectionToSave.tubeWebThick = ttw;       // cm
+                    sectionToSave.material = this.form.tubeMaterial || null;
+                    sectionToSave.area = tp.A;              // m²  (clave usada por el motor)
+                    sectionToSave.A = tp.A;                 // m²
+                    sectionToSave.Iz = tp.Iz;               // m⁴ (eje mayor, I33)
+                    sectionToSave.Iy = tp.Iy;               // m⁴ (eje menor, I22)
+                    sectionToSave.J = tp.J;                 // m⁴ (torsión)
+                    sectionToSave.description = 'Tubo ' + td + 'x' + tbw + 'x' + ttf + ' cm' +
+                        (this.form.tubeMaterial ? ' (' + this.form.tubeMaterial + ')' : '');
                 } else {
                     sectionToSave.description = 'Sección tipo ' + this.form.sectionType;
                 }

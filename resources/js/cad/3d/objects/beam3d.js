@@ -32,6 +32,10 @@ export function createBeam3D(scene, beam, material = null, opts = {}) {
   // =====================================================
   const extrude = opts.extrude === true;
 
+  // Vista ESTÁNDAR: cilindros con grosor VISUAL fijo por tipo (como las líneas
+  // de ETABS) — con el diámetro real de la sección ((b+h)/2) los modelos
+  // importados (todas las secciones asignadas, p.ej. 30×40 → Ø0.35 m) se veían
+  // con el doble de grosor. La proporción REAL b×h la da la vista extruida.
   const mesh = extrude
     ? MeshBuilder.CreateBox(
         `beam-${beam.id}`,
@@ -104,11 +108,9 @@ export function updateBeam3D(mesh, beam, node1, node2) {
 
   applyTransform(mesh, start, end, length);
 
-  // actualizar grosor si cambia el tipo
-  mesh.scaling.x = 1;
-  mesh.scaling.z = 1;
-
-  // Si quieres aparentar más grosor por tipo sin recrear el mesh:
+  // Actualizar grosor si cambia el tipo (viga↔columna↔brace) sin recrear el
+  // mesh (comportamiento original, restaurado tras el cambio de "proporción
+  // 3D" que engordaba los modelos importados).
   const baseDiameter = 0.15;
   const factor = style.diameter / baseDiameter;
   mesh.scaling.x = factor;
@@ -263,7 +265,10 @@ function getElementStyle(kind) {
     case "column":
       return {
         color: new Color3(0.2, 0.9, 0.6), // verde-agua
-        diameter: 0.18,
+        // Mismo grosor visual que una barra normal (el usuario dibuja columnas
+        // con el botón y deben verse como líneas, no como tubos); el tipo se
+        // distingue por color. La sección real b×h la muestra la vista extruida.
+        diameter: 0.1,
       };
 
     case "brace":
