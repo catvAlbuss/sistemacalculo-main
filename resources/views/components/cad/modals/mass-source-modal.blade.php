@@ -151,6 +151,10 @@
                                 <template x-for="lp in availableLoadPatterns" :key="lp">
                                     <option :value="lp" x-text="lp"></option>
                                 </template>
+                                {{-- Sin lista fija de respaldo: si no hay patrones, se dice. --}}
+                                <option x-show="availableLoadPatterns.length === 0" value="" disabled>
+                                    No hay patrones de carga definidos
+                                </option>
                             </select>
                             <input type="number" step="0.05" x-model.number="selectedMultiplier"
                                 class="w-20 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm" placeholder="Mult.">
@@ -246,12 +250,43 @@
             toastType: 'success',
             toastTimeout: null,
 
+            /**
+             * Patrones de carga definidos en el MODELO. Nada de lista fija.
+             *
+             * OJO con la forma de cada fuente: `cs.loadCases` NO es un array,
+             * es `{ open, cases: [...] }`, y `cs.staticLoadCases` es
+             * `{ items: [...] }` (ahí deja todo el import del .e2k). La versión
+             * anterior hacía `Array.isArray(cs.loadCases)` → false → `names`
+             * vacío → caía SIEMPRE al arreglo fijo ['CM','CV','CVE','CVT'], que
+             * es lo que se veía en el select pasara lo que pasara.
+             */
             get availableLoadPatterns() {
                 const cs = window.cadSystem || {};
-                const cases =
-                    cs.loadCases || cs.definitions?.loadCases || cs.definitions?.staticLoadCases || [];
-                const names = Array.isArray(cases) ? cases.map((c) => c.name || c.id).filter(Boolean) : [];
-                return names.length ? [...new Set(names)] : ['CM', 'CV', 'CVE', 'CVT'];
+
+                // SOLO los patrones definidos en "Definir Patrones de Carga".
+                // Ese diálogo escribe `staticLoadCases.items`, y el import del
+                // .e2k también. `loadCases.cases` es el store legacy y hoy
+                // arranca vacío (antes traía 6 de fábrica que aparecían acá
+                // aunque el modelo tuviera 2); se consulta último, nunca antes.
+                const fuentes = [
+                    cs.staticLoadCases?.items,
+                    cs.definitions?.staticLoadCases?.items,
+                    cs.loadCases?.cases,
+                ];
+
+                for (const f of fuentes) {
+                    if (!Array.isArray(f) || !f.length) continue;
+
+                    const nombres = [
+                        ...new Set(
+                            f.map((c) => String(c?.name || c?.id || '').trim()).filter(Boolean),
+                        ),
+                    ];
+
+                    if (nombres.length) return nombres;
+                }
+
+                return [];
             },
 
             init() {
@@ -349,8 +384,23 @@
 
             openModal() {
                 this.loadMassSources();
+                this.sincronizarPatronElegido();
                 this.view = 'list';
                 this.open = true;
+            },
+
+            /**
+             * El patrón elegido en el select tiene que existir en el modelo. Se
+             * ajusta al abrir porque el usuario puede importar un .e2k o
+             * definir patrones con el modal cerrado, y `selectedLoad` arranca
+             * en 'CM' — que puede no existir.
+             */
+            sincronizarPatronElegido() {
+                const disponibles = this.availableLoadPatterns;
+                if (!disponibles.length) return;
+                if (!disponibles.includes(this.selectedLoad)) {
+                    this.selectedLoad = disponibles[0];
+                }
             },
 
             close() {

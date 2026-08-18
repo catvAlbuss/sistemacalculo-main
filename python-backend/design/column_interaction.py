@@ -22,12 +22,51 @@ __all__ = [
     "compute_pn_mn_at",
     "compute_pmm_surface",
     "axial_capacity_pn0",
+    "balanced_pn",
     "capacity_at_demand",
+    "capacity_ratio_radial",
+    "normalize_design_code",
+    "phi_shear_for_code",
+    "DEFAULT_DESIGN_CODE",
+    "PHI_BY_CODE",
 ]
 
 ES_STEEL = 2.0e11  # Pa — módulo de elasticidad del acero (200000 MPa)
 ECU = 0.003  # deformación última del concreto (ACI 318)
 EPS_TENSION_CONTROLLED = 0.005  # ACI 318 §21.2.2
+
+# ─── Factores de reducción de resistencia (φ) por CÓDIGO ────────────────────
+# La E.060 peruana es una adaptación del ACI 318-05 pero con φ PROPIOS (y una
+# ley de transición distinta, ver _phi_factor_e060). No son intercambiables:
+# para una columna estribada en compresión, E.060 da 0.70 y ACI 318-19 da
+# 0.65 — ~7% de diferencia directa en la capacidad reportada.
+#
+#   E.060 Art. 10.3.2:  flexión 0.90 | compresión estribos 0.70 / espiral 0.75
+#                       | cortante (con o sin torsión) 0.85
+#   ACI 318-19 §21.2:   flexión 0.90 | compresión estribos 0.65 / espiral 0.75
+#                       | cortante 0.75
+DEFAULT_DESIGN_CODE = "E060"
+
+PHI_BY_CODE = {
+    "E060": {"cc_tied": 0.70, "cc_spiral": 0.75, "tc": 0.90, "shear": 0.85},
+    "ACI318": {"cc_tied": 0.65, "cc_spiral": 0.75, "tc": 0.90, "shear": 0.75},
+}
+
+
+def normalize_design_code(code):
+    """'e060'/'E.060'/'E-060' → 'E060'; cualquier variante de ACI → 'ACI318'.
+    Desconocido → DEFAULT_DESIGN_CODE (no revienta: el diseño sigue corriendo)."""
+    key = str(code or "").upper().replace(".", "").replace("-", "").replace(" ", "")
+    if key.startswith("ACI"):
+        return "ACI318"
+    if key.startswith("E060"):
+        return "E060"
+    return DEFAULT_DESIGN_CODE
+
+
+def phi_shear_for_code(code=DEFAULT_DESIGN_CODE):
+    """φ de cortante — E.060 0.85 (Art. 10.3.2-4) vs ACI 318 0.75."""
+    return PHI_BY_CODE[normalize_design_code(code)]["shear"]
 
 
 def beta1_from_fc(fc_pa):
@@ -40,7 +79,7 @@ def beta1_from_fc(fc_pa):
     return 0.85 - 0.05 * (fc_mpa - 27.6) / 6.9
 
 
-def generate_rect_bar_positions(b, h, cover, bar_diameter, n3, n2):
+def generate_rect_bar_positions(b, h, cover, bar_diameter, n3, n2, confine_bar_diameter=0.0):
     """
     Posiciones de varilla longitudinal para un patrón rectangular ETABS
     "R-n2-n3" (ver e2k-import.js parseRebarPattern — el orden real, confirmado
@@ -49,16 +88,21 @@ def generate_rect_bar_positions(b, h, cover, bar_diameter, n3, n2):
     cara paralela al eje 2 (caras sup/inf, y=±h/2, repartidas en x) — esquinas
     compartidas, no duplicadas.
 
-    b: ancho (eje local 2), h: peralte (eje local 3), cover: recubrimiento
-    hasta el borde de la varilla longitudinal (ya incluye el estribo, tal
-    como lo exporta ETABS vía COVER). Todo en metros. Origen en el centroide.
+    b: ancho (eje local 2), h: peralte (eje local 3). cover: recubrimiento
+    LIBRE hasta la superficie del estribo — "Clear Cover for Confinement
+    Bars" tal como lo etiqueta el diálogo de ETABS (Reinforcement Data) y
+    exporta vía COVER; NO es el cover hasta la varilla longitudinal. El
+    diámetro del estribo (confine_bar_diameter, 0 si no se conoce — ej.
+    columna sin armado transversal real) se resta aparte para llegar al
+    centro de la varilla longitudinal, igual que ya hace column_shear.py
+    para el peralte efectivo (d3/d2). Todo en metros. Origen en el centroide.
 
     Devuelve [(x, y), ...]; lista vacía si la geometría/patrón no da lugar
     a un rectángulo válido (caller debe tratarlo como "no soportado").
     """
     r = bar_diameter / 2.0
-    xc = b / 2.0 - cover - r
-    yc = h / 2.0 - cover - r
+    xc = b / 2.0 - cover - confine_bar_diameter - r
+    yc = h / 2.0 - cover - confine_bar_diameter - r
     if xc <= 0 or yc <= 0 or n3 < 2 or n2 < 2:
         return []
 
@@ -88,11 +132,13 @@ def _rect_fiber_grid(b, h, nx=60, ny=60):
     ]
 
 
-def _phi_factor(eps_t_net, eps_ty, tied=True):
-    """ACI 318 §21.2.2. eps_t_net = deformación NETA de tracción de la
-    varilla más alejada del bloque de compresión (positivo = tracción)."""
-    phi_cc = 0.65 if tied else 0.75  # compression-controlled (estribos vs espiral)
-    phi_tc = 0.90  # tension-controlled
+def _phi_factor(eps_t_net, eps_ty, tied=True, code="ACI318"):
+    """ACI 318 §21.2.2 — transición por DEFORMACIÓN NETA de tracción.
+    eps_t_net = deformación de la varilla más alejada del bloque de
+    compresión (positivo = tracción)."""
+    phis = PHI_BY_CODE[normalize_design_code(code)]
+    phi_cc = phis["cc_tied"] if tied else phis["cc_spiral"]
+    phi_tc = phis["tc"]
     if eps_t_net <= eps_ty:
         return phi_cc
     if eps_t_net >= EPS_TENSION_CONTROLLED:
@@ -100,7 +146,72 @@ def _phi_factor(eps_t_net, eps_ty, tied=True):
     return phi_cc + (eps_t_net - eps_ty) * (phi_tc - phi_cc) / (EPS_TENSION_CONTROLLED - eps_ty)
 
 
-def compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1):
+def _phi_factor_e060(pn, fc, gross_area, pb=None, tied=True):
+    """
+    E.060 Art. 10.3.2 inciso 3 — transición por CARGA AXIAL, no por
+    deformación del acero (ahí difiere de fondo con ACI 318, no solo en el
+    valor de arranque):
+
+      "…para valores reducidos de carga axial, φ puede incrementarse
+       linealmente hasta φ = 0,90, conforme el valor de φPn disminuye desde
+       0,10 f'c Ag a cero. Cuando el valor de 0,70 Pb (estribos) o 0,75 Pb
+       (espiral) sea menor que 0,10 f'c Ag, ese valor lo reemplaza."
+
+    O sea: φ = φcc + (0,90 − φcc)·(1 − φPn/limite), con
+    limite = min(0,10 f'c Ag, φcc·Pb). Como φ aparece a ambos lados, se
+    despeja en cerrada (equivalente exacto, sin iterar):
+
+        φ = 0,90 / (1 + (0,90 − φcc)·Pn/limite)
+
+    (comprobación: con φPn = limite da φ = φcc; con Pn = 0 da 0,90).
+    """
+    phis = PHI_BY_CODE["E060"]
+    phi_cc = phis["cc_tied"] if tied else phis["cc_spiral"]
+    phi_tc = phis["tc"]
+
+    if pn <= 0:
+        return phi_tc  # tracción o flexión pura → 0.90 (Art. 10.3.2 incisos 1-2)
+
+    limit = 0.10 * fc * gross_area
+    if pb is not None and pb > 0 and phi_cc * pb < limit:
+        limit = phi_cc * pb
+    if limit <= 0:
+        return phi_cc
+
+    phi = phi_tc / (1.0 + (phi_tc - phi_cc) * pn / limit)
+    return max(phi_cc, min(phi_tc, phi))
+
+
+def balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1):
+    """
+    Pb — carga axial nominal del punto BALANCEADO en la dirección theta: la
+    varilla más traccionada llega a εy justo cuando el concreto llega a ECU,
+    o sea c_b = ECU·d_t/(ECU + εy) con d_t = distancia de la fibra extrema
+    comprimida a esa varilla, medida sobre el eje theta.
+
+    Solo lo necesita la transición de φ de la E.060 (ver _phi_factor_e060);
+    ACI 318 no lo usa (su transición es por deformación). Devuelve None si
+    no hay varillas.
+    """
+    if not bars:
+        return None
+    cos_t, sin_t = math.cos(theta), math.sin(theta)
+    xi_max = max(x * cos_t + y * sin_t for x, y, _a in fibers)
+    xi_min_bar = min(x * cos_t + y * sin_t for x, y in bars)
+    d_t = xi_max - xi_min_bar
+    if d_t <= 0:
+        return None
+    eps_ty = fy / ES_STEEL
+    c_b = ECU * d_t / (ECU + eps_ty)
+    if c_b <= 0:
+        return None
+    pt = compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c_b, beta1)
+    return pt["Pn"]
+
+
+def compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1,
+                     code=DEFAULT_DESIGN_CODE, gross_area=None, pb=None,
+                     tied=True):
     """
     Un punto (Pn, M2n, M3n, φ) de la superficie, para un ángulo de flexión
     theta (rad, medido en el plano x=eje2/y=eje3) y una profundidad de eje
@@ -112,6 +223,11 @@ def compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1):
     (todas las fibras entran al bloque, todas las varillas llegan a ECU y
     plastifican en compresión) — validado contra la fórmula cerrada de Pn0
     en design/tests (ver plan de columnas, paso 2).
+
+    `code` decide SOLO cómo sale φ (E.060 por carga axial vs ACI 318 por
+    deformación) — Pn/M2n/M3n nominales son idénticos en ambos códigos.
+    `gross_area`/`pb` los usa la transición de la E.060; si no llegan, se
+    derivan de las fibras (Ag) y se omite el tope por Pb.
     """
     cos_t, sin_t = math.cos(theta), math.sin(theta)
     xi_max = max(x * cos_t + y * sin_t for x, y, _a in fibers)
@@ -147,7 +263,12 @@ def compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1):
 
     eps_t_net = -eps_min if eps_min is not None else -ECU
     eps_ty = fy / ES_STEEL
-    phi = _phi_factor(eps_t_net, eps_ty)
+
+    if normalize_design_code(code) == "E060":
+        ag = gross_area if gross_area is not None else sum(a for _x, _y, a in fibers)
+        phi = _phi_factor_e060(Pn, fc, ag, pb=pb, tied=tied)
+    else:
+        phi = _phi_factor(eps_t_net, eps_ty, tied=tied, code=code)
 
     return {"Pn": Pn, "M2n": M2, "M3n": M3, "phi": phi}
 
@@ -159,7 +280,9 @@ def axial_capacity_pn0(fc, fy, gross_area, total_bar_area):
 
 
 def capacity_at_demand(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
-                        theta, target_p, beta1=None, nx=60, ny=60, iters=40):
+                        theta, target_p, beta1=None, nx=60, ny=60, iters=40,
+                        confine_bar_diameter=0.0, code=DEFAULT_DESIGN_CODE,
+                        tied=True):
     """
     Capacidad EXACTA (sin interpolar entre ángulos ni entre puntos de una
     curva) en el ángulo real de la demanda (theta, rad) y su Pu exacto
@@ -173,7 +296,7 @@ def capacity_at_demand(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     """
     if beta1 is None:
         beta1 = beta1_from_fc(fc)
-    bars = generate_rect_bar_positions(b, h, cover, bar_diameter, n3, n2)
+    bars = generate_rect_bar_positions(b, h, cover, bar_diameter, n3, n2, confine_bar_diameter)
     if not bars:
         return None
 
@@ -181,8 +304,15 @@ def capacity_at_demand(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     max_dim = math.hypot(b, h)
     c_lo, c_hi = max_dim * 0.001, max_dim * 6.0
 
-    pt_lo = compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c_lo, beta1)
-    pt_hi = compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c_hi, beta1)
+    # Ag/Pb: solo los consume la transición de φ de la E.060 (ver
+    # _phi_factor_e060). Se calculan UNA vez y viajan a cada evaluación.
+    ag = b * h
+    pb = balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1) \
+        if normalize_design_code(code) == "E060" else None
+    kw = {"code": code, "gross_area": ag, "pb": pb, "tied": tied}
+
+    pt_lo = compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c_lo, beta1, **kw)
+    pt_hi = compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c_hi, beta1, **kw)
 
     if target_p <= pt_lo["Pn"]:
         pt = pt_lo
@@ -192,7 +322,7 @@ def capacity_at_demand(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
         pt = pt_hi
         for _ in range(iters):
             c_mid = (c_lo + c_hi) / 2.0
-            pt = compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c_mid, beta1)
+            pt = compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c_mid, beta1, **kw)
             if pt["Pn"] < target_p:
                 c_lo = c_mid
             else:
@@ -204,8 +334,104 @@ def capacity_at_demand(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     return pt
 
 
+def capacity_ratio_radial(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
+                           target_p, target_m2, target_m3, beta1=None,
+                           nx=60, ny=60, num_c=60, iters=40,
+                           confine_bar_diameter=0.0, code=DEFAULT_DESIGN_CODE,
+                           tied=True):
+    """
+    Ratio P-M-M "radial", el mismo que reporta ETABS (D/C Ratio del diálogo
+    "Interaction Surface", ACI 318-19) — NO compara M_demanda contra
+    M_capacidad al MISMO Pn (eso es `capacity_at_demand`, mucho más
+    conservador para columnas livianas: ver project_pmm_ratio_gap). Compara
+    la distancia desde el origen (P=0, M=0) hasta el punto de demanda contra
+    la distancia desde el origen hasta donde el MISMO rayo — ángulo fijo en
+    el plano P-M2-M3 — corta la superficie de capacidad.
+
+    Validado contra el diálogo real de ETABS en 5 puntos (columnas C1/C2/C22
+    de un modelo de referencia): diff 0.1%-0.3% en 4 de 5 (el quinto, con
+    armado aún aproximado en esa comparación, dio -12%) — la brecha de 5-6x
+    que se arrastraba antes era enteramente esta diferencia de definición,
+    no un error de capacidad/geometría/armado.
+
+    Devuelve {"ratio", "thetaDeg", "phi", "capacity": {Pn, M2n, M3n, phiPn,
+    phiM2n, phiM3n}} o None si el patrón de armado es inválido o el rayo no
+    corta la superficie en el rango de c barrido (demanda degenerada).
+    """
+    if beta1 is None:
+        beta1 = beta1_from_fc(fc)
+    bars = generate_rect_bar_positions(b, h, cover, bar_diameter, n3, n2, confine_bar_diameter)
+    if not bars:
+        return None
+
+    m_res_demand = math.hypot(target_m2, target_m3)
+    if m_res_demand <= 0 and target_p == 0:
+        return None
+
+    fibers = _rect_fiber_grid(b, h, nx, ny)
+    theta = math.atan2(target_m3, target_m2)
+    max_dim = math.hypot(b, h)
+    c_lo_bound, c_hi_bound = max_dim * 0.001, max_dim * 6.0
+
+    # Ag/Pb para la transición de φ de la E.060 — una sola vez (ver
+    # _phi_factor_e060); en ACI 318 no se usan.
+    ag = b * h
+    pb = balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1) \
+        if normalize_design_code(code) == "E060" else None
+    kw = {"code": code, "gross_area": ag, "pb": pb, "tied": tied}
+
+    def eval_c(c):
+        pt = compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1, **kw)
+        Pn = pt["phi"] * pt["Pn"]
+        Mn = pt["phi"] * math.hypot(pt["M2n"], pt["M3n"])
+        f = Pn * m_res_demand - Mn * target_p
+        return pt, Pn, Mn, f
+
+    # Recorrido grueso para acotar el cruce de signo (Mn no es monótono en c
+    # — sube hasta el punto balanceado y luego baja — así que no alcanza con
+    # bisección directa de punta a punta como en `capacity_at_demand`).
+    c_values = [c_lo_bound + (c_hi_bound - c_lo_bound) * i / (num_c - 1) for i in range(num_c)]
+    bracket = None
+    prev_c, prev_f = None, None
+    for c in c_values:
+        _, _, _, f = eval_c(c)
+        if prev_f is not None and prev_f * f <= 0 and f != prev_f:
+            bracket = (prev_c, c)
+            break
+        prev_c, prev_f = c, f
+
+    if bracket is None:
+        return None
+
+    c_lo, c_hi = bracket
+    _, _, _, f_lo = eval_c(c_lo)
+    pt = Pn = Mn = None
+    for _ in range(iters):
+        c_mid = (c_lo + c_hi) / 2.0
+        pt, Pn, Mn, f_mid = eval_c(c_mid)
+        if f_lo * f_mid <= 0:
+            c_hi = c_mid
+        else:
+            c_lo, f_lo = c_mid, f_mid
+
+    denom, demand_component = (Pn, target_p) if abs(target_p) > abs(m_res_demand) else (Mn, m_res_demand)
+    if not denom:
+        return None
+
+    pt["phiPn"] = Pn
+    pt["phiM2n"] = pt["phi"] * pt["M2n"]
+    pt["phiM3n"] = pt["phi"] * pt["M3n"]
+    return {
+        "ratio": demand_component / denom,
+        "thetaDeg": math.degrees(theta) % 360,
+        "phi": pt["phi"],
+        "capacity": pt,
+    }
+
+
 def compute_pmm_surface(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
-                         tied=True, num_angles=24, num_c=21, nx=60, ny=60):
+                         tied=True, num_angles=24, num_c=21, nx=60, ny=60,
+                         confine_bar_diameter=0.0, code=DEFAULT_DESIGN_CODE):
     """
     Superficie de interacción completa: `num_angles` curvas (una por ángulo,
     0°..360°), cada una con `num_c` puntos (de casi-tracción-pura a
@@ -215,7 +441,7 @@ def compute_pmm_surface(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     Devuelve {beta1, bars:[(x,y),...], curves:[{angleDeg, points:[...]}]}.
     """
     beta1 = beta1_from_fc(fc)
-    bars = generate_rect_bar_positions(b, h, cover, bar_diameter, n3, n2)
+    bars = generate_rect_bar_positions(b, h, cover, bar_diameter, n3, n2, confine_bar_diameter)
     if not bars:
         return None
 
@@ -225,12 +451,19 @@ def compute_pmm_surface(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     c_max = max_dim * 6.0
     c_values = [c_min + (c_max - c_min) * i / (num_c - 1) for i in range(num_c)]
 
+    ag = b * h
+    is_e060 = normalize_design_code(code) == "E060"
+
     curves = []
     for k in range(num_angles):
         theta = 2 * math.pi * k / num_angles
+        # Pb depende del ángulo (la varilla más traccionada cambia con theta),
+        # así que se recalcula por curva — solo si el código lo necesita.
+        pb = balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1) if is_e060 else None
+        kw = {"code": code, "gross_area": ag, "pb": pb, "tied": tied}
         points = []
         for c in c_values:
-            pt = compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1)
+            pt = compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1, **kw)
             pt["phiPn"] = pt["phi"] * pt["Pn"]
             pt["phiM2n"] = pt["phi"] * pt["M2n"]
             pt["phiM3n"] = pt["phi"] * pt["M3n"]

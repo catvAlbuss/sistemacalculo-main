@@ -1291,6 +1291,12 @@ def _build_mass_source_nodal_masses(
     # además esas cargas lo DUPLICA en la masa sísmica → periodos largos y masa
     # ~30% alta vs ETABS. El peso propio de LOSA (source="area_load") NO se
     # duplica: las losas no son "elements", así que su masa solo entra por acá.
+    #
+    # El peso propio de MURO (source="wall_self_weight") tampoco debe entrar
+    # acá: su masa física ya se agrega SIEMPRE (sin depender de Mass Source)
+    # más abajo en build_model_3d, vía `_build_wall_mesh_plan`/wall_node_mass
+    # — este load solo existe para que la reacción/P estática (Frame Forces,
+    # zapatas) vea el peso del muro, algo que antes faltaba por completo.
     include_self_weight_active = bool(mass_source.get("include_self_weight", True))
 
     if pattern_factors:
@@ -1298,10 +1304,12 @@ def _build_mass_source_nodal_masses(
             if not isinstance(load, dict):
                 continue
 
-            if (
-                include_self_weight_active
-                and str(load.get("source", "")).strip().lower() == "frame_self_weight"
-            ):
+            load_source = str(load.get("source", "")).strip().lower()
+
+            if include_self_weight_active and load_source == "frame_self_weight":
+                continue
+
+            if load_source == "wall_self_weight":
                 continue
 
             load_case = (
@@ -1833,13 +1841,30 @@ def _build_wall_mesh_plan(data: dict, nodes: list, node_lookup_out: dict = None)
 
 
 def _create_wall_shell_elements(wall_element_specs: list):
-    """Crea los elementos ShellMITC4 planeados por _build_wall_mesh_plan — se
+    """Crea los elementos de muro planeados por _build_wall_mesh_plan — se
     llama DESPUÉS del loop de elementos frame en build_model_3d (los nodos ya
-    existen para ambos casos en ese punto)."""
+    existen para ambos casos en ese punto).
+
+    ShellDKGQ, no ShellMITC4: ShellMITC4 (y en general los shell de 4 nodos
+    "clásicos") no tienen rigidez DRILLING (rotación en el plano del panel,
+    alrededor de su propia normal) — en un muro conectado al pórtico solo por
+    sus 4 esquinas, esa rotación queda prácticamente libre, y el muro entrega
+    MENOS rigidez lateral de la que le corresponde. Validado 2026-08-13
+    (payload real "estructura con combinaciones de carga fixed", muro 5×3m no
+    esbelto → 1x1 elementos): con el pórtico solo T1 calzaba con ETABS a
+    <0.2%, con el muro (ShellMITC4) T1 salía 26% más largo (muro
+    sistemáticamente MÁS BLANDO que en ETABS, no más rígido — descarta
+    membrane/shear locking como causa, que iría al revés). ShellDKGQ sí trae
+    drilling DOF (formulación DKQ) y además es prácticamente insensible al
+    tamaño de malla (a diferencia de MITC4, que necesitó el refinamiento
+    especial de muros esbeltos — ver _WALL_SLENDER_TARGET_ELEMENT_SIZE_M).
+    Mismo secTag/ElasticMembranePlateSection, mismo orden de nodos
+    (antihorario) — reemplazo sin cambiar nada más. Ver [[project_wall_shell_stiffness]].
+    """
     if ops is None:
         return
     for eid, n1, n2, n3, n4, sec_tag in wall_element_specs:
-        ops.element("ShellMITC4", eid, n1, n2, n3, n4, sec_tag)
+        ops.element("ShellDKGQ", eid, n1, n2, n3, n4, sec_tag)
 
 
 # ═══════════════════════════════════════════════════════════════════════

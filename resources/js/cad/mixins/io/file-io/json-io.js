@@ -423,6 +423,12 @@ export const jsonIoMixin = {
 
         frameSections: clean(this.frameSections?.sections || this.frameSections?.items || [], []),
 
+        // Armado de columna definido a mano (Diseñar Columna ▸ "Definir
+        // armado...") — por NOMBRE de sección, para columnas sin
+        // CONCRETESECTION real en el .e2k (auto-diseño en ETABS) o en
+        // modelos dibujados desde cero. Ver mixins/analysis/columnRebarDesigner.js.
+        manualColumnRebar: clean(this.manualColumnRebar, {}),
+
         sections: clean(this.sections, {}),
 
         loadCases: clean(this.loadCases?.cases || this.staticLoadCases?.items || [], []),
@@ -499,6 +505,7 @@ export const jsonIoMixin = {
 
       materials: clean(this.materialProperties?.materials, []),
       frameSections: clean(this.frameSections?.sections || this.frameSections?.items || [], []),
+      manualColumnRebar: clean(this.manualColumnRebar, {}),
       loadCases: clean(this.loadCases?.cases || this.staticLoadCases?.items || [], []),
       loadCombinations: clean(this.loadCombinations?.combinations || this.loadCombinations?.items || [], []),
       diaphragms: clean(this.diaphragms?.items, []),
@@ -1334,6 +1341,8 @@ export const jsonIoMixin = {
       }
 
       this.frameSections.sections = cleanClone(definitions.frameSections || data.frameSections, []);
+
+      this.manualColumnRebar = cleanClone(definitions.manualColumnRebar || data.manualColumnRebar, this.manualColumnRebar || {});
 
       if (definitions.sections || data.sections) {
         this.sections = cleanClone(definitions.sections || data.sections, this.sections || {});

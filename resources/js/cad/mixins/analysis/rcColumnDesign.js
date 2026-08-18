@@ -18,13 +18,37 @@ const KGCM2_TO_PA = 98066.5; // 1 kg/cm² = 98066.5 Pa
 const KN_TO_N = 1000;
 
 export const rcColumnDesignMixin = {
-  async openRcColumnDesignDialog() {
-    const selected = this.getSelectedFramesForDesign?.() || [];
+  /**
+   * Código de diseño activo — decide los factores φ (y su ley de transición)
+   * del motor: "E060" (Art. 10.3.2: compresión 0.70 estribos / 0.75 espiral,
+   * cortante 0.85, transición por CARGA AXIAL) o "ACI318" (§21.2: 0.65/0.75,
+   * cortante 0.75, transición por DEFORMACIÓN del acero). Default E.060 —
+   * la norma vigente en Perú. ACI 318 queda para comparar contra un ETABS
+   * configurado con código americano.
+   * Cambiar desde el modal o por consola:
+   *   cadSystem.rcDesignCode = "ACI318"; cadSystem.openRcColumnDesignDialog()
+   */
+  rcDesignCode: "E060",
+
+  /**
+   * `framesOverride` (opcional): re-diseña ESOS frames en vez de leer la
+   * selección actual — lo usa `rcSetDesignCode` para recalcular con otro
+   * código sin exigirle al usuario que vuelva a seleccionar (el modal está
+   * abierto encima del viewport, la selección puede haberse perdido).
+   */
+  async openRcColumnDesignDialog(framesOverride = null) {
+    const selected = framesOverride?.length
+      ? framesOverride
+      : this.getSelectedFramesForDesign?.() || [];
 
     if (!selected.length) {
       this.showMessage?.("Selecciona primero una o más columnas a diseñar.", "warning");
       return;
     }
+
+    // Se recuerda la selección para poder RE-diseñar al vuelo cuando el
+    // usuario cambia de código en el modal.
+    this._rcLastColumnSelection = selected;
 
     try {
       await loadRealFrameForceResults(this);
@@ -94,9 +118,30 @@ export const rcColumnDesignMixin = {
 
     window.dispatchEvent(
       new CustomEvent("open-columna-design-modal", {
-        detail: { columns },
+        detail: { columns, code: this.rcDesignCode },
       }),
     );
+  },
+
+  /**
+   * Cambia el código de diseño (E.060 ↔ ACI 318) y RE-CORRE el diseño sobre
+   * la misma selección — lo llama el selector del modal. Los φ viven en el
+   * motor Python, así que no alcanza con recalcular en el front: hay que
+   * volver a pedirle la superficie/los ratios.
+   */
+  async rcSetDesignCode(code) {
+    const next = String(code || "").toUpperCase().includes("ACI") ? "ACI318" : "E060";
+    if (next === this.rcDesignCode) return;
+
+    this.rcDesignCode = next;
+
+    // Se re-diseña sobre los MISMOS frames con los que se abrió el modal
+    // (framesOverride), no sobre la selección viva: con el modal encima del
+    // viewport la selección puede haberse perdido.
+    const frames = this._rcLastColumnSelection || [];
+    if (!frames.length) return;
+
+    await this.openRcColumnDesignDialog(frames);
   },
 
   /**
@@ -114,27 +159,52 @@ export const rcColumnDesignMixin = {
       ? `${frame.e2kName}${frame.e2kStory ? ` (${frame.e2kStory})` : ""}`
       : frame?.name || frame?.id || "columna";
 
-    if (!sec || sec.type !== "rect" || sec.rebarPattern?.type !== "rectangular") {
+    if (!sec || sec.type !== "rect") {
       return {
         label,
         frameId: frame?.id,
         unsupported: true,
-        unsupportedReason:
-          !sec || sec.type !== "rect"
-            ? "Sección no rectangular (o sin datos de sección) — no soportado en esta fase."
-            : "Sin patrón de armado rectangular reconocido en el .e2k (falta CONCRETESECTION o PATTERN distinto de \"R-n2-n3\").",
+        unsupportedReason: "Sección no rectangular (o sin datos de sección) — no soportado en esta fase.",
       };
     }
 
     const { b, h } = this._rcResolveFrameSection(frame);
-    const { fc, fy } = this._rcResolveFrameMaterial(frame);
+    const { fc, fy, ec } = this._rcResolveFrameMaterial(frame);
 
     if (!(b > 0) || !(h > 0)) {
       return { label, frameId: frame?.id, unsupported: true, unsupportedReason: "Geometría de sección inválida (b/h = 0)." };
     }
 
-    if (!(sec.longBarArea > 0) || !(sec.longBarDiameter > 0) || !(sec.numConfineBars2 >= 0)) {
-      return { label, frameId: frame?.id, unsupported: true, unsupportedReason: "Datos de armado incompletos en la sección." };
+    // Armado real del .e2k (CONCRETESECTION con DESIGNCHECK "CHECK") — si
+    // falta (p. ej. la sección está en modo auto-diseño de ETABS,
+    // DESIGNCHECK "DESIGN", LONGBARAREA=0), se cae al armado definido a mano
+    // por NOMBRE DE SECCIÓN (ver columnRebarDesigner.js — igual que el
+    // Section Designer de ETABS, una propiedad de sección, no por columna),
+    // si existe. Si tampoco hay armado manual, no soportado — con suficiente
+    // contexto (sectionName/b/h) para que el modal ofrezca "Definir armado...".
+    const hasRealRebar =
+      sec.rebarPattern?.type === "rectangular" && sec.longBarArea > 0 && sec.longBarDiameter > 0 && sec.numConfineBars2 >= 0;
+
+    const sectionName = sec.name || frame.sectionName || null;
+    let sec2 = sec;
+    let manualRebar = false;
+
+    if (!hasRealRebar) {
+      const manualDraft = sectionName ? this.manualColumnRebar?.[sectionName] : null;
+      const manualSec = manualDraft ? this._columnRebarDraftToSection?.(manualDraft) : null;
+      if (!manualSec) {
+        return {
+          label,
+          frameId: frame?.id,
+          unsupported: true,
+          unsupportedReason: "Datos de armado incompletos en la sección.",
+          sectionName,
+          b,
+          h,
+        };
+      }
+      sec2 = manualSec;
+      manualRebar = true;
     }
 
     const frameId = frame.id;
@@ -148,7 +218,23 @@ export const rcColumnDesignMixin = {
     // (a diferencia del criterio anterior, que mezclaba el peor P con el
     // peor M2 y el peor M3 de combos distintos — más conservador de lo real,
     // ver comparación contra ETABS "Reinforcement to be Checked").
-    const comboMetas = Array.isArray(results?.combinations) ? results.combinations : [];
+    const comboMetasTodos = Array.isArray(results?.combinations) ? results.combinations : [];
+
+    // ETABS solo diseña concreto con los combos marcados
+    // `DESIGN "Concrete" COMBOTYPE "Strength"` en el .e2k; los de servicio
+    // (PDPL, CV, SISAD, "PDPL ALB"...) NO entran al diseño. Antes se
+    // evaluaban TODOS y un combo de servicio podía salir gobernante — por eso
+    // aparecían combos que no figuran en la tabla de ETABS (ej. SISAD
+    // gobernando C25 con tracción, cuando ETABS reporta el combo 02).
+    //
+    // Si NINGÚN combo trae la marca (modelo dibujado a mano, o combos
+    // generados por el propio motor con E.060) se usan todos: el filtro solo
+    // aplica cuando el .e2k trae la información.
+    const marcadosParaDiseno = comboMetasTodos.filter(
+      (m) => /concrete/i.test(String(m.design || "")) && /strength/i.test(String(m.comboType || "")),
+    );
+    const comboMetas = marcadosParaDiseno.length ? marcadosParaDiseno : comboMetasTodos;
+
     const realComboIds = [];
     comboMetas.forEach((meta) => {
       if (String(meta.type).toUpperCase() === "ENVELOPE") {
@@ -215,33 +301,136 @@ export const rcColumnDesignMixin = {
     const demandCandidates = { base: candidatesAt(0), top: candidatesAt(1) };
     const allCandidates = [...demandCandidates.base, ...demandCandidates.top];
 
+    // Esbeltez (E.060 10.12): δns depende de los DOS extremos del MISMO
+    // combo, no de una estación suelta. Se cruza base↔top por comboId para
+    // que cada punto lleve el momento del otro extremo (M2Top/M3Top).
+    const otroExtremo = (lista, comboId) => lista.find((c) => c.comboId === comboId) || null;
+    demandCandidates.base.forEach((c) => {
+      const o = otroExtremo(demandCandidates.top, c.comboId);
+      c.M2Top = o ? o.M2 : c.M2;
+      c.M3Top = o ? o.M3 : c.M3;
+    });
+    demandCandidates.top.forEach((c) => {
+      const o = otroExtremo(demandCandidates.base, c.comboId);
+      c.M2Top = o ? o.M2 : c.M2;
+      c.M3Top = o ? o.M3 : c.M3;
+    });
+
     const geometry = {
       b: b / 100,
       h: h / 100,
       fc: fc * KGCM2_TO_PA,
       fy: fy * KGCM2_TO_PA,
-      cover: sec.cover / 100,
-      barDiameter: sec.longBarDiameter,
-      n3: sec.rebarPattern.n3,
-      n2: sec.rebarPattern.n2,
-      barArea: sec.longBarArea,
+      // cover = recubrimiento LIBRE hasta la superficie del estribo ("Clear
+      // Cover for Confinement Bars" en ETABS, exportado vía COVER) — el
+      // motor resta confineBarDiameter aparte para ubicar el centro de la
+      // varilla longitudinal (antes no se restaba: las varillas quedaban
+      // ~1 diámetro de estribo más afuera de lo real).
+      cover: sec2.cover / 100,
+      barDiameter: sec2.longBarDiameter,
+      n3: sec2.rebarPattern.n3,
+      n2: sec2.rebarPattern.n2,
+      barArea: sec2.longBarArea,
+      confineBarDiameter: sec2.confineBarDiameter || 0,
+      // Código de diseño: decide los factores φ y su ley de transición
+      // (E.060 Art. 10.3.2 vs ACI 318 §21.2 — ver PHI_BY_CODE en
+      // python-backend/design/column_interaction.py). Default E.060, que es
+      // la norma vigente en Perú; ACI 318 queda disponible para comparar
+      // contra ETABS cuando ese esté configurado con código americano.
+      code: this.rcDesignCode || "E060",
+      // Esbeltez: magnificación de momentos de 2do orden (E.060 Art. 10.12,
+      // ver python-backend/design/column_slenderness.py). Se manda solo si
+      // hay Ec y altura libre; sin eso el motor la omite (no magnifica).
+      slenderness: this.rcSlendernessEnabled === false ? null : {
+        ec: (ec || 0) * KGCM2_TO_PA,
+        lu: this._rcEstimateClearHeight(frame, frameLength),
+        // k = 1.0 (pórtico ARRIOSTRADO). El caso no arriostrado (δs, Art.
+        // 10.13) no está implementado — necesita el índice de estabilidad Q
+        // por piso, que es un dato de piso, no de elemento.
+        k: Number(this.rcSlendernessK) || 1.0,
+        betaD: this._rcBetaD(demandCandidates, frameId),
+      },
     };
 
     // Corte/confinamiento usa el rango de Pu y el piso de Vu SOLO de combos
     // factorados reales — un caso sísmico suelto (sin gravedad) no es una
     // demanda de diseño válida y distorsionaría el rango.
     const comboOnlyCandidates = allCandidates.filter((c) => c.kind === "combo");
-    const shearInput = this._rcBuildShearInput(frame, sec, fy, geometry, comboOnlyCandidates, frameLength);
+    const shearInput = this._rcBuildShearInput(frame, sec2, fy, geometry, comboOnlyCandidates, frameLength);
 
     return {
       label,
       frameId,
+      sectionName,
       unsupported: false,
-      geometryDisplay: { b, h, fc, fy, cover: sec.cover, pattern: sec.rebarPattern, longBarDiameter: sec.longBarDiameter },
+      manualRebar,
+      geometryDisplay: { b, h, fc, fy, cover: sec2.cover, pattern: sec2.rebarPattern, longBarDiameter: sec2.longBarDiameter },
       geometry,
       demandCandidates,
       shearInput,
     };
+  },
+
+  /**
+   * βd para la esbeltez (E.060 10.12.3): relación entre la máxima carga
+   * axial SOSTENIDA amplificada y la máxima carga axial amplificada. Entra
+   * en EI = 0.4·Ec·Ig/(1+βd): más carga sostenida → menos rigidez efectiva
+   * (fluencia del concreto) → menor Pc → mayor magnificación.
+   *
+   * Se calcula con los `terms` reales de cada combo ({case, factor}, los
+   * mismos que arma `_ff_default_design_combos` en solver.py): la parte
+   * sostenida es la suma de los términos cuyo caso es de tipo Dead. Si no
+   * se puede determinar (sin combos con términos, o sin registro del caso
+   * muerto), se devuelve 1.0 — el valor MÁS CONSERVADOR (mitad de Pc, más
+   * magnificación), para no subestimar el efecto por falta de dato.
+   */
+  _rcBetaD(demandCandidates, frameId) {
+    const results = this.frameForceResults;
+    const combos = Array.isArray(results?.combinations) ? results.combinations : [];
+    const puntos = [...(demandCandidates?.base || []), ...(demandCandidates?.top || [])];
+    if (!combos.length || !puntos.length) return 1.0;
+
+    const deadIds = new Set(
+      (Array.isArray(results?.cases) ? results.cases : [])
+        .filter((c) => String(c.patternType || "").toLowerCase() === "dead")
+        .map((c) => String(c.id)),
+    );
+    if (!deadIds.size) return 1.0;
+
+    // Axial de cada caso muerto, sin factorar, en la estación más cargada.
+    const axialCaso = new Map();
+    deadIds.forEach((id) => {
+      const rec = getFrameForceRecord(results, frameId, id, null);
+      if (!rec) return;
+      const p0 = Math.abs(this._rcFrameForceStationRaw(rec, 0, "P"));
+      const p1 = Math.abs(this._rcFrameForceStationRaw(rec, 1, "P"));
+      axialCaso.set(id, Math.max(p0, p1) * KN_TO_N);
+    });
+    if (!axialCaso.size) return 1.0;
+
+    // El id de un combo ENVELOPE viaja con sufijo _Max/_Min en los puntos.
+    const baseId = (id) => String(id || "").replace(/_(Max|Min)$/i, "");
+    const metaPorId = new Map(combos.map((c) => [String(c.id), c]));
+
+    let maxTotal = 0;
+    let maxSostenida = 0;
+    puntos.forEach((pt) => {
+      if (pt.kind !== "combo") return;
+      const total = Math.abs(pt.P);
+      if (total > maxTotal) maxTotal = total;
+
+      const meta = metaPorId.get(baseId(pt.comboId));
+      const terms = Array.isArray(meta?.terms) ? meta.terms : [];
+      let sostenida = 0;
+      terms.forEach((t) => {
+        const axial = axialCaso.get(String(t.case));
+        if (axial) sostenida += Math.abs(Number(t.factor) || 0) * axial;
+      });
+      if (sostenida > maxSostenida) maxSostenida = sostenida;
+    });
+
+    if (!(maxTotal > 0)) return 1.0;
+    return Math.min(1, Math.max(0, maxSostenida / maxTotal));
   },
 
   /**

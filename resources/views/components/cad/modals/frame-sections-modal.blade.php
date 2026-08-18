@@ -75,6 +75,19 @@
                         </svg>
                         Modificar/Mostrar Sección...
                     </button>
+                    <button @click="if(selectedSectionObj?.type === 'rect') defineRebar()"
+                            class="w-full text-left px-3 py-2 text-sm text-blue-400 hover:bg-gray-700 rounded transition-colors flex items-center gap-2"
+                            :class="{'opacity-50 cursor-not-allowed': selectedSectionObj?.type !== 'rect'}"
+                            :title="selectedSectionObj && selectedSectionObj.type !== 'rect' ? 'Solo disponible para secciones rectangulares' : ''">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h16v16H4z" />
+                            <circle cx="8" cy="8" r="1.2" fill="currentColor" stroke="none" />
+                            <circle cx="16" cy="8" r="1.2" fill="currentColor" stroke="none" />
+                            <circle cx="8" cy="16" r="1.2" fill="currentColor" stroke="none" />
+                            <circle cx="16" cy="16" r="1.2" fill="currentColor" stroke="none" />
+                        </svg>
+                        Definir Armado de Columna...
+                    </button>
                     <button @click="if(selectedSectionName) confirmDelete()" class="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-gray-700 rounded transition-colors flex items-center gap-2" :class="{'opacity-50 cursor-not-allowed': !selectedSectionName}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -284,8 +297,8 @@
                             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-300 font-mono">
                                 <span>A = <span x-text="rectPropsDisp.A"></span> <span x-text="unitLabels.area"></span></span>
                                 <span>J ≈ <span x-text="rectPropsDisp.J"></span> <span x-text="unitLabels.inertia"></span></span>
-                                <span>I33 (mayor, eje 3) = <span x-text="rectPropsDisp.Iz"></span> <span x-text="unitLabels.inertia"></span></span>
-                                <span>I22 (menor, eje 2) = <span x-text="rectPropsDisp.Iy"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I33 (<span x-text="ejeMayorMenor(rectPropsDisp, 'Iz')"></span>, eje 3) = <span x-text="rectPropsDisp.Iz"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I22 (<span x-text="ejeMayorMenor(rectPropsDisp, 'Iy')"></span>, eje 2) = <span x-text="rectPropsDisp.Iy"></span> <span x-text="unitLabels.inertia"></span></span>
                             </div>
                         </div>
                     </div>
@@ -352,8 +365,8 @@
                             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-300 font-mono">
                                 <span>A = <span x-text="teePropsDisp.A"></span> <span x-text="unitLabels.area"></span></span>
                                 <span>J ≈ <span x-text="teePropsDisp.J"></span> <span x-text="unitLabels.inertia"></span></span>
-                                <span>I33 (mayor, eje 3) = <span x-text="teePropsDisp.Iz"></span> <span x-text="unitLabels.inertia"></span></span>
-                                <span>I22 (menor, eje 2) = <span x-text="teePropsDisp.Iy"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I33 (<span x-text="ejeMayorMenor(teePropsDisp, 'Iz')"></span>, eje 3) = <span x-text="teePropsDisp.Iz"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I22 (<span x-text="ejeMayorMenor(teePropsDisp, 'Iy')"></span>, eje 2) = <span x-text="teePropsDisp.Iy"></span> <span x-text="unitLabels.inertia"></span></span>
                             </div>
                         </div>
                     </div>
@@ -468,8 +481,8 @@
                             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-300 font-mono">
                                 <span>A = <span x-text="tubePropsDisp.A"></span> <span x-text="unitLabels.area"></span></span>
                                 <span>J ≈ <span x-text="tubePropsDisp.J"></span> <span x-text="unitLabels.inertia"></span></span>
-                                <span>I33 (mayor, eje 3) = <span x-text="tubePropsDisp.Iz"></span> <span x-text="unitLabels.inertia"></span></span>
-                                <span>I22 (menor, eje 2) = <span x-text="tubePropsDisp.Iy"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I33 (<span x-text="ejeMayorMenor(tubePropsDisp, 'Iz')"></span>, eje 3) = <span x-text="tubePropsDisp.Iz"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I22 (<span x-text="ejeMayorMenor(tubePropsDisp, 'Iy')"></span>, eje 2) = <span x-text="tubePropsDisp.Iy"></span> <span x-text="unitLabels.inertia"></span></span>
                             </div>
                         </div>
                     </div>
@@ -733,6 +746,22 @@
             set dispRectH(v) { this.form.rectH = window.cadUnits ? window.cadUnits.lenDispToCm(v) : Number(v) || 0; },
 
             // Propiedades calculadas convertidas a la unidad de longitud activa.
+            /**
+             * Rotulo "mayor"/"menor" para una inercia, comparando los VALORES
+             * reales en vez de asumir que I33 siempre es la mayor. Con una
+             * seccion mas ancha que alta (b > h) la mayor es I22, y el rotulo
+             * fijo anterior decia lo contrario. Los valores nunca estuvieron
+             * mal; solo el rotulo.
+             */
+            ejeMayorMenor(props, clave) {
+                const iz = parseFloat(props?.Iz);
+                const iy = parseFloat(props?.Iy);
+                if (!Number.isFinite(iz) || !Number.isFinite(iy)) return '';
+                if (Math.abs(iz - iy) < 1e-12) return 'iguales';
+                const mayorEsIz = iz > iy;
+                return (clave === 'Iz') === mayorEsIz ? 'mayor' : 'menor';
+            },
+
             get rectPropsDisp() {
                 this.unitsVersion;
                 const p = this.rectProps;
@@ -872,6 +901,38 @@
                 return { W, H, x, y, cx, cy, iW, iH, ix, iy };
             },
 
+            // Posiciones de armado REAL (cm, centroide en 0,0) para la sección que
+            // se está EDITANDO — nunca para una nueva sección sin guardar (isNew).
+            // Dos fuentes posibles, mismo orden de prioridad que rcColumnDesign.js:
+            // (1) armado real parseado del .e2k (CONCRETESECTION/PATTERN), (2)
+            // armado definido a mano (Definir Armado de Columna...). Si no hay
+            // ninguno (p.ej. una VIGA, o una columna aún sin armar), no se dibuja
+            // nada — ETABS tampoco dibuja armado ahí hasta que existe uno real;
+            // antes esto mostraba 8 puntos fijos como decoración para CUALQUIER
+            // sección rectangular, incluidas vigas, lo cual era engañoso.
+            get sectionRebarPoints() {
+                if (this.isNew || !this.editingSection?.name || !window.cadSystem) return [];
+                const sec = this.editingSection;
+                const b = Number(this.form.rectB) || 0;
+                const h = Number(this.form.rectH) || 0;
+
+                if (sec.rebarPattern?.type === 'rectangular' && sec.longBarDiameter > 0) {
+                    return window.cadSystem._columnRebarBarPositions?.({
+                        b, h, cover: sec.cover || 0,
+                        n2: sec.rebarPattern.n2, n3: sec.rebarPattern.n3,
+                        longBarDiameterCm: sec.longBarDiameter * 100, // m -> cm
+                        confineBarDiameterCm: (sec.confineBarDiameter || 0) * 100,
+                    }) || [];
+                }
+
+                const manual = window.cadSystem.manualColumnRebar?.[sec.name];
+                if (manual) {
+                    return window.cadSystem.columnRebarPreviewPoints?.(manual) || [];
+                }
+
+                return [];
+            },
+
             // Geometría del gráfico de la sección (ejes locales 2=peralte, 3=ancho).
             // El centro de la sección está en (cx, cy); el peralte h va en vertical
             // (eje 2 ↑) y el ancho b en horizontal (eje 3 ←), como en ETABS.
@@ -883,17 +944,12 @@
                 const H = 120 * h / m;   // px
                 const cx = 120, cy = 100;
                 const x = cx - W / 2, y = cy - H / 2;
-                // Barras de refuerzo: esquinas + una intermedia por lado
-                const bars = [];
-                const insX = Math.min(10, W / 4), insY = Math.min(10, H / 4);
-                const xs = [x + insX, cx, x + W - insX];
-                const ys = [y + insY, cy, y + H - insY];
-                let id = 0;
-                for (const bx of xs) for (const by of ys) {
-                    // saltar el centro (no hay barra al medio)
-                    if (bx === cx && by === cy) continue;
-                    bars.push({ id: id++, x: bx, y: by });
-                }
+                const pxPerUnit = 120 / m;
+                const bars = this.sectionRebarPoints.map((p, id) => ({
+                    id,
+                    x: cx + p.x * pxPerUnit,
+                    y: cy - p.y * pxPerUnit,
+                }));
                 return { W, H, x, y, cx, cy, bars };
             },
 
@@ -1073,6 +1129,17 @@
                     });
                 }
                 return filtered;
+            },
+
+            get selectedSectionObj() {
+                return this.sections.find((s) => s.name === this.selectedSectionName) || null;
+            },
+
+            /** Abre el diseñador de armado a mano (ver column-rebar-designer-modal.blade.php), keyed por NOMBRE de sección — aplica a toda columna que use esta propiedad, igual que el Section Designer de ETABS. */
+            defineRebar: function() {
+                const sec = this.selectedSectionObj;
+                if (!sec) return;
+                window.cadSystem?.openColumnRebarDesigner?.(sec.name, { b: sec.b, h: sec.h, label: sec.name });
             },
 
             showToastMessage: function(message, type) {

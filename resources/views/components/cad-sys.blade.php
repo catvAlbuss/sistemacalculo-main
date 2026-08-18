@@ -40,6 +40,8 @@
     <x-cad.modals.zapata-results-modal/>
     <x-cad.modals.viga-design-modal/>
     <x-cad.modals.columna-design-modal/>
+    <x-cad.modals.column-rebar-designer-modal/>
+    <x-cad.modals.aligerado-design-modal/>
     <!-- Se Agrego el modal de grid -->
     <x-cad.modals.diagonal-grid-modal/>
     <input id="_token" name="_token" type="hidden" value="{{ csrf_token() }}" />

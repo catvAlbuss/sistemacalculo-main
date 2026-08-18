@@ -23,6 +23,7 @@ import {
 import { BACKEND_URL, USE_MOCK_SEISMIC, DRIFT_LIMITS } from "./_constants.js";
 import { buildColumnEndOffsets } from "./columnEndOffsets.js";
 import { splitBeamsAtInteriorNodes } from "./frameMeshAtIntersections.js";
+import { getNodeRestraints } from "../../../model/nodeSupports.js";
 
 export const seismicPayloadMixin = {
 
@@ -658,10 +659,27 @@ export const seismicPayloadMixin = {
   _getSectionDefinitionForSeismic(sectionName) {
     const name = String(sectionName || "").trim();
 
+    // OJO con la forma de cada fuente. `this.frameSections` NO es el array de
+    // secciones: es `{ open, sections: [...], selectedSection }` — el modal lo
+    // guarda así (ver cad_sys.js) y es donde el import del .e2k deja todo. Sin
+    // `this.frameSections?.sections` en esta lista, el lookup probaba
+    // `frameSections["C30X40"]` y recorría `Object.values` (que devuelve
+    // `[false, Array, null]`, ninguno con `.name`) y terminaba en `null`
+    // SIEMPRE.
+    //
+    // Consecuencia medida en "Nueva estructura p1.e2k": los brazos rígidos de
+    // TODAS las vigas salían 0.173205 m, que es √A/2 = √0.12/2 — el lado de un
+    // cuadrado equivalente en área — en vez de la cara real de la columna
+    // C30X40 (0.15 m o 0.20 m según la dirección de la viga). El análisis no se
+    // veía afectado (el área y las inercias vienen pegadas al frame), pero la
+    // LUZ LIBRE de reporte sí, y con ella el M3 en la cara del apoyo.
     const sources = [
       this.sections,
+      this.frameSections?.sections,
       this.frameSections,
+      this.sectionDefinitions?.sections,
       this.sectionDefinitions,
+      this.structuralSections?.sections,
       this.structuralSections,
       this.propertyDefinitions?.sections,
     ];
@@ -1342,6 +1360,90 @@ export const seismicPayloadMixin = {
         };
       })
       .filter((w) => w.thickness > 0);
+  },
+
+  // Peso propio del muro (área real del panel × espesor × peso unitario) →
+  // carga muerta CM, repartida ¼ a cada esquina — mismo criterio que
+  // _buildSeismicAreaLoadsForPayload para losas.
+  //
+  // POR QUÉ EXISTE: `_buildSeismicWallsForPayload` solo manda geometría; el
+  // backend malla el muro como shell y le calcula MASA (ops.mass, para modal)
+  // pero NUNCA una fuerza de gravedad estática — ni run_frame_force_results
+  // (diagramas/tabla "Frame Forces") ni run_static_analysis_by_type
+  // (reacciones para zapatas) leen otra cosa que `data.loads`. Sin esto, toda
+  // columna con un muro contiguo salía con P por debajo de ETABS en cualquier
+  // combo de gravedad (déficit ~30% en C23, ver [[project_gravity_load_deficit]]).
+  _buildSeismicWallSelfWeightLoadsForPayload(areas = []) {
+    const out = [];
+    const walls = (areas || []).filter(
+      (a) =>
+        (a.areaType || a.type) === "wall" &&
+        a.section &&
+        Array.isArray(a.points) &&
+        a.points.length >= 3,
+    );
+
+    for (const wall of walls) {
+      const material = this._resolveWallMaterial(wall.section?.material);
+      const thickness = (Number(wall.section?.thickness) || 0) / 1000; // mm → m
+      if (!(thickness > 0)) continue;
+      const unitWeightNPerM3 = Number(material?.unitWeightNPerM3) || 24000;
+
+      // Área REAL del panel (triangulación 3D, no la proyección en planta:
+      // un muro es vertical, su proyección XY da ~0).
+      const pts = wall.points;
+      let area = 0;
+      for (let i = 1; i < pts.length - 1; i += 1) {
+        const a = pts[0], b = pts[i], c = pts[i + 1];
+        const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
+        const acx = c.x - a.x, acy = c.y - a.y, acz = c.z - a.z;
+        const cx = aby * acz - abz * acy;
+        const cy = abz * acx - abx * acz;
+        const cz = abx * acy - aby * acx;
+        area += 0.5 * Math.sqrt(cx * cx + cy * cy + cz * cz);
+      }
+      if (!(area > 0)) continue;
+
+      const totalN = unitWeightNPerM3 * thickness * area; // peso total del panel [N]
+
+      const cornerIds = [];
+      for (const p of pts) {
+        const match = (this.nodes || []).find((n) => {
+          const nx = Number(n.position?.x ?? n.x) || 0;
+          const ny = Number(n.position?.y ?? n.y) || 0;
+          const nz = Number(n.position?.z ?? n.z) || 0;
+          return (
+            Math.abs(nx - (Number(p.x) || 0)) < 1e-3 &&
+            Math.abs(ny - (Number(p.y) || 0)) < 1e-3 &&
+            Math.abs(nz - (Number(p.z) || 0)) < 1e-3
+          );
+        });
+        if (match) cornerIds.push(Number(match.id));
+      }
+      if (!cornerIds.length) continue;
+
+      // Repartido solo entre los corners que SÍ calzaron con un nodo real
+      // (no entre pts.length): si algún vértice del muro no matchea, el
+      // peso no se diluye, se concentra en los que sí — mismo criterio que
+      // _buildSeismicAreaLoadsForPayload.
+      const perNode = totalN / cornerIds.length;
+
+      const patternType = this._getLoadPatternTypeForSeismic("CM");
+      for (const nid of cornerIds) {
+        out.push({
+          node: nid,
+          fx: 0,
+          fy: 0,
+          fz: -perNode, // gravitatoria (−Z); el motor usa abs()
+          loadCase: "CM",
+          type: patternType,
+          loadType: patternType,
+          source: "wall_self_weight",
+          wallId: wall.id ?? null,
+        });
+      }
+    }
+    return out;
   },
 
   // ─── Losas como shell (ShellMITC4) ────────────────────────────────────────
@@ -2784,29 +2886,13 @@ export const seismicPayloadMixin = {
       );
     }
 
-    const _soporteToRestraints = (soporte) => {
-      if (soporte === "soporteUno") return { ux: 1, uy: 1, uz: 1, rx: 1, ry: 1, rz: 1 };
-      if (soporte === "soporteDos") return { ux: 1, uy: 1, uz: 1, rx: 0, ry: 0, rz: 0 };
-      if (soporte === "soporteTres") return { ux: 0, uy: 0, uz: 1, rx: 0, ry: 0, rz: 0 };
-
-      return { ux: 0, uy: 0, uz: 0, rx: 0, ry: 0, rz: 0 };
-    };
-
+    // Los presets legacy (`soporteUno/Dos/Tres`) los resuelve
+    // model/nodeSupports.js, compartido con el exportador .e2k — tenerlo
+    // duplicado fue lo que dejó al .e2k exportando sin apoyos.
     const supports = nodes
-      .filter(n => n.restraints || n.constraints || n.soporte)
-      .map(n => {
-        const r = n.restraints || n.constraints || _soporteToRestraints(n.soporte);
-
-        return {
-          node: Number(n.id),
-          ux: r.ux ? 1 : 0,
-          uy: r.uy ? 1 : 0,
-          uz: r.uz ? 1 : 0,
-          rx: r.rx ? 1 : 0,
-          ry: r.ry ? 1 : 0,
-          rz: r.rz ? 1 : 0,
-        };
-      });
+      .map((n) => ({ node: Number(n.id), r: getNodeRestraints(n) }))
+      .filter(({ r }) => r)
+      .map(({ node, r }) => ({ node, ...r }));
 
     const massSource = this._buildSeismicMassSourceForPayload();
     const walls = this._buildSeismicWallsForPayload(this.areas || []);
@@ -2868,7 +2954,8 @@ export const seismicPayloadMixin = {
         const frameEquivalentLoads = this._buildSeismicFrameEquivalentLoadsForPayload(frames);
         const frameSelfWeightLoads = this._buildSeismicFrameSelfWeightForPayload(frames);
         const areaLoads = this._buildSeismicAreaLoadsForPayload(this.areas || []);
-        loads = [...loads, ...frameEquivalentLoads, ...frameSelfWeightLoads, ...areaLoads];
+        const wallSelfWeightLoads = this._buildSeismicWallSelfWeightLoadsForPayload(this.areas || []);
+        loads = [...loads, ...frameEquivalentLoads, ...frameSelfWeightLoads, ...areaLoads, ...wallSelfWeightLoads];
 
         const slabToBeamLoads = this._buildSeismicSlabToBeamLoadsForPayload(
           this.areas || [],
@@ -2899,6 +2986,11 @@ export const seismicPayloadMixin = {
 
         console.log("🔎 Cargas de área (losas) para masa sísmica:", {
           areaLoadsCount: areaLoads.length,
+        });
+
+        console.log("🔎 Peso propio de muros para reacciones estáticas:", {
+          wallSelfWeightLoadsCount: wallSelfWeightLoads.length,
+          totalN: wallSelfWeightLoads.reduce((s, l) => s + Math.abs(l.fz), 0),
         });
 
         console.log("🔎 Frame loads equivalentes para análisis sísmico:", {

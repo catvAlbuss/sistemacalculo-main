@@ -60,6 +60,40 @@ export const rcSectionMaterialMixin = {
     const fc = fcRaw > 100 ? fcRaw : fcRaw * MPA_TO_KGCM2;
     const fy = fyRaw > 1000 ? fyRaw : fyRaw * MPA_TO_KGCM2;
 
+    // Ec (kg/cm²) — lo pide la esbeltez para Pc = π²EI/(kLu)² (ver
+    // design/column_slenderness.py). Se toma el del material si está
+    // definido; si no, la fórmula de E.060 Art. 8.5.1: Ec = 15000·√f'c
+    // (f'c en kg/cm²). El catálogo guarda E en MPa igual que fc/fy.
+    const ecRaw = Number(matObj?.modulusElasticity ?? matObj?.E ?? 0);
+    const ecKgCm2 = ecRaw > 0
+      ? (ecRaw > 100000 ? ecRaw : ecRaw * MPA_TO_KGCM2)
+      : 15000 * Math.sqrt(fc);
+
+    return { fc: Math.round(fc), fy: Math.round(fy), ec: Math.round(ecKgCm2) };
+  },
+
+  /**
+   * fc/fy en kg/cm² para una ÁREA (losa) — espejo de _rcResolveFrameMaterial
+   * pero leyendo `area.section.material` (nombre de material, tal como lo
+   * guarda el modal de Slab Sections), no `frame.frameSection.material`.
+   * Usado por el diseño de losa aligerada (rcAligeradoDesign.js).
+   */
+  _rcResolveAreaMaterial(area) {
+    const name = area?.section?.material || null;
+    const source = this.materialProperties?.materials;
+    let matObj = null;
+
+    if (name && source) {
+      const list = Array.isArray(source) ? source : Object.values(source);
+      matObj = list.find((m) => String(m?.name || m?.id || "").trim() === String(name).trim()) || null;
+    }
+
+    const fcRaw = Number(matObj?.fc ?? matObj?.fpc ?? 21);
+    const fyRaw = Number(matObj?.fy ?? 420);
+
+    const fc = fcRaw > 100 ? fcRaw : fcRaw * MPA_TO_KGCM2;
+    const fy = fyRaw > 1000 ? fyRaw : fyRaw * MPA_TO_KGCM2;
+
     return { fc: Math.round(fc), fy: Math.round(fy) };
   },
 

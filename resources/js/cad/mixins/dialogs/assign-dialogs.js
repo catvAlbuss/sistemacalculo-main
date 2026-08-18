@@ -1380,10 +1380,18 @@ export const assignDialogsMixin = {
     // ya guardó patrones propios (aunque sea solo CM/CVE por defecto), se
     // usan esos; si nunca abrió ese diálogo en este modelo, se cae de
     // vuelta a la lista de referencia para no dejar el dropdown vacío.
-    const userDefined = this.loadCases?.cases;
-    if (Array.isArray(userDefined) && userDefined.length) {
+    // El store real es `staticLoadCases.items` (lo escribe el diálogo de
+    // Patrones de Carga y lo llena el import del .e2k). `loadCases.cases` es
+    // legacy y hoy arranca vacío: se consulta después, no antes, para no
+    // ofrecer patrones que el modelo no tiene.
+    const userDefined = [this.staticLoadCases?.items, this.loadCases?.cases].find(
+      (f) => Array.isArray(f) && f.length,
+    );
+
+    if (userDefined) {
       return userDefined.map((lc) => ({ name: lc.name, type: lc.type, implemented: true }));
     }
+
     return this.getEtabsReferenceLoadPatterns();
   },
 

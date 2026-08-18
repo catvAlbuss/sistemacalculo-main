@@ -6,7 +6,13 @@ import seismic_analysis as sa
 import math
 import os
 import json
-from design.column_interaction import compute_pmm_surface, capacity_at_demand, beta1_from_fc
+from design.column_interaction import (
+    compute_pmm_surface,
+    capacity_ratio_radial,
+    beta1_from_fc,
+    normalize_design_code,
+)
+from design.column_slenderness import magnify_nonsway
 from design.column_shear import column_shear_design
 
 
@@ -765,14 +771,31 @@ def _run_column_interaction(data):
     entre el endpoint Flask (Windows) y cli_entry.py (Linux, subproceso).
 
     Payload (SI): { b, h, fc, fy, cover, barDiameter, n3, n2, barArea,
-                     tied?, numAngles?, numC?,
+                     confineBarDiameter?, tied?, numAngles?, numC?,
                      demandPoints?: [{P, M2, M3}, ...] } — todo en metros/Pa.
 
+    `cover` es el recubrimiento LIBRE hasta la superficie del estribo
+    ("Clear Cover for Confinement Bars" en el diálogo de ETABS, exportado vía
+    COVER) — `confineBarDiameter` (opcional, 0 si no hay armado transversal
+    real) se resta aparte para ubicar el centro de la varilla longitudinal,
+    ver generate_rect_bar_positions.
+
     `demandPoints` (opcional): además de la superficie de 24 curvas (útil
-    como referencia visual), calcula la capacidad EXACTA en el ángulo real
-    de cada punto de demanda (bisección sobre c, sin interpolar entre
-    ángulos ni entre puntos de curva — ver capacity_at_demand). Se devuelve
-    en `demandChecks`, en el mismo orden que `demandPoints`.
+    como referencia visual), calcula el ratio P-M-M RADIAL en el ángulo real
+    de cada punto de demanda (ver capacity_ratio_radial) — el mismo D/C
+    Ratio que reporta ETABS: distancia origen→demanda sobre origen→superficie
+    en el espacio P-M2-M3, NO M_demanda/M_capacidad al mismo Pn (eso subestimaba
+    la capacidad real por 5-6x en columnas livianas, ver project_pmm_ratio_gap
+    en memoria — brecha cerrada, no era un error de capacidad ni de armado).
+    Se devuelve en `demandChecks`, en el mismo orden que `demandPoints`.
+
+    `slenderness` (opcional): { ec, lu, k?, betaD?, hasTransverseLoad? } —
+    activa la magnificacion de momentos de 2do orden (E.060 10.12, ver
+    design/column_slenderness.py). Cada punto de `demandPoints` debe traer
+    entonces `M2Top`/`M3Top` (el momento del MISMO combo en el otro extremo
+    del elemento), porque delta_ns depende de los DOS extremos, no de una
+    estacion suelta. Los momentos ya magnificados son los que se verifican
+    contra la superficie, y el detalle viaja en `demandChecks[i].slenderness`.
     """
     required = ["b", "h", "fc", "fy", "cover", "barDiameter", "n3", "n2", "barArea"]
     missing = [k for k in required if data.get(k) is None]
@@ -789,6 +812,10 @@ def _run_column_interaction(data):
     n2 = int(data["n2"])
     bar_area = float(data["barArea"])
     tied = bool(data.get("tied", True))
+    confine_bar_diameter = float(data.get("confineBarDiameter") or 0.0)
+    # Código de diseño: decide los φ (E.060 Art. 10.3.2 vs ACI 318 §21.2) y la
+    # ley de transición. Default E.060 — ver DEFAULT_DESIGN_CODE.
+    code = normalize_design_code(data.get("code"))
     beta1 = beta1_from_fc(fc)
 
     surface = compute_pmm_surface(
@@ -796,10 +823,45 @@ def _run_column_interaction(data):
         n3=n3, n2=n2, bar_area=bar_area, tied=tied,
         num_angles=int(data.get("numAngles", 24)),
         num_c=int(data.get("numC", 21)),
+        confine_bar_diameter=confine_bar_diameter,
+        code=code,
     )
 
     if surface is None:
         return {"success": False, "error": "Geometría/patrón de armado inválido (no se pudo ubicar varilla)."}
+
+    # Esbeltez (E.060 10.12): si llega la config, cada momento de demanda se
+    # MAGNIFICA antes de verificar la seccion. Es un efecto de ELEMENTO (usa
+    # los dos extremos del mismo combo), por eso el punto trae M2Top/M3Top.
+    slender_cfg = data.get("slenderness") or None
+    ec_slender = float(slender_cfg.get("ec", 0.0)) if slender_cfg else 0.0
+    lu_slender = float(slender_cfg.get("lu", 0.0)) if slender_cfg else 0.0
+    slender_on = bool(slender_cfg) and ec_slender > 0 and lu_slender > 0
+    ag_sec = b * h
+    # Ig por eje: flexion alrededor del eje 2 usa el peralte en 3 y viceversa.
+    ig_axis = {"M2": b * h ** 3 / 12.0, "M3": h * b ** 3 / 12.0}
+    h_axis = {"M2": h, "M3": b}
+
+    def _magnify(component, m_bottom, m_top, p_u):
+        """delta_ns para UN eje. Devuelve (momento_magnificado, detalle)."""
+        if not slender_on:
+            return m_bottom, None
+        res = magnify_nonsway(
+            pu=p_u, m_end_a=m_bottom, m_end_b=m_top,
+            ec=ec_slender, ig=ig_axis[component], ag=ag_sec, lu=lu_slender,
+            k=float(slender_cfg.get("k", 1.0) or 1.0),
+            beta_d=float(slender_cfg.get("betaD", 0.0) or 0.0),
+            has_transverse_load=bool(slender_cfg.get("hasTransverseLoad", False)),
+            h_dim=h_axis[component],
+        )
+        if res["unstable"]:
+            return m_bottom, res
+        # Se conserva el SIGNO del momento gobernante (el de mayor magnitud):
+        # capacity_ratio_radial usa el angulo atan2(M3, M2), asi que perder el
+        # signo rotaria la demanda a otro cuadrante de la superficie.
+        gobernante = m_bottom if abs(m_bottom) >= abs(m_top) else m_top
+        signo = -1.0 if gobernante < 0 else 1.0
+        return signo * res["mc"], res
 
     demand_checks = None
     demand_points = data.get("demandPoints")
@@ -809,28 +871,45 @@ def _run_column_interaction(data):
             p_u = float(pt.get("P", 0.0))
             m2_u = float(pt.get("M2", 0.0))
             m3_u = float(pt.get("M3", 0.0))
-            theta = math.atan2(m3_u, m2_u)
-            cap = capacity_at_demand(
+
+            slender_detail = None
+            if slender_on:
+                m2_top = float(pt.get("M2Top", m2_u))
+                m3_top = float(pt.get("M3Top", m3_u))
+                m2_u, det2 = _magnify("M2", m2_u, m2_top, p_u)
+                m3_u, det3 = _magnify("M3", m3_u, m3_top, p_u)
+                slender_detail = {"M2": det2, "M3": det3}
+
+            result = capacity_ratio_radial(
                 b=b, h=h, fc=fc, fy=fy, cover=cover, bar_diameter=bar_diameter,
                 n3=n3, n2=n2, bar_area=bar_area, beta1=beta1,
-                theta=theta, target_p=p_u,
+                target_p=p_u, target_m2=m2_u, target_m3=m3_u,
+                confine_bar_diameter=confine_bar_diameter,
+                code=code, tied=tied,
             )
-            if cap is None:
+            if result is None:
                 demand_checks.append({"error": "sin capacidad calculable"})
                 continue
+            cap = result["capacity"]
             phi_mn_cap = math.hypot(cap["phiM2n"], cap["phiM3n"])
-            mu_resultant = math.hypot(m2_u, m3_u)
-            ratio = (mu_resultant / phi_mn_cap) if phi_mn_cap > 0 else float("inf")
-            demand_checks.append({
-                "thetaDeg": math.degrees(theta) % 360,
-                "phi": cap["phi"],
+            ratio = result["ratio"]
+            check = {
+                "thetaDeg": result["thetaDeg"],
+                "phi": result["phi"],
                 "phiMnCap": phi_mn_cap,
-                "muResultant": mu_resultant,
+                "muResultant": math.hypot(m2_u, m3_u),
                 "ratio": ratio,
                 "status": "OK" if ratio <= 1 else "NG",
-            })
+            }
+            if slender_detail is not None:
+                # Momentos YA magnificados que se verificaron (para poder
+                # auditar contra los del analisis, que quedan en el front).
+                check["M2Design"] = m2_u
+                check["M3Design"] = m3_u
+                check["slenderness"] = slender_detail
+            demand_checks.append(check)
 
-    response = {"success": True, **surface}
+    response = {"success": True, "code": code, **surface}
     if demand_checks is not None:
         response["demandChecks"] = demand_checks
 
@@ -885,6 +964,7 @@ def _run_column_shear(data):
         clear_height=float(data["clearHeight"]), axial_min=float(data["axialMin"]),
         axial_max=float(data["axialMax"]), vu_analysis2=float(data["vuAnalysis2"]),
         vu_analysis3=float(data["vuAnalysis3"]),
+        code=normalize_design_code(data.get("code")),
     )
     return {"success": True, **result}
 

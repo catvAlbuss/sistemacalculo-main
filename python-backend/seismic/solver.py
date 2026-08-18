@@ -3375,6 +3375,16 @@ def run_frame_force_results(
                 "id": str(combo.get("id")),
                 "name": combo.get("name") or str(combo.get("id")),
                 "type": str(combo.get("type", "ADD")).upper(),
+                # Marca de DISENO del .e2k (COMBO ... DESIGN "Concrete"
+                # COMBOTYPE "Strength"). ETABS solo usa los combos marcados
+                # asi para el diseno de concreto; los de servicio (PDPL, CV,
+                # SISAD...) quedan fuera. Se propagan para que el frontend
+                # pueda filtrar igual — antes se descartaban aca y el diseno
+                # de columnas evaluaba TODOS los combos, con lo que un combo
+                # de servicio podia salir "gobernante" y no coincidir con
+                # la tabla de ETABS.
+                "design": combo.get("design") or "",
+                "comboType": combo.get("comboType") or "",
             }
         )
 

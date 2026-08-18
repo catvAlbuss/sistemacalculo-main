@@ -11,11 +11,14 @@ Unidades: SI puro (m, Pa, N, N·m), igual que column_interaction.py.
 
 import math
 
-from .column_interaction import capacity_at_demand
+from .column_interaction import DEFAULT_DESIGN_CODE, capacity_at_demand, phi_shear_for_code
 
 __all__ = ["probable_moment_uniaxial", "column_shear_design"]
 
-PHI_SHEAR = 0.75  # ACI 318 §21.2.4.1 (corte en elementos de pórticos especiales)
+# φ de cortante — depende del CÓDIGO: E.060 Art. 10.3.2-4 usa 0.85 (con o sin
+# torsión); ACI 318 §21.2.4.1 usa 0.75 en pórticos especiales. Se resuelve por
+# `code` (ver column_interaction.phi_shear_for_code), no con una constante fija.
+PHI_SHEAR = 0.75  # solo compatibilidad hacia atrás — usar phi_shear_for_code()
 
 
 def probable_moment_uniaxial(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
@@ -59,7 +62,7 @@ def column_shear_design(
     fyt, confine_bar_area, confine_bar_diameter, confine_bar_spacing,
     num_confine_bars2, num_confine_bars3,
     clear_height, axial_min, axial_max,
-    vu_analysis2, vu_analysis3, beta1=None,
+    vu_analysis2, vu_analysis3, beta1=None, code=DEFAULT_DESIGN_CODE,
 ):
     """
     Chequeo de corte por capacidad + confinamiento para AMBAS direcciones (2 y
@@ -79,6 +82,7 @@ def column_shear_design(
     """
     ag = b * h
     pu_check = axial_min  # el peor caso para Vc (menos compresión = menos beneficio)
+    phi_shear = phi_shear_for_code(code)
 
     def side(axis, vu_analysis, num_confine_legs, d):
         mpr_lo = probable_moment_uniaxial(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area, axis, axial_min, beta1)
@@ -92,12 +96,12 @@ def column_shear_design(
         vc_zero = (pu_check < ag * fc / 20.0) and (ve_capacity >= 0.5 * ve)
         vc = 0.0 if vc_zero else _vc(fc, pu_check, ag, b if axis == "2" else h, d)
 
-        vs_required = max(0.0, ve / PHI_SHEAR - vc)
+        vs_required = max(0.0, ve / phi_shear - vc)
 
         av_provided = confine_bar_area * max(num_confine_legs, 0)
         vs_provided = (av_provided * fyt * d / confine_bar_spacing) if confine_bar_spacing > 0 else 0.0
         vn_provided = vc + vs_provided
-        ratio = (ve / PHI_SHEAR) / vn_provided if vn_provided > 0 else float("inf")
+        ratio = (ve / phi_shear) / vn_provided if vn_provided > 0 else float("inf")
 
         return {
             "mpr": mpr,
