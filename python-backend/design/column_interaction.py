@@ -22,6 +22,7 @@ __all__ = [
     "compute_pn_mn_at",
     "compute_pmm_surface",
     "axial_capacity_pn0",
+    "axial_max_nominal",
     "balanced_pn",
     "capacity_at_demand",
     "capacity_ratio_radial",
@@ -264,6 +265,27 @@ def compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1,
     eps_t_net = -eps_min if eps_min is not None else -ECU
     eps_ty = fy / ES_STEEL
 
+    # ── Tope de carga axial ──
+    # ACI 318-14 §22.4.2.1 (Tabla 22.4.2.1) y E.060 Art. 10.3.6: Pn no puede
+    # exceder 0.80·Po en columnas ESTRIBADAS (0.85·Po con espiral). Cubre la
+    # excentricidad accidental que siempre existe, aunque el cálculo diga
+    # compresión pura.
+    #
+    # El tope TRUNCA la curva con una horizontal: se recorta Pn y se DEJA el
+    # momento como está. Por eso la curva de diseño tiene la meseta plana que
+    # se ve arriba del diagrama de interacción de ETABS.
+    #
+    # VALIDADO contra la tabla "Curve Data" de ETABS (C45x45, 12 varillas de
+    # 3.142e-4 m², f'c=210, fy=4200): su punto 1 vale 266.8064 tonf, que es
+    # exactamente 0.65 · 0.80 · Po. Sin este tope la superficie subía hasta
+    # φPo = 333.51 tonf — 25% de más, y del lado inseguro.
+    if gross_area is not None and Pn > 0:
+        ast = len(bars) * bar_area
+        po = 0.85 * fc * (gross_area - ast) + fy * ast
+        p_max = (0.80 if tied else 0.85) * po
+        if Pn > p_max:
+            Pn = p_max
+
     if normalize_design_code(code) == "E060":
         ag = gross_area if gross_area is not None else sum(a for _x, _y, a in fibers)
         phi = _phi_factor_e060(Pn, fc, ag, pb=pb, tied=tied)
@@ -274,9 +296,17 @@ def compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1,
 
 
 def axial_capacity_pn0(fc, fy, gross_area, total_bar_area):
-    """Fórmula cerrada de compresión pura — checkpoint de validación (NO se
-    usa en el cálculo real, que ya converge a esto por c grande)."""
+    """Po — compresión pura, fórmula cerrada. El cálculo por fibra converge a
+    esto por c grande; la misma expresión es la base del tope Pn,max =
+    0.80·Po / 0.85·Po que aplica compute_pn_mn_at."""
     return 0.85 * fc * (gross_area - total_bar_area) + fy * total_bar_area
+
+
+def axial_max_nominal(fc, fy, gross_area, total_bar_area, tied=True):
+    """Pn,max = 0.80·Po (estribos) o 0.85·Po (espiral) — ACI 318-14 Tabla
+    22.4.2.1 / E.060 Art. 10.3.6. Es el techo plano del diagrama."""
+    po = axial_capacity_pn0(fc, fy, gross_area, total_bar_area)
+    return (0.80 if tied else 0.85) * po
 
 
 def capacity_at_demand(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
@@ -369,7 +399,20 @@ def capacity_ratio_radial(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
         return None
 
     fibers = _rect_fiber_grid(b, h, nx, ny)
-    theta = math.atan2(target_m3, target_m2)
+    # theta se mide DESDE el eje M3 HACIA el M2 — es la convencion de la
+    # superficie: compute_pn_mn_at con theta=0 da flexion pura sobre el eje 3
+    # (M3 != 0, M2 = 0) y con theta=90 grados da M2 puro. Por eso va
+    # atan2(M2, M3) y NO atan2(M3, M2).
+    #
+    # Estaba al reves: una demanda de M3 puro se verificaba contra la
+    # capacidad del plano M2. Con armado asimetrico (R-5-3) los dos planos
+    # difieren ~17%, asi que el ratio salia mal en demandas cerca de
+    # uniaxiales; en las biaxiales a ~45 grados casi no se notaba, que es
+    # por que paso desapercibido en la validacion contra ETABS.
+    #
+    # ETABS usa la misma convencion: su curva 'at 253.922 deg' corresponde a
+    # M2=-24.4382 / M3=-7.0434, y atan2(M2, M3) da exactamente 253.922.
+    theta = math.atan2(target_m2, target_m3)
     max_dim = math.hypot(b, h)
     c_lo_bound, c_hi_bound = max_dim * 0.001, max_dim * 6.0
 
@@ -449,10 +492,25 @@ def compute_pmm_surface(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     max_dim = math.hypot(b, h)
     c_min = max_dim * 0.01
     c_max = max_dim * 6.0
-    c_values = [c_min + (c_max - c_min) * i / (num_c - 1) for i in range(num_c)]
+    # Barrido GEOMETRICO de c, no lineal. Pn(c) se satura rapido: pasada la
+    # compresion pura todo punto adicional cae en la meseta del tope 0.80*Po y
+    # no aporta nada a la curva. Con barrido lineal, 21 puntos daban solo 3
+    # valores de P distintos (medido en la C45x45); geometrico da 12, que es lo
+    # que se ve como resolucion de la curva dibujada y de la tabla Curve Data.
+    ratio = c_max / c_min
+    c_values = [c_min * (ratio ** (i / (num_c - 1))) for i in range(num_c)]
 
     ag = b * h
     is_e060 = normalize_design_code(code) == "E060"
+
+    # Traccion pura: todas las varillas a -fy, sin aporte del concreto.
+    # phi sale del mismo camino que el resto de la curva para no inventar un
+    # criterio aparte (con Pn negativo ambos codigos dan el 0.90 de flexion).
+    pure_tension = -fy * len(bars) * bar_area
+    if is_e060:
+        phi_tension = _phi_factor_e060(pure_tension, fc, ag, pb=None, tied=tied)
+    else:
+        phi_tension = _phi_factor(ECU * 10, fy / ES_STEEL, tied=tied, code=code)
 
     curves = []
     for k in range(num_angles):
@@ -468,6 +526,24 @@ def compute_pmm_surface(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
             pt["phiM2n"] = pt["phi"] * pt["M2n"]
             pt["phiM3n"] = pt["phi"] * pt["M3n"]
             points.append(pt)
+        # Cierre por TRACCION PURA, en forma cerrada. El barrido de c nunca llega:
+        # por chico que sea c_min queda una punta de concreto comprimido, y la
+        # curva se corta en ~-137 tonf en vez de los -142.52 reales (medido en la
+        # C45x45; ETABS reporta el valor exacto como su ultimo punto).
+        #
+        # Con todas las varillas fluyendo en traccion el momento resultante es
+        # cero en CUALQUIER angulo (patron simetrico), asi que el mismo punto
+        # cierra las N curvas.
+        points.insert(0, {
+            "Pn": pure_tension,
+            "M2n": 0.0,
+            "M3n": 0.0,
+            "phi": phi_tension,
+            "phiPn": phi_tension * pure_tension,
+            "phiM2n": 0.0,
+            "phiM3n": 0.0,
+        })
+
         curves.append({"angleDeg": math.degrees(theta), "points": points})
 
     return {"beta1": beta1, "bars": bars, "curves": curves}

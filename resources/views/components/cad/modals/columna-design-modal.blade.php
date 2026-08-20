@@ -108,7 +108,8 @@
                                             <td class="px-2 py-1" x-text="station === 'base' ? 'Base' : 'Tope'"></td>
                                             <td class="px-1 py-1">
                                                 <select class="bg-gray-900 border border-gray-600 rounded text-[11px] text-gray-200 px-1 py-0.5 max-w-[220px]"
-                                                        x-model="col.selectedComboId[station]">
+                                                        x-model="col.selectedComboId[station]"
+                                                        @change="drawInteraction(col)">
                                                     <template x-for="opt in col.checksAll[station]" :key="opt.comboId">
                                                         <option :value="opt.comboId"
                                                                 x-text="(opt.comboId === col.check[station]?.comboId ? '★ ' : '') + opt.comboName + ' (' + fmt(opt.ratio, 3) + ')'">
@@ -130,6 +131,130 @@
                                 </tbody>
                             </table>
                             <div class="px-2 pb-1 text-[10px] text-gray-500">★ = combo gobernante (mayor ratio, el que se usa para el estado OK/NG del encabezado).</div>
+
+                            {{-- Diagrama de interacción P-M2-M3 — el equivalente al botón
+                                 "Interaction" de ETABS. Los datos ya vienen calculados en
+                                 col.surface.curves; el trazado vive en
+                                 resources/js/cad/mixins/analysis/columnInteractionChart.js.
+
+                                 Los contenedores de los gráficos van con x-show y NO dentro de
+                                 un x-if: Plotly guarda estado en el nodo, así que si el div se
+                                 destruye y se recrea en cada toggle quedan instancias huérfanas. --}}
+                            <div class="px-4 py-2">
+                                <div class="flex items-center gap-3 flex-wrap">
+                                    <button @click="toggleInteraction(col)"
+                                            class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs">
+                                        <span x-text="ciOpen[col.frameId] ? 'Ocultar' : 'Ver'"></span> diagrama de interacción
+                                    </button>
+                                    <template x-if="ciOpen[col.frameId]">
+                                        <div class="flex items-center gap-3 text-[11px] text-gray-400">
+                                            <label class="flex items-center gap-1">
+                                                Estación:
+                                                <select x-model="ciStation[col.frameId]" @change="resetInteractionAngle(col)"
+                                                        class="bg-gray-900 border border-gray-600 rounded text-[11px] text-white px-2 py-0.5">
+                                                    <option value="base">Base</option>
+                                                    <option value="top">Tope</option>
+                                                </select>
+                                            </label>
+                                            <label class="flex items-center gap-1 cursor-pointer">
+                                                <input type="checkbox" x-model="ciPhi[col.frameId]" @change="drawInteraction(col)"
+                                                       class="rounded bg-gray-900 border-gray-600">
+                                                Incluir Φ
+                                                <span class="text-gray-600">(ETABS: Include Phi)</span>
+                                            </label>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <div x-show="ciOpen[col.frameId]" class="mt-2">
+                                    {{-- Recorrido del ángulo de corte. ETABS salta de curva en curva con
+                                         flechas (24 curvas fijas); acá se interpola continuo, así que el
+                                         control es un deslizador. Mueve el corte del 3D y la curva del 2D
+                                         a la vez. --}}
+                                    <div class="flex items-center gap-2 flex-wrap text-[11px] text-gray-400 mb-2">
+                                        <span>Ángulo del corte θ:</span>
+                                        <input type="range" min="0" max="360" step="0.5"
+                                               x-model.number="ciAngle[col.frameId]" @input="drawInteraction(col)"
+                                               class="w-40 accent-purple-500">
+                                        <input type="number" min="0" max="360" step="0.5"
+                                               x-model.number="ciAngle[col.frameId]" @input="drawInteraction(col)"
+                                               class="w-16 bg-gray-900 border border-gray-600 rounded text-white px-1 py-0.5 text-[11px]">
+                                        <span>°</span>
+                                        <button @click="resetInteractionAngle(col)"
+                                                class="px-2 py-0.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-[10px]">
+                                            Volver al de la demanda (<span x-text="fmt(demandAngle(col), 1)"></span>°)
+                                        </button>
+                                        <span x-show="!enAnguloDeDemanda(col)" class="text-amber-400/90 text-[10px]">
+                                            — el corte no está en el ángulo de la demanda; el rombo es referencia
+                                        </span>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-2">
+                                        <div class="lg:col-span-2 rounded border border-gray-700 bg-gray-900"
+                                             :id="'ci-plot-' + col.frameId" style="height:380px"></div>
+                                        <div class="rounded border border-gray-700 bg-gray-900"
+                                             :id="'ci-2d-' + col.frameId" style="height:380px"></div>
+                                    </div>
+
+                                    <div class="text-[10px] text-gray-500 mt-1">
+                                        Superficie ΦMn de las <span x-text="col.surface.curves?.length || 0"></span> curvas del motor,
+                                        truncada arriba por el tope Pn,max = 0.80·Po (ACI 318 Tabla 22.4.2.1) — esa es la meseta plana.
+                                        A la derecha, el mismo corte visto de perfil (el "Current Interaction Curve" de ETABS),
+                                        con M = momento resultante √(M2²+M3²). La línea punteada desde el origen es el rayo de la demanda.
+                                        Compresión positiva, igual que ETABS.
+                                    </div>
+
+                                    {{-- Tabla "Curve Data" — los numeros detras del corte dibujado,
+                                         mismo formato que la del dialogo de ETABS. Sirve para cruzar
+                                         punto por punto contra su tabla. --}}
+                                    <details class="mt-2 rounded border border-gray-700 bg-gray-900/60">
+                                        <summary class="cursor-pointer px-3 py-1.5 text-[11px] text-blue-300 hover:text-blue-200">
+                                            Curve Data — puntos de la curva (<span x-text="curveRows(col).length"></span>)
+                                        </summary>
+                                        <div class="px-3 pb-2 pt-1">
+                                            <div class="flex items-center gap-2 mb-1">
+                                                <button @click="copiarCurva(col)"
+                                                        class="px-2 py-0.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-[10px]">
+                                                    Copiar como TSV
+                                                </button>
+                                                <span class="text-[10px] text-gray-500" x-text="copiadoMsg[col.frameId] || 'Se pega directo en Excel, al lado de la tabla de ETABS'"></span>
+                                            </div>
+                                            <div style="max-height:220px; overflow:auto">
+                                                <table class="w-full text-[10px]">
+                                                    <thead class="text-gray-500 sticky top-0 bg-gray-900">
+                                                        <tr>
+                                                            <th class="text-left py-0.5">Punto</th>
+                                                            <th class="text-right">P (tonf)</th>
+                                                            <th class="text-right">M2 (tonf·m)</th>
+                                                            <th class="text-right">M3 (tonf·m)</th>
+                                                            <th class="text-right">|M|</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="text-gray-300">
+                                                        <template x-for="r in curveRows(col)" :key="r.n">
+                                                            <tr class="border-t border-gray-800">
+                                                                <td class="py-0.5" x-text="r.n"></td>
+                                                                <td class="text-right" x-text="fmt(r.P, 4)"></td>
+                                                                <td class="text-right" x-text="fmt(r.M2, 4)"></td>
+                                                                <td class="text-right" x-text="fmt(r.M3, 4)"></td>
+                                                                <td class="text-right text-gray-500" x-text="fmt(r.M, 4)"></td>
+                                                            </tr>
+                                                        </template>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <p class="text-[9px] text-gray-600 mt-1.5 leading-tight">
+                                                Va de compresión pura hacia tracción, como ETABS. Las filas consecutivas
+                                                idénticas se colapsan. Los dos extremos son exactos: el primero es
+                                                φ·0.80·Po (tope axial) y el último φ·fy·As (tracción pura), los mismos
+                                                valores que reporta ETABS. En medio, la resolución la da el barrido:
+                                                la esquina de la meseta queda algo redondeada.
+                                            </p>
+                                        </div>
+                                    </details>
+                                </div>
+                            </div>
+                            </div>
 
                             {{-- Esbeltez / magnificacion de momentos (E.060 10.12) — solo del
                                  combo gobernante de cada estacion; el detalle por combo viaja
@@ -206,6 +331,8 @@
                                                 <tr>
                                                     <th class="px-2 py-1 text-left">Dirección</th>
                                                     <th class="px-2 py-1 text-right">Mpr (tonf-m)</th>
+                                                    <th class="px-2 py-1 text-right">Ve columna (tonf)</th>
+                                                    <th class="px-2 py-1 text-right">Ve vigas (tonf)</th>
                                                     <th class="px-2 py-1 text-right">Ve capacidad (tonf)</th>
                                                     <th class="px-2 py-1 text-right">Ve análisis (tonf)</th>
                                                     <th class="px-2 py-1 text-right">Ve (tonf)</th>
@@ -220,7 +347,11 @@
                                                     <tr class="border-t border-gray-700">
                                                         <td class="px-2 py-1" x-text="dir.label"></td>
                                                         <td class="px-2 py-1 text-right" x-text="fmt(col.shear[dir.key].mpr / 9806.65, 2)"></td>
-                                                        <td class="px-2 py-1 text-right" x-text="fmt(col.shear[dir.key].veCapacity / 9806.65, 2)"></td>
+                                                        <td class="px-2 py-1 text-right text-gray-400" x-text="fmt(col.shear[dir.key].veColumn / 9806.65, 2)"></td>
+                                                        <td class="px-2 py-1 text-right"
+                                                            :class="col.shear[dir.key].beamCapApplied ? 'text-green-400 font-semibold' : 'text-gray-500'"
+                                                            x-text="col.shear[dir.key].veBeams == null ? '—' : fmt(col.shear[dir.key].veBeams / 9806.65, 2)"></td>
+                                                        <td class="px-2 py-1 text-right font-semibold" x-text="fmt(col.shear[dir.key].veCapacity / 9806.65, 2)"></td>
                                                         <td class="px-2 py-1 text-right" x-text="fmt(col.shear[dir.key].veAnalysis / 9806.65, 2)"></td>
                                                         <td class="px-2 py-1 text-right" x-text="fmt(col.shear[dir.key].ve / 9806.65, 2)"></td>
                                                         <td class="px-2 py-1 text-right"
@@ -234,6 +365,19 @@
                                                 </template>
                                             </tbody>
                                         </table>
+
+                                        {{-- El tope por vigas (ACI 318 18.7.6.1.1 in fine) necesita el
+                                             armado real de las vigas del nudo. Si ETABS las dejo en
+                                             "Reinforcement to be Designed", el .e2k trae ATI/ABI/ATJ/ABJ
+                                             en 0: Ve queda gobernado por el Mpr de la COLUMNA, del lado
+                                             seguro pero exigiendo mas estribo del necesario. --}}
+                                        <div class="px-2 pt-1 pb-1 text-[10px] text-amber-400"
+                                             x-show="col.shear?.v2 && col.shear.v2.veBeams == null">
+                                            Ve <b>sin tope por vigas</b>: las vigas del nudo no traen armado real
+                                            (ETABS las dejo en auto-diseno). El resultado es CONSERVADOR. Para
+                                            afinarlo, define el armado de las vigas en ETABS
+                                            ("Reinforcement to be Checked") y reimporta el modelo.
+                                        </div>
 
                                         <table class="min-w-full text-xs">
                                             <thead class="bg-gray-700 text-white">
@@ -296,6 +440,14 @@
         return {
             open: false,
             columns: [],
+            // Estado del diagrama de interacción, por columna (clave: frameId).
+            // Alpine 3 usa Proxy, así que agregar claves nuevas sobre la marcha
+            // sigue siendo reactivo.
+            ciOpen: {},
+            ciStation: {},
+            ciPhi: {},
+            ciAngle: {},
+            copiadoMsg: {},
             // Codigo de diseno activo — lo resuelve el mixin (rcDesignCode);
             // este modal solo lo refleja y lo cambia via rcSetDesignCode().
             code: 'E060',
@@ -313,6 +465,13 @@
                 // re-corre el diseño para las columnas ya seleccionadas, para que esta
                 // tabla se refresque sola sin que el usuario tenga que recordar hacerlo.
                 window.addEventListener('column-rebar-design-saved', () => {
+                    if (this.open) window.cadSystem?.openRcColumnDesignDialog?.();
+                });
+
+                // Idem para el armado de VIGA: cambia el tope por resistencia de vigas
+                // (ACI 318 18.7.6.1.1), asi que el Ve de capacidad y el chequeo de
+                // estribos de esta misma tabla cambian.
+                window.addEventListener('beam-rebar-design-saved', () => {
                     if (this.open) window.cadSystem?.openRcColumnDesignDialog?.();
                 });
             },
@@ -365,6 +524,88 @@
              */
             slenderInfo(col, station) {
                 return this.selectedCheck(col, station)?.slenderness || null;
+            },
+
+            /** Abre/cierra el diagrama de una columna. */
+            toggleInteraction(col) {
+                const id = col.frameId;
+                if (this.ciOpen[id]) {
+                    window.cadSystem?.destroyColumnInteractionSurface?.('ci-plot-' + id);
+                    window.cadSystem?.destroyColumnInteractionSurface?.('ci-2d-' + id);
+                    this.ciOpen[id] = false;
+                    return;
+                }
+                // Defaults la primera vez: la estación que gobierna, y con Φ.
+                if (!this.ciStation[id]) {
+                    const rb = col.check?.base?.ratio ?? 0;
+                    const rt = col.check?.top?.ratio ?? 0;
+                    this.ciStation[id] = rb >= rt ? 'base' : 'top';
+                }
+                if (this.ciPhi[id] === undefined) this.ciPhi[id] = true;
+                if (this.ciAngle[id] === undefined) this.ciAngle[id] = this.demandAngle(col);
+
+                this.ciOpen[id] = true;
+                // Plotly MIDE el div para dimensionar la escena: hay que esperar a
+                // que x-show lo haya hecho visible o sale de 0x0.
+                this.$nextTick(() => this.drawInteraction(col));
+            },
+
+            /** Ángulo θ de la demanda de la estación activa (grados). */
+            demandAngle(col) {
+                const station = this.ciStation[col.frameId] || 'base';
+                return Number(this.selectedCheck(col, station)?.thetaDeg) || 0;
+            },
+
+            enAnguloDeDemanda(col) {
+                const a = Number(this.ciAngle[col.frameId]);
+                return !Number.isFinite(a) || Math.abs(a - this.demandAngle(col)) < 0.05;
+            },
+
+            /** Devuelve el corte al ángulo de la demanda y redibuja. */
+            resetInteractionAngle(col) {
+                this.ciAngle[col.frameId] = this.demandAngle(col);
+                this.drawInteraction(col);
+            },
+
+            /** Filas de la tabla Curve Data del corte actual. */
+            curveRows(col) {
+                const id = col.frameId;
+                if (!this.ciOpen[id]) return [];
+                const ang = Number(this.ciAngle[id]);
+                return window.cadSystem?.columnInteractionCurveRows?.(
+                    col.surface?.curves || [],
+                    Number.isFinite(ang) ? ang : this.demandAngle(col),
+                    this.ciPhi[id] !== false,
+                ) || [];
+            },
+
+            async copiarCurva(col) {
+                const id = col.frameId;
+                const rows = this.curveRows(col);
+                if (!rows.length) return;
+                const ang = Number(this.ciAngle[id]);
+                const tsv = window.cadSystem?.columnInteractionCurveTsv?.(
+                    rows, Number.isFinite(ang) ? ang : this.demandAngle(col)) || '';
+                try {
+                    await navigator.clipboard.writeText(tsv);
+                    this.copiadoMsg[id] = '✅ Copiado';
+                } catch (e) {
+                    this.copiadoMsg[id] = 'No se pudo copiar — el navegador bloqueó el portapapeles';
+                }
+                setTimeout(() => { this.copiadoMsg[id] = ''; }, 2500);
+            },
+
+            /** Redibuja las DOS vistas con la estación/combo/Φ/ángulo actuales. */
+            drawInteraction(col) {
+                const id = col.frameId;
+                if (!this.ciOpen[id]) return;
+                const station = this.ciStation[id] || 'base';
+                const check = this.selectedCheck(col, station);
+                const curves = col.surface?.curves || [];
+                const opts = { usePhi: this.ciPhi[id] !== false, cutAngleDeg: this.ciAngle[id] };
+
+                window.cadSystem?.renderColumnInteractionSurface?.('ci-plot-' + id, curves, check, opts);
+                window.cadSystem?.renderColumnInteraction2D?.('ci-2d-' + id, curves, check, opts);
             },
 
             overallStatus(col) {

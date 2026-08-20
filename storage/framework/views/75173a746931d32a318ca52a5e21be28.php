@@ -1,4 +1,4 @@
-<?php if (! $__env->hasRenderedOnce('a1ac0d56-6638-4d32-820a-0e367625f7f9')): $__env->markAsRenderedOnce('a1ac0d56-6638-4d32-820a-0e367625f7f9');
+<?php if (! $__env->hasRenderedOnce('11272b6b-2c9f-4858-91c6-cb6c8d03ad93')): $__env->markAsRenderedOnce('11272b6b-2c9f-4858-91c6-cb6c8d03ad93');
 $__env->startPush('initscripts'); ?>
     <?php echo app('Illuminate\Foundation\Vite')('resources/js/analisis_estructural_de_armaduras.js'); ?>
 <?php $__env->stopPush(); endif; ?>
@@ -492,6 +492,26 @@ $__env->startPush('initscripts'); ?>
 <?php if (isset($__componentOriginalf3716a4f2b80f9b3a67802a8ffd5830d)): ?>
 <?php $component = $__componentOriginalf3716a4f2b80f9b3a67802a8ffd5830d; ?>
 <?php unset($__componentOriginalf3716a4f2b80f9b3a67802a8ffd5830d); ?>
+<?php endif; ?>
+    <?php if (isset($component)) { $__componentOriginal9efd1e12395af1b4b06fac96a2c8e314 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal9efd1e12395af1b4b06fac96a2c8e314 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.modals.beam-rebar-designer-modal','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.modals.beam-rebar-designer-modal'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal9efd1e12395af1b4b06fac96a2c8e314)): ?>
+<?php $attributes = $__attributesOriginal9efd1e12395af1b4b06fac96a2c8e314; ?>
+<?php unset($__attributesOriginal9efd1e12395af1b4b06fac96a2c8e314); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal9efd1e12395af1b4b06fac96a2c8e314)): ?>
+<?php $component = $__componentOriginal9efd1e12395af1b4b06fac96a2c8e314; ?>
+<?php unset($__componentOriginal9efd1e12395af1b4b06fac96a2c8e314); ?>
 <?php endif; ?>
     <?php if (isset($component)) { $__componentOriginal8a3cd7835339fa388c1c220a2ec0ca36 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal8a3cd7835339fa388c1c220a2ec0ca36 = $attributes; } ?>

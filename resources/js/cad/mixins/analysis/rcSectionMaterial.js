@@ -58,7 +58,20 @@ export const rcSectionMaterialMixin = {
     const fyRaw = Number(matObj?.fy ?? 420);
 
     const fc = fcRaw > 100 ? fcRaw : fcRaw * MPA_TO_KGCM2;
-    const fy = fyRaw > 1000 ? fyRaw : fyRaw * MPA_TO_KGCM2;
+    let fy = fyRaw > 1000 ? fyRaw : fyRaw * MPA_TO_KGCM2;
+
+    // fy DEL ACERO DE REFUERZO: manda el material declarado en la sección
+    // (LONGBARMATERIAL del .e2k), no el del concreto.
+    //
+    // El material de concreto NO trae fy, así que el importador le pone un
+    // default de 420 MPa (ver e2k-import.js) que equivale a 4283 kg/cm². Ese
+    // no es el acero real: en el .e2k el material de refuerzo declara
+    // FY 42000 tonf/m² = 4200 kg/cm² exactos, que es lo que usa ETABS (visto
+    // en su Column Element Details: fy = 42 kgf/mm²). Tomar el default dejaba
+    // la capacidad 2% alta y el ratio PMM 2% bajo contra ETABS.
+    const secForBar = frame?.frameSection || frame?.sectionProperties || frame?.section || null;
+    const fyLongBar = this._rcResolveMaterialFyByName?.(secForBar?.longBarMaterialName);
+    if (fyLongBar > 0) fy = fyLongBar;
 
     // Ec (kg/cm²) — lo pide la esbeltez para Pc = π²EI/(kLu)² (ver
     // design/column_slenderness.py). Se toma el del material si está

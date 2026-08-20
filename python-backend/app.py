@@ -965,6 +965,10 @@ def _run_column_shear(data):
         axial_max=float(data["axialMax"]), vu_analysis2=float(data["vuAnalysis2"]),
         vu_analysis3=float(data["vuAnalysis3"]),
         code=normalize_design_code(data.get("code")),
+        # Tope por resistencia de las vigas del nudo (ACI 318 18.7.6.1.1 in
+        # fine) — opcional; sin el dato Ve queda gobernado por el Mpr de la
+        # columna, que es lo conservador. Ver design/column_shear.py.
+        joint_beam_moment=data.get("jointBeamMoment") or None,
     )
     return {"success": True, **result}
 

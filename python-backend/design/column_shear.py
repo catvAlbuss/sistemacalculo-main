@@ -63,6 +63,7 @@ def column_shear_design(
     num_confine_bars2, num_confine_bars3,
     clear_height, axial_min, axial_max,
     vu_analysis2, vu_analysis3, beta1=None, code=DEFAULT_DESIGN_CODE,
+    joint_beam_moment=None,
 ):
     """
     Chequeo de corte por capacidad + confinamiento para AMBAS direcciones (2 y
@@ -74,11 +75,26 @@ def column_shear_design(
     `vu_analysis2/3` (N): cortante factorado del análisis (piso de Ve, el
     código exige que Ve no sea menor que este valor).
 
-    Simplificación explícita (documentada, no silenciosa): no se aplica el
-    tope de "Mpr no debe exceder lo que las vigas del nudo pueden entregar"
-    (ACI 18.7.6.1.1 in fine) — eso requeriría modelar el equilibrio del nudo
-    completo. Omitirlo es conservador (Ve solo puede quedar igual o más alto
-    de lo estrictamente necesario, nunca más bajo).
+    `joint_beam_moment` (opcional): tope por resistencia de las VIGAS
+    (ACI 318 §18.7.6.1.1 in fine — "the column shears need not exceed those
+    calculated from joint strengths based on Mpr of the beams framing into
+    the joint"). Forma:
+
+        {"2": {"top": M_Nm, "bot": M_Nm}, "3": {...}}
+
+    donde cada M es el momento (N·m) que las vigas del nudo le pueden
+    entregar A ESTA COLUMNA — ya repartido entre la columna de arriba y la
+    de abajo por el llamador, que es quien conoce la topología del nudo.
+    `None` (o una dirección ausente) = sin dato → NO se aplica el tope y Ve
+    queda gobernado por el Mpr de la propia columna, que es el lado
+    conservador.
+
+    POR QUE IMPORTA: una columna suele ser mucho más fuerte que las vigas que
+    llegan a ella, así que el momento que realmente puede desarrollarse en el
+    nudo lo limitan las VIGAS. Sin este tope, Ve sale del orden de 2-3x lo que
+    reporta ETABS (medido contra un modelo real, 2026-08-18: Ve nuestro 26.0 t
+    contra 9.75 t de ETABS en la misma columna) y obliga a poner mucho más
+    estribo del necesario.
     """
     ag = b * h
     pu_check = axial_min  # el peor caso para Vc (menos compresión = menos beneficio)
@@ -88,7 +104,43 @@ def column_shear_design(
         mpr_lo = probable_moment_uniaxial(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area, axis, axial_min, beta1)
         mpr_hi = probable_moment_uniaxial(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area, axis, axial_max, beta1)
         mpr = max(mpr_lo, mpr_hi)
-        ve_capacity = 2.0 * mpr / clear_height if clear_height > 0 else 0.0
+        ve_column = 2.0 * mpr / clear_height if clear_height > 0 else 0.0
+
+        # Tope por las vigas del nudo (ACI 318 §18.7.6.1.1 in fine): el nudo
+        # no puede transmitir más momento del que sus vigas desarrollan.
+        #
+        # UN EXTREMO SIN VIGAS APORTA 0, no el Mpr de la columna. El caso es la
+        # BASE de la columna del primer piso, empotrada en la cimentación. El
+        # texto de ACI, leído al pie de la letra, diría que ahí no hay nada que
+        # limite el nudo y la columna desarrolla su Mpr; ETABS pone cero, y eso
+        # es lo que se adoptó (decisión del usuario, 2026-08-18).
+        #
+        # EVIDENCIA de que ETABS pone cero: en el modelo de referencia los Ve
+        # salen exactamente cuantizados por número de vigas — 4.873 t con una
+        # viga y 9.7461 t con dos, relación 2.0000. Si la base aportara un
+        # término constante esa relación no sería exacta.
+        #
+        # Cada extremo se acota además por `mpr`: las vigas no pueden exigirle
+        # a la columna más momento del que la columna puede dar.
+        #
+        # OJO con la magnitud: ETABS usa el momento NOMINAL de la viga (Mn, con
+        # fy) y acá se usa el PROBABLE (Mpr, con 1.25·fy) porque es lo que dice
+        # el texto de la norma. Consecuencia esperada y conocida: nuestro Ve
+        # sale exactamente 1.25x el de ETABS. No es un error de calibración.
+        ve_beams = None
+        beams = (joint_beam_moment or {}).get(axis) if joint_beam_moment else None
+        if isinstance(beams, dict) and clear_height > 0:
+            m_top = beams.get("top")
+            m_bot = beams.get("bot")
+            if m_top or m_bot:  # al menos un extremo con dato utilizable
+                mt = min(float(m_top), mpr) if m_top else 0.0
+                mb = min(float(m_bot), mpr) if m_bot else 0.0
+                ve_beams = (mt + mb) / clear_height
+
+        ve_capacity = ve_column if ve_beams is None else min(ve_column, ve_beams)
+
+        # El piso del análisis SIEMPRE manda: la norma permite bajar Ve hasta
+        # lo que dan las vigas, nunca por debajo del corte factorado real.
         ve = max(ve_capacity, vu_analysis)
 
         # ACI 318 §18.7.6.2.1: Vc=0 si la columna está poco comprimida Y el
@@ -105,6 +157,11 @@ def column_shear_design(
 
         return {
             "mpr": mpr,
+            # Ve solo por Mpr de la COLUMNA (sin tope), para poder auditar.
+            "veColumn": ve_column,
+            # Ve por Mpr de las VIGAS del nudo; None si no llegó el dato.
+            "veBeams": ve_beams,
+            "beamCapApplied": ve_beams is not None and ve_beams < ve_column,
             "veCapacity": ve_capacity,
             "veAnalysis": vu_analysis,
             "ve": ve,

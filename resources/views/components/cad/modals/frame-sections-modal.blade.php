@@ -88,6 +88,20 @@
                         </svg>
                         Definir Armado de Columna...
                     </button>
+                    {{-- Armado LONGITUDINAL de viga (As sup/inf en cada extremo). No es lo
+                         mismo que el de columna: alimenta el tope por resistencia de vigas
+                         del corte de columnas (ACI 318 18.7.6.1.1), no un diagrama P-M-M.
+                         Ver resources/js/cad/mixins/analysis/beamRebarDesigner.js. --}}
+                    <button @click="if(selectedSectionObj?.type === 'rect') defineBeamRebar()"
+                            class="w-full text-left px-3 py-2 text-sm text-blue-400 hover:bg-gray-700 rounded transition-colors flex items-center gap-2"
+                            :class="{'opacity-50 cursor-not-allowed': selectedSectionObj?.type !== 'rect'}"
+                            :title="selectedSectionObj && selectedSectionObj.type !== 'rect' ? 'Solo disponible para secciones rectangulares' : 'Acero longitudinal superior/inferior en cada extremo'">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16v10H4z" />
+                            <path stroke-linecap="round" stroke-width="2" d="M6 9.5h12M6 14.5h12" />
+                        </svg>
+                        Definir Armado de Viga...
+                    </button>
                     <button @click="if(selectedSectionName) confirmDelete()" class="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-gray-700 rounded transition-colors flex items-center gap-2" :class="{'opacity-50 cursor-not-allowed': !selectedSectionName}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1140,6 +1154,13 @@
                 const sec = this.selectedSectionObj;
                 if (!sec) return;
                 window.cadSystem?.openColumnRebarDesigner?.(sec.name, { b: sec.b, h: sec.h, label: sec.name });
+            },
+
+            /** Idem para VIGAS (ver beam-rebar-designer-modal.blade.php): As superior/inferior en los extremos I y J. */
+            defineBeamRebar: function() {
+                const sec = this.selectedSectionObj;
+                if (!sec) return;
+                window.cadSystem?.openBeamRebarDesigner?.(sec.name, { b: sec.b, h: sec.h, label: sec.name });
             },
 
             showToastMessage: function(message, type) {

@@ -428,6 +428,10 @@ export const jsonIoMixin = {
         // CONCRETESECTION real en el .e2k (auto-diseño en ETABS) o en
         // modelos dibujados desde cero. Ver mixins/analysis/columnRebarDesigner.js.
         manualColumnRebar: clean(this.manualColumnRebar, {}),
+      manualBeamRebar: clean(this.manualBeamRebar, {}),
+        // Armado de viga a mano — lo usa el tope por vigas del corte de columnas
+        // (ver mixins/analysis/beamRebarDesigner.js).
+        manualBeamRebar: clean(this.manualBeamRebar, {}),
 
         sections: clean(this.sections, {}),
 
@@ -1343,6 +1347,7 @@ export const jsonIoMixin = {
       this.frameSections.sections = cleanClone(definitions.frameSections || data.frameSections, []);
 
       this.manualColumnRebar = cleanClone(definitions.manualColumnRebar || data.manualColumnRebar, this.manualColumnRebar || {});
+      this.manualBeamRebar = cleanClone(definitions.manualBeamRebar || data.manualBeamRebar, this.manualBeamRebar || {});
 
       if (definitions.sections || data.sections) {
         this.sections = cleanClone(definitions.sections || data.sections, this.sections || {});

@@ -912,6 +912,15 @@ export const e2kImportMixin = {
             numConfineBars3: kvNum(line, "NUMCONFINEBARS3", 0),
             longBarMaterialName: q(line, "LONGBARMATERIAL") || "",
             confineBarMaterialName: q(line, "CONFINEBARMATERIAL") || "",
+            // Armado longitudinal de VIGA (m²): A=superior/T=inferior en los
+            // extremos I y J. ETABS los escribe en 0 cuando la sección está en
+            // auto-diseño ("Reinforcement to be Designed"). Lo consume el tope
+            // por resistencia de vigas del corte de columnas (ACI 318
+            // §18.7.6.1.1 in fine, ver design/column_shear.py).
+            beamAreaTopI: kvNum(line, "ATI", 0),
+            beamAreaBotI: kvNum(line, "ABI", 0),
+            beamAreaTopJ: kvNum(line, "ATJ", 0),
+            beamAreaBotJ: kvNum(line, "ABJ", 0),
           });
         }
       } else if (/^SDSECTION\s/i.test(line)) {
@@ -1144,6 +1153,13 @@ export const e2kImportMixin = {
       sec.numConfineBars3 = cs.numConfineBars3;
       sec.longBarMaterialName = cs.longBarMaterialName;
       sec.confineBarMaterialName = cs.confineBarMaterialName;
+      // Armado de viga por extremo (m², SI — el motor trabaja en SI). Quedan
+      // en 0 si ETABS dejó la viga en auto-diseño: ahí no hay armado fijo que
+      // traer, y el tope por vigas del corte de columna no se puede aplicar.
+      sec.beamAreaTopI = cs.beamAreaTopI || 0;
+      sec.beamAreaBotI = cs.beamAreaBotI || 0;
+      sec.beamAreaTopJ = cs.beamAreaTopJ || 0;
+      sec.beamAreaBotJ = cs.beamAreaBotJ || 0;
     });
 
     // ── Completar campos de material que ETABS deja implícitos ──

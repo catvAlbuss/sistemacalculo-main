@@ -95,6 +95,8 @@ import { rcBeamDesignMixin } from "./mixins/analysis/rcBeamDesign.js";
 import { rcColumnDesignMixin } from "./mixins/analysis/rcColumnDesign.js";
 import { rcAligeradoDesignMixin } from "./mixins/analysis/rcAligeradoDesign.js";
 import { columnRebarDesignerMixin } from "./mixins/analysis/columnRebarDesigner.js";
+import { beamRebarDesignerMixin } from "./mixins/analysis/beamRebarDesigner.js";
+import { columnInteractionChartMixin } from "./mixins/analysis/columnInteractionChart.js";
 import { displayDialogsMixin } from "./mixins/dialogs/display-dialogs.js";
 import { assignDialogsMixin } from "./mixins/dialogs/assign-dialogs.js";
 import { coreUiMixin } from "./mixins/core/core-ui.js";
@@ -265,6 +267,12 @@ export default () => ({
   // "DESIGN" en vez de "CHECK") o dibujadas desde cero. Ver
   // mixins/analysis/columnRebarDesigner.js y rcColumnDesign.js (fallback).
   manualColumnRebar: {},
+  // Armado longitudinal de VIGA definido a mano, por NOMBRE de sección. Lo
+  // consume el tope por resistencia de vigas del corte de columnas (ACI 318
+  // §18.7.6.1.1 in fine). Hace falta casi siempre: ETABS diseña las vigas y
+  // no ofrece "Reinforcement to be Checked" para ellas, así que el .e2k sale
+  // con ATI/ABI/ATJ/ABJ = 0. Ver mixins/analysis/beamRebarDesigner.js.
+  manualBeamRebar: {},
   // Los Load Patterns viven en `staticLoadCases.items` — es lo que escribe el
   // diálogo "Definir Patrones de Carga" (static-load-cases-modal.blade.php) y
   // lo que llena el import del .e2k. `loadCases.cases` es el store LEGACY y
@@ -921,6 +929,8 @@ export default () => ({
   ...rcColumnDesignMixin,
   ...rcAligeradoDesignMixin,
   ...columnRebarDesignerMixin,
+  ...beamRebarDesignerMixin,
+  ...columnInteractionChartMixin,
   ...displayDialogsMixin,
   ...assignDialogsMixin,
   ...coreUiMixin,

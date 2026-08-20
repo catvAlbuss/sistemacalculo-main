@@ -470,23 +470,188 @@ export const rcColumnDesignMixin = {
         axialMax,
         vuAnalysis2,
         vuAnalysis3,
+        // Tope por resistencia de las vigas del nudo (ACI 318 §18.7.6.1.1 in
+        // fine). null = sin armado de viga -> el motor no aplica el tope.
+        jointBeamMoment: this._rcJointBeamMoment(frame, geometry),
       },
     };
   },
 
   /**
-   * Altura libre Hn (m): longitud eje-a-eje del frame menos medio peralte de
-   * cualquier viga que llegue a cada nudo (aproximación — no modela el nudo
-   * completo; si no hay viga conectada en un extremo, no se descuenta nada
-   * ahí). Usado para Ve = ΣMpr/Hn (ACI 318 §18.7.6.1.1).
+   * Momento que las VIGAS del nudo le pueden entregar a ESTA columna, por eje
+   * y por extremo — el tope de ACI 318 §18.7.6.1.1 in fine ("the column
+   * shears need not exceed those calculated from joint strengths based on
+   * Mpr of the beams framing into the joint").
+   *
+   * Devuelve { "2": {top, bot}, "3": {top, bot} } en N·m, o `null` si NINGUNA
+   * viga del nudo tiene armado real (caso típico: ETABS dejó las vigas en
+   * "Reinforcement to be Designed" y el .e2k trae ATI/ABI/ATJ/ABJ en 0). Sin
+   * dato NO se aplica el tope — Ve queda gobernado por el Mpr de la columna,
+   * que es el lado conservador.
+   *
+   * CONVENCIÓN DE EJES (importante, es donde se puede meter la pata):
+   *   V2 ↔ M3  y  V3 ↔ M2  (la misma ya validada, ver
+   *   project_rc_design_v2_v3_convention). Una viga aplica su momento sobre
+   *   el eje horizontal PERPENDICULAR a su propia dirección; con el eje local
+   *   2 de la columna a lo largo de X y el 3 a lo largo de Y (default de
+   *   ETABS para elementos verticales, rotado por `localAxisAngle` si lo hay):
+   *     - viga en la dirección del eje 2 → momento sobre el eje 3 → tope de V2
+   *     - viga en la dirección del eje 3 → momento sobre el eje 2 → tope de V3
+   *
+   * REPARTO EN EL NUDO: el ΣMpr de las vigas se reparte entre la columna de
+   * arriba y la de abajo. Se usa 50/50 cuando hay columna a ambos lados y
+   * 100% cuando esta es la única (último piso o base) — la simplificación
+   * estándar; repartir por rigidez relativa exigiría resolver el nudo.
+   */
+  _rcJointBeamMoment(frame, geometry) {
+    const idOf = (n) => (n && typeof n === "object" ? n.id : n);
+    const nodeTop = idOf(frame.node2Id ?? frame.node2);
+    const nodeBot = idOf(frame.node1Id ?? frame.node1);
+    const allFrames = this.getAllFramesForDesign?.() || [];
+
+    const posOf = (nodeId) => {
+      const n = (this.nodes || []).find((x) => Number(x.id) === Number(nodeId));
+      if (!n) return null;
+      return { x: Number(n.position?.x ?? n.x) || 0, y: Number(n.position?.y ?? n.y) || 0, z: Number(n.position?.z ?? n.z) || 0 };
+    };
+
+    // Ejes locales 2 y 3 de la columna en el plano horizontal.
+    const angRad = ((Number(frame.localAxisAngle) || 0) * Math.PI) / 180;
+    const eje2 = { x: Math.cos(angRad), y: Math.sin(angRad) };
+    const eje3 = { x: -Math.sin(angRad), y: Math.cos(angRad) };
+
+    /** Mpr (N·m) de una viga en el extremo que llega a `nodeId`. 0 si no hay armado. */
+    const mprViga = (f, nodeId) => {
+      const sec = f?.frameSection || null;
+      const sectionName = sec?.name || f?.sectionName || null;
+
+      // Armado REAL del .e2k (ATI/ABI/ATJ/ABJ) si la sección lo trae; si no,
+      // el definido A MANO por sección (ver beamRebarDesigner.js). Este
+      // segundo camino es el normal: ETABS no ofrece "Reinforcement to be
+      // Checked" para vigas — las diseña siempre — así que un modelo
+      // común exporta esos cuatro campos en 0 y sin armado manual el tope
+      // por resistencia de vigas nunca podría aplicarse.
+      const rebar = this.resolveBeamRebarForSection?.(sectionName, sec);
+      if (!rebar) return 0;
+
+      const esExtremoI = Number(idOf(f.node1Id ?? f.node1)) === Number(nodeId);
+      // Se toma el MAYOR entre acero superior e inferior de ese extremo: el
+      // sismo invierte el signo, así que la viga puede desarrollar su Mpr
+      // con cualquiera de las dos capas.
+      const asTop = Number(esExtremoI ? rebar.beamAreaTopI : rebar.beamAreaTopJ) || 0;
+      const asBot = Number(esExtremoI ? rebar.beamAreaBotI : rebar.beamAreaBotJ) || 0;
+      const as = Math.max(asTop, asBot); // m²
+      if (!(as > 0)) return 0;
+
+      const { b, h } = this._rcResolveFrameSection(f); // cm
+      const { fc, fy } = this._rcResolveFrameMaterial(f); // kg/cm²
+
+      return this._beamMprNm({
+        asM2: as,
+        bCm: b,
+        hCm: h,
+        coverCm: Number(rebar.coverTop) || 6, // ETABS COVERTOP, ya en cm
+        fc,
+        fy,
+      });
+    };
+
+    const acumular = (nodeId) => {
+      const acc = { "2": 0, "3": 0 };
+      const pc = posOf(nodeId);
+      if (!pc) return acc;
+
+      allFrames.forEach((f) => {
+        if (f === frame) return;
+        const type = String(f.elementType || f.type || f.objectType || "").toLowerCase();
+        if (!type.includes("beam")) return;
+        const a = idOf(f.node1Id ?? f.node1);
+        const bId = idOf(f.node2Id ?? f.node2);
+        if (Number(a) !== Number(nodeId) && Number(bId) !== Number(nodeId)) return;
+
+        const otro = posOf(Number(a) === Number(nodeId) ? bId : a);
+        if (!otro) return;
+        const dx = otro.x - pc.x;
+        const dy = otro.y - pc.y;
+        const len = Math.hypot(dx, dy);
+        if (!(len > 1e-6)) return;
+        const ux = dx / len;
+        const uy = dy / len;
+
+        const mpr = mprViga(f, nodeId);
+        if (!(mpr > 0)) return;
+
+        // DESCOMPOSICION POR COSENOS DIRECTORES: una viga oblicua aporta a los
+        // DOS ejes locales de la columna, en proporcion a su alineacion con
+        // cada uno. Antes se le daba el Mpr ENTERO al eje mas alineado ("el
+        // ganador se lleva todo"), lo que en un nudo con viga diagonal sobraba
+        // en un eje y faltaba en el otro. Con vigas ortogonales las dos formas
+        // dan lo mismo (coseno 1 y 0), por eso el error solo aparecia en los
+        // nudos oblicuos.
+        //
+        // VALIDADO contra ETABS (muros modelo 2.1.e2k, 2026-08-18): la viga B25
+        // va de (12,4) a (11,8), cosenos 0.2425 y 0.9701. En "vigas
+        // equivalentes" ETABS reporta 1.2426 / 0.9701 en C25 y 1.2426 / 1.9702
+        // en C20; la descomposicion da 1.2425 / 0.9701 y 1.2425 / 1.9701.
+        const proy2 = Math.abs(ux * eje2.x + uy * eje2.y);
+        const proy3 = Math.abs(ux * eje3.x + uy * eje3.y);
+        acc["3"] += mpr * proy2; // componente ‖ eje 2 → momento sobre eje 3 → V2
+        acc["2"] += mpr * proy3; // componente ‖ eje 3 → momento sobre eje 2 → V3
+      });
+
+      return acc;
+    };
+
+    // REPARTO EN EL NUDO: el ΣMpr de las vigas se le asigna ÍNTEGRO a esta
+    // columna, sin repartirlo con la columna del otro lado del nudo. Es lo que
+    // hace ETABS — medido en el modelo de referencia (2026-08-18): sus Ve
+    // salen exactamente 4.873 t con una viga y 9.7461 t con dos, que es
+    // ΣM_vigas/Hn sin ningún factor de reparto.
+    //
+    // Antes se repartía 50/50 cuando había columna arriba y abajo. Esa
+    // simplificación no tiene respaldo en el texto de la norma (ACI no fija
+    // un reparto) y dejaba Ve por DEBAJO del de ETABS, que es el lado
+    // inseguro.
+    const top = acumular(nodeTop);
+    const bot = acumular(nodeBot);
+
+    const total = top["2"] + top["3"] + bot["2"] + bot["3"];
+    if (!(total > 0)) return null; // ninguna viga con armado real
+
+    return {
+      "2": { top: top["2"], bot: bot["2"] },
+      "3": { top: top["3"], bot: bot["3"] },
+    };
+  },
+
+  /**
+   * Altura libre Hn (m) de una columna, para Ve = ΣMpr/Hn (ACI 318 §18.7.6.1.1).
+   *
+   * Se descuenta el peralte COMPLETO de la viga más peraltada que llega al
+   * nudo SUPERIOR, y nada en el inferior. El motivo es geométrico: la viga de
+   * arriba cuelga hacia abajo dentro del tramo de esta columna, mientras que
+   * la viga del nudo de abajo cuelga por debajo de él (pertenece al tramo de
+   * la columna del piso anterior). Es la misma regla que usa ETABS: en el
+   * modelo de referencia, entrepiso 3.0 m con vigas de 60 cm, ETABS reporta
+   * clear length 2.4 = 3.0 − 0.6, exactamente.
+   *
+   * Antes se restaba MEDIO peralte en cada extremo (3.0 − 0.3 − 0 = 2.7), lo
+   * que daba un Ve ~11% bajo respecto de ETABS.
    */
   _rcEstimateClearHeight(frame, length) {
     if (!(length > 0)) return 0;
 
     const idOf = (n) => (n && typeof n === "object" ? n.id : n);
+    const allFrames = this.getAllFramesForDesign?.() || [];
+
+    const zOf = (nodeId) => {
+      const n = (this.nodes || []).find((x) => Number(x.id) === Number(nodeId));
+      return n ? Number(n.position?.z ?? n.z) || 0 : 0;
+    };
+
     const n1 = idOf(frame.node1Id ?? frame.node1);
     const n2 = idOf(frame.node2Id ?? frame.node2);
-    const allFrames = this.getAllFramesForDesign?.() || [];
+    const nodeTop = zOf(n2) >= zOf(n1) ? n2 : n1;
 
     const beamDepthAt = (nodeId) => {
       let maxH = 0;
@@ -496,14 +661,14 @@ export const rcColumnDesignMixin = {
         if (!type.includes("beam")) continue;
         const fn1 = idOf(f.node1Id ?? f.node1);
         const fn2 = idOf(f.node2Id ?? f.node2);
-        if (fn1 !== nodeId && fn2 !== nodeId) continue;
+        if (Number(fn1) !== Number(nodeId) && Number(fn2) !== Number(nodeId)) continue;
         const { h } = this._rcResolveFrameSection(f);
         if (h > maxH) maxH = h;
       }
       return maxH / 100; // cm -> m
     };
 
-    const hn = length - beamDepthAt(n1) / 2 - beamDepthAt(n2) / 2;
+    const hn = length - beamDepthAt(nodeTop);
     return Math.max(hn, length * 0.5);
   },
 

@@ -41,6 +41,7 @@
     <x-cad.modals.viga-design-modal/>
     <x-cad.modals.columna-design-modal/>
     <x-cad.modals.column-rebar-designer-modal/>
+    <x-cad.modals.beam-rebar-designer-modal/>
     <x-cad.modals.aligerado-design-modal/>
     <!-- Se Agrego el modal de grid -->
     <x-cad.modals.diagonal-grid-modal/>
