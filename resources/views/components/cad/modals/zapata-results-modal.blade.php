@@ -126,11 +126,45 @@
                         </div>
                     </div>
 
+                    {{-- Bloque 2b: capacidad portante -- ¿el suelo aguanta
+                         σmax? Antes el sistema calculaba σmax pero nunca lo
+                         comparaba contra la presión admisible del estudio de
+                         suelos (ver conversación). Es un dato POR ZAPATA
+                         (no global como Df/γe): distintas zapatas de un
+                         mismo edificio pueden caer en zonas de distinta
+                         capacidad portante. Compara contra la ENVOLVENTE
+                         (peor de las 11 combinaciones, mismo criterio que
+                         ya usa Cortante), no solo la combinación 1. --}}
+                    <div class="mt-2 pt-2 border-t border-gray-700">
+                        <p class="text-[11px] font-semibold text-gray-300 mb-1">Capacidad portante del suelo</p>
+                        <div class="flex items-center gap-2 text-xs flex-wrap">
+                            <label class="text-gray-400">σ admisible (Tn/m²):</label>
+                            <input type="number" step="0.1" min="0"
+                                   x-model.number="polygon.sigmaAdmisible"
+                                   @change="setSigmaAdmisible(polygon)"
+                                   class="w-20 px-1.5 py-0.5 bg-gray-900 border border-gray-600 rounded text-gray-200">
+                            <span class="text-gray-400">
+                                σmax envolvente: <strong x-text="formatNumber(polygon.sigmaMaxEnvelope)"></strong> Tn/m²
+                            </span>
+                        </div>
+                        <template x-if="polygon.bearingCheck">
+                            <p class="mt-1 text-xs font-semibold"
+                               :class="polygon.bearingCheck.ok ? 'text-emerald-400' : 'text-red-400'"
+                               x-text="(polygon.bearingCheck.ok ? '✓ OK' : '⚠️ EXCEDE LA CAPACIDAD DEL SUELO') + ' (σmax/σadm = ' + formatNumber(polygon.bearingCheck.ratio) + ')'">
+                            </p>
+                        </template>
+                        <template x-if="!polygon.bearingCheck">
+                            <p class="mt-1 text-[11px] text-gray-500">Ingresa la presión admisible del estudio de suelos para verificar si esta zapata la aguanta.</p>
+                        </template>
+                    </div>
+
                     {{-- Bloque 4: espesor/recubrimiento/materiales, de la
                          sección de losa asignada a esta zapata (Assign >
                          Losa/Muro > Sección de Losa) — necesarios para el
-                         acero y cortante que siguen (Bloques 5-6). --}}
-                    <div class="mt-2 pt-2 border-t border-gray-700">
+                         acero y cortante que siguen (Bloques 5-6).
+                         Oculto por ahora (ver mostrarBloques4y5) — el
+                         cálculo sigue corriendo, solo se esconde la vista. --}}
+                    <div class="mt-2 pt-2 border-t border-gray-700" x-show="mostrarBloques4y5">
                         <p class="text-[11px] font-semibold text-gray-300 mb-1">Datos de diseño (Bloque 4)</p>
                         <template x-if="polygon.designInputs">
                             <p class="text-xs text-gray-300">
@@ -150,6 +184,100 @@
                         </template>
                     </div>
 
+                    {{-- Bloque 3b: momento de referencia (elementos finitos
+                         reales, ShellMITC4/OpenSeesPy) -- SOLO disponible
+                         para zapatas aisladas rectangulares alineadas a los
+                         ejes (ver engine/zapataShellDesign.js). Complementa
+                         el Mu del método rígido (tabla de momentos más
+                         abajo) con un valor más cercano a lo que reporta
+                         ETABS -- NO reemplaza Bloque 3 ni alimenta Bloque
+                         5/6, es solo comparación (ver conversación).
+                         AGREGADO: destacado visualmente (borde verde +
+                         insignia "validado") -- es el valor más cercano a
+                         ETABS real, confirmado hoy contra el modelo del
+                         cliente (~5% de diferencia). --}}
+                    <template x-if="polygon.shellMomentReference">
+                        <div class="mt-2 p-2 border border-emerald-700 bg-emerald-950/30 rounded">
+                            <div class="flex items-center gap-2 mb-1">
+                                <p class="text-[11px] font-semibold text-emerald-300">Momento y cortante de referencia — elementos finitos (Bloque 3b/6b)</p>
+                                <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-800 text-emerald-100">✓ Validado vs. ETABS</span>
+                            </div>
+                            <template x-if="polygon.shellMomentReference.ok">
+                                <div class="text-xs text-gray-200 space-y-0.5">
+                                    <p>
+                                        Mx = <strong x-text="formatNumber(polygon.shellMomentReference.momentoDiseno?.Mx_diseno)"></strong> Tn&middot;m/m
+                                        &middot;
+                                        My = <strong x-text="formatNumber(polygon.shellMomentReference.momentoDiseno?.My_diseno)"></strong> Tn&middot;m/m
+                                    </p>
+                                    {{-- AGREGADO (ver conversación): Mxy/torsión -- validado hoy
+                                         contra ETABS real (caso F8, centrado): nuestro FEM da ≈0
+                                         exacto y ETABS da -0.0088/-0.0090 en las dos caras, ambos
+                                         despreciables frente a Mx/My de esa zona (~0.1-0.3%) --
+                                         confirma la simetría esperada. Es una validación "caso
+                                         trivial" (cero contra cero por columna centrada), no
+                                         equivalente en rigor a la de Mx/My (que comparó valores
+                                         grandes, ~3-7% de diferencia) -- para zapatas descentradas,
+                                         donde Mxy deja de ser trivial, sigue sin validar. --}}
+                                    <template x-if="polygon.shellMomentReference.momentoDiseno?.Mxy_diseno !== undefined">
+                                        <p class="text-gray-400">
+                                            Mxy (torsión) = <strong class="text-gray-300" x-text="formatNumber(polygon.shellMomentReference.momentoDiseno?.Mxy_diseno)"></strong> Tn&middot;m/m
+                                            <span class="text-[9px] text-gray-500">— validado vs. ETABS en zapata centrada (≈0 en ambos, por simetría); sin validar en zapatas descentradas</span>
+                                        </p>
+                                    </template>
+                                    <p class="text-[10px] text-amber-400" x-text="polygon.shellMomentReference.advertencia"></p>
+                                    <p class="text-[10px] text-gray-400">Evaluado en la cara de columna (no en el punto de apoyo, que es una singularidad matemática) — valor de comparación, no de diseño.</p>
+
+                                    {{-- AGREGADO (ver conversación): V13/V23 -- lo que el cliente
+                                         pide como "V11/V22" (ETABS no tiene esos índices para
+                                         cortante, ver conversación). Sale del MISMO solve que
+                                         Mx/My/Mxy de arriba (ver zapataShellDesign.js /
+                                         calcular_zapata_shell_completo()), evaluado en la
+                                         SECCIÓN CRÍTICA (a distancia d de la cara, no en la
+                                         cara misma). Validado hoy contra ETABS real (caso F8
+                                         4x2m centrado): 2.47% y 4.59% de diferencia. --}}
+                                    <template x-if="polygon.shellShearReference?.ok">
+                                        <p class="pt-1 mt-1 border-t border-emerald-800/50">
+                                            V13 = <strong x-text="formatNumber(polygon.shellShearReference.cortanteDiseno?.V13_diseno)"></strong> Tn/m
+                                            &middot;
+                                            V23 = <strong x-text="formatNumber(polygon.shellShearReference.cortanteDiseno?.V23_diseno)"></strong> Tn/m
+                                            <span class="text-[9px] text-gray-500">— sección crítica, a distancia d de la cara</span>
+                                        </p>
+                                    </template>
+                                    <template x-if="polygon.shellShearReference && !polygon.shellShearReference.ok">
+                                        <p class="text-[10px] text-gray-500 pt-1 mt-1 border-t border-emerald-800/50" x-text="'Cortante FEM no disponible: ' + polygon.shellShearReference.error"></p>
+                                    </template>
+                                </div>
+                            </template>
+                            <template x-if="!polygon.shellMomentReference.ok">
+                                <p class="text-[11px] text-gray-500" x-text="'No se pudo calcular: ' + polygon.shellMomentReference.error"></p>
+                            </template>
+                        </div>
+                    </template>
+
+                    {{-- AGREGADO (ver conversación): momento del método rígido
+                         (Bloque 3, Mu=σ·L²/2 — la fórmula clásica del voladizo
+                         E.060/ACI), mostrado justo debajo del Bloque 3b para
+                         que el cliente vea los dos números lado a lado. A
+                         diferencia del Bloque 3b, este NO pasó por el mismo
+                         proceso de validación rigurosa contra ETABS hoy — se
+                         etiqueta como tal, sin insignia de "validado". --}}
+                    <template x-if="polygon.rigidMoment">
+                        <div class="mt-2 p-2 border border-gray-600 bg-gray-900/60 rounded">
+                            <div class="flex items-center gap-2 mb-1">
+                                <p class="text-[11px] font-semibold text-gray-300">Momento — método rígido (Bloque 3)</p>
+                                <span class="text-[9px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-300">Sin validar hoy vs. ETABS</span>
+                            </div>
+                            <div class="text-xs text-gray-200 space-y-0.5">
+                                <p>
+                                    Mu-X = <strong x-text="formatNumber(polygon.rigidMoment.muXEnvelope)"></strong> Tn&middot;m/m
+                                    &middot;
+                                    Mu-Y = <strong x-text="formatNumber(polygon.rigidMoment.muYEnvelope)"></strong> Tn&middot;m/m
+                                </p>
+                                <p class="text-[10px] text-gray-400">Mu=σ·L²/2 (voladizo, envolvente de las 11 combinaciones) — fórmula simple de E.060/ACI, no elementos finitos.</p>
+                            </div>
+                        </div>
+                    </template>
+
                     {{-- Bloque 5: acero por flexión — envuelve el Mu (Bloque
                          3, peor combinación) con f'c/fy/espesor/recubrimiento
                          (Bloque 4) para dar As requerido (cm²/m) + Ø y
@@ -158,8 +286,9 @@
                          voladizo siempre tracciona el fondo). Combinada →
                          As+ (inferior, cerca de columnas) / As- (superior,
                          en el vano) — mismo criterio de signos que la tabla
-                         de momentos de abajo. --}}
-                    <div class="mt-2 pt-2 border-t border-gray-700">
+                         de momentos de abajo.
+                         Oculto por ahora (ver mostrarBloques4y5). --}}
+                    <div class="mt-2 pt-2 border-t border-gray-700" x-show="mostrarBloques4y5">
                         <p class="text-[11px] font-semibold text-gray-300 mb-1">Acero por flexión (Bloque 5)</p>
 
                         <template x-if="!polygon.designInputs">
@@ -207,8 +336,11 @@
                         <template x-if="polygon.designInputs && polygon.shearDesign?.type === 'isolated'">
                             <div class="text-xs text-gray-300 space-y-0.5">
                                 <p x-text="shearLine('Punzonamiento', polygon.shearDesign.punching)"></p>
-                                <p x-text="shearLine('Cortante-X', polygon.shearDesign.oneWayX)"></p>
-                                <p x-text="shearLine('Cortante-Y', polygon.shearDesign.oneWayY)"></p>
+                                <p x-text="shearLine(polygon.shearDesign.oneWayXFem ? 'Cortante-X (MEF)' : 'Cortante-X (rígido)', polygon.shearDesign.oneWayXFem || polygon.shearDesign.oneWayX)"></p>
+                                <p x-text="shearLine(polygon.shearDesign.oneWayYFem ? 'Cortante-Y (MEF)' : 'Cortante-Y (rígido)', polygon.shearDesign.oneWayYFem || polygon.shearDesign.oneWayY)"></p>
+                                <template x-if="polygon.shearDesign.oneWayXFem || polygon.shearDesign.oneWayYFem">
+                                    <p class="text-[10px] text-emerald-400">MEF = elementos finitos, sección crítica a distancia d de la cara — validado ~2-5% vs ETABS real (zapata centrada). Reemplaza al método rígido cuando está disponible.</p>
+                                </template>
                             </div>
                         </template>
 
@@ -226,6 +358,15 @@
 
             {{-- Mapa de presiones: pestaña por combinación, 1 gráfico activo --}}
             <p class="text-[11px] font-semibold text-gray-300 mb-1">Mapa de presiones por combinación</p>
+            {{-- AGREGADO (ver conversación): Mu-X/Mu-Y de esta tabla ahora prefieren
+                 el valor de elementos finitos (Bloque 3b, verde, validado ~5% vs
+                 ETABS) sobre el método rígido (Bloque 3, blanco, sin validar hoy) --
+                 el FEM solo existe para zapatas aisladas rectangulares, así que las
+                 combinadas/triangulares/trapezoidales siguen mostrando el rígido. --}}
+            <p class="text-[10px] text-gray-500 mb-1">
+                <span class="text-emerald-400">■</span> Elementos finitos (más preciso, validado) &nbsp;
+                <span class="text-gray-300">■</span> Método rígido (respaldo, sin validar hoy)
+            </p>
 
             <div class="flex flex-wrap gap-1 mb-2">
                 <template x-for="(combo, index) in loadCombinations" :key="index">
@@ -262,8 +403,16 @@
                                 <td class="py-1 pr-2" x-text="formatNumber(row.max)"></td>
                                 <td class="py-1 pr-2" x-text="formatNumber(row.XC)"></td>
                                 <td class="py-1 pr-2" x-text="formatNumber(row.YC)"></td>
-                                <td class="py-1 pr-2" x-text="row.designMoment ? formatNumber(row.designMoment.momentoVoladizoX) : '—'"></td>
-                                <td class="py-1 pr-2" x-text="row.designMoment ? formatNumber(row.designMoment.momentoVoladizoY) : '—'"></td>
+                                <td class="py-1 pr-2">
+                                    <span :class="row.femMoment ? 'text-emerald-400' : 'text-gray-200'"
+                                        :title="row.femMoment ? 'Elementos finitos (Bloque 3b) — validado ~5% vs. ETABS' : 'Método rígido (Bloque 3) — sin validar hoy'"
+                                        x-text="muDisplay(row, 'x')"></span>
+                                </td>
+                                <td class="py-1 pr-2">
+                                    <span :class="row.femMoment ? 'text-emerald-400' : 'text-gray-200'"
+                                        :title="row.femMoment ? 'Elementos finitos (Bloque 3b) — validado ~5% vs. ETABS' : 'Método rígido (Bloque 3) — sin validar hoy'"
+                                        x-text="muDisplay(row, 'y')"></span>
+                                </td>
                                 <td class="py-1 pr-2" x-text="combinedSummary(row).positivo"></td>
                                 <td class="py-1 pr-2" x-text="combinedSummary(row).negativo"></td>
                             </tr>
@@ -288,9 +437,26 @@
             summary: { df: null, gammaE: null, columnsCount: 0 },
             selectedComboIndex: 0,
             summaryRows: [],
+            // AGREGADO (ver conversación): Bloques 4 y 5 (datos de diseño,
+            // acero por flexión) ocultos por ahora para la presentación al
+            // cliente -- el cálculo sigue corriendo igual por dentro
+            // (Bloque 6 y el propio Bloque 5 lo siguen usando), solo se
+            // oculta la vista. Cambiar a `true` (o agregar un toggle en el
+            // futuro) para volver a mostrarlos.
+            mostrarBloques4y5: false,
             formatNumber(value) {
                 const number = Number(value);
                 return Number.isFinite(number) ? number.toFixed(2) : '-';
+            },
+            // Bloque 2b — persiste σ admisible en la zapata real (para que
+            // quede guardada con el modelo) y recalcula el badge OK/EXCEDE
+            // al toque, sin tener que volver a correr "Calcular Zapatas"
+            // (σmaxEnvelope ya está calculado, no depende de este valor).
+            setSigmaAdmisible(polygon) {
+                window.cadSystem?.setZapataSigmaAdmisible?.(polygon.id, polygon.sigmaAdmisible);
+                polygon.bearingCheck = polygon.sigmaAdmisible
+                    ? { ok: polygon.sigmaMaxEnvelope <= polygon.sigmaAdmisible, ratio: polygon.sigmaMaxEnvelope / polygon.sigmaAdmisible }
+                    : null;
             },
             // Bloque 5 — línea de texto para un resultado de footingSteel.js
             // ({as, asMin, governedBy, overReinforced, rebar}). `steel` es
@@ -328,6 +494,22 @@
             // esquina compartida — ni ETABS/SAFE lo resuelven sin malla de
             // elementos finitos refinada — así que se avisa en vez de
             // mostrar un número incorrecto.
+            // AGREGADO (ver conversación): prefiere el momento de elementos
+            // finitos (Bloque 3b, row.femMoment) sobre el del método rígido
+            // (row.designMoment) cuando está disponible -- solo existe para
+            // zapatas aisladas rectangulares (ver getZapataSummaryRows en
+            // foundation.js). axis: 'x' o 'y'.
+            muDisplay(row, axis) {
+                if (row.femMoment) {
+                    const value = axis === 'x' ? row.femMoment.Mx_diseno : row.femMoment.My_diseno;
+                    return this.formatNumber(value);
+                }
+                if (row.designMoment) {
+                    const value = axis === 'x' ? row.designMoment.momentoVoladizoX : row.designMoment.momentoVoladizoY;
+                    return this.formatNumber(value);
+                }
+                return '—';
+            },
             combinedSummary(row) {
                 if (row.combinedNeedsReview) {
                     return { positivo: 'Zapata ramificada — requiere revisión adicional', negativo: '' };

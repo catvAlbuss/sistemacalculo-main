@@ -1,6 +1,14 @@
 {{-- resources/views/components/cad/layout/cad-area.blade.php --}}
 <!-- Canvas - Vista dividida 2D + 3D -->
-<main class="relative flex flex-1 flex-col bg-white">
+{{-- AGREGADO (ver conversación): min-h-0 -- este <main> es flex-1 dentro
+     del contenedor "flex flex-1 overflow-hidden" de cad-sys.blade.php,
+     pero sin min-h-0 un item flex no se encoge bajo el tamaño natural de
+     su contenido (aquí, el canvas 3D vía #cad-workspace, que a su vez usa
+     h-full). Eso creaba una referencia de altura circular/ambigua que se
+     retroalimentaba con cada evento de resize (abrir/cerrar F12), y el
+     área crecía un poco más cada vez -- mismo tipo de bug que el de
+     layouts/main.blade.php, anidado un nivel más adentro. --}}
+<main class="relative flex min-h-0 flex-1 flex-col bg-white">
   <input class="absolute w-28 -translate-x-1/2 -translate-y-1/2 z-10" id="distance" name="distance" type="number"
     x-show="(currentState === trussDrawingState && currentState.shape.node1) || (currentState === zapataDrawingState && currentState.points.length > 0)"
     x-ref="distanceInput"

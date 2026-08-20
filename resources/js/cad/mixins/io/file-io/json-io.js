@@ -1,7 +1,7 @@
 // mixins/io/file-io/json-io.js — parte "json-io" de file-io
 // (file-io.js se partió en sub-mixins por responsabilidad; barril en file-io.js).
 import Swal from "sweetalert2";
-import { Beam, Node as StructuralNode } from "../../../model/shapes.js";
+import { Beam, Node as StructuralNode, Area } from "../../../model/shapes.js";
 import { read as readmat } from "mat-for-js";
 import { axisToFixed, removeFromArray } from "../../../lib/utils.js";
 import { Triangle, Puente, Arco } from "../../../model/parametricModels.js";
@@ -328,6 +328,13 @@ export const jsonIoMixin = {
 
       section: clean(area.section),
       material: clean(area.material),
+
+      // Presión admisible del suelo (Tn/m², solo aplica a areaType="zapata"),
+      // capturada en zapata-results-modal.blade.php (Bloque 2b, chequeo de
+      // capacidad portante) — mismo tipo de campo que diaphragmId más abajo:
+      // si no se incluye acá explícitamente, se pierde en cualquier guardado
+      // del modelo (JSON local, autosave, e2k).
+      sigmaAdmisible: area.sigmaAdmisible ?? null,
 
       loads: clean(area.loads, []),
       areaLoads: clean(area.areaLoads, []),
@@ -1262,16 +1269,31 @@ export const jsonIoMixin = {
       // ===============================
       // 7. Restaurar áreas
       // ===============================
-      this.areas = importedAreas.map((areaData, index) => ({
-        ...cleanClone(areaData, {}),
-        id: areaData.id ?? index + 1,
-        type: areaData.type || areaData.areaType || "area",
-        areaType: areaData.areaType || areaData.type || "area",
-        visible: areaData.visible !== false,
-        points: cleanClone(areaData.points, []),
-        z: Number(areaData.z || 0),
-        assignment: cleanClone(areaData.assignment, {}),
-      }));
+      // BUG (ver conversación: "zapata.propiedades is not a function"):
+      // esto construía objetos PLANOS (spread de cleanClone), sin la clase
+      // Area/Shape ni sus métodos (.propiedades(), .calcularPropiedades())
+      // — mismo bug ya encontrado y corregido en undo-redo.js para el
+      // snapshot de undo/redo. Este es el path que usan TANTO la
+      // importación de .e2k COMO de JSON nativo, así que una zapata
+      // importada rompía calculateZapatas() al llegar a
+      // buildZapataPolygonProperties(). Se reconstruye cada área como
+      // instancia real de Area (mismo patrón que undo-redo.js).
+      this.areas = importedAreas.map((areaData, index) => {
+        const areaType = areaData.areaType || areaData.type || "area";
+        const z = Number(areaData.z || 0);
+        const area = new Area(areaType, z);
+        Object.assign(area, cleanClone(areaData, {}), {
+          id: areaData.id ?? index + 1,
+          type: areaData.type || areaData.areaType || "area",
+          areaType,
+          visible: areaData.visible !== false,
+          points: cleanClone(areaData.points, []),
+          z,
+          assignment: cleanClone(areaData.assignment, {}),
+        });
+        area.calcularPropiedades();
+        return area;
+      });
 
       // ===============================
       // 8. Restaurar objetos auxiliares

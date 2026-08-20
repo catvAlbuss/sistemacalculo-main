@@ -12,6 +12,8 @@
 // cual — mismo módulo que ya usa Cimentación 2.0 (predim2), sin duplicar
 // la lógica de Plotly.
 
+import Swal from "sweetalert2";
+
 import {
   findSupportNodesInPolygon,
   buildZapataColumnRows,
@@ -54,6 +56,11 @@ import {
 
 import { Shape } from "../../model/shapes.js";
 
+import {
+  isAxisAlignedRectangularFooting,
+  fetchZapataShellDesignReference,
+} from "../../engine/zapataShellDesign.js";
+
 // Mismos valores por defecto que resources/js/etabs/components/DatosGeneralesPanel.vue
 // (Cimentación 2.0 / predim2), para quedar consistentes en unidades: todo el
 // pipeline /zapatas2 asume Tonf y metros, no SI. Siguen siendo un supuesto
@@ -76,6 +83,15 @@ export const foundationMixin = {
       return;
     }
 
+    // AGREGADO (ver conversación: cimentacion-v2/Safecito ya deja editar
+    // Df/γe en su propio formulario — el CAD se había quedado con el valor
+    // fijo). `this.zapataDf`/`this.zapataGammaE` se editan desde la barra
+    // (grupo "Cimentación") y arrancan en los mismos valores por defecto
+    // que ya estaban (2 y 1.8) — si por algún motivo llegan vacíos/0,
+    // cae de vuelta a esas mismas constantes, nunca a un valor sin sentido.
+    const df = Number(this.zapataDf) || DEFAULT_DF;
+    const gammaE = Number(this.zapataGammaE) || DEFAULT_GAMMA_E;
+
     const polygons = [];
     const columnsById = new Map();
     // Paralelo a `polygons` (mismo índice) — clasificación aislada/combinada
@@ -90,7 +106,7 @@ export const foundationMixin = {
         continue;
       }
 
-      const supportNodes = findSupportNodesInPolygon(this.nodes || [], polygonPoints);
+      const supportNodes = findSupportNodesInPolygon(this.nodes || [], polygonPoints, zapata.z);
 
       if (!supportNodes.length) {
         this.showMessage(
@@ -144,20 +160,41 @@ export const foundationMixin = {
             recubrimientoM: (Number(section.recubrimiento) || 0) / 1000, // mm → m
             fpc: Number(material?.fpc) || null,
             fy: Number(material?.fy) || null,
+            // AGREGADO (ver conversación: modelo real del cliente usa
+            // ν=0.15, no el 0.2 que traía por defecto el solver de
+            // elementos finitos) — Bloque 3b lo usa si está definido;
+            // Bloques 5/6 no lo necesitan, se queda ahí sin usar.
+            poissonRatio: Number(material?.poissonRatio) || null,
           }
         : null;
     });
 
-    try {
-      this.showMessage("Calculando zapatas...", "info");
+    // AGREGADO (ver conversación): mismo popup de carga (SweetAlert temeado
+    // oscuro, background/color fijados) que ya usa "Ejecutar Análisis"
+    // (ver mixins/analysis/seismic/core.js) — un solo modal predeterminado
+    // en todo el sistema, en vez de un componente Blade nuevo (que además
+    // tenía un bug real: x-show de Alpine pisaba el display:flex inline,
+    // dejando la tarjeta pegada arriba en vez de centrada — ver
+    // conversación). El cálculo ahora incluye llamadas al motor de
+    // elementos finitos (Bloque 3b/6b, ~1-2s por zapata aislada
+    // rectangular) y puede tardar varios segundos; sin esto parecía que
+    // el botón no hacía nada.
+    Swal.fire({
+      title: "Calculando zapatas...",
+      html: "<div style='color:#94a3b8'>Presión, momento y cortante (elementos finitos) — puede tardar unos segundos.</div>",
+      allowOutsideClick: false,
+      background: "#1a2035", color: "#e2e8f0",
+      didOpen: () => Swal.showLoading(),
+    });
 
+    try {
       const response = await requestZapatas2(
         {
           columns,
           polygons,
           loadCombinations: DEFAULT_LOAD_COMBINATIONS,
-          df: DEFAULT_DF,
-          gammaE: DEFAULT_GAMMA_E,
+          df,
+          gammaE,
         },
         {}
       );
@@ -188,7 +225,7 @@ export const foundationMixin = {
       // contra el resultado neto, volver `APPLY_OVERBURDEN_DEDUCTION` a
       // `true` reactiva el comportamiento de siempre sin tocar nada más.
       const APPLY_OVERBURDEN_DEDUCTION = false;
-      const overburden = DEFAULT_GAMMA_E * DEFAULT_DF;
+      const overburden = gammaE * df;
       const netSigma = (sigma) => {
         const raw = Number(sigma) || 0;
         return Math.max(0, APPLY_OVERBURDEN_DEDUCTION ? raw - overburden : raw);
@@ -264,6 +301,15 @@ export const foundationMixin = {
       };
       const quEnvelope = (polygon) => Math.max(...DEFAULT_LOAD_COMBINATIONS.map((_, i) => netSigma(polygon.max?.[i])));
 
+      // Bloque 3b/6b — Momento (M11/M22/M12) Y cortante (V13/V23) de
+      // referencia (elementos finitos reales, shell/OpenSeesPy) para
+      // zapatas aisladas rectangulares: UNA sola llamada por zapata (ver
+      // conversación: antes eran 2 llamadas separadas, fusionadas porque
+      // el cortante ya necesitaba la malla fina que también sirve para el
+      // momento). Se disparan en paralelo dentro del forEach de abajo y se
+      // esperan todas juntas antes de abrir el modal (ver zapataShellDesign.js).
+      const shellDesignPromises = [];
+
       normalizedPolygons.forEach((polygon, index) => {
         const meta = footingsMeta[index];
         if (!meta) return;
@@ -303,6 +349,26 @@ export const foundationMixin = {
         // de ESTA zapata, tal como está dibujada, no es válido.
         if (polygonProperties[index]) {
           polygonProperties[index].hasNegativePressure = (polygon.min || []).some((v) => (Number(v) || 0) < 0);
+
+          // Bloque 2b — Capacidad portante del suelo: hasta ahora el sistema
+          // calculaba σmax pero nunca decía si el suelo la aguanta (ver
+          // conversación con el cliente). sigmaAdmisible es un dato POR
+          // ZAPATA (cada una puede caer en una zona distinta del estudio de
+          // suelos), se guarda directo en el area (zapata.sigmaAdmisible,
+          // editable desde el modal de resultados vía
+          // setZapataSigmaAdmisible) — null mientras el ingeniero no lo
+          // haya definido, y entonces bearingCheck también queda null (no
+          // se inventa un "OK" sin dato real). Usa la misma envolvente
+          // (peor combinación de las 11) que ya usa Cortante, no solo la
+          // combinación 1 — el chequeo de capacidad portante debe ser
+          // contra el peor caso, no uno cualquiera.
+          const sigmaAdmisible = Number(zapatas[index]?.sigmaAdmisible) || null;
+          const sigmaMaxEnvelope = quEnvelope(polygon);
+          polygonProperties[index].sigmaMaxEnvelope = sigmaMaxEnvelope;
+          polygonProperties[index].sigmaAdmisible = sigmaAdmisible;
+          polygonProperties[index].bearingCheck = sigmaAdmisible
+            ? { ok: sigmaMaxEnvelope <= sigmaAdmisible, ratio: sigmaMaxEnvelope / sigmaAdmisible }
+            : null;
         }
 
         if (meta.type === "isolated" && meta.column) {
@@ -349,7 +415,7 @@ export const foundationMixin = {
               const myRow = new Array(xs.length);
 
               for (let i = 0; i < xs.length; i++) {
-                const point = computeIsolatedMomentAtPoint(xs[i], ys[i], meta.column.position, momentColumnSize, sigma, overhangs.bounds);
+                const point = computeIsolatedMomentAtPoint(xs[i], ys[i], meta.column.position, momentColumnSize, sigma, meta.polygonPoints, overhangs.bounds);
                 mxRow[i] = point.mx;
                 myRow[i] = point.my;
               }
@@ -364,6 +430,50 @@ export const foundationMixin = {
           const designInputs = polygonProperties[index]?.designInputs;
           const muXEnvelope = Math.max(...polygon.designMoments.map((m) => m.momentoVoladizoX));
           const muYEnvelope = Math.max(...polygon.designMoments.map((m) => m.momentoVoladizoY));
+
+          // AGREGADO (ver conversación): envolvente del Mu del método
+          // rígido (Bloque 3), expuesta directo en polygonProperties para
+          // mostrarla en el modal junto al Bloque 3b (antes solo se usaba
+          // internamente para alimentar el acero de Bloque 5, sin quedar
+          // accesible como dato propio).
+          if (polygonProperties[index]) {
+            polygonProperties[index].rigidMoment = { muXEnvelope, muYEnvelope };
+          }
+
+          // Bloque 3b — momento de referencia por elementos finitos, SOLO
+          // si la zapata es un rectángulo alineado a los ejes (ver
+          // isAxisAlignedRectangularFooting): el solver arma su malla en
+          // coordenadas globales, así que un polígono rotado/triangular/
+          // trapezoidal daría una malla incorrecta si se le pasara igual.
+          const polygonArea = Number(polygonProperties[index]?.properties?.A) || 0;
+          if (isAxisAlignedRectangularFooting(meta.polygonPoints, overhangs.bounds, polygonArea)) {
+            const bounds = overhangs.bounds;
+            // A propósito usa `columnSize` (columna REAL), no
+            // `momentColumnSize` -- el toggle "medir hasta el centro" solo
+            // aplica al método rígido (overhangs de arriba); tanto el
+            // momento como el cortante de elementos finitos siempre usan
+            // la cara real de la columna.
+            shellDesignPromises.push({
+              index,
+              polygon,
+              bounds,
+              promise: fetchZapataShellDesignReference({
+                Lx: bounds.maxX - bounds.minX,
+                Ly: bounds.maxY - bounds.minY,
+                columnaX: meta.column.position.x - bounds.minX,
+                columnaY: meta.column.position.y - bounds.minY,
+                columnaBx: columnSize.b,
+                columnaBy: columnSize.h,
+                thicknessM: designInputs?.thicknessM,
+                recubrimientoM: designInputs?.recubrimientoM,
+                fpcMPa: designInputs?.fpc,
+                nu: designInputs?.poissonRatio,
+                nx: this.zapataShellMeshN,
+                ny: this.zapataShellMeshN,
+                q: quEnvelope(polygon),
+              }),
+            });
+          }
 
           if (polygonProperties[index]) {
             polygonProperties[index].steelDesign = designInputs
@@ -510,6 +620,90 @@ export const foundationMixin = {
         }
       });
 
+      // Bloque 3b/6b — se esperan todas las llamadas al motor de elementos
+      // finitos juntas (en paralelo, ya disparadas dentro del forEach de
+      // arriba) antes de abrir el modal. Si alguna falla, no bloquea nada:
+      // fetchZapataShellDesignReference() nunca lanza, siempre devuelve
+      // { ok:false, error } en ese caso.
+      if (shellDesignPromises.length) {
+        const results = await Promise.all(shellDesignPromises.map((p) => p.promise));
+        results.forEach((result, i) => {
+          const { index, polygon: shellPolygon, bounds: shellBounds } = shellDesignPromises[i];
+          if (!polygonProperties[index]) return;
+
+          // AGREGADO (ver conversación): el modal (zapata-results-modal.
+          // blade.php) sigue esperando 2 objetos separados
+          // (shellMomentReference/shellShearReference, mismas claves de
+          // siempre) — se derivan los dos de esta ÚNICA respuesta, así no
+          // hubo que tocar el modal al fusionar las llamadas.
+          polygonProperties[index].shellMomentReference = {
+            ok: result.ok,
+            momentoDiseno: result.momentoDiseno,
+            advertencia: result.advertencia,
+            error: result.error,
+          };
+          polygonProperties[index].shellShearReference = {
+            ok: result.ok,
+            cortanteDiseno: result.cortanteDiseno,
+            advertencia: result.advertencia,
+            error: result.error,
+          };
+
+          // AGREGADO (ver conversación): para el "Diagrama de Resultantes 2D", las
+          // zapatas aisladas rectangulares con Bloque 3b/6b exitoso usan
+          // el campo REAL de elementos finitos en vez de la aproximación
+          // del método rígido — reemplaza momentField solo para ESTA
+          // zapata (las demás formas siguen con el método rígido de
+          // siempre, ver isAxisAlignedRectangularFooting más arriba).
+          // UNA sola grilla para mx/my/mxy/v13/v23 (antes momento y
+          // cortante tenían grillas separadas, por venir de mallas
+          // distintas — ya no, desde la fusión). Coordenadas LOCALES
+          // (0..Lx, 0..Ly) del solver — se suman a bounds.min para
+          // volverlas globales, iguales a polygon.points.
+          if (result.ok && result.campo && shellPolygon) {
+            shellPolygon.momentField = {
+              type: "isolated-fem",
+              x: result.campo.x.map((x) => x + shellBounds.minX),
+              y: result.campo.y.map((y) => y + shellBounds.minY),
+              mx: result.campo.Mx,
+              my: result.campo.My,
+              mxy: result.campo.Mxy,
+              v13: result.campo.V13,
+              v23: result.campo.V23,
+              // AGREGADO (ver conversación): MMax/MMin/VMax -- resultantes
+              // derivadas, mismo criterio que el selector "Component" de
+              // ETABS (ver zapata_shell_solver.py).
+              mmax: result.campo.MMax,
+              mmin: result.campo.MMin,
+              vmax: result.campo.VMax,
+            };
+          }
+
+          // Bloque 6 — arma un objeto {vuTon, phiVcTon, ratio, ok} con la
+          // MISMA forma que ya produce computeOneWayShear() (footingShear.js,
+          // método rígido) — el modal sigue usando el mismo shearLine()
+          // sin cambios, solo prefiere este valor (más preciso, ~2.4-4.6%
+          // vs ETABS real) cuando está disponible.
+          if (result.ok && polygonProperties[index].shearDesign?.type === "isolated") {
+            const cd = result.cortanteDiseno;
+            const vuX = Math.abs(cd.V13_diseno);
+            const vuY = Math.abs(cd.V23_diseno);
+            polygonProperties[index].shearDesign.oneWayXFem = {
+              vuTon: vuX,
+              phiVcTon: cd.phiVcTonM,
+              ratio: cd.phiVcTonM > 0 ? vuX / cd.phiVcTonM : Infinity,
+              ok: vuX <= cd.phiVcTonM,
+            };
+            polygonProperties[index].shearDesign.oneWayYFem = {
+              vuTon: vuY,
+              phiVcTon: cd.phiVcTonM,
+              ratio: cd.phiVcTonM > 0 ? vuY / cd.phiVcTonM : Infinity,
+              ok: vuY <= cd.phiVcTonM,
+            };
+          }
+        });
+      }
+
       // Guardado para que el modal pueda pedir cada gráfico (uno por combo)
       // después de abrirse, vía this.renderZapataPlot().
       this._lastZapataCalculationResults = {
@@ -523,8 +717,8 @@ export const foundationMixin = {
           detail: {
             loadCombinations: DEFAULT_LOAD_COMBINATIONS,
             polygonProperties,
-            df: DEFAULT_DF,
-            gammaE: DEFAULT_GAMMA_E,
+            df,
+            gammaE,
             columnsCount: columns.length,
           },
         })
@@ -532,6 +726,8 @@ export const foundationMixin = {
     } catch (error) {
       console.error("❌ Error calculando zapatas:", error);
       this.showMessage(error?.message || "No se pudo calcular la cimentación.", "error");
+    } finally {
+      Swal.close();
     }
   },
 
@@ -564,6 +760,16 @@ export const foundationMixin = {
         XC: polygon.XC,
         YC: polygon.YC,
         designMoment: polygon.designMoments?.[comboIndex] ?? null,
+        // AGREGADO (ver conversación): momento de elementos finitos (Bloque
+        // 3b) para esta tabla -- solo existe en zapatas AISLADAS
+        // RECTANGULARES con cálculo exitoso (ver zapataShellDesign.js). Ya
+        // es la envolvente de las 11 combinaciones, no depende de
+        // comboIndex. El template prefiere este valor sobre designMoment
+        // (método rígido) cuando está disponible, por ser más preciso
+        // (~5% vs ETABS real, validado) -- designMoment queda como
+        // respaldo para combinadas/triangulares/trapezoidales, donde el
+        // FEM todavía no aplica.
+        femMoment: polygon.shellMomentReference?.ok ? polygon.shellMomentReference.momentoDiseno : null,
         // Un brazo por objeto: {momentoPositivoMax, momentoNegativoMax, beamAxis}
         combinedMoments: combined?.supported ? combined.legs.map((leg) => leg.momentsByCombo?.[comboIndex] ?? null) : [],
         combinedNeedsReview: Boolean(combined && !combined.supported),
@@ -615,14 +821,17 @@ export const foundationMixin = {
     let centeredCount = 0;
 
     zapatas.forEach((zapata) => {
-      const supportNodes = findSupportNodesInPolygon(this.nodes || [], zapata.points || []);
+      const supportNodes = findSupportNodesInPolygon(this.nodes || [], zapata.points || [], zapata.z);
       if (!supportNodes.length) return;
 
       const targetX = supportNodes.reduce((sum, node) => sum + node.position.x, 0) / supportNodes.length;
       const targetY = supportNodes.reduce((sum, node) => sum + node.position.y, 0) / supportNodes.length;
 
       Shape.prototype.calcularPropiedades.call(zapata);
-      const { XC, YC } = zapata.propiedades();
+      // Mismo motivo que en buildZapataPolygonProperties (foundationContract.js):
+      // zapata.propiedades() falla para zapatas importadas de .e2k (objetos
+      // planos, sin el método) -- se lee el campo directo.
+      const { XC, YC } = zapata._propiedades;
 
       const dX = targetX - XC;
       const dY = targetY - YC;
@@ -645,5 +854,24 @@ export const foundationMixin = {
       centeredCount === 1 ? "Zapata centrada en su columna." : `${centeredCount} zapatas centradas en sus columnas.`,
       "success"
     );
+  },
+
+  /**
+   * Guarda la presión admisible del suelo (Tn/m², del estudio de suelos)
+   * directo en la zapata (area.sigmaAdmisible) — un dato POR ZAPATA, no
+   * global como Df/γe, porque distintas zapatas de un mismo edificio
+   * pueden caer en zonas con distinta capacidad portante. Se llama desde
+   * el modal de resultados (input editable junto al chequeo de capacidad
+   * portante) — no requiere recalcular σ/Mu/Acero/Cortante (nada de eso
+   * depende de sigmaAdmisible), así que NO marca el análisis como
+   * desactualizado; solo re-emite el resultado para que el modal actualice
+   * el badge OK/EXCEDE al toque, sin tener que volver a correr "Calcular
+   * Zapatas".
+   */
+  setZapataSigmaAdmisible(areaId, value) {
+    const area = (this.areas || []).find((a) => Number(a.id) === Number(areaId));
+    if (!area) return;
+
+    area.sigmaAdmisible = Number(value) || null;
   },
 };

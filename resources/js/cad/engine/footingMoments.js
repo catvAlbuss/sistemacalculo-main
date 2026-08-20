@@ -77,16 +77,67 @@ export function getColumnSectionSize(shapes, nodeId) {
 }
 
 /**
+ * AGREGADO (ver conversación: investigación sobre zapatas triangulares/
+ * trapezoidales) — "ray casting": busca dónde el borde REAL del polígono
+ * cruza una línea horizontal (axis="x", para medir en X) o vertical
+ * (axis="y", para medir en Y) a la altura/columna `fixedCoord`, empezando
+ * en `rayOrigin` y viajando hacia `direction` (+1/-1) — el mismo principio
+ * que una linterna: la luz viaja en línea recta hasta chocar con la
+ * primera pared (el cruce MÁS CERCANO al origen), no una pared más lejana
+ * detrás de otra. Devuelve la coordenada del cruce, o `null` si el rayo no
+ * choca con ningún lado (no debería pasar con un polígono cerrado que
+ * contiene el origen, pero se cubre por seguridad).
+ *
+ * Mismo patrón que ya usa widthAtCut() más abajo (zapatas trapezoidales
+ * combinadas) — no es una técnica nueva en este archivo, solo aplicada acá
+ * para una sola dirección en vez del ancho completo de un corte.
+ */
+function rayCrossing(points, axis, fixedCoord, rayOrigin, direction) {
+  const n = points.length;
+  let nearest = null;
+
+  for (let i = 0; i < n; i++) {
+    const a = { x: Number(points[i]?.x) || 0, y: Number(points[i]?.y) || 0 };
+    const b = { x: Number(points[(i + 1) % n]?.x) || 0, y: Number(points[(i + 1) % n]?.y) || 0 };
+    const aFixed = axis === "x" ? a.y : a.x;
+    const bFixed = axis === "x" ? b.y : b.x;
+    if (aFixed === bFixed) continue; // lado paralelo al rayo, no lo cruza en un punto
+
+    const within = (aFixed <= fixedCoord && fixedCoord <= bFixed) || (bFixed <= fixedCoord && fixedCoord <= aFixed);
+    if (!within) continue;
+
+    const t = (fixedCoord - aFixed) / (bFixed - aFixed);
+    const crossCoord = axis === "x" ? a.x + t * (b.x - a.x) : a.y + t * (b.y - a.y);
+
+    const isForward = direction > 0 ? crossCoord > rayOrigin : crossCoord < rayOrigin;
+    if (!isForward) continue;
+
+    if (nearest === null || Math.abs(crossCoord - rayOrigin) < Math.abs(nearest - rayOrigin)) {
+      nearest = crossCoord;
+    }
+  }
+
+  return nearest;
+}
+
+/**
  * Voladizo (L) desde la cara de la columna hasta el borde de la zapata, en
- * cada dirección — usa el bounding box del polígono (simplificación válida
- * para zapatas rectangulares/ortogonales, el caso típico dibujado en el
- * CAD; para polígonos rotados habría que proyectar sobre los ejes locales
- * de la columna, no está cubierto acá). Devuelve el mayor voladizo de cada
- * eje (caso más desfavorable, criterio estándar de diseño).
+ * cada dirección — mide contra el borde REAL del polígono (ray casting,
+ * ver rayCrossing arriba), no contra su bounding box. Antes usaba el
+ * bounding box (minX/maxX/minY/maxY de TODO el dibujo): para un
+ * rectángulo/cuadrado alineado con los ejes da exactamente lo mismo (el
+ * bounding box ES la forma), pero para un triángulo o un trapecio no
+ * simétrico el bounding box mide hasta una esquina que a veces ni existe
+ * en la forma real — verificado con un caso de prueba: sobreestimaba L en
+ * 1.5 m sobre un total de 3.5 m (un 43% de más). Devuelve el mayor
+ * voladizo de cada eje (caso más desfavorable, criterio estándar de
+ * diseño) — mismo criterio de antes, solo que ahora cada lado se mide
+ * correctamente.
  */
 export function computeIsolatedOverhangs(polygonPoints, column, columnSize) {
-  const xs = (polygonPoints || []).map((point) => Number(point.x));
-  const ys = (polygonPoints || []).map((point) => Number(point.y));
+  const points = (polygonPoints || []).map((point) => ({ x: Number(point.x), y: Number(point.y) }));
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
 
   const minX = Math.min(...xs);
   const maxX = Math.max(...xs);
@@ -99,10 +150,19 @@ export function computeIsolatedOverhangs(polygonPoints, column, columnSize) {
   const columnX = Number(column?.x) || 0;
   const columnY = Number(column?.y) || 0;
 
-  const lxPos = maxX - columnX - halfB;
-  const lxNeg = columnX - minX - halfB;
-  const lyPos = maxY - columnY - halfH;
-  const lyNeg = columnY - minY - halfH;
+  // rayCrossing busca a la altura/columna EXACTA de la columna (fixedCoord
+  // = columnY para medir en X, columnX para medir en Y) — si por algún
+  // motivo el rayo no cruza nada (polígono degenerado, columna fuera de la
+  // forma), cae de vuelta al bounding box en vez de romperse.
+  const rightEdgeX = rayCrossing(points, "x", columnY, columnX, 1) ?? maxX;
+  const leftEdgeX = rayCrossing(points, "x", columnY, columnX, -1) ?? minX;
+  const topEdgeY = rayCrossing(points, "y", columnX, columnY, 1) ?? maxY;
+  const bottomEdgeY = rayCrossing(points, "y", columnX, columnY, -1) ?? minY;
+
+  const lxPos = rightEdgeX - columnX - halfB;
+  const lxNeg = columnX - leftEdgeX - halfB;
+  const lyPos = topEdgeY - columnY - halfH;
+  const lyNeg = columnY - bottomEdgeY - halfH;
 
   return {
     Lx: Math.max(lxPos, lxNeg, 0),
@@ -148,9 +208,15 @@ export function computeIsolatedFootingMoment(overhangs, sigmaUlt) {
  * que el bug no afectaba ni Acero (Bloque 5) ni Cortante (Bloque 6),
  * solo este mapa 2D.
  *
- * `bounds` = {minX,maxX,minY,maxY} del polígono (ver computeIsolatedOverhangs).
+ * `points` = vértices del polígono, para el ray casting (ver rayCrossing/
+ * computeIsolatedOverhangs) — se usa para encontrar el borde real EN LA
+ * FILA/COLUMNA de este punto específico, no el bounding box global (mismo
+ * arreglo que Bloque 3, aplicado acá punto por punto: dos puntos a la
+ * misma X pero distinta Y pueden tener un borde real distinto en un
+ * triángulo/trapecio, cosa que el bounding box no distinguía). `bounds`
+ * sigue como respaldo (por si el rayo no cruza nada en algún punto raro).
  */
-export function computeIsolatedMomentAtPoint(pointX, pointY, column, columnSize, sigmaUlt, bounds) {
+export function computeIsolatedMomentAtPoint(pointX, pointY, column, columnSize, sigmaUlt, points, bounds) {
   const halfB = (Number(columnSize?.b) || 0) / 2;
   const halfH = (Number(columnSize?.h) || 0) / 2;
   const columnX = Number(column?.x) || 0;
@@ -159,17 +225,28 @@ export function computeIsolatedMomentAtPoint(pointX, pointY, column, columnSize,
   const x = Number(pointX) || 0;
   const y = Number(pointY) || 0;
 
+  // Borde real del polígono en la fila (y=y) o columna (x=x) de ESTE
+  // punto, del lado que le toca según si está antes o después de la
+  // columna — reemplaza bounds.maxX/minX/maxY/minY (el bounding box de
+  // TODO el dibujo) por el cruce real en su propia fila/columna.
+  const farX = x >= columnX
+    ? rayCrossing(points, "x", y, columnX, 1) ?? bounds?.maxX ?? x
+    : rayCrossing(points, "x", y, columnX, -1) ?? bounds?.minX ?? x;
+  const farY = y >= columnY
+    ? rayCrossing(points, "y", x, columnY, 1) ?? bounds?.maxY ?? y
+    : rayCrossing(points, "y", x, columnY, -1) ?? bounds?.minY ?? y;
+
   // Distancia de este punto al borde libre de SU lado — se "recorta" en
   // la cara de la columna (Math.max/min contra columnX±halfB) para que el
   // momento quede PLANO (en su máximo) sobre toda la huella de la
   // columna, en vez de seguir creciendo más allá de la cara — el mismo
   // criterio de "sección crítica en la cara" que usa el Mu escalar.
   const edgeDistX = x >= columnX
-    ? Math.max(0, (bounds?.maxX ?? x) - Math.max(x, columnX + halfB))
-    : Math.max(0, Math.min(x, columnX - halfB) - (bounds?.minX ?? x));
+    ? Math.max(0, farX - Math.max(x, columnX + halfB))
+    : Math.max(0, Math.min(x, columnX - halfB) - farX);
   const edgeDistY = y >= columnY
-    ? Math.max(0, (bounds?.maxY ?? y) - Math.max(y, columnY + halfH))
-    : Math.max(0, Math.min(y, columnY - halfH) - (bounds?.minY ?? y));
+    ? Math.max(0, farY - Math.max(y, columnY + halfH))
+    : Math.max(0, Math.min(y, columnY - halfH) - farY);
 
   return {
     mx: (sigma * edgeDistX * edgeDistX) / 2,

@@ -44,10 +44,22 @@ export function pointInPolygon(point, polygonPoints) {
 /**
  * Nodos de apoyo (con `.soporte` asignado) cuya posición en planta cae
  * dentro del polígono de la zapata.
+ *
+ * AGREGADO (ver conversación: zapata detectada como "combinada" con una
+ * columna fantasma) — filtra también por altura (Z), no solo X/Y. Un .e2k
+ * real puede traer un RESTRAINT de empotramiento total mal puesto en un
+ * piso superior (error de modelado del cliente, ej. "Story1" en vez de
+ * solo "Base") — sin este filtro, ese nodo comparte X/Y con la columna
+ * real de la base y se contaba como una segunda columna dentro del mismo
+ * polígono, aunque esté 3m más arriba en el aire. zapataZ=null desactiva
+ * el filtro (compatibilidad con llamadas que no conocen la cota).
  */
-export function findSupportNodesInPolygon(nodes, polygonPoints) {
+export function findSupportNodesInPolygon(nodes, polygonPoints, zapataZ = null, zTolerance = 1.0) {
   return (nodes || []).filter((node) => {
-    return node?.soporte && pointInPolygon(node.position, polygonPoints);
+    if (!node?.soporte || !pointInPolygon(node.position, polygonPoints)) return false;
+    if (zapataZ == null) return true;
+    const nodeZ = Number(node.position?.z) || 0;
+    return Math.abs(nodeZ - Number(zapataZ)) <= zTolerance;
   });
 }
 
@@ -81,6 +93,23 @@ export function findStaticField(cadSystem, field) {
   const byCase = cadSystem?.seismicResultsByCase || {};
   for (const result of Object.values(byCase)) {
     if (result?.[field]?.reactions) return result[field];
+  }
+
+  // TEMPORAL (ver conversación: el backend en este momento solo devuelve
+  // "static" combinado -- muerta+viva juntas -- en vez de static_dead/
+  // static_live por separado; desajuste de contrato detectado en vivo el
+  // día de hoy). Sin esto, Pm quedaría en 0 siempre y ROMPERÍA por completo
+  // el cálculo de zapatas (σ, Mu, Acero, Cortante). Mientras se arregla del
+  // lado del backend: "static_dead" cae de vuelta al combinado completo, y
+  // "static_live" se queda sin dato (no se duplica el total) -- así
+  // Pm+Pv en las combinaciones de zapatas sigue sumando exactamente lo
+  // mismo que el estático real, aunque la separación puntual Pm vs Pv dead
+  // vs live ya no sea exacta hasta que el backend la vuelva a separar.
+  if (field === "static_dead") {
+    if (cadSystem?.seismicResults?.static?.reactions) return cadSystem.seismicResults.static;
+    for (const result of Object.values(byCase)) {
+      if (result?.static?.reactions) return result.static;
+    }
   }
 
   return null;
@@ -281,8 +310,15 @@ export function buildZapataPolygonProperties(zapatas) {
     const edges = computeEdgeLengths(points);
 
     return {
+      id: zapata.id,
       name: `Polígono ${index + 1}`,
-      properties: zapata.propiedades(),
+      // AGREGADO (ver conversación): zapata.propiedades() falla para
+      // zapatas importadas de .e2k -- son objetos planos, no instancias
+      // de Shape, así que no tienen el método (aunque calcularPropiedades
+      // SÍ corre bien vía .call() dos líneas arriba, porque solo usa
+      // this.points). Se lee el campo directo en vez de llamar al método,
+      // funciona igual para zapatas dibujadas a mano y para importadas.
+      properties: zapata._propiedades,
       points,
       edges,
       dimensions: computeRectangularDimensions(points, edges),

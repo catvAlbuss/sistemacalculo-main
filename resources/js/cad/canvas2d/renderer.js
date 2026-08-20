@@ -22,7 +22,7 @@ import {
 } from "../diagrams/frameForceDisplayPanel.js";
 
 import { computeSigmaColorRange, buildSigmaColorBins, drawSigmaLegend } from "./zapataPressureLayer.js";
-import { computeMomentColorRange, buildMomentColorBins, drawMomentLegend } from "./zapataMomentLayer.js";
+import { computeMomentColorRange, buildMomentColorBins, drawMomentLegend, componentLabel, componentUnit } from "./zapataMomentLayer.js";
 import { lookupGridIndex, drawHoverTooltip } from "./zapataGridIndex.js";
 
 
@@ -1788,8 +1788,10 @@ export class DiseñoRenderer {
    * drawZapataPressureLayer (celdas + caché + leyenda), pero leyendo
    * `polygon.momentField` (calculado en foundation.js) en vez de `ZZ`. Se
    * activa con `context.showZapataMomentLayer`, combinación con
-   * `context.zapataMomentComboIndex`, dirección (solo aisladas) con
-   * `context.zapataMomentDirection` ('x'|'y') — los tres en cad_sys.js.
+   * `context.zapataMomentComboIndex`, componente (solo aisladas) con
+   * `context.zapataMomentDirection` ('mx'|'my'|'mxy'|'v13'|'v23') — los
+   * tres en cad_sys.js. mxy/v13/v23 solo existen para zapatas con Bloque
+   * 3b/6b (elementos finitos) exitoso — ver foundation.js.
    */
   drawZapataMomentLayer(context) {
     if (!context.showZapataMomentLayer) return;
@@ -1799,7 +1801,7 @@ export class DiseñoRenderer {
     if (!polygons.length) return;
 
     const comboIndex = context.zapataMomentComboIndex ?? 0;
-    const direction = context.zapataMomentDirection || "x";
+    const direction = context.zapataMomentDirection || "mx";
     const ctx = context.ctx;
 
     let cache = this._zapataMomentCache;
@@ -1876,21 +1878,23 @@ export class DiseñoRenderer {
     // Tooltip con el valor exacto donde está el cursor — mismo mecanismo
     // que la capa de presión (ver ahí el porqué de context.mousePos).
     if (context.mousePos) {
-      const label = anyCombined ? "M" : direction === "y" ? "My" : "Mx";
+      const label = anyCombined ? "M" : componentLabel(direction);
+      const unit = anyCombined ? "Tn·m/m" : componentUnit(direction);
       for (const { isCombined, hover } of cache.perPolygon) {
         const idx = lookupGridIndex(hover?.index, context.mousePos.x, context.mousePos.y);
         if (idx === null) continue;
         const value = hover.values[idx];
         if (!Number.isFinite(value)) continue;
         const screenPt = this.projectPoint({ position: { x: hover.xs[idx], y: hover.ys[idx], z: 0 } }, context);
-        drawHoverTooltip(ctx, screenPt.x, screenPt.y, value, isCombined ? "M" : label, "Tn·m/m");
+        drawHoverTooltip(ctx, screenPt.x, screenPt.y, value, isCombined ? "M" : label, unit);
         break;
       }
     }
 
     // Si hay zapatas aisladas Y combinadas visibles a la vez, la etiqueta
-    // de dirección (Mx/My) solo aplica a las aisladas — se muestra la
-    // genérica "M" en ese caso mixto para no rotular mal a las combinadas.
+    // de componente (Mx/My/Mxy/V13/V23) solo aplica a las aisladas — se
+    // muestra la genérica "M" en ese caso mixto para no rotular mal a las
+    // combinadas.
     drawMomentLegend(ctx, ctx.canvas.width, ctx.canvas.height, cmin, cmax, direction, anyCombined);
   }
 

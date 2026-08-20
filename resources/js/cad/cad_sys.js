@@ -551,7 +551,27 @@ export default () => ({
     // arriba, pero pintando momento en vez de presión.
     this.showZapataMomentLayer = false;
     this.zapataMomentComboIndex = 0;
-    this.zapataMomentDirection = "x";
+    // 'mx'|'my'|'mxy'|'v13'|'v23' — las tres últimas solo pintan algo en
+    // zapatas aisladas rectangulares con Bloque 3b/6b exitoso (ver
+    // foundation.js / zapataMomentLayer.js).
+    this.zapataMomentDirection = "mx";
+    // AGREGADO (ver conversación: cimentacion-v2/Safecito ya tenía estos
+    // campos editables — el CAD se había quedado con los valores fijos en
+    // DEFAULT_DF/DEFAULT_GAMMA_E de foundation.js). Mismos valores por
+    // defecto que ya estaban (2 y 1.8) — esto no cambia ningún resultado
+    // ya validado, solo permite editarlos antes de calcular.
+    this.zapataDf = 2;
+    this.zapataGammaE = 1.8;
+    // AGREGADO (ver conversación: comparación controlada contra ETABS —
+    // hace falta que la malla del Bloque 3b/6b coincida con la que se
+    // declaró en ETABS para que la comparación sea justa). 50x50 por
+    // defecto -- subido desde 20 al fusionar momento y cortante en una
+    // sola llamada (ver zapataShellDesign.js/foundation.js): el cortante
+    // necesita esa malla fina para converger (a 20x20 subestima la fuerza
+    // total ~15%), y como ahora comparten malla, el momento también sale
+    // con ella. El usuario puede subirlo más si quiere igualar una malla
+    // más fina declarada en ETABS.
+    this.zapataShellMeshN = 50;
     this.referencePoints = [];
     this.referencePlanes = this.referencePlanes || [];
     this.dimensionLines = [];

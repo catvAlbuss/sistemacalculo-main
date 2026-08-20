@@ -9,7 +9,8 @@
 #
 # Contrato:
 #   argv[1]  = modo (analyze | analyze-3d | seismic-analyze | seismic-modal
-#              | frame-forces | seismic-parse-spectrum | health | opensees-status)
+#              | frame-forces | seismic-parse-spectrum | zapata-shell-design
+#              | health | opensees-status)
 #   stdin    = payload JSON (puede ser vacio para health/opensees-status)
 #   stdout   = UNA linea con el JSON de resultado (nada mas: sin prints,
 #              sin banners de import)
@@ -142,6 +143,11 @@ def _dispatch(mode, data, flask_app, sa):
             seismic_cases=seismic_cases,
             num_stations=num_stations,
         )
+
+    if mode == "zapata-shell-design":
+        if not flask_app.OPENSEES_AVAILABLE:
+            return {"success": False, "error": "OpenSeesPy no está disponible"}
+        return flask_app.run_zapata_shell_design(data)
 
     if mode == "seismic-parse-spectrum":
         filename = data.get("filename", "spectrum.txt")

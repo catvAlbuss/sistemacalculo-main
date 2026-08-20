@@ -15,6 +15,7 @@ def _dump_seismic_payload_if_enabled(data):
     Escribe _debug_payloads/last_seismic_payload.json (gitignored).
     (Es código de servidor: NO afecta el navegador ni recarga la página.)
     """
+    print(f">>>>> DEBUG DUMP_SEISMIC_PAYLOAD visto por el worker = {os.environ.get('DUMP_SEISMIC_PAYLOAD')!r} <<<<<")
     if os.environ.get("DUMP_SEISMIC_PAYLOAD", "").strip().lower() not in ("1", "true", "on", "yes"):
         return
     try:
@@ -158,6 +159,98 @@ def opensees_status():
             ),
         }
     )
+
+
+@app.route("/api/zapata/shell-design", methods=["POST"])
+def zapata_shell_design_endpoint():
+    if not OPENSEES_AVAILABLE:
+        return jsonify({"success": False, "error": "OpenSeesPy no está disponible"}), 503
+
+    try:
+        result = run_zapata_shell_design(request.json or {})
+        return jsonify(result)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+def run_zapata_shell_design(data):
+    """Momento (M11/M22/M12) Y cortante (V13/V23) de referencia para una
+    zapata AISLADA rectangular, via elementos finitos reales, en UNA sola
+    llamada -- replica el flujo que usa el cliente en ETABS: Csuelo
+    uniforme + apoyo puntual en la columna, bordes libres (ver
+    python-backend/zapata_shell_solver.py:calcular_zapata_shell_completo).
+
+    AGREGADO (ver conversacion): antes eran 2 endpoints separados
+    (/shell-moment a malla 20x20, /shell-shear a malla 50x50) -- 2 solves
+    de OpenSeesPy y 2 peticiones HTTP por zapata aislada. Se fusionaron en
+    uno: el cortante ya necesitaba la malla fina, y una malla fina nunca
+    perjudica al momento, asi que ahora ambos salen de UN solo solve.
+    Con el dev server de Windows corriendo single-threaded (ver
+    conversacion), esto corta a la mitad la cola de peticiones por zapata.
+
+    Es un VALOR DE REFERENCIA que se muestra junto al Mu/cortante del
+    metodo rigido del CAD (footingMoments.js/footingShear.js) -- Bloque 6
+    (cortante) lo prefiere cuando esta disponible; Bloque 5 sigue usando
+    el metodo rigido para el acero.
+    """
+    from zapata_shell_solver import calcular_zapata_shell_completo
+
+    Lx = float(data["Lx"])
+    Ly = float(data["Ly"])
+    q = float(data["q"])
+    h = float(data.get("h") or 0.40)
+    nu = float(data.get("nu") or 0.2)
+    columna_x = float(data.get("columna_x", Lx / 2))
+    columna_y = float(data.get("columna_y", Ly / 2))
+    # SUPUESTO cuando la columna no tiene seccion asignada en el CAD -- ver
+    # conversacion: sin el tamano real de columna, el momento/cortante
+    # justo en el nodo de apoyo es una singularidad matematica sin sentido
+    # fisico: se evalua en la CARA (momento) o seccion critica (cortante)
+    # de una columna asumida (practica estandar ACI 318/E.060).
+    columna_bx = float(data.get("columna_bx") or 0.30)
+    columna_by = float(data.get("columna_by") or 0.30)
+    recubrimiento = float(data.get("recubrimiento") or 0.075)
+    fpc_mpa = float(data.get("fpcMPa") or 21.0)  # ~ f'c 210 kg/cm2
+
+    if data.get("E"):
+        E_tonf_m2 = float(data["E"])
+    else:
+        fpc_kgf_cm2 = fpc_mpa * 10.19716
+        Ec_kgf_cm2 = 15000 * (fpc_kgf_cm2 ** 0.5)  # Ec = 15000*sqrt(f'c), E.060
+        E_tonf_m2 = Ec_kgf_cm2 * 10  # 1 kgf/cm2 = 10 Tonf/m2
+
+    # 50x50 por defecto -- el cortante necesita esta malla fina para
+    # converger (a 20x20 subestima la fuerza total ~15%); el momento sale
+    # igual de bien o mejor con ella, asi que aplica a ambos.
+    nx = int(data.get("nx") or 50)
+    ny = int(data.get("ny") or 50)
+
+    r = calcular_zapata_shell_completo(
+        Lx=Lx, Ly=Ly, h=h, E=E_tonf_m2, nu=nu, q=q,
+        columna_x=columna_x, columna_y=columna_y,
+        fpc_mpa=fpc_mpa,
+        columna_bx=columna_bx, columna_by=columna_by,
+        recubrimiento=recubrimiento,
+        nx=nx, ny=ny,
+    )
+
+    campo = {
+        "x": r.pop("campo_x"), "y": r.pop("campo_y"),
+        "Mx": r.pop("campo_mx"), "My": r.pop("campo_my"), "Mxy": r.pop("campo_mxy"),
+        "V13": r.pop("campo_v13"), "V23": r.pop("campo_v23"),
+        "MMax": r.pop("campo_mmax"), "MMin": r.pop("campo_mmin"), "VMax": r.pop("campo_vmax"),
+    }
+
+    return {
+        "success": True,
+        "momentoDiseno": r["momento_diseno"],
+        "cortanteDiseno": r["cortante_diseno"],
+        "campo": campo,
+        "advertencia": "Columna asumida ({:.0f}x{:.0f}cm) si el CAD no tenia seccion real asignada -- valor de referencia, no de diseno. Cortante validado solo para zapatas centradas (caso F8 4x2m: 2.4-4.6% vs ETABS real); zapatas descentradas sin validar.".format(
+            columna_bx * 100, columna_by * 100
+        ),
+    }
 
 
 @app.route("/api/analyze", methods=["POST"])

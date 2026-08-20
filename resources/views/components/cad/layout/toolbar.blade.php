@@ -1,7 +1,7 @@
 <!-- Toolbar -->
 <div>
   <x-cad.menu-bar />
-  <div class="cad-border flex h-[64px] items-stretch overflow-x-auto overflow-y-hidden border-b px-1">
+  <div class="cad-border cad-toolbar-scroll flex h-[64px] items-stretch overflow-x-auto overflow-y-hidden border-b px-1">
     <!-- -------------------------APARTADO DE DISEÑAR-------------------------- -->
     <x-cad.ui.ribbon-group title="Diseñar">
       <x-cad.ui.ribbon-button clickHandler="openNewModelDialog()" toggle="false" label="Nuevo Modelo">
@@ -190,6 +190,34 @@
 
     <x-cad.ui.ribbon-group title="Cimentación">
 
+      {{-- Df / γe editables (ver conversación: cimentacion-v2/Safecito ya
+           los deja editar en su propio formulario, arriba de todo; acá se
+           habían quedado fijos en foundation.js). Mismos valores por
+           defecto de siempre (2 y 1.8) — cambiarlos solo afecta el próximo
+           "Calcular Zapatas" que corras, no reescribe resultados viejos. --}}
+      <div class="flex h-full flex-col items-center justify-center self-center gap-0.5 px-1">
+        <div class="flex gap-1">
+          <input type="number" step="any" x-model.number="zapataDf"
+            title="Df — profundidad de desplante (m)"
+            class="w-[52px] rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200 outline-none focus:border-blue-500">
+          <input type="number" step="any" x-model.number="zapataGammaE"
+            title="γe — peso específico del suelo (Tonf/m³)"
+            class="w-[52px] rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200 outline-none focus:border-blue-500">
+        </div>
+        <label class="text-[9px] leading-tight text-gray-500">Df / γe</label>
+      </div>
+
+      {{-- AGREGADO (ver conversación): malla del solver de elementos finitos
+           (Bloque 3b/6b, momento Y cortante comparten una sola malla desde
+           la fusión) — editable para poder igualarla a la malla que se
+           declaró en ETABS al comparar resultados. --}}
+      <div class="flex h-full flex-col items-center justify-center self-center gap-0.5 px-1">
+        <input type="number" step="1" min="4" max="200" x-model.number="zapataShellMeshN"
+          title="Malla del Bloque 3b/6b (elementos finitos, momento Y cortante) — N x N. Por defecto 50 (el cortante necesita esa finura para converger; a menos de eso subestima la fuerza total). Solo súbelo si necesitas igualar una malla más fina declarada en ETABS (Mesh Object Into N by N Elements) para comparar en el mismo punto — mallas muy grandes tardan más en calcular."
+          class="w-[52px] rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200 outline-none focus:border-blue-500">
+        <label class="text-[9px] leading-tight text-gray-500">Malla 3b/6b (N×N)</label>
+      </div>
+
       <x-cad.ui.ribbon-button clickHandler="calculateZapatas()" toggle="false" label="Calcular Zapatas">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
           <!-- Base de concreto de la zapata combinada (Rectángulo inferior) -->
@@ -242,12 +270,26 @@
         <label class="text-[9px] leading-tight text-gray-500">Combo</label>
       </div>
 
-      {{-- Mapa de momento 2D (Bloque 3, evaluado punto a punto — ver
-           canvas2d/zapataMomentLayer.js). Aproximación derivada de la
-           misma fórmula de voladizo/viga del método rígido, NO un M11 de
-           elementos finitos — ver el comentario en ese archivo. --}}
+      {{-- "Diagrama de Resultantes 2D" (nombre tomado de ETABS: "Resultant
+           M11/V13 Diagram") — ver canvas2d/zapataMomentLayer.js.
+           Para zapatas AISLADAS RECTANGULARES con Bloque 3b/6b exitoso,
+           los 5 componentes (M11/M22/M12/V13/V23) pintan el campo REAL de
+           elementos finitos, que ya es la envolvente de las 11
+           combinaciones (misma σmax que alimenta todo el bloque de
+           diseño) — "Combo" nunca le afecta a ninguno de los 5.
+
+           AGREGADO (ver conversación): el selector de Combo se OCULTA
+           siempre en este panel (antes solo se ocultaba para M12/V13/V23,
+           dejando M11/M22 con el selector visible) -- generalizado a
+           pedido: mostrar "Comb X" ahí sugiere que algo cambia cuando
+           nunca lo hace, para ninguno de los 5. Efecto secundario
+           conocido: las zapatas triangulares/trapezoidales/combinadas
+           (que SÍ varían M11/M22 por combo con el método rígido, al no
+           tener FEM) quedan fijas en zapataMomentComboIndex (Comb 1 por
+           defecto) sin forma de cambiarlo desde este panel -- caso poco
+           usado hoy, aceptado a cambio de simplificar el caso común. --}}
       <x-cad.ui.ribbon-button clickHandler="showZapataMomentLayer = !showZapataMomentLayer"
-        toggle="showZapataMomentLayer" label="Momento 2D">
+        toggle="showZapataMomentLayer" label="Diagrama de Resultantes">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
           <circle cx="12" cy="12" r="9" />
           <circle cx="12" cy="12" r="4.5" />
@@ -257,19 +299,30 @@
 
       <div class="flex h-full flex-col items-center justify-center self-center gap-0.5 px-1" x-show="showZapataMomentLayer" x-cloak>
         <div class="flex gap-1">
-          <select x-model.number="zapataMomentComboIndex"
+          {{-- Ver comentario grande arriba: oculto siempre -- los 5
+               componentes muestran la envolvente FEM, "Comb" nunca los
+               afecta. zapataMomentComboIndex queda en su valor actual
+               (Comb 1 por defecto) para el caso rígido de combinadas. --}}
+          <select x-model.number="zapataMomentComboIndex" x-show="false"
             class="w-[70px] rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200 outline-none focus:border-blue-500">
             <template x-for="n in 11" :key="n">
               <option :value="n - 1" x-text="'Comb ' + n"></option>
             </template>
           </select>
           <select x-model="zapataMomentDirection"
-            class="w-[46px] rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200 outline-none focus:border-blue-500">
-            <option value="x">Mx</option>
-            <option value="y">My</option>
+            title="M12/V13/V23/MMax/MMin/VMax solo pintan en zapatas aisladas rectangulares con Bloque 3b/6b (elementos finitos) exitoso — misma nomenclatura que el selector 'Component' de ETABS."
+            class="w-[52px] rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200 outline-none focus:border-blue-500">
+            <option value="mx">M11</option>
+            <option value="my">M22</option>
+            <option value="mxy">M12</option>
+            <option value="mmax">MMax</option>
+            <option value="mmin">MMin</option>
+            <option value="v13">V13</option>
+            <option value="v23">V23</option>
+            <option value="vmax">VMax</option>
           </select>
         </div>
-        <label class="text-[9px] leading-tight text-gray-500">Combo / Dirección</label>
+        <label class="text-[9px] leading-tight text-gray-500">Componente</label>
       </div>
     </x-cad.ui.ribbon-group>
     <x-cad.ui.ribbon-group title="Otros">

@@ -61,9 +61,33 @@ export const coreUiMixin = {
 
   windowResize() {
     // Set actual size in memory (scaled to account for extra pixel density).
+    // AGREGADO (ver conversación): se mide el CONTENEDOR PADRE del canvas
+    // (getBoundingClientRect) en vez del propio canvas via getComputedStyle
+    // -- un <canvas> tiene tamaño intrínseco propio (sus atributos width/
+    // height, ya escalados por devicePixelRatio en la llamada anterior a
+    // esta), y en un reflow ambiguo (ej. al abrir/cerrar DevTools, que
+    // dispara window.resize) ese tamaño intrínseco podía contaminar la
+    // lectura de su propio getComputedStyle, multiplicándose de nuevo por
+    // "scale" en cada resize -- el canvas (y con él toda la página) crecía
+    // un poco más en cada evento. Medir el contenedor padre rompe el ciclo:
+    // su tamaño no depende del tamaño intrínseco de su hijo canvas.
+    // AGREGADO (ver conversación): se fija el tamaño del canvas en PÍXELES
+    // EXPLÍCITOS (no en "100%" porcentual) -- confirmado con logs reales que
+    // un <canvas> con height:100% dentro de esta cadena de grid/flex
+    // anidada NO estaba resolviendo su alto contra el contenedor real: caía
+    // de vuelta a preservar la proporción de su resolución interna ANTERIOR
+    // (width/height como atributos), aplicada sobre el ancho ya resuelto --
+    // por eso la altura renderizada crecía junto con el ancho disponible
+    // (a más ancho de ventana, más alto "inventado" por esa proporción
+    // vieja), causando el scroll vertical al cerrar DevTools. Fijar
+    // style.width/height en px explícitos evita por completo esa
+    // resolución porcentual/de proporción intrínseca.
     const scale = window.devicePixelRatio; // Change to 1 on retina screens to see blurry canvas.
-    this.canvas.width = parseFloat(getComputedStyle(this.canvas).width) * scale;
-    this.canvas.height = parseFloat(getComputedStyle(this.canvas).height) * scale;
+    const rect = this.canvas.parentElement.getBoundingClientRect();
+    this.canvas.style.width = `${rect.width}px`;
+    this.canvas.style.height = `${rect.height}px`;
+    this.canvas.width = rect.width * scale;
+    this.canvas.height = rect.height * scale;
     this.grid.resize(this.canvas);
     this.fitContentToScreen();
   },

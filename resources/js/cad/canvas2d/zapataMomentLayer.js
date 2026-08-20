@@ -25,20 +25,60 @@ import { buildGridIndex } from "./zapataGridIndex.js";
 // puntos por zapata).
 const COLOR_BINS = 48;
 
+// AGREGADO (ver conversación): además de Mx/My (rígido o FEM), el campo
+// "isolated-fem" ahora puede traer Mxy, V13 y V23 (Bloque 3b/6b) — todos
+// disponibles como opción del selector del botón "Diagrama de Resultantes
+// 2D" (nombre tomado de ETABS), compartiendo una sola grilla de
+// coordenadas (ver foundation.js). Usado solo para saber qué unidad
+// mostrar (Tn/m cortante vs Tn·m/m momento) — ver componentUnit.
+const SHEAR_COMPONENTS = new Set(["v13", "v23", "vmax"]);
+
+// AGREGADO (ver conversación): misma nomenclatura que ETABS (M11/M22/M12)
+// en vez de Mx/My/Mxy — el ingeniero compara estos valores directo contra
+// las lecturas de ETABS, y ahí no existe "Mx", existe "M11". MMax/MMin/
+// VMax: resultantes derivadas (Mohr para momentos, √(V13²+V23²) para
+// cortante) — igual selector "Component" que ETABS, ver zapata_shell_solver.py.
+const COMPONENT_LABELS = { mx: "M11", my: "M22", mxy: "M12", v13: "V13", v23: "V23", mmax: "MMax", mmin: "MMin", vmax: "VMax" };
+
+/** Etiqueta legible de la componente elegida en el selector "Diagrama de Resultantes 2D". */
+export function componentLabel(direction) {
+  return COMPONENT_LABELS[direction] || direction;
+}
+
+/** Unidad de la componente — cortante es Tn/m (fuerza/longitud), momento Tn·m/m. */
+export function componentUnit(direction) {
+  return SHEAR_COMPONENTS.has(direction) ? "Tn/m" : "Tn·m/m";
+}
+
 /**
- * Extrae la serie de valores de momento para una combinación (y, en
- * aisladas, una dirección X/Y) de `polygon.momentField`. Las combinadas
- * no tienen dirección propiamente (es 1D a lo largo de la viga), así que
- * ignoran `direction` y siempre devuelven `value`.
+ * Extrae la serie de valores (momento o cortante) para una combinación (y,
+ * en aisladas, una componente Mx/My/Mxy/V13/V23) de `polygon.momentField`.
+ * Las combinadas no tienen componente propiamente (es 1D a lo largo de la
+ * viga), así que ignoran `direction` y siempre devuelven `value`.
+ *
+ * AGREGADO (ver conversación): tipo "isolated-fem" (elementos finitos
+ * reales, Bloque 3b/6b) — ya es la envolvente de las 11 combinaciones (un
+ * solo campo, no uno por combo), así que ignora `comboIndex` a propósito.
  */
-export function getMomentValuesForCombo(momentField, comboIndex, direction = "x") {
+export function getMomentValuesForCombo(momentField, comboIndex, direction = "mx") {
   if (!momentField) return [];
+
+  if (momentField.type === "isolated-fem") {
+    const byComponent = {
+      mx: momentField.mx, my: momentField.my, mxy: momentField.mxy,
+      v13: momentField.v13, v23: momentField.v23,
+      mmax: momentField.mmax, mmin: momentField.mmin, vmax: momentField.vmax,
+    };
+    return byComponent[direction] || [];
+  }
 
   if (momentField.type === "combined") {
     return momentField.value?.[comboIndex] || [];
   }
 
-  const series = direction === "y" ? momentField.my : momentField.mx;
+  // Método rígido: solo tiene Mx/My (nunca Mxy/V13/V23) — cualquier otra
+  // componente pedida simplemente no tiene datos que pintar.
+  const series = direction === "my" ? momentField.my : direction === "mx" ? momentField.mx : null;
   return series?.[comboIndex] || [];
 }
 
@@ -84,8 +124,15 @@ function estimateGridStep(values) {
  * del tamaño real de la cuadrícula, un solo fill() por grupo).
  */
 export function buildMomentColorBins(polygon, comboIndex, direction, cmin, cmax) {
-  const xs = flattenNumeric(polygon.XX);
-  const ys = flattenNumeric(polygon.YY);
+  // AGREGADO (ver conversación): el campo "isolated-fem" trae sus PROPIAS
+  // coordenadas (la malla del solver de elementos finitos, distinta a la
+  // nube de puntos XX/YY que trae /zapatas2 para la presión) — no se puede
+  // reusar XX/YY ahí, el tamaño y posición de los puntos no coincide.
+  // Mx/My/Mxy/V13/V23 comparten UNA sola grilla (momento y cortante salen
+  // del mismo solve desde la fusión — ver foundation.js/zapataShellDesign.js).
+  const isFem = polygon.momentField?.type === "isolated-fem";
+  const xs = isFem ? (polygon.momentField.x || []) : flattenNumeric(polygon.XX);
+  const ys = isFem ? (polygon.momentField.y || []) : flattenNumeric(polygon.YY);
   const values = getMomentValuesForCombo(polygon.momentField, comboIndex, direction);
   const range = cmax - cmin || 1e-6;
 
@@ -175,7 +222,7 @@ export function drawMomentLegend(ctx, canvasWidth, canvasHeight, cmin, cmax, dir
   }
 
   ctx.textAlign = "center";
-  const label = isCombined ? "M (Tn·m/m)" : `M${direction === "y" ? "y" : "x"} (Tn·m/m)`;
+  const label = isCombined ? "M (Tn·m/m)" : `${componentLabel(direction)} (${componentUnit(direction)})`;
   ctx.fillText(label, x + LEGEND_WIDTH / 2, y - 12);
 
   ctx.restore();
