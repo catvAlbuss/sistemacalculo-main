@@ -12,7 +12,7 @@ from design.column_interaction import (
     beta1_from_fc,
     normalize_design_code,
 )
-from design.column_slenderness import magnify_nonsway
+from design.column_slenderness import magnify_nonsway, minimum_eccentricity_variants
 from design.column_shear import column_shear_design
 
 
@@ -762,6 +762,30 @@ def frame_forces():
         )
 
 
+# Malla de fibra para los CHEQUEOS de demanda (el ratio), mas gruesa que la de
+# la superficie dibujada. Son ~44 chequeos por columna y cada uno hace ~100
+# evaluaciones, asi que aca esta el 80% del tiempo del diseno.
+#
+# Medido en la C45x45 contra la malla de 60x60: 40x40 da 0.0069% de error,
+# 30x30 da 0.0165% y 24x24 da 0.030%. Se toma 30 — un orden de magnitud por
+# debajo del 0.03% con que la curva calza contra ETABS, y 3.4x mas rapido
+# (0.169 s -> 0.050 s por chequeo).
+#
+# Esto SOLO es viable desde que las fibras entran con peso PARCIAL: antes el
+# bloque de compresion se cuantizaba al tamano de celda y una malla gruesa
+# metia varios por ciento de error (ver project-fiber-partial-weight).
+_DEMAND_FIBER_GRID = 30
+
+# Cache de superficies P-M-M por geometria. Todas las columnas de un modelo
+# suelen compartir seccion (en el de referencia, las 9 son C45x45) y la
+# superficie NO depende de la demanda: se recalculaba 9 veces la misma.
+#
+# Solo sirve en Windows/dev, donde el backend es un proceso largo; en produccion
+# cada request es un subproceso nuevo. Igual es donde mas molesta la espera.
+_SURFACE_CACHE = {}
+_SURFACE_CACHE_MAX = 32
+
+
 def _run_column_interaction(data):
     """
     Diagrama de interacción P-M-M biaxial (ACI-318) para una columna
@@ -818,14 +842,25 @@ def _run_column_interaction(data):
     code = normalize_design_code(data.get("code"))
     beta1 = beta1_from_fc(fc)
 
-    surface = compute_pmm_surface(
-        b=b, h=h, fc=fc, fy=fy, cover=cover, bar_diameter=bar_diameter,
-        n3=n3, n2=n2, bar_area=bar_area, tied=tied,
-        num_angles=int(data.get("numAngles", 24)),
-        num_c=int(data.get("numC", 21)),
-        confine_bar_diameter=confine_bar_diameter,
-        code=code,
+    surf_key = (
+        b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area, tied,
+        int(data.get("numAngles", 24)), int(data.get("numC", 21)),
+        confine_bar_diameter, code,
     )
+    surface = _SURFACE_CACHE.get(surf_key)
+    if surface is None:
+        surface = compute_pmm_surface(
+            b=b, h=h, fc=fc, fy=fy, cover=cover, bar_diameter=bar_diameter,
+            n3=n3, n2=n2, bar_area=bar_area, tied=tied,
+            num_angles=surf_key[10],
+            num_c=surf_key[11],
+            confine_bar_diameter=confine_bar_diameter,
+            code=code,
+        )
+        if surface is not None:
+            if len(_SURFACE_CACHE) >= _SURFACE_CACHE_MAX:
+                _SURFACE_CACHE.clear()
+            _SURFACE_CACHE[surf_key] = surface
 
     if surface is None:
         return {"success": False, "error": "Geometría/patrón de armado inválido (no se pudo ubicar varilla)."}
@@ -855,13 +890,36 @@ def _run_column_interaction(data):
             h_dim=h_axis[component],
         )
         if res["unstable"]:
-            return m_bottom, res
-        # Se conserva el SIGNO del momento gobernante (el de mayor magnitud):
-        # capacity_ratio_radial usa el angulo atan2(M3, M2), asi que perder el
-        # signo rotaria la demanda a otro cuadrante de la superficie.
-        gobernante = m_bottom if abs(m_bottom) >= abs(m_top) else m_top
+            return m_bottom, m_bottom, res
+
+        # QUE MOMENTO SE DISENA EN ESTA ESTACION.
+        #
+        # `res["m2"]` es el MAYOR de los dos extremos: eso es lo que pide ACI
+        # 318 §6.6.4.5.2 para el caso ESBELTO, donde Mc = delta_ns * M2 aplica a
+        # todo el elemento. Pero si la columna NO es esbelta no hay
+        # magnificacion y cada seccion se disena con SU PROPIO momento; usar el
+        # del otro extremo infla la estacion menos cargada.
+        #
+        # Medido contra el Column Element Details de ETABS (C7 Story1, base):
+        # su `NonSway Mns` vale -0.3831, el momento de LA BASE, con delta_ns=1.
+        # Nosotros llevabamos 1.42, que es el del TOPE — y eso rotaba el angulo
+        # de la demanda de 254 a 42 grados.
+        if res["applied"]:
+            base_mom = res["m2"]                       # esbelta: el mayor extremo
+            gobernante = m_bottom if abs(m_bottom) >= abs(m_top) else m_top
+        else:
+            base_mom = abs(m_bottom)                   # no esbelta: el propio
+            gobernante = m_bottom if m_bottom else (m_top if m_top else 1.0)
+
+        # El signo se conserva porque capacity_ratio_radial toma el angulo
+        # atan2(M2, M3): perderlo rotaria la demanda a otro cuadrante.
         signo = -1.0 if gobernante < 0 else 1.0
-        return signo * res["mc"], res
+
+        # Las DOS versiones: con el piso de excentricidad minima y sin el. Las
+        # necesita el chequeo de e_min por eje, mas abajo.
+        con_min = signo * max(base_mom, res["m2Min"]) * res["deltaNs"]
+        sin_min = signo * base_mom * res["deltaNs"]
+        return con_min, sin_min, res
 
     demand_checks = None
     demand_points = data.get("demandPoints")
@@ -873,20 +931,48 @@ def _run_column_interaction(data):
             m3_u = float(pt.get("M3", 0.0))
 
             slender_detail = None
+            variantes = [(m2_u, m3_u)]
+
             if slender_on:
                 m2_top = float(pt.get("M2Top", m2_u))
                 m3_top = float(pt.get("M3Top", m3_u))
-                m2_u, det2 = _magnify("M2", m2_u, m2_top, p_u)
-                m3_u, det3 = _magnify("M3", m3_u, m3_top, p_u)
+                m2_con, m2_sin, det2 = _magnify("M2", m2_u, m2_top, p_u)
+                m3_con, m3_sin, det3 = _magnify("M3", m3_u, m3_top, p_u)
                 slender_detail = {"M2": det2, "M3": det3}
 
-            result = capacity_ratio_radial(
-                b=b, h=h, fc=fc, fy=fy, cover=cover, bar_diameter=bar_diameter,
-                n3=n3, n2=n2, bar_area=bar_area, beta1=beta1,
-                target_p=p_u, target_m2=m2_u, target_m3=m3_u,
-                confine_bar_diameter=confine_bar_diameter,
-                code=code, tied=tied,
-            )
+                # EXCENTRICIDAD MINIMA: UN EJE POR VEZ, no los dos a la vez.
+                #
+                # La excentricidad accidental que cubre el minimo de
+                # ACI 318 §6.6.4.5.4 / E.060 10.12.3.2 actua en UNA direccion,
+                # no simultaneamente en las dos. Aplicarla a los dos ejes
+                # inventa una demanda biaxial que no existe: en la C45x45 del
+                # modelo de referencia daba |M|=1.88 t-m donde ETABS usa 1.38.
+                #
+                # Verificado en el Column Element Details de ETABS (C7 Story1):
+                # con Minimum M2 = Minimum M3 = 1.3294, su diseno usa
+                # Mu2 = -1.3294 (el minimo) y Mu3 = -0.3831 (el factorado).
+                #
+                # Se arman las dos variantes y gana la de mayor ratio; si el
+                # minimo no levanto ningun eje, las dos coinciden y se evalua
+                # una sola vez.
+                variantes = minimum_eccentricity_variants(m2_con, m2_sin, m3_con, m3_sin)
+
+            result = None
+            for v2, v3 in variantes:
+                r = capacity_ratio_radial(
+                    b=b, h=h, fc=fc, fy=fy, cover=cover, bar_diameter=bar_diameter,
+                    n3=n3, n2=n2, bar_area=bar_area, beta1=beta1,
+                    target_p=p_u, target_m2=v2, target_m3=v3,
+                    confine_bar_diameter=confine_bar_diameter,
+                    code=code, tied=tied,
+                    nx=_DEMAND_FIBER_GRID, ny=_DEMAND_FIBER_GRID,
+                )
+                if r is None:
+                    continue
+                if result is None or r["ratio"] > result["ratio"]:
+                    result = r
+                    m2_u, m3_u = v2, v3
+
             if result is None:
                 demand_checks.append({"error": "sin capacidad calculable"})
                 continue

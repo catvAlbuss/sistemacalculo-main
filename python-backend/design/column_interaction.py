@@ -22,6 +22,7 @@ __all__ = [
     "compute_pn_mn_at",
     "compute_pmm_surface",
     "axial_capacity_pn0",
+    "es_steel_for_code",
     "axial_max_nominal",
     "balanced_pn",
     "capacity_at_demand",
@@ -32,7 +33,25 @@ __all__ = [
     "PHI_BY_CODE",
 ]
 
-ES_STEEL = 2.0e11  # Pa — módulo de elasticidad del acero (200000 MPa)
+# Modulo de elasticidad del acero de refuerzo. NO es el mismo en los dos
+# codigos y la diferencia es del 2%:
+#   ACI 318 §20.2.2.2 : 200 000 MPa           = 2.0000e11 Pa
+#   E.060  Art. 8.5.2  : 2 000 000 kg/cm2      = 1.9613e11 Pa
+#
+# Entra en dos lados: la tension del acero antes de fluir (fs = Es*eps) y la
+# deformacion de fluencia eps_ty = fy/Es, que es la que define la transicion de
+# phi por deformacion de ACI. Con fy=4200 kg/cm2 da eps_ty 0.00206 (ACI) vs
+# 0.00210 (E.060) — el 0.0021 que usan las planillas peruanas.
+ES_STEEL = 2.0e11  # Pa — default ACI 318; usar es_steel_for_code() para respetar el codigo
+ES_BY_CODE = {
+    "ACI318": 2.0e11,
+    "E060": 2.0e6 * 98066.5,  # 2 000 000 kg/cm2
+}
+
+
+def es_steel_for_code(code=None):
+    """Es del acero segun el codigo activo (ver ES_BY_CODE)."""
+    return ES_BY_CODE[normalize_design_code(code)]
 ECU = 0.003  # deformación última del concreto (ACI 318)
 EPS_TENSION_CONTROLLED = 0.005  # ACI 318 §21.2.2
 
@@ -122,15 +141,22 @@ def generate_rect_bar_positions(b, h, cover, bar_diameter, n3, n2, confine_bar_d
 
 
 def _rect_fiber_grid(b, h, nx=60, ny=60):
-    """Malla de fibras de concreto: [(x, y, área), ...], centroides de celda."""
+    """Malla de fibras de concreto.
+
+    Devuelve (fibras, dx, dy) donde fibras = [(x, y, area), ...] con los
+    centroides de celda. dx/dy hacen falta para pesar PARCIALMENTE las fibras
+    que quedan a caballo del borde del bloque de compresion (ver
+    compute_pn_mn_at); sin ellos el bloque se cuantiza al tamano de celda.
+    """
     dx = b / nx
     dy = h / ny
     area = dx * dy
-    return [
+    fibers = [
         (-b / 2 + dx * (i + 0.5), -h / 2 + dy * (j + 0.5), area)
         for i in range(nx)
         for j in range(ny)
     ]
+    return fibers, dx, dy
 
 
 def _phi_factor(eps_t_net, eps_ty, tied=True, code="ACI318"):
@@ -183,7 +209,7 @@ def _phi_factor_e060(pn, fc, gross_area, pb=None, tied=True):
     return max(phi_cc, min(phi_tc, phi))
 
 
-def balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1):
+def balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1, code=None):
     """
     Pb — carga axial nominal del punto BALANCEADO en la dirección theta: la
     varilla más traccionada llega a εy justo cuando el concreto llega a ECU,
@@ -202,7 +228,7 @@ def balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1):
     d_t = xi_max - xi_min_bar
     if d_t <= 0:
         return None
-    eps_ty = fy / ES_STEEL
+    eps_ty = fy / es_steel_for_code(code)
     c_b = ECU * d_t / (ECU + eps_ty)
     if c_b <= 0:
         return None
@@ -212,7 +238,7 @@ def balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1):
 
 def compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1,
                      code=DEFAULT_DESIGN_CODE, gross_area=None, pb=None,
-                     tied=True):
+                     tied=True, fiber_dx=0.0, fiber_dy=0.0):
     """
     Un punto (Pn, M2n, M3n, φ) de la superficie, para un ángulo de flexión
     theta (rad, medido en el plano x=eje2/y=eje3) y una profundidad de eje
@@ -231,7 +257,25 @@ def compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1,
     derivan de las fibras (Ag) y se omite el tope por Pb.
     """
     cos_t, sin_t = math.cos(theta), math.sin(theta)
-    xi_max = max(x * cos_t + y * sin_t for x, y, _a in fibers)
+
+    # Semi-ancho de una fibra PROYECTADO sobre la direccion de flexion. Con el
+    # se corrigen dos cuantizaciones que introducia la malla:
+    #
+    #  a) xi_max se tomaba del centro de la fibra mas externa, no del BORDE de
+    #     la seccion: el bloque arrancaba media fibra adentro.
+    #  b) una fibra entraba ENTERA o NADA segun su centro, asi que la
+    #     profundidad efectiva del bloque saltaba de a una celda. Medido con
+    #     malla 60x60 sobre 45 cm (celda 0.75 cm): hasta 5.9% de error en la
+    #     compresion del concreto, oscilando con c.
+    #
+    # Ahora cada fibra aporta la FRACCION de su proyeccion que cae dentro del
+    # bloque. Es exacto cuando theta es multiplo de 90 grados y muy bueno en el
+    # resto (el perfil real de una celda rotada no es lineal, pero el error
+    # residual es de segundo orden y se promedia entre celdas vecinas).
+    es_steel = es_steel_for_code(code)
+    half_w = (abs(fiber_dx * cos_t) + abs(fiber_dy * sin_t)) / 2.0
+
+    xi_max = max(x * cos_t + y * sin_t for x, y, _a in fibers) + half_w
     a = beta1 * c
     block_lo = xi_max - a
 
@@ -245,16 +289,26 @@ def compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1,
         M2 += -force * y
         M3 += force * x
 
+    # Salidas tempranas: la mayoria de las fibras cae CLARAMENTE dentro o
+    # CLARAMENTE fuera del bloque, y solo la franja del borde necesita la
+    # fraccion. Sin esto se hacia la division para las 3600 fibras.
+    borde_lo = block_lo - half_w
+    borde_hi = block_lo + half_w
     for x, y, area in fibers:
         xi = x * cos_t + y * sin_t
-        if xi >= block_lo:
-            add_force(x, y, 0.85 * fc * area)
+        if xi <= borde_lo:
+            continue                      # fuera del bloque
+        if xi >= borde_hi:
+            add_force(x, y, 0.85 * fc * area)   # dentro, entera
+            continue
+        frac = (xi - borde_lo) / (2.0 * half_w)
+        add_force(x, y, 0.85 * fc * area * frac)
 
     eps_min = None  # deformación más chica (más traccionada) entre las varillas
     for x, y in bars:
         xi = x * cos_t + y * sin_t
         eps = ECU * (xi - xi_max + c) / c
-        fs = max(-fy, min(fy, ES_STEEL * eps))
+        fs = max(-fy, min(fy, es_steel * eps))
         force = fs * bar_area
         if xi >= block_lo:
             force -= 0.85 * fc * bar_area  # concreto desplazado por la varilla
@@ -263,7 +317,9 @@ def compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1,
             eps_min = eps
 
     eps_t_net = -eps_min if eps_min is not None else -ECU
-    eps_ty = fy / ES_STEEL
+    eps_ty = fy / es_steel
+
+    pn_sin_tope = Pn
 
     # ── Tope de carga axial ──
     # ACI 318-14 §22.4.2.1 (Tabla 22.4.2.1) y E.060 Art. 10.3.6: Pn no puede
@@ -292,7 +348,10 @@ def compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1,
     else:
         phi = _phi_factor(eps_t_net, eps_ty, tied=tied, code=code)
 
-    return {"Pn": Pn, "M2n": M2, "M3n": M3, "phi": phi}
+    # `PnUncapped` = Pn ANTES del tope. Lo usa compute_pmm_surface para ubicar
+    # por interpolacion la ESQUINA de la meseta (donde la curva real cruza
+    # 0.80*Po); sobre `Pn` no se puede, porque ahi ya esta aplanado.
+    return {"Pn": Pn, "M2n": M2, "M3n": M3, "phi": phi, "PnUncapped": pn_sin_tope}
 
 
 def axial_capacity_pn0(fc, fy, gross_area, total_bar_area):
@@ -330,16 +389,17 @@ def capacity_at_demand(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     if not bars:
         return None
 
-    fibers = _rect_fiber_grid(b, h, nx, ny)
+    fibers, fdx, fdy = _rect_fiber_grid(b, h, nx, ny)
     max_dim = math.hypot(b, h)
     c_lo, c_hi = max_dim * 0.001, max_dim * 6.0
 
     # Ag/Pb: solo los consume la transición de φ de la E.060 (ver
     # _phi_factor_e060). Se calculan UNA vez y viajan a cada evaluación.
     ag = b * h
-    pb = balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1) \
+    pb = balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1, code) \
         if normalize_design_code(code) == "E060" else None
-    kw = {"code": code, "gross_area": ag, "pb": pb, "tied": tied}
+    kw = {"code": code, "gross_area": ag, "pb": pb, "tied": tied,
+          "fiber_dx": fdx, "fiber_dy": fdy}
 
     pt_lo = compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c_lo, beta1, **kw)
     pt_hi = compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c_hi, beta1, **kw)
@@ -398,7 +458,7 @@ def capacity_ratio_radial(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     if m_res_demand <= 0 and target_p == 0:
         return None
 
-    fibers = _rect_fiber_grid(b, h, nx, ny)
+    fibers, fdx, fdy = _rect_fiber_grid(b, h, nx, ny)
     # theta se mide DESDE el eje M3 HACIA el M2 — es la convencion de la
     # superficie: compute_pn_mn_at con theta=0 da flexion pura sobre el eje 3
     # (M3 != 0, M2 = 0) y con theta=90 grados da M2 puro. Por eso va
@@ -419,9 +479,10 @@ def capacity_ratio_radial(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     # Ag/Pb para la transición de φ de la E.060 — una sola vez (ver
     # _phi_factor_e060); en ACI 318 no se usan.
     ag = b * h
-    pb = balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1) \
+    pb = balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1, code) \
         if normalize_design_code(code) == "E060" else None
-    kw = {"code": code, "gross_area": ag, "pb": pb, "tied": tied}
+    kw = {"code": code, "gross_area": ag, "pb": pb, "tied": tied,
+          "fiber_dx": fdx, "fiber_dy": fdy}
 
     def eval_c(c):
         pt = compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1, **kw)
@@ -488,17 +549,29 @@ def compute_pmm_surface(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     if not bars:
         return None
 
-    fibers = _rect_fiber_grid(b, h, nx, ny)
+    fibers, fdx, fdy = _rect_fiber_grid(b, h, nx, ny)
     max_dim = math.hypot(b, h)
     c_min = max_dim * 0.01
-    c_max = max_dim * 6.0
-    # Barrido GEOMETRICO de c, no lineal. Pn(c) se satura rapido: pasada la
-    # compresion pura todo punto adicional cae en la meseta del tope 0.80*Po y
-    # no aporta nada a la curva. Con barrido lineal, 21 puntos daban solo 3
-    # valores de P distintos (medido en la C45x45); geometrico da 12, que es lo
-    # que se ve como resolucion de la curva dibujada y de la tabla Curve Data.
-    ratio = c_max / c_min
-    c_values = [c_min * (ratio ** (i / (num_c - 1))) for i in range(num_c)]
+    # Barrido LINEAL de c, pero con c_max acotado a la DIAGONAL de la seccion.
+    #
+    # El problema no era la forma del barrido sino su alcance: con c_max = 6
+    # diagonales, casi todos los puntos caian en la meseta del tope 0.80*Po
+    # (Pn(c) se satura apenas la seccion queda toda comprimida) y la rama util
+    # se quedaba sin resolucion. Medido en la C45x45 con 21 puntos: el barrido
+    # lineal original dejaba huecos de 78 t en P a 0 grados y 99 t a 45; el
+    # geometrico que lo reemplazo repartia mejor la cuenta pero amontonaba los
+    # puntos en el extremo de TRACCION, dejando el mismo hueco en el medio.
+    #
+    # Con c_max = 1.0 * diagonal el hueco maximo baja a 57 t (0 grados) y 34 t
+    # (45 grados), y la meseta queda representada hasta M~8-10 t-m, que es donde
+    # esta la esquina real (9.36) y el punto 2 de ETABS (9.18).
+    #
+    # OJO con el 1.0: tiene que ser >= 1/beta1 veces la extension de la seccion
+    # en la direccion de flexion para que el ULTIMO punto llegue a compresion
+    # pura en CUALQUIER angulo. Con 0.85*diagonal la curva a 45 grados ya no
+    # alcanzaba el tope.
+    c_max = max_dim
+    c_values = [c_min + (c_max - c_min) * i / (num_c - 1) for i in range(num_c)]
 
     ag = b * h
     is_e060 = normalize_design_code(code) == "E060"
@@ -510,15 +583,25 @@ def compute_pmm_surface(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     if is_e060:
         phi_tension = _phi_factor_e060(pure_tension, fc, ag, pb=None, tied=tied)
     else:
-        phi_tension = _phi_factor(ECU * 10, fy / ES_STEEL, tied=tied, code=code)
+        phi_tension = _phi_factor(ECU * 10, fy / es_steel_for_code(code), tied=tied, code=code)
+
+    # Compresion pura: el tope Pn,max = 0.80*Po (0.85*Po con espiral), con el
+    # phi de compresion. Mismo criterio que arriba: el phi sale del camino
+    # normal, no de un valor inventado aparte.
+    p_max_axial = axial_max_nominal(fc, fy, ag, len(bars) * bar_area, tied=tied)
+    if is_e060:
+        phi_compresion = _phi_factor_e060(p_max_axial, fc, ag, pb=None, tied=tied)
+    else:
+        phi_compresion = _phi_factor(-ECU, fy / es_steel_for_code(code), tied=tied, code=code)
 
     curves = []
     for k in range(num_angles):
         theta = 2 * math.pi * k / num_angles
         # Pb depende del ángulo (la varilla más traccionada cambia con theta),
         # así que se recalcula por curva — solo si el código lo necesita.
-        pb = balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1) if is_e060 else None
-        kw = {"code": code, "gross_area": ag, "pb": pb, "tied": tied}
+        pb = balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1, code) if is_e060 else None
+        kw = {"code": code, "gross_area": ag, "pb": pb, "tied": tied,
+          "fiber_dx": fdx, "fiber_dy": fdy}
         points = []
         for c in c_values:
             pt = compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1, **kw)
@@ -526,6 +609,45 @@ def compute_pmm_surface(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
             pt["phiM2n"] = pt["phi"] * pt["M2n"]
             pt["phiM3n"] = pt["phi"] * pt["M3n"]
             points.append(pt)
+        # ESQUINA DE LA MESETA: el punto exacto donde la curva real cruza el
+        # tope 0.80*Po. Sin el, el barrido deja la esquina redondeada (llegaba a
+        # M~8.3 cuando la real es 9.36 y el punto 2 de ETABS vale 9.18).
+        #
+        # No hace falta bisectar a ciegas: `PnUncapped` da el Pn SIN recortar,
+        # asi que el bracket sale de dos puntos ya calculados y se refina con
+        # SECANTE en 3 evaluaciones extra por curva.
+        #
+        # Va ACA, antes de meter el punto de traccion: en este momento `points`
+        # todavia calza indice a indice con `c_values`.
+        esquina = None
+        for i in range(len(points) - 1):
+            pa = points[i]["PnUncapped"]
+            pb = points[i + 1]["PnUncapped"]
+            if not (pa < p_max_axial <= pb) or pb == pa:
+                continue
+            ca, cb = c_values[i], c_values[i + 1]
+            for _ in range(3):
+                cm = ca + (p_max_axial - pa) / (pb - pa) * (cb - ca)
+                pt = compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, cm, beta1, **kw)
+                if pt["PnUncapped"] < p_max_axial:
+                    ca, pa = cm, pt["PnUncapped"]
+                else:
+                    cb, pb = cm, pt["PnUncapped"]
+                esquina = pt
+            break
+
+        if esquina is not None:
+            esquina["phiPn"] = esquina["phi"] * esquina["Pn"]
+            esquina["phiM2n"] = esquina["phi"] * esquina["M2n"]
+            esquina["phiM3n"] = esquina["phi"] * esquina["M3n"]
+            # En orden de c (= orden de P). Mantenerlo importa: la malla de la
+            # superficie y el corte del grafico recorren las 24 curvas por
+            # INDICE, y si P dejara de ser monotono dentro de una curva el
+            # mallado se doblaria.
+            idx = next((k for k, q in enumerate(points) if q["PnUncapped"] >= p_max_axial),
+                       len(points))
+            points.insert(idx, esquina)
+
         # Cierre por TRACCION PURA, en forma cerrada. El barrido de c nunca llega:
         # por chico que sea c_min queda una punta de concreto comprimido, y la
         # curva se corta en ~-137 tonf en vez de los -142.52 reales (medido en la
@@ -536,10 +658,30 @@ def compute_pmm_surface(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
         # cierra las N curvas.
         points.insert(0, {
             "Pn": pure_tension,
+            "PnUncapped": pure_tension,
             "M2n": 0.0,
             "M3n": 0.0,
             "phi": phi_tension,
             "phiPn": phi_tension * pure_tension,
+            "phiM2n": 0.0,
+            "phiM3n": 0.0,
+        })
+
+        # Cierre por COMPRESION PURA, en forma cerrada. Con c finito la seccion
+        # queda toda comprimida pero las varillas siguen a deformaciones
+        # DISTINTAS (la del borde a ECU, la opuesta a ECU*(c-d)/c), asi que el
+        # momento neto nunca llega exactamente a cero: tiende a 0 recien con
+        # c -> infinito. Antes el barrido lo forzaba con c_max = 6 diagonales,
+        # a costa de tirar casi todos los puntos en la meseta.
+        #
+        # Es el punto 1 de la tabla de ETABS: P = phi*0.80*Po, M = 0.
+        points.append({
+            "Pn": p_max_axial,
+            "PnUncapped": p_max_axial,
+            "M2n": 0.0,
+            "M3n": 0.0,
+            "phi": phi_compresion,
+            "phiPn": phi_compresion * p_max_axial,
             "phiM2n": 0.0,
             "phiM3n": 0.0,
         })

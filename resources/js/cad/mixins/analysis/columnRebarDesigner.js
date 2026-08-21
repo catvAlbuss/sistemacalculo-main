@@ -26,6 +26,26 @@ const CM_TO_M = 0.01;
 const MM_TO_M = 0.001;
 const MM2_TO_M2 = 1e-6;
 
+/**
+ * Diametro (mm) desde el area (mm2). El AREA es el dato que manda: es lo que
+ * define la capacidad, y el diametro solo ubica la varilla dentro de la
+ * seccion. Mismo criterio que el importador de .e2k (ver
+ * project-rebar-exact-diameter): el catalogo puede no tener la varilla real.
+ */
+const diaFromArea = (areaMm2) => (areaMm2 > 0 ? Math.sqrt((4 * areaMm2) / Math.PI) : 0);
+
+/**
+ * Area (mm2) y diametro (mm) efectivos de una varilla del draft. Si el draft
+ * trae un area explicita (modo "User" de ETABS) esa gana; si no, se toma la del
+ * catalogo por nombre.
+ */
+const barraDelDraft = (bars, nombre, areaMm2) => {
+  const area = Number(areaMm2);
+  if (area > 0) return { areaMm2: area, diameterMm: diaFromArea(area) };
+  const cat = (bars || []).find((b) => b.name === nombre);
+  return cat ? { areaMm2: cat.areaMm2, diameterMm: cat.diameterMm } : null;
+};
+
 export const columnRebarDesignerMixin = {
   /**
    * Abre el diseñador para UNA sección (por nombre, ej. "C30X50"). `hint`
@@ -58,6 +78,8 @@ export const columnRebarDesignerMixin = {
           n3: 3,
           longBarName: bars.find((b) => b.name === "#4")?.name || bars[0]?.name || "#4",
           confineBarName: bars.find((b) => b.name === "#3")?.name || bars[0]?.name || "#3",
+          longBarAreaMm2: bars.find((b) => b.name === "#4")?.areaMm2 || bars[0]?.areaMm2 || 0,
+          confineBarAreaMm2: bars.find((b) => b.name === "#3")?.areaMm2 || bars[0]?.areaMm2 || 0,
           confineSpacing: 15,
           numConfineBars2: 2,
           numConfineBars3: 2,
@@ -73,9 +95,23 @@ export const columnRebarDesignerMixin = {
 
     window.dispatchEvent(
       new CustomEvent("open-column-rebar-designer-modal", {
-        detail: { sectionName, draft, barSizes: bars, materials, label: hint.label || sectionName },
+        detail: {
+          sectionName, draft, barSizes: bars, materials,
+          label: hint.label || sectionName,
+          // Informativo: el acero longitudinal NO se elige en el modal, lo
+          // define el material de la seccion (LONGBARMATERIAL), igual que ETABS.
+          longBarMaterialName: this._rcLongBarMaterialName?.(sectionName) || "",
+        },
       }),
     );
+  },
+
+  /** Nombre del material del acero longitudinal de una seccion (LONGBARMATERIAL del .e2k). */
+  _rcLongBarMaterialName(sectionName) {
+    const secs = this.frameSections?.sections;
+    const list = Array.isArray(secs) ? secs : Object.values(secs || {});
+    const sec = list.find((s) => String(s?.name || "").trim() === String(sectionName).trim());
+    return sec?.longBarMaterialName || "";
   },
 
   /**
@@ -144,6 +180,7 @@ export const columnRebarDesignerMixin = {
     if (!pat || pat.type !== "rectangular" || !(pat.n2 >= 2) || !(pat.n3 >= 2)) return null;
     if (!(Number(sec.longBarArea) > 0)) return null;
 
+    const mm2 = (areaM2) => Math.round(Number(areaM2) * 1e6 * 100) / 100;
     const porArea = (areaM2, fallbackName) => {
       const areaMm2 = Number(areaM2) * 1e6;
       if (!(areaMm2 > 0)) return fallbackName;
@@ -164,6 +201,10 @@ export const columnRebarDesignerMixin = {
       n3: Number(pat.n3),
       longBarName: porArea(sec.longBarArea, bars[0]?.name),
       confineBarName: porArea(sec.confineBarArea, bars[0]?.name),
+      // Areas EXACTAS de la seccion importada. El nombre de catalogo de arriba
+      // queda solo como etiqueta; lo que se calcula es esto.
+      longBarAreaMm2: mm2(sec.longBarArea),
+      confineBarAreaMm2: mm2(sec.confineBarArea),
       confineSpacing: Number(sec.confineBarSpacing) || 15,
       numConfineBars2: Number(sec.numConfineBars2) || 2,
       numConfineBars3: Number(sec.numConfineBars3) || 2,
@@ -178,8 +219,8 @@ export const columnRebarDesignerMixin = {
    */
   columnRebarPreviewPoints(draft) {
     const bars = this.reinforcementBarSizes || [];
-    const longBar = bars.find((b) => b.name === draft?.longBarName);
-    const confineBar = bars.find((b) => b.name === draft?.confineBarName);
+    const longBar = barraDelDraft(bars, draft?.longBarName, draft?.longBarAreaMm2);
+    const confineBar = barraDelDraft(bars, draft?.confineBarName, draft?.confineBarAreaMm2);
     return this._columnRebarBarPositions({
       b: draft?.b,
       h: draft?.h,
@@ -189,6 +230,15 @@ export const columnRebarDesignerMixin = {
       longBarDiameterCm: ((longBar?.diameterMm || 0) * MM_TO_M) / CM_TO_M, // mm -> cm
       confineBarDiameterCm: ((confineBar?.diameterMm || 0) * MM_TO_M) / CM_TO_M, // mm -> cm
     });
+  },
+
+  /** Area (mm2) de una varilla del draft — la usa el modal para As total y rho. */
+  columnRebarBarArea(draft, cual) {
+    const bars = this.reinforcementBarSizes || [];
+    const b = cual === "confine"
+      ? barraDelDraft(bars, draft?.confineBarName, draft?.confineBarAreaMm2)
+      : barraDelDraft(bars, draft?.longBarName, draft?.longBarAreaMm2);
+    return b ? b.areaMm2 : 0;
   },
 
   /**
@@ -228,8 +278,11 @@ export const columnRebarDesignerMixin = {
    */
   _columnRebarDraftToSection(draft) {
     const bars = this.reinforcementBarSizes || [];
-    const longBar = bars.find((b) => b.name === draft?.longBarName);
-    const confineBar = bars.find((b) => b.name === draft?.confineBarName);
+    // El AREA del draft (modo "User") gana sobre el catalogo. Antes se tomaba
+    // siempre la del catalogo y con varillas METRICAS sobre catalogo IMPERIAL
+    // el acero salia 9.5% bajo (Ø20 real = 314 mm2 -> se guardaba #6 = 284).
+    const longBar = barraDelDraft(bars, draft?.longBarName, draft?.longBarAreaMm2);
+    const confineBar = barraDelDraft(bars, draft?.confineBarName, draft?.confineBarAreaMm2);
     if (!longBar || !confineBar) return null;
 
     return {

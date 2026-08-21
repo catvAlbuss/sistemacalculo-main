@@ -17,11 +17,22 @@
 //   CV        = CVE·1 + CVT·1
 //   01 …      = CM·1.4 + CV·1.7   →   CM·1.4 + CVE·1.7 + CVT·1.7
 //
-// Sobre el SIGNO de los casos sísmicos: nuestros casos de espectro devuelven
-// MAGNITUDES (CQC/SRSS), y ETABS ya escribe las dos ramas por separado
-// (`SF 1` en "+SDX" y `SF -1` en "-SDX"). O sea el factor importado ya lleva el
-// signo y NO hay que marcar los términos como `signless` — hacerlo duplicaría
-// las ramas.
+// Sobre el SIGNO de los casos sísmicos: los casos de espectro devuelven
+// MAGNITUDES (CQC/SRSS), sin signo físico. ETABS escribe las dos ramas por
+// separado (`SF 1` en "+SDX" y `SF -1` en "-SDX"), pero esas dos ramas NO son
+// "una suma y la otra resta" aplicadas por igual a P, M2 y M3: cada rama toma
+// el sentido ADVERSO de CADA componente. Su combo "+SDX" da el axial máximo Y
+// los momentos máximos a la vez.
+//
+// Por eso los términos de espectro SÍ se marcan `signless` — lo hace
+// e2k-import.js, que es donde se sabe qué casos son de espectro — y el motor
+// aplica la magnitud por componente (ver _ff_compute_combo_entries en
+// solver.py). El factor del .e2k conserva su rol: su SIGNO decide si la
+// magnitud se suma o se resta, así la pareja ±SDX sigue cubriendo el axial
+// máximo y el mínimo.
+//
+// NO marca ramas duplicadas: el motor solo desdobla en _Max/_Min los combos
+// tipo ENVELOPE, no los ADD.
 
 const NUM = /SF\s+(-?[\d.]+(?:[eE][-+]?\d+)?)/;
 
@@ -162,15 +173,28 @@ export function remapCombosToKeptCases(combos = [], merged = []) {
     });
     if (!alias.size) return combos;
 
-    return combos.map((c) => ({
-        ...c,
-        terms: mergeTerms(
-            (c.terms || []).map((t) => ({
-                case: alias.get(String(t.case)) || t.case,
-                factor: Number(t.factor) || 0,
-            })),
-        ),
-    }));
+    return combos.map((c) => {
+        const reasignados = (c.terms || []).map((t) => ({
+            case: alias.get(String(t.case)) || t.case,
+            factor: Number(t.factor) || 0,
+            signless: t.signless === true,
+        }));
+
+        // `mergeTerms` reconstruye los terminos como {case, factor} y perderia
+        // el flag `signless` (lo pone e2k-import.js para los casos de espectro,
+        // y el motor lo necesita para aplicar la magnitud en el sentido adverso
+        // de cada componente). Se reatacha por caso despues de fusionar.
+        const sinSigno = new Set(
+            reasignados.filter((t) => t.signless).map((t) => String(t.case)),
+        );
+
+        return {
+            ...c,
+            terms: mergeTerms(reasignados).map((t) =>
+                sinSigno.has(String(t.case)) ? { ...t, signless: true } : t,
+            ),
+        };
+    });
 }
 
 /**

@@ -100,35 +100,56 @@ export const rcAligeradoDesignMixin = {
       }
     });
 
-    // 1) Agrupa por EJE de armado (dirección) — losas con flecha en otra
-    // dirección nunca son la misma vigueta.
-    const angleBuckets = [];
+    // 1) Agrupa por PISO (elevación de la losa, area.z) — una vigueta es un
+    // elemento físico de un solo piso; dos losas en pisos distintos jamás
+    // pueden ser el mismo tramo continuo, sin importar que compartan
+    // dirección o estén alineadas en planta (están separadas por el resto
+    // de la estructura entre niveles). Se agrupa por elevación en vez de un
+    // campo "story" porque area.z siempre existe (venga de .e2k o dibujada
+    // a mano), y dos pisos reales nunca están a menos de la tolerancia.
+    const ELEVATION_TOLERANCE_M = 0.05;
+    const elevationBuckets = [];
     areas.forEach((area) => {
-      const angleDeg = Number(area.loadDistAngle) || 0;
-      let bucket = angleBuckets.find((b) => axisDiff(b.angleDeg, angleDeg) <= ANGLE_TOLERANCE_DEG);
+      const z = Number(area.z) || 0;
+      let bucket = elevationBuckets.find((b) => Math.abs(b.z - z) <= ELEVATION_TOLERANCE_M);
       if (!bucket) {
-        bucket = { angleDeg, areas: [] };
-        angleBuckets.push(bucket);
+        bucket = { z, areas: [] };
+        elevationBuckets.push(bucket);
       }
       bucket.areas.push(area);
     });
 
-    // 2) Dentro de cada dirección, separa en CADENAS físicamente contiguas y
-    // alineadas (misma fila/columna) — en la práctica real, una vigueta
-    // continua solo existe si los paños están uno a continuación del otro;
-    // dos ambientes paralelos pero desalineados NO son la misma vigueta
-    // aunque compartan la flecha. _rcSplitByContiguity arma un grafo por
-    // paño (conectado si su franja perpendicular al armado se solapa Y no
-    // hay un vacío mayor a GAP_TOLERANCE_M entre ellos) y devuelve las
-    // componentes conexas.
+    // 2) Dentro de cada piso, agrupa por EJE de armado (dirección) — losas
+    // con flecha en otra dirección nunca son la misma vigueta.
     const PERP_OVERLAP_MIN_FRACTION = 0.3;
     const GAP_TOLERANCE_M = 0.6;
 
     const chains = [];
-    angleBuckets.forEach((bucket) => {
-      chains.push(
-        ...this._rcSplitByContiguity(bucket.areas, bucket.angleDeg, PERP_OVERLAP_MIN_FRACTION, GAP_TOLERANCE_M),
-      );
+    elevationBuckets.forEach(({ areas: areasInStory }) => {
+      const angleBuckets = [];
+      areasInStory.forEach((area) => {
+        const angleDeg = Number(area.loadDistAngle) || 0;
+        let bucket = angleBuckets.find((b) => axisDiff(b.angleDeg, angleDeg) <= ANGLE_TOLERANCE_DEG);
+        if (!bucket) {
+          bucket = { angleDeg, areas: [] };
+          angleBuckets.push(bucket);
+        }
+        bucket.areas.push(area);
+      });
+
+      // 3) Dentro de cada piso+dirección, separa en CADENAS físicamente
+      // contiguas y alineadas (misma fila/columna) — en la práctica real,
+      // una vigueta continua solo existe si los paños están uno a
+      // continuación del otro; dos ambientes paralelos pero desalineados NO
+      // son la misma vigueta aunque compartan la flecha. _rcSplitByContiguity
+      // arma un grafo por paño (conectado si su franja perpendicular al
+      // armado se solapa Y no hay un vacío mayor a GAP_TOLERANCE_M entre
+      // ellos) y devuelve las componentes conexas.
+      angleBuckets.forEach((bucket) => {
+        chains.push(
+          ...this._rcSplitByContiguity(bucket.areas, bucket.angleDeg, PERP_OVERLAP_MIN_FRACTION, GAP_TOLERANCE_M),
+        );
+      });
     });
 
     const groups = chains.map((chainAreas, index) =>
@@ -275,10 +296,11 @@ export const rcAligeradoDesignMixin = {
     }
 
     const { fc, fy } = this._rcResolveAreaMaterial(areas[0]);
+    const z = Number(areas[0].z) || 0;
 
     return {
       groupIndex,
-      label: `Grupo ${groupIndex + 1} — eje ${angleDeg.toFixed(0)}°`,
+      label: `Grupo ${groupIndex + 1} — piso z=${z.toFixed(2)}m — eje ${angleDeg.toFixed(0)}°`,
       parametros: { fc, fy },
       tramos,
       angleDeg,

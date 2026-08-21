@@ -64,6 +64,17 @@ export const rcColumnDesignMixin = {
       columns.push(built);
     }
 
+    // Progreso: el cálculo tarda (la superficie P-M-M y ~44 chequeos de
+    // demanda por columna), y hasta que termina el modal ni siquiera está
+    // abierto — sin aviso parece que la app se colgó.
+    const aCalcular = columns.filter((c) => !c.unsupported).length;
+    let listas = 0;
+    const avisar = (fin = false) =>
+      window.dispatchEvent(new CustomEvent("column-design-progress", {
+        detail: { corriendo: !fin, listas, total: aCalcular },
+      }));
+    avisar();
+
     // Llama al motor SOLO para las columnas soportadas (rectangular +
     // armado reconocido); las demás quedan con `unsupported` y se muestran
     // igual en el modal, con el motivo, sin intentar calcular.
@@ -93,6 +104,8 @@ export const rcColumnDesignMixin = {
               base: c.check.base?.comboId ?? null,
               top: c.check.top?.comboId ?? null,
             };
+            listas += 1;
+            avisar();
           } catch (err) {
             c.unsupported = true;
             c.unsupportedReason = `Error del motor de interacción: ${err.message}`;
@@ -114,6 +127,7 @@ export const rcColumnDesignMixin = {
         }),
     );
 
+    avisar(true);
     this.rcColumnDesignResults = columns;
 
     window.dispatchEvent(
@@ -259,6 +273,36 @@ export const rcColumnDesignMixin = {
 
     let frameLength = 0;
 
+    // ── Reduccion de sobrecarga (E.020 Art. 10 / ASCE 7 4.7.2) ──
+    // El factor depende del area tributaria ACUMULADA de esta columna, asi que
+    // se calcula una vez por columna. Ver columnLiveLoadReduction.js.
+    //
+    // Se aplica a la PARTE VIVA de cada combo: la demanda que llega del motor
+    // ya viene combinada, asi que hay que restarle
+    // `factor_del_combo * (1 - LLRF) * fuerza_del_caso_vivo`. Por eso el meta
+    // de combos trae ahora `terms` (ver solver.py).
+    const llrfInfo = this.columnLiveLoadReductionFactor?.(frame) || { factor: 1.0, aplica: false };
+    const llrf = Number(llrfInfo.factor);
+    const { live: liveCaseIds } = this._rcResolveGravityCaseIds(results);
+    const metaPorComboId = new Map(comboMetas.map((m) => [String(m.id), m]));
+
+    /** Factor con el que la carga viva entra en un combo (0 si no entra). */
+    const factorVivoDe = (comboId) => {
+      // Los ENVELOPE se expanden a `<id>_Max` / `<id>_Min`; el meta vive en el id base.
+      const base = String(comboId).replace(/_(Max|Min)$/, "");
+      const meta = metaPorComboId.get(base);
+      if (!meta || !Array.isArray(meta.terms)) return 0;
+      return meta.terms
+        .filter((t) => liveCaseIds.includes(String(t.case)))
+        .reduce((acc, t) => acc + (Number(t.factor) || 0), 0);
+    };
+
+    // Registro del caso vivo para ESTE frame (uno solo: si hay varios casos
+    // vivos se suman sus aportes).
+    const liveRecords = llrfInfo.aplica
+      ? liveCaseIds.map((cid) => getFrameForceRecord(results, frameId, cid, null)).filter(Boolean)
+      : [];
+
     const candidatesAt = (relStation) =>
       realComboIds
         .map(({ id, name, kind }) => {
@@ -268,7 +312,18 @@ export const rcColumnDesignMixin = {
               : getFrameForceRecord(results, frameId, null, id);
           if (!record) return null;
           if (!frameLength) frameLength = Number(record.length) || 0;
-          const at = (component) => this._rcFrameForceStationRaw(record, relStation, component);
+
+          // Un CASO sismico suelto no tiene carga viva: no se reduce nada.
+          const gammaVivo = kind === "case" ? 0 : factorVivoDe(id);
+          const restarVivo = gammaVivo * (1 - llrf);
+
+          const at = (component) => {
+            const bruto = this._rcFrameForceStationRaw(record, relStation, component);
+            if (!(restarVivo > 0) || !liveRecords.length) return bruto;
+            const vivo = liveRecords.reduce(
+              (acc, r) => acc + this._rcFrameForceStationRaw(r, relStation, component), 0);
+            return bruto - restarVivo * vivo;
+          };
           // El motor exporta P con la convención de ANÁLISIS de ETABS
           // (tracción positiva — ver solver.py "ETABS usa tracción
           // positiva"), pero column_interaction.py asume la convención de
@@ -366,6 +421,7 @@ export const rcColumnDesignMixin = {
       manualRebar,
       geometryDisplay: { b, h, fc, fy, cover: sec2.cover, pattern: sec2.rebarPattern, longBarDiameter: sec2.longBarDiameter },
       geometry,
+      liveLoadReduction: llrfInfo,
       demandCandidates,
       shearInput,
     };

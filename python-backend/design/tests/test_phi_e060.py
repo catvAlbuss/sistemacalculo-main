@@ -11,10 +11,12 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from design.column_interaction import (
+    ES_BY_CODE,
     PHI_BY_CODE,
     _phi_factor_e060,
     axial_capacity_pn0,
     normalize_design_code,
+    es_steel_for_code,
     phi_shear_for_code,
 )
 
@@ -112,3 +114,24 @@ def test_espiral_arranca_en_075():
     limite = 0.10 * fc * ag
     phi = _phi_factor_e060(10 * limite, fc, ag, tied=False)
     assert math.isclose(phi, 0.75, abs_tol=1e-9)
+
+
+def test_es_del_acero_por_codigo():
+    """Es NO es el mismo en los dos codigos y la diferencia es del 2%:
+      ACI 318 §20.2.2.2 : 200 000 MPa      = 2.0000e11 Pa
+      E.060  Art. 8.5.2 : 2 000 000 kg/cm2 = 1.9613e11 Pa
+
+    Importa en dos lados: fs = Es*eps antes de fluir, y eps_ty = fy/Es, que es
+    la deformacion que define la transicion de phi por deformacion de ACI.
+    """
+    assert math.isclose(es_steel_for_code("ACI318"), 2.0e11)
+    assert math.isclose(es_steel_for_code("E060"), 2.0e6 * KGCM2_TO_PA)
+    assert math.isclose(es_steel_for_code("E060") / KGCM2_TO_PA, 2_000_000.0, rel_tol=1e-9)
+
+    # Con fy=4200 kg/cm2: 0.00206 (ACI) vs 0.00210 (E.060) — el 0.0021 que usan
+    # las planillas peruanas de diagrama de interaccion.
+    fy = 4200 * KGCM2_TO_PA
+    assert math.isclose(fy / es_steel_for_code("E060"), 0.0021, abs_tol=1e-5)
+    assert fy / es_steel_for_code("ACI318") < 0.00207
+
+    assert set(ES_BY_CODE) == {"ACI318", "E060"}

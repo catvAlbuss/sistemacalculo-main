@@ -1116,16 +1116,21 @@ export const e2kImportMixin = {
     // que asumíamos, ver project_rc_design_v2_v3_convention. Sin PATTERN
     // reconocido, se guarda type:"unknown" (el adaptador de columnas lo trata
     // como no-soportado, no intenta calcular).
-    const nearestRebarDiameter = (area) => {
-      if (!(area > 0) || !rebarDefMap.size) return 0;
-      let best = null;
-      let bestDist = Infinity;
-      rebarDefMap.forEach((def) => {
-        const d = Math.abs(def.area - area);
-        if (d < bestDist) { bestDist = d; best = def; }
-      });
-      return best ? best.dia : 0;
-    };
+    // Diametro EXACTO desde el area: d = sqrt(4A/pi). El area es el dato
+    // autoritativo del .e2k y ya codifica el diametro sin perdida.
+    //
+    // Antes se buscaba la varilla mas cercana del catalogo REBARDEFINITION, y
+    // eso METIA error cuando la varilla real no esta en ese catalogo. Caso
+    // medido: el modelo trae el catalogo IMPERIAL (#2..#18) pero usa varillas
+    // METRICAS de 20 y 10 mm, asi que 3.142E-4 m2 se aproximaba a #6 (19.05mm)
+    // y 7.85E-5 a #3 (9.525mm).
+    //
+    // El diametro posiciona las varillas dentro de la seccion, asi que el error
+    // se propaga al brazo de palanca. Verificado contra el "Column Element
+    // Details" de ETABS, que reporta dc (cara -> centroide de la varilla) = 60 mm:
+    //   catalogo -> 40 + 9.525 + 19.05/2 = 59.05 mm  (mal)
+    //   exacto   -> 40 + 10.00 + 20.00/2 = 60.00 mm  (calza)
+    const exactRebarDiameter = (area) => (area > 0 ? Math.sqrt((4 * area) / Math.PI) : 0);
 
     const parseRebarPattern = (raw) => {
       const rect = /^R-(\d+)-(\d+)$/i.exec(String(raw || "").trim());
@@ -1145,9 +1150,9 @@ export const e2kImportMixin = {
       sec.coverTop = cs.coverTop * 100 || 0;
       sec.coverBottom = cs.coverBottom * 100 || 0;
       sec.longBarArea = cs.longBarArea; // m² (se deja en SI, el motor de interacción trabaja en SI)
-      sec.longBarDiameter = nearestRebarDiameter(cs.longBarArea); // m
+      sec.longBarDiameter = exactRebarDiameter(cs.longBarArea); // m
       sec.confineBarArea = cs.confineBarArea; // m²
-      sec.confineBarDiameter = nearestRebarDiameter(cs.confineBarArea); // m
+      sec.confineBarDiameter = exactRebarDiameter(cs.confineBarArea); // m
       sec.confineBarSpacing = cs.confineBarSpacing * 100 || 0; // cm
       sec.numConfineBars2 = cs.numConfineBars2;
       sec.numConfineBars3 = cs.numConfineBars3;
@@ -1969,6 +1974,47 @@ export const e2kImportMixin = {
           direction, scaleFactor: Math.max(u1, u2) || 1,
         };
       });
+
+    // ── Marcar los términos de ESPECTRO como sin signo ──
+    //
+    // Un caso de espectro devuelve una MAGNITUD (CQC/SRSS), sin signo físico.
+    // El motor necesita saberlo (`signless`) para aplicar esa magnitud en el
+    // sentido ADVERSO de cada componente por separado.
+    //
+    // Sin la marca, el factor del .e2k (+1 / -1) se aplicaba como un signo
+    // COMÚN a P, M2 y M3, y eso NO es la envolvente: en C20 del modelo de
+    // referencia la rama "-SDX" daba el axial máximo (35.93 t) pero con los
+    // momentos casi anulados (M2 = -0.54 donde ETABS reporta +0.99). Demanda
+    // insegura. Ver _ff_compute_combo_entries en solver.py.
+    //
+    // Se hace ACÁ y no en e2k-load-combos.js porque el parser de combos no sabe
+    // qué casos son de espectro; acá sí.
+    //
+    // OJO: NO se reescribe `t.case`. Los combos referencian el caso por NOMBRE
+    // ("SDX ESCALADO") y de resolverlo ya se encarga `remapCombosToKeptCases`
+    // (ver frameForceBackend.js), que además fusiona los casos duplicados. Un
+    // intento previo de reescribir el id acá pisó ese mecanismo y dejó los
+    // términos apuntando a un caso que el motor ya no tenía — el sismo volvía a
+    // desaparecer del combo, en silencio.
+    {
+      const norm = (v) => String(v || "").trim().replace(/\s+/g, "_").toUpperCase();
+      const espectro = new Set();
+      responseSpectrumCases.forEach((c) => {
+        if (c.id) espectro.add(norm(c.id));
+        if (c.name) espectro.add(norm(c.name));
+      });
+
+      let marcados = 0;
+      loadCombinations.forEach((combo) => {
+        (combo.terms || []).forEach((t) => {
+          if (espectro.has(norm(t.case)) && !t.signless) { t.signless = true; marcados += 1; }
+        });
+      });
+
+      if (marcados) {
+        console.info(`\u2139\ufe0f Combos: ${marcados} t\u00e9rmino(s) de espectro marcados como sin signo.`);
+      }
+    }
 
     console.log("📥 Import ETABS .e2k:", {
       stories: stories.length, nodes: nodes.length, frames: frames.length, areas: areas.length,

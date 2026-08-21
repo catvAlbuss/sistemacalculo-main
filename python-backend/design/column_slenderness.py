@@ -38,6 +38,7 @@ Unidades: SI puro (m, Pa, N, N*m), igual que column_interaction.py.
 import math
 
 __all__ = [
+    "minimum_eccentricity_variants",
     "radius_of_gyration",
     "slenderness_limit_nonsway",
     "cm_factor",
@@ -130,6 +131,14 @@ def magnify_nonsway(pu, m_end_a, m_end_b, ec, ig, ag, lu, k=1.0, beta_d=0.0,
     # Pu*(15mm + 0.03h). Solo aplica con Pu en compresion.
     m2_min = 0.0
     if h_dim and pu > 0:
+        # 0.015 m = 15 mm, el valor que imprimen TANTO ACI 318 §6.6.4.5.4 en su
+        # texto metrico COMO la E.060 Art. 10.12.3.2.
+        #
+        # NO cambiar a 0.01524 para "calzar con ETABS": ETABS reporta e_min =
+        # 28.74 mm en una columna de h=450 (medido en su Column Element Details)
+        # porque internamente trabaja en pulgadas y usa 0.6" = 15.24 mm. Es un
+        # artefacto de conversion de unidades, no una regla de norma. La
+        # diferencia contra nosotros es del 0.85% en el momento minimo.
         m2_min = pu * (0.015 + 0.03 * h_dim)
     m2_design = max(m2_abs, m2_min)
 
@@ -177,3 +186,26 @@ def magnify_nonsway(pu, m_end_a, m_end_b, ec, ig, ag, lu, k=1.0, beta_d=0.0,
         "applied": applied,
         "unstable": not math.isfinite(delta_raw),
     }
+
+
+def minimum_eccentricity_variants(m2_con_min, m2_sin_min, m3_con_min, m3_sin_min):
+    """Variantes de demanda para el chequeo de EXCENTRICIDAD MINIMA.
+
+    La excentricidad accidental que cubre el minimo de ACI 318 §6.6.4.5.4 /
+    E.060 Art. 10.12.3.2 actua en UNA direccion, no simultaneamente en las dos.
+    Aplicar el piso a los dos ejes a la vez inventa una demanda biaxial que no
+    existe y sobrestima el momento resultante.
+
+    Devuelve la lista de pares (M2, M3) a verificar; el llamador se queda con
+    la de mayor ratio. Si el minimo no levanto ningun eje, las dos variantes
+    coinciden y se devuelve una sola.
+
+    Verificado contra el Column Element Details de ETABS (C7 Story1): con
+    Minimum M2 = Minimum M3 = 1.3294 t-m, su diseno usa Mu2 = -1.3294 (el
+    minimo) junto con Mu3 = -0.3831 (el factorado) — exactamente una de estas
+    dos variantes, no el minimo en ambos.
+    """
+    variantes = [(m2_con_min, m3_sin_min), (m2_sin_min, m3_con_min)]
+    if variantes[0] == variantes[1]:
+        return variantes[:1]
+    return variantes

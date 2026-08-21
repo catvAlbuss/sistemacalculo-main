@@ -4,6 +4,31 @@
      ver plan de columnas. cadSystem.openRcColumnDesignDialog() dispara
      'open-columna-design-modal' con { columns: [...] } (ver
      resources/js/cad/mixins/analysis/rcColumnDesign.js). --}}
+{{-- Aviso de progreso. Va FUERA del modal porque el cálculo corre ANTES de
+     que el modal se abra: si estuviera adentro no se vería nunca. --}}
+<div x-data="{ corriendo: false, listas: 0, total: 0 }"
+     @column-design-progress.window="corriendo = $event.detail.corriendo; listas = $event.detail.listas; total = $event.detail.total"
+     x-show="corriendo" x-cloak
+     style="position:fixed; inset:0; z-index:10050; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.55)">
+    <div class="bg-gray-800 border border-gray-700 rounded-lg px-6 py-5 text-center shadow-xl" style="min-width:280px">
+        <svg class="animate-spin mx-auto mb-3 h-8 w-8 text-blue-400" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+        <div class="text-sm text-white font-semibold">Diseñando columnas…</div>
+        <div class="text-xs text-gray-400 mt-1">
+            <span x-text="listas"></span> de <span x-text="total"></span>
+        </div>
+        <div class="mt-2 h-1.5 w-full rounded bg-gray-700 overflow-hidden">
+            <div class="h-full bg-blue-500 transition-all duration-200"
+                 :style="'width:' + (total ? Math.round(100 * listas / total) : 0) + '%'"></div>
+        </div>
+        <div class="text-[10px] text-gray-500 mt-2 leading-tight">
+            Se calcula la superficie P-M-M y cada combo por separado.
+        </div>
+    </div>
+</div>
+
 <div x-data="columnaDesignModal()"
      x-show="open" x-cloak @keydown.esc.window="close()"
      style="position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.5)">
@@ -84,6 +109,33 @@
                                 <div><span class="text-gray-400">Varillas:</span> <b x-text="col.surface.bars.length + ' Ø' + fmt(col.geometryDisplay.longBarDiameter * 1000, 1) + 'mm'"></b></div>
                                 <div><span class="text-gray-400">β1:</span> <b x-text="fmt(col.surface.beta1, 2)"></b></div>
                             </div>
+
+                            {{-- Reducción de sobrecarga (el "LLRF" de ETABS). Se muestra con TODAS
+                                 sus entradas porque es un dato que el revisor tiene que poder
+                                 rastrear, no un factor que aparece de la nada. --}}
+                            <template x-if="col.liveLoadReduction">
+                                <div class="px-4 py-1.5 text-[11px]"
+                                     :class="col.liveLoadReduction.aplica ? 'text-amber-300/90' : 'text-gray-500'">
+                                    <b>Reducción de sobrecarga:</b>
+                                    <template x-if="col.liveLoadReduction.aplica">
+                                        <span>
+                                            LLRF = <b x-text="fmt(col.liveLoadReduction.factor, 4)"></b>
+                                            — área tributaria <span x-text="fmt(col.liveLoadReduction.areaTributaria, 2)"></span> m²
+                                            en <span x-text="col.liveLoadReduction.pisos"></span> piso(s),
+                                            Ai = K<sub>LL</sub>·A<sub>T</sub> = <span x-text="col.liveLoadReduction.kll"></span>·<span x-text="fmt(col.liveLoadReduction.areaTributaria, 2)"></span>
+                                            = <span x-text="fmt(col.liveLoadReduction.ai, 1)"></span> m²
+                                            <span class="text-gray-500">(<span x-text="col.liveLoadReduction.referencia"></span>)</span>
+                                        </span>
+                                    </template>
+                                    <template x-if="!col.liveLoadReduction.aplica">
+                                        <span>
+                                            no aplica — Ai = <span x-text="fmt(col.liveLoadReduction.ai, 1)"></span> m²
+                                            &lt; <span x-text="col.liveLoadReduction.umbral"></span> m² de umbral
+                                            (<span x-text="col.liveLoadReduction.referencia"></span>)
+                                        </span>
+                                    </template>
+                                </div>
+                            </template>
 
                             {{-- Demanda + verificación, base y tope. El combo es seleccionable — por
                                  defecto el gobernante (mayor ratio), pero se puede elegir cualquier
@@ -459,6 +511,23 @@
                     if (e.detail?.code) this.code = e.detail.code;
                     this.recalculando = false;
                     this.open = true;
+
+                    // REDIBUJAR los diagramas abiertos. Plotly no se entera de que
+                    // `columns` cambio: sin esto el grafico se queda con el render
+                    // de la corrida ANTERIOR y muestra un punto de demanda y un
+                    // ratio que ya no coinciden con la tabla de arriba (visto:
+                    // tabla 0.173 contra leyenda 0.142).
+                    //
+                    // El angulo vuelve al de la demanda nueva: una corrida nueva es
+                    // un resultado nuevo, y el angulo que el usuario hubiera fijado
+                    // a mano ya no tiene por que seguir siendo relevante.
+                    this.$nextTick(() => {
+                        this.columns.forEach((col) => {
+                            if (!this.ciOpen[col.frameId]) return;
+                            this.ciAngle[col.frameId] = this.demandAngle(col);
+                            this.drawInteraction(col);
+                        });
+                    });
                 });
 
                 // Al guardar un armado manual (ver column-rebar-designer-modal.blade.php),

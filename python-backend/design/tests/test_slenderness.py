@@ -164,3 +164,57 @@ def test_carga_transversal_fuerza_cm_1():
         ec=EC, ig=IG, ag=AG, lu=8.0, has_transverse_load=True,
     )
     assert math.isclose(res["cm"], 1.0, abs_tol=1e-9)
+
+
+def test_excentricidad_minima_un_eje_por_vez():
+    """La excentricidad accidental actua en UNA direccion, no en las dos a la
+    vez. Aplicar el piso a los dos ejes inventa una demanda biaxial que no
+    existe.
+
+    Referencia: Column Element Details de ETABS (C7 Story1) — con
+    Minimum M2 = Minimum M3 = 1.3294 t-m su diseno usa Mu2 = -1.3294 (el
+    minimo) junto con Mu3 = -0.3831 (el factorado).
+    """
+    from design.column_slenderness import minimum_eccentricity_variants
+
+    # Los dos ejes por debajo del minimo -> dos variantes distintas.
+    v = minimum_eccentricity_variants(-1.3294, -0.1243, -1.3294, -0.3831)
+    assert len(v) == 2
+    assert (-1.3294, -0.3831) in v, "falta la variante que usa ETABS"
+    assert (-0.1243, -1.3294) in v
+
+    # Nunca el minimo en AMBOS a la vez.
+    assert (-1.3294, -1.3294) not in v
+
+
+def test_si_el_minimo_no_levanta_nada_hay_una_sola_variante():
+    """Con los dos momentos por encima del minimo, con_min == sin_min en los
+    dos ejes: no hay nada que decidir y se evalua una sola vez."""
+    from design.column_slenderness import minimum_eccentricity_variants
+
+    v = minimum_eccentricity_variants(-5.0, -5.0, -8.0, -8.0)
+    assert v == [(-5.0, -8.0)]
+
+
+def test_columna_no_esbelta_usa_el_momento_DE_SU_ESTACION():
+    """Con delta_ns = 1 no hay magnificacion, asi que cada seccion se disena con
+    SU PROPIO momento. `res["m2"]` es el MAYOR de los dos extremos — eso lo pide
+    ACI 318 §6.6.4.5.2 solo para el caso ESBELTO, donde Mc = delta_ns*M2 aplica
+    a todo el elemento.
+
+    Referencia: Column Element Details de ETABS (C7 Story1, base). Su
+    `NonSway Mns` vale -0.3831 (el momento DE LA BASE) con delta_ns = 1, aunque
+    el tope de esa misma columna lleva 1.42.
+    """
+    T = 9806.65
+    res = magnify_nonsway(
+        pu=46.2555 * T, m_end_a=-0.3831 * T, m_end_b=1.42 * T,
+        ec=217371 * 98066.5, ig=0.45 ** 4 / 12, ag=0.45 ** 2, lu=2.4,
+        k=1.0, beta_d=0.0, h_dim=0.45,
+    )
+    assert not res["applied"], "esta columna no deberia dar esbelta"
+    assert math.isclose(res["deltaNs"], 1.0)
+
+    # m2 es el MAYOR de los extremos: correcto como dato, pero NO es lo que se
+    # debe disenar en la base cuando la columna no es esbelta.
+    assert math.isclose(res["m2"] / T, 1.42, abs_tol=1e-6)

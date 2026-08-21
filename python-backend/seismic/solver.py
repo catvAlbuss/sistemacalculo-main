@@ -2690,15 +2690,44 @@ def _ff_compute_combo_entries(combo: dict, elements: list, case_idx: dict, compo
                     "relativeStation": base["stations"][k]["relativeStation"],
                 }
                 for comp in components:
-                    total = 0.0
+                    # Los terminos CON signo (gravedad) se suman normal.
+                    #
+                    # El aporte de un caso SIN SIGNO (espectro: CQC/SRSS da una
+                    # MAGNITUD, no un valor con sentido fisico) se aplica en el
+                    # sentido que SUMA magnitud a lo que ya hay, componente por
+                    # componente. Es lo que hace ETABS y es lo conservador.
+                    #
+                    # Antes se le aplicaba UN SOLO signo a todas las componentes,
+                    # y eso deja fuera la envolvente real: en C20 del modelo de
+                    # referencia, la variante "+SDX" daba los momentos maximos
+                    # pero el axial MINIMO (21.41 t) y la "-SDX" el axial maximo
+                    # (35.93 t) con los momentos casi nulos. ETABS reporta las
+                    # dos cosas juntas — P=35.9345 con M2=0.9858 — porque toma el
+                    # peor de CADA componente.
+                    #
+                    # El signo del SF del combo (+1 / -1 en el .e2k) decide si la
+                    # magnitud se SUMA o se RESTA; asi la pareja de combos
+                    # +SDX/-SDX sigue cubriendo el maximo y el minimo axial.
+                    firmes = 0.0
+                    magnitud = 0.0
+                    sgn_sf = 1.0
                     for t in terms:
                         ce = case_idx.get((fid, t["case"]))
                         if not ce:
                             continue
                         val = ce["stations"][k][comp]
+                        factor = float(t.get("factor", 1.0))
                         if t.get("signless"):
-                            val = abs(val) * sgn
-                        total += float(t.get("factor", 1.0)) * val
+                            magnitud += abs(factor * val)
+                            if factor < 0:
+                                sgn_sf = -1.0
+                        else:
+                            firmes += factor * val
+
+                    # Sentido adverso = el del termino con signo, para que las
+                    # magnitudes se sumen en vez de cancelarse.
+                    adverso = -1.0 if firmes < 0 else 1.0
+                    total = firmes + sgn * sgn_sf * adverso * magnitud
                     row[comp] = round(total, 6)
                 stations.append(row)
 
@@ -3385,6 +3414,15 @@ def run_frame_force_results(
                 # la tabla de ETABS.
                 "design": combo.get("design") or "",
                 "comboType": combo.get("comboType") or "",
+                # Terminos (caso + factor) del combo. Los necesita la REDUCCION
+                # DE SOBRECARGA del diseno de columnas (E.020 Art. 10 /
+                # ASCE 7 4.7.2): el factor se aplica solo a la parte VIVA de
+                # cada combo, asi que el frontend tiene que saber con que
+                # factor entra la carga viva en cada uno.
+                "terms": [
+                    {"case": str(t.get("case")), "factor": float(t.get("factor", 0.0) or 0.0)}
+                    for t in (combo.get("terms") or [])
+                ],
             }
         )
 

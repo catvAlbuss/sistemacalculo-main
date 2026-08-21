@@ -112,8 +112,11 @@ def test_el_tope_no_mueve_los_ratios_de_axial_bajo():
     """Guardia de regresion: las columnas de este modelo trabajan a Pu de 28-47
     tonf, muy por debajo del tope de 266.8, asi que sus ratios — ya validados
     contra ETABS — no se pueden mover al agregar el tope."""
-    for pu, m2, m3, esperado in ((27.58, 0.79, 0.79, 0.104),
-                                 (46.63, 1.33, 1.48, 0.178),
-                                 (45.37, 1.29, 1.29, 0.171)):
+    # Los valores se recalibraron al pasar las fibras a peso PARCIAL (antes el
+    # bloque de compresion se cuantizaba al tamano de celda). El cambio es de
+    # decimas: lo que fija el test es que el TOPE no los mueva.
+    for pu, m2, m3, esperado in ((27.58, 0.79, 0.79, 0.1045),
+                                 (46.63, 1.33, 1.48, 0.1791),
+                                 (45.37, 1.29, 1.29, 0.1716)):
         r = capacity_ratio_radial(target_p=pu * T, target_m2=m2 * T, target_m3=m3 * T, **C45)
         assert math.isclose(r["ratio"], esperado, abs_tol=0.001)

@@ -97,6 +97,7 @@ import { rcAligeradoDesignMixin } from "./mixins/analysis/rcAligeradoDesign.js";
 import { columnRebarDesignerMixin } from "./mixins/analysis/columnRebarDesigner.js";
 import { beamRebarDesignerMixin } from "./mixins/analysis/beamRebarDesigner.js";
 import { columnInteractionChartMixin } from "./mixins/analysis/columnInteractionChart.js";
+import { columnLiveLoadReductionMixin } from "./mixins/analysis/columnLiveLoadReduction.js";
 import { displayDialogsMixin } from "./mixins/dialogs/display-dialogs.js";
 import { assignDialogsMixin } from "./mixins/dialogs/assign-dialogs.js";
 import { coreUiMixin } from "./mixins/core/core-ui.js";
@@ -931,6 +932,7 @@ export default () => ({
   ...columnRebarDesignerMixin,
   ...beamRebarDesignerMixin,
   ...columnInteractionChartMixin,
+  ...columnLiveLoadReductionMixin,
   ...displayDialogsMixin,
   ...assignDialogsMixin,
   ...coreUiMixin,

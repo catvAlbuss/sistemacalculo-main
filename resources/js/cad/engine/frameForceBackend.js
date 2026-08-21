@@ -189,7 +189,19 @@ function dedupeSeismicCases(cases) {
         kept.push(sorted[0]);
         merged.push({
             kept: sorted[0].id ?? sorted[0].name,
-            descartados: sorted.slice(1).map((c) => c.id ?? c.name),
+            // ID **y** NOMBRE de cada descartado. Los COMBO del .e2k referencian
+            // el caso por NOMBRE (`LOADCASE "SDX ESCALADO"`) mientras que el id
+            // va normalizado ("SDX_ESCALADO"), asi que un alias solo por id NO
+            // matchea y el termino sismico se cae del combo EN SILENCIO.
+            //
+            // Medido en `muros modelo 2.1.e2k`: los 8 combos sismicos salian
+            // como pura gravedad 1.25(CM+CV) = 28.81 t en C20, cuando ETABS da
+            // 35.93 t. Las columnas se disenaban solo para gravedad.
+            descartados: sorted
+                .slice(1)
+                .flatMap((c) => [c.id, c.name])
+                .filter(Boolean)
+                .map(String),
         });
     });
 
