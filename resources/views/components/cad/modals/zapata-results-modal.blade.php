@@ -445,6 +445,11 @@
             // futuro) para volver a mostrarlos.
             mostrarBloques4y5: false,
             formatNumber(value) {
+                // AGREGADO (ver conversación, región D en combinadas): Number(null)
+                // es 0 (finito) -- sin este chequeo, un valor suprimido a propósito
+                // (region D, sin dato confiable) se mostraba como "0.00", que parece
+                // un momento real de diseño en vez de "no hay dato".
+                if (value === null || value === undefined) return '-';
                 const number = Number(value);
                 return Number.isFinite(number) ? number.toFixed(2) : '-';
             },

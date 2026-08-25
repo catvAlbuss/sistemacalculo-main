@@ -26,6 +26,7 @@
 // resto del flujo de "Calcular Zapatas" sigue sin verse afectado.
 
 const ZAPATA_SHELL_DESIGN_API_URL = "/api/backend/zapata/shell-design";
+const ZAPATA_SHELL_COMBINED_DESIGN_API_URL = "/api/backend/zapata/shell-combined-design";
 
 /**
  * @param {object[]} points - vértices del polígono de la zapata
@@ -94,6 +95,72 @@ export async function fetchZapataShellDesignReference({
       momentoDiseno: data.momentoDiseno,
       cortanteDiseno: data.cortanteDiseno,
       campo: data.campo,
+      advertencia: data.advertencia,
+    };
+  } catch (e) {
+    return { ok: false, error: e?.message || String(e) };
+  }
+}
+
+/**
+ * Momento (M11/M22) de referencia para zapata COMBINADA (viga recta, 2+
+ * columnas alineadas) -- ver python-backend/zapata_shell_solver.py:
+ * calcular_zapata_shell_combinada. SOLO aplica cuando
+ * computeCombinedFootingMoments (footingMoments.js) marca `supported` con
+ * UN solo brazo recto (no trapezoidal, no ramificada) -- mismo alcance que
+ * ya tiene esa función del lado del método rígido.
+ *
+ * AGREGADO (ver conversación, caso F12): las caras de columna cerca de un
+ * borde libre vienen marcadas 'Mx_cara_*_region_d'/'My_cara_*_region_d' y
+ * su momento en null -- ver docstring de calcular_zapata_shell_combinada
+ * para el porqué (ninguna formulación de placa es confiable ahí, no es un
+ * bug). El llamador debe usar el método rígido para esas caras puntuales.
+ *
+ * Reutiliza isAxisAlignedRectangularFooting (mismo chequeo bbox-vs-área)
+ * para decidir si aplica -- ver foundation.js.
+ */
+export async function fetchZapataShellCombinedDesignReference({
+  Lx,
+  Ly,
+  columnas, // [{x, y, bx, by}, ...] -- posición relativa a bounds.minX/minY
+  thicknessM,
+  recubrimientoM,
+  fpcMPa,
+  nu,
+  nx,
+  ny,
+  q,
+}) {
+  try {
+    const resp = await fetch(ZAPATA_SHELL_COMBINED_DESIGN_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        Lx,
+        Ly,
+        columnas,
+        h: thicknessM || undefined,
+        recubrimiento: recubrimientoM || undefined,
+        fpcMPa: fpcMPa || undefined,
+        nu: nu || undefined,
+        nx: nx || undefined,
+        ny: ny || undefined,
+        q,
+      }),
+    });
+
+    const data = await resp.json().catch(() => null);
+
+    if (!resp.ok || !data || data.success === false) {
+      return { ok: false, error: data?.error || `Motor respondió ${resp.status}` };
+    }
+
+    return {
+      ok: true,
+      momentosPorColumna: data.momentosPorColumna,
+      mxHogging: data.mxHogging,
+      myHogging: data.myHogging,
+      d: data.d,
       advertencia: data.advertencia,
     };
   } catch (e) {

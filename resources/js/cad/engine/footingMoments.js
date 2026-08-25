@@ -419,12 +419,16 @@ export function assignColumnsToLegs(legs, columns) {
 /**
  * Evalúa expresiones simples tipo "Pm + 0.7 * PS" o "0.6 * Pm + 0.7 * PS"
  * — el mismo texto que usa `column1` en DEFAULT_LOAD_COMBINATIONS (ver
- * zapatas2Core.js) — contra los valores axiales de UNA columna. La viga
- * continua necesita la carga real de cada columna por combinación, no
- * solo σ (a diferencia de la zapata aislada). No es un evaluador
- * genérico: solo reconoce pm/pv/ps (ignora términos de momento MX* / MY*,
- * que no aplican a este cálculo) y sumas/restas de términos "coef*var" —
- * suficiente para las 11 combinaciones ya definidas.
+ * zapatas2Core.js, ej. "Pm + 0.7 * PS") para la carga AXIAL de columna, o
+ * `column2`/`column3` (ej. "MXm + 0.7 * MXS", "MYm") para su MOMENTO propio
+ * respecto a X/Y — AGREGADO (ver conversación, momento propio de columna
+ * verificado contra Bowles Ejemplo 9-1, `computeContinuousBeamMoment` más
+ * abajo). Los 3 textos usan nombres de variable distintos (pm/pv/ps,
+ * mxm/mxv/mxs, mym/myv/mys) pero TODOS terminan en "m" (muerta), "v" (viva)
+ * o "s" (sismo) — se reconoce por esa ÚLTIMA letra, no por el nombre
+ * completo, para que la misma función sirva para los 3 sin repetir código.
+ * Ignora cualquier término que no termine en m/v/s. Suficiente para las 11
+ * combinaciones ya definidas (no es un evaluador de expresiones genérico).
  */
 export function evaluateAxialExpression(expression, { pm = 0, pv = 0, ps = 0 } = {}) {
   const normalized = String(expression || "")
@@ -434,18 +438,19 @@ export function evaluateAxialExpression(expression, { pm = 0, pv = 0, ps = 0 } =
 
   const withSign = /^[+-]/.test(normalized) ? normalized : `+${normalized}`;
   const terms = withSign.match(/[+-][^+-]+/g) || [];
-  const values = { pm, pv, ps };
+  const values = { m: pm, v: pv, s: ps };
 
   return terms.reduce((total, rawTerm) => {
     const sign = rawTerm.startsWith("-") ? -1 : 1;
     const parts = rawTerm.slice(1).split("*");
     const varName = parts[parts.length - 1];
+    const key = varName.slice(-1); // última letra: m/v/s -- funciona igual para "pm" que para "mxm"/"mym"
 
-    if (!(varName in values)) return total; // ignora mx/my/otros términos
+    if (!(key in values)) return total; // ignora términos que no terminen en m/v/s
 
     const coefficient = parts.length > 1 ? parts.slice(0, -1).reduce((product, factor) => product * Number(factor), 1) : 1;
 
-    return total + sign * coefficient * values[varName];
+    return total + sign * coefficient * values[key];
   }, 0);
 }
 
@@ -458,18 +463,53 @@ export function evaluateAxialExpression(expression, { pm = 0, pv = 0, ps = 0 } =
  * brazo; el ancho (para pasar de σ a carga por metro lineal) es el lado
  * corto.
  *
- * M(x) = q·x²/2 − Σ Pᵢ·(x−xᵢ) para cada columna ya pasada — forma cerrada
- * de integrar el cortante de un tramo autoequilibrado (mismo principio que
- * la fórmula del voladizo de la zapata aislada, extendido a varias
- * columnas en vez de una sola).
+ * M(x) = q·x²/2 − Σ Pᵢ·(x−xᵢ) + Σ Mᵢ, ambas sumas para cada columna ya
+ * pasada (xᵢ≤x) — forma cerrada de integrar el cortante de un tramo
+ * autoequilibrado (mismo principio que la fórmula del voladizo de la
+ * zapata aislada, extendido a varias columnas en vez de una sola).
+ *
+ * AGREGADO (ver conversación): el término "+ Σ Mᵢ" (momento propio que
+ * cada columna transmite a la zapata, no solo su carga axial) faltaba —
+ * verificado contra el printout REAL del Ejemplo 9-1 de Bowles ("Foundation
+ * Analysis and Design" 5ta ed., Fig. E9-1b): sin este término, M(x) no
+ * coincidía con el libro; agregándolo (M salta exactamente +Mᵢ al cruzar
+ * cada columna, ADEMÁS del salto de -Pᵢ en el cortante) reproduce las 18
+ * filas de su tabla real (x, V, M) a la precisión del redondeo del libro
+ * (columna 1: P=837kN M=86.8kN·m en x=0.15; columna 2: P=1366kN M=124kN·m
+ * en x=4.75; q=355.554kN/m; L=6.196m — mismos números del libro).
+ *
+ * Qué momento de columna usar: el que causa flexión en el MISMO plano que
+ * esta viga (que corre a lo largo de `beamAxis`) — es el momento de
+ * reacción respecto al eje PERPENDICULAR a `beamAxis` (`my`/pd3-pl3-sismo3
+ * si la viga corre en X, `mx`/pd2-pl2-sismo2 si corre en Y — ver
+ * `buildZapataColumnRows` en foundationContract.js, reaction[3]=mx,
+ * reaction[4]=my), combinado con `momentExpressionX`/`momentExpressionY`
+ * (`combo.column2`/`combo.column3` de DEFAULT_LOAD_COMBINATIONS —
+ * zapatas2Core.js — NO el mismo `axialExpression`/`column1`: los factores
+ * de combinación de MX/MY son distintos a los de P para varias de las 11
+ * combinaciones, ej. combo 2 usa "Pm+0.7*PS" para P pero solo "MYm" — sin
+ * el 0.7*PS — para MY). Esta parte (qué campo mapea a qué eje, y el signo)
+ * NO quedó verificada contra un caso real con momento de columna distinto
+ * de cero -- el Ejemplo 9-1 del libro es genérico, sin ejes globales X/Y,
+ * así que solo confirma la FÓRMULA, no el mapeo de campos. Revisar contra
+ * un caso real antes de confiar ciegamente en el signo.
  */
-export function computeContinuousBeamMoment(leg, columnsInLeg, sigmaUlt, axialExpression, sampleCount = 200) {
+export function computeContinuousBeamMoment(
+  leg,
+  columnsInLeg,
+  sigmaUlt,
+  axialExpression,
+  momentExpressionX,
+  momentExpressionY,
+  sampleCount = 200
+) {
   const spanX = leg.maxX - leg.minX;
   const spanY = leg.maxY - leg.minY;
   const beamAxis = spanX >= spanY ? "x" : "y";
   const length = Math.max(spanX, spanY);
   const width = Math.min(spanX, spanY) || 0;
   const origin = beamAxis === "x" ? leg.minX : leg.minY;
+  const momentExpression = beamAxis === "x" ? momentExpressionY : momentExpressionX;
 
   const q = (Number(sigmaUlt) || 0) * width; // Tn/m, uniforme a lo largo del brazo
 
@@ -480,11 +520,17 @@ export function computeContinuousBeamMoment(leg, columnsInLeg, sigmaUlt, axialEx
       pv: Number(column.pl1) || 0,
       ps: Number(column.sismo1) || 0,
     }),
+    m: evaluateAxialExpression(momentExpression, {
+      pm: Number(beamAxis === "x" ? column.pd3 : column.pd2) || 0,
+      pv: Number(beamAxis === "x" ? column.pl3 : column.pl2) || 0,
+      ps: Number(beamAxis === "x" ? column.sismo3 : column.sismo2) || 0,
+    }),
   }));
 
   const momentAt = (x) =>
     (q * x * x) / 2 -
-    pointLoads.reduce((sum, load) => (load.position <= x ? sum + load.p * (x - load.position) : sum), 0);
+    pointLoads.reduce((sum, load) => (load.position <= x ? sum + load.p * (x - load.position) : sum), 0) +
+    pointLoads.reduce((sum, load) => (load.position <= x ? sum + load.m : sum), 0);
 
   // V(x) = dM/dx = q·x − Σ Pᵢ (para cada columna ya pasada) — el cortante
   // del mismo tramo autoequilibrado, usado por Bloque 6 (footingShear.js)
@@ -583,12 +629,22 @@ function widthAtCut(points, beamAxis, coord) {
 /**
  * Momento de diseño para zapata trapezoidal — mismo principio que
  * computeContinuousBeamMoment (viga libre-libre autoequilibrada: carga de
- * suelo hacia arriba menos cargas puntuales de columnas hacia abajo), pero
- * con integración numérica (regla del trapecio) en vez de fórmula cerrada,
- * porque el ancho — y por tanto la carga por metro lineal — varía a lo
- * largo de la viga en vez de ser constante.
+ * suelo hacia arriba menos cargas puntuales de columnas hacia abajo, MÁS el
+ * momento propio de cada columna — ver comentario de esa función sobre la
+ * verificación contra Bowles Ejemplo 9-1), pero con integración numérica
+ * (regla del trapecio) en vez de fórmula cerrada, porque el ancho — y por
+ * tanto la carga por metro lineal — varía a lo largo de la viga en vez de
+ * ser constante.
  */
-export function computeTrapezoidalBeamMoment(polygonPoints, columnsInPolygon, sigmaUlt, axialExpression, sampleCount = 400) {
+export function computeTrapezoidalBeamMoment(
+  polygonPoints,
+  columnsInPolygon,
+  sigmaUlt,
+  axialExpression,
+  momentExpressionX,
+  momentExpressionY,
+  sampleCount = 400
+) {
   const points = (polygonPoints || []).map((point) => ({ x: Number(point.x), y: Number(point.y) }));
   const xs = points.map((point) => point.x);
   const ys = points.map((point) => point.y);
@@ -602,6 +658,7 @@ export function computeTrapezoidalBeamMoment(polygonPoints, columnsInPolygon, si
   const origin = beamAxis === "x" ? minX : minY;
   const sigma = Number(sigmaUlt) || 0;
   const widthAt = (localX) => widthAtCut(points, beamAxis, origin + localX);
+  const momentExpression = beamAxis === "x" ? momentExpressionY : momentExpressionX;
 
   const pointLoads = (columnsInPolygon || []).map((column) => ({
     position: (beamAxis === "x" ? Number(column.x) : Number(column.y)) - origin,
@@ -609,6 +666,11 @@ export function computeTrapezoidalBeamMoment(polygonPoints, columnsInPolygon, si
       pm: Number(column.pd1) || 0,
       pv: Number(column.pl1) || 0,
       ps: Number(column.sismo1) || 0,
+    }),
+    m: evaluateAxialExpression(momentExpression, {
+      pm: Number(beamAxis === "x" ? column.pd3 : column.pd2) || 0,
+      pv: Number(beamAxis === "x" ? column.pl3 : column.pl2) || 0,
+      ps: Number(beamAxis === "x" ? column.sismo3 : column.sismo2) || 0,
     }),
   }));
 
@@ -638,6 +700,13 @@ export function computeTrapezoidalBeamMoment(polygonPoints, columnsInPolygon, si
     });
 
     moment += ((shearBefore + shear) / 2) * step;
+
+    // AGREGADO (ver conversación, mismo hallazgo que en
+    // computeContinuousBeamMoment): salto directo de +Mᵢ al cruzar cada
+    // columna, además del salto de -Pᵢ ya aplicado en el cortante arriba.
+    pointLoads.forEach((load) => {
+      if (load.position > x0 && load.position <= x1) moment += load.m;
+    });
 
     momentoPositivoMax = Math.max(momentoPositivoMax, moment);
     momentoNegativoMax = Math.min(momentoNegativoMax, moment);
@@ -688,7 +757,9 @@ export function computeCombinedFootingMoments(polygonPoints, columnsInPolygon, l
               polygonPoints,
               columnsInPolygon,
               sigmaMaxByCombo?.[comboIndex] ?? 0,
-              combo.column1
+              combo.column1,
+              combo.column2,
+              combo.column3
             )
           ),
         },
@@ -711,7 +782,14 @@ export function computeCombinedFootingMoments(polygonPoints, columnsInPolygon, l
       leg,
       columnIds: columnsPerLeg[legIndex].map((column) => column.column ?? column.id),
       momentsByCombo: (loadCombinations || []).map((combo, comboIndex) =>
-        computeContinuousBeamMoment(leg, columnsPerLeg[legIndex], sigmaMaxByCombo?.[comboIndex] ?? 0, combo.column1)
+        computeContinuousBeamMoment(
+          leg,
+          columnsPerLeg[legIndex],
+          sigmaMaxByCombo?.[comboIndex] ?? 0,
+          combo.column1,
+          combo.column2,
+          combo.column3
+        )
       ),
     })),
   };

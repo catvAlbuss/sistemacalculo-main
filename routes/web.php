@@ -364,4 +364,10 @@ Route::prefix('api/backend')
 
             return response($body, $status)->header('Content-Type', 'application/json');
         });
+
+        Route::post('/zapata/shell-combined-design', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('zapata-shell-combined-design', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
     });

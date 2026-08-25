@@ -59,6 +59,7 @@ import { Shape } from "../../model/shapes.js";
 import {
   isAxisAlignedRectangularFooting,
   fetchZapataShellDesignReference,
+  fetchZapataShellCombinedDesignReference,
 } from "../../engine/zapataShellDesign.js";
 
 // Mismos valores por defecto que resources/js/etabs/components/DatosGeneralesPanel.vue
@@ -309,6 +310,10 @@ export const foundationMixin = {
       // momento). Se disparan en paralelo dentro del forEach de abajo y se
       // esperan todas juntas antes de abrir el modal (ver zapataShellDesign.js).
       const shellDesignPromises = [];
+      // Bloque 3b (combinadas) — mismo principio que shellDesignPromises,
+      // pero para zapata combinada tipo viga recta (ver
+      // calcular_zapata_shell_combinada en zapata_shell_solver.py).
+      const shellCombinedDesignPromises = [];
 
       normalizedPolygons.forEach((polygon, index) => {
         const meta = footingsMeta[index];
@@ -613,6 +618,55 @@ export const foundationMixin = {
                 };
               }),
             };
+
+            // Bloque 3b (combinadas) — momento de referencia por elementos
+            // finitos, mismo criterio que Bloque 3b de aisladas: SOLO si es
+            // un brazo recto (no trapezoidal -- leg:null en ese caso) y el
+            // polígono es rectángulo alineado a ejes (el solver arma su
+            // malla en coordenadas globales).
+            //
+            // AGREGADO (ver conversación, caso F12): a propósito NO se
+            // sustituye acá ningún valor con el método rígido cuando el FEM
+            // marca 'region_d' -- mezclar el signo del momento rígido
+            // (convención propia de computeContinuousBeamMoment, pensada
+            // para el envolvente sagging/hogging de la viga) con el signo
+            // de la placa FEM (Mx/My tipo ETABS) sin una verificación
+            // cuidadosa podría introducir un número mal firmado, peor que
+            // no mostrar nada. La cara marcada 'region_d' queda en null y
+            // el modal ya muestra aparte el momento del método rígido
+            // (steelDesign/rigidMoment) para que el ingeniero lo revise ahí.
+            const leg = combined.legs[0]?.leg;
+            if (
+              leg &&
+              isAxisAlignedRectangularFooting(meta.polygonPoints, leg, polygonProperties[index]?.properties?.A)
+            ) {
+              const columnasFem = columnsInPolygon.map((columnRow) => {
+                const columnSize = getColumnSectionSize(this.shapes || [], columnRow.column ?? columnRow.id);
+                return {
+                  x: Number(columnRow.x) - leg.minX,
+                  y: Number(columnRow.y) - leg.minY,
+                  bx: columnSize.b,
+                  by: columnSize.h,
+                };
+              });
+
+              shellCombinedDesignPromises.push({
+                index,
+                polygon,
+                promise: fetchZapataShellCombinedDesignReference({
+                  Lx: leg.maxX - leg.minX,
+                  Ly: leg.maxY - leg.minY,
+                  columnas: columnasFem,
+                  thicknessM: designInputs.thicknessM,
+                  recubrimientoM: designInputs.recubrimientoM,
+                  fpcMPa: designInputs.fpc,
+                  nu: designInputs.poissonRatio,
+                  nx: this.zapataShellMeshN,
+                  ny: this.zapataShellMeshN,
+                  q: quEnv,
+                }),
+              });
+            }
           } else {
             polygonProperties[index].steelDesign = null;
             polygonProperties[index].shearDesign = null;
@@ -684,23 +738,118 @@ export const foundationMixin = {
           // método rígido) — el modal sigue usando el mismo shearLine()
           // sin cambios, solo prefiere este valor (más preciso, ~2.4-4.6%
           // vs ETABS real) cuando está disponible.
+          //
+          // AGREGADO (ver conversación): X e Y se evalúan INDEPENDIENTES
+          // — cd.V13_diseno/V23_diseno pueden venir `null` si el volado
+          // neto de ESA dirección es menor que el peralte efectivo d (la
+          // sección crítica caería fuera de la zapata; antes esto daba un
+          // número sin sentido, ~1417 Tn/m, en vez de nada — ver
+          // zapata_shell_solver.py). Cuando viene null, no se pisa
+          // oneWayXFem/oneWayYFem — el modal cae de vuelta al método
+          // rígido para ESA dirección puntual (que ya da Vu=0 en ese
+          // caso, criterio de que ahí gobierna punzonamiento, no cortante
+          // de viga), sin afectar la otra dirección si esa sí es válida.
           if (result.ok && polygonProperties[index].shearDesign?.type === "isolated") {
             const cd = result.cortanteDiseno;
-            const vuX = Math.abs(cd.V13_diseno);
-            const vuY = Math.abs(cd.V23_diseno);
-            polygonProperties[index].shearDesign.oneWayXFem = {
-              vuTon: vuX,
-              phiVcTon: cd.phiVcTonM,
-              ratio: cd.phiVcTonM > 0 ? vuX / cd.phiVcTonM : Infinity,
-              ok: vuX <= cd.phiVcTonM,
-            };
-            polygonProperties[index].shearDesign.oneWayYFem = {
-              vuTon: vuY,
-              phiVcTon: cd.phiVcTonM,
-              ratio: cd.phiVcTonM > 0 ? vuY / cd.phiVcTonM : Infinity,
-              ok: vuY <= cd.phiVcTonM,
-            };
+            if (cd.V13_diseno != null) {
+              const vuX = Math.abs(cd.V13_diseno);
+              polygonProperties[index].shearDesign.oneWayXFem = {
+                vuTon: vuX,
+                phiVcTon: cd.phiVcTonM,
+                ratio: cd.phiVcTonM > 0 ? vuX / cd.phiVcTonM : Infinity,
+                ok: vuX <= cd.phiVcTonM,
+              };
+            }
+            if (cd.V23_diseno != null) {
+              const vuY = Math.abs(cd.V23_diseno);
+              polygonProperties[index].shearDesign.oneWayYFem = {
+                vuTon: vuY,
+                phiVcTon: cd.phiVcTonM,
+                ratio: cd.phiVcTonM > 0 ? vuY / cd.phiVcTonM : Infinity,
+                ok: vuY <= cd.phiVcTonM,
+              };
+            }
           }
+        });
+      }
+
+      // Bloque 3b (combinadas) — igual que arriba pero para zapata
+      // combinada: momentosPorColumna trae, por columna, Mx_diseno/
+      // My_diseno YA con las caras en 'region D' (cerca de borde libre)
+      // devueltas en null (ver calcular_zapata_shell_combinada). Acá solo
+      // se arma un resumen tipo envolvente (mismo formato {Mx_diseno,
+      // My_diseno} que ya espera el Bloque 3b del modal para aisladas, sin
+      // tocar el Blade) tomando el peor valor VÁLIDO entre columnas — si
+      // todas las columnas quedan en null para un eje, ese eje del resumen
+      // también sale null y el modal simplemente no lo muestra.
+      if (shellCombinedDesignPromises.length) {
+        const results = await Promise.all(shellCombinedDesignPromises.map((p) => p.promise));
+        results.forEach((result, i) => {
+          const { index, polygon: shellPolygon } = shellCombinedDesignPromises[i];
+          if (!polygonProperties[index]) return;
+
+          shellPolygon.combinedShellMoments = result;
+
+          if (!result.ok) {
+            polygonProperties[index].shellMomentReference = { ok: false, error: result.error };
+            return;
+          }
+
+          const porColumna = result.momentosPorColumna || [];
+          const envolvente = (campo) => {
+            const validos = porColumna.map((c) => c[campo]).filter((v) => v != null);
+            if (!validos.length) return null;
+            return validos.reduce((peor, v) => (Math.abs(v) > Math.abs(peor) ? v : peor));
+          };
+
+          const mxResumen = envolvente("Mx_diseno");
+
+          // AGREGADO (ver conversación, método BPR de Bowles "Foundation
+          // Analysis and Design" 5ta ed., Cap. 9 -- validado contra ETABS
+          // real con el modelo F10: 0.26-5.2% de diferencia en las 3
+          // columnas, el mejor resultado de toda esta investigación,
+          // incluida la columna a solo 0.75d del borde libre que la
+          // región D marca como no confiable). Para My (transversal), en
+          // vez de solo la lectura puntual (My_diseno, puede venir null
+          // por región D), se prefiere por columna el promedio sobre la
+          // franja efectiva (My_bpr_diseno, calculado SIEMPRE en el
+          // backend, no depende de región D) -- es la alternativa real al
+          // problema, no un respaldo de menor calidad.
+          const myPorColumnaPreferido = porColumna.map((c) => (c.My_diseno != null ? c.My_diseno : c.My_bpr_diseno));
+          const myResumen = myPorColumnaPreferido.filter((v) => v != null).length
+            ? myPorColumnaPreferido
+                .filter((v) => v != null)
+                .reduce((peor, v) => (Math.abs(v) > Math.abs(peor) ? v : peor))
+            : null;
+
+          const mxFueraDeRegionD = porColumna.some((c) => c.Mx_cara_mas_x_region_d || c.Mx_cara_menos_x_region_d);
+          const myUsoBpr = porColumna.some((c) => c.My_cara_mas_y_region_d || c.My_cara_menos_y_region_d);
+
+          // AGREGADO (ver conversación, umbral de región D ampliado a 2d y
+          // por EJE completo de columna): con el criterio ampliado es común
+          // que TODAS las caras Mx de una zapata combinada corta (columnas
+          // cerca de borde libre en X) queden en región D -- ahí no hay
+          // ningún valor de Mx que mostrar. My ya no cae en este caso
+          // porque siempre tiene el respaldo de BPR.
+          let advertencia = result.advertencia;
+          if (mxResumen == null) {
+            advertencia =
+              "Esta zapata combinada no tiene ningún valor de Mx (longitudinal) confiable -- todas las caras quedan cerca de un borde libre (región D). Usa el momento del método rígido (más abajo) para Mx. My (transversal) sí está disponible, calculado con el método de franja efectiva de Bowles (validado ~0.3-5% vs. ETABS).";
+          } else if (mxFueraDeRegionD) {
+            advertencia =
+              (result.advertencia || "") +
+              " Al menos una cara Mx de columna cerca de un borde libre no tiene valor FEM confiable (región D) -- revisar el momento del método rígido (más abajo) para esa cara.";
+          } else if (myUsoBpr) {
+            advertencia =
+              (result.advertencia || "") +
+              " My (transversal) de al menos una columna se calculó con el método de franja efectiva de Bowles (promedio, no punto exacto) por estar cerca de un borde libre -- validado ~0.3-5% vs. ETABS real.";
+          }
+
+          polygonProperties[index].shellMomentReference = {
+            ok: true,
+            momentoDiseno: { Mx_diseno: mxResumen, My_diseno: myResumen },
+            advertencia,
+          };
         });
       }
 

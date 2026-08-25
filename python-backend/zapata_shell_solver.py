@@ -279,6 +279,60 @@ def calcular_zapata_shell(
     }
 
 
+def _ajustar_malla_para_columna(L, columna_pos, n_objetivo, rango=6):
+    """
+    Busca, cerca de n_objetivo, el numero de divisiones N tal que la
+    columna (columna_pos) caiga lo mas exacto posible sobre un nodo real
+    de la malla.
+
+    AGREGADO (ver conversacion) -- bug real encontrado al calibrar
+    precision de zapatas DESCENTRADAS: el apoyo de la columna SIEMPRE se
+    ata al nodo de malla mas cercano (ops.fix necesita un nodo real, no
+    puede ir en un punto arbitrario) -- si columna_pos no cae justo en un
+    nodo con la malla pedida, la columna SIMULADA queda desplazada de
+    donde en verdad esta, hasta L/(2*n) de error. Para zapatas CENTRADAS
+    (columna_pos=L/2, n par) esto siempre alineaba exacto por pura
+    casualidad geometrica -- nunca se noto hasta probar una zapata
+    descentrada real: columna en x=0.3 con malla 50x50 (paso 0.04m) caia
+    JUSTO en el punto medio entre dos nodos (7.5) -- el peor caso posible,
+    2cm de error de posicion, que por si solo explicaba gran parte de la
+    "menor precision" observada en casos descentrados (dos funciones
+    distintas del solver, con la MISMA formula matematica, daban
+    resultados hasta 43% distintos entre si solo por este desalineamiento).
+
+    Si n_objetivo ya alinea exacto (o casi), se devuelve tal cual -- no
+    perturba ningun caso ya validado (todos los centrados, F2/F8, ya
+    alineaban exacto con n par).
+    """
+    if columna_pos <= 0 or columna_pos >= L:
+        return n_objetivo  # columna fuera de la zapata -- no deberia pasar, no hay nada que alinear
+
+    def _error(n):
+        h = L / n
+        frac = columna_pos / h
+        return abs(frac - round(frac))
+
+    mejor_n = n_objetivo
+    mejor_error = _error(n_objetivo)
+    if mejor_error < 1e-9:
+        return n_objetivo
+
+    # AGREGADO (ver conversacion): busca SOLO hacia arriba (n_objetivo en
+    # adelante), nunca hacia mallas mas gruesas -- probado primero buscar
+    # en ambas direcciones (n_objetivo +/- rango) y encontraba buena
+    # alineacion reduciendo la malla (ej. 50->47), lo que mejoraba mucho
+    # M12/MMax pero empeoraba V13/VMax (el cortante ya es sensible a la
+    # finura de malla, ver mas arriba) -- buscar solo hacia arriba da la
+    # misma calidad de alineacion sin sacrificar finura.
+    for n in range(n_objetivo + 1, n_objetivo + 2 * rango + 1):
+        e = _error(n)
+        if e < mejor_error - 1e-9:
+            mejor_error = e
+            mejor_n = n
+
+    return mejor_n
+
+
 def calcular_zapata_shell_completo(
     Lx, Ly,              # dimensiones de la zapata en planta (m)
     h,                    # espesor (m)
@@ -330,6 +384,13 @@ def calcular_zapata_shell_completo(
     (4x2m, centrada, q=3.69 Tonf/m2): Mx 3.00%, My 6.83%, V13 2.44%, V23
     3.15% a malla fina -- validado SOLO para zapatas centradas.
     """
+    # Ajuste de malla para que la columna caiga exacta (o lo mas cerca
+    # posible) en un nodo real -- ver _ajustar_malla_para_columna(). Debe
+    # correr ANTES de calcular hx/hy, para que TODO lo de abajo (nodos,
+    # elementos, indices) ya use la malla corregida.
+    nx = _ajustar_malla_para_columna(Lx, columna_x, nx)
+    ny = _ajustar_malla_para_columna(Ly, columna_y, ny)
+
     ops.wipe()
     ops.model('basic', '-ndm', 3, '-ndf', 6)
 
@@ -498,22 +559,45 @@ def calcular_zapata_shell_completo(
     }
 
     # ── Cortante: seccion critica (ACI 318/E.060), a distancia d de la cara
-    # de columna, hacia el borde de la zapata -- NO en la cara misma. Si d
-    # cae fuera de la zapata (volado muy corto), se clampea al borde --
-    # limitacion conocida, no se ha probado ese caso todavia.
+    # de columna, hacia el borde de la zapata -- NO en la cara misma.
+    #
+    # AGREGADO (ver conversacion) -- fix de un bug real: si el volado NETO
+    # (cara de columna -> borde de la zapata) es MENOR que d, la seccion
+    # critica matematicamente cae FUERA de la zapata. Antes esto se
+    # "resolvia" recortando (clamp) la lectura al borde de la malla -- que
+    # cae muy cerca de la columna, en la zona de concentracion de
+    # cortante, dando un numero sin sentido fisico (se veria del orden de
+    # cientos/miles de Tonf/m en vez de los ~5-20 normales). Ahora se
+    # detecta el caso y esa cara queda sin valor (None) -- el frontend cae
+    # de vuelta al metodo rigido para esa direccion (que ya maneja
+    # correctamente volado<d dando Vu=0, mismo criterio que
+    # computeOneWayShear en footingShear.js). Fisicamente, cuando el
+    # volado es tan corto, el chequeo que gobierna es punzonamiento
+    # (computePunchingShear), no cortante de viga -- este metodo de una
+    # direccion simplemente no aplica ahi, no es que de cero.
     d = max(0.0, h - recubrimiento)
-    x_cara_mas = columna_x + columna_bx / 2 + d
-    x_cara_menos = columna_x - columna_bx / 2 - d
-    y_cara_mas = columna_y + columna_by / 2 + d
-    y_cara_menos = columna_y - columna_by / 2 - d
 
-    V13_mas = _interp_bilineal(Q, 'Qx', x_cara_mas / hx, j_col_f)
-    V13_menos = _interp_bilineal(Q, 'Qx', x_cara_menos / hx, j_col_f)
-    V23_mas = _interp_bilineal(Q, 'Qy', i_col_f, y_cara_mas / hy)
-    V23_menos = _interp_bilineal(Q, 'Qy', i_col_f, y_cara_menos / hy)
+    volado_mas_x = Lx - (columna_x + columna_bx / 2)
+    volado_menos_x = columna_x - columna_bx / 2
+    volado_mas_y = Ly - (columna_y + columna_by / 2)
+    volado_menos_y = columna_y - columna_by / 2
 
-    V13_diseno = max(V13_mas, V13_menos, key=abs)
-    V23_diseno = max(V23_mas, V23_menos, key=abs)
+    def _v_o_none(componente, ti, tj, volado_neto):
+        if volado_neto < d:
+            return None
+        return _interp_bilineal(Q, componente, ti, tj)
+
+    V13_mas = _v_o_none('Qx', (columna_x + columna_bx / 2 + d) / hx, j_col_f, volado_mas_x)
+    V13_menos = _v_o_none('Qx', (columna_x - columna_bx / 2 - d) / hx, j_col_f, volado_menos_x)
+    V23_mas = _v_o_none('Qy', i_col_f, (columna_y + columna_by / 2 + d) / hy, volado_mas_y)
+    V23_menos = _v_o_none('Qy', i_col_f, (columna_y - columna_by / 2 - d) / hy, volado_menos_y)
+
+    def _diseno(v_mas, v_menos):
+        candidatos = [v for v in (v_mas, v_menos) if v is not None]
+        return max(candidatos, key=abs) if candidatos else None
+
+    V13_diseno = _diseno(V13_mas, V13_menos)
+    V23_diseno = _diseno(V23_mas, V23_menos)
 
     # Capacidad phiVc, MISMA formula que footingShear.js (oneWayShearCapacityKgf):
     # phi x 0.53 x sqrt(f'c) x b x d, b=100cm (por metro de ancho) -- se calcula
@@ -531,6 +615,12 @@ def calcular_zapata_shell_completo(
         'V23_cara_mas_y': V23_mas, 'V23_cara_menos_y': V23_menos,
         'V13_diseno': V13_diseno, 'V23_diseno': V23_diseno,
         'phiVcTonM': phi_vc_ton,
+        # AGREGADO (ver conversacion): true cuando ESE lado tuvo volado
+        # suficiente (>=d) para una seccion critica valida -- el frontend
+        # lo usa para saber si puede confiar en V13_diseno/V23_diseno o
+        # si debe caer al metodo rigido para esa direccion especifica.
+        'V13_valido': V13_diseno is not None,
+        'V23_valido': V23_diseno is not None,
     }
 
     # ── Campo completo (UNA sola grilla, coordenadas LOCALES) para el mapa
@@ -581,6 +671,40 @@ def calcular_zapata_shell_completo(
     }
 
 
+def _ajustar_malla_para_columnas(L, posiciones, n_objetivo, rango=8):
+    """
+    Igual principio que _ajustar_malla_para_columna(), pero para VARIAS
+    columnas a la vez (zapata combinada) -- busca el N (solo hacia malla
+    mas fina, nunca mas gruesa) que minimiza el PEOR error de alineacion
+    entre todas las columnas, no solo una. Con 2+ columnas es mas dificil
+    alinear TODAS exacto (cada una compite por su propio nodo), pero
+    igual ayuda a evitar el peor caso (una columna justo a mitad de
+    camino entre 2 nodos, el mismo bug ya encontrado y corregido para
+    zapatas aisladas descentradas).
+    """
+    posiciones = [p for p in posiciones if 0 < p < L]
+    if not posiciones:
+        return n_objetivo
+
+    def _peor_error(n):
+        h = L / n
+        errores = [abs(p / h - round(p / h)) for p in posiciones]
+        return max(errores)
+
+    mejor_n = n_objetivo
+    mejor_error = _peor_error(n_objetivo)
+    if mejor_error < 1e-9:
+        return n_objetivo
+
+    for n in range(n_objetivo + 1, n_objetivo + 2 * rango + 1):
+        e = _peor_error(n)
+        if e < mejor_error - 1e-9:
+            mejor_error = e
+            mejor_n = n
+
+    return mejor_n
+
+
 def calcular_zapata_shell_combinada(
     Lx, Ly,              # dimensiones de la zapata en planta (m) -- rectangulo que contiene todas las columnas
     h,                    # espesor (m)
@@ -589,6 +713,7 @@ def calcular_zapata_shell_combinada(
     q,                     # presion perpendicular uniforme (Tonf/m2), empuja hacia ARRIBA
     columnas,               # lista de dicts: {'x','y','bx','by'} -- posicion y tamano de CADA columna
     nx=20, ny=20,          # divisiones de malla
+    recubrimiento=0.075,    # recubrimiento (m) -- para el peralte efectivo d, ver deteccion de region D mas abajo
 ):
     """
     Igual principio que calcular_zapata_shell() (ShellDKGQ, carga uniforme
@@ -613,7 +738,51 @@ def calcular_zapata_shell_combinada(
     fuera de alcance de esta version -- pensada para zapata combinada tipo
     viga recta (2+ columnas en linea), no para losas con columnas en
     cuadricula 2D (eso requeriria un criterio de "tramo" mas elaborado).
+
+    AGREGADO (ver conversacion, caso real F12): cuando la cara de una
+    columna queda cerca de un BORDE LIBRE de la zapata (volado neto,
+    cara->borde, menor que 2 veces el peralte efectivo d), el momento leido
+    ahi por FEM de placa (delgada o gruesa, se probaron ambas, ver memoria
+    del proyecto) subestima el momento real de ETABS hasta en 48-70% -- esa
+    zona cae dentro de lo que ACI 318 (R23.2.3, principio de Saint-Venant)
+    llama "region D": cerca de un apoyo o borde, la hipotesis de placa/viga
+    (deformacion plana, sin corte) deja de ser valida sin importar que tan
+    fino o que tan buen elemento se use -- confirmado con 2
+    implementaciones FEM independientes fallando igual, y con un elemento
+    de mayor orden (ShellMITC9) fallando ya en el caso de control mas
+    limpio posible.
+
+    AMPLIADO (ver conversacion, prueba en navegador + barrido de malla en
+    X/Y por separado): la version inicial solo ocultaba la cara que mira
+    directo al borde, con umbral volado<d (1 peralte). Se encontro que la
+    cara OPUESTA de la MISMA columna (la que mira al vano) tambien es
+    numericamente inestable -- refinar la malla en X y en Y por separado
+    mueve su valor en direcciones OPUESTAS sin converger a un solo numero,
+    misma firma que la cara ya marcada -- confirmado en F12 (cara vano a
+    1.71d del borde) y en zapata aislada F7 (cara corta a 1.59d, error
+    persistente 32-35% nunca explicado hasta ahora). Umbral ampliado a 2d
+    (capta ambos casos con margen) y, si CUALQUIER cara de la columna en un
+    eje (X o Y) queda dentro de ese umbral, se ocultan las DOS caras de ESE
+    eje para esa columna -- decision conservadora a proposito: es mejor
+    ocultar de mas que mostrar un numero que parece preciso pero no lo es.
+
+    En vez de devolver esos numeros (que ademas son NO conservadores --
+    subestiman), se devuelve None con una bandera '_region_d' para que el
+    llamador use el metodo rigido de respaldo (computeContinuousBeamMoment,
+    que ya calcula esta misma zapata como viga libre-libre y ya se muestra
+    en el frontend) en vez del FEM ahi.
     """
+    d = max(0.0, h - recubrimiento)
+    # AGREGADO (ver conversacion): mismo fix que zapatas aisladas
+    # descentradas -- ajusta la malla (solo hacia mas fina) para que las
+    # columnas caigan lo mas exacto posible en un nodo real, en vez de
+    # quedar "flotando" entre dos (hasta L/(2*n) de error de posicion,
+    # bug real que explico gran parte de la menor precision en aisladas
+    # descentradas). Con VARIAS columnas se minimiza el PEOR caso entre
+    # todas -- ver _ajustar_malla_para_columnas().
+    nx = _ajustar_malla_para_columnas(Lx, [c['x'] for c in columnas], nx)
+    ny = _ajustar_malla_para_columnas(Ly, [c['y'] for c in columnas], ny)
+
     ops.wipe()
     ops.model('basic', '-ndm', 3, '-ndf', 6)
 
@@ -730,10 +899,144 @@ def calcular_zapata_shell_combinada(
         cara_menos_x = _interp_bilineal(c['i_col'] - i_off, c['j_col'])
         cara_mas_y = _interp_bilineal(c['i_col'], c['j_col'] + j_off)
         cara_menos_y = _interp_bilineal(c['i_col'], c['j_col'] - j_off)
+
+        # AGREGADO (ver conversacion, region D -- version ampliada tras
+        # prueba en navegador con F12): la primera version solo ocultaba la
+        # cara que directamente mira al borde libre, con umbral volado<d.
+        # Se encontro con evidencia real (barrido de malla en X y en Y por
+        # separado, en F12 Y en F7/aislada) que la cara OPUESTA de la MISMA
+        # columna (la que mira al vano, lejos del borde) tambien es
+        # numericamente inestable cuando esa columna tiene CUALQUIER cara
+        # cerca de un borde libre: refinar la malla en X sube su valor,
+        # refinar en Y lo baja, sin converger a un solo numero -- la misma
+        # firma de "demasiado cerca de la singularidad de la columna" que
+        # ya vimos en la cara marcada. Confirmado en 2 casos independientes
+        # (F7 aislada: cara larga estable, cara corta con volado=1.59d
+        # inestable en ambos ejes; F12 combinada: la cara del vano, a
+        # 1.71d de ese mismo borde, con el mismo patron). Umbral ampliado
+        # de 1d a 2d (capta ambos casos con margen) y, si CUALQUIER cara de
+        # la columna en un eje queda corta, se ocultan las DOS caras de ESE
+        # eje para esa columna (no solo la cercana al borde) -- es una
+        # decision conservadora (oculta mas de lo estrictamente necesario)
+        # a proposito, para no mostrar un numero que parece preciso pero no
+        # lo es.
+        REGION_D_FACTOR = 2.0
+        volado_mas_x = Lx - (c['x'] + c['bx'] / 2)
+        volado_menos_x = c['x'] - c['bx'] / 2
+        volado_mas_y = Ly - (c['y'] + c['by'] / 2)
+        volado_menos_y = c['y'] - c['by'] / 2
+
+        columna_x_afectada = min(volado_mas_x, volado_menos_x) < REGION_D_FACTOR * d
+        columna_y_afectada = min(volado_mas_y, volado_menos_y) < REGION_D_FACTOR * d
+
+        # AGREGADO (ver conversacion, "vanos cortos" -- pendiente resuelto
+        # con literatura real, Consensus.app, Fernandez/Mari/Oller 2021):
+        # la region D original solo mira distancia a un BORDE LIBRE. Con el
+        # caso real F10 (3 columnas) se encontro que un tramo corto entre
+        # DOS COLUMNAS VECINAS (sin ningun borde libre cerca) tambien da
+        # error grande (45-90%), sin bandera. El parametro que gobierna,
+        # segun la literatura real, no es la luz libre completa sino la
+        # luz de cortante (~mitad de la luz libre, distancia al punto
+        # medio del tramo) sobre el peralte -- mismo umbral factor (2-3d)
+        # que el borde libre, por consistencia se usa 2.5d (punto medio
+        # del rango de la literatura).
+        VANO_CORTO_FACTOR = 2.5
+        for otra in columnas_info:
+            if otra is c:
+                continue
+            if otra['j_col'] == c['j_col'] and otra['i_col'] != c['i_col']:
+                dist_medio_x = abs(otra['x'] - c['x']) / 2.0
+                if dist_medio_x < VANO_CORTO_FACTOR * d:
+                    columna_x_afectada = True
+            if otra['i_col'] == c['i_col'] and otra['j_col'] != c['j_col']:
+                dist_medio_y = abs(otra['y'] - c['y']) / 2.0
+                if dist_medio_y < VANO_CORTO_FACTOR * d:
+                    columna_y_afectada = True
+
+        # AGREGADO (ver conversacion, metodo BPR de Bowles "Foundation
+        # Analysis and Design" 5ta ed., Cap. 9, Fig. 9-3 -- verificado
+        # numericamente contra su Ejemplo 9-1, no es interpretacion propia
+        # sin respaldo). Para el momento TRANSVERSAL (My) cerca de una
+        # columna, en vez de leer un punto (que ya sabemos que es una
+        # singularidad matematica sin solucion), Bowles promedia My sobre
+        # una franja de ancho BPR en la direccion LONGITUDINAL (X, donde
+        # estan las columnas), centrada en la columna. Cada lado aporta
+        # hasta 0.75*d; si ese lado da hacia un borde LIBRE (no hacia otra
+        # columna), el aporte se limita a la distancia real "c" hasta el
+        # borde si es menor a 0.75*d -- formula: w + min(c_izq,0.75d) +
+        # min(c_der,0.75d). Verificado con los 2 valores reales del libro
+        # (0.617m y 1.015m), coincide exacto.
+        def _tiene_vecino_en_direccion(direccion):
+            for otra in columnas_info:
+                if otra is c:
+                    continue
+                if otra['j_col'] == c['j_col']:
+                    if (direccion > 0 and otra['i_col'] > c['i_col']) or \
+                       (direccion < 0 and otra['i_col'] < c['i_col']):
+                        return True
+            return False
+
+        aporte_mas_x = (0.75 * d) if _tiene_vecino_en_direccion(1) else min(volado_mas_x, 0.75 * d)
+        aporte_menos_x = (0.75 * d) if _tiene_vecino_en_direccion(-1) else min(volado_menos_x, 0.75 * d)
+        bpr_ancho = c['bx'] + aporte_mas_x + aporte_menos_x
+        bpr_x_ini = c['x'] - c['bx'] / 2 - aporte_menos_x
+        bpr_x_fin = c['x'] + c['bx'] / 2 + aporte_mas_x
+
+        def _my_promedio_franja(tj):
+            j_idx = max(0, min(ny, int(round(tj))))
+            i_ini = max(0, int(round(bpr_x_ini / hx)))
+            i_fin = min(nx, int(round(bpr_x_fin / hx)))
+            if i_fin <= i_ini:
+                i_fin = i_ini + 1
+            valores = [by_ij[(i, j_idx)]['My'] for i in range(i_ini, i_fin + 1)]
+            return sum(valores) / len(valores)
+
+        my_bpr_mas_y = _my_promedio_franja(c['j_col'] + j_off)
+        my_bpr_menos_y = _my_promedio_franja(c['j_col'] - j_off)
+        my_bpr_diseno = max(my_bpr_mas_y, my_bpr_menos_y, key=abs)
+
+        def _valor_o_none(valor, eje_afectado):
+            return None if eje_afectado else valor
+
+        mx_mas_x = _valor_o_none(cara_mas_x['Mx'], columna_x_afectada)
+        mx_menos_x = _valor_o_none(cara_menos_x['Mx'], columna_x_afectada)
+        my_mas_y = _valor_o_none(cara_mas_y['My'], columna_y_afectada)
+        my_menos_y = _valor_o_none(cara_menos_y['My'], columna_y_afectada)
+
+        def _envolvente(*valores):
+            candidatos = [v for v in valores if v is not None]
+            return max(candidatos, key=abs) if candidatos else None
+
         momentos_por_columna.append({
             'x': c['x'], 'y': c['y'],
-            'Mx_diseno': max(cara_mas_x['Mx'], cara_menos_x['Mx'], key=abs),
-            'My_diseno': max(cara_mas_y['My'], cara_menos_y['My'], key=abs),
+            'Mx_diseno': _envolvente(mx_mas_x, mx_menos_x),
+            'My_diseno': _envolvente(my_mas_y, my_menos_y),
+            # AGREGADO (ver conversacion): caras por separado -- antes solo
+            # se exponia el envolvente (el mayor de las 2), que mezcla el
+            # lado del volado (hacia el borde libre) con el lado del vano
+            # (hacia la columna vecina) en un solo numero. Para comparar
+            # cada lado por separado contra ETABS (son fisicamente
+            # distintos) hace falta esto -- mismo criterio que ya expone
+            # calcular_zapata_shell() para zapatas aisladas.
+            'Mx_cara_mas_x': mx_mas_x, 'Mx_cara_menos_x': mx_menos_x,
+            'My_cara_mas_y': my_mas_y, 'My_cara_menos_y': my_menos_y,
+            # Bandera + valor crudo (aunque no sea confiable) por cara, para
+            # que el frontend pueda explicar al usuario POR QUE falta ese
+            # numero en vez de solo mostrar un vacio. Bandera es por EJE
+            # (columna_x_afectada/columna_y_afectada), no por cara individual
+            # -- ver comentario arriba.
+            'Mx_cara_mas_x_region_d': columna_x_afectada,
+            'Mx_cara_menos_x_region_d': columna_x_afectada,
+            'My_cara_mas_y_region_d': columna_y_afectada,
+            'My_cara_menos_y_region_d': columna_y_afectada,
+            'Mx_cara_mas_x_crudo': cara_mas_x['Mx'], 'Mx_cara_menos_x_crudo': cara_menos_x['Mx'],
+            'My_cara_mas_y_crudo': cara_mas_y['My'], 'My_cara_menos_y_crudo': cara_menos_y['My'],
+            # AGREGADO (ver conversacion, metodo BPR de Bowles): momento
+            # transversal promediado sobre la franja efectiva -- disponible
+            # SIEMPRE (incluso si My_diseno quedo en None por region D),
+            # porque es precisamente la alternativa a leer el punto exacto.
+            'My_bpr_mas_y': my_bpr_mas_y, 'My_bpr_menos_y': my_bpr_menos_y,
+            'My_bpr_diseno': my_bpr_diseno, 'bpr_ancho': bpr_ancho,
         })
 
     columnas_ordenadas = sorted(columnas_info, key=lambda c: (c['x'], c['y']))
@@ -768,6 +1071,7 @@ def calcular_zapata_shell_combinada(
         'momentos_por_columna': momentos_por_columna,
         'Mx_hogging': mx_hogging, 'My_hogging': my_hogging,
         'tramos': tramos,
+        'd': d,
     }
 
 

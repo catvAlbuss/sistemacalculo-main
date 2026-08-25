@@ -174,6 +174,19 @@ def zapata_shell_design_endpoint():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route("/api/zapata/shell-combined-design", methods=["POST"])
+def zapata_shell_combined_design_endpoint():
+    if not OPENSEES_AVAILABLE:
+        return jsonify({"success": False, "error": "OpenSeesPy no está disponible"}), 503
+
+    try:
+        result = run_zapata_shell_combined_design(request.json or {})
+        return jsonify(result)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 def run_zapata_shell_design(data):
     """Momento (M11/M22/M12) Y cortante (V13/V23) de referencia para una
     zapata AISLADA rectangular, via elementos finitos reales, en UNA sola
@@ -250,6 +263,68 @@ def run_zapata_shell_design(data):
         "advertencia": "Columna asumida ({:.0f}x{:.0f}cm) si el CAD no tenia seccion real asignada -- valor de referencia, no de diseno. Cortante validado solo para zapatas centradas (caso F8 4x2m: 2.4-4.6% vs ETABS real); zapatas descentradas sin validar.".format(
             columna_bx * 100, columna_by * 100
         ),
+    }
+
+
+def run_zapata_shell_combined_design(data):
+    """Momento (M11/M22) de referencia para una zapata COMBINADA (viga recta,
+    2+ columnas alineadas), via elementos finitos reales -- ver
+    python-backend/zapata_shell_solver.py:calcular_zapata_shell_combinada.
+
+    AGREGADO (ver conversacion, caso real F12): a diferencia de la aislada,
+    la cara de columna que queda cerca de un borde LIBRE (volado neto menor
+    al peralte efectivo d) cae en una "region D" (ACI 318 R23.2.3) donde
+    NINGUN elemento de placa (delgado o grueso, se probaron ambos, incluido
+    un elemento de mayor orden ShellMITC9) da un valor confiable -- ver
+    calcular_zapata_shell_combinada() para el detalle. Esas caras vienen con
+    'Mx_cara_*_region_d': true y su momento en null; el llamador (CAD) debe
+    usar el metodo rigido (computeContinuousBeamMoment, footingMoments.js)
+    para esa cara puntual en vez de este valor FEM.
+    """
+    from zapata_shell_solver import calcular_zapata_shell_combinada
+
+    Lx = float(data["Lx"])
+    Ly = float(data["Ly"])
+    q = float(data["q"])
+    h = float(data.get("h") or 0.40)
+    nu = float(data.get("nu") or 0.2)
+    recubrimiento = float(data.get("recubrimiento") or 0.075)
+    fpc_mpa = float(data.get("fpcMPa") or 21.0)
+
+    columnas = [
+        {
+            "x": float(c["x"]), "y": float(c["y"]),
+            "bx": float(c.get("bx") or 0.30), "by": float(c.get("by") or 0.30),
+        }
+        for c in (data.get("columnas") or [])
+    ]
+    if len(columnas) < 2:
+        return {"success": False, "error": "Se necesitan al menos 2 columnas para una zapata combinada."}
+
+    if data.get("E"):
+        E_tonf_m2 = float(data["E"])
+    else:
+        fpc_kgf_cm2 = fpc_mpa * 10.19716
+        Ec_kgf_cm2 = 15000 * (fpc_kgf_cm2 ** 0.5)
+        E_tonf_m2 = Ec_kgf_cm2 * 10
+
+    nx = int(data.get("nx") or 50)
+    ny = int(data.get("ny") or 50)
+
+    r = calcular_zapata_shell_combinada(
+        Lx=Lx, Ly=Ly, h=h, E=E_tonf_m2, nu=nu, q=q,
+        columnas=columnas,
+        nx=nx, ny=ny,
+        recubrimiento=recubrimiento,
+    )
+
+    return {
+        "success": True,
+        "momentosPorColumna": r["momentos_por_columna"],
+        "mxHogging": r["Mx_hogging"],
+        "myHogging": r["My_hogging"],
+        "d": r["d"],
+        "advertencia": "Valor de referencia por elementos finitos (ShellDKGQ). Caras de columna cerca de un borde libre (volado < peralte efectivo) se marcan 'region_d' y no traen momento FEM -- usar el metodo rigido ahi. Lado del vano (hacia la columna vecina) puede diferir de ETABS 20-30% (limitacion conocida, ver documentacion del proyecto).",
     }
 
 

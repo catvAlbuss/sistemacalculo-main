@@ -16,7 +16,7 @@
         <span>Panel</span>
     </button>
 
-    <div class="flex flex-1 flex-col overflow-y-auto">
+    <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
 
         
         <div class="border-b border-gray-700/70 bg-gray-900/30 py-1 text-center text-[9px] font-semibold uppercase tracking-wide text-gray-400">Dibujar</div>
