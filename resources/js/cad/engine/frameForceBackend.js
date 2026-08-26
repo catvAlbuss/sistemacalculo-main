@@ -261,7 +261,28 @@ export async function loadRealFrameForceResults(cadSystem, opts = {}) {
         throw new Error("El modelo no tiene nodos/elementos para calcular fuerzas.");
     }
 
-    const payload = cadSystem._buildSeismicPayload?.(cfg, nodes, frames);
+    // Mallado de MUROS + particion de vigas, SOLO para los diagramas.
+    //
+    // Este modulo arma su propio payload, separado del que usa el pipeline
+    // sismico (core.js), asi que encender el flag aca no toca masa, modos,
+    // espectral ni reacciones. Ver `wallMeshSize` en payload.js.
+    //
+    // Medido en MINI2 (portico 6x4 con un muro, y dos columnas SIN muro en el
+    // mismo modelo como control) contra ETABS, columna con muro:
+    //   apagado (malla 1x1) ..... P 0.71   M3 0.32
+    //   encendido, convergido ... P 1.04   M3 0.61
+    // Las columnas de control se quedan en 0.98-1.04 con las dos.
+    //
+    // APAGADO por defecto: mejora mucho pero todavia NO es paridad con ETABS, y
+    // en el modelo real hay que medirlo antes. Ver
+    // project-column-gravity-moment-gap y project-wall-fe-change-plan.
+    const MALLAR_MUROS_EN_DIAGRAMAS = false;
+
+    const payload = cadSystem._buildSeismicPayload?.(
+        MALLAR_MUROS_EN_DIAGRAMAS ? { ...cfg, meshBeamsAtIntersections: true } : cfg,
+        nodes,
+        frames,
+    );
     if (!payload) throw new Error("No se pudo construir el payload del modelo.");
 
     const { cases: seismicCases, merged: seismicMerged } = dedupeSeismicCases(

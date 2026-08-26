@@ -3429,6 +3429,15 @@ export class CreateLinesRegionClicksState extends PanAndZoomState {
     const storyCount = Number(ref.storyCount || 0);
     const storyHeight = Number(ref.storyHeight || 0);
 
+    // Cotas REALES de los pisos (context.stories respeta alturas distintas);
+    // el multiplo de storyHeight queda solo como respaldo.
+    const zLevels = [];
+    for (let k = 0; k <= storyCount; k++) {
+      const st = context.stories?.[k];
+      const z = st && Number.isFinite(Number(st.elevation)) ? Number(st.elevation) : k * storyHeight;
+      zLevels.push(z);
+    }
+
     if (view.type === "plan") {
       const z = Number(view.elevation || 0);
 
@@ -3458,11 +3467,6 @@ export class CreateLinesRegionClicksState extends PanAndZoomState {
     if (view.type === "elevation" && view.axis === "X") {
       const fixedX = Number(view.value || 0);
 
-      const zLevels = [];
-      for (let k = 0; k <= storyCount; k++) {
-        zLevels.push(k * storyHeight);
-      }
-
       zLevels.forEach((z) => {
         for (let j = 0; j < yPositions.length - 1; j++) {
           segments.push({
@@ -3488,11 +3492,6 @@ export class CreateLinesRegionClicksState extends PanAndZoomState {
 
     if (view.type === "elevation" && view.axis === "Y") {
       const fixedY = Number(view.value || 0);
-
-      const zLevels = [];
-      for (let k = 0; k <= storyCount; k++) {
-        zLevels.push(k * storyHeight);
-      }
 
       zLevels.forEach((z) => {
         for (let i = 0; i < xPositions.length - 1; i++) {

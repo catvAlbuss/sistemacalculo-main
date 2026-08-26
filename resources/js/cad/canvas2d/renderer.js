@@ -1281,11 +1281,19 @@ export class DiseñoRenderer {
       // Columna = vertical (misma X,Y, distinta Z).
       if (!(dz > EPS && dxy < EPS)) return;
 
-      // Se muestra en el plano cuyo Z cae dentro del tramo de la columna.
+      // La columna pertenece al piso de su TOPE de la columna, igual que ETABS:
+      // una columna asignada a "Story1" va del nivel de abajo HASTA Story1.
+      //
+      // Antes se mostraba si el plano caía en cualquier punto del tramo
+      // (`zb <= planZ <= zt`), y como el tope de una y la base de la de arriba
+      // comparten cota, en cada planta se dibujaban las columnas de DOS pisos
+      // superpuestas. Con secciones distintas por piso eso es ilegible.
+      //
+      // Efecto secundario buscado: en la Base no aparece ninguna columna —
+      // ninguna tiene ahí su tope — y quedan solo los apoyos, como en ETABS.
       if (planZ != null) {
         const zt = Math.max(a.z || 0, b.z || 0);
-        const zb = Math.min(a.z || 0, b.z || 0);
-        if (!(planZ >= zb - EPS && planZ <= zt + EPS)) return;
+        if (Math.abs(planZ - zt) > EPS) return;
       }
 
       this.drawColumnPlanFootprint(beam, CADSystem);
@@ -1300,7 +1308,11 @@ export class DiseñoRenderer {
   getColumnPlanDims(beam) {
     const sec = beam.frameSection || beam.section || {};
     const shape = String(sec.shape || sec.type || "").toLowerCase();
-    const metallic = ["i", "wf", "w", "channel", "c", "tube", "hss", "angle", "l"].includes(shape);
+    // OJO con "l": el ANGULAR de acero se identifica como "angle", pero una
+    // Concrete L del .e2k llega con `type: "L"`. Tenerla en esta lista hacía que
+    // sus dimensiones (70 cm) se convirtieran como si fueran MILÍMETROS -> 0.07 m,
+    // diez veces chica. El angular de acero ya está cubierto por "angle".
+    const metallic = ["i", "wf", "w", "channel", "c", "tube", "hss", "angle"].includes(shape);
 
     const toMeters = (v) => {
       v = Number(v);
@@ -1309,8 +1321,12 @@ export class DiseñoRenderer {
       return metallic ? v / 1000 : v / 100; // perfil: mm ; rectangular: cm
     };
 
-    const b = toMeters(sec.b ?? sec.width ?? sec.base);
-    const h = toMeters(sec.h ?? sec.height ?? sec.peralte);
+    // Una sección circular puede traer solo `diameter` (si se definió en la app
+    // y no vino del .e2k, que sí rellena b/h). Sin esto caía al marcador
+    // cuadrado punteado de 0.3 m.
+    const esCirculo = shape === "circle" || shape === "circular";
+    const b = toMeters(sec.b ?? sec.width ?? sec.base ?? (esCirculo ? sec.diameter : undefined));
+    const h = toMeters(sec.h ?? sec.height ?? sec.peralte ?? (esCirculo ? sec.diameter : undefined));
 
     if (!(b > 0) || !(h > 0)) {
       // Sin dimensiones → marcador cuadrado por defecto.
@@ -1330,6 +1346,23 @@ export class DiseñoRenderer {
     // Dims de tee/L guardadas en cm por el importador; >3 ⇒ cm → m.
     const toM = (v) => { v = Number(v); if (!(v > 0)) return 0; return v > 3 ? v / 100 : v; };
 
+    // CIRCULAR. Se devuelve un polígono de 48 lados en vez de tocar el trazado:
+    // todo el camino de abajo (rotación por localAxisAngle, paso a pantalla,
+    // relleno, selección) ya opera sobre una lista de vértices, así que un
+    // círculo entra sin ningún caso especial. A 48 lados el error de radio es
+    // ~0.2%, invisible en pantalla a cualquier zoom razonable.
+    if (type === "circle" || type === "circular") {
+      const D = toM(sec.diameter ?? sec.h ?? sec.b);
+      if (D > 0) {
+        const r = D / 2;
+        const N_LADOS = 48;
+        return Array.from({ length: N_LADOS }, (_, i) => {
+          const a = (2 * Math.PI * i) / N_LADOS;
+          return [r * Math.cos(a), r * Math.sin(a)];
+        });
+      }
+    }
+
     if (type === "tee") {
       const D = toM(sec.teeDepth), B = toM(sec.teeWidth);
       const TF = toM(sec.teeFlangeThick), TW = toM(sec.teeWebThick);
@@ -1348,13 +1381,36 @@ export class DiseñoRenderer {
       const TF = toM(sec.lFlangeThick), TW = toM(sec.lWebThick);
       if (D > 0 && B > 0 && TF > 0 && TW > 0 && TW < B && TF < D) {
         const hd = D / 2, hb = B / 2;
-        // Ala vertical (alma, ancho TW) sobre −v; ala horizontal (espesor TF) en −u.
+        // POLIGONO BASE: la L SIN espejos, en ejes locales (u = eje 2 = peralte D,
+        // v = eje 3 = ancho B).
+        //
+        // ANCLAJE, con DOS verificaciones independientes que coinciden:
+        //   1. PLANTA: con `MIRROR3 "Yes"` y ANG = 0, ETABS dibuja la L como "¬"
+        //      — esquina ARRIBA-DERECHA (el signo ¬ tiene la pata a la derecha).
+        //   2. SECCIÓN: el preview del diálogo de ETABS muestra la esquina
+        //      ARRIBA-IZQUIERDA, que mapeada a planta (eje 2 → X, eje 3 → Y) da
+        //      justamente arriba-derecha.
+        // Como MIRROR3 niega `u`, la base sin espejo es esa forma con `u`
+        // invertido: esquina arriba-IZQUIERDA en planta.
+        //
+        // Confirmado por el usuario que ETABS SÍ respeta los espejos: al cambiar
+        // el checkbox, las columnas de la planta se dan vuelta.
+        //
+        // Cuál pierna es cuál: "Horizontal Leg" corre a lo largo del eje 3 (todo
+        // el ancho B) y su espesor TF se mide sobre u; "Vertical Leg" corre a lo
+        // largo del eje 2 (todo el peralte D) y su espesor TW se mide sobre v.
+        //
+        // OJO al comparar contra ETABS: la vista de SECCIÓN del diálogo (eje 2
+        // arriba, eje 3 a la izquierda) está rotada 90° respecto de la PLANTA
+        // (eje 2 → X, eje 3 → Y). Mirar la forma en la vista equivocada hizo
+        // perder dos vueltas acá.
         let poly = [
-          [-hd, -hb], [hd, -hb], [hd, -hb + TW],
-          [-hd + TF, -hb + TW], [-hd + TF, hb], [-hd, hb],
+          [hd, hb], [-hd, hb], [-hd, -hb],
+          [TF - hd, -hb], [TF - hd, hb - TW], [hd, hb - TW],
         ];
-        if (sec.lMirror3) poly = poly.map(([u, v]) => [u, -v]);
-        if (sec.lMirror2) poly = poly.map(([u, v]) => [-u, v]);
+        // Espejar SOBRE un eje niega la OTRA coordenada.
+        if (sec.lMirror2) poly = poly.map(([u, v]) => [u, -v]);
+        if (sec.lMirror3) poly = poly.map(([u, v]) => [-u, v]);
         return poly;
       }
     }

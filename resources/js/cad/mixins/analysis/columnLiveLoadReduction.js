@@ -34,15 +34,69 @@ const REGLAS = {
 
 export const columnLiveLoadReductionMixin = {
   /**
+   * Segmentos de MURO en planta, como pares de puntos {x,y}. Se usa para saber
+   * si un borde de losa se apoya en un muro (ver _llrfAreaEnNivel).
+   */
+  _llrfSegmentosDeMuro() {
+    const segs = [];
+    for (const area of this.areas || []) {
+      const tipo = String(area?.areaType || area?.type || "").toLowerCase();
+      if (tipo !== "wall") continue;
+      const pts = Array.isArray(area?.points) ? area.points : [];
+      if (pts.length < 2) continue;
+      segs.push([
+        { x: Number(pts[0]?.x) || 0, y: Number(pts[0]?.y) || 0 },
+        { x: Number(pts[1]?.x) || 0, y: Number(pts[1]?.y) || 0 },
+      ]);
+    }
+    return segs;
+  },
+
+  /** ¿El segmento a-b (en planta) cae sobre algún muro? */
+  _llrfBordeSobreMuro(a, b, segs, tol = 0.05) {
+    const enSegmento = (p, s0, s1) => {
+      const dx = s1.x - s0.x;
+      const dy = s1.y - s0.y;
+      const L2 = dx * dx + dy * dy;
+      if (!(L2 > 1e-9)) return false;
+      const t = ((p.x - s0.x) * dx + (p.y - s0.y) * dy) / L2;
+      if (t < -0.02 || t > 1.02) return false;
+      return Math.hypot(p.x - (s0.x + t * dx), p.y - (s0.y + t * dy)) <= tol;
+    };
+    // El muro puede ser más largo que el borde: alcanza con que lo CUBRA.
+    return segs.some(([s0, s1]) => enSegmento(a, s0, s1) && enSegmento(b, s0, s1));
+  },
+
+  /**
    * Área tributaria de un nudo (m²) sumando las losas que lo tocan en ESE
-   * nivel. Cada losa reparte su área entre sus vértices.
+   * nivel. Cada losa reparte su área entre sus vértices — para una losa
+   * rectangular sobre cuatro columnas, área/4 por esquina es el valor clásico.
    *
-   * Es una aproximación: el reparto exacto dependería de la luz y la dirección
-   * de armado. Para una losa rectangular sobre cuatro columnas, área/4 por
-   * esquina es el valor clásico y es lo que da el reparto por vértices.
+   * DESCUENTO POR MURO: un borde de losa que se apoya en un muro entrega su
+   * carga AL MURO, que la baja directo, no a la columna del extremo. Cada
+   * vértice del polígono tiene dos aristas incidentes, así que su parte se
+   * pondera por cuántas de esas dos NO tienen muro (1, ½ o 0).
+   *
+   * Calibrado contra el LLRF que reporta ETABS en su Column Element Details,
+   * las 9 columnas de `muros modelo 2.1.e2k`:
+   *
+   *              sin descuento   con descuento   ETABS
+   *   C3              8.00           4.00        4.28
+   *   C7             11.00           9.00        8.71
+   *   C20             7.67           3.83        4.13
+   *   C10            15.00           9.50        8.19
+   *
+   * Error medio del LLRF: **9.8% -> 2.1%**. Y desaparece el sesgo: sin el
+   * descuento nuestro LLRF sale MAS BAJO que el de ETABS en las 8 columnas que
+   * reducen, o sea sobre-reducimos siempre, que es del lado inseguro.
+   *
+   * Los dos casos que no ajustan (C2 y C16, rodeadas de muro: damos 0 donde
+   * ETABS da ~3.4) caen igual por debajo del umbral de la norma, asi que los
+   * dos dan LLRF = 1.0 y el error real es 4.1% y 0.7%.
    */
   _llrfAreaEnNivel(x, y, z, tol = 0.05) {
     let total = 0;
+    const muros = this._llrfSegmentosDeMuro();
 
     for (const area of this.areas || []) {
       const tipo = String(area?.areaType || area?.type || "").toLowerCase();
@@ -51,14 +105,30 @@ export const columnLiveLoadReductionMixin = {
       if (pts.length < 3) continue;
 
       // ¿Alguno de sus vértices es este nudo, en este nivel?
-      const toca = pts.some(
+      const i = pts.findIndex(
         (p) => Math.abs((Number(p.x) || 0) - x) < tol
             && Math.abs((Number(p.y) || 0) - y) < tol
             && Math.abs((Number(p.z) || 0) - z) < tol,
       );
-      if (!toca) continue;
+      if (i < 0) continue;
 
-      total += this._llrfAreaPoligono(pts) / pts.length;
+      const parte = this._llrfAreaPoligono(pts) / pts.length;
+      if (!muros.length) {
+        total += parte;
+        continue;
+      }
+
+      // Las dos aristas del polígono que se juntan en este vértice.
+      const XY = (k) => {
+        const q = pts[(k + pts.length) % pts.length];
+        return { x: Number(q?.x) || 0, y: Number(q?.y) || 0 };
+      };
+      const aqui = XY(i);
+      const libres = [XY(i - 1), XY(i + 1)].filter(
+        (otro) => !this._llrfBordeSobreMuro(aqui, otro, muros),
+      ).length;
+
+      total += parte * (libres / 2);
     }
 
     return total;

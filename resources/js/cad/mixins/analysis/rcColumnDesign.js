@@ -6,10 +6,11 @@
 // superficie de interacción P-M-M real (python-backend/design/
 // column_interaction.py, endpoint /api/backend/column-interaction).
 //
-// Alcance de esta fase (ver plan): SOLO columnas rectangulares con patrón de
-// armado "R-n2-n3" ya resuelto por el importador. Circular, formas exóticas
-// (T, L) o columnas sin CONCRETESECTION quedan fuera — se avisa, no se
-// calcula mal.
+// Alcance: columnas RECTANGULARES (patrón "R-n2-n3", estribos) y CIRCULARES
+// (patrón "C-n", espiral), con el armado ya resuelto por el importador o
+// definido a mano por sección. Las formas exóticas (T, L, tubo, Section
+// Designer) y las columnas sin CONCRETESECTION quedan fuera — se avisa con el
+// motivo, no se calcula mal.
 
 import { loadRealFrameForceResults } from "../../engine/frameForceBackend.js";
 import { getFrameForceRecord } from "../../diagrams/frameForceDiagramUtils.js";
@@ -30,6 +31,36 @@ export const rcColumnDesignMixin = {
    */
   rcDesignCode: "E060",
 
+  // Reducción de sobrecarga (ASCE 7-16 §4.7.2 / E.020 Art. 10). ACTIVA por
+  // defecto porque es lo que manda la norma, pero se puede apagar: en ETABS la
+  // reducción es una asignación EXPLÍCITA por barra (Assign ▸ Frame ▸ Live Load
+  // Reduction Factor) que NO viaja en el .e2k, así que un modelo donde el
+  // proyectista no la activó reporta P sin reducir y nuestra reducción aparece
+  // como una diferencia que no es de cálculo. Medido en `MODELO VIDEO columna
+  // circular.e2k`: apagarla lleva el error de ratio de 3.20% a ~1%, que es el
+  // de la capacidad sola. Ver project-live-load-reduction.
+  rcLlrfEnabled: true,
+
+  // Criterio de cálculo del CORTE/CONFINAMIENTO de columnas circulares.
+  //   "norma"   ACI 318 / E.060 — el default, y lo que sostiene el motor.
+  //   "planilla" reproduce la hoja Excel "Colum TIPO II" del cliente.
+  //
+  // SIN SELECTOR EN LA UI a propósito: el usuario pidió quitarlo porque la
+  // comparación ya dio ~1% y tres opciones en pantalla confundían más de lo que
+  // ayudaban. La capacidad queda en el motor y se puede usar desde la consola
+  // (`cadSystem.rcSetShearConvention("planilla")`) para volver a cruzar contra
+  // la planilla cuando haga falta. Ver el bloque CONVENCIONES en
+  // python-backend/design/column_shear.py — dos de esos criterios dan MENOS
+  // confinamiento y MÁS cortante admisible que la norma.
+  rcShearConvention: "norma",
+
+  /** Las cuatro convenciones que viajan al motor, según el criterio elegido. */
+  _rcConventions() {
+    return this.rcShearConvention === "planilla"
+      ? { core: "excel", vc_area: "excel", vmax_d: "excel", vc_formula: "e060" }
+      : { core: "aci", vc_area: "aci", vmax_d: "aci", vc_formula: "aci" };
+  },
+
   /**
    * `framesOverride` (opcional): re-diseña ESOS frames en vez de leer la
    * selección actual — lo usa `rcSetDesignCode` para recalcular con otro
@@ -37,12 +68,38 @@ export const rcColumnDesignMixin = {
    * abierto encima del viewport, la selección puede haberse perdido).
    */
   async openRcColumnDesignDialog(framesOverride = null) {
+    // ORDEN DE PREFERENCIA de qué columnas diseñar:
+    //   1. las que pide el llamador (cambio de código, toggle de LLRF…)
+    //   2. la selección viva del viewport
+    //   3. la ÚLTIMA selección usada
+    //
+    // El paso 3 es el que hace que el diseño "se guarde": al cerrar el modal
+    // la selección del viewport se pierde, y sin este respaldo reabrir desde el
+    // menú exigía volver a seleccionar las columnas a mano cada vez.
     const selected = framesOverride?.length
       ? framesOverride
-      : this.getSelectedFramesForDesign?.() || [];
+      : (this.getSelectedFramesForDesign?.() || []).length
+        ? this.getSelectedFramesForDesign()
+        : this._rcLastColumnSelection || [];
 
     if (!selected.length) {
       this.showMessage?.("Selecciona primero una o más columnas a diseñar.", "warning");
+      return;
+    }
+
+    // Resultados ya calculados para ESTAS mismas columnas y con la misma
+    // configuración: se reabre el modal sin recalcular. La superficie P-M-M y
+    // los ~44 chequeos por columna tardan, y reabrir para mirar un número no
+    // debería costar lo mismo que diseñar de cero.
+    const firma = this._rcResultsSignature(selected);
+    if (!framesOverride && this._rcResultsSignature_ === firma && this.rcColumnDesignResults?.length) {
+      window.dispatchEvent(new CustomEvent("open-columna-design-modal", {
+        detail: {
+          columns: this.rcColumnDesignResults,
+          code: this.rcDesignCode,
+          llrfEnabled: this.rcLlrfEnabled !== false,
+        },
+      }));
       return;
     }
 
@@ -75,8 +132,8 @@ export const rcColumnDesignMixin = {
       }));
     avisar();
 
-    // Llama al motor SOLO para las columnas soportadas (rectangular +
-    // armado reconocido); las demás quedan con `unsupported` y se muestran
+    // Llama al motor SOLO para las columnas soportadas (rectangular o
+    // circular + armado reconocido); las demás quedan con `unsupported` y se muestran
     // igual en el modal, con el motivo, sin intentar calcular.
     await Promise.all(
       columns
@@ -129,10 +186,13 @@ export const rcColumnDesignMixin = {
 
     avisar(true);
     this.rcColumnDesignResults = columns;
+    // Sella con qué entradas se calculó esto, para poder reabrir sin recalcular.
+    this._rcResultsSignature_ = this._rcResultsSignature(selected);
 
     window.dispatchEvent(
       new CustomEvent("open-columna-design-modal", {
-        detail: { columns, code: this.rcDesignCode },
+        detail: { columns, code: this.rcDesignCode, llrfEnabled: this.rcLlrfEnabled !== false,
+                  shearConvention: this.rcShearConvention },
       }),
     );
   },
@@ -143,6 +203,89 @@ export const rcColumnDesignMixin = {
    * motor Python, así que no alcanza con recalcular en el front: hay que
    * volver a pedirle la superficie/los ratios.
    */
+  /**
+   * Prende/apaga la reducción de sobrecarga y RE-CORRE el diseño. Comparte la
+   * mecánica con `rcSetDesignCode`: la LLRF cambia el Pu de cada combo, así que
+   * hay que rehacer la demanda, no solo repintar.
+   */
+  /**
+   * Identifica una corrida de diseño: mismas columnas + mismo código + misma
+   * bandera de LLRF. Si cambia cualquiera de los tres hay que recalcular,
+   * porque los tres entran en el resultado.
+   */
+  /**
+   * Descarta los resultados cacheados y obliga a recalcular en la próxima
+   * apertura. Hay que llamarlo cuando cambia algo que NO entra en la firma:
+   * un armado manual guardado, una sección editada, cargas nuevas, o el propio
+   * botón "Recalcular" del modal. La firma sola no alcanza — solo mira qué
+   * columnas, qué código y si la LLRF está activa.
+   */
+  /**
+   * ¿La carga viva de este modelo es REDUCIBLE?
+   *
+   * ETABS distingue `Live` de `Reducible Live` y **solo reduce el segundo**,
+   * aunque calcule y muestre el Live Load Reduction Factor en los overwrites de
+   * la columna en los dos casos.
+   *
+   * Eso explica lo medido en `MODELO VIDEO columna circular.e2k`: ETABS da
+   * LLRF = 0.559408 para C4 (el nuestro 0.5609, 0.27% de diferencia) y sin
+   * embargo reporta P SIN reducir, porque el patrón es
+   * `LOADPATTERN "CVE" TYPE "Live"`.
+   *
+   * Sin este chequeo reducíamos donde ETABS no lo hace y el error de los ratios
+   * se iba de 1.00% a 3.20%. El arreglo NO era apagar la reducción — nuestra
+   * fórmula calza con la de ETABS al 1.79% sobre 12 columnas — sino aplicarla
+   * solo cuando corresponde.
+   *
+   * Sin información de tipos (modelo dibujado a mano) se asume reducible, que
+   * es el comportamiento previo y lo que pide la norma.
+   */
+  _rcLiveIsReducible() {
+    const listas = [this.loadCases?.cases, this.staticLoadCases, this.loadCases]
+      .filter(Array.isArray);
+    const vivos = [];
+    for (const lista of listas) {
+      for (const c of lista) {
+        if (/live/i.test(String(c?.type || "")) || /live/i.test(String(c?.e2kType || ""))) vivos.push(c);
+      }
+    }
+    if (!vivos.length) return true;
+    if (!vivos.some((c) => c.reducible !== undefined)) return true;
+    return vivos.some((c) => c.reducible === true);
+  },
+
+  rcInvalidateDesignCache() {
+    this._rcResultsSignature_ = null;
+  },
+
+  _rcResultsSignature(frames) {
+    const ids = (frames || []).map((f) => String(f?.id)).sort().join(",");
+    return `${this.rcDesignCode}|${this.rcLlrfEnabled !== false}|${this.rcShearConvention}|${ids}`;
+  },
+
+  /**
+   * Cambia el criterio de corte y RE-CORRE. Solo mueve el bloque de
+   * corte/confinamiento — el P-M-M no depende de estas convenciones — pero se
+   * rehace todo porque el motor de corte vive en el backend.
+   */
+  async rcSetShearConvention(modo) {
+    const next = String(modo) === "planilla" ? "planilla" : "norma";
+    if (next === this.rcShearConvention) return;
+    this.rcShearConvention = next;
+    const frames = this._rcLastColumnSelection || [];
+    if (!frames.length) return;
+    await this.openRcColumnDesignDialog(frames);
+  },
+
+  async rcSetLlrfEnabled(on) {
+    const next = !!on;
+    if (next === this.rcLlrfEnabled) return;
+    this.rcLlrfEnabled = next;
+    const frames = this._rcLastColumnSelection || [];
+    if (!frames.length) return;
+    await this.openRcColumnDesignDialog(frames);
+  },
+
   async rcSetDesignCode(code) {
     const next = String(code || "").toUpperCase().includes("ACI") ? "ACI318" : "E060";
     if (next === this.rcDesignCode) return;
@@ -173,12 +316,21 @@ export const rcColumnDesignMixin = {
       ? `${frame.e2kName}${frame.e2kStory ? ` (${frame.e2kStory})` : ""}`
       : frame?.name || frame?.id || "columna";
 
-    if (!sec || sec.type !== "rect") {
+    // Formas soportadas por el motor de fibras: rectangular (estribos) y
+    // circular (espiral). El resto —L, T, tubo, Section Designer— no tiene
+    // geometría de armado definida acá.
+    const esCircular = sec?.type === "circle";
+    // L y T comparten camino: el motor las arma como POLÍGONO (ver
+    // python-backend/design/column_polygon.py). Necesitan los espesores de pata
+    // y, en la L, los espejos.
+    const tipoSec = String(sec?.type || "").toLowerCase();
+    const esPoligonal = tipoSec === "l" || tipoSec === "tee";
+    if (!sec || (sec.type !== "rect" && !esCircular && !esPoligonal)) {
       return {
         label,
         frameId: frame?.id,
         unsupported: true,
-        unsupportedReason: "Sección no rectangular (o sin datos de sección) — no soportado en esta fase.",
+        unsupportedReason: "Forma de sección no soportada (se soportan rectangular, circular, L y T).",
       };
     }
 
@@ -196,8 +348,16 @@ export const rcColumnDesignMixin = {
     // Section Designer de ETABS, una propiedad de sección, no por columna),
     // si existe. Si tampoco hay armado manual, no soportado — con suficiente
     // contexto (sectionName/b/h) para que el modal ofrezca "Definir armado...".
-    const hasRealRebar =
-      sec.rebarPattern?.type === "rectangular" && sec.longBarArea > 0 && sec.longBarDiameter > 0 && sec.numConfineBars2 >= 0;
+    // En una L o T el `.e2k` describe el armado como "R-n2-n3", que en un
+    // contorno de 6 u 8 vértices NO determina cuántas varillas hay ni dónde van
+    // (para la CL 70x70x30, ETABS pone 15 y ninguna regla derivada de R-4-4 da
+    // ese número). Así que el armado poligonal se define A MANO, siempre.
+    const patternOk = esCircular
+      ? sec.rebarPattern?.type === "circular" && sec.rebarPattern.n >= 3
+      : esPoligonal
+        ? sec.rebarPattern?.type === "circular" && sec.rebarPattern.n >= 3
+        : sec.rebarPattern?.type === "rectangular" && sec.numConfineBars2 >= 0;
+    const hasRealRebar = patternOk && sec.longBarArea > 0 && sec.longBarDiameter > 0;
 
     const sectionName = sec.name || frame.sectionName || null;
     let sec2 = sec;
@@ -281,7 +441,14 @@ export const rcColumnDesignMixin = {
     // ya viene combinada, asi que hay que restarle
     // `factor_del_combo * (1 - LLRF) * fuerza_del_caso_vivo`. Por eso el meta
     // de combos trae ahora `terms` (ver solver.py).
-    const llrfInfo = this.columnLiveLoadReductionFactor?.(frame) || { factor: 1.0, aplica: false };
+    // Tres razones distintas para NO reducir, y conviene distinguirlas porque
+    // significan cosas diferentes para quien audita: apagada a mano, patrón no
+    // reducible, o área tributaria bajo el umbral de la norma.
+    const llrfInfo = this.rcLlrfEnabled === false
+      ? { factor: 1.0, aplica: false, desactivada: true }
+      : !this._rcLiveIsReducible()
+        ? { factor: 1.0, aplica: false, noReducible: true }
+        : this.columnLiveLoadReductionFactor?.(frame) || { factor: 1.0, aplica: false };
     const llrf = Number(llrfInfo.factor);
     const { live: liveCaseIds } = this._rcResolveGravityCaseIds(results);
     const metaPorComboId = new Map(comboMetas.map((m) => [String(m.id), m]));
@@ -383,8 +550,26 @@ export const rcColumnDesignMixin = {
       // ~1 diámetro de estribo más afuera de lo real).
       cover: sec2.cover / 100,
       barDiameter: sec2.longBarDiameter,
-      n3: sec2.rebarPattern.n3,
-      n2: sec2.rebarPattern.n2,
+      // Forma. En circular el motor ignora b/h/n2/n3 y usa diameter+numBars
+      // (ver python-backend/design/column_circular.py); se mandan igual en 0
+      // para no romper el contrato del payload.
+      shape: esCircular ? "circular" : (esPoligonal ? tipoSec : "rect"),
+      // Geometría de la poligonal. `lFlangeThick`/`lWebThick` vienen en cm del
+      // importador; el motor trabaja en metros.
+      ...(esPoligonal ? {
+        flangeThick: (Number(sec2.lFlangeThick ?? sec2.teeFlangeThick) || 0) / 100,
+        webThick: (Number(sec2.lWebThick ?? sec2.teeWebThick) || 0) / 100,
+        mirror2: sec2.lMirror2 === true,
+        mirror3: sec2.lMirror3 === true,
+      } : {}),
+      // ESTRIBOS vs ESPIRAL, tal como lo declaró ETABS (TRANSREINF del .e2k).
+      // null = que el motor lo deduzca de la forma. Mandarlo importa: una
+      // circular con estribos circulares va 0.80·Po/φ0.65, no 0.85/0.75.
+      tied: sec2.tied ?? null,
+      diameter: esCircular ? b / 100 : null,
+      numBars: (esCircular || esPoligonal) ? sec2.rebarPattern.n : null,
+      n3: esCircular ? 0 : sec2.rebarPattern.n3,
+      n2: esCircular ? 0 : sec2.rebarPattern.n2,
       barArea: sec2.longBarArea,
       confineBarDiameter: sec2.confineBarDiameter || 0,
       // Código de diseño: decide los factores φ y su ley de transición
@@ -419,7 +604,16 @@ export const rcColumnDesignMixin = {
       sectionName,
       unsupported: false,
       manualRebar,
-      geometryDisplay: { b, h, fc, fy, cover: sec2.cover, pattern: sec2.rebarPattern, longBarDiameter: sec2.longBarDiameter },
+      geometryDisplay: {
+        b, h, fc, fy, cover: sec2.cover,
+        // `shape`/`diameter` para que el modal no cablee "b × h" ni "R-n2-n3":
+        // una circular mostraba "60 × 60 cm" y "R-undefined-undefined".
+        shape: esCircular ? "circular" : "rect",
+        diameter: esCircular ? b : null,
+        pattern: sec2.rebarPattern,
+        longBarDiameter: sec2.longBarDiameter,
+        transReinf: esCircular ? (sec2.tied === true ? "Estribos circulares" : "Espiral") : "Estribos",
+      },
       geometry,
       liveLoadReduction: llrfInfo,
       demandCandidates,
@@ -529,6 +723,7 @@ export const rcColumnDesignMixin = {
         // Tope por resistencia de las vigas del nudo (ACI 318 §18.7.6.1.1 in
         // fine). null = sin armado de viga -> el motor no aplica el tope.
         jointBeamMoment: this._rcJointBeamMoment(frame, geometry),
+        conventions: this._rcConventions(),
       },
     };
   },
@@ -735,15 +930,44 @@ export const rcColumnDesignMixin = {
       const chk = checks[i];
       if (!chk || chk.error) continue;
       const cand = candidates[i];
-      tagged.push({ ...chk, comboId: cand.comboId, comboName: cand.comboName, P: cand.P, M2: cand.M2, M3: cand.M3 });
+      tagged.push({
+        ...chk,
+        comboId: cand.comboId,
+        comboName: cand.comboName,
+        kind: cand.kind, // "combo" | "case" — lo usa _rcMaxRatio
+        P: cand.P,
+        M2: cand.M2,
+        M3: cand.M3,
+      });
     }
     return tagged;
   },
 
-  /** El de mayor ratio entre los checks ya etiquetados — mismo criterio que "PMM Combo" de ETABS. */
+  /**
+   * El de mayor ratio entre los checks ya etiquetados — mismo criterio que el
+   * "PMM Combo" de ETABS.
+   *
+   * Los CASOS sísmicos sueltos (`kind: "case"`) quedan FUERA de la elección: un
+   * espectro por sí solo no lleva gravedad ni factores de carga, así que no es
+   * una combinación de diseño y ETABS nunca lo reporta como PMM Combo. Siguen
+   * en la lista para poder compararlos en el selector del modal, que es para lo
+   * que se agregaron (ver el comentario donde se arman los `realComboIds`).
+   *
+   * Lo destapó `MODELO video.e2k`: ahí el caso SDX crudo ganaba en LAS 12
+   * columnas con ratios de 0.60-0.73, y el diseño se hacía con Pu = 6.65 t — la
+   * magnitud del espectro sola, sin nada de gravedad — cuando ETABS gobierna
+   * con los combos 02/04/08 y Pu de 2.7 a 63 t. En el modelo anterior el
+   * problema existía igual pero no se veía, porque ahí los combos ganaban.
+   *
+   * El fallback a `tagged` cubre el caso de un modelo SIN combinaciones (dibujado
+   * a mano y sin correr los combos por defecto): mejor mostrar algo que nada.
+   */
   _rcMaxRatio(tagged) {
+    const combos = tagged.filter((c) => c.kind !== "case");
+    const pool = combos.length ? combos : tagged;
+
     let best = null;
-    for (const chk of tagged) {
+    for (const chk of pool) {
       if (!best || chk.ratio > best.ratio) best = chk;
     }
     return best;

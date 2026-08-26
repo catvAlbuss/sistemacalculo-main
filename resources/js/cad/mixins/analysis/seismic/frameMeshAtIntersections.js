@@ -107,6 +107,10 @@ export function splitBeamsAtInteriorNodes(nodeList = [], elemList = [], memberLo
         cuts.sort((p, q) => p.t - q.t);
         const chain = [a.id, ...cuts.map((c) => c.id), b.id];
 
+        // Distancia absoluta de cada nudo de la cadena al arranque, para poder
+        // ubicar una carga puntual en su sub-tramo.
+        const cutPos = [0, ...cuts.map((c) => c.t * L), L];
+
         splitCount += 1;
         for (let k = 0; k < chain.length - 1; k += 1) {
             const first = k === 0;
@@ -130,18 +134,46 @@ export function splitBeamsAtInteriorNodes(nodeList = [], elemList = [], memberLo
 
             mesh.set(id, { parentId: Number(el.id), index: k });
 
-            // Carga de tramo: todas las que maneja el payload hoy son UNIFORMES
-            // (`kind: "uniform"`, peso propio y losa→viga), así que la misma w
-            // vale para cada sub-tramo. Si algún día entra una carga puntual o
-            // trapezoidal, hay que repartirla por posición — se avisa abajo.
-            parentLoads.forEach((l) => outLoads.push({ ...l, element: id }));
+            // Carga de tramo.
+            //
+            // UNIFORME: la misma intensidad vale para cada sub-tramo, se replica.
+            //
+            // PUNTUAL: va SOLO al sub-tramo que la contiene, con su `relDist`
+            // recalculada respecto de ese tramo. Antes se replicaba a todos
+            // —el código mismo lo avisaba por consola— y eso multiplicaba la
+            // carga por la cantidad de cortes. Importa desde que el peso propio
+            // de vigas emite dos puntuales en los parches de nudo (ver
+            // _buildSeismicFrameSelfWeightMemberLoadsForPayload en payload.js).
+            const desde = cutPos[k];
+            const hasta = cutPos[k + 1];
+            const largoTramo = hasta - desde;
+
+            parentLoads.forEach((l) => {
+                if ((l.kind || "uniform") !== "point") {
+                    outLoads.push({ ...l, element: id });
+                    return;
+                }
+
+                const aAbs = (Number(l.relDist) || 0) * L;
+                const esUltimo = k === chain.length - 2;
+                const dentro = aAbs >= desde - 1e-9 && (aAbs < hasta - 1e-9 || (esUltimo && aAbs <= hasta + 1e-9));
+                if (!dentro) return;
+
+                outLoads.push({
+                    ...l,
+                    element: id,
+                    relDist: largoTramo > 1e-9 ? (aAbs - desde) / largoTramo : 0,
+                });
+            });
         }
 
-        const raras = parentLoads.filter((l) => (l.kind || "uniform") !== "uniform");
+        const raras = parentLoads.filter(
+            (l) => !["uniform", "point"].includes(l.kind || "uniform"),
+        );
         if (raras.length) {
             console.warn(
                 `⚠️ Barra ${el.id}: se partió en ${chain.length - 1} tramos pero tiene ` +
-                `carga de tramo NO uniforme (${raras.map((l) => l.kind).join(", ")}), ` +
+                `carga de tramo de tipo (${raras.map((l) => l.kind).join(", ")}), ` +
                 "que se replicó tal cual y probablemente esté mal repartida.",
             );
         }

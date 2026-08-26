@@ -23,6 +23,82 @@
                 Verifica el resultado con criterio de ingeniería antes de usarlo en producción.
             </p>
 
+            {{-- ================= 0. DATOS DE ENTRADA (misma forma que vigas-general) =================
+                 Se muestra ANTES de calcular — mismos campos que pide
+                 resources/js/vigas (LUZ/BASE/ALTURA/CAPAS + CM/CV/ENV max/ENV
+                 min × M3/V3/T por tramo/estación) para poder comparar/pegar
+                 en esa calculadora sin tener que sacarlos de la consola. --}}
+            <div class="mb-6 overflow-x-auto rounded-lg border border-gray-700 shadow-lg">
+                <div class="bg-gray-900 px-4 py-2 text-white font-bold flex items-center justify-between">
+                    <span>0.- Datos de entrada</span>
+                    <button @click="diseñar()" :disabled="loading || !input"
+                            class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded text-xs font-bold">
+                        <span x-show="!loading">DISEÑAR</span>
+                        <span x-show="loading">Calculando...</span>
+                    </button>
+                </div>
+                <table class="min-w-full border-collapse text-xs">
+                    <thead class="bg-gray-700 text-white">
+                        <tr>
+                            <th rowspan="2" class="px-3 py-2 text-left border border-gray-600">Descripción</th>
+                            <template x-for="tramo in inputTramoRange()" :key="'ith'+tramo">
+                                <th colspan="3" class="px-3 py-2 text-center border border-gray-600 bg-gray-600" x-text="'TRAMO ' + tramo"></th>
+                            </template>
+                        </tr>
+                        <tr>
+                            <template x-for="tramo in inputTramoRange()" :key="'its'+tramo">
+                                <template x-for="sub in ['Inicio','Medio','Final']" :key="'its'+tramo+sub">
+                                    <th class="px-2 py-1 text-center text-[10px] uppercase border border-gray-600" x-text="sub"></th>
+                                </template>
+                            </template>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700 bg-gray-800">
+                        <template x-for="row in ['luz','base','altura']" :key="'geo'+row">
+                            <tr>
+                                <td class="px-3 py-2 border-r border-gray-700 font-bold uppercase" x-text="row"></td>
+                                <template x-for="tramo in inputTramoRange()" :key="'geov'+row+tramo">
+                                    <td colspan="3" class="px-2 py-2 text-center border-r border-gray-700" x-text="inputSingleValue(row, tramo)"></td>
+                                </template>
+                            </tr>
+                        </template>
+                    </tbody>
+
+                    {{-- Un <tbody> por mainGroup (negativo/positivo) — tiene que ser
+                         hermano del <tbody> de arriba, no anidado dentro, para que el
+                         HTML quede válido (un <template x-for> solo puede envolver UN
+                         elemento raíz, por eso cada iteración produce su propio <tbody>
+                         con las filas de CAPAS + CM/CV/ENV max/ENV min adentro). --}}
+                    <template x-for="mainGroup in ['negativo','positivo']" :key="'mg'+mainGroup">
+                        <tbody class="divide-y divide-gray-700 bg-gray-800">
+                            <tr :class="mainGroup === 'positivo' ? 'bg-green-900/40' : 'bg-red-900/40'">
+                                <td class="px-3 py-2 font-bold uppercase" x-text="mainGroup"
+                                    :colspan="1 + inputTramoRange().length * 3"></td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 border-r border-gray-700 font-bold">CAPAS</td>
+                                <template x-for="tramo in inputTramoRange()" :key="'cap'+mainGroup+tramo">
+                                    <td colspan="3" class="px-2 py-2 text-center border-r border-gray-700" x-text="inputCapas(mainGroup, tramo)"></td>
+                                </template>
+                            </tr>
+                            <template x-for="g in inputForceGroups(mainGroup)" :key="mainGroup+g.grupo">
+                                <template x-for="concepto in g.conceptos" :key="mainGroup+g.grupo+concepto">
+                                    <tr class="bg-sky-950/40">
+                                        <td class="px-3 py-2 border-r border-gray-700" x-text="g.grupo + ' — ' + concepto"></td>
+                                        <template x-for="tramo in inputTramoRange()" :key="mainGroup+g.grupo+concepto+tramo">
+                                            <template x-for="station in ['a','b','c']" :key="mainGroup+g.grupo+concepto+tramo+station">
+                                                <td class="px-2 py-2 text-center border-r border-gray-700"
+                                                    x-text="inputForceValue(mainGroup, g.grupo, concepto, tramo, station)"></td>
+                                            </template>
+                                        </template>
+                                    </tr>
+                                </template>
+                            </template>
+                        </tbody>
+                    </template>
+                </table>
+            </div>
+
             {{-- ================= 1. REQUISITOS DE DISEÑO ================= --}}
             <template x-if="results.requirements">
                 <div x-html="renderGenericTable(results.requirements)"></div>
@@ -148,10 +224,12 @@
     function vigaDesignModal() {
         return {
             open: false,
+            loading: false,
             input: null,
             results: {},
             rebarState: { negativo: { asReal: [], phiMn: [] }, positivo: { asReal: [], phiMn: [] } },
             rebarOptions: [],
+            groupsConfig: {},
 
             init() {
                 window.addEventListener('open-viga-design-modal', (e) => {
@@ -159,6 +237,8 @@
                     this.results = e.detail?.results || {};
                     this.rebarState = e.detail?.rebarState || this.rebarState;
                     this.rebarOptions = e.detail?.rebarOptions || [];
+                    this.groupsConfig = e.detail?.groupsConfig || {};
+                    this.loading = false;
                     this.open = true;
                 });
 
@@ -166,6 +246,7 @@
                     if (!this.open) return;
                     this.results = e.detail?.results || this.results;
                     this.rebarState = e.detail?.rebarState || this.rebarState;
+                    this.loading = false;
                 });
             },
 
@@ -173,9 +254,40 @@
                 this.open = false;
             },
 
+            diseñar() {
+                this.loading = true;
+                window.cadSystem?.rcBeamDesignRun?.();
+            },
+
             fmt(value) {
                 const n = Number(value);
                 return Number.isFinite(n) ? n.toFixed(2) : (value ?? '-');
+            },
+
+            // ---- Tabla "0.- Datos de entrada" (misma forma que vigas-general) ----
+
+            inputTramoRange() {
+                const n = Number(this.input?.parametros?.numTramos || 0);
+                return Array.from({ length: n }, (_, i) => i + 1);
+            },
+
+            inputSingleValue(kind, tramo) {
+                const v = this.input?.datos?.[kind]?.[`tramo${tramo}`];
+                return (v === undefined || v === null || v === '') ? '-' : this.fmt(v);
+            },
+
+            inputCapas(mainGroup, tramo) {
+                const v = this.input?.datos?.capas?.[mainGroup]?.[`tramo${tramo}`];
+                return (v === undefined || v === null || v === '') ? '-' : v;
+            },
+
+            inputForceGroups(mainGroup) {
+                return this.groupsConfig?.[mainGroup] || [];
+            },
+
+            inputForceValue(mainGroup, grupo, concepto, tramo, station) {
+                const v = this.input?.datos?.fuerzas?.[mainGroup]?.[grupo]?.[concepto]?.[`tramo${tramo}`]?.[station];
+                return this.fmt(v);
             },
 
             cellCount() {

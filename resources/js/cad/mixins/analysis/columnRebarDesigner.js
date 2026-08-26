@@ -76,6 +76,12 @@ export const columnRebarDesignerMixin = {
           cover: 4,
           n2: 3,
           n3: 3,
+          // Armado en ANILLO para secciones circulares (PATTERN "C-n" del
+          // .e2k). `shape` decide cual de los dos juegos de campos manda:
+          // n2/n3 para la grilla rectangular, numBars para el anillo.
+          shape: "rect",
+          numBars: 8,
+          spiral: true,
           longBarName: bars.find((b) => b.name === "#4")?.name || bars[0]?.name || "#4",
           confineBarName: bars.find((b) => b.name === "#3")?.name || bars[0]?.name || "#3",
           longBarAreaMm2: bars.find((b) => b.name === "#4")?.areaMm2 || bars[0]?.areaMm2 || 0,
@@ -90,6 +96,21 @@ export const columnRebarDesignerMixin = {
         });
 
     const materials = (this.materialProperties?.materials || []).filter((m) => Number(m?.fy) > 0);
+
+    // La FORMA no la elige el usuario: la manda la sección. Una circular no
+    // puede armarse con grilla rectangular ni al revés.
+    const secReal = (this.frameSections?.sections || []).find((x) => x?.name === sectionName)
+      || (this.frameSections?.sections || []).find((x) => x?.name === hint?.label);
+    const tipoSec = String(secReal?.type || hint?.type || "").toLowerCase();
+    if (tipoSec === "circle" || tipoSec === "circular") {
+      draft.shape = "circular";
+      draft.diameter = Number(secReal?.diameter ?? secReal?.h ?? hint?.h) || draft.diameter || 0;
+      // La espiral es el default de una circular, pero ETABS permite estribos
+      // circulares (TRANSREINF "TIES") y eso cambia el tope axial y el φ.
+      if (draft.spiral === undefined) draft.spiral = true;
+    } else {
+      draft.shape = "rect";
+    }
 
     this.columnRebarDesignerState = { sectionName, draft, barSizes: bars };
 
@@ -124,6 +145,27 @@ export const columnRebarDesignerMixin = {
    * catálogo, que además necesita mostrar armado REAL importado del .e2k,
    * cuyo diámetro no siempre calza con un nombre exacto del catálogo).
    */
+  /**
+   * Varillas repartidas en un ANILLO, para la vista previa de una circular.
+   * Mismo criterio de recubrimiento que el motor
+   * (design/column_circular.py::generate_circular_bar_positions): `cover` es
+   * el recubrimiento LIBRE hasta la espiral, así que el diámetro de la espiral
+   * se resta aparte para llegar al CENTRO de la varilla longitudinal.
+   * Todo en cm, origen en el centro.
+   */
+  _columnRebarRingPositions({ diameter, cover, numBars, longBarDiameterCm = 0, confineBarDiameterCm = 0 }) {
+    const D = Number(diameter) || 0;
+    const n = Number(numBars) || 0;
+    if (!(D > 0) || n < 3) return [];
+    const r = D / 2 - (Number(cover) || 0) - (Number(confineBarDiameterCm) || 0)
+      - (Number(longBarDiameterCm) || 0) / 2;
+    if (!(r > 0)) return [];
+    return Array.from({ length: n }, (_, i) => {
+      const a = (2 * Math.PI * i) / n;
+      return { x: r * Math.cos(a), y: r * Math.sin(a) };
+    });
+  },
+
   _columnRebarBarPositions({ b, h, cover, n2, n3, longBarDiameterCm = 0, confineBarDiameterCm = 0 }) {
     const bN = Number(b) || 0;
     const hN = Number(h) || 0;
@@ -221,14 +263,29 @@ export const columnRebarDesignerMixin = {
     const bars = this.reinforcementBarSizes || [];
     const longBar = barraDelDraft(bars, draft?.longBarName, draft?.longBarAreaMm2);
     const confineBar = barraDelDraft(bars, draft?.confineBarName, draft?.confineBarAreaMm2);
+    const dLongCm = ((longBar?.diameterMm || 0) * MM_TO_M) / CM_TO_M;    // mm -> cm
+    const dConfCm = ((confineBar?.diameterMm || 0) * MM_TO_M) / CM_TO_M;
+
+    // ANILLO si la sección es circular. La forma la siembra
+    // `openColumnRebarDesigner` desde la sección real, no la elige el usuario.
+    if (String(draft?.shape || "rect").toLowerCase().startsWith("circ")) {
+      return this._columnRebarRingPositions({
+        diameter: draft?.diameter ?? draft?.h,
+        cover: draft?.cover,
+        numBars: draft?.numBars,
+        longBarDiameterCm: dLongCm,
+        confineBarDiameterCm: dConfCm,
+      });
+    }
+
     return this._columnRebarBarPositions({
       b: draft?.b,
       h: draft?.h,
       cover: draft?.cover,
       n2: draft?.n2,
       n3: draft?.n3,
-      longBarDiameterCm: ((longBar?.diameterMm || 0) * MM_TO_M) / CM_TO_M, // mm -> cm
-      confineBarDiameterCm: ((confineBar?.diameterMm || 0) * MM_TO_M) / CM_TO_M, // mm -> cm
+      longBarDiameterCm: dLongCm,
+      confineBarDiameterCm: dConfCm,
     });
   },
 
@@ -285,9 +342,16 @@ export const columnRebarDesignerMixin = {
     const confineBar = barraDelDraft(bars, draft?.confineBarName, draft?.confineBarAreaMm2);
     if (!longBar || !confineBar) return null;
 
+    const esCircular = String(draft?.shape || "rect").toLowerCase().startsWith("circ");
+
     return {
       cover: Number(draft.cover) || 0, // cm
-      rebarPattern: { type: "rectangular", n2: Number(draft.n2) || 0, n3: Number(draft.n3) || 0 },
+      rebarPattern: esCircular
+        ? { type: "circular", n: Number(draft.numBars) || 0 }
+        : { type: "rectangular", n2: Number(draft.n2) || 0, n3: Number(draft.n3) || 0 },
+      // `tied` explícito: en circular decide 0.80·Po/φ0.65 (estribos) vs
+      // 0.85·Po/φ0.75 (espiral). Ver design/column_interaction.py.
+      tied: esCircular ? draft.spiral !== true : true,
       longBarDiameter: longBar.diameterMm * MM_TO_M, // m
       longBarArea: longBar.areaMm2 * MM2_TO_M2, // m²
       confineBarDiameter: confineBar.diameterMm * MM_TO_M, // m

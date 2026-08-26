@@ -97,6 +97,8 @@ import { rcAligeradoDesignMixin } from "./mixins/analysis/rcAligeradoDesign.js";
 import { columnRebarDesignerMixin } from "./mixins/analysis/columnRebarDesigner.js";
 import { beamRebarDesignerMixin } from "./mixins/analysis/beamRebarDesigner.js";
 import { columnInteractionChartMixin } from "./mixins/analysis/columnInteractionChart.js";
+import { columnInteractionPlanesMixin } from "./mixins/analysis/columnInteractionPlanes.js";
+import { elementForcesTableMixin } from "./mixins/analysis/elementForcesTable.js";
 import { columnLiveLoadReductionMixin } from "./mixins/analysis/columnLiveLoadReduction.js";
 import { displayDialogsMixin } from "./mixins/dialogs/display-dialogs.js";
 import { assignDialogsMixin } from "./mixins/dialogs/assign-dialogs.js";
@@ -104,6 +106,7 @@ import { coreUiMixin } from "./mixins/core/core-ui.js";
 import { fileIOMixin } from "./mixins/io/file-io.js";
 import { modelFactoryMixin } from "./mixins/edit/model-factory.js";
 import { storyGridMixin } from "./mixins/grids/story-grid.js";
+import { storyEditorMixin } from "./mixins/grids/story-editor.js";
 import { viewportMixin } from "./mixins/select/viewport.js";
 import { analysisMixin } from "./mixins/analysis/analysis.js";
 import { referenceGridMixin } from "./mixins/grids/reference-grid.js";
@@ -932,6 +935,8 @@ export default () => ({
   ...columnRebarDesignerMixin,
   ...beamRebarDesignerMixin,
   ...columnInteractionChartMixin,
+  ...columnInteractionPlanesMixin,
+  ...elementForcesTableMixin,
   ...columnLiveLoadReductionMixin,
   ...displayDialogsMixin,
   ...assignDialogsMixin,
@@ -939,6 +944,7 @@ export default () => ({
   ...fileIOMixin,
   ...modelFactoryMixin,
   ...storyGridMixin,
+  ...storyEditorMixin,
   ...viewportMixin,
   ...analysisMixin,
   ...referenceGridMixin,

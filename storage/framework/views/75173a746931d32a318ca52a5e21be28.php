@@ -1,4 +1,4 @@
-<?php if (! $__env->hasRenderedOnce('11272b6b-2c9f-4858-91c6-cb6c8d03ad93')): $__env->markAsRenderedOnce('11272b6b-2c9f-4858-91c6-cb6c8d03ad93');
+<?php if (! $__env->hasRenderedOnce('f1cc5fc5-61dd-4a14-8d69-6696cc694808')): $__env->markAsRenderedOnce('f1cc5fc5-61dd-4a14-8d69-6696cc694808');
 $__env->startPush('initscripts'); ?>
     <?php echo app('Illuminate\Foundation\Vite')('resources/js/analisis_estructural_de_armaduras.js'); ?>
 <?php $__env->stopPush(); endif; ?>
@@ -393,10 +393,10 @@ $__env->startPush('initscripts'); ?>
 <?php $component = $__componentOriginal04643c527de12a20ce78ecb3ec167cd6; ?>
 <?php unset($__componentOriginal04643c527de12a20ce78ecb3ec167cd6); ?>
 <?php endif; ?>
-    <?php if (isset($component)) { $__componentOriginal90dd22fcdd4395a70ddc7013687049dc = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal90dd22fcdd4395a70ddc7013687049dc = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.modals.generate-stories-modal','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('cad.modals.generate-stories-modal'); ?>
+    <?php if (isset($component)) { $__componentOriginal2eeeb03f4523be915467795f452ccc5f = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal2eeeb03f4523be915467795f452ccc5f = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.modals.story-data-modal','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.modals.story-data-modal'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
@@ -405,13 +405,13 @@ $__env->startPush('initscripts'); ?>
 <?php $component->withAttributes([]); ?>
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginal90dd22fcdd4395a70ddc7013687049dc)): ?>
-<?php $attributes = $__attributesOriginal90dd22fcdd4395a70ddc7013687049dc; ?>
-<?php unset($__attributesOriginal90dd22fcdd4395a70ddc7013687049dc); ?>
+<?php if (isset($__attributesOriginal2eeeb03f4523be915467795f452ccc5f)): ?>
+<?php $attributes = $__attributesOriginal2eeeb03f4523be915467795f452ccc5f; ?>
+<?php unset($__attributesOriginal2eeeb03f4523be915467795f452ccc5f); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginal90dd22fcdd4395a70ddc7013687049dc)): ?>
-<?php $component = $__componentOriginal90dd22fcdd4395a70ddc7013687049dc; ?>
-<?php unset($__componentOriginal90dd22fcdd4395a70ddc7013687049dc); ?>
+<?php if (isset($__componentOriginal2eeeb03f4523be915467795f452ccc5f)): ?>
+<?php $component = $__componentOriginal2eeeb03f4523be915467795f452ccc5f; ?>
+<?php unset($__componentOriginal2eeeb03f4523be915467795f452ccc5f); ?>
 <?php endif; ?>
     <?php if (isset($component)) { $__componentOriginalb0eff727dd9f4217ea5fbb0553b4ea9d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalb0eff727dd9f4217ea5fbb0553b4ea9d = $attributes; } ?>
@@ -472,6 +472,26 @@ $__env->startPush('initscripts'); ?>
 <?php if (isset($__componentOriginal360ad8302e848c7e8c5472e6b7eb0cb6)): ?>
 <?php $component = $__componentOriginal360ad8302e848c7e8c5472e6b7eb0cb6; ?>
 <?php unset($__componentOriginal360ad8302e848c7e8c5472e6b7eb0cb6); ?>
+<?php endif; ?>
+    <?php if (isset($component)) { $__componentOriginal0272142861ffec17cc9fc4cb01ab2e30 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal0272142861ffec17cc9fc4cb01ab2e30 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.cad.modals.element-forces-columns-modal','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('cad.modals.element-forces-columns-modal'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal0272142861ffec17cc9fc4cb01ab2e30)): ?>
+<?php $attributes = $__attributesOriginal0272142861ffec17cc9fc4cb01ab2e30; ?>
+<?php unset($__attributesOriginal0272142861ffec17cc9fc4cb01ab2e30); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal0272142861ffec17cc9fc4cb01ab2e30)): ?>
+<?php $component = $__componentOriginal0272142861ffec17cc9fc4cb01ab2e30; ?>
+<?php unset($__componentOriginal0272142861ffec17cc9fc4cb01ab2e30); ?>
 <?php endif; ?>
     <?php if (isset($component)) { $__componentOriginalf3716a4f2b80f9b3a67802a8ffd5830d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalf3716a4f2b80f9b3a67802a8ffd5830d = $attributes; } ?>

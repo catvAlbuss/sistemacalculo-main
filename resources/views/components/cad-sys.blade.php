@@ -36,10 +36,11 @@
     <x-cad.modals.group-names-modal/>
     <x-cad.modals.point-springs-modal/>
     <x-cad.modals.import-plan-modal/>
-    <x-cad.modals.generate-stories-modal/>
+    <x-cad.modals.story-data-modal/>
     <x-cad.modals.zapata-results-modal/>
     <x-cad.modals.viga-design-modal/>
     <x-cad.modals.columna-design-modal/>
+    <x-cad.modals.element-forces-columns-modal/>
     <x-cad.modals.column-rebar-designer-modal/>
     <x-cad.modals.beam-rebar-designer-modal/>
     <x-cad.modals.aligerado-design-modal/>

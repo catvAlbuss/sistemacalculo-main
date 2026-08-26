@@ -22,8 +22,33 @@ import {
 } from "../../../engine/seismicContract.js";
 import { BACKEND_URL, USE_MOCK_SEISMIC, DRIFT_LIMITS } from "./_constants.js";
 import { buildColumnEndOffsets } from "./columnEndOffsets.js";
+import { wallGridPointsOnBeams } from "./wallMeshNodes.js";
 import { splitBeamsAtInteriorNodes } from "./frameMeshAtIntersections.js";
 import { getNodeRestraints } from "../../../model/nodeSupports.js";
+
+// Tamano objetivo de elemento de muro para el modulo de DIAGRAMAS.
+//
+// 1.25 m NO esta ajustado a nuestro error: es el `WALLMESHMAXSIZE 1.25` que el
+// propio .e2k declara en su bloque AUTOMESHOPTIONS, o sea con lo que ETABS
+// malla sus muros. Elegir el tamano que MEJOR puntua seria sobreajustar (el
+// mismo error contra el que advierte la calibracion de
+// _WALL_TARGET_ELEMENT_SIZE_M en inputs.py): el error medio sobre las 9
+// columnas de `muros modelo 2.1.e2k` NO converge con la malla
+// (1.5 -> 0.590, 1.0 -> 0.414, 0.75 -> 0.565, 0.5 -> 0.442), porque las
+// columnas de momento chico son residuos y su error relativo es ruido. Las de
+// momento grande si son estables, y C20 mejora de forma monotona.
+//
+// Con 1.25 m: error medio 0.578 -> 0.460, 7 de 9 columnas mejoran, y el
+// analisis pasa de 0.3 a 0.8 s (con 1.0 m serian 6.7 s).
+//
+// PENDIENTE: leerlo del .e2k. Hoy el import no parsea AUTOMESHOPTIONS; cuando
+// lo haga, basta con dejar `seismicConfig.wallMeshSize`, que esta constante ya
+// respeta como fallback.
+//
+// NO afecta al pipeline sismico: solo viaja cuando `meshBeamsAtIntersections`
+// esta encendido, y ese flag lo enciende unicamente frameForceBackend.js para
+// su propio payload.
+const WALL_MESH_SIZE_DIAGRAMAS_M = 1.25;
 
 export const seismicPayloadMixin = {
 
@@ -1809,29 +1834,77 @@ export const seismicPayloadMixin = {
       const horiz = Math.hypot(b.x - a.x, b.y - a.y);
       const isColumn = dz > 1e-6 && dz >= horiz;
 
-      let length = centerlineLength;
-      if (!isColumn) {
-        const deduction = 0.5 * (colDepth.get(node1Id) || 0) + 0.5 * (colDepth.get(node2Id) || 0);
-        length = Math.max(centerlineLength - deduction, 0.1 * centerlineLength);
-      }
-
       const unitWeight = Number(this._getFrameUnitWeightForSeismic(frame)) || 0; // N/m3
-      const totalN = unitWeight * A * length;
-      if (!(totalN > 0)) return;
+      const w = unitWeight * A; // N/m — intensidad REAL del peso propio
+      if (!(w > 0)) return;
 
-      out.push({
+      const comun = {
         element: frameId,
-        kind: "uniform",
-        wx: 0,
-        wy: 0,
-        wz: -(totalN / centerlineLength), // N/m, gravitatoria (−Z global)
         loadCase: "CM",
         load_case: "CM",
         pattern: "CM",
         type: "Dead",
         loadType: "Dead",
         source: "frame_self_weight",
-      });
+      };
+
+      // Una columna se carga en TODA su longitud.
+      if (isColumn) {
+        out.push({ ...comun, kind: "uniform", wx: 0, wy: 0, wz: -w });
+        return;
+      }
+
+      // ── Vigas: intensidad PLENA sobre la LUZ LIBRE ──
+      //
+      // ETABS aplica el peso propio con su intensidad real pero SOLO sobre la
+      // luz libre — el tramo dentro del nudo ya lo cuenta la columna. Medido
+      // en MINI1 (pórtico 6×4 de un vano, sin muros): P por columna
+      // 7.0236 t = 28.872 − 0.778, y ese 0.778 es exactamente el peso de las
+      // 4 vigas dentro de sus nudos.
+      //
+      // ANTES se repartía ese MISMO total sobre la longitud completa, o sea a
+      // intensidad reducida (0.3996 en vez de 0.432 en una V30×60). El total
+      // quedaba bien —por eso el axial siempre calzó al 0.02%— pero la
+      // DISTRIBUCIÓN no, y el momento de empotramiento depende de dónde está
+      // la carga: 0.432·3.55²/12 = 0.4536 contra 0.3834·4²/12 = 0.5112, 13%.
+      //
+      // En MINI1 el error de cada momento de columna resultó ser EXACTAMENTE
+      // el error de carga de su viga: viga 0.9804 → M3 0.9813; viga 0.8875 →
+      // M2 0.9039. En el modelo real con muros ese mismo error se amplifica
+      // (a la columna le queda un residuo chico) y llega a invertir el signo.
+      //
+      // OpenSees NO soporta carga uniforme parcial: `eleLoad -beamUniform` con
+      // argumentos de tramo los IGNORA EN SILENCIO (probado: devuelve el
+      // uniforme completo, igual que `geomTransf -jntOffset`). Se arma
+      // entonces como uniforme plena sobre toda la barra MENOS dos puntuales
+      // hacia ARRIBA en los parches de nudo. Exacto en resultante y centroide;
+      // el residuo es de orden (parche/L)² ≈ 0.1% para 0.225 m en 6 m.
+      //
+      // El TOTAL no cambia (w·L − w·a − w·b = w·(L−a−b)), así que el axial y
+      // las reacciones quedan idénticos: esto solo mueve la distribución.
+      // `a`/`b` ya son las coordenadas de los nudos en este scope.
+      let dedI = 0.5 * (colDepth.get(node1Id) || 0);
+      let dedJ = 0.5 * (colDepth.get(node2Id) || 0);
+
+      // Mismo piso que antes: la luz libre nunca baja del 10% de la longitud.
+      const dedMax = 0.9 * centerlineLength;
+      if (dedI + dedJ > dedMax && dedI + dedJ > 0) {
+        const k = dedMax / (dedI + dedJ);
+        dedI *= k;
+        dedJ *= k;
+      }
+
+      out.push({ ...comun, kind: "uniform", wx: 0, wy: 0, wz: -w });
+
+      const TOL_M = 1e-4;
+      if (dedI > TOL_M) {
+        out.push({ ...comun, kind: "point", px: 0, py: 0, pz: w * dedI,
+                   relDist: (0.5 * dedI) / centerlineLength });
+      }
+      if (dedJ > TOL_M) {
+        out.push({ ...comun, kind: "point", px: 0, py: 0, pz: w * dedJ,
+                   relDist: (centerlineLength - 0.5 * dedJ) / centerlineLength });
+      }
     });
 
     return out;
@@ -3098,11 +3171,66 @@ export const seismicPayloadMixin = {
     const meshOn =
       cfg.meshBeamsAtIntersections ?? this.seismicConfig?.meshBeamsAtIntersections ?? false;
 
+    // Malla de MURO pedida para ESTE payload. Va de la mano con `meshOn` porque
+    // son la misma cosa: con la malla 1x1 del motor un muro no genera ningun
+    // nudo intermedio, asi que no hay DONDE atarlo a la viga.
+    //
+    // Solo el modulo de diagramas manda estas dos; el pipeline sismico no, y el
+    // motor sigue con su `_WALL_TARGET_ELEMENT_SIZE_M = 6.0`, que esta
+    // calibrado contra los periodos. Ver `_wall_mesh_target` en inputs.py.
+    const wallMeshSize = meshOn
+      ? Number(cfg.wallMeshSize ?? this.seismicConfig?.wallMeshSize ?? WALL_MESH_SIZE_DIAGRAMAS_M)
+      : 0;
+
     let elementsOut = elemList;
     let memberLoadsOut = memberLoads;
     this._frameMeshMap = null;
 
     if (meshOn) {
+      // Adelantarle al motor los nudos de la grilla de muro que caen sobre una
+      // viga. El motor REUSA por coordenada (`node_lookup` en
+      // _build_wall_mesh_plan), asi que el panel queda cosido ahi, y
+      // splitBeamsAtInteriorNodes parte la viga en esos mismos nudos.
+      if (wallMeshSize > 0 && walls.length) {
+        const nuevosNudosMuro = wallGridPointsOnBeams(walls, nodeListConnected, elemList, {
+          objetivo: wallMeshSize,
+          capX: 12,
+          capY: 8, // mismos topes que `_wall_mesh_target` con override
+        });
+
+        if (nuevosNudosMuro.length) {
+          let siguienteIdNudo =
+            nodeListConnected.reduce((m, n) => Math.max(m, Number(n.id) || 0), 0) + 1;
+
+          nuevosNudosMuro.forEach((q) => {
+            const nodo = {
+              id: siguienteIdNudo,
+              x: q.x,
+              y: q.y,
+              z: q.z,
+              mass_x: 0,
+              mass_y: 0,
+              mass_z: 0,
+            };
+            siguienteIdNudo += 1;
+            nodeListConnected.push(nodo);
+
+            // A cota de piso entra al diafragma, como cualquier punto del
+            // entrepiso en ETABS. Sin esto queda suelto en el plano.
+            diaphragms.forEach((g) => {
+              if (Array.isArray(g?.nodeIds) && Math.abs(Number(g.z) - q.z) < 1e-6) {
+                g.nodeIds.push(nodo.id);
+              }
+            });
+          });
+
+          console.log(
+            `\u{1F9F1} Nudos de malla de muro sobre vigas: ${nuevosNudosMuro.length} ` +
+              `(objetivo ${wallMeshSize} m).`,
+          );
+        }
+      }
+
       const meshed = splitBeamsAtInteriorNodes(nodeListConnected, elemList, memberLoads);
       if (meshed.stats.split) {
         elementsOut = meshed.elements;
@@ -3119,6 +3247,10 @@ export const seismicPayloadMixin = {
       nodes: nodeListConnected,
       elements: elementsOut,
       walls,
+
+      // Solo viaja cuando el mallado esta encendido (modulo de diagramas). Sin
+      // el campo, el motor usa su tamano calibrado y NADA cambia.
+      ...(wallMeshSize > 0 ? { wallMeshSize } : {}),
 
       // Losas que el motor malla con ShellMITC4. `meshAsShell` viene decidido
       // desde acá (ver _buildSeismicSlabsForPayload); `slabShellMode` va

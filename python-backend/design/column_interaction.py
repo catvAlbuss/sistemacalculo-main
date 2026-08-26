@@ -16,6 +16,20 @@ Solo columnas rectangulares — ver decisión de alcance en el plan de columnas.
 
 import math
 
+from .column_polygon import (
+    center_on_centroid,
+    l_section_vertices,
+    polygon_area,
+    polygon_bar_positions,
+    polygon_fiber_grid,
+    tee_section_vertices,
+)
+from .column_circular import (
+    circular_fiber_grid,
+    generate_circular_bar_positions,
+    gross_area_circular,
+)
+
 __all__ = [
     "beta1_from_fc",
     "generate_rect_bar_positions",
@@ -236,6 +250,50 @@ def balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1, code=None):
     return pt["Pn"]
 
 
+def seccion_en_ejes_del_motor(b, h, n2, n3):
+    """Transpone la seccion a los ejes que usa la integracion por fibras.
+
+    EL MOTOR acumula (ver compute_pn_mn_at):
+        M2 += -force * y
+        M3 +=  force * x
+    o sea el brazo de M3 corre sobre X y el de M2 sobre Y.
+
+    ETABS define `b` = t2 (ancho, eje 2) y `h` = t3 (peralte, eje 3), y su M3
+    es el momento de eje FUERTE: usa t3 como peralte. Se confirma con las
+    propiedades que exporta el .e2k — para una V30x60,
+    `Iz = 0.0054 = 0.3 x 0.6^3/12`, que usa D como peralte del eje 3.
+
+    Pasando (b, h) tal cual, el brazo de M3 quedaba sobre `b`: **M2 y M3
+    invertidos**. Para una columna CUADRADA es invisible, y ademas en un modelo
+    gobernado por axial los momentos casi no mueven el ratio — por eso
+    sobrevivio toda la calibracion contra `muros modelo 2.1.e2k` (45x45,
+    ratios 0.04-0.17).
+
+    Lo destapo `MODELO video.e2k` (C30X40, momento gobernante). Con la demanda
+    EXACTA de ETABS en C4:
+        antes:  r = 0.615 contra 0.787 de ETABS (-21.9%), y ordenaba el combo
+                02 por encima del 04, al reves que ETABS
+        ahora:  r = 0.755 (-4.1%) y gobierna el 04, como ETABS
+
+    La transposicion (b,h,n2,n3) -> (h,b,n3,n2) PRESERVA el armado fisico: las
+    n2 varillas siguen repartidas sobre el lado b y las n3 sobre el lado h,
+    solo rota los ejes. En el modelo cuadrado el error medio de las 18 filas
+    pasa de 1.11% a 1.41%, pero ahi los ratios (0.069-0.174) vienen a 3
+    decimales: un digito son 1.4%, o sea ese modelo no puede discriminar.
+
+    OJO: `column_shear.py` y `column_slenderness.py` tienen su propio manejo de
+    b/h (d3/d2, r = 0.3h). NO se tocaron aca — hay que revisarlos aparte con un
+    modelo de columna rectangular.
+    """
+    # (b,h,n2,n3) -> (h,b,n2,n3), que el llamador desempaqueta como
+    # (_b,_h,_n3,_n2): las n2 varillas pasan al slot n3 y viceversa. Es la
+    # ROTACION de 90 grados de la seccion: los ejes se alinean con los del motor
+    # y el armado fisico queda IGUAL (las n2 varillas siguen repartidas sobre el
+    # lado b y las n3 sobre el lado h). Swappear solo b/h daria casi el mismo
+    # ratio pero con el armado mal puesto.
+    return h, b, n2, n3
+
+
 def compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1,
                      code=DEFAULT_DESIGN_CODE, gross_area=None, pb=None,
                      tied=True, fiber_dx=0.0, fiber_dy=0.0):
@@ -368,10 +426,70 @@ def axial_max_nominal(fc, fy, gross_area, total_bar_area, tied=True):
     return (0.80 if tied else 0.85) * po
 
 
+def _armar_seccion(b, h, cover, bar_diameter, n3, n2, confine_bar_diameter,
+                   nx, ny, shape="rect", diameter=None, num_bars=None,
+                   flange_thick=None, web_thick=None, mirror2=False, mirror3=False):
+    """Fibras, barras, Ag y dimension maxima segun la FORMA de la seccion.
+
+    Existe para que las tres funciones publicas (capacity_at_demand,
+    capacity_ratio_radial, compute_pmm_surface) no repitan el armado ni tengan
+    que saber de formas: `compute_pn_mn_at` ya es agnostico, recibe fibras y
+    barras y nada mas.
+
+    `max_dim` es la cuerda mas larga de la seccion, que acota la busqueda de la
+    profundidad de eje neutro: la diagonal en un rectangulo, el diametro en un
+    circulo.
+
+    Devuelve (bars, fibers, fdx, fdy, gross_area, max_dim). `bars` vacio si el
+    armado no cierra — el llamador lo trata como "no soportado".
+    """
+    forma = str(shape or "rect").lower()
+
+    # ── L y T: contorno poligonal ──
+    #
+    # `compute_pn_mn_at` no distingue formas: recibe fibras y barras. Los
+    # vertices se generan con la MISMA formula que usa el renderer 2D, en ejes
+    # locales (u = eje 2 = peralte, v = eje 3 = ancho), y se pasan tal cual como
+    # (x, y) del motor — que es la correspondencia correcta, porque el brazo de
+    # M3 corre sobre x y el peralte va sobre el eje 2.
+    if forma in ("l", "lconc", "tee", "t"):
+        vert = (l_section_vertices(h, b, flange_thick, web_thick, mirror2, mirror3)
+                if forma in ("l", "lconc")
+                else tee_section_vertices(h, b, flange_thick, web_thick))
+        if not vert:
+            return [], [], 0.0, 0.0, 0.0, 0.0
+        # AL CENTROIDE. El motor toma momentos respecto del origen, y en una L el
+        # centro de la caja envolvente esta a 103 mm del centroide: sin trasladar,
+        # la compresion pura ya arrastraba 43 t-m de momento espurio.
+        vert = center_on_centroid(vert)
+        bars = polygon_bar_positions(vert, cover, bar_diameter, num_bars or 0,
+                                     confine_bar_diameter)
+        fibers, fdx, fdy = polygon_fiber_grid(vert, max(int(nx), int(ny)))
+        max_dim = 2.0 * max(math.hypot(x, y) for x, y in vert)
+        return bars, fibers, fdx, fdy, polygon_area(vert), max_dim
+
+    if forma.startswith("circ"):
+        d = float(diameter or 0.0)
+        bars = generate_circular_bar_positions(
+            d, cover, bar_diameter, num_bars or 0, confine_bar_diameter)
+        # Una sola densidad: el disco es simetrico, no hay un eje "largo".
+        fibers, fdx, fdy = circular_fiber_grid(d, max(int(nx), int(ny)))
+        return bars, fibers, fdx, fdy, gross_area_circular(d), d
+
+    _b, _h, _n3, _n2 = seccion_en_ejes_del_motor(b, h, n2, n3)
+    bars = generate_rect_bar_positions(
+        _b, _h, cover, bar_diameter, _n3, _n2, confine_bar_diameter)
+    fibers, fdx, fdy = _rect_fiber_grid(_b, _h, nx, ny)
+    return bars, fibers, fdx, fdy, b * h, math.hypot(b, h)
+
+
 def capacity_at_demand(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
                         theta, target_p, beta1=None, nx=60, ny=60, iters=40,
                         confine_bar_diameter=0.0, code=DEFAULT_DESIGN_CODE,
-                        tied=True):
+                        tied=None,
+                        shape="rect", diameter=None, num_bars=None,
+                        flange_thick=None, web_thick=None,
+                        mirror2=False, mirror3=False):
     """
     Capacidad EXACTA (sin interpolar entre ángulos ni entre puntos de una
     curva) en el ángulo real de la demanda (theta, rad) y su Pu exacto
@@ -385,17 +503,24 @@ def capacity_at_demand(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     """
     if beta1 is None:
         beta1 = beta1_from_fc(fc)
-    bars = generate_rect_bar_positions(b, h, cover, bar_diameter, n3, n2, confine_bar_diameter)
+    # ESTRIBOS vs ESPIRAL. Decide el tope axial (0.80 vs 0.85 Po, ACI 318
+    # 22.4.2.1) y el phi de compresion (0.65/0.70 vs 0.75). `tied=None` = deducilo
+    # de la forma: una circular se arma con espiral salvo que el llamador diga lo
+    # contrario (ACI permite circular con estribos circulares: ahi va 0.80/0.65).
+    if tied is None:
+        tied = not str(shape or "rect").lower().startswith("circ")
+    bars, fibers, fdx, fdy, ag, max_dim = _armar_seccion(
+        b, h, cover, bar_diameter, n3, n2, confine_bar_diameter, nx, ny,
+        shape=shape, diameter=diameter, num_bars=num_bars,
+        flange_thick=flange_thick, web_thick=web_thick,
+        mirror2=mirror2, mirror3=mirror3)
     if not bars:
         return None
 
-    fibers, fdx, fdy = _rect_fiber_grid(b, h, nx, ny)
-    max_dim = math.hypot(b, h)
     c_lo, c_hi = max_dim * 0.001, max_dim * 6.0
 
     # Ag/Pb: solo los consume la transición de φ de la E.060 (ver
     # _phi_factor_e060). Se calculan UNA vez y viajan a cada evaluación.
-    ag = b * h
     pb = balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1, code) \
         if normalize_design_code(code) == "E060" else None
     kw = {"code": code, "gross_area": ag, "pb": pb, "tied": tied,
@@ -428,7 +553,10 @@ def capacity_ratio_radial(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
                            target_p, target_m2, target_m3, beta1=None,
                            nx=60, ny=60, num_c=60, iters=40,
                            confine_bar_diameter=0.0, code=DEFAULT_DESIGN_CODE,
-                           tied=True):
+                           tied=None,
+                        shape="rect", diameter=None, num_bars=None,
+                        flange_thick=None, web_thick=None,
+                        mirror2=False, mirror3=False):
     """
     Ratio P-M-M "radial", el mismo que reporta ETABS (D/C Ratio del diálogo
     "Interaction Surface", ACI 318-19) — NO compara M_demanda contra
@@ -450,7 +578,17 @@ def capacity_ratio_radial(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     """
     if beta1 is None:
         beta1 = beta1_from_fc(fc)
-    bars = generate_rect_bar_positions(b, h, cover, bar_diameter, n3, n2, confine_bar_diameter)
+    # ESTRIBOS vs ESPIRAL. Decide el tope axial (0.80 vs 0.85 Po, ACI 318
+    # 22.4.2.1) y el phi de compresion (0.65/0.70 vs 0.75). `tied=None` = deducilo
+    # de la forma: una circular se arma con espiral salvo que el llamador diga lo
+    # contrario (ACI permite circular con estribos circulares: ahi va 0.80/0.65).
+    if tied is None:
+        tied = not str(shape or "rect").lower().startswith("circ")
+    bars, fibers, fdx, fdy, ag, max_dim = _armar_seccion(
+        b, h, cover, bar_diameter, n3, n2, confine_bar_diameter, nx, ny,
+        shape=shape, diameter=diameter, num_bars=num_bars,
+        flange_thick=flange_thick, web_thick=web_thick,
+        mirror2=mirror2, mirror3=mirror3)
     if not bars:
         return None
 
@@ -458,7 +596,6 @@ def capacity_ratio_radial(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     if m_res_demand <= 0 and target_p == 0:
         return None
 
-    fibers, fdx, fdy = _rect_fiber_grid(b, h, nx, ny)
     # theta se mide DESDE el eje M3 HACIA el M2 — es la convencion de la
     # superficie: compute_pn_mn_at con theta=0 da flexion pura sobre el eje 3
     # (M3 != 0, M2 = 0) y con theta=90 grados da M2 puro. Por eso va
@@ -473,12 +610,10 @@ def capacity_ratio_radial(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     # ETABS usa la misma convencion: su curva 'at 253.922 deg' corresponde a
     # M2=-24.4382 / M3=-7.0434, y atan2(M2, M3) da exactamente 253.922.
     theta = math.atan2(target_m2, target_m3)
-    max_dim = math.hypot(b, h)
     c_lo_bound, c_hi_bound = max_dim * 0.001, max_dim * 6.0
 
     # Ag/Pb para la transición de φ de la E.060 — una sola vez (ver
     # _phi_factor_e060); en ACI 318 no se usan.
-    ag = b * h
     pb = balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1, code) \
         if normalize_design_code(code) == "E060" else None
     kw = {"code": code, "gross_area": ag, "pb": pb, "tied": tied,
@@ -534,8 +669,11 @@ def capacity_ratio_radial(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
 
 
 def compute_pmm_surface(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
-                         tied=True, num_angles=24, num_c=21, nx=60, ny=60,
-                         confine_bar_diameter=0.0, code=DEFAULT_DESIGN_CODE):
+                         tied=None, num_angles=24, num_c=21, nx=60, ny=60,
+                         confine_bar_diameter=0.0, code=DEFAULT_DESIGN_CODE,
+                        shape="rect", diameter=None, num_bars=None,
+                        flange_thick=None, web_thick=None,
+                        mirror2=False, mirror3=False):
     """
     Superficie de interacción completa: `num_angles` curvas (una por ángulo,
     0°..360°), cada una con `num_c` puntos (de casi-tracción-pura a
@@ -545,12 +683,20 @@ def compute_pmm_surface(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     Devuelve {beta1, bars:[(x,y),...], curves:[{angleDeg, points:[...]}]}.
     """
     beta1 = beta1_from_fc(fc)
-    bars = generate_rect_bar_positions(b, h, cover, bar_diameter, n3, n2, confine_bar_diameter)
+    # ESTRIBOS vs ESPIRAL. Decide el tope axial (0.80 vs 0.85 Po, ACI 318
+    # 22.4.2.1) y el phi de compresion (0.65/0.70 vs 0.75). `tied=None` = deducilo
+    # de la forma: una circular se arma con espiral salvo que el llamador diga lo
+    # contrario (ACI permite circular con estribos circulares: ahi va 0.80/0.65).
+    if tied is None:
+        tied = not str(shape or "rect").lower().startswith("circ")
+    bars, fibers, fdx, fdy, ag, max_dim = _armar_seccion(
+        b, h, cover, bar_diameter, n3, n2, confine_bar_diameter, nx, ny,
+        shape=shape, diameter=diameter, num_bars=num_bars,
+        flange_thick=flange_thick, web_thick=web_thick,
+        mirror2=mirror2, mirror3=mirror3)
     if not bars:
         return None
 
-    fibers, fdx, fdy = _rect_fiber_grid(b, h, nx, ny)
-    max_dim = math.hypot(b, h)
     c_min = max_dim * 0.01
     # Barrido LINEAL de c, pero con c_max acotado a la DIAGONAL de la seccion.
     #
@@ -573,7 +719,6 @@ def compute_pmm_surface(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     c_max = max_dim
     c_values = [c_min + (c_max - c_min) * i / (num_c - 1) for i in range(num_c)]
 
-    ag = b * h
     is_e060 = normalize_design_code(code) == "E060"
 
     # Traccion pura: todas las varillas a -fy, sin aporte del concreto.

@@ -385,6 +385,11 @@ export const e2kExportMixin = {
         const B = Number(s.b || 0) / 100;
         lines.push(`  FRAMESECTION  "${name}"  MATERIAL "${mat}"  SHAPE "Concrete Rectangular"  D ${fmt(D)} B ${fmt(B)} `);
         concreteFrameSecs.push({ name, isColumn: /^c/i.test(name) });
+      } else if (type === "circle") {
+        // Circular maciza. Como "General" ETABS la leia sin geometria (solo
+        // area) y el .e2k dejaba de ser reimportable con la misma seccion.
+        lines.push(`  FRAMESECTION  "${name}"  MATERIAL "${mat}"  SHAPE "Concrete Circle"  D ${fmt(Number(s.diameter || s.h || 0) / 100)} `);
+        concreteFrameSecs.push({ name, isColumn: /^c/i.test(name) });
       } else {
         // Perfil no rectangular: exporta como General con área (aprox.)
         lines.push(`  FRAMESECTION  "${name}"  MATERIAL "${mat}"  SHAPE "General"  AREA ${fmt(s.area || s.A || 0)} `);

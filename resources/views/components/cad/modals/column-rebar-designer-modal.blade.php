@@ -87,7 +87,27 @@
                                    class="w-full mt-0.5 bg-gray-900 border border-gray-600 rounded text-xs text-white px-2 py-1">
                         </label>
 
-                        <div class="grid grid-cols-2 gap-2 mt-1.5">
+                        {{-- CIRCULAR: un anillo de n varillas (PATTERN "C-n"), no una
+                             grilla. El campo de espiral vs estribos NO es cosmético:
+                             decide el tope axial (0.85 vs 0.80·Po) y el φ de compresión
+                             (0.75 vs 0.65) — ACI 318 §22.4.2.1. --}}
+                        <div x-show="esCircular" class="grid grid-cols-2 gap-2 mt-1.5">
+                            <label class="text-xs text-gray-400">Número de varillas
+                                <span class="block text-[9px] text-gray-600">Number of Longitudinal Bars</span>
+                                <input type="number" min="3" step="1" x-model.number="draft.numBars"
+                                       class="w-full mt-0.5 bg-gray-900 border border-gray-600 rounded text-xs text-white px-2 py-1">
+                            </label>
+                            <label class="text-xs text-gray-400">Confinamiento
+                                <span class="block text-[9px] text-gray-600">Confinement Bars</span>
+                                <select x-model.boolean="draft.spiral"
+                                        class="w-full mt-0.5 bg-gray-900 border border-gray-600 rounded text-xs text-white px-2 py-1">
+                                    <option :value="true">Espiral (0.85·Po · φ 0.75)</option>
+                                    <option :value="false">Estribos circulares (0.80·Po · φ 0.65)</option>
+                                </select>
+                            </label>
+                        </div>
+
+                        <div x-show="!esCircular" class="grid grid-cols-2 gap-2 mt-1.5">
                             <label class="text-xs text-gray-400">Varillas en la cara dir. 3
                                 <span class="block text-[9px] text-gray-600">Bars Along 3-dir Face</span>
                                 <input type="number" min="2" step="1" x-model.number="draft.n3"
@@ -130,9 +150,16 @@
                         </div>
 
                         <div class="text-[10px] text-gray-500 mt-1.5 leading-relaxed">
-                            Patrón <b class="text-gray-300">R-<span x-text="draft.n3"></span>-<span x-text="draft.n2"></span></b>
-                            — <span class="text-gray-300 font-semibold" x-text="points.length"></span> varillas
-                            <span class="text-gray-600">(2·n3 + 2·(n2−2): las esquinas no se cuentan dos veces)</span>
+                            <template x-if="esCircular">
+                                <span>Patrón <b class="text-gray-300">C-<span x-text="draft.numBars"></span></b>
+                                    — <span class="text-gray-300 font-semibold" x-text="points.length"></span> varillas en anillo
+                                    <span class="text-gray-600">(· <span x-text="draft.spiral ? 'espiral' : 'estribos circulares'"></span>)</span></span>
+                            </template>
+                            <template x-if="!esCircular">
+                                <span>Patrón <b class="text-gray-300">R-<span x-text="draft.n3"></span>-<span x-text="draft.n2"></span></b>
+                                    — <span class="text-gray-300 font-semibold" x-text="points.length"></span> varillas
+                                    <span class="text-gray-600">(2·n3 + 2·(n2−2): las esquinas no se cuentan dos veces)</span></span>
+                            </template>
                             <span class="block">As total = <b class="text-gray-300" x-text="areaTotalCm2()"></b> cm²
                                 · ρ = <b :class="cuantiaFueraDeRango() ? 'text-amber-400' : 'text-gray-300'" x-text="cuantiaPct()"></b>%
                                 <span x-show="cuantiaFueraDeRango()" class="text-amber-400">(E.060 pide 1% ≤ ρ ≤ 6%)</span>
@@ -230,7 +257,7 @@
             // desde que Alpine arranca la página, así que si el draft estuviera
             // vacío svgMarkup() ya se evaluaría una vez con NaN antes de abrir el
             // modal por primera vez.
-            draft: { b: 30, h: 30, cover: 4, n2: 3, n3: 3, longBarName: '', confineBarName: '', longBarAreaMm2: 0, confineBarAreaMm2: 0, confineSpacing: 15, numConfineBars2: 2, numConfineBars3: 2, confineBarMaterialName: '' },
+            draft: { b: 30, h: 30, cover: 4, n2: 3, n3: 3, shape: 'rect', numBars: 8, spiral: true, diameter: 0, longBarName: '', confineBarName: '', longBarAreaMm2: 0, confineBarAreaMm2: 0, confineSpacing: 15, numConfineBars2: 2, numConfineBars3: 2, confineBarMaterialName: '' },
             barSizes: [],
             materials: [],
             longBarMaterialName: '',
@@ -310,9 +337,21 @@
                 return (this.points.length * this.areaVarillaCm2()).toFixed(2);
             },
 
+            /** La FORMA la manda la seccion, no el usuario (la siembra el mixin). */
+            get esCircular() {
+                return String(this.draft?.shape || 'rect').toLowerCase().startsWith('circ');
+            },
+
+            /** Diametro en cm de una circular (el mixin lo siembra desde la seccion). */
+            get diamCm() {
+                return Number(this.draft?.diameter ?? this.draft?.h) || 0;
+            },
+
             /** Cuantia rho = As/Ag en %. */
             cuantiaPct() {
-                const ag = (Number(this.draft.b) || 0) * (Number(this.draft.h) || 0);
+                const ag = this.esCircular
+                    ? Math.PI * this.diamCm * this.diamCm / 4
+                    : (Number(this.draft.b) || 0) * (Number(this.draft.h) || 0);
                 if (!(ag > 0)) return '0.00';
                 return ((this.points.length * this.areaVarillaCm2()) / ag * 100).toFixed(2);
             },
@@ -329,6 +368,7 @@
 
             /** Construye el SVG como STRING (ver comentario junto al contenedor) — nada de bindings Alpine dentro del SVG. */
             svgMarkup() {
+                if (this.esCircular) return this.svgMarkupCircular();
                 const b = Number(this.draft.b) || 0;
                 const h = Number(this.draft.h) || 0;
                 const cover = Number(this.draft.cover) || 0;
@@ -360,6 +400,34 @@
                     <line x1="${-ax}" y1="${-ay}" x2="${-ax}" y2="${ay}" stroke="#34d399" stroke-width="0.4"></line>
                     <text x="${-ax - f * 0.5}" y="0" fill="#34d399" font-size="${f}" text-anchor="middle"
                           transform="rotate(-90 ${-ax - f * 0.5} 0)">2 — peralte h = ${h} cm</text>
+                </svg>`;
+            },
+
+            /** Vista previa de la seccion CIRCULAR: disco, nucleo y anillo de varillas. */
+            svgMarkupCircular() {
+                const D = this.diamCm;
+                const cover = Number(this.draft.cover) || 0;
+                if (!(D > 0)) return '';
+
+                const R = D / 2;
+                const pad = D * 0.15 || 5;
+                const w = D + pad * 2;
+                const rNucleo = Math.max(R - cover, 0);
+                const r = Math.max(D * 0.018, 0.3);
+
+                const circles = this.points
+                    .map((p) => `<circle cx="${p.x.toFixed(2)}" cy="${(-p.y).toFixed(2)}" r="${r.toFixed(2)}" fill="#60a5fa"></circle>`)
+                    .join('');
+
+                const f = D * 0.075;
+                const ax = R + pad * 0.55;
+
+                return `<svg viewBox="${-w / 2} ${-w / 2} ${w} ${w}" style="width:100%; max-height:320px" preserveAspectRatio="xMidYMid meet">
+                    <circle cx="0" cy="0" r="${R}" fill="none" stroke="#9ca3af" stroke-width="0.6"></circle>
+                    <circle cx="0" cy="0" r="${rNucleo}" fill="none" stroke="#4b5563" stroke-width="0.3" stroke-dasharray="1.2 1"></circle>
+                    ${circles}
+                    <line x1="${-ax}" y1="${ax}" x2="${ax}" y2="${ax}" stroke="#38bdf8" stroke-width="0.4"></line>
+                    <text x="0" y="${ax + f * 1.15}" fill="#38bdf8" font-size="${f}" text-anchor="middle">D = ${D} cm</text>
                 </svg>`;
             },
 

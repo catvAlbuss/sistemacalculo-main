@@ -4,6 +4,7 @@ import { ShearCalculator } from "../../../vigas/calculators/shearCalculator.js";
 import { CapacidadCalculator } from "../../../vigas/calculators/capacidadCalculator.js";
 import { DeflectionCalculator } from "../../../vigas/calculators/deflectionCalculator.js";
 import { StructuralUtils } from "../../../vigas/calculators/SharedCalculatorUtils.js";
+import { TABLE_CONFIG } from "../../../vigas/config/constants.js";
 import { loadRealFrameForceResults } from "../../engine/frameForceBackend.js";
 import { getFrameForceRecord } from "../../diagrams/frameForceDiagramUtils.js";
 
@@ -147,16 +148,45 @@ export const rcBeamDesignMixin = {
       results: null,
     };
 
-    this._rcRunAllCalculations();
-    this._rcAutoSelectRebar();
-
+    // Abre mostrando SOLO la entrada (geometría + fuerzas CM/CV/ENV por
+    // tramo/estación, misma forma que arma dataCollector.js al pegar la
+    // tabla de ETABS a mano en vigas-general) — el cálculo recién corre
+    // cuando el usuario confirma con el botón "Diseñar" del modal
+    // (rcBeamDesignRun), para que pueda revisar/comparar la entrada antes.
     window.dispatchEvent(
       new CustomEvent("open-viga-design-modal", {
         detail: {
           input: built,
+          results: null,
+          rebarState: null,
+          rebarOptions: RC_REBAR_OPTIONS,
+          // Mismo TABLE_CONFIG.GROUPS que usa vigas-general para armar sus
+          // filas — se pasa tal cual (no se duplica a mano en el modal) para
+          // que la tabla de entrada del CAD quede SIEMPRE igual a la de
+          // vigas-general, incluso si esa configuración cambia más adelante.
+          groupsConfig: TABLE_CONFIG.GROUPS,
+        },
+      }),
+    );
+  },
+
+  /**
+   * Corre el diseño (5 calculadoras) sobre la entrada ya construida y
+   * confirmada por el usuario en el modal (botón "Diseñar") — separado de
+   * openRcBeamDesignDialog para que la tabla de entrada se pueda revisar
+   * ANTES de calcular, no junto con el resultado.
+   */
+  rcBeamDesignRun() {
+    if (!this._rcBeamDesignInput) return;
+
+    this._rcRunAllCalculations();
+    this._rcAutoSelectRebar();
+
+    window.dispatchEvent(
+      new CustomEvent("rc-beam-design-updated", {
+        detail: {
           results: this.rcBeamDesign.results,
           rebarState: this.rcBeamDesign.rebarState,
-          rebarOptions: RC_REBAR_OPTIONS,
         },
       }),
     );

@@ -821,21 +821,56 @@ def _run_column_interaction(data):
     estacion suelta. Los momentos ya magnificados son los que se verifican
     contra la superficie, y el detalle viaja en `demandChecks[i].slenderness`.
     """
-    required = ["b", "h", "fc", "fy", "cover", "barDiameter", "n3", "n2", "barArea"]
+    # FORMA de la seccion. Por defecto rectangular, que es lo unico que existia
+    # antes: un payload viejo sigue funcionando igual. La circular necesita
+    # `diameter` y `numBars` en vez de b/h/n2/n3 (ver design/column_circular.py).
+    _forma = str(data.get("shape") or "").lower()
+    if _forma.startswith("circ"):
+        shape = "circular"
+    elif _forma in ("l", "lconc"):
+        shape = "L"
+    elif _forma in ("tee", "t"):
+        shape = "tee"
+    else:
+        shape = "rect"
+
+    # Geometria de las formas POLIGONALES (L y T). `b`/`h` siguen siendo el ancho
+    # y el peralte totales; lo que se agrega son los espesores de las patas y los
+    # espejos, que en una L cambian DONDE queda el material respecto del nudo.
+    flange_thick = data.get("flangeThick")
+    web_thick = data.get("webThick")
+    mirror2 = bool(data.get("mirror2"))
+    mirror3 = bool(data.get("mirror3"))
+
+    comunes = ["fc", "fy", "cover", "barDiameter", "barArea"]
+    if shape == "circular":
+        required = comunes + ["diameter", "numBars"]
+    elif shape in ("L", "tee"):
+        required = comunes + ["b", "h", "flangeThick", "webThick", "numBars"]
+    else:
+        required = comunes + ["b", "h", "n3", "n2"]
     missing = [k for k in required if data.get(k) is None]
     if missing:
         return {"success": False, "error": f"Faltan campos: {', '.join(missing)}"}
 
-    b = float(data["b"])
-    h = float(data["h"])
+    diameter = float(data.get("diameter") or 0.0)
+    num_bars = int(data.get("numBars") or 0)
+    # En circular b/h no describen la geometria; se igualan al diametro para que
+    # el resto (clave de cache, mensajes) tenga algo coherente.
+    b = float(data.get("b") or diameter)
+    h = float(data.get("h") or diameter)
     fc = float(data["fc"])
     fy = float(data["fy"])
     cover = float(data["cover"])
     bar_diameter = float(data["barDiameter"])
-    n3 = int(data["n3"])
-    n2 = int(data["n2"])
+    n3 = int(data.get("n3") or 0)
+    n2 = int(data.get("n2") or 0)
     bar_area = float(data["barArea"])
-    tied = bool(data.get("tied", True))
+    # ESTRIBOS vs ESPIRAL: define el tope axial (0.80 vs 0.85 Po) y el phi de
+    # compresion (0.65/0.70 vs 0.75). Por defecto lo decide la FORMA — una
+    # circular va con espiral — pero el payload puede forzarlo, que es el caso
+    # legitimo de una circular zunchada con estribos circulares.
+    tied = bool(data["tied"]) if data.get("tied") is not None else (shape != "circular")
     confine_bar_diameter = float(data.get("confineBarDiameter") or 0.0)
     # Código de diseño: decide los φ (E.060 Art. 10.3.2 vs ACI 318 §21.2) y la
     # ley de transición. Default E.060 — ver DEFAULT_DESIGN_CODE.
@@ -846,6 +881,7 @@ def _run_column_interaction(data):
         b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area, tied,
         int(data.get("numAngles", 24)), int(data.get("numC", 21)),
         confine_bar_diameter, code,
+        shape, diameter, num_bars,
     )
     surface = _SURFACE_CACHE.get(surf_key)
     if surface is None:
@@ -856,6 +892,9 @@ def _run_column_interaction(data):
             num_c=surf_key[11],
             confine_bar_diameter=confine_bar_diameter,
             code=code,
+            shape=shape, diameter=diameter, num_bars=num_bars,
+            flange_thick=flange_thick, web_thick=web_thick,
+            mirror2=mirror2, mirror3=mirror3,
         )
         if surface is not None:
             if len(_SURFACE_CACHE) >= _SURFACE_CACHE_MAX:
@@ -872,10 +911,30 @@ def _run_column_interaction(data):
     ec_slender = float(slender_cfg.get("ec", 0.0)) if slender_cfg else 0.0
     lu_slender = float(slender_cfg.get("lu", 0.0)) if slender_cfg else 0.0
     slender_on = bool(slender_cfg) and ec_slender > 0 and lu_slender > 0
-    ag_sec = b * h
-    # Ig por eje: flexion alrededor del eje 2 usa el peralte en 3 y viceversa.
-    ig_axis = {"M2": b * h ** 3 / 12.0, "M3": h * b ** 3 / 12.0}
-    h_axis = {"M2": h, "M3": b}
+    if shape in ("L", "tee"):
+        # Ag e Ig REALES del poligono. Con las formulas rectangulares el radio de
+        # giro saldria del rectangulo ENVOLVENTE, que en una L sobreestima
+        # bastante el area y SUBESTIMA la esbeltez.
+        from design.column_polygon import (l_section_vertices, polygon_area,
+                                           tee_section_vertices)
+        _v = (l_section_vertices(h, b, flange_thick, web_thick, mirror2, mirror3)
+              if shape == "L" else tee_section_vertices(h, b, flange_thick, web_thick))
+        ag_sec = polygon_area(_v) if _v else b * h
+        ig_axis = {"M2": ag_sec * h * h / 12.0, "M3": ag_sec * b * b / 12.0}
+        h_axis = {"M2": h, "M3": b}
+    elif shape == "circular":
+        # Ag e Ig REALES del disco. Con las formulas rectangulares y b=h=D el
+        # radio de giro salia sqrt(D^2/12)=0.2887D en vez de D/4: un 15% de mas,
+        # que SUBESTIMA la esbeltez (menos magnificacion de la que corresponde).
+        ag_sec = math.pi * diameter ** 2 / 4.0
+        ig_circ = math.pi * diameter ** 4 / 64.0
+        ig_axis = {"M2": ig_circ, "M3": ig_circ}
+        h_axis = {"M2": diameter, "M3": diameter}
+    else:
+        ag_sec = b * h
+        # Ig por eje: flexion alrededor del eje 2 usa el peralte en 3 y viceversa.
+        ig_axis = {"M2": b * h ** 3 / 12.0, "M3": h * b ** 3 / 12.0}
+        h_axis = {"M2": h, "M3": b}
 
     def _magnify(component, m_bottom, m_top, p_u):
         """delta_ns para UN eje. Devuelve (momento_magnificado, detalle)."""
@@ -966,6 +1025,9 @@ def _run_column_interaction(data):
                     confine_bar_diameter=confine_bar_diameter,
                     code=code, tied=tied,
                     nx=_DEMAND_FIBER_GRID, ny=_DEMAND_FIBER_GRID,
+                    shape=shape, diameter=diameter, num_bars=num_bars,
+            flange_thick=flange_thick, web_thick=web_thick,
+            mirror2=mirror2, mirror3=mirror3,
                 )
                 if r is None:
                     continue
@@ -1020,6 +1082,7 @@ def column_interaction():
 def _run_column_shear(data):
     """
     Corte por diseño de capacidad + confinamiento de una columna rectangular
+    (estribos) o CIRCULAR (espiral, `shape: "circular"` + `diameter`/`numBars`)
     (ver python-backend/design/column_shear.py). Compartida entre el
     endpoint Flask (Windows) y cli_entry.py (Linux, subproceso) — mismo
     patrón que _run_column_interaction.
@@ -1029,24 +1092,32 @@ def _run_column_shear(data):
                      confineBarSpacing, numConfineBars2, numConfineBars3,
                      clearHeight, axialMin, axialMax, vuAnalysis2, vuAnalysis3 }
     """
-    required = [
-        "b", "h", "fc", "fy", "cover", "barDiameter", "n3", "n2", "barArea",
+    # FORMA: circular = espiral (cambia Ag, el `d` de corte, las ramas y todo el
+    # bloque de confinamiento a rho_s volumetrica). Default rectangular, o sea
+    # un payload viejo entra por el mismo camino de antes.
+    shape_shear = "circular" if str(data.get("shape") or "").lower().startswith("circ") else "rect"
+
+    comunes = [
+        "fc", "fy", "cover", "barDiameter", "barArea",
         "confineFy", "confineBarArea", "confineBarDiameter", "confineBarSpacing",
-        "numConfineBars2", "numConfineBars3", "clearHeight",
-        "axialMin", "axialMax", "vuAnalysis2", "vuAnalysis3",
+        "clearHeight", "axialMin", "axialMax", "vuAnalysis2", "vuAnalysis3",
     ]
+    required = (comunes + ["diameter", "numBars"]) if shape_shear == "circular"         else (comunes + ["b", "h", "n3", "n2", "numConfineBars2", "numConfineBars3"])
     missing = [k for k in required if data.get(k) is None]
     if missing:
         return {"success": False, "error": f"Faltan campos: {', '.join(missing)}"}
 
+    diameter_shear = float(data.get("diameter") or 0.0)
+
     result = column_shear_design(
-        b=float(data["b"]), h=float(data["h"]), fc=float(data["fc"]), fy=float(data["fy"]),
+        b=float(data.get("b") or diameter_shear), h=float(data.get("h") or diameter_shear), fc=float(data["fc"]), fy=float(data["fy"]),
         cover=float(data["cover"]), bar_diameter=float(data["barDiameter"]),
-        n3=int(data["n3"]), n2=int(data["n2"]), bar_area=float(data["barArea"]),
+        n3=int(data.get("n3") or 0), n2=int(data.get("n2") or 0), bar_area=float(data["barArea"]),
         fyt=float(data["confineFy"]), confine_bar_area=float(data["confineBarArea"]),
         confine_bar_diameter=float(data["confineBarDiameter"]),
         confine_bar_spacing=float(data["confineBarSpacing"]),
-        num_confine_bars2=int(data["numConfineBars2"]), num_confine_bars3=int(data["numConfineBars3"]),
+        num_confine_bars2=int(data.get("numConfineBars2") or 0),
+        num_confine_bars3=int(data.get("numConfineBars3") or 0),
         clear_height=float(data["clearHeight"]), axial_min=float(data["axialMin"]),
         axial_max=float(data["axialMax"]), vu_analysis2=float(data["vuAnalysis2"]),
         vu_analysis3=float(data["vuAnalysis3"]),
@@ -1055,6 +1126,12 @@ def _run_column_shear(data):
         # fine) — opcional; sin el dato Ve queda gobernado por el Mpr de la
         # columna, que es lo conservador. Ver design/column_shear.py.
         joint_beam_moment=data.get("jointBeamMoment") or None,
+        shape=shape_shear, diameter=diameter_shear,
+        num_long_bars=int(data.get("numBars") or 0),
+        # Convenciones de calculo seleccionables (nucleo confinado, area de Vc,
+        # `d` del tope). Sin este campo van las de norma. Ver el bloque
+        # CONVENCIONES en design/column_shear.py.
+        conventions=data.get("conventions") or None,
     )
     return {"success": True, **result}
 
