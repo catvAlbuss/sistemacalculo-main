@@ -1,4 +1,4 @@
-import{S as i}from"./analisis_estructural_de_armaduras-DtkCWcOo.js";import"./livewire.esm-CO6ZehnT.js";import"./predimensionamiento-CxryAhEz.js";import"./preload-helper-BfFHrpNk.js";import"./color_scale-BGSv3LvJ.js";import"./zapatas2Core-CNeTvPye.js";import"./mat4js.read-CN22nOIi.js";import"./_commonjsHelpers-_d1bhYXs.js";import"./___vite-browser-external_commonjs-proxy-BQ48sp8I.js";import"./deflectionCalculator-DCKf5BFK.js";import"./ubigeo-Cak7qga5.js";const e="selectionVertexShader",t=`attribute vec3 position;
+import{S as i}from"./analisis_estructural_de_armaduras-CrY5H2jA.js";import"./livewire.esm-CO6ZehnT.js";import"./predimensionamiento-CxryAhEz.js";import"./preload-helper-BfFHrpNk.js";import"./color_scale-BGSv3LvJ.js";import"./zapatas2Core-CNeTvPye.js";import"./mat4js.read-CN22nOIi.js";import"./_commonjsHelpers-_d1bhYXs.js";import"./___vite-browser-external_commonjs-proxy-BQ48sp8I.js";import"./constants-CoGixEBm.js";import"./html2canvas.esm-5Cw11iw4.js";import"./rizabalasociados-DHREaxkb.js";import"./ubigeo-Cak7qga5.js";const e="selectionVertexShader",t=`attribute vec3 position;
 #ifdef INSTANCES
 attribute float instanceSelectionId;
 #endif
@@ -70,4 +70,4 @@ vSelectionId=instanceSelectionId;
 #include<clipPlaneVertex>
 #define CUSTOM_VERTEX_MAIN_END
 }
-`;i.ShadersStore[e]||(i.ShadersStore[e]=t);const p={name:e,shader:t};export{p as selectionVertexShader};
+`;i.ShadersStore[e]||(i.ShadersStore[e]=t);const m={name:e,shader:t};export{m as selectionVertexShader};

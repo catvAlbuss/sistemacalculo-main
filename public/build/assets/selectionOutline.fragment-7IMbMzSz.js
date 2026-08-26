@@ -1,4 +1,4 @@
-import{S as t}from"./analisis_estructural_de_armaduras-DtkCWcOo.js";import"./livewire.esm-CO6ZehnT.js";import"./predimensionamiento-CxryAhEz.js";import"./preload-helper-BfFHrpNk.js";import"./color_scale-BGSv3LvJ.js";import"./zapatas2Core-CNeTvPye.js";import"./mat4js.read-CN22nOIi.js";import"./_commonjsHelpers-_d1bhYXs.js";import"./___vite-browser-external_commonjs-proxy-BQ48sp8I.js";import"./deflectionCalculator-DCKf5BFK.js";import"./ubigeo-Cak7qga5.js";const e="selectionOutlinePixelShader",o=`uniform sampler2D maskSampler;uniform sampler2D depthSampler;varying vec2 vUV;uniform vec2 screenSize;uniform vec3 outlineColor;uniform float outlineThickness;uniform float occlusionStrength;uniform float occlusionThreshold;
+import{S as t}from"./analisis_estructural_de_armaduras-CrY5H2jA.js";import"./livewire.esm-CO6ZehnT.js";import"./predimensionamiento-CxryAhEz.js";import"./preload-helper-BfFHrpNk.js";import"./color_scale-BGSv3LvJ.js";import"./zapatas2Core-CNeTvPye.js";import"./mat4js.read-CN22nOIi.js";import"./_commonjsHelpers-_d1bhYXs.js";import"./___vite-browser-external_commonjs-proxy-BQ48sp8I.js";import"./constants-CoGixEBm.js";import"./html2canvas.esm-5Cw11iw4.js";import"./rizabalasociados-DHREaxkb.js";import"./ubigeo-Cak7qga5.js";const e="selectionOutlinePixelShader",o=`uniform sampler2D maskSampler;uniform sampler2D depthSampler;varying vec2 vUV;uniform vec2 screenSize;uniform vec3 outlineColor;uniform float outlineThickness;uniform float occlusionStrength;uniform float occlusionThreshold;
 #define CUSTOM_FRAGMENT_DEFINITIONS
 void main(void) {
 #define CUSTOM_FRAGMENT_MAIN_BEGIN
@@ -44,4 +44,4 @@ occlusionFactor=min(occlusionFactor,occlusionTopCenter);occlusionFactor=min(occl
 float finalOutlineMask=outlineMask*(1.0-occlusionStrength*occlusionFactor);gl_FragColor=vec4(outlineColor,finalOutlineMask);
 #define CUSTOM_FRAGMENT_MAIN_END
 }
-`;t.ShadersStore[e]||(t.ShadersStore[e]=o);const u={name:e,shader:o};export{u as selectionOutlinePixelShader};
+`;t.ShadersStore[e]||(t.ShadersStore[e]=o);const T={name:e,shader:o};export{T as selectionOutlinePixelShader};

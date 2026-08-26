@@ -18,9 +18,9 @@
     "file": "assets/color_scale-BGSv3LvJ.js",
     "name": "color_scale"
   },
-  "_deflectionCalculator-DCKf5BFK.js": {
-    "file": "assets/deflectionCalculator-DCKf5BFK.js",
-    "name": "deflectionCalculator"
+  "_constants-CoGixEBm.js": {
+    "file": "assets/constants-CoGixEBm.js",
+    "name": "constants"
   },
   "_html2canvas.esm-5Cw11iw4.js": {
     "file": "assets/html2canvas.esm-5Cw11iw4.js",
@@ -111,7 +111,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/lod3D.fragment.js": {
-    "file": "assets/lod3D.fragment-FeC3ktc2.js",
+    "file": "assets/lod3D.fragment-DxRs28r_.js",
     "name": "lod3D.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/lod3D.fragment.js",
     "isDynamicEntry": true,
@@ -125,12 +125,14 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/oitFinalSimpleBlend.fragment.js": {
-    "file": "assets/oitFinalSimpleBlend.fragment-g6ZgIthN.js",
+    "file": "assets/oitFinalSimpleBlend.fragment-5I_809U4.js",
     "name": "oitFinalSimpleBlend.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/oitFinalSimpleBlend.fragment.js",
     "isDynamicEntry": true,
@@ -144,12 +146,14 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/selection.fragment.js": {
-    "file": "assets/selection.fragment-DUq-Pr2i.js",
+    "file": "assets/selection.fragment-CYMbRuKA.js",
     "name": "selection.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/selection.fragment.js",
     "isDynamicEntry": true,
@@ -163,12 +167,14 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/selection.vertex.js": {
-    "file": "assets/selection.vertex-DNtCZlZ3.js",
+    "file": "assets/selection.vertex-DiQMdpXA.js",
     "name": "selection.vertex",
     "src": "node_modules/@babylonjs/core/Shaders/selection.vertex.js",
     "isDynamicEntry": true,
@@ -182,12 +188,14 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/selectionOutline.fragment.js": {
-    "file": "assets/selectionOutline.fragment-CRXwMFBw.js",
+    "file": "assets/selectionOutline.fragment-7IMbMzSz.js",
     "name": "selectionOutline.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/selectionOutline.fragment.js",
     "isDynamicEntry": true,
@@ -201,12 +209,14 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/volumetricLightingBlendVolume.fragment.js": {
-    "file": "assets/volumetricLightingBlendVolume.fragment-Ce7BU76T.js",
+    "file": "assets/volumetricLightingBlendVolume.fragment-C6cGTp__.js",
     "name": "volumetricLightingBlendVolume.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/volumetricLightingBlendVolume.fragment.js",
     "isDynamicEntry": true,
@@ -220,12 +230,14 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.fragment.js": {
-    "file": "assets/volumetricLightingRenderVolume.fragment-gqAbBI6T.js",
+    "file": "assets/volumetricLightingRenderVolume.fragment-DfBng5ed.js",
     "name": "volumetricLightingRenderVolume.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.fragment.js",
     "isDynamicEntry": true,
@@ -239,12 +251,14 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.vertex.js": {
-    "file": "assets/volumetricLightingRenderVolume.vertex-DCv8J7uJ.js",
+    "file": "assets/volumetricLightingRenderVolume.vertex-BtQXwbsj.js",
     "name": "volumetricLightingRenderVolume.vertex",
     "src": "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.vertex.js",
     "isDynamicEntry": true,
@@ -258,12 +272,14 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.fragment.js": {
-    "file": "assets/gaussianSplattingVoxel.fragment-DcfjoJcb.js",
+    "file": "assets/gaussianSplattingVoxel.fragment-DMNBuFvS.js",
     "name": "gaussianSplattingVoxel.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.fragment.js",
     "isDynamicEntry": true,
@@ -277,12 +293,14 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.vertex.js": {
-    "file": "assets/gaussianSplattingVoxel.vertex-DpuWcfj_.js",
+    "file": "assets/gaussianSplattingVoxel.vertex-Bl9cpYPH.js",
     "name": "gaussianSplattingVoxel.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.vertex.js",
     "isDynamicEntry": true,
@@ -296,12 +314,14 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/lod3D.fragment.js": {
-    "file": "assets/lod3D.fragment-C18aAsOj.js",
+    "file": "assets/lod3D.fragment-CkVJxO0n.js",
     "name": "lod3D.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/lod3D.fragment.js",
     "isDynamicEntry": true,
@@ -315,12 +335,14 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/oitFinalSimpleBlend.fragment.js": {
-    "file": "assets/oitFinalSimpleBlend.fragment--u1IeX9U.js",
+    "file": "assets/oitFinalSimpleBlend.fragment-CbxpgaUO.js",
     "name": "oitFinalSimpleBlend.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/oitFinalSimpleBlend.fragment.js",
     "isDynamicEntry": true,
@@ -334,12 +356,14 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/screenSpaceCurvature.fragment.js": {
-    "file": "assets/screenSpaceCurvature.fragment-BNnjOkbz.js",
+    "file": "assets/screenSpaceCurvature.fragment-DF3o24Ni.js",
     "name": "screenSpaceCurvature.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/screenSpaceCurvature.fragment.js",
     "isDynamicEntry": true,
@@ -353,12 +377,14 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/selection.fragment.js": {
-    "file": "assets/selection.fragment-BPuq1zqz.js",
+    "file": "assets/selection.fragment-BoXnL3uZ.js",
     "name": "selection.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/selection.fragment.js",
     "isDynamicEntry": true,
@@ -372,12 +398,14 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/selection.vertex.js": {
-    "file": "assets/selection.vertex-CpFqXPEA.js",
+    "file": "assets/selection.vertex-qF9FX4-Y.js",
     "name": "selection.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/selection.vertex.js",
     "isDynamicEntry": true,
@@ -391,12 +419,14 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/selectionOutline.fragment.js": {
-    "file": "assets/selectionOutline.fragment-Cjr09U2N.js",
+    "file": "assets/selectionOutline.fragment-DWakBMUy.js",
     "name": "selectionOutline.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/selectionOutline.fragment.js",
     "isDynamicEntry": true,
@@ -410,12 +440,14 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingBlendVolume.fragment.js": {
-    "file": "assets/volumetricLightingBlendVolume.fragment-a7zPdMNj.js",
+    "file": "assets/volumetricLightingBlendVolume.fragment-CYYc71L7.js",
     "name": "volumetricLightingBlendVolume.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingBlendVolume.fragment.js",
     "isDynamicEntry": true,
@@ -429,12 +461,14 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.fragment.js": {
-    "file": "assets/volumetricLightingRenderVolume.fragment-lrIDa668.js",
+    "file": "assets/volumetricLightingRenderVolume.fragment-9PP8FeIN.js",
     "name": "volumetricLightingRenderVolume.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.fragment.js",
     "isDynamicEntry": true,
@@ -448,12 +482,14 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.vertex.js": {
-    "file": "assets/volumetricLightingRenderVolume.vertex-ClUdY7MA.js",
+    "file": "assets/volumetricLightingRenderVolume.vertex-BOe8dsbw.js",
     "name": "volumetricLightingRenderVolume.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.vertex.js",
     "isDynamicEntry": true,
@@ -467,7 +503,9 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ]
   },
@@ -508,7 +546,7 @@
     "src": "node_modules/jquery-ui/themes/base/images/ui-icons_ffffff_256x240.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-CrPQeIn8.css",
+    "file": "assets/app-CyBMD3G4.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
@@ -868,14 +906,14 @@
     ]
   },
   "resources/js/adm_vigas_general.js": {
-    "file": "assets/adm_vigas_general-BLaNGU8m.js",
+    "file": "assets/adm_vigas_general-DT_i6o2l.js",
     "name": "adm_vigas_general",
     "src": "resources/js/adm_vigas_general.js",
     "isEntry": true,
     "imports": [
       "_preload-helper-BfFHrpNk.js",
       "_table_factory-iqyiJ1FX.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
       "resources/js/muros-contencion/predimensionamiento.js"
     ],
     "dynamicImports": [
@@ -925,7 +963,7 @@
     ]
   },
   "resources/js/analisis_estructural_de_armaduras.js": {
-    "file": "assets/analisis_estructural_de_armaduras-DtkCWcOo.js",
+    "file": "assets/analisis_estructural_de_armaduras-CrY5H2jA.js",
     "name": "analisis_estructural_de_armaduras",
     "src": "resources/js/analisis_estructural_de_armaduras.js",
     "isEntry": true,
@@ -938,7 +976,9 @@
       "_mat4js.read-CN22nOIi.js",
       "__commonjsHelpers-_d1bhYXs.js",
       "____vite-browser-external_commonjs-proxy-BQ48sp8I.js",
-      "_deflectionCalculator-DCKf5BFK.js",
+      "_constants-CoGixEBm.js",
+      "_html2canvas.esm-5Cw11iw4.js",
+      "_rizabalasociados-DHREaxkb.js",
       "_ubigeo-Cak7qga5.js"
     ],
     "dynamicImports": [

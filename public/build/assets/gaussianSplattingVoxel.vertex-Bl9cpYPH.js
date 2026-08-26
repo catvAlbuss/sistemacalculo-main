@@ -1,4 +1,4 @@
-import{S as e}from"./analisis_estructural_de_armaduras-DtkCWcOo.js";import"./livewire.esm-CO6ZehnT.js";import"./predimensionamiento-CxryAhEz.js";import"./preload-helper-BfFHrpNk.js";import"./color_scale-BGSv3LvJ.js";import"./zapatas2Core-CNeTvPye.js";import"./mat4js.read-CN22nOIi.js";import"./_commonjsHelpers-_d1bhYXs.js";import"./___vite-browser-external_commonjs-proxy-BQ48sp8I.js";import"./deflectionCalculator-DCKf5BFK.js";import"./ubigeo-Cak7qga5.js";const t="gaussianSplattingVoxelVertexShader",r=`#include<sceneUboDeclaration>
+import{S as e}from"./analisis_estructural_de_armaduras-CrY5H2jA.js";import"./livewire.esm-CO6ZehnT.js";import"./predimensionamiento-CxryAhEz.js";import"./preload-helper-BfFHrpNk.js";import"./color_scale-BGSv3LvJ.js";import"./zapatas2Core-CNeTvPye.js";import"./mat4js.read-CN22nOIi.js";import"./_commonjsHelpers-_d1bhYXs.js";import"./___vite-browser-external_commonjs-proxy-BQ48sp8I.js";import"./constants-CoGixEBm.js";import"./html2canvas.esm-5Cw11iw4.js";import"./rizabalasociados-DHREaxkb.js";import"./ubigeo-Cak7qga5.js";const t="gaussianSplattingVoxelVertexShader",r=`#include<sceneUboDeclaration>
 #include<meshUboDeclaration>
 attribute splatIndex0: vec4f;attribute splatIndex1: vec4f;attribute splatIndex2: vec4f;attribute splatIndex3: vec4f;attribute position: vec3f;uniform dataTextureSize: vec2f;uniform alpha: f32;uniform invWorldScale: mat4x4f;uniform viewMatrix: mat4x4f;
 #if IS_COMPOUND
@@ -26,4 +26,4 @@ let quadPos: vec2f=vertexInputs.position.xy;let worldPos: vec4f=computeVoxelSpla
 vertexOutputs.vAlpha*=uniforms.partVisibility[splat.partIndex];
 #endif
 vertexOutputs.vPatchPosition=quadPos;}
-`;e.ShadersStoreWGSL[t]||(e.ShadersStoreWGSL[t]=r);const v={name:t,shader:r};export{v as gaussianSplattingVoxelVertexShaderWGSL};
+`;e.ShadersStoreWGSL[t]||(e.ShadersStoreWGSL[t]=r);const c={name:t,shader:r};export{c as gaussianSplattingVoxelVertexShaderWGSL};
