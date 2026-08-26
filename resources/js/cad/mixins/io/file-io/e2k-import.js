@@ -593,6 +593,15 @@ export const e2kImportMixin = {
     return { A, area: A, Iz, Iy, J };
   },
 
+  // Propiedades de una sección CIRCULAR maciza (SHAPE "Concrete Circle").
+  // D = diámetro en m. Iz = Iy por simetría, y J = 2·I es EXACTO en un círculo
+  // (no una aproximación como en el rectángulo).
+  _circleSectionProps(D) {
+    const A = (Math.PI * D * D) / 4;
+    const I = (Math.PI * Math.pow(D, 4)) / 64;
+    return { A, area: A, Iz: I, Iy: I, J: 2 * I };
+  },
+
   // Propiedades de un TUBO rectangular hueco (SHAPE "Steel Tube" / HSS). D=peralte,
   // B=ancho, TF=espesor pared arriba/abajo, TW=espesor pared lados (todo en m).
   // Sección hueca = exterior D×B menos el interior. J por Bredt (pared delgada
@@ -819,6 +828,16 @@ export const e2kImportMixin = {
           const D = kvNum(line, "D", 0); // peralte m
           const B = kvNum(line, "B", 0); // ancho m
           frameSecMap.set(name, { name, type: "rect", material, b: B * 100, h: D * 100, ...this._rectSectionProps(B, D), description: name });
+        } else if (/circle|circular/i.test(shape)) {
+          // Columna circular: solo trae D (no hay B). Antes caía al else, y como
+          // ahí se exige D>0 && B>0 terminaba en type "general" con A=0, o sea
+          // una barra SIN rigidez. b/h se dejan = D para que lo que dibuja la
+          // huella en planta tenga una caja envolvente coherente.
+          const D = kvNum(line, "D", 0);
+          frameSecMap.set(name, D > 0
+            ? { name, type: "circle", material, diameter: D * 100, b: D * 100, h: D * 100,
+                ...this._circleSectionProps(D), description: name }
+            : { name, type: "general", material, A: 0.01, area: 0.01, Iz: 1e-4, Iy: 1e-4 });
         } else if (/^concrete l$/i.test(shape)) {
           const D = kvNum(line, "D", 0), B = kvNum(line, "B", 0), TF = kvNum(line, "TF", 0), TW = kvNum(line, "TW", 0);
           const props = this._lSectionProps(D, B, TF, TW);
@@ -902,6 +921,17 @@ export const e2kImportMixin = {
           concreteSectionMap.set(name, {
             sectionType: q(line, "TYPE") || "", // "Column" | "Beam"
             patternRaw: q(line, "PATTERN") || "",
+            // ESTRIBOS vs ESPIRAL ("TIES" | "SPIRAL"). Decide el tope axial
+            // (0.80 vs 0.85 Po, ACI 318 §22.4.2.1) y el φ de compresión
+            // (0.65/0.70 vs 0.75). Antes se ignoraba y el motor lo DEDUCÍA de
+            // la forma —toda circular se tomaba como zunchada—, pero ETABS
+            // permite una circular con estribos circulares: ahí nuestro
+            // resultado salía 0.85/0.80 = 5.88% por encima del suyo.
+            transReinfRaw: q(line, "TRANSREINF") || "",
+            // "CHECK" = armado fijo que ETABS verifica (reporta un D/C ratio);
+            // "DESIGN" = auto-diseño (reporta área requerida, NO hay ratio
+            // contra el cual comparar). Se guarda para poder avisarlo.
+            designCheckRaw: q(line, "DESIGNCHECK") || "",
             cover: kvNum(line, "COVER", 0),
             coverTop: kvNum(line, "COVERTOP", 0),
             coverBottom: kvNum(line, "COVERBOTTOM", 0),
@@ -912,6 +942,15 @@ export const e2kImportMixin = {
             numConfineBars3: kvNum(line, "NUMCONFINEBARS3", 0),
             longBarMaterialName: q(line, "LONGBARMATERIAL") || "",
             confineBarMaterialName: q(line, "CONFINEBARMATERIAL") || "",
+            // Armado longitudinal de VIGA (m²): A=superior/T=inferior en los
+            // extremos I y J. ETABS los escribe en 0 cuando la sección está en
+            // auto-diseño ("Reinforcement to be Designed"). Lo consume el tope
+            // por resistencia de vigas del corte de columnas (ACI 318
+            // §18.7.6.1.1 in fine, ver design/column_shear.py).
+            beamAreaTopI: kvNum(line, "ATI", 0),
+            beamAreaBotI: kvNum(line, "ABI", 0),
+            beamAreaTopJ: kvNum(line, "ATJ", 0),
+            beamAreaBotJ: kvNum(line, "ABJ", 0),
           });
         }
       } else if (/^SDSECTION\s/i.test(line)) {
@@ -1107,16 +1146,21 @@ export const e2kImportMixin = {
     // que asumíamos, ver project_rc_design_v2_v3_convention. Sin PATTERN
     // reconocido, se guarda type:"unknown" (el adaptador de columnas lo trata
     // como no-soportado, no intenta calcular).
-    const nearestRebarDiameter = (area) => {
-      if (!(area > 0) || !rebarDefMap.size) return 0;
-      let best = null;
-      let bestDist = Infinity;
-      rebarDefMap.forEach((def) => {
-        const d = Math.abs(def.area - area);
-        if (d < bestDist) { bestDist = d; best = def; }
-      });
-      return best ? best.dia : 0;
-    };
+    // Diametro EXACTO desde el area: d = sqrt(4A/pi). El area es el dato
+    // autoritativo del .e2k y ya codifica el diametro sin perdida.
+    //
+    // Antes se buscaba la varilla mas cercana del catalogo REBARDEFINITION, y
+    // eso METIA error cuando la varilla real no esta en ese catalogo. Caso
+    // medido: el modelo trae el catalogo IMPERIAL (#2..#18) pero usa varillas
+    // METRICAS de 20 y 10 mm, asi que 3.142E-4 m2 se aproximaba a #6 (19.05mm)
+    // y 7.85E-5 a #3 (9.525mm).
+    //
+    // El diametro posiciona las varillas dentro de la seccion, asi que el error
+    // se propaga al brazo de palanca. Verificado contra el "Column Element
+    // Details" de ETABS, que reporta dc (cara -> centroide de la varilla) = 60 mm:
+    //   catalogo -> 40 + 9.525 + 19.05/2 = 59.05 mm  (mal)
+    //   exacto   -> 40 + 10.00 + 20.00/2 = 60.00 mm  (calza)
+    const exactRebarDiameter = (area) => (area > 0 ? Math.sqrt((4 * area) / Math.PI) : 0);
 
     const parseRebarPattern = (raw) => {
       const rect = /^R-(\d+)-(\d+)$/i.exec(String(raw || "").trim());
@@ -1132,18 +1176,30 @@ export const e2kImportMixin = {
 
       sec.concreteDesignType = cs.sectionType; // "Column" | "Beam"
       sec.rebarPattern = parseRebarPattern(cs.patternRaw);
+      // `tied` explícito solo si el .e2k lo declara; si no, null y que el motor
+      // lo deduzca de la forma (ver design/column_interaction.py).
+      sec.transReinf = String(cs.transReinfRaw || "").toUpperCase() || null;
+      sec.tied = sec.transReinf ? !/SPIRAL/i.test(sec.transReinf) : null;
+      sec.designCheck = String(cs.designCheckRaw || "").toUpperCase() || null;
       sec.cover = cs.cover * 100 || cs.coverTop * 100 || 0; // cm (columnas: COVER; vigas: COVERTOP/COVERBOTTOM)
       sec.coverTop = cs.coverTop * 100 || 0;
       sec.coverBottom = cs.coverBottom * 100 || 0;
       sec.longBarArea = cs.longBarArea; // m² (se deja en SI, el motor de interacción trabaja en SI)
-      sec.longBarDiameter = nearestRebarDiameter(cs.longBarArea); // m
+      sec.longBarDiameter = exactRebarDiameter(cs.longBarArea); // m
       sec.confineBarArea = cs.confineBarArea; // m²
-      sec.confineBarDiameter = nearestRebarDiameter(cs.confineBarArea); // m
+      sec.confineBarDiameter = exactRebarDiameter(cs.confineBarArea); // m
       sec.confineBarSpacing = cs.confineBarSpacing * 100 || 0; // cm
       sec.numConfineBars2 = cs.numConfineBars2;
       sec.numConfineBars3 = cs.numConfineBars3;
       sec.longBarMaterialName = cs.longBarMaterialName;
       sec.confineBarMaterialName = cs.confineBarMaterialName;
+      // Armado de viga por extremo (m², SI — el motor trabaja en SI). Quedan
+      // en 0 si ETABS dejó la viga en auto-diseño: ahí no hay armado fijo que
+      // traer, y el tope por vigas del corte de columna no se puede aplicar.
+      sec.beamAreaTopI = cs.beamAreaTopI || 0;
+      sec.beamAreaBotI = cs.beamAreaBotI || 0;
+      sec.beamAreaTopJ = cs.beamAreaTopJ || 0;
+      sec.beamAreaBotJ = cs.beamAreaBotJ || 0;
     });
 
     // ── Completar campos de material que ETABS deja implícitos ──
@@ -1842,7 +1898,12 @@ export const e2kImportMixin = {
       const swm = Number(p.selfWeightMultiplier) || 0;
       // Forma que espera el modal Load Patterns: selfWeight (check) + value (mult).
       // ETABS SELFWEIGHT del patrón → Self Weight Multiplier que controla el peso propio.
-      return { name: p.name, type, selfWeight: swm > 0, value: swm || 1, selfWeightMultiplier: swm, autoLateralLoad: "0" };
+      // `reducible` conserva la distinción que la normalización de arriba pierde:
+      // ETABS tiene "Live" y "Reducible Live", y SOLO al segundo le aplica la
+      // reducción de sobrecarga (aunque calcule y muestre el factor en los dos).
+      // `e2kType` queda para poder auditar de dónde salió.
+      return { name: p.name, type, selfWeight: swm > 0, value: swm || 1, selfWeightMultiplier: swm,
+               autoLateralLoad: "0", reducible: /reducible/i.test(t), e2kType: p.type || "" };
     });
     // Store REAL del modal Define ▸ Load Patterns (static-load-cases-modal):
     // items con `selfWeightMultiplier` directo. Este es el que lee el motor para
@@ -1854,6 +1915,7 @@ export const e2kImportMixin = {
         name: p.name, type,
         selfWeightMultiplier: Number(p.selfWeightMultiplier) || 0,
         autoLateralLoad: /seismic/i.test(t) ? "User Coefficient" : "0",
+        reducible: /reducible/i.test(t), e2kType: p.type || "",
       };
     });
 
@@ -1953,6 +2015,47 @@ export const e2kImportMixin = {
           direction, scaleFactor: Math.max(u1, u2) || 1,
         };
       });
+
+    // ── Marcar los términos de ESPECTRO como sin signo ──
+    //
+    // Un caso de espectro devuelve una MAGNITUD (CQC/SRSS), sin signo físico.
+    // El motor necesita saberlo (`signless`) para aplicar esa magnitud en el
+    // sentido ADVERSO de cada componente por separado.
+    //
+    // Sin la marca, el factor del .e2k (+1 / -1) se aplicaba como un signo
+    // COMÚN a P, M2 y M3, y eso NO es la envolvente: en C20 del modelo de
+    // referencia la rama "-SDX" daba el axial máximo (35.93 t) pero con los
+    // momentos casi anulados (M2 = -0.54 donde ETABS reporta +0.99). Demanda
+    // insegura. Ver _ff_compute_combo_entries en solver.py.
+    //
+    // Se hace ACÁ y no en e2k-load-combos.js porque el parser de combos no sabe
+    // qué casos son de espectro; acá sí.
+    //
+    // OJO: NO se reescribe `t.case`. Los combos referencian el caso por NOMBRE
+    // ("SDX ESCALADO") y de resolverlo ya se encarga `remapCombosToKeptCases`
+    // (ver frameForceBackend.js), que además fusiona los casos duplicados. Un
+    // intento previo de reescribir el id acá pisó ese mecanismo y dejó los
+    // términos apuntando a un caso que el motor ya no tenía — el sismo volvía a
+    // desaparecer del combo, en silencio.
+    {
+      const norm = (v) => String(v || "").trim().replace(/\s+/g, "_").toUpperCase();
+      const espectro = new Set();
+      responseSpectrumCases.forEach((c) => {
+        if (c.id) espectro.add(norm(c.id));
+        if (c.name) espectro.add(norm(c.name));
+      });
+
+      let marcados = 0;
+      loadCombinations.forEach((combo) => {
+        (combo.terms || []).forEach((t) => {
+          if (espectro.has(norm(t.case)) && !t.signless) { t.signless = true; marcados += 1; }
+        });
+      });
+
+      if (marcados) {
+        console.info(`\u2139\ufe0f Combos: ${marcados} t\u00e9rmino(s) de espectro marcados como sin signo.`);
+      }
+    }
 
     console.log("📥 Import ETABS .e2k:", {
       stories: stories.length, nodes: nodes.length, frames: frames.length, areas: areas.length,

@@ -762,6 +762,10 @@ export const actionsMixin = {
         this.openRcColumnDesignDialog();
         break;
 
+      case "rc-aligerado-design":
+        this.openRcAligeradoDesignDialog();
+        break;
+
       // ===============================
       // STEEL FRAME DESIGN
       // ===============================

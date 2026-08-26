@@ -45,7 +45,7 @@ cad/
     ├── select/         ← selection, viewport (select-by-property), view-filter
     ├── edit/           ← edit-geometry, edit-clipboard, edit-delete, undo-redo,
     │                     model-factory, model-queries, draw-slab-3d
-    ├── grids/          ← reference-grid, story-grid, elevation-drawing
+    ├── grids/          ← reference-grid, story-grid, story-editor, elevation-drawing
     ├── dialogs/        ← assign-dialogs, display-dialogs (los diálogos de asignación)
     ├── analysis/       ← analysis, animation, report, design + seismic/ (sub-partido:
     │                     core, spectrum, payload, results, animation, _constants)
@@ -159,6 +159,7 @@ Los diálogos se están moviendo de SweetAlert (HTML embebido en JS) a modales B
 | Undo/redo o portapapeles | `mixins/edit/undo-redo.js`, `mixins/edit/edit-clipboard.js` |
 | Selección (2D o 3D) no la reconoce Edit/Assign | `mixins/edit/model-queries.js` (`getEditSelectedObjects`, `respectActiveView`) |
 | Grillas/pisos/elevaciones | `mixins/grids/*` + `canvas2d/grid.js` |
+| Crear/editar pisos y sus alturas (una sola pantalla) | `mixins/grids/story-editor.js` + `modals/story-data-modal.blade.php` |
 | Autoguardado / "Mis modelos" | `mixins/io/autosave.js` + `CadModelController.php` |
 
 ---

@@ -101,7 +101,7 @@
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.activateEditMenuAction('edit-story-data')">
                         <span>🏢</span>
-                        <span class="flex-1 min-w-0 truncate">Editar Datos de Piso</span>
+                        <span class="flex-1 min-w-0 truncate">Pisos y Alturas (Story Data)...</span>
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"

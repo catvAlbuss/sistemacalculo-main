@@ -35,6 +35,12 @@
                         Diseñar Columna(s) Seleccionada(s) (ACI-318)...
                     </button>
 
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                        @click.stop="cadSystem.activateDesignMenuAction ? cadSystem.activateDesignMenuAction('rc-aligerado-design') : cadSystem.showMessage?.('Diseño de losa aligerada no disponible', 'warning')">
+                        <span>▦</span>
+                        Diseñar Losa Aligerada Seleccionada...
+                    </button>
+
                     <div class="border-t border-gray-700 my-1"></div>
 
                     {{-- ================= DISEÑO DE MARCOS DE ACERO ================= --}}

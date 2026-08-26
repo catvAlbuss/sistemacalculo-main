@@ -93,12 +93,20 @@ import { designMixin } from "./mixins/analysis/design.js";
 import { rcSectionMaterialMixin } from "./mixins/analysis/rcSectionMaterial.js";
 import { rcBeamDesignMixin } from "./mixins/analysis/rcBeamDesign.js";
 import { rcColumnDesignMixin } from "./mixins/analysis/rcColumnDesign.js";
+import { rcAligeradoDesignMixin } from "./mixins/analysis/rcAligeradoDesign.js";
+import { columnRebarDesignerMixin } from "./mixins/analysis/columnRebarDesigner.js";
+import { beamRebarDesignerMixin } from "./mixins/analysis/beamRebarDesigner.js";
+import { columnInteractionChartMixin } from "./mixins/analysis/columnInteractionChart.js";
+import { columnInteractionPlanesMixin } from "./mixins/analysis/columnInteractionPlanes.js";
+import { elementForcesTableMixin } from "./mixins/analysis/elementForcesTable.js";
+import { columnLiveLoadReductionMixin } from "./mixins/analysis/columnLiveLoadReduction.js";
 import { displayDialogsMixin } from "./mixins/dialogs/display-dialogs.js";
 import { assignDialogsMixin } from "./mixins/dialogs/assign-dialogs.js";
 import { coreUiMixin } from "./mixins/core/core-ui.js";
 import { fileIOMixin } from "./mixins/io/file-io.js";
 import { modelFactoryMixin } from "./mixins/edit/model-factory.js";
 import { storyGridMixin } from "./mixins/grids/story-grid.js";
+import { storyEditorMixin } from "./mixins/grids/story-editor.js";
 import { viewportMixin } from "./mixins/select/viewport.js";
 import { analysisMixin } from "./mixins/analysis/analysis.js";
 import { referenceGridMixin } from "./mixins/grids/reference-grid.js";
@@ -258,16 +266,30 @@ export default () => ({
     sections: [],
     selectedSection: null,
   },
+  // Armado de columna definido a mano, por NOMBRE de sección — para columnas
+  // sin CONCRETESECTION real en el .e2k (auto-diseño en ETABS, DESIGNCHECK
+  // "DESIGN" en vez de "CHECK") o dibujadas desde cero. Ver
+  // mixins/analysis/columnRebarDesigner.js y rcColumnDesign.js (fallback).
+  manualColumnRebar: {},
+  // Armado longitudinal de VIGA definido a mano, por NOMBRE de sección. Lo
+  // consume el tope por resistencia de vigas del corte de columnas (ACI 318
+  // §18.7.6.1.1 in fine). Hace falta casi siempre: ETABS diseña las vigas y
+  // no ofrece "Reinforcement to be Checked" para ellas, así que el .e2k sale
+  // con ATI/ABI/ATJ/ABJ = 0. Ver mixins/analysis/beamRebarDesigner.js.
+  manualBeamRebar: {},
+  // Los Load Patterns viven en `staticLoadCases.items` — es lo que escribe el
+  // diálogo "Definir Patrones de Carga" (static-load-cases-modal.blade.php) y
+  // lo que llena el import del .e2k. `loadCases.cases` es el store LEGACY y
+  // arranca VACÍO a propósito.
+  //
+  // Antes traía 6 patrones de fábrica (CM, CV, CVE, CVT, CN, CLL). Como el
+  // diálogo de patrones solo sincroniza este store al guardar, un modelo con 2
+  // patrones seguía mostrando los 6 en los selects de Fuente de Masa,
+  // Combinaciones de Carga y en los diálogos de asignación — patrones que no
+  // existían en el modelo y que, si se elegían, no cargaban nada.
   loadCases: {
     open: false,
-    cases: [
-      { name: "CM", type: "Dead", selfWeight: true, value: 1.0 },
-      { name: "CV", type: "Live", value: 0.25 },
-      { name: "CVE", type: "Live", value: 0.5 },
-      { name: "CVT", type: "Live", value: 0.5 },
-      { name: "CN", type: "Live", value: 0.3 },
-      { name: "CLL", type: "Live", value: 0.4 },
-    ],
+    cases: [],
   },
   loadCombinations: {
     open: false,
@@ -909,12 +931,20 @@ export default () => ({
   ...rcSectionMaterialMixin,
   ...rcBeamDesignMixin,
   ...rcColumnDesignMixin,
+  ...rcAligeradoDesignMixin,
+  ...columnRebarDesignerMixin,
+  ...beamRebarDesignerMixin,
+  ...columnInteractionChartMixin,
+  ...columnInteractionPlanesMixin,
+  ...elementForcesTableMixin,
+  ...columnLiveLoadReductionMixin,
   ...displayDialogsMixin,
   ...assignDialogsMixin,
   ...coreUiMixin,
   ...fileIOMixin,
   ...modelFactoryMixin,
   ...storyGridMixin,
+  ...storyEditorMixin,
   ...viewportMixin,
   ...analysisMixin,
   ...referenceGridMixin,

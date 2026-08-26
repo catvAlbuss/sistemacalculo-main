@@ -43,9 +43,12 @@
                         <span>─</span> Dibujar Eje Y (horizontal)
                     </button>
 
+                    {{-- Mismo editor que Editar > Pisos y Alturas: una sola pantalla
+                         para crear, editar o agregar pisos (antes eran 2 opciones). --}}
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
-                        @click="cadSystem.openGenerateStoriesDialog()">
-                        <span>🏢</span> Generar Pisos desde la Grilla...
+                        title="Define los pisos sobre la grilla que dibujaste. Es el mismo cuadro que Editar > Pisos y Alturas."
+                        @click="cadSystem.openStoryDataDialog()">
+                        <span>🏢</span> Pisos y Alturas (Story Data)...
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>

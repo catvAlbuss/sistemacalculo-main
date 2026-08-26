@@ -4,6 +4,7 @@ import { ShearCalculator } from "../../../vigas/calculators/shearCalculator.js";
 import { CapacidadCalculator } from "../../../vigas/calculators/capacidadCalculator.js";
 import { DeflectionCalculator } from "../../../vigas/calculators/deflectionCalculator.js";
 import { StructuralUtils } from "../../../vigas/calculators/SharedCalculatorUtils.js";
+import { TABLE_CONFIG } from "../../../vigas/config/constants.js";
 import { loadRealFrameForceResults } from "../../engine/frameForceBackend.js";
 import { getFrameForceRecord } from "../../diagrams/frameForceDiagramUtils.js";
 
@@ -123,6 +124,23 @@ export const rcBeamDesignMixin = {
       return;
     }
 
+    if (built.missingForceRecords?.length) {
+      const tramos = [...new Set(built.missingForceRecords.map((m) => m.tramo))];
+      const combos = [...new Set(built.missingForceRecords.map((m) => m.combo))];
+      console.warn(
+        `⚠️ Diseño de viga: sin registro de fuerzas para ${built.missingForceRecords.length} combo(s) — ` +
+          `los tramos ${tramos.join(", ")} van a salir con Mu=0 (falso "CUMPLE") para ${combos.join(", ")}. ` +
+          "Causas típicas: el caso de carga usa un nombre no reconocido (ya se resuelve por patternType Dead/" +
+          "Live, pero revisa igual), o la barra se agregó/editó después del último análisis cacheado.",
+        built.missingForceRecords,
+      );
+      this.showMessage?.(
+        `⚠️ El tramo ${tramos.join(", ")} no tiene fuerzas calculadas para ${combos.join(", ")} — ` +
+          "el diseño de esa parte va a salir en 0. Revisa la consola para el detalle antes de confiar en el resultado.",
+        "warning",
+      );
+    }
+
     this._rcBeamDesignInput = built;
     this.rcBeamDesign = {
       numTramos: chain.length,
@@ -130,15 +148,45 @@ export const rcBeamDesignMixin = {
       results: null,
     };
 
-    this._rcRunAllCalculations();
-
+    // Abre mostrando SOLO la entrada (geometría + fuerzas CM/CV/ENV por
+    // tramo/estación, misma forma que arma dataCollector.js al pegar la
+    // tabla de ETABS a mano en vigas-general) — el cálculo recién corre
+    // cuando el usuario confirma con el botón "Diseñar" del modal
+    // (rcBeamDesignRun), para que pueda revisar/comparar la entrada antes.
     window.dispatchEvent(
       new CustomEvent("open-viga-design-modal", {
         detail: {
           input: built,
+          results: null,
+          rebarState: null,
+          rebarOptions: RC_REBAR_OPTIONS,
+          // Mismo TABLE_CONFIG.GROUPS que usa vigas-general para armar sus
+          // filas — se pasa tal cual (no se duplica a mano en el modal) para
+          // que la tabla de entrada del CAD quede SIEMPRE igual a la de
+          // vigas-general, incluso si esa configuración cambia más adelante.
+          groupsConfig: TABLE_CONFIG.GROUPS,
+        },
+      }),
+    );
+  },
+
+  /**
+   * Corre el diseño (5 calculadoras) sobre la entrada ya construida y
+   * confirmada por el usuario en el modal (botón "Diseñar") — separado de
+   * openRcBeamDesignDialog para que la tabla de entrada se pueda revisar
+   * ANTES de calcular, no junto con el resultado.
+   */
+  rcBeamDesignRun() {
+    if (!this._rcBeamDesignInput) return;
+
+    this._rcRunAllCalculations();
+    this._rcAutoSelectRebar();
+
+    window.dispatchEvent(
+      new CustomEvent("rc-beam-design-updated", {
+        detail: {
           results: this.rcBeamDesign.results,
           rebarState: this.rcBeamDesign.rebarState,
-          rebarOptions: RC_REBAR_OPTIONS,
         },
       }),
     );
@@ -238,10 +286,46 @@ export const rcBeamDesignMixin = {
    * DeflectionCalculator —que sí buscan por nombre explícito— los encuentren
    * donde corresponde.
    */
+  /**
+   * Resuelve los IDs de caso REALES de carga muerta/viva del modelo — antes
+   * venían hardcodeados como literal "CM"/"CV", que rompía en cualquier .e2k
+   * que nombrara distinto su patrón vivo (ej. "CVE", como en un modelo real
+   * del usuario: `LOADPATTERN "CVE" TYPE "Live"`) — la viga quedaba con
+   * Mu=0 (falso "CUMPLE") y deflexión por CV en 0, sin avisar. Mismo criterio
+   * de clasificación que ya usa el motor (`_ff_default_design_combos` en
+   * solver.py): por `patternType` primero, nombre literal como respaldo.
+   *
+   * Devuelve TODOS los casos de cada tipo (no solo el primero): un modelo con
+   * más de un patrón muerto (autopeso + acabados, p.ej.) o más de un patrón
+   * vivo (CV + CVT en techo) tiene la carga de servicio repartida entre
+   * varios `LOADPATTERN`, igual que arma el motor su combo factorado
+   * (`_ff_default_design_combos` SUMA todos los "dead"/todos los "live", no
+   * se queda con uno). Con `.find()` (un solo caso) la viga podía leer un
+   * patrón sin carga en ese tramo y salir con Δzm/Δz30% en 0 aunque
+   * Flexión/Capacidad (que sí usan el combo ya sumado del motor) dieran bien
+   * — la asimetría era la causa real del bug.
+   */
+  _rcResolveGravityCaseIds(results) {
+    const cases = Array.isArray(results?.cases) ? results.cases : [];
+    const byType = (type) =>
+      cases.filter((c) => String(c.patternType || "").toLowerCase() === type).map((c) => c.id);
+    const byName = (names) =>
+      cases.filter((c) => names.includes(String(c.id || "").toUpperCase())).map((c) => c.id);
+
+    const dead = byType("dead");
+    const live = [...byType("live"), ...byType("rooflive")];
+
+    return {
+      dead: dead.length ? dead : byName(["CM", "DEAD", "D"]).length ? byName(["CM", "DEAD", "D"]) : ["CM"],
+      live: live.length ? live : byName(["CV", "CVE", "LIVE", "L"]).length ? byName(["CV", "CVE", "LIVE", "L"]) : ["CV"],
+    };
+  },
+
   _rcBuildDesignInput(chain) {
     const results = this.frameForceResults;
     if (!results?.frameForces?.length) return null;
 
+    const { dead: deadCaseIds, live: liveCaseIds } = this._rcResolveGravityCaseIds(results);
     const numTramos = chain.length;
 
     const datos = {
@@ -255,8 +339,12 @@ export const rcBeamDesignMixin = {
     ["positivo", "negativo"].forEach((section) => {
       datos.fuerzas[section] = {
         __DESIGN__: { M3: {} },
-        CM: { M3: {} },
-        CV: { M3: {} },
+        // V3 en CM/CV: cortante de gravedad SIN factorar por patrón (autopeso,
+        // vivo) — lo usa CapacidadCalculator para el término 1.25×(Vcm+Vcv) de
+        // Vu(cap). Antes no se llenaba (solo M3), así que ese término salía
+        // siempre en 0 — ver readComboSum(..., "V2") más abajo.
+        CM: { M3: {}, V3: {} },
+        CV: { M3: {}, V3: {} },
         "ENV max": { V3: {}, T: {}, M3: {} },
         "ENV min": { V3: {}, T: {}, M3: {} },
       };
@@ -264,6 +352,14 @@ export const rcBeamDesignMixin = {
 
     let globalFc = null;
     let globalFy = null;
+    // Combos SIN registro para algún tramo — el motor/caché no tenía datos
+    // para esa barra (típicamente: la barra se agregó/editó DESPUÉS del
+    // último análisis cacheado, ver frameForceBackend.js "el modelo no
+    // cambió"). Sin esto, un record null cae en el fallback silencioso de
+    // _rcFrameForceStationRaw (devuelve 0) y el diseño sale con Mu=0 en
+    // TODAS las estaciones — se ve como "CUMPLE" válido cuando en realidad
+    // no hay dato. Se junta acá y se avisa en openRcBeamDesignDialog.
+    const missingRecords = [];
 
     chain.forEach(({ frame, forward }, idx) => {
       const i = idx + 1;
@@ -294,6 +390,9 @@ export const rcBeamDesignMixin = {
 
       const readCombo = (caseId, comboId, component) => {
         const record = getFrameForceRecord(results, frameId, caseId, comboId);
+        if (!record) {
+          missingRecords.push({ tramo: i, frameId, label: frame?.e2kName || frameId, combo: comboId || caseId });
+        }
         return {
           a: this._rcStationValue(record, relStationOf(0), component),
           b: this._rcStationValue(record, relStationOf(1), component),
@@ -301,11 +400,29 @@ export const rcBeamDesignMixin = {
         };
       };
 
+      // Suma el M3 de servicio (sin factorar) de TODOS los casos de un tipo
+      // (p.ej. autopeso + acabados en "dead") — un solo `readCombo` se
+      // quedaba con lo que trajera ESE caso puntual en esta barra, y si el
+      // patrón "elegido" no tenía carga acá (típico con más de un patrón
+      // muerto/vivo en el modelo), CM/CV salían en 0 aunque Flexión/Capacidad
+      // (que usan el combo YA sumado por el motor, "ENV max"/"ENV min")
+      // dieran bien — de ahí Δzm/ΔzL/Δz30% en 0 sin avisar.
+      const readComboSum = (caseIds, component) => {
+        const total = { a: 0, b: 0, c: 0 };
+        (caseIds.length ? caseIds : [null]).forEach((caseId) => {
+          const part = readCombo(caseId, null, component);
+          total.a += part.a;
+          total.b += part.b;
+          total.c += part.c;
+        });
+        return total;
+      };
+
       ["positivo", "negativo"].forEach((section) => {
         const f = datos.fuerzas[section];
 
-        f.CM.M3[tramoKey] = readCombo("CM", null, "M3");
-        f.CV.M3[tramoKey] = readCombo("CV", null, "M3");
+        f.CM.M3[tramoKey] = readComboSum(deadCaseIds, "M3");
+        f.CV.M3[tramoKey] = readComboSum(liveCaseIds, "M3");
 
         // OJO: la columna "V3" de las tablas de vigas (heredada de como el
         // usuario pegaba la tabla de ETABS) es el cortante que ACOMPAÑA a M3,
@@ -318,6 +435,9 @@ export const rcBeamDesignMixin = {
         // motor es el cortante del eje menor, ~0 sin carga lateral. Por eso
         // se lee "V2" acá pero se guarda bajo la clave "V3" que esperan
         // ShearCalculator/CapacidadCalculator.
+        f.CM.V3[tramoKey] = readComboSum(deadCaseIds, "V2");
+        f.CV.V3[tramoKey] = readComboSum(liveCaseIds, "V2");
+
         f["ENV max"].V3[tramoKey] = readCombo(null, "ENV Max", "V2");
         f["ENV max"].T[tramoKey] = readCombo(null, "ENV Max", "T");
         f["ENV max"].M3[tramoKey] = readCombo(null, "ENV Max", "M3");
@@ -331,6 +451,16 @@ export const rcBeamDesignMixin = {
       datos.fuerzas.positivo.__DESIGN__.M3[tramoKey] = datos.fuerzas.positivo["ENV max"].M3[tramoKey];
     });
 
+    // Dedupe (CM/CV se leen una vez por sección positivo/negativo -> 2x el
+    // mismo faltante) — un aviso por tramo+combo alcanza.
+    const seen = new Set();
+    const dedupedMissing = missingRecords.filter(({ tramo, combo }) => {
+      const key = `${tramo}|${combo}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
     return {
       parametros: {
         fc: globalFc || 210,
@@ -338,6 +468,7 @@ export const rcBeamDesignMixin = {
         numTramos,
       },
       datos,
+      missingForceRecords: dedupedMissing,
     };
   },
 
@@ -370,6 +501,65 @@ export const rcBeamDesignMixin = {
     const deflection = new DeflectionCalculator(built, this.rcBeamDesign.rebarState).calculate();
 
     this.rcBeamDesign.results = { requirements, flexion, shear, capacidad, deflection };
+  },
+
+  /**
+   * Elige sola, para cada celda (Flexión positiva y negativa, cada tramo ×
+   * estación), la opción MÁS CHICA de RC_REBAR_OPTIONS cuya área cubra el
+   * As_usar calculado — el usuario ya no arranca en "Ø 0" (NO CUMPLE por
+   * falta de acero asignado, no por diseño insuficiente). Corre una sola vez
+   * al abrir el diálogo (después del primer cálculo, que es el que produce
+   * As_usar); el usuario puede sobreescribir cualquier celda a mano después
+   * con el mismo selector de siempre (rcBeamDesignSetRebar).
+   *
+   * Misma fórmula de ФMn que rcBeamDesignSetRebar (no se factoriza a una
+   * función compartida para no tocar esa ruta ya validada) — acá se aplica a
+   * TODAS las celdas de una vez y se recalcula el resto UNA sola vez al
+   * final, no por celda (evitar 12 recálculos completos en cascada).
+   */
+  _rcAutoSelectRebar() {
+    const flex = this.rcBeamDesign?.results?.flexion;
+    if (!flex) return;
+
+    // RC_REBAR_OPTIONS NO está ordenado por área (los combos de varias
+    // barras vienen después de los diámetros sueltos, fuera de orden) — hay
+    // que ordenar antes de buscar "la más chica que alcanza".
+    const sortedOptions = RC_REBAR_OPTIONS.map((o) => Number(o.value))
+      .filter((v) => v > 0)
+      .sort((a, b) => a - b);
+
+    const pickArea = (asUsar) => {
+      const need = Number(asUsar) || 0;
+      if (need <= 0) return 0;
+      return sortedOptions.find((v) => v >= need) ?? sortedOptions[sortedOptions.length - 1] ?? 0;
+    };
+
+    ["positivo", "negativo"].forEach((sectionType) => {
+      const data = flex[sectionType]?.data;
+      const state = this.rcBeamDesign.rebarState?.[sectionType];
+      if (!data || !state) return;
+
+      (data.As_usar || []).forEach((asUsar, flatIdx) => {
+        const meta = data.meta?.[flatIdx];
+        if (!meta) return;
+
+        const asReal = pickArea(asUsar);
+        const dReal = StructuralUtils.calculateEffectiveDepth(meta.h, 1);
+
+        let phiMn = 0;
+        if (asReal > 0 && meta.b > 0 && meta.fc > 0) {
+          const a = (asReal * meta.fy) / (0.85 * meta.fc * meta.b);
+          const MnKgcm = asReal * meta.fy * (dReal - a / 2);
+          phiMn = (0.9 * MnKgcm) / 100000; // tonf-m
+        }
+
+        state.asReal[flatIdx] = asReal;
+        state.dReal[flatIdx] = dReal;
+        state.phiMn[flatIdx] = phiMn;
+      });
+    });
+
+    this._rcRunAllCalculations();
   },
 
   /**

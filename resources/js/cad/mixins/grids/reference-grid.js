@@ -425,6 +425,12 @@ export const referenceGridMixin = {
     this.desplazamientosPosition = [];
     this.matrizDesplazamiento = [];
 
+    // Alturas de piso: el array params.storyHeights (no uniforme) manda sobre
+    // storyCount x storyHeight (uniforme).
+    const storyHeights = Array.isArray(params.storyHeights) && params.storyHeights.length
+      ? params.storyHeights.map((h) => Number(h)).filter((h) => Number.isFinite(h) && h > 0)
+      : Array.from({ length: Math.max(0, Number(params.storyCount || 0)) }, () => Number(params.storyHeight || 0));
+
     // Luces no uniformes (array) tienen prioridad sobre el espaciamiento uniforme.
     this.referenceGrid = {
       xGrids: this.buildXGrids(
@@ -442,22 +448,26 @@ export const referenceGridMixin = {
       xLabels: [],
       yLabels: [],
 
-      storyCount: Number(params.storyCount || 0),
-      storyHeight: Number(params.storyHeight || 0),
+      storyCount: storyHeights.length,
+      // Altura "tipica" para los helpers que todavia asumen pisos uniformes.
+      storyHeight: Number(params.storyHeight || storyHeights[0] || 0),
     };
 
     this.rebuildReferenceGridCaches();
     this.rebuildGeneralGrids();
 
+    // Elevaciones acumuladas: soporta alturas distintas por piso.
     this.stories = [{ id: 0, name: "Base", elevation: 0 }];
 
-    for (let i = 1; i <= params.storyCount; i++) {
+    let storyElevation = 0;
+    storyHeights.forEach((height, index) => {
+      storyElevation += Number(height) || 0;
       this.stories.push({
-        id: i,
-        name: `Piso ${i}`,
-        elevation: i * params.storyHeight,
+        id: index + 1,
+        name: `Piso ${index + 1}`,
+        elevation: Number(storyElevation.toFixed(6)),
       });
-    }
+    });
 
     this.activeStory = 0;
 
@@ -516,7 +526,7 @@ export const referenceGridMixin = {
       this.rebuild3DGridSnapPointsSoon?.("createModelFromDialog pending viewer");
     }
 
-    this.showMessage(`✅ Grid de referencia: ${params.gridXCount}x${params.gridYCount}, ${params.storyCount} pisos`);
+    this.showMessage(`✅ Grid de referencia: ${params.gridXCount}x${params.gridYCount}, ${storyHeights.length} pisos`);
   },
 
   // Función auxiliar para obtener etiquetas X (A, B, C...)

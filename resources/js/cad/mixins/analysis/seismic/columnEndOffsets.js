@@ -10,20 +10,11 @@
 // Length 3.0000" y el nuestro decía "Extremo j 3.0000". Los VALORES estaban
 // bien; el rango del reporte no, y por eso los extremos parecían no calzar.
 //
-// Acá el brazo de cada extremo de columna es **medio peralte de la viga más
-// alta que llega a ese nudo**: la parte de la columna que queda dentro del
+// Acá el brazo de cada extremo de columna es el **peralte COMPLETO de la viga
+// más alta que llega a ese nudo**: la parte de la columna que queda dentro del
 // paquete de vigas. En la base no llega ninguna viga → brazo 0, igual que
-// ETABS ("I-End 0.0000").
-//
-// NOTA sobre la diferencia que va a quedar contra ETABS: su brazo arriba es el
-// peralte COMPLETO (0.60 m para una V30x60), no la mitad, porque el
-// `CARDINALPT 8` del .e2k cuelga la viga entera por debajo del nivel. Nosotros
-// no modelamos el punto de inserción (ver el registro de cambios), así que en
-// NUESTRO modelo la viga está centrada en el nivel y medio peralte es lo
-// geométricamente correcto. Reportar 0.6 sería reportar una luz libre que
-// nuestro modelo no tiene.
-
-/** ¿La barra es vertical (columna)? Mismo criterio que el resto del payload. */
+// ETABS ("I-End 0.0000"). Ver el comentario junto a `peralte` más abajo para
+// por qué es el peralte entero y no la mitad.
 function isVertical(a, b) {
     const dz = Math.abs(b.z - a.z);
     const horiz = Math.hypot(b.x - a.x, b.y - a.y);
@@ -48,6 +39,28 @@ function sectionDepth(sec) {
  * @param {Array}  frames   todas las barras del modelo
  * @returns {Map<number, {i: number, j: number}>} por id de columna, en metros
  */
+/**
+ * Seccion de una barra, tolerando que ya venga RESUELTA.
+ *
+ * `_getFrameSectionNameForSeismic` devuelve `frame.section` primero, y en un
+ * modelo importado del .e2k eso es un OBJETO, no un nombre. Pasarselo a
+ * `_getSectionDefinitionForSeismic` da `String(obj) = "[object Object]"`, que no
+ * matchea nada y devuelve vacio.
+ *
+ * Los demas llamadores del payload sobreviven porque encadenan fallbacks
+ * (`?? frame.A ?? frame._A`); este modulo no tenia ninguno, asi que
+ * `sectionDepth` daba 0, ninguna viga aportaba peralte y el Map salia VACIO EN
+ * SILENCIO: las columnas reportaban de eje a eje (0->3.0) en vez de la luz libre
+ * (0->2.4) como ETABS, que es justo lo que este archivo existe para arreglar.
+ * Verificado en el payload real de MINI2: las vigas traian endOffset 0.225 y las
+ * columnas ninguno.
+ */
+function seccionDe(ctx, f) {
+    const bruto = ctx._getFrameSectionNameForSeismic(f);
+    if (bruto && typeof bruto === "object") return bruto;
+    return ctx._getSectionDefinitionForSeismic(bruto) || {};
+}
+
 export function buildColumnEndOffsets(ctx, frames = []) {
     const out = new Map();
     if (!Array.isArray(frames) || !frames.length) return out;
@@ -65,8 +78,7 @@ export function buildColumnEndOffsets(ctx, frames = []) {
         const b = coord(f.node2);
         if (isVertical(a, b)) return; // las columnas no aportan brazo a otras columnas
 
-        const sec =
-            ctx._getSectionDefinitionForSeismic(ctx._getFrameSectionNameForSeismic(f)) || {};
+        const sec = seccionDe(ctx, f);
         const h = sectionDepth(sec);
         if (!(h > 0)) return;
 
@@ -88,9 +100,24 @@ export function buildColumnEndOffsets(ctx, frames = []) {
         const L = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
         if (!(L > 0)) return;
 
-        const half = (nid) => (deepestBeamAtNode.get(nid) || 0) / 2;
-        let oi = half(nodeId(f.node1));
-        let oj = half(nodeId(f.node2));
+        // Peralte COMPLETO de la viga, no la mitad.
+        //
+        // La luz libre de una columna (`ln` de ACI 318 / E.060) va desde la cara
+        // superior del entrepiso de abajo hasta la CARA INFERIOR de la viga de
+        // arriba: se descuenta el peralte entero. Es ademas lo que ya hace
+        // `_rcEstimateClearHeight` para el corte por capacidad (2.4 y no 2.7 en
+        // un piso de 3.0 con viga de 0.60) — el reporte era el inconsistente.
+        //
+        // Coincide con ETABS, que ademas cuelga la viga entera bajo el nivel por
+        // el `CARDINALPT 8` (top center) que traen los .e2k: sus estaciones de
+        // columna van de 0 a 2.4, y medio peralte dejaba las nuestras en 2.7.
+        //
+        // Medido en `MODELO video.e2k` (C30X40, momento gobernante): con medio
+        // peralte el error del TOPE contra el PMM Envelope quedaba en 20.2%
+        // mientras la base estaba en 2.5%; toda esa diferencia era la estacion.
+        const peralte = (nid) => deepestBeamAtNode.get(nid) || 0;
+        let oi = peralte(nodeId(f.node1));
+        let oj = peralte(nodeId(f.node2));
 
         // Nunca dejar la columna sin tramo reportable.
         const max = L * 0.45;

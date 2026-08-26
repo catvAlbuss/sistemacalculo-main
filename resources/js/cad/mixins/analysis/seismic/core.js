@@ -525,7 +525,14 @@ export const seismicCoreMixin = {
         this._seismicCaseSkips.push(`"${c.name}" ${motivo}`);
         continue;
       }
-      if (sx.length < 2 && sy.length >= 2) { sx = sy; sy = []; } // una sola dir → como X
+      // Mapeo directo U1→spectrumX, U2→spectrumY, SIN trasvase. Antes, un caso
+      // Y-only (SDY: solo U2 con espectro) movía su curva a `spectrumX` "como si
+      // fuera X" — eso hacía que el payload mandara spectrum_x = curva de Y, y
+      // el pipeline (spectrum_y = data.get("spectrum_y", spectrum_x) cuando no
+      // hay Y) terminaba calculando AMBAS direcciones con la curva de Y, y
+      // `direction` seguía diciendo "y" pero `seismic.x` quedaba poblado con un
+      // resultado que en la práctica igualaba a SDX (mismo espectro E.030 en
+      // ambas direcciones). Ver project_seismic_mass_spectrum.
       out.push({
         id: c.id, name: c.name, direction,
         spectrumX: sx, spectrumY: sy.length >= 2 ? sy : null,
@@ -591,12 +598,13 @@ export const seismicCoreMixin = {
 
     // Direcciones físicas del caso y su espectro asociado.
     const dirs = rc.direction === "both" ? ["x", "y"] : [rc.direction || "x"];
-    // En análisis "X e Y", si no se dio un espectro Y aparte, se usa el de X
-    // para la dirección Y (mismo espectro en ambas direcciones).
-    const spectrumFor = (d) =>
-      rc.direction === "both"
-        ? (d === "x" ? rc.spectrumX : (rc.spectrumY || rc.spectrumX))
-        : rc.spectrumX;
+    // Si no se dio un espectro Y aparte, se usa el de X para la dirección Y
+    // (mismo espectro en ambas direcciones). Antes esto devolvía SIEMPRE
+    // rc.spectrumX para casos de una sola dirección — con un caso Y-only
+    // (SDY) eso apuntaba al espectro X inexistente en vez del Y real; se
+    // enmascaraba porque `_getSeismicRunCases` trasvasaba spectrumY→spectrumX,
+    // truco ya eliminado. `d` solo puede ser "x" o "y" (viene de `dirs`).
+    const spectrumFor = (d) => (d === "x" ? rc.spectrumX : (rc.spectrumY || rc.spectrumX));
     const massFor = (d) =>
       Number(d === "x" ? meta.total_mass_x : meta.total_mass_y) || this._getTotalModelMass();
 

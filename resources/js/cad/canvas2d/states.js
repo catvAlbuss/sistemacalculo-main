@@ -3429,6 +3429,15 @@ export class CreateLinesRegionClicksState extends PanAndZoomState {
     const storyCount = Number(ref.storyCount || 0);
     const storyHeight = Number(ref.storyHeight || 0);
 
+    // Cotas REALES de los pisos (context.stories respeta alturas distintas);
+    // el multiplo de storyHeight queda solo como respaldo.
+    const zLevels = [];
+    for (let k = 0; k <= storyCount; k++) {
+      const st = context.stories?.[k];
+      const z = st && Number.isFinite(Number(st.elevation)) ? Number(st.elevation) : k * storyHeight;
+      zLevels.push(z);
+    }
+
     if (view.type === "plan") {
       const z = Number(view.elevation || 0);
 
@@ -3458,11 +3467,6 @@ export class CreateLinesRegionClicksState extends PanAndZoomState {
     if (view.type === "elevation" && view.axis === "X") {
       const fixedX = Number(view.value || 0);
 
-      const zLevels = [];
-      for (let k = 0; k <= storyCount; k++) {
-        zLevels.push(k * storyHeight);
-      }
-
       zLevels.forEach((z) => {
         for (let j = 0; j < yPositions.length - 1; j++) {
           segments.push({
@@ -3488,11 +3492,6 @@ export class CreateLinesRegionClicksState extends PanAndZoomState {
 
     if (view.type === "elevation" && view.axis === "Y") {
       const fixedY = Number(view.value || 0);
-
-      const zLevels = [];
-      for (let k = 0; k <= storyCount; k++) {
-        zLevels.push(k * storyHeight);
-      }
 
       zLevels.forEach((z) => {
         for (let i = 0; i < xPositions.length - 1; i++) {
@@ -4814,7 +4813,37 @@ export class WallDrawingState extends PanAndZoomState {
     return 0;
   }
 
+  // Un muro ya existe en ese tramo si otro panel "wall" comparte el mismo
+  // segmento horizontal (mismos 2 extremos, en cualquier orden) Y su rango
+  // vertical se SUPERPONE (no solo se toca en el borde piso-a-piso).
+  findExistingWallPanel(context, p1, p2, bottomZ, topZ) {
+    const EPS = 0.05; // 5 cm — mismo orden de tolerancia que el snap de vértice
+    const samePoint = (a, b) => Math.abs(a.x - b.x) < EPS && Math.abs(a.y - b.y) < EPS;
+
+    return (context.areas || []).find((area) => {
+      if (area.areaType !== "wall") return false;
+      const pts = area.points || [];
+      if (pts.length < 4) return false;
+
+      const zs = pts.map((p) => Number(p.z));
+      const zMin = Math.min(...zs);
+      const zMax = Math.max(...zs);
+      if (bottomZ >= zMax - 1e-6 || topZ <= zMin + 1e-6) return false; // sin solape vertical
+
+      const bottomPts = pts.filter((p) => Math.abs(Number(p.z) - zMin) < 1e-6);
+      if (bottomPts.length < 2) return false;
+      const [a, b] = bottomPts;
+
+      return (samePoint(a, p1) && samePoint(b, p2)) || (samePoint(a, p2) && samePoint(b, p1));
+    });
+  }
+
   createWallPanel(context, p1, p2, bottomZ, topZ) {
+    if (this.findExistingWallPanel(context, p1, p2, bottomZ, topZ)) {
+      context.showMessage?.("Ya existe un muro en ese tramo.", "warning");
+      return null;
+    }
+
     const wall = new Area("wall", topZ);
 
     // Rectángulo vertical, perímetro sin cruces: p1-abajo → p2-abajo →
@@ -4939,10 +4968,12 @@ export class WallDrawingState extends PanAndZoomState {
       if (seg) {
         const topZ = context.getActivePlanElevation?.() ?? 0;
         const bottomZ = this.getStoryElevationBelow(context, topZ);
-        this.createWallPanel(context, { x: seg.x1, y: seg.y1 }, { x: seg.x2, y: seg.y2 }, bottomZ, topZ);
-        context.showMessage?.("Muro creado (clic sobre viga/línea de grid).", "success");
-        context.redraw();
-        context.sync3D?.();
+        const wall = this.createWallPanel(context, { x: seg.x1, y: seg.y1 }, { x: seg.x2, y: seg.y2 }, bottomZ, topZ);
+        if (wall) {
+          context.showMessage?.("Muro creado (clic sobre viga/línea de grid).", "success");
+          context.redraw();
+          context.sync3D?.();
+        }
         return;
       }
     }
@@ -4966,9 +4997,9 @@ export class WallDrawingState extends PanAndZoomState {
     const topZ = context.getActivePlanElevation?.() ?? 0;
     const bottomZ = this.getStoryElevationBelow(context, topZ);
 
-    this.createWallPanel(context, this.startPoint, snapPoint, bottomZ, topZ);
+    const wall = this.createWallPanel(context, this.startPoint, snapPoint, bottomZ, topZ);
 
-    context.showMessage?.("Muro creado.", "success");
+    if (wall) context.showMessage?.("Muro creado.", "success");
 
     this.startPoint = null;
     this.previewPoint = null;

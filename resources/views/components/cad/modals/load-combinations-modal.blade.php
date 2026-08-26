@@ -122,13 +122,18 @@
 
                 <div class="flex gap-2 mt-2">
                     <div class="flex-1">
+                        {{-- Los casos salen del MODELO (patrones de carga + casos de
+                             espectro), como en ETABS. Antes era una lista fija
+                             (DEAD/LIVE/WIND/SNOW/EARTHQUAKE) que no existía en
+                             ningún lado: se podía armar un combo contra un caso
+                             inexistente y salía en cero sin avisar. --}}
                         <select x-model="combinationForm.caseName" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
-                            <option value="DEAD Static Load">DEAD Static Load</option>
-                            <option value="LIVE Static Load">LIVE Static Load</option>
-                            <option value="MODE">MODE</option>
-                            <option value="WIND Static Load">WIND Static Load</option>
-                            <option value="SNOW Static Load">SNOW Static Load</option>
-                            <option value="EARTHQUAKE Static Load">EARTHQUAKE Static Load</option>
+                            <template x-for="opt in availableCases" :key="opt.name">
+                                <option :value="opt.name" x-text="opt.label"></option>
+                            </template>
+                            <option x-show="availableCases.length === 0" value="" disabled>
+                                No hay casos definidos — importá un .e2k o definilos en Define
+                            </option>
                         </select>
                     </div>
                     <div class="flex-1">
@@ -200,6 +205,11 @@
 
             selectedLoadCaseRow: null,
 
+            // Casos disponibles para armar la combinación. Se recarga cada vez
+            // que se abre el modal, porque el usuario puede importar un .e2k o
+            // definir un caso de espectro con el modal cerrado.
+            availableCases: [],
+
             showConfirmModal: false,
             combinationToDelete: null,
 
@@ -253,9 +263,55 @@
 
             init() {
                 this.loadCombinations();
+                this.refreshAvailableCases();
                 window.addEventListener('open-load-combinations-modal', () => {
                     this.openModal();
                 });
+            },
+
+            /**
+             * Casos que se pueden meter en una combinación, leídos del modelo:
+             *   - patrones/casos de carga estáticos (CM, CVE, CVT, ...)
+             *   - casos de espectro de respuesta (SDX, SDY)
+             * Es la misma lista que muestra ETABS en Load Combination Data.
+             */
+            refreshAvailableCases() {
+                const cad = window.cadSystem;
+                const vistos = new Set();
+                const out = [];
+
+                const push = (name, tipo) => {
+                    const n = String(name || '').trim();
+                    if (!n || vistos.has(n)) return;
+                    vistos.add(n);
+                    out.push({ name: n, label: tipo ? `${n}  (${tipo})` : n });
+                };
+
+                // Patrones de carga: GANA LA PRIMERA FUENTE CON DATOS, no la
+                // unión. `staticLoadCases.items` es la fuente de verdad (la
+                // escribe el diálogo "Definir Patrones de Carga" y la llena el
+                // import del .e2k); `loadCases.cases` arranca con la lista POR
+                // DEFECTO de cad_sys.js (CM, CV, CVE, CVT, CN, CLL) y solo se
+                // sincroniza al guardar ese diálogo. Unirlas mostraba 6
+                // patrones en modelos que tenían 2.
+                const patrones =
+                    [cad?.staticLoadCases?.items, cad?.loadCases?.cases].find(
+                        (f) => Array.isArray(f) && f.length,
+                    ) || [];
+
+                patrones.forEach((c) => push(c.name || c.id, c.type || 'Estático'));
+
+                // Casos de espectro de respuesta (SDX / SDY).
+                (cad?.responseSpectrumCases?.items || []).forEach((c) =>
+                    push(c.name || c.id, 'Espectro'));
+
+                this.availableCases = out;
+
+                // Si el caso que estaba elegido ya no existe, se apunta al
+                // primero disponible en vez de dejar un nombre fantasma.
+                if (out.length && !vistos.has(String(this.combinationForm.caseName || ''))) {
+                    this.combinationForm.caseName = out[0].name;
+                }
             },
 
             loadCombinations() {
@@ -282,6 +338,7 @@
 
             openModal() {
                 this.loadCombinations();
+                this.refreshAvailableCases();
                 this.open = true;
                 this.view = 'list';
                 this.selectedCombinationIndex = null;
@@ -308,15 +365,27 @@
 
                 if (!isNew && this.selectedCombinationIndex !== null) {
                     var combo = this.combinations[this.selectedCombinationIndex];
+                    // Un combo IMPORTADO de .e2k trae `terms:[{case,factor}]`
+                    // (ver e2k-load-combos.js), no `loadCases:[{name,scale}]`
+                    // (la forma que escribe ESTE modal). Sin este fallback el
+                    // formulario mostraba el placeholder "DEAD Static Load"
+                    // en vez de los casos reales del combo importado — y si
+                    // el usuario le daba OK sin darse cuenta, lo guardaba así,
+                    // perdiendo los datos reales (y con ellos, lo que se manda
+                    // al exportar el .e2k).
+                    var loadCases = Array.isArray(combo.loadCases) && combo.loadCases.length
+                        ? JSON.parse(JSON.stringify(combo.loadCases))
+                        : Array.isArray(combo.terms) && combo.terms.length
+                            ? combo.terms.map(function (t) {
+                                return { name: t.case, scale: t.factor };
+                            })
+                            : [{ name: 'DEAD Static Load', scale: 1 }];
                     this.combinationForm = {
                         name: combo.name,
-                        combinationType: combo.combinationType || 'ADD',
+                        combinationType: combo.combinationType || combo.type || 'ADD',
                         caseName: 'DEAD Static Load',
                         scaleFactor: 1,
-                        loadCases: combo.loadCases ? JSON.parse(JSON.stringify(combo.loadCases)) : [{
-                            name: 'DEAD Static Load',
-                            scale: 1
-                        }]
+                        loadCases: loadCases
                     };
                     this.editingCombinationIndex = this.selectedCombinationIndex;
                 } else {
