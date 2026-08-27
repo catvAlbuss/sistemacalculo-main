@@ -187,6 +187,32 @@ def zapata_shell_combined_design_endpoint():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route("/api/zapata/shell-trapezoidal-design", methods=["POST"])
+def zapata_shell_trapezoidal_design_endpoint():
+    if not OPENSEES_AVAILABLE:
+        return jsonify({"success": False, "error": "OpenSeesPy no está disponible"}), 503
+
+    try:
+        result = run_zapata_shell_trapezoidal_design(request.json or {})
+        return jsonify(result)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/zapata/shell-l-design", methods=["POST"])
+def zapata_shell_l_design_endpoint():
+    if not OPENSEES_AVAILABLE:
+        return jsonify({"success": False, "error": "OpenSeesPy no está disponible"}), 503
+
+    try:
+        result = run_zapata_shell_l_design(request.json or {})
+        return jsonify(result)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 def run_zapata_shell_design(data):
     """Momento (M11/M22/M12) Y cortante (V13/V23) de referencia para una
     zapata AISLADA rectangular, via elementos finitos reales, en UNA sola
@@ -325,6 +351,214 @@ def run_zapata_shell_combined_design(data):
         "myHogging": r["My_hogging"],
         "d": r["d"],
         "advertencia": "Valor de referencia por elementos finitos (ShellDKGQ). Caras de columna cerca de un borde libre (volado < peralte efectivo) se marcan 'region_d' y no traen momento FEM -- usar el metodo rigido ahi. Lado del vano (hacia la columna vecina) puede diferir de ETABS 20-30% (limitacion conocida, ver documentacion del proyecto).",
+    }
+
+
+def run_zapata_shell_trapezoidal_design(data):
+    """Momento (Mx/My) de referencia para zapata combinada TRAPEZOIDAL (2+
+    columnas, ancho lineal entre B0 en x=0 y B1 en x=L) -- ver
+    python-backend/zapata_shell_solver.py:calcular_zapata_shell_trapezoidal_combinada.
+
+    Mismo principio y mismos umbrales de region D/vanos cortos/BPR que
+    calcular_zapata_shell_combinada (ver esa funcion) -- adaptados a que el
+    ancho ya no es constante via un cambio de variable (xi, eta)=(x, 2y/B(x))
+    derivado analiticamente (ver conversacion), verificado exacto contra la
+    version rectangular en el caso degenerado B0=B1.
+
+    'columnas' llega con 'y' como OFFSET respecto al EJE CENTRAL de la
+    viga (no absoluto) -- ver computeTrapezoidalFootingGeometry en
+    footingMoments.js, que calcula ese offset a partir de la geometria real
+    del poligono antes de llamar a este endpoint.
+    """
+    from zapata_shell_solver import calcular_zapata_shell_trapezoidal_combinada
+
+    L = float(data["L"])
+    B0 = float(data["B0"])
+    B1 = float(data["B1"])
+    q = float(data["q"])
+    h = float(data.get("h") or 0.40)
+    nu = float(data.get("nu") or 0.2)
+    recubrimiento = float(data.get("recubrimiento") or 0.075)
+    fpc_mpa = float(data.get("fpcMPa") or 21.0)
+
+    columnas = [
+        {
+            "x": float(c["x"]), "y": float(c.get("y") or 0.0),
+            "bx": float(c.get("bx") or 0.30), "by": float(c.get("by") or 0.30),
+        }
+        for c in (data.get("columnas") or [])
+    ]
+    if len(columnas) < 2:
+        return {"success": False, "error": "Se necesitan al menos 2 columnas para una zapata combinada."}
+
+    if data.get("E"):
+        E_tonf_m2 = float(data["E"])
+    else:
+        fpc_kgf_cm2 = fpc_mpa * 10.19716
+        Ec_kgf_cm2 = 15000 * (fpc_kgf_cm2 ** 0.5)
+        E_tonf_m2 = Ec_kgf_cm2 * 10
+
+    nx = int(data.get("nx") or 60)
+    ny = int(data.get("ny") or 24)
+
+    r = calcular_zapata_shell_trapezoidal_combinada(
+        L=L, B0=B0, B1=B1, h=h, E=E_tonf_m2, nu=nu, q=q,
+        columnas=columnas,
+        nx=nx, ny=ny,
+        recubrimiento=recubrimiento,
+    )
+
+    return {
+        "success": True,
+        "momentosPorColumna": r["momentos_por_columna"],
+        "d": r["d"],
+        "advertencia": "Valor de referencia por elementos finitos (ShellDKGQ), zapata trapezoidal -- extension EXPERIMENTAL del mismo metodo ya validado para zapatas rectangulares combinadas (ver documentacion del proyecto). Caras de columna cerca de un borde libre o de una columna vecina cercana ('region D'/'vano corto') no traen momento Mx FEM -- usar el metodo rigido ahi. My_bpr_diseno (franja efectiva de Bowles) esta disponible siempre. Sin validar todavia contra un caso real de ETABS con voladizos razonables.",
+    }
+
+
+def run_zapata_shell_l_design(data):
+    """Momento (Mx/My) de referencia para zapata combinada en L -- ver
+    python-backend/zapata_shell_solver.py:calcular_zapata_shell_L_combinada.
+
+    Malla RECTANGULAR completa sobre el bounding box, sin crear elementos
+    en el rincon faltante (mas simple que 2 mallas cosidas -- ver docstring
+    de esa funcion). SIN region D/vanos cortos/BPR todavia (version base) --
+    el rincon INTERIOR de la L es una singularidad de esfuerzo geometrica
+    real (esquina reentrante), distinta a la de un borde recto, pendiente
+    de investigar con datos reales antes de poder suprimirla como se hace
+    con las demas formas.
+    """
+    from zapata_shell_solver import calcular_zapata_shell_L_combinada
+
+    Lx = float(data["Lx"])
+    Ly = float(data["Ly"])
+    notch_x = float(data["notchX"])
+    notch_y = float(data["notchY"])
+    notch_es_max_x = bool(data["notchEsMaxX"])
+    notch_es_max_y = bool(data["notchEsMaxY"])
+    q = float(data["q"])
+    h = float(data.get("h") or 0.40)
+    nu = float(data.get("nu") or 0.2)
+    recubrimiento = float(data.get("recubrimiento") or 0.075)
+    fpc_mpa = float(data.get("fpcMPa") or 21.0)
+
+    columnas = [
+        {
+            "x": float(c["x"]), "y": float(c["y"]),
+            "bx": float(c.get("bx") or 0.30), "by": float(c.get("by") or 0.30),
+        }
+        for c in (data.get("columnas") or [])
+    ]
+    if len(columnas) < 2:
+        return {"success": False, "error": "Se necesitan al menos 2 columnas para una zapata combinada."}
+
+    if data.get("E"):
+        E_tonf_m2 = float(data["E"])
+    else:
+        fpc_kgf_cm2 = fpc_mpa * 10.19716
+        Ec_kgf_cm2 = 15000 * (fpc_kgf_cm2 ** 0.5)
+        E_tonf_m2 = Ec_kgf_cm2 * 10
+
+    nx = int(data.get("nx") or 60)
+    ny = int(data.get("ny") or 60)
+
+    try:
+        r = calcular_zapata_shell_L_combinada(
+            Lx=Lx, Ly=Ly,
+            notch_x=notch_x, notch_y=notch_y,
+            notch_es_max_x=notch_es_max_x, notch_es_max_y=notch_es_max_y,
+            h=h, E=E_tonf_m2, nu=nu, q=q,
+            columnas=columnas,
+            nx=nx, ny=ny,
+            recubrimiento=recubrimiento,
+        )
+    except ValueError as e:
+        return {"success": False, "error": str(e)}
+
+    return {
+        "success": True,
+        "momentosPorColumna": r["momentos_por_columna"],
+        "d": r["d"],
+        "advertencia": "Valor de referencia por elementos finitos (ShellDKGQ), zapata en L -- extension EXPERIMENTAL. Ya incluye region D (oculta el momento cuando una columna esta cerca de un borde libre O del vertice del rincon reentrante -- confirmado con pruebas propias que ese vertice no agrega una singularidad nueva, solo la misma de apoyo puntual cerca de borde libre, duplicada). Todavia SIN BPR para la columna de esquina (sin formula con respaldo de libro). Sin validar todavia contra un caso real de ETABS.",
+    }
+
+
+@app.route("/api/zapata/shell-poligono-design", methods=["POST"])
+def zapata_shell_poligono_design_endpoint():
+    if not OPENSEES_AVAILABLE:
+        return jsonify({"success": False, "error": "OpenSeesPy no está disponible"}), 503
+
+    try:
+        result = run_zapata_shell_poligono_design(request.json or {})
+        return jsonify(result)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+def run_zapata_shell_poligono_design(data):
+    """Momento (Mx/My) de referencia para zapata AISLADA de forma NO
+    rectangular (triangular, trapezoidal, poligono simple convexo) -- ver
+    python-backend\\zapata_shell_solver.py:calcular_zapata_shell_poligono_aislado.
+
+    Reemplaza al metodo rigido (Bloque 3, computeIsolatedFootingMoment en
+    footingMoments.js) para estas formas -- se confirmo con datos reales
+    (ver documentacion del proyecto) que el metodo rigido (2 voladizos
+    independientes de ancho constante) da errores de 49% a 519% contra
+    ETABS real en estas geometrias, porque el ancho de la zapata varia a
+    lo largo del voladizo. El FEM (ShellDKGT, malla en abanico desde el
+    primer vertice) valido contra los mismos casos reales: 1-16% de error.
+
+    `puntos` debe venir en orden (poligono simple); se triangula "en
+    abanico" desde `puntos[0]` -- valido para poligonos convexos (triangulo
+    y trapecio real siempre lo son). Si la columna cae fuera de esa
+    triangulacion (forma no convexa, o columna fuera de la zapata),
+    devuelve success:False en vez de romper el pipeline.
+
+    NO calcula cortante -- Bloque 6 sigue usando el metodo rigido para
+    estas formas (misma decision ya tomada para la L combinada).
+    """
+    from zapata_shell_solver import calcular_zapata_shell_poligono_aislado
+
+    puntos = data.get("puntos") or []
+    if len(puntos) < 3:
+        return {"success": False, "error": "Se necesitan al menos 3 vertices."}
+
+    columna_x = float(data["columnaX"])
+    columna_y = float(data["columnaY"])
+    columna_bx = float(data.get("columnaBx") or 0.30)
+    columna_by = float(data.get("columnaBy") or 0.30)
+    q = float(data["q"])
+    h = float(data.get("h") or 0.40)
+    nu = float(data.get("nu") or 0.2)
+    recubrimiento = float(data.get("recubrimiento") or 0.075)
+    fpc_mpa = float(data.get("fpcMPa") or 21.0)
+    n = int(data.get("n") or 40)
+
+    if data.get("E"):
+        E_tonf_m2 = float(data["E"])
+    else:
+        fpc_kgf_cm2 = fpc_mpa * 10.19716
+        Ec_kgf_cm2 = 15000 * (fpc_kgf_cm2 ** 0.5)
+        E_tonf_m2 = Ec_kgf_cm2 * 10
+
+    try:
+        r = calcular_zapata_shell_poligono_aislado(
+            puntos=puntos,
+            columna_x=columna_x, columna_y=columna_y,
+            columna_bx=columna_bx, columna_by=columna_by,
+            h=h, E=E_tonf_m2, nu=nu, q=q,
+            n=n,
+            recubrimiento=recubrimiento,
+        )
+    except ValueError as e:
+        return {"success": False, "error": str(e)}
+
+    return {
+        "success": True,
+        "momentoDiseno": r["momento_diseno"],
+        "d": r["d"],
+        "advertencia": "Valor de referencia por elementos finitos (ShellDKGT, malla en abanico), zapata aislada de forma no rectangular. Reemplaza al metodo rigido para esta forma (ya confirmado con datos reales que da errores grandes, 49-519%). Sin cortante -- Bloque 6 sigue con el metodo rigido.",
     }
 
 

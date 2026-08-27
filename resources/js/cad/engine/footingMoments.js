@@ -129,11 +129,39 @@ function rayCrossing(points, axis, fixedCoord, rayOrigin, direction) {
  * bounding box ES la forma), pero para un triángulo o un trapecio no
  * simétrico el bounding box mide hasta una esquina que a veces ni existe
  * en la forma real — verificado con un caso de prueba: sobreestimaba L en
- * 1.5 m sobre un total de 3.5 m (un 43% de más). Devuelve el mayor
- * voladizo de cada eje (caso más desfavorable, criterio estándar de
- * diseño) — mismo criterio de antes, solo que ahora cada lado se mide
- * correctamente.
+ * 1.5 m sobre un total de 3.5 m (un 43% de más).
+ *
+ * AGREGADO (ver conversación: zapatas aisladas triangulares/trapezoidales
+ * de 1 columna, para completar antes de pruebas). La primera versión medía
+ * el voladizo SOLO en la fila/columna exacta de la columna (rayCrossing con
+ * fixedCoord=columnY/columnX) — en un rectángulo el ancho es constante, así
+ * que esa única fila ya representa a todas; en un triángulo o trapecio el
+ * borde real se aleja o se acerca en otras filas/columnas (el ancho de la
+ * franja varía a lo largo del voladizo), y el criterio de diseño (sección
+ * crítica) exige usar el PEOR CASO en toda la cara de la columna, no solo
+ * en su propia fila — mismo principio de "usar el mayor voladizo" que ya
+ * existía (antes solo entre +X/-X), ahora extendido a TODAS las filas/
+ * columnas del polígono vía un muestreo (`maxOverhangAlongAxis`). Para un
+ * rectángulo el resultado es idéntico al de antes (ancho constante, ningún
+ * muestreo cambia el máximo) — verificado. Es una generalización, no una
+ * fórmula distinta por forma: aplica igual a triangular, trapezoidal o
+ * cualquier polígono, sin necesidad de detectar la forma.
  */
+const OVERHANG_SAMPLE_COUNT = 40;
+
+function maxOverhangAlongAxis(points, axis, sampleMin, sampleMax, originCoord, halfSize) {
+  let maxOverhang = 0;
+  const span = sampleMax - sampleMin;
+  for (let k = 0; k <= OVERHANG_SAMPLE_COUNT; k++) {
+    const t = span === 0 ? sampleMin : sampleMin + (k / OVERHANG_SAMPLE_COUNT) * span;
+    const farPos = rayCrossing(points, axis, t, originCoord, 1);
+    const farNeg = rayCrossing(points, axis, t, originCoord, -1);
+    if (farPos != null) maxOverhang = Math.max(maxOverhang, farPos - originCoord - halfSize);
+    if (farNeg != null) maxOverhang = Math.max(maxOverhang, originCoord - farNeg - halfSize);
+  }
+  return Math.max(maxOverhang, 0);
+}
+
 export function computeIsolatedOverhangs(polygonPoints, column, columnSize) {
   const points = (polygonPoints || []).map((point) => ({ x: Number(point.x), y: Number(point.y) }));
   const xs = points.map((point) => point.x);
@@ -150,23 +178,15 @@ export function computeIsolatedOverhangs(polygonPoints, column, columnSize) {
   const columnX = Number(column?.x) || 0;
   const columnY = Number(column?.y) || 0;
 
-  // rayCrossing busca a la altura/columna EXACTA de la columna (fixedCoord
-  // = columnY para medir en X, columnX para medir en Y) — si por algún
-  // motivo el rayo no cruza nada (polígono degenerado, columna fuera de la
-  // forma), cae de vuelta al bounding box en vez de romperse.
-  const rightEdgeX = rayCrossing(points, "x", columnY, columnX, 1) ?? maxX;
-  const leftEdgeX = rayCrossing(points, "x", columnY, columnX, -1) ?? minX;
-  const topEdgeY = rayCrossing(points, "y", columnX, columnY, 1) ?? maxY;
-  const bottomEdgeY = rayCrossing(points, "y", columnX, columnY, -1) ?? minY;
-
-  const lxPos = rightEdgeX - columnX - halfB;
-  const lxNeg = columnX - leftEdgeX - halfB;
-  const lyPos = topEdgeY - columnY - halfH;
-  const lyNeg = columnY - bottomEdgeY - halfH;
+  // Lx: voladizo en X, muestreando distintas filas Y (para un rectángulo
+  // el borde en X no cambia con Y, así que el muestreo da lo mismo que
+  // medir en una sola fila). Ly: analogo, muestreando distintas columnas X.
+  const Lx = maxOverhangAlongAxis(points, "x", minY, maxY, columnX, halfB);
+  const Ly = maxOverhangAlongAxis(points, "y", minX, maxX, columnY, halfH);
 
   return {
-    Lx: Math.max(lxPos, lxNeg, 0),
-    Ly: Math.max(lyPos, lyNeg, 0),
+    Lx,
+    Ly,
     // Bounding box del polígono — lo reusa computeIsolatedMomentAtPoint
     // para el mapa de momento 2D, para no recalcularlo por cada punto de
     // la nube (puede haber miles).
@@ -387,6 +407,51 @@ export function splitFootingIntoLegs(polygonPoints) {
   };
 
   return [legA, legB];
+}
+
+/**
+ * Geometría de una zapata en L para el FEM (Bloque 3b) -- bounding box
+ * completo, y qué rincón falta (el notch), a partir de los 2 brazos que ya
+ * calcula splitFootingIntoLegs (mismo cálculo que usa el método rígido
+ * para saber que el polígono está ramificado). AGREGADO (ver conversación):
+ * a diferencia del método rígido (que declara `supported:false` para este
+ * caso -- separar en brazos independientes no equilibra bien la carga con
+ * datos reales, ver computeCombinedFootingMoments), el FEM SÍ puede
+ * calcular esto con una sola malla sobre el bounding box completo, sin
+ * crear elementos en el rincón faltante (ver calcular_zapata_shell_L_
+ * combinada en zapata_shell_solver.py) -- por eso este helper es
+ * independiente de `supported`.
+ *
+ * Devuelve null si el polígono no es una L simple (2 brazos).
+ */
+export function computeLFootingGeometry(polygonPoints) {
+  const legs = splitFootingIntoLegs(polygonPoints);
+  if (legs.length !== 2) return null;
+
+  const [legA, legB] = legs;
+  const minX = Math.min(legA.minX, legB.minX);
+  const maxX = Math.max(legA.maxX, legB.maxX);
+  // legA siempre abarca el rango Y completo (ver splitFootingIntoLegs).
+  const minY = legA.minY;
+  const maxY = legA.maxY;
+  const tolerance = 1e-6;
+
+  const notchEsMaxX = Math.abs(legB.maxX - maxX) < tolerance;
+  const notchEsMaxY = Math.abs(legB.minY - minY) < tolerance;
+
+  const notchXAbs = notchEsMaxX ? legB.minX : legB.maxX;
+  const notchYAbs = notchEsMaxY ? legB.maxY : legB.minY;
+
+  return {
+    Lx: maxX - minX,
+    Ly: maxY - minY,
+    originX: minX,
+    originY: minY,
+    notchX: notchXAbs - minX,
+    notchY: notchYAbs - minY,
+    notchEsMaxX,
+    notchEsMaxY,
+  };
 }
 
 function isPointInRect(point, rect, tolerance = 1e-6) {
@@ -624,6 +689,57 @@ function widthAtCut(points, beamAxis, coord) {
   }
 
   return crossings.length < 2 ? 0 : Math.max(...crossings) - Math.min(...crossings);
+}
+
+/**
+ * Geometría de una zapata trapezoidal para el FEM (Bloque 3b) — eje de la
+ * viga, longitud, ancho en cada extremo (B0 en el origen, B1 en el extremo
+ * opuesto), y la LÍNEA CENTRAL (recta y exacta para un trapecio real de 4
+ * vértices con 2 lados paralelos — no una aproximación) para poder pasarle
+ * al solver de placa (calcular_zapata_shell_trapezoidal_combinada, que
+ * espera columnas centradas en y=0 por convención) la posición de cada
+ * columna como OFFSET respecto a esa línea, no su coordenada absoluta.
+ * AGREGADO (ver conversación): reutiliza el mismo cálculo de cruces que
+ * widthAtCut, pero conserva el punto medio de cada corte en vez de solo la
+ * diferencia.
+ */
+export function computeTrapezoidalFootingGeometry(polygonPoints) {
+  const points = (polygonPoints || []).map((point) => ({ x: Number(point.x), y: Number(point.y) }));
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+
+  const beamAxis = maxX - minX >= maxY - minY ? "x" : "y";
+  const length = beamAxis === "x" ? maxX - minX : maxY - minY;
+  const origin = beamAxis === "x" ? minX : minY;
+
+  const crossingsAt = (coord) => {
+    const crossings = [];
+    for (let i = 0; i < points.length; i++) {
+      const a = points[i];
+      const b = points[(i + 1) % points.length];
+      const aCoord = beamAxis === "x" ? a.x : a.y;
+      const bCoord = beamAxis === "x" ? b.x : b.y;
+      if (aCoord === bCoord) continue;
+      const within = (aCoord <= coord && coord <= bCoord) || (bCoord <= coord && coord <= aCoord);
+      if (!within) continue;
+      const t = (coord - aCoord) / (bCoord - aCoord);
+      crossings.push(beamAxis === "x" ? a.y + t * (b.y - a.y) : a.x + t * (b.x - a.x));
+    }
+    return crossings;
+  };
+
+  const c0 = crossingsAt(origin);
+  const c1 = crossingsAt(origin + length);
+  const B0 = c0.length >= 2 ? Math.max(...c0) - Math.min(...c0) : 0;
+  const B1 = c1.length >= 2 ? Math.max(...c1) - Math.min(...c1) : 0;
+  const center0 = c0.length >= 2 ? (Math.max(...c0) + Math.min(...c0)) / 2 : 0;
+  const center1 = c1.length >= 2 ? (Math.max(...c1) + Math.min(...c1)) / 2 : 0;
+
+  return { beamAxis, length, origin, B0, B1, center0, center1 };
 }
 
 /**

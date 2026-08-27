@@ -10,7 +10,9 @@
 # Contrato:
 #   argv[1]  = modo (analyze | analyze-3d | seismic-analyze | seismic-modal
 #              | frame-forces | seismic-parse-spectrum | zapata-shell-design
-#              | zapata-shell-combined-design | health | opensees-status)
+#              | zapata-shell-combined-design | zapata-shell-trapezoidal-design
+#              | zapata-shell-l-design | zapata-shell-poligono-design
+#              | health | opensees-status)
 #   stdin    = payload JSON (puede ser vacio para health/opensees-status)
 #   stdout   = UNA linea con el JSON de resultado (nada mas: sin prints,
 #              sin banners de import)
@@ -153,6 +155,21 @@ def _dispatch(mode, data, flask_app, sa):
         if not flask_app.OPENSEES_AVAILABLE:
             return {"success": False, "error": "OpenSeesPy no está disponible"}
         return flask_app.run_zapata_shell_combined_design(data)
+
+    if mode == "zapata-shell-trapezoidal-design":
+        if not flask_app.OPENSEES_AVAILABLE:
+            return {"success": False, "error": "OpenSeesPy no está disponible"}
+        return flask_app.run_zapata_shell_trapezoidal_design(data)
+
+    if mode == "zapata-shell-l-design":
+        if not flask_app.OPENSEES_AVAILABLE:
+            return {"success": False, "error": "OpenSeesPy no está disponible"}
+        return flask_app.run_zapata_shell_l_design(data)
+
+    if mode == "zapata-shell-poligono-design":
+        if not flask_app.OPENSEES_AVAILABLE:
+            return {"success": False, "error": "OpenSeesPy no está disponible"}
+        return flask_app.run_zapata_shell_poligono_design(data)
 
     if mode == "seismic-parse-spectrum":
         filename = data.get("filename", "spectrum.txt")

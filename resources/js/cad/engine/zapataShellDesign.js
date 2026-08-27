@@ -27,6 +27,9 @@
 
 const ZAPATA_SHELL_DESIGN_API_URL = "/api/backend/zapata/shell-design";
 const ZAPATA_SHELL_COMBINED_DESIGN_API_URL = "/api/backend/zapata/shell-combined-design";
+const ZAPATA_SHELL_TRAPEZOIDAL_DESIGN_API_URL = "/api/backend/zapata/shell-trapezoidal-design";
+const ZAPATA_SHELL_L_DESIGN_API_URL = "/api/backend/zapata/shell-l-design";
+const ZAPATA_SHELL_POLIGONO_DESIGN_API_URL = "/api/backend/zapata/shell-poligono-design";
 
 /**
  * @param {object[]} points - vértices del polígono de la zapata
@@ -160,6 +163,206 @@ export async function fetchZapataShellCombinedDesignReference({
       momentosPorColumna: data.momentosPorColumna,
       mxHogging: data.mxHogging,
       myHogging: data.myHogging,
+      d: data.d,
+      advertencia: data.advertencia,
+    };
+  } catch (e) {
+    return { ok: false, error: e?.message || String(e) };
+  }
+}
+
+/**
+ * Momento (Mx/My, incluido BPR) de referencia para zapata COMBINADA
+ * TRAPEZOIDAL (2+ columnas, ancho variable linealmente entre B0 y B1) --
+ * ver python-backend/zapata_shell_solver.py:
+ * calcular_zapata_shell_trapezoidal_combinada. Extensión EXPERIMENTAL del
+ * mismo método ya validado para rectangulares combinadas (ver
+ * documentación del proyecto) -- mismo criterio de región D/vanos
+ * cortos/BPR, sin validar todavía contra un caso real de ETABS.
+ *
+ * `columnas` debe traer 'y' como OFFSET respecto al EJE CENTRAL de la
+ * viga (no absoluto) -- ver computeTrapezoidalFootingGeometry
+ * (footingMoments.js), que calcula ese offset a partir de la geometría
+ * real del polígono antes de llamar a esta función (ver foundation.js).
+ */
+export async function fetchZapataShellTrapezoidalDesignReference({
+  L,
+  B0,
+  B1,
+  columnas, // [{x, y, bx, by}, ...] -- x relativo al origen del eje de la viga, y offset respecto al eje central
+  thicknessM,
+  recubrimientoM,
+  fpcMPa,
+  nu,
+  nx,
+  ny,
+  q,
+}) {
+  try {
+    const resp = await fetch(ZAPATA_SHELL_TRAPEZOIDAL_DESIGN_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        L,
+        B0,
+        B1,
+        columnas,
+        h: thicknessM || undefined,
+        recubrimiento: recubrimientoM || undefined,
+        fpcMPa: fpcMPa || undefined,
+        nu: nu || undefined,
+        nx: nx || undefined,
+        ny: ny || undefined,
+        q,
+      }),
+    });
+
+    const data = await resp.json().catch(() => null);
+
+    if (!resp.ok || !data || data.success === false) {
+      return { ok: false, error: data?.error || `Motor respondió ${resp.status}` };
+    }
+
+    return {
+      ok: true,
+      momentosPorColumna: data.momentosPorColumna,
+      d: data.d,
+      advertencia: data.advertencia,
+    };
+  } catch (e) {
+    return { ok: false, error: e?.message || String(e) };
+  }
+}
+
+/**
+ * Momento (Mx/My) de referencia para zapata combinada EN L -- ver
+ * python-backend/zapata_shell_solver.py:calcular_zapata_shell_L_combinada.
+ * A diferencia de rectangular/trapezoidal, esto se dispara incluso cuando
+ * el método rígido marca la zapata como `supported:false` (razón
+ * "branching") -- ver computeLFootingGeometry (footingMoments.js): el FEM
+ * puede resolver el bounding box completo con un hueco en el rincón
+ * faltante, aunque el método rígido no pueda separarla en brazos
+ * independientes de forma confiable. Extensión EXPERIMENTAL, versión BASE
+ * sin región D/vanos cortos/BPR todavía -- sin validar contra un caso real
+ * de ETABS.
+ *
+ * `columnas` debe traer x/y ABSOLUTOS dentro del bounding box completo
+ * (relativos a geo.originX/originY, no a un brazo individual).
+ */
+export async function fetchZapataShellLDesignReference({
+  Lx,
+  Ly,
+  notchX,
+  notchY,
+  notchEsMaxX,
+  notchEsMaxY,
+  columnas, // [{x, y, bx, by}, ...] -- relativos al origen del bounding box completo
+  thicknessM,
+  recubrimientoM,
+  fpcMPa,
+  nu,
+  nx,
+  ny,
+  q,
+}) {
+  try {
+    const resp = await fetch(ZAPATA_SHELL_L_DESIGN_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        Lx,
+        Ly,
+        notchX,
+        notchY,
+        notchEsMaxX,
+        notchEsMaxY,
+        columnas,
+        h: thicknessM || undefined,
+        recubrimiento: recubrimientoM || undefined,
+        fpcMPa: fpcMPa || undefined,
+        nu: nu || undefined,
+        nx: nx || undefined,
+        ny: ny || undefined,
+        q,
+      }),
+    });
+
+    const data = await resp.json().catch(() => null);
+
+    if (!resp.ok || !data || data.success === false) {
+      return { ok: false, error: data?.error || `Motor respondió ${resp.status}` };
+    }
+
+    return {
+      ok: true,
+      momentosPorColumna: data.momentosPorColumna,
+      d: data.d,
+      advertencia: data.advertencia,
+    };
+  } catch (e) {
+    return { ok: false, error: e?.message || String(e) };
+  }
+}
+
+/**
+ * Momento (Mx/My) de referencia para zapata AISLADA de forma NO
+ * rectangular (triangular, trapezoidal, cualquier polígono simple
+ * convexo) -- ver python-backend/zapata_shell_solver.py:
+ * calcular_zapata_shell_poligono_aislado. Reemplaza al método rígido
+ * (computeIsolatedFootingMoment, footingMoments.js) para estas formas --
+ * confirmado con datos reales que ese método (2 voladizos independientes
+ * de ancho constante) da 49-519% de error cuando el ancho de la zapata
+ * varía a lo largo del voladizo (triángulo/trapecio). El FEM (ShellDKGT,
+ * malla en abanico) validó 1-16% contra los mismos casos reales.
+ *
+ * `puntos` = vértices del polígono en orden (se triangula en abanico
+ * desde el primero -- válido para formas convexas, que es el caso de
+ * triángulos y trapecios reales). `columnaX/Y` son ABSOLUTOS (mismo
+ * sistema de coordenadas que `puntos`, no relativos a un bounding box).
+ * NO calcula cortante -- Bloque 6 sigue con el método rígido para estas
+ * formas (misma decisión ya tomada para la L combinada).
+ */
+export async function fetchZapataShellPoligonoDesignReference({
+  puntos,
+  columnaX,
+  columnaY,
+  columnaBx,
+  columnaBy,
+  thicknessM,
+  recubrimientoM,
+  fpcMPa,
+  nu,
+  n,
+  q,
+}) {
+  try {
+    const resp = await fetch(ZAPATA_SHELL_POLIGONO_DESIGN_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        puntos,
+        columnaX,
+        columnaY,
+        columnaBx: columnaBx || undefined,
+        columnaBy: columnaBy || undefined,
+        h: thicknessM || undefined,
+        recubrimiento: recubrimientoM || undefined,
+        fpcMPa: fpcMPa || undefined,
+        nu: nu || undefined,
+        n: n || undefined,
+        q,
+      }),
+    });
+
+    const data = await resp.json().catch(() => null);
+
+    if (!resp.ok || !data || data.success === false) {
+      return { ok: false, error: data?.error || `Motor respondió ${resp.status}` };
+    }
+
+    return {
+      ok: true,
+      momentoDiseno: data.momentoDiseno,
       d: data.d,
       advertencia: data.advertencia,
     };

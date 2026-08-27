@@ -28,6 +28,8 @@ import {
   computeIsolatedFootingMoment,
   computeIsolatedMomentAtPoint,
   computeCombinedFootingMoments,
+  computeTrapezoidalFootingGeometry,
+  computeLFootingGeometry,
   evaluateAxialExpression,
   lookupMomentProfile,
 } from "../../engine/footingMoments.js";
@@ -60,6 +62,9 @@ import {
   isAxisAlignedRectangularFooting,
   fetchZapataShellDesignReference,
   fetchZapataShellCombinedDesignReference,
+  fetchZapataShellTrapezoidalDesignReference,
+  fetchZapataShellLDesignReference,
+  fetchZapataShellPoligonoDesignReference,
 } from "../../engine/zapataShellDesign.js";
 
 // Mismos valores por defecto que resources/js/etabs/components/DatosGeneralesPanel.vue
@@ -314,6 +319,33 @@ export const foundationMixin = {
       // pero para zapata combinada tipo viga recta (ver
       // calcular_zapata_shell_combinada en zapata_shell_solver.py).
       const shellCombinedDesignPromises = [];
+      // Bloque 3b (combinadas TRAPEZOIDALES) — mismo principio, pero para
+      // ancho variable (ver calcular_zapata_shell_trapezoidal_combinada).
+      const shellTrapezoidalDesignPromises = [];
+      // Bloque 3b (combinadas EN L) — mismo principio, pero con un hueco en
+      // el rincón faltante (ver calcular_zapata_shell_L_combinada).
+      const shellLDesignPromises = [];
+
+      // AGREGADO (ver conversación, hallazgo del mismo día validando
+      // trapezoidal): la malla necesita elementos aproximadamente
+      // CUADRADOS para converger bien -- usar `zapataShellMeshN` igual
+      // para nx Y ny sin importar la proporción largo/ancho de la zapata
+      // da elementos muy alargados en zapatas combinadas típicas (ej. F10,
+      // 12x2.5m, alargados ~4.8:1) -- confirmado hoy que eso puede dar
+      // valores menos confiables que una malla proporcional (mismo
+      // fenómeno, no una singularidad de columna). `longitud`/`ancho` son
+      // las dos dimensiones reales de la zapata (no necesariamente X/Y
+      // globales -- para trapezoidal es longitud del eje y ancho
+      // promedio); se usa `zapataShellMeshN` como resolución del lado
+      // LARGO y se deriva el lado corto proporcional, para mantener el
+      // aspect ratio de cada elemento cerca de 1:1.
+      const mallaProporcional = (longitud, ancho) => {
+        const nLargo = this.zapataShellMeshN;
+        const dimLarga = Math.max(longitud, ancho) || 1;
+        const dimCorta = Math.min(longitud, ancho) || dimLarga;
+        const nCorto = Math.max(4, Math.round(nLargo * (dimCorta / dimLarga)));
+        return longitud >= ancho ? { nx: nLargo, ny: nCorto } : { nx: nCorto, ny: nLargo };
+      };
 
       normalizedPolygons.forEach((polygon, index) => {
         const meta = footingsMeta[index];
@@ -478,6 +510,37 @@ export const foundationMixin = {
                 q: quEnvelope(polygon),
               }),
             });
+          } else {
+            // AGREGADO (ver conversación): zapata aislada NO rectangular
+            // (triangular, trapezoidal, poligono simple) -- el método
+            // rígido de arriba (computeIsolatedFootingMoment) asume 2
+            // voladizos independientes de ANCHO CONSTANTE, que se
+            // confirmó con datos reales que da 49-519% de error cuando el
+            // ancho de la zapata varía a lo largo del voladizo (justo
+            // estas formas). Este FEM (ShellDKGT, malla en abanico desde
+            // el primer vértice -- ver calcular_zapata_shell_poligono_
+            // aislado) lo reemplaza, validado 1-16% contra los mismos
+            // casos reales. Solo aplica a formas CONVEXAS (el backend
+            // devuelve success:false si la columna cae fuera de la
+            // triangulación en abanico, ej. una L con vértice reflejo --
+            // esa forma sigue sin Bloque 3b, como ya era el caso).
+            shellDesignPromises.push({
+              index,
+              polygon,
+              bounds: null,
+              promise: fetchZapataShellPoligonoDesignReference({
+                puntos: meta.polygonPoints,
+                columnaX: meta.column.position.x,
+                columnaY: meta.column.position.y,
+                columnaBx: columnSize.b,
+                columnaBy: columnSize.h,
+                thicknessM: designInputs?.thicknessM,
+                recubrimientoM: designInputs?.recubrimientoM,
+                fpcMPa: designInputs?.fpc,
+                nu: designInputs?.poissonRatio,
+                q: quEnvelope(polygon),
+              }),
+            });
           }
 
           if (polygonProperties[index]) {
@@ -570,6 +633,51 @@ export const foundationMixin = {
           if (combined && !combined.supported) {
             polygonProperties[index].steelDesign = { type: "combined", needsReview: true };
             polygonProperties[index].shearDesign = { type: "combined", needsReview: true };
+
+            // AGREGADO (ver conversación): zapata combinada EN L -- a
+            // diferencia de Bloque 5/6 (acero/cortante, que sí necesitan el
+            // método rígido y por eso quedan needsReview arriba), el FEM
+            // (Bloque 3b) SÍ puede calcular esto con una sola malla sobre
+            // el bounding box completo, con un hueco en el rincón faltante
+            // (ver calcular_zapata_shell_L_combinada) -- no depende de que
+            // el método rígido pueda separar la L en brazos independientes.
+            if (combined.reason === "branching") {
+              const geo = computeLFootingGeometry(meta.polygonPoints);
+              if (geo && geo.Lx > 0 && geo.Ly > 0) {
+                const columnasFemL = columnsInPolygon.map((columnRow) => {
+                  const columnSize = getColumnSectionSize(this.shapes || [], columnRow.column ?? columnRow.id);
+                  return {
+                    x: Number(columnRow.x) - geo.originX,
+                    y: Number(columnRow.y) - geo.originY,
+                    bx: columnSize.b,
+                    by: columnSize.h,
+                  };
+                });
+
+                const mallaL = mallaProporcional(geo.Lx, geo.Ly);
+
+                shellLDesignPromises.push({
+                  index,
+                  polygon,
+                  promise: fetchZapataShellLDesignReference({
+                    Lx: geo.Lx,
+                    Ly: geo.Ly,
+                    notchX: geo.notchX,
+                    notchY: geo.notchY,
+                    notchEsMaxX: geo.notchEsMaxX,
+                    notchEsMaxY: geo.notchEsMaxY,
+                    columnas: columnasFemL,
+                    thicknessM: polygonProperties[index]?.designInputs?.thicknessM,
+                    recubrimientoM: polygonProperties[index]?.designInputs?.recubrimientoM,
+                    fpcMPa: polygonProperties[index]?.designInputs?.fpc,
+                    nu: polygonProperties[index]?.designInputs?.poissonRatio,
+                    nx: mallaL.nx,
+                    ny: mallaL.ny,
+                    q: quEnvelope(polygon),
+                  }),
+                });
+              }
+            }
           } else if (designInputs && combined?.supported) {
             const allMoments = combined.legs.flatMap((leg) => leg.momentsByCombo || []);
             const positivoEnvelope = Math.max(...allMoments.map((m) => m.momentoPositivoMax));
@@ -650,6 +758,8 @@ export const foundationMixin = {
                 };
               });
 
+              const mallaRect = mallaProporcional(leg.maxX - leg.minX, leg.maxY - leg.minY);
+
               shellCombinedDesignPromises.push({
                 index,
                 polygon,
@@ -661,11 +771,58 @@ export const foundationMixin = {
                   recubrimientoM: designInputs.recubrimientoM,
                   fpcMPa: designInputs.fpc,
                   nu: designInputs.poissonRatio,
-                  nx: this.zapataShellMeshN,
-                  ny: this.zapataShellMeshN,
+                  nx: mallaRect.nx,
+                  ny: mallaRect.ny,
                   q: quEnv,
                 }),
               });
+            } else if (!leg) {
+              // AGREGADO (ver conversación): zapata combinada TRAPEZOIDAL
+              // (leg:null es la marca que usa computeCombinedFootingMoments
+              // para este caso) -- mismo principio que el brazo recto de
+              // arriba, pero con calcular_zapata_shell_trapezoidal_combinada
+              // (ancho variable). computeTrapezoidalFootingGeometry da el
+              // eje/longitud/anchos en cada extremo y la línea central real
+              // del trapecio (exacta, no aproximada) para expresar cada
+              // columna como OFFSET respecto a esa línea -- el solver de
+              // placa espera columnas centradas en y=0 por convención.
+              const geo = computeTrapezoidalFootingGeometry(meta.polygonPoints);
+              if (geo.length > 0 && geo.B0 > 0 && geo.B1 > 0) {
+                const columnasFemTrap = columnsInPolygon.map((columnRow) => {
+                  const columnSize = getColumnSectionSize(this.shapes || [], columnRow.column ?? columnRow.id);
+                  const pos = (geo.beamAxis === "x" ? Number(columnRow.x) : Number(columnRow.y)) - geo.origin;
+                  const perp = geo.beamAxis === "x" ? Number(columnRow.y) : Number(columnRow.x);
+                  const centerlineAtPos = geo.center0 + (geo.center1 - geo.center0) * (pos / geo.length);
+                  return {
+                    x: pos,
+                    y: perp - centerlineAtPos,
+                    bx: columnSize.b,
+                    by: columnSize.h,
+                  };
+                });
+
+                // El "ancho" de referencia para mantener elementos ~cuadrados
+                // es el promedio de B0/B1 (la zapata no tiene un ancho único).
+                const mallaTrap = mallaProporcional(geo.length, (geo.B0 + geo.B1) / 2);
+
+                shellTrapezoidalDesignPromises.push({
+                  index,
+                  polygon,
+                  promise: fetchZapataShellTrapezoidalDesignReference({
+                    L: geo.length,
+                    B0: geo.B0,
+                    B1: geo.B1,
+                    columnas: columnasFemTrap,
+                    thicknessM: designInputs.thicknessM,
+                    recubrimientoM: designInputs.recubrimientoM,
+                    fpcMPa: designInputs.fpc,
+                    nu: designInputs.poissonRatio,
+                    nx: mallaTrap.nx,
+                    ny: mallaTrap.ny,
+                    q: quEnv,
+                  }),
+                });
+              }
             }
           } else {
             polygonProperties[index].steelDesign = null;
@@ -696,11 +853,19 @@ export const foundationMixin = {
             advertencia: result.advertencia,
             error: result.error,
           };
+          // AGREGADO (ver conversación): la zapata poligonal aislada
+          // (triangular/trapezoidal) responde ok:true de MOMENTO pero
+          // nunca trae cortanteDiseno (Bloque 6 sigue con método rígido
+          // para esa forma, a propósito) -- sin este chequeo el modal
+          // mostraría "Cortante FEM" como disponible con valores vacíos
+          // en vez del mensaje de "no disponible".
           polygonProperties[index].shellShearReference = {
-            ok: result.ok,
+            ok: result.ok && !!result.cortanteDiseno,
             cortanteDiseno: result.cortanteDiseno,
             advertencia: result.advertencia,
-            error: result.error,
+            error: result.ok && !result.cortanteDiseno
+              ? "esta forma solo tiene FEM de momento por ahora (método rígido para cortante)"
+              : result.error,
           };
 
           // AGREGADO (ver conversación): para el "Diagrama de Resultantes 2D", las
@@ -782,6 +947,86 @@ export const foundationMixin = {
       // tocar el Blade) tomando el peor valor VÁLIDO entre columnas — si
       // todas las columnas quedan en null para un eje, ese eje del resumen
       // también sale null y el modal simplemente no lo muestra.
+      // AGREGADO (ver conversación): extraído a función compartida para
+      // reutilizarla también con la zapata TRAPEZOIDAL combinada (misma
+      // forma de respuesta del backend, mismo criterio de envolvente/BPR/
+      // región D) sin duplicar esta lógica dos veces.
+      const buildShellMomentReferenceFromCombinedResult = (result) => {
+        if (!result.ok) return { ok: false, error: result.error };
+
+        const porColumna = result.momentosPorColumna || [];
+        const envolvente = (campo) => {
+          const validos = porColumna.map((c) => c[campo]).filter((v) => v != null);
+          if (!validos.length) return null;
+          return validos.reduce((peor, v) => (Math.abs(v) > Math.abs(peor) ? v : peor));
+        };
+
+        const mxResumen = envolvente("Mx_diseno");
+
+        // AGREGADO (ver conversación, método BPR de Bowles "Foundation
+        // Analysis and Design" 5ta ed., Cap. 9 -- validado contra ETABS
+        // real con el modelo F10: 0.26-5.2% de diferencia en las 3
+        // columnas, el mejor resultado de toda esta investigación,
+        // incluida la columna a solo 0.75d del borde libre que la
+        // región D marca como no confiable). Para My (transversal), en
+        // vez de solo la lectura puntual (My_diseno, puede venir null
+        // por región D), se prefiere por columna el promedio sobre la
+        // franja efectiva (My_bpr_diseno, calculado SIEMPRE en el
+        // backend, no depende de región D) -- es la alternativa real al
+        // problema, no un respaldo de menor calidad.
+        const myPorColumnaPreferido = porColumna.map((c) => (c.My_diseno != null ? c.My_diseno : c.My_bpr_diseno));
+        const myResumen = myPorColumnaPreferido.filter((v) => v != null).length
+          ? myPorColumnaPreferido
+              .filter((v) => v != null)
+              .reduce((peor, v) => (Math.abs(v) > Math.abs(peor) ? v : peor))
+          : null;
+
+        const mxFueraDeRegionD = porColumna.some((c) => c.Mx_cara_mas_x_region_d || c.Mx_cara_menos_x_region_d);
+        const myUsoBpr = porColumna.some((c) => c.My_cara_mas_y_region_d || c.My_cara_menos_y_region_d);
+        // AGREGADO (ver conversación, investigación final de "vanos
+        // cortos"): a diferencia de región D por borde libre (donde el
+        // método rígido de respaldo SÍ es confiable), se investigó a fondo
+        // (2 rondas de literatura externa + 5 preguntas a Consensus.app,
+        // todas sin resultado) y además se confirmó con datos reales que
+        // el método RÍGIDO también falla feo en vano corto (55-80% contra
+        // ETABS real en F10, peor que el propio FEM) -- ningún método
+        // automático sirve ahí. Bandera separada del backend
+        // (Mx_cara_..._vano_corto, distinta de _region_d) para poder
+        // avisar esto de forma explícita en vez de sugerir "revisa el
+        // método rígido" como si fuera confiable.
+        const mxPorVanoCorto = porColumna.some((c) => c.Mx_cara_mas_x_vano_corto || c.Mx_cara_menos_x_vano_corto);
+
+        // AGREGADO (ver conversación, umbral de región D ampliado a 2d y
+        // por EJE completo de columna): con el criterio ampliado es común
+        // que TODAS las caras Mx de una zapata combinada corta (columnas
+        // cerca de borde libre en X) queden en región D -- ahí no hay
+        // ningún valor de Mx que mostrar. My ya no cae en este caso
+        // porque siempre tiene el respaldo de BPR.
+        let advertencia = result.advertencia;
+        if (mxPorVanoCorto) {
+          advertencia =
+            (result.advertencia || "") +
+            " Al menos una columna tiene un vano muy corto hacia su vecina (luz al punto medio < 2.5×d) -- para Mx (longitudinal) ahí, NI el FEM NI el método rígido son confiables (investigado a fondo, sin solución automática encontrada). Requiere revisión manual de un ingeniero para esa cara, no uses ninguno de los 2 valores automáticos.";
+        } else if (mxResumen == null) {
+          advertencia =
+            "Esta zapata combinada no tiene ningún valor de Mx (longitudinal) confiable -- todas las caras quedan cerca de un borde libre (región D). Usa el momento del método rígido (más abajo) para Mx. My (transversal) sí está disponible, calculado con el método de franja efectiva de Bowles (validado ~0.3-5% vs. ETABS).";
+        } else if (mxFueraDeRegionD) {
+          advertencia =
+            (result.advertencia || "") +
+            " Al menos una cara Mx de columna cerca de un borde libre no tiene valor FEM confiable (región D) -- revisar el momento del método rígido (más abajo) para esa cara.";
+        } else if (myUsoBpr) {
+          advertencia =
+            (result.advertencia || "") +
+            " My (transversal) de al menos una columna se calculó con el método de franja efectiva de Bowles (promedio, no punto exacto) por estar cerca de un borde libre -- validado ~0.3-5% vs. ETABS real.";
+        }
+
+        return {
+          ok: true,
+          momentoDiseno: { Mx_diseno: mxResumen, My_diseno: myResumen },
+          advertencia,
+        };
+      };
+
       if (shellCombinedDesignPromises.length) {
         const results = await Promise.all(shellCombinedDesignPromises.map((p) => p.promise));
         results.forEach((result, i) => {
@@ -789,67 +1034,41 @@ export const foundationMixin = {
           if (!polygonProperties[index]) return;
 
           shellPolygon.combinedShellMoments = result;
+          polygonProperties[index].shellMomentReference = buildShellMomentReferenceFromCombinedResult(result);
+        });
+      }
 
-          if (!result.ok) {
-            polygonProperties[index].shellMomentReference = { ok: false, error: result.error };
-            return;
-          }
+      // AGREGADO (ver conversación): zapata combinada TRAPEZOIDAL -- misma
+      // forma de respuesta y mismo criterio de envolvente/BPR/región D que
+      // la rectangular combinada de arriba (calcular_zapata_shell_
+      // trapezoidal_combinada, extensión EXPERIMENTAL sin validar todavía
+      // contra un caso real de ETABS, ver documentación del proyecto).
+      if (shellTrapezoidalDesignPromises.length) {
+        const results = await Promise.all(shellTrapezoidalDesignPromises.map((p) => p.promise));
+        results.forEach((result, i) => {
+          const { index, polygon: shellPolygon } = shellTrapezoidalDesignPromises[i];
+          if (!polygonProperties[index]) return;
 
-          const porColumna = result.momentosPorColumna || [];
-          const envolvente = (campo) => {
-            const validos = porColumna.map((c) => c[campo]).filter((v) => v != null);
-            if (!validos.length) return null;
-            return validos.reduce((peor, v) => (Math.abs(v) > Math.abs(peor) ? v : peor));
-          };
+          shellPolygon.combinedShellMoments = result;
+          polygonProperties[index].shellMomentReference = buildShellMomentReferenceFromCombinedResult(result);
+        });
+      }
 
-          const mxResumen = envolvente("Mx_diseno");
+      // AGREGADO (ver conversación): zapata combinada EN L -- misma forma
+      // de respuesta y mismo criterio de envolvente que las de arriba
+      // (calcular_zapata_shell_L_combinada, extensión EXPERIMENTAL, versión
+      // BASE sin región D/vanos cortos/BPR todavía -- ver documentación del
+      // proyecto). steelDesign/shearDesign siguen en needsReview (Bloque
+      // 5/6 sí necesita el método rígido, que no soporta L) — esto solo
+      // rellena shellMomentReference (Bloque 3b) cuando el FEM sí pudo.
+      if (shellLDesignPromises.length) {
+        const results = await Promise.all(shellLDesignPromises.map((p) => p.promise));
+        results.forEach((result, i) => {
+          const { index, polygon: shellPolygon } = shellLDesignPromises[i];
+          if (!polygonProperties[index]) return;
 
-          // AGREGADO (ver conversación, método BPR de Bowles "Foundation
-          // Analysis and Design" 5ta ed., Cap. 9 -- validado contra ETABS
-          // real con el modelo F10: 0.26-5.2% de diferencia en las 3
-          // columnas, el mejor resultado de toda esta investigación,
-          // incluida la columna a solo 0.75d del borde libre que la
-          // región D marca como no confiable). Para My (transversal), en
-          // vez de solo la lectura puntual (My_diseno, puede venir null
-          // por región D), se prefiere por columna el promedio sobre la
-          // franja efectiva (My_bpr_diseno, calculado SIEMPRE en el
-          // backend, no depende de región D) -- es la alternativa real al
-          // problema, no un respaldo de menor calidad.
-          const myPorColumnaPreferido = porColumna.map((c) => (c.My_diseno != null ? c.My_diseno : c.My_bpr_diseno));
-          const myResumen = myPorColumnaPreferido.filter((v) => v != null).length
-            ? myPorColumnaPreferido
-                .filter((v) => v != null)
-                .reduce((peor, v) => (Math.abs(v) > Math.abs(peor) ? v : peor))
-            : null;
-
-          const mxFueraDeRegionD = porColumna.some((c) => c.Mx_cara_mas_x_region_d || c.Mx_cara_menos_x_region_d);
-          const myUsoBpr = porColumna.some((c) => c.My_cara_mas_y_region_d || c.My_cara_menos_y_region_d);
-
-          // AGREGADO (ver conversación, umbral de región D ampliado a 2d y
-          // por EJE completo de columna): con el criterio ampliado es común
-          // que TODAS las caras Mx de una zapata combinada corta (columnas
-          // cerca de borde libre en X) queden en región D -- ahí no hay
-          // ningún valor de Mx que mostrar. My ya no cae en este caso
-          // porque siempre tiene el respaldo de BPR.
-          let advertencia = result.advertencia;
-          if (mxResumen == null) {
-            advertencia =
-              "Esta zapata combinada no tiene ningún valor de Mx (longitudinal) confiable -- todas las caras quedan cerca de un borde libre (región D). Usa el momento del método rígido (más abajo) para Mx. My (transversal) sí está disponible, calculado con el método de franja efectiva de Bowles (validado ~0.3-5% vs. ETABS).";
-          } else if (mxFueraDeRegionD) {
-            advertencia =
-              (result.advertencia || "") +
-              " Al menos una cara Mx de columna cerca de un borde libre no tiene valor FEM confiable (región D) -- revisar el momento del método rígido (más abajo) para esa cara.";
-          } else if (myUsoBpr) {
-            advertencia =
-              (result.advertencia || "") +
-              " My (transversal) de al menos una columna se calculó con el método de franja efectiva de Bowles (promedio, no punto exacto) por estar cerca de un borde libre -- validado ~0.3-5% vs. ETABS real.";
-          }
-
-          polygonProperties[index].shellMomentReference = {
-            ok: true,
-            momentoDiseno: { Mx_diseno: mxResumen, My_diseno: myResumen },
-            advertencia,
-          };
+          shellPolygon.combinedShellMoments = result;
+          polygonProperties[index].shellMomentReference = buildShellMomentReferenceFromCombinedResult(result);
         });
       }
 

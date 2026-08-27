@@ -1,6 +1,3 @@
-import { type } from "jquery";
-import { list } from "postcss";
-
 // content-structure-mc.js - Estructura base para Memoria de Calculo
 export const DEFAULT_MC_STRUCTURE = {
   document: {

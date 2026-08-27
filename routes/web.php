@@ -370,4 +370,22 @@ Route::prefix('api/backend')
 
             return response($body, $status)->header('Content-Type', 'application/json');
         });
+
+        Route::post('/zapata/shell-trapezoidal-design', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('zapata-shell-trapezoidal-design', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/zapata/shell-l-design', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('zapata-shell-l-design', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/zapata/shell-poligono-design', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('zapata-shell-poligono-design', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
     });

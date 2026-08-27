@@ -1,7 +1,5 @@
 // processors/documentTransformer.js - Transformaciones dinámicas para exportación Word
 
-import { forEach, i } from "mathjs";
-
 /**
  * Clase para aplicar transformaciones dinámicas a la estructura del documento
  * antes de procesarlo para exportación Word
