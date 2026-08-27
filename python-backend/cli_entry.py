@@ -9,7 +9,8 @@
 #
 # Contrato:
 #   argv[1]  = modo (analyze | analyze-3d | seismic-analyze | seismic-modal
-#              | frame-forces | seismic-parse-spectrum | zapata-shell-design
+#              | frame-forces | column-interaction | column-shear
+#              | seismic-parse-spectrum | zapata-shell-design
 #              | zapata-shell-combined-design | zapata-shell-trapezoidal-design
 #              | zapata-shell-l-design | zapata-shell-poligono-design
 #              | health | opensees-status)
@@ -145,6 +146,12 @@ def _dispatch(mode, data, flask_app, sa):
             seismic_cases=seismic_cases,
             num_stations=num_stations,
         )
+
+    if mode == "column-interaction":
+        return flask_app._run_column_interaction(data)
+
+    if mode == "column-shear":
+        return flask_app._run_column_shear(data)
 
     if mode == "zapata-shell-design":
         if not flask_app.OPENSEES_AVAILABLE:

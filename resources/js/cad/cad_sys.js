@@ -87,14 +87,26 @@ import { editDeleteMixin } from "./mixins/edit/edit-delete.js";
 import { editClipboardMixin } from "./mixins/edit/edit-clipboard.js";
 import { undoRedoMixin } from "./mixins/edit/undo-redo.js";
 import { editGeometryMixin } from "./mixins/edit/edit-geometry.js";
+import { drawSlab3DMixin } from "./mixins/edit/draw-slab-3d.js";
 import { viewFilterMixin } from "./mixins/select/view-filter.js";
 import { designMixin } from "./mixins/analysis/design.js";
+import { rcSectionMaterialMixin } from "./mixins/analysis/rcSectionMaterial.js";
+import { rcBeamDesignMixin } from "./mixins/analysis/rcBeamDesign.js";
+import { rcColumnDesignMixin } from "./mixins/analysis/rcColumnDesign.js";
+import { rcAligeradoDesignMixin } from "./mixins/analysis/rcAligeradoDesign.js";
+import { columnRebarDesignerMixin } from "./mixins/analysis/columnRebarDesigner.js";
+import { beamRebarDesignerMixin } from "./mixins/analysis/beamRebarDesigner.js";
+import { columnInteractionChartMixin } from "./mixins/analysis/columnInteractionChart.js";
+import { columnInteractionPlanesMixin } from "./mixins/analysis/columnInteractionPlanes.js";
+import { elementForcesTableMixin } from "./mixins/analysis/elementForcesTable.js";
+import { columnLiveLoadReductionMixin } from "./mixins/analysis/columnLiveLoadReduction.js";
 import { displayDialogsMixin } from "./mixins/dialogs/display-dialogs.js";
 import { assignDialogsMixin } from "./mixins/dialogs/assign-dialogs.js";
 import { coreUiMixin } from "./mixins/core/core-ui.js";
 import { fileIOMixin } from "./mixins/io/file-io.js";
 import { modelFactoryMixin } from "./mixins/edit/model-factory.js";
 import { storyGridMixin } from "./mixins/grids/story-grid.js";
+import { storyEditorMixin } from "./mixins/grids/story-editor.js";
 import { viewportMixin } from "./mixins/select/viewport.js";
 import { analysisMixin } from "./mixins/analysis/analysis.js";
 import { referenceGridMixin } from "./mixins/grids/reference-grid.js";
@@ -254,16 +266,30 @@ export default () => ({
     sections: [],
     selectedSection: null,
   },
+  // Armado de columna definido a mano, por NOMBRE de sección — para columnas
+  // sin CONCRETESECTION real en el .e2k (auto-diseño en ETABS, DESIGNCHECK
+  // "DESIGN" en vez de "CHECK") o dibujadas desde cero. Ver
+  // mixins/analysis/columnRebarDesigner.js y rcColumnDesign.js (fallback).
+  manualColumnRebar: {},
+  // Armado longitudinal de VIGA definido a mano, por NOMBRE de sección. Lo
+  // consume el tope por resistencia de vigas del corte de columnas (ACI 318
+  // §18.7.6.1.1 in fine). Hace falta casi siempre: ETABS diseña las vigas y
+  // no ofrece "Reinforcement to be Checked" para ellas, así que el .e2k sale
+  // con ATI/ABI/ATJ/ABJ = 0. Ver mixins/analysis/beamRebarDesigner.js.
+  manualBeamRebar: {},
+  // Los Load Patterns viven en `staticLoadCases.items` — es lo que escribe el
+  // diálogo "Definir Patrones de Carga" (static-load-cases-modal.blade.php) y
+  // lo que llena el import del .e2k. `loadCases.cases` es el store LEGACY y
+  // arranca VACÍO a propósito.
+  //
+  // Antes traía 6 patrones de fábrica (CM, CV, CVE, CVT, CN, CLL). Como el
+  // diálogo de patrones solo sincroniza este store al guardar, un modelo con 2
+  // patrones seguía mostrando los 6 en los selects de Fuente de Masa,
+  // Combinaciones de Carga y en los diálogos de asignación — patrones que no
+  // existían en el modelo y que, si se elegían, no cargaban nada.
   loadCases: {
     open: false,
-    cases: [
-      { name: "CM", type: "Dead", selfWeight: true, value: 1.0 },
-      { name: "CV", type: "Live", value: 0.25 },
-      { name: "CVE", type: "Live", value: 0.5 },
-      { name: "CVT", type: "Live", value: 0.5 },
-      { name: "CN", type: "Live", value: 0.3 },
-      { name: "CLL", type: "Live", value: 0.4 },
-    ],
+    cases: [],
   },
   loadCombinations: {
     open: false,
@@ -471,7 +497,12 @@ export default () => ({
     // Etiquetas (nombre de sección) sobre losas y muros, en 2D y 3D. En 3D
     // cada etiqueta es un plano billboard con su propia DynamicTexture, así
     // que un modelo con muchas losas se vuelve pesado — de ahí el toggle.
-    showAreaSectionLabels: true,
+    showAreaSectionLabels: false,
+    // Flecha del sentido de armado en losas de UNA VÍA (aligerados), como la
+    // de ETABS. Arranca ENCENDIDA porque ese sentido decide a qué vigas les
+    // llega la carga del panel, y es la única forma de ver de un vistazo si el
+    // ANG importado del .e2k quedó girado 90°.
+    showSlabLoadDirection: true,
     showDeformedShape: false,
     showModeShape: false,
     showMemberForces: false,
@@ -579,6 +610,17 @@ export default () => ({
     this.redoStack = [];
     this.maxUndoSteps = 30;
 
+    // Dibujo de losa en el visor 3D (mixins/edit/draw-slab-3d.js): vértices
+    // marcados sobre nudos/grilla 3D antes de cerrar el área.
+    this.slab3DPoints = [];
+    this.isDrawingSlab3D = false;
+
+    // Lo crea openReactionsDisplay() (mixins/analysis/seismic/reactions-display.js),
+    // pero el botón del toolbar lo lee al montar (`toggle="reactionsDisplay?.enabled"`)
+    // y sin declararlo acá Alpine tiraba "reactionsDisplay is not defined" en
+    // cada carga — el optional chaining no salva a una variable inexistente.
+    this.reactionsDisplay = null;
+
     this.editClipboard = null;
     this.editPasteCount = 0;
     this.parametricModels = [];
@@ -659,6 +701,16 @@ export default () => ({
 
     window.onresize = () => this.windowResize();
 
+    // window.onresize por sí solo no alcanza: el tamaño real del canvas
+    // depende del layout flex de su contenedor (#cad-panel-2d), que puede
+    // cambiar SIN que la ventana del navegador cambie de tamaño (ej. la
+    // barra de navegación superior termina de hidratar y cambia de alto
+    // después del primer paint) — un ResizeObserver reacciona a eso
+    // también, no solo al resize real de la ventana.
+    if (typeof ResizeObserver !== "undefined") {
+      new ResizeObserver(() => this.windowResize()).observe(canvas.parentElement || canvas);
+    }
+
     this.windowResize();
 
     canvas.oncontextmenu = () => {
@@ -695,13 +747,45 @@ export default () => ({
       this.handleMouseMove(event);
     };
 
-    const renderLoop = () => {
-      this.shapes.forEach((s) => {
-        const p1 = this.grid.worldToScreen(s.node1.position);
-        const p2 = this.grid.worldToScreen(s.node2.position);
-        s.angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-      });
-      this.redraw();
+    // Cualquier interacción con el canvas ensucia la vista. Se marca acá, en un
+    // solo lugar, en vez de confiar en que cada handler llame a redraw().
+    ["wheel", "mousedown", "mouseup", "mousemove", "click", "keydown"].forEach(
+      (evt) => canvas.addEventListener(evt, () => this.invalidate(), { passive: true }),
+    );
+
+    // ── Bucle de dibujo bajo demanda (como ETABS) ───────────────────────────
+    // Antes esto recalculaba el ángulo de TODAS las barras y redibujaba el
+    // canvas entero 60 veces por segundo, para siempre, aunque no cambiara
+    // nada. Con el diagrama de fuerzas encendido eso significaba redibujar
+    // miles de segmentos 60 veces por segundo sin motivo: de ahí la lentitud
+    // general de la página.
+    //
+    // Ahora solo se dibuja cuando la vista está "sucia" (`invalidate()`, que es
+    // lo que llama `redraw()`). El latido de seguridad repinta igual cada
+    // HEARTBEAT_MS por si alguna ruta muta el modelo sin marcar nada: cuesta
+    // ~2 cuadros por segundo y evita que el canvas quede congelado si a algún
+    // camino se le olvida invalidar.
+    const HEARTBEAT_MS = 500;
+    // -Infinity fuerza el primer pintado en el primer cuadro (con 0, el canvas
+    // podía quedar en blanco hasta medio segundo al abrir).
+    let lastPaint = -Infinity;
+
+    const renderLoop = (now = 0) => {
+      const heartbeat = now - lastPaint >= HEARTBEAT_MS;
+
+      if (this._needsRedraw || heartbeat) {
+        this._needsRedraw = false;
+        lastPaint = now;
+
+        this.shapes.forEach((s) => {
+          const p1 = this.grid.worldToScreen(s.node1.position);
+          const p2 = this.grid.worldToScreen(s.node2.position);
+          s.angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+        });
+
+        this.renderNow();
+      }
+
       window.requestAnimationFrame(renderLoop);
     };
     window.requestAnimationFrame(renderLoop);
@@ -861,14 +945,26 @@ export default () => ({
   ...editClipboardMixin,
   ...undoRedoMixin,
   ...editGeometryMixin,
+  ...drawSlab3DMixin,
   ...viewFilterMixin,
   ...designMixin,
+  ...rcSectionMaterialMixin,
+  ...rcBeamDesignMixin,
+  ...rcColumnDesignMixin,
+  ...rcAligeradoDesignMixin,
+  ...columnRebarDesignerMixin,
+  ...beamRebarDesignerMixin,
+  ...columnInteractionChartMixin,
+  ...columnInteractionPlanesMixin,
+  ...elementForcesTableMixin,
+  ...columnLiveLoadReductionMixin,
   ...displayDialogsMixin,
   ...assignDialogsMixin,
   ...coreUiMixin,
   ...fileIOMixin,
   ...modelFactoryMixin,
   ...storyGridMixin,
+  ...storyEditorMixin,
   ...viewportMixin,
   ...analysisMixin,
   ...referenceGridMixin,

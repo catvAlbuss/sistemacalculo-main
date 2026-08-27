@@ -16,6 +16,7 @@ const VIEWER_STATE = {
   elements: [],
   initialized: false,
   resizeHandler: null,
+  resizeObserver: null,
 
   // Evita renderizar mientras se limpian o recrean objetos 3D
   isUpdating: false,
@@ -32,6 +33,11 @@ const VIEWER_STATE = {
 
   // Estado para animación sísmica
   seismicAnimator: null,
+
+  // Último contexto (componente Alpine) visto por el observable de dibujo.
+  // Lo necesitan los helpers expuestos en window.__jh* que se llaman desde los
+  // mixins, donde no llega el contexto por parámetro.
+  drawContext: null,
 };
 
 let currentAnimator = null;
@@ -110,6 +116,11 @@ function disposeViewer() {
     if (VIEWER_STATE.resizeHandler) {
       window.removeEventListener("resize", VIEWER_STATE.resizeHandler);
       VIEWER_STATE.resizeHandler = null;
+    }
+
+    if (VIEWER_STATE.resizeObserver) {
+      VIEWER_STATE.resizeObserver.disconnect();
+      VIEWER_STATE.resizeObserver = null;
     }
 
     if (VIEWER_STATE.camera) {
@@ -236,6 +247,23 @@ function setupResizeHandler() {
   };
 
   window.addEventListener("resize", VIEWER_STATE.resizeHandler);
+
+  // window.resize por sí solo no alcanza: el tamaño real de #viewer3d-container
+  // depende del layout flex de la página (puede cambiar sin que la ventana
+  // del navegador cambie de tamaño — ej. la barra de navegación termina de
+  // hidratar después del primer paint). Si el motor de Babylon no se entera,
+  // su buffer interno (canvas.width/height) queda desincronizado del tamaño
+  // real en pantalla, y el picking (unproject de mouse a rayo 3D) calcula mal
+  // — clics cerca de un nodo/vértice de grilla "enganchan" el vecino
+  // equivocado. Abrir DevTools "arregla" esto de casualidad porque dispara un
+  // resize de ventana real; un ResizeObserver lo corrige sin depender de eso.
+  if (typeof ResizeObserver !== "undefined") {
+    const container = getViewerContainer();
+    if (container) {
+      VIEWER_STATE.resizeObserver = new ResizeObserver(() => VIEWER_STATE.resizeHandler?.());
+      VIEWER_STATE.resizeObserver.observe(container);
+    }
+  }
 }
 
 function mapNodePositionTo3D(node) {
@@ -951,7 +979,10 @@ function ensure3DWorkPlanePickMesh(context) {
     workPlane.rotation.z = 0;
   }
 
-  workPlane.isPickable = context?.activeDrawTool === "frame" || context?.isDrawingFrame3D === true;
+  workPlane.isPickable =
+    context?.activeDrawTool === "frame" ||
+    context?.activeDrawTool === "slab" ||
+    context?.isDrawingFrame3D === true;
 
   workPlane.setEnabled(true);
 
@@ -1145,6 +1176,210 @@ function update3DFramePreviewLine(context, snappedPoint) {
 }
 
 // =====================================================
+// 3D DRAW SLAB > PREVIEW DEL POLÍGONO DE LOSA EN CURSO
+// A diferencia del preview de barra (una sola línea start→cursor), acá se
+// muestra TODA la cadena de vértices ya marcados, cerrada contra el primero,
+// más un relleno translúcido para leer la pendiente del faldón. El relleno se
+// triangula en abanico desde el primer vértice: es solo una guía visual, no
+// la geometría final (esa la arma `area3d.js` con createGeneric3DPolygon).
+//
+// El preview de barra es SIEMPRE de 2 puntos; acá la cantidad de vértices
+// cambia con cada clic, y `CreateLines` con `instance` exige el MISMO número
+// de puntos que la malla original. Por eso: si el conteo no cambió se
+// actualiza en sitio (el caso de cada movimiento del mouse, donde solo se
+// mueve el vértice del cursor); si cambió, se recrea la malla.
+// =====================================================
+function ensure3DSlabPreviewLine(points) {
+  const scene = VIEWER_STATE.scene;
+
+  if (!scene) return null;
+
+  const existing = scene.getMeshByName("jh_3d_slab_preview_line");
+
+  if (existing && existing.metadata?.pointCount === points.length) {
+    BABYLON.MeshBuilder.CreateLines(
+      "jh_3d_slab_preview_line",
+      {
+        points,
+        instance: existing,
+      },
+      scene,
+    );
+
+    return existing;
+  }
+
+  existing?.dispose(false, true);
+
+  const line = BABYLON.MeshBuilder.CreateLines(
+    "jh_3d_slab_preview_line",
+    {
+      points,
+      updatable: true,
+    },
+    scene,
+  );
+
+  line.color = new BABYLON.Color3(0.25, 0.95, 0.65);
+  line.isPickable = false;
+
+  line.metadata = {
+    objectType: "draw3DSlabPreviewLine",
+    type: "draw3DSlabPreviewLine",
+    pointCount: points.length,
+  };
+
+  return line;
+}
+
+function ensure3DSlabPreviewFill() {
+  const scene = VIEWER_STATE.scene;
+
+  if (!scene) return null;
+
+  let fill = scene.getMeshByName("jh_3d_slab_preview_fill");
+
+  if (!fill) {
+    fill = new BABYLON.Mesh("jh_3d_slab_preview_fill", scene);
+
+    const mat = new BABYLON.StandardMaterial("mat_jh_3d_slab_preview_fill", scene);
+
+    mat.diffuseColor = new BABYLON.Color3(0.15, 0.8, 0.55);
+    mat.emissiveColor = new BABYLON.Color3(0.08, 0.35, 0.25);
+    mat.alpha = 0.28;
+    mat.backFaceCulling = false;
+
+    fill.material = mat;
+    fill.isPickable = false;
+    fill.setEnabled(false);
+
+    fill.metadata = {
+      objectType: "draw3DSlabPreviewFill",
+      type: "draw3DSlabPreviewFill",
+    };
+  }
+
+  return fill;
+}
+
+// =====================================================
+// 3D DRAW SLAB > ACTUALIZAR PREVIEW
+// `hoverPoint` es el punto bajo el cursor (puede ser null cuando el cursor
+// no está sobre ningún snap: ahí se muestra solo lo ya marcado, para que el
+// polígono no parpadee al pasar por zonas vacías).
+// =====================================================
+function update3DSlabPreview(context, hoverPoint = null) {
+  const scene = VIEWER_STATE.scene;
+
+  if (!scene) return;
+
+  const marked = context?.getSlab3DPreviewPoints?.() || [];
+  const points = hoverPoint ? [...marked, hoverPoint] : [...marked];
+
+  if (points.length < 2) {
+    clear3DSlabPreview();
+    return;
+  }
+
+  const babylonPoints = points.map((p) => modelPointToBabylonPoint(p));
+
+  // Con 3+ vértices se cierra el contorno contra el primero (así se ve el
+  // polígono completo antes de confirmarlo).
+  const linePoints =
+    babylonPoints.length >= 3 ? [...babylonPoints, babylonPoints[0]] : babylonPoints;
+
+  const line = ensure3DSlabPreviewLine(linePoints);
+  const fill = ensure3DSlabPreviewFill();
+
+  line?.setEnabled(true);
+
+  if (fill) {
+    if (babylonPoints.length < 3) {
+      fill.setEnabled(false);
+    } else {
+      const positions = [];
+      const indices = [];
+      const normals = [];
+
+      babylonPoints.forEach((p) => positions.push(p.x, p.y, p.z));
+
+      for (let i = 1; i < babylonPoints.length - 1; i += 1) {
+        indices.push(0, i, i + 1);
+      }
+
+      BABYLON.VertexData.ComputeNormals(positions, indices, normals);
+
+      const vertexData = new BABYLON.VertexData();
+      vertexData.positions = positions;
+      vertexData.indices = indices;
+      vertexData.normals = normals;
+      vertexData.applyToMesh(fill, true);
+
+      fill.setEnabled(true);
+    }
+  }
+}
+
+function clear3DSlabPreview() {
+  const scene = VIEWER_STATE.scene;
+
+  if (!scene) return;
+
+  scene.getMeshByName("jh_3d_slab_preview_line")?.setEnabled(false);
+  scene.getMeshByName("jh_3d_slab_preview_fill")?.setEnabled(false);
+}
+
+// =====================================================
+// 3D DRAW SLAB > RESOLVER EL PUNTO DEL CLIC
+// Mismo orden de prioridad que el dibujo de barras (nudo del modelo > vértice
+// de grilla), pero devuelve el PUNTO, no un nodo: una losa se define por sus
+// vértices y no necesita crear joints.
+// Si no hay snap, solo se acepta el plano de trabajo invisible; picar la malla
+// de una viga devolvería un punto sobre su superficie (vértice sucio).
+// =====================================================
+function resolve3DSlabPointFromPick(context, pointerInfo) {
+  const nodeSnap = findNearest3DModelNodeSnap(context, 18);
+  const gridSnap = findNearest3DGridSnapPointUnderPointer(context, 18);
+
+  const nodeWins = nodeSnap && (!gridSnap || nodeSnap.distance <= gridSnap.distance + 3);
+
+  if (nodeWins && nodeSnap.modelPoint) {
+    return { ...nodeSnap.modelPoint };
+  }
+
+  if (gridSnap?.modelPoint) {
+    return { ...gridSnap.modelPoint };
+  }
+
+  const pickedMesh = pointerInfo?.pickInfo?.pickedMesh;
+  const pickedPoint = pointerInfo?.pickInfo?.pickedPoint;
+  const metadata = pickedMesh?.metadata || {};
+  const isWorkPlane = metadata.objectType === "workPlane3D" || metadata.type === "workPlane3D";
+
+  if (isWorkPlane && pickedPoint) {
+    return babylonPointToModelPoint(pickedPoint);
+  }
+
+  return null;
+}
+
+// =====================================================
+// 3D DRAW SLAB > EXPONER REFRESCO DEL PREVIEW
+// El mixin (draw-slab-3d.js) lo llama tras cada clic/backspace para que el
+// polígono se actualice sin esperar al próximo movimiento del mouse.
+// =====================================================
+window.__jhRefresh3DSlabPreview = () => {
+  const context = VIEWER_STATE.drawContext;
+
+  if (!context || context.isSlabDrawingToolActive?.() !== true) {
+    clear3DSlabPreview();
+    return;
+  }
+
+  update3DSlabPreview(context, null);
+};
+
+// =====================================================
 // 3D DRAW > ACTUALIZAR ETIQUETA DEL GRID POINT
 // No elimina ni recrea el mesh en cada movimiento.
 // =====================================================
@@ -1237,8 +1472,9 @@ function update3DGridPointHoverReference(context, pointerInfo) {
   if (!scene || !context) return;
 
   const frameToolActive = context?.isFrameDrawingToolActive?.() === true || context?.activeDrawTool === "frame";
+  const slabToolActive = context?.isSlabDrawingToolActive?.() === true || context?.activeDrawTool === "slab";
 
-  if (!frameToolActive) {
+  if (!frameToolActive && !slabToolActive) {
     clear3DGridPointHoverReference();
     return;
   }
@@ -1276,7 +1512,14 @@ function update3DGridPointHoverReference(context, pointerInfo) {
     context.hovered3DGridPoint = snappedPoint;
 
     update3DGridPointHoverLabel(context, snappedPoint);
-    update3DFramePreviewLine(context, snappedPoint);
+
+    // Cada herramienta tiene su propio preview: la barra, una línea desde el
+    // nodo inicial; la losa, el polígono acumulado + el vértice bajo el cursor.
+    if (slabToolActive) {
+      update3DSlabPreview(context, snappedPoint);
+    } else {
+      update3DFramePreviewLine(context, snappedPoint);
+    }
 
     context.showMessage?.(
       isNode
@@ -1291,6 +1534,12 @@ function update3DGridPointHoverReference(context, pointerInfo) {
   // (cualquier piso) vía el snap global de arriba. Si el cursor no está sobre
   // un vértice, no se marca nada (antes caía al plano del piso 2D activo).
   clear3DGridPointHoverReference();
+
+  // El polígono de losa ya marcado NO es parte del hover: debe seguir viéndose
+  // aunque el cursor pase por una zona vacía (si no, parpadea en cada movida).
+  if (slabToolActive) {
+    update3DSlabPreview(context, null);
+  }
 }
 
 // =====================================================
@@ -1545,8 +1794,12 @@ function enterBoxSelectionMode3D(context) {
 
   if (!VIEWER_STATE.initialized || !canvas || VIEWER_STATE.boxSelect?.active) return;
 
-  // No mezclar con el dibujo de barras.
-  if (context?.activeDrawTool === "frame" || context?.isDrawingFrame3D === true) {
+  // No mezclar con el dibujo de barras ni de losas.
+  if (
+    context?.activeDrawTool === "frame" ||
+    context?.activeDrawTool === "slab" ||
+    context?.isDrawingFrame3D === true
+  ) {
     context?.showMessage?.("Termina o cancela el dibujo (Esc) antes de usar la selección por ventana.");
     return;
   }
@@ -1668,9 +1921,12 @@ function exitBoxSelectionMode3D() {
   hideBoxSelectionOverlay();
   VIEWER_STATE.boxSelect = null;
 
-  // Restaurar cámara solo si no está dibujando una barra.
+  // Restaurar cámara solo si no está dibujando una barra o una losa.
   const context = box.context;
-  const stillDrawing = context?.activeDrawTool === "frame" || context?.isDrawingFrame3D === true;
+  const stillDrawing =
+    context?.activeDrawTool === "frame" ||
+    context?.activeDrawTool === "slab" ||
+    context?.isDrawingFrame3D === true;
 
   if (!stillDrawing) {
     set3DDrawCameraLock(false);
@@ -1707,6 +1963,37 @@ function enable3DFrameSelection(context) {
   let pointerDownPosition3D = null;
   let pointerWasDragged3D = false;
 
+  // =====================================================
+  // 3D > CLIC DERECHO SOBRE UNA BARRA → SUS DIAGRAMAS
+  // Se resuelve en el evento `contextmenu` del canvas y NO en el observable de
+  // Babylon: es el único que garantiza (a) que llegue siempre el clic derecho y
+  // (b) que se pueda suprimir el menú del navegador en el mismo lugar. El pick
+  // se hace a mano con scene.pick sobre las coordenadas del evento.
+  // =====================================================
+  const canvas3d = VIEWER_STATE.engine?.getRenderingCanvas?.();
+
+  if (canvas3d && !canvas3d.__frameDiagramContextMenu) {
+    canvas3d.__frameDiagramContextMenu = true;
+
+    canvas3d.addEventListener("contextmenu", (ev) => {
+      ev.preventDefault(); // nunca el menú del navegador sobre el visor
+
+      // Con herramienta de dibujo activa el clic derecho cierra la polilínea.
+      if (context?.isFrameDrawingToolActive?.() === true) return;
+      if (context?.isSlabDrawingToolActive?.() === true) return;
+      if (context?.activeDrawTool === "frame" || context?.activeDrawTool === "slab") return;
+      if (context?.isDrawingFrame3D === true) return;
+
+      const rect = canvas3d.getBoundingClientRect();
+      const pick = scene.pick(ev.clientX - rect.left, ev.clientY - rect.top);
+      const mesh = pick?.hit ? pick.pickedMesh : null;
+
+      if (mesh?.metadata?.type === "beam" && mesh.metadata.id != null) {
+        context?.showFrameMemberDiagram?.(mesh.metadata.id);
+      }
+    });
+  }
+
   // Clic derecho: distingue un "tap" (termina polilínea) de un arrastre (orbitar).
   let rightPointerDownPosition3D = null;
   let rightPointerWasDragged3D = false;
@@ -1721,10 +2008,21 @@ function enable3DFrameSelection(context) {
     const frameToolActive = context?.isFrameDrawingToolActive?.() === true || context?.activeDrawTool === "frame";
 
     // =====================================================
+    // DRAW SLAB > VALIDAR HERRAMIENTA DE LOSA ACTIVA
+    // Segundo camino del MISMO observable: mismo hover, mismo snap a nudos y
+    // mismo plano de trabajo que las barras, pero acumulando vértices para
+    // armar un área (ver mixins/edit/draw-slab-3d.js).
+    // =====================================================
+    const slabToolActive = context?.isSlabDrawingToolActive?.() === true || context?.activeDrawTool === "slab";
+    const drawToolActive = frameToolActive || slabToolActive;
+
+    VIEWER_STATE.drawContext = context;
+
+    // =====================================================
     // 3D SELECTION > SI NO ESTOY DIBUJANDO, APAGAR PLANO PICK
     // Evita que el plano invisible intercepte clics sobre barras.
     // =====================================================
-    if (!frameToolActive && context?.isDrawingFrame3D !== true) {
+    if (!drawToolActive && context?.isDrawingFrame3D !== true) {
       disable3DWorkPlanePickMesh();
     }
 
@@ -1733,10 +2031,11 @@ function enable3DFrameSelection(context) {
     // Muestra referencia visual tipo ETABS al pasar por un vértice.
     // =====================================================
     if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERMOVE) {
-      if (frameToolActive) {
+      if (drawToolActive) {
         update3DGridPointHoverReference(context, pointerInfo);
       } else {
         clear3DGridPointHoverReference();
+        clear3DSlabPreview();
       }
     }
 
@@ -1757,13 +2056,13 @@ function enable3DFrameSelection(context) {
     // Con Draw Frame o Selección por Ventana activos, el botón izquierdo
     // queda libre (dibujo/rectángulo) y la cámara usa derecho/medio/rueda.
     // =====================================================
-    set3DDrawCameraLock(frameToolActive === true || VIEWER_STATE.boxSelect?.active === true);
+    set3DDrawCameraLock(drawToolActive === true || VIEWER_STATE.boxSelect?.active === true);
 
     // =====================================================
     // DRAW 3D > ASEGURAR PLANO PICKABLE
     // Permite hacer clic en puntos vacíos de la grilla 3D.
     // =====================================================
-    if (frameToolActive || context?.isDrawingFrame3D === true) {
+    if (drawToolActive || context?.isDrawingFrame3D === true) {
       ensure3DWorkPlanePickMesh(context);
     }
 
@@ -1815,6 +2114,20 @@ function enable3DFrameSelection(context) {
         context.endFrame3DPolyline?.();
       }
 
+      // Losa: el clic derecho cierra el polígono (equivalente al Enter del
+      // dibujo 2D). Con menos de 3 vértices no hay área que crear → se cancela.
+      const slabVertexCount = context?.getSlab3DPreviewPoints?.()?.length || 0;
+
+      if (wasTap && slabToolActive && slabVertexCount > 0) {
+        event.preventDefault?.();
+
+        if (slabVertexCount >= 3) {
+          context.finishSlab3DArea?.();
+        } else {
+          context.cancelSlab3DDrawing?.();
+        }
+      }
+
       return;
     }
 
@@ -1846,6 +2159,11 @@ function enable3DFrameSelection(context) {
 
     if (pointerInfo.type !== BABYLON.PointerEventTypes.POINTERPICK) return;
 
+    // El clic derecho lo atiende el listener de `contextmenu` del canvas (ver
+    // arriba), que es el único que llega siempre y permite suprimir el menú del
+    // navegador en el mismo lugar.
+    if (event?.button === 2) return;
+
     // Solo clic izquierdo
     if (event?.button !== 0) return;
 
@@ -1874,6 +2192,26 @@ function enable3DFrameSelection(context) {
     pointerWasDragged3D = false;
 
     const pickedMesh = pointerInfo.pickInfo?.pickedMesh;
+
+    // =====================================================
+    // DRAW SLAB > MARCAR VÉRTICE DE LA LOSA EN 3D
+    // Va ANTES del resto (incluido el caso "no se picó nada"): con la
+    // herramienta de losa activa el clic izquierdo siempre marca vértice,
+    // nunca selecciona. Cada vértice conserva su Z real → techos inclinados.
+    // =====================================================
+    if (slabToolActive) {
+      const slabPoint = resolve3DSlabPointFromPick(context, pointerInfo);
+
+      if (slabPoint) {
+        context.handle3DSlabPointPicked?.(slabPoint);
+      } else {
+        context.showMessage?.(
+          "Herramienta de losa activa: haga clic en un nudo o punto de grilla 3D.",
+        );
+      }
+
+      return;
+    }
 
     // Selección: si el rayo no picó ninguna malla pero hay un nodo cerca del
     // cursor, seleccionarlo igual (los nodos son pequeños y difíciles de acertar).

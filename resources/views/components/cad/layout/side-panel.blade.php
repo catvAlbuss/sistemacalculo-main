@@ -25,7 +25,7 @@
         <span>Panel</span>
     </button>
 
-    <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
+    <div class="flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-width:thin] [scrollbar-color:#4b5563_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-600">
 
         {{-- Dibujar --}}
         <div class="border-b border-gray-700/70 bg-gray-900/30 py-1 text-center text-[9px] font-semibold uppercase tracking-wide text-gray-400">Dibujar</div>
@@ -58,9 +58,9 @@
                         </g>
                     </svg></span><span>Vigas Reg.</span>
             </button>
-            <button title="Dibujar losa / área (clic por clic, formas irregulares)"
+            <button title="Dibujar losa / área clic por clic (formas irregulares). Funciona en 2D y en 3D: en el visor 3D se marcan los vértices sobre los nudos, y si están a distinta altura la losa sale inclinada (techos). Clic derecho o Enter cierra."
                 @click="cadSystem.activateDrawMenuAction('draw-area-slab')"
-                :class="currentState === slabDrawingState ? 'bg-blue-600 text-white' : 'text-gray-200'"
+                :class="(currentState === slabDrawingState || cadSystem?.activeDrawTool === 'slab') ? 'bg-blue-600 text-white' : 'text-gray-200'"
                 class="{{ $qt }}">
                 <span class="text-base leading-none"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
                         <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
@@ -92,34 +92,6 @@
                             <path d="M3 10h18M3 16h18M9 4v6M15 10v6M9 16v4" />
                         </g>
                     </svg></span><span>Muro</span>
-            </button>
-            <button title="Zapata a mano alzada (dibuja el polígono alrededor de columnas)"
-                @click="cadSystem.activateDrawMenuAction('draw-area-zapata')"
-                :class="currentState === zapataDrawingState ? 'bg-blue-600 text-white' : 'text-gray-200'"
-                class="{{ $qt }}">
-                <span class="text-base leading-none">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                        <!-- Base de concreto de la zapata aislada (Cimiento) -->
-                        <path d="M4 17h16v4H4z" />
-
-                        <!-- Columna única central -->
-                        <path d="M10 17V7h4v10" />
-
-                        <!-- Línea de carga / Eje vertical central -->
-                        <path d="M12 3v4" />
-                    </svg>
-                </span><span>Zapata a mano alzada</span>
-            </button>
-            <button title="Ortho (F8): fuerza los lados a salir horizontal o vertical, tanto al dibujar una Zapata a mano alzada como al arrastrar un vértice para editarla."
-                @click="cadSystem.options.orthoMode = !cadSystem.options.orthoMode"
-                :class="cadSystem.options.orthoMode ? 'bg-blue-600 text-white' : 'text-gray-200'"
-                class="{{ $qt }}">
-                <span class="text-base leading-none">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                        <path d="M4 4v16h16" />
-                        <path d="M4 12h16M12 4v16" stroke-dasharray="2 2" />
-                    </svg>
-                </span><span>Ortho (F8)</span>
             </button>
         </div>
 

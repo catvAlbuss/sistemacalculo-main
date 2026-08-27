@@ -144,22 +144,31 @@ const handleSteelChange = (e, tableState, numTramos, sectionType, onUpdate) => {
         updateCell("As_real_summary", As_real);
         updateCell("PhiMn_summary", phiMn_tonm);
 
-        // Verification
-        // User Logic: if (sumas[i] < As_maxs[i] && sumas[i] >= As_usars[i]) { "CUMPLE" } else { "NO CUMPLE" }
-        // "sumas[i]" here corresponds to As_real
-        // "As_usars[i]" is the required As (As_usar) from the theoretical calculation
-
+        // Verification — comparación DIRECTA contra la demanda real (ΦMn ≥ Mu,
+        // el chequeo que exige ACI 318/E.060), no un proxy indirecto.
+        //
+        // Antes: `As_real < As_max && As_real >= As_usar` — comparaba el acero
+        // elegido contra `As_usar` (el teórico que calculó FlexionCalculator).
+        // El problema: cuando el discriminante de la cuadrática sale negativo
+        // (la sección, aunque se refuerce al máximo dúctil As_max, no alcanza
+        // para el momento actuante — necesitaría acero a compresión),
+        // FlexionCalculator no lo detecta: cae a As=0 y de ahí a
+        // `As_usar = As_min`. Con el chequeo viejo, CUALQUIER combinación de
+        // barras entre As_min y As_max marcaba "CUMPLE" en verde, aunque la
+        // viga en la realidad no resista el momento — falso positivo de
+        // seguridad. Comparando ΦMn (ya calculado arriba con el acero REAL)
+        // contra Mu (la demanda real, meta.Mu) se detecta el caso sin
+        // depender de que As_usar haya salido bien.
         const verifCell = document.getElementById(`cell_${sectionType}_t${tramo}_p${pos}_verif_summary`);
 
         if (verifCell) {
             const As_max = meta.As_max || 0;
-            const As_usar = meta.As_usar || 0;
+            const Mu_demand_tonm = Math.abs(meta.Mu || 0) / 100000; // kg-cm -> tonf-m
 
             let verifText = "NO CUMPLE";
             let verifClass = "px-2 py-2 text-center font-bold text-xs bg-red-50 text-red-600 border-r border-gray-200 dark:border-gray-700 dark:bg-red-900/30 dark:text-red-400";
 
-            // ... verification logic ...
-            if (As_real < As_max && As_real >= As_usar) {
+            if (phiMn_tonm >= Mu_demand_tonm && As_real <= As_max) {
                 verifText = "CUMPLE";
                 verifClass = "px-2 py-2 text-center font-bold text-xs bg-green-50 text-green-700 border-r border-gray-200 dark:border-gray-700 dark:bg-green-900/30 dark:text-green-400";
             }

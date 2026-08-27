@@ -58,6 +58,13 @@
                                 <span>━━</span>
                                 Barra / Línea...
                             </button>
+
+                            <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 whitespace-nowrap"
+                                @click.stop="cadSystem.toggleSlabLoadDirection()">
+                                <span>⇕</span>
+                                <span class="flex-1 truncate">Sentido de Armado de Losas</span>
+                                <span class="text-xs text-cyan-400 italic">1 vía</span>
+                            </button>
                         </x-slot>
                     </x-cad.ui.menu-subitem>
 
@@ -161,6 +168,17 @@
                         <span>📋</span>
                         <span class="flex-1 truncate">Mostrar Tablas...</span>
                         <span class="text-xs text-cyan-400 italic">Modelo</span>
+                    </button>
+
+                    {{-- Tabla Element Forces - Columns, con el mismo formato y las
+                         mismas columnas que la de ETABS, para poder cruzarlas fila
+                         por fila. Filtrado múltiple por Story/Column/Case/Step. --}}
+                    <button
+                        class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.openElementForcesColumnsDialog()">
+                        <span>🧱</span>
+                        <span class="flex-1 truncate">Element Forces - Columns...</span>
+                        <span class="text-xs text-emerald-400 italic">Análisis</span>
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>

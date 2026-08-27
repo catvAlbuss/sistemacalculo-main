@@ -43,9 +43,12 @@
                         <span>─</span> Dibujar Eje Y (horizontal)
                     </button>
 
+                    {{-- Mismo editor que Editar > Pisos y Alturas: una sola pantalla
+                         para crear, editar o agregar pisos (antes eran 2 opciones). --}}
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
-                        @click="cadSystem.openGenerateStoriesDialog()">
-                        <span>🏢</span> Generar Pisos desde la Grilla...
+                        title="Define los pisos sobre la grilla que dibujaste. Es el mismo cuadro que Editar > Pisos y Alturas."
+                        @click="cadSystem.openStoryDataDialog()">
+                        <span>🏢</span> Pisos y Alturas (Story Data)...
                     </button>
 
                     <div class="border-t border-gray-700 my-1"></div>
@@ -112,8 +115,9 @@
                     </div>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        title="En planta marca los vértices en 2D; en el visor 3D los marca sobre los nudos. Vértices a distinta cota = losa inclinada (techos). Clic derecho o Enter cierra el polígono."
                         @click="cadSystem.activateDrawMenuAction('draw-area-slab')">
-                        <span>🧱</span> Dibujar Losa / Área (Slab)
+                        <span>🧱</span> Dibujar Losa / Área (Slab) — 2D y 3D
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"

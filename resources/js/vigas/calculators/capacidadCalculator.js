@@ -32,8 +32,13 @@ export class CapacidadCalculator {
                 return {};
             };
 
-            const cmShearData = findForceValues("CM", "V2") || findForceValues("D", "V2") || {};
-            const cvShearData = findForceValues("CV", "V2") || findForceValues("L", "V2") || {};
+            // OJO: la clave del cortante de viga en todo este sistema es "V3"
+            // (así lo guarda dataCollector.js/rcBeamDesign.js y así lo lee
+            // shearCalculator.js), NO "V2" — buscar "V2" nunca encontraba nada
+            // y `cargascapacidadcmcv` (1.25×(Vcm+Vcv), el término de cortante
+            // por gravedad de Vu(cap)) quedaba siempre en 0.
+            const cmShearData = findForceValues("CM", "V3") || findForceValues("D", "V3") || {};
+            const cvShearData = findForceValues("CV", "V3") || findForceValues("L", "V3") || {};
 
             const getVal = (source, tramoIdx, positionIdx) => {
                 const tramoKey = `tramo${tramoIdx}`;
@@ -259,7 +264,7 @@ export class CapacidadCalculator {
                     generateColspanRow("Mn: izq", "Mn⁻", results.Mn_izq, "ton-m", 2), // Changed unit to ton-m for display clarity? Or keep kg-cm but use small value? User said "result... 63.29". That is Ton-m.
                     generateColspanRow("Mn: der", "Mn⁺", results.Mn_der, "ton-m", 2),
                     generateColspanRow("Capacidad cortante", "Vu(cap)", results.CapacidadCortante, "tonf", 2),
-                    generateColspanRow("Area de corte", "Acws", results.Acws, "tonf", 2),
+                    generateColspanRow("Area de corte", "Acws", results.Acws, "cm²", 2),
                     generateColspanRow("Cortante nominal proporcionada por el concreto", "Vc", results.Vc, "tonf", 0),
                     generateColspanRow("Cortante nominal proporcionada por el refuerzo", "Vs", results.Vs, "tonf", 0),
                     generateColspanRow("Espaciamiento requerido", "𝑆(cm)", results.es, "cm", 2),

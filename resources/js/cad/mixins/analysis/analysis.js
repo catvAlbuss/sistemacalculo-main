@@ -914,9 +914,16 @@ export const analysisMixin = {
     if (window.cadSystem && window.cadSystem.dynamicParams) {
       this.dynamicParams = window.cadSystem.dynamicParams;
     }
-    // Cargar cargas disponibles desde cadSystem
-    if (window.cadSystem && window.cadSystem.loadCases && window.cadSystem.loadCases.cases) {
-      this.availableLoads = window.cadSystem.loadCases.cases.map((c) => ({ name: c.name, type: c.type }));
+    // Cargas disponibles: el store real es `staticLoadCases.items` (diálogo
+    // "Definir Patrones de Carga" + import del .e2k). `loadCases.cases` es
+    // legacy y hoy arranca vacío.
+    const patrones = [
+      window.cadSystem?.staticLoadCases?.items,
+      window.cadSystem?.loadCases?.cases,
+    ].find((f) => Array.isArray(f) && f.length);
+
+    if (patrones) {
+      this.availableLoads = patrones.map((c) => ({ name: c.name, type: c.type }));
     }
   },
 
@@ -957,9 +964,15 @@ export const analysisMixin = {
       this.dbAccess = opts.dbAccess || { enabled: false, filename: "analysis_output" };
     }
 
-    // Cargar cargas disponibles
-    if (window.cadSystem && window.cadSystem.loadCases && window.cadSystem.loadCases.cases) {
-      this.availableLoads = window.cadSystem.loadCases.cases.map((c) => ({ name: c.name, type: c.type }));
+    // Cargas disponibles: mismo criterio que arriba — manda
+    // `staticLoadCases.items`, `loadCases.cases` queda como legacy.
+    const patronesDisp = [
+      window.cadSystem?.staticLoadCases?.items,
+      window.cadSystem?.loadCases?.cases,
+    ].find((f) => Array.isArray(f) && f.length);
+
+    if (patronesDisp) {
+      this.availableLoads = patronesDisp.map((c) => ({ name: c.name, type: c.type }));
     }
   },
 

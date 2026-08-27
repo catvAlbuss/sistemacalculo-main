@@ -1,3 +1,0 @@
-import{S as o}from"./analisis_estructural_de_armaduras-CBcawKDu.js";import"./livewire.esm-CO6ZehnT.js";import"./predimensionamiento-CxryAhEz.js";import"./preload-helper-BfFHrpNk.js";import"./color_scale-BGSv3LvJ.js";import"./zapatas2Core-BzoMxdJb.js";import"./mat4js.read-Dd8f86LV.js";import"./_commonjsHelpers-D6-XlEtG.js";import"./ubigeo-Cak7qga5.js";const r="oitFinalSimpleBlendPixelShader",t=`var uFrontColor: texture_2d<f32>;@fragment
-fn main(input: FragmentInputs)->FragmentOutputs {var fragCoord: vec2i=vec2i(fragmentInputs.position.xy);var frontColor: vec4f=textureLoad(uFrontColor,fragCoord,0);fragmentOutputs.color=frontColor;}
-`;o.ShadersStoreWGSL[r]||(o.ShadersStoreWGSL[r]=t);const f={name:r,shader:t};export{f as oitFinalSimpleBlendPixelShaderWGSL};

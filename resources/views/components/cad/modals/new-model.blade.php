@@ -107,6 +107,24 @@
                                     class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm">
                             </div>
                         </div>
+
+                        {{-- Alturas NO uniformes (opcional), igual que las luces de grilla.
+                             Si se llenan, mandan sobre la altura tipica. Ej: 4,3,3 --}}
+                        <div class="mt-3">
+                            <label class="block text-xs text-gray-400 mb-1">Alturas de piso no uniformes (m) - opcional</label>
+                            <input type="text" x-model="storyHeights" placeholder="ej: 4,3,3"
+                                class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm">
+                            <p class="text-[10px] text-gray-500 mt-1">
+                                Se lee de abajo hacia arriba (Piso 1, Piso 2, ...). Si la llenas, se ignora la altura tipica
+                                y el numero de pisos se calcula solo. Despues podes cambiarlas en Editar &gt; Pisos y Alturas.
+                            </p>
+                        </div>
+
+                        {{-- Vista previa de niveles --}}
+                        <div class="bg-gray-900/30 rounded p-2 mt-2">
+                            <div class="text-xs text-gray-400 mb-1">Niveles</div>
+                            <div class="text-xs text-blue-400" x-text="getStoryPreview()"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -165,7 +183,31 @@
             gridYSpacings: '',
             storyCount: 3,
             storyHeight: 3.0,
+            storyHeights: '',
             selectedTemplate: 'grid-only',
+
+            // "4,3,3" -> [4,3,3]; vacio -> null
+            parseNumberList(txt) {
+                if (!txt) return null;
+                const arr = String(txt)
+                    .split(/[,;\s]+/)
+                    .map((v) => parseFloat(v))
+                    .filter((v) => Number.isFinite(v) && v > 0);
+                return arr.length ? arr : null;
+            },
+
+            getStoryPreview() {
+                const heights = this.parseNumberList(this.storyHeights)
+                    || Array.from({ length: Math.max(0, Number(this.storyCount) || 0) },
+                                  () => Number(this.storyHeight) || 0);
+                let elevation = 0;
+                const parts = ['Base 0.00'];
+                heights.forEach((h, i) => {
+                    elevation += Number(h) || 0;
+                    parts.push('Piso ' + (i + 1) + ' ' + elevation.toFixed(2));
+                });
+                return parts.join('  |  ');
+            },
 
             getXLabels() {
                 const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
@@ -187,6 +229,7 @@
                 this.gridYSpacings = '';
                 this.storyCount = 3;
                 this.storyHeight = 3.0;
+                this.storyHeights = '';
                 this.selectedTemplate = 'grid-only';
                 this.open = true;
             },
@@ -219,6 +262,7 @@
                 };
                 const xSpacings = parseSpacings(this.gridXSpacings);
                 const ySpacings = parseSpacings(this.gridYSpacings);
+                const heights = parseSpacings(this.storyHeights);
 
                 const params = {
                     // Si hay luces no uniformes, el nº de ejes = nº de luces + 1.
@@ -228,8 +272,10 @@
                     gridYSpacing: Number(this.gridYSpacing || 5),
                     gridXSpacings: xSpacings, // array o null
                     gridYSpacings: ySpacings, // array o null
-                    storyCount: Number(this.storyCount || 3),
+                    // Alturas no uniformes mandan sobre la altura tipica.
+                    storyCount: heights ? heights.length : Number(this.storyCount || 3),
                     storyHeight: Number(this.storyHeight || 3),
+                    storyHeights: heights, // array o null
                     selectedTemplate: this.selectedTemplate || 'grid-only'
                 };
 

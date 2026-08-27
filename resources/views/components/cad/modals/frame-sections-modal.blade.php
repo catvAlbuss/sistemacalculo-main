@@ -75,6 +75,33 @@
                         </svg>
                         Modificar/Mostrar Sección...
                     </button>
+                    <button @click="if(armadoSoportado) defineRebar()"
+                            class="w-full text-left px-3 py-2 text-sm text-blue-400 hover:bg-gray-700 rounded transition-colors flex items-center gap-2"
+                            :class="{'opacity-50 cursor-not-allowed': !armadoSoportado}"
+                            :title="!armadoSoportado ? 'Solo disponible para secciones rectangulares o circulares' : ''">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h16v16H4z" />
+                            <circle cx="8" cy="8" r="1.2" fill="currentColor" stroke="none" />
+                            <circle cx="16" cy="8" r="1.2" fill="currentColor" stroke="none" />
+                            <circle cx="8" cy="16" r="1.2" fill="currentColor" stroke="none" />
+                            <circle cx="16" cy="16" r="1.2" fill="currentColor" stroke="none" />
+                        </svg>
+                        Definir Armado de Columna...
+                    </button>
+                    {{-- Armado LONGITUDINAL de viga (As sup/inf en cada extremo). No es lo
+                         mismo que el de columna: alimenta el tope por resistencia de vigas
+                         del corte de columnas (ACI 318 18.7.6.1.1), no un diagrama P-M-M.
+                         Ver resources/js/cad/mixins/analysis/beamRebarDesigner.js. --}}
+                    <button @click="if(armadoSoportado) defineBeamRebar()"
+                            class="w-full text-left px-3 py-2 text-sm text-blue-400 hover:bg-gray-700 rounded transition-colors flex items-center gap-2"
+                            :class="{'opacity-50 cursor-not-allowed': !armadoSoportado}"
+                            :title="!armadoSoportado ? 'Solo disponible para secciones rectangulares o circulares' : 'Acero longitudinal superior/inferior en cada extremo'">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16v10H4z" />
+                            <path stroke-linecap="round" stroke-width="2" d="M6 9.5h12M6 14.5h12" />
+                        </svg>
+                        Definir Armado de Viga...
+                    </button>
                     <button @click="if(selectedSectionName) confirmDelete()" class="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-gray-700 rounded transition-colors flex items-center gap-2" :class="{'opacity-50 cursor-not-allowed': !selectedSectionName}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -103,6 +130,28 @@
                     <input x-model="form.name" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm">
                 </div>
 
+                {{-- Vista previa de la sección, como la que ETABS muestra al costado
+                     del formulario. Se dibuja con la MISMA geometría que la huella en
+                     planta (renderer.js), así que sirve para verificar de un vistazo
+                     que los espejos y las dimensiones quedaron como uno quiere —
+                     que es donde más fácil se mete la pata con una L. --}}
+                <div x-show="['rect','circle','lconc','tee'].includes(form.sectionType)"
+                     class="mb-4 flex items-start gap-4">
+                    <div class="shrink-0 rounded border border-gray-700 bg-gray-900 p-2" style="width:190px">
+                        <div class="text-[10px] text-gray-500 mb-1">Vista de sección</div>
+                        <div x-html="previewSeccion()"></div>
+                        <div class="text-[10px] text-gray-600 mt-1 leading-tight">
+                            Eje <b class="text-emerald-400">2</b> arriba, eje <b class="text-sky-400">3</b> a la izquierda,
+                            igual que ETABS.
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-gray-500 pt-5" x-show="form.sectionType === 'lconc'">
+                        La vista de sección está rotada 90° respecto de la <b>planta</b>: ahí el eje 2 va
+                        hacia X y el 3 hacia Y. Si comparás la forma contra la vista en planta, tenelo
+                        en cuenta.
+                    </p>
+                </div>
+
                 {{-- Tipo de Sección --}}
                 <div class="mb-4">
                     <label class="block text-xs font-semibold text-gray-400 mb-2">Tipo de Sección</label>
@@ -112,8 +161,16 @@
                             <span class="text-sm">Rectangular (Concreto)</span>
                         </label>
                         <label class="flex items-center gap-2">
+                            <input type="radio" value="circle" x-model="form.sectionType">
+                            <span class="text-sm">Circular (Concreto)</span>
+                        </label>
+                        <label class="flex items-center gap-2">
                             <input type="radio" value="tee" x-model="form.sectionType">
                             <span class="text-sm">T (Concreto Tee)</span>
+                        </label>
+                        <label class="flex items-center gap-2">
+                            <input type="radio" value="lconc" x-model="form.sectionType">
+                            <span class="text-sm">L (Concreto)</span>
                         </label>
                         <label class="flex items-center gap-2">
                             <input type="radio" value="wf" x-model="form.sectionType">
@@ -284,14 +341,123 @@
                             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-300 font-mono">
                                 <span>A = <span x-text="rectPropsDisp.A"></span> <span x-text="unitLabels.area"></span></span>
                                 <span>J ≈ <span x-text="rectPropsDisp.J"></span> <span x-text="unitLabels.inertia"></span></span>
-                                <span>I33 (mayor, eje 3) = <span x-text="rectPropsDisp.Iz"></span> <span x-text="unitLabels.inertia"></span></span>
-                                <span>I22 (menor, eje 2) = <span x-text="rectPropsDisp.Iy"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I33 (<span x-text="ejeMayorMenor(rectPropsDisp, 'Iz')"></span>, eje 3) = <span x-text="rectPropsDisp.Iz"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I22 (<span x-text="ejeMayorMenor(rectPropsDisp, 'Iy')"></span>, eje 2) = <span x-text="rectPropsDisp.Iy"></span> <span x-text="unitLabels.inertia"></span></span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {{-- Formulario para T (Concrete Tee) estilo ETABS --}}
+                {{-- Circular de concreto. Un solo dato geométrico, el diámetro,
+                     igual que el "Concrete Circle" de ETABS. Las propiedades son
+                     cerradas: A = piD²/4, I = piD⁴/64 y J = 2I EXACTO (en un
+                     círculo, a diferencia del rectángulo donde J es aproximado). --}}
+                <div x-show="form.sectionType === 'circle'">
+                    <div class="border-t border-gray-700 pt-3 mb-4">
+                        <label class="block text-xs font-semibold text-blue-400 mb-2">Sección Circular de Concreto</label>
+
+                        <div class="mb-3">
+                            <label class="block text-xs text-gray-400">Material</label>
+                            <select x-model="form.circleMaterial" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <option value="">-- Seleccionar material --</option>
+                                <template x-for="mat in materialsList" :key="mat.name">
+                                    <option :value="mat.name" x-text="mat.name + (mat.descripcion ? ' (' + mat.descripcion + ')' : '')"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 mb-3">
+                            <div>
+                                <label class="block text-xs text-gray-400">Diámetro (cm)</label>
+                                <input type="number" step="0.5" min="1" x-model.number="form.circleD"
+                                       class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            </div>
+                        </div>
+
+                        {{-- Mismo formato que el bloque rectangular: unidades activas
+                             y el helper de conversión que ya usa el resto del modal. --}}
+                        <div class="mt-3 p-2 bg-gray-900 rounded border border-gray-700">
+                            <div class="text-xs text-gray-400 mb-1">Propiedades calculadas:</div>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-300 font-mono">
+                                <span>A = <span x-text="circlePropsDisp.A"></span> <span x-text="unitLabels.area"></span></span>
+                                <span>J = <span x-text="circlePropsDisp.J"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I33 = <span x-text="circlePropsDisp.Iz"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I22 = <span x-text="circlePropsDisp.Iy"></span> <span x-text="unitLabels.inertia"></span></span>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-gray-500 mt-1">
+                            I<sub>33</sub> = I<sub>22</sub> por simetría. Para diseñarla, definí el armado con
+                            <b>"Definir Armado de Columna..."</b>: en circular es un anillo de n varillas
+                            (patrón C-n) y hay que elegir espiral o estribos, que cambia el tope axial y el Φ.
+                        </p>
+                    </div>
+                </div>
+
+                {{-- L de concreto ("Concrete L" de ETABS). NO es el perfil "Angular (L)"
+                     de arriba, que es de ACERO. Los espejos son los MIRROR2/MIRROR3 del
+                     .e2k y cambian la orientación de la pata; en planta la combinación
+                     con `ANG` decide hacia dónde apunta. --}}
+                <div x-show="form.sectionType === 'lconc'">
+                    <div class="border-t border-gray-700 pt-3 mb-4">
+                        <label class="block text-xs font-semibold text-blue-400 mb-2">Sección L de Concreto</label>
+
+                        <div class="mb-3">
+                            <label class="block text-xs text-gray-400">Material</label>
+                            <select x-model="form.lMaterial" class="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <option value="">-- Seleccionar material --</option>
+                                <template x-for="mat in materialsList" :key="mat.name">
+                                    <option :value="mat.name" x-text="mat.name + (mat.descripcion ? ' (' + mat.descripcion + ')' : '')"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <label class="text-xs text-gray-400">Peralte total D (cm)
+                                <span class="block text-[9px] text-gray-600">Total Depth</span>
+                                <input type="number" step="0.5" min="1" x-model.number="form.lD"
+                                       class="w-full mt-0.5 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            </label>
+                            <label class="text-xs text-gray-400">Ancho total B (cm)
+                                <span class="block text-[9px] text-gray-600">Total Width</span>
+                                <input type="number" step="0.5" min="1" x-model.number="form.lB"
+                                       class="w-full mt-0.5 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            </label>
+                            <label class="text-xs text-gray-400">Espesor pata horizontal (cm)
+                                <span class="block text-[9px] text-gray-600">Horizontal Leg Thickness</span>
+                                <input type="number" step="0.5" min="1" x-model.number="form.lTF"
+                                       class="w-full mt-0.5 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            </label>
+                            <label class="text-xs text-gray-400">Espesor pata vertical (cm)
+                                <span class="block text-[9px] text-gray-600">Vertical Leg Thickness</span>
+                                <input type="number" step="0.5" min="1" x-model.number="form.lTW"
+                                       class="w-full mt-0.5 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            </label>
+                        </div>
+
+                        <div class="flex gap-4 mb-3 text-xs text-gray-300">
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" x-model="form.lMirror2" class="accent-blue-600">
+                                Espejo sobre el eje 2
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" x-model="form.lMirror3" class="accent-blue-600">
+                                Espejo sobre el eje 3
+                            </label>
+                        </div>
+
+                        <div class="mt-3 p-2 bg-gray-900 rounded border border-gray-700">
+                            <div class="text-xs text-gray-400 mb-1">Propiedades calculadas:</div>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-300 font-mono">
+                                <span>A = <span x-text="lconcPropsDisp.A"></span> <span x-text="unitLabels.area"></span></span>
+                                <span>J = <span x-text="lconcPropsDisp.J"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I33 = <span x-text="lconcPropsDisp.Iz"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I22 = <span x-text="lconcPropsDisp.Iy"></span> <span x-text="unitLabels.inertia"></span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div x-show="form.sectionType === 'tee'">
                     <div class="border-t border-gray-700 pt-3 mb-4">
                         <label class="block text-xs font-semibold text-blue-400 mb-2">T (Concreto Tee) — dimensiones en cm</label>
@@ -352,8 +518,8 @@
                             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-300 font-mono">
                                 <span>A = <span x-text="teePropsDisp.A"></span> <span x-text="unitLabels.area"></span></span>
                                 <span>J ≈ <span x-text="teePropsDisp.J"></span> <span x-text="unitLabels.inertia"></span></span>
-                                <span>I33 (mayor, eje 3) = <span x-text="teePropsDisp.Iz"></span> <span x-text="unitLabels.inertia"></span></span>
-                                <span>I22 (menor, eje 2) = <span x-text="teePropsDisp.Iy"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I33 (<span x-text="ejeMayorMenor(teePropsDisp, 'Iz')"></span>, eje 3) = <span x-text="teePropsDisp.Iz"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I22 (<span x-text="ejeMayorMenor(teePropsDisp, 'Iy')"></span>, eje 2) = <span x-text="teePropsDisp.Iy"></span> <span x-text="unitLabels.inertia"></span></span>
                             </div>
                         </div>
                     </div>
@@ -468,8 +634,8 @@
                             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-300 font-mono">
                                 <span>A = <span x-text="tubePropsDisp.A"></span> <span x-text="unitLabels.area"></span></span>
                                 <span>J ≈ <span x-text="tubePropsDisp.J"></span> <span x-text="unitLabels.inertia"></span></span>
-                                <span>I33 (mayor, eje 3) = <span x-text="tubePropsDisp.Iz"></span> <span x-text="unitLabels.inertia"></span></span>
-                                <span>I22 (menor, eje 2) = <span x-text="tubePropsDisp.Iy"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I33 (<span x-text="ejeMayorMenor(tubePropsDisp, 'Iz')"></span>, eje 3) = <span x-text="tubePropsDisp.Iz"></span> <span x-text="unitLabels.inertia"></span></span>
+                                <span>I22 (<span x-text="ejeMayorMenor(tubePropsDisp, 'Iy')"></span>, eje 2) = <span x-text="tubePropsDisp.Iy"></span> <span x-text="unitLabels.inertia"></span></span>
                             </div>
                         </div>
                     </div>
@@ -696,6 +862,10 @@
                 rectB: 30,
                 rectH: 40,
                 rectMaterial: '',
+                circleD: 60,
+                circleMaterial: '',
+                lD: 70, lB: 70, lTF: 30, lTW: 30,
+                lMirror2: false, lMirror3: false, lMaterial: '',
                 // Sección tubo (HSS) — dimensiones en cm; el tubo típico de acero
                 // (ETABS Steel Tube): peralte × ancho × espesor de pared.
                 tubeDepth: 10,        // cm (Total Depth)
@@ -733,6 +903,131 @@
             set dispRectH(v) { this.form.rectH = window.cadUnits ? window.cadUnits.lenDispToCm(v) : Number(v) || 0; },
 
             // Propiedades calculadas convertidas a la unidad de longitud activa.
+            /**
+             * Rotulo "mayor"/"menor" para una inercia, comparando los VALORES
+             * reales en vez de asumir que I33 siempre es la mayor. Con una
+             * seccion mas ancha que alta (b > h) la mayor es I22, y el rotulo
+             * fijo anterior decia lo contrario. Los valores nunca estuvieron
+             * mal; solo el rotulo.
+             */
+            ejeMayorMenor(props, clave) {
+                const iz = parseFloat(props?.Iz);
+                const iy = parseFloat(props?.Iy);
+                if (!Number.isFinite(iz) || !Number.isFinite(iy)) return '';
+                if (Math.abs(iz - iy) < 1e-12) return 'iguales';
+                const mayorEsIz = iz > iy;
+                return (clave === 'Iz') === mayorEsIz ? 'mayor' : 'menor';
+            },
+
+            /**
+             * Propiedades de la sección circular, en SI. `J = 2I` es EXACTO en un
+             * círculo — no la aproximación de pared que se usa en el rectángulo.
+             */
+            /**
+             * Propiedades de la L. Delega en `_lSectionProps` del mixin de import,
+             * que es EL MISMO cálculo que usa el .e2k — así una sección hecha a
+             * mano y una importada no pueden diferir.
+             */
+            /**
+             * SVG de la sección activa, en la orientación del diálogo de ETABS
+             * (eje 2 arriba, eje 3 a la izquierda).
+             *
+             * El polígono en ejes locales es EL MISMO que usa la huella en planta
+             * (renderer.js `getColumnFootprintLocalPolygon`); acá solo cambia el
+             * mapeo a pantalla: x_svg = −v (eje 3 a la izquierda), y_svg = −u
+             * (eje 2 arriba, con el eje Y del SVG invertido).
+             */
+            previewSeccion() {
+                const t = this.form.sectionType;
+                const num = (v) => Number(v) || 0;
+                let pts = null, r = 0;
+
+                if (t === 'rect') {
+                    const b = num(this.form.rectB), h = num(this.form.rectH);
+                    if (!(b > 0 && h > 0)) return '';
+                    const hd = h / 2, hb = b / 2;
+                    pts = [[-hd, -hb], [hd, -hb], [hd, hb], [-hd, hb]];
+                } else if (t === 'tee') {
+                    const D = num(this.form.teeDepth), B = num(this.form.teeWidth);
+                    const TF = num(this.form.teeFlangeThick), TW = num(this.form.teeWebThick);
+                    if (!(D > 0 && B > 0 && TF > 0 && TW > 0 && TF < D && TW < B)) return '';
+                    const hd = D / 2, hb = B / 2, ht = TW / 2, uf = D / 2 - TF;
+                    pts = [[hd, -hb], [hd, hb], [uf, hb], [uf, ht], [-hd, ht], [-hd, -ht], [uf, -ht], [uf, -hb]];
+                } else if (t === 'lconc') {
+                    const D = num(this.form.lD), B = num(this.form.lB);
+                    const TF = num(this.form.lTF), TW = num(this.form.lTW);
+                    if (!(D > 0 && B > 0 && TF > 0 && TW > 0 && TF < D && TW < B)) return '';
+                    const hd = D / 2, hb = B / 2;
+                    pts = [[-hd, hb], [hd, hb], [hd, -hb], [hd - TF, -hb], [hd - TF, hb - TW], [-hd, hb - TW]];
+                    if (this.form.lMirror2) pts = pts.map(([u, v]) => [u, -v]);
+                    if (this.form.lMirror3) pts = pts.map(([u, v]) => [-u, v]);
+                } else if (t === 'circle') {
+                    r = num(this.form.circleD) / 2;
+                    if (!(r > 0)) return '';
+                } else {
+                    return '';
+                }
+
+                const R = r || Math.max(...pts.flat().map(Math.abs));
+                const pad = R * 0.35, L = R + pad;
+                const forma = r
+                    ? `<circle cx="0" cy="0" r="${r}" fill="rgba(37,99,235,0.35)" stroke="#60a5fa" stroke-width="${R * 0.02}"/>`
+                    : `<polygon points="${pts.map(([u, v]) => `${-v},${-u}`).join(' ')}"
+                                fill="rgba(37,99,235,0.35)" stroke="#60a5fa" stroke-width="${R * 0.02}"/>`;
+
+                const f = R * 0.16, e = R * 0.02;
+                return `<svg viewBox="${-L} ${-L} ${2 * L} ${2 * L}" style="width:100%;height:auto">
+                    ${forma}
+                    <line x1="0" y1="0" x2="0" y2="${-R * 0.75}" stroke="#34d399" stroke-width="${e}"/>
+                    <text x="${f * 0.4}" y="${-R * 0.8}" fill="#34d399" font-size="${f}">2</text>
+                    <line x1="0" y1="0" x2="${-R * 0.75}" y2="0" stroke="#38bdf8" stroke-width="${e}"/>
+                    <text x="${-R * 0.95}" y="${f * 0.4}" fill="#38bdf8" font-size="${f}">3</text>
+                    <circle cx="0" cy="0" r="${R * 0.03}" fill="#f87171"/>
+                </svg>`;
+            },
+
+            get lconcProps() {
+                const D = (Number(this.form.lD) || 0) / 100;
+                const B = (Number(this.form.lB) || 0) / 100;
+                const TF = (Number(this.form.lTF) || 0) / 100;
+                const TW = (Number(this.form.lTW) || 0) / 100;
+                const p = window.cadSystem?._lSectionProps?.(D, B, TF, TW);
+                return p || { A: 0, Iz: 0, Iy: 0, J: 0 };
+            },
+
+            get lconcPropsDisp() {
+                this.unitsVersion;
+                const p = this.lconcProps;
+                const u = window.cadUnits;
+                if (!u) return { A: p.A, Iz: p.Iz, Iy: p.Iy, J: p.J };
+                return {
+                    A: u.areaM2ToDisp(p.A),
+                    Iz: u.inertiaM4ToDisp(p.Iz),
+                    Iy: u.inertiaM4ToDisp(p.Iy),
+                    J: u.inertiaM4ToDisp(p.J),
+                };
+            },
+
+            get circleProps() {
+                const D = (Number(this.form.circleD) || 0) / 100; // cm -> m
+                const A = Math.PI * D * D / 4;
+                const I = Math.PI * Math.pow(D, 4) / 64;
+                return { A, Iz: I, Iy: I, J: 2 * I };
+            },
+
+            get circlePropsDisp() {
+                this.unitsVersion;
+                const p = this.circleProps;
+                const u = window.cadUnits;
+                if (!u) return { A: p.A, Iz: p.Iz, Iy: p.Iy, J: p.J };
+                return {
+                    A: u.areaM2ToDisp(p.A),
+                    Iz: u.inertiaM4ToDisp(p.Iz),
+                    Iy: u.inertiaM4ToDisp(p.Iy),
+                    J: u.inertiaM4ToDisp(p.J),
+                };
+            },
+
             get rectPropsDisp() {
                 this.unitsVersion;
                 const p = this.rectProps;
@@ -872,6 +1167,38 @@
                 return { W, H, x, y, cx, cy, iW, iH, ix, iy };
             },
 
+            // Posiciones de armado REAL (cm, centroide en 0,0) para la sección que
+            // se está EDITANDO — nunca para una nueva sección sin guardar (isNew).
+            // Dos fuentes posibles, mismo orden de prioridad que rcColumnDesign.js:
+            // (1) armado real parseado del .e2k (CONCRETESECTION/PATTERN), (2)
+            // armado definido a mano (Definir Armado de Columna...). Si no hay
+            // ninguno (p.ej. una VIGA, o una columna aún sin armar), no se dibuja
+            // nada — ETABS tampoco dibuja armado ahí hasta que existe uno real;
+            // antes esto mostraba 8 puntos fijos como decoración para CUALQUIER
+            // sección rectangular, incluidas vigas, lo cual era engañoso.
+            get sectionRebarPoints() {
+                if (this.isNew || !this.editingSection?.name || !window.cadSystem) return [];
+                const sec = this.editingSection;
+                const b = Number(this.form.rectB) || 0;
+                const h = Number(this.form.rectH) || 0;
+
+                if (sec.rebarPattern?.type === 'rectangular' && sec.longBarDiameter > 0) {
+                    return window.cadSystem._columnRebarBarPositions?.({
+                        b, h, cover: sec.cover || 0,
+                        n2: sec.rebarPattern.n2, n3: sec.rebarPattern.n3,
+                        longBarDiameterCm: sec.longBarDiameter * 100, // m -> cm
+                        confineBarDiameterCm: (sec.confineBarDiameter || 0) * 100,
+                    }) || [];
+                }
+
+                const manual = window.cadSystem.manualColumnRebar?.[sec.name];
+                if (manual) {
+                    return window.cadSystem.columnRebarPreviewPoints?.(manual) || [];
+                }
+
+                return [];
+            },
+
             // Geometría del gráfico de la sección (ejes locales 2=peralte, 3=ancho).
             // El centro de la sección está en (cx, cy); el peralte h va en vertical
             // (eje 2 ↑) y el ancho b en horizontal (eje 3 ←), como en ETABS.
@@ -883,17 +1210,12 @@
                 const H = 120 * h / m;   // px
                 const cx = 120, cy = 100;
                 const x = cx - W / 2, y = cy - H / 2;
-                // Barras de refuerzo: esquinas + una intermedia por lado
-                const bars = [];
-                const insX = Math.min(10, W / 4), insY = Math.min(10, H / 4);
-                const xs = [x + insX, cx, x + W - insX];
-                const ys = [y + insY, cy, y + H - insY];
-                let id = 0;
-                for (const bx of xs) for (const by of ys) {
-                    // saltar el centro (no hay barra al medio)
-                    if (bx === cx && by === cy) continue;
-                    bars.push({ id: id++, x: bx, y: by });
-                }
+                const pxPerUnit = 120 / m;
+                const bars = this.sectionRebarPoints.map((p, id) => ({
+                    id,
+                    x: cx + p.x * pxPerUnit,
+                    y: cy - p.y * pxPerUnit,
+                }));
                 return { W, H, x, y, cx, cy, bars };
             },
 
@@ -1075,6 +1397,34 @@
                 return filtered;
             },
 
+            get selectedSectionObj() {
+                return this.sections.find((s) => s.name === this.selectedSectionName) || null;
+            },
+
+            /**
+             * Formas cuyo armado sabe manejar el disenador: rectangular (grilla
+             * n2xn3) y CIRCULAR (anillo C-n). El resto -L, T, tubo, Section
+             * Designer- no tiene geometria de armado definida.
+             */
+            get armadoSoportado() {
+                const t = String(this.selectedSectionObj?.type || '').toLowerCase();
+                return t === 'rect' || t === 'circle' || t === 'circular';
+            },
+
+            /** Abre el diseñador de armado a mano (ver column-rebar-designer-modal.blade.php), keyed por NOMBRE de sección — aplica a toda columna que use esta propiedad, igual que el Section Designer de ETABS. */
+            defineRebar: function() {
+                const sec = this.selectedSectionObj;
+                if (!sec) return;
+                window.cadSystem?.openColumnRebarDesigner?.(sec.name, { b: sec.b, h: sec.h, type: sec.type, diameter: sec.diameter, label: sec.name });
+            },
+
+            /** Idem para VIGAS (ver beam-rebar-designer-modal.blade.php): As superior/inferior en los extremos I y J. */
+            defineBeamRebar: function() {
+                const sec = this.selectedSectionObj;
+                if (!sec) return;
+                window.cadSystem?.openBeamRebarDesigner?.(sec.name, { b: sec.b, h: sec.h, label: sec.name });
+            },
+
             showToastMessage: function(message, type) {
                 if (this.toastTimeout) clearTimeout(this.toastTimeout);
                 this.toastMessage = message;
@@ -1204,10 +1554,27 @@
                 }
             },
 
+            /**
+             * Traduce el `type` guardado al valor que usan los radios del
+             * formulario. Solo la L necesita traducción hoy; el resto coincide.
+             */
+            _tipoDeFormulario: function(type) {
+                const t = String(type || '').toLowerCase();
+                if (t === 'l') return 'lconc';               // Concrete L
+                if (t === 'circular') return 'circle';       // alias del importador
+                return type || 'wf';
+            },
+
             sectionToForm: function(section) {
                 return {
                     name: section.name,
-                    sectionType: section.type || 'wf',
+                    // El TIPO guardado y el valor del RADIO no siempre coinciden:
+                    // la L de concreto se guarda como "L" (lo que ponen el
+                    // importador, el renderer y el export) pero el radio la
+                    // identifica como "lconc" para no chocar con el angular de
+                    // ACERO, que es "angle". Sin este mapeo, al abrir una sección
+                    // importada del .e2k no quedaba marcado NINGÚN tipo.
+                    sectionType: this._tipoDeFormulario(section.type),
                     autoSectionName: section.autoSectionName || 'A-CompBm',
                     startingSection: section.startingSection || '',
                     medianSection: section.medianSection || '',
@@ -1219,6 +1586,15 @@
                     wfWeight: section.weight || 12,
                     wfArea: section.area || 3.54,
                     wfMaterial: section.type === 'wf' ? (section.material || '') : '',
+                    lD: section.h != null ? section.h : 70,
+                    lB: section.b != null ? section.b : 70,
+                    lTF: section.lFlangeThick != null ? section.lFlangeThick : 30,
+                    lTW: section.lWebThick != null ? section.lWebThick : 30,
+                    lMirror2: !!section.lMirror2,
+                    lMirror3: !!section.lMirror3,
+                    lMaterial: section.material || '',
+                    circleD: section.diameter != null ? section.diameter : (section.h != null ? section.h : 60),
+                    circleMaterial: section.material || '',
                     rectB: section.b != null ? section.b : 30,
                     rectH: section.h != null ? section.h : 40,
                     rectMaterial: section.type === 'rect' ? (section.material || '') : '',
@@ -1337,6 +1713,49 @@
                     sectionToSave.J = p.J;          // m⁴ (torsión)
                     sectionToSave.description = 'Concreto ' + b + 'x' + h + ' cm' +
                         (this.form.rectMaterial ? ' (' + this.form.rectMaterial + ')' : '');
+                } else if (this.form.sectionType === 'lconc') {
+                    var lD = Number(this.form.lD) || 0, lB = Number(this.form.lB) || 0;
+                    var lTF = Number(this.form.lTF) || 0, lTW = Number(this.form.lTW) || 0;
+                    if (!(lD > 0 && lB > 0 && lTF > 0 && lTW > 0 && lTF < lD && lTW < lB)) {
+                        this.showToastMessage('Revise las dimensiones de la L (los espesores deben ser menores que D y B)', 'error');
+                        return;
+                    }
+                    var lp = this.lconcProps;
+                    sectionToSave.h = lD;              // cm — peralte D
+                    sectionToSave.b = lB;              // cm — ancho B
+                    sectionToSave.lFlangeThick = lTF;  // cm
+                    sectionToSave.lWebThick = lTW;     // cm
+                    sectionToSave.lMirror2 = !!this.form.lMirror2;
+                    sectionToSave.lMirror3 = !!this.form.lMirror3;
+                    sectionToSave.material = this.form.lMaterial || null;
+                    sectionToSave.area = lp.A; sectionToSave.A = lp.A;
+                    sectionToSave.Iz = lp.Iz; sectionToSave.Iy = lp.Iy; sectionToSave.J = lp.J;
+                        // El resto del sistema (renderer, diseño, export) identifica la L
+                    // como type "L" — el mismo que pone el importador del .e2k.
+                    sectionToSave.type = 'L';
+                    sectionToSave.description = 'Concreto L ' + lD + 'x' + lB + 'x' + lTF + ' cm' +
+                        (this.form.lMaterial ? ' (' + this.form.lMaterial + ')' : '');
+                } else if (this.form.sectionType === 'circle') {
+                    var cD = Number(this.form.circleD) || 0;
+                    if (cD <= 0) {
+                        this.showToastMessage('Ingrese un diámetro válido (cm)', 'error');
+                        return;
+                    }
+                    var cp = this.circleProps;
+                    sectionToSave.diameter = cD;   // cm
+                    // b/h iguales al diámetro: es la caja envolvente, y así lo que
+                    // dibuja la huella en planta y lo que lee el diseño tienen algo
+                    // coherente aunque no miren `diameter`.
+                    sectionToSave.b = cD;
+                    sectionToSave.h = cD;
+                    sectionToSave.material = this.form.circleMaterial || null;
+                    sectionToSave.area = cp.A;
+                    sectionToSave.A = cp.A;
+                    sectionToSave.Iz = cp.Iz;
+                    sectionToSave.Iy = cp.Iy;
+                    sectionToSave.J = cp.J;
+                    sectionToSave.description = 'Concreto Ø' + cD + ' cm' +
+                        (this.form.circleMaterial ? ' (' + this.form.circleMaterial + ')' : '');
                 } else if (this.form.sectionType === 'tee') {
                     var tD = Number(this.form.teeDepth) || 0;
                     var tB = Number(this.form.teeWidth) || 0;

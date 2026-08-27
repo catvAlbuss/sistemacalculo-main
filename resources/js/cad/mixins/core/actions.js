@@ -28,7 +28,21 @@ import {
   loadRealFrameForceResults,
 } from "../../engine/frameForceBackend.js";
 
+import {
+  showFrameMemberDiagram,
+} from "../../diagrams/frameForceMemberDialog.js";
+
 export const actionsMixin = {
+
+  /**
+   * Diagramas de UNA barra (clic derecho sobre ella en 3D), estilo ETABS.
+   * Lo llama viewer3d.js desde el observable del puntero. No dispara análisis:
+   * lee el `frameForceResults` que ya está cargado.
+   */
+  showFrameMemberDiagram(frameId) {
+    return showFrameMemberDiagram(this, frameId);
+  },
+
   // ------------------------------------------------------------------
   // 6. ACCIONES DE LA BARRA DE HERRAMIENTAS (Diseñar, Tareas, Estructura, Resultados)
   // ------------------------------------------------------------------
@@ -77,6 +91,14 @@ export const actionsMixin = {
   },
 
   activateDrawMenuAction(action) {
+    // Una sola herramienta de dibujo activa a la vez: al cambiar de
+    // herramienta se descarta la losa 3D en curso. Si no, su polígono a medio
+    // marcar quedaría fantasma en el visor y el clic izquierdo del 3D seguiría
+    // tomado por el dibujo de losa.
+    if (action !== "draw-area-slab" && this.activeDrawTool === "slab") {
+      this.cancelSlabDrawingMode?.({ silent: true });
+    }
+
     switch (action) {
       case "select-object":
         this.clearAllSelections?.();
@@ -150,8 +172,13 @@ export const actionsMixin = {
 
       case "draw-area-slab":
         this.clearAllSelections?.();
+        // Igual que Draw Frame: UNA herramienta que sirve en los dos visores.
+        // En 2D dibuja el AreaDrawingState (planta); en 3D el observable de
+        // Babylon marca vértices sobre nudos reales (mixins/edit/draw-slab-3d.js),
+        // que es lo que permite armar un techo inclinado viendo la pendiente.
+        this.startSlabDrawingMode?.();
         this.setState(this.slabDrawingState);
-        this.showMessage("Modo dibujar losa / área activado");
+        this.showMessage("Modo dibujar losa / área activado. Marque vértices en planta o sobre nudos en 3D.");
         break;
 
       case "draw-area-slab-rectangle": {
@@ -724,6 +751,21 @@ export const actionsMixin = {
     console.log("Design action:", action);
 
     switch (action) {
+      // ===============================
+      // RC BEAM DESIGN (ACI-318 / E.060)
+      // ===============================
+      case "rc-beam-design":
+        this.openRcBeamDesignDialog();
+        break;
+
+      case "rc-column-design":
+        this.openRcColumnDesignDialog();
+        break;
+
+      case "rc-aligerado-design":
+        this.openRcAligeradoDesignDialog();
+        break;
+
       // ===============================
       // STEEL FRAME DESIGN
       // ===============================

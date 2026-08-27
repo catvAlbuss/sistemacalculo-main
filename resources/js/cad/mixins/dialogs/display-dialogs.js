@@ -157,6 +157,30 @@ export const displayDialogsMixin = {
     );
   },
 
+  /**
+   * Flecha del sentido de reparto de la carga en las losas de UNA VÍA
+   * (aligerados), como la que dibuja ETABS. Decide a qué vigas les entrega la
+   * carga el panel — van las PERPENDICULARES a la flecha. Sirve para cazar de
+   * un vistazo un `ANG` importado con 90° de error: la carga total se conserva
+   * igual, así que un giro no rompe nada visible salvo esto.
+   */
+  toggleSlabLoadDirection() {
+    this.ensureDisplayOptions?.();
+    if (!this.displayOptions) this.displayOptions = {};
+    const next = this.displayOptions.showSlabLoadDirection === false;
+    this.displayOptions.showSlabLoadDirection = next;
+
+    this.redraw?.();
+
+    const oneWay = (this.areas || []).filter((a) => a?.oneWayLoadDist === true).length;
+
+    this.showMessage?.(
+      next
+        ? `Sentido de armado visible en ${oneWay} losa(s) de una vía.`
+        : "Sentido de armado oculto.",
+    );
+  },
+
   openShowDeformedShapeDialog() {
     this.ensureDisplayOptions();
 
@@ -1474,24 +1498,43 @@ export const displayDialogsMixin = {
       .map(({ _z, ...row }) => row);
   },
 
-  // ---- Base Reactions (por caso). Motor A entrega FX/FY; momentos pendientes. ----
+  /**
+   * Base Reactions (una fila por caso espectral).
+   *
+   * Delega en `_buildEtabsStyleBaseShearRows` (seismic/results.js), que es la
+   * implementación VALIDADA contra ETABS (0.55% de diferencia media en FX/FY/
+   * MX/MY/MZ sobre un modelo real con muros, 2026-08-18).
+   *
+   * Antes esta función tenía su PROPIA lectura de `tables.base_shear`, y estaba
+   * incompleta en dos cosas:
+   *   - Tomaba `base_shear_N` (la componente PRIMARIA de cada rama) en vez de
+   *     `base_shear_fx_N`/`base_shear_fy_N`, así que perdía el ACOPLAMIENTO
+   *     CRUZADO (la reacción en Y que produce la excitación en X, grande en
+   *     estructuras con muros/asimétricas): la componente cruzada salía ~63%
+   *     baja — exactamente el 30% del espectro ortogonal y nada más.
+   *   - Devolvía MX/MY/MZ fijos en 0, cuando el motor sí los calcula.
+   * El resultado era que "Mostrar tablas" y "Resultados sísmicos tipo ETABS"
+   * mostraban números DISTINTOS para la misma tabla. Una sola fuente ahora.
+   */
   _buildBaseReactionsShowRows() {
     const rows = [];
     this._getShowTablesCasesTables().forEach(({ caseName, tables }) => {
       const bs = tables?.base_shear;
       if (!Array.isArray(bs) || !bs.length) return;
-      const findN = (dir) =>
-        Number(bs.find((r) => String(r?.direction || "").toUpperCase() === dir)?.base_shear_N) || 0;
+
+      const [combinado] = this._buildEtabsStyleBaseShearRows(bs) || [];
+      if (!combinado) return;
+
       rows.push({
         "Output Case": caseName,
         "Case Type": "LinRespSpec",
         "Step Type": "Max",
-        FX: this._numberForShowTables(this._showTablesNToTonf(findN("X")), 0),
-        FY: this._numberForShowTables(this._showTablesNToTonf(findN("Y")), 0),
-        FZ: 0,
-        MX: 0,
-        MY: 0,
-        MZ: 0,
+        FX: this._numberForShowTables(this._showTablesNToTonf(combinado.fx_N), 0),
+        FY: this._numberForShowTables(this._showTablesNToTonf(combinado.fy_N), 0),
+        FZ: this._numberForShowTables(this._showTablesNToTonf(combinado.fz_N), 0),
+        MX: this._numberForShowTables(this._showTablesNToTonf(combinado.mx_Nm), 0),
+        MY: this._numberForShowTables(this._showTablesNToTonf(combinado.my_Nm), 0),
+        MZ: this._numberForShowTables(this._showTablesNToTonf(combinado.mz_Nm), 0),
       });
     });
     return rows;

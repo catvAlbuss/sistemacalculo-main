@@ -353,6 +353,18 @@ Route::prefix('api/backend')
             return response($body, $status)->header('Content-Type', 'application/json');
         });
 
+        Route::post('/column-interaction', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('column-interaction', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
+        Route::post('/column-shear', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('column-shear', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
+
         Route::post('/seismic/modal', function () use ($jsonPayload) {
             [$status, $body] = PythonEngineController::run('seismic-modal', $jsonPayload());
 

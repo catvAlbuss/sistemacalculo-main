@@ -263,6 +263,20 @@ export const jsonIoMixin = {
       elementType: frame.elementType || frame.type || "beam",
       objectType: frame.objectType || "frame",
 
+      // Identidad ORIGINAL de ETABS. La pone el import del .e2k y es lo ÚNICO
+      // que permite cruzar nuestras tablas contra las de ETABS (que van por
+      // Story + Label; el id de la app es un correlativo que no significa nada
+      // afuera). No estaba en esta lista blanca, así que se perdía en silencio
+      // al guardar y reabrir: el CSV salía con Story/Label vacíos y el cruce
+      // dejaba de funcionar sin ningún aviso.
+      e2kName: frame.e2kName ?? null,
+      e2kStory: frame.e2kStory ?? null,
+
+      // Rotación del eje local (ETABS ANG). El LOADER ya la leía, pero acá
+      // nunca se escribía: una columna T/L rotada perdía su orientación al
+      // guardar y reabrir, y volvía con la rigidez X↔Y intercambiada.
+      localAxisAngle: Number(frame.localAxisAngle) || 0,
+
       visible: frame.visible !== false,
 
       E: frame.E ?? null,
@@ -339,6 +353,13 @@ export const jsonIoMixin = {
       loads: clean(area.loads, []),
       areaLoads: clean(area.areaLoads, []),
 
+      // Dirección de reparto de la carga en losas de UNA dirección (ETABS ANG
+      // del AREAASSIGN; es la flecha que se dibuja sobre la losa y decide a qué
+      // vigas va la carga). El loader de áreas propaga todo con spread, así que
+      // solo faltaba ESCRIBIRLA: se perdía en cada guardado y la losa volvía con
+      // el reparto en la dirección por defecto.
+      loadDistAngle: Number(area.loadDistAngle) || 0,
+
       groupIds: clean(area.groupIds, []),
       groupNames: clean(area.groupNames, []),
       groups: clean(area.groups, []),
@@ -408,6 +429,16 @@ export const jsonIoMixin = {
         materiales: clean(this.materiales, []),
 
         frameSections: clean(this.frameSections?.sections || this.frameSections?.items || [], []),
+
+        // Armado de columna definido a mano (Diseñar Columna ▸ "Definir
+        // armado...") — por NOMBRE de sección, para columnas sin
+        // CONCRETESECTION real en el .e2k (auto-diseño en ETABS) o en
+        // modelos dibujados desde cero. Ver mixins/analysis/columnRebarDesigner.js.
+        manualColumnRebar: clean(this.manualColumnRebar, {}),
+      manualBeamRebar: clean(this.manualBeamRebar, {}),
+        // Armado de viga a mano — lo usa el tope por vigas del corte de columnas
+        // (ver mixins/analysis/beamRebarDesigner.js).
+        manualBeamRebar: clean(this.manualBeamRebar, {}),
 
         sections: clean(this.sections, {}),
 
@@ -485,6 +516,7 @@ export const jsonIoMixin = {
 
       materials: clean(this.materialProperties?.materials, []),
       frameSections: clean(this.frameSections?.sections || this.frameSections?.items || [], []),
+      manualColumnRebar: clean(this.manualColumnRebar, {}),
       loadCases: clean(this.loadCases?.cases || this.staticLoadCases?.items || [], []),
       loadCombinations: clean(this.loadCombinations?.combinations || this.loadCombinations?.items || [], []),
       diaphragms: clean(this.diaphragms?.items, []),
@@ -1039,6 +1071,12 @@ export const jsonIoMixin = {
             newFrame.localAxisAngle = Number(frameData.localAxisAngle);
           }
 
+          // Identidad de ETABS (Story + Label) — ver el comentario en el
+          // serializador. Sin esto el CSV de fuerzas sale sin esas columnas y
+          // no se puede cruzar contra ETABS.
+          if (frameData.e2kName) newFrame.e2kName = frameData.e2kName;
+          if (frameData.e2kStory) newFrame.e2kStory = frameData.e2kStory;
+
           newFrame.visible = frameData.visible !== false;
 
           newFrame.material = cleanClone(frameData.material);
@@ -1330,6 +1368,9 @@ export const jsonIoMixin = {
 
       this.frameSections.sections = cleanClone(definitions.frameSections || data.frameSections, []);
 
+      this.manualColumnRebar = cleanClone(definitions.manualColumnRebar || data.manualColumnRebar, this.manualColumnRebar || {});
+      this.manualBeamRebar = cleanClone(definitions.manualBeamRebar || data.manualBeamRebar, this.manualBeamRebar || {});
+
       if (definitions.sections || data.sections) {
         this.sections = cleanClone(definitions.sections || data.sections, this.sections || {});
       }
@@ -1435,6 +1476,23 @@ export const jsonIoMixin = {
       }
 
       this.ensureResponseSpectrumDefinitions?.();
+
+      // Combinaciones de carga del .e2k. `items` guarda la forma ESTRUCTURADA
+      // ({id, type, terms:[{case, factor}]}) que consume el motor; `combinations`
+      // queda con el texto que muestra el modal Define ▸ Combinaciones. Ver
+      // e2k-load-combos.js — los combos anidados ya vienen aplanados de ahí.
+      const importedCombos = definitions.loadCombinations || data.loadCombinations;
+      if (Array.isArray(importedCombos) && importedCombos.length) {
+        if (!this.loadCombinations) this.loadCombinations = {};
+        this.loadCombinations.items = cleanClone(importedCombos, []);
+
+        const exprs = definitions.loadCombinationExpressions;
+        if (Array.isArray(exprs) && exprs.length) {
+          this.loadCombinations.combinations = cleanClone(exprs, []);
+        }
+        this.loadCombinations.selectedCombination =
+          this.loadCombinations.items[0]?.id || null;
+      }
 
       if (this.timeHistoryFunctions) {
         this.timeHistoryFunctions.items = cleanClone(definitions.timeHistoryFunctions, []);
@@ -1680,6 +1738,13 @@ export const jsonIoMixin = {
           // el pivote de órbita 3D ahí (createModelFromDialog ya lo hacía para
           // "Nuevo Modelo"; acá faltaba para abrir/restaurar uno guardado).
           this.recenterCameraOnGrid?.();
+          // Y reconstruir el índice de snap de grilla 3D (mallas
+          // "gridSnapPoint3D" que usa el hover al dibujar en 3D) — sin esto
+          // quedaba con el índice vacío del "Nuevo Modelo" inicial (0 grids) y
+          // el hover sobre un vértice de grilla NUNCA lo detectaba (el nodo SÍ
+          // se creaba al hacer clic, porque ese camino calcula la grilla en
+          // vivo desde los datos, no desde estas mallas cacheadas).
+          this.rebuild3DGridSnapPointsSoon?.("importFromJSON");
         });
       });
 

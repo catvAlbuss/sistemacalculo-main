@@ -1,3 +1,5 @@
+import { toDisplayUnits, unitLabelFor, tableDecimals } from "./frameForceUnits.js";
+
 const COMPONENTS = ["P", "V2", "V3", "T", "M2", "M3"];
 
 function getDisplay(CADSystem) {
@@ -19,8 +21,11 @@ function escapeHtml(value) {
         .replaceAll("'", "&#039;");
 }
 
-function formatNumber(value, decimals = 3) {
-    const n = Number(value);
+// Los valores llegan del motor en kN/kN-m; se convierten SOLO al mostrar
+// (ver frameForceUnits.js). Vale para la tabla en pantalla y para el CSV, así
+// que lo exportado calza con la unidad del encabezado.
+function formatNumber(value, decimals = tableDecimals()) {
+    const n = toDisplayUnits(value);
 
     if (!Number.isFinite(n)) return "0";
 
@@ -30,18 +35,7 @@ function formatNumber(value, decimals = 3) {
 }
 
 function getUnitLabel(results, component) {
-    const forceComponents = ["P", "V2", "V3"];
-    const momentComponents = ["T", "M2", "M3"];
-
-    if (forceComponents.includes(component)) {
-        return results?.units?.force || "";
-    }
-
-    if (momentComponents.includes(component)) {
-        return results?.units?.moment || "";
-    }
-
-    return "";
+    return COMPONENTS.includes(component) ? unitLabelFor(component) : "";
 }
 
 function isSelectedFrameId(frameId, CADSystem) {
@@ -97,17 +91,58 @@ function getFilteredRecords(CADSystem, options = {}) {
 
 function buildRows(CADSystem, options = {}) {
     const display = getDisplay(CADSystem);
-    const decimals = options.decimals ?? display.decimals ?? 3;
+    // NO se hereda `display.decimals` (que es 2, pensado para los rótulos
+    // sobre el modelo): en tonf 2 decimales aplastan la torsión de columna
+    // (~0.022 → 0.01, −10% solo por redondeo). La tabla usa la precisión del
+    // sistema de unidades activo. Ver tableDecimals() en frameForceUnits.js.
+    const decimals = options.decimals ?? tableDecimals();
     const records = getFilteredRecords(CADSystem, options);
+
+    // Identidad original de ETABS por barra (la deja el import del .e2k). Es la
+    // clave para cruzar este CSV contra las tablas que exporta ETABS, que van
+    // por Story + Label y no por el id correlativo de la app.
+    const etabsIdentity = new Map();
+    (CADSystem.shapes || []).forEach((frame) => {
+        if (frame?.id != null && (frame.e2kName || frame.e2kStory)) {
+            etabsIdentity.set(String(frame.id), {
+                story: frame.e2kStory || "",
+                label: frame.e2kName || "",
+            });
+        }
+    });
+
+    // Sin Story/Label el CSV NO se puede cruzar contra ETABS (su tabla va por
+    // Story + Label; nuestro id es un correlativo que afuera no significa nada).
+    // Pasa cuando el modelo no vino del import .e2k, o cuando se guardó con una
+    // versión que perdía esos campos al serializar. Antes salía un CSV con dos
+    // columnas vacías y el cruce fallaba después, lejos de la causa.
+    if (!etabsIdentity.size && (CADSystem.shapes || []).length) {
+        console.warn(
+            "⚠️ El CSV va a salir SIN Story/Label: ninguna barra conserva su " +
+                "identidad de ETABS (e2kName/e2kStory). Reimportá el .e2k si " +
+                "necesitás cruzar contra las tablas de ETABS.",
+        );
+        CADSystem.showMessage?.(
+            "⚠️ El CSV sale sin Story/Label: las barras no tienen la identidad " +
+                "de ETABS. Para cruzar contra ETABS hay que reimportar el .e2k.",
+            "warning",
+        );
+    }
 
     const rows = [];
 
     records.forEach((record) => {
         const stations = Array.isArray(record.stations) ? record.stations : [];
+        const identity = etabsIdentity.get(String(record.frameId)) || {
+            story: "",
+            label: "",
+        };
 
         stations.forEach((station) => {
             rows.push({
                 frameId: record.frameId,
+                story: identity.story,
+                label: identity.label,
                 caseId: record.comboId || record.caseId,
                 station: Number(station.station ?? 0),
                 relativeStation: Number(station.relativeStation ?? 0),
@@ -143,8 +178,12 @@ function removeExistingPanel() {
 }
 
 function buildCsv(rows) {
+    // Story/Label son la identidad de ETABS (del .e2k importado): sin ellas no
+    // se puede cruzar este CSV contra la tabla "Element Forces - Frames".
     const headers = [
         "Frame",
+        "Story",
+        "Label",
         "Case/Combo",
         "Station",
         "Relative Station",
@@ -162,6 +201,8 @@ function buildCsv(rows) {
         lines.push(
             [
                 row.frameId,
+                row.story,
+                row.label,
                 row.caseId,
                 row.station,
                 row.relativeStation,

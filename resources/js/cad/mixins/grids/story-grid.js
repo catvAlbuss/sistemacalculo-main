@@ -16,9 +16,9 @@ import { Beam, Node as StructuralNode } from "../../model/shapes.js";
  *
  * Responsabilidades:
  * - editGridData()             → abre el editor de grilla (GridEditor)
- * - editStoryData()            → diálogo para editar alturas de pisos
+ * - editStoryData()            → delega en el editor único de pisos
+ *                                (grids/story-editor.js + story-data-modal)
  * - editReferencePlanes()      → diálogo para editar planos de referencia
- * - buildStoriesFromCount(n, h) → genera el array de stories con altura h
  * - getActiveStoryZ()          → coordenada Z del piso activo
  * - setActiveStory(index)      → cambia el piso activo y actualiza la vista
  */
@@ -31,246 +31,17 @@ export const storyGridMixin = {
     }
   },
 
+  // Editor de pisos UNIFICADO — la tabla vive en
+  // modals/story-data-modal.blade.php y la logica en grids/story-editor.js.
+  // Antes habia dos dialogos distintos que hacian exactamente lo mismo
+  // (este, con Swal, y "Generar Pisos desde la Grilla" del menu Dibujar);
+  // ahora los dos entran al mismo modal.
   editStoryData() {
-    const currentStoryCount = Number(this.referenceGrid?.storyCount ?? this.stories?.length - 1 ?? 0);
-    const currentStoryHeight = Number(this.referenceGrid?.storyHeight ?? 3);
-
-    Swal.fire({
-      title: "Edit Story Data",
-      width: 620,
-      html: `
-      <div style="text-align:left; font-size:13px;">
-        <p style="margin-bottom:12px;">
-          Edita la cantidad de pisos y la altura típica entre niveles.
-        </p>
-
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
-          <div>
-            <label style="display:block; margin-bottom:5px;">Number of Stories</label>
-            <input 
-              id="edit-story-count" 
-              type="number" 
-              min="0" 
-              step="1" 
-              value="${currentStoryCount}"
-              style="width:100%; padding:7px;"
-            >
-          </div>
-
-          <div>
-            <label style="display:block; margin-bottom:5px;">Typical Story Height (m)</label>
-            <input 
-              id="edit-story-height" 
-              type="number" 
-              min="0.01" 
-              step="0.01" 
-              value="${currentStoryHeight}"
-              style="width:100%; padding:7px;"
-            >
-          </div>
-        </div>
-
-        <div id="edit-story-preview" style="border:1px solid #555; border-radius:6px; max-height:260px; overflow:auto;">
-        </div>
-
-        <div style="margin-top:12px; padding:10px; border:1px solid #555; border-radius:6px; color:#777; font-size:12px;">
-          Esta versión trabaja con pisos uniformes porque las vistas, grillas de elevación y columnas usan 
-          <b>storyCount</b> y <b>storyHeight</b>.
-        </div>
-      </div>
-    `,
-      showCancelButton: true,
-      confirmButtonText: "Aplicar",
-      cancelButtonText: "Cancelar",
-
-      didOpen: () => {
-        const countInput = document.getElementById("edit-story-count");
-        const heightInput = document.getElementById("edit-story-height");
-        const preview = document.getElementById("edit-story-preview");
-
-        const renderPreview = () => {
-          const storyCount = Math.max(0, Number(countInput?.value || 0));
-          const storyHeight = Math.max(0.01, Number(heightInput?.value || 0));
-
-          const rows = [];
-
-          rows.push({
-            id: 0,
-            name: "Base",
-            elevation: 0,
-          });
-
-          for (let i = 1; i <= storyCount; i++) {
-            rows.push({
-              id: i,
-              name: `Piso ${i}`,
-              elevation: i * storyHeight,
-            });
-          }
-
-          preview.innerHTML = `
-          <div style="display:grid; grid-template-columns: 80px 1fr 120px; gap:8px; padding:7px; background:#1f2937; color:white; font-weight:bold;">
-            <span>ID</span>
-            <span>Story Name</span>
-            <span>Elevation</span>
-          </div>
-
-          ${rows
-            .map(
-              (story) => `
-            <div style="display:grid; grid-template-columns: 80px 1fr 120px; gap:8px; padding:7px; border-bottom:1px solid #444;">
-              <span>${story.id}</span>
-              <span>${story.name}</span>
-              <span>${story.elevation.toFixed(2)} m</span>
-            </div>
-          `,
-            )
-            .join("")}
-        `;
-        };
-
-        countInput?.addEventListener("input", renderPreview);
-        heightInput?.addEventListener("input", renderPreview);
-
-        renderPreview();
-      },
-
-      preConfirm: () => {
-        const storyCount = Number(document.getElementById("edit-story-count")?.value || 0);
-        const storyHeight = Number(document.getElementById("edit-story-height")?.value || 0);
-
-        if (!Number.isFinite(storyCount) || storyCount < 0) {
-          Swal.showValidationMessage("La cantidad de pisos no es válida.");
-          return false;
-        }
-
-        if (!Number.isInteger(storyCount)) {
-          Swal.showValidationMessage("La cantidad de pisos debe ser un número entero.");
-          return false;
-        }
-
-        if (!Number.isFinite(storyHeight) || storyHeight <= 0) {
-          Swal.showValidationMessage("La altura de piso debe ser mayor que cero.");
-          return false;
-        }
-
-        return {
-          storyCount,
-          storyHeight,
-        };
-      },
-    }).then((result) => {
-      if (!result.isConfirmed || !result.value) return;
-
-      this.applyStoryData(result.value.storyCount, result.value.storyHeight);
-    });
+    this.openStoryDataDialog();
   },
 
-  applyStoryData(storyCount, storyHeight) {
-    if (!this.referenceGrid) {
-      this.referenceGrid = {
-        xGrids: [],
-        yGrids: [],
-        generalGrids: [],
-        xPositions: [],
-        yPositions: [],
-        xLabels: [],
-        yLabels: [],
-        storyCount: 0,
-        storyHeight: 0,
-      };
-    }
-
-    this.saveUndoState?.("Edit Story Data");
-
-    this.referenceGrid.storyCount = Number(storyCount || 0);
-    this.referenceGrid.storyHeight = Number(storyHeight || 0);
-
-    this.stories = [
-      {
-        id: 0,
-        name: "Base",
-        elevation: 0,
-      },
-    ];
-
-    for (let i = 1; i <= storyCount; i++) {
-      this.stories.push({
-        id: i,
-        name: `Piso ${i}`,
-        elevation: i * storyHeight,
-      });
-    }
-
-    if (Number(this.activeStory || 0) > storyCount) {
-      this.activeStory = 0;
-    }
-
-    this.rebuildReferenceGridCaches?.();
-    this.rebuildGeneralGrids?.();
-    this.rebuildViewSetFromReferenceGrid?.();
-    this.rebuildElevationListsFromReferenceGrid?.();
-
-    if (this.activeViewIndex >= this.viewSet.length) {
-      this.activeViewIndex = 0;
-    }
-
-    this.activeGridPoint = null;
-
-    const activeView = this.viewSet?.[this.activeViewIndex];
-
-    if (activeView?.type === "plan") {
-      this.currentViewMode = "plan";
-      this.currentZ = Number(activeView.elevation || 0);
-    }
-
-    this.redraw?.();
-    this.sync3D?.();
-    // Los pisos cambiaron (cuenta/altura) → recentrar el pivote de órbita 3D
-    // sobre el centro real del modelo (estilo ETABS).
-    this.recenterCameraOnGrid?.();
-
-    this.showMessage?.(`Edit Story Data aplicado: ${storyCount} piso(s), altura ${storyHeight} m.`);
-
-    console.log("✅ EDIT STORY DATA aplicado:", {
-      storyCount,
-      storyHeight,
-      stories: this.stories,
-      viewSet: this.viewSet,
-    });
-  },
-
-  // =========================================
-  // ===== GENERAR PISOS DESDE LA GRILLA =====
-  // =========================================
-  // Diálogo dedicado (Blade), encadenado al flujo de "importar plano → trazar
-  // ejes a mano → generar pisos" — distinto de editStoryData/Swal, pero
-  // reusa applyStoryData() (misma semántica, ya probada) como implementación:
-  // la grilla de ejes (xGrids/yGrids) es global, no por piso, así que en
-  // cuanto existen más niveles, la MISMA grilla trazada en la Base aparece
-  // en todos ellos sin trabajo extra.
   openGenerateStoriesDialog() {
-    const hasAxes = (this.referenceGrid?.xGrids?.length || 0) > 0 || (this.referenceGrid?.yGrids?.length || 0) > 0;
-
-    window.dispatchEvent(new CustomEvent("open-generate-stories-modal", {
-      detail: {
-        storyCount: Number(this.referenceGrid?.storyCount || 1),
-        storyHeight: Number(this.referenceGrid?.storyHeight || 3),
-        hasAxes,
-      },
-    }));
-  },
-
-  applyGenerateStoriesFromModal(v) {
-    const storyCount = Math.max(0, Math.floor(Number(v.storyCount) || 0));
-    const storyHeight = Number(v.storyHeight);
-
-    if (!Number.isFinite(storyHeight) || storyHeight <= 0) {
-      this.showMessage?.("La altura de piso debe ser mayor que cero.", "warning");
-      return;
-    }
-
-    this.applyStoryData(storyCount, storyHeight);
+    this.openStoryDataDialog();
   },
 
   // =========================================

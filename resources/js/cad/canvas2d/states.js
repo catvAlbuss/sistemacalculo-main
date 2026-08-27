@@ -3429,6 +3429,15 @@ export class CreateLinesRegionClicksState extends PanAndZoomState {
     const storyCount = Number(ref.storyCount || 0);
     const storyHeight = Number(ref.storyHeight || 0);
 
+    // Cotas REALES de los pisos (context.stories respeta alturas distintas);
+    // el multiplo de storyHeight queda solo como respaldo.
+    const zLevels = [];
+    for (let k = 0; k <= storyCount; k++) {
+      const st = context.stories?.[k];
+      const z = st && Number.isFinite(Number(st.elevation)) ? Number(st.elevation) : k * storyHeight;
+      zLevels.push(z);
+    }
+
     if (view.type === "plan") {
       const z = Number(view.elevation || 0);
 
@@ -3458,11 +3467,6 @@ export class CreateLinesRegionClicksState extends PanAndZoomState {
     if (view.type === "elevation" && view.axis === "X") {
       const fixedX = Number(view.value || 0);
 
-      const zLevels = [];
-      for (let k = 0; k <= storyCount; k++) {
-        zLevels.push(k * storyHeight);
-      }
-
       zLevels.forEach((z) => {
         for (let j = 0; j < yPositions.length - 1; j++) {
           segments.push({
@@ -3488,11 +3492,6 @@ export class CreateLinesRegionClicksState extends PanAndZoomState {
 
     if (view.type === "elevation" && view.axis === "Y") {
       const fixedY = Number(view.value || 0);
-
-      const zLevels = [];
-      for (let k = 0; k <= storyCount; k++) {
-        zLevels.push(k * storyHeight);
-      }
 
       zLevels.forEach((z) => {
         for (let i = 0; i < xPositions.length - 1; i++) {
@@ -4343,9 +4342,69 @@ export class AreaDrawingState extends PanAndZoomState {
     this.previewArea = area;
   }
 
+  /**
+   * Cota REAL de un nudo existente bajo el cursor, para dibujar losas
+   * INCLINADAS. En vista de planta `getCurrentSnapPoint` siempre devuelve la
+   * cota del piso activo, así que toda losa salía plana y no había forma de
+   * modelar un techo a dos aguas de concreto (que necesita ser un shell con
+   * pendiente real, no solo masa).
+   *
+   * Regla: entre los nudos que caen bajo el cursor EN PLANTA, se toma el más
+   * ALTO cuya cota esté dentro del piso activo (entre el piso de abajo y la
+   * cota del piso, con tolerancia). En una losa plana normal ese nudo es
+   * justamente el del nivel del piso → mismo resultado de siempre; sobre un
+   * techo ya dibujado/importado (vigas o tijerales), es el nudo del faldón →
+   * la losa hereda la pendiente, igual que al dibujar sobre joints en ETABS.
+   * Devuelve null si no hay ningún nudo bajo el cursor.
+   */
+  _snapZFromExistingNode(context, mouse) {
+    const view = context.viewSet?.[context.activeViewIndex];
+    if (view && view.type !== "plan") return null;
+    if (!Array.isArray(context.nodes) || !context.nodes.length) return null;
+
+    const currentZ = context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0;
+
+    // Cota del piso inmediatamente inferior (límite bajo del rango válido).
+    const elevs = (context.stories || [])
+      .map((s) => Number(s.elevation))
+      .filter((z) => Number.isFinite(z))
+      .sort((a, b) => a - b);
+    const below = elevs.filter((z) => z < currentZ - 1e-6).pop();
+    const zLow = below != null
+      ? below
+      : currentZ - Number(context.referenceGrid?.storyHeight || 3);
+
+    const tolPx = 12;
+    const tolZ = 1e-6;
+    let best = null;
+
+    for (const node of context.nodes) {
+      const nx = Number(node.position?.x ?? node.x) || 0;
+      const ny = Number(node.position?.y ?? node.y) || 0;
+      const nz = Number(node.position?.z ?? node.z) || 0;
+
+      if (nz < zLow - tolZ || nz > currentZ + tolZ) continue;
+
+      const screen = context.grid.worldToScreen({ x: nx, y: ny });
+      if (pointDistance(mouse, screen) > tolPx) continue;
+
+      if (best == null || nz > best) best = nz;
+    }
+
+    return best;
+  }
+
   getSnapPoint(context, mouse) {
     const worldPos = context.grid.screenToWorld(mouse);
     const snapped = context.getCurrentSnapPoint(worldPos);
+
+    // Losas con pendiente: hereda la cota real del nudo bajo el cursor (ver
+    // _snapZFromExistingNode). Los muros NO — su geometría vertical la arma
+    // WallDrawingState entre dos pisos, no por vértice.
+    if (this.areaType !== "wall") {
+      const zNode = this._snapZFromExistingNode(context, mouse);
+      if (zNode != null) snapped.z = zNode;
+    }
 
     // Modo Ortho (F8, como AutoCAD) con tracking de esquina: bloquea el
     // punto a 0°/90°/180°/270°, evaluando TODAS las combinaciones posibles
@@ -4754,7 +4813,37 @@ export class WallDrawingState extends PanAndZoomState {
     return 0;
   }
 
+  // Un muro ya existe en ese tramo si otro panel "wall" comparte el mismo
+  // segmento horizontal (mismos 2 extremos, en cualquier orden) Y su rango
+  // vertical se SUPERPONE (no solo se toca en el borde piso-a-piso).
+  findExistingWallPanel(context, p1, p2, bottomZ, topZ) {
+    const EPS = 0.05; // 5 cm — mismo orden de tolerancia que el snap de vértice
+    const samePoint = (a, b) => Math.abs(a.x - b.x) < EPS && Math.abs(a.y - b.y) < EPS;
+
+    return (context.areas || []).find((area) => {
+      if (area.areaType !== "wall") return false;
+      const pts = area.points || [];
+      if (pts.length < 4) return false;
+
+      const zs = pts.map((p) => Number(p.z));
+      const zMin = Math.min(...zs);
+      const zMax = Math.max(...zs);
+      if (bottomZ >= zMax - 1e-6 || topZ <= zMin + 1e-6) return false; // sin solape vertical
+
+      const bottomPts = pts.filter((p) => Math.abs(Number(p.z) - zMin) < 1e-6);
+      if (bottomPts.length < 2) return false;
+      const [a, b] = bottomPts;
+
+      return (samePoint(a, p1) && samePoint(b, p2)) || (samePoint(a, p2) && samePoint(b, p1));
+    });
+  }
+
   createWallPanel(context, p1, p2, bottomZ, topZ) {
+    if (this.findExistingWallPanel(context, p1, p2, bottomZ, topZ)) {
+      context.showMessage?.("Ya existe un muro en ese tramo.", "warning");
+      return null;
+    }
+
     const wall = new Area("wall", topZ);
 
     // Rectángulo vertical, perímetro sin cruces: p1-abajo → p2-abajo →
@@ -4879,10 +4968,12 @@ export class WallDrawingState extends PanAndZoomState {
       if (seg) {
         const topZ = context.getActivePlanElevation?.() ?? 0;
         const bottomZ = this.getStoryElevationBelow(context, topZ);
-        this.createWallPanel(context, { x: seg.x1, y: seg.y1 }, { x: seg.x2, y: seg.y2 }, bottomZ, topZ);
-        context.showMessage?.("Muro creado (clic sobre viga/línea de grid).", "success");
-        context.redraw();
-        context.sync3D?.();
+        const wall = this.createWallPanel(context, { x: seg.x1, y: seg.y1 }, { x: seg.x2, y: seg.y2 }, bottomZ, topZ);
+        if (wall) {
+          context.showMessage?.("Muro creado (clic sobre viga/línea de grid).", "success");
+          context.redraw();
+          context.sync3D?.();
+        }
         return;
       }
     }
@@ -4906,9 +4997,9 @@ export class WallDrawingState extends PanAndZoomState {
     const topZ = context.getActivePlanElevation?.() ?? 0;
     const bottomZ = this.getStoryElevationBelow(context, topZ);
 
-    this.createWallPanel(context, this.startPoint, snapPoint, bottomZ, topZ);
+    const wall = this.createWallPanel(context, this.startPoint, snapPoint, bottomZ, topZ);
 
-    context.showMessage?.("Muro creado.", "success");
+    if (wall) context.showMessage?.("Muro creado.", "success");
 
     this.startPoint = null;
     this.previewPoint = null;

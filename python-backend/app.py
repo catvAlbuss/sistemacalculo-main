@@ -6,6 +6,14 @@ import seismic_analysis as sa
 import math
 import os
 import json
+from design.column_interaction import (
+    compute_pmm_surface,
+    capacity_ratio_radial,
+    beta1_from_fc,
+    normalize_design_code,
+)
+from design.column_slenderness import magnify_nonsway, minimum_eccentricity_variants
+from design.column_shear import column_shear_design
 
 
 def _dump_seismic_payload_if_enabled(data):
@@ -1152,6 +1160,395 @@ def frame_forces():
                     "traceback": traceback.format_exc(),
                 }
             ),
+            500,
+        )
+
+
+# Malla de fibra para los CHEQUEOS de demanda (el ratio), mas gruesa que la de
+# la superficie dibujada. Son ~44 chequeos por columna y cada uno hace ~100
+# evaluaciones, asi que aca esta el 80% del tiempo del diseno.
+#
+# Medido en la C45x45 contra la malla de 60x60: 40x40 da 0.0069% de error,
+# 30x30 da 0.0165% y 24x24 da 0.030%. Se toma 30 — un orden de magnitud por
+# debajo del 0.03% con que la curva calza contra ETABS, y 3.4x mas rapido
+# (0.169 s -> 0.050 s por chequeo).
+#
+# Esto SOLO es viable desde que las fibras entran con peso PARCIAL: antes el
+# bloque de compresion se cuantizaba al tamano de celda y una malla gruesa
+# metia varios por ciento de error (ver project-fiber-partial-weight).
+_DEMAND_FIBER_GRID = 30
+
+# Cache de superficies P-M-M por geometria. Todas las columnas de un modelo
+# suelen compartir seccion (en el de referencia, las 9 son C45x45) y la
+# superficie NO depende de la demanda: se recalculaba 9 veces la misma.
+#
+# Solo sirve en Windows/dev, donde el backend es un proceso largo; en produccion
+# cada request es un subproceso nuevo. Igual es donde mas molesta la espera.
+_SURFACE_CACHE = {}
+_SURFACE_CACHE_MAX = 32
+
+
+def _run_column_interaction(data):
+    """
+    Diagrama de interacción P-M-M biaxial (ACI-318) para una columna
+    rectangular con armado real (ver python-backend/design/column_interaction.py
+    y el plan de columnas — Paso 2). Sin dependencia de OpenSeesPy, no
+    requiere análisis previo: es geometría + materiales puros. Compartida
+    entre el endpoint Flask (Windows) y cli_entry.py (Linux, subproceso).
+
+    Payload (SI): { b, h, fc, fy, cover, barDiameter, n3, n2, barArea,
+                     confineBarDiameter?, tied?, numAngles?, numC?,
+                     demandPoints?: [{P, M2, M3}, ...] } — todo en metros/Pa.
+
+    `cover` es el recubrimiento LIBRE hasta la superficie del estribo
+    ("Clear Cover for Confinement Bars" en el diálogo de ETABS, exportado vía
+    COVER) — `confineBarDiameter` (opcional, 0 si no hay armado transversal
+    real) se resta aparte para ubicar el centro de la varilla longitudinal,
+    ver generate_rect_bar_positions.
+
+    `demandPoints` (opcional): además de la superficie de 24 curvas (útil
+    como referencia visual), calcula el ratio P-M-M RADIAL en el ángulo real
+    de cada punto de demanda (ver capacity_ratio_radial) — el mismo D/C
+    Ratio que reporta ETABS: distancia origen→demanda sobre origen→superficie
+    en el espacio P-M2-M3, NO M_demanda/M_capacidad al mismo Pn (eso subestimaba
+    la capacidad real por 5-6x en columnas livianas, ver project_pmm_ratio_gap
+    en memoria — brecha cerrada, no era un error de capacidad ni de armado).
+    Se devuelve en `demandChecks`, en el mismo orden que `demandPoints`.
+
+    `slenderness` (opcional): { ec, lu, k?, betaD?, hasTransverseLoad? } —
+    activa la magnificacion de momentos de 2do orden (E.060 10.12, ver
+    design/column_slenderness.py). Cada punto de `demandPoints` debe traer
+    entonces `M2Top`/`M3Top` (el momento del MISMO combo en el otro extremo
+    del elemento), porque delta_ns depende de los DOS extremos, no de una
+    estacion suelta. Los momentos ya magnificados son los que se verifican
+    contra la superficie, y el detalle viaja en `demandChecks[i].slenderness`.
+    """
+    # FORMA de la seccion. Por defecto rectangular, que es lo unico que existia
+    # antes: un payload viejo sigue funcionando igual. La circular necesita
+    # `diameter` y `numBars` en vez de b/h/n2/n3 (ver design/column_circular.py).
+    _forma = str(data.get("shape") or "").lower()
+    if _forma.startswith("circ"):
+        shape = "circular"
+    elif _forma in ("l", "lconc"):
+        shape = "L"
+    elif _forma in ("tee", "t"):
+        shape = "tee"
+    else:
+        shape = "rect"
+
+    # Geometria de las formas POLIGONALES (L y T). `b`/`h` siguen siendo el ancho
+    # y el peralte totales; lo que se agrega son los espesores de las patas y los
+    # espejos, que en una L cambian DONDE queda el material respecto del nudo.
+    flange_thick = data.get("flangeThick")
+    web_thick = data.get("webThick")
+    mirror2 = bool(data.get("mirror2"))
+    mirror3 = bool(data.get("mirror3"))
+
+    comunes = ["fc", "fy", "cover", "barDiameter", "barArea"]
+    if shape == "circular":
+        required = comunes + ["diameter", "numBars"]
+    elif shape in ("L", "tee"):
+        required = comunes + ["b", "h", "flangeThick", "webThick", "numBars"]
+    else:
+        required = comunes + ["b", "h", "n3", "n2"]
+    missing = [k for k in required if data.get(k) is None]
+    if missing:
+        return {"success": False, "error": f"Faltan campos: {', '.join(missing)}"}
+
+    diameter = float(data.get("diameter") or 0.0)
+    num_bars = int(data.get("numBars") or 0)
+    # En circular b/h no describen la geometria; se igualan al diametro para que
+    # el resto (clave de cache, mensajes) tenga algo coherente.
+    b = float(data.get("b") or diameter)
+    h = float(data.get("h") or diameter)
+    fc = float(data["fc"])
+    fy = float(data["fy"])
+    cover = float(data["cover"])
+    bar_diameter = float(data["barDiameter"])
+    n3 = int(data.get("n3") or 0)
+    n2 = int(data.get("n2") or 0)
+    bar_area = float(data["barArea"])
+    # ESTRIBOS vs ESPIRAL: define el tope axial (0.80 vs 0.85 Po) y el phi de
+    # compresion (0.65/0.70 vs 0.75). Por defecto lo decide la FORMA — una
+    # circular va con espiral — pero el payload puede forzarlo, que es el caso
+    # legitimo de una circular zunchada con estribos circulares.
+    tied = bool(data["tied"]) if data.get("tied") is not None else (shape != "circular")
+    confine_bar_diameter = float(data.get("confineBarDiameter") or 0.0)
+    # Código de diseño: decide los φ (E.060 Art. 10.3.2 vs ACI 318 §21.2) y la
+    # ley de transición. Default E.060 — ver DEFAULT_DESIGN_CODE.
+    code = normalize_design_code(data.get("code"))
+    beta1 = beta1_from_fc(fc)
+
+    surf_key = (
+        b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area, tied,
+        int(data.get("numAngles", 24)), int(data.get("numC", 21)),
+        confine_bar_diameter, code,
+        shape, diameter, num_bars,
+    )
+    surface = _SURFACE_CACHE.get(surf_key)
+    if surface is None:
+        surface = compute_pmm_surface(
+            b=b, h=h, fc=fc, fy=fy, cover=cover, bar_diameter=bar_diameter,
+            n3=n3, n2=n2, bar_area=bar_area, tied=tied,
+            num_angles=surf_key[10],
+            num_c=surf_key[11],
+            confine_bar_diameter=confine_bar_diameter,
+            code=code,
+            shape=shape, diameter=diameter, num_bars=num_bars,
+            flange_thick=flange_thick, web_thick=web_thick,
+            mirror2=mirror2, mirror3=mirror3,
+        )
+        if surface is not None:
+            if len(_SURFACE_CACHE) >= _SURFACE_CACHE_MAX:
+                _SURFACE_CACHE.clear()
+            _SURFACE_CACHE[surf_key] = surface
+
+    if surface is None:
+        return {"success": False, "error": "Geometría/patrón de armado inválido (no se pudo ubicar varilla)."}
+
+    # Esbeltez (E.060 10.12): si llega la config, cada momento de demanda se
+    # MAGNIFICA antes de verificar la seccion. Es un efecto de ELEMENTO (usa
+    # los dos extremos del mismo combo), por eso el punto trae M2Top/M3Top.
+    slender_cfg = data.get("slenderness") or None
+    ec_slender = float(slender_cfg.get("ec", 0.0)) if slender_cfg else 0.0
+    lu_slender = float(slender_cfg.get("lu", 0.0)) if slender_cfg else 0.0
+    slender_on = bool(slender_cfg) and ec_slender > 0 and lu_slender > 0
+    if shape in ("L", "tee"):
+        # Ag e Ig REALES del poligono. Con las formulas rectangulares el radio de
+        # giro saldria del rectangulo ENVOLVENTE, que en una L sobreestima
+        # bastante el area y SUBESTIMA la esbeltez.
+        from design.column_polygon import (l_section_vertices, polygon_area,
+                                           tee_section_vertices)
+        _v = (l_section_vertices(h, b, flange_thick, web_thick, mirror2, mirror3)
+              if shape == "L" else tee_section_vertices(h, b, flange_thick, web_thick))
+        ag_sec = polygon_area(_v) if _v else b * h
+        ig_axis = {"M2": ag_sec * h * h / 12.0, "M3": ag_sec * b * b / 12.0}
+        h_axis = {"M2": h, "M3": b}
+    elif shape == "circular":
+        # Ag e Ig REALES del disco. Con las formulas rectangulares y b=h=D el
+        # radio de giro salia sqrt(D^2/12)=0.2887D en vez de D/4: un 15% de mas,
+        # que SUBESTIMA la esbeltez (menos magnificacion de la que corresponde).
+        ag_sec = math.pi * diameter ** 2 / 4.0
+        ig_circ = math.pi * diameter ** 4 / 64.0
+        ig_axis = {"M2": ig_circ, "M3": ig_circ}
+        h_axis = {"M2": diameter, "M3": diameter}
+    else:
+        ag_sec = b * h
+        # Ig por eje: flexion alrededor del eje 2 usa el peralte en 3 y viceversa.
+        ig_axis = {"M2": b * h ** 3 / 12.0, "M3": h * b ** 3 / 12.0}
+        h_axis = {"M2": h, "M3": b}
+
+    def _magnify(component, m_bottom, m_top, p_u):
+        """delta_ns para UN eje. Devuelve (momento_magnificado, detalle)."""
+        if not slender_on:
+            return m_bottom, None
+        res = magnify_nonsway(
+            pu=p_u, m_end_a=m_bottom, m_end_b=m_top,
+            ec=ec_slender, ig=ig_axis[component], ag=ag_sec, lu=lu_slender,
+            k=float(slender_cfg.get("k", 1.0) or 1.0),
+            beta_d=float(slender_cfg.get("betaD", 0.0) or 0.0),
+            has_transverse_load=bool(slender_cfg.get("hasTransverseLoad", False)),
+            h_dim=h_axis[component],
+        )
+        if res["unstable"]:
+            return m_bottom, m_bottom, res
+
+        # QUE MOMENTO SE DISENA EN ESTA ESTACION.
+        #
+        # `res["m2"]` es el MAYOR de los dos extremos: eso es lo que pide ACI
+        # 318 §6.6.4.5.2 para el caso ESBELTO, donde Mc = delta_ns * M2 aplica a
+        # todo el elemento. Pero si la columna NO es esbelta no hay
+        # magnificacion y cada seccion se disena con SU PROPIO momento; usar el
+        # del otro extremo infla la estacion menos cargada.
+        #
+        # Medido contra el Column Element Details de ETABS (C7 Story1, base):
+        # su `NonSway Mns` vale -0.3831, el momento de LA BASE, con delta_ns=1.
+        # Nosotros llevabamos 1.42, que es el del TOPE — y eso rotaba el angulo
+        # de la demanda de 254 a 42 grados.
+        if res["applied"]:
+            base_mom = res["m2"]                       # esbelta: el mayor extremo
+            gobernante = m_bottom if abs(m_bottom) >= abs(m_top) else m_top
+        else:
+            base_mom = abs(m_bottom)                   # no esbelta: el propio
+            gobernante = m_bottom if m_bottom else (m_top if m_top else 1.0)
+
+        # El signo se conserva porque capacity_ratio_radial toma el angulo
+        # atan2(M2, M3): perderlo rotaria la demanda a otro cuadrante.
+        signo = -1.0 if gobernante < 0 else 1.0
+
+        # Las DOS versiones: con el piso de excentricidad minima y sin el. Las
+        # necesita el chequeo de e_min por eje, mas abajo.
+        con_min = signo * max(base_mom, res["m2Min"]) * res["deltaNs"]
+        sin_min = signo * base_mom * res["deltaNs"]
+        return con_min, sin_min, res
+
+    demand_checks = None
+    demand_points = data.get("demandPoints")
+    if isinstance(demand_points, list) and demand_points:
+        demand_checks = []
+        for pt in demand_points:
+            p_u = float(pt.get("P", 0.0))
+            m2_u = float(pt.get("M2", 0.0))
+            m3_u = float(pt.get("M3", 0.0))
+
+            slender_detail = None
+            variantes = [(m2_u, m3_u)]
+
+            if slender_on:
+                m2_top = float(pt.get("M2Top", m2_u))
+                m3_top = float(pt.get("M3Top", m3_u))
+                m2_con, m2_sin, det2 = _magnify("M2", m2_u, m2_top, p_u)
+                m3_con, m3_sin, det3 = _magnify("M3", m3_u, m3_top, p_u)
+                slender_detail = {"M2": det2, "M3": det3}
+
+                # EXCENTRICIDAD MINIMA: UN EJE POR VEZ, no los dos a la vez.
+                #
+                # La excentricidad accidental que cubre el minimo de
+                # ACI 318 §6.6.4.5.4 / E.060 10.12.3.2 actua en UNA direccion,
+                # no simultaneamente en las dos. Aplicarla a los dos ejes
+                # inventa una demanda biaxial que no existe: en la C45x45 del
+                # modelo de referencia daba |M|=1.88 t-m donde ETABS usa 1.38.
+                #
+                # Verificado en el Column Element Details de ETABS (C7 Story1):
+                # con Minimum M2 = Minimum M3 = 1.3294, su diseno usa
+                # Mu2 = -1.3294 (el minimo) y Mu3 = -0.3831 (el factorado).
+                #
+                # Se arman las dos variantes y gana la de mayor ratio; si el
+                # minimo no levanto ningun eje, las dos coinciden y se evalua
+                # una sola vez.
+                variantes = minimum_eccentricity_variants(m2_con, m2_sin, m3_con, m3_sin)
+
+            result = None
+            for v2, v3 in variantes:
+                r = capacity_ratio_radial(
+                    b=b, h=h, fc=fc, fy=fy, cover=cover, bar_diameter=bar_diameter,
+                    n3=n3, n2=n2, bar_area=bar_area, beta1=beta1,
+                    target_p=p_u, target_m2=v2, target_m3=v3,
+                    confine_bar_diameter=confine_bar_diameter,
+                    code=code, tied=tied,
+                    nx=_DEMAND_FIBER_GRID, ny=_DEMAND_FIBER_GRID,
+                    shape=shape, diameter=diameter, num_bars=num_bars,
+            flange_thick=flange_thick, web_thick=web_thick,
+            mirror2=mirror2, mirror3=mirror3,
+                )
+                if r is None:
+                    continue
+                if result is None or r["ratio"] > result["ratio"]:
+                    result = r
+                    m2_u, m3_u = v2, v3
+
+            if result is None:
+                demand_checks.append({"error": "sin capacidad calculable"})
+                continue
+            cap = result["capacity"]
+            phi_mn_cap = math.hypot(cap["phiM2n"], cap["phiM3n"])
+            ratio = result["ratio"]
+            check = {
+                "thetaDeg": result["thetaDeg"],
+                "phi": result["phi"],
+                "phiMnCap": phi_mn_cap,
+                "muResultant": math.hypot(m2_u, m3_u),
+                "ratio": ratio,
+                "status": "OK" if ratio <= 1 else "NG",
+            }
+            if slender_detail is not None:
+                # Momentos YA magnificados que se verificaron (para poder
+                # auditar contra los del analisis, que quedan en el front).
+                check["M2Design"] = m2_u
+                check["M3Design"] = m3_u
+                check["slenderness"] = slender_detail
+            demand_checks.append(check)
+
+    response = {"success": True, "code": code, **surface}
+    if demand_checks is not None:
+        response["demandChecks"] = demand_checks
+
+    return response
+
+
+@app.route("/api/column-interaction", methods=["POST"])
+def column_interaction():
+    try:
+        data = request.get_json(force=True) or {}
+        response = _run_column_interaction(data)
+        status = 200 if response.get("success") else 400
+        return jsonify(response), status
+
+    except Exception as e:
+        return (
+            jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}),
+            500,
+        )
+
+
+def _run_column_shear(data):
+    """
+    Corte por diseño de capacidad + confinamiento de una columna rectangular
+    (estribos) o CIRCULAR (espiral, `shape: "circular"` + `diameter`/`numBars`)
+    (ver python-backend/design/column_shear.py). Compartida entre el
+    endpoint Flask (Windows) y cli_entry.py (Linux, subproceso) — mismo
+    patrón que _run_column_interaction.
+
+    Payload (SI): { b, h, fc, fy, cover, barDiameter, n3, n2, barArea,
+                     confineFy, confineBarArea, confineBarDiameter,
+                     confineBarSpacing, numConfineBars2, numConfineBars3,
+                     clearHeight, axialMin, axialMax, vuAnalysis2, vuAnalysis3 }
+    """
+    # FORMA: circular = espiral (cambia Ag, el `d` de corte, las ramas y todo el
+    # bloque de confinamiento a rho_s volumetrica). Default rectangular, o sea
+    # un payload viejo entra por el mismo camino de antes.
+    shape_shear = "circular" if str(data.get("shape") or "").lower().startswith("circ") else "rect"
+
+    comunes = [
+        "fc", "fy", "cover", "barDiameter", "barArea",
+        "confineFy", "confineBarArea", "confineBarDiameter", "confineBarSpacing",
+        "clearHeight", "axialMin", "axialMax", "vuAnalysis2", "vuAnalysis3",
+    ]
+    required = (comunes + ["diameter", "numBars"]) if shape_shear == "circular"         else (comunes + ["b", "h", "n3", "n2", "numConfineBars2", "numConfineBars3"])
+    missing = [k for k in required if data.get(k) is None]
+    if missing:
+        return {"success": False, "error": f"Faltan campos: {', '.join(missing)}"}
+
+    diameter_shear = float(data.get("diameter") or 0.0)
+
+    result = column_shear_design(
+        b=float(data.get("b") or diameter_shear), h=float(data.get("h") or diameter_shear), fc=float(data["fc"]), fy=float(data["fy"]),
+        cover=float(data["cover"]), bar_diameter=float(data["barDiameter"]),
+        n3=int(data.get("n3") or 0), n2=int(data.get("n2") or 0), bar_area=float(data["barArea"]),
+        fyt=float(data["confineFy"]), confine_bar_area=float(data["confineBarArea"]),
+        confine_bar_diameter=float(data["confineBarDiameter"]),
+        confine_bar_spacing=float(data["confineBarSpacing"]),
+        num_confine_bars2=int(data.get("numConfineBars2") or 0),
+        num_confine_bars3=int(data.get("numConfineBars3") or 0),
+        clear_height=float(data["clearHeight"]), axial_min=float(data["axialMin"]),
+        axial_max=float(data["axialMax"]), vu_analysis2=float(data["vuAnalysis2"]),
+        vu_analysis3=float(data["vuAnalysis3"]),
+        code=normalize_design_code(data.get("code")),
+        # Tope por resistencia de las vigas del nudo (ACI 318 18.7.6.1.1 in
+        # fine) — opcional; sin el dato Ve queda gobernado por el Mpr de la
+        # columna, que es lo conservador. Ver design/column_shear.py.
+        joint_beam_moment=data.get("jointBeamMoment") or None,
+        shape=shape_shear, diameter=diameter_shear,
+        num_long_bars=int(data.get("numBars") or 0),
+        # Convenciones de calculo seleccionables (nucleo confinado, area de Vc,
+        # `d` del tope). Sin este campo van las de norma. Ver el bloque
+        # CONVENCIONES en design/column_shear.py.
+        conventions=data.get("conventions") or None,
+    )
+    return {"success": True, **result}
+
+
+@app.route("/api/column-shear", methods=["POST"])
+def column_shear():
+    try:
+        data = request.get_json(force=True) or {}
+        response = _run_column_shear(data)
+        status = 200 if response.get("success") else 400
+        return jsonify(response), status
+
+    except Exception as e:
+        return (
+            jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}),
             500,
         )
 
