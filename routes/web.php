@@ -196,6 +196,15 @@ Route::middleware(["auth", "verified"])->group(function () {
         Route::get('/etabs/models/{id}', [\App\Http\Controllers\CadModelController::class, 'show'])->whereNumber('id')->name('etabs.models.show');
         Route::put('/etabs/models/{id}', [\App\Http\Controllers\CadModelController::class, 'update'])->whereNumber('id')->name('etabs.models.update');
         Route::delete('/etabs/models/{id}', [\App\Http\Controllers\CadModelController::class, 'destroy'])->whereNumber('id')->name('etabs.models.destroy');
+        // Puente CAD -> Memoria de Cálculo/Descriptiva (ver conversación: enviar
+        // directo un reporte de diseño -- losa aligerada primero -- en vez de
+        // subirlo a mano después). Un solo controlador para ambos destinos.
+        Route::post('/memoria-calculo/resolve', [\App\Http\Controllers\MemoriaSyncController::class, 'resolveCalculo'])->name('memoria-calculo.resolve');
+        Route::post('/memoria-calculo/{memoriaCalculo}/images', [\App\Http\Controllers\MemoriaSyncController::class, 'storeCalculoImage'])->whereNumber('memoriaCalculo')->name('memoria-calculo.images.store');
+        Route::post('/memoria-calculo/{memoriaCalculo}/losa-aligerada', [\App\Http\Controllers\MemoriaSyncController::class, 'replaceLosaAligerada'])->whereNumber('memoriaCalculo')->name('memoria-calculo.losa-aligerada.replace');
+        Route::get('/memoria-calculo/by-cad-model/{cadModelId}', [\App\Http\Controllers\MemoriaSyncController::class, 'showCalculoByCadModel'])->whereNumber('cadModelId')->name('memoria-calculo.by-cad-model');
+        Route::post('/memoria-descriptiva/resolve', [\App\Http\Controllers\MemoriaSyncController::class, 'resolveDescriptiva'])->name('memoria-descriptiva.resolve');
+        Route::post('/memoria-descriptiva/{memoriaDescriptiva}/attachments', [\App\Http\Controllers\MemoriaSyncController::class, 'storeDescriptivaAttachment'])->whereNumber('memoriaDescriptiva')->name('memoria-descriptiva.attachments.store');
         Route::view('/aligerados-v2', 'matlab.admAligeradosGrafico')->name("aligerados-v2");
         Route::view('/aligerados-v1', 'matlab.admFuerzasCortantesGrafico')->name("aligerados-v1");
         Route::view('/cimentacion-v2', 'matlab.admSafecito')->name("cimentacion-v2");

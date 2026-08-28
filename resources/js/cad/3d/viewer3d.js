@@ -818,6 +818,18 @@ function selectAreaFrom3D(area, context, options = {}) {
     a.isSelected = true;
   });
 
+  // AGREGADO (ver conversación): log claro de qué área se acaba de
+  // seleccionar/deseleccionar y qué queda en la selección completa -- para
+  // poder ver en la consola (F12) el id real de cada losa clicada en el 3D,
+  // sin tener que adivinarlo (útil para depurar "Diseñar Losa Aligerada",
+  // donde el id de cada losa decide si 2 tramos se reconocen como la misma
+  // vigueta o no).
+  console.log(
+    `[3D] ${alreadySelected ? "Deseleccionada" : "Seleccionada"} área id=${area.id} (${area.areaType || area.type || "slab"}, z=${area.z ?? "?"}, loadDistAngle=${area.loadDistAngle ?? "?"}°)`,
+    "→ selección actual:",
+    nextAreas.map((a) => ({ id: a.id, areaType: a.areaType || a.type, z: a.z, loadDistAngle: a.loadDistAngle })),
+  );
+
   context.redraw?.();
   context.sync3D?.();
 

@@ -112,6 +112,16 @@ export function createMemoriaCalculoStore() {
         predim: 1,
         losa: 1,
         lista: "Lista 1",
+        // AGREGADO (ver conversación): tablas T1 (flexión)/T2 (cortante) por
+        // sección de losa aligerada, keyed por índice de sección (string,
+        // "0","1",...) -- las llena el envío automático desde el CAD (ver
+        // MemoriaSyncController::storeLosaAligeradaSection), vacío si nunca
+        // se envió nada por ahí (el formulario manual no las edita).
+        losaTablas: {},
+        // AGREGADO (ver conversación): "1.- Datos Generales" del PDF de
+        // referencia (f'c/fy/B/T/factores/ancho tributario) -- un solo dato
+        // compartido por todo el diseño de losa aligerada, no por sección.
+        datosGeneralesAligerado: null,
         viga: 1,
         nameVigas: "Viga 1",
         columna: 1,
@@ -215,6 +225,12 @@ export function createMemoriaCalculoStore() {
       coverImage2: null,
       floorImages: [],
       losaImages: [],
+      // AGREGADO (ver conversación): ancho/alto real (px) de cada imagen de
+      // losaImages, misma forma [index][subIndex] -- la llena loadFromCadModel()
+      // (index-refactored.js) con lo que ya calculó MemoriaSyncController;
+      // vacío para imágenes subidas a mano (documentTransformer.js cae a un
+      // tamaño por defecto en ese caso).
+      losaImagesDims: [],
       vigaImages: [],
       columnaImages: [],
       cimentacionImages: [],

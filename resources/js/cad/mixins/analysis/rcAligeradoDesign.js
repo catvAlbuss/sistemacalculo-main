@@ -304,6 +304,7 @@ export const rcAligeradoDesignMixin = {
       parametros: { fc, fy },
       tramos,
       angleDeg,
+      z,
     };
   },
 
@@ -625,6 +626,241 @@ export const rcAligeradoDesignMixin = {
   },
 
   /**
+   * html2canvas clona el DOCUMENTO COMPLETO para calcular estilos, sin
+   * importar cuán chico sea el elemento pedido — y el documento acá es la
+   * app CAD entera (toolbar, paneles, menús, el canvas WebGL de Babylon),
+   * así que cada captura tardaba varios segundos solo en el clonado. Para
+   * evitarlo, se copia el html de la tira a un iframe aislado (documento
+   * nuevo, casi vacío, con el mismo CSS compilado del layout vía <link>) y
+   * se captura ahí — html2canvas clona ese documento diminuto, no la app.
+   *
+   * AGREGADO (ver conversación): extraído de rcAligeradoGenerarReporte() a
+   * un método propio del mixin -- lo reutiliza también rcAligeradoEnviarAMemoria()
+   * (enviar el reporte directo a Memoria de Cálculo), que necesita las
+   * MISMAS capturas sin generar el PDF.
+   */
+  async _rcAligeradoShot(elementId) {
+    const el = document.getElementById(elementId);
+    if (!el || !el.innerHTML.trim()) return null;
+
+    // Los hijos de `el` tienen anchos en % (viguetaComponent, carga, etc.)
+    // — deben resolverse contra EL MISMO ancho en px que tenían en vivo
+    // (el del modal), si no la proporción alto/ancho sale distinta y la
+    // imagen queda "aplastada" (texto pegado a los bordes) al escalarla a
+    // los 420pt fijos del PDF. Por eso el iframe usa el ancho real de `el`,
+    // no uno arbitrario.
+    const width = Math.max(Math.ceil(el.getBoundingClientRect().width), 300);
+
+    const iframe = document.createElement("iframe");
+    iframe.style.cssText = `position:fixed; left:-99999px; top:0; width:${width}px; height:800px; border:0;`;
+    document.body.appendChild(iframe);
+    try {
+      const idoc = iframe.contentDocument;
+      idoc.open();
+      idoc.write("<!doctype html><html><head></head><body style='margin:0;background:#fff;color:#000'></body></html>");
+      idoc.close();
+
+      const styleLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
+      styleLinks.forEach((link) => {
+        const clone = idoc.createElement("link");
+        clone.rel = "stylesheet";
+        clone.href = link.href;
+        idoc.head.appendChild(clone);
+      });
+      // Espera a que el CSS clonado cargue en el iframe (si no, html2canvas
+      // capturaría antes de que apliquen las clases de Tailwind).
+      await Promise.all(
+        Array.from(idoc.querySelectorAll('link[rel="stylesheet"]')).map(
+          (link) =>
+            new Promise((resolve) => {
+              if (link.sheet) return resolve();
+              link.addEventListener("load", resolve, { once: true });
+              link.addEventListener("error", resolve, { once: true });
+            }),
+        ),
+      );
+
+      const wrapper = idoc.createElement("div");
+      wrapper.innerHTML = el.innerHTML;
+      // white-space:nowrap acá reemplaza la clase whitespace-nowrap que
+      // tenía `el` en el modal (solo copiamos su innerHTML, no la clase) —
+      // sin esto los tramos pueden partirse en 2 líneas al capturar.
+      wrapper.style.cssText = `color:#000; white-space:nowrap; width:${width}px;`;
+      idoc.body.appendChild(wrapper);
+
+      // html2canvas resuelve todo (documento, window, tamaño) desde
+      // wrapper.ownerDocument — al pertenecer al iframe, clona SU
+      // documento (chico), no el de la app.
+      const canvas = await html2canvas(wrapper);
+      return canvas.toDataURL("image/png");
+    } finally {
+      iframe.remove();
+    }
+  },
+
+  /**
+   * Captura las 7 imágenes (geometría/cargas/asd/cortante + 2 diagramas
+   * Plotly) y aplana T1/T2 a filas de tabla para UN grupo -- reutilizado por
+   * el PDF (rcAligeradoGenerarReporte) y por el envío a Memoria de Cálculo
+   * (rcAligeradoEnviarAMemoria).
+   */
+  async _rcAligeradoCaptureGroup(group, groupResults, index) {
+    const fmt2 = (v, suffix = "") => {
+      const n = parseFloat(v);
+      return Number.isFinite(n) ? n.toFixed(2) + suffix : "-";
+    };
+
+    const viguetas = await this._rcAligeradoShot(`aligerado-viguetas-${index}`);
+    const cargaMuerta = await this._rcAligeradoShot(`aligerado-cargaMuerta-${index}`);
+    const cargaViva = await this._rcAligeradoShot(`aligerado-cargaViva-${index}`);
+    const asd = await this._rcAligeradoShot(`aligerado-asd-${index}`);
+    const vu = await this._rcAligeradoShot(`aligerado-vu-${index}`);
+    const fuerzasCortantes = document.getElementById(`aligerado-fuerzasCortantes-${index}`)
+      ? await Plotly.toImage(`aligerado-fuerzasCortantes-${index}`)
+      : null;
+    const momentosFlectores = document.getElementById(`aligerado-momentosFlectores-${index}`)
+      ? await Plotly.toImage(`aligerado-momentosFlectores-${index}`)
+      : null;
+
+    const T1Rows = (groupResults?.T1 || []).map((row) => [
+      { text: fmt2(row.Mu, " Tn-m"), alignment: "center" },
+      { text: fmt2(row.Asd, " cm²"), alignment: "center" },
+      { text: fmt2(row.Asmin, " cm²"), alignment: "center" },
+      { text: row.diametro || "-", alignment: "center" },
+    ]);
+    const T2Rows = (groupResults?.T2 || []).map((row) => [
+      { text: fmt2(row.Vu, " Tn"), alignment: "center" },
+      { text: fmt2(row.Vc, " Tn"), alignment: "center" },
+      { text: fmt2(row.Ratio, " %"), alignment: "center" },
+      { text: fmt2(row.x, " m"), alignment: "center" },
+      { text: fmt2(row.b, " cm"), alignment: "center" },
+    ]);
+
+    return { group, viguetas, cargaMuerta, cargaViva, asd, vu, fuerzasCortantes, momentosFlectores, T1Rows, T2Rows };
+  },
+
+  /**
+   * Botón "Enviar a Memoria" del modal — reusa las MISMAS capturas de
+   * rcAligeradoGenerarReporte() (ver _rcAligeradoCaptureGroup) pero en vez de
+   * armar un PDF local, las manda al servidor: una Memoria de Cálculo y una
+   * Memoria Descriptiva por CadModel (ver MemoriaSyncController), get-or-
+   * create automático la primera vez. Requiere que el modelo ya se haya
+   * guardado al menos una vez en la nube (this._serverModelId, ver
+   * autosave.js) -- es lo que identifica "a qué proyecto" pertenece esto.
+   *
+   * Memoria de Cálculo: REEMPLAZA por completo la 4.2 (sections.
+   * disenoElementos.losa/lista + previews.losaImages[sección], 7 imágenes
+   * por sección -- ver MemoriaSyncController::replaceLosaAligerada) con
+   * EXACTAMENTE los grupos/viguetas actuales del diseño -- decisión
+   * explícita del cliente (ver conversación): cada envío reemplaza el
+   * anterior, no acumula pruebas de sesiones distintas. Memoria
+   * Descriptiva: sin sección propia todavía (ver conversación) -- se manda
+   * solo la imagen de geometría (viguetas) del primer grupo como adjunto
+   * genérico, para no perder el dato mientras se decide cómo mostrarlo ahí.
+   */
+  async rcAligeradoEnviarAMemoria({ tambienDescriptiva = true } = {}) {
+    const built = this._rcAligeradoDesignInput;
+    const results = this.rcAligeradoDesign?.results;
+    if (!built?.groups?.length || !Array.isArray(results) || results.length !== built.groups.length) {
+      this.showMessage?.("Primero corre el diseño (botón DISEÑAR) antes de enviar a Memoria.", "warning");
+      return;
+    }
+    if (!this._serverModelId) {
+      this.showMessage?.(
+        "Guarda el modelo en la nube primero (Archivo ▸ Guardar / Guardar como) — Memoria de Cálculo se asocia al proyecto guardado.",
+        "warning",
+      );
+      return;
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content");
+    const jsonHeaders = { "Content-Type": "application/json", "X-CSRF-TOKEN": csrfToken, Accept: "application/json" };
+
+    this.showMessage?.("Enviando a Memoria de Cálculo...", "info");
+
+    try {
+      const captured = [];
+      for (let i = 0; i < built.groups.length; i++) {
+        captured.push(await this._rcAligeradoCaptureGroup(built.groups[i], results[i], i));
+      }
+
+      const resolveResp = await fetch("/software/memoria-calculo/resolve", {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({ cad_model_id: this._serverModelId }),
+      });
+      if (!resolveResp.ok) throw new Error(`No se pudo preparar Memoria de Cálculo (${resolveResp.status}).`);
+      const { id: memoriaCalculoId } = await resolveResp.json();
+
+      const SLOTS = ["viguetas", "cargaMuerta", "cargaViva", "asd", "vu", "fuerzasCortantes", "momentosFlectores"];
+      const groupsPayload = built.groups.map((group, gi) => {
+        const c = captured[gi];
+        const numTramos = group.tramos?.length || 1;
+        const images = {};
+        SLOTS.forEach((slot) => { if (c[slot]) images[slot] = c[slot]; });
+        // area_ids: qué losas forman esta vigueta -- se guardan para poder
+        // distinguir viguetas si en el futuro se retoma el acumulado, pero
+        // hoy el servidor las usa solo como referencia (reemplaza todo).
+        const areaIds = group.tramos.map((t) => t.areaId).filter((id) => id != null);
+        return {
+          area_ids: areaIds,
+          section_label: `Vigueta continua — piso z=${(Number(group.z) || 0).toFixed(2)}m — eje ${Math.round(group.angleDeg)}° (${numTramos} tramo${numTramos === 1 ? "" : "s"})`,
+          images,
+          t1_rows: c.T1Rows,
+          t2_rows: c.T2Rows,
+        };
+      });
+
+      const resp = await fetch(`/software/memoria-calculo/${memoriaCalculoId}/losa-aligerada`, {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          groups: groupsPayload,
+          // "1.- Datos Generales" del PDF de referencia -- un solo dato
+          // para todo el diseño (no por sección).
+          datos_generales: this._rcAligeradoLastForm || null,
+        }),
+      });
+      if (!resp.ok) throw new Error(`No se pudo enviar a Memoria de Cálculo (${resp.status}).`);
+
+      if (tambienDescriptiva) {
+        const resolveDesc = await fetch("/software/memoria-descriptiva/resolve", {
+          method: "POST",
+          headers: jsonHeaders,
+          body: JSON.stringify({ cad_model_id: this._serverModelId }),
+        });
+        if (resolveDesc.ok) {
+          const { id: memoriaDescriptivaId } = await resolveDesc.json();
+          const primeraImagen = captured.find((c) => c.viguetas)?.viguetas;
+          if (primeraImagen) {
+            await fetch(`/software/memoria-descriptiva/${memoriaDescriptivaId}/attachments`, {
+              method: "POST",
+              headers: jsonHeaders,
+              body: JSON.stringify({
+                key: "losaAligerada",
+                label: "Diseño de losa aligerada",
+                image_base64: primeraImagen,
+              }),
+            });
+          }
+        }
+      }
+
+      this.showMessage?.("✅ Enviado a Memoria de Cálculo" + (tambienDescriptiva ? " y Memoria Descriptiva." : "."));
+
+      // AGREGADO (ver conversación): antes esto no llevaba a ningún lado --
+      // el usuario tendría que adivinar/escribir a mano el cad_model_id en
+      // la URL de Memoria de Cálculo. Se arma el link real (con el proyecto
+      // ya resuelto arriba) y se avisa al modal por evento para que muestre
+      // un botón "Ver en Memoria de Cálculo" en vez de dejarlo sin salida.
+      const memoriaUrl = `/calculadora/asistente/memoria-calculo?cad_model_id=${this._serverModelId}`;
+      window.dispatchEvent(new CustomEvent("rc-aligerado-memoria-enviado", { detail: { url: memoriaUrl } }));
+    } catch (err) {
+      this.showMessage?.("No se pudo enviar a Memoria: " + (err?.message || err), "warning");
+    }
+  },
+
+  /**
    * Botón "Reporte" del modal — mismo PDF (pdfmake + html2canvas + Plotly.
    * toImage) que ya genera resources/js/adm_aligerados_grafico.js en la
    * página standalone /aligerados-v2, pero armado desde el estado del modal
@@ -661,102 +897,6 @@ export const rcAligeradoDesignMixin = {
         img.src = imgPath;
       });
 
-    // html2canvas clona el DOCUMENTO COMPLETO para calcular estilos, sin
-    // importar cuán chico sea el elemento pedido — y el documento acá es la
-    // app CAD entera (toolbar, paneles, menús, el canvas WebGL de Babylon),
-    // así que cada captura tardaba varios segundos solo en el clonado. Para
-    // evitarlo, se copia el html de la tira a un iframe aislado (documento
-    // nuevo, casi vacío, con el mismo CSS compilado del layout vía <link>) y
-    // se captura ahí — html2canvas clona ese documento diminuto, no la app.
-    const shot = async (elementId) => {
-      const el = document.getElementById(elementId);
-      if (!el || !el.innerHTML.trim()) return null;
-
-      // Los hijos de `el` tienen anchos en % (viguetaComponent, carga, etc.)
-      // — deben resolverse contra EL MISMO ancho en px que tenían en vivo
-      // (el del modal), si no la proporción alto/ancho sale distinta y la
-      // imagen queda "aplastada" (texto pegado a los bordes) al escalarla a
-      // los 420pt fijos del PDF. Por eso el iframe usa el ancho real de `el`,
-      // no uno arbitrario.
-      const width = Math.max(Math.ceil(el.getBoundingClientRect().width), 300);
-
-      const iframe = document.createElement("iframe");
-      iframe.style.cssText = `position:fixed; left:-99999px; top:0; width:${width}px; height:800px; border:0;`;
-      document.body.appendChild(iframe);
-      try {
-        const idoc = iframe.contentDocument;
-        idoc.open();
-        idoc.write("<!doctype html><html><head></head><body style='margin:0;background:#fff;color:#000'></body></html>");
-        idoc.close();
-
-        const styleLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
-        styleLinks.forEach((link) => {
-          const clone = idoc.createElement("link");
-          clone.rel = "stylesheet";
-          clone.href = link.href;
-          idoc.head.appendChild(clone);
-        });
-        // Espera a que el CSS clonado cargue en el iframe (si no, html2canvas
-        // capturaría antes de que apliquen las clases de Tailwind).
-        await Promise.all(
-          Array.from(idoc.querySelectorAll('link[rel="stylesheet"]')).map(
-            (link) =>
-              new Promise((resolve) => {
-                if (link.sheet) return resolve();
-                link.addEventListener("load", resolve, { once: true });
-                link.addEventListener("error", resolve, { once: true });
-              }),
-          ),
-        );
-
-        const wrapper = idoc.createElement("div");
-        wrapper.innerHTML = el.innerHTML;
-        // white-space:nowrap acá reemplaza la clase whitespace-nowrap que
-        // tenía `el` en el modal (solo copiamos su innerHTML, no la clase) —
-        // sin esto los tramos pueden partirse en 2 líneas al capturar.
-        wrapper.style.cssText = `color:#000; white-space:nowrap; width:${width}px;`;
-        idoc.body.appendChild(wrapper);
-
-        // html2canvas resuelve todo (documento, window, tamaño) desde
-        // wrapper.ownerDocument — al pertenecer al iframe, clona SU
-        // documento (chico), no el de la app.
-        const canvas = await html2canvas(wrapper);
-        return canvas.toDataURL("image/png");
-      } finally {
-        iframe.remove();
-      }
-    };
-
-    const captureGroup = async (group, groupResults, index) => {
-      const viguetas = await shot(`aligerado-viguetas-${index}`);
-      const cargaMuerta = await shot(`aligerado-cargaMuerta-${index}`);
-      const cargaViva = await shot(`aligerado-cargaViva-${index}`);
-      const asd = await shot(`aligerado-asd-${index}`);
-      const vu = await shot(`aligerado-vu-${index}`);
-      const fuerzasCortantes = document.getElementById(`aligerado-fuerzasCortantes-${index}`)
-        ? await Plotly.toImage(`aligerado-fuerzasCortantes-${index}`)
-        : null;
-      const momentosFlectores = document.getElementById(`aligerado-momentosFlectores-${index}`)
-        ? await Plotly.toImage(`aligerado-momentosFlectores-${index}`)
-        : null;
-
-      const T1Rows = (groupResults?.T1 || []).map((row) => [
-        { text: fmt2(row.Mu, " Tn-m"), alignment: "center" },
-        { text: fmt2(row.Asd, " cm²"), alignment: "center" },
-        { text: fmt2(row.Asmin, " cm²"), alignment: "center" },
-        { text: row.diametro || "-", alignment: "center" },
-      ]);
-      const T2Rows = (groupResults?.T2 || []).map((row) => [
-        { text: fmt2(row.Vu, " Tn"), alignment: "center" },
-        { text: fmt2(row.Vc, " Tn"), alignment: "center" },
-        { text: fmt2(row.Ratio, " %"), alignment: "center" },
-        { text: fmt2(row.x, " m"), alignment: "center" },
-        { text: fmt2(row.b, " cm"), alignment: "center" },
-      ]);
-
-      return { group, viguetas, cargaMuerta, cargaViva, asd, vu, fuerzasCortantes, momentosFlectores, T1Rows, T2Rows };
-    };
-
     this.showMessage?.("Generando reporte...", "info");
 
     try {
@@ -764,7 +904,7 @@ export const rcAligeradoDesignMixin = {
 
       const captured = [];
       for (let i = 0; i < built.groups.length; i++) {
-        captured.push(await captureGroup(built.groups[i], results[i], i));
+        captured.push(await this._rcAligeradoCaptureGroup(built.groups[i], results[i], i));
       }
 
       const form = this._rcAligeradoLastForm || {};

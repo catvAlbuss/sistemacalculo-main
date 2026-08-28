@@ -3115,27 +3115,34 @@ export class DocumentTransformer {
           "Una losa aligerada es un tipo de techo o piso que usamos en construcción, hecha con concreto y varillas de acero, pero con materiales livianos en su interior, como bloques de poliestireno o ladrillos huecos. Esto permite que sea más liviana, pero igual de resistente.",
     );
 
+    // NOTA (ver conversación): esto es el slot ÚNICO y manual "Imagen de
+    // diseño por flexión" (disenoLosaAligeradaImages[0], ver diseno-elementos.
+    // blade.php línea ~210) -- NO tiene relación con el envío automático
+    // desde el CAD (rcAligeradoDesign.js), que va a `losaImages`/`lista`/
+    // `losa` más abajo (una "sección" = un grupo/vigueta continua, hasta 7
+    // imágenes cada una). Se dejó SIN TOCAR tal como estaba -- se había roto
+    // en un intento anterior de reusar este mismo campo para el envío
+    // automático (guardaba un array en vez de una sola imagen).
     const disenoLosaAligeradaImages = this.previews?.disenoLosaAligeradaImages || [];
 
-    if (paragraphLosaAligerada !== -1) {
+    // CORREGIDO (ver conversación): antes se insertaba SIEMPRE un item
+    // "image" acá, incluso sin ninguna imagen real cargada (src quedaba
+    // undefined) -- el generador de Word igual intentaba insertar algo, sin
+    // sentido, en vez de simplemente no mostrar nada. Ahora solo se inserta
+    // si el usuario de verdad subió una imagen a mano en ese campo.
+    if (paragraphLosaAligerada !== -1 && disenoLosaAligeradaImages[0]) {
       disenoElementos.content.splice(paragraphLosaAligerada + 1, 0, {
         type: "image",
         src: disenoLosaAligeradaImages[0],
-        alt: "figura 45-TABLA DE PREDISIONAMIENTO ",
+        alt: "Imagen de diseño por flexión",
         width: 500,
         height: 300,
-        caption: "figura 45-TABLA DE PREDISIONAMIENTO ",
+        caption: "Imagen de diseño por flexión",
         alignment: "CENTER",
       });
       console.warn("Se encontró el parrafo de losa aligerada");
     } else {
-      disenoElementos.content.splice(paragraphLosaAligerada + 1, 0, {
-        type: "paragraph",
-        text: `[IMAGEN figura 45-TABLA DE PREDISIONAMIENTO  - Sin imagen disponible]`,
-        style: "placeholder",
-        alignment: "center",
-      });
-      console.warn("No Se encontró el parrafo de losa aligerada");
+      console.warn("No Se encontró el parrafo de losa aligerada, o no hay imagen cargada ahí -- no se inserta nada");
     }
 
     const metradoCargasListIdx = disenoElementos.content.findIndex(
@@ -3187,7 +3194,23 @@ export class DocumentTransformer {
 
         // Obtener las imágenes del store
         const losaImages = this.previews?.losaImages || [];
-        console.log(`🖼️ Total de imágenes disponibles: ${losaImages.length} secciones con 4 imágenes cada una`);
+        console.log(`🖼️ Total de imágenes disponibles: ${losaImages.length} secciones con hasta 7 imágenes cada una`);
+
+        // AGREGADO (ver conversación: "Enviar a Memoria" desde el módulo de
+        // diseño de losa aligerada del CAD, rcAligeradoDesign.js) -- una
+        // sección acá = un grupo/vigueta continua allá (misma dirección de
+        // armado + mismo piso). Antes esta sección solo aceptaba 4 imágenes
+        // (subidas a mano); el envío automático manda 7 (mismo orden que
+        // _rcAligeradoCaptureGroup: geometría, cargas, diseño, 2 diagramas).
+        const LOSA_SLOT_CAPTIONS = [
+          "Geometría de la vigueta",
+          "Carga muerta",
+          "Carga viva",
+          "Diseño a flexión (Asd)",
+          "Diseño a cortante (Vu)",
+          "Diagrama de fuerzas cortantes",
+          "Diagrama de momentos flectores",
+        ];
 
         // INSERTAR las nuevas listas con sus imágenes
         let currentPosition = metradoCargasListIdx + 2;
@@ -3204,42 +3227,81 @@ export class DocumentTransformer {
           console.log(`➕ Insertada lista ${index + 1}: "${item}" en posición ${currentPosition}`);
           currentPosition++;
 
-          // 2. Insertar las 4 imágenes de esta sección (si existen)
-          const imagenesSeccion = losaImages[index] || [];
+          // AGREGADO (ver conversación): "1.- Datos Generales" -- f'c/fy/B/T/
+          // factores de amplificación/ancho tributario, la MISMA tabla que ya
+          // trae el PDF de referencia (rcAligeradoGenerarReporte). Ahí aparece
+          // UNA sola vez, justo debajo del nombre de la PRIMERA vigueta y
+          // antes de su primera imagen (no antes de la lista de viguetas, ni
+          // repetida en cada una) -- por eso va acá, solo cuando index===0.
+          if (index === 0) {
+            const datosGenerales = this.sections?.disenoElementos?.datosGeneralesAligerado;
+            if (datosGenerales) {
+              const fmtDG = (v, dec = 2) => {
+                const n = Number(v);
+                return Number.isFinite(n) ? n.toFixed(dec) : "-";
+              };
+              disenoElementos.content.splice(currentPosition, 0, {
+                type: "table",
+                title: "1.- Datos Generales",
+                columns: [
+                  { header: "Nombre", width: 40 },
+                  { header: "Símbolo", width: 15 },
+                  { header: "Valor", width: 25 },
+                  { header: "Unidad", width: 20 },
+                ],
+                rows: [
+                  ["Resistencia a compresión del concreto", "f'c", fmtDG(datosGenerales.fc), "Kg/cm²"],
+                  ["Esfuerzo de fluencia del acero", "fy", fmtDG(datosGenerales.fy), "Kg/cm²"],
+                  ["Ancho de vigueta", "B", fmtDG(datosGenerales.b), "m"],
+                  ["Altura total", "T", fmtDG(datosGenerales.t), "m"],
+                  ["Factor de amplificación", "ØRM", fmtDG(datosGenerales.frm), "-"],
+                  ["Factor de amplificación", "ØRV", fmtDG(datosGenerales.frv), "-"],
+                  ["Ancho Tributario", "-", fmtDG(datosGenerales.anchoTributario), "m"],
+                ],
+              });
+              currentPosition++;
+              console.log("   📊 Insertada tabla 1.- Datos Generales (losa aligerada)");
+            }
+          }
 
-          for (let imgIdx = 0; imgIdx < 4; imgIdx++) {
+          // Imágenes de esta sección (hasta 7, ver LOSA_SLOT_CAPTIONS) --
+          // si vienen de subida manual y hay menos, simplemente no hay
+          // placeholder para las que faltan.
+          const imagenesSeccion = losaImages[index] || [];
+          // AGREGADO (ver conversación): ancho/alto real de cada imagen (ver
+          // MemoriaSyncController::imageDimensions) -- antes TODAS se forzaban
+          // a una caja fija (500x300/500x800) sin importar su forma real; las
+          // capturas del CAD son tiras muy anchas y bajas (hasta 17:1), forzarlas
+          // a una caja alta y angosta las estiraba hasta volverlas ilegibles.
+          const dimsSeccion = this.previews?.losaImagesDims?.[index] || [];
+          const MAX_W = 500;
+          const MAX_H = 600;
+          const fitBox = (natW, natH) => {
+            const scale = Math.min(MAX_W / natW, MAX_H / natH);
+            return { width: Math.round(natW * scale), height: Math.round(natH * scale) };
+          };
+
+          const insertarImagen = (imgIdx) => {
             const imagen = imagenesSeccion[imgIdx];
+            const etiqueta = LOSA_SLOT_CAPTIONS[imgIdx] || `Detalle ${imgIdx + 1}`;
 
             if (imagen) {
-              if (imgIdx === 0) {
-                // Si hay imagen, insertarla
-                disenoElementos.content.splice(currentPosition, 0, {
-                  type: "image",
-                  src: imagen, // Aquí va la URL de la imagen
-                  alt: `Figura 4.2.${index + 1}.${imgIdx + 1} - ${item}`,
-                  width: 500,
-                  height: 300,
-                  caption: `Figura 4.2.${index + 1}.${imgIdx + 1} - Detalle ${imgIdx + 1} de ${item}`,
-                  alignment: "CENTER",
-                });
-                console.log(
-                  `   🖼️ Insertada imagen ${imgIdx + 1} de sección ${index + 1} en posición ${currentPosition}`,
-                );
-              } else {
-                // Si hay imagen, insertarla
-                disenoElementos.content.splice(currentPosition, 0, {
-                  type: "image",
-                  src: imagen, // Aquí va la URL de la imagen
-                  alt: `Figura 4.2.${index + 1}.${imgIdx + 1} - ${item}`,
-                  width: 500,
-                  height: 800,
-                  caption: `Figura 4.2.${index + 1}.${imgIdx + 1} - Detalle ${imgIdx + 1} de ${item}`,
-                  alignment: "CENTER",
-                });
-                console.log(
-                  `   🖼️ Insertada imagen ${imgIdx + 1} de sección ${index + 1} en posición ${currentPosition}`,
-                );
-              }
+              const dims = dimsSeccion[imgIdx];
+              const { width, height } = dims
+                ? fitBox(dims.width, dims.height)
+                : { width: 500, height: 300 }; // sin dato real (subida manual antigua) -- mismo default de siempre
+              disenoElementos.content.splice(currentPosition, 0, {
+                type: "image",
+                src: imagen, // Aquí va la URL de la imagen
+                alt: `Figura 4.2.${index + 1}.${imgIdx + 1} - ${etiqueta}`,
+                width,
+                height,
+                caption: `Figura 4.2.${index + 1}.${imgIdx + 1} - ${etiqueta} (${item})`,
+                alignment: "CENTER",
+              });
+              console.log(
+                `   🖼️ Insertada imagen ${imgIdx + 1} (${etiqueta}) de sección ${index + 1} en posición ${currentPosition}`,
+              );
             } else {
               // Si no hay imagen, insertar un placeholder o mensaje
               disenoElementos.content.splice(currentPosition, 0, {
@@ -3252,9 +3314,67 @@ export class DocumentTransformer {
               );
             }
             currentPosition++;
-          }
+          };
 
-          console.log(`✅ Sección ${index + 1} completada con sus 4 imágenes`);
+          // Tablas T1 (flexión) / T2 (cortante) de esta sección, si el envío
+          // automático las trajo (ver conversación: MemoriaSyncController::
+          // storeLosaAligeradaSection) -- mismas columnas que ya usa el PDF
+          // (rcAligeradoGenerarReporte). El formulario manual nunca las llena
+          // (losaTablas queda vacío), así que ahí simplemente no se inserta
+          // nada -- no rompe el flujo manual existente.
+          const tablasSeccion = this.sections?.disenoElementos?.losaTablas?.[String(index)];
+
+          const insertarTablaT1 = () => {
+            if (!tablasSeccion?.t1?.length) return;
+            disenoElementos.content.splice(currentPosition, 0, {
+              type: "table",
+              title: `Tabla 4.2.${index + 1}.1 - Diseño a flexión (${item})`,
+              columns: [
+                { header: "Mu (Tn-m)", width: 25 },
+                { header: "Asd (cm²)", width: 25 },
+                { header: "Asmin (cm²)", width: 25 },
+                { header: "Diámetro", width: 25 },
+              ],
+              rows: tablasSeccion.t1,
+            });
+            currentPosition++;
+            console.log(`   📊 Insertada tabla T1 (flexión) de sección ${index + 1}`);
+          };
+
+          const insertarTablaT2 = () => {
+            if (!tablasSeccion?.t2?.length) return;
+            disenoElementos.content.splice(currentPosition, 0, {
+              type: "table",
+              title: `Tabla 4.2.${index + 1}.2 - Diseño a cortante (${item})`,
+              columns: [
+                { header: "Vu (Tn)", width: 20 },
+                { header: "Vc (Tn)", width: 20 },
+                { header: "Ratio Vu/Vc (%)", width: 20 },
+                { header: "Long. ensanche (m)", width: 20 },
+                { header: "Ancho ensanche (cm)", width: 20 },
+              ],
+              rows: tablasSeccion.t2,
+            });
+            currentPosition++;
+            console.log(`   📊 Insertada tabla T2 (cortante) de sección ${index + 1}`);
+          };
+
+          // 2. Insertar imágenes y tablas EN ESTE ORDEN (ver conversación):
+          // geometría/cargas, luego los 2 diagramas de análisis estructural,
+          // y recién ahí cada tabla justo antes de la imagen que la ilustra
+          // (Asd después de la tabla de flexión, Vu después de la tabla de
+          // cortante).
+          insertarImagen(0); // Geometría de la vigueta
+          insertarImagen(1); // Carga muerta
+          insertarImagen(2); // Carga viva
+          insertarImagen(5); // Diagrama de fuerzas cortantes
+          insertarImagen(6); // Diagrama de momentos flectores
+          insertarTablaT1();
+          insertarImagen(3); // Diseño a flexión (Asd)
+          insertarTablaT2();
+          insertarImagen(4); // Diseño a cortante (Vu)
+
+          console.log(`✅ Sección ${index + 1} completada con sus imágenes`);
         }
       }
 

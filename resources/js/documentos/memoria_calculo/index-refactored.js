@@ -64,7 +64,81 @@ function memoriaCalculo() {
                 this.$store.memoriaCalculo.ubigeoData = ubigeoData;
             }
 
+            this.loadFromCadModel();
+
             console.log('✅ Inicialización completa');
+        },
+
+        /**
+         * AGREGADO (ver conversación): si se llega con ?cad_model_id=N en la
+         * URL (el CAD agrega ese link tras "Enviar a Memoria" en un módulo de
+         * diseño -- losa aligerada primero, ver rcAligeradoDesign.js), carga
+         * las imágenes YA guardadas en el servidor para ese proyecto y las
+         * vuelca directo al store -- así el usuario NO tiene que volver a
+         * subirlas a mano. Sin el parámetro, se comporta exactamente igual
+         * que antes (hoja en blanco).
+         */
+        async loadFromCadModel() {
+            const params = new URLSearchParams(window.location.search);
+            const cadModelId = params.get('cad_model_id');
+            if (!cadModelId) return;
+
+            try {
+                const resp = await fetch(`/software/memoria-calculo/by-cad-model/${cadModelId}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+                });
+                if (!resp.ok) return;
+                const out = await resp.json();
+                if (!out?.exists) return;
+
+                const store = this.$store.memoriaCalculo;
+
+                // losa/lista de la sección 4.2 (ver MemoriaSyncController::
+                // storeLosaAligeradaSection) -- solo se pisan si el servidor
+                // trae algo real, para no borrar lo que el usuario ya haya
+                // tipeado a mano en esta misma sesión antes de que esto cargue.
+                if (out.disenoElementos?.losa != null) {
+                    store.sections.disenoElementos.losa = out.disenoElementos.losa;
+                }
+                if (out.disenoElementos?.lista != null) {
+                    store.sections.disenoElementos.lista = out.disenoElementos.lista;
+                }
+                if (out.disenoElementos?.losaTablas != null) {
+                    store.sections.disenoElementos.losaTablas = out.disenoElementos.losaTablas;
+                }
+                if (out.disenoElementos?.datosGeneralesAligerado != null) {
+                    store.sections.disenoElementos.datosGeneralesAligerado = out.disenoElementos.datosGeneralesAligerado;
+                }
+
+                Object.entries(out.imagesByGroup || {}).forEach(([groupKey, byKey]) => {
+                    if (!Array.isArray(store.previews[groupKey])) store.previews[groupKey] = [];
+                    if (!Array.isArray(store.images[groupKey])) store.images[groupKey] = [];
+                    // AGREGADO (ver conversación: Word estiraba las imágenes a una
+                    // caja fija sin respetar su proporción real) -- ancho/alto real
+                    // en px, en una estructura PARALELA a previews (misma forma,
+                    // [index][subIndex] o [index]) -- documentTransformer.js la usa
+                    // para calcular el alto correcto dado un ancho fijo.
+                    const dimsKey = groupKey + "Dims";
+                    if (!store.previews[dimsKey]) store.previews[dimsKey] = [];
+                    Object.values(byKey).forEach((img) => {
+                        const dims = img.width && img.height ? { width: img.width, height: img.height } : null;
+                        if (img.subIndex !== null && img.subIndex !== undefined) {
+                            if (!Array.isArray(store.previews[groupKey][img.index])) store.previews[groupKey][img.index] = [];
+                            store.previews[groupKey][img.index][img.subIndex] = img.base64;
+                            if (dims) {
+                                if (!Array.isArray(store.previews[dimsKey][img.index])) store.previews[dimsKey][img.index] = [];
+                                store.previews[dimsKey][img.index][img.subIndex] = dims;
+                            }
+                        } else {
+                            store.previews[groupKey][img.index] = img.base64;
+                            if (dims) store.previews[dimsKey][img.index] = dims;
+                        }
+                    });
+                });
+                console.log(`📥 Memoria de Cálculo cargada desde el proyecto #${cadModelId} (${out.projectName || 'sin nombre'}).`);
+            } catch (err) {
+                console.warn('No se pudo cargar Memoria de Cálculo desde el proyecto CAD:', err);
+            }
         },
 
         // ============================================

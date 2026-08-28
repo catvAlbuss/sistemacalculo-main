@@ -202,6 +202,16 @@
         </div>
 
         <div class="flex justify-end gap-2 px-4 py-3 border-t border-gray-700 bg-gray-900 rounded-b-lg">
+            <a :href="memoriaUrl" target="_blank" rel="noopener" x-show="memoriaUrl" x-cloak
+               class="px-4 py-2 bg-sky-700 hover:bg-sky-600 text-white rounded text-xs font-bold flex items-center">
+                VER EN MEMORIA DE CÁLCULO
+            </a>
+            <button @click="enviarAMemoria()" :disabled="memoriaLoading || !hasResults()"
+                    title="Manda las mismas imágenes del reporte directo a Memoria de Cálculo (y Memoria Descriptiva) del proyecto guardado, sin descargar/subir nada a mano."
+                    class="px-4 py-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white rounded text-xs font-bold">
+                <span x-show="!memoriaLoading">ENVIAR A MEMORIA</span>
+                <span x-show="memoriaLoading">Enviando...</span>
+            </button>
             <button @click="generarReporte()" :disabled="reportLoading || !hasResults()"
                     class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded text-xs font-bold">
                 <span x-show="!reportLoading">REPORTE</span>
@@ -220,6 +230,8 @@
             results: null,
             loading: false,
             reportLoading: false,
+            memoriaLoading: false,
+            memoriaUrl: null,
             errorMsg: '',
             form: { fc: 210, fy: 4200, b: 0.10, t: 0.20, anchoTributario: 0.40, frm: 1.4, frv: 1.7 },
 
@@ -228,6 +240,7 @@
                     this.input = e.detail?.input || null;
                     this.results = null;
                     this.errorMsg = '';
+                    this.memoriaUrl = null;
                     const firstGroup = this.input?.groups?.[0];
                     if (firstGroup?.parametros) {
                         this.form.fc = firstGroup.parametros.fc || this.form.fc;
@@ -252,6 +265,10 @@
                 window.addEventListener('rc-aligerado-design-updated', (e) => {
                     if (!this.open) return;
                     this.results = e.detail?.results || this.results;
+                });
+                window.addEventListener('rc-aligerado-memoria-enviado', (e) => {
+                    if (!this.open) return;
+                    this.memoriaUrl = e.detail?.url || null;
                 });
             },
 
@@ -278,6 +295,18 @@
                     this.errorMsg = String(err?.message || err);
                 } finally {
                     this.loading = false;
+                }
+            },
+
+            async enviarAMemoria() {
+                this.errorMsg = '';
+                this.memoriaLoading = true;
+                try {
+                    await window.cadSystem?.rcAligeradoEnviarAMemoria?.();
+                } catch (err) {
+                    this.errorMsg = String(err?.message || err);
+                } finally {
+                    this.memoriaLoading = false;
                 }
             },
 

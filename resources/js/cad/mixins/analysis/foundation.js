@@ -914,7 +914,7 @@ export const foundationMixin = {
           // rígido para ESA dirección puntual (que ya da Vu=0 en ese
           // caso, criterio de que ahí gobierna punzonamiento, no cortante
           // de viga), sin afectar la otra dirección si esa sí es válida.
-          if (result.ok && polygonProperties[index].shearDesign?.type === "isolated") {
+          if (result.ok && result.cortanteDiseno && polygonProperties[index].shearDesign?.type === "isolated") {
             const cd = result.cortanteDiseno;
             if (cd.V13_diseno != null) {
               const vuX = Math.abs(cd.V13_diseno);

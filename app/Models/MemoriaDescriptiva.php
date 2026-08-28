@@ -10,6 +10,7 @@ class MemoriaDescriptiva extends Model
 
     protected $fillable = [
         'user_id',
+        'cad_model_id',
         'project_name',
         'uei',
         'codigo_unificado',
@@ -31,5 +32,10 @@ class MemoriaDescriptiva extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function cadModel()
+    {
+        return $this->belongsTo(CadModel::class);
     }
 }

@@ -1,5 +1,0 @@
-import{S as t}from"./analisis_estructural_de_armaduras-CQVWZHyv.js";import"./livewire.esm-CO6ZehnT.js";import"./predimensionamiento-CxryAhEz.js";import"./preload-helper-BfFHrpNk.js";import"./color_scale-BGSv3LvJ.js";import"./zapatas2Core-BzoMxdJb.js";import"./mat4js.read-Dd8f86LV.js";import"./_commonjsHelpers-D6-XlEtG.js";import"./constants-CoGixEBm.js";import"./html2canvas.esm-5Cw11iw4.js";import"./rizabalasociados-DHREaxkb.js";import"./ubigeo-Cak7qga5.js";const e="volumetricLightingRenderVolumeVertexShader",o=`#include<sceneUboDeclaration>
-#include<meshUboDeclaration>
-attribute position : vec3f;varying vWorldPos: vec4f;@vertex
-fn main(input : VertexInputs)->FragmentInputs {let worldPos=mesh.world*vec4f(vertexInputs.position,1.0);vertexOutputs.vWorldPos=worldPos;vertexOutputs.position=scene.viewProjection*worldPos;}
-`;t.ShadersStoreWGSL[e]||(t.ShadersStoreWGSL[e]=o);const S={name:e,shader:o};export{S as volumetricLightingRenderVolumeVertexShaderWGSL};
