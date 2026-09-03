@@ -1,4 +1,14 @@
 # python-backend/app.py
+import os
+
+# ============================================================
+# 🔧 FIX: Limitar threads ANTES de cualquier import pesado
+# ============================================================
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+# ============================================================
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import traceback
@@ -8,15 +18,18 @@ import os
 import json
 from design.column_interaction import (
     compute_pmm_surface,
-    capacity_ratio_radial,
     beta1_from_fc,
     normalize_design_code,
 )
+from design.column_ratio import curva_radial, ratio_pmm
 from design.column_slenderness import magnify_nonsway, minimum_eccentricity_variants
 from design.column_shear import column_shear_design
+from design.wall_section import construir_seccion
+from design.wall_interaction import MODOS as MODOS_SUPERFICIE, superficie_pmm
+from design.wall_ratio import malla_de_superficie, ratio_de_demanda
 
 
-def _dump_seismic_payload_if_enabled(data):
+def _dump_seismic_payload_if_enabled(data, nombre="last_seismic_payload.json"):
     """Vuelca el payload sísmico recibido a disco para pruebas controladas
     (calibración vs ETABS, etc.). OPT-IN: se activa con la env var
     DUMP_SEISMIC_PAYLOAD=1 al arrancar Flask; en uso normal NO hace nada.
@@ -28,7 +41,7 @@ def _dump_seismic_payload_if_enabled(data):
     try:
         out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_debug_payloads")
         os.makedirs(out_dir, exist_ok=True)
-        path = os.path.join(out_dir, "last_seismic_payload.json")
+        path = os.path.join(out_dir, nombre)
         with open(path, "w", encoding="utf-8") as fh:
             json.dump(data, fh, ensure_ascii=False)
         print(f"DUMP: payload sismico guardado en {path}")
@@ -737,6 +750,11 @@ def frame_forces():
     """
     try:
         data = request.get_json(force=True) or {}
+        # ES OTRO PAYLOAD, no el de /api/seismic/analyze. Este es el unico que
+        # lleva `seismicCases` y `combos`, o sea el unico con el que se puede
+        # reproducir offline de donde sale el M3 de una columna. El volcado de
+        # antes solo cubria el sismico y por eso no servia para eso.
+        _dump_seismic_payload_if_enabled(data, "last_frame_forces_payload.json")
         cases = data.get("cases") or None
         combos = data.get("combos") if "combos" in data else None
         seismic_cases = data.get("seismicCases") or data.get("seismic_cases") or None
@@ -786,6 +804,108 @@ _SURFACE_CACHE = {}
 _SURFACE_CACHE_MAX = 32
 
 
+def _variantes_de_signo(pt):
+    """Las OCHO combinaciones de signo del aporte espectral de un combo.
+
+    La salida de un espectro es toda POSITIVA: es una magnitud (CQC/SRSS), no
+    tiene signo fisico. Por eso ETABS chequea todas las combinaciones de signo
+    del aporte espectral y disena para la PEOR — ocho para P, M2 y M3 en 3D
+    (Shear Wall Design ACI 318-14, seccion 1.3.7). Antes se evaluaba un solo
+    punto por variante de combo, o sea 2 de las 8 (las de signo uniforme).
+
+    En una seccion simetrica da igual: la superficie se mapea sobre si misma y
+    el peor de los ocho es el que ya se evaluaba. En una L o una T no.
+
+    Ademas no basta con dar vuelta el total: el signo va sobre la PARTE
+    ESPECTRAL, componente por componente. `firme` y `espectral` los separa el
+    frontend a partir de la pareja _Max/_Min del mismo combo (ver
+    `partirEspectral` en rcColumnDesign.js). Si no vienen —un caso suelto, un
+    combo sin sismo, un payload viejo— se devuelve el punto tal cual y no
+    cambia nada.
+
+    Devuelve [(P, M2, M3, M2Top, M3Top, etiqueta)].
+    """
+    p_u = float(pt.get("P", 0.0))
+    m2_u = float(pt.get("M2", 0.0))
+    m3_u = float(pt.get("M3", 0.0))
+    m2_top = float(pt.get("M2Top", m2_u))
+    m3_top = float(pt.get("M3Top", m3_u))
+    tal_cual = [(p_u, m2_u, m3_u, m2_top, m3_top, None)]
+
+    firme, espectral = {}, {}
+    for k in ("P", "M2", "M3"):
+        f, e = pt.get(k + "Firm"), pt.get(k + "Spec")
+        if f is None or e is None:
+            return tal_cual
+        firme[k], espectral[k] = float(f), abs(float(e))
+    if not any(espectral[k] > 0 for k in espectral):
+        return tal_cual
+
+    # El otro extremo, para la esbeltez: se le aplica el MISMO signo, porque es
+    # el mismo aporte espectral visto en la otra estacion. Si el frontend no
+    # mando su reparto, el momento del otro extremo va sin tocar.
+    firme_top, espectral_top = {}, {}
+    hay_top = True
+    for k in ("M2Top", "M3Top"):
+        f, e = pt.get(k + "Firm"), pt.get(k + "Spec")
+        if f is None or e is None:
+            hay_top = False
+            break
+        firme_top[k], espectral_top[k] = float(f), abs(float(e))
+
+    # Y ADEMAS EL CUADRANTE DE (M2, M3) — PARIDAD DELIBERADA CON ETABS.
+    #
+    # HAY DOS CONVENCIONES POSIBLES Y LAS DOS SE DEFIENDEN:
+    #
+    #   (a) FISICA: el signo va solo sobre el aporte espectral. Si la gravedad
+    #       da M3 = +2.47 y lo espectral es ±2.56, los unicos M3 posibles son
+    #       +5.03 y −0.09. Nunca negativo. Es lo que hacia esta funcion.
+    #   (b) ETABS: barre las combinaciones de signo de las MAGNITUDES (Shear
+    #       Wall Design ACI 318-14 §1.3.7), asi que evalua tambien cuadrantes
+    #       que el combo no puede producir. Es mas CONSERVADOR.
+    #
+    # Se elige (b) A PROPOSITO. El criterio de aceptacion del cliente es
+    # coincidir con ETABS dentro del 5-10 %, y medido en C2 de MODULO 01:
+    #
+    #     convencion fisica    0.2636 vs 0.301 de ETABS   −12.4 %   FUERA
+    #     convencion ETABS     0.2919 vs 0.301            − 3.1 %   dentro
+    #
+    # NO se cambio porque la fisica sea otra: se cambio porque el entregable es
+    # paridad con ETABS. La diferencia solo aparece en secciones ASIMETRICAS
+    # (L, T) — en rectangular y circular la superficie es simetrica y las dos
+    # convenciones dan identico. Y va del lado seguro: el barrido solo puede
+    # SUBIR el ratio.
+    #
+    # El signo de P NO se barre, ni acá ni en ETABS: ahi el signo es fisico
+    # (compresion/traccion) y cambiarlo mueve el punto a la otra mitad del
+    # diagrama. `_peor_signo` en design/tests/test_column_ratio.py —el test que
+    # reproduce el 0.301 de ETABS— tampoco lo barre.
+    salida = []
+    for sp in (1, -1):
+        for s2 in (1, -1):
+            for s3 in (1, -1):
+                p = firme["P"] + sp * espectral["P"]
+                m2 = firme["M2"] + s2 * espectral["M2"]
+                m3 = firme["M3"] + s3 * espectral["M3"]
+                if hay_top:
+                    t2 = firme_top["M2Top"] + s2 * espectral_top["M2Top"]
+                    t3 = firme_top["M3Top"] + s3 * espectral_top["M3Top"]
+                else:
+                    t2, t3 = m2_top, m3_top
+                etq = "%sP%sM2%sM3" % ("+" if sp > 0 else "-",
+                                       "+" if s2 > 0 else "-",
+                                       "+" if s3 > 0 else "-")
+                for q2 in (1, -1):
+                    for q3 in (1, -1):
+                        etq_q = etq if (q2 == 1 and q3 == 1) else "%s|%sM2%sM3" % (
+                            etq, "+" if q2 > 0 else "-", "+" if q3 > 0 else "-")
+                        # El momento del otro extremo acompaña el MISMO
+                        # cuadrante: es la misma barra vista en la otra
+                        # estacion, no un punto independiente.
+                        salida.append((p, q2 * m2, q3 * m3, q2 * t2, q3 * t3, etq_q))
+    return salida
+
+
 def _run_column_interaction(data):
     """
     Diagrama de interacción P-M-M biaxial (ACI-318) para una columna
@@ -806,7 +926,7 @@ def _run_column_interaction(data):
 
     `demandPoints` (opcional): además de la superficie de 24 curvas (útil
     como referencia visual), calcula el ratio P-M-M RADIAL en el ángulo real
-    de cada punto de demanda (ver capacity_ratio_radial) — el mismo D/C
+    de cada punto de demanda (ver design/column_ratio.ratio_pmm) — el mismo D/C
     Ratio que reporta ETABS: distancia origen→demanda sobre origen→superficie
     en el espacio P-M2-M3, NO M_demanda/M_capacidad al mismo Pn (eso subestimaba
     la capacidad real por 5-6x en columnas livianas, ver project_pmm_ratio_gap
@@ -846,7 +966,9 @@ def _run_column_interaction(data):
     if shape == "circular":
         required = comunes + ["diameter", "numBars"]
     elif shape in ("L", "tee"):
-        required = comunes + ["b", "h", "flangeThick", "webThick", "numBars"]
+        # ETABS arma la L y la T con el MISMO patron R-n2-n3 de una rectangular
+        # (ver etabs_polygon_bar_positions), asi que pide n3/n2, no un total.
+        required = comunes + ["b", "h", "flangeThick", "webThick", "n3", "n2"]
     else:
         required = comunes + ["b", "h", "n3", "n2"]
     missing = [k for k in required if data.get(k) is None]
@@ -970,7 +1092,7 @@ def _run_column_interaction(data):
             base_mom = abs(m_bottom)                   # no esbelta: el propio
             gobernante = m_bottom if m_bottom else (m_top if m_top else 1.0)
 
-        # El signo se conserva porque capacity_ratio_radial toma el angulo
+        # El signo se conserva porque el ratio toma el angulo
         # atan2(M2, M3): perderlo rotaria la demanda a otro cuadrante.
         signo = -1.0 if gobernante < 0 else 1.0
 
@@ -985,55 +1107,63 @@ def _run_column_interaction(data):
     if isinstance(demand_points, list) and demand_points:
         demand_checks = []
         for pt in demand_points:
-            p_u = float(pt.get("P", 0.0))
-            m2_u = float(pt.get("M2", 0.0))
-            m3_u = float(pt.get("M3", 0.0))
-
-            slender_detail = None
-            variantes = [(m2_u, m3_u)]
-
-            if slender_on:
-                m2_top = float(pt.get("M2Top", m2_u))
-                m3_top = float(pt.get("M3Top", m3_u))
-                m2_con, m2_sin, det2 = _magnify("M2", m2_u, m2_top, p_u)
-                m3_con, m3_sin, det3 = _magnify("M3", m3_u, m3_top, p_u)
-                slender_detail = {"M2": det2, "M3": det3}
-
-                # EXCENTRICIDAD MINIMA: UN EJE POR VEZ, no los dos a la vez.
-                #
-                # La excentricidad accidental que cubre el minimo de
-                # ACI 318 §6.6.4.5.4 / E.060 10.12.3.2 actua en UNA direccion,
-                # no simultaneamente en las dos. Aplicarla a los dos ejes
-                # inventa una demanda biaxial que no existe: en la C45x45 del
-                # modelo de referencia daba |M|=1.88 t-m donde ETABS usa 1.38.
-                #
-                # Verificado en el Column Element Details de ETABS (C7 Story1):
-                # con Minimum M2 = Minimum M3 = 1.3294, su diseno usa
-                # Mu2 = -1.3294 (el minimo) y Mu3 = -0.3831 (el factorado).
-                #
-                # Se arman las dos variantes y gana la de mayor ratio; si el
-                # minimo no levanto ningun eje, las dos coinciden y se evalua
-                # una sola vez.
-                variantes = minimum_eccentricity_variants(m2_con, m2_sin, m3_con, m3_sin)
-
+            # OCHO COMBINACIONES DE SIGNO del aporte espectral, y gana la peor
+            # (ver _variantes_de_signo). Sin parte espectral esto devuelve un
+            # solo punto y el resto del bloque queda igual que antes.
             result = None
-            for v2, v3 in variantes:
-                r = capacity_ratio_radial(
-                    b=b, h=h, fc=fc, fy=fy, cover=cover, bar_diameter=bar_diameter,
-                    n3=n3, n2=n2, bar_area=bar_area, beta1=beta1,
-                    target_p=p_u, target_m2=v2, target_m3=v3,
-                    confine_bar_diameter=confine_bar_diameter,
-                    code=code, tied=tied,
-                    nx=_DEMAND_FIBER_GRID, ny=_DEMAND_FIBER_GRID,
-                    shape=shape, diameter=diameter, num_bars=num_bars,
-            flange_thick=flange_thick, web_thick=web_thick,
-            mirror2=mirror2, mirror3=mirror3,
-                )
-                if r is None:
-                    continue
-                if result is None or r["ratio"] > result["ratio"]:
-                    result = r
-                    m2_u, m3_u = v2, v3
+            slender_detail = None
+            p_u = m2_u = m3_u = 0.0
+            signo_gana = None
+
+            for p_s, m2_s, m3_s, t2_s, t3_s, etiqueta in _variantes_de_signo(pt):
+                det_s = None
+                variantes = [(m2_s, m3_s)]
+
+                if slender_on:
+                    m2_con, m2_sin, det2 = _magnify("M2", m2_s, t2_s, p_s)
+                    m3_con, m3_sin, det3 = _magnify("M3", m3_s, t3_s, p_s)
+                    det_s = {"M2": det2, "M3": det3}
+
+                    # EXCENTRICIDAD MINIMA: UN EJE POR VEZ, no los dos a la vez.
+                    #
+                    # La excentricidad accidental que cubre el minimo de
+                    # ACI 318 §6.6.4.5.4 / E.060 10.12.3.2 actua en UNA
+                    # direccion, no simultaneamente en las dos. Aplicarla a los
+                    # dos ejes inventa una demanda biaxial que no existe: en la
+                    # C45x45 del modelo de referencia daba |M|=1.88 t-m donde
+                    # ETABS usa 1.38.
+                    #
+                    # Verificado en el Column Element Details de ETABS (C7
+                    # Story1): con Minimum M2 = Minimum M3 = 1.3294, su diseno
+                    # usa Mu2 = -1.3294 (el minimo) y Mu3 = -0.3831 (el
+                    # factorado).
+                    #
+                    # Se arman las dos variantes y gana la de mayor ratio; si el
+                    # minimo no levanto ningun eje, las dos coinciden y se
+                    # evalua una sola vez.
+                    variantes = minimum_eccentricity_variants(
+                        m2_con, m2_sin, m3_con, m3_sin)
+
+                for v2, v3 in variantes:
+                    r = ratio_pmm(
+                        b=b, h=h, fc=fc, fy=fy, cover=cover,
+                        bar_diameter=bar_diameter,
+                        n3=n3, n2=n2, bar_area=bar_area, beta1=beta1,
+                        target_p=p_s, target_m2=v2, target_m3=v3,
+                        confine_bar_diameter=confine_bar_diameter,
+                        code=code, tied=tied,
+                        nx=_DEMAND_FIBER_GRID, ny=_DEMAND_FIBER_GRID,
+                        shape=shape, diameter=diameter, num_bars=num_bars,
+                        flange_thick=flange_thick, web_thick=web_thick,
+                        mirror2=mirror2, mirror3=mirror3,
+                    )
+                    if r is None:
+                        continue
+                    if result is None or r["ratio"] > result["ratio"]:
+                        result = r
+                        p_u, m2_u, m3_u = p_s, v2, v3
+                        slender_detail = det_s
+                        signo_gana = etiqueta
 
             if result is None:
                 demand_checks.append({"error": "sin capacidad calculable"})
@@ -1041,14 +1171,30 @@ def _run_column_interaction(data):
             cap = result["capacity"]
             phi_mn_cap = math.hypot(cap["phiM2n"], cap["phiM3n"])
             ratio = result["ratio"]
+            # OJO CON thetaDeg. Sigue siendo el angulo del MOMENTO, que es lo
+            # que siempre significo para el frontend (elige el plano del corte
+            # que dibuja el diagrama). `ratio_pmm` devuelve en ese campo el
+            # angulo del EJE NEUTRO, que es otra cosa y en una L difiere mas de
+            # 100 grados: se publica aparte como `neutralAxisDeg`. Pisarlo
+            # habria movido el corte del grafico a un plano que no contiene la
+            # demanda.
             check = {
-                "thetaDeg": result["thetaDeg"],
+                "thetaDeg": math.degrees(math.atan2(m2_u, m3_u)) % 360.0,
+                "neutralAxisDeg": result["thetaDeg"],
                 "phi": result["phi"],
                 "phiMnCap": phi_mn_cap,
                 "muResultant": math.hypot(m2_u, m3_u),
                 "ratio": ratio,
                 "status": "OK" if ratio <= 1 else "NG",
             }
+            if signo_gana is not None:
+                # Que combinacion de signo del aporte espectral gobierna, y con
+                # que fuerzas — el reporte de ETABS los muestra en POSITIVO
+                # justamente porque el signo lo decide este barrido.
+                check["signCombo"] = signo_gana
+                check["PDesign"] = p_u
+                check["M2Design"] = m2_u
+                check["M3Design"] = m3_u
             if slender_detail is not None:
                 # Momentos YA magnificados que se verificaron (para poder
                 # auditar contra los del analisis, que quedan en el front).
@@ -1060,6 +1206,55 @@ def _run_column_interaction(data):
     response = {"success": True, "code": code, **surface}
     if demand_checks is not None:
         response["demandChecks"] = demand_checks
+
+    # CORTES RADIALES EXACTOS.
+    #
+    # El grafico armaba el corte interpolando el "anillo" de puntos del mismo
+    # indice entre meridianas de EJE NEUTRO. En una L eso deja la curva 3.2 %
+    # POR AFUERA de la superficie real con 24 meridianas, y no baja de ~0.6 %
+    # ni con 144: el sesgo es estructural (el anillo mezcla puntos que estan a
+    # distinto P) y va del lado NO conservador. Ademas el punto de capacidad
+    # que reporta el D/C no caia sobre la curva dibujada.
+    #
+    # `curva_radial` barre el MISMO rayo que usa `ratio_pmm`, asi que la curva
+    # pasa por el punto de capacidad por construccion (medido: 0.08 %, y lo que
+    # queda es la interpolacion lineal entre los 61 puntos de la curva).
+    #
+    # Se calcula SOLO para los angulos que hacen falta —el de la demanda que
+    # gobierna, mas los que pida el payload— porque cada corte cuesta ~1 s. Si
+    # el usuario barre el angulo a mano, el frontend cae al metodo interpolado,
+    # que para explorar alcanza.
+    angulos = []
+    if demand_checks:
+        gobierna = max(
+            (c for c in demand_checks if c.get("ratio") is not None),
+            key=lambda c: c["ratio"], default=None)
+        if gobierna is not None:
+            angulos.append(float(gobierna["thetaDeg"]))
+    for a in (data.get("cutAngles") or [])[:8]:
+        try:
+            angulos.append(float(a))
+        except (TypeError, ValueError):
+            continue
+
+    cortes = []
+    vistos = set()
+    for ang in angulos:
+        clave = round(((ang % 360) + 360) % 360, 3)
+        if clave in vistos:
+            continue
+        vistos.add(clave)
+        puntos = curva_radial(
+            clave, b=b, h=h, fc=fc, fy=fy, cover=cover,
+            bar_diameter=bar_diameter, n3=n3, n2=n2, bar_area=bar_area,
+            beta1=beta1, confine_bar_diameter=confine_bar_diameter,
+            code=code, tied=tied, shape=shape, diameter=diameter,
+            num_bars=num_bars, flange_thick=flange_thick, web_thick=web_thick,
+            mirror2=mirror2, mirror3=mirror3)
+        if puntos:
+            cortes.append({"angleDeg": clave, "points": puntos})
+    if cortes:
+        response["exactCuts"] = cortes
 
     return response
 
@@ -1077,6 +1272,126 @@ def column_interaction():
             jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}),
             500,
         )
+
+
+@app.route("/api/wall-interaction", methods=["POST"])
+def wall_interaction():
+    try:
+        data = request.get_json(force=True) or {}
+        response = _run_wall_interaction(data)
+        status = 200 if response.get("success") else 400
+        return jsonify(response), status
+
+    except Exception as e:
+        return (
+            jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}),
+            500,
+        )
+
+
+def _run_wall_interaction(data):
+    """
+    Superficie P-M-M de una PLACA dibujada en el Section Designer de ETABS: las
+    24 curvas x 11 puntos de la tabla "Curve Data" (ver design/wall_section.py y
+    design/wall_interaction.py). Como la de columnas, es geometria + materiales
+    puros: no necesita OpenSeesPy ni analisis previo. Compartida entre el
+    endpoint Flask (Windows) y cli_entry.py (Linux, subproceso).
+
+    Payload (SI: metros, Pa):
+        {
+          shapes: [...],          # las shapes de la SDSECTION, tal cual el .e2k
+          rebarCatalog: {"#4": area, ...},   # de las REBARDEFINITION
+          fc, fy,
+          numCurves?: 24, numPoints?: 11, mesh?: 160,
+          code?: "E060"|"ACI318", tied?: true,
+          modes?: ["con_phi", "sin_phi", "sin_phi_fy_aumentado"]
+        }
+
+    Devuelve la seccion armada (contorno, varillas, Ag, As — lo que necesita el
+    dibujo) y una superficie por modo pedido. Todo en SI: la conversion a
+    tonf/tonf-m para mostrar es del frontend, igual que en columnas.
+    """
+    shapes = data.get("shapes") or []
+    if not shapes:
+        return {"success": False, "error": "Falta `shapes`: la seccion no tiene ninguna forma."}
+
+    try:
+        fc = float(data.get("fc"))
+        fy = float(data.get("fy"))
+    except (TypeError, ValueError):
+        return {"success": False, "error": "`fc` y `fy` son obligatorios, en Pa."}
+    if fc <= 0 or fy <= 0:
+        return {"success": False, "error": "`fc` y `fy` tienen que ser positivos (en Pa)."}
+
+    catalogo = data.get("rebarCatalog") or data.get("rebar_catalog") or {}
+    malla = int(data.get("mesh") or 160)
+    seccion = construir_seccion(shapes, catalogo, malla=malla)
+    if not seccion.get("fibers"):
+        return {"success": False,
+                "error": "No se pudo armar la seccion.",
+                "avisos": seccion.get("avisos", [])}
+    if not seccion.get("bars"):
+        # Sin varillas no hay superficie de interaccion posible: la profundidad
+        # del eje neutro se mide hasta la varilla mas traccionada.
+        return {"success": False,
+                "error": "La seccion no tiene armado: no se puede calcular la "
+                         "superficie de interaccion.",
+                "avisos": seccion.get("avisos", [])}
+
+    modos = data.get("modes") or [data.get("mode") or "con_phi"]
+    superficies = {}
+    for modo in modos:
+        if modo not in MODOS_SUPERFICIE:
+            return {"success": False,
+                    "error": "Modo desconocido: %r (esperaba uno de %r)" % (modo, list(MODOS_SUPERFICIE))}
+        superficies[modo] = superficie_pmm(
+            seccion, fc, fy,
+            num_curvas=int(data.get("numCurves") or 24),
+            num_puntos=int(data.get("numPoints") or 11),
+            code=data.get("code") or "E060",
+            tied=bool(data.get("tied", True)),
+            modo=modo,
+        )
+
+    # ── Demandas (opcional) ──────────────────────────────────────────────
+    # El D/C sale de cortar un rayo contra la superficie TRIANGULADA, que se
+    # arma una sola vez y se reusa para todas las filas: armarla cuesta ~6 s y
+    # cada demanda contra ella ~11 ms. Si no vienen demandas, ni se arma.
+    demandas = data.get("demands") or []
+    verificaciones = []
+    if demandas:
+        malla = malla_de_superficie(
+            seccion, fc, fy,
+            code=data.get("code") or "E060",
+            tied=bool(data.get("tied", True)),
+            con_phi=True)
+        for d in demandas:
+            r = ratio_de_demanda(seccion, fc, fy, d, code=data.get("code") or "E060",
+                                 tied=bool(data.get("tied", True)), malla=malla)
+            verificaciones.append(dict(r or {"ratio": None}, name=d.get("name")))
+
+    return {
+        "success": True,
+        "demandChecks": verificaciones,
+        "section": {
+            "Ag": seccion["Ag"],
+            "As": seccion["As"],
+            # A / I22 / I33 / I23, para poder cruzarlas contra las "Section
+            # Properties" que muestra ETABS (verificado a 6 digitos en PL2).
+            "props": seccion.get("props"),
+            # `shape` = indice en la lista de shapes que mando el cliente, para
+            # que el editor sepa que objeto se toco al hacer clic en el dibujo.
+            "bars": [{"u": u, "v": v, "area": a, "shape": i}
+                     for (u, v, a), i in zip(seccion["bars"], seccion["origen_barras"])],
+            "pieces": [{"points": [{"u": u, "v": v} for u, v in p], "shape": i}
+                       for p, i in zip(seccion["piezas"], seccion["origen_piezas"])],
+            "centroid": {"u": seccion["centroide"][0], "v": seccion["centroide"][1]},
+            "mirror2": seccion["mirror2"],
+            "mirror3": seccion["mirror3"],
+            "avisos": seccion["avisos"],
+        },
+        "surfaces": superficies,
+    }
 
 
 def _run_column_shear(data):

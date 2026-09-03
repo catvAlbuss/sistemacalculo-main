@@ -16,6 +16,9 @@ from .utils import *  # noqa: F401,F403
 from .inputs import *  # noqa: F401,F403
 from .solver import *  # noqa: F401,F403
 from .report import *  # noqa: F401,F403
+from .pier_forces import recolectar_pier_forces
+from .mass_summary import masa_por_piso
+from .modal_check import revisar_masa_participante
 
 __all__ = [
     "run_full_seismic_analysis",
@@ -100,6 +103,11 @@ def run_full_seismic_analysis(data: dict) -> dict:
         "num_modes_requested": modal_data.get("num_modes_requested", num_modes),
         "num_modes_effective": len(modal_data["modal_info"]),
         "degenerate_modes_dropped": modal_data.get("degenerate_modes_dropped", 0),
+        # ¿Se llegó al 90 % de masa participante que exige la E.030? Si no, las
+        # fuerzas salen subestimadas y hay que subir el número de modos. Ver
+        # seismic/modal_check.py: sin este aviso, MODULO 6 corría con 43 % en Y
+        # y un cortante 20 % bajo sin que nada lo dijera.
+        "participacion_avisos": revisar_masa_participante(modal_data["modal_info"]),
     }
 
     # ── Paso 3 & 4: RSA en X y Y ───────────────────────────
@@ -444,6 +452,40 @@ def run_full_seismic_analysis(data: dict) -> dict:
     except Exception as error:
         print("⚠️ No se pudieron calcular reacciones por nudo:", error)
         results["joint_reactions"] = {}
+
+    # ── Masa por piso, leída del MODELO ────────────────────
+    # La tabla vieja se armaba de las cargas y no traía la fila Base (ETABS sí
+    # la reporta). Esta lee ops.nodeMass del dominio en pie, así que es la masa
+    # que el análisis usa DE VERDAD — y separa la parte que cuelga de nudos
+    # restringidos, que no participa en ningún modo.
+    # Se reconstruye el modelo a propósito: para cuando llega acá, el dominio
+    # es el que dejó el último estático por modo de las reacciones/piers. Da la
+    # misma masa, pero depender de eso es frágil — un reordenamiento del
+    # pipeline lo rompería en silencio.
+    try:
+        build_model_3d(data)
+        results["mass_by_story"] = masa_por_piso(data)
+    except Exception as error:
+        print("⚠️ No se pudo armar la masa por piso:", error)
+        results["mass_by_story"] = []
+
+    # ── Fuerzas de pier (tabla Pier Forces) — AISLADO ──────
+    # Es la demanda con la que se disena una placa: el muro se malla en shells
+    # para analizarlo, y la etiqueta de PIER es lo que los vuelve a juntar en
+    # un P/V/M por piso. Solo hace algo si el modelo trae muros con pier
+    # asignado; si falla, la tabla queda vacia y el resto del pipeline sigue.
+    try:
+        # El nombre del caso lo sabe el frontend (cada Response Spectrum Case
+        # tiene el suyo); acá solo se pasa lo que venga en el payload.
+        results["pier_forces"] = recolectar_pier_forces(
+            data, modal_data, spectrum_x, spectrum_y,
+            combination=combination, damping_ratio=damping,
+            sa_in_g=sa_in_g, g=g,
+            nombre_caso=str(data.get("seismicCaseName") or data.get("caseName") or "RS"),
+        )
+    except Exception as error:
+        print("⚠️ No se pudieron calcular fuerzas de pier:", error)
+        results["pier_forces"] = []
 
     # ── B7: paquete final de resultados tipo ETABS ─────────
     results["etabs_results"] = _build_etabs_results_package(results)

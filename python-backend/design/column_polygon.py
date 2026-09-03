@@ -185,115 +185,79 @@ def polygon_fiber_grid(pts, n=80):
     return [(x, y, area_celda) for x, y in crudas], dx, dy
 
 
-def inset_polygon(pts, d):
+def etabs_polygon_bar_positions(forma, depth, width, flange_thick, web_thick,
+                                n2, n3, cover, bar_diameter,
+                                confine_bar_diameter=0.0,
+                                mirror2=False, mirror3=False):
+    """Reparto de varillas de una L o una T tal como lo hace ETABS.
+
+    ETABS usa en L y T el MISMO patron "R-n2-n3" que en una rectangular (su
+    dialogo de Reinforcement Data es identico para las tres formas) y lo
+    interpreta pata por pata, segun su dibujo de la seccion:
+
+      - la pata que corre sobre el EJE 3 lleva `n3` varillas a lo largo, en 2
+        hileras (una por cara de su espesor);
+      - la pata que corre sobre el EJE 2 lleva `n2` a lo largo, en 2 hileras;
+      - las patas se SOLAPAN y solo se descarta la varilla que cae EXACTAMENTE
+        en la misma posicion en las dos.
+
+    Confirmado con el `Rebar %` del Column Element Details de ETABS:
+      CL 70x70x30, R-4-4  -> 15 varillas (rho 1.43 %). El solape de la L cae en
+        un vertice EXACTO: 2*4 + 2*4 - 1 = 15.
+      CT 100x60x30, R-4-6 -> 20 varillas (rho 1.03 %). En la T las patas nunca
+        coinciden exacto (lo mas cerca, 1.12 mm), asi que no se descarta ninguna.
+
+    LA TOLERANCIA IMPORTA: con `dc` salen 12 y 16; con patas disjuntas, 16 y 20.
+    Solo la coincidencia EXACTA da 15 y 20.
+
+    Espejo exacto de `etabsPolygonBarPositions` en
+    resources/js/cad/lib/sectionPolygon.js. Si se toca una, tocar la otra.
     """
-    Contorno metido `d` hacia adentro, para ubicar el eje de las varillas.
-
-    Cada arista se desplaza `d` hacia el interior y los vértices nuevos salen de
-    intersectar las aristas desplazadas consecutivas. Sirve para convexos y
-    cóncavos (la L tiene un vértice reentrante), que es justo lo que se necesita.
-
-    Aristas casi paralelas se dejan como estaban en vez de reventar por división
-    por cero: con contornos ortogonales no pasa, pero el guard evita un NaN
-    silencioso si alguna vez entra un polígono degenerado.
-    """
-    n = len(pts)
-    if n < 3 or d == 0:
-        return list(pts)
-
-    # Sentido del polígono: con área con signo positivo (antihorario) la normal
-    # interior de (dx,dy) es (-dy,dx).
-    s = 0.0
-    for i in range(n):
-        x1, y1 = pts[i]
-        x2, y2 = pts[(i + 1) % n]
-        s += x1 * y2 - x2 * y1
-    signo = 1.0 if s > 0 else -1.0
-
-    rectas = []
-    for i in range(n):
-        x1, y1 = pts[i]
-        x2, y2 = pts[(i + 1) % n]
-        ex, ey = x2 - x1, y2 - y1
-        L = math.hypot(ex, ey)
-        if L < 1e-12:
-            rectas.append(None)
-            continue
-        nx, ny = -ey / L * signo, ex / L * signo   # normal interior unitaria
-        rectas.append((x1 + nx * d, y1 + ny * d, ex / L, ey / L))
-
-    salida = []
-    for i in range(n):
-        r1 = rectas[i - 1]
-        r2 = rectas[i]
-        if r1 is None or r2 is None:
-            salida.append(pts[i])
-            continue
-        px, py, dx1, dy1 = r1
-        qx, qy, dx2, dy2 = r2
-        den = dx1 * dy2 - dy1 * dx2
-        if abs(den) < 1e-12:                 # aristas paralelas
-            salida.append(pts[i])
-            continue
-        t = ((qx - px) * dy2 - (qy - py) * dx2) / den
-        salida.append((px + dx1 * t, py + dy1 * t))
-    return salida
-
-
-def bars_along_perimeter(pts, num_bars):
-    """
-    `num_bars` varillas repartidas UNIFORMEMENTE sobre el contorno cerrado.
-
-    Arranca en el primer vértice y avanza a paso constante, así que los vértices
-    no quedan garantizados como posiciones de barra. Es el reparto que hace un
-    armado real y reproduce el conteo de ETABS; el reparto EXACTO de su
-    `PATTERN "R-n2-n3"` sobre una L no está documentado (ver el encabezado).
-    """
-    n = int(num_bars or 0)
-    if len(pts) < 3 or n < 3:
+    D, B = float(depth or 0), float(width or 0)
+    TF, TW = float(flange_thick or 0), float(web_thick or 0)
+    N2, N3 = max(2, int(round(n2 or 0))), max(2, int(round(n3 or 0)))
+    if not (D > 0 and B > 0 and TF > 0 and TW > 0 and TF < D and TW < B):
         return []
 
-    largos = []
-    total = 0.0
-    m = len(pts)
-    for i in range(m):
-        x1, y1 = pts[i]
-        x2, y2 = pts[(i + 1) % m]
-        L = math.hypot(x2 - x1, y2 - y1)
-        largos.append(L)
-        total += L
-    if total <= 0:
-        return []
+    dc = float(cover or 0) + float(confine_bar_diameter or 0) + float(bar_diameter or 0) / 2.0
+    hd, hb = D / 2.0, B / 2.0
 
-    paso = total / n
-    salida = []
-    for k in range(n):
-        s = k * paso
-        acum = 0.0
-        for i in range(m):
-            if acum + largos[i] >= s or i == m - 1:
-                t = (s - acum) / largos[i] if largos[i] > 0 else 0.0
-                t = min(max(t, 0.0), 1.0)
-                x1, y1 = pts[i]
-                x2, y2 = pts[(i + 1) % m]
-                salida.append((x1 + (x2 - x1) * t, y1 + (y2 - y1) * t))
-                break
-            acum += largos[i]
-    return salida
+    es_tee = str(forma).lower() == "tee"
+    # Rectangulos que SE SOLAPAN: cada pata recorre la seccion de punta a punta.
+    pata3 = ((hd - TF, hd, -hb, hb) if es_tee else (-hd, TF - hd, -hb, hb))
+    pata2 = ((-hd, hd, -TW / 2.0, TW / 2.0) if es_tee else (-hd, hd, hb - TW, hb))
 
+    def reparto(a, b, n):
+        i, f = a + dc, b - dc
+        if f <= i:
+            return [(a + b) / 2.0]
+        if n < 2:
+            return [(i + f) / 2.0]
+        return [i + (f - i) * k / (n - 1) for k in range(n)]
 
-def polygon_bar_positions(pts, cover, bar_diameter, num_bars,
-                          confine_bar_diameter=0.0):
-    """
-    Varillas de un contorno poligonal.
+    out = []
+    # Tolerancia RELATIVA y muy chica: solo fusiona la varilla que las dos patas
+    # ponen en el MISMO punto. En la T hay un par a 1.12 mm que NO se fusiona.
+    tol = 1e-6 * max(D, B)
 
-    `cover` es el recubrimiento LIBRE hasta la superficie del estribo, igual que
-    en el resto del motor, así que el eje de la varilla queda a
-    `cover + Ø_estribo + Ø_barra/2` del borde. ETABS llama a esa distancia `dc`,
-    y para la CL 70x70x30 reporta 42.5 mm contra los 42.53 de esta fórmula.
-    """
-    dc = float(cover) + float(confine_bar_diameter) + float(bar_diameter) / 2.0
-    interior = inset_polygon(pts, dc)
-    if polygon_area(interior) <= 0:
-        return []
-    return bars_along_perimeter(interior, num_bars)
+    def agregar(u, v):
+        for a, b in out:
+            if abs(a - u) < tol and abs(b - v) < tol:
+                return
+        out.append((u, v))
+
+    u0, u1, v0, v1 = pata3
+    for u in (u0 + dc, u1 - dc):
+        for v in reparto(v0, v1, N3):
+            agregar(u, v)
+
+    u0, u1, v0, v1 = pata2
+    for v in (v0 + dc, v1 - dc):
+        for u in reparto(u0, u1, N2):
+            agregar(u, v)
+
+    if mirror2:
+        out = [(u, -v) for u, v in out]
+    if mirror3:
+        out = [(-u, v) for u, v in out]
+    return out

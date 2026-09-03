@@ -24,6 +24,9 @@ import json
 import base64
 import traceback
 
+os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
+os.environ.setdefault('OMP_NUM_THREADS', '1')
+os.environ.setdefault('MKL_NUM_THREADS', '1')
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 os.environ.setdefault("PYTHONUTF8", "1")
 
@@ -146,6 +149,9 @@ def _dispatch(mode, data, flask_app, sa):
 
     if mode == "column-interaction":
         return flask_app._run_column_interaction(data)
+
+    if mode == "wall-interaction":
+        return flask_app._run_wall_interaction(data)
 
     if mode == "column-shear":
         return flask_app._run_column_shear(data)
