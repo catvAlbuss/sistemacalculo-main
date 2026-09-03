@@ -180,7 +180,7 @@
                             </h4>
 
                             <!-- Mostrar solo para planes pagados -->
-                            <template x-if="selectedPlan?.type !== 'lifetime' && selectedPlan?.type !== 'trial'">
+                            <template x-if="selectedPlan?.type !== 'lifetime' && Number(selectedPlan?.price) > 0">
                                 <div>
                                     <!-- Resumen del Plan -->
                                     <div class="bg-blue-50 rounded-lg p-4 mb-4">
@@ -320,15 +320,15 @@
                             </template>
 
                             <!-- Mensaje para planes sin pago inmediato -->
-                            <template x-if="selectedPlan?.type === 'lifetime' || selectedPlan?.type === 'trial'">
+                            <template x-if="selectedPlan?.type === 'lifetime' || Number(selectedPlan?.price) === 0">
                                 <div
                                     class="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-lg p-6 border-2 border-yellow-300">
                                     <div class="text-center mb-4">
                                         <i class="fas fa-crown text-yellow-500 text-4xl mb-3"></i>
                                         <h5 class="font-bold text-gray-800 text-lg mb-2"
-                                            x-text="selectedPlan?.type === 'trial' ? 'Prueba Gratuita' : 'Plan de Por Vida'"></h5>
+                                            x-text="Number(selectedPlan?.price) === 0 ? 'Prueba Gratuita' : 'Plan de Por Vida'"></h5>
                                         <p class="text-gray-600 text-sm"
-                                            x-text="selectedPlan?.type === 'trial' ? 'No necesitas realizar ningún pago ni subir un comprobante.' : 'Este es un plan especial con precio personalizado'"></p>
+                                            x-text="Number(selectedPlan?.price) === 0 ? 'No necesitas realizar ningún pago ni subir un comprobante.' : 'Este es un plan especial con precio personalizado'"></p>
                                     </div>
 
                                     <div class="bg-white rounded-lg p-4 space-y-3">
@@ -639,7 +639,7 @@
 
                     handleSubmit(event) {
                         // Validar el comprobante para planes pagados.
-                        if (this.selectedPlan?.type !== 'lifetime' && this.selectedPlan?.type !== 'trial' && !this.uploadedFile) {
+                        if (this.selectedPlan?.type !== 'lifetime' && Number(this.selectedPlan?.price) > 0 && !this.uploadedFile) {
                             event.preventDefault();
                             this.fileError = 'Debes subir el comprobante de pago para continuar';
 

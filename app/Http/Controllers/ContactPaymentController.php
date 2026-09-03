@@ -24,7 +24,9 @@ class ContactPaymentController extends Controller
     {
         $plans = Subscription::active()->ordered()->get();
 
-        return view('landing.contact', compact('plans'));
+        return response()
+            ->view('landing.contact', compact('plans'))
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     }
 
     /**
@@ -53,7 +55,7 @@ class ContactPaymentController extends Controller
         try {
             $plan = Subscription::active()->findOrFail($request->subscription_plan_id);
 
-            if (!$plan->isTrial() && !$plan->isLifetime() && !$request->hasFile('payment_proof')) {
+            if (!$plan->isFree() && !$plan->isLifetime() && !$request->hasFile('payment_proof')) {
                 return back()->withInput()->withErrors([
                     'payment_proof' => 'Debes subir el comprobante de pago para continuar.',
                 ]);
@@ -80,7 +82,7 @@ class ContactPaymentController extends Controller
                     $user->assignRole('cliente');
 
                     // Crear el acceso gratuito configurado para usuarios nuevos.
-                    $accessPlan = $plan->isTrial()
+                    $accessPlan = $plan->isFree()
                         ? $plan
                         : Subscription::active()->where('type', 'trial')->first();
 

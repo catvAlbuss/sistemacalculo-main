@@ -42,6 +42,24 @@ class ContactPaymentTest extends TestCase
         Mail::assertSent(SolicitudAdmin::class);
     }
 
+    public function test_zero_price_plan_never_requires_payment_proof(): void
+    {
+        Mail::fake();
+        $freePlan = $this->createPlan('monthly', 0, 10);
+
+        $response = $this->post(route('contacto.store'), $this->requestData($freePlan));
+
+        $response->assertRedirect(route('landing.success'));
+        $this->assertDatabaseHas('payment_requests', [
+            'subscription_plan_id' => $freePlan->id,
+            'amount' => 0,
+        ]);
+        $this->assertDatabaseHas('user_subscriptions', [
+            'subscription_plan_id' => $freePlan->id,
+            'status' => 'active',
+        ]);
+    }
+
     public function test_paid_request_keeps_selected_plan_and_requires_proof(): void
     {
         Mail::fake();
