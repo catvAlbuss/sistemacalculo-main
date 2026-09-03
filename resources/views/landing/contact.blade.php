@@ -113,7 +113,7 @@
                 <form action="{{ route('contacto.store') }}" method="POST" enctype="multipart/form-data" class="p-8"
                     @submit="handleSubmit">
                     @csrf
-                    <input type="hidden" name="subscription_plan_id" x-model="selectedPlan?.id">
+                    <input type="hidden" name="subscription_plan_id" :value="selectedPlan?.id ?? ''">
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
