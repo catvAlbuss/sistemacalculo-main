@@ -127,22 +127,34 @@
                             {{-- Geometría + armado --}}
                             <div class="px-4 py-2 grid grid-cols-3 gap-2 text-xs">
                                 <div>
-                                    <span class="text-gray-400" x-text="col.geometryDisplay.shape === 'circular' ? 'Diámetro:' : 'b × h:'"></span>
-                                    <b x-text="col.geometryDisplay.shape === 'circular'
-                                        ? ('Ø ' + col.geometryDisplay.diameter + ' cm')
-                                        : (col.geometryDisplay.b + ' × ' + col.geometryDisplay.h + ' cm')"></b>
+                                    <span class="text-gray-400" x-text="etiquetaGeom(col)"></span>
+                                    <b x-text="valorGeom(col)"></b>
                                 </div>
                                 <div><span class="text-gray-400">f'c / fy:</span> <b x-text="col.geometryDisplay.fc + ' / ' + col.geometryDisplay.fy + ' kg/cm²'"></b></div>
                                 <div><span class="text-gray-400">Recub.:</span> <b x-text="col.geometryDisplay.cover + ' cm'"></b></div>
                                 {{-- El patrón se rotula según la FORMA: una circular mostraba
                                      "R-undefined-undefined" porque este texto estaba cableado al
                                      caso rectangular. --}}
+                                {{-- L y T usan el MISMO patrón R-n2-n3 que una rectangular: el
+                                     diálogo "Frame Section Property Reinforcement Data" de ETABS
+                                     es idéntico y el .e2k trae PATTERN "R-4-4". Acá se rotulaba
+                                     con `pattern.n` —el conteo en anillo de las circulares, que en
+                                     una L no existe— y salía "P-undefined". Lo que cambia respecto
+                                     de la rectangular no es el patrón sino cómo se reparte: cada
+                                     pata recorre la sección de punta a punta y solo se descarta la
+                                     varilla que cae EXACTAMENTE en el mismo punto en las dos (ver
+                                     project_etabs_lt_rebar_layout). --}}
+                                <div x-show="esFormaPoligonal(col)">
+                                    <span class="text-gray-400">Patrón:</span>
+                                    <b x-text="'R-' + col.geometryDisplay.pattern.n2 + '-' + col.geometryDisplay.pattern.n3"></b>
+                                    <span class="text-[10px] text-gray-500">(n2=<span x-text="col.geometryDisplay.pattern.n2"></span> a lo largo de una pata, n3=<span x-text="col.geometryDisplay.pattern.n3"></span> de la otra — patas solapadas, como ETABS)</span>
+                                </div>
                                 <div x-show="col.geometryDisplay.shape === 'circular'">
                                     <span class="text-gray-400">Patrón:</span>
                                     <b x-text="'C-' + col.geometryDisplay.pattern.n"></b>
                                     <span class="text-[10px] text-gray-500">(<span x-text="col.geometryDisplay.pattern.n"></span> varillas en anillo · <span x-text="col.geometryDisplay.transReinf"></span>)</span>
                                 </div>
-                                <div x-show="col.geometryDisplay.shape !== 'circular'">
+                                <div x-show="col.geometryDisplay.shape !== 'circular' && !esFormaPoligonal(col)">
                                     <span class="text-gray-400">Patrón:</span>
                                     <b x-text="'R-' + col.geometryDisplay.pattern.n2 + '-' + col.geometryDisplay.pattern.n3"></b>
                                     <span class="text-[10px] text-gray-500">(n2=<span x-text="col.geometryDisplay.pattern.n2"></span> cara 2, n3=<span x-text="col.geometryDisplay.pattern.n3"></span> cara 3 — mismo orden que ETABS)</span>
@@ -235,9 +247,15 @@
                                                     </template>
                                                 </select>
                                             </td>
-                                            <td class="px-2 py-1 text-right" x-text="fmt(selectedCheck(col, station)?.P / 9806.65, 2)"></td>
-                                            <td class="px-2 py-1 text-right" x-text="fmt(selectedCheck(col, station)?.M2 / 9806.65, 2)"></td>
-                                            <td class="px-2 py-1 text-right" x-text="fmt(selectedCheck(col, station)?.M3 / 9806.65, 2)"></td>
+                                            <td class="px-2 py-1 text-right" :class="demandaDifiere(selectedCheck(col, station), 'P') ? 'text-amber-300' : ''"
+                                                :title="demandaTitulo(selectedCheck(col, station), 'P')"
+                                                x-text="fmt(demanda(selectedCheck(col, station), 'P') / 9806.65, 2) + (demandaDifiere(selectedCheck(col, station), 'P') ? ' *' : '')"></td>
+                                            <td class="px-2 py-1 text-right" :class="demandaDifiere(selectedCheck(col, station), 'M2') ? 'text-amber-300' : ''"
+                                                :title="demandaTitulo(selectedCheck(col, station), 'M2')"
+                                                x-text="fmt(demanda(selectedCheck(col, station), 'M2') / 9806.65, 2) + (demandaDifiere(selectedCheck(col, station), 'M2') ? ' *' : '')"></td>
+                                            <td class="px-2 py-1 text-right" :class="demandaDifiere(selectedCheck(col, station), 'M3') ? 'text-amber-300' : ''"
+                                                :title="demandaTitulo(selectedCheck(col, station), 'M3')"
+                                                x-text="fmt(demanda(selectedCheck(col, station), 'M3') / 9806.65, 2) + (demandaDifiere(selectedCheck(col, station), 'M3') ? ' *' : '')"></td>
                                             <td class="px-2 py-1 text-right" x-text="fmt(selectedCheck(col, station)?.thetaDeg, 1) + '°'"></td>
                                             <td class="px-2 py-1 text-right" x-text="fmt(selectedCheck(col, station)?.phiMnCap / 9806.65, 2)"></td>
                                             <td class="px-2 py-1 text-right font-semibold" x-text="fmt(selectedCheck(col, station)?.ratio, 3)"></td>
@@ -248,7 +266,10 @@
                                     </template>
                                 </tbody>
                             </table>
-                            <div class="px-2 pb-1 text-[10px] text-gray-500">★ = combo gobernante (mayor ratio, el que se usa para el estado OK/NG del encabezado).</div>
+                            <div class="px-2 pb-1 text-[10px] text-gray-500">★ = combo gobernante (mayor ratio, el que se usa para el estado OK/NG del encabezado).
+                                <span class="text-amber-300">*</span> = la demanda de DISEÑO difiere de la del análisis (signo del aporte espectral,
+                                magnificación por esbeltez o excentricidad mínima); pasá el mouse para ver las dos. Estos son los valores
+                                comparables contra el <i>Column Element Details</i> de ETABS.</div>
 
                             {{-- Diagrama de interacción P-M2-M3 — el equivalente al botón
                                  "Interaction" de ETABS. Los datos ya vienen calculados en
@@ -849,6 +870,32 @@
                 this.open = false;
             },
 
+            /** L y T: el motor las arma como polígono, no como grilla rectangular. */
+            esFormaPoligonal(col) {
+                const f = String(col?.geometryDisplay?.shape || '').toLowerCase();
+                return f === 'l' || f === 'tee';
+            },
+
+            etiquetaGeom(col) {
+                if (col?.geometryDisplay?.shape === 'circular') return 'Diámetro:';
+                return this.esFormaPoligonal(col) ? 'Sección:' : 'b × h:';
+            },
+
+            /**
+             * En una L o T, `b × h` es solo la CAJA ENVOLVENTE — mostrarla sola
+             * hace pensar que el área es b·h, que en la CL 70×70×30 sobreestima
+             * el Ag en 48 %. Por eso van también los espesores de pata.
+             */
+            valorGeom(col) {
+                const g = col?.geometryDisplay || {};
+                if (g.shape === 'circular') return 'Ø ' + g.diameter + ' cm';
+                if (this.esFormaPoligonal(col)) {
+                    const forma = g.shape === 'tee' ? 'T' : 'L';
+                    return `${forma} ${g.h} × ${g.b} × ${g.flangeThick} × ${g.webThick} cm`;
+                }
+                return g.b + ' × ' + g.h + ' cm';
+            },
+
             fmt(value, decimals = 2) {
                 const n = Number(value);
                 return Number.isFinite(n) ? n.toFixed(decimals) : '-';
@@ -925,6 +972,7 @@
                     col.surface?.curves || [],
                     Number.isFinite(ang) ? ang : this.demandAngle(col),
                     this.ciPhi[id] !== false,
+                    col.surface?.exactCuts,
                 ) || [];
             },
 
@@ -994,7 +1042,16 @@
                 const station = this.ciStation[id] || 'base';
                 const check = this.selectedCheck(col, station);
                 const curves = col.surface?.curves || [];
-                const opts = { usePhi: this.ciPhi[id] !== false, cutAngleDeg: this.ciAngle[id] };
+                // `exactCuts`: cortes radiales EXACTOS del motor (uno por el ángulo
+                // de la demanda que gobierna). El corte interpolado del anillo
+                // queda hasta 3 % por AFUERA de la superficie real en secciones
+                // asimétricas, y encima del lado no conservador — ver
+                // _ciCutCurve y python-backend/design/column_ratio.curva_radial.
+                const opts = {
+                    usePhi: this.ciPhi[id] !== false,
+                    cutAngleDeg: this.ciAngle[id],
+                    exactCuts: col.surface?.exactCuts,
+                };
 
                 window.cadSystem?.renderColumnInteractionSurface?.('ci-plot-' + id, curves, check, opts);
                 window.cadSystem?.renderColumnInteraction2D?.('ci-2d-' + id, curves, check, opts);
@@ -1020,6 +1077,43 @@
             selectedCheck(col, station) {
                 const id = col.selectedComboId?.[station];
                 return (col.checksAll?.[station] || []).find((c) => c.comboId === id) || col.check?.[station];
+            },
+
+            /*
+             * LA DEMANDA QUE SE DISEÑÓ, NO LA QUE ENTRÓ.
+             *
+             * El motor devuelve dos ternas por check: `P/M2/M3` es la del
+             * análisis (la que sale de los combos) y `PDesign/M2Design/M3Design`
+             * es la que realmente entró a la superficie de interacción, después
+             * de elegir el peor signo del aporte espectral, magnificar por
+             * esbeltez y aplicar la excentricidad mínima.
+             *
+             * La tabla mostraba la PRIMERA y el ratio sale de la SEGUNDA, así
+             * que cuando difieren los números de la fila no explican su propio
+             * ratio — y peor, no son los que hay que comparar contra el Column
+             * Element Details de ETABS, que reporta la de diseño.
+             *
+             * Se muestra la de diseño, con la del análisis en el tooltip y un
+             * asterisco cuando difieren (>0.5 %), para no perder el dato de
+             * entrada ni esconder que hubo transformación.
+             */
+            demanda(chk, eje) {
+                if (!chk) return null;
+                const dis = chk[eje + 'Design'];
+                return Number.isFinite(dis) ? dis : chk[eje];
+            },
+            demandaDifiere(chk, eje) {
+                if (!chk) return false;
+                const dis = chk[eje + 'Design'], ana = chk[eje];
+                if (!Number.isFinite(dis) || !Number.isFinite(ana)) return false;
+                const esc = Math.max(Math.abs(dis), Math.abs(ana));
+                return esc > 1e-9 && Math.abs(dis - ana) / esc > 0.005;
+            },
+            demandaTitulo(chk, eje) {
+                if (!this.demandaDifiere(chk, eje)) return '';
+                return 'Del análisis: ' + this.fmt(chk[eje] / 9806.65, 3)
+                     + '  →  de diseño: ' + this.fmt(chk[eje + 'Design'] / 9806.65, 3)
+                     + '  (signo espectral / esbeltez / excentricidad mínima)';
             },
         };
     }

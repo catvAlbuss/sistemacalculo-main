@@ -5,6 +5,7 @@ import {
   openResponseSpectrumFunctionsDialog,
   openResponseSpectrumCasesDialog,
 } from "../../engine/7_responseSpectrumDefinitions.js";
+import { openAllLoadCasesDialog } from "../../engine/8_loadCasesDialog.js";
 
 /**
  * @mixin viewportMixin
@@ -397,6 +398,18 @@ export const viewportMixin = {
 
   openLoadCases() {
     window.dispatchEvent(new CustomEvent("open-static-load-cases-modal"));
+  },
+
+  /**
+   * Diálogo "Load Cases" estilo ETABS 22.7: TODOS los casos en una lista con su
+   * tipo (Modal - Eigen / Linear Static / Response Spectrum) y si se corren.
+   *
+   * `openLoadCases` (arriba) es el de PATRONES de carga, que es otra cosa —
+   * ETABS distingue Load Pattern de Load Case y nosotros los teníamos mezclados
+   * en el mismo nombre. Ver el encabezado de 8_loadCasesDialog.js.
+   */
+  openAllLoadCases() {
+    return openAllLoadCasesDialog(this);
   },
 
   openLoadCombinations() {
@@ -1050,6 +1063,11 @@ export const viewportMixin = {
   },
 
   _areaPropertyNameForSelect(a, kind) {
+    // La etiqueta de PIER no es una sección: es el rótulo que agrupa varios
+    // paños para diseñarlos como una sola placa (una L son dos paños con la
+    // misma etiqueta). Un muro sin etiqueta cae en "None" y así se lo puede
+    // seleccionar a propósito — son justo los que NO entran a Pier Forces.
+    if (kind === "pier") return String(a.pier || "").trim() || "None";
     if (kind === "wall") return a.wallSection || a.slabSection || "None";
     if (kind === "deck") return a.deckSection || "None";
     return a.slabSection || "None"; // slab
@@ -1057,6 +1075,7 @@ export const viewportMixin = {
 
   _areaMatchesKind(a, kind) {
     const t = a.areaType || a.type || "slab";
+    if (kind === "pier") return t === "wall"; // las etiquetas viven en muros
     return kind === "slab" ? t === "slab" : t === kind;
   },
 
@@ -1079,13 +1098,16 @@ export const viewportMixin = {
         .filter((a) => Array.isArray(a.points) && a.points.length >= 3 && this._areaMatchesKind(a, kind))
         .forEach((a) => add(this._areaPropertyNameForSelect(a, kind)));
 
+      // Las definidas y todavía sin usar también van a la lista, con (0) —
+      // así se ve que existen. Las de pier llegan como STRINGS, no objetos.
       const defs =
         kind === "slab" ? this.slabSections :
           kind === "wall" ? this.wallSections :
-            kind === "deck" ? this.deckSections : [];
+            kind === "deck" ? this.deckSections :
+              kind === "pier" ? (this.getPierLabels?.() || []) : [];
 
       (Array.isArray(defs) ? defs : []).forEach((s) => {
-        const nm = s.name || s.id;
+        const nm = typeof s === "string" ? s : (s.name || s.id);
         if (nm && !map.has(nm)) map.set(nm, 0);
       });
     }
@@ -1101,13 +1123,22 @@ export const viewportMixin = {
       slab: "Select by Slab Property",
       deck: "Select by Deck Property",
       wall: "Select by Wall Property",
+      pier: "Select by Pier Label",
     };
-    const listLabels = { frame: "Frame Properties", slab: "Slabs", deck: "Decks", wall: "Walls" };
+    const listLabels = {
+      frame: "Frame Properties", slab: "Slabs", deck: "Decks", wall: "Walls",
+      pier: "Pier Labels",
+    };
 
     const props = this._getSelectablePropertyList(kind);
 
     if (!props.length) {
-      this.showMessage?.(`No hay propiedades de tipo "${kind}" en el modelo.`, "warning");
+      this.showMessage?.(
+        kind === "pier"
+          ? "No hay etiquetas de pier. Creálas en Definir ▸ Etiquetas de Pier."
+          : `No hay propiedades de tipo "${kind}" en el modelo.`,
+        "warning",
+      );
       return;
     }
 

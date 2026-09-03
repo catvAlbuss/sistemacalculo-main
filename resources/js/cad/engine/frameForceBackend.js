@@ -302,6 +302,11 @@ export async function loadRealFrameForceResults(cadSystem, opts = {}) {
     if (seismicSkips.length) {
         console.warn("⚠️ Casos sísmicos OMITIDOS (sin espectro utilizable):", seismicSkips);
     }
+    // Distinto de lo anterior: estos SÍ se corren, con una componente incompleta.
+    const seismicWarns = cadSystem._seismicCaseWarnings || [];
+    if (seismicWarns.length) {
+        console.warn("⚠️ Casos sísmicos que se corren CON SALVEDADES:", seismicWarns);
+    }
 
     if (seismicMerged.length) {
         console.log("♻️ Casos sísmicos duplicados (mismo espectro y factores):", seismicMerged);
@@ -323,6 +328,53 @@ export async function loadRealFrameForceResults(cadSystem, opts = {}) {
     if (importedCombos.length) {
         console.log(`🧮 Usando ${importedCombos.length} combinaciones importadas del .e2k.`);
     }
+
+    // COMBOS QUE USAN UN CASO DESMARCADO.
+    //
+    // El aviso más útil de todos, y el que faltaba: un caso desmarcado en
+    // Define ▸ Response Spectra es una decisión legítima, pero deja a TODOS los
+    // combos que lo referencian sin sismo — con números de pura gravedad y
+    // aspecto perfectamente normal. Pasó: el diseño de columnas gobernaba con
+    // 1.4CM+1.7CV donde ETABS gobierna con 1.25(CM+CV)-SDY.
+    //
+    // Se cruza acá porque es el único lugar donde están las dos listas: los
+    // casos definidos (con su `enabled`) y los combos que los usan.
+    {
+        const norm = (v) => String(v || "").trim().replace(/[\s_]+/g, "").toUpperCase();
+        const enviados = new Set(seismicCases.flatMap((c) => [norm(c.id), norm(c.name)]));
+        const apagados = new Map();
+        (cadSystem.responseSpectrumCases?.items || []).forEach((c) => {
+            if (c?.enabled === false) {
+                [norm(c.id), norm(c.name)].filter(Boolean)
+                    .forEach((k) => apagados.set(k, c.name || c.id));
+            }
+        });
+        const afectados = [];
+        importedCombos.forEach((combo) => {
+            (combo.terms || []).forEach((t) => {
+                const k = norm(t.case);
+                if (!enviados.has(k) && apagados.has(k)) {
+                    afectados.push(`${combo.name || combo.id} → ${apagados.get(k)}`);
+                }
+            });
+        });
+        if (afectados.length) {
+            console.warn(
+                `⚠️ ${afectados.length} combo(s) usan un caso DESMARCADO en ` +
+                `Define ▸ Response Spectra: van a salir SIN SISMO.`, afectados,
+            );
+        }
+    }
+
+    // Casos sísmicos que se le MANDAN al motor. Sin esto no se puede saber si un
+    // término de combo quedó sin resolver porque el nombre no cruzó o porque el
+    // caso nunca salió de acá — y son dos problemas distintos.
+    console.log(
+        `🌊 Casos sísmicos enviados al motor: ${seismicCases.length}`,
+        seismicCases.map((c) => ({ id: c.id, name: c.name, dir: c.direction,
+                                   ptsX: c.spectrumX?.length || 0,
+                                   ptsY: c.spectrumY?.length || 0 })),
+    );
 
     const body = {
         ...payload,
@@ -369,6 +421,27 @@ export async function loadRealFrameForceResults(cadSystem, opts = {}) {
 
         if (!data || data.success === false) {
             throw new Error(data?.error || "El motor no devolvió resultados válidos.");
+        }
+
+        // TÉRMINOS DE COMBO QUE NO CRUZARON CON NINGÚN CASO.
+        //
+        // Esto fallaba EN SILENCIO y costó caro: el .e2k referencia el caso por
+        // NOMBRE (`LOADCASE "SDY ESCALADO"`) y el caso viaja con el id
+        // normalizado ("SDY_ESCALADO"), así que el término sísmico no cruzaba y
+        // aportaba CERO — pero el combo se armaba igual con la gravedad, y en la
+        // tabla de diseño el combo sísmico aparecía con números de pura
+        // gravedad. El cruce ahora es tolerante (ver _ff_norm_caso en
+        // solver.py); esto avisa de lo que aun así quede sin resolver.
+        if (data.unresolvedComboCases?.length) {
+            // NO todo lo que sale acá es un error: un caso puede no existir
+            // porque el modelo no tiene ninguna carga en ese patrón (CVT sin
+            // cargas de techo, por ejemplo) y ahí el aporte cero es correcto.
+            // Por eso se listan al lado los casos que SÍ existen: sin eso no se
+            // puede distinguir "falta" de "no aplica".
+            console.warn(
+                "⚠️ Términos de combo sin caso (aporte CERO):", data.unresolvedComboCases,
+                "· casos que SÍ existen:", data.availableCaseIds,
+            );
         }
 
         // Volver a unir los sub-tramos del mallado en su barra original: el

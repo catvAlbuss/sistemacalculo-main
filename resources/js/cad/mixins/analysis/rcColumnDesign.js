@@ -348,15 +348,13 @@ export const rcColumnDesignMixin = {
     // Section Designer de ETABS, una propiedad de sección, no por columna),
     // si existe. Si tampoco hay armado manual, no soportado — con suficiente
     // contexto (sectionName/b/h) para que el modal ofrezca "Definir armado...".
-    // En una L o T el `.e2k` describe el armado como "R-n2-n3", que en un
-    // contorno de 6 u 8 vértices NO determina cuántas varillas hay ni dónde van
-    // (para la CL 70x70x30, ETABS pone 15 y ninguna regla derivada de R-4-4 da
-    // ese número). Así que el armado poligonal se define A MANO, siempre.
+    // En una L o T ETABS usa el mismo patrón "R-n2-n3" que en una
+    // rectangular: n3 varillas a lo largo de la pata que corre sobre el eje 3 y
+    // n2 a lo largo de la que corre sobre el eje 2, dos hileras en el espesor de
+    // cada una, sin duplicar las del rincón donde se cruzan.
     const patternOk = esCircular
       ? sec.rebarPattern?.type === "circular" && sec.rebarPattern.n >= 3
-      : esPoligonal
-        ? sec.rebarPattern?.type === "circular" && sec.rebarPattern.n >= 3
-        : sec.rebarPattern?.type === "rectangular" && sec.numConfineBars2 >= 0;
+      : sec.rebarPattern?.type === "rectangular" && sec.numConfineBars2 >= 0;
     const hasRealRebar = patternOk && sec.longBarArea > 0 && sec.longBarDiameter > 0;
 
     const sectionName = sec.name || frame.sectionName || null;
@@ -385,10 +383,13 @@ export const rcColumnDesignMixin = {
     const results = this.frameForceResults;
 
     // Combos REALES del motor (E.060, ver _ff_default_design_combos en
-    // solver.py) — no ENV Max/ENV Min. Un combo ENVELOPE (los sísmicos, sin
-    // signo por CQC/SRSS) se guarda en frameForces como DOS entradas
-    // (`${id}_Max`/`${id}_Min`, una por rama ±); uno ADD (solo gravedad) se
-    // guarda con el id tal cual. Cada entrada trae P/M2/M3 del MISMO combo
+    // solver.py) — no ENV Max/ENV Min. Un combo que lleva SISMO se guarda en
+    // frameForces como DOS entradas (`${id}_Max`/`${id}_Min`, una por rama ±),
+    // porque el aporte espectral es una magnitud sin signo y hay que envolverla
+    // (CSI Analysis Reference Manual §18.11.1). Uno de pura gravedad se guarda
+    // con el id tal cual. Cuál es cuál lo dice `meta.paired`, que manda el
+    // motor: NO se deduce del tipo del combo (los del .e2k llegan todos como
+    // ADD, sísmicos incluidos). Cada entrada trae P/M2/M3 del MISMO combo
     // (a diferencia del criterio anterior, que mezclaba el peor P con el
     // peor M2 y el peor M3 de combos distintos — más conservador de lo real,
     // ver comparación contra ETABS "Reinforcement to be Checked").
@@ -411,9 +412,25 @@ export const rcColumnDesignMixin = {
 
     const realComboIds = [];
     comboMetas.forEach((meta) => {
-      if (String(meta.type).toUpperCase() === "ENVELOPE") {
-        realComboIds.push({ id: `${meta.id}_Max`, name: String(meta.name || meta.id).replace("±", "+"), kind: "combo" });
-        realComboIds.push({ id: `${meta.id}_Min`, name: String(meta.name || meta.id).replace("±", "-"), kind: "combo" });
+      // `paired` lo declara el MOTOR (ver combo_meta en solver.py). No se
+      // deduce del tipo: además de los ENVELOPE, ahora sale como par cualquier
+      // combo con término espectral, que es la mayoría de los del .e2k (llegan
+      // todos como ADD). Deducirlo acá ya se desincronizó una vez y el efecto
+      // fue mudo: los combos sísmicos no se encontraban y gobernaba gravedad.
+      // El fallback al tipo cubre un motor viejo que no mande la marca.
+      const esPar = meta.paired ?? (String(meta.type).toUpperCase() === "ENVELOPE");
+      if (esPar) {
+        // El nombre tiene que distinguir las dos ramas. Con "±" en el nombre
+        // alcanza con sustituirlo; sin él (los combos del .e2k se llaman
+        // "05 1.25(CM+CV) -SDY", sin ±) las dos entradas salían con el MISMO
+        // texto y el selector mostraba dos filas idénticas con ratios
+        // distintos, que es peor que no ofrecerlas.
+        const rama = (signo, etq) => {
+          const base = String(meta.name || meta.id);
+          return base.includes("±") ? base.replace("±", signo) : `${base} (${etq})`;
+        };
+        realComboIds.push({ id: `${meta.id}_Max`, name: rama("+", "máx"), kind: "combo" });
+        realComboIds.push({ id: `${meta.id}_Min`, name: rama("-", "mín"), kind: "combo" });
       } else {
         realComboIds.push({ id: meta.id, name: meta.name || meta.id, kind: "combo" });
       }
@@ -521,6 +538,47 @@ export const rcColumnDesignMixin = {
         .filter(Boolean);
 
     const demandCandidates = { base: candidatesAt(0), top: candidatesAt(1) };
+
+    // PARTE ESPECTRAL DE CADA COMBO — para que el backend pueda barrer las
+    // OCHO combinaciones de signo, como hace ETABS.
+    //
+    // La salida de un espectro es toda positiva: no tiene signo físico. Por eso
+    // ETABS chequea todas las combinaciones de signo del aporte espectral y se
+    // queda con la peor (Shear Wall Design ACI 318-14, §1.3.7: ocho para P, M2
+    // y M3 en 3D). Nosotros evaluábamos un solo punto por variante, y en una
+    // sección asimétrica eso puede quedar corto.
+    //
+    // Las dos partes se recuperan EXACTO de la pareja _Max/_Min del mismo
+    // combo, porque el motor arma cada componente como `firme ± |espectral|`
+    // (ver _ff_compute_combo_entries en solver.py):
+    //
+    //     firme = (Max + Min) / 2        espectral = |Max − Min| / 2
+    //
+    // Así que no hace falta tocar el motor ni mandar más datos por la red: los
+    // dos números ya estaban, repartidos entre las dos variantes.
+    const partirEspectral = (lista) => {
+      const porCombo = new Map();
+      lista.forEach((c) => {
+        const m = /^(.*)_(Max|Min)$/.exec(String(c.comboId));
+        if (!m) return;
+        const par = porCombo.get(m[1]) || {};
+        par[m[2]] = c;
+        porCombo.set(m[1], par);
+      });
+      porCombo.forEach(({ Max, Min }) => {
+        if (!Max || !Min) return;
+        ["P", "M2", "M3"].forEach((k) => {
+          const firme = (Max[k] + Min[k]) / 2;
+          const espectral = Math.abs(Max[k] - Min[k]) / 2;
+          Max[`${k}Firm`] = firme;
+          Min[`${k}Firm`] = firme;
+          Max[`${k}Spec`] = espectral;
+          Min[`${k}Spec`] = espectral;
+        });
+      });
+    };
+    partirEspectral(demandCandidates.base);
+    partirEspectral(demandCandidates.top);
     const allCandidates = [...demandCandidates.base, ...demandCandidates.top];
 
     // Esbeltez (E.060 10.12): δns depende de los DOS extremos del MISMO
@@ -554,20 +612,24 @@ export const rcColumnDesignMixin = {
       // (ver python-backend/design/column_circular.py); se mandan igual en 0
       // para no romper el contrato del payload.
       shape: esCircular ? "circular" : (esPoligonal ? tipoSec : "rect"),
-      // Geometría de la poligonal. `lFlangeThick`/`lWebThick` vienen en cm del
-      // importador; el motor trabaja en metros.
+      // Geometría de la poligonal. Sale de `sec` (la sección real) y NO de
+      // `sec2`: cuando el armado se define a mano, `sec2` es el objeto que
+      // arma el draft del diseñador y ese solo lleva armado — igual que
+      // `b`/`h`/`diameter`, la forma la manda siempre la sección.
+      // `lFlangeThick`/`lWebThick` vienen en cm del importador; el motor
+      // trabaja en metros.
       ...(esPoligonal ? {
-        flangeThick: (Number(sec2.lFlangeThick ?? sec2.teeFlangeThick) || 0) / 100,
-        webThick: (Number(sec2.lWebThick ?? sec2.teeWebThick) || 0) / 100,
-        mirror2: sec2.lMirror2 === true,
-        mirror3: sec2.lMirror3 === true,
+        flangeThick: (Number(sec.lFlangeThick ?? sec.teeFlangeThick) || 0) / 100,
+        webThick: (Number(sec.lWebThick ?? sec.teeWebThick) || 0) / 100,
+        mirror2: sec.lMirror2 === true,
+        mirror3: sec.lMirror3 === true,
       } : {}),
       // ESTRIBOS vs ESPIRAL, tal como lo declaró ETABS (TRANSREINF del .e2k).
       // null = que el motor lo deduzca de la forma. Mandarlo importa: una
       // circular con estribos circulares va 0.80·Po/φ0.65, no 0.85/0.75.
       tied: sec2.tied ?? null,
       diameter: esCircular ? b / 100 : null,
-      numBars: (esCircular || esPoligonal) ? sec2.rebarPattern.n : null,
+      numBars: esCircular ? sec2.rebarPattern.n : null,
       n3: esCircular ? 0 : sec2.rebarPattern.n3,
       n2: esCircular ? 0 : sec2.rebarPattern.n2,
       barArea: sec2.longBarArea,
@@ -608,8 +670,14 @@ export const rcColumnDesignMixin = {
         b, h, fc, fy, cover: sec2.cover,
         // `shape`/`diameter` para que el modal no cablee "b × h" ni "R-n2-n3":
         // una circular mostraba "60 × 60 cm" y "R-undefined-undefined".
-        shape: esCircular ? "circular" : "rect",
+        shape: esCircular ? "circular" : (esPoligonal ? tipoSec : "rect"),
         diameter: esCircular ? b : null,
+        // Espesores de pata, para que el modal escriba "L 70×70×30×30" y no
+        // "70 × 70 cm", que en una L es solo la caja envolvente.
+        ...(esPoligonal ? {
+          flangeThick: Number(sec.lFlangeThick ?? sec.teeFlangeThick) || 0,
+          webThick: Number(sec.lWebThick ?? sec.teeWebThick) || 0,
+        } : {}),
         pattern: sec2.rebarPattern,
         longBarDiameter: sec2.longBarDiameter,
         transReinf: esCircular ? (sec2.tied === true ? "Estribos circulares" : "Espiral") : "Estribos",

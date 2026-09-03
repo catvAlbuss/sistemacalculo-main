@@ -40,6 +40,8 @@
     <x-cad.modals.zapata-results-modal/>
     <x-cad.modals.viga-design-modal/>
     <x-cad.modals.columna-design-modal/>
+    <x-cad.modals.wall-design-modal/>
+    <x-cad.modals.pier-labels-modal/>
     <x-cad.modals.element-forces-columns-modal/>
     <x-cad.modals.column-rebar-designer-modal/>
     <x-cad.modals.beam-rebar-designer-modal/>

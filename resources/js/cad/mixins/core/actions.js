@@ -81,6 +81,11 @@ export const actionsMixin = {
         this.openSelectByPropertyDialog("wall");
         break;
 
+      // Por etiqueta de pier: contesta "¿qué muros son la placa P1?".
+      case "select-prop-pier-labels":
+        this.openSelectByPropertyDialog("pier");
+        break;
+
       default:
         this.showMessage?.(`Acción de selección no reconocida: ${action}`, "warning");
         break;
@@ -555,6 +560,12 @@ export const actionsMixin = {
 
       case "area-wall-section":
         this.openAssignWallSectionDialog();
+        break;
+
+      // Etiqueta de pier: agrupa los muros para integrarlos como UNA sección
+      // por piso (tabla Pier Forces). No fusiona geometría — ver pierLabels.js.
+      case "area-pier-label":
+        this.openAssignPierLabelDialog();
         break;
 
       // Asignar diafragma a losas (los nudos lo heredan "From Area", como ETABS).

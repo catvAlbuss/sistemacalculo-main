@@ -25,6 +25,7 @@ import { buildColumnEndOffsets } from "./columnEndOffsets.js";
 import { wallGridPointsOnBeams } from "./wallMeshNodes.js";
 import { splitBeamsAtInteriorNodes } from "./frameMeshAtIntersections.js";
 import { getNodeRestraints } from "../../../model/nodeSupports.js";
+import { solapeConPerimetro } from "./slabEdgeOverlap.js";
 
 // Tamano objetivo de elemento de muro para el modulo de DIAGRAMAS.
 //
@@ -185,7 +186,13 @@ export const seismicPayloadMixin = {
       const z = this._getNodeZForSeismic(node);
       const key = `${name}@${zKey(z)}`;
       if (!groups.has(key)) {
-        groups.set(key, { id: key, name: String(name), source: "assignment", z, nodeIds: new Set() });
+        groups.set(key, {
+          id: key, name: String(name), source: "assignment", z, nodeIds: new Set(),
+          // Rigidez POR GRUPO: un modelo puede mezclar. Si la definición no
+          // dice nada (modelo viejo, o dibujado a mano) queda `null` y el
+          // motor lo trata como rígido — el comportamiento de siempre.
+          rigidity: this._getDiaphragmRigidityForSeismic?.(name) ?? null,
+        });
       }
       groups.get(key).nodeIds.add(id);
     };
@@ -435,6 +442,23 @@ export const seismicPayloadMixin = {
     return { x, y };
   },
 
+  /**
+   * "Rigid" / "Semi Rigid" de la definición del diafragma, o null si no se sabe.
+   *
+   * NULL NO ES "RÍGIDO": es "no hay dato". El motor lo trata como rígido para
+   * no cambiarle el resultado a los modelos que ya estaban calibrados antes de
+   * que esto existiera. Solo un modelo que DECLARA semi-rígido cambia.
+   */
+  _getDiaphragmRigidityForSeismic(name) {
+    const defs = this.diaphragms?.items || this.diaphragms || [];
+    const d = (Array.isArray(defs) ? defs : []).find(
+      (x) => String(x?.name ?? "") === String(name),
+    );
+    const raw = String(d?.type ?? d?.rigidity ?? "").trim();
+    if (!raw) return null;
+    return /semi/i.test(raw) ? "Semi Rigid" : "Rigid";
+  },
+
   _buildSeismicDiaphragms(cfg, nodes) {
     const useRigidDiaphragms = cfg?.useRigidDiaphragms ?? true;
 
@@ -444,6 +468,20 @@ export const seismicPayloadMixin = {
     const explicit = this.getExplicitDiaphragmGroups(nodes);
 
     if (explicit.length) {
+      // DIAGNÓSTICO: qué rigidez quedó y de dónde salió.
+      //
+      // La rigidez del diafragma decide si el motor le pone constraint o no, y
+      // eso vale MUCHÍSIMO: en MODULO 5, marcarlo "Semi Rigid" cuando el .e2k
+      // dice RIGID alarga T1 de 0.1408 a 0.1859 (+32 %) y baja la masa
+      // participante en Y de 84 % a 59 %. Como el dato viaja en silencio, hubo
+      // que adivinar de dónde salía; con esto se ve.
+      const defs = this.diaphragms?.items || this.diaphragms || [];
+      console.log(
+        "🔎 Diafragmas para el motor:",
+        explicit.map((g) => ({ id: g.id, nombre: g.name, nudos: (g.nodeIds || []).length, rigidez: g.rigidity })),
+        "| definiciones cargadas:",
+        (Array.isArray(defs) ? defs : []).map((d) => ({ nombre: d?.name, rigidez: d?.type ?? d?.rigidity })),
+      );
       return explicit;
     }
 
@@ -1220,7 +1258,6 @@ export const seismicPayloadMixin = {
    */
   _buildSeismicSlabToBeamLoadsForPayload(areas = [], frames = []) {
     const g = 9.81;
-    const TOL = 0.02; // m — holgura para decir "este nudo está sobre el borde"
 
     const slabs = (areas || []).filter(
       (a) =>
@@ -1250,24 +1287,6 @@ export const seismicPayloadMixin = {
 
     if (!beams.length) return [];
 
-    // ¿El punto p cae sobre algún lado del polígono?
-    const onBoundary = (poly, p) => {
-      for (let i = 0; i < poly.length; i += 1) {
-        const q1 = poly[i];
-        const q2 = poly[(i + 1) % poly.length];
-        const vx = q2.x - q1.x;
-        const vy = q2.y - q1.y;
-        const L2 = vx * vx + vy * vy;
-        if (L2 < 1e-12) continue;
-        let t = ((p.x - q1.x) * vx + (p.y - q1.y) * vy) / L2;
-        t = Math.min(Math.max(t, 0), 1);
-        const dx = p.x - (q1.x + t * vx);
-        const dy = p.y - (q1.y + t * vy);
-        if (Math.hypot(dx, dy) <= TOL) return true;
-      }
-      return false;
-    };
-
     const out = [];
 
     for (const slab of slabs) {
@@ -1296,14 +1315,26 @@ export const seismicPayloadMixin = {
       if (sw > 0) uniform.push({ value: sw, loadCase: "CM" });
       if (!uniform.length) continue;
 
-      // Vigas del contorno: horizontales, a la cota del panel, con sus dos
-      // extremos Y su punto medio sobre el perímetro (el punto medio descarta
-      // una viga que cruce el panel de lado a lado como cuerda).
-      const boundary = beams.filter((bm) => {
-        if (Math.abs(bm.a.z - zSlab) > 0.05) return false;
-        const mid = { x: (bm.a.x + bm.b.x) / 2, y: (bm.a.y + bm.b.y) / 2 };
-        return onBoundary(poly, bm.a) && onBoundary(poly, bm.b) && onBoundary(poly, mid);
-      });
+      // Vigas del contorno, POR SOLAPE.
+      //
+      // Antes se pedía que la viga tuviera sus dos extremos Y su punto medio
+      // sobre el perímetro. Eso vale para una losa dibujada a mano —panel y
+      // viga coinciden— y falla entero con las losas SUBDIVIDIDAS de un .e2k:
+      // en MODULO 01, 34 paneles bordean una viga de 7.13 m y ninguno tiene
+      // una viga con sus dos extremos en su perímetro, así que **ningún panel
+      // encontraba contorno y su carga se perdía en silencio**. La viga quedaba
+      // con 0.432 tonf/m (su peso propio exacto) contra 5.45 de ETABS: V2 −90 %,
+      // M3 −94 %, del lado INSEGURO.
+      //
+      // Ahora se mide CUÁNTO de la viga corre sobre el perímetro. Una viga que
+      // bordea el panel entero da solape = su largo (mismo resultado que antes)
+      // y una viga larga sobre paneles chicos recibe de cada uno su parte.
+      const boundary = [];
+      for (const bm of beams) {
+        if (Math.abs(bm.a.z - zSlab) > 0.05) continue;
+        const solape = solapeConPerimetro(poly, bm);
+        if (solape > 0) boundary.push({ ...bm, solape });
+      }
 
       if (!boundary.length) continue;
 
@@ -1322,17 +1353,23 @@ export const seismicPayloadMixin = {
         if (perp.length) receiving = perp;
       }
 
-      const totalLen = receiving.reduce((s, bm) => s + bm.len, 0);
-      if (!(totalLen > 0)) continue;
+      // Se reparte por SOLAPE, no por largo de viga: lo que decide cuánta carga
+      // le toca a una viga es cuánto borde del panel sostiene.
+      const totalSolape = receiving.reduce((s, bm) => s + bm.solape, 0);
+      if (!(totalSolape > 0)) continue;
 
       for (const l of uniform) {
         const q = Number(l.value) * g;      // kgf/m² → N/m²
         const totalN = q * planArea;        // carga total del panel [N]
-        const w = totalN / totalLen;        // N/m, igual en todas las receptoras
         const loadCase = l.loadCase || "CM";
         const patternType = this._getLoadPatternTypeForSeismic(loadCase);
 
         for (const bm of receiving) {
+          // La fuerza que le toca se aplica UNIFORME sobre toda la viga, no
+          // solo sobre el tramo solapado: el total se conserva, y una viga
+          // bordeada por muchos paneles recibe la suma de todos, que es la
+          // distribución real. Solo se difumina el reparto a lo largo.
+          const w = (totalN * bm.solape) / totalSolape / bm.len;
           out.push({
             element: bm.id,
             kind: "uniform",
@@ -1382,6 +1419,11 @@ export const seismicPayloadMixin = {
           })),
           thickness,
           material,
+          // Etiqueta de PIER: el motor malla el muro en shells, y esto es lo
+          // que le permite volver a juntarlos para integrar UN P/V/M por piso
+          // (tabla Pier Forces). Va vacía si el muro no tiene pier asignado.
+          pier: wall.pier || null,
+          story: wall.etabsStory || null,
         };
       })
       .filter((w) => w.thickness > 0);
@@ -2900,6 +2942,9 @@ export const seismicPayloadMixin = {
 
       return {
         id: Number(f.id),
+        // Liberaciones de extremo del .e2k. Sin esto el motor analiza como
+        // empotrada una conexión articulada.
+        ...(Array.isArray(f.releases) && f.releases.length ? { releases: f.releases } : {}),
         node_i: Number(f.node1.id),
         node_j: Number(f.node2.id),
 
@@ -3157,10 +3202,11 @@ export const seismicPayloadMixin = {
     //     inclinadas que el fix de vecxz acababa de dejar en ~1.0 se van a
     //     1.2–2.5 (B23 1.49→2.51, B21 1.41→2.37, B17 1.22→2.07).
     // O sea: mejora donde se lo esperaba y empeora donde HAY OTRO ERROR abierto
-    // (la losa Membrane se modela con flexión de placa completa, ver
-    // _SLAB_MEMBRANE_BENDING_MODIFIER en inputs.py). Atar mejor las vigas a una
-    // losa demasiado rígida amplifica ese error. Encenderlo hoy sería congelar
-    // una regresión causada por otra cosa.
+    // (a la losa Membrane le damos flexión fuera del plano, ver
+    // _SLAB_MEMBRANE_BENDING_MODIFIER = 0.1 en inputs.py, cuando en ETABS una
+    // Membrane tiene EXACTAMENTE 0). Atar mejor las vigas a una losa demasiado
+    // rígida amplifica ese error. Encenderlo hoy sería congelar una regresión
+    // causada por otra cosa.
     //
     // Se enciende con:
     //   cadSystem.seismicConfig.meshBeamsAtIntersections = true

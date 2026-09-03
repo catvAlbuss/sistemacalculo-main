@@ -98,12 +98,43 @@ export const columnInteractionChartMixin = {
    * REAL, se interpola la MAGNITUD en `thetaDeg` y se coloca el punto
    * exactamente en ese plano. Así el corte es radial de verdad.
    */
-  _ciCutCurve(curves, thetaDeg, usePhi) {
+  _ciCutCurve(curves, thetaDeg, usePhi, exactCuts = null) {
     const n = curves.length;
     if (!n) return null;
 
     const norm = (a) => (((Number(a) || 0) % 360) + 360) % 360;
     const t = norm(thetaDeg);
+
+    // CORTE EXACTO DEL MOTOR, si vino uno para este ángulo.
+    //
+    // La interpolación del anillo que sigue más abajo tiene un sesgo
+    // estructural: mezcla puntos del mismo índice que están a distinto P, y la
+    // curva queda POR AFUERA de la superficie real (3.2 % en la CL 70x70x30
+    // con 24 meridianas, y no baja de ~0.6 % ni con 144). Encima va del lado
+    // no conservador: la curva se ve más grande de lo que es y el punto de
+    // capacidad del D/C no caía sobre ella.
+    //
+    // `exactCuts` viene de design/column_ratio.curva_radial, que barre el MISMO
+    // rayo que el ratio, así que el punto de capacidad cae sobre la curva por
+    // construcción. El backend lo manda para el ángulo de la demanda que
+    // gobierna; si el usuario barre el ángulo a mano se cae al interpolado,
+    // que para explorar alcanza.
+    //
+    // Solo aplica a la superficie de DISEÑO: el motor manda el corte con φ ya
+    // aplicado, así que la vista nominal ("Exclude Phi") sigue interpolando.
+    // Y NO se le pasa por `_ciPoint`: esos puntos ya vienen en la convención
+    // del análisis, con el signo de M2 resuelto en el backend.
+    if (usePhi && Array.isArray(exactCuts)) {
+      const exacto = exactCuts.find((c) => Math.abs(norm(c?.angleDeg) - t) < 0.05);
+      const pts = exacto?.points;
+      if (Array.isArray(pts) && pts.length > 1) {
+        return {
+          x: pts.map((q) => Number(q.M2 || 0) * N_TO_TONF),
+          y: pts.map((q) => Number(q.M3 || 0) * N_TO_TONF),
+          z: pts.map((q) => Number(q.P || 0) * N_TO_TONF),
+        };
+      }
+    }
     const tr = (t * Math.PI) / 180;
     const nPts = curves[0]?.points?.length || 0;
 
@@ -213,7 +244,7 @@ export const columnInteractionChartMixin = {
     // que las dos vistas se mueven juntas).
     const cutAngle = this._ciCutAngle(demand, opts);
     if (cutAngle !== null) {
-      const cut = this._ciCutCurve(curves, cutAngle, usePhi);
+      const cut = this._ciCutCurve(curves, cutAngle, usePhi, opts.exactCuts);
       if (cut) {
         traces.push({
           type: "scatter3d", mode: "lines",
@@ -326,7 +357,7 @@ export const columnInteractionChartMixin = {
     const ang = this._ciCutAngle(demand, opts);
     if (ang === null) return false;
 
-    const cut = this._ciCutCurve(curves, ang, usePhi);
+    const cut = this._ciCutCurve(curves, ang, usePhi, opts.exactCuts);
     if (!cut) return false;
 
     // Momento RESULTANTE |M| = hypot(M2, M3). Es lo mismo que proyectar sobre
@@ -416,8 +447,8 @@ export const columnInteractionChartMixin = {
    * compresión pura y si no, la tabla saldría con media docena de filas
    * repetidas al principio.
    */
-  columnInteractionCurveRows(curves, thetaDeg, usePhi = true) {
-    const cut = this._ciCutCurve(curves, thetaDeg, usePhi);
+  columnInteractionCurveRows(curves, thetaDeg, usePhi = true, exactCuts = null) {
+    const cut = this._ciCutCurve(curves, thetaDeg, usePhi, exactCuts);
     if (!cut) return [];
 
     const filas = cut.z.map((p, i) => ({ P: p, M2: cut.x[i], M3: cut.y[i] })).reverse();

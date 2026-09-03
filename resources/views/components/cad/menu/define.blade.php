@@ -79,6 +79,12 @@
                     </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click="cadSystem.openPierLabels()">
+                        <span>▥</span>
+                        Etiquetas de Pier...
+                    </button>
+
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openGroups()">
                         <span>👥</span>
                         Grupos...
@@ -113,6 +119,15 @@
                     <div class="px-3 py-1 text-xs font-semibold text-blue-400 uppercase bg-gray-800">
                         Casos de Carga
                     </div>
+
+                    {{-- Todos los casos juntos, como el "Load Cases" de ETABS 22.7.
+                         Va PRIMERO porque es el que da el panorama: los tres
+                         diálogos de abajo son cada uno un pedazo. --}}
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click="cadSystem.openAllLoadCases()">
+                        <span>📋</span>
+                        Casos de Carga (todos)...
+                    </button>
 
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click="cadSystem.openLoadCases()">

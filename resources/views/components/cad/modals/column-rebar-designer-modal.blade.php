@@ -70,8 +70,11 @@
                             <span class="font-normal text-gray-600">/ Design Type · Configuration</span></legend>
                         <div class="text-[10px] text-gray-400 leading-relaxed">
                             <div>● Diseño <b>P-M2-M3 (Columna)</b></div>
-                            <div>● Refuerzo <b>Rectangular</b></div>
-                            <div>● Confinamiento con <b>Estribos</b> (Ties)</div>
+                            <div>● Refuerzo
+                                <b x-text="esCircular ? 'Circular' : (esPoligonal ? 'Perimetral' : 'Rectangular')"></b></div>
+                            <div>● Confinamiento con
+                                <b x-text="(esCircular && draft.spiral) ? 'Espiral' : 'Estribos'"></b>
+                                <span x-text="(esCircular && draft.spiral) ? '(Spiral)' : '(Ties)'"></span></div>
                             <div>● <b>Reinforcement to be Checked</b> — se verifica el armado que definas acá</div>
                         </div>
                     </fieldset>
@@ -91,13 +94,13 @@
                              grilla. El campo de espiral vs estribos NO es cosmético:
                              decide el tope axial (0.85 vs 0.80·Po) y el φ de compresión
                              (0.75 vs 0.65) — ACI 318 §22.4.2.1. --}}
-                        <div x-show="esCircular" class="grid grid-cols-2 gap-2 mt-1.5">
+                        <div x-show="porCantidad" class="grid grid-cols-2 gap-2 mt-1.5">
                             <label class="text-xs text-gray-400">Número de varillas
                                 <span class="block text-[9px] text-gray-600">Number of Longitudinal Bars</span>
                                 <input type="number" min="3" step="1" x-model.number="draft.numBars"
                                        class="w-full mt-0.5 bg-gray-900 border border-gray-600 rounded text-xs text-white px-2 py-1">
                             </label>
-                            <label class="text-xs text-gray-400">Confinamiento
+                            <label class="text-xs text-gray-400" x-show="esCircular">Confinamiento
                                 <span class="block text-[9px] text-gray-600">Confinement Bars</span>
                                 <select x-model.boolean="draft.spiral"
                                         class="w-full mt-0.5 bg-gray-900 border border-gray-600 rounded text-xs text-white px-2 py-1">
@@ -107,7 +110,7 @@
                             </label>
                         </div>
 
-                        <div x-show="!esCircular" class="grid grid-cols-2 gap-2 mt-1.5">
+                        <div x-show="!porCantidad" class="grid grid-cols-2 gap-2 mt-1.5">
                             <label class="text-xs text-gray-400">Varillas en la cara dir. 3
                                 <span class="block text-[9px] text-gray-600">Bars Along 3-dir Face</span>
                                 <input type="number" min="2" step="1" x-model.number="draft.n3"
@@ -155,10 +158,13 @@
                                     — <span class="text-gray-300 font-semibold" x-text="points.length"></span> varillas en anillo
                                     <span class="text-gray-600">(· <span x-text="draft.spiral ? 'espiral' : 'estribos circulares'"></span>)</span></span>
                             </template>
-                            <template x-if="!esCircular">
+                            <template x-if="!porCantidad">
                                 <span>Patrón <b class="text-gray-300">R-<span x-text="draft.n3"></span>-<span x-text="draft.n2"></span></b>
                                     — <span class="text-gray-300 font-semibold" x-text="points.length"></span> varillas
-                                    <span class="text-gray-600">(2·n3 + 2·(n2−2): las esquinas no se cuentan dos veces)</span></span>
+                                    <span class="text-gray-600" x-show="!esPoligonal">(2·n3 + 2·(n2−2): las esquinas no se cuentan dos veces)</span>
+                                    <span class="block text-gray-600" x-show="esPoligonal">La pata que corre sobre el eje 3 lleva
+                                    n3 varillas a lo largo y la que corre sobre el eje 2 lleva n2, dos hileras cada una;
+                                    donde se cruzan no se cuentan dos veces.</span></span>
                             </template>
                             <span class="block">As total = <b class="text-gray-300" x-text="areaTotalCm2()"></b> cm²
                                 · ρ = <b :class="cuantiaFueraDeRango() ? 'text-amber-400' : 'text-gray-300'" x-text="cuantiaPct()"></b>%
@@ -257,7 +263,7 @@
             // desde que Alpine arranca la página, así que si el draft estuviera
             // vacío svgMarkup() ya se evaluaría una vez con NaN antes de abrir el
             // modal por primera vez.
-            draft: { b: 30, h: 30, cover: 4, n2: 3, n3: 3, shape: 'rect', numBars: 8, spiral: true, diameter: 0, longBarName: '', confineBarName: '', longBarAreaMm2: 0, confineBarAreaMm2: 0, confineSpacing: 15, numConfineBars2: 2, numConfineBars3: 2, confineBarMaterialName: '' },
+            draft: { b: 30, h: 30, cover: 4, n2: 3, n3: 3, shape: 'rect', numBars: 8, spiral: true, diameter: 0, polyDepth: 70, polyWidth: 70, polyFlange: 30, polyWeb: 30, polyMirror2: false, polyMirror3: false, longBarName: '', confineBarName: '', longBarAreaMm2: 0, confineBarAreaMm2: 0, confineSpacing: 15, numConfineBars2: 2, numConfineBars3: 2, confineBarMaterialName: '' },
             barSizes: [],
             materials: [],
             longBarMaterialName: '',
@@ -342,6 +348,21 @@
                 return String(this.draft?.shape || 'rect').toLowerCase().startsWith('circ');
             },
 
+            /** L y T: el armado se define por CANTIDAD sobre el contorno. */
+            get esPoligonal() {
+                const f = String(this.draft?.shape || 'rect').toLowerCase();
+                return f === 'l' || f === 'tee';
+            },
+
+            /**
+             * Solo la circular se arma por CANTIDAD (patrón "C-n"). La L y la T
+             * usan los mismos n3/n2 que una rectangular: es lo que pide el
+             * diálogo de ETABS, idéntico para las tres formas.
+             */
+            get porCantidad() {
+                return this.esCircular;
+            },
+
             /** Diametro en cm de una circular (el mixin lo siembra desde la seccion). */
             get diamCm() {
                 return Number(this.draft?.diameter ?? this.draft?.h) || 0;
@@ -351,7 +372,9 @@
             cuantiaPct() {
                 const ag = this.esCircular
                     ? Math.PI * this.diamCm * this.diamCm / 4
-                    : (Number(this.draft.b) || 0) * (Number(this.draft.h) || 0);
+                    : this.esPoligonal
+                        ? this.agPoligonal()
+                        : (Number(this.draft.b) || 0) * (Number(this.draft.h) || 0);
                 if (!(ag > 0)) return '0.00';
                 return ((this.points.length * this.areaVarillaCm2()) / ag * 100).toFixed(2);
             },
@@ -367,7 +390,28 @@
             },
 
             /** Construye el SVG como STRING (ver comentario junto al contenedor) — nada de bindings Alpine dentro del SVG. */
+            /** Ag real del polígono (no la caja envolvente, que sobreestima mucho). */
+            agPoligonal() {
+                const D = Number(this.draft.polyDepth) || 0, B = Number(this.draft.polyWidth) || 0;
+                const TF = Number(this.draft.polyFlange) || 0, TW = Number(this.draft.polyWeb) || 0;
+                if (!(D > 0 && B > 0 && TF > 0 && TW > 0)) return 0;
+                return String(this.draft.shape) === 'tee'
+                    ? B * TF + (D - TF) * TW
+                    : TW * D + (B - TW) * TF;
+            },
+
+            /**
+             * Vértices del contorno, pedidos al MISMO módulo que usa el renderer
+             * y que replica el motor. Se accede por `cadSystem` para no importar
+             * dentro del blade.
+             */
+            verticesPoligono() {
+                const d = this.draft;
+                return window.cadSystem?._columnRebarPolygonVertices?.(d) || [];
+            },
+
             svgMarkup() {
+                if (this.esPoligonal) return this.svgMarkupPoligonal();
                 if (this.esCircular) return this.svgMarkupCircular();
                 const b = Number(this.draft.b) || 0;
                 const h = Number(this.draft.h) || 0;
@@ -428,6 +472,30 @@
                     ${circles}
                     <line x1="${-ax}" y1="${ax}" x2="${ax}" y2="${ax}" stroke="#38bdf8" stroke-width="0.4"></line>
                     <text x="0" y="${ax + f * 1.15}" fill="#38bdf8" font-size="${f}" text-anchor="middle">D = ${D} cm</text>
+                </svg>`;
+            },
+
+            /** Vista previa de la L o T: contorno, núcleo y varillas del contorno. */
+            svgMarkupPoligonal() {
+                const vert = this.verticesPoligono();
+                if (!vert.length) return '';
+                const R = Math.max(...vert.flat().map(Math.abs));
+                const pad = R * 0.2, w = 2 * (R + pad);
+                const r = Math.max(R * 0.035, 0.3);
+
+                const contorno = vert.map(([u, v]) => `${-v},${-u}`).join(' ');
+                const barras = this.points
+                    .map((p) => `<circle cx="${(-p.y).toFixed(2)}" cy="${(-p.x).toFixed(2)}" r="${r.toFixed(2)}" fill="#60a5fa"></circle>`)
+                    .join('');
+
+                const f = R * 0.13;
+                return `<svg viewBox="${-w / 2} ${-w / 2} ${w} ${w}" style="width:100%; max-height:320px" preserveAspectRatio="xMidYMid meet">
+                    <polygon points="${contorno}" fill="none" stroke="#9ca3af" stroke-width="${R * 0.015}"></polygon>
+                    ${barras}
+                    <line x1="0" y1="0" x2="0" y2="${-R * 0.5}" stroke="#34d399" stroke-width="${R * 0.012}"></line>
+                    <text x="${f * 0.4}" y="${-R * 0.55}" fill="#34d399" font-size="${f}">2</text>
+                    <line x1="0" y1="0" x2="${-R * 0.5}" y2="0" stroke="#38bdf8" stroke-width="${R * 0.012}"></line>
+                    <text x="${-R * 0.7}" y="${f * 0.4}" fill="#38bdf8" font-size="${f}">3</text>
                 </svg>`;
             },
 

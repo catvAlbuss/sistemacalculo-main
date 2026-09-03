@@ -22,6 +22,8 @@
 //     armado..." (columna-design-modal.blade.php) — atajo donde se detecta
 //     el problema, sin tener que ir a buscarlo a Definir.
 
+import { etabsPolygonBarPositions, lSectionVertices, teeSectionVertices } from "../../lib/sectionPolygon.js";
+
 const CM_TO_M = 0.01;
 const MM_TO_M = 0.001;
 const MM2_TO_M2 = 1e-6;
@@ -82,6 +84,10 @@ export const columnRebarDesignerMixin = {
           shape: "rect",
           numBars: 8,
           spiral: true,
+          // Geometria de la poligonal (cm). La siembra `openColumnRebarDesigner`
+          // desde la seccion real; aca solo hay valores de arranque.
+          polyDepth: 70, polyWidth: 70, polyFlange: 30, polyWeb: 30,
+          polyMirror2: false, polyMirror3: false,
           longBarName: bars.find((b) => b.name === "#4")?.name || bars[0]?.name || "#4",
           confineBarName: bars.find((b) => b.name === "#3")?.name || bars[0]?.name || "#3",
           longBarAreaMm2: bars.find((b) => b.name === "#4")?.areaMm2 || bars[0]?.areaMm2 || 0,
@@ -102,7 +108,19 @@ export const columnRebarDesignerMixin = {
     const secReal = (this.frameSections?.sections || []).find((x) => x?.name === sectionName)
       || (this.frameSections?.sections || []).find((x) => x?.name === hint?.label);
     const tipoSec = String(secReal?.type || hint?.type || "").toLowerCase();
-    if (tipoSec === "circle" || tipoSec === "circular") {
+    if (tipoSec === "l" || tipoSec === "tee") {
+      // L y T: ETABS usa el MISMO patron "R-n2-n3" que en una rectangular
+      // (lo confirma su dialogo de Reinforcement Data, identico para las tres
+      // formas) y reparte las varillas tramo por tramo — ver
+      // `etabsPolygonBarPositions` en lib/sectionPolygon.js.
+      draft.shape = tipoSec;
+      draft.polyDepth = Number(secReal?.h ?? hint?.h) || draft.polyDepth || 0;
+      draft.polyWidth = Number(secReal?.b ?? hint?.b) || draft.polyWidth || 0;
+      draft.polyFlange = Number(secReal?.lFlangeThick ?? secReal?.teeFlangeThick) || draft.polyFlange || 0;
+      draft.polyWeb = Number(secReal?.lWebThick ?? secReal?.teeWebThick) || draft.polyWeb || 0;
+      draft.polyMirror2 = secReal?.lMirror2 === true;
+      draft.polyMirror3 = secReal?.lMirror3 === true;
+    } else if (tipoSec === "circle" || tipoSec === "circular") {
       draft.shape = "circular";
       draft.diameter = Number(secReal?.diameter ?? secReal?.h ?? hint?.h) || draft.diameter || 0;
       // La espiral es el default de una circular, pero ETABS permite estribos
@@ -164,6 +182,43 @@ export const columnRebarDesignerMixin = {
       const a = (2 * Math.PI * i) / n;
       return { x: r * Math.cos(a), y: r * Math.sin(a) };
     });
+  },
+
+  /**
+   * Varillas de una seccion POLIGONAL (L o T), repartidas sobre el contorno
+   * insertado. Usa `lib/sectionPolygon.js` — la misma geometria que dibuja la
+   * huella en planta y que replica `column_polygon.py` en el motor.
+   * Todo en cm, origen en el centro de la caja envolvente.
+   */
+  /**
+   * Vertices del contorno de la seccion poligonal del draft (cm). Lo usa la
+   * vista previa del modal, para que dibuje EXACTAMENTE la misma forma que se
+   * calcula — sin una segunda copia de la geometria.
+   */
+  _columnRebarPolygonVertices(draft) {
+    const D = Number(draft?.polyDepth) || 0;
+    const B = Number(draft?.polyWidth) || 0;
+    const TF = Number(draft?.polyFlange) || 0;
+    const TW = Number(draft?.polyWeb) || 0;
+    return String(draft?.shape) === "tee"
+      ? teeSectionVertices(D, B, TF, TW)
+      : lSectionVertices(D, B, TF, TW, !!draft?.polyMirror2, !!draft?.polyMirror3);
+  },
+
+  _columnRebarPolygonPositions(draft, longBarDiameterCm = 0, confineBarDiameterCm = 0) {
+    return etabsPolygonBarPositions(
+      String(draft?.shape) === "tee" ? "tee" : "l",
+      {
+        depth: Number(draft?.polyDepth) || 0,
+        width: Number(draft?.polyWidth) || 0,
+        flangeThick: Number(draft?.polyFlange) || 0,
+        webThick: Number(draft?.polyWeb) || 0,
+        mirror2: !!draft?.polyMirror2,
+        mirror3: !!draft?.polyMirror3,
+      },
+      Number(draft?.n2) || 0, Number(draft?.n3) || 0,
+      Number(draft?.cover) || 0, longBarDiameterCm, confineBarDiameterCm,
+    ).map(([x, y]) => ({ x, y }));
   },
 
   _columnRebarBarPositions({ b, h, cover, n2, n3, longBarDiameterCm = 0, confineBarDiameterCm = 0 }) {
@@ -266,9 +321,14 @@ export const columnRebarDesignerMixin = {
     const dLongCm = ((longBar?.diameterMm || 0) * MM_TO_M) / CM_TO_M;    // mm -> cm
     const dConfCm = ((confineBar?.diameterMm || 0) * MM_TO_M) / CM_TO_M;
 
+    const forma = String(draft?.shape || "rect").toLowerCase();
+    if (forma === "l" || forma === "tee") {
+      return this._columnRebarPolygonPositions(draft, dLongCm, dConfCm);
+    }
+
     // ANILLO si la sección es circular. La forma la siembra
     // `openColumnRebarDesigner` desde la sección real, no la elige el usuario.
-    if (String(draft?.shape || "rect").toLowerCase().startsWith("circ")) {
+    if (forma.startsWith("circ")) {
       return this._columnRebarRingPositions({
         diameter: draft?.diameter ?? draft?.h,
         cover: draft?.cover,
@@ -342,7 +402,9 @@ export const columnRebarDesignerMixin = {
     const confineBar = barraDelDraft(bars, draft?.confineBarName, draft?.confineBarAreaMm2);
     if (!longBar || !confineBar) return null;
 
-    const esCircular = String(draft?.shape || "rect").toLowerCase().startsWith("circ");
+    const formaDraft = String(draft?.shape || "rect").toLowerCase();
+    const esPoligonal = formaDraft === "l" || formaDraft === "tee";
+    const esCircular = formaDraft.startsWith("circ");
 
     return {
       cover: Number(draft.cover) || 0, // cm
