@@ -195,7 +195,7 @@
                 class="w-full px-6 py-4 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between hover:from-red-100 hover:to-orange-100 dark:hover:from-red-900/30 dark:hover:to-orange-900/30 transition-all">
                 <div class="flex items-center gap-3">
                     <span class="font-bold text-gray-900 dark:text-gray-100">4.2.DISEÑO DE LOSA ALIGERADA</span>
-                    <span class="text-xs text-gray-500 dark:text-gray-400">(4 imágenes por sección)</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">(7 imágenes por sección)</span>
                 </div>
                 <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform"
                     :class="{ 'rotate-180': showSection42 }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -284,7 +284,7 @@
                         </div>
                         <div>
                             <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100">Imágenes por Sección</h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Cada sección tiene 4 imágenes</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Cada sección tiene 7 imágenes</p>
                         </div>
                     </div>
 
@@ -310,16 +310,20 @@
                                             x-text="'Sección ' + (seccionIndex + 1) + ': ' + (($store.memoriaCalculo.sections.disenoElementos.lista?.split('\n')[seccionIndex]?.trim() || 'Losa aligerada ' + (seccionIndex + 1)))">
                                         </h4>
                                         <span class="text-xs bg-orange-100 dark:bg-orange-900/40 text-orange-600 px-2 py-1 rounded-full">
-                                            4 imágenes
+                                            7 imágenes
                                         </span>
                                     </div>
 
                                     <!-- Grid de 4 imágenes -->
                                     <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 gap-4">
-                                        <template x-for="imgIndex in 4" :key="imgIndex">
+                                        {{-- AGREGADO (ver conversación): antes eran 4 imágenes genéricas
+                                             ("Imagen 1/2/3/4"); el envío automático desde "Enviar a Memoria"
+                                             (rcAligeradoDesign.js) manda 7 en un orden fijo -- se etiquetan
+                                             igual que en el Word (documentTransformer.js) para que calcen. --}}
+                                        <template x-for="imgIndex in 7" :key="imgIndex">
                                             <div class="space-y-2">
                                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                    Imagen <span x-text="imgIndex"></span>
+                                                    <span x-text="['Geometría de la vigueta','Carga muerta','Carga viva','Diseño a flexión (Asd)','Diseño a cortante (Vu)','Diagrama de fuerzas cortantes','Diagrama de momentos flectores'][imgIndex-1] || ('Imagen ' + imgIndex)"></span>
                                                 </label>
 
                                                 <!-- Preview de imagen -->

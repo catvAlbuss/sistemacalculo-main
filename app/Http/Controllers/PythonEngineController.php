@@ -33,6 +33,11 @@ class PythonEngineController extends Controller
         'column-shear' => ['POST', '/api/column-shear'],
         'wall-interaction' => ['POST', '/api/wall-interaction'],
         'seismic-parse-spectrum' => ['POST', '/api/seismic/parse-spectrum'],
+        'zapata-shell-design' => ['POST', '/api/zapata/shell-design'],
+        'zapata-shell-combined-design' => ['POST', '/api/zapata/shell-combined-design'],
+        'zapata-shell-trapezoidal-design' => ['POST', '/api/zapata/shell-trapezoidal-design'],
+        'zapata-shell-l-design' => ['POST', '/api/zapata/shell-l-design'],
+        'zapata-shell-poligono-design' => ['POST', '/api/zapata/shell-poligono-design'],
     ];
 
     /**

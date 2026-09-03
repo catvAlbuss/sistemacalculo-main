@@ -751,6 +751,13 @@ export const e2kImportMixin = {
     const yGrids = [];
     const materialMap = new Map();
     const frameSecMap = new Map();
+    // AGREGADO (ver conversación): el .e2k define f'c y fy en DOS bloques
+    // MATERIAL separados (concreto y su acero de refuerzo) — solo se cruzan
+    // a través de la sección que los usa (CONCRETESECTION → LONGBARMATERIAL).
+    // Sin este cruce, el material de concreto importado se queda sin fy
+    // (Bloque 5 — Acero por flexión — lo necesita). name de la sección → name
+    // del material de acero longitudinal.
+    const concreteSecRebarMap = new Map();
     const sdSectionMap = new Map(); // name → {angle, pieces:[{A,Iz,Iy,J,X,Y}]} (Section Designer)
     const rebarDefMap = new Map(); // "#4" → {area, dia} (catálogo REBARDEFINITION, en m²/m)
     const concreteSectionMap = new Map(); // name → datos crudos de CONCRETESECTION (armado), fusiona a frameSecMap al final
@@ -944,12 +951,14 @@ export const e2kImportMixin = {
           rebarDefMap.set(name, { area: kvNum(line, "AREA", 0), dia: kvNum(line, "DIA", 0) });
         }
       } else if (/^CONCRETESECTION\s/i.test(line)) {
+        const name = quotedAll(line)[0];
+        const longBarMaterial = q(line, "LONGBARMATERIAL");
+        if (name && longBarMaterial) concreteSecRebarMap.set(name, longBarMaterial);
         // Datos de diseño/armado de una sección (columna o viga) que ETABS ya
         // trae resueltos — hoy se descartaban por completo. Guardados aparte
         // (no en frameSecMap todavía) porque CONCRETESECTION puede venir antes
         // o después de la FRAMESECTION del mismo nombre en el archivo; se
         // fusionan al final, mismo patrón que sdSectionMap/"sd-pending".
-        const name = quotedAll(line)[0];
         if (name) {
           concreteSectionMap.set(name, {
             sectionType: q(line, "TYPE") || "", // "Column" | "Beam"
@@ -1031,6 +1040,13 @@ export const e2kImportMixin = {
           material: q(line, "MATERIAL") || q(line, "CONCMATERIAL") || "CONC",
           kind: proptype,
           modelingType: q(line, "MODELINGTYPE") || "Membrane",
+          // AGREGADO (ver conversación): SLABTYPE es un campo DISTINTO de
+          // PROPTYPE -- PROPTYPE distingue Slab/Wall/Deck (arriba, en
+          // `proptype`/`kind`), SLABTYPE distingue Slab/Drop/Mat/Footing
+          // DENTRO de una losa. Antes no se leía -- una zapata real
+          // (SLABTYPE "Footing") se importaba sin ese dato, y el modal caía
+          // siempre al "Slab" por defecto.
+          slabType: q(line, "SLABTYPE") || "Slab",
           // Reparto de la carga de área a las vigas del contorno. En ETABS una
           // losa `Membrane` NO tiene rigidez a flexión: existe solo para
           // entregarle su carga a las vigas que la sostienen, y
@@ -1180,6 +1196,26 @@ export const e2kImportMixin = {
       }
     });
 
+    // Cruce concreto <-> acero longitudinal (ver concreteSecRebarMap arriba):
+    // recorre las secciones de frame, y si su material de concreto no trajo
+    // fy propio (normal — fy vive en el MATERIAL del acero, no del concreto),
+    // se lo copia del acero longitudinal que esa misma sección usa según
+    // CONCRETESECTION. DEBE correr ANTES del fallback genérico de abajo
+    // (fy=420 "estándar") — si no, ese fallback rellena el campo primero y
+    // el valor REAL del archivo nunca llega a aplicarse.
+    for (const sec of frameSecMap.values()) {
+      const concreteMat = sec.material ? materialMap.get(sec.material) : null;
+      if (!concreteMat || concreteMat.fy != null) continue;
+
+      const rebarMatName = concreteSecRebarMap.get(sec.name);
+      const rebarMat = rebarMatName ? materialMap.get(rebarMatName) : null;
+
+      if (rebarMat?.fy != null) {
+        concreteMat.fy = rebarMat.fy;
+        concreteMat.fys = rebarMat.fys ?? rebarMat.fy;
+      }
+    }
+
     // ── Fusionar CONCRETESECTION (armado) en frameSecMap ──
     // Resuelve el diámetro real de la varilla longitudinal buscando en el
     // catálogo REBARDEFINITION el área más cercana a LONGBARAREA (solo trae el
@@ -1251,7 +1287,7 @@ export const e2kImportMixin = {
     // ── Completar campos de material que ETABS deja implícitos ──
     materialMap.forEach((m) => {
       m.type = "Isotropic";
-      if (m.designType === "Concrete" && m.fy == null) { m.fy = 420; m.fys = 420; } // acero de refuerzo estándar (MPa)
+      if (m.designType === "Concrete" && m.fy == null) { m.fy = 420; m.fys = 420; } // acero de refuerzo estándar (MPa) — SOLO si no se encontró un cruce real arriba
       if (m.fys == null) m.fys = m.fy ?? null;
       if (m.fpc == null) m.fpc = m.fc ?? 0;
       if (m.thermalExpansion == null) m.thermalExpansion = 9.9e-6;
@@ -1885,9 +1921,15 @@ export const e2kImportMixin = {
         // heredan "From Area" (getExplicitDiaphragmGroups en seismic.js).
         const areaDiaph = q(line, "DIAPH");
         const areaDiaphName = areaDiaph && !/none/i.test(areaDiaph) ? areaDiaph : null;
+        // AGREGADO (ver conversación): SLABTYPE "Footing"/"Mat" (ver
+        // slabSecMap arriba) → esta área es una ZAPATA, no una losa de
+        // piso genérica. Sin esto, una zapata importada del .e2k se
+        // pintaba bien en el 2D (por eso se veía) pero "Calcular Zapatas"
+        // nunca la encontraba (filtra por areaType==="zapata" exacto).
+        const esZapata = /footing|mat/i.test(slab.slabType || "");
         const area = {
           id: areas.length + 1,
-          type: "slab", areaType: "slab",
+          type: esZapata ? "zapata" : "slab", areaType: esZapata ? "zapata" : "slab",
           points: pts, z: round3(z),
           slabSection: section,
           slabSelfWeightKgM2,
@@ -2017,8 +2059,23 @@ export const e2kImportMixin = {
       .map((s) => ({
         name: s.name,
         material: s.material || "CONC",
-        modelingType: s.modelingType || "Membrane",
-        type: "Slab",
+        // El .e2k manda "ShellThin"/"ShellThick"/"Membrane" (sin guion) —
+        // normalizar al valor que usa el <select> del modal
+        // (slab-sections-modal.blade.php: "Membrane"/"Shell-Thin"/"Shell-Thick"),
+        // mismo criterio que ya usa wallSections más abajo.
+        modelingType: /thick/i.test(s.modelingType || "")
+          ? "Shell-Thick"
+          : /thin/i.test(s.modelingType || "")
+            ? "Shell-Thin"
+            : "Membrane",
+        // SLABTYPE del .e2k ("Footing"/"Mat"/"Drop"/"Slab") -> Tipo del
+        // modal ("Mat"/"Drop"/"Slab") -- antes quedaba SIEMPRE "Slab" a
+        // pesar de que el .e2k trajera "Footing" (una zapata real).
+        type: /footing|mat/i.test(s.slabType || "")
+          ? "Mat"
+          : /drop/i.test(s.slabType || "")
+            ? "Drop"
+            : "Slab",
         thickness: s.thickness, // mm
         color: "#9ca3af",
       }));

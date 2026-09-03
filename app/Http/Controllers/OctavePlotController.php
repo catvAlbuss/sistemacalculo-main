@@ -293,6 +293,24 @@ class OctavePlotController extends Controller
             $grid = $this->polygonGrid($centered);
             $co = array_map(fn ($row) => array_map(fn ($expr) => $this->evaluateExpression($expr, $fuerzas), $row), $coExpressions);
 
+            // AGREGADO (ver conversación: investigación del cliente sobre
+            // zapatas triangulares) — fórmula general de flexocompresión
+            // biaxial CON acoplamiento (producto de inercia Ixy), en vez de
+            // la versión simplificada de antes (zz = P/A + x*m2/IY + y*m3/IX)
+            // que asume, sin comprobarlo, que los ejes X/Y del dibujo son
+            // los ejes principales de inercia del polígono. Cuando IXY=0
+            // (cualquier rectángulo/cuadrado alineado con los ejes — TODAS
+            // las zapatas ya probadas y validadas hasta ahora) esta fórmula
+            // se reduce matemáticamente a la de antes, dando exactamente el
+            // mismo resultado — no cambia nada de lo ya validado. Solo
+            // cuando IXY≠0 (triángulos, trapecios no simétricos, formas
+            // rotadas) el término de acoplamiento entra en juego y corrige
+            // la presión, que antes podía salir hasta ~80% desviada.
+            $ix = $centeredProps['IX'];
+            $iy = $centeredProps['IY'];
+            $ixy = $centeredProps['IXY'] ?? 0.0;
+            $denom = $ix * $iy - $ixy ** 2;
+
             $zz = array_fill(0, count($co), []);
             foreach ($grid as $point) {
                 [$x, $y] = $point;
@@ -300,7 +318,20 @@ class OctavePlotController extends Controller
                     $p = ($combo[0] ?? 0) + $pesoEspecifico * $centeredProps['A'] * $df;
                     $m2 = $combo[1] ?? 0;
                     $m3 = $combo[2] ?? 0;
-                    $zz[$comboIndex][] = $p / $centeredProps['A'] + ($x / $centeredProps['IY']) * $m2 + ($y / $centeredProps['IX']) * $m3;
+
+                    if ($denom != 0.0) {
+                        $coefX = ($m2 * $ix - $m3 * $ixy) / $denom;
+                        $coefY = ($m3 * $iy - $m2 * $ixy) / $denom;
+                    } else {
+                        // Degenerado (polígono sin área/inercia real) — cae
+                        // de vuelta a la fórmula simple para no dividir
+                        // entre cero, mismo comportamiento defensivo que ya
+                        // tenía el código antes de este cambio.
+                        $coefX = $iy != 0.0 ? $m2 / $iy : 0.0;
+                        $coefY = $ix != 0.0 ? $m3 / $ix : 0.0;
+                    }
+
+                    $zz[$comboIndex][] = $p / $centeredProps['A'] + $coefX * $x + $coefY * $y;
                 }
             }
 
@@ -364,7 +395,7 @@ class OctavePlotController extends Controller
 
     private function polygonProperties(array $points): array
     {
-        $a0 = $xc = $yc = $ix0 = $iy0 = 0.0;
+        $a0 = $xc = $yc = $ix0 = $iy0 = $ixy0 = 0.0;
         for ($i = 0; $i < count($points) - 1; $i++) {
             [$x1, $y1] = $points[$i];
             [$x2, $y2] = $points[$i + 1];
@@ -374,6 +405,21 @@ class OctavePlotController extends Controller
             $yc += $cross * ($y2 + $y1);
             $iy0 += $cross * ($x2 ** 2 + $x2 * $x1 + $x1 ** 2);
             $ix0 += $cross * ($y2 ** 2 + $y2 * $y1 + $y1 ** 2);
+            // AGREGADO (ver conversación: investigación del cliente sobre
+            // zapatas triangulares con el método rígido) — producto de
+            // inercia Ixy, misma fórmula shoelace que IX/IY de arriba pero
+            // con el término cruzado x*y. Antes NO se calculaba: la fórmula
+            // de presión de abajo (zz = P/A + Mx*y/Ix + My*x/Iy) solo es
+            // válida si los ejes X/Y del dibujo son los EJES PRINCIPALES de
+            // inercia del polígono (Ixy=0) — cierto automáticamente para
+            // cualquier rectángulo/cuadrado alineado con los ejes (por eso
+            // nunca se notó: todas las zapatas probadas hasta ahora eran
+            // así), pero FALSO en general para un triángulo o un trapecio
+            // no simétrico — ahí, sin este término, la presión calculada
+            // puede salir hasta ~80% desviada del valor real (verificado
+            // con un triángulo rectángulo simple). Ver el nuevo uso de este
+            // valor en calcularZapatas2EnPhp() más abajo.
+            $ixy0 += $cross * ($x1 * $y2 + 2 * $x1 * $y1 + 2 * $x2 * $y2 + $x2 * $y1);
         }
 
         // OJO: el área con signo (antes de abs()) es la que hay que usar para
@@ -384,12 +430,20 @@ class OctavePlotController extends Controller
         // real tiene X o Y negativa.
         $signedArea = $a0 / 2;
         $area = abs($signedArea);
+        // IX/IY son magnitudes físicas (siempre >=0), así que abs() las
+        // normaliza sin importar el sentido de dibujo (horario/antihorario)
+        // del polígono. IXY en cambio SÍ puede ser negativo de verdad (según
+        // en qué cuadrantes esté repartido el material) — abs() lo hubiera
+        // arruinado, así que en vez de eso se corrige el signo según el
+        // sentido de dibujo (mismo criterio que ya usa signedArea/area).
+        $windingSign = $signedArea >= 0.0 ? 1 : -1;
         return [
             'A' => $area,
             'XC' => $signedArea != 0.0 ? $xc / (6 * $signedArea) : 0.0,
             'YC' => $signedArea != 0.0 ? $yc / (6 * $signedArea) : 0.0,
             'IX' => abs($ix0 / 12),
             'IY' => abs($iy0 / 12),
+            'IXY' => $windingSign * $ixy0 / 24,
         ];
     }
 

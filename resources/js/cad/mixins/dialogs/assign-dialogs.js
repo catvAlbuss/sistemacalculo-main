@@ -2362,6 +2362,13 @@ export const assignDialogsMixin = {
     );
   },
 
+  // Incluye "zapata" además de "slab" (ver _slabAssignData) — las zapatas
+  // también necesitan espesor + material, para el diseño de acero/cortante
+  // (Bloque 4). Verificado que esto NO afecta el peso sísmico del
+  // edificio: _buildSeismicAreaLoadsForPayload (payload.js) tiene su
+  // propio filtro independiente que sigue excluyendo zapatas de la
+  // masa/peso sísmico, así que slabSelfWeightKgM2 en una zapata queda
+  // inerte (guardado pero nunca leído por ese cálculo).
   openAssignSlabSectionDialog() {
     const { allSlabs, scopes } = this._slabAssignData(["slab", "zapata"]);
     if (!allSlabs.length) {
@@ -2392,7 +2399,7 @@ export const assignDialogsMixin = {
       slab.slabSection = sec ? sec.name : null;
       // Peso propio de la losa (kgf/m²): espesor(m) × densidad del material.
       slab.slabSelfWeightKgM2 = sec ? this._slabSectionSelfWeightKgM2(sec) : 0;
-      slab.section = sec ? { name: sec.name, thickness: sec.thickness, material: sec.material } : null;
+      slab.section = sec ? { name: sec.name, thickness: sec.thickness, material: sec.material, recubrimiento: sec.recubrimiento } : null;
 
       // Reparto de la carga a las vigas. En ETABS este dato vive en la SECCIÓN
       // (`SHELLPROP ... ONEWAYLOADDIST`), así que acá se hereda igual: una losa

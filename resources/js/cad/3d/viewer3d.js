@@ -150,11 +150,19 @@ function disposeViewer() {
 function createCanvas(container) {
   const canvas = document.createElement("canvas");
   canvas.id = "babylon-canvas";
-  canvas.style.width = "100%";
-  canvas.style.height = "100%";
   canvas.style.display = "block";
 
+  // AGREGADO (ver conversación): style.width/height en PÍXELES EXPLÍCITOS
+  // medidos del contenedor, no "100%" porcentual -- un <canvas> con
+  // height:100% en esta cadena de grid/flex anidada no resolvía su alto
+  // contra el contenedor real, caía de vuelta a preservar la proporción de
+  // su resolución interna (atributos width/height) aplicada sobre el ancho
+  // ya resuelto, inflando la altura renderizada a más ancho de ventana
+  // disponible -- causaba scroll vertical al cerrar DevTools. Mismo ajuste
+  // que en windowResize() (core-ui.js) para el canvas 2D.
   const rect = container.getBoundingClientRect();
+  canvas.style.width = `${rect.width || container.clientWidth || 800}px`;
+  canvas.style.height = `${rect.height || container.clientHeight || 600}px`;
   canvas.width = rect.width || container.clientWidth || 800;
   canvas.height = rect.height || container.clientHeight || 600;
 
@@ -221,6 +229,16 @@ function setupResizeHandler() {
 
     setTimeout(() => {
       try {
+        // AGREGADO (ver conversación): re-medir el contenedor y refijar
+        // style.width/height en px explícitos ANTES de engine.resize() --
+        // mismo motivo que en createCanvas(), pero en cada evento de
+        // resize (abrir/cerrar F12 incluido), no solo al crear el canvas.
+        const canvas = VIEWER_STATE.canvas;
+        if (canvas?.parentElement) {
+          const rect = canvas.parentElement.getBoundingClientRect();
+          canvas.style.width = `${rect.width}px`;
+          canvas.style.height = `${rect.height}px`;
+        }
         VIEWER_STATE.engine.resize();
       } catch (error) {
         console.warn("Error al redimensionar el visor 3D:", error);
@@ -799,6 +817,18 @@ function selectAreaFrom3D(area, context, options = {}) {
     a.selected = true;
     a.isSelected = true;
   });
+
+  // AGREGADO (ver conversación): log claro de qué área se acaba de
+  // seleccionar/deseleccionar y qué queda en la selección completa -- para
+  // poder ver en la consola (F12) el id real de cada losa clicada en el 3D,
+  // sin tener que adivinarlo (útil para depurar "Diseñar Losa Aligerada",
+  // donde el id de cada losa decide si 2 tramos se reconocen como la misma
+  // vigueta o no).
+  console.log(
+    `[3D] ${alreadySelected ? "Deseleccionada" : "Seleccionada"} área id=${area.id} (${area.areaType || area.type || "slab"}, z=${area.z ?? "?"}, loadDistAngle=${area.loadDistAngle ?? "?"}°)`,
+    "→ selección actual:",
+    nextAreas.map((a) => ({ id: a.id, areaType: a.areaType || a.type, z: a.z, loadDistAngle: a.loadDistAngle })),
+  );
 
   context.redraw?.();
   context.sync3D?.();

@@ -15,6 +15,19 @@
     @apply dark:border-neutral-600 border-gray-300;
 }
 
+/* Barra de herramientas del CAD: permite scroll horizontal (mouse wheel /
+   trackpad / arrastre) sin mostrar la barra de scroll -- con altura fija
+   (h-[64px]) la barra de scroll del navegador ocupaba espacio vertical y
+   tapaba las etiquetas de texto de los botones. */
+.cad-toolbar-scroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.cad-toolbar-scroll::-webkit-scrollbar {
+    display: none;
+}
+
 .cad-text-color {
     @apply dark:text-neutral-400 text-black;
 }
