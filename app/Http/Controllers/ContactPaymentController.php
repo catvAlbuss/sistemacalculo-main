@@ -51,11 +51,19 @@ class ContactPaymentController extends Controller
         ]);
 
         try {
-            DB::transaction(function () use ($request) {
-                $plan = Subscription::findOrFail($request->subscription_plan_id);
+            $plan = Subscription::active()->findOrFail($request->subscription_plan_id);
+
+            if (!$plan->isTrial() && !$plan->isLifetime() && !$request->hasFile('payment_proof')) {
+                return back()->withInput()->withErrors([
+                    'payment_proof' => 'Debes subir el comprobante de pago para continuar.',
+                ]);
+            }
+
+            $result = DB::transaction(function () use ($request, $plan) {
 
                 // Verificar si el usuario ya existe
                 $user = User::where('email', $request->email)->first();
+                $temporaryPassword = null;
 
                 if (!$user) {
                     // Crear usuario con cuenta de prueba
@@ -71,15 +79,23 @@ class ContactPaymentController extends Controller
                     // Asignar rol por defecto
                     $user->assignRole('cliente');
 
-                    // Crear suscripción de prueba de 10 días
+                    // Crear el acceso gratuito configurado para usuarios nuevos.
+                    $accessPlan = $plan->isTrial()
+                        ? $plan
+                        : Subscription::active()->where('type', 'trial')->first();
+
+                    if (!$accessPlan) {
+                        throw new \RuntimeException('No existe un plan de prueba activo.');
+                    }
+
                     $trialSubscription = $user->subscriptions()->create([
-                        'subscription_plan_id' => 1,
+                        'subscription_plan_id' => $accessPlan->id,
                         'status' => 'active',
                         'starts_at' => now(),
-                        'ends_at' => now()->addDays(10),
+                        'ends_at' => now()->addDays($accessPlan->duration_days),
                         'amount_paid' => 0,
                         'payment_method' => 'trial',
-                        'notes' => 'Cuenta de prueba por 10 días',
+                        'notes' => "Cuenta de prueba por {$accessPlan->duration_days} días",
                     ]);
 
                     $user->update([
@@ -100,7 +116,7 @@ class ContactPaymentController extends Controller
                 // Crear solicitud de pago
                 $paymentRequest = PaymentRequest::create([
                     'user_id' => $user->id,
-                    'subscription_plan_id' => 1,
+                    'subscription_plan_id' => $plan->id,
                     'name' => $request->name,
                     'email' => $request->email,
                     'phone' => '+51' . ltrim($request->phone, '0'),
@@ -111,23 +127,39 @@ class ContactPaymentController extends Controller
                     'token' => Str::random(32),
                 ]);
 
-                // Enviar correos
-                $this->sendEmailNotifications(
-                    $user,
-                    $plan,
-                    $paymentRequest,
-                    $uploadedFile,
-                    $request->password ?? $temporaryPassword ?? null
-                );
-
-                // Enviar notificación a WhatsApp
-                $this->sendWhatsAppNotification($paymentRequest);
+                return compact('user', 'paymentRequest', 'uploadedFile', 'temporaryPassword');
             });
+
+            try {
+                $this->sendEmailNotifications(
+                    $result['user'],
+                    $plan,
+                    $result['paymentRequest'],
+                    $result['uploadedFile'],
+                    $result['temporaryPassword']
+                );
+                $this->sendWhatsAppNotification($result['paymentRequest']);
+            } catch (\Throwable $e) {
+                Log::error('La solicitud se guardo, pero fallo el envio de correo.', [
+                    'payment_request_id' => $result['paymentRequest']->id,
+                    'recipient' => $result['user']->email,
+                    'exception' => $e,
+                ]);
+
+                return redirect()->route('landing.success')->with(
+                    'warning',
+                    'Tu solicitud fue registrada, pero no pudimos enviar el correo de confirmacion. Te contactaremos pronto.'
+                );
+            }
 
             return redirect()->route('landing.success')
                 ->with('success', '¡Solicitud enviada exitosamente! Revisa tu correo para más información.');
-        } catch (\Exception $e) {
-            //Log::error('Error al procesar solicitud: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('Error al procesar solicitud de suscripcion.', [
+                'email' => $request->email,
+                'subscription_plan_id' => $request->subscription_plan_id,
+                'exception' => $e,
+            ]);
             return back()->withInput()
                 ->with('error', 'Hubo un error al procesar tu solicitud. Por favor, intenta nuevamente.');
         }

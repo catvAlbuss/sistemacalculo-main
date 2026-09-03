@@ -4,6 +4,13 @@
     <div class="" x-data="contactForm()">
         <div class="container mx-auto px-4 py-12">
 
+            @if (session('error') || $errors->any())
+                <div class="max-w-4xl mx-auto mb-8 rounded-lg border border-red-300 bg-red-50 p-4 text-red-800" role="alert">
+                    <p class="font-semibold">No pudimos enviar la solicitud.</p>
+                    <p class="text-sm">{{ session('error') ?: $errors->first() }}</p>
+                </div>
+            @endif
+
             <!-- Hero Section -->
             <div class="text-center mb-16">
                 <h2 class="text-4xl md:text-5xl font-bold text-gray-100 mb-4">
@@ -172,8 +179,8 @@
                                 <i class="fas fa-credit-card mr-2 text-blue-600"></i> Información de Pago
                             </h4>
 
-                            <!-- Mostrar solo si NO es lifetime -->
-                            <template x-if="selectedPlan?.type !== 'lifetime'">
+                            <!-- Mostrar solo para planes pagados -->
+                            <template x-if="selectedPlan?.type !== 'lifetime' && selectedPlan?.type !== 'trial'">
                                 <div>
                                     <!-- Resumen del Plan -->
                                     <div class="bg-blue-50 rounded-lg p-4 mb-4">
@@ -312,16 +319,16 @@
                                 </div>
                             </template>
 
-                            <!-- Mensaje para plan Lifetime -->
-                            <template x-if="selectedPlan?.type === 'lifetime'">
+                            <!-- Mensaje para planes sin pago inmediato -->
+                            <template x-if="selectedPlan?.type === 'lifetime' || selectedPlan?.type === 'trial'">
                                 <div
                                     class="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-lg p-6 border-2 border-yellow-300">
                                     <div class="text-center mb-4">
                                         <i class="fas fa-crown text-yellow-500 text-4xl mb-3"></i>
-                                        <h5 class="font-bold text-gray-800 text-lg mb-2">Plan de Por Vida</h5>
-                                        <p class="text-gray-600 text-sm">
-                                            Este es un plan especial con precio personalizado
-                                        </p>
+                                        <h5 class="font-bold text-gray-800 text-lg mb-2"
+                                            x-text="selectedPlan?.type === 'trial' ? 'Prueba Gratuita' : 'Plan de Por Vida'"></h5>
+                                        <p class="text-gray-600 text-sm"
+                                            x-text="selectedPlan?.type === 'trial' ? 'No necesitas realizar ningún pago ni subir un comprobante.' : 'Este es un plan especial con precio personalizado'"></p>
                                     </div>
 
                                     <div class="bg-white rounded-lg p-4 space-y-3">
@@ -631,8 +638,8 @@
                     },
 
                     handleSubmit(event) {
-                        // Validar que el comprobante sea obligatorio para planes no-lifetime
-                        if (this.selectedPlan?.type !== 'lifetime' && !this.uploadedFile) {
+                        // Validar el comprobante para planes pagados.
+                        if (this.selectedPlan?.type !== 'lifetime' && this.selectedPlan?.type !== 'trial' && !this.uploadedFile) {
                             event.preventDefault();
                             this.fileError = 'Debes subir el comprobante de pago para continuar';
 

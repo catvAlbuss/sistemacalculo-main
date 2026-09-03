@@ -31,6 +31,12 @@
             </div>
 
             <div class="p-8">
+                @if (session('warning'))
+                    <div class="mb-6 rounded-lg border border-yellow-300 bg-yellow-50 p-4 text-yellow-800" role="alert">
+                        {{ session('warning') }}
+                    </div>
+                @endif
+
                 <!-- Mensaje principal -->
                 <div class="text-center mb-8">
                     <p class="text-lg text-gray-700 mb-4">
