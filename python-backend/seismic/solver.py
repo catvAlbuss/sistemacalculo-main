@@ -1,6 +1,7 @@
 """seismic.solver — CÁLCULO: modal, RSA (CQC/SRSS), cortante basal, derivas, cortantes por piso, estático y fuerzas internas de frame."""
 
 import io
+import re
 import traceback
 import numpy as np
 
@@ -14,6 +15,7 @@ except ImportError:
 
 from .utils import *  # noqa: F401,F403
 from .inputs import *  # noqa: F401,F403
+from .section_principal import girar_fuerzas_a_seccion
 
 __all__ = [
     "MIN_VALID_MODE_PERIOD",
@@ -636,6 +638,27 @@ def _cqc_combine(modal_matrix: np.ndarray, modal_info: list, zeta: float) -> np.
 
     return result
 
+def _sistema_lineal():
+    """
+    Solver lineal para los estáticos del motor.
+
+    `BandGeneral` es malísimo con muchos shells: el ancho de banda se dispara.
+    Medido en el modelo del usuario (398 shells de losa + muros), con el MISMO
+    desplazamiento hasta el séptimo dígito (5.894327e-04):
+
+        BandGeneral  0.864 s      UmfPack     0.293 s
+        ProfileSPD   0.838 s      SparseSYM   0.212 s
+
+    El pipeline hace 65 `analyze` por caso, así que el cambio bajó el análisis
+    completo de 100 s a 47.6 s. Cae a BandGeneral si el build de OpenSees no
+    trae el disperso.
+    """
+    try:
+        ops.system("UmfPack")
+    except Exception:
+        ops.system("BandGeneral")
+
+
 def _cqc_rho(omega_i: float, omega_j: float, zeta: float) -> float:
     """Coeficiente de correlación CQC (Der Kiureghian, 1981)."""
     if omega_j < 1e-12:
@@ -770,7 +793,7 @@ def run_joint_reactions_rsa(
 
         ops.constraints("Transformation")
         ops.numberer("RCM")
-        ops.system("BandGeneral")
+        _sistema_lineal()
         ops.test("NormDispIncr", 1e-8, 50)
         ops.algorithm("Linear")
         ops.integrator("LoadControl", 1.0)
@@ -917,7 +940,7 @@ def run_accidental_torsion_rsa(
 
         ops.constraints("Transformation")
         ops.numberer("RCM")
-        ops.system("BandGeneral")
+        _sistema_lineal()
         ops.test("NormDispIncr", 1e-8, 50)
         ops.algorithm("Linear")
         ops.integrator("LoadControl", 1.0)
@@ -1984,7 +2007,7 @@ def _run_static_with_loads(nodes: list, elements: list, loads: list) -> dict:
 
     ops.constraints("Transformation")
     ops.numberer("RCM")
-    ops.system("BandGeneral")
+    _sistema_lineal()
     ops.test("NormDispIncr", 1e-6, 10)
     ops.algorithm("Newton")
     ops.integrator("LoadControl", 1.0)
@@ -2449,19 +2472,25 @@ def _ff_stations_from_end_forces(
         )
     return stations
 
-def _ff_extract_local_force(eid: int):
-    """localForce (12) en ejes locales; cae a eleForce global si no existe."""
+def _ff_extract_local_force(eid: int, angulo: float = 0.0):
+    """localForce (12) en ejes locales; cae a eleForce global si no existe.
+
+    `angulo` es el giro a ejes principales que se le aplicó al elemento en
+    `build_model_3d` (secciones L). Se DESHACE acá, que es el único punto por
+    donde pasan las fuerzas MODO A MODO: girar después, sobre la envolvente
+    CQC, no sería válido. Ver seismic/section_principal.girar_fuerzas_a_seccion.
+    """
     for resp in ("localForce", "localForces"):
         try:
             v = ops.eleResponse(eid, resp)
             if v and len(v) >= 6:
-                return list(v)
+                return girar_fuerzas_a_seccion(list(v), angulo)
         except Exception:
             pass
     try:
         v = ops.eleForce(eid)
         if v and len(v) >= 6:
-            return list(v)
+            return girar_fuerzas_a_seccion(list(v), angulo)
     except Exception:
         pass
     return [0.0] * 12
@@ -2658,24 +2687,85 @@ def _ff_envelope_over_combos(combo_entries: list, components: list) -> tuple:
 
     return entries, meta
 
-def _ff_compute_combo_entries(combo: dict, elements: list, case_idx: dict, components: list) -> list:
+def _ff_norm_caso(valor) -> str:
+    """Clave tolerante para cruzar el caso que pide un combo con el que existe.
+
+    El .e2k referencia el caso por NOMBRE (`LOADCASE "SDX ESCALADO"`) y el
+    frontend lo manda con el id normalizado (`SDX_ESCALADO`, ver
+    responseSpectrumCases en e2k-import.js). Cruzarlos por igualdad exacta
+    fallaba y el termino sismico aportaba CERO — pero el combo igual se armaba
+    con la gravedad, asi que no habia error visible: las columnas se disenaban
+    solo para gravedad y el combo sismico aparecia en la tabla con numeros de
+    gravedad. Se cruza sin espacios ni guiones bajos y sin distinguir mayusculas.
+    """
+    return re.sub(r"[\s_]+", "", str(valor or "")).strip().upper()
+
+
+def _ff_compute_combo_entries(combo: dict, elements: list, case_idx: dict,
+                              components: list, alias_caso: dict = None,
+                              sin_resolver: set = None) -> list:
     """
     Calcula las entradas frameForce de una combinación, estación por estación:
       - ADD: valor = Σ factor·caso.
       - ENVELOPE: genera _Max y _Min; los términos `signless` (sísmicos, sin
         signo por CQC/SRSS) se suman como ±|valor| según la variante.
     Reutiliza length / localAxes / posiciones de estación de los casos base.
+
+    `alias_caso` mapea nombre normalizado -> caseId, para que un combo que
+    referencia el caso por nombre encuentre el caso que existe (ver
+    _ff_norm_caso). `sin_resolver` recoge los términos que NO se pudieron cruzar
+    con ningún caso, para poder avisar en vez de fallar en silencio.
     """
     ctype = str(combo.get("type", "ADD")).upper()
     terms = combo.get("terms", []) or []
-    variants = [("_Max", 1), ("_Min", -1)] if ctype == "ENVELOPE" else [("", 1)]
+
+    # UN COMBO CON ESPECTRO SIEMPRE DA UN PAR, AUNQUE SEA "Linear Add".
+    #
+    # CSI Analysis Reference Manual §18.11.1: "Response-spectrum cases provide
+    # two values: the maximum value used is the positive computed value, and the
+    # minimum value is just the negative of the maximum." O sea que el par no
+    # depende del TIPO del combo sino de que participe un caso espectral: su
+    # aporte es una magnitud (CQC/SRSS) sin signo físico, y hay que envolverla.
+    #
+    # Antes el par salía solo con ctype == "ENVELOPE", y TODOS los combos del
+    # .e2k se importan como "ADD" (ver e2k-load-combos.js, que además descarta
+    # los envolventes). Consecuencia en cadena, medida en C2 Story1 del
+    # MODULO 01 con el combo `05 1.25(CM+CV) -SDY`:
+    #
+    #   1. sin par _Max/_Min, el combo daba un solo valor: `firmes - magnitud`
+    #      (el SF -1 del término sísmico forzaba la RESTA en vez de envolver).
+    #      M3 = 3.16 - 1.68 = 1.48 t·m, contra 5.41 de ETABS.
+    #   2. `partirEspectral` (rcColumnDesign.js) recupera firme y |espectral| de
+    #      la pareja _Max/_Min. Sin pareja no escribe M3Firm/M3Spec…
+    #   3. …y `_ocho_combinaciones_de_signo` (app.py) devuelve el punto TAL CUAL:
+    #      el barrido de los 8 signos que copia a ETABS NUNCA CORRÍA sobre un
+    #      combo importado. Estaba escrito y era inalcanzable.
+    #
+    # El ratio de esa columna salía 0.227 contra 0.301 de ETABS.
+    tiene_espectral = any(t.get("signless") for t in terms)
+    variants = ([("_Max", 1), ("_Min", -1)]
+                if (ctype == "ENVELOPE" or tiene_espectral) else [("", 1)])
+    alias_caso = alias_caso or {}
+
+    def buscar(fid, nombre):
+        """Exacto primero; si no, por nombre normalizado."""
+        ce = case_idx.get((fid, nombre))
+        if ce is not None:
+            return ce
+        real = alias_caso.get(_ff_norm_caso(nombre))
+        return case_idx.get((fid, real)) if real is not None else None
+
+    if sin_resolver is not None:
+        for t in terms:
+            if not alias_caso or _ff_norm_caso(t.get("case")) not in alias_caso:
+                sin_resolver.add(str(t.get("case")))
 
     entries = []
     for elem in elements:
         fid = elem.get("id")
         base = None
         for t in terms:
-            base = case_idx.get((fid, t["case"]))
+            base = buscar(fid, t["case"])
             if base:
                 break
         if base is None:
@@ -2710,24 +2800,27 @@ def _ff_compute_combo_entries(combo: dict, elements: list, case_idx: dict, compo
                     # +SDX/-SDX sigue cubriendo el maximo y el minimo axial.
                     firmes = 0.0
                     magnitud = 0.0
-                    sgn_sf = 1.0
                     for t in terms:
-                        ce = case_idx.get((fid, t["case"]))
+                        ce = buscar(fid, t["case"])
                         if not ce:
                             continue
                         val = ce["stations"][k][comp]
                         factor = float(t.get("factor", 1.0))
                         if t.get("signless"):
+                            # EL SIGNO DEL FACTOR NO INFORMA NADA acá: el aporte
+                            # espectral ya es una magnitud, así que `-SDY` y
+                            # `+SDY` describen el MISMO par envuelto. Antes un
+                            # factor negativo forzaba `sgn_sf = -1` y con eso la
+                            # rama _Max terminaba siendo la MENOR — el nombre
+                            # mentía y, sin par, el combo directamente restaba.
                             magnitud += abs(factor * val)
-                            if factor < 0:
-                                sgn_sf = -1.0
                         else:
                             firmes += factor * val
 
                     # Sentido adverso = el del termino con signo, para que las
                     # magnitudes se sumen en vez de cancelarse.
                     adverso = -1.0 if firmes < 0 else 1.0
-                    total = firmes + sgn * sgn_sf * adverso * magnitud
+                    total = firmes + sgn * adverso * magnitud
                     row[comp] = round(total, 6)
                 stations.append(row)
 
@@ -2810,15 +2903,56 @@ def _ff_seismic_modal_base(data: dict, modal_data: dict, directions, elements: l
             if loaded:
                 ops.constraints("Transformation")
                 ops.numberer("RCM")
-                ops.system("BandGeneral")
+                _sistema_lineal()
                 ops.test("NormDispIncr", 1e-8, 50)
                 ops.algorithm("Linear")
                 ops.integrator("LoadControl", 1.0)
                 ops.analysis("Static")
                 ops.analyze(1)
-            forces = {int(e["id"]): _ff_extract_local_force(int(e["id"])) for e in elements}
+            forces = {int(e["id"]): _ff_extract_local_force(int(e["id"]), e.get("_principal_angle", 0.0))
+                      for e in elements}
             base[dirn].append(forces)
     return base
+
+def _aplicar_par_repartido(m_acc, nids, idx_of, m_x, m_y, node_by_id) -> bool:
+    """Par torsor PURO repartido por masa, para un piso que no tiene maestro.
+
+        Fx_i = −k·m_i·(y_i − y_cm)      Fy_i = +k·m_i·(x_i − x_cm)
+        k = M_acc / Σ m_i·r_i²
+
+    Da momento neto `m_acc` y fuerza neta CERO —por definición del centro de
+    masa—, o sea un par puro; y repartido por masa, que es como se distribuye la
+    torsión inercial de verdad. Devuelve True si aplicó algo.
+    """
+    datos, mt, sx, sy = [], 0.0, 0.0, 0.0
+    for nid in nids:
+        i = idx_of.get(nid)
+        nd = node_by_id.get(nid)
+        if i is None or nd is None:
+            continue
+        m = max(float(m_x[i]), float(m_y[i]))
+        if m <= 0:
+            continue
+        x, y = float(nd.get("x", 0.0)), float(nd.get("y", 0.0))
+        datos.append((nid, m, x, y))
+        mt += m
+        sx += m * x
+        sy += m * y
+    if mt <= 0 or not datos:
+        return False
+
+    # Centro de MASA, no centro geométrico: es lo que hace que el reparto sea un
+    # par puro. Con el geométrico se cuela una fuerza lateral espuria.
+    xc, yc = sx / mt, sy / mt
+    j = sum(m * ((x - xc) ** 2 + (y - yc) ** 2) for _, m, x, y in datos)
+    if j <= 1e-12:
+        return False                    # piso degenerado (toda la masa en un punto)
+
+    k = m_acc / j
+    for nid, m, x, y in datos:
+        ops.load(int(nid), -k * m * (y - yc), k * m * (x - xc), 0.0, 0.0, 0.0, 0.0)
+    return True
+
 
 def _ff_seismic_modal_accidental(
     data: dict, modal_data: dict, directions, elements: list, ecc_ratio: float
@@ -2865,20 +2999,45 @@ def _ff_seismic_modal_accidental(
 
     # Un build para leer los maestros de los diafragmas que rotan.
     build_model_3d(data)
-    applied_diaph = (data.get("_rigid_diaphragm_report") or {}).get("applied") or []
+    _rep = data.get("_rigid_diaphragm_report") or {}
+    applied_diaph = _rep.get("applied") or []
+    # Los SALTEADOS también importan: un piso semirrígido no tiene
+    # maestro, pero igual tiene que recibir la torsión accidental.
+    skipped_diaph = [g for g in (_rep.get("skipped") or []) if isinstance(g, dict)]
 
     # {dirn: [(retained, [nids], e)]} — e depende de la dirección (B_perp).
     masters_by_dir = {}
+    # DOS FAMILIAS DE PISO, no una. Antes solo se miraban los diafragmas
+    # APLICADOS como `rigidDiaphragm_z`; un piso SEMIRRÍGIDO se saltea en
+    # `_apply_rigid_diaphragms` (correcto: su rigidez en el plano la da la malla
+    # de losa) y por eso no llegaba acá — `masters_by_dir` quedaba vacío y esta
+    # función devolvía {}: **torsión accidental CERO, en silencio**, aunque el
+    # payload trajera `accidentalEccentricity`.
+    #
+    # Medido en C2 Story1 de MODULO 01, cuyos dos diafragmas son SEMIRIGID en el
+    # propio .e2k. Las tres componentes que alimenta la rotación del piso salían
+    # cortas y las dos directas calzaban:
+    #
+    #     comp   ETABS    nuestro
+    #      V2    0.7940   0.6075   −23.5 %   ← rotación
+    #      T     0.0381   0.0107   −71.9 %   ← rotación
+    #      M3    2.6258   1.6822   −36.0 %   ← rotación
+    #      V3    3.1906   3.3455    +4.9 %     directa
+    #      M2    9.0477   9.4767    +4.7 %     directa
     for dirn in directions:
         story_masters = []
-        for grp in applied_diaph:
-            if grp.get("method") != "rigidDiaphragm_z":
-                continue
+        grupos = [(g, True) for g in applied_diaph
+                  if g.get("method") == "rigidDiaphragm_z"]
+        grupos += [(g, False) for g in skipped_diaph
+                   if str(g.get("rigidity") or "").startswith("semi")]
+        for grp, es_rigido in grupos:
             nids = [int(x) for x in grp.get("node_ids", []) or []]
-            try:
-                retained = int(grp.get("retained"))
-            except Exception:
-                continue
+            retained = None
+            if es_rigido:
+                try:
+                    retained = int(grp.get("retained"))
+                except Exception:
+                    continue
             xs = [float(node_by_id[i].get("x", 0.0)) for i in nids if i in node_by_id]
             ys = [float(node_by_id[i].get("y", 0.0)) for i in nids if i in node_by_id]
             if not xs or not ys:
@@ -2916,19 +3075,24 @@ def _ff_seismic_modal_accidental(
                     else:
                         f_story += gamma * float(m_y[i]) * float(phi_y[idx][i])
                 m_acc = ecc * f_story
-                if abs(m_acc) > 1e-12:
+                if abs(m_acc) <= 1e-12:
+                    continue
+                if retained is not None:
                     ops.load(int(retained), 0.0, 0.0, 0.0, 0.0, 0.0, m_acc)
+                    applied = True
+                elif _aplicar_par_repartido(m_acc, nids, idx_of, m_x, m_y, node_by_id):
                     applied = True
             if applied:
                 ops.constraints("Transformation")
                 ops.numberer("RCM")
-                ops.system("BandGeneral")
+                _sistema_lineal()
                 ops.test("NormDispIncr", 1e-8, 50)
                 ops.algorithm("Linear")
                 ops.integrator("LoadControl", 1.0)
                 ops.analysis("Static")
                 ops.analyze(1)
-            forces = {int(e["id"]): _ff_extract_local_force(int(e["id"])) for e in elements}
+            forces = {int(e["id"]): _ff_extract_local_force(int(e["id"]), e.get("_principal_angle", 0.0))
+                      for e in elements}
             acc[dirn].append(forces)
 
     return acc
@@ -3304,7 +3468,7 @@ def run_frame_force_results(
         if has_load:
             ops.constraints("Transformation")
             ops.numberer("RCM")
-            ops.system("BandGeneral")
+            _sistema_lineal()
             ops.test("NormDispIncr", 1e-8, 50)
             ops.algorithm("Newton")
             ops.integrator("LoadControl", 1.0)
@@ -3336,7 +3500,7 @@ def run_frame_force_results(
         for elem in elements:
             eid = int(elem["id"])
             length = _ff_element_length(elem, node_by_id)
-            f_local = _ff_extract_local_force(eid)
+            f_local = _ff_extract_local_force(eid, elem.get("_principal_angle", 0.0))
             stations = _ff_stations_from_end_forces(
                 f_local, length, num_stations, spans.get(eid),
                 _ff_element_end_offsets(elem),
@@ -3391,10 +3555,25 @@ def run_frame_force_results(
         if entry.get("caseId") is not None:
             case_idx[(entry["frameId"], entry["caseId"])] = entry
 
+    # Alias nombre-normalizado -> caseId, para cruzar el caso que PIDE el combo
+    # con el que EXISTE. Ver _ff_norm_caso: el .e2k referencia por nombre
+    # ("SDX ESCALADO") y el caso llega con el id normalizado ("SDX_ESCALADO").
+    alias_caso = {}
+    for m in case_meta:
+        cid = m.get("id")
+        if cid is None:
+            continue
+        for etiqueta in (cid, m.get("name")):
+            clave = _ff_norm_caso(etiqueta)
+            if clave:
+                alias_caso.setdefault(clave, cid)
+
     combo_meta = []
     all_combo_entries = []
+    terminos_sin_caso = set()
     for combo in combo_defs:
-        combo_entries = _ff_compute_combo_entries(combo, elements, case_idx, components)
+        combo_entries = _ff_compute_combo_entries(
+            combo, elements, case_idx, components, alias_caso, terminos_sin_caso)
         if not combo_entries:
             continue
         frame_forces.extend(combo_entries)
@@ -3404,6 +3583,19 @@ def run_frame_force_results(
                 "id": str(combo.get("id")),
                 "name": combo.get("name") or str(combo.get("id")),
                 "type": str(combo.get("type", "ADD")).upper(),
+                # ¿ESTE COMBO SALIÓ COMO PAR `_Max`/`_Min`?
+                #
+                # Lo dice el motor en vez de dejar que el frontend lo deduzca.
+                # La regla estaba escrita en los dos lados (`rcColumnDesign.js`
+                # miraba `type === "ENVELOPE"`) y al cambiarla acá —ahora
+                # también se envuelve cualquier combo con término espectral— el
+                # frontend siguió buscando el id SIN sufijo, no encontró los
+                # combos sísmicos y el diseño volvió a gobernar con gravedad.
+                # Una sola fuente de verdad evita que se vuelva a desincronizar.
+                "paired": any(
+                    str(e.get("comboId", "")).endswith(("_Max", "_Min"))
+                    for e in combo_entries
+                ),
                 # Marca de DISENO del .e2k (COMBO ... DESIGN "Concrete"
                 # COMBOTYPE "Strength"). ETABS solo usa los combos marcados
                 # asi para el diseno de concreto; los de servicio (PDPL, CV,
@@ -3469,6 +3661,20 @@ def run_frame_force_results(
         "frameForces": frame_forces,
         "jointDisplacements": joint_displacements,
         "summary": summary,
+        # Terminos de combo que no cruzaron con ningun caso. Antes esto fallaba
+        # EN SILENCIO: el combo se armaba igual con los terminos que si
+        # resolvian, asi que un combo sismico salia con numeros de pura
+        # gravedad y nada avisaba. Ver _ff_norm_caso.
+        #
+        # OJO: no todo lo que aparece aca es un error. Un caso puede no existir
+        # porque el modelo no tiene NINGUNA carga en ese patron (p.ej. CVT /
+        # Roof Live sin cargas de techo): ahi el aporte cero es correcto. Lo que
+        # SI es un error es que falte un caso que deberia estar. Por eso va
+        # junto la lista de los que si existen: sin ella no se puede distinguir.
+        "unresolvedComboCases": sorted(terminos_sin_caso),
+        "availableCaseIds": sorted(
+            {str(m.get("id")) for m in case_meta if m.get("id") is not None}
+        ),
     }
 
 def _node_mass_for_direction(node: dict, direction: str) -> float:

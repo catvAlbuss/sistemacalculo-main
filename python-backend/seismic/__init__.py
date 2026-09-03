@@ -5,6 +5,13 @@ API pública (compatibilidad con el motor monolítico previo):
     run_rsa, run_frame_force_results, run_full_seismic_analysis
 """
 
+import os
+
+
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+
 from .utils import *      # noqa: F401,F403
 from .inputs import *     # noqa: F401,F403
 from .solver import *     # noqa: F401,F403
