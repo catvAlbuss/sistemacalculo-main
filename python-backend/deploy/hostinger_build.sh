@@ -47,8 +47,10 @@ if [ ! -x "venv/bin/python3" ]; then
 fi
 
 echo "[hostinger_build] Instalando dependencias..."
-venv/bin/pip install --upgrade pip -q
-venv/bin/pip install -q -r requirements.txt
+# Invocar pip como modulo evita depender del permiso ejecutable de
+# venv/bin/pip, que puede perderse al desplegar archivos en Hostinger.
+venv/bin/python3 -m pip install --upgrade pip -q
+venv/bin/python3 -m pip install -q -r requirements.txt
 
 # OpenSeesPy necesita libblas.so.3, que viene DENTRO del propio paquete pip
 # (openseespylinux/lib/) pero no está en el LD_LIBRARY_PATH del sistema. Se
