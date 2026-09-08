@@ -5,6 +5,7 @@ namespace App\Mail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Storage;
 
 class SolicitudAdmin extends Mailable
 {
@@ -41,8 +42,16 @@ class SolicitudAdmin extends Mailable
         $email = $this->view('planesUser.emails.payment-request-admin')
             ->subject('🔔 Nueva Solicitud de Pago - ' . $this->paymentRequest->name);
 
-        // Adjuntar el archivo si existe
-        if ($this->uploadedFile && $this->uploadedFile->isValid()) {
+        // Preferir la copia persistente: el archivo temporal puede desaparecer
+        // antes de completar un reintento de envío.
+        $storedProof = $this->paymentRequest->payment_proof;
+
+        if ($storedProof && Storage::disk('local')->exists($storedProof)) {
+            $email->attach(Storage::disk('local')->path($storedProof), [
+                'as' => 'comprobante_' . $this->paymentRequest->id . '.' . pathinfo($storedProof, PATHINFO_EXTENSION),
+                'mime' => Storage::disk('local')->mimeType($storedProof),
+            ]);
+        } elseif ($this->uploadedFile && $this->uploadedFile->isValid()) {
             $email->attach(
                 $this->uploadedFile->getRealPath(),
                 [

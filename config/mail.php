@@ -1,5 +1,26 @@
 <?php
 
+$primaryHost = env('MAIL_HOST', 'smtp.mailgun.org');
+$primaryPassword = env('MAIL_PASSWORD');
+$backupHost = env('MAIL_BACKUP_HOST');
+$backupPassword = env('MAIL_BACKUP_PASSWORD');
+
+// Google muestra las contraseñas de aplicación separadas en grupos de cuatro.
+// Symfony las envía literalmente, por lo que Gmail rechaza las que conservan espacios.
+if (is_string($primaryPassword) && str_contains(strtolower((string) $primaryHost), 'gmail.com')) {
+    $primaryPassword = preg_replace('/\s+/', '', $primaryPassword);
+}
+
+if (is_string($backupPassword) && str_contains(strtolower((string) $backupHost), 'gmail.com')) {
+    $backupPassword = preg_replace('/\s+/', '', $backupPassword);
+}
+
+$failoverMailers = ['smtp'];
+
+if (filled($backupHost)) {
+    $failoverMailers[] = 'smtp_backup';
+}
+
 return [
 
     /*
@@ -40,13 +61,24 @@ return [
         'smtp' => [
             'transport' => 'smtp',
             'url' => env('MAIL_URL'),
-            'host' => env('MAIL_HOST', 'smtp.mailgun.org'),
+            'host' => $primaryHost,
             'port' => env('MAIL_PORT', 587),
             'encryption' => env('MAIL_ENCRYPTION', 'tls'),
             'username' => env('MAIL_USERNAME'),
-            'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            'password' => $primaryPassword,
+            'timeout' => env('MAIL_TIMEOUT', 10),
             'local_domain' => env('MAIL_EHLO_DOMAIN'),
+        ],
+
+        'smtp_backup' => [
+            'transport' => 'smtp',
+            'host' => $backupHost,
+            'port' => env('MAIL_BACKUP_PORT', 587),
+            'encryption' => env('MAIL_BACKUP_ENCRYPTION', 'tls'),
+            'username' => env('MAIL_BACKUP_USERNAME'),
+            'password' => $backupPassword,
+            'timeout' => env('MAIL_BACKUP_TIMEOUT', 10),
+            'local_domain' => env('MAIL_BACKUP_EHLO_DOMAIN'),
         ],
 
         'ses' => [
@@ -81,10 +113,7 @@ return [
 
         'failover' => [
             'transport' => 'failover',
-            'mailers' => [
-                'smtp',
-                'log',
-            ],
+            'mailers' => $failoverMailers,
         ],
 
         'roundrobin' => [
@@ -112,5 +141,9 @@ return [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
+
+    'admin_email' => env('MAIL_ADMIN_ADDRESS', env('MAIL_FROM_ADDRESS', 'hello@example.com')),
+    'delivery_attempts' => (int) env('MAIL_DELIVERY_ATTEMPTS', 2),
+    'retry_delay_ms' => (int) env('MAIL_RETRY_DELAY_MS', 250),
 
 ];

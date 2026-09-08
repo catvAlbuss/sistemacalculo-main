@@ -86,7 +86,8 @@ class ContactPaymentTest extends TestCase
     public function test_mail_failure_does_not_rollback_the_request(): void
     {
         $trial = $this->createPlan('trial', 0, 10);
-        Mail::shouldReceive('to')->once()->andThrow(new \RuntimeException('SMTP unavailable'));
+        config(['mail.delivery_attempts' => 1]);
+        Mail::shouldReceive('to')->twice()->andThrow(new \RuntimeException('SMTP unavailable'));
 
         $response = $this->post(route('contacto.store'), $this->requestData($trial));
 
@@ -97,6 +98,30 @@ class ContactPaymentTest extends TestCase
             'email' => 'cliente@example.com',
         ]);
         $this->assertDatabaseHas('users', ['email' => 'cliente@example.com']);
+    }
+
+    public function test_admin_mail_failure_does_not_report_client_confirmation_as_failed(): void
+    {
+        $trial = $this->createPlan('trial', 0, 10);
+        config(['mail.delivery_attempts' => 1]);
+
+        Mail::shouldReceive('to')
+            ->once()
+            ->with('cliente@example.com')
+            ->andReturnSelf();
+        Mail::shouldReceive('send')
+            ->once()
+            ->with(\Mockery::type(SolicitudCliente::class));
+        Mail::shouldReceive('to')
+            ->once()
+            ->with(config('mail.admin_email'))
+            ->andThrow(new \RuntimeException('Admin SMTP unavailable'));
+
+        $response = $this->post(route('contacto.store'), $this->requestData($trial));
+
+        $response->assertRedirect(route('landing.success'))
+            ->assertSessionHas('success')
+            ->assertSessionMissing('warning');
     }
 
     private function createPlan(string $type, float $price, ?int $days): Subscription

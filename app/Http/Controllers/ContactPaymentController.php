@@ -132,22 +132,16 @@ class ContactPaymentController extends Controller
                 return compact('user', 'paymentRequest', 'uploadedFile', 'temporaryPassword');
             });
 
-            try {
-                $this->sendEmailNotifications(
-                    $result['user'],
-                    $plan,
-                    $result['paymentRequest'],
-                    $result['uploadedFile'],
-                    $result['temporaryPassword']
-                );
-                $this->sendWhatsAppNotification($result['paymentRequest']);
-            } catch (\Throwable $e) {
-                Log::error('La solicitud se guardo, pero fallo el envio de correo.', [
-                    'payment_request_id' => $result['paymentRequest']->id,
-                    'recipient' => $result['user']->email,
-                    'exception' => $e,
-                ]);
+            $emailDelivery = $this->sendEmailNotifications(
+                $result['user'],
+                $plan,
+                $result['paymentRequest'],
+                $result['uploadedFile'],
+                $result['temporaryPassword']
+            );
+            $this->sendWhatsAppNotification($result['paymentRequest']);
 
+            if (!$emailDelivery['client']) {
                 return redirect()->route('landing.success')->with(
                     'warning',
                     'Tu solicitud fue registrada, pero no pudimos enviar el correo de confirmacion. Te contactaremos pronto.'
@@ -170,16 +164,60 @@ class ContactPaymentController extends Controller
     /**
      * Enviar notificaciones por correo
      */
-    private function sendEmailNotifications($user, $plan, $paymentRequest, $uploadedFile = null, $password = null)
+    private function sendEmailNotifications($user, $plan, $paymentRequest, $uploadedFile = null, $password = null): array
     {
-        // 1. Email al cliente (Usando Mailable)
-        $mailableClient = new SolicitudCliente($user, $plan, $paymentRequest, $password);
-        Mail::to($user->email)->send($mailableClient);
+        $clientSent = $this->deliverMail(
+            fn () => Mail::to($user->email)->send(
+                new SolicitudCliente($user, $plan, $paymentRequest, $password)
+            ),
+            $paymentRequest->id,
+            $user->email,
+            'cliente'
+        );
 
-        // 2. Email al administrador (Usando Mailable) - Con archivo adjunto
-        $adminEmail = config('mail.admin_email', 'admon.construyehco@gmail.com');
-        $mailableAdmin = new SolicitudAdmin($user, $plan, $paymentRequest, $uploadedFile);
-        Mail::to($adminEmail)->send($mailableAdmin);
+        $adminEmail = config('mail.admin_email');
+        $adminSent = $this->deliverMail(
+            fn () => Mail::to($adminEmail)->send(
+                new SolicitudAdmin($user, $plan, $paymentRequest, $uploadedFile)
+            ),
+            $paymentRequest->id,
+            $adminEmail,
+            'administrador'
+        );
+
+        return ['client' => $clientSent, 'admin' => $adminSent];
+    }
+
+    /**
+     * Intenta un envío sin permitir que una caída SMTP interrumpa el registro.
+     */
+    private function deliverMail(callable $send, int $paymentRequestId, string $recipient, string $type): bool
+    {
+        $attempts = max(1, (int) config('mail.delivery_attempts', 2));
+        $delayMilliseconds = max(0, (int) config('mail.retry_delay_ms', 250));
+
+        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+            try {
+                $send();
+
+                return true;
+            } catch (\Throwable $e) {
+                Log::warning('Fallo el envio de una notificacion de solicitud.', [
+                    'payment_request_id' => $paymentRequestId,
+                    'recipient' => $recipient,
+                    'notification_type' => $type,
+                    'attempt' => $attempt,
+                    'max_attempts' => $attempts,
+                    'error' => $e->getMessage(),
+                ]);
+
+                if ($attempt < $attempts && $delayMilliseconds > 0) {
+                    usleep($delayMilliseconds * 1000);
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
