@@ -23,6 +23,7 @@
 //     el problema, sin tener que ir a buscarlo a Definir.
 
 import { etabsPolygonBarPositions, lSectionVertices, teeSectionVertices } from "../../lib/sectionPolygon.js";
+import { soportaArmadoColumna, soportaArmadoViga, tipoCanonico } from "../../lib/sectionTypes.js";
 
 const CM_TO_M = 0.01;
 const MM_TO_M = 0.001;
@@ -49,6 +50,20 @@ const barraDelDraft = (bars, nombre, areaMm2) => {
 };
 
 export const columnRebarDesignerMixin = {
+  /**
+   * Puente para los modales Blade: Alpine corre inline y no puede importar
+   * `lib/sectionTypes.js`. Antes cada modal repetia su propia lista de formas
+   * a mano, y por eso la L y la T quedaron afuera del boton de armado aunque el
+   * disenador ya las soportaba entero.
+   */
+  soportaArmadoColumna(type) {
+    return soportaArmadoColumna(type);
+  },
+
+  soportaArmadoViga(type) {
+    return soportaArmadoViga(type);
+  },
+
   /**
    * Abre el diseñador para UNA sección (por nombre, ej. "C30X50"). `hint`
    * trae b/h en cm (de la sección real) para prellenar dimensiones
@@ -107,7 +122,7 @@ export const columnRebarDesignerMixin = {
     // puede armarse con grilla rectangular ni al revés.
     const secReal = (this.frameSections?.sections || []).find((x) => x?.name === sectionName)
       || (this.frameSections?.sections || []).find((x) => x?.name === hint?.label);
-    const tipoSec = String(secReal?.type || hint?.type || "").toLowerCase();
+    const tipoSec = tipoCanonico(secReal?.type || hint?.type);
     if (tipoSec === "l" || tipoSec === "tee") {
       // L y T: ETABS usa el MISMO patron "R-n2-n3" que en una rectangular
       // (lo confirma su dialogo de Reinforcement Data, identico para las tres
@@ -116,10 +131,16 @@ export const columnRebarDesignerMixin = {
       draft.shape = tipoSec;
       draft.polyDepth = Number(secReal?.h ?? hint?.h) || draft.polyDepth || 0;
       draft.polyWidth = Number(secReal?.b ?? hint?.b) || draft.polyWidth || 0;
-      draft.polyFlange = Number(secReal?.lFlangeThick ?? secReal?.teeFlangeThick) || draft.polyFlange || 0;
-      draft.polyWeb = Number(secReal?.lWebThick ?? secReal?.teeWebThick) || draft.polyWeb || 0;
-      draft.polyMirror2 = secReal?.lMirror2 === true;
-      draft.polyMirror3 = secReal?.lMirror3 === true;
+      // El `hint` es el que manda cuando la seccion AUN NO SE GUARDO (se esta
+      // creando en el formulario): ahi `secReal` es null y sin este respaldo el
+      // ala y el alma salian en 0, o sea una poligonal degenerada y cero
+      // varillas, sin ninguna explicacion.
+      draft.polyFlange = Number(secReal?.lFlangeThick ?? secReal?.teeFlangeThick
+                                ?? hint?.flangeThick) || draft.polyFlange || 0;
+      draft.polyWeb = Number(secReal?.lWebThick ?? secReal?.teeWebThick
+                             ?? hint?.webThick) || draft.polyWeb || 0;
+      draft.polyMirror2 = (secReal?.lMirror2 ?? hint?.mirror2) === true;
+      draft.polyMirror3 = (secReal?.lMirror3 ?? hint?.mirror3) === true;
     } else if (tipoSec === "circle" || tipoSec === "circular") {
       draft.shape = "circular";
       draft.diameter = Number(secReal?.diameter ?? secReal?.h ?? hint?.h) || draft.diameter || 0;
@@ -403,11 +424,14 @@ export const columnRebarDesignerMixin = {
     if (!longBar || !confineBar) return null;
 
     const formaDraft = String(draft?.shape || "rect").toLowerCase();
-    const esPoligonal = formaDraft === "l" || formaDraft === "tee";
     const esCircular = formaDraft.startsWith("circ");
 
     return {
       cover: Number(draft.cover) || 0, // cm
+      // L y T tambien van con patron "rectangular": ETABS usa el mismo
+      // R-n2-n3 para las tres formas (su dialogo Reinforcement Data es
+      // identico) y quien reparte las varillas pata por pata es la geometria
+      // de la seccion, no el patron. Ver project-etabs-lt-rebar-layout.
       rebarPattern: esCircular
         ? { type: "circular", n: Number(draft.numBars) || 0 }
         : { type: "rectangular", n2: Number(draft.n2) || 0, n3: Number(draft.n3) || 0 },

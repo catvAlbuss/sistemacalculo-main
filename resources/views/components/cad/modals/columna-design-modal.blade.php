@@ -103,9 +103,20 @@
                 <div class="mb-6 rounded-lg border border-gray-700 overflow-hidden">
                     <div class="bg-gray-900 px-4 py-2 text-white font-bold flex items-center justify-between">
                         <span x-text="col.label"></span>
-                        <span x-show="!col.unsupported"
-                              :class="overallStatus(col) === 'OK' ? 'text-green-400' : 'text-red-400'"
-                              x-text="overallStatus(col)"></span>
+                        <div class="flex items-center gap-3">
+                            {{-- Exporta con el formato de ETABS > Concrete Frame Design > Details,
+                                 para poder comparar los dos papeles fila por fila. --}}
+                            <button x-show="!col.unsupported"
+                                    @click="exportarDetails(col)"
+                                    class="px-2 py-0.5 text-[11px] font-normal rounded border border-gray-600
+                                           text-gray-300 hover:text-white hover:border-gray-400"
+                                    title="Descargar el reporte con el formato Details de ETABS">
+                                Exportar Details
+                            </button>
+                            <span x-show="!col.unsupported"
+                                  :class="overallStatus(col) === 'OK' ? 'text-green-400' : 'text-red-400'"
+                                  x-text="overallStatus(col)"></span>
+                        </div>
                     </div>
 
                     <template x-if="col.unsupported">
@@ -1074,6 +1085,19 @@
             },
 
             /** El check del combo actualmente seleccionado en el <select> de esa estación (por defecto, el gobernante). */
+            /*
+             * Exporta el reporte con el formato de ETABS > Concrete Frame
+             * Design > Details. Se manda la estación GOBERNANTE (la de mayor
+             * ratio) y el check que el usuario tenga elegido en el selector,
+             * para que el papel diga lo mismo que la pantalla.
+             */
+            exportarDetails(col) {
+                const rBase = col.check?.base?.ratio ?? -1;
+                const rTope = col.check?.top?.ratio ?? -1;
+                const station = rTope > rBase ? "top" : "base";
+                window.cadSystem?.rcExportColumnDetails?.(col, station, this.selectedCheck(col, station));
+            },
+
             selectedCheck(col, station) {
                 const id = col.selectedComboId?.[station];
                 return (col.checksAll?.[station] || []).find((c) => c.comboId === id) || col.check?.[station];

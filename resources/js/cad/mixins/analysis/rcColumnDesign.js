@@ -13,7 +13,9 @@
 // motivo, no se calcula mal.
 
 import { loadRealFrameForceResults } from "../../engine/frameForceBackend.js";
+import { exportColumnDetails } from "../../diagrams/columnDesignDetails.js";
 import { getFrameForceRecord } from "../../diagrams/frameForceDiagramUtils.js";
+import { tipoCanonico } from "../../lib/sectionTypes.js";
 
 const KGCM2_TO_PA = 98066.5; // 1 kg/cm² = 98066.5 Pa
 const KN_TO_N = 1000;
@@ -319,13 +321,17 @@ export const rcColumnDesignMixin = {
     // Formas soportadas por el motor de fibras: rectangular (estribos) y
     // circular (espiral). El resto —L, T, tubo, Section Designer— no tiene
     // geometría de armado definida acá.
-    const esCircular = sec?.type === "circle";
+    // El tipo, normalizado: la misma forma se escribe "L"/"lconc" y
+    // "circle"/"circular" segun venga del .e2k o del formulario. Comparar la
+    // cadena cruda dejaba secciones legitimas como "no soportadas" sin motivo
+    // visible. Ver lib/sectionTypes.js.
+    const tipoSec = tipoCanonico(sec?.type);
+    const esCircular = tipoSec === "circle";
     // L y T comparten camino: el motor las arma como POLÍGONO (ver
     // python-backend/design/column_polygon.py). Necesitan los espesores de pata
     // y, en la L, los espejos.
-    const tipoSec = String(sec?.type || "").toLowerCase();
     const esPoligonal = tipoSec === "l" || tipoSec === "tee";
-    if (!sec || (sec.type !== "rect" && !esCircular && !esPoligonal)) {
+    if (!sec || (tipoSec !== "rect" && !esCircular && !esPoligonal)) {
       return {
         label,
         frameId: frame?.id,
@@ -664,6 +670,11 @@ export const rcColumnDesignMixin = {
       label,
       frameId,
       sectionName,
+      // Longitud del elemento y piso: los necesita el export del "Details"
+      // (columnDesignDetails.js) y no estaban en el resultado — el reporte
+      // los mostraba como N/C aunque acá ya se conocían.
+      frameLength,
+      story: frame?.story ?? frame?.storyName ?? null,
       unsupported: false,
       manualRebar,
       geometryDisplay: {
@@ -989,6 +1000,16 @@ export const rcColumnDesignMixin = {
 
     const hn = length - beamDepthAt(nodeTop);
     return Math.max(hn, length * 0.5);
+  },
+
+  /**
+   * Descarga el reporte de la columna con el formato de ETABS ▸ Concrete Frame
+   * Design ▸ Details. Vive acá y no en el blade porque el módulo del reporte lo
+   * bundlea Vite; el modal lo llama por `window.cadSystem`, igual que
+   * `openColumnRebarDesigner`.
+   */
+  rcExportColumnDetails(col, station = "base", check = null) {
+    exportColumnDetails(col, station, check);
   },
 
   /** Adjunta comboId/comboName/P/M2/M3 a cada check — un elemento por combo real, para el selector del modal. */

@@ -78,7 +78,7 @@
                     <button @click="if(armadoSoportado) defineRebar()"
                             class="w-full text-left px-3 py-2 text-sm text-blue-400 hover:bg-gray-700 rounded transition-colors flex items-center gap-2"
                             :class="{'opacity-50 cursor-not-allowed': !armadoSoportado}"
-                            :title="!armadoSoportado ? 'Solo disponible para secciones rectangulares o circulares' : ''">
+                            :title="!armadoSoportado ? 'Solo para secciones rectangulares, circulares, L o T' : ''">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h16v16H4z" />
                             <circle cx="8" cy="8" r="1.2" fill="currentColor" stroke="none" />
@@ -92,10 +92,10 @@
                          mismo que el de columna: alimenta el tope por resistencia de vigas
                          del corte de columnas (ACI 318 18.7.6.1.1), no un diagrama P-M-M.
                          Ver resources/js/cad/mixins/analysis/beamRebarDesigner.js. --}}
-                    <button @click="if(armadoSoportado) defineBeamRebar()"
+                    <button @click="if(armadoVigaSoportado) defineBeamRebar()"
                             class="w-full text-left px-3 py-2 text-sm text-blue-400 hover:bg-gray-700 rounded transition-colors flex items-center gap-2"
-                            :class="{'opacity-50 cursor-not-allowed': !armadoSoportado}"
-                            :title="!armadoSoportado ? 'Solo disponible para secciones rectangulares o circulares' : 'Acero longitudinal superior/inferior en cada extremo'">
+                            :class="{'opacity-50 cursor-not-allowed': !armadoVigaSoportado}"
+                            :title="!armadoVigaSoportado ? 'Solo para secciones rectangulares' : 'Acero longitudinal superior/inferior en cada extremo'">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16v10H4z" />
                             <path stroke-linecap="round" stroke-width="2" d="M6 9.5h12M6 14.5h12" />
@@ -192,6 +192,33 @@
                             <input type="radio" value="auto" x-model="form.sectionType">
                             <span class="text-sm">Selección Automática</span>
                         </label>
+                    </div>
+
+                    {{-- Armado, acá mismo. En ETABS el refuerzo se define dentro de
+                         la propiedad de sección (Modify/Show Rebar...), no en otra
+                         pantalla: el botón aparece según el tipo marcado arriba y
+                         opera sobre la sección que se está definiendo, sin tener
+                         que guardarla, volver a la lista y seleccionarla. --}}
+                    <div class="mt-3 flex gap-2 flex-wrap" x-show="armadoSoportado || armadoVigaSoportado">
+                        <button type="button" @click="defineRebar()" x-show="armadoSoportado"
+                                class="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-blue-300 rounded border border-gray-600 flex items-center gap-2">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h16v16H4z" />
+                                <circle cx="8" cy="8" r="1.2" fill="currentColor" stroke="none" />
+                                <circle cx="16" cy="8" r="1.2" fill="currentColor" stroke="none" />
+                                <circle cx="8" cy="16" r="1.2" fill="currentColor" stroke="none" />
+                                <circle cx="16" cy="16" r="1.2" fill="currentColor" stroke="none" />
+                            </svg>
+                            Definir Armado de Columna...
+                        </button>
+                        <button type="button" @click="defineBeamRebar()" x-show="armadoVigaSoportado"
+                                class="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-blue-300 rounded border border-gray-600 flex items-center gap-2">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16v10H4z" />
+                                <path stroke-linecap="round" stroke-width="2" d="M6 9.5h12M6 14.5h12" />
+                            </svg>
+                            Definir Armado de Viga...
+                        </button>
                     </div>
                 </div>
 
@@ -1402,27 +1429,86 @@
             },
 
             /**
-             * Formas cuyo armado sabe manejar el disenador: rectangular (grilla
-             * n2xn3) y CIRCULAR (anillo C-n). El resto -L, T, tubo, Section
-             * Designer- no tiene geometria de armado definida.
+             * Formas cuyo armado sabe manejar el disenador. La lista NO se
+             * repite aca: vive en `lib/sectionTypes.js` y llega por el mixin.
+             * Tenerla duplicada a mano fue lo que dejo a la L y la T sin boton
+             * de armado durante meses, aunque el disenador ya las soportaba
+             * entero (contorno poligonal, patron R-n2-n3 pata por pata).
+             *
+             * Funciona con la seccion SELECCIONADA en la lista o, si se esta
+             * editando/creando una, con el tipo elegido en el formulario: asi
+             * el boton aparece mientras se define la seccion, sin tener que
+             * guardarla, volver a la lista y seleccionarla.
              */
+            get tipoParaArmado() {
+                if (this.view === 'form') return this.form?.sectionType || '';
+                return this.selectedSectionObj?.type || '';
+            },
+
             get armadoSoportado() {
-                const t = String(this.selectedSectionObj?.type || '').toLowerCase();
-                return t === 'rect' || t === 'circle' || t === 'circular';
+                return window.cadSystem?.soportaArmadoColumna?.(this.tipoParaArmado) === true;
+            },
+
+            get armadoVigaSoportado() {
+                return window.cadSystem?.soportaArmadoViga?.(this.tipoParaArmado) === true;
+            },
+
+            /** El nombre bajo el que se guarda el armado: la seccion es la clave. */
+            get nombreParaArmado() {
+                return (this.view === 'form' ? this.form?.name : this.selectedSectionName) || '';
             },
 
             /** Abre el diseñador de armado a mano (ver column-rebar-designer-modal.blade.php), keyed por NOMBRE de sección — aplica a toda columna que use esta propiedad, igual que el Section Designer de ETABS. */
             defineRebar: function() {
-                const sec = this.selectedSectionObj;
-                if (!sec) return;
-                window.cadSystem?.openColumnRebarDesigner?.(sec.name, { b: sec.b, h: sec.h, type: sec.type, diameter: sec.diameter, label: sec.name });
+                const hint = this._hintDeArmado();
+                if (!hint) return;
+                window.cadSystem?.openColumnRebarDesigner?.(hint.label, hint);
+            },
+
+            /**
+             * Datos de la seccion para el disenador de armado. Sale de la
+             * seccion SELECCIONADA o, si se esta en el formulario, del propio
+             * formulario — asi el armado se puede definir mientras se crea la
+             * seccion, sin guardarla y volver a buscarla en la lista.
+             *
+             * Devuelve null (con aviso) si todavia no hay nombre: el armado se
+             * guarda POR NOMBRE de seccion, esa es la clave.
+             */
+            _hintDeArmado: function() {
+                if (this.view !== 'form') {
+                    const sec = this.selectedSectionObj;
+                    if (!sec) return null;
+                    return { b: sec.b, h: sec.h, type: sec.type, diameter: sec.diameter, label: sec.name };
+                }
+
+                const nombre = (this.form.name || '').trim();
+                if (!nombre) {
+                    this.showToastMessage('Poné primero el nombre de la sección: el armado se guarda con ese nombre', 'warning');
+                    return null;
+                }
+
+                const t = String(this.form.sectionType || '').toLowerCase();
+                if (t === 'lconc') {
+                    return { label: nombre, type: 'L', h: this.form.lD, b: this.form.lB,
+                             flangeThick: this.form.lTF, webThick: this.form.lTW,
+                             mirror2: !!this.form.lMirror2, mirror3: !!this.form.lMirror3 };
+                }
+                if (t === 'tee') {
+                    return { label: nombre, type: 'tee', h: this.form.teeDepth, b: this.form.teeWidth,
+                             flangeThick: this.form.teeFlangeThick, webThick: this.form.teeWebThick };
+                }
+                if (t === 'circle') {
+                    return { label: nombre, type: 'circle', h: this.form.circleD, b: this.form.circleD,
+                             diameter: this.form.circleD };
+                }
+                return { label: nombre, type: 'rect', b: this.form.rectB, h: this.form.rectH };
             },
 
             /** Idem para VIGAS (ver beam-rebar-designer-modal.blade.php): As superior/inferior en los extremos I y J. */
             defineBeamRebar: function() {
-                const sec = this.selectedSectionObj;
-                if (!sec) return;
-                window.cadSystem?.openBeamRebarDesigner?.(sec.name, { b: sec.b, h: sec.h, label: sec.name });
+                const hint = this._hintDeArmado();
+                if (!hint) return;
+                window.cadSystem?.openBeamRebarDesigner?.(hint.label, { b: hint.b, h: hint.h, label: hint.label });
             },
 
             showToastMessage: function(message, type) {
@@ -1565,6 +1651,11 @@
                 return type || 'wf';
             },
 
+            /** La inversa: del valor del radio al tipo que se GUARDA. */
+            _tipoGuardado: function(sectionType) {
+                return String(sectionType || '').toLowerCase() === 'lconc' ? 'L' : sectionType;
+            },
+
             sectionToForm: function(section) {
                 return {
                     name: section.name,
@@ -1690,7 +1781,12 @@
 
                 var sectionToSave = {
                     name: this.form.name,
-                    type: this.form.sectionType,
+                    // El tipo CANONICO, no el valor del radio: la L se guarda
+                    // como "L" (lo que ponen el importador, el renderer, el
+                    // export y el diseno RC). Guardando "lconc" tal cual, una L
+                    // creada a mano en la app no se dibujaba como L ni se podia
+                    // armar — caia a rectangulo sin avisar. Ver lib/sectionTypes.js.
+                    type: this._tipoGuardado(this.form.sectionType),
                     color: this.form.color,
                     description: ''
                 };

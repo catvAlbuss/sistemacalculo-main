@@ -4,6 +4,7 @@ import {
     addDefaultCombosAndEnvelope,
     getAvailableFrameForceCases,
 } from "../engine/frameForceCombinations.js";
+import { expandComboOptions } from "./frameForceComboOptions.js";
 
 import {
     showFrameForceTable,
@@ -151,16 +152,18 @@ function buildCaseOptions(CADSystem, display) {
         },
         {
             label: "Load Combinations",
-            items: available.combos.map((item) => ({
+            // Ramas _Max/_Min reales (ver frameForceComboOptions.js): con el
+            // nombre base el cruce por comboId no encuentra registros.
+            items: expandComboOptions(CADSystem.frameForceResults, available.combos).map((item) => ({
                 value: `combo:${item.id}`,
-                label: `${item.id} — ${item.name || item.type || "Combo"}`,
+                label: item.label,
             })),
         },
         {
             label: "Envelope",
-            items: available.envelopes.map((item) => ({
+            items: expandComboOptions(CADSystem.frameForceResults, available.envelopes).map((item) => ({
                 value: `combo:${item.id}`,
-                label: `${item.id} — ${item.name || "Envelope"}`,
+                label: item.label,
             })),
         },
     ];

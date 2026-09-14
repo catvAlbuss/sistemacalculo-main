@@ -181,6 +181,7 @@ def run_full_seismic_analysis(data: dict) -> dict:
                     )
             has_add = bool(add_part.get("x") or add_part.get("y"))
 
+
             # Sumar el aporte de la torsión accidental a la reacción MZ de base
             # nominal de cada rama (aditivo, como ETABS — NO SRSS). El frontend
             # luego combina direccionalmente (SRSS X/Y) las dos ramas ya con su
@@ -265,7 +266,17 @@ def run_full_seismic_analysis(data: dict) -> dict:
     story_drifts = _compute_story_drifts(data, nodes, seismic, accidental=accidental)
     story_drifts["accidental_eccentricity"] = ecc_ratio
     story_drifts["accidental_applied"] = bool(accidental)
-    story_drifts["accidental_method"] = ecc_method if accidental else None
+    # El metodo APLICADO, no el pedido: si se pidio "additive" y el modelo es
+    # todo semi rigido, lo que corre es CM+-e. Reportar el pedido hacia el
+    # frontend hacia que la tabla dijera "additive" sobre resultados CM+-e.
+    _modo = (accidental or {}).get("mode")
+    story_drifts["accidental_method"] = (
+        None if not accidental
+        else "both" if _modo == "both"
+        else "cm" if _modo == "envelope"
+        else "additive"
+    )
+    story_drifts["accidental_method_requested"] = ecc_method
 
     # Diagnóstico: cuánto agregó la excentricidad por piso (base vs total).
     if accidental:
@@ -482,6 +493,7 @@ def run_full_seismic_analysis(data: dict) -> dict:
             combination=combination, damping_ratio=damping,
             sa_in_g=sa_in_g, g=g,
             nombre_caso=str(data.get("seismicCaseName") or data.get("caseName") or "RS"),
+            ecc_ratio=ecc_ratio,
         )
     except Exception as error:
         print("⚠️ No se pudieron calcular fuerzas de pier:", error)

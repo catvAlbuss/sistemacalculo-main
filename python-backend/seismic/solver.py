@@ -16,6 +16,12 @@ except ImportError:
 from .utils import *  # noqa: F401,F403
 from .inputs import *  # noqa: F401,F403
 from .section_principal import girar_fuerzas_a_seccion
+from .accidental_mass import (
+    cuplas_nodales,
+    grupos_excentricos,
+    masa_redistribuida,
+    payload_con_cm_desplazado,
+)
 
 __all__ = [
     "MIN_VALID_MODE_PERIOD",
@@ -894,8 +900,16 @@ def run_accidental_torsion_rsa(
             continue
         story_masters.append((retained, nids, ecc_ratio * b_perp))
 
+    # Sin diafragma rigido no hay nodo MAESTRO donde colgar el par... pero un par
+    # no necesita uno: se reparte como CUPLA sobre los nodos del piso, con fuerza
+    # neta cero y el mismo momento neto. Hasta aca esto devolvia {} y el
+    # ECCENRATIOTYPICAL del .e2k no se aplicaba en ningun lado en los modelos
+    # todo-semirrigido. Ver accidental_mass.cuplas_nodales.
+    cuplas = []
     if not story_masters:
-        return {}  # ningún diafragma con rotación → torsión accidental nula
+        cuplas = cuplas_nodales(data, grupos_excentricos(data), direction, ecc_ratio)
+        if not cuplas:
+            return {}  # sin grupos con masa y brazo → torsión accidental nula
 
     scale = g if sa_in_g else 1.0
     idx_of = {int(n): i for i, n in enumerate(node_ids)}
@@ -934,6 +948,26 @@ def run_accidental_torsion_rsa(
             if abs(m_acc) > 1e-12:
                 ops.load(int(retained), 0.0, 0.0, 0.0, 0.0, 0.0, m_acc)
                 applied = True
+
+        for grupo in cuplas:
+            f_story = 0.0
+            for nid in grupo["node_ids"]:
+                i = idx_of.get(nid)
+                if i is None:
+                    continue
+                if direction == "x":
+                    f_story += gamma * Sa_n * float(m_x[i]) * float(phi_x[n][i])
+                else:
+                    f_story += gamma * Sa_n * float(m_y[i]) * float(phi_y[n][i])
+            m_acc = grupo["e"] * f_story
+            base_torsion_modal[n] += m_acc
+            if abs(m_acc) <= 1e-12:
+                continue
+            for nid, (cx, cy) in grupo["coef"].items():
+                fx, fy = m_acc * cx, m_acc * cy
+                if abs(fx) > 1e-12 or abs(fy) > 1e-12:
+                    ops.load(int(nid), fx, fy, 0.0, 0.0, 0.0, 0.0)
+                    applied = True
 
         if not applied:
             continue
@@ -1034,104 +1068,29 @@ def run_shifted_cm_torsion_rsa(
     Devuelve un dict con la forma de `run_rsa()` (modal_node_disps_x/_y,
     node_ids, omegas, damping_ratio) YA sobre el modelo CON excentricidad — se
     usa DIRECTO para esa variante (no es un delta a sumar). {} si no aplica
-    (sin OpenSees, sin excentricidad, o sin diafragmas rotantes).
+    (sin OpenSees, sin excentricidad, o sin ningun grupo con masa y brazo).
     """
     if ops is None or ecc_ratio <= 0:
         return {}
 
     # 1) Construir una vez el modelo BASE (sin copiar) solo para leer los grupos
-    # de diafragma que rotan y la masa nodal efectiva (Mass Source ya resuelto).
+    # sobre los que va la excentricidad y la masa nodal efectiva (Mass Source ya
+    # resuelto). Los grupos los elige `accidental_mass.grupos_excentricos`:
+    # diafragmas con rotacion si los hay, y si no --modelo todo SEMI RIGIDO-- los
+    # nodos con masa agrupados por piso. Antes se exigia `rigidDiaphragm_z`, y con
+    # semirrigido esta funcion devolvia {} sin aplicar nada mientras ETABS SI
+    # aplica su ECCENRATIOTYPICAL a esos modelos. Ver accidental_mass.py.
     build_model_3d(data)
-    applied = (data.get("_rigid_diaphragm_report") or {}).get("applied") or []
-    rotating = [grp for grp in applied if grp.get("method") == "rigidDiaphragm_z"]
-    if not rotating:
+    grupos = grupos_excentricos(data)
+    if not grupos:
         return {}
 
-    node_by_id = {}
-    for nd in data.get("nodes", []) or []:
-        try:
-            node_by_id[int(nd["id"])] = nd
-        except Exception:
-            continue
-
-    # Copia SUPERFICIAL de la lista + copia de los dicts de los nodos que se
-    # van a tocar (no mutar los nodos del `data` original).
-    scaled_by_id = {}
-
-    for grp in rotating:
-        nids = [int(x) for x in grp.get("node_ids", []) or []]
-        members = [node_by_id[i] for i in nids if i in node_by_id]
-        if not members:
-            continue
-
-        def node_mass(nd):
-            mx = float(nd.get("_effective_mass_x", 0.0) or 0.0)
-            my = float(nd.get("_effective_mass_y", 0.0) or 0.0)
-            return max(mx, my, 0.0)
-
-        masses = [node_mass(m) for m in members]
-        xs = [float(m.get("x", 0.0)) for m in members]
-        ys = [float(m.get("y", 0.0)) for m in members]
-        wsum = sum(masses)
-        if wsum <= 1e-9:
-            continue  # sin masa resuelta en el grupo: no hay centroide que desplazar
-
-        x_cm = sum(w * x for w, x in zip(masses, xs)) / wsum
-        y_cm = sum(w * y for w, y in zip(masses, ys)) / wsum
-
-        b_perp = (max(ys) - min(ys)) if direction == "x" else (max(xs) - min(xs))
-        if b_perp <= 1e-9:
-            continue
-        e = ecc_ratio * b_perp
-
-        positions = ys if direction == "x" else xs
-        p_cm = y_cm if direction == "x" else x_cm
-        i_mass = sum(w * (p - p_cm) ** 2 for w, p in zip(masses, positions))
-        if i_mass <= 1e-9:
-            continue  # todos los nodos en la misma línea perpendicular: no hay brazo
-
-        # Δmᵢ = mᵢ·sign·e·M·(pᵢ−p_cm)/I_mass. El factor M (masa total del grupo)
-        # es OBLIGATORIO: el momento de masa que desplaza el centroide e metros
-        # es M·e, no e. Sin él, Σ Δmᵢ·(pᵢ−p_cm)=e → desplazamiento real e/M
-        # (micras con pisos de ~80 t) → efecto 0.0% (bug detectado en el modelo
-        # L real: las 4 variantes corrían pero aportaban exactamente nada).
-        for nd, w, p in zip(members, masses, positions):
-            factor = 1.0 + sign * e * wsum * (p - p_cm) / i_mass
-            factor = max(factor, 0.0)  # no permitir masa negativa
-            nid = int(nd["id"])
-            new_mx = float(nd.get("_effective_mass_x", 0.0) or 0.0) * factor
-            new_my = float(nd.get("_effective_mass_y", 0.0) or 0.0) * factor
-            scaled_by_id[nid] = (new_mx, new_my)
+    scaled_by_id = masa_redistribuida(data, grupos, direction, sign, ecc_ratio)
 
     if not scaled_by_id:
         return {}
 
-    # TODOS los nodos pasan su masa efectiva YA RESUELTA (self-weight + Mass
-    # Source + manual, del build base del paso 1) como masa manual, y se
-    # desactiva el Mass Source para esta corrida aislada — si no, build_model_3d
-    # recalcularía el auto y lo SUMARÍA de nuevo encima (masa duplicada). Los
-    # nodos del grupo excéntrico llevan la versión REDISTRIBUIDA (scaled_by_id);
-    # el resto del edificio (otros pisos, etc.) conserva su masa tal cual, no
-    # solo el grupo tocado (si no, el resto del edificio quedaría sin masa).
-    variant_nodes = []
-    for nd in data.get("nodes", []) or []:
-        nid = int(nd.get("id"))
-        nd2 = dict(nd)
-        if nid in scaled_by_id:
-            nd2["mass_x"], nd2["mass_y"] = scaled_by_id[nid]
-        else:
-            nd2["mass_x"] = float(nd.get("_effective_mass_x", 0.0) or 0.0)
-            nd2["mass_y"] = float(nd.get("_effective_mass_y", 0.0) or 0.0)
-        nd2["mass_z"] = float(nd.get("_effective_mass_z", 0.0) or 0.0)
-        variant_nodes.append(nd2)
-
-    data_variant = dict(data)
-    data_variant["nodes"] = variant_nodes
-    mass_source_variant = dict(data.get("massSource") or data.get("mass_source") or {})
-    mass_source_variant["enabled"] = False
-    mass_source_variant["include_self_weight"] = False
-    data_variant["massSource"] = mass_source_variant
-    data_variant["mass_source"] = mass_source_variant
+    data_variant = payload_con_cm_desplazado(data, scaled_by_id)
 
     build_model_3d(data_variant)
     modal_variant = run_modal_analysis(data_variant["nodes"], num_modes)
@@ -2624,6 +2583,36 @@ def _ff_default_design_combos(available) -> list:
 
     return combos
 
+def _ff_design_combo_ids(combos: list) -> set:
+    """
+    Ids de los combos que SÍ son de diseño, para la envolvente.
+
+    POR QUÉ EXISTE
+      La envolvente se armaba sobre TODOS los combos del payload, y ahí entraban
+      los de servicio del .e2k. En `01.MODULO 01 (1) columna L actualizado.e2k`
+      eso metía `SISAD` — un espectro suelto, 0.8·SDX + 0.8·SDY, sin gravedad ni
+      factores de carga — que ensanchaba la envolvente por los dos lados:
+      medido en B2 a 6.8428 m, ENV Max M3 daba +2.5222 (era SISAD_Max) cuando
+      ETABS reporta -4.3772, y ENV Min V2 daba -0.7704 (SISAD_Min) contra 6.7560.
+      Sacándolo, las cuatro puntas caen dentro del 1.8 %.
+
+      El .e2k ya trae el dato y no lo estábamos usando: los combos de diseño
+      llegan con `comboType: "Strength"` y `design: "Concrete"`; CV, PDPL,
+      PDPL ALB y SISAD vienen sin nada de eso.
+
+    Si NINGÚN combo trae la marca (payload viejo, o combos creados en la app) se
+    devuelve `None` y la envolvente vuelve a tomarlos todos: es preferible una
+    envolvente ancha de más que una vacía.
+    """
+    marcados = {
+        str(c.get("id"))
+        for c in (combos or [])
+        if isinstance(c, dict)
+        and (str(c.get("comboType", "")).lower() == "strength" or c.get("design"))
+    }
+    return marcados or None
+
+
 def _ff_envelope_over_combos(combo_entries: list, components: list) -> tuple:
     """
     Envolvente de DISEÑO: máximo y mínimo, estación por estación, sobre todas
@@ -2817,10 +2806,21 @@ def _ff_compute_combo_entries(combo: dict, elements: list, case_idx: dict,
                         else:
                             firmes += factor * val
 
-                    # Sentido adverso = el del termino con signo, para que las
-                    # magnitudes se sumen en vez de cancelarse.
-                    adverso = -1.0 if firmes < 0 else 1.0
-                    total = firmes + sgn * adverso * magnitud
+                    # Max/Min ALGEBRAICOS, como ETABS: `_Max` = firmes+|esp| y
+                    # `_Min` = firmes-|esp|, componente por componente.
+                    #
+                    # Antes habia un `adverso = -1 si firmes < 0`, que hacia que
+                    # `_Max` fuera la de mayor MAGNITUD. Con gravedad positiva
+                    # (V2) las dos convenciones coinciden, pero con gravedad
+                    # negativa (M3) se cruzan, y el usuario veia el M3 de ETABS
+                    # en la rama contraria. Medido en B2 Story1, combo
+                    # `02 1.25(CM+CV) +SDX` a 6.8428 m:
+                    #     ETABS Max M3 -11.3296  = firmes+|esp| = -11.3833
+                    #     ETABS Min M3 -16.9530  = firmes-|esp| = -16.7989
+                    # El PAR de valores es el mismo con o sin `adverso` (solo se
+                    # intercambian los rotulos), asi que la envolvente de diseno
+                    # no cambia: lo unico que se gana es la paridad con ETABS.
+                    total = firmes + sgn * magnitud
                     row[comp] = round(total, 6)
                 stations.append(row)
 
@@ -3638,8 +3638,21 @@ def run_frame_force_results(
     # La envolvente va DESPUÉS del resumen: su valor coincide con el del combo
     # que gobierna, y si entrara antes el `summary` diría "ENV Max" en vez del
     # combo real que produjo el máximo.
+    # Solo los combos de DISEÑO entran a la envolvente (ver _ff_design_combo_ids):
+    # un caso sísmico suelto como `SISAD` la ensanchaba y no corresponde.
+    ids_diseno = _ff_design_combo_ids(combos or data.get("combos"))
+    entradas_env = (
+        all_combo_entries
+        if ids_diseno is None
+        else [
+            e
+            for e in all_combo_entries
+            if str(e.get("comboId", "")).replace("_Max", "").replace("_Min", "")
+            in ids_diseno
+        ]
+    )
     envelope_entries, envelope_meta = _ff_envelope_over_combos(
-        all_combo_entries, components
+        entradas_env or all_combo_entries, components
     )
     frame_forces.extend(envelope_entries)
 

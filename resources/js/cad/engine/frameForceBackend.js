@@ -305,7 +305,7 @@ export async function loadRealFrameForceResults(cadSystem, opts = {}) {
     // Distinto de lo anterior: estos SÍ se corren, con una componente incompleta.
     const seismicWarns = cadSystem._seismicCaseWarnings || [];
     if (seismicWarns.length) {
-        console.warn("⚠️ Casos sísmicos que se corren CON SALVEDADES:", seismicWarns);
+        // console.warn("⚠️ Casos sísmicos que se corren CON SALVEDADES:", seismicWarns);
     }
 
     if (seismicMerged.length) {

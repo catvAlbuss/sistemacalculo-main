@@ -1,5 +1,6 @@
 import { BeamStyle, NodeStyle } from "../model/styles.js";
 import { lSectionVertices, teeSectionVertices } from "../lib/sectionPolygon.js";
+import { drawGridDimensionChains } from "./gridDimensions.js";
 import { pointDistance, axisToFixed, midPoint } from "../lib/utils.js";
 import { getNodeReactionForCase } from "../engine/reactionsDisplayContract.js";
 import { generateMockFrameForceResults } from "../engine/mockFrameForceResults.js";
@@ -4803,6 +4804,14 @@ export class DiseñoRenderer {
     //   const bubblePoint = line.bubbleLoc === "Start" ? p1 : p2;
     //   this.drawGridBubble(ctx, point, label, context, lineColor, textColor);
     // });
+    // Acotación entre ejes contiguos, estilo ETABS (canvas2d/gridDimensions.js).
+    // Se dibuja ANTES que las líneas para quedar por debajo, y devuelve dónde va
+    // la burbuja de cada eje: en el VÉRTICE de la cadena, no en la punta de la
+    // línea, donde se perdía entre el modelo.
+    const anclasGrilla = drawGridDimensionChains(ctx, lines, grid, {
+      color: this.getDisplayColor(context, "gridDimension", "#94a3b8"),
+    });
+
     // Líneas de grilla generales
     lines.forEach((line) => {
       if (line.visible === false) return;
@@ -4827,7 +4836,9 @@ export class DiseñoRenderer {
 
       ctx.setLineDash([]);
 
-      const bubblePoint = line.bubbleLoc === "Start" ? p1 : p2;
+      const bubblePoint =
+        anclasGrilla.get(String(line.id)) ||
+        (line.bubbleLoc === "Start" ? p1 : p2);
       // <<<<<<< HEAD
       //       this.drawGridBubble(ctx, bubblePoint, line.id, line.source === "custom" ? "#bfc7d5" : lineColor, textColor);
       // =======
