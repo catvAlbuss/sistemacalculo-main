@@ -22,8 +22,8 @@ import {
 } from "../diagrams/frameForceDisplayPanel.js";
 
 import { computeSigmaColorRange, buildSigmaColorBins, drawSigmaLegend } from "./zapataPressureLayer.js";
-import { computeMomentColorRange, buildMomentColorBins, drawMomentLegend, componentLabel, componentUnit } from "./zapataMomentLayer.js";
-import { lookupGridIndex, drawHoverTooltip } from "./zapataGridIndex.js";
+import { computeMomentColorRange, buildMomentColorBins, drawMomentLegend, componentLabel, componentUnit, isPointOnMeshEdge, isPointNearAnyHole, isPointInsideAnyColumn, isPointInShortOverhangShear, isPointNearColumnForShear, SHEAR_COMPONENTS, COLUMN_SIGN_SENSITIVE_COMPONENTS } from "./zapataMomentLayer.js";
+import { lookupGridIndex, drawHoverTooltip, drawHoverWarningTooltip } from "./zapataGridIndex.js";
 
 
 function imgFromSVG(svg) {
@@ -1570,6 +1570,56 @@ export class DiseñoRenderer {
     ctx.stroke();
     ctx.setLineDash([]);
 
+    // AGREGADO (ver conversación: "en ETABS se ve con un aspa que
+    // significa que es una figura de corte"): un opening pintado solo con
+    // relleno rojo tenue + borde punteado no se distingue lo bastante de
+    // una zapata/losa normal seleccionada -- se agrega el mismo símbolo de
+    // "X" (aspa) que usa ETABS para marcar una abertura. Se dibuja como
+    // las 2 diagonales del BOUNDING BOX del área, recortadas (ctx.clip())
+    // al contorno real -- así siempre sale una X limpia sin importar la
+    // forma (triángulo, trapecio, polígono irregular), igual que el
+    // símbolo de ETABS no sigue los vértices reales, solo cruza la figura.
+    //
+    // AGREGADO (ver conversación, captura real): con "Diagrama de
+    // Resultantes" o "Presión 2D" activos, el aspa (dibujada ENCIMA del
+    // campo de momento/presión) tapaba justo la zona más importante para
+    // leer -- el gap real que ya deja el campo FEM/nube de presión
+    // alrededor del hueco (Etapas 1/2/3) ya comunica "acá no hay material"
+    // sin necesitar el símbolo encima. Se oculta SOLO mientras alguna de
+    // esas 2 capas está prendida; en cualquier otro momento se sigue
+    // viendo igual que antes.
+    if (
+      area.areaType === "opening" &&
+      pts.length >= 3 &&
+      !context.showZapataMomentLayer &&
+      !context.showZapataPressureLayer
+    ) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i].x, pts[i].y);
+      }
+      ctx.closePath();
+      ctx.clip();
+
+      const xs = pts.map((p) => p.x);
+      const ys = pts.map((p) => p.y);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+
+      ctx.strokeStyle = style.strokeStyle;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(minX, minY);
+      ctx.lineTo(maxX, maxY);
+      ctx.moveTo(maxX, minY);
+      ctx.lineTo(minX, maxY);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
     // Mientras se está dibujando el área (p.ej. una zapata), muestra la
     // longitud real de cada lado ya trazado — igual que al dibujar una
     // barra, para que el usuario vea sus dimensiones sin tener que abrir
@@ -1963,25 +2013,35 @@ export class DiseñoRenderer {
     const direction = context.zapataMomentDirection || "mx";
     const ctx = context.ctx;
 
+    // AGREGADO (ver conversación, comparación real contra ETABS): la escala
+    // de color se calcula POR ZAPATA (como el "Area Diagram" de ETABS), no
+    // compartida entre todas las visibles -- antes, una zapata con momentos
+    // chicos (ej. 0.1 Tn·m/m) se veía "aplastada" en un solo tono si
+    // compartía escala con otra de momentos mucho mayores (ej. 25 Tn·m/m),
+    // perdiendo toda la variación real que sí tiene. El costo es marginal:
+    // el mismo cálculo de percentiles, solo repartido en N llamadas más
+    // chicas en vez de una grande sobre todos los puntos juntos, y sigue
+    // cacheado igual que antes (no se repite en cada frame/mousemove).
     let cache = this._zapataMomentCache;
     if (!cache || cache.results !== results || cache.comboIndex !== comboIndex || cache.direction !== direction) {
-      const { cmin, cmax } = computeMomentColorRange(polygons, comboIndex, direction);
       cache = {
         results,
         comboIndex,
         direction,
-        cmin,
-        cmax,
-        perPolygon: polygons.map((polygon) => ({
-          polygon,
-          isCombined: polygon.momentField?.type === "combined",
-          ...buildMomentColorBins(polygon, comboIndex, direction, cmin, cmax),
-        })),
+        perPolygon: polygons.map((polygon) => {
+          const { cmin, cmax } = computeMomentColorRange([polygon], comboIndex, direction);
+          return {
+            polygon,
+            isCombined: polygon.momentField?.type === "combined",
+            cmin,
+            cmax,
+            ...buildMomentColorBins(polygon, comboIndex, direction, cmin, cmax),
+          };
+        }),
       };
       this._zapataMomentCache = cache;
     }
 
-    const { cmin, cmax } = cache;
     const pixelsPerMeter = context.grid?.scaleX || 1;
     let anyCombined = false;
 
@@ -2034,18 +2094,148 @@ export class DiseñoRenderer {
       }
     });
 
+    // Leyenda: como cada zapata ahora tiene su PROPIA escala (ver arriba),
+    // una sola leyenda global ya no representa a todas por igual -- se
+    // muestra la de la zapata bajo el cursor y, si el cursor no está sobre
+    // ninguna, la de la primera visible (mejor una referencia que ninguna).
+    let legendCmin = cache.perPolygon[0]?.cmin ?? 0;
+    let legendCmax = cache.perPolygon[0]?.cmax ?? 1;
+
     // Tooltip con el valor exacto donde está el cursor — mismo mecanismo
     // que la capa de presión (ver ahí el porqué de context.mousePos).
     if (context.mousePos) {
       const label = anyCombined ? "M" : componentLabel(direction);
       const unit = anyCombined ? "Tn·m/m" : componentUnit(direction);
-      for (const { isCombined, hover } of cache.perPolygon) {
+      for (const { polygon, isCombined, hover, cmin, cmax, cellWidthMeters, cellHeightMeters } of cache.perPolygon) {
         const idx = lookupGridIndex(hover?.index, context.mousePos.x, context.mousePos.y);
         if (idx === null) continue;
         const value = hover.values[idx];
         if (!Number.isFinite(value)) continue;
         const screenPt = this.projectPoint({ position: { x: hover.xs[idx], y: hover.ys[idx], z: 0 } }, context);
-        drawHoverTooltip(ctx, screenPt.x, screenPt.y, value, isCombined ? "M" : label, unit);
+
+        // REEMPLAZADO (ver conversación, caso real F2 2x2m espesor 0.5m):
+        // el criterio anterior (isPointNearFreeEdge, umbral "2×peralte")
+        // resultó demasiado ancho -- en zapatas chicas/gruesas cubría casi
+        // toda la superficie entre columna y borde, sin dejar ningún punto
+        // "confiable" visible (a diferencia de ETABS, que sí muestra un
+        // valor en todos lados). El artefacto real que se quiere señalar
+        // (ver caso F2 vs. ETABS: -14.004 nuestro vs. -0.0123 real en el
+        // borde) no viene del peralte de la losa -- viene de cómo se
+        // aproxima la curvatura por diferencias finitas en los nodos que
+        // caen exactamente en el borde de la malla (ver isPointOnMeshEdge
+        // en zapataMomentLayer.js) -- un margen de apenas ~1.5 celdas,
+        // del orden de centímetros, no de casi un metro.
+        const cercaDelBorde = isPointOnMeshEdge(hover.xs[idx], hover.ys[idx], polygon?.points, cellWidthMeters, cellHeightMeters, polygon?.holes);
+
+        // AGREGADO (ver conversación, "zapatas recortadas" -- Camino 2):
+        // mismo margen que cercaDelBorde, pero SOLO contra huecos -- para
+        // poder distinguir el mensaje ("cerca de un hueco" vs. "borde de
+        // la malla" genérico, más útil para el ingeniero que revisa el
+        // Diagrama de Resultantes cerca de un corte).
+        const cercaDeUnHueco = isPointNearAnyHole(hover.xs[idx], hover.ys[idx], polygon?.holes, cellWidthMeters, cellHeightMeters);
+
+        // AGREGADO (ver conversación, columna centrada): singularidad
+        // matemática de carga puntual -- distinta del borde de malla de
+        // arriba, se chequea aparte. Ver isPointInsideAnyColumn.
+        const dentroDeColumna = isPointInsideAnyColumn(hover.xs[idx], hover.ys[idx], polygon?.columns);
+
+        // AGREGADO (ver conversación, "hueco de aviso en volado corto de
+        // cortante" -- zapata F3): `cercaDelBorde` (margen genérico de 1.5
+        // celdas) no siempre alcanza a cubrir toda la franja de un volado
+        // más corto que el peralte efectivo d -- ver isPointInShortOverhangShear
+        // en zapataMomentLayer.js. Solo aplica a zapatas aisladas
+        // (`volados` solo se arma para "isolated-fem", ver foundation.js)
+        // y solo tiene sentido para V13/V23/VMax (para M11/M22/M12/MMax/
+        // MMin esa franja ya la cubre el respaldo rígido de siempre).
+        const enVoladoCorto = isPointInShortOverhangShear(
+          hover.xs[idx], hover.ys[idx], direction, polygon?.momentField?.volados
+        );
+
+        // AGREGADO (ver conversación, "V13/V23 disparado cerca de
+        // columna" -- zapata trapezoidal F2 2026-09-06): a diferencia de
+        // M11/M22 (que sí convergen, solo con un pico alto cerca de una
+        // columna), V13/V23 se calculan derivando el campo de momentos --
+        // esa derivada es matemáticamente NO ACOTADA cerca de CUALQUIER
+        // apoyo puntual. Aviso para V13/V23/VMax, un anillo fino
+        // (1.5 celdas) alrededor de la columna -- ver isPointNearColumnFor
+        // Shear en zapataMomentLayer.js para el historial del radio
+        // (4*d -> 2*d -> 1.5 celdas: cada vez más chico porque tapaba
+        // demasiada superficie y no dejaba leer el campo). Los huecos ya
+        // los cubre `cercaDeUnHueco` arriba (mismo margen, para TODAS las
+        // componentes).
+        //
+        // AMPLIADO (ver conversación, "revisa por completo los signos"
+        // 2026-09-12): diagnóstico de signo contra ETABS real mostró que
+        // M12 y MMin fallan el signo con el MISMO patrón que V13/V23 --
+        // exclusivamente a <0.35m de una columna ("corner forces": el
+        // valor cambia de signo muy rápido ahí, y un desfase de malla
+        // entre nuestro solver y ETABS basta para caer del lado
+        // equivocado). M11/M22/MMax NO mostraron ese problema (98-100% de
+        // acierto de signo) y siguen sin este aviso. Ver
+        // COLUMN_SIGN_SENSITIVE_COMPONENTS en zapataMomentLayer.js.
+        const cercaColumnaCortante =
+          COLUMN_SIGN_SENSITIVE_COMPONENTS.has(direction) &&
+          isPointNearColumnForShear(hover.xs[idx], hover.ys[idx], polygon?.columns, cellWidthMeters, cellHeightMeters);
+
+        // AGREGADO (ver conversación, "cubrir los huecos del FEM con el
+        // método rígido, para poder revisarlo"): donde el FEM no es
+        // confiable, en vez de dejar solo un aviso vacío, se muestra el
+        // valor del método rígido (Bloque 3) si existe para esta
+        // componente -- SOLO existe para mx/my (ver rigidValues en
+        // buildMomentColorBins), nunca para mxy/v13/v23/mmax/mmin/vmax, ni
+        // para zapatas combinadas (el rígido de campo hoy solo se calcula
+        // para aisladas). El label "(rígido)" deja claro que no es el
+        // valor de elementos finitos, para no confundirlo con un dato FEM
+        // real en esa zona.
+        const rigidValue = hover.rigidValues?.[idx];
+        // AGREGADO (ver conversación, "conectar el rígido para
+        // combinadas, con la misma validación rigurosa"): a propósito
+        // excluye "combined-fem" del auto-relleno -- la convención de
+        // signo de ese rígido (viga continua, sagging/hogging) puede NO
+        // coincidir con la del FEM (Mx/My tipo ETABS) sin verificar, a
+        // diferencia de "isolated-fem" (ya validado con casos reales, ver
+        // conversación F2). El valor sigue disponible vía el selector
+        // "M11/M22 (rígido)" explícito (ver esModoValidacionRigido abajo)
+        // para poder validarlo antes de confiar en él acá.
+        const tieneRigidoDeRespaldo =
+          Number.isFinite(rigidValue) && polygon?.momentField?.type !== "combined-fem";
+
+        // AGREGADO (ver conversación, "comparar el método rígido completo
+        // contra ETABS"): en modo "mx-rigido"/"my-rigido" (elegido a
+        // propósito por el usuario para validar el campo rígido) los
+        // avisos de columna/borde no deben tapar la lectura -- ahí
+        // justamente se quiere ver el dato crudo en TODOS lados, sin
+        // ningún filtro, para poder detectar dónde el método rígido
+        // también falla. `values` ya ES el campo rígido en ese modo (ver
+        // getMomentValuesForCombo).
+        const esModoValidacionRigido = direction === "mx-rigido" || direction === "my-rigido";
+
+        if (esModoValidacionRigido) {
+          drawHoverTooltip(ctx, screenPt.x, screenPt.y, value, isCombined ? "M" : label, unit);
+        } else if ((dentroDeColumna || cercaDelBorde) && tieneRigidoDeRespaldo) {
+          drawHoverTooltip(ctx, screenPt.x, screenPt.y, rigidValue, `${isCombined ? "M" : label} (rígido)`, unit);
+        } else if (dentroDeColumna) {
+          drawHoverWarningTooltip(ctx, screenPt.x, screenPt.y, "Dentro de la columna — aquí no hay losa");
+        } else if (cercaDeUnHueco) {
+          drawHoverWarningTooltip(ctx, screenPt.x, screenPt.y, "Cerca de un hueco (opening) — valor no confiable, mismo efecto de borde libre que el contorno exterior");
+        } else if (cercaDelBorde) {
+          drawHoverWarningTooltip(ctx, screenPt.x, screenPt.y, "Borde de la malla — valor no confiable");
+        } else if (enVoladoCorto) {
+          drawHoverWarningTooltip(ctx, screenPt.x, screenPt.y, "Volado más corto que el peralte — cortante no confiable (revisar punzonamiento)");
+        } else if (cercaColumnaCortante) {
+          drawHoverWarningTooltip(
+            ctx,
+            screenPt.x,
+            screenPt.y,
+            SHEAR_COMPONENTS.has(direction)
+              ? "Cerca de una columna — cortante no confiable (se dispara al derivar el momento cerca de un apoyo puntual)"
+              : "Cerca de una columna — el signo puede no coincidir con ETABS (cambia muy rápido cerca de un apoyo puntual)"
+          );
+        } else {
+          drawHoverTooltip(ctx, screenPt.x, screenPt.y, value, isCombined ? "M" : label, unit);
+        }
+        legendCmin = cmin;
+        legendCmax = cmax;
         break;
       }
     }
@@ -2054,7 +2244,7 @@ export class DiseñoRenderer {
     // de componente (Mx/My/Mxy/V13/V23) solo aplica a las aisladas — se
     // muestra la genérica "M" en ese caso mixto para no rotular mal a las
     // combinadas.
-    drawMomentLegend(ctx, ctx.canvas.width, ctx.canvas.height, cmin, cmax, direction, anyCombined);
+    drawMomentLegend(ctx, ctx.canvas.width, ctx.canvas.height, legendCmin, legendCmax, direction, anyCombined);
   }
 
   drawAreaPreview(context) {
@@ -2083,16 +2273,21 @@ export class DiseñoRenderer {
     const state = context.currentState;
     if (!state) return;
 
-    // Caso 1: dibujando una zapata a mano alzada.
-    if (state.areaType === "zapata" && Array.isArray(state.points) && state.points.length) {
+    // Caso 1: dibujando una zapata (o un hueco, ver conversación "hueco en
+    // zapata no usa Ortho" 2026-09-12) a mano alzada.
+    if (
+      (state.areaType === "zapata" || state.areaType === "opening") &&
+      Array.isArray(state.points) &&
+      state.points.length
+    ) {
       this._drawOrthoGuideLines(context, [state.points[0], state.points[state.points.length - 1]]);
       return;
     }
 
-    // Caso 2: editando un vértice de una zapata ya dibujada.
+    // Caso 2: editando un vértice de una zapata (o hueco) ya dibujado.
     if (
       state.isMoving &&
-      state.selectedArea?.areaType === "zapata" &&
+      (state.selectedArea?.areaType === "zapata" || state.selectedArea?.areaType === "opening") &&
       state.selectedVertexIndex !== null &&
       Array.isArray(state.selectedArea.points)
     ) {

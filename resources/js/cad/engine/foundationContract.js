@@ -19,7 +19,21 @@
 
 import { Shape } from "../model/shapes.js";
 
-export function pointInPolygon(point, polygonPoints) {
+// AGREGADO (ver conversación, "zapata sin columna detectada pese a estar
+// ahí" -- caso real: columna de lindero con su nodo cayendo EXACTO sobre
+// el borde/vértice de su propia zapata, ej. F19 de un .e2k real). El
+// ray-casting de abajo es ambiguo para un punto exactamente sobre una
+// arista o vértice del polígono -- puede dar "afuera" aunque el punto sea
+// literalmente el vértice del polígono (confirmado con ese caso real:
+// columna en (0,4), vértice exacto de una zapata (0,2)-(2,4), daba
+// `false`). Se agrega un chequeo previo de "¿está sobre el borde?" (mismo
+// patrón ya usado y probado en seismic/payload.js →
+// `_pointInPolygonInclusive`, para el mismo tipo de problema con nodos de
+// losa) -- si el punto es colineal con una arista Y cae dentro de su
+// rango, se considera adentro sin pasar por el ray-casting. No es un caso
+// raro: es exactamente el escenario de columna de lindero, ya frecuente
+// en este proyecto (ver [[project_zapatas_client_scope]] en memoria).
+export function pointInPolygon(point, polygonPoints, eps = 1e-6) {
   const x = Number(point.x);
   const y = Number(point.y);
 
@@ -30,6 +44,13 @@ export function pointInPolygon(point, polygonPoints) {
     const yi = Number(polygonPoints[i].y);
     const xj = Number(polygonPoints[j].x);
     const yj = Number(polygonPoints[j].y);
+
+    // ¿(x,y) cae sobre la arista (xi,yi)-(xj,yj) (borde o vértice)?
+    const cross = (xj - xi) * (y - yi) - (yj - yi) * (x - xi);
+    const withinBBox =
+      Math.min(xi, xj) - eps <= x && x <= Math.max(xi, xj) + eps &&
+      Math.min(yi, yj) - eps <= y && y <= Math.max(yi, yj) + eps;
+    if (Math.abs(cross) <= eps && withinBBox) return true;
 
     const intersects =
       yi > y !== yj > y &&
@@ -60,6 +81,169 @@ export function findSupportNodesInPolygon(nodes, polygonPoints, zapataZ = null, 
     if (zapataZ == null) return true;
     const nodeZ = Number(node.position?.z) || 0;
     return Math.abs(nodeZ - Number(zapataZ)) <= zTolerance;
+  });
+}
+
+// AGREGADO (ver conversación, "zapatas recortadas", Etapa 3): un `opening`
+// (área tipo hueco/abertura que el CAD ya sabe dibujar, ver
+// cad_sys.js:openingDrawingState) dibujado ENCIMA de una zapata se trata
+// como un hueco de esa zapata para el cálculo (presión de contacto y, si
+// la forma lo soporta, el FEM shell) -- ver docstring de
+// calcularZapatas2EnPhp/calcular_zapata_shell_poligono_combinada del lado
+// backend. Se considera "dentro" de la zapata si TODOS sus vértices caen
+// dentro (o justo sobre el borde -- pointInPolygon ya es inclusivo) del
+// polígono de la zapata; un opening que solo se solapa parcialmente (mitad
+// afuera) no calza con la idea de "recorte interior" y se ignora en vez de
+// adivinar qué parte de él sí cuenta.
+export function findOpeningsInPolygon(openings, polygonPoints) {
+  return (openings || []).filter((opening) => {
+    const points = opening?.points || [];
+    return points.length >= 3 && points.every((point) => pointInPolygon(point, polygonPoints));
+  });
+}
+
+// AGREGADO (ver conversación, "notificar un aviso para que no deje pasar
+// eso al sistema" 2026-09-14): el método de diferencia de áreas (ver
+// calcularPropiedadesNetas más abajo) resta cada corte de forma
+// independiente -- si dos cortes se SUPERPONEN entre sí (comparten área
+// real, no solo un borde o un vértice), esa zona compartida se resta dos
+// veces y el área/inercia netas salen por debajo del valor real, sin
+// ningún aviso. Se detecta ANTES de calcular, para poder avisar en vez de
+// dejar pasar un resultado silenciosamente incorrecto.
+//
+// Compartir solo un LADO o un VÉRTICE (sin superficie en común) es válido
+// y NO debe marcarse -- por eso se usa "estrictamente adentro" (sin la
+// tolerancia de borde de pointInPolygon) para los vértices, y se ignoran
+// los cruces de segmentos que son colineales o se tocan en un extremo.
+function _distanceToSegment(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  if (len2 < 1e-12) return Math.hypot(p.x - a.x, p.y - a.y);
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+function _distanceToPolygonBoundary(point, polygon) {
+  let min = Infinity;
+  for (let i = 0; i < polygon.length; i++) {
+    min = Math.min(min, _distanceToSegment(point, polygon[i], polygon[(i + 1) % polygon.length]));
+  }
+  return min;
+}
+
+// eps en metros: un vértice/lado EXACTAMENTE compartido entre dos cortes
+// (caso válido, ver más arriba) puede llegar con un pequeño error de
+// redondeo al dibujar a mano -- ray-casting puro es ambiguo justo sobre el
+// borde, así que un punto a menos de 1 cm del borde del otro polígono se
+// trata como "sobre el borde" (ni dentro ni fuera), no como superposición.
+function _pointStrictlyInside(point, polygonPoints, eps = 0.01) {
+  if (_distanceToPolygonBoundary(point, polygonPoints) < eps) return false;
+
+  const x = Number(point.x);
+  const y = Number(point.y);
+  let inside = false;
+  for (let i = 0, j = polygonPoints.length - 1; i < polygonPoints.length; j = i++) {
+    const xi = Number(polygonPoints[i].x), yi = Number(polygonPoints[i].y);
+    const xj = Number(polygonPoints[j].x), yj = Number(polygonPoints[j].y);
+    const intersects = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function _segmentsProperlyIntersect(p1, p2, p3, p4) {
+  const orient = (a, b, c) => (c.y - a.y) * (b.x - a.x) - (b.y - a.y) * (c.x - a.x);
+  const d1 = orient(p3, p4, p1);
+  const d2 = orient(p3, p4, p2);
+  const d3 = orient(p1, p2, p3);
+  const d4 = orient(p1, p2, p4);
+  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+}
+
+function _edgeMidpoints(polygon) {
+  return polygon.map((p, i) => {
+    const q = polygon[(i + 1) % polygon.length];
+    return { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
+  });
+}
+
+/** ¿Dos polígonos comparten área real (no solo un borde/vértice)? */
+export function polygonsOverlap(polyA, polyB) {
+  if (polyA.some((p) => _pointStrictlyInside(p, polyB))) return true;
+  if (polyB.some((p) => _pointStrictlyInside(p, polyA))) return true;
+  // Vértices solos no alcanzan: dos rectángulos que se solapan en un eje
+  // pero comparten el rango EXACTO en el otro (mismo "alto", por ejemplo)
+  // pueden tener TODOS sus vértices justo sobre el borde del otro, sin que
+  // ninguno quede estrictamente adentro, aunque sí haya área compartida
+  // real por el medio -- el punto medio de cada lado sí cae claramente
+  // adentro en ese caso.
+  if (_edgeMidpoints(polyA).some((p) => _pointStrictlyInside(p, polyB))) return true;
+  if (_edgeMidpoints(polyB).some((p) => _pointStrictlyInside(p, polyA))) return true;
+  for (let i = 0; i < polyA.length; i++) {
+    const a1 = polyA[i], a2 = polyA[(i + 1) % polyA.length];
+    for (let j = 0; j < polyB.length; j++) {
+      const b1 = polyB[j], b2 = polyB[(j + 1) % polyB.length];
+      if (_segmentsProperlyIntersect(a1, a2, b1, b2)) return true;
+    }
+  }
+  return false;
+}
+
+/** Índices (0-based) de cada par de huecos que se superponen entre sí. */
+export function findOverlappingHolePairs(holes) {
+  const pairs = [];
+  for (let i = 0; i < holes.length; i++) {
+    for (let j = i + 1; j < holes.length; j++) {
+      if (polygonsOverlap(holes[i], holes[j])) pairs.push([i, j]);
+    }
+  }
+  return pairs;
+}
+
+// AGREGADO (ver conversación, "¿nuestro método Green sirve para cualquier
+// figura geométrica?" 2026-09-15): el shoelace/Green de calcularPropiedadesNetas
+// asume un contorno SIMPLE (sin autointersección) -- si el polígono EXTERIOR
+// se cruza a sí mismo (un "lazo", típicamente un error al hacer clic mientras
+// se dibuja una forma con muchos vértices), las partes que se cruzan se
+// CANCELAN matemáticamente en la suma y el área/inercia salen mal sin ningún
+// aviso. Ya existía la detección de superposición ENTRE cortes
+// (findOverlappingHolePairs) pero nada validaba el contorno exterior mismo.
+// Reusa _segmentsProperlyIntersect (mismo test de orientación CCW que ya usa
+// polygonsOverlap) sobre cada par de LADOS no adyacentes del propio polígono
+// -- dos lados que comparten un vértice (i y i+1) se saltan porque tocarse
+// ahí es válido y esperado, no una autointersección real.
+export function polygonSelfIntersects(points) {
+  const n = points.length;
+  if (n < 4) return false;
+  for (let i = 0; i < n; i++) {
+    const a1 = points[i], a2 = points[(i + 1) % n];
+    for (let j = i + 1; j < n; j++) {
+      const adyacentes = j === (i + 1) % n || i === (j + 1) % n;
+      if (adyacentes) continue;
+      const b1 = points[j], b2 = points[(j + 1) % n];
+      if (_segmentsProperlyIntersect(a1, a2, b1, b2)) return true;
+    }
+  }
+  return false;
+}
+
+// AGREGADO (misma conversación, 2026-09-15): un corte MAL ubicado -- que
+// tiene parte de sus vértices dentro de la zapata y parte afuera (a caballo
+// del borde) -- hoy `findOpeningsInPolygon` simplemente lo descarta (falla
+// seguro: no lo resta, ver su doc), pero eso deja al ingeniero sin ningún
+// aviso de que ese corte con seguridad NO se está aplicando por estar mal
+// dibujado, en vez de enterarse recién al ver que la propiedad neta no
+// cambió. `anyInside && anyOutside` es a propósito más laxo que
+// findOpeningsInPolygon (que exige TODOS los vértices adentro): solo con que
+// un punto caiga estrictamente afuera y otro adentro ya es geometría inválida
+// para el método de resta -- un corte totalmente afuera (0 puntos adentro,
+// pertenece a otra zapata o a ninguna) NO dispara este aviso.
+export function findStraddlingHoles(openings, polygonPoints) {
+  return (openings || []).filter((opening) => {
+    const points = opening?.points || [];
+    if (points.length < 3) return false;
+    const dentro = points.map((point) => pointInPolygon(point, polygonPoints));
+    return dentro.some(Boolean) && dentro.some((v) => !v);
   });
 }
 
@@ -261,7 +445,7 @@ export function normalizeZapatas2Resultados(resultados) {
 }
 
 /** Longitud de cada lado del polígono (points[i] → points[i+1], cerrando al final). */
-function computeEdgeLengths(points) {
+export function computeEdgeLengths(points) {
   const n = points.length;
   const edges = [];
 
@@ -282,7 +466,7 @@ function computeEdgeLengths(points) {
  * número de vértices no hay una "B x L" única, así que se deja `null` y el
  * llamador debe mostrar los lados individuales (`edges`).
  */
-function computeRectangularDimensions(points, edges) {
+export function computeRectangularDimensions(points, edges) {
   if (points.length !== 4) return null;
 
   const side1 = edges[0];
@@ -295,12 +479,118 @@ function computeRectangularDimensions(points, edges) {
 }
 
 /**
- * Propiedades geométricas de un polígono de zapata (perímetro, área,
- * momentos de inercia, centroide) + sus puntos. Reusa Shape.calcularPropiedades()
- * / .propiedades() ya definido en resources/js/cad/model/shapes.js — no
- * duplica la matemática. Suma los lados (`edges`) y, si es un rectángulo de
- * 4 vértices, sus dimensiones B x L (`dimensions`).
+ * Términos crudos (sin abs(), sin dividir) del shoelace de Green para UN
+ * anillo, normalizados a "área con signo positiva" (equivalente a recorrer
+ * el anillo en sentido antihorario) -- invertir el orden de recorrido de un
+ * polígono invierte el signo de TODOS estos términos por igual (cada uno es
+ * una suma de productos que se intercambian de signo si (x1,y1)/(x2,y2) se
+ * intercambian), así que basta con multiplicar por -1 en vez de invertir el
+ * array. Ver calcularPropiedadesNetas para el porqué de normalizar.
+ */
+function _terminosPoligonoNormalizados(points) {
+  let A0 = 0, P0 = 0, IX0 = 0, IY0 = 0, IXY0 = 0, MX0 = 0, MY0 = 0, XC0 = 0, YC0 = 0;
+  const n = points.length;
+  for (let i = 0; i < n; i++) {
+    const x1 = points[i].x, y1 = points[i].y;
+    const x2 = points[(i + 1) % n].x, y2 = points[(i + 1) % n].y;
+    const cross = x1 * y2 - x2 * y1;
+    XC0 += cross * (x2 + x1);
+    YC0 += cross * (y2 + y1);
+    A0 += cross;
+    P0 += Math.hypot(x1 - x2, y1 - y2);
+    MX0 += (x1 - x2) * (y2 ** 2 + y2 * y1 + y1 ** 2);
+    MY0 += (y1 - y2) * (x2 ** 2 + x2 * x1 + x1 ** 2);
+    IY0 += cross * (x2 ** 2 + x2 * x1 + x1 ** 2);
+    IX0 += cross * (y2 ** 2 + y2 * y1 + y1 ** 2);
+    IXY0 += cross * (2 * x2 * y2 + x2 * y1 + x1 * y2 + 2 * x1 * y1);
+  }
+  const signo = A0 < 0 ? -1 : 1;
+  // P0 (perímetro, suma de distancias) ya es siempre positivo -- no se voltea.
+  return { P0, A0: A0 * signo, IX0: IX0 * signo, IY0: IY0 * signo, IXY0: IXY0 * signo, MX0: MX0 * signo, MY0: MY0 * signo, XC0: XC0 * signo, YC0: YC0 * signo };
+}
 
+/**
+ * Propiedades geométricas de la sección NETA (contorno exterior menos las
+ * figuras de corte/huecos) -- ver conversación, "el cliente mencionó una
+ * diferencia de áreas" 2026-09-12: `Shape.calcularPropiedades()` (usado
+ * antes acá, sin cambios) solo conoce `this.points` -- para un polígono con
+ * `holes` (huecos/aberturas, ver findOpeningsInPolygon) daba A/IX/IY/XC/YC/
+ * MX/MY/IXY del contorno EXTERIOR completo, ignorando que el material ahí
+ * no existe. Fix: método de diferencia de áreas -- se suman los términos
+ * (sin abs(), sin dividir) del exterior y se RESTAN los de cada hueco,
+ * ambos normalizados al mismo signo de área (ver _terminosPoligonoNormalizados)
+ * para que la resta sea correcta sin importar en qué sentido se dibujó cada
+ * anillo -- recién al final se aplican las divisiones/abs() de las fórmulas
+ * de Green. El perímetro NO se resta (dato informativo del contorno de
+ * contacto exterior, no de la sección neta). Sin huecos, da EXACTAMENTE lo
+ * mismo que calcularPropiedades() (huecos=[] dej a los acumuladores
+ * intactos).
+ */
+function calcularPropiedadesNetas(pointsExterior, huecos) {
+  const ext = _terminosPoligonoNormalizados(pointsExterior);
+  let { A0, IX0, IY0, IXY0, MX0, MY0, XC0, YC0 } = ext;
+  for (const hueco of huecos || []) {
+    if (!hueco || hueco.length < 3) continue;
+    const h = _terminosPoligonoNormalizados(hueco);
+    A0 -= h.A0; IX0 -= h.IX0; IY0 -= h.IY0; IXY0 -= h.IXY0;
+    MX0 -= h.MX0; MY0 -= h.MY0; XC0 -= h.XC0; YC0 -= h.YC0;
+  }
+  const signedArea = A0 / 2;
+  const A = Math.abs(signedArea);
+  const XC = signedArea !== 0 ? XC0 / (6 * signedArea) : 0;
+  const YC = signedArea !== 0 ? YC0 / (6 * signedArea) : 0;
+
+  // Ix/Iy/Ixy de Green (arriba) están respecto al ORIGEN (0,0) del sistema de
+  // coordenadas del dibujo, no del centroide -- ver conversación, "el cliente
+  // mencionó: 'En inercias no solo es resta es calcular una nueva propiedad,
+  // Y con esa nueva propiedad recién le metes al programa'" 2026-09-15. El
+  // panel mostraba IX/IY tal cual salen de Green (p.ej. IX=837.95 en el caso
+  // de prueba de Jack) en vez de la propiedad NUEVA que pide el cliente: la
+  // trasladada al centroide vía Steiner (IX=34.99 en ese mismo caso, que es
+  // lo que de hecho ya usa el backend real /zapatas2, zapatas2.m, que
+  // traslada el polígono a su centroide ANTES de integrar). Fórmula de Steiner
+  // (eje paralelo): I_centroidal = I_origen - A*d². Se aplica DESPUÉS de abs()
+  // -- IX/IY de un área real son siempre >= 0 respecto a cualquier eje, así
+  // que abs() no pierde información ahí y el resultado de Steiner queda
+  // correcto (validado numéricamente contra el caso de Jack: 837.95-21.92*
+  // 6.05²=34.99 e igual para IY). MX/MY NO se trasladan: son el momento
+  // estático respecto al origen por definición -- el estático respecto al
+  // propio centroide es, por definición, cero (A*0), no tiene sentido
+  // mostrarlo trasladado.
+  const IXorigen = Math.abs(IX0 / 12);
+  const IYorigen = Math.abs(IY0 / 12);
+  const IXYorigen = Math.abs(IXY0 / 24);
+
+  return {
+    // AGREGADO (ver conversación, "los cortes por qué no muestran
+    // perímetro" 2026-09-14): faltaba en el retorno -- el polígono
+    // exterior no lo notaba porque `properties` (buildZapataPolygonProperties)
+    // hace spread de zapata._propiedades (Shape.calcularPropiedades(), que
+    // SÍ trae P) ANTES de este objeto, pero holesProperties usa esta
+    // función SOLA, sin ese respaldo -- P quedaba `undefined` ahí. Es el
+    // perímetro del propio anillo (exterior o del corte), ext.P0 ya viene
+    // siempre positivo (suma de distancias), no necesita normalización de
+    // signo como el resto de términos.
+    P: ext.P0,
+    A,
+    IX: Math.max(0, IXorigen - A * YC * YC),
+    IY: Math.max(0, IYorigen - A * XC * XC),
+    XC,
+    YC,
+    MX: Math.abs(MX0 / 6),
+    MY: Math.abs(MY0 / 6),
+    IXY: IXYorigen - A * XC * YC,
+  };
+}
+
+/**
+ * Propiedades geométricas de un polígono de zapata (perímetro, área,
+ * momentos de inercia, centroide) + sus puntos. El perímetro sigue viniendo
+ * de Shape.calcularPropiedades() (contorno exterior, sin cambios); el resto
+ * de propiedades (A/IX/IY/XC/YC/MX/MY/IXY) usa calcularPropiedadesNetas
+ * arriba -- resta las `zapata.holes` cuando existen. Suma los lados
+ * (`edges`) y, si es un rectángulo de 4 vértices, sus dimensiones B x L
+ * (`dimensions`).
  */
 export function buildZapataPolygonProperties(zapatas) {
   return zapatas.map((zapata, index) => {
@@ -308,6 +598,41 @@ export function buildZapataPolygonProperties(zapatas) {
 
     const points = (zapata.points || []).map((point) => ({ x: point.x, y: point.y }));
     const edges = computeEdgeLengths(points);
+    const huecos = (zapata.holes || []).map((hueco) => hueco.map((point) => ({ x: point.x, y: point.y })));
+    // AGREGADO (ver conversación, "mostrar en resultados de zapatas para
+    // el cliente" 2026-09-14): copia del bruto (solo contorno exterior,
+    // ANTES de restar los cortes) para poder mostrar la comparación
+    // "sin restar vs. con el método de diferencia de áreas" en el modal
+    // -- mismo dato que ya se le mostró al cliente en la demo, ahora
+    // dentro del sistema real. Solo tiene sentido cuando hay huecos (sin
+    // ellos, bruto y neto son el mismo número).
+    const propertiesSinRestar = huecos.length ? { ...zapata._propiedades } : null;
+    // AGREGADO (ver conversación, "En inercias no solo es resta es calcular
+    // una nueva propiedad" 2026-09-15): antes, SIN cortes, `properties` salía
+    // directo de `zapata._propiedades` (Shape.calcularPropiedades(), IX/IY/IXY
+    // respecto al ORIGEN, sin Steiner) -- calcularPropiedadesNetas ahora SÍ
+    // traslada al centroide, así que llamarla siempre (huecos=[] cuando no
+    // hay cortes) es necesario para que el panel muestre inercia centroidal
+    // en los DOS casos, no solo cuando hay huecos -- si no, agregar/quitar un
+    // corte hacía saltar IX/IY entre "origen" y "centroide" sin razón visible
+    // para el usuario. calcularPropiedadesNetas(points, []) da el mismo P/A/
+    // XC/YC que zapata._propiedades (mismo shoelace), solo difiere en que
+    // ahora SÍ aplica Steiner a IX/IY/IXY.
+    const properties = {
+      ...zapata._propiedades,
+      ...calcularPropiedadesNetas(points, huecos),
+    };
+    // AGREGADO (ver conversación, "propiedades geométricas de los cortes"
+    // 2026-09-14): propiedades de CADA hueco por separado (sin restar
+    // nada -- un corte no tiene sub-cortes en el caso real), para poder
+    // revisarlas junto a las netas del contorno exterior. Reusa
+    // calcularPropiedadesNetas con huecos=[] -- da lo mismo que tratar el
+    // hueco como un polígono normal, sin duplicar la fórmula.
+    const holesProperties = huecos.map((huecoPoints) => ({
+      properties: calcularPropiedadesNetas(huecoPoints, []),
+      points: huecoPoints,
+      edges: computeEdgeLengths(huecoPoints),
+    }));
 
     return {
       id: zapata.id,
@@ -318,10 +643,13 @@ export function buildZapataPolygonProperties(zapatas) {
       // SÍ corre bien vía .call() dos líneas arriba, porque solo usa
       // this.points). Se lee el campo directo en vez de llamar al método,
       // funciona igual para zapatas dibujadas a mano y para importadas.
-      properties: zapata._propiedades,
+      properties,
+      propertiesSinRestar,
       points,
       edges,
       dimensions: computeRectangularDimensions(points, edges),
+      hasHoles: huecos.length > 0,
+      holesProperties,
 
     };
   });

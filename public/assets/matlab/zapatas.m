@@ -60,7 +60,14 @@ function zapatas(A, Ixx, Iyy, Df, PS, MXS, MYS, Pm, MXm, MYm, Pv, MXv, MYv, poli
        & !inpolygon(xq,yq,poligonos.poligonoInterior5(1,:),poligonos.poligonoInterior5(2,:));
   XL= xq(in);
   YL= yq(in);
-  ZL  = cat(2, ecuacion_de_flexion(Co, A, XL, YL, Ixx, Iyy, Df, 1.8, 1, 6), ecuacion_de_flexion(Co, A, XL, YL, Ixx, Iyy, 1.8, 1.8, 7, 11));
+  % CORREGIDO (ver conversacion, "bug Df en combos 7-11"): la segunda
+  % llamada usaba el literal 1.8 en vez de la variable Df para el peralte
+  % de relleno -- los combos 7-11 (los que llevan sismo, 0.6*Pm+0.7*PS)
+  % ignoraban el Df real que el usuario ingreso. Ambas llamadas deben usar
+  % Df; el 1.8 que SI corresponde mantener es pesoEspecifico (2do 1.8 de
+  % cada llamada), que es un parametro distinto (peso especifico del
+  % relleno, no el peralte).
+  ZL  = cat(2, ecuacion_de_flexion(Co, A, XL, YL, Ixx, Iyy, Df, 1.8, 1, 6), ecuacion_de_flexion(Co, A, XL, YL, Ixx, Iyy, Df, 1.8, 7, 11));
   ZLT = ZL';
   mins = min(ZLT, [], 2);
   maxs = max(ZLT, [], 2);

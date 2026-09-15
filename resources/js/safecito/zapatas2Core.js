@@ -207,23 +207,46 @@ export function buildCoMatrix(loadCombinations = DEFAULT_LOAD_COMBINATIONS) {
     return octaveMatrix(rows, "column1", "column2", "column3");
 }
 
+function pointsToOctaveList(nodes, label) {
+    return nodes
+        .map((point) => {
+            return `${formatOctaveNumber(point.x, `X ${label}`)},${formatOctaveNumber(point.y, `Y ${label}`)}`;
+        })
+        .join(";");
+}
+
+// AGREGADO (ver conversacion, "zapatas recortadas"): un "hueco" es un
+// polígono más (mismo formato { nodes/points, closed }) que vive dentro de
+// polygon.holes -- opcional, así los llamadores existentes (que nunca
+// mandan .holes) no cambian su comportamiento. Se cierra igual que el
+// contorno exterior (normalizePolygonNodes ya lo hace).
+function normalizeHoleNodes(hole, polygonNumber, holeNumber) {
+    return normalizePolygonNodes(hole, `${polygonNumber} (hueco ${holeNumber})`);
+}
+
 export function buildPoligonosStruct(polygons) {
     ensureNonEmptyArray(polygons, "La lista de polígonos");
 
-    const entries = polygons.map((polygon, index) => {
+    const entries = polygons.flatMap((polygon, index) => {
         const polygonNumber = index + 1;
         const nodes = normalizePolygonNodes(polygon, polygonNumber);
+        const points = pointsToOctaveList(nodes, `del polígono ${polygonNumber}`);
 
-        const points = nodes
-            .map((point) => {
-                return `${formatOctaveNumber(point.x, `X del polígono ${polygonNumber}`)},${formatOctaveNumber(
-                    point.y,
-                    `Y del polígono ${polygonNumber}`
-                )}`;
-            })
-            .join(";");
+        const polygonEntry = `'poligono${polygonNumber}', [${points}]`;
 
-        return `'poligono${polygonNumber}', [${points}]`;
+        const holes = Array.isArray(polygon?.holes) ? polygon.holes : [];
+        const holeEntries = holes.map((hole, holeIndex) => {
+            const holeNumber = holeIndex + 1;
+            const holeNodes = normalizeHoleNodes(hole, polygonNumber, holeNumber);
+            const holePoints = pointsToOctaveList(
+                holeNodes,
+                `del hueco ${holeNumber} del polígono ${polygonNumber}`
+            );
+
+            return `'poligono${polygonNumber}_hueco${holeNumber}', [${holePoints}]`;
+        });
+
+        return [polygonEntry, ...holeEntries];
     });
 
     return `struct(${entries.join(",")})`;

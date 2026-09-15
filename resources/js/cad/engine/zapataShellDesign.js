@@ -30,6 +30,7 @@ const ZAPATA_SHELL_COMBINED_DESIGN_API_URL = "/api/backend/zapata/shell-combined
 const ZAPATA_SHELL_TRAPEZOIDAL_DESIGN_API_URL = "/api/backend/zapata/shell-trapezoidal-design";
 const ZAPATA_SHELL_L_DESIGN_API_URL = "/api/backend/zapata/shell-l-design";
 const ZAPATA_SHELL_POLIGONO_DESIGN_API_URL = "/api/backend/zapata/shell-poligono-design";
+const ZAPATA_SHELL_POLIGONO_COMBINADA_DESIGN_API_URL = "/api/backend/zapata/shell-poligono-combinada-design";
 
 /**
  * @param {object[]} points - vértices del polígono de la zapata
@@ -164,6 +165,11 @@ export async function fetchZapataShellCombinedDesignReference({
       mxHogging: data.mxHogging,
       myHogging: data.myHogging,
       d: data.d,
+      // AGREGADO (ver conversación, "8 componentes en combinadas"
+      // 2026-08-31): campo completo (x/y/Mx/My/Mxy/V13/V23/MMax/MMin/VMax
+      // en toda la malla) para el Diagrama de Resultantes -- mismo campo
+      // que ya devuelve fetchZapataShellDesignReference() para aisladas.
+      campo: data.campo,
       advertencia: data.advertencia,
     };
   } catch (e) {
@@ -180,16 +186,26 @@ export async function fetchZapataShellCombinedDesignReference({
  * documentación del proyecto) -- mismo criterio de región D/vanos
  * cortos/BPR, sin validar todavía contra un caso real de ETABS.
  *
- * `columnas` debe traer 'y' como OFFSET respecto al EJE CENTRAL de la
- * viga (no absoluto) -- ver computeTrapezoidalFootingGeometry
- * (footingMoments.js), que calcula ese offset a partir de la geometría
- * real del polígono antes de llamar a esta función (ver foundation.js).
+ * `columnas` debe traer 'y' en el MISMO sistema local que `poligono`
+ * (coordenada perpendicular CRUDA, sin restar ninguna línea central) --
+ * ver computeTrapezoidalFootingGeometry (footingMoments.js), que arma ese
+ * sistema local (localPoints) a partir de la geometría real del polígono
+ * antes de llamar a esta función (ver foundation.js).
+ *
+ * `poligono` (AGREGADO, ver conversación "zapata trapezoidal ancho casi
+ * constante" 2026-09-05): [{x,y},...] en ese mismo sistema local -- si se
+ * envía, el backend MUESTREA el ancho real ahí en vez de asumir B0+B'x
+ * (necesario para footings cuyo ancho no varía linealmente en toda la
+ * longitud, ver documentación del proyecto). B0/B1 igual se envían
+ * (quedan ignorados por el backend en ese caso, pero no está de más
+ * conservarlos por si se necesitan para otro uso/depuración).
  */
 export async function fetchZapataShellTrapezoidalDesignReference({
   L,
   B0,
   B1,
-  columnas, // [{x, y, bx, by}, ...] -- x relativo al origen del eje de la viga, y offset respecto al eje central
+  columnas, // [{x, y, bx, by}, ...] -- x relativo al origen del eje de la viga, y en el sistema local del polígono
+  poligono,
   thicknessM,
   recubrimientoM,
   fpcMPa,
@@ -207,6 +223,7 @@ export async function fetchZapataShellTrapezoidalDesignReference({
         B0,
         B1,
         columnas,
+        poligono: poligono || undefined,
         h: thicknessM || undefined,
         recubrimiento: recubrimientoM || undefined,
         fpcMPa: fpcMPa || undefined,
@@ -227,6 +244,11 @@ export async function fetchZapataShellTrapezoidalDesignReference({
       ok: true,
       momentosPorColumna: data.momentosPorColumna,
       d: data.d,
+      // AGREGADO (ver conversación, "8 componentes"/"orientación
+      // trapezoidal" 2026-08-31, cortante agregado 2026-09-06): campo
+      // completo M11/M22/M12/MMax/MMin/V13/V23/VMax -- se reenvía tal
+      // cual, foundation.js arma momentField desde acá.
+      campo: data.campo,
       advertencia: data.advertencia,
     };
   } catch (e) {
@@ -297,7 +319,125 @@ export async function fetchZapataShellLDesignReference({
       ok: true,
       momentosPorColumna: data.momentosPorColumna,
       d: data.d,
+      // AGREGADO (ver conversación, "8 componentes" 2026-08-31): campo
+      // M11/M22/M12/MMax/MMin/V13/V23/VMax completo -- a diferencia de
+      // la trapezoidal, esta forma SÍ tiene cortante (misma malla
+      // rectangular uniforme que la combinada recta, sin transformación
+      // de coordenadas) -- pero nunca se comparó contra un caso real de
+      // ETABS, solo contra un caso de control interno (ver documentación).
+      campo: data.campo,
       advertencia: data.advertencia,
+    };
+  } catch (e) {
+    return { ok: false, error: e?.message || String(e) };
+  }
+}
+
+/**
+ * Momento (M11/M22) de referencia para una LOSA DE CIMENTACIÓN (zapata
+ * combinada con columnas en CUALQUIER posición 2D, contorno poligonal
+ * arbitrario, no solo un rincón en L) -- ver python-backend/
+ * zapata_shell_solver.py:calcular_zapata_shell_poligono_combinada
+ * (FASE 1). Se dispara cuando `computeLFootingGeometry` NO reconoce la
+ * forma como un rincón L simple (`splitFootingIntoLegs` encontró más de
+ * 1 tramo, pero la forma no es la L de 1 solo rincón faltante que sabe
+ * resolver `fetchZapataShellLDesignReference`) -- ver foundation.js.
+ *
+ * A diferencia de combinada/L (Lx/Ly + columnas relativas a un bounding
+ * box), `puntos` y `columnas` van en coordenadas GLOBALES tal cual están
+ * en el modelo -- el backend hace su propia localización interna y
+ * devuelve `minX`/`minY` para que el llamador pueda volver a globalizar
+ * el campo (mismo propósito que `originX`/`originY` en la L, pero
+ * calculado en el backend porque un polígono arbitrario no tiene un
+ * "origen de bounding box" evidente del lado del llamador).
+ *
+ * Carga no uniforme -- 2 fuentes opcionales, en orden de prioridad (ver
+ * conversación "investiga" 2026-09-05, tras confirmar en el navegador
+ * real que la presión rígida automática sola no basta):
+ *   1. `qZonas` (la más precisa): [{puntos, q}, ...] -- UNA zona por cada
+ *      pieza REAL del grupo, con la carga de área REALMENTE asignada a
+ *      esa pieza (`area.areaLoads`, ya poblado por el import del .e2k --
+ *      `AREALOAD ... LC "csuelo" ...` -- no hace falta pedirle nada nuevo
+ *      al usuario). Ver `sumarAreaLoadsKgfM2ATonfM2` en foundation.js.
+ *   2. `qNube` (respaldo): nube de presión {x, y, q} -- envolvente
+ *      puntual de la presión ya calculada por el método rígido
+ *      (/zapatas2), para las piezas sin carga de área asignada.
+ * Con SOLO `qNube` (sin `qZonas`) el error contra ETABS bajó de 33-53% a
+ * <8% usando los valores REALES extraídos a mano del .e2k para validar
+ * -- pero en el navegador real, sin esa extracción manual, la presión
+ * rígida automática (casi uniforme, la excentricidad real es chica) dio
+ * de vuelta 15-25% de error. La carga real del cliente varía harto por
+ * zona (4.33 a 6.52 Tn/m²) porque el método rígido no captura esa
+ * variación en un mat grande e irregular -- por eso ahora se prioriza
+ * `qZonas` (la carga que el cliente YA asignó a cada pieza), no la nube
+ * derivada. Si no se pasa ninguna, usa `q` parejo en toda la zapata
+ * (mismo comportamiento que las demás formas).
+ */
+export async function fetchZapataShellPoligonoCombinadaDesignReference({
+  puntos, // [{x, y}, ...] -- vértices GLOBALES del contorno real
+  columnas, // [{x, y, bx, by}, ...] -- GLOBALES
+  thicknessM,
+  recubrimientoM,
+  fpcMPa,
+  nu,
+  nx,
+  ny,
+  q,
+  qNube, // {x:[...], y:[...], q:[...]} -- nube de presión real (respaldo), opcional
+  qZonas, // [{puntos:[...], q:...}, ...] -- carga REAL por pieza (prioridad), opcional
+  // AGREGADO (ver conversación, "zapatas recortadas", Etapa 2/3): huecos
+  // opcionales -- [{points|nodes:[{x,y},...]}, ...] o directamente
+  // [[{x,y},...], ...], en las MISMAS coordenadas GLOBALES que `puntos`.
+  // Ver calcular_zapata_shell_poligono_combinada (backend): un elemento de
+  // malla se descarta si su centro cae dentro de cualquier hueco.
+  huecos,
+}) {
+  try {
+    const resp = await fetch(ZAPATA_SHELL_POLIGONO_COMBINADA_DESIGN_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        puntos,
+        columnas,
+        h: thicknessM || undefined,
+        recubrimiento: recubrimientoM || undefined,
+        fpcMPa: fpcMPa || undefined,
+        nu: nu || undefined,
+        nx: nx || undefined,
+        ny: ny || undefined,
+        q,
+        qNube: qNube || undefined,
+        qZonas: qZonas || undefined,
+        huecos: huecos?.length
+          ? huecos.map((hueco) => (Array.isArray(hueco) ? hueco : hueco.points || hueco.nodes || []))
+          : undefined,
+      }),
+    });
+
+    const data = await resp.json().catch(() => null);
+
+    if (!resp.ok || !data || data.success === false) {
+      return { ok: false, error: data?.error || `Motor respondió ${resp.status}` };
+    }
+
+    return {
+      ok: true,
+      momentosPorColumna: data.momentosPorColumna,
+      d: data.d,
+      minX: data.minX,
+      minY: data.minY,
+      // Campo M11/M22/M12/MMax/MMin/V13/V23/VMax completo (coordenadas
+      // LOCALES respecto a minX/minY -- ver arriba) para el Diagrama de
+      // Resultantes.
+      campo: data.campo,
+      advertencia: data.advertencia,
+      // AGREGADO (ver conversación, "implementar solo con hueco"
+      // 2026-09-10): "conforme" cuando el solver usó malla conforme al
+      // hueco (triangulación restringida, puntos DISPERSOS sin paso de
+      // grilla) en vez de la grilla estructurada -- foundation.js lo
+      // pasa a momentField.meshType para que el índice de hover
+      // (buildGridIndex) no asuma un paso de grilla que ahí no existe.
+      metodo: data.metodo,
     };
   } catch (e) {
     return { ok: false, error: e?.message || String(e) };
@@ -364,6 +504,11 @@ export async function fetchZapataShellPoligonoDesignReference({
       ok: true,
       momentoDiseno: data.momentoDiseno,
       d: data.d,
+      // AGREGADO (ver conversación, "8 componentes" 2026-08-31): campo
+      // M11/M22/M12/MMax/MMin para el Diagrama de Resultantes -- sin V13/
+      // V23/VMax a propósito (probados contra datos reales de F16, no
+      // dieron un resultado confiable en esta malla triangular).
+      campo: data.campo,
       advertencia: data.advertencia,
     };
   } catch (e) {

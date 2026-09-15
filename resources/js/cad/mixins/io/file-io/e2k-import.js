@@ -1861,9 +1861,22 @@ export const e2kImportMixin = {
         // pintaba bien en el 2D (por eso se veía) pero "Calcular Zapatas"
         // nunca la encontraba (filtra por areaType==="zapata" exacto).
         const esZapata = /footing|mat/i.test(slab.slabType || "");
+        // AGREGADO (ver conversación, "zapatas recortadas" — reconocer el
+        // hueco del .e2k): un opening dibujado en ETABS exporta como un
+        // AREA aparte (conectividad tipo "AREA", no "PANEL"/"FLOOR" — ver
+        // areaKind más arriba, nunca se le asigna ahí) con
+        // `AREAASSIGN "..." "story" OPENING "Yes"` — SIN ningún SECTION.
+        // Sin este chequeo, `section` quedaba vacío y el área se importaba
+        // igual, pero como "slab" genérico: se veía en el 2D pero
+        // findOpeningsInPolygon (foundationContract.js) nunca la
+        // reconocía como hueco de ninguna zapata (filtra por
+        // areaType==="opening" exacto — mismo tipo de gap que ya se
+        // corrigió antes para "zapata" con SLABTYPE "Footing"/"Mat").
+        const esOpening = /\bOPENING\s+"Yes"/i.test(line);
         const area = {
           id: areas.length + 1,
-          type: esZapata ? "zapata" : "slab", areaType: esZapata ? "zapata" : "slab",
+          type: esOpening ? "opening" : esZapata ? "zapata" : "slab",
+          areaType: esOpening ? "opening" : esZapata ? "zapata" : "slab",
           points: pts, z: round3(z),
           slabSection: section,
           slabSelfWeightKgM2,
@@ -2113,6 +2126,18 @@ export const e2kImportMixin = {
         console.info(`\u2139\ufe0f Combos: ${marcados} t\u00e9rmino(s) de espectro marcados como sin signo.`);
       }
     }
+
+    // NOTA (ver conversación, "zapata dividida con Divide Shells" -- caso
+    // real de Jack/cliente, y luego "arréglalo... en ETABS se ven las 21
+    // piezas separadas"): el import YA NO fusiona geométricamente los
+    // grupos de AREA que ETABS dividió (Edit → Edit Areas → Divide
+    // Shells) -- cada pieza se queda como su propia AREA, exactamente
+    // como ETABS las sigue mostrando/editando (comparten nodos en los
+    // cortes, pero siguen siendo objetos distintos). El AGRUPAMIENTO para
+    // que el cálculo (Bloques 1-6) trate esas piezas conectadas como una
+    // sola zapata combinada pasa a `calculateZapatas()`
+    // (mixins/analysis/foundation.js), justo antes de recorrerlas -- ver
+    // `groupConnectedZapatas()` en engine/mergeZapataFragments.js.
 
     console.log("📥 Import ETABS .e2k:", {
       stories: stories.length, nodes: nodes.length, frames: frames.length, areas: areas.length,

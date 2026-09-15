@@ -37,6 +37,7 @@ class PythonEngineController extends Controller
         'zapata-shell-trapezoidal-design' => ['POST', '/api/zapata/shell-trapezoidal-design'],
         'zapata-shell-l-design' => ['POST', '/api/zapata/shell-l-design'],
         'zapata-shell-poligono-design' => ['POST', '/api/zapata/shell-poligono-design'],
+        'zapata-shell-poligono-combinada-design' => ['POST', '/api/zapata/shell-poligono-combinada-design'],
     ];
 
     /**

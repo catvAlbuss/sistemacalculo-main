@@ -409,4 +409,10 @@ Route::prefix('api/backend')
 
             return response($body, $status)->header('Content-Type', 'application/json');
         });
+
+        Route::post('/zapata/shell-poligono-combinada-design', function () use ($jsonPayload) {
+            [$status, $body] = PythonEngineController::run('zapata-shell-poligono-combinada-design', $jsonPayload());
+
+            return response($body, $status)->header('Content-Type', 'application/json');
+        });
     });

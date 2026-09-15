@@ -237,10 +237,30 @@ class OctavePlotController extends Controller
         $df = (float) $request->input('dF');
         $pesoEspecifico = (float) $request->input('pesoEspecifico');
         $resultados = [];
-        $poligonoIndex = 1;
 
-        foreach ($poligonos as $vertices) {
-            $props = $this->polygonProperties($vertices);
+        // AGREGADO (ver conversación, "zapatas recortadas"): $poligonos ya
+        // no es una lista plana -- viene como {nombre => vertices}. Se
+        // agrupan las entradas 'poligonoN' (contorno exterior de CADA
+        // zapata, una o varias en el mismo request) con sus
+        // 'poligonoN_huecoM' (huecos de esa MISMA zapata) antes de entrar
+        // al cálculo. Una zapata sin ningún hueco simplemente no tiene
+        // entradas '_hueco' que agrupar -- comportamiento idéntico a antes.
+        $grupos = [];
+        foreach ($poligonos as $nombre => $vertices) {
+            if (preg_match('/^poligono(\d+)$/', $nombre, $m)) {
+                $grupos[$m[1]]['exterior'] = $vertices;
+            } elseif (preg_match('/^poligono(\d+)_hueco/', $nombre, $m)) {
+                $grupos[$m[1]]['huecos'][] = $vertices;
+            }
+        }
+
+        foreach ($grupos as $poligonoIndex => $grupo) {
+            if (!isset($grupo['exterior'])) {
+                continue;
+            }
+            $vertices = $grupo['exterior'];
+            $huecos = $grupo['huecos'] ?? [];
+            $props = $this->polygonProperties($vertices, $huecos);
 
             $idsDentro = [];
             $posiciones = [];
@@ -288,9 +308,11 @@ class OctavePlotController extends Controller
                 }
             }
 
-            $centered = array_map(fn ($point) => [$point[0] - $props['XC'], $point[1] - $props['YC']], $vertices);
-            $centeredProps = $this->polygonProperties($centered);
-            $grid = $this->polygonGrid($centered);
+            $centrar = fn ($point) => [$point[0] - $props['XC'], $point[1] - $props['YC']];
+            $centered = array_map($centrar, $vertices);
+            $centeredHuecos = array_map(fn ($hueco) => array_map($centrar, $hueco), $huecos);
+            $centeredProps = $this->polygonProperties($centered, $centeredHuecos);
+            $grid = $this->polygonGrid($centered, $centeredHuecos);
             $co = array_map(fn ($row) => array_map(fn ($expr) => $this->evaluateExpression($expr, $fuerzas), $row), $coExpressions);
 
             // AGREGADO (ver conversación: investigación del cliente sobre
@@ -344,16 +366,27 @@ class OctavePlotController extends Controller
                 'XC' => [$props['XC']],
                 'YC' => [$props['YC']],
             ];
-            $poligonoIndex++;
         }
 
         return $resultados;
     }
 
+    // ACTUALIZADO (ver conversación, "zapatas recortadas"): antes devolvía
+    // una lista PLANA de matrices (perdía el nombre 'poligonoN' de cada
+    // entrada) -- ahora devuelve un array asociativo {nombre => matriz},
+    // preservando el orden de aparición (el mismo que ya usa PHP para
+    // arrays). Necesario para poder distinguir 'poligonoN' (contorno
+    // exterior de una zapata) de 'poligonoN_huecoM' (un hueco DENTRO de
+    // esa zapata) en calcularZapatas2EnPhp() -- antes ambos se hubieran
+    // tratado como zapatas separadas.
     private function parseOctaveStruct(?string $value): array
     {
-        preg_match_all("/'[^']+'\\s*,\\s*\\[([^\\]]+)\\]/", $value ?? '', $matches);
-        return array_map(fn ($matrix) => $this->parseOctaveMatrix("[{$matrix}]"), $matches[1]);
+        preg_match_all("/'([^']+)'\\s*,\\s*\\[([^\\]]+)\\]/", $value ?? '', $matches, PREG_SET_ORDER);
+        $result = [];
+        foreach ($matches as $match) {
+            $result[$match[1]] = $this->parseOctaveMatrix("[{$match[2]}]");
+        }
+        return $result;
     }
 
     private function parseOctaveMatrix(?string $value, bool $numeric = true): array
@@ -393,7 +426,14 @@ class OctavePlotController extends Controller
         return (float) eval("return {$expr};");
     }
 
-    private function polygonProperties(array $points): array
+    // AGREGADO (ver conversación, "fusionar cimentacion-v1/v2 -- zapatas
+    // recortadas"): acumuladores CRUDOS de la fórmula shoelace (área*2,
+    // momentos de primer orden, momentos de segundo orden) para UN solo
+    // contorno cerrado -- extraído de polygonProperties() para poder
+    // reusarlo tanto en el contorno exterior como en cada hueco interior,
+    // y restar sus contribuciones de forma consistente (ver
+    // polygonProperties() más abajo).
+    private function polygonRawTotals(array $points): array
     {
         $a0 = $xc = $yc = $ix0 = $iy0 = $ixy0 = 0.0;
         for ($i = 0; $i < count($points) - 1; $i++) {
@@ -422,6 +462,49 @@ class OctavePlotController extends Controller
             $ixy0 += $cross * ($x1 * $y2 + 2 * $x1 * $y1 + 2 * $x2 * $y2 + $x2 * $y1);
         }
 
+        // Normalizado a "sentido antihorario" aquí mismo (a0>0): así, sin
+        // importar en qué sentido el usuario dibujó ESTE contorno (exterior
+        // o hueco), sus acumuladores siempre representan una contribución
+        // POSITIVA de área -- necesario para poder RESTAR huecos con el
+        // signo correcto en polygonProperties(), sin depender de que el
+        // usuario haya dibujado el hueco en un sentido en particular.
+        if ($a0 < 0.0) {
+            $a0 *= -1;
+            $xc *= -1;
+            $yc *= -1;
+            $ix0 *= -1;
+            $iy0 *= -1;
+            $ixy0 *= -1;
+        }
+
+        return [$a0, $xc, $yc, $ix0, $iy0, $ixy0];
+    }
+
+    /**
+     * AGREGADO (ver conversación, "zapatas recortadas"): $holes es una
+     * lista de contornos (cada uno como $points) que se RESTAN del
+     * contorno exterior -- área, centroide e inercias del polígono NETO
+     * (exterior menos huecos), no solo del exterior. Con $holes=[]
+     * (el caso de siempre) el resultado es IDÉNTICO al de antes de este
+     * cambio -- no se modifica ningún caso ya validado sin huecos.
+     */
+    private function polygonProperties(array $points, array $holes = []): array
+    {
+        [$a0, $xc, $yc, $ix0, $iy0, $ixy0] = $this->polygonRawTotals($points);
+
+        foreach ($holes as $hole) {
+            if (count($hole) < 3) {
+                continue;
+            }
+            [$ha0, $hxc, $hyc, $hix0, $hiy0, $hixy0] = $this->polygonRawTotals($hole);
+            $a0 -= $ha0;
+            $xc -= $hxc;
+            $yc -= $hyc;
+            $ix0 -= $hix0;
+            $iy0 -= $hiy0;
+            $ixy0 -= $hixy0;
+        }
+
         // OJO: el área con signo (antes de abs()) es la que hay que usar para
         // dividir XC/YC — es la fórmula estándar del centroide de un polígono.
         // Envolver el resultado final en abs() (como estaba antes) descarta en
@@ -447,7 +530,13 @@ class OctavePlotController extends Controller
         ];
     }
 
-    private function polygonGrid(array $points): array
+    // AGREGADO (ver conversación, "zapatas recortadas"): $holes excluye de
+    // la nube de puntos cualquier posición que caiga dentro de alguno de
+    // esos contornos -- mismo criterio que ya usaba zapatas.m (1 exterior
+    // + N interiores) para la zapata aislada vieja, ahora disponible acá
+    // para zapatas2 (múltiples columnas, propiedades reales). Con
+    // $holes=[] (el caso de siempre) es idéntico a antes.
+    private function polygonGrid(array $points, array $holes = []): array
     {
         $xs = array_column($points, 0);
         $ys = array_column($points, 1);
@@ -462,13 +551,27 @@ class OctavePlotController extends Controller
             $x = min($xs) + ($rangeX * $ix / max($nx - 1, 1));
             for ($iy = 0; $iy < $ny; $iy++) {
                 $y = min($ys) + ($rangeY * $iy / max($ny - 1, 1));
-                if ($this->pointInPolygon($x, $y, $points)) {
-                    $grid[] = [$x, $y];
+                if (!$this->pointInPolygon($x, $y, $points)) {
+                    continue;
                 }
+                if ($this->pointInAnyPolygon($x, $y, $holes)) {
+                    continue;
+                }
+                $grid[] = [$x, $y];
             }
         }
 
         return $grid;
+    }
+
+    private function pointInAnyPolygon(float $x, float $y, array $polygons): bool
+    {
+        foreach ($polygons as $polygon) {
+            if (count($polygon) >= 3 && $this->pointInPolygon($x, $y, $polygon)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private function pointInPolygon(float $x, float $y, array $polygon): bool

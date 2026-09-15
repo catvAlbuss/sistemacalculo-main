@@ -192,8 +192,20 @@ if __name__ == "__main__":
     ])
     
     # Elementos rectangulares (Conectividad de nodos en sentido antihorario)
-    elementos = np.array([,  # Elemento 0,  # Elemento 1,  # Elemento 2,  # Elemento 3, # Elemento 4
-        [6, 7, 11, 10] # Elemento 5
+    # NOTA (Claude): esta lista venia rota en el archivo original -- "np.array([,"
+    # es un error de sintaxis (coma justo tras el corchete, sin elemento antes),
+    # y solo sobrevivia el Elemento 5 con los nombres de los otros 4 sueltos en
+    # el comentario. Reconstruidos los elementos 0-4 siguiendo el MISMO patron
+    # de conectividad del Elemento 5 (fila f, columna c de la grilla 3x2 ->
+    # nodos [f*4+c, f*4+c+1, (f+1)*4+c+1, (f+1)*4+c]), verificado exacto contra
+    # el Elemento 5 dado: f=1,c=2 -> [6,7,11,10] (coincide).
+    elementos = np.array([
+        [0, 1, 5, 4],   # Elemento 0 (f=0, c=0)
+        [1, 2, 6, 5],   # Elemento 1 (f=0, c=1)
+        [2, 3, 7, 6],   # Elemento 2 (f=0, c=2)
+        [4, 5, 9, 8],   # Elemento 3 (f=1, c=0)
+        [5, 6, 10, 9],  # Elemento 4 (f=1, c=1)
+        [6, 7, 11, 10]  # Elemento 5 (f=1, c=2)
     ])
     
     # Ubicación de las 2 columnas de la zapata combinada (Nodos intermedios)

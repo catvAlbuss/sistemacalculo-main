@@ -178,6 +178,11 @@ def _dispatch(mode, data, flask_app, sa):
             return {"success": False, "error": "OpenSeesPy no está disponible"}
         return flask_app.run_zapata_shell_poligono_design(data)
 
+    if mode == "zapata-shell-poligono-combinada-design":
+        if not flask_app.OPENSEES_AVAILABLE:
+            return {"success": False, "error": "OpenSeesPy no está disponible"}
+        return flask_app.run_zapata_shell_poligono_combinada_design(data)
+
     if mode == "seismic-parse-spectrum":
         filename = data.get("filename", "spectrum.txt")
         if data.get("content_base64"):

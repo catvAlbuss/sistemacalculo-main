@@ -9,6 +9,132 @@ import Plotly from "plotly.js-dist-min";
 import Swal from "sweetalert2";
 import logo from "../img/rizabalasociados.png";
 
+// AGREGADO (ver conversación, "sobre etabs -> retomemos el pendiente de
+// zapatas2 (Octave)" 2026-09-14): a diferencia del CAD (/software/etabs,
+// donde un área tipo "opening" dentro de una zapata SÍ se envía como hueco
+// real -- ver findOpeningsInPolygon), este módulo (Safecito, /software/
+// cimentacion-v2) enviaba cada polígono dibujado como "poligonoN"
+// independiente, sin el sufijo "_huecoM" que zapatas.m/zapatas2.m ya sabe
+// interpretar (esos .m fueron corregidos antes, ver comentarios "zapatas
+// recortadas" ahí) -- el backend YA restaba huecos correctamente, pero
+// el frontend de Safecito nunca se los mandaba como tales: una figura de
+// corte dibujada adentro de la zapata se calculaba como una ZAPATA
+// APARTE, con su propia presión de contacto, en vez de restarse del área/
+// inercia de la zapata que la contiene. Se detecta la relación por
+// CONTENCIÓN GEOMÉTRICA (todos los vértices de un polígono dentro de
+// otro) -- si un polígono cae dentro de varios, se asigna al de MENOR
+// área (el contenedor más inmediato, no el más grande).
+function isPointInsidePolygon(point, polygonPoints) {
+  let inside = false;
+  for (let i = 0, j = polygonPoints.length - 1; i < polygonPoints.length; j = i++) {
+    const xi = polygonPoints[i].x, yi = polygonPoints[i].y;
+    const xj = polygonPoints[j].x, yj = polygonPoints[j].y;
+    const intersect = yi > point.y !== yj > point.y && point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function isShapeInsideShape(inner, outer) {
+  if (inner === outer) return false;
+  return inner.points.every((p) => isPointInsidePolygon(p, outer.points));
+}
+
+function polygonArea(points) {
+  let area = 0;
+  for (let i = 0; i < points.length; i++) {
+    const { x: x1, y: y1 } = points[i];
+    const { x: x2, y: y2 } = points[(i + 1) % points.length];
+    area += x1 * y2 - x2 * y1;
+  }
+  return Math.abs(area / 2);
+}
+
+
+/**
+ * Agrupa una lista plana de Shape en { exterior, huecos[] } -- un shape sin
+ * ningún contenedor es una zapata "exterior" propia; uno contenido por
+ * otro(s) se cuelga del contenedor de MENOR área (el más inmediato) como
+ * hueco suyo. Sin ninguna figura anidada, da EXACTAMENTE un grupo por
+ * shape con `huecos: []` -- mismo comportamiento que antes.
+ */
+// DEMO TEMPORAL (ver conversación, "quiero ver el módulo real mostrando el
+// bug" 2026-09-14): Jack pidió reproducir a propósito el comportamiento
+// ANTERIOR al fix (cada polígono como zapata independiente, sin detectar
+// ni restar cortes) para una demo/captura en vivo con el cliente,
+// comparando contra el sistema ya corregido. Cambiar esta constante a
+// `false` restaura el fix real (o borrarla junto con el `if` de abajo).
+// *** RECORDAR VOLVER A `false` CUANDO JACK TERMINE LA DEMO ***
+const DEMO_MOSTRAR_COMPORTAMIENTO_ANTERIOR_SIN_RESTAR = true;
+
+function groupShapesWithHoles(shapesList) {
+  if (DEMO_MOSTRAR_COMPORTAMIENTO_ANTERIOR_SIN_RESTAR) {
+    return shapesList.map((shape) => ({ exterior: shape, huecos: [] }));
+  }
+  const containers = shapesList.map((shape) => {
+    const candidates = shapesList.filter((other) => isShapeInsideShape(shape, other));
+    if (!candidates.length) return null;
+    return candidates.reduce((best, c) => (polygonArea(c.points) < polygonArea(best.points) ? c : best));
+  });
+
+  return shapesList
+    .filter((_, i) => containers[i] === null)
+    .map((exterior) => ({
+      exterior,
+      huecos: shapesList.filter((_, i) => containers[i] === exterior),
+    }));
+}
+
+// AGREGADO (ver conversación, "muestra las propiedades que te dije que
+// ocultaras" 2026-09-14): igual método de diferencia de áreas ya usado en
+// foundationContract.js (CAD) -- términos crudos del shoelace de Green,
+// normalizados a área con signo positiva por anillo (para poder restar un
+// hueco dibujado en cualquier sentido de giro), sumando el exterior y
+// restando cada hueco antes de aplicar las divisiones/abs() finales.
+function _terminosPoligonoNormalizados(points) {
+  let A0 = 0, P0 = 0, IX0 = 0, IY0 = 0, IXY0 = 0, MX0 = 0, MY0 = 0, XC0 = 0, YC0 = 0;
+  const n = points.length;
+  for (let i = 0; i < n; i++) {
+    const x1 = points[i].x, y1 = points[i].y;
+    const x2 = points[(i + 1) % n].x, y2 = points[(i + 1) % n].y;
+    const cross = x1 * y2 - x2 * y1;
+    XC0 += cross * (x2 + x1);
+    YC0 += cross * (y2 + y1);
+    A0 += cross;
+    P0 += Math.hypot(x1 - x2, y1 - y2);
+    MX0 += (x1 - x2) * (y2 ** 2 + y2 * y1 + y1 ** 2);
+    MY0 += (y1 - y2) * (x2 ** 2 + x2 * x1 + x1 ** 2);
+    IY0 += cross * (x2 ** 2 + x2 * x1 + x1 ** 2);
+    IX0 += cross * (y2 ** 2 + y2 * y1 + y1 ** 2);
+    IXY0 += cross * (2 * x2 * y2 + x2 * y1 + x1 * y2 + 2 * x1 * y1);
+  }
+  const signo = A0 < 0 ? -1 : 1;
+  return { P0, A0: A0 * signo, IX0: IX0 * signo, IY0: IY0 * signo, IXY0: IXY0 * signo, MX0: MX0 * signo, MY0: MY0 * signo, XC0: XC0 * signo, YC0: YC0 * signo };
+}
+
+function calcularPropiedadesNetas(pointsExterior, huecosPointsList) {
+  const ext = _terminosPoligonoNormalizados(pointsExterior);
+  let { A0, IX0, IY0, IXY0, MX0, MY0, XC0, YC0 } = ext;
+  for (const huecoPoints of huecosPointsList || []) {
+    const h = _terminosPoligonoNormalizados(huecoPoints);
+    A0 -= h.A0; IX0 -= h.IX0; IY0 -= h.IY0; IXY0 -= h.IXY0;
+    MX0 -= h.MX0; MY0 -= h.MY0; XC0 -= h.XC0; YC0 -= h.YC0;
+  }
+  const signedArea = A0 / 2;
+  const A = Math.abs(signedArea);
+  return {
+    P: ext.P0,
+    A,
+    IX: Math.abs(IX0 / 12),
+    IY: Math.abs(IY0 / 12),
+    XC: signedArea !== 0 ? XC0 / (6 * signedArea) : 0,
+    YC: signedArea !== 0 ? YC0 / (6 * signedArea) : 0,
+    MX: Math.abs(MX0 / 6),
+    MY: Math.abs(MY0 / 6),
+    IXY: Math.abs(IXY0 / 24),
+  };
+}
+
 function getBase64Image(imgPath, callback) {
   var img = new Image();
   img.crossOrigin = "Anonymous"; // Para evitar problemas con CORS
@@ -1224,110 +1350,74 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.fillText(modeText, x_pos, y_pos);
     ctx.restore();
 
-    const polygonsHtml = `
-         ${shapes.reduce((body, shape, index) => {
-           const propiedades = shape.propiedades();
-           return (
-             body +
-             `<tr class="bg-gray-100 dark:bg-gray-600">
-                  <td class="p-0" colspan="4">
-                      <div class="relative inline-block">
-                          <table class="inline-block text-gray-800 dark:text-white">
-                              <tbody id="polygons">
-                                  <tr
-                                      class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                                      <th class="text-xl py-2 px-4 text-left" colspan="4">
-                                          Propiedades
-                                      </th>
-                                  </tr>
-                                  <tr
-                                      class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                      <th class="text-lg py-2 px-8" scope="col"
-                                          colspan="2">P</th>
-                                      <td class="py-2 px-4">${propiedades.P.toFixed(2)}</td>
-                                  </tr>
-                                  <tr
-                                      class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                      <th class="text-lg py-2 px-8" scope="col"
-                                          colspan="2">A</th>
-                                      <td class="py-2 px-4">${propiedades.A.toFixed(2)}</td>
-                                  </tr>
-                                  <tr
-                                      class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                      <th class="text-lg py-2 px-8" scope="col"
-                                          colspan="2">IX</th>
-                                      <td class="py-2 px-4">${propiedades.IX.toFixed(2)}</td>
-                                  </tr>
-                                  <tr
-                                      class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                      <th class="text-lg py-2 px-8" scope="col"
-                                          colspan="2">
-                                          IY</th>
-                                      <td class="py-2 px-4">${propiedades.IY.toFixed(2)}</td>
-                                  </tr>
-                                  <tr
-                                      class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                      <th class="text-lg py-2 px-8" scope="col"
-                                          colspan="2">
-                                          XC</th>
-                                      <td class="py-2 px-4">${propiedades.XC.toFixed(2)}</td>
-                                  </tr>
-                                  <tr
-                                      class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                      <th class="text-lg py-2 px-8" scope="col"
-                                          colspan="2">
-                                          YC</th>
-                                      <td class="py-2 px-4">${propiedades.YC.toFixed(2)}</td>
-                                  </tr>
-                                  <tr
-                                      class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                      <th class="text-lg py-2 px-8" scope="col"
-                                          colspan="2">
-                                          MX</th>
-                                      <td class="py-2 px-4">${propiedades.MX.toFixed(2)}</td>
-                                  </tr>
-                                  <tr
-                                      class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                      <th class="text-lg py-2 px-8" scope="col"
-                                          colspan="2">
-                                          MY</th>
-                                      <td class="py-2 px-4">${propiedades.MY.toFixed(2)}</td>
-                                  </tr>
-                                  <tr
-                                      class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                      <th class="text-lg py-2 px-8" scope="col"
-                                          colspan="2">
-                                          IXY</th>
-                                      <td class="py-2 px-4">${propiedades.IXY.toFixed(2)}</td>
-                                  </tr>
-                              </tbody>
-                          </table><table
-                              class="inline-block text-gray-800 dark:text-white absolute overflow-y-auto top-0 bottom-0">
-                              <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                                <th class="text-xl py-2 px-4 text-left" colspan="4">Poligono ${index + 1}
-                                </th>
-                              </tr>
-                              <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                <th class="text-lg py-2 px-8" scope="col">X
-                                </th>
-                                <th class="text-lg py-2 px-4" scope="col">Y</th>
-                              </tr>
-                              ${shape.points.reduce((body, p) => {
-                                return (
-                                  body +
-                                  `
-                                  <tr class="bg-gray-100 dark:bg-gray-600">
-                                    <td class="py-2 px-4">${p.x.toFixed(2)}</td>
-                                    <td class="py-2 px-4">${p.y.toFixed(2)}</td>
-                                  </tr>`
-                                );
-                              }, "")}
-                          </table>
-                      </div>
-                  </td>
+    // AGREGADO (ver conversación, "muestra las propiedades que te dije que
+    // ocultaras" 2026-09-14): de vuelta el bloque "Propiedades" por
+    // polígono -- ahora calculado con groupShapesWithHoles, así que un
+    // polígono exterior con figuras de corte adentro muestra su A/IX/IY/
+    // XC/YC/MX/MY/IXY NETOS (huecos restados), no el contorno bruto. Cada
+    // figura de corte también se lista aparte (con sus propias
+    // propiedades, sin restar nada -- informativo) para poder revisarla.
+    const propertiesTable = (titulo, propiedades) => `
+      <table class="inline-block text-gray-800 dark:text-white">
+          <tbody>
+              <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
+                  <th class="text-xl py-2 px-4 text-left" colspan="4">${titulo}</th>
+              </tr>
+              ${["P", "A", "IX", "IY", "XC", "YC", "MX", "MY", "IXY"]
+                .map(
+                  (key) => `
+              <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
+                  <th class="text-lg py-2 px-8" scope="col" colspan="2">${key}</th>
+                  <td class="py-2 px-4">${propiedades[key].toFixed(2)}</td>
               </tr>`
-           );
-         }, "")}
+                )
+                .join("")}
+          </tbody>
+      </table>`;
+
+    const pointsTable = (titulo, points) => `
+      <table class="inline-block text-gray-800 dark:text-white absolute overflow-y-auto top-0 bottom-0">
+          <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
+            <th class="text-xl py-2 px-4 text-left" colspan="4">${titulo}</th>
+          </tr>
+          <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
+            <th class="text-lg py-2 px-8" scope="col">X</th>
+            <th class="text-lg py-2 px-4" scope="col">Y</th>
+          </tr>
+          ${points
+            .map((p) => `<tr class="bg-gray-100 dark:bg-gray-600"><td class="py-2 px-4">${p.x.toFixed(2)}</td><td class="py-2 px-4">${p.y.toFixed(2)}</td></tr>`)
+            .join("")}
+      </table>`;
+
+    const polygonCard = (titulo, propiedades, points) => `
+      <tr class="bg-gray-100 dark:bg-gray-600">
+          <td class="p-0" colspan="4">
+              <div class="relative inline-block">
+                  ${propertiesTable(titulo, propiedades)}${pointsTable(titulo, points)}
+              </div>
+          </td>
+      </tr>`;
+
+    const polygonsHtml = `
+         ${groupShapesWithHoles(shapes)
+           .map((grupo, index) => {
+             const nombreExterior = `Poligono ${index + 1}`;
+             const propiedadesNetas = calcularPropiedadesNetas(
+               grupo.exterior.points,
+               grupo.huecos.map((h) => h.points)
+             );
+             let html = polygonCard(
+               grupo.huecos.length ? `${nombreExterior} (neto, con cortes restados)` : nombreExterior,
+               propiedadesNetas,
+               grupo.exterior.points
+             );
+             grupo.huecos.forEach((hueco, hIndex) => {
+               hueco.calcularPropiedades();
+               html += polygonCard(`${nombreExterior} — corte ${hIndex + 1}`, hueco.propiedades(), hueco.points);
+             });
+             return html;
+           })
+           .join("")}
           `;
     if (polygonsHtml !== polygonsHtmlCache) {
       document.getElementById("polygons").innerHTML = polygonsHtml;
@@ -1998,13 +2088,19 @@ document.addEventListener("DOMContentLoaded", () => {
         "column3"
       )
     );
+    const puntosOctave = (points) =>
+      `[${[...points, points[0]].map((p) => `${p.x.toFixed(3)},${p.y.toFixed(3)}`).join(";")}]`;
+
     formData.append(
       "poligonos",
-      `struct(${calculationShapes
-        .map((shape, index) => {
-          return `'poligono${index + 1}', [${[...shape.points, shape.points[0]]
-            .map((p) => `${p.x.toFixed(3)},${p.y.toFixed(3)}`)
-            .join(";")}]`;
+      `struct(${groupShapesWithHoles(calculationShapes)
+        .map((grupo, index) => {
+          const nombre = `poligono${index + 1}`;
+          const partes = [`'${nombre}', ${puntosOctave(grupo.exterior.points)}`];
+          grupo.huecos.forEach((hueco, hIndex) => {
+            partes.push(`'${nombre}_hueco${hIndex + 1}', ${puntosOctave(hueco.points)}`);
+          });
+          return partes.join(",");
         })
         .join(",")})`
     );

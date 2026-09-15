@@ -593,6 +593,21 @@ export default () => ({
     // ya validado, solo permite editarlos antes de calcular.
     this.zapataDf = 2;
     this.zapataGammaE = 1.8;
+    // AGREGADO (ver conversación, Categoría D puntos 1-2): datos del
+    // estudio de suelos para K de balasto (K30) y capacidad portante
+    // (Vesic/AASHTO LRFD) — ver soilCapacity.js. Todos arrancan vacíos
+    // (null/"cohesivo" por defecto) porque son datos que el ingeniero debe
+    // ingresar del estudio de suelos real; si quedan vacíos, foundation.js
+    // simplemente no calcula K ni capacidad portante (no inventa un valor).
+    // `zapataDw` (nivel freático) arranca vacío a propósito, no en 0 — ver
+    // computeWaterTableFactors en soilCapacity.js: sin dato asume que el
+    // nivel freático no afecta (Cwq=Cwγ=1), que es la situación más común
+    // y la que mejor calzó contra el único ejemplo real disponible.
+    this.zapataK30 = null;
+    this.zapataSoilType = "cohesivo";
+    this.zapataCPrime = 0;
+    this.zapataPhiPrime = null;
+    this.zapataDw = null;
     // AGREGADO (ver conversación: comparación controlada contra ETABS —
     // hace falta que la malla del Bloque 3b/6b coincida con la que se
     // declaró en ETABS para que la comparación sea justa). 50x50 por
@@ -603,6 +618,14 @@ export default () => ({
     // con ella. El usuario puede subirlo más si quiere igualar una malla
     // más fina declarada en ETABS.
     this.zapataShellMeshN = 50;
+    // AGREGADO (ver conversación): antes un solo N se aplicaba como N×N
+    // asumiendo malla cuadrada -- para una zapata rectangular (la mayoría)
+    // eso no tiene sentido, igual que en ETABS ("Mesh Object into N by M
+    // Elements") hace falta declarar los dos lados por separado. Convención:
+    // N = elementos en el lado LARGO del polígono, M = elementos en el lado
+    // CORTO (no X/Y fijo, porque una zapata combinada puede tener cualquier
+    // orientación) -- ver mallaProporcional en foundation.js.
+    this.zapataShellMeshM = 50;
     this.referencePoints = [];
     this.referencePlanes = this.referencePlanes || [];
     this.dimensionLines = [];

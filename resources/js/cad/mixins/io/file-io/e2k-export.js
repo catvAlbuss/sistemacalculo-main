@@ -92,6 +92,32 @@ export const e2kExportMixin = {
     const frames = model.frames || model.beams || data.beams || [];
     const areas = model.areas || data.areas || [];
 
+    // AGREGADO (ver conversación, "exporto e importo y sigue sin reconocer
+    // la zapata" 2026-09-15, tras el fix de SLABTYPE del 2026-09-15): una
+    // zapata SIN sección asignada (Assign > Shell > Slab Section) nunca
+    // entra al bloque `$ SLAB PROPERTIES` de abajo -- `slabSecs` solo se
+    // llena para áreas con `a.section` puesto -- así que sale con
+    // `SECTION ""` y SIN SHELLPROP. El import (e2k-import.js) reconoce una
+    // zapata por `SLABTYPE "Footing"` en su SHELLPROP: sin ese bloque, la
+    // reimportación no la ve como zapata aunque `classifyArea` ya la
+    // hubiera marcado bien. Antes esto fallaba en silencio; ahora se avisa
+    // ANTES de exportar para no perder otro viaje de ida y vuelta.
+    const zapatasSinSeccion = areas.filter((a) => classifyArea(a) === "zapata" && !a.section?.name);
+    if (zapatasSinSeccion.length) {
+      const ubicaciones = zapatasSinSeccion
+        .map((a) => {
+          const pts = a.points || [];
+          const cx = pts.reduce((s, p) => s + (Number(p.x) || 0), 0) / (pts.length || 1);
+          const cy = pts.reduce((s, p) => s + (Number(p.y) || 0), 0) / (pts.length || 1);
+          return `(${cx.toFixed(1)}, ${cy.toFixed(1)})`;
+        })
+        .join(" | ");
+      this.showMessage?.(
+        `${zapatasSinSeccion.length} zapata(s) sin sección asignada -- se exportarán sin SHELLPROP y no se reconocerán como zapata al reimportar. Ubicación aprox. (X,Y): ${ubicaciones}. Asígnales una sección con Assign → Shell → Slab Section antes de exportar.`,
+        "warning"
+      );
+    }
+
     const frameSections = definitions.frameSections || data.frameSections || this.frameSections?.sections || [];
     const materials = definitions.materials || data.materials || this.materialProperties?.materials || [];
     const loadCases = definitions.loadCases || data.loadCases || [];
@@ -251,8 +277,15 @@ export const e2kExportMixin = {
 
       if (!areaDefs.has(dedupKey)) {
         areaN += 1;
+        // AGREGADO (ver conversación, "el corte ya no se reconoce al
+        // reimportar" 2026-09-14): prefijo "A" para openings -- solo
+        // cosmético/de fidelidad con el formato real de ETABS (el
+        // reimport ya funciona igual sin esto, depende de OPENING "Yes"
+        // en AREAASSIGN, no del nombre), pero así el .e2k exportado se
+        // ve igual que uno hecho directo en ETABS si Jack lo abre ahí.
+        const prefix = desc.kind === "wall" ? "W" : desc.kind === "opening" ? "A" : "F";
         areaDefs.set(dedupKey, {
-          name: `${desc.kind === "wall" ? "W" : "F"}${areaN}`,
+          name: `${prefix}${areaN}`,
           pts,
           keyword: desc.keyword,
           offsets: desc.offsets,
@@ -423,8 +456,22 @@ export const e2kExportMixin = {
       slabList.forEach(([name, s]) => {
         const mat = s.material || "CONC";
         const th = Number(s.thickness || 0) / 1000; // mm → m
+        // AGREGADO (ver conversación, "exporto e importo y ya no reconoce
+        // la zapata" 2026-09-15): SLABTYPE siempre salía "Slab" -- el
+        // importador (e2k-import.js, esZapata) SOLO reconoce una zapata
+        // por `SLABTYPE "Footing"` en su SHELLPROP, así que una zapata
+        // propia se reimportaba como losa genérica y "Calcular Zapatas"
+        // dejaba de encontrarla. MODELINGTYPE "ShellThick" en vez de
+        // "Membrane" de paso -- es lo que usa ETABS real para zapatas
+        // (ver los .e2k reales de este proyecto: SHELLPROP "ZAPATA_NUEVA"
+        // ... MODELINGTYPE "ShellThick" SLABTYPE "Footing") y lo que la
+        // física del elemento necesita para capturar cortante, no solo
+        // el nombre -- las losas normales siguen con "Membrane".
+        const esZapata = s._kind === "zapata";
+        const modelingType = esZapata ? "ShellThick" : "Membrane";
+        const slabType = esZapata ? "Footing" : "Slab";
         lines.push(
-          `  SHELLPROP  "${name}"  PROPTYPE  "Slab"  MATERIAL "${mat}"  MODELINGTYPE "Membrane"  SLABTYPE "Slab"  SLABTHICKNESS ${fmt(th)} `,
+          `  SHELLPROP  "${name}"  PROPTYPE  "Slab"  MATERIAL "${mat}"  MODELINGTYPE "${modelingType}"  SLABTYPE "${slabType}"  SLABTHICKNESS ${fmt(th)} `,
         );
       });
       lines.push("");
@@ -508,6 +555,17 @@ export const e2kExportMixin = {
     // ---- AREA ASSIGNS ---------------------------------------------------
     lines.push("$ AREA ASSIGNS");
     areaAssigns.forEach((a) => {
+      // AGREGADO (ver conversación, "exporto a .e2k y al reimportar el
+      // corte ya no se reconoce como tal" 2026-09-14): un opening se
+      // asigna con SOLO `OPENING "Yes"` (sin SECTION/OBJMESHTYPE/
+      // CARDINALPOINT), igual que lo escribe ETABS -- es justo la línea
+      // que busca esOpening en e2k-import.js. Antes caía en la misma
+      // rama que zapata/losa (SECTION), así que el corte se reimportaba
+      // como una zapata más.
+      if (a.kind === "opening") {
+        lines.push(`  AREAASSIGN  "${a.name}"  "${a.story}"  OPENING "Yes"  `);
+        return;
+      }
       // Diafragma asignado a la losa (Assign ▸ Shell ▸ Diaphragms) → DIAPH,
       // igual que ETABS; los nudos lo heredan "From Area" al importar allá.
       const dName = a.area?.diaphragmName || a.area?.diaphragm?.name || null;

@@ -41,6 +41,22 @@
 export function classifyArea(area) {
     const etiqueta = String(area?.areaType || area?.type || "").toLowerCase();
 
+    // AGREGADO (ver conversación, "exporto a .e2k y al reimportar el corte
+    // ya no se reconoce como tal" 2026-09-14): sin esta rama, un área
+    // "opening" caía en el mismo camino que zapata/losa (sin etiqueta
+    // reconocida acá) y se exportaba como AREAASSIGN con SECTION -- el
+    // importador (e2k-import.js) SOLO reconoce un opening por la línea
+    // `AREAASSIGN ... OPENING "Yes"` (sin SECTION), así que el corte
+    // volvía como una zapata/losa normal al reimportar el archivo propio.
+    if (etiqueta === "opening") return "opening";
+    // AGREGADO (ver conversación, "exporto e importo y ya no reconoce la
+    // zapata" 2026-09-15): mismo tipo de gap que "opening" -- sin esta
+    // rama, una zapata caía en el default de abajo (geometría horizontal
+    // -> "slab"), indistinguible de una losa normal. El importador
+    // (e2k-import.js) SOLO reconoce una zapata por `SLABTYPE "Footing"`
+    // en su SHELLPROP -- sin marcar `_kind` como "zapata" acá, el export
+    // seguía escribiendo SLABTYPE "Slab" para todo.
+    if (etiqueta === "zapata") return "zapata";
     if (etiqueta === "wall") return "wall";
     if (etiqueta === "slab" || etiqueta === "floor" || etiqueta === "deck") return "slab";
 
@@ -76,6 +92,11 @@ export function isVerticalInPlan(points = []) {
 
 /** Palabra clave del bloque AREA CONNECTIVITIES. */
 export function areaKeyword(kind) {
+    // AGREGADO (ver conversación, "el corte ya no se reconoce al
+    // reimportar" 2026-09-14): ETABS conecta un opening con la palabra
+    // clave "AREA" en el bloque de conectividades, no "FLOOR"/"PANEL" --
+    // ver el comentario de esOpening en e2k-import.js.
+    if (kind === "opening") return "AREA";
     return kind === "wall" ? "PANEL" : "FLOOR";
 }
 
