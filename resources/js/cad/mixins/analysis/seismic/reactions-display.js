@@ -10,6 +10,13 @@
 import { getAvailableReactionCases } from "../../../engine/reactionsDisplayContract.js";
 
 export const reactionsDisplayMixin = {
+  // Inicializado aca (no solo asignado dentro de applyReactionsDisplay/
+  // toggleReactionsDisplay) para que exista como propiedad reactiva desde
+  // el arranque -- el boton "Reacciones por Caso..." del toolbar lee
+  // reactionsDisplay?.enabled apenas se monta el componente, antes de que
+  // el usuario haya usado el boton ni una vez.
+  reactionsDisplay: null,
+
   openReactionsDisplay() {
     if (!this.seismicResults) {
       this.showMessage("Corre el análisis sísmico primero.", "warning");

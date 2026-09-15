@@ -46,22 +46,41 @@ function oneWayShearCapacityKgf(fpcMPa, bCm, dCm) {
  * área encerrada por el perímetro crítico) vs φVc del concreto (mínimo de
  * las 3 expresiones de E.060/ACI 318).
  */
-export function computePunchingShear({ puTon, quTonM2, columnBcm, columnHcm, fpcMPa, thicknessM, recubrimientoM }) {
+export function computePunchingShear({
+  puTon,
+  quTonM2,
+  columnBcm,
+  columnHcm,
+  // AGREGADO (ver conversación, "zapata circular"): columna REDONDA --
+  // perímetro/área crítica de un círculo NO son "el mismo cálculo con
+  // b=h=diámetro" (esa aproximación da un b0 ~27% más grande que el real,
+  // del lado INSEGURO -- sobreestima φVc). Fórmula real (ACI 318
+  // 22.6.4.1(b), perímetro circular a d/2 de la cara): b0=π(D+d),
+  // Ácrit=π/4·(D+d)². βc se toma 1 (sin elongación, es un círculo) — el
+  // término vc1 con βc=1 nunca gobierna frente a vc3, consistente con la
+  // intención de la norma para columnas sin esa elongación.
+  columnDiameterCm,
+  fpcMPa,
+  thicknessM,
+  recubrimientoM,
+}) {
   const d = Math.max(0, (Number(thicknessM) || 0) * 100 - (Number(recubrimientoM) || 0) * 100); // cm
   const fc = mpaToKgfCm2(fpcMPa);
+  const D = Number(columnDiameterCm) || 0;
+  const esCircular = D > 0;
   const b = Number(columnBcm) || 0;
   const h = Number(columnHcm) || 0;
 
-  if (d <= 0 || fc <= 0 || b <= 0 || h <= 0) return null;
+  if (d <= 0 || fc <= 0 || (esCircular ? D <= 0 : b <= 0 || h <= 0)) return null;
 
-  const b0 = 2 * (b + h + 2 * d); // cm, perímetro crítico a d/2 de la cara
-  const acritM2 = ((b + d) * (h + d)) / 1e4; // cm² → m²
+  const b0 = esCircular ? Math.PI * (D + d) : 2 * (b + h + 2 * d); // cm, perímetro crítico a d/2 de la cara
+  const acritM2 = esCircular ? (Math.PI / 4) * (D + d) ** 2 / 1e4 : ((b + d) * (h + d)) / 1e4; // cm² → m²
 
   const puKgf = Math.max(0, Number(puTon) || 0) * 1000;
   const quKgfM2 = Math.max(0, Number(quTonM2) || 0) * 1000;
   const vuKgf = Math.max(0, puKgf - quKgfM2 * acritM2);
 
-  const betaC = Math.max(b, h) / Math.min(b, h);
+  const betaC = esCircular ? 1 : Math.max(b, h) / Math.min(b, h);
   const vc1 = 0.53 * (1 + 2 / betaC) * Math.sqrt(fc);
   const vc2 = 0.27 * (2 + (ALPHA_S_INTERIOR * d) / b0) * Math.sqrt(fc);
   const vc3 = 1.06 * Math.sqrt(fc);

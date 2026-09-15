@@ -22,9 +22,19 @@ from design.column_interaction import (
 KG = 98066.5
 T = 9806.65
 
+# OJO con el orden de n3/n2. El motor transpone la seccion a los ejes de la
+# integracion por fibras (`seccion_en_ejes_del_motor`, ver el docstring en
+# column_interaction.py: el brazo de M3 corre sobre X). Este fixture se escribio
+# antes de esa transposicion, con el orden anterior, y por eso quedo en rojo al
+# introducirse: media 21.8 % contra la tabla de ETABS. Con el orden correcto el
+# motor calza al 2.0 %, casi todo por debajo del 1 %.
+#
+# La app NO estaba afectada: manda `rebarPattern.n3` / `.n2` tal como los deja
+# el parser del .e2k (rcColumnDesign.js:633), que ya tiene el fix de
+# "R-n2-n3 invertido". Lo que quedo viejo fue este fixture, que los hardcodea.
 C45 = dict(
     b=0.45, h=0.45, fc=210 * KG, fy=4200 * KG, cover=0.04,
-    bar_diameter=0.020, n3=3, n2=5, bar_area=3.142e-4,
+    bar_diameter=0.020, n3=5, n2=3, bar_area=3.142e-4,
     confine_bar_diameter=0.010, tied=True, code="ACI318",
 )
 AST = 12 * C45["bar_area"]

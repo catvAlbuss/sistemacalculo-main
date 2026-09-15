@@ -1,7 +1,7 @@
 <!-- Toolbar -->
 <div>
   <x-cad.menu-bar />
-  <div class="cad-border flex h-[64px] items-stretch overflow-x-auto overflow-y-hidden border-b px-1">
+  <div class="cad-border cad-toolbar-scroll flex h-[64px] items-stretch overflow-x-auto overflow-y-hidden border-b px-1">
     <!-- -------------------------APARTADO DE DISEÑAR-------------------------- -->
     <x-cad.ui.ribbon-group title="Diseñar">
       <x-cad.ui.ribbon-button clickHandler="openNewModelDialog()" toggle="false" label="Nuevo Modelo">
@@ -191,7 +191,7 @@
     <x-cad.ui.ribbon-group title="Cimentación">
 
       <x-cad.ui.ribbon-button clickHandler="cadSystem.activateDrawMenuAction('draw-area-zapata')"
-        toggle="currentState === zapataDrawingState || cadSystem.options.orthoMode" label="Zapata a mano alzada">
+        toggle="currentState === zapataDrawingState || cadSystem.options.orthoMode" label="Dibujo de Zapata">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
           <!-- Base de concreto de la zapata aislada (Cimiento) -->
           <path d="M4 17h16v4H4z" />
@@ -215,6 +215,77 @@
         </svg>
       </x-cad.ui.ribbon-button>
 
+      {{-- AGREGADO (ver conversación, "zapatas recortadas" — Jack pidió
+           tenerlo acá en vez de en el menú Dibujar, "para no tener que
+           buscar en otro lado"): mismo `draw-area-opening` que ya existe en
+           menu/draw.blade.php ("Dibujar Abertura (Opening)") — se dibuja
+           DENTRO del contorno de una zapata para recortarla (ver
+           foundationContract.js:findOpeningsInPolygon, que exige que TODOS
+           los vértices del opening caigan dentro de la zapata). Repetido
+           acá a propósito (mismo action string, no un estado nuevo) para
+           no duplicar lógica de dibujo — solo un acceso directo. --}}
+      {{-- NOTA: x-cad.ui.ribbon-button no reenvía atributos extra (ej.
+           title) al <button> real -- no agregar uno acá esperando que
+           aparezca como tooltip, se perdería en silencio. --}}
+      <x-cad.ui.ribbon-button clickHandler="cadSystem.activateDrawMenuAction('draw-area-opening')"
+        toggle="currentState === openingDrawingState"
+        label="Hueco en Zapata">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <!-- Contorno de la zapata -->
+          <rect x="3" y="3" width="18" height="18" rx="1" />
+          <!-- Hueco / corte interior -->
+          <rect x="9" y="9" width="6" height="6" stroke-dasharray="2 2" />
+        </svg>
+      </x-cad.ui.ribbon-button>
+
+      {{-- Mueve la zapata seleccionada para que su centroide geométrico
+           coincida con su(s) columna(s) — réplica manual de la herramienta
+           "Mover" del editor original del cliente (adm_safecito.js), que
+           evita que quede una excentricidad artificial por dibujo
+           descuadrado (ver conversación sobre calcularZapatas2EnPhp /
+           zapatas2.m, ninguno de los dos corrige esto en la fórmula).
+           REUBICADO (ver conversación): al lado de "Hueco en Zapata" a
+           pedido, en vez de después de "Calcular Zapatas". --}}
+      <x-cad.ui.ribbon-button clickHandler="centerZapataOnColumn()" toggle="false" label="Centrar en Columna">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <rect x="4" y="4" width="16" height="16" rx="2" />
+          <circle cx="12" cy="12" r="2.5" />
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+        </svg>
+      </x-cad.ui.ribbon-button>
+
+      {{-- Df / γe editables (ver conversación: cimentacion-v2/Safecito ya
+           los deja editar en su propio formulario, arriba de todo; acá se
+           habían quedado fijos en foundation.js). Mismos valores por
+           defecto de siempre (2 y 1.8) — cambiarlos solo afecta el próximo
+           "Calcular Zapatas" que corras, no reescribe resultados viejos. --}}
+      <div class="flex h-full flex-col items-center justify-center self-center gap-0.5 px-1">
+        <div class="flex gap-1">
+          <input type="number" step="any" x-model.number="zapataDf"
+            title="Df — profundidad de desplante (m)"
+            class="w-[52px] rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200 outline-none focus:border-blue-500">
+          <input type="number" step="any" x-model.number="zapataGammaE"
+            title="γe — peso específico del suelo (Tonf/m³)"
+            class="w-[52px] rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200 outline-none focus:border-blue-500">
+        </div>
+        <label class="text-[9px] leading-tight text-gray-500">Df / γe</label>
+      </div>
+
+      {{-- AGREGADO (ver conversación): K30/tipo de suelo/c'/φ'/Dw (Categoría
+           D puntos 1-2, ver soilCapacity.js) y la malla del solver de
+           elementos finitos (Bloque 3b/6b) vivían como 3 grupos de inputs
+           sueltos siempre visibles acá — se agrupan en un solo modal
+           (zapata-suelo-modal.blade.php) para no saturar el ribbon, ya que
+           son datos que se configuran una vez por proyecto, no en cada
+           zapata. Mismo comportamiento de siempre: si K30/φ' quedan
+           vacíos en el modal, esos cálculos simplemente no se hacen. --}}
+      <x-cad.ui.ribbon-button clickHandler="window.dispatchEvent(new CustomEvent('open-zapata-suelo-modal'))" toggle="false" label="Suelo">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </x-cad.ui.ribbon-button>
+
       <x-cad.ui.ribbon-button clickHandler="calculateZapatas()" toggle="false" label="Calcular Zapatas">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
           <!-- Base de concreto de la zapata combinada (Rectángulo inferior) -->
@@ -231,25 +302,11 @@
 
       </x-cad.ui.ribbon-button>
 
-      {{-- Mueve la zapata seleccionada para que su centroide geométrico
-           coincida con su(s) columna(s) — réplica manual de la herramienta
-           "Mover" del editor original del cliente (adm_safecito.js), que
-           evita que quede una excentricidad artificial por dibujo
-           descuadrado (ver conversación sobre calcularZapatas2EnPhp /
-           zapatas2.m, ninguno de los dos corrige esto en la fórmula). --}}
-      <x-cad.ui.ribbon-button clickHandler="centerZapataOnColumn()" toggle="false" label="Centrar en Columna">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-          <rect x="4" y="4" width="16" height="16" rx="2" />
-          <circle cx="12" cy="12" r="2.5" />
-          <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-        </svg>
-      </x-cad.ui.ribbon-button>
-
       {{-- Pinta σ (presión de contacto) directamente sobre la zapata en el
            2D, reutilizando el point cloud que ya calcula "Calcular
            Zapatas" (ver canvas2d/zapataPressureLayer.js) — pedido del
            cliente, sin backend. --}}
-      <x-cad.ui.ribbon-button clickHandler="showZapataPressureLayer = !showZapataPressureLayer"
+      <x-cad.ui.ribbon-button clickHandler="toggleZapataPressureLayer()"
         toggle="showZapataPressureLayer" label="Presión 2D">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
           <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -267,12 +324,26 @@
         <label class="text-[9px] leading-tight text-gray-500">Combo</label>
       </div>
 
-      {{-- Mapa de momento 2D (Bloque 3, evaluado punto a punto — ver
-           canvas2d/zapataMomentLayer.js). Aproximación derivada de la
-           misma fórmula de voladizo/viga del método rígido, NO un M11 de
-           elementos finitos — ver el comentario en ese archivo. --}}
-      <x-cad.ui.ribbon-button clickHandler="showZapataMomentLayer = !showZapataMomentLayer"
-        toggle="showZapataMomentLayer" label="Momento 2D">
+      {{-- "Diagrama de Resultantes 2D" (nombre tomado de ETABS: "Resultant
+           M11/V13 Diagram") — ver canvas2d/zapataMomentLayer.js.
+           Para zapatas AISLADAS RECTANGULARES con Bloque 3b/6b exitoso,
+           los 5 componentes (M11/M22/M12/V13/V23) pintan el campo REAL de
+           elementos finitos, que ya es la envolvente de las 11
+           combinaciones (misma σmax que alimenta todo el bloque de
+           diseño) — "Combo" nunca le afecta a ninguno de los 5.
+
+           AGREGADO (ver conversación): el selector de Combo se OCULTA
+           siempre en este panel (antes solo se ocultaba para M12/V13/V23,
+           dejando M11/M22 con el selector visible) -- generalizado a
+           pedido: mostrar "Comb X" ahí sugiere que algo cambia cuando
+           nunca lo hace, para ninguno de los 5. Efecto secundario
+           conocido: las zapatas triangulares/trapezoidales/combinadas
+           (que SÍ varían M11/M22 por combo con el método rígido, al no
+           tener FEM) quedan fijas en zapataMomentComboIndex (Comb 1 por
+           defecto) sin forma de cambiarlo desde este panel -- caso poco
+           usado hoy, aceptado a cambio de simplificar el caso común. --}}
+      <x-cad.ui.ribbon-button clickHandler="toggleZapataMomentLayer()"
+        toggle="showZapataMomentLayer" label="Diagrama de Resultantes">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
           <circle cx="12" cy="12" r="9" />
           <circle cx="12" cy="12" r="4.5" />
@@ -282,19 +353,46 @@
 
       <div class="flex h-full flex-col items-center justify-center self-center gap-0.5 px-1" x-show="showZapataMomentLayer" x-cloak>
         <div class="flex gap-1">
-          <select x-model.number="zapataMomentComboIndex"
+          {{-- Ver comentario grande arriba: oculto siempre -- los 5
+               componentes muestran la envolvente FEM, "Comb" nunca los
+               afecta. zapataMomentComboIndex queda en su valor actual
+               (Comb 1 por defecto) para el caso rígido de combinadas. --}}
+          <select x-model.number="zapataMomentComboIndex" x-show="false"
             class="w-[70px] rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200 outline-none focus:border-blue-500">
             <template x-for="n in 11" :key="n">
               <option :value="n - 1" x-text="'Comb ' + n"></option>
             </template>
           </select>
+          {{-- QUITADO (ver conversación): las opciones "M11 (rígido)"/"M22
+               (rígido)" (que pintaban el campo COMPLETO del método rígido
+               en toda la zapata aislada rectangular, como modo de
+               comparación aparte) se retiraron a pedido -- redundantes con
+               el respaldo silencioso que ya rellena los huecos de Región D
+               del FEM normal (ver rigidMx/rigidMy en foundation.js,
+               ese SÍ se mantiene, es distinto: no es un modo seleccionable,
+               solo tapa huecos puntuales dentro de M11/M22 normales). --}}
           <select x-model="zapataMomentDirection"
-            class="w-[46px] rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200 outline-none focus:border-blue-500">
-            <option value="x">Mx</option>
-            <option value="y">My</option>
+            title="Los 8 componentes pintan con elementos finitos reales en aisladas rectangulares/triangulares y en combinadas de un solo brazo recto (Bloque 3b/6b exitoso) — misma nomenclatura que el selector 'Component' de ETABS. Otras formas (trapezoidal irregular, ramificadas) siguen con el método rígido, solo M11/M22."
+            class="w-[68px] rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200 outline-none focus:border-blue-500">
+            <option value="mx">M11</option>
+            <option value="my">M22</option>
+            <option value="mxy">M12</option>
+            <option value="mmax">MMax</option>
+            <option value="mmin">MMin</option>
+            {{-- REVERTIDO (ver conversación, "por el momento no pongas
+                 V13/V23/VMax como referencia" 2026-09-11): el sufijo
+                 "(ref.)" (agregado antes por el mismo motivo documentado
+                 en zapataMomentLayer.js:COMPONENT_LABELS) se saca a
+                 pedido de Jack -- el hallazgo de fondo sigue siendo
+                 cierto (cortante no calza cerca de apoyos/cortes, ver
+                 avisos de hover), pero por ahora sin el rótulo permanente
+                 en el selector. --}}
+            <option value="v13">V13</option>
+            <option value="v23">V23</option>
+            <option value="vmax">VMax</option>
           </select>
         </div>
-        <label class="text-[9px] leading-tight text-gray-500">Combo / Dirección</label>
+        <label class="text-[9px] leading-tight text-gray-500">Componente</label>
       </div>
     </x-cad.ui.ribbon-group>
     <x-cad.ui.ribbon-group title="Otros">
@@ -410,4 +508,5 @@
   <x-cad.modals.select-design-combinations-modal />
   <x-cad.modals.display-design-info-modal />
   <x-cad.modals.design-overwrites-modal />
+  <x-cad.modals.zapata-suelo-modal />
 </div>

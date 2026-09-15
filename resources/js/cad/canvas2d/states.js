@@ -875,9 +875,29 @@ export class ReshapeObjectState extends PanAndZoomState {
     // 2. Si hay un área seleccionada, buscar vértice
     // =========================================
     if (this.selectedArea) {
+      // AGREGADO (ver conversación, "puedo mover la zapata pese a que esté
+      // mostrando el diagrama resultante" 2026-09-05): el mapa de presión
+      // (showZapataPressureLayer) y el "Diagrama de Resultantes"
+      // (showZapataMomentLayer) se calculan para la posición/forma ACTUAL
+      // del polígono -- moverlo o reformarlo mientras se ve uno de esos
+      // mapas los deja pintados sobre una geometría que ya no es la real,
+      // sin ningún aviso, un resultado sutil pero engañoso. Bloquea SOLO
+      // la mutación en sí (mover vértice o toda la zapata) -- seguir
+      // pudiendo seleccionarla es inofensivo, no hace falta impedirlo.
+      const overlayZapataActivo =
+        this.selectedArea.areaType === "zapata" &&
+        (context.showZapataMomentLayer || context.showZapataPressureLayer);
+
       const handle = context.closestAreaVertexAtActiveView(mouse, this.selectedArea);
 
       if (handle) {
+        if (overlayZapataActivo) {
+          context.showMessage?.(
+            "🔒 Oculta el Diagrama de Resultantes o el mapa de presión antes de mover/editar esta zapata — si no, el mapa queda calculado para una posición que ya no es la real.",
+            "warning"
+          );
+          return;
+        }
         this.selectedVertexIndex = handle.index;
         this.isMoving = true;
         context.setCursor("grabbing");
@@ -891,6 +911,13 @@ export class ReshapeObjectState extends PanAndZoomState {
         const worldPos = context.grid.screenToWorld(mouse);
 
         if (pointInPolygon(worldPos, this.selectedArea.points)) {
+          if (overlayZapataActivo) {
+            context.showMessage?.(
+              "🔒 Oculta el Diagrama de Resultantes o el mapa de presión antes de mover esta zapata — si no, el mapa queda calculado para una posición que ya no es la real.",
+              "warning"
+            );
+            return;
+          }
           this.isMovingWholeArea = true;
           this._moveStartWorld = worldPos;
           this._moveStartPoints = this.selectedArea.points.map((p) => ({ ...p }));
@@ -1001,10 +1028,18 @@ export class ReshapeObjectState extends PanAndZoomState {
       this.selectedArea.points?.[this.selectedVertexIndex]
     ) {
       let target = snapPoint;
-      if (this.selectedArea.areaType === "zapata") {
-        target = context.options?.orthoMode
-          ? this._orthoLockVertexMove(context, snapPoint, mouse)
-          : this._magnetVertexToCorner(context, snapPoint, mouse) ?? snapPoint;
+      // AMPLIADO a "opening" (ver conversación, "hueco en zapata no usa
+      // Ortho" 2026-09-12): Ortho también al EDITAR un hueco ya dibujado,
+      // mismo criterio que zapata. El magnetismo a esquina SIN Ortho
+      // (_magnetVertexToCorner) sigue exclusivo de zapata -- no se pidió
+      // para huecos, y cambiar el comportamiento por defecto ahí no es
+      // parte de este pedido.
+      if (this.selectedArea.areaType === "zapata" || this.selectedArea.areaType === "opening") {
+        if (context.options?.orthoMode) {
+          target = this._orthoLockVertexMove(context, snapPoint, mouse);
+        } else if (this.selectedArea.areaType === "zapata") {
+          target = this._magnetVertexToCorner(context, snapPoint, mouse) ?? snapPoint;
+        }
       }
 
       const pt = this.selectedArea.points[this.selectedVertexIndex];
@@ -4394,9 +4429,69 @@ export class AreaDrawingState extends PanAndZoomState {
     return best;
   }
 
+  /**
+   * Snap al nodo REAL de una columna en planta (ver conversación, "dibujo
+   * de zapata reconozca los nodos de columnas" 2026-09-12): sin esto, el
+   * usuario dibuja el contorno de la zapata a pulso, y para que el borde
+   * quede exactamente sobre una columna de lindero tiene que acertar con
+   * el mouse a mano -- fácil de errar por unos centímetros, lo que en el
+   * cálculo (Región D, volados) hace parecer que la columna está "adentro"
+   * o "fuera" cuando en realidad está justo en el borde.
+   *
+   * Solo mira columnas (`shape.type === "column"`, mismo criterio que
+   * findColumnShapeAtNode en footingMoments.js) cuyo nodo cae en el PISO
+   * ACTIVO (mismo filtro de cota que _snapZFromExistingNode) -- una
+   * columna que solo pasa por otro piso no debe engancharse acá. Solo
+   * aplica a zapatas (el pedido es específico de esa herramienta); el
+   * resto de áreas sigue sin este snap.
+   */
+  _snapToColumnNode(context, mouse) {
+    if (this.areaType !== "zapata") return null;
+    const view = context.viewSet?.[context.activeViewIndex];
+    if (view && view.type !== "plan") return null;
+    if (!Array.isArray(context.shapes) || !context.shapes.length) return null;
+
+    const currentZ = context.getActivePlanElevation?.() ?? context.getCurrentZ?.() ?? 0;
+    const tolPx = 12;
+    let best = null;
+    let bestDist = tolPx;
+
+    for (const shape of context.shapes) {
+      const isColumn = shape?.elementType === "column" || shape?.type === "column";
+      if (!isColumn) continue;
+
+      for (const node of [shape.node1, shape.node2]) {
+        if (!node) continue;
+        const nz = Number(node.position?.z ?? node.z) || 0;
+        if (Math.abs(nz - currentZ) > 1e-6) continue;
+
+        const nx = Number(node.position?.x ?? node.x) || 0;
+        const ny = Number(node.position?.y ?? node.y) || 0;
+        const screen = context.grid.worldToScreen({ x: nx, y: ny });
+        const dist = pointDistance(mouse, screen);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = { x: nx, y: ny };
+        }
+      }
+    }
+
+    return best;
+  }
+
   getSnapPoint(context, mouse) {
     const worldPos = context.grid.screenToWorld(mouse);
     const snapped = context.getCurrentSnapPoint(worldPos);
+
+    // Snap a columna tiene PRIORIDAD absoluta: si el cursor está lo bastante
+    // cerca de una columna real, se asume que el usuario quiere ESE punto
+    // exacto (mismo criterio de prioridad que ya usa _snapZFromExistingNode
+    // para la cota) -- se devuelve antes de aplicar Ortho, que de otro modo
+    // podría desviar el punto lejos del nodo real.
+    const columnNode = this._snapToColumnNode(context, mouse);
+    if (columnNode) {
+      return { ...snapped, x: columnNode.x, y: columnNode.y };
+    }
 
     // Losas con pendiente: hereda la cota real del nudo bajo el cursor (ver
     // _snapZFromExistingNode). Los muros NO — su geometría vertical la arma
@@ -4416,10 +4511,17 @@ export class AreaDrawingState extends PanAndZoomState {
     // su Y sigue al último punto (continuación horizontal del lado
     // anterior) — un solo ancla nunca puede dar eso a la vez. Se usa el
     // candidato más cercano a hacia dónde realmente apunta el mouse (sin
-    // desviación diagonal). Por ahora solo para zapatas (pedido del cliente
-    // para dibujarlas simétricas a mano); el resto de áreas (losa, muro)
-    // sigue con ángulo libre.
-    if (this.areaType === "zapata" && context.options?.orthoMode && this.points.length > 0) {
+    // desviación diagonal). AMPLIADO a "opening" (ver conversación, "hueco
+    // en zapata no usa Ortho" 2026-09-12) -- mismo estado de dibujo
+    // (openingDrawingState) sirve tanto para huecos en zapata como en
+    // losa, no hay forma de distinguir el contexto acá, y el corte de un
+    // hueco casi siempre necesita lados rectos igual que el contorno
+    // exterior. El resto de áreas (losa, muro) sigue con ángulo libre.
+    if (
+      (this.areaType === "zapata" || this.areaType === "opening") &&
+      context.options?.orthoMode &&
+      this.points.length > 0
+    ) {
       const last = this.points[this.points.length - 1];
       const first = this.points[0];
 
@@ -4482,13 +4584,19 @@ export class AreaDrawingState extends PanAndZoomState {
     // existente" al dibujar barras (closestNodeAtActiveView en
     // mixins/edit/model-factory.js, tolerancia de 10px en pantalla) — en
     // vez de agregar un vértice casi duplicado, unifica ahí mismo y cierra
-    // el polígono. Por ahora solo para zapatas (mismo alcance que Ortho).
-    if (this.areaType === "zapata" && this.points.length >= 3) {
+    // el polígono. AMPLIADO a "opening" (ver conversación, "no hay un
+    // cuadro pequeño para insertar valores como el de dibujar zapata"
+    // 2026-09-14) -- mismo alcance que Ortho y el resto del input de
+    // distancia de más abajo.
+    if ((this.areaType === "zapata" || this.areaType === "opening") && this.points.length >= 3) {
       const startScreen = context.grid.worldToScreen(this.points[0]);
 
       if (pointDistance(mouse, startScreen) <= 10) {
         this._commitArea(context);
-        context.showMessage?.("Zapata cerrada en el punto de inicio.", "success");
+        context.showMessage?.(
+          this.areaType === "zapata" ? "Zapata cerrada en el punto de inicio." : "Corte cerrado en el punto de inicio.",
+          "success"
+        );
         return;
       }
     }
@@ -4523,7 +4631,7 @@ export class AreaDrawingState extends PanAndZoomState {
     this.previewPoint = this.getSnapPoint(context, mouse);
     this.buildPreviewArea(context);
 
-    if (this.areaType === "zapata") {
+    if (this.areaType === "zapata" || this.areaType === "opening") {
       this._updateZapataDistanceInput(context);
     }
 
@@ -4611,7 +4719,7 @@ export class AreaDrawingState extends PanAndZoomState {
   // inicio, se ajusta exacto ahí — así el lado de cierre sale recto con el
   // 1er punto, no solo con el anterior, tecleando o no.
   _magnetToStartCorner(context, point, direction) {
-    if (this.areaType !== "zapata" || this.points.length < 2) return point;
+    if ((this.areaType !== "zapata" && this.areaType !== "opening") || this.points.length < 2) return point;
 
     const first = this.points[0];
     const corner = direction.dy === 0
@@ -4674,11 +4782,12 @@ export class AreaDrawingState extends PanAndZoomState {
     // distancia solo, con ese primer dígito ya puesto — para escribir la
     // distancia exacta sin frenar a apuntar-y-clicar en el recuadro cada
     // vez. Dirección = hacia donde apunte el mouse en ese momento (igual
-    // que siempre, ver _getZapataLengthDirection). Solo para zapata — el
-    // resto de áreas (Losa/Muro/Opening) es de otro desarrollador del
-    // equipo, no se toca.
+    // que siempre, ver _getZapataLengthDirection). AMPLIADO a "opening"
+    // (ver conversación, "no hay un cuadro pequeño para insertar valores"
+    // 2026-09-14) -- confirmado con Jack que ya puede tocarse esta parte
+    // (antes reservada a otro desarrollador del equipo).
     if (
-      this.areaType === "zapata" &&
+      (this.areaType === "zapata" || this.areaType === "opening") &&
       this.points.length > 0 &&
       context.distanceInput &&
       document.activeElement !== context.distanceInput &&
@@ -4690,7 +4799,7 @@ export class AreaDrawingState extends PanAndZoomState {
       return;
     }
 
-    if (event.key === "F8" && this.areaType === "zapata") {
+    if (event.key === "F8" && (this.areaType === "zapata" || this.areaType === "opening")) {
       event.preventDefault();
       context.options.orthoMode = !context.options.orthoMode;
       context.showMessage?.(
@@ -4757,7 +4866,7 @@ export class AreaDrawingState extends PanAndZoomState {
       return "Haz clic para empezar a dibujar el área.";
     }
 
-    if (this.areaType === "zapata") {
+    if (this.areaType === "zapata" || this.areaType === "opening") {
       return "Clic para marcar vértices, o escribe la distancia exacta y Enter. Enter/Esc = cerrar, Backspace = borrar último punto, F8 = Ortho.";
     }
 

@@ -15,6 +15,19 @@
     @apply dark:border-neutral-600 border-gray-300;
 }
 
+/* Barra de herramientas del CAD: permite scroll horizontal (mouse wheel /
+   trackpad / arrastre) sin mostrar la barra de scroll -- con altura fija
+   (h-[64px]) la barra de scroll del navegador ocupaba espacio vertical y
+   tapaba las etiquetas de texto de los botones. */
+.cad-toolbar-scroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.cad-toolbar-scroll::-webkit-scrollbar {
+    display: none;
+}
+
 .cad-text-color {
     @apply dark:text-neutral-400 text-black;
 }
@@ -29,8 +42,14 @@
     cursor: pointer;
 }
 
+/* ACTUALIZADO (ver conversación, "quiero saber que Ortho está activado"
+   2026-09-12): el fondo gris sutil (misma familia de color que el hover,
+   solo +20% de opacidad) era casi imperceptible para distinguir "activado"
+   de "el mouse está encima" -- se usa un acento azul con borde, mismo
+   color que ya usa el resto del sistema para marcar selección activa
+   (ver el botón de combo seleccionado en zapata-results-modal.blade.php). */
 .cad-ribbon-button-bg {
-    @apply dark:bg-neutral-800/40 bg-gray-200/40;
+    @apply dark:bg-blue-600/30 bg-blue-500/20 ring-1 ring-inset ring-blue-500 dark:ring-blue-400;
 }
 
 .cad-panel-title {

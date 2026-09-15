@@ -1,61 +1,68 @@
 function zapatas2(poligonos, column, PD, PL, SISMO, CoValue, Df, pesoEspecifico)
   ZZ = [];
   resultados = struct();
-  poligonoN = fieldnames(poligonos);
+  todosLosNombres = fieldnames(poligonos);
+
+  % AGREGADO (ver conversacion, "zapatas recortadas"): agrupa 'poligonoN'
+  % (contorno exterior) con sus 'poligonoN_huecoM' (huecos de esa MISMA
+  % zapata) -- igual criterio que el lado PHP (calcularZapatas2EnPhp). Sin
+  % ningun campo '_hueco', el comportamiento es identico a antes.
+  poligonoN = {};
+  for idx = 1:length(todosLosNombres);
+    nombre = todosLosNombres{idx};
+    if isempty(strfind(nombre, "_hueco"))
+      poligonoN{end+1} = nombre;
+    end
+  end
+
   for poliN = 1:length(poligonoN);
     poligonoNombre = poligonoN{poliN};
     vertices = poligonos.(poligonoNombre);
+
+    huecosNombres = {};
+    for idx = 1:length(todosLosNombres);
+      nombre = todosLosNombres{idx};
+      if strncmp(nombre, [poligonoNombre "_hueco"], length([poligonoNombre "_hueco"]))
+        huecosNombres{end+1} = nombre;
+      end
+    end
+
     %%%%% Codigo para capturar a los puntos dentro el poligono dibujado
     in=inpolygon(column(:,2),column(:,3),vertices(:,1),vertices(:,2)); % Captura de puntos
     UNIR=column(in)';  % Vector de puntos (nomenclatura) dentro del poligono
     %%%% Codigo para sacar las column geometricas del poligono
     %%%% Codigo para sacar el centro de gravedad y area del poligono
-    jj = length(vertices); % cantidad de coordenadas del poligono
-    P0  =0;
-    A0  =0;
-    XC  =0;
-    YC  =0;
-    for i =1:1:jj-1; % formula para calcular las column
-        x1=vertices(i,1);
-        x2=vertices(i+1,1);
-        y1=vertices(i,2);
-        y2=vertices(i+1,2);
-        XC =(x1*y2-x2*y1)*(x2+x1)+XC; % centro de gravedad x
-        YC =(x1*y2-x2*y1)*(y2+y1)+YC; % centro de gravedad y
-        A0 =(x1*y2-x2*y1)+A0;         % area
+    [A0, XCcruda, YCcruda] = raw_totals(vertices);
+    for h = 1:length(huecosNombres);
+      [ha0, hxc, hyc] = raw_totals(poligonos.(huecosNombres{h}));
+      A0 = A0 - ha0; XCcruda = XCcruda - hxc; YCcruda = YCcruda - hyc;
     end
-    A0s = A0/2;           % area CON signo (segun sentido de giro del poligono)
+    A0s = A0/2;           % area CON signo (ya neta: exterior menos huecos)
     A  = abs(A0s);        % AREA
-    XC = XC/(6*A0s);      % CG EN X (con signo real; abs() aqui rompe el centrado si CG < 0)
-    YC = YC/(6*A0s);      % CG EN Y
+    XC = XCcruda/(6*A0s); % CG EN X (con signo real; abs() aqui rompe el centrado si CG < 0)
+    YC = YCcruda/(6*A0s); % CG EN Y
     %% Codigo para mover el centro del plano al centro de gravedad
     hj = ones(length(vertices),1); % vector de unos de la cantidad de coordenadas
     p2 = [hj*XC hj*YC];            % matriz repetida de centros de gravedad para mover el plano cartesiano
     PUNTOS3=vertices-p2;           % COORDENADAS DEL POLIGONO MOVIDO AL ORIGEN
-    %%CODIGO PARA SACAR TODAS LAS PROP GEO CON CENTRO EL CG
-    P0  =0;
-    A0  =0;
-    IX0 =0;
-    IY0 =0;
-    IXY0=0;
-    MX0 =0;
-    MY0 =0;
-    XC1 =0;
-    YC1 =0;
-    for i =1:1:jj-1;
-        x1 =PUNTOS3(i,1);
-        x2 =PUNTOS3(i+1,1);
-        y1 =PUNTOS3(i,2);
-        y2 =PUNTOS3(i+1,2);
-        XC1 =(x1*y2-x2*y1)*(x2+x1)+XC1;
-        YC1 =(x1*y2-x2*y1)*(y2+y1)+YC1;
-        A0  =(x1*y2-x2*y1)+A0;
-        P0  =((x1-x2)^2+(y1-y2)^2)^0.5+P0;
-        MX0 =(x1-x2)*(y2^2+y2*y1+y1^2)+MX0;
-        MY0 =(y1-y2)*(x2^2+x2*x1+x1^2)+MY0;
-        IY0 =(x1*y2-x2*y1)*(x2^2+x2*x1+x1^2)+IY0;
-        IX0 =(x1*y2-x2*y1)*(y2^2+y2*y1+y1^2)+IX0;
-        IXY0=(x1*y2-x2*y1)*(2*x2*y2+x2*y1+x1*y2+2*x1*y1)+IXY0;
+
+    % AGREGADO (ver conversacion, "zapatas recortadas"): recentra tambien
+    % cada hueco al MISMO CG de la zapata neta -- se reutiliza tanto para
+    % restar su inercia como para excluir sus puntos de la nube (abajo).
+    huecosRecentrados = {};
+    for h = 1:length(huecosNombres);
+      hv = poligonos.(huecosNombres{h});
+      hj2 = ones(length(hv),1);
+      huecosRecentrados{h} = hv - [hj2*XC hj2*YC];
+    end
+
+    %%CODIGO PARA SACAR TODAS LAS PROP GEO CON CENTRO EL CG (neta: exterior menos huecos)
+    [P0, A0, IX0, IY0, IXY0, MX0, MY0, XC1, YC1] = contour_accum(PUNTOS3);
+    for h = 1:length(huecosRecentrados);
+      [P0h, A0h, IX0h, IY0h, IXY0h, MX0h, MY0h, XC1h, YC1h] = contour_accum(huecosRecentrados{h});
+      P0 = P0 + P0h; % perimetro informativo (exterior + huecos); no interviene en el calculo de presiones
+      A0 = A0 - A0h; IX0 = IX0 - IX0h; IY0 = IY0 - IY0h; IXY0 = IXY0 - IXY0h;
+      MX0 = MX0 - MX0h; MY0 = MY0 - MY0h; XC1 = XC1 - XC1h; YC1 = YC1 - YC1h;
     end
     PER = abs(P0);        %PERIMETRO
     A   = abs(A0/2);      %AREA
@@ -65,7 +72,13 @@ function zapatas2(poligonos, column, PD, PL, SISMO, CoValue, Df, pesoEspecifico)
     YC1 = abs(YC1/(6*A)); %CG EN Y
     MX  = abs(MX0/6);
     MY  = abs(MY0/6);
-    IXY = abs(IXY0/24);
+    % CORREGIDO (ver conversacion, "bug Ixy faltante en Octave"): a
+    % diferencia de IX/IY (siempre >=0 fisicamente, abs() es correcto), IXY
+    % SI puede ser negativo de verdad segun en que cuadrantes esta repartido
+    % el material -- abs() lo arruinaba. contour_accum() ya normalizo el
+    % signo segun el sentido de giro (mismo criterio que 'windingSign' del
+    % lado PHP), asi que aqui solo falta dividir, sin abs().
+    IXY = IXY0/24;
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %BUSCADOR DE FUERZAS
     FBA=0;
@@ -143,15 +156,76 @@ function zapatas2(poligonos, column, PD, PL, SISMO, CoValue, Df, pesoEspecifico)
     xq = X;
     yq = Y;
     in = inpolygon(xq,yq,xv,yv);
+    % AGREGADO (ver conversacion, "zapatas recortadas"): descarta los
+    % puntos de la nube que caigan dentro de CUALQUIER hueco de esta
+    % zapata -- mismo criterio que pointInAnyPolygon() en PHP.
+    for h = 1:length(huecosRecentrados);
+      hv = huecosRecentrados{h};
+      in = in & !inpolygon(xq,yq,hv(:,1),hv(:,2));
+    end
     XL = xq(in);
     YL = yq(in);
     %%%%%calculo de esfuerzos
     Co = eval(CoValue);
-    k = ecuacion_de_flexion(Co, A, XL, YL, Ixx, Iyy, Df, pesoEspecifico, 1, size(Co)(1));
+    % CORREGIDO (ver conversacion, "bug Ixy faltante en Octave"): se pasa
+    % IXY (antes se ignoraba por completo) para usar la formula con
+    % acoplamiento -- misma correccion que ya tenia el lado PHP de /zapatas2.
+    k = ecuacion_de_flexion(Co, A, XL, YL, Ixx, Iyy, Df, pesoEspecifico, 1, size(Co)(1), IXY);
     poligonoi = ["poligono" num2str(poliN)];
     minz = min(k);
     maxz = max(k);
     resultados.(poligonoi) = struct("XX", XL+XC, "YY", YL+YC, "ZZ", k', "min", minz, "max", maxz, "XC", XC, "YC", YC);
   endfor
   save("-mat7-binary", "-", "resultados");
+endfunction
+
+% AGREGADO (ver conversacion, "zapatas recortadas"): raw_totals() calcula
+% los acumuladores CRUDOS de la formula shoelace (area*2, momentos de 1er
+% orden) para UN contorno, normalizados a sentido antihorario (a0>0) --
+% igual criterio que polygonRawTotals() en OctavePlotController.php, para
+% poder restar huecos con el signo correcto sin importar en que sentido
+% se dibujaron. Funcion local: solo visible dentro de zapatas2.m.
+function [a0, xc, yc] = raw_totals(vertices)
+  jj = length(vertices);
+  a0 = 0; xc = 0; yc = 0;
+  for i = 1:1:jj-1;
+      x1 = vertices(i,1); x2 = vertices(i+1,1);
+      y1 = vertices(i,2); y2 = vertices(i+1,2);
+      cr = x1*y2 - x2*y1;
+      a0 = a0 + cr;
+      xc = xc + cr*(x2+x1);
+      yc = yc + cr*(y2+y1);
+  end
+  if a0 < 0
+    a0 = -a0; xc = -xc; yc = -yc;
+  end
+endfunction
+
+% AGREGADO (ver conversacion, "zapatas recortadas"): version extendida de
+% raw_totals() que ademas acumula perimetro, momentos estaticos e
+% inercias (P0,MX0,MY0,IX0,IY0,IXY0) para UN contorno ya recentrado en el
+% CG de la zapata neta -- normalizada al mismo criterio (a0>0) para poder
+% restar huecos con signo correcto, igual que polygonRawTotals() en PHP.
+% Funcion local: solo visible dentro de zapatas2.m.
+function [p0, a0, ix0, iy0, ixy0, mx0, my0, xc1, yc1] = contour_accum(vertices)
+  jjc = length(vertices);
+  p0=0; a0=0; ix0=0; iy0=0; ixy0=0; mx0=0; my0=0; xc1=0; yc1=0;
+  for i = 1:1:jjc-1;
+      x1=vertices(i,1); x2=vertices(i+1,1);
+      y1=vertices(i,2); y2=vertices(i+1,2);
+      cr = x1*y2 - x2*y1;
+      xc1  = xc1 + cr*(x2+x1);
+      yc1  = yc1 + cr*(y2+y1);
+      a0   = a0 + cr;
+      p0   = p0 + ((x1-x2)^2+(y1-y2)^2)^0.5;
+      mx0  = mx0 + (x1-x2)*(y2^2+y2*y1+y1^2);
+      my0  = my0 + (y1-y2)*(x2^2+x2*x1+x1^2);
+      iy0  = iy0 + cr*(x2^2+x2*x1+x1^2);
+      ix0  = ix0 + cr*(y2^2+y2*y1+y1^2);
+      ixy0 = ixy0 + cr*(2*x2*y2+x2*y1+x1*y2+2*x1*y1);
+  end
+  % p0 (perimetro, suma de sqrt) ya es siempre positivo -- no se voltea.
+  if a0 < 0
+    a0=-a0; ix0=-ix0; iy0=-iy0; ixy0=-ixy0; mx0=-mx0; my0=-my0; xc1=-xc1; yc1=-yc1;
+  end
 endfunction

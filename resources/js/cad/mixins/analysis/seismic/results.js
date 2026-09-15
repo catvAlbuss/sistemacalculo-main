@@ -481,6 +481,27 @@ export const seismicResultsMixin = {
   // La masa por piso viene en las filas de story_shears del motor (kg).
   // =====================================================
   _buildEtabsStyleMassSummaryRows(rows = []) {
+    // Preferimos la masa que el motor LEE DEL MODELO (`mass_by_story`, ver
+    // python-backend/seismic/mass_summary.py). Dos motivos:
+    //   · trae la fila Base, que ETABS reporta y esta tabla nunca tuvo — se
+    //     armaba de los cortantes por piso, y la Base no tiene cortante;
+    //   · es la masa que el análisis usa DE VERDAD. La reconstrucción a partir
+    //     de las cargas no lo era: el motor excluye de la masa el peso propio
+    //     de barras y muros para no duplicarlo con el que calcula él mismo.
+    // El camino viejo queda de respaldo para respuestas sin la clave nueva.
+    const delModelo = this.seismicResults?.mass_by_story;
+    if (Array.isArray(delModelo) && delModelo.length) {
+      return delModelo.map((f) => this._toEtabsMassUnitsRow({
+        story: f.story ?? "",
+        ux_kg: Number(f.ux_kg) || 0,
+        uy_kg: Number(f.uy_kg) || 0,
+        uz_kg: Number(f.uz_kg) || 0,
+        // Masa agarrada al suelo: no participa en NINGÚN modo. ETABS no da
+        // esta columna; acá sirve para no perseguir un total que cierra.
+        restrained_kg: Number(f.restrained_kg) || 0,
+      }));
+    }
+
     if (!Array.isArray(rows) || rows.length === 0) return [];
 
     const byStory = new Map();

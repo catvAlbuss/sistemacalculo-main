@@ -95,6 +95,8 @@ import { rcBeamDesignMixin } from "./mixins/analysis/rcBeamDesign.js";
 import { rcColumnDesignMixin } from "./mixins/analysis/rcColumnDesign.js";
 import { rcAligeradoDesignMixin } from "./mixins/analysis/rcAligeradoDesign.js";
 import { columnRebarDesignerMixin } from "./mixins/analysis/columnRebarDesigner.js";
+import { wallSectionDesignerMixin } from "./mixins/analysis/wallSectionDesigner.js";
+import { wallInteractionChartMixin } from "./mixins/analysis/wallInteractionChart.js";
 import { beamRebarDesignerMixin } from "./mixins/analysis/beamRebarDesigner.js";
 import { columnInteractionChartMixin } from "./mixins/analysis/columnInteractionChart.js";
 import { columnInteractionPlanesMixin } from "./mixins/analysis/columnInteractionPlanes.js";
@@ -102,6 +104,7 @@ import { elementForcesTableMixin } from "./mixins/analysis/elementForcesTable.js
 import { columnLiveLoadReductionMixin } from "./mixins/analysis/columnLiveLoadReduction.js";
 import { displayDialogsMixin } from "./mixins/dialogs/display-dialogs.js";
 import { assignDialogsMixin } from "./mixins/dialogs/assign-dialogs.js";
+import { pierLabelsMixin } from "./mixins/dialogs/pierLabels.js";
 import { coreUiMixin } from "./mixins/core/core-ui.js";
 import { fileIOMixin } from "./mixins/io/file-io.js";
 import { modelFactoryMixin } from "./mixins/edit/model-factory.js";
@@ -582,7 +585,50 @@ export default () => ({
     // arriba, pero pintando momento en vez de presión.
     this.showZapataMomentLayer = false;
     this.zapataMomentComboIndex = 0;
-    this.zapataMomentDirection = "x";
+    // 'mx'|'my'|'mxy'|'v13'|'v23' — las tres últimas solo pintan algo en
+    // zapatas aisladas rectangulares con Bloque 3b/6b exitoso (ver
+    // foundation.js / zapataMomentLayer.js).
+    this.zapataMomentDirection = "mx";
+    // AGREGADO (ver conversación: cimentacion-v2/Safecito ya tenía estos
+    // campos editables — el CAD se había quedado con los valores fijos en
+    // DEFAULT_DF/DEFAULT_GAMMA_E de foundation.js). Mismos valores por
+    // defecto que ya estaban (2 y 1.8) — esto no cambia ningún resultado
+    // ya validado, solo permite editarlos antes de calcular.
+    this.zapataDf = 2;
+    this.zapataGammaE = 1.8;
+    // AGREGADO (ver conversación, Categoría D puntos 1-2): datos del
+    // estudio de suelos para K de balasto (K30) y capacidad portante
+    // (Vesic/AASHTO LRFD) — ver soilCapacity.js. Todos arrancan vacíos
+    // (null/"cohesivo" por defecto) porque son datos que el ingeniero debe
+    // ingresar del estudio de suelos real; si quedan vacíos, foundation.js
+    // simplemente no calcula K ni capacidad portante (no inventa un valor).
+    // `zapataDw` (nivel freático) arranca vacío a propósito, no en 0 — ver
+    // computeWaterTableFactors en soilCapacity.js: sin dato asume que el
+    // nivel freático no afecta (Cwq=Cwγ=1), que es la situación más común
+    // y la que mejor calzó contra el único ejemplo real disponible.
+    this.zapataK30 = null;
+    this.zapataSoilType = "cohesivo";
+    this.zapataCPrime = 0;
+    this.zapataPhiPrime = null;
+    this.zapataDw = null;
+    // AGREGADO (ver conversación: comparación controlada contra ETABS —
+    // hace falta que la malla del Bloque 3b/6b coincida con la que se
+    // declaró en ETABS para que la comparación sea justa). 50x50 por
+    // defecto -- subido desde 20 al fusionar momento y cortante en una
+    // sola llamada (ver zapataShellDesign.js/foundation.js): el cortante
+    // necesita esa malla fina para converger (a 20x20 subestima la fuerza
+    // total ~15%), y como ahora comparten malla, el momento también sale
+    // con ella. El usuario puede subirlo más si quiere igualar una malla
+    // más fina declarada en ETABS.
+    this.zapataShellMeshN = 50;
+    // AGREGADO (ver conversación): antes un solo N se aplicaba como N×N
+    // asumiendo malla cuadrada -- para una zapata rectangular (la mayoría)
+    // eso no tiene sentido, igual que en ETABS ("Mesh Object into N by M
+    // Elements") hace falta declarar los dos lados por separado. Convención:
+    // N = elementos en el lado LARGO del polígono, M = elementos en el lado
+    // CORTO (no X/Y fijo, porque una zapata combinada puede tener cualquier
+    // orientación) -- ver mallaProporcional en foundation.js.
+    this.zapataShellMeshM = 50;
     this.referencePoints = [];
     this.referencePlanes = this.referencePlanes || [];
     this.dimensionLines = [];
@@ -933,6 +979,8 @@ export default () => ({
   ...rcColumnDesignMixin,
   ...rcAligeradoDesignMixin,
   ...columnRebarDesignerMixin,
+  ...wallSectionDesignerMixin,
+  ...wallInteractionChartMixin,
   ...beamRebarDesignerMixin,
   ...columnInteractionChartMixin,
   ...columnInteractionPlanesMixin,
@@ -940,6 +988,7 @@ export default () => ({
   ...columnLiveLoadReductionMixin,
   ...displayDialogsMixin,
   ...assignDialogsMixin,
+  ...pierLabelsMixin,
   ...coreUiMixin,
   ...fileIOMixin,
   ...modelFactoryMixin,

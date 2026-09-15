@@ -1,10 +1,27 @@
 {{-- resources/views/components/cad/layout/cad-area.blade.php --}}
 <!-- Canvas - Vista dividida 2D + 3D -->
-<main class="relative flex flex-1 flex-col bg-white">
+{{-- AGREGADO (ver conversación): min-h-0 -- este <main> es flex-1 dentro
+     del contenedor "flex flex-1 overflow-hidden" de cad-sys.blade.php,
+     pero sin min-h-0 un item flex no se encoge bajo el tamaño natural de
+     su contenido (aquí, el canvas 3D vía #cad-workspace, que a su vez usa
+     h-full). Eso creaba una referencia de altura circular/ambigua que se
+     retroalimentaba con cada evento de resize (abrir/cerrar F12), y el
+     área crecía un poco más cada vez -- mismo tipo de bug que el de
+     layouts/main.blade.php, anidado un nivel más adentro. --}}
+<main class="relative flex min-h-0 flex-1 flex-col bg-white">
+  {{-- AMPLIADO a openingDrawingState (ver conversación, "no hay un cuadro
+       pequeño para insertar valores como el de dibujar zapata" 2026-09-14):
+       antes solo comparaba contra la instancia fija zapataDrawingState, así
+       que el input nunca aparecía dibujando un corte -- y el @keyup.enter
+       llamaba siempre a zapataDrawingState.commitZapataLengthInput(), que
+       habría agregado el punto a la zapata equivocada (sus propios
+       `points`, no los del corte en curso) en vez de al estado realmente
+       activo. Se usa currentState en ambos lados para que funcione sin
+       importar cuál de los dos esté dibujando. --}}
   <input class="absolute w-28 -translate-x-1/2 -translate-y-1/2 z-10" id="distance" name="distance" type="number"
-    x-show="(currentState === trussDrawingState && currentState.shape.node1) || (currentState === zapataDrawingState && currentState.points.length > 0)"
+    x-show="(currentState === trussDrawingState && currentState.shape.node1) || ((currentState === zapataDrawingState || currentState === openingDrawingState) && currentState.points.length > 0)"
     x-ref="distanceInput"
-    @keyup.enter="currentState === trussDrawingState ? trussDrawingState.createBeam($data) : zapataDrawingState.commitZapataLengthInput($data)">
+    @keyup.enter="currentState === trussDrawingState ? trussDrawingState.createBeam($data) : currentState.commitZapataLengthInput?.($data)">
 
   {{-- Contenedor de vistas: controlado desde Options > Windows --}}
   <div id="cad-workspace"

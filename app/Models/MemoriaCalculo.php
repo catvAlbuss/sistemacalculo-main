@@ -13,6 +13,7 @@ class MemoriaCalculo extends Model
 
     protected $fillable = [
         'user_id',
+        'cad_model_id',
         'project_name',
         'project_code',
         'cover_data',
@@ -48,6 +49,11 @@ class MemoriaCalculo extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function cadModel(): BelongsTo
+    {
+        return $this->belongsTo(CadModel::class);
+    }
+
     // relacion con imagenes
     public function images(): HasMany
     {
@@ -57,10 +63,10 @@ class MemoriaCalculo extends Model
       /**
      * Guardar una imagen (versión simplificada para tu estructura)
      */
-    public function saveImage(string $groupKey, int $index, string $base64, ?int $subIndex = null, ?string $subKey = null): self
+    public function saveImage(string $groupKey, int $index, string $base64, ?int $subIndex = null, ?string $subKey = null, array $extraMetadata = []): self
     {
         $sizeKb = round(strlen($base64) / 1024);
-        
+
         // Construir clave única
         $uniqueKey = $groupKey;
         if ($subKey !== null) {
@@ -70,7 +76,7 @@ class MemoriaCalculo extends Model
         } else {
             $uniqueKey .= '_' . $index;
         }
-        
+
         $this->images()->updateOrCreate(
             [
                 'group_key' => $groupKey,
@@ -82,13 +88,13 @@ class MemoriaCalculo extends Model
                 'image_base64' => $base64,
                 'image_type' => 'jpeg',
                 'size_kb' => $sizeKb,
-                'metadata' => [
+                'metadata' => array_merge([
                     'unique_key' => $uniqueKey,
                     'saved_at' => now()->toISOString()
-                ]
+                ], $extraMetadata)
             ]
         );
-        
+
         return $this;
     }
 
@@ -172,7 +178,7 @@ class MemoriaCalculo extends Model
         
         foreach ($imagenesImportantes as $img) {
             $total++;
-            if ($this->imagenes()
+            if ($this->images()
                 ->where('group_key', $img['group_key'])
                 ->where('index', $img['index'])
                 ->exists()) {

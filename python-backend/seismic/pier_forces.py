@@ -469,6 +469,7 @@ def run_pier_forces_rsa(
     damping_ratio: float = 0.05,
     sa_in_g: bool = True,
     g: float = 9.81,
+    ecc_ratio: float = 0.0,
 ) -> list:
     """
     Fuerzas de pier de un caso ESPECTRAL (SDX, SDY).
@@ -513,52 +514,104 @@ def run_pier_forces_rsa(
     # carga y el analisis anteriores y devolver el dominio a cero.
     build_model_3d(data)
 
-    for n, mi in enumerate(modal_info):
-        Sa = interpolate_spectrum(spectrum, mi["period"]) * escala
-        gamma = mi["gamma_x"] if direction == "x" else mi["gamma_y"]
+    # TORSION ACCIDENTAL, en el mismo estatico por modo. ETABS aplica su
+    # ECCENRATIOTYPICAL a todos los resultados del caso, pier forces incluidas;
+    # aca no se aplicaba en ninguna parte. Como este bucle ya resuelve un
+    # estatico por modo, el par accidental M_z = e*F_piso entra en el MISMO
+    # patron de carga: sin eigen extra, sin estatico extra y sin envolventes.
+    # `cuplas_nodales` lo reparte como fuerzas nodales, asi que tampoco hace
+    # falta un nodo maestro de diafragma rigido.
+    cuplas = []
+    if ecc_ratio > 0:
+        from .accidental_mass import cuplas_nodales, grupos_excentricos
 
-        # Un tag POR MODO: `remove("loadPattern", t)` saca el patron pero NO su
-        # timeSeries, asi que reusar el tag 1 falla con "one with similar tag
-        # exists" en el segundo modo. Y hay que sacar el patron anterior o los
-        # modos se suman entre si.
-        tag = n + 1
-        ops.wipeAnalysis()
-        if n > 0:
-            try:
-                ops.remove("loadPattern", n)
-            except Exception:
-                pass
-        ops.setTime(0.0)
-        ops.reset()
-        ops.timeSeries("Linear", tag)
-        ops.pattern("Plain", tag, tag)
+        cuplas = cuplas_nodales(data, grupos_excentricos(data), direction, ecc_ratio)
+    idx_de = {int(v): i for i, v in enumerate(node_ids)}
 
-        aplicada = False
-        for i, nid in enumerate(node_ids):
-            fx = gamma * Sa * float(m_x[i]) * float(phi_x[n][i])
-            fy = gamma * Sa * float(m_y[i]) * float(phi_y[n][i])
-            if fx or fy:
-                ops.load(int(nid), fx, fy, 0.0, 0.0, 0.0, 0.0)
-                aplicada = True
-        if not aplicada:
-            continue
+    # La excentricidad va en los DOS SENTIDOS y se envuelve, como manda la E.030
+    # y como hace ETABS. Con un solo signo el resultado no es conservador, es
+    # ARBITRARIO: medido en este modelo, el mismo +e que subia P3 un 12 % le
+    # BAJABA a P1 un 12 %, porque el giro del piso descarga un muro mientras
+    # carga al otro. Con un solo signo P1 pasaba de -12 % a -22.9 % contra ETABS.
+    signos = (1, -1) if cuplas else (0,)
 
-        ops.constraints("Transformation")
-        ops.numberer("RCM")
-        sistema_rapido()
-        ops.test("NormDispIncr", 1e-8, 50)
-        ops.algorithm("Linear")
-        ops.integrator("LoadControl", 1.0)
-        ops.analysis("Static")
-        if ops.analyze(1) != 0:
-            continue
+    for paso, signo in enumerate(signos):
+        modal_paso: dict = {}
+        for n, mi in enumerate(modal_info):
+            Sa = interpolate_spectrum(spectrum, mi["period"]) * escala
+            gamma = mi["gamma_x"] if direction == "x" else mi["gamma_y"]
 
-        for fila in leer_pier_forces(data):
-            k = _clave(fila)
+            # Un tag POR MODO Y POR PASO: `remove("loadPattern", t)` saca el
+            # patron pero NO su timeSeries, asi que reusar un tag falla con "one
+            # with similar tag exists". Y hay que sacar el patron anterior o los
+            # modos se suman entre si.
+            tag = paso * (len(modal_info) + 1) + n + 1
+            ops.wipeAnalysis()
+            if tag > 1:
+                try:
+                    ops.remove("loadPattern", tag - 1)
+                except Exception:
+                    pass
+            ops.setTime(0.0)
+            ops.reset()
+            ops.timeSeries("Linear", tag)
+            ops.pattern("Plain", tag, tag)
+
+            aplicada = False
+            for i, nid in enumerate(node_ids):
+                fx = gamma * Sa * float(m_x[i]) * float(phi_x[n][i])
+                fy = gamma * Sa * float(m_y[i]) * float(phi_y[n][i])
+                if fx or fy:
+                    ops.load(int(nid), fx, fy, 0.0, 0.0, 0.0, 0.0)
+                    aplicada = True
+
+            for grupo in cuplas:
+                f_story = 0.0
+                for nid in grupo["node_ids"]:
+                    i = idx_de.get(nid)
+                    if i is None:
+                        continue
+                    if direction == "x":
+                        f_story += gamma * Sa * float(m_x[i]) * float(phi_x[n][i])
+                    else:
+                        f_story += gamma * Sa * float(m_y[i]) * float(phi_y[n][i])
+                m_acc = signo * grupo["e"] * f_story
+                if abs(m_acc) <= 1e-12:
+                    continue
+                for nid, (cx, cy) in grupo["coef"].items():
+                    fx, fy = m_acc * cx, m_acc * cy
+                    if abs(fx) > 1e-12 or abs(fy) > 1e-12:
+                        ops.load(int(nid), fx, fy, 0.0, 0.0, 0.0, 0.0)
+                        aplicada = True
+
+            if not aplicada:
+                continue
+
+            ops.constraints("Transformation")
+            ops.numberer("RCM")
+            sistema_rapido()
+            ops.test("NormDispIncr", 1e-8, 50)
+            ops.algorithm("Linear")
+            ops.integrator("LoadControl", 1.0)
+            ops.analysis("Static")
+            if ops.analyze(1) != 0:
+                continue
+
+            for fila in leer_pier_forces(data):
+                k = _clave(fila)
+                if k not in modal_paso:
+                    modal_paso[k] = np.zeros((len(modal_info), len(componentes)))
+                    fijas.setdefault(k, fila)
+                modal_paso[k][n] = [fila[c] for c in componentes]
+
+        # Envolvente entre los dos sentidos, ANTES de la combinacion modal: cada
+        # sentido es un estado de carga completo y coherente.
+        for k, mat in modal_paso.items():
             if k not in modal:
-                modal[k] = np.zeros((len(modal_info), len(componentes)))
-                fijas[k] = fila
-            modal[k][n] = [fila[c] for c in componentes]
+                modal[k] = mat
+            else:
+                previo = modal[k]
+                modal[k] = np.where(np.abs(mat) > np.abs(previo), mat, previo)
 
     combo = str(combination or "SRSS").upper()
     salida = []
@@ -605,6 +658,7 @@ def recolectar_pier_forces(
     sa_in_g: bool = True,
     g: float = 9.81,
     nombre_caso: str = None,
+    ecc_ratio: float = 0.0,
 ) -> list:
     """
     La tabla Pier Forces de ESTE payload: una fila por (pier, piso, Top/Bottom,
@@ -655,6 +709,7 @@ def recolectar_pier_forces(
                 data, modal_data, spectrum_x, spectrum_y, combination,
                 damping_ratio, sa_in_g, g,
                 nombre_caso or str(data.get("seismicCaseName") or "RS"),
+                ecc_ratio,
             )
         except Exception as error:
             print(f"[pier_forces] caso espectral: {error}")
@@ -673,7 +728,7 @@ def recolectar_pier_forces(
 
 
 def _caso_espectral(data, modal_data, spectrum_x, spectrum_y, combination,
-                    damping_ratio, sa_in_g, g, nombre):
+                    damping_ratio, sa_in_g, g, nombre, ecc_ratio=0.0):
     """
     Las dos componentes del caso, combinadas por SRSS en una sola fila.
 
@@ -693,7 +748,7 @@ def _caso_espectral(data, modal_data, spectrum_x, spectrum_y, combination,
             for f in run_pier_forces_rsa(
                 data, modal_data, espectro, direction=direccion,
                 combination=combination, damping_ratio=damping_ratio,
-                sa_in_g=sa_in_g, g=g,
+                sa_in_g=sa_in_g, g=g, ecc_ratio=ecc_ratio,
             )
         })
     if not partes:

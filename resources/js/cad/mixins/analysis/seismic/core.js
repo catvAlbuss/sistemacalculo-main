@@ -343,6 +343,10 @@ export const seismicCoreMixin = {
             saInG: rc.saInG ?? cfg.saInG,
           };
           const payload = this._buildSeismicPayload(caseCfg, nodes, frames);
+          // El motor necesita el nombre para rotular las fuerzas de pier: un
+          // payload es UN caso espectral (sus dos espectros ya traen los
+          // factores 100/30 de la dirección), no dos casos.
+          payload.seismicCaseName = rc.name || rc.id || "RS";
           const resp = await fetch(`${BACKEND_URL}/seismic/analyze`, {
             method: "POST",
             // cache:"no-store" → nunca servir una respuesta cacheada. Sin esto el
@@ -391,20 +395,49 @@ export const seismicCoreMixin = {
         this.showMessage?.(`${errors.length} caso(s) fallaron: ${errors.join(" | ")}`, "warning");
       }
 
-      // Diagnóstico: casos definidos que NO se pudieron analizar (Problema 1).
+      // MASA PARTICIPANTE POR DEBAJO DEL MÍNIMO DE LA E.030 (90 %).
+      //
+      // No es cosmético: si no se llega, las fuerzas sísmicas salen
+      // SUBESTIMADAS y el análisis no cumple la norma. Medido en MODULO 6, que
+      // tiene la masa muy repartida: con los 15 modos que se pedían por
+      // defecto, la masa participante en Y llegaba al 43 % y el cortante salía
+      // 20 % bajo — sin que nada lo dijera. Con 30 modos: 93 % y +4.7 % contra
+      // ETABS (que también usa 30 en ese modelo).
+      Object.values(byCase).forEach((r) => {
+        (r?.modal?.participacion_avisos || []).forEach((a) => {
+          this._seismicCaseWarnings.push(a.mensaje);
+        });
+      });
+
+      // Diagnóstico. Dos categorías DISTINTAS, y no da lo mismo mezclarlas:
+      // omitido = el caso no se corrió; advertencia = se corrió, pero con algo
+      // incompleto. Un cartel que cuenta las dos juntas como "omitidos" hace
+      // creer que se perdió sismo que en realidad sí está.
       const skips = this._seismicCaseSkips || [];
-      if (skips.length) {
+      const warns = this._seismicCaseWarnings || [];
+      if (skips.length || warns.length) {
+        const lista = (arr) =>
+          `<ul style="margin:6px 0 0; padding-left:18px">${
+            arr.map((s) => `<li style="margin:2px 0">${s}</li>`).join("")}</ul>`;
+        const bloqueOmitidos = skips.length
+          ? `<div><b style="color:#fca5a5">No se analizaron (${skips.length})</b>${lista(skips)}
+               <div style="margin-top:6px; color:#94a3b8">
+                 Verifica en <b>Define → Response Spectrum Functions</b> que la función esté importada
+                 (con puntos T–Sa) y en <b>Response Spectrum Cases</b> que esté asignada a U1 o U2.
+               </div>
+             </div>`
+          : "";
+        const bloqueAvisos = warns.length
+          ? `<div style="margin-top:${skips.length ? 12 : 0}px">
+               <b style="color:#fcd34d">Se analizaron con una salvedad (${warns.length})</b>${lista(warns)}
+             </div>`
+          : "";
         await Swal.fire({
           icon: "warning",
-          title: `${skips.length} caso(s) omitido(s)`,
-          html: `<div style="text-align:left; font-size:12px">
-                   Estos Response Spectrum Cases no se analizaron:
-                   <ul style="margin:6px 0 0; padding-left:18px">${skips.map((s) => `<li style="margin:2px 0">${s}</li>`).join("")}</ul>
-                   <div style="margin-top:8px; color:#94a3b8">
-                     Verifica en <b>Define → Response Spectrum Functions</b> que la función esté importada
-                     (con puntos T–Sa) y en <b>Response Spectrum Cases</b> que esté asignada a U1 o U2.
-                   </div>
-                 </div>`,
+          title: skips.length
+            ? `${skips.length} caso(s) omitido(s)`
+            : `${warns.length} aviso(s) sobre los casos`,
+          html: `<div style="text-align:left; font-size:12px">${bloqueOmitidos}${bloqueAvisos}</div>`,
           background: "#1a2035", color: "#e2e8f0",
           confirmButtonColor: "#1d4ed8",
         });
@@ -484,18 +517,43 @@ export const seismicCoreMixin = {
     const combOf = (c) => (["CQC", "SRSS"].includes(c.modalCombination) ? c.modalCombination : "CQC");
     const dampOf = (c) => (Number.isFinite(c.damping) ? c.damping : 0.05);
 
-    this._seismicCaseSkips = []; // motivos de casos omitidos (para diagnóstico)
+    this._seismicCaseSkips = [];    // casos que NO se corren
+    this._seismicCaseWarnings = []; // casos que SÍ se corren pero con algo incompleto
 
     const out = [];
     for (const c of (this.responseSpectrumCases?.items || [])) {
-      if (c.enabled === false) continue;
+      // Desmarcado en Define ▸ Response Spectra. Es una decisión legítima del
+      // usuario, pero este `continue` era MUDO y eso costó caro: el caso no se
+      // corría, los combos que lo referencian salían con números de pura
+      // gravedad, y no había ni una línea que lo explicara. Se anota como
+      // cualquier otro motivo de omisión.
+      if (c.enabled === false) {
+        this._seismicCaseSkips.push(
+          `"${c.name || c.id}" está DESMARCADO en Define ▸ Response Spectra ` +
+          `— no se corre (los combos que lo usan quedan sin sismo)`,
+        );
+        continue;
+      }
 
       // Solo casos creados con el diálogo ETABS (formato nuevo, con .spectra).
       // Los casos demo legacy (SDX/SDY/escalado/DER, sin .spectra) NO se corren:
       // sus factores de escala son de validación del colaborador y producen
       // magnitudes irreales (cortante basal > peso). Quedan en Define para el
       // pipeline modal-spectral, pero fuera de nuestro análisis.
-      if (!c.spectra) continue;
+      //
+      // Este `continue` era MUDO, y es un punto ciego caro: un caso descartado
+      // acá no aparece en `_seismicCaseSkips` (que solo se llena más abajo,
+      // cuando el caso existe pero su función no sirve), así que el sismo
+      // desaparecía del análisis sin que nada lo dijera — y después el combo
+      // sísmico salía con números de pura gravedad. Se anota igual que los
+      // otros motivos.
+      if (!c.spectra) {
+        this._seismicCaseSkips.push(
+          `"${c.name || c.id}" no tiene .spectra (caso legacy, o se perdió al ` +
+          `guardar/restaurar el modelo) — no se corre`,
+        );
+        continue;
+      }
 
       const u1 = fnOf(c.spectra.U1?.functionId);
       const u2 = fnOf(c.spectra.U2?.functionId);
@@ -533,6 +591,41 @@ export const seismicCoreMixin = {
       // `direction` seguía diciendo "y" pero `seismic.x` quedaba poblado con un
       // resultado que en la práctica igualaba a SDX (mismo espectro E.030 en
       // ambas direcciones). Ver project_seismic_mass_spectrum.
+      // EL COMPONENTE VERTICAL SE CAE ACÁ, Y HASTA HOY LO HACÍA EN SILENCIO.
+      //
+      // Un caso espectral de ETABS lleva hasta TRES componentes. En
+      // "01.MODULO 01 (1) columna L.e2k":
+      //
+      //   LOADCASE "SDY ESCALADO"  ACCEL "U2"  FUNC "ESPECTRO YY"  SF 11.24
+      //   LOADCASE "SDY ESCALADO"  ACCEL "U1"  FUNC "ESPECTRO YY"  SF  2.943   (= 0.30·g)
+      //   LOADCASE "SDY ESCALADO"  ACCEL "U3"  FUNC "ESPECTRO YY"  SF  6.540   (= ⅔·g)
+      //
+      // U1 y U2 se mapean a spectrumX/spectrumY y el motor los combina por SRSS
+      // direccional (CSI Analysis Reference Manual §20.6.1). U3 NO: el motor no
+      // tiene dirección Z, así que el aporte vertical se pierde — y con él, la
+      // parte de la carga axial de columnas que ETABS sí incluye. Medido en C2
+      // Story1 del modelo de referencia: Pu 40.99 t contra 44.93 t de ETABS.
+      //
+      // El import SÍ lo trae (queda en `spectra.UZ`) y el diálogo de casos deja
+      // definirlo con su factor. O sea que el usuario lo ve cargado y no tiene
+      // cómo saber que no se está corriendo. Se avisa por la misma vía que los
+      // casos omitidos, hasta que el motor tenga dirección Z.
+      const uz = c.spectra.UZ;
+      if (uz?.functionId && scaled(fnOf(uz.functionId), uz.scaleFactor).length >= 2) {
+        // OJO: va en `_seismicCaseWarnings`, NO en `_seismicCaseSkips`. Este
+        // caso SÍ se corre (con U1/U2); lo que queda corto es una componente.
+        // Meterlo entre los omitidos hacía que el cartel dijera "6 casos no se
+        // analizaron" cuando solo 2 quedaron afuera de verdad — un cartel que
+        // miente es peor que no tenerlo.
+        this._seismicCaseWarnings.push(
+          `"${c.name}" tiene componente VERTICAL (U3 "${uz.functionId}", factor ` +
+          `${Number(uz.scaleFactor) || 0}) que el motor todavía no corre: el caso se ` +
+          `analiza con U1/U2. Medido contra ETABS en C2 del MODULO 01, el vertical ` +
+          `aporta ~0.16 tonf sobre un axial de diseño de ~45 tonf (≈0.4 %), así que ` +
+          `el efecto es chico — pero conviene saberlo`,
+        );
+      }
+
       out.push({
         id: c.id, name: c.name, direction,
         spectrumX: sx, spectrumY: sy.length >= 2 ? sy : null,

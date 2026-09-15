@@ -1,7 +1,7 @@
 // mixins/io/file-io/json-io.js — parte "json-io" de file-io
 // (file-io.js se partió en sub-mixins por responsabilidad; barril en file-io.js).
 import Swal from "sweetalert2";
-import { Beam, Node as StructuralNode } from "../../../model/shapes.js";
+import { Beam, Node as StructuralNode, Area } from "../../../model/shapes.js";
 import { read as readmat } from "mat-for-js";
 import { axisToFixed, removeFromArray } from "../../../lib/utils.js";
 import { Triangle, Puente, Arco } from "../../../model/parametricModels.js";
@@ -343,6 +343,13 @@ export const jsonIoMixin = {
       section: clean(area.section),
       material: clean(area.material),
 
+      // Presión admisible del suelo (Tn/m², solo aplica a areaType="zapata"),
+      // capturada en zapata-results-modal.blade.php (Bloque 2b, chequeo de
+      // capacidad portante) — mismo tipo de campo que diaphragmId más abajo:
+      // si no se incluye acá explícitamente, se pierde en cualquier guardado
+      // del modelo (JSON local, autosave, e2k).
+      sigmaAdmisible: area.sigmaAdmisible ?? null,
+
       loads: clean(area.loads, []),
       areaLoads: clean(area.areaLoads, []),
 
@@ -352,6 +359,15 @@ export const jsonIoMixin = {
       // solo faltaba ESCRIBIRLA: se perdía en cada guardado y la losa volvía con
       // el reparto en la dirección por defecto.
       loadDistAngle: Number(area.loadDistAngle) || 0,
+
+      // Etiqueta de PIER/SPANDREL del .e2k. Es lo que agrupa los paños de un
+      // muro para integrar sus fuerzas en un P/V/M por piso (tabla Pier
+      // Forces). Este serializador es una lista BLANCA: sin nombrarlo acá el
+      // pier se perdía en cada guardado y el muro volvía sin etiqueta.
+      pier: area.pier || null,
+      spandrel: area.spandrel || null,
+      etabsLabel: area.etabsLabel || null,
+      etabsStory: area.etabsStory || null,
 
       groupIds: clean(area.groupIds, []),
       groupNames: clean(area.groupNames, []),
@@ -427,6 +443,17 @@ export const jsonIoMixin = {
         // armado...") — por NOMBRE de sección, para columnas sin
         // CONCRETESECTION real en el .e2k (auto-diseño en ETABS) o en
         // modelos dibujados desde cero. Ver mixins/analysis/columnRebarDesigner.js.
+        // Catálogo REBARDEFINITION del .e2k ("#5" -> área). Lo necesita el
+        // diseño de placas: las shapes de una SDSECTION guardan el NOMBRE de la
+        // varilla, no su área. Sin esto, un modelo guardado y reabierto perdía
+        // todo el armado de sus placas.
+        rebarDefinitions: clean(this.rebarDefinitions, {}),
+
+        // Etiquetas de pier DEFINIDAS. Las que ya están puestas en un muro
+        // viajan con el muro (campo `pier` del área); estas son las creadas y
+        // todavía sin asignar, que si no se pierden al guardar.
+        pierLabels: clean(this.pierLabels, []),
+
         manualColumnRebar: clean(this.manualColumnRebar, {}),
       manualBeamRebar: clean(this.manualBeamRebar, {}),
         // Armado de viga a mano — lo usa el tope por vigas del corte de columnas
@@ -509,6 +536,8 @@ export const jsonIoMixin = {
 
       materials: clean(this.materialProperties?.materials, []),
       frameSections: clean(this.frameSections?.sections || this.frameSections?.items || [], []),
+      rebarDefinitions: clean(this.rebarDefinitions, {}),
+      pierLabels: clean(this.pierLabels, []),
       manualColumnRebar: clean(this.manualColumnRebar, {}),
       loadCases: clean(this.loadCases?.cases || this.staticLoadCases?.items || [], []),
       loadCombinations: clean(this.loadCombinations?.combinations || this.loadCombinations?.items || [], []),
@@ -1300,16 +1329,31 @@ export const jsonIoMixin = {
       // ===============================
       // 7. Restaurar áreas
       // ===============================
-      this.areas = importedAreas.map((areaData, index) => ({
-        ...cleanClone(areaData, {}),
-        id: areaData.id ?? index + 1,
-        type: areaData.type || areaData.areaType || "area",
-        areaType: areaData.areaType || areaData.type || "area",
-        visible: areaData.visible !== false,
-        points: cleanClone(areaData.points, []),
-        z: Number(areaData.z || 0),
-        assignment: cleanClone(areaData.assignment, {}),
-      }));
+      // BUG (ver conversación: "zapata.propiedades is not a function"):
+      // esto construía objetos PLANOS (spread de cleanClone), sin la clase
+      // Area/Shape ni sus métodos (.propiedades(), .calcularPropiedades())
+      // — mismo bug ya encontrado y corregido en undo-redo.js para el
+      // snapshot de undo/redo. Este es el path que usan TANTO la
+      // importación de .e2k COMO de JSON nativo, así que una zapata
+      // importada rompía calculateZapatas() al llegar a
+      // buildZapataPolygonProperties(). Se reconstruye cada área como
+      // instancia real de Area (mismo patrón que undo-redo.js).
+      this.areas = importedAreas.map((areaData, index) => {
+        const areaType = areaData.areaType || areaData.type || "area";
+        const z = Number(areaData.z || 0);
+        const area = new Area(areaType, z);
+        Object.assign(area, cleanClone(areaData, {}), {
+          id: areaData.id ?? index + 1,
+          type: areaData.type || areaData.areaType || "area",
+          areaType,
+          visible: areaData.visible !== false,
+          points: cleanClone(areaData.points, []),
+          z,
+          assignment: cleanClone(areaData.assignment, {}),
+        });
+        area.calcularPropiedades();
+        return area;
+      });
 
       // ===============================
       // 8. Restaurar objetos auxiliares
@@ -1346,6 +1390,8 @@ export const jsonIoMixin = {
 
       this.frameSections.sections = cleanClone(definitions.frameSections || data.frameSections, []);
 
+      this.rebarDefinitions = cleanClone(definitions.rebarDefinitions || data.rebarDefinitions, this.rebarDefinitions || {});
+      this.pierLabels = cleanClone(definitions.pierLabels || data.pierLabels, []);
       this.manualColumnRebar = cleanClone(definitions.manualColumnRebar || data.manualColumnRebar, this.manualColumnRebar || {});
       this.manualBeamRebar = cleanClone(definitions.manualBeamRebar || data.manualBeamRebar, this.manualBeamRebar || {});
 

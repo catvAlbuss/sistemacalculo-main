@@ -5,12 +5,15 @@
     x-show="open"
     x-cloak
     @keydown.escape.window="forceCloseModal()"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+    class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-3 sm:p-4 bg-black/50 backdrop-blur-sm"
     style="display: none;">
 
-    <div class="bg-gray-800 rounded-lg shadow-xl w-[500px] max-w-full border border-gray-700">
+    {{-- Panel responsivo: ancho fluido hasta 520px y ALTO limitado al viewport.
+         El cuerpo scrollea solo, así el footer (Cancel/OK) siempre queda visible
+         aunque la ventana sea baja. --}}
+    <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-[520px] max-h-[92vh] flex flex-col border border-gray-700">
         <!-- Header -->
-        <div class="flex justify-between items-center p-4 border-b border-gray-700">
+        <div class="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-700">
             <h2 class="text-lg font-semibold text-white">Definición de Modelo</h2>
             <button type="button"
                 @click.prevent.stop="forceCloseModal()"
@@ -21,7 +24,7 @@
             </button>
         </div>
 
-        <div class="p-5 space-y-5">
+        <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 sm:space-y-5">
             <!-- SECCIÓN: GRID DIMENSIONS -->
             <div class="border border-gray-700 rounded-lg overflow-hidden">
                 <div class="bg-gray-700 px-3 py-2">
@@ -30,7 +33,7 @@
                 <div class="p-3 space-y-3">
                     <div class="bg-gray-900/50 rounded p-2">
                         <div class="text-xs text-blue-400 font-semibold mb-2">Uniform Grid Spacing</div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs text-gray-400 mb-1">Number Lines in X Direction</label>
                                 <input type="number" x-model="gridXCount" min="1" max="10"
@@ -55,7 +58,7 @@
 
                         {{-- Luces NO uniformes (opcional). Si se llenan, tienen prioridad
                              sobre el spacing uniforme. Ej: 6,6,5 --}}
-                        <div class="grid grid-cols-2 gap-3 mt-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                             <div>
                                 <label class="block text-xs text-gray-400 mb-1">Luces X no uniformes (m) — opcional</label>
                                 <input type="text" x-model="gridXSpacings" placeholder="ej: 6,6,5"
@@ -95,7 +98,7 @@
                 <div class="p-3 space-y-3">
                     <div class="bg-gray-900/50 rounded p-2">
                         <div class="text-xs text-blue-400 font-semibold mb-2">Simple Story Data</div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs text-gray-400 mb-1">Number of Stories</label>
                                 <input type="number" x-model="storyCount" min="1" max="50"
@@ -123,7 +126,7 @@
                         {{-- Vista previa de niveles --}}
                         <div class="bg-gray-900/30 rounded p-2 mt-2">
                             <div class="text-xs text-gray-400 mb-1">Niveles</div>
-                            <div class="text-xs text-blue-400" x-text="getStoryPreview()"></div>
+                            <div class="text-xs text-blue-400 break-words" x-text="getStoryPreview()"></div>
                         </div>
                     </div>
                 </div>
@@ -147,17 +150,19 @@
         </div>
 
         <!-- Footer -->
-        <button type="button"
-            @click.prevent.stop="forceCloseModal()"
-            class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded transition">
-            Cancel
-        </button>
+        <div class="flex-shrink-0 flex justify-end gap-2 px-4 py-3 border-t border-gray-700 rounded-b-lg">
+            <button type="button"
+                @click.prevent.stop="forceCloseModal()"
+                class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded transition">
+                Cancel
+            </button>
 
-        <button type="button"
-            @click.prevent.stop="createModel()"
-            class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded transition">
-            OK
-        </button>
+            <button type="button"
+                @click.prevent.stop="createModel()"
+                class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded transition">
+                OK
+            </button>
+        </div>
     </div>
 </div>
 

@@ -16,6 +16,7 @@ import {
 } from "./frameForceDiagramUtils.js";
 
 import { getAvailableFrameForceCases } from "../engine/frameForceCombinations.js";
+import { expandComboOptions } from "./frameForceComboOptions.js";
 import { toDisplayUnits, unitLabelFor } from "./frameForceUnits.js";
 
 const DIALOG_ID = "jhack-frame-member-diagram";
@@ -577,8 +578,15 @@ export function showFrameMemberDiagram(CADSystem, frameId) {
 
     const options = [
         ...available.cases.map((c) => `<option value="case:${c.id}">${c.id}</option>`),
-        ...available.combos.map((c) => `<option value="combo:${c.id}">${c.id}</option>`),
-        ...available.envelopes.map((c) => `<option value="combo:${c.id}">${c.id}</option>`),
+        // Los combos con sismo llegan partidos en _Max/_Min: hay que ofrecer las
+        // ramas REALES o el cruce por comboId no encuentra nada (ver
+        // frameForceComboOptions.js).
+        ...expandComboOptions(results, available.combos).map(
+            (c) => `<option value="combo:${c.id}">${c.label}</option>`
+        ),
+        ...expandComboOptions(results, available.envelopes).map(
+            (c) => `<option value="combo:${c.id}">${c.label}</option>`
+        ),
     ].join("");
 
     const backdrop = document.createElement("div");
@@ -674,10 +682,27 @@ export function showFrameMemberDiagram(CADSystem, frameId) {
 
         // Mismo bloque que ETABS: las estaciones arrancan en la CARA del apoyo,
         // no en el eje, cuando la barra tiene brazos rígidos de nudo.
+        //
+        // AVISO de recorte: cuando hay brazos, el diagrama NO cubre la barra
+        // entera y ETABS —que reporta de eje a eje— dibuja 0.287 m más en cada
+        // punta, donde |M| sigue creciendo. Sin este cartel la diferencia se lee
+        // como un error de cálculo, y no lo es: comparado en la MISMA estación
+        // el motor calza dentro del 1 %. Medido en B2 Story1, combo 02 (mín):
+        // a 6.843 m damos -16.80 y ETABS -16.95, pero su curva sigue hasta
+        // -20.87 en el eje. Ver el changelog del 2026-09-02.
+        const recorte = Math.max(x0, 0) + Math.max(L - x1, 0);
+        const aviso =
+            recorte > 1e-4
+                ? `<span style="color:#fbbf24" title="El diagrama va de cara a cara del apoyo. ETABS reporta de eje a eje, así que su curva sigue ${fmtRaw(recorte)} m más y |M| crece en ese tramo. En la misma estación los valores coinciden.">
+                     ⚠ diagrama a la CARA del apoyo — ETABS reporta al EJE (${fmtRaw(recorte)} m más)
+                   </span>`
+                : "";
+
         $("offsets").innerHTML = `
           <span>Extremo i: <b style="color:#e2e8f0">${fmtRaw(x0)}</b> m</span>
           <span>Extremo j: <b style="color:#e2e8f0">${fmtRaw(x1)}</b> m</span>
-          <span>Longitud: <b style="color:#e2e8f0">${fmtRaw(L)}</b> m</span>`;
+          <span>Longitud: <b style="color:#e2e8f0">${fmtRaw(L)}</b> m</span>
+          ${aviso}`;
 
         const pair = COMPONENT_PAIRS.find((p) => p.id === state.pair);
         const comps = pair.single ? [pair.single] : [pair.shear, pair.moment];
