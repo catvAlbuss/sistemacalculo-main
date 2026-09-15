@@ -1242,7 +1242,6 @@ def calcular_zapata_shell_trapezoidal_combinada(
         'origen_x': origen_x,
     }
 
-
 def calcular_zapata_shell_L_combinada(
     Lx, Ly,                          # bounding box COMPLETO (incluye el rincon faltante)
     notch_x, notch_y,                 # corte del rincon faltante, coordenadas LOCALES (0..Lx, 0..Ly)
@@ -2751,4 +2750,3 @@ def calcular_zapata_shell_poligono_combinada(
         'momentos_por_columna': momentos_por_columna,
         'd': d, 'nx': nx, 'ny': ny,
     }
-
