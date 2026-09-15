@@ -57,7 +57,13 @@
                     </svg>
                     Modificar Carga
                 </button>
-                <button @click="openLateralLoadDialog()" class="w-full text-left px-3 py-2 text-sm text-blue-400 hover:bg-gray-700 rounded flex items-center gap-2" :class="{'opacity-50 cursor-not-allowed': selectedLoadCaseIndex === null}">
+                {{-- Solo se habilita con un patrón de tipo SISMO, igual que ETABS: la
+                     carga lateral automática solo existe para Quake. Antes se
+                     abría para cualquier patrón y ofrecía parámetros sísmicos
+                     sobre una carga muerta, que no significan nada. --}}
+                <button @click="openLateralLoadDialog()"
+                        :title="!esPatronSismico() ? 'Solo para patrones de tipo EARTHQUAKE (sismo)' : 'Definir la carga lateral automática'"
+                        class="w-full text-left px-3 py-2 text-sm text-blue-400 hover:bg-gray-700 rounded flex items-center gap-2" :class="{'opacity-50 cursor-not-allowed': !esPatronSismico()}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12h2m12-6h2M5 12v6m12-6v6M9 6h6m-4 6h4m-8 0h2" />
                     </svg>
@@ -112,10 +118,21 @@
             </div>
 
             {{-- Carga Lateral Automática --}}
-            <div class="mb-4">
+            {{-- ETABS solo habilita esta lista cuando el tipo es Quake; para
+                 cualquier otro tipo queda gris. Igual acá.
+
+                 "User Defined" va PRIMERO a propósito: es la única vía que
+                 tiene Perú. La E.030 NO está en la lista de sismo automático de
+                 ETABS (sí está en las funciones de espectro), así que el camino
+                 normal acá es el de §2.35 del Lateral Loads Manual —
+                 V = C·W repartido por V·w·h^k / Σ(w·h^k)— metiendo a mano el
+                 C = ZUCS/R y el k de la norma. --}}
+            <div class="mb-4" :class="{'opacity-50': loadCaseForm.type !== 'EARTHQUAKE'}">
                 <label class="block text-xs font-semibold text-gray-400 mb-1">Carga Lateral Automática</label>
-                <select x-model="loadCaseForm.autoLateralLoad" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                <select x-model="loadCaseForm.autoLateralLoad" :disabled="loadCaseForm.type !== 'EARTHQUAKE'"
+                        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm disabled:cursor-not-allowed">
                     <option value="0">0 - Ninguna</option>
+                    <option value="USER">User Defined — V = C·W (E.030 va por acá)</option>
                     <option value="1">1 - UBC 97</option>
                     <option value="2">2 - ASCE 7-05</option>
                     <option value="3">3 - ASCE 7-10</option>
@@ -144,11 +161,89 @@
                 <div class="mb-3">
                     <label class="block text-xs font-semibold text-gray-400 mb-1">Código Sísmico</label>
                     <select x-model="lateralLoadParams.code" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                        <option value="USER">User Defined (Perú E.030)</option>
                         <option value="UBC97">UBC 97</option>
                         <option value="ASCE7">ASCE 7</option>
                         <option value="IBC">IBC</option>
                     </select>
                 </div>
+
+                {{-- ============ USER DEFINED (§2.35 del Lateral Loads Manual) ============
+                     V = C·W  y  F_piso = V·w·h^k / Σ(w·h^k).
+                     Es la vía de Perú: se mete el C = ZUCS/R y el k calculados
+                     con la E.030, porque la norma peruana no está en la lista de
+                     sismo automático de ETABS. --}}
+                <template x-if="lateralLoadParams.code === 'USER'">
+                    <div>
+                        <div class="grid grid-cols-2 gap-4 mb-3">
+                            <div>
+                                <div class="text-xs font-semibold text-blue-400 mb-2">Dirección y Excentricidad</div>
+                                <label class="flex items-center gap-2 text-sm text-gray-300 mb-1">
+                                    <input type="checkbox" x-model="lateralLoadParams.dirX"> X Dir
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-300 mb-1">
+                                    <input type="checkbox" x-model="lateralLoadParams.dirXmasE"> X Dir + Excentricidad
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-300 mb-1">
+                                    <input type="checkbox" x-model="lateralLoadParams.dirXmenosE"> X Dir − Excentricidad
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-300 mb-1 mt-2">
+                                    <input type="checkbox" x-model="lateralLoadParams.dirY"> Y Dir
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-300 mb-1">
+                                    <input type="checkbox" x-model="lateralLoadParams.dirYmasE"> Y Dir + Excentricidad
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-300 mb-1">
+                                    <input type="checkbox" x-model="lateralLoadParams.dirYmenosE"> Y Dir − Excentricidad
+                                </label>
+                                <label class="block text-xs font-semibold text-gray-400 mt-3 mb-1">
+                                    Razón de excentricidad (todos los diafragmas)
+                                </label>
+                                <input type="number" step="0.01" x-model="lateralLoadParams.eccRatio"
+                                       class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold text-blue-400 mb-2">Factores</div>
+                                <label class="block text-xs font-semibold text-gray-400 mb-1">
+                                    Coeficiente de cortante basal, C
+                                </label>
+                                <input type="number" step="0.0001" x-model="lateralLoadParams.C"
+                                       class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm mb-1">
+                                <div class="text-[10px] text-gray-500 mb-3">V = C · W &nbsp;·&nbsp; E.030: C = Z·U·C·S / R</div>
+
+                                <label class="block text-xs font-semibold text-gray-400 mb-1">
+                                    Exponente de altura, k
+                                </label>
+                                <input type="number" step="0.01" x-model="lateralLoadParams.k"
+                                       class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm mb-1">
+                                <div class="text-[10px] text-gray-500 mb-3">F = V·w·h^k / Σ(w·h^k)</div>
+
+                                <div class="text-xs font-semibold text-blue-400 mb-2">Rango de Pisos</div>
+                                <label class="block text-xs font-semibold text-gray-400 mb-1">Piso superior</label>
+                                <select x-model="lateralLoadParams.topStory"
+                                        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm mb-2">
+                                    <template x-for="st in pisosDisponibles()" :key="st">
+                                        <option :value="st" x-text="st"></option>
+                                    </template>
+                                </select>
+                                <label class="block text-xs font-semibold text-gray-400 mb-1">Piso inferior</label>
+                                <select x-model="lateralLoadParams.bottomStory"
+                                        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                    <option value="Base">Base</option>
+                                    <template x-for="st in pisosDisponibles()" :key="st">
+                                        <option :value="st" x-text="st"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="text-[10px] text-gray-500 border-t border-gray-700 pt-2">
+                            No se calcula ninguna fuerza en el piso inferior del rango (§2.2.4).
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="lateralLoadParams.code !== 'USER'">
+                  <div>
                 <div class="mb-3">
                     <label class="block text-xs font-semibold text-gray-400 mb-1">Coeficiente Sísmico (Cs)</label>
                     <input type="number" step="0.01" x-model="lateralLoadParams.coefficient" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm">
@@ -181,6 +276,8 @@
                         <option value="S4">S4 - Suelo Muy Blando</option>
                     </select>
                 </div>
+                  </div>
+                </template>
             </div>
             <div class="flex justify-end gap-2 px-4 py-3 border-t border-gray-700 bg-gray-900">
                 <button @click="showLateralLoadDialog = false" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancelar</button>
@@ -232,7 +329,16 @@
             },
 
             lateralLoadParams: {
-                code: 'UBC97',
+                code: 'USER',
+                // --- User Defined (§2.35): lo único que aplica en Perú ---
+                C: 0.2188,          // coeficiente de cortante basal, V = C·W
+                k: 1,               // exponente de altura, F = V·w·h^k / Σ(w·h^k)
+                dirX: true, dirXmasE: false, dirXmenosE: false,
+                dirY: false, dirYmasE: false, dirYmenosE: false,
+                eccRatio: 0.05,
+                topStory: '',
+                bottomStory: 'Base',
+                // --- UBC 97 / ASCE / IBC ---
                 coefficient: 0.1,
                 zone: '3',
                 importance: 1,
@@ -325,17 +431,54 @@
                 this.view = 'loadCaseForm';
             },
 
+            /**
+             * ¿El patrón seleccionado es de tipo sismo?
+             *
+             * ETABS solo habilita "Modify Lateral Load" cuando el tipo es Quake.
+             * Tiene sentido: una carga lateral automática sobre un patrón de
+             * carga muerta no significa nada, y ofrecerla invita a llenar
+             * parámetros que después se ignoran.
+             */
+            esPatronSismico() {
+                if (this.selectedLoadCaseIndex === null) return false;
+                const lc = this.loadCases[this.selectedLoadCaseIndex];
+                return String(lc?.type || '').toUpperCase() === 'EARTHQUAKE';
+            },
+
+            /** Pisos del modelo, para el rango del sismo automático (§2.2.4). */
+            pisosDisponibles() {
+                const stories = window.cadSystem?.stories || [];
+                return stories.map((s) => s?.name || s).filter(Boolean);
+            },
+
             openLateralLoadDialog() {
                 if (this.selectedLoadCaseIndex === null) {
                     this.showToastMessage('Por favor seleccione una carga primero', 'warning');
                     return;
+                }
+                if (!this.esPatronSismico()) {
+                    this.showToastMessage(
+                        'La carga lateral automática solo aplica a patrones de tipo EARTHQUAKE (sismo).',
+                        'warning');
+                    return;
+                }
+                // Por defecto el rango es todo el edificio, como ETABS.
+                const pisos = this.pisosDisponibles();
+                if (!this.lateralLoadParams.topStory && pisos.length) {
+                    this.lateralLoadParams.topStory = pisos[pisos.length - 1];
                 }
                 this.showLateralLoadDialog = true;
             },
 
             saveLateralLoadParams() {
                 if (this.selectedLoadCaseIndex !== null) {
-                    this.loadCases[this.selectedLoadCaseIndex].autoLateralLoad = '1';
+                    // Guarda el código REALMENTE elegido. Antes escribía '1'
+                    // (UBC 97) fijo, así que elegir cualquier otro código se
+                    // perdía sin decir nada.
+                    const porCodigo = { USER: 'USER', UBC97: '1', ASCE7: '2', IBC: '4' };
+                    const lc = this.loadCases[this.selectedLoadCaseIndex];
+                    lc.autoLateralLoad = porCodigo[this.lateralLoadParams.code] || '0';
+                    lc.lateralLoadParams = JSON.parse(JSON.stringify(this.lateralLoadParams));
                     this.showToastMessage('Parámetros de carga lateral guardados', 'success');
                 }
                 this.showLateralLoadDialog = false;

@@ -1113,7 +1113,10 @@ function showCasesListModal(cadSystem) {
 /**
  * Modal 2: "Response Spectrum Case Data" (estilo ETABS).
  */
-async function openResponseSpectrumCaseDataDialog(cadSystem, existing) {
+// Exportada para que el diálogo unificado de Load Cases
+// (8_loadCasesDialog.js) reuse EL MISMO editor de casos espectrales en vez
+// de tener otro propio que se desincronice.
+export async function openResponseSpectrumCaseDataDialog(cadSystem, existing) {
     const functions = cadSystem.responseSpectrumFunctions.items;
     const isNew = !existing;
     const legacyBase = isNew ? clonePlain(DEFAULT_MODAL_SPECTRAL_CASES[0] || {}) : {};

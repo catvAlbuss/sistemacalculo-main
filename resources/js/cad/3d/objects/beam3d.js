@@ -5,6 +5,7 @@ import {
   Vector3,
   Quaternion,
 } from "@babylonjs/core";
+import { crearSolidoDeSeccion, perfilDeSeccion, rotacionDesdeEjes } from "./frameSection3d.js";
 
 export function createBeam3D(scene, beam, material = null, opts = {}) {
   const p1 = beam.node1?.position ?? beam.node1;
@@ -36,17 +37,26 @@ export function createBeam3D(scene, beam, material = null, opts = {}) {
   // de ETABS) — con el diámetro real de la sección ((b+h)/2) los modelos
   // importados (todas las secciones asignadas, p.ej. 30×40 → Ø0.35 m) se veían
   // con el doble de grosor. La proporción REAL b×h la da la vista extruida.
-  const mesh = extrude
-    ? MeshBuilder.CreateBox(
-        `beam-${beam.id}`,
-        { width: 1, height: 1, depth: 1 },
-        scene
-      )
-    : MeshBuilder.CreateCylinder(
-        `beam-${beam.id}`,
-        { height: 1, diameter: style.diameter, tessellation: 12 },
-        scene
-      );
+  // Forma REAL de la sección (circular, L o T). Si la sección no es de esas,
+  // `solido` queda null y se cae al prisma b×h de siempre.
+  const perfil = extrude ? perfilDeSeccion(beam.frameSection || beam.section) : null;
+  const solido = perfil
+    ? crearSolidoDeSeccion(scene, `beam-${beam.id}`, perfil, length)
+    : null;
+
+  const mesh = solido
+    ? solido
+    : extrude
+      ? MeshBuilder.CreateBox(
+          `beam-${beam.id}`,
+          { width: 1, height: 1, depth: 1 },
+          scene
+        )
+      : MeshBuilder.CreateCylinder(
+          `beam-${beam.id}`,
+          { height: 1, diameter: style.diameter, tessellation: 12 },
+          scene
+        );
 
   // material
   if (material) {
@@ -59,7 +69,8 @@ export function createBeam3D(scene, beam, material = null, opts = {}) {
   }
 
   if (extrude) {
-    orientExtrudedFrame(mesh, start, end, elementKind, getFrameDims(beam), beam.localAxisAngle);
+    orientExtrudedFrame(mesh, start, end, elementKind, getFrameDims(beam),
+                        beam.localAxisAngle, solido ? length : 0);
   } else {
     applyTransform(mesh, start, end, length);
   }
@@ -70,6 +81,10 @@ export function createBeam3D(scene, beam, material = null, opts = {}) {
     beamId: beam.id,
     elementKind,           // beam | column | brace
     extruded: extrude,
+    sectionKind: perfil?.kind || "rect",
+    // Largo HORNEADO en los vértices del sólido (0 = prisma escalable). Sirve
+    // para que `updateBeam3D` reescale al mover un nudo sin rehacer la malla.
+    bakedLength: solido ? length : 0,
   };
 
   return mesh;
@@ -96,13 +111,20 @@ export function updateBeam3D(mesh, beam, node1, node2) {
 
   // Mesh extruido (box b×h): reorientar/redimensionar con su propia lógica.
   if (mesh.metadata?.extruded) {
-    orientExtrudedFrame(mesh, start, end, elementKind, getFrameDims(beam), beam.localAxisAngle);
+    const baked = Number(mesh.metadata.bakedLength) || 0;
+    orientExtrudedFrame(mesh, start, end, elementKind, getFrameDims(beam),
+                        beam.localAxisAngle, baked);
 
     if (mesh.material) {
       mesh.material.diffuseColor = style.color;
     }
 
-    mesh.metadata = { type: "beam", beamId: beam.id, elementKind, extruded: true };
+    // OJO: si CAMBIA la sección, un sólido con forma (círculo/L/T) no se puede
+    // reescalar — hay que rehacer la malla. Mover nudos sí funciona.
+    mesh.metadata = {
+      ...mesh.metadata,
+      type: "beam", beamId: beam.id, elementKind, extruded: true,
+    };
     return mesh;
   }
 
@@ -136,7 +158,10 @@ export function updateBeam3D(mesh, beam, node1, node2) {
 function getFrameDims(beam) {
   const sec = beam.frameSection || beam.section || {};
   const shape = String(sec.shape || sec.type || "").toLowerCase();
-  const metallic = ["i", "wf", "w", "channel", "c", "tube", "hss", "angle", "l"].includes(shape);
+  // "l" NO va acá: una "Concrete L" trae sus medidas en cm como el resto del
+  // concreto, y tratarla como perfil metálico la dividía por 1000 (una
+  // CL 70x70x30 salía de 7 cm). Mismo bug que ya se corrigió en la huella 2D.
+  const metallic = ["i", "wf", "w", "channel", "c", "tube", "hss", "angle"].includes(shape);
 
   const toMeters = (v) => {
     v = Number(v);
@@ -145,8 +170,8 @@ function getFrameDims(beam) {
     return metallic ? v / 1000 : v / 100; // perfil: mm ; rectangular: cm
   };
 
-  const b = toMeters(sec.b ?? sec.width ?? sec.base);
-  const h = toMeters(sec.h ?? sec.height ?? sec.peralte);
+  const b = toMeters(sec.b ?? sec.teeWidth ?? sec.width ?? sec.base);
+  const h = toMeters(sec.h ?? sec.teeDepth ?? sec.height ?? sec.peralte);
 
   return { b, h };
 }
@@ -157,7 +182,7 @@ function getFrameDims(beam) {
 // siga la barra. En columnas la sección respeta la rotación de eje local
 // (localAxisAngle); en vigas/diagonales el peralte h queda vertical.
 // ===============================
-function orientExtrudedFrame(mesh, start, end, kind, dims, rollDeg) {
+function orientExtrudedFrame(mesh, start, end, kind, dims, rollDeg, bakedLength = 0) {
   const axisVec = end.subtract(start);
   const length = axisVec.length();
   if (length < 1e-6) return;
@@ -182,16 +207,24 @@ function orientExtrudedFrame(mesh, start, end, kind, dims, rollDeg) {
     bDir = new Vector3(-s, 0, c);
   } else {
     // Viga / diagonal: peralte h hacia arriba, ancho b perpendicular horizontal.
-    let bd = Vector3.Cross(yL, Vector3.Up());
-    if (bd.length() < 1e-6) bd = new Vector3(1, 0, 0);
+    // El orden de los cruces es el que deja la terna (hDir, yL, bDir)
+    // DEXTRÓGIRA con hDir apuntando hacia ARRIBA. Con `Cross(yL, Up)` el
+    // peralte también salía hacia arriba pero la terna quedaba especular.
+    let bd = Vector3.Cross(Vector3.Up(), yL);
+    if (bd.length() < 1e-6) bd = new Vector3(0, 0, 1);
     bDir = bd.normalize();
-    hDir = Vector3.Cross(bDir, yL).normalize();
+    hDir = Vector3.Cross(yL, bDir).normalize();
   }
 
-  mesh.rotationQuaternion = null;
-  mesh.rotation = Vector3.RotationFromAxis(bDir, yL, hDir);
+  // Cuaternión explícito (ver `rotacionDesdeEjes`): `RotationFromAxis` devolvía
+  // una rotación que IGNORABA el ángulo de eje local. En un prisma b×h no se
+  // veía porque es simétrico; en una L o una T sí.
+  mesh.rotationQuaternion = rotacionDesdeEjes(hDir, yL, bDir);
   mesh.position.copyFrom(start.add(end).scale(0.5));
-  mesh.scaling.set(b, length, h);
+  // Un sólido con forma ya viene a tamaño real: solo se ajusta el largo. El
+  // prisma unitario se escala a peralte×largo×ancho (X local = peralte).
+  if (bakedLength > 0) mesh.scaling.set(1, length / bakedLength, 1);
+  else mesh.scaling.set(h, length, b);
 }
 
 // ===============================

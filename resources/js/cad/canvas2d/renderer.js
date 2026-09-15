@@ -1,4 +1,6 @@
 import { BeamStyle, NodeStyle } from "../model/styles.js";
+import { lSectionVertices, teeSectionVertices } from "../lib/sectionPolygon.js";
+import { drawGridDimensionChains } from "./gridDimensions.js";
 import { pointDistance, axisToFixed, midPoint } from "../lib/utils.js";
 import { getNodeReactionForCase } from "../engine/reactionsDisplayContract.js";
 import { generateMockFrameForceResults } from "../engine/mockFrameForceResults.js";
@@ -1321,12 +1323,16 @@ export class DiseñoRenderer {
       return metallic ? v / 1000 : v / 100; // perfil: mm ; rectangular: cm
     };
 
-    // Una sección circular puede traer solo `diameter` (si se definió en la app
-    // y no vino del .e2k, que sí rellena b/h). Sin esto caía al marcador
-    // cuadrado punteado de 0.3 m.
+    // Hay formas que no guardan b/h con esos nombres y caían al marcador
+    // cuadrado punteado de 0.3 m aunque su polígono se dibujara bien:
+    //   - circular: solo `diameter` si se definió en la app (el .e2k sí rellena b/h);
+    //   - tee: el importador guarda `teeDepth`/`teeWidth` (ver e2k-import.js).
+    // El polígono real lo arma getColumnFootprintLocalPolygon; acá solo se
+    // decide el ESTILO (punteado/translúcido vs sólido), así que sin estos
+    // alias una T bien dibujada se pintaba como si no tuviera sección.
     const esCirculo = shape === "circle" || shape === "circular";
-    const b = toMeters(sec.b ?? sec.width ?? sec.base ?? (esCirculo ? sec.diameter : undefined));
-    const h = toMeters(sec.h ?? sec.height ?? sec.peralte ?? (esCirculo ? sec.diameter : undefined));
+    const b = toMeters(sec.b ?? sec.width ?? sec.base ?? sec.teeWidth ?? (esCirculo ? sec.diameter : undefined));
+    const h = toMeters(sec.h ?? sec.height ?? sec.peralte ?? sec.teeDepth ?? (esCirculo ? sec.diameter : undefined));
 
     if (!(b > 0) || !(h > 0)) {
       // Sin dimensiones → marcador cuadrado por defecto.
@@ -1364,55 +1370,19 @@ export class DiseñoRenderer {
     }
 
     if (type === "tee") {
-      const D = toM(sec.teeDepth), B = toM(sec.teeWidth);
-      const TF = toM(sec.teeFlangeThick), TW = toM(sec.teeWebThick);
-      if (D > 0 && B > 0 && TF > 0 && TW > 0 && TF < D) {
-        const hd = D / 2, hb = B / 2, ht = TW / 2, uf = D / 2 - TF;
-        // Ala en +u (arriba del peralte), alma centrada en v bajando.
-        return [
-          [hd, -hb], [hd, hb], [uf, hb], [uf, ht],
-          [-hd, ht], [-hd, -ht], [uf, -ht], [uf, -hb],
-        ];
-      }
+      const poly = teeSectionVertices(toM(sec.teeDepth), toM(sec.teeWidth),
+                                      toM(sec.teeFlangeThick), toM(sec.teeWebThick));
+      if (poly.length) return poly;
     }
 
     if (type === "l") {
-      const D = toM(sec.h), B = toM(sec.b); // h=peralte(D), b=ancho(B)
-      const TF = toM(sec.lFlangeThick), TW = toM(sec.lWebThick);
-      if (D > 0 && B > 0 && TF > 0 && TW > 0 && TW < B && TF < D) {
-        const hd = D / 2, hb = B / 2;
-        // POLIGONO BASE: la L SIN espejos, en ejes locales (u = eje 2 = peralte D,
-        // v = eje 3 = ancho B).
-        //
-        // ANCLAJE, con DOS verificaciones independientes que coinciden:
-        //   1. PLANTA: con `MIRROR3 "Yes"` y ANG = 0, ETABS dibuja la L como "¬"
-        //      — esquina ARRIBA-DERECHA (el signo ¬ tiene la pata a la derecha).
-        //   2. SECCIÓN: el preview del diálogo de ETABS muestra la esquina
-        //      ARRIBA-IZQUIERDA, que mapeada a planta (eje 2 → X, eje 3 → Y) da
-        //      justamente arriba-derecha.
-        // Como MIRROR3 niega `u`, la base sin espejo es esa forma con `u`
-        // invertido: esquina arriba-IZQUIERDA en planta.
-        //
-        // Confirmado por el usuario que ETABS SÍ respeta los espejos: al cambiar
-        // el checkbox, las columnas de la planta se dan vuelta.
-        //
-        // Cuál pierna es cuál: "Horizontal Leg" corre a lo largo del eje 3 (todo
-        // el ancho B) y su espesor TF se mide sobre u; "Vertical Leg" corre a lo
-        // largo del eje 2 (todo el peralte D) y su espesor TW se mide sobre v.
-        //
-        // OJO al comparar contra ETABS: la vista de SECCIÓN del diálogo (eje 2
-        // arriba, eje 3 a la izquierda) está rotada 90° respecto de la PLANTA
-        // (eje 2 → X, eje 3 → Y). Mirar la forma en la vista equivocada hizo
-        // perder dos vueltas acá.
-        let poly = [
-          [hd, hb], [-hd, hb], [-hd, -hb],
-          [TF - hd, -hb], [TF - hd, hb - TW], [hd, hb - TW],
-        ];
-        // Espejar SOBRE un eje niega la OTRA coordenada.
-        if (sec.lMirror2) poly = poly.map(([u, v]) => [u, -v]);
-        if (sec.lMirror3) poly = poly.map(([u, v]) => [-u, v]);
-        return poly;
-      }
+      // Geometría y espejos en `lib/sectionPolygon.js`: es la MISMA que usan la
+      // vista previa del modal y el diseñador de armado. Tenerla duplicada fue
+      // lo que hizo que la orientación tardara tres intentos en calzar.
+      const poly = lSectionVertices(toM(sec.h), toM(sec.b),
+                                    toM(sec.lFlangeThick), toM(sec.lWebThick),
+                                    !!sec.lMirror2, !!sec.lMirror3);
+      if (poly.length) return poly;
     }
 
     return null;
@@ -5029,6 +4999,14 @@ export class DiseñoRenderer {
     //   const bubblePoint = line.bubbleLoc === "Start" ? p1 : p2;
     //   this.drawGridBubble(ctx, point, label, context, lineColor, textColor);
     // });
+    // Acotación entre ejes contiguos, estilo ETABS (canvas2d/gridDimensions.js).
+    // Se dibuja ANTES que las líneas para quedar por debajo, y devuelve dónde va
+    // la burbuja de cada eje: en el VÉRTICE de la cadena, no en la punta de la
+    // línea, donde se perdía entre el modelo.
+    const anclasGrilla = drawGridDimensionChains(ctx, lines, grid, {
+      color: this.getDisplayColor(context, "gridDimension", "#94a3b8"),
+    });
+
     // Líneas de grilla generales
     lines.forEach((line) => {
       if (line.visible === false) return;
@@ -5053,7 +5031,9 @@ export class DiseñoRenderer {
 
       ctx.setLineDash([]);
 
-      const bubblePoint = line.bubbleLoc === "Start" ? p1 : p2;
+      const bubblePoint =
+        anclasGrilla.get(String(line.id)) ||
+        (line.bubbleLoc === "Start" ? p1 : p2);
       // <<<<<<< HEAD
       //       this.drawGridBubble(ctx, bubblePoint, line.id, line.source === "custom" ? "#bfc7d5" : lineColor, textColor);
       // =======

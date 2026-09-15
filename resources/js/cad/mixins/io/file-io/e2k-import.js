@@ -1,10 +1,12 @@
 // mixins/io/file-io/e2k-import.js — parte "e2k-import" de file-io
 // (file-io.js se partió en sub-mixins por responsabilidad; barril en file-io.js).
 import Swal from "sweetalert2";
+import { lTorsionConstant, teeTorsionConstant } from "../../../lib/sectionTorsion.js";
 import { Beam, Node as StructuralNode } from "../../../model/shapes.js";
 import { read as readmat } from "mat-for-js";
 import { axisToFixed, removeFromArray } from "../../../lib/utils.js";
 import { parseE2kLoadCombos, comboExpression } from "./e2k-load-combos.js";
+import { parseSdShapeLine, seccionEsDiseñable } from "./e2kSdSection.js";
 import { Triangle, Puente, Arco } from "../../../model/parametricModels.js";
 import { extrudeToNewFloor, selectAllNodes, activate3DDrawingMode } from "../../../3d/modeling3d.js";
 import { toggleView3D } from "../../../3d/viewer3d.js";
@@ -649,7 +651,10 @@ export const e2kImportMixin = {
     const Ixx2 = ((B - TW) * Math.pow(TF, 3)) / 12, Iyy2 = (TF * Math.pow(B - TW, 3)) / 12;
     const Iz = Ixx1 + A1 * Math.pow(cy1 - cy, 2) + Ixx2 + A2 * Math.pow(cy2 - cy, 2); // eje horizontal (usa D)
     const Iy = Iyy1 + A1 * Math.pow(cx1 - cx, 2) + Iyy2 + A2 * Math.pow(cx2 - cx, 2); // eje vertical (usa B)
-    const J = (D * Math.pow(TW, 3) + B * Math.pow(TF, 3)) / 3; // aprox. pared delgada abierta
+    // St-Venant con el β exacto de cada pata (ver lib/sectionTorsion.js). La
+    // fórmula de pared delgada `Σb·t³/3` daba +43 % en la CL 70x70x30 y +78 %
+    // en la CL 50x50x30 — una L de concreto no tiene paredes delgadas.
+    const J = lTorsionConstant(D, B, TF, TW);
 
     return { A, area: A, Iz, Iy, J, cx, cy };
   },
@@ -683,8 +688,9 @@ export const e2kImportMixin = {
       (tw * Math.pow(hw, 3)) / 12 + Aw * Math.pow(yc - yw, 2);
     // Iy (eje vertical centroidal = eje débil; ala y alma centradas en él).
     const Iy = (TF * Math.pow(B, 3)) / 12 + (hw * Math.pow(tw, 3)) / 12;
-    // J: suma de rectángulos (sección abierta), aproximada.
-    const J = (B * Math.pow(TF, 3) + hw * Math.pow(tw, 3)) / 3;
+    // J de St-Venant, con el alma tomada sobre TODO el peralte (ver
+    // lib/sectionTorsion.js): usar solo el vástago D−TF da −26 %.
+    const J = teeTorsionConstant(D, B, TF, tw);
 
     return { A, area: A, Iz, Iy, J, cy: yc };
   },
@@ -774,6 +780,9 @@ export const e2kImportMixin = {
     // ver project_modulo5_period_calibration). Default true (ETABS lo trae
     // así por defecto si el .e2k no declara MASSSOURCE en absoluto).
     let massSourceIncludeElements = true;
+    // LUMPATSTORIES del MASSSOURCE. Default true por compatibilidad con los
+    // modelos ya calibrados (MODULO 5 traía "Yes" y lumpear fue el arreglo).
+    let massSourceLumpAtStories = true;
     // Fase 3 (sísmico): funciones de espectro + casos Response Spectrum.
     const rsFuncMap = new Map(); // name → {name, id, points:[{T,Sa}], damping, spectype}
     const rsCaseMap = new Map(); // name → {name, type, spectra, damping, eccRatio}
@@ -798,7 +807,31 @@ export const e2kImportMixin = {
         else if (dir === "Y") yGrids.push(g);
       } else if (/^DIAPHRAGM\s/i.test(line)) {
         const name = quotedAll(line)[0];
-        if (name) diaphragmDefs.push({ name, rigidity: /RIGID/i.test(line) ? "Rigid" : "Semi Rigid", description: `Diafragma ${name}` });
+        // OJO con el orden: la línea real es `DIAPHRAGM "D1" TYPE SEMIRIGID`,
+        // y /RIGID/i MATCHEA "SEMIRIGID". Preguntando primero por RIGID, todo
+        // diafragma semi-rígido se importaba como Rígido — en silencio, y con
+        // el efecto de sobrestimar la rigidez en la dirección corta de la
+        // planta (MODULO 01: T2 −8.3%).
+        if (name) {
+          // Se extrae el valor de TYPE y se prueba SOBRE ÉL, no sobre la línea
+          // entera: el nombre del diafragma podría contener "RIGID".
+          //
+          // OJO CON LOS BACKSPACES. Acá había `/"\b"RIGID"\b"/i` y los `"\b"` se
+          // habían convertido en caracteres BACKSPACE (0x08) REALES dentro del
+          // archivo, así que ese regex no matcheaba nunca y TODO diafragma caía
+          // al fallback "Semi Rigid". Invisible en un modelo donde todos los
+          // diafragmas son semirrígidos (MODULO 01) y letal en uno con alguno
+          // RIGID (MODULO 5: T1 0.1408 -> 0.1859, +32%). Por eso acá no se usa
+          // `"\b"` en absoluto.
+          const tipoDiaf = String((line.match(/TYPE\s+([A-Za-z]+)/i) || [])[1] || "");
+          const rigidity = /SEMI/i.test(tipoDiaf) ? "Semi Rigid"
+            : /RIGID/i.test(tipoDiaf) ? "Rigid" : "Semi Rigid";
+          diaphragmDefs.push({ name, rigidity, description: `Diafragma ${name}` });
+          // Se loguea en el PARSEO, no después: si el valor correcto sale de
+          // acá pero llega mal al modelo, el problema está aguas abajo; si sale
+          // mal de acá, está en esta línea. Sin esto hubo que adivinarlo.
+          console.log("🔎 DIAPHRAGM parseado:", JSON.stringify(line), "->", name, "=", rigidity);
+        }
       } else if (/^MATERIAL\s/i.test(line)) {
         const name = quotedAll(line)[0];
         if (!name) return;
@@ -966,7 +999,7 @@ export const e2kImportMixin = {
         const name = quotedAll(line)[0];
         if (!name) return;
         let sd = sdSectionMap.get(name);
-        if (!sd) { sd = { angle: 0, pieces: [] }; sdSectionMap.set(name, sd); }
+        if (!sd) { sd = { angle: 0, pieces: [], shapes: [] }; sdSectionMap.set(name, sd); }
 
         const shapeLine = /(?:^|\s)SHAPE\s+\d/i.test(line); // "SHAPE 1" (bare) = pieza; si no, es la cabecera
         if (!shapeLine) {
@@ -974,8 +1007,13 @@ export const e2kImportMixin = {
           return;
         }
 
+        // Las shapes CRUDAS (concreto + armado) se guardan aparte: son las que
+        // necesita el disenio de placas para armar la seccion real. Lo de abajo
+        // sigue siendo solo la equivalencia A/Iz/Iy/J para el analisis.
+        parseSdShapeLine(sd.shapes, line);
+
         const shapeType = q(line, "SHAPETYPE") || "";
-        if (!/^conc/i.test(shapeType)) return; // ignora acero de refuerzo (REBAR / LINE REBAR)
+        if (!/^conc/i.test(shapeType)) return; // aca abajo solo interesa el concreto
 
         const XC = kvNum(line, "XC", 0), YC = kvNum(line, "YC", 0);
         if (/^conc rectangular$|^conc rectangle$/i.test(shapeType)) {
@@ -1078,6 +1116,8 @@ export const e2kImportMixin = {
         massSourceName = quotedAll(line)[0] || massSourceName;
         if (/INCLUDEELEMENTS\s+"No"/i.test(line)) massSourceIncludeElements = false;
         else if (/INCLUDEELEMENTS\s+"Yes"/i.test(line)) massSourceIncludeElements = true;
+        if (/LUMPATSTORIES\s+"No"/i.test(line)) massSourceLumpAtStories = false;
+        else if (/LUMPATSTORIES\s+"Yes"/i.test(line)) massSourceLumpAtStories = true;
       } else if (/^MASSSOURCELOAD\s/i.test(line)) {
         const toks = quotedAll(line);
         const nums = bareNums(line);
@@ -1143,6 +1183,12 @@ export const e2kImportMixin = {
           Iy: swap ? props.Iz : props.Iy,
           J: props.J,
           description: name,
+          // Para el disenio de placas: la geometria y el armado tal cual los
+          // dibujo el ingeniero. `disenable` avisa si ademas del concreto hay
+          // varillas (sin varillas solo se puede dibujar, no verificar).
+          sdShapes: sd.shapes || [],
+          sdAngle: sd.angle || 0,
+          sdDiseñable: seccionEsDiseñable(sd.shapes || []),
         });
       } else {
         console.warn(`⚠️ SDSECTION "${name}" sin piezas de concreto reconocidas (CONC L/CONC RECTANGULAR) — sección con rigidez mínima de respaldo.`);
@@ -1699,6 +1745,11 @@ export const e2kImportMixin = {
         // localAxisAngle (payload.js _frameVecxzForSeismic) — solo faltaba
         // que el import lo leyera. MODULO 5 y 6 traen columnas con ANG 90/270.
         const localAngle = kvNum(line, "ANG", 0);
+        // RELEASE viene como lista de tokens: "M2I M3I", "TJ M3J"... Se guardan
+        // TAL CUAL y el motor decide cuáles puede aplicar (OpenSees solo libera
+        // flexión), avisando por las que no.
+        const releases = String(q(line, "RELEASE") || "")
+          .toUpperCase().split(/[\s,]+/).filter(Boolean);
         const frame = {
           id: frames.length + 1,
           // Identidad ORIGINAL en ETABS (LINEASSIGN "<Label>" "<Story>"). El id
@@ -1715,6 +1766,11 @@ export const e2kImportMixin = {
           A: secObj.A ?? null, _A: secObj.A ?? null,
           material: secObj.material || null,
           ...(localAngle ? { localAxisAngle: localAngle } : {}),
+          // Liberaciones de extremo (LINEASSIGN ... RELEASE "M2I M3I"). Una
+          // conexión articulada que el motor analizaba como empotrada le mete
+          // a la barra un momento de extremo que no existe, y ese momento sale
+          // después en el diseño. Ver seismic/frame_releases.py.
+          ...(releases.length ? { releases } : {}),
           frameLoads: [], lineLoads: [], visible: true,
         };
         frames.push(frame);
@@ -1796,6 +1852,16 @@ export const e2kImportMixin = {
             wallSection: section,
             wallSelfWeightKgM2,
             section: { name: section, thickness: secDef.thickness, material: secDef.material || "CONC" },
+            // ETIQUETA DE PIER (AREAASSIGN ... PIER "P1"). Es la que junta los
+            // paños del muro —y, dentro de cada paño, los shells del mallado—
+            // en UN solo elemento vertical, para poder integrar sus fuerzas en
+            // un P/V/M por piso: la tabla Pier Forces de ETABS, que es la
+            // demanda con la que se diseña la placa. Sin esto solo hay fuerzas
+            // por cuadrito de malla, inservibles para diseñar.
+            pier: q(line, "PIER") || null,
+            spandrel: q(line, "SPANDREL") || null,
+            etabsLabel: toks[0] || null,
+            etabsStory: toks[1] || null,
             areaLoads: [], loads: [], visible: true,
           };
           areas.push(wallArea);
@@ -1985,7 +2051,14 @@ export const e2kImportMixin = {
         loadMultipliers: massSourceLoads.map((l) => ({ load: l.load, multiplier: l.multiplier })),
         convertWeightToMass: true, gravity: 9.81,
         includeLateralMass: true, includeVerticalMass: false,
-        lumpLateralMassAtStoryLevels: true, specifiedLoadPatterns: true, elementSelfMass: massSourceIncludeElements,
+        // LUMPATSTORIES del .e2k — MISMO criterio que includeSelfWeight de dos
+        // líneas más arriba, que ya avisaba "NO hardcodear true": acá seguía
+        // hardcodeado. Con "No" (MODULO 01) mandábamos lumpear igual, o sea
+        // ignorábamos lo que pide el modelo. Y no se puede elegir un camino
+        // fijo: en MODULO 5 la bandera decía "Yes" y lumpear fue justamente el
+        // arreglo (ver project_modulo5_period_calibration).
+        lumpLateralMassAtStoryLevels: massSourceLumpAtStories,
+        specifiedLoadPatterns: true, elementSelfMass: massSourceIncludeElements,
       }
       : null;
 
@@ -2167,6 +2240,12 @@ export const e2kImportMixin = {
       },
       definitions: {
         materials, frameSections,
+        // Catalogo REBARDEFINITION ("#4" -> area en m2). Lo necesita el diseno
+        // de placas: las shapes de una SDSECTION traen el NOMBRE de la varilla
+        // (BARSIZE "#5"), no su area.
+        rebarDefinitions: Object.fromEntries(
+          [...rebarDefMap.entries()].map(([n, v]) => [n, v.area]),
+        ),
         slabSections,
         wallSections,
         loadCases,
@@ -2226,6 +2305,12 @@ export const e2kImportMixin = {
       if (isReal && Array.isArray(data.definitions?.frameSections) && data.definitions.frameSections.length) {
         if (!this.frameSections) this.frameSections = {};
         this.frameSections.sections = data.definitions.frameSections;
+      }
+
+      // Catalogo de varillas: lo lee el diseno de placas para resolver
+      // BARSIZE -> area. Sin esto, toda varilla de una SDSECTION queda en 0.
+      if (isReal && data.definitions?.rebarDefinitions) {
+        this.rebarDefinitions = data.definitions.rebarDefinitions;
       }
 
       this.currentFileName = selected.file.name.replace(/\.[^/.]+$/, "") + "_importado_desde_e2k.json";

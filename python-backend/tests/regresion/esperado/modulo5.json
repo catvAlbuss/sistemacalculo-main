@@ -1,18 +1,18 @@
 {
   "base_shear": {
     "x": {
-      "base_moment_mx": 3.0214405442261007e-09,
-      "base_moment_my": 64543.493598418725,
-      "base_moment_mz": 39203.07983104563,
-      "base_shear_fx": 14008.598787457911,
-      "base_shear_fy": 6.214791291189438e-10
+      "base_moment_mx": 4.871439988400742e-09,
+      "base_moment_my": 64545.44670991132,
+      "base_moment_mz": 39183.382846001296,
+      "base_shear_fx": 14002.383223536312,
+      "base_shear_fy": 9.512532717643976e-10
     },
     "y": {
-      "base_moment_mx": 226014.4457268595,
-      "base_moment_my": 8.325164229980064e-09,
-      "base_moment_mz": 281928.1892261698,
-      "base_shear_fx": 2.0716026474680136e-09,
-      "base_shear_fy": 46550.18097817376
+      "base_moment_mx": 225587.0332352859,
+      "base_moment_my": 1.6773273658566586e-08,
+      "base_moment_mz": 281065.50411643443,
+      "base_shear_fx": 3.1708434944286843e-09,
+      "base_shear_fy": 46407.918706116325
     }
   },
   "effective_mass": {
@@ -890,39 +890,39 @@
     }
   },
   "mass_participation_cumulative": {
-    "rz": 99.9999999998328,
-    "x": 99.99999999989896,
-    "y": 99.99999999989772
+    "rz": 99.99999999983237,
+    "x": 99.99999999989906,
+    "y": 99.99999999989748
   },
   "periods": [
-    0.14189242518285222,
-    0.10017306976261434,
-    0.07517864789054989,
-    0.0701830451598925,
-    0.03395358142840167,
-    0.014857699874279054,
-    0.013287575842791333
+    0.1423231887028072,
+    0.10025295667096688,
+    0.07521109764347975,
+    0.07064888022176329,
+    0.034141588705313405,
+    0.01564889128375218,
+    0.014183584101291485
   ],
   "story_drift_summary": {
     "drift_method": "cqc_modal",
     "governing_direction": "Y",
-    "governing_percent": 0.01228201052068802,
-    "governing_ratio": 0.0001228201052068802,
+    "governing_percent": 0.012500745549632269,
+    "governing_ratio": 0.00012500745549632268,
     "governing_story": "Story2",
-    "max_drift_percent_x": 0.003112363083434281,
-    "max_drift_percent_y": 0.01228201052068802,
-    "max_drift_ratio_x": 3.112363083434281e-05,
-    "max_drift_ratio_y": 0.0001228201052068802,
+    "max_drift_percent_x": 0.0031206712993860544,
+    "max_drift_percent_y": 0.012500745549632269,
+    "max_drift_ratio_x": 3.1206712993860545e-05,
+    "max_drift_ratio_y": 0.00012500745549632268,
     "status": "OK"
   },
   "story_shears": {
     "x": [
       {
-        "base_shear": 15585.972781099841,
+        "base_shear": 15579.05734212061,
         "direction": "X",
         "distribution_factor": 0.5264618253702503,
         "height": 3.36,
-        "lateral_force": 8205.41968050886,
+        "lateral_force": 8201.778965880616,
         "level": "Story1",
         "mass": 42215.64641415131,
         "node_ids": [
@@ -961,18 +961,18 @@
           59.0,
           60.0
         ],
-        "shear": 15585.972781099841,
+        "shear": 15579.057342120608,
         "story": "Story1",
-        "story_shear": 15585.972781099841,
+        "story_shear": 15579.057342120608,
         "unit": "N",
         "z": 3.36
       },
       {
-        "base_shear": 15585.972781099841,
+        "base_shear": 15579.05734212061,
         "direction": "X",
         "distribution_factor": 0.4735381746297496,
         "height": 2.93,
-        "lateral_force": 7380.553100590981,
+        "lateral_force": 7377.278376239992,
         "level": "Story2",
         "mass": 20283.840463939345,
         "node_ids": [
@@ -999,20 +999,20 @@
           71.0,
           72.0
         ],
-        "shear": 7380.553100590981,
+        "shear": 7377.278376239992,
         "story": "Story2",
-        "story_shear": 7380.553100590981,
+        "story_shear": 7377.278376239992,
         "unit": "N",
         "z": 6.29
       }
     ],
     "y": [
       {
-        "base_shear": 51791.75053044966,
+        "base_shear": 51633.46946796051,
         "direction": "Y",
         "distribution_factor": 0.5264618253702503,
         "height": 3.36,
-        "lateral_force": 27266.379523381158,
+        "lateral_force": 27183.05058630158,
         "level": "Story1",
         "mass": 42215.64641415131,
         "node_ids": [
@@ -1051,18 +1051,18 @@
           59.0,
           60.0
         ],
-        "shear": 51791.75053044966,
+        "shear": 51633.46946796051,
         "story": "Story1",
-        "story_shear": 51791.75053044966,
+        "story_shear": 51633.46946796051,
         "unit": "N",
         "z": 3.36
       },
       {
-        "base_shear": 51791.75053044966,
+        "base_shear": 51633.46946796051,
         "direction": "Y",
         "distribution_factor": 0.4735381746297496,
         "height": 2.93,
-        "lateral_force": 24525.371007068497,
+        "lateral_force": 24450.41888165893,
         "level": "Story2",
         "mass": 20283.840463939345,
         "node_ids": [
@@ -1089,9 +1089,9 @@
           71.0,
           72.0
         ],
-        "shear": 24525.371007068497,
+        "shear": 24450.41888165893,
         "story": "Story2",
-        "story_shear": 24525.371007068497,
+        "story_shear": 24450.41888165893,
         "unit": "N",
         "z": 6.29
       }

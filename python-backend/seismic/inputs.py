@@ -14,6 +14,9 @@ except ImportError:
         ops = None
 
 from .utils import *  # noqa: F401,F403
+from .mesh_stitch import divisiones as _mesh_divisiones, nudos_a_coser as _mesh_nudos_a_coser
+from .frame_releases import codigos as _codigos_de_liberacion
+from .section_principal import principal_properties
 
 __all__ = [
     "_add_auto_mass_to_node",
@@ -347,6 +350,10 @@ def _build_diaphragm_groups(
                     "id": str(group.get("id") or group.get("name") or f"D{index + 1}"),
                     "source": "payload",
                     "node_ids": sorted(set(node_ids)),
+                    # "Rigid" / "Semi Rigid" / None. None = el modelo no lo dice
+                    # (dibujado a mano, o guardado antes de que esto existiera)
+                    # y se trata como rígido, que es lo que se hacía siempre.
+                    "rigidity": group.get("rigidity") or group.get("rigidez"),
                 }
             )
 
@@ -498,6 +505,30 @@ def _apply_rigid_diaphragms(data: dict, nodes: list, supports: list) -> dict:
 
     for group in groups:
         node_ids = group.get("node_ids", [])
+
+        # SEMI-RÍGIDO: no se ata nada. La rigidez en el plano la da la malla de
+        # losa, que desde la costura (ver seismic/mesh_stitch.py) sí llega a la
+        # cabeza de los muros. Antes de eso, apagar el constraint dejaba el
+        # diafragma sin poder entregar la fuerza y la rigidez en la dirección
+        # corta se caía 23%; por eso este camino no existía.
+        #
+        # `None` NO es semi-rígido: es "el modelo no lo dice". Esos siguen
+        # atándose como siempre, así que un modelo viejo no cambia en nada.
+        if str(group.get("rigidity") or "").strip().lower().startswith("semi"):
+            # Se anotan los NODOS además del motivo. No es cosmético: la torsión
+            # accidental necesita saber sobre qué nudos repartir el par cuando el
+            # piso no tiene maestro (ver _ff_seismic_modal_accidental). Sin esta
+            # lista, un modelo todo-semirrígido se quedaba sin torsión accidental
+            # y nadie se enteraba.
+            report["skipped"].append(
+                {
+                    "id": group.get("id"),
+                    "reason": "Semi rígido: lo resuelve la malla de losa.",
+                    "rigidity": "semi",
+                    "node_ids": [int(x) for x in node_ids],
+                }
+            )
+            continue
 
         if len(node_ids) < 2:
             report["skipped"].append(
@@ -1641,10 +1672,12 @@ def _wall_mesh_target(data: dict):
     return _WALL_TARGET_ELEMENT_SIZE_M, 4, 2
 
 
-def _build_wall_mesh_plan(data: dict, nodes: list, node_lookup_out: dict = None):
+def _build_wall_mesh_plan(
+    data: dict, nodes: list, node_lookup_out: dict = None, pier_map_out: dict = None
+):
     """
     Malla cada muro de `data["walls"]` (4 esquinas + espesor + material) en
-    una grilla de elementos ShellMITC4, interpolando bilinealmente entre las
+    una grilla de elementos ShellDKGQ, interpolando bilinealmente entre las
     esquinas. Reusa nodos EXISTENTES del frontend cuando una esquina/punto de
     la malla coincide con uno (así el muro queda conectado al pórtico de
     barras ahí); crea nodos OpenSees nuevos, con tags en WALL_NODE_TAG_BASE+,
@@ -1663,6 +1696,12 @@ def _build_wall_mesh_plan(data: dict, nodes: list, node_lookup_out: dict = None)
       - wall_node_ids: set de tags NUEVOS (no existían en data["nodes"]) — el
         loop de masas de build_model_3d itera sobre `nodes`, así que estos se
         aplican aparte.
+
+    `pier_map_out` (opcional): si se pasa un dict, queda con eid → {pier, wall,
+    zbot, ztop, nodes}. Es lo que permite volver a JUNTAR los shells del
+    mallado en un solo elemento vertical para integrar sus fuerzas en un P/V/M
+    por piso (la tabla Pier Forces de ETABS). Sin esto solo hay fuerzas por
+    cuadrito de malla, que no sirven para diseñar. Ver seismic/pier_forces.py.
 
     `node_lookup_out` (opcional): si se pasa un dict, queda con el mapa
     coordenada→tag ya poblado (nodos del payload + los nuevos de la malla de
@@ -1716,6 +1755,12 @@ def _build_wall_mesh_plan(data: dict, nodes: list, node_lookup_out: dict = None)
         # Orden esperado del frontend (WallDrawingState.createWallPanel):
         # p1-abajo, p2-abajo, p2-arriba, p1-arriba — perímetro sin cruces.
         p00, p10, p11, p01 = (_pt(c) for c in corners)
+
+        # Etiqueta de pier y franja vertical del paño — solo se usan para la
+        # tabla Pier Forces; no tocan el mallado ni la rigidez.
+        pier_label = str(wall.get("pier") or "").strip() or None
+        z_bot_wall = min(p00[2], p10[2], p11[2], p01[2])
+        z_top_wall = max(p00[2], p10[2], p11[2], p01[2])
 
         length = math.dist(p00, p10)
         height = math.dist(p00, p01)
@@ -1862,6 +1907,15 @@ def _build_wall_mesh_plan(data: dict, nodes: list, node_lookup_out: dict = None)
                 n3 = grid_tags[row + 1][col + 1]
                 n4 = grid_tags[row + 1][col]
                 wall_element_specs.append((next_eid, n1, n2, n3, n4, sec_tag))
+                if pier_map_out is not None and pier_label:
+                    pier_map_out[next_eid] = {
+                        "pier": pier_label,
+                        "wall": wall.get("id"),
+                        "story": wall.get("story"),
+                        "zbot": z_bot_wall,
+                        "ztop": z_top_wall,
+                        "nodes": (n1, n2, n3, n4),
+                    }
                 next_eid += 1
 
     return wall_node_mass, wall_element_specs, wall_node_ids
@@ -1895,7 +1949,7 @@ def _create_wall_shell_elements(wall_element_specs: list):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# LOSAS COMO SHELL (ShellMITC4) — espejo del mallado de muros
+# LOSAS COMO SHELL (ShellDKGQ) — espejo del mallado de muros
 # ═══════════════════════════════════════════════════════════════════════
 # Tags separados de los de muro (WALL_*_TAG_BASE = 9_000_000) con medio millón
 # de margen: los muros nunca generan tantos nodos de malla.
@@ -2109,7 +2163,7 @@ def _build_slab_mesh_plan(
     start_element_tag: int = SLAB_ELEMENT_TAG_BASE,
 ):
     """
-    Malla las losas de `data["slabs"]` en elementos ShellMITC4.
+    Malla las losas de `data["slabs"]` en elementos ShellDKGQ.
 
     Espejo de _build_wall_mesh_plan, con TRES diferencias que importan:
 
@@ -2170,6 +2224,9 @@ def _build_slab_mesh_plan(
     next_new_node_tag = start_node_tag
     next_eid = start_element_tag
 
+    # cota -> nudos ya existentes en ese plano (ver la costura más abajo)
+    _cache_costura: dict = {}
+
     def _mesh_quad(corners, sec_tag):
         """Malla bilineal nx×ny de un cuadrilátero (p00, p10, p11, p01)."""
         nonlocal next_new_node_tag, next_eid
@@ -2191,12 +2248,25 @@ def _build_slab_mesh_plan(
         nx = max(1, min(_SLAB_MAX_DIVISIONS, round(len_u / _SLAB_TARGET_ELEMENT_SIZE_M)))
         ny = max(1, min(_SLAB_MAX_DIVISIONS, round(len_v / _SLAB_TARGET_ELEMENT_SIZE_M)))
 
+        # COSTURA: además de las divisiones uniformes, se parte el borde en los
+        # nudos que YA existen ahí (cabezas de muro, vigas partidas). Sin esto
+        # la losa y el muro no compartían nudos —en el MODULO 01, 5 de 18 por
+        # piso, el resto a 0.85 m de mediana— y el diafragma no tenía por dónde
+        # entregarle la fuerza lateral a los muros. Ver seismic/mesh_stitch.py.
+        # La lista de nudos de la cota se cachea: `nudos_a_coser` recorre TODO
+        # el node_lookup, y llamarla por cada losa era recorrerlo cientos de
+        # veces para obtener siempre lo mismo.
+        z_cota = round(p00[2], 3)
+        candidatos = _cache_costura.get(z_cota)
+        if candidatos is None:
+            candidatos = _mesh_nudos_a_coser(node_lookup, p00[2])
+            _cache_costura[z_cota] = candidatos
+        us, vs = _mesh_divisiones(p00, p10, p11, p01, nx, ny, candidatos)
+
         grid_tags = []
-        for row in range(ny + 1):
-            v = row / ny
+        for v in vs:
             row_tags = []
-            for col in range(nx + 1):
-                u = col / nx
+            for u in us:
                 x = ((1 - u) * (1 - v) * p00[0] + u * (1 - v) * p10[0]
                      + u * v * p11[0] + (1 - u) * v * p01[0])
                 y = ((1 - u) * (1 - v) * p00[1] + u * (1 - v) * p10[1]
@@ -2223,14 +2293,14 @@ def _build_slab_mesh_plan(
             grid_tags.append(row_tags)
 
         created = 0
-        for row in range(ny):
-            for col in range(nx):
+        for row in range(len(vs) - 1):
+            for col in range(len(us) - 1):
                 n1 = grid_tags[row][col]
                 n2 = grid_tags[row][col + 1]
                 n3 = grid_tags[row + 1][col + 1]
                 n4 = grid_tags[row + 1][col]
                 # Un cuad degenerado (dos esquinas colapsadas en el mismo nodo)
-                # hace fallar a ShellMITC4 — se descarta la celda, no la losa.
+                # hace fallar al shell — se descarta la celda, no la losa.
                 if len({n1, n2, n3, n4}) < 4:
                     continue
                 slab_element_specs.append((next_eid, n1, n2, n3, n4, sec_tag))
@@ -2329,13 +2399,29 @@ def _build_slab_mesh_plan(
 
 
 def _create_slab_shell_elements(slab_element_specs: list):
-    """Crea los ShellMITC4 planeados por _build_slab_mesh_plan — igual que los
-    de muro, se llama DESPUÉS del loop de elementos frame (ahí ya existen todos
-    los nodos)."""
+    """Crea los shells planeados por _build_slab_mesh_plan — igual que los de
+    muro, se llama DESPUÉS del loop de elementos frame (ahí ya existen todos
+    los nodos).
+
+    ShellDKGQ, no ShellMITC4 — mismo elemento que los muros (ver
+    _create_wall_shell_elements). Dos razones que apuntan al mismo lado:
+
+    1. Es lo que declara el .e2k. ETABS ofrece formulación thin-plate
+       (Kirchhoff, sin deformación por corte transversal) y thick-plate
+       (Mindlin, con ella) — CSI Analysis Reference Manual §10.8.3 — y estos
+       modelos vienen como ShellThin. MITC4 es de la familia Mindlin; DKGQ
+       (Discrete Kirchhoff Quadrilateral) es la que corresponde.
+    2. MITC4 no tiene rigidez DRILLING, que fue justo lo que obligó a cambiar
+       los muros el 2026-08-13 (T1 salía 26% más largo). Las losas quedaron en
+       MITC4 por omisión, no por decisión.
+
+    Mismo secTag/ElasticMembranePlateSection y mismo orden de nodos: es un
+    reemplazo directo. Ver [[project_wall_shell_stiffness]].
+    """
     if ops is None:
         return
     for eid, n1, n2, n3, n4, sec_tag in slab_element_specs:
-        ops.element("ShellMITC4", eid, n1, n2, n3, n4, sec_tag)
+        ops.element("ShellDKGQ", eid, n1, n2, n3, n4, sec_tag)
 
 
 def build_model_3d(data: dict):
@@ -2375,10 +2461,15 @@ def build_model_3d(data: dict):
     # columna, su masa debe sumarse a la de Mass Source en el mismo ops.mass()
     # (ver docstring de _build_wall_mesh_plan — ops.mass() reemplaza, no suma).
     shell_node_lookup: dict = {}
+    pier_mesh: dict = {}
     wall_node_mass, wall_element_specs, wall_node_ids = _build_wall_mesh_plan(
-        data, nodes, node_lookup_out=shell_node_lookup
+        data, nodes, node_lookup_out=shell_node_lookup, pier_map_out=pier_mesh
     )
     data["_wall_node_ids"] = sorted(wall_node_ids)
+    # eid → pier/piso, para la tabla Pier Forces (ver seismic/pier_forces.py).
+    # Se reescribe en CADA build: los tags de elemento se reasignan desde
+    # WALL_ELEMENT_TAG_BASE, así que un mapa viejo apuntaría a otros elementos.
+    data["_pier_mesh"] = pier_mesh
 
     # ── Losas (malla shell) ─────────────────────────────────
     # Mismo momento del build que los muros (antes de las masas) y mismo
@@ -2452,8 +2543,28 @@ def build_model_3d(data: dict):
             }
         )
 
-        if mx > 0 or my > 0 or mz > 0:
-            ops.mass(node_id, mx, my, mz, 1e-9, 1e-9, 1e-9)
+        # Inercia rotacional de masa. Por defecto 1e-9 (placeholder para que
+        # OpenSees no deje el grado sin masa), pero el nudo la puede declarar:
+        # ETABS con Mass Source lumpeada a pisos asigna un momento de inercia
+        # de masa POR PISO, y sin esto el motor no lo podía representar —
+        # el modo de torsión salía con la inercia equivocada.
+        #
+        # Se admite valor NEGATIVO a propósito: con diafragma rígido el piso es
+        # un cuerpo rígido y solo cuenta la terna condensada (masa, CM, J). Si
+        # la masa repartida por nudo da un J mayor que el del piso real, la
+        # única forma de bajarlo es una corrección negativa en el maestro. Lo
+        # que tiene que quedar positivo es el TOTAL condensado, no cada término.
+        rmx = float(n.get("mass_rx", 0) or 0) or 1e-9
+        rmy = float(n.get("mass_ry", 0) or 0) or 1e-9
+        rmz = float(n.get("mass_rz", 0) or 0) or 1e-9
+
+        n["_effective_mass_rz"] = rmz
+
+        # La guarda era `> 0`, que descartaba en SILENCIO cualquier masa
+        # negativa: la corrección de arriba nunca llegaba a OpenSees y el eigen
+        # salía con una inercia que no era ni la pedida ni la repartida.
+        if any(v not in (0, 1e-9) for v in (mx, my, mz, rmx, rmy, rmz)):
+            ops.mass(node_id, mx, my, mz, rmx, rmy, rmz)
 
     # Nodos NUEVOS creados solo para la malla de muros (no vienen en
     # data["nodes"], así que el loop de arriba no los toca).
@@ -2603,6 +2714,26 @@ def build_model_3d(data: dict):
         if vecxz is None:
             vecxz = _auto_vecxz(ni, nj, nodes)
 
+        # EJES PRINCIPALES DE UNA SECCIÓN ASIMÉTRICA (L).
+        #
+        # `elasticBeamColumn` no acepta producto de inercia, así que la única
+        # forma de meter el I23 es girar el elemento a sus ejes principales y
+        # darle Imajor/Iminor. Ver seismic/section_principal.py para el porqué
+        # y las mediciones: sin esto los modos salen desacoplados en X–Y y el
+        # cortante basal en X queda 21.6 % corto contra ETABS.
+        #
+        # El ángulo sale de la GEOMETRÍA (con sus banderas de espejo), nunca
+        # cableado: para la misma L, mirror3 lo pasa de +45° a −45°, y eso
+        # cambia el resultado de −5.4 % a −0.08 %.
+        princ = principal_properties(elem)
+        if princ is not None:
+            Iz, Iy = princ["I_major"], princ["I_minor"]
+            vecxz = _rotar_vecxz(vecxz, ni, nj, nodes, princ["angle"])
+            # Lo guarda para que el reporte de fuerzas pueda DESHACER el giro y
+            # publicar M2/M3 en los ejes de la sección, que es donde los reporta
+            # ETABS (ver _girar_fuerzas_a_seccion en solver.py).
+            elem["_principal_angle"] = princ["angle"]
+
         transf_key = tuple(vecxz)
 
         if transf_key not in transf_cache:
@@ -2611,6 +2742,27 @@ def build_model_3d(data: dict):
             transf_cache[transf_key] = tid
 
         tid = transf_cache[transf_key]
+
+        # Liberaciones de extremo (Assign > Frame > Releases de ETABS). OJO:
+        # `ElasticTimoshenkoBeam` ACEPTA `-releasez` y lo IGNORA en silencio
+        # (medido), así que una barra liberada TIENE que ir en Euler. Se pierde
+        # la deformación por corte, que es el intercambio correcto: vale ~3% del
+        # período y tener mal el momento de extremo vale mucho más.
+        rel_z, rel_y, avisos_rel = _codigos_de_liberacion(elem)
+        for aviso in avisos_rel:
+            print("⚠️ " + aviso)
+        liberada = bool(rel_z or rel_y)
+        if liberada:
+            extra = []
+            if rel_z:
+                extra += ["-releasez", rel_z]
+            if rel_y:
+                extra += ["-releasey", rel_y]
+            ops.element("elasticBeamColumn", eid, ni, nj,
+                        A, E, G, J, Iy, Iz, tid, *extra)
+            elem["_formulation"] = "elasticBeamColumn(release)"
+            elem["_releases"] = {"z": rel_z, "y": rel_y}
+            continue
 
         # Área de corte 5/6·A (secciones rectangulares). Los elementos dummy
         # (A≈0) se quedan en Euler: Timoshenko con Av→0 degenera numéricamente.
@@ -2627,7 +2779,7 @@ def build_model_3d(data: dict):
 
     # ── Muros (elementos shell) ─────────────────────────────
     # Los nodos de la malla ya existen (creados en _build_wall_mesh_plan,
-    # arriba); acá solo se instancian los ShellMITC4.
+    # arriba); acá solo se instancian los shells.
     _create_wall_shell_elements(wall_element_specs)
 
     # ── Losas (elementos shell) ─────────────────────────────
@@ -2679,6 +2831,38 @@ def build_model_3d(data: dict):
     data["_rigid_diaphragm_report"] = diaphragm_report
 
     return nodes, elements
+
+def _rotar_vecxz(vecxz, ni: int, nj: int, nodes: list, angulo: float) -> list[float]:
+    """Gira `vecxz` un ángulo alrededor del EJE DEL ELEMENTO (Rodrigues).
+
+    Girar en el plano XY alcanzaría para columnas verticales, pero no para una
+    viga o una barra inclinada. Esto vale para cualquier orientación.
+    """
+    if not angulo:
+        return list(vecxz)
+    try:
+        a = next(n for n in nodes if int(n["id"]) == ni)
+        b = next(n for n in nodes if int(n["id"]) == nj)
+    except StopIteration:
+        return list(vecxz)
+
+    ex = [float(b.get("x", 0)) - float(a.get("x", 0)),
+          float(b.get("y", 0)) - float(a.get("y", 0)),
+          float(b.get("z", 0)) - float(a.get("z", 0))]
+    largo = math.sqrt(sum(c * c for c in ex))
+    if largo <= 0:
+        return list(vecxz)
+    ex = [c / largo for c in ex]
+
+    v = [float(c) for c in vecxz]
+    c_, s_ = math.cos(angulo), math.sin(angulo)
+    cruz = [ex[1] * v[2] - ex[2] * v[1],
+            ex[2] * v[0] - ex[0] * v[2],
+            ex[0] * v[1] - ex[1] * v[0]]
+    punto = sum(ex[k] * v[k] for k in range(3))
+    return [round(v[k] * c_ + cruz[k] * s_ + ex[k] * punto * (1.0 - c_), 12)
+            for k in range(3)]
+
 
 def _auto_vecxz(ni: int, nj: int, nodes: list) -> list[float]:
     """Elige vector xz automáticamente para geomTransf según orientación del elemento."""

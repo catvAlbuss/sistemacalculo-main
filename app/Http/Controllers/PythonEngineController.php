@@ -31,6 +31,7 @@ class PythonEngineController extends Controller
         'frame-forces' => ['POST', '/api/frame-forces'],
         'column-interaction' => ['POST', '/api/column-interaction'],
         'column-shear' => ['POST', '/api/column-shear'],
+        'wall-interaction' => ['POST', '/api/wall-interaction'],
         'seismic-parse-spectrum' => ['POST', '/api/seismic/parse-spectrum'],
         'zapata-shell-design' => ['POST', '/api/zapata/shell-design'],
         'zapata-shell-combined-design' => ['POST', '/api/zapata/shell-combined-design'],

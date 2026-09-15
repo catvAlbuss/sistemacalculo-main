@@ -12,6 +12,13 @@ El código real vive en:
   seismic/pipeline.py  — orquestador run_full_seismic_analysis.
 """
 
+import os
+
+
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+
 from seismic import *          # noqa: F401,F403  (API pública)
 from seismic.utils import *    # noqa: F401,F403
 from seismic.inputs import *   # noqa: F401,F403

@@ -18,9 +18,10 @@ import math
 
 from .column_polygon import (
     center_on_centroid,
+    etabs_polygon_bar_positions,
     l_section_vertices,
     polygon_area,
-    polygon_bar_positions,
+    polygon_centroid,
     polygon_fiber_grid,
     tee_section_vertices,
 )
@@ -223,6 +224,32 @@ def _phi_factor_e060(pn, fc, gross_area, pb=None, tied=True):
     return max(phi_cc, min(phi_tc, phi))
 
 
+def bars_with_area(bars, bar_area):
+    """
+    Normaliza la lista de varillas a `(x, y, area)`.
+
+    Acepta las dos formas. `(x, y)` — todas del mismo diámetro, con el área en
+    `bar_area` — es como llegan las columnas, y sigue funcionando igual. La
+    forma `(x, y, area)` es la que necesita una placa dibujada en Section
+    Designer, donde conviven diámetros distintos: en la `PL1` del MODULO 01 hay
+    20 varillas #5 sueltas y 16 #4 repartidas en línea (ver
+    project-wall-design-module). Sin área por varilla no se puede reproducir su
+    superficie de interacción.
+    """
+    salida = []
+    for varilla in bars:
+        if len(varilla) >= 3:
+            salida.append((varilla[0], varilla[1], varilla[2]))
+        else:
+            salida.append((varilla[0], varilla[1], bar_area))
+    return salida
+
+
+def total_bar_area(bars, bar_area):
+    """Área total de acero, con `bars` en cualquiera de las dos formas."""
+    return sum(a for _x, _y, a in bars_with_area(bars, bar_area))
+
+
 def balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1, code=None):
     """
     Pb — carga axial nominal del punto BALANCEADO en la dirección theta: la
@@ -238,7 +265,7 @@ def balanced_pn(fc, fy, fibers, bars, bar_area, theta, beta1, code=None):
         return None
     cos_t, sin_t = math.cos(theta), math.sin(theta)
     xi_max = max(x * cos_t + y * sin_t for x, y, _a in fibers)
-    xi_min_bar = min(x * cos_t + y * sin_t for x, y in bars)
+    xi_min_bar = min(x * cos_t + y * sin_t for x, y, *_ in bars)
     d_t = xi_max - xi_min_bar
     if d_t <= 0:
         return None
@@ -362,14 +389,15 @@ def compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1,
         frac = (xi - borde_lo) / (2.0 * half_w)
         add_force(x, y, 0.85 * fc * area * frac)
 
+    barras = bars_with_area(bars, bar_area)
     eps_min = None  # deformación más chica (más traccionada) entre las varillas
-    for x, y in bars:
+    for x, y, a_bar in barras:
         xi = x * cos_t + y * sin_t
         eps = ECU * (xi - xi_max + c) / c
         fs = max(-fy, min(fy, es_steel * eps))
-        force = fs * bar_area
+        force = fs * a_bar
         if xi >= block_lo:
-            force -= 0.85 * fc * bar_area  # concreto desplazado por la varilla
+            force -= 0.85 * fc * a_bar  # concreto desplazado por la varilla
         add_force(x, y, force)
         if eps_min is None or eps < eps_min:
             eps_min = eps
@@ -394,7 +422,7 @@ def compute_pn_mn_at(fc, fy, fibers, bars, bar_area, theta, c, beta1,
     # exactamente 0.65 · 0.80 · Po. Sin este tope la superficie subía hasta
     # φPo = 333.51 tonf — 25% de más, y del lado inseguro.
     if gross_area is not None and Pn > 0:
-        ast = len(bars) * bar_area
+        ast = sum(a for _x, _y, a in barras)
         po = 0.85 * fc * (gross_area - ast) + fy * ast
         p_max = (0.80 if tied else 0.85) * po
         if Pn > p_max:
@@ -458,12 +486,20 @@ def _armar_seccion(b, h, cover, bar_diameter, n3, n2, confine_bar_diameter,
                 else tee_section_vertices(h, b, flange_thick, web_thick))
         if not vert:
             return [], [], 0.0, 0.0, 0.0, 0.0
+        # Armado con el patron R-n2-n3 de ETABS: una pata lleva n3 varillas a lo
+        # largo y la otra n2, dos hileras cada una, sin duplicar las del cruce.
+        bars = etabs_polygon_bar_positions(
+            "tee" if forma in ("tee", "t") else "l",
+            h, b, flange_thick, web_thick, n2, n3,
+            cover, bar_diameter, confine_bar_diameter, mirror2, mirror3)
+
         # AL CENTROIDE. El motor toma momentos respecto del origen, y en una L el
         # centro de la caja envolvente esta a 103 mm del centroide: sin trasladar,
-        # la compresion pura ya arrastraba 43 t-m de momento espurio.
+        # la compresion pura ya arrastraba 43 t-m de momento espurio. Las barras
+        # se generan en el mismo marco que los vertices, asi que se corren igual.
+        cu, cv = polygon_centroid(vert)
         vert = center_on_centroid(vert)
-        bars = polygon_bar_positions(vert, cover, bar_diameter, num_bars or 0,
-                                     confine_bar_diameter)
+        bars = [(u - cu, v - cv) for u, v in bars]
         fibers, fdx, fdy = polygon_fiber_grid(vert, max(int(nx), int(ny)))
         max_dim = 2.0 * max(math.hypot(x, y) for x, y in vert)
         return bars, fibers, fdx, fdy, polygon_area(vert), max_dim
@@ -575,6 +611,15 @@ def capacity_ratio_radial(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     Devuelve {"ratio", "thetaDeg", "phi", "capacity": {Pn, M2n, M3n, phiPn,
     phiM2n, phiM3n}} o None si el patrón de armado es inválido o el rayo no
     corta la superficie en el rango de c barrido (demanda degenerada).
+
+    OJO — PRODUCCIÓN YA NO USA ESTA FUNCIÓN. Usa `design.column_ratio.ratio_pmm`,
+    que corta el rayo contra la SUPERFICIE completa en vez de contra una sola
+    curva. Acá `theta = atan2(M2u, M3u)` es el ángulo del VECTOR MOMENTO usado
+    como si fuera el del EJE NEUTRO: eso vale en secciones doblemente simétricas
+    (los dos coinciden, y las dos funciones dan lo mismo a 0.0%) y es FALSO en
+    una L o una T, donde difieren más de 100° y el ratio salía 27-41% bajo
+    contra ETABS. Se mantiene porque documenta el método viejo y porque los
+    tests la usan como referencia del caso simétrico.
     """
     if beta1 is None:
         beta1 = beta1_from_fc(fc)
@@ -724,7 +769,8 @@ def compute_pmm_surface(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     # Traccion pura: todas las varillas a -fy, sin aporte del concreto.
     # phi sale del mismo camino que el resto de la curva para no inventar un
     # criterio aparte (con Pn negativo ambos codigos dan el 0.90 de flexion).
-    pure_tension = -fy * len(bars) * bar_area
+    ast_total = total_bar_area(bars, bar_area)
+    pure_tension = -fy * ast_total
     if is_e060:
         phi_tension = _phi_factor_e060(pure_tension, fc, ag, pb=None, tied=tied)
     else:
@@ -733,7 +779,7 @@ def compute_pmm_surface(b, h, fc, fy, cover, bar_diameter, n3, n2, bar_area,
     # Compresion pura: el tope Pn,max = 0.80*Po (0.85*Po con espiral), con el
     # phi de compresion. Mismo criterio que arriba: el phi sale del camino
     # normal, no de un valor inventado aparte.
-    p_max_axial = axial_max_nominal(fc, fy, ag, len(bars) * bar_area, tied=tied)
+    p_max_axial = axial_max_nominal(fc, fy, ag, ast_total, tied=tied)
     if is_e060:
         phi_compresion = _phi_factor_e060(p_max_axial, fc, ag, pb=None, tied=tied)
     else:

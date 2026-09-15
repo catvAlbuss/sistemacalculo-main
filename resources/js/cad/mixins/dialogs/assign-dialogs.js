@@ -1172,13 +1172,20 @@ export const assignDialogsMixin = {
       "success"
     );
 
-    // El motor aún no modela losa membrana/shell: un diafragma "Semi Rigid"
-    // se analiza como RÍGIDO. Avisar para que la opción del Define no engañe.
+    // Semi rígido YA se modela: el motor no ata el grupo y la rigidez en el
+    // plano la da la malla de losa, cosida a la cabeza de los muros (ver
+    // seismic/mesh_stitch.py). Lo que sí conviene avisar es que necesita losas:
+    // sin ellas el piso queda sin nada que lo mantenga junto.
     if (/semi/i.test(String(diaphragm.type || diaphragm.rigidity || ""))) {
-      this.showMessage?.(
-        `⚠️ "${diaphragm.name}" está definido como Semi Rígido, pero el motor lo tratará como RÍGIDO (losa membrana/shell aún no implementada).`,
-        "warning",
+      const conLosa = (this.areas || []).some(
+        (a) => (a.areaType || a.type) === "slab" && Array.isArray(a.points) && a.points.length >= 3,
       );
+      if (!conLosa) {
+        this.showMessage?.(
+          `⚠️ "${diaphragm.name}" es Semi Rígido y el modelo no tiene losas: la rigidez en el plano la aporta la malla de losa, así que el piso quedaría suelto. Dibujá las losas o usá un diafragma Rígido.`,
+          "warning",
+        );
+      }
     }
 
     console.log("✅ Joint Diaphragm directo:", {
@@ -2055,13 +2062,20 @@ export const assignDialogsMixin = {
     this.redraw?.();
     this.showMessage?.(`Diafragma ${diaphragm.name} asignado a ${areas.length} área(s).`);
 
-    // El motor aún no modela losa membrana/shell: un diafragma "Semi Rigid"
-    // se analiza como RÍGIDO. Avisar para que la opción del Define no engañe.
+    // Semi rígido YA se modela: el motor no ata el grupo y la rigidez en el
+    // plano la da la malla de losa, cosida a la cabeza de los muros (ver
+    // seismic/mesh_stitch.py). Lo que sí conviene avisar es que necesita losas:
+    // sin ellas el piso queda sin nada que lo mantenga junto.
     if (/semi/i.test(String(diaphragm.type || diaphragm.rigidity || ""))) {
-      this.showMessage?.(
-        `⚠️ "${diaphragm.name}" está definido como Semi Rígido, pero el motor lo tratará como RÍGIDO (losa membrana/shell aún no implementada).`,
-        "warning",
+      const conLosa = (this.areas || []).some(
+        (a) => (a.areaType || a.type) === "slab" && Array.isArray(a.points) && a.points.length >= 3,
       );
+      if (!conLosa) {
+        this.showMessage?.(
+          `⚠️ "${diaphragm.name}" es Semi Rígido y el modelo no tiene losas: la rigidez en el plano la aporta la malla de losa, así que el piso quedaría suelto. Dibujá las losas o usá un diafragma Rígido.`,
+          "warning",
+        );
+      }
     }
   },
 

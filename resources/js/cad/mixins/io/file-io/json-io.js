@@ -360,6 +360,15 @@ export const jsonIoMixin = {
       // el reparto en la dirección por defecto.
       loadDistAngle: Number(area.loadDistAngle) || 0,
 
+      // Etiqueta de PIER/SPANDREL del .e2k. Es lo que agrupa los paños de un
+      // muro para integrar sus fuerzas en un P/V/M por piso (tabla Pier
+      // Forces). Este serializador es una lista BLANCA: sin nombrarlo acá el
+      // pier se perdía en cada guardado y el muro volvía sin etiqueta.
+      pier: area.pier || null,
+      spandrel: area.spandrel || null,
+      etabsLabel: area.etabsLabel || null,
+      etabsStory: area.etabsStory || null,
+
       groupIds: clean(area.groupIds, []),
       groupNames: clean(area.groupNames, []),
       groups: clean(area.groups, []),
@@ -434,6 +443,17 @@ export const jsonIoMixin = {
         // armado...") — por NOMBRE de sección, para columnas sin
         // CONCRETESECTION real en el .e2k (auto-diseño en ETABS) o en
         // modelos dibujados desde cero. Ver mixins/analysis/columnRebarDesigner.js.
+        // Catálogo REBARDEFINITION del .e2k ("#5" -> área). Lo necesita el
+        // diseño de placas: las shapes de una SDSECTION guardan el NOMBRE de la
+        // varilla, no su área. Sin esto, un modelo guardado y reabierto perdía
+        // todo el armado de sus placas.
+        rebarDefinitions: clean(this.rebarDefinitions, {}),
+
+        // Etiquetas de pier DEFINIDAS. Las que ya están puestas en un muro
+        // viajan con el muro (campo `pier` del área); estas son las creadas y
+        // todavía sin asignar, que si no se pierden al guardar.
+        pierLabels: clean(this.pierLabels, []),
+
         manualColumnRebar: clean(this.manualColumnRebar, {}),
       manualBeamRebar: clean(this.manualBeamRebar, {}),
         // Armado de viga a mano — lo usa el tope por vigas del corte de columnas
@@ -516,6 +536,8 @@ export const jsonIoMixin = {
 
       materials: clean(this.materialProperties?.materials, []),
       frameSections: clean(this.frameSections?.sections || this.frameSections?.items || [], []),
+      rebarDefinitions: clean(this.rebarDefinitions, {}),
+      pierLabels: clean(this.pierLabels, []),
       manualColumnRebar: clean(this.manualColumnRebar, {}),
       loadCases: clean(this.loadCases?.cases || this.staticLoadCases?.items || [], []),
       loadCombinations: clean(this.loadCombinations?.combinations || this.loadCombinations?.items || [], []),
@@ -1368,6 +1390,8 @@ export const jsonIoMixin = {
 
       this.frameSections.sections = cleanClone(definitions.frameSections || data.frameSections, []);
 
+      this.rebarDefinitions = cleanClone(definitions.rebarDefinitions || data.rebarDefinitions, this.rebarDefinitions || {});
+      this.pierLabels = cleanClone(definitions.pierLabels || data.pierLabels, []);
       this.manualColumnRebar = cleanClone(definitions.manualColumnRebar || data.manualColumnRebar, this.manualColumnRebar || {});
       this.manualBeamRebar = cleanClone(definitions.manualBeamRebar || data.manualBeamRebar, this.manualBeamRebar || {});
 
