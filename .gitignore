@@ -28,9 +28,8 @@ yarn-error.log
 public/build/*
 !public/build/manifest.json
 !public/build/assets/
-public/build/assets/*
-!public/build/assets/*.css
-!public/build/assets/*.js
+# El manifest y los bundles necesitan también imágenes, fuentes y workers.
+!public/build/assets/**
 
 # ETABS2 backend release generated files
 ETABS2_BACKEND_RELEASE/logs/

@@ -4,7 +4,7 @@ import { makeCreateDeleteColumn } from "./tabulator_base/table.js";
 import Plotly from "plotly.js-dist-min";
 import Swal from "sweetalert2";
 import html2canvas from "html2canvas";
-import logo from "../img/rizabalasociados.png";
+import logo from "../img/rizabalasociados.png?inline";
 import { index } from "mathjs";
 
 function getBase64Image(imgPath, callback) {

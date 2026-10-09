@@ -28,7 +28,7 @@
 import { read as readmat } from "mat-for-js";
 import Plotly from "plotly.js-dist-min";
 import html2canvas from "html2canvas";
-import logo from "../../../../img/rizabalasociados.png";
+import logo from "../../../../img/rizabalasociados.png?inline";
 
 export const rcAligeradoDesignMixin = {
   /**

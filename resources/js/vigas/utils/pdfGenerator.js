@@ -4,7 +4,7 @@ let pdfMake = null;
 let pdfFonts = null;
 
 // Import logo
-import logo from "../../../img/rizabalasociados.png";
+import logo from "../../../img/rizabalasociados.png?inline";
 
 /**
  * Initialize pdfMake dynamically
@@ -18,9 +18,7 @@ const initPdfMake = async () => {
             pdfMake = pdfMakeModule.default || pdfMakeModule;
             pdfFonts = pdfFontsModule.default || pdfFontsModule;
 
-            if (pdfMake && pdfFonts && pdfFonts.pdfMake && pdfFonts.pdfMake.vfs) {
-                pdfMake.vfs = pdfFonts.pdfMake.vfs;
-            }
+            pdfMake.addVirtualFileSystem(pdfFonts);
         } catch (error) {
             console.error('Error loading pdfMake:', error);
             throw new Error('No se pudo cargar el generador de PDF.');

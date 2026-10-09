@@ -1,4 +1,4 @@
-import imgurl from "../../../img/rizabalasociados.png";
+import imgurl from "../../../img/rizabalasociados.png?inline";
 import "print-this";
 import html2canvas from "html2canvas";
 
@@ -3571,14 +3571,23 @@ bindElementIfExists("btn_pdf_predim", "click", () => {
     var img = new Image();
     img.crossOrigin = "Anonymous"; // Para evitar problemas con CORS
     img.onload = function () {
-      var canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      var ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0);
-      var dataURL = canvas.toDataURL("image/png");
-      callback(dataURL);
+      try {
+        var canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        var ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        var dataURL = canvas.toDataURL("image/png");
+        callback(dataURL);
+      } catch (error) {
+        reportImageError(error);
+      }
     };
+    const reportImageError = (error) => {
+      console.error("No se pudo generar el PDF de predimensionamiento:", error);
+      alert("No se pudo generar el PDF. Intenta nuevamente; si el problema continúa, recarga la página.");
+    };
+    img.onerror = () => reportImageError(new Error("No se pudo cargar el logo del reporte."));
     img.src = imgPath;
   }
 });

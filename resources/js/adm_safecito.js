@@ -7,7 +7,7 @@ import { createSpreeadSheetTable } from "./tabulator_base/table_factory.js";
 import { makeCreateDeleteColumn } from "./tabulator_base/table.js";
 import Plotly from "plotly.js-dist-min";
 import Swal from "sweetalert2";
-import logo from "../img/rizabalasociados.png";
+import logo from "../img/rizabalasociados.png?inline";
 
 // AGREGADO (ver conversación, "sobre etabs -> retomemos el pendiente de
 // zapatas2 (Octave)" 2026-09-14): a diferencia del CAD (/software/etabs,
