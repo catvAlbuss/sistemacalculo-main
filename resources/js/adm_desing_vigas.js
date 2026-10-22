@@ -1,3 +1,5 @@
+import { createSteelEditor } from "./vigas/utils/steelEditor.js";
+import { SIMPLE_STEEL_OPTIONS } from "./vigas/config/steelOptions.js";
 // import html2canvas from "html2canvas";
 import "print-this";
 
@@ -277,7 +279,7 @@ $(document).ready(function () {
                         <td class='py-2 px-4 text-center'>${cuantiaminmmto.toFixed(2)} tn/m </td>
                     </tr>
                     <!--===========================0Cuantia balanceado=========================================-->
-                    
+
                     <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
                         <td colspan="4" class="text-xl py-2 px-4"><strong>2.2.-Cuantia Balanceado</strong></td>
                     </tr>
@@ -301,7 +303,7 @@ $(document).ready(function () {
                     </tr>
 
                     <!--==================================rmax===============================-->
-                    
+
                     <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
                         <td colspan="4" class="text-xl py-2 px-4"><strong>2.3.-Cuantia máxima</strong></td>
                     </tr>
@@ -325,7 +327,7 @@ $(document).ready(function () {
                     </tr>
 
                     <!--==================================reconomico===============================-->
-                    
+
                     <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
                         <td colspan="4" class="text-xl py-2 px-4"><strong>2.4.-Cuantia económico</strong></td>
                     </tr>
@@ -349,7 +351,7 @@ $(document).ready(function () {
                     </tr>
             `;
       document.getElementById("desingFlexion").innerHTML = nuevoTemplate;
-      MathJax.typeset();
+
 
       let acerrefuerzo = `
                 <tr class="bg-gray-100 dark:bg-gray-600">
@@ -395,121 +397,22 @@ $(document).ready(function () {
                     <td class='py-2 px-4 text-center'><strong>${esEc}</strong></td>
                 </tr>
                 <tr id="aceros"></tr>
-                   
+
             `;
 
-      for (let i = 0; i < 1; i++) {
-        // Crear la fila para los selects
-        let trSelect = document.createElement("tr");
-        trSelect.className = "py-2 px-8 bg-gray-100 dark:bg-gray-600";
-
-        // Agregar la etiqueta "Tipo de Acero"
-        let tdTipoAcero = document.createElement("th");
-        tdTipoAcero.textContent = "Tipo de Acero mm";
-        tdTipoAcero.className = "py-2 px-8";
-        trSelect.appendChild(tdTipoAcero);
-
-        // Agregar la etiqueta "Diámetro mm"
-        let tdDiametro = document.createElement("td");
-        tdDiametro.textContent = ``;
-        tdDiametro.className = "py-2 px-8";
-        trSelect.appendChild(tdDiametro);
-
-        let tdespacio = document.createElement("td");
-        tdespacio.textContent = ``;
-        tdespacio.className = "py-2 px-8";
-        trSelect.appendChild(tdespacio);
-
-        // Crear los selects para cada tramo
-        // Crear un nuevo select
-        let select = document.createElement("select");
-        select.className =
-          "acer-negativos form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md";
-        select.name = `tipoAcero${i}_capa${i}`;
-        select.id = `tipoAcero${i}_capa${i}`;
-
-        // Definir las opciones del select
-        let opciones = [
-          { value: "0", text: 'Ø 0"' },
-          { value: "0.283", text: "6mm" },
-          { value: "0.503", text: "8mm cm²" },
-          { value: "0.713", text: 'Ø 3/8" cm²' },
-          { value: "1.131", text: "12mm cm²" },
-          { value: "1.267", text: 'Ø 1/2" cm²' },
-          { value: "1.979", text: 'Ø 5/8" cm²' },
-          { value: "2.850", text: 'Ø 3/4" cm²' },
-          { value: "5.067", text: 'Ø 1" cm²' },
-          { value: "2.58", text: '2Ø1/2"' },
-          { value: "3.87", text: '3Ø1/2"' },
-          { value: "3.98", text: '2Ø5/8"' },
-          { value: "5.16", text: '4Ø1/2"' },
-          { value: "5.27", text: '2Ø5/8"+1Ø1/2"' },
-          { value: "5.68", text: '2Ø3/4"' },
-          { value: "5.97", text: '3Ø5/8"' },
-          { value: "6.45", text: '5Ø1/2"' },
-          { value: "6.56", text: '2Ø5/8"+2Ø1/2"' },
-          { value: "6.97", text: '2Ø3/4"+1Ø1/2"' },
-          { value: "7.67", text: '2Ø3/4"+1Ø5/8"' },
-          { value: "7.74", text: '6Ø1/2"' },
-          { value: "7.85", text: '2Ø5/8"+3Ø1/2"' },
-          { value: "7.96", text: '4Ø5/8"' },
-          { value: "8.26", text: '2Ø3/4"+2Ø1/2"' },
-          { value: "8.52", text: '3Ø3/4"' },
-          { value: "8.55", text: '3Ø5/8"+2Ø1/2"' },
-          { value: "9.55", text: '2Ø3/4"+3Ø1/2"' },
-          { value: "9.95", text: '5Ø5/8"' },
-          { value: "9.66", text: '2Ø3/4"+2Ø5/8"' },
-          { value: "10.2", text: '2Ø1"' },
-          { value: "10.54", text: '4Ø5/8"+2Ø1/2"' },
-          { value: "10.84", text: '2Ø3/4"+4Ø1/2"' },
-          { value: "11.1", text: '3Ø3/4"+2Ø1/2"' },
-          { value: "11.40", text: '4Ø3/4"' },
-          { value: "11.65", text: '2Ø3/4"+3Ø5/8"' },
-          { value: "11.94", text: '6Ø5/8"' },
-          { value: "15.92", text: '8Ø5/8"' },
-          { value: "12.19", text: '2Ø1"+1Ø5/8"' },
-          { value: "12.5", text: '3Ø3/4"+2Ø5/8"' },
-          { value: "13.04", text: '2Ø1"+1Ø3/4"' },
-          { value: "13.64", text: '2Ø3/4"+4Ø5/8"' },
-          { value: "13.94", text: '4Ø3/4"+2Ø1/2"' },
-          { value: "14.18", text: '2Ø1"+2Ø5/8"' },
-          { value: "14.2", text: '5Ø3/4"' },
-          { value: "15.3", text: '3Ø1"' },
-          { value: "15.34", text: '4Ø3/4"+2Ø5/8"' },
-          { value: "15.88", text: '2Ø1"+2Ø3/4"' },
-          { value: "16.17", text: '2Ø1"+3Ø5/8"' },
-          { value: "17.04", text: '6Ø3/4"' },
-          { value: "18.16", text: '2Ø1"+4Ø5/8"' },
-          { value: "18.72", text: '2Ø1"+3Ø3/4"' },
-          { value: "19.28", text: '3Ø1"+2Ø5/8"' },
-          { value: "20.4", text: '4Ø1"' },
-          { value: "20.98", text: '3Ø1"+2Ø3/4"' },
-          { value: "21.56", text: '2Ø1"+4Ø3/4"' },
-          { value: "24.38", text: '4Ø1"+2Ø5/8"' },
-          { value: "25.5", text: '5Ø1"' },
-          { value: "26.08", text: '4Ø1"+2Ø3/4"' },
-          { value: "30.6", text: '6Ø1"' },
-        ];
-
-        // Crear y agregar las opciones al select
-        opciones.forEach((opcion) => {
-          let option = document.createElement("option");
-          option.value = opcion.value;
-          option.textContent = opcion.text;
-          select.appendChild(option);
-        });
-
-        // Agregar el select a la fila
-        let tdSelect = document.createElement("td");
-        tdSelect.appendChild(select);
-        trSelect.appendChild(tdSelect);
-
-        // Agregar la fila de selects al template
-        acerrefuerzo += trSelect.outerHTML;
-      }
-      // Inserta el nuevo template en el elemento con el id 'calc_vigassa'
+      acerrefuerzo += '<tr class="bg-gray-100 dark:bg-gray-600"><th class="py-2 px-8">Distribución del acero</th><td colspan="3" id="steel-editor"></td></tr>';
       document.getElementById("calcared").innerHTML = acerrefuerzo;
-      MathJax.typeset();
+      const steelValue = document.createElement("input");
+      steelValue.type = "hidden";
+      steelValue.id = "tipoAcero0_capa0";
+      steelValue.value = "0";
+      document.getElementById("steel-editor").append(
+        steelValue,
+        createSteelEditor(area => {
+          steelValue.value = area.toFixed(3);
+          handleSelectChange({ target: steelValue });
+        }, 'Combinación de acero', SIMPLE_STEEL_OPTIONS)
+      );
       //=========================DISEÑO POR CORTE ==================================//
 
       const Vc = (0.53 * d * base * Math.pow(fc, 0.5)) / 1000;
@@ -571,18 +474,18 @@ $(document).ready(function () {
                     <td class='py-2 px-4'>\\(${aportemedio}\\)</td>
                     <td class='py-2 px-4 text-center'>${Vsmed.toFixed(2)} tn</td>
                 </tr>
-                
+
                 <tr id="aceros"></tr>
             `;
 
       document.getElementById("diseñoCortes").innerHTML = templatecortes;
-      MathJax.typeset();
+
     }
     //select.addEventListener('change', calculateValoresexactos);
     // Función para manejar el cambio de selección
 
     function handleSelectChange(e) {
-      if (e.target.tagName.toLowerCase() === "select") {
+      if (e.target.id === "tipoAcero0_capa0") {
         //console.log(`El valor seleccionado para ${e.target.name} es ${e.target.value}`);
 
         const fc = parseFloat(document.getElementById("fc").value);
@@ -688,7 +591,7 @@ $(document).ready(function () {
                     `;
 
           document.getElementById("acerosfinales").innerHTML = templateacers;
-          MathJax.typeset();
+
           let templatecorte = "";
           templatecorte = `
                         <tr class="bg-gray-100 dark:bg-gray-600">
@@ -741,14 +644,14 @@ $(document).ready(function () {
                         </tr>
                     `;
           document.getElementById("aceroscortes").innerHTML = templatecorte;
-          MathJax.typeset();
+
         }
       }
     }
 
-    // Agregar un evento 'change' al elemento padre
-    document.getElementById("calcared").addEventListener("change", handleSelectChange);
-    MathJax.typeset();
+    // Inicializar la verificacion sin registrar manejadores en cada diseno.
+    handleSelectChange({ target: document.getElementById("tipoAcero0_capa0") });
+    MathJax.typeset([document.getElementById("desingcorte")]);
   });
 
   document.getElementById("btn_pdf_predim").addEventListener("click", function () {

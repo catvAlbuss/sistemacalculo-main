@@ -12,37 +12,7 @@ class SubscriptionPlanController extends Controller
      */
     public function index()
     {
-        $suscripciones = Subscription::withCount('activeSubscriptions')
-            ->orderBy('sort_order')
-            ->get()
-            ->map(function ($suscripcion) {
-                return [
-                    'id' => $suscripcion->id,
-                    'name' => $suscripcion->name,
-                    'slug' => $suscripcion->slug,
-                    'description' => $suscripcion->description,
-                    'price' => $suscripcion->price,
-                    'duration_days' => $suscripcion->duration_days,
-                    'type' => $suscripcion->type,
-                    'is_active' => $suscripcion->is_active,
-                    'features' => $suscripcion->features ?? [],
-                    'sort_order' => $suscripcion->sort_order,
-                    'active_subscriptions_count' => $suscripcion->active_subscriptions_count,
-                    'is_lifetime' => $suscripcion->type === 'lifetime',
-                    'formatted_price' => $suscripcion->price == 0 ? 'Gratis' : 'S/ ' . number_format($suscripcion->price, 2, '.', ''),
-                    'duration_text' => match ($suscripcion->type) {
-                        'lifetime' => 'De por vida',
-                        'trial' => '10 días',
-                        'monthly' => '1 mes',
-                        'yearly' => '1 año',
-                        default => $suscripcion->duration_days . ' días'
-                    },
-                ];
-            })
-            ->values()
-            ->toArray();
-
-        return view('planesUser.subscription-plans.index', compact('suscripciones'));
+        return view('planesUser.subscription-plans.manage');
     }
 
     /**

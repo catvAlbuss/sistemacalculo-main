@@ -52,6 +52,16 @@
                             </table>
 
                             <!-- Credenciales -->
+                            @if ($activationUrl)
+                                <table width="100%" cellpadding="16" style="background-color: #dbeafe; margin: 20px 0;">
+                                    <tr><td>
+                                        <h3>Crea tu contraseña de acceso</h3>
+                                        <p>Tu cuenta utiliza {{ $user->email }}. Define tu contraseña mediante el enlace seguro.</p>
+                                        <p><a href="{{ $activationUrl }}">Crear mi contraseña</a></p>
+                                        <p>Si el enlace vence, solicita otro desde la opción de recuperar contraseña.</p>
+                                    </td></tr>
+                                </table>
+                            @endif
                             @if ($password)
                                 <table width="100%" cellpadding="0" cellspacing="0"
                                     style="background-color: #f9fafb; border-radius: 8px; margin: 30px 0; padding: 20px;">
@@ -99,7 +109,7 @@
                                             <tr>
                                                 <td style="color: #78350f; font-size: 14px;"><strong>Duración:</strong>
                                                 </td>
-                                                <td style="color: #111827; font-size: 14px;">{{ $plan->duration_text }}
+                                                <td style="color: #111827; font-size: 14px;">{{ $plan->duration_text }} · {{ $plan->max_users }} usuario(s) · {{ $plan->max_projects }} proyectos
                                                 </td>
                                             </tr>
                                             @if ($plan->type !== 'lifetime')
@@ -126,8 +136,14 @@
                                             style="color: #047857; margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
                                             <li>Inicia sesión en tu cuenta con las credenciales proporcionadas</li>
                                             <li>Explora todo el contenido durante tu período de prueba</li>
-                                            <li>Verificaremos tu pago en las próximas 24-48 horas</li>
-                                            <li>Una vez confirmado, tu plan se activará automáticamente</li>
+                                            @if ($paymentRequest->payment_method === 'culqi')
+                                                <li><a href="{{ \App\Http\Controllers\CulqiController::paymentUrl($paymentRequest) }}">Completa tu pago seguro con Culqi</a>. El enlace dura 24 horas.</li>
+                                            @elseif ($paymentRequest->payment_method === 'yape')
+                                                <li>Verificaremos tu pago en las próximas 24-48 horas</li>
+                                            @endif
+                                            @if ($paymentRequest->payment_method === 'culqi')
+                                                <li>Tu plan se activa cuando Culqi confirma el cobro.</li>
+                                            @endif
                                         </ol>
                                     </td>
                                 </tr>

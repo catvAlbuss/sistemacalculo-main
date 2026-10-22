@@ -30,7 +30,7 @@
                         </div>
 
                         @if (!empty($alert['show_button']))
-                            <a href="{{ route('contacto.index') }}"
+                            <a href="{{ route('landing.plans') }}"
                                 class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded hover:bg-blue-700 transition">
                                 <i class="fas fa-shopping-cart"></i>
                                 Adquirir un Plan

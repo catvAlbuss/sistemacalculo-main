@@ -68,7 +68,25 @@ Route::view('profile', 'profile')
     ->middleware(['auth'])
     ->name('profile');
 
-Route::resource('contacto', ContactPaymentController::class);
+Route::resource('contacto', ContactPaymentController::class)->except('store');
+Route::post('/contacto', [ContactPaymentController::class, 'store'])->middleware('throttle:10,10,checkout')->name('contacto.store');
+Route::get('/planes', [App\Http\Controllers\PlanesController::class, 'index'])->name('landing.plans');
+Route::get('/mi-plan', App\Http\Controllers\MyPlanController::class)->middleware('auth')->name('plans.mine');
+Route::get('/planes/registro', [App\Http\Controllers\PlanesController::class, 'register'])->name('planes.register');
+Route::post('/planes/registro', [App\Http\Controllers\PlanesController::class, 'store'])->middleware('throttle:10,10,checkout')->name('planes.store');
+Route::post('/planes/consultar-documento', App\Http\Controllers\DocumentLookupController::class)
+    ->middleware('throttle:10,10,planes.document.lookup')->name('planes.document.lookup');
+Route::get('/comprobantes/{receipt}', [App\Http\Controllers\BillingReceiptController::class, 'show'])->name('billing.ticket');
+Route::get('/pagos/culqi/{paymentRequest}', [App\Http\Controllers\CulqiController::class, 'pay'])
+    ->middleware('signed')->name('culqi.pay.legacy');
+Route::post('/pagos/culqi/{paymentRequest}/cobrar', [App\Http\Controllers\CulqiController::class, 'charge'])
+    ->middleware(['signed', 'throttle:culqi-charge'])->name('culqi.charge.legacy');
+Route::get('/planes/pagar/{paymentRequest}', [App\Http\Controllers\CulqiController::class, 'pay'])
+    ->middleware('signed')->name('culqi.pay');
+Route::post('/planes/pagar/{paymentRequest}/cobrar', [App\Http\Controllers\CulqiController::class, 'charge'])
+    ->middleware(['signed', 'throttle:culqi-charge'])->name('culqi.charge');
+Route::post('/webhooks/culqi/{token}', [App\Http\Controllers\CulqiController::class, 'webhook'])
+    ->middleware('throttle:120,1,culqi.webhook')->name('culqi.webhook');
 Route::view('/landing/success', 'landing.success')->name('landing.success');
 Route::get('/download-proof/{paymentRequest}', [ContactPaymentController::class, 'downloadProof'])->name('download.proof')->middleware('signed');
 //==========================GESTIÓN DE USUARIOS (Root y Gerencia)=========//
@@ -77,6 +95,10 @@ Route::middleware(['auth', 'verified', 'role:root,gerencia'])->group(function ()
 });
 // Gestión de Planes (Solo Root y Gerencia)
 Route::middleware(['auth', 'verified', 'role:root|gerencia'])->group(function () {
+    Route::get('/administracion/pagos', [App\Http\Controllers\PaymentAdminController::class, 'index'])->name('payments.admin.index');
+    Route::get('/administracion/pagos/{paymentRequest}', [App\Http\Controllers\PaymentAdminController::class, 'show'])->name('payments.admin.show');
+    Route::post('/administracion/pagos/eventos/{event}/revisar', [App\Http\Controllers\PaymentAdminController::class, 'review'])
+        ->middleware('throttle:30,1,payments.review')->name('payments.admin.review');
 
     Route::resource('suscripciones', SubscriptionPlanController::class);
     Route::patch('suscripciones/{suscripcion}/toggle-status', [SubscriptionPlanController::class, 'toggleStatus'])->name('suscripciones.toggle-status');

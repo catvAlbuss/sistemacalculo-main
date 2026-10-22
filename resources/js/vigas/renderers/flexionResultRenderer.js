@@ -1,66 +1,6 @@
 import { StructuralUtils, CONCRETE_CONSTANTS } from "../calculators/SharedCalculatorUtils.js";
 
-const STEEL_OPTIONS = [
-    { value: "0", text: 'Ø 0"' },
-    { value: "0.283", text: "6mm" },
-    { value: "0.503", text: "8mm cm²" },
-    { value: "0.713", text: 'Ø 3/8" cm²' },
-    { value: "1.131", text: "12mm cm²" },
-    { value: "1.267", text: 'Ø 1/2" cm²' },
-    { value: "1.979", text: 'Ø 5/8" cm²' },
-    { value: "2.850", text: 'Ø 3/4" cm²' },
-    { value: "5.067", text: 'Ø 1" cm²' },
-    { value: "2.58", text: '2Ø1/2"' },
-    { value: "3.87", text: '3Ø1/2"' },
-    { value: "3.98", text: '2Ø5/8"' },
-    { value: "5.16", text: '4Ø1/2"' },
-    { value: "5.27", text: '2Ø5/8"+1Ø1/2"' },
-    { value: "5.68", text: '2Ø3/4"' },
-    { value: "5.97", text: '3Ø5/8"' },
-    { value: "6.45", text: '5Ø1/2"' },
-    { value: "6.56", text: '2Ø5/8"+2Ø1/2"' },
-    { value: "6.97", text: '2Ø3/4"+1Ø1/2"' },
-    { value: "7.67", text: '2Ø3/4"+1Ø5/8"' },
-    { value: "7.74", text: '6Ø1/2"' },
-    { value: "7.85", text: '2Ø5/8"+3Ø1/2"' },
-    { value: "7.916", text: '4Ø5/8"' },
-    { value: "8.26", text: '2Ø3/4"+2Ø1/2"' },
-    { value: "8.52", text: '3Ø3/4"' },
-    { value: "8.55", text: '3Ø5/8"+2Ø1/2"' },
-    { value: "9.55", text: '2Ø3/4"+3Ø1/2"' },
-    { value: "9.95", text: '5Ø5/8"' },
-    { value: "9.66", text: '2Ø3/4"+2Ø5/8"' },
-    { value: "10.2", text: '2Ø1"' },
-    { value: "10.54", text: '4Ø5/8"+2Ø1/2"' },
-    { value: "10.84", text: '2Ø3/4"+4Ø1/2"' },
-    { value: "11.1", text: '3Ø3/4"+2Ø1/2"' },
-    { value: "11.40", text: '4Ø3/4"' },
-    { value: "11.65", text: '2Ø3/4"+3Ø5/8"' },
-    { value: "11.94", text: '6Ø5/8"' },
-    { value: "15.92", text: '8Ø5/8"' },
-    { value: "12.19", text: '2Ø1"+1Ø5/8"' },
-    { value: "12.5", text: '3Ø3/4"+2Ø5/8"' },
-    { value: "13.04", text: '2Ø1"+1Ø3/4"' },
-    { value: "13.64", text: '2Ø3/4"+4Ø5/8"' },
-    { value: "13.94", text: '4Ø3/4"+2Ø1/2"' },
-    { value: "14.18", text: '2Ø1"+2Ø5/8"' },
-    { value: "14.2", text: '5Ø3/4"' },
-    { value: "15.3", text: '3Ø1"' },
-    { value: "15.34", text: '4Ø3/4"+2Ø5/8"' },
-    { value: "15.88", text: '2Ø1"+2Ø3/4"' },
-    { value: "16.17", text: '2Ø1"+3Ø5/8"' },
-    { value: "17.04", text: '6Ø3/4"' },
-    { value: "18.16", text: '2Ø1"+4Ø5/8"' },
-    { value: "18.72", text: '2Ø1"+3Ø3/4"' },
-    { value: "19.28", text: '3Ø1"+2Ø5/8"' },
-    { value: "20.4", text: '4Ø1"' },
-    { value: "20.98", text: '3Ø1"+2Ø3/4"' },
-    { value: "21.56", text: '2Ø1"+4Ø3/4"' },
-    { value: "24.38", text: '4Ø1"+2Ø5/8"' },
-    { value: "25.5", text: '5Ø1"' },
-    { value: "26.08", text: '4Ø1"+2Ø3/4"' },
-    { value: "30.6", text: '6Ø1"' },
-];
+import { createSteelEditor } from "../utils/steelEditor.js";
 
 export const renderFlexionResult = (containerId, flexionData, onUpdate = null) => {
     const container = document.querySelector(containerId);
@@ -429,19 +369,11 @@ const renderSectionTable = (container, sectionData, numTramos, sectionType, onUp
                 const cellLayerCount = getLayerCount(i, pos);
 
                 if (layerIndex < cellLayerCount) {
-                    const select = document.createElement("select");
-                    select.className = "w-full text-xs p-1 rounded border border-gray-300 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500";
-                    select.dataset.tramo = i;
-                    select.dataset.pos = pos;
-                    select.dataset.layer = layerIndex;
-
-                    OPCIONES_ACERO_HTML.forEach(opt => {
-                        select.add(opt.cloneNode(true));
-                    });
-
-                    select.addEventListener("change", (e) => handleSteelChange(e, tableState, numTramos, sectionType, onUpdate));
-
-                    td.appendChild(select);
+                    td.appendChild(createSteelEditor(area => {
+                        handleSteelChange({ target: {
+                            dataset: { tramo: i, pos, layer: layerIndex }, value: area
+                        } }, tableState, numTramos, sectionType, onUpdate);
+                    }, `${sectionType}, tramo ${i}, posici?n ${pos + 1}, capa ${layerIndex + 1}`));
                 } else {
                     // Empty cell for easier reading
                     td.className += " bg-gray-100 dark:bg-gray-800/50";
@@ -452,14 +384,6 @@ const renderSectionTable = (container, sectionData, numTramos, sectionType, onUp
         }
         return tr;
     };
-
-    // Pre-build options HTML elements
-    const OPCIONES_ACERO_HTML = STEEL_OPTIONS.map(opt => {
-        const option = document.createElement("option");
-        option.value = opt.value;
-        option.textContent = opt.text;
-        return option;
-    });
 
     // Create rows based on Global Max
     for (let L = 0; L < maxLayersGlobal; L++) {

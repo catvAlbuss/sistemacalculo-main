@@ -36,7 +36,7 @@ class UserSubscription extends Model
 
         // Actualizar current_subscription_id cuando se crea una suscripción activa
         static::created(function ($subscription) {
-            if ($subscription->status === 'active') {
+            if ($subscription->status === 'active' && !$subscription->starts_at->isFuture()) {
                 $subscription->user->update([
                     'current_subscription_id' => $subscription->id,
                     'subscription_ends_at' => $subscription->ends_at,
@@ -91,6 +91,9 @@ class UserSubscription extends Model
     public function isActive(): bool
     {
         if ($this->status !== 'active') {
+            return false;
+        }
+        if ($this->starts_at->isFuture()) {
             return false;
         }
 

@@ -45,6 +45,10 @@
     <div class="hidden w-full md:block md:w-auto" id="navbar-multi-level">
       <ul
         class="mt-4 flex flex-col rounded-lg border border-gray-100 bg-gray-50 p-4 font-medium md:mt-0 md:flex-row md:space-x-8 md:border-0 md:bg-white md:p-0 rtl:space-x-reverse dark:border-gray-700 dark:bg-gray-800 md:dark:bg-gray-900">
+        @auth
+        <li><x-nav-link-landing :href="route('plans.mine')" :active="request()->routeIs('plans.mine')">Mi plan</x-nav-link-landing></li>
+        @if (auth()->user()->hasRole(['root', 'gerencia']))<li><x-nav-link-landing :href="route('payments.admin.index')" :active="request()->routeIs('payments.admin.*')">Pagos</x-nav-link-landing></li>@endif
+        @endauth
         <li>
           <x-nav-link-landing :href="route('landing.home')" :active="request()->routeIs('landing.home')">{{ __('Inicio') }}</x-nav-link-landing>
         </li>
@@ -71,7 +75,10 @@
           </x-nav-link-sub-landing>
         </li>
         <li>
-          <x-nav-link-landing :href="route('contacto.index')" :active="request()->routeIs('contacto.index')">{{ __('Contáctanos') }}</x-nav-link-landing>
+          <x-nav-link-landing :href="route('landing.plans')" :active="request()->routeIs('landing.plans', 'planes.*', 'culqi.*')">{{ __('Planes') }}</x-nav-link-landing>
+        </li>
+        <li>
+          <x-nav-link-landing :href="route('contacto.index')" :active="request()->routeIs('contacto.index')">{{ __('Contacto') }}</x-nav-link-landing>
         </li>
         <li>
           <x-nav-link-landing {{-- :href="route('blogs')" --}} :active="request()->routeIs('blogs')">{{ __('Blog') }}</x-nav-link-landing>

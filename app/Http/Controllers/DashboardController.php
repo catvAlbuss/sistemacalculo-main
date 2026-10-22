@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
@@ -14,6 +13,12 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        if (!$user->is_active) {
+            return redirect()->route('plans.mine');
+        }
+        if ($user->hasRole(['root', 'gerencia'])) {
+            return view('dashboard', ['alert' => null]);
+        }
         $subscription = $user->activeSubscription; // Asume la relación existe
 
         // --- 1. Lógica de Restricción de Acceso (Plan Inactivo/Expirado) ---
@@ -21,14 +26,9 @@ class DashboardController extends Controller
         // Si no tiene suscripción activa O la suscripción ha expirado
         if (!$subscription || ($subscription->ends_at && Carbon::parse($subscription->ends_at)->isPast())) {
 
-            // Si el usuario ya está autenticado y su plan expiró, lo cerramos
-            // y lo redirigimos con un mensaje de error.
+            // Keep the owner authenticated so an expired plan can be renewed safely.
 
-            Auth::logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-
-            return redirect('/login')->with('error', 'Tu plan ha expirado o no tienes una suscripción activa. Por favor, revisa tu cuenta.');
+            return redirect()->route('plans.mine');
         }
 
         // --- 2. Lógica de Alerta para Dashboard (Solo si tiene acceso) ---

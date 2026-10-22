@@ -275,6 +275,12 @@
 
                                     {{-- Orden --}}
                                     <div>
+                                        <label for="max_users" class="mb-2 block text-sm font-semibold">Usuarios incluidos</label>
+                                        <input type="number" id="max_users" wire:model="max_users" min="1" required class="mb-3 w-full rounded-lg border border-gray-300 px-4 py-3">
+                                        @error('max_users')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
+                                        <label for="max_projects" class="mb-2 block text-sm font-semibold">Proyectos incluidos</label>
+                                        <input type="number" id="max_projects" wire:model="max_projects" min="1" required class="mb-3 w-full rounded-lg border border-gray-300 px-4 py-3">
+                                        @error('max_projects')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
                                         <label for="sort_order"
                                             class="mb-2 block text-sm font-semibold text-slate-900 dark:text-white">
                                             Orden de visualización

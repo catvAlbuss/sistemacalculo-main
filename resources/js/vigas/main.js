@@ -106,33 +106,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     //console.log('Current Flexion State:', flexionState);
 
-                    // Re-calculate Capacidad
                     const updatedCapacidad = new CapacidadCalculator(datos, flexionState).calculate();
+                    const updatedDeflection = new DeflectionCalculator(datos, flexionState).calculate();
 
-                    // Re-render all three bottom tables (Cortante, Capacidad, Deflexión) in correct order
-                    const container = document.querySelector("#vigas_general");
-                    if (!container) return;
-
-                    // Remove all three tables by finding them by title
-                    const tableTitles = [
-                        "3.- Diseño de cortante",
-                        "4.- Diseño por capacidad",
-                        "5.- Diseño por deflexión"
-                    ];
-
-                    Array.from(container.querySelectorAll(".mb-8")).forEach(w => {
-                        if (tableTitles.some(title => w.textContent.includes(title))) {
-                            w.remove();
-                        }
-                    });
-
-                    // Recalculate Shear and Deflection
-                    // Recalculate Shear and Deflection
-                    const rShear = new ShearCalculator(datos).calculate();
-                    const rDef = new DeflectionCalculator(datos, flexionState).calculate();
-
-                    // Render all three tables in correct order
-                    renderResultTable("#vigas_general", rShear, updatedCapacidad, rDef);
+                    // Cortante no depende del acero longitudinal: conservar su tabla.
+                    for (const result of [updatedCapacidad, updatedDeflection]) {
+                        const safeId = result.title.toLowerCase()
+                            .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+                        document.getElementById(`result-table-${safeId}`)?.remove();
+                    }
+                    renderResultTable("#vigas_general", updatedCapacidad, updatedDeflection);
+                    if (currentResults) {
+                        currentResults.capacity = updatedCapacidad;
+                        currentResults.deflection = updatedDeflection;
+                    }
                 };
 
                 // ORDEN CORRECTO DE RENDERIZADO (sin duplicados):

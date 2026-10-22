@@ -23,6 +23,7 @@ class SubscriptionPlansSeeder extends Seeder
                 'type' => 'trial',
                 'is_active' => true,
                 'sort_order' => 1,
+                'max_users' => 1, 'max_projects' => 2,
                 'features' => [
                     'Acceso completo a todas las herramientas',
                     'Calculadoras de estudiante',
@@ -34,12 +35,13 @@ class SubscriptionPlansSeeder extends Seeder
             [
                 'name' => 'Plan Mensual',
                 'slug' => 'plan-mensual',
-                'description' => 'Acceso completo por un mes con renovación automática.',
+                'description' => 'Acceso completo por un mes.',
                 'price' => 49.90,
                 'duration_days' => 30,
                 'type' => 'monthly',
                 'is_active' => true,
                 'sort_order' => 2,
+                'max_users' => 1, 'max_projects' => 10,
                 'features' => [
                     'Acceso completo a todas las herramientas',
                     'Calculadoras de estudiante y asistente',
@@ -52,12 +54,13 @@ class SubscriptionPlansSeeder extends Seeder
             [
                 'name' => 'Plan Anual',
                 'slug' => 'plan-anual',
-                'description' => 'Ahorra 20% con el plan anual. El mejor valor.',
-                'price' => 479.90,
+                'description' => 'Paga un año completo con 5% de descuento sobre 12 mensualidades.',
+                'price' => 568.86,
                 'duration_days' => 365,
                 'type' => 'yearly',
                 'is_active' => true,
                 'sort_order' => 3,
+                'max_users' => 1, 'max_projects' => 10,
                 'features' => [
                     'Acceso completo a todas las herramientas',
                     'Calculadoras de estudiante y asistente',
@@ -66,7 +69,7 @@ class SubscriptionPlansSeeder extends Seeder
                     'Soporte prioritario 24/7',
                     'Exportación ilimitada',
                     'Acceso a webinars exclusivos',
-                    'Ahorro de 20%',
+                    'Ahorro de 5% sobre 12 mensualidades',
                 ],
             ],
             [
@@ -78,6 +81,7 @@ class SubscriptionPlansSeeder extends Seeder
                 'type' => 'lifetime',
                 'is_active' => true,
                 'sort_order' => 4,
+                'max_users' => 1, 'max_projects' => 30,
                 'features' => [
                     'Acceso de por vida a todas las herramientas',
                     'Calculadoras de estudiante y asistente',

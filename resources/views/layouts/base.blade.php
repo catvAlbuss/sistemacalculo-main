@@ -27,6 +27,9 @@
 <body class="flex min-h-screen flex-col bg-gray-100 font-sans antialiased dark:bg-gray-900">
   @yield('content')
   @livewireScriptConfig
+  @if (request()->getBaseUrl())
+    <script>window.livewireScriptConfig.uri = @json(request()->getBaseUrl().app('livewire')->getUpdateUri());</script>
+  @endif
   @stack('scripts')
 </body>
 

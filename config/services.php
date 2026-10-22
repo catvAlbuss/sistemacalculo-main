@@ -34,6 +34,16 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+    'culqi' => [
+        'enabled' => (bool) env('CULQI_ENABLED', false),
+        'public_key' => env('CULQI_PUBLIC_KEY'),
+        'secret_key' => env('CULQI_SECRET_KEY'),
+        'webhook_token' => env('CULQI_WEBHOOK_TOKEN'),
+        'api_url' => 'https://api.culqi.com/v2',
+    ],
+    'apiperu' => [
+        'token' => env('API_PERU_TOKEN'),
+    ],
     'python_backend' => [
         'url' => env('PYTHON_BACKEND_URL', 'http://127.0.0.1:5001'),
         // Carpeta del motor CLI en producción Linux (venv + cli_entry.py).

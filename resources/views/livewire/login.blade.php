@@ -8,7 +8,7 @@ $login = function () {
     $this->validate();
     $this->form->authenticate();
     Session::regenerate();
-    $this->redirectIntended(default: route('dashboard', absolute: false), navigate: false);
+    $this->redirectIntended(default: route('dashboard'), navigate: false);
 };
 ?>
 <div
@@ -47,13 +47,14 @@ $login = function () {
                     <i class="fas fa-times-circle text-xl mr-3"></i>
                     <p>{{ session('error') }}</p>
                 </div>
-                <a href="{{ route('contacto.index') }}"
+                <a href="{{ route('landing.plans') }}"
                     class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-5 rounded-lg shadow-md transition duration-300 flex items-center">Actualizar
                     cuenta</a>
             </div>
         @endif
 
-        <form wire:submit='login' class="space-y-6">
+        <form wire:submit='login' method="POST" action="{{ route('login.store') }}" class="space-y-6">
+            @csrf
             <!-- Email Address -->
             <div class="group/input">
                 <label class="mb-2 block text-sm font-semibold text-slate-900 dark:text-white" for="email">
@@ -72,7 +73,7 @@ $login = function () {
                         id="email" name="email" type="email" wire:model='form.email' :value="old('email')" required
                         autofocus autocomplete="username" placeholder="ingeniero@ejemplo.com" />
                 </div>
-                <x-input-error class="mt-2 text-sm" :messages="$errors->get('email')" />
+                <x-input-error class="mt-2 text-sm" :messages="array_merge($errors->get('form.email'), $errors->get('email'))" />
             </div>
 
             <!-- Password -->
@@ -93,7 +94,8 @@ $login = function () {
                         id="password" name="password" type="password" wire:model='form.password' required
                         autocomplete="current-password" placeholder="••••••••" />
                 </div>
-                <x-input-error class="mt-2 text-sm" :messages="$errors->get('password')" />
+                <x-input-error class="mt-2 text-sm" :messages="array_merge($errors->get('form.password'), $errors->get('password'))" />
+                <a href="{{ route('password.request') }}" class="mt-2 inline-block text-sm font-semibold text-blue-600">¿Olvidaste tu contraseña?</a>
             </div>
 
             <!-- Remember Me -->
@@ -141,7 +143,7 @@ $login = function () {
                         ¿Aún no tienes cuenta?
                     </p>
                     <a class="group inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition-colors hover:text-cyan-600 dark:text-blue-400 dark:hover:text-cyan-400"
-                        href="{{ route('contacto.index') }}">
+                        href="{{ route('landing.plans') }}">
                         <svg class="h-4 w-4 transition-transform group-hover:scale-110" fill="none"
                             stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

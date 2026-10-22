@@ -63,6 +63,8 @@ class User extends Authenticatable
     {
         return $this->hasOne(UserSubscription::class)
             ->where('status', 'active')
+            ->where('starts_at', '<=', now())
+            ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>', now()))
             ->latest('starts_at');
     }
 
@@ -70,6 +72,8 @@ class User extends Authenticatable
     {
         return $this->hasOne(UserSubscription::class)
             ->where('status', 'active')
+            ->where('starts_at', '<=', now())
+            ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>', now()))
             ->latest('starts_at');
     }
 
@@ -108,13 +112,16 @@ class User extends Authenticatable
 
     public function canAccess(string $section): bool
     {
-        if (!$this->is_active || !$this->hasActiveSubscription()) {
+        if (!$this->is_active) {
             return false;
         }
 
         // Root y Gerencia tienen acceso a todo
         if ($this->hasRole(['root', 'gerencia'])) {
             return true;
+        }
+        if (!$this->hasActiveSubscription()) {
+            return false;
         }
 
         // Verificar acceso por sección según rol

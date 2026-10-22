@@ -20,6 +20,8 @@ class SubscriptionPlansManagement extends Component
     public $features = [];
     public $featureInput = '';
     public $sort_order = 0;
+    public $max_users = 1;
+    public $max_projects = 10;
 
     public $planId;
     public $isEditing = false;
@@ -32,21 +34,24 @@ class SubscriptionPlansManagement extends Component
     {
         return [
             'name' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:subscription_plans,slug,' . $this->planId,
+            'slug' => 'required|string|max:255|unique:subscriptions,slug,' . $this->planId,
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
             'duration_days' => 'required_unless:type,lifetime|nullable|integer|min:1',
             'type' => 'required|in:trial,monthly,yearly,lifetime',
             'is_active' => 'boolean',
             'sort_order' => 'integer|min:0',
+            'max_users' => 'required|integer|min:1|max:100000',
+            'max_projects' => 'required|integer|min:1|max:1000000',
         ];
     }
     //resources/views/livewire/subscription-plans-management.blade.php
     public function render()
     {
-        $plans = Subscription::with('activeSubscriptions')->get();
-
-        Log::info('Planes obtenidos:', ['plans' => $plans->toArray()]);
+        $plans = Subscription::with('activeSubscriptions')
+            ->when($this->search !== '', fn ($query) => $query->where(fn ($search) => $search
+                ->where('name', 'like', '%'.$this->search.'%')->orWhere('description', 'like', '%'.$this->search.'%')))
+            ->ordered()->paginate(10);
 
         return view('livewire.subscription-plans-management', [
             'plans' => $plans,
@@ -135,6 +140,7 @@ class SubscriptionPlansManagement extends Component
             'is_active' => $this->is_active,
             'features' => $this->features,
             'sort_order' => $this->sort_order,
+            'max_users' => $this->max_users, 'max_projects' => $this->max_projects,
         ];
 
         Subscription::create($planData);
@@ -157,6 +163,8 @@ class SubscriptionPlansManagement extends Component
         $this->is_active = $plan->is_active;
         $this->features = $plan->features ?? [];
         $this->sort_order = $plan->sort_order;
+        $this->max_users = $plan->max_users ?? 1;
+        $this->max_projects = $plan->max_projects ?? 10;
 
         $this->isEditing = true;
         $this->showModal = true;
@@ -178,6 +186,7 @@ class SubscriptionPlansManagement extends Component
             'is_active' => $this->is_active,
             'features' => $this->features,
             'sort_order' => $this->sort_order,
+            'max_users' => $this->max_users, 'max_projects' => $this->max_projects,
         ]);
 
         session()->flash('message', 'Plan actualizado exitosamente.');
@@ -218,6 +227,7 @@ class SubscriptionPlansManagement extends Component
             'features',
             'featureInput',
             'sort_order',
+            'max_users', 'max_projects',
             'planId',
             'isEditing',
         ]);

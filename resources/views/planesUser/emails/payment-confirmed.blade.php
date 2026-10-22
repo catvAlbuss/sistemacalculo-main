@@ -33,7 +33,7 @@
 
                             <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 25px;">
                                 ¡Excelentes noticias! Hemos confirmado tu pago y tu suscripción al plan <strong
-                                    style="color: #10b981;">{{ $plan->name }}</strong> ya está activa.
+                                    style="color: #10b981;">{{ $plan->name }}</strong> {{ $subscription->starts_at->isFuture() ? 'está programada desde el '.$subscription->starts_at->format('d/m/Y').'; conservas tu cobertura actual hasta esa fecha.' : 'ya está activa.' }}
                             </p>
 
                             <!-- Confirmación Visual -->
@@ -66,7 +66,7 @@
                                                 <td style="color: #047857; font-size: 14px; font-weight: bold;">Plan:
                                                 </td>
                                                 <td style="color: #111827; font-size: 14px; text-align: right;">
-                                                    {{ $plan->name }}</td>
+                                                    {{ $plan->name }} · {{ $plan->duration_text }} · {{ $plan->max_users }} usuario(s) · {{ $plan->max_projects }} proyectos</td>
                                             </tr>
                                             <tr style="border-bottom: 1px solid #d1fae5;">
                                                 <td style="color: #047857; font-size: 14px; font-weight: bold;">Inicio:
@@ -230,6 +230,9 @@
                             <p style="color: #9ca3af; font-size: 11px; margin: 0;">
                                 ID de Suscripción: #{{ $subscription->id }}
                             </p>
+                            @if (!empty($receiptUrl))
+                                <p><a href="{{ $receiptUrl }}">Ver e imprimir tu ticket interno de 80 mm</a></p>
+                            @endif
                         </td>
                     </tr>
                 </table>

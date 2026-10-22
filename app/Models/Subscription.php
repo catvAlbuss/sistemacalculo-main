@@ -20,6 +20,7 @@ class Subscription extends Model
         'is_active',
         'features',
         'sort_order',
+        'max_users', 'max_projects',
     ];
 
     protected $casts = [
@@ -28,6 +29,7 @@ class Subscription extends Model
         'is_active' => 'boolean',
         'features' => 'array',
         'sort_order' => 'integer',
+        'max_users' => 'integer', 'max_projects' => 'integer',
     ];
 
     // Devuelve todas las suscripciones de usuario relacionadas con este plan

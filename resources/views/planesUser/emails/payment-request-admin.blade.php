@@ -94,7 +94,7 @@
                                             <tr>
                                                 <td style="color: #1e3a8a; font-size: 14px;"><strong>Duración:</strong>
                                                 </td>
-                                                <td style="color: #111827; font-size: 14px;">{{ $plan->duration_text }}
+                                                <td style="color: #111827; font-size: 14px;">{{ $plan->duration_text }} · {{ $plan->max_users }} usuario(s) · {{ $plan->max_projects }} proyectos
                                                 </td>
                                             </tr>
                                             <tr>
@@ -119,7 +119,11 @@
 
                             <!-- Comprobante de Pago -->
                             <!-- Estado del Comprobante -->
-                            @if ($paymentRequest->payment_proof)
+                            @if (in_array($paymentRequest->payment_method, ['culqi', 'free', 'quote']))
+                                <p style="color: #1e40af; padding: 20px; background-color: #dbeafe;">
+                                    {{ $paymentRequest->payment_method === 'culqi' ? 'Pago en línea con Culqi: no requiere comprobante ni aprobación manual. La suscripción se activa cuando se confirma el cargo.' : ($paymentRequest->payment_method === 'free' ? 'Registro gratuito: no requiere pago.' : 'Solicitud de precio personalizado: coordinar con el cliente.') }}
+                                </p>
+                            @elseif ($paymentRequest->payment_proof)
                                 <div
                                     style="background-color: #d1fae5; border-left: 4px solid #10b981; padding: 20px; margin: 20px 0; border-radius: 8px;">
                                     <h3 style="color: #065f46; margin-top: 0; font-size: 18px;">
@@ -169,7 +173,7 @@
                                             Cuenta</h3>
                                         <p style="color: #7f1d1d; font-size: 14px; margin: 0;">
                                             <strong>Cuenta de Prueba:</strong> Activada (10 días)<br>
-                                            <strong>Estado del Pago:</strong> Pendiente de Verificación<br>
+                                            <strong>Estado del Pago:</strong> {{ $paymentRequest->payment_method === 'culqi' ? 'Esperando confirmación de Culqi' : ($paymentRequest->payment_method === 'free' ? 'Sin pago requerido' : 'Solicitud registrada') }}<br>
                                             <strong>Fecha de Solicitud:</strong>
                                             {{ $paymentRequest->created_at->format('d/m/Y H:i') }}
                                         </p>
@@ -186,10 +190,18 @@
                                             Requeridas</h3>
                                         <ol
                                             style="color: #6d28d9; margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
+                                            @if ($paymentRequest->payment_method === 'culqi')
+                                                <li>La pasarela confirma el cobro y activa la suscripción automáticamente.</li>
+                                            @elseif ($paymentRequest->payment_method === 'free')
+                                                <li>El acceso gratuito no requiere aprobación de pago.</li>
+                                            @elseif ($paymentRequest->payment_method === 'quote')
+                                                <li>Contactar al cliente para coordinar su plan.</li>
+                                            @else
                                             <li>Verificar el comprobante de pago (si fue proporcionado)</li>
                                             <li>Confirmar la transacción en tu banco/Yape</li>
                                             <li>Acceder al panel de administración para aprobar el pago</li>
                                             <li>Notificar al cliente una vez confirmado</li>
+                                            @endif
                                         </ol>
                                     </td>
                                 </tr>
