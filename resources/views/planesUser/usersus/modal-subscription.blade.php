@@ -1,9 +1,7 @@
-<div x-show="showSubscriptionModal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50"
-    style="display: none;">
-      <div class="bg-white rounded-lg shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" @click.away="showSubscriptionModal = false">
-        <h2 class="text-xl font-bold mb-4">Gestionar Plan de <span class="text-blue-600"
-                x-text="subscriptionData.name"></span></h2>
-
+<div x-show="showSubscriptionModal" class="wk-modal-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="subscription-modal-title" x-trap.inert.noscroll="showSubscriptionModal" @keydown.escape.stop.prevent="showSubscriptionModal = false" @click.self="showSubscriptionModal = false">
+    <section class="wk-modal-panel wk-modal-wide" @click.stop>
+        <header class="wk-modal-header"><div><p class="pr-eyebrow">Administración / Suscripciones</p><h2 id="subscription-modal-title">Gestionar suscripción</h2><p x-text="subscriptionData.name"></p></div><button type="button" class="wk-modal-close" @click="showSubscriptionModal = false" aria-label="Cerrar gestión de suscripción">×</button></header>
+        <div class="wk-modal-form wk-subscription-form">
         <!-- Suscripción Actual -->
         <template x-if="subscriptionData.current_subscription">
             <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg mb-4 border border-blue-200">
@@ -173,5 +171,6 @@
                 </button>
             </div>
         </form>
-    </div>
+        </div>
+    </section>
 </div>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-pdf-enabled="{{ \Illuminate\Support\Facades\View::hasSection('without-pdf') ? 'false' : 'true' }}">
 
 <head>
   @section('head')
@@ -15,6 +15,7 @@
     <!-- Styles -->
     @livewireStyles
     @vite('resources/css/app.css')
+    @vite('resources/css/engineering.css')
     @stack('styles')
 
     <!-- Scripts -->

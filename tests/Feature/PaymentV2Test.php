@@ -166,7 +166,7 @@ class PaymentV2Test extends TestCase
 
     public function test_reminders_are_queued_once_and_stale_ones_do_not_send(): void
     {
-        $payment = $this->signup();
+        $payment = $this->signup(['subscription_plan_id' => Subscription::where('type', 'trial')->firstOrFail()->id]);
         $subscription = $payment->user->subscriptions()->firstOrFail();
         $subscription->update(['ends_at' => today()->addDays(5)->setTime(12, 0)]);
         $this->artisan('subscriptions:remind', ['--dry-run' => true])->assertSuccessful();

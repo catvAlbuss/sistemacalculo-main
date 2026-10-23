@@ -13,6 +13,7 @@ export function mountCulqiPayment() {
     refresh?.addEventListener('click', () => window.location.reload());
     if (!button) return;
     const config = JSON.parse(document.getElementById('culqi-config').textContent);
+    const currency = config.currency || 'PEN';
     const message = document.getElementById('payment-message');
     let busy = false;
     let blocked = false;
@@ -95,7 +96,7 @@ export function mountCulqiPayment() {
             window.Culqi3DS.reset();
             window.Culqi3DS.publicKey = config.publicKey;
             window.Culqi3DS.settings = {
-                charge: { totalAmount: config.amount, currency: 'PEN', returnUrl: window.location.href },
+                charge: { totalAmount: config.amount, currency, returnUrl: window.location.href },
                 card: { email: config.email },
             };
             window.Culqi3DS.options = { closeModalAction: () => {
@@ -106,12 +107,12 @@ export function mountCulqiPayment() {
             device = await window.Culqi3DS.generateDevice();
             if (!device) throw new Error('device');
             checkout = new window.CulqiCheckout(config.publicKey, {
-                settings: { title: config.title, currency: 'PEN', amount: config.amount },
+                settings: { title: config.title, currency, amount: config.amount },
                 client: { email: config.email },
                 options: {
                     lang: 'es', installments: false, modal: true,
-                    paymentMethods: { tarjeta: true, yape: true, bancaMovil: false, agente: false, billetera: false, cuotealo: false },
-                    paymentMethodsSort: ['tarjeta', 'yape'],
+                    paymentMethods: { tarjeta: true, yape: currency === 'PEN', bancaMovil: false, agente: false, billetera: false, cuotealo: false },
+                    paymentMethodsSort: currency === 'PEN' ? ['tarjeta', 'yape'] : ['tarjeta'],
                 },
                 appearance: { theme: 'default', hiddenEmail: true, defaultStyle: { bannerColor: '#2563eb', buttonBackground: '#2563eb' } },
             });

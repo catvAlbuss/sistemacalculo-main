@@ -1,24 +1,13 @@
-@extends('layouts.services')
-
-@section('mid')
-  <h3 class="text-center text-2xl font-bold">Techo Arco</h3>
-  <p class="py-2 text-justify">Techo Arco es una herramienta diseñada para facilitar el cálculo de las
-    medidas de un arco estructural destinado a un techo. Permite a los usuarios ingresar parámetros
-    como el tipo de material, el ancho y la altura del arco, así como las cargas que se aplicarán
-    sobre el techo. La hoja realiza los cálculos necesarios para determinar las dimensiones exactas
-    del arco, asegurando que se cumplan los requisitos estructurales y de seguridad. Además, puede
-    proporcionar detalles como el radio, la longitud y las fuerzas que actúan sobre el arco,
-    facilitando el diseño y la planificación de estructuras de techo con arcos.</p>
-  <a href="{{ route('calculadora.estudiante.arco_techo') }}">
-    <p class="text-justify"><span
-        class="me-2 rounded border border-yellow-300 bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800 dark:bg-gray-700 dark:text-yellow-300">Accede
-        a la Hoja de Calculo Prueba</span>
-    </p>
-  </a>
-  <br>
-  <img class="bg-transparent" src="{{ Vite::asset('resources/img/desingra/hojacalculopredim.png') }}" alt="Arco Techo">
-@endsection
-
-@section('top_left')
-  <img class="bg-transparent" src="{{ Vite::asset('resources/img/desingra/hojacalculapre.png') }}" alt="Arco Techo">
+@extends('layouts.trial')
+@section('trial-title', 'Techo Arco')
+@section('trial-description', 'Abre la hoja de cálculo de prueba y explora los parámetros geométricos de un arco para techo.')
+@section('trial-image', Vite::asset('resources/img/desingra/hojacalculopredim.png'))
+@section('trial-image-alt', 'Hoja de cálculo Techo Arco')
+@section('trial-url', route('calculadora.estudiante.arco_techo'))
+@section('trial-action', 'Abrir hoja de cálculo')
+@section('trial-content')
+    <p class="pr-eyebrow">02 / Hoja de cálculo de prueba</p>
+    <h2 style="margin-top:12px">Explora la geometría de tu arco.</h2>
+    <p>Techo Arco permite ingresar los parámetros de un arco estructural y consultar los resultados de la hoja de cálculo. Accede a la herramienta para revisar sus entradas, gráficos y cálculos.</p>
+    <ul class="en-service-list"><li>Parámetros geométricos del arco.</li><li>Hoja de cálculo disponible desde el navegador.</li><li>Acceso público, sin iniciar sesión.</li></ul>
 @endsection

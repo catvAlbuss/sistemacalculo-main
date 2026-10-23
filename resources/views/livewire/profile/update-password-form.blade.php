@@ -40,41 +40,17 @@ $updatePassword = function () {
 ?>
 
 <section>
-    <header>
-        <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
-            {{ __('Update Password') }}
-        </h2>
-
-        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            {{ __('Ensure your account is using a long, random password to stay secure.') }}
-        </p>
-    </header>
-
-    <form wire:submit="updatePassword" class="mt-6 space-y-6">
-        <div>
-            <x-input-label for="update_password_current_password" :value="__('Current Password')" />
-            <x-text-input wire:model="current_password" id="update_password_current_password" name="current_password" type="password" class="mt-1 block w-full" autocomplete="current-password" />
-            <x-input-error :messages="$errors->get('current_password')" class="mt-2" />
+    <p class="pr-hint">Confirma tu contraseña actual para establecer una nueva. Usa al menos 8 caracteres.</p>
+    <form wire:submit="updatePassword" class="wk-profile-form">
+        <div class="wk-form-grid">
+            @foreach ([['current_password', 'Contraseña actual', 'current-password'], ['password', 'Nueva contraseña', 'new-password'], ['password_confirmation', 'Confirmar nueva contraseña', 'new-password']] as [$field, $label, $autocomplete])
+                <div @class(['wk-form-wide' => $field === 'current_password'])>
+                    <label class="pr-label" for="security-{{ $field }}">{{ $label }}</label>
+                    <input class="pr-input" wire:model="{{ $field }}" id="security-{{ $field }}" name="{{ $field }}" type="password" autocomplete="{{ $autocomplete }}" required>
+                    <x-input-error :messages="$errors->get($field)" class="mt-2" />
+                </div>
+            @endforeach
         </div>
-
-        <div>
-            <x-input-label for="update_password_password" :value="__('New Password')" />
-            <x-text-input wire:model="password" id="update_password_password" name="password" type="password" class="mt-1 block w-full" autocomplete="new-password" />
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
-        </div>
-
-        <div>
-            <x-input-label for="update_password_password_confirmation" :value="__('Confirm Password')" />
-            <x-text-input wire:model="password_confirmation" id="update_password_password_confirmation" name="password_confirmation" type="password" class="mt-1 block w-full" autocomplete="new-password" />
-            <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
-        </div>
-
-        <div class="flex items-center gap-4">
-            <x-primary-button>{{ __('Save') }}</x-primary-button>
-
-            <x-action-message class="me-3" on="password-updated">
-                {{ __('Saved.') }}
-            </x-action-message>
-        </div>
+        <div class="wk-form-footer"><button type="submit" class="pr-button" wire:loading.attr="disabled" wire:target="updatePassword">Actualizar contraseña</button><x-action-message on="password-updated">Contraseña actualizada.</x-action-message></div>
     </form>
 </section>

@@ -55,7 +55,7 @@ class Culqi
             if (!$payment->user->is_active) {
                 return $this->result(false, 'closed', 'Tu cuenta está suspendida. Contacta con soporte.');
             }
-            if ($payment->user->subscriptions()->where('status', 'active')->where('amount_paid', '>', 0)->whereNull('ends_at')->exists()) {
+            if ($payment->user->hasPermanentCoverage()) {
                 return $this->result(false, 'closed', 'Ya tienes cobertura permanente. Contacta con soporte.');
             }
             // A lost response never expires into permission to charge again.
@@ -71,9 +71,15 @@ class Culqi
             } elseif (isset($data['authentication_3DS'])) {
                 return $this->result(false, 'invalid', 'La autenticación no corresponde a este intento.');
             }
-            $amount = (int) round((float) $payment->amount * 100);
+            if ($payment->currency === 'USD' && str_starts_with($data['token'], 'ype_')) {
+                return $this->result(false, 'invalid', 'Yape está disponible en soles. Para USD utiliza tarjeta.');
+            }
+            $amount = (int) round((float) ($payment->charge_amount ?? $payment->amount) * 100);
             if ($amount < 300) {
                 return $this->result(false, 'invalid', 'El monto no permite un pago en línea. Contáctanos para continuar.');
+            }
+            if (!app(PlanChanges::class)->reserve($payment)) {
+                return $this->result(false, 'invalid', 'Hay otro pago pendiente de confirmar o cambió tu cobertura. Revisa Mi plan antes de continuar.');
             }
             $context = ['token_hash' => hash('sha256', $data['token']), 'device_id' => $data['device_id'] ?? null];
             $claim = PaymentRequest::whereKey($payment->id)->where('status', 'pending');
@@ -85,7 +91,7 @@ class Culqi
             $names = explode(' ', trim($payment->name), 2);
             $payload = [
                 'amount' => $amount,
-                'currency_code' => 'PEN',
+                'currency_code' => $payment->currency ?: 'PEN',
                 'email' => $payment->email,
                 'source_id' => $data['token'],
                 'capture' => true,
@@ -121,6 +127,7 @@ class Culqi
             if (!$response->successful()) {
                 PaymentRequest::whereKey($payment->id)->where('status', 'pending')->where('gateway_state', 'processing')->update(['gateway_state' => 'declined', 'gateway_context' => null]);
                 PaymentEvent::record($payment, 'declined', $context['token_hash']);
+                app(PlanChanges::class)->release($payment);
 
                 return $this->result(false, 'declined', 'El pago fue rechazado. Revisa los datos o usa otro medio de pago.');
             }
@@ -187,8 +194,8 @@ class Culqi
                 || !$referenceMatches || !$sourceMatches
                 || ($charge['outcome']['type'] ?? '') !== 'venta_exitosa'
                 || ($charge['capture'] ?? false) !== true || (int) ($charge['amount_refunded'] ?? 0) !== 0
-                || ($charge['currency_code'] ?? '') !== 'PEN'
-                || (int) ($charge['amount'] ?? 0) !== (int) round((float) $row->amount * 100)
+                || ($charge['currency_code'] ?? '') !== ($row->currency ?: 'PEN')
+                || (int) ($charge['amount'] ?? 0) !== (int) round((float) ($row->charge_amount ?? $row->amount) * 100)
                 || (string) ($charge['metadata']['payment_request_id'] ?? '') !== (string) $row->id
                 || ($charge['metadata']['application'] ?? '') !== 'rizabal') {
                 Log::warning('Cargo Culqi no coincide', ['payment_request_id' => $row->id, 'charge_id' => $charge['id'] ?? null]);
@@ -215,21 +222,33 @@ class Culqi
                 return false;
             }
             $snapshot = $row->plan_snapshot ?? [];
+            $change = $snapshot['change'] ?? null;
+            if (($user->payment_in_progress_id && (int) $user->payment_in_progress_id !== $row->id)
+                || ($change && !app(PlanChanges::class)->matches($user, $change))) {
+                PaymentEvent::record($row, 'coverage_changed', $charge['id'], ['charge_id' => $charge['id']], 'warning');
+                return false;
+            }
             // Serialize renewals on the user row: concurrent paid orders append distinct periods.
             $paid = $user->subscriptions()->where('status', 'active')->where('amount_paid', '>', 0)
                 ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>', now()));
-            if ((clone $paid)->whereNull('ends_at')->exists()) {
+            if ($user->hasPermanentCoverage()) {
                 PaymentEvent::record($row, 'permanent_plan_charge', $charge['id'], ['charge_id' => $charge['id']], 'warning');
                 return false;
             }
             $end = $paid->max('ends_at');
-            $start = $end ? \Illuminate\Support\Carbon::parse($end) : now();
+            $start = $change ? now(config('app.timezone')) : ($end ? \Illuminate\Support\Carbon::parse($end, config('app.timezone')) : now(config('app.timezone')));
+            if ($change) {
+                // Query update intentionally avoids lifecycle hooks that would suspend the account mid-change.
+                $user->subscriptions()->whereIn('id', array_column($change['sources'], 'id'))
+                    ->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+            }
             $subscription = $user->subscriptions()->create([
                 'subscription_plan_id' => $plan->id, 'status' => 'active', 'starts_at' => $start,
                 'ends_at' => ($snapshot['type'] ?? $plan->type) === 'lifetime' ? null
                     : (!empty($snapshot['duration_months']) ? $start->copy()->addMonthsNoOverflow($snapshot['duration_months'])
                         : $start->copy()->addDays($snapshot['duration_days'] ?? $plan->duration_days)),
                 'amount_paid' => $row->amount, 'payment_method' => 'culqi', 'transaction_id' => $charge['id'],
+                'credit_basis' => $snapshot['plan_total'] ?? $row->amount,
                 'notes' => 'Pago confirmado por Culqi',
             ]);
             if (!$start->isFuture()) {
@@ -241,9 +260,10 @@ class Culqi
                 'gateway_state' => 'paid', 'gateway_context' => null,
             ]);
             app(Billing::class)->issue($row);
+            app(PlanChanges::class)->release($row);
             app(PaymentTasks::class)->create('paid_client', $row);
             PaymentEvent::record($row, 'paid', $charge['id'], [
-                'charge_id' => $charge['id'], 'amount' => $row->amount, 'currency' => 'PEN',
+                'charge_id' => $charge['id'], 'amount' => $row->charge_amount ?? $row->amount, 'currency' => $row->currency ?: 'PEN',
                 'starts_at' => $subscription->starts_at->toIso8601String(), 'ends_at' => $subscription->ends_at?->toIso8601String(),
             ]);
             $activated = true;

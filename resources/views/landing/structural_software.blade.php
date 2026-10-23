@@ -1,16 +1,13 @@
 @extends('layouts.services')
-
-@section('mid')
-  <h3 class="py-5 text-center text-2xl font-bold">Desarrollo de Software Estructural</h3>
-  <p class="py-2 text-center">En Rizabal & Asociados, también desarrollamos software especializado en diseño y
-    análisis estructural. Nuestras herramientas están pensadas para facilitar y acelerar el trabajo de
-    ingenieros, brindando soluciones intuitivas y poderosas que cumplen con las normativas internacionales.
-    ¡Transforma la manera en que diseñan estructuras con nuestras soluciones tecnológicas!</p>
-  <img class="bg-transparent" src="{{ Vite::asset('resources/img/desingra/servcios-it-desarrollo-software.webp') }}"
-    alt="Software Estructural">
-@endsection
-
-@section('top_left')
-  <img class="bg-transparent" src="{{ Vite::asset('resources/img/desingra/servcios-it-desarrollo-software.webp') }}"
-    alt="Software Estructural">
+@section('service-code', 'S.02')
+@section('service-title', 'Desarrollo de software estructural')
+@section('service-description', 'Herramientas digitales para apoyar el análisis, el diseño y la verificación estructural. Conversemos sobre las necesidades de tu equipo.')
+@section('service-image', Vite::asset('resources/img/desingra/servcios-it-desarrollo-software.webp'))
+@section('service-image-alt', 'Desarrollo de herramientas de software estructural')
+@section('service-content')
+  <p class="pr-eyebrow">01 / Enfoque del servicio</p>
+  <h2 style="margin-top:12px">Tecnología para tu proceso de ingeniería.</h2>
+  <p>Desarrollamos software especializado para facilitar el trabajo de los ingenieros. Buscamos organizar los cálculos y hacer más accesibles las herramientas de análisis y diseño.</p>
+  <ul class="en-service-list"><li>Herramientas para análisis y diseño estructural.</li><li>Revisión de necesidades y flujos de trabajo del equipo.</li><li>Definición del alcance de la solución antes de su desarrollo.</li></ul>
+  <div class="en-actions"><a href="{{ route('landing.plans') }}" class="en-inline-link">Ver nuestros planes de software ↗︎</a></div>
 @endsection

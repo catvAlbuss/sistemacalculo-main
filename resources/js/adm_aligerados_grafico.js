@@ -1,3 +1,4 @@
+import { createFlexionModel, bindFlexionDiagram } from "./aligerados-flexion.js";
 import { read as readmat } from "mat-for-js";
 import { createSpreeadSheetTable } from "./tabulator_base/table_factory.js";
 import { makeCreateDeleteColumn } from "./tabulator_base/table.js";
@@ -92,79 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   };
 
-  const T1Model = {
-    id: "#T1",
-    mutators: {
-      diametro: {
-        deps: ["Asd"],
-        mutator: function (value, data) {
-          const asd = parseFloat(data.Asd);
-          if (asd <= 0.71) {
-            return '1 Ø 3/8"';
-          } else if (asd <= 1.27) {
-            return '1 Ø 1/2"';
-          } else if (asd <= 2) {
-            return '1 Ø 5/8"';
-          } else if (asd <= 2.71) {
-            return '1 Ø 5/8" + 1 Ø 3/8"';
-          } else if (asd <= 3.27) {
-            return '1 Ø 5/8" + 1/2"';
-          } else if (asd <= 4) {
-            return '2 Ø 5/8"';
-          } else if (asd <= 4.71) {
-            return '2 Ø 5/8" + 1 Ø 3/8"';
-          } else if (asd <= 5.27) {
-            return '2 Ø 5/8" + 1 Ø 1/2"';
-          } else if (asd <= 6) {
-            return '3 Ø 5/8"';
-          } else if (asd <= 6.54) {
-            return '2 Ø 5/8" + 2 Ø 1/2"';
-          }
-          return "";
-        },
-      },
-    },
-    config: {
-      layout: "fitDataTable",
-      columns: [
-        {
-          title: "Diseño a Flexión",
-          columns: [
-            {
-              title: "Mu Tn-m",
-              field: "Mu",
-              formatter: function (cell, formatterParams, onRendered) {
-                const value = parseFloat(cell.getValue());
-                return isNaN(value) ? "" : value.toFixed(2) + " Tn-m";
-              },
-            },
-            {
-              title: "Asd cm²",
-              field: "Asd",
-              formatter: function (cell, formatterParams, onRendered) {
-                const value = parseFloat(cell.getValue());
-                return isNaN(value)
-                  ? `${cell.getValue().r.toFixed(2)}${cell.getValue().i < 0 ? "" : "+"}${cell.getValue().i.toFixed(2)}i`
-                  : value.toFixed(2) + " cm²";
-              },
-            },
-            {
-              title: "Asmin cm²",
-              field: "Asmin",
-              formatter: function (cell, formatterParams, onRendered) {
-                const value = parseFloat(cell.getValue());
-                return isNaN(value) ? "" : value.toFixed(2) + " cm²";
-              },
-            },
-            {
-              title: "Diametro",
-              field: "diametro",
-            },
-          ],
-        },
-      ],
-    },
-  };
+  const T1Model = createFlexionModel();
 
   const T2Model = {
     id: "#T2",
@@ -256,21 +185,6 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
           </div>
           <div class="border-t-4 ${!isLast ? "border-l-4" : "border-l-4 border-r-4"}">${width} m</div>
-        </div>`;
-    };
-    const asdComponent = (percentX, asd1, d1, asd2, d2, asd3, d3, isLast, L) => {
-      const l_div_3 = (L / 3).toFixed(2);
-      const l_dot_7 = (0.7 * L).toFixed(2);
-      return `<div class="text-center text-xs inline-block" style="width: ${percentX}%">
-          <div class="flex justify-between">
-            <div class="border-l-4 px-2">L = ${l_div_3}m<br>${parseFloat(asd1).toFixed(2)} cm²<br>${d1}</div>
-            <div class="${!isLast ? "" : "border-r-4"} px-2">L = ${l_div_3}m<br>${parseFloat(asd3).toFixed(
-        2
-      )} cm²<br>${d3}</div>
-          </div>
-          <div class="border-t-4 ${!isLast ? "border-l-4" : "border-l-4 border-r-4"}">${parseFloat(asd2).toFixed(
-        2
-      )} cm²<br>${d2}<br>L = ${l_dot_7}m</div>
         </div>`;
     };
     const vuComponent = (width, percentX, vu1, x1, vu2, x2, isLast) => {
@@ -450,7 +364,10 @@ document.addEventListener("DOMContentLoaded", () => {
           },
         };
         Plotly.newPlot("momentosFlectores", tracesMF, layout);
+        T1?.destroy();
+        T2?.destroy();
         T1 = createSpreeadSheetTable(T1Model);
+        bindFlexionDiagram(T1, ltis.map((span) => ({ ...span })), adjustedWidths, document.getElementById("asd"));
         T2 = createSpreeadSheetTable(T2Model);
         setTimeout(() => {
           T1.addData(
@@ -471,25 +388,6 @@ document.addEventListener("DOMContentLoaded", () => {
               return acc;
             }, [])
           );
-          const asdValues = T1.getData();
-          document.getElementById("asd").innerHTML = propiedades.getData().reduce((html, row, index, data) => {
-            const percentX = (parseFloat(row.lti) / total) * 100;
-            return (
-              html +
-              asdComponent(
-                adjustedWidths[index],
-                asdValues[index * 3].Asd,
-                asdValues[index * 3].diametro,
-                asdValues[index * 3 + 1].Asd,
-                asdValues[index * 3 + 1].diametro,
-                asdValues[index * 3 + 2].Asd,
-                asdValues[index * 3 + 2].diametro,
-                index === data.length - 1,
-                data[index].lti
-              )
-            );
-          }, "");
-
           const vuValues = T2.getData();
           let dVu, x;
           T2.getData().forEach((row, index, data) => {

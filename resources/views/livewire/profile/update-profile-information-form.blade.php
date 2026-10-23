@@ -4,28 +4,32 @@ use App\Models\User;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
-use Illuminate\Validation\Rule;
 
 use function Livewire\Volt\state;
 
 state([
     'name' => fn () => auth()->user()->name,
-    'email' => fn () => auth()->user()->email
+    'phone' => fn () => auth()->user()->phone,
+    'profession' => fn () => auth()->user()->profession,
+    'company' => fn () => auth()->user()->company,
+    'city' => fn () => auth()->user()->city,
+    'bio' => fn () => auth()->user()->bio,
 ]);
+state(['email' => fn () => auth()->user()->email])->locked();
 
 $updateProfileInformation = function () {
     $user = Auth::user();
 
     $validated = $this->validate([
         'name' => ['required', 'string', 'max:255'],
-        'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique(User::class)->ignore($user->id)],
+        'phone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+()\s.\-]*$/'],
+        'profession' => ['nullable', 'string', 'max:120'],
+        'company' => ['nullable', 'string', 'max:160'],
+        'city' => ['nullable', 'string', 'max:120'],
+        'bio' => ['nullable', 'string', 'max:1000'],
     ]);
 
     $user->fill($validated);
-
-    if ($user->isDirty('email')) {
-        $user->email_verified_at = null;
-    }
 
     $user->save();
 
@@ -49,53 +53,25 @@ $sendVerification = function () {
 ?>
 
 <section>
-    <header>
-        <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
-            {{ __('Profile Information') }}
-        </h2>
-
-        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            {{ __("Update your account's profile information and email address.") }}
-        </p>
-    </header>
-
-    <form wire:submit="updateProfileInformation" class="mt-6 space-y-6">
-        <div>
-            <x-input-label for="name" :value="__('Name')" />
-            <x-text-input wire:model="name" id="name" name="name" type="text" class="mt-1 block w-full" required autofocus autocomplete="name" />
-            <x-input-error class="mt-2" :messages="$errors->get('name')" />
-        </div>
-
-        <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input wire:model="email" id="email" name="email" type="email" class="mt-1 block w-full" required autocomplete="username" />
-            <x-input-error class="mt-2" :messages="$errors->get('email')" />
-
-            @if (auth()->user() instanceof MustVerifyEmail && ! auth()->user()->hasVerifiedEmail())
+    <form wire:submit="updateProfileInformation" class="wk-profile-form">
+        <div class="wk-form-grid">
+            @foreach ([['name', 'Nombre completo', 'text', 'name', 255], ['phone', 'Teléfono de contacto', 'tel', 'tel', 30], ['profession', 'Profesión o especialidad', 'text', 'organization-title', 120], ['company', 'Empresa o institución', 'text', 'organization', 160], ['city', 'Ciudad', 'text', 'address-level2', 120]] as [$field, $label, $type, $autocomplete, $length])
                 <div>
-                    <p class="text-sm mt-2 text-gray-800 dark:text-gray-200">
-                        {{ __('Your email address is unverified.') }}
-
-                        <button wire:click.prevent="sendVerification" class="underline text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800">
-                            {{ __('Click here to re-send the verification email.') }}
-                        </button>
-                    </p>
-
-                    @if (session('status') === 'verification-link-sent')
-                        <p class="mt-2 font-medium text-sm text-green-600 dark:text-green-400">
-                            {{ __('A new verification link has been sent to your email address.') }}
-                        </p>
-                    @endif
+                    <label class="pr-label" for="profile-{{ $field }}">{{ $label }} @if ($field !== 'name')<span class="wk-muted">(opcional)</span>@endif</label>
+                    <input class="pr-input" wire:model="{{ $field }}" id="profile-{{ $field }}" name="{{ $field }}" type="{{ $type }}" autocomplete="{{ $autocomplete }}" maxlength="{{ $length }}" @required($field === 'name')>
+                    <x-input-error :messages="$errors->get($field)" class="mt-2" />
                 </div>
-            @endif
+            @endforeach
+            <div class="wk-form-wide">
+                <label class="pr-label" for="profile-bio">Acerca de ti <span class="wk-muted">(opcional)</span></label>
+                <textarea class="pr-input" wire:model="bio" id="profile-bio" name="bio" rows="3" maxlength="1000" placeholder="Cuéntanos sobre tu experiencia y el tipo de proyectos en los que trabajas."></textarea>
+                <p class="pr-hint">Hasta 1000 caracteres. Estos datos pertenecen a tu perfil de cuenta.</p>
+                <x-input-error :messages="$errors->get('bio')" class="mt-2" />
+            </div>
         </div>
-
-        <div class="flex items-center gap-4">
-            <x-primary-button>{{ __('Save') }}</x-primary-button>
-
-            <x-action-message class="me-3" on="profile-updated">
-                {{ __('Saved.') }}
-            </x-action-message>
+        <div class="wk-form-footer">
+            <button type="submit" class="pr-button" wire:loading.attr="disabled" wire:target="updateProfileInformation">Guardar mis datos</button>
+            <x-action-message on="profile-updated">Datos guardados correctamente.</x-action-message>
         </div>
     </form>
 </section>

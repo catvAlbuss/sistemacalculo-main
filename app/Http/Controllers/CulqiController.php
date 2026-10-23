@@ -74,4 +74,27 @@ class CulqiController extends Controller
 
         return response()->json(['received' => true, 'queued' => true]);
     }
+
+    public function cancel(Request $request, PaymentRequest $paymentRequest)
+    {
+        abort_unless($paymentRequest->user_id === $request->user()->id && $paymentRequest->payment_method === 'culqi', 404);
+        $lock = \Illuminate\Support\Facades\Cache::lock('culqi:payment:'.$paymentRequest->id, 120);
+        if (!$lock->get()) {
+            return back()->withErrors(['payment' => 'El pago se está procesando. Revisa el resultado antes de cerrar la solicitud.']);
+        }
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($paymentRequest) {
+                $row = PaymentRequest::whereKey($paymentRequest->id)->lockForUpdate()->firstOrFail();
+                if ($row->status !== 'pending') { return; }
+                if ($row->gateway_charge_id || !in_array($row->gateway_state, [null, 'declined', 'authentication'], true)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['payment' => 'El cobro tiene un resultado pendiente de verificar. No puede cerrarse ni repetirse.']);
+                }
+                $row->update(['status' => 'rejected', 'gateway_state' => 'cancelled', 'rejected_at' => now(),
+                    'gateway_context' => null, 'rejection_reason' => 'Solicitud cerrada por su titular antes de cobrar.']);
+                app(\App\Services\PlanChanges::class)->release($row);
+                \App\Models\PaymentEvent::record($row, 'cancelled_unpaid');
+            });
+        } finally { $lock->release(); }
+        return back()->with('success', 'Solicitud cerrada sin efectuar un cobro ni una devolución.');
+    }
 }

@@ -1,0 +1,150 @@
+[
+  {
+    "inputs": {
+      "alturacolumna": 8,
+      "longitudtransversal": 45.8,
+      "luz": 35,
+      "flecha": 7,
+      "pesopropio": 19.8,
+      "luminarias": 0,
+      "cargaviva": 30,
+      "cargaviento": 75,
+      "Ps": 40,
+      "Z": 0.35,
+      "U": 1.5,
+      "S": 1.2,
+      "C": 2.5,
+      "R": 8
+    },
+    "outputs": {
+      "datosgeometricos": [
+        "25.38m",
+        "43.60 deg",
+        "0.76 RAD",
+        "38.62m",
+        "2.38m",
+        "1768.86m<sup>2</sup>",
+        "24.77m",
+        "9.20m"
+      ],
+      "calculocargas": [
+        "764.70kg/m",
+        "382.35kg/m",
+        "-453.45kg/m",
+        "593.14kg/m"
+      ],
+      "cargavivas": [
+        "1158.64kg/m",
+        "579.32kg/m",
+        "-687.05kg/m",
+        "898.70kg/m"
+      ],
+      "coeficientesismico": [
+        "1054.36kg/m",
+        "527.18kg/m",
+        "0.197kg/m",
+        "207.58kg/m",
+        "103.79kg/m",
+        "27.40kg/m",
+        "107.35kg/m"
+      ],
+      "cargadeviento": [
+        "82.00km/h",
+        "33.62kg/m<sup>2</sup>",
+        "26.89kg/m<sup>2</sup>",
+        "16.81kg/m<sup>2</sup>",
+        "1038.70kg/m",
+        "649.19kg/m",
+        "519.35kg/m",
+        "-615.93kg/m",
+        "805.66kg/m",
+        "324.59kg/m",
+        "-384.96kg/m",
+        "503.54kg/m"
+      ],
+      "carganieve": [
+        "0.20kg/m",
+        "40.00kg/m<sup>2</sup>",
+        "32.00kg/m<sup>2</sup>",
+        "1544.86kg/m",
+        "772.43kg/m",
+        "-916.07kg/m",
+        "1198.26kg/m"
+      ]
+    }
+  },
+  {
+    "inputs": {
+      "alturacolumna": 10,
+      "longitudtransversal": 50,
+      "luz": 28,
+      "flecha": 5,
+      "pesopropio": 22,
+      "luminarias": 3,
+      "cargaviva": 40,
+      "cargaviento": 90,
+      "Ps": 55,
+      "Z": 0.45,
+      "U": 1.3,
+      "S": 1.1,
+      "C": 2,
+      "R": 6
+    },
+    "outputs": {
+      "datosgeometricos": [
+        "22.10m",
+        "39.31 deg",
+        "0.69 RAD",
+        "30.32m",
+        "1.69m",
+        "1516.17m<sup>2</sup>",
+        "21.67m",
+        "7.29m"
+      ],
+      "calculocargas": [
+        "758.08kg/m",
+        "379.04kg/m",
+        "-508.82kg/m",
+        "634.48kg/m"
+      ],
+      "cargavivas": [
+        "1212.93kg/m",
+        "606.47kg/m",
+        "-814.11kg/m",
+        "1015.17kg/m"
+      ],
+      "coeficientesismico": [
+        "1061.32kg/m",
+        "530.66kg/m",
+        "0.215kg/m",
+        "227.65kg/m",
+        "113.83kg/m",
+        "26.89kg/m",
+        "116.96kg/m"
+      ],
+      "cargadeviento": [
+        "98.40km/h",
+        "48.41kg/m<sup>2</sup>",
+        "38.73kg/m<sup>2</sup>",
+        "24.21kg/m<sup>2</sup>",
+        "1174.36kg/m",
+        "733.98kg/m",
+        "587.18kg/m",
+        "-788.22kg/m",
+        "982.89kg/m",
+        "366.99kg/m",
+        "-492.64kg/m",
+        "614.30kg/m"
+      ],
+      "carganieve": [
+        "0.18kg/m",
+        "55.00kg/m<sup>2</sup>",
+        "44.00kg/m<sup>2</sup>",
+        "1667.78kg/m",
+        "833.89kg/m",
+        "-1119.40kg/m",
+        "1395.86kg/m"
+      ]
+    }
+  }
+]

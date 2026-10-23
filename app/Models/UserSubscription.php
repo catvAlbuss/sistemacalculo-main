@@ -17,6 +17,7 @@ class UserSubscription extends Model
         'starts_at',
         'ends_at',
         'amount_paid',
+        'credit_basis',
         'payment_method',
         'transaction_id',
         'notes',
@@ -28,6 +29,7 @@ class UserSubscription extends Model
         'ends_at' => 'datetime',
         'cancelled_at' => 'datetime',
         'amount_paid' => 'decimal:2',
+        'credit_basis' => 'decimal:2',
     ];
 
     protected static function boot()
@@ -98,35 +100,44 @@ class UserSubscription extends Model
         }
 
         // Lifetime siempre es activo
-        if (!$this->ends_at) {
+        if (!$this->accessEndsAt()) {
             return true;
         }
 
-        return $this->ends_at->isFuture();
+        return $this->accessEndsAt()->isFuture();
+    }
+
+    public function accessEndsAt(): ?\Illuminate\Support\Carbon
+    {
+        if ($this->payment_method === 'trial') {
+            $limit = $this->starts_at->copy()->addDays(\App\Services\TrialAccess::DAYS);
+            return $this->ends_at && $this->ends_at->isBefore($limit) ? $this->ends_at : $limit;
+        }
+        return $this->ends_at;
     }
 
     public function isExpired(): bool
     {
-        if (!$this->ends_at) {
+        if (!$this->accessEndsAt()) {
             return false; // Lifetime nunca expira
         }
 
-        return $this->ends_at->isPast();
+        return !$this->accessEndsAt()->isFuture();
     }
 
     public function daysRemaining(): int
     {
-        if (!$this->ends_at) {
+        if (!$this->accessEndsAt()) {
             return PHP_INT_MAX; // Lifetime
         }
 
-        $days = now()->diffInDays($this->ends_at, false);
+        $days = now()->diffInDays($this->accessEndsAt(), false);
         return max(0, (int) ceil($days));
     }
 
     public function isExpiringSoon(int $days = 7): bool
     {
-        if (!$this->ends_at) {
+        if (!$this->accessEndsAt()) {
             return false;
         }
 

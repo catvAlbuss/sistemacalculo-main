@@ -22,6 +22,11 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'phone',
+        'profession',
+        'company',
+        'city',
+        'bio',
         'email',
         'password',
         'current_subscription_id',
@@ -37,6 +42,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'payment_in_progress_id',
+        'project_restore_version',
     ];
 
     /**
@@ -51,6 +58,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'subscription_ends_at' => 'datetime',
             'is_active' => 'boolean',
+            'payment_in_progress_id' => 'integer',
         ];
     }
 
@@ -64,6 +72,8 @@ class User extends Authenticatable
         return $this->hasOne(UserSubscription::class)
             ->where('status', 'active')
             ->where('starts_at', '<=', now())
+            ->where(fn ($query) => $query->whereNull('payment_method')->orWhere('payment_method', '!=', 'trial')
+                ->orWhere('starts_at', '>', now()->subDays(\App\Services\TrialAccess::DAYS)))
             ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>', now()))
             ->latest('starts_at');
     }
@@ -73,6 +83,8 @@ class User extends Authenticatable
         return $this->hasOne(UserSubscription::class)
             ->where('status', 'active')
             ->where('starts_at', '<=', now())
+            ->where(fn ($query) => $query->whereNull('payment_method')->orWhere('payment_method', '!=', 'trial')
+                ->orWhere('starts_at', '>', now()->subDays(\App\Services\TrialAccess::DAYS)))
             ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>', now()))
             ->latest('starts_at');
     }
@@ -102,6 +114,13 @@ class User extends Authenticatable
     {
         $subscription = $this->currentSubscription;
         return $subscription && $subscription->plan->isLifetime();
+    }
+
+    public function hasPermanentCoverage(): bool
+    {
+        return $this->subscriptions()->where('status', 'active')
+            ->where(fn ($query) => $query->whereNull('payment_method')->orWhere('payment_method', '!=', 'trial'))
+            ->whereNull('ends_at')->exists();
     }
 
     public function daysRemaining(): int

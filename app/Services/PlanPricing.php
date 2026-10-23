@@ -34,11 +34,12 @@ class PlanPricing
         return array_merge(app(Billing::class)->breakdown($total / 100), [
             'billing_cycle' => $cycle, 'list_total' => $list / 100,
             'discount' => $discount / 100, 'discount_percent' => $annualDiscount ? 5 : 0,
-            'duration_days' => $cycle === 'yearly' ? 365 : ($plan->duration_days === null ? null : $plan->duration_days * $months),
+            'duration_days' => $plan->isFree() ? TrialAccess::DAYS : ($cycle === 'yearly' ? 365 : ($plan->duration_days === null ? null : $plan->duration_days * $months)),
             'duration_months' => $cycle === 'yearly' ? 12 : null,
-            'duration_text' => $cycle === 'yearly' ? '1 año' : ($months > 1 ? $months.' meses' : $plan->duration_text),
+            'duration_text' => $plan->isFree() ? TrialAccess::DAYS.' días' : ($cycle === 'yearly' ? '1 año' : ($months > 1 ? $months.' meses' : $plan->duration_text)),
             'months' => $cycle === 'yearly' ? 12 : $months,
             'features' => $plan->features ?? [], 'max_users' => $plan->max_users, 'max_projects' => $plan->max_projects,
+            'monthly_reference' => app(PlanChanges::class)->monthlyPrice($base),
         ]);
     }
 
@@ -50,5 +51,54 @@ class PlanPricing
         $quote = $this->quote($plan);
 
         return [$quote['billing_cycle'] => $quote];
+    }
+
+    public function purchaseQuote(Subscription $plan, ?string $cycle, int $months, string $currency = 'PEN', ?\App\Models\User $user = null, string $mode = 'renew'): array
+    {
+        $quote = $this->quote($plan, $cycle, $months);
+        if ($user) { app(PlanChanges::class)->ensureDowngradeFits($user, $plan); }
+        $quote['plan_total'] = $quote['total'];
+        $quote['credit'] = 0;
+        if ($mode === 'upgrade') {
+            if (!$user || $plan->isFree() || $plan->isLifetime()) {
+                throw ValidationException::withMessages(['purchase_mode' => 'Inicia sesión y selecciona un plan pagado para cambiar de inmediato.']);
+            }
+            $quote['change'] = app(PlanChanges::class)->quote($user, $plan, $quote);
+            $quote['credit'] = $quote['change']['credit'];
+            $quote = array_merge($quote, app(Billing::class)->breakdown(round($quote['total'] - $quote['credit'], 2)));
+        }
+        $rate = $currency === 'USD' ? \App\Models\ExchangeRate::current() : null;
+        if (!in_array($currency, ['PEN', 'USD'], true) || ($currency === 'USD' && !$rate)) {
+            throw ValidationException::withMessages(['currency' => 'USD requiere un tipo de cambio vigente. Puedes continuar en soles.']);
+        }
+        $quote['currency'] = $currency;
+        $quote['charge_amount'] = $rate ? ceil(round($quote['total'] / (float) $rate->sell * 100, 6)) / 100 : $quote['total'];
+        $quote['service_total'] = $quote['total'];
+        $quote['processing_fee'] = 0;
+        $quote['processing'] = null;
+        if (!$plan->isFree() && !$plan->isLifetime()) {
+            $processing = app(ProcessingPrice::class)->quote((int) round($quote['charge_amount'] * 100), $currency, $rate);
+            $quote['charge_amount'] = $processing['gross_cents'] / 100;
+            if ($processing['details']) {
+                $finalPen = $rate ? round($quote['charge_amount'] * (float) $rate->sell, 2) : $quote['charge_amount'];
+                $quote['processing_fee'] = round($finalPen - $quote['service_total'], 2);
+                $quote['processing'] = $processing['details'];
+                $quote = array_merge($quote, app(Billing::class)->breakdown($finalPen));
+            }
+        }
+        $quote['exchange_rate'] = $rate ? (float) $rate->sell : null;
+        $quote['exchange_rate_date'] = $rate?->date->toDateString();
+        $quote['pricing_key'] = hash_hmac('sha256', json_encode([$plan->id, $user?->id, $mode, $quote], JSON_THROW_ON_ERROR), config('app.key'));
+        return $quote;
+    }
+
+    public function publicQuote(Subscription $plan): array
+    {
+        try {
+            return $this->purchaseQuote($plan, null, 1) + ['pricing_available' => true];
+        } catch (ValidationException $exception) {
+            if (!isset($exception->errors()['processing'])) { throw $exception; }
+            return $this->quote($plan) + ['pricing_available' => false, 'pricing_error' => $exception->errors()['processing'][0]];
+        }
     }
 }

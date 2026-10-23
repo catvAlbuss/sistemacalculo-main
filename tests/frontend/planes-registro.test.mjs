@@ -78,25 +78,37 @@ test('multiple months use server quotes and annual disables the month count with
         'months-row': {},
         'plan-pricing': { textContent: JSON.stringify({
             monthly: { periods: {
-                1: { total: 49.90, subtotal: 42.29, tax_amount: 7.61, list_total: 49.90, discount: 0, duration_text: '1 mes' },
-                3: { total: 149.70, subtotal: 126.86, tax_amount: 22.84, list_total: 149.70, discount: 0, duration_text: '3 meses' },
+                1: { total: 49.90, subtotal: 42.29, tax_amount: 7.61, list_total: 49.90, discount: 0, processing_fee: 0, duration_text: '1 mes', currency: 'USD', charge_amount: 13.31, pricing_key: 'one' },
+                3: { total: 149.70, subtotal: 126.86, tax_amount: 22.84, list_total: 149.70, discount: 0, processing_fee: 7.11, duration_text: '3 meses', currency: 'USD', charge_amount: 39.92, pricing_key: 'three' },
             } },
-            yearly: { total: 568.86, subtotal: 482.08, tax_amount: 86.78, list_total: 598.80, discount: 29.94, duration_text: '1 año' },
+            yearly: { total: 568.86, subtotal: 482.08, tax_amount: 86.78, list_total: 598.80, discount: 29.94, processing_fee: 24.50, duration_text: '1 año', currency: 'USD', charge_amount: 151.70, pricing_key: 'year' },
         }) },
     };
     for (const id of ['plan-duration', 'plan-subtotal', 'plan-tax', 'plan-total', 'plan-list-total', 'plan-discount', 'annual-list-row', 'annual-discount-row', 'plan-payment-period']) elements[id] = {};
+    elements['pricing-key'] = {};
+    elements['plan-charge-total'] = {};
+    elements['plan-processing'] = {};
+    elements['processing-row'] = {};
     globalThis.document = { getElementById: id => elements[id] };
     globalThis.window = { addEventListener() {} };
     mountPlanRegistration();
     assert.equal(elements['plan-total'].textContent, 'S/ 49.90');
+    assert.equal(elements['processing-row'].hidden, true);
     assert.equal(elements['annual-discount-row'].hidden, true);
     elements['plan-months'].value = '3';
     handlers.months();
     assert.equal(elements['plan-total'].textContent, 'S/ 149.70');
+    assert.equal(elements['plan-charge-total'].textContent, 'Cobro: US$ 39.92');
+    assert.equal(elements['pricing-key'].value, 'three');
+    assert.equal(elements['plan-processing'].textContent, 'S/ 7.11');
+    assert.equal(elements['processing-row'].hidden, false);
     assert.equal(elements['plan-duration'].textContent, '3 meses');
     elements['billing-cycle'].value = 'yearly';
     handlers.cycle();
     assert.equal(elements['plan-total'].textContent, 'S/ 568.86');
+    assert.equal(elements['plan-charge-total'].textContent, 'Cobro: US$ 151.70');
+    assert.equal(elements['plan-processing'].textContent, 'S/ 24.50');
+    assert.equal(elements['pricing-key'].value, 'year');
     assert.equal(elements['plan-tax'].textContent, 'S/ 86.78');
     assert.equal(elements['annual-discount-row'].hidden, false);
     assert.equal(elements['plan-months'].disabled, true);
@@ -110,4 +122,5 @@ test('multiple months use server quotes and annual disables the month count with
     handlers.months();
     assert.equal(elements['plan-total'].textContent, 'S/ 49.90');
     assert.equal(elements['annual-discount-row'].hidden, true);
+    assert.equal(elements['processing-row'].hidden, true);
 });

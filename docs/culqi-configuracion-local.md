@@ -1,5 +1,13 @@
 # Configuración local y activación de Culqi
 
+Estado vigente al 22/10/2026: esta integración incluye PEN/USD con tipo de cambio congelado, cambios inmediatos con saldo proporcional y respaldos/restauración por propietario. La sección «Ampliación confirmada» al final sustituye las limitaciones históricas que aparecen en las revisiones anteriores. La renovación continúa siendo manual y la emisión electrónica SUNAT sigue pendiente.
+
+La navegación pública agrupa los accesos personales en «Mi cuenta» y la gestión de pagos/reclamaciones en «Administración», visible para root y gerencia. El Libro de Reclamaciones público permanece en el pie. El enlace Blog se retiró mientras carezca de destino. La prueba gratis se ofrece a visitantes; las cuentas acceden a sus herramientas desde Mi cuenta. El cierre de sesión usa POST con CSRF e invalida la sesión mediante la acción existente. En tabletas y móviles se usa el menú plegable; los submenús admiten Escape, clic exterior y flecha abajo.
+
+La portada muestra el formulario de acceso exclusivamente a visitantes. Si la sesión ya existe muestra «Sesión iniciada», identidad y cierre de sesión, para evitar que el formulario sugiera que la cuenta está desconectada. El HTML con navegación dependiente de sesión lleva `Cache-Control: private, no-store, max-age=0, must-revalidate` y `Vary: Cookie`; una restauración del historial del navegador vuelve a consultar el servidor. Las pruebas HTTP cubren la portada como visitante, con sesión y después de salir, además de la prevención de caché en páginas públicas.
+
+La cobertura permanente activa, aunque haya sido otorgada sin pago, oculta las renovaciones y bloquea nuevas compras pagadas en el formulario, registro y procesamiento Culqi. Las coberturas canceladas no bloquean. Las páginas con layout landing omiten pdfMake y sus fuentes; las herramientas conservan el runtime PDF y su inicialización antes de Livewire. La revisión incluye 105 pruebas relacionadas de servidor y 21 de frontend aprobadas, además de una comprobación real en navegador del menú y de la generación PDF.
+
 Rizabal cobra los planes de pago exclusivamente con tarjeta o Yape en línea mediante Culqi y activa la suscripción al confirmar el cargo. No recibe comprobantes ni permite Yape manual para solicitudes nuevas. Los planes gratuitos y las consultas de precio personalizado conservan su registro sin cobro. Culqi queda deshabilitado hasta configurar las llaves propias del comercio.
 
 ## Estructura y pagos de Gespro
@@ -263,3 +271,145 @@ php artisan view:clear
 El archivo `database/data/ubigeos_inei.csv` contiene los 1 893 distritos del catálogo local de Gespro. Es una copia de esa referencia, no una nueva verificación de vigencia ante INEI/SUNAT; debe contrastarse al conectar la emisión electrónica. La ubicación seleccionada queda congelada en la solicitud y en `billing_receipts.customer_location`, y aparece en el ticket de 80 mm. Los cambios posteriores del catálogo no alteran el comprobante interno ya generado.
 
 Verificación de esta revisión: 77 pruebas de servidor y 14 pruebas frontend aprobadas, compilación Vite correcta, migración aplicada localmente y prueba de navegador con envío Livewire y rechazo visible de credenciales ficticias. El ingreso válido se verifica con cuentas aisladas de prueba; no se utilizan contraseñas de usuarios reales.
+
+## Páginas legales y Libro de Reclamaciones (22/10/2026)
+
+La referencia se adaptó desde las páginas legales y `ReclamacionController` de Gespro, sin modificar ese proyecto. Rizabal incorpora `/terminos-y-condiciones`, `/politica-de-cambios-y-devoluciones`, `/politica-de-privacidad` y `/libro-de-reclamaciones`. El pie de las páginas públicas enlaza los cuatro destinos y muestra los datos configurados del proveedor. Los términos describen cuentas individuales, cobros en PEN y renovación manual; no ofrecen prorrateos, cobros recurrentes ni servicios adicionales de respaldo que no están implementados.
+
+La política comercial confirmada por el titular toma como referencia los casos de Gespro: duplicados o importes incorrectos, cobro sin activación e incidencias atribuibles al servicio comunicadas dentro de siete días de la activación. La solicitud comercial se atiende en hasta cinco días hábiles. La devolución efectiva se gestiona en CulqiPanel por el medio original; publicar la política o responder una hoja no mueve dinero ni modifica un pago. No se promete un plazo bancario que no haya sido confirmado para esa operación.
+
+El nuevo formulario de registro usa la versión 4 y exige aceptación también en el acceso gratuito. Conserva enlaces a los documentos, versión del servidor, fecha, identidad del proveedor y huellas SHA-256 de las tres plantillas dentro del `plan_snapshot`. No se confía en una versión legal enviada por el navegador. Los contratos anteriores y sus eventos de aceptación se conservan; las solicitudes de clientes antiguos mantienen la compatibilidad descrita en las secciones previas. Las facturas de las versiones 3 y 4 siguen exigiendo un distrito del catálogo.
+
+### Funcionamiento del libro
+
+- El consumidor registra un reclamo o queja sin cuenta ni pago. Se admiten documentos extranjeros y datos del representante de menores.
+- La hoja tiene correlativo, fecha de Lima, datos congelados del proveedor y fecha límite. El cómputo de los quince días hábiles excluye fines de semana, feriados nacionales y Jueves/Viernes Santo. Las fechas adicionales aplicables al establecimiento se incorporan en `legal.additional_holidays`; el calendario requiere mantenimiento si cambia la normativa.
+- La clave aleatoria del formulario evita duplicar la hoja y sus notificaciones al reenviar la misma solicitud. Un mismo intento con otros datos se rechaza. El servidor determina estado, fecha límite, correlativo y respuesta.
+- La copia se muestra mediante URL firmada, permite imprimir o guardar PDF y se entrega sin caché ni referencias a terceros. No existe listado público ni ruta de borrado. El enlace de la copia debe tratarse como privado. Las hojas se conservan, como mínimo, dos años; esta implementación no las elimina automáticamente.
+- Las tareas `complaint_copy`, `complaint_admin` y `complaint_answer` se guardan en la misma transacción que la hoja o respuesta. Usan la cola `payments`, los reintentos y la recuperación existentes. El mensaje web confirma registro y programación del correo, no una entrega SMTP que aún no ocurrió.
+- Root y gerencia tienen acceso a `/administracion/reclamaciones`, con filtros, fecha límite y detalle de notificaciones. La primera respuesta se guarda con bloqueo de fila, usuario y fecha; los envíos repetidos no la reemplazan ni crean otra tarea. Registrar una respuesta y entregar su correo son estados distintos, visibles en el detalle.
+- Si falla el correo, la hoja y la copia permanecen disponibles. `payments:dispatch-pending` recupera tareas pendientes; una tarea agotada se revisa y recupera con `payments:retry-task ID`. No se registran respuestas completas del proveedor de correo ni datos de documentos en los errores.
+
+### Preparación del servidor
+
+Completa en el entorno del servidor los datos vigentes, verificados con el titular. No uses datos del comercio de Gespro ni direcciones de correo de ejemplo:
+
+```dotenv
+BILLING_ISSUER_NAME="RAZON SOCIAL DEL TITULAR"
+BILLING_ISSUER_RUC=RUC_DE_11_DIGITOS
+BILLING_ISSUER_ADDRESS="DOMICILIO VIGENTE"
+BILLING_ISSUER_UBIGEO=CODIGO_DE_6_DIGITOS
+BILLING_ISSUER_EMAIL=CORREO_DEL_EMISOR
+LEGAL_CONTACT_EMAIL=CORREO_DE_ATENCION
+LEGAL_CONTACT_PHONE=TELEFONO_CON_CODIGO_DE_PAIS
+```
+
+Los valores anteriores son marcadores, no datos para publicar. El correo legal usa, en su ausencia, el correo del emisor o `MAIL_ADMIN_ADDRESS`. El teléfono inicial conserva el número de WhatsApp que ya utilizaba el sitio. La razón social, el RUC y la dirección de fuentes secundarias deben confirmarse: el enlace general de consulta SUNAT no contiene una ficha empresarial seleccionada.
+
+Con código y assets desplegados, aplica únicamente la nueva migración y actualiza los procesos:
+
+```powershell
+php artisan migrate --path=database/migrations/2026_10_22_000008_create_complaints_table.php --force
+php artisan config:clear
+php artisan view:clear
+php artisan queue:restart
+php artisan legal:verificar
+php artisan culqi:verificar
+```
+
+`legal:verificar` es de lectura: comprueba los datos comerciales, la tabla y los ajustes básicos de producción. No cobra, no envía correos y no certifica el estado de SUNAT ni el cumplimiento legal integral. En producción requiere `APP_URL` con HTTPS, cookie de sesión segura y depuración desactivada. El servidor web debe redirigir HTTP a HTTPS en todas las rutas y tener un certificado válido; una URL de configuración no demuestra ese requisito. Deben seguir activos el scheduler y el worker `payments`.
+
+Antes de presentar el comercio: verificar los datos reales y el canal de atención; conservar un libro físico de respaldo; comprobar una hoja y una respuesta con entrega real de correo usando datos autorizados; probar tarjeta, Yape, 3DS y webhook en el entorno de integración; confirmar con Culqi que el catálogo de cuatro planes satisface la excepción para servicios. Las tarjetas de los planes ahora tienen una imagen de las herramientas. La emisión electrónica SUNAT continúa siendo una integración aparte: el ticket interno mantiene su indicación de falta de validez tributaria.
+
+Referencias verificadas: [Libro de Reclamaciones de Indecopi](https://consumidor.gob.pe/libro-de-reclamaciones/), [preguntas del libro actualizadas en noviembre de 2025](https://consumidor.gob.pe/wp-content/uploads/2020/07/Preguntas_Respuestas_LR_12.11.2025.pdf), [feriados nacionales](https://www.gob.pe/feriados), [operaciones de devolución de Culqi](https://docs.culqi.com/es/documentacion/pagos-online/operaciones/devoluciones) y [derechos ARCO](https://www.gob.pe/9270).
+
+La primera entrega legal pasó 89 pruebas de servidor y 14 de frontend. La validación conjunta de la ampliación se detalla al final. Los datos de RUC, razón social, dirección y correo de atención ya fueron confirmados por el titular.
+
+## Ampliación confirmada: USD, cambios de plan y respaldos
+
+El titular solicitó las tres funciones. Esta sección describe el comportamiento actual y reemplaza las limitaciones históricas de USD, prorrateo y copias. La versión legal vigente es `2026-10-22-v2`; las aceptaciones de compras anteriores permanecen intactas.
+
+### USD y tipo de cambio
+
+`exchange_rates` guarda venta, fecha y fuente. Las visitas al registro solo leen una cotización almacenada de hasta siete días, no futura. Sin una cotización utilizable, USD queda deshabilitado y PEN continúa funcionando. `tipo-cambio:actualizar` consulta ApiPeru una vez cuando falta la fecha; valida la fecha de respuesta y una venta entre 2 y 6 PEN/USD. El scheduler lo ejecuta a las 09:15 de Lima y necesita la llave propia `API_PERU_TOKEN`. También admite un valor manual verificado:
+
+```text
+php artisan tipo-cambio:actualizar --fecha=AAAA-MM-DD --venta=TIPO_VERIFICADO --fuente="FUENTE_VERIFICADA"
+```
+
+Los marcadores no son valores para ejecutar. No se cargó una cotización ficticia en la base local. Las pruebas usan datos aislados.
+
+El registro permite elegir moneda e inicio del plan antes de completar los datos. La conversión USD redondea hacia arriba al centavo, se muestra con fecha y tipo de cambio y se congela al registrar la solicitud. La versión 5 envía una huella HMAC de la cotización del servidor: si cambian precios, cambio o saldo antes del registro, exige revisar el resumen nuevo. Cambiar meses o período actualiza también esa huella.
+
+`payment_requests.amount`, el IGV y el resumen administrativo conservan la base PEN. `currency`, `charge_amount`, `exchange_rate` y `exchange_rate_date` identifican el cobro efectivo. Culqi y 3DS reciben esos valores congelados; una respuesta con otro importe o moneda no activa el plan. El ticket interno identifica el cobro USD y su base PEN; mantiene su indicación de falta de validez tributaria. Correos y Mi plan muestran el importe cobrado. Yape se oculta en USD y se rechaza en el servidor si se intenta forzar.
+
+### Cambios de plan
+
+La renovación normal agrega el período después de la cobertura pagada. El cambio inmediato es explícito y requiere una cuenta autenticada con plan pagado vigente que elija otro de mayor precio mensual de referencia.
+
+El saldo se calcula en céntimos sobre el valor del plan, proporcionalmente a los días restantes, más las renovaciones futuras todavía no iniciadas. No se recorta un saldo mayor al precio: se pide elegir más meses o un año para conservar su valor. La cotización guarda los períodos utilizados, sus fechas y la base de crédito. El resumen muestra saldo y neto antes de cobrar; se conserva el mínimo operativo del comercio de tres unidades monetarias. `credit_basis` conserva el valor completo del plan nuevo, incluido el crédito aplicado, para calcular otro cambio posterior.
+
+Antes del cargo se reserva el pago en la fila del propietario. Otro pago incierto de esa cuenta bloquea cargos nuevos, sin afectar a otros usuarios. Rechazo explícito o confirmación liberan la reserva; un timeout no la libera. Se comprueba que la cobertura corresponde a la cotización. Al confirmar una subida, se cancelan los períodos utilizados para el saldo y el nuevo plan comienza inmediatamente, en una única transacción. Repetir la confirmación no consume saldo dos veces. Una alteración concurrente deja el cargo para revisión, sin aplicar un crédito duplicado.
+
+Las bajadas empiezan al finalizar la cobertura. Se comprueba que los modelos CAD y memorias sin modelo vinculado quepan en el cupo del plan menor; las memorias vinculadas al mismo CAD no se cuentan otra vez. Este control no sustituye un sistema general de límites en todos los endpoints de creación de futuros módulos.
+
+Mi plan permite cerrar solicitudes todavía no cobradas, incluidas autenticaciones 3DS abandonadas, cuando no hay ID de cargo ni estado incierto/procesando. Exige titular autenticado y CSRF y comparte el bloqueo del cobro. No efectúa devoluciones. Un cargo incierto continúa requiriendo conciliación o revisión en CulqiPanel.
+
+### Respaldos y restauración
+
+`/mis-respaldos` permite al propietario autenticado, también con plan vencido, proteger sus modelos CAD, memorias de cálculo, imágenes guardadas en ellas y memorias descriptivas. No incluye credenciales, sesiones, pagos, reclamaciones, archivos externos/generados ni borradores que solo estén en el navegador. Los vínculos CAD ajenos se retiran de la copia. Ni siquiera los administradores de pagos pueden descargar o restaurar copias ajenas por esos endpoints.
+
+Las copias se guardan cifradas mediante Laravel en el disco privado `local`, con checksum y formato versionado. El máximo sin comprimir es 64 MB; tamaños mayores requieren respaldo asistido. La descarga entrega un JSON comprimido en gzip, legible al descomprimirlo y que debe conservarse en un lugar seguro. Restaurar solo utiliza copias privadas generadas por el sistema, sin admitir cargas de archivos arbitrarios.
+
+La vista previa identifica por nombre los modelos y memorias que quedarán y los posteriores que se quitarán. Exige confirmación y contraseña actual. Si los datos cambiaron desde esa vista previa se rechaza la operación y se pide revisarla. Antes de tocar proyectos se guarda una copia independiente del estado actual; la escritura es transaccional. Un fallo revierte los proyectos y conserva esa copia previa. Restaurar la copia previa permite deshacer el cambio.
+
+Los guardados CAD y sus puentes de memorias comparten el bloqueo con respaldos/restauraciones. Una generación monotónica por propietario incrementa las versiones CAD para impedir que una pestaña antigua sobrescriba el resultado. Tras restaurar deben cerrarse las otras pestañas y reabrir los proyectos desde el servidor. Ninguna restauración cambia correo, contraseña, suscripciones, pagos o reclamaciones.
+
+El scheduler ejecuta `project-backups:daily` a las 02:00 de Lima. Conserva una copia por fecha de los siete días más recientes con copias, cuatro domingos y cuatro copias previas a restaurar. Las descargas y restauraciones se auditan por cuenta y se muestran en el panel. La limpieza afecta solo a respaldos propios, nunca a proyectos.
+
+```powershell
+php artisan project-backups:daily --dry-run
+php artisan project-backups:daily
+```
+
+El primer comando no escribe ni elimina copias. El segundo genera/depura copias y no restaura proyectos. Localmente se ejecutó únicamente `--dry-run`, sin proyectos guardados en el servidor. Las restauraciones completas y su reversión se probaron con datos aislados.
+
+### Configuración y despliegue
+
+Se configuraron los datos confirmados: RIZABAL & ASOCIADOS INGENIEROS ESTRUCTURALES S.A.C., RUC 20609317061, Av. Javier Heraud N.° 110, sector San Luis, Amarilis, Huánuco, ubigeo 100102. Se mantuvo el WhatsApp +51 962 999 500. El correo confirmado `admon.construyehco@gmail.com` quedó configurado en `LEGAL_CONTACT_EMAIL`, `BILLING_ISSUER_EMAIL` y `MAIL_ADMIN_ADDRESS`, tanto en `.env` como en `.env.example`. No se modificaron las credenciales SMTP ni el remitente. `legal:verificar` pasa; la entrega SMTP real requiere una comprobación autorizada en el servidor.
+
+Además de la migración del libro, aplica las dos migraciones siguientes. Ya están aplicadas localmente:
+
+```powershell
+php artisan migrate --path=database/migrations/2026_10_22_000009_add_currency_changes_and_backups.php --force
+php artisan migrate --path=database/migrations/2026_10_22_000010_add_project_restore_generation.php --force
+php artisan config:clear
+php artisan view:clear
+php artisan queue:restart
+php artisan legal:verificar
+php artisan culqi:verificar
+php artisan schedule:list
+```
+
+No repitas las migraciones antiguas de memorias sobre datos existentes. Se corrigió su eliminación de índice para instalaciones nuevas y pruebas SQLite. Conserva el `APP_KEY` de cada entorno y respalda su almacenamiento privado: cambiarlo impide descifrar copias anteriores. No publiques `.env`, llaves ni respaldos en el directorio web. Mantén scheduler y worker activos y comprueba espacio libre.
+
+Validación conjunta: 109 pruebas de servidor y 15 de frontend aprobadas. Incluyen USD, cotización obsoleta, Yape forzado, crédito de períodos futuros, confirmación repetida, capacidad al bajar, cierre de solicitudes, aislamiento de copias, restauración y reversión, retención, copia alterada, contraseña y rollback de escritura. La disponibilidad de USD y del procesamiento en soles depende de conservar una cotización vigente; consulta la verificación del 23/10/2026 al final de este documento. Las pruebas de integración con la pasarela, entrega SMTP y certificado HTTPS corresponden al entorno publicado; todavía no se ha desplegado al servidor.
+
+Referencias de Culqi: [monedas del cargo](https://docs.culqi.com/es/documentacion/pagos-online/cargo-unico/cargos/) y [Checkout Custom con Yape en PEN](https://docs.culqi.com/es/documentacion/checkout/checkout-custom).
+
+
+## Precio final y prueba gratuita (23/10/2026)
+
+Los precios configurados en los planes son el monto objetivo tras procesamiento, todavía con IGV del servicio incluido. El cliente ve un precio final único para tarjeta y Yape, calculado en centavos: `ceil((objetivo + cargo fijo) / (1 - 0.0399))`. La tarifa de referencia aprobada es 3.99 % + US$0.20 por transacción. No se suma 18 % a toda la comisión: el tarifario vigente de Culqi indica que las comisiones generales están inafectas; el IGV del servicio se desglosa sobre el precio final de venta. El neto es una estimación; la liquidación efectiva se concilia en CulqiPanel.
+
+Configuración: `CULQI_INCLUDE_PROCESSING=true`, `CULQI_PROCESSING_PERCENT=3.99` y `CULQI_PROCESSING_FIXED_USD=0.20`. `CULQI_PROCESSING_FIXED_PEN` es opcional, para un equivalente real confirmado por el comercio; vacío usa el tipo de cambio vigente. La compra conserva el porcentaje, cargo fijo, origen/fecha de conversión, neto objetivo, total, IGV y cotización en su snapshot. No cambia solicitudes anteriores. El descuento anual y el saldo por tiempo no usado se aplican al servicio antes de calcular procesamiento; la base de crédito excluye ese costo.
+
+Se verificó y guardó localmente el tipo de cambio SBS de venta 3.450 del 22/10/2026 (referencia, no tarifa de liquidación de Culqi). Sin API_PERU_TOKEN, `tipo-cambio:actualizar` consulta la publicación oficial de SBS, conserva su fecha real y rechaza datos futuros, fuera del rango validado o de más de siete días. Sin una conversión verificable, el catálogo indica precio por confirmar y el servidor bloquea nuevas compras pagadas; la prueba sigue disponible. El scheduler diario ya incluye esa actualización. En producción debe poder acceder a SBS o disponer de un API_PERU_TOKEN operativo.
+
+La prueba es una sola vez por cuenta, dura exactamente 15 días desde el registro y no tiene comisión ni tarjeta. Queda como acceso gratuito confirmado, sin cargo ni comprobante tributario. Registrarse para pagar no concede una prueba implícita. Las rutas de software, cálculo, memorias y API del backend comprueban la cobertura en cada solicitud; los endpoints de cuenta, contratación, soporte y respaldos siguen accesibles tras el vencimiento. Root y gerencia conservan su acceso administrativo. Predim y Arco Techo públicos siguen abiertos. No hay cobro automático al vencer: el usuario debe elegir y pagar un plan. Las pruebas antiguas con fecha mayor o sin fecha final tampoco exceden 15 días; los períodos pagados permanecen intactos.
+
+Términos actualizados a la versión 2026-10-23-v3; las aceptaciones antiguas mantienen sus hashes y versión originales. El correo ya distingue prueba de 15 días, pago pendiente y cotización personalizada.
+
+Fuentes: [tarifario Culqi](https://culqi.com/precios/), [comisiones CulqiOnline](https://ayuda.culqi.com/portal/es/kb/articles/cual-es-la-comision-de-culqionline) y [tipo de cambio oficial SBS](https://www.sbs.gob.pe/app/pp/SISTIP_PORTAL/Paginas/Publicacion/TipoCambioPromedio.aspx). No se realizaron cobros, envíos reales de correo ni despliegue.
+
+Validación de precio y prueba: 149 pruebas distintas de servidor y 21 de frontend aprobadas, compilación Vite correcta y 24 combinaciones de vista/ancho/tema comprobadas en Chrome, sin errores JavaScript ni desbordamiento horizontal. Se probaron cotizaciones mensuales, varios meses y anuales, monto congelado frente a cambios de configuración, prorrateo previo a comisión, monedas, rechazo de datos manipulados, vencimiento exacto, bloqueo de rutas y API, acceso de cuenta tras vencer, pruebas antiguas sin vencimiento, y respuestas SBS inválidas o caducadas. En la configuración local verificada: mensual S/52.70 y anual S/593.22; el plan gratuito conserva S/0.00.

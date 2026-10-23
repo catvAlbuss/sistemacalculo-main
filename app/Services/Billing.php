@@ -30,7 +30,7 @@ class Billing
             'document_type' => ['required', Rule::in($request->input('receipt_type') === 'factura' ? ['RUC'] : ['DNI'])],
             'document_number' => ['required', 'string', $type === 'RUC' ? 'regex:/^[0-9]{11}$/' : 'regex:/^[0-9]{8}$/'],
             'billing_address' => ['nullable', Rule::requiredIf($request->input('receipt_type') === 'factura'), 'string', 'max:255'],
-            'billing_ubigeo' => ['nullable', Rule::requiredIf($request->input('receipt_type') === 'factura' && $request->input('checkout_form_version') === '3'), 'string', 'regex:/^[0-9]{6}$/', 'exists:ubigeos,codigo'],
+            'billing_ubigeo' => ['nullable', Rule::requiredIf($request->input('receipt_type') === 'factura' && in_array($request->input('checkout_form_version'), ['3', '4', '5'], true)), 'string', 'regex:/^[0-9]{6}$/', 'exists:ubigeos,codigo'],
         ], [
             'receipt_type.required' => 'Selecciona boleta o factura.',
             'document_type.in' => 'Selecciona RUC para factura o DNI para boleta.',

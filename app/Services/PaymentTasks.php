@@ -70,6 +70,7 @@ class PaymentTasks
             $result = match ($task->kind) {
                 'webhook', 'reconcile' => $this->webhook($task),
                 'renewal_reminder' => $this->reminder($task),
+                'complaint_copy', 'complaint_admin', 'complaint_answer' => $this->complaint($task),
                 default => $this->mail($task),
             };
             $task->update(['status' => 'completed', 'completed_at' => now(), 'locked_at' => null, 'payload' => null, 'result' => $result]);
@@ -120,6 +121,7 @@ class PaymentTasks
             Mail::send('planesUser.emails.payment-confirmed', [
                 'user' => $payment->user, 'plan' => $purchasedPlan, 'subscription' => $subscription,
                 'receiptUrl' => $payment->receipt()->first()?->ticketUrl(),
+                'payment' => $payment,
             ], fn ($message) => $message->to($payment->email)->subject('Pago confirmado - Cobertura registrada'));
         } else {
             throw new \RuntimeException('Tipo de tarea desconocido.');
@@ -139,6 +141,18 @@ class PaymentTasks
             return 'superseded';
         }
         Mail::to($subscription->user->email)->send(new \App\Mail\RenewalReminder($subscription));
+
+        return 'sent';
+    }
+
+    private function complaint(PaymentTask $task): string
+    {
+        $complaint = \App\Models\Complaint::findOrFail($task->payload['complaint_id']);
+        $recipient = $task->kind === 'complaint_admin' ? ($complaint->provider['email'] ?? null) : $complaint->email;
+        if (!$recipient) {
+            throw new \RuntimeException('Configura el correo de atención del Libro de Reclamaciones.');
+        }
+        Mail::to($recipient)->send(new \App\Mail\ComplaintNotification($complaint, $task->kind === 'complaint_answer'));
 
         return 'sent';
     }

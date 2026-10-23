@@ -73,6 +73,15 @@ body {
   overflow: hidden;
 }
 
+/* Reserve the shared public navigation's actual height above the drawing tools. */
+.predim-public-page .predim-container { height:100dvh; }
+.predim-public-page .engineering-nav { flex-shrink:0; font-family:system-ui,sans-serif; }
+.predim-public-page .en-brand, .predim-public-page .en-nav-link,
+.predim-public-page .en-dropdown-panel a { text-decoration:none; }
+@media (max-width:1279px) {
+  .predim-public-page .engineering-nav { max-height:100dvh; overflow-y:auto; }
+}
+
 .predim-ribbon {
   flex-shrink: 0;
   background: var(--rb-bg2);

@@ -1,4 +1,4 @@
-// const { document } = require("postcss");
+import '../css/arco-techo.css';
 
 document.addEventListener("DOMContentLoaded", () => {
   const desingButton = document.getElementById("desingButton");
@@ -351,4 +351,22 @@ document.addEventListener("DOMContentLoaded", () => {
         </tr>
     `;
   });
+
+  // Presentation state only: calculation formulas above remain unchanged.
+  const status = document.getElementById('arco-status');
+  if (status) {
+    let calculated = false;
+    desingButton.addEventListener('click', () => {
+      calculated = true;
+      status.textContent = 'Resultados actualizados con los datos ingresados.';
+      status.dataset.state = 'ready';
+    });
+    document.querySelectorAll('.arco-sheet input').forEach((input) => {
+      input.addEventListener('input', () => {
+        if (!calculated) return;
+        status.textContent = 'Datos modificados · vuelve a calcular para actualizar los resultados.';
+        status.dataset.state = 'pending';
+      });
+    });
+  }
 });

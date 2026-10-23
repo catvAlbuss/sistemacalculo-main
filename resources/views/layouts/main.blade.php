@@ -2,7 +2,11 @@
 
 @section('content')
 @section('navigation')
-  <livewire:layout.navigation />
+  @guest
+    <x-navigation-landing />
+  @else
+    <livewire:layout.navigation />
+  @endguest
 @show
 
 <!-- Page Heading -->

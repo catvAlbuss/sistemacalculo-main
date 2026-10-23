@@ -11,11 +11,12 @@
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 
     {{-- Predim CSS --}}
-    @vite(['resources/css/predim.css'])
+    @vite(['resources/css/app.css', 'resources/css/engineering.css', 'resources/css/predim.css'])
 </head>
 
-<body>
+<body class="predim-public-page">
 <div class="predim-container">
+    <x-navigation-landing />
 
     {{-- ═══ RIBBON ═══ --}}
     @include('predim.components.ribbon-topbar')
@@ -175,6 +176,7 @@
 </script>
 
 {{-- Ribbon adapter + main JS --}}
+@vite(['resources/js/public-navigation.js'])
 @vite(['resources/js/predim/ribbon-adapter.js'])
 @vite(['resources/js/predim/index.js'])
 

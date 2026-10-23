@@ -1,8 +1,11 @@
-@props(['title' => null])
+@props(['title' => null, 'publicNavigation' => false])
 
 @extends('layouts.base')
 
 @section('content')
+  @if ($publicNavigation || auth()->guest())
+    <x-navigation-landing />
+  @endif
   @if (!empty($title))
     <x-header :title="$title"></x-header>
   @endif

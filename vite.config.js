@@ -63,6 +63,8 @@ export default defineConfig({
         laravel({
             input: [
                 "resources/css/app.css",
+                "resources/css/engineering.css",
+                "resources/css/workspace.css",
                 "resources/css/predim.css",
                 "resources/css/espectroStyle.css",
                 ...glob.sync("resources/js/*.js").filter(f => !f.includes('memoria_calculo') && !f.includes('index-deprecated')),

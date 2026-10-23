@@ -96,7 +96,7 @@
                                                     Pagado:</td>
                                                 <td
                                                     style="color: #10b981; font-size: 18px; text-align: right; font-weight: bold;">
-                                                    S/ {{ number_format($subscription->amount_paid, 2) }}</td>
+                                                    {{ isset($payment) && $payment->currency === 'USD' ? 'US$' : 'S/' }} {{ number_format(isset($payment) ? ($payment->charge_amount ?? $subscription->amount_paid) : $subscription->amount_paid, 2) }}</td>
                                             </tr>
                                         </table>
                                     </td>

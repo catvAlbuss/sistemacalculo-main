@@ -5,15 +5,23 @@ import.meta.glob(["../img/**", "../fonts/**"]);
 import { Livewire, Alpine } from "../../vendor/livewire/livewire/dist/livewire.esm";
 import "flowbite";
 
-// Importar pdfMake
-import pdfMake from "pdfmake/build/pdfmake";
-import pdfFonts from "pdfmake/build/vfs_fonts";
-
-pdfMake.addVirtualFileSystem(pdfFonts);
+// Las herramientas conservan el runtime PDF; las páginas públicas y de cuenta no lo cargan.
+export const pdfReady = document.documentElement.dataset.pdfEnabled?.trim() === 'true'
+  ? Promise.all([import('pdfmake/build/pdfmake'), import('pdfmake/build/vfs_fonts')])
+      .then(([runtime, fonts]) => {
+        const pdfMake = runtime.default || runtime;
+        pdfMake.addVirtualFileSystem(fonts.default || fonts);
+        window.pdfMake = pdfMake;
+      })
+  : Promise.resolve();
 
 // Hacer Alpine disponible globalmente
 window.Alpine = Alpine;
-window.pdfMake = pdfMake;
+
+// Back/forward restoration must refresh navigation after login or logout.
+window.addEventListener('pageshow', event => {
+  if (event.persisted) window.location.reload();
+});
 
 console.log("� Aplicación base inicializada");
 

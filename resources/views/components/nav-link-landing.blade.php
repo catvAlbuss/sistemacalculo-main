@@ -1,3 +1,3 @@
-<a aria-current="$aria_current()" {{ $attributes->merge(['class' => $get_class()]) }}>
+<a @if($active) aria-current="page" @endif {{ $attributes->merge(['class' => $get_class()]) }}>
   {{ $slot }}
 </a>

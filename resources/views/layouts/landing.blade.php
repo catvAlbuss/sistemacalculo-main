@@ -1,4 +1,5 @@
 @extends('layouts.base')
+@section('without-pdf', '1')
 
 @section('content')
     <!-- Navbar -->
@@ -6,4 +7,5 @@
 
     <!-- Main Content -->
     @yield('main')
+    <x-legal-footer />
 @endsection

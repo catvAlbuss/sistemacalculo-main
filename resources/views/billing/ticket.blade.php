@@ -45,6 +45,7 @@
             <div class="rule"></div>
             <h2>{{ strtoupper($receipt->receipt_type) }} · TICKET INTERNO</h2>
             <p>{{ $receipt->number }}</p>
+            @if($receipt->paymentRequest?->currency === 'USD')<p>Cobro: US$ {{ number_format($receipt->paymentRequest->charge_amount, 2) }} · TC {{ $receipt->paymentRequest->exchange_rate }} PEN/USD · {{ $receipt->paymentRequest->exchange_rate_date?->format('d/m/Y') }}. Importes base del ticket en PEN.</p>@endif
             <p>{{ $receipt->issued_at->timezone('America/Lima')->format('d/m/Y H:i') }}</p>
         </header>
         <div class="rule"></div>

@@ -17,9 +17,9 @@ class DashboardController extends Controller
             return redirect()->route('plans.mine');
         }
         if ($user->hasRole(['root', 'gerencia'])) {
-            return view('dashboard', ['alert' => null]);
+            return view('dashboard', $this->dashboardData($user, null));
         }
-        $subscription = $user->activeSubscription; // Asume la relación existe
+        $subscription = $user->activeSubscription()->first();
 
         // --- 1. Lógica de Restricción de Acceso (Plan Inactivo/Expirado) ---
 
@@ -34,9 +34,25 @@ class DashboardController extends Controller
         // --- 2. Lógica de Alerta para Dashboard (Solo si tiene acceso) ---
         $alert = $this->getSubscriptionAlert($user, $subscription);
 
-        return view('dashboard', [
-            'alert' => $alert,
-        ]);
+        return view('dashboard', $this->dashboardData($user, $alert));
+    }
+
+    private function dashboardData(\App\Models\User $user, ?array $alert): array
+    {
+        $projectCount = 0;
+        foreach (['cad_models', 'memoria_calculos', 'memorias_descriptivas'] as $table) {
+            $query = \Illuminate\Support\Facades\DB::table($table)->where('user_id', $user->id);
+            if ($table !== 'cad_models') {
+                $query->whereNull('cad_model_id');
+            }
+            $projectCount += $query->count();
+        }
+
+        return ['user' => $user, 'alert' => $alert, 'current' => $user->currentSubscription()->first(),
+            'projectCount' => $projectCount,
+            'pendingPayments' => \App\Models\PaymentRequest::where('user_id', $user->id)->where('status', 'pending')->count(),
+            'lastBackup' => \App\Models\ProjectBackup::where('user_id', $user->id)->latest()->first(),
+        ];
     }
 
     /**
@@ -49,7 +65,7 @@ class DashboardController extends Controller
     {
         $planName = $subscription->plan->name ?? 'Plan Desconocido';
         $planType = $subscription->plan->type ?? 'trial'; // 'monthly', 'annual', 'lifetime', 'trial'
-        $endsAt = optional($subscription)->ends_at ? Carbon::parse($subscription->ends_at) : null;
+        $endsAt = $subscription->accessEndsAt();
         $now = Carbon::now();
 
         if ($endsAt) {
@@ -64,7 +80,7 @@ class DashboardController extends Controller
                     ];
                 }
 
-                $baseMessage = "Estás disfrutando de tu Período de Prueba (Plan: <strong>{$planName}</strong>). Tendrás acceso completo hasta el {$endsAt->format('d/m/Y')}. Si decides adquirir un plan, este se activará en un plazo de 24 a 48 horas.";
+                $baseMessage = "Tu período de prueba ({$planName}) está activo hasta el {$endsAt->format('d/m/Y')}. Si contratas un plan, se activará cuando la pasarela confirme el pago.";
 
                 return [
                     'type' => $diffInDays <= self::ALERT_DAYS ? 'warning' : 'info',
@@ -76,11 +92,11 @@ class DashboardController extends Controller
 
             // Caso 2: Plan Mensual o Anual (Restante)
             //if (in_array($planType, ['monthly', 'annual'])) {
-            if ($planType === 'monthly') {
+            if (in_array($planType, ['monthly', 'yearly'], true)) {
                 if ($diffInDays <= self::ALERT_DAYS) {
                     return [
                         'type' => 'warning',
-                        'message' => "¡Alerta! Tu plan de pago (**{$planName}**) expira en **$diffInDays días**. Renueva tu suscripción para continuar sin interrupciones.",
+                        'message' => "Tu plan {$planName} vence el {$endsAt->format('d/m/Y')}. Revisa tu cobertura y las opciones de renovación.",
                     ];
                 }
             }
@@ -91,7 +107,7 @@ class DashboardController extends Controller
         if ($planType === 'lifetime') {
             return [
                 'type' => 'success',
-                'message' => '¡Felicidades! Tienes un **Plan de por Vida**. Disfruta de acceso ilimitado.',
+                'message' => 'Tu acceso permanente no requiere renovación. Consulta las capacidades incluidas en Mi plan y pagos.',
             ];
         }
 

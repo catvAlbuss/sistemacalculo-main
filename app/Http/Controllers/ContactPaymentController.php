@@ -35,6 +35,8 @@ class ContactPaymentController extends Controller
             'billing_cycle' => 'sometimes|in:monthly,yearly',
             'months' => 'sometimes|integer|min:1|max:12',
             'accept_terms' => 'sometimes|accepted',
+            'currency' => 'sometimes|in:PEN,USD', 'purchase_mode' => 'sometimes|in:renew,upgrade',
+            'pricing_key' => 'sometimes|string|size:64',
         ], [
             'name.required' => 'El nombre o razón social es obligatorio.', 'email.required' => 'El correo es obligatorio.',
             'phone.required' => 'El teléfono es obligatorio.',
@@ -49,12 +51,21 @@ class ContactPaymentController extends Controller
         }
         $plan = Subscription::active()->findOrFail($request->subscription_plan_id);
         $online = !$plan->isFree() && !$plan->isLifetime();
-        $quote = app(\App\Services\PlanPricing::class)->quote($plan, $request->input('billing_cycle'), (int) $request->input('months', 1));
-        if ($online && in_array($request->input('checkout_form_version'), ['2', '3'], true)) {
-            $request->validate(['accept_terms' => 'required|accepted']);
+        if (!$online) { $request->merge(['currency' => 'PEN', 'purchase_mode' => 'renew']); }
+        $quote = app(\App\Services\PlanPricing::class)->purchaseQuote($plan, $request->input('billing_cycle'), (int) $request->input('months', 1),
+            $request->input('currency', 'PEN'), $request->user(), $request->input('purchase_mode', 'renew'));
+        if ($request->input('checkout_form_version') === '5' && !hash_equals($quote['pricing_key'], (string) $request->input('pricing_key'))) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['pricing_key' => 'La cotización cambió. Revisa el resumen actualizado antes de continuar.']);
+        }
+        if (in_array($request->input('checkout_form_version'), ['4', '5'], true)
+            || ($online && in_array($request->input('checkout_form_version'), ['2', '3'], true))) {
+            $request->validate(['accept_terms' => 'required|accepted'], [
+                'accept_terms.required' => 'Debes aceptar los Términos y condiciones y la Política de cambios y devoluciones.',
+                'accept_terms.accepted' => 'Debes aceptar los Términos y condiciones y la Política de cambios y devoluciones.',
+            ]);
         }
         $billing = $online ? app(\App\Services\Billing::class)->validate($request) : [];
-        if ($online && (!app(\App\Services\Culqi::class)->enabled() || $quote['total'] < 3)) {
+        if ($online && (!app(\App\Services\Culqi::class)->enabled() || $quote['charge_amount'] < 3)) {
             return back()->withInput()->withErrors(['payment_method' => 'El pago en línea no está disponible en este momento.']);
         }
         try {
@@ -70,7 +81,7 @@ class ContactPaymentController extends Controller
             return redirect(CulqiController::paymentUrl($payment));
         }
         session()->flash('registration', ['plan' => $plan->name, 'free' => $plan->isFree(),
-            'custom' => $plan->isLifetime(), 'duration' => $plan->duration_text]);
+            'custom' => $plan->isLifetime(), 'duration' => $quote['duration_text']]);
 
         return redirect()->route('landing.success')->with('success', 'Tu solicitud está registrada. Te enviaremos la información por correo.');
     }

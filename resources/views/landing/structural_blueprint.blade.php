@@ -1,14 +1,12 @@
 @extends('layouts.services')
-
-@section('mid')
-  <h3 class="py-5 text-center text-2xl font-bold">Elaboración de Planos Estructurales</h3>
-  <p class="py-2 text-center">Con nuestros servicios de elaboración de planos estructurales, garantizamos que
-    cada detalle técnico esté cuidadosamente plasmado en planos precisos y fáciles de interpretar. Desde
-    cimentaciones hasta techos, nuestros planos son herramientas clave para la construcción eficiente y sin
-    errores. ¡Confía en la experiencia de nuestros ingenieros!</p>
-  <img class="bg-white" src="{{ Vite::asset('resources/img/desingra/fontplanosestr.png') }}" alt="Planos Estructurales">
-@endsection
-
-@section('top_left')
-  <img src="{{ Vite::asset('resources/img/desingra/fontplanosestr.png') }}" alt="Planos Estructurales">
+@section('service-code', 'S.03')
+@section('service-title', 'Elaboración de planos estructurales')
+@section('service-description', 'Documentación gráfica para comunicar los detalles de tu proyecto estructural, desde las cimentaciones hasta los techos.')
+@section('service-image', Vite::asset('resources/img/desingra/fontplanosestr.png'))
+@section('service-image-alt', 'Documentación de planos estructurales')
+@section('service-content')
+  <p class="pr-eyebrow">01 / Enfoque del servicio</p>
+  <h2 style="margin-top:12px">Cada detalle, en su lugar.</h2>
+  <p>Elaboramos planos estructurales que permitan interpretar y comunicar la información técnica del proyecto. Revisamos contigo el alcance y los detalles que necesita la documentación.</p>
+  <ul class="en-service-list"><li>Representación de cimentaciones y elementos estructurales.</li><li>Organización de detalles para la interpretación del proyecto.</li><li>Coordinación de la información y los planos de referencia.</li></ul>
 @endsection

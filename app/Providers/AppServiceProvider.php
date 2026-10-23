@@ -19,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Livewire\Livewire::addPersistentMiddleware([\App\Http\Middleware\CheckSubscription::class]);
         \Illuminate\Support\Facades\RateLimiter::for('culqi-charge', function (\Illuminate\Http\Request $request) {
             $payment = $request->route('paymentRequest');
             $id = is_object($payment) ? $payment->id : (string) $payment;

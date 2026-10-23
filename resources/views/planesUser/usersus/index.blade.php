@@ -1,9 +1,9 @@
-<x-app-layout>
-    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8" x-data="userManagement()">
+<x-workspace-layout>
+    <div class="wk-existing-admin" x-data="userManagement()">
 
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-gray-50">Gestión de Usuarios y Planes</h1>
+                <h1 class="text-2xl font-bold text-gray-50">Usuarios y suscripciones</h1>
                 <p class="text-sm text-gray-50 mt-1">Administra usuarios, roles y suscripciones</p>
             </div>
             <button @click="openCreateModal()"
@@ -29,6 +29,9 @@
                     <p class="font-medium">{{ session('error') }}</p>
                 </div>
             </div>
+        @endif
+        @if ($errors->any() && old('form_context') !== 'user')
+            <div class="wk-notice mb-4" data-tone="danger"><strong>No se guardaron los cambios.</strong><ul>@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
         @endif
 
         <div class="bg-white shadow-lg rounded-lg overflow-hidden">
@@ -179,7 +182,7 @@
 
                                 <td class="px-6 py-4">
                                     <div class="flex items-center justify-center gap-2">
-                                        <button @click="openEditModal({{ json_encode($user->load('roles')) }})"
+                                        <button @click="openEditModal({{ json_encode($user->load('roles', 'permissions')) }})"
                                             class="text-indigo-600 hover:text-indigo-900 text-sm font-medium transition"
                                             title="Editar usuario">
                                             <i class="fas fa-edit"></i> Editar
@@ -251,8 +254,26 @@
                 isEditMode: false,
                 modalTitle: '',
                 formAction: '',
-                userData: {},
+                userData: { name: '', email: '', roles: [], permissions: [] },
+                userPassword: '',
+                userPasswordConfirmation: '',
                 subscriptionData: {},
+
+                init() {
+                    const previous = @js(session()->getOldInput());
+                    if (@js($errors->any()) && previous.form_context === 'user') {
+                        const userId = Number(previous.editing_user_id);
+                        this.isEditMode = Number.isSafeInteger(userId) && userId > 0;
+                        this.modalTitle = this.isEditMode ? 'Editar usuario' : 'Crear usuario';
+                        this.formAction = this.isEditMode ? '{{ url('planUser') }}/' + userId : '{{ route('planUser.store') }}';
+                        this.userData = {
+                            id: userId, name: previous.name || '', email: previous.email || '',
+                            roles: Array.isArray(previous.roles) ? previous.roles : [],
+                            permissions: Array.isArray(previous.permissions) ? previous.permissions : []
+                        };
+                        this.showUserModal = true;
+                    }
+                },
 
                 openCreateModal() {
                     this.isEditMode = false;
@@ -263,6 +284,8 @@
                         email: '',
                         roles: []
                     };
+                    this.userPassword = '';
+                    this.userPasswordConfirmation = '';
                     this.showUserModal = true;
                 },
 
@@ -272,8 +295,11 @@
                     this.formAction = '{{ url('planUser') }}/' + user.id;
                     this.userData = {
                         ...user,
-                        roles: user.roles.map(role => role.name)
+                        roles: user.roles.map(role => role.name),
+                        permissions: (user.permissions || []).map(permission => permission.name)
                     };
+                    this.userPassword = '';
+                    this.userPasswordConfirmation = '';
                     this.showUserModal = true;
                 },
 
@@ -294,7 +320,7 @@
         // Auto-cerrar alertas después de 5 segundos
         document.addEventListener('DOMContentLoaded', function() {
             setTimeout(function() {
-                const alerts = document.querySelectorAll('[role="alert"]');
+                const alerts = document.querySelectorAll('[role="alert"]:not(.wk-notice)');
                 alerts.forEach(alert => {
                     alert.style.transition = 'opacity 0.5s';
                     alert.style.opacity = '0';
@@ -303,4 +329,4 @@
             }, 5000);
         });
     </script>
-</x-app-layout>
+</x-workspace-layout>

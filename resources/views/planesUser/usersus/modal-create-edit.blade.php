@@ -1,47 +1,32 @@
-<div x-show="showUserModal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50" style="display: none;">
-    <div class="bg-white rounded-lg shadow-2xl p-6 w-full max-w-lg" @click.away="showUserModal = false">
-        <h2 class="text-xl font-bold mb-4" x-text="modalTitle"></h2>
-        
-        <form :action="formAction" method="POST">
+<div x-show="showUserModal" class="wk-modal-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="user-modal-title"
+    x-trap.inert.noscroll="showUserModal" @keydown.escape.stop.prevent="showUserModal = false" @click.self="showUserModal = false">
+    <section class="wk-modal-panel" @click.stop>
+        <header class="wk-modal-header"><div><p class="pr-eyebrow">Administración / Usuarios</p><h2 id="user-modal-title" x-text="modalTitle"></h2><p>Configura la identidad de acceso y los permisos de esta cuenta.</p></div><button type="button" class="wk-modal-close" @click="showUserModal = false" aria-label="Cerrar formulario de usuario">×</button></header>
+        <form :action="formAction" method="POST" class="wk-modal-form">
             @csrf
-            <template x-if="isEditMode">
-                @method('PUT')
-            </template>
-            
-            <div class="mb-4">
-                <label for="name" class="block text-sm font-medium text-gray-700">Nombre</label>
-                <input type="text" name="name" id="name" :value="userData.name" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+            <input type="hidden" name="form_context" value="user">
+            <input type="hidden" name="editing_user_id" :value="isEditMode ? userData.id : ''">
+            @if ($errors->any() && old('form_context') === 'user')
+                <div class="wk-notice" data-tone="danger" role="alert"><strong>Revisa los datos antes de guardar.</strong><ul>@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
+            @endif
+            <template x-if="isEditMode"><input type="hidden" name="_method" value="PUT"></template>
+            <div class="wk-form-grid">
+                <div><label for="admin-user-name" class="pr-label">Nombre completo</label><input class="pr-input" type="text" name="name" id="admin-user-name" x-model="userData.name" required maxlength="255" autocomplete="name"></div>
+                <div><label for="admin-user-email" class="pr-label">Correo de acceso</label><input class="pr-input" type="email" name="email" id="admin-user-email" x-model="userData.email" required maxlength="255" autocomplete="off"><p class="pr-hint">Solo administración puede cambiar este correo.</p></div>
+                <div><label for="admin-user-password" class="pr-label">Contraseña</label><input class="pr-input" type="password" name="password" id="admin-user-password" x-model="userPassword" :required="!isEditMode" minlength="8" autocomplete="new-password"><p class="pr-hint" x-show="isEditMode">Déjala vacía para conservar la actual.</p></div>
+                <div><label for="admin-user-password-confirmation" class="pr-label">Confirmar contraseña</label><input class="pr-input" type="password" name="password_confirmation" id="admin-user-password-confirmation" x-model="userPasswordConfirmation" autocomplete="new-password" :required="!isEditMode || userPassword.length > 0"></div>
             </div>
-            <div class="mb-4">
-                <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
-                <input type="email" name="email" id="email" :value="userData.email" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
-            </div>
-            <div class="mb-4">
-                <label for="password" class="block text-sm font-medium text-gray-700">Contraseña</label>
-                <input type="password" name="password" id="password" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" :required="!isEditMode">
-                <p x-show="isEditMode" class="text-xs text-gray-500 mt-1">Dejar en blanco para no cambiarla.</p>
-            </div>
-            <div class="mb-4">
-                <label for="password_confirmation" class="block text-sm font-medium text-gray-700">Confirmar Contraseña</label>
-                <input type="password" name="password_confirmation" id="password_confirmation" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-            </div>
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700">Roles</label>
-                <div class="mt-2 grid grid-cols-2 gap-4">
-                    @foreach($roles as $role)
-                        <label class="inline-flex items-center">
-                            <input type="checkbox" name="roles[]" value="{{ $role->name }}" :checked="userData.roles && userData.roles.includes('{{ $role->name }}')"
-                                   class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-200">
-                            <span class="ml-2 text-sm text-gray-600">{{ $role->name }}</span>
-                        </label>
-                    @endforeach
-                </div>
-            </div>
-
-            <div class="flex justify-end pt-4">
-                <button type="button" @click="showUserModal = false" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg mr-2 hover:bg-gray-300">Cancelar</button>
-                <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">Guardar</button>
-            </div>
+            <fieldset class="wk-form-section"><legend>Roles de la cuenta</legend><p class="pr-hint">Selecciona al menos un rol. Los roles determinan las funciones disponibles.</p><div class="wk-choice-grid">
+                @foreach ($roles as $role)
+                    <label class="wk-choice"><input type="checkbox" name="roles[]" value="{{ $role->name }}" x-model="userData.roles"><span>{{ $role->name }}</span></label>
+                @endforeach
+            </div></fieldset>
+            <details class="wk-form-section"><summary>Permisos adicionales</summary><p class="pr-hint">Se suman a los permisos del rol; desmarcarlos no elimina los permisos heredados.</p><input type="hidden" name="permissions_present" value="1"><div class="wk-choice-grid">
+                @forelse ($permissions as $permission)
+                    <label class="wk-choice"><input type="checkbox" name="permissions[]" value="{{ $permission->name }}" x-model="userData.permissions"><span>{{ $permission->name }}</span></label>
+                @empty<p class="pr-hint">No hay permisos adicionales configurados.</p>@endforelse
+            </div></details>
+            <footer class="wk-form-footer"><button type="button" @click="showUserModal = false" class="pr-button pr-button-secondary">Cancelar</button><button type="submit" class="pr-button">Guardar usuario</button></footer>
         </form>
-    </div>
+    </section>
 </div>

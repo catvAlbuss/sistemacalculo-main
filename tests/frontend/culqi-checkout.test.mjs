@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mountCulqiPayment } from '../../resources/js/culqi-checkout.js';
 
-function setup(responses) {
+function setup(responses, overrides = {}) {
     const events = {};
     const element = () => ({ hidden: false, disabled: false, textContent: '', handlers: {}, addEventListener(event, handler) { this.handlers[event] = handler; } });
     const elements = { 'pay-button': element(), 'refresh-button': element(), 'payment-message': element(), 'culqi-config': element() };
-    elements['culqi-config'].textContent = JSON.stringify({ publicKey: 'pk_test_example', amount: 4990, email: 'cliente@example.com', title: 'Rizabal', chargeUrl: '/charge?signed' });
+    elements['culqi-config'].textContent = JSON.stringify({ publicKey: 'pk_test_example', amount: 4990, email: 'cliente@example.com', title: 'Rizabal', chargeUrl: '/charge?signed', ...overrides });
     const requests = [];
     let checkout;
     const authTokens = [];
@@ -50,6 +50,17 @@ test('successful payment sends token and CSRF then displays confirmation', async
     assert.equal(ui.elements['pay-button'].hidden, true);
     ui.checkout.culqi();
     assert.equal(ui.requests.length, 1);
+});
+
+test('USD uses the frozen amount in Checkout and 3DS and does not offer Yape', async () => {
+    const ui = setup([{ ok: true, message: 'Pago confirmado' }], { currency: 'USD', amount: 1331 });
+    await ui.start();
+    assert.equal(ui.checkout.config.settings.currency, 'USD');
+    assert.equal(ui.checkout.config.settings.amount, 1331);
+    assert.equal(window.Culqi3DS.settings.charge.currency, 'USD');
+    assert.equal(window.Culqi3DS.settings.charge.totalAmount, 1331);
+    assert.equal(ui.checkout.config.options.paymentMethods.yape, false);
+    assert.deepEqual(ui.checkout.config.options.paymentMethodsSort, ['tarjeta']);
 });
 
 test('lost response blocks new charges and shows the refresh action', async () => {

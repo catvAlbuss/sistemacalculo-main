@@ -16,7 +16,11 @@ class Checkout
 {
     public function create(Request $request, Subscription $plan, array $billing): PaymentRequest
     {
-        $quote = app(PlanPricing::class)->quote($plan, $request->input('billing_cycle'), (int) $request->input('months', 1));
+        $quote = app(PlanPricing::class)->purchaseQuote($plan, $request->input('billing_cycle'), (int) $request->input('months', 1),
+            $request->input('currency', 'PEN'), $request->user(), $request->input('purchase_mode', 'renew'));
+        if ($request->input('checkout_form_version') === '5' && !hash_equals($quote['pricing_key'], (string) $request->input('pricing_key'))) {
+            throw ValidationException::withMessages(['pricing_key' => 'La cotización cambió. Revisa el resumen antes de continuar.']);
+        }
         $intent = $request->input('checkout_key') ?: 'legacy:'.$request->session()->getId().':'.$plan->id.':'.$request->email;
         // A form's random intent survives session renewal and network retries; authenticated ownership is checked below.
         $key = hash_hmac('sha256', $intent, config('app.key'));
@@ -46,9 +50,11 @@ class Checkout
                 if ($user && !$user->is_active) {
                     throw ValidationException::withMessages(['email' => 'Tu cuenta está suspendida. Contacta con soporte antes de comprar otro plan.']);
                 }
-                if ($user && !$plan->isFree() && $user->subscriptions()->where('status', 'active')
-                    ->where('amount_paid', '>', 0)->whereNull('ends_at')->exists()) {
+                if ($user && !$plan->isFree() && $user->hasPermanentCoverage()) {
                     throw ValidationException::withMessages(['subscription_plan_id' => 'Ya tienes cobertura permanente. Contacta con soporte antes de contratar otro plan.']);
+                }
+                if ($user && $plan->isFree()) {
+                    app(TrialAccess::class)->ensureEligible($user);
                 }
                 $password = null;
                 if (!$user) {
@@ -56,35 +62,40 @@ class Checkout
                     $user = User::create(['name' => $request->name, 'email' => $request->email,
                         'password' => Hash::make($password), 'is_active' => true]);
                     $user->assignRole('cliente');
-                    $trial = $plan->isFree() ? $plan : Subscription::active()->where('type', 'trial')->first();
-                    if (!$trial) {
-                        throw new \RuntimeException('No existe un plan de prueba activo.');
-                    }
-                    $user->subscriptions()->create([
-                        'subscription_plan_id' => $trial->id, 'status' => 'active', 'starts_at' => now(),
-                        'ends_at' => $trial->isLifetime() ? null : now()->addDays($trial->duration_days),
-                        'amount_paid' => 0, 'payment_method' => 'trial',
-                        'notes' => 'Acceso gratuito inicial',
-                    ]);
+                }
+                if ($plan->isFree()) {
+                    app(TrialAccess::class)->activate($user, $plan);
                 }
                 $totals = $quote;
+                $legal = in_array($request->input('checkout_form_version'), ['4', '5'], true) && $request->boolean('accept_terms')
+                    ? ['legal_acceptance' => app(LegalDocuments::class)->acceptance()] : [];
                 $phone = preg_replace('/\D/', '', $request->phone);
                 $phone = strlen($phone) === 11 && str_starts_with($phone, '51') ? $phone : '51'.$phone;
                 $payment = PaymentRequest::create(array_merge([
                     'user_id' => $user->id, 'subscription_plan_id' => $plan->id,
                     'name' => $request->name, 'email' => $request->email, 'phone' => '+'.$phone,
                     'amount' => $quote['total'], 'subtotal' => $totals['subtotal'], 'tax_rate' => $totals['tax_rate'], 'tax_amount' => $totals['tax_amount'],
-                    'status' => 'pending', 'token' => Str::random(32), 'payment_proof' => null, 'message' => null,
+                    'currency' => $quote['currency'], 'charge_amount' => $quote['charge_amount'],
+                    'exchange_rate' => $quote['exchange_rate'], 'exchange_rate_date' => $quote['exchange_rate_date'],
+                    'status' => $plan->isFree() ? 'approved' : 'pending',
+                    'confirmed_at' => $plan->isFree() ? now() : null,
+                    'token' => Str::random(32), 'payment_proof' => null, 'message' => null,
                     'payment_method' => $plan->isFree() ? 'free' : ($plan->isLifetime() ? 'quote' : 'culqi'),
                     'checkout_key' => $key, 'checkout_payload_hash' => $fingerprint,
-                    'plan_snapshot' => array_merge($quote, ['name' => $plan->name,
+                    'plan_snapshot' => array_merge($quote, $legal, ['name' => $plan->name,
                         'type' => $quote['billing_cycle'] === 'yearly' ? 'yearly' : $plan->type]),
                 ], $billing));
                 app(PaymentTasks::class)->create('signup_client', $payment, ['new_account' => $password !== null]);
                 app(PaymentTasks::class)->create('signup_admin', $payment);
                 \App\Models\PaymentEvent::record($payment, 'registered');
+                if ($plan->isFree()) {
+                    \App\Models\PaymentEvent::record($payment, 'trial_activated');
+                }
                 if ($request->boolean('accept_terms')) {
                     \App\Models\PaymentEvent::record($payment, 'terms_accepted_v1');
+                    if ($legal) {
+                        \App\Models\PaymentEvent::record($payment, 'legal_accepted', config('legal.version'));
+                    }
                 }
 
                 return $payment;

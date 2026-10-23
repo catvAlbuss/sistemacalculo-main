@@ -24,6 +24,7 @@ Route::middleware('guest')->group(function () {
 });
 //resources/views/livewire/subscription-plans-management.blade.php
 Route::middleware('auth')->group(function () {
+    Route::post('logout', App\Http\Controllers\Auth\LogoutController::class)->name('logout');
     //Route::view('register', 'livewire.subscription-plans-management')->name("register");
 
     Volt::route('verify-email', 'pages.auth.verify-email')

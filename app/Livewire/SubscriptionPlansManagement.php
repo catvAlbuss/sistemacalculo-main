@@ -30,14 +30,19 @@ class SubscriptionPlansManagement extends Component
 
     protected $paginationTheme = 'tailwind';
 
+    public function boot(): void
+    {
+        abort_unless(auth()->user()?->is_active && auth()->user()?->canManagePlans(), 403);
+    }
+
     protected function rules()
     {
         return [
             'name' => 'required|string|max:255',
             'slug' => 'required|string|max:255|unique:subscriptions,slug,' . $this->planId,
             'description' => 'nullable|string',
-            'price' => 'required|numeric|min:0',
-            'duration_days' => 'required_unless:type,lifetime|nullable|integer|min:1',
+            'price' => 'required|numeric|min:0'.($this->type === 'trial' ? '|in:0' : ''),
+            'duration_days' => 'required_unless:type,lifetime|nullable|integer|min:1'.($this->type === 'trial' ? '|in:15' : ''),
             'type' => 'required|in:trial,monthly,yearly,lifetime',
             'is_active' => 'boolean',
             'sort_order' => 'integer|min:0',
@@ -117,6 +122,7 @@ class SubscriptionPlansManagement extends Component
     public function openModal()
     {
         $this->resetForm();
+        $this->updatedType($this->type);
         $this->showModal = true;
     }
 
@@ -160,6 +166,7 @@ class SubscriptionPlansManagement extends Component
         $this->price = $plan->price;
         $this->duration_days = $plan->duration_days;
         $this->type = $plan->type;
+        if ($this->type === 'trial') { $this->duration_days = 15; $this->price = 0; }
         $this->is_active = $plan->is_active;
         $this->features = $plan->features ?? [];
         $this->sort_order = $plan->sort_order;

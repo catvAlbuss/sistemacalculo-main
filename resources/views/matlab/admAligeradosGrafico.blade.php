@@ -161,6 +161,10 @@
                 <tr class="bg-gray-100 dark:bg-gray-600">
                   <td class="px-4 py-2 text-center" colspan="2">
                     <div id="T1"></div>
+                    <p class="mt-2 text-sm text-gray-700 dark:text-gray-200">
+                      Haz doble clic en Diámetro para elegir o escribir una combinación y pulsa Enter para confirmar.
+                      La gráfica y el reporte mostrarán tu selección. Asd y Asmin son las áreas requeridas del cálculo.
+                    </p>
                   </td>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">

@@ -75,7 +75,7 @@ class AuthenticationTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSeeVolt('layout.navigation');
+            ->assertSee('Navegación interna')->assertSee('bg-canvas', false);
     }
 
     public function test_users_can_logout(): void

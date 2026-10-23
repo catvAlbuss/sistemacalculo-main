@@ -162,6 +162,17 @@ export function mountPlanRegistration() {
             document.getElementById('plan-total').textContent = money(quote.total);
             document.getElementById('plan-list-total').textContent = money(quote.list_total);
             document.getElementById('plan-discount').textContent = `− ${money(quote.discount)}`;
+            const processing = document.getElementById('plan-processing');
+            if (processing) {
+                processing.textContent = money(quote.processing_fee || 0);
+                document.getElementById('processing-row').hidden = !quote.processing_fee;
+            }
+            const pricingKey = document.getElementById('pricing-key');
+            if (pricingKey) pricingKey.value = quote.pricing_key;
+            const chargeTotal = document.getElementById('plan-charge-total');
+            if (chargeTotal) chargeTotal.textContent = `Cobro: ${quote.currency === 'USD' ? 'US$' : 'S/'} ${Number(quote.charge_amount).toFixed(2)}`;
+            const credit = document.getElementById('plan-credit');
+            if (credit) credit.textContent = quote.credit ? `Saldo aplicado por tiempo no usado: S/ ${Number(quote.credit).toFixed(2)}. El nuevo plan empieza al confirmarse el pago.` : '';
             document.getElementById('annual-list-row').hidden = !quote.discount;
             document.getElementById('annual-discount-row').hidden = !quote.discount;
             document.getElementById('plan-payment-period').textContent = (cycle.value === 'yearly'

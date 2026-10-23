@@ -3,13 +3,21 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\RefreshPaymentsDatabase;
+use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
+use Spatie\Permission\Models\Role;
 use Livewire\Volt\Volt;
 use Tests\TestCase;
 
 class ProfileTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshPaymentsDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->withoutVite();
+    }
 
     public function test_profile_page_is_displayed(): void
     {
@@ -32,7 +40,9 @@ class ProfileTest extends TestCase
 
         $component = Volt::test('profile.update-profile-information-form')
             ->set('name', 'Test User')
-            ->set('email', 'test@example.com')
+            ->set('phone', '+51 962 999 500')
+            ->set('profession', 'Ingeniero civil')->set('company', 'Mi empresa')
+            ->set('city', 'Huánuco')->set('bio', 'Diseño de estructuras')
             ->call('updateProfileInformation');
 
         $component
@@ -41,9 +51,13 @@ class ProfileTest extends TestCase
 
         $user->refresh();
 
-        $this->assertSame('Test User', $user->name);
-        $this->assertSame('test@example.com', $user->email);
-        $this->assertNull($user->email_verified_at);
+        $this->assertSame('TEST USER', $user->name);
+        $this->assertSame('+51 962 999 500', $user->phone);
+        $this->assertSame('Ingeniero civil', $user->profession);
+        $this->assertSame('Mi empresa', $user->company);
+        $this->assertSame('Huánuco', $user->city);
+        $this->assertSame('Diseño de estructuras', $user->bio);
+        $this->assertNotNull($user->email_verified_at);
     }
 
     public function test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged(): void
@@ -54,7 +68,6 @@ class ProfileTest extends TestCase
 
         $component = Volt::test('profile.update-profile-information-form')
             ->set('name', 'Test User')
-            ->set('email', $user->email)
             ->call('updateProfileInformation');
 
         $component
@@ -62,6 +75,43 @@ class ProfileTest extends TestCase
             ->assertNoRedirect();
 
         $this->assertNotNull($user->refresh()->email_verified_at);
+    }
+
+    public function test_email_cannot_be_changed_by_tampering_with_livewire_state(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+        $this->expectException(CannotUpdateLockedPropertyException::class);
+        try {
+            Volt::test('profile.update-profile-information-form')->set('email', 'otro@example.com');
+        } finally {
+            $this->assertSame($user->email, $user->fresh()->email);
+            $this->assertNotNull($user->fresh()->email_verified_at);
+        }
+    }
+
+    public function test_personal_data_validation_prevents_invalid_contact_information(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+        Volt::test('profile.update-profile-information-form')
+            ->set('phone', 'not a phone')->set('bio', str_repeat('x', 1001))
+            ->call('updateProfileInformation')->assertHasErrors(['phone', 'bio']);
+        $this->assertNull($user->fresh()->phone);
+    }
+
+    public function test_customers_cannot_change_email_roles_or_permissions_through_administration(): void
+    {
+        $user = User::factory()->create();
+        $role = Role::firstOrCreate(['name' => 'cliente', 'guard_name' => 'web']);
+        $user->assignRole($role);
+        $this->actingAs($user)->put(route('planUser.update', $user), [
+            'name' => $user->name, 'email' => 'changed@example.com', 'roles' => ['root'],
+            'permissions' => ['role-edit'], 'permissions_present' => '1',
+        ])->assertForbidden();
+        $this->assertSame($user->email, $user->fresh()->email);
+        $this->assertSame(['cliente'], $user->fresh()->getRoleNames()->all());
+        $this->assertCount(0, $user->fresh()->permissions);
     }
 
     public function test_user_can_delete_their_account(): void

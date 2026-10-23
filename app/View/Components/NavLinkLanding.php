@@ -21,8 +21,8 @@ class NavLinkLanding extends Component
     public function get_class(): string
     {
         return $this->active
-            ? 'block rounded-sm px-3 py-2 md:p-0 bg-blue-700 text-white md:bg-transparent md:text-blue-700 dark:text-white md:dark:text-blue-500'
-            : 'block rounded-sm px-3 py-2 md:p-0 md:border-0 md:hover:bg-transparent md:hover:text-blue-700 dark:text-white dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent md:dark:hover:text-blue-500';
+            ? 'en-nav-link is-active'
+            : 'en-nav-link';
     }
 
     public function aria_current(): string

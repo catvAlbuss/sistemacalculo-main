@@ -37,6 +37,7 @@ class PaymentRequest extends Model
         'subtotal', 'tax_rate', 'tax_amount',
         'checkout_key', 'checkout_payload_hash', 'plan_snapshot',
         'billing_ubigeo', 'billing_location',
+        'currency', 'charge_amount', 'exchange_rate', 'exchange_rate_date',
     ];
 
     protected $casts = [
@@ -47,6 +48,7 @@ class PaymentRequest extends Model
         'subtotal' => 'decimal:2', 'tax_rate' => 'decimal:2', 'tax_amount' => 'decimal:2',
         'plan_snapshot' => 'array',
         'billing_location' => 'array',
+        'charge_amount' => 'decimal:2', 'exchange_rate' => 'decimal:4', 'exchange_rate_date' => 'date',
     ];
 
     public function user(): BelongsTo

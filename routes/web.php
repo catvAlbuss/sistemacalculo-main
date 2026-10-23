@@ -27,6 +27,14 @@ use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome')->name("landing.home");
 
+Route::get('/terminos-y-condiciones', [App\Http\Controllers\LegalController::class, 'show'])->defaults('document', 'terminos')->name('legal.terminos');
+Route::get('/politica-de-cambios-y-devoluciones', [App\Http\Controllers\LegalController::class, 'show'])->defaults('document', 'devoluciones')->name('legal.devoluciones');
+Route::get('/politica-de-privacidad', [App\Http\Controllers\LegalController::class, 'show'])->defaults('document', 'privacidad')->name('legal.privacidad');
+Route::get('/libro-de-reclamaciones', [App\Http\Controllers\ComplaintController::class, 'create'])->name('complaints.create');
+Route::post('/libro-de-reclamaciones', [App\Http\Controllers\ComplaintController::class, 'store'])->middleware('throttle:5,10,complaints')->name('complaints.store');
+Route::get('/libro-de-reclamaciones/hojas/{complaint}', [App\Http\Controllers\ComplaintController::class, 'copy'])
+    ->middleware('signed')->name('complaints.copy');
+
 Route::get('/api/opensees/status', function () {
     [$status, $body] = PythonEngineController::run('opensees-status', []);
 
@@ -34,7 +42,7 @@ Route::get('/api/opensees/status', function () {
 })->name('opensees.status');
 
 // Ruta POST para análisis (con autenticación)
-Route::post('/api/opensees/analyze', [OpenSeesController::class, 'analyze']);
+Route::post('/api/opensees/analyze', [OpenSeesController::class, 'analyze'])->middleware(['auth', 'check.subscription']);
 
 //=======================Landing=========================================//
 Route::view('/servicios/diseno_estructural', 'landing.structural_design')->name('landing.services.structural_design');
@@ -47,7 +55,7 @@ Route::post('/cotizarplano', [enviarCotizacionController::class, 'enviarCotizaci
 
 // Route::post('/capturar-viga-descarga', [VigaCaptureController::class, 'descargar']);
 
-Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento']);
+Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento'])->middleware(['auth', 'check.subscription']);
 
 //==========================RUTA PARA LAS PRUEBAS PREDIM==================//
 Route::view('/info/arco_techo', 'landing.arco_techo')->name('landing.info.arco_techo');
@@ -72,6 +80,17 @@ Route::resource('contacto', ContactPaymentController::class)->except('store');
 Route::post('/contacto', [ContactPaymentController::class, 'store'])->middleware('throttle:10,10,checkout')->name('contacto.store');
 Route::get('/planes', [App\Http\Controllers\PlanesController::class, 'index'])->name('landing.plans');
 Route::get('/mi-plan', App\Http\Controllers\MyPlanController::class)->middleware('auth')->name('plans.mine');
+Route::get('/mi-plan/contratar', [App\Http\Controllers\PlanesController::class, 'index'])->middleware('auth')->name('plans.catalog');
+Route::view('/mi-cuenta/soporte', 'landing.contact', ['internal' => true])->middleware('auth')->name('account.support');
+Route::post('/mi-plan/pagos/{paymentRequest}/cancelar', [App\Http\Controllers\CulqiController::class, 'cancel'])
+    ->middleware(['auth', 'throttle:10,10,unpaid-cancel'])->name('payments.cancel-unpaid');
+Route::middleware(['auth', 'throttle:30,1,project-backups'])->group(function () {
+    Route::get('/mis-respaldos', [App\Http\Controllers\ProjectBackupController::class, 'index'])->name('backups.index');
+    Route::post('/mis-respaldos', [App\Http\Controllers\ProjectBackupController::class, 'store'])->middleware('throttle:3,10,backup-create')->name('backups.store');
+    Route::get('/mis-respaldos/{backup}/revisar', [App\Http\Controllers\ProjectBackupController::class, 'preview'])->name('backups.preview');
+    Route::get('/mis-respaldos/{backup}/descargar', [App\Http\Controllers\ProjectBackupController::class, 'download'])->name('backups.download');
+    Route::post('/mis-respaldos/{backup}/restaurar', [App\Http\Controllers\ProjectBackupController::class, 'restore'])->middleware('throttle:3,10,backup-restore')->name('backups.restore');
+});
 Route::get('/planes/registro', [App\Http\Controllers\PlanesController::class, 'register'])->name('planes.register');
 Route::post('/planes/registro', [App\Http\Controllers\PlanesController::class, 'store'])->middleware('throttle:10,10,checkout')->name('planes.store');
 Route::post('/planes/consultar-documento', App\Http\Controllers\DocumentLookupController::class)
@@ -95,6 +114,11 @@ Route::middleware(['auth', 'verified', 'role:root,gerencia'])->group(function ()
 });
 // Gestión de Planes (Solo Root y Gerencia)
 Route::middleware(['auth', 'verified', 'role:root|gerencia'])->group(function () {
+    Route::view('/administracion', 'workspace.administration')->name('administration.index');
+    Route::get('/administracion/reclamaciones', [App\Http\Controllers\ComplaintController::class, 'index'])->name('complaints.admin.index');
+    Route::get('/administracion/reclamaciones/{complaint}', [App\Http\Controllers\ComplaintController::class, 'show'])->name('complaints.admin.show');
+    Route::post('/administracion/reclamaciones/{complaint}/responder', [App\Http\Controllers\ComplaintController::class, 'answer'])
+        ->middleware('throttle:30,1,complaints.answer')->name('complaints.admin.answer');
     Route::get('/administracion/pagos', [App\Http\Controllers\PaymentAdminController::class, 'index'])->name('payments.admin.index');
     Route::get('/administracion/pagos/{paymentRequest}', [App\Http\Controllers\PaymentAdminController::class, 'show'])->name('payments.admin.show');
     Route::post('/administracion/pagos/eventos/{event}/revisar', [App\Http\Controllers\PaymentAdminController::class, 'review'])
@@ -116,7 +140,7 @@ Route::middleware(['auth', 'verified', 'role:root|gerencia'])->group(function ()
 });
 
 //==========================RUTAS CON SUSCRIPCIÓN ACTIVA==================//
-Route::middleware(["auth", "verified"])->group(function () {
+Route::middleware(["auth", "verified", "check.subscription"])->group(function () {
     Route::prefix("calculadora")->name("calculadora.")->group(function () {
         Route::prefix("estudiante")->name("estudiante.")->group(function () {
             Route::prefix("cav2")->name("cav2.")->group(function () {
@@ -205,7 +229,7 @@ Route::middleware(["auth", "verified"])->group(function () {
             });
         });
     });
-    Route::prefix("software")->name("software.")->group(function () {
+    Route::prefix("software")->name("software.")->middleware(\App\Http\Middleware\ProjectDataLock::class)->group(function () {
         Route::view('/analisis-estructural-de-armaduras', 'matlab.admAnalisisEstructuralDeArmaduras')->name("analisis-estructural-de-armaduras");
         Route::view('/predim2', 'etabs.index')->name("etabs2");
         Route::view('/etabs', 'matlab.admAnalisisEstructuralDeArmaduras')->name("etabs");
@@ -278,6 +302,7 @@ require __DIR__ . '/auth.php';
 // =============================================
 
 // Ruta principal del menú
+Route::middleware(['auth', 'verified', 'check.subscription', 'role:root|gerencia|asistente'])->group(function () {
 Route::get('/calculadora/asistente/memoria-descriptiva', function () {
     return redirect()->to('/calculadora/asistente/memoria-descriptiva/portada');
 })->name('calculadora.asistente.memoria-descriptiva');
@@ -302,6 +327,7 @@ Route::get('/calculadora/asistente/memoria-descriptiva/predimensionamiento', fun
 Route::get('/calculadora/asistente/memoria-descriptiva/demolicion', function () {
     return view('hcalculo.memoria_descriptiva.sections.demolicion');
 })->name('calculadora.asistente.memoria-descriptiva.demolicion');
+});
 Route::prefix('storage')->group(function () {
     // Imágenes de perfil
     Route::get('/profile/{filename}', function ($filename) {
@@ -327,6 +353,7 @@ Route::prefix('storage')->group(function () {
 });
 
 Route::prefix('api/backend')
+    ->middleware(['auth', 'check.subscription'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->group(function () {
 

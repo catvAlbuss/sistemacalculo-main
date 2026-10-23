@@ -18,12 +18,12 @@ $logout = function (Logout $logout) {
     <script type="text/javascript" src="https://www.geogebra.org/apps/deployggb.js"></script>
 @endpushOnce
 
-<nav class="z-50 border-b border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800" x-data="scientific_calculator_applet"
+<nav class="engineering-app-nav z-50 border-b" aria-label="Herramientas de ingeniería" x-data="scientific_calculator_applet"
     x-init="initComponent($refs.calculator_dialog, $refs.applet_container)">
     <!-- Primary Navigation Menu -->
     <div class="mx-auto max-w-full px-4 sm:px-6 lg:px-8">
-        <div class="flex h-16 justify-between">
-            <div class="flex">
+        <div class="app-nav-bar flex justify-between">
+            <div class="app-nav-primary flex">
                 <!-- Logo -->
                 <div class="flex shrink-0 items-center">
                     <a href="{{ route('dashboard') }}" {{-- wire:navigate --}}>
@@ -33,7 +33,7 @@ $logout = function (Logout $logout) {
                 </div>
 
                 <!-- Navigation Links -->
-                <div class="hidden space-x-2 sm:-my-px sm:ms-10 sm:flex">
+                <div class="hidden app-nav-category xl:flex">
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" {{-- wire:navigate --}}>
                         {{ __('Inicio') }}
                     </x-nav-link>
@@ -74,19 +74,22 @@ $logout = function (Logout $logout) {
                 @endphp
 
                 @if ($canManagePlans)
-                    <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                        <x-dropdown-nav-item name="{{ __('Planes') }}" :active="request()->routeIs(['planUser.*', 'suscripciones.*'])">
+                    <div class="hidden app-nav-category xl:flex">
+                        <x-dropdown-nav-item name="{{ __('Administración') }}" :active="request()->routeIs(['planUser.*', 'suscripciones.*', 'payments.admin.*', 'complaints.admin.*'])">
                             <x-nav-link :href="route('planUser.index')" :active="request()->routeIs('planUser.index')">
                                 {{ __('Gestion de Usuario') }}
                             </x-nav-link>
                             <x-nav-link :href="route('suscripciones.index')" :active="request()->routeIs('suscripciones.index')">
                                 {{ __('Gestion de planes') }}
                             </x-nav-link>
+<x-dropdown-link :href="route('payments.admin.index')" :active="request()->routeIs('payments.admin.*')">Gestión de pagos</x-dropdown-link>
+                            <x-dropdown-link :href="route('complaints.admin.index')" :active="request()->routeIs('complaints.admin.*')">Gestión de reclamaciones</x-dropdown-link>
+
                         </x-dropdown-nav-item>
                     </div>
                 @endif
 
-                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                <div class="hidden app-nav-category xl:flex">
                     <x-dropdown-nav-item name="{{ __('Memoria') }}" :active="$isMemoryActive">
                         <x-dropdown-link :href="route('calculadora.asistente.memoria-calculo')" :active="request()->routeIs('calculadora.asistente.memoria-calculo')">
                             {{ __('Memoria Calculo') }}
@@ -96,7 +99,7 @@ $logout = function (Logout $logout) {
                         </x-dropdown-link>
                     </x-dropdown-nav-item>
                 </div>
-                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                <div class="hidden app-nav-category xl:flex">
                     <x-dropdown-nav-item name="{{ __('Estudiante') }}" :active="$isStudentActive">
                         <x-dropdown-sub label="{{ __('Concreto Armado') }}" :links="[
                             [
@@ -146,7 +149,7 @@ $logout = function (Logout $logout) {
                          ]"></x-dropdown-sub>
                     </x-dropdown-nav-item>
                 </div>
-                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                <div class="hidden app-nav-category xl:flex">
                     <x-dropdown-nav-item name="{{ __('Asistente') }}" :active="$isAssistantActive">
                         <x-dropdown-sub label="{{ __('Vigas') }}" :links="[
                             ['url' => route('calculadora.asistente.vigas'), 'label' => 'Diseño de Vigas'],
@@ -258,7 +261,7 @@ $logout = function (Logout $logout) {
                         ]"></x-dropdown-sub>
                     </x-dropdown-nav-item>
                 </div>
-                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                <div class="hidden app-nav-category xl:flex">
                     <x-dropdown-nav-item name="{{ __('Diseñador') }}" :active="$isDesignerActive">
                         <x-dropdown-sub label="{{ __('Suelos') }}" :links="[
                             [
@@ -290,7 +293,7 @@ $logout = function (Logout $logout) {
                         </x-dropdown-link>
                     </x-dropdown-nav-item>
                 </div>
-                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                <div class="hidden app-nav-category xl:flex">
                     <x-dropdown-nav-item name="{{ __('Revisor') }}" :active="$isReviewerActive">
 
                         <x-dropdown-sub label="{{ __('Verificacion') }}" :links="[
@@ -306,26 +309,26 @@ $logout = function (Logout $logout) {
                     </x-dropdown-nav-item>
                 </div>
 
-                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-nav-item @click="toggle()"><x-svg.calculator class="h-5"></x-svg.calculator></x-nav-item>
+                <div class="hidden app-nav-category xl:flex">
+                    <button type="button" class="app-nav-trigger" @click="toggle()" aria-label="Abrir calculadora científica"><x-svg.calculator class="h-5" /></button>
                 </div>
             </div>
 
             <!-- Settings Dropdown -->
             @auth
-                <div class="hidden sm:flex sm:items-center sm:ms-6">
+                <div class="app-nav-account hidden xl:flex xl:items-center">
                     <x-dropdown align="right" width="48">
                         {{-- Botón del avatar --}}
                         <x-slot name="trigger">
                             <button
-                                class="flex items-center gap-3 rounded-full focus:outline-none transition duration-150 ease-in-out group"
-                                aria-label="User menu" aria-haspopup="true">
+                                class="app-nav-account-button flex items-center focus:outline-none group"
+                                type="button" aria-label="Mi cuenta" :aria-expanded="open.toString()" aria-expanded="false">
 
                                 {{-- Avatar con iniciales --}}
                                 <div
-                                    class="h-10 w-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold group-hover:scale-105 transition">
-                                    {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
-                                </div>
+                                    class="app-nav-avatar flex items-center justify-center">
+                                    {{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 2)) }}
+                                </div><span>Mi cuenta</span>
                             </button>
                         </x-slot>
 
@@ -333,28 +336,30 @@ $logout = function (Logout $logout) {
                         <x-slot name="content">
                             <div
                                 class="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700">
-                                <span x-data="{ name: '{{ auth()->user()->name }}' }" x-text="name"
+                                <span x-data="{{ json_encode(['name' => auth()->user()->name]) }}" x-text="name"
                                     x-on:profile-updated.window="name = $event.detail.name"></span>
                             </div>
 
                             {{-- Enlace al perfil --}}
+                            <x-dropdown-link :href="route('plans.mine')" :active="request()->routeIs('plans.mine')">Mi plan y pagos</x-dropdown-link>
+                            <x-dropdown-link :href="route('backups.index')" :active="request()->routeIs('backups.*')">Mis respaldos</x-dropdown-link>
+                            <x-dropdown-link :href="route('landing.home')">Sitio web</x-dropdown-link>
                             <x-dropdown-link :href="route('profile')">
                                 {{ __('Perfil') }}
                             </x-dropdown-link>
 
                             {{-- Logout --}}
-                            <button class="w-full text-start" wire:click="logout"> <x-dropdown-link> {{ __('Log Out') }}
-                                </x-dropdown-link> </button>
+                            <button type="button" class="app-nav-signout w-full text-start" wire:click="logout">Cerrar sesión</button>
                         </x-slot>
                     </x-dropdown>
                 </div>
             @endauth
 
             <!-- Hamburger -->
-            <div class="-me-2 flex items-center sm:hidden">
+            <div class="flex items-center xl:hidden">
                 <button
                     class="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-none dark:text-gray-500 dark:hover:bg-gray-900 dark:hover:text-gray-400 dark:focus:bg-gray-900 dark:focus:text-gray-400"
-                    @click="open = ! open">
+                    type="button" aria-label="Abrir o cerrar menú de herramientas" aria-controls="workspace-mobile-menu" :aria-expanded="open.toString()" @click="open = ! open">
                     <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                         <path class="inline-flex" :class="{ 'hidden': open, 'inline-flex': !open }"
                             stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -368,7 +373,7 @@ $logout = function (Logout $logout) {
     </div>
 
     <!-- Responsive Navigation Menu -->
-    <div class="hidden sm:hidden" :class="{ 'block': open, 'hidden': !open }">
+    <div id="workspace-mobile-menu" class="app-nav-mobile hidden xl:hidden" :class="{ 'block': open, 'hidden': !open }">
         <div class="space-y-1 pb-3 pt-2">
             <x-responsive-nav-link component="responsive-nav-item" :href="route('dashboard')" :active="request()->routeIs('dashboard')"
                 {{-- wire:navigate --}}>
@@ -377,13 +382,16 @@ $logout = function (Logout $logout) {
         </div>
         @if ($canManagePlans)
             <div class="space-y-1 pb-3 pt-2">
-                <x-dropdown-nav-item name="{{ __('Planes') }}" component="responsive-nav-item" :active="request()->routeIs(['planUser.*', 'suscripciones.*'])">
+                <x-dropdown-nav-item name="{{ __('Administración') }}" component="responsive-nav-item" :active="request()->routeIs(['planUser.*', 'suscripciones.*', 'payments.admin.*', 'complaints.admin.*'])">
                     <x-dropdown-link :href="route('planUser.index')" :active="request()->routeIs('planUser.index')">
                         {{ __('Gestion de Usuario') }}
                     </x-dropdown-link>
                     <x-dropdown-link :href="route('suscripciones.index')" :active="request()->routeIs('suscripciones.index')">
                         {{ __('Gestion de planes') }}
                     </x-dropdown-link>
+<x-dropdown-link :href="route('payments.admin.index')" :active="request()->routeIs('payments.admin.*')">Gestión de pagos</x-dropdown-link>
+                            <x-dropdown-link :href="route('complaints.admin.index')" :active="request()->routeIs('complaints.admin.*')">Gestión de reclamaciones</x-dropdown-link>
+
                 </x-dropdown-nav-item>
             </div>
         @endif
@@ -586,8 +594,7 @@ $logout = function (Logout $logout) {
             </x-dropdown-nav-item>
         </div>
         <div class="space-y-1 pb-3 pt-2">
-            <x-responsive-nav-item @click="toggle()"><x-svg.calculator
-                    class="h-5"></x-svg.calculator></x-responsive-nav-item>
+            <button type="button" class="app-nav-trigger" @click="toggle()"><x-svg.calculator class="h-5" /><span>Calculadora científica</span></button>
         </div>
 
         <!-- Responsive Settings Options -->
@@ -600,21 +607,20 @@ $logout = function (Logout $logout) {
                 </div>
             @endauth
             <div class="mt-3 space-y-1">
+                <x-responsive-nav-link :href="route('plans.mine')" :active="request()->routeIs('plans.mine')">Mi plan y pagos</x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('backups.index')" :active="request()->routeIs('backups.*')">Mis respaldos</x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('landing.home')">Sitio web</x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('profile')" {{-- wire:navigate --}}>
-                    {{ __('Profile') }}
+                    {{ __('Perfil') }}
                 </x-responsive-nav-link>
 
                 <!-- Authentication -->
-                <button class="w-full text-start" wire:click="logout">
-                    <x-responsive-nav-link>
-                        {{ __('Log Out') }}
-                    </x-responsive-nav-link>
-                </button>
+                <button type="button" class="app-nav-signout w-full text-start" wire:click="logout">Cerrar sesión</button>
             </div>
         </div>
     </div>
 
-    <div x-ref="calculator_dialog">
+    <div x-ref="calculator_dialog" style="display:none">
         <div style="min-width:800px;min-height:600px" x-ref="applet_container"></div>
     </div>
 </nav>

@@ -32,6 +32,7 @@ return new class extends Migration
         // que no hay filas reales que preservar.
         Schema::table('memoria_calculos', function (Blueprint $table) {
             $table->dropUnique(['project_code']);
+            $table->dropIndex(['project_code']);
             $table->dropColumn('project_code');
         });
         Schema::table('memoria_calculos', function (Blueprint $table) {

@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
 
 class GestionUserRolSuscripcion extends Controller
 {
@@ -23,7 +24,7 @@ class GestionUserRolSuscripcion extends Controller
     {
         $search = $request->input('search');
         $users = User::withCount('activeSessions')
-            ->with(['roles', 'currentSubscription.plan', 'activeSessions'])
+            ->with(['roles', 'permissions', 'currentSubscription.plan', 'activeSessions'])
             ->when($search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
@@ -33,13 +34,14 @@ class GestionUserRolSuscripcion extends Controller
             ->latest()
             ->paginate(10);
 
-        $roles = Role::all();
+        $roles = Role::where('guard_name', 'web')->get();
         $plans = Subscription::active()->ordered()->get();
 
         return view('planesUser.usersus.index', [
             'users' => $users,
             'roles' => $roles,
             'plans' => $plans,
+            'permissions' => Permission::where('guard_name', 'web')->orderBy('name')->get(),
         ]);
     }
 
@@ -53,7 +55,9 @@ class GestionUserRolSuscripcion extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', 'confirmed', Password::min(8)],
             'roles' => 'required|array|min:1',
-            'roles.*' => 'exists:roles,name',
+            'roles.*' => ['string', Rule::exists('roles', 'name')->where('guard_name', 'web')],
+            'permissions' => 'sometimes|array',
+            'permissions.*' => ['string', Rule::exists('permissions', 'name')->where('guard_name', 'web')],
         ], [
             'name.required' => 'El nombre es obligatorio.',
             'email.required' => 'El email es obligatorio.',
@@ -73,6 +77,9 @@ class GestionUserRolSuscripcion extends Controller
                 ]);
 
                 $user->syncRoles($request->roles);
+                if ($request->has('permissions_present')) {
+                    $user->syncPermissions($request->input('permissions', []));
+                }
 
                 Log::info('Usuario creado exitosamente', ['user_id' => $user->id]);
             });
@@ -97,7 +104,9 @@ class GestionUserRolSuscripcion extends Controller
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($planUser->id)],
             'password' => ['nullable', 'confirmed', Password::min(8)],
             'roles' => 'required|array|min:1',
-            'roles.*' => 'exists:roles,name',
+            'roles.*' => ['string', Rule::exists('roles', 'name')->where('guard_name', 'web')],
+            'permissions' => 'sometimes|array',
+            'permissions.*' => ['string', Rule::exists('permissions', 'name')->where('guard_name', 'web')],
         ], [
             'name.required' => 'El nombre es obligatorio.',
             'email.required' => 'El email es obligatorio.',
@@ -117,8 +126,15 @@ class GestionUserRolSuscripcion extends Controller
                     $data['password'] = Hash::make($request->password);
                 }
 
+                if ($planUser->email !== $data['email']) {
+                    $planUser->email_verified_at = null;
+                }
+
                 $planUser->update($data);
                 $planUser->syncRoles($request->roles);
+                if ($request->has('permissions_present')) {
+                    $planUser->syncPermissions($request->input('permissions', []));
+                }
 
                 Log::info('Usuario actualizado exitosamente', [
                     'user_id' => $planUser->id,

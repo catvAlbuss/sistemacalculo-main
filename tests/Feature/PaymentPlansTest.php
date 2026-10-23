@@ -31,6 +31,9 @@ class PaymentPlansTest extends TestCase
 
     public function test_admin_can_create_and_edit_plan_capacity_with_validation(): void
     {
+        $admin = \App\Models\User::factory()->create();
+        $admin->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(['name' => 'root', 'guard_name' => 'web']));
+        $this->actingAs($admin);
         Livewire::test(SubscriptionPlansManagement::class)
             ->set('name', 'Nuevo Plan')->set('slug', 'nuevo-plan')->set('type', 'monthly')
             ->set('price', 49.90)->set('duration_days', 30)->set('max_users', 1)->set('max_projects', 10)

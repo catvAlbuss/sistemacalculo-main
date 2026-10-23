@@ -19,6 +19,14 @@
     "file": "assets/html2canvas.esm-5Cw11iw4.js",
     "name": "html2canvas.esm"
   },
+  "_index-B7eZzUIv.js": {
+    "file": "assets/index-B7eZzUIv.js",
+    "name": "index",
+    "imports": [
+      "_index-DcNlVx-A.js",
+      "_index-C5az9QE8.js"
+    ]
+  },
   "_index-C5az9QE8.js": {
     "file": "assets/index-C5az9QE8.js",
     "name": "index"
@@ -45,8 +53,8 @@
       "__commonjsHelpers-D6-XlEtG.js"
     ]
   },
-  "_pdfmake-TJf5H8Bq.js": {
-    "file": "assets/pdfmake-TJf5H8Bq.js",
+  "_pdfmake-B_GtB5oL.js": {
+    "file": "assets/pdfmake-B_GtB5oL.js",
     "name": "pdfmake",
     "isDynamicEntry": true,
     "imports": [
@@ -84,12 +92,16 @@
     "file": "assets/tabs-CX56sy7k.js",
     "name": "tabs"
   },
+  "_three.module-DeP2id1x.js": {
+    "file": "assets/three.module-DeP2id1x.js",
+    "name": "three.module"
+  },
   "_ubigeo-Cak7qga5.js": {
     "file": "assets/ubigeo-Cak7qga5.js",
     "name": "ubigeo"
   },
-  "_vfs_fonts-Dmo_Rbq8.js": {
-    "file": "assets/vfs_fonts-Dmo_Rbq8.js",
+  "_vfs_fonts-Be6jv1MV.js": {
+    "file": "assets/vfs_fonts-Be6jv1MV.js",
     "name": "vfs_fonts",
     "isDynamicEntry": true,
     "imports": [
@@ -521,7 +533,7 @@
     "src": "node_modules/jquery-ui/themes/base/images/ui-icons_ffffff_256x240.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-DxK2gIfU.css",
+    "file": "assets/app-vFcoCWy_.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
@@ -530,14 +542,24 @@
     "src": "resources/css/columnaII.css",
     "isEntry": true
   },
+  "resources/css/engineering.css": {
+    "file": "assets/engineering-CgGD1rGc.css",
+    "src": "resources/css/engineering.css",
+    "isEntry": true
+  },
   "resources/css/espectroStyle.css": {
     "file": "assets/espectroStyle-Cj3a6vx9.css",
     "src": "resources/css/espectroStyle.css",
     "isEntry": true
   },
   "resources/css/predim.css": {
-    "file": "assets/predim-C1NgwH5L.css",
+    "file": "assets/predim-BK6dQa8h.css",
     "src": "resources/css/predim.css",
+    "isEntry": true
+  },
+  "resources/css/workspace.css": {
+    "file": "assets/workspace-CCGDaMcH.css",
+    "src": "resources/css/workspace.css",
     "isEntry": true
   },
   "resources/img/Predimimg/logorizabal.png": {
@@ -701,10 +723,13 @@
     "src": "resources/img/verificacion.png"
   },
   "resources/js/adm_Arcotecho_general.js": {
-    "file": "assets/adm_Arcotecho_general-DmIRgbmI.js",
+    "file": "assets/adm_Arcotecho_general-pwpW3pcX.js",
     "name": "adm_Arcotecho_general",
     "src": "resources/js/adm_Arcotecho_general.js",
-    "isEntry": true
+    "isEntry": true,
+    "css": [
+      "assets/adm_Arcotecho_general-Dd1A_g-k.css"
+    ]
   },
   "resources/js/adm_Excel_general.js": {
     "file": "assets/adm_Excel_general-BPGSTkSK.js",
@@ -713,7 +738,7 @@
     "isEntry": true
   },
   "resources/js/adm_aligerados_grafico.js": {
-    "file": "assets/adm_aligerados_grafico-BzxbGNV8.js",
+    "file": "assets/adm_aligerados_grafico-Cg5KC45j.js",
     "name": "adm_aligerados_grafico",
     "src": "resources/js/adm_aligerados_grafico.js",
     "isEntry": true,
@@ -882,7 +907,7 @@
     ]
   },
   "resources/js/adm_vigas_general.js": {
-    "file": "assets/adm_vigas_general-DfhzfwyO.js",
+    "file": "assets/adm_vigas_general-Cw5IQIaU.js",
     "name": "adm_vigas_general",
     "src": "resources/js/adm_vigas_general.js",
     "isEntry": true,
@@ -939,6 +964,12 @@
       "__commonjsHelpers-D6-XlEtG.js"
     ]
   },
+  "resources/js/aligerados-flexion.js": {
+    "file": "assets/aligerados-flexion-l0sNRNKZ.js",
+    "name": "aligerados-flexion",
+    "src": "resources/js/aligerados-flexion.js",
+    "isEntry": true
+  },
   "resources/js/analisis_estructural_de_armaduras.js": {
     "file": "assets/analisis_estructural_de_armaduras-DBkEQNcC.js",
     "name": "analisis_estructural_de_armaduras",
@@ -981,26 +1012,37 @@
     ]
   },
   "resources/js/app_begin.js": {
-    "file": "assets/app_begin-CBwquK43.js",
+    "file": "assets/app_begin-BdD7UDwn.js",
     "name": "app_begin",
     "src": "resources/js/app_begin.js",
     "isEntry": true,
     "imports": [
-      "_index-DcNlVx-A.js",
+      "_preload-helper-BfFHrpNk.js",
+      "_index-B7eZzUIv.js",
       "_livewire.esm-CSxV_SAU.js",
-      "_index-C5az9QE8.js",
-      "_pdfmake-TJf5H8Bq.js",
-      "_vfs_fonts-Dmo_Rbq8.js",
-      "__commonjsHelpers-D6-XlEtG.js"
+      "_index-DcNlVx-A.js",
+      "_index-C5az9QE8.js"
+    ],
+    "dynamicImports": [
+      "_pdfmake-B_GtB5oL.js",
+      "_vfs_fonts-Be6jv1MV.js"
     ]
   },
   "resources/js/app_end.js": {
-    "file": "assets/app_end-vpLdQIcn.js",
+    "file": "assets/app_end-D8K9HMxV.js",
     "name": "app_end",
     "src": "resources/js/app_end.js",
     "isEntry": true,
     "imports": [
-      "_livewire.esm-CSxV_SAU.js"
+      "_livewire.esm-CSxV_SAU.js",
+      "_preload-helper-BfFHrpNk.js",
+      "_index-B7eZzUIv.js",
+      "_index-DcNlVx-A.js",
+      "_index-C5az9QE8.js"
+    ],
+    "dynamicImports": [
+      "_pdfmake-B_GtB5oL.js",
+      "_vfs_fonts-Be6jv1MV.js"
     ]
   },
   "resources/js/bootstrap.js": {
@@ -1120,10 +1162,19 @@
     "isEntry": true
   },
   "resources/js/culqi-checkout.js": {
-    "file": "assets/culqi-checkout-OVzbC0DH.js",
+    "file": "assets/culqi-checkout-DS5z5jII.js",
     "name": "culqi-checkout",
     "src": "resources/js/culqi-checkout.js",
     "isEntry": true
+  },
+  "resources/js/dashboard-background.js": {
+    "file": "assets/dashboard-background-Tg_Vwb8B.js",
+    "name": "dashboard-background",
+    "src": "resources/js/dashboard-background.js",
+    "isEntry": true,
+    "imports": [
+      "_three.module-DeP2id1x.js"
+    ]
   },
   "resources/js/desingescaleras.js": {
     "file": "assets/desingescaleras-Dvw7DG4s.js",
@@ -1171,12 +1222,13 @@
     ]
   },
   "resources/js/etabs/main.js": {
-    "file": "assets/main-fBs_z7uk.js",
+    "file": "assets/main-CGBPq-A8.js",
     "name": "main",
     "src": "resources/js/etabs/main.js",
     "isEntry": true,
     "imports": [
       "_preload-helper-BfFHrpNk.js",
+      "_three.module-DeP2id1x.js",
       "_index-C5az9QE8.js",
       "__commonjsHelpers-D6-XlEtG.js",
       "_zapatas2Core-fIgn_iCI.js",
@@ -1326,7 +1378,7 @@
     ]
   },
   "resources/js/planes-registro.js": {
-    "file": "assets/planes-registro-C3rR4oa5.js",
+    "file": "assets/planes-registro-BtZhZmXg.js",
     "name": "planes-registro",
     "src": "resources/js/planes-registro.js",
     "isEntry": true
@@ -1348,6 +1400,15 @@
     "name": "ribbon-adapter",
     "src": "resources/js/predim/ribbon-adapter.js",
     "isEntry": true
+  },
+  "resources/js/public-navigation.js": {
+    "file": "assets/public-navigation-CmSaEBbR.js",
+    "name": "public-navigation",
+    "src": "resources/js/public-navigation.js",
+    "isEntry": true,
+    "imports": [
+      "_livewire.esm-CSxV_SAU.js"
+    ]
   },
   "resources/js/scientific_calculator_applet.js": {
     "file": "assets/scientific_calculator_applet-Df04W8wk.js",
@@ -1377,7 +1438,7 @@
     "isDynamicEntry": true
   },
   "resources/js/vigas/utils/pdfGenerator.js": {
-    "file": "assets/pdfGenerator-DG4Bi2IF.js",
+    "file": "assets/pdfGenerator-Bmt4_O2m.js",
     "name": "pdfGenerator",
     "src": "resources/js/vigas/utils/pdfGenerator.js",
     "isDynamicEntry": true,
@@ -1386,8 +1447,8 @@
       "_rizabalasociados-BgyDGUXy.js"
     ],
     "dynamicImports": [
-      "_pdfmake-TJf5H8Bq.js",
-      "_vfs_fonts-Dmo_Rbq8.js"
+      "_pdfmake-B_GtB5oL.js",
+      "_vfs_fonts-Be6jv1MV.js"
     ]
   }
 }

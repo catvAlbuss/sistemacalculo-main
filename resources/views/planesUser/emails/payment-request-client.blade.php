@@ -37,19 +37,13 @@
                             </p>
 
                             <!-- Cuenta de Prueba -->
-                            <table width="100%" cellpadding="0" cellspacing="0"
-                                style="background-color: #dbeafe; border-left: 4px solid #2563eb; border-radius: 8px; margin: 30px 0; padding: 20px;">
-                                <tr>
-                                    <td>
-                                        <h3 style="color: #1e40af; margin: 0 0 15px; font-size: 18px;">🎁 ¡Cuenta de
-                                            Prueba Activada!</h3>
-                                        <p style="color: #1e3a8a; margin: 0 0 10px; font-size: 14px;">
-                                            Tienes acceso completo por <strong>10 días gratis</strong> para que explores
-                                            todo nuestro contenido.
-                                        </p>
-                                    </td>
-                                </tr>
-                            </table>
+                            <table width="100%" cellpadding="16" style="background-color:#dbeafe;margin:20px 0;"><tr><td>
+                                @if ($paymentRequest->payment_method === 'free')
+                                    <h3>Tu prueba gratuita está activa</h3><p>Tienes 15 días de prueba desde el registro, una sola vez por cuenta. No hay comisión ni cobro automático. Al vencer, debes contratar un plan pagado para continuar.</p>
+                                @elseif ($paymentRequest->payment_method === 'culqi')
+                                    <h3>Completa el pago de tu plan</h3><p>El acceso pagado se activa cuando Culqi confirma el cobro. El precio final incluye el procesamiento y el IGV del servicio.</p>
+                                @else<h3>Solicitud recibida</h3><p>Coordinaremos el precio y las condiciones de tu acceso.</p>@endif
+                            </td></tr></table>
 
                             <!-- Credenciales -->
                             @if ($activationUrl)
@@ -116,8 +110,8 @@
                                                 <tr>
                                                     <td style="color: #78350f; font-size: 14px;">
                                                         <strong>Precio:</strong></td>
-                                                    <td style="color: #111827; font-size: 14px; font-weight: bold;">S/
-                                                        {{ number_format($plan->price, 2) }}</td>
+                                                    <td style="color: #111827; font-size: 14px; font-weight: bold;">{{ $paymentRequest->currency === 'USD' ? 'US$' : 'S/' }}
+                                                        {{ number_format($paymentRequest->charge_amount ?? $plan->price, 2) }}</td>
                                                 </tr>
                                             @endif
                                         </table>
@@ -135,7 +129,7 @@
                                         <ol
                                             style="color: #047857; margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
                                             <li>Inicia sesión en tu cuenta con las credenciales proporcionadas</li>
-                                            <li>Explora todo el contenido durante tu período de prueba</li>
+                                            @if ($paymentRequest->payment_method === 'free')<li>Explora las herramientas durante los 15 días de prueba. Después necesitarás un plan pagado.</li>@endif
                                             @if ($paymentRequest->payment_method === 'culqi')
                                                 <li><a href="{{ \App\Http\Controllers\CulqiController::paymentUrl($paymentRequest) }}">Completa tu pago seguro con Culqi</a>. El enlace dura 24 horas.</li>
                                             @elseif ($paymentRequest->payment_method === 'yape')
