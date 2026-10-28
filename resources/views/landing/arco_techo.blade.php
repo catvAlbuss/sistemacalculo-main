@@ -9,5 +9,5 @@
     <p class="pr-eyebrow">02 / Hoja de cálculo de prueba</p>
     <h2 style="margin-top:12px">Explora la geometría de tu arco.</h2>
     <p>Techo Arco permite ingresar los parámetros de un arco estructural y consultar los resultados de la hoja de cálculo. Accede a la herramienta para revisar sus entradas, gráficos y cálculos.</p>
-    <ul class="en-service-list"><li>Parámetros geométricos del arco.</li><li>Hoja de cálculo disponible desde el navegador.</li><li>Acceso público, sin iniciar sesión.</li></ul>
+    <ul class="en-service-list"><li>Parámetros geométricos del arco.</li><li>Hoja de cálculo disponible desde el navegador.</li><li>Disponible con una prueba de 5 días o un plan activo.</li></ul>
 @endsection

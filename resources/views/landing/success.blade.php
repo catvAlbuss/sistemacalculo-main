@@ -5,7 +5,7 @@
         @if(session('warning'))<p class="en-notice" role="alert">{{ session('warning') }}</p>@endif
         @if(session('registration'))<h2>{{ session('registration.plan') }}</h2>
             @if(session('registration.free'))
-                <p>Tu prueba dura 15 días desde el registro. No requiere tarjeta ni genera comisión. Al vencer, necesitarás contratar un plan pagado para seguir usando el software.</p><p>No se realizarán cobros automáticos. Tus opciones de cuenta, soporte y respaldos seguirán disponibles.</p>
+                <p>Tu prueba dura 5 días desde el registro. No requiere tarjeta ni genera comisión. Al vencer, necesitarás contratar un plan pagado para seguir usando el software.</p><p>No se realizarán cobros automáticos. Tus opciones de cuenta, soporte y respaldos seguirán disponibles.</p>
             @elseif(session('registration.custom'))<p>Te contactaremos para coordinar el precio y las condiciones de tu acceso.</p>
             @else<p>Completa el pago seguro mediante Culqi. Tu plan se activará cuando se confirme el cobro.</p>@endif
         @else<p>Si ya enviaste una solicitud, revisa tu correo para conocer su estado y la información de acceso.</p>@endif

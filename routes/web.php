@@ -25,7 +25,13 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'welcome')->name("landing.home");
+Route::get('/', [App\Http\Controllers\ShowcaseController::class, 'home'])->name("landing.home");
+Route::get('/portada/video/{variant}.{format}', App\Http\Controllers\HomeVideoController::class)
+    ->where(['variant' => 'desktop|mobile', 'format' => 'mp4|webm'])->name('showcase.home-video');
+
+Route::get('/programas', [App\Http\Controllers\ShowcaseController::class, 'index'])->name('showcase.index');
+Route::get('/programas/{slug}', [App\Http\Controllers\ShowcaseController::class, 'show'])->name('showcase.show');
+Route::get('/prueba-gratuita', [App\Http\Controllers\ShowcaseController::class, 'trial'])->name('showcase.trial');
 
 Route::get('/terminos-y-condiciones', [App\Http\Controllers\LegalController::class, 'show'])->defaults('document', 'terminos')->name('legal.terminos');
 Route::get('/politica-de-cambios-y-devoluciones', [App\Http\Controllers\LegalController::class, 'show'])->defaults('document', 'devoluciones')->name('legal.devoluciones');
@@ -60,9 +66,9 @@ Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturar
 //==========================RUTA PARA LAS PRUEBAS PREDIM==================//
 Route::view('/info/arco_techo', 'landing.arco_techo')->name('landing.info.arco_techo');
 Route::view('/info/predim', 'landing.predim')->name('landing.info.predim');
-Route::view('/predim_v2', 'predim.predim-new')->name("predim_v2");
+Route::view('/predim_v2', 'predim.predim-new')->middleware(['auth', 'verified', 'check.subscription'])->name("predim_v2");
 //==========================RUTAS PÚBLICAS================================//
-Route::view('/arco_techo', 'hcalculo.arco_techo')->name("calculadora.estudiante.arco_techo");
+Route::view('/arco_techo', 'hcalculo.arco_techo')->middleware(['auth', 'verified', 'check.subscription'])->name("calculadora.estudiante.arco_techo");
 
 //==========================RUTAS AUTENTICADAS============================//
 // Route::view('dashboard', 'dashboard')
@@ -114,6 +120,11 @@ Route::middleware(['auth', 'verified', 'role:root,gerencia'])->group(function ()
 });
 // Gestión de Planes (Solo Root y Gerencia)
 Route::middleware(['auth', 'verified', 'role:root|gerencia'])->group(function () {
+    Route::get('/administracion/videos', [App\Http\Controllers\ShowcaseVideoController::class, 'index'])->name('showcase.admin');
+    Route::post('/administracion/videos', [App\Http\Controllers\ShowcaseVideoController::class, 'store'])->middleware('throttle:10,10')->name('showcase.upload');
+    Route::post('/administracion/videos/{video}/publicar', [App\Http\Controllers\ShowcaseVideoController::class, 'publish'])->name('showcase.publish');
+    Route::post('/administracion/videos/{video}/retirar', [App\Http\Controllers\ShowcaseVideoController::class, 'unpublish'])->name('showcase.unpublish');
+    Route::post('/administracion/videos/{video}/reintentar', [App\Http\Controllers\ShowcaseVideoController::class, 'retry'])->middleware('throttle:5,1')->name('showcase.retry');
     Route::view('/administracion', 'workspace.administration')->name('administration.index');
     Route::get('/administracion/reclamaciones', [App\Http\Controllers\ComplaintController::class, 'index'])->name('complaints.admin.index');
     Route::get('/administracion/reclamaciones/{complaint}', [App\Http\Controllers\ComplaintController::class, 'show'])->name('complaints.admin.show');
@@ -161,11 +172,13 @@ Route::middleware(["auth", "verified", "check.subscription"])->group(function ()
         });
 
         //==================CALCULADORA ASISTENTE (Root, Gerencia, Asistente)//
-        Route::middleware(['role:root|gerencia|asistente'])->group(function () {
+        // Calculation sheets are available through the active trial/paid coverage
+        // checked above. Document-management privileges remain role restricted.
+        Route::group([], function () {
             Route::prefix('asistente')->name('asistente.')->group(function () {
 
                 // Agrega la ruta de admMemoriaCalculo memoria-calculo
-                Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->name('memoria-calculo');
+                Route::view('/memoria-calculo', 'hcalculo.admMemoriaCalculo')->middleware('role:root|gerencia|asistente')->name('memoria-calculo');
 
 
                 // Vigas
@@ -180,7 +193,7 @@ Route::middleware(["auth", "verified", "check.subscription"])->group(function ()
                 Route::view('/losas-aligeradas', 'hcalculo.admlosasaligeradas')->name('losas-aligeradas');
 
                 // Diseño en madera
-                Route::view('/diseno-en-madera', 'hcalculo.diseno_en_madera_flexocompresion')->name('diseno-en-madera');
+                Route::view('/diseno-en-madera', 'hcalculo.diseno_en_madera.flexo_compresion')->name('diseno-en-madera');
 
                 // Muros
                 Route::view('/muros-de-contencionv2', 'muros-contencion.index')->name('muros-de-contencionv2');

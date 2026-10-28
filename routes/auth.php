@@ -13,7 +13,7 @@ Route::middleware('guest')->group(function () {
 
     
 
-    Route::view('login', 'welcome')->name("login");
+    Route::view('login', 'landing.login')->name("login");
     Route::post('login', App\Http\Controllers\Auth\LoginController::class)->name('login.store');
 
     Volt::route('forgot-password', 'pages.auth.forgot-password')

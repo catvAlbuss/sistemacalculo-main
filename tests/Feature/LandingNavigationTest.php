@@ -53,14 +53,14 @@ class LandingNavigationTest extends TestCase
             'landing.services.structural_design', 'landing.services.structural_software',
             'landing.services.structural_blueprint', 'landing.services.metrados',
             'landing.info.predim', 'landing.info.arco_techo', 'legal.terminos',
-            'predim_v2', 'calculadora.estudiante.arco_techo'] as $route) {
+            'showcase.index'] as $route) {
             $html = $this->get(route($route))->assertOk()->getContent();
             $document = new \DOMDocument();
             @$document->loadHTML('<?xml encoding="UTF-8">'.$html);
             $xpath = new \DOMXPath($document);
             $nav = '//nav[@data-navigation="public"]';
             $this->assertCount(1, $xpath->query($nav), $route);
-            foreach (['landing.home', 'landing.plans', 'contacto.index', 'login', 'predim_v2', 'calculadora.estudiante.arco_techo'] as $destination) {
+            foreach (['landing.home', 'landing.plans', 'contacto.index', 'login', 'showcase.trial', 'showcase.index'] as $destination) {
                 $this->assertGreaterThan(0, $xpath->query($nav.'//a[@href="'.route($destination).'"]')->length, $route.' → '.$destination);
             }
             $this->assertStringNotContainsString('landing-menu-administracion', $html);
@@ -69,13 +69,16 @@ class LandingNavigationTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_free_tools_mark_the_current_tool_in_the_shared_menu(): void
+    public function test_program_catalog_marks_the_public_program_link(): void
     {
-        foreach (['predim_v2', 'calculadora.estudiante.arco_techo'] as $route) {
-            $document = new \DOMDocument();
-            @$document->loadHTML($this->get(route($route))->assertOk()->getContent());
-            $xpath = new \DOMXPath($document);
-            $this->assertCount(1, $xpath->query('//nav[@data-navigation="public"]//a[@href="'.route($route).'"][@aria-current="page"]'));
+        $document = new \DOMDocument();
+        @$document->loadHTML($this->get(route('showcase.index'))->assertOk()->getContent());
+        $xpath = new \DOMXPath($document);
+        $this->assertCount(1, $xpath->query('//nav[@data-navigation="public"]//a[@href="'.route('showcase.index').'"][@aria-current="page"]'));
+        $this->assertCount(1, $xpath->query('//button[@aria-controls="programs-panel"]'));
+        $this->assertSame(count(config('showcase.products')), $xpath->query('//*[@id="programs-panel"]//section//a')->length);
+        foreach (config('showcase.products') as $slug => $program) {
+            $this->assertCount(1, $xpath->query('//*[@id="programs-panel"]//a[@href="'.route('showcase.show', $slug).'"]'));
         }
     }
 
@@ -125,26 +128,26 @@ class LandingNavigationTest extends TestCase
         $this->get(route('backups.index'))->assertRedirect(route('login'));
     }
 
-    public function test_guest_home_has_login_and_never_includes_private_navigation(): void
+    public function test_guest_home_offers_login_and_never_includes_private_navigation(): void
     {
-        $this->get(route('landing.home'))->assertOk()->assertSeeVolt('login')
+        $this->get(route('landing.home'))->assertOk()->assertSee('Explorar programas')
             ->assertDontSee('landing-menu-administracion', false)
             ->assertDontSee('landing-menu-mi-cuenta', false)
             ->assertSee('Iniciar sesión')->assertSee('Prueba gratis');
     }
 
-    public function test_authenticated_home_identifies_the_session_instead_of_showing_the_login_form(): void
+    public function test_authenticated_home_links_to_the_workspace_without_showing_a_login_form(): void
     {
         $user = User::factory()->create();
         $user->assignRole('root');
         $this->actingAs($user)->get(route('landing.home'))->assertOk()
-            ->assertSee('Sesión iniciada')->assertSee($user->email)
+            ->assertSee('Explorar programas')->assertDontSee($user->email)
             ->assertDontSee('wire:submit=\'login\'', false)
             ->assertDontSee('name="password"', false)
             ->assertDontSee('landing-menu-administracion', false)->assertDontSee('landing-menu-mi-cuenta', false)
             ->assertSee('Mi espacio de trabajo');
         $this->post(route('logout'))->assertRedirect('/');
-        $this->get(route('landing.home'))->assertOk()->assertSeeVolt('login')
+        $this->get(route('landing.home'))->assertOk()->assertSee('Iniciar sesión')
             ->assertDontSee('landing-menu-administracion', false)
             ->assertDontSee('landing-menu-mi-cuenta', false)->assertDontSee($user->email);
     }

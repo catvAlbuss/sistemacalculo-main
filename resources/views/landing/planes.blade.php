@@ -41,7 +41,7 @@
         <p class="pr-panel en-info-card" role="status">No hay planes disponibles en este momento. <a href="{{ route(request()->routeIs('plans.catalog') ? 'account.support' : 'contacto.index') }}" class="en-inline-link">Contáctanos</a> para consultar las opciones de acceso.</p>
       @endforelse
     </section>
-    <p class="en-price-note">Precio final único para tarjeta y Yape, con IGV y procesamiento incluidos. La renovación es manual. La prueba gratuita dura 15 días y luego requiere un plan pagado para continuar con el software.</p>
+    <p class="en-price-note">Precio final único para tarjeta y Yape, con IGV y procesamiento incluidos. La renovación es manual. La prueba gratuita dura 5 días y luego requiere un plan pagado para continuar con el software.</p>
     <div class="en-section-heading"><h2>Del registro a tu espacio de trabajo</h2><p class="pr-eyebrow">Proceso de acceso</p></div>
     <section class="en-grid-three" aria-label="Cómo funciona">
       <article class="pr-panel en-info-card"><span class="en-card-number">01 / SELECCIÓN</span><h3>Elige tu acceso</h3><p>Revisa el precio, la duración y los cupos incluidos en cada plan.</p></article>

@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'version' => '2026-10-23-v3',
+    'version' => '2026-10-28-v4',
     'provider' => [
         'name' => env('BILLING_ISSUER_NAME', 'Rizabal & Asociados'),
         'ruc' => env('BILLING_ISSUER_RUC'),

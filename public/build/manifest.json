@@ -543,7 +543,7 @@
     "isEntry": true
   },
   "resources/css/engineering.css": {
-    "file": "assets/engineering-CgGD1rGc.css",
+    "file": "assets/engineering-B4jluYPh.css",
     "src": "resources/css/engineering.css",
     "isEntry": true
   },
@@ -697,6 +697,14 @@
   "resources/img/logo_rizabalAsociados.png": {
     "file": "assets/logorizabal-eTwpQAsb.png",
     "src": "resources/img/Predimimg/logorizabal.png"
+  },
+  "resources/img/marketing/aligerados.svg": {
+    "file": "assets/aligerados-B1Cw6Zzj.svg",
+    "src": "resources/img/marketing/aligerados.svg"
+  },
+  "resources/img/marketing/cimentacion.svg": {
+    "file": "assets/cimentacion-TaH94EaX.svg",
+    "src": "resources/img/marketing/cimentacion.svg"
   },
   "resources/img/predim-preview.png": {
     "file": "assets/predim-preview-qqF0KcPG.png",
@@ -1436,6 +1444,15 @@
     "name": "empty-node-module",
     "src": "resources/js/shims/empty-node-module.js",
     "isDynamicEntry": true
+  },
+  "resources/js/showcase.js": {
+    "file": "assets/showcase-rkkZ_DJW.js",
+    "name": "showcase",
+    "src": "resources/js/showcase.js",
+    "isEntry": true,
+    "css": [
+      "assets/showcase-B_IdjdYi.css"
+    ]
   },
   "resources/js/vigas/utils/pdfGenerator.js": {
     "file": "assets/pdfGenerator-Bmt4_O2m.js",

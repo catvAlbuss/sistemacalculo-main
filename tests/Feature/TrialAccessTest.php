@@ -42,14 +42,14 @@ class TrialAccessTest extends TestCase
         return PaymentRequest::firstOrFail();
     }
 
-    public function test_trial_is_confirmed_for_exactly_fifteen_days_without_culqi_commission_or_receipt(): void
+    public function test_trial_is_confirmed_for_exactly_five_days_without_culqi_commission_or_receipt(): void
     {
         $data = $this->data();
-        $this->post(route('planes.store'), $data)->assertSessionHasNoErrors()->assertSessionHas('registration.duration', '15 días');
+        $this->post(route('planes.store'), $data)->assertSessionHasNoErrors()->assertSessionHas('registration.duration', '5 días');
         $this->post(route('planes.store'), $data)->assertSessionHasNoErrors();
         $payment = PaymentRequest::firstOrFail();
         $subscription = $payment->user->subscriptions()->firstOrFail();
-        $this->assertSame(15, (int) $subscription->starts_at->diffInDays($subscription->ends_at));
+        $this->assertSame(5, (int) $subscription->starts_at->diffInDays($subscription->ends_at));
         $this->assertSame('approved', $payment->status);
         $this->assertSame('free', $payment->payment_method);
         $this->assertSame('0.00', $payment->charge_amount);
@@ -64,7 +64,7 @@ class TrialAccessTest extends TestCase
     {
         $payment = $this->signup(); $this->actingAs($payment->user);
         $this->post(route('planes.store'), $this->data())->assertSessionHasErrors('subscription_plan_id');
-        $this->travel(16)->days();
+        $this->travel(6)->days();
         $this->post(route('planes.store'), $this->data())->assertSessionHasErrors('subscription_plan_id');
         $this->get(route('planes.register', ['plan' => $this->trial->id]))->assertRedirect(route('plans.mine'));
         $this->assertDatabaseCount('user_subscriptions', 1); $this->assertDatabaseCount('payment_requests', 1);
@@ -76,6 +76,9 @@ class TrialAccessTest extends TestCase
         $end = $user->subscriptions()->firstOrFail()->ends_at;
         $this->travelTo($end->copy()->subSecond());
         $this->get(route('calculadora.estudiante.cav2.voladitos'))->assertOk();
+        $this->get(route('calculadora.asistente.vigas-general'))->assertOk();
+        $this->get(route('software.aligerados-v2'))->assertOk();
+        $this->get(route('calculadora.asistente.memoria-calculo'))->assertForbidden();
         $this->travelTo($end);
         $this->get(route('calculadora.estudiante.cav2.voladitos'))->assertRedirect(route('plans.mine'));
         $this->get('/calculadora/asistente/memoria-descriptiva/portada')->assertRedirect(route('plans.mine'));
@@ -85,8 +88,8 @@ class TrialAccessTest extends TestCase
         foreach (['plans.mine', 'plans.catalog', 'profile', 'backups.index', 'account.support'] as $route) $this->get(route($route))->assertOk();
         $this->get(route('plans.mine'))->assertSee('contrata un plan pagado');
         $this->assertAuthenticatedAs($user); Http::assertNothingSent();
-        $this->get(route('predim_v2'))->assertOk();
-        $this->get(route('calculadora.estudiante.arco_techo'))->assertOk();
+        $this->get(route('predim_v2'))->assertRedirect(route('plans.mine'));
+        $this->get(route('calculadora.estudiante.arco_techo'))->assertRedirect(route('plans.mine'));
     }
 
     public function test_paid_signup_does_not_grant_trial_and_access_returns_only_after_payment_confirmation(): void
@@ -111,12 +114,12 @@ class TrialAccessTest extends TestCase
         $this->actingAs($admin)->get(route('calculadora.estudiante.cav2.voladitos'))->assertOk();
     }
 
-    public function test_legacy_trials_cannot_bypass_the_fifteen_day_limit_with_a_later_or_missing_end_date(): void
+    public function test_legacy_trials_cannot_bypass_the_five_day_limit_with_a_later_or_missing_end_date(): void
     {
         foreach ([now()->addMonth(), null] as $end) {
             $user = User::factory()->create(); $user->assignRole('cliente');
             $period = $user->subscriptions()->create(['subscription_plan_id' => $this->trial->id, 'status' => 'active',
-                'starts_at' => now()->subDays(16), 'ends_at' => $end, 'payment_method' => 'trial', 'amount_paid' => 0]);
+                'starts_at' => now()->subDays(6), 'ends_at' => $end, 'payment_method' => 'trial', 'amount_paid' => 0]);
             $this->assertFalse($period->isActive()); $this->assertTrue($period->isExpired());
             $this->assertFalse($user->hasPermanentCoverage());
             $this->actingAs($user)->get(route('calculadora.estudiante.cav2.voladitos'))->assertRedirect(route('plans.mine'));

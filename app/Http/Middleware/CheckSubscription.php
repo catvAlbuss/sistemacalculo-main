@@ -25,7 +25,7 @@ class CheckSubscription
             return $next($request);
         }
         $message = $user->is_active
-            ? 'Tu acceso ha vencido. La prueba dura 15 días; para continuar con el software debes contratar un plan pagado.'
+            ? 'Tu acceso ha vencido. La prueba dura 5 días; para continuar con el software debes contratar un plan pagado.'
             : 'Tu cuenta está suspendida. Contacta con soporte.';
         if ($json) {
             return response()->json(['message' => $message, 'code' => 'subscription_required', 'renewal_url' => route('plans.mine')], 403);

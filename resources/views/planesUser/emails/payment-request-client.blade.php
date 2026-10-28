@@ -39,7 +39,7 @@
                             <!-- Cuenta de Prueba -->
                             <table width="100%" cellpadding="16" style="background-color:#dbeafe;margin:20px 0;"><tr><td>
                                 @if ($paymentRequest->payment_method === 'free')
-                                    <h3>Tu prueba gratuita está activa</h3><p>Tienes 15 días de prueba desde el registro, una sola vez por cuenta. No hay comisión ni cobro automático. Al vencer, debes contratar un plan pagado para continuar.</p>
+                                    <h3>Tu prueba gratuita está activa</h3><p>Tienes 5 días de prueba desde el registro, una sola vez por cuenta. No hay comisión ni cobro automático. Al vencer, debes contratar un plan pagado para continuar.</p>
                                 @elseif ($paymentRequest->payment_method === 'culqi')
                                     <h3>Completa el pago de tu plan</h3><p>El acceso pagado se activa cuando Culqi confirma el cobro. El precio final incluye el procesamiento y el IGV del servicio.</p>
                                 @else<h3>Solicitud recibida</h3><p>Coordinaremos el precio y las condiciones de tu acceso.</p>@endif
@@ -129,7 +129,7 @@
                                         <ol
                                             style="color: #047857; margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
                                             <li>Inicia sesión en tu cuenta con las credenciales proporcionadas</li>
-                                            @if ($paymentRequest->payment_method === 'free')<li>Explora las herramientas durante los 15 días de prueba. Después necesitarás un plan pagado.</li>@endif
+                                            @if ($paymentRequest->payment_method === 'free')<li>Explora las herramientas durante los 5 días de prueba. Después necesitarás un plan pagado.</li>@endif
                                             @if ($paymentRequest->payment_method === 'culqi')
                                                 <li><a href="{{ \App\Http\Controllers\CulqiController::paymentUrl($paymentRequest) }}">Completa tu pago seguro con Culqi</a>. El enlace dura 24 horas.</li>
                                             @elseif ($paymentRequest->payment_method === 'yape')

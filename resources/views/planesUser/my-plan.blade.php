@@ -13,9 +13,9 @@
         @elseif($permanent)
             <p>Tu acceso es permanente y no necesita renovación. Para modificar sus condiciones, contacta con soporte.</p>
         @else
-            @if(!$current)<p class="wk-notice" data-tone="warning">La prueba gratuita dura 15 días y no se renueva. Para seguir usando el software, contrata un plan pagado. No se harán cobros automáticos.</p>@endif
+            @if(!$current)<p class="wk-notice" data-tone="warning">La prueba gratuita dura 5 días y no se renueva. Para seguir usando el software, contrata un plan pagado. No se harán cobros automáticos.</p>@endif
             @if($current?->accessEndsAt())<p>Vence el {{ $current->accessEndsAt()->format('d/m/Y') }}.</p>@endif
-            @if($current?->payment_method === 'trial')<p class="wk-notice">Tu prueba es gratuita durante 15 días. Después deberás contratar un plan pagado; no se harán cobros automáticos.</p>@endif
+            @if($current?->payment_method === 'trial')<p class="wk-notice">Tu prueba es gratuita durante 5 días. Después deberás contratar un plan pagado; no se harán cobros automáticos.</p>@endif
             <p>Puedes renovar antes del vencimiento: conservas los días ya pagados. El siguiente período comienza al terminar tu cobertura pagada. Las bajadas se aplican al siguiente período. Si eliges un plan de mayor precio mensual, podrás revisar el cambio inmediato con saldo por tiempo no usado.</p>
             <div class="en-actions">@foreach($plans as $plan)<a class="pr-button pr-button-secondary" href="{{ route('planes.register',['plan'=>$plan->id]) }}">Renovar con {{ $plan->name }}</a>@endforeach</div>
         @endif

@@ -71,6 +71,7 @@ class Subscription extends Model
 
     public function getDurationTextAttribute(): string
     {
+        if ($this->isFree()) return \App\Services\TrialAccess::DAYS.' días';
         if ($this->isLifetime()) {
             return 'De por vida';
         }

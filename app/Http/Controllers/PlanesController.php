@@ -34,7 +34,7 @@ class PlanesController extends Controller
         $requiresPayment = !$plan->isFree() && !$plan->isLifetime();
         if (!$requiresPayment) { $currency = 'PEN'; $mode = 'renew'; }
         if ($plan->isFree() && $request->user() && $request->user()->subscriptions()->exists()) {
-            return redirect()->route('plans.mine')->withErrors(['subscription_plan_id' => 'La prueba es única por cuenta y dura 15 días. Para continuar, elige un plan pagado.']);
+            return redirect()->route('plans.mine')->withErrors(['subscription_plan_id' => 'La prueba es única por cuenta y dura 5 días. Para continuar, elige un plan pagado.']);
         }
         $exchangeRate = \App\Models\ExchangeRate::current();
         if ($currency === 'USD' && !$exchangeRate) {

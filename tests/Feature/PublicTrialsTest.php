@@ -17,13 +17,11 @@ class PublicTrialsTest extends TestCase
         Http::preventStrayRequests();
     }
 
-    public function test_welcome_and_login_offer_both_tools_without_a_session(): void
+    public function test_home_and_login_offer_a_free_trial_without_requesting_payment(): void
     {
         foreach (['landing.home','login'] as $route) {
-            $this->get(route($route))->assertOk()->assertSee('Explora nuestras herramientas')
-                ->assertSee('Probar Predim')->assertSee('Abrir hoja de cálculo')
-                ->assertSee(route('predim_v2'))->assertSee(route('calculadora.estudiante.arco_techo'))
-                ->assertSee(route('landing.info.predim'))->assertSee(route('landing.info.arco_techo'));
+            $this->get(route($route))->assertOk()->assertSee('5 días')
+                ->assertSee(route('showcase.trial'))->assertSee(route('showcase.index'));
         }
         $this->assertGuest();
     }
@@ -36,13 +34,17 @@ class PublicTrialsTest extends TestCase
         $this->get(route('landing.info.arco_techo'))->assertOk()->assertSee('Techo Arco')
             ->assertSee('Abrir hoja de cálculo')->assertSee(route('calculadora.estudiante.arco_techo'))
             ->assertDontSee('Cotiza tu proyecto');
-        $this->get(route('predim_v2'))->assertOk();
-        $this->get(route('calculadora.estudiante.arco_techo'))->assertOk();
+        $this->get(route('predim_v2'))->assertRedirect(route('login'));
+        $this->get(route('calculadora.estudiante.arco_techo'))->assertRedirect(route('login'));
         $this->assertGuest();
     }
 
     public function test_arco_pilot_preserves_input_defaults_and_calculation_targets(): void
     {
+        $role = \Spatie\Permission\Models\Role::create(['name' => 'root', 'guard_name' => 'web']);
+        $user = \App\Models\User::factory()->create();
+        $user->assignRole($role);
+        $this->actingAs($user);
         $response = $this->get(route('calculadora.estudiante.arco_techo'))->assertOk();
         $document = new \DOMDocument();
         @$document->loadHTML('<?xml encoding="UTF-8">'.$response->getContent());
@@ -58,6 +60,6 @@ class PublicTrialsTest extends TestCase
             $this->assertCount(1, $xpath->query('//tbody[@id="'.$id.'"]'));
         }
         $this->assertCount(1, $xpath->query('//button[@id="desingButton"]'));
-        $this->assertGuest();
+        $this->assertAuthenticatedAs($user);
     }
 }

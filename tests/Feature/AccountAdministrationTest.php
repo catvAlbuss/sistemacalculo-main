@@ -92,7 +92,7 @@ class AccountAdministrationTest extends TestCase
         Livewire::actingAs($admin)->test(SubscriptionPlansManagement::class)
             ->set('name', 'Anterior')->set('featureInput', 'Pendiente')
             ->call('openModal')->assertSet('showModal', true)->assertSet('name', null)
-            ->assertSet('duration_days', 15)->assertSet('price', 0)->assertSet('featureInput', '')
+            ->assertSet('duration_days', 5)->assertSet('price', 0)->assertSet('featureInput', '')
             ->set('type', 'yearly')->assertSet('duration_days', 365)
             ->set('type', 'lifetime')->assertSet('duration_days', null)
             ->call('closeModal')->assertSet('showModal', false);

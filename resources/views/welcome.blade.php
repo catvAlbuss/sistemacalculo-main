@@ -1,51 +1,41 @@
 @extends('layouts.landing')
+@push('styles') @vite('resources/js/showcase.js') @endpush
 @section('main')
-<main class="engineering-surface">
-  <div class="pr-shell">
-    <div class="en-login-layout">
-      <section class="en-login-intro" aria-labelledby="welcome-heading">
-        <div class="en-intro-copy">
-        <p class="pr-eyebrow">Rizabal & Asociados / Ingeniería estructural</p>
-        <h1 id="welcome-heading">Herramientas para llevar tus proyectos al siguiente nivel.</h1>
-        <p class="pr-description">Análisis, diseño y verificación estructural en un solo espacio de trabajo. Accede a tus herramientas y continúa con tus proyectos.</p>
+@php($featured = ['modelador-estructural', 'aligerados-v2', 'vigas', 'cimentacion-v2', 'predim', 'arco-techo'])
+@php($homeVideo = $videos->get('home'))
+<main class="sc-page lh-home">
+    <header class="lh-hero lh-hero-immersive" aria-label="Presentación de Rizabal">
+        <x-home-hero-media :video="$homeVideo" />
+        <div class="lh-hero-shade" aria-hidden="true"></div>
+        <div class="lh-hero-content lh-shell">
+            <p class="lh-eyebrow">SOFTWARE DE INGENIERÍA ESTRUCTURAL</p>
+            <h1><span>Ingeniería.</span>Del cálculo al detalle.</h1>
+            <p class="lh-lead">Modela, analiza y diseña con herramientas especializadas para tus proyectos estructurales.</p>
+            <div class="lh-actions"><a class="lh-button" href="{{ route('showcase.trial') }}">Empezar gratis 5 días ↗</a><a class="lh-button lh-button-ghost" href="#programas">Explorar programas ↓</a></div>
+            <p class="lh-trial-note">Sin tarjeta. Sin pago al iniciar. Sin cobros automáticos.</p>
         </div>
-        <div class="en-intro-support">
-        <div class="en-login-visual" aria-hidden="true">
-          <svg viewBox="0 0 440 170" fill="none" stroke="currentColor" stroke-width="1.4">
-            <path d="M45 142h350M75 142V47h290v95M75 47l145-28 145 28M75 80h290M75 111h290M133 36v106M191 25v117M249 25v117M307 36v106M75 47l58 33 58-33 58 33 58-33 58 33M75 80l58 31 58-31 58 31 58-31 58 31M75 111l58 31 58-31 58 31 58-31 58 31"/>
-            <path d="M45 157h350M45 152v10M395 152v10M30 19v123M25 19h10M25 142h10" stroke-dasharray="3 3"/>
-            <path d="m68 148 7-6 7 6m44 0 7-6 7 6m44 0 7-6 7 6m44 0 7-6 7 6m44 0 7-6 7 6m44 0 7-6 7 6"/>
-          </svg>
-          <span class="en-visual-label">ANÁLISIS / DISEÑO / VERIFICACIÓN</span>
+    </header>
+
+    <section class="lh-programs lh-shell" id="programas" aria-labelledby="programs-heading">
+        <header class="lh-section-heading"><p class="lh-eyebrow">HERRAMIENTAS PARA CADA ETAPA</p><h2 id="programs-heading">Encuentra el programa<br>que necesita tu proyecto.</h2><p>Conoce qué puedes resolver, revisa sus funciones y explora la demostración de cada herramienta antes de empezar.</p></header>
+        <div class="lh-program-grid">
+            @foreach($featured as $slug)
+                @php($product = $products[$slug])
+                @php($video = $videos->get($slug))
+                <article class="lh-program-card">
+                    <a class="lh-program-image" href="{{ route('showcase.show', $slug) }}" aria-label="Conocer {{ $product['name'] }}"><img src="{{ $video && $video->source_type !== 'youtube' ? $video->getFirstMediaUrl('poster') : Vite::asset($product['homepage_image'] ?? $product['image']) }}" alt="Presentación de {{ $product['name'] }}" width="640" height="360" loading="lazy"><span>{{ $video ? '▶ Demostración disponible' : $product['category'] }}</span></a>
+                    <div class="lh-program-body"><p class="lh-product-category">{{ $product['category'] }}</p><h3><a href="{{ route('showcase.show', $slug) }}">{{ $product['name'] }}</a></h3><p class="lh-product-description">{{ $product['description'] }}</p><ul>@foreach($product['features'] as $feature)<li><svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8 3 3 7-7" stroke="currentColor" stroke-width="1.5" /></svg>{{ $feature }}</li>@endforeach</ul><a class="lh-program-link" href="{{ route('showcase.show', $slug) }}">Conocer el programa <span aria-hidden="true">↗</span></a></div>
+                </article>
+            @endforeach
         </div>
-        <ul class="en-intro-points">
-          <li><span>01</span><div><strong>Calcula y diseña.</strong> Herramientas para el desarrollo de tus proyectos estructurales.</div></li>
-          <li><span>02</span><div><strong>Organiza tu trabajo.</strong> Consulta las herramientas y los proyectos disponibles en tu cuenta.</div></li>
-          <li><span>03</span><div><strong>Elige tu acceso.</strong> Revisa los planes, sus períodos y capacidades antes de contratar.</div></li>
-        </ul>
-        </div>
-      </section>
-      <div>
-        @guest
-          <livewire:login />
-        @else
-          <section class="pr-panel en-session" aria-labelledby="session-heading">
-            <p class="pr-eyebrow">Tu espacio de trabajo</p>
-            <h2 id="session-heading">Sesión iniciada</h2>
-            <p>Estás conectado como <strong>{{ auth()->user()->name }}</strong>.</p>
-            <p>{{ auth()->user()->email }}</p>
-            <div class="en-actions"><a href="{{ route('dashboard') }}" class="pr-button">Ir a mis herramientas <span aria-hidden="true">↗︎</span></a></div>
-            <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="en-inline-link">Cerrar sesión y usar otra cuenta</button></form>
-          </section>
-        @endguest
-        <p class="pr-hint" style="margin-top:18px">¿Necesitas ayuda para acceder? <a href="{{ route('contacto.index') }}" class="en-inline-link">Contactar con soporte</a>.</p>
-        <x-public-trials />
-      </div>
-    </div>
-    <div class="en-callout">
-      <div><p class="pr-eyebrow">Servicios profesionales</p><h2>Tu proyecto también cuenta con nuestro equipo.</h2><p>Consulta nuestros servicios de diseño, software, planos y metrados estructurales.</p></div>
-      <a href="{{ route('landing.services.structural_design') }}" class="pr-button pr-button-secondary">Explorar servicios <span aria-hidden="true">↗︎</span></a>
-    </div>
-  </div>
+        <div class="lh-catalog-link"><p>Más herramientas para tus especialidades.</p><a class="lh-button lh-button-outline" href="{{ route('showcase.index') }}">Ver los {{ count($products) }} programas <span aria-hidden="true">↗</span></a></div>
+    </section>
+
+    <section class="lh-benefits"><div class="lh-shell"><header class="lh-section-heading"><p class="lh-eyebrow">PENSADO PARA TU TRABAJO DIARIO</p><h2>Más claridad en cada decisión.</h2><p>Herramientas organizadas alrededor de tu proceso de ingeniería.</p></header><div class="lh-benefit-grid"><article><span>01 / ACCESO</span><h3>Tu espacio, en el navegador.</h3><p>Ingresa a tu cuenta y encuentra tus programas desde un solo lugar, sin instalar cada hoja por separado.</p></article><article><span>02 / REVISIÓN</span><h3>Datos y resultados a la vista.</h3><p>Organiza las entradas, consulta las gráficas y revisa los resultados con tu criterio profesional.</p></article><article><span>03 / CONTINUIDAD</span><h3>El control de tus proyectos.</h3><p>Consulta tu plan y administra los respaldos disponibles en tu cuenta para continuar tu trabajo.</p></article></div></div></section>
+
+
+
+    <section class="lh-start"><div class="lh-shell"><p class="lh-eyebrow">TU SIGUIENTE PROYECTO EMPIEZA AQUÍ</p><h2>Conoce las herramientas.<br>Pruébalas en tu próximo proyecto.</h2><p>Empieza con una prueba de 5 días. Al terminar, elige un plan para seguir utilizando el software.</p><div class="lh-actions"><a class="lh-button" href="{{ route('showcase.trial') }}">Empezar gratis 5 días ↗</a><a class="lh-button lh-button-ghost" href="{{ route('landing.plans') }}">Conocer los planes</a></div><p class="lh-trial-note">Una prueba por cuenta · Sin tarjeta · Sin renovación automática</p></div></section>
+    <section class="lh-professional lh-shell"><div><p class="lh-eyebrow">RESPALDO PROFESIONAL</p><h2>También somos tu equipo de ingeniería.</h2><p>Diseño estructural, planos, metrados y desarrollo de software especializado para tu proyecto.</p></div><a class="lh-button lh-button-outline" href="{{ route('contacto.index') }}">Conversemos sobre tu proyecto ↗</a></section>
 </main>
 @endsection

@@ -193,7 +193,7 @@
                     @if ($plan->isLifetime() && !$plan->isFree())
                         <p class="pr-charge-total">Precio personalizado</p>
                     @elseif ($plan->isFree())
-                        <div class="pr-charge"><p class="pr-eyebrow">Prueba única de 15 días</p><p class="pr-charge-total">Gratis · S/ 0.00</p><p class="pr-hint">Sin comisión, sin tarjeta y sin cobro automático. Al vencer, debes contratar un plan pagado para continuar usando el software.</p></div>
+                        <div class="pr-charge"><p class="pr-eyebrow">Prueba única de 5 días</p><p class="pr-charge-total">Gratis · S/ 0.00</p><p class="pr-hint">Sin comisión, sin tarjeta y sin cobro automático. Al vencer, debes contratar un plan pagado para continuar usando el software.</p></div>
                     @else
                         <dl class="pr-totals" aria-label="Resumen de importes">
                             <div id="annual-list-row" @if (!$totals['discount']) hidden @endif><dt>12 mensualidades</dt><dd id="plan-list-total">S/ {{ number_format($totals['list_total'], 2) }}</dd></div>
@@ -227,7 +227,7 @@
                             @endif
                         </div>
                     @elseif ($plan->isFree())
-                        <p class="pr-payment-note"><strong>Sin tarjeta ni comprobante</strong>Tu prueba de 15 días comienza al completar el registro. Después deberás elegir un plan pagado para continuar.</p>
+                        <p class="pr-payment-note"><strong>Sin tarjeta ni comprobante</strong>Tu prueba de 5 días comienza al completar el registro. Después deberás elegir un plan pagado para continuar.</p>
                     @else
                         <p class="pr-payment-note">Coordinaremos el precio y el método de pago contigo. También puedes <a href="{{ route(auth()->check() ? 'account.support' : 'contacto.index') }}">contactarnos directamente</a>.</p>
                     @endif

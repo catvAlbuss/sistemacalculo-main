@@ -29,6 +29,15 @@ return [
     */
 
     'disks' => [
+        // Video derivatives are served directly by the web server (Range requests),
+        // independently of the application's existing public/storage directory.
+        'showcase_public' => [
+            'driver' => 'local',
+            'root' => public_path('media'),
+            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/media',
+            'visibility' => 'public',
+            'throw' => true,
+        ],
 
         'local' => [
             'driver' => 'local',

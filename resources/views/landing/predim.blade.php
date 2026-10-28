@@ -9,5 +9,5 @@
     <p class="pr-eyebrow">01 / Predimensionamiento gráfico</p>
     <h2 style="margin-top:12px">Dibuja y organiza tus elementos estructurales.</h2>
     <p>Predim permite dibujar y definir elementos con sus dimensiones para apoyar el análisis preliminar de un proyecto. Explora sus opciones de dibujo, escala y generación de reportes.</p>
-    <ul class="en-service-list"><li>Columnas, vigas, zapatas y losas.</li><li>Edición gráfica de dimensiones y disposición de elementos.</li><li>Acceso público a la herramienta de prueba.</li></ul>
+    <ul class="en-service-list"><li>Columnas, vigas, zapatas y losas.</li><li>Edición gráfica de dimensiones y disposición de elementos.</li><li>Disponible con una prueba de 5 días o un plan activo.</li></ul>
 @endsection

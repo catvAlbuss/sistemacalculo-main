@@ -29,6 +29,14 @@ return [
     */
 
     'connections' => [
+        'media' => [
+            'driver' => 'database',
+            'connection' => env('DB_QUEUE_CONNECTION'),
+            'table' => 'jobs',
+            'queue' => 'media',
+            'retry_after' => 960,
+            'after_commit' => true,
+        ],
         'payments' => [
             'driver' => 'database',
             'connection' => env('DB_QUEUE_CONNECTION'),

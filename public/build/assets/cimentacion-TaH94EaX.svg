@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" fill="none">
+  <rect width="960" height="540" fill="#EDF3FB"/>
+  <defs><pattern id="soil" width="18" height="18" patternUnits="userSpaceOnUse"><path d="m0 18 18-18" stroke="#D1DFEF" stroke-width="1"/></pattern></defs>
+  <rect x="45" y="40" width="870" height="440" rx="15" fill="#fff" stroke="#D4E1F2"/>
+  <text x="90" y="110" fill="#2E5D97" font-family="Arial,sans-serif" font-size="18" letter-spacing="3">CIMENTACIONES</text>
+  <path d="M90 275H870V413H90Z" fill="url(#soil)"/>
+  <path d="M90 275H870" stroke="#9CB5D3" stroke-width="2"/>
+  <path d="M250 166h60v159h-60zM650 166h60v159h-60z" fill="#E5EDF7" stroke="#4678B6" stroke-width="3"/>
+  <path d="M180 325H380V365H180zM580 325H780V365H580z" fill="#D8E7FB" stroke="#2B6AC0" stroke-width="3"/>
+  <path d="M200 351H360M600 351H760" stroke="#3479D5" stroke-width="4" stroke-linecap="round"/>
+  <path d="M280 130v65m-10-13 10 13 10-13M680 130v65m-10-13 10 13 10-13" stroke="#3479D5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M210 402v-21m-7 10 7-10 7 10M255 402v-21m-7 10 7-10 7 10M305 402v-21m-7 10 7-10 7 10M350 402v-21m-7 10 7-10 7 10M610 402v-21m-7 10 7-10 7 10M655 402v-21m-7 10 7-10 7 10M705 402v-21m-7 10 7-10 7 10M750 402v-21m-7 10 7-10 7 10" stroke="#719BCF" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M380 341H580" stroke="#4678B6" stroke-width="5"/>
+  <text x="90" y="445" fill="#607A9B" font-family="Arial,sans-serif" font-size="15">Geometría · Cargas · Verificación</text>
+</svg>

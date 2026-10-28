@@ -12,6 +12,7 @@
     <div id="landing-navigation" class="w-full xl:block xl:w-auto" :class="expanded ? 'block' : 'hidden'" @keydown.escape="expanded = false">
       <ul class="flex flex-col gap-2 xl:flex-row xl:items-center xl:gap-2">
         <li><x-nav-link-landing :href="route('landing.home')" :active="request()->routeIs('landing.home')">Inicio</x-nav-link-landing></li>
+        <x-programs-menu />
         <li>
           <x-nav-link-sub-landing name="Servicios" :active="request()->routeIs('landing.services.*')">
             <ul class="py-2 text-sm text-gray-700 dark:text-gray-200">
@@ -28,10 +29,10 @@
         @else
           <li><x-nav-link-landing :href="route('login')" class="en-nav-login" :active="request()->routeIs('login')">Iniciar sesión</x-nav-link-landing></li>
           <li>
-            <x-nav-link-sub-landing name="Prueba gratis" :active="request()->routeIs('landing.info.*', 'predim_v2', 'calculadora.estudiante.arco_techo')" class="en-nav-cta">
+            <x-nav-link-sub-landing name="Prueba gratis" :active="request()->routeIs('showcase.trial')" class="en-nav-cta">
               <ul class="py-2 text-sm text-gray-700 dark:text-gray-200">
-                <li><x-nav-link-landing :href="route('predim_v2')" :active="request()->routeIs('predim_v2')">Probar Predim</x-nav-link-landing></li>
-                <li><x-nav-link-landing :href="route('calculadora.estudiante.arco_techo')" :active="request()->routeIs('calculadora.estudiante.arco_techo')">Hoja Arco Techo</x-nav-link-landing></li>
+                <li><x-nav-link-landing :href="route('showcase.trial')" :active="false">Empezar prueba de 5 días</x-nav-link-landing></li>
+                <li><x-nav-link-landing :href="route('showcase.index')" :active="false">Conocer los programas</x-nav-link-landing></li>
               </ul>
             </x-nav-link-sub-landing>
           </li>
