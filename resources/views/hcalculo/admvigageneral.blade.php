@@ -1,82 +1,34 @@
-<x-calc-layout title="Diseño de vigas">
-    <div class="py-2 px-2 w-full">
-        <div class="flex gap-4">
-            <!-- Formulario -->
-            <div class="md:w-1/3">
-                <div class="rounded-lg bg-white p-2 shadow-md dark:bg-gray-800">
-                    <h3 class="mb-1 text-sm font-semibold text-gray-800 dark:text-gray-200">Datos Generales</h3>
-                    <div class="overflow-auto">
-                        <table class="w-full table-auto text-xs px-6 text-gray-800 dark:text-white">
-                            <thead class="bg-white dark:bg-gray-800">
-                                <tr class="text-center">
-                                    <th class="px-4 py-2">Nombre</th>
-                                    <th class="px-4 py-2">Simb.</th>
-                                    <th class="px-4 py-2">Entrada</th>
-                                    <th class="px-4 py-2">Unidad <br> Medida</th>
-                                </tr>
-                            </thead>
-                            <tbody class="text-center">
-                                <tr class="bg-white dark:bg-gray-800">
-                                    <th class="px-4 py-2">Esfuerzo de compresión del concreto</th>
-                                    <th class="px-4 py-2">fc</th>
-                                    <th class="px-4 py-2">
-                                        <input
-                                            class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                                            id="fc" name="fc" type="text" value="210"
-                                            placeholder="210" min="0" required>
-                                    </th>
-                                    <th class="px-4 py-2">kg/cm<sup>2</sup></th>
-                                </tr>
-                                <tr class="bg-white dark:bg-gray-800">
-                                    <th class="px-4 py-2">Esfuerzo de fluencia del acero</th>
-                                    <th class="px-4 py-2">fy</th>
-                                    <th class="px-4 py-2"><input
-                                            class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                                            id="fy" name="fy" type="text" value="4200"
-                                            placeholder="4200" min="0" required></th>
-                                    <th class="px-4 py-2">kg/cm<sup>2</sup></th>
-                                </tr>
-                                <tr class="bg-white dark:bg-gray-800">
-                                    <th class="px-4 py-2">N° tramos</th>
-                                    <th class="px-4 py-2">#</th>
-                                    <th class="px-4 py-2"><input
-                                            class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                                            type="number" id="num_tramos" name="num_tramos" value="1"
-                                            placeholder="tramos" min="0" required
-                                            oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                    </th>
-                                    <th class="px-4 py-2"></th>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <div class="overflow-auto" id="tablaContainer"></div>
-
-                        <div class="mt-4 flex gap-2">
-                            <button
-                                class="rounded border-b-4 border-blue-700 bg-blue-500 px-4 py-2 font-bold text-white hover:border-blue-500 hover:bg-blue-400"
-                                id="accionButton">DISEÑAR</button>
-
-                            <button
-                                class="rounded border-b-4 border-green-700 bg-green-500 px-4 py-2 font-bold text-white hover:border-green-500 hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                                id="exportPdfButton" disabled>
-                                📄 EXPORTAR PDF
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Resultados -->
-            <div class="md:w-2/3">
-                <div class="rounded-lg bg-white p-2 shadow-md dark:bg-gray-800">
-                    <h3 class="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">Resultados</h3>
-                    <div class="overflow-x-auto py-2" id="vigas_general"></div>
-                </div>
+<x-sheets.workbench sheet="vigas-general" title="Diseño de vigas general" entry="resources/js/adm_vigas_general.js" class="beam-general"
+    description="Define los materiales y los datos de cada tramo. Revisa la flexión positiva y negativa, selecciona el refuerzo y consulta el corte, la capacidad y la deflexión.">
+    <x-sheets.panel title="Datos generales" description="Materiales y solicitaciones por tramo." number="01" class="arco-input-panel" data-sheet-inputs>
+        <div class="arco-fields">
+            <x-sheets.fieldset title="Materiales" note="Resistencias del concreto y del acero de refuerzo.">
+                <x-sheets.field id="fc" label="Compresión del concreto" symbol="f′c" value="210" unit="kg/cm²" min="0.01" />
+                <x-sheets.field id="fy" label="Fluencia del acero" symbol="fy" value="4200" unit="kg/cm²" min="0.01" />
+            </x-sheets.fieldset>
+            <x-sheets.fieldset title="Configuración de tramos" note="Al cambiar la cantidad, confirma la reconstrucción de la tabla.">
+                <x-sheets.field id="num_tramos" label="Número de tramos" symbol="n" value="1" min="1" step="1" />
+            </x-sheets.fieldset>
+        </div>
+        <div class="beam-matrix-panel">
+            <h3>Geometría y solicitaciones</h3>
+            <p class="arco-note">Edita las celdas con doble clic o pega los datos. Cada tramo contiene inicio, medio y final; la luz, base y altura se ingresan por tramo. Las unidades se indican en cada fila.</p>
+            <div id="tablaContainer" class="beam-input-matrix" role="region" aria-label="Datos editables por tramo" tabindex="0"></div>
+        </div>
+        <div class="arco-calculate">
+            <button class="pr-button" id="accionButton" type="button">Calcular diseño <span aria-hidden="true">→</span></button>
+            <p class="arco-note">Recalcula después de editar los materiales o la tabla.</p>
+        </div>
+    </x-sheets.panel>
+    <section class="arco-results" aria-label="Resultados del diseño de vigas general">
+        <x-sheets.results-header status-id="beam-general-status"
+            description="Requisitos, flexión, corte, capacidad y deflexión. Desplaza las tablas para revisar todos los tramos."
+            :exports="['exportPdfButton'=>'Exportar PDF','exportImageButton'=>'Exportar imagen']" />
+        <div id="vigasgn" class="arco-sheet beam-sheet beam-export">
+            <div class="beam-report-title"><h2>Diseño de vigas general</h2><p>Concreto armado · Diseño por tramos</p></div>
+            <div id="vigas_general" class="arco-result-sections">
+                <div class="pr-panel beam-results-empty"><p class="arco-note">Los resultados aparecerán al calcular. Incluyen el refuerzo positivo y negativo y las verificaciones por tramo.</p></div>
             </div>
         </div>
-    </div>
-
-    @pushOnce('scripts')
-        @vite(['resources/js/adm_vigas_general.js'])
-    @endpushOnce
-</x-calc-layout>
+    </section>
+</x-sheets.workbench>

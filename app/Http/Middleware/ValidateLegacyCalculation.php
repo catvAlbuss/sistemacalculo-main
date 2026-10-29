@@ -25,7 +25,8 @@ class ValidateLegacyCalculation
             $value=trim((string)$value);
             if(strlen($value)>2000000 || $value===''){ $this->reject($field); }
             if($field==='poligonos' && str_starts_with($value,'struct(')) {
-                $pair="'[A-Za-z][A-Za-z0-9_]{0,100}'\\s*,\\s*\\[[0-9eE+.,;\\s\\[\\]\\-]*\\]";
+                // ':' admite rangos vacíos como 1:0 (polígono 2x0 sin vértices).
+                $pair="'[A-Za-z][A-Za-z0-9_]{0,100}'\\s*,\\s*\\[[0-9eE+.,;:\\s\\[\\]\\-]*\\]";
                 if(!preg_match('/\Astruct\(\s*(?:'.$pair.'(?:\s*,\s*'.$pair.')*)?\s*\)\z/D',$value)){ $this->reject($field); }
             } elseif($field==='Co') {
                 $numeric=preg_replace('/\b(?:pm|pv|ps|mxm|mym|mxv|myv|mxs|mys)\b/i','0',$value);

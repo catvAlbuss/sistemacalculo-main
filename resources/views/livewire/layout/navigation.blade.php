@@ -18,7 +18,7 @@ $logout = function (Logout $logout) {
     <script type="text/javascript" src="https://www.geogebra.org/apps/deployggb.js"></script>
 @endpushOnce
 
-<nav class="engineering-app-nav z-50 border-b" aria-label="Herramientas de ingeniería" x-data="scientific_calculator_applet"
+<nav class="engineering-app-nav z-50 border-b" aria-label="Navegación interna" x-data="scientific_calculator_applet"
     x-init="initComponent($refs.calculator_dialog, $refs.applet_container)">
     <!-- Primary Navigation Menu -->
     <div class="mx-auto max-w-full px-4 sm:px-6 lg:px-8">
@@ -75,7 +75,10 @@ $logout = function (Logout $logout) {
 
                 @if ($canManagePlans)
                     <div class="hidden app-nav-category xl:flex">
-                        <x-dropdown-nav-item name="{{ __('Administración') }}" :active="request()->routeIs(['planUser.*', 'suscripciones.*', 'payments.admin.*', 'complaints.admin.*'])">
+                        <x-dropdown-nav-item name="{{ __('Administración') }}" :active="request()->routeIs(['administration.index', 'planUser.*', 'suscripciones.*', 'payments.admin.*', 'complaints.admin.*'])">
+                            <x-nav-link :href="route('administration.index')" :active="request()->routeIs('administration.index')">
+                                {{ __('Resumen administrativo') }}
+                            </x-nav-link>
                             <x-nav-link :href="route('planUser.index')" :active="request()->routeIs('planUser.index')">
                                 {{ __('Gestion de Usuario') }}
                             </x-nav-link>
@@ -347,6 +350,7 @@ $logout = function (Logout $logout) {
                             <x-dropdown-link :href="route('profile')">
                                 {{ __('Perfil') }}
                             </x-dropdown-link>
+                            <x-dropdown-link :href="route('account.support')" :active="request()->routeIs('account.support')">Ayuda y soporte</x-dropdown-link>
 
                             {{-- Logout --}}
                             <button type="button" class="app-nav-signout w-full text-start" wire:click="logout">Cerrar sesión</button>
@@ -382,7 +386,10 @@ $logout = function (Logout $logout) {
         </div>
         @if ($canManagePlans)
             <div class="space-y-1 pb-3 pt-2">
-                <x-dropdown-nav-item name="{{ __('Administración') }}" component="responsive-nav-item" :active="request()->routeIs(['planUser.*', 'suscripciones.*', 'payments.admin.*', 'complaints.admin.*'])">
+                <x-dropdown-nav-item name="{{ __('Administración') }}" component="responsive-nav-item" :active="request()->routeIs(['administration.index', 'planUser.*', 'suscripciones.*', 'payments.admin.*', 'complaints.admin.*'])">
+                    <x-dropdown-link :href="route('administration.index')" :active="request()->routeIs('administration.index')">
+                        {{ __('Resumen administrativo') }}
+                    </x-dropdown-link>
                     <x-dropdown-link :href="route('planUser.index')" :active="request()->routeIs('planUser.index')">
                         {{ __('Gestion de Usuario') }}
                     </x-dropdown-link>
@@ -613,6 +620,7 @@ $logout = function (Logout $logout) {
                 <x-responsive-nav-link :href="route('profile')" {{-- wire:navigate --}}>
                     {{ __('Perfil') }}
                 </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('account.support')" :active="request()->routeIs('account.support')">Ayuda y soporte</x-responsive-nav-link>
 
                 <!-- Authentication -->
                 <button type="button" class="app-nav-signout w-full text-start" wire:click="logout">Cerrar sesión</button>

@@ -38,7 +38,11 @@ class VigaCaptureController extends Controller
                 ['Content-Type' => 'image/png']
             )->deleteFileAfterSend(true);
         } catch (\Throwable $e) {
-            Log::warning('No se pudo capturar el resultado de vigas.', ['exception'=>get_class($e)]);
+            Log::warning('No se pudo capturar el resultado de vigas.', [
+                'exception'=>get_class($e),
+                'diagnostic'=>$e instanceof \Symfony\Component\Process\Exception\ProcessFailedException
+                    ? mb_substr($e->getProcess()->getErrorOutput(), 0, 3000) : mb_substr($e->getMessage(), 0, 1000),
+            ]);
             return response()->json([
                 'ok' => false,
                 'message' => 'No se pudo generar la imagen. Intenta nuevamente o contacta con soporte.',
@@ -55,6 +59,7 @@ class VigaCaptureController extends Controller
             'stylesheets' => 'nullable|array|max:30',
             'stylesheets.*' => 'string|max:2048',
             'inlineStyles' => 'nullable|string|max:300000',
+            'theme' => 'nullable|in:light,dark',
         ]);
     }
 
@@ -78,10 +83,22 @@ class VigaCaptureController extends Controller
 
     private function ejecutarCapturaNode(string $jsonPath, string $imagePath): string
     {
-        $node = 'node';
+        $node = config('capture.node_binary', 'node');
         $script = base_path('capture-viga-fragmento.mjs');
 
-        $environment=['CAPTURE_APP_URL'=>request()->getSchemeAndHttpHost()];
+        $environment=[
+            'CAPTURE_APP_URL'=>request()->getSchemeAndHttpHost(),
+            'CAPTURE_BROWSER_BINARY'=>config('capture.browser_binary', ''),
+            'CAPTURE_DISABLE_SANDBOX'=>config('capture.disable_sandbox') ? '1' : '0',
+        ];
+        // Under PHP's web SAPI Symfony may inherit only the environment keys
+        // also present in $_SERVER. Windows needs SystemRoot to load Winsock/DLLs.
+        if (PHP_OS_FAMILY === 'Windows') {
+            foreach (['SystemRoot', 'WINDIR', 'USERPROFILE', 'LOCALAPPDATA', 'APPDATA', 'TEMP', 'TMP', 'PATH', 'ComSpec'] as $key) {
+                $value = getenv($key);
+                if ($value !== false) { $environment[$key] = $value; }
+            }
+        }
         if(app()->isLocal() && is_file(public_path('hot'))) {
             $hot=trim(file_get_contents(public_path('hot')));
             if(in_array(parse_url($hot,PHP_URL_HOST),['localhost','127.0.0.1','::1'],true)){$environment['CAPTURE_DEV_ORIGIN']=$hot;}

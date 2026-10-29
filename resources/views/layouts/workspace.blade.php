@@ -4,7 +4,7 @@
     @vite('resources/css/workspace.css')
 @endpush
 @section('content')
-    <x-navigation-workspace />
+    <livewire:layout.navigation />
     <main class="workspace-main" data-layout="workspace">
         <div class="wk-shell">
             <div class="wk-location"><span>Rizabal & Asociados</span><span aria-hidden="true">/</span><span>Espacio de trabajo</span></div>

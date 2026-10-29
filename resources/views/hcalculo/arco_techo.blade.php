@@ -1,4 +1,4 @@
-<x-calc-plain-layout :public-navigation="true">
+<x-calc-plain-layout>
     @php
         $groups = [
             ['title' => 'Geometría del techo', 'note' => 'Dimensiones de la cubierta y sus apoyos.', 'fields' => [

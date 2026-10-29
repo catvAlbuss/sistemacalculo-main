@@ -1,11 +1,13 @@
-@props(['title' => null, 'publicNavigation' => false])
+@props(['title' => null])
 
 @extends('layouts.base')
 
 @section('content')
-  @if ($publicNavigation || auth()->guest())
+  @guest
     <x-navigation-landing />
-  @endif
+  @else
+    <livewire:layout.navigation />
+  @endguest
   @if (!empty($title))
     <x-header :title="$title"></x-header>
   @endif

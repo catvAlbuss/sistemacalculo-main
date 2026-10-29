@@ -27,6 +27,16 @@ class ProductionSecurityTest extends TestCase
             catch(ValidationException $exception){$this->assertArrayHasKey('Co',$exception->errors());}
         }
     }
+    public function test_legacy_zapatas_accepts_empty_interior_polygons(): void
+    {
+        $data=['A'=>'343.5','Ixx'=>'9193','Iyy'=>'35202','Df'=>'2','PS'=>'0','MXS'=>'1700','MYS'=>'1320','Pm'=>'2909','MXm'=>'3529','MYm'=>'1441','Pv'=>'0','MXv'=>'0','MYv'=>'0',
+            'poligonos'=>"struct('poligonoExterior', [-4.5,4.5,4.5,-4.5; 4.5,4.5,-4.5,-4.5], 'poligonoInterior1', [1:0; 1:0])"];
+        $request=Request::create('/zapatas','POST',$data);$request->setRouteResolver(fn()=>new Route('POST','zapatas',[OctavePlotController::class,'graficarZapatas']));
+        $this->assertSame(200,app(ValidateLegacyCalculation::class)->handle($request,fn()=>response()->json(['validated'=>true]))->status());
+        $request->merge(['poligonos'=>"struct('poligonoExterior', [1:system(1)])"]);
+        $this->expectException(ValidationException::class);
+        app(ValidateLegacyCalculation::class)->handle($request,fn()=>response('unsafe'));
+    }
     public function test_password_reset_revokes_old_sessions_and_remember_tokens(): void
     {
         $user=User::factory()->create();DB::table('account_sessions')->insert(['id'=>(string)\Illuminate\Support\Str::uuid(),'user_id'=>$user->id,'version'=>0,'last_seen_at'=>now(),'created_at'=>now(),'updated_at'=>now()]);

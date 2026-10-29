@@ -1,6 +1,7 @@
 import { StructuralUtils, CONCRETE_CONSTANTS } from "../calculators/SharedCalculatorUtils.js";
 
 import { createSteelEditor } from "../utils/steelEditor.js";
+import { createResultCard } from '../../sheets/resultCard.js';
 
 export const renderFlexionResult = (containerId, flexionData, onUpdate = null) => {
     const container = document.querySelector(containerId);
@@ -168,18 +169,11 @@ const renderSectionTable = (container, sectionData, numTramos, sectionType, onUp
         existingWrapper.remove();
     }
 
-    const tableWrapper = document.createElement("div");
-    tableWrapper.id = wrapperId;
-    tableWrapper.className = "mb-8 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-lg";
-
-    // Title
-    const titleDiv = document.createElement("div");
-    titleDiv.className = "bg-gray-800 dark:bg-gray-950 px-4 py-2 text-white font-bold flex justify-between items-center rounded-t-lg";
-    titleDiv.innerHTML = `<span>${sectionData.title}</span>`;
-    tableWrapper.appendChild(titleDiv);
+    const {wrapper:tableWrapper,scroll} = createResultCard(sectionData.title,wrapperId);
 
     const table = document.createElement("table");
     table.className = "min-w-full divide-y divide-gray-300 dark:divide-gray-700 border-collapse text-sm";
+    table.classList.add('sheet-data-table');
 
     // State storage for this specific table section
     // Stores current layers and metadata needed for recalculation
@@ -220,7 +214,7 @@ const renderSectionTable = (container, sectionData, numTramos, sectionType, onUp
 
     const trHead2 = document.createElement("tr");
     for (let i = 1; i <= numTramos; i++) {
-        ["START", "MIDDLE", "END"].forEach(sub => {
+        ["Inicio", "Medio", "Final"].forEach(sub => {
             const th = document.createElement("th");
             th.className = "px-2 py-1 text-center text-xs font-medium uppercase border border-gray-600";
             th.textContent = sub;
@@ -451,7 +445,7 @@ const renderSectionTable = (container, sectionData, numTramos, sectionType, onUp
 
     table.appendChild(summaryContainer);
 
-    tableWrapper.appendChild(table);
+    scroll.appendChild(table);
     container.appendChild(tableWrapper);
 };
 

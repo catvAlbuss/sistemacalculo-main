@@ -11,8 +11,13 @@ import { CapacidadCalculator } from "./calculators/capacidadCalculator.js";
 import { DeflectionCalculator } from "./calculators/deflectionCalculator.js";
 import { setupPasteHandler } from "./utils/pasteHandler.js";
 import Swal from "sweetalert2";
+import { createSheetState } from "../sheets/state.js";
+import { bindImageExport } from "../sheets/export.js";
 
 document.addEventListener("DOMContentLoaded", () => {
+    const root = document.querySelector('[data-sheet="vigas-general"]');
+    const sheetState = root ? createSheetState(root) : null;
+    if (root) bindImageExport(root,{buttonId:'exportImageButton',targetId:'vigasgn',state:sheetState,filename:'vigas_general'});
     let tabulatorInstance = null;
 
     // Almacenar resultados para exportación PDF
@@ -28,6 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Configurar el manejador de pegado especial
         if (tabulatorInstance) {
             setupPasteHandler(tabulatorInstance);
+            tabulatorInstance.on('dataChanged', () => sheetState?.markStale());
         }
     };
 
@@ -59,6 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const accionButton = document.getElementById("accionButton");
     if (accionButton) {
         accionButton.addEventListener("click", () => {
+            if (sheetState && !sheetState.validate()) return;
             const datos = collectData(tabulatorInstance);
 
             if (datos) {
@@ -172,7 +179,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     exportButton.classList.remove('opacity-50', 'cursor-not-allowed');
                 }
 
-                showSuccess("Cálculo Completado", "Los resultados se han generado correctamente.");
+                sheetState?.ready();
 
                 /*
                 Swal.fire({
@@ -189,6 +196,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const exportPdfButton = document.getElementById("exportPdfButton");
     if (exportPdfButton) {
         exportPdfButton.addEventListener("click", async () => {
+            if (sheetState && !sheetState.isCurrent()) return;
             if (!currentResults || !currentProjectData) {
                 showError("Error", "No hay resultados para exportar. Por favor, ejecuta el cálculo primero.");
                 return;
@@ -196,6 +204,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Deshabilitar botón durante la generación
             exportPdfButton.disabled = true;
+            sheetState?.setBusy(exportPdfButton,true);
             exportPdfButton.textContent = "⏳ Generando PDF...";
 
             try {
@@ -223,8 +232,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 showError("Error", error.message || "Hubo un problema al generar el PDF. Por favor, intenta nuevamente.");
             } finally {
                 // Rehabilitar botón
-                exportPdfButton.disabled = false;
-                exportPdfButton.textContent = "📄 EXPORTAR PDF";
+                if (sheetState) sheetState.setBusy(exportPdfButton,false);
+                else exportPdfButton.disabled = false;
+                exportPdfButton.textContent = "Exportar PDF";
             }
         });
     }

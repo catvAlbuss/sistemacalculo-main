@@ -76,17 +76,17 @@
     display: inline;
 }
 
-.tabulator-cell:not(.tabulator-editable):not(
+.tabulator-cell:where(:not(.beam-sheet *)):not(.tabulator-editable):not(
         .tabulator-calcs > .tabulator-cell
     ) {
     background-color: #f2f2f2 !important;
 }
-:root:not(.dark) .tabulator-cell:not(.tabulator-editable):not(
+:root:not(.dark) .tabulator-cell:where(:not(.beam-sheet *)):not(.tabulator-editable):not(
         .tabulator-calcs > .tabulator-cell
     ) {
     background-color: #f9fafb !important;
 }
-.dark .tabulator-cell:not(.tabulator-editable):not(
+.dark .tabulator-cell:where(:not(.beam-sheet *)):not(.tabulator-editable):not(
         .tabulator-calcs > .tabulator-cell
     ) {
     background-color: #111827 !important;

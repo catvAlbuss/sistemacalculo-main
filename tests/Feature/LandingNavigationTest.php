@@ -90,13 +90,13 @@ class LandingNavigationTest extends TestCase
         $html = $this->navigation();
         $this->assertStringContainsString('Mi espacio de trabajo', $html);
         $this->assertStringNotContainsString('Mi cuenta', $html);
-        $html = view('components.navigation-workspace')->render();
-        foreach (['Mi cuenta', 'Mi plan y pagos', 'Herramientas', 'Mis respaldos', 'Perfil', 'Cerrar sesión'] as $label) {
+        $html = $this->get(route('plans.mine'))->assertOk()->getContent();
+        foreach (['Navegación interna', 'Mi cuenta', 'Mi plan y pagos', 'Mis respaldos', 'Perfil', 'Ayuda y soporte', 'Cerrar sesión', 'Asistente', 'Diseñador'] as $label) {
             $this->assertStringContainsString($label, $html);
         }
-        $this->assertSame(1, substr_count($html, 'href="'.route('backups.index').'"'));
+        $this->assertStringNotContainsString('data-navigation="public"', $html);
         $this->assertStringNotContainsString('Prueba gratis', $html);
-        $this->assertStringNotContainsString('Administración', $html);
+        $this->assertStringNotContainsString('Gestión de pagos', $html);
         $this->get(route('payments.admin.index'))->assertForbidden();
         $this->get(route('complaints.admin.index'))->assertForbidden();
     }
@@ -107,15 +107,11 @@ class LandingNavigationTest extends TestCase
             $user = User::factory()->create();
             $user->assignRole($role);
             $this->actingAs($user);
-            $html = view('components.navigation-workspace')->render();
-            $this->assertStringContainsString('Gestión de pagos', $html);
-            $this->assertStringContainsString('Gestión de reclamaciones', $html);
-            preg_match_all('/\bid="([^"]+)"/', $html, $matches);
-            $this->assertCount(count(array_unique($matches[1])), $matches[1]);
-            foreach (['administracion', 'mi-cuenta'] as $id) {
-                $this->assertStringContainsString('aria-controls="landing-menu-'.$id.'"', $html);
-                $this->assertStringContainsString('aria-labelledby="landing-menu-'.$id.'-button"', $html);
+            $html = $this->get(route('dashboard'))->assertOk()->getContent();
+            foreach (['Resumen administrativo', 'Gestión de pagos', 'Gestión de reclamaciones'] as $label) {
+                $this->assertStringContainsString($label, $html);
             }
+            $this->assertSame(1, substr_count($html, 'aria-label="Navegación interna"'));
             $this->assertStringNotContainsString('aria-current="$aria_current()"', $html);
         }
     }

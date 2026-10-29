@@ -1,3 +1,5 @@
+import { createResultCard } from '../../sheets/resultCard.js';
+
 const renderSingleTable = (data) => {
     // Validar que data tenga la estructura correcta
     if (!data || !data.title) {
@@ -12,23 +14,16 @@ const renderSingleTable = (data) => {
     }
 
     // Crear tabla HTML
-    const tableWrapper = document.createElement("div");
     // Generate a safe ID from the title for reliable lookups/removal
     const safeId = data.title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
-    tableWrapper.id = `result-table-${safeId}`;
-    tableWrapper.className = "mb-8 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-md";
-
-    // Titulo
-    const titleDiv = document.createElement("div");
-    titleDiv.className = "bg-gray-800 px-4 py-2 text-white font-bold";
-    titleDiv.textContent = data.title;
-    tableWrapper.appendChild(titleDiv);
+    const {wrapper:tableWrapper,scroll} = createResultCard(data.title,`result-table-${safeId}`);
 
     const table = document.createElement("table");
     table.className = "min-w-full divide-y divide-gray-300 dark:divide-gray-700 border-collapse"; // Added border-collapse for cleanly merged borders
+    table.classList.add('sheet-data-table');
 
     // --- HEADERS ---
     const thead = document.createElement("thead");
@@ -70,7 +65,7 @@ const renderSingleTable = (data) => {
             group.columns.forEach(colName => {
                 const thSub = document.createElement("th");
                 thSub.className = "px-2 py-1 text-center text-xs font-medium uppercase tracking-wider border border-gray-600";
-                thSub.textContent = colName;
+                thSub.textContent = ({start:'Inicio',middle:'Medio',end:'Final'})[String(colName).toLowerCase()] || colName;
                 headerRow2.appendChild(thSub);
             });
         });
@@ -147,7 +142,7 @@ const renderSingleTable = (data) => {
     });
 
     table.appendChild(tbody);
-    tableWrapper.appendChild(table);
+    scroll.appendChild(table);
 
     return tableWrapper;
 };

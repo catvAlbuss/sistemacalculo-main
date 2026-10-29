@@ -171,6 +171,7 @@ export const createTable = (containerId, numTramos, existingInstance = null) => 
 
         const aplicarEstilosRow = (row) => {
             const data = row.getData();
+            row.getElement().dataset.sheetRow = data._isMainGroup ? 'section' : data._isGrupo ? 'group' : 'data';
             const cells = row.getCells();
             const firstCell = cells[0];
 
@@ -273,9 +274,6 @@ export const createTable = (containerId, numTramos, existingInstance = null) => 
             config: {
                 height: 500,
                 layout: "fitDataStretch",
-                renderComplete: function () {
-                    this.getRows().forEach(row => aplicarEstilosRow(row));
-                },
                 rowFormatter: aplicarEstilosRow,
                 cellEditing: (cell) => {
                     const data = cell.getRow().getData();
@@ -288,7 +286,7 @@ export const createTable = (containerId, numTramos, existingInstance = null) => 
                         field: "encabezado_fila",
                         frozen: true,
                         editor: false,
-                        width: 60,
+                        width: 120,
                         headerSort: false,
                         cssClass: "header-column",
                         formatter: (cell) => {

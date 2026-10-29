@@ -1,217 +1,59 @@
-<x-calc-layout title="Diseño de vigas">
-    <div class="py-2">
-        <div class="container mx-auto w-full">
-            <div class="flex flex-wrap">
-                <!-- Formulario -->
-                <div class="w-full md:w-1/3">
-                    <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-                        <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Datos Generales</h3>
-                        <div class="overflow-auto">
-                            <table class="table-auto w-full text-gray-800 dark:text-white px-6">
-                                <thead class="bg-white dark:bg-gray-800">
-                                    <tr class="text-center">
-                                        <th class="py-2 px-4">Nombre</th>
-                                        <th class="py-2 px-4">Simb.</th>
-                                        <th class="py-2 px-4">Entrada</th>
-                                        <th class="py-2 px-4">Unidad <br> Medida</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="text-center">
-                                    <tr class="bg-white dark:bg-gray-800">
-                                        <th class="py-2 px-4">Esfuerzo de compresión del concreto</th>
-                                        <th class="py-2 px-4">fc</th>
-                                        <th class="py-2 px-4">
-                                            <input type="text" name="fc"
-                                                class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                id="fc" placeholder="210" min="0" value="210" required>
-                                        </th>
-                                        <th class="py-2 px-4">kg/cm<sup>2</sup></th>
-                                    </tr>
-                                    <tr class="bg-white dark:bg-gray-800">
-                                        <th class="py-2 px-4">Esfuerzo de fluencia del acero</th>
-                                        <th class="py-2 px-4">fy</th>
-                                        <th class="py-2 px-4"><input type="text" name="fy"
-                                                class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                id="fy" placeholder="4200" min="0" value="4200"
-                                                required></th>
-                                        <th class="py-2 px-4">kg/cm<sup>2</sup></th>
-                                    </tr>
-                                    <tr class="bg-white dark:bg-gray-800">
-                                        <th class="py-2 px-4">Base</th>
-                                        <th class="py-2 px-4">b</th>
-                                        <th class="py-2 px-4"><input type="text" name="base"
-                                                class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                id="base" value="40" placeholder="base" min="0" required
-                                                oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                        </th>
-                                        <th class="py-2 px-4">cm</th>
-                                    </tr>
-                                    <tr class="bg-white dark:bg-gray-800">
-                                        <th class="py-2 px-4">Altura</th>
-                                        <th class="py-2 px-4">h</th>
-                                        <th class="py-2 px-4"><input type="text" name="altura"
-                                                class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                id="altura" value="90" placeholder="Numero de TRAMOS"
-                                                min="0" required
-                                                oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                        </th>
-                                        <th class="py-2 px-4">cm</th>
-                                    </tr>
-                                    <tr class="bg-white dark:bg-gray-800">
-                                        <th class="py-2 px-4">Momento último</th>
-                                        <th class="py-2 px-4">Mu</th>
-                                        <th class="py-2 px-4"><input type="text" name="momentoultimo"
-                                                class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                id="momentoultimo" value="18" placeholder="Numero de TRAMOS"
-                                                min="0" required
-                                                oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                        </th>
-                                        <th class="py-2 px-4">Tn/m</th>
-                                    </tr>
-                                    <tr class="bg-white dark:bg-gray-800">
-                                        <th class="py-2 px-4">Cortante último</th>
-                                        <th class="py-2 px-4">Vu</th>
-                                        <th class="py-2 px-4"><input type="text" name="vucortante"
-                                                class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                id="vucortante" value="10" placeholder="Numero de TRAMOS"
-                                                min="0" required
-                                                oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                        </th>
-                                        <th class="py-2 px-4">Tn/m</th>
-                                    </tr>
-                                    <tr class="bg-white dark:bg-gray-800">
-                                        <th class="py-2 px-4">Capas</th>
-                                        <th class="py-2 px-4" colspan="3">
-                                            <select
-                                                class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                name="capas" id="capas" aria-label="Default select example">
-                                                <option selected disabled>Seleccione la capa</option>
-                                                <option value="1" selected>1</option>
-                                                <option value="2">2</option>
-                                                <option value="3">3</option>
-                                            </select>
-                                        </th>
-                                    </tr>
-                                    <tr class="bg-white dark:bg-gray-800">
-                                        <th class="py-2 px-4">Cuantias</th>
-                                        <th class="py-2 px-4" colspan="3">
-                                            <select
-                                                class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                name="cuantias" id="cuantias" aria-label="Default select example">
-                                                <option selected disabled>Seleccione la cuantia</option>
-                                                <option value="1">0.7(f'c)0.5/Fy</option>
-                                                <option value="2">0.8(f'c)0.5/Fy</option>
-                                                <option value="3" selected>14/Fy</option>
-                                            </select>
-                                        </th>
-                                    </tr>
-                                    <tr>
-                                        <th class="py-2 px-4">
-                                            <div class="input-group mb-2">
-                                                <button id="desingButton"
-                                                    class="bg-blue-500 hover:bg-blue-400 text-white font-bold py-2 px-4 border-b-4 border-blue-700 hover:border-blue-500 rounded"
-                                                    type="button">DISEÑAR</button>
-                                            </div>
-                                        </th>
-                                    </tr>
-                                    <!-- Agregar más filas según sea necesario -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Resultados -->
-                <div class="w-full md:w-2/3 px-4 mt-4 md:mt-0">
-                    <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-                        <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Resultados</h3>
-                        <button type="button"
-                            class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-                            id="btn_pdf_predim">
-                            Generar PDF
-                        </button>
-                        <button type="button"
-                            class="text-white bg-green-700 hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center"
-                            id="btn_captura_resultado">
-                            Generar IMG
-
-                        </button>
-                        <div class="overflow-x-auto" id="vigasgn">
-                            <table id="desingcorte" class="min-w-full text-gray-800 dark:text-white">
-                                <!-- Requisitos de diseño vigas -->
-                                <thead class="bg-gray-200 dark:bg-gray-800">
-                                    <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                                        <th class="text-xl py-2 px-4 text-left" colspan="4">1.- Requisitos de
-                                            diseño</th>
-                                    </tr>
-                                    <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-
-                                        <th class="text-lg py-2 px-4 w-[30%]" scope="col">Nombre</th>
-                                        <th class="text-lg py-2 px-4 w-[15%]" scope="col">Símbolo</th>
-                                        <th class="text-lg py-2 px-4 w-[35%]" scope="col">Fórmula</th>
-                                        <th class="text-lg py-2 px-4 w-[20%]" scope="col">Resultado</th>
-
-                                    </tr>
-                                </thead>
-                                <tbody id="predimenension" class="bg-gray-100 dark:bg-gray-800  py-2"></tbody>
-                                <thead class="bg-gray-200 dark:bg-gray-700">
-                                    <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                                        <th class="text-xl py-2 px-4 text-left" colspan="4">2.- Diseño por flexion
-                                        </th>
-                                    </tr>
-                                    <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                        <th class="text-lg py-2 px-4 w-[30%]" scope="col">Nombre</th>
-                                        <th class="text-lg py-2 px-4 w-[15%]" scope="col">Simbolo</th>
-                                        <th class="text-lg py-2 px-4 w-[35%]" scope="col">Formula</th>
-                                        <th class="text-lg py-2 px-4 w-[20%]" scope="col">Resultado</th>
-
-                                    </tr>
-                                </thead>
-                                <tbody id="desingFlexion" class="py-2"></tbody>
-
-                                <!-- Diseño del calculo del area del refuerzo  -->
-                                <thead class="bg-gray-200 dark:bg-gray-700"></thead>
-                                <tbody id="calcared" class="py-2"></tbody>
-
-                                <!-- Diseño por aceros para calcular el area por capas flexion-->
-                                <thead class="bg-gray-200 dark:bg-gray-700"></thead>
-                                <tbody id="acerosfinales" class="py-2"></tbody>
-
-                                <!-- Diseño por corte -->
-                                <thead class="bg-gray-200 dark:bg-gray-700">
-                                    <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                                        <th class="text-xl py-2 px-4 text-left" colspan="4">3.- Diseño por corte
-                                        </th>
-                                    </tr>
-                                    <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                        <th class="text-lg py-2 px-4" scope="col">Nombre</th>
-                                        <th class="text-lg py-2 px-4" scope="col">Simbolo</th>
-                                        <th class="text-lg py-2 px-4" scope="col">Formula</th>
-                                        <th class="text-lg py-2 px-4" scope="col">Resultado</th>
-
-                                    </tr>
-                                </thead>
-                                <tbody id="diseñoCortes" class="py-2"></tbody>
-
-                                <!-- Diseño por aceros para calcular el area por capas corte -->
-                                <thead class="bg-gray-200 dark:bg-gray-700"></thead>
-                                <tbody id="aceroscortes" class="py-2"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
+@php
+    $groups = [
+        ['title'=>'Materiales', 'note'=>'Resistencias del concreto y del acero de refuerzo.', 'fields'=>[
+            ['fc','Compresión del concreto','f′c','210','kg/cm²'], ['fy','Fluencia del acero','fy','4200','kg/cm²'],
+        ]],
+        ['title'=>'Sección de la viga', 'note'=>'Dimensiones de la sección rectangular.', 'fields'=>[
+            ['base','Base','b','40','cm'], ['altura','Altura','h','90','cm'],
+        ]],
+        ['title'=>'Solicitaciones', 'note'=>'Acciones últimas para el diseño a flexión y corte.', 'fields'=>[
+            ['momentoultimo','Momento último','Mu','18','Tn·m'], ['vucortante','Cortante último','Vu','10','Tn'],
+        ]],
+    ];
+    $sections = [
+        ['requisitos','Requisitos de diseño','Materiales, geometría y parámetros empleados.',['predimenension']],
+        ['flexion','Diseño por flexión','Área requerida, límites de refuerzo y combinación de barras.',['desingFlexion','calcared','acerosfinales']],
+        ['corte','Diseño por corte','Resistencia al corte y disposición de estribos.',['diseñoCortes','aceroscortes']],
+    ];
+    $navigation = collect($sections)->mapWithKeys(fn($section)=>['beam-'.$section[0]=>$section[1]])->all();
+@endphp
+<x-sheets.workbench sheet="diseno-vigas" title="Diseño de vigas" entry="resources/js/adm_desing_vigas.js"
+    description="Define los materiales, la sección y las solicitaciones. Revisa el refuerzo por flexión y corte, elige una combinación de acero o crea la tuya y exporta los resultados.">
+    <x-sheets.panel title="Datos generales" description="Introduce los valores en las unidades indicadas." number="01" heading-id="beam-input-title" class="arco-input-panel" data-sheet-inputs>
+        <div class="arco-fields">
+            @foreach($groups as $group)
+                <x-sheets.fieldset :title="$group['title']" :note="$group['note']">
+                    @foreach($group['fields'] as [$id,$label,$symbol,$value,$unit])
+                        <x-sheets.field :id="$id" :label="$label" :symbol="$symbol" :value="$value" :unit="$unit" :min="in_array($id,['momentoultimo','vucortante']) ? '0' : '0.01'" />
+                    @endforeach
+                </x-sheets.fieldset>
+            @endforeach
+            <x-sheets.fieldset title="Configuración del refuerzo" note="Selecciona las capas y el criterio de cuantía mínima.">
+                <x-sheets.field id="capas" label="Capas de acero" value="1" :options="[1=>'1 capa',2=>'2 capas',3=>'3 capas']" />
+                <x-sheets.field id="cuantias" label="Cuantía mínima" value="3" :options="[1=>'0.7 √f′c / fy',2=>'0.8 √f′c / fy',3=>'14 / fy']" />
+            </x-sheets.fieldset>
+        </div>
+        <div class="arco-calculate">
+            <button id="desingButton" class="pr-button" type="button">Calcular diseño <span aria-hidden="true">→</span></button>
+            <p class="arco-note">Vuelve a calcular después de modificar los datos.</p>
+        </div>
+    </x-sheets.panel>
+    <section class="arco-results" aria-label="Resultados del diseño de vigas">
+        <x-sheets.results-header status-id="beam-status" :sections="$navigation"
+            :exports="['btn_pdf_predim'=>'Exportar PDF','btn_captura_resultado'=>'Exportar imagen']" />
+        <div id="vigasgn" class="arco-sheet beam-sheet beam-export">
+            <div class="beam-report-title"><h2>Diseño de vigas</h2><p>Concreto armado · Requisitos, flexión y corte</p></div>
+            <div id="desingcorte" class="arco-result-sections">
+                @foreach($sections as [$id,$title,$description,$bodies])
+                    <x-sheets.panel :title="$title" :description="$description" :number="str_pad($loop->iteration,2,'0',STR_PAD_LEFT)" class="arco-result-card" id="beam-{{ $id }}">
+                        <x-sheets.table :label="$title">
+                            @foreach($bodies as $body)
+                                <tbody id="{{ $body }}">@if($loop->first)<tr><td colspan="4" class="arco-empty">Los resultados aparecerán al calcular.</td></tr>@endif</tbody>
+                            @endforeach
+                        </x-sheets.table>
+                    </x-sheets.panel>
+                @endforeach
             </div>
         </div>
-    </div>
-
-    @pushOnce('scripts')
-    @vite(['resources/js/adm_desing_vigas.js'])
-    @endpushOnce
-</x-calc-layout>
-<style>
-    tr, td, th {
-  break-inside: avoid;
-  page-break-inside: avoid;
-}
-</style>
+    </section>
+</x-sheets.workbench>

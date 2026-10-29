@@ -191,15 +191,17 @@ document.addEventListener("DOMContentLoaded", () => {
     fetch("/zapatas", {
       method: "POST",
       body: formData,
+      headers: { Accept: "application/json" },
     })
       .then(async (response) => {
         const contentType = response.headers.get("Content-Type");
         if (contentType && contentType.includes("application/octet-stream")) {
           return response.arrayBuffer();
-        } else {
-          const error = await response.text();
-          return Promise.reject(error);
         }
+        // Nunca volcar HTML del servidor en el modal: solo el mensaje del JSON.
+        const body = contentType && contentType.includes("application/json") ? await response.json() : {};
+        const detail = body.errors ? Object.values(body.errors).flat()[0] : null;
+        return Promise.reject(detail || body.error || body.message || "No se pudo completar el cálculo.");
       })
       .then((matData) => {
         waitingPopup.close();
@@ -254,9 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
         waitingPopup.hideLoading();
         swalTailwind.fire({
           icon: "error",
-          html: `
-              ${error}
-            `,
+          text: String(error),
           showConfirmButton: true,
         });
 
