@@ -1,3 +1,4 @@
+@import "./workspace-enterprise.css";
 .workspace-main { flex:1; min-width:0; width:100%; background:var(--pr-bg); color:var(--pr-text); }
 .workspace-main .engineering-surface>.pr-shell,.workspace-main .plan-register>.pr-shell { padding:0; }
 .wk-shell { max-width:1480px; margin:auto; padding:24px 40px 48px; }

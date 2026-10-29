@@ -58,12 +58,13 @@ class Subscription extends Model
 
     public function isFree(): bool
     {
-        return $this->price == 0;
+        return $this->isTrial() && $this->price == 0;
     }
 
     public function getFormattedPriceAttribute(): string
     {
-        if ($this->price == 0) {
+        if ($this->isLifetime()) { return 'Contáctenos'; }
+        if ($this->isFree()) {
             return 'Gratis';
         }
         return 'S/ ' . number_format($this->price, 2);

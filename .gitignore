@@ -44,3 +44,5 @@ python-backend/_debug_payloads/
 __pycache__/
 *.pyc
 *.pyo
+/public/puppeteer-session/
+/public/captures/

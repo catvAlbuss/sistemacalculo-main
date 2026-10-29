@@ -15,6 +15,15 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasRoles;
 
+    protected $attributes = ['account_status' => 'enabled', 'session_version' => 0];
+
+    protected static function booted(): void
+    {
+        static::saving(function (User $user) {
+            if ($user->account_status !== 'enabled') { $user->is_active = false; }
+        });
+    }
+
     /**
      * The attributes that are mass assignable.
      *
@@ -44,6 +53,8 @@ class User extends Authenticatable
         'remember_token',
         'payment_in_progress_id',
         'project_restore_version',
+        'session_version',
+        'account_status_reason',
     ];
 
     /**
@@ -91,7 +102,7 @@ class User extends Authenticatable
 
     public function hasActiveSubscription(): bool
     {
-        if (!$this->is_active) {
+        if (!$this->is_active || $this->account_status !== 'enabled') {
             return false;
         }
 
@@ -131,7 +142,7 @@ class User extends Authenticatable
 
     public function canAccess(string $section): bool
     {
-        if (!$this->is_active) {
+        if ($this->account_status !== 'enabled') {
             return false;
         }
 
@@ -163,12 +174,12 @@ class User extends Authenticatable
 
     public function canManageUsers(): bool
     {
-        return $this->hasRole(['root', 'gerencia']);
+        return $this->account_status === 'enabled' && $this->hasRole(['root', 'gerencia']);
     }
 
     public function canManagePlans(): bool
     {
-        return $this->hasRole(['root', 'gerencia']);
+        return $this->canManageUsers();
     }
 
     public function scopeActive($query)
@@ -193,6 +204,16 @@ class User extends Authenticatable
     {
         return $this->hasMany(session::class)
             ->where('last_activity', '>=', now()->subMinutes(30)->timestamp);
+    }
+
+    public function accountSessions()
+    {
+        return $this->hasMany(AccountSession::class)->where('last_seen_at', '>=', now()->subMinutes(config('session.lifetime', 120)));
+    }
+
+    public function securityEvents()
+    {
+        return $this->hasMany(AccountSecurityEvent::class)->latest('id');
     }
 }
 

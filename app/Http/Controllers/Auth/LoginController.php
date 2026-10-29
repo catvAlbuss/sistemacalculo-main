@@ -15,6 +15,7 @@ class LoginController extends Controller
         $signIn->authenticate($data['email'], $data['password'], $request->boolean('remember'));
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard'));
+        $request->session()->forget('url.intended');
+        return redirect()->route('dashboard');
     }
 }

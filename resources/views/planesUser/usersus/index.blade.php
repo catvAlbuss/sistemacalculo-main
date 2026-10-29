@@ -1,332 +1,69 @@
 <x-workspace-layout>
-    <div class="wk-existing-admin" x-data="userManagement()">
-
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-50">Usuarios y suscripciones</h1>
-                <p class="text-sm text-gray-50 mt-1">Administra usuarios, roles y suscripciones</p>
-            </div>
-            <button @click="openCreateModal()"
-                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-5 rounded-lg shadow-md transition duration-300 flex items-center">
-                <i class="fas fa-plus mr-2"></i> Crear Usuario
-            </button>
-        </div>
-
-        <!-- Alertas -->
-        @if (session('success'))
-            <div class="bg-green-50 border-l-4 border-green-500 text-green-800 p-4 mb-4 rounded-lg shadow-sm"
-                role="alert">
-                <div class="flex items-center">
-                    <i class="fas fa-check-circle text-green-500 mr-3"></i>
-                    <p class="font-medium">{{ session('success') }}</p>
-                </div>
-            </div>
-        @endif
-        @if (session('error'))
-            <div class="bg-red-50 border-l-4 border-red-500 text-red-800 p-4 mb-4 rounded-lg shadow-sm" role="alert">
-                <div class="flex items-center">
-                    <i class="fas fa-exclamation-circle text-red-500 mr-3"></i>
-                    <p class="font-medium">{{ session('error') }}</p>
-                </div>
-            </div>
-        @endif
-        @if ($errors->any() && old('form_context') !== 'user')
-            <div class="wk-notice mb-4" data-tone="danger"><strong>No se guardaron los cambios.</strong><ul>@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
-        @endif
-
-        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-            <!-- Buscador -->
-            <div class="p-4 bg-gray-50 border-b">
-                <form method="GET" action="{{ route('planUser.index') }}" class="flex gap-2">
-                    <div class="flex-1 relative">
-                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                        <input type="text" name="search" placeholder="Buscar por nombre o email..."
-                            value="{{ request('search') }}"
-                            class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <button type="submit"
-                        class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">
-                        Buscar
-                    </button>
-                    @if (request('search'))
-                        <a href="{{ route('planUser.index') }}"
-                            class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg transition">
-                            Limpiar
-                        </a>
-                    @endif
-                </form>
-            </div>
-
-            <!-- Tabla -->
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                <i class="fas fa-user mr-1"></i> Usuario
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                <i class="fas fa-user-tag mr-1"></i> Rol
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                <i class="fas fa-crown mr-1"></i> Suscripción
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                <i class="fas fa-toggle-on mr-1"></i> Estado
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                <i class="fas fa-mobile-alt mr-1"></i> Disp.
-                            </th>
-                            <th
-                                class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                <i class="fas fa-cog mr-1"></i> Acciones
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        @forelse ($users as $user)
-                            <tr class="hover:bg-gray-50 transition">
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center">
-                                        <div class="flex-shrink-0 h-10 w-10">
-                                            <div
-                                                class="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
-                                                {{ strtoupper(substr($user->name, 0, 2)) }}
-                                            </div>
-                                        </div>
-                                        <div class="ml-4">
-                                            <div class="font-medium text-gray-900">{{ $user->name }}</div>
-                                            <div class="text-sm text-gray-500">{{ $user->email }}</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <div class="flex flex-wrap gap-1">
-                                        @forelse ($user->getRoleNames() as $role)
-                                            <span
-                                                class="px-2 py-1 text-xs font-semibold rounded-full 
-                                                {{ $role === 'root'
-                                                    ? 'bg-purple-100 text-purple-800'
-                                                    : ($role === 'gerencia'
-                                                        ? 'bg-indigo-100 text-indigo-800'
-                                                        : ($role === 'asistente'
-                                                            ? 'bg-blue-100 text-blue-800'
-                                                            : 'bg-gray-100 text-gray-800')) }}">
-                                                {{ $role }}
-                                            </span>
-                                        @empty
-                                            <span
-                                                class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-500">
-                                                Sin rol
-                                            </span>
-                                        @endforelse
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4">
-                                    @if ($user->hasActiveSubscription())
-                                        <div class="flex items-center">
-                                            <i class="fas fa-check-circle text-green-500 mr-2"></i>
-                                            <div>
-                                                <span
-                                                    class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                                                    {{ $user->currentSubscription->plan->name }}
-                                                </span>
-                                                <p class="text-xs text-gray-500 mt-1">
-                                                    @if ($user->subscription_ends_at)
-                                                        @php
-                                                            $daysRemaining = now()->diffInDays(
-                                                                $user->subscription_ends_at,
-                                                                false,
-                                                            );
-                                                            $isExpiringSoon = $daysRemaining <= 7 && $daysRemaining > 0;
-                                                        @endphp
-                                                        <span
-                                                            class="{{ $isExpiringSoon ? 'text-orange-600 font-semibold' : '' }}">
-                                                            Expira: {{ $user->subscription_ends_at->format('d/m/Y') }}
-                                                            @if ($isExpiringSoon)
-                                                                <i class="fas fa-exclamation-triangle ml-1"></i>
-                                                            @endif
-                                                        </span>
-                                                    @else
-                                                        <span class="text-blue-600 font-semibold">
-                                                            <i class="fas fa-infinity mr-1"></i> Vitalicio
-                                                        </span>
-                                                    @endif
-                                                </p>
-                                            </div>
-                                        </div>
-                                    @else
-                                        <div class="flex items-center">
-                                            <i class="fas fa-times-circle text-red-500 mr-2"></i>
-                                            <span
-                                                class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
-                                                Sin suscripción
-                                            </span>
-                                        </div>
-                                    @endif
-                                </td>
-                                <td class="px-6 py-4">
-                                    @if ($user->is_active)
-                                        <span
-                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                            <i class="fas fa-circle text-green-500 mr-1 text-[8px]"></i> Activo
-                                        </span>
-                                    @else
-                                        <span
-                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                            <i class="fas fa-circle text-gray-500 mr-1 text-[8px]"></i> Inactivo
-                                        </span>
-                                    @endif
-                                </td>
-                                <td class="px-6 py-4">{{ $user->active_sessions_count }} dispositivo(s) activos</td>
-
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center justify-center gap-2">
-                                        <button @click="openEditModal({{ json_encode($user->load('roles', 'permissions')) }})"
-                                            class="text-indigo-600 hover:text-indigo-900 text-sm font-medium transition"
-                                            title="Editar usuario">
-                                            <i class="fas fa-edit"></i> Editar
-                                        </button>
-
-                                        <button
-                                            @click="openSubscriptionModal({{ json_encode($user->load('currentSubscription.plan')) }})"
-                                            class="text-green-600 hover:text-green-900 text-sm font-medium transition"
-                                            title="Gestionar suscripción">
-                                            <i class="fas fa-crown"></i> Plan
-                                        </button>
-
-                                        <form action="{{ route('planUser.destroy', $user) }}" method="POST"
-                                            class="inline-block"
-                                            onsubmit="return confirm('¿Estás seguro de que quieres eliminar a este usuario?\n\nEsta acción no se puede deshacer y se cancelarán todas sus suscripciones.');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit"
-                                                class="text-red-600 hover:text-red-900 text-sm font-medium transition"
-                                                title="Eliminar usuario">
-                                                <i class="fas fa-trash"></i> Eliminar
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5" class="px-6 py-12 text-center">
-                                    <div class="flex flex-col items-center">
-                                        <i class="fas fa-users text-gray-300 text-5xl mb-3"></i>
-                                        <p class="text-gray-500 text-lg font-medium">No se encontraron usuarios</p>
-                                        @if (request('search'))
-                                            <p class="text-gray-400 text-sm mt-1">
-                                                No hay resultados para "{{ request('search') }}"
-                                            </p>
-                                            <a href="{{ route('planUser.index') }}"
-                                                class="mt-3 text-blue-600 hover:text-blue-700 text-sm font-medium">
-                                                Ver todos los usuarios
-                                            </a>
-                                        @endif
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Paginación -->
-            @if ($users->hasPages())
-                <div class="px-4 py-3 bg-gray-50 border-t">
-                    {{ $users->links() }}
-                </div>
-            @endif
-        </div>
-
-        <!-- Modales -->
-        @include('planesUser.usersus.modal-create-edit')
-        @include('planesUser.usersus.modal-subscription')
+<div class="wk-user-admin" x-data="userManagement()">
+    <header class="wk-heading"><div><p class="pr-eyebrow">Administración / Control de acceso</p><h1>Usuarios y suscripciones</h1><p>Gestiona la identidad, la cobertura contratada y la seguridad de cada cuenta.</p></div><button type="button" class="pr-button" @click="openCreateModal()">+ Crear usuario</button></header>
+    @if(session('success'))<p class="wk-notice" role="status">{{ session('success') }}</p>@endif
+    @if(session('error'))<p class="wk-notice" data-tone="danger" role="alert">{{ session('error') }}</p>@endif
+    @if($errors->any() && old('form_context') !== 'user')<div class="wk-notice" data-tone="danger" role="alert"><strong>No se guardaron los cambios.</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+    <dl class="wk-stats wk-admin-stats">
+        <div class="pr-panel wk-stat"><dt>Cuentas registradas</dt><dd>{{ $summary['total'] }}<small>Excluye las cuentas dadas de baja</small></dd></div>
+        <div class="pr-panel wk-stat"><dt>Con cobertura vigente</dt><dd>{{ $summary['covered'] }}<small>Planes activos en este momento</small></dd></div>
+        <div class="pr-panel wk-stat"><dt>Cuentas restringidas</dt><dd>{{ $summary['restricted'] }}<small>Bloqueadas o vetadas por administración</small></dd></div>
+        <div class="pr-panel wk-stat"><dt>Política de acceso</dt><dd>1 titular<small>Máximo 2 sesiones; el tercer acceso cierra todas</small></dd></div>
+    </dl>
+    <section class="pr-panel wk-admin-panel" aria-label="Listado de usuarios">
+        <form method="GET" action="{{ route('planUser.index') }}" class="wk-admin-search"><label for="user-search" class="sr-only">Buscar por nombre o correo</label><input id="user-search" class="pr-input" type="search" name="search" value="{{ request('search') }}" placeholder="Buscar por nombre o correo…"><button class="pr-button">Buscar</button>@if(request('search'))<a class="pr-button pr-button-secondary" href="{{ route('planUser.index') }}">Limpiar</a>@endif</form>
+        <div class="wk-table-scroll"><table class="wk-table wk-users-table"><caption class="sr-only">Identidad, plan, estado y sesiones de cada usuario</caption><thead><tr><th scope="col">Usuario</th><th scope="col">Rol</th><th scope="col">Cobertura</th><th scope="col">Cuenta</th><th scope="col">Sesiones</th><th scope="col">Gestión</th></tr></thead><tbody>
+        @forelse($users as $user)
+            @php($canManage = auth()->user()->hasRole('root') || !$user->hasRole('root'))
+            <tr class="{{ $user->account_status !== 'enabled' || (!$user->is_active && !$user->canManageUsers()) ? 'wk-row-disabled' : '' }}">
+                <td><div class="wk-user-identity"><span class="wk-avatar" aria-hidden="true">{{ mb_substr($user->name,0,2) }}</span><div><strong>{{ $user->name }}</strong><span>{{ $user->email }}</span></div></div></td>
+                <td><div class="wk-role-list">@forelse($user->getRoleNames()->sortBy(fn($role) => \App\Services\RoleHierarchy::rank($role)) as $role)<span class="wk-badge">{{ $role }}</span>@empty<span class="wk-muted">Sin rol</span>@endforelse</div></td>
+                <td>@if($user->currentSubscription)<strong>{{ $user->currentSubscription->plan->name }}</strong><small class="wk-cell-detail">{{ $user->currentSubscription->accessEndsAt() ? 'Hasta '.$user->currentSubscription->accessEndsAt()->format('d/m/Y') : 'Permanente' }}</small>@else<span class="wk-badge" data-tone="warning">Sin cobertura vigente</span>@endif</td>
+                <td><span class="wk-badge" data-tone="{{ $user->account_status === 'enabled' && ($user->is_active || $user->canManageUsers()) ? 'success' : 'muted' }}">{{ $user->account_status === 'enabled' ? (($user->is_active || $user->canManageUsers()) ? 'Habilitada' : 'Acceso inactivo') : (['blocked'=>'Bloqueada','banned'=>'Vetada'][$user->account_status] ?? $user->account_status) }}</span></td>
+                <td><strong>{{ $user->account_sessions_count }} / 2</strong><small class="wk-cell-detail">sesiones activas</small></td>
+                <td><div class="wk-row-actions">@if($canManage)<button type="button" class="wk-action" @click="openEditModal(details[{{ $user->id }}])">Editar</button><button type="button" class="wk-action" @click="openSubscriptionModal(details[{{ $user->id }}])">Plan e historial</button>@if(auth()->id() !== $user->id)<button type="button" class="wk-action" @click="openAccessModal(details[{{ $user->id }}])">Acceso</button>@endif @else<span class="wk-muted">Solo root</span>@endif</div></td>
+            </tr>
+        @empty<tr><td colspan="6"><p class="wk-empty">No se encontraron usuarios con estos datos.</p></td></tr>@endforelse
+        </tbody></table></div>
+        @if($users->hasPages())<div class="wk-pagination">{{ $users->links() }}</div>@endif
+    </section>
+    <section class="wk-section" aria-labelledby="security-events-heading"><div class="wk-section-head"><h2 id="security-events-heading">Actividad de seguridad y administración</h2><span class="wk-muted">Últimos 8 eventos</span></div><div class="wk-table-scroll"><table class="wk-table"><thead><tr><th scope="col">Fecha</th><th scope="col">Cuenta</th><th scope="col">Evento</th></tr></thead><tbody>@forelse($securityEvents as $event)<tr><td>{{ $event->created_at->timezone('America/Lima')->format('d/m/Y H:i') }}</td><td>{{ $event->user?->email ?? 'Cuenta dada de baja' }}</td><td>{{ $event->message }}</td></tr>@empty<tr><td colspan="3" class="wk-empty">Todavía no hay incidencias registradas.</td></tr>@endforelse</tbody></table></div></section>
+    @include('planesUser.usersus.modal-create-edit')
+    @include('planesUser.usersus.modal-subscription')
+    <div x-show="showAccessModal" class="wk-modal-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="access-modal-title" x-trap.inert.noscroll="showAccessModal" @keydown.escape.stop.prevent="showAccessModal = false" @click.self="showAccessModal = false">
+        <section class="wk-modal-panel"><header class="wk-modal-header"><div><p class="pr-eyebrow">Administración / Seguridad</p><h2 id="access-modal-title">Acceso a la cuenta</h2><p x-text="accessData.email"></p></div><button class="wk-modal-close" type="button" @click="showAccessModal = false" aria-label="Cerrar">×</button></header>
+        <form :action="'{{ url('planUser') }}/'+accessData.id+'/account-status'" method="POST" class="wk-modal-form">@csrf @method('PATCH')
+            <label class="pr-label" for="account-status">Estado de acceso</label><select class="pr-input" id="account-status" name="status" x-model="accessData.account_status" required><option value="enabled">Habilitada</option><option value="blocked">Bloqueada temporalmente</option><option value="banned">Vetada por incumplimiento</option></select>
+            <div><label class="pr-label" for="account-reason">Motivo del cambio</label><textarea class="pr-input" id="account-reason" name="reason" required minlength="5" maxlength="1000" rows="3" placeholder="Explica el motivo para el registro de administración."></textarea></div>
+            <p class="wk-notice">El cambio cierra las sesiones abiertas. Bloquear o vetar impide el acceso; no cancela ni devuelve cargos de Culqi. Al habilitar, se conserva el vencimiento original del plan.</p>
+            <footer class="wk-form-footer"><button class="pr-button pr-button-secondary" type="button" @click="showAccessModal = false">Cancelar</button><button class="pr-button">Guardar estado</button></footer>
+        </form>
+        <div class="wk-modal-danger"><h3>Dar de baja la cuenta</h3><p>Retira el acceso y cancela la cobertura. Conserva los pagos y el correo registrado para mantener la trazabilidad.</p><form :action="'{{ url('planUser') }}/'+accessData.id" method="POST" onsubmit="return confirm('¿Dar de baja esta cuenta? Se cerrarán sus sesiones y se cancelará su cobertura. Los pagos se conservarán.');">@csrf @method('DELETE')<button class="pr-button wk-danger">Dar de baja</button></form></div></section>
     </div>
-
-    <script>
-        function userManagement() {
-            return {
-                showUserModal: false,
-                showSubscriptionModal: false,
-                showExtendForm: false,
-                isEditMode: false,
-                modalTitle: '',
-                formAction: '',
-                userData: { name: '', email: '', roles: [], permissions: [] },
-                userPassword: '',
-                userPasswordConfirmation: '',
-                subscriptionData: {},
-
-                init() {
-                    const previous = @js(session()->getOldInput());
-                    if (@js($errors->any()) && previous.form_context === 'user') {
-                        const userId = Number(previous.editing_user_id);
-                        this.isEditMode = Number.isSafeInteger(userId) && userId > 0;
-                        this.modalTitle = this.isEditMode ? 'Editar usuario' : 'Crear usuario';
-                        this.formAction = this.isEditMode ? '{{ url('planUser') }}/' + userId : '{{ route('planUser.store') }}';
-                        this.userData = {
-                            id: userId, name: previous.name || '', email: previous.email || '',
-                            roles: Array.isArray(previous.roles) ? previous.roles : [],
-                            permissions: Array.isArray(previous.permissions) ? previous.permissions : []
-                        };
-                        this.showUserModal = true;
-                    }
-                },
-
-                openCreateModal() {
-                    this.isEditMode = false;
-                    this.modalTitle = 'Crear Nuevo Usuario';
-                    this.formAction = '{{ route('planUser.store') }}';
-                    this.userData = {
-                        name: '',
-                        email: '',
-                        roles: []
-                    };
-                    this.userPassword = '';
-                    this.userPasswordConfirmation = '';
-                    this.showUserModal = true;
-                },
-
-                openEditModal(user) {
-                    this.isEditMode = true;
-                    this.modalTitle = 'Editar Usuario';
-                    this.formAction = '{{ url('planUser') }}/' + user.id;
-                    this.userData = {
-                        ...user,
-                        roles: user.roles.map(role => role.name),
-                        permissions: (user.permissions || []).map(permission => permission.name)
-                    };
-                    this.userPassword = '';
-                    this.userPasswordConfirmation = '';
-                    this.showUserModal = true;
-                },
-
-                openSubscriptionModal(user) {
-                    this.subscriptionData = user;
-                    this.showExtendForm = false;
-                    this.showSubscriptionModal = true;
-                },
-
-                closeModals() {
-                    this.showUserModal = false;
-                    this.showSubscriptionModal = false;
-                    this.showExtendForm = false;
-                }
+</div>
+<script>
+function userManagement() {
+    return {
+        details: @js($userDetails), showUserModal: false, showSubscriptionModal: false, showAccessModal: false,
+        showExtendForm: false, isEditMode: false, modalTitle: '', formAction: '',
+        userData: {name:'',email:'',roles:[],permissions:[]}, userPassword:'', userPasswordConfirmation:'', subscriptionData:{}, accessData:{},
+        init() {
+            const previous = @js(session()->getOldInput());
+            if (@js($errors->any()) && previous.form_context === 'user') {
+                const id = Number(previous.editing_user_id);
+                this.isEditMode = Number.isSafeInteger(id) && id > 0;
+                this.modalTitle = this.isEditMode ? 'Editar usuario' : 'Crear usuario';
+                this.formAction = this.isEditMode ? '{{ url('planUser') }}/'+id : '{{ route('planUser.store') }}';
+                this.userData = {id, name:previous.name||'',email:previous.email||'',roles:previous.roles||[],permissions:previous.permissions||[],protected_root:this.details[id]?.protected_root||false};
+                this.showUserModal = true;
             }
-        }
-
-        // Auto-cerrar alertas después de 5 segundos
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(function() {
-                const alerts = document.querySelectorAll('[role="alert"]:not(.wk-notice)');
-                alerts.forEach(alert => {
-                    alert.style.transition = 'opacity 0.5s';
-                    alert.style.opacity = '0';
-                    setTimeout(() => alert.remove(), 500);
-                });
-            }, 5000);
-        });
-    </script>
+        },
+        openCreateModal() { this.isEditMode=false; this.modalTitle='Crear usuario'; this.formAction='{{ route('planUser.store') }}'; this.userData={name:'',email:'',roles:[],permissions:[]}; this.userPassword='';this.userPasswordConfirmation='';this.showUserModal=true; },
+        openEditModal(user) { this.isEditMode=true; this.modalTitle='Editar usuario';this.formAction='{{ url('planUser') }}/'+user.id;this.userData={...user,roles:user.roles.map(r=>r.name),permissions:user.permissions.map(p=>p.name)};this.userPassword='';this.userPasswordConfirmation='';this.showUserModal=true; },
+        openSubscriptionModal(user) { this.subscriptionData=user;this.showExtendForm=false;this.showSubscriptionModal=true; },
+        openAccessModal(user) { this.accessData={...user};this.showAccessModal=true; },
+        closeModals() { this.showUserModal=false;this.showSubscriptionModal=false;this.showAccessModal=false; }
+    };
+}
+</script>
 </x-workspace-layout>

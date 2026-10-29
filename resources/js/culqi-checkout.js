@@ -22,6 +22,7 @@ export function mountCulqiPayment() {
     let authenticating = false;
     let checkout = null;
     const show = (text) => { message.textContent = text; };
+    const acceptance = document.getElementById('payment-accept-terms');
     const setBusy = (value) => { busy = value; button.disabled = value || blocked; };
     const uncertain = () => {
         blocked = true;
@@ -40,7 +41,7 @@ export function mountCulqiPayment() {
                     'Content-Type': 'application/json', Accept: 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 },
-                body: JSON.stringify({ token, device_id: device, ...(authentication ? { authentication_3DS: authentication } : {}) }),
+                body: JSON.stringify({ token, device_id: device, ...(acceptance ? {accept_terms: acceptance.checked} : {}), ...(authentication ? { authentication_3DS: authentication } : {}) }),
             });
             const data = await response.json();
             if (response.ok && data.ok) {
@@ -83,6 +84,7 @@ export function mountCulqiPayment() {
     });
     button.addEventListener('click', async () => {
         if (busy || blocked) return;
+        if (acceptance && !acceptance.checked) { show('Acepta las condiciones de la propuesta antes de pagar.'); acceptance.focus?.(); return; }
         if (checkout) {
             checkout.open();
             return;

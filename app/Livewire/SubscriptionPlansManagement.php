@@ -32,7 +32,7 @@ class SubscriptionPlansManagement extends Component
 
     public function boot(): void
     {
-        abort_unless(auth()->user()?->is_active && auth()->user()?->canManagePlans(), 403);
+        abort_unless(auth()->user()?->canManagePlans(), 403);
     }
 
     protected function rules()
@@ -41,7 +41,7 @@ class SubscriptionPlansManagement extends Component
             'name' => 'required|string|max:255',
             'slug' => 'required|string|max:255|unique:subscriptions,slug,' . $this->planId,
             'description' => 'nullable|string',
-            'price' => 'required|numeric|min:0'.($this->type === 'trial' ? '|in:0' : ''),
+            'price' => 'required|numeric|min:0'.($this->type === 'trial' ? '|in:0' : (in_array($this->type,['monthly','yearly'],true) ? '|gt:0' : '')),
             'duration_days' => 'required_unless:type,lifetime|nullable|integer|min:1'.($this->type === 'trial' ? '|in:5' : ''),
             'type' => 'required|in:trial,monthly,yearly,lifetime',
             'is_active' => 'boolean',
@@ -53,7 +53,7 @@ class SubscriptionPlansManagement extends Component
     //resources/views/livewire/subscription-plans-management.blade.php
     public function render()
     {
-        $plans = Subscription::with('activeSubscriptions')
+        $plans = Subscription::withCount(['activeSubscriptions' => fn ($query) => $query->where('starts_at', '<=', now())->where(fn ($q) => $q->whereNull('ends_at')->orWhere('ends_at', '>', now()))])
             ->when($this->search !== '', fn ($query) => $query->where(fn ($search) => $search
                 ->where('name', 'like', '%'.$this->search.'%')->orWhere('description', 'like', '%'.$this->search.'%')))
             ->ordered()->paginate(10);

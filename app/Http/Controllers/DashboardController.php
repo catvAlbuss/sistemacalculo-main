@@ -13,10 +13,7 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        if (!$user->is_active) {
-            return redirect()->route('plans.mine');
-        }
-        if ($user->hasRole(['root', 'gerencia'])) {
+        if ($user->canManageUsers()) {
             return view('dashboard', $this->dashboardData($user, null));
         }
         $subscription = $user->activeSubscription()->first();
@@ -28,7 +25,9 @@ class DashboardController extends Controller
 
             // Keep the owner authenticated so an expired plan can be renewed safely.
 
-            return redirect()->route('plans.mine');
+            return view('dashboard', $this->dashboardData($user, [
+                'type' => 'warning', 'message' => 'Tu cuenta no tiene acceso vigente a los programas. Puedes revisar tus proyectos y respaldos; elige o renueva un plan para usar las herramientas.', 'show_button' => true,
+            ]));
         }
 
         // --- 2. Lógica de Alerta para Dashboard (Solo si tiene acceso) ---
@@ -49,6 +48,15 @@ class DashboardController extends Controller
         }
 
         return ['user' => $user, 'alert' => $alert, 'current' => $user->currentSubscription()->first(),
+            'isAdmin' => $user->canManageUsers(),
+            'canUseTools' => $user->canManageUsers() || $user->hasActiveSubscription(),
+            'roleNames' => $user->getRoleNames()->sortBy(fn ($role) => \App\Services\RoleHierarchy::rank($role))->values(),
+            'recentModels' => \Illuminate\Support\Facades\DB::table('cad_models')->where('user_id', $user->id)->latest('updated_at')->limit(4)->get(['name','updated_at']),
+            'adminMetrics' => $user->canManageUsers() ? [
+                'users' => \App\Models\User::where('account_status', '!=', 'deleted')->count(),
+                'restricted' => \App\Models\User::whereIn('account_status', ['blocked','banned'])->count(),
+                'payments' => \App\Models\PaymentRequest::where('status', 'pending')->where('payment_method','culqi')->count(),
+            ] : null,
             'projectCount' => $projectCount,
             'pendingPayments' => \App\Models\PaymentRequest::where('user_id', $user->id)->where('status', 'pending')->count(),
             'lastBackup' => \App\Models\ProjectBackup::where('user_id', $user->id)->latest()->first(),

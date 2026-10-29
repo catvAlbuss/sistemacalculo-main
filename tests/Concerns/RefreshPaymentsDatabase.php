@@ -46,6 +46,7 @@ trait RefreshPaymentsDatabase
                 'database/migrations/2026_10_28_000013_create_media_table.php',
                 'database/migrations/2026_10_28_000014_set_trial_plans_to_five_days.php',
                 'database/migrations/2026_10_28_000015_add_youtube_to_showcase_videos.php',
+                'database/migrations/2026_10_28_000016_add_account_access_control.php',
                 'database/migrations/2026_03_24_205903_create_memoria_calculos_table.php',
                 'database/migrations/2026_03_24_205941_create_memoria_imagenes_table.php',
                 'database/migrations/2026_05_14_150725_create_memorias_descriptivas_table.php',

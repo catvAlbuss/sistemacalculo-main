@@ -8,7 +8,7 @@
                 <dl class="wk-profile-details">
                     <div><dt>Correo de registro</dt><dd>{{ $account->email }}</dd></div>
                     <div><dt>Roles asignados</dt><dd>{{ $account->getRoleNames()->implode(', ') ?: 'Sin rol asignado' }}</dd></div>
-                    <div><dt>Estado de la cuenta</dt><dd>{{ $account->is_active ? 'Activa' : 'Inactiva' }}</dd></div>
+                    <div><dt>Estado de la cuenta</dt><dd>{{ $account->account_status === 'enabled' && ($account->is_active || $account->canManageUsers()) ? 'Habilitada' : 'Acceso restringido' }}</dd></div>
                     <div><dt>Fecha de registro</dt><dd>{{ $account->created_at?->format('d/m/Y') ?? '—' }}</dd></div>
                 </dl>
                 <details class="wk-profile-permissions"><summary>Ver permisos asignados</summary>
@@ -20,7 +20,7 @@
             </div>
         </section>
         <section class="pr-panel wk-account-item"><div><span class="en-card-number">02 / DATOS PERSONALES</span><h2>Información personal</h2><p>Puedes editar tu nombre y completar tu información de contacto y profesional.</p></div><div><livewire:profile.update-profile-information-form /></div></section>
-        <section class="pr-panel wk-account-item"><div><span class="en-card-number">03 / SEGURIDAD</span><h2>Contraseña y acceso</h2><p>Usa una contraseña exclusiva para esta cuenta y evita compartirla.</p></div><div><p class="wk-notice">Dispositivos con actividad en los últimos 30 minutos: <strong>{{ $account->activeSessions()->count() }}</strong>. Si no reconoces un acceso, cambia tu contraseña y contacta con soporte.</p><livewire:profile.update-password-form /></div></section>
+        <section class="pr-panel wk-account-item"><div><span class="en-card-number">03 / SEGURIDAD</span><h2>Contraseña y acceso</h2><p>Cuenta personal de un solo titular. No compartas tus credenciales.</p></div><div><p class="wk-notice">Sesiones activas: <strong>{{ $account->accountSessions()->count() }} de 2</strong>. Un tercer acceso simultáneo cierra todas las sesiones y registra un aviso. Al cambiar tu contraseña se cierran las demás sesiones.</p><livewire:profile.update-password-form /><details class="wk-coverage-history"><summary>Últimos avisos de seguridad</summary>@forelse($account->securityEvents()->limit(5)->get() as $event)<p class="wk-notice"><strong>{{ $event->created_at->timezone('America/Lima')->format('d/m/Y H:i') }}</strong> · {{ $event->message }}</p>@empty<p class="pr-hint">No hay avisos de seguridad registrados.</p>@endforelse</details></div></section>
         <section class="pr-panel wk-account-item"><div><span class="en-card-number">04 / CUENTA</span><h2>Cierre de cuenta</h2><p>Descarga tus respaldos antes de solicitar cambios permanentes.</p></div><div><livewire:profile.delete-user-form /></div></section>
     </div>
 </x-workspace-layout>

@@ -25,6 +25,8 @@ class Culqi
             $errors[] = 'Las llaves pública y privada deben pertenecer al mismo entorno.';
         } elseif (app()->environment('local', 'testing') && $pk[1] === 'live') {
             $errors[] = 'En local y testing solo se permiten llaves de integración (test).';
+        } elseif (app()->isProduction() && $pk[1] !== 'live') {
+            $errors[] = 'En producción se requieren llaves live del comercio, no llaves test.';
         }
         if (!preg_match('/^[A-Za-z0-9_-]{32,128}$/', (string) config('services.culqi.webhook_token'))) {
             $errors[] = 'Configura CULQI_WEBHOOK_TOKEN con 32 a 128 caracteres alfanuméricos.';
@@ -61,6 +63,10 @@ class Culqi
             // A lost response never expires into permission to charge again.
             if (in_array($payment->gateway_state, ['processing', 'uncertain'], true)) {
                 return $this->result(false, 'uncertain', 'Estamos confirmando tu pago. No pagues otra vez; revisa el estado o contáctanos.');
+            }
+            $until=$payment->plan_snapshot['lifetime_quote']['valid_until'] ?? null;
+            if($until && \Illuminate\Support\Carbon::parse($until)->isPast()) {
+                return $this->result(false,'closed','Esta propuesta venció. Contáctenos para que root o gerencia emitan una nueva.');
             }
             $context = $payment->gateway_context ?? [];
             if ($payment->gateway_state === 'authentication' && isset($data['authentication_3DS'])) {

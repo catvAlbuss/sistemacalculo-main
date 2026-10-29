@@ -1,3 +1,4 @@
+import { csrfHeaders } from '../../lib/csrfHeaders.js';
 // resources/js/cad/mixins/analysis/rcColumnDesign.js
 //
 // Diseño de columnas de concreto armado: geometría + armado real (parseado
@@ -1077,7 +1078,7 @@ export const rcColumnDesignMixin = {
   async _rcFetchColumnInteraction(geometry, points) {
     const res = await fetch("/api/backend/column-interaction", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: csrfHeaders({ "Content-Type": "application/json" }),
       cache: "no-store",
       body: JSON.stringify({ ...geometry, demandPoints: points }),
     });
@@ -1095,7 +1096,7 @@ export const rcColumnDesignMixin = {
   async _rcFetchColumnShear(payload) {
     const res = await fetch("/api/backend/column-shear", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: csrfHeaders({ "Content-Type": "application/json" }),
       cache: "no-store",
       body: JSON.stringify(payload),
     });

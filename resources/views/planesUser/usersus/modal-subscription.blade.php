@@ -1,176 +1,32 @@
 <div x-show="showSubscriptionModal" class="wk-modal-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="subscription-modal-title" x-trap.inert.noscroll="showSubscriptionModal" @keydown.escape.stop.prevent="showSubscriptionModal = false" @click.self="showSubscriptionModal = false">
-    <section class="wk-modal-panel wk-modal-wide" @click.stop>
-        <header class="wk-modal-header"><div><p class="pr-eyebrow">Administración / Suscripciones</p><h2 id="subscription-modal-title">Gestionar suscripción</h2><p x-text="subscriptionData.name"></p></div><button type="button" class="wk-modal-close" @click="showSubscriptionModal = false" aria-label="Cerrar gestión de suscripción">×</button></header>
-        <div class="wk-modal-form wk-subscription-form">
-        <!-- Suscripción Actual -->
-        <template x-if="subscriptionData.current_subscription">
-            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg mb-4 border border-blue-200">
-                <div class="flex justify-between items-start mb-3">
-                    <div>
-                        <p class="font-semibold text-lg text-gray-800">Plan Actual</p>
-                        <p class="text-blue-600 font-bold" x-text="subscriptionData.current_subscription.plan.name"></p>
-                    </div>
-                    <span class="px-3 py-1 rounded-full text-xs font-semibold"
-                          :class="{
-                              'bg-green-100 text-green-800': subscriptionData.current_subscription.status === 'active',
-                              'bg-red-100 text-red-800': subscriptionData.current_subscription.status === 'cancelled',
-                              'bg-yellow-100 text-yellow-800': subscriptionData.current_subscription.status === 'suspended'
-                          }"
-                          x-text="subscriptionData.current_subscription.status === 'active' ? 'Activo' : 
-                                  subscriptionData.current_subscription.status === 'cancelled' ? 'Cancelado' : 'Suspendido'">
-                    </span>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-3 text-sm text-gray-700 mb-3">
-                    <div>
-                        <p class="text-gray-600">Inicio:</p>
-                        <p class="font-medium" x-text="new Date(subscriptionData.current_subscription.starts_at).toLocaleDateString('es-PE')"></p>
-                    </div>
-                    <div>
-                        <p class="text-gray-600">Expiración:</p>
-                        <p class="font-medium" x-text="subscriptionData.subscription_ends_at ? new Date(subscriptionData.subscription_ends_at).toLocaleDateString('es-PE') : 'De por vida'"></p>
-                    </div>
-                </div>
-
-                <!-- Botones de Acción -->
-                <div class="flex flex-wrap gap-2 mt-3">
-                    <!-- Cancelar Suscripción -->
-                    <template x-if="subscriptionData.current_subscription.status === 'active'">
-                        <form :action="`/subscription/${subscriptionData.current_subscription.id}`"
-                            method="POST" class="inline-block"
-                            onsubmit="return confirm('¿Estás seguro de cancelar (dar de baja) esta suscripción?');">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="text-xs bg-red-500 text-white py-1.5 px-3 rounded hover:bg-red-600 transition">
-                                <i class="fas fa-times-circle mr-1"></i> Cancelar Plan
-                            </button>
-                        </form>
-                    </template>
-
-                    <!-- Suspender Suscripción -->
-                    <template x-if="subscriptionData.current_subscription.status === 'active'">
-                        <form :action="`/subscription/${subscriptionData.current_subscription.id}/suspend`"
-                            method="POST" class="inline-block"
-                            onsubmit="return confirm('¿Estás seguro de suspender esta suscripción?');">
-                            @csrf
-                            @method('PATCH')
-                            <button type="submit" class="text-xs bg-yellow-500 text-white py-1.5 px-3 rounded hover:bg-yellow-600 transition">
-                                <i class="fas fa-pause-circle mr-1"></i> Suspender
-                            </button>
-                        </form>
-                    </template>
-
-                    <!-- Reactivar Suscripción -->
-                    <template x-if="subscriptionData.current_subscription.status === 'suspended'">
-                        <form :action="`/subscription/${subscriptionData.current_subscription.id}/reactivate`"
-                            method="POST" class="inline-block"
-                            onsubmit="return confirm('¿Estás seguro de reactivar esta suscripción?');">
-                            @csrf
-                            @method('PATCH')
-                            <button type="submit" class="text-xs bg-green-500 text-white py-1.5 px-3 rounded hover:bg-green-600 transition">
-                                <i class="fas fa-play-circle mr-1"></i> Reactivar
-                            </button>
-                        </form>
-                    </template>
-
-                    <!-- Extender Suscripción -->
-                    <template x-if="subscriptionData.current_subscription.status === 'active' && subscriptionData.subscription_ends_at">
-                        <button @click="showExtendForm = !showExtendForm" 
-                                class="text-xs bg-indigo-500 text-white py-1.5 px-3 rounded hover:bg-indigo-600 transition">
-                            <i class="fas fa-calendar-plus mr-1"></i> Extender
-                        </button>
-                    </template>
-                </div>
-
-                <!-- Formulario de Extensión -->
-                <template x-if="subscriptionData.current_subscription.status === 'active' && subscriptionData.subscription_ends_at">
-                    <div x-show="showExtendForm" x-transition class="mt-3 pt-3 border-t border-blue-200">
-                        <form :action="`/subscription/${subscriptionData.current_subscription.id}/extend`"
-                            method="POST" class="flex gap-2 items-end">
-                            @csrf
-                            @method('PATCH')
-                            <div class="flex-1">
-                                <label class="block text-xs text-gray-600 mb-1">Días a extender:</label>
-                                <input type="number" name="days" min="1" max="3650" value="30" required
-                                    class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                            </div>
-                            <button type="submit" class="bg-indigo-600 text-white text-xs py-1.5 px-4 rounded hover:bg-indigo-700 transition">
-                                Extender
-                            </button>
-                            <button type="button" @click="showExtendForm = false" class="bg-gray-300 text-gray-700 text-xs py-1.5 px-3 rounded hover:bg-gray-400 transition">
-                                Cancelar
-                            </button>
-                        </form>
-                    </div>
-                </template>
+<section class="wk-modal-panel wk-modal-wide">
+    <header class="wk-modal-header"><div><p class="pr-eyebrow">Administración / Cobertura</p><h2 id="subscription-modal-title">Gestionar suscripción</h2><p><span x-text="subscriptionData.name"></span> · <span x-text="subscriptionData.email"></span></p></div><button type="button" class="wk-modal-close" @click="showSubscriptionModal = false" aria-label="Cerrar gestión de suscripción">×</button></header>
+    <div class="wk-modal-form">
+        <template x-if="subscriptionData.current_subscription"><section class="wk-coverage-card">
+            <div class="wk-section-head"><h3 x-text="subscriptionData.current_subscription.plan.name"></h3><span class="wk-badge" x-text="subscriptionData.current_subscription.label"></span></div>
+            <dl class="wk-profile-details"><div><dt>Inicio</dt><dd x-text="subscriptionData.current_subscription.starts_at"></dd></div><div><dt>Finalización</dt><dd x-text="subscriptionData.current_subscription.ends_at || 'Permanente'"></dd></div></dl>
+            <div class="wk-actions">
+                <template x-if="subscriptionData.current_subscription.status === 'active'"><form :action="'{{ url('subscription') }}/'+subscriptionData.current_subscription.id+'/suspend'" method="POST">@csrf @method('PATCH')<button class="pr-button pr-button-secondary">Suspender cobertura</button></form></template>
+                <template x-if="subscriptionData.current_subscription.status === 'suspended'"><form :action="'{{ url('subscription') }}/'+subscriptionData.current_subscription.id+'/reactivate'" method="POST">@csrf @method('PATCH')<button class="pr-button pr-button-secondary">Reactivar cobertura</button></form></template>
+                <template x-if="['active','suspended'].includes(subscriptionData.current_subscription.status)"><form :action="'{{ url('subscription') }}/'+subscriptionData.current_subscription.id" method="POST" onsubmit="return confirm('¿Cancelar esta cobertura? Esta acción no realiza una devolución de dinero.');">@csrf @method('DELETE')<button class="pr-button pr-button-secondary">Cancelar cobertura</button></form></template>
+                <template x-if="subscriptionData.current_subscription.ends_at && subscriptionData.current_subscription.status === 'active'"><button class="pr-button pr-button-secondary" type="button" @click="showExtendForm = !showExtendForm">Extender plazo</button></template>
             </div>
-        </template>
-
-        <!-- Sin Suscripción Activa -->
-        <template x-if="!subscriptionData.current_subscription">
-            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <i class="fas fa-exclamation-triangle text-yellow-400"></i>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-yellow-700">Este usuario no tiene una suscripción activa.</p>
-                    </div>
-                </div>
+            <form x-show="showExtendForm" :action="'{{ url('subscription') }}/'+subscriptionData.current_subscription.id+'/extend'" method="POST" class="wk-inline-form">@csrf @method('PATCH')<label for="extension-days" class="pr-label">Días adicionales<input id="extension-days" class="pr-input" type="number" name="days" value="30" min="1" max="3650" required></label><button class="pr-button">Aplicar extensión</button></form>
+        </section></template>
+        <template x-if="!subscriptionData.current_subscription"><p class="wk-notice">Esta cuenta todavía no tiene períodos de cobertura registrados.</p></template>
+        <form :action="'{{ url('planUser') }}/'+subscriptionData.id+'/subscription'" method="POST" class="wk-assignment-form">@csrf
+            <p class="wk-notice" data-tone="warning" x-show="subscriptionData.account_status !== 'enabled'">La cuenta tiene una restricción administrativa. Habilítala desde Acceso antes de asignar una cobertura.</p>
+            <h3>Asignación administrativa</h3><p class="pr-hint">Otorga cobertura sin procesar un pago. Los cobros con Culqi se confirman desde la pasarela y se consultan en Gestión de pagos.</p>
+            <p class="wk-notice">Para cobrar un plan de por vida, <a :href="'{{ url('administracion/usuarios') }}/'+subscriptionData.id+'/plan-vitalicio'">define el monto y crea una propuesta de pago</a>. La asignación manual de este formulario no registra un cobro.</p>
+            <div class="wk-form-grid">
+                <div><label class="pr-label" for="subscription_plan_id">Plan a asignar</label><select class="pr-input" id="subscription_plan_id" name="subscription_plan_id" required><option value="">Selecciona un plan</option>@foreach($plans as $plan)<option value="{{ $plan->id }}">{{ $plan->name }} · {{ $plan->duration_text }} · base {{ $plan->formatted_price }}</option>@endforeach</select><p class="pr-hint">El precio base no representa un cobro confirmado.</p></div>
+                <div><label class="pr-label" for="assignment-mode">Aplicación de cobertura</label><select class="pr-input" id="assignment-mode" name="assignment_mode"><option value="renew">Añadir al finalizar la cobertura contratada</option><option value="replace">Reemplazar la cobertura desde hoy</option></select><p class="pr-hint">Reemplazar cancela los períodos vigentes y programados, sin reembolsar pagos.</p></div>
+                <div><label class="pr-label" for="ends_at">Finalización personalizada · opcional</label><input class="pr-input" type="date" id="ends_at" name="ends_at" min="{{ now()->addDay()->format('Y-m-d') }}"><p class="pr-hint">En blanco: duración del plan. La cobertura permanente no usa esta fecha.</p></div>
+                <div><label class="pr-label" for="assignment-notes">Referencia administrativa · opcional</label><textarea class="pr-input" id="assignment-notes" name="notes" rows="2" maxlength="1000" placeholder="Convenio, corrección o autorización…"></textarea></div>
             </div>
-        </template>
-
-        <hr class="my-4">
-
-        <!-- Asignar/Cambiar Plan -->
-        <h3 class="text-lg font-semibold mb-3 flex items-center">
-            <i class="fas fa-exchange-alt text-blue-600 mr-2"></i>
-            Asignar/Cambiar Plan
-        </h3>
-        <form :action="`/planUser/${subscriptionData.id}/subscription`" method="POST">
-            @csrf
-            <div class="mb-4">
-                <label for="subscription_plan_id" class="block text-sm font-medium text-gray-700 mb-1">
-                    Seleccionar Plan <span class="text-red-500">*</span>
-                </label>
-                <select name="subscription_plan_id" id="subscription_plan_id"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required>
-                    <option value="">-- Seleccione un plan --</option>
-                    @foreach ($plans as $plan)
-                        <option value="{{ $plan->id }}">
-                            {{ $plan->name }} - {{ $plan->formatted_price }} ({{ $plan->duration_text }})
-                        </option>
-                    @endforeach
-                </select>
-                <p class="text-xs text-gray-500 mt-1">
-                    <i class="fas fa-info-circle"></i> Si el usuario tiene un plan activo, este será cancelado automáticamente.
-                </p>
-            </div>
-
-            <div class="mb-4">
-                <label for="ends_at" class="block text-sm font-medium text-gray-700 mb-1">
-                    Fecha de Finalización (Opcional)
-                </label>
-                <input type="date" name="ends_at" id="ends_at"
-                    :min="new Date().toISOString().split('T')[0]"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                <p class="text-xs text-gray-500 mt-1">
-                    <i class="fas fa-info-circle"></i> Dejar en blanco para usar la duración del plan. Para planes vitalicios se ignorará esta fecha.
-                </p>
-            </div>
-
-            <div class="flex justify-end gap-2 pt-4 border-t">
-                <button type="button" @click="showSubscriptionModal = false"
-                    class="bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg hover:bg-gray-300 transition">
-                    <i class="fas fa-times mr-1"></i> Cancelar
-                </button>
-                <button type="submit"
-                    class="bg-green-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-green-700 transition">
-                    <i class="fas fa-check mr-1"></i> Asignar Plan
-                </button>
-            </div>
+            <footer class="wk-form-footer"><button type="button" class="pr-button pr-button-secondary" @click="showSubscriptionModal = false">Cerrar</button><button class="pr-button" :disabled="subscriptionData.account_status !== 'enabled'">Asignar cobertura</button></footer>
         </form>
-        </div>
-    </section>
+        <details class="wk-coverage-history"><summary>Historial de cobertura · últimos 20 períodos</summary><div class="wk-table-scroll"><table class="wk-table"><thead><tr><th>Plan</th><th>Período</th><th>Estado</th><th>Origen</th></tr></thead><tbody><template x-for="period in (subscriptionData.history || [])" :key="period.id"><tr><td x-text="period.plan.name"></td><td><span x-text="period.starts_at"></span> → <span x-text="period.ends_at || 'Permanente'"></span></td><td x-text="period.label"></td><td x-text="period.payment_method === 'manual' ? 'Administrativo' : (period.payment_method === 'trial' ? 'Prueba gratuita' : period.payment_method)"></td></tr></template></tbody></table></div></details>
+    </div>
+</section>
 </div>

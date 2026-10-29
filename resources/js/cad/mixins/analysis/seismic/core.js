@@ -1,3 +1,4 @@
+import { csrfHeaders } from '../../../lib/csrfHeaders.js';
 // mixins/analysis/seismic/core.js — parte "core" del análisis sísmico
 // (seismic.js se partió en sub-mixins por responsabilidad; barril en seismic.js).
 import Swal from "sweetalert2";
@@ -353,7 +354,7 @@ export const seismicCoreMixin = {
             // navegador devolvía un análisis viejo (mismo URL/headers) y la tabla
             // de derivas quedaba "congelada" aunque el backend recalculara bien.
             cache: "no-store",
-            headers: {
+            headers: { ...csrfHeaders(),
               "Content-Type": "application/json",
               "Cache-Control": "no-cache, no-store, must-revalidate",
               "Pragma": "no-cache",

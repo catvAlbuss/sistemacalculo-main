@@ -17,7 +17,8 @@
         @if(!empty($payment->plan_snapshot['processing']))<p class="mt-2 text-sm text-gray-600">Precio final con procesamiento e IGV incluidos. El total es el mismo para los medios habilitados.</p>@endif
         @if($payment->currency === 'USD')<p class="mt-2 text-sm">Base: S/ {{ number_format($payment->amount, 2) }} · Tipo de cambio {{ $payment->exchange_rate }} PEN/USD, {{ $payment->exchange_rate_date?->format('d/m/Y') }}. USD se paga con tarjeta.</p>@endif
         @if(!empty($payment->plan_snapshot['credit']))<p class="mt-2 text-sm">Saldo aplicado por tiempo no usado: S/ {{ number_format($payment->plan_snapshot['credit'], 2) }}. Cambio inmediato al confirmarse el pago.</p>@endif
-        <p class="mt-2 text-xs text-gray-500">{{ ($payment->plan_snapshot['billing_cycle'] ?? '') === 'yearly' ? 'Este cobro cubre todo el año.' : 'Este cobro cubre el período indicado.' }} La renovación es manual.</p>
+        <p class="mt-2 text-xs text-gray-500">{{ ($payment->plan_snapshot['type'] ?? '') === 'lifetime' ? 'Pago único por acceso permanente. No requiere renovación.' : ((($payment->plan_snapshot['billing_cycle'] ?? '') === 'yearly' ? 'Este cobro cubre todo el año.' : 'Este cobro cubre el período indicado.').' La renovación es manual.') }}</p>
+        @if($until=$payment->plan_snapshot['lifetime_quote']['valid_until'] ?? null)<p class="wk-notice">Propuesta definida por administración. Válida hasta {{ \Illuminate\Support\Carbon::parse($until)->timezone('America/Lima')->format('d/m/Y H:i') }}.</p>@endif
         @if ($payment->receipt_type)
             <p class="mt-3 text-sm text-gray-600">{{ ucfirst($payment->receipt_type) }} para {{ $payment->billing_name }}<br>{{ $payment->document_type }}: {{ $payment->document_number }}</p>
         @endif
@@ -28,6 +29,8 @@
                 Esta solicitud fue cerrada. Contáctanos para continuar.
             @elseif (in_array($payment->gateway_state, ['processing', 'uncertain']))
                 Estamos confirmando tu pago. No pagues otra vez; revisa el estado o contáctanos.
+            @elseif ($offerExpired ?? false)
+                Esta propuesta venció. Contáctenos para solicitar una nueva a root o gerencia.
             @elseif (!$enabled)
                 El pago en línea no está disponible ahora. Contáctanos para continuar.
             @else
@@ -35,6 +38,7 @@
             @endif
         </p>
         <div class="mt-6 space-y-3">
+            @if(isset($payment->plan_snapshot['lifetime_quote']) && $payment->status==='pending' && !($offerExpired ?? false))<label class="wk-choice"><input id="payment-accept-terms" type="checkbox" required><span>Acepto el plan y el total de esta propuesta, los <a class="en-inline-link" href="{{ route('legal.terminos') }}" target="_blank" rel="noopener">Términos y condiciones</a> y la <a class="en-inline-link" href="{{ route('legal.devoluciones') }}" target="_blank" rel="noopener">Política de cambios y devoluciones</a>. He revisado la <a class="en-inline-link" href="{{ route('legal.privacidad') }}" target="_blank" rel="noopener">Política de privacidad</a>.</span></label>@endif
             <a href="{{ route('plans.mine') }}" class="block text-center text-blue-700">Mi plan y mis pagos</a>
             <a id="receipt-link" @if ($receiptUrl) href="{{ $receiptUrl }}" @else hidden @endif class="block rounded-lg border border-blue-200 px-4 py-3 text-center text-blue-700">Ver e imprimir ticket de 80 mm</a>
             @if ($enabled && $payment->status === 'pending' && !in_array($payment->gateway_state, ['processing', 'uncertain']))

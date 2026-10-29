@@ -18,6 +18,10 @@ export const pdfReady = document.documentElement.dataset.pdfEnabled?.trim() === 
 // Hacer Alpine disponible globalmente
 window.Alpine = Alpine;
 
+if (document.documentElement.dataset.accountPing) {
+  import('./account-session.js').then(({ startAccountSession }) => startAccountSession());
+}
+
 // Back/forward restoration must refresh navigation after login or logout.
 window.addEventListener('pageshow', event => {
   if (event.persisted) window.location.reload();

@@ -106,14 +106,14 @@ class AuthenticationTest extends TestCase
         }
     }
 
-    public function test_inactive_admin_stays_restricted_and_customer_without_plan_keeps_login(): void
+    public function test_legacy_plan_flag_does_not_block_enabled_admin_and_customer_can_view_dashboard_without_plan(): void
     {
         $admin = User::factory()->create(['is_active' => false]);
         $admin->assignRole('root');
-        $this->actingAs($admin)->get('/dashboard')->assertRedirect(route('plans.mine'));
-        $this->assertFalse($admin->canAccess('plans'));
+        $this->actingAs($admin)->get('/dashboard')->assertOk()->assertSee('Panel administrativo');
+        $this->assertTrue($admin->canAccess('plans'));
         $customer = User::factory()->create();
-        $this->actingAs($customer)->get('/dashboard')->assertRedirect(route('plans.mine'));
+        $this->actingAs($customer)->get('/dashboard')->assertOk()->assertSee('Sin plan vigente')->assertSee('Requiere plan vigente')->assertDontSee('Panel administrativo');
         $this->assertAuthenticatedAs($customer);
     }
 
@@ -123,6 +123,14 @@ class AuthenticationTest extends TestCase
         $this->post(route('login.store'), ['email' => strtoupper($user->email), 'password' => 'password'])
             ->assertSessionHasNoErrors()->assertRedirect(route('dashboard'));
         $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_login_always_returns_to_dashboard_instead_of_an_old_plan_redirect(): void
+    {
+        $user=User::factory()->create();
+        $this->withSession(['url.intended'=>route('plans.mine')])->post(route('login.store'),['email'=>$user->email,'password'=>'password'])
+            ->assertRedirect(route('dashboard'));
+        $this->get(route('dashboard'))->assertOk()->assertSee('Sin plan vigente');
     }
 
     public function test_normal_post_displays_invalid_credentials_and_shares_attempt_limit(): void

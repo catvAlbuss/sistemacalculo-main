@@ -16,13 +16,17 @@ class CulqiController extends Controller
 
     public function pay(PaymentRequest $paymentRequest, Culqi $culqi, Request $request)
     {
+        if (isset($paymentRequest->plan_snapshot['lifetime_quote']) && !$request->user()) {
+            return redirect()->guest(route('login'));
+        }
         abort_unless($paymentRequest->payment_method === 'culqi', 404);
         abort_if($request->user() && $request->user()->id !== $paymentRequest->user_id, 403);
         $expiry = min(now()->addDay()->timestamp, (int) $request->query('expires', now()->addDay()->timestamp));
 
         return response()->view('landing.culqi', [
             'payment' => $paymentRequest->load('plan'),
-            'enabled' => $culqi->enabled(),
+            'enabled' => $culqi->enabled() && !$this->expiredQuote($paymentRequest),
+            'offerExpired' => $this->expiredQuote($paymentRequest),
             'publicKey' => config('services.culqi.public_key'),
             'chargeUrl' => URL::temporarySignedRoute('culqi.charge', \Illuminate\Support\Carbon::createFromTimestamp($expiry), ['paymentRequest' => $paymentRequest->id]),
             'receiptUrl' => $paymentRequest->receipt()->first()?->ticketUrl(),
@@ -31,6 +35,17 @@ class CulqiController extends Controller
 
     public function charge(Request $request, PaymentRequest $paymentRequest, Culqi $culqi)
     {
+        if (isset($paymentRequest->plan_snapshot['lifetime_quote'])) {
+            abort_unless($request->user() && $request->user()->id === $paymentRequest->user_id, 403);
+            $request->validate(['accept_terms'=>'required|accepted'],['accept_terms.accepted'=>'Acepta las condiciones antes de pagar.']);
+            \Illuminate\Support\Facades\DB::transaction(function() use($paymentRequest){
+                $row=PaymentRequest::whereKey($paymentRequest->id)->lockForUpdate()->firstOrFail();
+                if($row->status==='pending' && empty($row->plan_snapshot['legal_acceptance'])) {
+                    $row->update(['plan_snapshot'=>array_merge($row->plan_snapshot,['legal_acceptance'=>app(\App\Services\LegalDocuments::class)->acceptance()])]);
+                    \App\Models\PaymentEvent::record($row,'legal_accepted',config('legal.version'));
+                }
+            });
+        }
         abort_unless($culqi->enabled(), 503, 'El pago en línea no está disponible.');
         abort_if($request->user() && $request->user()->id !== $paymentRequest->user_id, 403);
         $data = $request->validate([
@@ -96,5 +111,11 @@ class CulqiController extends Controller
             });
         } finally { $lock->release(); }
         return back()->with('success', 'Solicitud cerrada sin efectuar un cobro ni una devolución.');
+    }
+
+    private function expiredQuote(PaymentRequest $payment): bool
+    {
+        $until=$payment->plan_snapshot['lifetime_quote']['valid_until'] ?? null;
+        return $payment->status==='pending' && $until && \Illuminate\Support\Carbon::parse($until)->isPast();
     }
 }

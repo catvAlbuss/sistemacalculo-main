@@ -1,3 +1,4 @@
+import { csrfHeaders } from '../../../lib/csrfHeaders.js';
 // mixins/analysis/seismic/spectrum.js — parte "spectrum" del análisis sísmico
 // (seismic.js se partió en sub-mixins por responsabilidad; barril en seismic.js).
 import Swal from "sweetalert2";
@@ -64,7 +65,7 @@ export const seismicSpectrumMixin = {
           formData.append("file", file);
           const resp = await fetch(`${BACKEND_URL}/seismic/parse-spectrum`, {
             method: "POST",
-            body: formData,
+            headers: csrfHeaders(), body: formData,
           });
           const json = await resp.json();
           if (json.success) {

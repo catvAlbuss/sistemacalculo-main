@@ -95,7 +95,7 @@ class ContactPaymentTest extends TestCase
     public function test_zero_price_plan_never_requires_payment_proof(): void
     {
         Mail::fake();
-        $freePlan = $this->createPlan('monthly', 0, 10);
+        $freePlan = $this->createPlan('trial', 0, 5);
 
         $response = $this->post(route('contacto.store'), $this->requestData($freePlan));
 

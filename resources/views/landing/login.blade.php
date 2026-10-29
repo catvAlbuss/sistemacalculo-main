@@ -2,6 +2,7 @@
 @section('main')
 <main class="engineering-surface">
   <div class="pr-shell">
+    @if(request('sesion') === 'cerrada')<p class="en-notice" role="alert">Tu sesión fue cerrada o venció. Vuelve a iniciar sesión. Si se detectaron accesos simultáneos, encontrarás el aviso en Perfil y seguridad.</p>@endif
     <div class="en-login-layout">
       <section class="en-login-intro" aria-labelledby="welcome-heading">
         <div class="en-intro-copy">

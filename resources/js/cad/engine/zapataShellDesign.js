@@ -1,3 +1,4 @@
+import { csrfHeaders } from '../lib/csrfHeaders.js';
 // resources/js/cad/engine/zapataShellDesign.js
 //
 // Puente al endpoint /api/backend/zapata/shell-design (ver
@@ -70,7 +71,7 @@ export async function fetchZapataShellDesignReference({
   try {
     const resp = await fetch(ZAPATA_SHELL_DESIGN_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: csrfHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         Lx,
         Ly,
@@ -138,7 +139,7 @@ export async function fetchZapataShellCombinedDesignReference({
   try {
     const resp = await fetch(ZAPATA_SHELL_COMBINED_DESIGN_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: csrfHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         Lx,
         Ly,
@@ -217,7 +218,7 @@ export async function fetchZapataShellTrapezoidalDesignReference({
   try {
     const resp = await fetch(ZAPATA_SHELL_TRAPEZOIDAL_DESIGN_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: csrfHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         L,
         B0,
@@ -290,7 +291,7 @@ export async function fetchZapataShellLDesignReference({
   try {
     const resp = await fetch(ZAPATA_SHELL_L_DESIGN_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: csrfHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         Lx,
         Ly,
@@ -395,7 +396,7 @@ export async function fetchZapataShellPoligonoCombinadaDesignReference({
   try {
     const resp = await fetch(ZAPATA_SHELL_POLIGONO_COMBINADA_DESIGN_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: csrfHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         puntos,
         columnas,
@@ -478,7 +479,7 @@ export async function fetchZapataShellPoligonoDesignReference({
   try {
     const resp = await fetch(ZAPATA_SHELL_POLIGONO_DESIGN_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: csrfHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         puntos,
         columnaX,

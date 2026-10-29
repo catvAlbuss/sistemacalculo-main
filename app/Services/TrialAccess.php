@@ -21,6 +21,9 @@ class TrialAccess
     /** Caller holds the user row lock, preventing concurrent trial activations. */
     public function activate(User $user, Subscription $plan): UserSubscription
     {
+        if (!$plan->isTrial() || !$plan->isFree()) {
+            throw ValidationException::withMessages(['subscription_plan_id' => 'Solo el plan de prueba permite activar acceso gratuito.']);
+        }
         $this->ensureEligible($user);
         return $user->subscriptions()->create([
             'subscription_plan_id' => $plan->id, 'status' => 'active', 'starts_at' => now(),

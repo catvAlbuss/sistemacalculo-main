@@ -1,6 +1,7 @@
 import puppeteer from "puppeteer";
 import fs from "fs/promises";
 import path from "path";
+import { canLoadCaptureResource } from './scripts/capture-resource-policy.mjs';
 
 const VIEWPORT = {
 
@@ -114,6 +115,13 @@ async function run() {
 
   try {
     const page = await browser.newPage();
+    await page.setJavaScriptEnabled(false);
+    await page.setRequestInterception(true);
+    const origin = new URL(process.env.CAPTURE_APP_URL || 'http://127.0.0.1:8000').origin;
+    page.on('request', request => {
+      const allowed = canLoadCaptureResource(request.url(),request.resourceType(),origin,process.env.CAPTURE_DEV_ORIGIN || '');
+      return allowed ? request.continue() : request.abort();
+    });
     const html = construirHTMLCaptura(data);
 
     await page.setContent(html, {

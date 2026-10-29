@@ -50,6 +50,9 @@ class ContactPaymentController extends Controller
             throw \Illuminate\Validation\ValidationException::withMessages(['phone' => 'Ingresa un teléfono de 9 dígitos, con prefijo +51 opcional.']);
         }
         $plan = Subscription::active()->findOrFail($request->subscription_plan_id);
+        if ($plan->isLifetime()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['subscription_plan_id' => 'Plan de por vida: contáctenos. El importe lo define root o gerencia; no admite registro ni activación automática.']);
+        }
         $online = !$plan->isFree() && !$plan->isLifetime();
         if (!$online) { $request->merge(['currency' => 'PEN', 'purchase_mode' => 'renew']); }
         $quote = app(\App\Services\PlanPricing::class)->purchaseQuote($plan, $request->input('billing_cycle'), (int) $request->input('months', 1),

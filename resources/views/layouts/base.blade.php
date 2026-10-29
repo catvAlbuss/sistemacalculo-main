@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-pdf-enabled="{{ \Illuminate\Support\Facades\View::hasSection('without-pdf') ? 'false' : 'true' }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-pdf-enabled="{{ \Illuminate\Support\Facades\View::hasSection('without-pdf') ? 'false' : 'true' }}" @auth data-account-ping="{{ route('account.session') }}" data-account-login="{{ route('login', ['sesion'=>'cerrada']) }}" @endauth>
 
 <head>
   @section('head')

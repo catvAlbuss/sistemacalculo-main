@@ -11,7 +11,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->web(append: [\App\Http\Middleware\PreventCachedNavigation::class]);
+        $middleware->web(append: [\App\Http\Middleware\ProductionSecurityHeaders::class, \App\Http\Middleware\EnforceAccountAccess::class, \App\Http\Middleware\PreventCachedNavigation::class]);
         $middleware->validateCsrfTokens(except: ['webhooks/culqi/*']);
         // Registrar alias de middlewares
         $middleware->alias([

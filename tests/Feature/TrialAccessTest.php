@@ -65,6 +65,9 @@ class TrialAccessTest extends TestCase
         $payment = $this->signup(); $this->actingAs($payment->user);
         $this->post(route('planes.store'), $this->data())->assertSessionHasErrors('subscription_plan_id');
         $this->travel(6)->days();
+        // A returning customer starts a fresh session after the session lifetime has elapsed.
+        $this->flushSession();
+        $this->actingAs($payment->user->fresh());
         $this->post(route('planes.store'), $this->data())->assertSessionHasErrors('subscription_plan_id');
         $this->get(route('planes.register', ['plan' => $this->trial->id]))->assertRedirect(route('plans.mine'));
         $this->assertDatabaseCount('user_subscriptions', 1); $this->assertDatabaseCount('payment_requests', 1);

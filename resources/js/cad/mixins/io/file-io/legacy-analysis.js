@@ -1,3 +1,4 @@
+import { csrfHeaders } from '../../../lib/csrfHeaders.js';
 // mixins/io/file-io/legacy-analysis.js — parte "legacy-analysis" de file-io
 // (file-io.js se partió en sub-mixins por responsabilidad; barril en file-io.js).
 import Swal from "sweetalert2";
@@ -808,7 +809,7 @@ export const legacyAnalysisMixin = {
     // ============================================================
     const response = await fetch("/api/backend/analyze", {
       method: "POST",
-      headers: {
+      headers: { ...csrfHeaders(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -955,7 +956,7 @@ export const legacyAnalysisMixin = {
 
     const response = await fetch("/api/backend/analyze-3d", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: csrfHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ nodes, elements, supports, loads }),
     });
 

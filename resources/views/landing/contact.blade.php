@@ -3,6 +3,7 @@
 <main class="engineering-surface">
   <div class="pr-shell">
     <x-engineering-header eyebrow="Atención / Proyectos y soporte" title="Hablemos de tu proyecto" description="Te ayudamos con nuestras herramientas, servicios y opciones de acceso. Elige el canal que prefieras para comunicarte con el equipo." />
+    @if(request('plan')==='por-vida')<p class="en-notice">Plan de por vida · Contáctenos para preparar tu propuesta personalizada. Gerencia coordinará contigo el importe y las capacidades incluidas. Recibirás la propuesta en tu cuenta para revisar el precio final antes de pagar.</p>@endif
     <div class="en-contact-layout">
       <section class="en-contact-channels" aria-label="Canales de contacto">
         <a href="mailto:{{ config('legal.provider.email') }}" class="pr-panel en-channel-card">

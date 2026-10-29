@@ -23,6 +23,10 @@ class PlanesController extends Controller
         }
         abort_unless(is_scalar($id) && ctype_digit((string) $id), 404);
         $plan = Subscription::active()->findOrFail($id);
+        if ($plan->isLifetime()) {
+            return redirect()->route($request->user() ? 'account.support' : 'contacto.index',['plan'=>'por-vida'])
+                ->with('success', 'Plan de por vida: contáctenos. Solo root o gerencia definen el importe de tu propuesta.');
+        }
         if (!$plan->isFree() && $request->user()?->hasPermanentCoverage()) {
             return redirect()->route('plans.mine')->with('success', 'Tu acceso es permanente y no necesita renovación. Para modificarlo, contacta con soporte.');
         }

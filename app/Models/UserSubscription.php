@@ -73,7 +73,6 @@ class UserSubscription extends Model
                     $subscription->user->update([
                         'current_subscription_id' => null,
                         'subscription_ends_at' => null,
-                        'is_active' => false,
                     ]);
                 }
             }
@@ -167,7 +166,6 @@ class UserSubscription extends Model
             $this->user->update([
                 'current_subscription_id' => null,
                 'subscription_ends_at' => null,
-                'is_active' => false,
             ]);
         }
     }
@@ -176,9 +174,7 @@ class UserSubscription extends Model
     {
         $this->update(['status' => 'suspended']);
 
-        if ($this->user->current_subscription_id === $this->id) {
-            $this->user->update(['is_active' => false]);
-        }
+        // Coverage status restricts tools; only an account restriction blocks the identity itself.
     }
 
     public function reactivate(): void

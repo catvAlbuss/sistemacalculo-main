@@ -18,8 +18,9 @@
             </div>
             <fieldset class="wk-form-section"><legend>Roles de la cuenta</legend><p class="pr-hint">Selecciona al menos un rol. Los roles determinan las funciones disponibles.</p><div class="wk-choice-grid">
                 @foreach ($roles as $role)
-                    <label class="wk-choice"><input type="checkbox" name="roles[]" value="{{ $role->name }}" x-model="userData.roles"><span>{{ $role->name }}</span></label>
+                    <label class="wk-choice"><input type="checkbox" name="roles[]" value="{{ $role->name }}" x-model="userData.roles" @if($role->name === 'root') :disabled="{{ auth()->user()->hasRole('root') ? 'false' : 'true' }} || (isEditMode && userData.protected_root)" @endif><span><strong>{{ ucfirst($role->name) }}</strong><small class="wk-role-description">{{ \App\Services\RoleHierarchy::description($role->name) }}</small></span></label>
                 @endforeach
+                <template x-if="isEditMode && userData.protected_root"><input type="hidden" name="roles[]" value="root"></template>
             </div></fieldset>
             <details class="wk-form-section"><summary>Permisos adicionales</summary><p class="pr-hint">Se suman a los permisos del rol; desmarcarlos no elimina los permisos heredados.</p><input type="hidden" name="permissions_present" value="1"><div class="wk-choice-grid">
                 @forelse ($permissions as $permission)

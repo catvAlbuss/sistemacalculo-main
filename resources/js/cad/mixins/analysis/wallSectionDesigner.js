@@ -1,3 +1,4 @@
+import { csrfHeaders } from '../../lib/csrfHeaders.js';
 // resources/js/cad/mixins/analysis/wallSectionDesigner.js
 //
 // Placas dibujadas en el Section Designer de ETABS: lista las secciones, las
@@ -190,7 +191,7 @@ export const wallSectionDesignerMixin = {
     try {
       const resp = await fetch("/api/backend/wall-interaction", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: csrfHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           shapes: st.shapes,
           rebarCatalog: this.getRebarCatalogForWalls(),

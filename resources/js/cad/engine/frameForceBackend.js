@@ -1,3 +1,4 @@
+import { csrfHeaders } from '../lib/csrfHeaders.js';
 // resources/js/cad/analysis/frameForceBackend.js
 //
 // Puente entre el MOTOR (Flask/OpenSeesPy, /api/frame-forces) y el visor de
@@ -409,7 +410,7 @@ export async function loadRealFrameForceResults(cadSystem, opts = {}) {
     try {
         const resp = await fetch(FRAME_FORCES_API_URL, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: csrfHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify(body),
         });
 

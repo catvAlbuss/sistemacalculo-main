@@ -22,6 +22,6 @@ class ProductShowcase
 
     public function trialPlan(): ?Subscription
     {
-        return Subscription::active()->where('price', 0)->orderBy('sort_order')->first();
+        return Subscription::active()->where('type', 'trial')->where('price', 0)->orderBy('sort_order')->first();
     }
 }

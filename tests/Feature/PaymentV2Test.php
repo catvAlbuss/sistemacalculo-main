@@ -192,7 +192,7 @@ class PaymentV2Test extends TestCase
         $this->signup(['name' => 'Otro cliente privado', 'email' => 'otro@example.com']);
         $this->get('/mi-plan')->assertRedirect(route('login'));
         $first->user->subscriptions()->update(['ends_at' => now()->subDay()]);
-        $this->actingAs($first->user)->get('/dashboard')->assertRedirect(route('plans.mine'));
+        $this->actingAs($first->user)->get('/dashboard')->assertOk()->assertSee('Sin plan vigente');
         $this->assertAuthenticatedAs($first->user);
         $this->get('/mi-plan')->assertOk()->assertSee('cliente@example.com')->assertDontSee('Otro cliente privado');
         $this->get(route('planes.register', ['plan' => $this->plan->id]))->assertOk()->assertSee('00123456');

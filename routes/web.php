@@ -45,7 +45,7 @@ Route::get('/api/opensees/status', function () {
     [$status, $body] = PythonEngineController::run('opensees-status', []);
 
     return response($body, $status)->header('Content-Type', 'application/json');
-})->name('opensees.status');
+})->middleware(['auth','check.subscription','throttle:30,1,engine-status'])->name('opensees.status');
 
 // Ruta POST para análisis (con autenticación)
 Route::post('/api/opensees/analyze', [OpenSeesController::class, 'analyze'])->middleware(['auth', 'check.subscription']);
@@ -56,12 +56,12 @@ Route::view('/servicios/software_estructural', 'landing.structural_software')->n
 Route::view('/servicios/planos_estructurales', 'landing.structural_blueprint')->name('landing.services.structural_blueprint');
 Route::view('/servicios/metrados', 'landing.metrados')->name('landing.services.metrados');
 //Route::view('/contacto', 'landing.contact')->name('landing.contact');
-Route::post('/cotizarplano', [enviarCotizacionController::class, 'enviarCotizacion'])->name('cotizarplano');
+Route::post('/cotizarplano', [enviarCotizacionController::class, 'enviarCotizacion'])->middleware('throttle:3,10,contact-quote')->name('cotizarplano');
 // Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento']);
 
 // Route::post('/capturar-viga-descarga', [VigaCaptureController::class, 'descargar']);
 
-Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento'])->middleware(['auth', 'check.subscription']);
+Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento'])->middleware(['auth', 'check.subscription', 'throttle:5,1,capture']);
 
 //==========================RUTA PARA LAS PRUEBAS PREDIM==================//
 Route::view('/info/arco_techo', 'landing.arco_techo')->name('landing.info.arco_techo');
@@ -82,10 +82,11 @@ Route::view('profile', 'profile')
     ->middleware(['auth'])
     ->name('profile');
 
-Route::resource('contacto', ContactPaymentController::class)->except('store');
+Route::get('/contacto', [ContactPaymentController::class, 'index'])->name('contacto.index');
 Route::post('/contacto', [ContactPaymentController::class, 'store'])->middleware('throttle:10,10,checkout')->name('contacto.store');
 Route::get('/planes', [App\Http\Controllers\PlanesController::class, 'index'])->name('landing.plans');
 Route::get('/mi-plan', App\Http\Controllers\MyPlanController::class)->middleware('auth')->name('plans.mine');
+Route::get('/mi-cuenta/sesion', fn () => response()->json(['active' => true])->header('Cache-Control', 'private, no-store'))->middleware('auth')->name('account.session');
 Route::get('/mi-plan/contratar', [App\Http\Controllers\PlanesController::class, 'index'])->middleware('auth')->name('plans.catalog');
 Route::view('/mi-cuenta/soporte', 'landing.contact', ['internal' => true])->middleware('auth')->name('account.support');
 Route::post('/mi-plan/pagos/{paymentRequest}/cancelar', [App\Http\Controllers\CulqiController::class, 'cancel'])
@@ -115,8 +116,8 @@ Route::post('/webhooks/culqi/{token}', [App\Http\Controllers\CulqiController::cl
 Route::view('/landing/success', 'landing.success')->name('landing.success');
 Route::get('/download-proof/{paymentRequest}', [ContactPaymentController::class, 'downloadProof'])->name('download.proof')->middleware('signed');
 //==========================GESTIÓN DE USUARIOS (Root y Gerencia)=========//
-Route::middleware(['auth', 'verified', 'role:root,gerencia'])->group(function () {
-    Route::view('/usuarios', 'livewire.user-management')->name('users.index');
+Route::middleware(['auth', 'verified', 'role:root|gerencia'])->group(function () {
+    Route::get('/usuarios', fn () => redirect()->route('planUser.index'))->name('users.index');
 });
 // Gestión de Planes (Solo Root y Gerencia)
 Route::middleware(['auth', 'verified', 'role:root|gerencia'])->group(function () {
@@ -131,6 +132,8 @@ Route::middleware(['auth', 'verified', 'role:root|gerencia'])->group(function ()
     Route::post('/administracion/reclamaciones/{complaint}/responder', [App\Http\Controllers\ComplaintController::class, 'answer'])
         ->middleware('throttle:30,1,complaints.answer')->name('complaints.admin.answer');
     Route::get('/administracion/pagos', [App\Http\Controllers\PaymentAdminController::class, 'index'])->name('payments.admin.index');
+    Route::get('/administracion/usuarios/{user}/plan-vitalicio', [App\Http\Controllers\LifetimeQuoteController::class, 'create'])->name('lifetime-quotes.create');
+    Route::post('/administracion/usuarios/{user}/plan-vitalicio', [App\Http\Controllers\LifetimeQuoteController::class, 'store'])->middleware('throttle:5,10,lifetime-quote')->name('lifetime-quotes.store');
     Route::get('/administracion/pagos/{paymentRequest}', [App\Http\Controllers\PaymentAdminController::class, 'show'])->name('payments.admin.show');
     Route::post('/administracion/pagos/eventos/{event}/revisar', [App\Http\Controllers\PaymentAdminController::class, 'review'])
         ->middleware('throttle:30,1,payments.review')->name('payments.admin.review');
@@ -141,6 +144,7 @@ Route::middleware(['auth', 'verified', 'role:root|gerencia'])->group(function ()
     // Rutas de Gestión de Usuarios (Ej: /planUser/{planUser})
     Route::resource('planUser', GestionUserRolSuscripcion::class); // Mantener CRUD del usuario si lo necesitas
     Route::post('planUser/{planUser}/subscription', [GestionUserRolSuscripcion::class, 'assignSubscription'])->name('planUser.assignSubscription');
+    Route::patch('planUser/{planUser}/account-status', [GestionUserRolSuscripcion::class, 'accountStatus'])->name('planUser.accountStatus');
 
     Route::prefix('subscription')->name('subscription.')->group(function () {
         Route::delete('{subscription}', [GestionUserRolSuscripcion::class, 'cancelSubscription'])->name('cancel');
@@ -151,7 +155,7 @@ Route::middleware(['auth', 'verified', 'role:root|gerencia'])->group(function ()
 });
 
 //==========================RUTAS CON SUSCRIPCIÓN ACTIVA==================//
-Route::middleware(["auth", "verified", "check.subscription"])->group(function () {
+Route::middleware(["auth", "verified", "check.subscription", App\Http\Middleware\ValidateLegacyCalculation::class])->group(function () {
     Route::prefix("calculadora")->name("calculadora.")->group(function () {
         Route::prefix("estudiante")->name("estudiante.")->group(function () {
             Route::prefix("cav2")->name("cav2.")->group(function () {
@@ -366,8 +370,7 @@ Route::prefix('storage')->group(function () {
 });
 
 Route::prefix('api/backend')
-    ->middleware(['auth', 'check.subscription'])
-    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+    ->middleware(['auth', 'check.subscription', 'throttle:30,1,calculation-engine'])
     ->group(function () {
 
         $jsonPayload = fn () => json_decode(request()->getContent(), true) ?? [];

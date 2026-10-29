@@ -136,7 +136,10 @@ class OctavePlotController extends Controller
             header('Content-Length: ' . strlen($stdout));
             echo $stdout;
         } else {
-            echo $stderr . "<br>" . $function;
+            \Illuminate\Support\Facades\Log::warning('Error del motor Octave.', ['stderr'=>mb_substr($stderr,0,1024)]);
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['success'=>false,'error'=>'No se pudo completar el cálculo. Revisa los datos o contacta con soporte.']);
         }
     }
 

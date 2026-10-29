@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mountCulqiPayment } from '../../resources/js/culqi-checkout.js';
 
-function setup(responses, overrides = {}) {
+function setup(responses, overrides = {}, requiresTerms = false) {
     const events = {};
     const element = () => ({ hidden: false, disabled: false, textContent: '', handlers: {}, addEventListener(event, handler) { this.handlers[event] = handler; } });
     const elements = { 'pay-button': element(), 'refresh-button': element(), 'payment-message': element(), 'culqi-config': element() };
+    if (requiresTerms) elements['payment-accept-terms'] = { ...element(), checked: false };
     elements['culqi-config'].textContent = JSON.stringify({ publicKey: 'pk_test_example', amount: 4990, email: 'cliente@example.com', title: 'Rizabal', chargeUrl: '/charge?signed', ...overrides });
     const requests = [];
     let checkout;
@@ -39,6 +40,14 @@ function setup(responses, overrides = {}) {
     } };
 }
 const tick = () => new Promise((resolve) => setImmediate(resolve));
+
+test('a lifetime proposal waits for acceptance before opening Checkout and sends acceptance with the token', async () => {
+    const ui = setup([{ ok:true, message:'Pago confirmado' }], {}, true);
+    await ui.elements['pay-button'].handlers.click();
+    assert.equal(ui.checkout, undefined);assert.equal(ui.requests.length,0);
+    ui.elements['payment-accept-terms'].checked = true;
+    await ui.start();assert.equal(ui.requests[0].body.accept_terms,true);
+});
 
 test('successful payment sends token and CSRF then displays confirmation', async () => {
     const ui = setup([{ ok: true, message: 'Pago confirmado' }]);

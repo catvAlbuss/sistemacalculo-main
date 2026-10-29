@@ -7,8 +7,10 @@
     @if($errors->any())<p role="alert" class="wk-notice" data-tone="danger">{{ $errors->first() }}</p>@endif
     <section class="pr-panel wk-card">
         <p class="pr-eyebrow">Acceso de {{ $user->email }}</p>
-        <h2>{{ $current ? 'Plan actual: '.$current->plan->name : 'Tu plan ha vencido o no tienes un plan vigente.' }}</h2>
-        @if(!$user->is_active)
+        <h2>{{ $current ? 'Plan actual: '.$current->plan->name : ($user->canManageUsers() ? 'Acceso administrativo por rol' : 'Tu plan ha vencido o no tienes un plan vigente.') }}</h2>
+        @if($user->canManageUsers())
+            <p>Tu cuenta administrativa está habilitada. El acceso de {{ $user->getRoleNames()->implode(', ') }} depende de sus permisos y no requiere contratar un plan. Aquí puedes consultar las coberturas y los pagos registrados a tu nombre.</p>
+        @elseif(!$user->is_active)
             <p class="wk-notice" data-tone="danger">Tu cuenta está suspendida. Contacta con soporte; un pago no elimina una suspensión administrativa.</p>
         @elseif($permanent)
             <p>Tu acceso es permanente y no necesita renovación. Para modificar sus condiciones, contacta con soporte.</p>
@@ -17,7 +19,11 @@
             @if($current?->accessEndsAt())<p>Vence el {{ $current->accessEndsAt()->format('d/m/Y') }}.</p>@endif
             @if($current?->payment_method === 'trial')<p class="wk-notice">Tu prueba es gratuita durante 5 días. Después deberás contratar un plan pagado; no se harán cobros automáticos.</p>@endif
             <p>Puedes renovar antes del vencimiento: conservas los días ya pagados. El siguiente período comienza al terminar tu cobertura pagada. Las bajadas se aplican al siguiente período. Si eliges un plan de mayor precio mensual, podrás revisar el cambio inmediato con saldo por tiempo no usado.</p>
-            <div class="en-actions">@foreach($plans as $plan)<a class="pr-button pr-button-secondary" href="{{ route('planes.register',['plan'=>$plan->id]) }}">Renovar con {{ $plan->name }}</a>@endforeach</div>
+            <div class="wk-renewal-grid">@foreach($plans as $plan)
+                @php($quote = $renewalQuotes[$plan->id])
+                <article class="wk-renewal-card"><p class="pr-eyebrow">{{ $plan->duration_text }}</p><h3>{{ $plan->name }}</h3><p>{{ $plan->description }}</p>@if(isset($quote['unavailable']))<p class="wk-muted">{{ $quote['unavailable'] }}</p>@else<strong class="wk-renewal-price">S/ {{ number_format($quote['total'],2) }}</strong><small>Precio final del período, con procesamiento incluido.</small>@endif<a class="pr-button" href="{{ route('planes.register',['plan'=>$plan->id]) }}">Renovar con {{ $plan->name }}</a></article>
+            @endforeach</div>
+            <p class="pr-hint">Revisa el resumen antes de pagar. La cobertura se confirma cuando Culqi aprueba el cobro; registrar una solicitud no activa un plan.</p>
         @endif
     </section>
     <section aria-labelledby="coverage-heading"><div class="wk-section-head"><h2 id="coverage-heading">Cobertura contratada</h2></div>

@@ -31,6 +31,13 @@ $updatePassword = function () {
     Auth::user()->update([
         'password' => Hash::make($validated['password']),
     ]);
+    \Illuminate\Support\Facades\DB::transaction(function () {
+        $user = \App\Models\User::whereKey(Auth::id())->lockForUpdate()->firstOrFail();
+        app(\App\Services\AccountAccess::class)->revoke($user);
+        app(\App\Services\AccountAccess::class)->register($user, request());
+        Auth::setUser($user->fresh());
+        app(\App\Services\AccountAccess::class)->record($user, 'password_changed', 'Contraseña actualizada. Se cerraron las demás sesiones.');
+    });
 
     $this->reset('current_password', 'password', 'password_confirmation');
 

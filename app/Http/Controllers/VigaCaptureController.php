@@ -6,15 +6,18 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Symfony\Component\Process\Process;
 
 class VigaCaptureController extends Controller
 {
     public function capturarFragmento(Request $request): JsonResponse|BinaryFileResponse
     {
+        $data = $this->validarDatos($request);
+        $jsonPath = null;
         try {
-            $data = $this->validarDatos($request);
-
-            $timestamp = now()->format('Ymd_His_u');
+            $timestamp = (string) Str::uuid();
             $jsonPath = $this->obtenerRutaJson($timestamp);
             $imagePath = $this->obtenerRutaImagen($timestamp);
 
@@ -26,7 +29,6 @@ class VigaCaptureController extends Controller
                 return response()->json([
                     'ok' => false,
                     'message' => 'No se generó la imagen.',
-                    'raw' => trim((string) $output),
                 ], 500);
             }
 
@@ -34,23 +36,25 @@ class VigaCaptureController extends Controller
                 $imagePath,
                 $this->generarNombreDescarga($timestamp),
                 ['Content-Type' => 'image/png']
-            );
+            )->deleteFileAfterSend(true);
         } catch (\Throwable $e) {
+            Log::warning('No se pudo capturar el resultado de vigas.', ['exception'=>get_class($e)]);
             return response()->json([
                 'ok' => false,
-                'message' => $e->getMessage(),
-                'trace' => $e->getFile() . ':' . $e->getLine(),
+                'message' => 'No se pudo generar la imagen. Intenta nuevamente o contacta con soporte.',
             ], 500);
+        } finally {
+            if ($jsonPath && File::exists($jsonPath)) { File::delete($jsonPath); }
         }
     }
 
     private function validarDatos(Request $request): array
     {
         return $request->validate([
-            'html' => 'required|string',
-            'stylesheets' => 'nullable|array',
-            'stylesheets.*' => 'string',
-            'inlineStyles' => 'nullable|string',
+            'html' => 'required|string|max:3000000',
+            'stylesheets' => 'nullable|array|max:30',
+            'stylesheets.*' => 'string|max:2048',
+            'inlineStyles' => 'nullable|string|max:300000',
         ]);
     }
 
@@ -61,7 +65,7 @@ class VigaCaptureController extends Controller
 
     private function obtenerRutaImagen(string $timestamp): string
     {
-        return public_path("captures/resultado_viga_{$timestamp}.png");
+        return storage_path("app/private/captures/resultado_viga_{$timestamp}.png");
     }
 
     private function guardarPayload(string $jsonPath, array $data): void
@@ -77,9 +81,14 @@ class VigaCaptureController extends Controller
         $node = 'node';
         $script = base_path('capture-viga-fragmento.mjs');
 
-        $command = "\"{$node}\" \"{$script}\" \"{$jsonPath}\" \"{$imagePath}\" 2>&1";
-
-        return (string) shell_exec($command);
+        $environment=['CAPTURE_APP_URL'=>request()->getSchemeAndHttpHost()];
+        if(app()->isLocal() && is_file(public_path('hot'))) {
+            $hot=trim(file_get_contents(public_path('hot')));
+            if(in_array(parse_url($hot,PHP_URL_HOST),['localhost','127.0.0.1','::1'],true)){$environment['CAPTURE_DEV_ORIGIN']=$hot;}
+        }
+        $process = new Process([$node, $script, $jsonPath, $imagePath], base_path(), $environment);
+        $process->setTimeout(60)->mustRun();
+        return $process->getOutput();
     }
 
     private function generarNombreDescarga(string $timestamp): string

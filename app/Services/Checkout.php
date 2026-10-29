@@ -16,6 +16,9 @@ class Checkout
 {
     public function create(Request $request, Subscription $plan, array $billing): PaymentRequest
     {
+        if ($plan->isLifetime()) {
+            throw ValidationException::withMessages(['subscription_plan_id' => 'El plan de por vida requiere una propuesta creada por root o gerencia. Contáctenos.']);
+        }
         $quote = app(PlanPricing::class)->purchaseQuote($plan, $request->input('billing_cycle'), (int) $request->input('months', 1),
             $request->input('currency', 'PEN'), $request->user(), $request->input('purchase_mode', 'renew'));
         if ($request->input('checkout_form_version') === '5' && !hash_equals($quote['pricing_key'], (string) $request->input('pricing_key'))) {

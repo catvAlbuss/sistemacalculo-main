@@ -21,7 +21,7 @@ class CheckSubscription
             return $json ? response()->json(['message' => 'Inicia sesión para continuar.'], 401)
                 : redirect()->guest(route('login'));
         }
-        if ($user->is_active && ($user->hasRole(['root', 'gerencia']) || $user->hasActiveSubscription())) {
+        if ($user->canManageUsers() || $user->hasActiveSubscription()) {
             return $next($request);
         }
         $message = $user->is_active

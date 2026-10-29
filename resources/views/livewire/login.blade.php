@@ -8,7 +8,8 @@ $login = function () {
     $this->validate();
     $this->form->authenticate();
     Session::regenerate();
-    $this->redirectIntended(default: route('dashboard'), navigate: false);
+    Session::forget('url.intended');
+    $this->redirect(route('dashboard'), navigate: false);
 };
 ?>
 <section class="pr-panel en-login-card" aria-labelledby="login-heading">

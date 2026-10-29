@@ -6,14 +6,14 @@
     @if($errors->any())<p class="en-notice" role="alert">{{ $errors->first() }}</p>@endif
     <section class="en-plans-grid" aria-label="Planes disponibles">
       @forelse ($plans as $plan)
-        @php($quote = app(\App\Services\PlanPricing::class)->publicQuote($plan))
+        @php($quote = $plan->isLifetime() ? null : app(\App\Services\PlanPricing::class)->publicQuote($plan))
         <article class="pr-panel en-plan-card" data-type="{{ $plan->type }}">
           <header class="en-plan-top">
             <div class="en-plan-meta"><span class="en-card-number">P.{{ str_pad($loop->iteration, 2, '0', STR_PAD_LEFT) }}</span><span class="pr-eyebrow">{{ $plan->isFree() ? 'Sin costo' : ($plan->isLifetime() ? 'Permanente' : 'Acceso completo') }}</span></div>
             <h2>{{ $plan->name }}</h2>
             <p class="en-plan-description">{{ $plan->description }}</p>
-            @if ($plan->isLifetime() && !$plan->isFree())
-              <p class="en-plan-price en-price-custom">Consultar precio</p><p class="pr-hint">Coordinamos tu acceso contigo.</p>
+            @if ($plan->isLifetime())
+              <p class="en-plan-price en-price-custom">Contáctenos</p><p class="pr-hint">Nuestro equipo prepara una propuesta personalizada y acuerda contigo el importe. El acceso es permanente después de confirmar el pago.</p>
             @elseif (!$quote['pricing_available'])
               <p class="en-plan-price en-price-custom">Precio por confirmar</p><p class="pr-hint">{{ $quote['pricing_error'] }}</p>
             @else
@@ -30,7 +30,9 @@
             </dl>
             <ul class="pr-features" aria-label="Herramientas y beneficios">@foreach ($plan->features ?? [] as $feature)<li>{{ $feature }}</li>@endforeach</ul>
             <div class="en-plan-actions">
-              @if($quote['pricing_available'])
+              @if($plan->isLifetime())
+              <a href="{{ route(auth()->check() ? 'account.support' : 'contacto.index',['plan'=>'por-vida']) }}" class="pr-button pr-button-secondary">Contáctenos <span aria-hidden="true">↗</span></a>
+              @elseif($quote['pricing_available'])
               <a href="{{ route('planes.register', ['plan' => $plan->id]) }}" class="pr-button {{ $plan->type === 'monthly' ? '' : 'pr-button-secondary' }}">{{ $plan->isFree() ? 'Empezar gratis' : ($plan->isLifetime() ? 'Solicitar información' : 'Elegir este plan') }} <span aria-hidden="true">↗︎</span></a>
               @if ($plan->type === 'monthly' && !$plan->isFree())<a href="{{ route('planes.register', ['plan' => $plan->id, 'cycle' => 'yearly']) }}" class="en-inline-link">Pagar anualmente y ahorrar 5 %</a>@endif
               @else<a class="pr-button pr-button-secondary" href="{{ route(request()->routeIs('plans.catalog') ? 'account.support' : 'contacto.index') }}">Consultar precio final</a>@endif
