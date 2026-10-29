@@ -567,7 +567,7 @@
     "src": "node_modules/jquery-ui/themes/base/images/ui-icons_ffffff_256x240.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-THc7ZPvJ.css",
+    "file": "assets/app-BIp8UMpj.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
@@ -1009,7 +1009,7 @@
     ]
   },
   "resources/js/adm_zapatas_grafico.js": {
-    "file": "assets/adm_zapatas_grafico-CFYD33uN.js",
+    "file": "assets/adm_zapatas_grafico-CdV4drlb.js",
     "name": "adm_zapatas_grafico",
     "src": "resources/js/adm_zapatas_grafico.js",
     "isEntry": true,

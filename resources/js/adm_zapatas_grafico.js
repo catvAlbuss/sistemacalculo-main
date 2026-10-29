@@ -161,7 +161,8 @@ document.addEventListener("DOMContentLoaded", () => {
       return `${title}: necesita al menos 3 vértices (tiene ${rows.length}).`;
     }
     if (polygonArea(rows) <= 1e-9) {
-      return `${title}: los vértices no encierran ningún área (están repetidos o alineados).`;
+      const points = rows.map((row) => `(${row.xv}, ${row.yv})`).join(" ");
+      return `${title}: sus vértices ${points} no forman una figura; deben ser puntos distintos y no alineados.`;
     }
     return null;
   };
@@ -178,7 +179,21 @@ document.addEventListener("DOMContentLoaded", () => {
       polygonError(poligonoInterior5, "Polígono interior 5", false),
     ].filter(Boolean);
     if (polygonErrors.length > 0) {
-      Swal.fire({ icon: "warning", title: "Revisa los polígonos", text: polygonErrors.join(" ") });
+      const list = document.createElement("ul");
+      list.className = "list-disc space-y-1 pl-5 text-left text-sm";
+      polygonErrors.forEach((message) => {
+        const item = document.createElement("li");
+        item.textContent = message;
+        list.append(item);
+      });
+      const hint = document.createElement("p");
+      hint.className = "mt-3 text-left text-sm";
+      hint.textContent =
+        "Ejemplo de polígono exterior (rectángulo de 9 × 9): (-4.5, 4.5), (4.5, 4.5), (4.5, -4.5), (-4.5, -4.5). " +
+        "Los polígonos interiores son huecos opcionales: déjalos vacíos si la zapata no tiene aberturas.";
+      const content = document.createElement("div");
+      content.append(list, hint);
+      Swal.fire({ icon: "warning", title: "Revisa los polígonos", html: content });
       return;
     }
 
