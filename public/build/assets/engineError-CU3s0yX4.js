@@ -1,0 +1,1 @@
+async function s(t,n="No se pudo completar el cálculo."){if(!(t.headers.get("Content-Type")||"").includes("application/json"))return n;const e=await t.json().catch(()=>({}));return(e.errors?Object.values(e.errors).flat()[0]:null)||e.error||e.message||n}export{s as e};

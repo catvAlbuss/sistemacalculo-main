@@ -4,6 +4,7 @@ import { createSpreeadSheetTable } from "./tabulator_base/table_factory.js";
 import { makeCreateDeleteColumn } from "./tabulator_base/table.js";
 import Plotly from "plotly.js-dist-min";
 import Swal from "sweetalert2";
+import { engineErrorMessage } from "./utils/engineError.js";
 import html2canvas from "html2canvas";
 import logo from "../img/rizabalasociados.png?inline";
 import { index } from "mathjs";
@@ -286,15 +287,14 @@ document.addEventListener("DOMContentLoaded", () => {
     fetch("/aligerados", {
       method: "POST",
       body: formData,
+      headers: { Accept: "application/json" },
     })
       .then(async (response) => {
         const contentType = response.headers.get("Content-Type");
         if (contentType && contentType.includes("application/octet-stream")) {
           return response.arrayBuffer();
-        } else {
-          const error = await response.text();
-          return Promise.reject(error);
         }
+        return Promise.reject(await engineErrorMessage(response));
       })
       .then((matData) => {
         waitingPopup.close();
@@ -436,9 +436,7 @@ document.addEventListener("DOMContentLoaded", () => {
         waitingPopup.hideLoading();
         swalTailwind.fire({
           icon: "error",
-          html: `
-              ${error}
-            `,
+          text: String(error),
           showConfirmButton: true,
         });
 

@@ -33,7 +33,22 @@ class ValidateLegacyCalculation
                 if(!preg_match('/\A[0-9eE+.,;*\/()\s\[\]\-]+\z/D',$numeric)){ $this->reject($field); }
             } elseif(!preg_match('/\A[0-9eE+.,;\s\[\]\-]+\z/D',$value)) { $this->reject($field); }
         }
+        if(in_array($request->route()->getActionMethod(),['graficarFC','graficarAligerados'],true)) { $this->requireSpans($request); }
         return $next($request);
+    }
+
+    // Octave itera sobre Lt: con vectores vacíos o de distinto tamaño falla ("'FD' undefined").
+    private function requireSpans(Request $request): void
+    {
+        $vector=fn(string $field)=>array_values(array_filter(preg_split('/[\s,;\[\]]+/',(string)$request->input($field)),'strlen'));
+        $spans=$vector('Lt');
+        if($spans===[]){ throw ValidationException::withMessages(['Lt'=>'Ingresa al menos un tramo con su longitud.']); }
+        foreach($spans as $span){
+            if(!is_numeric($span) || (float)$span<=0){ throw ValidationException::withMessages(['Lt'=>'La longitud de cada tramo debe ser mayor que 0.']); }
+        }
+        foreach(['b','h','WD','WV'] as $field){
+            if(count($vector($field))!==count($spans)){ throw ValidationException::withMessages([$field=>'Cada tramo debe tener b, h, carga muerta y carga viva.']); }
+        }
     }
 
     private function reject(string $field): never

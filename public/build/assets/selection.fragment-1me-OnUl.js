@@ -1,4 +1,4 @@
-import{S as i}from"./analisis_estructural_de_armaduras-CddULYwI.js";import"./livewire.esm-BwfLLVY7.js";import"./predimensionamiento-CxryAhEz.js";import"./preload-helper-BfFHrpNk.js";import"./color_scale-BGSv3LvJ.js";import"./zapatas2Core-fIgn_iCI.js";import"./mat4js.read-Dd8f86LV.js";import"./_commonjsHelpers-D6-XlEtG.js";import"./constants-CoGixEBm.js";import"./html2canvas.esm-5Cw11iw4.js";import"./rizabalasociados-BgyDGUXy.js";import"./ubigeo-Cak7qga5.js";const e="selectionPixelShader",o=`#ifdef INSTANCES
+import{S as i}from"./analisis_estructural_de_armaduras-BGScNk0E.js";import"./livewire.esm-BwfLLVY7.js";import"./predimensionamiento-CxryAhEz.js";import"./preload-helper-BfFHrpNk.js";import"./color_scale-BGSv3LvJ.js";import"./zapatas2Core-fIgn_iCI.js";import"./mat4js.read-Dd8f86LV.js";import"./_commonjsHelpers-D6-XlEtG.js";import"./constants-CoGixEBm.js";import"./engineError-CU3s0yX4.js";import"./html2canvas.esm-5Cw11iw4.js";import"./rizabalasociados-BgyDGUXy.js";import"./ubigeo-Cak7qga5.js";const e="selectionPixelShader",o=`#ifdef INSTANCES
 flat varying float vSelectionId;
 #else
 uniform float selectionId;
@@ -32,4 +32,4 @@ gl_FragColor=vec4(id,vDepthMetric,0.0,1.0);
 #endif
 #define CUSTOM_FRAGMENT_MAIN_END
 }
-`;i.ShadersStore[e]||(i.ShadersStore[e]=o);const v={name:e,shader:o};export{v as selectionPixelShader};
+`;i.ShadersStore[e]||(i.ShadersStore[e]=o);const A={name:e,shader:o};export{A as selectionPixelShader};

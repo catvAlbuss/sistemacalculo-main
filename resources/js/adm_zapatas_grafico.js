@@ -4,6 +4,7 @@ import { createSpreeadSheetTable } from "./tabulator_base/table_factory.js";
 import { makeCreateDeleteColumn } from "./tabulator_base/table.js";
 import Plotly from "plotly.js-dist-min";
 import Swal from "sweetalert2";
+import { engineErrorMessage } from "./utils/engineError.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   const pdfButton = document.getElementById("generarPDF");
@@ -139,8 +140,47 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  // Área por la fórmula del polígono (shoelace); 0 si los vértices no encierran superficie.
+  const polygonArea = (rows) =>
+    Math.abs(
+      rows.reduce((sum, row, i) => {
+        const next = rows[(i + 1) % rows.length];
+        return sum + Number(row.xv) * Number(next.yv) - Number(next.xv) * Number(row.yv);
+      }, 0) / 2
+    );
+
+  const polygonError = (table, title, required) => {
+    const rows = table.getData();
+    if (rows.length === 0) {
+      return required ? `${title}: ingresa al menos 3 vértices.` : null;
+    }
+    if (rows.some((row) => !Number.isFinite(Number(row.xv)) || !Number.isFinite(Number(row.yv)) || row.xv === "" || row.yv === "")) {
+      return `${title}: todas las coordenadas X e Y deben ser numéricas.`;
+    }
+    if (rows.length < 3) {
+      return `${title}: necesita al menos 3 vértices (tiene ${rows.length}).`;
+    }
+    if (polygonArea(rows) <= 1e-9) {
+      return `${title}: los vértices no encierran ningún área (están repetidos o alineados).`;
+    }
+    return null;
+  };
+
   document.getElementById("zapatasForm").addEventListener("submit", (event) => {
     event.preventDefault();
+
+    const polygonErrors = [
+      polygonError(poligonoExterior, "Polígono exterior", true),
+      polygonError(poligonoInterior1, "Polígono interior 1", false),
+      polygonError(poligonoInterior2, "Polígono interior 2", false),
+      polygonError(poligonoInterior3, "Polígono interior 3", false),
+      polygonError(poligonoInterior4, "Polígono interior 4", false),
+      polygonError(poligonoInterior5, "Polígono interior 5", false),
+    ].filter(Boolean);
+    if (polygonErrors.length > 0) {
+      Swal.fire({ icon: "warning", title: "Revisa los polígonos", text: polygonErrors.join(" ") });
+      return;
+    }
 
     const formData = new FormData(event.target);
     propiedades.getData().forEach((row) => {
@@ -198,10 +238,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (contentType && contentType.includes("application/octet-stream")) {
           return response.arrayBuffer();
         }
-        // Nunca volcar HTML del servidor en el modal: solo el mensaje del JSON.
-        const body = contentType && contentType.includes("application/json") ? await response.json() : {};
-        const detail = body.errors ? Object.values(body.errors).flat()[0] : null;
-        return Promise.reject(detail || body.error || body.message || "No se pudo completar el cálculo.");
+        return Promise.reject(await engineErrorMessage(response));
       })
       .then((matData) => {
         waitingPopup.close();

@@ -130,17 +130,13 @@ class OctavePlotController extends Controller
     {
         $isOk = Self::runOctave($function, $stdout, $stderr) === 0;
 
+        // Se devuelve una Response: con echo/header() manuales Laravel reescribía
+        // luego el estado y el Content-Type (500 JSON llegaba como 200 text/html).
         if ($isOk) {
-            ob_end_clean();
-            header('Content-Type: application/octet-stream');
-            header('Content-Length: ' . strlen($stdout));
-            echo $stdout;
-        } else {
-            \Illuminate\Support\Facades\Log::warning('Error del motor Octave.', ['stderr'=>mb_substr($stderr,0,1024)]);
-            http_response_code(500);
-            header('Content-Type: application/json');
-            echo json_encode(['success'=>false,'error'=>'No se pudo completar el cálculo. Revisa los datos o contacta con soporte.']);
+            return response($stdout, 200, ['Content-Type' => 'application/octet-stream']);
         }
+        \Illuminate\Support\Facades\Log::warning('Error del motor Octave.', ['stderr'=>mb_substr($stderr,0,1024)]);
+        return response()->json(['success'=>false,'error'=>'No se pudo completar el cálculo. Revisa los datos o contacta con soporte.'], 500);
     }
 
     public function graficarFC(Request $request)
@@ -160,7 +156,7 @@ class OctavePlotController extends Controller
             $request->input('frv')
         );
 
-        self::returnOctaveResult($function);
+        return self::returnOctaveResult($function);
     }
 
     public function graficarAligerados(Request $request)
@@ -180,7 +176,7 @@ class OctavePlotController extends Controller
             $request->input('frv')
         );
 
-        self::returnOctaveResult($function);
+        return self::returnOctaveResult($function);
     }
 
     public function graficarZapatas(Request $request)
@@ -203,7 +199,7 @@ class OctavePlotController extends Controller
             $request->input("poligonos"),
         );
 
-        self::returnOctaveResult($function);
+        return self::returnOctaveResult($function);
     }
 
     public function graficarZapatas2(Request $request)
@@ -226,7 +222,7 @@ class OctavePlotController extends Controller
             $request->input("pesoEspecifico"),
         );
 
-        self::returnOctaveResult($function);
+        return self::returnOctaveResult($function);
     }
 
     private function calcularZapatas2EnPhp(Request $request): array
@@ -612,7 +608,7 @@ class OctavePlotController extends Controller
             $request->input("propiedades"),
         );
 
-        self::returnOctaveResult($function);
+        return self::returnOctaveResult($function);
     }
 
     public function calcularFuerzasArmaduras3d(Request $request)
@@ -626,7 +622,7 @@ class OctavePlotController extends Controller
             $request->input("propiedades"),
         );
 
-        self::returnOctaveResult($function);
+        return self::returnOctaveResult($function);
     }
 
     public function calcularSuelos(Request $request)
@@ -639,6 +635,6 @@ class OctavePlotController extends Controller
             $request->input("L"),
         );
 
-        self::returnOctaveResult($function);
+        return self::returnOctaveResult($function);
     }
 }

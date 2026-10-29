@@ -152,7 +152,6 @@
                           class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
                           id="VarillaX" name="VarillaX" aria-label="Default select example">
                           <option disabled>Ф Varilla</option>
-                          <option value="0">Ø 0"</option>
                           <option value="0.283">6mm</option>
                           <option value="0.503">8mm</option>
                           <option value="0.713">Ø 3/8"</option>
@@ -171,7 +170,6 @@
                           class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
                           id="VarillaY" name="VarillaY" aria-label="Default select example">
                           <option disabled>Ф Varilla</option>
-                          <option value="0">Ø 0"</option>
                           <option value="0.283">6mm</option>
                           <option value="0.503">8mm</option>
                           <option value="0.713">Ø 3/8"</option>

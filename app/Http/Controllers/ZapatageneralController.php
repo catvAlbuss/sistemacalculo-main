@@ -10,7 +10,24 @@ class ZapatageneralController extends Controller
     public function zapataGeneral(Request $request)
     {
         Log::info('Datos recibidos en zapataGeneral:', $request->all());
-        
+
+        // La vista de resultados divide por estas magnitudes: un 0 provocaba
+        // "Division by zero" y un 500 en vez de un mensaje para el usuario.
+        $positive = ['required', 'numeric', 'gt:0'];
+        $request->validate([
+            'fc' => $positive, 'fy' => $positive, 'ys' => $positive, 'df' => $positive,
+            't' => $positive, 'b' => $positive, 'l' => $positive, 'DZY' => $positive,
+            'cps' => $positive, 'dzapata' => $positive, 'Columna' => $positive,
+            'VarillaX' => $positive, 'VarillaY' => $positive,
+            'espaciamientox' => $positive, 'espaciamientoy' => $positive,
+        ], [
+            'VarillaX.gt' => 'Selecciona un diámetro de varilla en X.',
+            'VarillaY.gt' => 'Selecciona un diámetro de varilla en Y.',
+            '*.gt' => 'El campo :attribute debe ser mayor que 0.',
+            '*.required' => 'El campo :attribute es obligatorio.',
+            '*.numeric' => 'El campo :attribute debe ser numérico.',
+        ]);
+
         $fc = $request->input('fc', 0);
         $fy = $request->input('fy', 0);
         $ys = $request->input('ys', 0);

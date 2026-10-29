@@ -1,4 +1,4 @@
-import{S as t}from"./analisis_estructural_de_armaduras-CddULYwI.js";import"./livewire.esm-BwfLLVY7.js";import"./predimensionamiento-CxryAhEz.js";import"./preload-helper-BfFHrpNk.js";import"./color_scale-BGSv3LvJ.js";import"./zapatas2Core-fIgn_iCI.js";import"./mat4js.read-Dd8f86LV.js";import"./_commonjsHelpers-D6-XlEtG.js";import"./constants-CoGixEBm.js";import"./html2canvas.esm-5Cw11iw4.js";import"./rizabalasociados-BgyDGUXy.js";import"./ubigeo-Cak7qga5.js";const e="selectionOutlinePixelShader",l=`var maskSamplerSampler: sampler;var maskSampler: texture_2d<f32>;var depthSamplerSampler: sampler;var depthSampler: texture_2d<f32>;varying vUV: vec2f;uniform screenSize: vec2f;uniform outlineColor: vec3f;uniform outlineThickness: f32;uniform occlusionStrength: f32;uniform occlusionThreshold: f32;
+import{S as t}from"./analisis_estructural_de_armaduras-BGScNk0E.js";import"./livewire.esm-BwfLLVY7.js";import"./predimensionamiento-CxryAhEz.js";import"./preload-helper-BfFHrpNk.js";import"./color_scale-BGSv3LvJ.js";import"./zapatas2Core-fIgn_iCI.js";import"./mat4js.read-Dd8f86LV.js";import"./_commonjsHelpers-D6-XlEtG.js";import"./constants-CoGixEBm.js";import"./engineError-CU3s0yX4.js";import"./html2canvas.esm-5Cw11iw4.js";import"./rizabalasociados-BgyDGUXy.js";import"./ubigeo-Cak7qga5.js";const e="selectionOutlinePixelShader",l=`var maskSamplerSampler: sampler;var maskSampler: texture_2d<f32>;var depthSamplerSampler: sampler;var depthSampler: texture_2d<f32>;varying vUV: vec2f;uniform screenSize: vec2f;uniform outlineColor: vec3f;uniform outlineThickness: f32;uniform occlusionStrength: f32;uniform occlusionThreshold: f32;
 #define CUSTOM_FRAGMENT_DEFINITIONS
 @fragment
 fn main(input: FragmentInputs)->FragmentOutputs {
@@ -45,4 +45,4 @@ occlusionFactor=min(occlusionFactor,occlusionTopCenter);occlusionFactor=min(occl
 let finalOutlineMask: f32=outlineMask*(1.0-uniforms.occlusionStrength*occlusionFactor);fragmentOutputs.color=vec4f(uniforms.outlineColor,finalOutlineMask);
 #define CUSTOM_FRAGMENT_MAIN_END
 }
-`;t.ShadersStoreWGSL[e]||(t.ShadersStoreWGSL[e]=l);const S={name:e,shader:l};export{S as selectionOutlinePixelShaderWGSL};
+`;t.ShadersStoreWGSL[e]||(t.ShadersStoreWGSL[e]=l);const h={name:e,shader:l};export{h as selectionOutlinePixelShaderWGSL};

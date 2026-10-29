@@ -1,4 +1,4 @@
-import{S as t}from"./analisis_estructural_de_armaduras-CddULYwI.js";import"./livewire.esm-BwfLLVY7.js";import"./predimensionamiento-CxryAhEz.js";import"./preload-helper-BfFHrpNk.js";import"./color_scale-BGSv3LvJ.js";import"./zapatas2Core-fIgn_iCI.js";import"./mat4js.read-Dd8f86LV.js";import"./_commonjsHelpers-D6-XlEtG.js";import"./constants-CoGixEBm.js";import"./html2canvas.esm-5Cw11iw4.js";import"./rizabalasociados-BgyDGUXy.js";import"./ubigeo-Cak7qga5.js";const e="selectionOutlinePixelShader",o=`uniform sampler2D maskSampler;uniform sampler2D depthSampler;varying vec2 vUV;uniform vec2 screenSize;uniform vec3 outlineColor;uniform float outlineThickness;uniform float occlusionStrength;uniform float occlusionThreshold;
+import{S as t}from"./analisis_estructural_de_armaduras-BGScNk0E.js";import"./livewire.esm-BwfLLVY7.js";import"./predimensionamiento-CxryAhEz.js";import"./preload-helper-BfFHrpNk.js";import"./color_scale-BGSv3LvJ.js";import"./zapatas2Core-fIgn_iCI.js";import"./mat4js.read-Dd8f86LV.js";import"./_commonjsHelpers-D6-XlEtG.js";import"./constants-CoGixEBm.js";import"./engineError-CU3s0yX4.js";import"./html2canvas.esm-5Cw11iw4.js";import"./rizabalasociados-BgyDGUXy.js";import"./ubigeo-Cak7qga5.js";const e="selectionOutlinePixelShader",o=`uniform sampler2D maskSampler;uniform sampler2D depthSampler;varying vec2 vUV;uniform vec2 screenSize;uniform vec3 outlineColor;uniform float outlineThickness;uniform float occlusionStrength;uniform float occlusionThreshold;
 #define CUSTOM_FRAGMENT_DEFINITIONS
 void main(void) {
 #define CUSTOM_FRAGMENT_MAIN_BEGIN
@@ -44,4 +44,4 @@ occlusionFactor=min(occlusionFactor,occlusionTopCenter);occlusionFactor=min(occl
 float finalOutlineMask=outlineMask*(1.0-occlusionStrength*occlusionFactor);gl_FragColor=vec4(outlineColor,finalOutlineMask);
 #define CUSTOM_FRAGMENT_MAIN_END
 }
-`;t.ShadersStore[e]||(t.ShadersStore[e]=o);const h={name:e,shader:o};export{h as selectionOutlinePixelShader};
+`;t.ShadersStore[e]||(t.ShadersStore[e]=o);const T={name:e,shader:o};export{T as selectionOutlinePixelShader};

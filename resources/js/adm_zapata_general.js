@@ -50,8 +50,12 @@ $(document).ready(function () {
           console.error(xhr.responseText);
         }
 
+        const errors = xhr?.responseJSON?.errors;
+        const message = errors
+          ? Object.values(errors).flat().join(" ")
+          : "No se pudo obtener el resultado de zapata general.";
         $(resultsSelector).html(
-          '<div class="rounded border border-red-300 bg-red-50 p-4 text-red-700">No se pudo obtener el resultado de zapata general.</div>',
+          $('<div class="rounded border border-red-300 bg-red-50 p-4 text-red-700"></div>').text(message),
         );
       },
     });

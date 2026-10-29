@@ -26,6 +26,7 @@
 // (b,h,Lt,WD,WV) y llama al mismo endpoint.
 
 import { read as readmat } from "mat-for-js";
+import { engineErrorMessage } from "../../../utils/engineError.js";
 import Plotly from "plotly.js-dist-min";
 import html2canvas from "html2canvas";
 import logo from "../../../../img/rizabalasociados.png?inline";
@@ -346,11 +347,11 @@ export const rcAligeradoDesignMixin = {
       const response = await fetch("/aligerados", {
         method: "POST",
         body: formData,
-        headers: csrfToken ? { "X-CSRF-TOKEN": csrfToken } : undefined,
+        headers: csrfToken ? { "X-CSRF-TOKEN": csrfToken, Accept: "application/json" } : { Accept: "application/json" },
       });
       const contentType = response.headers.get("Content-Type");
       if (!contentType || !contentType.includes("application/octet-stream")) {
-        const error = await response.text();
+        const error = await engineErrorMessage(response);
         throw new Error(built.groups.length > 1 ? `${group.label}: ${error}` : error);
       }
       const matData = await response.arrayBuffer();
