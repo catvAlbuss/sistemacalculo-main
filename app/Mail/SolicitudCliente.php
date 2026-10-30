@@ -26,6 +26,6 @@ class SolicitudCliente extends Mailable
     public function build()
     {
         return $this->view('planesUser.emails.payment-request-client') // Usas esta vista
-            ->subject('Solicitud de Suscripción Recibida');
+            ->subject('Solicitud registrada - '.$this->plan->name);
     }
 }

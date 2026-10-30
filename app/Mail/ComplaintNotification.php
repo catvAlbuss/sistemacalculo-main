@@ -13,7 +13,7 @@ class ComplaintNotification extends Mailable
 
     public function build()
     {
-        return $this->subject(($this->answered ? 'Respuesta a tu hoja ' : 'Hoja registrada ').$this->complaint->code)
+        return $this->subject(($this->answered ? 'Respuesta a su hoja ' : 'Hoja registrada ').$this->complaint->code)
             ->view('legal.complaint-email');
     }
 }

@@ -1,263 +1,39 @@
-<!DOCTYPE html>
-<html lang="es">
+@php
+    $method = $paymentRequest->payment_method;
+    $phone = preg_replace('/\D/', '', (string) $paymentRequest->phone);
+    $status = ['culqi' => 'Pendiente de pago en Culqi', 'free' => 'Prueba gratuita activada, sin pago', 'quote' => 'Por coordinar con el cliente'][$method] ?? 'Por verificar';
+@endphp
+<x-mail.layout title="Nueva solicitud registrada" :reference="'Solicitud N.° '.$paymentRequest->id" :preheader="$paymentRequest->name.' - '.$plan->name">
+    <x-mail.section title="Cliente">
+        <x-mail.row label="Nombre">{{ $paymentRequest->name }}</x-mail.row>
+        <x-mail.row label="Correo">{{ $paymentRequest->email }}</x-mail.row>
+        <x-mail.row label="Teléfono">{{ $paymentRequest->phone }}</x-mail.row>
+        <x-mail.row label="ID de usuario">{{ $user->id }}</x-mail.row>
+    </x-mail.section>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nueva Solicitud de Pago</title>
-</head>
+    <x-mail.section title="Solicitud">
+        <x-mail.row label="Plan">{{ $plan->name }}</x-mail.row>
+        <x-mail.row label="Duración">{{ $plan->duration_text }}</x-mail.row>
+        <x-mail.row label="Usuarios">{{ $plan->max_users }}</x-mail.row>
+        <x-mail.row label="Importe">S/ {{ number_format($paymentRequest->amount, 2) }}</x-mail.row>
+        <x-mail.row label="Estado">{{ $status }}</x-mail.row>
+        <x-mail.row label="Fecha">{{ $paymentRequest->created_at->timezone('America/Lima')->format('d/m/Y H:i') }}</x-mail.row>
+    </x-mail.section>
 
-<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f3f4f6; padding: 20px;">
-        <tr>
-            <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0"
-                    style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    @if ($paymentRequest->message)
+        <x-mail.section title="Mensaje del cliente">
+            <tr><td style="padding:10px 0;color:#374151;font-size:13px;line-height:1.6;">{{ $paymentRequest->message }}</td></tr>
+        </x-mail.section>
+    @endif
 
-                    <!-- Header -->
-                    <tr>
-                        <td
-                            style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); padding: 40px 30px; text-align: center;">
-                            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🔔 Nueva Solicitud de Pago</h1>
-                            <p style="color: #fecaca; margin: 10px 0 0; font-size: 16px;">Requiere verificación</p>
-                        </td>
-                    </tr>
+    @if ($method === 'culqi')
+        <x-mail.note>Pago en línea: la cobertura se activa sola cuando Culqi confirma el cargo. No requiere aprobación manual; recibirá otro aviso al confirmarse.</x-mail.note>
+    @elseif ($paymentRequest->payment_proof)
+        <x-mail.note>El comprobante enviado por el cliente se adjunta a este correo.</x-mail.note>
+    @endif
 
-                    <!-- Body -->
-                    <tr>
-                        <td style="padding: 40px 30px;">
-                            <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">
-                                Se ha recibido una nueva solicitud de suscripción que requiere tu atención.
-                            </p>
-
-                            <!-- Información del Cliente -->
-                            <table width="100%" cellpadding="0" cellspacing="0"
-                                style="background-color: #f0fdf4; border-left: 4px solid #10b981; border-radius: 8px; margin: 30px 0; padding: 20px;">
-                                <tr>
-                                    <td>
-                                        <h3 style="color: #065f46; margin: 0 0 15px; font-size: 18px;">👤 Información
-                                            del Cliente</h3>
-                                        <table width="100%" cellpadding="8" cellspacing="0">
-                                            <tr>
-                                                <td style="color: #047857; font-size: 14px; width: 140px;">
-                                                    <strong>Nombre:</strong>
-                                                </td>
-                                                <td style="color: #111827; font-size: 14px;">{{ $paymentRequest->name }}
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td style="color: #047857; font-size: 14px;"><strong>Email:</strong>
-                                                </td>
-                                                <td style="color: #111827; font-size: 14px;">
-                                                    <a href="mailto:{{ $paymentRequest->email }}"
-                                                        style="color: #2563eb; text-decoration: none;">
-                                                        {{ $paymentRequest->email }}
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td style="color: #047857; font-size: 14px;"><strong>Teléfono:</strong>
-                                                </td>
-                                                <td style="color: #111827; font-size: 14px;">
-                                                    <a href="https://wa.me/{{ str_replace([' ', '-', '+'], '', $paymentRequest->phone) }}"
-                                                        style="color: #10b981; text-decoration: none;">
-                                                        {{ $paymentRequest->phone }}
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td style="color: #047857; font-size: 14px;"><strong>User ID:</strong>
-                                                </td>
-                                                <td style="color: #111827; font-size: 14px; font-family: monospace;">
-                                                    #{{ $user->id }}</td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- Información del Plan -->
-                            <table width="100%" cellpadding="0" cellspacing="0"
-                                style="background-color: #dbeafe; border-left: 4px solid #2563eb; border-radius: 8px; margin: 30px 0; padding: 20px;">
-                                <tr>
-                                    <td>
-                                        <h3 style="color: #1e40af; margin: 0 0 15px; font-size: 18px;">📋 Detalles del
-                                            Plan</h3>
-                                        <table width="100%" cellpadding="8" cellspacing="0">
-                                            <tr>
-                                                <td style="color: #1e3a8a; font-size: 14px; width: 140px;">
-                                                    <strong>Plan:</strong>
-                                                </td>
-                                                <td style="color: #111827; font-size: 14px; font-weight: bold;">
-                                                    {{ $plan->name }}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="color: #1e3a8a; font-size: 14px;"><strong>Duración:</strong>
-                                                </td>
-                                                <td style="color: #111827; font-size: 14px;">{{ $plan->duration_text }} · {{ $plan->max_users }} usuario(s)
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td style="color: #1e3a8a; font-size: 14px;"><strong>Tipo:</strong></td>
-                                                <td style="color: #111827; font-size: 14px;">
-                                                    <span
-                                                        style="background-color: #ffffff; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">
-                                                        {{ strtoupper($plan->type) }}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td style="color: #1e3a8a; font-size: 14px;"><strong>Monto:</strong>
-                                                </td>
-                                                <td style="color: #111827; font-size: 18px; font-weight: bold;">S/
-                                                    {{ number_format($paymentRequest->amount, 2) }}</td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- Comprobante de Pago -->
-                            <!-- Estado del Comprobante -->
-                            @if (in_array($paymentRequest->payment_method, ['culqi', 'free', 'quote']))
-                                <p style="color: #1e40af; padding: 20px; background-color: #dbeafe;">
-                                    {{ $paymentRequest->payment_method === 'culqi' ? 'Pago en línea con Culqi: no requiere comprobante ni aprobación manual. La suscripción se activa cuando se confirma el cargo.' : ($paymentRequest->payment_method === 'free' ? 'Registro gratuito: no requiere pago.' : 'Solicitud de precio personalizado: coordinar con el cliente.') }}
-                                </p>
-                            @elseif ($paymentRequest->payment_proof)
-                                <div
-                                    style="background-color: #d1fae5; border-left: 4px solid #10b981; padding: 20px; margin: 20px 0; border-radius: 8px;">
-                                    <h3 style="color: #065f46; margin-top: 0; font-size: 18px;">
-                                        ✅ Comprobante de Pago Adjunto
-                                    </h3>
-                                    <p style="color: #047857; margin: 5px 0 0; font-size: 14px;">
-                                        El comprobante de pago ha sido adjuntado a este correo electrónico.
-                                        Revisa los archivos adjuntos para visualizarlo.
-                                    </p>
-                                </div>
-                            @else
-                                <div
-                                    style="background-color: #fee2e2; border-left: 4px solid #ef4444; padding: 20px; margin: 20px 0; border-radius: 8px;">
-                                    <h3 style="color: #991b1b; margin-top: 0; font-size: 18px;">
-                                        ℹ️ Sin Comprobante
-                                    </h3>
-                                    <p style="color: #dc2626; margin: 5px 0 0; font-size: 14px;">
-                                        El cliente no ha enviado comprobante de pago con esta solicitud.
-                                    </p>
-                                </div>
-                            @endif
-
-
-                            <!-- Mensaje del Cliente -->
-                            @if ($paymentRequest->message)
-                                <table width="100%" cellpadding="0" cellspacing="0"
-                                    style="background-color: #f3f4f6; border-radius: 8px; margin: 30px 0; padding: 20px;">
-                                    <tr>
-                                        <td>
-                                            <h3 style="color: #374151; margin: 0 0 15px; font-size: 18px;">💬 Mensaje
-                                                del Cliente</h3>
-                                            <p
-                                                style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0; font-style: italic;">
-                                                "{{ $paymentRequest->message }}"
-                                            </p>
-                                        </td>
-                                    </tr>
-                                </table>
-                            @endif
-
-                            <!-- Estado Actual -->
-                            <table width="100%" cellpadding="0" cellspacing="0"
-                                style="background-color: #fef2f2; border-left: 4px solid #ef4444; border-radius: 8px; margin: 30px 0; padding: 20px;">
-                                <tr>
-                                    <td>
-                                        <h3 style="color: #991b1b; margin: 0 0 10px; font-size: 18px;">⏱️ Estado de la
-                                            Cuenta</h3>
-                                        <p style="color: #7f1d1d; font-size: 14px; margin: 0;">
-                                            <strong>Cuenta de Prueba:</strong> Activada (10 días)<br>
-                                            <strong>Estado del Pago:</strong> {{ $paymentRequest->payment_method === 'culqi' ? 'Esperando confirmación de Culqi' : ($paymentRequest->payment_method === 'free' ? 'Sin pago requerido' : 'Solicitud registrada') }}<br>
-                                            <strong>Fecha de Solicitud:</strong>
-                                            {{ $paymentRequest->created_at->format('d/m/Y H:i') }}
-                                        </p>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- Acciones Requeridas -->
-                            <table width="100%" cellpadding="0" cellspacing="0"
-                                style="background-color: #ede9fe; border-left: 4px solid #8b5cf6; border-radius: 8px; margin: 30px 0; padding: 20px;">
-                                <tr>
-                                    <td>
-                                        <h3 style="color: #5b21b6; margin: 0 0 15px; font-size: 18px;">✅ Acciones
-                                            Requeridas</h3>
-                                        <ol
-                                            style="color: #6d28d9; margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
-                                            @if ($paymentRequest->payment_method === 'culqi')
-                                                <li>La pasarela confirma el cobro y activa la suscripción automáticamente.</li>
-                                            @elseif ($paymentRequest->payment_method === 'free')
-                                                <li>El acceso gratuito no requiere aprobación de pago.</li>
-                                            @elseif ($paymentRequest->payment_method === 'quote')
-                                                <li>Contactar al cliente para coordinar su plan.</li>
-                                            @else
-                                            <li>Verificar el comprobante de pago (si fue proporcionado)</li>
-                                            <li>Confirmar la transacción en tu banco/Yape</li>
-                                            <li>Acceder al panel de administración para aprobar el pago</li>
-                                            <li>Notificar al cliente una vez confirmado</li>
-                                            @endif
-                                        </ol>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- Botones de Acción -->
-                            <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
-                                <tr>
-                                    <td align="center">
-                                        <a href="{{ url('/admin/payment-requests') }}"
-                                            style="display: inline-block; background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 8px; font-weight: bold; font-size: 16px; margin: 0 10px;">
-                                            Ir al Panel de Admin
-                                        </a>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td align="center" style="padding-top: 15px;">
-                                        <a href="https://wa.me/{{ str_replace([' ', '-', '+'], '', $paymentRequest->phone) }}"
-                                            style="display: inline-block; background-color: #10b981; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-weight: bold; font-size: 14px;">
-                                            Contactar por WhatsApp
-                                        </a>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- Recordatorio -->
-                            <table width="100%" cellpadding="0" cellspacing="0"
-                                style="background-color: #fef9c3; border-radius: 8px; margin: 30px 0; padding: 15px;">
-                                <tr>
-                                    <td>
-                                        <p style="color: #854d0e; font-size: 13px; margin: 0; text-align: center;">
-                                            ⚠️ <strong>Recordatorio:</strong> Procesa esta solicitud en las próximas
-                                            24-48 horas para mantener una buena experiencia del cliente.
-                                        </p>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-
-                    <!-- Footer -->
-                    <tr>
-                        <td
-                            style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
-                            <p style="color: #6b7280; font-size: 12px; margin: 0 0 10px;">
-                                © {{ date('Y') }} {{ config('legal.provider.name') }} - Panel de Administración
-                            </p>
-                            <p style="color: #9ca3af; font-size: 11px; margin: 0;">
-                                Solicitud ID: #{{ $paymentRequest->id }}
-                            </p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
-</body>
-
-</html>
+    <x-mail.actions>
+        <x-mail.button :href="route('payments.admin.show', $paymentRequest)">Abrir en administración</x-mail.button>
+        <x-mail.button :href="'https://wa.me/'.$phone" secondary>Contactar por WhatsApp</x-mail.button>
+    </x-mail.actions>
+</x-mail.layout>

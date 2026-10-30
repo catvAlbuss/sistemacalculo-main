@@ -40,7 +40,7 @@ class SolicitudAdmin extends Mailable
     public function build()
     {
         $email = $this->view('planesUser.emails.payment-request-admin')
-            ->subject('🔔 Nueva Solicitud de Pago - ' . $this->paymentRequest->name);
+            ->subject('Nueva solicitud N.° '.$this->paymentRequest->id.' - '.$this->paymentRequest->name);
 
         // Preferir la copia persistente: el archivo temporal puede desaparecer
         // antes de completar un reintento de envío.

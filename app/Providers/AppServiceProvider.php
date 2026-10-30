@@ -19,6 +19,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Auth\Notifications\ResetPassword::toMailUsing(fn ($user, string $token) => (new \Illuminate\Notifications\Messages\MailMessage)
+            ->subject('Restablecer contraseña')->view('emails.password-reset', [
+                'name' => $user->name, 'minutes' => config('auth.passwords.users.expire'),
+                'url' => url(route('password.reset', ['token' => $token, 'email' => $user->getEmailForPasswordReset()], false)),
+            ]));
         \Illuminate\Support\Facades\Event::listen(\Illuminate\Auth\Events\Logout::class, function ($event) {
             if (request()->hasSession() && $token = request()->session()->get('account_session')) {
                 \Illuminate\Support\Facades\DB::table('account_sessions')->where('id', $token)

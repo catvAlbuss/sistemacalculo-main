@@ -11,6 +11,6 @@ class RenewalReminder extends Mailable
 
     public function build()
     {
-        return $this->subject('Tu plan está por vencer')->view('planesUser.emails.renewal-reminder');
+        return $this->subject('Aviso de vencimiento de su plan')->view('planesUser.emails.renewal-reminder');
     }
 }

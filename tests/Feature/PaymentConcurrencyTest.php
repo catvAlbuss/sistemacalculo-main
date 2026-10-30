@@ -279,6 +279,36 @@ class PaymentConcurrencyTest extends TestCase
         $this->assertStringContainsString('administracion/pagos', $admin);
     }
 
+    public function test_registration_mails_are_corporate_and_never_carry_a_password(): void
+    {
+        $payment = $this->order();
+        $payment->load('user');
+        $link = 'https://ryaie.test/activar';
+
+        $client = (new \App\Mail\SolicitudCliente($payment->user, $payment->purchasedPlan(), $payment, null, $link))->render();
+        $admin = (new \App\Mail\SolicitudAdmin($payment->user, $payment->purchasedPlan(), $payment))->render();
+
+        $this->assertStringContainsString($link, $client);
+        $this->assertStringContainsString('no enviamos contraseñas', $client);
+        $this->assertStringContainsString(route('payments.admin.show', $payment), $admin);
+        foreach ([$client, $admin] as $html) {
+            $this->assertStringNotContainsString('10 días', $html);
+            $this->assertStringNotContainsString('/admin/payment-requests', $html);
+            $this->assertDoesNotMatchRegularExpression('/[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]/u', $html);
+        }
+    }
+
+    public function test_password_recovery_mail_is_in_spanish_with_the_corporate_layout(): void
+    {
+        $user = $this->order()->user;
+        $mail = (new \Illuminate\Auth\Notifications\ResetPassword('token-prueba'))->toMail($user);
+        $html = (string) $mail->render();
+
+        $this->assertSame('Restablecer contraseña', $mail->subject);
+        $this->assertStringContainsString('token-prueba', $html);
+        $this->assertStringContainsString('Estimado(a)', $html);
+    }
+
     public function test_a_failed_admin_copy_does_not_touch_the_customer_receipt(): void
     {
         $payment = $this->order();

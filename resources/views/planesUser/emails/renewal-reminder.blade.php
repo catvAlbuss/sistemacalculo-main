@@ -1,8 +1,10 @@
-<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Renovación de tu plan</title></head><body style="font-family:Arial,sans-serif;color:#1f2937">
-<h1>Tu plan está por vencer</h1>
-<p>Hola, {{ $subscription->user->name }}.</p>
-<p>Tu plan {{ $subscription->plan->name }} termina el {{ $subscription->ends_at->format('d/m/Y') }}.</p>
-<p>Puedes renovar desde tu cuenta y conservar los días que ya pagaste. No realizaremos un cargo automático.</p>
-<p><a href="{{ route('plans.mine') }}">Revisar mi plan y renovar</a></p>
-<p>Los pagos se realizan únicamente desde la plataforma con Culqi. No envíes datos de tu tarjeta ni contraseñas por correo.</p>
-</body></html>
+<x-mail.layout title="Aviso de vencimiento de su plan" :preheader="$subscription->plan->name.' vence el '.$subscription->ends_at->format('d/m/Y')">
+    <x-mail.text>Estimado(a) {{ $subscription->user->name }}:</x-mail.text>
+    <x-mail.text>Le informamos que su plan está próximo a vencer. Puede renovarlo desde su cuenta y conservar los días ya pagados. No realizamos cargos automáticos.</x-mail.text>
+    <x-mail.section title="Su plan">
+        <x-mail.row label="Plan">{{ $subscription->plan->name }}</x-mail.row>
+        <x-mail.row label="Fecha de término" strong>{{ $subscription->ends_at->format('d/m/Y') }}</x-mail.row>
+    </x-mail.section>
+    <x-mail.actions><x-mail.button :href="route('plans.mine')">Revisar y renovar mi plan</x-mail.button></x-mail.actions>
+    <x-mail.note>Los pagos se realizan únicamente desde la plataforma, mediante Culqi.</x-mail.note>
+</x-mail.layout>
