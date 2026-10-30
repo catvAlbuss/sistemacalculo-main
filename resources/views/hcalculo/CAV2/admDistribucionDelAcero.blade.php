@@ -1,6 +1,6 @@
-<x-app-layout>
-  <x-header title="Diseño de Aligerados"></x-header>
-  <x-mathjax-loader></x-mathjax-loader>
+<x-sheets.workbench legacy sheet="est-distribucion-acero" title="Distribución del acero"
+  eyebrow="Herramientas de ingeniería / Estudiante · Concreto armado"
+  description="Distribución del refuerzo por combinaciones de barras comerciales (Aceros Arequipa).">
   <div class="py-12">
     <div class="container mx-auto w-full">
       <div class="flex flex-wrap">
@@ -498,4 +498,4 @@
   @pushOnce('scripts')
     @vite('resources/js/cav2/adm_distribucion_del_acero.js')
   @endpushOnce
-</x-app-layout>
+</x-sheets.workbench>

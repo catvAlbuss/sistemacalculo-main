@@ -1,81 +1,81 @@
 <?php return array (
-  'laravel/breeze' =>
+  'laravel/breeze' => 
   array (
-    'providers' =>
+    'providers' => 
     array (
       0 => 'Laravel\\Breeze\\BreezeServiceProvider',
     ),
   ),
-  'laravel/pail' =>
+  'laravel/pail' => 
   array (
-    'providers' =>
+    'providers' => 
     array (
       0 => 'Laravel\\Pail\\PailServiceProvider',
     ),
   ),
-  'laravel/sail' =>
+  'laravel/sail' => 
   array (
-    'providers' =>
+    'providers' => 
     array (
       0 => 'Laravel\\Sail\\SailServiceProvider',
     ),
   ),
-  'laravel/tinker' =>
+  'laravel/tinker' => 
   array (
-    'providers' =>
+    'providers' => 
     array (
       0 => 'Laravel\\Tinker\\TinkerServiceProvider',
     ),
   ),
-  'livewire/livewire' =>
+  'livewire/livewire' => 
   array (
-    'aliases' =>
+    'aliases' => 
     array (
       'Livewire' => 'Livewire\\Livewire',
     ),
-    'providers' =>
+    'providers' => 
     array (
       0 => 'Livewire\\LivewireServiceProvider',
     ),
   ),
-  'livewire/volt' =>
+  'livewire/volt' => 
   array (
-    'providers' =>
+    'providers' => 
     array (
       0 => 'Livewire\\Volt\\VoltServiceProvider',
     ),
   ),
-  'nesbot/carbon' =>
+  'nesbot/carbon' => 
   array (
-    'providers' =>
+    'providers' => 
     array (
       0 => 'Carbon\\Laravel\\ServiceProvider',
     ),
   ),
-  'nunomaduro/collision' =>
+  'nunomaduro/collision' => 
   array (
-    'providers' =>
+    'providers' => 
     array (
       0 => 'NunoMaduro\\Collision\\Adapters\\Laravel\\CollisionServiceProvider',
     ),
   ),
-  'nunomaduro/termwind' =>
+  'nunomaduro/termwind' => 
   array (
-    'providers' =>
+    'providers' => 
     array (
       0 => 'Termwind\\Laravel\\TermwindServiceProvider',
     ),
   ),
-  'spatie/laravel-medialibrary' =>
+  'spatie/laravel-medialibrary' => 
   array (
-    'providers' =>
+    'providers' => 
     array (
       0 => 'Spatie\\MediaLibrary\\MediaLibraryServiceProvider',
     ),
   ),
-  'spatie/laravel-permission' =>
+  'spatie/laravel-permission' => 
   array (
-    'providers' =>
+    'providers' => 
     array (
       0 => 'Spatie\\Permission\\PermissionServiceProvider',
     ),

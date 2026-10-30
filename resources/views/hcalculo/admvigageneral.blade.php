@@ -1,4 +1,4 @@
-<x-sheets.workbench sheet="vigas-general" title="Diseño de vigas general" entry="resources/js/adm_vigas_general.js" class="beam-general"
+<x-sheets.workbench mathjax sheet="vigas-general" title="Diseño de vigas general" entry="resources/js/adm_vigas_general.js" class="beam-general"
     description="Define los materiales y los datos de cada tramo. Revisa la flexión positiva y negativa, selecciona el refuerzo y consulta el corte, la capacidad y la deflexión.">
     <x-sheets.panel title="Datos generales" description="Materiales y solicitaciones por tramo." number="01" class="arco-input-panel" data-sheet-inputs>
         <div class="arco-fields">

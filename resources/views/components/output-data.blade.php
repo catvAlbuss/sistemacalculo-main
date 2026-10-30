@@ -1,4 +1,5 @@
-<div class="mt-4 w-full overflow-x-auto rounded-lg bg-white p-6 shadow-md md:mt-0 md:basis-2/3 dark:bg-gray-800">
-  <h3 class="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">Resultados</h3>
-  {{ $slot }}
-</div>
+@props(['description' => 'Los valores se actualizan con los datos generales.'])
+<section class="arco-results" aria-label="Resultados del diseño">
+  <x-sheets.panel title="Resultados del diseño" :description="$description" number="02" class="arco-results-head" />
+  <div class="arco-result-sections">{{ $slot }}</div>
+</section>

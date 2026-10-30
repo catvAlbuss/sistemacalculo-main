@@ -1,7 +1,8 @@
-<x-app-layout>
+<x-sheets.workbench legacy sheet="espectro-sismico" title="Espectro sísmico"
+  eyebrow="Herramientas de ingeniería / Análisis sísmico"
+  description="Espectro de pseudoaceleraciones de diseño según la Norma E.030 a partir de los parámetros de zona, uso, suelo y sistema estructural.">
     <div class="relative">
         {{-- HEADER --}}
-        <x-header title="Espectro Sísmico"></x-header>
 
         <div class="min-h-screen bg-gray-50 p-6 dark:bg-gray-950">
 
@@ -451,4 +452,4 @@
         @endpushOnce
 
     </div>
-</x-app-layout>
+</x-sheets.workbench>

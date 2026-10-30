@@ -1,14 +1,43 @@
 # Componentes de hojas de cálculo
 
-Vigas y Vigas general comparten la presentación basada en Arco Techo. Los motores conservan sus fórmulas y los identificadores que utilizan.
+Todas las hojas del menú Asistente comparten la presentación basada en Arco Techo. Los motores conservan sus fórmulas y los identificadores que utilizan.
 
-- `resources/views/components/sheets/workbench.blade.php`: navegación, encabezado, ancho y distribución adaptable.
-- `sheets/panel`, `sheets/fieldset`, `sheets/field`: paneles, grupos y campos numéricos o selects. `field` recibe `id`, `label`, `value`, `symbol`, `unit`, `min`, `step` y, para selects, `options`.
-- `sheets/results-header`, `sheets/table`: estado, botones de exportación y tablas accesibles.
-- `resources/css/beam-sheet.css`: estilos compartidos, tema automático del sistema, tablas y matriz Tabulator. Sus reglas están limitadas a estas hojas.
-- `resources/js/sheets/state.js`: `createSheetState(root)`, con `validate`, `ready`, `markStale`, `setBusy`, `isCurrent` y `error`. Las entradas se identifican con `data-sheet-inputs`; los botones, con `data-sheet-export`. Los cambios en una matriz deben llamar también a `markStale`.
-- `resources/js/sheets/export.js`: copia los valores actuales del formulario y descarga la imagen. Mantiene el endpoint `/capturar-viga-fragmento`.
-- `resources/js/sheets/resultCard.js`: panel y región desplazable para resultados creados por JavaScript.
+## Componentes Blade (`resources/views/components/sheets/`)
+
+| Componente | Uso | Propiedades |
+|---|---|---|
+| `workbench` | Página de la hoja: encabezado, superficie, CSS y scripts. | `sheet`, `title`, `description`, `eyebrow`, `entry` (módulo JS), `auto`, `legacy`, `mathjax` |
+| `panel` | Panel numerado (01 datos, 02 resultados). | `title`, `description`, `number`, `heading-id`; slot `actions` |
+| `fieldset` | Grupo de campos con título y nota. | `title`, `note` |
+| `field` | Único control de datos: número o select. | `id`, `label`, `symbol`, `unit`, `value`, `min`, `step`, `options`, `bind`, `name` |
+| `label` | Etiqueta con nombre y símbolo (la usa `field`). | `for`, `text`, `symbol` |
+| `checkbox` | Casilla con etiqueta y nota. | `id`, `label`, `checked`, `note` |
+| `calculate` | Botón Calcular diseño y nota. | `label`, `note`, `type` (`submit` o `button`); atributos como `id` pasan al botón |
+| `matrix` | Contenedor de una grilla Tabulator o Handsontable. | `id`, `title`, `note` |
+| `results-header` | Estado del cálculo y botones de exportación. | `status-id`, `description`, `exports` (`id => etiqueta`), `sections` |
+| `results` | Nodo donde el motor escribe los resultados. | `id`, `empty` |
+| `table` | Tabla de resultados accesible con desplazamiento. | `label`, `columns` |
+| `figure` | Tarjeta para un dibujo o gráfico. | `title`, `number` |
+
+`field` acepta opciones en dos formas: `['A' => 'Texto']` o `[['value' => 'A', 'name' => 'Texto', 'selected' => true]]`. Con `bind` el campo usa `x-model` (hojas Alpine); sin `bind`, usa `name` y `value` para formularios. Sin `min`, no limita el valor.
+
+Hojas Alpine (madera y acero): `x-input-data`, `x-input-calc`, `x-input-select-calc`, `x-output-data`, `x-table-result`, `x-output-calc` y sus variantes `-input` son adaptadores sobre los componentes `sheets` y conservan los bindings. El componente Alpine se pasa como atributo, `<x-sheets.workbench x-data="diseño_madera">`, y su script se registra en `initscripts` (sin `entry`). `x-table-result` toma la numeración del título ("2.1.- Método LRFD").
+
+## Estilos (`resources/css/`)
+
+- `calc-sheet.css`: entrada única que carga el workbench. Reúne `arco-techo.css`, `beam-sheet.css` y `sheet-legacy.css`, y añade las reglas de los componentes nuevos y de los resultados HTML del servidor (`.sheet-results`, `.sheet-data-table`).
+- `beam-sheet.css`: presentación de vigas, tablas y matriz Tabulator. Limitado a `.beam-sheet.arco-sheet`.
+- `sheet-legacy.css`: adaptador de las hojas con `legacy`. Solo actúa dentro de `.sheet-legacy`.
+
+## Módulos JS (`resources/js/sheets/`)
+
+- `state.js`: `createSheetState(root)`, con `validate`, `ready`, `markStale`, `setBusy`, `isCurrent` y `error`. Las entradas se identifican con `data-sheet-inputs`; los botones, con `data-sheet-export`. Los cambios en una matriz deben llamar también a `markStale`.
+- `auto.js`: con `<x-sheets.workbench auto>`, crea el estado y observa `[data-sheet-results]`. Habilita las exportaciones cuando el motor escribe resultados, sin modificar el motor.
+- `export.js`: copia los valores actuales del formulario y descarga la imagen. Mantiene el endpoint `/capturar-viga-fragmento`.
+- `resultCard.js`: panel y región desplazable para resultados creados por JavaScript.
+- `resources/js/utils/engineError.js`: mensaje legible de una respuesta fallida del motor (Octave), sin volcar HTML.
+
+Plan y estado de la migración de las demás hojas: `docs/uniformizacion-hojas-asistente.md`.
 
 Para incorporar otra hoja, componer los mismos componentes y conectar su motor con `ready()` únicamente al terminar el cálculo. El estado controla si los resultados están actualizados; la selección de acero dentro de los resultados sigue actualizándose sin invalidarlos.
 

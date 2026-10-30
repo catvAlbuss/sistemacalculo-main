@@ -75,7 +75,7 @@ class PlanesController extends Controller
         if ($cycle === 'monthly') { $months = $totals['months']; }
         $canUpgrade = $request->user()?->currentSubscription?->amount_paid > 0
             && app(\App\Services\PlanChanges::class)->monthlyPrice($plan) > app(\App\Services\PlanChanges::class)->monthlyPrice($request->user()->currentSubscription->plan);
-        $culqiEnabled = $culqi->enabled() && $totals['charge_amount'] >= 3;
+        $culqiEnabled = $culqi->enabledFor($request->user()) && $totals['charge_amount'] >= 3;
         $lookupEnabled = app(\App\Services\DocumentLookup::class)->enabled();
         $checkoutKey = $request->old('checkout_key', (string) \Illuminate\Support\Str::uuid());
         $ubigeos = \App\Models\Ubigeo::orderBy('departamento')->orderBy('provincia')->orderBy('distrito')->get();

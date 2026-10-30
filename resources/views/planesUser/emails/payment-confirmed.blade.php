@@ -66,7 +66,7 @@
                                                 <td style="color: #047857; font-size: 14px; font-weight: bold;">Plan:
                                                 </td>
                                                 <td style="color: #111827; font-size: 14px; text-align: right;">
-                                                    {{ $plan->name }} · {{ $plan->duration_text }} · {{ $plan->max_users }} usuario(s) · {{ $plan->max_projects }} proyectos</td>
+                                                    {{ $plan->name }} · {{ $plan->duration_text }} · {{ $plan->max_users }} usuario(s)</td>
                                             </tr>
                                             <tr style="border-bottom: 1px solid #d1fae5;">
                                                 <td style="color: #047857; font-size: 14px; font-weight: bold;">Inicio:

@@ -4,9 +4,7 @@ import { i18n, MlCadViewer } from '@mlightcad/cad-viewer'
 import { AcApDocManager, AcApSettingManager } from '@mlightcad/cad-simple-viewer'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
-// El paquete no expone su CSS en "exports"; se importa por ruta relativa para
-// que el ribbon/toolbar nativo del visor se muestre con su estilo completo.
-import '../../../node_modules/@mlightcad/cad-viewer/dist/index.css'
+// Desde @mlightcad/cad-viewer 1.7 el propio paquete importa su CSS (dist/cad-viewer.css).
 import App from './App.vue'
 
 // Configurar workers (parsers DXF/DWG y render de MText)

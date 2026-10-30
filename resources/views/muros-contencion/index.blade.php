@@ -1,4 +1,6 @@
-<x-app-layout>
+<x-sheets.workbench legacy sheet="muros-contencion-v2" title="Diseño de muros de contención V2"
+  eyebrow="Herramientas de ingeniería / Concreto armado"
+  description="Diseño de muros de contención con presiones de servicio, resistencia última y presión sísmica, verificaciones de estabilidad y memoria de cálculo.">
     @pushOnce('styles')
         <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
@@ -3069,4 +3071,4 @@
         <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     @endpushOnce
 
-</x-app-layout>
+</x-sheets.workbench>

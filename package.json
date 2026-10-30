@@ -3,7 +3,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build",
+        "build": "node --max-old-space-size=8192 node_modules/vite/bin/vite.js build",
         "dev": "vite"
     },
     "devDependencies": {
@@ -22,10 +22,18 @@
     "dependencies": {
         "@babylonjs/core": "^9.7.0",
         "@element-plus/icons-vue": "^2.3.2",
-        "@mlightcad/cad-simple-viewer": "^1.5.0",
-        "@mlightcad/cad-viewer": "^1.5.0",
+        "@mlightcad/cad-agent-plugin": "^1.7.6",
+        "@mlightcad/cad-google-drive-plugin": "^1.7.6",
+        "@mlightcad/cad-html-plugin": "^1.7.6",
+        "@mlightcad/cad-onedrive-plugin": "^1.7.6",
+        "@mlightcad/cad-pdf-plugin": "^1.7.6",
+        "@mlightcad/cad-simple-viewer": "^1.7.6",
+        "@mlightcad/cad-svg-plugin": "^1.7.6",
+        "@mlightcad/cad-viewer": "^1.7.6",
         "@mlightcad/data-model": "^1.7.33",
-        "@mlightcad/dxf-json": "^1.2.0",
+        "@mlightcad/dxf-json": "^1.2.8",
+        "@mlightcad/libredwg-web": "^0.7.1",
+        "@mlightcad/pdf-renderer": "^1.7.6",
         "@vueuse/core": "^11.3.0",
         "alpinejs": "^3.14.9",
         "babylonjs": "^9.7.0",
@@ -40,13 +48,21 @@
         "jquery": "^3.7.1",
         "jquery-ui": "^1.14.1",
         "mat-for-js": "^1.1.0",
-        "mathjs": "^14.2.1",
+        "mathjs": "^15.2.0",
         "pdfmake": "^0.2.18",
         "plotly.js-dist-min": "2.35.3",
         "print-this": "^2.0.0",
         "sweetalert2": "^11.26.24",
         "tabulator-tables": "^6.3.1",
-        "vue": "^3.5.31",
-        "vue-i18n": "^10.0.8"
+        "three": "^0.172.0",
+        "vue": "^3.5.44",
+        "vue-i18n": "^11.4.16"
+    },
+    "overrides": {
+        "lodash-es": "^4.18.1",
+        "@mlightcad/mtext-renderer": "0.13.4",
+        "zod": "^4.6.6",
+        "undici": "^6.23.0",
+        "@fastify/busboy": "^3.2.1"
     }
 }

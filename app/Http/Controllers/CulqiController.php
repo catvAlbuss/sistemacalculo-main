@@ -25,7 +25,8 @@ class CulqiController extends Controller
 
         return response()->view('landing.culqi', [
             'payment' => $paymentRequest->load('plan'),
-            'enabled' => $culqi->enabled() && !$this->expiredQuote($paymentRequest),
+            'enabled' => $culqi->enabledFor($paymentRequest->user) && !$this->expiredQuote($paymentRequest),
+            'reviewMode' => $culqi->inReviewMode(),
             'offerExpired' => $this->expiredQuote($paymentRequest),
             'publicKey' => config('services.culqi.public_key'),
             'chargeUrl' => URL::temporarySignedRoute('culqi.charge', \Illuminate\Support\Carbon::createFromTimestamp($expiry), ['paymentRequest' => $paymentRequest->id]),
@@ -46,7 +47,7 @@ class CulqiController extends Controller
                 }
             });
         }
-        abort_unless($culqi->enabled(), 503, 'El pago en línea no está disponible.');
+        abort_unless($culqi->enabledFor($paymentRequest->user), 503, 'El pago en línea no está disponible.');
         abort_if($request->user() && $request->user()->id !== $paymentRequest->user_id, 403);
         $data = $request->validate([
             'token' => ['required', 'string', 'max:100', 'regex:/^(tkn|ype)_(test|live)_[A-Za-z0-9_]+$/'],

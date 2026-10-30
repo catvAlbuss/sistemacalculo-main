@@ -1,23 +1,10 @@
-<div
-  class="static w-full overflow-auto rounded-lg bg-white p-6 shadow-md md:sticky md:top-4 md:basis-1/3 dark:bg-gray-800">
-  <h3 class="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">Datos Generales</h3>
-  <table class="w-full table-fixed px-6 text-center text-gray-800 dark:text-white">
-    {{-- <colgroup>
-      <col style="width: 40%;">
-      <col style="width: 20%;">
-      <col style="width: 20%;">
-      <col style="width: 20%;">
-    </colgroup> --}}
-    <thead class="bg-white dark:bg-gray-800">
-      <tr>
-        <th class="py-2">Nombre</th>
-        <th class="py-2">Simbolo</th>
-        <th class="py-2">Entrada</th>
-        <th class="py-2">Unidad de Medida</th>
-      </tr>
-    </thead>
-    <tbody>
-      {{ $slot }}
-    </tbody>
-  </table>
-</div>
+@props(['title' => 'Datos generales', 'description' => 'Datos del elemento y de las solicitaciones.'])
+{{-- Panel de entrada de las hojas reactivas (Alpine). Marcado compartido con x-sheets.panel. --}}
+<x-sheets.panel :title="$title" :description="$description" number="01" class="arco-input-panel" data-sheet-inputs>
+  <div class="arco-fields">
+    <div class="arco-field-grid">{{ $slot }}</div>
+  </div>
+  @isset($actions)
+    <div class="arco-calculate">{{ $actions }}</div>
+  @endisset
+</x-sheets.panel>

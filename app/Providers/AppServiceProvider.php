@@ -45,5 +45,12 @@ class AppServiceProvider extends ServiceProvider
 
             return \Illuminate\Cache\RateLimiting\Limit::perMinutes(10, 8)->by('culqi:'.$id.':'.$request->ip());
         });
+        // Cálculos (Octave, OpenSeesPy y controladores de hojas): cada POST puede lanzar un proceso.
+        // Limita por usuario para que un bucle no sature la CPU del hosting compartido. Las páginas (GET) no cuentan.
+        \Illuminate\Support\Facades\RateLimiter::for('calculation', function (\Illuminate\Http\Request $request) {
+            return $request->isMethodSafe()
+                ? \Illuminate\Cache\RateLimiting\Limit::none()
+                : \Illuminate\Cache\RateLimiting\Limit::perMinute(60)->by('calc:'.($request->user()?->id ?: $request->ip()));
+        });
     }
 }

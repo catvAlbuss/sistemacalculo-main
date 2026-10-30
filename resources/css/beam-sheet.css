@@ -9,7 +9,7 @@
 .beam-sheet.arco-sheet .arco-field-grid .pr-field { display:flex; flex-direction:column; }
 .beam-sheet.arco-sheet .arco-field-grid .pr-label { flex:1; align-items:flex-end; }
 .beam-sheet.arco-sheet .beam-report-title { display:none; }
-.beam-sheet.arco-sheet #desingcorte { display:grid !important; }
+.beam-sheet.arco-sheet[data-sheet="diseno-vigas"] #desingcorte { display:grid !important; }
 .beam-sheet.arco-sheet .beam-result-table { min-width:600px; table-layout:auto; }
 .beam-sheet.arco-sheet .beam-result-table :is(th,td):nth-child(2),
 .beam-sheet.arco-sheet .beam-result-table :is(th,td):nth-child(3) { display:table-cell; }

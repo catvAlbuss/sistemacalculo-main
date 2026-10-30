@@ -1,6 +1,6 @@
-<x-app-layout>
-  <x-header title="Verificaion de Deflexiones"></x-header>
-  <x-mathjax-loader></x-mathjax-loader>
+<x-sheets.workbench legacy sheet="est-deflexiones" title="Verificación de deflexiones"
+  eyebrow="Herramientas de ingeniería / Estudiante · Concreto armado"
+  description="Verificación de deflexiones: requisitos de diseño, deflexiones inmediatas y diferidas, deflexión total y comparación con el límite admisible.">
   <div class="py-12">
     <div class="container mx-auto w-full">
       <div class="flex flex-wrap">
@@ -297,4 +297,4 @@
   @pushOnce('scripts')
     @vite('resources/js/cav2/adm_verificacion_deflexiones.js')
   @endpushOnce
-</x-app-layout>
+</x-sheets.workbench>

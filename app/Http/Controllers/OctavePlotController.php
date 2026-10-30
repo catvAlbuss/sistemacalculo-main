@@ -9,121 +9,137 @@ ini_set('memory_limit', '512M');
 
 class OctavePlotController extends Controller
 {
+    /**
+     * Ejecuta una llamada Octave y devuelve el código de salida; stdout trae el resultado (.mat binario).
+     * El motor se elige solo (config/octave.php): snap en Linux; en Windows, octave-cli.exe nativo
+     * o, si no existe, el mismo paquete Linux del proyecto ejecutado con WSL.
+     */
     private function runOctave($fun, &$stdout, &$stderr)
     {
-        $DESCRIPTORSPEC = array(
-            0 => array("pipe", "r"), // stdin is a pipe that the child will read from
-            1 => array("pipe", "wb"), // stdout is a pipe that the child will write to
-            2 => array("pipe", "w")  // stderr is a file to write to
-        );
-
-
-        if (PHP_OS_FAMILY === "Windows") {
-            // === WINDOWS (desarrollo local) ===
-            $octaveCandidates = array_values(array_unique(array_filter(array_merge([
-                env('OCTAVE_WINDOWS_CLI_PATH'),
-                env('OCTAVE_CLI_PATH'),
-                "C:\\laragon\\www\\octave\\mingw64\\bin\\octave-cli.exe",
-                "C:\\laragon\\www\\octave\\bin\\octave-cli.exe",
-                "C:\\laragon\\www\\octave\\bin\\octave-cli",
-                "C:\\Program Files\\GNU Octave\\Octave-9.2.0\\mingw64\\bin\\octave-cli.exe",
-            ], glob("C:\\Program Files\\GNU Octave\\*\\mingw64\\bin\\octave-cli.exe") ?: []))));
-            
-            // 🔧 Ruta ABSOLUTA a la carpeta matlab
-            $matlabPath = env('OCTAVE_MATLAB_PATH', public_path('assets/matlab'));
-            
-            // 🔧 Comando con ruta absoluta
-            $octavePath = null;
-            $checkedOctavePaths = [];
-            foreach ($octaveCandidates as $candidate) {
-                $checkedOctavePaths[] = $candidate;
-
-                if (!file_exists($candidate)) {
-                    continue;
-                }
-
-                $signature = file_get_contents($candidate, false, null, 0, 4);
-                if ($signature === "\x7FELF") {
-                    continue;
-                }
-
-                $octavePath = $candidate;
-                break;
-            }
-
-            if (!$octavePath) {
-                $stderr = "No se encontro un octave-cli.exe valido para Windows. Rutas probadas: " . implode(", ", $checkedOctavePaths) . ". La carpeta C:\\laragon\\www\\octave corresponde al paquete Linux del servidor; en local Windows configura OCTAVE_WINDOWS_CLI_PATH con un octave-cli.exe de Windows.";
-                return -1;
-            }
-
-            if (!is_dir($matlabPath)) {
-                $stderr = "No se encontro la carpeta de funciones MATLAB/Octave en: {$matlabPath}";
-                return -1;
-            }
-
-            $command = "\"$octavePath\" --path \"$matlabPath\" --no-gui --no-history --norc --no-window-system --quiet --eval \"$fun\"";
-            $process = proc_open($command, $DESCRIPTORSPEC, $pipes);
-        } else {
-
-            // Version de octave
-            $OCTAVE_VERSION = "8.0.0";
-
-            // Ruta de octave
-            $SNAP =  "/home/u112634954/domains/ryaie.com/octave";
-
-            // Ruta de los matlab
-            $MATLABS = "./assets/matlab";
-
-            // Variables de entorno
-            $ENV = array(
-                "LANGUAGE" => "en_US",
-                "LANG" => "en_US.UTF-8",
-                "LC_ALL" => "en_US.UTF-8",
-                "SNAP" => $SNAP,
-                "FONTCONFIG_PATH" => "$SNAP/etc/fonts",
-                "FONTCONFIG_FILE" => "$SNAP/etc/fonts/fonts.conf",
-                "XDG_DATA_HOME" => "$SNAP/usr/share",
-                //"PATH" => "$SNAP/usr/sbin:$SNAP/usr/bin:$SNAP/sbin:$SNAP/bin:\$PATH",
-                "GNUPLOT_DRIVER_DIR" => "$SNAP/usr/lib/gnuplot",
-                "GNUPLOT_LUA_DIR" => "$SNAP/usr/share/gnuplot/gnuplot/5.2/lua",
-                "GNUPLOT_PS_DIR" => "$SNAP/usr/share/gnuplot/gnuplot/5.2/PostScript",
-                "GS_LIB" => "$SNAP/usr/share/ghostscript/9.26/Resource/Init:$SNAP/usr/share/ghostscript/9.26/lib:$SNAP/usr/share/ghostscript/9.26/Resource/Font:$SNAP/usr/share/ghostscript/fonts:$SNAP/usr/share/fonts",
-                "LOCPATH" => "$SNAP/usr/lib/locale",
-                "OCTAVE_HOME" => "$SNAP",
-                "PKG_CONFIG_PATH" => "$SNAP/lib/pkgconfig:$SNAP/usr/lib/x86_64-linux-gnu/pkgconfig:$SNAP/usr/share/pkgconfig",
-                "PKG_CONFIG_SYSROOT_DIR" => "$SNAP",
-                "UNITSFILE" => "$SNAP/usr/share/units/definitions.units",
-                "LD_LIBRARY_PATH" => "$SNAP/lib/octave:$SNAP/lib/octave/$OCTAVE_VERSION:$SNAP/usr/lib/x86_64-linux-gnu:$SNAP/usr/lib:$SNAP/lib/x86_64-linux-gnu:$SNAP/bin"
-            );
-
-            $command = "PATH=$SNAP/usr/sbin:$SNAP/usr/bin:$SNAP/sbin:$SNAP/bin:\$PATH octave-cli --path $MATLABS --no-gui --no-history --norc --no-window-system --quiet --eval \"$fun\"";
-            $process = proc_open($command, $DESCRIPTORSPEC, $pipes, null, $ENV);
-        }
-        // $command = 'octave-cli --path ' . $MATLABS . ' --no-gui --no-history --norc --no-window-system --quiet --eval "' . $fun . '"';
-        // if (PHP_OS_FAMILY !== "Windows" && empty(glob("/usr/bin/octave*"))) {
-        //     $command = "PATH=$SNAP/usr/sbin:$SNAP/usr/bin:$SNAP/sbin:$SNAP/bin:\$PATH " . $command;
-        //     $process = proc_open($command, $DESCRIPTORSPEC, $pipes, null, $ENV);
-        // } else {
-        //     $process = proc_open($command, $DESCRIPTORSPEC, $pipes);
-        // }
-        if (is_resource($process)) {
-            // $pipes now looks like this:
-            // 0 => writeable handle connected to child stdin
-            // 1 => readable handle connected to child stdout
-
-            $stdout = stream_get_contents($pipes[1]);
-            $stderr = stream_get_contents($pipes[2], 1024);
-
-            fclose($pipes[0]);
-            fclose($pipes[1]);
-            fclose($pipes[2]);
-
-            // It is important that you close any pipes before calling
-            // proc_close in order to avoid a deadlock
-            return proc_close($process);
-        } else {
+        $launch = PHP_OS_FAMILY === 'Windows' ? $this->windowsOctaveLaunch($fun) : $this->linuxOctaveLaunch($fun);
+        if (is_string($launch)) {
+            $stderr = $launch;
             return -1;
         }
+
+        $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'wb'], 2 => ['pipe', 'w']];
+        $process = proc_open($launch['command'], $descriptors, $pipes, null, $launch['env'] ?? null, $launch['options'] ?? []);
+        if (!is_resource($process)) {
+            $stderr = 'No se pudo iniciar Octave.';
+            return -1;
+        }
+        fclose($pipes[0]);
+        $stdout = stream_get_contents($pipes[1]);
+        $stderr = stream_get_contents($pipes[2], 4096);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+
+        // Cerrar los pipes antes de proc_close evita bloqueos.
+        return proc_close($process);
+    }
+
+    /** Argumentos comunes de octave-cli. */
+    private function octaveArguments(string $matlabPath, string $fun): array
+    {
+        return ['--path', $matlabPath, '--no-gui', '--no-history', '--norc', '--no-window-system', '--quiet', '--eval', $fun];
+    }
+
+    /** Variables de entorno del paquete snap de Octave ubicado en $snap (rutas Linux). */
+    private function snapEnvironment(string $snap): array
+    {
+        $version = config('octave.version');
+
+        return [
+            'LANGUAGE' => 'en_US', 'LANG' => 'C.UTF-8', 'LC_ALL' => 'C.UTF-8',
+            'SNAP' => $snap, 'OCTAVE_HOME' => $snap,
+            'FONTCONFIG_PATH' => "$snap/etc/fonts", 'FONTCONFIG_FILE' => "$snap/etc/fonts/fonts.conf",
+            'XDG_DATA_HOME' => "$snap/usr/share",
+            'GNUPLOT_DRIVER_DIR' => "$snap/usr/lib/gnuplot",
+            'GNUPLOT_LUA_DIR' => "$snap/usr/share/gnuplot/gnuplot/5.2/lua",
+            'GNUPLOT_PS_DIR' => "$snap/usr/share/gnuplot/gnuplot/5.2/PostScript",
+            'GS_LIB' => "$snap/usr/share/ghostscript/9.26/Resource/Init:$snap/usr/share/ghostscript/9.26/lib:$snap/usr/share/ghostscript/9.26/Resource/Font:$snap/usr/share/ghostscript/fonts:$snap/usr/share/fonts",
+            'LOCPATH' => "$snap/usr/lib/locale",
+            'PKG_CONFIG_PATH' => "$snap/lib/pkgconfig:$snap/usr/lib/x86_64-linux-gnu/pkgconfig:$snap/usr/share/pkgconfig",
+            'PKG_CONFIG_SYSROOT_DIR' => $snap,
+            'UNITSFILE' => "$snap/usr/share/units/definitions.units",
+            'LD_LIBRARY_PATH' => "$snap/lib/octave:$snap/lib/octave/$version:$snap/usr/lib/x86_64-linux-gnu:$snap/usr/lib:$snap/lib/x86_64-linux-gnu:$snap/bin",
+            'PATH' => "$snap/usr/sbin:$snap/usr/bin:$snap/sbin:$snap/bin:/usr/local/bin:/usr/bin:/bin",
+        ];
+    }
+
+    /** Servidor Linux: snap de Octave en config('octave.snap_path'). */
+    private function linuxOctaveLaunch(string $fun): array|string
+    {
+        $snap = rtrim(config('octave.snap_path'), '/');
+        if (!is_file("$snap/bin/octave-cli")) {
+            return "No se encontró Octave en {$snap}. Configura OCTAVE_SNAP_PATH.";
+        }
+
+        return ['command' => array_merge(["$snap/bin/octave-cli"], $this->octaveArguments(config('octave.matlab_path'), $fun)), 'env' => $this->snapEnvironment($snap)];
+    }
+
+    /** Windows: octave-cli.exe nativo; si no hay, el paquete Linux del proyecto con WSL. */
+    private function windowsOctaveLaunch(string $fun): array|string
+    {
+        $matlabPath = config('octave.matlab_path');
+        if (!is_dir($matlabPath)) {
+            return "No se encontró la carpeta de funciones MATLAB/Octave en: {$matlabPath}";
+        }
+
+        $candidates = array_values(array_unique(array_filter(array_merge(
+            [config('octave.windows_cli')],
+            glob('C:\Program Files\GNU Octave\*\mingw64\bin\octave-cli.exe') ?: [],
+            glob('C:\Octave\*\mingw64\bin\octave-cli.exe') ?: [],
+        ))));
+        foreach ($candidates as $candidate) {
+            // Un ejecutable ELF es el paquete Linux: no corre nativo en Windows.
+            if (is_file($candidate) && file_get_contents($candidate, false, null, 0, 4) !== "\x7FELF") {
+                return ['command' => array_merge([$candidate], $this->octaveArguments($matlabPath, $fun))];
+            }
+        }
+
+        $snap = rtrim((string) config('octave.wsl.snap_path'), '\/');
+        if (config('octave.wsl.enabled') && is_file($snap.'\bin\octave-cli')) {
+            $wslSnap = $this->wslPath($snap);
+            $env = array_map(fn ($key, $value) => $key.'='.$value, array_keys($this->snapEnvironment($wslSnap)), $this->snapEnvironment($wslSnap));
+            $distro = config('octave.wsl.distro');
+
+            $arguments = array_merge(
+                $distro ? ['-d', $distro] : [], ['-e', 'env'], $env,
+                ['octave-cli'], $this->octaveArguments($this->wslPath($matlabPath), $fun),
+            );
+
+            // wsl.exe lee la línea de comandos en crudo: sus opciones no pueden ir entre comillas,
+            // por eso se arma una cadena (comillas solo donde hace falta) y se lanza sin cmd.exe.
+            return [
+                'command' => 'wsl.exe '.implode(' ', array_map(fn ($arg) => $this->windowsArgument($arg), $arguments)),
+                'options' => ['bypass_shell' => true],
+            ];
+        }
+
+        return 'No hay Octave disponible en Windows. Instala GNU Octave para Windows (OCTAVE_WINDOWS_CLI_PATH) '
+            .'o habilita WSL con el paquete Linux en '.($snap ?: 'OCTAVE_WSL_SNAP_PATH').'.';
+    }
+
+    /** Entrecomillado de un argumento según las reglas de Windows (CommandLineToArgvW). */
+    private function windowsArgument(string $arg): string
+    {
+        if ($arg !== '' && !preg_match('/[\s"]/', $arg)) {
+            return $arg;
+        }
+        // Las barras invertidas solo se duplican delante de una comilla o del cierre.
+        $escaped = preg_replace('/(\\\\*)"/', '$1$1\\"', $arg);
+        $escaped = preg_replace('/(\\\\+)$/', '$1$1', $escaped);
+
+        return '"'.$escaped.'"';
+    }
+
+    /** C:\ruta\carpeta → /mnt/c/ruta/carpeta */
+    private function wslPath(string $path): string
+    {
+        $path = str_replace('\\', '/', $path);
+
+        return preg_match('/^([A-Za-z]):\/(.*)$/', $path, $m) ? '/mnt/'.strtolower($m[1]).'/'.$m[2] : $path;
     }
 
     private function returnOctaveResult($function)

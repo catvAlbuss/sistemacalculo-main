@@ -108,11 +108,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     points.exit().remove();
 
-    const backgroundColor = mode === "dark" ? "#1b1e23" : "white";
     const textColor = mode === "dark" ? "white" : "#1b1e23";
     const lineColor = mode === "dark" ? "lightsteelblue" : "steelblue";
 
-    d3.select("body").style("background-color", backgroundColor);
     svg.style("color", textColor);
     xAxis.style("color", textColor);
     yAxis.style("color", textColor);
@@ -4955,11 +4953,9 @@ document.addEventListener("DOMContentLoaded", async () => {
           .attr("stroke-width", 1);
       }
       // Cambiar colores de fondo y líneas según el modo
-      const bgColor = colorMode === "dark" ? "#1b1e23" : "white";
       const textColor = colorMode === "dark" ? "white" : "#1b1e23";
       const graphColor = colorMode === "dark" ? "lightsteelblue" : "steelblue";
 
-      d3.select("body").style("background-color", bgColor);
       svgElement.style("color", textColor);
       xAxisElement.style("color", textColor);
       yAxisElement.style("color", textColor);
@@ -5291,11 +5287,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
 
       // Cambiar colores de fondo y líneas según el modo
-      const bgColor = colorModepre === "dark" ? "#1b1e23" : "white";
       const textColor = colorModepre === "dark" ? "white" : "#1b1e23";
       const graphColor = colorModepre === "dark" ? "lightsteelblue" : "steelblue";
 
-      d3.select("body").style("background-color", bgColor);
       svgElement.style("color", textColor);
       xAxisElement.style("color", textColor);
       yAxisElement.style("color", textColor);
@@ -5625,10 +5619,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
 
       // Cambiar colores de fondo y líneas según el modo
-      const bgColor = colorModepre === "dark" ? "#1b1e23" : "white";
       const textColor = colorModepre === "dark" ? "white" : "#1b1e23";
 
-      d3.select("body").style("background-color", bgColor);
       svgElement.style("color", textColor);
       xAxisElement.style("color", textColor);
       yAxisElement.style("color", textColor);
@@ -5803,10 +5795,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
 
       // Cambiar colores de fondo y líneas según el modo
-      const bgColor = colorModepre === "dark" ? "#1b1e23" : "white";
       const textColor = colorModepre === "dark" ? "white" : "#1b1e23";
 
-      d3.select("body").style("background-color", bgColor);
       svgElement.style("color", textColor);
       xAxisElement.style("color", textColor);
       yAxisElement.style("color", textColor);
@@ -5981,10 +5971,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
 
       // Cambiar colores de fondo y líneas según el modo
-      const bgColor = colorModepre === "dark" ? "#1b1e23" : "white";
       const textColor = colorModepre === "dark" ? "white" : "#1b1e23";
 
-      d3.select("body").style("background-color", bgColor);
       svgElement.style("color", textColor);
       xAxisElement.style("color", textColor);
       yAxisElement.style("color", textColor);

@@ -1,355 +1,53 @@
-<x-calc-layout title="Diseño Muros de albañilería">
-    <div class="py-12">
-        <div class="container mx-auto w-full">
-            <div class="flex flex-wrap">
-                <!-- Formulario -->
-                <div class="w-full md:w-1/3">
-                    <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-                        <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Datos Generales</h3>
-                        <div class="overflow-auto">
-                            <form action="{{ route('malbaCont') }}" method="POST" id="datamurosAlb">
-                                @csrf
-                                <table class="table-auto w-full text-gray-800 dark:text-white px-6">
-                                    <thead class="bg-white dark:bg-gray-800">
-                                        <tr class="text-center">
-                                            <th class="py-2 px-4">Nombre</th>
-                                            <th class="py-2 px-4">Simb.</th>
-                                            <th class="py-2 px-4">Entrada</th>
-                                            <th class="py-2 px-4">Unidad <br> Medida</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="text-center">
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4" colspan="4">Descripción general del diseño</th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4"></th>
-                                            <th class="py-2 px-4">Desc</th>
-                                            <th class="py-2 px-4">
-                                                <input type="text" name="desc"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="desc" placeholder="descripción" min="0"
-                                                    value="desc" required>
-                                            </th>
-                                            <th class="py-2 px-4"></th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Ubicación del diseño</th>
-                                            <th class="py-2 px-4">Ubic.</th>
-                                            <th class="py-2 px-4">
-                                                <input type="text" name="ubi"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="ubi" placeholder="Agrega la ubicación" min="0"
-                                                    value="ubi" required>
-                                            </th>
-                                            <th class="py-2 px-4"></th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Resistencia a la Compresión de la Albañilería</th>
-                                            <th class="py-2 px-4">F'm</th>
-                                            <th class="py-2 px-4">
-                                                <input type="text" name="fm"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="fm" placeholder="700" min="0" value="700"
-                                                    required>
-                                            </th>
-                                            <th class="py-2 px-4">Tn/m<sup>2</sup></th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Longitud</th>
-                                            <th class="py-2 px-4">L</th>
-                                            <th class="py-2 px-4"><input type="text" name="l"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="l" placeholder="5" min="0" value="5"
-                                                    required></th>
-                                            <th class="py-2 px-4">m</th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Espesor</th>
-                                            <th class="py-2 px-4">t</th>
-                                            <th class="py-2 px-4"><input type="text" name="t"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="t" value="0.13" placeholder="0.13" min="0"
-                                                    required
-                                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                            </th>
-                                            <th class="py-2 px-4">m</th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Altura</th>
-                                            <th class="py-2 px-4">h</th>
-                                            <th class="py-2 px-4"><input type="text" name="h"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="h" value="2.9" placeholder="2.9" min="0"
-                                                    required
-                                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                            </th>
-                                            <th class="py-2 px-4">m</th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4" colspan="4">2.- Cargas y combinaciones para el
-                                                diseño</th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Carga de gravedad máxima</th>
-                                            <th class="py-2 px-4">Pm</th>
-                                            <th class="py-2 px-4"><input type="text" name="pm"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="pm" value="27.82" placeholder="27.82" min="0"
-                                                    required
-                                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                            </th>
-                                            <th class="py-2 px-4"></th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Fuerza cortante producida por sismo moderado</th>
-                                            <th class="py-2 px-4">Ve</th>
-                                            <th class="py-2 px-4"><input type="text" name="ve"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="ve" value="3.92" placeholder="3.92" min="0"
-                                                    required
-                                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                            </th>
-                                            <th class="py-2 px-4"></th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Momento flector en el muro generado por sismo
-                                                moderado</th>
-                                            <th class="py-2 px-4">Me</th>
-                                            <th class="py-2 px-4"><input type="text" name="me"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="me" value="18.54" placeholder="18.54" min="0"
-                                                    required
-                                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                            </th>
-                                            <th class="py-2 px-4"></th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4" colspan="4">4.- Verificacion del agrietamiento en
-                                                los muros</th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Resistencia característica corte de la albañilería
-                                            </th>
-                                            <th class="py-2 px-4">V'm</th>
-                                            <th class="py-2 px-4"><input type="text" name="vdm"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="vdm" value="81" placeholder="81" min="0"
-                                                    required
-                                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                            </th>
-                                            <th class="py-2 px-4">m</th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4" colspan="4">6.- Verificacion de la nesecidad de
-                                                colocar refuerzo horizontal</th>
-                                        </tr>
-
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Número de hiladas</th>
-                                            <th class="py-2 px-4" colspan="3">
-                                                <select
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    name="nh" id="nh"
-                                                    aria-label="Default select example">
-                                                    <option selected disabled>Seleccione la hilada</option>
-                                                    <option value="2">2 Hiladas</option>
-                                                    <option value="3">3 Hiladas</option>
-                                                </select>
-                                            </th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Dimensión de barras</th>
-                                            <th class="py-2 px-4" colspan="3">
-                                                <select
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    name="db" id="db"
-                                                    aria-label="Default select example">
-                                                    <option selected disabled>Seleccione las barras</option>
-                                                    <option value="0.395">8 mm</option>
-                                                    <option value="0.250">1/4''</option>
-                                                </select>
-                                            </th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Número de columnas de confinamiento</th>
-                                            <th class="py-2 px-4">Nc</th>
-                                            <th class="py-2 px-4"><input type="text" name="nc"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="nc" value="2" placeholder="2" min="0"
-                                                    required
-                                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                            </th>
-                                            <th class="py-2 px-4">m</th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Resistencia característica corte de la albañilería
-                                            </th>
-                                            <th class="py-2 px-4">F'c</th>
-                                            <th class="py-2 px-4"><input type="text" name="fdc"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="fdc" value="210" placeholder="210" min="0"
-                                                    required
-                                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                            </th>
-                                            <th class="py-2 px-4">Kg/cm<sup>2</sup></th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">1/4 pg muro perdendicular</th>
-                                            <th class="py-2 px-4">Pt1</th>
-                                            <th class="py-2 px-4"><input type="text" name="pt1"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="pt1" value="6.02" placeholder="6.02" min="0"
-                                                    required
-                                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                            </th>
-                                            <th class="py-2 px-4"></th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">1/4 pg muro perdendicular</th>
-                                            <th class="py-2 px-4">Pt2</th>
-                                            <th class="py-2 px-4"><input type="text" name="pt2"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="pt2" value="1" placeholder="0" min="0"
-                                                    required
-                                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                            </th>
-                                            <th class="py-2 px-4"></th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Longitud del paño mayor a 0.5L</th>
-                                            <th class="py-2 px-4">Lm</th>
-                                            <th class="py-2 px-4"><input type="text" name="lm"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="lm" value="5" placeholder="5" min="0"
-                                                    required
-                                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                            </th>
-                                            <th class="py-2 px-4">m</th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4" colspan="4">7.2 Determinación de la Sección de
-                                                Concreto de la Columna de Confinamiento</th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Ø Columna Exterior</th>
-                                            <th class="py-2 px-4">Ø Col. Ext.</th>
-                                            <th class="py-2 px-4"><input type="text" name="pce"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="pce" value="0.7" placeholder="0.7" min="0"
-                                                    required
-                                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                            </th>
-                                            <th class="py-2 px-4"></th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Ø Columna Interior</th>
-                                            <th class="py-2 px-4">Ø Col. Int.</th>
-                                            <th class="py-2 px-4"><input type="text" name="pci"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="pci" value="0.7" placeholder="0.7" min="0"
-                                                    step="any" required>
-                                            </th>
-                                            <th class="py-2 px-4"></th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Ø Columna Exterior</th>
-                                            <th class="py-2 px-4">Ø Col. Ext.</th>
-                                            <th class="py-2 px-4"><input type="text" name="dce"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="dce" value="1" placeholder="1" min="0"
-                                                    required
-                                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                            </th>
-                                            <th class="py-2 px-4"></th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Ø Columna Interior</th>
-                                            <th class="py-2 px-4">Ø Col. Int.</th>
-                                            <th class="py-2 px-4"><input type="text" name="dci"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="dci" value="1" placeholder="1" min="0"
-                                                    required
-                                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                            </th>
-                                            <th class="py-2 px-4"></th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Peralte Col. Ext.</th>
-                                            <th class="py-2 px-4">PCE</th>
-                                            <th class="py-2 px-4"><input type="text" name="pcex"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="pcex" value="0.15" placeholder="0.15" min="0"
-                                                    required
-                                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                            </th>
-                                            <th class="py-2 px-4"></th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Peralte Col. Int.</th>
-                                            <th class="py-2 px-4">PCI</th>
-                                            <th class="py-2 px-4"><input type="text" name="pci"
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    id="pci" value="0.1" placeholder="0.1" min="0"
-                                                    required
-                                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                                            </th>
-                                            <th class="py-2 px-4"></th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4" colspan="4">8. 7.2 Determinación de la Sección de
-                                                Concreto de la Columna de Confinamiento</th>
-                                        </tr>
-                                        <tr class="bg-white dark:bg-gray-800">
-                                            <th class="py-2 px-4">Diámetro</th>
-                                            <th class="py-2 px-4" colspan="3">
-                                                <select
-                                                    class="form-control w-full bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-2 px-1 rounded-md"
-                                                    name="dmtr" id="dmtr"
-                                                    aria-label="Default select example">
-                                                    <option value="0.71">3/8</option>
-                                                </select>
-                                            </th>
-                                        </tr>
-
-                                        <tr>
-                                            <th class="py-2 px-4">
-                                                <div class="input-group mb-2">
-                                                    <button
-                                                        class="bg-blue-500 hover:bg-blue-400 text-white font-bold py-2 px-4 border-b-4 border-blue-700 hover:border-blue-500 rounded"
-                                                        type="submit">DISEÑAR</button>
-                                                </div>
-                                            </th>
-                                        </tr>
-                                        <!-- Agregar más filas según sea necesario -->
-                                    </tbody>
-                                </table>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Resultados -->
-                <div class="w-full md:w-2/3 px-4 mt-4 md:mt-0">
-                    <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-                        <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Resultados</h3>
-                        <button type="button"
-                            class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-                            id="btn_pdf_predim">
-                            Generar PDF
-                        </button>
-                        <div class="overflow-x-auto" id="murosalba_pdf">
-                            <div id="resultadoMalba"></div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
+<x-sheets.workbench sheet="muros-albanileria" title="Diseño de muros de albañilería" entry="resources/js/adm_muros_albanieria.js" auto
+  eyebrow="Herramientas de ingeniería / Albañilería"
+  description="Diseño de muros de albañilería confinada: cargas y combinaciones, verificación del agrietamiento, necesidad de refuerzo horizontal y sección de las columnas de confinamiento.">
+  <x-sheets.panel title="Datos generales" description="Identificación, geometría, cargas y datos de los elementos de confinamiento." number="01" class="arco-input-panel" data-sheet-inputs>
+    <form id="datamurosAlb" action="{{ route('malbaCont') }}" method="post">
+      @csrf
+      <div class="arco-fields">
+        <x-sheets.fieldset title="Identificación">
+          <x-sheets.field id="desc" type="text" label="Descripción" value="desc" />
+          <x-sheets.field id="ubi" type="text" label="Ubicación" value="ubi" />
+        </x-sheets.fieldset>
+        <x-sheets.fieldset title="Muro">
+          <x-sheets.field id="fm" label="Resistencia a compresión de la albañilería" symbol="f′m" value="700" unit="t/m²" min="0" />
+          <x-sheets.field id="vdm" label="Resistencia característica a corte" symbol="v′m" value="81" unit="t/m²" min="0" />
+          <x-sheets.field id="l" label="Longitud" symbol="L" value="5" unit="m" min="0.01" />
+          <x-sheets.field id="t" label="Espesor" symbol="t" value="0.13" unit="m" min="0.01" />
+          <x-sheets.field id="h" label="Altura" symbol="h" value="2.9" unit="m" min="0.01" />
+          <x-sheets.field id="lm" label="Longitud del paño mayor a 0.5 L" symbol="Lm" value="5" unit="m" min="0" />
+        </x-sheets.fieldset>
+        <x-sheets.fieldset title="Cargas de diseño" note="Carga de gravedad y solicitaciones por sismo moderado.">
+          <x-sheets.field id="pm" label="Carga de gravedad máxima" symbol="Pm" value="27.82" />
+          <x-sheets.field id="ve" label="Cortante por sismo moderado" symbol="Ve" value="3.92" />
+          <x-sheets.field id="me" label="Momento por sismo moderado" symbol="Me" value="18.54" />
+          <x-sheets.field id="pt1" label="1/4 de la carga de muro perpendicular 1" symbol="Pt1" value="6.02" />
+          <x-sheets.field id="pt2" label="1/4 de la carga de muro perpendicular 2" symbol="Pt2" value="1" />
+        </x-sheets.fieldset>
+        <x-sheets.fieldset title="Refuerzo horizontal y confinamiento">
+          <x-sheets.field id="nh" label="Número de hiladas" value="2" :options="['2' => '2 hiladas', '3' => '3 hiladas']" />
+          <x-sheets.field id="db" label="Barra del refuerzo horizontal" symbol="Ø" value="0.395" :options="['0.395' => '8 mm', '0.250' => '1/4″']" />
+          <x-sheets.field id="nc" label="Número de columnas de confinamiento" symbol="Nc" value="2" min="0" step="1" />
+          <x-sheets.field id="fdc" label="Compresión del concreto de confinamiento" symbol="f′c" value="210" unit="kg/cm²" min="0.01" />
+        </x-sheets.fieldset>
+        <x-sheets.fieldset title="Columnas de confinamiento">
+          <x-sheets.field id="pce" label="Factor Ø, columna exterior" value="0.7" min="0" />
+          <x-sheets.field id="pci" label="Factor Ø, columna interior" value="0.7" min="0" />
+          <x-sheets.field id="dce" label="Factor δ, columna exterior" value="1" min="0" />
+          <x-sheets.field id="dci" label="Factor δ, columna interior" value="1" min="0" />
+          <x-sheets.field id="pcex" label="Peralte de la columna exterior" value="0.15" unit="m" min="0" />
+          <x-sheets.field id="pcin" label="Peralte de la columna interior" value="0.1" unit="m" min="0" />
+          <x-sheets.field id="dmtr" label="Diámetro del refuerzo" symbol="Ø" value="0.71" :options="['0.71' => '3/8″']" />
+        </x-sheets.fieldset>
+      </div>
+      <x-sheets.calculate />
+    </form>
+  </x-sheets.panel>
+  <section class="arco-results" aria-label="Resultados del diseño de muros de albañilería">
+    <x-sheets.results-header status-id="muros-albanileria-status" description="Cargas, agrietamiento, refuerzo horizontal y columnas de confinamiento."
+      :exports="['btn_pdf_predim' => 'Exportar PDF']" />
+    <div id="murosalba_pdf">
+      <x-sheets.results id="resultadoMalba" />
     </div>
-
-    @pushOnce('scripts')
-        @vite('resources/js/adm_muros_albanieria.js')
-    @endpushOnce
-
-</x-calc-layout>
+  </section>
+</x-sheets.workbench>

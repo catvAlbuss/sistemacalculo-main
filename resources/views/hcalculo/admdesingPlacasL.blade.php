@@ -1,4 +1,6 @@
-<x-calc-layout title="Diseño de placas en L">
+<x-sheets.workbench legacy sheet="placas-l" title="Diseño de placas en L"
+  eyebrow="Herramientas de ingeniería / Concreto armado"
+  description="Diseño de placas de concreto armado en L: solicitaciones, compresión pura, flexión con diagramas de interacción, corte, deslizamiento, agrietamiento y efecto local de carga puntual.">
     @pushOnce("styles")
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" />
     @endpushOnce
@@ -868,4 +870,4 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     @vite("resources/js/adm_desing_placasL.js")
     @endpushOnce
-</x-calc-layout>
+</x-sheets.workbench>

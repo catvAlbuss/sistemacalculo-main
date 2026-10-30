@@ -1,4 +1,6 @@
-<x-calc-layout title="Diseño de Cerco Perimetrico">
+<x-sheets.workbench legacy sheet="cerco-perimetrico" title="Diseño de cerco perimétrico"
+  eyebrow="Herramientas de ingeniería / Albañilería"
+  description="Diseño de un cerco perimétrico de albañilería: análisis del muro y de la viga solera, y diseño de los elementos de confinamiento y la cimentación.">
   <div class="py-12">
     <div class="container mx-auto w-full">
       <div class="flex flex-wrap">
@@ -1654,4 +1656,4 @@
       @vite('resources/js/cercoPerimetrico/cercoPerimetricoCalc.js')
       @vite('resources/js/cercoPerimetrico/drawCP.js')
     @endpushOnce
-</x-calc-layout>
+</x-sheets.workbench>

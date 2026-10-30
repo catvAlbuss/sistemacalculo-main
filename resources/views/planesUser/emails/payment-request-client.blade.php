@@ -103,7 +103,7 @@
                                             <tr>
                                                 <td style="color: #78350f; font-size: 14px;"><strong>Duración:</strong>
                                                 </td>
-                                                <td style="color: #111827; font-size: 14px;">{{ $plan->duration_text }} · {{ $plan->max_users }} usuario(s) · {{ $plan->max_projects }} proyectos
+                                                <td style="color: #111827; font-size: 14px;">{{ $plan->duration_text }} · {{ $plan->max_users }} usuario(s)
                                                 </td>
                                             </tr>
                                             @if ($plan->type !== 'lifetime')

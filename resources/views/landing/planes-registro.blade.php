@@ -167,7 +167,6 @@
                 <div class="pr-summary-body">
                     <dl class="pr-capacity">
                         <div><dt>Usuarios incluidos</dt><dd>{{ $plan->max_users ?? 'Por definir' }}</dd></div>
-                        <div><dt>Proyectos incluidos</dt><dd>{{ $plan->max_projects ?? 'Por definir' }}</dd></div>
                     </dl>
                     @if ($plan->features)
                         <ul class="pr-features" aria-label="Incluido en el plan">@foreach ($plan->features as $feature)<li>{{ $feature }}</li>@endforeach</ul>

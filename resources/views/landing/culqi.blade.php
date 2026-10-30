@@ -11,13 +11,14 @@
         <h1 class="text-2xl font-bold text-gray-800">{{ $payment->status === 'approved' ? '¡Pago confirmado!' : 'Paga tu suscripción' }}</h1>
         <p class="mt-3 text-gray-600">Plan: {{ $payment->plan_snapshot['name'] ?? $payment->plan->name }}</p>
         <p class="mt-2 text-sm text-gray-600">{{ $payment->plan_snapshot['duration_text'] ?? $payment->plan->duration_text }} · {{ ($payment->plan_snapshot['billing_cycle'] ?? '') === 'yearly' ? 'Pago anual único' : 'Pago por período' }}</p>
-        <p class="mt-2 text-sm text-gray-600">Usuarios: {{ $payment->plan_snapshot['max_users'] ?? $payment->plan->max_users ?? 'Por definir' }} · Proyectos: {{ $payment->plan_snapshot['max_projects'] ?? $payment->plan->max_projects ?? 'Por definir' }}</p>
+        <p class="mt-2 text-sm text-gray-600">Usuarios: {{ $payment->plan_snapshot['max_users'] ?? $payment->plan->max_users ?? 'Por definir' }}</p>
         @if (!empty($payment->plan_snapshot['discount']))<p class="mt-2 text-sm text-green-700">Descuento anual del 5 %: S/ {{ number_format($payment->plan_snapshot['discount'], 2) }}</p>@endif
         <p class="mt-2 text-3xl font-bold text-blue-600">{{ $payment->currency === 'USD' ? 'US$' : 'S/' }} {{ number_format($payment->charge_amount ?? $payment->amount, 2) }}</p>
         @if(!empty($payment->plan_snapshot['processing']))<p class="mt-2 text-sm text-gray-600">Precio final con procesamiento e IGV incluidos. El total es el mismo para los medios habilitados.</p>@endif
         @if($payment->currency === 'USD')<p class="mt-2 text-sm">Base: S/ {{ number_format($payment->amount, 2) }} · Tipo de cambio {{ $payment->exchange_rate }} PEN/USD, {{ $payment->exchange_rate_date?->format('d/m/Y') }}. USD se paga con tarjeta.</p>@endif
         @if(!empty($payment->plan_snapshot['credit']))<p class="mt-2 text-sm">Saldo aplicado por tiempo no usado: S/ {{ number_format($payment->plan_snapshot['credit'], 2) }}. Cambio inmediato al confirmarse el pago.</p>@endif
         <p class="mt-2 text-xs text-gray-500">{{ ($payment->plan_snapshot['type'] ?? '') === 'lifetime' ? 'Pago único por acceso permanente. No requiere renovación.' : ((($payment->plan_snapshot['billing_cycle'] ?? '') === 'yearly' ? 'Este cobro cubre todo el año.' : 'Este cobro cubre el período indicado.').' La renovación es manual.') }}</p>
+        @if($reviewMode ?? false)<p class="wk-notice">Entorno de pruebas de Culqi: usa tarjetas de prueba. No se realiza ningún cargo real.</p>@endif
         @if($until=$payment->plan_snapshot['lifetime_quote']['valid_until'] ?? null)<p class="wk-notice">Propuesta definida por administración. Válida hasta {{ \Illuminate\Support\Carbon::parse($until)->timezone('America/Lima')->format('d/m/Y H:i') }}.</p>@endif
         @if ($payment->receipt_type)
             <p class="mt-3 text-sm text-gray-600">{{ ucfirst($payment->receipt_type) }} para {{ $payment->billing_name }}<br>{{ $payment->document_type }}: {{ $payment->document_number }}</p>

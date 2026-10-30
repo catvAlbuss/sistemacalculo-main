@@ -58,8 +58,8 @@ class Billing
             : $this->breakdown((float) $payment->amount);
         $snapshot = $payment->plan_snapshot ?? [];
         $description = ($snapshot['name'] ?? $payment->plan->name).' · '.($snapshot['duration_text'] ?? $payment->plan->duration_text);
-        if (isset($snapshot['max_users'], $snapshot['max_projects'])) {
-            $description .= ' · '.$snapshot['max_users'].' usuario(s) · '.$snapshot['max_projects'].' proyectos';
+        if (isset($snapshot['max_users'])) {
+            $description .= ' · '.$snapshot['max_users'].' usuario(s)';
         }
 
         return $payment->receipt()->firstOrCreate([], [

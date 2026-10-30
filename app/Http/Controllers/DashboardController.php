@@ -100,7 +100,7 @@ class DashboardController extends Controller
 
             // Caso 2: Plan Mensual o Anual (Restante)
             //if (in_array($planType, ['monthly', 'annual'])) {
-            if (in_array($planType, ['monthly', 'yearly'], true)) {
+            if (in_array($planType, ['monthly', 'quarterly', 'semiannual', 'yearly'], true)) {
                 if ($diffInDays <= self::ALERT_DAYS) {
                     return [
                         'type' => 'warning',

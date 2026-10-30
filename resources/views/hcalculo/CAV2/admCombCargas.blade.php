@@ -1,205 +1,52 @@
-<x-app-layout>
-  <x-header title="Combinacion de Cargas"></x-header>
-  <x-mathjax-loader></x-mathjax-loader>
-  <div class="py-12">
-    <div class="container mx-auto w-full">
-      <div class="flex flex-wrap">
-        <!-- Formulario -->
-        <div class="w-full md:w-1/3">
-          <div class="rounded-lg bg-white p-6 shadow-md dark:bg-gray-800">
-            <h3 class="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">Datos Generales</h3>
-            <div class="overflow-auto">
-              <table class="w-full table-auto px-6 text-gray-800 dark:text-white">
-                <thead class="bg-white dark:bg-gray-800">
-                  <tr class="text-center">
-                    <th class="px-4 py-2">Nombre</th>
-                    <th class="px-4 py-2">Simb.</th>
-                    <th class="px-4 py-2">Entrada</th>
-                    <th class="px-4 py-2">Unidad <br> Medida</th>
-                  </tr>
-                </thead>
-                <tbody class="text-center">
-                  <tr class="bg-white dark:bg-gray-800">
-                    <td class="px-4 py-2"></td>
-                    <td class="px-4 py-2">D</td>
-                    <td class="px-4 py-2"><input
-                        class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                        id="d" name="d" type="number" value="1.8" step="any" min="0"
-                        required></td>
-                    <td class="px-4 py-2">Tn/m</td>
-                  </tr>
-                  <tr class="bg-white dark:bg-gray-800">
-                    <td class="px-4 py-2"></td>
-                    <td class="px-4 py-2">L</td>
-                    <td class="px-4 py-2"><input
-                        class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                        id="l" name="l" type="number" value="1.25" step="any" min="0"
-                        required></td>
-                    <td class="px-4 py-2">Tn/m</td>
-                  </tr>
-                  <tr class="bg-white dark:bg-gray-800">
-                    <td class="px-4 py-2"></td>
-                    <td class="px-4 py-2">Vi</td>
-                    <td class="px-4 py-2"><input
-                        class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                        id="vi" name="vi" type="number" value="0.0" step="any" min="0"
-                        required></td>
-                    <td class="px-4 py-2">Tn/m</td>
-                  </tr>
-                  <tr class="bg-white dark:bg-gray-800">
-                    <td class="px-4 py-2"></td>
-                    <td class="px-4 py-2">E</td>
-                    <td class="px-4 py-2"><input
-                        class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                        id="e" name="e" type="number" value="0.0" step="any" min="0"
-                        required></td>
-                    <td class="px-4 py-2">Tn/m</td>
-                  </tr>
-                  <tr class="bg-white dark:bg-gray-800">
-                    <td class="px-4 py-2"></td>
-                    <td class="px-4 py-2">CE</td>
-                    <td class="px-4 py-2"><input
-                        class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                        id="ce" name="ce" type="number" value="0.0" step="any" min="0"
-                        required></td>
-                    <td class="px-4 py-2"></td>
-                  </tr>
-                  <tr class="bg-white dark:bg-gray-800">
-                    <td class="px-4 py-2"></td>
-                    <td class="px-4 py-2">CL</td>
-                    <td class="px-4 py-2"><input
-                        class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                        id="cl" name="cl" type="number" value="0.0" step="any" min="0"
-                        required></td>
-                    <td class="px-4 py-2"></td>
-                  </tr>
-                  <tr class="bg-white dark:bg-gray-800">
-                    <td class="px-4 py-2"></td>
-                    <td class="px-4 py-2">CT</td>
-                    <td class="px-4 py-2"><input
-                        class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                        id="ct" name="ct" type="number" value="0.0" step="any" min="0"
-                        required></td>
-                    <td class="px-4 py-2"></td>
-                  </tr>
-                  <!-- Agregar más filas según sea necesario -->
-                  <tr>
-                    <th class="px-4 py-2">
-                      <div class="input-group mb-2">
-                        <button
-                          class="rounded border-b-4 border-blue-700 bg-blue-500 px-4 py-2 font-bold text-white hover:border-blue-500 hover:bg-blue-400"
-                          id="calcular" type="button">DISEÑAR</button>
-                      </div>
-                    </th>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- Resultados -->
-        <div class="mt-4 w-full px-4 md:mt-0 md:w-2/3">
-          <div class="rounded-lg bg-white p-6 shadow-md dark:bg-gray-800">
-            <h3 class="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">Resultados</h3>
-            <div class="overflow-x-auto" id="resultados">
-              <table class="min-w-full text-gray-800 dark:text-white">
-                <tr>
-                  <td class="p-0" colspan="4">
-                    <table class="min-w-full text-gray-800 dark:text-white">
-                      <!-- 1º COMBINACION -->
-                      <thead class="bg-gray-200 dark:bg-gray-800">
-                        <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                          <th class="px-4 py-2 text-left text-xl" colspan="2">1°
-                            COMBINACION
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody class="bg-gray-100 py-2 dark:bg-gray-800">
-                        <tr class="bg-gray-100 dark:bg-gray-600">
-                          <td class="px-4 py-2" colspan="2"><span id="_1combinacion">4.645</span></td>
-                          <th class="px-4 py-2 text-right" scope="col"><span id="_1combinacionResultado">ESTE
-                              VALOR RIGE</span></th>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </td>
-                </tr>
-                <tr>
-                  <td class="p-0" colspan="4">
-                    <table class="min-w-full text-gray-800 dark:text-white">
-                      <!-- 2º COMBINACION -->
-                      <thead class="bg-gray-200 dark:bg-gray-800">
-                        <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                          <th class="px-4 py-2 text-left text-xl" colspan="2">2°
-                            COMBINACION
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody class="bg-gray-100 py-2 dark:bg-gray-800">
-                        <tr class="bg-gray-100 dark:bg-gray-600">
-                          <td class="px-4 py-2"><span id="_2combinacion1">3.8125</span></td>
-                          <td class="px-4 py-2"><span id="_2combinacion2">3.8125</span></td>
-                          <th class="px-4 py-2 text-right"><span id="_2combinacionResultado">NO</span></th>
-                        </tr>
-                        <tr class="bg-gray-100 dark:bg-gray-600">
-                          <td class="px-4 py-2"><span id="_2combinacion3">1.62</span></td>
-                          <td class="px-4 py-2"><span id="_2combinacion4">1.62</span></td>
-                          <td></td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </td>
-                </tr>
-                <tr>
-                  <td class="p-0" colspan="4">
-                    <table class="min-w-full text-gray-800 dark:text-white">
-                      <!-- 3º COMBINACION -->
-                      <thead class="bg-gray-200 dark:bg-gray-800">
-                        <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                          <th class="px-4 py-2 text-left text-xl" colspan="2">3°
-                            COMBINACION
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody class="bg-gray-100 py-2 dark:bg-gray-800">
-                        <tr class="bg-gray-100 dark:bg-gray-600">
-                          <td class="px-4 py-2"><span id="_3combinacion1">3.8125</span></td>
-                          <td class="px-4 py-2"><span id="_3combinacion2">3.8125</span></td>
-                          <th class="px-4 py-2 text-right"><span id="_3combinacionResultado">NO</span></th>
-                        </tr>
-                        <tr class="bg-gray-100 dark:bg-gray-600">
-                          <td class="px-4 py-2"><span id="_3combinacion3">1.62</span></td>
-                          <td class="px-4 py-2"><span id="_3combinacion4">1.62</span></td>
-                          <td></td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </td>
-                </tr>
-                <tr>
-                  <td class="p-0">
-                    <table>
-                      <thead class="bg-gray-200 dark:bg-gray-800">
-                        <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                          <th class="px-4 py-2 text-xl">LA MAXIMA COMBINACION SERA!</th>
-                          <th class="px-4 py-2 text-xl">U</th>
-                          <th class="px-4 py-2 text-xl"></th>
-                          <th class="px-4 py-2 text-xl"><span id="maximaCombinacion">4.645</span> Tn/m</th>
-                        </tr>
-                      </thead>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
+@php
+  // [id del span del motor, expresión]. El motor (resources/js/cav2/adm_comb_cargas.js) escribe cada valor por id.
+  $grupos = [
+      ['1', 'Carga muerta y viva', [['_1combinacion', '1.4 D + 1.7 L']], '_1combinacionResultado'],
+      ['2', 'Con viento', [['_2combinacion1', '1.25 (D + L + Vi)'], ['_2combinacion2', '1.25 (D + L − Vi)'], ['_2combinacion3', '0.9 D + Vi'], ['_2combinacion4', '0.9 D − Vi']], '_2combinacionResultado'],
+      ['3', 'Con sismo', [['_3combinacion1', '1.25 (D + L) + E'], ['_3combinacion2', '1.25 (D + L) − E'], ['_3combinacion3', '0.9 D + E'], ['_3combinacion4', '0.9 D − E']], '_3combinacionResultado'],
+  ];
+@endphp
+<x-sheets.workbench sheet="est-combinacion-cargas" title="Combinación de cargas" entry="resources/js/cav2/adm_comb_cargas.js" auto
+  eyebrow="Herramientas de ingeniería / Estudiante · Concreto armado"
+  description="Combinaciones de carga de diseño según la Norma E.060 a partir de las cargas muerta, viva, de viento y de sismo; identifica la combinación que rige.">
+  <x-sheets.panel title="Datos generales" description="Cargas de servicio por metro lineal." number="01" class="arco-input-panel" data-sheet-inputs>
+    <div class="arco-fields">
+      <x-sheets.fieldset title="Cargas de servicio">
+        <x-sheets.field id="d" label="Carga muerta" symbol="D" value="1.8" unit="t/m" min="0" />
+        <x-sheets.field id="l" label="Carga viva" symbol="L" value="1.25" unit="t/m" min="0" />
+        <x-sheets.field id="vi" label="Carga de viento" symbol="Vi" value="0" unit="t/m" min="0" />
+        <x-sheets.field id="e" label="Carga de sismo" symbol="E" value="0" unit="t/m" min="0" />
+      </x-sheets.fieldset>
+      <x-sheets.fieldset title="Otras cargas" note="No intervienen en las combinaciones de esta hoja.">
+        <x-sheets.field id="ce" label="Empuje lateral del suelo" symbol="CE" value="0" min="0" />
+        <x-sheets.field id="cl" label="Presión de líquidos" symbol="CL" value="0" min="0" />
+        <x-sheets.field id="ct" label="Efectos de temperatura" symbol="CT" value="0" min="0" />
+      </x-sheets.fieldset>
     </div>
-  </div>
-
-  @pushOnce('scripts')
-    @vite('resources/js/cav2/adm_comb_cargas.js')
-  @endpushOnce
-</x-app-layout>
+    <x-sheets.calculate type="button" id="calcular" />
+  </x-sheets.panel>
+  <section class="arco-results" aria-label="Resultados de la combinación de cargas">
+    <x-sheets.results-header status-id="comb-cargas-status" description="Valor de cada combinación y la que rige el diseño." />
+    <x-sheets.results id="resultados" ready>
+      @foreach ($grupos as [$n, $titulo, $filas, $estado])
+        <section class="pr-panel arco-result-card">
+          <div class="arco-result-heading"><span class="arco-result-number">{{ $n }}</span><h3>{{ $titulo }}</h3></div>
+          <x-sheets.table :label="$titulo" :columns="['Combinación', 'Valor']">
+            <tbody>
+              @foreach ($filas as [$id, $expresion])
+                <tr><td>{{ $expresion }}</td><td><span id="{{ $id }}"></span> <span class="sheet-unit">t/m</span></td></tr>
+              @endforeach
+              <tr><td>Estado</td><td><span id="{{ $estado }}"></span></td></tr>
+            </tbody>
+          </x-sheets.table>
+        </section>
+      @endforeach
+      <section class="pr-panel arco-result-card">
+        <div class="arco-result-heading"><span class="arco-result-number">4</span><h3>Combinación que rige</h3></div>
+        <x-sheets.table label="Combinación que rige" :columns="['Parámetro', 'Símbolo', 'Valor']">
+          <tbody><tr><td>Máxima combinación</td><td>U</td><td><span id="maximaCombinacion"></span> <span class="sheet-unit">t/m</span></td></tr></tbody>
+        </x-sheets.table>
+      </section>
+    </x-sheets.results>
+  </section>
+</x-sheets.workbench>

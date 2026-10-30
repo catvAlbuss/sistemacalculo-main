@@ -48,7 +48,7 @@ Keep that window open while using seismic/structural-analysis features locally â
 
 ### Octave engine (legacy, still used for some panels)
 
-Requires a Windows `octave-cli.exe` locally, configured via `OCTAVE_WINDOWS_CLI_PATH`/`OCTAVE_CLI_PATH` env vars, or one of the hardcoded fallback paths in `OctavePlotController::runOctave()`. MATLAB/Octave `.m` functions live under `public/assets/matlab`.
+`OctavePlotController::runOctave()` picks the engine automatically (settings in `config/octave.php`): on Linux the snap package at `OCTAVE_SNAP_PATH`; on Windows a native `octave-cli.exe` (`OCTAVE_WINDOWS_CLI_PATH` or a standard GNU Octave install) if present, otherwise the same Linux package in `C:\laragon\www\octave` run through WSL (`OCTAVE_USE_WSL`, `OCTAVE_WSL_DISTRO`, `OCTAVE_WSL_SNAP_PATH`). Through WSL each call takes several seconds because the libraries load from the Windows drive. MATLAB/Octave `.m` functions live under `public/assets/matlab`.
 
 ## Architecture
 

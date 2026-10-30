@@ -1,70 +1,58 @@
-@php
-  $inputs = [];
-@endphp
-
 @pushOnce('initscripts')
   @vite('resources/js/diseno_acero_data.js')
 @endPushOnce
 
-<x-calc-layout title="Diseño En Acero | Compresion">
-  <div class="container mx-auto flex flex-row flex-wrap space-x-4 py-12 md:flex-nowrap" x-data="diseño_acero">
-    <x-input-data>
-      <x-input-calc symbol="ΩC" bind="calcs.compresionOmegac"></x-input-calc>
-      <x-input-calc bind="calcs.compresionPhic" symbol="∅C"></x-input-calc>
-      <x-input-calc unit="Kg/cm2" symbol="Fy" bind="calcs.compresionFy"></x-input-calc>
-      <x-input-calc bind="calcs.compresionE" unit="Kg/cm2" symbol="E"></x-input-calc>
-      <x-input-calc bind="calcs.compresionA" symbol="A" unit="cm2"></x-input-calc>
-      <x-input-calc bind="calcs.compresionKy" symbol="Ky"></x-input-calc>
-      <x-input-calc bind="calcs.compresionLy" symbol="Ly" unit="cm"></x-input-calc>
-      <x-input-calc bind="calcs.compresionRy" symbol="ry" unit="cm"></x-input-calc>
-      <x-input-calc symbol="Kx" bind="calcs.compresionKx"></x-input-calc>
-      <x-input-calc symbol="Lx" bind="calcs.compresionLx" unit="cm"></x-input-calc>
-      <x-input-calc symbol="rx" bind="calcs.compresionRx" unit="cm"></x-input-calc>
-    </x-input-data>
-    <x-output-data>
-      <x-table-result-input title="1.- Prerequisitos del Diseño">
-        <x-output-calc-input symbol="ΩC" bind="calcs.compresionOmegac"></x-output-calc-input>
-        <x-output-calc-input bind="calcs.compresionPhic" symbol="∅C"></x-output-calc-input>
-        <x-output-calc-input unit="Kg/cm2" symbol="Fy" bind="calcs.compresionFy"></x-output-calc-input>
-        <x-output-calc-input bind="calcs.compresionE" unit="Kg/cm2" symbol="E"></x-output-calc-input>
-        <x-output-calc-input bind="calcs.compresionA" symbol="A" unit="cm2"></x-output-calc-input>
-        <x-output-calc-input bind="calcs.compresionKy" symbol="Ky"></x-output-calc-input>
-        <x-output-calc-input bind="calcs.compresionLy" symbol="Ly" unit="cm"></x-output-calc-input>
-        <x-output-calc-input bind="calcs.compresionRy" symbol="ry" unit="cm"></x-output-calc-input>
-        <x-output-calc-input bind="calcs.compresionKlRy" symbol="KL/ry"></x-output-calc-input>
-        <x-output-calc-input symbol="Kx" bind="calcs.compresionKx"></x-output-calc-input>
-        <x-output-calc-input symbol="Lx" bind="calcs.compresionLx" unit="cm"></x-output-calc-input>
-        <x-output-calc-input symbol="rx" bind="calcs.compresionRx" unit="cm"></x-output-calc-input>
-        <x-output-calc-input symbol="KL/rx" bind="calcs.compresionKlRx"></x-output-calc-input>
-      </x-table-result-input>
-      <x-table-result title="2.- Compresión">
-        <x-output-calc formula="$$4.71\sqrt{\frac{E}{F_y}}$$" bind="calcs.compresionEfy"></x-output-calc>
-        <x-output-calc symbol="KL/ry" bind="calcs.compresionKlRyMenorMayor"></x-output-calc>
-        <x-output-calc symbol="$$Fe_y$$" bind="calcs.compresionFey" unit="Kg/cm2"></x-output-calc>
-        <x-output-calc symbol="$$Fcr_y$$" bind="calcs.compresionFcry" unit="Kg/cm2"></x-output-calc>
-        <x-output-calc symbol="$$Fe_x$$" bind="calcs.compresionFex" unit="Kg/cm2"></x-output-calc>
-        <x-output-calc symbol="$$Fcr_x$$" bind="calcs.compresionFcrx" unit="Kg/cm2"></x-output-calc>
-      </x-table-result>
-      <x-table-result title="3.- Metodo LFRD">
-        <x-output-calc formula="$$\phi F_{\text{cr}_y} A_g$$" symbol="$$\phi P_{n_y}$$"
-          bind="calcs.compresionLFRDFcrAgy" unit="Kg"></x-output-calc>
-        <x-output-calc formula="$$\phi F_{\text{cr}_y} A_g$$" symbol="$$\phi P_{n_y}$$"
-          bind="calcs.compresionLFRDFcrAg1000y" unit="Tn"></x-output-calc>
-        <x-output-calc formula="$$\phi F_{\text{cr}_x} A_g$$" symbol="$$\phi P_{n_x}$$"
-          bind="calcs.compresionLFRDFcrAgx" unit="Kg"></x-output-calc>
-        <x-output-calc formula="$$\phi F_{\text{cr}_x} A_g$$" symbol="$$\phi P_{n_x}$$"
-          bind="calcs.compresionLFRDFcrAg1000x" unit="Tn"></x-output-calc>
-      </x-table-result>
-      <x-table-result title="4.- Metodo ASD">
-        <x-output-calc formula="$$\frac{P_{n_y}}{\Omega t}$$" bind="calcs.compresionASDPnOmegaTy"
-          unit="Kg"></x-output-calc>
-        <x-output-calc formula="$$\frac{P_{n_y}}{\Omega t}$$" bind="calcs.compresionASDPnOmegaT1000y"
-          unit="Tn"></x-output-calc>
-        <x-output-calc formula="$$\frac{P_{n_x}}{\Omega t}$$" bind="calcs.compresionASDPnOmegaTx"
-          unit="Kg"></x-output-calc>
-        <x-output-calc formula="$$\frac{P_{n_x}}{\Omega t}$$" bind="calcs.compresionASDPnOmegaT1000x"
-          unit="Tn"></x-output-calc>
-      </x-table-result>
-    </x-output-data>
-  </div>
-</x-calc-layout>
+<x-sheets.workbench mathjax sheet="acero-compresion" title="Diseño en acero · Compresión" x-data="diseño_acero"
+  eyebrow="Herramientas de ingeniería / Estructuras de acero"
+  description="Resistencia a compresión de un perfil de acero en los ejes x e y: esfuerzo de pandeo elástico Fe, esfuerzo crítico Fcr y resistencia de diseño por los métodos LRFD y ASD.">
+  <x-input-data description="Material, factores de diseño y longitudes efectivas por eje.">
+    <x-input-calc name="Factor de seguridad ASD" symbol="Ωc" bind="calcs.compresionOmegac"></x-input-calc>
+    <x-input-calc name="Factor de resistencia LRFD" symbol="ϕc" bind="calcs.compresionPhic"></x-input-calc>
+    <x-input-calc name="Esfuerzo de fluencia" symbol="Fy" bind="calcs.compresionFy" unit="kg/cm²"></x-input-calc>
+    <x-input-calc name="Módulo de elasticidad" symbol="E" bind="calcs.compresionE" unit="kg/cm²"></x-input-calc>
+    <x-input-calc name="Área bruta" symbol="Ag" bind="calcs.compresionA" unit="cm²"></x-input-calc>
+    <x-input-calc name="Factor de longitud efectiva y" symbol="Ky" bind="calcs.compresionKy"></x-input-calc>
+    <x-input-calc name="Longitud no arriostrada y" symbol="Ly" bind="calcs.compresionLy" unit="cm"></x-input-calc>
+    <x-input-calc name="Radio de giro y" symbol="ry" bind="calcs.compresionRy" unit="cm"></x-input-calc>
+    <x-input-calc name="Factor de longitud efectiva x" symbol="Kx" bind="calcs.compresionKx"></x-input-calc>
+    <x-input-calc name="Longitud no arriostrada x" symbol="Lx" bind="calcs.compresionLx" unit="cm"></x-input-calc>
+    <x-input-calc name="Radio de giro x" symbol="rx" bind="calcs.compresionRx" unit="cm"></x-input-calc>
+  </x-input-data>
+  <x-output-data description="Los resultados se recalculan al editar los datos generales.">
+    <x-table-result-input title="1.- Datos del diseño">
+      <x-output-calc-input name="Factor de seguridad ASD" symbol="Ωc" bind="calcs.compresionOmegac"></x-output-calc-input>
+      <x-output-calc-input name="Factor de resistencia LRFD" symbol="ϕc" bind="calcs.compresionPhic"></x-output-calc-input>
+      <x-output-calc-input name="Esfuerzo de fluencia" symbol="Fy" bind="calcs.compresionFy" unit="kg/cm²"></x-output-calc-input>
+      <x-output-calc-input name="Módulo de elasticidad" symbol="E" bind="calcs.compresionE" unit="kg/cm²"></x-output-calc-input>
+      <x-output-calc-input name="Área bruta" symbol="Ag" bind="calcs.compresionA" unit="cm²"></x-output-calc-input>
+      <x-output-calc-input name="Factor de longitud efectiva y" symbol="Ky" bind="calcs.compresionKy"></x-output-calc-input>
+      <x-output-calc-input name="Longitud no arriostrada y" symbol="Ly" bind="calcs.compresionLy" unit="cm"></x-output-calc-input>
+      <x-output-calc-input name="Radio de giro y" symbol="ry" bind="calcs.compresionRy" unit="cm"></x-output-calc-input>
+      <x-output-calc-input name="Esbeltez y" symbol="KL/ry" bind="calcs.compresionKlRy"></x-output-calc-input>
+      <x-output-calc-input name="Factor de longitud efectiva x" symbol="Kx" bind="calcs.compresionKx"></x-output-calc-input>
+      <x-output-calc-input name="Longitud no arriostrada x" symbol="Lx" bind="calcs.compresionLx" unit="cm"></x-output-calc-input>
+      <x-output-calc-input name="Radio de giro x" symbol="rx" bind="calcs.compresionRx" unit="cm"></x-output-calc-input>
+      <x-output-calc-input name="Esbeltez x" symbol="KL/rx" bind="calcs.compresionKlRx"></x-output-calc-input>
+    </x-table-result-input>
+    <x-table-result title="2.- Compresión">
+      <x-output-calc name="Límite de esbeltez" formula="$$4.71\sqrt{\frac{E}{F_y}}$$" bind="calcs.compresionEfy"></x-output-calc>
+      <x-output-calc name="Comparación de esbeltez" symbol="KL/ry" bind="calcs.compresionKlRyMenorMayor"></x-output-calc>
+      <x-output-calc name="Esfuerzo de pandeo elástico y" symbol="$$Fe_y$$" bind="calcs.compresionFey" unit="kg/cm²"></x-output-calc>
+      <x-output-calc name="Esfuerzo crítico y" symbol="$$Fcr_y$$" bind="calcs.compresionFcry" unit="kg/cm²"></x-output-calc>
+      <x-output-calc name="Esfuerzo de pandeo elástico x" symbol="$$Fe_x$$" bind="calcs.compresionFex" unit="kg/cm²"></x-output-calc>
+      <x-output-calc name="Esfuerzo crítico x" symbol="$$Fcr_x$$" bind="calcs.compresionFcrx" unit="kg/cm²"></x-output-calc>
+    </x-table-result>
+    <x-table-result title="3.- Método LRFD">
+      <x-output-calc name="Resistencia de diseño y" formula="$$\phi F_{\text{cr}_y} A_g$$" symbol="$$\phi P_{n_y}$$" bind="calcs.compresionLFRDFcrAgy" unit="kg"></x-output-calc>
+      <x-output-calc name="Resistencia de diseño y" formula="$$\phi F_{\text{cr}_y} A_g$$" symbol="$$\phi P_{n_y}$$" bind="calcs.compresionLFRDFcrAg1000y" unit="t"></x-output-calc>
+      <x-output-calc name="Resistencia de diseño x" formula="$$\phi F_{\text{cr}_x} A_g$$" symbol="$$\phi P_{n_x}$$" bind="calcs.compresionLFRDFcrAgx" unit="kg"></x-output-calc>
+      <x-output-calc name="Resistencia de diseño x" formula="$$\phi F_{\text{cr}_x} A_g$$" symbol="$$\phi P_{n_x}$$" bind="calcs.compresionLFRDFcrAg1000x" unit="t"></x-output-calc>
+    </x-table-result>
+    <x-table-result title="4.- Método ASD">
+      <x-output-calc name="Resistencia admisible y" formula="$$\frac{P_{n_y}}{\Omega_c}$$" bind="calcs.compresionASDPnOmegaTy" unit="kg"></x-output-calc>
+      <x-output-calc name="Resistencia admisible y" formula="$$\frac{P_{n_y}}{\Omega_c}$$" bind="calcs.compresionASDPnOmegaT1000y" unit="t"></x-output-calc>
+      <x-output-calc name="Resistencia admisible x" formula="$$\frac{P_{n_x}}{\Omega_c}$$" bind="calcs.compresionASDPnOmegaTx" unit="kg"></x-output-calc>
+      <x-output-calc name="Resistencia admisible x" formula="$$\frac{P_{n_x}}{\Omega_c}$$" bind="calcs.compresionASDPnOmegaT1000x" unit="t"></x-output-calc>
+    </x-table-result>
+  </x-output-data>
+</x-sheets.workbench>

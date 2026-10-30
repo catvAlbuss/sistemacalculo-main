@@ -68,7 +68,7 @@ class ContactPaymentController extends Controller
             ]);
         }
         $billing = $online ? app(\App\Services\Billing::class)->validate($request) : [];
-        if ($online && (!app(\App\Services\Culqi::class)->enabled() || $quote['charge_amount'] < 3)) {
+        if ($online && (!app(\App\Services\Culqi::class)->enabledFor($request->user()) || $quote['charge_amount'] < 3)) {
             return back()->withInput()->withErrors(['payment_method' => 'El pago en línea no está disponible en este momento.']);
         }
         try {

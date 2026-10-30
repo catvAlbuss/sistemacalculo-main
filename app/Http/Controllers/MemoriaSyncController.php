@@ -26,6 +26,9 @@ use Illuminate\Support\Facades\Auth;
 // decidir con Jack cómo (o si) se muestra en el documento generado.
 class MemoriaSyncController extends Controller
 {
+    // Imágenes capturadas por el navegador (canvas.toDataURL): solo PNG, JPEG o WebP en data URI y hasta ~8 MB.
+    private const IMAGE_RULES = ['required', 'string', 'max:11000000', 'regex:/\Adata:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/]+={0,2}\z/'];
+
     /**
      * Ancho/alto REAL en píxeles de una imagen base64 -- pedido del cliente
      * (ver conversación): el Word forzaba TODAS las imágenes de una sección
@@ -85,7 +88,7 @@ class MemoriaSyncController extends Controller
             'index' => ['required', 'integer', 'min:0'],
             'sub_index' => ['nullable', 'integer', 'min:0'],
             'sub_key' => ['nullable', 'string', 'max:100'],
-            'image_base64' => ['required', 'string'],
+            'image_base64' => self::IMAGE_RULES,
         ]);
 
         $memoriaCalculo->saveImage(
@@ -265,7 +268,7 @@ class MemoriaSyncController extends Controller
         $data = $request->validate([
             'key' => ['required', 'string', 'max:100'],
             'label' => ['nullable', 'string', 'max:200'],
-            'image_base64' => ['required', 'string'],
+            'image_base64' => self::IMAGE_RULES,
         ]);
 
         $current = $memoriaDescriptiva->data ?? [];

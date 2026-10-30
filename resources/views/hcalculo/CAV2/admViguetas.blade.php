@@ -1,6 +1,6 @@
-<x-app-layout>
-  <x-header title="Diseño de Viguetas"></x-header>
-  <x-mathjax-loader></x-mathjax-loader>
+<x-sheets.workbench legacy sheet="est-viguetas" title="Viguetas"
+  eyebrow="Herramientas de ingeniería / Estudiante · Concreto armado"
+  description="Diseño de viguetas: requisitos de diseño, cuantías mínima, económica y máxima, área de refuerzo y diseño por corte.">
   <div class="py-12">
     <div class="container mx-auto w-full">
       <div class="flex flex-wrap">
@@ -546,4 +546,4 @@
   @pushOnce('scripts')
     @vite('resources/js/cav2/adm_viguetas.js')
   @endpushOnce
-</x-app-layout>
+</x-sheets.workbench>

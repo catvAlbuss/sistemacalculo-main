@@ -5,7 +5,7 @@
 
     RewriteEngine On
     # Runtime browser profiles and generated project exports must never be served as static files.
-    RewriteRule ^(?:puppeteer-session|captures)(?:/|$) - [F,L,NC]
+    RewriteRule ^(?:puppeteer-session|captures|storage/payment_proofs)(?:/|$) - [F,L,NC]
     RewriteRule (^|/)\.(?!well-known(?:/|$)) - [F,L]
 
     # Handle Authorization Header

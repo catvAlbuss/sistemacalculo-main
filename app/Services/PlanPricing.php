@@ -19,15 +19,20 @@ class PlanPricing
             throw ValidationException::withMessages(['billing_cycle' => 'Selecciona un período válido para este plan.']);
         }
         $base = $plan;
-        if ($plan->type === 'yearly' && ($slug = config('payments.annual_bases.'.$plan->slug))) {
-            $base = Subscription::active()->where('type', 'monthly')->where('slug', $slug)->first();
+        $periodMonths = 1;
+        // Planes por período (trimestral, semestral): el Plan Mensual por N meses, sin descuento.
+        $period = config('payments.period_bases.'.$plan->slug);
+        $baseSlug = $plan->type === 'yearly' ? config('payments.annual_bases.'.$plan->slug) : ($period['base'] ?? null);
+        if ($baseSlug) {
+            $base = Subscription::active()->where('type', 'monthly')->where('slug', $baseSlug)->first();
             if (!$base || $base->isFree()) {
                 throw ValidationException::withMessages(['billing_cycle' => 'El precio mensual de referencia no está disponible.']);
             }
+            $periodMonths = $period ? (int) $period['months'] : 1;
         }
         $annualDiscount = $cycle === 'yearly' && $base->type === 'monthly';
         $cents = (int) round((float) $base->price * 100);
-        $list = $annualDiscount ? $cents * 12 : $cents * $months;
+        $list = $annualDiscount ? $cents * 12 : $cents * $months * $periodMonths;
         $discount = $annualDiscount ? (int) round($list * 5 / 100) : 0;
         $total = $list - $discount;
 
@@ -97,8 +102,15 @@ class PlanPricing
         try {
             return $this->purchaseQuote($plan, null, 1) + ['pricing_available' => true];
         } catch (ValidationException $exception) {
-            if (!isset($exception->errors()['processing'])) { throw $exception; }
-            return $this->quote($plan) + ['pricing_available' => false, 'pricing_error' => $exception->errors()['processing'][0]];
+            $errors = $exception->errors();
+            if (isset($errors['processing'])) {
+                return $this->quote($plan) + ['pricing_available' => false, 'pricing_error' => $errors['processing'][0]];
+            }
+            // Plan calculado desde otro (anual o por período) cuyo plan mensual de referencia no está activo.
+            if (isset($errors['billing_cycle'])) {
+                return ['pricing_available' => false, 'pricing_error' => $errors['billing_cycle'][0]];
+            }
+            throw $exception;
         }
     }
 }

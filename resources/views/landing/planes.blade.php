@@ -13,7 +13,7 @@
             <h2>{{ $plan->name }}</h2>
             <p class="en-plan-description">{{ $plan->description }}</p>
             @if ($plan->isLifetime())
-              <p class="en-plan-price en-price-custom">Contáctenos</p><p class="pr-hint">Nuestro equipo prepara una propuesta personalizada y acuerda contigo el importe. El acceso es permanente después de confirmar el pago.</p>
+              <p class="en-plan-price en-price-custom">Contáctenos</p><p class="pr-hint">Nuestro equipo prepara una propuesta personalizada y acuerda contigo las condiciones. El acceso es permanente después de confirmar el pago.</p>
             @elseif (!$quote['pricing_available'])
               <p class="en-plan-price en-price-custom">Precio por confirmar</p><p class="pr-hint">{{ $quote['pricing_error'] }}</p>
             @else
@@ -23,10 +23,10 @@
             @endif
           </header>
           <div class="en-plan-body">
-            <img src="{{ asset('assets/img/predim-preview.png') }}" alt="Vista de las herramientas de diseño estructural de Rizabal" class="en-plan-image" loading="lazy" width="480" height="144">
+            @php($media = config('plans.images.'.$plan->slug, config('plans.default_image')))
+            <img src="{{ Vite::asset($media['image']) }}" alt="{{ $media['alt'] }}" class="en-plan-image" loading="lazy" width="480" height="144">
             <dl class="pr-capacity">
               <div><dt>Usuarios incluidos</dt><dd>{{ $plan->max_users ?? 'Por definir' }}</dd></div>
-              <div><dt>Proyectos incluidos</dt><dd>{{ $plan->max_projects ?? 'Por definir' }}</dd></div>
             </dl>
             <ul class="pr-features" aria-label="Herramientas y beneficios">@foreach ($plan->features ?? [] as $feature)<li>{{ $feature }}</li>@endforeach</ul>
             <div class="en-plan-actions">

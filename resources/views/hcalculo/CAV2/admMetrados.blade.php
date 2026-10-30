@@ -1,6 +1,6 @@
-<x-app-layout>
-  <x-header title="Diseño de Metrados"></x-header>
-  <x-mathjax-loader></x-mathjax-loader>
+<x-sheets.workbench legacy sheet="est-metrados" title="Metrados"
+  eyebrow="Herramientas de ingeniería / Estudiante · Concreto armado"
+  description="Metrado de cargas por elemento: vigas, losa aligerada, losa maciza, escalera y tabiques.">
   <div class="py-12">
     <div class="container mx-auto w-full">
       <div class="flex flex-wrap">
@@ -663,4 +663,4 @@
   @pushOnce('scripts')
     @vite('resources/js/cav2/adm_metrados.js')
   @endpushOnce
-</x-app-layout>
+</x-sheets.workbench>

@@ -1,4 +1,6 @@
-<x-calc-layout title="Análisis de Sección Viga T">
+<x-sheets.workbench legacy sheet="est-viga-t" title="Viga T"
+  eyebrow="Herramientas de ingeniería / Estudiante · Concreto armado"
+  description="Análisis de una sección de viga T: datos de la sección y resultado del análisis.">
     <div class="py-2">
         <div class="container mx-auto w-full">
             <div class="flex flex-wrap">
@@ -158,4 +160,4 @@
             }
         </script>
     @endpushOnce
-</x-calc-layout>
+</x-sheets.workbench>

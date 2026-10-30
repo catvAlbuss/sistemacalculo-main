@@ -1,0 +1,91 @@
+/* Adaptador para hojas que conservan su marcado anterior (<x-sheets.workbench legacy>).
+   Lleva las clases utilitarias de Tailwind de esas vistas a los tokens --pr-* de las hojas,
+   sin tocar identificadores ni motores. Solo actúa dentro de .sheet-legacy y no entra en las
+   grillas de Handsontable/Tabulator ni en los gráficos de Plotly.
+   Las utilidades de Tailwind v4 viven en capas (@layer); estas reglas sin capa tienen prioridad. */
+
+.beam-sheet.arco-sheet .sheet-legacy { --sl-gap:24px; display:block; min-width:0; color:var(--pr-text); font-size:14px; }
+.beam-sheet.arco-sheet .sheet-legacy :where(*) { border-color:var(--pr-line); }
+
+/* Contenedores de página: el workbench ya fija ancho y márgenes. */
+.beam-sheet.arco-sheet .sheet-legacy :is(.container,[class*="max-w-"]) { width:100%; max-width:none; margin-inline:0; padding-inline:0; }
+.beam-sheet.arco-sheet .sheet-legacy :is(.py-12,.py-6,.py-8,.py-2,.p-6):not(.rounded-lg,.rounded-xl,.rounded,.shadow,.shadow-md,.shadow-lg,.shadow-sm,aside,td,th) { padding-block:0; }
+.beam-sheet.arco-sheet .sheet-legacy .min-h-screen { min-height:0; }
+
+/* Fondos: panel para superficies claras, suave para cabeceras grises. */
+.beam-sheet.arco-sheet .sheet-legacy :is(.bg-white,.bg-gray-50,[class*="bg-slate-50"],[class*="bg-white/"]) { background-color:var(--pr-panel); }
+.beam-sheet.arco-sheet .sheet-legacy :is(.bg-gray-100,.bg-gray-200,.bg-gray-300,[class*="bg-slate-100"],[class*="bg-slate-200"],[class*="bg-blue-50"],[class*="bg-indigo-50"]) { background-color:var(--pr-soft); }
+.beam-sheet.arco-sheet .sheet-legacy :is(.bg-gray-400,.bg-gray-500,.bg-gray-600,.bg-gray-700) { background-color:var(--pr-soft); color:var(--pr-muted); }
+.beam-sheet.arco-sheet .sheet-legacy :is(.bg-gray-800,.bg-gray-900,.bg-gray-950) { background-color:var(--pr-panel); }
+
+/* Texto. */
+.beam-sheet.arco-sheet .sheet-legacy :is([class*="text-gray-7"],[class*="text-gray-8"],[class*="text-gray-9"],[class*="text-slate-7"],[class*="text-slate-8"],[class*="text-slate-9"]) { color:var(--pr-text); }
+.beam-sheet.arco-sheet .sheet-legacy :is([class*="text-gray-4"],[class*="text-gray-5"],[class*="text-gray-6"],[class*="text-slate-4"],[class*="text-slate-5"],[class*="text-slate-6"]) { color:var(--pr-muted); }
+.beam-sheet.arco-sheet .sheet-legacy :is(.text-white,.text-gray-200,.text-gray-100):not(button,a,button *,a *) { color:var(--pr-text); }
+.beam-sheet.arco-sheet .sheet-legacy :is(h1,h2,h3,h4) { color:var(--pr-text); font-weight:700; letter-spacing:0; }
+.beam-sheet.arco-sheet .sheet-legacy :is(h2,h3) { font-size:16px; line-height:1.5; }
+.beam-sheet.arco-sheet .sheet-legacy h4 { font-size:14px; }
+.beam-sheet.arco-sheet .sheet-legacy :is([class*="text-blue-6"],[class*="text-blue-7"],[class*="text-indigo-6"]) { color:var(--pr-blue); }
+
+/* Tarjetas: borde fino en lugar de sombra. */
+.beam-sheet.arco-sheet .sheet-legacy :is(.shadow,.shadow-sm,.shadow-md,.shadow-lg,.shadow-xl):not(button,a) { box-shadow:none; border:1px solid var(--pr-line); }
+.beam-sheet.arco-sheet .sheet-legacy :is(.rounded-lg,.rounded-xl,.rounded-2xl):not(button,a,input,select,textarea) { border-radius:12px; }
+.beam-sheet.arco-sheet .sheet-legacy :is([class*="dark:bg-gray-8"],[class*="dark:bg-gray-9"]).rounded-lg { background-color:var(--pr-panel); }
+
+/* Campos. */
+.beam-sheet.arco-sheet .sheet-legacy :is(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=color],[type=hidden]),select,textarea):not(.handsontable *,.tabulator *) {
+    min-height:36px; padding:6px 10px; border:1px solid var(--pr-line); border-radius:6px;
+    background-color:var(--pr-panel); color:var(--pr-text); font-size:13px; line-height:1.5; box-shadow:none;
+    font-variant-numeric:tabular-nums;
+}
+.beam-sheet.arco-sheet .sheet-legacy :is(input,select,textarea):not(.handsontable *,.tabulator *):focus { border-color:var(--pr-blue); outline:none; box-shadow:0 0 0 3px color-mix(in srgb,var(--pr-blue) 13%,transparent); }
+.beam-sheet.arco-sheet .sheet-legacy :is(input[readonly],input:disabled,select:disabled) { background-color:var(--pr-soft); color:var(--pr-muted); }
+.beam-sheet.arco-sheet .sheet-legacy :is(input[type=checkbox],input[type=radio],input[type=range]) { accent-color:var(--pr-blue); }
+.beam-sheet.arco-sheet .sheet-legacy label { color:var(--pr-text); }
+
+/* Botones: acción principal en azul; verdes, grises e índigo como secundarios. */
+.beam-sheet.arco-sheet .sheet-legacy :is(button,a,input[type=submit])[class*="bg-blue-"],
+.beam-sheet.arco-sheet .sheet-legacy :is(button,input[type=submit])[type=submit] {
+    display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:40px; padding:9px 16px;
+    border:0; border-radius:6px; background:var(--pr-blue); color:#fff; font-size:13px; font-weight:600; line-height:1.5;
+    text-transform:none; letter-spacing:0; box-shadow:none; cursor:pointer;
+}
+.beam-sheet.arco-sheet .sheet-legacy :is(button,a)[class*="bg-green-"],
+.beam-sheet.arco-sheet .sheet-legacy :is(button,a)[class*="bg-emerald-"],
+.beam-sheet.arco-sheet .sheet-legacy :is(button,a)[class*="bg-indigo-"],
+.beam-sheet.arco-sheet .sheet-legacy :is(button,a)[class*="bg-gray-"],
+.beam-sheet.arco-sheet .sheet-legacy :is(button,a)[class*="bg-teal-"],
+.beam-sheet.arco-sheet .sheet-legacy :is(button,a)[class*="bg-purple-"] {
+    display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:40px; padding:9px 16px;
+    border:1px solid var(--pr-line); border-radius:6px; background:var(--pr-soft); color:var(--pr-blue);
+    font-size:13px; font-weight:600; line-height:1.5; box-shadow:none; cursor:pointer;
+}
+.beam-sheet.arco-sheet .sheet-legacy :is(button,a)[class*="bg-red-"] {
+    border:1px solid color-mix(in srgb,#b42318 40%,var(--pr-line)); border-radius:6px; background:var(--pr-panel); color:#b42318; box-shadow:none;
+}
+.beam-sheet.arco-sheet .sheet-legacy :is(button,a)[class*="bg-blue-"]:hover { background:#144995; }
+.beam-sheet.arco-sheet .sheet-legacy :is(button,a):is([class*="bg-green-"],[class*="bg-indigo-"],[class*="bg-gray-"],[class*="bg-emerald-"],[class*="bg-teal-"],[class*="bg-purple-"]):hover { background:var(--pr-bg); }
+.beam-sheet.arco-sheet .sheet-legacy button:disabled { opacity:.5; cursor:not-allowed; }
+.beam-sheet.arco-sheet .sheet-legacy :is(button,a):focus-visible { outline:2px solid var(--pr-blue); outline-offset:2px; }
+.beam-sheet.arco-sheet .sheet-legacy [class*="border-b-4"] { border-bottom-width:0; }
+
+/* Tablas propias de la vista (no las de Handsontable). */
+.beam-sheet.arco-sheet .sheet-legacy table:not(.htCore,.handsontable table) { border-collapse:collapse; color:var(--pr-text); font-size:13px; }
+.beam-sheet.arco-sheet .sheet-legacy table:not(.htCore,.handsontable table) > :is(thead,tbody,tfoot) > tr > :is(th,td) { padding:9px 12px; border-bottom:1px solid var(--pr-line); line-height:1.6; }
+.beam-sheet.arco-sheet .sheet-legacy table:not(.htCore,.handsontable table) > thead > tr > th { background-color:var(--pr-soft); color:var(--pr-muted); font-size:11px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; }
+.beam-sheet.arco-sheet .sheet-legacy table:not(.htCore,.handsontable table) > thead > tr > th[colspan] { background-color:var(--pr-panel); color:var(--pr-text); font-size:14px; font-weight:700; letter-spacing:0; text-transform:none; text-align:left; }
+.beam-sheet.arco-sheet .sheet-legacy table:not(.htCore,.handsontable table) > tbody > tr > th { font-weight:600; }
+.beam-sheet.arco-sheet .sheet-legacy :is(.text-xl,.text-lg):is(th,td) { font-size:inherit; }
+
+/* Estados de verificación con el mismo tono en ambos temas. */
+.beam-sheet.arco-sheet .sheet-legacy :is(.text-red-500,.text-red-600,.text-red-700) { color:#b42318; }
+.beam-sheet.arco-sheet .sheet-legacy :is(.text-green-500,.text-green-600,.text-green-700) { color:#047857; }
+@media (prefers-color-scheme:dark) {
+    .beam-sheet.arco-sheet .sheet-legacy :is(.text-red-500,.text-red-600,.text-red-700) { color:#ffada6; }
+    .beam-sheet.arco-sheet .sheet-legacy :is(.text-green-500,.text-green-600,.text-green-700) { color:#6ee7b7; }
+}
+
+/* Grillas y gráficos: solo el marco exterior. */
+.beam-sheet.arco-sheet .sheet-legacy :is(.handsontable,.tabulator) { font-size:12px; }
+.beam-sheet.arco-sheet .sheet-legacy .tabulator { border:1px solid var(--pr-line); border-radius:6px; }
+.beam-sheet.arco-sheet .sheet-legacy :is(canvas,svg):not(.handsontable *) { max-width:100%; }

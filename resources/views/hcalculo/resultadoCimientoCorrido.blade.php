@@ -103,7 +103,7 @@ if ($HVer < $Lv) { $Verificacion="<" ; } else { $Verificacion=">" ; } $VerFinal=
                 <tr class="bg-gray-100 dark:bg-gray-600">
                     <td class='py-2 px-4' colspan="2">Densidad del material de albañilería</td>
                     <td class='py-2 px-4 text-center'>γ albanileria</td>
-                    <td class='py-2 px-4 text-center'>{{$yalbaneria}} kg/cm<sup>3</sup></td>
+                    <td class='py-2 px-4 text-center'>{{$yalbaneria}} kg/m<sup>3</sup></td>
                 </tr>
                 <tr class="bg-gray-100 dark:bg-gray-600">
                     <td class='py-2 px-4' colspan="2">Densidad del concreto simple</td>

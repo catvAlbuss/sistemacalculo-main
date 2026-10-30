@@ -1,6 +1,6 @@
-<x-app-layout>
-  <x-header title="Diseño de Escaleras"></x-header>
-  <x-mathjax-loader></x-mathjax-loader>
+<x-sheets.workbench legacy sheet="est-vigas-continuas" title="Vigas continuas"
+  eyebrow="Herramientas de ingeniería / Estudiante · Concreto armado"
+  description="Análisis y diseño de vigas continuas por tramos.">
   <div class="py-12">
     <div class="container mx-auto w-full">
       <div class="flex flex-wrap">
@@ -363,4 +363,4 @@
   @pushOnce('scripts')
     @vite('resources/js/cav2/adm_vigas_continuas.js')
   @endpushOnce
-</x-app-layout>
+</x-sheets.workbench>

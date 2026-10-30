@@ -49,7 +49,7 @@ test('Tabulator frozen cells, units, sections and editor follow the OS theme eve
     const file=join(dir,'fixture.html');
     writeFileSync(file,'<!doctype html><meta charset="utf-8"><style>'+vendorCss+'\n'+styles+'</style><body><div class="beam-sheet arco-sheet"><div id="tablaContainer"></div></div><script>'+js.replaceAll('</script','<\\/script')+'</script>');
     for(const dark of [false,true]){
-      const run=spawnSync(browser,['--headless','--no-sandbox','--disable-gpu','--disable-gpu-sandbox','--no-first-run','--disable-background-networking',...(dark?['--force-dark-mode']:[]),'--user-data-dir='+join(dir,dark?'dark':'light'),'--dump-dom','--virtual-time-budget=2000',pathToFileURL(file).href],{encoding:'utf8',timeout:25000,windowsHide:true,maxBuffer:4*1024*1024});
+      const run=spawnSync(browser,['--headless','--no-sandbox','--disable-gpu','--disable-gpu-sandbox','--no-first-run','--disable-background-networking',...(dark?['--force-dark-mode','--blink-settings=preferredColorScheme=0']:['--blink-settings=preferredColorScheme=1']),'--user-data-dir='+join(dir,dark?'dark':'light'),'--dump-dom','--virtual-time-budget=2000',pathToFileURL(file).href],{encoding:'utf8',timeout:25000,windowsHide:true,maxBuffer:4*1024*1024});
       assert.ifError(run.error);
       const text=run.stdout.match(/<pre id="result">([\s\S]*?)<\/pre>/)?.[1];
       assert.equal(text,'PASS '+(dark?'dark':'light'),text||run.stderr.slice(-1000));

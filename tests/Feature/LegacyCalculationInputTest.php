@@ -40,6 +40,33 @@ class LegacyCalculationInputTest extends TestCase
         }
     }
 
+    public function test_losas_aligeradas_results_are_grouped_by_span_with_example_inputs(): void
+    {
+        $this->withoutVite();
+        Role::findOrCreate('root', 'web');
+        $user = User::factory()->create();
+        $user->assignRole('root');
+        // Mismos nombres y valores de ejemplo que genera resources/js/losas-aligeradas/spanTables.js para 2 tramos.
+        $data = ['fc' => '210', 'fy' => '4200', 'num_tramos' => '2'];
+        foreach ([1, 2] as $t) {
+            $data += ["Luz_Libre$t" => 4, "CMuerta$t" => 0.25, "Cviva$t" => 0.08, "BASE$t" => 40, "ALTURA$t" => 20, "EVB$t" => 10,
+                "Mi$t" => 0.6, "Md$t" => 0.6, "δ1$t" => 0.5, "δ2$t" => 0.8, "δ3$t" => 0.5];
+        }
+        foreach (range(1, 6) as $p) {
+            $i = ($p - 1) % 3;
+            $data += ["EJE$p" => (string) $p, "MomentoUltimo-$p" => [0.6, 0, 0.6][$i], "Vu-$p" => [1.2, 0.2, 1.2][$i], "Tu-$p" => 0,
+                "MomentoUltimo+$p" => [0, 0.45, 0][$i], "Vu+$p" => 0, "Tu+$p" => 0];
+        }
+
+        $html = $this->actingAs($user)->post(route('desingLosa'), $data)->assertOk()->getContent();
+
+        $this->assertStringContainsString('class="sheet-span-table"', $html);
+        $this->assertSame(7, substr_count($html, 'Tramo 2'));
+        $this->assertStringContainsString('>Inicio<', $html);
+        $this->assertStringNotContainsString('START', $html);
+        $this->assertStringContainsString('id="casosSelectA6"', $html);
+    }
+
     public function test_zapata_general_rejects_zero_bar_and_renders_with_zero_loads(): void
     {
         $this->withoutVite();

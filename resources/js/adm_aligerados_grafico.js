@@ -4,10 +4,10 @@ import { createSpreeadSheetTable } from "./tabulator_base/table_factory.js";
 import { makeCreateDeleteColumn } from "./tabulator_base/table.js";
 import Plotly from "plotly.js-dist-min";
 import Swal from "sweetalert2";
+import { TabulatorFull as Tabulator } from "tabulator-tables";
 import { engineErrorMessage } from "./utils/engineError.js";
 import html2canvas from "html2canvas";
 import logo from "../img/rizabalasociados.png?inline";
-import { index } from "mathjs";
 
 function getBase64Image(imgPath, callback) {
   var img = new Image();

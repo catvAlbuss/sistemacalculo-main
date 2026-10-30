@@ -17,7 +17,7 @@
     ];
     $navigation = collect($sections)->mapWithKeys(fn($section)=>['beam-'.$section[0]=>$section[1]])->all();
 @endphp
-<x-sheets.workbench sheet="diseno-vigas" title="Diseño de vigas" entry="resources/js/adm_desing_vigas.js"
+<x-sheets.workbench mathjax sheet="diseno-vigas" title="Diseño de vigas" entry="resources/js/adm_desing_vigas.js"
     description="Define los materiales, la sección y las solicitaciones. Revisa el refuerzo por flexión y corte, elige una combinación de acero o crea la tuya y exporta los resultados.">
     <x-sheets.panel title="Datos generales" description="Introduce los valores en las unidades indicadas." number="01" heading-id="beam-input-title" class="arco-input-panel" data-sheet-inputs>
         <div class="arco-fields">

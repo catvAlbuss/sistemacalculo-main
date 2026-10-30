@@ -94,7 +94,7 @@
                                             <tr>
                                                 <td style="color: #1e3a8a; font-size: 14px;"><strong>Duración:</strong>
                                                 </td>
-                                                <td style="color: #111827; font-size: 14px;">{{ $plan->duration_text }} · {{ $plan->max_users }} usuario(s) · {{ $plan->max_projects }} proyectos
+                                                <td style="color: #111827; font-size: 14px;">{{ $plan->duration_text }} · {{ $plan->max_users }} usuario(s)
                                                 </td>
                                             </tr>
                                             <tr>

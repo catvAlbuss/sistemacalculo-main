@@ -1,5 +1,7 @@
-﻿<!-- JHACK -->
-<x-calc-layout title="Irregularidades Estructurales">
+<!-- JHACK -->
+<x-sheets.workbench legacy sheet="irregularidades" title="Irregularidades estructurales"
+  eyebrow="Herramientas de ingeniería / Análisis sísmico"
+  description="Evaluación de las irregularidades estructurales en altura y en planta según la Norma E.030, a partir de las rigideces y cortantes de cada piso.">
     <!DOCTYPE html>
     <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 
@@ -1156,7 +1158,7 @@
         @vite('resources/js/irregularidades.js')
         @endpushOnce
         <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-</x-calc-layout>
+</x-sheets.workbench>
 
 <style>
     .handsontable th,

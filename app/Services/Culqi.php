@@ -25,8 +25,10 @@ class Culqi
             $errors[] = 'Las llaves pública y privada deben pertenecer al mismo entorno.';
         } elseif (app()->environment('local', 'testing') && $pk[1] === 'live') {
             $errors[] = 'En local y testing solo se permiten llaves de integración (test).';
-        } elseif (app()->isProduction() && $pk[1] !== 'live') {
+        } elseif (app()->isProduction() && $pk[1] !== 'live' && !config('services.culqi.review_mode')) {
             $errors[] = 'En producción se requieren llaves live del comercio, no llaves test.';
+        } elseif (app()->isProduction() && $pk[1] !== 'live' && config('services.culqi.reviewer_emails') === []) {
+            $errors[] = 'El modo revisión requiere CULQI_REVIEWER_EMAILS con al menos una cuenta.';
         }
         if (!preg_match('/^[A-Za-z0-9_-]{32,128}$/', (string) config('services.culqi.webhook_token'))) {
             $errors[] = 'Configura CULQI_WEBHOOK_TOKEN con 32 a 128 caracteres alfanuméricos.';
@@ -38,6 +40,24 @@ class Culqi
     public function enabled(): bool
     {
         return (bool) config('services.culqi.enabled') && $this->configurationErrors() === [];
+    }
+
+    /** Producción con llaves de integración mientras Culqi revisa el comercio (CULQI_REVIEW_MODE). */
+    public function inReviewMode(): bool
+    {
+        return app()->isProduction() && (bool) config('services.culqi.review_mode')
+            && str_starts_with((string) config('services.culqi.public_key'), 'pk_test_');
+    }
+
+    /** Pago disponible para este usuario: en modo revisión, solo las cuentas de CULQI_REVIEWER_EMAILS. */
+    public function enabledFor(?User $user): bool
+    {
+        if (!$this->enabled()) {
+            return false;
+        }
+
+        return !$this->inReviewMode()
+            || ($user !== null && in_array(strtolower($user->email), config('services.culqi.reviewer_emails'), true));
     }
 
     public function charge(PaymentRequest $payment, array $data): array

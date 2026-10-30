@@ -12,7 +12,7 @@ class CimientoCorridoController extends Controller
         $fy = $request->input('fy', 0);
         $columna = $request->input('columna', 0);
         $re = $request->input('re', 0);
-        $yalbaneria = $request->input('yalbañeria', 0);
+        $yalbaneria = $request->input('yalba', 0);
         $ycsimple = $request->input('ycsimple', 0);
         $Carmado = $request->input('Carmado', 0);
         $esadterr = $request->input('esadterr', 0);

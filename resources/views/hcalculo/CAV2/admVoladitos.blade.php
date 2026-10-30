@@ -1,6 +1,6 @@
-<x-app-layout>
-    <x-header title="Diseño de Voladitos"></x-header>
-    <x-mathjax-loader></x-mathjax-loader>
+<x-sheets.workbench legacy sheet="est-voladitos" title="Voladitos"
+  eyebrow="Herramientas de ingeniería / Estudiante · Concreto armado"
+  description="Diseño de voladizos: presión del suelo y verificaciones del elemento en voladizo.">
     <div class="py-12">
         <div class="container mx-auto w-full">
             <div class="flex flex-wrap">
@@ -341,4 +341,4 @@
     @pushOnce('scripts')
         @vite('resources/js/cav2/adm_voladitos.js')
     @endpushOnce
-</x-app-layout>
+</x-sheets.workbench>

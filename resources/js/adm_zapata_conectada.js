@@ -1,5 +1,6 @@
 import "print-this";
-import paper from "paper";
+// paper.js se carga desde CDN en la vista (no es dependencia npm); se usa su global.
+const paper = window.paper;
 import SweetAlert2 from "sweetalert2";
 
 window.Swal = SweetAlert2;
@@ -16,7 +17,7 @@ $(document).ready(function () {
     };
 
     const validarNumeros = () => {
-        const inputs = document.querySelectorAll('#DataZapataconectada input[type="text"]');
+        const inputs = document.querySelectorAll('#DataZapataconectada input:not([type="hidden"])');
         for (let input of inputs) {
             if (input.value && isNaN(parseFloat(input.value))) {
                 return false;
@@ -447,7 +448,7 @@ $(document).ready(function () {
         paper.view.draw();
     }
 
-    const inputs = document.querySelectorAll('#DataZapataconectada input[type="text"]');
+    const inputs = document.querySelectorAll('#DataZapataconectada input:not([type="hidden"])');
     inputs.forEach(function (input) {
         input.addEventListener("input", llamarAGraficar);
     });

@@ -1,27 +1,6 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-            {{ __('Diseño de Muros de Contención') }}
-        </h2>
-    </x-slot>
-    <script>
-        MathJax = {
-            loader: {
-                load: ['input/asciimath', 'output/chtml']
-            }
-        }
-    </script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@latest/dist/echarts.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.3.0/dist/echarts.min.js"></script>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/paper.js/0.12.17/paper-full.min.js"
-        integrity="sha512-NApOOz1j2Dz1PKsIvg1hrXLzDFd62+J0qOPIhm8wueAnk4fQdSclq6XvfzvejDs6zibSoDC+ipl1dC66m+EoSQ=="
-        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
-    <script src="https://unpkg.com/konva@9.3.6/konva.min.js"></script>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-
+<x-sheets.workbench legacy sheet="muros-contencion" title="Diseño de muros de contención"
+  eyebrow="Herramientas de ingeniería / Concreto armado"
+  description="Diseño de un muro de contención en voladizo: empujes, verificaciones de estabilidad con y sin sismo, diente (key) y diseño por flexión y corte de la pantalla y la zapata.">
     <div class="py-12">
         <div class="container mx-auto w-full">
             <div class="flex flex-wrap">
@@ -1096,12 +1075,10 @@
         </div>
     </div>
 
+    {{-- Solo las librerías que usa el motor; versiones fijas. --}}
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3.0.1/es5/tex-mml-chtml.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/jasonday/printThis/printThis.js"></script>
-    <script src="https://flyover.github.io/imgui-js/dist/imgui.umd.js"></script>
-    <script src="https://flyover.github.io/imgui-js/dist/imgui_impl.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
     @vite('resources/js/adm_murosContencion.js')
 
-</x-app-layout>
+</x-sheets.workbench>

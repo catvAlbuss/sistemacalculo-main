@@ -20,7 +20,7 @@
 // bloques (referenciados por INSERT), así que hay que EXPANDIR los bloques
 // aplicando la transformación de cada INSERT — si no, `entities` de nivel
 // superior sale casi vacío de líneas y no se ve nada.
-import DxfParser from "@mlightcad/dxf-json";
+import { DxfParser } from "@mlightcad/dxf-json";
 
 const CLOSED_FLAG_BIT = 1;
 const ARC_SEGMENTS_PER_TURN = 48; // teselado de arcos/círculos/elipses

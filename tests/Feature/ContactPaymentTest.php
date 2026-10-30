@@ -89,6 +89,7 @@ class ContactPaymentTest extends TestCase
     public function test_empty_plan_catalog_displays_an_explanation(): void
     {
         $this->withoutVite();
+        Subscription::query()->delete(); // La migración de planes por duración crea planes por defecto.
         $this->get('/planes')->assertOk()->assertSee('No hay planes disponibles en este momento');
     }
 

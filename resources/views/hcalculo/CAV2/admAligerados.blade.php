@@ -1,6 +1,6 @@
-<x-app-layout>
-  <x-header title="Diseño de Aligerados"></x-header>
-  <x-mathjax-loader></x-mathjax-loader>
+<x-sheets.workbench legacy sheet="est-aligerados" title="Aligerados"
+  eyebrow="Herramientas de ingeniería / Estudiante · Concreto armado"
+  description="Diseño de losas aligeradas: prerrequisitos de diseño, verificaciones, factores y esfuerzos.">
   <div class="py-12">
     <div class="container mx-auto w-full">
       <div class="flex flex-wrap">
@@ -351,4 +351,4 @@
   @pushOnce('scripts')
     @vite('resources/js/cav2/adm_aligerados.js')
   @endpushOnce
-</x-app-layout>
+</x-sheets.workbench>

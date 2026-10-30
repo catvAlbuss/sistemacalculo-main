@@ -528,7 +528,7 @@ document.addEventListener("DOMContentLoaded", function () {
   } finally {
     btn.disabled = false;
     btn.classList.remove("opacity-50", "cursor-not-allowed");
-    btn.textContent = "Generar IMG";
+    btn.textContent = "Exportar imagen";
   }
 };
 

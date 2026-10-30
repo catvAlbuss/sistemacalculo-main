@@ -1,5 +1,6 @@
-<x-app-layout>
-    <x-header title="Diseño de Columnas II"></x-header>
+<x-sheets.workbench legacy sheet="columna-ii" title="Diseño de columnas II"
+  eyebrow="Herramientas de ingeniería / Concreto armado"
+  description="Diseño de columnas de concreto armado a partir de las fuerzas de entrada y de sismo: requisitos de diseño, capacidad a momento flector y capacidad a cortante.">
 
 <div class="min-h-screen w-full bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-200 flex overflow-hidden font-sans selection:bg-blue-500/30">
     <!-- Sidebar -->
@@ -223,4 +224,4 @@
     @vite('resources/js/columnav2/adm_columnav2.js')
 @endpush
 
-</x-app-layout>
+</x-sheets.workbench>

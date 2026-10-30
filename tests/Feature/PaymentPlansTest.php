@@ -20,13 +20,13 @@ class PaymentPlansTest extends TestCase
         $this->seed(SubscriptionPlansSeeder::class);
         $annual = Subscription::where('slug', 'plan-anual')->firstOrFail();
         $quote = app(PlanPricing::class)->quote($annual);
-        $this->assertEquals(568.86, $quote['total']);
-        $this->assertEquals(29.94, $quote['discount']);
-        $this->get('/planes')->assertOk()->assertSee('568.86')->assertDontSee('20%')->assertDontSee('Por definir');
-        $this->get(route('planes.register', ['plan' => $annual->id]))->assertOk()->assertSee('568.86')->assertSee('Usuarios incluidos');
+        $this->assertEquals(570.00, $quote['total']);
+        $this->assertEquals(30.00, $quote['discount']);
+        $this->get('/planes')->assertOk()->assertSee('570.00')->assertDontSee('20%')->assertDontSee('Por definir');
+        $this->get(route('planes.register', ['plan' => $annual->id]))->assertOk()->assertSee('570.00')->assertSee('Usuarios incluidos');
         $monthly = Subscription::where('slug', 'plan-mensual')->firstOrFail();
-        $monthly->update(['price' => 50]);
-        $this->assertEquals(570, app(PlanPricing::class)->quote($annual)['total']);
+        $monthly->update(['price' => 60]);
+        $this->assertEquals(684, app(PlanPricing::class)->quote($annual)['total']);
     }
 
     public function test_admin_can_create_and_edit_plan_capacity_with_validation(): void

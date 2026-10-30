@@ -1,263 +1,49 @@
-@pushOnce('scripts')
-    @vite('resources/js/adm_correa.js')
-@endpushOnce
-
-<x-calc-layout title="Diseño de correas">
-    <div class="container mx-auto flex flex-wrap py-6">
-        <!-- Formulario -->
-        <div class="w-full overflow-auto rounded-lg bg-white p-6 shadow-md md:w-1/3 dark:bg-gray-800">
-            <h3 class="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">Datos Generales</h3>
-            <table class="w-full table-fixed px-6 text-gray-800 dark:text-white">
-                <thead class="bg-white dark:bg-gray-800">
-                    <tr class="text-center">
-                        <th class="px-4 py-2">Nombre</th>
-                        <th class="px-4 py-2">Simb.</th>
-                        <th class="px-4 py-2">Entrada</th>
-                        <th class="px-4 py-2">Unidad <br> Medida</th>
-                    </tr>
-                </thead>
-                <tbody class="text-center">
-                    <tr class="bg-white dark:bg-gray-800">
-                        <th class="px-4 py-2">Clase de madera</th>
-                        <th class="px-4 py-2">Cla</th>
-                        <th class="px-4 py-2">
-                            <select
-                                class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                                id="selectabc" name="selectabc">
-                                <option value="A" selected>A</option>
-                                <option value="B">B</option>
-                                <option value="C">C</option>
-                            </select>
-                            <!-- <input class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200" id="fc" name="fc" type="text" value="2" placeholder="2" min="0" required> -->
-                        </th>
-                        <th class="px-4 py-2">-</th>
-                    </tr>
-                    <tr class="bg-white dark:bg-gray-800">
-                        <th class="px-4 py-2">Base</th>
-                        <th class="px-4 py-2">b</th>
-                        <th class="px-4 py-2">
-                            <input
-                                class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                                id="base" name="base" type="text" value="2" placeholder="2"
-                                min="0" required>
-                        </th>
-                        <th class="px-4 py-2">pulg</th>
-                    </tr>
-                    <tr class="bg-white dark:bg-gray-800">
-                        <th class="px-4 py-2">Altura</th>
-                        <th class="px-4 py-2">h</th>
-                        <th class="px-4 py-2"><input
-                                class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                                id="altura" name="altura" type="text" value="4" placeholder="4"
-                                min="0" required>
-                        </th>
-                        <th class="px-4 py-2">pulg</th>
-                    </tr>
-                    <tr class="bg-white dark:bg-gray-800">
-                        <th class="px-4 py-2">Luz</th>
-                        <th class="px-4 py-2">L</th>
-                        <th class="px-4 py-2"><input
-                                class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                                id="luz" name="luz" type="text" value="4.5" placeholder="luz"
-                                min="0" required
-                                oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                        </th>
-                        <th class="px-4 py-2">m</th>
-                    </tr>
-
-
-
-
-                    <tr class="bg-white dark:bg-gray-800">
-                        <th class="px-4 py-2">Momento</th>
-                        <th class="px-4 py-2">M</th>
-                        <th class="px-4 py-2"><input
-                                class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                                id="momentoultimo" name="momentoultimo" type="text" value="13.7"
-                                placeholder="Numero de TRAMOS" min="0" required
-                                oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                        </th>
-                        <th class="px-4 py-2">Kg-m</th>
-                    </tr>
-                    <tr class="bg-white dark:bg-gray-800">
-                        <th class="px-4 py-2">Cortante</th>
-                        <th class="px-4 py-2">V</th>
-                        <th class="px-4 py-2"><input
-                                class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                                id="vucortante" name="vucortante" type="text" value="22.71"
-                                placeholder="Numero de TRAMOS" min="0" required
-                                oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                        </th>
-                        <th class="px-4 py-2">Kg</th>
-                    </tr>
-
-                    <tr class="bg-white dark:bg-gray-800">
-                        <th class="px-4 py-2">DES CM</th>
-                        <th class="px-4 py-2">DCM</th>
-                        <th class="px-4 py-2"><input
-                                class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                                id="DCM" name="DCM" type="text" value="0.006" placeholder="DCM"
-                                min="0" required
-                                oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                        </th>
-                        <th class="px-4 py-2">m</th>
-                    </tr>
-
-                    <tr class="bg-white dark:bg-gray-800">
-                        <th class="px-4 py-2">DES CV</th>
-                        <th class="px-4 py-2">DCV</th>
-                        <th class="px-4 py-2"><input
-                                class="form-control w-full rounded-md bg-gray-50 p-2 px-1 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                                id="DCV" name="DCV" type="text" value="0.0024" placeholder="DCV"
-                                min="0" required
-                                oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
-                        </th>
-                        <th class="px-4 py-2">m</th>
-                    </tr>
-
-                    <tr>
-                        <th class="px-4 py-2">
-                            <div class="input-group mb-2">
-                                <button
-                                    class="rounded border-b-4 border-blue-700 bg-blue-500 px-4 py-2 font-bold text-white hover:border-blue-500 hover:bg-blue-400"
-                                    id="desingButton" type="button">DISEÑAR</button>
-                            </div>
-                        </th>
-                    </tr>
-                    <!-- Agregar más filas según sea necesario -->
-                </tbody>
-            </table>
-        </div>
-        <!-- Resultados -->
-        <div class="mt-4 w-full px-4 md:mt-0 md:w-2/3">
-            <div class="rounded-lg bg-white p-6 shadow-md dark:bg-gray-800">
-                <h3 class="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">Resultados</h3>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full text-gray-800 dark:text-white" id="desingcorte">
-                        <!-- Requisitos de diseño vigas -->
-                        <thead class="bg-gray-200 dark:bg-gray-800">
-                            <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                                <th class="px-4 py-2 text-left text-xl" colspan="4">1.- Propiedades del tipo de
-                                    madera</th>
-                            </tr>
-                            <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                <th class="px-4 py-2 text-lg" scope="col">Nombre</th>
-                                <th class="px-4 py-2 text-lg" scope="col">Símbolo</th>
-                                <th class="px-4 py-2 text-lg" scope="col">Fórmula</th>
-                                <th class="px-4 py-2 text-lg" scope="col">Resultado</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-gray-100 py-2 dark:bg-gray-800" id="predimenension"></tbody>
-
-                        <thead class="bg-gray-200 dark:bg-gray-800">
-                            <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                                <th class="px-4 py-2 text-left text-xl" colspan="4">2.- Dimensionamiento </th>
-                            </tr>
-                            <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                <th class="px-4 py-2 text-lg" scope="col">Nombre</th>
-                                <th class="px-4 py-2 text-lg" scope="col">Símbolo</th>
-                                <th class="px-4 py-2 text-lg" scope="col">Fórmula</th>
-                                <th class="px-4 py-2 text-lg" scope="col">Resultado</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-gray-100 py-2 dark:bg-gray-800" id="dimensionamiento"></tbody>
-
-                        <!-- 2.- Combinacion de Cargas -->
-
-                        <!-- 3.- Analisi estructural -->
-
-                        <!-- 5.- Diseño en madera -->
-                        <thead class="bg-gray-200 dark:bg-gray-700">
-                            <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                                <th class="px-4 py-2 text-left text-xl" colspan="4">4.- Diseño en madera</th>
-                            </tr>
-
-                            </tr>
-                        </thead>
-                        <tbody class="py-2" id="desingFlexion"></tbody>
-
-                        <thead class="bg-gray-200 dark:bg-gray-700">
-                            <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                                <th class="px-4 py-2 text-left text-xl" colspan="4">4.1- Verificacion del modulo de
-                                    seccion
-                                </th>
-                            </tr>
-                            <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                <th class="text-xl" scope="col">Nombre</th>
-                                <th class="text-xl" scope="col">Simbolo</th>
-                                <th class="text-xl" scope="col">Formula</th>
-                                <th class="text-xl" scope="col">Resultado</th>
-                            </tr>
-                        </thead>
-                        <tbody class="py-2" id="modulo41"></tbody>
-
-
-                        <thead class="bg-gray-200 dark:bg-gray-700">
-                            <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                                <th class="px-4 py-2 text-left text-xl" colspan="4">4.3- Verificacion de esfuerzo
-                                    cortante</th>
-                            </tr>
-                            <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                <th class="text-xl" scope="col">Nombre</th>
-                                <th class="text-xl" scope="col">Simbolo</th>
-                                <th class="text-xl" scope="col">Formula</th>
-                                <th class="text-xl" scope="col">Resultado</th>
-                            </tr>
-                        </thead>
-                        <tbody class="py-2" id="modulo43"></tbody>
-
-
-
-
-                        <thead class="bg-gray-200 dark:bg-gray-700">
-                            <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                                <th class="px-4 py-2 text-left text-xl" colspan="4">4.2- Verificacion de
-                                    deformaciones</th>
-                            </tr>
-                            <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                <th class="text-xl" scope="col">Nombre</th>
-                                <th class="text-xl" scope="col">Simbolo</th>
-                                <th class="text-xl" scope="col">Formula</th>
-                                <th class="text-xl" scope="col">Resultado</th>
-                            </tr>
-                        </thead>
-                        <tbody class="py-2" id="modulo42"></tbody>
-
-
-
-                        <thead class="bg-gray-200 dark:bg-gray-700">
-                            <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                                <th class="px-4 py-2 text-left text-xl" colspan="4">4.4- Verificacion de la
-                                    estabilidad lateral
-                                </th>
-                            </tr>
-                            <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                <th class="text-xl" scope="col">Nombre</th>
-                                <th class="text-xl" scope="col">Simbolo</th>
-                                <th class="text-xl" scope="col">Formula</th>
-                                <th class="text-xl" scope="col">Resultado</th>
-                            </tr>
-                        </thead>
-                        <tbody class="py-2" id="modulo44"></tbody>
-                        <thead class="bg-gray-200 dark:bg-gray-700">
-                            <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                                <th class="px-4 py-2 text-left text-xl" colspan="4">4.5- Longitud del apoyo
-                                </th>
-                            </tr>
-                            <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-                                <th class="text-xl" scope="col">Nombre</th>
-                                <th class="text-xl" scope="col">Simbolo</th>
-                                <th class="text-xl" scope="col">Formula</th>
-                                <th class="text-xl" scope="col">Resultado</th>
-                            </tr>
-                        </thead>
-                        <tbody class="py-2" id="modulo45"></tbody>
-
-
-
-                    </table>
-                </div>
-            </div>
-        </div>
+@php($columns = '<tr><th scope="col">Parámetro</th><th scope="col">Símbolo</th><th scope="col">Fórmula</th><th scope="col">Resultado</th></tr>')
+<x-sheets.workbench sheet="madera-correas" title="Diseño de correas" entry="resources/js/adm_correa.js" auto
+  eyebrow="Herramientas de ingeniería / Estructuras de madera"
+  description="Diseño de correas de madera: propiedades del grupo estructural, dimensionamiento y verificaciones de módulo de sección, deformaciones, corte, estabilidad lateral y longitud de apoyo.">
+  <x-sheets.panel title="Datos generales" description="Madera, sección, luz y solicitaciones de la correa." number="01" class="arco-input-panel" data-sheet-inputs>
+    <div class="arco-fields">
+      <x-sheets.fieldset title="Madera y sección" note="Dimensiones comerciales de la escuadría.">
+        <x-sheets.field id="selectabc" label="Grupo estructural" value="A" :options="['A' => 'A', 'B' => 'B', 'C' => 'C']" />
+        <x-sheets.field id="base" label="Base" symbol="b" value="2" unit="pulg" min="0.01" />
+        <x-sheets.field id="altura" label="Altura" symbol="h" value="4" unit="pulg" min="0.01" />
+        <x-sheets.field id="luz" label="Luz" symbol="L" value="4.5" unit="m" min="0.01" />
+      </x-sheets.fieldset>
+      <x-sheets.fieldset title="Solicitaciones" note="Momento y cortante de diseño y deflexiones por carga muerta y viva.">
+        <x-sheets.field id="momentoultimo" label="Momento" symbol="M" value="13.7" unit="kg·m" min="0" />
+        <x-sheets.field id="vucortante" label="Cortante" symbol="V" value="22.71" unit="kg" min="0" />
+        <x-sheets.field id="DCM" label="Deflexión por carga muerta" symbol="δCM" value="0.006" unit="m" min="0" />
+        <x-sheets.field id="DCV" label="Deflexión por carga viva" symbol="δCV" value="0.0024" unit="m" min="0" />
+      </x-sheets.fieldset>
     </div>
-</x-calc-layout>
+    <x-sheets.calculate type="button" id="desingButton" />
+  </x-sheets.panel>
+  <section class="arco-results" aria-label="Resultados del diseño de correas">
+    <x-sheets.results-header status-id="correas-status" description="Propiedades, dimensionamiento y verificaciones de la correa." />
+    <x-sheets.results id="correas_resultados">
+      <section class="pr-panel arco-result-card">
+        <div class="arco-table-scroll" role="region" aria-label="Resultados del diseño de correas" tabindex="0">
+          <table class="arco-table beam-result-table" id="desingcorte">
+            <thead><tr><th colspan="4" scope="colgroup">1. Propiedades del grupo estructural</th></tr>{!! $columns !!}</thead>
+            <tbody id="predimenension"></tbody>
+            <thead><tr><th colspan="4" scope="colgroup">2. Dimensionamiento</th></tr>{!! $columns !!}</thead>
+            <tbody id="dimensionamiento"></tbody>
+            <thead><tr><th colspan="4" scope="colgroup">3. Diseño en madera</th></tr></thead>
+            <tbody id="desingFlexion"></tbody>
+            <thead><tr><th colspan="4" scope="colgroup">3.1 Verificación del módulo de sección</th></tr>{!! $columns !!}</thead>
+            <tbody id="modulo41"></tbody>
+            <thead><tr><th colspan="4" scope="colgroup">3.2 Verificación de deformaciones</th></tr>{!! $columns !!}</thead>
+            <tbody id="modulo42"></tbody>
+            <thead><tr><th colspan="4" scope="colgroup">3.3 Verificación del esfuerzo cortante</th></tr>{!! $columns !!}</thead>
+            <tbody id="modulo43"></tbody>
+            <thead><tr><th colspan="4" scope="colgroup">3.4 Verificación de la estabilidad lateral</th></tr>{!! $columns !!}</thead>
+            <tbody id="modulo44"></tbody>
+            <thead><tr><th colspan="4" scope="colgroup">3.5 Longitud del apoyo</th></tr>{!! $columns !!}</thead>
+            <tbody id="modulo45"></tbody>
+          </table>
+        </div>
+      </section>
+    </x-sheets.results>
+  </section>
+</x-sheets.workbench>

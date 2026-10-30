@@ -41,9 +41,9 @@ class SubscriptionPlansManagement extends Component
             'name' => 'required|string|max:255',
             'slug' => 'required|string|max:255|unique:subscriptions,slug,' . $this->planId,
             'description' => 'nullable|string',
-            'price' => 'required|numeric|min:0'.($this->type === 'trial' ? '|in:0' : (in_array($this->type,['monthly','yearly'],true) ? '|gt:0' : '')),
+            'price' => 'required|numeric|min:0'.($this->type === 'trial' ? '|in:0' : (in_array($this->type,['monthly','quarterly','semiannual','yearly'],true) ? '|gt:0' : '')),
             'duration_days' => 'required_unless:type,lifetime|nullable|integer|min:1'.($this->type === 'trial' ? '|in:5' : ''),
-            'type' => 'required|in:trial,monthly,yearly,lifetime',
+            'type' => 'required|in:trial,monthly,quarterly,semiannual,yearly,lifetime',
             'is_active' => 'boolean',
             'sort_order' => 'integer|min:0',
             'max_users' => 'required|integer|min:1|max:100000',
@@ -95,6 +95,12 @@ class SubscriptionPlansManagement extends Component
                 break;
             case 'monthly':
                 $this->duration_days = 30;
+                break;
+            case 'quarterly':
+                $this->duration_days = 90;
+                break;
+            case 'semiannual':
+                $this->duration_days = 180;
                 break;
             case 'yearly':
                 $this->duration_days = 365;

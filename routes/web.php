@@ -48,7 +48,7 @@ Route::get('/api/opensees/status', function () {
 })->middleware(['auth','check.subscription','throttle:30,1,engine-status'])->name('opensees.status');
 
 // Ruta POST para análisis (con autenticación)
-Route::post('/api/opensees/analyze', [OpenSeesController::class, 'analyze'])->middleware(['auth', 'check.subscription']);
+Route::post('/api/opensees/analyze', [OpenSeesController::class, 'analyze'])->middleware(['auth', 'check.subscription', 'throttle:calculation']);
 
 //=======================Landing=========================================//
 Route::view('/servicios/diseno_estructural', 'landing.structural_design')->name('landing.services.structural_design');
@@ -114,7 +114,6 @@ Route::post('/planes/pagar/{paymentRequest}/cobrar', [App\Http\Controllers\Culqi
 Route::post('/webhooks/culqi/{token}', [App\Http\Controllers\CulqiController::class, 'webhook'])
     ->middleware('throttle:120,1,culqi.webhook')->name('culqi.webhook');
 Route::view('/landing/success', 'landing.success')->name('landing.success');
-Route::get('/download-proof/{paymentRequest}', [ContactPaymentController::class, 'downloadProof'])->name('download.proof')->middleware('signed');
 //==========================GESTIÓN DE USUARIOS (Root y Gerencia)=========//
 Route::middleware(['auth', 'verified', 'role:root|gerencia'])->group(function () {
     Route::get('/usuarios', fn () => redirect()->route('planUser.index'))->name('users.index');
@@ -155,7 +154,7 @@ Route::middleware(['auth', 'verified', 'role:root|gerencia'])->group(function ()
 });
 
 //==========================RUTAS CON SUSCRIPCIÓN ACTIVA==================//
-Route::middleware(["auth", "verified", "check.subscription", App\Http\Middleware\ValidateLegacyCalculation::class])->group(function () {
+Route::middleware(["auth", "verified", "check.subscription", "throttle:calculation", App\Http\Middleware\ValidateLegacyCalculation::class])->group(function () {
     Route::prefix("calculadora")->name("calculadora.")->group(function () {
         Route::prefix("estudiante")->name("estudiante.")->group(function () {
             Route::prefix("cav2")->name("cav2.")->group(function () {
@@ -345,29 +344,7 @@ Route::get('/calculadora/asistente/memoria-descriptiva/demolicion', function () 
     return view('hcalculo.memoria_descriptiva.sections.demolicion');
 })->name('calculadora.asistente.memoria-descriptiva.demolicion');
 });
-Route::prefix('storage')->group(function () {
-    // Imágenes de perfil
-    Route::get('/profile/{filename}', function ($filename) {
-        $path = public_path('storage/profile/' . $filename);
-        if (!File::exists($path)) {
-            return response()->json(['message' => 'Imagen no encontrada.'], 404);
-        }
-        return Response::make(File::get($path), 200)
-            ->header("Content-Type", File::mimeType($path));
-    });
-
-    // Firmas
-    Route::get('/firmas/{filename}', function ($filename) {
-        $path = storage_path('app/public/firmas/' . $filename);
-        if (!file_exists($path)) {
-            abort(404);
-        }
-        return response()->file($path, [
-            'Content-Type' => 'image/png',
-            'Cache-Control' => 'public, max-age=3600'
-        ]);
-    })->name('get.firma');
-});
+// Las rutas públicas storage/profile y storage/firmas se retiraron: no se usaban y servían archivos por nombre sin sesión.
 
 Route::prefix('api/backend')
     ->middleware(['auth', 'check.subscription', 'throttle:30,1,calculation-engine'])

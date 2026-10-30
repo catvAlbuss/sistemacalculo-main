@@ -1,5 +1,5 @@
 <!-- resources/views/partials/resultadoLosasAligerdas.blade.php -->
-<table id="desingcorte" class="min-w-full text-gray-800 dark:text-white">
+<table id="desingcorte" class="sheet-span-table">
     @php
     // Al inicio de la vista, asegurar que base tenga valores válidos
     foreach ($base as $key => $value) {
@@ -15,20 +15,7 @@
     }
     @endphp
     <!-- Requisitos de diseño vigas -->
-    <thead class="bg-gray-200 dark:bg-gray-800">
-        <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-            <th class="text-xl py-2 px-4 text-left" colspan="4">1.- Requisitos de diseño</th>
-        </tr>
-        <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-            <th class="text-lg py-2 px-4" scope="col">Nombre</th>
-            <th class="text-lg py-2 px-4" scope="col">Símbolo</th>
-            <th class="text-lg py-2 px-4" scope="col">Fórmula</th>
-            @for ($i = 1; $i <= $num_tramos; $i++) <th scope="col">START</th>
-                <th scope="col">MIDDLE</th>
-                <th scope="col">END</th>
-                @endfor
-        </tr>
-    </thead>
+    <x-sheets.span-head title="1 Requisitos de diseño" :spans="$num_tramos" />
     <tbody class="bg-gray-100 dark:bg-gray-800  py-2">
         <tr class="bg-gray-100 dark:bg-gray-600 text-center">
             <td class='py-2 px-4'>Luz libre</td>
@@ -121,20 +108,7 @@
     </tbody>
 
     <!-- Valores negativos -->
-    <thead class="bg-gray-200 dark:bg-gray-800">
-        <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-            <th class="text-xm py-2 px-4 text-left" colspan="4">1.1- Valores negativos</th>
-        </tr>
-        <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-            <th class="text-lg py-2 px-4" scope="col">Nombre</th>
-            <th class="text-lg py-2 px-4" scope="col">Símbolo</th>
-            <th class="text-lg py-2 px-4" scope="col">Fórmula</th>
-            @for ($i = 1; $i <= $num_tramos; $i++) <th scope="col">START</th>
-                <th scope="col">MIDDLE</th>
-                <th scope="col">END</th>
-                @endfor
-        </tr>
-    </thead>
+    <x-sheets.span-head title="1.1 Valores negativos" :spans="$num_tramos" />
     <tbody class="bg-gray-100 dark:bg-gray-800  py-2">
         <tr class="bg-gray-100 dark:bg-gray-600 text-center">
             <td class='py-2 px-4'>Momento ultimo negativo</td>
@@ -171,20 +145,7 @@
     </tbody>
 
     <!-- Valores positivos -->
-    <thead class="bg-gray-200 dark:bg-gray-800">
-        <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-            <th class="text-xm py-2 px-4 text-left" colspan="4">1.2- Valores positivos</th>
-        </tr>
-        <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-            <th class="text-lg py-2 px-4" scope="col">Nombre</th>
-            <th class="text-lg py-2 px-4" scope="col">Símbolo</th>
-            <th class="text-lg py-2 px-4" scope="col">Fórmula</th>
-            @for ($i = 1; $i <= $num_tramos; $i++) <th scope="col">START</th>
-                <th scope="col">MIDDLE</th>
-                <th scope="col">END</th>
-                @endfor
-        </tr>
-    </thead>
+    <x-sheets.span-head title="1.2 Valores positivos" :spans="$num_tramos" />
     <tbody class="bg-gray-100 dark:bg-gray-800  py-2">
         <tr class="bg-gray-100 dark:bg-gray-600 text-center">
             <td class='py-2 px-4'>Momento ultimo positivo</td>
@@ -214,20 +175,7 @@
 
     <!-- Diseño por flexion -->
 
-    <thead class="bg-gray-200 dark:bg-gray-800">
-        <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-            <th class="text-xl py-2 px-4 text-left" colspan="4">2.- Diseño por flexion</th>
-        </tr>
-        <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-            <th class="text-lg py-2 px-4" scope="col">Nombre</th>
-            <th class="text-lg py-2 px-4" scope="col">Símbolo</th>
-            <th class="text-lg py-2 px-4" scope="col">Fórmula</th>
-            @for ($i = 1; $i <= $num_tramos; $i++) <th scope="col">START</th>
-                <th scope="col">MIDDLE</th>
-                <th scope="col">END</th>
-                @endfor
-        </tr>
-    </thead>
+    <x-sheets.span-head title="2 Diseño por flexión" :spans="$num_tramos" />
     <tbody class="bg-gray-100 dark:bg-gray-800  py-2">
         <tr class="bg-gray-100 dark:bg-gray-600 text-center">
             <td class='py-2 px-4'>Peralte efectivo</td>
@@ -429,20 +377,7 @@
         </tr>
     </tbody>
 
-    <thead class="bg-gray-200 dark:bg-gray-800">
-        <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-            <th class="text-xl py-2 px-4 text-left" colspan="4">2.1.- Valores negativos (-)</th>
-        </tr>
-        <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-            <th class="text-lg py-2 px-4" scope="col">Nombre</th>
-            <th class="text-lg py-2 px-4" scope="col">Símbolo</th>
-            <th class="text-lg py-2 px-4" scope="col">Fórmula</th>
-            @for ($i = 1; $i <= $num_tramos; $i++) <th scope="col">START</th>
-                <th scope="col">MIDDLE</th>
-                <th scope="col">END</th>
-                @endfor
-        </tr>
-    </thead>
+    <x-sheets.span-head title="2.1 Valores negativos (-)" :spans="$num_tramos" />
 
     <tbody class="bg-gray-100 dark:bg-gray-800  py-2">
         <tr class="bg-gray-100 dark:bg-gray-600 text-center">
@@ -681,20 +616,7 @@
     </tbody>
 
     <!-----===============DISEÑO POR CORTE LOSA ===============-->
-    <thead class="bg-gray-200 dark:bg-gray-800">
-        <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-            <th class="text-xl py-2 px-4 text-left" colspan="4">3.- Diseño de losa por corte</th>
-        </tr>
-        <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-            <th class="text-lg py-2 px-4" scope="col">Nombre</th>
-            <th class="text-lg py-2 px-4" scope="col">Símbolo</th>
-            <th class="text-lg py-2 px-4" scope="col">Fórmula</th>
-            @for ($i = 1; $i <= $num_tramos; $i++) <th scope="col">START</th>
-                <th scope="col">MIDDLE</th>
-                <th scope="col">END</th>
-                @endfor
-        </tr>
-    </thead>
+    <x-sheets.span-head title="3 Diseño de losa por corte" :spans="$num_tramos" />
     <tbody class="bg-gray-100 dark:bg-gray-800  py-2">
         <!-- Acw (cm²) -->
         <tr class="bg-gray-100 dark:bg-gray-600 text-center">
@@ -835,20 +757,7 @@
         </tr>
     </tbody>
 
-    <thead class="bg-gray-200 dark:bg-gray-800">
-        <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-            <th class="text-xl py-2 px-4 text-left" colspan="4">3.- Diseño por deflexión</th>
-        </tr>
-        <tr class="bg-gray-500 text-white dark:bg-gray-500 dark:text-white">
-            <th class="text-lg py-2 px-4" scope="col">Nombre</th>
-            <th class="text-lg py-2 px-4" scope="col">Símbolo</th>
-            <th class="text-lg py-2 px-4" scope="col">Fórmula</th>
-            @for ($i = 1; $i <= $num_tramos; $i++) <th scope="col">START</th>
-                <th scope="col">MIDDLE</th>
-                <th scope="col">END</th>
-                @endfor
-        </tr>
-    </thead>
+    <x-sheets.span-head title="4 Diseño por deflexión" :spans="$num_tramos" />
     <tbody class="bg-gray-100 dark:bg-gray-800  py-2">
         <tr class="bg-gray-100 dark:bg-gray-600 text-center">
             <th class='py-2 px-4' scope="row">Relación modular</th>
@@ -1016,7 +925,8 @@
 
         </tr>
         <tr class="bg-gray-100 dark:bg-gray-600 text-center">
-            <th class='py-2 px-4' scope="row" colspan="2">CASOS</th>
+            <th class='py-2 px-4' scope="row">Caso de deflexión diferida</th>
+            <th scope="row"></th>
             <th class='py-2 px-4' scope="row">Fórmula</th>
             @foreach (range(1, $num_tramos * 3) as $i)
             <td class='py-2 px-4'>

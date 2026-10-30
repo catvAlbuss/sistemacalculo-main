@@ -39,6 +39,9 @@ return [
         'public_key' => env('CULQI_PUBLIC_KEY'),
         'secret_key' => env('CULQI_SECRET_KEY'),
         'webhook_token' => env('CULQI_WEBHOOK_TOKEN'),
+        // Revisión de Culqi: permite llaves de integración en producción solo para las cuentas listadas.
+        'review_mode' => (bool) env('CULQI_REVIEW_MODE', false),
+        'reviewer_emails' => array_values(array_filter(array_map(fn ($e) => strtolower(trim($e)), explode(',', (string) env('CULQI_REVIEWER_EMAILS', ''))))),
         'api_url' => 'https://api.culqi.com/v2',
     ],
     'apiperu' => [
