@@ -8,7 +8,7 @@ Schedule::command('payments:dispatch-pending')->everyMinute()->withoutOverlappin
 Schedule::command('payments:reconcile')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('subscriptions:remind')->dailyAt('08:30')->timezone('America/Lima')->withoutOverlapping();
 Schedule::command('tipo-cambio:actualizar')->dailyAt('09:15')->timezone('America/Lima')->withoutOverlapping();
-Schedule::command('project-backups:daily')->dailyAt('02:00')->timezone('America/Lima')->withoutOverlapping();
+Schedule::command('project-backups:daily')->dailyAt('02:00')->timezone('America/Lima')->withoutOverlapping()->when(fn () => config('features.project_backups'));
 Schedule::command('model:prune', ['--model' => [\App\Models\DocumentRecord::class]])->dailyAt('03:00')->timezone('America/Lima')->withoutOverlapping();
 
 Artisan::command('inspire', function () {

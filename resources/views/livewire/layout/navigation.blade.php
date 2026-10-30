@@ -345,7 +345,7 @@ $logout = function (Logout $logout) {
 
                             {{-- Enlace al perfil --}}
                             <x-dropdown-link :href="route('plans.mine')" :active="request()->routeIs('plans.mine')">Mi plan y pagos</x-dropdown-link>
-                            <x-dropdown-link :href="route('backups.index')" :active="request()->routeIs('backups.*')">Mis respaldos</x-dropdown-link>
+                            @if (config('features.project_backups'))<x-dropdown-link :href="route('backups.index')" :active="request()->routeIs('backups.*')">Mis respaldos</x-dropdown-link>@endif
                             <x-dropdown-link :href="route('landing.home')">Sitio web</x-dropdown-link>
                             <x-dropdown-link :href="route('profile')">
                                 {{ __('Perfil') }}
@@ -615,7 +615,7 @@ $logout = function (Logout $logout) {
             @endauth
             <div class="mt-3 space-y-1">
                 <x-responsive-nav-link :href="route('plans.mine')" :active="request()->routeIs('plans.mine')">Mi plan y pagos</x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('backups.index')" :active="request()->routeIs('backups.*')">Mis respaldos</x-responsive-nav-link>
+                @if (config('features.project_backups'))<x-responsive-nav-link :href="route('backups.index')" :active="request()->routeIs('backups.*')">Mis respaldos</x-responsive-nav-link>@endif
                 <x-responsive-nav-link :href="route('landing.home')">Sitio web</x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('profile')" {{-- wire:navigate --}}>
                     {{ __('Perfil') }}

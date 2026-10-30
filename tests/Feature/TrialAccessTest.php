@@ -88,7 +88,7 @@ class TrialAccessTest extends TestCase
         $this->postJson('/software/etabs/model/autosave', [])->assertForbidden()->assertJsonPath('code', 'subscription_required');
         $this->postJson('/api/backend/column-shear', [])->assertForbidden();
         $this->postJson('/api/opensees/analyze', [])->assertForbidden();
-        foreach (['plans.mine', 'plans.catalog', 'profile', 'backups.index', 'account.support'] as $route) $this->get(route($route))->assertOk();
+        foreach (['plans.mine', 'plans.catalog', 'profile', 'account.support'] as $route) $this->get(route($route))->assertOk();
         $this->get(route('plans.mine'))->assertSee('contrata un plan pagado');
         $this->assertAuthenticatedAs($user); Http::assertNothingSent();
         $this->get(route('predim_v2'))->assertRedirect(route('plans.mine'));

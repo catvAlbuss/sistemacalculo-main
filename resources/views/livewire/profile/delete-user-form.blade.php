@@ -21,7 +21,7 @@ $deleteUser = function (Logout $logout) {
 ?>
 
 <section>
-    <p class="pr-hint">Al eliminar tu cuenta perderás el acceso y se eliminarán sus datos. Esta acción es permanente. <a class="en-inline-link" href="{{ route('backups.index') }}">Revisar mis respaldos</a></p>
+    <p class="pr-hint">Al eliminar tu cuenta perderás el acceso y se eliminarán sus datos. Esta acción es permanente. @if (config('features.project_backups'))<a class="en-inline-link" href="{{ route('backups.index') }}">Revisar mis respaldos</a>@endif</p>
     <button type="button" class="pr-button wk-danger mt-4" x-data="" x-on:click.prevent="$dispatch('open-modal', 'confirm-user-deletion')">Eliminar mi cuenta</button>
     <x-modal name="confirm-user-deletion" :show="$errors->isNotEmpty()" focusable>
         <form wire:submit="deleteUser" class="wk-modal-form" role="dialog" aria-modal="true" aria-labelledby="delete-account-title">

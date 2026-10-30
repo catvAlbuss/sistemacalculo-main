@@ -26,7 +26,7 @@ class WorkspaceNavigationTest extends TestCase
     {
         $user = User::factory()->create(); $user->assignRole('root');
         $this->actingAs($user);
-        foreach (['dashboard','plans.mine','backups.index','profile','account.support','plans.catalog','administration.index','payments.admin.index','complaints.admin.index','suscripciones.index','planUser.index'] as $route) {
+        foreach (['dashboard','plans.mine','profile','account.support','plans.catalog','administration.index','payments.admin.index','complaints.admin.index','suscripciones.index','planUser.index'] as $route) {
             $this->get(route($route))->assertOk()->assertSee('data-layout="workspace"',false)
                 ->assertSee('Navegación interna')->assertDontSee('aria-label="Navegación principal"',false)
                 ->assertDontSee('aria-label="Información legal"',false);

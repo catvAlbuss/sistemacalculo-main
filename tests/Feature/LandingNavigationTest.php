@@ -91,7 +91,7 @@ class LandingNavigationTest extends TestCase
         $this->assertStringContainsString('Mi espacio de trabajo', $html);
         $this->assertStringNotContainsString('Mi cuenta', $html);
         $html = $this->get(route('plans.mine'))->assertOk()->getContent();
-        foreach (['Navegación interna', 'Mi cuenta', 'Mi plan y pagos', 'Mis respaldos', 'Perfil', 'Ayuda y soporte', 'Cerrar sesión', 'Asistente', 'Diseñador'] as $label) {
+        foreach (['Navegación interna', 'Mi cuenta', 'Mi plan y pagos', 'Perfil', 'Ayuda y soporte', 'Cerrar sesión', 'Asistente', 'Diseñador'] as $label) {
             $this->assertStringContainsString($label, $html);
         }
         $this->assertStringNotContainsString('data-navigation="public"', $html);

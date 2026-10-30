@@ -22,6 +22,7 @@ class ProjectBackupsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['features.project_backups' => true]);
         $this->withoutVite();
         Storage::fake('local');
     }

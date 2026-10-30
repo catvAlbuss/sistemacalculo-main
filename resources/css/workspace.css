@@ -16,6 +16,7 @@
 .wk-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; }
 .wk-grid-two { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; align-items:start; }
 .wk-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:18px; margin:24px 0; }
+@media(min-width:1001px) { .wk-stats:has(> :nth-child(3):last-child) { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 .wk-stat { padding:22px; }
 .wk-stat dt { color:var(--pr-muted); font-size:11px; margin-bottom:10px; }
 .wk-stat dd { font-size:23px; line-height:1.4; font-weight:600; letter-spacing:-.025em; overflow-wrap:anywhere; }

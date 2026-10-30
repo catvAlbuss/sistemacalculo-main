@@ -26,7 +26,7 @@ class DashboardController extends Controller
             // Keep the owner authenticated so an expired plan can be renewed safely.
 
             return view('dashboard', $this->dashboardData($user, [
-                'type' => 'warning', 'message' => 'Tu cuenta no tiene acceso vigente a los programas. Puedes revisar tus proyectos y respaldos; elige o renueva un plan para usar las herramientas.', 'show_button' => true,
+                'type' => 'warning', 'message' => 'Tu cuenta no tiene acceso vigente a los programas. Puedes revisar tus proyectos; elige o renueva un plan para usar las herramientas.', 'show_button' => true,
             ]));
         }
 
@@ -59,7 +59,7 @@ class DashboardController extends Controller
             ] : null,
             'projectCount' => $projectCount,
             'pendingPayments' => \App\Models\PaymentRequest::where('user_id', $user->id)->where('status', 'pending')->count(),
-            'lastBackup' => \App\Models\ProjectBackup::where('user_id', $user->id)->latest()->first(),
+            'lastBackup' => config('features.project_backups') ? \App\Models\ProjectBackup::where('user_id', $user->id)->latest()->first() : null,
         ];
     }
 

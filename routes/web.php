@@ -91,7 +91,7 @@ Route::get('/mi-plan/contratar', [App\Http\Controllers\PlanesController::class, 
 Route::view('/mi-cuenta/soporte', 'landing.contact', ['internal' => true])->middleware('auth')->name('account.support');
 Route::post('/mi-plan/pagos/{paymentRequest}/cancelar', [App\Http\Controllers\CulqiController::class, 'cancel'])
     ->middleware(['auth', 'throttle:10,10,unpaid-cancel'])->name('payments.cancel-unpaid');
-Route::middleware(['auth', 'throttle:30,1,project-backups'])->group(function () {
+Route::middleware(['auth', \App\Http\Middleware\RequireFeature::class.':project_backups', 'throttle:30,1,project-backups'])->group(function () {
     Route::get('/mis-respaldos', [App\Http\Controllers\ProjectBackupController::class, 'index'])->name('backups.index');
     Route::post('/mis-respaldos', [App\Http\Controllers\ProjectBackupController::class, 'store'])->middleware('throttle:3,10,backup-create')->name('backups.store');
     Route::get('/mis-respaldos/{backup}/revisar', [App\Http\Controllers\ProjectBackupController::class, 'preview'])->name('backups.preview');

@@ -1,6 +1,6 @@
 @extends('layouts.workspace')
 @section('main')
-<header class="wk-heading"><div><p class="pr-eyebrow">Mi cuenta / Cobertura y operaciones</p><h1>Mi plan y mis pagos</h1><p>Consulta el acceso de tu cuenta y el estado de cada solicitud.</p></div><a class="pr-button pr-button-secondary" href="{{ route('backups.index') }}">Mis respaldos <span aria-hidden="true">↗︎</span></a></header>
+<header class="wk-heading"><div><p class="pr-eyebrow">Mi cuenta / Cobertura y operaciones</p><h1>Mi plan y mis pagos</h1><p>Consulta el acceso de tu cuenta y el estado de cada solicitud.</p></div>@if (config('features.project_backups'))<a class="pr-button pr-button-secondary" href="{{ route('backups.index') }}">Mis respaldos <span aria-hidden="true">↗︎</span></a>@endif</header>
 <div class="wk-stack">
     @if(session('success'))<p role="status" class="wk-notice">{{ session('success') }}</p>@endif
     @if(session('subscription_notice'))<p role="alert" class="wk-notice" data-tone="warning">{{ session('subscription_notice') }}</p>@endif
