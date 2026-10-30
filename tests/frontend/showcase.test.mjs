@@ -8,7 +8,7 @@ import test from 'node:test';
 import { build } from 'vite';
 
 const chrome = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-test('video loading respects viewport, mobile, manual pause, reduced motion and data saver', {skip: !existsSync(chrome), timeout: 60000}, async () => {
+test('video loading respects viewport, mobile, manual pause and data saver', {skip: !existsSync(chrome), timeout: 60000}, async () => {
  const entry = `
  import {initShowcase} from './resources/js/showcase.js';
  (async () => {
@@ -33,7 +33,7 @@ test('video loading respects viewport, mobile, manual pause, reduced motion and 
   x.observer.fire(false);check(x.video.paused,'offscreen pauses');x.observer.fire(true);check(x.video.loads===1,'source is loaded only once');
   x.button.click();check(x.video.paused,'manual pause');x.observer.fire(false);x.observer.fire(true);check(x.video.paused,'scroll does not override manual pause');
   mobile=true;x=setup();x.observer.fire(true);check(x.video.src.endsWith('mobile.mp4'),'only mobile variant selected');
-  reduced=true;x=setup();x.observer.fire(true);check(!x.video.src,'reduced motion prevents automatic loading');x.button.click();check(x.video.plays===1,'manual playback remains available');
+  reduced=true;x=setup();x.observer.fire(true);check(x.video.src,'the muted hero starts with reduced motion and keeps its pause button');
   reduced=false;saveData=true;x=setup();x.observer.fire(true);check(!x.video.src,'data saver prevents automatic download');
   saveData=false;x=setup(false);x.observer.fire(true);check(!x.video.src,'trailers never autoplay');x.button.click();check(x.video.plays===1,'trailer loads on demand');
   x.video.dispatchEvent(new Event('error'));check(!document.querySelector('[data-video-error]').hidden,'failure message available');
@@ -61,7 +61,7 @@ test('video loading respects viewport, mobile, manual pause, reduced motion and 
   players.at(-1).options.events.onStateChange({data:2});yt.observer.fire(false);yt.observer.fire(true);
   check(players.at(-1).played===1,'scroll respects manual pause of montage');
   reduced=true;yt=youtube(true);yt.observer.fire(true);await new Promise(r=>setTimeout(r,0));
-  check(!players.at(-1).played,'reduced motion stops YouTube hero autoplay');
+  check(players.at(-1).played,'the muted YouTube hero also starts with reduced motion');
   reduced=false;saveData=true;yt=youtube(true);yt.observer.fire(true);await new Promise(r=>setTimeout(r,0));
   check(!players.at(-1).played,'data saver stops YouTube hero autoplay');
   players.at(-1).options.events.onError({data:100});check(!document.querySelector('[data-youtube-error]').hidden,'YouTube unavailable message');

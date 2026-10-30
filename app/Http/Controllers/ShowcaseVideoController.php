@@ -45,6 +45,25 @@ class ShowcaseVideoController extends Controller
         return back()->with('success', $video->publish_when_ready ? 'Video recibido. Se publicará automáticamente cuando termine correctamente el procesamiento.' : 'Video recibido. Se procesará en segundo plano y quedará listo para revisión.');
     }
 
+    public function update(Request $request, ShowcaseVideo $video)
+    {
+        $data = $request->validate([
+            'slot' => ['required', Rule::in(['home', ...array_keys(config('showcase.products'))])],
+            'title' => ['required', 'string', 'max:160'],
+            'transcript' => ['nullable', 'string', 'max:20000'],
+        ]);
+        $moved = $data['slot'] !== $video->slot;
+        $video->update($data + ($moved ? ['is_published' => false] : []));
+        return back()->with('success', $moved ? 'Video actualizado. Al cambiar de ubicación quedó sin publicar; publícalo cuando lo revises.' : 'Video actualizado.');
+    }
+
+    public function destroy(ShowcaseVideo $video)
+    {
+        if ($video->status === 'processing') return back()->withErrors(['video' => 'Este video se está procesando. Podrás eliminarlo cuando termine.']);
+        $video->delete();
+        return back()->with('success', 'Video eliminado junto con sus archivos.');
+    }
+
     public function publish(ShowcaseVideo $video)
     {
         $video->publish();

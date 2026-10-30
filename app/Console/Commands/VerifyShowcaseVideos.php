@@ -36,7 +36,7 @@ class VerifyShowcaseVideos extends Command
         if ($connection === 'sync' || config('queue.connections.'.$connection.'.retry_after', 0) <= 900) {
             $ok = false; $this->error('Usa una cola persistente de videos con retry_after mayor a 900 segundos.');
         } else $this->info('Cola '.$connection.': configuración disponible');
-        $this->line('Mantén activo: php artisan queue:work '.$connection.' --queue=media --timeout=900 --tries=2 --sleep=3');
+        $this->line('La cola se procesa cada minuto con el cron de schedule:run.');
         return $ok ? self::SUCCESS : self::FAILURE;
     }
 }

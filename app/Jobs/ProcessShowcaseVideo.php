@@ -32,7 +32,8 @@ class ProcessShowcaseVideo implements ShouldQueue
 
     public function handle(VideoProcessor $processor): void
     {
-        $video = ShowcaseVideo::findOrFail($this->videoId);
+        $video = ShowcaseVideo::find($this->videoId);
+        if (!$video) return; // Eliminado mientras esperaba en la cola.
         if ($video->isReady()) {
             if ($video->publish_when_ready) $video->publish(automatic: true);
             return;

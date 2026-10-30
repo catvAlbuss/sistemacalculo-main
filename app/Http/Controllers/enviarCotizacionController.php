@@ -21,7 +21,7 @@ class enviarCotizacionController extends Controller
         $datos = $request->only(['nombre', 'celular', 'email']);
         $datos['archivo_path'] = $archivoPath;
 
-        Mail::to('admon.construyehco@gmail.com')
+        Mail::to(config('mail.admin_email'))
             ->send(new FormularioEnviado($datos));
 
         return back()->with('success', 'Formulario enviado con éxito.');

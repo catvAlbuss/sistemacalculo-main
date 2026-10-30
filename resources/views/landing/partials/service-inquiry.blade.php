@@ -8,4 +8,5 @@
     <div><label for="archivo" class="pr-label">Plano de referencia</label><input class="pr-input" id="archivo" name="archivo" type="file" accept="application/pdf,image/jpeg,image/png" required aria-describedby="file-help" aria-invalid="{{ $errors->has('archivo') ? 'true' : 'false' }}"><p id="file-help" class="pr-hint">PDF, JPG o PNG · Máximo 10 MB. Todos los campos son obligatorios.</p>@error('archivo')<p class="pr-field-error">{{ $message }}</p>@enderror</div>
     <button type="submit" class="pr-button">Enviar consulta <span aria-hidden="true">↗︎</span></button>
     <p class="pr-hint">Usaremos estos datos para atender tu solicitud. Consulta nuestra <a href="{{ route('legal.privacidad') }}" class="en-inline-link">Política de privacidad</a>.</p>
+    <x-upload-progress :max-mb="10" title="Enviando plano" />
 </form>

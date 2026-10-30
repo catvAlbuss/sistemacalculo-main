@@ -13,9 +13,10 @@
         <div class="lh-file-background" data-media>
             <img class="lh-background-poster" src="{{ $poster }}" alt="" aria-hidden="true">
             <video class="lh-background-video" playsinline muted loop preload="none" data-ambient poster="{{ $poster }}" aria-label="{{ $video?->title ?? 'Resumen de los programas de Rizabal' }}">
-                <source data-src="{{ route('showcase.home-video', ['variant' => 'mobile', 'format' => 'mp4']) }}" media="(max-width: 767px)" type="video/mp4">
+                {{-- El video publicado se sirve como archivo estático para no ocupar un proceso PHP por visitante. --}}
+                <source data-src="{{ $video?->getFirstMediaUrl('mobile') ?: route('showcase.home-video', ['variant' => 'mobile', 'format' => 'mp4']) }}" media="(max-width: 767px)" type="video/mp4">
                 @unless($video)<source data-src="{{ route('showcase.home-video', ['variant' => 'mobile', 'format' => 'webm']) }}" media="(max-width: 767px)" type="video/webm">@endunless
-                <source data-src="{{ route('showcase.home-video', ['variant' => 'desktop', 'format' => 'mp4']) }}" type="video/mp4">
+                <source data-src="{{ $video?->getFirstMediaUrl('desktop') ?: route('showcase.home-video', ['variant' => 'desktop', 'format' => 'mp4']) }}" type="video/mp4">
                 @unless($video)<source data-src="{{ route('showcase.home-video', ['variant' => 'desktop', 'format' => 'webm']) }}" type="video/webm">@endunless
             </video>
             <button class="lh-video-toggle" type="button" data-video-toggle aria-label="Reproducir video de portada"><span aria-hidden="true">▷</span><span data-video-label>Reproducir video</span></button>

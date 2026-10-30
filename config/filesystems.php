@@ -34,7 +34,7 @@ return [
         'showcase_public' => [
             'driver' => 'local',
             'root' => public_path('media'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/media',
+            'url' => '/media',
             'visibility' => 'public',
             'throw' => true,
         ],

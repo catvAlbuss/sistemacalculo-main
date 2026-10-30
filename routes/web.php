@@ -56,7 +56,7 @@ Route::view('/servicios/software_estructural', 'landing.structural_software')->n
 Route::view('/servicios/planos_estructurales', 'landing.structural_blueprint')->name('landing.services.structural_blueprint');
 Route::view('/servicios/metrados', 'landing.metrados')->name('landing.services.metrados');
 //Route::view('/contacto', 'landing.contact')->name('landing.contact');
-Route::post('/cotizarplano', [enviarCotizacionController::class, 'enviarCotizacion'])->middleware('throttle:3,10,contact-quote')->name('cotizarplano');
+Route::post('/cotizarplano', [enviarCotizacionController::class, 'enviarCotizacion'])->middleware(['throttle:3,10,contact-quote', App\Http\Middleware\UploadRedirectAsJson::class])->name('cotizarplano');
 // Route::post('/capturar-viga-fragmento', [VigaCaptureController::class, 'capturarFragmento']);
 
 // Route::post('/capturar-viga-descarga', [VigaCaptureController::class, 'descargar']);
@@ -121,7 +121,9 @@ Route::middleware(['auth', 'verified', 'role:root|gerencia'])->group(function ()
 // Gestión de Planes (Solo Root y Gerencia)
 Route::middleware(['auth', 'verified', 'role:root|gerencia'])->group(function () {
     Route::get('/administracion/videos', [App\Http\Controllers\ShowcaseVideoController::class, 'index'])->name('showcase.admin');
-    Route::post('/administracion/videos', [App\Http\Controllers\ShowcaseVideoController::class, 'store'])->middleware('throttle:10,10')->name('showcase.upload');
+    Route::post('/administracion/videos', [App\Http\Controllers\ShowcaseVideoController::class, 'store'])->middleware(['throttle:10,10', App\Http\Middleware\UploadRedirectAsJson::class])->name('showcase.upload');
+    Route::put('/administracion/videos/{video}', [App\Http\Controllers\ShowcaseVideoController::class, 'update'])->name('showcase.update');
+    Route::delete('/administracion/videos/{video}', [App\Http\Controllers\ShowcaseVideoController::class, 'destroy'])->name('showcase.destroy');
     Route::post('/administracion/videos/{video}/publicar', [App\Http\Controllers\ShowcaseVideoController::class, 'publish'])->name('showcase.publish');
     Route::post('/administracion/videos/{video}/retirar', [App\Http\Controllers\ShowcaseVideoController::class, 'unpublish'])->name('showcase.unpublish');
     Route::post('/administracion/videos/{video}/reintentar', [App\Http\Controllers\ShowcaseVideoController::class, 'retry'])->middleware('throttle:5,1')->name('showcase.retry');

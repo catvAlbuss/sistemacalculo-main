@@ -5,7 +5,6 @@ import { initYouTubeVideos } from './showcase/youtube.js';
 
 export function initShowcase(root = document) {
     initYouTubeVideos(root);
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const saveData = navigator.connection?.saveData === true;
     root.querySelectorAll('[data-media]').forEach(container => {
         const video = container.querySelector('video');
@@ -55,14 +54,13 @@ export function initShowcase(root = document) {
         const observer = new IntersectionObserver(entries => {
             visible = entries[0].isIntersecting;
             if (!visible) video.pause();
-            else if (ambient && !userPaused && !saveData && !reducedMotion.matches && !document.hidden) play();
+            else if (ambient && !userPaused && !saveData && !document.hidden) play();
         }, {threshold: 0.25});
         observer.observe(video);
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) video.pause();
-            else if (visible && ambient && !userPaused && !saveData && !reducedMotion.matches) play();
+            else if (visible && ambient && !userPaused && !saveData) play();
         });
-        reducedMotion.addEventListener('change', () => { if (reducedMotion.matches) video.pause(); });
         update();
     });
     root.querySelectorAll('[data-catalog]').forEach(catalog => {

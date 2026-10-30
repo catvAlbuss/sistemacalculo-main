@@ -1188,7 +1188,7 @@
     "isEntry": true
   },
   "resources/css/workspace.css": {
-    "file": "assets/workspace-oRNqpI8l.css",
+    "file": "assets/workspace-BnPb-A0A.css",
     "src": "resources/css/workspace.css",
     "isEntry": true
   },
@@ -2144,12 +2144,21 @@
     ]
   },
   "resources/js/showcase.js": {
-    "file": "assets/showcase-rkkZ_DJW.js",
+    "file": "assets/showcase-UG5TpwOJ.js",
     "name": "showcase",
     "src": "resources/js/showcase.js",
     "isEntry": true,
     "css": [
       "assets/showcase-B_IdjdYi.css"
+    ]
+  },
+  "resources/js/upload-progress.js": {
+    "file": "assets/upload-progress-BcSDrhhb.js",
+    "name": "upload-progress",
+    "src": "resources/js/upload-progress.js",
+    "isEntry": true,
+    "css": [
+      "assets/upload-progress-GKepb7D8.css"
     ]
   },
   "resources/js/vigas/utils/pdfGenerator.js": {

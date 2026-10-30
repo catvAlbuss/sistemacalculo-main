@@ -31,11 +31,10 @@ export function initYouTubeVideos(root = document) {
         const iframe = container.querySelector('[data-youtube-frame]');
         const error = container.querySelector('[data-youtube-error]');
         const hero = container.hasAttribute('data-youtube-hero');
-        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
         const saveData = navigator.connection?.saveData === true;
         let player, connecting = false, ready = false, visible = false, userPaused = false;
         const resume = () => {
-            if (ready && hero && visible && !document.hidden && !reducedMotion.matches && !saveData && !userPaused) player.playVideo();
+            if (ready && hero && visible && !document.hidden && !saveData && !userPaused) player.playVideo();
         };
         const connect = async () => {
             if (connecting || player) return;
@@ -71,6 +70,5 @@ export function initYouTubeVideos(root = document) {
             if (document.hidden && ready) player.pauseVideo();
             else resume();
         });
-        reducedMotion.addEventListener('change', () => { if (reducedMotion.matches && ready) player.pauseVideo(); });
     });
 }

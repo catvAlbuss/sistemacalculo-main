@@ -7,6 +7,7 @@ use App\Models\ShowcaseVideo;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Services\VideoProcessor;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -38,6 +39,78 @@ class ProductShowcaseTest extends TestCase
             $video->addMediaFromString('test-'.$collection)->usingFileName($collection.($collection === 'poster' ? '.jpg' : '.mp4'))->toMediaCollection($collection);
         }
         return $video;
+    }
+
+    public function test_the_media_queue_is_emptied_by_the_scheduler_without_a_daemon(): void
+    {
+        $event = collect(app(Schedule::class)->events())->first(fn ($item) => str_contains($item->command, 'queue:work'));
+
+        $this->assertStringContainsString('--stop-when-empty', $event->command);
+        $this->assertStringContainsString('--queue=media', $event->command);
+        $this->assertSame('* * * * *', $event->expression);
+    }
+
+    public function test_the_published_home_video_is_served_as_a_static_file(): void
+    {
+        $video = $this->ready('home', true);
+
+        $html = $this->get('/')->assertOk()->getContent();
+
+        $this->assertStringContainsString('data-src="'.$video->getFirstMediaUrl('desktop').'"', $html);
+        $this->assertStringNotContainsString(route('showcase.home-video', ['variant' => 'desktop', 'format' => 'mp4']), $html);
+        $this->assertSame('/media', config('filesystems.disks.showcase_public.url'));
+    }
+
+    public function test_a_video_can_be_edited_and_moving_it_withdraws_it_from_its_place(): void
+    {
+        $this->actingAs($this->administrator());
+        $video = $this->ready('home', true);
+
+        $this->put(route('showcase.update', $video), ['slot' => 'home', 'title' => 'Nuevo título', 'transcript' => 'Texto'])->assertSessionHasNoErrors();
+        $this->assertSame('Nuevo título', $video->fresh()->title);
+        $this->assertTrue($video->fresh()->is_published);
+
+        $this->put(route('showcase.update', $video), ['slot' => 'vigas', 'title' => 'Nuevo título'])->assertSessionHasNoErrors();
+        $this->assertSame('vigas', $video->fresh()->slot);
+        $this->assertFalse($video->fresh()->is_published);
+    }
+
+    public function test_deleting_a_video_removes_its_files_and_the_home_returns_to_the_default_animation(): void
+    {
+        $this->actingAs($this->administrator());
+        $video = $this->ready('home', true);
+        $path = $video->getFirstMedia('desktop')->getPathRelativeToRoot();
+        Storage::disk('showcase_public')->assertExists($path);
+
+        $this->delete(route('showcase.destroy', $video))->assertSessionHasNoErrors();
+
+        $this->assertDatabaseMissing('showcase_videos', ['id' => $video->id]);
+        Storage::disk('showcase_public')->assertMissing($path);
+        $this->get(route('showcase.home-video', ['variant' => 'desktop', 'format' => 'mp4']))->assertOk();
+    }
+
+    public function test_a_video_being_processed_cannot_be_deleted_and_a_queued_one_leaves_no_failed_job(): void
+    {
+        $this->actingAs($this->administrator());
+        $processing = ShowcaseVideo::create(['slot' => 'home', 'title' => 'En curso', 'status' => 'processing']);
+        $this->delete(route('showcase.destroy', $processing))->assertSessionHasErrors('video');
+        $this->assertDatabaseHas('showcase_videos', ['id' => $processing->id]);
+
+        $queued = ShowcaseVideo::create(['slot' => 'home', 'title' => 'En cola', 'status' => 'queued']);
+        $job = new ProcessShowcaseVideo($queued->id);
+        $this->delete(route('showcase.destroy', $queued))->assertSessionHasNoErrors();
+
+        $job->handle(app(VideoProcessor::class));
+        $this->assertDatabaseMissing('showcase_videos', ['id' => $queued->id]);
+    }
+
+    public function test_only_administrators_can_change_videos(): void
+    {
+        $video = $this->ready();
+        $this->actingAs($this->administrator('cliente'));
+
+        $this->delete(route('showcase.destroy', $video))->assertForbidden();
+        $this->put(route('showcase.update', $video), ['slot' => 'home', 'title' => 'X'])->assertForbidden();
     }
 
     public function test_all_products_render_without_login_and_use_existing_tool_routes(): void
@@ -184,7 +257,7 @@ class ProductShowcaseTest extends TestCase
         $this->post(route('showcase.publish', $pending))->assertUnprocessable();
         $this->assertTrue($next->fresh()->is_published);
         $html = $this->get('/')->assertOk()->getContent();
-        $this->assertStringContainsString(route('showcase.home-video', ['variant' => 'desktop', 'format' => 'mp4']), $html);
+        $this->assertStringContainsString($next->getFirstMediaUrl('desktop'), $html);
         $this->assertStringNotContainsString($old->getFirstMediaUrl('desktop'), $html);
         $this->post(route('showcase.unpublish', $next))->assertSessionHasNoErrors();
         $this->get('/')->assertOk()->assertSee(route('showcase.home-video', ['variant' => 'desktop', 'format' => 'mp4']), false)->assertDontSee($next->getFirstMediaUrl('desktop'));

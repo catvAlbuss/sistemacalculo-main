@@ -19,6 +19,6 @@ class HomeVideoController extends Controller
         abort_unless($path && is_file($path), 404);
         // BinaryFileResponse handles Range requests, including with artisan serve.
         return response()->file($path, ['Content-Type' => 'video/'.$format, 'Cache-Control' => 'public, max-age=0, must-revalidate',
-            'X-Content-Type-Options' => 'nosniff'])->setAutoEtag()->setAutoLastModified();
+            'X-Content-Type-Options' => 'nosniff'])->setEtag(md5($path.filesize($path).filemtime($path)))->setAutoLastModified();
     }
 }

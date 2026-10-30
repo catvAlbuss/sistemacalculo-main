@@ -22,7 +22,9 @@ class VideoProcessor
     public function encode(string $original, string $directory, bool $hero): array
     {
         $metadata = $this->inspect($original);
-        foreach (['desktop' => [1920, 1080, 20], 'mobile' => [1280, 720, 22]] as $name => [$width, $height, $quality]) {
+        // La portada es fondo sin sonido: se prioriza el peso de carga sobre la nitidez de una demostración.
+        $variants = $hero ? ['desktop' => [1920, 1080, 28], 'mobile' => [960, 540, 30]] : ['desktop' => [1920, 1080, 20], 'mobile' => [1280, 720, 22]];
+        foreach ($variants as $name => [$width, $height, $quality]) {
             // Fit without cropping or upscaling. Originals are never modified.
             $scale = "scale=w='min($width,iw)':h='min($height,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1";
             $audio = $hero ? ['-an'] : ['-map', '0:a:0?', '-c:a', 'aac', '-b:a', '128k'];
