@@ -45,4 +45,39 @@ class SbsExchangeRateTest extends TestCase
             $this->assertSame('3.4500', $existing->fresh()->sell);
         }
     }
+
+    public function test_apiperu_uses_the_last_published_day_when_today_is_not_available(): void
+    {
+        config(['services.apiperu.token' => 'test_token']);
+        $yesterday = today('America/Lima')->subDay()->toDateString();
+        Http::fake(fn ($request) => Http::response($request['fecha'] === $yesterday
+            ? ['success' => true, 'data' => ['fecha' => $yesterday, 'venta' => 3.46]] : ['success' => false]));
+
+        $this->artisan('tipo-cambio:actualizar')->assertSuccessful();
+
+        $this->assertSame($yesterday, ExchangeRate::firstOrFail()->date->toDateString());
+        Http::assertSentCount(2);
+    }
+
+    public function test_an_apiperu_outage_falls_back_to_the_official_sbs_page(): void
+    {
+        config(['services.apiperu.token' => 'test_token']);
+        $date = today('America/Lima')->subDay();
+        Http::fake(['api.apiperu.dev/*' => Http::response([], 401), SbsExchangeRate::URL => Http::response($this->page($date->format('d/m/Y')))]);
+
+        $this->artisan('tipo-cambio:actualizar')->assertSuccessful();
+
+        $this->assertStringContainsString('SBS', ExchangeRate::firstOrFail()->source);
+    }
+
+    public function test_a_requested_date_never_stores_another_day(): void
+    {
+        config(['services.apiperu.token' => 'test_token']);
+        $date = today('America/Lima')->subDays(2);
+        Http::fake(['api.apiperu.dev/*' => Http::response([], 500), SbsExchangeRate::URL => Http::response($this->page(today('America/Lima')->format('d/m/Y')))]);
+
+        $this->artisan('tipo-cambio:actualizar', ['--fecha' => $date->toDateString()])->assertFailed();
+
+        $this->assertDatabaseCount('exchange_rates', 0);
+    }
 }

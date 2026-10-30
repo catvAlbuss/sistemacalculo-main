@@ -11,7 +11,7 @@ class SbsExchangeRate
 
     public function latest(): array
     {
-        $response = Http::accept('text/html')->timeout(10)->get(self::URL);
+        $response = Http::accept('text/html')->timeout(25)->get(self::URL);
         if (!$response->successful()) { throw new \RuntimeException('SBS no disponible.'); }
         $html = $response->body();
         if (!mb_check_encoding($html, 'UTF-8')) { $html = mb_convert_encoding($html, 'UTF-8', 'Windows-1252'); }
