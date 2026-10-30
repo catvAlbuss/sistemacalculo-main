@@ -9,6 +9,90 @@ class DocumentLookupTest extends TestCase
 {
     use \Tests\Concerns\RefreshPaymentsDatabase;
 
+    private function dniAnswer(string $name = 'Ana'): array
+    {
+        return ['success' => true, 'data' => ['numero' => '00123456', 'nombres' => $name, 'apellido_paterno' => 'Perez']];
+    }
+
+    private function lookup(array $data = ['document_type' => 'DNI', 'document_number' => '00123456'])
+    {
+        return $this->postJson(route('planes.document.lookup'), $data);
+    }
+
+    public function test_a_saved_document_never_spends_another_credit_even_after_the_cache_is_gone(): void
+    {
+        Http::fake(['*' => Http::response($this->dniAnswer())]);
+        $this->lookup()->assertOk()->assertJsonPath('data.name', 'Ana Perez');
+        \Illuminate\Support\Facades\Cache::flush();
+
+        $this->lookup()->assertOk()->assertJsonPath('data.name', 'Ana Perez');
+
+        Http::assertSentCount(1);
+        $this->assertDatabaseCount('document_records', 1);
+    }
+
+    public function test_saved_documents_are_served_without_a_token_and_are_stored_unreadable(): void
+    {
+        Http::fake(['*' => Http::response($this->dniAnswer())]);
+        $this->lookup();
+        config(['services.apiperu.token' => '']);
+
+        $this->lookup()->assertOk()->assertJsonPath('data.name', 'Ana Perez');
+
+        $row = \Illuminate\Support\Facades\DB::table('document_records')->first();
+        $this->assertStringNotContainsString('00123456', json_encode($row));
+        $this->assertStringNotContainsString('Ana', json_encode($row));
+    }
+
+    public function test_an_expired_ruc_is_refreshed_but_a_provider_failure_keeps_the_old_answer(): void
+    {
+        $data = ['document_type' => 'RUC', 'document_number' => '20131312955'];
+        $answer = fn ($name) => ['success' => true, 'data' => ['ruc' => '20131312955', 'nombre_o_razon_social' => $name]];
+        Http::fake(['*' => Http::sequence()->push($answer('Vieja SAC'))->push(['success' => false], 503)->push($answer('Nueva SAC'))]);
+        $this->lookup($data);
+        \App\Models\DocumentRecord::query()->update(['looked_up_at' => now()->subDays(181)]);
+
+        $this->lookup($data)->assertOk()->assertJsonPath('data.name', 'Vieja SAC');
+        $this->lookup($data)->assertOk()->assertJsonPath('data.name', 'Nueva SAC');
+
+        Http::assertSentCount(3);
+    }
+
+    public function test_a_document_that_does_not_exist_is_asked_once_a_day(): void
+    {
+        Http::fake(['*' => Http::response(['success' => false, 'code' => 'document_not_found'], 404)]);
+
+        $this->lookup()->assertOk()->assertJson(['success' => false]);
+        $this->lookup()->assertOk()->assertJson(['success' => false]);
+
+        Http::assertSentCount(1);
+        $this->assertDatabaseCount('document_records', 0);
+    }
+
+    public function test_records_are_deleted_when_the_published_retention_ends(): void
+    {
+        Http::fake(['*' => Http::response($this->dniAnswer())]);
+        $this->lookup();
+        $this->artisan('model:prune', ['--model' => \App\Models\DocumentRecord::class])->assertSuccessful();
+        $this->assertDatabaseCount('document_records', 1);
+
+        \App\Models\DocumentRecord::query()->update(['looked_up_at' => now()->subDays(366)]);
+        $this->artisan('model:prune', ['--model' => \App\Models\DocumentRecord::class])->assertSuccessful();
+
+        $this->assertDatabaseCount('document_records', 0);
+    }
+
+    public function test_a_record_saved_with_another_app_key_is_queried_again(): void
+    {
+        Http::fake(['*' => Http::response($this->dniAnswer())]);
+        $this->lookup();
+        \Illuminate\Support\Facades\DB::table('document_records')->update(['data' => 'cifrado-con-otra-clave']);
+
+        $this->lookup()->assertOk()->assertJsonPath('data.name', 'Ana Perez');
+
+        Http::assertSentCount(2);
+    }
+
     public function test_ruc_location_is_returned_only_when_its_code_exists_in_the_catalog(): void
     {
         Http::fake(['*' => Http::sequence()->push(['success' => true, 'data' => [

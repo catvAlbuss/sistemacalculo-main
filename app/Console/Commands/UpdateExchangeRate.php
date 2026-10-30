@@ -4,14 +4,11 @@ namespace App\Console\Commands;
 
 use App\Models\ExchangeRate;
 use Illuminate\Console\Command;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 
 class UpdateExchangeRate extends Command
 {
-    private const RECENT_DAYS = 3;
-
     protected $signature = 'tipo-cambio:actualizar {--fecha=} {--venta=} {--fuente=}';
 
     protected $description = 'Guarda el tipo de cambio de venta; consulta ApiPeru y, si falla, la publicación oficial SBS';
@@ -28,7 +25,9 @@ class UpdateExchangeRate extends Command
         $sell = $this->option('venta');
         $source = $this->option('fuente');
         if ($sell === null) {
-            if (ExchangeRate::where('date', $date)->exists()) {
+            // fecha_sunat is usually yesterday, so "today's" row may never exist: created_at avoids a second paid query.
+            if (ExchangeRate::where('date', $date)->exists()
+                || (! $this->option('fecha') && ExchangeRate::where('created_at', '>=', now()->subHours(12))->exists())) {
                 $this->info('La fecha ya tiene un tipo de cambio. No se realizó otra consulta.');
 
                 return self::SUCCESS;
@@ -57,19 +56,12 @@ class UpdateExchangeRate extends Command
         return self::SUCCESS;
     }
 
-    /** Today may be unpublished: recent days are still valid, and SBS covers an ApiPeru outage. */
+    /** Each ApiPeru query spends a credit, so it runs once and SBS covers an outage. */
     private function lookup(string $date, bool $exact): ?array
     {
-        if (config('services.apiperu.token')) {
-            foreach (range(0, $exact ? 0 : self::RECENT_DAYS) as $back) {
-                $day = Carbon::parse($date)->subDays($back)->toDateString();
-                if ($back && ExchangeRate::where('date', $day)->exists()) {
-                    break;
-                }
-                if ($rate = $this->fromApiPeru($day)) {
-                    return $rate;
-                }
-            }
+        $rate = config('services.apiperu.token') ? $this->fromApiPeru($date) : null;
+        if ($rate && (! $exact || $rate['date'] === $date)) {
+            return $rate;
         }
         try {
             $latest = app(\App\Services\SbsExchangeRate::class)->latest();
@@ -84,15 +76,23 @@ class UpdateExchangeRate extends Command
     {
         try {
             $response = Http::withToken(config('services.apiperu.token'))->acceptJson()->timeout(10)
-                ->post('https://api.apiperu.dev/tipo_de_cambio', ['fecha' => $date]);
+                ->post('https://api.apiperu.dev/tipo-de-cambio', ['fecha' => $date, 'moneda' => 'USD']);
         } catch (\Throwable) {
+            $this->warn('ApiPeru no respondió.');
+
             return null;
         }
+        // The provider answers with the last published business day, stated in fecha_sunat.
         $data = $response->json('data');
+        $published = is_array($data) ? ($data['fecha_sunat'] ?? null) : null;
         $sell = is_array($data) ? ($data['venta'] ?? null) : null;
+        if (! $response->successful() || $response->json('success') !== true || ! is_numeric($sell) || $sell < 2 || $sell > 6
+            || ! is_string($published) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $published) || $published > $date) {
+            $this->warn('ApiPeru rechazó la consulta (HTTP '.$response->status().').');
 
-        return $response->successful() && $response->json('success') === true && ($data['fecha'] ?? null) === $date
-            && is_numeric($sell) && $sell >= 2 && $sell <= 6
-            ? ['date' => $date, 'sell' => $sell, 'source' => 'ApiPeru / SUNAT'] : null;
+            return null;
+        }
+
+        return ['date' => $published, 'sell' => $sell, 'source' => 'ApiPeru / SBS'];
     }
 }

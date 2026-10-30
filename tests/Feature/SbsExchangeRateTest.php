@@ -37,6 +37,7 @@ class SbsExchangeRateTest extends TestCase
     public function test_malformed_future_stale_or_unavailable_responses_never_replace_a_valid_rate(): void
     {
         $existing = ExchangeRate::create(['date' => today('America/Lima')->subDay(), 'sell' => 3.45, 'source' => 'Verificado']);
+        ExchangeRate::query()->update(['created_at' => now()->subDay()]);
         foreach (['<html>Captcha</html>', $this->page(today('America/Lima')->addDay()->format('d/m/Y')),
             $this->page(today('America/Lima')->subDays(8)->format('d/m/Y')), $this->page(today('America/Lima')->format('d/m/Y'), '0.000')] as $html) {
             Http::fake([SbsExchangeRate::URL => Http::response($html)]);
@@ -46,17 +47,23 @@ class SbsExchangeRateTest extends TestCase
         }
     }
 
-    public function test_apiperu_uses_the_last_published_day_when_today_is_not_available(): void
+    public function test_apiperu_saves_its_published_day_with_a_single_paid_query(): void
     {
         config(['services.apiperu.token' => 'test_token']);
+        $today = today('America/Lima')->toDateString();
         $yesterday = today('America/Lima')->subDay()->toDateString();
-        Http::fake(fn ($request) => Http::response($request['fecha'] === $yesterday
-            ? ['success' => true, 'data' => ['fecha' => $yesterday, 'venta' => 3.46]] : ['success' => false]));
+        Http::fake(['*' => Http::response(['success' => true, 'code' => 'found', 'data' => [
+            'moneda' => 'USD', 'fecha_busqueda' => $today, 'fecha_sunat' => $yesterday, 'compra' => 3.45, 'venta' => 3.46,
+        ]])]);
 
+        $this->artisan('tipo-cambio:actualizar')->assertSuccessful();
         $this->artisan('tipo-cambio:actualizar')->assertSuccessful();
 
         $this->assertSame($yesterday, ExchangeRate::firstOrFail()->date->toDateString());
-        Http::assertSentCount(2);
+        $this->assertSame('3.4600', ExchangeRate::firstOrFail()->sell);
+        Http::assertSentCount(1);
+        Http::assertSent(fn ($request) => $request->url() === 'https://api.apiperu.dev/tipo-de-cambio'
+            && $request['fecha'] === $today && $request['moneda'] === 'USD');
     }
 
     public function test_an_apiperu_outage_falls_back_to_the_official_sbs_page(): void

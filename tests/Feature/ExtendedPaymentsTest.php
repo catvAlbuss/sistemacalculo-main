@@ -174,7 +174,7 @@ class ExtendedPaymentsTest extends TestCase
     {
         config(['services.apiperu.token' => 'test_token']);
         $date = today('America/Lima')->toDateString();
-        Http::fake(['*' => Http::response(['success' => true, 'data' => ['fecha' => $date, 'venta' => 3.75]])]);
+        Http::fake(['*' => Http::response(['success' => true, 'data' => ['fecha_busqueda' => $date, 'fecha_sunat' => $date, 'venta' => 3.75]])]);
         $this->artisan('tipo-cambio:actualizar')->assertSuccessful();
         $this->artisan('tipo-cambio:actualizar')->assertSuccessful();
         Http::assertSentCount(1);

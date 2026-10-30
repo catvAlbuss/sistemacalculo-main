@@ -27,7 +27,7 @@ class VerifyProduction extends Command
         if(is_file(public_path('hot'))){$issues[]='public/hot está presente. No incluir el enlace al servidor Vite en la entrega.';}
         if(is_dir(public_path('puppeteer-session'))){$issues[]='Existe un perfil de navegador en public. Está ignorado por Git y bloqueado en Apache; debe quedar fuera de la entrega.';}
         if(is_dir(public_path('captures'))&&glob(public_path('captures/*'))){$issues[]='Retira las capturas privadas antiguas del directorio público.';}
-        foreach(['account_sessions','account_security_events','payment_requests','payment_events','payment_tasks','project_backups','media','showcase_videos'] as $table){
+        foreach(['account_sessions','account_security_events','payment_requests','payment_events','payment_tasks','project_backups','media','showcase_videos','document_records'] as $table){
             if(!Schema::hasTable($table)){$issues[]='Falta la tabla '.$table.'. Ejecuta las migraciones del servidor.';}
         }
         $framework=InstalledVersions::getVersion('laravel/framework');

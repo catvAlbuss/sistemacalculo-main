@@ -2,12 +2,16 @@
 
 namespace App\Services;
 
+use App\Models\DocumentRecord;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 class DocumentLookup
 {
+    /** A RUC's address and status change more often than a person's name. */
+    private const VALID_DAYS = ['DNI' => 365, 'RUC' => 180];
+
     public function enabled(): bool
     {
         return filled(config('services.apiperu.token'));
@@ -15,12 +19,34 @@ class DocumentLookup
 
     public function find(string $type, string $number): array
     {
+        $key = hash_hmac('sha256', $type.':'.$number, config('app.key'));
+        $record = DocumentRecord::where('lookup_key', $key)->first();
+        $stored = $record?->readable();
+        if ($stored && $record->looked_up_at->isAfter(now()->subDays(self::VALID_DAYS[$type]))) {
+            return ['success' => true, 'data' => $stored];
+        }
+        if ($record && !$stored) {
+            $record->delete();
+        }
+        $result = $this->query($type, $number, $key);
+        if ($result['success']) {
+            // Only provider answers are saved: what a customer types is never offered to another person.
+            DocumentRecord::updateOrCreate(['lookup_key' => $key], ['data' => $result['data'], 'looked_up_at' => now()]);
+
+            return $result;
+        }
+
+        // An old answer is better than none when the provider is down or out of credit.
+        return $stored ? ['success' => true, 'data' => $stored] : $result;
+    }
+
+    private function query(string $type, string $number, string $key): array
+    {
         if (!$this->enabled()) {
             return $this->failure('La consulta no está disponible. Puedes completar tus datos manualmente.');
         }
-        $key = 'document-lookup:'.hash('sha256', $type.':'.$number);
-        if ($cached = Cache::get($key)) {
-            return ['success' => true, 'data' => $cached];
+        if (Cache::has('document-missing:'.$key)) {
+            return $this->failure('No encontramos datos para ese documento. Revisa el número o ingrésalos manualmente.');
         }
         $resource = strtolower($type);
         try {
@@ -31,6 +57,9 @@ class DocumentLookup
             return $this->failure('La consulta no respondió. Puedes completar tus datos manualmente.');
         }
         $payload = $response->json();
+        if ($response->status() === 404) {
+            Cache::put('document-missing:'.$key, true, now()->addDay());
+        }
         if (!$response->successful() || !is_array($payload) || ($payload['success'] ?? false) !== true || !is_array($payload['data'] ?? null)) {
             return $this->failure('No encontramos datos para ese documento. Revisa el número o ingrésalos manualmente.');
         }
@@ -61,7 +90,6 @@ class DocumentLookup
                 }
             }
         }
-        Cache::put($key, $result, now()->addHours(6));
 
         return ['success' => true, 'data' => $result];
     }
