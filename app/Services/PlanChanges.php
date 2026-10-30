@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\PaymentEvent;
 use App\Models\PaymentRequest;
 use App\Models\Subscription;
 use App\Models\User;
@@ -11,6 +12,8 @@ use Illuminate\Validation\ValidationException;
 
 class PlanChanges
 {
+    private const ABANDONED_AUTHENTICATION_MINUTES = 30;
+
     public function quote(User $user, Subscription $plan, array $quote): array
     {
         $periods = $user->subscriptions()->with('plan')->where('status', 'active')->where('amount_paid', '>', 0)
@@ -86,7 +89,7 @@ class PlanChanges
                 return false;
             }
             $user = User::whereKey($payment->user_id)->lockForUpdate()->firstOrFail();
-            if ($user->payment_in_progress_id && (int) $user->payment_in_progress_id !== $payment->id) {
+            if ($this->blockedByAnotherPayment($user, $payment)) {
                 return false;
             }
             $change = $payment->plan_snapshot['change'] ?? null;
@@ -96,7 +99,29 @@ class PlanChanges
             $user->forceFill(['payment_in_progress_id' => $payment->id])->save();
 
             return true;
-        });
+        }, 3);
+    }
+
+    /** Only one payment per customer may reach Culqi. Closed orders and abandoned 3DS never held a debit. */
+    private function blockedByAnotherPayment(User $user, PaymentRequest $payment): bool
+    {
+        $holderId = (int) $user->payment_in_progress_id;
+        if (! $holderId || $holderId === $payment->id) {
+            return false;
+        }
+        $holder = PaymentRequest::find($holderId);
+        if (! $holder || $holder->status !== 'pending') {
+            return false;
+        }
+        // The conditional update also defeats a stale tab: its own claim expects the 'authentication' state.
+        $abandoned = PaymentRequest::whereKey($holderId)->where('status', 'pending')->where('gateway_state', 'authentication')
+            ->whereNull('gateway_charge_id')->where('updated_at', '<', now()->subMinutes(self::ABANDONED_AUTHENTICATION_MINUTES))
+            ->update(['gateway_state' => 'declined', 'gateway_context' => null]);
+        if ($abandoned) {
+            PaymentEvent::record($holder, 'authentication_abandoned', (string) $payment->id);
+        }
+
+        return ! $abandoned;
     }
 
     public function release(PaymentRequest $payment): void

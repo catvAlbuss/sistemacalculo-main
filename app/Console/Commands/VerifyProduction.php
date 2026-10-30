@@ -17,6 +17,11 @@ class VerifyProduction extends Command
         if(!app()->isProduction()){$issues[]='APP_ENV debe ser production en el servidor; conserva local para desarrollo.';}
         if(config('app.debug')){$issues[]='APP_DEBUG debe ser false en producción.';}
         if(parse_url(config('app.url'),PHP_URL_SCHEME)!=='https'){$issues[]='APP_URL debe utilizar HTTPS.';}
+        if(!in_array(config('cache.stores.'.config('cache.default').'.driver'),['database','redis','memcached'],true)){$issues[]='CACHE_STORE debe ser compartido entre procesos (database o redis): los candados de pago dependen de él.';}
+        if(config('mail.default')==='log'||!config('mail.mailers.smtp.password')){$issues[]='Configura el SMTP real: con MAIL_MAILER=log o sin contraseña no sale ningún comprobante.';}
+        if(strcasecmp((string)config('mail.from.address'),(string)config('mail.mailers.smtp.username'))!==0){$issues[]='MAIL_FROM_ADDRESS debe coincidir con MAIL_USERNAME: Hostinger rechaza otro remitente.';}
+        if(!filter_var(config('mail.admin_email'),FILTER_VALIDATE_EMAIL)){$issues[]='MAIL_ADMIN_ADDRESS debe ser un correo válido: ahí llega la copia de cada pago.';}
+        if(!config('billing.issuer.ruc')||!config('billing.issuer.address')){$issues[]='Completa BILLING_ISSUER_RUC y BILLING_ISSUER_ADDRESS: aparecen en cada comprobante.';}
         if(!config('app.key')){$issues[]='Falta APP_KEY. No regenerar una clave existente: protege los respaldos cifrados.';}
         if(!config('session.secure')||!config('session.http_only')||config('session.same_site')!=='lax'){$issues[]='Revisa cookie segura, HttpOnly y SameSite=lax.';}
         if(is_file(public_path('hot'))){$issues[]='public/hot está presente. No incluir el enlace al servidor Vite en la entrega.';}

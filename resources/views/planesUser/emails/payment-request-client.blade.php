@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bienvenido a Tu Plataforma</title>
+    <title>Bienvenido a {{ config('legal.provider.name') }}</title>
 </head>
 
 <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
@@ -18,7 +18,7 @@
                     <tr>
                         <td
                             style="background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); padding: 40px 30px; text-align: center;">
-                            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">¡Bienvenido a Tu Plataforma! 🎉</h1>
+                            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">¡Bienvenido a {{ config('legal.provider.name') }}! 🎉</h1>
                             <p style="color: #e0e7ff; margin: 10px 0 0; font-size: 16px;">Tu cuenta ha sido creada
                                 exitosamente</p>
                         </td>
@@ -163,14 +163,14 @@
                             <table width="100%" cellpadding="10" cellspacing="0" style="margin: 20px 0;">
                                 <tr>
                                     <td align="center" style="font-size: 14px;">
-                                        📧 <a href="mailto:soporte@tudominio.com"
-                                            style="color: #2563eb; text-decoration: none;">soporte@tudominio.com</a>
+                                        📧 <a href="mailto:{{ config('legal.provider.email') }}"
+                                            style="color: #2563eb; text-decoration: none;">{{ config('legal.provider.email') }}</a>
                                     </td>
                                 </tr>
                                 <tr>
                                     <td align="center" style="font-size: 14px;">
-                                        📱 <a href="https://wa.me/51999999999"
-                                            style="color: #10b981; text-decoration: none;">+51 999 999 999</a>
+                                        📱 <a href="https://wa.me/{{ config('legal.provider.phone') }}"
+                                            style="color: #10b981; text-decoration: none;">+{{ config('legal.provider.phone') }}</a>
                                     </td>
                                 </tr>
                             </table>
@@ -182,7 +182,7 @@
                         <td
                             style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
                             <p style="color: #6b7280; font-size: 12px; margin: 0 0 10px;">
-                                © 2025 Tu Plataforma. Todos los derechos reservados.
+                                © {{ date('Y') }} {{ config('legal.provider.name') }}. Todos los derechos reservados.
                             </p>
                             <p style="color: #9ca3af; font-size: 11px; margin: 0;">
                                 Este es un correo automático, por favor no respondas a este mensaje.

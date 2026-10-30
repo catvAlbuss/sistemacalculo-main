@@ -1326,8 +1326,13 @@
                     <td class='px-4 py-2 text-center' colspan="5"><span id="v6_1"></span></td>
                   </tr>
                   <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td class='px-8 py-2' colspan="8"><img
-                        src="{{ Vite::asset('resources/img/calc/ra1.png') }}" alt="Viga" /></td>
+                    <td class='px-8 py-2' colspan="8">
+                      @if (is_file(resource_path('img/calc/ra1.png')))
+                        <img src="{{ Vite::asset('resources/img/calc/ra1.png') }}" alt="Diagrama de momentos" />
+                      @else
+                        <p class="arco-note">Imagen del diagrama de momentos no disponible.</p>
+                      @endif
+                    </td>
                   </tr>
                   <tr class="bg-gray-100 dark:bg-gray-600">
                     <td class='px-8 py-2'></td>
@@ -1369,8 +1374,13 @@
                     <td class='px-4 py-2 text-center' colspan="5"><span id="vb6_1"></span></td>
                   </tr>
                   <tr class="bg-gray-100 dark:bg-gray-600">
-                    <td class='px-8 py-2' colspan="8"><img
-                        src="{{ Vite::asset('resources/img/calc/ra2.png') }}" alt="Viga" /></td>
+                    <td class='px-8 py-2' colspan="8">
+                      @if (is_file(resource_path('img/calc/ra2.png')))
+                        <img src="{{ Vite::asset('resources/img/calc/ra2.png') }}" alt="Diagrama de fuerzas cortantes" />
+                      @else
+                        <p class="arco-note">Imagen del diagrama de fuerzas cortantes no disponible.</p>
+                      @endif
+                    </td>
                   </tr>
                   <tr class="bg-gray-100 dark:bg-gray-600">
                     <td class='px-8 py-2'></td>
@@ -1653,7 +1663,6 @@
 
     @pushOnce('scripts')
       <script src="https://cdnjs.cloudflare.com/ajax/libs/paper.js/0.12.15/paper-full.min.js"></script>
-      @vite('resources/js/cercoPerimetrico/cercoPerimetricoCalc.js')
-      @vite('resources/js/cercoPerimetrico/drawCP.js')
+      @vite('resources/js/cerco-perimetrico.js')
     @endpushOnce
 </x-sheets.workbench>

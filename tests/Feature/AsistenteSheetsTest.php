@@ -83,7 +83,7 @@ class AsistenteSheetsTest extends TestCase
             'muros contención v2' => ['calculadora.asistente.muros-de-contencionv2', 'muros-contencion-v2', 'muros-contencion/init.js'],
             'columna II' => ['calculadora.asistente.columna-ii', 'columna-ii', 'adm_columnav2.js'],
             'placas L' => ['calculadora.asistente.placas-L', 'placas-l', 'Datos Generales'],
-            'cerco perimétrico' => ['calculadora.asistente.cerco-perimetrico', 'cerco-perimetrico', 'cercoPerimetricoCalc.js'],
+            'cerco perimétrico' => ['calculadora.asistente.cerco-perimetrico', 'cerco-perimetrico', 'cerco-perimetrico'],
             'irregularidades' => ['calculadora.asistente.irregularidades', 'irregularidades', 'irregularidades.js'],
             'espectro sísmico' => ['calculadora.asistente.espectro-sismico', 'espectro-sismico', 'espectro-sismico/index.js'],
             // Menú Estudiante.

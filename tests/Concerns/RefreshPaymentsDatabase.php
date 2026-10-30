@@ -50,6 +50,7 @@ trait RefreshPaymentsDatabase
                 'database/migrations/2026_10_29_000001_add_quarterly_and_semiannual_plans.php',
                 'database/migrations/2026_10_29_000002_update_premium_plan_features.php',
                 'database/migrations/2026_10_29_000003_set_monthly_base_price.php',
+                'database/migrations/2026_10_30_000001_add_unique_subscription_transaction.php',
                 'database/migrations/2026_03_24_205903_create_memoria_calculos_table.php',
                 'database/migrations/2026_03_24_205941_create_memoria_imagenes_table.php',
                 'database/migrations/2026_05_14_150725_create_memorias_descriptivas_table.php',

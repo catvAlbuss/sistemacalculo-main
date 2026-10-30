@@ -165,7 +165,7 @@ class CulqiTest extends TestCase
     public function test_confirmed_payment_survives_a_mail_failure(): void
     {
         $payment = $this->payment();
-        Mail::shouldReceive('send')->once()->andThrow(new \RuntimeException('SMTP unavailable'));
+        Mail::shouldReceive('to')->atLeast()->once()->andThrow(new \RuntimeException('SMTP unavailable'));
         $this->assertTrue(app(Culqi::class)->confirm($payment, $this->cargo($payment)));
         $this->assertSame('approved', $payment->fresh()->status);
         $this->assertDatabaseCount('user_subscriptions', 1);

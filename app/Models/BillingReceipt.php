@@ -23,8 +23,8 @@ class BillingReceipt extends Model
         return $this->belongsTo(PaymentRequest::class);
     }
 
-    public function ticketUrl(): string
+    public function ticketUrl(int $days = 7): string
     {
-        return URL::temporarySignedRoute('billing.ticket', now()->addDays(7), ['receipt' => $this->id]);
+        return URL::temporarySignedRoute('billing.ticket', now()->addDays($days), ['receipt' => $this->id]);
     }
 }

@@ -247,7 +247,7 @@
                         <td
                             style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
                             <p style="color: #6b7280; font-size: 12px; margin: 0 0 10px;">
-                                © 2025 Tu Plataforma - Panel de Administración
+                                © {{ date('Y') }} {{ config('legal.provider.name') }} - Panel de Administración
                             </p>
                             <p style="color: #9ca3af; font-size: 11px; margin: 0;">
                                 Solicitud ID: #{{ $paymentRequest->id }}

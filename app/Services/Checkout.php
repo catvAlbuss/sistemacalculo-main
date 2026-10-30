@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\PaymentRequest;
 use App\Models\Subscription;
 use App\Models\User;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +32,10 @@ class Checkout
             $request->name, $request->email, $request->phone, $plan->id, $quote, $billing,
         ], JSON_THROW_ON_ERROR));
         $lock = Cache::lock('checkout:email:'.hash('sha256', $request->email), 30);
-        if (!$lock->get()) {
+        try {
+            // A double submit waits and then receives the same order instead of an error.
+            $lock->block(8);
+        } catch (LockTimeoutException) {
             throw ValidationException::withMessages(['email' => 'Estamos guardando tu solicitud. Espera un momento y vuelve a intentarlo.']);
         }
         try {
@@ -58,6 +62,14 @@ class Checkout
                 }
                 if ($user && $plan->isFree()) {
                     app(TrialAccess::class)->ensureEligible($user);
+                }
+                // Two tabs with the same purchase share one order, so only one charge can exist.
+                $open = $user ? PaymentRequest::where('user_id', $user->id)->where('status', 'pending')->where('payment_method', 'culqi')
+                    ->where('checkout_payload_hash', $fingerprint)->whereNull('gateway_charge_id')
+                    ->where(fn ($query) => $query->whereNull('gateway_state')->orWhere('gateway_state', 'declined'))
+                    ->latest('id')->first() : null;
+                if ($open) {
+                    return $open;
                 }
                 $password = null;
                 if (!$user) {

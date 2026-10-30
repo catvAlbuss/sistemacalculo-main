@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\ProcessPaymentTask;
+use App\Mail\PaymentReceipt;
 use App\Mail\SolicitudAdmin;
 use App\Mail\SolicitudCliente;
 use App\Models\PaymentRequest;
@@ -116,13 +117,11 @@ class PaymentTasks
             Mail::to($payment->email)->send(new SolicitudCliente($payment->user, $purchasedPlan, $payment, null, $activationUrl));
         } elseif ($task->kind === 'signup_admin') {
             Mail::to(config('mail.admin_email'))->send(new SolicitudAdmin($payment->user, $purchasedPlan, $payment));
-        } elseif ($task->kind === 'paid_client') {
+        } elseif (in_array($task->kind, ['paid_client', 'paid_admin'], true)) {
             $subscription = UserSubscription::where('user_id', $payment->user_id)->where('transaction_id', $payment->gateway_charge_id)->firstOrFail();
-            Mail::send('planesUser.emails.payment-confirmed', [
-                'user' => $payment->user, 'plan' => $purchasedPlan, 'subscription' => $subscription,
-                'receiptUrl' => $payment->receipt()->first()?->ticketUrl(),
-                'payment' => $payment,
-            ], fn ($message) => $message->to($payment->email)->subject('Pago confirmado - Cobertura registrada'));
+            $forAdmin = $task->kind === 'paid_admin';
+            Mail::to($forAdmin ? config('mail.admin_email') : $payment->email)
+                ->send(new PaymentReceipt($payment, $purchasedPlan, $subscription, $forAdmin));
         } else {
             throw new \RuntimeException('Tipo de tarea desconocido.');
         }

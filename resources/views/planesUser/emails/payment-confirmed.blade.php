@@ -1,244 +1,83 @@
+@php
+    $provider = config('legal.provider');
+    $issuer = $receipt?->issuer ?? config('billing.issuer');
+    $paidInUsd = $payment->currency === 'USD';
+    $money = fn ($value) => 'S/ '.number_format((float) $value, 2);
+    $label = 'color:#6b7280;font-size:13px;padding:5px 0;vertical-align:top;';
+    $value = 'color:#111827;font-size:13px;padding:5px 0;text-align:right;vertical-align:top;';
+@endphp
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pago Confirmado</title>
+    <title>Comprobante de pago</title>
 </head>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background-color:#f3f4f6;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;padding:20px 8px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:8px;">
+    <tr><td style="padding:24px 28px;border-bottom:3px solid #1e3a8a;">
+        <p style="margin:0;color:#1e3a8a;font-size:18px;font-weight:bold;">{{ $issuer['legal_name'] ?? $provider['name'] }}</p>
+        @if (!empty($issuer['ruc']))<p style="margin:4px 0 0;color:#6b7280;font-size:12px;">RUC {{ $issuer['ruc'] }}</p>@endif
+        @if (!empty($issuer['address']))<p style="margin:2px 0 0;color:#6b7280;font-size:12px;">{{ $issuer['address'] }}</p>@endif
+    </td></tr>
 
-<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f3f4f6; padding: 20px;">
-        <tr>
-            <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0"
-                    style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    <tr><td style="padding:24px 28px 8px;">
+        <h1 style="margin:0 0 10px;color:#111827;font-size:20px;">{{ $forAdmin ? 'Pago recibido' : 'Pago confirmado' }}</h1>
+        @if ($forAdmin)
+            <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">{{ $payment->name }} ({{ $payment->email }}, {{ $payment->phone }}) pagó el plan {{ $plan->name }}. Culqi confirmó el cargo y la cobertura ya quedó registrada.</p>
+        @else
+            <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">Hola {{ $payment->name }}, recibimos tu pago. {{ $subscription->starts_at->isFuture() ? 'Tu plan '.$plan->name.' empieza el '.$subscription->starts_at->timezone('America/Lima')->format('d/m/Y').'; conservas tu cobertura actual hasta esa fecha.' : 'Tu plan '.$plan->name.' ya está activo.' }}</p>
+        @endif
+    </td></tr>
 
-                    <!-- Header con Confetti -->
-                    <tr>
-                        <td
-                            style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 50px 30px; text-align: center; position: relative;">
-                            <div style="font-size: 60px; margin-bottom: 10px;">🎉</div>
-                            <h1 style="color: #ffffff; margin: 0; font-size: 32px;">¡Pago Confirmado!</h1>
-                            <p style="color: #d1fae5; margin: 15px 0 0; font-size: 18px;">Tu suscripción está activa</p>
-                        </td>
-                    </tr>
+    <tr><td style="padding:16px 28px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e5e7eb;">
+            @if ($receipt)
+                <tr><td style="{{ $label }}padding-top:12px;">Comprobante</td><td style="{{ $value }}padding-top:12px;font-weight:bold;">{{ ucfirst($receipt->receipt_type) }} interna {{ $receipt->number }}</td></tr>
+                <tr><td style="{{ $label }}">Fecha</td><td style="{{ $value }}">{{ $receipt->issued_at->timezone('America/Lima')->format('d/m/Y H:i') }}</td></tr>
+                <tr><td style="{{ $label }}">Receptor</td><td style="{{ $value }}">{{ $receipt->customer_name }}</td></tr>
+                <tr><td style="{{ $label }}">{{ $receipt->document_type }}</td><td style="{{ $value }}">{{ $receipt->document_number }}</td></tr>
+                @if ($receipt->customer_address)<tr><td style="{{ $label }}">Dirección</td><td style="{{ $value }}">{{ $receipt->customer_address }}</td></tr>@endif
+                <tr><td style="{{ $label }}">Concepto</td><td style="{{ $value }}">{{ $receipt->description }}</td></tr>
+                @if ($receipt->subtotal !== null && $receipt->tax_amount !== null)
+                    <tr><td style="{{ $label }}">Subtotal</td><td style="{{ $value }}">{{ $money($receipt->subtotal) }}</td></tr>
+                    <tr><td style="{{ $label }}">IGV ({{ number_format((float) $receipt->tax_rate, 0) }} %)</td><td style="{{ $value }}">{{ $money($receipt->tax_amount) }}</td></tr>
+                @endif
+            @else
+                <tr><td style="{{ $label }}padding-top:12px;">Concepto</td><td style="{{ $value }}padding-top:12px;">{{ $plan->name }}</td></tr>
+            @endif
+            <tr>
+                <td style="color:#111827;font-size:15px;font-weight:bold;padding:12px 0 5px;border-top:1px solid #e5e7eb;">Total pagado</td>
+                <td style="color:#111827;font-size:15px;font-weight:bold;padding:12px 0 5px;border-top:1px solid #e5e7eb;text-align:right;">{{ $money($payment->amount) }}</td>
+            </tr>
+            @if ($paidInUsd)<tr><td style="{{ $label }}">Cobrado en tarjeta</td><td style="{{ $value }}">US$ {{ number_format((float) $payment->charge_amount, 2) }} · TC {{ $payment->exchange_rate }}</td></tr>@endif
+            <tr><td style="{{ $label }}">Cobertura</td><td style="{{ $value }}">{{ $subscription->starts_at->timezone('America/Lima')->format('d/m/Y') }} al {{ $subscription->ends_at?->timezone('America/Lima')->format('d/m/Y') ?? 'sin vencimiento' }}</td></tr>
+            <tr><td style="{{ $label }}">Operación Culqi</td><td style="{{ $value }}word-break:break-all;">{{ $payment->gateway_charge_id }}</td></tr>
+        </table>
+    </td></tr>
 
-                    <!-- Body -->
-                    <tr>
-                        <td style="padding: 40px 30px;">
-                            <p style="color: #374151; font-size: 18px; line-height: 1.6; margin: 0 0 20px;">
-                                ¡Hola <strong>{{ $user->name }}</strong>! 🎊
-                            </p>
+    <tr><td align="center" style="padding:4px 28px 20px;">
+        @if ($printUrl)<a href="{{ $printUrl }}" style="display:inline-block;margin:4px;background-color:#1e3a8a;color:#ffffff;text-decoration:none;padding:11px 20px;border-radius:6px;font-size:14px;font-weight:bold;">Ver e imprimir comprobante</a>@endif
+        @if ($forAdmin)
+            <a href="{{ $adminUrl }}" style="display:inline-block;margin:4px;border:1px solid #1e3a8a;color:#1e3a8a;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;font-weight:bold;">Abrir en administración</a>
+        @else
+            <a href="{{ url('/dashboard') }}" style="display:inline-block;margin:4px;border:1px solid #1e3a8a;color:#1e3a8a;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;font-weight:bold;">Ir a mi panel</a>
+        @endif
+    </td></tr>
 
-                            <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 25px;">
-                                ¡Excelentes noticias! Hemos confirmado tu pago y tu suscripción al plan <strong
-                                    style="color: #10b981;">{{ $plan->name }}</strong> {{ $subscription->starts_at->isFuture() ? 'está programada desde el '.$subscription->starts_at->format('d/m/Y').'; conservas tu cobertura actual hasta esa fecha.' : 'ya está activa.' }}
-                            </p>
+    @if ($receipt)
+        <tr><td style="padding:0 28px 16px;">
+            <p style="margin:0;color:#6b7280;font-size:12px;line-height:1.5;">Documento interno sin validez tributaria. Pendiente de emisión electrónica mediante SUNAT.</p>
+        </td></tr>
+    @endif
 
-                            <!-- Confirmación Visual -->
-                            <table width="100%" cellpadding="0" cellspacing="0"
-                                style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-radius: 12px; margin: 30px 0; padding: 30px; text-align: center;">
-                                <tr>
-                                    <td>
-                                        <div
-                                            style="width: 80px; height: 80px; background-color: #ffffff; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                                            <span style="font-size: 40px;">✓</span>
-                                        </div>
-                                        <h2 style="color: #065f46; margin: 0 0 10px; font-size: 24px;">Pago Verificado
-                                        </h2>
-                                        <p style="color: #047857; margin: 0; font-size: 16px;">Tu cuenta ha sido
-                                            actualizada exitosamente</p>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- Detalles de la Suscripción -->
-                            <table width="100%" cellpadding="0" cellspacing="0"
-                                style="background-color: #f0fdf4; border: 2px solid #10b981; border-radius: 8px; margin: 30px 0; padding: 25px;">
-                                <tr>
-                                    <td>
-                                        <h3
-                                            style="color: #065f46; margin: 0 0 20px; font-size: 20px; text-align: center;">
-                                            📋 Detalles de tu Suscripción</h3>
-                                        <table width="100%" cellpadding="12" cellspacing="0">
-                                            <tr style="border-bottom: 1px solid #d1fae5;">
-                                                <td style="color: #047857; font-size: 14px; font-weight: bold;">Plan:
-                                                </td>
-                                                <td style="color: #111827; font-size: 14px; text-align: right;">
-                                                    {{ $plan->name }} · {{ $plan->duration_text }} · {{ $plan->max_users }} usuario(s)</td>
-                                            </tr>
-                                            <tr style="border-bottom: 1px solid #d1fae5;">
-                                                <td style="color: #047857; font-size: 14px; font-weight: bold;">Inicio:
-                                                </td>
-                                                <td style="color: #111827; font-size: 14px; text-align: right;">
-                                                    {{ $subscription->starts_at->format('d/m/Y') }}</td>
-                                            </tr>
-                                            <tr style="border-bottom: 1px solid #d1fae5;">
-                                                <td style="color: #047857; font-size: 14px; font-weight: bold;">
-                                                    @if ($subscription->ends_at)
-                                                        Válido hasta:
-                                                    @else
-                                                        Duración:
-                                                    @endif
-                                                </td>
-                                                <td style="color: #111827; font-size: 14px; text-align: right;">
-                                                    @if ($subscription->ends_at)
-                                                        {{ $subscription->ends_at->format('d/m/Y') }}
-                                                    @else
-                                                        <span style="color: #10b981; font-weight: bold;">∞ De por
-                                                            vida</span>
-                                                    @endif
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td style="color: #047857; font-size: 14px; font-weight: bold;">Monto
-                                                    Pagado:</td>
-                                                <td
-                                                    style="color: #10b981; font-size: 18px; text-align: right; font-weight: bold;">
-                                                    {{ isset($payment) && $payment->currency === 'USD' ? 'US$' : 'S/' }} {{ number_format(isset($payment) ? ($payment->charge_amount ?? $subscription->amount_paid) : $subscription->amount_paid, 2) }}</td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- Beneficios Desbloqueados -->
-                            <table width="100%" cellpadding="0" cellspacing="0"
-                                style="background-color: #dbeafe; border-radius: 8px; margin: 30px 0; padding: 25px;">
-                                <tr>
-                                    <td>
-                                        <h3 style="color: #1e40af; margin: 0 0 20px; font-size: 18px;">🎁 Beneficios
-                                            Desbloqueados</h3>
-                                        @if ($plan->features)
-                                            <table width="100%" cellpadding="6" cellspacing="0">
-                                                @foreach ($plan->features as $feature)
-                                                    <tr>
-                                                        <td style="vertical-align: top; width: 20px;">
-                                                            <span style="color: #10b981; font-size: 16px;">✓</span>
-                                                        </td>
-                                                        <td style="color: #1e3a8a; font-size: 14px; line-height: 1.6;">
-                                                            {{ $feature }}</td>
-                                                    </tr>
-                                                @endforeach
-                                            </table>
-                                        @endif
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- Llamada a la Acción -->
-                            <table width="100%" cellpadding="0" cellspacing="0" style="margin: 40px 0;">
-                                <tr>
-                                    <td align="center">
-                                        <p style="color: #374151; font-size: 16px; margin: 0 0 20px;">
-                                            ¡Tu acceso completo está listo! Comienza a explorar ahora:
-                                        </p>
-                                        <a href="{{ url('/dashboard') }}"
-                                            style="display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); color: #ffffff; text-decoration: none; padding: 18px 50px; border-radius: 10px; font-weight: bold; font-size: 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                                            Ir a Mi Panel
-                                        </a>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- Tips para Comenzar -->
-                            <table width="100%" cellpadding="0" cellspacing="0"
-                                style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; margin: 30px 0; padding: 20px;">
-                                <tr>
-                                    <td>
-                                        <h3 style="color: #92400e; margin: 0 0 15px; font-size: 18px;">💡 Tips para
-                                            Comenzar</h3>
-                                        <ol
-                                            style="color: #78350f; margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
-                                            <li>Completa tu perfil en la sección de configuración</li>
-                                            <li>Explora las categorías de contenido disponibles</li>
-                                            <li>Guarda tus recursos favoritos para acceso rápido</li>
-                                            <li>Únete a nuestra comunidad en redes sociales</li>
-                                        </ol>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- Soporte -->
-                            <table width="100%" cellpadding="0" cellspacing="0"
-                                style="background-color: #f3f4f6; border-radius: 8px; margin: 30px 0; padding: 25px;">
-                                <tr>
-                                    <td align="center">
-                                        <h3 style="color: #374151; margin: 0 0 15px; font-size: 18px;">¿Necesitas Ayuda?
-                                        </h3>
-                                        <p style="color: #6b7280; font-size: 14px; margin: 0 0 20px;">
-                                            Nuestro equipo está aquí para ayudarte
-                                        </p>
-                                        <table width="100%" cellpadding="10" cellspacing="0">
-                                            <tr>
-                                                <td align="center" style="font-size: 14px;">
-                                                    📧 <a href="mailto:soporte@tudominio.com"
-                                                        style="color: #2563eb; text-decoration: none; font-weight: bold;">soporte@tudominio.com</a>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td align="center" style="font-size: 14px;">
-                                                    📱 <a href="https://wa.me/51999999999"
-                                                        style="color: #10b981; text-decoration: none; font-weight: bold;">+51
-                                                        999 999 999</a>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- Mensaje de Agradecimiento -->
-                            <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
-                                <tr>
-                                    <td align="center">
-                                        <p style="color: #6b7280; font-size: 15px; line-height: 1.6; margin: 0;">
-                                            Gracias por confiar en nosotros. Estamos emocionados de<br>
-                                            acompañarte en tu camino de aprendizaje. 🚀
-                                        </p>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-
-                    <!-- Footer -->
-                    <tr>
-                        <td
-                            style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
-                            <div style="margin-bottom: 15px;">
-                                <a href="#"
-                                    style="display: inline-block; margin: 0 10px; color: #6b7280; text-decoration: none;">
-                                    <img src="https://via.placeholder.com/30" alt="Facebook"
-                                        style="width: 30px; height: 30px;">
-                                </a>
-                                <a href="#"
-                                    style="display: inline-block; margin: 0 10px; color: #6b7280; text-decoration: none;">
-                                    <img src="https://via.placeholder.com/30" alt="Instagram"
-                                        style="width: 30px; height: 30px;">
-                                </a>
-                                <a href="#"
-                                    style="display: inline-block; margin: 0 10px; color: #6b7280; text-decoration: none;">
-                                    <img src="https://via.placeholder.com/30" alt="Twitter"
-                                        style="width: 30px; height: 30px;">
-                                </a>
-                            </div>
-                            <p style="color: #6b7280; font-size: 12px; margin: 0 0 5px;">
-                                © 2025 Tu Plataforma. Todos los derechos reservados.
-                            </p>
-                            <p style="color: #9ca3af; font-size: 11px; margin: 0;">
-                                ID de Suscripción: #{{ $subscription->id }}
-                            </p>
-                            @if (!empty($receiptUrl))
-                                <p><a href="{{ $receiptUrl }}">Ver e imprimir tu ticket interno de 80 mm</a></p>
-                            @endif
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
+    <tr><td style="padding:16px 28px;background-color:#f9fafb;border-top:1px solid #e5e7eb;">
+        <p style="margin:0;color:#6b7280;font-size:12px;line-height:1.6;">¿Dudas sobre este pago? Escríbenos a <a href="mailto:{{ $provider['email'] }}" style="color:#1e3a8a;">{{ $provider['email'] }}</a> o por <a href="https://wa.me/{{ $provider['phone'] }}" style="color:#1e3a8a;">WhatsApp</a>.</p>
+    </td></tr>
+</table>
+</td></tr>
+</table>
 </body>
-
 </html>

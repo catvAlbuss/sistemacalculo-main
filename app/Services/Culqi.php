@@ -161,9 +161,16 @@ class Culqi
             if (($charge['object'] ?? null) !== 'charge' || !is_string($id) || !str_starts_with($id, 'chr_')) {
                 return $this->uncertain($payment);
             }
-            PaymentRequest::whereKey($payment->id)->where('status', 'pending')->whereNull('gateway_charge_id')->update(['gateway_charge_id' => $id]);
-            $confirmed = $this->fetchCharge($id);
-            if (!$confirmed || !$this->confirm($payment, $confirmed)) {
+            // The money already moved: any failure from here on must never look like a declined payment.
+            try {
+                PaymentRequest::whereKey($payment->id)->where('status', 'pending')->whereNull('gateway_charge_id')->update(['gateway_charge_id' => $id]);
+                $confirmed = $this->fetchCharge($id);
+                $paid = $confirmed && $this->confirm($payment, $confirmed);
+            } catch (\Throwable $exception) {
+                report($exception);
+                $paid = false;
+            }
+            if (!$paid) {
                 return $this->uncertain($payment);
             }
 
@@ -201,6 +208,49 @@ class Culqi
 
         return $response->successful() && is_array($charge)
             && ($charge['object'] ?? null) === 'charge' && ($charge['id'] ?? null) === $id ? $charge : null;
+    }
+
+    /**
+     * Looks for the charge of a lost response. Null: Culqi did not answer; []: not listed.
+     * Absence is never proof on its own, and a match must still pass confirm().
+     */
+    public function findCharge(PaymentRequest $payment): ?array
+    {
+        try {
+            $response = Http::withToken(config('services.culqi.secret_key'))->acceptJson()->timeout(20)
+                ->get(config('services.culqi.api_url').'/charges', ['email' => $payment->email, 'limit' => 100]);
+        } catch (ConnectionException) {
+            return null;
+        }
+        $charges = $response->json('data');
+        if (!$response->successful() || !is_array($charges)) {
+            return null;
+        }
+        foreach ($charges as $charge) {
+            if (($charge['metadata']['application'] ?? '') === 'rizabal'
+                && (string) ($charge['metadata']['payment_request_id'] ?? '') === (string) $payment->id) {
+                return $charge;
+            }
+        }
+
+        return [];
+    }
+
+    /** A paid order closes the customer's other unpaid orders, so a forgotten tab cannot charge the same purchase. */
+    private function closeDuplicateOrders(PaymentRequest $paid): void
+    {
+        $orders = PaymentRequest::where('user_id', $paid->user_id)->whereKeyNot($paid->id)
+            ->where('status', 'pending')->where('payment_method', 'culqi')->whereNull('gateway_charge_id')
+            ->where(fn ($query) => $query->whereNull('gateway_state')->orWhere('gateway_state', 'declined'))
+            ->where('created_at', '<=', $paid->confirmed_at)->lockForUpdate()->get();
+        foreach ($orders as $order) {
+            if (isset($order->plan_snapshot['lifetime_quote'])) {
+                continue;
+            }
+            $order->update(['status' => 'rejected', 'gateway_state' => 'superseded', 'rejected_at' => now(), 'gateway_context' => null,
+                'rejection_reason' => 'Cerrada sin cobro: la solicitud '.$paid->id.' ya fue pagada.']);
+            PaymentEvent::record($order, 'superseded_unpaid', (string) $paid->id);
+        }
     }
 
     public function confirm(PaymentRequest $payment, array $charge): bool
@@ -287,7 +337,10 @@ class Culqi
             ]);
             app(Billing::class)->issue($row);
             app(PlanChanges::class)->release($row);
+            $this->closeDuplicateOrders($row);
+            // One durable task per recipient: a failed delivery retries without repeating the other copy.
             app(PaymentTasks::class)->create('paid_client', $row);
+            app(PaymentTasks::class)->create('paid_admin', $row);
             PaymentEvent::record($row, 'paid', $charge['id'], [
                 'charge_id' => $charge['id'], 'amount' => $row->charge_amount ?? $row->amount, 'currency' => $row->currency ?: 'PEN',
                 'starts_at' => $subscription->starts_at->toIso8601String(), 'ends_at' => $subscription->ends_at?->toIso8601String(),
@@ -295,7 +348,7 @@ class Culqi
             $activated = true;
 
             return true;
-        });
+        }, 3); // Deadlocks are retried: the whole activation is rolled back between attempts.
         if ($activated) {
             app(PaymentTasks::class)->dispatchFor($payment);
         }
