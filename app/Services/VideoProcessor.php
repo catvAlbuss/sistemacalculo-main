@@ -33,8 +33,9 @@ class VideoProcessor
                 '-crf', (string) $quality, '-pix_fmt', 'yuv420p', '-threads', '2', '-movflags', '+faststart',
                 '-map_metadata', '-1', $directory.'/'.$name.'.mp4'], 380);
         }
-        $this->run([config('showcase.ffmpeg'), '-nostdin', '-y', '-v', 'error', '-i', $directory.'/desktop.mp4',
-            '-frames:v', '1', '-update', '1', '-pix_fmt', 'yuvj420p', '-strict', 'unofficial', '-q:v', '2', $directory.'/poster.jpg'], 30);
+        // Sin -threads, MJPEG abre un hilo por núcleo y el hosting compartido rechaza crearlos.
+        $this->run([config('showcase.ffmpeg'), '-nostdin', '-y', '-v', 'error', '-threads', '1', '-i', $directory.'/desktop.mp4',
+            '-frames:v', '1', '-threads', '1', '-q:v', '2', $directory.'/poster.jpg'], 30);
         return $metadata;
     }
 
