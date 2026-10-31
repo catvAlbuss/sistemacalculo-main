@@ -34,7 +34,7 @@ class VideoProcessor
                 '-map_metadata', '-1', $directory.'/'.$name.'.mp4'], 380);
         }
         $this->run([config('showcase.ffmpeg'), '-nostdin', '-y', '-v', 'error', '-i', $directory.'/desktop.mp4',
-            '-frames:v', '1', '-q:v', '2', $directory.'/poster.jpg'], 30);
+            '-frames:v', '1', '-update', '1', '-pix_fmt', 'yuvj420p', '-strict', 'unofficial', '-q:v', '2', $directory.'/poster.jpg'], 30);
         return $metadata;
     }
 
