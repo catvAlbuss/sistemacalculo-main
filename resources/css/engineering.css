@@ -131,7 +131,7 @@
 .en-footer-shell section>p:first-child { color:var(--pr-text); font-size:12px; }
 .en-footer-shell nav { display:grid; grid-template-columns:1fr 1fr; gap:12px 25px; align-content:start; }
 .en-footer-shell nav>a:last-child { color:var(--pr-blue); font-weight:600; }
-.engineering-app-nav { background:var(--pr-panel); color:var(--pr-text); border-color:var(--pr-line); }
+.engineering-app-nav { position:sticky; top:0; flex-shrink:0; background:var(--pr-panel); color:var(--pr-text); border-color:var(--pr-line); }
 .engineering-app-nav .app-nav-bar { height:72px; gap:18px; }
 .engineering-app-nav .app-nav-primary { gap:5px; min-width:0; align-items:center; }
 .engineering-app-nav .app-nav-primary>.app-nav-category { margin:0; align-self:stretch; align-items:center; }

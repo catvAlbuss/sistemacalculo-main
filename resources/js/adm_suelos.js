@@ -1,3 +1,4 @@
+import "./sheets/analysis.js";
 import { read as readmat } from "mat-for-js";
 import Plotly from "plotly.js-dist-min";
 

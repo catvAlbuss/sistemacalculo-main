@@ -1,0 +1,35 @@
+import{S as e,c as n,e as a}from"./analisis_estructural_de_armaduras-BaJd2gwr.js";import"./livewire.esm-BwfLLVY7.js";import"./sweetalert2.esm.all-0Z_61IYw.js";import"./preload-helper-BfFHrpNk.js";import"./color_scale-BGSv3LvJ.js";import"./zapatas2Core-M4BiEhsD.js";import"./mat4js.read-Dg9kvXpe.js";import"./_commonjsHelpers-D6-XlEtG.js";import"./deflectionCalculator-BFw1L2Wc.js";import"./engineError-CU3s0yX4.js";import"./html2canvas.esm-5Cw11iw4.js";import"./rizabalasociados-BgyDGUXy.js";import"./ubigeo-Cak7qga5.js";const r="selectionPixelShader",t=`#ifdef INSTANCES
+flat varying vSelectionId: f32;
+#else
+uniform selectionId: f32;
+#endif
+#ifdef STORE_CAMERASPACE_Z
+varying vViewPosZ: f32;
+#else
+varying vDepthMetric: f32;
+#endif
+#ifdef ALPHATEST
+varying vUV: vec2f;var diffuseSamplerSampler: sampler;var diffuseSampler: texture_2d<f32>;
+#endif
+#include<clipPlaneFragmentDeclaration>
+#define CUSTOM_FRAGMENT_DEFINITIONS
+@fragment
+fn main(input: FragmentInputs)->FragmentOutputs {
+#define CUSTOM_FRAGMENT_MAIN_BEGIN
+#include<clipPlaneFragment>
+#ifdef ALPHATEST
+if (textureSample(diffuseSampler,diffuseSamplerSampler,fragmentInputs.vUV).a<0.4) {discard;}
+#endif
+#ifdef INSTANCES
+var id: f32=fragmentInputs.vSelectionId;
+#else
+var id: f32=uniforms.selectionId;
+#endif
+#ifdef STORE_CAMERASPACE_Z
+fragmentOutputs.color=vec4(id,fragmentInputs.vViewPosZ,0.0,1.0);
+#else
+fragmentOutputs.color=vec4(id,fragmentInputs.vDepthMetric,0.0,1.0);
+#endif
+#define CUSTOM_FRAGMENT_MAIN_END
+}
+`;e.ShadersStoreWGSL[r]||(e.ShadersStoreWGSL[r]=t);const f=[n,a];for(const i of f)e.IncludesShadersStoreWGSL[i.name]||(e.IncludesShadersStoreWGSL[i.name]=i.shader);const E={name:r,shader:t};export{E as selectionPixelShaderWGSL};

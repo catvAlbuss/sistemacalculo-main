@@ -1,10 +1,7 @@
 import { TABS_CONFIG } from './config/tabs.js';
 
-console.log('📦 MainSystem.js cargando...');
-console.log('📋 TABS_CONFIG:', TABS_CONFIG);
 
 export function MainSystem() {
-    console.log('🏗️ MainSystem function ejecutándose...');
     
     return {
         activeTab: 'predimensionamiento',
@@ -15,13 +12,9 @@ export function MainSystem() {
         },
 
         init() {
-            console.log('🚀 MainSystem.init() ejecutándose...');
-            console.log('📋 Tabs disponibles:', this.tabs);
-            console.log('🎯 Tab activo:', this.activeTab);
             
             this.loadStoredState();
             this.setupEventListeners();
-            console.log('✅ MainSystem inicializado correctamente');
         },
 
         // ... resto del código igual que antes
@@ -31,12 +24,14 @@ export function MainSystem() {
                 if (storedData) {
                     const data = JSON.parse(storedData);
                     if (data.systemState) {
-                        this.systemState = { ...this.systemState, ...data.systemState };
+                        this.systemState = {
+                            predimensionamientoCalculado: data.predimensionamiento?.isCalculated === true,
+                            dimensionamientoCalculado: data.dimensionamiento?.isCalculated === true,
+                        };
                     }
                     if (data.activeTab && this.canAccessTab(data.activeTab)) {
                         this.activeTab = data.activeTab;
                     }
-                    console.log('✅ Estado cargado desde localStorage');
                 }
             } catch (error) {
                 console.warn('⚠️ Error cargando estado:', error);
@@ -45,13 +40,11 @@ export function MainSystem() {
 
         setupEventListeners() {
             document.addEventListener('predimensionamiento-calculated', () => {
-                console.log('📐 Predimensionamiento calculado');
                 this.systemState.predimensionamientoCalculado = true;
                 this.saveState();
             });
 
             document.addEventListener('dimensionamiento-calculated', () => {
-                console.log('📏 Dimensionamiento calculado');
                 this.systemState.dimensionamientoCalculado = true;
                 this.saveState();
             });
@@ -62,11 +55,10 @@ export function MainSystem() {
                 const currentData = this.getCurrentStoredData();
                 const updatedData = {
                     ...currentData,
-                    systemState: this.systemState,
+                    systemState: { ...currentData.systemState, ...this.systemState },
                     activeTab: this.activeTab
                 };
                 localStorage.setItem('murosContencionData', JSON.stringify(updatedData));
-                console.log('💾 Estado guardado');
             } catch (error) {
                 console.error('❌ Error guardando estado:', error);
             }
@@ -82,11 +74,9 @@ export function MainSystem() {
         },
 
         changeTab(tabId) {
-            console.log(`🔄 Intentando cambiar a tab: ${tabId}`);
             if (this.canAccessTab(tabId)) {
                 this.activeTab = tabId;
                 this.saveState();
-                console.log(`✅ Cambiado a tab: ${tabId}`);
             } else {
                 console.warn(`🔒 Acceso denegado a tab: ${tabId}`);
                 if (window.NotificationManager) {
@@ -113,7 +103,8 @@ export function MainSystem() {
             const tab = this.tabs.find(t => t.id === tabId);
             if (!tab) return 'locked';
             
-            if (tab.requiredState && this.systemState[tab.requiredState]) {
+            if ((tabId === 'predimensionamiento' && this.systemState.predimensionamientoCalculado) ||
+                (tabId === 'dimensionamiento' && this.systemState.dimensionamientoCalculado)) {
                 return 'completed';
             }
             
@@ -125,5 +116,3 @@ export function MainSystem() {
         }
     }
 }
-
-console.log('✅ MainSystem.js cargado completamente');

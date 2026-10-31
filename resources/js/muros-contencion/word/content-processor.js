@@ -1,3 +1,5 @@
+import {captureChartDataURL} from '../capture.js';
+import {analysisReportTables, concreteDesignTables, readAnalysis, readConcreteElement} from './concrete-report.js';
 // content-processor.js - Procesador de contenido dinámico para documentos Word
 export class ContentProcessor {
     constructor(data, calculations, verifications, reinforcement) {
@@ -22,12 +24,7 @@ export class ContentProcessor {
         const processedSections = [];
 
         // Crear la portada
-        const coverPage = [
-            new Paragraph({
-                text: "",
-                spacing: { before: 1000 }
-            }),
-        ];
+        const coverPage = [];
 
         // Añadir imágenes si están disponibles
         if (principalImage) {
@@ -66,8 +63,8 @@ export class ContentProcessor {
         processedSections.push(...coverPage);
 
         // Procesar el resto del contenido
-        for (const section of contentStructure.document.sections) {
-            const processedSection = await this.processSection(section);
+        for (const [index, section] of contentStructure.document.sections.entries()) {
+            const processedSection = await this.processSection(section, index > 0);
             processedSections.push(...processedSection);
         }
 
@@ -75,12 +72,13 @@ export class ContentProcessor {
     }
 
     // Procesa una sección individual
-    async processSection(section) {
+    async processSection(section, pageBreakBefore = false) {
         const { Paragraph, TextRun } = this.docx;
         const elements = [];
+        await this.onProgress?.(`Procesando ${this.replaceVariables(section.title)}...`);
 
         // Título de la sección
-        elements.push(this.createHeading(section.title, section.level));
+        elements.push(this.createHeading(section.title, section.level, false, pageBreakBefore));
 
         // Procesar contenido de la sección
         for (const contentItem of section.content) {
@@ -116,6 +114,12 @@ export class ContentProcessor {
             case "captured-image":
                 return await this.createCapturedImage(item);
 
+            case 'concrete-design':
+                return await this.createConcreteDesign(item);
+
+            case 'structural-analysis':
+                return this.createStructuralAnalysis();
+
             case 'dynamic-content':
                 return await this.processDynamicContent(item);
 
@@ -147,7 +151,7 @@ export class ContentProcessor {
     }
 
     // Crear heading
-    createHeading(text, level, underline = false) {
+    createHeading(text, level, underline = false, pageBreakBefore = false) {
         const { Paragraph, TextRun, AlignmentType, UnderlineType } = this.docx;
 
         // 🔹 Reemplazar variables si existen (no afecta a textos normales)
@@ -176,6 +180,7 @@ export class ContentProcessor {
         return new Paragraph({
             children: [new TextRun(headingProps)],
             heading: this.getHeadingLevel(level),
+            pageBreakBefore,
             alignment: AlignmentType.LEFT,
             spacing: {
                 before: level === 1 ? 400 : 240,
@@ -274,6 +279,7 @@ export class ContentProcessor {
         const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, BorderStyle, AlignmentType } = this.docx;
 
         const rows = [];
+        const totalWidth = item.columns?.reduce((sum, col) => sum + col.width, 0) || 100;
 
         // ✅ Fila de título con colspan
         if (item.title) {
@@ -307,7 +313,7 @@ export class ContentProcessor {
         if (item.columns) {
             const headerCells = item.columns.map(col =>
                 new TableCell({
-                    width: { size: col.width, type: WidthType.PERCENTAGE },
+                    width: { size: col.width * 100 / totalWidth, type: WidthType.PERCENTAGE },
                     children: [
                         new Paragraph({
                             children: [
@@ -413,51 +419,7 @@ export class ContentProcessor {
     }
 
     // Procesar contenido dinámico
-    async prepareGraphicsForCapture() {
-        return new Promise((resolve) => {
-            requestAnimationFrame(async () => {
-                const graphElement = document.getElementById('grafico-verificaciones');
-
-                if (graphElement) {
-                    try {
-                        // Asegurar visibilidad
-                        graphElement.style.display = 'block';
-                        graphElement.style.visibility = 'visible';
-                        graphElement.style.opacity = '1';
-
-                        // Buscar instancia de ECharts
-                        const echartsInstance = window.echarts?.getInstanceByDom?.(graphElement);
-
-                        if (echartsInstance && !echartsInstance.isDisposed()) {
-                            console.log('Preparando ECharts para captura...');
-
-                            // Forzar redimensionado
-                            echartsInstance.resize();
-
-                            // Esperar renderizado completo
-                            await new Promise(renderResolve => {
-                                setTimeout(() => {
-                                    const canvas = graphElement.querySelector('canvas');
-                                    if (canvas && canvas.width > 0 && canvas.height > 0) {
-                                        console.log(`Canvas listo: ${canvas.width}x${canvas.height}`);
-                                    }
-                                    renderResolve();
-                                }, 500);
-                            });
-                        } else {
-                            console.log('Esperando renderizado estándar...');
-                            await new Promise(resolve => setTimeout(resolve, 800));
-                        }
-                    } catch (error) {
-                        console.warn('Error preparando gráfico:', error);
-                        // Continuar con timeout estándar
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    }
-                }
-                resolve();
-            });
-        });
-    }
+    async prepareGraphicsForCapture() {}
 
     // 2. Método createErrorParagraph
     createErrorParagraph(message) {
@@ -478,24 +440,37 @@ export class ContentProcessor {
         });
     }
 
+    createStructuralAnalysis() {
+        const analysis = readAnalysis();
+        if (!analysis) return this.createErrorParagraph('No se encontró el análisis estructural');
+        return analysisReportTables(analysis).flatMap(table => [this.createTable(table), this.createSpacing()]);
+    }
+
+    createConcreteDesign(item) {
+        const model = readConcreteElement(item.element);
+        if (!model) return this.createErrorParagraph(`No se encontró el diseño de ${item.element}`);
+        return concreteDesignTables(model).flatMap(table => [this.createTable(table), this.createSpacing()]);
+    }
+
     // 3. Método mejorado createCapturedImage (reemplazar el existente)
     async createCapturedImage(item) {
         const { Paragraph, ImageRun, AlignmentType } = this.docx;
 
         try {
             console.log(`🖼️ Capturando elemento: ${item.elementId}`);
+            await this.onProgress?.(item.caption || 'Capturando gráficos...');
 
             // Usar captura dinámica por defecto
             let canvas;
 
             if (window.captureElementContentDynamic) {
                 canvas = await window.captureElementContentDynamic(item.elementId, {
-                    width: 1080,
+                    width: item.captureWidth || 1080,
                     height: item.height
                 });
             } else if (window.captureElementBySections) {
                 canvas = await window.captureElementBySections(item.elementId, {
-                    width: 1080,
+                    width: item.captureWidth || 1080,
                     height: item.height
                 });
             } else {
@@ -537,24 +512,18 @@ export class ContentProcessor {
 
     // Nuevo método para calcular dimensiones apropiadas para Word
     calculateWordImageDimensions(canvasWidth, canvasHeight, item) {
-        const maxWordWidth = 900; // Ancho máximo en Word (aproximadamente)
+        const maxWordWidth = 585; // Ancho útil de la hoja: 8.5in menos márgenes de 1000 twips
         const maxWordHeight = 750; // Altura máxima recomendada por página
+        const aspect = canvasHeight / canvasWidth;
 
-        let finalWidth = item.width || canvasWidth;
-        let finalHeight = item.height || canvasHeight;
+        // La proporción sale de lo capturado; item.width solo limita el ancho final
+        let finalWidth = Math.min(item.width || canvasWidth, maxWordWidth);
+        let finalHeight = finalWidth * aspect;
 
         // Si la imagen es muy alta, mantener proporciones pero ajustar
         if (finalHeight > maxWordHeight) {
-            const ratio = maxWordHeight / finalHeight;
             finalHeight = maxWordHeight;
-            finalWidth = finalWidth * ratio;
-        }
-
-        // Si aún es muy ancha, ajustar
-        if (finalWidth > maxWordWidth) {
-            const ratio = maxWordWidth / finalWidth;
-            finalWidth = maxWordWidth;
-            finalHeight = finalHeight * ratio;
+            finalWidth = finalHeight / aspect;
         }
 
         return {
@@ -580,12 +549,7 @@ export class ContentProcessor {
             }
 
             // Obtener imagen usando API nativa
-            const imageDataUrl = echartsInstance.getDataURL({
-                type: 'png',
-                pixelRatio: 2,
-                backgroundColor: '#ffffff',
-                excludeComponents: ['toolbox', 'brush']
-            });
+            const imageDataUrl = captureChartDataURL(element, item.width || 700, item.height || 440);
 
             if (!imageDataUrl || imageDataUrl === 'data:,' || imageDataUrl.length < 100) {
                 console.log('ECharts no retornó imagen válida');

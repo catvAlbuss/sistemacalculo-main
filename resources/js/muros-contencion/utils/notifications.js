@@ -1,5 +1,7 @@
 import { SYSTEM_CONSTANTS } from '../config/constants.js'
-import Swal from 'sweetalert2';
+import BaseSwal from 'sweetalert2';
+
+const Swal = BaseSwal.mixin({ customClass: { popup: 'wall-notification' } });
 
 export class NotificationManager {
     static showSuccess(title, text = '', callback = null) {
@@ -89,9 +91,10 @@ export class NotificationManager {
         })
     }
 
-    static showLoading(title = 'Procesando...') {
+    static showLoading(title = 'Procesando...', text = '') {
         return Swal.fire({
             title: title,
+            text: text,
             allowOutsideClick: false,
             allowEscapeKey: false,
             showConfirmButton: false,
@@ -99,6 +102,18 @@ export class NotificationManager {
                 Swal.showLoading()
             }
         })
+    }
+
+    // Deja pintar el aviso antes de que el trabajo pesado ocupe el hilo principal.
+    static async showProgress(title, text = '') {
+        this.showLoading(title, text);
+        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 60)));
+    }
+
+    static async updateProgress(text) {
+        const container = Swal.getHtmlContainer();
+        if (container) container.textContent = text;
+        await new Promise(resolve => setTimeout(resolve, 0));
     }
 
     static hideLoading() {

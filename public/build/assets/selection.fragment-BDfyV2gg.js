@@ -1,0 +1,35 @@
+import{S as e,w as t,F as a}from"./analisis_estructural_de_armaduras-BaJd2gwr.js";import"./livewire.esm-BwfLLVY7.js";import"./sweetalert2.esm.all-0Z_61IYw.js";import"./preload-helper-BfFHrpNk.js";import"./color_scale-BGSv3LvJ.js";import"./zapatas2Core-M4BiEhsD.js";import"./mat4js.read-Dg9kvXpe.js";import"./_commonjsHelpers-D6-XlEtG.js";import"./deflectionCalculator-BFw1L2Wc.js";import"./engineError-CU3s0yX4.js";import"./html2canvas.esm-5Cw11iw4.js";import"./rizabalasociados-BgyDGUXy.js";import"./ubigeo-Cak7qga5.js";const r="selectionPixelShader",o=`#ifdef INSTANCES
+flat varying float vSelectionId;
+#else
+uniform float selectionId;
+#endif
+#ifdef STORE_CAMERASPACE_Z
+varying float vViewPosZ;
+#else
+varying float vDepthMetric;
+#endif
+#ifdef ALPHATEST
+varying vec2 vUV;uniform sampler2D diffuseSampler;
+#endif
+#include<clipPlaneFragmentDeclaration>
+#define CUSTOM_FRAGMENT_DEFINITIONS
+void main(void) {
+#define CUSTOM_FRAGMENT_MAIN_BEGIN
+#include<clipPlaneFragment>
+#ifdef ALPHATEST
+if (texture2D(diffuseSampler,vUV).a<0.4)
+discard;
+#endif
+#ifdef INSTANCES
+float id=vSelectionId;
+#else
+float id=selectionId;
+#endif
+#ifdef STORE_CAMERASPACE_Z
+gl_FragColor=vec4(id,vViewPosZ,0.0,1.0);
+#else
+gl_FragColor=vec4(id,vDepthMetric,0.0,1.0);
+#endif
+#define CUSTOM_FRAGMENT_MAIN_END
+}
+`;e.ShadersStore[r]||(e.ShadersStore[r]=o);const n=[t,a];for(const i of n)e.IncludesShadersStore[i.name]||(e.IncludesShadersStore[i.name]=i.shader);const _={name:r,shader:o};export{_ as selectionPixelShader};

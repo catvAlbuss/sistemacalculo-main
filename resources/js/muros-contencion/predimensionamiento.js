@@ -1,5 +1,6 @@
 import { ValidationManager } from './utils/validation.js';
 import { NotificationManager } from './utils/notifications.js';
+import { predimSectionSVG } from './drawings.js';
 
 export function Predimensionamiento() {
     return {
@@ -14,7 +15,8 @@ export function Predimensionamiento() {
         isCalculating: false,
         chartInitialized: false,
         // Nuevo estado para indicar si los inputs han cambiado desde el último cálculo
-        inputsChanged: false,
+        inputsChanged: true,
+        hasCalculated: false,
 
         // Datos de entrada unificados
         datosinput: {
@@ -46,7 +48,7 @@ export function Predimensionamiento() {
         init() {
             this.loadFromStore();
             this.graficopredimensionamiento(); // Asegura que el gráfico se dibuje al cargar
-            this.setupListeners();
+            this.$watch('datosinput', () => { this.inputsChanged = true; });
             console.log('✅ Predimensionamiento inicializado');
         },
 
@@ -68,35 +70,13 @@ export function Predimensionamiento() {
                     this.errors = predimData.errors;
                 }
                 // Si hay resultados cargados, el estado no está "cambiado" al inicio
-                this.inputsChanged = !predimData.isCalculated;
-            }
-        },
-
-        setupListeners() {
-            // Listener para datos del sistema
-            document.addEventListener('system-data-updated', (event) => {
-                if (event.detail.source !== 'predimensionamiento') {
-                    this.handleExternalDataUpdate(event.detail);
-                }
-            });
-            document.addEventListener('input', (e) => {
-                if (e.target.closest('#predimensionamiento-content')) {
-                    this.handleInputChange(e.target);
-                }
-            });
-        },
-
-        handleInputChange(input) {
-            if (input.name && input.value !== undefined) {
-                // Actualiza el valor del input en datosinput
-                this.datosinput[input.name] = input.type === 'checkbox' ? input.checked : input.value;
-                // Marca que los inputs han cambiado desde el último cálculo
-                this.inputsChanged = true;
-                // No se resetea el estado de cálculo aquí, ni se disparan alertas.
+                this.inputsChanged = predimData.isCalculated !== true;
+                this.hasCalculated = predimData.isCalculated === true;
             }
         },
 
         resetCalculationState() {
+            this.hasCalculated = false;
             this.resultados = {};
             this.errors = [];
             this.inputsChanged = true; // Al resetear, claro que los inputs "han cambiado" respecto a un resultado previo
@@ -108,6 +88,7 @@ export function Predimensionamiento() {
         async calcular() {
             if (this.isCalculating) return;
             this.isCalculating = true;
+            this.hasCalculated = false;
             this.errors = []; // Limpia errores previos al inicio del cálculo
 
             // Mostrar alerta de carga al INICIAR el cálculo
@@ -145,7 +126,8 @@ export function Predimensionamiento() {
                     // Ocultar alerta de carga y mostrar alerta de éxito
                     NotificationManager.hideLoading();
                     NotificationManager.showSuccess('Predimensionamiento Completado', 'Los cálculos se han realizado exitosamente');
-                    this.inputsChanged = false; // El cálculo se completó, los inputs no están "cambiados" respecto al resultado actual.
+                    this.hasCalculated = true;
+                    this.$nextTick(() => { this.inputsChanged = false; });
                     // console.log('✅ Cálculo completado:', this.resultados);
 
                 } catch (error) {
@@ -170,7 +152,7 @@ export function Predimensionamiento() {
             this.errors = []; // Limpiar errores antes de revalidar
 
             const H = this.validateNumber(this.datosinput.B18);
-            if (isNaN(H) || H <= 0) {
+            if (!Number.isFinite(H) || H <= 0) {
                 this.errors.push('La altura H (B18) debe ser un número positivo.');
             }
 
@@ -210,8 +192,8 @@ export function Predimensionamiento() {
         },
 
         validateNumber(value, defaultValue = NaN) {
-            const num = parseFloat(value);
-            return isNaN(num) ? defaultValue : num;
+            const num = Number(value);
+            return value === '' || value === null || !Number.isFinite(num) ? defaultValue : num;
         },
 
         calcularDimensiones() {
@@ -219,7 +201,7 @@ export function Predimensionamiento() {
             const H = this.validateNumber(this.datosinput.B18, 6.4);
             const df = this.validateNumber(this.datosinput.B19, 1.0);
             const Ht = H + df;
-            this.datosinput.B21 = Ht; // Actualizar B21 en datosinput
+            if (this.datosinput.B21 !== Ht) this.datosinput.B21 = Ht; // Actualizar B21 en datosinput
 
             const ancho_corona = this.validateNumber(this.datosinput.D45, 0.2);
             const espesor_base_pantalla = Ht / this.validateNumber(this.datosinput.D47, 10);
@@ -289,128 +271,13 @@ export function Predimensionamiento() {
 
         // Métodos de gráfico se mantienen igual, pero se asegura que se llamen después de calcularDimensiones
         graficopredimensionamiento() {
-            const margin = { top: 20, right: 20, bottom: 30, left: 40 };
-            const width = 600 - margin.left - margin.right;
-            const height = 600 - margin.top - margin.bottom;
-            this.margin = margin;
-            this.width = width;
-            this.height = height;
-            this.x = d3.scaleLinear().range([0, width]);
-            this.y = d3.scaleLinear().range([height, 0]);
-            if (!this.svg) {
-                this.createChart();
-            }
-            this.updateChart();
-        },
-
-        createChart() {
-            const container = d3.select("#predimsMC");
-            if (!container.node()) {
+            const container = document.getElementById('predimsMC');
+            if (!container) {
                 this.errors.push('Container #predimsMC not found in DOM');
                 return;
             }
-            container.selectAll("*").remove();
-            this.svg = container
-                .append("svg")
-                .attr("width", this.width + this.margin.left + this.margin.right)
-                .attr("height", this.height + this.margin.top + this.margin.bottom)
-                .append("g")
-                .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
-            this.xAxis = this.svg.append("g")
-                .attr("class", "x-axis")
-                .attr("transform", `translate(0,${this.height})`)
-                .style("font-size", "12px");
-            this.yAxis = this.svg.append("g")
-                .attr("class", "y-axis")
-                .style("font-size", "12px");
-            this.path = this.svg.append("path")
-                .attr("fill", "rgba(70, 130, 180, 0.3)")
-                .attr("stroke", "steelblue")
-                .attr("stroke-width", 2);
-            this.chartInitialized = true;
-        },
-
-        updateChart() {
-            // Asegurarse de que `this.datosinput.B18` sea un número válido antes de usarlo
             const H = this.validateNumber(this.datosinput.B18, 6.4);
-            const { muro, suelo, sueloDelante } = this.calculopuntosmuros(H);
-
-            // Asegurarse de que los arrays no estén vacíos antes de calcular el extent
-            const allPoints = [...muro, ...suelo, ...sueloDelante].filter(p => p.x !== undefined && p.y !== undefined);
-
-            if (allPoints.length === 0) {
-                console.warn("No hay puntos válidos para dibujar el gráfico.");
-                // Opcional: limpiar el gráfico o mostrar un mensaje al usuario
-                this.svg.selectAll("path").remove();
-                this.xAxis.call(d3.axisBottom(this.x.domain([0, 1]))); // Reset axes
-                this.yAxis.call(d3.axisLeft(this.y.domain([0, 1])));
-                return;
-            }
-
-            const xExtent = d3.extent(allPoints, d => d.x);
-            const yExtent = d3.extent(allPoints, d => d.y);
-
-            // Ajuste de los dominios para incluir un pequeño margen si los extents son iguales (punto único)
-            const paddedXExtent = [xExtent[0] - 1 > 0 ? xExtent[0] - 1 : 0, xExtent[1] + 1];
-            const paddedYExtent = [yExtent[0] - 1 > 0 ? yExtent[0] - 1 : 0, yExtent[1] + 1];
-
-
-            const width = this.width;
-            const height = this.height;
-
-            const xRange = paddedXExtent[1] - paddedXExtent[0];
-            const yRange = paddedYExtent[1] - paddedYExtent[0];
-
-            // Evitar división por cero si el rango es 0
-            const scaleX = xRange === 0 ? 1 : width / xRange;
-            const scaleY = yRange === 0 ? 1 : height / yRange;
-
-            const scale = Math.min(scaleX, scaleY);
-
-            const newXRange = width / scale;
-            const newYRange = height / scale;
-
-            const xMid = (paddedXExtent[0] + paddedXExtent[1]) / 2;
-            const yMid = (paddedYExtent[0] + paddedYExtent[1]) / 2;
-
-            const newXDomain = [xMid - newXRange / 2, xMid + newXRange / 2];
-            const newYDomain = [yMid - newYRange / 2, yMid + newYRange / 2];
-
-            this.x.domain(newXDomain).nice();
-            this.y.domain(newYDomain).nice();
-
-            const line = d3.line()
-                .x(d => this.x(d.x))
-                .y(d => this.y(d.y));
-
-            this.xAxis.call(d3.axisBottom(this.x).ticks(Math.round(newXRange)));
-            this.yAxis.call(d3.axisLeft(this.y).ticks(Math.round(newYRange)));
-
-            this.svg.selectAll(".path-muro").data([muro])
-                .join("path")
-                .attr("class", "path-muro")
-                .attr("d", line)
-                .attr("fill", "rgba(70, 130, 180, 0.3)")
-                .attr("stroke", "steelblue")
-                .attr("stroke-width", 2);
-
-            this.svg.selectAll(".path-suelo").data([suelo])
-                .join("path")
-                .attr("class", "path-suelo")
-                .attr("d", line)
-                .attr("fill", "none")
-                .attr("stroke", "gray")
-                .attr("stroke-width", 5)
-                .attr("stroke-dasharray", "5,5");
-
-            this.svg.selectAll(".path-sueloDelante").data([sueloDelante])
-                .join("path")
-                .attr("class", "path-sueloDelante")
-                .attr("d", line)
-                .attr("fill", "none")
-                .attr("stroke", "brown")
-                .attr("stroke-width", 5)
-                .attr("stroke-dasharray", "5,5");
+            container.innerHTML = predimSectionSVG(this.calculopuntosmuros(H), this.datosinput);
         },
 
         // ===== EMISIÓN DE EVENTOS =====
@@ -479,7 +346,7 @@ export function Predimensionamiento() {
 
         // ===== GETTERS REACTIVOS =====
         get tieneResultados() {
-            return this.resultados && Object.keys(this.resultados).length > 0
+            return this.hasCalculated && this.resultados && Object.keys(this.resultados).length > 0
         },
 
         get tieneErrores() {

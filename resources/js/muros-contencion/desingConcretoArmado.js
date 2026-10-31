@@ -16,11 +16,14 @@ class ConcretoArmadoCalculator {
 
     updatePredimData(newPredimData) {
         // Estructura correcta basada en los datos que llegan
+        const input = newPredimData.inputValues || {};
+        const pick = keys => Object.fromEntries(keys.filter(key => input[key] !== undefined).map(key => [key, input[key]]));
         const estructuraCorrecta = {
-            materiales: newPredimData.inputValues?.materiales || newPredimData.materiales || {},
-            geometria: newPredimData.inputValues?.geometria || newPredimData.geometria || {},
+            materiales: newPredimData.inputValues?.materiales || newPredimData.materiales || pick(['B6','B7','B8','B10','B11','B12','B13','B14']),
+            geometria: newPredimData.inputValues?.geometria || newPredimData.geometria || pick(['B18','B19','B20','B21']),
             cargas: newPredimData.inputValues?.cargas || newPredimData.cargas || {},
-            valpredim: newPredimData.inputValues?.valpredim || newPredimData.valpredim || {},
+            valpredim: newPredimData.inputValues?.valpredim || newPredimData.valpredim || pick(['D45','D47','D49','D51','D53']),
+            inputValues: { ...input, ...newPredimData.resultados },
             resultados: newPredimData.resultados || {}
         };
 
@@ -52,117 +55,29 @@ class ConcretoArmadoCalculator {
     }
 }
 
-class PantallaCalculator {
-    calcular(datos, predimData) {
-        const resultados = { datospant: {}, corte: {}, flexion: {} };
-        const errors = [];
-
-        try {
-            const materiales = predimData?.materiales || {};
-            const resultadosPredim = predimData?.resultados || {};
-            const { Mu, Vu, b, t, d, mu } = datos;
-
-            //inputs tipo number
-            const A325 = 0
-            const A329 = 0
-            const B336 = 0
-            const B349 = 0
-            const B364 = 0
-            //--- Aceros reutilizables para los input tipo select
-
-            const B295 = 101.73;
-            const B296 = 35.66;
-            const B297 = materiales.B8 || datos.Fy;
-            const B298 = materiales.B7 || datos.Fc;
-            const B299 = 100;
-            const B300 = 0.9 * 100;
-            const B301 = B300 - 4;
-            const B302 = B295 * 100000;
-
-            resultados.datospant = {
-                Mu: B295,
-                Vu: B296,
-                Fy: B297,
-                Fc: B298,
-                b: B299,
-                t: B300,
-                d: B301,
-                mu: B302,
-            };
-            //**CORTES */
-            const C305 = B301;
-            const C306 = B296;
-            const C307 = 0.53 * C305 * B299 * Math.pow(B298, 0.5) / 1000;
-            const C308 = C307 * 0.85;
-            const C309 = C306 / C308 * 100;
-            const C310 = (C308 > C306) ? "OK" : "ESTA MAL";
-            resultados.corte = { C305, C306, C307, C308, C309, C310 };
-            /**FLEXION -cuantias*/
-            const B318 = 0.002;
-            const B319 = 0.0018;
-
-            const C318 = B318 * B299 * B301;
-            const C319 = B319 * B299 * B301;
-
-            const B320 = B301 - Math.pow(Math.pow(B301, 2) - 2 * B302 / (0.85 * 0.9 * B298 * B299), 0.5);
-            const B321 = B302 / (0.9 * B297 * (B301 - B320 / 2));
-            const B322 = Math.max(B321, C319);
-            /**FLEXION -DISTIBUCION DEL ACERO LONGITUDINAL PRINCIPAL*/
-            // const C326 = aceros * A325;
-            // const E325 = C326 * 100 / B322; //flexion
-            resultados.flexion = { B318, B319, C318, C319, B320, B321, B322 }
-        } catch (error) {
-            errors.push({
-                id: 'pantalla-calculo',
-                message: `Error en cálculo de Pantalla: ${error.message}`
-            });
-        }
-
-        return { resultados, errors };
+// Filas 133-143 y 172-181 del libro. Pantalla usa la cuantía mínima por área; los demás, 0.002.
+class SeccionCalculator {
+    constructor(aceroMinimo = 'C318') {
+        this.aceroMinimo = aceroMinimo;
     }
-}
 
-class PuntaCalculator {
     calcular(datos, predimData) {
         const resultados = { datospant: {}, corte: {}, flexion: {} };
         const errors = [];
 
         try {
             const materiales = predimData?.materiales || {};
-            const resultadosPredim = predimData?.resultados || {};
-            const { Mu, Vu, b, t, d, mu } = datos;
+            const { Mu, Vu, b, t, d } = datos;
 
-            //inputs tipo number
-            const A325 = 0
-            const A329 = 0
-            const B336 = 0
-            const B349 = 0
-            const B364 = 0
-            //--- Aceros reutilizables para los input tipo select
-
-            const B295 = 52.39;
-            const B296 = 38.03;
             const B297 = materiales.B8 || datos.Fy;
             const B298 = materiales.B7 || datos.Fc;
-            const B299 = 100;
-            const B300 = 0.75 * 100;
-            const B301 = B300 - 10;
-            const B302 = B295 * 100000;
+            const B302 = Mu * 100000;
 
-            resultados.datospant = {
-                Mu: B295,
-                Vu: B296,
-                Fy: B297,
-                Fc: B298,
-                b: B299,
-                t: B300,
-                d: B301,
-                mu: B302,
-            };
+            resultados.datospant = { Mu, Vu, Fy: B297, Fc: B298, b, t, d, mu: B302 };
             //**CORTES */
-            const C305 = B301;
-            const C306 = B296;
-            const C307 = 0.53 * C305 * B299 * Math.pow(B298, 0.5) / 1000;
+            const C305 = d;
+            const C306 = Vu;
+            const C307 = 0.53 * C305 * b * Math.pow(B298, 0.5) / 1000;
             const C308 = C307 * 0.85;
             const C309 = C306 / C308 * 100;
             const C310 = (C308 > C306) ? "OK" : "ESTA MAL";
@@ -170,162 +85,19 @@ class PuntaCalculator {
             /**FLEXION -cuantias*/
             const B318 = 0.002;
             const B319 = 0.0018;
+            const C318 = B318 * b * d;
+            const C319 = B319 * b * d;
 
-            const C318 = B318 * B299 * B301;
-            const C319 = B319 * B299 * B301;
-
-            const B320 = B301 - Math.pow(Math.pow(B301, 2) - 2 * B302 / (0.85 * 0.9 * B298 * B299), 0.5);
-            const B321 = B302 / (0.9 * B297 * (B301 - B320 / 2));
-            const B322 = Math.max(B321, C319);
-            /**FLEXION -DISTIBUCION DEL ACERO LONGITUDINAL PRINCIPAL*/
-            // const C326 = aceros * A325;
-            // const E325 = C326 * 100 / B322; //flexion
-            resultados.flexion = { B318, B319, C318, C319, B320, B321, B322 }
+            const discriminante = Math.pow(d, 2) - 2 * B302 / (0.85 * 0.9 * B298 * b);
+            if (discriminante < 0) {
+                errors.push({ id: 'seccion-insuficiente', message: 'La sección no alcanza para Mu: aumenta el espesor.' });
+            }
+            const B320 = d - Math.pow(Math.max(discriminante, 0), 0.5);
+            const B321 = B302 / (0.9 * B297 * (d - B320 / 2));
+            const B322 = Math.max(B321, this.aceroMinimo === 'C319' ? C319 : C318);
+            resultados.flexion = { B318, B319, C318, C319, B320, B321, B322 };
         } catch (error) {
-            errors.push({
-                id: 'pantalla-calculo',
-                message: `Error en cálculo de Pantalla: ${error.message}`
-            });
-        }
-
-        return { resultados, errors };
-    }
-}
-
-class TalonCalculator {
-    calcular(datos, predimData) {
-        const resultados = { datospant: {}, corte: {}, flexion: {} };
-        const errors = [];
-
-        try {
-            const materiales = predimData?.materiales || {};
-            const resultadosPredim = predimData?.resultados || {};
-            const { Mu, Vu, b, t, d, mu } = datos;
-
-            //inputs tipo number
-            const A325 = 0
-            const A329 = 0
-            const B336 = 0
-            const B349 = 0
-            const B364 = 0
-            //--- Aceros reutilizables para los input tipo select
-
-            const B295 = 76.84;
-            const B296 = 38.84;
-            const B297 = materiales.B8 || datos.Fy;
-            const B298 = materiales.B7 || datos.Fc;
-            const B299 = 100;
-            const B300 = 0.75 * 100;
-            const B301 = B300 - 10;
-            const B302 = B295 * 100000;
-
-            resultados.datospant = {
-                Mu: B295,
-                Vu: B296,
-                Fy: B297,
-                Fc: B298,
-                b: B299,
-                t: B300,
-                d: B301,
-                mu: B302,
-            };
-            //**CORTES */
-            const C305 = B301;
-            const C306 = B296;
-            const C307 = 0.53 * C305 * B299 * Math.pow(B298, 0.5) / 1000;
-            const C308 = C307 * 0.85;
-            const C309 = C306 / C308 * 100;
-            const C310 = (C308 > C306) ? "OK" : "ESTA MAL";
-            resultados.corte = { C305, C306, C307, C308, C309, C310 };
-            /**FLEXION -cuantias*/
-            const B318 = 0.002;
-            const B319 = 0.0018;
-
-            const C318 = B318 * B299 * B301;
-            const C319 = B319 * B299 * B301;
-
-            const B320 = B301 - Math.pow(Math.pow(B301, 2) - 2 * B302 / (0.85 * 0.9 * B298 * B299), 0.5);
-            const B321 = B302 / (0.9 * B297 * (B301 - B320 / 2));
-            const B322 = Math.max(B321, C319);
-            /**FLEXION -DISTIBUCION DEL ACERO LONGITUDINAL PRINCIPAL*/
-            // const C326 = aceros * A325;
-            // const E325 = C326 * 100 / B322; //flexion
-            resultados.flexion = { B318, B319, C318, C319, B320, B321, B322 }
-        } catch (error) {
-            errors.push({
-                id: 'pantalla-calculo',
-                message: `Error en cálculo de Pantalla: ${error.message}`
-            });
-        }
-
-        return { resultados, errors };
-    }
-}
-
-class KeyCalculator {
-    calcular(datos, predimData) {
-        const resultados = { datospant: {}, corte: {}, flexion: {} };
-        const errors = [];
-
-        try {
-            const materiales = predimData?.materiales || {};
-            const resultadosPredim = predimData?.resultados || {};
-            const { Mu, Vu, b, t, d, mu } = datos;
-
-            //inputs tipo number
-            const A325 = 0
-            const A329 = 0
-            const B336 = 0
-            const B349 = 0
-            const B364 = 0
-            //--- Aceros reutilizables para los input tipo select
-
-            const B295 = 5.15;
-            const B296 = 10.10;
-            const B297 = materiales.B8 || datos.Fy;
-            const B298 = materiales.B7 || datos.Fc;
-            const B299 = 100;
-            const B300 = 0.9 * 100;
-            const B301 = B300 - 10;
-            const B302 = B295 * 100000;
-
-            resultados.datospant = {
-                Mu: B295,
-                Vu: B296,
-                Fy: B297,
-                Fc: B298,
-                b: B299,
-                t: B300,
-                d: B301,
-                mu: B302,
-            };
-            //**CORTES */
-            const C305 = B301;
-            const C306 = B296;
-            const C307 = 0.53 * C305 * B299 * Math.pow(B298, 0.5) / 1000;
-            const C308 = C307 * 0.85;
-            const C309 = C306 / C308 * 100;
-            const C310 = (C308 > C306) ? "OK" : "ESTA MAL";
-            resultados.corte = { C305, C306, C307, C308, C309, C310 };
-            /**FLEXION -cuantias*/
-            const B318 = 0.002;
-            const B319 = 0.0018;
-
-            const C318 = B318 * B299 * B301;
-            const C319 = B319 * B299 * B301;
-
-            const B320 = B301 - Math.pow(Math.pow(B301, 2) - 2 * B302 / (0.85 * 0.9 * B298 * B299), 0.5);
-            const B321 = B302 / (0.9 * B297 * (B301 - B320 / 2));
-            const B322 = Math.max(B321, C318);
-            /**FLEXION -DISTIBUCION DEL ACERO LONGITUDINAL PRINCIPAL*/
-            // const C326 = aceros * A325;
-            // const E325 = C326 * 100 / B322; //flexion
-            resultados.flexion = { B318, B319, C318, C319, B320, B321, B322 }
-        } catch (error) {
-            errors.push({
-                id: 'pantalla-calculo',
-                message: `Error en cálculo de Pantalla: ${error.message}`
-            });
+            errors.push({ id: 'seccion-calculo', message: `Error en cálculo de la sección: ${error.message}` });
         }
 
         return { resultados, errors };
@@ -404,7 +176,7 @@ const AceroManager = {
         if (elemento === 'pantalla') {
             valorReferencia = rminarea;
         } else if (elemento === 'punta') {
-            valorReferencia = rminareas;
+            valorReferencia = rminarea;
         } else if (elemento === 'talon') {
             valorReferencia = rminarea;
         } else if (elemento === 'key') {
@@ -448,8 +220,9 @@ const AceroManager = {
         return Math.round(espaciado);
     },
 
-    calcularEspaciamientoAlgoritmico(valorCalculado) {
-        const posibles = this.espaciamientoresult.filter(e => e.value <= valorCalculado).map(e => e.value);
+    // Topes del libro: 20 cm en refuerzo longitudinal y 25 cm en transversal.
+    calcularEspaciamientoAlgoritmico(valorCalculado, tope = 20) {
+        const posibles = this.espaciamientoresult.filter(e => e.value <= Math.min(valorCalculado, tope)).map(e => e.value);
         return posibles.length ? Math.max(...posibles) : this.espaciamientoresult[0].value;
     },
 
@@ -477,12 +250,12 @@ const AceroManager = {
         const areaBarra = this.obtenerValor(diametro);
         const espaciamiento = (areaBarra * 100) / as1;
 
-        return this.calcularEspaciamientoAlgoritmico(espaciamiento);
+        return this.calcularEspaciamientoAlgoritmico(espaciamiento, 25);
     },
 
     calcularEspaciamientoAlgC(cantidad, diametro, elemento, rminarea, rminareas) {
         const espaciado = this.calcularC(cantidad, diametro, elemento, rminarea, rminareas);
-        return this.calcularEspaciamientoAlgoritmico(espaciado);
+        return this.calcularEspaciamientoAlgoritmico(espaciado, 25);
     },
 
     crearConfiguracion(cantidad = 2, diametro = '3/4', elemento = 'pantalla', isSecundario = false, configuracionPrincipal = null) {
@@ -653,6 +426,7 @@ function createElementoModule(tipo, calculatorInstance, globalCalculator) {
         resultados: {},
         errors: [],
         predimData: globalCalculator.predimData,
+        analisisRecibido: false,
 
         // Configuración de secciones
         secciones: {
@@ -742,7 +516,16 @@ function createElementoModule(tipo, calculatorInstance, globalCalculator) {
         init() {
             this.inicializarDatos();
             this.configurarEventos();
+            this.aplicarAnalisis(Alpine.store('systemState')?.analisisEstructural);
             this.calcular();
+        },
+
+        // Mu, Vu y la sección vienen del análisis estructural.
+        aplicarAnalisis(demandas) {
+            const seccion = demandas?.[this.tipo];
+            if (!seccion) return;
+            this.analisisRecibido = true;
+            this.datos = { ...this.datos, ...seccion, mu: seccion.Mu * 100000 };
         },
 
         configurarEventos() {
@@ -752,6 +535,8 @@ function createElementoModule(tipo, calculatorInstance, globalCalculator) {
                 this.actualizarDatosSegunPredim();
                 this.calcular();
             });
+
+            document.addEventListener('analisis-estructural-updated', (event) => this.aplicarAnalisis(event.detail));
 
             this.$watch('datos', () => {
                 this.calcular();
@@ -787,7 +572,7 @@ function createElementoModule(tipo, calculatorInstance, globalCalculator) {
                 console.warn(`${this.tipo} - predimData no disponible`);
                 return;
             }
-            const resultadosPredim = this.predimData.inputValues || {};
+            const resultadosPredim = { ...this.predimData.inputValues, ...this.predimData.resultados };
 
             const FyOriginal = resultadosPredim.B8 || this.datos.Fy || 4200;
             const Fy = FyOriginal < 1000 ? FyOriginal * 10.197 : FyOriginal;
@@ -806,6 +591,7 @@ function createElementoModule(tipo, calculatorInstance, globalCalculator) {
         },
 
         actualizarDimensiones(resultadosPredim) {
+            if (this.analisisRecibido) return;
             const configuraciones = {
                 pantalla: {
                     t: () => resultadosPredim.espesor_base_pantalla * 100,
@@ -1018,22 +804,22 @@ function generateMainHTML() {
                 <div class="">
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <!-- Módulo Pantalla -->
-                        <div x-data="pantallaModule()" x-init="init()" id="content-pantalla">
+                        <div x-data="pantallaModule()" id="content-pantalla">
                             ${generateElementoHTML('pantalla', 'PANTALLA', 'bg-gray-600')}
                         </div>
                         
                         <!-- Módulo Punta (cuando esté disponible) -->
-                        <div x-data="puntaModule()" x-init="init()" id="content-punta" class="elemento-placeholder">
+                        <div x-data="puntaModule()" id="content-punta" class="elemento-placeholder">
                             ${generateElementoHTML('punta', 'PUNTA', 'bg-gray-600')}
                         </div>
                         
                         <!-- Módulo Talón (cuando esté disponible) -->
-                        <div x-data="talonModule()" x-init="init()" id="content-talon" class="elemento-placeholder">
+                        <div x-data="talonModule()" id="content-talon" class="elemento-placeholder">
                             ${generateElementoHTML('talon', 'TALÓN', 'bg-gray-600')}
                         </div>
                         
                         <!-- Módulo Dentellón (cuando esté disponible) -->
-                        <div x-data="keyModule()" x-init="init()" id="content-key" class="elemento-placeholder">
+                        <div x-data="keyModule()" id="content-key" class="elemento-placeholder">
                             ${generateElementoHTML('key', 'DENTELLÓN', 'bg-gray-600')}
                         </div>
                     </div>
@@ -1355,7 +1141,7 @@ function generateAceroSection() {
                                         :value="configuracion.diametro"
                                         @change="actualizarAcero(tipo, { diametro: $event.target.value })">
                                     <template x-for="opcion in tiposAcero" :key="opcion.label">
-                                        <option :value="opcion.label" x-text="opcion.label"></option>
+                                        <option :value="opcion.label" :selected="opcion.label === configuracion.diametro" x-text="opcion.label"></option>
                                     </template>
                                 </select>
                             </div>
@@ -1425,10 +1211,10 @@ function generateCaraTerreno() {
                             <!-- proporcion -->
                             <div class="text-center">
                                 <label class="block text-xs text-gray-600 mb-1 font-medium">PROPORCION: </label>
-                                <input type="number" min="1" step="0.01"
+                                <input type="number" min="0.05" max="0.95" step="0.01"
                                        class="w-full bg-yellow-100 text-center font-bold p-2 rounded border-2 border-yellow-300 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200"
-                                       :value="configuracion.cantidad"
-                                       @input="actualizarAcero(tipo, { cantidad: parseInt($event.target.value) || 0.33 })">
+                                       :value="formatValue(configuracion.cantidad)"
+                                       @change="actualizarAcero(tipo, { cantidad: parseFloat($event.target.value) || 0.33 })">
                             </div>
 
                             <!-- As -->
@@ -1444,7 +1230,7 @@ function generateCaraTerreno() {
                                         :value="configuracion.diametro"
                                         @change="actualizarAcero(tipo, { diametro: $event.target.value })">
                                     <template x-for="opcion in tiposAcero" :key="opcion.label">
-                                        <option :value="opcion.label" x-text="opcion.label"></option>
+                                        <option :value="opcion.label" :selected="opcion.label === configuracion.diametro" x-text="opcion.label"></option>
                                     </template>
                                 </select>
                             </div>
@@ -1471,7 +1257,7 @@ function generateCaraTerreno() {
                         </div>
                     </div>
                     <div class="grid grid-cols-4 gap-2 bg-blue-100 p-2 text-center">
-                        <div class="p-1"><span x-text="Math.ceil(configuracion.cantidad)"></span></div>
+                        <div class="p-1"><span>1</span></div>
                         <div class="p-1">Ø</div>
                         <div class="p-1"><span x-text="configuracion.diametro"></span></div>
                         <div class="p-1">@ <span x-text="(configuracion.espaciamientoalgoritmoCT)"></span></div>
@@ -1514,10 +1300,9 @@ function generateCaraLibre() {
                             <!-- proporcion -->
                             <div class="text-center">
                                 <label class="block text-xs text-gray-600 mb-1 font-medium">PROPORCION: </label>
-                                <input type="number" min="1" step="0.01" 
-                                       class="w-full bg-yellow-100 text-center font-bold p-2 rounded border-2 border-yellow-300 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200"
-                                       :value="configuracion.cantidad"
-                                       @input="actualizarAcero(tipo, { cantidad: parseInt($event.target.value) || 0.33 })">
+                                <input type="number" readonly
+                                       class="w-full text-center font-bold p-2 rounded border-2"
+                                       :value="formatValue(1 - aceros.transversal.cantidad)">
                             </div>
                             
                             <!-- As1 -->
@@ -1533,7 +1318,7 @@ function generateCaraLibre() {
                                         :value="configuracion.diametro"
                                         @change="actualizarAcero(tipo, { diametro: $event.target.value })">
                                     <template x-for="opcion in tiposAcero" :key="opcion.label">
-                                        <option :value="opcion.label" x-text="opcion.label"></option>
+                                        <option :value="opcion.label" :selected="opcion.label === configuracion.diametro" x-text="opcion.label"></option>
                                     </template>
                                 </select>
                             </div>
@@ -1554,7 +1339,7 @@ function generateCaraLibre() {
                         </div>
                     </div>
                     <div class="grid grid-cols-4 gap-2 bg-blue-100 p-2 text-center">
-                        <div class="p-1"><span x-text="Math.ceil(configuracion.cantidad)"></span></div>
+                        <div class="p-1"><span>1</span></div>
                         <div class="p-1">Ø</div>
                         <div class="p-1"><span x-text="configuracion.diametro"></span></div>
                         <div class="p-1">@ <span x-text="(configuracion.espaciamientoalgoritmoC)"></span></div>
@@ -1672,6 +1457,9 @@ function generateRecorteRefuerzoLongitudinalPrincipal(tipo) {
 
 export function Desing() {
     return {
+        destroy() {
+            document.removeEventListener('predimensionamiento-calculated', this._receivePredimensionamiento);
+        },
         init() {
             //console.log('🔄 Inicializando módulo de vERIFICACIONES...');
             this.initConcretoArmadoModule();
@@ -1689,10 +1477,10 @@ export function Desing() {
                 globalConcretoArmadoCalculator = new ConcretoArmadoCalculator();
 
                 // Registrar calculadoras específicas
-                globalConcretoArmadoCalculator.registrarElemento('pantalla', new PantallaCalculator());
-                globalConcretoArmadoCalculator.registrarElemento('punta', new PuntaCalculator());
-                globalConcretoArmadoCalculator.registrarElemento('talon', new TalonCalculator());
-                globalConcretoArmadoCalculator.registrarElemento('key', new KeyCalculator());
+                globalConcretoArmadoCalculator.registrarElemento('pantalla', new SeccionCalculator('C319'));
+                globalConcretoArmadoCalculator.registrarElemento('punta', new SeccionCalculator());
+                globalConcretoArmadoCalculator.registrarElemento('talon', new SeccionCalculator());
+                globalConcretoArmadoCalculator.registrarElemento('key', new SeccionCalculator());
             }
 
             // Asociar módulos de Alpine.js
@@ -1712,24 +1500,13 @@ export function Desing() {
             // Generar HTML
             container.innerHTML = generateMainHTML();
 
-            // Simular actualización inicial con datos de ejemplo
-            setTimeout(() => {
-                globalConcretoArmadoCalculator.updatePredimData({
-                    inputValues: {
-                        materiales: { B6: 2.4, B7: 210, B8: 4200, B10: 20, B11: 1.83, B12: 26.9, B13: 0.05, B14: 0.51 },
-                        geometria: { B18: 6.4, B19: 1, B20: 12, B21: 7.4 },
-                        valpredim: { D45: 0.2, D47: 10, D49: 10, D51: 0.7, D53: 10 }
-                    },
-                    resultados: {
-                        ancho_corona: 0.2,
-                        espesor_base_pantalla: 0.64,
-                        peralte_zapata: 0.64,
-                        ancho_zapata: 4.48,
-                        altura_key: 0.64,
-                        ancho_key: 0.6
-                    }
-                });
-            }, 100);
+            this._receivePredimensionamiento = event => {
+                if (event.detail?.resultados) globalConcretoArmadoCalculator.updatePredimData(event.detail);
+            };
+            document.addEventListener('predimensionamiento-calculated', this._receivePredimensionamiento);
+            const saved = Alpine.store('systemState').resultadosPredimensionamiento;
+            if (saved?.isCalculated) this.$nextTick(() => globalConcretoArmadoCalculator.updatePredimData(saved));
+
         },
     };
 }

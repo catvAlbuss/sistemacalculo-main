@@ -6,6 +6,7 @@ export function Dimensionamiento() {
         mode: 'edit',
         showgraficoverificacion: true,
         predimData: null,
+        tablasVerificaciones: null,
 
         concretoArmadoData: {
             pantalla: null,
@@ -111,6 +112,7 @@ export function Dimensionamiento() {
                 //console.log('📥 Verificaciones actualizadas:', event.detail);
                 const verificaciones = event.detail; // Ya viene con la estructura {tablasVerificaciones: { ... }}
                 if (verificaciones && verificaciones.tablasVerificaciones) {
+                    this.tablasVerificaciones = verificaciones.tablasVerificaciones;
                     this.actualizarAccesoriosDesdeVerificaciones(verificaciones.tablasVerificaciones);
                     //console.log('📦 Accesorios actualizados:', this.verfsismo.accesorios);
                 }
@@ -125,6 +127,8 @@ export function Dimensionamiento() {
                 } else {
                     this.procesarConcretoArmadoCompleto(elementData);
                 }
+                // El resumen de corte depende del diseño, que llega después de las verificaciones.
+                this.actualizarAccesoriosDesdeVerificaciones(this.tablasVerificaciones);
             });
         },
 
@@ -235,7 +239,7 @@ export function Dimensionamiento() {
                 const B69 = predim.B21 / predim.D47;
                 const B70 = predim.D51 * predim.B21;
                 const A69 = B70 / 3;
-                const A63 = B69 - predim.C55;
+                const A63 = B69 - predim.D45;
                 this.datosdim.D88 = this.formatValue(B70 - A69 - B69);
                 this.datosdim.B88 = this.formatValue(datosdim.C74 + datosdim.A83);
                 this.datosdim.B90 = this.formatValue(datosdim.A89 + (datosdim.C74 + datosdim.A83) + datosdim.D89);
@@ -257,10 +261,10 @@ export function Dimensionamiento() {
             if (!tablasVerificaciones) return;
 
             const { estabilidadVolteo, estabilidadDeslizamiento, presionesAdmisibles } = tablasVerificaciones;
-            const pantallacorte = this.concretoArmadoData['pantalla'].datosGrafico.datos || 0;
-            const puntacorte = this.concretoArmadoData['punta'].datosGrafico.datos || 0;
-            const taloncorte = this.concretoArmadoData['talon'].datosGrafico.datos || 0;
-            const keycorte = this.concretoArmadoData['key'].datosGrafico.datos || 0;
+            const pantallacorte = this.concretoArmadoData['pantalla']?.datosGrafico?.datos || {};
+            const puntacorte = this.concretoArmadoData['punta']?.datosGrafico?.datos || {};
+            const taloncorte = this.concretoArmadoData['talon']?.datosGrafico?.datos || {};
+            const keycorte = this.concretoArmadoData['key']?.datosGrafico?.datos || {};
 
             //console.log(this.concretoArmadoData['pantalla'].datosGrafico.datos);
             // Restablece los accesorios a su estado inicial para asegurar que todos los tipos estén presentes
@@ -536,19 +540,19 @@ export function Dimensionamiento() {
                 // Realizar cálculos con los datos de predimensionamiento
                 const resultado = this.calcularEstructural();
 
-                // Actualizar el estado global
-                Alpine.store('systemState').dimensionamientoCompleto = true;
+                if (this.errors.length || !resultado || !Object.keys(resultado).length) {
+                    this.isCalculating = false;
+                    NotificationManager.showWarning('Revisa los datos antes de continuar al análisis de cargas.');
+                    return;
+                }
 
-                // Guardar en localStorage
-                const currentData = localStorage.getItem('murosContencionData');
-                const data = currentData ? JSON.parse(currentData) : {};
-                data.dimensionamiento = {
-                    inputValues: this.datosdim,
+                Alpine.store('systemState').setResultadosDimensionamiento({
+                    inputValues: { ...this.datosdim },
                     resultados: resultado,
+                    predimData: this.predimData,
                     isCalculated: true,
-                    errors: this.errors
-                };
-                localStorage.setItem('murosContencionData', JSON.stringify(data));
+                    errors: this.errors,
+                });
 
                 // Emitir evento de cálculo completado
                 document.dispatchEvent(new CustomEvent('dimensionamiento-calculated', {
@@ -815,7 +819,7 @@ export function Dimensionamiento() {
                 // Cálculos Sísmicos
                 const C144_val = datapredim.B29 / 2; // Asumiendo B29 es una variable de datapredim
                 const C145_val = datapredim.B29 * C144_val; // Asumo B29
-                const C147_val = Math.tan(C144_val / (1 - C145_val)); // Esto podría dar NaN si (1 - C145_val) es 0 o negativo
+                const C147_val = Math.atan(C144_val / (1 - C145_val));
                 const B147_val = C147_val * (180 / Math.PI);
                 const B148_val = B12;
                 const B149_val = 0; // Asumo 0
@@ -846,7 +850,7 @@ export function Dimensionamiento() {
                 const B158_val = B99;
                 const C159_val = 0.5 * B154_val * B158_val * B155_val * B155_val;
                 const C160_val = C157_val - C159_val;
-                const C162_val = C157_val !== 0 ? (B155_val / 3 * C159_val + B155_val * 0.6 * C160_val) / C157_val : 0;
+                const C162_val = B155_val * 0.6; // Posición de ΔEAE: T39 del libro
                 const C163_val = C160_val * C162_val;
 
                 const E172 = buscarValorEnTabla(paTable, C94_select, 2);

@@ -1,5 +1,6 @@
 import { ValidationManager } from './utils/validation.js';
 import { NotificationManager } from './utils/notifications.js';
+import { loadDiagramSVG, wallGeometry } from './drawings.js';
 
 export function Cargas() {
     return {
@@ -14,6 +15,7 @@ export function Cargas() {
 
         // Datos recibidos
         predimData: null,
+        materiales: {},
         resultados: {},
         errors: [],
         // Control de cambios
@@ -29,42 +31,42 @@ export function Cargas() {
 
         empujePasivoParams: [
             { key: 'B103', label: 'Empuje cohesivo superior', symbol: 'h', unit: 'm' },
-            { key: 'B104', label: 'Presion cota cero', symbol: 'Smin', unit: 'kg/m²' },
-            { key: 'B105', label: 'Presion maxima en la pantalla del muro', symbol: 'Samx_pantalla', unit: 'kg/m²' },
-            { key: 'B106', label: '', symbol: 'Samx_cimen', unit: 'kg/m²' },
-            { key: 'B107', label: 'Presion cota final del muro', symbol: 'Smax', unit: 'kg/m²' },
-            { key: 'B108', label: 'Empuje del terreno', symbol: 'P', unit: 'kg/m' },
-            { key: 'B109', label: 'Empuje vertical del terreno', symbol: 'Pv', unit: 'kg/m' },
-            { key: 'B110', label: 'Empuje horizaontal del terreno', symbol: 'Ph', unit: 'kg/m' },
+            { key: 'B104', label: 'Presion cota cero', symbol: 'Smin', unit: 'tn/m²' },
+            { key: 'B105', label: 'Presion maxima en la pantalla del muro', symbol: 'Samx_pantalla', unit: 'tn/m²' },
+            { key: 'B106', label: '', symbol: 'Samx_cimen', unit: 'tn/m²' },
+            { key: 'B107', label: 'Presion cota final del muro', symbol: 'Smax', unit: 'tn/m²' },
+            { key: 'B108', label: 'Empuje del terreno', symbol: 'P', unit: 'tn/m' },
+            { key: 'B109', label: 'Empuje vertical del terreno', symbol: 'Pv', unit: 'tn/m' },
+            { key: 'B110', label: 'Empuje horizaontal del terreno', symbol: 'Ph', unit: 'tn/m' },
 
-            { key: 'B112', label: '', symbol: 'Smax', unit: 'kg/m²' },
-            { key: 'B113', label: '', symbol: 'P', unit: 'kg/m' },
-            { key: 'B114', label: '', symbol: 'Pv', unit: 'kg/m' },
-            { key: 'B115', label: '', symbol: 'Ph', unit: 'kg/m' },
+            { key: 'B112', label: '', symbol: 'Smax', unit: 'tn/m²' },
+            { key: 'B113', label: '', symbol: 'P', unit: 'tn/m' },
+            { key: 'B114', label: '', symbol: 'Pv', unit: 'tn/m' },
+            { key: 'B115', label: '', symbol: 'Ph', unit: 'tn/m' },
         ],
 
         empujeActivoParams: [
             { key: 'B119', label: '', symbol: 'H', unit: '' },
-            { key: 'B120', label: 'presion cota cero', symbol: 'Smin', unit: 'kg/m²' },
-            { key: 'B121', label: 'presion cota final del muro', symbol: 'Smax', unit: 'kg/m²' },
+            { key: 'B120', label: 'presion cota cero', symbol: 'Smin', unit: 'tn/m²' },
+            { key: 'B121', label: 'presion cota final del muro', symbol: 'Smax', unit: 'tn/m²' },
             { key: 'B122', label: 'presion maxima en la pantalla del muro', symbol: 'Smax_pantalla', unit: '' },
-            { key: 'B123', label: 'Empuje del terreno', symbol: 'P', unit: 'kg/m' },
-            { key: 'B124', label: 'empuje vertical del terreno', symbol: 'Pv', unit: 'kg/m' },
-            { key: 'B125', label: 'empuje horizaontal del terreno', symbol: 'Ph', unit: 'kg/m' },
+            { key: 'B123', label: 'Empuje del terreno', symbol: 'P', unit: 'tn/m' },
+            { key: 'B124', label: 'empuje vertical del terreno', symbol: 'Pv', unit: 'tn/m' },
+            { key: 'B125', label: 'empuje horizaontal del terreno', symbol: 'Ph', unit: 'tn/m' },
 
-            { key: 'B127', label: '', symbol: 'Smax', unit: 'kg/m²' },
-            { key: 'B128', label: '', symbol: 'P', unit: 'kg/m' },
-            { key: 'B129', label: '', symbol: 'Pv', unit: 'kg/m' },
-            { key: 'B130', label: '', symbol: 'Ph', unit: 'kg/m' },
+            { key: 'B127', label: '', symbol: 'Smax', unit: 'tn/m²' },
+            { key: 'B128', label: '', symbol: 'P', unit: 'tn/m' },
+            { key: 'B129', label: '', symbol: 'Pv', unit: 'tn/m' },
+            { key: 'B130', label: '', symbol: 'Ph', unit: 'tn/m' },
         ],
 
         empujeSobrecargaParams: [
-            { key: 'B133', label: 'presion cota cero', symbol: 'Smin', unit: 'kg/m²' },
-            { key: 'B134', label: 'presion cota final del muro', symbol: 'Smax', unit: 'kg/m²' },
+            { key: 'B133', label: 'presion cota cero', symbol: 'Smin', unit: 'tn/m²' },
+            { key: 'B134', label: 'presion cota final del muro', symbol: 'Smax', unit: 'tn/m²' },
             { key: 'B135', label: 'presion maxima en la pantalla del muro', symbol: 'Smax_pantalla', unit: '' },
-            { key: 'B136', label: 'Empuje del terreno', symbol: 'P', unit: 'kg/m' },
-            { key: 'B137', label: 'empuje vertical del terreno', symbol: 'Pv', unit: 'kg/m' },
-            { key: 'B138', label: 'empuje horizaontal del terreno', symbol: 'Ph', unit: 'kg/m' }
+            { key: 'B136', label: 'Empuje del terreno', symbol: 'P', unit: 'tn/m' },
+            { key: 'B137', label: 'empuje vertical del terreno', symbol: 'Pv', unit: 'tn/m' },
+            { key: 'B138', label: 'empuje horizaontal del terreno', symbol: 'Ph', unit: 'tn/m' }
         ],
 
         cargaSismicos: [
@@ -130,13 +132,26 @@ export function Cargas() {
             return null;
         },
 
+        get diagramaEmpujes() {
+            if (!this.predimData) return '';
+            const geometria = wallGeometry(this.predimData.inputValues, this.materiales);
+            const altura = this.getValue('B119');
+            return loadDiagramSVG(geometria, {
+                H: altura,
+                activeForce: this.getValue('B125'), activeStress: this.getValue('B121'), activeArm: this.getValue('E172'),
+                surchargeForce: this.getValue('B138'), surchargeStress: this.getValue('B134'), surchargeArm: altura / 2,
+                seismicForce: this.getValue('C160'), seismicArm: this.getValue('C162'),
+                passiveForce: this.getValue('B110'), passiveStress: this.getValue('B107'), passiveArm: this.getValue('E175'),
+            });
+        },
+
         init() {
             //console.log('🔄 Inicializando módulo de Cargas...');
             this.configurarEventos();
             // Si hay datos en el store global al iniciar, los procesamos.
             const initialDimData = Alpine.store('systemState').resultadosDimensionamiento;
             if (Alpine.store('systemState').dimensionamientoCompleto && initialDimData) {
-                this.handleDimensionamientoData({ detail: { resultados: initialDimData } });
+                this.handleDimensionamientoData({ detail: initialDimData });
             }
         },
 
@@ -173,6 +188,8 @@ export function Cargas() {
                     resultados: event.detail.resultados || {},
                     errors: Array.isArray(event.detail.errors) ? event.detail.errors : []
                 };
+
+                this.materiales = event.detail.predimData?.inputValues || {};
 
                 this.calcularResultados();
             } catch (error) {

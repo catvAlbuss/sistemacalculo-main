@@ -1,21 +1,8 @@
-<x-app-layout>
-    <x-header title="Cimentacion 2.0"></x-header>
-    @pushOnce('styles')
-        <link href="https://netdna.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.css" rel="stylesheet">
-    @endpushOnce
-
-    <div class="py-2">
-        <div class="mx-auto w-full">
-            <div class="">
-                <!-- Formulario -->
-                <div class="w-full">
-                    <div class="rounded-lg bg-white p-6 shadow-md dark:bg-gray-800">
-                        <div class="mb-5">
-                            <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200">Datos Generales</h3>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">Define los parametros, importa
-                                reacciones, selecciona 3 combos y luego completa coordenadas.</p>
-                        </div>
-                        <form id="zapatas2Form" class="space-y-6">
+<x-sheets.workbench sheet="cimentacion-v2" title="Cimentación v2" entry="resources/js/adm_safecito.js" eyebrow="Herramientas de ingeniería / Cimentaciones" class="analysis-sheet analysis-wide" data-analysis-sheet
+ description="Importa las reacciones y coordenadas, selecciona las combinaciones de carga y revisa la geometría de la cimentación en el editor antes del análisis.">
+ @pushOnce('styles')<link href="https://netdna.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.css" rel="stylesheet">@endpushOnce
+ <x-sheets.panel title="Datos e importación" number="01" description="Completa los parámetros e importa primero las reacciones; después selecciona tres combinaciones y carga las coordenadas.">
+  <div class="analysis-import sheet-legacy"><form id="zapatas2Form" class="space-y-6">
                             @csrf
                             <div
                                 class="grid gap-4 lg:grid-cols-[minmax(160px,1fr)_minmax(220px,1fr)_minmax(320px,1.25fr)]">
@@ -189,25 +176,11 @@
                                     class="w-full rounded border-b-4 border-blue-700 bg-blue-500 px-4 py-3 text-sm font-bold text-white hover:border-blue-500 hover:bg-blue-400"
                                     id="generarPDF" type="button">PDF</button>
                             </div>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Resultados -->
-                <div class="mt-4 w-full px-4">
-                    <div class="rounded-lg bg-white p-6 shadow-md dark:bg-gray-800">
-                        <h3 class="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">Resultados</h3>
-
-                        <div class="overflow-x-auto" id="resultados">
-                            <table class="min-w-full text-gray-800 dark:text-white">
-                                <thead>
-                                    <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                                        <th class="px-4 py-2 text-left text-xl" colspan="4">1.- Analisis
-                                            Estructural
-                                        </th>
-                                    </tr>
-                                    <tr class="bg-gray-100 dark:bg-gray-600">
-                                        <td class="px-4 py-2" id="plot" colspan="4">
+                        </form></div>
+ </x-sheets.panel>
+ <section id="resultados" class="arco-results analysis-results" aria-label="Geometría y resultados de cimentación">
+  <x-sheets.panel title="Editor de cimentación" number="02" description="Revisa los puntos y contornos. Utiliza las herramientas de dibujo y calcula los resultados cuando la geometría esté lista.">
+   <div id="plot" class="analysis-editor sheet-legacy">
                                             <!-- GUI -->
                                             <div>
                                                 <form>
@@ -309,52 +282,14 @@
                                                     class="mt-2 rounded border-b-4 border-blue-700 bg-blue-500 px-4 py-2 font-bold text-white hover:border-blue-500 hover:bg-blue-400"
                                                     type="submit">CALCULAR</button>
                                             </form>
-                                        </td>
-                                    </tr>
-                                </thead>
-                                <tbody id="polygons">
-                                </tbody>
-                                <tbody id="graficos">
-                                    <tr class="bg-gray-100 dark:bg-gray-600">
-                                        <td class="px-4 py-2" colspan="4">
-                                            <div id="zapata1"></div>
-                                        </td>
-                                    </tr>
-                                    <tr class="bg-gray-100 dark:bg-gray-600">
-                                        <td class="px-4 py-2" colspan="4">
-                                            <div id="zapata2"></div>
-                                        </td>
-                                    </tr>
-                                    <tr class="bg-gray-100 dark:bg-gray-600">
-                                        <td class="px-4 py-2" colspan="4">
-                                            <div id="zapata3"></div>
-                                        </td>
-                                    </tr>
-                                    <tr class="bg-gray-100 dark:bg-gray-600">
-                                        <td class="px-4 py-2" colspan="4">
-                                            <div id="zapata4"></div>
-                                        </td>
-                                    </tr>
-                                    <tr class="bg-gray-100 dark:bg-gray-600">
-                                        <td class="px-4 py-2" colspan="4">
-                                            <div id="zapata5"></div>
-                                        </td>
-                                    </tr>
-                                    <tr class="bg-gray-100 dark:bg-gray-600">
-                                        <td class="px-4 py-2" colspan="4">
-                                            <div id="zapata6"></div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    @pushOnce('scripts')
-        <script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
-        @vite('resources/js/adm_safecito.js')
-    @endPushOnce
-</x-app-layout>
+                                        </div>
+  </x-sheets.panel>
+  <x-sheets.panel title="Propiedades de los polígonos" number="03" description="Resumen de la geometría utilizada en el análisis.">
+   <div class="analysis-table-scroll"><table class="sheet-data-table"><tbody id="polygons"></tbody></table></div>
+  </x-sheets.panel>
+  <x-sheets.panel title="Resultados por combinación" number="04" description="Distribución de presiones y verificaciones de las combinaciones analizadas.">
+   <div class="analysis-table-scroll"><table class="sheet-data-table"><tbody id="graficos">@foreach(range(1,6) as $index)<tr><td><div id="zapata{{ $index }}" class="analysis-plot"></div></td></tr>@endforeach</tbody></table></div>
+  </x-sheets.panel>
+ </section>
+ @pushOnce('scripts')<script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>@endpushOnce
+</x-sheets.workbench>

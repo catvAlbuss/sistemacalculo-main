@@ -5,6 +5,7 @@
     'auto' => false,
     'legacy' => false,
     'mathjax' => false,
+    'art' => null,
 ])
 {{-- entry:   módulo JS de la hoja. Las hojas Alpine registran su componente en 'initscripts' y no lo pasan.
      auto:    el estado de resultados lo gestiona sheets/auto.js (motores que no usan createSheetState).
@@ -16,7 +17,7 @@
     <script>window.RZ_AUTH_USER_ID = @json(auth()->id() ?? 'guest');</script>
     <div {{ $attributes->class(['engineering-surface arco-sheet beam-sheet']) }} data-sheet="{{ $sheet }}" @if($auto) data-sheet-auto @endif>
         <div class="pr-shell">
-            <x-engineering-header :eyebrow="$eyebrow" :title="$title" :description="$description" />
+            <x-engineering-header :eyebrow="$eyebrow" :title="$title" :description="$description" :art="$art" />
             @if($legacy)
                 <div class="sheet-legacy">{{ $slot }}</div>
             @else

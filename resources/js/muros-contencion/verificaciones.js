@@ -1,3 +1,5 @@
+import { pressureChartTheme, observePressureChart } from './chartPresentation.js';
+import { readPlotPalette } from '../sheets/plotTheme.js';
 import { ValidationManager } from './utils/validation.js';
 import { NotificationManager } from './utils/notifications.js';
 import { event } from 'jquery';
@@ -48,18 +50,38 @@ export function Verificaciones() {
         init() {
             //console.log('🔄 Inicializando módulo de vERIFICACIONES...');
             this.configurarEventos();
+            this.observarVisibilidadTablas();
             // Si hay datos en el store global al iniciar, los procesamos.
             const initialDimData = Alpine.store('systemState').resultadosDimensionamiento;
             if (Alpine.store('systemState').dimensionamientoCompleto && initialDimData) {
-                this.handleDimensionamientoData({ detail: { resultados: initialDimData } });
+                this.handleDimensionamientoData({ detail: initialDimData });
             }
             this.$nextTick(() => {
                 this.graficover();
+                // Al recargar, memoria y análisis se registran después de este init.
+                if (Object.keys(this.datosCalculados).length) this.enviarDatosVerificaciones();
             });
         },
 
         configurarEventos() {
             document.addEventListener('dimensionamiento-calculated', (event) => this.handleDimensionamientoData(event));
+        },
+
+        // Tabulator no puede medir columnas dentro de un x-show oculto: se reconstruye al mostrarse.
+        observarVisibilidadTablas() {
+            const reconstruir = () => this.$nextTick(() => {
+                if (this.activeTab !== 'verificaciones' || !Object.keys(this.datosCalculados).length) return;
+                this.createTableCombinacionCargas();
+                this.createTableEstabilidadVolteo();
+                this.createTableEstabilidadDeslizamiento();
+                this.createTablePresionesAdmisibles();
+                this.chartInstance?.resize();
+            });
+            ['activeTab', 'showCombinacioncargas', 'showEstabilidadVolteo', 'showEstabilidadDeslizamiento',
+                'showpresionesAdmisibles', 'showGrafico'].forEach(propiedad => this.$watch(propiedad, reconstruir));
+            window.addEventListener('resize', () => {
+                if (this.activeTab === 'verificaciones') Object.values(this.tableInstances).forEach(table => table.redraw(true));
+            });
         },
 
         handleDimensionamientoData(event) {
@@ -449,9 +471,6 @@ export function Verificaciones() {
                 pagination: false,
                 columns: this.getBaseColumns(),
                 cssClass: "tabulator-modern",
-                spreadsheet: true,
-                spreadsheetRows: 17,
-                spreadsheetColumns: 40,
                 editTriggerEvent: "dblclick",
                 editorEmptyValue: undefined,
                 selectable: true,
@@ -526,20 +545,18 @@ export function Verificaciones() {
 
             this.tableInstances[tableKey] = new Tabulator(container, {
                 data: tableData,
-                layout: "fitDataFill",
+                layout: "fitColumns",
                 //responsiveLayout: "hide",
                 pagination: false,
                 columns: [
-                    { title: "Componente", field: "description", cssClass: "text-left font-medium", headerSort: false },
-                    { title: "COMB1", field: "comb1", cssClass: "text-center", formatter: "number", formatterParams: { precision: 4 }, visible: this.predimData?.inputValues?.D35 ?? true },
-                    { title: "COMB2", field: "comb2", cssClass: "text-center", formatter: "number", formatterParams: { precision: 4 }, visible: this.predimData?.inputValues?.D36 ?? true },
-                    { title: "COMB3", field: "comb3", cssClass: "text-center", formatter: "number", formatterParams: { precision: 4 }, visible: this.predimData?.inputValues?.D37 ?? true },
-                    { title: "COMB4", field: "comb4", cssClass: "text-center", formatter: "number", formatterParams: { precision: 4 }, visible: this.predimData?.inputValues?.D38 ?? true },
-                    { title: "COMB5", field: "comb5", cssClass: "text-center font-semibold text-blue-600", formatter: "number", formatterParams: { precision: 4 }, visible: this.predimData?.inputValues?.D39 ?? true },
+                    { title: "Componente", field: "description", cssClass: "text-left font-medium", headerSort: false, minWidth: 150 },
+                    { title: "COMB1", field: "comb1", cssClass: "text-center", hozAlign: "right", headerHozAlign: "right", minWidth: 90, visible: this.predimData?.inputValues?.D35 ?? true },
+                    { title: "COMB2", field: "comb2", cssClass: "text-center", hozAlign: "right", headerHozAlign: "right", minWidth: 90, visible: this.predimData?.inputValues?.D36 ?? true },
+                    { title: "COMB3", field: "comb3", cssClass: "text-center", hozAlign: "right", headerHozAlign: "right", minWidth: 90, visible: this.predimData?.inputValues?.D37 ?? true },
+                    { title: "COMB4", field: "comb4", cssClass: "text-center", hozAlign: "right", headerHozAlign: "right", minWidth: 90, visible: this.predimData?.inputValues?.D38 ?? true },
+                    { title: "COMB5", field: "comb5", cssClass: "text-center font-semibold text-blue-600", hozAlign: "right", headerHozAlign: "right", minWidth: 90, visible: this.predimData?.inputValues?.D39 ?? true },
                 ],
                 cssClass: "tabulator-modern",
-                height: "400px",
-                layout: "fitDataFill",
             });
             //console.log(`Tabla ${tableName} creada con datos:`, tableData);
         },
@@ -780,7 +797,11 @@ export function Verificaciones() {
             const series = [];
             const colores = ['#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b'];
 
+            const qadm = parseFloat(this.predimData?.inputValues?.B10) || 0;
+            const elegidas = combinaciones.filter((_, index) => this.predimData?.inputValues?.[`D${35 + index}`]);
+
             combinaciones.forEach((comb, index) => {
+                if (elegidas.length && !elegidas.includes(comb)) return;
                 const s1 = parseFloat(filaS1[comb]?.replace(/,/g, '')) || 0;
                 const s2 = parseFloat(filaS2[comb]?.replace(/,/g, '')) || 0;
 
@@ -809,6 +830,16 @@ export function Verificaciones() {
                 });
             });
 
+            if (qadm && series.length) {
+                series[0].markLine = {
+                    silent: true,
+                    symbol: 'none',
+                    lineStyle: { color: '#b42318', type: 'dashed', width: 1.5 },
+                    label: { formatter: `q adm = ${qadm.toFixed(2)} t/m²`, position: 'insideStartTop', color: '#b42318' },
+                    data: [{ yAxis: -qadm }]
+                };
+            }
+
             // Configuración del gráfico
             const option = {
                 title: {
@@ -830,14 +861,14 @@ export function Verificaciones() {
                     }
                 },
                 legend: {
-                    data: combinaciones.map((_, i) => `Comb ${i + 1}`),
-                    bottom: 10
+                    data: series.map(serie => serie.name),
+                    top: 30
                 },
                 grid: {
-                    left: '3%',
-                    right: '4%',
-                    bottom: '15%',
-                    containLabel: true
+                    left: 64,
+                    right: 28,
+                    top: 70,
+                    bottom: 56
                 },
                 xAxis: {
                     type: 'value',
@@ -864,6 +895,7 @@ export function Verificaciones() {
                     name: 'Presión (t/m²)',
                     nameLocation: 'middle',
                     nameGap: 40,
+                    min: qadm ? -Math.ceil(qadm * 1.1) : undefined,
                     axisLine: {
                         lineStyle: {
                             color: '#666'
@@ -881,24 +913,7 @@ export function Verificaciones() {
                         type: 'line'
                     }
                 },
-                series: series,
-                // Agregar línea de referencia en y=0
-                graphic: {
-                    elements: [{
-                        type: 'line',
-                        shape: {
-                            x1: 0,
-                            y1: 0,
-                            x2: B,
-                            y2: 0
-                        },
-                        style: {
-                            stroke: '#333',
-                            lineWidth: 1,
-                            lineDash: [5, 5]
-                        }
-                    }]
-                }
+                series: series
             };
 
             // Inicializar o actualizar el gráfico
@@ -911,13 +926,9 @@ export function Verificaciones() {
 
                 // Actualizar gráfico
                 this.chartInstance.setOption(option, true);
+                this.chartInstance.setOption(pressureChartTheme(readPlotPalette(chartContainer)));
+                observePressureChart(this.chartInstance, chartContainer);
 
-                // Redimensionar gráfico cuando cambie el tamaño de ventana
-                window.addEventListener('resize', () => {
-                    if (this.chartInstance) {
-                        this.chartInstance.resize();
-                    }
-                });
             } else {
                 console.error('No se encontró el contenedor del gráfico con ID: presionesChart');
             }

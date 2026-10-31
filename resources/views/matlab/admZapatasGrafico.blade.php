@@ -1,160 +1,57 @@
-<x-app-layout>
-  <x-header title="Cimentacion 1.0"></x-header>
-
-  <div class="py-12">
-    <div class="container mx-auto w-full">
-      <div class="flex flex-wrap">
-        <!-- Formulario -->
-        <div class="w-full md:w-1/3">
-          <div class="rounded-lg bg-white p-6 shadow-md dark:bg-gray-800">
-            <h3 class="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">Datos Generales</h3>
-            <div class="overflow-auto">
-              <form id="zapatasForm">
-                @csrf
-                <table class="w-full table-auto px-6 text-gray-800 dark:text-white">
-                  <tbody class="text-center">
-                    <tr>
-                      <th class="border-b border-gray-600 px-4 py-2 text-left text-xl" colspan="4" scope="col">
-                        Cargas</th>
-                    </tr>
-                    <tr class="bg-white dark:bg-gray-800">
-                      <td class="px-4 py-2" colspan="4">
-                        <div id="cargas"></div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <th class="border-b border-gray-600 px-4 py-2 text-left text-xl" colspan="4" scope="col">
-                        Propiedades</th>
-                    </tr>
-                    <tr class="bg-white dark:bg-gray-800">
-                      <td class="px-4 py-2" colspan="4">
-                        <div id="propiedades"></div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <th class="border-b border-gray-600 px-4 py-2 text-left text-xl" colspan="4" scope="col">
-                        Poligono</th>
-                    </tr>
-                    <tr class="bg-white dark:bg-gray-800">
-                      <td class="px-4 py-2">
-                        <div id="poligonoExterior"></div>
-                      </td>
-                      <td class="px-4 py-2">
-                        <div id="poligonoInterior1"></div>
-                      </td>
-                    </tr>
-                    <tr class="bg-white dark:bg-gray-800">
-                      <td class="px-4 py-2">
-                        <div id="poligonoInterior2"></div>
-                      </td>
-                      <td class="px-4 py-2">
-                        <div id="poligonoInterior3"></div>
-                      </td>
-                    </tr>
-                    <tr class="bg-white dark:bg-gray-800">
-                      <td class="px-4 py-2">
-                        <div id="poligonoInterior4"></div>
-                      </td>
-                      <td class="px-4 py-2">
-                        <div id="poligonoInterior5"></div>
-                      </td>
-                    </tr>
-                    <!-- Agregar más filas según sea necesario -->
-                    <tr>
-                      <th class="px-4 py-2">
-                        <div class="input-group mb-2 inline-block text-left">
-                          <button
-                            class="rounded border-b-4 border-blue-700 bg-blue-500 px-4 py-2 font-bold text-white hover:border-blue-500 hover:bg-blue-400"
-                            id="calcular" type="submit">DISEÑAR</button>
-                        </div>
-                        <div class="input-group mb-2 inline-block text-left">
-                          <button
-                            class="rounded border-b-4 border-blue-700 bg-blue-500 px-4 py-2 font-bold text-white hover:border-blue-500 hover:bg-blue-400"
-                            id="generarPDF" type="button">PDF</button>
-                        </div>
-                      </th>
-                    </tr>
-                  </tbody>
-                </table>
-              </form>
+<x-sheets.workbench sheet="cimentacion-v1" title="Cimentación v1" entry="resources/js/adm_zapatas_grafico.js"
+    eyebrow="Herramientas de ingeniería / Cimentaciones" class="analysis-sheet foundation-compact" data-analysis-sheet
+    description="Organiza las cargas, las propiedades y los contornos de la cimentación. Revisa los resultados gráficos del análisis y genera el reporte.">
+    <x-sheets.panel title="Datos generales" number="01"
+        description="Tablas compactas de cargas, propiedades y coordenadas." class="arco-input-panel">
+        <form id="zapatasForm">
+            @csrf
+            <div class="foundation-input-grid">
+                <x-sheets.section title="Cargas" note="Solicitaciones aplicadas a la cimentación."
+                    class="foundation-input-card">
+                    <div id="cargas" class="analysis-matrix"></div>
+                </x-sheets.section>
+                <x-sheets.section title="Propiedades" note="Área, inercias y profundidad de desplante."
+                    class="foundation-input-card">
+                    <div id="propiedades" class="analysis-matrix"></div>
+                </x-sheets.section>
+                <x-sheets.section title="Contorno exterior"
+                    note="Ejemplo triangular con tres vértices. Edita las coordenadas o añade filas con +."
+                    class="foundation-input-card">
+                    <div id="poligonoExterior" class="analysis-matrix"></div>
+                </x-sheets.section>
+                @foreach (range(1, 5) as $index)
+                    <x-sheets.section title="Interior {{ $index }}"
+                        note="Hueco opcional: actívalo solo si forma parte de tu cimentación."
+                        class="foundation-input-card">
+                        <label class="foundation-hole-toggle" for="usarInterior{{ $index }}"><input
+                                id="usarInterior{{ $index }}" type="checkbox"
+                                data-polygon-toggle="poligonoInterior{{ $index }}">Usar este contorno
+                            interior</label>
+                        <div id="poligonoInterior{{ $index }}" class="analysis-matrix"></div>
+                    </x-sheets.section>
+                @endforeach
             </div>
-          </div>
-        </div>
-
-        <!-- Resultados -->
-        <div class="mt-4 w-full px-4 md:mt-0 md:w-2/3">
-          <div class="rounded-lg bg-white p-6 shadow-md dark:bg-gray-800">
-            <h3 class="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">Resultados</h3>
-            <div class="overflow-x-auto" id="resultados">
-              <table class="min-w-full text-gray-800 dark:text-white">
-                <tr class="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                  <th class="px-4 py-2 text-left text-xl" colspan="4">1.- Analisis Estructural
-                  </th>
-                </tr>
-                <tr class="bg-gray-100 dark:bg-gray-600">
-                  <td class="px-4 py-2" colspan="4">
-                    <div id="zapata1"></div>
-                  </td>
-                </tr>
-                <tr class="bg-gray-100 dark:bg-gray-600">
-                  <td class="px-4 py-2" colspan="4">
-                    <div id="zapata2"></div>
-                  </td>
-                </tr>
-                <tr class="bg-gray-100 dark:bg-gray-600">
-                  <td class="px-4 py-2" colspan="4">
-                    <div id="zapata3"></div>
-                  </td>
-                </tr>
-                <tr class="bg-gray-100 dark:bg-gray-600">
-                  <td class="px-4 py-2" colspan="4">
-                    <div id="zapata4"></div>
-                  </td>
-                </tr>
-                <tr class="bg-gray-100 dark:bg-gray-600">
-                  <td class="px-4 py-2" colspan="4">
-                    <div id="zapata5"></div>
-                  </td>
-                </tr>
-                <tr class="bg-gray-100 dark:bg-gray-600">
-                  <td class="px-4 py-2" colspan="4">
-                    <div id="zapata6"></div>
-                  </td>
-                </tr>
-                <tr class="bg-gray-100 dark:bg-gray-600">
-                  <td class="px-4 py-2" colspan="4">
-                    <div id="zapata7"></div>
-                  </td>
-                </tr>
-                <tr class="bg-gray-100 dark:bg-gray-600">
-                  <td class="px-4 py-2" colspan="4">
-                    <div id="zapata8"></div>
-                  </td>
-                </tr>
-                <tr class="bg-gray-100 dark:bg-gray-600">
-                  <td class="px-4 py-2" colspan="4">
-                    <div id="zapata9"></div>
-                  </td>
-                </tr>
-                <tr class="bg-gray-100 dark:bg-gray-600">
-                  <td class="px-4 py-2" colspan="4">
-                    <div id="zapata10"></div>
-                  </td>
-                </tr>
-                <tr class="bg-gray-100 dark:bg-gray-600">
-                  <td class="px-4 py-2" colspan="4">
-                    <div id="zapata11"></div>
-                  </td>
-                </tr>
-              </table>
+            <div class="foundation-entry-note arco-note">Datos de ejemplo editables: todos los contornos incluyen tres
+                vértices válidos. El área y las inercias iniciales corresponden al exterior sin huecos. Sustituye estos
+                datos por los de tu proyecto; si activas interiores o cambias la geometría, actualiza también sus
+                propiedades. Los interiores desactivados no se incluyen en el cálculo.</div>
+            <div class="arco-calculate analysis-actions">
+                <button class="pr-button" id="calcular" type="submit">Calcular cimentación <span
+                        aria-hidden="true">→</span></button>
+                <button class="pr-button pr-button-secondary" id="generarPDF" type="button">Exportar reporte</button>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  @pushOnce('scripts')
-    <script src="https://unpkg.com/virtual-webgl@1.0.6/src/virtual-webgl.js"></script>
-    @vite('resources/js/adm_zapatas_grafico.js')
-  @endpushOnce
-</x-app-layout>
+        </form>
+    </x-sheets.panel>
+    <section id="resultados" class="arco-results analysis-results" aria-label="Resultados del análisis de cimentación">
+        <x-sheets.panel title="Resultados del análisis" number="02"
+            description="Calcula la cimentación para consultar las distribuciones de presión por combinación de carga.">
+            <p class="analysis-result-block arco-note">Los gráficos se organizan automáticamente según los resultados
+                disponibles.</p>
+        </x-sheets.panel>
+        @foreach (range(1, 11) as $index)
+            <x-sheets.panel title="Combinación {{ $index }}" :number="str_pad($index + 2, 2, '0', STR_PAD_LEFT)" class="analysis-combinations">
+                <div id="zapata{{ $index }}" class="analysis-plot"></div>
+            </x-sheets.panel>
+        @endforeach
+    </section>
+</x-sheets.workbench>

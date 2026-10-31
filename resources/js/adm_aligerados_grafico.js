@@ -1,3 +1,4 @@
+import "./sheets/analysis.js";
 import { createFlexionModel, bindFlexionDiagram } from "./aligerados-flexion.js";
 import { read as readmat } from "mat-for-js";
 import { createSpreeadSheetTable } from "./tabulator_base/table_factory.js";

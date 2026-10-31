@@ -2,6 +2,7 @@
 
 import { CONTENT_STRUCTURE } from './word/content-structure.js';
 import { ContentProcessor } from './word/content-processor.js';
+import { NotificationManager } from './utils/notifications.js';
 
 export function memoriacalculo() {
     return {
@@ -41,7 +42,7 @@ export function memoriacalculo() {
             // Si hay datos en el store global al iniciar, los procesamos.
             const initialDimData = Alpine.store('systemState').resultadosDimensionamiento;
             if (Alpine.store('systemState').dimensionamientoCompleto && initialDimData) {
-                this.handleDimensionamientoData({ detail: { resultados: initialDimData } });
+                this.handleDimensionamientoData({ detail: initialDimData });
             }
         },
 
@@ -53,6 +54,11 @@ export function memoriacalculo() {
                 this.getVerificationMethods(),
                 this.getReinforcementMethods()
             );
+        },
+
+        tresDecimales(valor) {
+            const numero = parseFloat(valor);
+            return Number.isFinite(numero) ? numero.toFixed(3) : valor;
         },
 
         // Estructurar los datos para el procesador
@@ -67,12 +73,12 @@ export function memoriacalculo() {
                     fecha: this.datosdim.fecha
                 },
                 geometria: {
-                    altura: this.predimData?.inputValues.B21 || 3.15,
-                    adm: this.predimData?.inputValues.B10 || 18.40,
-                    punta: this.predimData?.inputValues.D45 || 0.25,
-                    bpantalla: this.predimData?.inputValues.D47 || 10,
-                    pzapata: this.predimData?.inputValues.D49 || 10,
-                    azapata: this.predimData?.inputValues.D51 || 0.7,
+                    altura: this.predimData?.inputValues?.B21 || 3.15,
+                    adm: this.predimData?.inputValues?.B10 || 18.40,
+                    punta: this.predimData?.inputValues?.D45 || 0.25,
+                    bpantalla: this.predimData?.inputValues?.D47 || 10,
+                    pzapata: this.predimData?.inputValues?.D49 || 10,
+                    azapata: this.predimData?.inputValues?.D51 || 0.7,
 
                     ancho_base: this.predimData?.ancho_base || 2.1,
                     espesor_pantalla: this.predimData?.espesor_pantalla || 0.25,
@@ -81,19 +87,19 @@ export function memoriacalculo() {
                     ancho_punta: this.predimData?.ancho_punta || 0.45
                 },
                 materiales: {
-                    yc: this.predimData?.inputValues.B6 || 2.4, // kg/cm²
-                    ys: this.predimData?.inputValues.B11 || 1, // kg/cm²
-                    fc: this.predimData?.inputValues.B8 || 210, // kg/cm²
-                    fy: this.predimData?.inputValues.B7 || 4200, // kg/cm²
-                    B12: this.predimData?.inputValues.B12 || 26.30, //TETA
-                    B13: this.predimData?.inputValues.B13 || 26.30, //COHESION
-                    B20: this.predimData?.inputValues.B20 || 12, //Angulo talud
+                    yc: this.predimData?.inputValues?.B6 || 2.4, // kg/cm²
+                    ys: this.predimData?.inputValues?.B11 || 1, // kg/cm²
+                    fc: this.predimData?.inputValues?.B7 || 210, // kg/cm²
+                    fy: this.predimData?.inputValues?.B8 || 4200, // kg/cm²
+                    B12: this.predimData?.inputValues?.B12 || 26.30, //TETA
+                    B13: this.predimData?.inputValues?.B13 || 26.30, //COHESION
+                    B20: this.predimData?.inputValues?.B20 || 12, //Angulo talud
 
                     //cargas
-                    B98: this.datosDimensionamiento?.B98,
-                    B99: this.datosDimensionamiento?.B99,
-                    B100: this.datosDimensionamiento?.B100,
-                    B101: this.datosDimensionamiento?.B101,
+                    B98: this.tresDecimales(this.datosDimensionamiento?.B98),
+                    B99: this.tresDecimales(this.datosDimensionamiento?.B99),
+                    B100: this.tresDecimales(this.datosDimensionamiento?.B100),
+                    B101: this.tresDecimales(this.datosDimensionamiento?.B101),
                 },
                 verificaciones: this.datosverificacion.datosCalculados,
                 suelo: {
@@ -590,6 +596,7 @@ export function memoriacalculo() {
         exportData() {
             if (!this.isComplete) {
                 this.addError('incomplete_data', 'Complete todos los campos requeridos antes de exportar');
+                NotificationManager.showWarning('Faltan datos para exportar', 'Completa el proyecto y sube al menos una imagen.');
                 return;
             }
 
@@ -599,61 +606,16 @@ export function memoriacalculo() {
         },
 
         async exportWithGraphicsReady() {
+            await NotificationManager.showProgress('Generando memoria de cálculo', 'Preparando el documento...');
             try {
-                console.log('🔄 Iniciando exportación con verificación de gráficos...');
-
-                // 1. Verificar que ECharts esté disponible
-                if (typeof window.echarts === 'undefined') {
-                    this.addError('echarts_error', 'ECharts no está disponible. Verifique que la biblioteca esté cargada.');
-                    return;
-                }
-
-                // 2. Verificar que el elemento del gráfico exista
-                const graphElement = document.getElementById('grafico-verificaciones');
-                if (!graphElement) {
-                    console.warn('Elemento grafico-verificaciones no encontrado, continuando sin gráfico...');
-                } else {
-                    console.log('✅ Elemento gráfico encontrado, preparando...');
-
-                    // 3. Asegurar que el gráfico esté visible y renderizado
-                    graphElement.style.display = 'block';
-                    graphElement.style.visibility = 'visible';
-                    graphElement.style.opacity = '1';
-
-                    // 4. Buscar instancia de ECharts
-                    const echartsInstance = window.echarts.getInstanceByDom(graphElement);
-                    if (echartsInstance && !echartsInstance.isDisposed()) {
-                        console.log('✅ Instancia ECharts encontrada, forzando renderizado...');
-
-                        try {
-                            // Forzar redimensionado y renderizado sin bloquear la exportacion
-                            this.safeResizeECharts(echartsInstance);
-
-                            // Esperar a que termine el renderizado
-                            await new Promise(resolve => {
-                                setTimeout(() => {
-                                    console.log('✅ Renderizado completado');
-                                    resolve();
-                                }, 1000);
-                            });
-                        } catch (renderError) {
-                            console.warn('Error en renderizado ECharts:', renderError);
-                            // Continuar con la exportación
-                        }
-                    } else {
-                        console.log('No se encontró instancia ECharts válida');
-                    }
-                }
-
-                // Preparar todos los elementos para captura
-                await this.prepareElementsForCapture();
-
-                // 5. Proceder con la generación del documento
-                await this.generateDocumentWithContentProcessor();
-
+                const result = await this.generateDocumentWithContentProcessor();
+                if (result) NotificationManager.showSuccess('Memoria de cálculo generada', 'El documento Word se descargó correctamente.');
+                else NotificationManager.showError('No se pudo generar el documento', 'Revisa los errores indicados en la sección.');
+                return result;
             } catch (error) {
-                console.error('Error en exportWithGraphicsReady:', error);
-                this.addError('export_error', `Error en la exportación: ${error.message}`);
+                this.addError('export_error', `Error en la exportacion: ${error.message}`);
+                NotificationManager.showError('No se pudo generar el documento', error.message);
+                return false;
             }
         },
 
@@ -668,6 +630,7 @@ export function memoriacalculo() {
 
                 // Configurar el procesador con la biblioteca docx
                 this.contentProcessor.setDocxLibrary(docx);
+                this.contentProcessor.onProgress = texto => NotificationManager.updateProgress(texto);
 
                 // Procesar todo el contenido (el ContentProcessor maneja la captura de gráficos internamente)
                 console.log('📄 Procesando contenido del documento...');
@@ -675,6 +638,7 @@ export function memoriacalculo() {
 
                 // Generar el documento completo
                 console.log('📝 Generando documento final...');
+                await NotificationManager.updateProgress('Armando el archivo Word...');
                 const result = await this.generateCompleteDocument(processedContent);
 
                 if (result) {
@@ -763,7 +727,7 @@ export function memoriacalculo() {
 
                 // Sección 3: Contenido principal
                 documentSections.push({
-                    properties: { ...this.getPageProperties(), type: SectionType.CONTINUOUS },
+                    properties: this.getPageProperties(),
                     headers: { default: header },
                     footers: { default: footer },
                     children: processedContent
@@ -791,62 +755,8 @@ export function memoriacalculo() {
         },
 
         // Agregar este método en el objeto que retorna memoriacalculo()
-        async prepareElementsForCapture() {
-            try {
-                console.log('🔄 Preparando elementos para captura...');
-
-                // Lista de elementos a preparar
-                const elementsToCapture = [
-                    { id: 'content-pantalla', type: 'alpine' },
-                    { id: 'grafico-verificaciones', type: 'echarts' }
-                ];
-
-                for (const elementInfo of elementsToCapture) {
-                    const element = document.getElementById(elementInfo.id);
-                    if (element) {
-                        console.log(`📋 Preparando ${elementInfo.id}...`);
-
-                        if (elementInfo.type === 'alpine') {
-                            // Preparar componente Alpine.js
-                            await window.prepareElementForCapture(element);
-                            await window.expandAlpineComponent(element);
-                        } else if (elementInfo.type === 'echarts') {
-                            // Preparar gráfico ECharts
-                            await this.prepareEChartsElement(element);
-                        }
-
-                        console.log(`✅ ${elementInfo.id} preparado`);
-                    } else {
-                        console.warn(`⚠️ Elemento ${elementInfo.id} no encontrado`);
-                    }
-                }
-
-                // Esperar renderizado final
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                console.log('✅ Todos los elementos preparados');
-
-            } catch (error) {
-                console.warn('⚠️ Error preparando elementos:', error);
-            }
-        },
-
-        // Agregar método específico para ECharts
-        async prepareEChartsElement(element) {
-            try {
-                element.style.display = 'block';
-                element.style.visibility = 'visible';
-                element.style.opacity = '1';
-
-                const echartsInstance = window.echarts?.getInstanceByDom?.(element);
-                if (echartsInstance && !echartsInstance.isDisposed()) {
-                    console.log('🎨 Preparando ECharts...');
-                    this.safeResizeECharts(echartsInstance);
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                }
-            } catch (error) {
-                console.warn('Error preparando ECharts:', error);
-            }
-        },
+        async prepareElementsForCapture() {},
+        async prepareEChartsElement() {},
 
         safeResizeECharts(echartsInstance) {
             try {
@@ -1043,7 +953,6 @@ export function memoriacalculo() {
                         text: "TABLA DE CONTENIDO",
                         bold: true, font: "Arial", size: 24, color: "#000000"
                     })],
-                    heading: HeadingLevel.HEADING_1,
                     alignment: AlignmentType.CENTER,
                     spacing: { after: 1000 }
                 }),

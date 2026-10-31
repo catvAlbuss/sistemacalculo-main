@@ -1,3 +1,5 @@
+import { NotificationManager } from './utils/notifications.js';
+import { buildPlan, dxfBytes, planToDxf, planToSvg } from './plan.js';
 const TiposAceroMap = {
     // Mapeo de tipos del sistema a tipos gráficos
     'principal': 'horizontal-inferior',
@@ -123,6 +125,8 @@ export const Dibujo = () => {
         datosCalculados: {},
         isExporting: false,
         exportStatus: '',
+        vistaPlano: '',
+        escalaPlano: null,
         planos: [],
 
         // Estados principales
@@ -156,17 +160,14 @@ export const Dibujo = () => {
         init() {
             //console.log("🎨 Dibujo CAD Inicializado");
             this.configurarEventos();
+            this.$watch('activeTab', tab => {
+                if (tab === 'dibujo') this.actualizarVistaPlano();
+            });
             // Si hay datos en el store global al iniciar, los procesamos
             const systemState = Alpine.store('systemState');
             if (systemState?.dimensionamientoCompleto && systemState?.resultadosDimensionamiento) {
                 //console.log("📊 Procesando datos iniciales del store...");
-                this.handleDimensionamientoData({
-                    detail: {
-                        resultados: systemState.resultadosDimensionamiento,
-                        inputValues: systemState.inputValues || {},
-                        predimData: systemState.predimData || {}
-                    }
-                });
+                this.handleDimensionamientoData({ detail: systemState.resultadosDimensionamiento }, { silencioso: true });
             }
         },
 
@@ -180,7 +181,7 @@ export const Dibujo = () => {
             document.addEventListener('concretoArmado-updated', this.manejarConcretoArmado.bind(this));
         },
 
-        handleDimensionamientoData(event) {
+        handleDimensionamientoData(event, { silencioso = false } = {}) {
             try {
                 // Almacenar los datos recibidos
                 this.datosDimInput = event.detail.inputValues || {};
@@ -196,7 +197,7 @@ export const Dibujo = () => {
                 // Preparar datos calculados adicionales si es necesario
                 this.prepararDatosCalculados();
 
-                this.showNotification('success', 'Datos del dimensionamiento procesados correctamente. ¡Listo para exportar!');
+                if (!silencioso) this.showNotification('success', 'Datos del dimensionamiento procesados correctamente. ¡Listo para exportar!');
 
             } catch (error) {
                 console.error('❌ Error procesando datos del dimensionamiento:', error);
@@ -386,86 +387,48 @@ export const Dibujo = () => {
             return hasPreDim || hasDimInput || hasResults;
         },
 
+        // El plano se genera en el navegador: los datos del proyecto no salen de esta hoja.
+        leerPlano() {
+            const analisis = document.querySelector('[x-data^="analisisestructural"]');
+            const datos = analisis && Alpine.$data(analisis).datosPlano;
+            if (!datos) return null;
+            const memoria = document.querySelector('[x-data="memoriacalculo"]');
+            return buildPlan({ ...datos, project: memoria ? Alpine.$data(memoria).datosdim : {} });
+        },
+
+        actualizarVistaPlano() {
+            const plano = this.leerPlano();
+            this.vistaPlano = plano ? planToSvg(plano) : '';
+            this.escalaPlano = plano?.scale || null;
+        },
+
         async exportardwg() {
-            if (this.isExporting) {
-                //console.log('⏳ Exportación ya en proceso...');
-                return;
-            }
-
-            //console.log("🚀 Iniciando exportación a DXF...");
+            if (this.isExporting) return;
             this.isExporting = true;
-            this.exportStatus = 'Preparando datos...';
-
-            // Validar datos antes de exportar
-            if (!this.validateData()) {
-                this.showNotification('error', 'No hay datos válidos para exportar. Ejecuta primero el dimensionamiento.');
-                this.isExporting = false;
-                this.exportStatus = '';
-                return;
-            }
-
+            this.exportStatus = 'Generando plano...';
             try {
-                this.exportStatus = 'Enviando al servidor...';
-                const configuracionesAcero = AceroManager.extraerDatos(this.concretoArmadoData);
-                console.log("Datos de la configuracion de acero   ", configuracionesAcero);
-                // Preparar payload con todos los datos
-                const payload = {
-                    predim: this.predimData,
-                    dimen: this.datosDimInput,
-                    resultdim: this.datosResultados,
-                    concretoArmadoData: configuracionesAcero,
-                    x: 0, // Coordenada X del marco
-                    y: 0, // Coordenada Y del marco
-                    timestamp: new Date().toISOString()
-                };
-
-                // Hacer la petición al servidor
-                //const response = await fetch('http://localhost:3000/exportar', {
-                const response = await fetch('https://apinodecad.onrender.com/exportar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Error HTTP ${response.status}`);
+                await NotificationManager.showProgress('Generando plano DXF', 'Preparando la lámina A1...');
+                const plano = this.leerPlano();
+                if (!plano) {
+                    this.showNotification('error', 'No hay datos para el plano', 'Ejecuta primero el dimensionamiento.');
+                    return;
                 }
-
-                const blob = await response.blob();
+                const blob = new Blob([dxfBytes(planToDxf(plano))], { type: 'application/dxf' });
                 const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `plano_muro_${Date.now()}.dxf`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
+                const enlace = document.createElement('a');
+                enlace.href = url;
+                enlace.download = `plano_muro_${new Date().toISOString().split('T')[0]}.dxf`;
+                document.body.appendChild(enlace);
+                enlace.click();
+                enlace.remove();
                 window.URL.revokeObjectURL(url);
-
+                this.showNotification('success', 'Plano generado', `Lámina A1 a escala 1:${plano.scale}.`);
             } catch (error) {
                 console.error('❌ Error en exportación:', error);
-
-                this.exportStatus = 'Error';
-
-                // Mostrar error específico
-                let errorMessage = 'Error desconocido en la exportación.';
-
-                if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                    errorMessage = 'No se pudo conectar al servidor. Verifica que esté ejecutándose en http://localhost:3000';
-                } else if (error.message.includes('HTTP')) {
-                    errorMessage = `Error del servidor: ${error.message}`;
-                } else {
-                    errorMessage = error.message;
-                }
-
-                this.showNotification('error', errorMessage);
-
-                // Limpiar estado de error después de un momento
-                setTimeout(() => {
-                    this.exportStatus = '';
-                }, 5000);
-
+                this.showNotification('error', 'No se pudo generar el plano', error.message);
             } finally {
                 this.isExporting = false;
+                this.exportStatus = '';
             }
         },
 
@@ -544,13 +507,7 @@ export const Dibujo = () => {
         reloadFromStore() {
             const systemState = Alpine.store('systemState');
             if (systemState?.dimensionamientoCompleto) {
-                this.handleDimensionamientoData({
-                    detail: {
-                        resultados: systemState.resultadosDimensionamiento,
-                        inputValues: systemState.inputValues || {},
-                        predimData: systemState.predimData || {}
-                    }
-                });
+                this.handleDimensionamientoData({ detail: systemState.resultadosDimensionamiento }, { silencioso: true });
                 this.showNotification('success', 'Datos recargados desde el store');
             } else {
                 this.showNotification('error', 'No hay datos disponibles en el store');

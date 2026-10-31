@@ -1,33 +1,24 @@
-@pushOnce('initscripts')
-  @vite('resources/js/adm_suelos.js')
-@endPushOnce
-
-<x-calc-layout title="Distribución de Esfuerzos con la Profundidad">
-  <div class="container mx-auto flex flex-row flex-wrap items-start space-x-4 py-12 md:flex-nowrap"
-    x-data="{ q: 3, df: 1, B: 1, L: 1 }">
-    <x-input-data>
-      <form id="suelosForm">
-        @csrf
-        <x-input-calc name="Carga de terreno" :attr="['name' => 'q']" symbol="q" bind="q" unit="tn/m2"></x-input-calc>
-        <x-input-calc name="Profundidad de desplante" :attr="['name' => 'df']" symbol="df" bind="df"
-          unit="m"></x-input-calc>
-        <x-input-calc name="Ancho de la cimentación" :attr="['name' => 'B']" symbol="B" bind="B"
-          unit="m"></x-input-calc>
-        <x-input-calc name="Longitud" :attr="['name' => 'L']" symbol="L" bind="L"></x-input-calc>
-        <tr>
-          <th class="px-4 py-2 text-left" colspan="4">
-            <div class="input-group mb-2 inline-block text-left">
-              <button
-                class="rounded border-b-4 border-blue-700 bg-blue-500 px-4 py-2 font-bold text-white hover:border-blue-500 hover:bg-blue-400"
-                id="calcular" type="submit">DISEÑAR</button>
+<x-sheets.workbench sheet="distribucion-esfuerzos" title="Distribución de esfuerzos con la profundidad" entry="resources/js/adm_suelos.js"
+    eyebrow="Herramientas de ingeniería / Mecánica de suelos" class="analysis-sheet" data-analysis-sheet
+    description="Define la carga y la geometría de la cimentación. Consulta la variación del esfuerzo con la profundidad en gráficos de valores y porcentajes.">
+    <x-sheets.panel title="Datos generales" number="01" description="Carga, profundidad y dimensiones de la cimentación." class="arco-input-panel">
+        <form id="suelosForm">
+            @csrf
+            <div class="arco-fields">
+                <x-sheets.fieldset title="Carga y desplante" note="Valores utilizados en la distribución de esfuerzos.">
+                    <x-sheets.field id="q" label="Carga de terreno" symbol="q" value="3" unit="tn/m²" />
+                    <x-sheets.field id="df" label="Profundidad de desplante" symbol="Df" value="1" unit="m" />
+                </x-sheets.fieldset>
+                <x-sheets.fieldset title="Geometría de la cimentación" note="Dimensiones de la superficie cargada.">
+                    <x-sheets.field id="B" label="Ancho" symbol="B" value="1" unit="m" />
+                    <x-sheets.field id="L" label="Longitud" symbol="L" value="1" unit="m" />
+                </x-sheets.fieldset>
             </div>
-          </th>
-        </tr>
-      </form>
-    </x-input-data>
-    <x-output-data>
-      <div id="grafico1"></div>
-      <div id="grafico2"></div>
-    </x-output-data>
-  </div>
-</x-calc-layout>
+            <div class="arco-calculate analysis-actions"><button class="pr-button" id="calcular" type="submit">Calcular distribución <span aria-hidden="true">→</span></button><p class="arco-note">Actualiza los gráficos después de cambiar los datos.</p></div>
+        </form>
+    </x-sheets.panel>
+    <section class="arco-results analysis-results" aria-label="Resultados de distribución de esfuerzos">
+        <x-sheets.panel title="Incremento de esfuerzos" number="02" description="Variación del esfuerzo con la profundidad."><div id="grafico1" class="analysis-plot"></div></x-sheets.panel>
+        <x-sheets.panel title="Distribución porcentual" number="03" description="Comparación de la distribución relativa con la profundidad."><div id="grafico2" class="analysis-plot"></div></x-sheets.panel>
+    </section>
+</x-sheets.workbench>

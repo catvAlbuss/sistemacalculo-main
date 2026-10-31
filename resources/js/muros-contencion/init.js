@@ -1,4 +1,7 @@
+import { createSystemState } from './systemState.js';
 import { MainSystem } from './mainSystem.js';
+import '../../css/retaining-wall-sheet.css';
+import './capture.js';
 import { Predimensionamiento } from './predimensionamiento.js'
 import { Dimensionamiento } from './dimensionamiento.js'
 import { Cargas } from './cargas.js'
@@ -18,48 +21,11 @@ window.NotificationManager = NotificationManager;
 const registerMuros = (Alpine) => {
     console.log('🏗️ Registrando componentes de Muros de Contención...');
 
-    Alpine.store('systemState', {
-        predimensionamientoCompleto: false,
-        dimensionamientoCompleto: false,
-        resultadosPredimensionamiento: null,
-        resultadosDimensionamiento: null,
-
-        setResultadosPredimensionamiento(data) {
-            this.resultadosPredimensionamiento = data;
-            this.predimensionamientoCompleto = true;
-            this.guardarEnLocalStorage();
-        },
-
-        setResultadosDimensionamiento(data) {
-            this.resultadosDimensionamiento = data;
-            this.dimensionamientoCompleto = true;
-            this.guardarEnLocalStorage();
-        },
-
-        guardarEnLocalStorage() {
-            const data = {
-                predimensionamiento: this.resultadosPredimensionamiento,
-                dimensionamiento: this.resultadosDimensionamiento,
-                systemState: {
-                    predimensionamientoCompleto: this.predimensionamientoCompleto,
-                    dimensionamientoCompleto: this.dimensionamientoCompleto
-                }
-            };
-            localStorage.setItem('murosContencionData', JSON.stringify(data));
-            console.log('💾 Datos de muros guardados');
-        },
-
-        cargarDeLocalStorage() {
-            const storedData = localStorage.getItem('murosContencionData');
-            if (storedData) {
-                const data = JSON.parse(storedData);
-                this.resultadosPredimensionamiento = data.predimensionamiento;
-                this.resultadosDimensionamiento = data.dimensionamiento;
-                this.predimensionamientoCompleto = data.systemState?.predimensionamientoCompleto || false;
-                this.dimensionamientoCompleto = data.systemState?.dimensionamientoCompleto || false;
-                console.log('📂 Datos de muros cargados');
-            }
-        }
+    const state = createSystemState();
+    state.cargarDeLocalStorage();
+    Alpine.store('systemState', state);
+    Alpine.store('systemData', {
+        predimensionamiento: state.resultadosPredimensionamiento || {},
     });
 
     // Registrar componentes
@@ -74,20 +40,7 @@ const registerMuros = (Alpine) => {
     Alpine.data('metrado', Metrado)
     Alpine.data('memoriacalculo', memoriacalculo)
 
-    // Configurar autoguardado después de la inicialización
-    document.addEventListener('alpine:initialized', () => {
-        const store = Alpine.store('systemState');
-        if (store && typeof store.cargarDeLocalStorage === 'function') {
-            store.cargarDeLocalStorage();
-        }
 
-        setInterval(() => {
-            const systemData = Alpine?.store('systemState');
-            if (systemData && window.StorageManager) {
-                window.StorageManager.saveData(systemData);
-            }
-        }, 30000);
-    });
 };
 
 // Auto-registro si Alpine ya está disponible o cuando se inicialice

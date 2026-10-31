@@ -1,3 +1,4 @@
+import "./sheets/analysis.js";
 import { Grid } from "./safecito/grid.js";
 import { Shape, Marker, Point } from "./safecito/shapes.js";
 import { pointDistance, formatCoordinate, getMousePos } from "./safecito/utils.js";

@@ -1,0 +1,18 @@
+.beam-sheet.arco-sheet.analysis-sheet.foundation-compact .arco-workbench { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.beam-sheet.arco-sheet.foundation-compact .arco-input-panel { container:foundation-inputs / inline-size; }
+.beam-sheet.arco-sheet.foundation-compact .foundation-input-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; padding:20px; align-items:start; }
+.beam-sheet.arco-sheet.foundation-compact .foundation-input-card { padding:14px; border:1px solid var(--pr-line); border-radius:8px; background:var(--pr-panel); min-width:0; }
+.beam-sheet.arco-sheet.foundation-compact .foundation-input-card > summary { font-size:13px; }
+.beam-sheet.arco-sheet.foundation-compact .foundation-input-card .arco-note { font-size:12px; line-height:1.5; }
+.beam-sheet.arco-sheet.foundation-compact .foundation-input-card .sheet-section-body { margin-top:12px; }
+.beam-sheet.arco-sheet.foundation-compact .foundation-input-card .analysis-matrix { margin-top:0; }
+.beam-sheet.arco-sheet.foundation-compact .foundation-entry-note { margin:0; padding:0 20px 18px; font-size:12px; }
+.beam-sheet.arco-sheet.foundation-compact .tabulator { width:100%; }
+.beam-sheet.arco-sheet.foundation-compact .tabulator-tableholder { scrollbar-gutter:auto; }
+.beam-sheet.arco-sheet.foundation-compact .tabulator .tabulator-col-title { font-size:11px; }
+.beam-sheet.arco-sheet.foundation-compact .tabulator .tabulator-cell { padding:6px; }
+.beam-sheet.arco-sheet.foundation-compact .tabulator .tabulator-cell .btn { padding:2px 5px; font-weight:700; }
+.beam-sheet.arco-sheet.foundation-compact .foundation-hole-toggle { display:flex; align-items:center; gap:8px; color:var(--pr-muted); font-size:12px; margin-bottom:12px; cursor:pointer; }
+.beam-sheet.arco-sheet.foundation-compact .foundation-hole-toggle input { accent-color:var(--pr-blue); width:16px; height:16px; }
+@container foundation-inputs (max-width:470px) { .beam-sheet.arco-sheet.foundation-compact .foundation-input-grid { grid-template-columns:minmax(0,1fr); padding:16px; gap:12px; } }
+@media(max-width:1250px) { .beam-sheet.arco-sheet.analysis-sheet.foundation-compact .arco-workbench { grid-template-columns:minmax(0,1fr); } }

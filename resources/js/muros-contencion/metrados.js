@@ -1780,6 +1780,7 @@ export function Metrado() {
 
         // Estados
         isReady: false,
+        tablaLista: false,
         errors: [],
         dimensionamientoCompleto: false,
 
@@ -1795,7 +1796,6 @@ export function Metrado() {
         lastRenderHash: null,
 
         init() {
-            //this.loadInitialData();
             this.initializeTable();
             this.configurarEventos();
         },
@@ -1821,12 +1821,11 @@ export function Metrado() {
                 this.prepararDatosCalculados();
 
                 // 🔹 Cargar datos en metrados con las nuevas dimensiones
-                this.loadInitialData();
-                this.showNotification('success', 'Datos del dimensionamiento procesados correctamente. ¡Listo para exportar!');
+                if (this.tablaLista) this.loadInitialData();
 
             } catch (error) {
-                // console.error('❌ Error procesando datos del dimensionamiento:', error);
-                // this.showNotification('error', 'Error procesando datos: ' + error.message);
+                console.error('❌ Error procesando datos del dimensionamiento:', error);
+                this.addError('metrados_dimensionamiento', 'Error procesando metrados: ' + error.message);
             }
         },
 
@@ -1845,6 +1844,17 @@ export function Metrado() {
                 this.procesarElementoConcretoArmado(elementData.tipo, elementData.seccion, elementData);
             } else {
                 this.procesarConcretoArmadoCompleto(elementData);
+            }
+            // El acero entra después del dimensionamiento: los parciales dependen de su espaciamiento.
+            if (this.tablaLista) this.loadInitialData();
+        },
+
+        // Tras recargar no se repite 'dimensionamiento-calculated'; los datos viven en el store.
+        cargarDatosGuardados() {
+            this.tablaLista = true;
+            const { dimensionamientoCompleto, resultadosDimensionamiento } = Alpine.store('systemState');
+            if (dimensionamientoCompleto && resultadosDimensionamiento) {
+                this.handleDimensionamientoData({ detail: resultadosDimensionamiento });
             }
         },
 
@@ -2037,7 +2047,7 @@ export function Metrado() {
                     {
                         title: "ITEM",
                         field: "item",
-                        width: 100,
+                        width: 170,
                         formatter: function (cell) {
                             const rowData = cell.getData();
                             // Si es una fila de descripción, siempre será negro
@@ -2314,6 +2324,8 @@ export function Metrado() {
             this.table.on("dataLoaded", () => {
                 recalculateTableTotals(this.table);
             });
+
+            this.table.on("tableBuilt", () => this.cargarDatosGuardados());
 
         },
 
@@ -2880,11 +2892,21 @@ export function Metrado() {
                 totalnieto: "",
             });
 
+            // Sin diseño de acero el espaciamiento es 0 y los parciales divididos por él no son finitos.
+            function anularNoFinitos(nodos) {
+                nodos.forEach(nodo => {
+                    Object.keys(nodo).forEach(campo => {
+                        if (typeof nodo[campo] === 'number' && !Number.isFinite(nodo[campo])) nodo[campo] = 0;
+                    });
+                    if (nodo.children?.length) anularNoFinitos(nodo.children);
+                });
+            }
+            anularNoFinitos(cloneData);
+
             this.data = cloneData;
 
             if (this.table) {
                 this.table.setData(this.data);
-                this.recalculateAll();
             }
         },
 

@@ -202,7 +202,8 @@ export function createSpreeadSheetTable(tableModel) {
   delete tableModel.config.columnDefaults;
   const config = { ...defaultConfig, ...tableModel.config };
   tableModel.config.columnDefaults = columnDefaults;
-  let rowIndex = 0;
+  // Keep add/delete actions unique when a table starts with indexed rows.
+  let rowIndex = (tableModel.data ?? []).reduce((max,row) => Number.isSafeInteger(Number(row.id)) ? Math.max(max,Number(row.id)) : max,0);
   linkMutators(tableModel);
 
   const table = new Tabulator(tableModel.id, config);

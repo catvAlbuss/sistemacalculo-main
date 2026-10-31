@@ -1,6 +1,7 @@
 // analisisEstructural.js
-import { ValidationManager } from './utils/validation.js';
-import { NotificationManager } from './utils/notifications.js';
+import { DESIGN_CASES, analyzeRetainingWall, buildAnalysisInput, cutoffDesign, designDemands, internalForceSeries } from './structuralAnalysis.js';
+import { forcesDiagramSVG, reinforcementSVG, wallGeometry } from './drawings.js';
+import { steelDetail, steelLabel } from './word/concrete-report.js';
 // Función principal para el análisis estructural compatible con Alpine.js
 export function AnalisisEstructural() {
     return {
@@ -145,521 +146,124 @@ export function AnalisisEstructural() {
                 U288: 0,
             }
         },
-        contentProcessor: null,
-        calculationData: {},
-        verificationResults: {},
-        reinforcementData: {},
-
         //entradas
         datosDimensionamiento: {},
         datosCargas: {},
         predimData: null,
+        presiones: [],
+        aceros: {},
+        recortes: null,
+        entradaAnalisis: null,
 
-        //resultados
-        datosCargas: {},
-        datosCalculados: {},
-        predimData: null,
-        resultados: {},
+        // Criterios del análisis: H101, E175, B187, N193 y N186 del libro
+        casosDiseno: DESIGN_CASES,
+        criterios: { mode: 'MAXIMO', stemShearAt: 0.3, stemCutoff: 4, heelCutoff: 2, pedestal: 0 },
 
         // Estado de la interfaz
         activeElement: 'pantalla',
         showDetails: false,
-        isCalculating: false,
 
-        // Inicialización del componente
         init() {
-            //console.log('🔄 Inicializando módulo de vERIFICACIONES...');
             this.configurarEventos();
-            // Si hay datos en el store global al iniciar, los procesamos.
             const initialDimData = Alpine.store('systemState').resultadosDimensionamiento;
             if (Alpine.store('systemState').dimensionamientoCompleto && initialDimData) {
-                this.handleDimensionamientoData({ detail: { resultados: initialDimData } });
+                this.handleDimensionamientoData({ detail: initialDimData });
             }
-
-            //console.log('🏗️ Análisis Estructural inicializado');
-            this.validarDatos();
         },
-
 
         configurarEventos() {
             document.addEventListener('dimensionamiento-calculated', (event) => this.handleDimensionamientoData(event));
-            document.addEventListener('cargas-updated', (event) => this.handlecargasData(event));
             document.addEventListener('verificaciones-updated', (event) => this.handleVerificacionesData(event));
+            document.addEventListener('concretoArmado-updated', (event) => {
+                const { tipo, aceros } = event.detail || {};
+                if (!tipo) return;
+                this.aceros = { ...this.aceros, [tipo]: aceros };
+                this.actualizarRecortes();
+            });
         },
 
         handleDimensionamientoData(event) {
-            if (!event.detail || !event.detail.resultados) {
+            if (!event.detail?.resultados) {
                 console.error('❌ Evento "dimensionamiento-calculated" no contiene resultados.');
                 return;
             }
-
-            try {
-                if (!event.detail) {
-                    console.warn('No se recibieron datos del dimensionamiento');
-                    return;
-                }
-
-                this.datosCargas = event.detail.inputValues || {};
-                this.datosDimensionamiento = event.detail.resultados || {};
-                this.predimData = event.detail.predimData || {};
-                this.datosCalculados = {};
-
-                console.log('Datos cargados:', {
-                    dim: this.datosCargas,
-                    datosDimensionamiento: this.datosDimensionamiento,
-                    predim: this.predimData.inputValues
-                });
-
-                // Actualizar el procesador de contenido con los nuevos datos
-                this.calcularPantalla();
-                // this.updateContentProcessor();
-                // this.calcularVerificaciones();
-            } catch (error) {
-                console.error('Error procesando datos del dimensionamiento:', error);
-                this.addError('procesamiento_datos', 'Error procesando datos del dimensionamiento: ' + error.message);
-            }
+            this.datosCargas = event.detail.inputValues || {};
+            this.datosDimensionamiento = event.detail.resultados || {};
+            this.predimData = event.detail.predimData || {};
+            // Verificaciones escucha este evento antes y ya publicó sus presiones.
+            this.calcularAnalisis();
         },
 
-        handlecargasData(event) {
-            if (event.detail) {
-                this.datosCargas = { ...this.datosCargas, ...event.detail };
-                this.updateContentProcessor();
-            }
-        },
-
+        // Los esfuerzos del terreno salen de Verificaciones: sin ellos punta y talón no tienen carga.
         handleVerificacionesData(event) {
-            if (event.detail) {
-                this.datosverificacion = { ...this.datosverificacion, ...event.detail };
-                this.updateContentProcessor();
-            }
+            this.presiones = event.detail?.tablasVerificaciones?.presionesAdmisibles || [];
+            this.calcularAnalisis();
         },
 
-        updateContentProcessor() {
-            if (this.contentProcessor) {
-                this.contentProcessor.updateData(this.getStructuredData());
-                this.contentProcessor.updateCalculations(this.getCalculationMethods());
-                this.contentProcessor.updateVerifications(this.getVerificationMethods());
-                this.contentProcessor.updateReinforcement(this.getReinforcementMethods());
-            }
+        calcularAnalisis() {
+            if (!this.presiones.length || !this.predimData?.inputValues) return;
+            this.entradaAnalisis = buildAnalysisInput({
+                predim: this.predimData.inputValues,
+                dimensions: this.datosCargas,
+                results: this.datosDimensionamiento,
+                pressures: this.presiones,
+                options: this.criterios,
+            });
+            const analisis = analyzeRetainingWall(this.entradaAnalisis);
+            ['pantalla', 'punta', 'talon', 'key'].forEach(elemento => {
+                this[elemento].resultados = analisis[elemento];
+            });
+            const demandas = designDemands(analisis, this.datosCargas);
+            Alpine.store('systemState').analisisEstructural = demandas;
+            document.dispatchEvent(new CustomEvent('analisis-estructural-updated', { detail: demandas }));
+            this.actualizarRecortes();
         },
 
-        // Métodos de validación
-        validarEntrada(valor, campo) {
-            if (!ValidationManager.isNumeric(valor)) {
-                NotificationManager.showError(`${campo} debe ser un número válido`);
-                return false;
-            }
-            return true;
+        barraPrincipal(elemento) {
+            const principal = this.aceros[elemento]?.find(item => item.tipoAcero === 'principal')?.configuracion;
+            if (!principal?.cantidad) return null;
+            return { cantidad: principal.cantidad, diametro: principal.diametro, area: principal.As / principal.cantidad };
         },
 
-        // Actualizar datos de un elemento específico
-        actualizarDato(elemento, campo, valor) {
-            if (this.validarEntrada(valor, campo)) {
-                this[elemento].datos[campo] = parseFloat(valor) || 0;
-                this.calcular(elemento);
-                NotificationManager.showSuccess(`${campo} actualizado`);
-                return true;
-            }
-            return false;
-        },
-
-        // Calcular resultados para cada elemento
-        calcular(elemento) {
-            this.isCalculating = true;
-
-            try {
-                switch (elemento) {
-                    case 'pantalla':
-                        this.calcularPantalla();
-                        break;
-                    case 'punta':
-                        this.calcularPunta();
-                        break;
-                    case 'talon':
-                        this.calcularTalon();
-                        break;
-                    case 'key':
-                        this.calcularKey();
-                        break;
-                }
-            } catch (error) {
-                console.error(`Error calculando ${elemento}:`, error);
-                NotificationManager.showError(`Error en cálculos de ${elemento}`);
-            } finally {
-                this.isCalculating = false;
-            }
-        },
-
-        calcularPantalla() {
-            const gv = this.datosCargas || {};
-            const materiales = this.predimData?.inputValues || {};
-            const resultados = this.datosDimensionamiento || {};
-            const D20 = materiales.B20 * Math.PI / 180;
-
-            // --- Utilidades tipo Excel ---
-            const ABS = Math.abs;
-            const SUMA = (...nums) => nums.reduce((acc, n) => acc + (n || 0), 0);
-            const SI = (cond, valSi, valNo) => cond ? valSi : valNo;
-
-            // --- Constantes mapeadas desde Excel ---
-            const AQ279 = materiales.B25 * resultados.B99; // q1 SIN SISMO
-            const AQ280 = materiales.B11 * resultados.B99 * resultados.E79 * Math.cos(D20) + AQ279;//5.03; // q2 SIN SISMO
-            const AR279 = resultados.B136; // q1 CON SISMO
-            const AR280 = AQ280; // q2 CON SISMO
-            const B280 = 0;
-            const C163 = resultados.C160 * resultados.C162;
-            // Geometría / propiedades
-            const I230 = resultados.E79;
-            const E306 = 0.3;
-            const B349 = 4;
-
-            // Variables de referencia
-            const O229 = resultados?.C160 || 0;
-
-            // --- Cálculos de máximos ---
-            const AS279 = Math.max(AQ279, AR279);
-            const AS280 = Math.max(AQ280, AR280);
-
-            // --- Selección según H236 ---
-            const H236 = "CON SISMO"; // futuro: tomar de datos
-            const clave = { "SIN SISMO": "sin", "CON SISMO": "con", "MAXIMO": "max" }[H236] || "max";
-
-            const buscarH = (q) => {
-                const tabla = {
-                    q1: { sin: AQ279, con: AR279, max: AS279 },
-                    q2: { sin: AQ280, con: AR280, max: AS280 }
-                };
-                return tabla[q][clave];
-            };
-
-            // --- Valores seleccionados ---
-            const AT279 = buscarH("q1"); // q1 final
-            const AT280 = buscarH("q2"); // q2 final
-            // --- Diferencias y derivados ---
-            const E280 = AT280 - AT279;
-            const E281 = (B280 * E280) / I230; // 
-            const E282 = E280 - E281;
-
-            // --- Cálculos estructurales ---
-            const B286 = AT279 * (E306 - I230);
-            const C286 = (E282 * E306) + (E281 * E306 / 2) - (E280 * I230 / 2);
-            const D286 = ABS(SUMA(B286, C286));
-            const E286 = SI(H236 === "SIN SISMO", 0, O229);
-
-            const B287 = AT279 * ((I230 ** 2) / 2);
-            const C287 = (E282 * 0 / 2) + (E281 * 0 / 3) - (E280 * I230 * 0 / 2) + (E280 * (I230 ** 2) / 6);
-            const D287 = SUMA(B287, C287);
-            const E287 = SI(H236 === "SIN SISMO", 0, C163 - E286 * B280);
-
-            const B288 = AT279 * (B349 * B349 + I230 * I230 - 2 * I230 * B349) / 2;
-            const C288 = (E282 * B349 * B349 / 2) + (E281 * B349 * B349 / 3) - (E280 * I230 * B349 / 2) + E280 * I230 * I230 / 6;
-            const D288 = SUMA(B288, C288);
-            const E288 = SI(H236 === "SIN SISMO", 0, C163 - E286 * B349);
-
-            const B290 = (1.7 * D287) + E287;
-            const B291 = (1.7 * D286) + E286;
-
-            // --- Guardar ---
-            this.pantalla.resultados = this.pantalla.resultados || {};
-            Object.assign(this.pantalla.resultados, {
-                AT279, AT280, E280, E281, E282,
-                B286, C286, D286, E286,
-                B287, C287, D287, E287,
-                B288, C288, D288, E288,
-                B290, B291
+        actualizarRecortes() {
+            if (!this.entradaAnalisis) return;
+            const materiales = this.predimData.inputValues;
+            this.recortes = cutoffDesign(this.entradaAnalisis, { pantalla: this.pantalla.resultados, talon: this.talon.resultados }, {
+                fy: parseFloat(materiales.B8), fc: parseFloat(materiales.B7),
+                crown: parseFloat(this.datosCargas.C74), batter: parseFloat(this.datosCargas.A83),
+                bars: { pantalla: this.barraPrincipal('pantalla'), talon: this.barraPrincipal('talon') },
             });
         },
 
-        calcularPunta() {
-            const gv = this.datosCargas || {};
-            const materiales = this.predimData?.inputValues || {};
-            const resultados = this.datosDimensionamiento || {};
-            const D20 = materiales.B20 * Math.PI / 180;
-
-
-            const ABS = Math.abs;
-            const SUMA = (...nums) => nums.reduce((acc, n) => acc + (n || 0), 0);
-            const SI = (cond, valSi, valNo) => cond ? valSi : valNo;
-
-            const res = this.punta.resultados;
-
-            // --- Constantes mapeadas desde Excel ---
-            const AQ282 = resultados.A89 * resultados.F86 * materiales.B6;//3.24;  // peso propio
-            const AQ283 = -1.67 * resultados.A89 + 16.51; // q1 SIN SISMO
-            const AQ284 = 16.51; // q2 SIN SISMO
-
-            const AR282 = resultados.A89 * materiales.F86 * materiales.B6;  // peso propio
-            const AR283 = 13.89; // q1 CON SISMO
-            const AR284 = 17.59; // q2 CON SISMO
-
-            const As282 = Math.max(AQ282, AR282); // peso propio
-            const As283 = Math.max(AQ283, AR283); // q1
-            const As284 = Math.max(AQ284, AR284); // q2
-
-            // --- Selección según H236 ---
-            const H236 = "CON SISMO"; // futuro: tomar de datos
-            const clave = { "SIN SISMO": "sin", "CON SISMO": "con", "MAXIMO": "max" }[H236] || "max";
-
-            const buscarH = (q) => {
-                const tabla = {
-                    pesoPropio: { sin: AQ282, con: AR282, max: As282 },
-                    q1: { sin: AQ283, con: AR283, max: As283 },
-                    q2: { sin: AQ284, con: AR284, max: As284 }
-                };
-                return tabla[q][clave];
-            };
-
-            // --- Valores seleccionados ---
-            const AT282 = buscarH("pesoPropio"); // peso propio
-            const AT283 = buscarH("q1");         // q1 final
-            const AT284 = buscarH("q2");         // q2 final
-
-            const I231 = 1.8;
-            const I305 = 65;
-            // --- Guardar en las celdas correspondientes ---
-            res.H277 = AT282;
-            res.H278 = AT283;
-            res.H279 = AT284;
-            res.H280 = I231;
-            res.H281 = 0;
-            res.H282 = I305 / 100;
-            res.K280 = AT284 - AT283;
-            res.K281 = (AT284 - AT283) * res.H281 / res.H280;
-
-            //tabla
-            res.H287 = res.H278 * (res.H282 - res.H280);
-            res.I287 = (res.K281 * res.H282 - res.K280 * res.H280) / 2;
-            res.J287 = SUMA(res.H287, res.I287);
-            res.K287 = ABS(res.H277 * (res.H282 - res.H280));
-
-            res.H288 = res.H278 * (res.H281 * res.H281 + res.H280 * res.H280 - 2 * res.H280 * res.H281) / 2;
-            res.I288 = (res.K280 * res.H280 * res.H280 / 3) + (res.K281 * res.H281 * res.H281 / 6) - (res.K280 * res.H280 * res.H281 / 2);
-            res.J288 = -SUMA(res.H288, res.I288);
-            res.K288 = res.H277 * (res.H281 * res.H281 + res.H280 * res.H280 - 2 * res.H280 * res.H281) / 2;
-
-            res.H290 = ABS(1.7 * res.J288 - 1.4 * res.K288);
-            res.H291 = ABS(1.7 * res.J287 + -1.4 * res.K287);
+        get diagramaEsfuerzos() {
+            return this.entradaAnalisis ? forcesDiagramSVG(internalForceSeries(this.entradaAnalisis), this.criterios.mode) : '';
         },
 
-        calcularTalon() {
-            const ABS = Math.abs;
-            const SUMA = (...nums) => nums.reduce((acc, n) => acc + (n || 0), 0);
-            const SI = (cond, valSi, valNo) => cond ? valSi : valNo;
-
-            const res = this.talon.resultados;
-
-            // --- Constantes mapeadas desde Excel ---
-            const AQ286 = 5.40;  // peso propio
-            const AQ287 = 13.34;  // p. Terreno
-            const AQ288 = 6.97; // q1 SIN SISMO
-            const AQ289 = 11.49; // q2 SIN SISMO
-
-            const AR286 = 5.40;  // peso propio
-            const AR287 = 13.34;  // peso Terreno
-            const AR288 = 5.89; // q1 CON SISMO
-            const AR289 = 11.43; // q2 CON SISMO
-
-            const As286 = Math.max(AQ286, AR286); // peso propio
-            const As287 = Math.max(AQ287, AR287); // peso terreno
-            const As288 = Math.max(AQ288, AR288); // q1
-            const As289 = Math.max(AQ289, AR289); // q2
-
-            // --- Selección según H236 ---
-            const H236 = "CON SISMO"; // futuro: tomar de datos
-            const clave = { "SIN SISMO": "sin", "CON SISMO": "con", "MAXIMO": "max" }[H236] || "max";
-
-            const buscarH = (q) => {
-                const tabla = {
-                    pPropio: { sin: AQ286, con: AR286, max: As286 },
-                    pterreno: { sin: AQ287, con: AR287, max: As287 },
-                    q1: { sin: AQ288, con: AR288, max: As288 },
-                    q2: { sin: AQ289, con: AR289, max: As289 }
-                };
-                return tabla[q][clave];
-            };
-
-            // --- Valores seleccionados ---
-            const AT286 = buscarH("pPropio"); // peso propio
-            const AT287 = buscarH("pterreno"); // peso terreno
-            const AT288 = buscarH("q1");         // q1 final
-            const AT289 = buscarH("q2");         // q2 final
-
-            const I232 = 3;
-            const O305 = 75;
-            const N349 = 2;
-            const N312 = 0;
-
-            res.N277 = AT286;
-            res.N278 = AT287;
-            res.N279 = AT288;
-            res.N280 = AT289;
-            res.N281 = I232;
-            res.N282 = 0;
-            res.N283 = O305 / 100;
-            res.N284 = N349;
-
-            res.Q280 = res.N280 - res.N279;
-            res.Q281 = res.N283 * res.Q280 / res.N281;
-            res.Q282 = res.Q280 - res.Q281;
-            res.Q284 = N312;
-            //tabla 
-            res.N286 = res.N279 * (res.Q284 - res.N281);
-            res.O286 = res.Q282 * res.Q284 + res.Q281 * res.Q284 / 2 - res.Q280 * res.N281 / 2;
-            res.P286 = SUMA(res.N286, res.O286);
-            res.Q286 = ABS(res.N277 * (res.Q284 - res.N281));
-            res.R286 = ABS(res.N278 * (res.Q284 - res.N281));
-
-            res.N287 = res.N279 * (res.N283 - res.N281);
-            res.O287 = res.Q282 * res.N283 + res.Q281 * res.N283 / 2 - res.Q280 * res.N281 / 2;
-            res.P287 = SUMA(res.N287, res.O287);
-            res.Q287 = ABS(res.N277 * (res.N283 - res.N281));
-            res.R287 = ABS(res.N278 * (res.N283 - res.N281));
-
-            res.N288 = res.N279 * (res.N282 * res.N282 + res.N281 * res.N281 - 2 * res.N281 * res.N282) / 2;
-            res.O288 = (res.Q282 * res.N282 * res.N282 / 2) + (res.Q281 * res.N282 * res.N282 / 3) - (res.Q280 * res.N281 * res.N282 / 2) + res.Q280 * res.N281 * res.N281 / 6;
-            res.P288 = -SUMA(res.N288, res.O288);
-            res.Q288 = res.N277 * (res.N282 * res.N282 + res.N281 * res.N281 - 2 * res.N281 * res.N282) / 2;
-            res.R288 = res.N278 * (res.N282 * res.N282 + res.N281 * res.N281 - 2 * res.N281 * res.N282) / 2;
-
-            res.N289 = res.N279 * (res.N284 * res.N284 + res.N281 * res.N281 - 2 * res.N281 * res.N284) / 2;
-            res.O289 = (res.Q282 * res.N284 * res.N284 / 2) + (res.Q281 * res.N284 * res.N284 / 3) - (res.Q280 * res.N281 * res.N284 / 2) + res.Q280 * res.N281 * res.N281 / 6;
-            res.P289 = -SUMA(res.N289, res.O289)
-            res.Q289 = res.N277 * (res.N284 * res.N284 + res.N281 * res.N281 - 2 * res.N281 * res.N284) / 2;
-            res.R289 = res.N278 * (res.N284 * res.N284 + res.N281 * res.N281 - 2 * res.N281 * res.N284) / 2;
-
-            //resultadoos
-            res.N290 = 1.7 * res.P288 + 1.4 * res.Q288 + 1.7 * res.R288;
-            res.N291 = 1.7 * res.P287 + 1.4 * res.Q287 + 1.7 * res.R287;
+        get diagramaRefuerzo() {
+            if (!this.entradaAnalisis) return '';
+            const etiquetas = Object.fromEntries(['pantalla', 'punta', 'talon', 'key'].map(tipo => [tipo,
+                Object.fromEntries(['principal', 'secundario', 'transversal', 'transversal2'].map(fila => [fila, steelLabel(this.aceros[tipo], fila)]))]));
+            return reinforcementSVG(wallGeometry(this.datosCargas, this.predimData.inputValues), etiquetas, this.recortes);
         },
 
-        calcularKey() {
-            const ABS = Math.abs;
-            const SUMA = (...nums) => nums.reduce((acc, n) => acc + (n || 0), 0);
-            const SI = (cond, valSi, valNo) => cond ? valSi : valNo;
-
-            const res = this.key.resultados;
-
-            // --- Constantes mapeadas desde Excel ---
-            const AQ291 = 5.57; // q1 SIN SISMO
-            const AQ292 = 6.31; // q2 SIN SISMO
-
-            const AR291 = 5.57; // q1 CON SISMO
-            const AR292 = 6.31; // q2 CON SISMO
-
-            const As291 = Math.max(AQ291, AR291); // q1
-            const As292 = Math.max(AQ292, AR292); // q2
-
-            // --- Selección según H236 ---
-            const H236 = "CON SISMO"; // futuro: tomar de datos
-            const clave = { "SIN SISMO": "sin", "CON SISMO": "con", "MAXIMO": "max" }[H236] || "max";
-
-            const buscarH = (q) => {
-                const tabla = {
-                    q1: { sin: AQ291, con: AR291, max: As291 },
-                    q2: { sin: AQ292, con: AR292, max: As292 }
-                };
-                return tabla[q][clave];
-            };
-
-            const I233 = 1;
-            const AT291 = buscarH("q1");         // q1 final
-            const AT292 = buscarH("q2");         // q2 final
-
-            res.U277 = AT291;
-            res.U278 = AT292;
-            res.U279 = I233;
-
-            res.U284 = res.U277 * res.U279;
-            res.V284 = (res.U278 - res.U277) * res.U279 / 2;
-            res.W284 = SUMA(res.U284, res.V284);
-
-            res.U285 = res.U284 * res.U279 / 2;
-            res.V285 = res.V284 * 2 * res.U279 / 3;
-            res.W285 = SUMA(res.U285, res.V285);
-
-            res.U287 = 1.7 * res.W285;
-            res.U288 = 1.7 * res.W284;
-
-
-        },
-
-        // Validar todos los datos
-        validarDatos() {
-            const elementos = ['pantalla', 'punta', 'talon', 'key'];
-            elementos.forEach(elemento => {
-                this.calcular(elemento);
-            });
-        },
-
-        // Exportar resultados
-        exportarResultados() {
-            const resultados = {
-                timestamp: new Date().toISOString(),
-                proyecto: 'Análisis Estructural - Muro de Contención',
-                elementos: {
-                    pantalla: this.pantalla,
-                    punta: this.punta,
-                    talon: this.talon,
-                    key: this.key
-                },
-                resumen: this.obtenerResumen()
-            };
-
-            const blob = new Blob([JSON.stringify(resultados, null, 2)], {
-                type: 'application/json'
-            });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `analisis_estructural_${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-
-            NotificationManager.showSuccess('Resultados exportados exitosamente');
-        },
-
-        // Resetear todos los cálculos
-        resetearCalculos() {
-            if (confirm('¿Está seguro de resetear todos los cálculos?')) {
-                // Restaurar valores por defecto
-                this.pantalla.datos = {
-                    tn: 1.31, qr: 5.03, L: 6.65, X1: 0, X2: 0.3, X3: 4, w: 3.71, g: 0.00, b: 3.71
-                };
-                this.punta.datos = {
-                    pesoPropio: 3.24, qr: 13.89, qr2: 17.59, L: 1.8, X1: 0, X2: 0.65, w: 3.69, g: 0
-                };
-                this.talon.datos = {
-                    pesoPropio: 5.40, pTerreno: 13.34, qr: 5.68, qr2: 11.43, L: 3, X1: 0, X2: 0.75, X3: 1, w: 5.5, g: 1.4, b: 4.2
-                };
-                this.key.datos = {
-                    qr: 5.03, qr2: 6.65, L: 1.00, VX2: 1.4, MX1: 29.04, MX3: 4.61, V: 5.57, M: 2.79
-                };
-
-                this.validarDatos();
-                NotificationManager.showInfo('Cálculos reseteados a valores iniciales');
-            }
-        },
-
-        // Obtener resumen de resultados
-        obtenerResumen() {
+        get datosPlano() {
+            if (!this.entradaAnalisis) return null;
+            const materiales = this.predimData.inputValues;
+            const filas = ['principal', 'secundario', 'transversal', 'transversal2'];
             return {
-                pantalla: {
-                    momento_ultimo: this.pantalla.resultados.Mu,
-                    cortante_ultimo: this.pantalla.resultados.Vu
-                },
-                punta: {
-                    momento_ultimo: this.punta.resultados.Mu,
-                    cortante_ultimo: this.punta.resultados.Vu
-                },
-                talon: {
-                    momento_ultimo: this.talon.resultados.Mu,
-                    cortante_ultimo: this.talon.resultados.Vu
-                },
-                key: {
-                    momento_techo: this.key.resultados.Mu_techo,
-                    cortante_techo: this.key.resultados.Vu_techo
-                }
+                geo: wallGeometry(this.datosCargas, materiales),
+                cutoffs: this.recortes,
+                materials: { fc: parseFloat(materiales.B7), fy: parseFloat(materiales.B8), qadm: parseFloat(materiales.B10) },
+                steel: Object.fromEntries(['pantalla', 'punta', 'talon', 'key'].map(tipo => [tipo,
+                    Object.fromEntries(filas.map(fila => [fila, steelDetail(this.aceros[tipo], fila)]))])),
             };
+        },
+
+        get reporteAnalisis() {
+            return this.entradaAnalisis ? {
+                modo: this.criterios.mode, pantalla: this.pantalla.resultados, punta: this.punta.resultados,
+                talon: this.talon.resultados, key: this.key.resultados, recortes: this.recortes,
+            } : null;
         },
 
         // Cambiar elemento activo
@@ -674,7 +278,8 @@ export function AnalisisEstructural() {
 
         // Formatear número para mostrar
         formatearNumero(numero, decimales = 2) {
-            return parseFloat(numero).toFixed(decimales);
+            const valor = parseFloat(numero);
+            return Number.isFinite(valor) ? valor.toFixed(decimales) : '-';
         },
 
         // Obtener clase CSS según el elemento

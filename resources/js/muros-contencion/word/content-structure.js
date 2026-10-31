@@ -131,7 +131,7 @@ export const CONTENT_STRUCTURE = {
                             { header: "Unidad", width: 40 }
                         ],
                         rows: [
-                            ["Punta", "", "{{geometria.punta}}", "m"],
+                            ["Ancho de corona", "", "{{geometria.punta}}", "m"],
                             ["Base de la pantalla", "k", "{{geometria.bpantalla}}", ""],
                             ["Peralte de la zapata", "k", "{{geometria.pzapata}}", ""],
                             ["Ancho de la zapata", "k", "{{geometria.azapata}}", ""],
@@ -229,8 +229,9 @@ export const CONTENT_STRUCTURE = {
                     {
                         type: "captured-image",
                         elementId: "tabla-dimensionamiento-resultado",
-                        width: 400,
-                        height: 400,
+                        width: 585,
+                        captureWidth: 640,
+                        height: null,
                         alignment: "CENTER"
                     },
                     {
@@ -279,6 +280,28 @@ export const CONTENT_STRUCTURE = {
                     {
                         type: "heading",
                         level: 3,
+                        text: "ANÁLISIS ESTRUCTURAL",
+                        underline: true
+                    },
+                    {
+                        type: "paragraph",
+                        text: "Cada elemento se analiza como voladizo empotrado en su raíz, con las presiones del terreno, el peso propio y la acción sísmica. Los esfuerzos últimos resultantes son la demanda del diseño de concreto armado.",
+                        alignment: "JUSTIFIED"
+                    },
+                    {
+                        type: "structural-analysis"
+                    },
+                    {
+                        type: "captured-image",
+                        elementId: "diagrama-esfuerzos",
+                        caption: "Capturando diagramas de momentos y cortantes...",
+                        width: 585,
+                        height: null,
+                        alignment: "CENTER"
+                    },
+                    {
+                        type: "heading",
+                        level: 3,
                         text: "DISEÑO DE CONCRETO ARMADO",
                         underline: true
                     },
@@ -297,12 +320,8 @@ export const CONTENT_STRUCTURE = {
                                 alignment: "JUSTIFIED"
                             },
                             {
-                                type: "captured-image",
-                                elementId: "content-pantalla",
-                                width: 700,        // Ancho fijo
-                                height: null,      // Altura automática
-                                alignment: "CENTER",
-                                allowLongContent: true  // Flag para contenido largo
+                                type: "concrete-design",
+                                element: "pantalla"
                             },
                             // {
                             //     type: "reinforcement-tables",
@@ -324,12 +343,8 @@ export const CONTENT_STRUCTURE = {
                                 alignment: "JUSTIFIED"
                             },
                             {
-                                type: "captured-image",
-                                elementId: "content-punta",
-                                width: 700,        // Ancho fijo
-                                height: null,      // Altura automática
-                                alignment: "CENTER",
-                                allowLongContent: true  // Flag para contenido largo
+                                type: "concrete-design",
+                                element: "punta"
                             },
                             // {
                             //     type: "reinforcement-tables",
@@ -351,12 +366,8 @@ export const CONTENT_STRUCTURE = {
                                 alignment: "JUSTIFIED"
                             },
                             {
-                                type: "captured-image",
-                                elementId: "content-talon",
-                                width: 700,        // Ancho fijo
-                                height: null,      // Altura automática
-                                alignment: "CENTER",
-                                allowLongContent: true  // Flag para contenido largo
+                                type: "concrete-design",
+                                element: "talon"
                             },
                             // {
                             //     type: "reinforcement-tables",
@@ -370,12 +381,43 @@ export const CONTENT_STRUCTURE = {
                     },
                     {
                         type: "subsection",
+                        title: "DENTELLÓN",
+                        content: [
+                            {
+                                type: "paragraph",
+                                text: "El dentellón es la prolongación de la zapata hacia el terreno de fundación. Moviliza empuje pasivo adicional y mejora la resistencia al deslizamiento del muro.",
+                                alignment: "JUSTIFIED"
+                            },
+                            {
+                                type: "concrete-design",
+                                element: "key"
+                            }
+                        ]
+                    },
+                    {
+                        type: "subsection",
                         title: "Graficos",
                         content: [
                             {
                                 type: "paragraph",
                                 text: "Muros de contencion",
                                 alignment: "JUSTIFIED"
+                            },
+                            {
+                                type: "captured-image",
+                                elementId: "diagrama-empujes",
+                                caption: "Capturando el diagrama de empujes...",
+                                width: 585,
+                                height: null,
+                                alignment: "CENTER"
+                            },
+                            {
+                                type: "captured-image",
+                                elementId: "diagrama-refuerzo",
+                                caption: "Capturando la distribución del refuerzo...",
+                                width: 585,
+                                height: null,
+                                alignment: "CENTER"
                             },
                             {
                                 type: "captured-image",
@@ -467,15 +509,15 @@ export const CONTENT_GENERATORS = {
     generateVerificationTable: (params, data) => {
         // 1. --- DEFINICIÓN DE COLUMNAS ---
         const columnas = [
-            { header: 'COMPONENTE', width: 15 },
-            { header: 'AREA(m²)', width: 15 },
-            { header: 'Fy PESO(Tn)', width: 15 },
-            { header: 'Fx(Tn)', width: 15 },
-            { header: 'Brazo (y) m', width: 15 },
-            { header: 'Brazo (x) m', width: 15 },
-            { header: 'MOMENTO(Tn·m)', width: 20 },
-            { header: 'P Friccion', width: 15 },
-            { header: 'DESCRIPCION', width: 30 }
+            { header: 'N°', width: 6 },
+            { header: 'Área (m²)', width: 10 },
+            { header: 'Fy (Tn)', width: 10 },
+            { header: 'Fx (Tn)', width: 10 },
+            { header: 'Brazo y (m)', width: 10 },
+            { header: 'Brazo x (m)', width: 10 },
+            { header: 'Momento (Tn·m)', width: 12 },
+            { header: 'P. fricción', width: 10 },
+            { header: 'Descripción', width: 22 }
         ];
 
         // Función para formatear los valores
@@ -510,20 +552,18 @@ export const CONTENT_GENERATORS = {
 
             for (let idx = 0; idx < ordenFilas.length; idx++) {
                 const orden = ordenFilas[idx];
-                if (orden === 0) continue; // Saltar si no hay dato válido
-
-                const filaIndex = 170 + orden; // 171, 172, etc.
+                const filaIndex = 171 + idx; // ordenFilas numera el componente; la fila sigue su posición
                 const ver = data.verificaciones;
 
                 const fila = [
-                    formatValue(orden), // Componente
+                    orden || '',
                     formatValue(ver[`B${filaIndex}`]),
                     formatValue(ver[`C${filaIndex}`]),
                     formatValue(ver[`D${filaIndex}`]),
-                    formatValue(ver[`G${filaIndex}`]),
-                    formatValue(ver[`H${filaIndex}`]),
                     formatValue(ver[`E${filaIndex}`]),
                     formatValue(ver[`F${filaIndex}`]),
+                    formatValue(ver[`G${filaIndex}`]),
+                    formatValue(ver[`H${filaIndex}`]),
                     descripciones[idx] || ''
                 ];
                 filas.push(fila);

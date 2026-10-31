@@ -1,3 +1,4 @@
+import "./sheets/analysis.js";
 import { read as readmat } from "mat-for-js";
 import { createSpreeadSheetTable } from "./tabulator_base/table_factory.js";
 import { makeCreateDeleteColumn } from "./tabulator_base/table.js";
