@@ -104,6 +104,18 @@ class ProductShowcaseTest extends TestCase
         $this->assertDatabaseMissing('showcase_videos', ['id' => $queued->id]);
     }
 
+    public function test_a_video_stuck_in_the_queue_warns_instead_of_promising_the_next_minute(): void
+    {
+        $this->actingAs($this->administrator());
+        $video = ShowcaseVideo::create(['slot' => 'home', 'title' => 'En cola', 'status' => 'queued']);
+
+        $this->get(route('showcase.admin'))->assertSee('en el próximo minuto')->assertDontSee('schedule:run');
+
+        ShowcaseVideo::whereKey($video->id)->update(['updated_at' => now()->subMinutes(10)]);
+
+        $this->get(route('showcase.admin'))->assertSee('Lleva 10 minutos en cola')->assertSee('schedule:run')->assertDontSee('en el próximo minuto');
+    }
+
     public function test_only_administrators_can_change_videos(): void
     {
         $video = $this->ready();
