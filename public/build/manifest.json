@@ -1185,7 +1185,7 @@
     "src": "node_modules/jquery-ui/themes/base/images/ui-icons_ffffff_256x240.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app--8loJGkc.css",
+    "file": "assets/app-CfubOgqr.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
@@ -2083,7 +2083,7 @@
     "isEntry": true
   },
   "resources/js/muros-contencion/init.js": {
-    "file": "assets/init-BdqQCNzs.js",
+    "file": "assets/init-B-Uqruqp.js",
     "name": "init",
     "src": "resources/js/muros-contencion/init.js",
     "isEntry": true,
@@ -2128,6 +2128,12 @@
       "resources/js/muros-contencion/cargas.js",
       "_sweetalert2.esm.all-0Z_61IYw.js"
     ]
+  },
+  "resources/js/muros-contencion/plan.js": {
+    "file": "assets/plan-l0sNRNKZ.js",
+    "name": "plan",
+    "src": "resources/js/muros-contencion/plan.js",
+    "isEntry": true
   },
   "resources/js/muros-contencion/predimensionamiento.js": {
     "file": "assets/predimensionamiento-CWncMMT0.js",

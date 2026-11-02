@@ -1,6 +1,6 @@
 <!-- Dibujo -->
             <div x-show="activeTab === 'dibujo'">
-                <div x-data="dibujo" class="cuaderno p-2 w-full mx-auto font-mono">
+                <div x-data="dibujo" data-plano-url="{{ route('murosContencion.plano') }}" class="cuaderno p-2 w-full mx-auto font-mono">
                     <button @click="exportardwg" :disabled="isExporting"
                         class="px-4 py-2 text-sm font-semibold bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200">
                         <i class="fas mr-2" :class="isExporting ? 'fa-spinner fa-spin' : 'fa-download'"></i>

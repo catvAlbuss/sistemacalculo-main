@@ -1,5 +1,8 @@
 import { NotificationManager } from './utils/notifications.js';
 import { buildPlan, dxfBytes, planToDxf, planToSvg } from './plan.js';
+
+// Algo más que CAD_API_TIMEOUT, para que responda primero Laravel.
+const TIEMPO_MAXIMO_API = 100000;
 const TiposAceroMap = {
     // Mapeo de tipos del sistema a tipos gráficos
     'principal': 'horizontal-inferior',
@@ -387,13 +390,47 @@ export const Dibujo = () => {
             return hasPreDim || hasDimInput || hasResults;
         },
 
-        // El plano se genera en el navegador: los datos del proyecto no salen de esta hoja.
-        leerPlano() {
+        leerDatosPlano() {
             const analisis = document.querySelector('[x-data^="analisisestructural"]');
             const datos = analisis && Alpine.$data(analisis).datosPlano;
             if (!datos) return null;
             const memoria = document.querySelector('[x-data="memoriacalculo"]');
-            return buildPlan({ ...datos, project: memoria ? Alpine.$data(memoria).datosdim : {} });
+            return { ...datos, project: memoria ? Alpine.$data(memoria).datosdim : {} };
+        },
+
+        // La vista previa sigue en el navegador, sin depender del servidor.
+        leerPlano() {
+            const datos = this.leerDatosPlano();
+            return datos ? buildPlan(datos) : null;
+        },
+
+        // Devuelve el DXF de la API, o null si no responde. Los datos rechazados se informan.
+        async solicitarDxf(datos) {
+            const controller = new AbortController();
+            const limite = setTimeout(() => controller.abort(), TIEMPO_MAXIMO_API);
+            let respuesta;
+            try {
+                respuesta = await fetch(this.$root.dataset.planoUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json, application/dxf',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    },
+                    body: JSON.stringify(datos),
+                    signal: controller.signal,
+                });
+            } catch {
+                return null;
+            } finally {
+                clearTimeout(limite);
+            }
+            if (respuesta.ok) return respuesta.blob();
+            if (respuesta.status === 400 || respuesta.status === 413) {
+                const detalle = await respuesta.json().catch(() => null);
+                throw new Error(detalle?.error?.message || 'Datos del plano no válidos.');
+            }
+            return null;
         },
 
         actualizarVistaPlano() {
@@ -407,13 +444,15 @@ export const Dibujo = () => {
             this.isExporting = true;
             this.exportStatus = 'Generando plano...';
             try {
-                await NotificationManager.showProgress('Generando plano DXF', 'Preparando la lámina A1...');
-                const plano = this.leerPlano();
-                if (!plano) {
+                await NotificationManager.showProgress('Generando plano DXF', 'Preparando la lámina A1. La primera vez puede tardar cerca de un minuto.');
+                const datos = this.leerDatosPlano();
+                if (!datos) {
                     this.showNotification('error', 'No hay datos para el plano', 'Ejecuta primero el dimensionamiento.');
                     return;
                 }
-                const blob = new Blob([dxfBytes(planToDxf(plano))], { type: 'application/dxf' });
+                const remoto = await this.solicitarDxf(datos);
+                const plano = remoto ? null : buildPlan(datos);
+                const blob = remoto || new Blob([dxfBytes(planToDxf(plano))], { type: 'application/dxf' });
                 const url = window.URL.createObjectURL(blob);
                 const enlace = document.createElement('a');
                 enlace.href = url;
@@ -422,7 +461,9 @@ export const Dibujo = () => {
                 enlace.click();
                 enlace.remove();
                 window.URL.revokeObjectURL(url);
-                this.showNotification('success', 'Plano generado', `Lámina A1 a escala 1:${plano.scale}.`);
+                this.showNotification('success', 'Plano generado', remoto
+                    ? 'Lámina A1 con tramas, cotas y membrete editable.'
+                    : `Servidor de planos no disponible: versión básica a escala 1:${plano.scale}.`);
             } catch (error) {
                 console.error('❌ Error en exportación:', error);
                 this.showNotification('error', 'No se pudo generar el plano', error.message);

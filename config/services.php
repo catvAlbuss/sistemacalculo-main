@@ -47,6 +47,12 @@ return [
     'apiperu' => [
         'token' => env('API_PERU_TOKEN'),
     ],
+    'cad_api' => [
+        'url' => env('CAD_API_URL'),
+        'token' => env('CAD_API_TOKEN'),
+        // Render detiene el plan gratuito por inactividad: despertar tarda cerca de un minuto.
+        'timeout' => (int) env('CAD_API_TIMEOUT', 90),
+    ],
     'python_backend' => [
         'url' => env('PYTHON_BACKEND_URL', 'http://127.0.0.1:5001'),
         // Carpeta del motor CLI en producción Linux (venv + cli_entry.py).

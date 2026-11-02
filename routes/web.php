@@ -12,6 +12,7 @@ use App\Http\Controllers\enviarCotizacionController;
 use App\Http\Controllers\GestionUserRolSuscripcion;
 use App\Http\Controllers\OctavePlotController;
 use App\Http\Controllers\MuroAlbanieriaController;
+use App\Http\Controllers\MuroContencionPlanoController;
 use App\Http\Controllers\OpenSeesController;
 use App\Http\Controllers\PythonEngineController;
 use App\Http\Controllers\SubscriptionPlanController;
@@ -301,6 +302,8 @@ Route::middleware(["auth", "verified", "check.subscription", "throttle:calculati
     Route::post('/zapataGenCon', [ZapatageneralController::class, 'zapataGeneral'])->name('zapataGenCon');
     //===================RUTAS PARA MUROS DE ALBAÑIERIA=======================//
     Route::post('/malbaCont', [MuroAlbanieriaController::class, 'muroAlbanieria'])->name('malbaCont');
+    //===================RUTA DEL PLANO DE MURO DE CONTENCIÓN=================//
+    Route::post('/muros-contencion/plano', MuroContencionPlanoController::class)->name('murosContencion.plano');
     //===================RUTAS PARA SAFECITO==================================//
     Route::post('/zapatas2', [OctavePlotController::class, 'graficarZapatas2'])->name('zapatas2');
     //===================RUTAS PARA SUELOS==================================//
