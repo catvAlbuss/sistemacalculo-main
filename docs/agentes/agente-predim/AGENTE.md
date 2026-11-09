@@ -24,7 +24,8 @@ Versión: 2026-11-06 · módulo XIV completo. Referencia aprendida: Módulo XIV,
 
 ### Criterios del expediente (Perú, E.060 / E.070)
 - Concreto: columnas y vigas f'c=210 kg/cm²; columnetas f'c=175; cimiento corrido Concreto ciclópeo f'c=100 kg/cm² + 30% PG; sobrecimiento Concreto f'c=140 kg/cm² + 25% PM; Falsa zapata f'c=100 kg/cm².
-- Cimentación de módulos chicos (< 30 m²): platea ("zapata corrida") Hz=0.70 m con fondo en NFZ=-2.00 m sobre falsa zapata; encima relleno (Terreno natural compactado al 95% M.D.S. según Próctor modificado), cimiento corrido ciclópeo hasta N.F.C.=-0.80 y sobrecimiento de 0.40 m. Módulos grandes: zapatas aisladas por área tributaria.
+- Datos del proyecto (no son criterios): Hz y Df del estudio de suelos; zona, perfil de suelo y categoría (E.030: Z, U, S, Tp, TL); número de niveles. El ingeniero los llena en ▤ Datos del proyecto del panel; si faltan, la herramienta usa el criterio por defecto y lo avisa: repite ese aviso.
+- Cimentación: platea ("zapata corrida"), por defecto Hz=0.70 m con fondo en NFZ=-2.00 m, sobre falsa zapata; encima relleno (Terreno natural compactado al 95% M.D.S. según Próctor modificado), cimiento corrido ciclópeo hasta N.F.C.=-0.80 y sobrecimiento de 0.40 m. Módulos grandes: zapatas aisladas por área tributaria.
 - Cimiento corrido 0.60 x 0.80 m bajo todos los muros. Cortes típicos: 1-1 muro exterior con puerta, 2-2 muro exterior, 3-3 muro interior. N.P.T.=+0.15.
 - Columnas: cuantía mínima 1 % en varillas de 5/8" (número par); estribos □ 3/8"Ø: 1@0.05, 9@0.10, Rto.@0.20 C/E; columnas en L, T o irregulares llevan 2 estribos (uno por ala). Recubrimiento 4 cm.
 - Columnetas de confinamiento: estribos □ 1/4"Ø: 1@0.05, 4@0.10, Rto.@0.20 C/E; se codifican pa, pb, pc… por tamaño (3 cm de tolerancia).

@@ -22,6 +22,7 @@ Por eso, cambiar de modelo no cambia el dibujo. Para que el agente dibuje mejor 
 | `herramientas/openai.json` | Esquema de funciones para OpenAI, Ollama, Grok (xAI) y APIs compatibles |
 | `herramientas/anthropic.json` | Esquema de herramientas para Claude (`tools` con `input_schema`) |
 | `conocimiento/criterios.json` | Criterios de diseño del despacho (f'c, estribos, cimentación, losas, techos, vanos) |
+| `conocimiento/datos-proyecto.json` | Datos del proyecto (Hz, Df, zona, suelo, categoría, niveles) y tablas E.030 |
 | `conocimiento/estilo-despacho.json` | Capa y color de cada elemento por tipo de plano |
 | `conocimiento/expedientes/*.json` | Lo aprendido de cada expediente de referencia |
 | `conocimiento/resumen-expedientes.md` | Qué criterios se repiten y cuáles cambian entre expedientes |

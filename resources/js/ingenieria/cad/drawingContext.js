@@ -85,7 +85,8 @@ export function createDrawingContext({getDatabase, dm, edit, afterDraw, onFounda
     },
     // Copia el espacio modelo de la plantilla al dibujo abierto (un solo paso de deshacer).
     // Con `marco` (coordenadas de la plantilla) copia solo esa lámina: hojas extra de pórticos.
-    insertTemplate(origen, desplazamiento, escala = 1, marco = null) {
+    // `textos`: función texto → texto para los datos del proyecto (parámetros sísmicos).
+    insertTemplate(origen, desplazamiento, escala = 1, marco = null, textos = null) {
       const database = getDatabase();
       if (!database) throw new Error("No hay un dibujo abierto.");
       let entidades = origen.tables.blockTable.modelSpace.newIterator().toArray();
@@ -93,7 +94,7 @@ export function createDrawingContext({getDatabase, dm, edit, afterDraw, onFounda
         const p = puntoDeReferencia(e);
         return p && p.x >= marco.x && p.x <= marco.x1 && p.y >= marco.y && p.y <= marco.y1;
       });
-      const copiar = () => copiarDesdePlantilla({origen, destino: database, entidades, desplazamiento, escala, dm});
+      const copiar = () => copiarDesdePlantilla({origen, destino: database, entidades, desplazamiento, escala, dm, textos});
       const resultado = edit ? edit(database, "Agente: plantilla de láminas de estructuras", copiar) ?? null : copiar();
       delete this.memoria.lectura;
       return resultado;

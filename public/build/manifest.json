@@ -1,6 +1,10 @@
 {
-  "_AgentePredimPanel-V9_YH107.js": {
-    "file": "assets/AgentePredimPanel-V9_YH107.js",
+  "_AgentePredimPanel-Y1Fvsy8c.css": {
+    "file": "assets/AgentePredimPanel-Y1Fvsy8c.css",
+    "src": "_AgentePredimPanel-Y1Fvsy8c.css"
+  },
+  "_AgentePredimPanel-oAEhe0si.js": {
+    "file": "assets/AgentePredimPanel-oAEhe0si.js",
     "name": "AgentePredimPanel",
     "isDynamicEntry": true,
     "imports": [
@@ -13,12 +17,8 @@
       "resources/js/ingenieria/cad/drawingContext.js"
     ],
     "css": [
-      "assets/AgentePredimPanel-ma5GwR72.css"
+      "assets/AgentePredimPanel-Y1Fvsy8c.css"
     ]
-  },
-  "_AgentePredimPanel-ma5GwR72.css": {
-    "file": "assets/AgentePredimPanel-ma5GwR72.css",
-    "src": "_AgentePredimPanel-ma5GwR72.css"
   },
   "__commonjsHelpers-D6-XlEtG.js": {
     "file": "assets/_commonjsHelpers-D6-XlEtG.js",
@@ -44,8 +44,8 @@
     "file": "assets/arco-techo-Dd1A_g-k.css",
     "src": "_arco-techo-Dd1A_g-k.css"
   },
-  "_cad-agent-plugin-DSJXNlwK.js": {
-    "file": "assets/cad-agent-plugin-DSJXNlwK.js",
+  "_cad-agent-plugin-T0v84shV.js": {
+    "file": "assets/cad-agent-plugin-T0v84shV.js",
     "name": "cad-agent-plugin",
     "isDynamicEntry": true,
     "imports": [
@@ -1134,13 +1134,13 @@
     ]
   },
   "node_modules/@mlightcad/cad-agent-plugin/dist/cad-agent-plugin-register.js": {
-    "file": "assets/cad-agent-plugin-register-BIlYDWmL.js",
+    "file": "assets/cad-agent-plugin-register-D-mnvWvY.js",
     "name": "cad-agent-plugin-register",
     "src": "node_modules/@mlightcad/cad-agent-plugin/dist/cad-agent-plugin-register.js",
     "isDynamicEntry": true,
     "imports": [
       "_preload-helper-BfFHrpNk.js",
-      "_cad-agent-plugin-DSJXNlwK.js",
+      "_cad-agent-plugin-T0v84shV.js",
       "resources/js/etabs/main.js",
       "_three.module-De0dRVGu.js",
       "__commonjsHelpers-D6-XlEtG.js",
@@ -1152,7 +1152,7 @@
       "_color_scale-BGSv3LvJ.js"
     ],
     "dynamicImports": [
-      "_cad-agent-plugin-DSJXNlwK.js"
+      "_cad-agent-plugin-T0v84shV.js"
     ]
   },
   "node_modules/@mlightcad/cad-agent-plugin/dist/style.css": {
@@ -1160,7 +1160,7 @@
     "src": "node_modules/@mlightcad/cad-agent-plugin/dist/style.css"
   },
   "node_modules/@mlightcad/cad-google-drive-plugin/dist/cad-google-drive-plugin-register.js": {
-    "file": "assets/cad-google-drive-plugin-register-C0Qw-F5Q.js",
+    "file": "assets/cad-google-drive-plugin-register-7SBJifQn.js",
     "name": "cad-google-drive-plugin-register",
     "src": "node_modules/@mlightcad/cad-google-drive-plugin/dist/cad-google-drive-plugin-register.js",
     "isDynamicEntry": true,
@@ -1172,7 +1172,7 @@
     ]
   },
   "node_modules/@mlightcad/cad-google-drive-plugin/dist/cad-google-drive-plugin.js": {
-    "file": "assets/cad-google-drive-plugin-CPZRPr9h.js",
+    "file": "assets/cad-google-drive-plugin-BJ69PwXu.js",
     "name": "cad-google-drive-plugin",
     "src": "node_modules/@mlightcad/cad-google-drive-plugin/dist/cad-google-drive-plugin.js",
     "isDynamicEntry": true,
@@ -1190,7 +1190,7 @@
     ]
   },
   "node_modules/@mlightcad/cad-onedrive-plugin/dist/cad-onedrive-plugin-register.js": {
-    "file": "assets/cad-onedrive-plugin-register-CRh5QtFP.js",
+    "file": "assets/cad-onedrive-plugin-register-Bq7OhsM4.js",
     "name": "cad-onedrive-plugin-register",
     "src": "node_modules/@mlightcad/cad-onedrive-plugin/dist/cad-onedrive-plugin-register.js",
     "isDynamicEntry": true,
@@ -1202,7 +1202,7 @@
     ]
   },
   "node_modules/@mlightcad/cad-onedrive-plugin/dist/cad-onedrive-plugin.js": {
-    "file": "assets/cad-onedrive-plugin-DQ1Rj6em.js",
+    "file": "assets/cad-onedrive-plugin-BPJXgH0d.js",
     "name": "cad-onedrive-plugin",
     "src": "node_modules/@mlightcad/cad-onedrive-plugin/dist/cad-onedrive-plugin.js",
     "isDynamicEntry": true,
@@ -1223,7 +1223,7 @@
     ]
   },
   "node_modules/@mlightcad/cad-pdf-plugin/dist/cad-pdf-plugin.js": {
-    "file": "assets/cad-pdf-plugin-BSUwqHem.js",
+    "file": "assets/cad-pdf-plugin-CSba-buA.js",
     "name": "cad-pdf-plugin",
     "src": "node_modules/@mlightcad/cad-pdf-plugin/dist/cad-pdf-plugin.js",
     "isDynamicEntry": true,
@@ -1241,7 +1241,7 @@
     ]
   },
   "node_modules/@mlightcad/cad-svg-plugin/dist/cad-svg-plugin.js": {
-    "file": "assets/cad-svg-plugin-ESgXyZHZ.js",
+    "file": "assets/cad-svg-plugin-C7bjBDHH.js",
     "name": "cad-svg-plugin",
     "src": "node_modules/@mlightcad/cad-svg-plugin/dist/cad-svg-plugin.js",
     "isDynamicEntry": true,
@@ -1259,7 +1259,7 @@
     ]
   },
   "node_modules/@mlightcad/data-model/lib/index.js": {
-    "file": "assets/index-DJKRJXsv.js",
+    "file": "assets/index-CYhy-3VB.js",
     "name": "index",
     "src": "node_modules/@mlightcad/data-model/lib/index.js",
     "isDynamicEntry": true,
@@ -2105,7 +2105,7 @@
     ]
   },
   "resources/js/etabs/main.js": {
-    "file": "assets/main-U4tckP51.js",
+    "file": "assets/main-Wxb_-Uz-.js",
     "name": "main",
     "src": "resources/js/etabs/main.js",
     "isEntry": true,
@@ -2126,23 +2126,23 @@
       "node_modules/@mlightcad/cad-pdf-plugin/dist/cad-pdf-plugin.js",
       "node_modules/@mlightcad/cad-svg-plugin/dist/cad-svg-plugin.js",
       "node_modules/@mlightcad/cad-pdf-plugin/dist/cad-pdf-plugin.js",
-      "_cad-agent-plugin-DSJXNlwK.js",
+      "_cad-agent-plugin-T0v84shV.js",
       "node_modules/@mlightcad/cad-agent-plugin/dist/cad-agent-plugin-register.js",
       "node_modules/@mlightcad/cad-onedrive-plugin/dist/cad-onedrive-plugin-register.js",
       "node_modules/@mlightcad/cad-google-drive-plugin/dist/cad-google-drive-plugin-register.js",
-      "_AgentePredimPanel-V9_YH107.js"
+      "_AgentePredimPanel-oAEhe0si.js"
     ],
     "css": [
       "assets/main-DFgIptoc.css"
     ]
   },
   "resources/js/ingenieria/cad/drawingContext.js": {
-    "file": "assets/drawingContext-dpaYMsTV.js",
+    "file": "assets/drawingContext-CKwfXzCP.js",
     "name": "drawingContext",
     "src": "resources/js/ingenieria/cad/drawingContext.js",
     "isDynamicEntry": true,
     "imports": [
-      "_AgentePredimPanel-V9_YH107.js",
+      "_AgentePredimPanel-oAEhe0si.js",
       "resources/js/etabs/main.js",
       "_preload-helper-BfFHrpNk.js",
       "_three.module-De0dRVGu.js",

@@ -6,7 +6,7 @@
         <p>{{ settings.model }} · {{ isLocal ? "local, sin costo" : "servidor externo" }}</p>
       </div>
       <button type="button" class="etabs-icon-btn" :aria-pressed="showSettings" title="Configuración del modelo" @click="toggleSettings">⚙</button>
-      <button type="button" class="etabs-icon-btn" :aria-pressed="showProyecto" title="Datos del proyecto (rótulo de las láminas)" @click="showProyecto = !showProyecto">▤</button>
+      <button type="button" class="etabs-icon-btn" :aria-pressed="showProyecto" title="Datos del proyecto (Hz, Df, sismo, niveles y rótulo)" @click="showProyecto = !showProyecto">▤</button>
       <button type="button" class="etabs-icon-btn" title="Nueva conversación" :disabled="busy" @click="reset">⟲</button>
       <button type="button" class="etabs-icon-btn" aria-label="Cerrar agente" title="Cerrar" @click="emit('close')">✕</button>
     </header>
@@ -37,7 +37,17 @@
     </form>
 
     <form v-if="showProyecto" class="ap-settings ap-proyecto" @submit.prevent="saveProyecto">
-      <p class="ap-note">Datos del rótulo de las láminas (proyecto, especialista, ubicación). Se guardan en este navegador y se usan en cada plano de estructuras.</p>
+      <p class="ap-note">Se guardan en este navegador y se usan en cada plano de estructuras.</p>
+      <h3 class="ap-section">Datos técnicos</h3>
+      <p class="ap-note">Del estudio de suelos y de la E.030. Si faltan, el agente usa el criterio del despacho y lo avisa.</p>
+      <label v-for="c in CAMPOS_TECNICOS" :key="c.campo" class="fz-field"><span>{{ c.etiqueta }}</span>
+        <select v-if="c.opciones" v-model="proyecto[c.campo]" class="fz-input">
+          <option value="">Sin indicar</option>
+          <option v-for="[valor, texto] in c.opciones" :key="valor" :value="valor">{{ texto }}</option>
+        </select>
+        <input v-else v-model.trim="proyecto[c.campo]" class="fz-input" inputmode="decimal" :placeholder="c.ejemplo" />
+      </label>
+      <h3 class="ap-section">Rótulo</h3>
       <label v-for="c in CAMPOS_PROYECTO" :key="c.campo" class="fz-field"><span>{{ c.etiqueta }}</span>
         <input v-model.trim="proyecto[c.campo]" class="fz-input" :placeholder="c.ejemplo" />
       </label>
@@ -79,6 +89,7 @@ import {computed, nextTick, ref} from "vue";
 import {DEFAULT_AGENT_SETTINGS, runAgent} from "../../ingenieria/agente/agentRunner.js";
 import {modelosInstalados, notaModelo} from "../../ingenieria/agente/modelosAgente.js";
 import {CAMPOS_PROYECTO} from "../../ingenieria/laminas/rotulo.js";
+import {CAMPOS_TECNICOS} from "../../ingenieria/criterios/datosProyecto.js";
 
 const emit = defineEmits(["close", "foundation"]);
 
@@ -225,6 +236,7 @@ async function send(text = draftText.value) {
 .ap-title p { margin:2px 0 0;font-size:11.5px;color:var(--pr-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 .etabs-icon-btn[aria-pressed=true] { border-color:var(--pr-blue);color:var(--pr-blue); }
 .ap-proyecto { max-height:55vh;overflow:auto; }
+.ap-section { margin:6px 0 0;font-size:12.5px;font-weight:700; }
 .ap-note { font-size:12px;color:var(--pr-muted, #64748b);margin-top:-4px; }
 .ap-note.is-warn { color:#b45309; }
 .ap-settings { display:grid;gap:8px;padding:12px 14px;border-bottom:1px solid var(--pr-line);background:var(--pr-soft); }

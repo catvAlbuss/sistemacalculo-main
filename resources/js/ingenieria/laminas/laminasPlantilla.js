@@ -17,6 +17,7 @@ import {datosDesdeArquitectura, textoEnCasilla, anchoTexto} from "./rotulo.js";
 import {aplicarEstilo} from "../criterios/estiloLaminas.js";
 import {separarTextos} from "./separarTextos.js";
 import {planoPortico, alturaDesdeArquitectura, pendienteDesdeArquitectura, vanosDesdeArquitectura} from "../planos/porticoPlano.js";
+import {datosParaLaminas, CAMPOS_TECNICOS} from "../criterios/datosProyecto.js";
 
 const r4 = (v) => Math.round(v * 10000) / 10000;
 const MESES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SETIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
@@ -94,7 +95,10 @@ const ordenEjes = (a, b) => b.nombre.localeCompare(a.nombre, "es", {numeric: tru
 export function laminasConPlantilla({lectura, items, caja, k = 1, config, cimentacion, datos = {}, fecha = new Date()}) {
   const proyecto = proyectoDesdeArquitectura(items, lectura.titulo || "PROYECTO");
   // Datos del rótulo: el formulario del panel manda; si no, el rótulo de la arquitectura.
-  const datosRotulo = {...datosDesdeArquitectura(items), ...Object.fromEntries(Object.entries(datos ?? {}).filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== ""))};
+  const tecnicos = new Set(CAMPOS_TECNICOS.map((c) => c.campo));
+  const datosRotulo = {...datosDesdeArquitectura(items), ...Object.fromEntries(Object.entries(datos ?? {}).filter(([c, v]) => !tecnicos.has(c) && v !== undefined && v !== null && String(v).trim() !== ""))};
+  // Datos técnicos (Hz, Df, zona, suelo, categoría, niveles): del panel; si faltan, criterio y aviso.
+  const dp = datosParaLaminas(datos);
   const nominal = config.escalaPlanos ?? 2;
   const marcos = config.laminas.map((l) => l.marco);
   const T = {x0: Math.min(...marcos.map((m) => m.x)), y0: Math.min(...marcos.map((m) => m.y)), x1: Math.max(...marcos.map((m) => m.x1)), y1: Math.max(...marcos.map((m) => m.y1))};
@@ -109,8 +113,8 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   const previas = items.filter((it) => it.tipo === "texto" && it.capa === L.LAMINA && /^E-\d{2}$/.test(it.texto)).length;
 
   // Contenido de cada espacio.
-  const cim = planoCimentacion({lectura, items, caja, k, titulo: lectura.titulo}, {tipo: cimentacion});
-  const cc = planoCimientoCorrido({lectura, items, caja, k}, {columnetas: lectura.columnetas ?? []});
+  const cim = planoCimentacion({lectura, items, caja, k, titulo: lectura.titulo}, {tipo: cimentacion, ...dp.cimentacion});
+  const cc = planoCimientoCorrido({lectura, items, caja, k}, {columnetas: lectura.columnetas ?? [], ...(dp.cimentacion.pisos ? {pisos: dp.cimentacion.pisos} : {})});
   const ali = planoAligerado({lectura, items, k});
   const cuadro = cuadroColumnas(lectura.columnas);
   const cuadroCtas = cuadroColumnetas(lectura.columnetas ?? []); // ya traen su código (pa, pb…) del cimiento corrido
@@ -196,14 +200,17 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
     laminas.push({codigo, plano: lamina.plano});
   });
 
-  const avisos = [...cim.avisos];
+  const avisos = [...dp.avisos, ...cim.avisos];
   if (iPorticos < 0 && porticos.length) avisos.push("La plantilla no tiene espacio para pórticos.");
   if (!cc.tramos) avisos.push("No encontré muros sobre los ejes: el plano de cimiento corrido quedó sin cimientos.");
   return {
     desplazamiento: O, copias, primitivas: prim, laminas, proyecto, avisos,
+    // Para la copia de la plantilla: parámetros sísmicos del proyecto en lugar de los del expediente.
+    textosPlantilla: dp.textos,
     zona: {x0: zona.x0 + O.x, y0: zona.y0 + O.y, x1: zona.x1 + O.x, y1: zona.y1 + O.y},
     resumen: {
       cimentacion: cim.tipo === "platea" ? "platea" : `${cim.zapatas.length} zapatas`,
+      hz: cim.peralte, df: cim.df, sismo: dp.sismo,
       cimientoCorrido: cc.tramos, anchoCimiento: cc.ancho,
       aligerado: {espesor: ali.espesor, viguetas: ali.viguetas, vigas: ali.vigas, panos: ali.panos?.length},
       columnetas: cuadroCtas?.filas?.map((f) => `${f.codigo} ${f.refuerzo}`),

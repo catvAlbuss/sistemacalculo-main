@@ -1,0 +1,159 @@
+{
+  "nota": "Datos del sitio y del uso, no criterios: los indica el ingeniero en el panel; si faltan se usa el criterio y se avisa.",
+  "campos": [
+    {
+      "campo": "hz",
+      "etiqueta": "Hz: peralte de platea o zapata (m)",
+      "ejemplo": "0.70",
+      "min": 0.3,
+      "max": 2.5
+    },
+    {
+      "campo": "df",
+      "etiqueta": "Df: profundidad de desplante (m)",
+      "ejemplo": "2.00",
+      "min": 0.5,
+      "max": 6
+    },
+    {
+      "campo": "zona",
+      "etiqueta": "Zona sísmica (E.030)",
+      "opciones": [
+        [
+          "1",
+          "Zona 1"
+        ],
+        [
+          "2",
+          "Zona 2"
+        ],
+        [
+          "3",
+          "Zona 3"
+        ],
+        [
+          "4",
+          "Zona 4"
+        ]
+      ]
+    },
+    {
+      "campo": "suelo",
+      "etiqueta": "Perfil de suelo",
+      "opciones": [
+        [
+          "S0",
+          "S0 roca dura"
+        ],
+        [
+          "S1",
+          "S1 roca o suelo muy rígido"
+        ],
+        [
+          "S2",
+          "S2 suelo intermedio"
+        ],
+        [
+          "S3",
+          "S3 suelo blando"
+        ]
+      ]
+    },
+    {
+      "campo": "categoria",
+      "etiqueta": "Categoría de la edificación",
+      "opciones": [
+        [
+          "A2",
+          "A2 esencial (colegio, hospital…)"
+        ],
+        [
+          "B",
+          "B importante"
+        ],
+        [
+          "C",
+          "C común (vivienda, oficina)"
+        ]
+      ]
+    },
+    {
+      "campo": "niveles",
+      "etiqueta": "Número de niveles",
+      "ejemplo": "1",
+      "min": 1,
+      "max": 10,
+      "entero": true
+    }
+  ],
+  "e030": {
+    "Z": {
+      "1": 0.1,
+      "2": 0.25,
+      "3": 0.35,
+      "4": 0.45
+    },
+    "S": {
+      "1": {
+        "S0": 0.8,
+        "S1": 1,
+        "S2": 1.6,
+        "S3": 2
+      },
+      "2": {
+        "S0": 0.8,
+        "S1": 1,
+        "S2": 1.2,
+        "S3": 1.4
+      },
+      "3": {
+        "S0": 0.8,
+        "S1": 1,
+        "S2": 1.15,
+        "S3": 1.2
+      },
+      "4": {
+        "S0": 0.8,
+        "S1": 1,
+        "S2": 1.05,
+        "S3": 1.1
+      }
+    },
+    "periodos": {
+      "S0": {
+        "Tp": 0.3,
+        "TL": 3
+      },
+      "S1": {
+        "Tp": 0.4,
+        "TL": 2.5
+      },
+      "S2": {
+        "Tp": 0.6,
+        "TL": 2
+      },
+      "S3": {
+        "Tp": 1,
+        "TL": 1.6
+      }
+    },
+    "categorias": {
+      "A1": {
+        "U": 1.5,
+        "nombre": "ESENCIALES"
+      },
+      "A2": {
+        "U": 1.5,
+        "nombre": "ESENCIALES"
+      },
+      "B": {
+        "U": 1.3,
+        "nombre": "IMPORTANTES"
+      },
+      "C": {
+        "U": 1,
+        "nombre": "COMUNES"
+      }
+    }
+  }
+}

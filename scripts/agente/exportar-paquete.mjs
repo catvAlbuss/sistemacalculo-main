@@ -25,6 +25,7 @@ import {memoriaDelAgente, VERSION_MEMORIA} from '../../resources/js/ingenieria/a
 import {CRITERIOS} from '../../resources/js/ingenieria/criterios/criteriosEstructurales.js';
 import {ESTILOS, CAPAS_DESPACHO} from '../../resources/js/ingenieria/criterios/estiloLaminas.js';
 import {EVALUACION_MODELOS} from '../../resources/js/ingenieria/agente/modelosAgente.js';
+import {E030, CAMPOS_TECNICOS} from '../../resources/js/ingenieria/criterios/datosProyecto.js';
 import {CASOS_EVALUACION} from './casos-evaluacion.mjs';
 
 const raiz = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -68,6 +69,7 @@ Por eso, cambiar de modelo no cambia el dibujo. Para que el agente dibuje mejor 
 | \`herramientas/openai.json\` | Esquema de funciones para OpenAI, Ollama, Grok (xAI) y APIs compatibles |
 | \`herramientas/anthropic.json\` | Esquema de herramientas para Claude (\`tools\` con \`input_schema\`) |
 | \`conocimiento/criterios.json\` | Criterios de diseño del despacho (f'c, estribos, cimentación, losas, techos, vanos) |
+| \`conocimiento/datos-proyecto.json\` | Datos del proyecto (Hz, Df, zona, suelo, categoría, niveles) y tablas E.030 |
 | \`conocimiento/estilo-despacho.json\` | Capa y color de cada elemento por tipo de plano |
 | \`conocimiento/expedientes/*.json\` | Lo aprendido de cada expediente de referencia |
 | \`conocimiento/resumen-expedientes.md\` | Qué criterios se repiten y cuáles cambian entre expedientes |
@@ -139,6 +141,7 @@ escribir('herramientas/anthropic.json', herramientas.map(({name, description, pa
 // ---------- Conocimiento ----------
 const sinFunciones = (o) => JSON.parse(JSON.stringify(o, (k, v) => (typeof v === 'function' ? `(regla) ${v.toString().slice(0, 160)}` : v)));
 escribir('conocimiento/criterios.json', sinFunciones(CRITERIOS));
+escribir('conocimiento/datos-proyecto.json', {nota: 'Datos del sitio y del uso, no criterios: los indica el ingeniero en el panel; si faltan se usa el criterio y se avisa.', campos: CAMPOS_TECNICOS, e030: E030});
 escribir('conocimiento/estilo-despacho.json', {capas: CAPAS_DESPACHO, porTipoDePlano: ESTILOS, nota: 'Clave: capa semántica del agente → {geo|texto|circulo|achurado|solido: {capa, color}}. Color 256 = el de la capa.'});
 escribir('evaluacion/casos.json', CASOS_EVALUACION);
 

@@ -4,6 +4,9 @@
 // expediente del ingeniero.
 //
 //   node scripts/agente/probar-laminas.mjs "<arquitectura.dwg>" "<vista>" [salida.svg] [platea|zapatas|auto]
+//
+// Datos del proyecto (los del panel ▤) en AGENTE_DATOS, como JSON:
+//   AGENTE_DATOS='{"hz":"0.60","df":"2.50","zona":"2","suelo":"S3","categoria":"A2"}'
 
 import {readFileSync, writeFileSync} from 'node:fs';
 import * as dm from '@mlightcad/data-model';
@@ -25,7 +28,8 @@ const leer = async (archivo, tipo) => {
 const db = await leer(ruta, dm.AcDbFileType.DWG);
 const cargarPlantilla = async () => ({db: await leer('public/assets/plantillas/estructuras-laminas.dxf', dm.AcDbFileType.DXF), config: JSON.parse(readFileSync('public/assets/plantillas/estructuras-laminas.json', 'utf8'))});
 
-const ctx = createDrawingContext({getDatabase: () => db, dm, loadTemplate: cargarPlantilla});
+const datos = process.env.AGENTE_DATOS ? JSON.parse(process.env.AGENTE_DATOS) : {};
+const ctx = createDrawingContext({getDatabase: () => db, dm, loadTemplate: cargarPlantilla, getProjectData: () => datos});
 const antes = db.tables.blockTable.modelSpace.newIterator().toArray().length;
 const t0 = Date.now();
 const r = await SKILLS.find((s) => s.name === 'plano_estructuras').run({vista, ...(cimentacion ? {cimentacion} : {})}, ctx);

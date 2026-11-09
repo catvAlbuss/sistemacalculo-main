@@ -119,14 +119,14 @@ Se probaron con `scripts/agente/leer-arquitectura.mjs` (qué entiende el agente)
 | Losa | El espesor lo da la luz entre ejes (vigas), no entre muros | Módulo 09 con 5.8–6.1 m → 25 cm |
 | Pórticos | Si hay más que espacios en la plantilla, la lámina de pórticos se copia a la derecha | Módulo 3 con 8 ejes → E-03 |
 
-**Datos del proyecto, no reglas:**
-- Hz y Df vienen del estudio de suelos: 0.60/2.50 en los módulos 3 y 09, 0.70/2.00 en el 14.
-- U depende de la categoría: 1.5 en colegios, categoría A.
+**Datos del proyecto, no reglas** (`resources/js/ingenieria/criterios/datosProyecto.js`, panel ▤ "Datos técnicos"):
+- Hz y Df vienen del estudio de suelos: 0.60/2.50 en los módulos 3 y 09, 0.70/2.00 en el 14. Se usan en la platea o las zapatas, en su rótulo y en el NFZ de los pórticos. Si faltan, se usa 0.70/2.00 y se avisa.
+- Zona, perfil de suelo y categoría dan Z, U, S, Tp y TL (tablas de la E.030-2018). Reemplazan en la lámina los valores del expediente de referencia (Z=0.25, U=1.0 "C", S=1.40, Tp=1.00, TL=2.0). Lo que falta queda de la plantilla, con aviso. Colegio en zona 2 sobre S3: Z=0.25, U=1.5 (A2), S=1.40, Tp=1.0, TL=1.6.
+- Número de niveles: ajusta el ancho del cimiento corrido y las zapatas; con más de 1 nivel se avisa que el dibujo es de un nivel.
 
 ## Pendiente
 
 - Edificios de 2 niveles: el módulo 09 tiene 2.º nivel. Falta la losa de entrepiso y los pórticos con dos niveles (NPN −3.05 / −0.05).
-- Hz, Df y U como datos del proyecto en el panel.
 - Al pórtico le falta detalle frente al del ingeniero:
   - secciones VB y sus llamadas;
   - canaleta;
@@ -145,4 +145,4 @@ Se probaron con `scripts/agente/leer-arquitectura.mjs` (qué entiende el agente)
 
 **Cimiento corrido:** muebles empotrados dibujados con capas de muro (por ejemplo, un poyo) aparecen como muro.
 
-**Datos que se copian tal cual de la referencia:** el cuadro de columnetas, los parámetros sísmicos y las especificaciones técnicas. Hay que revisarlos en cada proyecto.
+**Datos que se copian tal cual de la referencia:** el cuadro de columnetas y las especificaciones técnicas. Hay que revisarlos en cada proyecto. Los parámetros sísmicos se reemplazan con los datos del proyecto cuando el ingeniero los indica.
