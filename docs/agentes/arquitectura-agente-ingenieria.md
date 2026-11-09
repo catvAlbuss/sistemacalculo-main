@@ -212,3 +212,9 @@ Cada agente es dueño de un módulo, trabaja con un contrato de entrada y salida
 4. Correr `node --test --test-concurrency=1 tests/frontend/etabs-*.test.mjs` y `npm run build` (con `NODE_OPTIONS=--max-old-space-size=8192`). No se avanza con rojos.
 5. Crear `.claude/agents/*.md` del equipo (sección 4) y regenerar el paquete portable.
 6. Recién entonces, segunda etapa de separación y las tareas de F1.
+
+**Estado (2026-11-09), rama `agente-ingenieria`:** pasos 1 a 5 hechos.
+- Los DWG están en `storage/app/private/entrenamiento/`, con la ruta única en `scripts/agente/planos.mjs` (o la variable `AGENTE_PLANOS`). `bootstrap/cache/*.php` queda fuera de git.
+- El agente vive en `resources/js/ingenieria/`. Las pruebas pasan: 120 de 122, con 1 saltada a propósito y `pressure-chart` fallando igual que en `Emes`. El build compila.
+- El equipo está en `.claude/agents/`; es lo único versionado de `.claude/`.
+- Las pruebas conservan el prefijo `etabs-*`; renombrarlas a `ingenieria-*` queda para la segunda etapa.

@@ -1,6 +1,7 @@
 /.phpunit.cache
 /node_modules
-.claude
+/.claude/*
+!/.claude/agents/
 test_md_verify.cjs
 /public/hot
 /public/storage
