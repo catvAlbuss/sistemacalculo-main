@@ -9,7 +9,7 @@
 //   (ver promptDelSistema en agentRunner.js).
 // - Versión legible para personas: docs/agentes/memoria-agente.md.
 
-import {CRITERIOS, textoEstribos} from "./criteriosEstructurales.js";
+import {CRITERIOS, textoEstribos} from "../criterios/criteriosEstructurales.js";
 
 export const VERSION_MEMORIA = "2026-11-06 · módulo XIV completo";
 

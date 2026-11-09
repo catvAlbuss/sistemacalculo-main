@@ -18,8 +18,8 @@ import {resolve, dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import * as dm from '@mlightcad/data-model';
 import {AcDbLibreDwgMainThreadConverter} from '@mlightcad/libredwg-converter/node';
-import {copiarDesdePlantilla} from '../../resources/js/etabs/agente/copiarPlantilla.js';
-import {aplanarModelo} from '../../resources/js/etabs/agente/lectorPlano.js';
+import {copiarDesdePlantilla} from '../../resources/js/ingenieria/cad/copiarPlantilla.js';
+import {aplanarModelo} from '../../resources/js/ingenieria/lectura/lectorPlano.js';
 import {plano} from './planos.mjs';
 
 const raiz = resolve(dirname(fileURLToPath(import.meta.url)), '../..');

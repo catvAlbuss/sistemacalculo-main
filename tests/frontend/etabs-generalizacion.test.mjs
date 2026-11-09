@@ -4,12 +4,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync, readFileSync} from 'node:fs';
 import * as dm from '@mlightcad/data-model';
-import {aplanarModelo, detectarVistas, leerVista, claseDeSeccion, espesorDeSeccion} from '../../resources/js/etabs/agente/lectorPlano.js';
-import {refuerzoMinimo} from '../../resources/js/etabs/agente/laminaEstructuras.js';
-import {luzEntreEjes, espesorAligerado} from '../../resources/js/etabs/agente/aligeradoPlano.js';
+import {aplanarModelo, detectarVistas, leerVista, claseDeSeccion, espesorDeSeccion} from '../../resources/js/ingenieria/lectura/lectorPlano.js';
+import {refuerzoMinimo} from '../../resources/js/ingenieria/laminas/laminaEstructuras.js';
+import {luzEntreEjes, espesorAligerado} from '../../resources/js/ingenieria/planos/aligeradoPlano.js';
 import {plano} from '../../scripts/agente/planos.mjs';
-import {CRITERIOS} from '../../resources/js/etabs/agente/criteriosEstructurales.js';
-import {medidasDeSeccion, tituloDelCuadro} from '../../resources/js/etabs/agente/cuadroColumnas.js';
+import {CRITERIOS} from '../../resources/js/ingenieria/criterios/criteriosEstructurales.js';
+import {medidasDeSeccion, tituloDelCuadro} from '../../resources/js/ingenieria/laminas/cuadroColumnas.js';
 
 const m03 = plano('estructuras', 'Modulo 3 INICIAL arquitectura.dwg');
 const m09 = plano('estructuras', 'Modulo 09 Vilcabamba arquitectura.dwg');

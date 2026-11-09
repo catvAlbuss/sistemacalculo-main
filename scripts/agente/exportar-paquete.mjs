@@ -19,12 +19,12 @@
 import {writeFileSync, mkdirSync, readdirSync, existsSync} from 'node:fs';
 import {resolve, dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {SKILLS, toolDefinitions} from '../../resources/js/etabs/agente/skills/index.js';
-import {SYSTEM_PROMPT} from '../../resources/js/etabs/agente/agentRunner.js';
-import {memoriaDelAgente, VERSION_MEMORIA} from '../../resources/js/etabs/agente/conocimiento.js';
-import {CRITERIOS} from '../../resources/js/etabs/agente/criteriosEstructurales.js';
-import {ESTILOS, CAPAS_DESPACHO} from '../../resources/js/etabs/agente/estiloLaminas.js';
-import {EVALUACION_MODELOS} from '../../resources/js/etabs/agente/modelosAgente.js';
+import {SKILLS, toolDefinitions} from '../../resources/js/ingenieria/agente/skills/index.js';
+import {SYSTEM_PROMPT} from '../../resources/js/ingenieria/agente/agentRunner.js';
+import {memoriaDelAgente, VERSION_MEMORIA} from '../../resources/js/ingenieria/agente/conocimiento.js';
+import {CRITERIOS} from '../../resources/js/ingenieria/criterios/criteriosEstructurales.js';
+import {ESTILOS, CAPAS_DESPACHO} from '../../resources/js/ingenieria/criterios/estiloLaminas.js';
+import {EVALUACION_MODELOS} from '../../resources/js/ingenieria/agente/modelosAgente.js';
 import {CASOS_EVALUACION} from './casos-evaluacion.mjs';
 
 const raiz = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -36,10 +36,10 @@ const NOTAS = {
   plano_estructuras: {
     cuando: 'El usuario abrió una planta de arquitectura y pide el plano de estructuras ("estructura este plano", "genera las láminas de estructuras", "con platea", "con zapatas"). No pedir pisos ni cargas.',
     devuelve: '{ok, mensaje, laminas: ["E-01","E-02"], avisos[]}. Responder el mensaje tal cual y agregar los avisos.',
-    codigo: 'resources/js/etabs/agente/skills/estructuraPlano.js → laminasPlantilla.js (cimentacionPlano, aligeradoPlano, porticoPlano, cuadroColumnas, rotulo, estiloLaminas, separarTextos)',
+    codigo: 'resources/js/ingenieria/agente/skills/estructuraPlano.js → laminasPlantilla.js (cimentacionPlano, aligeradoPlano, porticoPlano, cuadroColumnas, rotulo, estiloLaminas, separarTextos)',
   },
-  vistas_plano: {cuando: 'El archivo tiene varias plantas o láminas y hay que elegir una (primer nivel, techo…).', devuelve: 'Lista de vistas con su título, ejes y columnas. Pasar luego "vista" a las otras herramientas.', codigo: 'resources/js/etabs/agente/skills/estructuraPlano.js'},
-  leer_estructura: {cuando: 'El usuario quiere ver o verificar ejes y columnas detectados, sin generar láminas.', devuelve: 'Ejes con nombre, columnas por tipo (C1, C2…) y columnetas.', codigo: 'resources/js/etabs/agente/lectorPlano.js'},
+  vistas_plano: {cuando: 'El archivo tiene varias plantas o láminas y hay que elegir una (primer nivel, techo…).', devuelve: 'Lista de vistas con su título, ejes y columnas. Pasar luego "vista" a las otras herramientas.', codigo: 'resources/js/ingenieria/agente/skills/estructuraPlano.js'},
+  leer_estructura: {cuando: 'El usuario quiere ver o verificar ejes y columnas detectados, sin generar láminas.', devuelve: 'Ejes con nombre, columnas por tipo (C1, C2…) y columnetas.', codigo: 'resources/js/ingenieria/lectura/lectorPlano.js'},
 };
 
 // ---------- README ----------

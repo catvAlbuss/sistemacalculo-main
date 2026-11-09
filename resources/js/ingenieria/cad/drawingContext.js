@@ -2,10 +2,10 @@
 // compactos. Recibe el documento y el módulo de datos para poder probarse en Node.
 
 import {drawPrimitives, unitsPerMeter} from "./cadExecutor.js";
-import {segmentosDesdeEntidades} from "./estructura.js";
-import {aplanarModelo, detectarVistas} from "./lectorPlano.js";
+import {segmentosDesdeEntidades} from "../diseno/estructura.js";
+import {aplanarModelo, detectarVistas} from "../lectura/lectorPlano.js";
 import {copiarDesdePlantilla} from "./copiarPlantilla.js";
-import {polylineToNodes} from "../composables/polygonGeometry.js";
+import {polylineToNodes} from "../../etabs/composables/polygonGeometry.js";
 
 const UNIT_NAMES = {0: "sin unidades", 1: "pulgadas", 2: "pies", 4: "milímetros", 5: "centímetros", 6: "metros", 14: "decímetros"};
 

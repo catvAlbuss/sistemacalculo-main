@@ -6,8 +6,8 @@
 // orden, del formulario "Datos del proyecto" del panel, del rótulo de la arquitectura
 // (si lo trae) y de lo que el agente ya sabe (nombre del módulo, plano, fecha).
 
-import {L, text} from "./primitives.js";
-import {CAPAS_DESPACHO} from "./estiloLaminas.js";
+import {L, text} from "../cad/primitives.js";
+import {CAPAS_DESPACHO} from "../criterios/estiloLaminas.js";
 
 export const CAMPOS_PROYECTO = [
   {campo: "entidad", etiqueta: "Entidad / cliente", ejemplo: "MUNICIPALIDAD DISTRITAL DE …"},

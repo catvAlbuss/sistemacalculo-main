@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as dm from '@mlightcad/data-model';
-import {planCasaPrimerNivel} from '../../resources/js/etabs/agente/skills/casaPrimerNivel.js';
-import {drawPrimitives} from '../../resources/js/etabs/agente/cadExecutor.js';
-import {createDrawingContext} from '../../resources/js/etabs/agente/drawingContext.js';
-import {runAgent, stripThinking} from '../../resources/js/etabs/agente/agentRunner.js';
-import {L} from '../../resources/js/etabs/agente/primitives.js';
+import {planCasaPrimerNivel} from '../../resources/js/ingenieria/agente/skills/casaPrimerNivel.js';
+import {drawPrimitives} from '../../resources/js/ingenieria/cad/cadExecutor.js';
+import {createDrawingContext} from '../../resources/js/ingenieria/cad/drawingContext.js';
+import {runAgent, stripThinking} from '../../resources/js/ingenieria/agente/agentRunner.js';
+import {L} from '../../resources/js/ingenieria/cad/primitives.js';
 
 const newDb = (insunits) => {const db = new dm.AcDbDatabase(); db.createDefaultData(); if (insunits) db.insunits = insunits; return db;};
 const overlap = (a, b) => a.x0 < b.x1 - 1e-6 && b.x0 < a.x1 - 1e-6 && a.y0 < b.y1 - 1e-6 && b.y0 < a.y1 - 1e-6;

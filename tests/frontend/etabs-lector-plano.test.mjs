@@ -2,12 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync, readFileSync} from 'node:fs';
 import * as dm from '@mlightcad/data-model';
-import {aplanarModelo, detectarVistas, leerVista} from '../../resources/js/etabs/agente/lectorPlano.js';
-import {extensionDibujo, refuerzoMinimo} from '../../resources/js/etabs/agente/laminaEstructuras.js';
-import {espesorAligerado, seccionViga} from '../../resources/js/etabs/agente/aligeradoPlano.js';
-import {createDrawingContext} from '../../resources/js/etabs/agente/drawingContext.js';
+import {aplanarModelo, detectarVistas, leerVista} from '../../resources/js/ingenieria/lectura/lectorPlano.js';
+import {extensionDibujo, refuerzoMinimo} from '../../resources/js/ingenieria/laminas/laminaEstructuras.js';
+import {espesorAligerado, seccionViga} from '../../resources/js/ingenieria/planos/aligeradoPlano.js';
+import {createDrawingContext} from '../../resources/js/ingenieria/cad/drawingContext.js';
 import {plano} from '../../scripts/agente/planos.mjs';
-import {SKILLS} from '../../resources/js/etabs/agente/skills/index.js';
+import {SKILLS} from '../../resources/js/ingenieria/agente/skills/index.js';
 
 // Caso de referencia: la arquitectura es la entrada; la lámina del ingeniero
 // (estructuras.dwg) es el resultado esperado.

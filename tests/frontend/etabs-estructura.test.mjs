@@ -4,9 +4,9 @@ import {existsSync, readFileSync} from 'node:fs';
 import {plano} from '../../scripts/agente/planos.mjs';
 import {createRequire} from 'node:module';
 import * as dm from '@mlightcad/data-model';
-import {detectarColumnas, deducirEjes, areasTributarias, predimensionarZapatas, capaEstructural} from '../../resources/js/etabs/agente/estructura.js';
-import {createDrawingContext} from '../../resources/js/etabs/agente/drawingContext.js';
-import {ESTRUCTURA_SKILLS} from '../../resources/js/etabs/agente/skills/estructuraPlano.js';
+import {detectarColumnas, deducirEjes, areasTributarias, predimensionarZapatas, capaEstructural} from '../../resources/js/ingenieria/diseno/estructura.js';
+import {createDrawingContext} from '../../resources/js/ingenieria/cad/drawingContext.js';
+import {ESTRUCTURA_SKILLS} from '../../resources/js/ingenieria/agente/skills/estructuraPlano.js';
 
 const seg = (layer, ax, ay, bx, by) => ({layer, a: {x: ax, y: ay}, b: {x: bx, y: by}});
 // Rectangle drawn as four loose lines, with a small gap like real plans have.

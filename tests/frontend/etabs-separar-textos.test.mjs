@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {separarTextos, cajaTexto} from '../../resources/js/etabs/agente/separarTextos.js';
-import {L, text} from '../../resources/js/etabs/agente/primitives.js';
+import {separarTextos, cajaTexto} from '../../resources/js/ingenieria/laminas/separarTextos.js';
+import {L, text} from '../../resources/js/ingenieria/cad/primitives.js';
 
 test('element labels that overlap another text are moved to the nearest free spot; axes and dimensions stay put', () => {
   const eje = text(L.EJES, [0, 0], '8', 0.2);

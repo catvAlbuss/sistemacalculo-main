@@ -24,4 +24,4 @@ Ejes con nombre, columnas por tipo (C1, C2…) y columnetas.
 
 ## Implementación
 
-resources/js/etabs/agente/lectorPlano.js
+resources/js/ingenieria/lectura/lectorPlano.js

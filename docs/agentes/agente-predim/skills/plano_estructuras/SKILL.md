@@ -24,4 +24,4 @@ El usuario abrió una planta de arquitectura y pide el plano de estructuras ("es
 
 ## Implementación
 
-resources/js/etabs/agente/skills/estructuraPlano.js → laminasPlantilla.js (cimentacionPlano, aligeradoPlano, porticoPlano, cuadroColumnas, rotulo, estiloLaminas, separarTextos)
+resources/js/ingenieria/agente/skills/estructuraPlano.js → laminasPlantilla.js (cimentacionPlano, aligeradoPlano, porticoPlano, cuadroColumnas, rotulo, estiloLaminas, separarTextos)

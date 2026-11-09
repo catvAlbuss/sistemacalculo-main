@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {textoEnCasilla, datosDesdeArquitectura, anchoTexto} from '../../resources/js/etabs/agente/rotulo.js';
+import {textoEnCasilla, datosDesdeArquitectura, anchoTexto} from '../../resources/js/ingenieria/laminas/rotulo.js';
 
 test('a title block value never leaves its box: it wraps and shrinks to fit', () => {
   const campo = {campo: 'plano', x: 10, y: 5, alto: 0.06, ancho: 1.49, lineas: 3, interlineado: 0.094};

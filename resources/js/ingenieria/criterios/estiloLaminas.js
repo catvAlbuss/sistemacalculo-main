@@ -6,7 +6,7 @@
 // capa y al color del despacho según el tipo de plano y de entidad. Para otro despacho
 // basta con otra tabla. Color 256 = el de la capa (PorCapa).
 
-import {L} from "./primitives.js";
+import {L} from "../cad/primitives.js";
 
 // Colores ACI de las capas del despacho (para crearlas si el dibujo no las tiene).
 export const CAPAS_DESPACHO = {

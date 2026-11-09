@@ -76,16 +76,16 @@
 
 <script setup>
 import {computed, nextTick, ref} from "vue";
-import {DEFAULT_AGENT_SETTINGS, runAgent} from "../agente/agentRunner.js";
-import {modelosInstalados, notaModelo} from "../agente/modelosAgente.js";
-import {CAMPOS_PROYECTO} from "../agente/rotulo.js";
+import {DEFAULT_AGENT_SETTINGS, runAgent} from "../../ingenieria/agente/agentRunner.js";
+import {modelosInstalados, notaModelo} from "../../ingenieria/agente/modelosAgente.js";
+import {CAMPOS_PROYECTO} from "../../ingenieria/laminas/rotulo.js";
 
 const emit = defineEmits(["close", "foundation"]);
 
 // Acceso al documento abierto del visor, creado una sola vez al primer pedido.
 let contextPromise = null;
 const getContext = () => contextPromise ??= Promise.all([
-  import("@mlightcad/cad-simple-viewer"), import("@mlightcad/data-model"), import("../agente/drawingContext.js"),
+  import("@mlightcad/cad-simple-viewer"), import("@mlightcad/data-model"), import("../../ingenieria/cad/drawingContext.js"),
 ]).then(([viewer, dm, {createDrawingContext}]) => createDrawingContext({
   getDatabase: () => viewer.AcApDocManager.instance?.curDocument?.database,
   dm,

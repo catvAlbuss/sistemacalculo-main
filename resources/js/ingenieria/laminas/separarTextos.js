@@ -3,7 +3,7 @@
 // códigos, acero) que pisan otro texto se corren a la posición libre más cercana.
 // Las cajas usan el ancho real de la fuente del visor (rotulo.js → anchoTexto).
 
-import {L} from "./primitives.js";
+import {L} from "../cad/primitives.js";
 import {anchoTexto} from "./rotulo.js";
 
 const MOVIBLES = new Set([L.TEXTO, L.TEXTO_LOSA, L.LETRAS, L.VIGAS, L.CIMIENTO, L.CODIGOS, L.VIGUETAS, L.COLUMNAS_ID, L.ESTRIBOS, L.VIGAS_CIM, L.LAMINA, L.PLATEA, L.MUROS_E, L.COBERTURA]);

@@ -4,9 +4,9 @@
 // los ejes y vigas de cimentación donde no hay muro. Devuelve el contenido del
 // plano en coordenadas de la planta; laminaEstructuras.js lo ubica en la lámina.
 
-import {L, line, pline, circle, text, cota, hatch} from "./primitives.js";
-import {predimensionarZapatas, CARGAS_POR_DEFECTO} from "./estructura.js";
-import {CRITERIOS} from "./criteriosEstructurales.js";
+import {L, line, pline, circle, text, cota, hatch} from "../cad/primitives.js";
+import {predimensionarZapatas, CARGAS_POR_DEFECTO} from "../diseno/estructura.js";
+import {CRITERIOS} from "../criterios/criteriosEstructurales.js";
 import {recortar, direccionPrincipal, desplazarPoligono} from "./aligeradoPlano.js";
 
 export const CAPAS_MURO = /muro|tabique|wall|albañ|alban|ladrillo/i;

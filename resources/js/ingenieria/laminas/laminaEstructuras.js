@@ -3,9 +3,9 @@
 // del otro y a escala de lámina, el cuadro de columnas y el rótulo, dentro de un
 // marco ubicado debajo de la arquitectura.
 
-import {L, line, pline, text} from "./primitives.js";
-import {planoCimentacion} from "./cimentacionPlano.js";
-import {planoAligerado} from "./aligeradoPlano.js";
+import {L, line, pline, text} from "../cad/primitives.js";
+import {planoCimentacion} from "../planos/cimentacionPlano.js";
+import {planoAligerado} from "../planos/aligeradoPlano.js";
 
 const AREA_58 = 1.99; // cm², varilla de 5/8"
 const r4 = (v) => Math.round(v * 10000) / 10000;

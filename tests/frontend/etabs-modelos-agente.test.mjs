@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {modelosInstalados, notaModelo} from '../../resources/js/etabs/agente/modelosAgente.js';
+import {modelosInstalados, notaModelo} from '../../resources/js/ingenieria/agente/modelosAgente.js';
 
 test('the model picker lists installed chat models with tools, recommended local first, embeddings excluded', async () => {
   const tags = {models: [

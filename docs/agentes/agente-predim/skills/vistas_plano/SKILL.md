@@ -21,4 +21,4 @@ Lista de vistas con su título, ejes y columnas. Pasar luego "vista" a las otras
 
 ## Implementación
 
-resources/js/etabs/agente/skills/estructuraPlano.js
+resources/js/ingenieria/agente/skills/estructuraPlano.js

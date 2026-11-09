@@ -1,11 +1,11 @@
 // Skills que leen la estructura de un plano abierto (columnas y ejes) y
 // predimensionan sus zapatas aisladas para Cimentación 2.0.
 
-import {L, line, circle, text, rect} from "../primitives.js";
-import {detectarColumnas, areasTributarias, deducirEjes, predimensionarZapatas, CARGAS_POR_DEFECTO} from "../estructura.js";
-import {leerVista} from "../lectorPlano.js";
-import {laminaEstructuras} from "../laminaEstructuras.js";
-import {laminasConPlantilla} from "../laminasPlantilla.js";
+import {L, line, circle, text, rect} from "../../cad/primitives.js";
+import {detectarColumnas, areasTributarias, deducirEjes, predimensionarZapatas, CARGAS_POR_DEFECTO} from "../../diseno/estructura.js";
+import {leerVista} from "../../lectura/lectorPlano.js";
+import {laminaEstructuras} from "../../laminas/laminaEstructuras.js";
+import {laminasConPlantilla} from "../../laminas/laminasPlantilla.js";
 
 const r2 = (value) => Math.round(value * 100) / 100;
 const listaCapas = (value) => String(value ?? "").split(/[,;]/).map((capa) => capa.trim()).filter(Boolean);

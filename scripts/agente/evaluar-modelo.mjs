@@ -8,8 +8,8 @@
 //
 // La clave se lee de la variable de entorno; nunca se escribe en archivos.
 
-import {SKILLS, toolDefinitions} from '../../resources/js/etabs/agente/skills/index.js';
-import {promptDelSistema} from '../../resources/js/etabs/agente/agentRunner.js';
+import {SKILLS, toolDefinitions} from '../../resources/js/ingenieria/agente/skills/index.js';
+import {promptDelSistema} from '../../resources/js/ingenieria/agente/agentRunner.js';
 import {CASOS_EVALUACION} from './casos-evaluacion.mjs';
 
 const settings = {baseUrl: process.env.AGENTE_URL ?? 'http://127.0.0.1:11434/v1', model: process.env.AGENTE_MODEL ?? 'qwen3-cad', apiKey: process.env.AGENTE_KEY ?? '', memoria: 'auto'};

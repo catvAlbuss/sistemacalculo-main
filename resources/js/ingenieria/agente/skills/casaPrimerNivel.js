@@ -10,7 +10,7 @@
 // Los muros son el espacio entre ambientes: cada ambiente se dibuja por su cara
 // interior y los vanos cortan las caras de ambos lados del muro.
 
-import {L, line, pline, arc, circle, text, rect} from "../primitives.js";
+import {L, line, pline, arc, circle, text, rect} from "../../cad/primitives.js";
 
 export const CASA_LIMITES = {
   frente: [5, 20], fondo: [10, 40], dormitorios: [1, 4], banos: [1, 3], muro: [0.12, 0.25],

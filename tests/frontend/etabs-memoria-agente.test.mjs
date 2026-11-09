@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {memoriaDelAgente} from '../../resources/js/etabs/agente/conocimiento.js';
-import {promptDelSistema, usaMemoriaCompleta} from '../../resources/js/etabs/agente/agentRunner.js';
-import {CRITERIOS} from '../../resources/js/etabs/agente/criteriosEstructurales.js';
+import {memoriaDelAgente} from '../../resources/js/ingenieria/agente/conocimiento.js';
+import {promptDelSistema, usaMemoriaCompleta} from '../../resources/js/ingenieria/agente/agentRunner.js';
+import {CRITERIOS} from '../../resources/js/ingenieria/criterios/criteriosEstructurales.js';
 
 test('the agent memory carries the learned criteria, generated from CRITERIOS', () => {
   const m = memoriaDelAgente();

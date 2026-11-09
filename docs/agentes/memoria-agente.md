@@ -12,8 +12,8 @@ Este documento resume lo que el agente ya sabe hacer y cómo cambiarle el motor 
 
 | Qué | Archivo | Quién lo lee |
 |---|---|---|
-| Criterios del despacho (valores) | `resources/js/etabs/agente/criteriosEstructurales.js` | Las herramientas que dibujan |
-| Memoria para el modelo de chat | `resources/js/etabs/agente/conocimiento.js` (`memoriaDelAgente()`) | El motor de chat, en el prompt del sistema |
+| Criterios del despacho (valores) | `resources/js/ingenieria/criterios/criteriosEstructurales.js` | Las herramientas que dibujan |
+| Memoria para el modelo de chat | `resources/js/ingenieria/agente/conocimiento.js` (`memoriaDelAgente()`) | El motor de chat, en el prompt del sistema |
 | Criterios explicados para personas | `docs/agentes/criterios-estructuras.md` | El equipo |
 | Plantilla de láminas del despacho | `public/assets/plantillas/estructuras-laminas.dxf/.json` | Las herramientas |
 | Generador de la plantilla | `scripts/agente/generar-plantilla-estructuras.mjs` | El equipo, al cambiar de expediente de referencia |

@@ -14,8 +14,8 @@
 //   cotas en cadena y la sección de la viga.
 // Coordenadas: x a lo largo del eje desde la primera columna; y = cota (0 = NPN).
 
-import {L, line, pline, circle, text, cota, hatch} from "./primitives.js";
-import {CRITERIOS, textoEstribos, posicionesEstribos} from "./criteriosEstructurales.js";
+import {L, line, pline, circle, text, cota, hatch} from "../cad/primitives.js";
+import {CRITERIOS, textoEstribos, posicionesEstribos} from "../criterios/criteriosEstructurales.js";
 
 const r4 = (v) => Math.round(v * 10000) / 10000;
 const pt = (x, y) => [r4(x), r4(y)];

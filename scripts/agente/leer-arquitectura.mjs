@@ -6,7 +6,7 @@
 
 import {readFileSync, writeFileSync} from 'node:fs';
 import * as dm from '@mlightcad/data-model';
-import {aplanarModelo, detectarVistas, leerVista} from '../../resources/js/etabs/agente/lectorPlano.js';
+import {aplanarModelo, detectarVistas, leerVista} from '../../resources/js/ingenieria/lectura/lectorPlano.js';
 
 const [ruta, filtro] = process.argv.slice(2);
 if (!ruta) { console.error('Uso: node scripts/agente/leer-arquitectura.mjs <arquitectura.dwg> [vista]'); process.exit(1); }

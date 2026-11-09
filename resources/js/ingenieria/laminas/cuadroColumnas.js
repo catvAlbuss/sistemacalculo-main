@@ -9,9 +9,9 @@
 // Las columnas en L llevan dos estribos, uno por ala, que se cruzan en la esquina
 // (así los dibuja el ingeniero). Todo en unidades de lámina (1 = 1 m a 1/50).
 
-import {L, line, pline, circle, text, cota} from "./primitives.js";
-import {CRITERIOS, textoEstribos} from "./criteriosEstructurales.js";
-import {desplazarPoligono} from "./aligeradoPlano.js";
+import {L, line, pline, circle, text, cota} from "../cad/primitives.js";
+import {CRITERIOS, textoEstribos} from "../criterios/criteriosEstructurales.js";
+import {desplazarPoligono} from "../planos/aligeradoPlano.js";
 import {refuerzoMinimo} from "./laminaEstructuras.js";
 import {anchoTexto} from "./rotulo.js";
 

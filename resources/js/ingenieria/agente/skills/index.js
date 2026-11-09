@@ -3,7 +3,7 @@
 // pequeño (contexto de ~8k tokens) puede dibujar o leer un plano completo.
 
 import {planCasaPrimerNivel} from "./casaPrimerNivel.js";
-import {L, line, circle, text, rect} from "../primitives.js";
+import {L, line, circle, text, rect} from "../../cad/primitives.js";
 import {ESTRUCTURA_SKILLS} from "./estructuraPlano.js";
 
 const r2 = (value) => Math.round(value * 100) / 100;

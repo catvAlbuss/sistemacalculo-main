@@ -9,14 +9,14 @@
 // con sus títulos ("<PROYECTO> - PLANO DE …") y los datos del rótulo.
 // Unidades: las de un dibujo en metros (la plantilla dibuja los planos x2 = 1/25).
 
-import {L, line, text} from "./primitives.js";
-import {planoCimentacion, planoCimientoCorrido} from "./cimentacionPlano.js";
-import {planoAligerado, seccionViga} from "./aligeradoPlano.js";
+import {L, line, text} from "../cad/primitives.js";
+import {planoCimentacion, planoCimientoCorrido} from "../planos/cimentacionPlano.js";
+import {planoAligerado, seccionViga} from "../planos/aligeradoPlano.js";
 import {cuadroColumnas, cuadroColumnetas} from "./cuadroColumnas.js";
 import {datosDesdeArquitectura, textoEnCasilla, anchoTexto} from "./rotulo.js";
-import {aplicarEstilo} from "./estiloLaminas.js";
+import {aplicarEstilo} from "../criterios/estiloLaminas.js";
 import {separarTextos} from "./separarTextos.js";
-import {planoPortico, alturaDesdeArquitectura, pendienteDesdeArquitectura, vanosDesdeArquitectura} from "./porticoPlano.js";
+import {planoPortico, alturaDesdeArquitectura, pendienteDesdeArquitectura, vanosDesdeArquitectura} from "../planos/porticoPlano.js";
 
 const r4 = (v) => Math.round(v * 10000) / 10000;
 const MESES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SETIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];

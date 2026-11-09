@@ -3,9 +3,9 @@
 // dirección de la luz corta (cada 0.40 m: vigueta 0.10 + ladrillo 0.30) y su
 // símbolo de dirección. Devuelve el contenido en coordenadas de la planta.
 
-import {L, line, pline, text, hatch} from "./primitives.js";
+import {L, line, pline, text, hatch} from "../cad/primitives.js";
 import {primitivasBase, tramosEntreColumnas, envolvente, banda, rotularTramos, murosDelEdificio} from "./cimentacionPlano.js";
-import {CRITERIOS} from "./criteriosEstructurales.js";
+import {CRITERIOS} from "../criterios/criteriosEstructurales.js";
 
 const SEPARACION_VIGUETAS = 0.4;
 const pt = (p) => [Math.round(p.x * 10000) / 10000, Math.round(p.y * 10000) / 10000];

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync, existsSync} from 'node:fs';
-import {SKILLS} from '../../resources/js/etabs/agente/skills/index.js';
+import {SKILLS} from '../../resources/js/ingenieria/agente/skills/index.js';
 
 const base = 'docs/agentes/agente-predim';
 

@@ -7,9 +7,9 @@
 
 import {readFileSync, writeFileSync} from 'node:fs';
 import * as dm from '@mlightcad/data-model';
-import {createDrawingContext} from '../../resources/js/etabs/agente/drawingContext.js';
-import {SKILLS} from '../../resources/js/etabs/agente/skills/index.js';
-import {aplanarModelo} from '../../resources/js/etabs/agente/lectorPlano.js';
+import {createDrawingContext} from '../../resources/js/ingenieria/cad/drawingContext.js';
+import {SKILLS} from '../../resources/js/ingenieria/agente/skills/index.js';
+import {aplanarModelo} from '../../resources/js/ingenieria/lectura/lectorPlano.js';
 
 const [ruta, vista, salida, cimentacion] = process.argv.slice(2);
 if (!ruta || !vista) { console.error('Uso: node scripts/agente/probar-laminas.mjs <arquitectura.dwg> <vista> [salida.svg] [cimentacion]'); process.exit(1); }

@@ -20,7 +20,7 @@ import {resolve, dirname, basename, extname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import * as dm from '@mlightcad/data-model';
 import {AcDbLibreDwgMainThreadConverter} from '@mlightcad/libredwg-converter/node';
-import {aplanarModelo, textoPlano} from '../../resources/js/etabs/agente/lectorPlano.js';
+import {aplanarModelo, textoPlano} from '../../resources/js/ingenieria/lectura/lectorPlano.js';
 
 const raiz = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const salida = resolve(raiz, 'docs/agentes/agente-predim/conocimiento/expedientes');

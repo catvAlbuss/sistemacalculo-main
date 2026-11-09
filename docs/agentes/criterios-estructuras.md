@@ -1,6 +1,6 @@
 # Criterios de estructuras del Agente Predim
 
-Este documento resume los criterios que usa el agente para pasar de una planta de arquitectura a las láminas de estructuras. Se tomaron de los expedientes de referencia en `storage/app/private/entrenamiento/estructuras/` (fuera de git; ver `scripts/agente/planos.mjs`). El código está en `resources/js/etabs/agente/criteriosEstructurales.js`. Cada valor de este documento corresponde a una entrada de ese archivo.
+Este documento resume los criterios que usa el agente para pasar de una planta de arquitectura a las láminas de estructuras. Se tomaron de los expedientes de referencia en `storage/app/private/entrenamiento/estructuras/` (fuera de git; ver `scripts/agente/planos.mjs`). El código está en `resources/js/ingenieria/criterios/criteriosEstructurales.js`. Cada valor de este documento corresponde a una entrada de ese archivo.
 
 **Estado:** se aprendieron del módulo XIV (Churubamba), que está completo como primera muestra. La memoria para el modelo de chat está en `docs/agentes/memoria-agente.md`. Faltan contrastar con el módulo 3 (Inicial) y el módulo 09 (Vilcabamba).
 

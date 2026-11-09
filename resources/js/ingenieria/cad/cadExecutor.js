@@ -3,7 +3,7 @@
 // Las dependencias del CAD se inyectan para poder probarlo en Node.
 
 import {LAYER_COLORS} from "./primitives.js";
-import {CAPAS_DESPACHO} from "./estiloLaminas.js";
+import {CAPAS_DESPACHO} from "../criterios/estiloLaminas.js";
 
 // INSUNITS -> unidades del dibujo por metro.
 const UNITS_PER_METER = {1: 39.3701, 2: 3.28084, 4: 1000, 5: 100, 6: 1, 14: 10};
