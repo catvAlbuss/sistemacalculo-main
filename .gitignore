@@ -46,3 +46,7 @@ __pycache__/
 *.pyo
 /public/puppeteer-session/
 /public/captures/
+
+# Cache de Laravel (config.php incluye los valores del .env)
+/bootstrap/cache/*.php
+
