@@ -145,4 +145,17 @@ Se probaron con `scripts/agente/leer-arquitectura.mjs` (qué entiende el agente)
 
 **Cimiento corrido:** muebles empotrados dibujados con capas de muro (por ejemplo, un poyo) aparecen como muro.
 
-**Datos que se copian tal cual de la referencia:** el cuadro de columnetas y las especificaciones técnicas. Hay que revisarlos en cada proyecto. Los parámetros sísmicos se reemplazan con los datos del proyecto cuando el ingeniero los indica.
+**Especificaciones técnicas:** la plantilla trae el cuadro "ESPECIFICACIONES TÉCNICAS" del expediente (bloque ET). En 3) SUELO, "Df=…" y "Parámetros sísmicos: Z=…, U=…" toman los datos del proyecto; Rx y Ry quedan del expediente porque dependen del sistema estructural.
+
+**Cuadro de columnetas:** como el del ingeniero:
+- secciones a la mayor escala estándar que entra (1/10, 1/15, 1/20 o 1/25), la misma para todas, y el encabezado dice cuál;
+- cotas ".20" / ".13";
+- una llamada "nØ3/8\"" por cara;
+- refuerzo: pa .20x.13 4Ø, pb .65x.13 12Ø, pc .13x.22 6Ø.
+
+**Chat:**
+- El ingeniero dicta los datos ("Hz 0.60, Df 2.50, zona 2, suelo S3, es un colegio") con la herramienta `datos_proyecto`, o los pasa en el mismo pedido de láminas. Quedan guardados en ▤.
+- Los niveles (pisos) no se piden en el chat; van solo en el panel.
+- `plano_estructuras` rehace las láminas que dibujó antes en esta sesión, en el mismo lugar; con `conservar` agrega otras.
+
+**Datos que se copian tal cual de la referencia:** el resto de las especificaciones técnicas. Hay que revisarlos en cada proyecto. Los parámetros sísmicos se reemplazan con los datos del proyecto cuando el ingeniero los indica.

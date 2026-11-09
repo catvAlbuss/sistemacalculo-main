@@ -44,6 +44,11 @@ test('the template seismic texts (copied from the reference project) are replace
   const dxf = readFileSync(plantillaDxf, 'utf8').split(/\r?\n/);
   for (const t of plantilla) assert.ok(dxf.includes(t), `template text "${t}" not found: update the patterns`);
   assert.equal(textosSismicos({}), null);
+  // Especificaciones técnicas (3) SUELO): Df y Z, U del proyecto; R queda (depende del sistema estructural).
+  const g = textosSismicos(parametrosSismicos({zona: 3, categoria: 'A2'}), {df: 2.5});
+  assert.equal(g('Profundidad de desplante Df=2.00 m desde el nivel de terreno natural'), 'Profundidad de desplante Df=2.50 m desde el nivel de terreno natural');
+  assert.equal(g(' Parámetros sísmicos: Z=0.25, U=1.5, Rx=8, Ry=8'), ' Parámetros sísmicos: Z=0.35, U=1.5, Rx=8, Ry=8');
+  for (const t of ['Profundidad de desplante Df=2.00 m desde el nivel de terreno natural', ' Parámetros sísmicos: Z=0.25, U=1.5, Rx=8, Ry=8']) assert.ok(dxf.some((l) => l.normalize('NFC') === t.normalize('NFC') || l.includes('desplante Df=2.00') || /metros s.smicos: Z=0\.25/.test(l)), `template line "${t}" not found`);
 });
 
 test('missing soil data falls back to the office criterion with a warning; given data is used', () => {
@@ -55,6 +60,40 @@ test('missing soil data falls back to the office criterion with a warning; given
   assert.deepEqual(con.cimentacion, {espesorPlatea: 0.6, peralteZapata: 0.6, dfPlatea: 2.5, df: 2.5, pisos: 2});
   assert.ok(!con.avisos.some((a) => /Falta/.test(a)));
   assert.ok(con.avisos.some((a) => /2 niveles/.test(a)), 'two levels are not drawn yet: say so');
+});
+
+test('chat tool datos_proyecto saves what the engineer dictates into the panel and says what is missing', async () => {
+  const panel = {hz: '0.70'};
+  const guardados = [];
+  const ctx = createDrawingContext({getDatabase: () => null, dm, getProjectData: () => panel, setProjectData: (d) => { guardados.push(d); Object.assign(panel, d); }});
+  const skill = SKILLS.find((s) => s.name === 'datos_proyecto');
+  const r = await skill.run({hz: 0.6, df: 2.5, zona: 2, suelo: 'S3', categoria: 'A2'}, ctx);
+  assert.deepEqual(guardados, [{hz: '0.6', df: '2.5', zona: '2', suelo: 'S3', categoria: 'A2'}]);
+  assert.match(r.mensaje, /^Guardé Hz, Df, zona, suelo, categoría en Datos del proyecto\. Datos del proyecto: Hz 0\.60 m, Df 2\.50 m, zona 2, suelo S3, categoría A2 \(Z=0\.25, U=1\.5, S=1\.4, Tp=1, TL=1\.6\)\. Pide "genera el plano de estructuras"/);
+  assert.doesNotMatch(r.mensaje, /niveles|pisos/, 'the chat does not ask for floors');
+  const mal = await skill.run({hz: 60}, ctx);
+  assert.match(mal.avisos[0], /No guardé/);
+  assert.equal(panel.hz, '0.6', 'a wrong value does not overwrite a good one');
+  const consulta = await skill.run({}, ctx);
+  assert.match(consulta.mensaje, /^Datos del proyecto: Hz 0\.60 m/);
+});
+
+test('columneta schedule: sections at the largest standard scale that fits, ".20" dimensions and one bar callout per face', async () => {
+  const {cuadroColumnetas} = await import('../../resources/js/ingenieria/laminas/cuadroColumnas.js');
+  const r = cuadroColumnetas([{codigo: 'pa', b: 0.2, h: 0.13}, {codigo: 'pb', b: 0.65, h: 0.13}, {codigo: 'pc', b: 0.13, h: 0.22}]);
+  const textos = r.contenido.primitivas.filter((p) => p.type === 'text').map((p) => p.text ?? p.texto ?? p.value);
+  const escala = r.filas[0].escala;
+  assert.ok(['1/10', '1/15', '1/20', '1/25'].includes(escala), escala);
+  assert.ok(textos.includes(escala), 'header shows the real scale');
+  for (const t of ['.20', '.13', '.65', '.22']) assert.ok(textos.includes(t), `missing dimension "${t}"`);
+  const llamadas = r.contenido.primitivas.filter((p) => p.type === 'text' && p.align === 'izq' && /Ø3\/8"$/.test(p.value)).map((p) => p.value);
+  assert.deepEqual(llamadas, ['2Ø3/8"', '2Ø3/8"', '6Ø3/8"', '6Ø3/8"', '3Ø3/8"', '3Ø3/8"'], 'one callout per face, bars per face');
+  assert.deepEqual(r.filas.map((f) => f.refuerzo), ['4Ø3/8"', '12Ø3/8"', '6Ø3/8"'], 'like the engineer: pa 4Ø, pb 12Ø, pc 6Ø');
+  // The widest section stays inside its cell.
+  const W = 11.9, c0 = W * 0.075, c1 = W * 0.1, wTipo = (W - c0 - c1) / 3;
+  assert.ok(0.65 * 50 / Number(escala.split('/')[1]) <= wTipo * 0.46);
+  // Larger than the old fixed 1/25 when there is room.
+  assert.notEqual(cuadroColumnetas([{codigo: 'pa', b: 0.2, h: 0.13}]).filas[0].escala, '1/25');
 });
 
 async function abrir(path) {
@@ -84,15 +123,24 @@ test('module 3 with its soil study and E.030 data: Hz 0.60, Df 2.50 and Z/U/S/Tp
   // Textos nuevos del espacio modelo y de los bloques copiados de la plantilla (los parámetros sísmicos van en un bloque).
   const deBloques = [...db.tables.blockTable.newIterator()].filter((b) => /^PLT_/.test(b.name)).flatMap((b) => b.newIterator().toArray());
   const textos = [...db.tables.blockTable.modelSpace.newIterator().toArray().slice(antes), ...deBloques].map((e) => e.contents ?? e.textString ?? '');
-  for (const t of ['Hz = 0.60 m', 'Df = -2.50 m', 'NFZ=-2.50m', 'U=1.5 categoria "A2" (EDIFICACIONES ESENCIALES)', 'S=1.40(suelo tipo S3)', 'Tp=1.00(suelo S3)', 'TL=1.6(suelo tipo S3)']) {
+  for (const t of ['Hz = 0.60 m', 'Df = -2.50 m', 'NFZ=-2.50m', 'Profundidad de desplante Df=2.50 m', 'Parámetros sísmicos: Z=0.25, U=1.5', 'U=1.5 categoria "A2" (EDIFICACIONES ESENCIALES)', 'S=1.40(suelo tipo S3)', 'Tp=1.00(suelo S3)', 'TL=1.6(suelo tipo S3)']) {
     assert.ok(textos.includes(t) || textos.some((x) => x.includes(t)), `missing "${t}"`);
   }
   for (const t of ['U=1.0 categoria "C" (EDIFICACIONES COMUNES)', 'S=1.40(suelo tipo s2)', 'Hz = 0.70 m']) assert.ok(!textos.some((x) => x.includes(t)), `reference value left: "${t}"`);
 
-  // Otro proyecto en el mismo dibujo (zona 3, suelo S2, vivienda): sus propios valores, no los anteriores.
-  datos.zona = '3'; datos.suelo = 'S2'; datos.categoria = 'C';
-  const r2 = await SKILLS.find((s) => s.name === 'plano_estructuras').run({vista: '1ER NIVEL'}, ctx);
+  // El ingeniero corrige por chat (zona 3, suelo S2, vivienda): el agente guarda los datos y
+  // REHACE las láminas en el mismo lugar, sin apilar otra copia debajo.
+  const despues1 = db.tables.blockTable.modelSpace.newIterator().toArray().length;
+  const r2 = await SKILLS.find((s) => s.name === 'plano_estructuras').run({vista: '1ER NIVEL', zona: 3, suelo: 'S2', categoria: 'C'}, ctx);
+  assert.match(r2.mensaje, /^Guardé zona, suelo, categoría en Datos del proyecto\. Reemplacé las láminas anteriores\. Generé las láminas E-01/);
   assert.match(r2.mensaje, /Z=0\.35, U=1, S=1\.15, Tp=0\.6/);
+  const despues2 = db.tables.blockTable.modelSpace.newIterator().toArray().length;
+  assert.ok(Math.abs(despues2 - despues1) < 0.05 * (despues1 - antes), `sheets replaced, not stacked: ${antes} → ${despues1} → ${despues2}`);
+  assert.equal(ctx.datosProyecto().zona, '3', 'chat data kept for the next requests');
+  // Con "conservar" se agregan otras láminas debajo.
+  const r3 = await SKILLS.find((s) => s.name === 'plano_estructuras').run({vista: '1ER NIVEL', conservar: true}, ctx);
+  assert.doesNotMatch(r3.mensaje, /Reemplacé/);
+  assert.ok(db.tables.blockTable.modelSpace.newIterator().toArray().length > despues2 + 0.9 * (despues1 - antes));
   const bloques = [...db.tables.blockTable.newIterator()].filter((b) => b.newIterator().toArray().some((e) => /^U=1\.0 categoria "C"/.test(e.contents ?? '')));
   assert.equal(bloques.length, 1, 'the second project gets its own copy of the seismic block');
   assert.ok(bloques[0].newIterator().toArray().some((e) => e.contents === 'Z=0.35(ZONA 3)'));

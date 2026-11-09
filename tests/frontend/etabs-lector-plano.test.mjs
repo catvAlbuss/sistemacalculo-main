@@ -63,7 +63,7 @@ test('the chat only offers architecture-to-structures tools, nothing that feeds 
   assert.ok(nombres.includes('plano_estructuras'));
   assert.ok(!nombres.includes('zapatas_desde_plano'));
   const params = Object.keys(SKILLS.find((s) => s.name === 'plano_estructuras').parameters.properties);
-  assert.deepEqual(params.sort(), ['cimentacion', 'vista'], 'no floors or loads asked in chat');
+  assert.deepEqual(params.sort(), ['categoria', 'cimentacion', 'conservar', 'df', 'hz', 'suelo', 'vista', 'zona'], 'soil and seismic data may come from the chat; no floors or loads');
 });
 
 test('without the template, plano_estructuras draws a simple sheet below the architecture: foundation, slab, column schedule and title block', {skip: !existsSync(arquitectura)}, async () => {
@@ -105,9 +105,13 @@ test('without the template, plano_estructuras draws a simple sheet below the arc
     assert.ok(e.getPoint3dAt(0).y < ext.y0, 'the whole sheet sits below the architecture drawing');
   }
 
-  // Un segundo pedido (con platea) hace E-02 al lado, sin encimarse.
+  // Un segundo pedido (con platea) rehace la lámina en su lugar: sigue siendo E-01.
   const platea = await skill.run({vista: 'primer nivel', cimentacion: 'platea'}, ctx);
-  assert.equal(platea.lamina, 'E-02');
+  assert.equal(platea.lamina, 'E-01');
+  assert.match(platea.mensaje, /^Reemplacé las láminas anteriores\./);
+  // Con "conservar", otra lámina E-02 al lado, sin encimarse.
+  const otra = await skill.run({vista: 'primer nivel', conservar: true}, ctx);
+  assert.equal(otra.lamina, 'E-02');
   assert.match(platea.mensaje, /cimentación con platea/);
   assert.ok(JSON.stringify(platea).length < 1200, 'compact tool result');
 });

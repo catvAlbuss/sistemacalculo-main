@@ -114,6 +114,11 @@ const getContext = () => contextPromise ??= Promise.all([
   onFoundation: (payload) => emit("foundation", payload),
   // Datos del rótulo que el ingeniero llenó (▤).
   getProjectData: () => ({...proyecto.value}),
+  // Datos que el ingeniero dicta en el chat ("Hz 0.60, zona 3"): quedan en ▤ como si los escribiera.
+  setProjectData: (datos) => {
+    proyecto.value = {...proyecto.value, ...datos};
+    try { localStorage.setItem(PROYECTO_KEY, JSON.stringify(proyecto.value)); } catch { /* sin almacenamiento */ }
+  },
   // Plantilla de láminas de estructuras (detalles estándar del despacho).
   loadTemplate: async () => {
     const [buffer, config] = await Promise.all([
@@ -137,11 +142,12 @@ const examples = [
   "¿Qué vistas tiene el plano abierto?",
   "Lee los ejes y columnas del primer nivel",
   "Genera el plano de estructuras con platea",
+  "Hz 0.60, Df 2.50, zona 2, suelo S3, es un colegio",
 ];
 const toolLabels = {
   casa_primer_nivel: "Casa primer nivel", dibujar_ejes: "Ejes", dibujar_ambiente: "Ambiente",
   resumen_plano: "Resumen del plano", buscar_textos: "Buscar textos", vistas_plano: "Vistas del plano", plano_estructuras: "Plano de estructuras",
-  leer_estructura: "Columnas y ejes del plano", zapatas_desde_plano: "Zapatas desde el plano",
+  leer_estructura: "Columnas y ejes del plano", zapatas_desde_plano: "Zapatas desde el plano", datos_proyecto: "Datos del proyecto",
 };
 
 // Datos del proyecto para el rótulo de las láminas.

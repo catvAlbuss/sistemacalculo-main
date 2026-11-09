@@ -96,6 +96,15 @@ await origen.read(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buf
 
 const extension = (e) => { try { return e.geometricExtents; } catch { return null; } };
 const dentro = (b, m, pad = 0.5) => b && b.min.x >= m.x0 - pad && b.max.x <= m.x1 + pad && b.min.y >= m.y0 - pad && b.max.y <= m.y1 + pad;
+// Fracción de la caja b que cae dentro del marco m. Los bloques con MTEXT (p. ej. "ET",
+// las especificaciones técnicas) declaran un ancho de párrafo mayor que su texto: su caja
+// sobresale del marco aunque el dibujo esté dentro.
+const solape = (b, m) => {
+  if (!b) return 0;
+  const w = Math.max(0, Math.min(b.max.x, m.x1) - Math.max(b.min.x, m.x0)), h = Math.max(0, Math.min(b.max.y, m.y1) - Math.max(b.min.y, m.y0));
+  const area = (b.max.x - b.min.x) * (b.max.y - b.min.y);
+  return area > 0 ? (w * h) / area : 0;
+};
 const texto = (e) => String(e.textString ?? e.contents ?? '').replace(/\\[A-Za-z][^;\\]*;|[{}]/g, '').trim();
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -130,7 +139,7 @@ for (const lamina of LAMINAS) {
     const tipo = String(e.dxfTypeName).toUpperCase();
     // Los bloques con geometría perdida lejos (c1…c4) se ubican por su punto de inserción.
     const p = e.position ?? e.location;
-    const enLamina = dentro(b, marco) || (tipo === 'INSERT' && p && p.x >= marco.x0 - 40 && p.x <= marco.x1 && propios.has(e.blockName));
+    const enLamina = dentro(b, marco) || (tipo === 'INSERT' && !propios.has(e.blockName) && solape(b, marco) >= 0.7) || (tipo === 'INSERT' && p && p.x >= marco.x0 - 40 && p.x <= marco.x1 && propios.has(e.blockName));
     if (!enLamina) continue;
     if (tipo === 'INSERT' && propios.has(e.blockName)) {
       const espacio = lamina.espacios.find((s) => s.bloque === e.blockName);

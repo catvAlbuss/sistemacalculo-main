@@ -111,6 +111,46 @@
     }
   },
   {
+    "name": "datos_proyecto",
+    "description": "Guarda o consulta los datos del proyecto que usan las láminas de estructuras: Hz y Df del estudio de suelos, zona sísmica, perfil de suelo y categoría. Úsalo cuando el usuario dé o pregunte esos datos.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "hz": {
+          "type": "number",
+          "description": "Hz: peralte de platea o zapata en m (estudio de suelos), ej. 0.60"
+        },
+        "df": {
+          "type": "number",
+          "description": "Df: profundidad de desplante en m, ej. 2.50"
+        },
+        "zona": {
+          "type": "integer",
+          "description": "Zona sísmica E.030: 1 a 4"
+        },
+        "suelo": {
+          "type": "string",
+          "enum": [
+            "S0",
+            "S1",
+            "S2",
+            "S3"
+          ],
+          "description": "Perfil de suelo"
+        },
+        "categoria": {
+          "type": "string",
+          "enum": [
+            "A2",
+            "B",
+            "C"
+          ],
+          "description": "Categoría: A2 esencial (colegio, hospital), B importante, C común (vivienda)"
+        }
+      }
+    }
+  },
+  {
     "name": "vistas_plano",
     "description": "Lista las vistas del plano abierto (plantas con su grilla de ejes: primer nivel, techo, cimentación…) con sus ejes y columnas. Úsalo cuando el archivo tiene varias láminas o vistas.",
     "input_schema": {
@@ -153,6 +193,41 @@
             "platea"
           ],
           "description": "Opcional: tipo de cimentación; por defecto auto"
+        },
+        "conservar": {
+          "type": "boolean",
+          "description": "Opcional: true para dejar las láminas anteriores y agregar otras; por defecto se reemplazan"
+        },
+        "hz": {
+          "type": "number",
+          "description": "Hz: peralte de platea o zapata en m (estudio de suelos), ej. 0.60"
+        },
+        "df": {
+          "type": "number",
+          "description": "Df: profundidad de desplante en m, ej. 2.50"
+        },
+        "zona": {
+          "type": "integer",
+          "description": "Zona sísmica E.030: 1 a 4"
+        },
+        "suelo": {
+          "type": "string",
+          "enum": [
+            "S0",
+            "S1",
+            "S2",
+            "S3"
+          ],
+          "description": "Perfil de suelo"
+        },
+        "categoria": {
+          "type": "string",
+          "enum": [
+            "A2",
+            "B",
+            "C"
+          ],
+          "description": "Categoría: A2 esencial (colegio, hospital), B importante, C común (vivienda)"
         }
       }
     }

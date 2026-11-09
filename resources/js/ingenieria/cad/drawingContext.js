@@ -26,7 +26,7 @@ function puntoDeReferencia(e) {
   return ext?.min && Number.isFinite(ext.min.x) ? {x: (ext.min.x + ext.max.x) / 2, y: (ext.min.y + ext.max.y) / 2} : null;
 }
 
-export function createDrawingContext({getDatabase, dm, edit, afterDraw, onFoundation, loadTemplate, getProjectData}) {
+export function createDrawingContext({getDatabase, dm, edit, afterDraw, onFoundation, loadTemplate, getProjectData, setProjectData}) {
   let plantilla = null;
   const entities = () => getDatabase().tables.blockTable.modelSpace.newIterator().toArray();
   return {
@@ -76,7 +76,41 @@ export function createDrawingContext({getDatabase, dm, edit, afterDraw, onFounda
       return this.memoria.lectura;
     },
     datosProyecto() {
-      try { return getProjectData?.() ?? {}; } catch { return {}; }
+      let panel = {};
+      try { panel = getProjectData?.() ?? {}; } catch { /* sin panel */ }
+      return {...panel, ...this.memoria.datosChat};
+    },
+    // Guarda datos del proyecto dictados en el chat (Hz, Df, zona…) en el panel ▤.
+    guardarDatosProyecto(datos) {
+      this.memoria.datosChat = {...this.memoria.datosChat, ...datos};
+      try { setProjectData?.(datos); } catch { /* el panel no los guardó: valen para esta sesión */ }
+      return Boolean(setProjectData);
+    },
+    // Lo que dibujó un pedido (láminas, plantilla), para rehacerlo sin apilar copias:
+    // iniciar antes de dibujar, cerrar después; borrar quita esas entidades (un solo
+    // paso de deshacer). Dura mientras el plano siga abierto en esta sesión.
+    iniciarGeneracion(clave) {
+      this.memoria.antes = {clave, ids: new Set(entities().map((e) => e.objectId))};
+    },
+    cerrarGeneracion(clave) {
+      const antes = this.memoria.antes;
+      if (antes?.clave !== clave) return 0;
+      const nuevas = entities().filter((e) => !antes.ids.has(e.objectId)).map((e) => e.objectId);
+      this.memoria.generaciones = {...this.memoria.generaciones, [clave]: {database: getDatabase(), ids: nuevas}};
+      delete this.memoria.antes;
+      return nuevas.length;
+    },
+    borrarGeneracion(clave) {
+      const g = this.memoria.generaciones?.[clave];
+      const database = getDatabase();
+      if (!g || g.database !== database || !g.ids.length) return 0;
+      const modelSpace = database.tables.blockTable.modelSpace;
+      const vivas = g.ids.filter((id) => modelSpace.getIdAt(id));
+      const borrar = () => { if (vivas.length) modelSpace.removeEntity(vivas); };
+      if (edit) edit(database, "Agente: quitar láminas anteriores", borrar); else borrar();
+      delete this.memoria.generaciones[clave];
+      delete this.memoria.lectura;
+      return vivas.length;
     },
     async loadTemplate() {
       if (!loadTemplate) return null;

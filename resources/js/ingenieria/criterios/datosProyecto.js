@@ -77,11 +77,22 @@ export function parametrosSismicos({zona, suelo, categoria} = {}) {
 const f2 = (v) => v.toFixed(2);
 const f1 = (v) => v.toFixed(1);
 
-// Reemplazos de los textos del "RESUMEN DE PARÁMETROS SÍSMICOS" de la plantilla, que
-// vienen del expediente de referencia (Z=0.25 ZONA 2, U=1.0 categoría C, S=1.40…).
-// Devuelve una función texto → texto; los textos que no son parámetros quedan igual.
-export function textosSismicos(p) {
+// Reemplazos de los textos de la plantilla que vienen del expediente de referencia:
+// - "RESUMEN DE PARÁMETROS SÍSMICOS" (Z=0.25 ZONA 2, U=1.0 categoría C, S=1.40…);
+// - "ESPECIFICACIONES TÉCNICAS" › 3) SUELO: "Profundidad de desplante Df=2.00 m…" y
+//   "Parámetros sísmicos: Z=0.25, U=1.5, Rx=8, Ry=8".
+// Devuelve una función texto → texto; los demás textos quedan igual.
+export function textosSismicos(p, {df = null} = {}) {
   const reglas = [];
+  if (df !== null) reglas.push([/desplante/i, (t) => t.replace(/Df\s*=\s*[\d.]+\s*m/i, `Df=${f2(df)} m`)]);
+  if (p.Z !== undefined || p.U !== undefined) {
+    reglas.push([/Par[aá]metros\s+s[ií]smicos\s*:/i, (t) => {
+      let r = t;
+      if (p.Z !== undefined) r = r.replace(/\bZ\s*=\s*[\d.]+/, `Z=${f2(p.Z)}`);
+      if (p.U !== undefined) r = r.replace(/\bU\s*=\s*[\d.]+/, `U=${f1(p.U)}`);
+      return r;
+    }]);
+  }
   if (p.Z !== undefined) reglas.push([/^\s*Z\s*=\s*[\d.]+\s*\(ZONA\s*\d\)\s*$/i, `Z=${f2(p.Z)}(ZONA ${p.zona})`]);
   if (p.U !== undefined) {
     reglas.push([/^\s*U\s*=\s*[\d.]+\s*categor[ií]a\b.*$/i, `U=${f1(p.U)} categoria "${p.categoria}" (EDIFICACIONES ${p.nombreCategoria})`]);
@@ -97,7 +108,7 @@ export function textosSismicos(p) {
   if (!reglas.length) return null;
   return (texto) => {
     const regla = reglas.find(([re]) => re.test(texto));
-    return regla ? regla[1] : texto;
+    return !regla ? texto : typeof regla[1] === "function" ? regla[1](texto) : regla[1];
   };
 }
 
@@ -119,6 +130,6 @@ export function datosParaLaminas(datos = {}) {
       ...(t.df !== null ? {dfPlatea: t.df, df: t.df} : {}),
       ...(t.niveles ? {pisos: t.niveles} : {}),
     },
-    sismo, textos: textosSismicos(sismo), niveles: t.niveles ?? 1, avisos,
+    sismo, textos: textosSismicos(sismo, {df: t.df}), niveles: t.niveles ?? 1, avisos,
   };
 }

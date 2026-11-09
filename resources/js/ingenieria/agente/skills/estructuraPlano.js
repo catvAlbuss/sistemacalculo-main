@@ -6,6 +6,7 @@ import {detectarColumnas, areasTributarias, deducirEjes, predimensionarZapatas, 
 import {leerVista} from "../../lectura/lectorPlano.js";
 import {laminaEstructuras} from "../../laminas/laminaEstructuras.js";
 import {laminasConPlantilla} from "../../laminas/laminasPlantilla.js";
+import {CAMPOS_TECNICOS, datosTecnicos, parametrosSismicos} from "../../criterios/datosProyecto.js";
 
 const r2 = (value) => Math.round(value * 100) / 100;
 const listaCapas = (value) => String(value ?? "").split(/[,;]/).map((capa) => capa.trim()).filter(Boolean);
@@ -93,7 +94,54 @@ function resumenColumnas(columnas) {
   return [...tipos].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, n]) => `${n} de ${k}`).join(", ");
 }
 
+// Parámetros de datos del proyecto que el modelo puede pasar desde el chat.
+const PARAMETROS_DATOS = {
+  hz: {type: "number", description: "Hz: peralte de platea o zapata en m (estudio de suelos), ej. 0.60"},
+  df: {type: "number", description: "Df: profundidad de desplante en m, ej. 2.50"},
+  zona: {type: "integer", description: "Zona sísmica E.030: 1 a 4"},
+  suelo: {type: "string", enum: ["S0", "S1", "S2", "S3"], description: "Perfil de suelo"},
+  categoria: {type: "string", enum: ["A2", "B", "C"], description: "Categoría: A2 esencial (colegio, hospital), B importante, C común (vivienda)"},
+};
+// Los niveles (pisos) no se piden ni se toman en el chat: van solo en el panel ▤.
+const CAMPOS_CHAT = CAMPOS_TECNICOS.filter((c) => c.campo in PARAMETROS_DATOS);
+
+// Guarda en el panel los datos que vinieron en el pedido; devuelve qué se guardó y qué no sirvió.
+function guardarDatos(args, ctx) {
+  const dados = Object.fromEntries(CAMPOS_CHAT.map((c) => [c.campo, args?.[c.campo]]).filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== ""));
+  if (!Object.keys(dados).length) return {guardados: [], invalidos: []};
+  const t = datosTecnicos(dados);
+  const validos = Object.fromEntries(Object.keys(dados).filter((k) => t[k] !== null).map((k) => [k, String(t[k])]));
+  if (Object.keys(validos).length) ctx.guardarDatosProyecto?.(validos);
+  return {guardados: Object.keys(validos), invalidos: t.invalidos};
+}
+
+const ETIQUETA = {hz: "Hz", df: "Df", zona: "zona", suelo: "suelo", categoria: "categoría", niveles: "niveles"};
+function textoDatos(datos) {
+  const t = datosTecnicos(datos), p = parametrosSismicos(t);
+  const tiene = CAMPOS_TECNICOS.filter((c) => t[c.campo] !== null).map((c) => `${ETIQUETA[c.campo]} ${c.campo === "hz" || c.campo === "df" ? `${t[c.campo].toFixed(2)} m` : t[c.campo]}`);
+  const faltan = CAMPOS_CHAT.filter((c) => t[c.campo] === null).map((c) => ETIQUETA[c.campo]);
+  const sismo = [p.Z !== undefined && `Z=${p.Z}`, p.U !== undefined && `U=${p.U}`, p.S !== undefined && `S=${p.S}`, p.Tp !== undefined && `Tp=${p.Tp}`, p.TL !== undefined && `TL=${p.TL}`].filter(Boolean);
+  return {tiene, faltan, sismo};
+}
+
 export const ESTRUCTURA_SKILLS = [
+  {
+    name: "datos_proyecto",
+    description: "Guarda o consulta los datos del proyecto que usan las láminas de estructuras: Hz y Df del estudio de suelos, zona sísmica, perfil de suelo y categoría. Úsalo cuando el usuario dé o pregunte esos datos.",
+    parameters: {type: "object", properties: PARAMETROS_DATOS},
+    async run(args, ctx) {
+      const {guardados, invalidos} = guardarDatos(args, ctx);
+      const {tiene, faltan, sismo} = textoDatos(ctx.datosProyecto?.() ?? {});
+      return {
+        ok: true,
+        mensaje: `${guardados.length ? `Guardé ${guardados.map((k) => ETIQUETA[k]).join(", ")} en Datos del proyecto. ` : ""}` +
+          `${tiene.length ? `Datos del proyecto: ${tiene.join(", ")}${sismo.length ? ` (${sismo.join(", ")})` : ""}.` : "Aún no hay datos del proyecto."}` +
+          `${faltan.length ? ` Faltan: ${faltan.join(", ")}; sin ellos uso el criterio del despacho y lo aviso.` : ""}` +
+          `${guardados.length ? " Pide \"genera el plano de estructuras\" para rehacer las láminas con estos datos." : ""}`,
+        avisos: invalidos.length ? [`No guardé (fuera de rango o mal escrito): ${invalidos.join("; ")}.`] : [],
+      };
+    },
+  },
   {
     name: "vistas_plano",
     description: "Lista las vistas del plano abierto (plantas con su grilla de ejes: primer nivel, techo, cimentación…) con sus ejes y columnas. Úsalo cuando el archivo tiene varias láminas o vistas.",
@@ -197,8 +245,29 @@ export const ESTRUCTURA_SKILLS = [
     parameters: {type: "object", properties: {
       vista: {type: "string", description: "Opcional: número o parte del título de la vista de arquitectura, ej. 'primer nivel'"},
       cimentacion: {type: "string", enum: ["auto", "zapatas", "platea"], description: "Opcional: tipo de cimentación; por defecto auto"},
+      conservar: {type: "boolean", description: "Opcional: true para dejar las láminas anteriores y agregar otras; por defecto se reemplazan"},
+      ...PARAMETROS_DATOS,
     }},
     async run(args, ctx) {
+      // Datos dictados en el mismo pedido ("con Hz 0.60 y zona 3"): se guardan y se usan.
+      const {guardados, invalidos} = guardarDatos(args, ctx);
+      // Rehacer: se quitan las láminas que este chat dibujó antes, en vez de apilar otras.
+      const quitadas = args.conservar ? 0 : (ctx.borrarGeneracion?.("laminas") ?? 0);
+      ctx.iniciarGeneracion?.("laminas");
+      try { return await generarLaminas(args, ctx, {guardados, invalidos, quitadas}); }
+      finally { ctx.cerrarGeneracion?.("laminas"); }
+    },
+  },
+];
+
+async function generarLaminas(args, ctx, {guardados, invalidos, quitadas}) {
+  const previo = [
+    guardados.length ? `Guardé ${guardados.map((k) => ETIQUETA[k]).join(", ")} en Datos del proyecto.` : "",
+    quitadas ? "Reemplacé las láminas anteriores." : "",
+  ].filter(Boolean).join(" ");
+  const extra = invalidos.length ? [`No guardé (fuera de rango o mal escrito): ${invalidos.join("; ")}.`] : [];
+  {
+    {
       const e = leerEstructura(ctx, "", args.vista);
       if (!e.ejesNombrados) throw new Error("Para estructurar el plano necesito la planta de arquitectura con ejes con nombre (burbujas con rótulo, ej. 8, 10, Y´).");
       const {items} = ctx.readPlan();
@@ -217,12 +286,12 @@ export const ESTRUCTURA_SKILLS = [
         const s = r.resumen;
         return {
           ok: true,
-          mensaje: `Generé las láminas ${lista(r.laminas.map((l) => `${l.codigo} (${l.plano.toLowerCase()})`))} de ${r.proyecto} debajo de la arquitectura, con la plantilla del despacho: ` +
+          mensaje: `${previo ? `${previo} ` : ""}Generé las láminas ${lista(r.laminas.map((l) => `${l.codigo} (${l.plano.toLowerCase()})`))} de ${r.proyecto} debajo de la arquitectura, con la plantilla del despacho: ` +
             `cimentación con ${s.cimentacion} (Hz = ${s.hz.toFixed(2)} m, Df = ${s.df.toFixed(2)} m), cimiento corrido ${s.anchoCimiento.toFixed(2)} m en ${s.cimientoCorrido} tramos, aligerado e=${s.aligerado.espesor.toFixed(2)} m (${s.aligerado.viguetas} viguetas), ` +
             `pórticos de los ejes ${s.porticos.join(", ")} (${s.techo ? `techo a dos aguas PTE ${Math.round(s.techo.pendiente * 100)}%, alero +${s.altura.toFixed(2)}, cumbrera +${s.techo.cumbrera.toFixed(2)}` : `techo +${s.altura.toFixed(2)}`}) y cuadro de columnas ${s.columnas.map((c) => `${c.tipo} ${c.refuerzo}`).join(", ")}` +
             `${s.sismo?.Z !== undefined || s.sismo?.U !== undefined ? `; parámetros sísmicos ${[s.sismo.Z !== undefined && `Z=${s.sismo.Z}`, s.sismo.U !== undefined && `U=${s.sismo.U}`, s.sismo.S !== undefined && `S=${s.sismo.S}`, s.sismo.Tp !== undefined && `Tp=${s.sismo.Tp}`].filter(Boolean).join(", ")}` : ""}.`,
           laminas: r.laminas.map((l) => l.codigo),
-          avisos: r.avisos,
+          avisos: [...extra, ...r.avisos],
         };
       }
       const r = laminaEstructuras({lectura: {columnas: e.columnas, ejes: e.ejesNombrados}, items, caja: e.caja, k: e.escala, titulo: e.titulo}, {cimentacion: args.cimentacion});
@@ -236,12 +305,12 @@ export const ESTRUCTURA_SKILLS = [
       ].filter(Boolean).join(", ");
       return {
         ok: true,
-        mensaje: `Generé la lámina ${r.lamina.nombre} de estructuras debajo de la arquitectura (${e.vista}${r.lamina.escala ? `, esc. ${r.lamina.escala}` : ""}): ` +
+        mensaje: `${previo ? `${previo} ` : ""}Generé la lámina ${r.lamina.nombre} de estructuras debajo de la arquitectura (${e.vista}${r.lamina.escala ? `, esc. ${r.lamina.escala}` : ""}): ` +
           `cimentación con ${cim}; aligerado e=${a.espesor.toFixed(2)} m con ${a.viguetas} viguetas y ${a.vigas} vigas (${a.tiposViga.map((t) => `${t.tipo} ${t.medida}`).join(", ")}); ` +
           `cuadro de columnas ${r.cuadroColumnas.map((col) => `${col.tipo} ${col.refuerzo}`).join(", ")}.`,
         lamina: r.lamina.nombre,
-        avisos: r.avisos,
+        avisos: [...extra, ...r.avisos],
       };
-    },
-  },
-];
+    }
+  }
+}
