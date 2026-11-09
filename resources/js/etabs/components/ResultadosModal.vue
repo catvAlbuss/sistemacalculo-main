@@ -183,29 +183,19 @@ async function renderActivePlot() {
 }
 
 watch(
-    () => selectedComboIndex.value,
-    () => {
-        renderActivePlot();
-    }
-);
-
-watch(
-    () => props.results,
-    () => {
-        selectedComboIndex.value = 0;
+    [() => props.results, selectedComboIndex],
+    async ([results], [previous]) => {
+        if(results!==previous && selectedComboIndex.value!==0){selectedComboIndex.value=0;return;}
+        await nextTick();
         renderActivePlot();
     },
-    { immediate: true }
+    {flush:'post'}
 );
 
-onMounted(() => {
-    renderActivePlot();
-
-    window.addEventListener("resize", renderActivePlot);
-});
+onMounted(renderActivePlot);
 
 onBeforeUnmount(() => {
-    window.removeEventListener("resize", renderActivePlot);
+
     purgeZapatas2Plot(plotRef.value);
 });
 </script>
@@ -226,9 +216,9 @@ onBeforeUnmount(() => {
     width: min(1180px, 96vw);
     max-height: 92vh;
     overflow-y: auto;
-    background: #0f172a;
-    color: #e2e8f0;
-    border: 1px solid #334155;
+    background: var(--pr-panel);
+    color: var(--pr-text);
+    border: 1px solid var(--pr-line);
     border-radius: 14px;
     box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65);
 }
@@ -237,8 +227,8 @@ onBeforeUnmount(() => {
     position: sticky;
     top: 0;
     z-index: 10;
-    background: #111827;
-    border-bottom: 1px solid #334155;
+    background: var(--pr-soft);
+    border-bottom: 1px solid var(--pr-line);
     padding: 14px 16px;
     display: flex;
     align-items: center;
@@ -255,26 +245,26 @@ onBeforeUnmount(() => {
 .rm-subtitle {
     margin: 3px 0 0;
     font-size: 12px;
-    color: #93c5fd;
+    color: var(--pr-blue);
 }
 
 .rm-close {
     cursor: pointer;
-    border: 1px solid #475569;
+    border: 1px solid var(--pr-line);
     background: #1e293b;
-    color: #e2e8f0;
+    color: var(--pr-text);
     border-radius: 8px;
     padding: 6px 10px;
     font-size: 15px;
 }
 
 .rm-close:hover {
-    background: #334155;
+    background: var(--pr-line);
 }
 
 .rm-empty {
     padding: 24px;
-    color: #cbd5e1;
+    color: var(--pr-muted);
 }
 
 .rm-summary-grid {
@@ -286,7 +276,7 @@ onBeforeUnmount(() => {
 
 .rm-summary-card {
     background: #1e293b;
-    border: 1px solid #334155;
+    border: 1px solid var(--pr-line);
     border-radius: 10px;
     padding: 10px 12px;
 }
@@ -321,7 +311,7 @@ onBeforeUnmount(() => {
     margin: 0 0 8px;
     font-size: 14px;
     font-weight: 800;
-    color: #bfdbfe;
+    color: var(--pr-blue);
 }
 
 .rm-tags {
@@ -332,7 +322,7 @@ onBeforeUnmount(() => {
 
 .rm-tag {
     background: #1e293b;
-    border: 1px solid #475569;
+    border: 1px solid var(--pr-line);
     border-radius: 999px;
     padding: 5px 9px;
     font-size: 12px;
@@ -348,9 +338,9 @@ onBeforeUnmount(() => {
 
 .rm-tab {
     cursor: pointer;
-    border: 1px solid #334155;
+    border: 1px solid var(--pr-line);
     background: #1e293b;
-    color: #e2e8f0;
+    color: var(--pr-text);
     border-radius: 8px;
     padding: 6px 9px;
     font-size: 12px;
@@ -358,7 +348,7 @@ onBeforeUnmount(() => {
 }
 
 .rm-tab:hover {
-    background: #334155;
+    background: var(--pr-line);
 }
 
 .rm-tab-active {
@@ -369,25 +359,25 @@ onBeforeUnmount(() => {
 .rm-combo-box {
     display: grid;
     gap: 5px;
-    background: #111827;
-    border: 1px solid #334155;
+    background: var(--pr-soft);
+    border: 1px solid var(--pr-line);
     border-radius: 10px;
     padding: 9px 11px;
     font-size: 12px;
 }
 
 .rm-combo-box strong {
-    color: #93c5fd;
+    color: var(--pr-blue);
     margin-right: 6px;
 }
 
 .rm-plot {
     width: 100%;
     height: 520px;
-    border: 1px solid #334155;
+    border: 1px solid var(--pr-line);
     border-radius: 10px;
     overflow: hidden;
-    background: #0f172a;
+    background: var(--pr-panel);
 }
 
 .rm-error {
@@ -399,7 +389,7 @@ onBeforeUnmount(() => {
 .rm-table-wrap {
     max-height: 240px;
     overflow: auto;
-    border: 1px solid #334155;
+    border: 1px solid var(--pr-line);
     border-radius: 10px;
 }
 
@@ -432,8 +422,8 @@ onBeforeUnmount(() => {
 .rm-footer {
     position: sticky;
     bottom: 0;
-    background: #111827;
-    border-top: 1px solid #334155;
+    background: var(--pr-soft);
+    border-top: 1px solid var(--pr-line);
     padding: 12px 16px;
     display: flex;
     justify-content: flex-end;
@@ -444,7 +434,7 @@ onBeforeUnmount(() => {
     cursor: pointer;
     border: none;
     border-radius: 8px;
-    color: #fff;
+    color: var(--pr-panel);
     font-weight: 700;
 }
 
@@ -458,13 +448,13 @@ onBeforeUnmount(() => {
 }
 
 .rm-secondary-btn {
-    background: #334155;
+    background: var(--pr-line);
     padding: 6px 10px;
     font-size: 12px;
 }
 
 .rm-secondary-btn:hover {
-    background: #475569;
+    background: var(--pr-line);
 }
 
 @media (max-width: 760px) {

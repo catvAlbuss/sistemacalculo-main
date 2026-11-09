@@ -1,4 +1,4 @@
-<div class="border-1 cad-border max-w-sm rounded-md bg-gray-100 text-xs shadow-md" x-data="{ open: true }">
+<div class="cad-properties-card border-1 cad-border max-w-sm rounded-md bg-gray-100 text-xs shadow-md" x-data="{ open: true }">
   <div class="cad-input-properties-header">
     <button class="flex w-full items-center justify-between px-3 py-2 text-left font-semibold" @click="open = !open">
       <svg class="h-4 w-4" :class="open ? '' : '-rotate-90'" fill="none" stroke="currentColor" viewBox="0 0 24 24"

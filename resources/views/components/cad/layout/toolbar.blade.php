@@ -1,7 +1,7 @@
 <!-- Toolbar -->
-<div>
+<div class="structural-toolbar">
   <x-cad.menu-bar />
-  <div class="cad-border cad-toolbar-scroll flex h-[64px] items-stretch overflow-x-auto overflow-y-hidden border-b px-1">
+  <div class="structural-ribbon cad-border cad-toolbar-scroll flex items-stretch overflow-x-auto overflow-y-hidden border-b px-1" tabindex="0" role="region" aria-label="Herramientas de análisis estructural; desplaza horizontalmente para ver más">
     <!-- -------------------------APARTADO DE DISEÑAR-------------------------- -->
     <x-cad.ui.ribbon-group title="Diseñar">
       <x-cad.ui.ribbon-button clickHandler="openNewModelDialog()" toggle="false" label="Nuevo Modelo">
@@ -129,8 +129,8 @@
       <button
         id="btn-open-grid-editor"
         type="button"
-        class="flex h-full flex-col items-center justify-center rounded px-1.5 py-1 text-center cad-ribbon-button-hover-bg cad-text-logo-color">
-        <div class="flex h-6 w-6 self-center"><x-cad.svg.grid></x-cad.svg.grid></div>
+        class="cad-ribbon-button flex h-full flex-col items-center justify-center rounded px-1.5 py-1 text-center cad-ribbon-button-hover-bg cad-text-logo-color">
+        <span class="cad-ribbon-icon flex h-6 w-6 self-center" aria-hidden="true"><x-cad.svg.grid></x-cad.svg.grid></span>
         <span class="text-[10px] leading-tight">Editar</span>
       </button>
     </x-cad.ui.ribbon-group>

@@ -31,13 +31,13 @@ function normalizeMinMax(value) {
     return flattenNumeric(value);
 }
 
-function getPolygonDisplayName(key, index) {
+function getPolygonDisplayName(key, index, polygons = []) {
     const match = String(key).match(/\d+/);
     const number = match ? Number(match[0]) : index + 1;
-    return `Polígono ${number}`;
+    return polygons[number - 1]?.label || `Zapata ${number}`;
 }
 
-function normalizeResultados(resultados) {
+function normalizeResultados(resultados, polygons) {
     if (!resultados || typeof resultados !== "object") {
         throw new Error("La respuesta no contiene resultados de zapatas.");
     }
@@ -46,7 +46,7 @@ function normalizeResultados(resultados) {
         return {
             key,
             index: index + 1,
-            name: getPolygonDisplayName(key, index),
+            name: getPolygonDisplayName(key, index, polygons),
 
             XX: value.XX,
             YY: value.YY,
@@ -93,7 +93,7 @@ function buildPolygonColumnSummary(columns, polygons) {
 
         return {
             polygonIndex: index + 1,
-            polygonName: `Polígono ${index + 1}`,
+            polygonName: polygon.label || `Zapata ${index + 1}`,
             nodes: polygon.nodes.length,
             columnsInside: insideColumns.length,
             columns: insideColumns.map((column) => column.column),
@@ -222,7 +222,7 @@ export function useZapatas2() {
 
             const response = await requestZapatas2(finalPayload);
             console.log("✅ Respuesta cruda de /zapatas2:", response);
-            const normalized = normalizeResultados(response.resultados);
+            const normalized = normalizeResultados(response.resultados, finalPayload.polygons);
 
             const calculationResults = {
                 createdAt: new Date().toISOString(),

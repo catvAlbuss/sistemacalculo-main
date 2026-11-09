@@ -1,137 +1,52 @@
 <template>
-    <section v-if="results" class="ci-results">
-        <h2 class="ci-title">Resultados</h2>
+    <section v-if="results" class="ci-results etabs-theme" data-analysis-sheet>
+        <div class="ci-kpis">
+            <div class="ci-kpi">
+                <span>σ máxima</span>
+                <strong>{{ formatValue(extremes.max?.value) }}<small> tn/m²</small></strong>
+                <em v-if="extremes.max">{{ extremes.max.name }} · C{{ extremes.max.combo + 1 }}</em>
+            </div>
+            <div class="ci-kpi" :class="{ 'is-warn': extremes.min && extremes.min.value < 0 }">
+                <span>σ mínima</span>
+                <strong>{{ formatValue(extremes.min?.value) }}<small> tn/m²</small></strong>
+                <em v-if="extremes.min">{{ extremes.min.value < 0 ? "Tracción: zapata parcialmente despegada" : `${extremes.min.name} · C${extremes.min.combo + 1}` }}</em>
+            </div>
+            <div class="ci-kpi">
+                <span>Zapatas · columnas</span>
+                <strong>{{ results.normalizedPolygons?.length ?? 0 }} · {{ results.columns?.length ?? 0 }}</strong>
+                <em>{{ results.loadCombinations?.length ?? 0 }} combinaciones</em>
+            </div>
+            <div class="ci-kpi">
+                <span>D<sub>f</sub> · γ<sub>e</sub></span>
+                <strong>{{ formatValue(results.df, 2) }}<small> m</small> · {{ formatValue(results.gammaE, 2) }}<small> tn/m³</small></strong>
+                <em>Parámetros del cálculo</em>
+            </div>
+        </div>
 
         <section class="ci-block">
-            <h3 class="ci-subtitle">1.- Análisis Estructural</h3>
-
-            <div class="ci-summary">
-                <div>
-                    <span>Df</span>
-                    <strong>{{ formatValue(results.df) }}</strong>
-                </div>
-
-                <div>
-                    <span>γe</span>
-                    <strong>{{ formatValue(results.gammaE) }}</strong>
-                </div>
-
-                <div>
-                    <span>Columnas</span>
-                    <strong>{{ results.columns?.length ?? 0 }}</strong>
-                </div>
-
-                <div>
-                    <span>Polígonos</span>
-                    <strong>{{ results.normalizedPolygons?.length ?? 0 }}</strong>
-                </div>
-            </div>
-        </section>
-
-        <section class="ci-block">
-            <div class="ci-tables">
-                <div class="ci-table-card">
-                    <h3>Propiedades</h3>
-
-                    <table>
-                        <tbody>
-                            <tr>
-                                <th>Df</th>
-                                <td>{{ formatValue(results.df) }}</td>
-                            </tr>
-                            <tr>
-                                <th>γe</th>
-                                <td>{{ formatValue(results.gammaE) }}</td>
-                            </tr>
-                            <tr>
-                                <th>Columnas</th>
-                                <td>{{ results.columns?.length ?? 0 }}</td>
-                            </tr>
-                            <tr>
-                                <th>Combinaciones</th>
-                                <td>{{ results.loadCombinations?.length ?? 0 }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div v-for="polygon in results.normalizedPolygons" :key="polygon.key" class="ci-table-card">
-                    <h3>{{ polygon.name }}</h3>
-
-                    <table>
-                        <tbody>
-                            <tr>
-                                <th>XC</th>
-                                <td>{{ formatValue(polygon.XC) }}</td>
-                            </tr>
-                            <tr>
-                                <th>YC</th>
-                                <td>{{ formatValue(polygon.YC) }}</td>
-                            </tr>
-                            <tr>
-                                <th>σmin global</th>
-                                <td>{{ formatValue(globalMin(polygon.min)) }}</td>
-                            </tr>
-                            <tr>
-                                <th>σmax global</th>
-                                <td>{{ formatValue(globalMax(polygon.max)) }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <section v-if="results?.polygonColumnSummary?.length" class="result-section">
-            <h4>Columnas dentro de cada zapata</h4>
-
-            <div v-for="item in results.polygonColumnSummary" :key="item.polygonIndex" class="result-card">
-                <div class="result-card-title">
-                    {{ item.polygonName }}
-                </div>
-
-                <p>
-                    <b>Nodos del polígono:</b> {{ item.nodes }}
-                </p>
-
-                <p>
-                    <b>Columnas dentro:</b> {{ item.columnsInside }}
-                </p>
-
-                <p>
-                    <b>Columnas:</b> {{ item.columns.join(", ") }}
-                </p>
-            </div>
-        </section>
-
-        <section v-if="getPolygonResultEntries().length" class="result-section">
-            <h4>Presiones mínimas y máximas</h4>
-
-            <div v-for="polygon in getPolygonResultEntries()" :key="polygon.key" class="result-card">
-                <div class="result-card-title">
-                    {{ polygon.name }}
-                </div>
-
-                <p>
-                    <b>Centroide:</b>
-                    X = {{ formatNumber(polygon.centroidX, 3) }},
-                    Y = {{ formatNumber(polygon.centroidY, 3) }}
-                </p>
-
-                <table class="result-table">
+            <h3 class="ci-subtitle">Resumen por zapata</h3>
+            <div class="fz-table-wrap ci-summary-table">
+                <table class="fz-table">
                     <thead>
                         <tr>
-                            <th>Comb.</th>
-                            <th>σ min</th>
-                            <th>σ max</th>
+                            <th class="fz-left">Zapata</th>
+                            <th class="fz-left">Columnas</th>
+                            <th>X<sub>c</sub> (m)</th>
+                            <th>Y<sub>c</sub> (m)</th>
+                            <th>σ mín (tn/m²)</th>
+                            <th>σ máx (tn/m²)</th>
+                            <th>Comb. crítica</th>
                         </tr>
                     </thead>
-
                     <tbody>
-                        <tr v-for="(_, comboIndex) in polygon.max" :key="comboIndex">
-                            <td>{{ comboIndex + 1 }}</td>
-                            <td>{{ formatNumber(polygon.min[comboIndex], 4) }}</td>
-                            <td>{{ formatNumber(polygon.max[comboIndex], 4) }}</td>
+                        <tr v-for="row in footingRows" :key="row.key">
+                            <td class="fz-left"><strong>{{ row.name }}</strong></td>
+                            <td class="fz-left ci-cols">{{ row.columns || "—" }}</td>
+                            <td>{{ formatValue(row.XC) }}</td>
+                            <td>{{ formatValue(row.YC) }}</td>
+                            <td :class="{ 'ci-neg': row.min < 0 }">{{ formatValue(row.min) }}</td>
+                            <td><strong>{{ formatValue(row.max) }}</strong></td>
+                            <td><button type="button" class="ci-link" @click="selectedCombo = row.maxCombo">C{{ row.maxCombo + 1 }}</button></td>
                         </tr>
                     </tbody>
                 </table>
@@ -139,35 +54,41 @@
         </section>
 
         <section class="ci-block">
-            <h3 class="ci-subtitle">2.- Gráficos de presión</h3>
+            <div class="ci-plot-head">
+                <h3 class="ci-subtitle">Mapa de presiones</h3>
+                <label class="ci-combo-select">
+                    <span>Combinación</span>
+                    <select v-model.number="selectedCombo" class="fz-input" aria-label="Combinación a graficar">
+                        <option v-for="(combo, index) in results.loadCombinations" :key="combo.id ?? index" :value="index">C{{ index + 1 }}</option>
+                    </select>
+                </label>
+            </div>
+            <div class="ci-combo-chips" role="tablist" aria-label="Combinaciones">
+                <button v-for="(combo, index) in results.loadCombinations" :key="combo.id ?? index" type="button" role="tab"
+                    class="ci-chip" :aria-selected="selectedCombo === index" @click="selectedCombo = index">C{{ index + 1 }}</button>
+            </div>
+            <dl v-if="activeCombo" class="ci-expr">
+                <div><dt>P</dt><dd>{{ activeCombo.column1 }}</dd></div>
+                <div><dt>Mx</dt><dd>{{ activeCombo.column2 }}</dd></div>
+                <div><dt>My</dt><dd>{{ activeCombo.column3 }}</dd></div>
+            </dl>
 
-            <div v-for="(combo, index) in results.loadCombinations" :key="combo.id ?? index" class="ci-plot-card">
-                <div class="ci-plot-head">
-                    <strong>Comb {{ index + 1 }}</strong>
-                    <span>[{{ combo.column1 }}, {{ combo.column2 }}, {{ combo.column3 }}]</span>
-                </div>
-
-                <div :ref="(el) => setPlotRef(el, index)" class="ci-plot"></div>
-
-                <div class="ci-minmax">
-                    <table>
+            <div class="ci-plot-layout">
+                <div ref="plotRef" class="ci-plot"></div>
+                <div class="fz-table-wrap ci-minmax">
+                    <table class="fz-table">
                         <thead>
                             <tr>
-                                <th>Polígono</th>
-                                <th>σmin</th>
-                                <th>σmax</th>
-                                <th>XC</th>
-                                <th>YC</th>
+                                <th class="fz-left">Zapata</th>
+                                <th>σ mín</th>
+                                <th>σ máx</th>
                             </tr>
                         </thead>
-
                         <tbody>
-                            <tr v-for="row in results.summary?.[index]?.polygonRows ?? []" :key="row.polygon">
-                                <td>{{ row.polygon }}</td>
-                                <td>{{ formatValue(row.min) }}</td>
+                            <tr v-for="row in results.summary?.[selectedCombo]?.polygonRows ?? []" :key="row.polygon">
+                                <td class="fz-left">{{ row.polygon }}</td>
+                                <td :class="{ 'ci-neg': row.min < 0 }">{{ formatValue(row.min) }}</td>
                                 <td>{{ formatValue(row.max) }}</td>
-                                <td>{{ formatValue(row.XC) }}</td>
-                                <td>{{ formatValue(row.YC) }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -176,16 +97,14 @@
         </section>
     </section>
 
-    <section v-else class="ci-results ci-empty">
-        <h2 class="ci-title">Resultados</h2>
-
-        <p>Aún no hay resultados. Completa los datos, captura polígonos y presiona Calcular zapatas.</p>
+    <section v-else class="ci-results ci-empty etabs-theme">
+        <p>Aún no hay resultados. Completa los datos, agrega las zapatas y presiona Calcular zapatas.</p>
     </section>
-
 </template>
 
 <script setup>
-import { nextTick, onBeforeUnmount, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import "../../../css/etabs-workspace.css";
 import {
     renderZapatas2Plot,
     purgeZapatas2Plot,
@@ -199,283 +118,120 @@ const props = defineProps({
     },
 });
 
-const plotRefs = new Map();
+const plotRef = ref(null);
+const selectedCombo = ref(0);
 
 const formatValue = (value, digits = 3) => {
     return formatZapatas2Value(value, digits);
 };
 
-const globalMin = (values = []) => {
-    const numbers = values.map(Number).filter(Number.isFinite);
-    return numbers.length ? Math.min(...numbers) : null;
+const activeCombo = computed(() => props.results?.loadCombinations?.[selectedCombo.value] ?? null);
+
+const extremeOf = (values = [], pick) => {
+    let best = null;
+    values.forEach((value, combo) => {
+        const number = Number(value);
+        if (Number.isFinite(number) && (best === null || pick(number, best.value))) best = { value: number, combo };
+    });
+    return best;
 };
 
-const globalMax = (values = []) => {
-    const numbers = values.map(Number).filter(Number.isFinite);
-    return numbers.length ? Math.max(...numbers) : null;
-};
-
-const setPlotRef = (element, index) => {
-    if (element) {
-        plotRefs.set(index, element);
-    }
-};
-
-const renderAllPlots = async () => {
-    if (!props.results) return;
-
-    await nextTick();
-
-    for (let index = 0; index < props.results.loadCombinations.length; index++) {
-        const element = plotRefs.get(index);
-
-        if (!element) continue;
-
-        try {
-            await renderZapatas2Plot(element, props.results, index);
-        } catch (error) {
-            console.error(`No se pudo renderizar gráfico ${index + 1}:`, error);
-        }
-    }
-};
-
-const getPolygonResultEntries = () => {
-    const resultados = props.results?.resultados || {};
-
-    return Object.entries(resultados).map(([polygonKey, polygonResult], index) => {
+const footingRows = computed(() => {
+    const summary = props.results?.polygonColumnSummary ?? [];
+    return (props.results?.normalizedPolygons ?? []).map((polygon, index) => {
+        const max = extremeOf(polygon.max, (a, b) => a > b);
+        const min = extremeOf(polygon.min, (a, b) => a < b);
         return {
-            key: polygonKey,
-            name: `Polígono ${index + 1}`,
-            result: polygonResult,
-            centroidX: polygonResult?.XC?.[0] ?? null,
-            centroidY: polygonResult?.YC?.[0] ?? null,
-            min: Array.isArray(polygonResult?.min) ? polygonResult.min : [],
-            max: Array.isArray(polygonResult?.max) ? polygonResult.max : [],
+            key: polygon.key,
+            name: polygon.name,
+            columns: summary[index]?.columns?.join(", ") ?? "",
+            XC: polygon.XC,
+            YC: polygon.YC,
+            max: max?.value ?? null,
+            maxCombo: max?.combo ?? 0,
+            min: min?.value ?? null,
+            minCombo: min?.combo ?? 0,
         };
     });
-};
+});
 
-const formatNumber = (value, digits = 4) => {
-    const number = Number(value);
-    return Number.isFinite(number) ? number.toFixed(digits) : "-";
+const extremes = computed(() => {
+    let max = null, min = null;
+    for (const row of footingRows.value) {
+        if (row.max !== null && (!max || row.max > max.value)) max = { value: row.max, combo: row.maxCombo, name: row.name };
+        if (row.min !== null && (!min || row.min < min.value)) min = { value: row.min, combo: row.minCombo, name: row.name };
+    }
+    return { max, min };
+});
+
+let disposed = false;
+const renderPlot = async () => {
+    await nextTick();
+    const element = plotRef.value;
+    if (disposed || !element || !props.results) return;
+    try {
+        await renderZapatas2Plot(element, props.results, selectedCombo.value);
+    } catch (error) {
+        console.error(`No se pudo renderizar el mapa de C${selectedCombo.value + 1}:`, error);
+    }
 };
 
 watch(
     () => props.results,
-    () => {
-        renderAllPlots();
+    (results) => {
+        const count = results?.loadCombinations?.length ?? 0;
+        if (selectedCombo.value >= count) selectedCombo.value = 0;
+        renderPlot();
     },
-    { immediate: true }
+    { immediate: true, flush: "post" }
 );
+watch(selectedCombo, renderPlot);
 
 onBeforeUnmount(() => {
-    plotRefs.forEach((element) => purgeZapatas2Plot(element));
-    plotRefs.clear();
+    disposed = true;
+    purgeZapatas2Plot(plotRef.value);
 });
-
 </script>
 
 <style scoped>
-.ci-results {
-    width: 100%;
-    background: #1f2937;
-    color: #f8fafc;
-    padding: 18px 22px;
-    border-top: 1px solid #334155;
-}
+.ci-results { display:grid;gap:22px;width:100%;background:var(--pr-panel);color:var(--pr-text); }
+.ci-kpis { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px; }
+.ci-kpi { display:grid;gap:3px;padding:12px 14px;border:1px solid var(--pr-line);border-radius:10px;background:var(--pr-soft); }
+.ci-kpi span { font-size:11.5px;color:var(--pr-muted); }
+.ci-kpi strong { font-size:20px;font-weight:700;font-variant-numeric:tabular-nums; }
+.ci-kpi small { font-size:12px;font-weight:500;color:var(--pr-muted); }
+.ci-kpi em { font-style:normal;font-size:11.5px;color:var(--pr-muted); }
+.ci-kpi.is-warn { border-color:rgba(251,191,36,.5); }
+.ci-kpi.is-warn em { color:var(--fz-warn); }
+.ci-block { display:grid;gap:10px;min-width:0; }
+.ci-subtitle { margin:0;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--pr-muted); }
+.ci-summary-table { max-height:300px; }
+.ci-cols { max-width:220px;overflow:hidden;text-overflow:ellipsis;color:var(--pr-muted); }
+.ci-neg { color:var(--fz-warn); }
+.ci-link { padding:2px 8px;border:1px solid var(--pr-line);border-radius:6px;background:transparent;color:var(--pr-blue);font-weight:600;font-size:12px;font-family:inherit;cursor:pointer; }
+.ci-link:hover { border-color:var(--pr-blue); }
 
-.ci-title {
-    margin: 0 0 22px;
-    font-size: 22px;
-    font-weight: 800;
-}
+.ci-plot-head { display:flex;align-items:center;justify-content:space-between;gap:12px; }
+.ci-combo-select { display:none;align-items:center;gap:8px;font-size:12px;color:var(--pr-muted); }
+.ci-combo-select .fz-input { width:auto; }
+.ci-combo-chips { display:flex;flex-wrap:wrap;gap:5px; }
+.ci-chip { min-width:42px;padding:5px 9px;border:1px solid var(--pr-line);border-radius:7px;background:transparent;color:var(--pr-muted);font-weight:600;font-size:12px;font-family:inherit;cursor:pointer; }
+.ci-chip:hover { color:var(--pr-text);border-color:var(--pr-blue); }
+.ci-chip[aria-selected=true] { border-color:transparent;background:var(--fz-accent);color:#fff; }
+.ci-expr { display:flex;flex-wrap:wrap;gap:6px 18px;margin:0;padding:8px 12px;border-radius:8px;background:var(--pr-soft);font-size:12px; }
+.ci-expr div { display:flex;gap:6px; }
+.ci-expr dt { font-weight:700;color:var(--pr-muted); }
+.ci-expr dd { margin:0;font-family:ui-monospace,SFMono-Regular,Consolas,monospace; }
+.ci-plot-layout { display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:12px;align-items:start; }
+.ci-plot { width:100%;height:clamp(340px,52vh,560px);border:1px solid var(--pr-line);border-radius:10px;overflow:hidden;background:var(--pr-panel); }
+.ci-minmax { max-height:clamp(340px,52vh,560px); }
+.ci-empty p { margin:0;color:var(--pr-muted); }
 
-.ci-subtitle {
-    margin: 0 0 12px;
-    font-size: 18px;
-    font-weight: 800;
-}
-
-.ci-block {
-    margin-top: 18px;
-}
-
-.ci-summary {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(120px, 1fr));
-    gap: 12px;
-}
-
-.ci-summary div {
-    background: #111827;
-    border: 1px solid #374151;
-    border-radius: 8px;
-    padding: 12px;
-}
-
-.ci-summary span {
-    display: block;
-    color: #93c5fd;
-    font-size: 12px;
-    margin-bottom: 4px;
-}
-
-.ci-summary strong {
-    font-size: 20px;
-}
-
-.ci-tables {
-    display: flex;
-    align-items: flex-start;
-    gap: 18px;
-    flex-wrap: wrap;
-}
-
-.ci-table-card {
-    background: #111827;
-    min-width: 230px;
-}
-
-.ci-table-card h3 {
-    margin: 0;
-    background: #0f172a;
-    padding: 10px 14px;
-    font-size: 16px;
-}
-
-.ci-table-card table,
-.ci-minmax table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.ci-table-card th,
-.ci-table-card td,
-.ci-minmax th,
-.ci-minmax td {
-    padding: 8px 12px;
-    border-bottom: 1px solid #334155;
-    text-align: right;
-}
-
-.ci-table-card th,
-.ci-minmax th {
-    color: #bfdbfe;
-    text-align: left;
-}
-
-.ci-plot-card {
-    background: #475569;
-    margin-top: 18px;
-    padding: 12px;
-    border-radius: 4px;
-}
-
-.ci-plot-head {
-    background: #111827;
-    padding: 8px 12px;
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    flex-wrap: wrap;
-    font-size: 13px;
-}
-
-.ci-plot-head span {
-    color: #cbd5e1;
-}
-
-.ci-plot {
-    margin-top: 10px;
-    width: 100%;
-    height: 420px;
-    background: #fff;
-}
-
-.ci-minmax {
-    margin-top: 10px;
-    background: #111827;
-    max-height: 240px;
-    overflow: auto;
-}
-
-.ci-empty {
-    min-height: 160px;
-}
-
-.ci-empty p {
-    color: #cbd5e1;
-}
-
-@media (max-width: 760px) {
-    .ci-summary {
-        grid-template-columns: repeat(2, minmax(120px, 1fr));
-    }
-
-    .ci-plot {
-        height: 340px;
-    }
-}
-
-.result-section {
-    margin-top: 12px;
-    border: 1px solid #334155;
-    border-radius: 12px;
-    background: #0f172a;
-    padding: 12px;
-}
-
-.result-section h4 {
-    margin: 0 0 10px;
-    color: #e5e7eb;
-    font-size: 14px;
-}
-
-.result-card {
-    border: 1px solid #1e293b;
-    border-radius: 10px;
-    background: #111827;
-    padding: 10px;
-    margin-bottom: 10px;
-}
-
-.result-card-title {
-    font-weight: 800;
-    color: #93c5fd;
-    margin-bottom: 6px;
-}
-
-.result-card p {
-    margin: 4px 0;
-    color: #cbd5e1;
-    font-size: 12px;
-}
-
-.result-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 8px;
-    font-size: 12px;
-}
-
-.result-table th,
-.result-table td {
-    border: 1px solid #334155;
-    padding: 6px;
-    text-align: right;
-}
-
-.result-table th:first-child,
-.result-table td:first-child {
-    text-align: center;
-}
-
-.result-table th {
-    background: #1e293b;
-    color: #e5e7eb;
-}
-
-.result-table td {
-    color: #cbd5e1;
+@media (max-width: 900px) {
+    .ci-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .ci-plot-layout { grid-template-columns:1fr; }
+    .ci-combo-chips { display:none; }
+    .ci-combo-select { display:flex; }
+    .ci-plot { height:340px; }
 }
 </style>

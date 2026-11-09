@@ -162,6 +162,8 @@ const swalTailwind = Swal.mixin({
 ("use strict");
 
 document.addEventListener("DOMContentLoaded", () => {
+  // This engine belongs to the legacy foundation sheet, not the Vue CAD viewer.
+  if (!document.getElementById("datosGenerales") || !document.getElementById("combinacionDeCargas")) return;
   const datosGeneralesColumns = (headers = ["PD", "PL", "SISMO"]) => [
     makeCreateDeleteColumn("#datosGenerales"),
     {

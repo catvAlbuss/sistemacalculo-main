@@ -4,7 +4,8 @@
 
 import { AcApDocManager } from "@mlightcad/cad-simple-viewer";
 
-const POLYLINE_DXF_TYPES = new Set(["LWPOLYLINE", "POLYLINE"]);
+import {isCadPolyline, normalizeCapturedPolygon, polygonValidationError} from './polygonGeometry.js';
+export {polylineToNodes, normalizeCapturedPolygon} from './polygonGeometry.js';
 
 function getCurrentDocument() {
   try {
@@ -22,27 +23,6 @@ function getCurrentDocument() {
   }
 }
 
-function isPolyline(entity) {
-  if (!entity || typeof entity.getPoint3dAt !== "function") return false;
-  if (typeof entity.numberOfVertices !== "number" || entity.numberOfVertices < 2) return false;
-
-  if (typeof entity.dxfTypeName === "string") {
-    return POLYLINE_DXF_TYPES.has(entity.dxfTypeName.toUpperCase());
-  }
-
-  return true;
-}
-
-function areSamePoint(a, b, tolerance = 1e-6) {
-  return Math.abs(Number(a.x) - Number(b.x)) <= tolerance &&
-    Math.abs(Number(a.y) - Number(b.y)) <= tolerance;
-}
-
-function isClosedByGeometry(nodes) {
-  if (!Array.isArray(nodes) || nodes.length < 4) return false;
-  return areSamePoint(nodes[0], nodes[nodes.length - 1]);
-}
-
 export function getModelSpacePolylines() {
   const doc = getCurrentDocument();
   if (!doc) return [];
@@ -50,37 +30,7 @@ export function getModelSpacePolylines() {
   const modelSpace = doc.database.tables.blockTable.modelSpace;
   const entities = modelSpace.newIterator().toArray();
 
-  return entities.filter(isPolyline);
-}
-
-export function polylineToNodes(polyline) {
-  const nodes = [];
-  const count = polyline.numberOfVertices;
-
-  for (let i = 0; i < count; i++) {
-    const point = polyline.getPoint3dAt(i);
-
-    nodes.push({
-      id: i + 1,
-      x: Number(point.x),
-      y: Number(point.y),
-    });
-  }
-
-  return nodes;
-}
-
-export function normalizeCapturedPolygon(polyline, index) {
-  const nodes = polylineToNodes(polyline);
-  const closed = !!polyline.closed || isClosedByGeometry(nodes);
-
-  return {
-    index,
-    closed,
-    nodes,
-    nodeCount: nodes.length,
-    source: "cad-polyline",
-  };
+  return entities.filter(isCadPolyline);
 }
 
 export function captureAllPolygons() {
@@ -134,31 +84,9 @@ export function validateCapturedPolygons(polygons) {
   const invalidPolygons = [];
 
   polygons.forEach((polygon) => {
-    if (!polygon.closed) {
-      invalidPolygons.push({
-        ...polygon,
-        reason: "Polígono abierto",
-      });
-      return;
-    }
-
-    if (!Array.isArray(polygon.nodes) || polygon.nodes.length < 3) {
-      invalidPolygons.push({
-        ...polygon,
-        reason: "Debe tener al menos 3 nodos",
-      });
-      return;
-    }
-
-    const hasInvalidNode = polygon.nodes.some((node) => {
-      return !Number.isFinite(Number(node.x)) || !Number.isFinite(Number(node.y));
-    });
-
-    if (hasInvalidNode) {
-      invalidPolygons.push({
-        ...polygon,
-        reason: "Contiene coordenadas no numéricas",
-      });
+    const reason = polygonValidationError(polygon);
+    if (reason) {
+      invalidPolygons.push({...polygon,reason});
       return;
     }
 

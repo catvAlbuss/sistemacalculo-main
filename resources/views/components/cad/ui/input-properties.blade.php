@@ -1,13 +1,14 @@
-<div class="mb-2 flex items-center" x-data="{ value: {{ $bind ?? ($minimun ?? 0) }} }"
+@php($fieldId = 'cad-property-'.\Illuminate\Support\Str::uuid())
+<div class="cad-property-field mb-2 flex items-center" x-data="{ value: {{ $bind ?? ($minimun ?? 0) }} }"
   @isset($bind)
     x-effect="value = (function(){ try { return ({{ $bind }}); } catch(_e) { return value; } })()"
 @endisset>
-  <label class="w-1/3 text-xs font-bold text-gray-700" for="input">
+  <label class="w-1/3 text-xs font-bold text-gray-700" for="{{ $fieldId }}">
     {{ $label }}
   </label>
   <input
     class="w-4/5 rounded-md border bg-gray-50 px-1 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
-    id="input" type="number" max='{{ $max ?? 'any' }}' step='{{ $step ?? 'any' }}' x-model.number="value"
+    id="{{ $fieldId }}" type="number" max='{{ $max ?? 'any' }}' step='{{ $step ?? 'any' }}' x-model.number="value"
     @if (isset($minimun) && isset($bind)) @input="if(value <{{ $minimun }}) { value={{ $minimun }}; } else { {{ $bind }} = value;{{ $handleInput }} }"
         @else
             @input="{{ $bind }} = value;{{ $handleInput }}" @endif

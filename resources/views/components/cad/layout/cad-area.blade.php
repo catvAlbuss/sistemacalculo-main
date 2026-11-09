@@ -8,7 +8,7 @@
      retroalimentaba con cada evento de resize (abrir/cerrar F12), y el
      área crecía un poco más cada vez -- mismo tipo de bug que el de
      layouts/main.blade.php, anidado un nivel más adentro. --}}
-<main class="relative flex min-h-0 flex-1 flex-col bg-white">
+<main class="relative flex min-h-0 min-w-0 flex-1 flex-col bg-white">
   {{-- AMPLIADO a openingDrawingState (ver conversación, "no hay un cuadro
        pequeño para insertar valores como el de dibujar zapata" 2026-09-14):
        antes solo comparaba contra la instancia fija zapataDrawingState, así
@@ -93,7 +93,7 @@
   </div>
 
   {{-- Barra inferior --}}
-  <div class="cad-bg cad-border flex h-9 flex-row items-center justify-between border-t px-1 text-xs">
+  <div class="structural-view-controls cad-bg cad-border flex flex-row items-center justify-between border-t px-1 text-xs" tabindex="0" role="region" aria-label="Controles de vistas y animación">
     <div class="flex flex-row items-center gap-2">
       {{-- Selector de renderer: control segmentado compacto --}}
       <div class="flex items-center overflow-hidden rounded border border-gray-600">
