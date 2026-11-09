@@ -1,0 +1,460 @@
+{
+  "capas": {
+    "0": 7,
+    "49. EJES.": 152,
+    "COTAS & TEXTOS": 131,
+    "Texto": 7,
+    ".D1 Texto": 7,
+    ".D1 Texto 01": 3,
+    ".D1 cotas": 1,
+    ".D1 Corte": 1,
+    ".N1 Columna amarre": 140,
+    ".N1 muros bajos": 40,
+    ".N1 Muros Altos": 220,
+    "viguetas": 4,
+    "TEXT": 9,
+    "Letras": 21,
+    "SGE_0.05": 8,
+    "Tierra de chacr": 254,
+    "P-Columnas-existentes": 8,
+    "COLUMNAS Y PLACAS": 255,
+    "CONCRETO": 152,
+    "2_Acero EV": 4,
+    ".N1 Acero Estribo": 254,
+    ".N1 Cimiento Corrido": 253,
+    "LADRILLO": 30,
+    ".D1 Ejes": 251,
+    "SGE_TEXTO-CHICOS-03": 3,
+    ".N1 Cuadros": 253,
+    "AC Ø 3 -4": 3,
+    "CIMIENTO ARMADO": 170,
+    "NCAMINO1": 10,
+    "CAPA8": 210,
+    ".": 7
+  },
+  "porTipoDePlano": {
+    "planta": {
+      "E-EJES": {
+        "geo": {
+          "capa": "49. EJES.",
+          "color": 256
+        },
+        "circulo": {
+          "capa": "49. EJES.",
+          "color": 256
+        },
+        "texto": {
+          "capa": "0",
+          "color": 256
+        }
+      },
+      "E-COLUMNAS": {
+        "geo": {
+          "capa": "0",
+          "color": 5
+        },
+        "achurado": {
+          "capa": "SGE_0.05",
+          "color": 8
+        },
+        "solido": {
+          "capa": "0",
+          "color": 256
+        }
+      },
+      "E-COLUMNAS-ID": {
+        "texto": {
+          "capa": "COTAS & TEXTOS",
+          "color": 7
+        }
+      },
+      "E-COLUMNETAS": {
+        "geo": {
+          "capa": ".N1 Columna amarre",
+          "color": 256
+        },
+        "achurado": {
+          "capa": ".N1 Columna amarre",
+          "color": 256
+        }
+      },
+      "E-CODIGOS": {
+        "texto": {
+          "capa": ".D1 Texto 01",
+          "color": 256
+        }
+      },
+      "E-CORTE": {
+        "geo": {
+          "capa": ".D1 Corte",
+          "color": 256
+        },
+        "achurado": {
+          "capa": ".D1 Corte",
+          "color": 256
+        }
+      },
+      "E-COTAS": {
+        "geo": {
+          "capa": "0",
+          "color": 142
+        },
+        "texto": {
+          "capa": "0",
+          "color": 2
+        }
+      },
+      "E-PLATEA": {
+        "geo": {
+          "capa": "0",
+          "color": 6
+        },
+        "texto": {
+          "capa": ".D1 Texto",
+          "color": 256
+        }
+      },
+      "E-MALLA": {
+        "geo": {
+          "capa": "0",
+          "color": 6
+        }
+      },
+      "E-ACERO": {
+        "texto": {
+          "capa": ".D1 cotas",
+          "color": 5
+        },
+        "geo": {
+          "capa": ".D1 cotas",
+          "color": 5
+        }
+      },
+      "E-VIGAS-CIMENTACION": {
+        "geo": {
+          "capa": "0",
+          "color": 4
+        },
+        "texto": {
+          "capa": "Texto",
+          "color": 256
+        }
+      },
+      "E-ZAPATAS": {
+        "geo": {
+          "capa": "0",
+          "color": 6
+        },
+        "texto": {
+          "capa": "Texto",
+          "color": 256
+        }
+      },
+      "E-CIMIENTO-CORRIDO": {
+        "geo": {
+          "capa": "0",
+          "color": 256
+        },
+        "texto": {
+          "capa": "Texto",
+          "color": 256
+        },
+        "achurado": {
+          "capa": ".N1 muros bajos",
+          "color": 256
+        }
+      },
+      "E-MUROS": {
+        "geo": {
+          "capa": "0",
+          "color": 256
+        },
+        "achurado": {
+          "capa": ".N1 muros bajos",
+          "color": 256
+        }
+      },
+      "E-VIGAS": {
+        "geo": {
+          "capa": "0",
+          "color": 4
+        },
+        "texto": {
+          "capa": "Texto",
+          "color": 256
+        }
+      },
+      "E-VIGUETAS": {
+        "geo": {
+          "capa": "viguetas",
+          "color": 2
+        },
+        "texto": {
+          "capa": ".D1 Texto",
+          "color": 256
+        }
+      },
+      "E-ALIGERADO": {
+        "geo": {
+          "capa": ".N1 Muros Altos",
+          "color": 256
+        }
+      },
+      "E-TEXTO": {
+        "texto": {
+          "capa": "Texto",
+          "color": 256
+        }
+      },
+      "E-TEXTO-LOSA": {
+        "texto": {
+          "capa": "TEXT",
+          "color": 256
+        }
+      },
+      "E-LETRAS": {
+        "texto": {
+          "capa": "Letras",
+          "color": 7
+        }
+      },
+      "E-ACHURADO": {
+        "achurado": {
+          "capa": "Tierra de chacr",
+          "color": 256
+        }
+      },
+      "E-TITULO": {
+        "texto": {
+          "capa": ".D1 Texto",
+          "color": 256
+        },
+        "geo": {
+          "capa": ".D1 Texto",
+          "color": 256
+        }
+      },
+      "E-LAMINA": {
+        "geo": {
+          "capa": "0",
+          "color": 256
+        },
+        "texto": {
+          "capa": "Texto",
+          "color": 256
+        }
+      }
+    },
+    "portico": {
+      "E-EJES": {
+        "geo": {
+          "capa": ".D1 Ejes",
+          "color": 256
+        },
+        "circulo": {
+          "capa": "49. EJES.",
+          "color": 256
+        },
+        "texto": {
+          "capa": "0",
+          "color": 256
+        }
+      },
+      "E-COLUMNAS": {
+        "geo": {
+          "capa": "COLUMNAS Y PLACAS",
+          "color": 256
+        },
+        "achurado": {
+          "capa": "CONCRETO",
+          "color": 256
+        }
+      },
+      "E-COLUMNAS-ID": {
+        "texto": {
+          "capa": ".N1 Cimiento Corrido",
+          "color": 256
+        }
+      },
+      "E-ACERO": {
+        "geo": {
+          "capa": ".N1 Acero Estribo",
+          "color": 256
+        },
+        "circulo": {
+          "capa": "2_Acero EV",
+          "color": 256
+        },
+        "texto": {
+          "capa": ".D1 Texto",
+          "color": 256
+        }
+      },
+      "E-ACERO-LONG": {
+        "geo": {
+          "capa": "2_Acero EV",
+          "color": 256
+        }
+      },
+      "E-PLATEA": {
+        "geo": {
+          "capa": "CONCRETO",
+          "color": 256
+        },
+        "texto": {
+          "capa": ".D1 Texto",
+          "color": 256
+        },
+        "achurado": {
+          "capa": "CONCRETO",
+          "color": 256
+        }
+      },
+      "E-CIMIENTO-CORRIDO": {
+        "geo": {
+          "capa": "CONCRETO",
+          "color": 256
+        },
+        "texto": {
+          "capa": ".D1 Texto",
+          "color": 256
+        },
+        "achurado": {
+          "capa": "CONCRETO",
+          "color": 256
+        }
+      },
+      "E-ZAPATAS": {
+        "geo": {
+          "capa": "CONCRETO",
+          "color": 256
+        },
+        "texto": {
+          "capa": ".D1 Texto",
+          "color": 256
+        }
+      },
+      "E-MUROS": {
+        "geo": {
+          "capa": ".N1 Muros Altos",
+          "color": 256
+        },
+        "texto": {
+          "capa": ".D1 Texto",
+          "color": 256
+        },
+        "achurado": {
+          "capa": "LADRILLO",
+          "color": 256
+        }
+      },
+      "E-VIGAS": {
+        "geo": {
+          "capa": "COLUMNAS Y PLACAS",
+          "color": 256
+        },
+        "texto": {
+          "capa": ".D1 Texto",
+          "color": 256
+        }
+      },
+      "E-ALIGERADO": {
+        "geo": {
+          "capa": "CONCRETO",
+          "color": 256
+        }
+      },
+      "E-COBERTURA": {
+        "geo": {
+          "capa": "SGE_TEXTO-CHICOS-03",
+          "color": 256
+        },
+        "texto": {
+          "capa": "SGE_TEXTO-CHICOS-03",
+          "color": 256
+        }
+      },
+      "E-NIVELES": {
+        "geo": {
+          "capa": ".D1 cotas",
+          "color": 256
+        },
+        "texto": {
+          "capa": ".D1 cotas",
+          "color": 256
+        }
+      },
+      "E-COTAS": {
+        "geo": {
+          "capa": "0",
+          "color": 142
+        },
+        "texto": {
+          "capa": "0",
+          "color": 2
+        }
+      },
+      "E-LAMINA": {
+        "geo": {
+          "capa": "0",
+          "color": 256
+        },
+        "texto": {
+          "capa": ".D1 Texto",
+          "color": 256
+        }
+      },
+      "E-TEXTO": {
+        "texto": {
+          "capa": ".D1 Texto",
+          "color": 256
+        }
+      }
+    },
+    "cuadro": {
+      "E-LAMINA": {
+        "geo": {
+          "capa": ".N1 Cuadros",
+          "color": 256
+        },
+        "texto": {
+          "capa": ".D1 Texto",
+          "color": 256
+        }
+      },
+      "E-CUADROS": {
+        "geo": {
+          "capa": ".N1 Cuadros",
+          "color": 256
+        }
+      },
+      "E-COLUMNAS": {
+        "geo": {
+          "capa": "0",
+          "color": 256
+        }
+      },
+      "E-ACERO": {
+        "geo": {
+          "capa": "AC Ø 3 -4",
+          "color": 256
+        },
+        "circulo": {
+          "capa": "CIMIENTO ARMADO",
+          "color": 256
+        }
+      },
+      "E-COTAS": {
+        "geo": {
+          "capa": ".D1 cotas",
+          "color": 256
+        },
+        "texto": {
+          "capa": ".D1 cotas",
+          "color": 256
+        }
+      }
+    }
+  },
+  "nota": "Clave: capa semántica del agente → {geo|texto|circulo|achurado|solido: {capa, color}}. Color 256 = el de la capa."
+}

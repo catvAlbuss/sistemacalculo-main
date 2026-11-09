@@ -1,0 +1,584 @@
+{
+ "referencia": "14.VINCHOS MODULO 14 estructuras.dwg",
+ "unidades": "metros de dibujo (planos a escala x2 = 1/25)",
+ "escalaPlanos": 2,
+ "laminas": [
+  {
+   "codigo": "E-64",
+   "plano": "CIMENTACIÓN, CIMIENTO CORRIDO Y LOSA ALIGERADA",
+   "marco": {
+    "x": 0,
+    "y": 0,
+    "x1": 42,
+    "y1": 29.7
+   },
+   "espacios": [
+    {
+     "id": "cuadroColumnetas",
+     "titulo": null,
+     "caja": {
+      "x": 14.532,
+      "y": 1.076,
+      "x1": 26.492,
+      "y1": 4.04
+     },
+     "bloque": "gwtg"
+    },
+    {
+     "id": "cimentacion",
+     "titulo": "PLANO DE CIMENTACIÓN",
+     "caja": {
+      "x": 0.742,
+      "y": 17.165,
+      "x1": 14.026,
+      "y1": 29.297
+     },
+     "bloque": "CIMENTACION14",
+     "ejes": {
+      "x": 0.982,
+      "y": 17.405,
+      "x1": 13.786,
+      "y1": 29.057
+     }
+    },
+    {
+     "id": "cimiento",
+     "titulo": "PLANO DE CIMIENTO CORRIDO",
+     "caja": {
+      "x": 14.706,
+      "y": 17.318,
+      "x1": 25.529,
+      "y1": 29.222
+     },
+     "bloque": "CIMIE-CORR14",
+     "ejes": {
+      "x": 14.946,
+      "y": 17.558,
+      "x1": 27.88,
+      "y1": 28.982
+     }
+    },
+    {
+     "id": "aligerado",
+     "titulo": "PLANO DE ALIGERADO",
+     "caja": {
+      "x": 1.001,
+      "y": 3.586,
+      "x1": 18.789,
+      "y1": 15.593
+     },
+     "bloque": "ALIGERADO",
+     "ejes": {
+      "x": 1.241,
+      "y": 3.826,
+      "x1": 18.816,
+      "y1": 15.353
+     }
+    },
+    {
+     "id": "cuadroColumnas",
+     "titulo": null,
+     "caja": {
+      "x": 19.393,
+      "y": 9.965,
+      "x1": 29.852,
+      "y1": 16.098
+     },
+     "bloque": "CUADRO COLUMNAS"
+    }
+   ],
+   "titulos": [
+    {
+     "texto": "MODULO XIV - PLANO DE PLATEA CIMENTACION",
+     "x": 2.832,
+     "y": 16.417,
+     "alto": 0.204
+    },
+    {
+     "texto": "MODULO XIV - PLANO DE CIMIENTO CORRIDO",
+     "x": 16.667,
+     "y": 17.093,
+     "alto": 0.25
+    },
+    {
+     "texto": "MODULO XIV - PLANO DE ALIGERADO",
+     "x": 4.405,
+     "y": 3.105,
+     "alto": 0.25
+    }
+   ],
+   "rotulo": [
+    {
+     "campo": "lamina",
+     "x": 40.291,
+     "y": 1.667,
+     "alto": 0.244,
+     "capa": "0",
+     "lineas": 1,
+     "interlineado": 0.366,
+     "ancho": 0.788
+    },
+    {
+     "campo": "escala",
+     "x": 39.023,
+     "y": 1.537,
+     "alto": 0.085,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.127,
+     "ancho": 0.75
+    },
+    {
+     "campo": "especialidad",
+     "x": 37.187,
+     "y": 2.047,
+     "alto": 0.081,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.122,
+     "ancho": 1.03
+    },
+    {
+     "campo": "distrito",
+     "x": 37.397,
+     "y": 1.214,
+     "alto": 0.085,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.127,
+     "ancho": 0.756
+    },
+    {
+     "campo": "localidad",
+     "x": 37.396,
+     "y": 1.074,
+     "alto": 0.085,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.127,
+     "ancho": 0.757
+    },
+    {
+     "campo": "region",
+     "x": 37.396,
+     "y": 1.53,
+     "alto": 0.085,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.127,
+     "ancho": 0.757
+    },
+    {
+     "campo": "provincia",
+     "x": 37.397,
+     "y": 1.37,
+     "alto": 0.085,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.127,
+     "ancho": 0.756
+    },
+    {
+     "campo": "cui",
+     "x": 39.924,
+     "y": 1.773,
+     "alto": 0.094,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.141,
+     "ancho": 0.9
+    },
+    {
+     "campo": "codigoLocal",
+     "x": 35.589,
+     "y": 1.411,
+     "alto": 0.084,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.127,
+     "ancho": 0.551
+    },
+    {
+     "campo": "codigoModular",
+     "x": 35.587,
+     "y": 1.264,
+     "alto": 0.084,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.127,
+     "ancho": 0.553
+    },
+    {
+     "campo": "codigoModular2",
+     "x": 35.583,
+     "y": 1.112,
+     "alto": 0.084,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.127,
+     "ancho": 0.557
+    },
+    {
+     "campo": "proyecto",
+     "x": 35.718,
+     "y": 2.68,
+     "alto": 0.081,
+     "capa": ".",
+     "lineas": 3,
+     "interlineado": 0.132,
+     "ancho": 4.512
+    },
+    {
+     "campo": "entidad",
+     "x": 35.508,
+     "y": 3.232,
+     "alto": 0.153,
+     "capa": "CAPA8",
+     "lineas": 1,
+     "interlineado": 0.229,
+     "ancho": 5.092
+    },
+    {
+     "campo": "especialista",
+     "x": 33.941,
+     "y": 2.017,
+     "alto": 0.081,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.122,
+     "ancho": 2.222
+    },
+    {
+     "campo": "cip",
+     "x": 33.941,
+     "y": 1.931,
+     "alto": 0.081,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.122,
+     "ancho": 2.222
+    },
+    {
+     "campo": "plano",
+     "x": 38.33,
+     "y": 2.075,
+     "alto": 0.06,
+     "capa": "NCAMINO1",
+     "lineas": 3,
+     "interlineado": 0.094,
+     "ancho": 1.406
+    },
+    {
+     "campo": "fecha",
+     "x": 38.527,
+     "y": 1.201,
+     "alto": 0.085,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.127,
+     "ancho": 1.246
+    }
+   ]
+  },
+  {
+   "codigo": "E-65",
+   "plano": "PÓRTICOS",
+   "marco": {
+    "x": 44.95,
+    "y": -0.53,
+    "x1": 86.95,
+    "y1": 29.17
+   },
+   "espacios": [
+    {
+     "id": "cuadroColumnas",
+     "titulo": null,
+     "caja": {
+      "x": 56.147,
+      "y": 11.349,
+      "x1": 68.25,
+      "y1": 17.483
+     },
+     "bloque": "CUADRO COLUMNAS"
+    },
+    {
+     "id": "cuadroColumnetas",
+     "titulo": null,
+     "caja": {
+      "x": 68.077,
+      "y": 15.467,
+      "x1": 80.038,
+      "y1": 18.432
+     },
+     "bloque": "gwtg"
+    },
+    {
+     "id": "portico1",
+     "titulo": "PLANO DE PÓRTICO",
+     "caja": {
+      "x": 46.22,
+      "y": 19.28,
+      "x1": 54.22,
+      "y1": 28.18
+     },
+     "bloque": "c3",
+     "ejes": {
+      "x": 48.742,
+      "y": 27.605,
+      "x1": 52.95,
+      "y1": 28.087
+     }
+    },
+    {
+     "id": "portico2",
+     "titulo": "PLANO DE PÓRTICO",
+     "caja": {
+      "x": 56.12,
+      "y": 19.38,
+      "x1": 63.72,
+      "y1": 28.28
+     },
+     "bloque": "c4",
+     "ejes": {
+      "x": 58.625,
+      "y": 27.722,
+      "x1": 62.832,
+      "y1": 28.204
+     }
+    },
+    {
+     "id": "portico3",
+     "titulo": "PLANO DE PÓRTICO",
+     "caja": {
+      "x": 68.02,
+      "y": 20.48,
+      "x1": 72.52,
+      "y1": 28.08
+     },
+     "bloque": "c1",
+     "ejes": {
+      "x": 70.142,
+      "y": 27.506,
+      "x1": 72.442,
+      "y1": 27.993
+     }
+    },
+    {
+     "id": "portico4",
+     "titulo": "PLANO DE PÓRTICO",
+     "caja": {
+      "x": 47.42,
+      "y": 8.88,
+      "x1": 52.82,
+      "y1": 16.48
+     },
+     "bloque": "c2",
+     "ejes": {
+      "x": 49.298,
+      "y": 15.881,
+      "x1": 52.728,
+      "y1": 16.361
+     }
+    }
+   ],
+   "titulos": [
+    {
+     "texto": "MODULO XIV - PLANO DE PORTICO EJE 10-10",
+     "x": 67.646,
+     "y": 20.082,
+     "alto": 0.25
+    },
+    {
+     "texto": "MODULO XIV - PLANO DE PORTICO EJE 8-8",
+     "x": 47.208,
+     "y": 8.37,
+     "alto": 0.25
+    },
+    {
+     "texto": "MODULO XIV - PLANO DE PORTICO EJE Y-Y",
+     "x": 56.966,
+     "y": 18.985,
+     "alto": 0.25
+    },
+    {
+     "texto": "MODULO XIV - PLANO DE PORTICO EJE Z-Z",
+     "x": 46.888,
+     "y": 18.913,
+     "alto": 0.25
+    }
+   ],
+   "rotulo": [
+    {
+     "campo": "lamina",
+     "x": 85.188,
+     "y": 0.973,
+     "alto": 0.244,
+     "capa": "0",
+     "lineas": 1,
+     "interlineado": 0.366,
+     "ancho": 0.788
+    },
+    {
+     "campo": "escala",
+     "x": 83.919,
+     "y": 0.843,
+     "alto": 0.085,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.127,
+     "ancho": 0.75
+    },
+    {
+     "campo": "especialidad",
+     "x": 82.084,
+     "y": 1.353,
+     "alto": 0.081,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.122,
+     "ancho": 1.029
+    },
+    {
+     "campo": "distrito",
+     "x": 82.294,
+     "y": 0.52,
+     "alto": 0.085,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.127,
+     "ancho": 0.755
+    },
+    {
+     "campo": "localidad",
+     "x": 82.292,
+     "y": 0.38,
+     "alto": 0.085,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.127,
+     "ancho": 0.757
+    },
+    {
+     "campo": "region",
+     "x": 82.292,
+     "y": 0.835,
+     "alto": 0.085,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.127,
+     "ancho": 0.757
+    },
+    {
+     "campo": "provincia",
+     "x": 82.294,
+     "y": 0.676,
+     "alto": 0.085,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.127,
+     "ancho": 0.755
+    },
+    {
+     "campo": "cui",
+     "x": 84.82,
+     "y": 1.078,
+     "alto": 0.094,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.141,
+     "ancho": 0.9
+    },
+    {
+     "campo": "codigoLocal",
+     "x": 80.485,
+     "y": 0.717,
+     "alto": 0.084,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.127,
+     "ancho": 0.552
+    },
+    {
+     "campo": "codigoModular",
+     "x": 80.484,
+     "y": 0.569,
+     "alto": 0.084,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.127,
+     "ancho": 0.553
+    },
+    {
+     "campo": "codigoModular2",
+     "x": 80.479,
+     "y": 0.418,
+     "alto": 0.084,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.127,
+     "ancho": 0.558
+    },
+    {
+     "campo": "proyecto",
+     "x": 80.614,
+     "y": 1.986,
+     "alto": 0.081,
+     "capa": ".",
+     "lineas": 3,
+     "interlineado": 0.132,
+     "ancho": 4.513
+    },
+    {
+     "campo": "entidad",
+     "x": 80.405,
+     "y": 2.538,
+     "alto": 0.153,
+     "capa": "CAPA8",
+     "lineas": 1,
+     "interlineado": 0.229,
+     "ancho": 5.091
+    },
+    {
+     "campo": "especialista",
+     "x": 78.838,
+     "y": 1.322,
+     "alto": 0.081,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.122,
+     "ancho": 2.222
+    },
+    {
+     "campo": "cip",
+     "x": 78.838,
+     "y": 1.236,
+     "alto": 0.081,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.122,
+     "ancho": 2.221
+    },
+    {
+     "campo": "plano",
+     "x": 83.226,
+     "y": 1.336,
+     "alto": 0.065,
+     "capa": "NCAMINO1",
+     "lineas": 2,
+     "interlineado": 0.116,
+     "ancho": 1.402
+    },
+    {
+     "campo": "fecha",
+     "x": 83.424,
+     "y": 0.507,
+     "alto": 0.085,
+     "capa": "NCAMINO1",
+     "lineas": 1,
+     "interlineado": 0.127,
+     "ancho": 1.245
+    }
+   ]
+  }
+ ]
+}

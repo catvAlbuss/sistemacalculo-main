@@ -1,0 +1,77 @@
+{
+  "referencia": "Módulo XIV, I.E. Churubamba (láminas E-64 cimentación/aligerado y E-65 pórticos)",
+  "concreto": {
+    "columnas": 210,
+    "vigas": 210,
+    "columnetas": 175,
+    "cimientoCorrido": "Concreto ciclópeo f'c=100 kg/cm² + 30% PG",
+    "sobrecimiento": "Concreto f'c=140 kg/cm² + 25% PM",
+    "falsaZapata": "Falsa zapata f'c=100 kg/cm²"
+  },
+  "terreno": {
+    "relleno": "Terreno natural compactado al 95% M.D.S. según Próctor modificado",
+    "npt": 0.15,
+    "ntn": 0
+  },
+  "cimientoCorrido": {
+    "ancho": 0.6,
+    "alto": 0.8,
+    "sobrecimientoAlto": 0.4
+  },
+  "platea": {
+    "espesor": 0.7,
+    "df": 2,
+    "malla": 0.2,
+    "acero": "Ø3/4\" @0.15",
+    "preferida": true
+  },
+  "columnas": {
+    "cuantiaMinima": 0.01,
+    "barra": "5/8\"",
+    "areaBarra": 1.99,
+    "estribo": "3/8\"",
+    "distribucion": "1@0.05, 9@0.10, Rto.@0.20 C/E",
+    "recubrimiento": 0.04,
+    "distribucionPorSeccion": "(regla) (c) => `1@0.05, ${c.prefijo === \"CT\" ? 12 : c.clase === \"placa\" || Math.max(c.b, c.h) >= 0.5 ? 10 : 9}@0.10, Rto.@0.20 C/E`"
+  },
+  "columnetas": {
+    "estribo": "1/4\"",
+    "distribucion": "1@0.05, 4@0.10, Rto.@0.20 C/E",
+    "barra": "3/8\"",
+    "recubrimiento": 0.025,
+    "varillasPorCara": "(regla) (largo) => (largo <= 0.21 ? 2 : Math.floor(largo / 0.11) + 1)"
+  },
+  "vigas": {
+    "ancho": 0.25,
+    "peraltaMinimo": 0.4,
+    "estribo": "3/8\"",
+    "distribucion": "1@0.05, 8@0.10, Rto.@0.20 C/E",
+    "recubrimiento": 0.04
+  },
+  "aligerado": {
+    "espesor": 0.2,
+    "separacionViguetas": 0.4,
+    "alero": 0.6,
+    "aceroTemperatura": "Ø1/4\" @0.25",
+    "ladrillo": "Ladrillo de techo 0.30x0.30x0.15"
+  },
+  "techo": {
+    "pendiente": 0.33,
+    "cobertura": "Cobertura plancha de aluzinc TIPO TR4 e=5mm",
+    "canaleta": {
+      "ancho": 0.2,
+      "alto": 0.15
+    }
+  },
+  "vanos": {
+    "alturaPuerta": 2.1,
+    "alfeizar": 0.9,
+    "alturaVentana": 2.1,
+    "dintel": 0.2
+  },
+  "muro": "Muro de soga de ladrillo King Kong Tipo V - 23x12.5x9cm",
+  "dibujo": {
+    "escalaPlanos": "1/25",
+    "cotasEnCadena": true
+  }
+}

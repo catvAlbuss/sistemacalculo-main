@@ -1,0 +1,15 @@
+// Casos de evaluación del Agente Predim: pedidos típicos del chat con la herramienta y
+// los argumentos que el modelo debe elegir. Los usa evaluar-modelo.mjs y se exportan
+// al paquete portable (evaluacion/casos.json). Agregar aquí cada pedido nuevo que el
+// agente deba entender (así se mide si un modelo o un cambio de prompt lo mejora).
+
+export const CASOS_EVALUACION = [
+  {pedido: 'Genera el plano de estructuras de esta arquitectura', herramienta: 'plano_estructuras', argumentos: {}},
+  {pedido: '¿Qué vistas tiene el plano abierto?', herramienta: 'vistas_plano', argumentos: {}},
+  {pedido: 'Genera el plano de estructuras con platea', herramienta: 'plano_estructuras', argumentos: {cimentacion: 'platea'}},
+  {pedido: 'estructura el techo del modulo, con zapatas', herramienta: 'plano_estructuras', argumentos: {cimentacion: 'zapatas'}},
+  {pedido: 'Lee los ejes y columnas del primer nivel', herramienta: 'leer_estructura', argumentos: {}},
+  {pedido: 'hazme las láminas de estructuras del primer nivel', herramienta: 'plano_estructuras', argumentos: {}},
+  {pedido: 'necesito cimentación con zapatas aisladas para este módulo', herramienta: 'plano_estructuras', argumentos: {cimentacion: 'zapatas'}},
+  {pedido: 'qué columnas detectas en la planta', herramienta: 'leer_estructura', argumentos: {}},
+];
