@@ -87,13 +87,30 @@ test('columneta schedule: sections at the largest standard scale that fits, ".20
   assert.ok(textos.includes(escala), 'header shows the real scale');
   for (const t of ['.20', '.13', '.65', '.22']) assert.ok(textos.includes(t), `missing dimension "${t}"`);
   const llamadas = r.contenido.primitivas.filter((p) => p.type === 'text' && p.align === 'izq' && /Ø3\/8"$/.test(p.value)).map((p) => p.value);
-  assert.deepEqual(llamadas, ['2Ø3/8"', '2Ø3/8"', '6Ø3/8"', '6Ø3/8"', '3Ø3/8"', '3Ø3/8"'], 'one callout per face, bars per face');
+  // Como el ingeniero: una llamada "2Ø3/8"" por cada par de varillas (pa 2, pb 6, pc 3).
+  assert.deepEqual(llamadas, Array(11).fill('2Ø3/8"'), 'one "2Ø3/8"" callout per bar pair');
+  // Callouts stay inside the section row of the schedule.
+  const H = 2.9, yFila = H - (0.36 + 0.3 + 1.5) * H / 2.9;
+  assert.ok(r.contenido.primitivas.filter((p) => p.type === 'text' && p.align === 'izq').every((p) => p.at[1] > yFila), 'callouts above the reinforcement row');
   assert.deepEqual(r.filas.map((f) => f.refuerzo), ['4Ø3/8"', '12Ø3/8"', '6Ø3/8"'], 'like the engineer: pa 4Ø, pb 12Ø, pc 6Ø');
   // The widest section stays inside its cell.
   const W = 11.9, c0 = W * 0.075, c1 = W * 0.1, wTipo = (W - c0 - c1) / 3;
   assert.ok(0.65 * 50 / Number(escala.split('/')[1]) <= wTipo * 0.46);
   // Larger than the old fixed 1/25 when there is room.
   assert.notEqual(cuadroColumnetas([{codigo: 'pa', b: 0.2, h: 0.13}]).filas[0].escala, '1/25');
+});
+
+test('column schedule: section dimensions and stirrup dimensions like the engineer (C1 L .40/.25, C2 .25x.38)', async () => {
+  const {cuadroColumnas} = await import('../../resources/js/ingenieria/laminas/cuadroColumnas.js');
+  const Lc = [{x: 0, y: 0}, {x: 0.4, y: 0}, {x: 0.4, y: 0.25}, {x: 0.25, y: 0.25}, {x: 0.25, y: 0.4}, {x: 0, y: 0.4}];
+  const rect = [{x: 0, y: 0}, {x: 0.25, y: 0}, {x: 0.25, y: 0.38}, {x: 0, y: 0.38}];
+  const r = cuadroColumnas([
+    {tipo: 'C1', b: 0.4, h: 0.4, x: 0.2, y: 0.2, area: 0.1375, forma: 'L', espesor: 0.25, clase: 'columna', contorno: Lc},
+    {tipo: 'C2', b: 0.25, h: 0.38, x: 0.125, y: 0.19, area: 0.095, forma: 'rectangular', contorno: rect},
+  ]);
+  const cotas = r.contenido.primitivas.filter((p) => p.type === 'text' && /^\.\d\d$/.test(p.value)).map((p) => p.value);
+  // C1: outer legs and thicknesses (not the re-entrant edges) + two stirrups; C2: top and right + its stirrup.
+  assert.deepEqual(cotas, ['.40', '.25', '.25', '.40', '.32', '.17', '.17', '.32', '.25', '.38', '.17', '.30']);
 });
 
 async function abrir(path) {

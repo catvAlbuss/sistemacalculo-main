@@ -39,6 +39,25 @@ function transformar(primitivas, f, escala) {
 // guardó dónde puso el ingeniero las burbujas de ejes de ese plano, el plano se ubica
 // igual (mismo centro de la grilla), así ocupa el lugar del original y no pisa nada;
 // solo se reduce si la grilla de este proyecto es más grande que la del original.
+// Caja de lo que realmente se dibuja (ejes, cotas, textos), no solo de la grilla.
+export function cajaDibujo(primitivas) {
+  const xs = [], ys = [];
+  const add = ([x, y]) => { xs.push(x); ys.push(y); };
+  for (const p of primitivas) {
+    if (p.type === "line") { add(p.a); add(p.b); }
+    else if (p.type === "pline" || p.type === "hatch") p.points.forEach(add);
+    else if (p.type === "circle" || p.type === "arc") { add([p.c[0] - p.r, p.c[1] - p.r]); add([p.c[0] + p.r, p.c[1] + p.r]); }
+    else if (p.type === "text") {
+      // Ancho aproximado del texto según su alineación (sin rotar: los verticales son cortos).
+      const w = anchoTexto(p.value ?? "", p.h ?? 0), vertical = Math.abs(Math.sin(((p.rot ?? 0) * Math.PI) / 180)) > 0.7;
+      const [dx, dy] = vertical ? [p.h / 2, w / 2] : [w / 2, p.h / 2];
+      const cx = p.align === "izq" && !vertical ? p.at[0] + w / 2 : p.at[0];
+      add([cx - dx, p.at[1] - dy]); add([cx + dx, p.at[1] + dy]);
+    }
+  }
+  return xs.length ? {x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys)} : null;
+}
+
 function encajar(contenido, caja, nominal, ejesPlantilla = null) {
   const m = contenido.marco;
   const e = contenido.ejes;
@@ -46,7 +65,24 @@ function encajar(contenido, caja, nominal, ejesPlantilla = null) {
     const ew = e.x1 - e.x0, eh = e.y1 - e.y0, rw = ejesPlantilla.x1 - ejesPlantilla.x, rh = ejesPlantilla.y1 - ejesPlantilla.y;
     let escala = Math.min(nominal, (rw * 1.1) / ew, (rh * 1.1) / eh);
     if (escala > nominal * 0.97) escala = nominal;
-    const ex = (e.x0 + e.x1) / 2, ey = (e.y0 + e.y1) / 2, rx = (ejesPlantilla.x + ejesPlantilla.x1) / 2, ry = (ejesPlantilla.y + ejesPlantilla.y1) / 2;
+    const ex = (e.x0 + e.x1) / 2, ey = (e.y0 + e.y1) / 2;
+    let rx = (ejesPlantilla.x + ejesPlantilla.x1) / 2, ry = (ejesPlantilla.y + ejesPlantilla.y1) / 2;
+    // Lo dibujado (cotas y rótulos incluidos) no sale de su espacio: si sobresale se corre
+    // hacia adentro y, si aun así no entra, se reduce (la escala del título lo dice).
+    const d = cajaDibujo(contenido.primitivas);
+    if (d) {
+      const dw = d.x1 - d.x0, dh = d.y1 - d.y0, cw = caja.x1 - caja.x0, ch = caja.y1 - caja.y0;
+      // 3 % de tolerancia (los espacios tienen holgura y el ancho de los textos es estimado).
+      const cabe = Math.min(cw / dw, ch / dh) * 1.03;
+      // Reducida, a una escala estándar (1/30, 1/40…), no 1/27.
+      escala = Math.min(escala, cabe);
+    }
+    if (escala < nominal * 0.999) escala = 50 / ([30, 35, 40, 50, 75, 100, 125, 150, 200].find((den) => 50 / den <= escala + 1e-9) ?? Math.ceil(50 / escala));
+    if (d) {
+      const b = {x0: rx + (d.x0 - ex) * escala, y0: ry + (d.y0 - ey) * escala, x1: rx + (d.x1 - ex) * escala, y1: ry + (d.y1 - ey) * escala};
+      if (b.x0 < caja.x0) rx += caja.x0 - b.x0; else if (b.x1 > caja.x1) rx -= b.x1 - caja.x1;
+      if (b.y0 < caja.y0) ry += caja.y0 - b.y0; else if (b.y1 > caja.y1) ry -= b.y1 - caja.y1;
+    }
     return {escala, primitivas: transformar(contenido.primitivas, (x, y) => [rx + (x - ex) * escala, ry + (y - ey) * escala], escala)};
   }
   const cw = m.x1 - m.x0, ch = m.y1 - m.y0;

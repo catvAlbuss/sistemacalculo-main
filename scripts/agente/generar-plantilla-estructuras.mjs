@@ -77,6 +77,9 @@ function limpiarTextosDxf(dxf) {
   let s = dxf.replace(/\\U\+([0-9A-Fa-f]{4})/g, (_, h) => { const c = parseInt(h, 16); return c === 0x2205 || c === 0x00F8 ? 'Ø' : String.fromCharCode(c); });
   s = s.replace(/[∅ø]/g, 'Ø').replace(/%%[cC]/g, 'Ø').replace(/%%[dD]/g, '°').replace(/%%[pP]/g, '±');
   s = s.replace(/\\p[^;\\\n]*;/g, '');
+  // Fuente angosta dentro de un MTEXT ("{\fArial Narrow|b1|…;CUADRO DE VIGUETAS}"): el visor
+  // solo tiene Arial y con Arial normal el título se sale de su casilla. Arial al 82 %.
+  s = s.replace(/\\f(?:Arial Narrow|ArialN|Swis721 (?:Lt )?Cn[^|;]*)\|([^;\n]*);/gi, '\\fArial|$1;\\W0.82;');
   // Un salto de renglón seguido de una fracción ("ESCALA:\P1/25") el visor lo deja
   // literal; con un espacio después del salto sí lo interpreta.
   s = s.replace(/\\P(?=\d+\/\d)/g, '\\P ');
@@ -381,6 +384,19 @@ for (const r of [destino.tables.blockTable.modelSpace, ...destino.tables.blockTa
 console.log(`MTEXT de varios renglones partidos: ${partidos}`);
 for (const lista of [destino.tables.blockTable.modelSpace.newIterator().toArray(), ...[...destino.tables.blockTable.newIterator()].map((r) => r.newIterator().toArray())]) { ensanchar(lista); igualarDirectrices(lista); }
 console.log(`MTEXT ensanchados: ${mtexts}; directrices ajustadas: ${directrices}`);
+// Estilos con fuente angosta (Arial Narrow, Swiss condensada): el visor no tiene esas
+// fuentes y las dibuja con Arial normal, ~20 % más ancha, y los textos se salen de las
+// casillas (VIGA BORDE, CUADRO DE VIGUETAS). Pasan a Arial con factor de ancho 0.82:
+// se ven igual en el visor y en AutoCAD.
+const ANGOSTA = /^(arialn\w*|arial ?narrow|swissc\w*)(\.(ttf|shx))?$/i;
+let estilosAngostos = 0;
+for (const estilo of destino.tables.textStyleTable.newIterator()) {
+  if (!ANGOSTA.test(String(estilo.fileName ?? '').trim())) continue;
+  estilo.fileName = 'arial';
+  estilo.xScale = (estilo.xScale > 0 ? estilo.xScale : 1) * 0.82;
+  estilosAngostos++;
+}
+console.log(`Estilos de fuente angosta pasados a Arial x0.82: ${estilosAngostos}`);
 const dxf = limpiarTextosDxf(await destino.dxfOut());
 writeFileSync(resolve(salida, 'estructuras-laminas.dxf'), Buffer.from(dxf, 'latin1'));
 writeFileSync(resolve(salida, 'estructuras-laminas.json'), JSON.stringify(config, null, 1));

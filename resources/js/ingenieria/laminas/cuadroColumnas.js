@@ -105,6 +105,31 @@ export function medidasDeSeccion(c) {
   return (c.forma === "L" || c.forma === "T") && c.espesor ? `${b.toFixed(2)}x${h.toFixed(2)}x${c.espesor.toFixed(2)}m` : `${b.toFixed(2)}x${h.toFixed(2)}m`;
 }
 
+const cotaCortaCol = (v) => v.toFixed(2).replace(/^0(?=\.)/, "");
+
+// Cotas de una sección como las pone el ingeniero (".40", ".25"): en un rectángulo, el
+// lado de arriba y el de la derecha; en L, T o irregulares, cada lado exterior (no los
+// que llegan a una esquina entrante). Por fuera del contorno, alineadas con su lado.
+export function cotasDeContorno(contorno, S, {separacion, alto, capa = L.COTAS_E}) {
+  const pts = limpiar(contorno);
+  const s = Math.sign(area2(pts)) || 1;
+  const n = pts.length;
+  const entrante = pts.map((b, j) => s * cruz(sub(b, pts[(j - 1 + n) % n]), sub(pts[(j + 1) % n], b)) < 0);
+  let lados = pts.map((a, j) => ({a, b: pts[(j + 1) % n], j})).filter(({a, b, j}) => Math.hypot(b.x - a.x, b.y - a.y) > 0.05 && !entrante[j] && !entrante[(j + 1) % n]);
+  const rectangulo = n === 4 && pts.every((b, j) => {
+    const u = sub(b, pts[(j - 1 + n) % n]), v = sub(pts[(j + 1) % n], b);
+    return Math.abs(u.x * v.x + u.y * v.y) < 1e-3 * Math.hypot(u.x, u.y) * Math.hypot(v.x, v.y) + 1e-9;
+  });
+  if (rectangulo) {
+    const medio = (l) => ({x: (l.a.x + l.b.x) / 2, y: (l.a.y + l.b.y) / 2});
+    const arriba = [...lados].sort((p, q) => medio(q).y - medio(p).y)[0];
+    const derecha = [...lados].sort((p, q) => medio(q).x - medio(p).x)[0];
+    lados = [arriba, derecha];
+  }
+  // cota() desplaza hacia la izquierda de a→b: hacia afuera es a la derecha si el contorno gira antihorario.
+  return lados.flatMap(({a, b}) => cota(capa, S(a), S(b), -s * separacion, alto, cotaCortaCol(Math.hypot(b.x - a.x, b.y - a.y))));
+}
+
 export function cuadroColumnas(columnas, {ancho = 12, alto = 6, escala = 2} = {}) {
   const tipos = [];
   for (const c of columnas) {
@@ -142,7 +167,8 @@ export function cuadroColumnas(columnas, {ancho = 12, alto = 6, escala = 2} = {}
     const x0 = c0 + c1 + i * wTipo, xm = x0 + wTipo / 2;
     out.push(text(L.LAMINA, [xm, (y[1] + y[2]) / 2], t.tipo, hT * 0.42));
     // Sección a escala, centrada en su celda (un poco a la izquierda para el rótulo de varillas).
-    const fs = Math.min(escala, (wTipo * 0.6) / Math.max(c.b, c.h, 0.2), ((y[2] - y[3]) * 0.75) / Math.max(c.b, c.h, 0.2));
+    // Algo menor que antes: alrededor van las cotas de la sección.
+    const fs = Math.min(escala, (wTipo * 0.5) / Math.max(c.b, c.h, 0.2), ((y[2] - y[3]) * 0.6) / Math.max(c.b, c.h, 0.2));
     const cx = xm - wTipo * 0.08, cy = (y[2] + y[3]) / 2;
     const S = (p) => [r4(cx + (p.x - c.x) * fs), r4(cy + (p.y - c.y) * fs)];
     out.push(pline(L.COLUMNAS, c.contorno.map(S), true));
@@ -151,6 +177,8 @@ export function cuadroColumnas(columnas, {ancho = 12, alto = 6, escala = 2} = {}
     for (const q of estribos) out.push(...estriboConGancho(q, S, 0.06));
     const varillas = varillasDeSeccion(alas, ref.n, C.recubrimiento + 0.018);
     for (const p of varillas) out.push(circle(L.ESTRIBOS, S(p), r4(0.0095 * fs)));
+    // Medidas de la sección (".40", ".25"), como el ingeniero.
+    out.push(...cotasDeContorno(c.contorno, S, {separacion: hT * 0.16, alto: hT * 0.15}));
     // Rótulo de varillas con su línea de llamada, como en el expediente.
     const arriba = varillas.reduce((a, p) => (p.y - p.x * 0.2 > a.y - a.x * 0.2 ? p : a), varillas[0] ?? {x: c.x, y: c.y});
     const pA = S(arriba), pR = [r4(x0 + wTipo * 0.93), r4(Math.min(y[2] - hT * 0.25, pA[1] + hT * 0.45))];
@@ -168,9 +196,12 @@ export function cuadroColumnas(columnas, {ancho = 12, alto = 6, escala = 2} = {}
     estribos.forEach((q, j) => {
       const xs = q.map((p) => p.x), ys = q.map((p) => p.y);
       const m = {x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2};
-      const f = Math.min(escala * 1.2, (ancho1 * 0.6) / Math.max(0.1, Math.max(...xs) - Math.min(...xs)), ((y[4] - y[5]) * 0.65) / Math.max(0.1, Math.max(...ys) - Math.min(...ys)));
+      const f = Math.min(escala * 1.2, (ancho1 * 0.5) / Math.max(0.1, Math.max(...xs) - Math.min(...xs)), ((y[4] - y[5]) * 0.5) / Math.max(0.1, Math.max(...ys) - Math.min(...ys)));
       const ex = x0 + ancho1 * (j + 0.5), ey = (y[4] + y[5]) / 2;
-      out.push(...estriboConGancho(q, (p) => [r4(ex + (p.x - m.x) * f), r4(ey + (p.y - m.y) * f)], 0.05));
+      const SE = (p) => [r4(ex + (p.x - m.x) * f), r4(ey + (p.y - m.y) * f)];
+      out.push(...estriboConGancho(q, SE, 0.05));
+      // Medidas del estribo (".18" x ".32"), como el despiece del ingeniero.
+      out.push(...cotasDeContorno(q, SE, {separacion: hT * 0.14, alto: hT * 0.14}));
     });
     return {tipo: t.tipo, cantidad: t.cantidad, dimensiones: dims, refuerzo: ref.texto, estribos: estribaje, varillas: varillas.length};
   });
@@ -217,7 +248,7 @@ export function cuadroColumnetas(columnetas, {ancho = 11.9, alto = 2.9} = {}) {
   out.push(text(L.LAMINA, [c0 + c1 / 2, y[1] - hT * 0.55], "CONCRETO", hT * 0.45), text(L.LAMINA, [c0 + c1 / 2, y[1] - hT * 1.15], "f'c (kg/cm²)", hT * 0.42));
   out.push(text(L.LAMINA, [c0 + c1 / 2, (y[2] + y[3]) / 2 - hT * 0.6], String(CRITERIOS.concreto.columnetas), hT * 0.7));
   out.push(text(L.LAMINA, [c0 + c1 / 2, (y[3] + y[4]) / 2 + hT * 0.3], "Refuerzo y", hT * 0.48), text(L.LAMINA, [c0 + c1 / 2, (y[3] + y[4]) / 2 - hT * 0.35], "estribaje", hT * 0.48));
-  const hc = hT * 0.34; // texto de cotas y llamadas
+  const hc = hT * 0.45; // texto de cotas y llamadas: como el refuerzo (el ingeniero no las achica)
   const resumen = tipos.map((t, i) => {
     const {b, h: hh} = medidas[i];
     const x0 = c0 + c1 + i * wTipo, xm = x0 + wTipo / 2;
@@ -236,15 +267,19 @@ export function cuadroColumnetas(columnetas, {ancho = 11.9, alto = 2.9} = {}) {
     // Medidas de la sección (".20" arriba, ".13" a la derecha), como el ingeniero.
     out.push(...cota(L.COTAS_E, [X(-b / 2), Y(hh / 2)], [X(b / 2), Y(hh / 2)], hT * 0.35, hc, cotaCorta(b)));
     out.push(...cota(L.COTAS_E, [X(b / 2), Y(hh / 2)], [X(b / 2), Y(-hh / 2)], hT * 0.35, hc, cotaCorta(hh)));
-    // Llamada por cara: de la primera varilla hacia la izquierda, "nØ3/8\"".
-    const llamada = `${n}Ø${CT.barra}`;
-    caras.forEach((yy, k) => {
-      const p = [X(xb(0)), Y(yy)];
-      const yTxt = r4(cy + (k === 0 ? 1 : -1) * Math.max(hh * fs * 0.5 + hc * 0.9, hc * 1.4));
-      const xFin = r4(Math.max(x0 + wTipo * 0.04, X(-b / 2) - wTipo * 0.12 - anchoTexto(llamada, hc)));
-      out.push(line(L.COTAS_E, p, [r4(X(-b / 2) - wTipo * 0.06), yTxt]), line(L.COTAS_E, [r4(X(-b / 2) - wTipo * 0.06), yTxt], [xFin, yTxt]));
-      out.push(text(L.COTAS_E, [xFin, r4(yTxt + hc * 0.25)], llamada, hc, 0, "izq"));
-    });
+    // Llamadas como el ingeniero: una "2Ø3/8\"" por cada par de varillas (las dos caras),
+    // escalonadas a la izquierda desde la mitad de la sección hacia abajo, cada una con su
+    // línea hasta su par.
+    const llamada = `2Ø${CT.barra}`;
+    const piso = y[3] + hc * 0.4;
+    const paso = n > 1 ? Math.min(hc * 1.3, (cy - piso) / (n - 1)) : 0;
+    const xe = r4(X(-b / 2) - wTipo * 0.05);
+    const xFin = r4(Math.max(x0 + wTipo * 0.03, xe - anchoTexto(llamada, hc) - hc * 0.3));
+    for (let j = 0; j < n; j++) {
+      const yTxt = r4(cy - j * paso);
+      out.push(line(L.COTAS_E, [X(xb(j)), Y(caras[1])], [xe, yTxt]), line(L.COTAS_E, [xe, yTxt], [xFin, yTxt]));
+      out.push(text(L.COTAS_E, [xFin, r4(yTxt + hc * 0.3)], llamada, hc, 0, "izq"));
+    }
     const total = 2 * n;
     const refuerzo = `${total}Ø${CT.barra}`;
     const estribaje = textoEstribos(CT.estribo, CT.distribucion);
