@@ -26,8 +26,12 @@ function elegirVista(ctx, pedido) {
   if (texto) {
     const numero = Number(texto.replace(/^#/, ""));
     const elegida = Number.isInteger(numero) && numero > 0 ? leidas[numero - 1] : leidas.find((v) => v.vista.titulo.toLowerCase().includes(texto));
-    if (!elegida) throw new Error(`No hay una vista "${pedido}". Usa vistas_plano para ver las disponibles.`);
-    return elegida;
+    if (elegida) return elegida;
+    // El modelo a veces inventa la vista ("eje Z-Z" es un pórtico, no una planta): se usa la
+    // planta principal y se avisa, en vez de fallar sin hacer nada.
+    const principal = elegirVista(ctx, "");
+    ctx.memoria.avisoVista = `No hay una vista "${pedido}" en el plano; usé "${principal.vista.titulo || `#${principal.vista.indice}`}".`;
+    return principal;
   }
   // En empate gana una planta de piso sobre techo, cimentación o aligerado.
   const secundaria = (v) => (/techo|cubierta|azotea|cimenta|cimiento|aligerad|losa|platea/i.test(v.vista.titulo) ? 1 : 0);
@@ -267,6 +271,7 @@ export const ESTRUCTURA_SKILLS = [
       // Datos dictados en el mismo pedido ("con Hz 0.60 y zona 3"): se guardan y se usan.
       const {guardados, invalidos} = guardarDatos(args, ctx);
       // Primero la vista de arquitectura (las láminas del agente no cuentan como vistas).
+      delete ctx.memoria.avisoVista;
       const e = leerEstructura(ctx, "", args.vista);
       // Rehacer en su lugar: se quitan las láminas que el agente dibujó antes para esta
       // vista (marcadas en el dibujo), en vez de apilar otras debajo.
@@ -284,7 +289,7 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
     guardados.length ? `Guardé ${guardados.map((k) => ETIQUETA[k]).join(", ")} en Datos del proyecto.` : "",
     quitadas ? "Reemplacé las láminas anteriores." : "",
   ].filter(Boolean).join(" ");
-  const extra = invalidos.length ? [`No guardé (fuera de rango o mal escrito): ${invalidos.join("; ")}.`] : [];
+  const extra = [...(ctx.memoria.avisoVista ? [ctx.memoria.avisoVista] : []), ...(invalidos.length ? [`No guardé (fuera de rango o mal escrito): ${invalidos.join("; ")}.`] : [])];
   {
     {
       if (!e.ejesNombrados) throw new Error("Para estructurar el plano necesito la planta de arquitectura con ejes con nombre (burbujas con rótulo, ej. 8, 10, Y´).");

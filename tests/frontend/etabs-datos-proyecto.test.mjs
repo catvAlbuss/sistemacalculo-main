@@ -209,7 +209,9 @@ test('module 3 with its soil study and E.030 data: Hz 0.60, Df 2.50 and Z/U/S/Tp
   const vistas = await SKILLS.find((s) => s.name === 'vistas_plano').run({}, nuevo);
   assert.doesNotMatch(vistas.mensaje, /PLANO DE (CIMENTACI|ALIGERADO|P[ÓO]RTICO)/i, 'the agent sheets are not architecture views');
   assert.ok(Object.keys(nuevo.generaciones()).every((k) => k.startsWith('laminas:')), 'sheets carry the agent mark');
-  const r4 = await SKILLS.find((s) => s.name === 'plano_estructuras').run({}, nuevo);
+  // El modelo pide una vista que no existe ("eje Z-Z" es un pórtico): se usa la planta y se avisa.
+  const r4 = await SKILLS.find((s) => s.name === 'plano_estructuras').run({vista: 'eje Z-Z'}, nuevo);
+  assert.ok(r4.avisos.some((a) => /No hay una vista "eje Z-Z" en el plano; usé "M[ÓO]DULO III/i.test(a)), r4.avisos.join(' | '));
   assert.match(r4.mensaje, /Reemplacé las láminas anteriores/);
   assert.match(r4.mensaje, /Generé las láminas E-01/);
   const despues4 = db.tables.blockTable.modelSpace.newIterator().toArray().length;

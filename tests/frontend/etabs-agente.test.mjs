@@ -77,13 +77,45 @@ test('agent runs the requested skill, returns a short Spanish reply and strips r
   const fetchImpl = async (url, init) => {bodies.push(JSON.parse(init.body)); return {ok: true, json: async () => replies.shift()};};
   const steps = [];
   const out = await runAgent({text: 'Construye el primer nivel de una casa', context, fetchImpl, onStep: (s) => steps.push(s), settings: {baseUrl: 'http://x/v1/', model: 'm'}});
-  assert.equal(out.reply, 'Listo: casa de 9 x 22 m dibujada.');
+  // La respuesta es el mensaje real de la herramienta, no la paráfrasis del modelo.
+  assert.match(out.reply, /^Dibujé el primer nivel de una casa de 9 x 22 m con 3 dormitorio/);
   assert.equal(steps[0].result.ok, true);
   assert.ok(db.tables.blockTable.modelSpace.newIterator().toArray().length > 100);
   assert.equal(bodies[0].tools.length, 10);
   assert.ok(JSON.stringify(steps[0].result).length < 1200, 'tool results stay compact');
   assert.deepEqual(out.usage, {prompt: 2000, completion: 60});
   assert.equal(stripThinking('a</think> b'), 'b');
+});
+
+test('the agent never claims what did not happen: failed tool, malformed tool call, no tool at all', async () => {
+  const db = newDb(6);
+  const context = createDrawingContext({getDatabase: () => db, dm});
+  const respuesta = (r) => ({ok: true, json: async () => r});
+  // 1) La herramienta falla y el modelo igual dice que generó las láminas (qwen3-cad, "eje Z-Z").
+  let replies = [
+    {choices: [{message: {role: 'assistant', content: '', tool_calls: [{id: 'c1', type: 'function', function: {name: 'leer_estructura', arguments: '{}'}}]}}]},
+    {choices: [{message: {role: 'assistant', content: 'Se han generado las láminas E-01 y E-02 con platea.'}}]},
+  ];
+  let out = await runAgent({text: 'mejora los detalles', context, fetchImpl: async () => respuesta(replies.shift()), settings: {baseUrl: 'http://x/v1', model: 'm'}});
+  assert.match(out.reply, /^No pude hacer las columnas y ejes: .+No se cambió el plano\.$/s);
+  assert.doesNotMatch(out.reply, /Se han generado/);
+  // 2) Ollama 500 "XML syntax error" (qwen3.5:4b escribió mal la llamada): un reintento.
+  let llamadas = 0;
+  replies = [{choices: [{message: {role: 'assistant', content: 'Hola, ¿qué plano reviso?'}}]}];
+  out = await runAgent({text: 'hola', context, settings: {baseUrl: 'http://x/v1', model: 'qwen3.5:4b'}, fetchImpl: async () => {
+    llamadas++;
+    if (llamadas === 1) return {ok: false, status: 500, text: async () => '{"error":{"message":"XML syntax error on line 3: element <function> closed by </parameter>"}}'};
+    return respuesta(replies.shift());
+  }});
+  assert.equal(llamadas, 2, 'retried once');
+  assert.equal(out.reply, 'Hola, ¿qué plano reviso?');
+  // Dos veces mal escrita: mensaje claro, sin el JSON crudo de Ollama.
+  await assert.rejects(runAgent({text: 'x', context, settings: {baseUrl: 'http://x/v1', model: 'qwen3.5:4b'}, fetchImpl: async () => ({ok: false, status: 500, text: async () => 'XML syntax error on line 3'})}),
+    /no escribió bien la llamada a la herramienta \(dos veces\)\. No se hizo ningún cambio en el plano/);
+  // 3) Sin herramientas, el modelo dice "Listo": no se afirma un cambio.
+  replies = [{choices: [{message: {role: 'assistant', content: 'Listo, mejoré los detalles.'}}]}];
+  out = await runAgent({text: 'mejora los detalles', context, fetchImpl: async () => respuesta(replies.shift()), settings: {baseUrl: 'http://x/v1', model: 'm'}});
+  assert.match(out.reply, /^No hice cambios en el plano: no se ejecutó ninguna herramienta\./);
 });
 
 test('paid cloud models and tool errors are reported clearly', async () => {
