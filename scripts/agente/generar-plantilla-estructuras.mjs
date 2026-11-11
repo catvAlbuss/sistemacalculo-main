@@ -21,6 +21,7 @@ import {AcDbLibreDwgMainThreadConverter} from '@mlightcad/libredwg-converter/nod
 import {copiarDesdePlantilla} from '../../resources/js/ingenieria/cad/copiarPlantilla.js';
 import {aplanarModelo} from '../../resources/js/ingenieria/lectura/lectorPlano.js';
 import {plano} from './planos.mjs';
+import {anchoTexto} from '../../resources/js/ingenieria/laminas/rotulo.js';
 
 const raiz = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const referencia = process.argv[2] ?? plano('estructuras', '14.VINCHOS MODULO 14 estructuras.dwg');
@@ -284,11 +285,15 @@ const ultima = config.laminas.at(-1).marco;
 destino.extmin = {x: 0, y: Math.min(0, ultima.y), z: 0};
 destino.extmax = {x: ultima.x1, y: Math.max(config.laminas[0].marco.y1, ultima.y1), z: 0};
 mkdirSync(salida, {recursive: true});
-// Los MTEXT de la referencia se ajustaron a las fuentes SHX del autor; en el visor las
-// fuentes son algo más anchas y el texto partía en lugares raros ("1@0.0 / 5,0.8@"):
-// se les da 35 % más de ancho de párrafo.
+// Los MTEXT con fuentes SHX del autor (romans, simplex…) se ven más anchos en el visor y
+// partían en lugares raros: se les da 35 % más de ancho de párrafo. Los de Arial NO: el
+// visor tiene Arial (y las angostas pasan a Arial x0.82), y ensancharlos hacía que un
+// texto centrado invadiera la celda vecina (cuadro de viguetas), cruzara de columna
+// (especificaciones técnicas) o se saliera de la lámina (título de recubrimientos), como
+// se vio en el visor real con ver-en-visor.mjs.
 let mtexts = 0, directrices = 0;
-const ensanchar = (lista) => { for (const e of lista) if (String(e.dxfTypeName).toUpperCase() === 'MTEXT' && e.width > 0) { e.width *= 1.35; mtexts++; } };
+const fuenteDe = (e) => String(destino.tables.textStyleTable.getAt(e.styleName)?.fileName ?? '');
+const ensanchar = (lista) => { for (const e of lista) if (String(e.dxfTypeName).toUpperCase() === 'MTEXT' && e.width > 0 && !/arial|swiss|^$/i.test(fuenteDe(e))) { e.width *= 1.35; mtexts++; } };
 // Directrices (MULTILEADER) de un detalle: su letra no pasa la del texto más alto del
 // mismo detalle (venían a 0.13 junto a textos de 0.05–0.075 y se encimaban).
 const igualarDirectrices = (lista) => {
@@ -348,28 +353,75 @@ console.log(`Directrices convertidas a líneas + texto: ${explotadas}`);
 // alineación; interlineado 1.667 h como AutoCAD). El visor a veces deja "\P" literal
 // (p. ej. "ESCALA:\P1/25" anotativo); un renglón suelto siempre lo dibuja bien.
 let partidos = 0;
+// Párrafo centrado o a la derecha (\pxqc; \pxqr;): el visor no interpreta el código y el
+// texto quedaba a la izquierda de su caja, sobre la celda vecina (cuadro de viguetas: "4Ø3/8"
+// encima de "Refuerzo y estribaje"). Se pasa al anclaje equivalente del MTEXT.
+let parrafos = 0;
+const alinearParrafos = (registro) => {
+  for (const e of registro.newIterator().toArray()) {
+    if (String(e.dxfTypeName).toUpperCase() !== 'MTEXT') continue;
+    const contenido = String(e.contents ?? '');
+    const m = /\\p[^;\\]*q([cr])[^;\\]*;/.exec(contenido);
+    if (!m || !(e.width > 0)) continue;
+    const att = e.attachmentPoint || 1, columna = (att - 1) % 3;
+    if (columna !== 0) continue; // ya anclado al centro o a la derecha
+    const dx = m[1] === 'c' ? e.width / 2 : e.width;
+    const dir = e.direction ?? {x: Math.cos(e.rotation ?? 0), y: Math.sin(e.rotation ?? 0)};
+    const p = e.location ?? e.position;
+    e.location = {x: p.x + dir.x * dx, y: p.y + dir.y * dx, z: p.z ?? 0};
+    e.attachmentPoint = att + (m[1] === 'c' ? 1 : 2);
+    e.contents = contenido.replace(/\\p[^;\\]*;/g, '');
+    parrafos++;
+  }
+};
+for (const r of [destino.tables.blockTable.modelSpace, ...destino.tables.blockTable.newIterator()]) alinearParrafos(r);
+console.log(`Párrafos centrados o a la derecha pasados a anclaje: ${parrafos}`);
+
+// Ancho de un renglón en el visor: medida de anchoTexto (calibrada en el visor) con un 15 %
+// de margen; las angostas se miden a ancho completo (el visor no siempre las angosta).
+const anchoRenglon = (t, e) => anchoTexto(t, e.height) * 1.15;
+// Un renglón del párrafo en el visor: {t, escala}. Si cabe, igual. Si se pasa hasta un 30 %,
+// se achica su letra para que quepa en uno (el párrafo no crece ni pisa al siguiente: texto
+// del ladrillo de 18 huecos). Si se pasa más (también lo cortaba AutoCAD), se corta en palabras.
+const cortar = (t, e) => {
+  const r = e.width > 0 ? anchoRenglon(t, e) / e.width : 0;
+  if (r <= 1) return [{t, escala: 1}];
+  if (r <= 1.3) return [{t, escala: 1 / r}];
+  const partes = [];
+  let actual = '';
+  for (const p of t.split(/\s+/).filter(Boolean)) {
+    const prueba = actual ? `${actual} ${p}` : p;
+    if (actual && anchoRenglon(prueba, e) > e.width) { partes.push(actual); actual = p; } else actual = prueba;
+  }
+  if (actual) partes.push(actual);
+  return partes.map((x) => ({t: x, escala: Math.min(1, e.width / anchoRenglon(x, e))}));
+};
 const partirRenglones = (registro) => {
   for (const e of registro.newIterator().toArray()) {
     if (String(e.dxfTypeName).toUpperCase() !== 'MTEXT') continue;
     const contenido = String(e.contents ?? '').replace(/\\p[^;\\]*;/g, ''); // sin códigos de párrafo (\pxqc;)
     if (!contenido.includes('\\P') || /[{}]|\\[A-OQ-Za-z]/.test(contenido.replace(/\\P/g, ''))) continue;
-    const renglones = contenido.split('\\P').map((t) => t.trim());
+    // Los renglones que no caben en el ancho del párrafo se cortan aquí: el visor, al cortar
+    // él un renglón, no corre el siguiente y lo pisa (especificaciones técnicas: "Presion
+    // admisible… antes de su ejecucion." debajo de "Parámetros sísmicos").
+    const renglones = contenido.split('\\P').map((t) => t.trim()).flatMap((t) => (t ? cortar(t, e) : [{t: '', escala: 1}]));
     const h = e.height > 0 ? e.height : 0.1, paso = h * 1.667 * (e.lineSpacingFactor > 0 ? e.lineSpacingFactor : 1);
     const att = e.attachmentPoint || 1, fila = Math.ceil(att / 3); // 1 arriba, 2 al medio, 3 abajo
     const n = renglones.length;
     const dir = e.direction ?? {x: Math.cos(e.rotation ?? 0), y: Math.sin(e.rotation ?? 0)};
     const abajo = {x: dir.y, y: -dir.x}; // perpendicular hacia abajo del texto
     const p = e.location ?? e.position;
-    renglones.forEach((t, i) => {
+    renglones.forEach(({t, escala}, i) => {
       if (!t) return;
       // Desplazamiento del renglón i según dónde está anclado el bloque de texto.
       const k = fila === 1 ? i : fila === 2 ? i - (n - 1) / 2 : i - (n - 1);
       const nt = new dm.AcDbMText();
       nt.contents = t;
-      nt.height = h;
+      nt.height = h * escala;
       nt.location = {x: p.x + abajo.x * paso * k, y: p.y + abajo.y * paso * k, z: 0};
       nt.attachmentPoint = att;
-      if (e.width > 0) nt.width = e.width;
+      // Sin ancho de párrafo: el corte ya está hecho aquí; con ancho, el visor (letra algo
+      // más ancha) lo volvería a cortar y el renglón pisaría al siguiente.
       if (e.rotation) { nt.rotation = e.rotation; nt.direction = {x: dir.x, y: dir.y, z: 0}; }
       if (e.styleName) nt.styleName = e.styleName;
       nt.layer = e.layer;
@@ -382,6 +434,81 @@ const partirRenglones = (registro) => {
 };
 for (const r of [destino.tables.blockTable.modelSpace, ...destino.tables.blockTable.newIterator()]) partirRenglones(r);
 console.log(`MTEXT de varios renglones partidos: ${partidos}`);
+
+// MTEXT con alturas relativas por renglón ("{\LESPECIFICACIÓN\P\H0.066667x;\P\H15x;LADRILLO -
+// MORTERO}\P{\H0.0666x;ESCALA 1/20}"): el visor real las interpreta distinto que AutoCAD y el
+// título crece hacia arriba hasta pisar el dibujo del ladrillo (visto con ver-en-visor.mjs).
+// Se parte en un MTEXT por renglón con su altura absoluta, apilados como AutoCAD (1.667 h),
+// respetando el anclaje del original. El subrayado (\L…\l) se conserva.
+function renglonesConAltura(contenido, hBase) {
+  const lineas = [{partes: [], h: 0}];
+  const pila = [];
+  let h = hBase, sub = false;
+  const agrega = (t) => { const l = lineas.at(-1); l.partes.push({t, sub}); if (t.trim()) l.h = Math.max(l.h, h); };
+  for (let i = 0; i < contenido.length; i++) {
+    const c = contenido[i];
+    if (c === '{') { pila.push({h, sub}); continue; }
+    if (c === '}') { ({h, sub} = pila.pop() ?? {h, sub}); continue; }
+    if (c !== '\\') { agrega(c); continue; }
+    const k = contenido[i + 1];
+    if (k === 'P') { if (!lineas.at(-1).h) lineas.at(-1).h = h; lineas.push({partes: [], h: 0}); i++; continue; }
+    if (k === 'L') { sub = true; i++; continue; }
+    if (k === 'l') { sub = false; i++; continue; }
+    if (k === '\\' || k === '{' || k === '}') { agrega(k); i++; continue; }
+    const fin = contenido.indexOf(';', i);
+    if (fin < 0) { agrega(contenido.slice(i)); break; }
+    const codigo = contenido.slice(i + 1, fin);
+    const m = /^H([\d.]+)(x?)$/i.exec(codigo);
+    if (m) h = m[2] ? h * Number(m[1]) : Number(m[1]);
+    i = fin; // \f, \C, \W, \Q, \T, \A…: el visor usa los del estilo
+  }
+  if (!lineas.at(-1).h) lineas.at(-1).h = h;
+  return lineas.map((l) => {
+    let texto = '', abierto = false;
+    for (const p of l.partes) { if (p.sub !== abierto) { texto += p.sub ? '\\L' : '\\l'; abierto = p.sub; } texto += p.t; }
+    if (abierto) texto += '\\l';
+    return {texto: texto.trim(), h: l.h};
+  });
+}
+let alturasRelativas = 0;
+const partirAlturas = (registro) => {
+  for (const e of registro.newIterator().toArray()) {
+    if (String(e.dxfTypeName).toUpperCase() !== 'MTEXT') continue;
+    const contenido = String(e.contents ?? '');
+    if (!/\\H[\d.]+x?;/i.test(contenido)) continue;
+    const h0 = e.height > 0 ? e.height : 0.1;
+    const lineas = renglonesConAltura(contenido, h0);
+    if (lineas.length < 2 && !/\\H/i.test(contenido)) continue;
+    const att = e.attachmentPoint || 1, columna = (att - 1) % 3, fila = Math.ceil(att / 3);
+    const pasos = lineas.map((l) => l.h * 1.667);
+    const alto = pasos.slice(0, -1).reduce((s, v) => s + v, 0) + lineas.at(-1).h;
+    const p = e.location ?? e.position;
+    const dir = e.direction ?? {x: Math.cos(e.rotation ?? 0), y: Math.sin(e.rotation ?? 0)};
+    const abajo = {x: dir.y, y: -dir.x};
+    const arriba0 = fila === 1 ? 0 : fila === 2 ? -alto / 2 : -alto; // desplazamiento del borde superior respecto del anclaje
+    let acumulado = 0;
+    lineas.forEach((l, i) => {
+      const d = arriba0 + acumulado;
+      acumulado += pasos[i];
+      if (!l.texto.replace(/\\[Ll]/g, '').trim()) return; // renglón de espacio
+      const nt = new dm.AcDbMText();
+      nt.contents = l.texto;
+      nt.height = l.h;
+      nt.location = {x: p.x + abajo.x * d, y: p.y + abajo.y * d, z: 0};
+      nt.attachmentPoint = 1 + columna; // anclado arriba, con la alineación horizontal del original
+      if (e.width > 0) nt.width = e.width;
+      if (e.rotation) { nt.rotation = e.rotation; nt.direction = {x: dir.x, y: dir.y, z: 0}; }
+      if (e.styleName) nt.styleName = e.styleName;
+      nt.layer = e.layer;
+      if (e.color) nt.color = e.color.clone ? e.color.clone() : e.color;
+      registro.appendEntity(nt);
+    });
+    registro.removeEntity(e.objectId);
+    alturasRelativas++;
+  }
+};
+for (const r of [destino.tables.blockTable.modelSpace, ...destino.tables.blockTable.newIterator()]) partirAlturas(r);
+console.log(`MTEXT con alturas relativas partidos por renglón: ${alturasRelativas}`);
 for (const lista of [destino.tables.blockTable.modelSpace.newIterator().toArray(), ...[...destino.tables.blockTable.newIterator()].map((r) => r.newIterator().toArray())]) { ensanchar(lista); igualarDirectrices(lista); }
 console.log(`MTEXT ensanchados: ${mtexts}; directrices ajustadas: ${directrices}`);
 // Contornos de achurado con un tramo de largo cero (p. ej. "Tierra de chacra" del corte):
@@ -403,6 +530,7 @@ for (const registro of [destino.tables.blockTable.modelSpace, ...destino.tables.
   }
 }
 console.log(`Tramos de largo cero quitados de contornos de achurado: ${tramosNulos}`);
+
 // Estilos con fuente angosta (Arial Narrow, Swiss condensada): el visor no tiene esas
 // fuentes y las dibuja con Arial normal, ~20 % más ancha, y los textos se salen de las
 // casillas (VIGA BORDE, CUADRO DE VIGUETAS). Pasan a Arial con factor de ancho 0.82:

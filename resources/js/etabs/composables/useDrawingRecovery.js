@@ -39,6 +39,20 @@ export function almacenIndexedDb(idb = globalThis.indexedDB) {
   };
 }
 
+// DXF listo para el visor. La librería escribe las letras fuera de ASCII como "\U+00D3"; el
+// visor lee esos códigos con 5 cifras cuando sigue una cifra o letra A–F ("M\U+00D3DULO" →
+// "M?ULO", "4\U+00D83/8" → "4?/8"), así que se escriben como letras, en Windows-1252 como
+// los DXF de AutoCAD. Lo que no entra en 1252 queda como código.
+export function dxfParaVisor(texto) {
+  const plano = String(texto).replace(/\\U\+([0-9A-Fa-f]{4})/g, (m, h) => {
+    const c = parseInt(h, 16);
+    return c <= 0xff ? String.fromCharCode(c) : m;
+  }).replace(/[^\x00-\xff]/gu, (c) => `\\U+${c.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")}`);
+  const bytes = new Uint8Array(plano.length);
+  for (let i = 0; i < plano.length; i++) bytes[i] = plano.charCodeAt(i);
+  return bytes;
+}
+
 // Firma barata del dibujo para saber si cambió desde la última copia.
 const firmaDe = (database) => {
   try {
@@ -84,7 +98,7 @@ export function crearRecuperacion({getDocument, almacen = almacenIndexedDb(), ah
     // Archivo DXF listo para abrir en el visor.
     archivo(copia) {
       const base = String(copia.nombre || "plano").replace(/\.(dwg|dxf)$/i, "").replace(/\s*\(recuperado\)$/i, "");
-      return new File([copia.dxf], `${base} (recuperado).dxf`, {type: "application/dxf"});
+      return new File([dxfParaVisor(copia.dxf)], `${base} (recuperado).dxf`, {type: "application/dxf"});
     },
   };
 }

@@ -13,6 +13,18 @@ export function unitsPerMeter(database) {
   return UNITS_PER_METER[database?.insunits] ?? 1;
 }
 
+// Estilo de texto del agente: Arial. El "Standard" de muchos planos usa una fuente sin
+// "Ø" (p. ej. SimKai) y el visor dibuja "8ⓈⓉ/8\"" en lugar de "8Ø5/8\"".
+export const ESTILO_TEXTO = "NOVACAD";
+export function ensureTextStyle(database, dm) {
+  const tabla = database.tables.textStyleTable;
+  if (tabla.has(ESTILO_TEXTO)) return false;
+  const estilo = new dm.AcDbTextStyleTableRecord({name: ESTILO_TEXTO, font: "arial", bigFont: "", standardFlag: 0, fixedTextHeight: 0, widthFactor: 1, obliqueAngle: 0, textGenerationFlag: 0, lastHeight: 0.2});
+  estilo.fileName = "arial";
+  tabla.add(estilo);
+  return true;
+}
+
 export function ensureLayers(database, names, dm) {
   const created = [];
   for (const name of names) {
@@ -71,6 +83,7 @@ function toEntity(p, k, origin, dm) {
     case "text":
       entity = new dm.AcDbMText();
       entity.contents = p.value;
+      entity.styleName = ESTILO_TEXTO;
       entity.height = p.h * k;
       entity.location = pt(p.at);
       entity.attachmentPoint = p.align === "izq" ? dm.AcGiMTextAttachmentPoint.BottomLeft : dm.AcGiMTextAttachmentPoint.MiddleCenter;
@@ -124,6 +137,7 @@ export function drawPrimitives(database, primitivas, {dm, edit = (db, label, fn)
       try { const host = dm.acdbHostApplicationServices?.(); if (host && host.workingDatabase !== database) host.workingDatabase = database; } catch { /* el visor ya la tiene */ }
     }
     layers = ensureLayers(database, [...new Set(primitivas.map((p) => p.layer))], dm);
+    if (primitivas.some((p) => p.type === "text")) ensureTextStyle(database, dm);
     const modelSpace = database.tables.blockTable.modelSpace;
     for (const p of primitivas) {
       const entity = toEntity(p, k, origin, dm);

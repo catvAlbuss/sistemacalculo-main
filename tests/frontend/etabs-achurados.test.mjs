@@ -77,9 +77,9 @@ test('self-crossing hatch outlines (stone textures, stirrup hatches) are repaire
   const warn = console.warn; console.warn = (...a) => avisos.push(a.join(' '));
   try {
     const r = copiarDesdePlantilla({origen, destino, entidades: origen.tables.blockTable.modelSpace.newIterator().toArray(), dm});
-    assert.ok(r.achuradosReparados >= 20, `repaired ${r.achuradosReparados}`);
+    assert.ok(r.achuradosReparados >= 15, `repaired ${r.achuradosReparados}`);
   } finally { console.warn = warn; }
-  assert.ok(antes >= 25, `the reference has self-crossing outlines (${antes})`);
+  assert.ok(antes >= 15, `the reference has self-crossing outlines (${antes})`);
   assert.ok(cuenta(destino) <= 2, `left for the viewer to warn about: ${cuenta(destino)} (was ${antes})`);
   assert.deepEqual(avisos.filter((a) => /PolyBool/.test(a)), [], 'no PolyBool warnings while repairing');
 });

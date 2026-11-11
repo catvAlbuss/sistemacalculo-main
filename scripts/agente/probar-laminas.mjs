@@ -5,6 +5,9 @@
 //
 //   node scripts/agente/probar-laminas.mjs "<arquitectura.dwg>" "<vista>" [salida.svg] [platea|zapatas|auto]
 //
+// AGENTE_DXF=ruta.dxf guarda además el dibujo completo (arquitectura + láminas) para verlo
+// en el visor real: node scripts/agente/ver-en-visor.mjs ruta.dxf
+//
 // Datos del proyecto (los del panel ▤) en AGENTE_DATOS, como JSON:
 //   AGENTE_DATOS='{"hz":"0.60","df":"2.50","zona":"2","suelo":"S3","categoria":"A2"}'
 
@@ -13,6 +16,7 @@ import * as dm from '@mlightcad/data-model';
 import {createDrawingContext} from '../../resources/js/ingenieria/cad/drawingContext.js';
 import {SKILLS} from '../../resources/js/ingenieria/agente/skills/index.js';
 import {aplanarModelo} from '../../resources/js/ingenieria/lectura/lectorPlano.js';
+import {dxfParaVisor} from '../../resources/js/etabs/composables/useDrawingRecovery.js';
 
 const [ruta, vista, salida, cimentacion] = process.argv.slice(2);
 if (!ruta || !vista) { console.error('Uso: node scripts/agente/probar-laminas.mjs <arquitectura.dwg> <vista> [salida.svg] [cimentacion]'); process.exit(1); }
@@ -29,11 +33,19 @@ const db = await leer(ruta, dm.AcDbFileType.DWG);
 const cargarPlantilla = async () => ({db: await leer('public/assets/plantillas/estructuras-laminas.dxf', dm.AcDbFileType.DXF), config: JSON.parse(readFileSync('public/assets/plantillas/estructuras-laminas.json', 'utf8'))});
 
 const datos = process.env.AGENTE_DATOS ? JSON.parse(process.env.AGENTE_DATOS) : {};
-const ctx = createDrawingContext({getDatabase: () => db, dm, loadTemplate: cargarPlantilla, getProjectData: () => datos});
+let zona = null;
+const ctx = createDrawingContext({getDatabase: () => db, dm, loadTemplate: cargarPlantilla, getProjectData: () => datos, afterDraw: (z) => { if (z) zona = z; }});
 const antes = db.tables.blockTable.modelSpace.newIterator().toArray().length;
 const t0 = Date.now();
 const r = await SKILLS.find((s) => s.name === 'plano_estructuras').run({vista, ...(cimentacion ? {cimentacion} : {})}, ctx);
 console.log(`(${Date.now() - t0} ms)`, JSON.stringify(r, null, 1));
+if (process.env.AGENTE_DXF) {
+  // Dibujo completo y la zona de las láminas (unidades del dibujo) para ver-en-visor.mjs.
+  // Como lo guarda la copia de recuperación del visor: letras en Windows-1252, no "\U+00D3".
+  writeFileSync(process.env.AGENTE_DXF, dxfParaVisor(db.dxfOut(undefined, 6)));
+  writeFileSync(`${process.env.AGENTE_DXF}.json`, JSON.stringify({zona, laminas: r.laminas}, null, 1));
+  console.log(`Dibujo para el visor real: ${process.env.AGENTE_DXF} (zona de láminas ${JSON.stringify(zona)})`);
+}
 
 if (salida && r.ok) {
   const nuevas = db.tables.blockTable.modelSpace.newIterator().toArray().slice(antes);

@@ -222,6 +222,25 @@ window.addEventListener("pagehide", alSalir);
 // En un momento libre del navegador: exportar un plano grande toma cientos de ms.
 const enReposo = (fn) => (window.requestIdleCallback ? window.requestIdleCallback(fn, {timeout: 15000}) : setTimeout(fn, 0));
 const autoguardado = setInterval(() => enReposo(() => guardarCopia()), 90000);
+// Prueba visual en el visor real (scripts/agente/ver-en-visor.mjs): solo si la página de
+// prueba define window.__NOVACAD_PRUEBA__ se expone cómo abrir un DXF y encuadrar una zona.
+if (window.__NOVACAD_PRUEBA__) {
+  window.__novacadPrueba = {
+    abrir: (url) => AcApDocManager.instance.openUrl(url),
+    // Hacia dónde mira la cámara (diagnóstico de encuadre).
+    dondeMira: () => { const v = AcApDocManager.instance?.curView ?? AcApDocManager.instance?.mainView; const r = v?.canvas?.getBoundingClientRect?.() ?? {width: 0, height: 0}; const a = v?.screenToWorld?.({x: 0, y: 0}), b = v?.screenToWorld?.({x: r.width, y: r.height}); return {lienzo: [r.width, r.height], de: a && [a.x, a.y], a: b && [b.x, b.y]}; },
+    // El plano termina de cargar sus presentaciones después de tener entidades.
+    listo: () => Boolean((AcApDocManager.instance?.curView ?? AcApDocManager.instance?.mainView)?.activeLayoutView),
+    entidades: () => AcApDocManager.instance?.curDocument?.database?.tables.blockTable.modelSpace.newIterator().toArray().length ?? 0,
+    encuadrar: async (x0, y0, x1, y1) => {
+      const dm = await import("@mlightcad/data-model");
+      const m = AcApDocManager.instance;
+      const vista = m.curView ?? m.mainView;
+      if (!vista?.activeLayoutView) throw new Error("el visor no tiene una vista activa");
+      vista.zoomTo(new dm.AcGeBox2d({x: x0, y: y0}, {x: x1, y: y1}), 1.05);
+    },
+  };
+}
 // El contexto WebGL se pierde (poca memoria de video, pestaña muy inactiva): el dibujo
 // sigue en memoria; se guarda y se ofrece reabrirlo para que se vuelva a dibujar.
 const alPerderGrafico = async (event) => {
