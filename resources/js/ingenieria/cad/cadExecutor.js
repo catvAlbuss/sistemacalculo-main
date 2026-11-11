@@ -4,6 +4,7 @@
 
 import {LAYER_COLORS} from "./primitives.js";
 import {CAPAS_DESPACHO} from "../criterios/estiloLaminas.js";
+import {repararAchurado} from "./achurados.js";
 
 // INSUNITS -> unidades del dibujo por metro.
 const UNITS_PER_METER = {1: 39.3701, 2: 3.28084, 4: 1000, 5: 100, 6: 1, 14: 10};
@@ -95,6 +96,7 @@ function toEntity(p, k, origin, dm) {
         entity.patternAngle = ((p.angulo ?? 0) * Math.PI) / 180;
       }
       entity.add(new dm.AcGePolyline2d(puntos.map((q) => new dm.AcGePoint2d(q.x, q.y)), true));
+      repararAchurado(entity, dm); // por si el contorno se cruza a sí mismo
       break;
     }
     default:

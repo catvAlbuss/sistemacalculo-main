@@ -219,7 +219,9 @@ const alOcultar = () => { if (document.visibilityState === "hidden") guardarCopi
 const alSalir = () => { guardarCopia(); };
 document.addEventListener("visibilitychange", alOcultar);
 window.addEventListener("pagehide", alSalir);
-const autoguardado = setInterval(() => guardarCopia(), 90000);
+// En un momento libre del navegador: exportar un plano grande toma cientos de ms.
+const enReposo = (fn) => (window.requestIdleCallback ? window.requestIdleCallback(fn, {timeout: 15000}) : setTimeout(fn, 0));
+const autoguardado = setInterval(() => enReposo(() => guardarCopia()), 90000);
 // El contexto WebGL se pierde (poca memoria de video, pestaña muy inactiva): el dibujo
 // sigue en memoria; se guarda y se ofrece reabrirlo para que se vuelva a dibujar.
 const alPerderGrafico = async (event) => {

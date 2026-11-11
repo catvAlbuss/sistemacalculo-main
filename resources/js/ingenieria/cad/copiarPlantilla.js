@@ -4,6 +4,8 @@
 // Los bloques de la plantilla se renombran con un prefijo para no chocar con los
 // del dibujo abierto (y los anónimos *U, *D pasan a ser bloques con nombre).
 
+import {repararAchurado} from "./achurados.js";
+
 const nombreDestino = (prefijo, nombre) => `${prefijo}${String(nombre).replace(/^\*/, "")}`;
 
 function asegurarRegistro(tablaOrigen, tablaDestino, nombre) {
@@ -20,6 +22,8 @@ function prepararEntidad(entidad, ctx) {
   if (entidad.styleName) asegurarRegistro(origen.tables.textStyleTable, destino.tables.textStyleTable, entidad.styleName);
   if (entidad.dimensionStyleName) asegurarRegistro(origen.tables.dimStyleTable, destino.tables.dimStyleTable, entidad.dimensionStyleName);
   const copia = entidad.clone();
+  // Achurados con contornos que se cruzan: reparados aquí una vez (no en cada dibujo del visor).
+  if (String(copia.dxfTypeName).toUpperCase() === "HATCH") ctx.achuradosReparados += repararAchurado(copia, ctx.dm);
   // Textos que dependen del proyecto (p. ej. parámetros sísmicos): se reemplazan en la copia.
   if (ctx.textos) {
     if (typeof copia.contents === "string") { const t = ctx.textos(copia.contents); if (t !== copia.contents) { copia.contents = t; ctx.reemplazados++; } }
@@ -70,7 +74,7 @@ function asegurarBloque(nombre, ctx) {
 // entidades: del espacio modelo de la plantilla. desplazamiento en unidades del dibujo.
 // textos: función opcional texto → texto aplicada a cada TEXT/MTEXT copiado.
 export function copiarDesdePlantilla({origen, destino, entidades, desplazamiento = {x: 0, y: 0}, escala = 1, prefijo = "PLT_", dm, textos = null}) {
-  const ctx = {origen, destino, prefijo, dm, bloques: 0, textos, reemplazados: 0};
+  const ctx = {origen, destino, prefijo, dm, bloques: 0, textos, reemplazados: 0, achuradosReparados: 0};
   const mover = dm.AcGeMatrix3d.makeTranslation(desplazamiento.x, desplazamiento.y, 0);
   const copias = [];
   for (const entidad of entidades) {
@@ -84,5 +88,5 @@ export function copiarDesdePlantilla({origen, destino, entidades, desplazamiento
     }
   }
   if (copias.length) destino.tables.blockTable.modelSpace.appendEntity(copias);
-  return {entidades: copias.length, bloques: ctx.bloques, fallidas: ctx.fallidas ?? 0, textosReemplazados: ctx.reemplazados};
+  return {entidades: copias.length, bloques: ctx.bloques, fallidas: ctx.fallidas ?? 0, textosReemplazados: ctx.reemplazados, achuradosReparados: ctx.achuradosReparados};
 }

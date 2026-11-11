@@ -26,7 +26,28 @@ function puntoDeReferencia(e) {
   return ext?.min && Number.isFinite(ext.min.x) ? {x: (ext.min.x + ext.max.x) / 2, y: (ext.min.y + ext.max.y) / 2} : null;
 }
 
-export function createDrawingContext({getDatabase, dm, edit, afterDraw, onFoundation, loadTemplate, getProjectData, setProjectData}) {
+// Marca del agente en las entidades que dibuja (XData, como las aplicaciones de AutoCAD):
+// viaja con el dibujo en DXF/DWG y en la copia de recuperación.
+export const APP_AGENTE = "NOVACAD_AGENTE";
+export function marcaDe(e) {
+  try {
+    const rb = e.getXData?.(APP_AGENTE);
+    if (!rb) return null;
+    const valor = [...rb].find((v) => v.code === 1000);
+    return valor ? String(valor.value) : "";
+  } catch { return null; }
+}
+export function marcarEntidades(database, entidades, clave, dm) {
+  if (!entidades.length) return 0;
+  const apps = database.tables.appIdTable;
+  if (!apps.has(APP_AGENTE)) apps.add(new dm.AcDbRegAppTableRecord(APP_AGENTE));
+  for (const e of entidades) {
+    e.setXData(new dm.AcDbResultBuffer([{code: dm.AcDbDxfCode.ExtendedDataRegAppName, value: APP_AGENTE}, {code: dm.AcDbDxfCode.ExtendedDataAsciiString, value: clave}]));
+  }
+  return entidades.length;
+}
+
+export function createDrawingContext({getDatabase, dm, edit, afterDraw, onFoundation, loadTemplate, getProjectData, setProjectData, onErase}) {
   let plantilla = null;
   const entities = () => getDatabase().tables.blockTable.modelSpace.newIterator().toArray();
   return {
@@ -71,8 +92,14 @@ export function createDrawingContext({getDatabase, dm, edit, afterDraw, onFounda
       for (const capa of database.tables.layerTable.newIterator?.().toArray?.() ?? []) {
         if (capa.isOff || capa.isFrozen) capasApagadas.add(capa.name);
       }
-      const {items, bloques} = aplanarModelo(entities(), {capasApagadas});
-      this.memoria.lectura = {database, items, bloques, vistas: detectarVistas(items)};
+      // Las láminas que dibujó el agente (marcadas) no son arquitectura: no forman vistas
+      // ni aportan columnas; sí cuentan como ocupadas al ubicar láminas nuevas.
+      const todas = entities();
+      const propias = todas.filter((e) => marcaDe(e) !== null);
+      const arquitectura = propias.length ? todas.filter((e) => marcaDe(e) === null) : todas;
+      const {items: itemsArq, bloques} = aplanarModelo(arquitectura, {capasApagadas});
+      const items = propias.length ? [...itemsArq, ...aplanarModelo(propias, {capasApagadas}).items] : itemsArq;
+      this.memoria.lectura = {database, items, bloques, vistas: detectarVistas(itemsArq)};
       return this.memoria.lectura;
     },
     datosProyecto() {
@@ -86,31 +113,43 @@ export function createDrawingContext({getDatabase, dm, edit, afterDraw, onFounda
       try { setProjectData?.(datos); } catch { /* el panel no los guardó: valen para esta sesión */ }
       return Boolean(setProjectData);
     },
-    // Lo que dibujó un pedido (láminas, plantilla), para rehacerlo sin apilar copias:
-    // iniciar antes de dibujar, cerrar después; borrar quita esas entidades (un solo
-    // paso de deshacer). Dura mientras el plano siga abierto en esta sesión.
+    // Lo que dibujó un pedido (láminas, plantilla), para rehacerlo en su lugar sin apilar
+    // copias: iniciar antes de dibujar, cerrar después. Cerrar MARCA cada entidad nueva en
+    // el propio dibujo (XData NOVACAD_AGENTE = clave), así el agente la reconoce aunque se
+    // recargue la página, se reabra el plano recuperado o se guarde y abra otro día.
     iniciarGeneracion(clave) {
       this.memoria.antes = {clave, ids: new Set(entities().map((e) => e.objectId))};
     },
     cerrarGeneracion(clave) {
       const antes = this.memoria.antes;
       if (antes?.clave !== clave) return 0;
-      const nuevas = entities().filter((e) => !antes.ids.has(e.objectId)).map((e) => e.objectId);
-      this.memoria.generaciones = {...this.memoria.generaciones, [clave]: {database: getDatabase(), ids: nuevas}};
+      const database = getDatabase();
+      const nuevas = entities().filter((e) => !antes.ids.has(e.objectId));
+      const marcar = () => marcarEntidades(database, nuevas, clave, dm);
+      if (edit) edit(database, "Agente: marcar láminas", marcar); else marcar();
       delete this.memoria.antes;
       return nuevas.length;
     },
+    // Quita las entidades marcadas con esa clave (todas las láminas del agente si clave es
+    // null). Un solo paso de deshacer; limpia la selección (si el usuario tenía algo de
+    // esas láminas seleccionado, "Borrar" ya no falla con "lookupObject not found").
     borrarGeneracion(clave) {
-      const g = this.memoria.generaciones?.[clave];
       const database = getDatabase();
-      if (!g || g.database !== database || !g.ids.length) return 0;
+      if (!database) return 0;
       const modelSpace = database.tables.blockTable.modelSpace;
-      const vivas = g.ids.filter((id) => modelSpace.getIdAt(id));
-      const borrar = () => { if (vivas.length) modelSpace.removeEntity(vivas); };
+      const ids = entities().filter((e) => { const m = marcaDe(e); return m !== null && (clave === null || m === clave); }).map((e) => e.objectId);
+      if (!ids.length) return 0;
+      const borrar = () => { modelSpace.removeEntity(ids); };
       if (edit) edit(database, "Agente: quitar láminas anteriores", borrar); else borrar();
-      delete this.memoria.generaciones[clave];
+      try { onErase?.(); } catch { /* sin visor */ }
       delete this.memoria.lectura;
-      return vivas.length;
+      return ids.length;
+    },
+    // Claves de las láminas del agente presentes en el dibujo, con su cantidad de entidades.
+    generaciones() {
+      const cuenta = new Map();
+      for (const e of entities()) { const m = marcaDe(e); if (m !== null) cuenta.set(m, (cuenta.get(m) ?? 0) + 1); }
+      return Object.fromEntries(cuenta);
     },
     async loadTemplate() {
       if (!loadTemplate) return null;

@@ -126,6 +126,21 @@ function textoDatos(datos) {
 
 export const ESTRUCTURA_SKILLS = [
   {
+    name: "quitar_laminas",
+    description: "Quita del dibujo las láminas de estructuras que dibujó el agente (solo las suyas; la arquitectura y lo que dibujó el usuario no se tocan). Úsalo si el usuario pide borrar o limpiar las láminas.",
+    parameters: {type: "object", properties: {}},
+    async run(args, ctx) {
+      const antes = ctx.generaciones?.() ?? {};
+      const n = ctx.borrarGeneracion?.(null) ?? 0;
+      const vistas = Object.keys(antes).map((k) => k.replace(/^laminas:/, ""));
+      return {
+        ok: true,
+        mensaje: n ? `Quité las láminas del agente${vistas.length ? ` (${vistas.join(", ")})` : ""}: ${n} objetos. La arquitectura quedó igual.`
+          : "No encontré láminas dibujadas por el agente en este plano. Si hay láminas de antes de esta versión, no tienen la marca del agente: bórralas a mano.",
+      };
+    },
+  },
+  {
     name: "datos_proyecto",
     description: "Guarda o consulta los datos del proyecto que usan las láminas de estructuras: Hz y Df del estudio de suelos, zona sísmica, perfil de suelo y categoría. Úsalo cuando el usuario dé o pregunte esos datos.",
     parameters: {type: "object", properties: PARAMETROS_DATOS},
@@ -245,22 +260,26 @@ export const ESTRUCTURA_SKILLS = [
     parameters: {type: "object", properties: {
       vista: {type: "string", description: "Opcional: número o parte del título de la vista de arquitectura, ej. 'primer nivel'"},
       cimentacion: {type: "string", enum: ["auto", "zapatas", "platea"], description: "Opcional: tipo de cimentación; por defecto auto"},
-      conservar: {type: "boolean", description: "Opcional: true para dejar las láminas anteriores y agregar otras; por defecto se reemplazan"},
+      conservar: {type: "boolean", description: "Solo si el usuario pide expresamente conservar las láminas anteriores y agregar otra copia. Para arreglar, corregir o rehacer, NO lo uses: las láminas se rehacen en su lugar."},
       ...PARAMETROS_DATOS,
     }},
     async run(args, ctx) {
       // Datos dictados en el mismo pedido ("con Hz 0.60 y zona 3"): se guardan y se usan.
       const {guardados, invalidos} = guardarDatos(args, ctx);
-      // Rehacer: se quitan las láminas que este chat dibujó antes, en vez de apilar otras.
-      const quitadas = args.conservar ? 0 : (ctx.borrarGeneracion?.("laminas") ?? 0);
-      ctx.iniciarGeneracion?.("laminas");
-      try { return await generarLaminas(args, ctx, {guardados, invalidos, quitadas}); }
-      finally { ctx.cerrarGeneracion?.("laminas"); }
+      // Primero la vista de arquitectura (las láminas del agente no cuentan como vistas).
+      const e = leerEstructura(ctx, "", args.vista);
+      // Rehacer en su lugar: se quitan las láminas que el agente dibujó antes para esta
+      // vista (marcadas en el dibujo), en vez de apilar otras debajo.
+      const clave = `laminas:${e.titulo || e.vista}`;
+      const quitadas = args.conservar ? 0 : (ctx.borrarGeneracion?.(clave) ?? 0);
+      ctx.iniciarGeneracion?.(clave);
+      try { return await generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}); }
+      finally { ctx.cerrarGeneracion?.(clave); }
     },
   },
 ];
 
-async function generarLaminas(args, ctx, {guardados, invalidos, quitadas}) {
+async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
   const previo = [
     guardados.length ? `Guardé ${guardados.map((k) => ETIQUETA[k]).join(", ")} en Datos del proyecto.` : "",
     quitadas ? "Reemplacé las láminas anteriores." : "",
@@ -268,7 +287,6 @@ async function generarLaminas(args, ctx, {guardados, invalidos, quitadas}) {
   const extra = invalidos.length ? [`No guardé (fuera de rango o mal escrito): ${invalidos.join("; ")}.`] : [];
   {
     {
-      const e = leerEstructura(ctx, "", args.vista);
       if (!e.ejesNombrados) throw new Error("Para estructurar el plano necesito la planta de arquitectura con ejes con nombre (burbujas con rótulo, ej. 8, 10, Y´).");
       const {items} = ctx.readPlan();
       const lectura = {columnas: e.columnas, ejes: e.ejesNombrados, titulo: e.titulo, columnetas: e.listaColumnetas ?? []};

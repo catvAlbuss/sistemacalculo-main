@@ -112,6 +112,8 @@ const getContext = () => contextPromise ??= Promise.all([
     (view?.zoomToSmartExtents ?? view?.zoomToFitDrawing)?.call(view);
   },
   onFoundation: (payload) => emit("foundation", payload),
+  // Tras quitar láminas: la selección no debe apuntar a objetos que ya no existen.
+  onErase: () => viewer.AcApDocManager.instance?.curView?.selectionSet?.clear?.(),
   // Datos del rótulo que el ingeniero llenó (▤).
   getProjectData: () => ({...proyecto.value}),
   // Datos que el ingeniero dicta en el chat ("Hz 0.60, zona 3"): quedan en ▤ como si los escribiera.
@@ -147,7 +149,7 @@ const examples = [
 const toolLabels = {
   casa_primer_nivel: "Casa primer nivel", dibujar_ejes: "Ejes", dibujar_ambiente: "Ambiente",
   resumen_plano: "Resumen del plano", buscar_textos: "Buscar textos", vistas_plano: "Vistas del plano", plano_estructuras: "Plano de estructuras",
-  leer_estructura: "Columnas y ejes del plano", zapatas_desde_plano: "Zapatas desde el plano", datos_proyecto: "Datos del proyecto",
+  leer_estructura: "Columnas y ejes del plano", zapatas_desde_plano: "Zapatas desde el plano", datos_proyecto: "Datos del proyecto", quitar_laminas: "Quitar láminas",
 };
 
 // Datos del proyecto para el rótulo de las láminas.

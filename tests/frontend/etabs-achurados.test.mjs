@@ -47,3 +47,39 @@ test('the sheet template has no hatch with a zero-length boundary segment', asyn
   }
   assert.deepEqual(nulos, [], 'regenerate with: node scripts/agente/generar-plantilla-estructuras.mjs');
 });
+
+test('self-crossing hatch outlines (stone textures, stirrup hatches) are repaired once when the template is copied', async () => {
+  const {seCruza, envolvente, regionesSimples} = await import('../../resources/js/ingenieria/cad/achurados.js');
+  const {copiarDesdePlantilla} = await import('../../resources/js/ingenieria/cad/copiarPlantilla.js');
+  // Un "8": se cruza; PolyBool lo separa en dos regiones simples.
+  const ocho = [P(0, 0), P(2, 2), P(2, 0), P(0, 2)];
+  assert.equal(seCruza(ocho), true);
+  const regiones = regionesSimples(ocho);
+  assert.ok(regiones?.length === 2 && regiones.every((r) => !seCruza(r)));
+  assert.equal(seCruza([P(0, 0), P(1, 0), P(1, 1), P(0, 1)]), false);
+  assert.deepEqual(envolvente([P(0, 0), P(1, 0), P(0.5, 0.2), P(1, 1), P(0, 1)]), [P(0, 0), P(1, 0), P(1, 1), P(0, 1)]);
+
+  const origen = new dm.AcDbDatabase();
+  const d = readFileSync('public/assets/plantillas/estructuras-laminas.dxf');
+  await origen.read(d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength), {readOnly: true}, dm.AcDbFileType.DXF);
+  const cuenta = (db) => {
+    let n = 0;
+    for (const b of [db.tables.blockTable.modelSpace, ...db.tables.blockTable.newIterator()]) for (const e of b.newIterator()) {
+      if (e.dxfTypeName !== 'HATCH') continue;
+      for (const lazo of e._geo?._loops ?? []) if (seCruza(lazo.tessellate ? lazo.tessellate() : lazo.getPoints(64))) n++;
+    }
+    return n;
+  };
+  const antes = cuenta(origen);
+  const destino = new dm.AcDbDatabase();
+  destino.createDefaultData();
+  const avisos = [];
+  const warn = console.warn; console.warn = (...a) => avisos.push(a.join(' '));
+  try {
+    const r = copiarDesdePlantilla({origen, destino, entidades: origen.tables.blockTable.modelSpace.newIterator().toArray(), dm});
+    assert.ok(r.achuradosReparados >= 20, `repaired ${r.achuradosReparados}`);
+  } finally { console.warn = warn; }
+  assert.ok(antes >= 25, `the reference has self-crossing outlines (${antes})`);
+  assert.ok(cuenta(destino) <= 2, `left for the viewer to warn about: ${cuenta(destino)} (was ${antes})`);
+  assert.deepEqual(avisos.filter((a) => /PolyBool/.test(a)), [], 'no PolyBool warnings while repairing');
+});

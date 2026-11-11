@@ -80,7 +80,7 @@ test('agent runs the requested skill, returns a short Spanish reply and strips r
   assert.equal(out.reply, 'Listo: casa de 9 x 22 m dibujada.');
   assert.equal(steps[0].result.ok, true);
   assert.ok(db.tables.blockTable.modelSpace.newIterator().toArray().length > 100);
-  assert.equal(bodies[0].tools.length, 9);
+  assert.equal(bodies[0].tools.length, 10);
   assert.ok(JSON.stringify(steps[0].result).length < 1200, 'tool results stay compact');
   assert.deepEqual(out.usage, {prompt: 2000, completion: 60});
   assert.equal(stripThinking('a</think> b'), 'b');

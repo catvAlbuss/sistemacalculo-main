@@ -200,4 +200,25 @@ test('module 3 with its soil study and E.030 data: Hz 0.60, Df 2.50 and Z/U/S/Tp
   const bloques = [...db.tables.blockTable.newIterator()].filter((b) => b.newIterator().toArray().some((e) => /^U=1\.0 categoria "C"/.test(e.contents ?? '')));
   assert.equal(bloques.length, 1, 'the second project gets its own copy of the seismic block');
   assert.ok(bloques[0].newIterator().toArray().some((e) => e.contents === 'Z=0.35(ZONA 3)'));
+
+  // Página recargada / plano recuperado: un contexto NUEVO (sin memoria del chat) sobre el
+  // mismo dibujo, y el usuario pide "arregla las láminas" sin decir la vista. El agente
+  // reconoce sus láminas por la marca del dibujo: no las toma como arquitectura y las
+  // rehace en su lugar (quita también la copia "conservada"), sin apilar otras.
+  const nuevo = createDrawingContext({getDatabase: () => db, dm, loadTemplate: cargarPlantilla, getProjectData: () => datos});
+  const vistas = await SKILLS.find((s) => s.name === 'vistas_plano').run({}, nuevo);
+  assert.doesNotMatch(vistas.mensaje, /PLANO DE (CIMENTACI|ALIGERADO|P[ÓO]RTICO)/i, 'the agent sheets are not architecture views');
+  assert.ok(Object.keys(nuevo.generaciones()).every((k) => k.startsWith('laminas:')), 'sheets carry the agent mark');
+  const r4 = await SKILLS.find((s) => s.name === 'plano_estructuras').run({}, nuevo);
+  assert.match(r4.mensaje, /Reemplacé las láminas anteriores/);
+  assert.match(r4.mensaje, /Generé las láminas E-01/);
+  const despues4 = db.tables.blockTable.modelSpace.newIterator().toArray().length;
+  assert.ok(Math.abs(despues4 - despues1) < 0.05 * (despues1 - antes), `one set of sheets, not stacked: ${despues1} vs ${despues4}`);
+  // La marca viaja en el DXF (copia de recuperación) y "quitar_laminas" deja solo la arquitectura.
+  const otra = new dm.AcDbDatabase();
+  await otra.read(db.dxfOut(undefined, 6), {readOnly: true}, dm.AcDbFileType.DXF);
+  assert.ok(Object.keys(createDrawingContext({getDatabase: () => otra, dm}).generaciones()).length > 0, 'marks survive the DXF round trip');
+  const q = await SKILLS.find((s) => s.name === 'quitar_laminas').run({}, nuevo);
+  assert.match(q.mensaje, /^Quité las láminas del agente/);
+  assert.equal(db.tables.blockTable.modelSpace.newIterator().toArray().length, antes, 'only the architecture is left');
 });

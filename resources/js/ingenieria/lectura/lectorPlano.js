@@ -21,7 +21,15 @@ const componer = (a, b) => [
   a[3] * b[0] + a[4] * b[3], a[3] * b[1] + a[4] * b[4], a[3] * b[2] + a[4] * b[5] + a[5],
 ];
 const escalaDe = (m) => Math.sqrt(Math.abs(m[0] * m[4] - m[1] * m[3])) || 1;
-export const textoPlano = (value) => String(value ?? "").replace(/\\P/g, " ").replace(/\\[A-Za-z][^;\\]*;/g, "").replace(/[{}]/g, "").replace(/%%[cdpu]/gi, "").replace(/\s+/g, " ").trim();
+// Texto legible de un TEXT/MTEXT. Los caracteres fuera de ASCII llegan como "\U+00D3"
+// (el lector DWG del navegador): se decodifican con sus 4 cifras exactas. Si quedaran
+// crudos, el visor los lee con 5 ("\U+00D3D" de "MÓDULO") y dibuja "M?ULO" en los
+// títulos que el agente copia de la arquitectura.
+export const textoPlano = (value) => String(value ?? "")
+  .replace(/\\U\+([0-9A-Fa-f]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+  .replace(/\\P/g, " ").replace(/\\[A-Za-z][^;\\]*;/g, "").replace(/[{}]/g, "")
+  .replace(/%%[cC]/g, "Ø").replace(/%%[dD]/g, "°").replace(/%%[pP]/g, "±").replace(/%%[uUoO]/g, "")
+  .replace(/\s+/g, " ").trim();
 
 // Matriz 2D del INSERT del visor (AcGeMatrix3d en orden de columnas) más el
 // espejo de la extrusión (0,0,-1), que AutoCAD aplica después.
