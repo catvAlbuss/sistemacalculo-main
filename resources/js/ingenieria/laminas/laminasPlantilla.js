@@ -86,9 +86,11 @@ function encajar(contenido, caja, nominal, ejesPlantilla = null) {
     return {escala, primitivas: transformar(contenido.primitivas, (x, y) => [rx + (x - ex) * escala, ry + (y - ey) * escala], escala)};
   }
   const cw = m.x1 - m.x0, ch = m.y1 - m.y0;
-  let escala = Math.min(nominal, (caja.x1 - caja.x0) / cw, (caja.y1 - caja.y0) / ch);
-  // Si sobra menos de un 5 %, se respeta la escala nominal (los espacios tienen holgura).
-  if (escala > nominal * 0.95) escala = nominal;
+  // Margen de 0.15 dentro del espacio: dos cuadros vecinos (en la plantilla sus espacios se
+  // tocan o se pisan 0.2, p. ej. columnas y columnetas en E-02) quedan separados y nunca
+  // se salen de su espacio.
+  const g = Math.min(0.15, (caja.x1 - caja.x0) * 0.05, (caja.y1 - caja.y0) * 0.05);
+  const escala = Math.min(nominal, (caja.x1 - caja.x0 - 2 * g) / cw, (caja.y1 - caja.y0 - 2 * g) / ch);
   const mx = (m.x0 + m.x1) / 2, my = (m.y0 + m.y1) / 2, cx = (caja.x0 + caja.x1) / 2, cy = (caja.y0 + caja.y1) / 2;
   return {escala, primitivas: transformar(contenido.primitivas, (x, y) => [cx + (x - mx) * escala, cy + (y - my) * escala], escala)};
 }

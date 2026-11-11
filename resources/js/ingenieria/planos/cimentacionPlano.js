@@ -417,11 +417,12 @@ export function planoCimientoCorrido({lectura, items, caja, k = 1}, opciones = {
   // 4. Columnetas de confinamiento: contorno con aspa y su código (pa, pb…) por tamaño.
   const columnetas = opciones.columnetas ?? [];
   const codigos = new Map();
-  // Medidas que difieren 3 cm o menos (dibujo a mano alzada) son la misma columneta.
+  // Medidas que difieren 1 cm o menos (ruido del dibujo) son la misma columneta. El
+  // ingeniero separa las que difieren 2 cm (módulo 14: pa .13x.20, pc .13x.22, pe .13x.18).
   const medidas = [];
   const medidaDe = (c) => {
     const [m0, m1] = [c.b, c.h].sort((x, y) => x - y);
-    const igual = medidas.find((m) => Math.abs(m.m0 - m0) <= 0.03 && Math.abs(m.m1 - m1) <= 0.03);
+    const igual = medidas.find((m) => Math.abs(m.m0 - m0) <= 0.012 && Math.abs(m.m1 - m1) <= 0.012);
     if (igual) return igual.clave;
     const clave = `${m0.toFixed(2)}x${m1.toFixed(2)}`;
     medidas.push({m0, m1, clave});

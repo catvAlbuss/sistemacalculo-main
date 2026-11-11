@@ -93,11 +93,50 @@ test('columneta schedule: sections at the largest standard scale that fits, ".20
   const H = 2.9, yFila = H - (0.36 + 0.3 + 1.5) * H / 2.9;
   assert.ok(r.contenido.primitivas.filter((p) => p.type === 'text' && p.align === 'izq').every((p) => p.at[1] > yFila), 'callouts above the reinforcement row');
   assert.deepEqual(r.filas.map((f) => f.refuerzo), ['4Ø3/8"', '12Ø3/8"', '6Ø3/8"'], 'like the engineer: pa 4Ø, pb 12Ø, pc 6Ø');
-  // The widest section stays inside its cell.
-  const W = 11.9, c0 = W * 0.075, c1 = W * 0.1, wTipo = (W - c0 - c1) / 3;
-  assert.ok(0.65 * 50 / Number(escala.split('/')[1]) <= wTipo * 0.46);
   // Larger than the old fixed 1/25 when there is room.
   assert.notEqual(cuadroColumnetas([{codigo: 'pa', b: 0.2, h: 0.13}]).filas[0].escala, '1/25');
+});
+
+test('columneta schedule with the 6 sizes of module 14: nothing overlaps, every callout inside its own cell', async () => {
+  const {cuadroColumnetas} = await import('../../resources/js/ingenieria/laminas/cuadroColumnas.js');
+  const {anchoTexto} = await import('../../resources/js/ingenieria/laminas/rotulo.js');
+  const medidas = [[0.18, 0.22], [0.13, 0.22], [0.13, 0.20], [0.20, 0.20], [0.13, 0.18], [0.20, 0.25], [0.13, 0.65]];
+  const r = cuadroColumnetas(medidas.map(([b, h], i) => ({codigo: `p${'abcdefg'[i]}`, b, h})));
+  assert.equal(r.filas.length, 7);
+  assert.ok(['1/10', '1/15', '1/20', '1/25', '1/30'].includes(r.filas[0].escala), `sections still readable: ${r.filas[0].escala}`);
+  const W = 11.9, c0 = W * 0.075, c1 = W * 0.1;
+  const H = 2.9, yTop = H - (0.36 + 0.3) * H / 2.9, yBot = yTop - 1.5 * H / 2.9;
+  // Cell borders: the vertical lines of the table between types (cells have different widths).
+  const bordes = [c0 + c1, ...r.contenido.primitivas.filter((p) => p.type === 'line' && p.a[0] === p.b[0] && p.a[0] > c0 + c1 + 0.01 && p.b[1] === 0).map((p) => p.a[0]).sort((a, b) => a - b), W];
+  assert.equal(bordes.length, 8);
+  const anchoDe = (k) => bordes[k + 1] - bordes[k];
+  assert.ok(anchoDe(6) > anchoDe(4) * 1.3, 'the long .65 columneta gets a wider cell, like the engineer');
+  // Text boxes with the viewer's wider font (15 %).
+  const caja = (p) => {
+    const w = anchoTexto(p.value, p.h) * 1.15;
+    const x0 = p.align === 'izq' ? p.at[0] : p.at[0] - w / 2;
+    return {x0, x1: x0 + w, y0: p.at[1] - p.h / 2, y1: p.at[1] + p.h / 2};
+  };
+  const choca = (a, b) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 1e-3 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 1e-3;
+  const llamadas = r.contenido.primitivas.filter((p) => p.type === 'text' && p.align === 'izq').map(caja);
+  const secciones = r.contenido.primitivas.filter((p) => p.type === 'pline' && p.points.length === 4).map((p) => ({
+    x0: Math.min(...p.points.map((q) => q[0])), x1: Math.max(...p.points.map((q) => q[0])), y0: Math.min(...p.points.map((q) => q[1])), y1: Math.max(...p.points.map((q) => q[1])),
+  })).filter((s) => s.y1 <= yTop && s.x0 >= c0 + c1);
+  for (const [i, a] of llamadas.entries()) {
+    const celda = bordes.findIndex((x, k) => a.x0 >= x - 1e-6 && a.x0 < bordes[k + 1]);
+    assert.ok(a.x1 <= bordes[celda + 1] + 1e-6, `callout ${i} leaves its cell`);
+    assert.ok(a.y1 <= yTop && a.y0 >= yBot, `callout ${i} leaves the section row`);
+    for (const b of llamadas.slice(i + 1)) assert.ok(!choca(a, b), `callouts ${i} overlap`);
+    for (const s of secciones) assert.ok(!choca(a, s), `callout ${i} on top of a section`);
+  }
+  // .22 and .25 carry 3 pairs, .18-.20 two, .65 six.
+  assert.equal(llamadas.length, 3 + 3 + 2 + 2 + 2 + 3 + 6, 'one callout per bar pair');
+  // Reinforcement texts inside their cells too.
+  const refuerzos = r.contenido.primitivas.filter((p) => p.type === 'text' && /^(\d+Ø3\/8"|□ |Rto\.)/.test(p.value)).map(caja);
+  for (const t of refuerzos) {
+    const celda = bordes.findIndex((x, k) => (t.x0 + t.x1) / 2 >= x && (t.x0 + t.x1) / 2 < bordes[k + 1]);
+    assert.ok(t.x0 >= bordes[celda] - 1e-6 && t.x1 <= bordes[celda + 1] + 1e-6, 'reinforcement text inside its cell');
+  }
 });
 
 test('column schedule: section dimensions and stirrup dimensions like the engineer (C1 L .40/.25, C2 .25x.38)', async () => {

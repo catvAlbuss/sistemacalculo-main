@@ -25,6 +25,13 @@
 
         <AgentePredimPanel v-if="agentMounted" v-show="agentVisible" @close="agentVisible = false" @foundation="onAgentFoundation" />
 
+        <!-- Plano recuperado: el navegador descartó la pestaña, se volvió de otra página o se perdió la vista gráfica. -->
+        <div v-if="copiaRecuperable" class="etabs-recovery" role="alert">
+          <span><b>{{ graficoPerdido ? "La vista gráfica se reinició." : "Hay un plano sin cerrar." }}</b> {{ textoCopia }}</span>
+          <button type="button" class="fz-btn fz-btn-primary" @click="reabrirCopia">Reabrir plano</button>
+          <button type="button" class="fz-btn fz-btn-ghost" @click="descartarCopia">Descartar</button>
+        </div>
+
         <div v-if="auxiliaryActive && cimentacionPanelVisible" class="etabs-tool-hint" role="status">
           <span><b>{{ toolLabels[foundationTool]?.title }}</b> · {{ toolLabels[foundationTool]?.hint }}</span>
           <button type="button" class="fz-btn etabs-native-mode" @click="auxiliaryActive = false">Volver al CAD</button>
@@ -90,7 +97,8 @@ import {
 import { computed, defineAsyncComponent, nextTick, ref, watch, onBeforeUnmount } from "vue";
 import "../../css/etabs-workspace.css";
 import { MlCadViewer } from "@mlightcad/cad-viewer";
-import { AcEdOpenMode } from "@mlightcad/cad-simple-viewer";
+import { AcApDocManager, AcEdOpenMode } from "@mlightcad/cad-simple-viewer";
+import { crearRecuperacion, describirCopia } from "./composables/useDrawingRecovery.js";
 
 import DatosGeneralesPanel from "./components/DatosGeneralesPanel.vue";
 import FoundationOverlay from "./components/FoundationOverlay.vue";
@@ -181,6 +189,58 @@ onBeforeUnmount(() => {
 });
 const selectedFile = ref(undefined);
 const writeMode = AcEdOpenMode.Write;
+
+// Copia de recuperación del plano (IndexedDB de este navegador): si la pestaña se
+// descarta, se vuelve de otra página o se pierde el contexto WebGL, se puede reabrir.
+const recuperacion = crearRecuperacion({
+  getDocument: () => {
+    const doc = AcApDocManager.instance?.curDocument;
+    return doc?.database ? {database: doc.database, nombre: doc.docTitle || doc.fileName} : null;
+  },
+});
+const copiaRecuperable = ref(null);
+const graficoPerdido = ref(false);
+const textoCopia = computed(() => (copiaRecuperable.value ? describirCopia(copiaRecuperable.value) : ""));
+const guardarCopia = (opciones) => recuperacion.guardar(opciones);
+const reabrirCopia = () => {
+  const copia = copiaRecuperable.value;
+  if (!copia) return;
+  copiaRecuperable.value = null;
+  graficoPerdido.value = false;
+  selectedFile.value = recuperacion.archivo(copia);
+};
+const descartarCopia = async () => {
+  copiaRecuperable.value = null;
+  graficoPerdido.value = false;
+  await recuperacion.descartar();
+};
+recuperacion.leer().then((copia) => { if (copia && !selectedFile.value) copiaRecuperable.value = copia; });
+const alOcultar = () => { if (document.visibilityState === "hidden") guardarCopia(); };
+const alSalir = () => { guardarCopia(); };
+document.addEventListener("visibilitychange", alOcultar);
+window.addEventListener("pagehide", alSalir);
+const autoguardado = setInterval(() => guardarCopia(), 90000);
+// El contexto WebGL se pierde (poca memoria de video, pestaña muy inactiva): el dibujo
+// sigue en memoria; se guarda y se ofrece reabrirlo para que se vuelva a dibujar.
+const alPerderGrafico = async (event) => {
+  event.preventDefault?.();
+  await guardarCopia({forzar: true});
+  const copia = await recuperacion.leer();
+  if (copia) { graficoPerdido.value = true; copiaRecuperable.value = copia; }
+};
+watch(drawingSurfaceRef, (element, anterior) => {
+  anterior?.removeEventListener("webglcontextlost", alPerderGrafico, true);
+  element?.addEventListener("webglcontextlost", alPerderGrafico, true);
+}, {flush: "post"});
+// Al abrir otro archivo, el aviso de un plano anterior ya no aplica.
+watch(selectedFile, () => { if (!graficoPerdido.value) copiaRecuperable.value = null; });
+onBeforeUnmount(() => {
+  guardarCopia();
+  clearInterval(autoguardado);
+  document.removeEventListener("visibilitychange", alOcultar);
+  window.removeEventListener("pagehide", alSalir);
+  drawingSurfaceRef.value?.removeEventListener("webglcontextlost", alPerderGrafico, true);
+});
 
 // Without a measured plane the layer covers the whole surface.
 const planeStyle = computed(() => {
@@ -405,6 +465,7 @@ const onCaptureCadPolyline = () => {
 .foundation-overlay.is-hidden { visibility:hidden; }
 .etabs-plane-layer { position:absolute;z-index:5;pointer-events:none; }
 .etabs-plane-layer > * { pointer-events:auto; }
+.etabs-recovery { position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:8;display:flex;flex-wrap:wrap;align-items:center;gap:8px;max-width:calc(100% - 24px);padding:9px 12px;border:1px solid var(--pr-blue);border-radius:9px;background:var(--pr-panel);color:var(--pr-text);font-size:12.5px;box-shadow:0 8px 24px #0005; }
 .etabs-plane-actions { position:absolute;top:12px;left:12px;display:flex;gap:8px; }
 .etabs-fab { display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:7px 14px;border:1px solid rgba(128,181,255,.35);border-radius:9px;background:rgba(22,35,58,.94);color:var(--pr-text);font-weight:600;font-size:13px;line-height:1;font-family:inherit;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.35);backdrop-filter:blur(6px); }
 .etabs-fab:hover { border-color:var(--pr-blue); }

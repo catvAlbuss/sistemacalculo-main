@@ -77,7 +77,7 @@ Este documento resume los criterios que usa el agente para pasar de una planta d
   - 1-1: muro exterior con puerta;
   - 2-2: muro exterior;
   - 3-3: muro interior.
-- **Columnetas:** contorno con aspa y código pa, pb… Las medidas que difieren 3 cm o menos son la misma columneta.
+- **Columnetas:** contorno con aspa y código pa, pb… Las medidas que difieren 1 cm o menos son la misma columneta; el ingeniero separa las que difieren 2 cm (módulo 14: pa .13x.20, pc .13x.22, pe .13x.18).
 - **Aligerado:**
   - la losa se divide en paños por los muros interiores largos; la viga central es la VCUMBRERA;
   - con cumbrera, las viguetas corren paralelas a ella y se apoyan en las vigas de los ejes que la cruzan;
