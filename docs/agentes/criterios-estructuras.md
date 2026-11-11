@@ -150,12 +150,45 @@ Se probaron con `scripts/agente/leer-arquitectura.mjs` (qué entiende el agente)
 **Cuadro de columnetas:** como el del ingeniero:
 - secciones a la mayor escala estándar que entra (1/10, 1/15, 1/20 o 1/25), la misma para todas, y el encabezado dice cuál;
 - cotas ".20" / ".13";
-- una llamada "nØ3/8\"" por cara;
+- una llamada "2Ø3/8\"" por cada par de varillas, escalonadas (convención del ingeniero);
+- columnetas agrupadas con 1 cm de tolerancia (el ingeniero separa las que difieren 2 cm);
+- celdas de ancho variable: la columneta larga ocupa más;
 - refuerzo: pa .20x.13 4Ø, pb .65x.13 12Ø, pc .13x.22 6Ø.
 
 **Chat:**
 - El ingeniero dicta los datos ("Hz 0.60, Df 2.50, zona 2, suelo S3, es un colegio") con la herramienta `datos_proyecto`, o los pasa en el mismo pedido de láminas. Quedan guardados en ▤.
 - Los niveles (pisos) no se piden en el chat; van solo en el panel.
-- `plano_estructuras` rehace las láminas que dibujó antes en esta sesión, en el mismo lugar; con `conservar` agrega otras.
+- Las láminas del agente quedan marcadas en el dibujo (XData `NOVACAD_AGENTE`). `plano_estructuras` las rehace en su lugar aunque se haya recargado la página; con `conservar` agrega otras; `quitar_laminas` las borra.
 
 **Datos que se copian tal cual de la referencia:** el resto de las especificaciones técnicas. Hay que revisarlos en cada proyecto. Los parámetros sísmicos se reemplazan con los datos del proyecto cuando el ingeniero los indica.
+
+## Verificación en el visor real (obligatoria antes de mostrar al cliente)
+
+La vista previa SVG de `probar-laminas.mjs` no dibuja como el visor. No aplica:
+- los factores de ancho de los estilos;
+- los anclajes de MTEXT;
+- la forma en que el visor corta los renglones.
+
+Lo que ve el cliente se revisa así:
+
+```
+AGENTE_DXF=salida.dxf node scripts/agente/probar-laminas.mjs <arquitectura.dwg> "<vista>"
+VISOR_DEV=1 node scripts/agente/ver-en-visor.mjs salida.dxf carpeta [zonas.json]
+```
+
+Con `npm run dev` corriendo, `VISOR_DEV=1` usa el código sin compilar; sin esa variable, usa el build.
+
+**Reglas de plantilla aprendidas mirando el visor real.** Están en `generar-plantilla-estructuras.mjs` y valen para cualquier plantilla nueva.
+
+| Lo que se veía | Causa | Regla |
+|---|---|---|
+| VIGA BORDE y CUADRO DE VIGUETAS se salían de su casilla | El visor no tiene Arial Narrow ni Swiss condensada | Esos estilos pasan a Arial ×0.82 |
+| ESPECIFICACIÓN – LADRILLO – MORTERO quedaba sobre el dibujo del ladrillo | MTEXT con alturas relativas por renglón | Un MTEXT por renglón, con altura absoluta |
+| "4Ø3/8"" quedaba sobre "Refuerzo y estribaje" | El visor no interpreta el párrafo centrado del MTEXT | Se pasa al anclaje centrado del MTEXT |
+| Renglones encimados en las especificaciones | El visor corta un renglón largo y no corre el siguiente | El generador corta o achica cada renglón y les quita el ancho de párrafo |
+| Títulos fuera de la lámina y textos centrados en la celda vecina | Ensanche del 35 % aplicado también a textos Arial | Solo se ensanchan las fuentes SHX sustituidas |
+| "M?ULO" y "4?/8"" al reabrir un DXF | Letras exportadas como código `\U+` y leídas con una cifra de más | El DXF para el visor se escribe en Windows-1252 (`dxfParaVisor`) |
+
+**Pendiente visto en el visor:**
+- el texto del ladrillo de 18 huecos: son párrafos que corta el propio visor y se tocan;
+- el título "DETALLE DEL REFUERZO EN EL NUDO-VIGA": usa el estilo TITULOS, con una fuente SHX que el visor no tiene, y queda chico.

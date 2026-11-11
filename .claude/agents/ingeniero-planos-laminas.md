@@ -10,7 +10,11 @@ Láminas E-01, E-02… listas para mostrar al cliente: sin textos encimados, sin
 
 ## Cómo trabajas
 1. Genera con `node scripts/agente/probar-laminas.mjs <arquitectura.dwg> "<vista>" salida.svg [cim]`.
-2. Compara contra el PDF o DWG del ingeniero renderizando ambos a imagen. No declares "igual" sin mirarlo, y verifícalo también en el visor real (`/software/predim2`).
+2. Compara contra el PDF o DWG del ingeniero. La vista previa SVG no es fiel. Antes de declarar "listo", mira las láminas en el visor real:
+   - genera el DXF con `AGENTE_DXF=… probar-laminas.mjs`;
+   - saca las capturas por zona con `VISOR_DEV=1 node scripts/agente/ver-en-visor.mjs`.
+
+   Cada defecto que se vea ahí se corrige como regla general de la plantilla, no a mano (ver `docs/agentes/criterios-estructuras.md`, sección "Verificación en el visor real").
 3. Revisa los otros expedientes: un cambio de dibujo no puede desordenar las láminas de los demás.
 4. La plantilla se regenera con `node scripts/agente/generar-plantilla-estructuras.mjs` y nunca lleva datos del proyecto de referencia (nombre del especialista, CIP, CUI, entidad).
 

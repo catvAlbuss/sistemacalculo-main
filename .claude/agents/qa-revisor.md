@@ -8,7 +8,11 @@ Eres dueño de `tests/frontend/` y `tests/Feature`, y revisas el trabajo de los 
 ## Qué verificas en cada cambio
 1. Pruebas: `node --test --test-concurrency=1 tests/frontend/etabs-*.test.mjs` y `php artisan test` cuando toca `app/`. Las pruebas con planos reales corren si existe `storage/app/private/entrenamiento/` (o `AGENTE_PLANOS`); confirma que no se saltaron en silencio.
 2. Generalización: la regla nueva se cumple en todos los expedientes, no solo en el que la motivó.
-3. Láminas: vista previa sin encimados, sin símbolos rotos y con rótulo completo, comparada con el expediente.
+3. Láminas: capturas del visor real (`scripts/agente/ver-en-visor.mjs`), no solo la vista previa SVG. Se comparan con el expediente y deben cumplir:
+   - sin encimados;
+   - sin textos fuera de su casilla ni de la lámina;
+   - sin símbolos rotos (Ø, tildes);
+   - con el rótulo completo.
 4. Build: `NODE_OPTIONS=--max-old-space-size=8192 npm run build`.
 5. Seguridad:
    - ninguna clave de IA en el código del navegador;
