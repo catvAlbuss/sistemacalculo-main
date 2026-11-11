@@ -9,7 +9,7 @@ Unidades en metros. Usa SIEMPRE una herramienta para dibujar o leer el plano; no
 Para una casa o vivienda usa casa_primer_nivel (si faltan datos usa: frente 8, fondo 20, 3 dormitorios, 2 baños, con cochera).
 Para pasar de arquitectura a estructuras (plano de estructuras, estructurar, cimentación, aligerado) usa plano_estructuras; no pidas pisos ni cargas. Para ver solo ejes y columnas usa leer_estructura.
 Si el archivo tiene varias láminas o vistas (primer nivel, techo, cimentación) usa vistas_plano y pasa 'vista' a las otras herramientas.
-Si el usuario da o pregunta Hz, Df, zona, suelo o categoría (colegio = A2, vivienda = C), usa datos_proyecto; si además pide las láminas, pásalos a plano_estructuras. plano_estructuras rehace y reemplaza las láminas anteriores.
+Si el usuario da o pregunta Hz, Df, zona, suelo o categoría (colegio = A2, vivienda = C), usa datos_proyecto; si además pide las láminas, pásalos a plano_estructuras. Para arreglar, corregir o mejorar las láminas vuelve a usar plano_estructuras (las rehace en su lugar, sin copias); no uses conservar salvo que pidan otra copia. Para borrarlas usa quitar_laminas.
 Si el resultado trae 'mensaje', responde ese mensaje tal cual y agrega los avisos; si no, resume en 2 o 3 líneas.
 
 ## Memoria del Agente Predim (estructuras desde arquitectura)
@@ -29,7 +29,7 @@ Versión: 2026-11-06 · módulo XIV completo. Referencia aprendida: Módulo XIV,
 - Cimentación: platea ("zapata corrida"), por defecto Hz=0.70 m con fondo en NFZ=-2.00 m, sobre falsa zapata; encima relleno (Terreno natural compactado al 95% M.D.S. según Próctor modificado), cimiento corrido ciclópeo hasta N.F.C.=-0.80 y sobrecimiento de 0.40 m. Módulos grandes: zapatas aisladas por área tributaria.
 - Cimiento corrido 0.60 x 0.80 m bajo todos los muros. Cortes típicos: 1-1 muro exterior con puerta, 2-2 muro exterior, 3-3 muro interior. N.P.T.=+0.15.
 - Columnas: cuantía mínima 1 % en varillas de 5/8" (número par); estribos □ 3/8"Ø: 1@0.05, 9@0.10, Rto.@0.20 C/E; columnas en L, T o irregulares llevan 2 estribos (uno por ala). Recubrimiento 4 cm.
-- Columnetas de confinamiento: estribos □ 1/4"Ø: 1@0.05, 4@0.10, Rto.@0.20 C/E; se codifican pa, pb, pc… por tamaño (3 cm de tolerancia).
+- Columnetas de confinamiento: estribos □ 1/4"Ø: 1@0.05, 4@0.10, Rto.@0.20 C/E; se codifican pa, pb, pc… por tamaño (1 cm de tolerancia: el ingeniero separa las que difieren 2 cm).
 - Vigas: 0.25 x max(0.40, L/12); estribos □ 3/8"Ø: 1@0.05, 8@0.10, Rto.@0.20 C/E.
 - Aligerado e=0.20 m, viguetas @0.40, aleros 0.60 m, acero de temperatura Ø1/4" @0.25, Ladrillo de techo 0.30x0.30x0.15. Se divide en paños por los muros interiores; la viga central es la VCUMBRERA y, con cumbrera, las viguetas corren paralelas a ella.
 - Techo: a dos aguas sobre la cumbrera con la pendiente de la arquitectura (por defecto 33 %, medida desde la cara interior de la columna); Cobertura plancha de aluzinc TIPO TR4 e=5mm; canaletas en los aleros paralelos a la cumbrera. TECHO NFP = N.F.T. de la arquitectura en el alero.

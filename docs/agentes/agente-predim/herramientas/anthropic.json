@@ -111,6 +111,14 @@
     }
   },
   {
+    "name": "quitar_laminas",
+    "description": "Quita del dibujo las láminas de estructuras que dibujó el agente (solo las suyas; la arquitectura y lo que dibujó el usuario no se tocan). Úsalo si el usuario pide borrar o limpiar las láminas.",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
     "name": "datos_proyecto",
     "description": "Guarda o consulta los datos del proyecto que usan las láminas de estructuras: Hz y Df del estudio de suelos, zona sísmica, perfil de suelo y categoría. Úsalo cuando el usuario dé o pregunte esos datos.",
     "input_schema": {
@@ -196,7 +204,7 @@
         },
         "conservar": {
           "type": "boolean",
-          "description": "Opcional: true para dejar las láminas anteriores y agregar otras; por defecto se reemplazan"
+          "description": "Solo si el usuario pide expresamente conservar las láminas anteriores y agregar otra copia. Para arreglar, corregir o rehacer, NO lo uses: las láminas se rehacen en su lugar."
         },
         "hz": {
           "type": "number",
