@@ -24,6 +24,30 @@ export function ensureLayers(database, names, dm) {
   return created;
 }
 
+// Contorno de achurado sin vértices repetidos (también el de cierre) ni puntos
+// alineados que no aportan. Tolerancia relativa al tamaño del contorno. null si no queda
+// un contorno con área.
+export function contornoLimpio(puntos) {
+  if (!puntos || puntos.length < 3) return null;
+  const xs = puntos.map((q) => q.x), ys = puntos.map((q) => q.y);
+  const tam = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+  if (!(tam > 0)) return null;
+  const eps = tam * 1e-6;
+  let out = puntos.filter((q, i) => i === 0 || Math.hypot(q.x - puntos[i - 1].x, q.y - puntos[i - 1].y) > eps);
+  while (out.length > 1 && Math.hypot(out[0].x - out.at(-1).x, out[0].y - out.at(-1).y) <= eps) out.pop();
+  // Vértices sobre la recta de sus vecinos (incluidas "espigas" de ida y vuelta).
+  for (let cambio = true; cambio && out.length >= 3;) {
+    cambio = false;
+    for (let i = 0; i < out.length; i++) {
+      const a = out[(i - 1 + out.length) % out.length], b = out[i], c = out[(i + 1) % out.length];
+      if (Math.abs((b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x)) <= eps * tam) { out.splice(i, 1); cambio = true; break; }
+    }
+  }
+  if (out.length < 3) return null;
+  const area = out.reduce((s, q, i) => s + q.x * out[(i + 1) % out.length].y - out[(i + 1) % out.length].x * q.y, 0) / 2;
+  return Math.abs(area) > eps * tam ? out : null;
+}
+
 function toEntity(p, k, origin, dm) {
   const pt = ([x, y]) => ({x: origin.x + x * k, y: origin.y + y * k, z: 0});
   let entity;
@@ -57,8 +81,11 @@ function toEntity(p, k, origin, dm) {
       }
       break;
     case "hatch": {
-      // Achurado (patrón del AutoCAD o sólido) de un contorno cerrado.
-      if (!p.points || p.points.length < 3) return null;
+      // Achurado (patrón del AutoCAD o sólido) de un contorno cerrado. Sin vértices
+      // repetidos: un segmento de largo cero hace fallar al visor ("PolyBool: Zero-length
+      // segment") y el achurado queda sin relleno.
+      const puntos = contornoLimpio((p.points ?? []).map(pt));
+      if (!puntos) return null;
       entity = new dm.AcDbHatch();
       if (p.solido) entity.isSolidFill = true;
       else {
@@ -67,7 +94,7 @@ function toEntity(p, k, origin, dm) {
         entity.patternScale = (p.escala ?? 1) * k;
         entity.patternAngle = ((p.angulo ?? 0) * Math.PI) / 180;
       }
-      entity.add(new dm.AcGePolyline2d(p.points.map((point) => { const q = pt(point); return new dm.AcGePoint2d(q.x, q.y); }), true));
+      entity.add(new dm.AcGePolyline2d(puntos.map((q) => new dm.AcGePoint2d(q.x, q.y)), true));
       break;
     }
     default:

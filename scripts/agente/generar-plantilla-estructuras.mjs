@@ -384,6 +384,25 @@ for (const r of [destino.tables.blockTable.modelSpace, ...destino.tables.blockTa
 console.log(`MTEXT de varios renglones partidos: ${partidos}`);
 for (const lista of [destino.tables.blockTable.modelSpace.newIterator().toArray(), ...[...destino.tables.blockTable.newIterator()].map((r) => r.newIterator().toArray())]) { ensanchar(lista); igualarDirectrices(lista); }
 console.log(`MTEXT ensanchados: ${mtexts}; directrices ajustadas: ${directrices}`);
+// Contornos de achurado con un tramo de largo cero (p. ej. "Tierra de chacra" del corte):
+// el visor no los puede rellenar ("PolyBool: Zero-length segment") y avisa en la consola
+// cada vez que se inserta el bloque. Se quita el tramo nulo; el contorno sigue cerrado.
+const largo = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+let tramosNulos = 0;
+for (const registro of [destino.tables.blockTable.modelSpace, ...destino.tables.blockTable.newIterator()]) {
+  for (const e of registro.newIterator()) {
+    const lazos = e.dxfTypeName === 'HATCH' ? e._geo?._loops : null;
+    if (!lazos) continue;
+    lazos.forEach((lazo, i) => {
+      if (!lazo.curves) return;
+      const curvas = lazo.curves.filter((c) => !(c.startPoint && c.endPoint && /Line/.test(c.constructor.name) && largo(c.startPoint, c.endPoint) < 1e-6));
+      if (curvas.length === lazo.curves.length) return;
+      tramosNulos += lazo.curves.length - curvas.length;
+      lazos[i] = new dm.AcGeLoop2d(curvas);
+    });
+  }
+}
+console.log(`Tramos de largo cero quitados de contornos de achurado: ${tramosNulos}`);
 // Estilos con fuente angosta (Arial Narrow, Swiss condensada): el visor no tiene esas
 // fuentes y las dibuja con Arial normal, ~20 % más ancha, y los textos se salen de las
 // casillas (VIGA BORDE, CUADRO DE VIGUETAS). Pasan a Arial con factor de ancho 0.82:
