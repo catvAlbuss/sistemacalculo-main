@@ -111,6 +111,19 @@
     }
   },
   {
+    "name": "revisar_laminas",
+    "description": "Revisa las láminas de estructuras que dibujó el agente y da un informe corto para el ingeniero: textos encimados (con corregir=true los separa), datos del proyecto que faltan y lo que el agente aún no dibuja. Úsalo si piden revisar las láminas, corregir textos encimados o saber qué falta.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "corregir": {
+          "type": "boolean",
+          "description": "true para separar los textos encimados (achica la letra lo necesario)"
+        }
+      }
+    }
+  },
+  {
     "name": "quitar_laminas",
     "description": "Quita del dibujo las láminas de estructuras que dibujó el agente (solo las suyas; la arquitectura y lo que dibujó el usuario no se tocan). Úsalo si el usuario pide borrar o limpiar las láminas.",
     "input_schema": {
