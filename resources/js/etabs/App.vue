@@ -227,6 +227,8 @@ const autoguardado = setInterval(() => enReposo(() => guardarCopia()), 90000);
 if (window.__NOVACAD_PRUEBA__) {
   window.__novacadPrueba = {
     abrir: (url) => AcApDocManager.instance.openUrl(url),
+    // Monta el panel del agente (que agrega herramienta() para correr sus skills).
+    abrirAgente: () => { agentVisible.value = true; return true; },
     // Hacia dónde mira la cámara (diagnóstico de encuadre).
     dondeMira: () => { const v = AcApDocManager.instance?.curView ?? AcApDocManager.instance?.mainView; const r = v?.canvas?.getBoundingClientRect?.() ?? {width: 0, height: 0}; const a = v?.screenToWorld?.({x: 0, y: 0}), b = v?.screenToWorld?.({x: r.width, y: r.height}); return {lienzo: [r.width, r.height], de: a && [a.x, a.y], a: b && [b.x, b.y]}; },
     // El plano termina de cargar sus presentaciones después de tener entidades.

@@ -145,6 +145,27 @@ export function createDrawingContext({getDatabase, dm, edit, afterDraw, onFounda
       delete this.memoria.lectura;
       return ids.length;
     },
+    // Entidades de las láminas del agente (las marcadas), de una clave o de todas.
+    entidadesDelAgente(clave = null) {
+      if (!getDatabase()) return [];
+      return entities().filter((e) => { const m = marcaDe(e); return m !== null && (clave === null || m === clave); });
+    },
+    // Modifica entidades existentes en un paso de deshacer: se abren para escritura en la
+    // transacción (así el visor las redibuja y "deshacer" las revierte). fn recibe las abiertas.
+    modificar(label, ids, fn) {
+      const database = getDatabase();
+      if (!database) throw new Error("No hay un dibujo abierto.");
+      let resultado;
+      const hacer = () => {
+        const tr = database.transactionManager?.currentTransaction?.();
+        const modelSpace = database.tables.blockTable.modelSpace;
+        const abiertas = ids.map((id) => (tr ? tr.getObject(id, dm.AcDbOpenMode.kForWrite) : modelSpace.getIdAt(id))).filter(Boolean);
+        resultado = fn(abiertas);
+      };
+      if (edit) edit(database, label, hacer); else hacer();
+      delete this.memoria.lectura;
+      return resultado;
+    },
     // Claves de las láminas del agente presentes en el dibujo, con su cantidad de entidades.
     generaciones() {
       const cuenta = new Map();

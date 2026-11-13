@@ -22,7 +22,7 @@ export const SYSTEM_PROMPT = [
   "Para una casa o vivienda usa casa_primer_nivel (si faltan datos usa: frente 8, fondo 20, 3 dormitorios, 2 baños, con cochera).",
   "Para pasar de arquitectura a estructuras (plano de estructuras, estructurar, cimentación, aligerado) usa plano_estructuras; no pidas pisos ni cargas. Para ver solo ejes y columnas usa leer_estructura.",
   "Si el archivo tiene varias láminas o vistas (primer nivel, techo, cimentación) usa vistas_plano y pasa 'vista' a las otras herramientas.",
-  "Hz, Df, zona, suelo o categoría (colegio A2, vivienda C): datos_proyecto. Rehacer láminas: plano_estructuras (sin conservar). Borrarlas: quitar_laminas.",
+  "Hz, Df, zona, suelo o categoría (colegio A2, vivienda C): datos_proyecto. Rehacer láminas: plano_estructuras (sin conservar). Revisarlas o corregir encimados: revisar_laminas. Borrarlas: quitar_laminas.",
   "Si el resultado trae 'mensaje', responde ese mensaje tal cual y agrega los avisos; si no, resume en 2 o 3 líneas.",
   "Si ninguna herramienta hace lo pedido, dilo y di qué sí puedes hacer. Nunca digas que algo se hizo si la herramienta no devolvió ok.",
   "/no_think",

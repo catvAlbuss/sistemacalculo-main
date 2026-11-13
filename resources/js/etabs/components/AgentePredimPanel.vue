@@ -104,6 +104,7 @@ const getContext = () => contextPromise ??= Promise.all([
   // Con caja (p. ej. una lámina nueva) se encuadra esa zona; si no, zoom inteligente,
   // que ignora objetos perdidos lejos del dibujo.
   afterDraw: (box) => {
+    if (box && window.__novacadPrueba) window.__novacadPrueba.ultimaZona = box;
     const view = viewer.AcApDocManager.instance?.curView;
     if (box && view?.zoomTo) {
       view.zoomTo(new dm.AcGeBox2d({x: box.x0, y: box.y0}, {x: box.x1, y: box.y1}), 0.04 * (box.x1 - box.x0));
@@ -121,17 +122,30 @@ const getContext = () => contextPromise ??= Promise.all([
     proyecto.value = {...proyecto.value, ...datos};
     try { localStorage.setItem(PROYECTO_KEY, JSON.stringify(proyecto.value)); } catch { /* sin almacenamiento */ }
   },
-  // Plantilla de láminas de estructuras (detalles estándar del despacho).
+  // Plantilla de láminas de estructuras (detalles estándar del despacho). Sin caché del
+  // navegador: al regenerar la plantilla, el agente usa la nueva sin borrar la caché a mano.
   loadTemplate: async () => {
     const [buffer, config] = await Promise.all([
-      fetch("/assets/plantillas/estructuras-laminas.dxf").then((r) => { if (!r.ok) throw new Error(`plantilla ${r.status}`); return r.arrayBuffer(); }),
-      fetch("/assets/plantillas/estructuras-laminas.json").then((r) => r.json()),
+      fetch("/assets/plantillas/estructuras-laminas.dxf", {cache: "no-cache"}).then((r) => { if (!r.ok) throw new Error(`plantilla ${r.status}`); return r.arrayBuffer(); }),
+      fetch("/assets/plantillas/estructuras-laminas.json", {cache: "no-cache"}).then((r) => r.json()),
     ]);
     const db = new dm.AcDbDatabase();
     await db.read(buffer, {readOnly: true}, dm.AcDbFileType.DXF);
     return {db, config};
   },
 }));
+
+// Prueba visual en el visor real (scripts/agente/ver-en-visor.mjs): las herramientas del
+// agente se corren por el mismo camino que el chat (mismo contexto y plantilla), sin modelo.
+if (window.__NOVACAD_PRUEBA__) {
+  window.__novacadPrueba = window.__novacadPrueba ?? {};
+  window.__novacadPrueba.herramienta = async (nombre, args = {}) => {
+    const [{SKILLS}, ctx] = await Promise.all([import("../../ingenieria/agente/skills/index.js"), getContext()]);
+    const skill = SKILLS.find((s) => s.name === nombre);
+    if (!skill) throw new Error(`No existe la herramienta ${nombre}`);
+    return JSON.parse(JSON.stringify(await skill.run(args, ctx)));
+  };
+}
 
 const STORAGE_KEY = "predim-agente.settings";
 const loadSettings = () => {
@@ -149,7 +163,7 @@ const examples = [
 const toolLabels = {
   casa_primer_nivel: "Casa primer nivel", dibujar_ejes: "Ejes", dibujar_ambiente: "Ambiente",
   resumen_plano: "Resumen del plano", buscar_textos: "Buscar textos", vistas_plano: "Vistas del plano", plano_estructuras: "Plano de estructuras",
-  leer_estructura: "Columnas y ejes del plano", zapatas_desde_plano: "Zapatas desde el plano", datos_proyecto: "Datos del proyecto", quitar_laminas: "Quitar láminas",
+  leer_estructura: "Columnas y ejes del plano", zapatas_desde_plano: "Zapatas desde el plano", datos_proyecto: "Datos del proyecto", quitar_laminas: "Quitar láminas", revisar_laminas: "Revisar láminas",
 };
 
 // Datos del proyecto para el rótulo de las láminas.

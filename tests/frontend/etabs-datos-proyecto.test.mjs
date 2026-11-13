@@ -220,6 +220,16 @@ test('module 3 with its soil study and E.030 data: Hz 0.60, Df 2.50 and Z/U/S/Tp
   const otra = new dm.AcDbDatabase();
   await otra.read(db.dxfOut(undefined, 6), {readOnly: true}, dm.AcDbFileType.DXF);
   assert.ok(Object.keys(createDrawingContext({getDatabase: () => otra, dm}).generaciones()).length > 0, 'marks survive the DXF round trip');
+  // Revisión para el ingeniero: informe corto y, con corregir, textos separados.
+  const rev = await SKILLS.find((s) => s.name === 'revisar_laminas').run({}, nuevo);
+  assert.match(rev.mensaje, /^Revisé las láminas del agente \(M[ÓO]DULO III/);
+  assert.match(rev.mensaje, /- Textos encimados: /);
+  assert.match(rev.mensaje, /- Datos del proyecto que faltan: ninguno\./, 'Hz, Df, zona, suelo y categoría vinieron del panel y del chat');
+  assert.match(rev.mensaje, /- Rótulo sin: proyecto, entidad, especialista, CIP/);
+  assert.match(rev.mensaje, /- Aún no dibujo: edificios de 2 o más niveles/);
+  const corr = await SKILLS.find((s) => s.name === 'revisar_laminas').run({corregir: true}, nuevo);
+  assert.ok(corr.encimados <= rev.encimados, `corregir no empeora: ${rev.encimados} → ${corr.encimados}`);
+  if (rev.encimados) assert.ok(corr.corregidos > 0, 'separó textos');
   const q = await SKILLS.find((s) => s.name === 'quitar_laminas').run({}, nuevo);
   assert.match(q.mensaje, /^Quité las láminas del agente/);
   assert.equal(db.tables.blockTable.modelSpace.newIterator().toArray().length, antes, 'only the architecture is left');

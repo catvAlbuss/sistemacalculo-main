@@ -7,6 +7,7 @@ import {leerVista} from "../../lectura/lectorPlano.js";
 import {laminaEstructuras} from "../../laminas/laminaEstructuras.js";
 import {laminasConPlantilla} from "../../laminas/laminasPlantilla.js";
 import {CAMPOS_TECNICOS, datosTecnicos, parametrosSismicos} from "../../criterios/datosProyecto.js";
+import {cajaTexto, seEncima, desencimarTextos} from "../../laminas/cajasTexto.js";
 
 const r2 = (value) => Math.round(value * 100) / 100;
 const listaCapas = (value) => String(value ?? "").split(/[,;]/).map((capa) => capa.trim()).filter(Boolean);
@@ -128,7 +129,54 @@ function textoDatos(datos) {
   return {tiene, faltan, sismo};
 }
 
+// Lo que el agente todavía no dibuja (para que el ingeniero sepa qué pedir o completar).
+const AUN_NO_DIBUJA = [
+  "edificios de 2 o más niveles (losa de entrepiso)",
+  "secciones VB, canaleta y correas en los pórticos",
+  "cuadro de vigas y metrados",
+];
+const RÓTULO_CLAVE = [["proyecto", "proyecto"], ["entidad", "entidad"], ["especialista", "especialista"], ["cip", "CIP"]];
+
+// Pares de textos encimados entre los textos dados (medidos como los dibuja el visor).
+function textosEncimados(textos) {
+  const cajas = textos.map((e) => cajaTexto(e)).filter(Boolean);
+  let pares = 0;
+  for (let i = 0; i < cajas.length; i++) for (let j = i + 1; j < cajas.length; j++) if (seEncima(cajas[i], cajas[j])) pares++;
+  return pares;
+}
+
 export const ESTRUCTURA_SKILLS = [
+  {
+    name: "revisar_laminas",
+    description: "Revisa las láminas de estructuras que dibujó el agente y da un informe corto para el ingeniero: textos encimados (con corregir=true los separa), datos del proyecto que faltan y lo que el agente aún no dibuja. Úsalo si piden revisar las láminas, corregir textos encimados o saber qué falta.",
+    parameters: {type: "object", properties: {
+      corregir: {type: "boolean", description: "true para separar los textos encimados (achica la letra lo necesario)"},
+    }},
+    async run(args, ctx) {
+      const propias = ctx.entidadesDelAgente?.() ?? [];
+      if (!propias.length) return {ok: true, mensaje: "No hay láminas del agente en este plano. Pide \"genera el plano de estructuras\" y luego las reviso."};
+      const vistas = Object.keys(ctx.generaciones?.() ?? {}).map((k) => k.replace(/^laminas:/, ""));
+      const textos = propias.filter((e) => /^(M?TEXT)$/i.test(String(e.dxfTypeName)));
+      const antes = textosEncimados(textos);
+      let corregidos = 0, despues = antes;
+      if (args.corregir && antes) {
+        corregidos = ctx.modificar("Agente: separar textos encimados", textos.map((e) => e.objectId), (abiertas) => desencimarTextos(abiertas).achicados);
+        despues = textosEncimados(ctx.entidadesDelAgente().filter((e) => /^(M?TEXT)$/i.test(String(e.dxfTypeName))));
+      }
+      const datos = ctx.datosProyecto?.() ?? {};
+      const t = datosTecnicos(datos);
+      const faltanDatos = [["hz", "Hz"], ["df", "Df"], ["zona", "zona sísmica"], ["suelo", "perfil de suelo"], ["categoria", "categoría"]].filter(([k]) => t[k] === null).map(([, n]) => n);
+      const faltanRotulo = RÓTULO_CLAVE.filter(([k]) => !String(datos[k] ?? "").trim()).map(([, n]) => n);
+      const lineas = [
+        `Revisé las láminas del agente${vistas.length ? ` (${vistas.join(", ")})` : ""}:`,
+        `- Textos encimados: ${antes ? (args.corregir ? `${antes} pares; separé ${corregidos} textos${despues ? `, quedan ${despues} pares` : ""}` : `${antes} pares (pídeme "corrige los encimados")`) : "ninguno"}.`,
+        `- Datos del proyecto que faltan: ${faltanDatos.length ? `${faltanDatos.join(", ")} (uso el criterio del despacho y lo aviso en las láminas)` : "ninguno"}.`,
+        `- Rótulo sin: ${faltanRotulo.length ? `${faltanRotulo.join(", ")} (complétalo en ▤ o dímelo)` : "nada pendiente"}.`,
+        `- Aún no dibujo: ${AUN_NO_DIBUJA.join("; ")}.`,
+      ];
+      return {ok: true, mensaje: lineas.join("\n"), encimados: despues, corregidos};
+    },
+  },
   {
     name: "quitar_laminas",
     description: "Quita del dibujo las láminas de estructuras que dibujó el agente (solo las suyas; la arquitectura y lo que dibujó el usuario no se tocan). Úsalo si el usuario pide borrar o limpiar las láminas.",

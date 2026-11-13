@@ -22,6 +22,7 @@ import {copiarDesdePlantilla} from '../../resources/js/ingenieria/cad/copiarPlan
 import {aplanarModelo} from '../../resources/js/ingenieria/lectura/lectorPlano.js';
 import {plano} from './planos.mjs';
 import {anchoTexto} from '../../resources/js/ingenieria/laminas/rotulo.js';
+import {desencimarTextos} from '../../resources/js/ingenieria/laminas/cajasTexto.js';
 
 const raiz = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const referencia = process.argv[2] ?? plano('estructuras', '14.VINCHOS MODULO 14 estructuras.dwg');
@@ -544,6 +545,18 @@ for (const estilo of destino.tables.textStyleTable.newIterator()) {
   estilosAngostos++;
 }
 console.log(`Estilos de fuente angosta pasados a Arial x0.82: ${estilosAngostos}`);
+
+// Ningún texto encima de otro, medido como lo dibuja el visor (cajasTexto.js): en cada
+// bloque y en el modelo, los textos que se enciman se achican de a poco hasta separarse
+// (como mucho al 70 %). Visto en el visor real: "1□1/4\" Ø…" sobre "Refuerzo y estribaje",
+// los párrafos del ladrillo de 18 huecos, las notas de "VALORES DE M".
+const factorEstilo = (e) => { const x = destino.tables.textStyleTable.getAt(e.styleName)?.xScale; return x > 0 ? x : 1; };
+let textosAchicados = 0, paresQuedan = 0;
+for (const registro of [destino.tables.blockTable.modelSpace, ...destino.tables.blockTable.newIterator()]) {
+  const r = desencimarTextos(registro.newIterator().toArray(), factorEstilo);
+  textosAchicados += r.achicados; paresQuedan += r.quedan;
+}
+console.log(`Textos achicados para no encimarse: ${textosAchicados}${paresQuedan ? ` (pares que aún se tocan: ${paresQuedan})` : ''}`);
 const dxf = limpiarTextosDxf(await destino.dxfOut());
 writeFileSync(resolve(salida, 'estructuras-laminas.dxf'), Buffer.from(dxf, 'latin1'));
 writeFileSync(resolve(salida, 'estructuras-laminas.json'), JSON.stringify(config, null, 1));
