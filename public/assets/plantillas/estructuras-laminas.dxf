@@ -147,7 +147,7 @@ AcDbSymbolTable
 0
 VPORT
 5
-B9E
+BA0
 330
 9
 100
@@ -1929,7 +1929,7 @@ AcDbSymbolTable
 0
 APPID
 5
-BA0
+BA2
 330
 1
 100
@@ -1943,7 +1943,7 @@ ACAD
 0
 APPID
 5
-BA1
+BA3
 330
 1
 100
@@ -2695,43 +2695,9 @@ BLOCKS
 0
 BLOCK
 5
-BA2
-330
-1D
-100
-AcDbEntity
-8
-0
-100
-AcDbBlockBegin
-2
-*Model_Space
-70
-0
-10
-0
-20
-0
-30
-0
-3
-*Model_Space
-0
-ENDBLK
-5
-BA3
-330
-1D
-100
-AcDbEntity
-100
-AcDbBlockEnd
-0
-BLOCK
-5
 BA4
 330
-1F
+1D
 100
 AcDbEntity
 8
@@ -2739,7 +2705,7 @@ AcDbEntity
 100
 AcDbBlockBegin
 2
-*Paper_Space
+*Model_Space
 70
 0
 10
@@ -2749,13 +2715,13 @@ AcDbBlockBegin
 30
 0
 3
-*Paper_Space
+*Model_Space
 0
 ENDBLK
 5
 BA5
 330
-1F
+1D
 100
 AcDbEntity
 100
@@ -2764,6 +2730,40 @@ AcDbBlockEnd
 BLOCK
 5
 BA6
+330
+1F
+100
+AcDbEntity
+8
+0
+100
+AcDbBlockBegin
+2
+*Paper_Space
+70
+0
+10
+0
+20
+0
+30
+0
+3
+*Paper_Space
+0
+ENDBLK
+5
+BA7
+330
+1F
+100
+AcDbEntity
+100
+AcDbBlockEnd
+0
+BLOCK
+5
+BA8
 330
 23
 100
@@ -8909,7 +8909,7 @@ AcDbMText
 30
 0
 40
-0.0542849611634842
+0.0577499586845577
 41
 1.1371247154996507
 42
@@ -9527,7 +9527,7 @@ AcDbMText
 30
 0
 40
-0.0542849611634842
+0.0577499586845577
 41
 1.1123400851021794
 42
@@ -9869,7 +9869,7 @@ Standard
 0
 ENDBLK
 5
-BA7
+BA9
 330
 23
 100
@@ -9879,7 +9879,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BA8
+BAA
 330
 90
 100
@@ -11523,7 +11523,7 @@ AcDbText
 30
 0
 40
-0.077993485841844
+0.0829717934487702
 1
 6.1) Resistencia especifica del muro f'm = 65 Kg/cm², F´b = 145 kg/cm² 
 50
@@ -11859,9 +11859,9 @@ AcDbText
 30
 0
 40
-0.0572397329803268
+0.0829717934487702
 1
-caso con  dosificación 1:12  +  30 
+caso con  dosificación 1:12  +  30 %P. G. evitandose 
 50
 0
 41
@@ -12268,62 +12268,6 @@ BIL
 2922.6922598345031474
 21
 1593.7249733789842594
-31
-0
-210
-0
-220
-0
-230
-1
-100
-AcDbText
-73
-0
-0
-TEXT
-5
-BE
-330
-90
-100
-AcDbEntity
-8
-0
-6
-ByLayer
-48
-1
-60
-0
-62
-256
-100
-AcDbText
-10
-2927.2905817028949969
-20
-1596.8680862199034891
-30
-0
-40
-0.0572397329803268
-1
-                                              %P. G. evitandose 
-50
-0
-41
-1
-51
-0
-7
-BIL
-72
-0
-11
-2927.2905817028949969
-21
-1596.8680862199034891
 31
 0
 210
@@ -13465,7 +13409,7 @@ AcDbText
 30
 0
 40
-0.077993485841844
+0.0829717934487702
 1
 el concreto en forma alternada entre los paños de la losa en mención, esto se realiza para reducir 
 50
@@ -13521,7 +13465,7 @@ AcDbText
 30
 0
 40
-0.0733138766913334
+0.0829717934487702
 1
 - De requerirse impermeablilizar la losa de las azotea por problemas de precipitación, utilizar
 50
@@ -13689,7 +13633,7 @@ AcDbText
 30
 0
 40
-0.0647801414444622
+0.0733138766913334
 1
   de utilizar falsas zapatas para alcanzar un suelo equivalente al estudio de suelos realizado de 
 50
@@ -13745,7 +13689,7 @@ AcDbText
 30
 0
 40
-0.077993485841844
+0.0829717934487702
 1
 Para los elementos que no esten en contacto con el suelo utilizar Cemento
 50
@@ -14151,7 +14095,7 @@ AcDbText
 30
 0
 40
-0.077993485841844
+0.0829717934487702
 1
  Portland Tipo I
 50
@@ -14207,7 +14151,7 @@ AcDbText
 30
 0
 40
-0.077993485841844
+0.0829717934487702
 1
  Vm=8.10 kg/cm²
 50
@@ -14375,7 +14319,7 @@ AcDbText
 30
 0
 40
-0.077993485841844
+0.0829717934487702
 1
 los agrietamientos por contraccion de fragua.
 50
@@ -14431,7 +14375,7 @@ AcDbText
 30
 0
 40
-0.0733138766913334
+0.0829717934487702
 1
  impermeabilizante para el falso piso
 50
@@ -14487,7 +14431,7 @@ AcDbText
 30
 0
 40
-0.0647801414444622
+0.0733138766913334
 1
 de acuerdo a lo indicado en la norma E.050 - suelos / Art. 21.1.
 50
@@ -14543,7 +14487,7 @@ AcDbText
 30
 0
 40
-0.0733138766913334
+0.0829717934487702
 1
 Pasadizo: 200 kg/m2 
 50
@@ -14599,7 +14543,7 @@ AcDbText
 30
 0
 40
-0.0733138766913334
+0.0829717934487702
 1
 Escaleras y corredores: 200 kg/m2 
 50
@@ -15143,7 +15087,7 @@ BIL
 0
 ENDBLK
 5
-BA9
+BAB
 330
 90
 100
@@ -15153,7 +15097,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BAA
+BAC
 330
 EB
 100
@@ -17245,7 +17189,7 @@ Titulo Detalles
 0
 ENDBLK
 5
-BAB
+BAD
 330
 EB
 100
@@ -17255,7 +17199,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BAC
+BAE
 330
 114
 100
@@ -20753,7 +20697,7 @@ Titulo Detalles
 0
 ENDBLK
 5
-BAD
+BAF
 330
 114
 100
@@ -20763,7 +20707,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BAE
+BB0
 330
 13A
 100
@@ -23529,7 +23473,7 @@ AcDbText
 30
 0
 40
-0.07475256
+0.0808729800449331
 1
 VIGA BORDE
 50
@@ -23829,7 +23773,7 @@ AcDbText
 30
 0
 40
-0.0415292
+0.0422398750535657
 1
 f´c= 210kg/cm2
 50
@@ -24115,7 +24059,7 @@ AnnotativeData
 0
 ENDBLK
 5
-BAF
+BB1
 330
 13A
 100
@@ -24125,7 +24069,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BB0
+BB2
 330
 18B
 100
@@ -47071,7 +47015,7 @@ AnnotativeData
 0
 ENDBLK
 5
-BB1
+BB3
 330
 18B
 100
@@ -47081,7 +47025,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BB2
+BB4
 330
 374
 100
@@ -54591,7 +54535,7 @@ AcDbMText
 0
 ENDBLK
 5
-BB3
+BB5
 330
 374
 100
@@ -54601,7 +54545,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BB4
+BB6
 330
 3BD
 100
@@ -58351,7 +58295,7 @@ f'c=100 kg/cm2+30%PG.
 0
 ENDBLK
 5
-BB5
+BB7
 330
 3BD
 100
@@ -58361,7 +58305,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BB6
+BB8
 330
 3DC
 100
@@ -66879,7 +66823,7 @@ f'c=140kg/cm2+25%PM
 0
 ENDBLK
 5
-BB7
+BB9
 330
 3DC
 100
@@ -66889,7 +66833,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BB8
+BBA
 330
 427
 100
@@ -95101,7 +95045,7 @@ ACAD
 0
 ENDBLK
 5
-BB9
+BBB
 330
 427
 100
@@ -95111,7 +95055,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BBA
+BBC
 330
 42F
 100
@@ -95173,7 +95117,7 @@ AcDbLine
 0
 ENDBLK
 5
-BBB
+BBD
 330
 42F
 100
@@ -95183,7 +95127,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BBC
+BBE
 330
 690
 100
@@ -98723,7 +98667,7 @@ DEL ALIGERADO
 0
 ENDBLK
 5
-BBD
+BBF
 330
 690
 100
@@ -98733,7 +98677,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BBE
+BC0
 330
 693
 100
@@ -98967,7 +98911,7 @@ PLT_U228
 0
 ENDBLK
 5
-BBF
+BC1
 330
 693
 100
@@ -98977,7 +98921,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BC0
+BC2
 330
 694
 100
@@ -99035,7 +98979,7 @@ AcDbCircle
 0
 ENDBLK
 5
-BC1
+BC3
 330
 694
 100
@@ -99045,7 +98989,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BC2
+BC4
 330
 6CA
 100
@@ -99611,7 +99555,7 @@ AcDbPolyline
 0
 ENDBLK
 5
-BC3
+BC5
 330
 6CA
 100
@@ -99621,7 +99565,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BC4
+BC6
 330
 6D8
 100
@@ -100997,7 +100941,7 @@ AcDbMText
 30
 0
 40
-0.0705
+0.06627
 41
 0.4047622933862683
 42
@@ -101627,62 +101571,6 @@ Anot 2mm
 0
 MTEXT
 5
-B85
-330
-6D8
-100
-AcDbEntity
-8
-.D1 Texto
-6
-ByLayer
-48
-1
-60
-0
-62
-256
-100
-AcDbMText
-10
-298.2550176547623551
-20
-175.2951461570760898
-30
-0
-40
-0.0465988289067542
-41
-0
-1
-1    1/4" Ø: 1@0.05, 4@0.10,
-7
-Anot 2mm
-50
-0
-11
-1
-21
-0
-31
-0
-71
-2
-72
-1
-73
-0
-44
-1
-210
-0
-220
-0
-230
-1
-0
-MTEXT
-5
 B86
 330
 6D8
@@ -101737,9 +101625,121 @@ Anot 2mm
 230
 1
 0
+MTEXT
+5
+B9E
+330
+6D8
+100
+AcDbEntity
+8
+.D1 Texto
+6
+ByLayer
+48
+1
+60
+0
+62
+256
+100
+AcDbMText
+10
+297.908369795946669
+20
+175.2951461570760898
+30
+0
+40
+0.043802899172349
+41
+0
+1
+1
+7
+Anot 2mm
+50
+0
+11
+1
+21
+0
+31
+0
+71
+3
+72
+1
+73
+0
+44
+1
+210
+0
+220
+0
+230
+1
+0
+MTEXT
+5
+B9F
+330
+6D8
+100
+AcDbEntity
+8
+.D1 Texto
+6
+ByLayer
+48
+1
+60
+0
+62
+256
+100
+AcDbMText
+10
+297.9831564070678951
+20
+175.2951461570760898
+30
+0
+40
+0.0495732222412279
+41
+0
+1
+1/4" Ø: 1@0.05, 4@0.10,
+7
+Anot 2mm
+50
+0
+11
+1
+21
+0
+31
+0
+71
+1
+72
+1
+73
+0
+44
+1
+210
+0
+220
+0
+230
+1
+0
 ENDBLK
 5
-BC5
+BC7
 330
 6D8
 100
@@ -101749,7 +101749,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BC6
+BC8
 330
 6D9
 100
@@ -102767,7 +102767,7 @@ AcDbBlockRepETag
 0
 ENDBLK
 5
-BC7
+BC9
 330
 6D9
 100
@@ -102777,7 +102777,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BC8
+BCA
 330
 70E
 100
@@ -111295,7 +111295,7 @@ AcDbText
 30
 0
 40
-0.00039370079
+0.000374587494169
 1
 ESTRIBOS DE COLUMNA O PLACA
 50
@@ -111351,7 +111351,7 @@ AcDbText
 30
 0
 40
-0.0005551181139
+0.000590551185
 1
 DETALLE DEL REFUERZO
 50
@@ -111407,7 +111407,7 @@ AcDbText
 30
 0
 40
-0.0005551181139
+0.000590551185
 1
  %%UEN EL NUDO-VIGA
 50
@@ -111703,7 +111703,7 @@ AcDbPolyline
 0
 ENDBLK
 5
-BC9
+BCB
 330
 70E
 100
@@ -111713,7 +111713,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BCA
+BCC
 330
 78A
 100
@@ -113941,7 +113941,7 @@ AcDbText
 0
 ENDBLK
 5
-BCB
+BCD
 330
 78A
 100
@@ -113951,7 +113951,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BCC
+BCE
 330
 7AC
 100
@@ -114317,7 +114317,7 @@ AcDbText
 30
 0
 40
-0.0798495996538175
+0.0706097386806369
 1
 Long. desar. en cm.
 50
@@ -116005,7 +116005,7 @@ AcDbText
 30
 0
 40
-0.0798495996538175
+0.0706097386806369
 1
 Long. desar. en cm.
 50
@@ -118667,7 +118667,7 @@ AcDbText
 30
 0
 40
-0.0855208258137216
+0.0967868105632884
 1
 LA LONGITUD "L" A PARTIR DEL
 50
@@ -118779,7 +118779,7 @@ AcDbText
 30
 0
 40
-0.0855208258137216
+0.0967868105632884
 1
 CUANDO h=30 cm, SE MEDIRA
 50
@@ -119471,7 +119471,7 @@ DSTYLE
 0
 ENDBLK
 5
-BCD
+BCF
 330
 7AC
 100
@@ -119481,7 +119481,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BCE
+BD0
 330
 820
 100
@@ -122113,7 +122113,7 @@ AcDbText
 30
 0
 40
-0.15
+0.1384823592358287
 1
 LONGITUD DE EMPALME
 50
@@ -123301,7 +123301,7 @@ AcDbText
 30
 0
 40
-0.1034804671584
+0.1245876
 1
 DETALLE DE LA UBICACION Y LONGITUD
 50
@@ -123357,7 +123357,7 @@ AcDbText
 30
 0
 40
-0.1034804671584
+0.1245876
 1
 %%UDE EMPALMES TRASLAPADOS PARA COLUMNAS
 50
@@ -125013,7 +125013,7 @@ AcDbPolyline
 0
 ENDBLK
 5
-BCF
+BD1
 330
 820
 100
@@ -125023,7 +125023,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BD0
+BD2
 330
 874
 100
@@ -125295,7 +125295,7 @@ AcDbText
 30
 0
 40
-0.0798495996538175
+0.0737855170037178
 1
 -  La longitud mínima del traslape en los empalmes traslapados en tracción será conforme a los re-
 50
@@ -125407,7 +125407,7 @@ AcDbText
 30
 0
 40
-0.0798495996538175
+0.0716497897460688
 1
 -  Los empalmes en zonas de esfuerzos altos deben preferentemente evitarse, sin embargo, si fueran
 50
@@ -125519,7 +125519,7 @@ AcDbText
 30
 0
 40
-0.0798495996538175
+0.0753689552813104
 1
    estrictamente necesarios y si se empalma menos de la mitad de las barras dentro de una longitud 
 50
@@ -125575,7 +125575,7 @@ AcDbText
 30
 0
 40
-0.0798495996538175
+0.0754821498276121
 1
 requerida de traslape se deberá usar empalmes Tipo B. Si se empalma más de la mitad de las ba-
 50
@@ -125765,7 +125765,7 @@ AcDbLine
 0
 ENDBLK
 5
-BD1
+BD3
 330
 874
 100
@@ -125775,7 +125775,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BD2
+BD4
 330
 882
 100
@@ -125899,7 +125899,7 @@ AcDbText
 30
 0
 40
-0.1330826660896959
+0.1283723702318272
 1
 ESPECIFICACIONES TÉCNICAS
 50
@@ -126069,7 +126069,7 @@ AcDbText
 30
 0
 40
-0.0887217773931306
+0.0854874907887588
 1
 Diám. mín.doblado Estribos
 50
@@ -126461,7 +126461,7 @@ AcDbText
 30
 0
 40
-0.0887217773931306
+0.083995466062646
 1
 Ancla. Recta Gancho Ø3/8"
 50
@@ -126517,7 +126517,7 @@ AcDbText
 30
 0
 40
-0.0887217773931306
+0.083995466062646
 1
 Ancla. Recta Gancho Ø1/2"
 50
@@ -128225,7 +128225,7 @@ AcDbText
 30
 0
 40
-0.0750586236745885
+0.0798495996538175
 1
 Longitud
 50
@@ -128337,7 +128337,7 @@ AcDbText
 30
 0
 40
-0.0705551062541132
+0.0798495996538175
 1
 Gancho
 50
@@ -128393,7 +128393,7 @@ AcDbText
 30
 0
 40
-0.0663217998788664
+0.0798495996538175
 1
 del
 50
@@ -130059,7 +130059,7 @@ AcDbLine
 0
 ENDBLK
 5
-BD3
+BD5
 330
 882
 100
@@ -130069,7 +130069,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BD4
+BD6
 330
 8DA
 100
@@ -130249,7 +130249,7 @@ AcDbText
 30
 0
 40
-0.0798495996538175
+0.0774583131782397
 1
    para las barras individuales dentro de un pequete, aumentada en un 20% para paquetes de 3 ba-
 50
@@ -130305,7 +130305,7 @@ AcDbText
 30
 0
 40
-0.0798495996538175
+0.0771185216380683
 1
 -  Las barras empalmadas por medio de traslapes sin contacto en elementos sujetos a flexión, no
 50
@@ -130361,7 +130361,7 @@ AcDbText
 30
 0
 40
-0.0798495996538175
+0.072706433203838
 1
 -  Los traslapes de barras que forman paquetes deberán basarse en la longitud de traslape requerida
 50
@@ -130417,7 +130417,7 @@ AcDbText
 30
 0
 40
-0.0798495996538175
+0.0778154614315514
 1
    deberán separarse transversalmente más de 1/5 de la longitud de traslape requerida, ni más de
 50
@@ -130473,7 +130473,7 @@ AcDbText
 30
 0
 40
-0.0798495996538175
+0.0749139616267528
 1
    rras y en un 33% para paquetes de 4 barras. Los traslapes de las barras individuales dentro de un
 50
@@ -130681,7 +130681,7 @@ AcDbText
 0
 ENDBLK
 5
-BD5
+BD7
 330
 8DA
 100
@@ -130691,7 +130691,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BD6
+BD8
 330
 8E6
 100
@@ -135309,7 +135309,7 @@ AcDbText
 30
 0
 40
-0.141
+0.15
 1
 DETALLE DE LA UBICACION Y LONGITUD
 50
@@ -135365,7 +135365,7 @@ AcDbText
 30
 0
 40
-0.141
+0.15
 1
 %%UDE EMPALMES TRASLAPADOS PARA VIGAS
 50
@@ -136237,7 +136237,7 @@ ARIAL
 0
 ENDBLK
 5
-BD7
+BD9
 330
 8E6
 100
@@ -136247,7 +136247,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BD8
+BDA
 330
 937
 100
@@ -136637,7 +136637,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 Ø
 50
@@ -136693,7 +136693,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 Acero
 50
@@ -136749,7 +136749,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 D
 50
@@ -136805,7 +136805,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 (cm)
 50
@@ -136861,7 +136861,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 A
 50
@@ -136917,7 +136917,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 (cm)
 50
@@ -136973,7 +136973,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 C
 50
@@ -137029,7 +137029,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 (cm)
 50
@@ -137085,7 +137085,7 @@ AcDbText
 30
 0
 40
-0.0677516661987596
+0.0720762406369783
 1
 Long. del
 50
@@ -137141,7 +137141,7 @@ AcDbText
 30
 0
 40
-0.0677516661987596
+0.0720762406369783
 1
 Gancho
 50
@@ -140119,7 +140119,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 Ø
 50
@@ -140175,7 +140175,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 Acero
 50
@@ -140231,7 +140231,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 D
 50
@@ -140287,7 +140287,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 (cm)
 50
@@ -140343,7 +140343,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 A
 50
@@ -140399,7 +140399,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 (cm)
 50
@@ -140455,7 +140455,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 C
 50
@@ -140511,7 +140511,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 (cm)
 50
@@ -143933,7 +143933,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 Ø
 50
@@ -143989,7 +143989,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 Acero
 50
@@ -144045,7 +144045,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 D
 50
@@ -144101,7 +144101,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 (cm)
 50
@@ -144157,7 +144157,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 A
 50
@@ -144213,7 +144213,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 (cm)
 50
@@ -144269,7 +144269,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 C
 50
@@ -144325,7 +144325,7 @@ AcDbText
 30
 0
 40
-0.094
+0.1
 1
 (cm)
 50
@@ -147283,7 +147283,7 @@ AcDbText
 30
 0
 40
-0.141
+0.15
 1
 LONGITUDES DE DESARROLLO
 50
@@ -147339,7 +147339,7 @@ AcDbText
 30
 0
 40
-0.141
+0.15
 1
 %%UPARA BARRAS CORRUGADAS A TRACCIÓN
 50
@@ -147427,7 +147427,7 @@ AcDbText
 0
 ENDBLK
 5
-BD9
+BDB
 330
 937
 100
@@ -147437,7 +147437,7 @@ AcDbBlockEnd
 0
 BLOCK
 5
-BDA
+BDC
 330
 9F2
 100
@@ -154069,7 +154069,7 @@ ARIAL
 0
 ENDBLK
 5
-BDB
+BDD
 330
 9F2
 100
@@ -163525,7 +163525,7 @@ AcDbDictionary
 3
 Standard
 350
-B9F
+BA1
 0
 LAYOUT
 5
@@ -163749,7 +163749,7 @@ Layout1
 0
 MLINESTYLE
 5
-B9F
+BA1
 330
 12
 100

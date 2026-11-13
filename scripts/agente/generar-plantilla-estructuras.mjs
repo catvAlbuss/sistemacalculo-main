@@ -22,7 +22,7 @@ import {copiarDesdePlantilla} from '../../resources/js/ingenieria/cad/copiarPlan
 import {aplanarModelo} from '../../resources/js/ingenieria/lectura/lectorPlano.js';
 import {plano} from './planos.mjs';
 import {anchoTexto} from '../../resources/js/ingenieria/laminas/rotulo.js';
-import {desencimarTextos} from '../../resources/js/ingenieria/laminas/cajasTexto.js';
+import {desencimarTextos, huecoDeSimbolo, sangriaConEspacios, escalaParaCasilla} from '../../resources/js/ingenieria/laminas/cajasTexto.js';
 
 const raiz = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const referencia = process.argv[2] ?? plano('estructuras', '14.VINCHOS MODULO 14 estructuras.dwg');
@@ -545,6 +545,84 @@ for (const estilo of destino.tables.textStyleTable.newIterator()) {
   estilosAngostos++;
 }
 console.log(`Estilos de fuente angosta pasados a Arial x0.82: ${estilosAngostos}`);
+
+// Textos con un hueco para un símbolo dibujado aparte ("1 □ 1/4\" Ø…", el □ es el estribo):
+// el visor dibuja los espacios con otro ancho y el símbolo caía sobre el "1". Se parten en el
+// hueco y cada parte se ancla al lado del símbolo: queda bien con cualquier fuente.
+let huecos = 0;
+for (const registro of [destino.tables.blockTable.modelSpace, ...destino.tables.blockTable.newIterator()]) {
+  const lista = registro.newIterator().toArray();
+  for (const e of lista) {
+    const r = huecoDeSimbolo(e, lista);
+    if (!r) continue;
+    const fila = Math.ceil((e.attachmentPoint || 1) / 3);
+    const p = e.location ?? e.position;
+    for (const [t, x, col] of [[r.izquierda.trim(), r.simbolo.x0 - r.separacion, 3], [r.derecha.trim(), r.simbolo.x1 + r.separacion, 1]]) {
+      const nt = new dm.AcDbMText();
+      nt.contents = t;
+      nt.height = e.height;
+      nt.location = {x, y: p.y, z: 0};
+      nt.attachmentPoint = (fila - 1) * 3 + col;
+      if (e.styleName) nt.styleName = e.styleName;
+      nt.layer = e.layer;
+      if (e.color) nt.color = e.color.clone ? e.color.clone() : e.color;
+      registro.appendEntity(nt);
+    }
+    registro.removeEntity(e.objectId);
+    huecos++;
+  }
+}
+console.log(`Textos partidos en el hueco de un símbolo: ${huecos}`);
+// Renglones corridos con espacios para seguir a otro texto en la misma línea: se unen al
+// vecino en un solo renglón (con cualquier fuente se ve continuo, sin pisarse); si no se
+// puede (otro tipo, estilo o altura), se anclan justo después de él.
+let sangrias = 0;
+const factorDeEstilo = (e) => { const x = destino.tables.textStyleTable.getAt(e.styleName)?.xScale; return x > 0 ? x : 1; };
+for (const registro of [destino.tables.blockTable.modelSpace, ...destino.tables.blockTable.newIterator()]) {
+  const lista = registro.newIterator().toArray();
+  for (const e of lista) {
+    const r = sangriaConEspacios(e, lista, factorDeEstilo);
+    if (!r) continue;
+    const v = r.vecino, tipo = String(e.dxfTypeName).toUpperCase();
+    if (tipo === 'TEXT' && String(v.dxfTypeName).toUpperCase() === 'TEXT' && v.styleName === e.styleName
+        && Math.abs(v.height - e.height) < 1e-9 && (v.horizontalMode ?? 0) === 0 && !v.rotation) {
+      v.textString = `${String(v.textString).replace(/\s+$/, '')} ${r.contenido}`;
+      registro.removeEntity(e.objectId);
+      sangrias++;
+      continue;
+    }
+    if (tipo === 'TEXT') {
+      e.textString = r.contenido;
+      e.position = {x: r.x, y: e.position.y, z: e.position.z ?? 0};
+      // El visor dibuja desde el punto de alineación (código 11) si el DXF lo trae.
+      if (e.alignmentPoint) e.alignmentPoint = {x: r.x, y: e.alignmentPoint.y, z: e.alignmentPoint.z ?? 0};
+    } else {
+      e.contents = r.contenido;
+      e.location = {x: r.x, y: e.location.y, z: e.location.z ?? 0};
+    }
+    sangrias++;
+  }
+}
+console.log(`Renglones corridos con espacios anclados a su vecino: ${sangrias}`);
+// Ningún texto cruza el borde de su casilla: se achica (como mucho al 70 %) sin mover su
+// anclaje. Visto en el visor real: "f´c= 210kg/cm2" saliendo de la casilla de VIGA BORDE.
+let aCasilla = 0;
+for (const registro of [destino.tables.blockTable.modelSpace, ...destino.tables.blockTable.newIterator()]) {
+  const lista = registro.newIterator().toArray();
+  for (const e of lista) {
+    // Solo letras tipo Arial: la medida está calibrada con ellas en el visor; las SHX
+    // angostas (cuadro de parámetros sísmicos) se miden más anchas de lo que se ven.
+    if (!/arial|swiss|^$/i.test(fuenteDe(e))) continue;
+    // MTEXT con factor de ancho (estilo angosto, \W o fuente angosta en línea como
+    // "\fArial Narrow|…"): el visor a veces lo aplica y a veces no.
+    if (String(e.dxfTypeName).toUpperCase() === 'MTEXT' && (factorDeEstilo(e) !== 1 || /\\W|\\f[^|;]*(narrow|condens)/i.test(String(e.contents ?? '')))) continue;
+    const s = escalaParaCasilla(e, lista, factorDeEstilo(e));
+    if (!s) continue;
+    e.height *= s;
+    aCasilla++;
+  }
+}
+console.log(`Textos achicados para quedar dentro de su casilla: ${aCasilla}`);
 
 // Ningún texto encima de otro, medido como lo dibuja el visor (cajasTexto.js): en cada
 // bloque y en el modelo, los textos que se enciman se achican de a poco hasta separarse
