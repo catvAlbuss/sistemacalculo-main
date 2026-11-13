@@ -7,12 +7,15 @@
 import {readFileSync, writeFileSync} from 'node:fs';
 import * as dm from '@mlightcad/data-model';
 import {aplanarModelo, detectarVistas, leerVista} from '../../resources/js/ingenieria/lectura/lectorPlano.js';
+import {instalarRecorteXclip} from '../../resources/js/etabs/visor/recorteXclip.js';
 
 const [ruta, filtro] = process.argv.slice(2);
 if (!ruta) { console.error('Uso: node scripts/agente/leer-arquitectura.mjs <arquitectura.dwg> [vista]'); process.exit(1); }
 
 const {AcDbLibreDwgMainThreadConverter} = await import('@mlightcad/libredwg-converter/node');
 dm.AcDbDatabaseConverterManager.instance.register(dm.AcDbFileType.DWG, new AcDbLibreDwgMainThreadConverter());
+// Bloques recortados (XCLIP): se lee lo que AutoCAD muestra, como en el visor.
+instalarRecorteXclip({AcDbLibreDwgConverter: (await import('@mlightcad/libredwg-converter')).AcDbLibreDwgConverter, AcDbBlockReference: dm.AcDbBlockReference});
 const db = new dm.AcDbDatabase();
 const buf = readFileSync(ruta);
 await db.read(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), {readOnly: true}, dm.AcDbFileType.DWG);

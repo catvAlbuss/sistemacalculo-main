@@ -21,6 +21,7 @@ import {fileURLToPath} from 'node:url';
 import * as dm from '@mlightcad/data-model';
 import {AcDbLibreDwgMainThreadConverter} from '@mlightcad/libredwg-converter/node';
 import {aplanarModelo, textoPlano} from '../../resources/js/ingenieria/lectura/lectorPlano.js';
+import {instalarRecorteXclip} from '../../resources/js/etabs/visor/recorteXclip.js';
 
 const raiz = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const salida = resolve(raiz, 'docs/agentes/agente-predim/conocimiento/expedientes');
@@ -28,6 +29,8 @@ const salida = resolve(raiz, 'docs/agentes/agente-predim/conocimiento/expediente
 // ---------- Lectura ----------
 async function abrir(ruta) {
   dm.AcDbDatabaseConverterManager.instance.register(dm.AcDbFileType.DWG, new AcDbLibreDwgMainThreadConverter());
+  // Bloques recortados (XCLIP): se lee lo que AutoCAD muestra, como en el visor.
+  instalarRecorteXclip({AcDbLibreDwgConverter: (await import('@mlightcad/libredwg-converter')).AcDbLibreDwgConverter, AcDbBlockReference: dm.AcDbBlockReference});
   const db = new dm.AcDbDatabase();
   const b = readFileSync(ruta);
   await db.read(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), {readOnly: true}, extname(ruta).toLowerCase() === '.dxf' ? dm.AcDbFileType.DXF : dm.AcDbFileType.DWG);

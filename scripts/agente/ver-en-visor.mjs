@@ -28,7 +28,9 @@ if (!browser) { console.error('No encontré Microsoft Edge para abrir el visor.'
 
 const esDwg = /\.dwg$/i.test(dxf);
 const meta = !esDwg && existsSync(`${dxf}.json`) ? JSON.parse(readFileSync(`${dxf}.json`, 'utf8')) : {};
-let zona = meta.zona;
+// VISOR_ZONA="x0,y0,x1,y1" (coordenadas del dibujo): zona a fotografiar en un plano cualquiera.
+const zonaPedida = process.env.VISOR_ZONA?.split(',').map(Number);
+let zona = zonaPedida?.length === 4 ? {x0: zonaPedida[0], y0: zonaPedida[1], x1: zonaPedida[2], y1: zonaPedida[3]} : meta.zona;
 const zonasDe = (n) => (zonasArg ? JSON.parse(readFileSync(zonasArg, 'utf8'))
   : [{nombre: 'todo', x0: 0, y0: 0, x1: 1, y1: 1}, ...Array.from({length: n}, (_, l) => [0, 1, 2].flatMap((c) => [0, 1].map((f) => ({
     nombre: `lamina${l + 1}-${['izq', 'centro', 'der'][c]}-${['abajo', 'arriba'][f]}`,
@@ -54,7 +56,7 @@ const tipos = {'.js': 'application/javascript', '.css': 'text/css', '.wasm': 'ap
 const servidor = createServer((req, res) => {
   const ruta = new URL(req.url, 'http://127.0.0.1').pathname;
   if (ruta === '/') { res.setHeader('Content-Type', 'text/html;charset=utf-8'); res.end(html); return; }
-  if (ruta === plano) { res.setHeader('Content-Type', 'application/octet-stream'); res.end(readFileSync(dxf)); return; }
+  if (ruta === plano) { const datos = readFileSync(dxf); res.setHeader('Content-Type', 'application/octet-stream'); res.setHeader('Content-Length', datos.length); res.end(req.method === 'HEAD' ? undefined : datos); return; }
   if (dev && !ruta.startsWith('/assets/')) {
     const pedido = request({hostname: vite.hostname === 'localhost' ? 'localhost' : vite.hostname, port: vite.port, path: req.url, method: 'GET', headers: {accept: req.headers.accept ?? '*/*'}}, (r) => { res.writeHead(r.statusCode, r.headers); r.pipe(res); });
     pedido.on('error', () => res.writeHead(502).end());
@@ -78,11 +80,22 @@ try {
         if (r.exceptionDetails) throw Error(r.exceptionDetails.text + ' ' + (r.exceptionDetails.exception?.description ?? ''));
         return r.result.value;
       };
+      const inicioCarga = Date.now();
       await evaluar(`window.__abierto = null; window.__novacadPrueba.abrir(location.origin + '${plano}').then((r) => { window.__abierto = String(r); }, (e) => { window.__abierto = 'error: ' + e; }), true`);
       // Esperar a que el dibujo termine de cargarse (el número de entidades se estabiliza).
       let previo = -1;
-      for (let i = 0; i < 300; i++) { const k = await evaluar('window.__novacadPrueba.entidades()'); const listo = await evaluar('window.__novacadPrueba.listo()'); if (process.env.VISOR_DEBUG && i % 3 === 0) console.log('espera', i, k, listo, await evaluar('JSON.stringify([window.__abierto, window.__errores])')); if (listo && k > 0 && k === previo) break; previo = k; await pausa(1000); }
-      if (esDwg) {
+      // Mientras el navegador está ocupado procesando el plano no responde: cada consulta que no
+      // vuelve en 10 s cuenta como un bloqueo (la pestaña congelada que vería el usuario).
+      let bloqueos = 0;
+      const consultar = async (expresion) => { try { return await evaluar(expresion); } catch (error) { if (/CDP timeout/.test(error.message)) { bloqueos++; return null; } throw error; } };
+      const tope = Date.now() + Number(process.env.VISOR_MAX_SEG ?? 900) * 1000;
+      for (let i = 0; i < 300 && Date.now() < tope; i++) { const k = await consultar('window.__novacadPrueba.entidades()'); if (k === null) continue; const listo = await consultar('window.__novacadPrueba.listo()'); if (process.env.VISOR_DEBUG && i % 3 === 0) console.log('espera', i, k, listo, await evaluar('JSON.stringify([window.__abierto, window.__errores])')); if (listo && k > 0 && k === previo) break; previo = k; await pausa(1000); }
+      if (process.env.VISOR_MEDIR) {
+        // Medida de carga: tiempo, objetos, memoria del navegador y errores.
+        const m = await evaluar(`({ms: Math.round(performance.now()), entidades: window.__novacadPrueba.entidades(), heapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null, aviso: document.querySelector('.etabs-recovery[role=status]')?.textContent?.trim().slice(0, 60) ?? null, errores: window.__errores.filter((e) => e.startsWith('error') || !e.startsWith('warn')).length, avisos: window.__errores.filter((e) => e.startsWith('warn')).length})`);
+        console.log('MEDIDA', JSON.stringify({archivoMB: +(readFileSync(dxf).length / 1048576).toFixed(1), cargaSeg: +((Date.now() - inicioCarga) / 1000).toFixed(1), bloqueosDe10s: bloqueos, ...m}));
+      }
+      if (esDwg && !process.env.VISOR_SOLO_ABRIR) {
         // Como el ingeniero: abrir el panel del agente y pedirle las láminas.
         await evaluar('window.__novacadPrueba.abrirAgente()');
         for (let i = 0; i < 60 && !(await evaluar('typeof window.__novacadPrueba.herramienta === "function"')); i++) await pausa(500);

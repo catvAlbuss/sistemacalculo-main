@@ -17,12 +17,15 @@ import {createDrawingContext} from '../../resources/js/ingenieria/cad/drawingCon
 import {SKILLS} from '../../resources/js/ingenieria/agente/skills/index.js';
 import {aplanarModelo} from '../../resources/js/ingenieria/lectura/lectorPlano.js';
 import {dxfParaVisor} from '../../resources/js/etabs/composables/useDrawingRecovery.js';
+import {instalarRecorteXclip} from '../../resources/js/etabs/visor/recorteXclip.js';
 
 const [ruta, vista, salida, cimentacion] = process.argv.slice(2);
 if (!ruta || !vista) { console.error('Uso: node scripts/agente/probar-laminas.mjs <arquitectura.dwg> <vista> [salida.svg] [cimentacion]'); process.exit(1); }
 
 const {AcDbLibreDwgMainThreadConverter} = await import('@mlightcad/libredwg-converter/node');
 dm.AcDbDatabaseConverterManager.instance.register(dm.AcDbFileType.DWG, new AcDbLibreDwgMainThreadConverter());
+// Bloques recortados (XCLIP): se lee lo que AutoCAD muestra, como en el visor.
+instalarRecorteXclip({AcDbLibreDwgConverter: (await import('@mlightcad/libredwg-converter')).AcDbLibreDwgConverter, AcDbBlockReference: dm.AcDbBlockReference});
 const leer = async (archivo, tipo) => {
   const db = new dm.AcDbDatabase();
   const b = readFileSync(archivo);

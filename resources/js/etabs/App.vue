@@ -26,6 +26,10 @@
         <AgentePredimPanel v-if="agentMounted" v-show="agentVisible" @close="agentVisible = false" @foundation="onAgentFoundation" />
 
         <!-- Plano recuperado: el navegador descartó la pestaña, se volvió de otra página o se perdió la vista gráfica. -->
+        <div v-if="avisoPeso" class="etabs-recovery" role="status">
+          <span>{{ avisoPeso }}</span>
+          <button type="button" class="fz-btn fz-btn-ghost" @click="avisoPeso = ''">Entendido</button>
+        </div>
         <div v-if="copiaRecuperable" class="etabs-recovery" role="alert">
           <span><b>{{ graficoPerdido ? "La vista gráfica se reinició." : "Hay un plano sin cerrar." }}</b> {{ textoCopia }}</span>
           <button type="button" class="fz-btn fz-btn-primary" @click="reabrirCopia">Reabrir plano</button>
@@ -99,6 +103,7 @@ import "../../css/etabs-workspace.css";
 import { MlCadViewer } from "@mlightcad/cad-viewer";
 import { AcApDocManager, AcEdOpenMode } from "@mlightcad/cad-simple-viewer";
 import { crearRecuperacion, describirCopia } from "./composables/useDrawingRecovery.js";
+import { instalarRobustezVisor, instalarAperturaPorPeso } from "./visor/robustezVisor.js";
 
 import DatosGeneralesPanel from "./components/DatosGeneralesPanel.vue";
 import FoundationOverlay from "./components/FoundationOverlay.vue";
@@ -187,6 +192,17 @@ onBeforeUnmount(() => {
   surfaceObserver?.disconnect();
   if (surfaceFrame !== null) cancelAnimationFrame(surfaceFrame);
 });
+// El visor no falla si se mueve el mouse o se pide un encuadre mientras un plano pesado carga.
+instalarRobustezVisor(() => AcApDocManager.instance);
+// Apertura por peso (chico / mediano / grande): los planos pesados se dibujan por partes.
+const planoAbierto = ref(null);
+const avisoPeso = ref("");
+instalarAperturaPorPeso(AcApDocManager, (info) => {
+  planoAbierto.value = info;
+  avisoPeso.value = info.perfil === "grande"
+    ? `Plano grande (${info.mb} MB): se dibuja por partes y puedes moverte mientras termina. La recuperación automática queda desactivada para este plano.`
+    : "";
+});
 const selectedFile = ref(undefined);
 const writeMode = AcEdOpenMode.Write;
 
@@ -201,7 +217,8 @@ const recuperacion = crearRecuperacion({
 const copiaRecuperable = ref(null);
 const graficoPerdido = ref(false);
 const textoCopia = computed(() => (copiaRecuperable.value ? describirCopia(copiaRecuperable.value) : ""));
-const guardarCopia = (opciones) => recuperacion.guardar(opciones);
+// En planos grandes exportar la copia (cientos de MB) trabaría la pestaña: no se guarda.
+const guardarCopia = (opciones) => (planoAbierto.value?.perfil === "grande" ? Promise.resolve(false) : recuperacion.guardar(opciones));
 const reabrirCopia = () => {
   const copia = copiaRecuperable.value;
   if (!copia) return;

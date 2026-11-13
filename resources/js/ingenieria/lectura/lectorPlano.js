@@ -56,7 +56,8 @@ export function aplanarModelo(entidades, {capasApagadas = new Set()} = {}) {
       if (tipo === "INSERT") {
         if (profundidad >= MAX_PROFUNDIDAD) continue;
         const local = matrizInsert(entity);
-        const registro = entity.blockTableRecord;
+        // El bloque tal como se dibuja: representación dinámica y recorte XCLIP si los hay.
+        const registro = entity.drawableBlockTableRecord ?? entity.blockTableRecord;
         if (local && registro) {
           bloques.set(entity.blockName, (bloques.get(entity.blockName) ?? 0) + 1);
           visitar(registro.newIterator().toArray(), componer(m, local), capa, profundidad + 1, ruta ? `${ruta}/${entity.blockName}` : entity.blockName);

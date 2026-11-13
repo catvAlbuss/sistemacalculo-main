@@ -2,7 +2,7 @@
 import { createApp } from 'vue'
 import { i18n, MlCadViewer } from '@mlightcad/cad-viewer'
 import { AcApDocManager, AcApI18n, AcApSettingManager } from '@mlightcad/cad-simple-viewer'
-import { AcDbDatabaseConverterManager, AcDbFileType } from '@mlightcad/data-model'
+import { AcDbBlockReference, AcDbDatabaseConverterManager, AcDbFileType } from '@mlightcad/data-model'
 import { AcDbLibreDwgConverter } from '@mlightcad/libredwg-converter'
 import ElementPlus from 'element-plus'
 import es from 'element-plus/es/locale/lang/es'
@@ -12,6 +12,7 @@ import App from './App.vue'
 import { installCadDrawingDefaults } from './cadDrawingDefaults.js'
 import { installSpanishCad } from './locale/spanishCad.js'
 import { installCadFontMapping } from './cadFonts.js'
+import { instalarRecorteXclip } from './visor/recorteXclip.js'
 
 // Desde cad-simple-viewer 1.7 el visor ya no registra un lector DWG: sin esto
 // solo se podían abrir DXF. LibreDWG (GPL) corre aislado en su propio worker.
@@ -19,6 +20,10 @@ AcDbDatabaseConverterManager.instance.register(AcDbFileType.DWG, new AcDbLibreDw
   useWorker: true,
   parserWorkerUrl: '/assets/libredwg-parser-worker.js'
 }))
+
+// Bloques recortados con XCLIP (p. ej. el plano de ubicación del rótulo): el visor dibujaba
+// el terreno completo alrededor de las láminas. Ver visor/recorteXclip.js.
+instalarRecorteXclip({AcDbLibreDwgConverter, AcDbBlockReference})
 
 // Configurar workers (parsers DXF/DWG y render de MText)
 const originalCreateInstance = AcApDocManager.createInstance.bind(AcApDocManager)
