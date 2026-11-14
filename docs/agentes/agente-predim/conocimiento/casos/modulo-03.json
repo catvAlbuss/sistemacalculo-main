@@ -1,0 +1,147 @@
+{
+ "nombre": "modulo-03",
+ "aprendido": "2026-11-14",
+ "etiqueta": null,
+ "rasgos": {
+  "vista": "MÓDULO III: PLANTA DE DISTRIBUCIÓN 1ER NIVEL",
+  "niveles": 1,
+  "ejes": {
+   "x": 6,
+   "y": 2
+  },
+  "luces": {
+   "x": [
+    4.21,
+    4.04,
+    4.52,
+    4.04,
+    4.21
+   ],
+   "y": [
+    8
+   ]
+  },
+  "largo": 21.02,
+  "ancho": 8,
+  "area": 168.16,
+  "luzLosa": 4.52,
+  "luzMax": 8,
+  "columnas": 12,
+  "tipos": [
+   {
+    "nombre": "CT1",
+    "forma": "T",
+    "b": 1,
+    "h": 0.6,
+    "n": 8
+   },
+   {
+    "nombre": "PL1",
+    "forma": "L",
+    "b": 1.5,
+    "h": 1,
+    "n": 4
+   }
+  ],
+  "placas": true,
+  "columnetas": 36,
+  "techoLiviano": true
+ },
+ "decisiones": {
+  "cimentacion": "platea",
+  "cimientoCorrido": true,
+  "hz": 0.6,
+  "df": 2.5,
+  "losa": "aligerada",
+  "espesorLosa": 0.2,
+  "plantasDeLosa": 1,
+  "vigas": [
+   "30x35",
+   "30x60"
+  ],
+  "fcColumnas": 210,
+  "fcColumnetas": 175,
+  "estribos": "3/8\": 1@.05, 12@.10",
+  "porticos": 8,
+  "columnasComoArquitectura": false,
+  "losaDeTecho": true
+ },
+ "columnas": {
+  "escala": 1,
+  "filas": [
+   {
+    "cruce": "6´/D",
+    "arq": "CT1 1x0.6",
+    "est": "PL2 0.3x1.8",
+    "igual": false
+   },
+   {
+    "cruce": "6´/E",
+    "arq": "CT1 1x0.6",
+    "est": "PL2 0.3x1.8",
+    "igual": false
+   },
+   {
+    "cruce": "6´/F",
+    "arq": "CT1 1x0.6",
+    "est": "PL2 0.3x1.8",
+    "igual": false
+   },
+   {
+    "cruce": "6´/G",
+    "arq": "CT1 1x0.6",
+    "est": "PL2 0.3x1.8",
+    "igual": false
+   },
+   {
+    "cruce": "6´/C",
+    "arq": "PL1 1x1.5",
+    "est": "PL1 1x1.5",
+    "igual": true
+   },
+   {
+    "cruce": "6´/H",
+    "arq": "PL1 1x1.5",
+    "est": "PL1 1x1.5",
+    "igual": true
+   },
+   {
+    "cruce": "8/C",
+    "arq": "PL1 1x1.5",
+    "est": "PL1 1x1.5",
+    "igual": true
+   },
+   {
+    "cruce": "8/H",
+    "arq": "PL1 1x1.5",
+    "est": "PL1 1x1.5",
+    "igual": true
+   },
+   {
+    "cruce": "8/D",
+    "arq": "CT1 1x0.6",
+    "est": null,
+    "igual": false
+   },
+   {
+    "cruce": "8/E",
+    "arq": "CT1 1x0.6",
+    "est": null,
+    "igual": false
+   },
+   {
+    "cruce": "8/F",
+    "arq": "CT1 1x0.6",
+    "est": null,
+    "igual": false
+   },
+   {
+    "cruce": "8/G",
+    "arq": "CT1 1x0.6",
+    "est": null,
+    "igual": false
+   }
+  ],
+  "coincidencia": 0.5
+ }
+}

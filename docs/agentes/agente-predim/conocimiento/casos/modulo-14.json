@@ -1,0 +1,99 @@
+{
+ "nombre": "modulo-14",
+ "aprendido": "2026-11-14",
+ "etiqueta": null,
+ "rasgos": {
+  "vista": "Modulo XIV Primer nivel",
+  "niveles": 1,
+  "ejes": {
+   "x": 2,
+   "y": 2
+  },
+  "luces": {
+   "x": [
+    3.76
+   ],
+   "y": [
+    2.52
+   ]
+  },
+  "largo": 3.76,
+  "ancho": 2.52,
+  "area": 9.46,
+  "luzLosa": 2.52,
+  "luzMax": 3.76,
+  "columnas": 4,
+  "tipos": [
+   {
+    "nombre": "C1",
+    "forma": "L",
+    "b": 0.4,
+    "h": 0.4,
+    "n": 2
+   },
+   {
+    "nombre": "C2",
+    "forma": "L",
+    "b": 0.51,
+    "h": 0.43,
+    "n": 1
+   },
+   {
+    "nombre": "C3",
+    "forma": "trapecio",
+    "b": 0.38,
+    "h": 0.25,
+    "n": 1
+   }
+  ],
+  "placas": false,
+  "columnetas": 11,
+  "techoLiviano": true
+ },
+ "decisiones": {
+  "cimentacion": "platea",
+  "cimientoCorrido": true,
+  "hz": 0.7,
+  "df": 2,
+  "losa": "aligerada",
+  "espesorLosa": 0.2,
+  "plantasDeLosa": 1,
+  "vigas": [],
+  "fcColumnas": 210,
+  "fcColumnetas": 175,
+  "estribos": "3/8\": 1@.05, 9@.10",
+  "porticos": 4,
+  "columnasComoArquitectura": true,
+  "losaDeTecho": true
+ },
+ "columnas": {
+  "escala": 1.98,
+  "filas": [
+   {
+    "cruce": "10/Z´",
+    "arq": "C3 0.25x0.38",
+    "est": "C3 0.25x0.38",
+    "igual": true
+   },
+   {
+    "cruce": "8/Z´",
+    "arq": "C2 0.43x0.51",
+    "est": "C2 0.43x0.51",
+    "igual": true
+   },
+   {
+    "cruce": "8/Y´",
+    "arq": "C1 0.4x0.4",
+    "est": "C1 0.4x0.4",
+    "igual": true
+   },
+   {
+    "cruce": "10/Y´",
+    "arq": "C1 0.4x0.4",
+    "est": "C1 0.4x0.4",
+    "igual": true
+   }
+  ],
+  "coincidencia": 1
+ }
+}
