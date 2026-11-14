@@ -1,4 +1,4 @@
-// Memoria del Agente Predim: lo que el agente aprendió de los expedientes de
+// Memoria del Agente NovaCad: lo que el agente aprendió de los expedientes de
 // referencia, escrito para que cualquier motor (Ollama hoy; ChatGPT o Claude en el
 // servidor) entienda el trabajo sin aprender desde cero.
 //
@@ -17,7 +17,7 @@ export function memoriaDelAgente() {
   const C = CRITERIOS;
   const est = (x, n = 1) => textoEstribos(x.estribo, x.distribucion, n);
   return [
-    "## Memoria del Agente Predim (estructuras desde arquitectura)",
+    "## Memoria del Agente NovaCad (estructuras desde arquitectura)",
     `Versión: ${VERSION_MEMORIA}. Referencia aprendida: ${C.referencia}. Por estudiar: módulo 3 (Inicial) y módulo 09 (Vilcabamba).`,
     "",
     "### Qué hace el agente",

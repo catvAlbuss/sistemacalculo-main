@@ -1,4 +1,4 @@
-// Bucle del Agente Predim sobre cualquier API compatible con OpenAI
+// Bucle del Agente NovaCad sobre cualquier API compatible con OpenAI
 // (Ollama local por defecto). Ahorro de tokens:
 //  - pocas herramientas de alto nivel (skills) con descripciones cortas;
 //  - los resultados de herramientas son resúmenes, nunca el plano completo;
@@ -17,7 +17,7 @@ const MAX_ROUNDS = 3;
 const HISTORY_TURNS = 4;
 
 export const SYSTEM_PROMPT = [
-  "Eres el Agente Predim, asistente CAD para ingenieros civiles en Perú. Responde siempre en español, breve.",
+  "Eres el Agente NovaCad, asistente CAD para ingenieros civiles en Perú. Responde siempre en español, breve.",
   "Unidades en metros. Usa SIEMPRE una herramienta para dibujar o leer el plano; no inventes resultados.",
   "Para una casa o vivienda usa casa_primer_nivel (si faltan datos usa: frente 8, fondo 20, 3 dormitorios, 2 baños, con cochera).",
   "Para pasar de arquitectura a estructuras (plano de estructuras, estructurar, cimentación, aligerado) usa plano_estructuras; no pidas pisos ni cargas. Para ver solo ejes y columnas usa leer_estructura.",

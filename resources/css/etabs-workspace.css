@@ -3,18 +3,26 @@ body:has(#cad-viewer-app) { height:100dvh; min-height:0; overflow:hidden; }
 body:has(#cad-viewer-app) > main { display:flex; min-width:0; min-height:0; overflow:hidden; }
 #cad-viewer-app { display:flex; flex:1; min-width:0; min-height:0; overflow:hidden; }
 
-/* Cimentación 2.0 vive sobre el visor CAD, que siempre es oscuro: sus paneles
-   y modales usan la misma paleta oscura sin importar el tema del sitio. */
-.etabs-theme {
-  --pr-bg:#0f1a2a; --pr-panel:#16233a; --pr-soft:#111c2e; --pr-text:#e1eaf6; --pr-muted:#9fb1c8;
-  --pr-line:#2a3d57; --pr-blue:#80b5ff; --fz-accent:#2f6fde; --fz-accent-hover:#3d7cf0;
-  --fz-ok:#4ade80; --fz-warn:#fbbf24; --fz-danger:#f87171; --fz-input:#0c1626;
-  color-scheme:dark; color:var(--pr-text); font-family:Figtree,ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif; font-size:13px; line-height:1.45;
+/* Los paneles y portales de NovaCad siguen el tema del equipo; el plano CAD
+   conserva un fondo técnico oscuro independiente de las superficies UI. */
+.etabs-theme, body:has(#cad-viewer-app) {
+  --pr-bg:#f8fafc; --pr-panel:#fff; --pr-soft:#edf2f7; --pr-text:#24364b; --pr-muted:#52647a;
+  --pr-line:#c1cddb; --pr-blue:#1d4ed8; --fz-accent:#2563eb; --fz-accent-hover:#1d4ed8;
+  --fz-ok:#166534; --fz-warn:#854d0e; --fz-danger:#b91c1c; --fz-danger-bg:#fef2f2; --fz-input:#fff; --fz-control-line:#64748b;
+  color-scheme:light; color:var(--pr-text); font-family:Figtree,ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif; font-size:13px; line-height:1.45;
+}
+@media(prefers-color-scheme:dark) {
+  .etabs-theme, body:has(#cad-viewer-app) {
+    --pr-bg:#101b2d; --pr-panel:#18283c; --pr-soft:#111c2b; --pr-text:#e5edf8; --pr-muted:#b4c3d5;
+    --pr-line:#3e526b; --pr-blue:#93c5fd; --fz-accent:#2563eb; --fz-accent-hover:#1d4ed8;
+    --fz-ok:#86efac; --fz-warn:#fde047; --fz-danger:#fca5a5; --fz-danger-bg:#42252c; --fz-input:#111c2b; --fz-control-line:#8497b0;
+    color-scheme:dark;
+  }
 }
 .etabs-theme *,.etabs-theme *::before,.etabs-theme *::after { box-sizing:border-box; }
 
 .etabs-theme .fz-btn { display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;padding:6px 12px;border:1px solid var(--pr-line);border-radius:7px;background:var(--pr-soft);color:var(--pr-text);font-weight:600;font-size:12.5px;line-height:1.2;font-family:inherit;cursor:pointer;white-space:nowrap;transition:background .12s,border-color .12s; }
-.etabs-theme .fz-btn:hover:not(:disabled) { border-color:var(--pr-blue);background:#18294a; }
+.etabs-theme .fz-btn:hover:not(:disabled) { border-color:var(--pr-blue);background:var(--pr-soft); }
 .etabs-theme .fz-btn:focus-visible,.etabs-theme .fz-input:focus-visible { outline:2px solid var(--pr-blue);outline-offset:1px; }
 .etabs-theme .fz-btn:disabled { opacity:.45;cursor:not-allowed; }
 .etabs-theme .fz-btn-primary { border-color:transparent;background:var(--fz-accent);color:#fff; }
@@ -26,7 +34,8 @@ body:has(#cad-viewer-app) > main { display:flex; min-width:0; min-height:0; over
 .etabs-theme .fz-btn-block { width:100%; }
 .etabs-theme .fz-btn-lg { min-height:40px;font-size:14px; }
 
-.etabs-theme .fz-input { width:100%;min-height:32px;padding:6px 9px;border:1px solid var(--pr-line);border-radius:7px;background:var(--fz-input);color:var(--pr-text);font-size:13px;font-family:inherit; }
+.etabs-theme .fz-input { width:100%;min-height:32px;padding:6px 9px;border:1px solid var(--fz-control-line);border-radius:7px;background:var(--fz-input);color:var(--pr-text);font-size:13px;font-family:inherit; }
+.etabs-theme .fz-input::placeholder { color:var(--pr-muted);opacity:1; }
 .etabs-theme .fz-input:hover { border-color:#3b5476; }
 .etabs-theme .fz-field { display:grid;gap:5px;min-width:0; }
 .etabs-theme .fz-field > span { font-size:12px;color:var(--pr-muted); }
@@ -42,13 +51,13 @@ body:has(#cad-viewer-app) > main { display:flex; min-width:0; min-height:0; over
 .etabs-theme .fz-table-wrap { overflow:auto;border:1px solid var(--pr-line);border-radius:9px; }
 .etabs-theme .fz-table { width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums; }
 .etabs-theme .fz-table th,.etabs-theme .fz-table td { padding:7px 10px;border-bottom:1px solid var(--pr-line);text-align:right;white-space:nowrap; }
-.etabs-theme .fz-table thead th { position:sticky;top:0;z-index:1;background:#1b2b45;color:var(--pr-muted);font-weight:600;font-size:11.5px; }
+.etabs-theme .fz-table thead th { position:sticky;top:0;z-index:1;background:var(--pr-soft);color:var(--pr-muted);font-weight:600;font-size:11.5px; }
 .etabs-theme .fz-table thead tr.fz-group th { text-align:center;color:var(--pr-text); }
 .etabs-theme .fz-table tbody tr:hover { background:rgba(128,181,255,.05); }
 .etabs-theme .fz-table tbody tr:last-child td { border-bottom:0; }
 .etabs-theme .fz-table .fz-left { text-align:left; }
 .etabs-theme .fz-table .fz-cell { width:84px;min-height:28px;padding:4px 6px;text-align:right; }
 
-.etabs-theme .fz-badge { display:inline-flex;align-items:center;padding:2px 7px;border-radius:999px;background:#1d2f4d;color:#bcd4f5;font-size:10.5px;font-weight:700;letter-spacing:.02em; }
+.etabs-theme .fz-badge { display:inline-flex;align-items:center;padding:2px 7px;border-radius:999px;background:var(--pr-soft);color:var(--pr-blue);font-size:10.5px;font-weight:700;letter-spacing:.02em; }
 .etabs-theme .fz-note { margin:0;font-size:12px;color:var(--pr-muted); }
 .etabs-theme .fz-card { padding:12px;border:1px solid var(--pr-line);border-radius:10px;background:var(--pr-soft); }

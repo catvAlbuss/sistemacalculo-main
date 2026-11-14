@@ -20,5 +20,5 @@ test('large or cloud engines get the full memory; small local Ollama models the 
   assert.equal(usaMemoriaCompleta({...local('qwen3-cad'), memoria: 'completa'}), true);
   const corto = promptDelSistema(local('qwen3-cad')), largo = promptDelSistema({baseUrl: 'https://api.openai.com/v1', model: 'gpt-5'});
   assert.ok(corto.length < 1200 && corto.endsWith('/no_think'));
-  assert.ok(largo.includes('Memoria del Agente Predim') && !largo.includes('/no_think'));
+  assert.ok(largo.includes('Memoria del Agente NovaCad') && !largo.includes('/no_think'));
 });

@@ -31,6 +31,9 @@ public/build/*
 !public/build/assets/
 # El manifest y los bundles necesitan también imágenes, fuentes y workers.
 !public/build/assets/**
+# Los avisos de terceros se distribuyen junto con los bundles compilados.
+!public/build/licenses/
+!public/build/licenses/**
 
 # ETABS2 backend release generated files
 ETABS2_BACKEND_RELEASE/logs/

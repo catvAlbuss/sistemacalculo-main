@@ -1,7 +1,7 @@
 // resources/js/etabs/main.js
 import { createApp } from 'vue'
 import { i18n, MlCadViewer } from '@mlightcad/cad-viewer'
-import { AcApDocManager, AcApI18n, AcApSettingManager } from '@mlightcad/cad-simple-viewer'
+import { AcApDocManager, AcApI18n, AcApSettingManager, AcEdCommand } from '@mlightcad/cad-simple-viewer'
 import { AcDbBlockReference, AcDbDatabaseConverterManager, AcDbFileType } from '@mlightcad/data-model'
 import { AcDbLibreDwgConverter } from '@mlightcad/libredwg-converter'
 import ElementPlus from 'element-plus'
@@ -12,6 +12,8 @@ import App from './App.vue'
 import { installCadDrawingDefaults } from './cadDrawingDefaults.js'
 import { installSpanishCad } from './locale/spanishCad.js'
 import { installCadFontMapping } from './cadFonts.js'
+import { installNovaCadAbout } from './product/installAbout.js'
+import { installNovaCadLabels } from './product/labels.js'
 import { instalarRecorteXclip } from './visor/recorteXclip.js'
 
 // Desde cad-simple-viewer 1.7 el visor ya no registra un lector DWG: sin esto
@@ -36,16 +38,13 @@ AcApDocManager.createInstance = (options = {}) => {
   }
   const manager = originalCreateInstance(options)
   installCadDrawingDefaults(manager)
+  installNovaCadAbout(manager, {CommandBase:AcEdCommand,openAbout:()=>window.dispatchEvent(new CustomEvent('novacad:about'))})
   return manager
 }
 
-// Mostrar la UI nativa completa del visor (menú/ribbon, toolbar, barra de estado).
-// Se fuerzan a true porque AcApSettingManager persiste en localStorage y una
-// configuración previa pudo haberlas dejado ocultas.
-AcApSettingManager.instance.isShowRibbon = true
-AcApSettingManager.instance.isShowToolbar = true
-AcApSettingManager.instance.isShowStatusBar = true
-AcApSettingManager.instance.isShowCommandLine = true
+// Se mantiene la interfaz nativa completa; NovaCad adapta su apariencia.
+// Las opciones de esta pagina no reemplazan las preferencias guardadas.
+AcApSettingManager.instance.apply({isShowRibbon:true,isShowToolbar:true,isShowCommandLine:true},{persist:false})
 
 // En el menú Archivo, la fila "Abrir dibujo" solo despliega su submenú, pero al
 // hacerle clic Element Plus emite su comando por defecto ({}) y el visor falla con
@@ -61,6 +60,7 @@ installCadFontMapping(AcApSettingManager.instance)
 
 // Interfaz del visor en español latino (cinta, diálogos, paletas y línea de comandos).
 installSpanishCad({ i18n, AcApI18n, settings: AcApSettingManager.instance })
+installNovaCadLabels({i18n,AcApI18n})
 
 // Montar app: visor CAD con su barra de herramientas nativa completa
 const app = createApp(App)
@@ -68,8 +68,9 @@ app.use(i18n)
 app.use(ElementPlus, { locale: es })
 app.component('MlCadViewer', MlCadViewer)
 app.mount('#cad-viewer-app')
+document.title = 'NovaCad | Rizabal & Asociados'
 
-console.log('✅ ETABS: visor CAD montado')
+console.log('✅ NovaCad: visor CAD montado')
 
 // AcApDocManager es un singleton: si Vite recarga en caliente un componente, el
 // visor se vuelve a montar y el gestor queda atado a una vista ya destruida (el

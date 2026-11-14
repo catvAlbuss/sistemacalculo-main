@@ -14,7 +14,7 @@ test('the portable agent package matches the code: same tools for OpenAI/Ollama/
   assert.ok(claude.every((t) => t.input_schema?.type === 'object'), 'Claude tools need input_schema');
   for (const n of nombres) assert.ok(existsSync(`${base}/skills/${n}/SKILL.md`), `missing SKILL.md for ${n}`);
   const agente = readFileSync(`${base}/AGENTE.md`, 'utf8');
-  assert.match(agente, /Memoria del Agente Predim/);
+  assert.match(agente, /Memoria del Agente NovaCad/);
   assert.ok(JSON.parse(readFileSync(`${base}/evaluacion/casos.json`, 'utf8')).length >= 8);
 });
 

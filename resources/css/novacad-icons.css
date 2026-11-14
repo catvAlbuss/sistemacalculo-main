@@ -1,0 +1,15 @@
+/* Iconos originales NovaCad: se conserva el contenedor y el evento del motor. */
+.novacad-workspace [data-item-id$="cmd-line"] { --nc-glyph:url("../js/etabs/product/icons/line.svg"); }
+.novacad-workspace [data-item-id$="cmd-polyline"] { --nc-glyph:url("../js/etabs/product/icons/polyline.svg"); }
+.novacad-workspace [data-item-id$="cmd-circle"] { --nc-glyph:url("../js/etabs/product/icons/circle.svg"); }
+.novacad-workspace [data-item-id$="cmd-arc"] { --nc-glyph:url("../js/etabs/product/icons/arc.svg"); }
+.novacad-workspace [data-item-id$="cmd-rect"] { --nc-glyph:url("../js/etabs/product/icons/rect.svg"); }
+.novacad-workspace [data-item-id$="cmd-move"] { --nc-glyph:url("../js/etabs/product/icons/move.svg"); }
+.novacad-workspace [data-item-id$="cmd-copy"] { --nc-glyph:url("../js/etabs/product/icons/copy.svg"); }
+.novacad-workspace [data-item-id$="cmd-rotate"] { --nc-glyph:url("../js/etabs/product/icons/rotate.svg"); }
+.novacad-workspace [data-item-id$="cmd-layer"] { --nc-glyph:url("../js/etabs/product/icons/layer.svg"); }
+.novacad-workspace [data-item-id$="cmd-properties"] { --nc-glyph:url("../js/etabs/product/icons/properties.svg"); }
+.novacad-workspace [data-item-id$="cmd-mtext"] { --nc-glyph:url("../js/etabs/product/icons/mtext.svg"); }
+.novacad-workspace :is([data-item-id$="cmd-line"],[data-item-id$="cmd-polyline"],[data-item-id$="cmd-circle"],[data-item-id$="cmd-arc"],[data-item-id$="cmd-rect"],[data-item-id$="cmd-move"],[data-item-id$="cmd-copy"],[data-item-id$="cmd-rotate"],[data-item-id$="cmd-layer"],[data-item-id$="cmd-properties"],[data-item-id$="cmd-mtext"]) .ml-ribbon-item-host__icon { position:relative;color:var(--pr-blue); }
+.novacad-workspace :is([data-item-id$="cmd-line"],[data-item-id$="cmd-polyline"],[data-item-id$="cmd-circle"],[data-item-id$="cmd-arc"],[data-item-id$="cmd-rect"],[data-item-id$="cmd-move"],[data-item-id$="cmd-copy"],[data-item-id$="cmd-rotate"],[data-item-id$="cmd-layer"],[data-item-id$="cmd-properties"],[data-item-id$="cmd-mtext"]) .ml-ribbon-item-host__icon::before { content:"";position:absolute;inset:0;background:currentColor;mask:var(--nc-glyph) center/contain no-repeat;-webkit-mask:var(--nc-glyph) center/contain no-repeat;pointer-events:none; }
+.novacad-workspace :is([data-item-id$="cmd-line"],[data-item-id$="cmd-polyline"],[data-item-id$="cmd-circle"],[data-item-id$="cmd-arc"],[data-item-id$="cmd-rect"],[data-item-id$="cmd-move"],[data-item-id$="cmd-copy"],[data-item-id$="cmd-rotate"],[data-item-id$="cmd-layer"],[data-item-id$="cmd-properties"],[data-item-id$="cmd-mtext"]) .ml-ribbon-item-host__icon > * { visibility:hidden; }

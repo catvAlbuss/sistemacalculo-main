@@ -1,0 +1,1091 @@
+{
+  "product": "NovaCad",
+  "scope": "Paquetes identificados en los chunks de esta compilación y sus workers copiados; las dependencias embebidas por proveedores requieren también revisión de sus avisos.",
+  "legalStatus": "Inventario y avisos; no constituye una certificación de cumplimiento.",
+  "packages": [
+    {
+      "name": "@azure/msal-browser",
+      "version": "4.30.0",
+      "license": "MIT",
+      "repository": "https://github.com/AzureAD/microsoft-authentication-library-for-js",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_azure_msal-browser-4.30.0/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@azure/msal-common",
+      "version": "15.17.0",
+      "license": "MIT",
+      "repository": "https://github.com/AzureAD/microsoft-authentication-library-for-js",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_azure_msal-common-15.17.0/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@babel/runtime",
+      "version": "7.29.10",
+      "license": "MIT",
+      "repository": "https://github.com/babel/babel",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_babel_runtime-7.29.10/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@babylonjs/core",
+      "version": "9.33.1",
+      "license": "Apache-2.0",
+      "repository": "https://github.com/BabylonJS/Babylon.js",
+      "files": [
+        {
+          "name": "license.md",
+          "url": "/build/licenses/texts/_babylonjs_core-9.33.1/license.md"
+        },
+        {
+          "name": "NOTICE.md",
+          "url": "/build/licenses/texts/_babylonjs_core-9.33.1/NOTICE.md"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@ctrl/tinycolor",
+      "version": "4.2.2",
+      "license": "MIT",
+      "repository": "scttcper/tinycolor",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_ctrl_tinycolor-4.2.2/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@element-plus/icons-vue",
+      "version": "2.3.2",
+      "license": "MIT",
+      "repository": "https://github.com/element-plus/element-plus-icons",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_element-plus_icons-vue-2.3.2/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@floating-ui/core",
+      "version": "1.8.0",
+      "license": "MIT",
+      "repository": "https://github.com/floating-ui/floating-ui",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_floating-ui_core-1.8.0/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@floating-ui/dom",
+      "version": "1.8.0",
+      "license": "MIT",
+      "repository": "https://github.com/floating-ui/floating-ui",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_floating-ui_dom-1.8.0/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@floating-ui/utils",
+      "version": "0.2.12",
+      "license": "MIT",
+      "repository": "https://github.com/floating-ui/floating-ui",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_floating-ui_utils-0.2.12/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@intlify/core-base",
+      "version": "11.4.16",
+      "license": "MIT",
+      "repository": "https://github.com/intlify/vue-i18n",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_intlify_core-base-11.4.16/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@intlify/message-compiler",
+      "version": "11.4.16",
+      "license": "MIT",
+      "repository": "https://github.com/intlify/vue-i18n",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_intlify_message-compiler-11.4.16/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@intlify/shared",
+      "version": "11.4.16",
+      "license": "MIT",
+      "repository": "https://github.com/intlify/vue-i18n",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_intlify_shared-11.4.16/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/cad-agent-plugin",
+      "version": "1.7.6",
+      "license": "MIT",
+      "repository": "https://github.com/mlightcad/cad-viewer",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_cad-agent-plugin-1.7.6/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/cad-google-drive-plugin",
+      "version": "1.7.6",
+      "license": "MIT",
+      "repository": "https://github.com/mlightcad/cad-viewer",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_cad-google-drive-plugin-1.7.6/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/cad-html-plugin",
+      "version": "1.7.6",
+      "license": "MIT",
+      "repository": "https://github.com/mlightcad/cad-viewer",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_cad-html-plugin-1.7.6/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/cad-onedrive-plugin",
+      "version": "1.7.6",
+      "license": "MIT",
+      "repository": "https://github.com/mlightcad/cad-viewer",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_cad-onedrive-plugin-1.7.6/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/cad-pdf-plugin",
+      "version": "1.7.6",
+      "license": "MIT",
+      "repository": "https://github.com/mlightcad/cad-viewer",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_cad-pdf-plugin-1.7.6/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/cad-simple-viewer",
+      "version": "1.7.6",
+      "license": "MIT",
+      "repository": "https://github.com/mlightcad/cad-viewer",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_cad-simple-viewer-1.7.6/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/cad-svg-plugin",
+      "version": "1.7.6",
+      "license": "MIT",
+      "repository": "https://github.com/mlightcad/cad-viewer",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_cad-svg-plugin-1.7.6/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/cad-viewer",
+      "version": "1.7.6",
+      "license": "MIT",
+      "repository": "https://github.com/mlightcad/cad-viewer",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_cad-viewer-1.7.6/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/common",
+      "version": "1.15.17",
+      "license": "MIT",
+      "repository": "https://github.com/mlightcad/realdwg-web",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_common-1.15.17/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/data-model",
+      "version": "1.15.17",
+      "license": "MIT",
+      "repository": "https://github.com/mlightcad/realdwg-web",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_data-model-1.15.17/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/dxf-json",
+      "version": "1.2.8",
+      "license": "GPL-3.0",
+      "repository": "https://github.com/mlight-lee/dxf-json",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_dxf-json-1.2.8/LICENSE"
+        }
+      ],
+      "reviewRequired": true,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/emf-converter",
+      "version": "1.15.17",
+      "license": "Apache-2.0",
+      "repository": "https://github.com/mlightcad/realdwg-web",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_emf-converter-1.15.17/LICENSE"
+        },
+        {
+          "name": "NOTICE.md",
+          "url": "/build/licenses/texts/_mlightcad_emf-converter-1.15.17/NOTICE.md"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/geometry-engine",
+      "version": "3.15.17",
+      "license": "MIT",
+      "repository": "https://github.com/mlightcad/realdwg-web",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_geometry-engine-3.15.17/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/graphic-interface",
+      "version": "3.15.17",
+      "license": "MIT",
+      "repository": "https://github.com/mlightcad/realdwg-web",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_graphic-interface-3.15.17/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/libredwg-converter",
+      "version": "3.15.17",
+      "license": "GPL-3.0",
+      "repository": "https://github.com/mlightcad/realdwg-web",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_libredwg-converter-3.15.17/LICENSE"
+        }
+      ],
+      "reviewRequired": true,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/libredwg-web",
+      "version": "0.7.17",
+      "license": "GPL-3.0",
+      "repository": "https://github.com/mlightcad/libredwg-web",
+      "files": [
+        {
+          "name": "GPL-3.0.txt",
+          "url": "/build/licenses/texts/_mlightcad_libredwg-web-0.7.17/GPL-3.0.txt"
+        }
+      ],
+      "reviewRequired": true,
+      "missingPackageNotices": true
+    },
+    {
+      "name": "@mlightcad/mtext-parser",
+      "version": "1.5.5",
+      "license": "MIT",
+      "repository": "https://github.com/mlightcad/mtext-parser",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_mtext-parser-1.5.5/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/mtext-renderer",
+      "version": "0.13.4",
+      "license": "MIT",
+      "repository": "https://github.com/mlightcad/mtext-renderer",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_mtext-renderer-0.13.4/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/pdf-renderer",
+      "version": "1.7.6",
+      "license": "MIT",
+      "repository": "https://github.com/mlightcad/cad-viewer",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_pdf-renderer-1.7.6/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/three-renderer",
+      "version": "1.7.6",
+      "license": "MIT",
+      "repository": "https://github.com/mlightcad/cad-viewer",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_three-renderer-1.7.6/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@sxzz/popperjs-es",
+      "version": "2.11.8",
+      "license": "MIT",
+      "repository": "github:popperjs/popper-core",
+      "files": [
+        {
+          "name": "LICENSE.md",
+          "url": "/build/licenses/texts/_sxzz_popperjs-es-2.11.8/LICENSE.md"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@velipso/polybool",
+      "version": "1.1.1",
+      "license": "0BSD",
+      "repository": "https://github.com/velipso/polybool",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_velipso_polybool-1.1.1/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@vue/reactivity",
+      "version": "3.5.44",
+      "license": "MIT",
+      "repository": "https://github.com/vuejs/core",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_vue_reactivity-3.5.44/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@vue/runtime-core",
+      "version": "3.5.44",
+      "license": "MIT",
+      "repository": "https://github.com/vuejs/core",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_vue_runtime-core-3.5.44/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@vue/runtime-dom",
+      "version": "3.5.44",
+      "license": "MIT",
+      "repository": "https://github.com/vuejs/core",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_vue_runtime-dom-3.5.44/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@vue/shared",
+      "version": "3.5.44",
+      "license": "MIT",
+      "repository": "https://github.com/vuejs/core",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_vue_shared-3.5.44/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@vueuse/core",
+      "version": "11.3.0",
+      "license": "MIT",
+      "repository": "https://github.com/vueuse/vueuse",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_vueuse_core-11.3.0/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@vueuse/core",
+      "version": "15.0.0",
+      "license": "MIT",
+      "repository": "https://github.com/vueuse/vueuse",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_vueuse_core-15.0.0/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@vueuse/shared",
+      "version": "11.3.0",
+      "license": "MIT",
+      "repository": "https://github.com/vueuse/vueuse",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_vueuse_shared-11.3.0/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@vueuse/shared",
+      "version": "15.0.0",
+      "license": "MIT",
+      "repository": "https://github.com/vueuse/vueuse",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_vueuse_shared-15.0.0/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "async-validator",
+      "version": "4.2.5",
+      "license": "MIT",
+      "repository": "git@github.com:yiminghe/async-validator",
+      "files": [
+        {
+          "name": "LICENSE.md",
+          "url": "/build/licenses/texts/async-validator-4.2.5/LICENSE.md"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "axios",
+      "version": "1.21.0",
+      "license": "MIT",
+      "repository": "https://github.com/axios/axios",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/axios-1.21.0/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "complex.js",
+      "version": "2.4.3",
+      "license": "MIT",
+      "repository": "git@github.com:rawify/Complex.js",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/complex.js-2.4.3/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "dayjs",
+      "version": "1.11.23",
+      "license": "MIT",
+      "repository": "https://github.com/iamkun/dayjs",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/dayjs-1.11.23/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "decimal.js",
+      "version": "10.6.0",
+      "license": "MIT",
+      "repository": "https://github.com/MikeMcl/decimal.js",
+      "files": [
+        {
+          "name": "LICENCE.md",
+          "url": "/build/licenses/texts/decimal.js-10.6.0/LICENCE.md"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "earcut",
+      "version": "3.2.4",
+      "license": "ISC",
+      "repository": "git://github.com/mapbox/earcut",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/earcut-3.2.4/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "element-plus",
+      "version": "2.14.7",
+      "license": "MIT",
+      "repository": "https://github.com/element-plus/element-plus",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/element-plus-2.14.7/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "escape-latex",
+      "version": "1.2.0",
+      "license": "MIT",
+      "repository": "https://github.com/dangmai/escape-latex",
+      "files": [
+        {
+          "name": "LICENSE.md",
+          "url": "/build/licenses/texts/escape-latex-1.2.0/LICENSE.md"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "exceljs",
+      "version": "4.4.0",
+      "license": "MIT",
+      "repository": "https://github.com/exceljs/exceljs",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/exceljs-4.4.0/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "flowbite",
+      "version": "3.1.2",
+      "license": "MIT",
+      "repository": "https://github.com/themesberg/flowbite",
+      "files": [
+        {
+          "name": "LICENSE.md",
+          "url": "/build/licenses/texts/flowbite-3.1.2/LICENSE.md"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "flowbite-datepicker",
+      "version": "1.3.2",
+      "license": "MIT",
+      "repository": "https://github.com/themesberg/tailwind-datepicker",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/flowbite-datepicker-1.3.2/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "fraction.js",
+      "version": "5.3.4",
+      "license": "MIT",
+      "repository": "ssh://git@github.com/rawify/Fraction.js",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/fraction.js-5.3.4/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "html2canvas",
+      "version": "1.4.1",
+      "license": "MIT",
+      "repository": "git@github.com:niklasvh/html2canvas",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/html2canvas-1.4.1/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "javascript-natural-sort",
+      "version": "0.7.1",
+      "license": "MIT",
+      "repository": "https://github.com/Bill4Time/javascript-natural-sort",
+      "files": [
+        {
+          "name": "naturalSort.js-NOTICE.txt",
+          "url": "/build/licenses/texts/javascript-natural-sort-0.7.1/naturalSort.js-NOTICE.txt"
+        }
+      ],
+      "reviewRequired": true,
+      "missingPackageNotices": true
+    },
+    {
+      "name": "jquery",
+      "version": "3.7.1",
+      "license": "MIT",
+      "repository": "https://github.com/jquery/jquery",
+      "files": [
+        {
+          "name": "AUTHORS.txt",
+          "url": "/build/licenses/texts/jquery-3.7.1/AUTHORS.txt"
+        },
+        {
+          "name": "LICENSE.txt",
+          "url": "/build/licenses/texts/jquery-3.7.1/LICENSE.txt"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "jquery-ui",
+      "version": "1.14.2",
+      "license": "MIT",
+      "repository": "git://github.com/jquery/jquery-ui",
+      "files": [
+        {
+          "name": "AUTHORS.txt",
+          "url": "/build/licenses/texts/jquery-ui-1.14.2/AUTHORS.txt"
+        },
+        {
+          "name": "LICENSE.txt",
+          "url": "/build/licenses/texts/jquery-ui-1.14.2/LICENSE.txt"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "lodash-es",
+      "version": "4.18.1",
+      "license": "MIT",
+      "repository": "lodash/lodash",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/lodash-es-4.18.1/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "loglevel",
+      "version": "1.9.2",
+      "license": "MIT",
+      "repository": "git://github.com/pimterry/loglevel",
+      "files": [
+        {
+          "name": "LICENSE-MIT",
+          "url": "/build/licenses/texts/loglevel-1.9.2/LICENSE-MIT"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "mat-for-js",
+      "version": "1.1.0",
+      "license": "GPL-3.0-or-later",
+      "repository": "https://github.com/KovacsGG/mat4js",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/mat-for-js-1.1.0/LICENSE"
+        }
+      ],
+      "reviewRequired": true,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "mathjs",
+      "version": "15.2.0",
+      "license": "Apache-2.0",
+      "repository": "https://github.com/josdejong/mathjs",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/mathjs-15.2.0/LICENSE"
+        },
+        {
+          "name": "NOTICE",
+          "url": "/build/licenses/texts/mathjs-15.2.0/NOTICE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "memoize-one",
+      "version": "6.0.0",
+      "license": "MIT",
+      "repository": "https://github.com/alexreardon/memoize-one",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/memoize-one-6.0.0/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "normalize-wheel-es",
+      "version": "1.2.0",
+      "license": "BSD-3-Clause",
+      "repository": "https://github.com/sxzz/normalize-wheel-es",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/normalize-wheel-es-1.2.0/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "pako",
+      "version": "1.0.11",
+      "license": "(MIT AND Zlib)",
+      "repository": "nodeca/pako",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/pako-1.0.11/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "pdfmake",
+      "version": "0.2.23",
+      "license": "MIT",
+      "repository": "git://github.com/bpampuch/pdfmake",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/pdfmake-0.2.23/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "plotly.js-dist-min",
+      "version": "2.35.3",
+      "license": "MIT",
+      "repository": "https://github.com/plotly/plotly.js",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/plotly.js-dist-min-2.35.3/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "print-this",
+      "version": "2.0.0",
+      "license": "MIT",
+      "repository": "https://github.com/jasonday/printThis",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/print-this-2.0.0/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "seedrandom",
+      "version": "3.0.5",
+      "license": "MIT",
+      "repository": "git://github.com/davidbau/seedrandom",
+      "files": [
+        {
+          "name": "seedrandom.js-NOTICE.txt",
+          "url": "/build/licenses/texts/seedrandom-3.0.5/seedrandom.js-NOTICE.txt"
+        }
+      ],
+      "reviewRequired": true,
+      "missingPackageNotices": true
+    },
+    {
+      "name": "sweetalert2",
+      "version": "11.26.25",
+      "license": "MIT",
+      "repository": "https://github.com/sweetalert2/sweetalert2",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/sweetalert2-11.26.25/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "tabulator-tables",
+      "version": "6.7.1",
+      "license": "MIT",
+      "repository": "https://github.com/tabulator-tables/tabulator",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/tabulator-tables-6.7.1/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "three",
+      "version": "0.172.0",
+      "license": "MIT",
+      "repository": "https://github.com/mrdoob/three.js",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/three-0.172.0/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "tiny-emitter",
+      "version": "2.1.0",
+      "license": "MIT",
+      "repository": "https://github.com/scottcorgan/tiny-emitter",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/tiny-emitter-2.1.0/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "typed-function",
+      "version": "4.2.2",
+      "license": "MIT",
+      "repository": "https://github.com/josdejong/typed-function",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/typed-function-4.2.2/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "uid",
+      "version": "2.0.2",
+      "license": "MIT",
+      "repository": "lukeed/uid",
+      "files": [
+        {
+          "name": "license",
+          "url": "/build/licenses/texts/uid-2.0.2/license"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "vue-i18n",
+      "version": "11.4.16",
+      "license": "MIT",
+      "repository": "https://github.com/intlify/vue-i18n",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/vue-i18n-11.4.16/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    }
+  ]
+}

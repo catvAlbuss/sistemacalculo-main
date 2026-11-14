@@ -1,4 +1,4 @@
-// Paquete portable del Agente Predim: todo lo que otra IA (Ollama, ChatGPT, Claude,
+// Paquete portable del Agente NovaCad: todo lo que otra IA (Ollama, ChatGPT, Claude,
 // Grok…) necesita para entender y replicar el agente, generado desde el código:
 //
 //   node scripts/agente/exportar-paquete.mjs
@@ -45,7 +45,7 @@ const NOTAS = {
 
 // ---------- README ----------
 const herramientas = SKILLS.filter((s) => s.name !== 'zapatas_desde_plano');
-escribir('README.md', `# Agente Predim (paquete portable)
+escribir('README.md', `# Agente NovaCad (paquete portable)
 
 Agente de estructuras para planos de arquitectura peruanos (E.020, E.030, E.050, E.060, E.070). Recibe una planta de arquitectura (DWG/DXF) y devuelve las láminas de estructuras (cimentación, cimiento corrido, aligerado, pórticos y cuadros) con el criterio y el estilo de dibujo del despacho.
 
@@ -103,7 +103,7 @@ Modelos evaluados: ${Object.entries(EVALUACION_MODELOS).map(([m, n]) => `${m} ($
 `);
 
 // ---------- AGENTE.md ----------
-escribir('AGENTE.md', `# Instrucciones del sistema del Agente Predim
+escribir('AGENTE.md', `# Instrucciones del sistema del Agente NovaCad
 
 Usar como mensaje \`system\`. Los modelos chicos (4B) usan solo la primera sección.
 

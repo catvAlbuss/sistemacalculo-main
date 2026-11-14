@@ -1,4 +1,4 @@
-# Agente Predim (paquete portable)
+# Agente NovaCad (paquete portable)
 
 Agente de estructuras para planos de arquitectura peruanos (E.020, E.030, E.050, E.060, E.070). Recibe una planta de arquitectura (DWG/DXF) y devuelve las láminas de estructuras (cimentación, cimiento corrido, aligerado, pórticos y cuadros) con el criterio y el estilo de dibujo del despacho.
 

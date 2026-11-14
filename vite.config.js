@@ -4,6 +4,7 @@ import { glob } from "glob";
 import vue from '@vitejs/plugin-vue';
 import { resolve, dirname } from 'path';
 import fs from 'fs';
+import {novaCadNoticesPlugin} from './scripts/novacad-third-party-notices.mjs';
 
 // Stub para el builtin "module" de Node que el glue emscripten de
 // @mlightcad/libredwg-web referencia en una rama solo-Node (código muerto en el
@@ -93,6 +94,7 @@ export default defineConfig({
             exclude: ['resources/img/**'],
         }),
         copyWorkers(),
+        novaCadNoticesPlugin(),
     ],
     // libredwg-web (conversor DWG→DXF que carga el módulo CAD bajo demanda al
     // importar un plano .dwg) trae dentro un `await import("module")` de

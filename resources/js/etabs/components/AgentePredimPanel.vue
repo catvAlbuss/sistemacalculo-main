@@ -1,8 +1,8 @@
 <template>
-  <aside class="ap-panel" aria-label="Agente Predim">
+  <aside class="ap-panel" aria-label="Agente NovaCad">
     <header class="ap-header">
       <div class="ap-title">
-        <h2>Agente Predim</h2>
+        <h2>Agente NovaCad</h2>
         <p>{{ settings.model }} · {{ isLocal ? "local, sin costo" : "servidor externo" }}</p>
       </div>
       <button type="button" class="etabs-icon-btn" :aria-pressed="showSettings" title="Configuración del modelo" @click="toggleSettings">⚙</button>
@@ -260,7 +260,7 @@ async function send(text = draftText.value) {
 .ap-proyecto { max-height:55vh;overflow:auto; }
 .ap-section { margin:6px 0 0;font-size:12.5px;font-weight:700; }
 .ap-note { font-size:12px;color:var(--pr-muted, #64748b);margin-top:-4px; }
-.ap-note.is-warn { color:#b45309; }
+.ap-note.is-warn { color:var(--fz-warn); }
 .ap-settings { display:grid;gap:8px;padding:12px 14px;border-bottom:1px solid var(--pr-line);background:var(--pr-soft); }
 .ap-row { display:flex;gap:6px; }
 .ap-messages { flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:10px;padding:14px; }

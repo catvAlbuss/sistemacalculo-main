@@ -1,25 +1,24 @@
 <template>
-  <div class="etabs-cad-app">
+  <div class="etabs-cad-app novacad-workspace etabs-theme" :data-theme="theme">
     <section ref="drawingSurfaceRef" class="etabs-drawing-surface" aria-label="Visor y plano CAD">
-      <MlCadViewer ref="cadViewerRef" locale="en" :background="0x1a1a2e" theme="dark" :local-file="selectedFile" :mode="writeMode" class="etabs-cad-viewer" />
+      <MlCadViewer ref="cadViewerRef" locale="en" :background="0x101b2d" :theme="theme" :local-file="selectedFile" :mode="writeMode" class="etabs-cad-viewer" />
       <FoundationOverlay :class="{ 'is-hidden': !overlayVisible }" :enabled="auxiliaryActive" :viewport-host="drawingSurfaceRef" :tool="foundationTool" :columns="currentColumns"
         :clear-signal="foundationClearSignal" :fit-signal="foundationFitSignal" :load-request="overlayLoadRequest"
         @polygons-change="onFoundationPolygonsChange" @frame-change="planeFrame = $event" />
 
       <!-- Capa alineada al plano de dibujo (sin cinta ni barra de estado del CAD). -->
       <div class="etabs-plane-layer etabs-theme" :style="planeStyle">
-        <!-- Sin espacio en la cinta: botones flotantes en la esquina superior izquierda
-             (la derecha la ocupan las barras nativas del visor). -->
+        <!-- Se conservan los accesos sobre el plano cuando la cinta no tiene espacio. -->
         <div v-if="!ribbonSlot && !cimentacionPanelVisible" class="etabs-plane-actions">
           <button type="button" class="etabs-fab etabs-cimentacion-open" aria-expanded="false"
             aria-controls="etabs-foundation-panel" @click="openFoundationPanel">
-            <span aria-hidden="true">⬒</span> Cimentación 2.0
+            <NovaCadIcon name="foundation" /> Cimentación 2.0
           </button>
           <button v-if="results" type="button" class="etabs-fab etabs-results-open" @click="resultsVisible = true">
-            <span aria-hidden="true">▦</span> Resultados
+            <NovaCadIcon name="results" /> Resultados
           </button>
           <button v-if="!agentVisible" type="button" class="etabs-fab etabs-agent-open" @click="agentVisible = true">
-            <span aria-hidden="true">✦</span> Agente Predim
+            <NovaCadIcon name="agent" /> Agente NovaCad
           </button>
         </div>
 
@@ -74,12 +73,13 @@
       </div>
     </section>
 
-    <!-- Grupo "Predim" dentro de la cinta del visor, junto a "Utilidades". -->
     <Teleport v-if="ribbonSlot" :to="ribbonSlot.host">
       <PredimRibbonGroup :slot-style="ribbonSlot.style" :cimentacion-open="cimentacionPanelVisible" :agent-open="agentVisible"
         :has-results="!!results" :foundation-pending="!!pendingFoundation" @open-cimentacion="toggleFoundationFromRibbon"
-        @open-agent="agentVisible = !agentVisible" @open-results="resultsVisible = true" />
+        @open-agent="agentVisible = !agentVisible" @open-results="resultsVisible = true" @about="aboutVisible = true" />
     </Teleport>
+    <Teleport v-if="statusSlot" :to="statusSlot"><NovaCadStatus @about="aboutVisible = true" /></Teleport>
+    <NovaCadAbout v-if="aboutVisible" @close="aboutVisible = false" />
 
     <EtabsModal v-if="results && resultsVisible" title="Resultados de cimentación" size="xl"
       :subtitle="`Presiones en el suelo bajo ${results.normalizedPolygons?.length ?? 0} zapata(s) para ${results.loadCombinations?.length ?? 0} combinaciones de servicio.`"
@@ -100,6 +100,7 @@ import {
 } from "./composables/usePolygonCapture.js";
 import { computed, defineAsyncComponent, nextTick, ref, watch, onBeforeUnmount } from "vue";
 import "../../css/etabs-workspace.css";
+import "../../css/novacad-workspace.css";
 import { MlCadViewer } from "@mlightcad/cad-viewer";
 import { AcApDocManager, AcEdOpenMode } from "@mlightcad/cad-simple-viewer";
 import { crearRecuperacion, describirCopia } from "./composables/useDrawingRecovery.js";
@@ -110,6 +111,14 @@ import FoundationOverlay from "./components/FoundationOverlay.vue";
 import ResultadosCimentacionInline from "./components/ResultadosCimentacionInline.vue";
 import EtabsModal from "./components/EtabsModal.vue";
 import PredimRibbonGroup from "./components/PredimRibbonGroup.vue";
+import NovaCadIcon from "./components/NovaCadIcon.vue";
+import {useCadAppearance} from "./composables/useCadAppearance.js";
+import NovaCadAbout from './components/NovaCadAbout.vue';
+import NovaCadStatus from './components/NovaCadStatus.vue';
+const {theme} = useCadAppearance();
+const aboutVisible = ref(false);
+const openProductAbout = () => {aboutVisible.value = true;};
+window.addEventListener('novacad:about', openProductAbout);
 // El agente (y su acceso a la librería de datos CAD) se carga al abrir su panel.
 const AgentePredimPanel = defineAsyncComponent(() => import("./components/AgentePredimPanel.vue"));
 
@@ -142,10 +151,11 @@ watch(drawingSurfaceRef, element => {
   });
   surfaceObserver.observe(element);
 }, {flush:'post'});
-// La cinta del visor no admite grupos propios: el grupo "Predim" se coloca al
-// final del panel cuando hay espacio libre en la pestaña activa.
+// La distribucion y los grupos nativos se conservan. Los accesos de NovaCad
+// aprovechan el espacio libre sin reemplazar controles del visor.
 const RIBBON_GROUP_WIDTH = 230;
 const ribbonSlot = ref(null);
+const statusSlot = ref(null);
 let ribbonFrame = null, ribbonWatchers = [], watchedPanel = null, ribbonSentinel = null;
 const measureRibbon = () => {
   ribbonFrame = null;
@@ -154,39 +164,33 @@ const measureRibbon = () => {
   if (!host || !panel || !panel.offsetHeight) { ribbonSlot.value = null; return; }
   if (getComputedStyle(host).position === "static") host.style.position = "relative";
   const box = panel.getBoundingClientRect();
-  const lastRight = Math.max(box.left, ...[...panel.querySelectorAll(":scope > .ml-ribbon-group")].map((group) => group.getBoundingClientRect().right));
+  const lastRight = Math.max(box.left, ...[...panel.querySelectorAll(":scope > .ml-ribbon-group")].map(group => group.getBoundingClientRect().right));
   ribbonSlot.value = box.right - lastRight < RIBBON_GROUP_WIDTH ? null
-    : {host, style: {top: `${panel.offsetTop}px`, height: `${panel.offsetHeight}px`}};
+    : {host, style:{top:`${panel.offsetTop}px`,height:`${panel.offsetHeight}px`}};
 };
 const scheduleRibbon = () => { if (ribbonFrame === null) ribbonFrame = requestAnimationFrame(measureRibbon); };
-// El visor crea la cinta después de montar y la reemplaza entera al abrir un
-// documento: se vigila el panel vigente y se vuelve a enganchar cuando cambia.
 const attachRibbon = () => {
+  statusSlot.value = drawingSurfaceRef.value?.querySelector('.ml-status-bar-left') ?? null;
   const panel = drawingSurfaceRef.value?.querySelector("section.ml-ribbon > main.ml-ribbon__panel") ?? null;
   if (panel === watchedPanel) return;
-  ribbonWatchers.forEach((watcher) => watcher.disconnect());
-  ribbonWatchers = [];
-  watchedPanel = panel;
+  ribbonWatchers.forEach(watcher => watcher.disconnect()); ribbonWatchers = []; watchedPanel = panel;
   if (panel) {
-    const resize = new ResizeObserver(scheduleRibbon);
-    resize.observe(panel);
-    const tabs = new MutationObserver(scheduleRibbon);   // cambio de pestaña
-    tabs.observe(panel, {childList: true});
-    ribbonWatchers.push(resize, tabs);
+    const resize = new ResizeObserver(scheduleRibbon);resize.observe(panel);
+    const tabs = new MutationObserver(scheduleRibbon);tabs.observe(panel,{childList:true});
+    ribbonWatchers.push(resize,tabs);
   }
   scheduleRibbon();
 };
-watch(drawingSurfaceRef, (element) => {
+watch(drawingSurfaceRef, element => {
   ribbonSentinel?.disconnect();
   if (!element) return;
-  // Comprobación barata en cada cambio del DOM del visor.
-  ribbonSentinel = new MutationObserver(() => { if (!watchedPanel?.isConnected) attachRibbon(); });
-  ribbonSentinel.observe(element, {childList: true, subtree: true});
-  attachRibbon();
-}, {flush: "post"});
+  ribbonSentinel = new MutationObserver(() => { if (!watchedPanel?.isConnected || !statusSlot.value?.isConnected) attachRibbon(); });
+  ribbonSentinel.observe(element,{childList:true,subtree:true});attachRibbon();
+},{flush:'post'});
 
 onBeforeUnmount(() => {
-  ribbonWatchers.forEach((watcher) => watcher.disconnect());
+  window.removeEventListener('novacad:about',openProductAbout);
+  ribbonWatchers.forEach(watcher => watcher.disconnect());
   ribbonSentinel?.disconnect();
   if (ribbonFrame !== null) cancelAnimationFrame(ribbonFrame);
   surfaceObserver?.disconnect();
@@ -289,7 +293,7 @@ const planeStyle = computed(() => {
   return { left: `${frame.left}px`, top: `${frame.top}px`, width: `${frame.width}px`, height: `${frame.height}px` };
 });
 
-// Agente Predim: dibuja y lee el documento abierto del visor.
+// Agente NovaCad: dibuja y lee el documento abierto del visor.
 const agentVisible = ref(false);
 const agentMounted = ref(false);
 watch(agentVisible, (visible) => { if (visible) agentMounted.value = true; });
@@ -506,13 +510,13 @@ const onCaptureCadPolyline = () => {
 .etabs-plane-layer { position:absolute;z-index:5;pointer-events:none; }
 .etabs-plane-layer > * { pointer-events:auto; }
 .etabs-recovery { position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:8;display:flex;flex-wrap:wrap;align-items:center;gap:8px;max-width:calc(100% - 24px);padding:9px 12px;border:1px solid var(--pr-blue);border-radius:9px;background:var(--pr-panel);color:var(--pr-text);font-size:12.5px;box-shadow:0 8px 24px #0005; }
-.etabs-plane-actions { position:absolute;top:12px;left:12px;display:flex;gap:8px; }
-.etabs-fab { display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:7px 14px;border:1px solid rgba(128,181,255,.35);border-radius:9px;background:rgba(22,35,58,.94);color:var(--pr-text);font-weight:600;font-size:13px;line-height:1;font-family:inherit;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.35);backdrop-filter:blur(6px); }
-.etabs-fab:hover { border-color:var(--pr-blue); }
-.etabs-cimentacion-open { border-color:transparent;background:var(--fz-accent);color:#fff; }
-.etabs-cimentacion-open:hover { background:var(--fz-accent-hover); }
+.etabs-plane-actions { position:absolute;top:12px;left:12px;display:flex;flex-wrap:wrap;gap:8px;max-width:calc(100% - 24px); }
+.etabs-fab { display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:7px 12px;border:1px solid var(--pr-line);border-radius:7px;background:var(--pr-panel);color:var(--pr-text);font-weight:600;font-size:12px;line-height:1;font-family:inherit;cursor:pointer;box-shadow:0 3px 12px #0002; }
+.etabs-fab svg { width:18px;height:18px;flex-shrink:0;color:var(--pr-blue); }
+.etabs-fab:hover { border-color:var(--pr-blue);background:var(--pr-soft); }
+.etabs-fab:focus-visible { outline:2px solid var(--pr-blue);outline-offset:2px; }
 
-.etabs-tool-hint { position:absolute;top:60px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;max-width:calc(100% - 24px);padding:6px 6px 6px 14px;border:1px solid rgba(128,181,255,.35);border-radius:10px;background:rgba(22,35,58,.94);font-size:12.5px;box-shadow:0 6px 18px rgba(0,0,0,.35); }
+.etabs-tool-hint { position:absolute;top:60px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;max-width:calc(100% - 24px);padding:6px 6px 6px 14px;border:1px solid var(--pr-line);border-radius:10px;background:var(--pr-panel);font-size:12.5px;box-shadow:0 6px 18px rgba(0,0,0,.35); }
 .etabs-tool-hint b { color:var(--pr-blue); }
 
 .etabs-cimentacion-dock { position:absolute;top:12px;left:12px;bottom:56px;display:flex;flex-direction:column;width:min(400px,calc(100% - 24px));min-height:0;overflow:hidden;border:1px solid var(--pr-line);border-radius:12px;background:var(--pr-panel);box-shadow:0 18px 44px rgba(0,0,0,.45); }
@@ -527,13 +531,11 @@ const onCaptureCadPolyline = () => {
 
 .etabs-notice { display:flex;align-items:flex-start;gap:8px;margin:10px 12px 0;padding:9px 6px 9px 12px;border:1px solid;border-radius:9px;font-size:12.5px; }
 .etabs-notice p { margin:2px 0 0; }
-.etabs-error { border-color:rgba(248,113,113,.45);background:rgba(127,29,29,.25);color:#fecaca; }
-.etabs-info { border-color:rgba(128,181,255,.35);background:rgba(30,64,120,.25);color:#d6e6ff; }
+.etabs-error { border-color:var(--fz-danger);background:var(--fz-danger-bg);color:var(--fz-danger); }
+.etabs-info { border-color:var(--pr-blue);background:var(--pr-soft);color:var(--pr-text); }
 .etabs-notice > div { flex:1;min-width:0; }
 
 @media(max-width:760px) {
-  .etabs-plane-actions { top:8px;left:8px; }
-  .etabs-fab { min-height:34px;padding:6px 10px;font-size:12px; }
   .etabs-cimentacion-dock { top:auto;left:8px;right:8px;bottom:8px;width:auto;max-height:calc(100% - 60px); }
   .etabs-cimentacion-dock:not(.is-minimized) { height:calc(100% - 60px); }
   .etabs-cimentacion-dock.is-minimized { width:auto; }

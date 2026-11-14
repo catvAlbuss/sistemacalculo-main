@@ -142,7 +142,7 @@ export function componerLamina({bloques, columnas, titulo, items, k = 1, caja, f
     `PLANO: ${plano ?? bloques.map((b) => b.titulo.replace(/^PLANO DE /, "")).join(", ")} Y CUADRO DE COLUMNAS`,
     `VISTA: ${(titulo || "planta").toUpperCase()}`,
     `ESCALA: ${escala ?? `x${f} de la arquitectura`}`,
-    "Generado por Agente Predim (predimensionamiento)",
+    "Generado por Agente NovaCad (predimensionamiento)",
   ];
   const fh = Hr / filasRotulo;
   filas.forEach((fila, i) => {

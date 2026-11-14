@@ -128,7 +128,7 @@ function toEntity(p, k, origin, dm) {
 
 // edit(db, label, fn) agrupa todo en un paso de deshacer (acapRunDatabaseEdit).
 // unitsPerMeter permite forzar la escala cuando el archivo declara mal sus unidades.
-export function drawPrimitives(database, primitivas, {dm, edit = (db, label, fn) => fn(), label = "Agente Predim", origin = {x: 0, y: 0}, unitsPerMeter: k = unitsPerMeter(database)} = {}) {
+export function drawPrimitives(database, primitivas, {dm, edit = (db, label, fn) => fn(), label = "Agente NovaCad", origin = {x: 0, y: 0}, unitsPerMeter: k = unitsPerMeter(database)} = {}) {
   let count = 0;
   let layers = [];
   edit(database, label, () => {
