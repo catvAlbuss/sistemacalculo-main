@@ -220,7 +220,7 @@ export function reglasValidas(casos) {
 // rasgos: los del plano nuevo; casos: [{nombre, rasgos, decisiones}]. Devuelve cada decisión con
 // su valor, de qué casos sale, la confianza (0–1) y si queda para el ingeniero (y por qué).
 export function proponer(rasgos, casos, {k = 3, umbral = 0.6} = {}) {
-  const vecinos = casos.map((c) => ({c, d: distancia(rasgos, c.rasgos)})).sort((a, b) => a.d - b.d).slice(0, k);
+  const vecinos = casos.filter((c) => c.fuente !== "uso").map((c) => ({c, d: distancia(rasgos, c.rasgos)})).sort((a, b) => a.d - b.d).slice(0, k);
   const cercania = vecinos.length ? Math.exp(-vecinos[0].d / 3) : 0;
   const decisiones = {};
   for (const [clave, def] of Object.entries(DECISIONES)) {
@@ -250,7 +250,7 @@ export function proponer(rasgos, casos, {k = 3, umbral = 0.6} = {}) {
   // depende del proyecto, y lo decide el ingeniero (estribos, losa maciza, cambiar columnas).
   for (const [clave, def] of Object.entries(DECISIONES)) {
     const valores = [];
-    for (const c of casos) {
+    for (const c of casos.filter((x) => x.fuente !== "uso")) {
       const v = c.decisiones?.[clave];
       if (v === null || v === undefined) continue;
       if (!valores.some((x) => (def.tolerancia ? Math.abs(x - v) <= def.tolerancia : x === v))) valores.push(v);
@@ -277,6 +277,23 @@ export function proponer(rasgos, casos, {k = 3, umbral = 0.6} = {}) {
         regla: `E.060: aligerado h ≥ L/25 = ${r2(L / 25)} m con luz ${L} m${e.valor ? ` (los casos usaban ${e.valor})` : ""}`};
     }
   }
+  // Lo que el ingeniero corrigió manda: en este mismo plano, sin preguntar; en uno parecido,
+  // se propone su valor y se le avisa.
+  for (const clave of Object.keys(DECISIONES)) {
+    const usos = casos.filter((c) => c.fuente === "uso" && c.decisiones?.[clave] !== undefined && c.decisiones[clave] !== null)
+      .map((c) => ({c, d: distancia(rasgos, c.rasgos)})).sort((a, b) => a.d - b.d);
+    const u = usos[0];
+    if (!u || u.d > 1) continue;
+    const anterior = decisiones[clave];
+    const valor = u.c.decisiones[clave];
+    if (u.d < 0.05) {
+      decisiones[clave] = {nombre: DECISIONES[clave].nombre, valor, fuentes: [], confianza: 0.95, regla: "lo corregiste en este mismo plano"};
+      if (clave === "espesorLosa" && L > 0 && valor < L / 25 - 1e-9) decisiones[clave].ingeniero = `Ojo: E.060 pide h ≥ L/25 = ${r2(L / 25)} m con luz ${L} m.`;
+    } else if (anterior?.valor !== valor) {
+      decisiones[clave] = {nombre: DECISIONES[clave].nombre, valor, fuentes: [], confianza: 0.6,
+        ingeniero: `En un plano parecido lo corregiste a ${typeof valor === "boolean" ? (valor ? "sí" : "no") : valor} (yo proponía ${anterior?.valor ?? "—"}): confírmalo.`};
+    }
+  }
   // Más de un nivel: cada nivel lleva su losa (entrepiso), aunque los casos no lo digan.
   decisiones.losasDeEntrepiso = {nombre: "Losas de entrepiso", valor: Math.max(0, rasgos.niveles - 1), fuentes: [], confianza: 0.95, regla: `${rasgos.niveles} nivel(es) leídos en la arquitectura`};
   for (const d of Object.values(decisiones)) {
@@ -296,6 +313,26 @@ export function proponer(rasgos, casos, {k = 3, umbral = 0.6} = {}) {
     decide: lista.filter(([, d]) => !d.ingeniero).map(([k]) => k),
     ingeniero: lista.filter(([, d]) => d.ingeniero).map(([k]) => k),
   };
+}
+
+// ---------- Aprendizaje por uso ----------
+
+// Correcciones y confirmaciones del ingeniero (registro.js) como casos parciales: un caso por
+// evento, con los rasgos del plano y solo la decisión que tocó. La última corrección de una
+// decisión para el mismo plano reemplaza a las anteriores.
+export function casosDeUso(eventos = []) {
+  const ultimos = new Map();
+  for (const e of eventos) {
+    if (!e || !(e.clave in DECISIONES) || !e.rasgos) continue;
+    const clave = `${e.clave}|${JSON.stringify(e.rasgos)}`;
+    ultimos.set(clave, e);
+  }
+  return [...ultimos.values()].map((e, i) => ({
+    nombre: `${e.tipo === "confirmacion" ? "confirmado" : "corregido"} por el ingeniero${e.motivo ? ` (${String(e.motivo).slice(0, 40)})` : ""}`,
+    fuente: "uso", indice: i,
+    rasgos: {niveles: 1, luzLosa: 0, area: 0, columnas: 0, techoLiviano: false, placas: false, columnetas: 0, ...e.rasgos},
+    decisiones: {[e.clave]: e.valor},
+  }));
 }
 
 // Dejando un caso fuera, ¿cuántas de sus decisiones acierta el agente con los demás?

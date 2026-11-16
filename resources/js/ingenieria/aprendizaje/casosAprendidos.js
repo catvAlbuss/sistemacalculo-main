@@ -210,3 +210,5 @@ export const CASOS = [
   }
  }
 ];
+// Correcciones del ingeniero registradas en el uso (se suman a las del servidor y la sesión).
+export const EVENTOS_USO = [];

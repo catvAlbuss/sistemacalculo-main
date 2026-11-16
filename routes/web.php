@@ -255,6 +255,9 @@ Route::middleware(["auth", "verified", "check.subscription", "throttle:calculati
         // Autoguardado del modelo CAD a la BD (por usuario). Complementa IndexedDB.
         Route::post('/etabs/model/autosave', [\App\Http\Controllers\CadModelController::class, 'autosave'])->name('etabs.model.autosave');
         Route::get('/etabs/model/latest', [\App\Http\Controllers\CadModelController::class, 'latest'])->name('etabs.model.latest');
+        // Aprendizaje del agente por uso: correcciones del ingeniero a las decisiones del agente.
+        Route::post('/etabs/agente/aprendizaje', [\App\Http\Controllers\AgenteAprendizajeController::class, 'guardar'])->name('etabs.agente.aprendizaje.guardar');
+        Route::get('/etabs/agente/aprendizaje', [\App\Http\Controllers\AgenteAprendizajeController::class, 'listar'])->name('etabs.agente.aprendizaje.listar');
         // Fase 2 — "Mis modelos": listar / abrir / guardar como / renombrar / borrar.
         Route::get('/etabs/models', [\App\Http\Controllers\CadModelController::class, 'index'])->name('etabs.models.index');
         Route::post('/etabs/models', [\App\Http\Controllers\CadModelController::class, 'store'])->name('etabs.models.store');

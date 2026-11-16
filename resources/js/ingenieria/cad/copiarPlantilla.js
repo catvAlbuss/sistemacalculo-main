@@ -8,20 +8,31 @@ import {repararAchurado} from "./achurados.js";
 
 const nombreDestino = (prefijo, nombre) => `${prefijo}${String(nombre).replace(/^\*/, "")}`;
 
+// Devuelve el nombre con que quedó en el destino. AutoCAD no distingue mayúsculas en los
+// nombres de capa ("COTAS" de la plantilla = "cotas" de la arquitectura) pero el visor sí:
+// la copia usa el nombre tal como existe en el dibujo (si no, "layer 'COTAS' doesn't exist").
 function asegurarRegistro(tablaOrigen, tablaDestino, nombre) {
-  if (!nombre || tablaDestino.has(nombre)) return;
+  if (!nombre) return nombre;
+  if (tablaDestino.has(nombre)) {
+    const exacto = tablaDestino.getAt(nombre)?.name;
+    if (exacto) return exacto;
+    const igual = tablaDestino.newIterator?.().toArray?.().find((r) => String(r.name).toLowerCase() === String(nombre).toLowerCase());
+    return igual?.name ?? nombre;
+  }
   const registro = tablaOrigen.getAt(nombre);
   if (registro) tablaDestino.add(registro.clone());
+  return nombre;
 }
 
 // Una entidad clonada con sus dependencias (capa, estilos, bloque) ya en el destino.
 function prepararEntidad(entidad, ctx) {
   const {origen, destino} = ctx;
-  asegurarRegistro(origen.tables.layerTable, destino.tables.layerTable, entidad.layer);
+  const capa = asegurarRegistro(origen.tables.layerTable, destino.tables.layerTable, entidad.layer);
   if (entidad.lineType) asegurarRegistro(origen.tables.linetypeTable, destino.tables.linetypeTable, entidad.lineType);
   if (entidad.styleName) asegurarRegistro(origen.tables.textStyleTable, destino.tables.textStyleTable, entidad.styleName);
   if (entidad.dimensionStyleName) asegurarRegistro(origen.tables.dimStyleTable, destino.tables.dimStyleTable, entidad.dimensionStyleName);
   const copia = entidad.clone();
+  if (capa && capa !== copia.layer) copia.layer = capa;
   // Achurados con contornos que se cruzan: reparados aquí una vez (no en cada dibujo del visor).
   if (String(copia.dxfTypeName).toUpperCase() === "HATCH") ctx.achuradosReparados += repararAchurado(copia, ctx.dm);
   // Textos que dependen del proyecto (p. ej. parámetros sísmicos): se reemplazan en la copia.

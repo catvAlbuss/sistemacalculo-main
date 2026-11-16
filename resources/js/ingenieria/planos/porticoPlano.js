@@ -26,11 +26,43 @@ export function alturaDesdeArquitectura(items) {
   const valores = [];
   for (const it of items) {
     if (it.tipo !== "texto") continue;
-    const m = /N\.?\s*F\.?\s*T\.?\s*:?\s*\+?\s*(\d+(?:[.,]\d+)?)/i.exec(it.texto);
+    const m = /N\.?\s*F\.?\s*T\.?\s*[:=]?\s*\+?\s*(\d+(?:[.,]\d+)?)/i.exec(it.texto); // "N.F.T: +3.25", "NFT= + 5.91m"
     if (m) valores.push(Number(m[1].replace(",", ".")));
   }
   const utiles = valores.filter((v) => v >= 2.2 && v <= 6);
   return utiles.length ? Math.max(...utiles) : 3;
+}
+
+// Niveles de un edificio de n pisos: el piso de cada nivel superior (NPT +3.65 del módulo 9)
+// y el techo (NPT +7.15). Un nivel superior está al menos 2.2 m sobre el anterior.
+// ocultos(): textos de capas apagadas o congeladas, solo si los visibles no alcanzan (en el
+// módulo 9 los NPT del 2do nivel y del techo están en capas congeladas). Si tampoco están,
+// cada piso repite la altura del primero. fuente dice de dónde salió, para avisar.
+export function nivelesDesdeArquitectura(items, niveles = 1, ocultos = () => []) {
+  const primero = alturaDesdeArquitectura(items);
+  if (niveles <= 1) return {entrepisos: [], techo: primero, fuente: "visible"};
+  const pisosDe = (lista) => {
+    const valores = [];
+    for (const it of lista) {
+      if (it.tipo !== "texto") continue;
+      const m = /N\.?\s*P\.?\s*T\.?\s*[=:]?\s*\+\s*(\d+(?:[.,]\d+)?)/i.exec(it.texto);
+      if (m) valores.push(Number(m[1].replace(",", ".")));
+    }
+    const unicos = [...new Set(valores.filter((v) => v >= 2.2 && v <= 4.5 * niveles).map((v) => Math.round(v * 100) / 100))].sort((a, b) => a - b);
+    const pisos = [];
+    for (const v of unicos) if (v - (pisos.at(-1) ?? 0) >= 2.2) pisos.push(v);
+    return pisos;
+  };
+  let pisos = pisosDe(items), fuente = "visible";
+  if (pisos.length < niveles) {
+    const otros = pisosDe(ocultos());
+    if (otros.length > pisos.length) { pisos = otros; fuente = "capa oculta"; }
+  }
+  if (pisos.length < niveles - 1) fuente = "supuesta";
+  const entrepisos = [];
+  for (let n = 1; n < niveles; n++) entrepisos.push(pisos[n - 1] ?? (entrepisos.at(-1) ?? 0) + primero);
+  const techo = pisos[niveles - 1] ?? entrepisos.at(-1) + primero;
+  return {entrepisos, techo, fuente};
 }
 
 // Pendiente del techo: el menor "PTE=33%" de la arquitectura (la cobertura); si no hay, el criterio.
@@ -63,7 +95,10 @@ export function vanosDesdeArquitectura(items, k = 1) {
 // eje: {nombre, p, q}; columnas del eje (con contorno, nodo, eje "A/B", tipo).
 // cimentacion: {tipo: "platea"|"zapatas", peralte, df}.
 // cumbrera: {a, d} recta de la viga de cumbrera en planta (o null); pendiente: 0.33.
-export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga = {b: 0.25, h: 0.4}, cimentacion = {tipo: "zapatas"}, columnetas = [], cumbrera = null, pendiente = CRITERIOS.techo.pendiente, vanos = []}) {
+// entrepisos: pisos de los niveles superiores (NPT, m) en edificios de varios niveles: en cada
+// uno van su viga y su losa, y muros, columnetas y estribos se dibujan por nivel.
+// losaTecho: false cuando el último nivel lleva solo cobertura (sin losa de techo).
+export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga = {b: 0.25, h: 0.4}, cimentacion = {tipo: "zapatas"}, columnetas = [], cumbrera = null, pendiente = CRITERIOS.techo.pendiente, vanos = [], entrepisos = [], losaTecho = true}) {
   const ux = eje.q.x - eje.p.x, uy = eje.q.y - eje.p.y, l = Math.hypot(ux, uy) || 1;
   const u = {x: ux / l, y: uy / l};
   const proy = (p) => (p.x - eje.p.x) * u.x + (p.y - eje.p.y) * u.y;
@@ -132,15 +167,21 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
   // Terreno natural (NTN).
   prim.push(line(L.NIVELES, pt(xa - 1.2, 0), pt(xb + 1.2, 0)));
 
+  // Niveles: pisos sobre el terreno (0 y los entrepisos) y el alto libre de cada uno.
+  const pisos = [0, ...entrepisos.filter((z) => z > 1 && z < T - 1)];
+  const alto1 = pisos[1] ?? T; // piso del 2do nivel o techo: el primer nivel va hasta ahí
+
   // ---- Columnas con su acero ----
   for (const x of lista) {
     prim.push(pline(L.COLUMNAS, [pt(x.s0, baseCol), pt(x.s1, baseCol), pt(x.s1, y(x.s1)), pt(x.s0, y(x.s0))], true));
-    prim.push(text(L.COLUMNAS_ID, pt((x.s0 + x.s1) / 2, T * 0.55), x.c.tipo, h * 0.7, 90));
+    prim.push(text(L.COLUMNAS_ID, pt((x.s0 + x.s1) / 2, alto1 * 0.55), x.c.tipo, h * 0.7, 90));
     const tope = Math.min(y(x.s0), y(x.s1));
     prim.push(line(L.ACERO_LONG, pt(x.s0 + rec, -df + rec), pt(x.s0 + rec, y(x.s0) - rec)), line(L.ACERO_LONG, pt(x.s1 - rec, -df + rec), pt(x.s1 - rec, y(x.s1) - rec)));
-    for (const yy of posicionesEstribos(C.distribucion, tope - vh - baseCol)) prim.push(line(L.ESTRIBOS, pt(x.s0 + rec * 0.6, baseCol + yy), pt(x.s1 - rec * 0.6, baseCol + yy)));
+    // Estribos por nivel: cada tramo de columna entre losas lleva su confinamiento.
+    const tramos = pisos.map((z, i) => [i === 0 ? baseCol : z, (pisos[i + 1] ?? tope) - vh]);
+    for (const [z0, z1] of tramos) for (const yy of posicionesEstribos(C.distribucion, z1 - z0)) prim.push(line(L.ESTRIBOS, pt(x.s0 + rec * 0.6, z0 + yy), pt(x.s1 - rec * 0.6, z0 + yy)));
   }
-  prim.push(text(L.ESTRIBOS, pt(lista[0].s0 - h * 0.6, T * 0.3), textoEstribos(C.estribo, C.distribucion, lista[0].c.forma === "rectangular" ? 1 : 2), h * 0.34, 90));
+  prim.push(text(L.ESTRIBOS, pt(lista[0].s0 - h * 0.6, alto1 * 0.3), textoEstribos(C.estribo, C.distribucion, lista[0].c.forma === "rectangular" ? 1 : 2), h * 0.34, 90));
 
   // ---- Columnetas sobre el eje (pa, pb…) ----
   const postes = lista.map((x) => ({a: x.s0, b: x.s1, columna: true}));
@@ -152,9 +193,13 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
     if (c1 - c0 < 0.05 || postes.some((p) => c0 < p.b && c1 > p.a)) continue;
     postes.push({a: c0, b: c1, columneta: c});
     const tope = Math.min(y(c0), y(c1)) - vh;
-    prim.push(rect(L.COLUMNAS, c0, 0, c1, tope));
-    for (const yy of posicionesEstribos(CC.distribucion, tope)) prim.push(line(L.ESTRIBOS, pt(c0 + 0.02, yy), pt(c1 - 0.02, yy)));
-    if (c.codigo) prim.push(text(L.COLUMNAS_ID, pt(c1 + h * 0.45, T * 0.42), c.codigo.toUpperCase(), h * 0.45, 90));
+    // Una columneta por nivel: nace en cada losa y llega al fondo de la viga siguiente.
+    pisos.forEach((z, i) => {
+      const fin = i + 1 < pisos.length ? pisos[i + 1] - vh : tope;
+      prim.push(rect(L.COLUMNAS, c0, z, c1, fin));
+      for (const yy of posicionesEstribos(CC.distribucion, fin - z)) prim.push(line(L.ESTRIBOS, pt(c0 + 0.02, z + yy), pt(c1 - 0.02, z + yy)));
+    });
+    if (c.codigo) prim.push(text(L.COLUMNAS_ID, pt(c1 + h * 0.45, alto1 * 0.42), c.codigo.toUpperCase(), h * 0.45, 90));
   }
   postes.sort((p, q) => p.a - q.a);
 
@@ -181,8 +226,17 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
     prim.push(hatch(L.CIMIENTO, [pt(a, nfc), pt(b, nfc), pt(b, 0), pt(a, 0)], {patron: "AR-CONC", escala: 0.04}));
     const tramosSC = puerta ? [[a, o0], [o1, b]].filter(([p, q]) => q - p > 0.05) : [[a, b]];
     for (const [p, q] of tramosSC) prim.push(rect(L.CIMIENTO, p, 0, q, sc));
-    // Muro: del sobrecimiento al fondo de la viga, siguiendo la pendiente.
-    prim.push(pline(L.MUROS_E, [pt(a, puerta ? 0 : sc), pt(b, puerta ? 0 : sc), ...perfil(a, b, -vh).reverse()], true));
+    // Muro: del sobrecimiento al fondo de la viga, siguiendo la pendiente; con entrepisos, un
+    // muro por nivel (de cada losa al fondo de la viga siguiente).
+    if (pisos.length > 1) {
+      prim.push(pline(L.MUROS_E, [pt(a, puerta ? 0 : sc), pt(b, puerta ? 0 : sc), pt(b, pisos[1] - vh), pt(a, pisos[1] - vh)], true));
+      for (let n = 1; n < pisos.length; n++) {
+        const z = pisos[n];
+        prim.push(pline(L.MUROS_E, n + 1 < pisos.length ? [pt(a, z), pt(b, z), pt(b, pisos[n + 1] - vh), pt(a, pisos[n + 1] - vh)] : [pt(a, z), pt(b, z), ...perfil(a, b, -vh).reverse()], true));
+      }
+    } else {
+      prim.push(pline(L.MUROS_E, [pt(a, puerta ? 0 : sc), pt(b, puerta ? 0 : sc), ...perfil(a, b, -vh).reverse()], true));
+    }
     if (puerta) {
       const hp = VN.alturaPuerta;
       prim.push(rect(L.LAMINA, o0, CRITERIOS.terreno.npt, o1, hp));
@@ -200,7 +254,8 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
       vanosDibujados.push(nombre || "ventana");
     }
     if (!muroRotulado && b - a > 0.8) {
-      const ym = puerta || ventana ? (puerta ? (VN.alturaPuerta + VN.dintel + y((a + b) / 2) - vh) / 2 : (sc + VN.alfeizar) / 2) : (sc + y((a + b) / 2) - vh) / 2;
+      const techoMuro = pisos.length > 1 ? pisos[1] - vh : y((a + b) / 2) - vh;
+      const ym = puerta || ventana ? (puerta ? (VN.alturaPuerta + VN.dintel + techoMuro) / 2 : (sc + VN.alfeizar) / 2) : (sc + techoMuro) / 2;
       prim.push(text(L.MUROS_E, pt((a + b) / 2, ym), CRITERIOS.muro, Math.min(h * 0.32, ((b - a) * 0.95) / (CRITERIOS.muro.length * 0.6))));
       muroRotulado = true;
     }
@@ -227,9 +282,25 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
   prim.push(text(L.VIGAS, pt(xl, y(xl) - vh - h * 0.55), `V-101 (${viga.b.toFixed(2)}x${vh.toFixed(2)})`, h * 0.45));
   prim.push(text(L.ESTRIBOS, pt(xl, y(xl) - vh - h * 1.15), textoEstribos(V.estribo, V.distribucion), h * 0.3));
 
-  // ---- Losa aligerada (inclinada si hay cumbrera), cobertura TR4 y canaletas ----
+  // ---- Entrepisos: viga y losa en el piso de cada nivel superior ----
   const e = espesorLosa;
-  prim.push(pline(L.ALIGERADO, [...perfil(xa - alero, xb + alero, 0), ...perfil(xa - alero, xb + alero, -e).reverse()], true));
+  pisos.slice(1).forEach((z, n) => {
+    const nombreViga = `V-${201 + 100 * n}`;
+    prim.push(rect(L.VIGAS, xa, z - vh, xb, z));
+    prim.push(rect(L.ALIGERADO, xa, z - e, xb, z));
+    prim.push(line(L.ACERO_LONG, pt(xa + rec, z - rec), pt(xb - rec, z - rec)), line(L.ACERO_LONG, pt(xa + rec, z - vh + rec), pt(xb - rec, z - vh + rec)));
+    for (let i = 0; i < lista.length - 1; i++) {
+      const a = lista[i].s1, b = lista[i + 1].s0;
+      if (b - a < 0.2) continue;
+      for (const xx of posicionesEstribos(V.distribucion, b - a)) prim.push(line(L.ESTRIBOS, pt(a + xx, z - vh + rec * 0.6), pt(a + xx, z - rec * 0.6)));
+    }
+    const xm = (lista[0].s1 + (lista[1]?.s0 ?? xb)) / 2;
+    prim.push(text(L.VIGAS, pt(xm, z - vh - h * 0.55), `${nombreViga} (${viga.b.toFixed(2)}x${vh.toFixed(2)}) · LOSA E=${Math.round(e * 100)}CM`, h * 0.4));
+  });
+
+  // ---- Losa aligerada (inclinada si hay cumbrera), cobertura TR4 y canaletas ----
+  // Sin losa de techo (último nivel solo con cobertura) queda la viga con la cobertura.
+  if (losaTecho) prim.push(pline(L.ALIGERADO, [...perfil(xa - alero, xb + alero, 0), ...perfil(xa - alero, xb + alero, -e).reverse()], true));
   prim.push(pline(L.COBERTURA, perfil(xa - alero - 0.05, xb + alero + 0.05, 0.06)));
   if (dosAguas) {
     // Viga de cumbrera en corte, bajo la cumbrera.
@@ -262,11 +333,11 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
   for (let i = 0; i < lista.length - 1; i++) prim.push(...cota(L.COTAS_E, pt(lista[i].sn, yc), pt(lista[i + 1].sn, yc), -0.55, h * 0.4));
   // Cotas verticales a la derecha.
   const xv = xb + alero + 0.35;
-  const cadenaV = [-df, -df + hz, ...(platea && nfc > -df + hz + 0.1 ? [nfc] : []), 0, T, ...(dosAguas ? [H] : [])];
+  const cadenaV = [-df, -df + hz, ...(platea && nfc > -df + hz + 0.1 ? [nfc] : []), ...pisos, T, ...(dosAguas ? [H] : [])];
   for (let i = 0; i < cadenaV.length - 1; i++) prim.push(...cota(L.COTAS_E, pt(xv, cadenaV[i + 1]), pt(xv, cadenaV[i]), 0, h * 0.42));
 
   // Niveles a la izquierda, como los rotula el expediente.
-  const niveles = [[0, "BASE NPN=+0.00m"], [T, `TECHO NFP=+${T.toFixed(2)}m`], ...(dosAguas ? [[H, `CUMBRERA NFP=+${H.toFixed(2)}m`]] : []), [-df, `NFZ=-${df.toFixed(2)}m`]];
+  const niveles = [[0, "BASE NPN=+0.00m"], ...pisos.slice(1).map((z, n) => [z, `${n + 2}° NIVEL NPT=+${z.toFixed(2)}m`]), [T, `TECHO NFP=+${T.toFixed(2)}m`], ...(dosAguas ? [[H, `CUMBRERA NFP=+${H.toFixed(2)}m`]] : []), [-df, `NFZ=-${df.toFixed(2)}m`]];
   for (const [yy, rotulo] of niveles) {
     prim.push(line(L.NIVELES, pt(xa - alero - 1.2, yy), pt(xa - alero - 0.15, yy)));
     prim.push(text(L.NIVELES, pt(xa - alero - 1.2, yy + h * 0.22), rotulo, Math.min(h * 0.4, 1.0 / (rotulo.length * 0.62)), 0, "izq"));
@@ -284,7 +355,7 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
   notas.push(`Recubrimiento: ${Math.round(V.recubrimiento * 100)} cm`);
   prim.push(text(L.LAMINA, pt(xa - alero - 1.2, -df - fz * 0.6), `Recubrimiento: ${Math.round(V.recubrimiento * 100)} cm · f'c = ${CRITERIOS.concreto.columnas} kg/cm²`, h * 0.38, 0, "izq"));
   return {
-    columnas: lista.length, dosAguas, cumbrera: dosAguas ? r4(H) : null, vanos: vanosDibujados,
+    columnas: lista.length, dosAguas, cumbrera: dosAguas ? r4(H) : null, vanos: vanosDibujados, niveles: pisos.length,
     contenido: {
       titulo: `PLANO DE PÓRTICO EJE ${eje.nombre}-${eje.nombre}`,
       primitivas: prim,

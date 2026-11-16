@@ -6,6 +6,7 @@
 import {L, line, pline, text, hatch} from "../cad/primitives.js";
 import {primitivasBase, tramosEntreColumnas, envolvente, banda, rotularTramos, murosDelEdificio} from "./cimentacionPlano.js";
 import {CRITERIOS} from "../criterios/criteriosEstructurales.js";
+import {ubicarSinEncimar, cajasDeTextos} from "../laminas/colocarTextos.js";
 
 const SEPARACION_VIGUETAS = 0.4;
 const pt = (p) => [Math.round(p.x * 10000) / 10000, Math.round(p.y * 10000) / 10000];
@@ -117,7 +118,8 @@ export function luzEntreEjes(ejes, u = direccionPrincipal(ejes)) {
   return su && sv ? Math.min(su, sv) : Math.max(su, sv);
 }
 
-export function planoAligerado({lectura, items = [], k = 1}) {
+// espesorFijo: el que indicó el ingeniero (corrección en el chat); si no, por la luz.
+export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null}) {
   const columnas = lectura.columnas;
   const base = primitivasBase(lectura.ejes, columnas);
   const {h} = base;
@@ -231,13 +233,20 @@ export function planoAligerado({lectura, items = [], k = 1}) {
       return [line(L.LAMINA, pt(p), pt({x: atras.x + reparto.x * kk * 0.5, y: atras.y + reparto.y * kk * 0.5})), line(L.LAMINA, pt(p), pt({x: atras.x - reparto.x * kk * 0.5, y: atras.y - reparto.y * kk * 0.5}))];
     };
     prim.push(line(L.LAMINA, pt(A), pt(B)), ...punta(B, 1), ...punta(A, -1));
-    const espesorPano = espesorAligerado(Math.max(luzPano, luzEjes));
+    const espesorPano = espesorFijo ?? espesorAligerado(Math.max(luzPano, luzEjes));
     const r = {x: centro.x - reparto.x * desp, y: centro.y - reparto.y * desp};
     const etiqueta = `LOSA ALIGERADA E=${Math.round(espesorPano * 100)}CM\\P(${n} VIGUETAS)`;
-    prim.push(text(L.TEXTO_LOSA, pt(r), panos.length > 1 ? `Paño ${String(i + 1).padStart(2, "0")}\\P${etiqueta}` : etiqueta, hp));
+    const valor = panos.length > 1 ? `Paño ${String(i + 1).padStart(2, "0")}\\P${etiqueta}` : etiqueta;
+    // El rótulo busca lugar libre dentro de su paño (en paños chicos chocaba con las llamadas
+    // 1Ø3/8" del bastón y con los rótulos de columnas: módulo 09).
+    const flecha = {x0: Math.min(A.x, B.x) - h * 0.3, y0: Math.min(A.y, B.y) - h * 0.3, x1: Math.max(A.x, B.x) + h * 0.3, y1: Math.max(A.y, B.y) + h * 0.3, h: hp};
+    const corto = `E=${Math.round(espesorPano * 100)}CM (${n} VIG.)`;
+    const variantes = panos.length > 1 ? [`Paño ${String(i + 1).padStart(2, "0")}\\P${corto}`, `P-${String(i + 1).padStart(2, "0")} ${corto}`] : [corto];
+    const sitio = ubicarSinEncimar({valor, variantes, h: hp, preferido: r, zona: Pin?.length >= 3 ? Pin : P, ocupadas: [...cajasDeTextos([...base.primitivas, ...prim]), flecha]});
+    prim.push(text(L.TEXTO_LOSA, pt(sitio), sitio.valor, sitio.h));
     return {pano: i + 1, viguetas: n, luz: luzPano, espesor: espesorPano};
   });
-  const espesor = espesorAligerado(Math.max(luz, luzEjes));
+  const espesor = espesorFijo ?? espesorAligerado(Math.max(luz, luzEjes));
 
   // Alero y canaletas: con viga de cumbrera, el agua cae a los aleros paralelos a ella.
   if (alero > 0) {

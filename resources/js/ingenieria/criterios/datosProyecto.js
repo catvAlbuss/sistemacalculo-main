@@ -113,17 +113,22 @@ export function textosSismicos(p, {df = null} = {}) {
 }
 
 // Opciones de cimentación y avisos de lo que falta, para laminasPlantilla.
-export function datosParaLaminas(datos = {}) {
+// sugeridos: {hz, df, fuentes} que el agente propone desde los proyectos parecidos (casos.js),
+// para cuando el ingeniero aún no dio el estudio de suelos; siempre con aviso.
+export function datosParaLaminas(datos = {}, sugeridos = {}) {
   const t = datosTecnicos(datos);
+  const desdeCasos = [];
+  if (t.hz === null && sugeridos.hz > 0) { t.hz = sugeridos.hz; desdeCasos.push(`Hz = ${sugeridos.hz.toFixed(2)} m`); }
+  if (t.df === null && sugeridos.df > 0) { t.df = sugeridos.df; desdeCasos.push(`Df = ${sugeridos.df.toFixed(2)} m`); }
   const sismo = parametrosSismicos(t);
   const avisos = [];
   if (t.invalidos.length) avisos.push(`Datos del proyecto no válidos (se ignoraron): ${t.invalidos.join("; ")}.`);
+  if (desdeCasos.length) avisos.push(`Sin estudio de suelos: usé ${desdeCasos.join(" y ")} como en los proyectos parecidos${sugeridos.fuentes?.length ? ` (${sugeridos.fuentes.join(", ")})` : ""}. Confírmalos con el EMS en ▤ Datos del proyecto.`);
   if (t.hz === null || t.df === null) {
     avisos.push(`Falta ${[t.hz === null && "Hz", t.df === null && "Df"].filter(Boolean).join(" y ")} del estudio de suelos: usé el criterio del despacho (Hz = ${CRITERIOS.platea.espesor.toFixed(2)} m, Df = ${CRITERIOS.platea.df.toFixed(2)} m). Indícalos en ▤ Datos del proyecto.`);
   }
   const faltaSismo = [!t.zona && "zona", !t.suelo && "perfil de suelo", !t.categoria && "categoría"].filter(Boolean);
   if (faltaSismo.length) avisos.push(`Falta ${faltaSismo.join(", ")}: ${faltaSismo.length === 3 ? "los parámetros sísmicos" : "parte de los parámetros sísmicos"} de la lámina son los de la plantilla y hay que revisarlos.`);
-  if (t.niveles > 1) avisos.push(`El proyecto tiene ${t.niveles} niveles: por ahora el agente dibuja la estructura de un nivel (losa de entrepiso y pórticos de varios niveles en desarrollo).`);
   return {
     cimentacion: {
       ...(t.hz !== null ? {espesorPlatea: t.hz, peralteZapata: t.hz} : {}),

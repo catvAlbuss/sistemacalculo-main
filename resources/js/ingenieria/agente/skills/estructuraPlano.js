@@ -8,8 +8,9 @@ import {laminaEstructuras} from "../../laminas/laminaEstructuras.js";
 import {laminasConPlantilla} from "../../laminas/laminasPlantilla.js";
 import {CAMPOS_TECNICOS, datosTecnicos, parametrosSismicos} from "../../criterios/datosProyecto.js";
 import {cajaTexto, seEncima, desencimarTextos} from "../../laminas/cajasTexto.js";
-import {rasgosDeArquitectura, proponer, textoPropuesta} from "../../aprendizaje/casos.js";
-import {CASOS} from "../../aprendizaje/casosAprendidos.js";
+import {rasgosDeArquitectura, proponer, textoPropuesta, casosDeUso, DECISIONES} from "../../aprendizaje/casos.js";
+import {CASOS, EVENTOS_USO} from "../../aprendizaje/casosAprendidos.js";
+import {registrarEvento, eventosDeUso, rasgosParaGuardar} from "../../aprendizaje/registro.js";
 
 const r2 = (value) => Math.round(value * 100) / 100;
 const listaCapas = (value) => String(value ?? "").split(/[,;]/).map((capa) => capa.trim()).filter(Boolean);
@@ -17,6 +18,44 @@ const listaCapas = (value) => String(value ?? "").split(/[,;]/).map((capa) => ca
 // Unidades del dibujo por metro según el radio de las burbujas de eje
 // (0.2-0.6 m en la práctica): más confiable que INSUNITS, que a veces miente.
 const escalaPorBurbuja = (radio) => (radio >= 40 ? 1000 : radio >= 4 ? 100 : 1);
+
+// Rasgos de la arquitectura abierta (todas sus vistas) y la propuesta de estructura según los
+// casos aprendidos (proyectos estudiados + correcciones del ingeniero). Queda en la memoria de
+// la conversación para aprender de las correcciones.
+async function propuestaDelPlano(ctx) {
+  const {items, vistas} = ctx.readPlan();
+  const lecturas = vistas.map((vista) => ({titulo: vista.titulo, lectura: leerVista(items, vista, escalaPorBurbuja(vista.radio))}));
+  const textos = items.filter((it) => it.tipo === "texto" && it.texto).map((it) => it.texto);
+  const rasgos = rasgosDeArquitectura(lecturas, textos);
+  const uso = casosDeUso([...EVENTOS_USO, ...await (ctx.eventosDeUso ?? eventosDeUso)()]);
+  const propuesta = proponer(rasgos, [...CASOS, ...uso]);
+  if (ctx.memoria) ctx.memoria.propuesta = {rasgos, propuesta};
+  return {rasgos, propuesta};
+}
+
+// Una corrección del ingeniero a una decisión del agente: se aprende (servidor + sesión).
+async function aprender(ctx, {clave, valor, motivo, tipo = "correccion"}) {
+  const p = ctx.memoria?.propuesta ?? await propuestaDelPlano(ctx);
+  const propuesto = p.propuesta.decisiones[clave]?.valor ?? null;
+  // Solo la geometría del plano (nunca el título de la vista: lleva el nombre del proyecto).
+  const evento = {tipo, clave, valor, propuesto, motivo: motivo || null, rasgos: rasgosParaGuardar(p.rasgos)};
+  await (ctx.registrarAprendizaje ?? registrarEvento)(evento);
+  return {propuesto};
+}
+
+// Valor dicho en el chat → el tipo de la decisión ("sí" → true, "0.20" → 0.2).
+function valorDeDecision(clave, valor) {
+  const t = String(valor ?? "").trim().toLowerCase();
+  if (["cimientoCorrido", "losaDeTecho", "columnasComoArquitectura"].includes(clave)) return /^(s[ií]|true|1|lleva|con)/.test(t);
+  if (["hz", "df", "espesorLosa", "fcColumnas", "fcColumnetas"].includes(clave)) {
+    const n = Number(t.replace(",", ".").replace(/[^0-9.]/g, ""));
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return clave === "espesorLosa" && n > 1 ? n / 100 : n; // "25 cm" → 0.25
+  }
+  if (clave === "cimentacion") return /zapat/.test(t) ? "zapatas" : /platea/.test(t) ? "platea" : /corrid/.test(t) ? "cimiento corrido" : null;
+  if (clave === "losa") return /maciz/.test(t) && /aligerad/.test(t) ? "aligerada y maciza" : /maciz/.test(t) ? "maciza" : /aligerad/.test(t) ? "aligerada" : null;
+  return t || null;
+}
 
 // Vista pedida: número (#2) o parte del título ("primer nivel"). Por defecto, la
 // planta con más columnas en sus cruces de ejes.
@@ -133,7 +172,6 @@ function textoDatos(datos) {
 
 // Lo que el agente todavía no dibuja (para que el ingeniero sepa qué pedir o completar).
 const AUN_NO_DIBUJA = [
-  "edificios de 2 o más niveles (losa de entrepiso)",
   "secciones VB, canaleta y correas en los pórticos",
   "cuadro de vigas y metrados",
 ];
@@ -200,6 +238,12 @@ export const ESTRUCTURA_SKILLS = [
     parameters: {type: "object", properties: PARAMETROS_DATOS},
     async run(args, ctx) {
       const {guardados, invalidos} = guardarDatos(args, ctx);
+      // Hz y Df del estudio de suelos distintos a lo que propuso el agente: también se aprenden.
+      const propuesta = ctx.memoria?.propuesta?.propuesta;
+      for (const clave of guardados.filter((k) => k === "hz" || k === "df")) {
+        const v = Number(String(args[clave]).replace(",", "."));
+        if (propuesta && Number.isFinite(v) && Math.abs((propuesta.decisiones[clave]?.valor ?? -1) - v) > 0.005) await aprender(ctx, {clave, valor: v, motivo: "estudio de suelos"});
+      }
       const {tiene, faltan, sismo} = textoDatos(ctx.datosProyecto?.() ?? {});
       return {
         ok: true,
@@ -216,14 +260,30 @@ export const ESTRUCTURA_SKILLS = [
     description: "Analiza la arquitectura abierta (niveles, ejes, luces, columnas, techo) y propone la estructura como lo haría el despacho: cimentación, losa y su espesor, losas de entrepiso, concreto, columnas. Dice qué decide el agente y qué queda para el ingeniero. Úsalo cuando pidan analizar, proponer o decidir la estructura de un plano.",
     parameters: {type: "object", properties: {}},
     async run(args, ctx) {
-      const {items, vistas} = ctx.readPlan();
-      if (!vistas.length) return {ok: false, error: "No encontré plantas con ejes con nombre en el plano abierto."};
-      const lecturas = vistas.map((vista) => ({titulo: vista.titulo, lectura: leerVista(items, vista, escalaPorBurbuja(vista.radio))}));
-      const textos = items.filter((it) => it.tipo === "texto" && it.texto).map((it) => it.texto);
-      const rasgos = rasgosDeArquitectura(lecturas, textos);
-      const propuesta = proponer(rasgos, CASOS);
-      ctx.memoria.propuesta = {rasgos, propuesta};
+      if (!ctx.readPlan().vistas.length) return {ok: false, error: "No encontré plantas con ejes con nombre en el plano abierto."};
+      const {rasgos, propuesta} = await propuestaDelPlano(ctx);
       return {ok: true, mensaje: textoPropuesta(rasgos, propuesta)};
+    },
+  },
+  {
+    name: "corregir_estructura",
+    description: "Anota una corrección del ingeniero a una decisión de la estructura propuesta (cimentación, tipo o espesor de losa, losa en el último nivel, f'c, estribos, Hz, Df…). El agente la aprende para este plano y los parecidos. Úsalo cuando el ingeniero diga que algo de la propuesta o de las láminas es distinto (ej. 'la losa es maciza', 'usa zapatas', 'el aligerado es de 20').",
+    parameters: {type: "object", properties: {
+      decision: {type: "string", enum: Object.keys(DECISIONES), description: "Qué decisión corrige"},
+      valor: {type: "string", description: "El valor correcto, como lo dijo el ingeniero (ej. 'maciza', '0.20', 'zapatas', 'no')"},
+      motivo: {type: "string", description: "Opcional: por qué (ej. 'baño con losa maciza')"},
+    }, required: ["decision", "valor"]},
+    async run(args, ctx) {
+      const clave = args.decision;
+      if (!(clave in DECISIONES)) return {ok: false, error: `No conozco la decisión "${clave}".`};
+      const valor = valorDeDecision(clave, args.valor);
+      if (valor === null) return {ok: false, error: `No entendí el valor "${args.valor}" para ${DECISIONES[clave].nombre}.`};
+      // Hz y Df también van a Datos del proyecto (las láminas los usan directo).
+      if (clave === "hz" || clave === "df") guardarDatos({[clave]: String(valor)}, ctx);
+      const {propuesto} = await aprender(ctx, {clave, valor, motivo: args.motivo});
+      delete ctx.memoria.propuesta; // la próxima propuesta ya la incluye
+      const v = typeof valor === "boolean" ? (valor ? "sí" : "no") : valor;
+      return {ok: true, mensaje: `Anoté ${DECISIONES[clave].nombre}: ${v}${propuesto !== null && propuesto !== valor ? ` (yo había propuesto ${typeof propuesto === "boolean" ? (propuesto ? "sí" : "no") : propuesto})` : ""}. Lo aplico en este plano y lo tendré en cuenta en los parecidos. Pide "genera el plano de estructuras" para rehacer las láminas.`};
     },
   },
   {
@@ -364,18 +424,37 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
       const plantilla = await ctx.loadTemplate?.().catch(() => null);
       if (plantilla) {
         const k = e.escala;
-        const r = laminasConPlantilla({lectura, items, caja: e.caja, k, config: plantilla.config, cimentacion: args.cimentacion, datos: ctx.datosProyecto?.() ?? {}});
-        ctx.insertTemplate(plantilla.db, {x: r.desplazamiento.x * k, y: r.desplazamiento.y * k}, k, null, r.textosPlantilla);
+        // La propuesta del agente (niveles, losa de techo) aprendida de los proyectos estudiados;
+        // los niveles que el ingeniero dio en Datos del proyecto mandan.
+        const datos = ctx.datosProyecto?.() ?? {};
+        const {rasgos, propuesta} = await propuestaDelPlano(ctx);
+        const niveles = Number(datos.niveles) > 0 ? Number(datos.niveles) : rasgos.niveles;
+        const cimProp = propuesta.decisiones.cimentacion?.valor;
+        // Espesor de losa: el cálculo por la luz, salvo que el ingeniero lo haya corregido.
+        const espLosa = /^lo corregiste/.test(propuesta.decisiones.espesorLosa?.regla ?? "") ? propuesta.decisiones.espesorLosa.valor : null;
+        const losaTecho = niveles === rasgos.niveles ? propuesta.decisiones.losaDeTecho?.valor ?? niveles <= 1 : niveles <= 1;
+        const r = laminasConPlantilla({lectura, items, caja: e.caja, k, config: plantilla.config, cimentacion: args.cimentacion ?? (["platea", "zapatas"].includes(cimProp) ? cimProp : undefined), datos, estructura: {niveles, losaTecho, espesorLosa: espLosa, textosOcultos: ctx.readPlan().textosOcultos,
+          sugeridos: {hz: propuesta.decisiones.hz?.valor, df: propuesta.decisiones.df?.valor, fuentes: [...new Set([...(propuesta.decisiones.hz?.fuentes ?? []), ...(propuesta.decisiones.df?.fuentes ?? [])])]}}});
+        ctx.insertTemplate(plantilla.db, {x: r.desplazamiento.x * k, y: r.desplazamiento.y * k}, k, null, r.textosPlantilla, r.excluirPlantilla);
         // Hojas extra de pórticos: copia de la lámina de pórticos de la plantilla.
-        for (const c of r.copias ?? []) ctx.insertTemplate(plantilla.db, {x: c.desplazamiento.x * k, y: c.desplazamiento.y * k}, k, c.marco, r.textosPlantilla);
+        for (const c of r.copias ?? []) ctx.insertTemplate(plantilla.db, {x: c.desplazamiento.x * k, y: c.desplazamiento.y * k}, k, c.marco, r.textosPlantilla, c.excluir);
         const z = r.zona;
         const lista = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} y ${xs.at(-1)}` : xs[0] ?? "");
         ctx.draw(r.primitivas, `Agente: láminas ${lista(r.laminas.map((l) => l.codigo))} de estructuras`, {unitsPerMeter: k, zoom: {x0: z.x0 * k, y0: z.y0 * k, x1: z.x1 * k, y1: z.y1 * k}});
+        // Control de calidad antes de entregar: ningún texto encima de otro.
+        const textosAgente = () => (ctx.entidadesDelAgente?.() ?? []).filter((x) => /^(M?TEXT)$/i.test(String(x.dxfTypeName)));
+        const encimados = textosEncimados(textosAgente());
+        if (encimados && ctx.modificar) {
+          ctx.modificar("Agente: separar textos encimados", textosAgente().map((x) => x.objectId), (abiertas) => desencimarTextos(abiertas).achicados);
+          const quedan = textosEncimados(textosAgente());
+          if (quedan) extra.push(`Quedan ${quedan} pares de textos muy juntos; revísalos o pídeme "corrige los encimados".`);
+        }
         const s = r.resumen;
         return {
           ok: true,
           mensaje: `${previo ? `${previo} ` : ""}Generé las láminas ${lista(r.laminas.map((l) => `${l.codigo} (${l.plano.toLowerCase()})`))} de ${r.proyecto} debajo de la arquitectura, con la plantilla del despacho: ` +
             `cimentación con ${s.cimentacion} (Hz = ${s.hz.toFixed(2)} m, Df = ${s.df.toFixed(2)} m), cimiento corrido ${s.anchoCimiento.toFixed(2)} m en ${s.cimientoCorrido} tramos, aligerado e=${s.aligerado.espesor.toFixed(2)} m (${s.aligerado.viguetas} viguetas), ` +
+            `${s.niveles > 1 ? `${s.niveles} niveles (entrepiso${s.entrepisos.length > 1 ? "s" : ""} NPT +${s.entrepisos.map((z) => z.toFixed(2)).join(", +")}${s.losaTecho ? "" : "; el último nivel solo con cobertura"}), ` : ""}` +
             `pórticos de los ejes ${s.porticos.join(", ")} (${s.techo ? `techo a dos aguas PTE ${Math.round(s.techo.pendiente * 100)}%, alero +${s.altura.toFixed(2)}, cumbrera +${s.techo.cumbrera.toFixed(2)}` : `techo +${s.altura.toFixed(2)}`}) y cuadro de columnas ${s.columnas.map((c) => `${c.tipo} ${c.refuerzo}`).join(", ")}` +
             `${s.sismo?.Z !== undefined || s.sismo?.U !== undefined ? `; parámetros sísmicos ${[s.sismo.Z !== undefined && `Z=${s.sismo.Z}`, s.sismo.U !== undefined && `U=${s.sismo.U}`, s.sismo.S !== undefined && `S=${s.sismo.S}`, s.sismo.Tp !== undefined && `Tp=${s.sismo.Tp}`].filter(Boolean).join(", ")}` : ""}.`,
           laminas: r.laminas.map((l) => l.codigo),

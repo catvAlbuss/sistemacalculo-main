@@ -99,7 +99,17 @@ export function createDrawingContext({getDatabase, dm, edit, afterDraw, onFounda
       const arquitectura = propias.length ? todas.filter((e) => marcaDe(e) === null) : todas;
       const {items: itemsArq, bloques} = aplanarModelo(arquitectura, {capasApagadas});
       const items = propias.length ? [...itemsArq, ...aplanarModelo(propias, {capasApagadas}).items] : itemsArq;
-      this.memoria.lectura = {database, items, bloques, vistas: detectarVistas(itemsArq)};
+      // Textos de capas apagadas o congeladas: solo a pedido (p. ej. los NPT de los niveles
+      // superiores que el arquitecto dejó en una capa congelada); no se leen en cada skill.
+      let ocultos = null;
+      const clave = (it) => `${it.texto}@${Math.round(it.centro?.x ?? 0)},${Math.round(it.centro?.y ?? 0)}`;
+      const textosOcultos = () => {
+        if (ocultos) return ocultos;
+        const visibles = new Set(itemsArq.filter((it) => it.tipo === "texto").map(clave));
+        ocultos = capasApagadas.size ? aplanarModelo(arquitectura).items.filter((it) => it.tipo === "texto" && !visibles.has(clave(it))) : [];
+        return ocultos;
+      };
+      this.memoria.lectura = {database, items, bloques, vistas: detectarVistas(itemsArq), textosOcultos};
       return this.memoria.lectura;
     },
     datosProyecto() {
@@ -180,13 +190,18 @@ export function createDrawingContext({getDatabase, dm, edit, afterDraw, onFounda
     // Copia el espacio modelo de la plantilla al dibujo abierto (un solo paso de deshacer).
     // Con `marco` (coordenadas de la plantilla) copia solo esa lámina: hojas extra de pórticos.
     // `textos`: función texto → texto para los datos del proyecto (parámetros sísmicos).
-    insertTemplate(origen, desplazamiento, escala = 1, marco = null, textos = null) {
+    // excluir: zonas de la plantilla que no se copian (símbolos de títulos sin plano).
+    insertTemplate(origen, desplazamiento, escala = 1, marco = null, textos = null, excluir = []) {
       const database = getDatabase();
       if (!database) throw new Error("No hay un dibujo abierto.");
       let entidades = origen.tables.blockTable.modelSpace.newIterator().toArray();
       if (marco) entidades = entidades.filter((e) => {
         const p = puntoDeReferencia(e);
         return p && p.x >= marco.x && p.x <= marco.x1 && p.y >= marco.y && p.y <= marco.y1;
+      });
+      if (excluir?.length) entidades = entidades.filter((e) => {
+        const p = puntoDeReferencia(e);
+        return !p || !excluir.some((z) => p.x >= z.x && p.x <= z.x1 && p.y >= z.y && p.y <= z.y1);
       });
       const copiar = () => copiarDesdePlantilla({origen, destino: database, entidades, desplazamiento, escala, dm, textos});
       const resultado = edit ? edit(database, "Agente: plantilla de láminas de estructuras", copiar) ?? null : copiar();

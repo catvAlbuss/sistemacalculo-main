@@ -74,3 +74,41 @@ test('module 9 (two levels) through the chat tool: reads 2 levels and proposes t
   assert.match(r.mensaje, /Espesor de losa \(m\): 0\.25/);
   assert.match(r.mensaje, /Para el ingeniero:[\s\S]*Profundidad de desplante/);
 });
+
+test('every correction of the engineer teaches the agent: same plan decided, similar plan asked', async () => {
+  const {casosDeUso} = await import('../../resources/js/ingenieria/aprendizaje/casos.js');
+  const rasgos = {niveles: 2, luzLosa: 5.84, area: 63.6, columnas: 6, techoLiviano: true, placas: true, columnetas: 19};
+  const base = proponer(rasgos, CASOS);
+  assert.notEqual(base.decisiones.losa.valor, 'maciza');
+  const uso = casosDeUso([{tipo: 'correccion', clave: 'losa', valor: 'maciza', propuesto: base.decisiones.losa.valor, motivo: 'escalera', rasgos}]);
+  const mismo = proponer(rasgos, [...CASOS, ...uso]);
+  assert.equal(mismo.decisiones.losa.valor, 'maciza');
+  assert.ok(mismo.decide.includes('losa'), 'same plan: the agent applies the correction without asking');
+  const parecido = proponer({...rasgos, luzLosa: 5.5, area: 60}, [...CASOS, ...uso]);
+  assert.equal(parecido.decisiones.losa.valor, 'maciza');
+  assert.match(parecido.decisiones.losa.ingeniero, /En un plano parecido lo corregiste a maciza/);
+  // Una corrección que contradice una regla la invalida: el agente deja de aplicarla solo.
+  const contra = casosDeUso([{tipo: 'correccion', clave: 'cimientoCorrido', valor: false, rasgos: {...rasgos, columnetas: 4, area: 20}}]);
+  assert.equal(reglasValidas([...CASOS, ...contra]).find((r) => r.clave === 'cimientoCorrido').valida, false);
+});
+
+test('module 9 through the chat: the engineer corrects the slab and the next proposal uses it', {skip: !existsSync(m09)}, async () => {
+  const {AcDbLibreDwgMainThreadConverter} = await import('@mlightcad/libredwg-converter/node');
+  dm.AcDbDatabaseConverterManager.instance.register(dm.AcDbFileType.DWG, new AcDbLibreDwgMainThreadConverter());
+  const db = new dm.AcDbDatabase();
+  const b = readFileSync(m09);
+  await db.read(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), {readOnly: true}, dm.AcDbFileType.DWG);
+  const registrados = [];
+  const ctx = createDrawingContext({getDatabase: () => db, dm});
+  ctx.memoria ??= {};
+  ctx.registrarAprendizaje = async (e) => { registrados.push(e); };
+  ctx.eventosDeUso = async () => registrados;
+  const run = (n, a = {}) => SKILLS.find((s) => s.name === n).run(a, ctx);
+  await run('proponer_estructura');
+  const c = await run('corregir_estructura', {decision: 'espesorLosa', valor: '30 cm', motivo: 'sobrecarga de biblioteca'});
+  assert.match(c.mensaje, /^Anoté Espesor de losa \(m\): 0\.3 \(yo había propuesto 0\.25\)/);
+  assert.equal(registrados.length, 1);
+  assert.deepEqual(Object.keys(registrados[0].rasgos).sort(), ['ancho', 'area', 'columnas', 'columnetas', 'largo', 'luzLosa', 'luzMax', 'niveles', 'placas', 'techoLiviano'].sort(), 'only geometry is stored');
+  const r = await run('proponer_estructura');
+  assert.match(r.mensaje, /Espesor de losa \(m\): 0\.30 \(lo corregiste en este mismo plano\)/);
+});

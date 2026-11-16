@@ -59,7 +59,12 @@ test('missing soil data falls back to the office criterion with a warning; given
   const con = datosParaLaminas({hz: '0.60', df: '2.50', zona: '2', suelo: 'S3', categoria: 'A2', niveles: '2'});
   assert.deepEqual(con.cimentacion, {espesorPlatea: 0.6, peralteZapata: 0.6, dfPlatea: 2.5, df: 2.5, pisos: 2});
   assert.ok(!con.avisos.some((a) => /Falta/.test(a)));
-  assert.ok(con.avisos.some((a) => /2 niveles/.test(a)), 'two levels are not drawn yet: say so');
+  assert.ok(!con.avisos.some((a) => /2 niveles/.test(a)), 'two levels are drawn now: no warning');
+  // Sin estudio de suelos, los Hz/Df de los proyectos parecidos (con aviso), no el criterio fijo.
+  const sugerido = datosParaLaminas({}, {hz: 0.6, df: 2.5, fuentes: ['modulo-09']});
+  assert.deepEqual(sugerido.cimentacion, {espesorPlatea: 0.6, peralteZapata: 0.6, dfPlatea: 2.5, df: 2.5});
+  assert.ok(sugerido.avisos.some((a) => /Sin estudio de suelos: usé Hz = 0\.60 m y Df = 2\.50 m como en los proyectos parecidos \(modulo-09\)/.test(a)));
+  assert.ok(!sugerido.avisos.some((a) => /Falta Hz y Df/.test(a)));
 });
 
 test('chat tool datos_proyecto saves what the engineer dictates into the panel and says what is missing', async () => {
@@ -226,7 +231,7 @@ test('module 3 with its soil study and E.030 data: Hz 0.60, Df 2.50 and Z/U/S/Tp
   assert.match(rev.mensaje, /- Textos encimados: /);
   assert.match(rev.mensaje, /- Datos del proyecto que faltan: ninguno\./, 'Hz, Df, zona, suelo y categoría vinieron del panel y del chat');
   assert.match(rev.mensaje, /- Rótulo sin: proyecto, entidad, especialista, CIP/);
-  assert.match(rev.mensaje, /- Aún no dibujo: edificios de 2 o más niveles/);
+  assert.match(rev.mensaje, /- Aún no dibujo: secciones VB/);
   const corr = await SKILLS.find((s) => s.name === 'revisar_laminas').run({corregir: true}, nuevo);
   assert.ok(corr.encimados <= rev.encimados, `corregir no empeora: ${rev.encimados} → ${corr.encimados}`);
   if (rev.encimados) assert.ok(corr.corregidos > 0, 'separó textos');

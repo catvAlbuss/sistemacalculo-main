@@ -21,7 +21,8 @@ import {AcDbLibreDwgConverter} from '@mlightcad/libredwg-converter';
 import {AcDbLibreDwgMainThreadConverter} from '@mlightcad/libredwg-converter/node';
 import {aplanarModelo, detectarVistas, leerVista} from '../../resources/js/ingenieria/lectura/lectorPlano.js';
 import {instalarRecorteXclip} from '../../resources/js/etabs/visor/recorteXclip.js';
-import {rasgosDeArquitectura, decisionesDeEstructura, compararColumnas, evaluar} from '../../resources/js/ingenieria/aprendizaje/casos.js';
+import {rasgosDeArquitectura, decisionesDeEstructura, compararColumnas, evaluar, DECISIONES} from '../../resources/js/ingenieria/aprendizaje/casos.js';
+import {rasgosParaGuardar} from '../../resources/js/ingenieria/aprendizaje/registro.js';
 import {PLANOS} from './planos.mjs';
 
 const raiz = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -82,12 +83,22 @@ for (const par of pares) {
     + `, columnas como arquitectura: ${columnas.coincidencia === null ? '—' : `${Math.round(columnas.coincidencia * 100)} %`}`);
 }
 
+// Correcciones del ingeniero en el uso (AgenteAprendizajeController): sin usuario, solo
+// geometría y la decisión corregida. Van al agente para usarlas también sin conexión.
+const rutaEventos = resolve(raiz, 'storage/app/private/aprendizaje/eventos.jsonl');
+const eventos = existsSync(rutaEventos)
+  ? readFileSync(rutaEventos, 'utf8').split(/\r?\n/).filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } })
+    .filter((e) => e && e.clave in DECISIONES).map(({tipo, clave, valor, propuesto, motivo, rasgos, fecha}) => ({tipo, clave, valor, propuesto, motivo, rasgos: rasgosParaGuardar(rasgos), fecha}))
+  : [];
+
 // Para el agente: solo lo que usa al proponer (rasgos y decisiones).
 const paraAgente = casos.map(({nombre, etiqueta, rasgos, decisiones}) => ({nombre, etiqueta, rasgos, decisiones}));
 writeFileSync(salidaModulo, [
   '// Generado por scripts/agente/aprender-pares.mjs: no editar a mano.',
   '// Casos aprendidos de los pares arquitectura + estructuras (ver casos.js). Sin datos personales.',
   `export const CASOS = ${JSON.stringify(paraAgente, null, 1)};`,
+  '// Correcciones del ingeniero registradas en el uso (se suman a las del servidor y la sesión).',
+  `export const EVENTOS_USO = ${JSON.stringify(eventos, null, 1)};`,
   '',
 ].join('\n'));
 
@@ -95,4 +106,12 @@ const ev = evaluar(casos);
 console.log(`\nEvaluación dejando cada caso fuera: ${Math.round(ev.acierto * 100)} % de decisiones acertadas; `
   + `${Math.round(ev.aciertoAgente * 100)} % en las que el agente decide solo (${Math.round(ev.parteAgente * 100)} % de las decisiones; el resto queda para el ingeniero)`);
 for (const f of ev.filas) console.log(`  ${f.caso}: ${f.aciertos}/${f.total}${f.fallos.length ? ` — falla ${f.fallos.join('; ')}` : ''}`);
+// Lo que más le corrigen al agente en el uso: por ahí hay que mejorarlo primero.
+const correcciones = eventos.filter((e) => e.tipo === 'correccion');
+if (correcciones.length) {
+  const porClave = new Map();
+  for (const e of correcciones) porClave.set(e.clave, (porClave.get(e.clave) ?? 0) + 1);
+  console.log(`\nCorrecciones del ingeniero en el uso: ${correcciones.length}`);
+  for (const [k, n] of [...porClave].sort((a, b) => b[1] - a[1])) console.log(`  ${DECISIONES[k].nombre}: ${n}`);
+} else console.log('\nAún no hay correcciones del ingeniero registradas en el uso.');
 process.exit(0);

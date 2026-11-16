@@ -16,7 +16,7 @@ import {cuadroColumnas, cuadroColumnetas} from "./cuadroColumnas.js";
 import {datosDesdeArquitectura, textoEnCasilla, anchoTexto} from "./rotulo.js";
 import {aplicarEstilo} from "../criterios/estiloLaminas.js";
 import {separarTextos} from "./separarTextos.js";
-import {planoPortico, alturaDesdeArquitectura, pendienteDesdeArquitectura, vanosDesdeArquitectura} from "../planos/porticoPlano.js";
+import {planoPortico, nivelesDesdeArquitectura, pendienteDesdeArquitectura, vanosDesdeArquitectura} from "../planos/porticoPlano.js";
 import {datosParaLaminas, CAMPOS_TECNICOS} from "../criterios/datosProyecto.js";
 
 const r4 = (v) => Math.round(v * 10000) / 10000;
@@ -130,13 +130,16 @@ const ocupado = (items, k, box) => items.some((it) => (it.puntos ?? [it.centro])
 // Orden de los pórticos como en el expediente: ejes con letra (descendente), luego números (descendente).
 const ordenEjes = (a, b) => b.nombre.localeCompare(a.nombre, "es", {numeric: true});
 
-export function laminasConPlantilla({lectura, items, caja, k = 1, config, cimentacion, datos = {}, fecha = new Date()}) {
+// estructura: lo que propuso el agente (aprendizaje/casos.js) para este plano: niveles y si el
+// último nivel lleva losa de techo. Con varios niveles, los pórticos llevan sus entrepisos y la
+// losa dibujada es la del 1er nivel (entrepiso).
+export function laminasConPlantilla({lectura, items, caja, k = 1, config, cimentacion, datos = {}, fecha = new Date(), estructura = {}}) {
   const proyecto = proyectoDesdeArquitectura(items, lectura.titulo || "PROYECTO");
   // Datos del rótulo: el formulario del panel manda; si no, el rótulo de la arquitectura.
   const tecnicos = new Set(CAMPOS_TECNICOS.map((c) => c.campo));
   const datosRotulo = {...datosDesdeArquitectura(items), ...Object.fromEntries(Object.entries(datos ?? {}).filter(([c, v]) => !tecnicos.has(c) && v !== undefined && v !== null && String(v).trim() !== ""))};
   // Datos técnicos (Hz, Df, zona, suelo, categoría, niveles): del panel; si faltan, criterio y aviso.
-  const dp = datosParaLaminas(datos);
+  const dp = datosParaLaminas(datos, estructura.sugeridos ?? {});
   const nominal = config.escalaPlanos ?? 2;
   const marcos = config.laminas.map((l) => l.marco);
   const T = {x0: Math.min(...marcos.map((m) => m.x)), y0: Math.min(...marcos.map((m) => m.y)), x1: Math.max(...marcos.map((m) => m.x1)), y1: Math.max(...marcos.map((m) => m.y1))};
@@ -153,10 +156,13 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   // Contenido de cada espacio.
   const cim = planoCimentacion({lectura, items, caja, k, titulo: lectura.titulo}, {tipo: cimentacion, ...dp.cimentacion});
   const cc = planoCimientoCorrido({lectura, items, caja, k}, {columnetas: lectura.columnetas ?? [], ...(dp.cimentacion.pisos ? {pisos: dp.cimentacion.pisos} : {})});
-  const ali = planoAligerado({lectura, items, k});
+  const ali = planoAligerado({lectura, items, k, espesorFijo: estructura.espesorLosa ?? null});
   const cuadro = cuadroColumnas(lectura.columnas);
   const cuadroCtas = cuadroColumnetas(lectura.columnetas ?? []); // ya traen su código (pa, pb…) del cimiento corrido
-  const altura = alturaDesdeArquitectura(items);
+  const nNiveles = Math.max(1, Number(estructura.niveles) || 1);
+  const {entrepisos, techo: altura, fuente: fuenteNiveles} = nivelesDesdeArquitectura(items, nNiveles, estructura.textosOcultos ?? (() => []));
+  const losaTecho = estructura.losaTecho ?? nNiveles <= 1;
+  if (nNiveles > 1) ali.contenido.titulo = `PLANO DE LOSA 1° NIVEL${losaTecho ? "" : " (ENTREPISO)"}`;
   const pendiente = pendienteDesdeArquitectura(items);
   const vanos = vanosDesdeArquitectura(items, k);
   const vigaTipo = ali.tiposViga[0] ? {b: 0.25, h: Number(ali.tiposViga[0].medida.split("x")[1])} : seccionViga(4);
@@ -164,7 +170,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
     .map((eje) => ({eje, columnas: lectura.columnas.filter((c) => c.eje.split("/").includes(eje.nombre))}))
     .filter((x) => x.columnas.length >= 2)
     .sort((a, b) => ordenEjes(a.eje, b.eje));
-  const porticos = ejesPortico.map(({eje, columnas}) => planoPortico({eje, columnas, altura, espesorLosa: ali.espesor, viga: vigaTipo, cimentacion: {tipo: cim.tipo, peralte: cim.peralte, df: cim.df}, columnetas: lectura.columnetas ?? [], cumbrera: ali.cumbrera, pendiente, vanos}));
+  const porticos = ejesPortico.map(({eje, columnas}) => planoPortico({eje, columnas, altura, espesorLosa: ali.espesor, viga: vigaTipo, cimentacion: {tipo: cim.tipo, peralte: cim.peralte, df: cim.df}, columnetas: lectura.columnetas ?? [], cumbrera: ali.cumbrera, pendiente, vanos, entrepisos, losaTecho}));
   const contenidos = {
     cimentacion: cim.contenido, cimiento: cc.contenido, aligerado: ali.contenido, cuadroColumnas: cuadro.contenido, cuadroColumnetas: cuadroCtas?.contenido,
   };
@@ -187,11 +193,11 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   const prim = [];
   const laminas = [];
   const copias = [];
+  const excluirPlantilla = [];
   const escalas = new Set();
   hojas.forEach(({lamina, extra, porticos: deHoja, copia}, i) => {
     const codigo = `E-${String(previas + i + 1).padStart(2, "0")}`;
     const mover = (prims) => transformar(prims, (x, y) => [x + O.x + extra.x, y + O.y + extra.y], 1);
-    if (copia) copias.push({desplazamiento: {x: O.x + extra.x, y: O.y + extra.y}, marco: lamina.marco});
     const titulosLibres = [...lamina.titulos];
     for (const espacio of lamina.espacios) {
       const m = /^portico(\d+)$/.exec(espacio.id);
@@ -235,14 +241,22 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       // En la capa (y color) del dato en el expediente: NCAMINO1, CAPA8, ".".
       prim.push(...mover(textoEnCasilla(campo, valores[campo.campo], {max, capa: campo.capa ?? L.LAMINA})));
     }
+    // Títulos de la plantilla que quedaron sin plano (espacio vacío, p. ej. la copia de pórticos
+    // con un solo pórtico): su símbolo de título no se copia (quedaba suelto en la lámina).
+    const sinUsar = titulosLibres.map((t) => ({x: t.x - 1.35, y: t.y - 1.1, x1: t.x + 0.02, y1: t.y + 0.35}));
+    if (copia) copias.push({desplazamiento: {x: O.x + extra.x, y: O.y + extra.y}, marco: lamina.marco, excluir: sinUsar});
+    else excluirPlantilla.push(...sinUsar);
     laminas.push({codigo, plano: lamina.plano});
   });
 
   const avisos = [...dp.avisos, ...cim.avisos];
   if (iPorticos < 0 && porticos.length) avisos.push("La plantilla no tiene espacio para pórticos.");
+  if (nNiveles > 1 && fuenteNiveles !== "visible") avisos.push(fuenteNiveles === "capa oculta"
+    ? `Los niveles (NPT +${[...entrepisos, altura].map((z) => z.toFixed(2)).join(", +")}) los tomé de capas apagadas de la arquitectura: confírmalos.`
+    : `La arquitectura no rotula los NPT de los niveles superiores: supuse +${[...entrepisos, altura].map((z) => z.toFixed(2)).join(", +")} (altura del 1er nivel). Dímelos para corregir.`);
   if (!cc.tramos) avisos.push("No encontré muros sobre los ejes: el plano de cimiento corrido quedó sin cimientos.");
   return {
-    desplazamiento: O, copias, primitivas: prim, laminas, proyecto, avisos,
+    desplazamiento: O, copias, excluirPlantilla, primitivas: prim, laminas, proyecto, avisos,
     // Para la copia de la plantilla: parámetros sísmicos del proyecto en lugar de los del expediente.
     textosPlantilla: dp.textos,
     zona: {x0: zona.x0 + O.x, y0: zona.y0 + O.y, x1: zona.x1 + O.x, y1: zona.y1 + O.y},
@@ -253,7 +267,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       aligerado: {espesor: ali.espesor, viguetas: ali.viguetas, vigas: ali.vigas, panos: ali.panos?.length},
       columnetas: cuadroCtas?.filas?.map((f) => `${f.codigo} ${f.refuerzo}`),
       rotulo: Object.keys(datosRotulo).filter((k2) => datosRotulo[k2]),
-      porticos: ejesPortico.map((x) => x.eje.nombre), altura,
+      porticos: ejesPortico.map((x) => x.eje.nombre), altura, niveles: nNiveles, entrepisos, losaTecho,
       techo: ali.cumbrera ? {pendiente, cumbrera: Math.max(...porticos.map((p) => p.cumbrera ?? 0))} : null,
       columnas: cuadro.filas, escalas: [...escalas],
     },
