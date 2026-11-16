@@ -157,8 +157,8 @@
     "file": "assets/three.module-De0dRVGu.js",
     "name": "three.module"
   },
-  "_ubigeo-Cak7qga5.js": {
-    "file": "assets/ubigeo-Cak7qga5.js",
+  "_ubigeo-KYpmxxwn.js": {
+    "file": "assets/ubigeo-KYpmxxwn.js",
     "name": "ubigeo"
   },
   "_vfs_fonts-Be6jv1MV.js": {
@@ -187,7 +187,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/gaussianSplatting.fragment.js": {
-    "file": "assets/gaussianSplatting.fragment-cSDi3S4W.js",
+    "file": "assets/gaussianSplatting.fragment-vcw2avgu.js",
     "name": "gaussianSplatting.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/gaussianSplatting.fragment.js",
     "isDynamicEntry": true,
@@ -204,11 +204,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/gaussianSplatting.vertex.js": {
-    "file": "assets/gaussianSplatting.vertex-DdOsaX34.js",
+    "file": "assets/gaussianSplatting.vertex-7-oDOmeI.js",
     "name": "gaussianSplatting.vertex",
     "src": "node_modules/@babylonjs/core/Shaders/gaussianSplatting.vertex.js",
     "isDynamicEntry": true,
@@ -225,11 +225,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/gaussianSplattingVoxel.fragment.js": {
-    "file": "assets/gaussianSplattingVoxel.fragment-BNWiyk3a.js",
+    "file": "assets/gaussianSplattingVoxel.fragment-nK49GhVA.js",
     "name": "gaussianSplattingVoxel.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/gaussianSplattingVoxel.fragment.js",
     "isDynamicEntry": true,
@@ -246,11 +246,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/gaussianSplattingVoxel.vertex.js": {
-    "file": "assets/gaussianSplattingVoxel.vertex-vRehgvOF.js",
+    "file": "assets/gaussianSplattingVoxel.vertex-BBHsJftp.js",
     "name": "gaussianSplattingVoxel.vertex",
     "src": "node_modules/@babylonjs/core/Shaders/gaussianSplattingVoxel.vertex.js",
     "isDynamicEntry": true,
@@ -267,11 +267,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/lod3D.fragment.js": {
-    "file": "assets/lod3D.fragment-DPjLE7cs.js",
+    "file": "assets/lod3D.fragment-Bggl9WK4.js",
     "name": "lod3D.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/lod3D.fragment.js",
     "isDynamicEntry": true,
@@ -288,11 +288,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/meshBlending.fragment.js": {
-    "file": "assets/meshBlending.fragment-Clx9OUQt.js",
+    "file": "assets/meshBlending.fragment-C0hcQa9Z.js",
     "name": "meshBlending.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/meshBlending.fragment.js",
     "isDynamicEntry": true,
@@ -309,11 +309,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/noise.fragment.js": {
-    "file": "assets/noise.fragment-B_wjdlk7.js",
+    "file": "assets/noise.fragment-DakBavic.js",
     "name": "noise.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/noise.fragment.js",
     "isDynamicEntry": true,
@@ -330,11 +330,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/oitFinalSimpleBlend.fragment.js": {
-    "file": "assets/oitFinalSimpleBlend.fragment-DnOqCBf9.js",
+    "file": "assets/oitFinalSimpleBlend.fragment-BKk_68Ke.js",
     "name": "oitFinalSimpleBlend.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/oitFinalSimpleBlend.fragment.js",
     "isDynamicEntry": true,
@@ -351,11 +351,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/selection.fragment.js": {
-    "file": "assets/selection.fragment-BDfyV2gg.js",
+    "file": "assets/selection.fragment-D6JTsWvw.js",
     "name": "selection.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/selection.fragment.js",
     "isDynamicEntry": true,
@@ -372,11 +372,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/selection.vertex.js": {
-    "file": "assets/selection.vertex-DxXsieyN.js",
+    "file": "assets/selection.vertex-DhSvQIVb.js",
     "name": "selection.vertex",
     "src": "node_modules/@babylonjs/core/Shaders/selection.vertex.js",
     "isDynamicEntry": true,
@@ -393,11 +393,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/selectionOutline.fragment.js": {
-    "file": "assets/selectionOutline.fragment-Ns7vJNTB.js",
+    "file": "assets/selectionOutline.fragment-BYKthlBa.js",
     "name": "selectionOutline.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/selectionOutline.fragment.js",
     "isDynamicEntry": true,
@@ -414,11 +414,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/subSurfaceScattering.fragment.js": {
-    "file": "assets/subSurfaceScattering.fragment-DSXy4ZR-.js",
+    "file": "assets/subSurfaceScattering.fragment-GtliIlZ3.js",
     "name": "subSurfaceScattering.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/subSurfaceScattering.fragment.js",
     "isDynamicEntry": true,
@@ -435,11 +435,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/volumetricLightingBlendVolume.fragment.js": {
-    "file": "assets/volumetricLightingBlendVolume.fragment-rHGDxqed.js",
+    "file": "assets/volumetricLightingBlendVolume.fragment-DRzQ1BH2.js",
     "name": "volumetricLightingBlendVolume.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/volumetricLightingBlendVolume.fragment.js",
     "isDynamicEntry": true,
@@ -456,11 +456,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.fragment.js": {
-    "file": "assets/volumetricLightingRenderVolume.fragment-KHuQlXP3.js",
+    "file": "assets/volumetricLightingRenderVolume.fragment-BZ0UG_jQ.js",
     "name": "volumetricLightingRenderVolume.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.fragment.js",
     "isDynamicEntry": true,
@@ -477,11 +477,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.vertex.js": {
-    "file": "assets/volumetricLightingRenderVolume.vertex-Dzb8IiWO.js",
+    "file": "assets/volumetricLightingRenderVolume.vertex-Bbg2CNqz.js",
     "name": "volumetricLightingRenderVolume.vertex",
     "src": "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.vertex.js",
     "isDynamicEntry": true,
@@ -498,11 +498,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplatting.fragment.js": {
-    "file": "assets/gaussianSplatting.fragment-Cuva62ld.js",
+    "file": "assets/gaussianSplatting.fragment-DRvMndfy.js",
     "name": "gaussianSplatting.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplatting.fragment.js",
     "isDynamicEntry": true,
@@ -519,11 +519,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplatting.vertex.js": {
-    "file": "assets/gaussianSplatting.vertex-BKkbDlbM.js",
+    "file": "assets/gaussianSplatting.vertex-BUwnNHlc.js",
     "name": "gaussianSplatting.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplatting.vertex.js",
     "isDynamicEntry": true,
@@ -540,11 +540,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.fragment.js": {
-    "file": "assets/gaussianSplattingVoxel.fragment-B13-8LF2.js",
+    "file": "assets/gaussianSplattingVoxel.fragment-BpEfRyT8.js",
     "name": "gaussianSplattingVoxel.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.fragment.js",
     "isDynamicEntry": true,
@@ -561,11 +561,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.vertex.js": {
-    "file": "assets/gaussianSplattingVoxel.vertex-B-YzNH_h.js",
+    "file": "assets/gaussianSplattingVoxel.vertex-BMSwG9ZK.js",
     "name": "gaussianSplattingVoxel.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.vertex.js",
     "isDynamicEntry": true,
@@ -582,11 +582,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gpuRenderParticles.fragment.js": {
-    "file": "assets/gpuRenderParticles.fragment-BzCSUgrb.js",
+    "file": "assets/gpuRenderParticles.fragment-Bq8S-Zxx.js",
     "name": "gpuRenderParticles.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gpuRenderParticles.fragment.js",
     "isDynamicEntry": true,
@@ -603,11 +603,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gpuRenderParticles.vertex.js": {
-    "file": "assets/gpuRenderParticles.vertex-ff9hEMRi.js",
+    "file": "assets/gpuRenderParticles.vertex-CUwyNxDq.js",
     "name": "gpuRenderParticles.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gpuRenderParticles.vertex.js",
     "isDynamicEntry": true,
@@ -624,11 +624,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gsSortCount.compute.js": {
-    "file": "assets/gsSortCount.compute-B5Mfw9PJ.js",
+    "file": "assets/gsSortCount.compute-PeTtJNer.js",
     "name": "gsSortCount.compute",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gsSortCount.compute.js",
     "isDynamicEntry": true,
@@ -645,11 +645,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gsSortKeys.compute.js": {
-    "file": "assets/gsSortKeys.compute-BxquUxhS.js",
+    "file": "assets/gsSortKeys.compute-CuOo7jVi.js",
     "name": "gsSortKeys.compute",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gsSortKeys.compute.js",
     "isDynamicEntry": true,
@@ -666,11 +666,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gsSortOutput.compute.js": {
-    "file": "assets/gsSortOutput.compute-Dpg_EmuP.js",
+    "file": "assets/gsSortOutput.compute-ClgjDM4O.js",
     "name": "gsSortOutput.compute",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gsSortOutput.compute.js",
     "isDynamicEntry": true,
@@ -687,11 +687,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gsSortScanLocal.compute.js": {
-    "file": "assets/gsSortScanLocal.compute-ocjhq9BL.js",
+    "file": "assets/gsSortScanLocal.compute-Bzyp7mY2.js",
     "name": "gsSortScanLocal.compute",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gsSortScanLocal.compute.js",
     "isDynamicEntry": true,
@@ -708,11 +708,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gsSortScanSums.compute.js": {
-    "file": "assets/gsSortScanSums.compute-DsTNEPB0.js",
+    "file": "assets/gsSortScanSums.compute-BLjQvZS7.js",
     "name": "gsSortScanSums.compute",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gsSortScanSums.compute.js",
     "isDynamicEntry": true,
@@ -729,11 +729,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gsSortScatter.compute.js": {
-    "file": "assets/gsSortScatter.compute-cPC1WNSt.js",
+    "file": "assets/gsSortScatter.compute-D-d6TTew.js",
     "name": "gsSortScatter.compute",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gsSortScatter.compute.js",
     "isDynamicEntry": true,
@@ -750,11 +750,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/iblCopyVoxelBufferToGrid.compute.js": {
-    "file": "assets/iblCopyVoxelBufferToGrid.compute-HT7vvFBf.js",
+    "file": "assets/iblCopyVoxelBufferToGrid.compute-BPmuiiPm.js",
     "name": "iblCopyVoxelBufferToGrid.compute",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/iblCopyVoxelBufferToGrid.compute.js",
     "isDynamicEntry": true,
@@ -771,11 +771,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/lod3D.fragment.js": {
-    "file": "assets/lod3D.fragment-DVpaf8aw.js",
+    "file": "assets/lod3D.fragment-DzdHGW_W.js",
     "name": "lod3D.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/lod3D.fragment.js",
     "isDynamicEntry": true,
@@ -792,11 +792,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/meshBlending.fragment.js": {
-    "file": "assets/meshBlending.fragment-BXGanbJY.js",
+    "file": "assets/meshBlending.fragment-CHjAw3vY.js",
     "name": "meshBlending.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/meshBlending.fragment.js",
     "isDynamicEntry": true,
@@ -813,11 +813,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/noise.fragment.js": {
-    "file": "assets/noise.fragment-CSkbDn1h.js",
+    "file": "assets/noise.fragment-O_flim9d.js",
     "name": "noise.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/noise.fragment.js",
     "isDynamicEntry": true,
@@ -834,11 +834,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/oitFinalSimpleBlend.fragment.js": {
-    "file": "assets/oitFinalSimpleBlend.fragment-vxCr6DyU.js",
+    "file": "assets/oitFinalSimpleBlend.fragment-kYSf-FJ4.js",
     "name": "oitFinalSimpleBlend.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/oitFinalSimpleBlend.fragment.js",
     "isDynamicEntry": true,
@@ -855,11 +855,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/screenSpaceCurvature.fragment.js": {
-    "file": "assets/screenSpaceCurvature.fragment-q--vGA3P.js",
+    "file": "assets/screenSpaceCurvature.fragment-HwpaTCX1.js",
     "name": "screenSpaceCurvature.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/screenSpaceCurvature.fragment.js",
     "isDynamicEntry": true,
@@ -876,11 +876,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/selection.fragment.js": {
-    "file": "assets/selection.fragment-BbIjQg2d.js",
+    "file": "assets/selection.fragment-2jrBpGoc.js",
     "name": "selection.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/selection.fragment.js",
     "isDynamicEntry": true,
@@ -897,11 +897,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/selection.vertex.js": {
-    "file": "assets/selection.vertex-DGtgAmGL.js",
+    "file": "assets/selection.vertex-dksC0Fx7.js",
     "name": "selection.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/selection.vertex.js",
     "isDynamicEntry": true,
@@ -918,11 +918,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/selectionOutline.fragment.js": {
-    "file": "assets/selectionOutline.fragment-DZytzSVz.js",
+    "file": "assets/selectionOutline.fragment-Dh13dhjK.js",
     "name": "selectionOutline.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/selectionOutline.fragment.js",
     "isDynamicEntry": true,
@@ -939,11 +939,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/subSurfaceScattering.fragment.js": {
-    "file": "assets/subSurfaceScattering.fragment-D0hb6tUz.js",
+    "file": "assets/subSurfaceScattering.fragment-0cXPtBaN.js",
     "name": "subSurfaceScattering.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/subSurfaceScattering.fragment.js",
     "isDynamicEntry": true,
@@ -960,11 +960,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingBlendVolume.fragment.js": {
-    "file": "assets/volumetricLightingBlendVolume.fragment-wv0jG5g9.js",
+    "file": "assets/volumetricLightingBlendVolume.fragment-Ch6vAqtR.js",
     "name": "volumetricLightingBlendVolume.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingBlendVolume.fragment.js",
     "isDynamicEntry": true,
@@ -981,11 +981,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.fragment.js": {
-    "file": "assets/volumetricLightingRenderVolume.fragment--S0I-3rk.js",
+    "file": "assets/volumetricLightingRenderVolume.fragment-CyQ9y_SH.js",
     "name": "volumetricLightingRenderVolume.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.fragment.js",
     "isDynamicEntry": true,
@@ -1002,11 +1002,11 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.vertex.js": {
-    "file": "assets/volumetricLightingRenderVolume.vertex-DbJdE4-8.js",
+    "file": "assets/volumetricLightingRenderVolume.vertex-Xcfxmqa5.js",
     "name": "volumetricLightingRenderVolume.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.vertex.js",
     "isDynamicEntry": true,
@@ -1023,7 +1023,7 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "node_modules/@mlightcad/cad-agent-plugin/dist/cad-agent-plugin-register.js": {
@@ -1142,7 +1142,7 @@
     ]
   },
   "node_modules/@mlightcad/libredwg-web/dist/libredwg-web.js": {
-    "file": "assets/libredwg-web-BIb6Ele1.js",
+    "file": "assets/libredwg-web-pRzh60BS.js",
     "name": "libredwg-web",
     "src": "node_modules/@mlightcad/libredwg-web/dist/libredwg-web.js",
     "isDynamicEntry": true,
@@ -1676,7 +1676,7 @@
     "isEntry": true
   },
   "resources/js/analisis_estructural_de_armaduras.js": {
-    "file": "assets/analisis_estructural_de_armaduras-BaJd2gwr.js",
+    "file": "assets/analisis_estructural_de_armaduras-DOoyAAa5.js",
     "name": "analisis_estructural_de_armaduras",
     "src": "resources/js/analisis_estructural_de_armaduras.js",
     "isEntry": true,
@@ -1693,7 +1693,7 @@
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ],
     "dynamicImports": [
       "node_modules/@babylonjs/core/Shaders/lod3D.fragment.js",
@@ -1955,12 +1955,12 @@
     ]
   },
   "resources/js/espectro-sismico/index.js": {
-    "file": "assets/index-CHgzBnwp.js",
+    "file": "assets/index-BMpdyhs5.js",
     "name": "index",
     "src": "resources/js/espectro-sismico/index.js",
     "isEntry": true,
     "imports": [
-      "_ubigeo-Cak7qga5.js"
+      "_ubigeo-KYpmxxwn.js"
     ]
   },
   "resources/js/etabs/main.js": {
