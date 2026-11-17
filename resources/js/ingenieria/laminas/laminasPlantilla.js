@@ -271,5 +271,19 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       techo: ali.cumbrera ? {pendiente, cumbrera: Math.max(...porticos.map((p) => p.cumbrera ?? 0))} : null,
       columnas: cuadro.filas, escalas: [...escalas],
     },
+    // Modelo estructural de lo dibujado: de aquí sale el metrado (metrado/metrado.js).
+    modelo: {
+      proyecto, niveles: nNiveles, entrepisos, techo: altura, losaTecho,
+      cimentacion: {tipo: cim.tipo, hz: cim.peralte, df: cim.df, ...cim.modelo},
+      cimientoCorrido: {ancho: cc.ancho, ...cc.modelo},
+      columnas: lectura.columnas.map((c) => ({tipo: c.tipo, eje: c.eje, b: c.b, h: c.h, area: c.area, forma: c.forma, clase: c.clase, perimetro: perimetroDe(c.contorno)})),
+      refuerzoColumnas: cuadro.filas.map((f) => ({tipo: f.tipo, refuerzo: f.refuerzo})),
+      columnetas: (lectura.columnetas ?? []).map((c) => ({codigo: c.codigo, b: c.b, h: c.h})),
+      vigas: ali.modelo?.vigas ?? [],
+      losa: ali.modelo?.losa ?? null,
+      vigaPeralte: vigaTipo.h,
+    },
   };
 }
+
+const perimetroDe = (pts = []) => pts.reduce((s, p, i) => s + Math.hypot(pts[(i + 1) % pts.length].x - p.x, pts[(i + 1) % pts.length].y - p.y), 0);

@@ -364,6 +364,8 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
 
   return {
     tipo, avisos, zapatas, tiposZapata, huella, anchoCimiento,
+    // Para el metrado: la platea (huella de las columnas) o las zapatas, y las vigas de cimentación.
+    modelo: {huella, area: areaHuella, zapatas: tipo === "zapatas" ? zapatas.map((z) => ({B: z.B, L: z.L})) : [], vigas: vigas.map((t) => ({eje: t.eje, largo: t.largo}))},
     df: tipo === "platea" ? o.dfPlatea : o.df, peralte: tipo === "platea" ? o.espesorPlatea : o.peralteZapata,
     cimientos: cimientos.length, vigas: vigas.length, muros: muros.length,
     contenido: {titulo: "PLANO DE CIMENTACIÓN", primitivas: [...base.primitivas, ...prim], marco: base.marco, ejes: base.ejes, h, notas},
@@ -445,6 +447,8 @@ export function planoCimientoCorrido({lectura, items, caja, k = 1}, opciones = {
   return {
     columnetas: [...codigos].map(([medida, codigo]) => ({codigo, medida})),
     tramos: tramos.length, ancho, avisos,
+    // Para el metrado: cada tramo de muro con su largo y espesor, y los vanos de puerta.
+    modelo: {tramos: tramos.map((t) => ({largo: t.largo, espesor: t.espesor, exterior: Boolean(t.exterior), conPuerta: Boolean(t.conPuerta)}))},
     cortes: [...new Set(tramos.map((t) => t.corte))].sort(),
     contenido: {
       titulo: "PLANO DE CIMIENTO CORRIDO", primitivas: [...base.primitivas, ...prim], marco: base.marco, ejes: base.ejes, h,

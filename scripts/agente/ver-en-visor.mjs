@@ -107,6 +107,11 @@ try {
         if (process.env.AGENTE_DATOS) console.log('datos_proyecto:', (await correr('datos_proyecto', JSON.parse(process.env.AGENTE_DATOS))).mensaje);
         const r = await correr('plano_estructuras', process.env.AGENTE_VISTA ? {vista: process.env.AGENTE_VISTA} : {});
         console.log('plano_estructuras:', r.ok === false ? r.error : r.mensaje);
+        // AGENTE_METRAR=1: después de las láminas, el metrado y la planilla Excel (en el navegador).
+        if (process.env.AGENTE_METRAR) {
+          const m = await correr('metrar_estructura', {excel: true});
+          console.log('metrar_estructura:', m.ok === false ? m.error : m.mensaje);
+        }
         if (process.env.AGENTE_REVISAR) {
           for (const corregir of [false, true]) console.log(`revisar_laminas${corregir ? ' (corregir)' : ''}:
 ${(await correr('revisar_laminas', {corregir})).mensaje}`);

@@ -244,7 +244,7 @@ export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null})
     const variantes = panos.length > 1 ? [`Paño ${String(i + 1).padStart(2, "0")}\\P${corto}`, `P-${String(i + 1).padStart(2, "0")} ${corto}`] : [corto];
     const sitio = ubicarSinEncimar({valor, variantes, h: hp, preferido: r, zona: Pin?.length >= 3 ? Pin : P, ocupadas: [...cajasDeTextos([...base.primitivas, ...prim]), flecha]});
     prim.push(text(L.TEXTO_LOSA, pt(sitio), sitio.valor, sitio.h));
-    return {pano: i + 1, viguetas: n, luz: luzPano, espesor: espesorPano};
+    return {pano: i + 1, viguetas: n, luz: luzPano, espesor: espesorPano, area: areaDe(Pin?.length >= 3 ? Pin : P), ancho: r1 - r0};
   });
   const espesor = espesorFijo ?? espesorAligerado(Math.max(luz, luzEjes));
 
@@ -282,6 +282,18 @@ export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null})
   ];
   return {
     espesor, luz, viguetas, panos: datosPanos, vigas: tramos.length + vigasInternas.length,
+    // Para el metrado: vigas por eje (largo libre entre caras) e internas, y el área de losa.
+    modelo: {
+      // Las vigas paralelas a la cumbrera llegan al alero en los dos extremos (módulo 14:
+      // eje Y´ 2.93 + 2 x 0.60 = 4.13 en el metrado del ingeniero).
+      vigas: [...tramos.map((t) => {
+        const cumbrera = vigasInternas.find((x) => x.nombre === "VCUMBRERA");
+        const paralela = cumbrera && Math.abs(t.d.x * cumbrera.d.x + t.d.y * cumbrera.d.y) > 0.9;
+        return {tipo: t.tipo, eje: t.eje, b: t.seccion.b, h: t.seccion.h, largo: t.largo, alero: paralela ? 2 * alero : 0};
+      }),
+        ...vigasInternas.map((v) => ({tipo: v.nombre, eje: "", b: v.sec.b, h: v.sec.h, largo: Math.hypot(v.tramo[1].x - v.tramo[0].x, v.tramo[1].y - v.tramo[0].y)}))],
+      losa: {espesor, areaBruta: areaDe(losa), areaPanos: datosPanos.reduce((s, p) => s + (p.area ?? 0), 0), panos: datosPanos.map((p) => ({luz: p.luz, viguetas: p.viguetas, area: p.area, ancho: p.ancho}))},
+    },
     cumbrera: (({tramo, d} = {}) => (tramo ? {a: tramo[0], b: tramo[1], d} : null))(vigasInternas.find((x) => x.nombre === "VCUMBRERA")), tiposViga: medidas.map((m) => ({tipo: tramos.find((t) => t.medida === m).tipo, medida: m})),
     contenido: {titulo: "PLANO DE ALIGERADO", primitivas: [...base.primitivas, ...prim], marco: base.marco, ejes: base.ejes, h, notas},
   };

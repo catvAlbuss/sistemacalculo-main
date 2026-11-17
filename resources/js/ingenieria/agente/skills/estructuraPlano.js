@@ -11,6 +11,8 @@ import {cajaTexto, seEncima, desencimarTextos} from "../../laminas/cajasTexto.js
 import {rasgosDeArquitectura, proponer, textoPropuesta, casosDeUso, DECISIONES} from "../../aprendizaje/casos.js";
 import {CASOS, EVENTOS_USO} from "../../aprendizaje/casosAprendidos.js";
 import {registrarEvento, eventosDeUso, rasgosParaGuardar} from "../../aprendizaje/registro.js";
+import {metradoEstructuras} from "../../metrado/metrado.js";
+import {descargarPlanilla} from "../../metrado/planillaExcel.js";
 
 const r2 = (value) => Math.round(value * 100) / 100;
 const listaCapas = (value) => String(value ?? "").split(/[,;]/).map((capa) => capa.trim()).filter(Boolean);
@@ -266,6 +268,39 @@ export const ESTRUCTURA_SKILLS = [
     },
   },
   {
+    name: "metrar_estructura",
+    description: "Saca el metrado de estructuras (movimiento de tierras, concreto simple, concreto armado: concreto, encofrado, acero, curado, ladrillo de techo) de la estructura que dibujó el agente, con el formato de la planilla del despacho. Con excel=true descarga la planilla .xlsx. Úsalo cuando pidan metrado, metrar, cantidades o planilla de metrados.",
+    parameters: {type: "object", properties: {
+      excel: {type: "boolean", description: "true para descargar la planilla de metrados en Excel"},
+    }},
+    async run(args, ctx) {
+      // Flujo: arquitectura → estructura → metrado. Sin estructura dibujada, se genera primero.
+      let generado = "";
+      if (!ctx.memoria.modeloEstructural) {
+        const r = await ESTRUCTURA_SKILLS.find((s) => s.name === "plano_estructuras").run({}, ctx);
+        if (!ctx.memoria.modeloEstructural) return {ok: false, error: r.error ?? "Primero necesito generar el plano de estructuras desde la arquitectura."};
+        generado = `Generé primero las láminas ${(r.laminas ?? []).join(", ")}. `;
+      }
+      const met = metradoEstructuras(ctx.memoria.modeloEstructural);
+      ctx.memoria.metrado = met;
+      const tot = (re) => met.partidas.filter((p) => !p.titulo && re.test(p.item)).reduce((s, p) => s + p.total, 0);
+      const r2 = (v) => (Math.round(v * 100) / 100).toFixed(2);
+      let excel = "";
+      if (args.excel) {
+        const nombre = `METRADOS_ESTRUCTURAS_${String(met.proyecto ?? "PROYECTO").replace(/[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ]+/g, "_").slice(0, 40)}.xlsx`;
+        await (ctx.descargarPlanilla ?? descargarPlanilla)(met, nombre);
+        excel = ` Descargué la planilla ${nombre}.`;
+      }
+      return {
+        ok: true,
+        mensaje: `${generado}Metrado de estructuras de ${met.proyecto ?? "el proyecto"} (${met.partidas.filter((p) => !p.titulo).length} partidas): ` +
+          `excavación ${r2(met.resumen.excavacion)} m³; concreto ${r2(met.resumen.concreto)} m³ (cimentación ${r2(tot(/^02\.03\.0[12]\.01$/))}, columnas ${r2(tot(/^02\.03\.06\.01\.01$/))}, vigas ${r2(tot(/^02\.03\.07\.01\.01$/))}, losa ${r2(tot(/^02\.03\.11\.01$/))}); ` +
+          `acero ${r2(met.resumen.acero)} kg; encofrado ${r2(met.resumen.encofrado)} m².${excel}`,
+        avisos: met.notas,
+      };
+    },
+  },
+  {
     name: "corregir_estructura",
     description: "Anota una corrección del ingeniero a una decisión de la estructura propuesta (cimentación, tipo o espesor de losa, losa en el último nivel, f'c, estribos, Hz, Df…). El agente la aprende para este plano y los parecidos. Úsalo cuando el ingeniero diga que algo de la propuesta o de las láminas es distinto (ej. 'la losa es maciza', 'usa zapatas', 'el aligerado es de 20').",
     parameters: {type: "object", properties: {
@@ -435,6 +470,8 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
         const losaTecho = niveles === rasgos.niveles ? propuesta.decisiones.losaDeTecho?.valor ?? niveles <= 1 : niveles <= 1;
         const r = laminasConPlantilla({lectura, items, caja: e.caja, k, config: plantilla.config, cimentacion: args.cimentacion ?? (["platea", "zapatas"].includes(cimProp) ? cimProp : undefined), datos, estructura: {niveles, losaTecho, espesorLosa: espLosa, textosOcultos: ctx.readPlan().textosOcultos,
           sugeridos: {hz: propuesta.decisiones.hz?.valor, df: propuesta.decisiones.df?.valor, fuentes: [...new Set([...(propuesta.decisiones.hz?.fuentes ?? []), ...(propuesta.decisiones.df?.fuentes ?? [])])]}}});
+        // El modelo de lo dibujado queda para el metrado (metrar_estructura).
+        ctx.memoria.modeloEstructural = r.modelo;
         ctx.insertTemplate(plantilla.db, {x: r.desplazamiento.x * k, y: r.desplazamiento.y * k}, k, null, r.textosPlantilla, r.excluirPlantilla);
         // Hojas extra de pórticos: copia de la lámina de pórticos de la plantilla.
         for (const c of r.copias ?? []) ctx.insertTemplate(plantilla.db, {x: c.desplazamiento.x * k, y: c.desplazamiento.y * k}, k, c.marco, r.textosPlantilla, c.excluir);
