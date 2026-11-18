@@ -260,6 +260,11 @@ Route::middleware(["auth", "verified", "check.subscription", "throttle:calculati
         Route::get('/etabs/agente/aprendizaje', [\App\Http\Controllers\AgenteAprendizajeController::class, 'listar'])->name('etabs.agente.aprendizaje.listar');
         // Agente con GPT: el navegador pasa por aquí; la clave queda en el servidor.
         Route::post('/etabs/agente/llm/chat/completions', [\App\Http\Controllers\AgenteLlmController::class, 'chat'])->name('etabs.agente.llm');
+        Route::get('/etabs/agente/llm/estado', [\App\Http\Controllers\AgenteLlmController::class, 'estado'])->name('etabs.agente.llm.estado');
+        // Observaciones del ingeniero con fotos (para revisar y entrenar al agente).
+        Route::post('/etabs/agente/observaciones', [\App\Http\Controllers\AgenteObservacionesController::class, 'guardar'])->name('etabs.agente.observaciones.guardar');
+        Route::get('/etabs/agente/observaciones', [\App\Http\Controllers\AgenteObservacionesController::class, 'listar'])->name('etabs.agente.observaciones.listar');
+        Route::get('/etabs/agente/observaciones/foto/{ruta}', [\App\Http\Controllers\AgenteObservacionesController::class, 'foto'])->where('ruta', '.*')->name('etabs.agente.observaciones.foto');
         // Fase 2 — "Mis modelos": listar / abrir / guardar como / renombrar / borrar.
         Route::get('/etabs/models', [\App\Http\Controllers\CadModelController::class, 'index'])->name('etabs.models.index');
         Route::post('/etabs/models', [\App\Http\Controllers\CadModelController::class, 'store'])->name('etabs.models.store');

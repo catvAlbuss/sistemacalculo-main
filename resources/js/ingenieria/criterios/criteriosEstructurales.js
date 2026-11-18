@@ -5,7 +5,7 @@
 // Ver docs/agentes/criterios-estructuras.md.
 
 export const CRITERIOS = {
-  referencia: "Módulo XIV, I.E. Churubamba (láminas E-64 cimentación/aligerado y E-65 pórticos)",
+  referencia: "Módulo de referencia XIV (láminas E-64 cimentación/aligerado y E-65 pórticos)",
 
   concreto: {
     columnas: 210,              // kg/cm² — cuadro de columnas

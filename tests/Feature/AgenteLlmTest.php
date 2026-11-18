@@ -57,4 +57,28 @@ class AgenteLlmTest extends TestCase
         $r->assertStatus(502);
         $this->assertStringNotContainsString(self::CLAVE, $r->getContent());
     }
+
+    public function test_the_provider_comes_from_the_env_and_the_panel_only_sees_its_state(): void
+    {
+        // Ollama local: sin clave, su URL por defecto, memoria corta para un modelo de 4B.
+        config(['services.agente_llm' => ['proveedor' => 'ollama', 'model' => 'qwen3-cad', 'key' => null]]);
+        $estado = $this->getJson(route('software.etabs.agente.llm.estado'))->assertOk();
+        $estado->assertJson(['listo' => true, 'memoria' => 'corta', 'vision' => false]);
+        foreach (['qwen3-cad', '11434', 'url', 'key', 'model'] as $secreto) {
+            $this->assertStringNotContainsString($secreto, $estado->getContent());
+        }
+        Http::fake(['127.0.0.1:11434/*' => Http::response(['choices' => [['message' => ['role' => 'assistant', 'content' => 'ok']]]])]);
+        $this->postJson(route('software.etabs.agente.llm'), $this->pedido())->assertOk();
+        Http::assertSent(fn (PedidoHttp $p) => str_starts_with($p->url(), 'http://127.0.0.1:11434/v1/chat/completions') && ! $p->hasHeader('Authorization') && $p['max_tokens'] === 1500);
+
+        // Gemini: su URL compatible con OpenAI y la clave del .env.
+        config(['services.agente_llm' => ['proveedor' => 'gemini', 'model' => 'modelo-gemini', 'key' => 'clave-gemini']]);
+        Http::fake(['generativelanguage.googleapis.com/*' => Http::response(['choices' => [['message' => ['role' => 'assistant', 'content' => 'ok']]]])]);
+        $this->postJson(route('software.etabs.agente.llm'), $this->pedido())->assertOk();
+        Http::assertSent(fn (PedidoHttp $p) => str_contains($p->url(), 'generativelanguage.googleapis.com/v1beta/openai/chat/completions') && $p->hasHeader('Authorization', 'Bearer clave-gemini'));
+
+        // Sin configurar: el panel lo sabe sin ver detalles.
+        config(['services.agente_llm' => ['proveedor' => 'openai', 'model' => 'x', 'key' => null]]);
+        $this->getJson(route('software.etabs.agente.llm.estado'))->assertJson(['listo' => false]);
+    }
 }

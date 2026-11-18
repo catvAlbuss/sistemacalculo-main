@@ -10,17 +10,17 @@ import {L, text} from "../cad/primitives.js";
 import {CAPAS_DESPACHO} from "../criterios/estiloLaminas.js";
 
 export const CAMPOS_PROYECTO = [
-  {campo: "entidad", etiqueta: "Entidad / cliente", ejemplo: "MUNICIPALIDAD DISTRITAL DE …"},
-  {campo: "proyecto", etiqueta: "Proyecto", ejemplo: "MEJORAMIENTO DE LOS SERVICIOS EDUCATIVOS …"},
-  {campo: "cui", etiqueta: "CUI", ejemplo: "2166247"},
-  {campo: "especialista", etiqueta: "Especialista", ejemplo: "ING. …"},
-  {campo: "cip", etiqueta: "CIP", ejemplo: "101402"},
-  {campo: "region", etiqueta: "Región", ejemplo: "Huánuco"},
-  {campo: "provincia", etiqueta: "Provincia", ejemplo: "Huánuco"},
-  {campo: "distrito", etiqueta: "Distrito", ejemplo: "Churubamba"},
-  {campo: "localidad", etiqueta: "Localidad", ejemplo: "Vinchos"},
-  {campo: "codigoLocal", etiqueta: "Código local", ejemplo: "192768"},
-  {campo: "codigoModular", etiqueta: "Código modular", ejemplo: "0288852"},
+  {campo: "entidad", etiqueta: "Entidad / cliente", ejemplo: "Municipalidad, empresa o propietario"},
+  {campo: "proyecto", etiqueta: "Proyecto", ejemplo: "Nombre del proyecto"},
+  {campo: "cui", etiqueta: "CUI", ejemplo: "Código único de inversión"},
+  {campo: "especialista", etiqueta: "Especialista", ejemplo: "Ing. responsable"},
+  {campo: "cip", etiqueta: "CIP", ejemplo: "N° de colegiatura"},
+  {campo: "region", etiqueta: "Región", ejemplo: "Región"},
+  {campo: "provincia", etiqueta: "Provincia", ejemplo: "Provincia"},
+  {campo: "distrito", etiqueta: "Distrito", ejemplo: "Distrito"},
+  {campo: "localidad", etiqueta: "Localidad", ejemplo: "Localidad"},
+  {campo: "codigoLocal", etiqueta: "Código local", ejemplo: "Código local"},
+  {campo: "codigoModular", etiqueta: "Código modular", ejemplo: "Código modular"},
 ];
 
 // Etiquetas de un rótulo de arquitectura → campo.

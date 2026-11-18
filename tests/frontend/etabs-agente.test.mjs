@@ -120,7 +120,9 @@ test('the agent never claims what did not happen: failed tool, malformed tool ca
 
 test('paid cloud models and tool errors are reported clearly', async () => {
   const context = createDrawingContext({getDatabase: () => newDb(6), dm});
-  await assert.rejects(runAgent({text: 'x', context, fetchImpl: async () => ({ok: false, status: 402, text: async () => ''})}), /de pago/);
+  await assert.rejects(runAgent({text: 'x', context, settings: {baseUrl: 'http://127.0.0.1:11434/v1', model: 'm'}, fetchImpl: async () => ({ok: false, status: 402, text: async () => ''})}), /de pago/);
+  // Por el servidor (por defecto): el mensaje claro del proxy, sin detalles del proveedor.
+  await assert.rejects(runAgent({text: 'x', context, fetchImpl: async () => ({ok: false, status: 503, text: async () => '{"error":{"message":"El agente no está configurado en el servidor."}}'})}), /no está configurado en el servidor/);
   const replies = [
     {choices: [{message: {tool_calls: [{id: 'a', function: {name: 'dibujar_ejes', arguments: '{"x":[],"y":[]}'}}]}}]},
     {choices: [{message: {content: 'Faltan separaciones.'}}]},

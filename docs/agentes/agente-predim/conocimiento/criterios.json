@@ -1,5 +1,5 @@
 {
-  "referencia": "Módulo XIV, I.E. Churubamba (láminas E-64 cimentación/aligerado y E-65 pórticos)",
+  "referencia": "Módulo de referencia XIV (láminas E-64 cimentación/aligerado y E-65 pórticos)",
   "concreto": {
     "columnas": 210,
     "vigas": 210,
@@ -14,7 +14,7 @@
     "ntn": 0
   },
   "cimientoCorrido": {
-    "ancho": 0.6,
+    "ancho": 0.4,
     "alto": 0.8,
     "sobrecimientoAlto": 0.4
   },

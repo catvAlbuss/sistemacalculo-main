@@ -128,6 +128,22 @@
   {
     "type": "function",
     "function": {
+      "name": "revisar_laminas",
+      "description": "Revisa las láminas de estructuras que dibujó el agente y da un informe corto para el ingeniero: textos encimados (con corregir=true los separa), datos del proyecto que faltan y lo que el agente aún no dibuja. Úsalo si piden revisar las láminas, corregir textos encimados o saber qué falta.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "corregir": {
+            "type": "boolean",
+            "description": "true para separar los textos encimados (achica la letra lo necesario)"
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "quitar_laminas",
       "description": "Quita del dibujo las láminas de estructuras que dibujó el agente (solo las suyas; la arquitectura y lo que dibujó el usuario no se tocan). Úsalo si el usuario pide borrar o limpiar las láminas.",
       "parameters": {
@@ -176,6 +192,74 @@
             "description": "Categoría: A2 esencial (colegio, hospital), B importante, C común (vivienda)"
           }
         }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "proponer_estructura",
+      "description": "Analiza la arquitectura abierta (niveles, ejes, luces, columnas, techo) y propone la estructura como lo haría el despacho: cimentación, losa y su espesor, losas de entrepiso, concreto, columnas. Dice qué decide el agente y qué queda para el ingeniero. Úsalo cuando pidan analizar, proponer o decidir la estructura de un plano.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "metrar_estructura",
+      "description": "Saca el metrado de estructuras (movimiento de tierras, concreto simple, concreto armado: concreto, encofrado, acero, curado, ladrillo de techo) de la estructura que dibujó el agente, con el formato de la planilla del despacho. Con excel=true descarga la planilla .xlsx. Úsalo cuando pidan metrado, metrar, cantidades o planilla de metrados.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "excel": {
+            "type": "boolean",
+            "description": "true para descargar la planilla de metrados en Excel"
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "corregir_estructura",
+      "description": "Anota una corrección del ingeniero a una decisión de la estructura propuesta (cimentación, tipo o espesor de losa, losa en el último nivel, f'c, estribos, Hz, Df…). El agente la aprende para este plano y los parecidos. Úsalo cuando el ingeniero diga que algo de la propuesta o de las láminas es distinto (ej. 'la losa es maciza', 'usa zapatas', 'el aligerado es de 20').",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "cimentacion",
+              "cimientoCorrido",
+              "hz",
+              "df",
+              "losa",
+              "espesorLosa",
+              "losaDeTecho",
+              "fcColumnas",
+              "fcColumnetas",
+              "estribos",
+              "columnasComoArquitectura"
+            ],
+            "description": "Qué decisión corrige"
+          },
+          "valor": {
+            "type": "string",
+            "description": "El valor correcto, como lo dijo el ingeniero (ej. 'maciza', '0.20', 'zapatas', 'no')"
+          },
+          "motivo": {
+            "type": "string",
+            "description": "Opcional: el motivo, solo si el ingeniero lo dijo"
+          }
+        },
+        "required": [
+          "decision",
+          "valor"
+        ]
       }
     }
   },

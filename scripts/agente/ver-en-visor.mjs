@@ -48,7 +48,7 @@ const manifest = dev ? null : JSON.parse(readFileSync(join(publicRoot, 'build/ma
 const entrada = dev ? null : manifest['resources/js/etabs/main.js'];
 const estilos = dev ? '' : [manifest['resources/css/app.css']?.file, ...(entrada.css || [])].filter(Boolean).map((f) => `<link rel="stylesheet" href="/build/${f}">`).join('');
 const scriptApp = dev ? '<script type="module" src="/@vite/client"></script><script type="module" src="/resources/js/etabs/main.js"></script>' : `<script type="module" src="/build/${entrada.file}"></script>`;
-const html = `<!doctype html><html lang="es"><meta charset="utf-8">${estilos}<style>body{margin:0;display:flex;height:100vh}.ap-panel{display:none!important}#cad-viewer-app{flex:1;display:flex}#result{display:none}</style><body><div id="cad-viewer-app"></div><pre id="result">WAIT</pre>
+const html = `<!doctype html><html lang="es"><meta charset="utf-8">${estilos}<style>body{margin:0;display:flex;height:100vh}${process.env.VISOR_PANEL ? '' : '.ap-panel,aside.ag{display:none!important}'}#cad-viewer-app{flex:1;display:flex}#result{display:none}</style><body><div id="cad-viewer-app"></div><pre id="result">WAIT</pre>
 <script>window.__NOVACAD_PRUEBA__=true;window.__errores=[];for(const k of ['error','warn']){const o=console[k];console[k]=(...a)=>{window.__errores.push(k+': '+a.map(x=>x instanceof Error?x.message:String(x)).join(' ').slice(0,300));o(...a)}};window.addEventListener('error',e=>{if(!String(e.message).includes('ResizeObserver'))window.__errores.push(e.message)});
 const espera=setInterval(()=>{const c=document.querySelector('.ml-cad-main canvas');if(c&&c.width>0&&window.__novacadPrueba){clearInterval(espera);document.querySelector('#result').textContent='READY'}},100);</script>
 ${scriptApp}</body></html>`;
@@ -56,6 +56,8 @@ const tipos = {'.js': 'application/javascript', '.css': 'text/css', '.wasm': 'ap
 const servidor = createServer((req, res) => {
   const ruta = new URL(req.url, 'http://127.0.0.1').pathname;
   if (ruta === '/') { res.setHeader('Content-Type', 'text/html;charset=utf-8'); res.end(html); return; }
+  // Estado del motor del agente (en producción lo da Laravel): listo, para ver el panel.
+  if (ruta === '/software/etabs/agente/llm/estado') { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({listo: true, memoria: 'completa', vision: true})); return; }
   if (ruta === plano) { const datos = readFileSync(dxf); res.setHeader('Content-Type', 'application/octet-stream'); res.setHeader('Content-Length', datos.length); res.end(req.method === 'HEAD' ? undefined : datos); return; }
   if (dev && !ruta.startsWith('/assets/')) {
     const pedido = request({hostname: vite.hostname === 'localhost' ? 'localhost' : vite.hostname, port: vite.port, path: req.url, method: 'GET', headers: {accept: req.headers.accept ?? '*/*'}}, (r) => { res.writeHead(r.statusCode, r.headers); r.pipe(res); });
@@ -94,6 +96,13 @@ try {
         // Medida de carga: tiempo, objetos, memoria del navegador y errores.
         const m = await evaluar(`({ms: Math.round(performance.now()), entidades: window.__novacadPrueba.entidades(), heapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null, aviso: document.querySelector('.etabs-recovery[role=status]')?.textContent?.trim().slice(0, 60) ?? null, errores: window.__errores.filter((e) => e.startsWith('error') || !e.startsWith('warn')).length, avisos: window.__errores.filter((e) => e.startsWith('warn')).length})`);
         console.log('MEDIDA', JSON.stringify({archivoMB: +(readFileSync(dxf).length / 1048576).toFixed(1), cargaSeg: +((Date.now() - inicioCarga) / 1000).toFixed(1), bloqueosDe10s: bloqueos, ...m}));
+      }
+      // VISOR_PANEL=1: el panel del agente abierto en las capturas; VISOR_JS: código a correr en
+      // la página antes de las capturas (p. ej. abrir el formulario de datos del proyecto).
+      if (process.env.VISOR_PANEL) {
+        await evaluar('window.__novacadPrueba.abrirAgente()');
+        await pausa(1500);
+        if (process.env.VISOR_JS) { await evaluar(process.env.VISOR_JS); await pausa(1200); }
       }
       if (esDwg && !process.env.VISOR_SOLO_ABRIR) {
         // Como el ingeniero: abrir el panel del agente y pedirle las láminas.

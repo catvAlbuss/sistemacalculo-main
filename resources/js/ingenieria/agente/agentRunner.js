@@ -12,12 +12,13 @@ import {memoriaDelAgente} from "./conocimiento.js";
 // memoria: "auto" | "completa" | "corta". En "auto", los modelos grandes o en la nube
 // (ChatGPT, Claude, gpt-oss, >= 14B) reciben la memoria completa del agente
 // (conocimiento.js); los locales chicos (Qwen 4B, 8k de contexto), solo el prompt corto.
-// Motor del despacho en el servidor (GPT): la clave vive en el .env y el navegador pasa por el
-// proxy de Laravel (AgenteLlmController). Fuera del equipo de desarrollo es el motor por defecto.
-export const AGENTE_SERVIDOR = {baseUrl: "/software/etabs/agente/llm", model: "servidor", apiKey: "", memoria: "completa"};
+// Motor del agente: siempre el del servidor. Proveedor (OpenAI, Gemini, Grok u Ollama local),
+// clave y modelo se configuran en el .env y el navegador pasa por el proxy de Laravel
+// (AgenteLlmController); el panel solo recibe si está listo, la memoria y si ve fotos.
+export const AGENTE_SERVIDOR = {baseUrl: "/software/etabs/agente/llm", model: "servidor", apiKey: "", memoria: "completa", vision: false, sinRazonar: false};
 export const OLLAMA_LOCAL = {baseUrl: "http://127.0.0.1:11434/v1", model: "qwen3-cad", apiKey: "", memoria: "auto"};
-const enEquipoLocal = () => typeof location === "undefined" || /^(localhost|127\.0\.0\.1|.*\.test)$/.test(location.hostname);
-export const DEFAULT_AGENT_SETTINGS = enEquipoLocal() ? OLLAMA_LOCAL : AGENTE_SERVIDOR;
+// OLLAMA_LOCAL queda para los scripts de evaluación (scripts/agente), no para el panel.
+export const DEFAULT_AGENT_SETTINGS = AGENTE_SERVIDOR;
 export const usaServidor = (settings) => String(settings?.baseUrl ?? "").startsWith("/");
 const MAX_ROUNDS = 3;
 const HISTORY_TURNS = 4;
@@ -44,7 +45,7 @@ export function usaMemoriaCompleta(settings = DEFAULT_AGENT_SETTINGS) {
 // del agente para modelos grandes. "/no_think" solo sirve a Qwen3.
 export function promptDelSistema(settings = DEFAULT_AGENT_SETTINGS) {
   const base = SYSTEM_PROMPT.replace("\n/no_think", "");
-  const qwen = /qwen/i.test(settings.model ?? "");
+  const qwen = /qwen/i.test(settings.model ?? "") || settings.sinRazonar === true;
   return [base, ...(usaMemoriaCompleta(settings) ? ["", memoriaDelAgente()] : []), ...(qwen ? ["/no_think"] : [])].join("\n");
 }
 
@@ -127,12 +128,18 @@ export function respuestaHonesta(textoModelo, steps) {
 }
 
 // history: [{role: "user"|"assistant", content}] de turnos anteriores (solo texto).
-export async function runAgent({text, history = [], settings = DEFAULT_AGENT_SETTINGS, context, skills = SKILLS, fetchImpl = globalThis.fetch?.bind(globalThis), onStep = () => {}, signal}) {
+// imagenes: fotos del ingeniero como data URL (observaciones). Si el motor ve imágenes van al
+// modelo; si no, solo se avisa que las adjuntó (quedan guardadas como observación).
+export async function runAgent({text, imagenes = [], history = [], settings = DEFAULT_AGENT_SETTINGS, context, skills = SKILLS, fetchImpl = globalThis.fetch?.bind(globalThis), onStep = () => {}, signal}) {
   const tools = toolDefinitions(skills);
   // Lo que el usuario escribió: las herramientas solo aceptan datos del proyecto que estén ahí
   // (un modelo chico inventaba "suelo S2, zona 3, Df 2.50" en "genera el plano con platea").
   if (context?.memoria) context.memoria.ultimoPedido = String(text ?? "");
-  const messages = [{role: "system", content: promptDelSistema(settings)}, ...history.slice(-HISTORY_TURNS), {role: "user", content: text}];
+  const contenido = !imagenes.length ? text
+    : settings.vision ? [{type: "text", text}, ...imagenes.map((url) => ({type: "image_url", image_url: {url}}))]
+    : `${text}
+(El ingeniero adjuntó ${imagenes.length} foto(s); quedaron guardadas como observación.)`;
+  const messages = [{role: "system", content: promptDelSistema(settings)}, ...history.slice(-HISTORY_TURNS), {role: "user", content: contenido}];
   const steps = [];
   const usage = {prompt: 0, completion: 0};
   for (let round = 0; round <= MAX_ROUNDS; round++) {
