@@ -14,6 +14,7 @@ import {CRITERIOS, textoEstribos} from "../criterios/criteriosEstructurales.js";
 import {desplazarPoligono} from "../planos/aligeradoPlano.js";
 import {refuerzoMinimo} from "./laminaEstructuras.js";
 import {anchoTexto} from "./rotulo.js";
+import {diametro, ejeDelEstribo, estriboDetallado, llamadaAbanico, varilla} from "./aceroDetalle.js";
 
 const r4 = (v) => Math.round(v * 10000) / 10000;
 const sub = (a, b) => ({x: a.x - b.x, y: a.y - b.y});
@@ -107,18 +108,20 @@ export function contornoDoblado(q, radio, segmentos = 6) {
   return {pts, dobleces};
 }
 
-// Estribo como en el detalle del ingeniero: esquinas dobladas con radio `radio` (las varillas de
-// esquina quedan dentro del doblez) y el cierre con dos ganchos a 135° hacia el núcleo, en la
-// primera esquina.
-function estriboConGancho(q, S, largo, radio = 0.018) {
-  const {pts, dobleces} = contornoDoblado(q, radio);
-  const out = [pline(L.ESTRIBOS, pts.map(S), true)];
-  const c = q[0], d0 = dobleces[0];
-  const centro = q.reduce((acc, p) => ({x: acc.x + p.x / q.length, y: acc.y + p.y / q.length}), {x: 0, y: 0});
-  const hacia = sub(centro, c), l = Math.hypot(hacia.x, hacia.y) || 1;
-  const d = {x: hacia.x / l, y: hacia.y / l};
-  // Cada gancho nace donde termina el doblez y entra a 135° hacia el centro de la sección.
-  for (const p0 of [d0.t0, d0.t1]) out.push(line(L.ESTRIBOS, S(p0), S({x: p0.x + d.x * largo, y: p0.y + d.y * largo})));
+// Dónde cierra cada estribo (sus ganchos), como el detalle del ingeniero: el primero arriba a la
+// derecha y, en las L, el segundo en su esquina más alejada del primero (ganchos alternados,
+// no apilados en la misma esquina). Devuelve los polígonos con ese vértice primero.
+export function cierresAlternados(ejes) {
+  const desde = (q, i) => [...q.slice(i), ...q.slice(0, i)];
+  const out = [];
+  let previo = null;
+  for (const q of ejes) {
+    const i = previo
+      ? q.reduce((m, p, k) => (Math.hypot(p.x - previo.x, p.y - previo.y) > Math.hypot(q[m].x - previo.x, q[m].y - previo.y) ? k : m), 0)
+      : q.reduce((m, p, k) => (p.x + p.y > q[m].x + q[m].y ? k : m), 0);
+    out.push(desde(q, i));
+    previo = previo ?? q[i];
+  }
   return out;
 }
 
@@ -203,21 +206,29 @@ export function cuadroColumnas(columnas, {ancho = 12, alto = 6, escala = 2} = {}
     const cx = xm - wTipo * 0.08, cy = (y[2] + y[3]) / 2;
     const S = (p) => [r4(cx + (p.x - c.x) * fs), r4(cy + (p.y - c.y) * fs)];
     out.push(pline(L.COLUMNAS, c.contorno.map(S), true));
+    // Acero como el detalle del ingeniero: estribo a doble línea con dobleces y ganchos a 135°,
+    // varillas al diámetro real tangentes al estribo (dentro de los dobleces).
+    const de = diametro(C.estribo), db = diametro(C.barra);
     const alas = alasDeSeccion(c.contorno);
-    const estribos = alas.map((a) => { try { return desplazarPoligono(a, -C.recubrimiento); } catch { return a; } });
-    for (const q of estribos) out.push(...estriboConGancho(q, S, 0.06));
-    const varillas = varillasDeSeccion(alas, ref.n, C.recubrimiento + 0.018);
-    for (const p of varillas) out.push(circle(L.ESTRIBOS, S(p), r4(0.0095 * fs)));
+    const estribos = alas.map((a) => { try { return desplazarPoligono(a, -C.recubrimiento); } catch { return a; } }); // cara exterior
+    const ejes = cierresAlternados(alas.map((a) => ejeDelEstribo(a, C.recubrimiento, de)));
+    for (const q of ejes) out.push(...estriboDetallado(q, S, {de, db}));
+    const varillas = varillasDeSeccion(alas, ref.n, C.recubrimiento + de + db / 2);
+    for (const p of varillas) out.push(varilla(p, db, S, fs));
     // Medidas de la sección (".40", ".25"), como el ingeniero.
     out.push(...cotasDeContorno(c.contorno, S, {separacion: hT * 0.16, alto: hT * 0.15}));
-    // Rótulo de varillas con su línea de llamada, como en el expediente.
-    const arriba = varillas.reduce((a, p) => (p.y - p.x * 0.2 > a.y - a.x * 0.2 ? p : a), varillas[0] ?? {x: c.x, y: c.y});
-    // El texto termina dentro de su celda (en el visor la letra es más ancha que la estimada).
-    const etiqueta = `${ref.n}Ø5/8"`, hL = hT * 0.14, wL = anchoTexto(etiqueta, hL) * HOLGURA_VISOR;
-    const pA = S(arriba), xFinL = x0 + wTipo * 0.97, yL = r4(Math.min(y[2] - hT * 0.25, pA[1] + hT * 0.45));
-    const xIniL = r4(Math.max(pA[0] + hL, xFinL - wL));
-    out.push(line(L.COTAS_E, pA, [xIniL, yL]), line(L.COTAS_E, [xIniL, yL], [r4(xFinL), yL]));
-    out.push(text(L.COTAS_E, [xIniL, r4(yL + hL * 0.35)], etiqueta, hL, 0, "izq"));
+    // Llamadas en abanico, como el expediente: las varillas de la mitad de arriba a una etiqueta
+    // arriba a la derecha y las de abajo a otra abajo ("6Ø5/8"" y "2Ø5/8""); si todas quedan
+    // de un lado, una sola. El texto termina dentro de su celda.
+    const hL = hT * 0.14, xFinL = r4(x0 + wTipo * 0.97);
+    const grupos = [varillas.filter((p) => p.y >= c.y), varillas.filter((p) => p.y < c.y)].filter((g) => g.length);
+    const yMin = Math.min(...c.contorno.map((p) => S(p)[1])), yMax = Math.max(...c.contorno.map((p) => S(p)[1]));
+    grupos.forEach((g, k) => {
+      const etiqueta = `${g.length}Ø${C.barra}`, wL = anchoTexto(etiqueta, hL) * HOLGURA_VISOR;
+      const yG = k === 0 ? r4(Math.min(y[2] - hT * 0.25, yMax + hT * 0.3)) : r4(Math.max(y[3] + hL * 0.6, yMin - hT * 0.42));
+      const xIni = r4(xFinL - wL);
+      out.push(...llamadaAbanico(g, etiqueta, {S, fs, db, quiebre: [xIni, yG], fin: [xFinL, yG], h: hL}));
+    });
     // Refuerzo y estribaje.
     const n = alas.length;
     const dims = medidasDeSeccion(c);
@@ -233,7 +244,7 @@ export function cuadroColumnas(columnas, {ancho = 12, alto = 6, escala = 2} = {}
       const f = Math.min(escala * 1.2, (ancho1 * 0.5) / Math.max(0.1, Math.max(...xs) - Math.min(...xs)), ((y[4] - y[5]) * 0.5) / Math.max(0.1, Math.max(...ys) - Math.min(...ys)));
       const ex = x0 + ancho1 * (j + 0.5), ey = (y[4] + y[5]) / 2;
       const SE = (p) => [r4(ex + (p.x - m.x) * f), r4(ey + (p.y - m.y) * f)];
-      out.push(...estriboConGancho(q, SE, 0.05));
+      out.push(...estriboDetallado(ejes[j], SE, {de, db}));
       // Medidas del estribo (".18" x ".32"), como el despiece del ingeniero.
       out.push(...cotasDeContorno(q, SE, {separacion: hT * 0.14, alto: hT * 0.14}));
     });
@@ -316,14 +327,17 @@ export function cuadroColumnetas(columnetas, {ancho = 11.9, alto = 2.9} = {}) {
     const cy = (y[2] + y[3]) / 2 - hc * 0.6;
     const X = (u) => r4(cx + u * fs), Y = (v) => r4(cy + v * fs);
     out.push(pline(L.COLUMNAS, [[X(-b / 2), Y(-hh / 2)], [X(b / 2), Y(-hh / 2)], [X(b / 2), Y(hh / 2)], [X(-b / 2), Y(hh / 2)]], true));
-    const r = CT.recubrimiento;
-    const est = [{x: -b / 2 + r, y: -hh / 2 + r}, {x: b / 2 - r, y: -hh / 2 + r}, {x: b / 2 - r, y: hh / 2 - r}, {x: -b / 2 + r, y: hh / 2 - r}];
-    // Columneta: varillas a 0.012 de las líneas del estribo → mismo radio de doblez.
-    out.push(...estriboConGancho([est[3], est[0], est[1], est[2]], (p) => [X(p.x), Y(p.y)], Math.min(0.04, hh * 0.3), 0.012));
+    // Estribo de 1/4" a doble línea con ganchos y varillas de 3/8" al diámetro real, tangentes.
+    const r = CT.recubrimiento, de = diametro(CT.estribo), db = diametro(CT.barra);
+    const e = r + de / 2; // eje del estribo
+    const est = [{x: -b / 2 + e, y: -hh / 2 + e}, {x: b / 2 - e, y: -hh / 2 + e}, {x: b / 2 - e, y: hh / 2 - e}, {x: -b / 2 + e, y: hh / 2 - e}];
+    const SX = (p) => [X(p.x), Y(p.y)];
+    out.push(...estriboDetallado([est[2], est[3], est[0], est[1]], SX, {de, db})); // cierra arriba a la derecha
     const n = CT.varillasPorCara(b);
-    const xb = (j) => -b / 2 + r + 0.012 + (j * (b - 2 * r - 0.024)) / Math.max(1, n - 1);
-    const caras = [hh / 2 - r - 0.012, -hh / 2 + r + 0.012];
-    for (let j = 0; j < n; j++) for (const yy of caras) out.push(circle(L.ESTRIBOS, [X(xb(j)), Y(yy)], r4(0.0065 * fs)));
+    const v = r + de + db / 2; // centro de las varillas a la cara
+    const xb = (j) => -b / 2 + v + (j * (b - 2 * v)) / Math.max(1, n - 1);
+    const caras = [hh / 2 - v, -hh / 2 + v];
+    for (let j = 0; j < n; j++) for (const yy of caras) out.push(varilla({x: xb(j), y: yy}, db, SX, fs));
     // Medidas de la sección (".20" arriba, ".13" a la derecha), como el ingeniero.
     out.push(...cota(L.COTAS_E, [X(-b / 2), Y(hh / 2)], [X(b / 2), Y(hh / 2)], hc * 1.1, hc, cotaCorta(b)));
     out.push(...cota(L.COTAS_E, [X(b / 2), Y(hh / 2)], [X(b / 2), Y(-hh / 2)], hc * 1.1, hc, cotaCorta(hh)));
