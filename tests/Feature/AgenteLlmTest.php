@@ -143,4 +143,20 @@ class AgenteLlmTest extends TestCase
         $this->assertSame('low', $enviados[0]['reasoning_effort']);
         $this->assertArrayNotHasKey('reasoning_effort', $enviados[1]);
     }
+
+    public function test_a_three_model_chain_climbs_only_as_far_as_needed(): void
+    {
+        config(['services.agente_llm' => ['proveedor' => 'openai', 'model' => 'auto', 'modelos' => 'gpt-4.1-mini, gpt-6.2-sol, gpt-6.2-astra', 'key' => self::CLAVE, 'tokens_dia' => 0, 'por_minuto' => 50]]);
+        $texto = ['choices' => [['message' => ['role' => 'assistant', 'content' => 'Claro.']]]];
+        $herramienta = ['choices' => [['message' => ['role' => 'assistant', 'content' => '', 'tool_calls' => [['id' => 'c', 'type' => 'function', 'function' => ['name' => 'plano_estructuras', 'arguments' => '{}']]]]]]];
+        Http::fake(['api.openai.com/*' => Http::sequence()->push($texto)->push($texto)->push($herramienta)->push($texto)->push($herramienta)]);
+        $modelos = fn () => collect(Http::recorded())->map(fn ($par) => $par[0]['model'])->all();
+
+        // mini y Sol no eligen herramienta: llega hasta Astra.
+        $this->postJson(route('software.etabs.agente.llm'), $this->pedido())->assertOk()->assertJsonPath('choices.0.message.tool_calls.0.function.name', 'plano_estructuras');
+        $this->assertSame(['gpt-4.1-mini', 'gpt-6.2-sol', 'gpt-6.2-astra'], $modelos());
+        // Sol resuelve: Astra no se usa (no se paga).
+        $this->postJson(route('software.etabs.agente.llm'), $this->pedido())->assertOk();
+        $this->assertSame(['gpt-4.1-mini', 'gpt-6.2-sol', 'gpt-6.2-astra', 'gpt-4.1-mini', 'gpt-6.2-sol'], $modelos());
+    }
 }

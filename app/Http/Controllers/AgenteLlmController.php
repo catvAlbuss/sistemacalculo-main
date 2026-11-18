@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\RateLimiter;
  *
  * Modelo automático (AGENTE_LLM_MODEL=auto): cada pedido va primero al modelo económico de la
  * cadena; solo si su respuesta no sirve (no eligió herramienta, eligió una que no existe o
- * escribió mal los argumentos) se repite con el siguiente, más capaz. Así se paga el modelo
+ * escribió mal los argumentos) se repite con el siguiente, más capaz, y así hasta el último. Así se paga el modelo
  * caro solo cuando hace falta. La cadena se puede fijar con AGENTE_LLM_MODELOS.
  */
 class AgenteLlmController extends Controller
@@ -133,15 +133,19 @@ class AgenteLlmController extends Controller
         $json = $resultado;
         $usados = $this->tokens($json);
 
-        // Modo automático: si el económico no resolvió el pedido, una vez con el siguiente.
+        // Modo automático: mientras la respuesta no resuelva el pedido, el siguiente modelo de la
+        // cadena (cada uno una vez). Si uno falla, se queda la mejor respuesta que se tenga.
         $escalado = false;
-        $siguiente = $c['cadena'][1] ?? null;
-        if ($siguiente && $this->respuestaFloja($json, $data)) {
-            $otro = $this->pedir($c, $siguiente, $data, $request);
-            if (! $otro instanceof JsonResponse) {
-                [$json, $modelo, $escalado] = [$otro, $siguiente, true];
-                $usados += $this->tokens($otro);
+        foreach (array_slice($c['cadena'], 1) as $siguiente) {
+            if (! $this->respuestaFloja($json, $data)) {
+                break;
             }
+            $otro = $this->pedir($c, $siguiente, $data, $request);
+            if ($otro instanceof JsonResponse) {
+                break;
+            }
+            [$json, $modelo, $escalado] = [$otro, $siguiente, true];
+            $usados += $this->tokens($otro);
         }
 
         Cache::add($dia, 0, now()->addDays(2));
