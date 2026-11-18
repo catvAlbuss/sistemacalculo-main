@@ -60,7 +60,11 @@ return [
         'proveedor' => env('AGENTE_LLM_PROVEEDOR', 'openai'),
         'url' => env('AGENTE_LLM_URL'), // vacío: la URL del proveedor
         'key' => env('AGENTE_LLM_KEY', env('OPENAI_API_KEY')),
-        'model' => env('AGENTE_LLM_MODEL', 'gpt-4.1-mini'),
+        // 'auto': el servidor elige (económico primero, el más capaz solo si hace falta).
+        'model' => env('AGENTE_LLM_MODEL', 'auto'),
+        'modelos' => env('AGENTE_LLM_MODELOS'),            // cadena del modo auto, ej. "gpt-4.1-mini,gpt-4.1"
+        'razonamiento' => env('AGENTE_LLM_RAZONAMIENTO', 'low'),
+        'tokens_dia' => (int) env('AGENTE_LLM_TOKENS_DIA', 2000000), // tope diario de tokens (0 = sin tope)
         // auto: memoria completa del agente salvo en modelos locales chicos (Ollama 4B).
         'memoria' => env('AGENTE_LLM_MEMORIA', 'auto'),
         // ¿El modelo ve fotos? auto: sí en la nube; en Ollama solo si se indica.

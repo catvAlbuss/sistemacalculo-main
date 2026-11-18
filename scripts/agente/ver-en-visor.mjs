@@ -103,6 +103,17 @@ try {
         await evaluar('window.__novacadPrueba.abrirAgente()');
         await pausa(1500);
         if (process.env.VISOR_JS) { await evaluar(process.env.VISOR_JS); await pausa(1200); }
+        // VISOR_PASOS=<archivo.json>: [{js, foto}] — usar el panel como el ingeniero (clics) y
+        // capturar la pantalla después de cada paso (js puede devolver una promesa que espera).
+        if (process.env.VISOR_PASOS) {
+          for (const paso of JSON.parse(readFileSync(process.env.VISOR_PASOS, 'utf8'))) {
+            const r = await evaluar(paso.js);
+            console.log(`paso ${paso.foto}:`, JSON.stringify(r)?.slice(0, 300));
+            await pausa(paso.espera ?? 1500);
+            const foto = await send('Page.captureScreenshot', {format: 'png'});
+            writeFileSync(join(salida, `${paso.foto}.png`), Buffer.from(foto.data, 'base64'));
+          }
+        }
       }
       if (esDwg && !process.env.VISOR_SOLO_ABRIR) {
         // Como el ingeniero: abrir el panel del agente y pedirle las láminas.

@@ -452,20 +452,21 @@ export const ESTRUCTURA_SKILLS = [
       // Primero la vista de arquitectura (las láminas del agente no cuentan como vistas).
       delete ctx.memoria.avisoVista;
       const e = leerEstructura(ctx, "", args.vista);
-      // Datos del proyecto que faltan: el panel los pide en un formulario (una vez por plano)
-      // antes de dibujar; quien no los tiene sigue y el agente usa el criterio y lo avisa.
-      if (ctx.pedirDatos && !ctx.memoria.datosPedidos) {
-        ctx.memoria.datosPedidos = true;
+      // Antes de dibujar, el panel muestra los datos del proyecto en un formulario, ya llenos con
+      // lo guardado y con lo que propone el agente (Hz, Df y niveles de proyectos parecidos); el
+      // personal los revisa o corrige y recién ahí se arma el plano. Cancelar no dibuja nada.
+      if (ctx.pedirDatos && e.ejesNombrados) {
         const actuales = ctx.datosProyecto?.() ?? {};
         const t = datosTecnicos(actuales);
         const faltan = [...["hz", "df", "zona", "suelo", "categoria"].filter((k) => t[k] === null),
           ...["proyecto", "entidad", "especialista", "cip"].filter((k) => !String(actuales[k] ?? "").trim())];
-        if (faltan.length) {
-          const p = ctx.memoria.propuesta?.propuesta?.decisiones ?? {};
-          const nuevos = await ctx.pedirDatos({faltan, sugeridos: {hz: p.hz?.valor, df: p.df?.valor}});
-          const llenos = Object.fromEntries(Object.entries(nuevos ?? {}).filter(([, v]) => String(v ?? "").trim() !== ""));
-          if (Object.keys(llenos).length) ctx.guardarDatosProyecto?.(llenos);
-        }
+        const {rasgos, propuesta} = await propuestaDelPlano(ctx).catch(() => ({}));
+        const d = propuesta?.decisiones ?? {};
+        const sugeridos = {hz: d.hz?.valor, df: d.df?.valor, niveles: rasgos?.niveles};
+        const nuevos = await ctx.pedirDatos({faltan, sugeridos, vista: e.titulo || e.vista});
+        if (!nuevos) return {ok: false, cancelado: true, error: "cancelaste los datos del proyecto, así que no dibujé nada"};
+        const llenos = Object.fromEntries(Object.entries(nuevos).filter(([, v]) => String(v ?? "").trim() !== ""));
+        if (Object.keys(llenos).length) ctx.guardarDatosProyecto?.(llenos);
       }
       // Rehacer en su lugar: se quitan las láminas que el agente dibujó antes para esta
       // vista (marcadas en el dibujo), en vez de apilar otras debajo.

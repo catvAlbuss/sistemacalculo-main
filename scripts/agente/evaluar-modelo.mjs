@@ -24,6 +24,9 @@ const enPedido = (valor, pedido) => {
   return pedido.toLowerCase().split(/[^a-z0-9áéíóúñ]+/i).includes(String(valor).toLowerCase());
 };
 let inventos = 0;
+// Modelos de razonamiento (GPT-5, o3…): sin temperature; razonamiento bajo para no gastar.
+const razona = /^(gpt-5|gpt-6|o\d)/i.test(settings.model);
+const tokens = {entrada: 0, cache: 0, salida: 0};
 for (const caso of CASOS_EVALUACION) {
   const t0 = Date.now();
   let d = {};
@@ -32,13 +35,16 @@ for (const caso of CASOS_EVALUACION) {
       method: 'POST',
       signal: AbortSignal.timeout(Number(process.env.AGENTE_TIMEOUT_MS ?? 120000)),
       headers: {'Content-Type': 'application/json', ...(settings.apiKey ? {Authorization: `Bearer ${settings.apiKey}`} : {})},
-      body: JSON.stringify({model: settings.model, messages: [{role: 'system', content: promptDelSistema(settings)}, {role: 'user', content: caso.pedido}], tools, tool_choice: 'auto', temperature: 0.2, stream: false}),
+      body: JSON.stringify({model: settings.model, messages: [{role: 'system', content: promptDelSistema(settings)}, {role: 'user', content: caso.pedido}], tools, tool_choice: 'auto', ...(razona ? {reasoning_effort: process.env.AGENTE_RAZONAMIENTO ?? 'low'} : {temperature: 0.2}), stream: false}),
     });
     d = await r.json();
   } catch (e) {
     d = {error: e.name === 'TimeoutError' ? 'no respondió a tiempo' : e.message};
   }
   const ms = Date.now() - t0;
+  tokens.entrada += d.usage?.prompt_tokens ?? 0;
+  tokens.cache += d.usage?.prompt_tokens_details?.cached_tokens ?? 0;
+  tokens.salida += d.usage?.completion_tokens ?? 0;
   tiempos.push(ms);
   const call = d.choices?.[0]?.message?.tool_calls?.[0];
   let args = {};
@@ -49,4 +55,4 @@ for (const caso of CASOS_EVALUACION) {
   if (bien) aciertos++;
   console.log(`${bien ? 'OK ' : inventados.length ? 'INVENTÓ' : 'MAL'} ${String(ms).padStart(6)} ms  ${caso.pedido.slice(0, 50).padEnd(50)} → ${call?.function?.name ?? (d.error ? `error: ${JSON.stringify(d.error).slice(0, 60)}` : 'sin herramienta')} ${JSON.stringify(args)}`);
 }
-console.log(`\n${settings.model}: ${aciertos}/${CASOS_EVALUACION.length} aciertos (${inventos} con datos inventados), ${Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length)} ms por pedido.`);
+console.log(`\n${settings.model}: ${aciertos}/${CASOS_EVALUACION.length} aciertos (${inventos} con datos inventados), ${Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length)} ms por pedido. Tokens: ${tokens.entrada} de entrada (${tokens.cache} en caché), ${tokens.salida} de salida.`);
