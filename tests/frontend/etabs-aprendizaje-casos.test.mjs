@@ -112,3 +112,14 @@ test('module 9 through the chat: the engineer corrects the slab and the next pro
   const r = await run('proponer_estructura');
   assert.match(r.mensaje, /Espesor de losa \(m\): 0\.30 \(lo corregiste en este mismo plano\)/);
 });
+
+test('project data the model invents is not saved: only what the engineer wrote', async () => {
+  const guardados = [];
+  const ctx = createDrawingContext({getDatabase: () => null, dm, getProjectData: () => ({}), setProjectData: (d) => guardados.push(d)});
+  ctx.memoria ??= {};
+  ctx.memoria.ultimoPedido = 'según el estudio de suelos el Df es 2.50 m';
+  // Un modelo chico agrega zona, suelo y Hz que nadie dijo.
+  const r = await SKILLS.find((s) => s.name === 'datos_proyecto').run({df: 2.5, hz: 0.6, zona: 3, suelo: 'S2'}, ctx);
+  assert.deepEqual(guardados, [{df: '2.5'}]);
+  assert.ok(r.avisos.some((a) => /No usé Hz, zona, suelo: no los indicaste en tu pedido/.test(a)), r.avisos.join(' | '));
+});

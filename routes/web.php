@@ -258,6 +258,8 @@ Route::middleware(["auth", "verified", "check.subscription", "throttle:calculati
         // Aprendizaje del agente por uso: correcciones del ingeniero a las decisiones del agente.
         Route::post('/etabs/agente/aprendizaje', [\App\Http\Controllers\AgenteAprendizajeController::class, 'guardar'])->name('etabs.agente.aprendizaje.guardar');
         Route::get('/etabs/agente/aprendizaje', [\App\Http\Controllers\AgenteAprendizajeController::class, 'listar'])->name('etabs.agente.aprendizaje.listar');
+        // Agente con GPT: el navegador pasa por aquí; la clave queda en el servidor.
+        Route::post('/etabs/agente/llm/chat/completions', [\App\Http\Controllers\AgenteLlmController::class, 'chat'])->name('etabs.agente.llm');
         // Fase 2 — "Mis modelos": listar / abrir / guardar como / renombrar / borrar.
         Route::get('/etabs/models', [\App\Http\Controllers\CadModelController::class, 'index'])->name('etabs.models.index');
         Route::post('/etabs/models', [\App\Http\Controllers\CadModelController::class, 'store'])->name('etabs.models.store');

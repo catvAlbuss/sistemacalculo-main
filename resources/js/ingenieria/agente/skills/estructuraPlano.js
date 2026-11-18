@@ -153,9 +153,24 @@ const PARAMETROS_DATOS = {
 // Los niveles (pisos) no se piden ni se toman en el chat: van solo en el panel ▤.
 const CAMPOS_CHAT = CAMPOS_TECNICOS.filter((c) => c.campo in PARAMETROS_DATOS);
 
+// ¿El valor está en lo que escribió el usuario? Números como número ("2.5" = "2.50"); el resto
+// como palabra ("S2", "A2", zona "3"). Sin pedido conocido (pruebas, panel) se acepta.
+function dichoPorElUsuario(valor, ctx) {
+  const pedido = ctx?.memoria?.ultimoPedido;
+  if (pedido === undefined) return true;
+  const n = Number(String(valor).replace(",", "."));
+  if (Number.isFinite(n)) return [...pedido.matchAll(/\d+(?:[.,]\d+)?/g)].some((m) => Math.abs(Number(m[0].replace(",", ".")) - n) < 1e-9);
+  const palabras = new Set(pedido.toLowerCase().split(/[^a-z0-9áéíóúñ]+/i).filter(Boolean));
+  return palabras.has(String(valor).toLowerCase());
+}
+
 // Guarda en el panel los datos que vinieron en el pedido; devuelve qué se guardó y qué no sirvió.
 function guardarDatos(args, ctx) {
-  const dados = Object.fromEntries(CAMPOS_CHAT.map((c) => [c.campo, args?.[c.campo]]).filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== ""));
+  const todos = Object.fromEntries(CAMPOS_CHAT.map((c) => [c.campo, args?.[c.campo]]).filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== ""));
+  // Datos que el modelo agregó sin que el usuario los dijera: no se guardan (se avisa).
+  const inventados = Object.keys(todos).filter((k) => !dichoPorElUsuario(todos[k], ctx));
+  const dados = Object.fromEntries(Object.entries(todos).filter(([k]) => !inventados.includes(k)));
+  if (ctx?.memoria) ctx.memoria.avisoInventados = inventados.length ? `No usé ${inventados.map((k) => ETIQUETA[k] ?? k).join(", ")}: no los indicaste en tu pedido.` : null;
   if (!Object.keys(dados).length) return {guardados: [], invalidos: []};
   const t = datosTecnicos(dados);
   const validos = Object.fromEntries(Object.keys(dados).filter((k) => t[k] !== null).map((k) => [k, String(t[k])]));
@@ -253,7 +268,7 @@ export const ESTRUCTURA_SKILLS = [
           `${tiene.length ? `Datos del proyecto: ${tiene.join(", ")}${sismo.length ? ` (${sismo.join(", ")})` : ""}.` : "Aún no hay datos del proyecto."}` +
           `${faltan.length ? ` Faltan: ${faltan.join(", ")}; sin ellos uso el criterio del despacho y lo aviso.` : ""}` +
           `${guardados.length ? " Pide \"genera el plano de estructuras\" para rehacer las láminas con estos datos." : ""}`,
-        avisos: invalidos.length ? [`No guardé (fuera de rango o mal escrito): ${invalidos.join("; ")}.`] : [],
+        avisos: [...(invalidos.length ? [`No guardé (fuera de rango o mal escrito): ${invalidos.join("; ")}.`] : []), ...(ctx.memoria?.avisoInventados ? [ctx.memoria.avisoInventados] : [])],
       };
     },
   },
@@ -306,7 +321,7 @@ export const ESTRUCTURA_SKILLS = [
     parameters: {type: "object", properties: {
       decision: {type: "string", enum: Object.keys(DECISIONES), description: "Qué decisión corrige"},
       valor: {type: "string", description: "El valor correcto, como lo dijo el ingeniero (ej. 'maciza', '0.20', 'zapatas', 'no')"},
-      motivo: {type: "string", description: "Opcional: por qué (ej. 'baño con losa maciza')"},
+      motivo: {type: "string", description: "Opcional: el motivo, solo si el ingeniero lo dijo"},
     }, required: ["decision", "valor"]},
     async run(args, ctx) {
       const clave = args.decision;
@@ -315,7 +330,11 @@ export const ESTRUCTURA_SKILLS = [
       if (valor === null) return {ok: false, error: `No entendí el valor "${args.valor}" para ${DECISIONES[clave].nombre}.`};
       // Hz y Df también van a Datos del proyecto (las láminas los usan directo).
       if (clave === "hz" || clave === "df") guardarDatos({[clave]: String(valor)}, ctx);
-      const {propuesto} = await aprender(ctx, {clave, valor, motivo: args.motivo});
+      // El motivo solo se aprende si salió del ingeniero (un modelo chico copiaba el ejemplo).
+      const pedido = String(ctx.memoria?.ultimoPedido ?? "").toLowerCase();
+      const palabras = String(args.motivo ?? "").toLowerCase().split(/[^a-z0-9áéíóúñ]+/i).filter((w) => w.length > 3);
+      const motivo = palabras.length && (ctx.memoria?.ultimoPedido === undefined || palabras.filter((w) => pedido.includes(w)).length >= palabras.length / 2) ? args.motivo : null;
+      const {propuesto} = await aprender(ctx, {clave, valor, motivo});
       delete ctx.memoria.propuesta; // la próxima propuesta ya la incluye
       const v = typeof valor === "boolean" ? (valor ? "sí" : "no") : valor;
       return {ok: true, mensaje: `Anoté ${DECISIONES[clave].nombre}: ${v}${propuesto !== null && propuesto !== valor ? ` (yo había propuesto ${typeof propuesto === "boolean" ? (propuesto ? "sí" : "no") : propuesto})` : ""}. Lo aplico en este plano y lo tendré en cuenta en los parecidos. Pide "genera el plano de estructuras" para rehacer las láminas.`};
@@ -449,7 +468,7 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
     guardados.length ? `Guardé ${guardados.map((k) => ETIQUETA[k]).join(", ")} en Datos del proyecto.` : "",
     quitadas ? "Reemplacé las láminas anteriores." : "",
   ].filter(Boolean).join(" ");
-  const extra = [...(ctx.memoria.avisoVista ? [ctx.memoria.avisoVista] : []), ...(invalidos.length ? [`No guardé (fuera de rango o mal escrito): ${invalidos.join("; ")}.`] : [])];
+  const extra = [...(ctx.memoria.avisoVista ? [ctx.memoria.avisoVista] : []), ...(ctx.memoria.avisoInventados ? [ctx.memoria.avisoInventados] : []), ...(invalidos.length ? [`No guardé (fuera de rango o mal escrito): ${invalidos.join("; ")}.`] : [])];
   {
     {
       if (!e.ejesNombrados) throw new Error("Para estructurar el plano necesito la planta de arquitectura con ejes con nombre (burbujas con rótulo, ej. 8, 10, Y´).");

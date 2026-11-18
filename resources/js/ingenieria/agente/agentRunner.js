@@ -12,19 +12,23 @@ import {memoriaDelAgente} from "./conocimiento.js";
 // memoria: "auto" | "completa" | "corta". En "auto", los modelos grandes o en la nube
 // (ChatGPT, Claude, gpt-oss, >= 14B) reciben la memoria completa del agente
 // (conocimiento.js); los locales chicos (Qwen 4B, 8k de contexto), solo el prompt corto.
-export const DEFAULT_AGENT_SETTINGS = {baseUrl: "http://127.0.0.1:11434/v1", model: "qwen3-cad", apiKey: "", memoria: "auto"};
+// Motor del despacho en el servidor (GPT): la clave vive en el .env y el navegador pasa por el
+// proxy de Laravel (AgenteLlmController). Fuera del equipo de desarrollo es el motor por defecto.
+export const AGENTE_SERVIDOR = {baseUrl: "/software/etabs/agente/llm", model: "servidor", apiKey: "", memoria: "completa"};
+export const OLLAMA_LOCAL = {baseUrl: "http://127.0.0.1:11434/v1", model: "qwen3-cad", apiKey: "", memoria: "auto"};
+const enEquipoLocal = () => typeof location === "undefined" || /^(localhost|127\.0\.0\.1|.*\.test)$/.test(location.hostname);
+export const DEFAULT_AGENT_SETTINGS = enEquipoLocal() ? OLLAMA_LOCAL : AGENTE_SERVIDOR;
+export const usaServidor = (settings) => String(settings?.baseUrl ?? "").startsWith("/");
 const MAX_ROUNDS = 3;
 const HISTORY_TURNS = 4;
 
 export const SYSTEM_PROMPT = [
-  "Eres el Agente NovaCad, asistente CAD para ingenieros civiles en Perú. Responde siempre en español, breve.",
-  "Unidades en metros. Usa SIEMPRE una herramienta para dibujar o leer el plano; no inventes resultados.",
-  "Para una casa o vivienda usa casa_primer_nivel (si faltan datos usa: frente 8, fondo 20, 3 dormitorios, 2 baños, con cochera).",
-  "Para pasar de arquitectura a estructuras (plano de estructuras, estructurar, cimentación, aligerado) usa plano_estructuras; no pidas pisos ni cargas. Para ver solo ejes y columnas usa leer_estructura.",
-  "Si el archivo tiene varias láminas o vistas (primer nivel, techo, cimentación) usa vistas_plano y pasa 'vista' a las otras herramientas.",
-  "Hz, Df, zona, suelo o categoría (colegio A2, vivienda C): datos_proyecto. Rehacer láminas: plano_estructuras (sin conservar). Revisarlas o corregir encimados: revisar_laminas. Borrarlas: quitar_laminas.",
-  "Si el resultado trae 'mensaje', responde ese mensaje tal cual y agrega los avisos; si no, resume en 2 o 3 líneas.",
-  "Si ninguna herramienta hace lo pedido, dilo y di qué sí puedes hacer. Nunca digas que algo se hizo si la herramienta no devolvió ok.",
+  "Eres el Agente NovaCad, asistente CAD de ingenieros civiles en Perú. Responde en español, breve. Unidades en metros.",
+  "Usa SIEMPRE una herramienta; no inventes resultados ni datos (Hz, Df, zona, suelo, categoría, motivos): pásalos solo si el usuario los dijo.",
+  "Casa o vivienda: casa_primer_nivel (por defecto frente 8, fondo 20, 3 dormitorios, 2 baños, cochera).",
+  "Arquitectura a estructuras (estructurar, cimentación, aligerado, rehacer láminas): plano_estructuras sin conservar; no pidas pisos ni cargas. Solo ejes y columnas: leer_estructura. Varias vistas: vistas_plano y pasa 'vista'.",
+  "Analizar o proponer la estructura: proponer_estructura. Metrado: metrar_estructura. Corrección del ingeniero: corregir_estructura. Hz, Df, zona, suelo, categoría (colegio A2, vivienda C): datos_proyecto. Revisar o corregir encimados: revisar_laminas. Borrar: quitar_laminas.",
+  "Si el resultado trae 'mensaje', respóndelo tal cual con sus avisos. Si ninguna herramienta sirve, dilo. Nunca digas que algo se hizo si no devolvió ok.",
   "/no_think",
 ].join("\n");
 
@@ -59,11 +63,21 @@ async function chat({settings, messages, tools, fetchImpl, signal, temperature =
   const response = await fetchImpl(`${settings.baseUrl.replace(/\/+$/, "")}/chat/completions`, {
     method: "POST",
     signal,
-    headers: {"Content-Type": "application/json", ...(settings.apiKey ? {Authorization: `Bearer ${settings.apiKey}`} : {})},
+    // Por el servidor: sesión y token CSRF de Laravel, nunca una clave desde el navegador.
+    headers: usaServidor(settings)
+      ? {"Content-Type": "application/json", Accept: "application/json", "X-Requested-With": "XMLHttpRequest", "X-CSRF-TOKEN": (typeof document !== "undefined" ? document.querySelector('meta[name="csrf-token"]')?.content : "") ?? ""}
+      : {"Content-Type": "application/json", ...(settings.apiKey ? {Authorization: `Bearer ${settings.apiKey}`} : {})},
+    ...(usaServidor(settings) ? {credentials: "same-origin"} : {}),
     body: JSON.stringify({model: settings.model, messages, tools, tool_choice: "auto", temperature, stream: false}),
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
+    if (usaServidor(settings)) {
+      // El proxy ya devuelve un mensaje claro (sin clave, límite de pedidos, proveedor caído).
+      let mensaje = "";
+      try { mensaje = JSON.parse(detail).error?.message ?? ""; } catch { /* no es JSON */ }
+      throw new Error(mensaje || `El servidor del agente respondió ${response.status}.`);
+    }
     if (response.status === 402) throw new Error("El modelo elegido es de pago (nube). Usa un modelo local, por ejemplo qwen3-cad.");
     if (response.status === 404) throw new Error(`El modelo "${settings.model}" no existe en el servidor. Revisa la configuración.`);
     const error = new Error(`El servidor del modelo respondió ${response.status}. ${detail.slice(0, 160)}`);
@@ -115,6 +129,9 @@ export function respuestaHonesta(textoModelo, steps) {
 // history: [{role: "user"|"assistant", content}] de turnos anteriores (solo texto).
 export async function runAgent({text, history = [], settings = DEFAULT_AGENT_SETTINGS, context, skills = SKILLS, fetchImpl = globalThis.fetch?.bind(globalThis), onStep = () => {}, signal}) {
   const tools = toolDefinitions(skills);
+  // Lo que el usuario escribió: las herramientas solo aceptan datos del proyecto que estén ahí
+  // (un modelo chico inventaba "suelo S2, zona 3, Df 2.50" en "genera el plano con platea").
+  if (context?.memoria) context.memoria.ultimoPedido = String(text ?? "");
   const messages = [{role: "system", content: promptDelSistema(settings)}, ...history.slice(-HISTORY_TURNS), {role: "user", content: text}];
   const steps = [];
   const usage = {prompt: 0, completion: 0};

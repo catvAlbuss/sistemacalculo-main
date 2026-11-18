@@ -222,7 +222,10 @@ export function metradoEstructuras(modelo) {
       partida("02.03.11.04", "LADRILLO HUECO DE ARCILLA RAYADO DE 15X30X30 CM P/TECHO ALIGERADO", "und", porNivel((n) => fila(`${nivelTxt(n)}: ${L.ladrillosPorM2} und/m²`, {ancho: area, alto: L.ladrillosPorM2, parcial: Math.ceil(area * L.ladrillosPorM2)}))),
       partida("02.03.11.05", "CURADO DEL CONCRETO EN LOSA ALIGERADA", "m2", porNivel((n) => fila(nivelTxt(n), {ancho: area}))));
   }
-  notas.push("Aún no se metran: viguetas de amarre (VSa), canaleta de techo, correas y cobertura, juntas.");
+  notas.push("Aún no se metran (pendientes de definición geométrica; no se estiman): viguetas de amarre (VSa), canaleta de techo, correas y cobertura, juntas.");
+  if (vigas.length) notas.push("Vigas: no incluye la viga de borde ni la viga de cumbrera de sección reducida (aún no se dibujan en las láminas).");
+  if (ctas.length) notas.push(`Columnetas: altura uniforme provisional de ${altoMuros.toFixed(2)} m; verificar la altura real de cada una por vano (parapetos, cerramientos).`);
+  if (platea) notas.push(`Acero de platea: Ø${M.platea.barra} @${M.platea.separacion.toFixed(2)} en ${M.platea.capas} capas (superior e inferior), en cada dirección; cada capa contada una sola vez.`);
 
   const resumen = {
     concreto: r4(partidas.filter((p) => p.und === "m3" && /^CONCRETO/.test(p.descripcion)).reduce((s, p) => s + p.total, 0)),

@@ -53,6 +53,16 @@ return [
         // Render detiene el plan gratuito por inactividad: despertar tarda cerca de un minuto.
         'timeout' => (int) env('CAD_API_TIMEOUT', 90),
     ],
+    // Motor de lenguaje del Agente NovaCad (GPT u otra API compatible con OpenAI). La clave
+    // vive solo aquí (.env): el navegador habla con /software/etabs/agente/llm y nunca la ve.
+    'agente_llm' => [
+        'url' => env('AGENTE_LLM_URL', 'https://api.openai.com/v1'),
+        'key' => env('AGENTE_LLM_KEY', env('OPENAI_API_KEY')),
+        'model' => env('AGENTE_LLM_MODEL', 'gpt-4.1-mini'),
+        'max_tokens' => (int) env('AGENTE_LLM_MAX_TOKENS', 1500),
+        'timeout' => (int) env('AGENTE_LLM_TIMEOUT', 90),
+        'por_minuto' => (int) env('AGENTE_LLM_POR_MINUTO', 20),
+    ],
     'python_backend' => [
         'url' => env('PYTHON_BACKEND_URL', 'http://127.0.0.1:5001'),
         // Carpeta del motor CLI en producción Linux (venv + cli_entry.py).

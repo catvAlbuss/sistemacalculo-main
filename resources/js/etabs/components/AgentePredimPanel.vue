@@ -3,7 +3,7 @@
     <header class="ap-header">
       <div class="ap-title">
         <h2>Agente NovaCad</h2>
-        <p>{{ settings.model }} · {{ isLocal ? "local, sin costo" : "servidor externo" }}</p>
+        <p>{{ usaServidor(settings) ? "GPT del despacho" : `${settings.model} · ${isLocal ? "local, sin costo" : "servidor externo"}` }}</p>
       </div>
       <button type="button" class="etabs-icon-btn" :aria-pressed="showSettings" title="Configuración del modelo" @click="toggleSettings">⚙</button>
       <button type="button" class="etabs-icon-btn" :aria-pressed="showProyecto" title="Datos del proyecto (Hz, Df, sismo, niveles y rótulo)" @click="showProyecto = !showProyecto">▤</button>
@@ -29,10 +29,13 @@
           <option value="corta">Corta: solo instrucciones (modelos locales de 4B)</option>
         </select>
       </label>
-      <label class="fz-field"><span>Clave API (vacía para Ollama local)</span><input v-model="draft.apiKey" type="password" autocomplete="off" class="fz-input" /></label>
+      <!-- Con el GPT del despacho la clave está en el servidor: aquí no se escribe ninguna. -->
+      <label v-if="!usaServidor(draft)" class="fz-field"><span>Clave API (vacía para Ollama local)</span><input v-model="draft.apiKey" type="password" autocomplete="off" class="fz-input" /></label>
+      <small v-else class="ap-note">GPT del despacho: la clave está guardada en el servidor, no en este navegador.</small>
       <div class="ap-row">
         <button type="submit" class="fz-btn fz-btn-primary">Guardar</button>
-        <button type="button" class="fz-btn fz-btn-ghost" @click="draft = {...DEFAULT_AGENT_SETTINGS}">Usar Ollama local</button>
+        <button type="button" class="fz-btn fz-btn-ghost" @click="draft = {...AGENTE_SERVIDOR}">Usar GPT del despacho</button>
+        <button type="button" class="fz-btn fz-btn-ghost" @click="draft = {...OLLAMA_LOCAL}">Usar Ollama local</button>
       </div>
     </form>
 
@@ -86,7 +89,7 @@
 
 <script setup>
 import {computed, nextTick, ref} from "vue";
-import {DEFAULT_AGENT_SETTINGS, runAgent} from "../../ingenieria/agente/agentRunner.js";
+import {DEFAULT_AGENT_SETTINGS, AGENTE_SERVIDOR, OLLAMA_LOCAL, usaServidor, runAgent} from "../../ingenieria/agente/agentRunner.js";
 import {modelosInstalados, notaModelo} from "../../ingenieria/agente/modelosAgente.js";
 import {CAMPOS_PROYECTO} from "../../ingenieria/laminas/rotulo.js";
 import {CAMPOS_TECNICOS} from "../../ingenieria/criterios/datosProyecto.js";
@@ -193,6 +196,8 @@ async function toggleSettings() {
   showSettings.value = !showSettings.value;
   if (!showSettings.value) return;
   modelosError.value = "";
+  // GPT del despacho: el modelo lo fija el servidor (AGENTE_LLM_MODEL), no hay nada que listar.
+  if (usaServidor(draft.value)) { modelos.value = [{nombre: "servidor", tamano: "", nube: true, nota: "GPT del despacho (configurado en el servidor)", apto: true}]; return; }
   try { modelos.value = await modelosInstalados(draft.value.baseUrl); }
   catch { modelos.value = []; modelosError.value = "No pude listar los modelos de Ollama: escribe el nombre a mano."; }
 }

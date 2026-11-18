@@ -23,7 +23,10 @@ export const CRITERIOS = {
   },
 
   cimientoCorrido: {
-    ancho: 0.6,                 // m — cortes: 0.60
+    // m — cota de ancho bajo el cimiento en los cortes 1-1, 2-2 y 3-3 del módulo 14 y en los tres
+    // del módulo 3: ".40" (verificado en el visor). El ".60" del corte 2-2 es una cota vertical,
+    // no el ancho (se había leído mal). El metrado del ingeniero también usa 0.40.
+    ancho: 0.4,
     alto: 0.8,                  // m — N.F.C. = -0.80
     sobrecimientoAlto: 0.4,     // m — cota 0.40 en los cortes
   },
