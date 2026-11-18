@@ -22,6 +22,14 @@ export const CRITERIOS_METRADO = {
   vigas: {barras: 4, barra: '5/8"', anclaje: 0.74, gancho: 0.6, ganchoEstribo: 0.3, recubrimiento: 0.045},
   columnetas: {barra: '3/8"', anclaje: 0.4, estribo: '1/4"', ganchoEstribo: 0.12},
   platea: {barra: '3/4"', separacion: 0.15, recubrimiento: 0.075, gancho: 0.5, capas: 2},
+  // Lo que sigue sale de la planilla del ingeniero del módulo de referencia XIV (partidas
+  // 02.03.07 a 02.05): secciones y criterios del despacho para lo que la arquitectura no acota.
+  vsa: {b: 0.13, h: 0.2, barras: 4, barra: '3/8"', anclaje: 0.4, estribo: '1/4"', ganchoEstribo: 0.12, recubrimiento: 0.025}, // "Eje 8 Vsa-(0.13X0.20M)": 4Ø3/8", estribos Ø1/4"
+  vigaBorde: {b: 0.3, h: 0.45},              // "Viga de Borde (0.30X0.45M)" (VIGA BORDE en el pórtico de la plantilla)
+  cumbrera: {area: 0.08, perimetro: 0.71},   // "Viga Cumbrera": sección reducida, Área 0.08 m², perímetro 0.71 m
+  canaleta: {area: 0.09, perimetro: 1.62, longitudinales: 5, barra: '3/8"', transversal: 1.35, separacion: 0.125}, // 5Ø3/8" long. y 31 Ø3/8" de 1.35 en 3.79 m
+  correas: {separacion: 0.9, aleroLateral: 0.47, descripcion: 'TUBO ASTM A500 LAC y GALV CUADRADO DE F° 2"X2"X2.00mm'}, // 8 correas de 4.73 m (3.79 + 2 × 0.47)
+  columnetaParapeto: CRITERIOS.vanos.alfeizar + CRITERIOS.cimientoCorrido.sobrecimientoAlto, // "Eje 8 y 10 C-pa … 1.30": junto a las ventanas, hasta el alféizar
   losa: {
     factor: {0.17: 0.08, 0.2: 0.0875, 0.25: 0.1, 0.3: 0.1125}, // m³ de concreto por m² de aligerado
     ladrillosPorM2: 8.4,
@@ -54,10 +62,14 @@ export function barrasDeRefuerzo(texto) {
 }
 
 // Fila de concreto, encofrado o curado: total = simil × largo × ancho × alto × veces (lo que aplique).
+// calculado: false cuando el parcial no sale de las medidas (eliminación, ladrillos redondeados).
 const fila = (descripcion, {simil = 1, largo = null, ancho = null, alto = null, veces = 1, parcial = null}) => {
   const f = [largo, ancho, alto].filter((v) => v !== null);
-  return {descripcion, simil, largo, ancho, alto, veces, parcial: r4(parcial ?? simil * veces * f.reduce((a, b) => a * b, 1))};
+  return {descripcion, simil, largo, ancho, alto, veces, parcial: r4(parcial ?? simil * veces * f.reduce((a, b) => a * b, 1)), calculado: parcial === null};
 };
+// Fila que el agente calcula con un criterio del despacho (no con medidas del plano): se marca
+// para que el especialista la confirme en la vista previa.
+const propuesta = (f, motivo) => ({...f, propuesto: motivo});
 // Fila de acero: (longitud + gancho) × varillas × simil × kg/m.
 const filaAcero = (descripcion, {simil = 1, longitud, gancho = 0, varillas, diametro}) => {
   const metros = simil * (longitud + gancho) * varillas;
@@ -171,31 +183,95 @@ export function metradoEstructuras(modelo) {
   // Copias: el largo metrado incluye el alero (el modelo queda igual; la losa descuenta solo
   // lo que las vigas ocupan dentro de los paños).
   const vigas = (modelo.vigas ?? []).map((v) => ({...v, largo: v.largo + (v.alero ?? 0), largoPano: v.largo}));
+  const esCumbrera = (v) => /CUMBRERA/i.test(v.tipo ?? "");
   if (vigas.length) {
-    const nombreViga = (v) => `${v.eje ? `Eje ${v.eje} ` : ""}${v.tipo} (${v.b.toFixed(2)}x${v.h.toFixed(2)})${v.alero ? " con alero" : ""}`;
+    const nombreViga = (v) => (esCumbrera(v) ? "Viga cumbrera (sección reducida)" : `${v.eje ? `Eje ${v.eje} ` : ""}${v.tipo} (${v.b.toFixed(2)}x${v.h.toFixed(2)})${v.alero ? " con alero" : ""}`);
+    // Viga cumbrera: sección reducida del detalle (área y perímetro), no la de las vigas.
+    const concretoViga = (v) => (esCumbrera(v) ? fila(nombreViga(v), {simil: niveles, largo: v.largo, ancho: M.cumbrera.area}) : fila(nombreViga(v), {simil: niveles, largo: v.largo, ancho: v.b, alto: v.h}));
+    const caraViga = (v) => fila(nombreViga(v), {simil: niveles, largo: v.largo, ancho: esCumbrera(v) ? M.cumbrera.perimetro : v.b + 2 * v.h});
+    // Viga de borde en el alero (con la canaleta), sección de la plantilla.
+    const B = M.vigaBorde;
+    const borde = modelo.cubierta && platea && lp ? [propuesta(fila(`Viga de borde (${B.b.toFixed(2)}x${B.h.toFixed(2)})`, {largo: r4(lp), ancho: B.b, alto: B.h}), "sección de la viga de borde de la plantilla; va en el alero con la canaleta")] : [];
+    const bordeCara = borde.length ? [propuesta(fila(borde[0].descripcion, {largo: r4(lp), ancho: B.b + 2 * B.h}), "sección de la viga de borde de la plantilla")] : [];
     partidas.push(titulo("02.03.07", "VIGAS"),
-      partida("02.03.07.01.01", "CONCRETO EN VIGAS F'C=210 KG/CM2", "m3", vigas.map((v) => fila(nombreViga(v), {simil: niveles, largo: v.largo, ancho: v.b, alto: v.h}))),
-      partida("02.03.07.01.02", "ENCOFRADO Y DESENCOFRADO EN VIGAS", "m2", vigas.map((v) => fila(nombreViga(v), {simil: niveles, largo: v.largo, ancho: v.b + 2 * v.h}))),
-      partida("02.03.07.01.03", "ACERO EN VIGAS CON F'Y=4200 KG/CM2", "kg", vigas.flatMap((v) => [
+      partida("02.03.07.01.01", "CONCRETO EN VIGAS F'C=210 KG/CM2", "m3", [...vigas.map(concretoViga), ...borde]),
+      partida("02.03.07.01.02", "ENCOFRADO Y DESENCOFRADO EN VIGAS", "m2", [...vigas.map(caraViga), ...bordeCara]),
+      partida("02.03.07.01.03", "ACERO EN VIGAS CON F'Y=4200 KG/CM2", "kg", [...vigas.flatMap((v) => [
         filaAcero(`${nombreViga(v)}: ${V.barras}Ø${V.barra}`, {simil: niveles, longitud: v.largo + V.anclaje, gancho: V.gancho, varillas: V.barras, diametro: V.barra}),
         filaAcero(`${nombreViga(v)}: estribos Ø${CRITERIOS.vigas.estribo}`, {simil: niveles, longitud: 2 * (v.b + v.h) - 8 * V.recubrimiento, gancho: V.ganchoEstribo, varillas: posicionesEstribos(CRITERIOS.vigas.distribucion, v.largo).length, diametro: CRITERIOS.vigas.estribo}),
-      ])),
-      partida("02.03.07.01.04", "CURADO DE CONCRETO EN VIGAS", "m2", vigas.map((v) => fila(nombreViga(v), {simil: niveles, largo: v.largo, ancho: v.b + 2 * v.h}))));
+      ]), ...(borde.length ? [
+          propuesta(filaAcero(`${borde[0].descripcion}: ${V.barras}Ø${V.barra}`, {longitud: lp + V.anclaje, gancho: V.gancho, varillas: V.barras, diametro: V.barra}), "armado de vigas del despacho"),
+          propuesta(filaAcero(`${borde[0].descripcion}: estribos Ø${CRITERIOS.vigas.estribo}`, {longitud: 2 * (B.b + B.h) - 8 * V.recubrimiento, gancho: V.ganchoEstribo, varillas: posicionesEstribos(CRITERIOS.vigas.distribucion, lp).length, diametro: CRITERIOS.vigas.estribo}), "armado de vigas del despacho"),
+      ] : [])]),
+      partida("02.03.07.01.04", "CURADO DE CONCRETO EN VIGAS", "m2", [...vigas.map(caraViga), ...bordeCara]));
   }
 
-  // Columnetas de amarre (por código)
+  // Columnetas de amarre: por eje, código y alto real (el del pórtico donde se dibujan, bajo el
+  // techo inclinado; junto a una ventana, hasta el alféizar). Las que no caen en un pórtico
+  // llevan el alto del muro.
   const CC = M.columnetas;
-  const ctas = gruposColumnetas(modelo.columnetas ?? []);
+  const ctas = gruposColumnetas(modelo.columnetas ?? [], {muro: altoMuros, parapeto: M.columnetaParapeto});
   if (ctas.length) {
-    const nombre = (g) => `Columneta ${g.codigo ?? ""} (${g.b.toFixed(2)}x${g.h.toFixed(2)})`.replace("  ", " ");
+    const nombre = (g) => `${g.eje ? `Eje ${g.eje} ` : ""}C-${g.codigo ?? ""} (${g.b.toFixed(2)}x${g.h.toFixed(2)})${g.fuente === "muro" ? " · alto del muro" : g.fuente === "parapeto" ? " · junto a ventana" : ""}`;
+    const marcar = (g, f) => (g.fuente === "muro" ? propuesta(f, "alto del muro: la columneta no cae en un pórtico dibujado") : f);
+    const barras = (g) => 2 * CRITERIOS.columnetas.varillasPorCara(Math.max(g.b, g.h));
     partidas.push(titulo("02.03.08", "COLUMNETAS DE AMARRE"),
-      partida("02.03.08.01", `CONCRETO PARA COLUMNETAS DE AMARRE F'C=${CRITERIOS.concreto.columnetas} KG/CM2`, "m3", ctas.map((g) => fila(nombre(g), {simil: g.n, largo: g.b, ancho: g.h, alto: altoMuros}))),
-      partida("02.03.08.02", "ENCOFRADO Y DESENCOFRADO NORMAL EN COLUMNETAS", "m2", ctas.map((g) => fila(nombre(g), {simil: g.n, largo: 2 * (g.b + g.h) - Math.min(g.b, g.h), alto: altoMuros}))),
+      partida("02.03.08.01", `CONCRETO PARA COLUMNETAS DE AMARRE F'C=${CRITERIOS.concreto.columnetas} KG/CM2`, "m3", ctas.map((g) => marcar(g, fila(nombre(g), {simil: g.n, largo: g.b, ancho: g.h, alto: g.alto})))),
+      partida("02.03.08.02", "ENCOFRADO Y DESENCOFRADO NORMAL EN COLUMNETAS", "m2", ctas.map((g) => marcar(g, fila(nombre(g), {simil: g.n, largo: r4(2 * (g.b + g.h) - Math.min(g.b, g.h)), alto: g.alto})))),
       partida("02.03.08.03", "ACERO EN COLUMNETA FY=4200 KG/CM2", "kg", ctas.flatMap((g) => [
-        filaAcero(`${nombre(g)}: ${2 * CRITERIOS.columnetas.varillasPorCara(Math.max(g.b, g.h))}Ø${CC.barra}`, {simil: g.n, longitud: altoMuros, gancho: CC.anclaje, varillas: 2 * CRITERIOS.columnetas.varillasPorCara(Math.max(g.b, g.h)), diametro: CC.barra}),
-        filaAcero(`${nombre(g)}: estribos Ø${CC.estribo}`, {simil: g.n, longitud: 2 * (g.b + g.h) - 8 * CRITERIOS.columnetas.recubrimiento, gancho: CC.ganchoEstribo, varillas: posicionesEstribos(CRITERIOS.columnetas.distribucion, altoMuros).length, diametro: CC.estribo}),
+        marcar(g, filaAcero(`${nombre(g)}: ${barras(g)}Ø${CC.barra}`, {simil: g.n, longitud: g.alto, gancho: CC.anclaje, varillas: barras(g), diametro: CC.barra})),
+        marcar(g, filaAcero(`${nombre(g)}: estribos Ø${CC.estribo}`, {simil: g.n, longitud: 2 * (g.b + g.h) - 8 * CRITERIOS.columnetas.recubrimiento, gancho: CC.ganchoEstribo, varillas: posicionesEstribos(CRITERIOS.columnetas.distribucion, g.alto).length, diametro: CC.estribo})),
       ])),
-      partida("02.03.08.04", "CURADO EN COLUMNETAS", "m2", ctas.map((g) => fila(nombre(g), {simil: g.n, largo: 2 * (g.b + g.h) - Math.min(g.b, g.h), alto: altoMuros}))));
+      partida("02.03.08.04", "CURADO EN COLUMNETAS", "m2", ctas.map((g) => marcar(g, fila(nombre(g), {simil: g.n, largo: r4(2 * (g.b + g.h) - Math.min(g.b, g.h)), alto: g.alto})))));
+  }
+
+  // Viguetas de amarre (VSa): sobre las ventanas y, como en el módulo de referencia, también
+  // sobre las puertas, a todo el paño de muro entre columnas o columnetas.
+  const vsa = [...(modelo.vsa ?? []), ...(modelo.dinteles ?? []).map((d) => ({eje: d.eje, nombre: d.nombre, largo: d.pano ?? d.largo}))];
+  if (vsa.length) {
+    const S = M.vsa;
+    const nombre = (v) => `${v.eje ? `Eje ${v.eje} ` : ""}VSa-(${S.b.toFixed(2)}x${S.h.toFixed(2)})${v.nombre ? ` sobre ${v.nombre}` : ""}`;
+    const pv = (f) => propuesta(f, "largo del paño de muro sobre el vano: confírmalo con el pórtico");
+    partidas.push(titulo("02.03.09", "VIGUETAS DE AMARRE"),
+      partida("02.03.09.01", `CONCRETO PARA VIGUETAS DE AMARRE F'C=${CRITERIOS.concreto.columnetas} KG/CM2`, "m3", vsa.map((v) => pv(fila(nombre(v), {largo: v.largo, ancho: S.b, alto: S.h})))),
+      partida("02.03.09.02", "ENCOFRADO Y DESENCOFRADO EN VIGUETAS", "m2", vsa.map((v) => pv(fila(nombre(v), {largo: v.largo, alto: S.h, veces: 2})))),
+      partida("02.03.09.03", "ACERO EN VIGUETAS FY=4200 KG/CM2", "kg", vsa.flatMap((v) => [
+        pv(filaAcero(`${nombre(v)}: ${S.barras}Ø${S.barra}`, {longitud: Math.max(0, v.largo - 2 * S.recubrimiento), gancho: S.anclaje, varillas: S.barras, diametro: S.barra})),
+        pv(filaAcero(`${nombre(v)}: estribos Ø${S.estribo}`, {longitud: 2 * (S.b + S.h) - 8 * S.recubrimiento, gancho: S.ganchoEstribo, varillas: posicionesEstribos(CRITERIOS.columnetas.distribucion, v.largo).length, diametro: S.estribo})),
+      ])),
+      partida("02.03.09.04", "CURADO DEL CONCRETO EN VIGUETAS", "m2", vsa.map((v) => pv(fila(nombre(v), {largo: v.largo, alto: S.h, veces: 2})))));
+  }
+
+  // Cubierta a dos aguas: canaleta de techo (con la viga de borde, en el alero) y, en
+  // estructuras metálicas, correas y cobertura. Largo a lo largo de la cumbrera = lado largo de
+  // la planta; faldón = medio ancho + alero, inclinado con la pendiente.
+  const cub = modelo.cubierta;
+  const metalicas = []; // 02.04 y 02.05 van después de las losas
+  const planta = platea && lp ? {largo: lp, ancho: ap} : modelo.losa?.areaPanos ? {largo: Math.sqrt(modelo.losa.areaPanos), ancho: Math.sqrt(modelo.losa.areaPanos)} : null;
+  if (cub && planta) {
+    const K = M.canaleta;
+    const largo = r4(planta.largo);
+    partidas.push(titulo("02.03.10", "CANALETA EN TECHO"),
+      partida("02.03.10.01", "CANALETA EN TECHO CONCRETO F'C=210 KG/CM2", "m3", [propuesta(fila("Canaleta en el alero (sección del detalle)", {largo, ancho: K.area}), "sección del detalle de canaleta del despacho; confirma el largo")]),
+      partida("02.03.10.02", "CANALETA EN TECHO ENCOFRADO Y DESENCOFRADO", "m2", [propuesta(fila("Canaleta en el alero (perímetro del detalle)", {largo, ancho: K.perimetro}), "perímetro del detalle de canaleta")]),
+      partida("02.03.10.03", "ACERO PARA CANALETA EN TECHO F'Y=4200 KG/CM2", "kg", [
+        propuesta(filaAcero(`Longitudinal ${K.longitudinales}Ø${K.barra}`, {longitud: largo + 0.44, gancho: 0.4, varillas: K.longitudinales, diametro: K.barra}), "armado del detalle de canaleta"),
+        propuesta(filaAcero(`Transversal Ø${K.barra} @${K.separacion}`, {longitud: K.transversal, varillas: Math.floor(largo / K.separacion) + 1, diametro: K.barra}), "armado del detalle de canaleta"),
+      ]),
+      partida("02.03.10.04", "CURADO DE CANALETA EN TECHO", "m2", [propuesta(fila("Canaleta en el alero", {largo, ancho: K.perimetro}), "perímetro del detalle de canaleta")]));
+    const R = M.correas;
+    const faldon = r4((planta.ancho / 2 + cub.alero) * Math.sqrt(1 + cub.pendiente ** 2));
+    const porFaldon = Math.ceil(faldon / R.separacion) + 1;
+    const largoCorrea = r4(largo + 2 * R.aleroLateral);
+    const motivo = `${porFaldon} correas por faldón de ${faldon.toFixed(2)} m (separación ≤ ${R.separacion.toFixed(2)} m), largo con aleros laterales de ${R.aleroLateral.toFixed(2)} m`;
+    metalicas.push(titulo("02.04", "ESTRUCTURAS METALICAS"), titulo("02.04.01", "CORREAS METALICAS"),
+      partida("02.04.01.01", `ARMADO DE CORREA METÁLICA ${R.descripcion}`, "m", [propuesta(fila("Correas de los dos faldones", {simil: 2 * porFaldon, largo: largoCorrea}), motivo)]),
+      partida("02.04.01.02", `MONTAJE DE CORREA METÁLICA ${R.descripcion}`, "m", [propuesta(fila("Correas de los dos faldones", {simil: 2 * porFaldon, largo: largoCorrea}), motivo)]),
+      titulo("02.04.02", "COBERTURAS"),
+      partida("02.04.02.02", `SUMINISTRO Y COLOCACIÓN ${CRITERIOS.techo.cobertura.toUpperCase()}`, "m2", [propuesta(fila("Dos faldones con aleros", {largo: largoCorrea, ancho: faldon, veces: 2}), `faldón inclinado (pendiente ${Math.round(cub.pendiente * 100)}%) × largo con aleros`)]),
+      partida("02.04.02.03", "SUMINISTRO Y COLOCACIÓN CUMBRERA DENTADA DE ALUZINC E=0,5MM", "m", [propuesta(fila("Cumbrera", {largo: largoCorrea}), "largo de la cumbrera con aleros")]),
+      titulo("02.05", "OTROS"), titulo("02.05.01", "JUNTAS"),
+      partida("02.05.01.03", 'JUNTA DE TECNOPOR E=1" C/SELLADO', "m", [propuesta(fila("Bordes contiguos a otras edificaciones", {largo: 0}), "ingresa el largo de la junta: depende de las edificaciones vecinas")]));
   }
 
   // Losa aligerada (una por nivel con losa)
@@ -222,18 +298,106 @@ export function metradoEstructuras(modelo) {
       partida("02.03.11.04", "LADRILLO HUECO DE ARCILLA RAYADO DE 15X30X30 CM P/TECHO ALIGERADO", "und", porNivel((n) => fila(`${nivelTxt(n)}: ${L.ladrillosPorM2} und/m²`, {ancho: area, alto: L.ladrillosPorM2, parcial: Math.ceil(area * L.ladrillosPorM2)}))),
       partida("02.03.11.05", "CURADO DEL CONCRETO EN LOSA ALIGERADA", "m2", porNivel((n) => fila(nivelTxt(n), {ancho: area}))));
   }
-  notas.push("Aún no se metran (pendientes de definición geométrica; no se estiman): viguetas de amarre (VSa), canaleta de techo, correas y cobertura, juntas.");
-  if (vigas.length) notas.push("Vigas: no incluye la viga de borde ni la viga de cumbrera de sección reducida (aún no se dibujan en las láminas).");
-  if (ctas.length) notas.push(`Columnetas: altura uniforme provisional de ${altoMuros.toFixed(2)} m; verificar la altura real de cada una por vano (parapetos, cerramientos).`);
+  partidas.push(...metalicas);
+  // Notas: solo lo que el especialista debe confirmar (las filas propuestas van marcadas).
+  const propuestas = partidas.filter((p) => !p.titulo && p.filas.some((f) => f.propuesto)).length;
+  if (propuestas) notas.push(`${propuestas} partidas con filas propuestas por el agente con criterios del despacho (marcadas): revísalas y corrige en la vista previa lo que no corresponda.`);
+  const sinPortico = ctas.filter((g) => g.fuente === "muro").reduce((t, g) => t + g.n, 0);
+  if (sinPortico) notas.push(`${sinPortico} columneta(s) fuera de los pórticos dibujados: llevan el alto del muro (${altoMuros.toFixed(2)} m).`);
   if (platea) notas.push(`Acero de platea: Ø${M.platea.barra} @${M.platea.separacion.toFixed(2)} en ${M.platea.capas} capas (superior e inferior), en cada dirección; cada capa contada una sola vez.`);
 
-  const resumen = {
-    concreto: r4(partidas.filter((p) => p.und === "m3" && /^CONCRETO/.test(p.descripcion)).reduce((s, p) => s + p.total, 0)),
-    acero: r4(partidas.filter((p) => p.und === "kg").reduce((s, p) => s + p.total, 0)),
-    encofrado: r4(partidas.filter((p) => /^ENCOFRADO/.test(p.descripcion)).reduce((s, p) => s + p.total, 0)),
-    excavacion: excavacion.total,
+  return {proyecto: modelo.proyecto, partidas, resumen: resumenDe(partidas), notas};
+}
+
+// Totales de la cabecera: concreto (m³), acero (kg), encofrado (m²) y excavación (m³).
+function resumenDe(partidas) {
+  const suma = (filtro) => r4(partidas.filter((p) => !p.titulo && filtro(p)).reduce((s, p) => s + p.total, 0));
+  return {
+    concreto: suma((p) => p.und === "m3" && /CONCRETO/.test(p.descripcion)),
+    acero: suma((p) => p.und === "kg"),
+    encofrado: suma((p) => /ENCOFRADO/.test(p.descripcion)),
+    excavacion: suma((p) => /^02\.01\.02\./.test(p.item)),
   };
-  return {proyecto: modelo.proyecto, partidas, resumen, notas};
+}
+
+// ---------- Vista previa (igual a la planilla Excel) y correcciones del especialista ----------
+
+export const COLUMNAS_PLANILLA = ["ITEM", "DESCRIPCIÓN", "Und", "Elem. Simil.", "Largo", "Ancho", "Alto", "N° de Veces", "Lon.", "Área", "Vol.", "Kg.", "Und.", "Total"];
+const COLUMNA_PARCIAL = {m: 8, m2: 9, m3: 10, kg: 11, und: 12};
+// Columna de la planilla → campo de la fila que se puede corregir.
+export const EDITABLES = {
+  concreto: {3: "simil", 4: "largo", 5: "ancho", 6: "alto", 7: "veces"},
+  acero: {3: "simil", 4: "longitud", 5: "gancho", 7: "varillas"},
+};
+
+// Filas de la planilla del despacho (las mismas para el Excel y la vista previa). Acero: largo
+// de la varilla en "Largo", gancho en "Ancho", varillas en "N° de veces", metros en "Lon.",
+// kg/m en "Vol." y kg en "Kg." (como la planilla del ingeniero).
+export function filasPlanilla(met) {
+  const vacia = () => Array(COLUMNAS_PLANILLA.length).fill(null);
+  const out = [];
+  met.partidas.forEach((p, ip) => {
+    if (p.titulo) { const c = vacia(); c[0] = p.item; c[1] = p.descripcion; out.push({tipo: "titulo", celdas: c}); return; }
+    const c = vacia(); c[0] = p.item; c[1] = p.descripcion; c[2] = p.und; c[13] = p.total;
+    out.push({tipo: "partida", ip, celdas: c});
+    if (p.und === "kg") { const s = vacia(); s[4] = "long."; s[5] = "gancho"; s[6] = "empal."; s[10] = "kg/m"; out.push({tipo: "sub", ip, celdas: s}); }
+    p.filas.forEach((f, jf) => {
+      const r = vacia();
+      r[1] = f.descripcion;
+      const acero = f.kgm !== undefined;
+      if (acero) Object.assign(r, {2: "kg", 3: f.simil, 4: f.longitud, 5: f.gancho, 7: f.varillas, 8: f.metros, 10: f.kgm, 11: f.parcial});
+      else { Object.assign(r, {2: p.und, 3: f.simil, 4: f.largo, 5: f.ancho, 6: f.alto, 7: f.veces}); r[COLUMNA_PARCIAL[p.und] ?? 10] = f.parcial; }
+      out.push({tipo: "fila", ip, jf, acero, calculado: f.calculado !== false, celdas: r, propuesto: f.propuesto ?? null, corregido: Boolean(f.corregido)});
+    });
+  });
+  return out;
+}
+
+// Recalcula parciales, totales y resumen después de corregir medidas en la vista previa.
+export function recalcularMetrado(met) {
+  for (const p of met.partidas) {
+    if (p.titulo) continue;
+    for (const f of p.filas) {
+      if (f.kgm !== undefined) {
+        f.metros = r4((Number(f.simil) || 0) * ((Number(f.longitud) || 0) + (Number(f.gancho) || 0)) * (Number(f.varillas) || 0));
+        f.parcial = r4(f.metros * f.kgm);
+      } else if (f.calculado !== false) {
+        const d = [f.largo, f.ancho, f.alto].filter((v) => v !== null && v !== undefined && v !== "");
+        f.parcial = r4((Number(f.simil) || 0) * (Number(f.veces) || 0) * d.reduce((a, b) => a * Number(b), 1));
+      }
+    }
+    p.total = r4(p.filas.reduce((s, f) => s + (Number(f.parcial) || 0), 0));
+  }
+  met.resumen = resumenDe(met.partidas);
+  return met;
+}
+
+// Corrige un campo de una fila (por ítem de partida y descripción de la fila). Devuelve el
+// valor anterior, o undefined si no encontró la fila o el campo.
+export function corregirFila(met, {partida, fila, campo, valor}) {
+  const f = met.partidas.find((p) => p.item === partida && !p.titulo)?.filas.find((x) => x.descripcion === fila);
+  const permitido = f && (f.kgm !== undefined ? Object.values(EDITABLES.acero) : f.calculado === false ? ["parcial"] : Object.values(EDITABLES.concreto)).includes(campo);
+  const v = Number(String(valor).replace(",", "."));
+  if (!permitido || !Number.isFinite(v)) return undefined;
+  const antes = f[campo];
+  f[campo] = v;
+  f.corregido = true;
+  f.propuesto = null; // el especialista ya decidió esta fila
+  recalcularMetrado(met);
+  return antes ?? null;
+}
+
+// Correcciones que el despacho hizo antes en un plano parecido (mismos rasgos: largo, ancho y
+// área ±5 %, mismas columnas): el metrado parte de ahí y no desde cero.
+export function aplicarCorrecciones(met, eventos = [], rasgos = null) {
+  const parecido = (a = {}) => !rasgos || (["largo", "ancho", "area"].every((k) => typeof a[k] !== "number" || typeof rasgos[k] !== "number" || Math.abs(a[k] - rasgos[k]) <= 0.05 * Math.max(a[k], rasgos[k]))
+    && (typeof a.columnas !== "number" || typeof rasgos.columnas !== "number" || a.columnas === rasgos.columnas));
+  let n = 0;
+  for (const e of eventos) {
+    if (e?.clave !== "metrado" || !e.partida || !e.fila || !e.campo || !parecido(e.rasgos)) continue;
+    if (corregirFila(met, {partida: e.partida, fila: e.fila, campo: e.campo, valor: e.valor}) !== undefined) n++;
+  }
+  return n;
 }
 
 const areaPoligono = (P = []) => Math.abs(P.reduce((s, p, i) => s + p.x * P[(i + 1) % P.length].y - P[(i + 1) % P.length].x * p.y, 0)) / 2;
@@ -248,12 +412,16 @@ function gruposColumnas(columnas) {
   return [...m.values()].map((g) => ({...g, area: r4(g.area / g.n), perimetro: r4(g.perimetro / g.n)}));
 }
 
-function gruposColumnetas(columnetas) {
+// Grupos por eje, código, sección y alto. Alto: el del pórtico; junto a una ventana, el del
+// parapeto; fuera de los pórticos, el del muro.
+function gruposColumnetas(columnetas, {muro = 3, parapeto = 1.3} = {}) {
   const m = new Map();
   for (const c of columnetas) {
     const [b, h] = [c.b, c.h].sort((x, y) => y - x);
-    const k = c.codigo ?? `${b.toFixed(2)}x${h.toFixed(2)}`;
-    const g = m.get(k) ?? {codigo: c.codigo, n: 0, b, h};
+    const fuente = c.juntoVentana ? "parapeto" : c.alto ? "portico" : "muro";
+    const alto = r4(fuente === "parapeto" ? parapeto : fuente === "portico" ? c.alto : muro);
+    const k = `${c.eje ?? ""}|${c.codigo ?? ""}|${b.toFixed(2)}x${h.toFixed(2)}|${alto.toFixed(2)}`;
+    const g = m.get(k) ?? {codigo: c.codigo, eje: c.eje ?? null, n: 0, b, h, alto, fuente};
     g.n++;
     m.set(k, g);
   }

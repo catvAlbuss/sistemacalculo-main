@@ -5,14 +5,23 @@
 //   node scripts/agente/evaluar-modelo.mjs                       (Ollama local, qwen3-cad)
 //   AGENTE_MODEL=qwen3.5:4b-q4_K_M node scripts/agente/evaluar-modelo.mjs
 //   AGENTE_URL=https://api.openai.com/v1 AGENTE_MODEL=… AGENTE_KEY=… node scripts/agente/evaluar-modelo.mjs
+//   AGENTE_URL=https://api.openai.com/v1 AGENTE_MODEL=gpt-6.2-sol node scripts/agente/evaluar-modelo.mjs
+//     (sin AGENTE_KEY toma AGENTE_LLM_KEY del .env local)
 //
-// La clave se lee de la variable de entorno; nunca se escribe en archivos.
+// La clave se lee de la variable de entorno o del .env; nunca se escribe ni se muestra.
 
 import {SKILLS, toolDefinitions} from '../../resources/js/ingenieria/agente/skills/index.js';
 import {promptDelSistema} from '../../resources/js/ingenieria/agente/agentRunner.js';
 import {CASOS_EVALUACION} from './casos-evaluacion.mjs';
+import {existsSync, readFileSync} from 'node:fs';
 
-const settings = {baseUrl: process.env.AGENTE_URL ?? 'http://127.0.0.1:11434/v1', model: process.env.AGENTE_MODEL ?? 'qwen3-cad', apiKey: process.env.AGENTE_KEY ?? '', memoria: 'auto'};
+const claveDelEnv = () => {
+  if (!existsSync('.env')) return '';
+  const m = /^AGENTE_LLM_KEY=(.*)$/m.exec(readFileSync('.env', 'utf8'));
+  return m ? m[1].replace(/\s+#.*$/, '').trim().replace(/^"|"$/g, '') : '';
+};
+
+const settings = {baseUrl: process.env.AGENTE_URL ?? 'http://127.0.0.1:11434/v1', model: process.env.AGENTE_MODEL ?? 'qwen3-cad', apiKey: process.env.AGENTE_KEY ?? (/^https:/.test(process.env.AGENTE_URL ?? '') ? claveDelEnv() : ''), memoria: 'auto'};
 const tools = toolDefinitions(SKILLS.filter((s) => s.name !== 'zapatas_desde_plano'));
 let aciertos = 0;
 const tiempos = [];
@@ -31,13 +40,22 @@ for (const caso of CASOS_EVALUACION) {
   const t0 = Date.now();
   let d = {};
   try {
-    const r = await fetch(`${settings.baseUrl.replace(/\/+$/, '')}/chat/completions`, {
+    const peticion = {
+      url: `${settings.baseUrl.replace(/\/+$/, '')}/chat/completions`,
       method: 'POST',
       signal: AbortSignal.timeout(Number(process.env.AGENTE_TIMEOUT_MS ?? 120000)),
       headers: {'Content-Type': 'application/json', ...(settings.apiKey ? {Authorization: `Bearer ${settings.apiKey}`} : {})},
       body: JSON.stringify({model: settings.model, messages: [{role: 'system', content: promptDelSistema(settings)}, {role: 'user', content: caso.pedido}], tools, tool_choice: 'auto', ...(razona ? {reasoning_effort: process.env.AGENTE_RAZONAMIENTO ?? 'low'} : {temperature: 0.2}), stream: false}),
-    });
+    };
+    const r = await fetch(peticion.url, peticion);
     d = await r.json();
+    // Modelo nuevo que rechaza un parámetro: se repite sin él (como el servidor).
+    const rechazado = r.status === 400 && ['temperature', 'reasoning_effort'].find((k) => `${d.error?.param ?? ''} ${d.error?.message ?? ''}`.includes(k));
+    if (rechazado) {
+      const cuerpo = JSON.parse(String(peticion.body));
+      delete cuerpo[rechazado];
+      d = await (await fetch(peticion.url, {...peticion, body: JSON.stringify(cuerpo)})).json();
+    }
   } catch (e) {
     d = {error: e.name === 'TimeoutError' ? 'no respondió a tiempo' : e.message};
   }

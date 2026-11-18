@@ -50,4 +50,19 @@ class AgenteAprendizajeTest extends TestCase
         $this->assertArrayNotHasKey('usuario', $eventos[0]);
         $this->assertEquals(2.0, $eventos[0]['valor']);
     }
+
+    public function test_a_metrado_correction_keeps_the_row_and_field_and_needs_a_number(): void
+    {
+        $ruta = route('software.etabs.agente.aprendizaje.guardar');
+        $this->postJson($ruta, ['tipo' => 'correccion', 'clave' => 'metrado', 'valor' => 3.78, 'propuesto' => 3.66,
+            'partida' => '02.03.08.01', 'fila' => 'Eje Z´ C-pb (0.22x0.13)', 'campo' => 'alto', 'rasgos' => ['largo' => 3.73, 'columnas' => 4]])->assertOk();
+        $e = $this->getJson(route('software.etabs.agente.aprendizaje.listar'))->json('eventos.0');
+        $this->assertSame(['02.03.08.01', 'Eje Z´ C-pb (0.22x0.13)', 'alto'], [$e['partida'], $e['fila'], $e['campo']]);
+        $this->assertEquals(3.78, $e['valor']);
+
+        // Sin fila o campo, con un campo que no es una medida o con un valor que no es número: no.
+        $this->postJson($ruta, ['tipo' => 'correccion', 'clave' => 'metrado', 'valor' => 1, 'partida' => '02.03.08.01', 'campo' => 'alto', 'rasgos' => []])->assertStatus(422);
+        $this->postJson($ruta, ['tipo' => 'correccion', 'clave' => 'metrado', 'valor' => 1, 'partida' => '02.03.08.01', 'fila' => 'x', 'campo' => 'descripcion', 'rasgos' => []])->assertStatus(422);
+        $this->postJson($ruta, ['tipo' => 'correccion', 'clave' => 'metrado', 'valor' => 'mucho', 'partida' => '02.03.08.01', 'fila' => 'x', 'campo' => 'alto', 'rasgos' => []])->assertStatus(422);
+    }
 }

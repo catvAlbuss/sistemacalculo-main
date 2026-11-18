@@ -48,6 +48,13 @@ export const CATEGORIAS = [
   ['Losa aligerada: encofrado', /^02\.03\.11\.02$/],
   ['Losa aligerada: acero', /^02\.03\.11\.03$/],
   ['Ladrillo de techo', /^02\.03\.11\.04$/],
+  ['VSa: concreto', /^02\.03\.09\.01$/],
+  ['VSa: encofrado', /^02\.03\.09\.02$/],
+  ['VSa: acero', /^02\.03\.09\.03$/],
+  ['Canaleta: concreto', /^02\.03\.10\.01$/],
+  ['Canaleta: encofrado', /^02\.03\.10\.02$/],
+  ['Canaleta: acero', /^02\.03\.10\.03$/],
+  ['Correas metálicas', /^02\.04\.01\.01$/],
 ];
 
 // 1) Metrado del ingeniero.

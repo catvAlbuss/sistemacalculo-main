@@ -11,7 +11,7 @@ import {cajaTexto, seEncima, desencimarTextos} from "../../laminas/cajasTexto.js
 import {rasgosDeArquitectura, proponer, textoPropuesta, casosDeUso, DECISIONES} from "../../aprendizaje/casos.js";
 import {CASOS, EVENTOS_USO} from "../../aprendizaje/casosAprendidos.js";
 import {registrarEvento, eventosDeUso, rasgosParaGuardar} from "../../aprendizaje/registro.js";
-import {metradoEstructuras} from "../../metrado/metrado.js";
+import {metradoEstructuras, aplicarCorrecciones} from "../../metrado/metrado.js";
 import {descargarPlanilla} from "../../metrado/planillaExcel.js";
 
 const r2 = (value) => Math.round(value * 100) / 100;
@@ -297,6 +297,10 @@ export const ESTRUCTURA_SKILLS = [
         generado = `Generé primero las láminas ${(r.laminas ?? []).join(", ")}. `;
       }
       const met = metradoEstructuras(ctx.memoria.modeloEstructural);
+      // No parte de cero: las correcciones que el despacho hizo al metrado de un plano parecido.
+      const rasgos = ctx.memoria.propuesta?.rasgos ?? (await propuestaDelPlano(ctx).catch(() => ({}))).rasgos ?? null;
+      const corregidas = aplicarCorrecciones(met, [...EVENTOS_USO, ...await (ctx.eventosDeUso ?? eventosDeUso)()], rasgos);
+      met.rasgos = rasgosParaGuardar(rasgos ?? {});
       ctx.memoria.metrado = met;
       const tot = (re) => met.partidas.filter((p) => !p.titulo && re.test(p.item)).reduce((s, p) => s + p.total, 0);
       const r2 = (v) => (Math.round(v * 100) / 100).toFixed(2);
@@ -310,7 +314,7 @@ export const ESTRUCTURA_SKILLS = [
         ok: true,
         mensaje: `${generado}Metrado de estructuras de ${met.proyecto ?? "el proyecto"} (${met.partidas.filter((p) => !p.titulo).length} partidas): ` +
           `excavación ${r2(met.resumen.excavacion)} m³; concreto ${r2(met.resumen.concreto)} m³ (cimentación ${r2(tot(/^02\.03\.0[12]\.01$/))}, columnas ${r2(tot(/^02\.03\.06\.01\.01$/))}, vigas ${r2(tot(/^02\.03\.07\.01\.01$/))}, losa ${r2(tot(/^02\.03\.11\.01$/))}); ` +
-          `acero ${r2(met.resumen.acero)} kg; encofrado ${r2(met.resumen.encofrado)} m².${excel}`,
+          `acero ${r2(met.resumen.acero)} kg; encofrado ${r2(met.resumen.encofrado)} m².${corregidas ? ` Apliqué ${corregidas} corrección(es) que el despacho hizo en un plano parecido.` : ""}${excel}`,
         avisos: met.notas,
       };
     },

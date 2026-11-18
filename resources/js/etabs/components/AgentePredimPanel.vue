@@ -117,6 +117,31 @@
             </div>
           </header>
           <div class="ag-modal-body">
+            <h4>Ubicación (ubigeo)</h4>
+            <div class="ag-grid">
+              <label :class="marcaCampo('region')"><span>Región</span>
+                <select :value="modal.borrador.region" @change="elegirUbigeo('region', $event.target.value)">
+                  <option value="">{{ ubigeo ? "Elige la región" : "Cargando ubigeos…" }}</option>
+                  <option v-for="o in opcionesUbigeo('region')" :key="o" :value="o">{{ o }}</option>
+                </select>
+              </label>
+              <label :class="marcaCampo('provincia')"><span>Provincia</span>
+                <select :value="modal.borrador.provincia" :disabled="!modal.borrador.region" @change="elegirUbigeo('provincia', $event.target.value)">
+                  <option value="">Elige la provincia</option>
+                  <option v-for="o in opcionesUbigeo('provincia')" :key="o" :value="o">{{ o }}</option>
+                </select>
+              </label>
+              <label :class="marcaCampo('distrito')"><span>Distrito</span>
+                <select :value="modal.borrador.distrito" :disabled="!modal.borrador.provincia" @change="elegirUbigeo('distrito', $event.target.value)">
+                  <option value="">Elige el distrito</option>
+                  <option v-for="o in opcionesUbigeo('distrito')" :key="o" :value="o">{{ o }}</option>
+                </select>
+              </label>
+              <label :class="marcaCampo('localidad')"><span>Localidad</span>
+                <input v-model.trim="modal.borrador.localidad" placeholder="Centro poblado o caserío" />
+              </label>
+            </div>
+            <p v-if="distritoElegido" class="ag-ubigeo"><svg viewBox="0 0 24 24"><path :d="ICON.mapa" /></svg>{{ distritoElegido.name }}: zona sísmica {{ Number(distritoElegido.zone) }} (Z = {{ distritoElegido.zFactor }}) según la E.030; la puse en el estudio de suelos.</p>
             <h4>Estudio de suelos y sismo (E.030)</h4>
             <div class="ag-grid">
               <label v-for="c in CAMPOS_TECNICOS" :key="c.campo" :class="marcaCampo(c.campo)"><span>{{ c.etiqueta }}</span>
@@ -129,7 +154,7 @@
             </div>
             <h4>Rótulo de las láminas</h4>
             <div class="ag-grid">
-              <label v-for="c in CAMPOS_PROYECTO" :key="c.campo" :class="[marcaCampo(c.campo), { 'is-wide': c.campo === 'proyecto' || c.campo === 'entidad' }]"><span>{{ c.etiqueta }}</span>
+              <label v-for="c in CAMPOS_ROTULO" :key="c.campo" :class="[marcaCampo(c.campo), { 'is-wide': c.campo === 'proyecto' || c.campo === 'entidad' }]"><span>{{ c.etiqueta }}</span>
                 <input v-model.trim="modal.borrador[c.campo]" :placeholder="c.ejemplo" />
               </label>
             </div>
@@ -142,15 +167,15 @@
       </div>
     </Teleport>
 
-    <!-- Metrado de estructuras: partidas, detalle por elemento y exportación a Excel. -->
+    <!-- Metrado: la planilla del despacho completa (como el Excel), editable para corregir antes de exportar. -->
     <Teleport to="body">
       <div v-if="met.abierto" class="ag-modal-bg" @click.self="met.abierto = false">
-        <section class="ag-modal is-wide" role="dialog" aria-modal="true" aria-labelledby="ag-met-t">
+        <section class="ag-modal is-sheet" role="dialog" aria-modal="true" aria-labelledby="ag-met-t">
           <header>
             <span class="ag-orb is-small" aria-hidden="true"><i></i></span>
-            <div>
-              <h3 id="ag-met-t">Metrado de estructuras</h3>
-              <p>{{ met.datos.proyecto || "Proyecto" }} · {{ partidasMet.length }} partidas. Toca una partida para ver su detalle.</p>
+            <div class="ag-met-head">
+              <h3 id="ag-met-t">Planilla de metrados · Estructuras</h3>
+              <p>{{ met.datos.proyecto || "Proyecto" }} · {{ partidasMet.length }} partidas. Corrige cualquier medida en la tabla: se recalcula, se guarda para el aprendizaje y el Excel sale igual a esta vista.</p>
             </div>
           </header>
           <div class="ag-tiles">
@@ -159,30 +184,29 @@
             <div><small>Acero</small><strong>{{ fmt(met.datos.resumen.acero) }}</strong><span>kg</span></div>
             <div><small>Encofrado</small><strong>{{ fmt(met.datos.resumen.encofrado) }}</strong><span>m²</span></div>
           </div>
-          <div class="ag-modal-body">
-            <table class="ag-table">
-              <thead><tr><th>Ítem</th><th>Descripción</th><th>Und.</th><th class="num">Metrado</th></tr></thead>
+          <div class="ag-filter">
+            <button type="button" :class="{ 'is-on': met.filtro === 'todo' }" @click="met.filtro = 'todo'">Todo</button>
+            <button type="button" :class="{ 'is-on': met.filtro === 'propuestas' }" @click="met.filtro = 'propuestas'"><i class="ag-sw is-prop"></i>Propuestas por revisar · {{ conteo.propuestas }}</button>
+            <button type="button" :class="{ 'is-on': met.filtro === 'corregidas' }" @click="met.filtro = 'corregidas'"><i class="ag-sw is-corr"></i>Corregidas · {{ conteo.corregidas }}</button>
+          </div>
+          <div class="ag-modal-body ag-sheet-wrap">
+            <table class="ag-sheet">
+              <thead>
+                <tr>
+                  <th rowspan="2" class="c-item">Ítem</th><th rowspan="2" class="c-desc">Descripción</th><th rowspan="2">Und</th><th rowspan="2">Elem. simil.</th>
+                  <th colspan="3" class="grp">Dimensiones</th><th rowspan="2">N° de veces</th><th colspan="5" class="grp">Metrado</th><th rowspan="2" class="c-total">Total</th>
+                </tr>
+                <tr><th>Largo</th><th>Ancho</th><th>Alto</th><th>Lon.</th><th>Área</th><th>Vol.</th><th>Kg.</th><th>Und.</th></tr>
+              </thead>
               <tbody>
-                <template v-for="(p, i) in met.datos.partidas" :key="i">
-                  <tr v-if="p.titulo" class="is-title"><td>{{ p.item }}</td><td colspan="3">{{ p.descripcion }}</td></tr>
-                  <template v-else>
-                    <tr class="is-row" :class="{ 'is-open': met.abiertas.includes(i) }" @click="alternarPartida(i)">
-                      <td>{{ p.item }}</td><td>{{ p.descripcion }}</td><td>{{ p.und }}</td><td class="num">{{ fmt(p.total) }}</td>
-                    </tr>
-                    <tr v-if="met.abiertas.includes(i)" class="is-detail">
-                      <td></td>
-                      <td colspan="3">
-                        <table class="ag-subtable">
-                          <tr v-for="(f, j) in p.filas" :key="j">
-                            <td>{{ f.descripcion }}</td>
-                            <td class="dim">{{ dimensiones(f) }}</td>
-                            <td class="num">{{ fmt(f.parcial) }}</td>
-                          </tr>
-                        </table>
-                      </td>
-                    </tr>
-                  </template>
-                </template>
+                <tr v-for="(r, i) in filasVisibles" :key="i" :class="[`is-${r.tipo}`, { 'is-prop': r.propuesto, 'is-corr': r.corregido }]" :title="r.propuesto ? `Propuesto por el agente: ${r.propuesto}` : ''">
+                  <td v-for="(v, c) in r.celdas" :key="c" :class="claseCelda(r, c)">
+                    <input v-if="editable(r, c)" class="ag-cell" :value="fmtCelda(v, c, false, r.acero)" inputmode="decimal" :aria-label="`${COLUMNAS_PLANILLA[c]} de ${r.celdas[1]}`" @focus="$event.target.select()" @change="editarCelda(r, c, $event)" @keydown.enter="$event.target.blur()" />
+                    <template v-else>{{ c === 1 ? v : fmtCelda(v, c, c >= 8, r.acero) }}</template>
+                    <span v-if="c === 1 && r.propuesto" class="ag-tag is-prop">propuesto</span>
+                    <span v-if="c === 1 && r.corregido" class="ag-tag is-corr">corregido</span>
+                  </td>
+                </tr>
               </tbody>
             </table>
             <ul v-if="met.datos.notas?.length" class="ag-notes">
@@ -191,6 +215,8 @@
           </div>
           <footer>
             <span v-if="met.error" class="ag-err">{{ met.error }}</span>
+            <span v-else-if="met.guardado" class="ag-ok">{{ met.guardado }}</span>
+            <button v-if="conteo.propuestas" type="button" class="ag-btn is-ghost" @click="confirmarPropuestas">Confirmar propuestas</button>
             <button type="button" class="ag-btn is-ghost" @click="met.abierto = false">Cerrar</button>
             <button type="button" class="ag-btn" :disabled="met.exportando" @click="exportarMetrado">{{ met.exportando ? "Exportando…" : "Exportar a Excel" }}</button>
           </footer>
@@ -205,6 +231,8 @@ import {computed, nextTick, onBeforeUnmount, onMounted, reactive, ref} from "vue
 import {AGENTE_SERVIDOR, respuestaHonesta, runAgent} from "../../ingenieria/agente/agentRunner.js";
 import {CAMPOS_PROYECTO} from "../../ingenieria/laminas/rotulo.js";
 import {CAMPOS_TECNICOS} from "../../ingenieria/criterios/datosProyecto.js";
+import {COLUMNAS_PLANILLA, EDITABLES, corregirFila, filasPlanilla} from "../../ingenieria/metrado/metrado.js";
+import {registrarEvento} from "../../ingenieria/aprendizaje/registro.js";
 
 const emit = defineEmits(["close", "foundation"]);
 
@@ -226,6 +254,7 @@ const ICON = {
   corregir: "M4 20h4L19 9l-4-4L4 16zm9-13 4 4",
   borrar: "M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3",
   capas: "m12 2 10 5-10 5L2 7zm-10 10 10 5 10-5",
+  mapa: "M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21zm0-9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z",
 };
 
 // Acciones directas: corren la herramienta sin pasar por el modelo de IA (sin costo y sin
@@ -275,6 +304,37 @@ const guardarProyecto = (datos) => {
   try { localStorage.setItem(PROYECTO_KEY, JSON.stringify(proyecto.value)); } catch { /* sin almacenamiento: vale para esta sesión */ }
 };
 const modal = reactive({abierto: false, modo: "editar", faltan: [], propuestos: [], vista: "", borrador: {}, resolver: null});
+// Rótulo sin los campos de ubicación (esos van en su sección, con los ubigeos).
+const UBICACION = ["region", "provincia", "distrito", "localidad"];
+const CAMPOS_ROTULO = CAMPOS_PROYECTO.filter((c) => !UBICACION.includes(c.campo));
+
+// Ubigeos del Perú (departamento → provincia → distrito, con su zona sísmica E.030). Se cargan
+// al abrir el formulario: al elegir el distrito, la zona sísmica se llena sola.
+const ubigeo = ref(null);
+const cargarUbigeo = () => ubigeo.value ? Promise.resolve() : import("../../../data/ubigeo.js").then((m) => { ubigeo.value = m.default; }).catch(() => {});
+const norm = (t) => String(t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+const buscar = (lista, nombre) => lista?.find((x) => norm(x.name) === norm(nombre)) ?? null;
+const departamentoElegido = computed(() => buscar(ubigeo.value, modal.borrador.region));
+const provinciaElegida = computed(() => buscar(departamentoElegido.value?.provinces, modal.borrador.provincia));
+const distritoElegido = computed(() => buscar(provinciaElegida.value?.districts, modal.borrador.distrito));
+// Opciones de cada lista; un valor guardado que no está en los ubigeos se conserva.
+function opcionesUbigeo(campo) {
+  const lista = campo === "region" ? ubigeo.value : campo === "provincia" ? departamentoElegido.value?.provinces : provinciaElegida.value?.districts;
+  const nombres = (lista ?? []).map((x) => x.name);
+  const actual = modal.borrador[campo];
+  return actual && !nombres.some((n) => norm(n) === norm(actual)) ? [actual, ...nombres] : nombres;
+}
+function elegirUbigeo(campo, valor) {
+  modal.borrador[campo] = valor;
+  if (campo === "region") Object.assign(modal.borrador, {provincia: "", distrito: ""});
+  if (campo === "provincia") modal.borrador.distrito = "";
+  const d = distritoElegido.value;
+  if (campo === "distrito" && d) {
+    modal.borrador.zona = String(Number(d.zone));
+    if (!modal.propuestos.includes("zona")) modal.propuestos.push("zona");
+    modal.faltan = modal.faltan.filter((c) => c !== "zona");
+  }
+}
 const marcaCampo = (campo) => ({"is-proposed": modal.propuestos.includes(campo), "is-missing": modal.faltan.includes(campo)});
 // modo "pedido": antes de dibujar el plano. Los campos vacíos se llenan con lo que propone el
 // agente (marcados para que el personal los revise); lo guardado no se toca.
@@ -287,6 +347,7 @@ function abrirDatos(modo = "editar", {faltan = [], sugeridos = {}, vista = ""} =
     propuestos.push(campo);
   }
   modal.resolver?.(null);
+  cargarUbigeo();
   Object.assign(modal, {abierto: true, modo, faltan: faltan.filter((c) => !propuestos.includes(c)), propuestos, vista, borrador});
   return new Promise((resolve) => { modal.resolver = resolve; });
 }
@@ -543,25 +604,49 @@ async function send(text = draftText.value) {
 }
 
 // ---- Metrado ----
-const met = reactive({abierto: false, datos: null, abiertas: [], exportando: false, error: ""});
+const met = reactive({abierto: false, datos: null, filtro: "todo", exportando: false, error: "", guardado: ""});
 const partidasMet = computed(() => (met.datos?.partidas ?? []).filter((p) => !p.titulo));
 const fmt = (v) => (Number.isFinite(v) ? v.toLocaleString("es-PE", {minimumFractionDigits: 2, maximumFractionDigits: 2}) : "—");
-const d2 = (v) => (v === null || v === undefined ? null : Number(v).toFixed(2));
-// Cómo se obtuvo cada fila: medidas (concreto, encofrado) o varillas (acero).
-function dimensiones(f) {
-  if (f.varillas !== undefined) return `${f.simil > 1 ? `${f.simil} × ` : ""}(${d2(f.longitud)}${f.gancho ? ` + ${d2(f.gancho)}` : ""}) m × ${f.varillas} Ø${f.diametro ?? ""} × ${f.kgm} kg/m`;
-  const medidas = [f.largo, f.ancho, f.alto].map(d2).filter(Boolean);
-  const pre = [f.simil > 1 ? `${f.simil}` : null, f.veces !== 1 ? `${f.veces}` : null].filter(Boolean);
-  return medidas.length ? [...pre, ...medidas].join(" × ") : "";
+// Filas de la planilla (las mismas del Excel); se recalculan solas al corregir una medida.
+const filasMet = computed(() => (met.datos ? filasPlanilla(met.datos) : []));
+const conteo = computed(() => ({propuestas: filasMet.value.filter((r) => r.propuesto).length, corregidas: filasMet.value.filter((r) => r.corregido).length}));
+// Con filtro: la partida y sus filas que lo cumplen (con el título de la partida para ubicarse).
+const filasVisibles = computed(() => {
+  if (met.filtro === "todo") return filasMet.value;
+  const cumple = (r) => (met.filtro === "propuestas" ? r.propuesto : r.corregido);
+  const partidas = new Set(filasMet.value.filter((r) => r.tipo === "fila" && cumple(r)).map((r) => r.ip));
+  return filasMet.value.filter((r) => (r.tipo === "partida" && partidas.has(r.ip)) || (r.tipo === "fila" && cumple(r)));
+});
+const DECIMALES = {3: 0, 7: 0};
+// kg/m del acero (columna Vol.) con 3 decimales; el resto con 2; elementos y veces enteros.
+const fmtCelda = (v, c, agrupar = c >= 8, acero = false) => (typeof v === "number" ? v.toLocaleString("es-PE", {minimumFractionDigits: DECIMALES[c] ?? 2, maximumFractionDigits: acero && c === 10 ? 3 : DECIMALES[c] ?? 2, useGrouping: agrupar}) : v ?? "");
+// Campo que se corrige en la columna c de una fila (o null si la celda no se edita).
+const campoDe = (r, c) => (r.tipo !== "fila" ? null : r.acero ? EDITABLES.acero[c] ?? null : r.calculado ? EDITABLES.concreto[c] ?? null : c >= 8 && c <= 12 && r.celdas[c] !== null ? "parcial" : null);
+const editable = (r, c) => Boolean(campoDe(r, c)) && (r.celdas[c] !== null || campoDe(r, c) !== "parcial");
+const claseCelda = (r, c) => ({"c-item": c === 0, "c-desc": c === 1, num: c >= 3, "c-total": c === 13, "is-sum": r.tipo === "fila" && c >= 8 && c <= 12 && r.celdas[c] !== null});
+function editarCelda(r, c, ev) {
+  const p = met.datos.partidas[r.ip], f = p.filas[r.jf], campo = campoDe(r, c);
+  const valor = Number(String(ev.target.value).replace(/\s/g, "").replace(",", "."));
+  const antes = corregirFila(met.datos, {partida: p.item, fila: f.descripcion, campo, valor});
+  if (antes === undefined) { ev.target.value = fmtCelda(r.celdas[c], c, false, r.acero); met.error = "Escribe un número (usa punto o coma decimal)."; return; }
+  met.error = "";
+  met.guardado = `Corregí ${COLUMNAS_PLANILLA[c].toLowerCase()} de "${f.descripcion}": lo aprendo para planos parecidos.`;
+  // Aprendizaje: la próxima vez que se metre un plano parecido, parte de esta corrección.
+  registrarEvento({tipo: "correccion", clave: "metrado", partida: p.item, fila: f.descripcion, campo, valor, propuesto: typeof antes === "number" ? antes : null, rasgos: met.datos.rasgos ?? {}});
+}
+function confirmarPropuestas() {
+  for (const p of met.datos.partidas) for (const f of p.filas ?? []) if (f.propuesto) f.propuesto = null;
+  met.guardado = "Confirmé las filas propuestas: el Excel sale sin marcas de revisión.";
 }
 function mostrarMetrado(datos) {
-  Object.assign(met, {abierto: true, datos, abiertas: [], error: ""});
+  Object.assign(met, {abierto: true, datos, filtro: "todo", error: "", guardado: ""});
 }
-const alternarPartida = (i) => { met.abiertas = met.abiertas.includes(i) ? met.abiertas.filter((x) => x !== i) : [...met.abiertas, i]; };
 // Desde el aviso del plano: se recalcula con la estructura dibujada (rápido y sin IA).
 async function verMetrado(run) {
   const [{SKILLS}, ctx] = await Promise.all([cargarSkills(), getContext()]);
   if (!ctx.memoria.modeloEstructural) { await ejecutar("metrar_estructura", {}, "Sacar el metrado de estructuras"); return; }
+  // Si ya se revisó en esta sesión, se reabre con sus correcciones.
+  if (ctx.memoria.metrado && run.metrado === "listo") { mostrarMetrado(ctx.memoria.metrado); return; }
   try {
     const r = await SKILLS.find((s) => s.name === "metrar_estructura").run({}, ctx);
     if (r.ok === false) throw new Error(r.error);
@@ -729,25 +814,50 @@ async function exportarMetrado() {
 .ag-btn.is-ghost { border:1px solid var(--pr-line);background:transparent;color:var(--pr-text);font-weight:500; }
 .ag-err { margin-right:auto;font-size:12px;color:#ef4444; }
 
-.ag-tiles { display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 20px 12px; }
+.ag-tiles { display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 20px 10px; }
 .ag-tiles div { display:grid;padding:10px 12px;border-radius:12px;border:1px solid var(--pr-line);background:var(--pr-soft); }
 .ag-tiles small { font-size:11px;color:var(--pr-muted); }
 .ag-tiles strong { font-size:19px;font-variant-numeric:tabular-nums;line-height:1.3; }
 .ag-tiles span { font-size:11px;color:var(--pr-muted); }
-.ag-table { width:100%;border-collapse:collapse;font-size:12px; }
-.ag-table th { position:sticky;top:0;z-index:1;padding:8px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--pr-muted);background:var(--pr-panel);border-bottom:1px solid var(--pr-line); }
-.ag-table td { padding:7px 8px;border-bottom:1px solid color-mix(in srgb,var(--pr-line) 60%,transparent);vertical-align:top; }
-.ag-table td:first-child { white-space:nowrap;color:var(--pr-muted);font-variant-numeric:tabular-nums; }
-.ag-table .num { text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums; }
-.ag-table tr.is-title td { padding-top:12px;font-weight:700;color:var(--pr-text);background:transparent; }
-.ag-table tr.is-row { cursor:pointer; }
-.ag-table tr.is-row:hover td, .ag-table tr.is-open td { background:color-mix(in srgb,var(--ag-a) 7%,transparent); }
-.ag-table tr.is-row td:last-child { font-weight:600; }
-.ag-table tr.is-detail td { padding-top:0;background:color-mix(in srgb,var(--ag-a) 4%,transparent); }
-.ag-subtable { width:100%;border-collapse:collapse;font-size:11.5px; }
-.ag-subtable td { padding:4px 6px;border-bottom:1px dashed color-mix(in srgb,var(--pr-line) 70%,transparent);color:var(--pr-muted); }
-.ag-subtable td:first-child { white-space:normal;color:var(--pr-text); }
-.ag-subtable .dim { white-space:nowrap;font-variant-numeric:tabular-nums; }
+.ag-ok { margin-right:auto;font-size:12px;color:#22c55e; }
+.ag-ubigeo { display:flex;gap:8px;align-items:center;margin:10px 0 0;padding:8px 10px;border-radius:9px;font-size:12px;color:var(--ag-a);background:color-mix(in srgb,var(--ag-a) 9%,transparent);border:1px solid color-mix(in srgb,var(--ag-a) 30%,transparent); }
+.ag-ubigeo svg { flex:none;width:16px;height:16px; }
+
+/* Planilla de metrados (misma estructura que el Excel del despacho) */
+.ag-modal.is-sheet { width:min(1360px,100%);height:calc(100vh - 32px); }
+.ag-met-head p { max-width:820px; }
+.ag-filter { display:flex;flex-wrap:wrap;gap:6px;padding:0 20px 10px; }
+.ag-filter button { display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border:1px solid var(--pr-line);border-radius:999px;background:transparent;color:var(--pr-muted);font:inherit;font-size:12px;cursor:pointer; }
+.ag-filter button.is-on { border-color:var(--ag-a);color:var(--pr-text);background:color-mix(in srgb,var(--ag-a) 12%,transparent); }
+.ag-sw { width:9px;height:9px;border-radius:3px; }
+.ag-sw.is-prop { background:var(--ag-a); }
+.ag-sw.is-corr { background:#22c55e; }
+.ag-sheet-wrap { flex:1;min-height:0;overflow:auto;padding:0 20px 16px; }
+.ag-sheet { width:100%;min-width:1180px;border-collapse:separate;border-spacing:0;font-size:11.5px;font-variant-numeric:tabular-nums; }
+.ag-sheet th { position:sticky;top:0;z-index:2;padding:6px 6px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--pr-muted);background:var(--pr-panel);border-bottom:1px solid var(--pr-line);text-align:center;white-space:nowrap; }
+.ag-sheet thead tr:nth-child(2) th { top:27px; }
+.ag-sheet th.grp { border-bottom:1px dashed var(--pr-line); }
+.ag-sheet td { padding:5px 6px;border-bottom:1px solid color-mix(in srgb,var(--pr-line) 55%,transparent);vertical-align:middle;white-space:nowrap; }
+.ag-sheet td.num { text-align:right; }
+.ag-sheet .c-item { width:104px;color:var(--pr-muted); }
+.ag-sheet .c-desc { min-width:300px;max-width:420px;white-space:normal; }
+.ag-sheet .c-total { font-weight:700; }
+.ag-sheet tr.is-titulo td { padding-top:11px;font-weight:700;color:#c026d3; }
+.ag-sheet tr.is-partida td { font-weight:700;background:color-mix(in srgb,var(--pr-soft) 70%,transparent); }
+.ag-sheet tr.is-partida td.c-total { color:var(--ag-a); }
+.ag-sheet tr.is-sub td { padding:2px 6px;font-size:10px;font-style:italic;color:var(--pr-muted);border-bottom:0; }
+.ag-sheet tr.is-fila td.c-desc { padding-left:18px; }
+.ag-sheet tr.is-fila td.is-sum { color:var(--pr-text);font-weight:600; }
+.ag-sheet tr.is-prop td:first-child { box-shadow:inset 3px 0 0 var(--ag-a); }
+.ag-sheet tr.is-prop { background:color-mix(in srgb,var(--ag-a) 6%,transparent); }
+.ag-sheet tr.is-corr td:first-child { box-shadow:inset 3px 0 0 #22c55e; }
+.ag-sheet tr.is-corr { background:rgba(34,197,94,.06); }
+.ag-cell { width:64px;height:24px;padding:0 6px;border:1px solid transparent;border-bottom:1px dashed color-mix(in srgb,var(--pr-muted) 45%,transparent);border-radius:6px;background:transparent;color:var(--pr-text);font:inherit;text-align:right; }
+.ag-cell:hover { border-color:var(--pr-line);background:var(--fz-input, var(--pr-soft)); }
+.ag-cell:focus { outline:0;border-color:var(--ag-a);background:var(--fz-input, var(--pr-soft));box-shadow:0 0 0 2px rgba(91,140,255,.18); }
+.ag-tag { display:inline-block;margin-left:6px;padding:1px 6px;border-radius:999px;font-size:9.5px;font-weight:600;vertical-align:1px; }
+.ag-tag.is-prop { color:var(--ag-a);background:color-mix(in srgb,var(--ag-a) 15%,transparent); }
+.ag-tag.is-corr { color:#16a34a;background:rgba(34,197,94,.15); }
 
 @keyframes ag-spin { to { transform:rotate(360deg); } }
 @keyframes ag-pulse { 50% { opacity:.35; } }

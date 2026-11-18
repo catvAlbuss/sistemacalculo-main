@@ -131,4 +131,16 @@ class AgenteLlmTest extends TestCase
         config(['services.agente_llm.tokens_dia' => 0]);
         $this->postJson(route('software.etabs.agente.llm'), $this->pedido())->assertStatus(503)->assertJsonPath('error.message', fn ($m) => str_contains($m, 'no tiene saldo'));
     }
+
+    public function test_a_new_model_that_rejects_a_parameter_is_retried_without_it(): void
+    {
+        config(['services.agente_llm' => ['proveedor' => 'openai', 'model' => 'gpt-6.2-sol', 'key' => self::CLAVE, 'tokens_dia' => 0]]);
+        Http::fake(['api.openai.com/*' => Http::sequence()
+            ->push(['error' => ['message' => "Unsupported value: 'reasoning_effort' does not support 'low' with this model.", 'param' => 'reasoning_effort']], 400)
+            ->push(['choices' => [['message' => ['role' => 'assistant', 'content' => '', 'tool_calls' => [['id' => 'c', 'type' => 'function', 'function' => ['name' => 'plano_estructuras', 'arguments' => '{}']]]]]]])]);
+        $this->postJson(route('software.etabs.agente.llm'), $this->pedido())->assertOk()->assertJsonPath('choices.0.message.tool_calls.0.function.name', 'plano_estructuras');
+        $enviados = collect(Http::recorded())->map(fn ($par) => $par[0]->data())->all();
+        $this->assertSame('low', $enviados[0]['reasoning_effort']);
+        $this->assertArrayNotHasKey('reasoning_effort', $enviados[1]);
+    }
 }

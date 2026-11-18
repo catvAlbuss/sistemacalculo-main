@@ -185,6 +185,9 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
 
   // ---- Columnetas sobre el eje (pa, pb…) ----
   const postes = lista.map((x) => ({a: x.s0, b: x.s1, columna: true}));
+  // Lo dibujado que se metra: alto real de cada columneta (bajo el techo inclinado) y los
+  // largos de VSa y dinteles sobre los vanos.
+  const modelo = {eje: eje.nombre, columnetas: [], vsa: [], dinteles: []};
   for (const c of columnetas) {
     const sc = proy(c) - origen;
     if (distEje(c) > 0.3 || sc < xa || sc > xb) continue;
@@ -193,6 +196,7 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
     if (c1 - c0 < 0.05 || postes.some((p) => c0 < p.b && c1 > p.a)) continue;
     postes.push({a: c0, b: c1, columneta: c});
     const tope = Math.min(y(c0), y(c1)) - vh;
+    modelo.columnetas.push({columneta: c, alto: r4(pisos.reduce((t, z, i) => t + ((i + 1 < pisos.length ? pisos[i + 1] - vh : tope) - z), 0))});
     // Una columneta por nivel: nace en cada losa y llega al fondo de la viga siguiente.
     pisos.forEach((z, i) => {
       const fin = i + 1 < pisos.length ? pisos[i + 1] - vh : tope;
@@ -241,6 +245,7 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
       const hp = VN.alturaPuerta;
       prim.push(rect(L.LAMINA, o0, CRITERIOS.terreno.npt, o1, hp));
       prim.push(rect(L.VIGAS, Math.max(a, o0 - 0.15), hp, Math.min(b, o1 + 0.15), hp + VN.dintel));
+      modelo.dinteles.push({nombre: nombre || "puerta", largo: r4(Math.min(b, o1 + 0.15) - Math.max(a, o0 - 0.15)), pano: r4(b - a)});
       prim.push(text(L.VIGAS, pt((o0 + o1) / 2, hp + VN.dintel / 2), "DINTEL", Math.min(h * 0.4, VN.dintel * 0.7)));
       if (nombre) prim.push(text(L.LAMINA, pt((o0 + o1) / 2, hp * 0.55), nombre, h * 0.45));
       vanosDibujados.push(nombre || "puerta");
@@ -249,6 +254,12 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
       prim.push(rect(L.LAMINA, a, VN.alfeizar, b, hv));
       prim.push(line(L.LAMINA, pt(a, VN.alfeizar), pt(b, hv)), line(L.LAMINA, pt(a, hv), pt(b, VN.alfeizar)));
       prim.push(rect(L.VIGAS, a, hv, b, hv + VN.dintel));
+      modelo.vsa.push({nombre: nombre || "ventana", largo: r4(b - a)});
+      // Las columnetas que flanquean la ventana confinan el parapeto (metrado del despacho).
+      for (const poste of [postes[i], postes[i + 1]]) {
+        const m = poste.columneta && modelo.columnetas.find((x) => x.columneta === poste.columneta);
+        if (m) m.juntoVentana = true;
+      }
       prim.push(text(L.VIGAS, pt((a + b) / 2, hv + VN.dintel / 2), "VSa", Math.min(h * 0.4, VN.dintel * 0.7)));
       if (nombre) prim.push(text(L.LAMINA, pt((a + b) / 2, (VN.alfeizar + hv) / 2 + h * 0.6), nombre, h * 0.45));
       vanosDibujados.push(nombre || "ventana");
@@ -355,7 +366,7 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
   notas.push(`Recubrimiento: ${Math.round(V.recubrimiento * 100)} cm`);
   prim.push(text(L.LAMINA, pt(xa - alero - 1.2, -df - fz * 0.6), `Recubrimiento: ${Math.round(V.recubrimiento * 100)} cm · f'c = ${CRITERIOS.concreto.columnas} kg/cm²`, h * 0.38, 0, "izq"));
   return {
-    columnas: lista.length, dosAguas, cumbrera: dosAguas ? r4(H) : null, vanos: vanosDibujados, niveles: pisos.length,
+    columnas: lista.length, dosAguas, cumbrera: dosAguas ? r4(H) : null, vanos: vanosDibujados, niveles: pisos.length, modelo,
     contenido: {
       titulo: `PLANO DE PÓRTICO EJE ${eje.nombre}-${eje.nombre}`,
       primitivas: prim,

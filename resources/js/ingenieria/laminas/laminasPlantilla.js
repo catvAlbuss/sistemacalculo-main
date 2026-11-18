@@ -18,6 +18,7 @@ import {aplicarEstilo} from "../criterios/estiloLaminas.js";
 import {separarTextos} from "./separarTextos.js";
 import {planoPortico, nivelesDesdeArquitectura, pendienteDesdeArquitectura, vanosDesdeArquitectura} from "../planos/porticoPlano.js";
 import {datosParaLaminas, CAMPOS_TECNICOS} from "../criterios/datosProyecto.js";
+import {CRITERIOS} from "../criterios/criteriosEstructurales.js";
 
 const r4 = (v) => Math.round(v * 10000) / 10000;
 const MESES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SETIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
@@ -278,7 +279,15 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       cimientoCorrido: {ancho: cc.ancho, ...cc.modelo},
       columnas: lectura.columnas.map((c) => ({tipo: c.tipo, eje: c.eje, b: c.b, h: c.h, area: c.area, forma: c.forma, clase: c.clase, perimetro: perimetroDe(c.contorno)})),
       refuerzoColumnas: cuadro.filas.map((f) => ({tipo: f.tipo, refuerzo: f.refuerzo})),
-      columnetas: (lectura.columnetas ?? []).map((c) => ({codigo: c.codigo, b: c.b, h: c.h})),
+      // Columnetas con el eje y el alto real del pórtico donde se dibujaron (bajo el techo
+      // inclinado); las que no caen en un pórtico quedan sin alto (el metrado usa el del muro).
+      columnetas: (lectura.columnetas ?? []).map((c) => {
+        const enPortico = porticos.flatMap((p) => p.modelo?.columnetas ?? []).find((x) => x.columneta === c);
+        return {codigo: c.codigo, b: c.b, h: c.h, eje: enPortico ? porticos.find((p) => p.modelo?.columnetas.includes(enPortico)).modelo.eje : null, alto: enPortico?.alto ?? null, juntoVentana: Boolean(enPortico?.juntoVentana)};
+      }),
+      vsa: porticos.flatMap((p) => (p.modelo?.vsa ?? []).map((v) => ({...v, eje: p.modelo.eje}))),
+      dinteles: porticos.flatMap((p) => (p.modelo?.dinteles ?? []).map((v) => ({...v, eje: p.modelo.eje}))),
+      cubierta: ali.cumbrera ? {pendiente, cumbrera: Math.max(...porticos.map((p) => p.cumbrera ?? 0)), alero: CRITERIOS.aligerado.alero} : null,
       vigas: ali.modelo?.vigas ?? [],
       losa: ali.modelo?.losa ?? null,
       vigaPeralte: vigaTipo.h,

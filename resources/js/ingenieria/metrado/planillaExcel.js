@@ -3,10 +3,11 @@
 // vol./kg/und. y total por partida) y hoja "Resumen" (ítem, descripción, und., total).
 // ExcelJS se carga solo al exportar (no pesa en la apertura del visor).
 
-const COLUMNAS = [
-  ["ITEM", 16], ["DESCRIPCIÓN", 58], ["Und", 6], ["Elem. Simil.", 8], ["Largo", 8], ["Ancho", 8], ["Alto", 8],
-  ["N° de Veces", 8], ["Lon.", 9], ["Área", 9], ["Vol.", 9], ["Kg.", 10], ["Und.", 8], ["Total", 11],
-];
+import {COLUMNAS_PLANILLA, filasPlanilla} from "./metrado.js";
+
+// Mismas columnas y filas que la vista previa del panel (filasPlanilla).
+const ANCHOS = [16, 58, 6, 8, 8, 8, 8, 8, 9, 9, 9, 10, 8, 11];
+const COLUMNAS = COLUMNAS_PLANILLA.map((t, i) => [t, ANCHOS[i]]);
 
 export async function planillaExcel(metrado, {ExcelJS = null, fecha = new Date(), modulo = ""} = {}) {
   const X = ExcelJS ?? (await import("exceljs")).default;
@@ -24,22 +25,15 @@ export async function planillaExcel(metrado, {ExcelJS = null, fecha = new Date()
   const cabecera = ws.addRow(COLUMNAS.map(([t]) => t));
   cabecera.font = negrita;
   cabecera.eachCell((c) => { c.fill = {type: "pattern", pattern: "solid", fgColor: {argb: "FFD9E1F2"}}; c.border = {bottom: {style: "thin"}}; });
-  const n = (v) => (v === null || v === undefined ? null : Math.round(v * 10000) / 10000);
-  for (const p of metrado.partidas) {
-    if (p.titulo) { ws.addRow([p.item, p.descripcion]).font = negrita; continue; }
-    const r = ws.addRow([p.item, p.descripcion, p.und, null, null, null, null, null, null, null, null, null, null, n(p.total)]);
-    r.font = negrita;
-    for (const f of p.filas) {
-      if (f.kgm !== undefined) {
-        // Acero: (longitud + gancho) × varillas × simil → Lon.; × kg/m → Kg.
-        ws.addRow([null, `   ${f.descripcion}`, "kg", f.simil, n(f.longitud), n(f.gancho), null, f.varillas, n(f.metros), null, n(f.kgm), n(f.parcial), null, null]);
-      } else {
-        const fila = [null, `   ${f.descripcion}`, p.und, f.simil, n(f.largo), n(f.ancho), n(f.alto), f.veces, null, null, null, null, null, null];
-        const col = {m: 8, m2: 9, m3: 10, kg: 11, und: 12}[p.und] ?? 10;
-        fila[col] = n(f.parcial);
-        ws.addRow(fila);
-      }
-    }
+  const n = (v) => (typeof v === "number" ? Math.round(v * 10000) / 10000 : v);
+  for (const f of filasPlanilla(metrado)) {
+    const r = ws.addRow(f.celdas.map((v, i) => (i === 1 && f.tipo === "fila" ? `   ${v}` : n(v))));
+    if (f.tipo === "titulo" || f.tipo === "partida") r.font = negrita;
+    if (f.tipo === "sub") r.font = {italic: true, color: {argb: "FF6B7280"}};
+    // Filas que el agente propuso con criterios del despacho (por confirmar) y las corregidas.
+    if (f.propuesto) r.getCell(2).fill = {type: "pattern", pattern: "solid", fgColor: {argb: "FFDCE8FF"}};
+    if (f.propuesto) r.getCell(2).note = `Propuesto por el agente: ${f.propuesto}`;
+    if (f.corregido) r.getCell(2).fill = {type: "pattern", pattern: "solid", fgColor: {argb: "FFE3F6E8"}};
   }
   for (const nota of metrado.notas ?? []) ws.addRow([null, `Nota: ${nota}`]).font = {italic: true};
 

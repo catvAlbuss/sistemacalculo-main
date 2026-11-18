@@ -182,6 +182,13 @@ class AgenteLlmController extends Controller
                 $http = $http->withToken($c['key']);
             }
             $respuesta = $http->post($c['url'] . '/chat/completions', $cuerpo);
+            // Modelo nuevo que no acepta un parámetro (temperature, reasoning_effort…): una vez sin él.
+            $rechazado = $this->parametroRechazado($respuesta, $cuerpo);
+            if ($rechazado !== null) {
+                Log::info('agente_llm: el modelo no acepta un parámetro; se repite sin él', ['modelo' => $modelo, 'parametro' => $rechazado]);
+                unset($cuerpo[$rechazado]);
+                $respuesta = $http->post($c['url'] . '/chat/completions', $cuerpo);
+            }
         } catch (\Throwable $e) {
             Log::warning('agente_llm: sin respuesta del modelo', ['usuario' => $request->user()->id, 'proveedor' => $c['proveedor'], 'modelo' => $modelo, 'error' => $e->getMessage()]);
 
@@ -201,6 +208,23 @@ class AgenteLlmController extends Controller
         }
 
         return (array) $respuesta->json();
+    }
+
+    /** Parámetro opcional que el proveedor rechazó (400 con su nombre), o null. */
+    private function parametroRechazado($respuesta, array $cuerpo): ?string
+    {
+        if ($respuesta->status() !== 400) {
+            return null;
+        }
+        $error = (array) data_get($respuesta->json(), 'error', []);
+        $texto = ($error['param'] ?? '') . ' ' . ($error['message'] ?? '');
+        foreach (['temperature', 'reasoning_effort', 'tool_choice'] as $opcional) {
+            if (array_key_exists($opcional, $cuerpo) && str_contains($texto, $opcional)) {
+                return $opcional;
+            }
+        }
+
+        return null;
     }
 
     private function tokens(array $json): int
