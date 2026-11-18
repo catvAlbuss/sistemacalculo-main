@@ -185,6 +185,15 @@
             <div><small>Encofrado</small><strong>{{ fmt(met.datos.resumen.encofrado) }}</strong><span>m²</span></div>
             <div class="is-auto" :title="`${conteo.propuestas} de ${conteo.filas} filas son propuestas del agente por revisar`"><small>Del plano y datos</small><strong>{{ conteo.automatico }} %</strong><span>{{ conteo.propuestas }} filas por revisar</span></div>
           </div>
+          <!-- Contraste con el despacho: relaciones que no dependen del tamaño, contra el rango real
+               de sus planillas. Lo que sale fuera es lo primero que revisa el especialista. -->
+          <div v-if="met.datos.contraste?.length" class="ag-contraste">
+            <span class="ag-contraste-t">Contraste con el despacho</span>
+            <span v-for="c in contrasteOrdenado" :key="c.clave" class="ag-rel" :class="c.dentro ? 'is-ok' : 'is-out'"
+              :title="`${c.nombre}: ${fmtRel(c.valor)} ${c.unidad}. En ${c.n} módulos del despacho va de ${fmtRel(c.desde)} a ${fmtRel(c.hasta)} (mediana ${fmtRel(c.mediana)}).`">
+              {{ c.dentro ? "✓" : "!" }} {{ c.nombre }} · {{ fmtRel(c.valor) }} {{ c.unidad }}
+            </span>
+          </div>
           <div class="ag-filter">
             <button type="button" :class="{ 'is-on': met.filtro === 'todo' }" @click="met.filtro = 'todo'">Todo</button>
             <button type="button" :class="{ 'is-on': met.filtro === 'propuestas' }" @click="met.filtro = 'propuestas'"><i class="ag-sw is-prop"></i>Propuestas por revisar · {{ conteo.propuestas }}</button>
@@ -629,6 +638,9 @@ async function send(text = draftText.value) {
 
 // ---- Metrado ----
 const met = reactive({abierto: false, datos: null, filtro: "todo", exportando: false, error: "", guardado: ""});
+const fmtRel = (v) => (v >= 10 ? Math.round(v).toString() : v.toFixed(v >= 1 ? 2 : 3));
+// Primero lo que está fuera del rango del despacho.
+const contrasteOrdenado = computed(() => [...(met.datos?.contraste ?? [])].sort((a, b) => Number(a.dentro) - Number(b.dentro)));
 const partidasMet = computed(() => (met.datos?.partidas ?? []).filter((p) => !p.titulo));
 const fmt = (v) => (Number.isFinite(v) ? v.toLocaleString("es-PE", {minimumFractionDigits: 2, maximumFractionDigits: 2}) : "—");
 // Filas de la planilla (las mismas del Excel); se recalculan solas al corregir una medida.
@@ -870,6 +882,11 @@ async function exportarMetrado() {
 /* Planilla de metrados (misma estructura que el Excel del despacho) */
 .ag-modal.is-sheet { width:min(1360px,100%);height:calc(100vh - 32px); }
 .ag-met-head p { max-width:820px; }
+.ag-contraste { display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:0 20px 10px; }
+.ag-contraste-t { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--pr-muted);margin-right:4px; }
+.ag-rel { padding:3px 9px;border-radius:999px;font-size:11px;border:1px solid transparent;cursor:help; }
+.ag-rel.is-ok { color:#16a34a;background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.25); }
+.ag-rel.is-out { color:#d97706;background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.4);font-weight:600; }
 .ag-filter { display:flex;flex-wrap:wrap;gap:6px;padding:0 20px 10px; }
 .ag-filter button { display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border:1px solid var(--pr-line);border-radius:999px;background:transparent;color:var(--pr-muted);font:inherit;font-size:12px;cursor:pointer; }
 .ag-filter button.is-on { border-color:var(--ag-a);color:var(--pr-text);background:color-mix(in srgb,var(--ag-a) 12%,transparent); }

@@ -30,7 +30,7 @@ class AgenteAprendizajeController extends Controller
     private const TERMINOS = ['platea', 'zapata', 'cimientoEje', 'cimiento', 'sobrecimientoEje', 'sobrecimiento', 'columna', 'areaInterior'];
 
     // Campos de una fila del metrado que el especialista puede corregir.
-    private const CAMPOS_METRADO = ['simil', 'largo', 'ancho', 'alto', 'veces', 'longitud', 'gancho', 'varillas', 'parcial'];
+    private const CAMPOS_METRADO = ['simil', 'largo', 'ancho', 'alto', 'veces', 'longitud', 'gancho', 'empalme', 'varillas', 'parcial'];
 
     // Rasgos numéricos o lógicos del plano: lo único del proyecto que se guarda.
     private const RASGOS = ['niveles', 'luzLosa', 'luzMax', 'largo', 'ancho', 'area', 'columnas', 'columnetas', 'placas', 'techoLiviano'];

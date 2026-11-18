@@ -55,6 +55,9 @@ export const CATEGORIAS = [
   ['Canaleta: encofrado', /^02\.03\.10\.02$/],
   ['Canaleta: acero', /^02\.03\.10\.03$/],
   ['Correas metálicas', /^02\.04\.01\.01$/],
+  ['Placas: concreto', /^02\.03\.05\.01\.01$/],
+  ['Placas: encofrado', /^02\.03\.05\.01\.02$/],
+  ['Placas: acero', /^02\.03\.05\.01\.03$/],
 ];
 
 // 1) Metrado del ingeniero.

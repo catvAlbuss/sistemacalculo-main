@@ -6,6 +6,8 @@ import ExcelJS from 'exceljs';
 import * as dm from '@mlightcad/data-model';
 import {metradoEstructuras, dimensionesRectangulo, barrasDeRefuerzo, filasPlanilla, corregirFila, aplicarCorrecciones, renombrarFila, COLUMNAS_PLANILLA} from '../../resources/js/ingenieria/metrado/metrado.js';
 import {plantillaDesdeEdicion, terminosAprendidos} from '../../resources/js/ingenieria/metrado/terminologia.js';
+import {contrasteDespacho} from '../../resources/js/ingenieria/metrado/metrado.js';
+import {aprender} from '../../scripts/agente/aprender-metrados.mjs';
 import {planillaExcel} from '../../resources/js/ingenieria/metrado/planillaExcel.js';
 import {createDrawingContext} from '../../resources/js/ingenieria/cad/drawingContext.js';
 import {SKILLS} from '../../resources/js/ingenieria/agente/skills/index.js';
@@ -161,4 +163,27 @@ test('module 14 from architecture: the agent metrado matches the engineer where 
   // Lo calculado con criterios del despacho queda marcado para que el especialista lo confirme.
   const marcadas = ctx.memoria.metrado.partidas.filter((p) => !p.titulo && p.filas.some((f) => f.propuesto)).map((p) => p.item);
   for (const item of ['02.03.09.01', '02.03.10.01', '02.04.01.01', '02.04.02.02', '02.05.01.03']) assert.ok(marcadas.includes(item), `${item} marked as a proposal`);
+});
+
+test('learning from the office sheets: size-independent ranges per element, and the metrado says when it falls outside', () => {
+  // Tres módulos del despacho (solo las partidas que hacen falta) y una hoja que no es un edificio.
+  const mod = (acero, concreto) => [{item: '02.03.06.01.01', total: concreto, filas: []}, {item: '02.03.06.01.03', total: acero, filas: []}, {item: '02.01.04.01', total: concreto * 10, filas: []}];
+  const ref = aprender([{'Modulo 1': mod(160, 1), 'Modulo 2': mod(340, 2), 'Modulo 3': mod(540, 3), 'Obras Exteriores': mod(9000, 1)}]);
+  assert.equal(ref.modulos, 3);
+  assert.equal(ref.relaciones.columnaAcero.mediana, 170);
+  assert.equal(ref.catalogo['02.03.06.01.01'].modulos, 3);
+  // Un metrado con 100 kg/m³ de acero en columnas: fuera del rango → nota y observación.
+  const m = metradoEstructuras(modelo);
+  const col = m.partidas.find((p) => p.item === '02.03.06.01.03');
+  const conc = m.partidas.find((p) => p.item === '02.03.06.01.01');
+  col.total = conc.total * 100;
+  const lista = contrasteDespacho(m, ref);
+  const c = lista.find((x) => x.clave === 'columnaAcero');
+  assert.equal(c.dentro, false);
+  assert.match(col.contraste, /100 kg\/m³ .*va de 16\d a 1[78]\d.*fuera del rango/);
+  assert.ok(m.notas.some((n) => /^Fuera del rango del despacho: acero de columnas 100 kg\/m³/.test(n)));
+  // Dentro del rango: sin nota.
+  col.total = conc.total * 170;
+  contrasteDespacho(m, ref);
+  assert.ok(!m.notas.some((n) => n.startsWith('Fuera del rango')));
 });

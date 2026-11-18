@@ -10,6 +10,7 @@
 
 import {CRITERIOS, posicionesEstribos} from "../criterios/criteriosEstructurales.js";
 import {nombreElemento} from "./terminologia.js";
+import {REFERENCIA_DESPACHO} from "./referenciaDespacho.js";
 
 export const CRITERIOS_METRADO = {
   solado: 0.10,                 // m — "Zapata corrida 1 … 2.10" = Df 2.00 + solado 0.10
@@ -22,12 +23,24 @@ export const CRITERIOS_METRADO = {
   columnas: {anclaje: 0.55, gancho: 0.6, ganchoEstribo: 0.3, recubrimiento: 0.04},
   vigas: {barras: 4, barra: '5/8"', anclaje: 0.74, gancho: 0.6, ganchoEstribo: 0.3, recubrimiento: 0.045},
   columnetas: {barra: '3/8"', anclaje: 0.4, estribo: '1/4"', ganchoEstribo: 0.12},
-  platea: {barra: '3/4"', separacion: 0.15, recubrimiento: 0.075, gancho: 0.5, capas: 2},
+  // Gancho por varilla: 0.50 en 5 de las 9 plateas del proyecto del despacho (módulos 5, 6, 8, 10
+  // y 14); 1.00 en los módulos 1 a 4. Las dos capas (superior e inferior) se cuentan una vez cada
+  // una (módulos 1, 3, 9: varillas de una capa × 2); el módulo 14 de la planilla las cuenta dos
+  // veces (simil 2 con las varillas de las dos capas) y por eso da el doble.
+  platea: {barra: '3/4"', separacion: 0.15, recubrimiento: 0.075, gancho: {'3/4"': 0.5, '5/8"': 0.5, '1/2"': 0.5}, capas: 2},
+  // Varillas de 9 m (largo comercial): la que pasa de 9 m lleva empalme (planillas del despacho:
+  // 0.60 m en Ø5/8" y Ø3/4", el valor más usado; módulo 3: 8.77 + 1.00 = 9.77 → +0.60).
+  largoComercial: 9,
+  empalme: {'3/8"': 0.45, '1/2"': 0.6, '5/8"': 0.6, '3/4"': 0.6, '1"': 0.75},
   // Lo que sigue sale de la planilla del ingeniero del módulo de referencia XIV (partidas
   // 02.03.07 a 02.05): secciones y criterios del despacho para lo que la arquitectura no acota.
   vsa: {b: 0.13, h: 0.2, barras: 4, barra: '3/8"', anclaje: 0.4, estribo: '1/4"', ganchoEstribo: 0.12, recubrimiento: 0.025}, // "Eje 8 Vsa-(0.13X0.20M)": 4Ø3/8", estribos Ø1/4"
-  vigaBorde: {b: 0.3, h: 0.45},              // "Viga de Borde (0.30X0.45M)" (VIGA BORDE en el pórtico de la plantilla)
-  cumbrera: {area: 0.08, perimetro: 0.71},   // "Viga Cumbrera": sección reducida, Área 0.08 m², perímetro 0.71 m
+  // Armado de viga de borde y cumbrera: el mismo en los 15 módulos del proyecto del despacho.
+  // Borde: Ø1/2" (6 varillas casi siempre), gancho 0.60, estribos Ø3/8" cada ~0.14 m (mediana).
+  // Cumbrera: Ø1/2" (7 varillas; 10-11 solo en módulos muy largos), gancho 0.50, estribos
+  // Ø3/8" cada ~0.07 m; el estribo mide el perímetro de su sección menos 0.15.
+  vigaBorde: {b: 0.3, h: 0.45, barras: 6, barra: '1/2"', gancho: 0.6, separacionEstribo: 0.14},  // "Viga de Borde (0.30X0.45M)"
+  cumbrera: {area: 0.08, perimetro: 0.71, barras: 7, barra: '1/2"', gancho: 0.5, separacionEstribo: 0.07}, // sección reducida del detalle
   canaleta: {area: 0.09, perimetro: 1.62, longitudinales: 5, barra: '3/8"', transversal: 1.35, separacion: 0.125}, // 5Ø3/8" long. y 31 Ø3/8" de 1.35 en 3.79 m
   correas: {separacion: 0.9, aleroLateral: 0.47, descripcion: 'TUBO ASTM A500 LAC y GALV CUADRADO DE F° 2"X2"X2.00mm'}, // 8 correas de 4.73 m (3.79 + 2 × 0.47)
   columnetaParapeto: CRITERIOS.vanos.alfeizar + CRITERIOS.cimientoCorrido.sobrecimientoAlto, // "Eje 8 y 10 C-pa … 1.30": junto a las ventanas, hasta el alféizar
@@ -75,9 +88,12 @@ const fila = (descripcion, {simil = 1, largo = null, ancho = null, alto = null, 
 // para que el especialista la confirme en la vista previa.
 const propuesta = (f, motivo) => ({...f, propuesto: motivo});
 // Fila de acero: (longitud + gancho) × varillas × simil × kg/m.
+// Varilla que pasa del largo comercial: un empalme por cada 9 m.
+const empalmeDe = (largo, diametro) => (largo > CRITERIOS_METRADO.largoComercial ? Math.floor(largo / CRITERIOS_METRADO.largoComercial) * (CRITERIOS_METRADO.empalme[diametro] ?? 0.6) : 0);
 const filaAcero = (descripcion, {simil = 1, longitud, gancho = 0, varillas, diametro, obs = null}) => {
-  const metros = simil * (longitud + gancho) * varillas;
-  return {descripcion, simil, longitud: r4(longitud), gancho, varillas, metros: r4(metros), kgm: kgm(diametro), parcial: r4(metros * kgm(diametro)), diametro, ...(obs ? {obs} : {})};
+  const empalme = empalmeDe(longitud + gancho, diametro);
+  const metros = simil * (longitud + gancho + empalme) * varillas;
+  return {descripcion, simil, longitud: r4(longitud), gancho, ...(empalme ? {empalme} : {}), varillas, metros: r4(metros), kgm: kgm(diametro), parcial: r4(metros * kgm(diametro)), diametro, ...(obs ? {obs} : {})};
 };
 // obs de la partida: el criterio común a sus filas.
 const partida = (item, descripcion, und, filas, obs = null) => ({item, descripcion, und, filas, total: r4(filas.reduce((s, f) => s + f.parcial, 0)), ...(obs ? {obs} : {})});
@@ -175,9 +191,9 @@ export function metradoEstructuras(modelo, {terminos = {}} = {}) {
     partidas.push(titulo("02.03.01", "LOSA DE CIMENTACION"),
       partida("02.03.01.01", "CONCRETO EN LOSA DE CIMENTACION F'C=210 KG/CM2", "m3", [fila(nombreCim, {largo: lp, ancho: ap, alto: hz, ...cimF()})], `${planta[0].toUpperCase()}${planta.slice(1)}; Hz ${m2(hz)} (${F.hz}).`),
       partida("02.03.01.02", "ACERO EN LOSA DE CIMENTACION CON F'Y=4200 KG/CM2", "kg", [
-        filaAcero(`Longitudinal Ø${P.barra} (superior e inferior)`, {simil: P.capas, longitud: lp - 2 * P.recubrimiento, gancho: P.gancho, varillas: barras(lp, ap), diametro: P.barra}),
-        filaAcero(`Transversal Ø${P.barra} (superior e inferior)`, {simil: P.capas, longitud: ap - 2 * P.recubrimiento, gancho: P.gancho, varillas: barras(ap, lp), diametro: P.barra}),
-      ], `Malla Ø${P.barra} @${m2(P.separacion)} del plano de platea, en ${P.capas} capas (superior e inferior), cada capa contada una vez; recubrimiento ${P.recubrimiento} y gancho ${m2(P.gancho)}.`),
+        filaAcero(`Longitudinal Ø${P.barra} (superior e inferior)`, {simil: P.capas, longitud: lp - 2 * P.recubrimiento, gancho: P.gancho[P.barra] ?? 0.5, varillas: barras(lp, ap), diametro: P.barra}),
+        filaAcero(`Transversal Ø${P.barra} (superior e inferior)`, {simil: P.capas, longitud: ap - 2 * P.recubrimiento, gancho: P.gancho[P.barra] ?? 0.5, varillas: barras(ap, lp), diametro: P.barra}),
+      ], `Malla Ø${P.barra} @${m2(P.separacion)} del plano de platea, en ${P.capas} capas (superior e inferior), cada capa contada una vez; recubrimiento ${P.recubrimiento} y gancho ${m2(P.gancho[P.barra] ?? 0.5)} por varilla (los dos extremos); empalme de 0.60 donde la varilla pasa de 9 m.`),
       partida("02.03.01.03", "CURADO DEL CONCRETO EN LOSA DE CIMENTACION", "m2", [fila(nombreCim, {largo: lp, ancho: ap, ...cimF()})], `Cara superior de la platea: ${planta}.`));
   } else if (cim.zapatas?.length) {
     partidas.push(titulo("02.03.02", "ZAPATAS"),
@@ -186,22 +202,31 @@ export function metradoEstructuras(modelo, {terminos = {}} = {}) {
     notas.push("Acero de zapatas: aún no se metra (falta el armado de zapatas en las láminas).");
   }
 
-  // Columnas
+  // Columnas y placas: el despacho las metra en partidas separadas (02.03.06 columnas, 02.03.05.01
+  // placas: módulo 1 del proyecto de referencia, placas 37.60 + columnas 28.20 m³).
   const C = M.columnas;
-  const grupos = gruposColumnas(columnas);
-  partidas.push(titulo("02.03.06", "COLUMNAS"),
-    partida("02.03.06.01.01", `CONCRETO EN COLUMNAS F'C=${CRITERIOS.concreto.columnas} KG/CM2`, "m3", grupos.map((g) => fila(`Columna ${g.tipo}`, {simil: g.n, ancho: g.area, alto: altoColumna}))),
-    partida("02.03.06.01.02", "ENCOFRADO Y DESENCOFRADO EN COLUMNAS", "m2", grupos.map((g) => fila(`Columna ${g.tipo}`, {simil: g.n, largo: g.perimetro, alto: altoColumna}))),
-    partida("02.03.06.01.03", "ACERO EN COLUMNAS CON F'Y=4200 KG/CM2", "kg", grupos.flatMap((g) => {
-      const ref = barrasDeRefuerzo(modelo.refuerzoColumnas?.find((r) => r.tipo === g.tipo)?.refuerzo);
-      const rectangular = g.forma === "rectangular";
-      const nEstribos = posicionesEstribos(CRITERIOS.columnas.distribucionPorSeccion?.({prefijo: String(g.tipo).replace(/\d+$/, ""), clase: g.clase, b: g.b, h: g.h}) ?? CRITERIOS.columnas.distribucion, altoColumna).length;
-      return [
-        ...ref.map((b) => filaAcero(`${g.tipo}: longitudinal ${b.n}Ø${b.d}`, {simil: g.n, longitud: altoColumna + C.anclaje, gancho: C.gancho, varillas: b.n, diametro: b.d})),
-        filaAcero(`${g.tipo}: estribos Ø${CRITERIOS.columnas.estribo}`, {simil: g.n, longitud: g.perimetro - (rectangular ? 8 : 16) * C.recubrimiento, gancho: C.ganchoEstribo, varillas: nEstribos * (rectangular ? 1 : 2), diametro: CRITERIOS.columnas.estribo}),
-      ];
-    })),
-    partida("02.03.06.01.04", "CURADO DEL CONCRETO EN COLUMNAS", "m2", grupos.map((g) => fila(`Columna ${g.tipo}`, {simil: g.n, largo: g.perimetro, alto: altoColumna}))));
+  const todos = gruposColumnas(columnas);
+  const placas = todos.filter((g) => g.clase === "placa"), soloColumnas = todos.filter((g) => g.clase !== "placa");
+  const elementos = (grupos, base, titulo, etiqueta) => {
+    if (!grupos.length) return;
+    const nombreG = (g) => (etiqueta === "Columna" ? nombre("columna", {tipo: g.tipo}) : `${etiqueta} ${g.tipo}`);
+    const term = (g) => (etiqueta === "Columna" ? {termino: "columna", vars: {tipo: g.tipo}} : {});
+    partidas.push(titulo,
+      partida(`${base}.01`, `CONCRETO EN ${etiqueta === "Placa" ? "PLACAS" : "COLUMNAS"} F'C=${CRITERIOS.concreto.columnas} KG/CM2`, "m3", grupos.map((g) => fila(nombreG(g), {simil: g.n, ancho: g.area, alto: altoColumna, ...term(g)}))),
+      partida(`${base}.02`, `ENCOFRADO Y DESENCOFRADO EN ${etiqueta === "Placa" ? "PLACAS" : "COLUMNAS"}`, "m2", grupos.map((g) => fila(nombreG(g), {simil: g.n, largo: g.perimetro, alto: altoColumna, ...term(g)}))),
+      partida(`${base}.03`, `ACERO EN ${etiqueta === "Placa" ? "PLACAS" : "COLUMNAS"} CON F'Y=4200 KG/CM2`, "kg", grupos.flatMap((g) => {
+        const ref = barrasDeRefuerzo(modelo.refuerzoColumnas?.find((r) => r.tipo === g.tipo)?.refuerzo);
+        const rectangular = g.forma === "rectangular";
+        const nEstribos = posicionesEstribos(CRITERIOS.columnas.distribucionPorSeccion?.({prefijo: String(g.tipo).replace(/\d+$/, ""), clase: g.clase, b: g.b, h: g.h}) ?? CRITERIOS.columnas.distribucion, altoColumna).length;
+        return [
+          ...ref.map((b) => filaAcero(`${g.tipo}: longitudinal ${b.n}Ø${b.d}`, {simil: g.n, longitud: altoColumna + C.anclaje, gancho: C.gancho, varillas: b.n, diametro: b.d})),
+          filaAcero(`${g.tipo}: estribos Ø${CRITERIOS.columnas.estribo}`, {simil: g.n, longitud: g.perimetro - (rectangular ? 8 : 16) * C.recubrimiento, gancho: C.ganchoEstribo, varillas: nEstribos * (rectangular ? 1 : 2), diametro: CRITERIOS.columnas.estribo}),
+        ];
+      })),
+      partida(`${base}.04`, `CURADO DEL CONCRETO EN ${etiqueta === "Placa" ? "PLACAS" : "COLUMNAS"}`, "m2", grupos.map((g) => fila(nombreG(g), {simil: g.n, largo: g.perimetro, alto: altoColumna, ...term(g)}))));
+  };
+  elementos(placas, "02.03.05.01", titulo("02.03.05", "PLACAS"), "Placa");
+  elementos(soloColumnas, "02.03.06.01", titulo("02.03.06", "COLUMNAS"), "Columna");
 
   // Vigas (una por tramo de eje; con varios niveles, una por nivel)
   const V = M.vigas;
@@ -221,12 +246,16 @@ export function metradoEstructuras(modelo, {terminos = {}} = {}) {
     partidas.push(titulo("02.03.07", "VIGAS"),
       partida("02.03.07.01.01", "CONCRETO EN VIGAS F'C=210 KG/CM2", "m3", [...vigas.map(concretoViga), ...borde]),
       partida("02.03.07.01.02", "ENCOFRADO Y DESENCOFRADO EN VIGAS", "m2", [...vigas.map(caraViga), ...bordeCara]),
-      partida("02.03.07.01.03", "ACERO EN VIGAS CON F'Y=4200 KG/CM2", "kg", [...vigas.flatMap((v) => [
+      partida("02.03.07.01.03", "ACERO EN VIGAS CON F'Y=4200 KG/CM2", "kg", [...vigas.flatMap((v) => esCumbrera(v) ? [
+        // Cumbrera: su armado propio (planillas del despacho), no el de las vigas.
+        filaAcero(`${nombreViga(v)}: ${M.cumbrera.barras}Ø${M.cumbrera.barra}`, {simil: niveles, longitud: v.largo, gancho: M.cumbrera.gancho, varillas: M.cumbrera.barras, diametro: M.cumbrera.barra}),
+        filaAcero(`${nombreViga(v)}: estribos Ø${CRITERIOS.vigas.estribo}`, {simil: niveles, longitud: M.cumbrera.perimetro - 0.15, gancho: V.ganchoEstribo, varillas: Math.ceil(v.largo / M.cumbrera.separacionEstribo) + 1, diametro: CRITERIOS.vigas.estribo}),
+      ] : [
         filaAcero(`${nombreViga(v)}: ${V.barras}Ø${V.barra}`, {simil: niveles, longitud: v.largo + V.anclaje, gancho: V.gancho, varillas: V.barras, diametro: V.barra}),
         filaAcero(`${nombreViga(v)}: estribos Ø${CRITERIOS.vigas.estribo}`, {simil: niveles, longitud: 2 * (v.b + v.h) - 8 * V.recubrimiento, gancho: V.ganchoEstribo, varillas: posicionesEstribos(CRITERIOS.vigas.distribucion, v.largo).length, diametro: CRITERIOS.vigas.estribo}),
       ]), ...(borde.length ? [
-          propuesta(filaAcero(`${borde[0].descripcion}: ${V.barras}Ø${V.barra}`, {longitud: lp + V.anclaje, gancho: V.gancho, varillas: V.barras, diametro: V.barra}), "armado de vigas del despacho"),
-          propuesta(filaAcero(`${borde[0].descripcion}: estribos Ø${CRITERIOS.vigas.estribo}`, {longitud: 2 * (B.b + B.h) - 8 * V.recubrimiento, gancho: V.ganchoEstribo, varillas: posicionesEstribos(CRITERIOS.vigas.distribucion, lp).length, diametro: CRITERIOS.vigas.estribo}), "armado de vigas del despacho"),
+          propuesta(filaAcero(`${borde[0].descripcion}: ${B.barras}Ø${B.barra}`, {longitud: lp, gancho: B.gancho, varillas: B.barras, diametro: B.barra}), "armado de la viga de borde del despacho (6Ø1/2\")"),
+          propuesta(filaAcero(`${borde[0].descripcion}: estribos Ø${CRITERIOS.vigas.estribo}`, {longitud: 2 * (B.b + B.h) - 8 * V.recubrimiento, gancho: V.ganchoEstribo, varillas: Math.ceil(lp / B.separacionEstribo) + 1, diametro: CRITERIOS.vigas.estribo}), "estribos de la viga de borde del despacho (cada ~0.14 m)"),
       ] : [])]),
       partida("02.03.07.01.04", "CURADO DE CONCRETO EN VIGAS", "m2", [...vigas.map(caraViga), ...bordeCara]));
   }
@@ -335,6 +364,10 @@ export function metradoEstructuras(modelo, {terminos = {}} = {}) {
   // Observación de las partidas que no la traen: el criterio con el que se calcularon.
   const e = Math.round((modelo.losa?.espesor ?? 0.2) * 100) / 100;
   const OBS = {
+    "02.03.05.01.01": `Sección de cada placa dibujada × alto ${m2(altoColumna)} = (Df − Hz) ${m2(df - hz)} + techo ${m2(modelo.techo ?? 3)}.`,
+    "02.03.05.01.02": `Perímetro de la sección dibujada × alto ${m2(altoColumna)}.`,
+    "02.03.05.01.03": "Refuerzo del cuadro de placas y columnas; estribos según su distribución.",
+    "02.03.05.01.04": `Perímetro de la sección dibujada × alto ${m2(altoColumna)}.`,
     "02.03.06.01.01": `Sección de cada columna dibujada × alto ${m2(altoColumna)} = (Df − Hz) ${m2(df - hz)} + techo ${m2(modelo.techo ?? 3)} (NPT de la arquitectura).`,
     "02.03.06.01.02": `Perímetro de la sección dibujada × alto ${m2(altoColumna)}.`,
     "02.03.06.01.03": `Refuerzo del cuadro de columnas; longitudinal con anclaje ${m2(M.columnas.anclaje)} y gancho ${m2(M.columnas.gancho)}; estribos según la distribución del cuadro.`,
@@ -358,7 +391,35 @@ export function metradoEstructuras(modelo, {terminos = {}} = {}) {
   if (sinPortico) notas.push(`${sinPortico} columneta(s) fuera de los pórticos dibujados: llevan el alto del muro (${altoMuros.toFixed(2)} m).`);
   if (platea) notas.push(`Acero de platea: Ø${M.platea.barra} @${M.platea.separacion.toFixed(2)} en ${M.platea.capas} capas (superior e inferior), en cada dirección; cada capa contada una sola vez.`);
 
-  return {proyecto: modelo.proyecto, partidas, resumen: resumenDe(partidas), notas};
+  const met = {proyecto: modelo.proyecto, partidas, resumen: resumenDe(partidas), notas};
+  contrasteDespacho(met);
+  return met;
+}
+
+// Contraste con el despacho: cada relación que no depende del tamaño (kg de acero por m³ de
+// concreto, encofrado por m³, factor de losa…) contra el rango que salió en las planillas del
+// despacho (scripts/agente/aprender-metrados.mjs). Fuera de rango = algo que revisar: el agente
+// lo dice en la observación de la partida y en las notas, con los números.
+export function contrasteDespacho(met, ref = REFERENCIA_DESPACHO) {
+  const total = (item) => met.partidas.find((p) => p.item === item && !p.titulo)?.total ?? null;
+  const fmt = (v) => (v >= 10 ? Math.round(v).toString() : v.toFixed(v >= 1 ? 2 : 3));
+  const lista = [];
+  for (const p of met.partidas) delete p.contraste;
+  for (const [clave, r] of Object.entries(ref?.relaciones ?? {})) {
+    const a = total(r.num), b = total(r.den);
+    if (!(a > 0 && b > 0) || r.n < 3) continue;
+    const valor = a / b;
+    const dentro = valor >= r.p10 * 0.9 && valor <= r.p90 * 1.1;
+    const item = {clave, nombre: r.nombre, valor, unidad: r.unidad, desde: r.p10, hasta: r.p90, mediana: r.mediana, n: r.n, dentro};
+    lista.push(item);
+    const partida = met.partidas.find((p) => p.item === r.num && !p.titulo);
+    if (partida) partida.contraste = `Contraste con el despacho: ${fmt(valor)} ${r.unidad} (en ${r.n} módulos del despacho va de ${fmt(r.p10)} a ${fmt(r.p90)}, mediana ${fmt(r.mediana)})${dentro ? "." : " → fuera del rango: revísalo."}`;
+  }
+  met.contraste = lista;
+  met.notas = (met.notas ?? []).filter((n) => !n.startsWith("Fuera del rango del despacho:"));
+  const fuera = lista.filter((x) => !x.dentro);
+  if (fuera.length) met.notas.push(`Fuera del rango del despacho: ${fuera.map((x) => `${x.nombre.toLowerCase()} ${fmt(x.valor)} ${x.unidad} (suele ${fmt(x.desde)}–${fmt(x.hasta)})`).join("; ")}. Revisa esas partidas.`);
+  return lista;
 }
 
 // Totales de la cabecera: concreto (m³), acero (kg), encofrado (m²) y excavación (m³).
@@ -382,7 +443,7 @@ const UNIDAD = {m: "m", m2: "m²", m3: "m³", kg: "kg", und: "und"};
 const n2 = (v) => (Math.round(Number(v) * 100) / 100).toFixed(2);
 function formulaDe(f, und) {
   if (f.kgm !== undefined) {
-    return `${f.simil > 1 ? `${f.simil} × ` : ""}(${n2(f.longitud)}${f.gancho ? ` + ${n2(f.gancho)}` : ""}) × ${f.varillas} = ${n2(f.metros)} m × ${f.kgm} kg/m = ${n2(f.parcial)} kg`;
+    return `${f.simil > 1 ? `${f.simil} × ` : ""}(${n2(f.longitud)}${f.gancho ? ` + ${n2(f.gancho)}` : ""}${f.empalme ? ` + ${n2(f.empalme)} empalme` : ""}) × ${f.varillas} = ${n2(f.metros)} m × ${f.kgm} kg/m = ${n2(f.parcial)} kg`;
   }
   if (f.calculado === false) return null;
   const factores = [f.simil, f.largo, f.ancho, f.alto].filter((v) => v !== null && v !== undefined).map((v, i) => (i === 0 ? String(v) : n2(v)));
@@ -408,7 +469,7 @@ const COLUMNA_PARCIAL = {m: 8, m2: 9, m3: 10, kg: 11, und: 12};
 // Columna de la planilla → campo de la fila que se puede corregir.
 export const EDITABLES = {
   concreto: {3: "simil", 4: "largo", 5: "ancho", 6: "alto", 7: "veces"},
-  acero: {3: "simil", 4: "longitud", 5: "gancho", 7: "varillas"},
+  acero: {3: "simil", 4: "longitud", 5: "gancho", 6: "empalme", 7: "varillas"},
 };
 
 // Filas de la planilla del despacho (las mismas para el Excel y la vista previa). Acero: largo
@@ -419,7 +480,7 @@ export function filasPlanilla(met) {
   const out = [];
   met.partidas.forEach((p, ip) => {
     if (p.titulo) { const c = vacia(); c[0] = p.item; c[1] = p.descripcion; out.push({tipo: "titulo", celdas: c}); return; }
-    const c = vacia(); c[0] = p.item; c[1] = p.descripcion; c[2] = p.und; c[13] = p.total; c[14] = p.obs ?? null;
+    const c = vacia(); c[0] = p.item; c[1] = p.descripcion; c[2] = p.und; c[13] = p.total; c[14] = [p.obs, p.contraste].filter(Boolean).join(" · ") || null;
     out.push({tipo: "partida", ip, celdas: c});
     if (p.und === "kg") { const s = vacia(); s[4] = "long."; s[5] = "gancho"; s[6] = "empal."; s[10] = "kg/m"; out.push({tipo: "sub", ip, celdas: s}); }
     p.filas.forEach((f, jf) => {
@@ -427,7 +488,7 @@ export function filasPlanilla(met) {
       r[1] = f.descripcion;
       r[14] = observacion(f, p.und);
       const acero = f.kgm !== undefined;
-      if (acero) Object.assign(r, {2: "kg", 3: f.simil, 4: f.longitud, 5: f.gancho, 7: f.varillas, 8: f.metros, 10: f.kgm, 11: f.parcial});
+      if (acero) Object.assign(r, {2: "kg", 3: f.simil, 4: f.longitud, 5: f.gancho, 6: f.empalme ?? null, 7: f.varillas, 8: f.metros, 10: f.kgm, 11: f.parcial});
       else { Object.assign(r, {2: p.und, 3: f.simil, 4: f.largo, 5: f.ancho, 6: f.alto, 7: f.veces}); r[COLUMNA_PARCIAL[p.und] ?? 10] = f.parcial; }
       out.push({tipo: "fila", ip, jf, acero, calculado: f.calculado !== false, celdas: r, propuesto: f.propuesto ?? null, corregido: Boolean(f.corregido)});
     });
@@ -441,7 +502,7 @@ export function recalcularMetrado(met) {
     if (p.titulo) continue;
     for (const f of p.filas) {
       if (f.kgm !== undefined) {
-        f.metros = r4((Number(f.simil) || 0) * ((Number(f.longitud) || 0) + (Number(f.gancho) || 0)) * (Number(f.varillas) || 0));
+        f.metros = r4((Number(f.simil) || 0) * ((Number(f.longitud) || 0) + (Number(f.gancho) || 0) + (Number(f.empalme) || 0)) * (Number(f.varillas) || 0));
         f.parcial = r4(f.metros * f.kgm);
       } else if (f.calculado !== false) {
         const d = [f.largo, f.ancho, f.alto].filter((v) => v !== null && v !== undefined && v !== "");
@@ -451,6 +512,7 @@ export function recalcularMetrado(met) {
     p.total = r4(p.filas.reduce((s, f) => s + (Number(f.parcial) || 0), 0));
   }
   met.resumen = resumenDe(met.partidas);
+  contrasteDespacho(met);
   return met;
 }
 
