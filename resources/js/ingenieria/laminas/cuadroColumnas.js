@@ -76,18 +76,49 @@ function renglones(lineas, x, yc, ancho, hMax) {
   return lista.map((l, i) => text(L.LAMINA, [r4(x), r4(yc + ((lista.length - 1) / 2 - i) * paso)], l, r4(h)));
 }
 
-// Estribo dibujado con su gancho a 135° en la primera esquina.
-function estriboConGancho(q, S, largo) {
-  const out = [pline(L.ESTRIBOS, q.map(S), true)];
-  const c = q[0], a = q[1], b = q[q.length - 1];
+// Esquinas dobladas del estribo: cada vértice se reemplaza por un arco de radio `radio` (m)
+// tangente a los dos lados, como se dobla la varilla en obra. Devuelve la polilínea (puntos) y,
+// por vértice, los puntos de tangencia y el centro del doblez.
+export function contornoDoblado(q, radio, segmentos = 6) {
+  const pts = [], dobleces = [];
+  const n = q.length;
+  for (let i = 0; i < n; i++) {
+    const c = q[i], a = q[(i + n - 1) % n], b = q[(i + 1) % n];
+    const ua = sub(a, c), ub = sub(b, c);
+    const la = Math.hypot(ua.x, ua.y) || 1, lb = Math.hypot(ub.x, ub.y) || 1;
+    const va = {x: ua.x / la, y: ua.y / la}, vb = {x: ub.x / lb, y: ub.y / lb};
+    const phi = Math.acos(Math.max(-1, Math.min(1, va.x * vb.x + va.y * vb.y))); // ángulo interior
+    if (phi < 0.1 || phi > Math.PI - 0.05) { pts.push(c); dobleces.push({t0: c, t1: c, centro: c}); continue; }
+    const r = Math.min(radio, 0.3 * Math.min(la, lb) * Math.tan(phi / 2)); // no más que el lado permite
+    const dt = r / Math.tan(phi / 2);
+    const t0 = {x: c.x + va.x * dt, y: c.y + va.y * dt}, t1 = {x: c.x + vb.x * dt, y: c.y + vb.y * dt};
+    const bis = {x: va.x + vb.x, y: va.y + vb.y}, lbis = Math.hypot(bis.x, bis.y) || 1;
+    const centro = {x: c.x + (bis.x / lbis) * (r / Math.sin(phi / 2)), y: c.y + (bis.y / lbis) * (r / Math.sin(phi / 2))};
+    let a0 = Math.atan2(t0.y - centro.y, t0.x - centro.x), a1 = Math.atan2(t1.y - centro.y, t1.x - centro.x);
+    let da = a1 - a0;
+    while (da > Math.PI) da -= 2 * Math.PI;
+    while (da < -Math.PI) da += 2 * Math.PI;
+    for (let k = 0; k <= segmentos; k++) {
+      const ang = a0 + (da * k) / segmentos;
+      pts.push({x: centro.x + r * Math.cos(ang), y: centro.y + r * Math.sin(ang)});
+    }
+    dobleces.push({t0, t1, centro});
+  }
+  return {pts, dobleces};
+}
+
+// Estribo como en el detalle del ingeniero: esquinas dobladas con radio `radio` (las varillas de
+// esquina quedan dentro del doblez) y el cierre con dos ganchos a 135° hacia el núcleo, en la
+// primera esquina.
+function estriboConGancho(q, S, largo, radio = 0.018) {
+  const {pts, dobleces} = contornoDoblado(q, radio);
+  const out = [pline(L.ESTRIBOS, pts.map(S), true)];
+  const c = q[0], d0 = dobleces[0];
   const centro = q.reduce((acc, p) => ({x: acc.x + p.x / q.length, y: acc.y + p.y / q.length}), {x: 0, y: 0});
   const hacia = sub(centro, c), l = Math.hypot(hacia.x, hacia.y) || 1;
   const d = {x: hacia.x / l, y: hacia.y / l};
-  for (const lado of [a, b]) {
-    const u = sub(lado, c), lu = Math.hypot(u.x, u.y) || 1;
-    const p0 = {x: c.x + (u.x / lu) * largo * 0.35, y: c.y + (u.y / lu) * largo * 0.35};
-    out.push(line(L.ESTRIBOS, S(p0), S({x: p0.x + d.x * largo, y: p0.y + d.y * largo})));
-  }
+  // Cada gancho nace donde termina el doblez y entra a 135° hacia el centro de la sección.
+  for (const p0 of [d0.t0, d0.t1]) out.push(line(L.ESTRIBOS, S(p0), S({x: p0.x + d.x * largo, y: p0.y + d.y * largo})));
   return out;
 }
 
@@ -287,7 +318,8 @@ export function cuadroColumnetas(columnetas, {ancho = 11.9, alto = 2.9} = {}) {
     out.push(pline(L.COLUMNAS, [[X(-b / 2), Y(-hh / 2)], [X(b / 2), Y(-hh / 2)], [X(b / 2), Y(hh / 2)], [X(-b / 2), Y(hh / 2)]], true));
     const r = CT.recubrimiento;
     const est = [{x: -b / 2 + r, y: -hh / 2 + r}, {x: b / 2 - r, y: -hh / 2 + r}, {x: b / 2 - r, y: hh / 2 - r}, {x: -b / 2 + r, y: hh / 2 - r}];
-    out.push(...estriboConGancho([est[3], est[0], est[1], est[2]], (p) => [X(p.x), Y(p.y)], Math.min(0.04, hh * 0.3)));
+    // Columneta: varillas a 0.012 de las líneas del estribo → mismo radio de doblez.
+    out.push(...estriboConGancho([est[3], est[0], est[1], est[2]], (p) => [X(p.x), Y(p.y)], Math.min(0.04, hh * 0.3), 0.012));
     const n = CT.varillasPorCara(b);
     const xb = (j) => -b / 2 + r + 0.012 + (j * (b - 2 * r - 0.024)) / Math.max(1, n - 1);
     const caras = [hh / 2 - r - 0.012, -hh / 2 + r + 0.012];

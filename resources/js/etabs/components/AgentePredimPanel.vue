@@ -183,6 +183,7 @@
             <div><small>Concreto</small><strong>{{ fmt(met.datos.resumen.concreto) }}</strong><span>m³</span></div>
             <div><small>Acero</small><strong>{{ fmt(met.datos.resumen.acero) }}</strong><span>kg</span></div>
             <div><small>Encofrado</small><strong>{{ fmt(met.datos.resumen.encofrado) }}</strong><span>m²</span></div>
+            <div class="is-auto" :title="`${conteo.propuestas} de ${conteo.filas} filas son propuestas del agente por revisar`"><small>Del plano y datos</small><strong>{{ conteo.automatico }} %</strong><span>{{ conteo.propuestas }} filas por revisar</span></div>
           </div>
           <div class="ag-filter">
             <button type="button" :class="{ 'is-on': met.filtro === 'todo' }" @click="met.filtro = 'todo'">Todo</button>
@@ -194,15 +195,16 @@
               <thead>
                 <tr>
                   <th rowspan="2" class="c-item">Ítem</th><th rowspan="2" class="c-desc">Descripción</th><th rowspan="2">Und</th><th rowspan="2">Elem. simil.</th>
-                  <th colspan="3" class="grp">Dimensiones</th><th rowspan="2">N° de veces</th><th colspan="5" class="grp">Metrado</th><th rowspan="2" class="c-total">Total</th>
+                  <th colspan="3" class="grp">Dimensiones</th><th rowspan="2">N° de veces</th><th colspan="5" class="grp">Metrado</th><th rowspan="2" class="c-total">Total</th><th rowspan="2" class="c-obs">Observación</th>
                 </tr>
                 <tr><th>Largo</th><th>Ancho</th><th>Alto</th><th>Lon.</th><th>Área</th><th>Vol.</th><th>Kg.</th><th>Und.</th></tr>
               </thead>
               <tbody>
                 <tr v-for="(r, i) in filasVisibles" :key="i" :class="[`is-${r.tipo}`, { 'is-prop': r.propuesto, 'is-corr': r.corregido }]" :title="r.propuesto ? `Propuesto por el agente: ${r.propuesto}` : ''">
                   <td v-for="(v, c) in r.celdas" :key="c" :class="claseCelda(r, c)">
-                    <input v-if="editable(r, c)" class="ag-cell" :value="fmtCelda(v, c, false, r.acero)" inputmode="decimal" :aria-label="`${COLUMNAS_PLANILLA[c]} de ${r.celdas[1]}`" @focus="$event.target.select()" @change="editarCelda(r, c, $event)" @keydown.enter="$event.target.blur()" />
-                    <template v-else>{{ c === 1 ? v : fmtCelda(v, c, c >= 8, r.acero) }}</template>
+                    <input v-if="c === 1 && r.tipo === 'fila'" class="ag-cell is-text" :value="v" :aria-label="`Nombre de ${v}`" title="Renómbrala con el nombre del despacho: lo aprendo para todos los planos" @change="renombrar(r, $event)" @keydown.enter="$event.target.blur()" />
+                    <input v-else-if="editable(r, c)" class="ag-cell" :value="fmtCelda(v, c, false, r.acero)" inputmode="decimal" :aria-label="`${COLUMNAS_PLANILLA[c]} de ${r.celdas[1]}`" @focus="$event.target.select()" @change="editarCelda(r, c, $event)" @keydown.enter="$event.target.blur()" />
+                    <template v-else>{{ c === 1 || c === 14 ? v : fmtCelda(v, c, c >= 8, r.acero) }}</template>
                     <span v-if="c === 1 && r.propuesto" class="ag-tag is-prop">propuesto</span>
                     <span v-if="c === 1 && r.corregido" class="ag-tag is-corr">corregido</span>
                   </td>
@@ -231,7 +233,8 @@ import {computed, nextTick, onBeforeUnmount, onMounted, reactive, ref} from "vue
 import {AGENTE_SERVIDOR, respuestaHonesta, runAgent} from "../../ingenieria/agente/agentRunner.js";
 import {CAMPOS_PROYECTO} from "../../ingenieria/laminas/rotulo.js";
 import {CAMPOS_TECNICOS} from "../../ingenieria/criterios/datosProyecto.js";
-import {COLUMNAS_PLANILLA, EDITABLES, corregirFila, filasPlanilla} from "../../ingenieria/metrado/metrado.js";
+import {COLUMNAS_PLANILLA, EDITABLES, corregirFila, filasPlanilla, renombrarFila} from "../../ingenieria/metrado/metrado.js";
+import {plantillaDesdeEdicion} from "../../ingenieria/metrado/terminologia.js";
 import {registrarEvento} from "../../ingenieria/aprendizaje/registro.js";
 
 const emit = defineEmits(["close", "foundation"]);
@@ -297,11 +300,26 @@ async function consultarMotor() {
 }
 
 // ---- Datos del proyecto (formulario) ----
+// Cada plano guarda sus datos (Hz, Df, zona, rótulo…): abrir otro DWG no hereda los del anterior.
+// Solo especialista y CIP, que son del despacho, pasan de un proyecto a otro.
 const PROYECTO_KEY = "predim-agente.proyecto";
-const proyecto = ref((() => { try { return JSON.parse(localStorage.getItem(PROYECTO_KEY) || "{}"); } catch { return {}; } })());
+const DEL_DESPACHO = ["especialista", "cip"];
+const leerGuardado = (clave) => { try { return JSON.parse(localStorage.getItem(clave) || "{}"); } catch { return {}; } };
+const planActual = ref(null); // null: aún no se cargó ningún plano
+const claveDelPlan = () => `${PROYECTO_KEY}:${planActual.value || "sin-nombre"}`;
+const proyecto = ref({});
+function cargarProyecto(plan) {
+  planActual.value = plan ?? "";
+  const despacho = leerGuardado(PROYECTO_KEY);
+  proyecto.value = {...Object.fromEntries(DEL_DESPACHO.filter((k) => despacho[k]).map((k) => [k, despacho[k]])), ...leerGuardado(claveDelPlan())};
+}
 const guardarProyecto = (datos) => {
   proyecto.value = {...proyecto.value, ...datos};
-  try { localStorage.setItem(PROYECTO_KEY, JSON.stringify(proyecto.value)); } catch { /* sin almacenamiento: vale para esta sesión */ }
+  try {
+    localStorage.setItem(claveDelPlan(), JSON.stringify(proyecto.value));
+    const despacho = Object.fromEntries(DEL_DESPACHO.filter((k) => proyecto.value[k]).map((k) => [k, proyecto.value[k]]));
+    localStorage.setItem(PROYECTO_KEY, JSON.stringify(despacho));
+  } catch { /* sin almacenamiento: vale para esta sesión */ }
 };
 const modal = reactive({abierto: false, modo: "editar", faltan: [], propuestos: [], vista: "", borrador: {}, resolver: null});
 // Rótulo sin los campos de ubicación (esos van en su sección, con los ubigeos).
@@ -426,6 +444,12 @@ async function diagnosticar() {
   try { [viewer, ctx, diag] = await Promise.all([cargarVisor(), getContext(), import("../../ingenieria/lectura/diagnostico.js")]); } catch { return; }
   const doc = viewer.AcApDocManager.instance?.curDocument;
   const db = doc?.database;
+  // Otro plano: sus propios datos del proyecto y la memoria del agente desde cero (propuesta,
+  // estructura dibujada y metrado eran del plano anterior).
+  if ((doc?.docTitle ?? "") !== planActual.value) {
+    cargarProyecto(doc?.docTitle ?? "");
+    ctx.memoria = {};
+  }
   const cuenta = () => { try { return db.tables.blockTable.modelSpace.newIterator().toArray().length; } catch { return 0; } };
   // Un plano grande se dibuja por tandas: se espera a que deje de crecer antes de leerlo.
   let previo = cuenta(), iguales = 0;
@@ -609,7 +633,12 @@ const partidasMet = computed(() => (met.datos?.partidas ?? []).filter((p) => !p.
 const fmt = (v) => (Number.isFinite(v) ? v.toLocaleString("es-PE", {minimumFractionDigits: 2, maximumFractionDigits: 2}) : "—");
 // Filas de la planilla (las mismas del Excel); se recalculan solas al corregir una medida.
 const filasMet = computed(() => (met.datos ? filasPlanilla(met.datos) : []));
-const conteo = computed(() => ({propuestas: filasMet.value.filter((r) => r.propuesto).length, corregidas: filasMet.value.filter((r) => r.corregido).length}));
+// Cuánto del metrado sale solo (plano y datos confirmados) y cuánto queda por revisar.
+const conteo = computed(() => {
+  const filas = filasMet.value.filter((r) => r.tipo === "fila");
+  const propuestas = filas.filter((r) => r.propuesto).length;
+  return {filas: filas.length, propuestas, corregidas: filas.filter((r) => r.corregido).length, automatico: filas.length ? Math.round((100 * (filas.length - propuestas)) / filas.length) : 0};
+});
 // Con filtro: la partida y sus filas que lo cumplen (con el título de la partida para ubicarse).
 const filasVisibles = computed(() => {
   if (met.filtro === "todo") return filasMet.value;
@@ -623,7 +652,7 @@ const fmtCelda = (v, c, agrupar = c >= 8, acero = false) => (typeof v === "numbe
 // Campo que se corrige en la columna c de una fila (o null si la celda no se edita).
 const campoDe = (r, c) => (r.tipo !== "fila" ? null : r.acero ? EDITABLES.acero[c] ?? null : r.calculado ? EDITABLES.concreto[c] ?? null : c >= 8 && c <= 12 && r.celdas[c] !== null ? "parcial" : null);
 const editable = (r, c) => Boolean(campoDe(r, c)) && (r.celdas[c] !== null || campoDe(r, c) !== "parcial");
-const claseCelda = (r, c) => ({"c-item": c === 0, "c-desc": c === 1, num: c >= 3, "c-total": c === 13, "is-sum": r.tipo === "fila" && c >= 8 && c <= 12 && r.celdas[c] !== null});
+const claseCelda = (r, c) => ({"c-item": c === 0, "c-desc": c === 1, num: c >= 3 && c <= 13, "c-total": c === 13, "c-obs": c === 14, "is-sum": r.tipo === "fila" && c >= 8 && c <= 12 && r.celdas[c] !== null});
 function editarCelda(r, c, ev) {
   const p = met.datos.partidas[r.ip], f = p.filas[r.jf], campo = campoDe(r, c);
   const valor = Number(String(ev.target.value).replace(/\s/g, "").replace(",", "."));
@@ -633,6 +662,21 @@ function editarCelda(r, c, ev) {
   met.guardado = `Corregí ${COLUMNAS_PLANILLA[c].toLowerCase()} de "${f.descripcion}": lo aprendo para planos parecidos.`;
   // Aprendizaje: la próxima vez que se metre un plano parecido, parte de esta corrección.
   registrarEvento({tipo: "correccion", clave: "metrado", partida: p.item, fila: f.descripcion, campo, valor, propuesto: typeof antes === "number" ? antes : null, rasgos: met.datos.rasgos ?? {}});
+}
+// Nombre del despacho para una fila: se cambia en todas las filas del mismo elemento y, si es un
+// tipo de elemento (zapata corrida, tramo de eje, columna…), se aprende para todos los planos.
+function renombrar(r, ev) {
+  const p = met.datos.partidas[r.ip], f = p.filas[r.jf];
+  const antes = f.descripcion, nuevo = ev.target.value.trim();
+  const r2 = renombrarFila(met.datos, {partida: p.item, fila: antes, nuevo});
+  if (!r2) { ev.target.value = antes; return; }
+  met.error = "";
+  if (r2.termino) {
+    registrarEvento({tipo: "correccion", clave: "termino", termino: r2.termino, valor: plantillaDesdeEdicion(nuevo, r2.vars), propuesto: antes, rasgos: met.datos.rasgos ?? {}});
+    met.guardado = `Renombré "${antes}" como "${nuevo}" y aprendí el nombre para este tipo de elemento en todos los planos.`;
+  } else {
+    met.guardado = `Renombré "${antes}" como "${nuevo}" en esta planilla.`;
+  }
 }
 function confirmarPropuestas() {
   for (const p of met.datos.partidas) for (const f of p.filas ?? []) if (f.propuesto) f.propuesto = null;
@@ -662,7 +706,7 @@ async function exportarMetrado() {
   try {
     const {descargarPlanilla} = await import("../../ingenieria/metrado/planillaExcel.js");
     const nombre = `METRADOS_ESTRUCTURAS_${String(met.datos.proyecto ?? "PROYECTO").replace(/[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ]+/g, "_").slice(0, 40)}.xlsx`;
-    await descargarPlanilla(met.datos, nombre);
+    await descargarPlanilla(met.datos, nombre, {datos: {...proyecto.value}});
   } catch (error) {
     met.error = `No pude exportar: ${error?.message ?? error}`;
   } finally {
@@ -814,7 +858,7 @@ async function exportarMetrado() {
 .ag-btn.is-ghost { border:1px solid var(--pr-line);background:transparent;color:var(--pr-text);font-weight:500; }
 .ag-err { margin-right:auto;font-size:12px;color:#ef4444; }
 
-.ag-tiles { display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 20px 10px; }
+.ag-tiles { display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:0 20px 10px; }
 .ag-tiles div { display:grid;padding:10px 12px;border-radius:12px;border:1px solid var(--pr-line);background:var(--pr-soft); }
 .ag-tiles small { font-size:11px;color:var(--pr-muted); }
 .ag-tiles strong { font-size:19px;font-variant-numeric:tabular-nums;line-height:1.3; }
@@ -833,7 +877,7 @@ async function exportarMetrado() {
 .ag-sw.is-prop { background:var(--ag-a); }
 .ag-sw.is-corr { background:#22c55e; }
 .ag-sheet-wrap { flex:1;min-height:0;overflow:auto;padding:0 20px 16px; }
-.ag-sheet { width:100%;min-width:1180px;border-collapse:separate;border-spacing:0;font-size:11.5px;font-variant-numeric:tabular-nums; }
+.ag-sheet { width:100%;min-width:1480px;border-collapse:separate;border-spacing:0;font-size:11.5px;font-variant-numeric:tabular-nums; }
 .ag-sheet th { position:sticky;top:0;z-index:2;padding:6px 6px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--pr-muted);background:var(--pr-panel);border-bottom:1px solid var(--pr-line);text-align:center;white-space:nowrap; }
 .ag-sheet thead tr:nth-child(2) th { top:27px; }
 .ag-sheet th.grp { border-bottom:1px dashed var(--pr-line); }
@@ -855,6 +899,9 @@ async function exportarMetrado() {
 .ag-cell { width:64px;height:24px;padding:0 6px;border:1px solid transparent;border-bottom:1px dashed color-mix(in srgb,var(--pr-muted) 45%,transparent);border-radius:6px;background:transparent;color:var(--pr-text);font:inherit;text-align:right; }
 .ag-cell:hover { border-color:var(--pr-line);background:var(--fz-input, var(--pr-soft)); }
 .ag-cell:focus { outline:0;border-color:var(--ag-a);background:var(--fz-input, var(--pr-soft));box-shadow:0 0 0 2px rgba(91,140,255,.18); }
+.ag-sheet td.c-obs, .ag-sheet th.c-obs { min-width:280px;max-width:380px;white-space:normal;text-align:left;font-size:10.5px;line-height:1.35;color:var(--pr-muted); }
+.ag-cell.is-text { width:100%;min-width:220px;text-align:left; }
+.ag-tiles .is-auto { border-color:color-mix(in srgb,var(--ag-a) 45%,transparent);background:color-mix(in srgb,var(--ag-a) 8%,var(--pr-soft)); }
 .ag-tag { display:inline-block;margin-left:6px;padding:1px 6px;border-radius:999px;font-size:9.5px;font-weight:600;vertical-align:1px; }
 .ag-tag.is-prop { color:var(--ag-a);background:color-mix(in srgb,var(--ag-a) 15%,transparent); }
 .ag-tag.is-corr { color:#16a34a;background:rgba(34,197,94,.15); }

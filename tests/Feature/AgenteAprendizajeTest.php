@@ -65,4 +65,15 @@ class AgenteAprendizajeTest extends TestCase
         $this->postJson($ruta, ['tipo' => 'correccion', 'clave' => 'metrado', 'valor' => 1, 'partida' => '02.03.08.01', 'fila' => 'x', 'campo' => 'descripcion', 'rasgos' => []])->assertStatus(422);
         $this->postJson($ruta, ['tipo' => 'correccion', 'clave' => 'metrado', 'valor' => 'mucho', 'partida' => '02.03.08.01', 'fila' => 'x', 'campo' => 'alto', 'rasgos' => []])->assertStatus(422);
     }
+
+    public function test_the_office_name_of_an_element_is_learned_as_a_template(): void
+    {
+        $ruta = route('software.etabs.agente.aprendizaje.guardar');
+        $this->postJson($ruta, ['tipo' => 'correccion', 'clave' => 'termino', 'termino' => 'cimientoEje', 'valor' => 'Cimiento eje {eje}', 'propuesto' => 'Eje Y´', 'rasgos' => []])->assertOk();
+        $e = $this->getJson(route('software.etabs.agente.aprendizaje.listar'))->json('eventos.0');
+        $this->assertSame(['termino', 'cimientoEje', 'Cimiento eje {eje}'], [$e['clave'], $e['termino'], $e['valor']]);
+        // Un tipo de elemento que no existe o un nombre vacío: no.
+        $this->postJson($ruta, ['tipo' => 'correccion', 'clave' => 'termino', 'termino' => 'proyecto', 'valor' => 'x', 'rasgos' => []])->assertStatus(422);
+        $this->postJson($ruta, ['tipo' => 'correccion', 'clave' => 'termino', 'termino' => 'platea', 'valor' => '  ', 'rasgos' => []])->assertStatus(422);
+    }
 }

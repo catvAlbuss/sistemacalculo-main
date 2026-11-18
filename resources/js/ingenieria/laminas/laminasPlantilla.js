@@ -17,7 +17,7 @@ import {datosDesdeArquitectura, textoEnCasilla, anchoTexto} from "./rotulo.js";
 import {aplicarEstilo} from "../criterios/estiloLaminas.js";
 import {separarTextos} from "./separarTextos.js";
 import {planoPortico, nivelesDesdeArquitectura, pendienteDesdeArquitectura, vanosDesdeArquitectura} from "../planos/porticoPlano.js";
-import {datosParaLaminas, CAMPOS_TECNICOS} from "../criterios/datosProyecto.js";
+import {datosParaLaminas, datosTecnicos, CAMPOS_TECNICOS} from "../criterios/datosProyecto.js";
 import {CRITERIOS} from "../criterios/criteriosEstructurales.js";
 
 const r4 = (v) => Math.round(v * 10000) / 10000;
@@ -141,6 +141,9 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   const datosRotulo = {...datosDesdeArquitectura(items), ...Object.fromEntries(Object.entries(datos ?? {}).filter(([c, v]) => !tecnicos.has(c) && v !== undefined && v !== null && String(v).trim() !== ""))};
   // Datos técnicos (Hz, Df, zona, suelo, categoría, niveles): del panel; si faltan, criterio y aviso.
   const dp = datosParaLaminas(datos, estructura.sugeridos ?? {});
+  // De dónde salen Hz y Df (para la observación de cada fila del metrado).
+  const dados = datosTecnicos(datos);
+  const fuenteDe = (k) => (dados[k] !== null ? "dato del proyecto" : (estructura.sugeridos?.[k] > 0 ? "propuesto por el agente con proyectos parecidos" : "criterio del despacho"));
   const nominal = config.escalaPlanos ?? 2;
   const marcos = config.laminas.map((l) => l.marco);
   const T = {x0: Math.min(...marcos.map((m) => m.x)), y0: Math.min(...marcos.map((m) => m.y)), x1: Math.max(...marcos.map((m) => m.x1)), y1: Math.max(...marcos.map((m) => m.y1))};
@@ -275,7 +278,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
     // Modelo estructural de lo dibujado: de aquí sale el metrado (metrado/metrado.js).
     modelo: {
       proyecto, niveles: nNiveles, entrepisos, techo: altura, losaTecho,
-      cimentacion: {tipo: cim.tipo, hz: cim.peralte, df: cim.df, ...cim.modelo},
+      cimentacion: {tipo: cim.tipo, hz: cim.peralte, df: cim.df, fuentes: {hz: fuenteDe("hz"), df: fuenteDe("df")}, ...cim.modelo},
       cimientoCorrido: {ancho: cc.ancho, ...cc.modelo},
       columnas: lectura.columnas.map((c) => ({tipo: c.tipo, eje: c.eje, b: c.b, h: c.h, area: c.area, forma: c.forma, clase: c.clase, perimetro: perimetroDe(c.contorno)})),
       refuerzoColumnas: cuadro.filas.map((f) => ({tipo: f.tipo, refuerzo: f.refuerzo})),

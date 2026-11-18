@@ -448,7 +448,7 @@ export function planoCimientoCorrido({lectura, items, caja, k = 1}, opciones = {
     columnetas: [...codigos].map(([medida, codigo]) => ({codigo, medida})),
     tramos: tramos.length, ancho, avisos,
     // Para el metrado: cada tramo de muro con su largo y espesor, y los vanos de puerta.
-    modelo: {tramos: tramos.map((t) => ({largo: t.largo, espesor: t.espesor, exterior: Boolean(t.exterior), conPuerta: Boolean(t.conPuerta)}))},
+    modelo: {tramos: tramos.map((t) => ({largo: t.largo, espesor: t.espesor, exterior: Boolean(t.exterior), conPuerta: Boolean(t.conPuerta), eje: ejeDelTramo(t, lectura.ejes)}))},
     cortes: [...new Set(tramos.map((t) => t.corte))].sort(),
     contenido: {
       titulo: "PLANO DE CIMIENTO CORRIDO", primitivas: [...base.primitivas, ...prim], marco: base.marco, ejes: base.ejes, h,
@@ -577,4 +577,19 @@ export function tramosDeMuro(geometria) {
     if (!repetido) unicos.push(t);
   }
   return unicos;
+}
+
+// Eje con nombre sobre el que corre un tramo de muro (paralelo y a menos de medio muro + 0.35 m),
+// para nombrarlo como el despacho ("Eje Y´"); null si el muro no está sobre un eje.
+function ejeDelTramo(t, ejes = []) {
+  const m = {x: (t.a.x + t.b.x) / 2, y: (t.a.y + t.b.y) / 2};
+  const lt = Math.hypot(t.b.x - t.a.x, t.b.y - t.a.y) || 1;
+  let mejor = null;
+  for (const e of ejes) {
+    const dx = e.q.x - e.p.x, dy = e.q.y - e.p.y, le = Math.hypot(dx, dy) || 1;
+    const paralelo = Math.abs(((t.b.x - t.a.x) * dy - (t.b.y - t.a.y) * dx) / (lt * le)) < 0.2; // hasta ~11°: el muro sobre un eje inclinado no siempre es exacto (módulo 14, Z´: 7°)
+    const d = Math.abs((m.x - e.p.x) * dy - (m.y - e.p.y) * dx) / le;
+    if (paralelo && d <= (t.espesor ?? 0.15) / 2 + 0.35 && (!mejor || d < mejor.d)) mejor = {d, nombre: e.nombre};
+  }
+  return mejor?.nombre ?? null;
 }

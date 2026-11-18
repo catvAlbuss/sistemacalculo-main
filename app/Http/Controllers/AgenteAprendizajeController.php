@@ -21,9 +21,13 @@ class AgenteAprendizajeController extends Controller
     private const CLAVES = [
         'cimentacion', 'cimientoCorrido', 'hz', 'df', 'losa', 'espesorLosa', 'losaDeTecho',
         'fcColumnas', 'fcColumnetas', 'estribos', 'columnasComoArquitectura', 'niveles',
-        // Corrección de una fila del metrado en la vista previa (partida, fila y campo).
-        'metrado',
+        // Corrección de una fila del metrado en la vista previa (partida, fila y campo) y nombre que
+        // el despacho le da a un tipo de elemento en la planilla (terminología).
+        'metrado', 'termino',
     ];
+
+    // Tipos de elemento con nombre en la planilla (resources/js/ingenieria/metrado/terminologia.js).
+    private const TERMINOS = ['platea', 'zapata', 'cimientoEje', 'cimiento', 'sobrecimientoEje', 'sobrecimiento', 'columna', 'areaInterior'];
 
     // Campos de una fila del metrado que el especialista puede corregir.
     private const CAMPOS_METRADO = ['simil', 'largo', 'ancho', 'alto', 'veces', 'longitud', 'gancho', 'varillas', 'parcial'];
@@ -39,17 +43,22 @@ class AgenteAprendizajeController extends Controller
             'valor' => 'present',
             'propuesto' => 'nullable',
             'motivo' => 'nullable|string|max:300',
-            'rasgos' => 'required|array',
+            'rasgos' => 'present|array',
             'partida' => 'required_if:clave,metrado|nullable|string|max:24|regex:/^[0-9.]+$/',
             'fila' => 'required_if:clave,metrado|nullable|string|max:140',
             'campo' => 'required_if:clave,metrado|nullable|in:' . implode(',', self::CAMPOS_METRADO),
+            'termino' => 'required_if:clave,termino|nullable|in:' . implode(',', self::TERMINOS),
         ]);
+        if ($data['clave'] === 'termino' && ! (is_string($data['valor']) && trim($data['valor']) !== '' && mb_strlen($data['valor']) <= 140)) {
+            return response()->json(['ok' => false, 'error' => 'nombre no válido'], 422);
+        }
         if ($data['clave'] === 'metrado' && ! is_numeric($data['valor'])) {
             return response()->json(['ok' => false, 'error' => 'valor no válido'], 422);
         }
+        $largo = $data['clave'] === 'termino' ? 140 : 60;
         foreach (['valor', 'propuesto'] as $campo) {
             $v = $data[$campo] ?? null;
-            if (! (is_null($v) || is_bool($v) || is_int($v) || is_float($v) || (is_string($v) && mb_strlen($v) <= 60))) {
+            if (! (is_null($v) || is_bool($v) || is_int($v) || is_float($v) || (is_string($v) && mb_strlen($v) <= $largo))) {
                 return response()->json(['ok' => false, 'error' => "$campo no válido"], 422);
             }
         }
@@ -70,6 +79,9 @@ class AgenteAprendizajeController extends Controller
         ];
         if ($data['clave'] === 'metrado') {
             $evento += ['partida' => $data['partida'], 'fila' => $data['fila'], 'campo' => $data['campo']];
+        }
+        if ($data['clave'] === 'termino') {
+            $evento['termino'] = $data['termino'];
         }
         Storage::disk('local')->append(self::ARCHIVO, json_encode($evento, JSON_UNESCAPED_UNICODE));
 

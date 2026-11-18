@@ -12,6 +12,7 @@ import {rasgosDeArquitectura, proponer, textoPropuesta, casosDeUso, DECISIONES} 
 import {CASOS, EVENTOS_USO} from "../../aprendizaje/casosAprendidos.js";
 import {registrarEvento, eventosDeUso, rasgosParaGuardar} from "../../aprendizaje/registro.js";
 import {metradoEstructuras, aplicarCorrecciones} from "../../metrado/metrado.js";
+import {terminosAprendidos} from "../../metrado/terminologia.js";
 import {descargarPlanilla} from "../../metrado/planillaExcel.js";
 
 const r2 = (value) => Math.round(value * 100) / 100;
@@ -296,10 +297,12 @@ export const ESTRUCTURA_SKILLS = [
         if (!ctx.memoria.modeloEstructural) return {ok: false, error: r.error ?? "Primero necesito generar el plano de estructuras desde la arquitectura."};
         generado = `Generé primero las láminas ${(r.laminas ?? []).join(", ")}. `;
       }
-      const met = metradoEstructuras(ctx.memoria.modeloEstructural);
-      // No parte de cero: las correcciones que el despacho hizo al metrado de un plano parecido.
+      // No parte de cero: la terminología del despacho y las correcciones que hizo al metrado de
+      // un plano parecido.
+      const eventos = [...EVENTOS_USO, ...await (ctx.eventosDeUso ?? eventosDeUso)()];
+      const met = metradoEstructuras(ctx.memoria.modeloEstructural, {terminos: terminosAprendidos(eventos)});
       const rasgos = ctx.memoria.propuesta?.rasgos ?? (await propuestaDelPlano(ctx).catch(() => ({}))).rasgos ?? null;
-      const corregidas = aplicarCorrecciones(met, [...EVENTOS_USO, ...await (ctx.eventosDeUso ?? eventosDeUso)()], rasgos);
+      const corregidas = aplicarCorrecciones(met, eventos, rasgos);
       met.rasgos = rasgosParaGuardar(rasgos ?? {});
       ctx.memoria.metrado = met;
       const tot = (re) => met.partidas.filter((p) => !p.titulo && re.test(p.item)).reduce((s, p) => s + p.total, 0);
@@ -307,7 +310,7 @@ export const ESTRUCTURA_SKILLS = [
       let excel = "";
       if (args.excel) {
         const nombre = `METRADOS_ESTRUCTURAS_${String(met.proyecto ?? "PROYECTO").replace(/[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ]+/g, "_").slice(0, 40)}.xlsx`;
-        await (ctx.descargarPlanilla ?? descargarPlanilla)(met, nombre);
+        await (ctx.descargarPlanilla ?? descargarPlanilla)(met, nombre, {datos: ctx.datosProyecto?.() ?? {}});
         excel = ` Descargué la planilla ${nombre}.`;
       }
       return {

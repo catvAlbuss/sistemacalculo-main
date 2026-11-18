@@ -127,6 +127,33 @@ export function respuestaHonesta(textoModelo, steps) {
   return texto || "No hice cambios en el plano.";
 }
 
+// ---- Ruta directa: pedidos inequívocos sin pasar por el modelo (costo 0, siempre la misma) ----
+// Solo cuando no hay duda: si el pedido trae números, correcciones o datos del proyecto, decide
+// el modelo (tiene que extraer valores). Medido con casos-evaluacion: nunca elige mal; lo que
+// no reconoce lo deja al modelo.
+const sinTildes = (t) => String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+// Números, correcciones o datos: hay que extraer valores → decide el modelo.
+const DATOS_O_CORRECCION = /\d|\b(corrig|correg|debe ser|deberia|es maciza|maciz|segun|estudio de suelos|zona|suelo|categoria|hz|df|cambia|en vez|no es|usa |conserva|casa|vivienda|dormitorio)/;
+export function rutaDirecta(texto) {
+  const t = sinTildes(texto).trim();
+  if (!t || t.length > 160) return null;
+  if (/\bencimad/.test(t)) return {tool: "revisar_laminas", args: /\b(corrige|corregir|separa|arregla|quita)/.test(t) ? {corregir: true} : {}};
+  if (DATOS_O_CORRECCION.test(t)) return null;
+  if (/\b(borra|quita|elimina|limpia)\b.*\blaminas?\b/.test(t)) return {tool: "quitar_laminas", args: {}};
+  if (/\b(metrado|metrados|metrar|metra|cantidades)\b/.test(t)) return {tool: "metrar_estructura", args: /\b(excel|xlsx|descarga)/.test(t) ? {excel: true} : {}};
+  if (/\brevis(a|ar|ame)\b.*\blaminas?\b/.test(t)) return {tool: "revisar_laminas", args: {}};
+  if (/\bvistas\b/.test(t)) return {tool: "vistas_plano", args: {}};
+  if (/\b(analiza|analizar|propon|propone|proponer)\b|\bque (estructura|cimentacion|losa)\b|\ble corresponde\b/.test(t)) return {tool: "proponer_estructura", args: {}};
+  if (/\b(lee|leer|detecta|detectas)\b.*\b(ejes|columnas)\b|\bque columnas\b/.test(t)) return {tool: "leer_estructura", args: {}};
+  // Generar láminas: solo si se pide hacerlas, no en una pregunta ("explícame la estructura…").
+  const pregunta = /^[¿]?\s*(por que|porque|como|explica|explicame|cuanto|cual|que es)\b/.test(t);
+  if (!pregunta && /\b(plano|planos|laminas?) de estructuras?\b|^(estructura|estructurar|estructurale)\b|\b(genera|hazme|haz|dibuja|arma|necesito|quiero)\b.*\b(estructura|cimentacion)\b/.test(t)) {
+    const cimentacion = /\bzapatas?\b/.test(t) ? "zapatas" : /\bplatea\b/.test(t) ? "platea" : null;
+    return {tool: "plano_estructuras", args: cimentacion ? {cimentacion} : {}};
+  }
+  return null;
+}
+
 // history: [{role: "user"|"assistant", content}] de turnos anteriores (solo texto).
 // imagenes: fotos del ingeniero como data URL (observaciones). Si el motor ve imágenes van al
 // modelo; si no, solo se avisa que las adjuntó (quedan guardadas como observación).
@@ -135,6 +162,16 @@ export async function runAgent({text, imagenes = [], history = [], settings = DE
   // Lo que el usuario escribió: las herramientas solo aceptan datos del proyecto que estén ahí
   // (un modelo chico inventaba "suelo S2, zona 3, Df 2.50" en "genera el plano con platea").
   if (context?.memoria) context.memoria.ultimoPedido = String(text ?? "");
+  // Pedido inequívoco y sin fotos: la herramienta corre directo, sin gastar tokens.
+  const directa = !imagenes.length && settings.rutaDirecta !== false ? rutaDirecta(text) : null;
+  const skillDirecta = directa && skills.find((s) => s.name === directa.tool);
+  if (skillDirecta) {
+    let result;
+    try { result = await skillDirecta.run(directa.args, context); } catch (error) { result = {ok: false, error: error?.message ?? String(error)}; }
+    const step = {tool: directa.tool, args: directa.args, result};
+    onStep(step);
+    return {reply: respuestaHonesta("", [step]), steps: [step], usage: {prompt: 0, completion: 0}, directa: true};
+  }
   const contenido = !imagenes.length ? text
     : settings.vision ? [{type: "text", text}, ...imagenes.map((url) => ({type: "image_url", image_url: {url}}))]
     : `${text}
@@ -164,6 +201,11 @@ export async function runAgent({text, imagenes = [], history = [], settings = DE
       onStep(step);
       messages.push({role: "tool", tool_call_id: call.id, content: JSON.stringify(result)});
     }
+    // Todas las herramientas de esta ronda respondieron bien con su mensaje: la respuesta sale de
+    // ahí (respuestaHonesta), sin pagar otra llamada al modelo solo para redactarla. Si alguna
+    // falló, el modelo tiene otra ronda para corregir la llamada.
+    const ronda = steps.slice(-calls.length);
+    if (ronda.every((s) => s.result?.ok !== false && s.result?.mensaje)) return {reply: respuestaHonesta("", steps), steps, usage};
   }
   return {reply: steps.length ? respuestaHonesta("", steps) : "Se alcanzó el límite de pasos para este pedido.", steps, usage};
 }

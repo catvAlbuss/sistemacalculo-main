@@ -100,6 +100,13 @@ console.log(`${'Partida'.padEnd(34)} ${'Ingeniero'.padStart(9)} ${'Agente'.padSt
 for (const f of filas) console.log(`${f.nombre.padEnd(34)} ${fmt(f.ing)} ${fmt(f.ag)}   ${f.dif === null ? (f.ing === null ? 'solo agente' : 'falta') : `${f.dif >= 0 ? '+' : ''}${Math.round(f.dif * 100)} %`}`);
 const comparables = filas.filter((f) => f.dif !== null);
 const cerca = comparables.filter((f) => Math.abs(f.dif) <= 0.15).length;
-console.log(`\n${cerca}/${comparables.length} partidas dentro de ±15 %; faltan ${filas.filter((f) => f.ag === null).length}.`);
+const exactas = comparables.filter((f) => Math.abs(f.dif) <= 0.05).length;
+const pct = (n) => `${Math.round((100 * n) / (comparables.length || 1))} %`;
+// Nivel ingeniero: ±5 % (lo que el cliente acepta al comparar con su Excel); ±15 %: misma partida
+// con otro criterio. Lo que queda afuera es lo que hay que entrenar.
+console.log(`\nNivel ingeniero (±5 %): ${exactas}/${comparables.length} partidas (${pct(exactas)}).`);
+console.log(`${cerca}/${comparables.length} partidas dentro de ±15 % (${pct(cerca)}); faltan ${filas.filter((f) => f.ag === null).length}.`);
+const entrenar = comparables.filter((f) => Math.abs(f.dif) > 0.05).sort((a, b) => Math.abs(b.dif) - Math.abs(a.dif));
+if (entrenar.length) console.log(`Por entrenar: ${entrenar.map((f) => `${f.nombre} (${f.dif >= 0 ? '+' : ''}${Math.round(f.dif * 100)} %)`).join('; ')}.`);
 console.log(`Modelo: ${JSON.stringify({niveles: ctx.memoria.modeloEstructural.niveles, techo: ctx.memoria.modeloEstructural.techo, cimentacion: {tipo: ctx.memoria.modeloEstructural.cimentacion.tipo, hz: ctx.memoria.modeloEstructural.cimentacion.hz, df: ctx.memoria.modeloEstructural.cimentacion.df}, columnas: ctx.memoria.modeloEstructural.columnas.length, tramos: ctx.memoria.modeloEstructural.cimientoCorrido.tramos?.length, vigas: ctx.memoria.modeloEstructural.vigas.length, columnetas: ctx.memoria.modeloEstructural.columnetas.length, losa: ctx.memoria.modeloEstructural.losa && {e: ctx.memoria.modeloEstructural.losa.espesor, area: +ctx.memoria.modeloEstructural.losa.areaPanos.toFixed(2)}})}`);
 process.exit(0);
