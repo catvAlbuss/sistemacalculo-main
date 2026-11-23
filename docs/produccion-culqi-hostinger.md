@@ -137,3 +137,23 @@ Mantener una única entrada del scheduler cada minuto. Añadir el worker payment
 ```
 
 Después de verificar el proveedor y la cola, se puede ejecutar `"$PHP_BIN" artisan correo:probar TU_CORREO` para una prueba real autorizada. Para recuperar fallidos, usar primero la vista previa `"$PHP_BIN" artisan payments:retry-mails --days=7`; revisar el listado y luego ejecutar el mismo comando con `--apply`. La recuperación omite los envíos inciertos por defecto.
+
+## Acumulación de jobs para pocas tareas pendientes
+
+El caso observado de siete tareas pendientes y 3454 jobs se reproduce cuando el scheduler reencola las mismas tareas cada diez minutos y el worker no está activo. Un DONE de ProcessPaymentTask también aparece cuando la tarea ya está completada y se omite; no demuestra otro correo enviado.
+
+La corrección está en `app/Jobs/ProcessPaymentTask.php`: el job es único por taskId hasta comenzar su procesamiento. El candado usa el cache compartido de producción (database), sin caducar mientras el worker esté detenido. Al comenzar se libera para conservar reintentos y recuperación de fallidos. Los jobs anteriores permanecen y se pueden procesar normalmente.
+
+Después de subir el archivo corregido al servidor:
+
+```bash
+cd /home/u112634954/domains/ryaie.com/public_html
+PHP_BIN=/opt/alt/php83/usr/bin/php
+"$PHP_BIN" artisan queue:restart
+"$PHP_BIN" artisan queue:work payments --queue=payments --stop-when-empty --max-time=120 --tries=5 --timeout=45
+"$PHP_BIN" artisan payments:status
+```
+
+Si queda cola, repetir el procesamiento y volver a consultar el estado. Las tareas diferidas pueden esperar a su próximo instante disponible. Mantener el worker del cron para que se procesen posteriormente. El conteo de jobs debe bajar; completed/sent en una tarea significa aceptación del proveedor, cuya entrega se contrasta con Enviados y los registros de Hostinger. No se necesita borrar la cola ni las tablas.
+
+Verificación local: 37 pruebas de cola, recuperación y pagos pasan en SQLite, incluida la reproducción que antes generaba cuatro jobs para una sola tarea y ahora conserva uno, aun tras dos días sin worker.

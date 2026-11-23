@@ -4,9 +4,10 @@ namespace App\Jobs;
 
 use App\Services\PaymentTasks;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Foundation\Queue\Queueable;
 
-class ProcessPaymentTask implements ShouldQueue
+class ProcessPaymentTask implements ShouldQueue, ShouldBeUniqueUntilProcessing
 {
     use Queueable;
 
@@ -21,6 +22,12 @@ class ProcessPaymentTask implements ShouldQueue
     public function backoff(): array
     {
         return [30, 120, 300, 600];
+    }
+
+    public function uniqueId(): string
+    {
+        // Keep one queued job per durable task even if the worker is offline for days.
+        return (string) $this->taskId;
     }
 
     public function handle(PaymentTasks $tasks): void
