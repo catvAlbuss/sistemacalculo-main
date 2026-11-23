@@ -20,4 +20,11 @@ class ExchangeRate extends Model
         return static::whereBetween('date', [today('America/Lima')->subDays(7)->toDateString(), today('America/Lima')->toDateString()])
             ->orderByDesc('date')->first();
     }
+
+    /** Reference for estimating a fixed processing cost in PEN, never for converting a USD sale. */
+    public static function latestPublished(): ?self
+    {
+        return static::where('date', '<=', today('America/Lima')->toDateString())
+            ->whereBetween('sell', [2, 6])->orderByDesc('date')->first();
+    }
 }

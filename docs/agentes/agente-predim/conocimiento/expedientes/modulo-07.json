@@ -1,0 +1,361 @@
+{
+ "expediente": "7.VINCHOS MODULO 7.- ESTRUCTURAS.dwg",
+ "nombre": "modulo-07",
+ "aprendido": "2026-11-18",
+ "tamano": {
+  "entidades": 75962,
+  "cotas": 494,
+  "achurados": 1452
+ },
+ "estilo": {
+  "ejes": {
+   "capa": "49. EJES.",
+   "colorCapa": 152,
+   "radio": 0.16,
+   "burbujas": 83
+  },
+  "cotas": {
+   "cantidad": 494,
+   "estilo": "ROMAN50",
+   "capa": "0"
+  },
+  "rotuloColumna": {
+   "capa": "COTAS & TEXTOS",
+   "colorCapa": 131,
+   "alto": 0.1,
+   "muestras": 48
+  },
+  "codigoColumneta": {
+   "capa": ".N1 Cimiento Corrido",
+   "colorCapa": 253,
+   "alto": 0.064,
+   "muestras": 24
+  },
+  "titulo": {
+   "capa": "NCAMINO1",
+   "colorCapa": 10,
+   "alto": 0.069,
+   "muestras": 6
+  },
+  "niveles": {
+   "capa": ".D1 cotas",
+   "colorCapa": 1,
+   "alto": 0.1,
+   "muestras": 24
+  },
+  "rotuloViga": null,
+  "textoLosa": null,
+  "achurados": [
+   {
+    "patron": "SOLID",
+    "capa": "fierros",
+    "veces": 965
+   },
+   {
+    "patron": "SOLID",
+    "capa": "AC Ø 1-2",
+    "veces": 138
+   },
+   {
+    "patron": "AR-CONC",
+    "capa": ".N1 Cimiento Corrido",
+    "veces": 81
+   },
+   {
+    "patron": "NET",
+    "capa": "E_Estribo",
+    "veces": 59
+   },
+   {
+    "patron": "SOLID",
+    "capa": ".D1 Corte",
+    "veces": 54
+   },
+   {
+    "patron": "NET",
+    "capa": "G_Achurados",
+    "veces": 32
+   },
+   {
+    "patron": "AR-CONC",
+    "capa": "SOBRECIMIENTO",
+    "veces": 17
+   },
+   {
+    "patron": "GRAVEL",
+    "capa": "CONCRETO",
+    "veces": 14
+   },
+   {
+    "patron": "AR-CONC",
+    "capa": "CONCRETO",
+    "veces": 12
+   },
+   {
+    "patron": "BRICK",
+    "capa": "ladrillo",
+    "veces": 12
+   },
+   {
+    "patron": "ANSI36",
+    "capa": ".",
+    "veces": 8
+   },
+   {
+    "patron": "EARTH",
+    "capa": "Tierra de chacr",
+    "veces": 6
+   }
+  ]
+ },
+ "criterios": {
+  "concreto": [
+   {
+    "valor": "f'c=100",
+    "veces": 3,
+    "ejemplo": "f'c= 100 kg/cm2 + 30"
+   },
+   {
+    "valor": "f'c=210",
+    "veces": 2,
+    "ejemplo": "f'c=210 Kg/cm², en el resto de estructuras."
+   },
+   {
+    "valor": "f'c=210 vigas",
+    "veces": 1,
+    "ejemplo": "f'c=210 Kg/cm², zapatas, vigas de cimentación y en cimiento reforzado."
+   },
+   {
+    "valor": "f'c=175 columnetas",
+    "veces": 1,
+    "ejemplo": "f'c=175 Kg/cm², columnetas de confinamiento"
+   },
+   {
+    "valor": "f'c=140",
+    "veces": 1,
+    "ejemplo": "f'c=140kg/cm2+25%PM"
+   }
+  ],
+  "ciclopeo": [
+   {
+    "valor": "100 + 30% PG",
+    "veces": 1,
+    "ejemplo": "Ciclópeo f'c=100 kg/cm2+30%PG"
+   },
+   {
+    "valor": "140 + 25% PM",
+    "veces": 1,
+    "ejemplo": "f'c=140kg/cm2+25%PM"
+   }
+  ],
+  "estribos": [
+   {
+    "valor": "3/8\": 1@0.05, 10@0.10, Rto@0.20",
+    "veces": 2,
+    "ejemplo": "0.50x0.70m 12∅5/8\" ,4∅3/4\" 3 3/8\" ∅: 1@0.05,10@10,Rst. @0.20 C/E"
+   },
+   {
+    "valor": "3/8\": 1@0.05, 9@0.10, Rto@0.20",
+    "veces": 1,
+    "ejemplo": "1 3/8\" Ø: 1@0.05, 9@0.10,"
+   },
+   {
+    "valor": "3/8\": 1@0.05, 8@0.10, Rto@0.20",
+    "veces": 1,
+    "ejemplo": "1 3/8\" ∅: 1@0.05,8@0.10, Rst. @0.20 C/E"
+   }
+  ],
+  "varillas": [
+   {
+    "valor": "Ø5/8\"",
+    "veces": 4,
+    "ejemplo": "0.50x0.70m 12∅5/8\" ,4∅3/4\" 3 3/8\" ∅: 1@0.05,10@10,Rst. @0.20 C/E"
+   },
+   {
+    "valor": "Ø3/4\"",
+    "veces": 1,
+    "ejemplo": "0.50x0.70m 12∅5/8\" ,4∅3/4\" 3 3/8\" ∅: 1@0.05,10@10,Rst. @0.20 C/E"
+   },
+   {
+    "valor": "Ø3/8\"",
+    "veces": 1,
+    "ejemplo": "1∅3/8\""
+   }
+  ],
+  "secciones": [],
+  "hz": [
+   {
+    "valor": "Hz=0.70",
+    "veces": 1,
+    "ejemplo": "Hz=0.70m"
+   }
+  ],
+  "df": [
+   {
+    "valor": "Df=2.00",
+    "veces": 2,
+    "ejemplo": "Tipo de cimentación usada: Cimentación continua, Cimiento corrido. Profundidad de desplant"
+   },
+   {
+    "valor": "Df=4.85",
+    "veces": 2,
+    "ejemplo": "Df=4.85m"
+   }
+  ],
+  "losa": [],
+  "niveles": [
+   {
+    "valor": "NTN 0.15",
+    "veces": 1,
+    "ejemplo": "N.T.N = 0.15"
+   },
+   {
+    "valor": "NFZ -2.15",
+    "veces": 1,
+    "ejemplo": "NFZ=-2.15m"
+   },
+   {
+    "valor": "NFP +7.00",
+    "veces": 1,
+    "ejemplo": "NFP=+7.00m"
+   },
+   {
+    "valor": "NFP +12.00",
+    "veces": 1,
+    "ejemplo": "NFP=+12.00m"
+   },
+   {
+    "valor": "NFZ -2.05",
+    "veces": 1,
+    "ejemplo": "NFZ=-2.05m"
+   },
+   {
+    "valor": "NTN 0.00",
+    "veces": 1,
+    "ejemplo": "N.T.N = 0.00"
+   },
+   {
+    "valor": "NPT -4.32",
+    "veces": 1,
+    "ejemplo": "N.P.T = -4.32"
+   },
+   {
+    "valor": "NFZ -5.55",
+    "veces": 1,
+    "ejemplo": "NFZ=-5.55m"
+   },
+   {
+    "valor": "NFZ -5.65",
+    "veces": 1,
+    "ejemplo": "NFZ=-5.65m"
+   },
+   {
+    "valor": "NFP +6.96",
+    "veces": 1,
+    "ejemplo": "NFP=+6.96m"
+   }
+  ],
+  "recubrimientos": [
+   {
+    "valor": "4 cm",
+    "veces": 2,
+    "ejemplo": "En vigas peraltadas será de 4 cm."
+   },
+   {
+    "valor": "2 cm",
+    "veces": 1,
+    "ejemplo": "En vigas chatas, losas aligeradas y losas macizas será de 2 cm."
+   },
+   {
+    "valor": "2.5 cm",
+    "veces": 1,
+    "ejemplo": "En vigas y columnas en muros de albañileria será de 2.5 cm."
+   }
+  ],
+  "cobertura": [],
+  "sismo": [
+   {
+    "valor": "U=1.5",
+    "veces": 3,
+    "ejemplo": "Tipo de cimentación usada: Cimentación continua, Cimiento corrido. Profundidad de desplant"
+   },
+   {
+    "valor": "C=2.5",
+    "veces": 3,
+    "ejemplo": "C=2.5"
+   },
+   {
+    "valor": "Z=0.25",
+    "veces": 2,
+    "ejemplo": "Tipo de cimentación usada: Cimentación continua, Cimiento corrido. Profundidad de desplant"
+   },
+   {
+    "valor": "S=5.00",
+    "veces": 1,
+    "ejemplo": "La junta sísmica entre las edificaciones vecinas a considerar en este proyecto es de S=5.0"
+   },
+   {
+    "valor": "S=3",
+    "veces": 1,
+    "ejemplo": "S=3"
+   },
+   {
+    "valor": "S=1.40",
+    "veces": 1,
+    "ejemplo": "S=1.40(suelo tipo s3)"
+   },
+   {
+    "valor": "S=0.05",
+    "veces": 1,
+    "ejemplo": "S=0.05%"
+   }
+  ],
+  "muro": [
+   {
+    "valor": "soga",
+    "veces": 1,
+    "ejemplo": "Muro de soga de ladrillo King Kong Tipo IV - 23x12.5x9cm"
+   },
+   {
+    "valor": "ladrillo King Kong Tipo IV - 23x12.5x9cm",
+    "veces": 1,
+    "ejemplo": "Muro de soga de ladrillo King Kong Tipo IV - 23x12.5x9cm"
+   }
+  ],
+  "textoCompleto": 14906
+ },
+ "planos": {
+  "laminas": [
+   "E-38",
+   "E-39",
+   "E-40",
+   "E-41",
+   "E-43",
+   "E-42"
+  ],
+  "titulos": [
+   "PLANO DE CIMENTACION",
+   "PLANO DE VIGA PERALTADA",
+   "PLANO DE PORTICO",
+   "PLANO DE COBERTURA"
+  ],
+  "cortes": [
+   "CORTE 2-2 ESC.: 1/50",
+   "CORTE 1-1 ESC.: 1/50"
+  ],
+  "detalles": [
+   "DETALLE",
+   "DETALLE DE Ø EN CASO DE ENCUENTROS EN PLANTA",
+   "DETALLE DE ESTRIBOS",
+   "DETALLE DE LA UBICACION Y LONGITUD",
+   "DETALLE DE PLANCHA 1",
+   "DETALLE - DE GRADERIA",
+   "DETALLE DE LA CIMENTACIÓN",
+   "DETALLE DEL REFUERZO"
+  ],
+  "cuadros": [
+   "CUADRO DE ZAPATAS",
+   "CUADRO DE COLUMNA"
+  ]
+ }
+}

@@ -1,5 +1,5 @@
 <!-- Side Panel -->
-<aside class="cad-bg cad-border relative flex h-full w-20 shrink-0 flex-col border-r-4" x-data="{ itemsPanelCollapsed: true }">
+<aside class="structural-tools cad-bg cad-border relative flex h-full w-20 shrink-0 flex-col border-r-4" x-data="{ itemsPanelCollapsed: true }">
     {{-- ============================================================
          BARRA DE HERRAMIENTAS RÁPIDAS
          Accesos directos a las acciones más usadas. Cada botón llama al
@@ -172,7 +172,7 @@
          2D cuando está abierto. Así el canvas siempre tiene su ancho
          completo (flex-1 en cad-area.blade.php); el panel solo "flota"
          encima mientras el usuario lo necesita. --}}
-    <div x-show="!itemsPanelCollapsed" x-cloak x-transition class="cad-bg cad-border absolute left-full top-0 z-20 flex h-full w-80 flex-col overflow-y-auto rounded-r-md border-r-4 shadow-2xl">
+    <div x-show="!itemsPanelCollapsed" x-cloak x-transition class="structural-properties cad-bg cad-border absolute left-full top-0 z-20 flex h-full w-80 flex-col overflow-y-auto rounded-r-md border-r-4 shadow-2xl">
 
         <!-- Panel de Grillas Diagonales -->
         <x-cad.ui.panel title="Items" init="isOpen = false">

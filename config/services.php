@@ -53,6 +53,26 @@ return [
         // Render detiene el plan gratuito por inactividad: despertar tarda cerca de un minuto.
         'timeout' => (int) env('CAD_API_TIMEOUT', 90),
     ],
+    // Motor de lenguaje del Agente NovaCad. Todo se configura aquí desde el .env (proveedor,
+    // URL, clave, modelo): el navegador habla con /software/etabs/agente/llm y nunca ve nada
+    // de esto. Proveedores con API compatible con OpenAI: openai, gemini, grok, ollama.
+    'agente_llm' => [
+        'proveedor' => env('AGENTE_LLM_PROVEEDOR', 'openai'),
+        'url' => env('AGENTE_LLM_URL'), // vacío: la URL del proveedor
+        'key' => env('AGENTE_LLM_KEY', env('OPENAI_API_KEY')),
+        // 'auto': el servidor elige (económico primero, el más capaz solo si hace falta).
+        'model' => env('AGENTE_LLM_MODEL', 'auto'),
+        'modelos' => env('AGENTE_LLM_MODELOS'),            // cadena del modo auto, ej. "gpt-4.1-mini,gpt-4.1"
+        'razonamiento' => env('AGENTE_LLM_RAZONAMIENTO', 'low'),
+        'tokens_dia' => (int) env('AGENTE_LLM_TOKENS_DIA', 2000000), // tope diario de tokens (0 = sin tope)
+        // auto: memoria completa del agente salvo en modelos locales chicos (Ollama 4B).
+        'memoria' => env('AGENTE_LLM_MEMORIA', 'auto'),
+        // ¿El modelo ve fotos? auto: sí en la nube; en Ollama solo si se indica.
+        'vision' => env('AGENTE_LLM_VISION', 'auto'),
+        'max_tokens' => (int) env('AGENTE_LLM_MAX_TOKENS', 1500),
+        'timeout' => (int) env('AGENTE_LLM_TIMEOUT', 90),
+        'por_minuto' => (int) env('AGENTE_LLM_POR_MINUTO', 20),
+    ],
     'python_backend' => [
         'url' => env('PYTHON_BACKEND_URL', 'http://127.0.0.1:5001'),
         // Carpeta del motor CLI en producción Linux (venv + cli_entry.py).

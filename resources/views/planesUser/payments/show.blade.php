@@ -21,7 +21,28 @@
 @forelse ($payment->events->sortByDesc('id') as $event)<article class="pr-panel wk-card"><p class="font-semibold">{{ $event->created_at->format('d/m/Y H:i') }} · {{ $event->kind }} · {{ $event->severity }}</p>@foreach ($event->details ?? [] as $key => $value)<p class="text-sm">{{ $key }}: {{ $value }}</p>@endforeach
 @if ($event->reviewed_at)<p>Revisado el {{ $event->reviewed_at->format('d/m/Y H:i') }} por usuario #{{ $event->reviewed_by }}: {{ $event->review_note }}</p>
 @elseif ($event->severity === 'warning')<form method="POST" action="{{ route('payments.admin.review', $event) }}" class="space-y-2">@csrf<label class="block">Resultado de la revisión<input name="note" required minlength="5" maxlength="500" class="pr-input"></label><button class="pr-button">Registrar revisión</button></form>@endif</article>@empty<p>No hay eventos para esta solicitud anterior.</p>@endforelse
+<section class="pr-panel wk-card">
+<h2 class="text-xl font-bold">Correos de esta solicitud</h2>
+<p>El reenvío conserva el pago y su ticket. Un correo completado indica aceptación del proveedor; revisa también spam o los registros del buzón.</p>
+@php($mailOptions = ['signup_client' => 'Reenviar información de la solicitud', 'access_client' => 'Enviar enlace para crear o restablecer contraseña'])
+@if($payment->status === 'approved' && $payment->gateway_charge_id && $payment->receipt)
+    @php($mailOptions += ['paid_client' => 'Reenviar ticket al cliente', 'paid_admin' => 'Reenviar ticket a administración'])
+@endif
+@foreach($mailOptions as $kind => $label)
+<form method="POST" action="{{ route('payments.admin.resend-mail', $payment) }}" class="mt-3">@csrf
+    <input type="hidden" name="kind" value="{{ $kind }}"><input type="hidden" name="resend_key" value="{{ \Illuminate\Support\Str::uuid() }}">
+    <button class="pr-button pr-button-secondary">{{ $label }}</button>
+</form>
+@endforeach
+</section>
 <h2 class="text-xl font-bold">Tareas de cola</h2>
-@foreach ($tasks as $task)<p>#{{ $task->id }} · {{ $task->kind }} · {{ $task->status }} · Intentos: {{ $task->attempts }} · {{ $task->result }}</p>@endforeach
+@foreach ($tasks as $task)
+<article class="pr-panel wk-card"><p>#{{ $task->id }} · {{ $task->kind }} · {{ $task->status }} · Intentos: {{ $task->attempts }} · {{ $task->result }}</p>
+@if($task->status === 'failed' && in_array($task->kind, \App\Services\PaymentMailRecovery::KINDS, true))
+@if($task->result === 'delivery_uncertain')<p>Hostinger no confirmó la respuesta. Revisa la carpeta Enviados del buzón antes de reintentar para evitar una copia duplicada.</p>@endif
+<form method="POST" action="{{ route('payments.admin.retry-mail', [$payment, $task]) }}">@csrf<button class="pr-button">{{ $task->result === 'delivery_uncertain' ? 'Reenviar tras verificar Enviados' : 'Reintentar correo fallido' }}</button></form>
+@endif
+</article>
+@endforeach
 </div>
 @endsection

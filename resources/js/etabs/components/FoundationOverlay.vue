@@ -1,13 +1,15 @@
 <template>
-    <canvas ref="canvasRef" class="foundation-overlay" :class="{ active: enabled }" @mousedown="onMouseDown"
+    <canvas ref="canvasRef" class="foundation-overlay" :style="canvasStyle" :class="{ active: enabled }" @mousedown="onMouseDown"
         @mouseup="onMouseUp" @mousemove="onMouseMove" @mouseleave="onMouseLeave" @wheel.prevent="onWheel"
         @contextmenu.prevent />
 </template>
 
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {overlayFrame, fitViewport, isCanvasPoint} from '../composables/viewportGeometry.js';
 
 const props = defineProps({
+    viewportHost: {type:Object,default:null},
     enabled: {
         type: Boolean,
         default: true,
@@ -28,9 +30,14 @@ const props = defineProps({
         type: Number,
         default: 0,
     },
+    // {id, polygons}: reemplaza las zapatas del overlay (ej. zapatas de ejemplo).
+    loadRequest: {
+        type: Object,
+        default: null,
+    },
 });
 
-const emit = defineEmits(["polygons-change"]);
+const emit = defineEmits(["polygons-change", "frame-change"]);
 
 const canvasRef = ref(null);
 
@@ -51,22 +58,33 @@ const view = ref({
     scale: 50,
 });
 
-const VIEWER_TOP_SAFE_AREA_PX = 96;
-const VIEWER_BOTTOM_SAFE_AREA_PX = 34;
+const canvasStyle = ref({left:'0px',top:'0px',width:'0px',height:'0px'});
+let host = null, plane = null, resizeObserver = null, mutationObserver = null;
 
 function getDrawableRect() {
     const canvas = getCanvas();
-    const dpr = window.devicePixelRatio || 1;
+    return {x:0,y:0,width:canvas?.width || 0,height:canvas?.height || 0};
+}
 
-    const top = VIEWER_TOP_SAFE_AREA_PX * dpr;
-    const bottom = VIEWER_BOTTOM_SAFE_AREA_PX * dpr;
-
-    return {
-        x: 0,
-        y: top,
-        width: canvas?.width ?? 1,
-        height: Math.max(1, (canvas?.height ?? 1) - top - bottom),
+function observeViewport() {
+    resizeObserver?.disconnect();mutationObserver?.disconnect();
+    host = props.viewportHost || getCanvas()?.parentElement;
+    plane = null;
+    if (!host) return;
+    resizeObserver = new ResizeObserver(resizeCanvas);
+    resizeObserver.observe(host);
+    const findPlane = () => {
+        if (plane?.isConnected && host.contains(plane)) return;
+        const next = host.querySelector('.ml-cad-main');
+        if (next === plane) return;
+        if (plane) resizeObserver.unobserve(plane);
+        plane = next;
+        if (plane) resizeObserver.observe(plane);
+        resizeCanvas();
     };
+    mutationObserver = new MutationObserver(findPlane);
+    mutationObserver.observe(host,{childList:true,subtree:true});
+    findPlane();
 }
 
 function withDrawableClip(ctx, callback) {
@@ -92,15 +110,20 @@ function getContext() {
 
 function resizeCanvas() {
     const canvas = getCanvas();
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
+    if (!canvas || !host) return;
+    if (!plane) {
+        canvasStyle.value = {left:'0px',top:'0px',width:'0px',height:'0px'};
+        canvas.width=1;canvas.height=1;
+        emit('frame-change', null);
+        return;
+    }
+    const frame = overlayFrame(host.getBoundingClientRect(),plane.getBoundingClientRect());
+    emit('frame-change', frame);
+    canvasStyle.value = {left:frame.left+'px',top:frame.top+'px',width:frame.width+'px',height:frame.height+'px'};
     const dpr = window.devicePixelRatio || 1;
-
-    canvas.width = Math.max(1, rect.width * dpr);
-    canvas.height = Math.max(1, rect.height * dpr);
-
-    redraw();
+    const width=Math.max(1,Math.round(frame.width*dpr)),height=Math.max(1,Math.round(frame.height*dpr));
+    if(canvas.width!==width || canvas.height!==height){canvas.width=width;canvas.height=height;fitColumns();}
+    else redraw();
 }
 
 function worldToScreen(point) {
@@ -137,33 +160,11 @@ function getMouseScreen(event) {
 }
 
 function fitColumns() {
-    const validColumns = props.columns.filter((column) => {
-        return Number.isFinite(Number(column.x)) && Number.isFinite(Number(column.y));
-    });
-
-    if (!validColumns.length) {
-        redraw();
-        return;
-    }
-
     const canvas = getCanvas();
     if (!canvas) return;
-
-    const xs = validColumns.map((column) => Number(column.x));
-    const ys = validColumns.map((column) => Number(column.y));
-
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-
-    const rangeX = Math.max(maxX - minX, 1);
-    const rangeY = Math.max(maxY - minY, 1);
-
-    view.value.centerX = (minX + maxX) / 2;
-    view.value.centerY = (minY + maxY) / 2;
-    view.value.scale = Math.min(canvas.width / rangeX, canvas.height / rangeY) * 0.75;
-
+    const points = [...props.columns, ...polygons.value.flatMap(polygon=>polygon.nodes || [])];
+    const fitted = fitViewport(points,canvas.width,canvas.height);
+    if (fitted) Object.assign(view.value,fitted);
     redraw();
 }
 
@@ -315,6 +316,7 @@ function onMouseDown(event) {
     if (!props.enabled) return;
 
     const screenPoint = getMouseScreen(event);
+    if(!isCanvasPoint(screenPoint,getCanvas().width,getCanvas().height))return;
     const worldPoint = screenToWorld(screenPoint);
     mouseWorld.value = worldPoint;
 
@@ -358,6 +360,7 @@ function onMouseMove(event) {
     if (!props.enabled) return;
 
     const screenPoint = getMouseScreen(event);
+    if(!isCanvasPoint(screenPoint,getCanvas().width,getCanvas().height))return;
     const worldPoint = screenToWorld(screenPoint);
     mouseWorld.value = worldPoint;
 
@@ -387,6 +390,7 @@ function onWheel(event) {
     if (!props.enabled) return;
 
     const screenPoint = getMouseScreen(event);
+    if(!isCanvasPoint(screenPoint,getCanvas().width,getCanvas().height))return;
     const before = screenToWorld(screenPoint);
 
     const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
@@ -502,7 +506,7 @@ function drawPolygon(ctx, polygon, index) {
     const first = worldToScreen(polygon.nodes[0]);
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 13px Arial";
-    ctx.fillText(`Z${index + 1}`, first.x + 8, first.y + 8);
+    ctx.fillText(polygon.label || `Z${index + 1}`, first.x + 8, first.y + 8);
 
     ctx.restore();
 }
@@ -624,6 +628,23 @@ watch(
 );
 
 watch(
+    () => props.loadRequest,
+    (request) => {
+        if (!request) return;
+        polygons.value = (request.polygons || []).map((polygon) => ({
+            ...polygon,
+            closed: true,
+            nodes: polygon.nodes.map((node, index) => ({id: index + 1, x: Number(node.x), y: Number(node.y)})),
+        }));
+        currentPoints.value = [];
+        selectedPoint.value = null;
+        selectedPolygon.value = null;
+        emitPolygons();
+        fitColumns();
+    }
+);
+
+watch(
     () => props.fitSignal,
     () => {
         fitColumns();
@@ -639,7 +660,7 @@ watch(
 
 onMounted(() => {
     nextTick(() => {
-        resizeCanvas();
+        observeViewport();
         fitColumns();
     });
 
@@ -647,7 +668,10 @@ onMounted(() => {
     window.addEventListener("keydown", onKeyDown);
 });
 
+watch(()=>props.viewportHost,()=>nextTick(observeViewport));
+
 onBeforeUnmount(() => {
+    resizeObserver?.disconnect();mutationObserver?.disconnect();
     window.removeEventListener("resize", resizeCanvas);
     window.removeEventListener("keydown", onKeyDown);
 });
@@ -656,10 +680,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .foundation-overlay {
     position: absolute;
-    inset: 0;
-    z-index: 50;
-    width: 100%;
-    height: 100%;
+    z-index: 2;
     pointer-events: none;
     background: transparent;
 }

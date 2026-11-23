@@ -1,0 +1,44 @@
+@import './novacad-icons.css';
+/* La misma vista y los mismos controles del visor. NovaCad define solamente
+   tipografía, superficies, contraste y estados mediante variables públicas. */
+.novacad-workspace :is(.ml-theme-light,.ml-theme-dark) {
+    --ml-rb-bg:var(--pr-panel);--ml-rb-panel-bg:var(--pr-panel);--ml-rb-surface:var(--pr-panel);
+    --ml-rb-surface-soft:var(--pr-soft);--ml-rb-header-start:var(--pr-soft);--ml-rb-header-end:var(--pr-soft);
+    --ml-rb-tab-text:var(--pr-text);--ml-rb-muted:var(--pr-muted);--ml-rb-border:var(--pr-line);--ml-rb-border-strong:var(--pr-line);
+    --ml-rb-hover-bg:var(--pr-soft);--ml-rb-hover-border:var(--pr-line);
+    --ml-rb-active-bg:var(--pr-soft);--ml-rb-active:var(--pr-blue);--ml-rb-active-border:var(--pr-blue);
+    --ml-rb-keytip-bg:var(--pr-panel);--ml-rb-keytip-border:var(--pr-blue);
+    --ml-rb-split-icon-hover-bg:var(--pr-soft);--ml-rb-split-icon-hover-fg:var(--pr-blue);
+    --ml-rb-split-label-hover-bg:var(--pr-soft);--ml-rb-split-label-hover-fg:var(--pr-text);
+    font-family:Figtree,ui-sans-serif,system-ui,sans-serif;
+}
+/* Incluye los diálogos/paletas que Element Plus teletransporta al body. */
+body:has(#cad-viewer-app) :is(.ml-cad-viewer-container,.ml-ribbon-popper,.el-overlay,.el-popper,.el-message-box,.el-notification) {
+    --el-bg-color:var(--pr-panel);--el-bg-color-overlay:var(--pr-panel);--el-bg-color-page:var(--pr-bg);
+    --el-text-color-primary:var(--pr-text);--el-text-color-regular:var(--pr-text);--el-text-color-secondary:var(--pr-muted);--el-text-color-placeholder:var(--pr-muted);
+    --el-border-color:var(--fz-control-line);--el-border-color-light:var(--pr-line);--el-border-color-lighter:var(--pr-line);
+    --el-fill-color:var(--pr-soft);--el-fill-color-light:var(--pr-soft);--el-fill-color-lighter:var(--pr-soft);--el-fill-color-blank:var(--pr-panel);
+    --el-color-primary:var(--fz-accent);--el-color-primary-light-9:var(--pr-soft);
+    --el-disabled-bg-color:var(--pr-soft);--el-disabled-text-color:var(--pr-muted);
+    font-family:Figtree,ui-sans-serif,system-ui,sans-serif;
+}
+.novacad-workspace .ml-ribbon { border-color:var(--pr-line); }
+.novacad-workspace .ml-ribbon-tab { border:1px solid transparent;border-radius:5px;font-weight:600; }
+.novacad-workspace .ml-ribbon-tab.is-active { border-color:var(--pr-line);box-shadow:inset 0 -2px var(--pr-blue); }
+.novacad-workspace :is(.ml-ribbon__header,.ml-ribbon__panel) { background:var(--pr-panel);color:var(--pr-text); }
+.novacad-workspace .ml-ribbon-group { border-color:var(--pr-line); }
+.novacad-workspace :is(.ml-ribbon-tab,.ml-ribbon-item-host,.ml-ribbon-toggle) { color:var(--pr-text); }
+.novacad-workspace :is(.ml-ribbon-item-host__label,.ml-ribbon-button__label,.ml-ribbon-dropdown__label) { font-family:inherit;font-weight:500; }
+.novacad-workspace :is(.ml-ribbon-item-host__icon,.ml-ribbon-button__icon,.ml-ribbon-dropdown__icon) { color:var(--pr-blue); }
+.novacad-workspace :is(.ml-ribbon-tab,.ml-ribbon-item-host,.ml-ribbon-toggle):hover:not([disabled]) { background-color:var(--pr-soft); }
+.novacad-workspace :is(.ml-ribbon-tab,.ml-ribbon-toggle)[aria-selected="true"],
+.novacad-workspace :is(.ml-ribbon-tab,.ml-ribbon-toggle).is-active { color:var(--pr-blue);background:var(--pr-soft); }
+.novacad-workspace :is(button,input,select,textarea,[tabindex]):focus-visible { outline:2px solid var(--pr-blue);outline-offset:-2px; }
+.novacad-workspace :is(.ml-ribbon__panel,.ml-vertical-toolbar-host) { scrollbar-width:thin;scrollbar-color:var(--pr-muted) var(--pr-panel); }
+.novacad-workspace :is(.ml-cad-footer,.ml-status-bar) { background:var(--pr-panel);color:var(--pr-text);border-color:var(--pr-line); }
+.novacad-workspace .ml-status-bar button { color:var(--pr-text); }
+body:has(#cad-viewer-app) :is(.el-input__wrapper,.el-select__wrapper,.el-textarea__inner) { border-radius:5px; }
+body:has(#cad-viewer-app) :is(.el-table,.el-dialog,.el-popper) { color:var(--pr-text); }
+@media (prefers-reduced-motion:reduce) {
+    .novacad-workspace :is(.ml-ribbon-item-host,.ml-ribbon-tab) { transition:none; }
+}

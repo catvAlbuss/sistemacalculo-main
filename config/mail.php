@@ -58,8 +58,17 @@ return [
 
     'mailers' => [
 
+        'hostinger' => [
+            'transport' => 'hostinger',
+            'token' => env('HOSTINGER_MAIL_API_TOKEN'),
+            'mailbox_id' => env('HOSTINGER_MAILBOX_ID'),
+            'address' => env('HOSTINGER_MAILBOX_ADDRESS'),
+            'timeout' => 20,
+        ],
+
         'smtp' => [
             'transport' => 'smtp',
+            'scheme' => env('MAIL_SCHEME'),
             'url' => env('MAIL_URL'),
             'host' => $primaryHost,
             'port' => env('MAIL_PORT', 587),

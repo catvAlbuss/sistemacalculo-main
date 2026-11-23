@@ -4,6 +4,7 @@ import { glob } from "glob";
 import vue from '@vitejs/plugin-vue';
 import { resolve, dirname } from 'path';
 import fs from 'fs';
+import {novaCadNoticesPlugin} from './scripts/novacad-third-party-notices.mjs';
 
 // Stub para el builtin "module" de Node que el glue emscripten de
 // @mlightcad/libredwg-web referencia en una rama solo-Node (código muerto en el
@@ -18,10 +19,17 @@ const copyWorkers = () => {
             toPublic: resolve(__dirname, 'public/assets/dxf-parser-worker.js'),
             toBuild: resolve(__dirname, 'public/build/assets/assets/dxf-parser-worker.js')
         },
+        // Lector DWG (LibreDWG, GPL): corre aislado en este worker, que carga
+        // libredwg-web.wasm desde su misma carpeta.
         {
-            from: resolve(__dirname, 'node_modules/@mlightcad/cad-simple-viewer/dist/libredwg-parser-worker.js'),
+            from: resolve(__dirname, 'node_modules/@mlightcad/libredwg-converter/dist/libredwg-parser-worker.js'),
             toPublic: resolve(__dirname, 'public/assets/libredwg-parser-worker.js'),
             toBuild: resolve(__dirname, 'public/build/assets/assets/libredwg-parser-worker.js')
+        },
+        {
+            from: resolve(__dirname, 'node_modules/@mlightcad/libredwg-converter/dist/libredwg-web.wasm'),
+            toPublic: resolve(__dirname, 'public/assets/libredwg-web.wasm'),
+            toBuild: resolve(__dirname, 'public/build/assets/assets/libredwg-web.wasm')
         },
         {
             from: resolve(__dirname, 'node_modules/@mlightcad/cad-simple-viewer/dist/mtext-renderer-worker.js'),
@@ -86,6 +94,7 @@ export default defineConfig({
             exclude: ['resources/img/**'],
         }),
         copyWorkers(),
+        novaCadNoticesPlugin(),
     ],
     // libredwg-web (conversor DWG→DXF que carga el módulo CAD bajo demanda al
     // importar un plano .dwg) trae dentro un `await import("module")` de
@@ -95,6 +104,25 @@ export default defineConfig({
     // evalúa en el browser. El WASM va embebido (data-URI), no necesita servirse.
     optimizeDeps: {
         exclude: ['@mlightcad/libredwg-web'],
+        // El visor CAD carga sus plugins con import() dinámico. Si Vite los
+        // descubre recién en el navegador, re-optimiza a mitad de carga y la
+        // página mezcla dos copias de cad-simple-viewer: los comandos reciben
+        // un contexto sin vista ("Cannot set properties of undefined (setting
+        // 'mode')") y no se puede dibujar. Se pre-empaquetan todos juntos.
+        include: [
+            '@mlightcad/cad-viewer',
+            '@mlightcad/cad-simple-viewer',
+            '@mlightcad/data-model',
+            '@mlightcad/libredwg-converter',
+            '@mlightcad/cad-agent-plugin',
+            '@mlightcad/cad-agent-plugin/register',
+            '@mlightcad/cad-google-drive-plugin/register',
+            '@mlightcad/cad-onedrive-plugin/register',
+            '@mlightcad/cad-html-plugin',
+            '@mlightcad/cad-pdf-plugin',
+            'element-plus',
+            'element-plus/es/locale/lang/es',
+        ],
     },
     resolve: {
         alias: {

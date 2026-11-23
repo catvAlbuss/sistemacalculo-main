@@ -1,7 +1,7 @@
 export const LIGHT_PLOT_PALETTE={panel:'#fff',soft:'#f8fafc',text:'#172b43',line:'#dce4ee',accent:'#1959b8'};
 
 export function readPlotPalette(element) {
-  const root=element?.closest?.('[data-analysis-sheet]') || document.querySelector('[data-analysis-sheet]');
+  const root=element?.closest?.('[data-analysis-sheet]') || document.querySelector('[data-analysis-sheet]') || document.documentElement;
   if(!root)return LIGHT_PLOT_PALETTE;
   const css=getComputedStyle(root);
   return Object.fromEntries(Object.entries({panel:'--pr-panel',soft:'--pr-soft',text:'--pr-text',line:'--pr-line',accent:'--pr-blue'})

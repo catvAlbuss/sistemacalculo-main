@@ -1,0 +1,211 @@
+# Criterios de estructuras del Agente Predim
+
+Este documento resume los criterios que usa el agente para pasar de una planta de arquitectura a las láminas de estructuras. Se tomaron de los expedientes de referencia en `storage/app/private/entrenamiento/estructuras/` (fuera de git; ver `scripts/agente/planos.mjs`). El código está en `resources/js/ingenieria/criterios/criteriosEstructurales.js`. Cada valor de este documento corresponde a una entrada de ese archivo.
+
+**Estado:** se aprendieron del módulo XIV (Churubamba), que está completo como primera muestra. La memoria para el modelo de chat está en `docs/agentes/memoria-agente.md`. Faltan contrastar con el módulo 3 (Inicial) y el módulo 09 (Vilcabamba).
+
+## Cómo trabaja el agente
+
+1. **Lee la arquitectura.**
+   - Ejes con nombre, incluso inclinados o quebrados.
+   - Columnas en los cruces de ejes, aunque estén dentro de bloques o en la capa 0.
+   - Columnetas de confinamiento.
+   - Muros sobre los ejes.
+   - Niveles (N.F.T.).
+2. **Copia la plantilla de láminas.** Contiene los detalles estándar del despacho (`public/assets/plantillas/estructuras-laminas.dxf`) y se genera desde el expediente de referencia con `node scripts/agente/generar-plantilla-estructuras.mjs`. No incluye datos del proyecto de referencia: nombre del especialista, CIP, CUI ni entidad.
+3. **Genera lo propio del proyecto** y lo encaja en los espacios de la plantilla, a la escala de la lámina (1/25):
+
+| Lámina | Contenido generado |
+|---|---|
+| E-01 | Plano de cimentación, plano de cimiento corrido, plano de aligerado, cuadro de columnas |
+| E-02 | Pórticos de hasta 4 ejes, cuadro de columnas |
+
+## Criterios del módulo XIV
+
+### Concreto
+
+| Elemento | Valor | Origen en el expediente |
+|---|---|---|
+| Columnas y vigas | f'c = 210 kg/cm² | Cuadro de columnas, detalle de canaleta |
+| Columnetas | f'c = 175 kg/cm² | Cuadro de columnetas |
+| Cimiento corrido | Ciclópeo f'c = 100 kg/cm² + 30 % PG | Pórticos y especificaciones técnicas |
+| Sobrecimiento | Ciclópeo f'c = 100 kg/cm² + 25 % PM | Especificaciones técnicas |
+| Falsa zapata | f'c = 100 kg/cm² | Pórticos |
+
+### Cimentación
+
+- **Módulo pequeño (huella menor de 30 m²):** platea con Hz = 0.70 m y Df = −2.00 m, apoyada en una falsa zapata hasta el NFZ. El ingeniero la rotula "ZAPATA CORRIDA Hz = 0.70 m, Df = −2.00 m".
+- **Módulo grande:** zapatas aisladas predimensionadas por área tributaria.
+- **Cimiento corrido:** 0.60 × 0.80 m como mínimo constructivo, con N.F.C. = −0.80. El ancho crece si la carga del muro lo pide.
+- **Niveles:** N.P.T. = +0.15 y N.T.N. = ±0.00. El relleno es terreno natural compactado al 95 % de la MDS (Próctor modificado).
+
+### Columnas
+
+- **Refuerzo longitudinal:** cuantía mínima de 1 % (E.060), en varillas de 5/8" y en número par. Resultado en el módulo XIV:
+  - C1 (L 0.40 × 0.40 × 0.25): 8Ø5/8";
+  - columna de 0.25 × 0.38: 6Ø5/8";
+  - columna de 0.40 × 0.37 × 0.25: 8Ø5/8".
+
+  Coincide con el cuadro del ingeniero.
+- **Estribos:** □ 3/8"Ø: 1@0.05, 9@0.10, Rto.@0.20 C/E. Las columnas en L, T o irregulares llevan **2 estribos**.
+- **Recubrimiento:** 4 cm.
+- **Columnetas:** estribos de 1/4"Ø: 1@0.05, 4@0.10, Rto.@0.20 C/E. Se codifican pa, pb, pc… según su tamaño.
+
+### Vigas y losa
+
+- **Vigas:** sección por la regla aprendida de las planillas del despacho (ver "Reglas de metrado aprendidas"); sin reglas, 0.25 × L/12 redondeado a 5 cm, con mínimo 0.40. Estribos □ 3/8"Ø: 1@0.05, 8@0.10, Rto.@0.20 C/E. Recubrimiento de 4 cm.
+- **Aligerado:**
+  - espesor de 0.20 m hasta 5 m de luz;
+  - viguetas cada 0.40 m en la dirección de la luz corta;
+  - aleros de 0.60 m;
+  - acero de temperatura Ø1/4" @0.25;
+  - ladrillo de techo de 0.30 × 0.30 × 0.15.
+
+### Dibujo
+
+- Planos a 1/25 en la lámina, es decir, al doble de la arquitectura a 1/50.
+- **Cotas en cadena:** columna + luz libre + columna, y en otra línea el total entre ejes.
+- Ejes recortados a 1.0 m de la columna más alejada; burbujas de unos 0.24 m de radio.
+- Títulos en el formato "<PROYECTO> - PLANO DE … / ESC: 1/25", subrayados.
+- **Pórticos:**
+  - niveles BASE NPN = +0.00, NFT, TECHO NFP y NFZ;
+  - cotas verticales de cimentación y altura;
+  - burbujas de los ejes que cruzan;
+  - estribaje rotulado en columnas y vigas.
+- **Platea:** malla dibujada cada 0.20 m en las dos direcciones de la grilla y rótulo en una línea ("Hz = 0.70 m  Df = -2.00 m"). Con platea no hay vigas de cimentación.
+- **Cimiento corrido:** el plano dibuja los muros de la arquitectura tal como están (anillo perimetral y muros interiores), con los vanos de puerta cerrados porque el cimiento pasa por debajo. Cada muro lleva el rótulo "Cimiento corrido" y su marca de corte:
+  - 1-1: muro exterior con puerta;
+  - 2-2: muro exterior;
+  - 3-3: muro interior.
+- **Columnetas:** contorno con aspa y código pa, pb… Las medidas que difieren 1 cm o menos son la misma columneta; el ingeniero separa las que difieren 2 cm (módulo 14: pa .13x.20, pc .13x.22, pe .13x.18).
+- **Aligerado:**
+  - la losa se divide en paños por los muros interiores largos; la viga central es la VCUMBRERA;
+  - con cumbrera, las viguetas corren paralelas a ella y se apoyan en las vigas de los ejes que la cruzan;
+  - las viguetas se cuentan sobre la losa con aleros (6 + 6 en el módulo XIV);
+  - símbolo: bastón 1Ø3/8" a lo largo de la luz, trazos de viguetas junto a los apoyos y flecha;
+  - "CANALETA" en los aleros paralelos a la cumbrera.
+- **Cuadro de columnas:** una columna por tipo (C1, C2… en orden de lectura de la planta). Filas: sección con estribos y varillas, refuerzo y estribaje, despiece de estribos. Las columnas en L llevan un estribo por ala; los dos se cruzan en la esquina.
+- **Pórticos a 1/50:**
+  - acero en elevación: 2 varillas por columna y viga, y estribos con su distribución desde cada extremo;
+  - columnetas del eje (PA, PB…);
+  - sección de la viga arriba a la izquierda.
+- **Escala bajo cada título:** la escribe el agente con la escala real; si el dibujo no entra en su espacio, se reduce y se indica.
+
+## Generalización: módulos 3 y 09 (planos que el agente no conocía)
+
+Se probaron con `scripts/agente/leer-arquitectura.mjs` (qué entiende el agente) y `scripts/agente/probar-laminas.mjs` (láminas completas y vista previa SVG), comparando con los expedientes de estructuras del ingeniero. Pruebas: `tests/frontend/etabs-generalizacion.test.mjs`.
+
+**Lectura de la hoja (corregido):**
+- Una hoja con plantas de 1.er y 2.º nivel, cortes, elevaciones y plano clave ya no se mezcla en una sola vista:
+  - una grilla usa un solo tamaño de burbuja;
+  - los ejes de burbuja suelta se prolongan a lo más un 30 %.
+- El título de la vista es un texto grande debajo de la grilla, no una leyenda de acabados.
+- Columnas:
+  - se aceptan contornos de hasta 2.50 m, como las placas en L;
+  - una polilínea cerrada repitiendo el primer vértice cuenta como cerrada;
+  - los vértices alineados no cuentan;
+  - lo que mide menos de 0.25 m no es columna;
+  - en un cruce manda la capa estructural.
+
+**Reglas aprendidas (se cumplen en los 3 expedientes):**
+
+| Regla | Criterio | Ejemplos |
+|---|---|---|
+| Placa o columna | Placa (PL) si cada ala mide ≥ 3 × espesor; columna T (CT) si es T y no llega a placa; si no, columna (C). Espesor: A = t(b + h − t) | PL1 L 1.50x1.00x0.30 y L 0.90x0.90 · CT1 T 1.00x0.60x0.30 · C L 0.50x0.60 y 0.40x0.40 |
+| Acero | Número par de Ø5/8" con cuantía ≥ 0.98 % | 20Ø5/8" en 0.39 m² · 12Ø5/8" en 0.24 m² · 8Ø5/8" en 0.1375 m² |
+| Estribos de confinamiento | CT 12@0.10; placas y columnas ≥ 0.50 m 10@0.10; columnas menores 9@0.10 | — |
+| Cuadro | Título: "CUADRO DE PLACA Y COLUMNA", "CUADRO DE PLACA" o "CUADRO DE COLUMNAS". Medidas de L/T con espesor | 1.00x0.60x0.30m |
+| Cimentación | Platea con zapata corrida por defecto (los 3 módulos, suelo S3); siempre que haya placas | — |
+| Losa | El espesor lo da la luz entre ejes (vigas), no entre muros | Módulo 09 con 5.8–6.1 m → 25 cm |
+| Pórticos | Si hay más que espacios en la plantilla, la lámina de pórticos se copia a la derecha | Módulo 3 con 8 ejes → E-03 |
+
+**Datos del proyecto, no reglas** (`resources/js/ingenieria/criterios/datosProyecto.js`, panel ▤ "Datos técnicos"):
+- Hz y Df vienen del estudio de suelos: 0.60/2.50 en los módulos 3 y 09, 0.70/2.00 en el 14. Se usan en la platea o las zapatas, en su rótulo y en el NFZ de los pórticos. Si faltan, se usa 0.70/2.00 y se avisa.
+- Zona, perfil de suelo y categoría dan Z, U, S, Tp y TL (tablas de la E.030-2018). Reemplazan en la lámina los valores del expediente de referencia (Z=0.25, U=1.0 "C", S=1.40, Tp=1.00, TL=2.0). Lo que falta queda de la plantilla, con aviso. Colegio en zona 2 sobre S3: Z=0.25, U=1.5 (A2), S=1.40, Tp=1.0, TL=1.6.
+- Número de niveles: ajusta el ancho del cimiento corrido y las zapatas; con más de 1 nivel se avisa que el dibujo es de un nivel.
+
+## Reglas de metrado aprendidas de las planillas del despacho
+
+`node scripts/agente/aprender-reglas-metrado.mjs` lee las planillas Excel del ingeniero (las de `pares.json` con metrado; privadas, nunca salen de la máquina) y genera `resources/js/ingenieria/metrado/reglasDespacho.js`: solo números por módulo (clave anónima) y las reglas agregadas (mediana o moda de los módulos). Las usan `metrado.js` (`criteriosMetrado(tipo)`), el aligerado, los pórticos y `diseno/estructura.js` (`seccionVigaPorLuz`). Las reglas se agregan **por tipo de cimentación**, que separa el sistema estructural: platea con muros de albañilería (vinchos) o zapatas con pórticos (ilo). Una regla solo se usa si la enseñaron al menos 3 módulos de ese tipo; si no, queda el criterio de siempre. Con las reglas de platea aplicadas a ilo, su metrado bajaba de 25 a 20 partidas en ±5 %. Pruebas: `tests/agente/reglas-despacho.test.mjs`. Medición sin trampa: `node scripts/agente/evaluar-metrado.mjs --sin-modulo` (cada módulo se mide con reglas aprendidas sin él); `--sin-reglas` mide los criterios de antes.
+
+| Regla | Criterio | Ejemplos (planillas) |
+|---|---|---|
+| Ancho de viga | El espesor de la columna o placa donde llega (en L/T, t de A = t(b + h − t)), entre 0.25 (E.060 21.5.1.3) y 0.30 (moda del despacho) | Módulos 1–13: 0.30 · módulo 14 (columnas L de 0.25): 0.25 |
+| Peralte de viga que carga la losa | Una sección para todas las vigas perpendiculares a las viguetas: luz libre mayor / 10.8, redondeado a 0.10 | Módulo 1: 6.12 → 0.60 · módulo 2: 6.83 → 0.60 · módulo 10: 5.40 → 0.50 · módulo 14: 4.52 → 0.40 |
+| Peralte de viga paralela a las viguetas | 0.40 (moda) | Módulos 1, 2, 5: ejes de 15–17 m en 0.30x0.40 |
+| Armado de viga | 6Ø5/8" corridas con gancho 0.60 + bastones (~12 % de las corridas); el pórtico dibuja el mismo armado | Módulos 1, 2, 4, 6, 9, 10 |
+| Sobrecimiento | Alto 0.45; ancho soga 0.13 / cabeza 0.24; largo = 0.75 del cimiento corrido (descuenta columnas, placas y puertas) | Módulo 1: 0.78 · módulo 2: 0.80 · módulo 14: 0.68 |
+| Columnetas | Varilla = alto + 0.40 + gancho 0.40; ~7.4 estribos Ø1/4" por metro de varilla | Módulo 1: alto 1.00 → varilla 1.45, 10 estribos · módulo 14: alto 3.25 → 3.65 |
+| Eliminación | (Excavación − relleno propio) × 1.20 | 15 de 15 módulos |
+| Relleno con material propio | Excavación − lo que queda dentro de ella (platea: cimiento corrido y columnas; zapatas: solo las columnas, porque el cimiento corrido va en su zanja). Nunca negativo: si sale < 0 queda en 0 y se avisa | Vinchos 7, 11–13 e ilo daban −85 % a −114 % |
+
+**Datos del proyecto, no reglas:** la altura de columnas sale de Df (estudio de suelos) y del NPT del techo. El despacho la mide desde el fondo de la cimentación (módulos 1, 2, 5, 8, 9, 10: H − Df ≈ techo). Cuando el agente no conoce Df, usa 2.00 y lo avisa: esa diferencia no se corrige con una regla.
+
+## Pendiente
+
+- Edificios de 2 niveles: el módulo 09 tiene 2.º nivel. Falta la losa de entrepiso y los pórticos con dos niveles (NPN −3.05 / −0.05).
+- Al pórtico le falta detalle frente al del ingeniero:
+  - secciones VB y sus llamadas;
+  - canaleta;
+  - correas;
+  - cadena de cotas superior.
+- Las hojas extra de pórticos copian la lámina de la plantilla por punto de inserción: algún detalle grande puede quedar fuera.
+
+**Pórticos (resuelto):**
+- la elevación sigue al ingeniero: platea abajo (de NFZ a NFZ + Hz) sobre la falsa zapata, y encima relleno compactado, CC hasta -0.80 y SC;
+- techo a dos aguas cuando el eje cruza la cumbrera; la pendiente sale de la arquitectura (PTE=33 %) y se mide desde la cara interior de la columna. Da cumbrera +4.10; el ingeniero tiene +4.12;
+- cobertura TR4 y canaletas;
+- puertas con DINTEL y ventanas con VSa, leídas de la hoja de puerta y de los rótulos V-n;
+- columnetas del eje medidas contra la línea de columnas.
+
+**Vanos:** la altura usa el criterio por defecto (puerta 2.10, ventana 0.90–2.10) porque la arquitectura no la acota.
+
+**Cimiento corrido:** muebles empotrados dibujados con capas de muro (por ejemplo, un poyo) aparecen como muro.
+
+**Especificaciones técnicas:** la plantilla trae el cuadro "ESPECIFICACIONES TÉCNICAS" del expediente (bloque ET). En 3) SUELO, "Df=…" y "Parámetros sísmicos: Z=…, U=…" toman los datos del proyecto; Rx y Ry quedan del expediente porque dependen del sistema estructural.
+
+**Cuadro de columnetas:** como el del ingeniero:
+- secciones a la mayor escala estándar que entra (1/10, 1/15, 1/20 o 1/25), la misma para todas, y el encabezado dice cuál;
+- cotas ".20" / ".13";
+- una llamada "2Ø3/8\"" por cada par de varillas, escalonadas (convención del ingeniero);
+- columnetas agrupadas con 1 cm de tolerancia (el ingeniero separa las que difieren 2 cm);
+- celdas de ancho variable: la columneta larga ocupa más;
+- refuerzo: pa .20x.13 4Ø, pb .65x.13 12Ø, pc .13x.22 6Ø.
+
+**Chat:**
+- El ingeniero dicta los datos ("Hz 0.60, Df 2.50, zona 2, suelo S3, es un colegio") con la herramienta `datos_proyecto`, o los pasa en el mismo pedido de láminas. Quedan guardados en ▤.
+- Los niveles (pisos) no se piden en el chat; van solo en el panel.
+- Las láminas del agente quedan marcadas en el dibujo (XData `NOVACAD_AGENTE`). `plano_estructuras` las rehace en su lugar aunque se haya recargado la página; con `conservar` agrega otras; `quitar_laminas` las borra.
+
+**Datos que se copian tal cual de la referencia:** el resto de las especificaciones técnicas. Hay que revisarlos en cada proyecto. Los parámetros sísmicos se reemplazan con los datos del proyecto cuando el ingeniero los indica.
+
+## Verificación en el visor real (obligatoria antes de mostrar al cliente)
+
+La vista previa SVG de `probar-laminas.mjs` no dibuja como el visor. No aplica:
+- los factores de ancho de los estilos;
+- los anclajes de MTEXT;
+- la forma en que el visor corta los renglones.
+
+Lo que ve el cliente se revisa así:
+
+```
+AGENTE_DXF=salida.dxf node scripts/agente/probar-laminas.mjs <arquitectura.dwg> "<vista>"
+VISOR_DEV=1 node scripts/agente/ver-en-visor.mjs salida.dxf carpeta [zonas.json]
+```
+
+Con `npm run dev` corriendo, `VISOR_DEV=1` usa el código sin compilar; sin esa variable, usa el build.
+
+**Reglas de plantilla aprendidas mirando el visor real.** Están en `generar-plantilla-estructuras.mjs` y valen para cualquier plantilla nueva.
+
+| Lo que se veía | Causa | Regla |
+|---|---|---|
+| VIGA BORDE y CUADRO DE VIGUETAS se salían de su casilla | El visor no tiene Arial Narrow ni Swiss condensada | Esos estilos pasan a Arial ×0.82 |
+| ESPECIFICACIÓN – LADRILLO – MORTERO quedaba sobre el dibujo del ladrillo | MTEXT con alturas relativas por renglón | Un MTEXT por renglón, con altura absoluta |
+| "4Ø3/8"" quedaba sobre "Refuerzo y estribaje" | El visor no interpreta el párrafo centrado del MTEXT | Se pasa al anclaje centrado del MTEXT |
+| Renglones encimados en las especificaciones | El visor corta un renglón largo y no corre el siguiente | El generador corta o achica cada renglón y les quita el ancho de párrafo |
+| Títulos fuera de la lámina y textos centrados en la celda vecina | Ensanche del 35 % aplicado también a textos Arial | Solo se ensanchan las fuentes SHX sustituidas |
+| "M?ULO" y "4?/8"" al reabrir un DXF | Letras exportadas como código `\U+` y leídas con una cifra de más | El DXF para el visor se escribe en Windows-1252 (`dxfParaVisor`) |
+
+**Pendiente visto en el visor:**
+- el texto del ladrillo de 18 huecos: son párrafos que corta el propio visor y se tocan;
+- el título "DETALLE DEL REFUERZO EN EL NUDO-VIGA": usa el estilo TITULOS, con una fuente SHX que el visor no tiene, y queda chico.

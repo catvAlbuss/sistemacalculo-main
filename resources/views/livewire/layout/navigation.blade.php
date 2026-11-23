@@ -281,7 +281,7 @@ $logout = function (Logout $logout) {
                                 'url' => route('software.analisis-estructural-de-armaduras'),
                                 'label' => 'Analisis Estructural',
                             ],
-                            ['url' => route('software.etabs2'), 'label' => 'Predim 2'],
+                            ['url' => route('software.etabs2'), 'label' => 'NovaCad'],
                             [
                                 'url' => route('calculadora.asistente.muros-de-contencionv2'),
                                 'label' => 'Muros de Contencion V2',
@@ -573,7 +573,7 @@ $logout = function (Logout $logout) {
                     ['url' => route('software.cimentacion-v1'), 'label' => 'Cimentacion v1.0'],
                     ['url' => route('software.cimentacion-v2'), 'label' => 'Cimentacion v2.0'],
                     ['url' => route('software.analisis-estructural-de-armaduras'), 'label' => 'Analisis Estructural'],
-                    ['url' => route('software.etabs2'), 'label' => 'Etabs 2'],
+                    ['url' => route('software.etabs2'), 'label' => 'NovaCad'],
                     [
                         'url' => route('calculadora.asistente.muros-de-contencionv2'),
                         'label' => 'Muros de Contencion V2',

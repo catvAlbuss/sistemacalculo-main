@@ -1,6 +1,7 @@
 /.phpunit.cache
 /node_modules
-.claude
+/.claude/*
+!/.claude/agents/
 test_md_verify.cjs
 /public/hot
 /public/storage
@@ -30,6 +31,9 @@ public/build/*
 !public/build/assets/
 # El manifest y los bundles necesitan también imágenes, fuentes y workers.
 !public/build/assets/**
+# Los avisos de terceros se distribuyen junto con los bundles compilados.
+!public/build/licenses/
+!public/build/licenses/**
 
 # ETABS2 backend release generated files
 ETABS2_BACKEND_RELEASE/logs/
@@ -46,3 +50,7 @@ __pycache__/
 *.pyo
 /public/puppeteer-session/
 /public/captures/
+
+# Cache de Laravel (config.php incluye los valores del .env)
+/bootstrap/cache/*.php
+

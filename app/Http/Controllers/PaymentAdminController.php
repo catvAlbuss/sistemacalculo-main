@@ -63,4 +63,23 @@ class PaymentAdminController extends Controller
 
         return back()->with('success', 'Revisión registrada. El estado del pago no se ha modificado.');
     }
+
+    public function retryMail(PaymentRequest $paymentRequest, PaymentTask $task, \App\Services\PaymentMailRecovery $recovery)
+    {
+        abort_unless($task->payment_request_id === $paymentRequest->id
+            && in_array($task->kind, \App\Services\PaymentMailRecovery::KINDS, true), 404);
+        if (!$recovery->retry($task)) {
+            return back()->withErrors(['mail' => 'El correo ya está en cola, procesándose o completado. Actualiza su estado.']);
+        }
+
+        return back()->with('success', 'Correo reencolado. Su resultado aparecerá en las tareas de esta solicitud.');
+    }
+
+    public function resendMail(Request $request, PaymentRequest $paymentRequest, \App\Services\PaymentMailRecovery $recovery)
+    {
+        $data = $request->validate(['kind' => 'required|in:signup_client,paid_client,paid_admin,access_client', 'resend_key' => 'required|uuid']);
+        $recovery->resend($paymentRequest, $data['kind'], $data['resend_key']);
+
+        return back()->with('success', 'Reenvío programado. Revisa las tareas para confirmar la aceptación del proveedor.');
+    }
 }

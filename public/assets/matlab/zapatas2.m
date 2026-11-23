@@ -81,7 +81,8 @@ function zapatas2(poligonos, column, PD, PL, SISMO, CoValue, Df, pesoEspecifico)
     IXY = IXY0/24;
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %BUSCADOR DE FUERZAS
-    FBA=0;
+    % Mantener las tres filas de cargas incluso sin columnas dentro del poligono.
+    FBA=zeros(3,4);
     for i=UNIR;                 %ESCRIBIR LOS PUNTPS A SUMAR
       FFA=i;                    %PUNTO A BUSCAR
       K1=find(PD==FFA);         %BUSCA EL PUNTO EN LA MATRIZ

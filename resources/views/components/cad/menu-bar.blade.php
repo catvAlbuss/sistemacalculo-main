@@ -1,7 +1,7 @@
 {{-- resources/views/components/cad/menu-bar.blade.php — contenedor delgado: cada menú vive en cad/menu/<slug>.blade.php (Fase 1 reestructuración) --}}
 <div class="cad-bg cad-border border-b shadow-lg">
 
-    <div class="flex items-center px-2 py-1 gap-4 border-t border-gray-700">
+    <div class="structural-menu-strip flex items-center px-2 py-1 gap-4 border-t border-gray-700">
         {{-- ============================================================
                                 LOGO Y VERSIÓN
         ============================================================ --}}

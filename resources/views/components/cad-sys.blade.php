@@ -15,7 +15,7 @@
 </style>
 @endpush
 
-<div class="cad-text-color cad-bg cad-border flex h-full flex-col" x-id="['materiales']" x-data="cadSys"
+<div class="structural-workspace cad-text-color cad-bg cad-border flex h-full flex-col" x-id="['materiales']" x-data="cadSys"
     x-init="initSys($refs.cad, $refs.distanceInput, $id('materiales'))">
     <x-cad.modals.new-model/>
     <x-cad.modals.my-models-modal/>
@@ -51,7 +51,7 @@
     <input id="_token" name="_token" type="hidden" value="{{ csrf_token() }}" />
     <x-cad.layout.toolbar></x-cad.layout.toolbar>
     <!-- Main Content -->
-    <div class="flex flex-1 overflow-hidden">
+    <div class="structural-content flex min-h-0 min-w-0 flex-1 overflow-hidden">
         <x-cad.layout.side-panel></x-cad.layout.side-panel>
         <x-cad.layout.cad-area></x-cad.layout.cad-area>
     </div>

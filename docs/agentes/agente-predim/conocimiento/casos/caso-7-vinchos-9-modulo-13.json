@@ -1,0 +1,390 @@
+{
+ "nombre": "vinchos:modulo-13",
+ "grupo": "vinchos",
+ "id": "modulo-13",
+ "aprendido": "2026-11-21",
+ "etiqueta": null,
+ "rasgos": {
+  "vista": "vista-01",
+  "areaAbierta": false,
+  "niveles": 1,
+  "ejes": {
+   "x": 2,
+   "y": 2
+  },
+  "luces": {
+   "x": [
+    14.03
+   ],
+   "y": [
+    5.99
+   ]
+  },
+  "largo": 14.03,
+  "ancho": 5.99,
+  "area": 84.07,
+  "luzLosa": 5.99,
+  "luzMax": 14.03,
+  "columnas": 4,
+  "tipos": [
+   {
+    "nombre": "C1",
+    "forma": "rectangular",
+    "b": 0.6,
+    "h": 0.6,
+    "n": 4
+   }
+  ],
+  "placas": false,
+  "columnetas": 4,
+  "techoLiviano": true,
+  "cubierta": false,
+  "falsoCielo": false,
+  "deportivo": false,
+  "agua": false,
+  "banos": false
+ },
+ "decisiones": {
+  "cimentacion": "zapatas",
+  "cimientoCorrido": true,
+  "hz": 0.7,
+  "df": 2,
+  "losa": null,
+  "espesorLosa": null,
+  "plantasDeLosa": 0,
+  "vigas": [
+   "47x90"
+  ],
+  "fcColumnas": 210,
+  "fcColumnetas": 175,
+  "estribos": "3/8\": 1@.05, 18@.10",
+  "porticos": 2,
+  "mallaCimentacion": false,
+  "columnasComoArquitectura": true,
+  "losaDeTecho": false
+ },
+ "columnas": {
+  "escala": 1,
+  "filas": [
+   {
+    "cruce": "27´/H",
+    "arq": "C1 0.6x0.6",
+    "est": "C1 0.6x0.6",
+    "igual": true
+   },
+   {
+    "cruce": "32´/H",
+    "arq": "C1 0.6x0.6",
+    "est": "C1 0.6x0.6",
+    "igual": true
+   },
+   {
+    "cruce": "27´/E´",
+    "arq": "C1 0.6x0.6",
+    "est": "C1 0.6x0.6",
+    "igual": true
+   },
+   {
+    "cruce": "32´/E´",
+    "arq": "C1 0.6x0.6",
+    "est": "C1 0.6x0.6",
+    "igual": true
+   }
+  ],
+  "coincidencia": 1
+ },
+ "geometria": {
+  "version": 1,
+  "unidad": "m",
+  "vistas": [
+   {
+    "id": "vista-01",
+    "nivel": null,
+    "categorias": {
+     "ejes": [
+      {
+       "nombre": "27´",
+       "p": {
+        "x": 1.52,
+        "y": 8.74
+       },
+       "q": {
+        "x": 1.52,
+        "y": 0.01
+       }
+      },
+      {
+       "nombre": "32´",
+       "p": {
+        "x": 15.54,
+        "y": 8.76
+       },
+       "q": {
+        "x": 15.54,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "E´",
+       "p": {
+        "x": 0,
+        "y": 7.32
+       },
+       "q": {
+        "x": 16.67,
+        "y": 7.32
+       }
+      },
+      {
+       "nombre": "H",
+       "p": {
+        "x": 0,
+        "y": 1.33
+       },
+       "q": {
+        "x": 16.67,
+        "y": 1.33
+       }
+      }
+     ],
+     "columnas": [
+      {
+       "eje": "27´/H",
+       "centro": {
+        "x": 1.52,
+        "y": 1.33
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "32´/H",
+       "centro": {
+        "x": 15.54,
+        "y": 1.33
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "27´/E´",
+       "centro": {
+        "x": 1.52,
+        "y": 7.32
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "32´/E´",
+       "centro": {
+        "x": 15.54,
+        "y": 7.32
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      }
+     ],
+     "murosVanos": null,
+     "losas": null
+    }
+   },
+   {
+    "id": "vista-02",
+    "nivel": null,
+    "categorias": {
+     "ejes": [
+      {
+       "nombre": "27´",
+       "p": {
+        "x": 1.52,
+        "y": 8.74
+       },
+       "q": {
+        "x": 1.52,
+        "y": 0.01
+       }
+      },
+      {
+       "nombre": "32´",
+       "p": {
+        "x": 15.54,
+        "y": 8.76
+       },
+       "q": {
+        "x": 15.54,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "E´",
+       "p": {
+        "x": 16.67,
+        "y": 7.32
+       },
+       "q": {
+        "x": 0,
+        "y": 7.32
+       }
+      },
+      {
+       "nombre": "H´´",
+       "p": {
+        "x": 16.67,
+        "y": 1.33
+       },
+       "q": {
+        "x": 0,
+        "y": 1.33
+       }
+      }
+     ],
+     "columnas": [
+      {
+       "eje": "27´/H´´",
+       "centro": {
+        "x": 1.52,
+        "y": 1.33
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "32´/H´´",
+       "centro": {
+        "x": 15.54,
+        "y": 1.33
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "27´/E´",
+       "centro": {
+        "x": 1.52,
+        "y": 7.32
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "32´/E´",
+       "centro": {
+        "x": 15.54,
+        "y": 7.32
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      }
+     ],
+     "murosVanos": null,
+     "losas": null
+    }
+   },
+   {
+    "id": "vista-03",
+    "nivel": null,
+    "categorias": {
+     "ejes": [
+      {
+       "nombre": "27´",
+       "p": {
+        "x": 1.52,
+        "y": 8.74
+       },
+       "q": {
+        "x": 1.52,
+        "y": 0.01
+       }
+      },
+      {
+       "nombre": "32´",
+       "p": {
+        "x": 15.54,
+        "y": 8.76
+       },
+       "q": {
+        "x": 15.54,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "E´",
+       "p": {
+        "x": 0,
+        "y": 7.32
+       },
+       "q": {
+        "x": 16.67,
+        "y": 7.32
+       }
+      },
+      {
+       "nombre": "H",
+       "p": {
+        "x": 0,
+        "y": 1.33
+       },
+       "q": {
+        "x": 16.67,
+        "y": 1.33
+       }
+      }
+     ],
+     "columnas": [
+      {
+       "eje": "27´/H",
+       "centro": {
+        "x": 1.52,
+        "y": 1.33
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "32´/H",
+       "centro": {
+        "x": 15.54,
+        "y": 1.33
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "27´/E´",
+       "centro": {
+        "x": 1.52,
+        "y": 7.32
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "32´/E´",
+       "centro": {
+        "x": 15.54,
+        "y": 7.32
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      }
+     ],
+     "murosVanos": null,
+     "losas": null
+    }
+   }
+  ]
+ }
+}

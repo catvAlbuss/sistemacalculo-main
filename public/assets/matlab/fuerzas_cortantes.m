@@ -291,7 +291,7 @@ function fuerzas_cortantes(fc, fy, b, h, lt, wd, wv, anchoTributario, frm, frv)
     x2n = {};
     y2n = {};
     %Aproximacion de la curva parabolica para momentos flectores
-    for jkj= 1:1:6
+    for jkj= 1:size(MOMENT,2)
         for i  = 1:h+1
             V  =[L5(2*i),-MOMENT(2*i,jkj)];
 

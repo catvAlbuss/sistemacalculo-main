@@ -1,0 +1,415 @@
+{
+ "expediente": "10.VINCHOS MODULO 10 - ESTRUCTURAS.dwg",
+ "nombre": "modulo-10",
+ "aprendido": "2026-11-18",
+ "tamano": {
+  "entidades": 29529,
+  "cotas": 776,
+  "achurados": 1851
+ },
+ "estilo": {
+  "ejes": {
+   "capa": "49. EJES.",
+   "colorCapa": 152,
+   "radio": 0.24,
+   "burbujas": 120
+  },
+  "cotas": {
+   "cantidad": 776,
+   "estilo": "ROMAN50",
+   "capa": "0"
+  },
+  "rotuloColumna": {
+   "capa": "COTAS & TEXTOS",
+   "colorCapa": 131,
+   "alto": 0.15,
+   "muestras": 32
+  },
+  "codigoColumneta": {
+   "capa": ".D1 Texto 01",
+   "colorCapa": 3,
+   "alto": 0.067,
+   "muestras": 60
+  },
+  "titulo": {
+   "capa": "NCAMINO1",
+   "colorCapa": 10,
+   "alto": 0.065,
+   "muestras": 3
+  },
+  "niveles": {
+   "capa": ".00. ARQUI",
+   "colorCapa": 255,
+   "alto": 0.089,
+   "muestras": 36
+  },
+  "rotuloViga": {
+   "capa": "TEXT",
+   "colorCapa": 9,
+   "alto": 0.044,
+   "muestras": 2
+  },
+  "textoLosa": {
+   "capa": "TEXT",
+   "colorCapa": 9,
+   "alto": 0.076,
+   "muestras": 9
+  },
+  "achurados": [
+   {
+    "patron": "SOLID",
+    "capa": "fierros",
+    "veces": 712
+   },
+   {
+    "patron": "SOLID",
+    "capa": "13. PUERTAS.",
+    "veces": 167
+   },
+   {
+    "patron": "SOLID",
+    "capa": ".D1 Corte",
+    "veces": 148
+   },
+   {
+    "patron": "SOLID",
+    "capa": ".00. ARQUI",
+    "veces": 105
+   },
+   {
+    "patron": "ANSI31",
+    "capa": "arrandela",
+    "veces": 57
+   },
+   {
+    "patron": "SOLID",
+    "capa": "arrandela",
+    "veces": 57
+   },
+   {
+    "patron": "AR-CONC",
+    "capa": ".N1 Cimiento Corrido",
+    "veces": 52
+   },
+   {
+    "patron": "ANSI31",
+    "capa": ".N1 muros bajos",
+    "veces": 43
+   },
+   {
+    "patron": "AR-CONC",
+    "capa": ".",
+    "veces": 42
+   },
+   {
+    "patron": "SOLID",
+    "capa": "E_Ladrillo",
+    "veces": 32
+   },
+   {
+    "patron": "SOLID",
+    "capa": ".N1 Columna amarre",
+    "veces": 29
+   },
+   {
+    "patron": "BRICK",
+    "capa": "ladrillo",
+    "veces": 27
+   }
+  ]
+ },
+ "criterios": {
+  "concreto": [
+   {
+    "valor": "f'c=100",
+    "veces": 3,
+    "ejemplo": "f'c= 100 kg/cm2 + 30"
+   },
+   {
+    "valor": "f'c=210",
+    "veces": 3,
+    "ejemplo": "f'c=210 Kg/cm², en el resto de estructuras."
+   },
+   {
+    "valor": "f'c=210 vigas",
+    "veces": 1,
+    "ejemplo": "f'c=210 Kg/cm², zapatas, vigas de cimentación y en cimiento reforzado."
+   },
+   {
+    "valor": "f'c=175 columnetas",
+    "veces": 1,
+    "ejemplo": "f'c=175 Kg/cm², columnetas de confinamiento"
+   },
+   {
+    "valor": "f'c=140",
+    "veces": 1,
+    "ejemplo": "f'c=140kg/cm2+25%PM"
+   }
+  ],
+  "ciclopeo": [
+   {
+    "valor": "140 + 25% PM",
+    "veces": 1,
+    "ejemplo": "f'c=140kg/cm2+25%PM"
+   },
+   {
+    "valor": "100 + 30% PG",
+    "veces": 1,
+    "ejemplo": "Ciclópeo f'c=100 kg/cm2+30%PG"
+   }
+  ],
+  "estribos": [
+   {
+    "valor": "3/8\": 1@0.05, 10@0.10, Rto@0.20",
+    "veces": 7,
+    "ejemplo": "4 3/8\" Ø: 1@0.05,10@10,Rst. @0.20 C/E"
+   },
+   {
+    "valor": "1/4\": 1@0.05, 4@0.10, Rto@0.20",
+    "veces": 4,
+    "ejemplo": "4∅3/8\" 1 1/4\"∅:1@0.05,4@0.10, Rst.@0.20C/E"
+   },
+   {
+    "valor": "3/8\": 1@0.05, 8@0.10, Rto@0.20",
+    "veces": 3,
+    "ejemplo": "\\LVB2 1 3/8\" ∅: 1@0.05, 8@0.10, Rst. @0.20 C/E"
+   },
+   {
+    "valor": "3/8\": 1@0.05, 4@0.10, Rto@0.20",
+    "veces": 1,
+    "ejemplo": "1 3/8\" Ø: 1@0.05, 4@0.10,"
+   }
+  ],
+  "varillas": [
+   {
+    "valor": "Ø3/8\"",
+    "veces": 5,
+    "ejemplo": "1∅3/8\""
+   },
+   {
+    "valor": "Ø1/2\"",
+    "veces": 4,
+    "ejemplo": "18Ø1/2\""
+   },
+   {
+    "valor": "Ø5/8\"",
+    "veces": 2,
+    "ejemplo": "8Ø5/8\""
+   }
+  ],
+  "secciones": [
+   {
+    "valor": "viga 0.30x0.20",
+    "veces": 1,
+    "ejemplo": "VCH(0.30X0.20)"
+   }
+  ],
+  "hz": [
+   {
+    "valor": "Hz=0.70",
+    "veces": 2,
+    "ejemplo": "Hz=0.70m"
+   }
+  ],
+  "df": [
+   {
+    "valor": "Df=2.00",
+    "veces": 3,
+    "ejemplo": "Tipo de cimentación usada: Cimentación continua, Cimiento corrido. Profundidad de desplant"
+   }
+  ],
+  "losa": [
+   {
+    "valor": "aligerado e=20 cm",
+    "veces": 1,
+    "ejemplo": "LOSA ALIGERADA E=20CM (16 VIGUETAS)"
+   }
+  ],
+  "niveles": [
+   {
+    "valor": "NPT +0.15",
+    "veces": 4,
+    "ejemplo": "N.P.T. = +0.15m"
+   },
+   {
+    "valor": "NTN +0.00",
+    "veces": 2,
+    "ejemplo": "N.T.N = +0.00m"
+   },
+   {
+    "valor": "NPT +3.35",
+    "veces": 2,
+    "ejemplo": "NPT= +3.35"
+   },
+   {
+    "valor": "NFP +3.29",
+    "veces": 2,
+    "ejemplo": "PISO 2 NFP=+3.29m"
+   },
+   {
+    "valor": "NFC -0.80",
+    "veces": 1,
+    "ejemplo": "N.F.C. = -0.80m"
+   },
+   {
+    "valor": "NFP +9.29",
+    "veces": 1,
+    "ejemplo": "Techo NFP=+9.29m"
+   },
+   {
+    "valor": "NFP +6.07",
+    "veces": 1,
+    "ejemplo": "PISO 3 NFP=+6.07m"
+   },
+   {
+    "valor": "NFZ -2.00",
+    "veces": 1,
+    "ejemplo": "NFZ=-2.00m"
+   },
+   {
+    "valor": "NFP +7.09",
+    "veces": 1,
+    "ejemplo": "PISO 2 NFP=+7.09m"
+   }
+  ],
+  "recubrimientos": [
+   {
+    "valor": "4 cm",
+    "veces": 3,
+    "ejemplo": "En vigas peraltadas será de 4 cm."
+   },
+   {
+    "valor": "2 cm",
+    "veces": 1,
+    "ejemplo": "En vigas chatas, losas aligeradas y losas macizas será de 2 cm."
+   },
+   {
+    "valor": "2.5 cm",
+    "veces": 1,
+    "ejemplo": "En vigas y columnas en muros de albañileria será de 2.5 cm."
+   }
+  ],
+  "cobertura": [
+   {
+    "valor": "CUMBRERA",
+    "veces": 1,
+    "ejemplo": "VIGA CUMBRERA"
+   },
+   {
+    "valor": "Aluzinc",
+    "veces": 1,
+    "ejemplo": "Cobertura Plancha de Aluzinc TIPO TR4 e=5mm"
+   },
+   {
+    "valor": "TR4",
+    "veces": 1,
+    "ejemplo": "Cobertura Plancha de Aluzinc TIPO TR4 e=5mm"
+   }
+  ],
+  "sismo": [
+   {
+    "valor": "U=1.5",
+    "veces": 3,
+    "ejemplo": "Tipo de cimentación usada: Cimentación continua, Cimiento corrido. Profundidad de desplant"
+   },
+   {
+    "valor": "C=2.5",
+    "veces": 3,
+    "ejemplo": "C=2.5"
+   },
+   {
+    "valor": "Z=0.25",
+    "veces": 2,
+    "ejemplo": "Tipo de cimentación usada: Cimentación continua, Cimiento corrido. Profundidad de desplant"
+   },
+   {
+    "valor": "S=5.00",
+    "veces": 1,
+    "ejemplo": "La junta sísmica entre las edificaciones vecinas a considerar en este proyecto es de S=5.0"
+   },
+   {
+    "valor": "S=3",
+    "veces": 1,
+    "ejemplo": "S=3"
+   },
+   {
+    "valor": "S=1.40",
+    "veces": 1,
+    "ejemplo": "S=1.40(suelo tipo s3)"
+   },
+   {
+    "valor": "C=210",
+    "veces": 1,
+    "ejemplo": "\\LDETALLE DE CANALETA F'C=210kg/cm2"
+   }
+  ],
+  "muro": [
+   {
+    "valor": "soga",
+    "veces": 2,
+    "ejemplo": "Muro de soga de ladrillo King Kong Tipo IV - 23x12.5x9cm"
+   },
+   {
+    "valor": "ladrillo King Kong Tipo IV - 23x12.5x9cm",
+    "veces": 1,
+    "ejemplo": "Muro de soga de ladrillo King Kong Tipo IV - 23x12.5x9cm"
+   },
+   {
+    "valor": "cabeza",
+    "veces": 1,
+    "ejemplo": "Muro de soga de cabeza King Kong Tipo IV - 24x13x9cm"
+   }
+  ],
+  "textoCompleto": 15063
+ },
+ "planos": {
+  "laminas": [
+   "E-34",
+   "E-42",
+   "E-43",
+   "E-15",
+   "E-37",
+   "E-38",
+   "E-39",
+   "E-40",
+   "E-41",
+   "E-05",
+   "E-21",
+   "E-51",
+   "E-52",
+   "E-53"
+  ],
+  "titulos": [
+   "PLANO DE COMENTACION Y",
+   "PLANO DE LOSA ALIGERADA",
+   "PLANO DE PORTICOS"
+  ],
+  "cortes": [
+   "CORTE 1-1",
+   "CORTE 2-2",
+   "CORTE 3-3",
+   "CORTE 4-4",
+   "CORTE 1-1 ESC.: 1/50",
+   "CORTE 4-4 ESC.: 1/50",
+   "CORTE 5-5 ESC.: 1/50",
+   "CORTE 6-6 ESC.: 1/50",
+   "CORTE 3-3 ESC.: 1/50"
+  ],
+  "detalles": [
+   "DETALLE DE LA UBICACION Y LONGITUD",
+   "DETALLE DE Ø EN CASO DE ENCUENTROS EN PLANTA",
+   "DETALLE DE RECUBRIMIENTOS EN ENCUENTRO VIGA LOSA",
+   "DETALLE TIPICO ALIGERADO H=0.20M",
+   "DETALLE ISOMÉTRICO DE LOSA ALIGERADA H=0.20",
+   "DETALLE DE INTERACCIÓN COLUMNETA - LOSA",
+   "DETALLE DE CANALETA F'C=210KG/CM2",
+   "DETALLE DE DINTEL 02",
+   "DETALLE DE DINTEL 01",
+   "DETALLE DEL REFUERZO"
+  ],
+  "cuadros": [
+   "CUADRO DE PLACA Y COLUMNA",
+   "CUADRO DE COLUMNETAS"
+  ]
+ }
+}

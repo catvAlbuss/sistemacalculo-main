@@ -1,0 +1,407 @@
+[
+  {
+    "name": "casa_primer_nivel",
+    "description": "Dibuja la planta completa del primer nivel de una casa: muros, puertas, ventanas, ambientes con áreas, ejes, columnas y cotas. Úsalo para cualquier pedido de casa o vivienda.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "frente": {
+          "type": "number",
+          "description": "Ancho del terreno en metros (5-20)"
+        },
+        "fondo": {
+          "type": "number",
+          "description": "Largo del terreno en metros (10-40)"
+        },
+        "dormitorios": {
+          "type": "integer",
+          "description": "1 a 4"
+        },
+        "banos": {
+          "type": "integer",
+          "description": "1 a 3"
+        },
+        "cochera": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  {
+    "name": "dibujar_ejes",
+    "description": "Dibuja una grilla de ejes estructurales. x e y son listas de separaciones sucesivas en metros.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Separaciones entre ejes verticales, ej. [4, 3.5]"
+        },
+        "y": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Separaciones entre ejes horizontales"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ]
+    }
+  },
+  {
+    "name": "dibujar_ambiente",
+    "description": "Dibuja un ambiente rectangular con muros y su nombre y área. Coordenadas en metros.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "nombre": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "ancho": {
+          "type": "number"
+        },
+        "largo": {
+          "type": "number"
+        },
+        "muro": {
+          "type": "number",
+          "description": "Espesor, por defecto 0.15"
+        }
+      },
+      "required": [
+        "nombre",
+        "ancho",
+        "largo"
+      ]
+    }
+  },
+  {
+    "name": "resumen_plano",
+    "description": "Lee el plano abierto y devuelve un resumen: unidades, capas con cantidad de objetos, tipos de objetos y bloques más usados.",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "buscar_textos",
+    "description": "Busca textos del plano que contengan una palabra (ej. DORMITORIO, COCINA, eje A) y devuelve su posición y capa.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "texto": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "texto"
+      ]
+    }
+  },
+  {
+    "name": "revisar_laminas",
+    "description": "Revisa las láminas de estructuras que dibujó el agente y da un informe corto para el ingeniero: textos encimados (con corregir=true los separa), datos del proyecto que faltan y lo que el agente aún no dibuja. Úsalo si piden revisar las láminas, corregir textos encimados o saber qué falta.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "corregir": {
+          "type": "boolean",
+          "description": "true para separar los textos encimados (achica la letra lo necesario)"
+        }
+      }
+    }
+  },
+  {
+    "name": "quitar_laminas",
+    "description": "Quita del dibujo las láminas de estructuras que dibujó el agente (solo las suyas; la arquitectura y lo que dibujó el usuario no se tocan). Úsalo si el usuario pide borrar o limpiar las láminas.",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "datos_proyecto",
+    "description": "Guarda o consulta los datos del proyecto que usan las láminas de estructuras: Hz y Df del estudio de suelos, zona sísmica, perfil de suelo, categoría y ubicación (distrito → zona sísmica E.030). Úsalo cuando el usuario dé o pregunte esos datos (también Hz y Df: NO uses corregir_estructura para ellos).",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "hz": {
+          "type": "number",
+          "description": "Hz: peralte de platea o zapata en m (estudio de suelos), ej. 0.60"
+        },
+        "df": {
+          "type": "number",
+          "description": "Df: profundidad de desplante en m, ej. 2.50"
+        },
+        "zona": {
+          "type": "integer",
+          "description": "Zona sísmica E.030: 1 a 4"
+        },
+        "suelo": {
+          "type": "string",
+          "enum": [
+            "S0",
+            "S1",
+            "S2",
+            "S3"
+          ],
+          "description": "Perfil de suelo"
+        },
+        "categoria": {
+          "type": "string",
+          "enum": [
+            "A2",
+            "B",
+            "C"
+          ],
+          "description": "Categoría: A2 esencial (colegio, hospital), B importante, C común (vivienda)"
+        },
+        "ubicacion": {
+          "type": "string",
+          "description": "Ubicación tal como la dijo el usuario (distrito, provincia, departamento, localidad)"
+        },
+        "distrito": {
+          "type": "string",
+          "description": "Solo al elegir una opción de ubicación: 'DEPARTAMENTO/PROVINCIA/DISTRITO'"
+        }
+      }
+    }
+  },
+  {
+    "name": "proponer_estructura",
+    "description": "Analiza la arquitectura abierta (niveles, ejes, luces, columnas, techo) y propone la estructura como lo haría el despacho: cimentación, losa y su espesor, losas de entrepiso, concreto, columnas. Dice qué decide el agente y qué queda para el ingeniero. Úsalo cuando pidan analizar, proponer o decidir la estructura de un plano.",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "metrar_estructura",
+    "description": "Saca el metrado de estructuras (movimiento de tierras, concreto simple, concreto armado: concreto, encofrado, acero, curado, ladrillo de techo) de la estructura que dibujó el agente, con el formato de la planilla del despacho. Con excel=true descarga la planilla .xlsx. Úsalo cuando pidan metrado, metrar, cantidades o planilla de metrados.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "excel": {
+          "type": "boolean",
+          "description": "true para descargar la planilla de metrados en Excel"
+        }
+      }
+    }
+  },
+  {
+    "name": "corregir_estructura",
+    "description": "Anota una corrección del ingeniero a una decisión de la estructura propuesta (cimentación, tipo o espesor de losa, losa en el último nivel, f'c, estribos, Hz, Df…). El agente la aprende para este plano y los parecidos. Úsalo cuando el ingeniero diga que algo de la propuesta o de las láminas es distinto (ej. 'la losa es maciza', 'usa zapatas', 'el aligerado es de 20').",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "decision": {
+          "type": "string",
+          "enum": [
+            "cimentacion",
+            "cimientoCorrido",
+            "hz",
+            "df",
+            "losa",
+            "espesorLosa",
+            "losaDeTecho",
+            "mallaCimentacion",
+            "fcColumnas",
+            "fcColumnetas",
+            "estribos",
+            "columnasComoArquitectura"
+          ],
+          "description": "Qué decisión corrige"
+        },
+        "valor": {
+          "type": "string",
+          "description": "El valor correcto, como lo dijo el ingeniero (ej. 'maciza', '0.20', 'zapatas', 'no')"
+        },
+        "motivo": {
+          "type": "string",
+          "description": "Opcional: el motivo, solo si el ingeniero lo dijo"
+        }
+      },
+      "required": [
+        "decision",
+        "valor"
+      ]
+    }
+  },
+  {
+    "name": "vistas_plano",
+    "description": "Lista las vistas del plano abierto (plantas con su grilla de ejes: primer nivel, techo, cimentación…) con sus ejes y columnas. Úsalo cuando el archivo tiene varias láminas o vistas.",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "leer_estructura",
+    "description": "Lee la planta de arquitectura abierta: ejes con su nombre (también inclinados), columnas en los cruces de ejes (aunque estén dentro de bloques) y sus tipos C1, C2…; las rotula en el plano.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "vista": {
+          "type": "string",
+          "description": "Opcional: número o parte del título de la vista, ej. 'primer nivel'"
+        },
+        "capas": {
+          "type": "string",
+          "description": "Opcional: capas de columnas separadas por coma (solo si el plano no tiene ejes con nombre)"
+        }
+      }
+    }
+  },
+  {
+    "name": "plano_estructuras",
+    "description": "Pasa de arquitectura a estructuras: con la planta de arquitectura abierta, dibuja debajo la lámina de estructuras (plano de cimentación, plano de aligerado, cuadro de columnas, notas y rótulo) sobre los mismos ejes y columnas. Úsalo para cualquier pedido de plano de estructuras o de estructurar el plano.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "vista": {
+          "type": "string",
+          "description": "Opcional: número o parte del título de la vista de arquitectura, ej. 'primer nivel'"
+        },
+        "cimentacion": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "zapatas",
+            "platea"
+          ],
+          "description": "Opcional: tipo de cimentación; por defecto auto"
+        },
+        "conservar": {
+          "type": "boolean",
+          "description": "Solo si el usuario pide expresamente conservar las láminas anteriores y agregar otra copia. Para arreglar, corregir o rehacer, NO lo uses: las láminas se rehacen en su lugar."
+        },
+        "hz": {
+          "type": "number",
+          "description": "Hz: peralte de platea o zapata en m (estudio de suelos), ej. 0.60"
+        },
+        "df": {
+          "type": "number",
+          "description": "Df: profundidad de desplante en m, ej. 2.50"
+        },
+        "zona": {
+          "type": "integer",
+          "description": "Zona sísmica E.030: 1 a 4"
+        },
+        "suelo": {
+          "type": "string",
+          "enum": [
+            "S0",
+            "S1",
+            "S2",
+            "S3"
+          ],
+          "description": "Perfil de suelo"
+        },
+        "categoria": {
+          "type": "string",
+          "enum": [
+            "A2",
+            "B",
+            "C"
+          ],
+          "description": "Categoría: A2 esencial (colegio, hospital), B importante, C común (vivienda)"
+        }
+      }
+    }
+  },
+  {
+    "name": "construir_estructura",
+    "description": "Construcción guiada paso a paso (lectura → suelo → cimentación → losas → dibujo): en cada etapa informa lo que leyó y decidió con su respaldo y pregunta SOLO lo dudoso, una pregunta a la vez, antes de dibujar. Úsalo para 'construye la estructura', 'paso a paso', 'guíame', o para responder la pregunta pendiente de la construcción (accion 'responder' con clave y valor).",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "accion": {
+          "type": "string",
+          "enum": [
+            "iniciar",
+            "responder",
+            "dibujar"
+          ],
+          "description": "iniciar (por defecto), responder la pregunta pendiente, o dibujar ya con lo recomendado"
+        },
+        "clave": {
+          "type": "string",
+          "description": "Al responder: la clave de la pregunta pendiente (está en el estado)"
+        },
+        "valor": {
+          "type": "string",
+          "description": "Al responder: el valor elegido por el ingeniero"
+        },
+        "vista": {
+          "type": "string",
+          "description": "Opcional al iniciar: vista de arquitectura"
+        }
+      }
+    }
+  },
+  {
+    "name": "preguntar_ingeniero",
+    "description": "Pregunta al ingeniero una decisión de experto con 2 a 4 opciones (se muestran como botones). Úsalo cuando falta un dato o criterio que no puedes deducir ni está en el estado (ej. tipo de cimentación sin estudio de suelos, si el techo lleva losa, qué vista usar). Recomienda una opción y di por qué en una frase.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "pregunta": {
+          "type": "string",
+          "description": "La pregunta, corta y concreta"
+        },
+        "opciones": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "2 a 4 respuestas posibles, cortas"
+        },
+        "recomendada": {
+          "type": "string",
+          "description": "La opción que recomiendas (una de las opciones)"
+        },
+        "porque": {
+          "type": "string",
+          "description": "Por qué la recomiendas, en una frase"
+        }
+      },
+      "required": [
+        "pregunta",
+        "opciones"
+      ]
+    }
+  },
+  {
+    "name": "ver_metrado",
+    "description": "Lista las partidas del metrado que sacó el agente (ítem, descripción, unidad y total), en corto. Úsalo para comparar con una captura de la planilla Excel del ingeniero: compara partida por partida, señala solo las que difieren más de ±5 % y pregunta antes de cambiar nada. Si aún no hay metrado, primero metrar_estructura.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "buscar": {
+          "type": "string",
+          "description": "Opcional: ítem o palabra para filtrar (ej. '02.03.06' o 'columnas')"
+        }
+      }
+    }
+  },
+  {
+    "name": "estado_proyecto",
+    "description": "Resume lo que el agente sabe del proyecto abierto: lo leído, lo propuesto, lo decidido por el ingeniero, lo pendiente y el siguiente paso. Úsalo si preguntan '¿en qué vamos?', '¿qué falta?', '¿qué decidiste?'.",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    }
+  }
+]

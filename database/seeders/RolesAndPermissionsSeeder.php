@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
@@ -15,7 +15,7 @@ class RolesAndPermissionsSeeder extends Seeder
     public function run(): void
     {
         // Reset cached roles and permissions
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         // Crear permisos
         $permissions = [
@@ -36,6 +36,9 @@ class RolesAndPermissionsSeeder extends Seeder
             // Reportes
             'reports.view',
             'reports.export',
+
+            // Aprendizaje técnico del agente
+            'agente.aprendizaje.aprobar',
         ];
 
         foreach ($permissions as $permission) {

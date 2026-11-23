@@ -38,7 +38,9 @@ class ProcessingPrice
                 $fixed = (int) ceil(round($pen * 100, 6));
                 $source = 'CulqiPanel / configuración PEN';
             } else {
-                $exchange ??= ExchangeRate::current();
+                // A PEN sale does not exchange the customer's money. Keep the last verified
+                // reference for the fixed processing estimate if the daily provider is unavailable.
+                $exchange ??= ExchangeRate::latestPublished();
                 if (!$exchange) {
                     throw ValidationException::withMessages(['processing' => 'El precio final está pendiente de confirmar el tipo de cambio del cargo fijo. Contáctanos antes de pagar.']);
                 }
