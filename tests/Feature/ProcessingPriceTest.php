@@ -84,10 +84,9 @@ class ProcessingPriceTest extends TestCase
         $this->assertGreaterThanOrEqual(568.86, $annual['processing']['estimated_net']);
     }
 
-    public function test_missing_or_stale_fixed_fee_conversion_blocks_paid_orders_but_not_trials(): void
+    public function test_missing_fixed_fee_conversion_blocks_paid_orders_but_not_trials(): void
     {
         config(['payments.processing.fixed_pen' => null]);
-        ExchangeRate::create(['date' => today('America/Lima')->subDays(8), 'sell' => 3.45, 'source' => 'Caducado']);
         $this->get(route('landing.plans'))->assertOk()->assertSee('Precio por confirmar');
         $this->post(route('planes.store'), $this->data())->assertSessionHasErrors('processing');
         $this->assertDatabaseCount('payment_requests', 0);
@@ -97,6 +96,37 @@ class ProcessingPriceTest extends TestCase
         $this->assertSame('free', $payment->payment_method);
         $this->assertSame('0.00', $payment->charge_amount);
         $this->assertNull($payment->plan_snapshot['processing']);
+        Http::assertNothingSent();
+    }
+
+    public function test_last_published_rate_keeps_pen_plans_selectable_and_freezes_the_price_after_a_provider_outage(): void
+    {
+        Subscription::where('id', '!=', $this->plan->id)->update(['is_active' => false]);
+        config(['payments.processing.fixed_pen' => null]);
+        $published = today('America/Lima')->subDays(20);
+        ExchangeRate::create(['date' => $published, 'sell' => 3.45, 'source' => 'SBS verificado']);
+        ExchangeRate::create(['date' => today('America/Lima')->addDay(), 'sell' => 5, 'source' => 'Futuro']);
+        $this->get(route('landing.plans'))->assertOk()->assertSee('52.70')->assertSee('Elegir este plan')
+            ->assertDontSee('Consultar precio final');
+        $this->get(route('planes.register', ['plan' => $this->plan->id]))->assertOk()->assertSee('52.70');
+        $quote = app(PlanPricing::class)->purchaseQuote($this->plan, null, 1);
+        $this->post(route('planes.store'), $this->data(['checkout_form_version' => '5', 'pricing_key' => $quote['pricing_key']]))
+            ->assertSessionHasNoErrors();
+        $payment = PaymentRequest::firstOrFail();
+        $this->assertSame('52.70', $payment->amount);
+        $this->assertSame(3.45, $payment->plan_snapshot['processing']['exchange_rate']);
+        $this->assertSame($published->toDateString(), $payment->plan_snapshot['processing']['exchange_rate_date']);
+        ExchangeRate::create(['date' => today('America/Lima'), 'sell' => 4, 'source' => 'SBS actualizado']);
+        $this->assertSame('52.70', $payment->fresh()->charge_amount);
+        Http::assertNothingSent();
+    }
+
+    public function test_usd_purchases_still_require_a_current_exchange_rate(): void
+    {
+        config(['payments.processing.fixed_pen' => null]);
+        ExchangeRate::create(['date' => today('America/Lima')->subDays(20), 'sell' => 3.45, 'source' => 'SBS verificado']);
+        $this->post(route('planes.store'), $this->data(['currency' => 'USD']))->assertSessionHasErrors('currency');
+        $this->assertDatabaseCount('payment_requests', 0);
         Http::assertNothingSent();
     }
 

@@ -27,7 +27,7 @@ class RemindSubscriptionRenewals extends Command
                         if (!$this->option('dry-run')) {
                             $identity = $subscription->id.':'.$subscription->ends_at->toDateString().':'.$days;
                             $task = $tasks->create('renewal_reminder', null, [
-                                'subscription_id' => $subscription->id, 'ends_at' => $subscription->ends_at->toDateString(),
+                                'subscription_id' => $subscription->id, 'ends_at' => $subscription->ends_at->toDateString(), 'days' => $days,
                             ], $identity);
                             $tasks->dispatch($task);
                         }

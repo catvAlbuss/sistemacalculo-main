@@ -7,10 +7,11 @@ use Illuminate\Mail\Mailable;
 
 class RenewalReminder extends Mailable
 {
-    public function __construct(public UserSubscription $subscription) {}
+    // dias: días que faltan (el último aviso, 1, explica la desactivación y la baja posterior).
+    public function __construct(public UserSubscription $subscription, public int $dias = 0) {}
 
     public function build()
     {
-        return $this->subject('Aviso de vencimiento de su plan')->view('planesUser.emails.renewal-reminder');
+        return $this->subject($this->dias === 1 ? 'Mañana vence su plan' : 'Aviso de vencimiento de su plan')->view('planesUser.emails.renewal-reminder');
     }
 }

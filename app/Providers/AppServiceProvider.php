@@ -19,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Support\Facades\Mail::extend('hostinger', fn (array $config) => new \App\Mail\Transport\HostingerTransport($config));
         \Illuminate\Auth\Notifications\ResetPassword::toMailUsing(fn ($user, string $token) => (new \Illuminate\Notifications\Messages\MailMessage)
             ->subject('Restablecer contraseña')->view('emails.password-reset', [
                 'name' => $user->name, 'minutes' => config('auth.passwords.users.expire'),

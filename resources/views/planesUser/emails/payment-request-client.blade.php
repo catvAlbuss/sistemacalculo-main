@@ -6,6 +6,8 @@
     <x-mail.text>Estimado(a) {{ $user->name }}:</x-mail.text>
     @if ($method === 'free')
         <x-mail.text>Su prueba gratuita se encuentra activa. Dispone de 5 días desde el registro, por una sola vez por cuenta; luego necesitará un plan pagado para continuar.</x-mail.text>
+    @elseif ($method === 'culqi' && $paymentRequest->status === 'approved')
+        <x-mail.text>Su pago de {{ $plan->name }} ya fue confirmado. Puede ingresar a su cuenta para consultar su acceso y el ticket.</x-mail.text>
     @elseif ($method === 'culqi')
         <x-mail.text>Registramos su solicitud de {{ $plan->name }}. El acceso se activa cuando Culqi confirma el cobro.</x-mail.text>
     @else
@@ -30,7 +32,7 @@
 
     <x-mail.actions>
         @if ($activationUrl)<x-mail.button :href="$activationUrl">Crear mi contraseña</x-mail.button>@endif
-        @if ($method === 'culqi')
+        @if ($method === 'culqi' && $paymentRequest->status === 'pending')
             <x-mail.button :href="\App\Http\Controllers\CulqiController::paymentUrl($paymentRequest)" :secondary="(bool) $activationUrl">Completar el pago</x-mail.button>
         @elseif (!$activationUrl)
             <x-mail.button :href="url('/login')">Ingresar a mi cuenta</x-mail.button>

@@ -137,6 +137,10 @@ Route::middleware(['auth', 'verified', 'role:root|gerencia'])->group(function ()
     Route::get('/administracion/usuarios/{user}/plan-vitalicio', [App\Http\Controllers\LifetimeQuoteController::class, 'create'])->name('lifetime-quotes.create');
     Route::post('/administracion/usuarios/{user}/plan-vitalicio', [App\Http\Controllers\LifetimeQuoteController::class, 'store'])->middleware('throttle:5,10,lifetime-quote')->name('lifetime-quotes.store');
     Route::get('/administracion/pagos/{paymentRequest}', [App\Http\Controllers\PaymentAdminController::class, 'show'])->name('payments.admin.show');
+    Route::post('/administracion/pagos/{paymentRequest}/correos/{task}/reintentar', [App\Http\Controllers\PaymentAdminController::class, 'retryMail'])
+        ->middleware('throttle:10,10,payment-mail')->name('payments.admin.retry-mail');
+    Route::post('/administracion/pagos/{paymentRequest}/correos', [App\Http\Controllers\PaymentAdminController::class, 'resendMail'])
+        ->middleware('throttle:10,10,payment-mail')->name('payments.admin.resend-mail');
     Route::post('/administracion/pagos/eventos/{event}/revisar', [App\Http\Controllers\PaymentAdminController::class, 'review'])
         ->middleware('throttle:30,1,payments.review')->name('payments.admin.review');
 
@@ -258,9 +262,18 @@ Route::middleware(["auth", "verified", "check.subscription", "throttle:calculati
         // Aprendizaje del agente por uso: correcciones del ingeniero a las decisiones del agente.
         Route::post('/etabs/agente/aprendizaje', [\App\Http\Controllers\AgenteAprendizajeController::class, 'guardar'])->name('etabs.agente.aprendizaje.guardar');
         Route::get('/etabs/agente/aprendizaje', [\App\Http\Controllers\AgenteAprendizajeController::class, 'listar'])->name('etabs.agente.aprendizaje.listar');
+        Route::get('/etabs/agente/aprendizaje/pendientes', [\App\Http\Controllers\AgenteAprendizajeController::class, 'pendientes'])
+            ->middleware('role_or_permission:root|agente.aprendizaje.aprobar')->name('etabs.agente.aprendizaje.pendientes');
+        Route::post('/etabs/agente/aprendizaje/{id}/aprobar', [\App\Http\Controllers\AgenteAprendizajeController::class, 'aprobar'])
+            ->middleware('role_or_permission:root|agente.aprendizaje.aprobar')->name('etabs.agente.aprendizaje.aprobar');
+        Route::post('/etabs/agente/aprendizaje/{id}/rechazar', [\App\Http\Controllers\AgenteAprendizajeController::class, 'rechazar'])
+            ->middleware('role_or_permission:root|agente.aprendizaje.aprobar')->name('etabs.agente.aprendizaje.rechazar');
         // Agente con GPT: el navegador pasa por aquí; la clave queda en el servidor.
         Route::post('/etabs/agente/llm/chat/completions', [\App\Http\Controllers\AgenteLlmController::class, 'chat'])->name('etabs.agente.llm');
         Route::get('/etabs/agente/llm/estado', [\App\Http\Controllers\AgenteLlmController::class, 'estado'])->name('etabs.agente.llm.estado');
+        // Biblioteca de detalles del despacho (anónima): solo lectura, por rol (config/agente.php).
+        Route::get('/etabs/agente/biblioteca/{tipo}', [\App\Http\Controllers\AgenteBibliotecaController::class, 'mostrar'])
+            ->where('tipo', '[a-z_]{1,40}')->name('etabs.agente.biblioteca');
         // Observaciones del ingeniero con fotos (para revisar y entrenar al agente).
         Route::post('/etabs/agente/observaciones', [\App\Http\Controllers\AgenteObservacionesController::class, 'guardar'])->name('etabs.agente.observaciones.guardar');
         Route::get('/etabs/agente/observaciones', [\App\Http\Controllers\AgenteObservacionesController::class, 'listar'])->name('etabs.agente.observaciones.listar');

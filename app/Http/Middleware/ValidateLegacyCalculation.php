@@ -40,6 +40,13 @@ class ValidateLegacyCalculation
     // Octave itera sobre Lt: con vectores vacíos o de distinto tamaño falla ("'FD' undefined").
     private function requireSpans(Request $request): void
     {
+        // No borrar celdas vacías al contar: [0.1,,0.2] no es un vector válido para Octave.
+        $number='[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?';
+        foreach(['Lt','b','h','WD','WV'] as $field){
+            $value=trim((string)$request->input($field));
+            if(str_starts_with($value,'[') && str_ends_with($value,']')){ $value=substr($value,1,-1); }
+            if(!preg_match('/\A\s*'.$number.'(?:(?:\s*[,;]\s*|\s+)'.$number.')*\s*\z/D',$value)){ $this->reject($field); }
+        }
         $vector=fn(string $field)=>array_values(array_filter(preg_split('/[\s,;\[\]]+/',(string)$request->input($field)),'strlen'));
         $spans=$vector('Lt');
         if($spans===[]){ throw ValidationException::withMessages(['Lt'=>'Ingresa al menos un tramo con su longitud.']); }

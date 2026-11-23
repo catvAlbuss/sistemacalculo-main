@@ -67,18 +67,29 @@ class PaymentTasks
         if (!$task) {
             return;
         }
+        $mailConfigurationError = false;
         try {
+            if (app()->isProduction() && in_array($task->kind, PaymentMailRecovery::KINDS, true)
+                && app(MailConfiguration::class)->errors() !== []) {
+                $mailConfigurationError = true;
+                throw new \RuntimeException('Proveedor de correo sin configurar.');
+            }
             $result = match ($task->kind) {
                 'webhook', 'reconcile' => $this->webhook($task),
                 'renewal_reminder' => $this->reminder($task),
+                'account_deletion_notice', 'account_deleted' => $this->cuenta($task),
                 'complaint_copy', 'complaint_admin', 'complaint_answer' => $this->complaint($task),
                 default => $this->mail($task),
             };
             $task->update(['status' => 'completed', 'completed_at' => now(), 'locked_at' => null, 'payload' => null, 'result' => $result]);
-        } catch (\Throwable) {
+        } catch (\Throwable $exception) {
             $delay = [30, 120, 300, 600, 600][min($task->attempts - 1, 4)];
-            $task->update(['status' => $task->attempts >= 5 ? 'failed' : 'pending', 'locked_at' => null,
-                'available_at' => now()->addSeconds($delay), 'result' => 'retry_required']);
+            $hostingerError = $exception instanceof \App\Mail\Transport\HostingerMailException;
+            $task->update(['status' => $task->attempts >= 5 || ($hostingerError && !$exception->retryable) ? 'failed' : 'pending', 'locked_at' => null,
+                'available_at' => now()->addSeconds($delay), 'result' => $mailConfigurationError ? 'mail_configuration'
+                    : ($hostingerError ? $exception->deliveryResult : 'retry_required')]);
+            Log::warning('Tarea de pago no completada', ['task_id' => $task->id, 'kind' => $task->kind,
+                'attempt' => $task->attempts, 'result' => $task->result]);
             // Avoid putting SMTP credentials, document data or provider response bodies in failed_jobs.
             throw new \RuntimeException('No se completó la tarea de pago '.$task->id.'.');
         }
@@ -111,7 +122,14 @@ class PaymentTasks
     {
         $payment = PaymentRequest::with('user', 'plan')->findOrFail($task->payment_request_id);
         $purchasedPlan = $payment->purchasedPlan();
-        if ($task->kind === 'signup_client') {
+        if ($task->kind === 'access_client') {
+            if (!$payment->user->is_active || $payment->user->account_status !== 'enabled') {
+                return 'account_unavailable';
+            }
+            $url = route('password.reset', ['token' => \Illuminate\Support\Facades\Password::createToken($payment->user),
+                'email' => $payment->user->email]);
+            Mail::to($payment->user->email)->send(new \App\Mail\AccountAccessLink($payment->user->name, $url));
+        } elseif ($task->kind === 'signup_client') {
             $activationUrl = ($task->payload['new_account'] ?? false)
                 ? route('password.reset', ['token' => \Illuminate\Support\Facades\Password::createToken($payment->user), 'email' => $payment->email]) : null;
             Mail::to($payment->email)->send(new SolicitudCliente($payment->user, $purchasedPlan, $payment, null, $activationUrl));
@@ -139,7 +157,31 @@ class PaymentTasks
                 ->whereKeyNot($subscription->id)->where('starts_at', '>=', $subscription->ends_at)->exists()) {
             return 'superseded';
         }
-        Mail::to($subscription->user->email)->send(new \App\Mail\RenewalReminder($subscription));
+        Mail::to($subscription->user->email)->send(new \App\Mail\RenewalReminder($subscription, (int) ($task->payload['days'] ?? 0)));
+
+        return 'sent';
+    }
+
+    // Avisos del ciclo de vida de la cuenta (accounts:expire): un día antes de la baja y la baja.
+    private function cuenta(PaymentTask $task): string
+    {
+        $user = \App\Models\User::find($task->payload['user_id'] ?? null);
+        if (!$user || !$user->email) {
+            return 'superseded';
+        }
+        if ($task->kind === 'account_deletion_notice') {
+            // Renovó o ya no está habilitada: el aviso ya no corresponde.
+            if ($user->account_status !== 'enabled' || $user->currentSubscription()->exists()) {
+                return 'superseded';
+            }
+            Mail::to($user->email)->send(new \App\Mail\AccountDeletionNotice($user, $task->payload['ends_at'], $task->payload['baja']));
+
+            return 'sent';
+        }
+        if ($user->account_status !== 'deleted') {
+            return 'superseded';
+        }
+        Mail::to($user->email)->send(new \App\Mail\AccountDeactivated($user, (int) config('subscriptions.dias_para_baja', 7)));
 
         return 'sent';
     }

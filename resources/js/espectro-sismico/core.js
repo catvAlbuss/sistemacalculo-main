@@ -35,6 +35,8 @@ export const factorS2016 = {
 
 export const factorS2026 = {
     ...factorS2016,
+    // Tabla 4 / Art. 17: sin Vs30, usar el mayor valor de 1.00–1.30 para Z2/S2.
+    Z2_S2: 1.3,
     Z4_S4: 1.1, Z4_S5: 1.1,
     Z3_S4: 1.2, Z3_S5: 1.2,
     Z2_S4: 1.4, Z2_S5: 1.4,

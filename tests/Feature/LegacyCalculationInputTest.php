@@ -40,6 +40,26 @@ class LegacyCalculationInputTest extends TestCase
         }
     }
 
+    public function test_aligerados_rejects_empty_or_invalid_vector_cells_before_octave(): void
+    {
+        foreach (['[0.1,,0.2]', '[,0.1,0.2]', '[0.1,0.2,]', '[0.1; ;0.2]', '[0.1,1e]', '[0.1,0.2;]'] as $value) {
+            try {
+                app(ValidateLegacyCalculation::class)->handle($this->aligerados(['b' => $value]), fn () => response('unsafe'));
+                $this->fail('Invalid vector was accepted: '.$value);
+            } catch (ValidationException $exception) {
+                $this->assertArrayHasKey('b', $exception->errors());
+            }
+        }
+    }
+
+    public function test_aligerados_accepts_numeric_vector_separators(): void
+    {
+        foreach (['[0.1, 0.2]', '[0.1 0.2]', '[1e-1; +0.2]', '[ .1 , 2e-1 ]'] as $value) {
+            $response = app(ValidateLegacyCalculation::class)->handle($this->aligerados(['b' => $value]), fn () => response('ok'));
+            $this->assertSame('ok', $response->getContent());
+        }
+    }
+
     public function test_losas_aligeradas_results_are_grouped_by_span_with_example_inputs(): void
     {
         $this->withoutVite();
