@@ -53,7 +53,22 @@
     "separacionViguetas": 0.4,
     "alero": 0.6,
     "aceroTemperatura": "Ø1/4\" @0.25",
-    "ladrillo": "Ladrillo de techo 0.30x0.30x0.15"
+    "ladrillo": "Ladrillo de techo 0.30x0.30x0.15",
+    "espesorPorLuzLibre": [
+      [
+        5.5,
+        0.2
+      ],
+      [
+        6.5,
+        0.25
+      ],
+      [
+        null,
+        0.3
+      ]
+    ],
+    "anchoViga": 0.25
   },
   "techo": {
     "pendiente": 0.33,

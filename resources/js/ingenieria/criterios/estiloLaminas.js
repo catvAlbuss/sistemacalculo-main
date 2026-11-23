@@ -33,6 +33,8 @@ const PLANTA = {
   [L.PLATEA]: {geo: C("0", 6), texto: C(".D1 Texto")},
   [L.MALLA]: {geo: C("0", 6)},
   [L.ESTRIBOS]: {texto: C(".D1 cotas", 5), geo: C(".D1 cotas", 5)},
+  // Bastones de acero de la platea, en la capa del despacho (módulos 1, 2 y 10 de VINCHOS).
+  [L.ACERO_LONG]: {geo: C(".N1 Acero Long02 0.3mm"), texto: C(".D1 Texto")},
   [L.VIGAS_CIM]: {geo: C("0", 4), texto: C("Texto")},
   [L.ZAPATAS]: {geo: C("0", 6), texto: C("Texto")},
   [L.CIMIENTO]: {geo: C("0"), texto: C("Texto"), achurado: C(".N1 muros bajos")},

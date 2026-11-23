@@ -81,7 +81,7 @@ test('agent runs the requested skill, returns a short Spanish reply and strips r
   assert.match(out.reply, /^Dibujé el primer nivel de una casa de 9 x 22 m con 3 dormitorio/);
   assert.equal(steps[0].result.ok, true);
   assert.ok(db.tables.blockTable.modelSpace.newIterator().toArray().length > 100);
-  assert.equal(bodies[0].tools.length, 14);
+  assert.equal(bodies[0].tools.length, 18);
   assert.ok(JSON.stringify(steps[0].result).length < 1200, 'tool results stay compact');
   // La herramienta respondió bien: no se paga una segunda llamada solo para redactar.
   assert.equal(bodies.length, 1);
@@ -146,12 +146,15 @@ test('clear requests run directly without the model (zero tokens) and never pick
     assert.deepEqual(r.args, c.argumentos, c.pedido);
   }
   assert.ok(directas >= 15, `${directas} of ${CASOS_EVALUACION.length} requests without the model`);
-  // Datos, correcciones y preguntas van al modelo.
-  for (const q of ['según el estudio de suelos el Df es 2.50 m', 'la losa es maciza, corrígelo', 'explícame la estructura de este plano', 'genera el plano de estructuras con Df 2.50']) assert.equal(rutaDirecta(q), null, q);
+  // Datos del proyecto dichos en el chat: directo a Datos del proyecto, leídos sin IA (antes el
+  // modelo los confundía con una corrección y perdía el Df).
+  assert.deepEqual(rutaDirecta('según el estudio de suelos el Df es 2.50 m'), {tool: 'datos_proyecto', args: {df: '2.50'}});
+  // Correcciones, preguntas y pedidos de dibujo con datos van al modelo.
+  for (const q of ['la losa es maciza, corrígelo', 'explícame la estructura de este plano', 'genera el plano de estructuras con Df 2.50']) assert.equal(rutaDirecta(q), null, q);
   // runAgent no llama al modelo para un pedido directo.
   const context = createDrawingContext({getDatabase: () => newDb(6), dm});
   let llamadas = 0;
-  const out = await runAgent({text: '¿Qué vistas tiene el plano abierto?', context, fetchImpl: async () => { llamadas++; throw new Error('no debe llamar'); }});
+  const out = await runAgent({text: '¿Qué vistas tiene el plano abierto?', settings: {...(await import('../../resources/js/ingenieria/agente/agentRunner.js')).AGENTE_SERVIDOR, rutaDirecta: true}, context, fetchImpl: async () => { llamadas++; throw new Error('no debe llamar'); }});
   assert.equal(llamadas, 0);
   assert.equal(out.directa, true);
   assert.deepEqual(out.usage, {prompt: 0, completion: 0});

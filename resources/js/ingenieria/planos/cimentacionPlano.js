@@ -63,8 +63,15 @@ export function tramosEntreColumnas(columnas, limites = new Map()) {
     const orden = [...lista].sort((p, q) => dot(sub(p.nodo, base), dir0) - dot(sub(q.nodo, base), dir0));
     for (let i = 0; i < orden.length - 1; i++) {
       const A = orden[i], B = orden[i + 1];
-      // El tramo une los centros de las columnas (las columnas suelen ir a un lado del eje).
-      const ca = {x: A.x, y: A.y}, cb = {x: B.x, y: B.y};
+      // El tramo va paralelo al eje. Si las dos columnas van corridas igual a un lado del eje
+      // (módulo 14), la viga va por sus centros; si no (una L de 1.50 en la esquina y una T
+      // centrada, módulo 1), por el lado menos corrido: nunca una viga inclinada.
+      const ejeV = sub(B.nodo, A.nodo), ejeL = len(ejeV);
+      if (ejeL < 0.3) continue;
+      const de = {x: ejeV.x / ejeL, y: ejeV.y / ejeL}, n = {x: -de.y, y: de.x};
+      const oa = dot(sub({x: A.x, y: A.y}, A.nodo), n), ob = dot(sub({x: B.x, y: B.y}, B.nodo), n);
+      const off = Math.abs(oa - ob) < 0.05 ? (oa + ob) / 2 : Math.abs(oa) < Math.abs(ob) ? oa : ob;
+      const ca = {x: A.nodo.x + n.x * off, y: A.nodo.y + n.y * off}, cb = {x: B.nodo.x + n.x * off, y: B.nodo.y + n.y * off};
       const v = sub(cb, ca), largo = len(v);
       if (largo < 0.3) continue;
       const d = {x: v.x / largo, y: v.y / largo};
@@ -113,8 +120,9 @@ export const MEDIDAS = {burbuja: 0.24, textoBurbuja: 0.22, columna: 0.15, cota: 
 
 // Ejes con burbujas y columnas con su tipo: base común de los planos de estructuras.
 // achurado: "AR-CONC" (platea, aligerado) o "solido" (cimiento corrido), como el expediente.
-export function primitivasBase(ejesPlanta, columnas, {achurado = "AR-CONC"} = {}) {
-  const ejes = recortarEjes(ejesPlanta, columnas);
+// extra: puntos que los ejes también deben pasar (el borde de un volado: las burbujas van afuera).
+export function primitivasBase(ejesPlanta, columnas, {achurado = "AR-CONC", extra = []} = {}) {
+  const ejes = recortarEjes(ejesPlanta, columnas, 1.0, extra);
   const pts = ejes.flatMap((e) => [e.p, e.q]);
   const marco = {x0: Math.min(...pts.map((p) => p.x)), y0: Math.min(...pts.map((p) => p.y)), x1: Math.max(...pts.map((p) => p.x)), y1: Math.max(...pts.map((p) => p.y))};
   const rb = MEDIDAS.burbuja;
@@ -145,8 +153,8 @@ export function primitivasBase(ejesPlanta, columnas, {achurado = "AR-CONC"} = {}
 
 // Como en los planos de estructuras, cada eje se dibuja hasta 1.0 m más allá de la
 // columna más alejada a lo largo de él (no de burbuja a burbuja de la arquitectura).
-export function recortarEjes(ejes, columnas, margen = 1.0) {
-  const puntos = columnas.flatMap((c) => c.contorno);
+export function recortarEjes(ejes, columnas, margen = 1.0, extra = []) {
+  const puntos = [...columnas.flatMap((c) => c.contorno), ...extra];
   if (!puntos.length) return ejes;
   return ejes.map((e) => {
     const v = sub(e.q, e.p), l = len(v) || 1, u = {x: v.x / l, y: v.y / l};
@@ -302,22 +310,50 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
   const base = primitivasBase(lectura.ejes, columnas);
   const {h} = base;
   const prim = [];
+  // Muros del primer nivel sobre la cimentación y columnetas con aspa, como el ingeniero los dibuja
+  // en su planta de cimentación (o.muros === false los quita).
+  if (o.muros !== false) {
+    const {geometria} = murosDelEdificio({columnas, items, k});
+    for (const g of geometria) prim.push(pline(L.MUROS_E, g.pts.map(pt), g.cerrada === true));
+  }
+  for (const c of lectura.columnetas ?? []) {
+    if (!(c.contorno?.length >= 3)) continue;
+    prim.push(pline(L.COLUMNETAS, c.contorno.map(pt), true));
+    const xs = c.contorno.map((q) => q.x), ys = c.contorno.map((q) => q.y);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    prim.push(line(L.COLUMNETAS, pt({x: x0, y: y0}), pt({x: x1, y: y1})), line(L.COLUMNETAS, pt({x: x0, y: y1}), pt({x: x1, y: y0})));
+  }
   if (tipo === "platea") {
     prim.push(pline(L.PLATEA, huella.map(pt), true));
-    // Malla de la platea en las dos direcciones de la grilla, como la dibuja el expediente.
+    // Dos estilos del ingeniero (decisión mallaCimentacion): malla completa (módulos 4, 6, 8) o solo
+    // dos bastones de acero, uno a lo largo y otro a lo ancho, con su llamada (módulos 1, 2, 10).
     const u = direccionPrincipal(lectura.ejes), v = {x: -u.y, y: u.x};
-    for (const [dir, rep] of [[u, v], [v, u]]) {
-      const s = huella.map((p) => dot(p, rep));
-      for (let t = Math.min(...s) + CRITERIOS.platea.malla; t < Math.max(...s) - 0.02; t += CRITERIOS.platea.malla) {
-        const tramo = recortar({x: rep.x * t, y: rep.y * t}, dir, huella);
-        if (tramo) prim.push(line(L.MALLA, pt(tramo[0]), pt(tramo[1])));
+    if (o.malla === true) {
+      for (const [dir, rep] of [[u, v], [v, u]]) {
+        const s = huella.map((p) => dot(p, rep));
+        for (let t = Math.min(...s) + CRITERIOS.platea.malla; t < Math.max(...s) - 0.02; t += CRITERIOS.platea.malla) {
+          const tramo = recortar({x: rep.x * t, y: rep.y * t}, dir, huella);
+          if (tramo) prim.push(line(L.MALLA, pt(tramo[0]), pt(tramo[1])));
+        }
       }
     }
-    // Rótulo como el expediente, en tres renglones al centro: "ZAPATA CORRIDA / Hz / Df".
+    const su = huella.map((p) => dot(p, u)), sv = huella.map((p) => dot(p, v));
+    const [bu0, bu1, bv0, bv1] = [Math.min(...su), Math.max(...su), Math.min(...sv), Math.max(...sv)];
+    const P = (a, b) => ({x: u.x * a + v.x * b, y: u.y * a + v.y * b});
+    const baston = (a0, a1, b, enU) => {
+      // Franja de 0.10 m con ganchos en las puntas (como el bastón del expediente).
+      const w = 0.05, g = 0.06, Q = (a, bb) => (enU ? P(a, bb) : P(bb, a));
+      return pline(L.ACERO_LONG, [Q(a0 + g, b - w - g), Q(a0, b - w), Q(a0, b + w), Q(a1, b + w), Q(a1, b - w), Q(a1 - g, b - w - g)].map(pt));
+    };
+    const m = 0.12;
+    if (o.malla !== true) prim.push(baston(bu0 + m, bu1 - m, bv0 + (bv1 - bv0) * 0.75, true));
+    if (o.malla !== true) prim.push(baston(bv0 + m, bv1 - m, bu0 + (bu1 - bu0) * 0.12, false));
+    // Rótulo al centro, en tres renglones: "PLATEA DE CIMENTACIÓN / Hz / Df" (módulos 1, 2 y 10 de
+    // VINCHOS; solo el módulo 14 decía "ZAPATA CORRIDA").
     const c = huella.reduce((acc, p) => ({x: acc.x + p.x / huella.length, y: acc.y + p.y / huella.length}), {x: 0, y: 0});
     const giro = Math.round((Math.atan2(u.y, u.x) * 1800) / Math.PI) / 10;
-    const hr = MEDIDAS.columna; // 0.15, como "ZAPATA CORRIDA" del expediente
-    ["ZAPATA CORRIDA", `Hz = ${o.espesorPlatea.toFixed(2)} m`, `Df = -${o.dfPlatea.toFixed(2)} m`].forEach((t, i) => {
+    const hr = MEDIDAS.columna; // 0.15, como el rótulo del expediente
+    ["PLATEA DE CIMENTACIÓN", `Hz = ${o.espesorPlatea.toFixed(2)} m`, `Df = -${o.dfPlatea.toFixed(2)} m`].forEach((t, i) => {
       prim.push(text(L.PLATEA, pt({x: c.x - v.x * (i - 1) * hr * 1.5, y: c.y - v.y * (i - 1) * hr * 1.5}), t, hr, giro));
     });
     // Llamadas del acero de la platea con su flecha, como el expediente:
@@ -346,11 +382,12 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
       prim.push(text(L.ZAPATAS, pt({x: z.x, y: z.y0 - h * 0.6}), z.tipo, h * 0.55));
     }
   }
-  for (const t of cimientos) prim.push(banda(L.CIMIENTO, t.a, t.b, anchoCimiento));
+  // Con platea, el cimiento corrido va en su propio plano (el ingeniero no lo repite aquí).
+  if (tipo !== "platea") for (const t of cimientos) prim.push(banda(L.CIMIENTO, t.a, t.b, anchoCimiento));
   // Con platea no hay vigas de cimentación (la platea las reemplaza), como en el expediente.
   if (tipo === "platea") vigas.length = 0;
   for (const t of vigas) prim.push(banda(L.VIGAS_CIM, t.a, t.b, o.vigaB));
-  prim.push(...rotularTramos(cimientos, L.CIMIENTO, `CC ${anchoCimiento.toFixed(2)}`, anchoCimiento, h));
+  if (tipo !== "platea") prim.push(...rotularTramos(cimientos, L.CIMIENTO, `CC ${anchoCimiento.toFixed(2)}`, anchoCimiento, h));
   prim.push(...rotularTramos(vigas, L.VIGAS_CIM, `VC ${o.vigaB.toFixed(2)}x${o.vigaH.toFixed(2)}`, o.vigaB, h));
 
   const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
@@ -450,6 +487,12 @@ export function planoCimientoCorrido({lectura, items, caja, k = 1}, opciones = {
     // Para el metrado: cada tramo de muro con su largo y espesor, y los vanos de puerta.
     modelo: {tramos: tramos.map((t) => ({largo: t.largo, espesor: t.espesor, exterior: Boolean(t.exterior), conPuerta: Boolean(t.conPuerta), eje: ejeDelTramo(t, lectura.ejes)}))},
     cortes: [...new Set(tramos.map((t) => t.corte))].sort(),
+    // Por corte: espesor típico del muro que lleva encima y si es exterior o con puerta (para
+    // dibujar su detalle con los datos de este proyecto, laminas/corteCimiento.js).
+    cortesDetalle: [...new Set(tramos.map((t) => t.corte))].sort().map((numero) => {
+      const ts = tramos.filter((t) => t.corte === numero).map((t) => t.espesor).filter((e) => e > 0).sort((a, b) => a - b);
+      return {numero, espesorMuro: ts.length ? ts[Math.floor(ts.length / 2)] : null, exterior: numero !== 3, conPuerta: numero === 1};
+    }),
     contenido: {
       titulo: "PLANO DE CIMIENTO CORRIDO", primitivas: [...base.primitivas, ...prim], marco: base.marco, ejes: base.ejes, h,
       notas: [`Cimiento corrido ${ancho.toFixed(2)} x ${CRITERIOS.cimientoCorrido.alto.toFixed(2)} m bajo todos los muros · ${CRITERIOS.concreto.cimientoCorrido}`],
@@ -457,11 +500,53 @@ export function planoCimientoCorrido({lectura, items, caja, k = 1}, opciones = {
   };
 }
 
+// Código de cada columneta por su medida (pa, pb…), como el cuadro de columnetas: las que difieren
+// 1 cm o menos son la misma. previos: [{codigo, medida "0.13x0.20"}] de otro plano (los mismos
+// códigos en el cimiento corrido y en la tabiquería de cada nivel).
+export function codificarColumnetas(columnetas, previos = []) {
+  const medidas = previos.map(({codigo, medida}) => { const [m0, m1] = medida.split("x").map(Number); return {m0, m1, codigo}; });
+  let siguiente = medidas.length;
+  for (const c of columnetas) {
+    const [m0, m1] = [c.b, c.h].sort((x, y) => x - y);
+    let m = medidas.find((x) => Math.abs(x.m0 - m0) <= 0.012 && Math.abs(x.m1 - m1) <= 0.012);
+    if (!m) { m = {m0, m1, codigo: `p${String.fromCharCode(97 + siguiente++)}`}; medidas.push(m); }
+    c.codigo = m.codigo;
+  }
+  return medidas.map((m) => ({codigo: m.codigo, medida: `${m.m0.toFixed(2)}x${m.m1.toFixed(2)}`}));
+}
+
+// Plano de tabiquería de un nivel (como el expediente: "PLANO DE TABIQUERÍA 2° Y 3° PISO"): los
+// muros de ese nivel con sus vanos, columnas y columnetas con aspa y su código. lectura es la de
+// la planta de ese nivel (sus ejes, sus columnas y sus columnetas).
+export function planoTabiqueria({lectura, items, k = 1}, {titulo = "PLANO DE TABIQUERÍA", codigos = []} = {}) {
+  const base = primitivasBase(lectura.ejes, lectura.columnas, {achurado: "solido"});
+  const {h} = base;
+  const prim = [];
+  const {geometria, centroide} = murosDelEdificio({columnas: lectura.columnas, items, k, cerrarPuertas: false});
+  for (const g of geometria) prim.push(pline(L.MUROS_E, g.pts.map(pt), g.cerrada === true));
+  const columnetas = (lectura.columnetas ?? []).map((c) => ({...c}));
+  const tabla = codificarColumnetas(columnetas, codigos);
+  const hr = MEDIDAS.rotulo;
+  for (const c of columnetas) {
+    prim.push(pline(L.COLUMNETAS, c.contorno.map(pt), true));
+    const xs = c.contorno.map((q) => q.x), ys = c.contorno.map((q) => q.y);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    prim.push(line(L.COLUMNETAS, pt({x: x0, y: y0}), pt({x: x1, y: y1})), line(L.COLUMNETAS, pt({x: x0, y: y1}), pt({x: x1, y: y0})));
+    const haciaAdentro = sub(centroide, {x: c.x, y: c.y}), lh = len(haciaAdentro) || 1;
+    const sep = Math.max(c.b, c.h) / 2 + hr * 0.9;
+    prim.push(text(L.CODIGOS, pt({x: c.x + (haciaAdentro.x / lh) * sep, y: c.y + (haciaAdentro.y / lh) * sep}), c.codigo, hr));
+  }
+  return {
+    columnetas: tabla, columnetasCodificadas: columnetas, muros: geometria.length,
+    contenido: {titulo, primitivas: [...base.primitivas, ...prim], marco: base.marco, ejes: base.ejes, h, notas: []},
+  };
+}
+
 // Muros del edificio leídos de la arquitectura: la geometría de muros dentro de la
 // huella de las columnas (sin puertas, muebles, textos ni ejes), los vanos de puerta
 // cerrados como en el expediente, y los tramos de muro clasificados en exteriores
 // (corte 2-2, o 1-1 si tienen puerta) e interiores (corte 3-3).
-export function murosDelEdificio({columnas, items, k = 1}) {
+export function murosDelEdificio({columnas, items, k = 1, cerrarPuertas = true}) {
   const huella = envolvente(columnas.flatMap((c) => c.contorno));
   const zona = huella.length >= 3 ? desplazarPoligono(huella, 0.15) : huella;
   const enMetros = (p) => ({x: p.x / k, y: p.y / k});
@@ -469,12 +554,16 @@ export function murosDelEdificio({columnas, items, k = 1}) {
   for (const it of items) {
     if (it.tipo !== "linea" && it.tipo !== "poli") continue;
     if (CAPAS_NO_MURO_PLANTA.test(it.capa) || BLOQUES_NO_MURO.test(it.bloque ?? "")) continue;
+    // Líneas de proyección ("LINEA PROY.": vigas sobre los vanos): bajo los muros cierran el vano
+    // como el cimiento corrido que pasa por debajo; en la tabiquería (vanos abiertos) no van.
+    if (!cerrarPuertas && /proy/i.test(it.capa ?? "")) continue;
     const pts = it.puntos.map(enMetros);
     if (!pts.every((p) => dentroConvexo(p, zona))) continue;
     geometria.push({pts, cerrada: it.cerrada, capa: it.capa});
   }
   const puertas = items.filter((it) => it.tipo !== "texto" && /puerta|door/i.test(it.bloque ?? "")).flatMap((it) => (it.puntos ?? [it.centro]).map(enMetros)).filter((p) => dentroConvexo(p, zona));
-  geometria.push(...cerrarVanos(geometria, puertas));
+  quitarEscaleras(geometria);
+  if (cerrarPuertas) geometria.push(...cerrarVanos(geometria, puertas));
   const tramos = tramosDeMuro(geometria);
   const centroide = huella.reduce((acc, p) => ({x: acc.x + p.x / huella.length, y: acc.y + p.y / huella.length}), {x: 0, y: 0});
   for (const t of tramos) {
@@ -486,6 +575,97 @@ export function murosDelEdificio({columnas, items, k = 1}) {
     t.adentro = dot(sub(centroide, m), n) >= 0 ? n : {x: -n.x, y: -n.y};
   }
   return {geometria, tramos, huella, centroide, puertas};
+}
+
+// Peldaños de escalera (no son muros): 5 o más trazos rectos paralelos del mismo largo,
+// espaciados con regularidad entre 0.20 y 0.35 m (huella). Se quitan de la geometría.
+export function quitarEscaleras(geometria) {
+  const quitar = new Set(gruposDePeldanos(geometria).flat().map((x) => x.i));
+  const quedan = geometria.filter((_, i) => !quitar.has(i));
+  geometria.length = 0;
+  geometria.push(...quedan);
+  return quitar.size;
+}
+
+// Grupos de peldaños: cada grupo es un tramo de escalera ([{i, a, b, l, d}]).
+export function gruposDePeldanos(geometria) {
+  // Un peldaño es un trazo recto o una huella rectangular angosta (0.20–0.35 de fondo), tomada
+  // por su eje largo (módulo 1: cada huella es una polilínea de 4 vértices).
+  const comoTrazo = (g) => {
+    if (g.pts.length === 2 && !g.cerrada) return g.pts;
+    let pts = g.pts;
+    if (pts.length === 5 && len(sub(pts[0], pts[4])) < 1e-6) pts = pts.slice(0, 4);
+    if (pts.length !== 4) return null;
+    const l0 = len(sub(pts[1], pts[0])), l1 = len(sub(pts[2], pts[1]));
+    const [corto, largoLado] = l0 < l1 ? [l0, 1] : [l1, 0];
+    if (corto < 0.2 || corto > 0.35 || Math.abs(dot(sub(pts[1], pts[0]), sub(pts[2], pts[1]))) > 1e-3 * l0 * l1) return null;
+    const mid = (p, q) => ({x: (p.x + q.x) / 2, y: (p.y + q.y) / 2});
+    return largoLado === 1 ? [mid(pts[0], pts[1]), mid(pts[2], pts[3])] : [mid(pts[1], pts[2]), mid(pts[3], pts[0])];
+  };
+  const segs = geometria.map((g, i) => ({i, pts: comoTrazo(g)})).filter((x) => x.pts).map(({i, pts}) => {
+    const [a, b] = pts, l = len(sub(b, a));
+    return {i, a, b, l, d: l ? {x: (b.x - a.x) / l, y: (b.y - a.y) / l} : null};
+  }).filter((s) => s.d && s.l >= 0.6 && s.l <= 3.5);
+  const usados = new Set(), grupos = [];
+  for (const s of segs) {
+    if (usados.has(s.i)) continue;
+    const n = {x: -s.d.y, y: s.d.x};
+    const grupo = segs.filter((o) => !usados.has(o.i) && Math.abs(dot(o.d, s.d)) > 0.999 && Math.abs(o.l - s.l) < 0.05
+      && Math.abs(dot(sub({x: (o.a.x + o.b.x) / 2, y: (o.a.y + o.b.y) / 2}, {x: (s.a.x + s.b.x) / 2, y: (s.a.y + s.b.y) / 2}), s.d)) < 0.1);
+    if (grupo.length < 5) continue;
+    const pos = [...new Set(grupo.map((o) => Math.round(dot(sub(o.a, s.a), n) * 1000) / 1000))].sort((x, y) => x - y);
+    const pasos = pos.slice(1).map((p, j) => p - pos[j]).filter((x) => x > 0.05);
+    const regulares = pasos.filter((x) => x >= 0.2 && x <= 0.35);
+    if (regulares.length >= 4 && regulares.length >= pasos.length * 0.7) { grupo.forEach((o) => usados.add(o.i)); grupos.push(grupo); }
+  }
+  return grupos;
+}
+
+// Huellas de escalera en la planta (en metros), para dejar su vacío en la losa: cada tramo es
+// la caja de sus peldaños; tramos a menos de 1.6 m (escalera en U, ida y vuelta) son una sola
+// escalera; el descanso se suma alargando la caja 1.20 m en el sentido de la marcha, hasta
+// donde termina la losa. Devuelve [{u0, u1, v0, v1}] en las direcciones u (eje x local) y v.
+export function escalerasEnPlanta({columnas, items, k = 1}, u = {x: 1, y: 0}) {
+  const huella = envolvente(columnas.flatMap((c) => c.contorno));
+  if (huella.length < 3) return [];
+  const zona = desplazarPoligono(huella, 0.15);
+  const geometria = [];
+  for (const it of items) {
+    if (it.tipo !== "linea" && it.tipo !== "poli") continue;
+    const pts = it.puntos.map((p) => ({x: p.x / k, y: p.y / k}));
+    if (pts.length <= 5 && pts.every((p) => dentroConvexo(p, zona))) geometria.push({pts, cerrada: it.cerrada});
+  }
+  const v = {x: -u.y, y: u.x};
+  const caja = (grupo) => {
+    const ps = grupo.flatMap((s) => [s.a, s.b]);
+    const us = ps.map((p) => dot(p, u)), vs = ps.map((p) => dot(p, v));
+    // Sentido de la marcha: perpendicular a los peldaños.
+    const marchaU = Math.abs(dot(grupo[0].d, u)) < 0.5;
+    // El tramo: peldaños, huella (separación entre peldaños) y ancho (largo del peldaño).
+    const n = {x: -grupo[0].d.y, y: grupo[0].d.x};
+    const pos = [...new Set(grupo.map((s) => Math.round(dot(s.a, n) * 1000) / 1000))].sort((x, y) => x - y);
+    const pasos = pos.slice(1).map((p, j) => p - pos[j]).filter((x) => x >= 0.2 && x <= 0.35).sort((x, y) => x - y);
+    const tramo = {peldanos: pos.length, huella: pasos.length ? Math.round(pasos[Math.floor(pasos.length / 2)] * 100) / 100 : 0.3, ancho: Math.round(grupo[0].l * 100) / 100};
+    return {u0: Math.min(...us), u1: Math.max(...us), v0: Math.min(...vs), v1: Math.max(...vs), marchaU, tramos: [tramo]};
+  };
+  let cajas = gruposDePeldanos(geometria).map(caja);
+  // Tramos vecinos: una sola escalera.
+  const cerca = (a, b) => Math.max(a.u0 - b.u1, b.u0 - a.u1, 0) < 1.6 && Math.max(a.v0 - b.v1, b.v0 - a.v1, 0) < 1.6;
+  for (let cambio = true; cambio;) {
+    cambio = false;
+    for (let i = 0; i < cajas.length && !cambio; i++) for (let j = i + 1; j < cajas.length && !cambio; j++) {
+      if (!cerca(cajas[i], cajas[j])) continue;
+      const a = cajas[i], b = cajas[j];
+      cajas[i] = {u0: Math.min(a.u0, b.u0), u1: Math.max(a.u1, b.u1), v0: Math.min(a.v0, b.v0), v1: Math.max(a.v1, b.v1), marchaU: a.marchaU, tramos: [...a.tramos, ...b.tramos]};
+      cajas.splice(j, 1);
+      cambio = true;
+    }
+  }
+  const [hu0, hu1] = [Math.min(...huella.map((p) => dot(p, u))), Math.max(...huella.map((p) => dot(p, u)))];
+  const [hv0, hv1] = [Math.min(...huella.map((p) => dot(p, v))), Math.max(...huella.map((p) => dot(p, v)))];
+  return cajas.map((c) => (c.marchaU
+    ? {...c, u0: Math.max(hu0, c.u0 - 1.2), u1: Math.min(hu1, c.u1 + 1.2)}
+    : {...c, v0: Math.max(hv0, c.v0 - 1.2), v1: Math.min(hv1, c.v1 + 1.2)}));
 }
 
 // Vanos de puerta: dos caras de muro alineadas con un hueco de 0.5–1.6 m donde hay
@@ -525,7 +705,11 @@ function cerrarVanos(geometria, puertas) {
 }
 
 // Capas y bloques que no son muro en una planta de arquitectura.
-const CAPAS_NO_MURO_PLANTA = /mobil|equip|mueble|texto|text|cota|acot|dim|eje|axis|grid|corte|proyecc|piso|area|achur|hatch|textur|tablero|indicador|cuadro|fachada|puerta|door|aparato|sanit|vano|col|estruc|nivel|^E-/i;
+// También las capas de instalaciones, mobiliario y pisos (nombres AIA: P-SANR-FIXT, Q-SPCQ, A-FLOR-PATT…,
+// y de despacho: AMOBLADO, AGUA FRIA): no son muros y, como se calcaban, llenaban la cimentación
+// y la tabiquería de aparatos sanitarios y muebles. "LINEA PROY." se queda: medido, marca caras
+// del edificio que el ingeniero sí dibuja (quitarla baja la cimentación de ilo 02 y 04).
+const CAPAS_NO_MURO_PLANTA = /barand|escaler|grada|pelda|mobil|mobi(-|_|\b)|amobl|equip|mueble|texto|text|cota|acot|dim|eje|axis|grid|corte|proyecc|piso|area|achur|hatch|textur|tablero|indicador|cuadro|fachada|puerta|door|aparato|sanit|vano|col|estruc|nivel|^E-|^[PMQ]-|-(FURN|FIXT|EQPM|PATT)\b|agua|desag|electr|instal|(^|_)pers\b|vegeta|arbol|jard/i;
 const BLOQUES_NO_MURO = /puerta|door|ventana|window|mueble|mobil|equip|sanit|aparato|inodoro|lavat/i;
 
 function dentroConvexo(p, poligono) {

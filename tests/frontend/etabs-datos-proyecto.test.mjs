@@ -34,7 +34,7 @@ test('panel values are normalized; wrong values are ignored and reported', () =>
   assert.ok(CAMPOS_TECNICOS.every((c) => c.etiqueta && c.campo));
 });
 
-test('the template seismic texts (copied from the reference project) are replaced with the project ones', () => {
+test('the template seismic texts (copied from the reference project) are replaced with the project ones', {skip: !existsSync('public/assets/plantillas/estructuras-laminas.dxf') && 'plantilla fija retirada: las láminas se componen en modo adaptativo'}, () => {
   const f = textosSismicos(parametrosSismicos({zona: 2, suelo: 'S3', categoria: 'A2'}));
   const plantilla = ['Z=0.25(ZONA 2)', 'U=1.0 ', 'U=1.0 categoria "C" (EDIFICACIONES COMUNES)', 'categoria "C" EDIFICACIONES COMUNES  ', 'S=2', 'S=1.40(suelo tipo s2)', 'Tp=1.00(suelo S2)', 'TL=2.0(suelo tipo S2)'];
   assert.deepEqual(plantilla.map(f), ['Z=0.25(ZONA 2)', 'U=1.5 ', 'U=1.5 categoria "A2" (EDIFICACIONES ESENCIALES)', 'categoria "A2" EDIFICACIONES ESENCIALES', 'S=3', 'S=1.40(suelo tipo S3)', 'Tp=1.00(suelo S3)', 'TL=1.6(suelo tipo S3)']);
@@ -166,6 +166,7 @@ async function abrir(path) {
   return db;
 }
 async function cargarPlantilla() {
+  if (!existsSync(plantillaDxf)) return {db: null, config: {modo: 'adaptativa', escalaPlanos: 2}};
   const db = new dm.AcDbDatabase();
   const d = readFileSync(plantillaDxf);
   await db.read(d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength), {readOnly: true}, dm.AcDbFileType.DXF);
@@ -192,6 +193,9 @@ test('module 3 with its soil study and E.030 data: Hz 0.60, Df 2.50 and Z/U/S/Tp
   // El ingeniero corrige por chat (zona 3, suelo S2, vivienda): el agente guarda los datos y
   // REHACE las láminas en el mismo lugar, sin apilar otra copia debajo.
   const despues1 = db.tables.blockTable.modelSpace.newIterator().toArray().length;
+  const repetido = await SKILLS.find((s) => s.name === 'plano_estructuras').run({vista: '1ER NIVEL'}, ctx);
+  assert.equal(repetido.sinCambios, true, 'unchanged inputs preserve the actual CAD entities');
+  assert.equal(db.tables.blockTable.modelSpace.newIterator().toArray().length, despues1);
   const r2 = await SKILLS.find((s) => s.name === 'plano_estructuras').run({vista: '1ER NIVEL', zona: 3, suelo: 'S2', categoria: 'C'}, ctx);
   assert.match(r2.mensaje, /^Guardé zona, suelo, categoría en Datos del proyecto\. Reemplacé las láminas anteriores\. Generé las láminas E-01/);
   assert.match(r2.mensaje, /Z=0\.35, U=1, S=1\.15, Tp=0\.6/);
@@ -203,8 +207,14 @@ test('module 3 with its soil study and E.030 data: Hz 0.60, Df 2.50 and Z/U/S/Tp
   assert.doesNotMatch(r3.mensaje, /Reemplacé/);
   assert.ok(db.tables.blockTable.modelSpace.newIterator().toArray().length > despues2 + 0.9 * (despues1 - antes));
   const bloques = [...db.tables.blockTable.newIterator()].filter((b) => b.newIterator().toArray().some((e) => /^U=1\.0 categoria "C"/.test(e.contents ?? '')));
-  assert.equal(bloques.length, 1, 'the second project gets its own copy of the seismic block');
-  assert.ok(bloques[0].newIterator().toArray().some((e) => e.contents === 'Z=0.35(ZONA 3)'));
+  if (existsSync(plantillaDxf)) {
+    assert.equal(bloques.length, 1, 'the second project gets its own copy of the seismic block');
+    assert.ok(bloques[0].newIterator().toArray().some((e) => e.contents === 'Z=0.35(ZONA 3)'));
+  } else {
+    const textosActuales = ctx.entidadesDelAgente().map((e) => e.contents ?? e.textString ?? '');
+    assert.ok(textosActuales.includes('Z=0.35(ZONA 3)'));
+    assert.ok(textosActuales.includes('U=1.0 categoria "C" (EDIFICACIONES COMUNES)'));
+  }
 
   // Página recargada / plano recuperado: un contexto NUEVO (sin memoria del chat) sobre el
   // mismo dibujo, y el usuario pide "arregla las láminas" sin decir la vista. El agente
@@ -231,7 +241,7 @@ test('module 3 with its soil study and E.030 data: Hz 0.60, Df 2.50 and Z/U/S/Tp
   assert.match(rev.mensaje, /- Textos encimados: /);
   assert.match(rev.mensaje, /- Datos del proyecto que faltan: ninguno\./, 'Hz, Df, zona, suelo y categoría vinieron del panel y del chat');
   assert.match(rev.mensaje, /- Rótulo sin: proyecto, entidad, especialista, CIP/);
-  assert.match(rev.mensaje, /- Aún no dibujo: secciones VB/);
+  assert.match(rev.mensaje, existsSync(plantillaDxf) ? /- Aún no dibujo: secciones VB/ : /- Pendientes del paquete actual:/);
   const corr = await SKILLS.find((s) => s.name === 'revisar_laminas').run({corregir: true}, nuevo);
   assert.ok(corr.encimados <= rev.encimados, `corregir no empeora: ${rev.encimados} → ${corr.encimados}`);
   if (rev.encimados) assert.ok(corr.corregidos > 0, 'separó textos');

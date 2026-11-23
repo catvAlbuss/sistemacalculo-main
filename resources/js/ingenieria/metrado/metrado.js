@@ -11,18 +11,26 @@
 import {CRITERIOS, posicionesEstribos} from "../criterios/criteriosEstructurales.js";
 import {nombreElemento} from "./terminologia.js";
 import {REFERENCIA_DESPACHO} from "./referenciaDespacho.js";
+import {reglasPara} from "./reglasDespacho.js";
+
+const aprendido = (v, respaldo) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : respaldo);
 
 export const CRITERIOS_METRADO = {
   solado: 0.10,                 // m — "Zapata corrida 1 … 2.10" = Df 2.00 + solado 0.10
-  esponjamiento: 1.2,           // eliminación = (excavación − relleno) × 1.2
+  esponjamiento: 1.2,           // eliminación = (excavación − relleno propio) × 1.2 (15 de 15 módulos)
   rellenoPrestamo: 0.20,        // m — "N.R … 0.20"
-  sobrecimiento: {alto: 0.45},  // m — planilla: 0.13 x 0.45; ancho = ladrillo sin tarrajeo
+  // Sobrecimiento: alto 0.45; ancho = ladrillo sin tarrajeo; largo = tramo menos la puerta
+  // (las reglas aprendidas lo cambian: criteriosMetrado).
+  sobrecimiento: {alto: 0.45, largoSobreCimiento: null},
   ladrillo: (muro) => (muro <= 0.2 ? 0.13 : 0.23), // soga (muro de 0.15) o cabeza (muro de 0.25)
   anchoPuerta: 0.9,             // m — el sobrecimiento no va bajo la puerta
   kgm: {'1/4"': 0.25, '3/8"': 0.56, '1/2"': 0.99, '5/8"': 1.55, '3/4"': 2.235, '1"': 3.97},
   columnas: {anclaje: 0.55, gancho: 0.6, ganchoEstribo: 0.3, recubrimiento: 0.04},
-  vigas: {barras: 4, barra: '5/8"', anclaje: 0.74, gancho: 0.6, ganchoEstribo: 0.3, recubrimiento: 0.045},
-  columnetas: {barra: '3/8"', anclaje: 0.4, estribo: '1/4"', ganchoEstribo: 0.12},
+  // Vigas: varillas corridas Ø5/8" con gancho 0.60; bastones: metros de varilla corta por metro
+  // de varilla corrida (0 = sin bastones).
+  vigas: {barras: 4, barra: '5/8"', anclaje: 0.74, gancho: 0.6, bastones: 0, ganchoEstribo: 0.3, recubrimiento: 0.045},
+  // Columnetas: extraVarilla sobre el alto (0) y estribos por metro de varilla (null = distribución del cuadro).
+  columnetas: {barra: '3/8"', anclaje: 0.4, extraVarilla: 0, estribosPorMetro: null, estribo: '1/4"', ganchoEstribo: 0.12},
   // Gancho por varilla: 0.50 en 5 de las 9 plateas del proyecto del despacho (módulos 5, 6, 8, 10
   // y 14); 1.00 en los módulos 1 a 4. Las dos capas (superior e inferior) se cuentan una vez cada
   // una (módulos 1, 3, 9: varillas de una capa × 2); el módulo 14 de la planilla las cuenta dos
@@ -50,6 +58,26 @@ export const CRITERIOS_METRADO = {
     barra: '3/8"', gancho: 0.4, temperatura: '1/4"', separacionTemperatura: 0.25,
   },
 };
+
+// Criterios de metrado para un tipo de cimentación (platea o zapatas, que separa el sistema
+// estructural: albañilería con platea / pórticos con zapatas): los de arriba con las reglas que el
+// despacho siguió en sus planillas de ese tipo (reglasDespacho.js, mínimo 3 módulos que las
+// enseñen); sin reglas, los criterios de arriba.
+export function criteriosMetrado(tipoCimentacion = null) {
+  const B = CRITERIOS_METRADO, RD = reglasPara(tipoCimentacion) ?? {};
+  const soga = aprendido(RD.sobrecimiento?.soga, 0.13), cabeza = aprendido(RD.sobrecimiento?.cabeza, 0.23);
+  return {
+    ...B,
+    esponjamiento: aprendido(RD.eliminacion?.esponjamiento, B.esponjamiento),
+    // Sobrecimiento: el despacho lo mete en ~3/4 del cimiento corrido (descuenta columnas, placas y puertas).
+    sobrecimiento: {alto: aprendido(RD.sobrecimiento?.alto, B.sobrecimiento.alto), largoSobreCimiento: aprendido(RD.sobrecimiento?.largoSobreCimiento, null)},
+    ladrillo: (muro) => (muro <= 0.2 ? soga : cabeza),
+    // Vigas: 6Ø5/8" corridas, gancho 0.60 y bastones (~12 % de las corridas) en el despacho.
+    vigas: {...B.vigas, barras: aprendido(RD.vigaAcero?.corridas, B.vigas.barras), gancho: aprendido(RD.vigaAcero?.gancho, B.vigas.gancho), bastones: aprendido(RD.vigaAcero?.bastones, 0)},
+    // Columnetas: varilla = alto + 0.40 + gancho 0.40; ~7.4 estribos por metro de varilla.
+    columnetas: {...B.columnetas, anclaje: aprendido(RD.columnetas?.gancho, B.columnetas.anclaje), extraVarilla: aprendido(RD.columnetas?.extraVarilla, 0), estribosPorMetro: aprendido(RD.columnetas?.estribosPorMetro, null)},
+  };
+}
 
 const r4 = (v) => Math.round(v * 10000) / 10000;
 const kgm = (d) => CRITERIOS_METRADO.kgm[d] ?? 0;
@@ -104,8 +132,8 @@ const titulo = (item, descripcion) => ({item, descripcion, titulo: true});
 // terminos: terminología aprendida del despacho (terminologia.js → terminosAprendidos).
 export function metradoEstructuras(modelo, {terminos = {}} = {}) {
   const nombre = (termino, vars) => nombreElemento(termino, vars, terminos);
-  const M = CRITERIOS_METRADO;
   const cim = modelo.cimentacion ?? {};
+  const M = criteriosMetrado(cim.tipo);
   const df = cim.df ?? CRITERIOS.platea.df, hz = cim.hz ?? CRITERIOS.platea.espesor;
   const platea = cim.tipo === "platea";
   // Platea: su área real (polígono; con ejes inclinados el rectángulo envolvente la infla) y un
@@ -142,11 +170,18 @@ export function metradoEstructuras(modelo, {terminos = {}} = {}) {
   const relleno = partida("02.01.03.02", "RELLENO CON MATERIAL PROPIO AFIRMADO Y COMPACTADO", "m3", [
     fila(nombreCim, {largo: platea ? lp : null, ancho: platea ? ap : null, alto: df - hz, parcial: platea ? null : areaPlatea * (df - hz), ...cimF(),
       obs: `Alto = Df − Hz = ${m2(df)} − ${m2(hz)} (Df: ${F.df}; Hz: ${F.hz}).`}),
-    ...tramos.map((t, i) => fila(nombreTramo(t, i, "cimiento"), {largo: t.largo, ancho: cc.ancho, alto: cc.alto, veces: -1, ...terminoTramo(t, i, "cimiento"),
+    // Solo se descuenta lo que está dentro de la excavación: con zapatas la excavación es zapata por
+    // zapata y el cimiento corrido va en su propia zanja (descontarlo daba relleno negativo).
+    ...(platea ? tramos : []).map((t, i) => fila(nombreTramo(t, i, "cimiento"), {largo: t.largo, ancho: cc.ancho, alto: cc.alto, veces: -1, ...terminoTramo(t, i, "cimiento"),
       obs: `Se descuenta el cimiento corrido${t.eje ? ` del eje ${t.eje}` : ""}: largo medido en la planta; sección ${m2(cc.ancho)} × ${m2(cc.alto)} de los cortes del expediente.`})),
     ...gruposColumnas(columnas).map((g) => fila(nombre("columna", {tipo: g.tipo}), {simil: g.n, largo: null, ancho: g.area, alto: df - hz, veces: -1, termino: "columna", vars: {tipo: g.tipo},
       obs: `Se descuenta la columna: área de la sección dibujada (${m2(g.area)} m²) en la altura del relleno (Df − Hz).`})),
   ]);
+  // Un relleno nunca es negativo: si lo descontado pasa lo excavado, el relleno es 0 y se avisa.
+  if (relleno.total < 0) {
+    notas.push(`Relleno con material propio: lo descontado (${m2(-relleno.total)} m³ más que lo excavado) supera la excavación; queda en 0. Revisa la excavación o los elementos descontados.`);
+    relleno.total = 0;
+  }
   const interior = `Área interior = ${platea ? "platea" : "paños"} ${m2(platea ? areaPlatea : (modelo.losa?.areaPanos ?? 0))} − muros ${m2(areaMuros)} − columnas ${m2(areaColumnas)} m²`;
   const areaInt = (extra = {}) => fila(nombre("areaInterior"), {ancho: areaInterior, termino: "areaInterior", ...extra});
   partidas.push(titulo("02.01.02", "EXCAVACIONES"), excavacion, titulo("02.01.03", "RELLENOS"), relleno,
@@ -170,10 +205,13 @@ export function metradoEstructuras(modelo, {terminos = {}} = {}) {
     partida("02.02.02.02", "ENCOFRADO Y DESENCOFRADO EN FALSO PISO, E=0.10m", "m2", [areaInt()], `${interior}.`));
   if (tramos.length) {
     const sc = M.sobrecimiento.alto;
-    const largoSC = (t) => Math.max(0, t.largo - (t.conPuerta ? M.anchoPuerta : 0));
+    // Con la regla del despacho: fracción del cimiento con sobrecimiento (ya sin columnas, placas
+    // ni puertas); sin ella, el tramo menos la puerta.
+    const fraccion = M.sobrecimiento.largoSobreCimiento;
+    const largoSC = (t) => (fraccion ? r4(t.largo * fraccion) : Math.max(0, t.largo - (t.conPuerta ? M.anchoPuerta : 0)));
     const cimObs = `Tramos de muro medidos en la planta (sobre el eje cuando lo hay); sección ${m2(cc.ancho)} × ${m2(cc.alto)} de los cortes del expediente.`;
-    const scObs = `Largo del tramo (sin la puerta: −${m2(M.anchoPuerta)} m); ancho = ladrillo (soga 0.13, cabeza 0.23); alto ${m2(sc)} de la planilla del despacho.`;
-    const tramoSC = (t, i, extra) => fila(`${nombreTramo(t, i, "sobrecimiento")}${t.conPuerta ? " (sin la puerta)" : ""}`, {...extra, ...terminoTramo(t, i, "sobrecimiento")});
+    const scObs = `${fraccion ? `Largo = ${m2(fraccion)} del cimiento corrido (en las planillas del despacho el sobrecimiento cubre esa fracción: descuenta columnas, placas y puertas)` : `Largo del tramo (sin la puerta: −${m2(M.anchoPuerta)} m)`}; ancho = ladrillo (soga ${m2(M.ladrillo(0.15))}, cabeza ${m2(M.ladrillo(0.25))}); alto ${m2(sc)} de la planilla del despacho.`;
+    const tramoSC = (t, i, extra) => fila(`${nombreTramo(t, i, "sobrecimiento")}${t.conPuerta && !fraccion ? " (sin la puerta)" : ""}`, {...extra, ...terminoTramo(t, i, "sobrecimiento")});
     partidas.push(titulo("02.02.03", "CIMIENTOS CORRIDOS"),
       partida("02.02.03.01", `CONCRETO EN CIMIENTO CORRIDO, ${CRITERIOS.concreto.cimientoCorrido.toUpperCase()}`, "m3", tramos.map((t, i) => fila(nombreTramo(t, i, "cimiento"), {largo: t.largo, ancho: cc.ancho, alto: cc.alto, ...terminoTramo(t, i, "cimiento")})), cimObs),
       partida("02.02.03.02", "ENCOFRADO Y DESENCOFRADO EN CIMIENTO CORRIDO", "m2", tramos.map((t, i) => fila(nombreTramo(t, i, "cimiento"), {largo: t.largo, alto: cc.alto, veces: 2, ...terminoTramo(t, i, "cimiento")})), `${cimObs} Dos caras.`),
@@ -252,6 +290,9 @@ export function metradoEstructuras(modelo, {terminos = {}} = {}) {
         filaAcero(`${nombreViga(v)}: estribos Ø${CRITERIOS.vigas.estribo}`, {simil: niveles, longitud: M.cumbrera.perimetro - 0.15, gancho: V.ganchoEstribo, varillas: Math.ceil(v.largo / M.cumbrera.separacionEstribo) + 1, diametro: CRITERIOS.vigas.estribo}),
       ] : [
         filaAcero(`${nombreViga(v)}: ${V.barras}Ø${V.barra}`, {simil: niveles, longitud: v.largo + V.anclaje, gancho: V.gancho, varillas: V.barras, diametro: V.barra}),
+        // Bastones en los apoyos: la fracción del despacho sobre las corridas, en una fila.
+        ...(V.bastones > 0 ? [filaAcero(`${nombreViga(v)}: bastones Ø${V.barra} en apoyos`, {simil: niveles, longitud: r4((v.largo + V.anclaje + V.gancho) * V.barras * V.bastones), varillas: 1, diametro: V.barra,
+          obs: `${Math.round(V.bastones * 100)} % de las varillas corridas (planillas del despacho).`})] : []),
         filaAcero(`${nombreViga(v)}: estribos Ø${CRITERIOS.vigas.estribo}`, {simil: niveles, longitud: 2 * (v.b + v.h) - 8 * V.recubrimiento, gancho: V.ganchoEstribo, varillas: posicionesEstribos(CRITERIOS.vigas.distribucion, v.largo).length, diametro: CRITERIOS.vigas.estribo}),
       ]), ...(borde.length ? [
           propuesta(filaAcero(`${borde[0].descripcion}: ${B.barras}Ø${B.barra}`, {longitud: lp, gancho: B.gancho, varillas: B.barras, diametro: B.barra}), "armado de la viga de borde del despacho (6Ø1/2\")"),
@@ -281,8 +322,10 @@ export function metradoEstructuras(modelo, {terminos = {}} = {}) {
       partida("02.03.08.01", `CONCRETO PARA COLUMNETAS DE AMARRE F'C=${CRITERIOS.concreto.columnetas} KG/CM2`, "m3", ctas.map((g) => marcar(g, fila(nombre(g), {simil: g.n, largo: g.b, ancho: g.h, alto: g.alto})))),
       partida("02.03.08.02", "ENCOFRADO Y DESENCOFRADO NORMAL EN COLUMNETAS", "m2", ctas.map((g) => marcar(g, fila(nombre(g), {simil: g.n, largo: r4(2 * (g.b + g.h) - Math.min(g.b, g.h)), alto: g.alto})))),
       partida("02.03.08.03", "ACERO EN COLUMNETA FY=4200 KG/CM2", "kg", ctas.flatMap((g) => [
-        marcar(g, filaAcero(`${nombre(g)}: ${barras(g)}Ø${CC.barra}`, {simil: g.n, longitud: g.alto, gancho: CC.anclaje, varillas: barras(g), diametro: CC.barra})),
-        marcar(g, filaAcero(`${nombre(g)}: estribos Ø${CC.estribo}`, {simil: g.n, longitud: 2 * (g.b + g.h) - 8 * CRITERIOS.columnetas.recubrimiento, gancho: CC.ganchoEstribo, varillas: posicionesEstribos(CRITERIOS.columnetas.distribucion, g.alto).length, diametro: CC.estribo})),
+        marcar(g, filaAcero(`${nombre(g)}: ${barras(g)}Ø${CC.barra}`, {simil: g.n, longitud: r4(g.alto + CC.extraVarilla), gancho: CC.anclaje, varillas: barras(g), diametro: CC.barra})),
+        // Estribos: los que el despacho metra por metro de varilla (si se aprendió); si no, la distribución del cuadro.
+        marcar(g, filaAcero(`${nombre(g)}: estribos Ø${CC.estribo}`, {simil: g.n, longitud: 2 * (g.b + g.h) - 8 * CRITERIOS.columnetas.recubrimiento, gancho: CC.ganchoEstribo,
+          varillas: CC.estribosPorMetro ? Math.round((g.alto + CC.extraVarilla) * CC.estribosPorMetro) : posicionesEstribos(CRITERIOS.columnetas.distribucion, g.alto).length, diametro: CC.estribo})),
       ])),
       partida("02.03.08.04", "CURADO EN COLUMNETAS", "m2", ctas.map((g) => marcar(g, fila(nombre(g), {simil: g.n, largo: r4(2 * (g.b + g.h) - Math.min(g.b, g.h)), alto: g.alto})))));
   }
@@ -345,11 +388,13 @@ export function metradoEstructuras(modelo, {terminos = {}} = {}) {
     // Área neta de losa: los paños menos lo que ocupan vigas y columnas (módulo 14: 8.89 −
     // 2.93 − 0.52 = 5.44 m²; el ingeniero 5.55).
     const areaVigas = vigas.reduce((s, v) => s + v.largoPano * v.b, 0);
-    const area = Math.max(0, (losa.areaPanos > 0 ? losa.areaPanos : losa.areaBruta) - areaVigas - areaColumnas);
+    // Con losa maciza o vacíos en la planta, el aligerado es solo la suma de sus paños.
+    const conCeldas = (losa.maciza ?? 0) > 0 || (losa.vacios ?? 0) > 0;
+    const area = Math.max(0, (losa.areaPanos > 0 || conCeldas ? losa.areaPanos : losa.areaBruta) - (conCeldas && !(losa.areaPanos > 0) ? 0 : areaVigas + areaColumnas));
     const nivelTxt = (n) => (niveles > 1 ? `Nivel ${n}` : "Paño total");
     const porNivel = (f) => Array.from({length: nLosas}, (_, i) => f(i + 1));
     const panos = losa.panos?.length ? losa.panos : [{luz: Math.sqrt(area), viguetas: Math.round(Math.sqrt(area) / 0.4), area, ancho: Math.sqrt(area)}];
-    partidas.push(titulo("02.03.11", "LOSAS ALIGERADAS"),
+    if (area > 0) partidas.push(titulo("02.03.11", "LOSAS ALIGERADAS"),
       partida("02.03.11.01", "CONCRETO EN LOSAS ALIGERADAS F'C=210 KG/CM2", "m3", porNivel((n) => fila(`${nivelTxt(n)} (factor ${factor} m³/m², e=${e.toFixed(2)})`, {ancho: area, alto: factor}))),
       partida("02.03.11.02", "ENCOFRADO Y DESENCOFRADO EN LOSAS ALIGERADAS", "m2", porNivel((n) => fila(nivelTxt(n), {ancho: area}))),
       partida("02.03.11.03", "ACERO EN LOSAS ALIGERADAS CON F'Y=4200 KG/CM2", "kg", porNivel((n) => panos.flatMap((p, i) => [
@@ -359,6 +404,31 @@ export function metradoEstructuras(modelo, {terminos = {}} = {}) {
       ])).flat()),
       partida("02.03.11.04", "LADRILLO HUECO DE ARCILLA RAYADO DE 15X30X30 CM P/TECHO ALIGERADO", "und", porNivel((n) => fila(`${nivelTxt(n)}: ${L.ladrillosPorM2} und/m²`, {ancho: area, alto: L.ladrillosPorM2, parcial: Math.ceil(area * L.ladrillosPorM2)}))),
       partida("02.03.11.05", "CURADO DEL CONCRETO EN LOSA ALIGERADA", "m2", porNivel((n) => fila(nivelTxt(n), {ancho: area}))));
+  }
+  // Losa maciza (baños, cisterna) en cada nivel con losa: concreto, encofrado, acero con el ratio
+  // del despacho (kg/m³ aprendido de sus planillas) y curado.
+  if (losa?.maciza > 0 && nLosas > 0) {
+    const e = Math.round((losa.espesor ?? 0.2) * 100) / 100;
+    const a = Math.round(losa.maciza * 100) / 100;
+    const ratio = REFERENCIA_DESPACHO.relaciones?.losaMacizaAcero?.mediana ?? 98.9;
+    const porNivel = (f) => Array.from({length: nLosas}, (_, i) => f(i + 1));
+    const nivelTxt = (n) => (niveles > 1 ? `Nivel ${n}` : "Losa maciza");
+    partidas.push(titulo("02.03.12", "LOSAS MACIZAS"),
+      partida("02.03.12.01", "CONCRETO EN LOSA MACIZA F'C= 210KG/CM2", "m3", porNivel((n) => fila(`${nivelTxt(n)} (e=${e.toFixed(2)})`, {largo: a, ancho: 1, alto: e}))),
+      partida("02.03.12.02", "ENCOFRADO Y DESENCOFRADO EN LOSA MACIZA F'C= 210KG/CM2", "m2", porNivel((n) => fila(nivelTxt(n), {largo: a, ancho: 1}))),
+      partida("02.03.12.03", "ACERO EN LOSA MACIZA F'C= 210KG/CM2 CON F´Y=4200 KG/CM2", "kg", porNivel((n) => fila(`${nivelTxt(n)}: ${Math.round(ratio * 10) / 10} kg/m³ (planillas del despacho)`, {largo: a * e, ancho: 1, alto: ratio}))),
+      partida("02.03.12.04", "CURADO DEL CONCRETO EN LOSA MACIZA F'C= 210KG/CM2", "m2", porNivel((n) => fila(nivelTxt(n), {largo: a, ancho: 1}))));
+  }
+  // Escalera: cada tramo del detalle (corte × ancho), por cada entrepiso.
+  const esc = modelo.escalera;
+  if (esc?.porTramo) {
+    const veces = esc.tramosPorNivel * esc.niveles;
+    const desc = `${veces} tramo(s): ${esc.porTramo.concreto.toFixed(3)} m³ por tramo (corte del detalle × ancho ${esc.ancho.toFixed(2)})`;
+    partidas.push(titulo("02.03.13", "ESCALERAS"),
+      partida("02.03.13.01", "CONCRETO PARA ESCALERAS F'C=210 KG/CM2", "m3", [fila(desc, {veces, parcial: r4(esc.porTramo.concreto * veces)})]),
+      partida("02.03.13.02", "ENCOFRADO Y DESENCOFRADO EN ESCALERAS", "m2", [fila(`${veces} tramo(s): fondo + contrapasos`, {veces, parcial: r4(esc.porTramo.encofrado * veces)})]),
+      partida("02.03.13.03", "ACERO DE REFUERZO FY=4200 KG/CM2, GRADO 60", "kg", [fila(`${veces} tramo(s): longitudinal, negativos y transversal del detalle`, {veces, parcial: r4(esc.porTramo.acero * veces)})]),
+      partida("02.03.13.04", "CURADO DEL CONCRETO EN ESCALERAS F´C=210 KG/CM2", "m2", [fila(`${veces} tramo(s)`, {veces, parcial: r4(esc.porTramo.encofrado * veces)})]));
   }
   partidas.push(...metalicas);
   // Observación de las partidas que no la traen: el criterio con el que se calcularon.

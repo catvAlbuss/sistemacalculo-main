@@ -16,6 +16,8 @@
 
 import {L, line, pline, circle, text, cota, hatch} from "../cad/primitives.js";
 import {CRITERIOS, textoEstribos, posicionesEstribos} from "../criterios/criteriosEstructurales.js";
+// Armado de la viga: el mismo que se metra (varillas corridas del despacho).
+import {criteriosMetrado} from "../metrado/metrado.js";
 
 const r4 = (v) => Math.round(v * 10000) / 10000;
 const pt = (x, y) => [r4(x), r4(y)];
@@ -66,6 +68,12 @@ export function nivelesDesdeArquitectura(items, niveles = 1, ocultos = () => [])
 }
 
 // Pendiente del techo: el menor "PTE=33%" de la arquitectura (la cobertura); si no hay, el criterio.
+// ¿La arquitectura escribe una pendiente de techo (≥ 5 %: una de piso como S=0.5 % no cuenta)?
+export function pendienteAnotada(items = []) {
+  return items.some((it) => it.tipo === "texto" && (() => { const m = PATRON_PENDIENTE.exec(it.texto ?? ""); return Boolean(m) && Number(m[1].replace(",", ".")) >= 5; })());
+}
+const PATRON_PENDIENTE = /(?:PTE|PEND(?:IENTE)?)\.?\s*[=:]?\s*(\d+(?:[.,]\d+)?)\s*%/i;
+
 export function pendienteDesdeArquitectura(items) {
   const valores = [];
   for (const it of items) {
@@ -359,14 +367,27 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
   prim.push(rect(L.VIGAS, sx, sy, sx + viga.b, st));
   prim.push(rect(L.ESTRIBOS, sx + rec, sy + rec, sx + viga.b - rec, st - rec));
   prim.push(line(L.ESTRIBOS, pt(sx + viga.b - rec - 0.05, st - rec), pt(sx + viga.b - rec - 0.1, st - rec - 0.05)));
-  for (const [px, py] of [[sx + rec + 0.02, sy + rec + 0.02], [sx + viga.b - rec - 0.02, sy + rec + 0.02], [sx + rec + 0.02, st - rec - 0.02], [sx + viga.b - rec - 0.02, st - rec - 0.02]]) prim.push(circle(L.ESTRIBOS, pt(px, py), 0.012));
+  // Varillas corridas: la mitad arriba y la mitad abajo, repartidas en el ancho (6Ø5/8": 3 + 3).
+  const armado = criteriosMetrado(cimentacion?.tipo).vigas;
+  const porCara = Math.max(2, Math.ceil(armado.barras / 2));
+  const x0b = sx + rec + 0.02, x1b = sx + viga.b - rec - 0.02;
+  for (const py of [sy + rec + 0.02, st - rec - 0.02]) for (let i = 0; i < porCara; i++) prim.push(circle(L.ESTRIBOS, pt(x0b + ((x1b - x0b) * i) / (porCara - 1), py), 0.012));
   prim.push(text(L.VIGAS, pt(sx + viga.b + 0.12, st - h * 0.4), `V-101 ${viga.b.toFixed(2)}x${vh.toFixed(2)}`, h * 0.4, 0, "izq"));
-  prim.push(text(L.ESTRIBOS, pt(sx + viga.b + 0.12, sy + h * 0.2), `4Ø1/2"\\P${textoEstribos(V.estribo, V.distribucion)}`, h * 0.28, 0, "izq"));
+  prim.push(text(L.ESTRIBOS, pt(sx + viga.b + 0.12, sy + h * 0.2), `${armado.barras}Ø${armado.barra}\\P${textoEstribos(V.estribo, V.distribucion)}`, h * 0.28, 0, "izq"));
 
   notas.push(`Recubrimiento: ${Math.round(V.recubrimiento * 100)} cm`);
   prim.push(text(L.LAMINA, pt(xa - alero - 1.2, -df - fz * 0.6), `Recubrimiento: ${Math.round(V.recubrimiento * 100)} cm · f'c = ${CRITERIOS.concreto.columnas} kg/cm²`, h * 0.38, 0, "izq"));
   return {
     columnas: lista.length, dosAguas, cumbrera: dosAguas ? r4(H) : null, vanos: vanosDibujados, niveles: pisos.length, modelo,
+    // Geometría del pórtico en su marco local (x desde la primera columna, y desde ±0.00): es el
+    // "destino" al que se adapta un pórtico de la biblioteca del despacho (porticoBiblioteca.js).
+    geometria: {
+      eje: eje.nombre,
+      ejes: lista.map((x) => ({nombre: x.cruce, x: r4(x.sn), s0: r4(x.s0), s1: r4(x.s1), tipo: x.c.tipo})),
+      pisos: pisos.map(r4), techo: r4(T), cumbrera: dosAguas ? r4(H) : null, xCumbrera: dosAguas ? r4(xr) : null, pendiente,
+      cimentacion: {tipo: platea ? "platea" : "zapatas", df: r4(df), hz: r4(hz)},
+      viga: {b: viga.b, h: vh}, losaTecho, h,
+    },
     contenido: {
       titulo: `PLANO DE PÓRTICO EJE ${eje.nombre}-${eje.nombre}`,
       primitivas: prim,

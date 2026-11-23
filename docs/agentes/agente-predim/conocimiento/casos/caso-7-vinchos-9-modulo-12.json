@@ -1,0 +1,367 @@
+{
+ "nombre": "vinchos:modulo-12",
+ "grupo": "vinchos",
+ "id": "modulo-12",
+ "aprendido": "2026-11-21",
+ "etiqueta": null,
+ "rasgos": {
+  "vista": "vista-01",
+  "areaAbierta": false,
+  "niveles": 1,
+  "ejes": {
+   "x": 2,
+   "y": 2
+  },
+  "luces": {
+   "x": [
+    13.48
+   ],
+   "y": [
+    5.99
+   ]
+  },
+  "largo": 13.48,
+  "ancho": 5.99,
+  "area": 80.8,
+  "luzLosa": 5.99,
+  "luzMax": 13.48,
+  "columnas": 4,
+  "tipos": [
+   {
+    "nombre": "C1",
+    "forma": "rectangular",
+    "b": 0.6,
+    "h": 0.6,
+    "n": 3
+   },
+   {
+    "nombre": "C2",
+    "forma": "rectangular",
+    "b": 0.63,
+    "h": 0.63,
+    "n": 1
+   }
+  ],
+  "placas": false,
+  "columnetas": 4,
+  "techoLiviano": true,
+  "cubierta": false,
+  "falsoCielo": false,
+  "deportivo": false,
+  "agua": false,
+  "banos": false
+ },
+ "decisiones": {
+  "cimentacion": "zapatas",
+  "cimientoCorrido": true,
+  "hz": 0.7,
+  "df": 2,
+  "losa": null,
+  "espesorLosa": null,
+  "plantasDeLosa": 0,
+  "vigas": [
+   "47x90"
+  ],
+  "fcColumnas": 210,
+  "fcColumnetas": 175,
+  "estribos": "3/8\": 1@.05, 18@.10",
+  "porticos": 2,
+  "mallaCimentacion": false,
+  "columnasComoArquitectura": true,
+  "losaDeTecho": false
+ },
+ "columnas": {
+  "escala": 1,
+  "filas": [
+   {
+    "cruce": "8/H",
+    "arq": "C1 0.6x0.6",
+    "est": "C1 0.6x0.6",
+    "igual": true
+   },
+   {
+    "cruce": "13/H",
+    "arq": "C1 0.6x0.6",
+    "est": "C1 0.6x0.6",
+    "igual": true
+   },
+   {
+    "cruce": "8/E´",
+    "arq": "C1 0.6x0.6",
+    "est": "C1 0.6x0.6",
+    "igual": true
+   },
+   {
+    "cruce": "13/E´",
+    "arq": "C2 0.63x0.63",
+    "est": null,
+    "igual": false
+   }
+  ],
+  "coincidencia": 1
+ },
+ "geometria": {
+  "version": 1,
+  "unidad": "m",
+  "vistas": [
+   {
+    "id": "vista-01",
+    "nivel": null,
+    "categorias": {
+     "ejes": [
+      {
+       "nombre": "8",
+       "p": {
+        "x": 1.36,
+        "y": 0
+       },
+       "q": {
+        "x": 1.36,
+        "y": 7.86
+       }
+      },
+      {
+       "nombre": "13",
+       "p": {
+        "x": 14.84,
+        "y": 0
+       },
+       "q": {
+        "x": 14.84,
+        "y": 7.86
+       }
+      },
+      {
+       "nombre": "E´",
+       "p": {
+        "x": 16.21,
+        "y": 6.97
+       },
+       "q": {
+        "x": 0,
+        "y": 6.97
+       }
+      },
+      {
+       "nombre": "H",
+       "p": {
+        "x": 16.21,
+        "y": 0.98
+       },
+       "q": {
+        "x": 0,
+        "y": 0.98
+       }
+      }
+     ],
+     "columnas": [
+      {
+       "eje": "8/H",
+       "centro": {
+        "x": 1.36,
+        "y": 0.98
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "13/H",
+       "centro": {
+        "x": 14.84,
+        "y": 0.98
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "8/E´",
+       "centro": {
+        "x": 1.36,
+        "y": 6.97
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      }
+     ],
+     "murosVanos": null,
+     "losas": null
+    }
+   },
+   {
+    "id": "vista-02",
+    "nivel": null,
+    "categorias": {
+     "ejes": [
+      {
+       "nombre": "8",
+       "p": {
+        "x": 1.36,
+        "y": 0
+       },
+       "q": {
+        "x": 1.36,
+        "y": 8.27
+       }
+      },
+      {
+       "nombre": "13",
+       "p": {
+        "x": 14.84,
+        "y": 0
+       },
+       "q": {
+        "x": 14.84,
+        "y": 8.27
+       }
+      },
+      {
+       "nombre": "E´",
+       "p": {
+        "x": 16.15,
+        "y": 7.38
+       },
+       "q": {
+        "x": 0,
+        "y": 7.38
+       }
+      },
+      {
+       "nombre": "H",
+       "p": {
+        "x": 0,
+        "y": 1.39
+       },
+       "q": {
+        "x": 16.15,
+        "y": 1.39
+       }
+      }
+     ],
+     "columnas": [
+      {
+       "eje": "8/H",
+       "centro": {
+        "x": 1.36,
+        "y": 1.39
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "13/H",
+       "centro": {
+        "x": 14.84,
+        "y": 1.39
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "8/E´",
+       "centro": {
+        "x": 1.36,
+        "y": 7.38
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      }
+     ],
+     "murosVanos": null,
+     "losas": null
+    }
+   },
+   {
+    "id": "vista-03",
+    "nivel": null,
+    "categorias": {
+     "ejes": [
+      {
+       "nombre": "8",
+       "p": {
+        "x": 1.36,
+        "y": 0
+       },
+       "q": {
+        "x": 1.36,
+        "y": 7.82
+       }
+      },
+      {
+       "nombre": "13",
+       "p": {
+        "x": 14.84,
+        "y": 0
+       },
+       "q": {
+        "x": 14.84,
+        "y": 7.82
+       }
+      },
+      {
+       "nombre": "E´",
+       "p": {
+        "x": 16.21,
+        "y": 6.91
+       },
+       "q": {
+        "x": 0,
+        "y": 6.91
+       }
+      },
+      {
+       "nombre": "H´",
+       "p": {
+        "x": 0,
+        "y": 0.91
+       },
+       "q": {
+        "x": 16.21,
+        "y": 0.91
+       }
+      }
+     ],
+     "columnas": [
+      {
+       "eje": "8/H´",
+       "centro": {
+        "x": 1.36,
+        "y": 0.91
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "13/H´",
+       "centro": {
+        "x": 14.84,
+        "y": 0.91
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "8/E´",
+       "centro": {
+        "x": 1.36,
+        "y": 6.91
+       },
+       "b": 0.6,
+       "h": 0.6,
+       "forma": "rectangular"
+      }
+     ],
+     "murosVanos": null,
+     "losas": null
+    }
+   }
+  ]
+ }
+}

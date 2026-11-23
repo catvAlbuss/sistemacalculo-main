@@ -159,4 +159,44 @@ class AgenteLlmTest extends TestCase
         $this->postJson(route('software.etabs.agente.llm'), $this->pedido())->assertOk();
         $this->assertSame(['gpt-4.1-mini', 'gpt-6.2-sol', 'gpt-6.2-astra', 'gpt-4.1-mini', 'gpt-6.2-sol'], $modelos());
     }
+
+    public function test_empty_tool_schemas_reach_the_provider_as_objects(): void
+    {
+        config(['services.agente_llm' => ['proveedor' => 'openai', 'model' => 'gpt-4.1-mini', 'key' => self::CLAVE, 'tokens_dia' => 0]]);
+        Http::fake(['api.openai.com/*' => Http::response(['choices' => [['message' => ['role' => 'assistant', 'content' => 'ok']]]])]);
+        // Lo que manda el navegador: una herramienta sin parámetros ({} en "properties").
+        $cuerpo = '{"messages":[{"role":"user","content":"metramos"}],"tools":[{"type":"function","function":{"name":"resumen_plano","parameters":{"type":"object","properties":{}}}}],"tool_choice":"auto"}';
+        $this->call('POST', route('software.etabs.agente.llm'), [], [], [], ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json'], $cuerpo)->assertOk();
+        Http::assertSent(fn (PedidoHttp $p) => str_contains($p->body(), '"properties":{}') && ! str_contains($p->body(), '"properties":[]'));
+    }
+
+    public function test_a_transient_520_is_retried_with_the_same_messages_images_and_tools(): void
+    {
+        Http::fake(['api.openai.com/*' => Http::sequence()
+            ->push('temporary upstream error', 520)
+            ->push(['choices' => [['message' => ['role' => 'assistant', 'content' => 'Revision disponible.']]]])]);
+        $pedido = $this->pedido();
+        $pedido['messages'][1]['content'] = [['type' => 'text', 'text' => 'Revisa la referencia'], ['type' => 'image_url', 'image_url' => ['url' => 'data:image/png;base64,aW1hZ2Vu']]];
+        $this->postJson(route('software.etabs.agente.llm'), $pedido)->assertOk()->assertJsonPath('choices.0.message.content', 'Revision disponible.');
+        Http::assertSentCount(2);
+        $enviados = collect(Http::recorded())->map(fn ($par) => $par[0]->body())->all();
+        $this->assertSame($enviados[0], $enviados[1]);
+    }
+
+    public function test_persistent_transient_errors_use_the_next_configured_model(): void
+    {
+        config(['services.agente_llm' => ['proveedor' => 'openai', 'model' => 'auto', 'modelos' => 'gpt-4.1-mini,gpt-4.1', 'key' => self::CLAVE, 'tokens_dia' => 0]]);
+        Http::fake(['api.openai.com/*' => Http::sequence()->push('upstream', 520)->push('upstream', 520)
+            ->push(['choices' => [['message' => ['role' => 'assistant', 'content' => '', 'tool_calls' => [['id' => 'c1', 'type' => 'function', 'function' => ['name' => 'plano_estructuras', 'arguments' => '{}']]]]]]])]);
+        $this->postJson(route('software.etabs.agente.llm'), $this->pedido())->assertOk()->assertJsonPath('choices.0.message.tool_calls.0.function.name', 'plano_estructuras');
+        $this->assertSame(['gpt-4.1-mini', 'gpt-4.1-mini', 'gpt-4.1'], collect(Http::recorded())->map(fn ($par) => $par[0]['model'])->all());
+    }
+
+    public function test_authentication_errors_are_not_retried_or_escalated(): void
+    {
+        config(['services.agente_llm' => ['proveedor' => 'openai', 'model' => 'auto', 'key' => self::CLAVE, 'tokens_dia' => 0]]);
+        Http::fake(['api.openai.com/*' => Http::response(['error' => ['message' => 'Invalid authentication', 'type' => 'authentication_error']], 401)]);
+        $this->postJson(route('software.etabs.agente.llm'), $this->pedido())->assertStatus(502);
+        Http::assertSentCount(1);
+    }
 }

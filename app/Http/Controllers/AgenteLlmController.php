@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -27,6 +29,7 @@ use Illuminate\Support\Facades\RateLimiter;
  */
 class AgenteLlmController extends Controller
 {
+    private bool $falloTransitorio = false;
     private const MAX_BYTES = 6_000_000; // conversación + fotos comprimidas
 
     private const PROVEEDORES = [
@@ -83,7 +86,7 @@ class AgenteLlmController extends Controller
     }
 
     /** Estado para el panel: listo o no, y cómo usarlo. Sin clave, URL ni modelo. */
-    public function estado(): JsonResponse
+    public function estado(Request $request): JsonResponse
     {
         $c = self::configuracion();
         $listo = $c['model'] !== '' && (! $c['requiereClave'] || ! empty($c['key']));
@@ -92,6 +95,8 @@ class AgenteLlmController extends Controller
             'listo' => $listo,
             'memoria' => $c['memoria'],
             'vision' => $c['vision'],
+            // El panel pide la biblioteca del despacho solo si está activa y el usuario puede verla.
+            'biblioteca' => (bool) config('agente.biblioteca_activa') && AgenteBibliotecaController::puedeVer($request->user()),
             'mensaje' => $listo ? null : 'El agente aún no tiene un motor de IA configurado. El administrador debe completarlo en el servidor.',
         ]);
     }
@@ -113,6 +118,8 @@ class AgenteLlmController extends Controller
             'temperature' => 'nullable|numeric|min:0|max:1',
         ]);
 
+        $data['_crudo'] = json_decode($request->getContent()) ?: null;
+
         $clave = 'agente-llm:' . $request->user()->id;
         if (RateLimiter::tooManyAttempts($clave, $c['por_minuto'])) {
             return $this->error(429, 'Demasiados pedidos al agente en un minuto. Espera unos segundos.');
@@ -126,26 +133,29 @@ class AgenteLlmController extends Controller
         }
 
         $modelo = $c['model'];
-        $resultado = $this->pedir($c, $modelo, $data, $request);
-        if ($resultado instanceof JsonResponse) {
-            return $resultado;
-        }
-        $json = $resultado;
-        $usados = $this->tokens($json);
-
-        // Modo automático: mientras la respuesta no resuelva el pedido, el siguiente modelo de la
-        // cadena (cada uno una vez). Si uno falla, se queda la mejor respuesta que se tenga.
+        $json = null;
+        $usados = 0;
+        $ultimoError = null;
         $escalado = false;
-        foreach (array_slice($c['cadena'], 1) as $siguiente) {
-            if (! $this->respuestaFloja($json, $data)) {
+        // El siguiente modelo también sirve de respaldo ante un fallo transitorio persistente.
+        // Autenticación, parámetros y cuota no se arreglan cambiando de modelo.
+        foreach ($c['cadena'] as $indice => $siguiente) {
+            if ($json !== null && ! $this->respuestaFloja($json, $data)) {
                 break;
             }
             $otro = $this->pedir($c, $siguiente, $data, $request);
             if ($otro instanceof JsonResponse) {
-                break;
+                $ultimoError = $otro;
+                if (! $this->falloTransitorio) {
+                    break;
+                }
+                continue;
             }
-            [$json, $modelo, $escalado] = [$otro, $siguiente, true];
+            [$json, $modelo, $escalado] = [$otro, $siguiente, $indice > 0];
             $usados += $this->tokens($otro);
+        }
+        if ($json === null) {
+            return $ultimoError ?? $this->error(502, 'El motor de IA no pudo responder este pedido. Intenta de nuevo.');
         }
 
         Cache::add($dia, 0, now()->addDays(2));
@@ -167,12 +177,15 @@ class AgenteLlmController extends Controller
     /** Un pedido al proveedor; un JsonResponse si falló (mensaje claro, detalle en el registro). */
     private function pedir(array $c, string $modelo, array $data, Request $request): array|JsonResponse
     {
+        $this->falloTransitorio = false;
         // Modelos de razonamiento (GPT-5, o3…): sin temperature; razonamiento bajo para no gastar.
         $razona = (bool) preg_match('/^(gpt-5|gpt-6|o\d)/i', $modelo);
         $cuerpo = array_filter([
             'model' => $modelo,
-            'messages' => $data['messages'],
-            'tools' => $data['tools'] ?? null,
+            // Tal como llegaron (objetos): un esquema vacío {} decodificado como arreglo PHP se
+            // reenviaría como [] y OpenAI rechaza todo el pedido ("[] is not of type 'object'").
+            'messages' => $data['_crudo']->messages ?? $data['messages'],
+            'tools' => $data['_crudo']->tools ?? ($data['tools'] ?? null),
             'tool_choice' => isset($data['tools']) ? ($data['tool_choice'] ?? 'auto') : null,
             'temperature' => $razona ? null : ($data['temperature'] ?? 0.2),
             'reasoning_effort' => $razona ? $c['razonamiento'] : null,
@@ -180,12 +193,26 @@ class AgenteLlmController extends Controller
             'stream' => false,
         ], fn ($v) => $v !== null);
 
+        // Modelos que solo aceptan herramientas por la API Responses (GPT-6.2: razonamiento
+        // siempre activo). Se aprende del primer rechazo del proveedor (no se cobra) y se recuerda.
+        $porResponses = 'agente-llm:responses:' . $modelo;
         try {
-            $http = Http::acceptJson()->timeout($c['timeout']);
+            $http = Http::acceptJson()->connectTimeout(10)->timeout($c['timeout'])
+                ->retry(2, 400, fn (\Throwable $e) => $e instanceof ConnectionException
+                    || ($e instanceof RequestException && ($e->response->serverError() || $e->response->status() === 408)), throw: false);
             if (! empty($c['key'])) {
                 $http = $http->withToken($c['key']);
             }
+            if ($c['proveedor'] === 'openai' && Cache::get($porResponses)) {
+                return $this->pedirResponses($http, $c, $modelo, $data, $request);
+            }
             $respuesta = $http->post($c['url'] . '/chat/completions', $cuerpo);
+            if ($c['proveedor'] === 'openai' && $respuesta->status() === 400 && str_contains((string) data_get($respuesta->json(), 'error.message', ''), '/v1/responses')) {
+                Cache::put($porResponses, true, now()->addDay());
+                Log::info('agente_llm: el modelo usa la API Responses para herramientas', ['modelo' => $modelo]);
+
+                return $this->pedirResponses($http, $c, $modelo, $data, $request);
+            }
             // Modelo nuevo que no acepta un parámetro (temperature, reasoning_effort…): una vez sin él.
             $rechazado = $this->parametroRechazado($respuesta, $cuerpo);
             if ($rechazado !== null) {
@@ -194,12 +221,14 @@ class AgenteLlmController extends Controller
                 $respuesta = $http->post($c['url'] . '/chat/completions', $cuerpo);
             }
         } catch (\Throwable $e) {
+            $this->falloTransitorio = $e instanceof ConnectionException;
             Log::warning('agente_llm: sin respuesta del modelo', ['usuario' => $request->user()->id, 'proveedor' => $c['proveedor'], 'modelo' => $modelo, 'error' => $e->getMessage()]);
 
             return $this->error(504, 'El motor de IA no respondió a tiempo. Intenta de nuevo.');
         }
 
         if (! $respuesta->successful()) {
+            $this->falloTransitorio = $respuesta->serverError() || $respuesta->status() === 408;
             $mensaje = (string) data_get($respuesta->json(), 'error.message', 'error del proveedor');
             Log::warning('agente_llm: el proveedor respondió con error', ['usuario' => $request->user()->id, 'proveedor' => $c['proveedor'], 'modelo' => $modelo, 'status' => $respuesta->status(), 'mensaje' => mb_substr($mensaje, 0, 300)]);
             if (preg_match('/credit|quota|billing|insufficient/i', $mensaje)) {
@@ -212,6 +241,97 @@ class AgenteLlmController extends Controller
         }
 
         return (array) $respuesta->json();
+    }
+
+    /**
+     * El mismo pedido por la API Responses de OpenAI, devuelto con la forma de chat/completions
+     * (el panel no cambia): mensajes → input (system → developer, llamadas y resultados de
+     * herramientas como function_call / function_call_output, fotos como input_image).
+     */
+    private function pedirResponses($http, array $c, string $modelo, array $data, Request $request): array|JsonResponse
+    {
+        $mensajes = json_decode(json_encode($data['_crudo']->messages ?? $data['messages']), true);
+        $input = [];
+        foreach ($mensajes as $m) {
+            $rol = $m['role'] ?? 'user';
+            if ($rol === 'tool') {
+                $input[] = ['type' => 'function_call_output', 'call_id' => $m['tool_call_id'] ?? '', 'output' => is_string($m['content'] ?? null) ? $m['content'] : json_encode($m['content'] ?? '')];
+
+                continue;
+            }
+            if ($rol === 'assistant' && ! empty($m['tool_calls'])) {
+                if (! empty($m['content'])) {
+                    $input[] = ['role' => 'assistant', 'content' => $m['content']];
+                }
+                foreach ($m['tool_calls'] as $tc) {
+                    $input[] = ['type' => 'function_call', 'call_id' => $tc['id'] ?? '', 'name' => $tc['function']['name'] ?? '', 'arguments' => $tc['function']['arguments'] ?? '{}'];
+                }
+
+                continue;
+            }
+            $contenido = $m['content'] ?? '';
+            if (is_array($contenido)) {
+                $partes = [];
+                foreach ($contenido as $parte) {
+                    if (($parte['type'] ?? '') === 'image_url') {
+                        $partes[] = ['type' => 'input_image', 'image_url' => $parte['image_url']['url'] ?? ''];
+                    } elseif (($parte['type'] ?? '') === 'text') {
+                        $partes[] = ['type' => 'input_text', 'text' => $parte['text'] ?? ''];
+                    }
+                }
+                $contenido = $partes;
+            }
+            $input[] = ['role' => $rol === 'system' ? 'developer' : $rol, 'content' => $contenido];
+        }
+        // Herramientas: los esquemas tal como llegaron (objetos; {} sigue siendo {}).
+        $tools = [];
+        foreach ($data['_crudo']->tools ?? [] as $t) {
+            $f = $t->function ?? null;
+            if ($f) {
+                $tools[] = ['type' => 'function', 'name' => $f->name, 'description' => $f->description ?? '', 'parameters' => $f->parameters ?? (object) []];
+            }
+        }
+        $cuerpo = array_filter([
+            'model' => $modelo,
+            'input' => $input,
+            'tools' => $tools ?: null,
+            'reasoning' => ['effort' => $c['razonamiento']],
+            'max_output_tokens' => $c['max_tokens'],
+            'store' => false,
+        ], fn ($v) => $v !== null);
+        $respuesta = $http->post($c['url'] . '/responses', $cuerpo);
+        if (! $respuesta->successful()) {
+            $this->falloTransitorio = $respuesta->serverError() || $respuesta->status() === 408;
+            $mensaje = (string) data_get($respuesta->json(), 'error.message', 'error del proveedor');
+            Log::warning('agente_llm: el proveedor respondió con error (responses)', ['usuario' => $request->user()->id, 'modelo' => $modelo, 'status' => $respuesta->status(), 'mensaje' => mb_substr($mensaje, 0, 300)]);
+
+            return $this->error($respuesta->status() === 429 ? 429 : 502, $respuesta->status() === 429 ? 'El motor de IA está saturado. Intenta en unos segundos.' : 'El motor de IA no pudo responder este pedido. Intenta de nuevo; si sigue, avisa al administrador.');
+        }
+        $r = (array) $respuesta->json();
+        $texto = '';
+        $llamadas = [];
+        foreach ($r['output'] ?? [] as $item) {
+            if (($item['type'] ?? '') === 'function_call') {
+                $llamadas[] = ['id' => $item['call_id'] ?? ($item['id'] ?? ''), 'type' => 'function', 'function' => ['name' => $item['name'] ?? '', 'arguments' => $item['arguments'] ?? '{}']];
+            } elseif (($item['type'] ?? '') === 'message') {
+                foreach ($item['content'] ?? [] as $parte) {
+                    if (($parte['type'] ?? '') === 'output_text') {
+                        $texto .= $parte['text'] ?? '';
+                    }
+                }
+            }
+        }
+
+        return [
+            'model' => $modelo,
+            'choices' => [['message' => array_filter(['role' => 'assistant', 'content' => $texto, 'tool_calls' => $llamadas ?: null], fn ($v) => $v !== null)]],
+            'usage' => [
+                'prompt_tokens' => data_get($r, 'usage.input_tokens', 0),
+                'completion_tokens' => data_get($r, 'usage.output_tokens', 0),
+                'prompt_tokens_details' => ['cached_tokens' => data_get($r, 'usage.input_tokens_details.cached_tokens', 0)],
+                'completion_tokens_details' => ['reasoning_tokens' => data_get($r, 'usage.output_tokens_details.reasoning_tokens', 0)],
+            ],
+        ];
     }
 
     /** Parámetro opcional que el proveedor rechazó (400 con su nombre), o null. */

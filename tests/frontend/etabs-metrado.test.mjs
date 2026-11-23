@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {readFileSync, existsSync} from 'node:fs';
 import ExcelJS from 'exceljs';
 import * as dm from '@mlightcad/data-model';
-import {metradoEstructuras, dimensionesRectangulo, barrasDeRefuerzo, filasPlanilla, corregirFila, aplicarCorrecciones, renombrarFila, COLUMNAS_PLANILLA} from '../../resources/js/ingenieria/metrado/metrado.js';
+import {metradoEstructuras, dimensionesRectangulo, barrasDeRefuerzo, filasPlanilla, corregirFila, aplicarCorrecciones, renombrarFila, COLUMNAS_PLANILLA, criteriosMetrado} from '../../resources/js/ingenieria/metrado/metrado.js';
 import {plantillaDesdeEdicion, terminosAprendidos} from '../../resources/js/ingenieria/metrado/terminologia.js';
 import {contrasteDespacho} from '../../resources/js/ingenieria/metrado/metrado.js';
 import {aprender} from '../../scripts/agente/aprender-metrados.mjs';
@@ -30,7 +30,9 @@ test('quantities follow the office sheet: earthworks, plain and reinforced concr
   const m = metradoEstructuras(modelo);
   const p = (item) => m.partidas.find((x) => x.item === item);
   assert.equal(p('02.01.02.01.03').total, 20 * 2.1, 'excavation = raft area x (Df + solado)');
-  assert.equal(p('02.02.04.01').filas[0].largo, 4 - 0.9, 'no sobrecimiento under the door');
+  // Sobrecimiento en la fracción del cimiento que el despacho le da (columnas, placas y puertas
+  // descontadas: 0.78 en el módulo 1, 0.80 en el 2, 0.68 en el 14 → mediana aprendida).
+  assert.equal(p('02.02.04.01').filas[0].largo, Math.round(4 * criteriosMetrado('platea').sobrecimiento.largoSobreCimiento * 10000) / 10000, 'sobrecimiento = fracción del cimiento');
   assert.equal(p('02.02.04.01').filas[0].ancho, 0.13, 'sobrecimiento as wide as the brick (soga)');
   assert.equal(p('02.03.06.01.01').total, 4 * 0.09 * (2 - 0.6 + 3), 'columns from the top of the raft to the roof');
   const acero = p('02.03.06.01.03').filas[0];
@@ -133,6 +135,7 @@ test('module 14 from architecture: the agent metrado matches the engineer where 
   await db.read(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), {readOnly: true}, dm.AcDbFileType.DWG);
   const base = new URL('../../public/assets/plantillas/estructuras-laminas', import.meta.url).href;
   const cargarPlantilla = async () => {
+    if (!existsSync('public/assets/plantillas/estructuras-laminas.dxf')) return {db: null, config: {modo: 'adaptativa', escalaPlanos: 2}};
     const t = new dm.AcDbDatabase(); const d = readFileSync(new URL(base + '.dxf'));
     await t.read(d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength), {readOnly: true}, dm.AcDbFileType.DXF);
     return {db: t, config: JSON.parse(readFileSync(new URL(base + '.json'), 'utf8'))};

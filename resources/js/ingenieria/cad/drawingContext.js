@@ -109,7 +109,7 @@ export function createDrawingContext({getDatabase, dm, edit, afterDraw, onFounda
         ocultos = capasApagadas.size ? aplanarModelo(arquitectura).items.filter((it) => it.tipo === "texto" && !visibles.has(clave(it))) : [];
         return ocultos;
       };
-      this.memoria.lectura = {database, items, bloques, vistas: detectarVistas(itemsArq), textosOcultos};
+      this.memoria.lectura = {database, items, itemsArquitectura: itemsArq, bloques, vistas: detectarVistas(itemsArq), textosOcultos};
       return this.memoria.lectura;
     },
     datosProyecto() {

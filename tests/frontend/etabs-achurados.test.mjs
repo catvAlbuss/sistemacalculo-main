@@ -2,7 +2,7 @@
 // de "PolyBool: Zero-length segment detected" (cada vez que se inserta el bloque).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync, existsSync} from 'node:fs';
 import * as dm from '@mlightcad/data-model';
 import {contornoLimpio, drawPrimitives} from '../../resources/js/ingenieria/cad/cadExecutor.js';
 
@@ -30,7 +30,7 @@ test('the agent never creates a hatch with a zero-length boundary segment', () =
   for (let i = 0; i < v.length; i++) assert.ok(Math.hypot(v[i].x - v[(i + 1) % 4].x, v[i].y - v[(i + 1) % 4].y) > 1e-6);
 });
 
-test('the sheet template has no hatch with a zero-length boundary segment', async () => {
+test('the sheet template has no hatch with a zero-length boundary segment', {skip: !existsSync('public/assets/plantillas/estructuras-laminas.dxf') && 'plantilla fija retirada: las láminas se componen en modo adaptativo'}, async () => {
   const db = new dm.AcDbDatabase();
   const d = readFileSync('public/assets/plantillas/estructuras-laminas.dxf');
   await db.read(d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength), {readOnly: true}, dm.AcDbFileType.DXF);
@@ -48,7 +48,7 @@ test('the sheet template has no hatch with a zero-length boundary segment', asyn
   assert.deepEqual(nulos, [], 'regenerate with: node scripts/agente/generar-plantilla-estructuras.mjs');
 });
 
-test('self-crossing hatch outlines (stone textures, stirrup hatches) are repaired once when the template is copied', async () => {
+test('self-crossing hatch outlines (stone textures, stirrup hatches) are repaired once when the template is copied', {skip: !existsSync('public/assets/plantillas/estructuras-laminas.dxf') && 'plantilla fija retirada: las láminas se componen en modo adaptativo'}, async () => {
   const {seCruza, envolvente, regionesSimples} = await import('../../resources/js/ingenieria/cad/achurados.js');
   const {copiarDesdePlantilla} = await import('../../resources/js/ingenieria/cad/copiarPlantilla.js');
   // Un "8": se cruza; PolyBool lo separa en dos regiones simples.

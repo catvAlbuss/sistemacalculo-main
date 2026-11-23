@@ -21,6 +21,14 @@ export const CASOS_EVALUACION = [
   {pedido: 'el aligerado debe ser de 25 cm', herramienta: 'corregir_estructura', argumentos: {decision: 'espesorLosa'}},
   {pedido: 'revisa las láminas que hiciste', herramienta: 'revisar_laminas', argumentos: {}},
   {pedido: 'corrige los textos encimados', herramienta: 'revisar_laminas', argumentos: {corregir: true}},
-  {pedido: 'según el estudio de suelos el Df es 2.50 m', herramienta: 'datos_proyecto', argumentos: {}},
+  // Datos del proyecto: van directo (leídos del texto sin IA), con los valores tal como se dijeron.
+  {pedido: 'según el estudio de suelos el Df es 2.50 m', herramienta: 'datos_proyecto', argumentos: {df: '2.50'}},
   {pedido: 'borra las láminas de estructuras que dibujaste', herramienta: 'quitar_laminas', argumentos: {}},
+  // Lo que en producción llega al modelo (lo demás va directo a la herramienta, sin tokens):
+  // datos dictados, correcciones y pedidos con valores.
+  {pedido: 'el Df es 1.80 m y la zona sísmica es 2', herramienta: 'datos_proyecto', argumentos: {df: '1.80', zona: '2'}},
+  {pedido: 'usa zapatas aisladas en vez de platea, así lo decidió el especialista', herramienta: 'corregir_estructura', argumentos: {decision: 'cimentacion'}},
+  {pedido: 'en el último nivel no va losa, solo cobertura liviana', herramienta: 'corregir_estructura', argumentos: {decision: 'losaDeTecho'}},
+  {pedido: 'genera el plano de estructuras con Df 2.50 y suelo S2', herramienta: 'plano_estructuras', argumentos: {}},
+  {pedido: 'el peralte de la platea es 0.60 según el EMS', herramienta: 'datos_proyecto', argumentos: {}},
 ];

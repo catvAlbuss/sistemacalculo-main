@@ -72,7 +72,8 @@ export function varillasDeSeccion(alas, n, rec) {
 // que el más largo quepa en `ancho` (sin MTEXT: no se encima con la columna vecina).
 function renglones(lineas, x, yc, ancho, hMax) {
   const lista = lineas.filter((l) => String(l).trim());
-  const h = Math.min(hMax, ...lista.map((l) => ancho / Math.max(0.1, anchoTexto(l, 1))));
+  // Con la holgura del visor (□, Ø y comillas se dibujan más anchos que la estimación).
+  const h = Math.min(hMax, ...lista.map((l) => ancho / Math.max(0.1, anchoTexto(l, 1) * 1.2)));
   const paso = h * 1.45;
   return lista.map((l, i) => text(L.LAMINA, [r4(x), r4(yc + ((lista.length - 1) / 2 - i) * paso)], l, r4(h)));
 }

@@ -77,6 +77,32 @@ export function recorrerDibujo(database) {
   return {total, porTipo, proxies, riesgo, xrefs: [...xrefs.values()], ocultas, bloquesVacios};
 }
 
+// Peso del dibujo: definiciones de bloque que nada inserta (bibliotecas de muebles, bloques de
+// otros proyectos) y su contenido. El módulo 6 de VINCHOS traía 12 340 bloques y usaba 136: el
+// 96 % del archivo era contenido sin uso, y el visor tardaba 15 s y ~1 GB en abrirlo.
+export function pesoDelDibujo(database) {
+  const registros = database?.tables?.blockTable?.newIterator?.().toArray?.() ?? [];
+  const usados = new Set();
+  const visitar = (lista, profundidad) => {
+    for (const e of lista) {
+      if (tipoDe(e) !== "INSERT" || usados.has(e.blockName) || profundidad > MAX_PROFUNDIDAD) continue;
+      usados.add(e.blockName);
+      visitar(e.blockTableRecord?.newIterator?.().toArray?.() ?? [], profundidad + 1);
+    }
+  };
+  // Lo que se ve: espacio modelo y presentaciones (*Paper_Space…).
+  for (const r of registros) if (/^\*(model|paper)_space/i.test(r.name ?? "")) visitar(r.newIterator?.().toArray?.() ?? [], 0);
+  let enUso = 0, sinUso = 0, bloquesSinUso = 0;
+  for (const r of registros) {
+    const n = r.newIterator?.().toArray?.().length ?? 0;
+    // Los anónimos (*D cotas, *U dinámicos, *X sombreados) los usan otras entidades: cuentan como en uso.
+    if (String(r.name ?? "").startsWith("*") || usados.has(r.name)) enUso += n;
+    else { sinUso += n; bloquesSinUso++; }
+  }
+  return {bloques: registros.length, bloquesSinUso, entidadesEnUso: enUso, entidadesSinUso: sinUso,
+    capas: database?.tables?.layerTable?.newIterator?.().toArray?.().length ?? 0};
+}
+
 // Código de error del lector DWG (libredwg, banderas sumadas): los menores a 128 no impiden abrir
 // el plano, pero avisan que algunos objetos no se decodificaron.
 const ERRORES_DWG = {1: "CRC incorrecto", 2: "partes de una versión aún no soportada", 4: "clases de objetos no soportadas", 8: "tipos de objeto inválidos",
@@ -125,6 +151,11 @@ export function diagnosticarLectura({database, items = [], vistas = null, codigo
   if (desconocidas.length) avisos.push(`Tipos que no interpreto: ${lista(desconocidas.slice(0, 5).map(([t, n]) => `${t} ×${n}`))}.`);
   const errores = textoErrorDwg(codigoDwg);
   if (errores.length) avisos.push(`El lector DWG avisó ${lista(errores)} (código ${codigoDwg}): algún objeto puede no verse. Si falta algo, guarda el DWG en una versión 2018 o anterior con AUDIT y PURGE y vuelve a subirlo.`);
+  const peso = pesoDelDibujo(database);
+  if (peso.entidadesSinUso > 20000 && peso.entidadesSinUso > peso.entidadesEnUso * 0.5) {
+    const parte = Math.round((peso.entidadesSinUso / (peso.entidadesSinUso + peso.entidadesEnUso)) * 100);
+    avisos.push(`Plano pesado: ${peso.bloquesSinUso} definiciones de bloque sin usar con ${peso.entidadesSinUso.toLocaleString("es-PE")} objetos (${parte} % del archivo). Abrirlo y trabajarlo es más lento. En AutoCAD: -PURGE → Todo → anidado (Sí), luego AUDIT y guarda; o WBLOCK solo de las plantas que necesitas.`);
+  }
   if (!database?.insunits) avisos.push("El dibujo no declara unidades: deduzco la escala por el tamaño de las burbujas de eje.");
   for (const l of lecturas.filter((x) => x.error)) avisos.push(`No pude leer la vista ${l.titulo}: ${l.error}.`);
 
@@ -140,6 +171,7 @@ export function diagnosticarLectura({database, items = [], vistas = null, codigo
     niveles: npt,
     xrefs: r.xrefs,
     bloquesVacios: r.bloquesVacios,
+    peso,
     problemas,
     avisos,
   };

@@ -130,6 +130,16 @@
           "color": 5
         }
       },
+      "E-ACERO-LONG": {
+        "geo": {
+          "capa": ".N1 Acero Long02 0.3mm",
+          "color": 256
+        },
+        "texto": {
+          "capa": ".D1 Texto",
+          "color": 256
+        }
+      },
       "E-VIGAS-CIMENTACION": {
         "geo": {
           "capa": "0",

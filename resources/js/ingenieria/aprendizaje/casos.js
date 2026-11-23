@@ -13,6 +13,8 @@
 // ingeniero. No guarda datos personales: solo geometría y criterios.
 
 import {textoPlano} from "../lectura/lectorPlano.js";
+import {espesorPorLuz} from "../criterios/criteriosEstructurales.js";
+import {aprenderPatron, patronUtil} from "./patrones.js";
 
 // ---------- Rasgos de la arquitectura ----------
 
@@ -59,7 +61,8 @@ export function rasgosDeArquitectura(lecturas, textos = []) {
   const tipos = (principal?.lectura.tipos ?? []).map((t) => ({nombre: t.nombre ?? t.tipo ?? "", forma: t.forma ?? "", b: r2(t.b), h: r2(t.h), n: t.cantidad ?? t.n ?? 0}));
   return {
     vista: principal?.titulo ?? "",
-    niveles: Math.max(1, niveles.size, ...[...niveles]),
+    areaAbierta: /(?:AREA|ÁREA)\s+(?:ABIERTA|LIBRE)|SIN\s+CLASIFICAR|NO\s+CLASIFICAD[OA]/i.test(`${principal?.titulo ?? ""} ${todo}`),
+    niveles: Math.max(1, ...[...niveles]),
     ejes: {x: pos.x.length, y: pos.y.length},
     luces: {x: lx.map(r2), y: ly.map(r2)},
     largo: r2(Math.max(largo, ancho)), ancho: r2(Math.min(largo, ancho)),
@@ -72,6 +75,112 @@ export function rasgosDeArquitectura(lecturas, textos = []) {
     placas: tipos.some((t) => /^PL/i.test(t.nombre) || Math.max(t.b, t.h) >= 0.9),
     columnetas: principal?.lectura.columnetas ?? 0,
     techoLiviano: /TR-?4|ALUZINC|CALAMINA|TEJA ANDINA|COBERTURA|PTE\s*=\s*\d/.test(todo),
+    // Indicios de uso y de techo que mira el ingeniero (para aprender patrones; patrones.js).
+    cubierta: /ALUZINC|TR-?4|CALAMINA|POLICARBONATO|TEJA ANDINA|PTE\.?\s*=|PENDIENTE/.test(todo),
+    falsoCielo: /FALSO CIELO|CIELO RASO|CIELORRASO/.test(todo),
+    deportivo: /DEPORTIV|COLISEO|TRIBUNA|LOSA MULTIUSO/.test(todo),
+    agua: /CISTERNA|TANQUE ELEVADO|RESERVORIO|CUARTO DE BOMBAS/.test(todo),
+    banos: /SS\.?\s*HH|S\.S\.H\.H|SERVICIOS HIGI|BA[ÑN]OS?|DUCHA|VESTIDOR/.test(todo),
+  };
+}
+
+// Descriptor geométrico mínimo para el aprendizaje local: metros, origen local por vista
+// y únicamente elementos reconocidos por leerVista. Los títulos/textos del DWG no se guardan.
+export function geometriaDeLecturas(lecturas = []) {
+  const vistas = lecturas.map(({titulo, lectura}, indice) => {
+    const ejesLeidos = (lectura?.ejes ?? []).filter((e) => e?.p && e?.q && [e.p.x, e.p.y, e.q.x, e.q.y].every(Number.isFinite));
+    const columnasLeidas = (lectura?.columnas ?? []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
+    const columnetasLeidas = (lectura?.listaColumnetas ?? []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
+    const xs = [...ejesLeidos.flatMap((e) => [e.p.x, e.q.x]), ...columnasLeidas.map((c) => c.x), ...columnetasLeidas.map((c) => c.x)];
+    const ys = [...ejesLeidos.flatMap((e) => [e.p.y, e.q.y]), ...columnasLeidas.map((c) => c.y), ...columnetasLeidas.map((c) => c.y)];
+    const origen = {x: xs.length ? Math.min(...xs) : 0, y: ys.length ? Math.min(...ys) : 0};
+    const puntoLocal = (p) => ({x: r2(p.x - origen.x), y: r2(p.y - origen.y)});
+    const columnas = [
+      ...columnasLeidas.map((c) => ({
+        eje: typeof c.eje === 'string' ? c.eje : null,
+        centro: puntoLocal(c.nodo && Number.isFinite(c.nodo.x) && Number.isFinite(c.nodo.y) ? c.nodo : c),
+        b: r2(c.b), h: r2(c.h), forma: String(c.forma ?? 'desconocida').slice(0, 24),
+      })),
+      ...columnetasLeidas.map((c) => ({
+        eje: null, centro: puntoLocal(c), b: r2(c.b), h: r2(c.h), forma: 'columneta',
+      })),
+    ];
+    return {
+      id: `vista-${String(indice + 1).padStart(2, '0')}`,
+      nivel: nivelDeTitulo(titulo),
+      categorias: {
+        ejes: ejesLeidos.map((e) => ({nombre: String(e.nombre ?? '').slice(0, 8), p: puntoLocal(e.p), q: puntoLocal(e.q)})),
+        columnas,
+        // El lector actual no verifica muros, vanos ni losas: null evita puntuarlos como aciertos.
+        murosVanos: null,
+        losas: null,
+      },
+    };
+  });
+  return {version: 1, unidad: 'm', vistas};
+}
+
+// Integra aprendizaje por pares sin reemplazar la geometría del plano abierto.
+// Solo usa un caso con geometría verificada como contexto acotado; la salida
+// siempre conserva los niveles, ejes y elementos reconocidos en la arquitectura actual.
+export function integrarGeometriaAprendida({rasgos = {}, propuesta = {}, casos = [], lecturaActual = null}) {
+  const geometriaActual = lecturaActual && Array.isArray(lecturaActual.vistas)
+    ? lecturaActual
+    : {version: 1, unidad: 'm', vistas: []};
+  const vistas = geometriaActual.vistas;
+  const niveles = [...new Set(vistas.map((v) => v.nivel).filter(Number.isFinite))];
+  const nNiveles = niveles.length
+    ? Math.max(1, ...niveles)
+    : Math.max(1, Number(rasgos.niveles) || 1);
+  const vecino = propuesta.vecinos?.[0] ?? null;
+  const distancia = Number.isFinite(vecino?.distancia) ? Math.max(0, vecino.distancia) : 4;
+  const confianzaGeometria = r2(1 / (1 + distancia / 2));
+  const casoSeleccionado = vecino?.nombre ?? null;
+  let casoAprendido = null;
+  const candidato = casos.find((caso) => caso?.nombre === vecino?.nombre && caso?.geometria);
+  if (confianzaGeometria >= 0.6 && candidato?.fuente === "pareado-validado") {
+    casoAprendido = candidato.nombre;
+  }
+
+  const gruposVerificados = [];
+  const gruposNoVerificados = [];
+  for (const categoria of ["ejes", "columnas", "murosVanos", "losas"]) {
+    const disponible = vistas.length > 0 && vistas.every((v) => Array.isArray(v?.categorias?.[categoria]));
+    if (disponible) {
+      if (categoria === "ejes" || categoria === "columnas") {
+        const tieneAlMenosUno = vistas.some((v) => (v.categorias[categoria]?.length ?? 0) > 0);
+        const areaAbierta = rasgos.areaAbierta === true;
+        if (!areaAbierta && tieneAlMenosUno) gruposVerificados.push(categoria);
+        else gruposNoVerificados.push(categoria);
+      } else {
+        gruposVerificados.push(categoria);
+      }
+    } else {
+      gruposNoVerificados.push(categoria);
+    }
+  }
+
+  const avisosRevision = [];
+  if (rasgos.areaAbierta === true) avisosRevision.push("Área abierta o no clasificada: no copié elementos estructurales; revisión obligatoria.");
+  if (confianzaGeometria < 0.6) avisosRevision.push(`Baja confianza geométrica (${Math.round(confianzaGeometria * 100)} %): no apliqué el caso aprendido.`);
+  if (!gruposVerificados.includes("murosVanos")) avisosRevision.push("Muros y vanos no están verificados por el lector actual.");
+  if (!gruposVerificados.includes("losas")) avisosRevision.push("Losas no están verificadas por el lector actual.");
+  const motivoLimite = "No hay adaptación geométrica segura disponible: el generador determinista actual no puede alinear ni transportar referencias mediante ejes nombrados.";
+  avisosRevision.push("No hay adaptación geométrica aprendida completa: el generador no utiliza la referencia ni las coordenadas fuente para dibujar.");
+
+  return {
+    niveles: nNiveles,
+    losaTecho: nNiveles <= 1,
+    geometriaActual,
+    casoSeleccionado,
+    casoAprendido,
+    geometriaAdaptada: false,
+    patronGeometrico: null,
+    motivoLimite,
+    confianzaGeometria,
+    gruposVerificados,
+    gruposNoVerificados,
+    avisosRevision,
   };
 }
 
@@ -85,11 +194,29 @@ function frecuentes(textos, re, normaliza) {
 }
 const primero = (l) => (l.length ? l[0][0] : null);
 
+// Cuántos niveles cubren las plantas de losa del ingeniero, por sus títulos: "LOSA ALIGERADA
+// 1°-2° PISO" (1 y 2), "1° Y 2° PISO", "3° PISO", "ALIGERADO 2° NIVEL", "TECHO 2º PISO" (2) y
+// "LOSA ALIGERADA TECHO" (el último, uno más que los numerados). Sin número: una planta.
+export function nivelesDePlantasDeLosa(titulos) {
+  const niveles = new Set();
+  let techo = false, generica = false;
+  for (const t of titulos) {
+    if (!/LOSA|ALIGERAD|TECHO/.test(t) || /TABIQUER|CIMENTA|PORTICO|ESCALERA/.test(t)) continue;
+    const nums = [...t.matchAll(/(\d)\s*[°º]/g)].map((m) => Number(m[1]));
+    if (/(\d)\s*[°º]\s*-\s*(\d)\s*[°º]/.test(t)) { const [a, b] = nums; for (let n = Math.min(a, b); n <= Math.max(a, b); n++) niveles.add(n); }
+    else if (nums.length) nums.forEach((n) => niveles.add(n));
+    else if (/TECHO/.test(t)) techo = true;
+    else generica = true;
+  }
+  const total = niveles.size + (techo ? 1 : 0);
+  return total || (generica ? 1 : 0);
+}
+
 // textos: todos los textos del plano de estructuras (en cualquier orden).
 export function decisionesDeEstructura(textos) {
   const ts = [...new Set(textos.map((t) => textoPlano(t).toUpperCase().replace(/\s+/g, " ").trim()).filter(Boolean))];
   const todo = ts.join(" | ");
-  const titulos = ts.filter((t) => /PLANO DE /.test(t) && t.length < 90);
+  const titulos = ts.filter((t) => /PLANO\s*(DE\s|-)/.test(t) && t.length < 90);
   const espesorLosa = primero(frecuentes(ts, /(?:LOSA\s+)?ALIGERAD[OA]\s*(?:DE\s*)?(?:E|H|ESP\.?)\s*=\s*(0?\.\d+|\d{2})\s*(M|CM)?/g,
     (x) => { const v = num(x[1]); return r2(v >= 1 ? v / 100 : v); }));
   // Solo una losa maciza dibujada (con su espesor o su detalle), no la de las notas generales
@@ -97,7 +224,7 @@ export function decisionesDeEstructura(textos) {
   const maciza = /LOSA\s+MACIZA\s*(?:E|H|ESP\.?)\s*=|DETALLE[^|]*LOSA\s+MACIZA/.test(todo);
   const vigas = frecuentes(ts, /VIGA\S*\s*\(?\s*(\d{2})\s*X\s*(\d{2})\s*(?:CM)?\)?/g, (x) => `${x[1]}x${x[2]}`).map(([v]) => v);
   const fc = (re) => primero(frecuentes(ts, re, (x) => Number(x[1])));
-  const nivelesLosa = new Set(titulos.map((t) => t.match(/LOSA\s+(\d)\s*°?\s*NIVEL/)?.[1]).filter(Boolean));
+  const nivelesLosa = nivelesDePlantasDeLosa(titulos);
   return {
     cimentacion: /PLATEA/.test(todo) ? "platea" : /ZAPATA\s*(AISLADA|Z-?\d|\d)|DETALLE DE ZAPATA|CUADRO DE ZAPATA/.test(todo) ? "zapatas" : "cimiento corrido",
     cimientoCorrido: /CIMIENTO CORRIDO|CIMENTO CORRIDO/.test(todo),
@@ -107,7 +234,7 @@ export function decisionesDeEstructura(textos) {
     espesorLosa,
     // Plantas de losa dibujadas ("PLANO DE LOSA 1° NIVEL", "PLANO DE ALIGERADO"): comparadas con
     // los niveles de la arquitectura dicen si el último nivel lleva losa o solo cobertura.
-    plantasDeLosa: Math.max(nivelesLosa.size, titulos.some((t) => /ALIGERADO|LOSA/.test(t)) ? 1 : 0),
+    plantasDeLosa: nivelesLosa,
     vigas: vigas.slice(0, 3),
     fcColumnas: fc(/F'?C\s*=\s*(\d{3})[^|]{0,30}COLUMNA(?!S? ?DE CONFINA|TA)/g) ?? fc(/F'?C\s*=\s*(\d{3})\s*KG\/CM[2²]?,?\s*EN EL RESTO/g),
     fcColumnetas: fc(/F'?C\s*=\s*(\d{3})[^|]{0,30}COLUMNETA/g),
@@ -184,36 +311,63 @@ export const DECISIONES = {
   losa: {nombre: "Tipo de losa"},
   espesorLosa: {nombre: "Espesor de losa (m)", tolerancia: 0.011},
   losaDeTecho: {nombre: "Losa en el último nivel (bajo la cobertura)"},
+  techoDosAguas: {nombre: "Techo a dos aguas (cobertura inclinada)"},
+  mallaCimentacion: {nombre: "Malla completa en el plano de cimentación (o solo bastones)"},
   fcColumnas: {nombre: "f'c columnas y vigas (kg/cm²)"},
   fcColumnetas: {nombre: "f'c columnetas (kg/cm²)"},
   estribos: {nombre: "Estribos de columnas"},
   columnasComoArquitectura: {nombre: "Columnas con las secciones de la arquitectura"},
 };
 
-const ESPESORES = [0.17, 0.2, 0.25, 0.3];
+// Nombre de un caso para mostrar al usuario: sin el proyecto (otro cliente no debe ver de quién
+// es el plano): "vinchos:modulo-01" → "un caso estudiado (módulo 01)".
+export const nombreVisible = (nombre) => { const m = /modulo-?0*(\d+)/i.exec(String(nombre)); return m ? `módulo ${m[1].padStart(2, "0")} estudiado` : "caso estudiado"; };
 export const MIN_CASOS_COSTUMBRE = 3;
+// Decisiones que el agente aprende como patrón (árbol de decisión) de los casos.
+export const PATRONES = ["cimentacion", "losaDeTecho", "cimientoCorrido", "losa", "fcColumnas", "mallaCimentacion"];
+import {predecir as predecirArbol} from "./patrones.js";
+const predecirPatron = (pat, rasgos) => predecirArbol(pat.arbol, rasgos);
+// Una regla que explica sin excepción al menos tantos casos (aunque sean de un solo proyecto)
+// se aplica como propuesta del dibujo, pero queda para que el ingeniero la confirme.
+export const MIN_CASOS_PROPUESTA = 6;
 
 // Reglas candidatas: criterio de ingeniería escrito como función de los rasgos. Solo se usan si
-// explican TODOS los casos conocidos (y al menos dos): así el agente generaliza a tamaños y
-// formas que no vio, y una regla que un caso nuevo contradice deja de usarse sola.
+// explican TODOS los casos conocidos y están respaldadas por tres proyectos independientes:
+// los módulos del mismo proyecto no cuentan como evidencia independiente.
 export const REGLAS = [
-  {clave: "espesorLosa", texto: "aligerado de 0.20 m como mínimo y h ≥ L/25 (E.060), al espesor comercial siguiente",
-    valor: (r) => (r.luzLosa > 0 ? ESPESORES.filter((x) => x >= 0.2).find((x) => x >= r.luzLosa / 25 - 1e-9) ?? 0.3 : null)},
-  {clave: "losaDeTecho", texto: "un solo nivel lleva losa en el techo (bajo la cobertura); con más niveles, el último solo cobertura",
-    valor: (r) => r.niveles <= 1},
+  {clave: "espesorLosa", texto: "aligerado de 0.20 m hasta 5.5 m de luz libre, 0.25 hasta 6.5 y 0.30 más (luz libre = entre ejes − viga)",
+    valor: (r) => (r.luzLosa > 0 ? espesorPorLuz(r.luzLosa) : null)},
+  // Un solo nivel varía (losa bajo la cobertura o solo cobertura liviana sobre vigas): no aplica.
+  {clave: "losaDeTecho", texto: "con más de un nivel, el último también lleva losa (bajo la cobertura)",
+    valor: (r) => (r.niveles >= 2 ? true : undefined)},
+  // Hipótesis de experto para un nivel: se valida con los datos y se descarta sola si un proyecto
+  // nuevo la contradice (entonces decide el patrón aprendido o los casos parecidos).
+  {clave: "losaDeTecho", texto: "con un nivel, losa si la arquitectura anota la cobertura y no es de uso deportivo, o si tiene cisterna; si no, solo cobertura liviana",
+    valor: (r) => (r.niveles <= 1 ? Boolean(r.agua || (r.cubierta && !r.deportivo)) : undefined)},
+  {clave: "cimentacion", texto: "con más de un nivel, platea; con un nivel, zapatas si la planta pasa de 60 m² y platea si es menor",
+    valor: (r) => (!(r.area > 0) ? null : r.niveles >= 2 ? "platea" : r.area >= 60 ? "zapatas" : "platea")},
   {clave: "cimientoCorrido", texto: "cimiento corrido bajo los muros cuando hay columnetas (albañilería confinada)",
     valor: (r) => r.columnetas > 0},
 ];
 
+const identidadProyecto = (caso) => {
+  const grupo = String(caso?.grupo ?? "").trim().toLocaleLowerCase();
+  return grupo || caso?.nombre || caso;
+};
+
 export function reglasValidas(casos) {
   return REGLAS.map((regla) => {
     const tol = DECISIONES[regla.clave]?.tolerancia;
-    const conDato = casos.filter((c) => c.decisiones?.[regla.clave] !== null && c.decisiones?.[regla.clave] !== undefined);
+    // Solo los casos donde la regla aplica (devuelve undefined donde no dice nada).
+    const conDato = casos.filter((c) => c.decisiones?.[regla.clave] !== null && c.decisiones?.[regla.clave] !== undefined && regla.valor(c.rasgos ?? {}) !== undefined);
+    const proyectos = new Set(conDato.map(identidadProyecto));
     const fallan = conDato.filter((c) => {
       const v = regla.valor(c.rasgos), real = c.decisiones[regla.clave];
       return v === null || (tol ? Math.abs(v - real) > tol : v !== real);
     }).map((c) => c.nombre);
-    return {...regla, casos: conDato.length, fallan, valida: conDato.length >= 2 && !fallan.length};
+    return {...regla, casos: conDato.length, proyectos: proyectos.size, fallan,
+      valida: proyectos.size >= MIN_CASOS_COSTUMBRE && !fallan.length,
+      propuesta: conDato.length >= MIN_CASOS_PROPUESTA && !fallan.length};
   });
 }
 
@@ -259,22 +413,46 @@ export function proponer(rasgos, casos, {k = 3, umbral = 0.6} = {}) {
       decisiones[clave].ingeniero = `Cambia entre proyectos (${valores.map((v) => (typeof v === "boolean" ? (v ? "sí" : "no") : v)).join(" / ")}) y aún no hay una regla que lo explique.`;
     }
   }
-  // Reglas que explican todos los casos: generalizan mejor que copiar al vecino.
+  // Reglas respaldadas en proyectos independientes generalizan mejor que copiar al vecino.
   for (const regla of reglasValidas(casos)) {
-    if (!regla.valida) continue;
+    if (!regla.valida && !regla.propuesta) continue;
     const valor = regla.valor(rasgos);
     if (valor === null || valor === undefined) continue;
-    decisiones[regla.clave] = {nombre: DECISIONES[regla.clave].nombre, valor, fuentes: [], confianza: r2(Math.min(0.95, 0.7 + 0.05 * regla.casos)),
-      regla: `${regla.texto}; cumple en ${regla.casos} caso(s)`};
+    decisiones[regla.clave] = regla.valida
+      ? {nombre: DECISIONES[regla.clave].nombre, valor, fuentes: [], confianza: r2(Math.min(0.95, 0.7 + 0.05 * regla.proyectos)),
+        regla: `${regla.texto}; validado en ${regla.proyectos} proyecto(s) independiente(s)`}
+      : {nombre: DECISIONES[regla.clave].nombre, valor, fuentes: [], confianza: 0.75,
+        regla: `${regla.texto}; explica los ${regla.casos} casos estudiados`,
+        ingeniero: `Criterio que explica los ${regla.casos} casos estudiados, pero de ${regla.proyectos} proyecto(s): confírmalo.`};
   }
-  // Reglas de la norma por encima de la costumbre (E.060: aligerado h ≥ L/25).
+  // Patrones aprendidos de los casos (árbol chico, medido con casos que no vio): por encima de
+  // copiar al vecino, salvo que una regla validada en 3 proyectos ya lo decida.
+  const aprendidos = casos.filter((c) => c.fuente !== "uso");
+  for (const clave of PATRONES) {
+    // Una regla que explica todos los casos (validada o propuesta) no la reemplaza un patrón.
+    if (decisiones[clave]?.regla) continue;
+    // Si hay una regla para otros casos (varios niveles → losa de techo), el patrón se aprende solo
+    // con los casos donde esa regla no dice nada (los de un nivel): mismo contexto que el plano.
+    const regla = REGLAS.find((r) => r.clave === clave);
+    const contexto = regla && regla.valor(rasgos) === undefined ? aprendidos.filter((c) => regla.valor(c.rasgos ?? {}) === undefined) : aprendidos;
+    const pat = aprenderPatron(contexto, clave, {minimo: contexto === aprendidos ? 8 : 6});
+    if (!patronUtil(pat)) continue;
+    const valor = predecirPatron(pat, rasgos);
+    if (valor === null || valor === undefined) continue;
+    const solo = pat.proyectos >= MIN_CASOS_COSTUMBRE;
+    decisiones[clave] = {nombre: DECISIONES[clave].nombre, valor, fuentes: [], confianza: r2(Math.min(0.95, pat.aciertoNoVisto * 0.95)), patron: pat.texto,
+      regla: `patrón aprendido de ${pat.casos} casos: ${pat.texto} (acierta ${Math.round(pat.aciertoNoVisto * 100)} % en planos que no vio)`,
+      ...(solo ? {} : {ingeniero: `Patrón de ${pat.casos} casos de ${pat.proyectos} proyecto(s): confírmalo; con ${MIN_CASOS_COSTUMBRE} proyectos lo decido solo.`})};
+  }
+  // Criterio de espesor por luz libre por encima de copiar al vecino.
   const L = rasgos.luzLosa;
   const e = decisiones.espesorLosa;
   if (L > 0 && /aligerada/.test(String(decisiones.losa?.valor ?? "aligerada"))) {
-    const minimo = ESPESORES.find((x) => x >= L / 25 - 1e-9) ?? ESPESORES.at(-1);
+    const minimo = espesorPorLuz(L);
     if (!e.valor || e.valor < minimo) {
       decisiones.espesorLosa = {nombre: e.nombre, valor: minimo, fuentes: [], confianza: 0.95,
-        regla: `E.060: aligerado h ≥ L/25 = ${r2(L / 25)} m con luz ${L} m${e.valor ? ` (los casos usaban ${e.valor})` : ""}`};
+        regla: `luz libre ${r2(L - 0.25)} m (entre ejes ${L} m) → aligerado ${minimo} m${e.valor ? ` (los casos usaban ${e.valor})` : ""}`,
+        ingeniero: "Validar con el ingeniero estructural: confirmar sistema de losa, luz efectiva y criterio normativo antes de adoptar este espesor."};
     }
   }
   // Lo que el ingeniero corrigió manda: en este mismo plano, sin preguntar; en uno parecido,
@@ -288,7 +466,7 @@ export function proponer(rasgos, casos, {k = 3, umbral = 0.6} = {}) {
     const valor = u.c.decisiones[clave];
     if (u.d < 0.05) {
       decisiones[clave] = {nombre: DECISIONES[clave].nombre, valor, fuentes: [], confianza: 0.95, regla: "lo corregiste en este mismo plano"};
-      if (clave === "espesorLosa" && L > 0 && valor < L / 25 - 1e-9) decisiones[clave].ingeniero = `Ojo: E.060 pide h ≥ L/25 = ${r2(L / 25)} m con luz ${L} m.`;
+      if (clave === "espesorLosa" && L > 0 && valor < espesorPorLuz(L) - 1e-9) decisiones[clave].ingeniero = `Ojo: con luz entre ejes ${L} m el criterio pide ${espesorPorLuz(L)} m.`;
     } else if (anterior?.valor !== valor) {
       decisiones[clave] = {nombre: DECISIONES[clave].nombre, valor, fuentes: [], confianza: 0.6,
         ingeniero: `En un plano parecido lo corregiste a ${typeof valor === "boolean" ? (valor ? "sí" : "no") : valor} (yo proponía ${anterior?.valor ?? "—"}): confírmalo.`};
@@ -298,9 +476,12 @@ export function proponer(rasgos, casos, {k = 3, umbral = 0.6} = {}) {
   decisiones.losasDeEntrepiso = {nombre: "Losas de entrepiso", valor: Math.max(0, rasgos.niveles - 1), fuentes: [], confianza: 0.95, regla: `${rasgos.niveles} nivel(es) leídos en la arquitectura`};
   for (const d of Object.values(decisiones)) {
     if (d.ingeniero || d.regla) continue;
-    // Una costumbre del despacho necesita al menos 3 proyectos que la repitan: con dos que
-    // coinciden por casualidad (estribos, losa maciza) el agente se equivocaba decidiendo solo.
-    if ((d.fuentes?.length ?? 0) < MIN_CASOS_COSTUMBRE) { d.ingeniero = `Solo ${d.fuentes?.length ?? 0} proyecto(s) parecido(s) lo respaldan; hacen falta ${MIN_CASOS_COSTUMBRE} para decidirlo solo.`; continue; }
+    const fuentes = (d.fuentes ?? []).map((nombre) => casos.find((c) => c.nombre === nombre)).filter(Boolean);
+    const proyectos = new Set(fuentes.map(identidadProyecto));
+    if (proyectos.size < MIN_CASOS_COSTUMBRE) {
+      d.ingeniero = `Solo ${proyectos.size} proyecto(s) independiente(s) parecido(s) lo respaldan; hacen falta ${MIN_CASOS_COSTUMBRE} proyectos independientes para decidirlo solo.`;
+      continue;
+    }
     if (d.confianza < umbral) d.ingeniero = `Confianza baja (${Math.round(d.confianza * 100)} %): los casos parecidos no coinciden o no se parecen lo suficiente.`;
   }
   for (const clave of ["hz", "df"]) {
@@ -353,14 +534,14 @@ export function evaluar(casos, opciones) {
   });
   const suma = (k) => filas.reduce((s, f) => s + f[k], 0);
   const t = suma("total"), solo = suma("solo");
-  return {filas, acierto: t ? r2(suma("aciertos") / t) : 0, aciertoAgente: solo ? r2(suma("soloAciertos") / solo) : 0, parteAgente: t ? r2(solo / t) : 0};
+  return {filas, acierto: t ? r2(suma("aciertos") / t) : 0, aciertoAgente: solo ? r2(suma("soloAciertos") / solo) : null, parteAgente: t ? r2(solo / t) : 0};
 }
 
 // Respuesta corta para el ingeniero: qué decide el agente y qué le deja.
 export function textoPropuesta(rasgos, p) {
   const fmt = (d) => (typeof d.valor === "boolean" ? (d.valor ? "sí" : "no")
     : typeof d.valor === "number" && !Number.isInteger(d.valor) && d.valor < 10 ? d.valor.toFixed(2) : String(d.valor ?? "—"));
-  const linea = ([, d]) => `- ${d.nombre}: ${fmt(d)}${d.regla ? ` (${d.regla})` : d.fuentes?.length ? ` (como ${d.fuentes.join(", ")})` : ""}`;
+  const linea = ([, d]) => `- ${d.nombre}: ${fmt(d)}${d.regla ? ` (${d.regla})` : d.fuentes?.length ? ` (como ${d.fuentes.map(nombreVisible).join(", ")})` : ""}`;
   const entradas = Object.entries(p.decisiones);
   return [
     `Leí ${rasgos.niveles} nivel(es), ${rasgos.ejes.x}×${rasgos.ejes.y} ejes, ${rasgos.largo}×${rasgos.ancho} m, luz de losa ${rasgos.luzLosa} m, ${rasgos.columnas} columnas${rasgos.techoLiviano ? ", techo liviano" : ""}. Casos más parecidos: ${p.vecinos.map((v) => v.nombre).join(", ") || "ninguno"}.`,

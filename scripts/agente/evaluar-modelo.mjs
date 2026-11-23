@@ -36,7 +36,11 @@ let inventos = 0;
 // Modelos de razonamiento (GPT-5, o3…): sin temperature; razonamiento bajo para no gastar.
 const razona = /^(gpt-5|gpt-6|o\d)/i.test(settings.model);
 const tokens = {entrada: 0, cache: 0, salida: 0};
-for (const caso of CASOS_EVALUACION) {
+// AGENTE_SOLO_MODELO=1: solo los pedidos que en producción llegan al modelo (los demás los
+// resuelve la ruta directa sin tokens): evaluar cuesta menos y mide lo que importa.
+const {rutaDirecta} = await import('../../resources/js/ingenieria/agente/agentRunner.js');
+const CASOS = process.env.AGENTE_SOLO_MODELO ? CASOS_EVALUACION.filter((c) => !rutaDirecta(c.pedido)) : CASOS_EVALUACION;
+for (const caso of CASOS) {
   const t0 = Date.now();
   let d = {};
   try {
@@ -73,4 +77,4 @@ for (const caso of CASOS_EVALUACION) {
   if (bien) aciertos++;
   console.log(`${bien ? 'OK ' : inventados.length ? 'INVENTÓ' : 'MAL'} ${String(ms).padStart(6)} ms  ${caso.pedido.slice(0, 50).padEnd(50)} → ${call?.function?.name ?? (d.error ? `error: ${JSON.stringify(d.error).slice(0, 60)}` : 'sin herramienta')} ${JSON.stringify(args)}`);
 }
-console.log(`\n${settings.model}: ${aciertos}/${CASOS_EVALUACION.length} aciertos (${inventos} con datos inventados), ${Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length)} ms por pedido. Tokens: ${tokens.entrada} de entrada (${tokens.cache} en caché), ${tokens.salida} de salida.`);
+console.log(`\n${settings.model}: ${aciertos}/${CASOS.length} aciertos (${inventos} con datos inventados), ${Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length)} ms por pedido. Tokens: ${tokens.entrada} de entrada (${tokens.cache} en caché), ${tokens.salida} de salida.`);

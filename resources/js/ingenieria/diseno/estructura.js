@@ -176,3 +176,44 @@ export function segmentosDesdeEntidades(entidades, capas, leerPolilinea) {
   }
   return {segmentos, ignorados};
 }
+
+// ---------- Sección de vigas (reglas del despacho aprendidas de sus planillas) ----------
+// Fuente: scripts/agente/aprender-reglas-metrado.mjs → metrado/reglasDespacho.js (secciones de
+// las vigas metradas por el ingeniero en sus planillas); si no hay reglas, los criterios
+// (criteriosEstructurales.js: V(0.25x0.40), h = L/12). E.060 21.5.1.3: ancho mínimo 0.25 m en
+// vigas de sistemas sismorresistentes.
+
+// Espesor de una columna o placa (m): rectangular → su lado menor; en L o T, el espesor t de
+// las alas, de (b + h)·t − t² = área (módulo 1: placa L 1.50x1.00 de 0.66 m² → 0.30).
+export function espesorDeApoyo(c) {
+  const b = Number(c?.b), h = Number(c?.h), area = Number(c?.area);
+  if (!(b > 0 && h > 0)) return null;
+  const lado = Math.min(b, h);
+  if (!(area > 0) || /rect|trapecio/i.test(c.forma ?? "rect") || area >= 0.95 * b * h) return lado;
+  const s = b + h, disc = s * s - 4 * area;
+  return disc > 0 ? Math.min(lado, (s - Math.sqrt(disc)) / 2) : lado;
+}
+
+const redondear = (v, paso) => Math.round(v / paso + 1e-9) * paso;
+const r2v = (v) => Math.round(v * 100) / 100;
+
+// luz: luz libre (entre caras) que manda el peralte. cargaLosa: la viga recibe las viguetas
+// (perpendicular a ellas); si no, va con el peralte de las vigas que no cargan losa.
+// apoyos: columnas o placas donde llega (el ancho no pasa de su espesor).
+// reglas: las del despacho (REGLAS_DESPACHO.vigas); criterios: CRITERIOS.vigas.
+// F2: el diseño de OpenSeesPy (PythonEngineController) puede pedir más peralte: se pasa como
+// peralteMinimo y la regla nunca devuelve menos.
+export function seccionVigaPorLuz({luz, cargaLosa = true, apoyos = [], peralteMinimo = 0}, reglas = null, criterios = {ancho: 0.25, peraltaMinimo: 0.4}) {
+  const bMin = criterios.ancho ?? 0.25;
+  if (!reglas?.luzSobrePeralte) {
+    // Sin reglas aprendidas: V(0.25x0.40), h = L/12 a 5 cm.
+    return {b: bMin, h: r2v(Math.max(criterios.peraltaMinimo ?? 0.4, peralteMinimo, Math.ceil(luz / 12 / 0.05 - 1e-9) * 0.05))};
+  }
+  const bMax = Math.max(bMin, reglas.ancho ?? bMin);
+  const espesores = apoyos.map(espesorDeApoyo).filter((e) => e > 0);
+  const b = espesores.length ? Math.min(bMax, Math.max(bMin, redondear(Math.max(...espesores), 0.05))) : bMax;
+  const hSecundaria = reglas.secundaria ?? criterios.peraltaMinimo ?? 0.4;
+  // Peraltes del despacho en múltiplos de 0.10 (0.40, 0.50, 0.60, 0.70).
+  const h = cargaLosa ? Math.max(hSecundaria, redondear(luz / reglas.luzSobrePeralte, 0.1)) : hSecundaria;
+  return {b: r2v(b), h: r2v(Math.max(h, peralteMinimo))};
+}

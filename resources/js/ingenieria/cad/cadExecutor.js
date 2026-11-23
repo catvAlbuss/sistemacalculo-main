@@ -139,9 +139,19 @@ export function drawPrimitives(database, primitivas, {dm, edit = (db, label, fn)
     layers = ensureLayers(database, [...new Set(primitivas.map((p) => p.layer))], dm);
     if (primitivas.some((p) => p.type === "text")) ensureTextStyle(database, dm);
     const modelSpace = database.tables.blockTable.modelSpace;
+    // La tabla de capas no distingue mayúsculas, el visor sí: una entidad en "LADRILLO" en un
+    // dibujo que ya tiene "ladrillo" no se dibuja ("layer doesn't exist"). Se usa el nombre
+    // con que la capa existe.
+    const nombres = new Map();
+    const capaReal = (n) => {
+      if (!nombres.has(n)) nombres.set(n, database.tables.layerTable.getAt?.(n)?.name ?? n);
+      return nombres.get(n);
+    };
     for (const p of primitivas) {
       const entity = toEntity(p, k, origin, dm);
       if (!entity) continue;
+      const capa = capaReal(entity.layer);
+      if (capa !== entity.layer) entity.layer = capa;
       modelSpace.appendEntity(entity);
       count++;
     }

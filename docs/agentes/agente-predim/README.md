@@ -2,7 +2,7 @@
 
 Agente de estructuras para planos de arquitectura peruanos (E.020, E.030, E.050, E.060, E.070). Recibe una planta de arquitectura (DWG/DXF) y devuelve las láminas de estructuras (cimentación, cimiento corrido, aligerado, pórticos y cuadros) con el criterio y el estilo de dibujo del despacho.
 
-Versión de la memoria: **2026-11-06 · módulo XIV completo**. Este paquete se genera desde el código con `node scripts/agente/exportar-paquete.mjs`; no se edita a mano.
+Versión de la memoria: **2026-11-19 · proyectos estudiados con planos y metrados**. Este paquete se genera desde el código con `node scripts/agente/exportar-paquete.mjs`; no se edita a mano.
 
 ## Cómo está hecho
 

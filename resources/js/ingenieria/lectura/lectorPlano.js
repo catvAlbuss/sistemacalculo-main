@@ -8,8 +8,13 @@
 export const CAPAS_NO_COLUMNA = /mobil|equip|mueble|puerta|ventana|vano|texto|text|cota|acot|dim|aparato|sanit|indicador|area|piso|achur|hatch|textur|eje|axis|corte|elevaci|proyecc|techo|tabique|muro|wall|cuadro|detalle|vereda|jard|calle|terreno|celosi|junta|niveles?$/i;
 const CAPAS_EJE = /eje|axis|grid/i;
 const CAPAS_ESTRUCTURA = /col|placa|estruc/i;
-// Rótulo de eje: 1-3 caracteres alfanuméricos, con prima opcional (Y´, A').
-const ROTULO_EJE = /^[A-Za-z0-9]{1,3}\s*[´'`’]?$/;
+// Rótulo de eje: 1-3 caracteres alfanuméricos, con una o dos primas opcionales (Y´, A', Z´´).
+const ROTULO_EJE = /^[A-Za-z0-9]{1,3}\s*(?:[´'`’]{1,2}|")?$/;
+// Burbuja de eje: círculo en una capa de ejes o dentro de un bloque de eje (módulo 6 de
+// VINCHOS: bloque "EJE" insertado en la capa TEXTOS).
+const esDeEje = (it) => CAPAS_EJE.test(it.capa) || /(^|\/)[^/]*(eje|axis|grid)[^/]*$/i.test(it.bloque ?? "");
+// "05" y "5" son el mismo eje (un arquitecto numera con cero, el ingeniero no).
+const nombreDeRotulo = (t) => t.replace(/\s+/g, "").replace(/"/g, "´´").replace(/[`’']/g, "´").replace(/^0+(?=\d)/, "");
 const TITULO_VISTA = /nivel|planta|piso|techo|azotea|cimentaci|aligerad|losa|platea|cimiento/i;
 
 const MAX_PROFUNDIDAD = 8;
@@ -21,13 +26,26 @@ const componer = (a, b) => [
   a[3] * b[0] + a[4] * b[3], a[3] * b[1] + a[4] * b[4], a[3] * b[2] + a[4] * b[5] + a[5],
 ];
 const escalaDe = (m) => Math.sqrt(Math.abs(m[0] * m[4] - m[1] * m[3])) || 1;
+// Giro de un texto en grados (con el del bloque que lo inserta): {rot} solo si no es horizontal.
+// Y su punto de inserción ({ancla}) para ubicar el texto en su lugar al redibujarlo.
+// MTEXT se orienta por su dirección; TEXT y atributos, por su rotación.
+function rotacionTexto(entity, m) {
+  const d = entity.direction, r = Number(entity.rotation) || 0;
+  const [cx, cy] = d && (Math.abs(d.x - 1) > 1e-9 || Math.abs(d.y) > 1e-9) && Math.hypot(d.x, d.y) > 1e-9 ? [d.x, d.y] : [Math.cos(r), Math.sin(r)];
+  let g = (Math.atan2(m[3] * cx + m[4] * cy, m[0] * cx + m[1] * cy) * 180) / Math.PI;
+  g = Math.round(((g % 360) + 360) % 360 * 10) / 10 % 360;
+  // ancla: punto del texto que es "centro" (1 = arriba-izq … 9 = abajo-der, como el MTEXT); el
+  // TEXT se apoya en su base izquierda (7). Solo si no es el centro (5).
+  const ancla = String(entity.dxfTypeName ?? "").toUpperCase() === "MTEXT" ? Number(entity.attachmentPoint) || 1 : 7;
+  return {...(g ? {rot: g} : {}), ...(ancla !== 5 ? {ancla} : {})};
+}
 // Texto legible de un TEXT/MTEXT. Los caracteres fuera de ASCII llegan como "\U+00D3"
 // (el lector DWG del navegador): se decodifican con sus 4 cifras exactas. Si quedaran
 // crudos, el visor los lee con 5 ("\U+00D3D" de "MÓDULO") y dibuja "M?ULO" en los
 // títulos que el agente copia de la arquitectura.
 export const textoPlano = (value) => String(value ?? "")
   .replace(/\\U\+([0-9A-Fa-f]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
-  .replace(/\\P/g, " ").replace(/\\[A-Za-z][^;\\]*;/g, "").replace(/[{}]/g, "")
+  .replace(/\\P/g, " ").replace(/\\[LlOoKk]/g, "").replace(/\\[A-Za-z][^;\\]*;/g, "").replace(/[{}]/g, "")
   .replace(/%%[cC]/g, "Ø").replace(/%%[dD]/g, "°").replace(/%%[pP]/g, "±").replace(/%%[uUoO]/g, "")
   .replace(/\s+/g, " ").trim();
 
@@ -48,7 +66,12 @@ const tipoDe = (entity) => String(entity.dxfTypeName ?? "").toUpperCase();
 export function aplanarModelo(entidades, {capasApagadas = new Set()} = {}) {
   const items = [];
   const bloques = new Map();
-  const visitar = (lista, m, capaPadre, profundidad, ruta) => {
+  // Trazabilidad: id = camino de identificadores del DWG (INSERT/…/entidad) y color propio si lo tiene.
+  const agregar = (e, ids, o) => {
+    const c = e?.color?.colorIndex;
+    items.push({...o, id: ids ? `${ids}/${e?.objectId ?? ""}` : e?.objectId, ...(Number.isInteger(c) && c !== 256 && c !== 0 ? {color: c} : {})});
+  };
+  const visitar = (lista, m, capaPadre, profundidad, ruta, ids = "") => {
     for (const entity of lista) {
       const capa = entity.layer === "0" && capaPadre ? capaPadre : entity.layer;
       if (capasApagadas.has(capa)) continue;
@@ -60,27 +83,27 @@ export function aplanarModelo(entidades, {capasApagadas = new Set()} = {}) {
         const registro = entity.drawableBlockTableRecord ?? entity.blockTableRecord;
         if (local && registro) {
           bloques.set(entity.blockName, (bloques.get(entity.blockName) ?? 0) + 1);
-          visitar(registro.newIterator().toArray(), componer(m, local), capa, profundidad + 1, ruta ? `${ruta}/${entity.blockName}` : entity.blockName);
+          visitar(registro.newIterator().toArray(), componer(m, local), capa, profundidad + 1, ruta ? `${ruta}/${entity.blockName}` : entity.blockName, ids ? `${ids}/${entity.objectId}` : entity.objectId);
         }
         // Los atributos ya están en coordenadas del bloque padre.
         for (const attr of entity.attributeIterator?.() ?? []) {
           if (attr.isInvisible) continue;
           const at = attr.position;
-          if (at) items.push({tipo: "texto", capa: attr.layer === "0" ? capa : attr.layer, centro: aplicar(m, at), texto: textoPlano(attr.textString), alto: (attr.height ?? 0) * escalaDe(m), bloque: ruta});
+          if (at) agregar(attr, ids, {tipo: "texto", capa: attr.layer === "0" ? capa : attr.layer, centro: aplicar(m, at), texto: textoPlano(attr.textString), alto: (attr.height ?? 0) * escalaDe(m), ...rotacionTexto(attr, m), bloque: ruta});
         }
         continue;
       }
       if (tipo === "LINE" && entity.startPoint && entity.endPoint) {
-        items.push({tipo: "linea", capa, puntos: [aplicar(m, entity.startPoint), aplicar(m, entity.endPoint)], bloque: ruta});
+        agregar(entity, ids, {tipo: "linea", capa, puntos: [aplicar(m, entity.startPoint), aplicar(m, entity.endPoint)], bloque: ruta});
       } else if (Number.isInteger(entity.numberOfVertices) && (entity.getPoint3dAt || entity.getPointAt)) {
         const leer = entity.getPoint3dAt || entity.getPointAt;
         const puntos = Array.from({length: entity.numberOfVertices}, (_, i) => aplicar(m, leer.call(entity, i)));
-        items.push({tipo: "poli", capa, puntos, cerrada: entity.closed === true, bloque: ruta});
+        agregar(entity, ids, {tipo: "poli", capa, puntos, cerrada: entity.closed === true, bloque: ruta});
       } else if (tipo === "CIRCLE" && entity.center) {
-        items.push({tipo: "circulo", capa, centro: aplicar(m, entity.center), radio: entity.radius * escalaDe(m), bloque: ruta});
+        agregar(entity, ids, {tipo: "circulo", capa, centro: aplicar(m, entity.center), radio: entity.radius * escalaDe(m), bloque: ruta});
       } else if (tipo === "TEXT" || tipo === "MTEXT" || tipo === "ATTDEF") {
         const at = entity.position ?? entity.location;
-        if (at && tipo !== "ATTDEF") items.push({tipo: "texto", capa, centro: aplicar(m, at), texto: textoPlano(entity.textString ?? entity.contents), alto: (entity.height ?? 0) * escalaDe(m), bloque: ruta});
+        if (at && tipo !== "ATTDEF") agregar(entity, ids, {tipo: "texto", capa, centro: aplicar(m, at), texto: textoPlano(entity.textString ?? entity.contents), alto: (entity.height ?? 0) * escalaDe(m), ...rotacionTexto(entity, m), bloque: ruta});
       }
     }
   };
@@ -93,10 +116,40 @@ export function aplanarModelo(entidades, {capasApagadas = new Set()} = {}) {
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
 // Burbujas de eje: círculos en capas de ejes con un rótulo corto adentro.
+// Burbuja corrida del eje (módulo 9 de VINCHOS): un trazo diagonal corto ("bandera", de 2 a 6 r)
+// la une con el eje real. El eje pasa por la punta de la bandera, no por el centro del círculo.
+function anclaDeBandera(c, banderas) {
+  let mejor = null;
+  for (const it of banderas) {
+    const [p, q] = it.puntos;
+    const dp = dist(p, c.centro), dq = dist(q, c.centro);
+    const cerca = Math.min(dp, dq), lejos = Math.max(dp, dq);
+    if (cerca > c.radio * 1.6 || lejos < c.radio * 2.5 || lejos > c.radio * 6) continue;
+    const punta = dp < dq ? q : p;
+    const ang = Math.abs(Math.atan2(punta.y - c.centro.y, punta.x - c.centro.x)) % (Math.PI / 2);
+    if (Math.min(ang, Math.PI / 2 - ang) < 0.35) continue; // recto: es el eje mismo, no una bandera
+    if (!mejor || lejos > mejor.lejos) mejor = {lejos, punta};
+  }
+  return mejor ? mejor.punta : c.centro;
+}
+
 function burbujas(items) {
   const textos = items.filter((it) => it.tipo === "texto" && ROTULO_EJE.test(it.texto));
-  const circulos = items.filter((it) => it.tipo === "circulo" && CAPAS_EJE.test(it.capa) && it.radio > 0);
+  const circulos = items.filter((it) => it.tipo === "circulo" && esDeEje(it) && it.radio > 0);
+  circulos.push(...burbujasPorForma(items, textos));
+  const banderas = items.filter((it) => (it.tipo === "linea" || (it.tipo === "poli" && it.puntos.length === 2)) && esDeEje(it));
   const resultado = [];
+  // Rótulo afuera (módulos 6 y 9: el número va junto a la burbuja, a 3–4 r): solo si ese texto
+  // no está más cerca de otra burbuja del mismo tamaño.
+  const masCercana = (t, radio) => {
+    let mejor = null;
+    for (const c of circulos) {
+      if (Math.abs(c.radio - radio) > radio * 0.2) continue;
+      const d = dist(t.centro, c.centro);
+      if (!mejor || d < mejor.d) mejor = {d, c};
+    }
+    return mejor?.c;
+  };
   for (const c of circulos) {
     // El punto de inserción del texto suele estar en la esquina: se toma el más cercano dentro de 1.6 r.
     let mejor = null;
@@ -104,20 +157,58 @@ function burbujas(items) {
       const d = dist(t.centro, c.centro);
       if (d <= c.radio * 1.6 && (!mejor || d < mejor.d)) mejor = {d, t};
     }
-    if (mejor) resultado.push({centro: c.centro, radio: c.radio, nombre: mejor.t.texto.replace(/\s+/g, "").replace(/[`’']/g, "´")});
+    if (!mejor) {
+      for (const t of textos) {
+        const d = dist(t.centro, c.centro);
+        if (d <= c.radio * 4.2 && (!mejor || d < mejor.d) && masCercana(t, c.radio) === c) mejor = {d, t};
+      }
+    }
+    if (mejor) resultado.push({centro: anclaDeBandera(c, banderas), radio: c.radio, nombre: nombreDeRotulo(mejor.t.texto), capa: c.capa});
   }
   // Círculos duplicados (contorno doble) se quedan una vez.
   return resultado.filter((b, i) => !resultado.slice(0, i).some((o) => o.nombre === b.nombre && dist(o.centro, b.centro) < b.radio * 0.2));
+}
+
+// Burbujas en capas que no se llaman "eje" (otro arquitecto las deja en "proyeccion" o en "0"):
+// se reconocen por la forma, no por la capa. Círculo con un rótulo de eje adentro (≤ 1.3 r) y un
+// trazo (≥ 3 r) que nace en ella y sale en dirección radial: así es una burbuja de eje.
+// Las marcas de puerta o ventana en círculo no tienen ese trazo; los muebles, tampoco rótulo.
+// Las marcas de corte y elevación (A-A, 1-1) también son círculo + letra + línea: no son ejes.
+const CAPAS_NO_BURBUJA = /mobil|mueble|equip|aparato|sanit|puerta|ventana|vano|achur|hatch|textur|piso|jard|corte|secci|elevaci|detalle|nivel|indicad|simbol|cuadro|leyenda/i;
+function burbujasPorForma(items, textos) {
+  const candidatos = [];
+  for (const c of items) {
+    if (c.tipo !== "circulo" || !(c.radio > 0) || esDeEje(c) || CAPAS_NO_BURBUJA.test(c.capa)) continue;
+    const t = textos.find((x) => dist(x.centro, c.centro) <= c.radio * 1.3 && (!x.alto || (x.alto >= c.radio * 0.4 && x.alto <= c.radio * 1.6)));
+    if (t) candidatos.push(c);
+  }
+  if (!candidatos.length) return [];
+  const radios = candidatos.map((c) => c.radio);
+  const rMin = Math.min(...radios), rMax = Math.max(...radios);
+  const trazos = items.filter((it) => it.tipo === "linea" || (it.tipo === "poli" && it.puntos.length === 2))
+    .map((it) => ({p: it.puntos[0], q: it.puntos.at(-1)})).filter(({p, q}) => dist(p, q) >= rMin * 3);
+  // El trazo nace en la burbuja (o entra hasta su centro), se aleja ≥ 3 r y su recta pasa por el
+  // centro (± 0.35 r): radial. Un eje punteado se dibuja en tramos cortos: basta el primero.
+  const conTrazo = (c) => trazos.some(({p, q}) => {
+    const largo = dist(p, q);
+    if (largo < c.radio * 3 || largo > c.radio * 2000) return false;
+    const [cerca, lejos] = dist(p, c.centro) <= dist(q, c.centro) ? [p, q] : [q, p];
+    if (dist(cerca, c.centro) > c.radio * 1.35 || dist(lejos, c.centro) < c.radio * 3) return false;
+    const perp = Math.abs((lejos.x - cerca.x) * (c.centro.y - cerca.y) - (lejos.y - cerca.y) * (c.centro.x - cerca.x)) / largo;
+    return perp <= c.radio * 0.35;
+  });
+  return rMax > rMin * 50 ? [] : candidatos.filter(conTrazo);
 }
 
 // Dirección del eje que sale de una burbuja suelta: el trazo de eje más largo que nace en ella.
 function direccionSuelta(b, items) {
   let mejor = null;
   for (const it of items) {
-    if (it.tipo !== "linea" || !CAPAS_EJE.test(it.capa)) continue;
+    if (it.tipo !== "linea" || !(CAPAS_EJE.test(it.capa) || (b.capa && it.capa === b.capa))) continue;
     const [p, q] = it.puntos;
     const dp = dist(p, b.centro), dq = dist(q, b.centro);
     const cerca = Math.min(dp, dq), lejos = Math.max(dp, dq);
+    // Menos de 6 r es la "bandera" de la burbuja (trazo diagonal del módulo 9), no el eje.
     if (cerca > b.radio * 1.6 || lejos < b.radio * 2) continue;
     if (!mejor || lejos > mejor.largo) mejor = {largo: lejos, hacia: dp < dq ? q : p};
   }
@@ -143,6 +234,44 @@ export function detectarEjesNombrados(items) {
   lista.forEach((a, i) => lista.forEach((b, j) => {
     if (j > i && a.nombre === b.nombre && dist(a.centro, b.centro) > a.radio * 4 && apunta(i, j) && apunta(j, i)) pares.push({i, j, d: dist(a.centro, b.centro)});
   }));
+  // Sin trazo dibujado (módulos 6 y 9: solo burbujas), la burbuja derecha de una planta queda más
+  // cerca de la izquierda de la planta vecina. Un eje de verdad lo cruza al menos otro eje: los
+  // pares que nadie cruza (el hueco entre dos plantas) se descartan.
+  const seCortan = (p, q) => {
+    const a = lista[p.i].centro, b = lista[p.j].centro, c = lista[q.i].centro, d = lista[q.j].centro;
+    const r = {x: b.x - a.x, y: b.y - a.y}, s = {x: d.x - c.x, y: d.y - c.y};
+    const den = r.x * s.y - r.y * s.x;
+    if (Math.abs(den) < 0.3 * Math.hypot(r.x, r.y) * Math.hypot(s.x, s.y)) return false;
+    const t = ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / den, u = ((c.x - a.x) * r.y - (c.y - a.y) * r.x) / den;
+    return t > 0 && t < 1 && u > 0 && u < 1;
+  };
+  // Sin trazo, el eje va horizontal o vertical (±2°): un par diagonal es un rótulo de otra vista.
+  // Se depura en rondas: los pares falsos no deben sostenerse entre sí.
+  const sinTrazo = (p) => !trazos[p.i] || !trazos[p.j];
+  const recto = (p) => {
+    const a = lista[p.i].centro, b = lista[p.j].centro;
+    const ang = Math.abs(Math.atan2(b.y - a.y, b.x - a.x)) % (Math.PI / 2);
+    return Math.min(ang, Math.PI / 2 - ang) < 0.035;
+  };
+  // Ni atraviesa otra burbuja: dos "21" de plantas vecinas alineados en la fila de burbujas no
+  // son un eje (pasan por encima de las demás burbujas de esa fila).
+  const atraviesa = (p) => {
+    const a = lista[p.i].centro, b = lista[p.j].centro, l2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2 || 1;
+    return lista.some((o, k) => {
+      if (k === p.i || k === p.j) return false;
+      const t = ((o.centro.x - a.x) * (b.x - a.x) + (o.centro.y - a.y) * (b.y - a.y)) / l2;
+      if (t <= 0 || t >= 1) return false;
+      return Math.hypot(o.centro.x - a.x - t * (b.x - a.x), o.centro.y - a.y - t * (b.y - a.y)) < o.radio * 1.2;
+    });
+  };
+  let validos = pares.filter((p) => !sinTrazo(p) || (recto(p) && !atraviesa(p)));
+  for (let ronda = 0; ronda < 10; ronda++) {
+    const siguen = validos.filter((p) => !sinTrazo(p) || validos.some((q) => q !== p && lista[q.i].nombre !== lista[p.i].nombre && seCortan(p, q)));
+    if (siguen.length === validos.length) break;
+    validos = siguen;
+  }
+  pares.length = 0;
+  pares.push(...validos);
   pares.sort((p, q) => p.d - q.d);
   // Dirección local junto a cada burbuja: el trazo dibujado o, si no hay, la cuerda.
   const unitario = (a, b) => { const l = dist(a, b) || 1; return {x: (b.x - a.x) / l, y: (b.y - a.y) / l}; };
@@ -227,7 +356,7 @@ export function detectarVistas(items) {
       + (t.centro.y > caja.y0 + radio * 2 ? alto : 0)
       + ((t.alto ?? 0) < altoMax * 0.6 ? alto * 0.5 : 0)
       - (/planta|plano|nivel/i.test(t.texto) ? radio * 4 : 0);
-    const titulo = candidatos.sort((a, b) => puntaje(a) - puntaje(b))[0]?.texto ?? "";
+    const titulo = textoPlano(candidatos.sort((a, b) => puntaje(a) - puntaje(b))[0]?.texto ?? "");
     vistas.push({
       titulo,
       ejes: indices.map((i) => ejes[i]),
@@ -277,11 +406,27 @@ function sinColineales(pts, k) {
   return out.length >= 3 ? out : pts;
 }
 
+// Capas de muros: algunos despachos dibujan ahí las columnas y placas (módulo 1 de VINCHOS:
+// L 1.50x1.00 en "muros de cercos"). Sus contornos solo cuentan si caen sobre el cruce.
+export const CAPAS_MURO = /muro|wall/i;
+const CAPAS_NO_COLUMNA_SALVO_MURO = new RegExp(CAPAS_NO_COLUMNA.source.replace("|muro|wall", ""), "i");
+
+// Una sección de concreto: rectangular de lado corto ≤ 1.0 m (un cuadrado de 2.3x2.2 es un
+// ambiente o un mueble), o L/T de alma ≤ 0.6 m.
+function esSeccionPosible(pts, caja, k) {
+  const b = (caja.x1 - caja.x0) / k, h = (caja.y1 - caja.y0) / k;
+  const corto = Math.min(b, h);
+  if (pts.length <= 5) return corto <= 1.0 + 1e-6;
+  const a = area(pts) / k ** 2, s = b + h, disc = s * s - 4 * a;
+  const t = disc > 0 ? (s - Math.sqrt(disc)) / 2 : corto;
+  return t <= 0.6 + 1e-6;
+}
+
 // Contornos cerrados (o casi: las copias de tarrajeo suelen quedar abiertas).
 function contornos(items, k) {
   const lista = [];
   for (const it of items) {
-    if (it.tipo !== "poli" || it.puntos.length < 3 || CAPAS_NO_COLUMNA.test(it.capa)) continue;
+    if (it.tipo !== "poli" || it.puntos.length < 3 || CAPAS_NO_COLUMNA_SALVO_MURO.test(it.capa)) continue;
     let pts = it.puntos;
     // Cerrada "a mano": el último vértice repite el primero (placa del módulo 3).
     const cerrada = it.cerrada || (pts.length > 3 && dist(pts[0], pts.at(-1)) < 1e-6 * k);
@@ -289,10 +434,12 @@ function contornos(items, k) {
     pts = sinColineales(pts, k);
     const c = cajaDe(pts);
     const lado = Math.max(c.x1 - c.x0, c.y1 - c.y0), corto = Math.min(c.x1 - c.x0, c.y1 - c.y0);
-    // Hasta 2.5 m: las placas en L o T (1.50x1.00 en el módulo 3) también son candidatas.
-    if (corto < 0.12 * k || lado > 2.5 * k) continue;
+    // Hasta 2.5 m: las placas en L o T (1.50x1.00 en el módulo 3) también son candidatas; en
+    // capas de placas o columnas, hasta 3.5 m (VINCHOS módulo 3: placa en L de 2.69 x 0.50).
+    if (corto < 0.12 * k || lado > (CAPAS_ESTRUCTURA.test(it.capa) ? 3.5 : 2.5) * k) continue;
     if (!cerrada && dist(pts[0], pts.at(-1)) > lado * 0.75) continue;
-    lista.push({pts, caja: c, area: area(pts), capa: it.capa});
+    if (!esSeccionPosible(pts, c, k)) continue;
+    lista.push({pts, caja: c, area: area(pts), capa: it.capa, muro: CAPAS_MURO.test(it.capa)});
   }
   return lista;
 }
@@ -310,7 +457,8 @@ export function columnasEnVista(items, vista, k = 1) {
     // En ejes quebrados el cruce exacto es incierto: se prueban todos los puntos posibles.
     const puntos = [nodo, ...(nodo.alternos ?? [])];
     const lejania = (c) => Math.min(...puntos.map((p) => (dentro(p, c.pts) ? 0 : distanciaAlContorno(p, c.pts))));
-    const medidos = candidatos.map((c) => ({c, d: lejania(c)})).filter((m) => m.d <= alcance);
+    // Los de capas de muro solo si tocan el cruce (un tramo de muro cercano no es columna).
+    const medidos = candidatos.map((c) => ({c, d: lejania(c)})).filter((m) => m.d <= (m.c.muro ? tol : alcance));
     if (!medidos.length) continue;
     // Si varios tocan el cruce (columna + tarrajeo + achurado) manda el de menor área: el concreto.
     // Si alguno está en una capa estructural (columnas, placas), ese manda.
@@ -365,7 +513,8 @@ export function espesorDeSeccion({forma, b, h, area}) {
 }
 
 // Placa o columna, como nombra el ingeniero (módulos 3, 09 y 14):
-// - placa (PL): cada ala mide al menos 3 veces el espesor (L 0.90x0.90 y 1.50x1.00 de 0.30);
+// - placa (PL): cada ala mide al menos 3 veces el espesor (L 0.90x0.90 y 1.50x1.00 de 0.30),
+//   o el ala larga 4 veces o más (L 1.50x0.50 de 0.25, módulos 1 y 9 de VINCHOS);
 //   en rectangulares, el lado largo es 4 veces el corto o más;
 // - columna T (CT): T cuyas alas no llegan a placa (T 1.00x0.60x0.30);
 // - columna (C): el resto (L 0.40x0.40 o 0.50x0.60, rectangulares).
@@ -374,6 +523,9 @@ export function claseDeSeccion(c) {
   const corto = Math.min(c.b, c.h), largo = Math.max(c.b, c.h);
   if (c.forma === "rectangular" || c.forma === "trapecio") return largo >= 4 * corto - 1e-6 ? {clase: "placa", prefijo: "PL", espesor: t} : {clase: "columna", prefijo: "C", espesor: t};
   if (corto >= 3 * t - 0.02) return {clase: "placa", prefijo: "PL", espesor: t};
+  // Ala larga de 4 espesores o más también es placa (VINCHOS: L 1.50x0.50 y L 1.00x0.50 de 0.25
+  // son PL; la L 1.00x0.60 de 0.30 y la T 1.00x0.60 de 0.30 siguen siendo columnas).
+  if (largo >= 4 * t - 0.02) return {clase: "placa", prefijo: "PL", espesor: t};
   if (c.forma === "T") return {clase: "columna", prefijo: "CT", espesor: t};
   return {clase: "columna", prefijo: "C", espesor: t};
 }

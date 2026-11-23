@@ -78,6 +78,11 @@ export const CRITERIOS = {
     alero: 0.6,                 // cotas 0.600 a cada lado (4.921 = 3.726 + 2 x 0.60)
     aceroTemperatura: 'Ø1/4" @0.25',
     ladrillo: "Ladrillo de techo 0.30x0.30x0.15",
+    // Espesor por luz libre (eje a eje menos la viga), como el despacho en los 15 módulos de
+    // VINCHOS (0.20 con luces entre ejes de 5.1–5.65 m) y la práctica peruana (h = 0.20 hasta
+    // 5.5 m libres; 0.25 hasta 6.5; 0.30 más). Mínimo 0.20 aunque la luz sea chica.
+    espesorPorLuzLibre: [[5.5, 0.2], [6.5, 0.25], [Infinity, 0.3]],
+    anchoViga: 0.25,
   },
 
   techo: {
@@ -100,6 +105,12 @@ export const CRITERIOS = {
     cotasEnCadena: true,        // columna + luz libre + columna, y total entre ejes
   },
 };
+
+// Espesor de aligerado para una luz entre ejes (m).
+export function espesorPorLuz(luzEntreEjes) {
+  const libre = Math.max(0, luzEntreEjes - CRITERIOS.aligerado.anchoViga);
+  return CRITERIOS.aligerado.espesorPorLuzLibre.find(([max]) => libre <= max + 1e-9)[1];
+}
 
 // Texto de estribos tal como lo escribe el expediente.
 export const textoEstribos = (estribo, distribucion, cantidad = 1) => `${cantidad > 1 ? `${cantidad} ` : ""}□ ${estribo}Ø: ${distribucion}`;

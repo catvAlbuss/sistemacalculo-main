@@ -5,6 +5,7 @@
 import {planCasaPrimerNivel} from "./casaPrimerNivel.js";
 import {L, line, circle, text, rect} from "../../cad/primitives.js";
 import {ESTRUCTURA_SKILLS} from "./estructuraPlano.js";
+import {INTERACCION_SKILLS} from "./interaccion.js";
 
 const r2 = (value) => Math.round(value * 100) / 100;
 const num = (value, fallback) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
@@ -75,7 +76,7 @@ export const SKILLS = [
     async run(args, ctx) {
       const plan = planEjes(args);
       const dibujo = ctx.draw(plan.primitivas, "Agente: ejes");
-      return {ok: true, ejes: plan.resumen, entidades: dibujo.entidades};
+      return {ok: true, ejes: plan.resumen, entidades: dibujo.entidades, mensaje: `Dibujé los ejes: ${plan.resumen}`};
     },
   },
   {
@@ -88,7 +89,7 @@ export const SKILLS = [
     async run(args, ctx) {
       const plan = planAmbiente(args);
       const dibujo = ctx.draw(plan.primitivas, "Agente: ambiente");
-      return {ok: true, ambiente: plan.resumen, entidades: dibujo.entidades};
+      return {ok: true, ambiente: plan.resumen, entidades: dibujo.entidades, mensaje: `Dibujé el ambiente: ${plan.resumen}`};
     },
   },
   {
@@ -96,7 +97,9 @@ export const SKILLS = [
     description: "Lee el plano abierto y devuelve un resumen: unidades, capas con cantidad de objetos, tipos de objetos y bloques más usados.",
     parameters: {type: "object", properties: {}},
     async run(args, ctx) {
-      return {ok: true, ...ctx.summarize()};
+      const r = ctx.referenciaActual?.();
+      const resumen = ctx.summarize();
+      return {ok: true, ...resumen, mensaje: `Leí el inventario del plano abierto: ${resumen.objetos} objetos; unidades: ${resumen.unidades}. Capas: ${resumen.capas}. Esto no compara capturas ni comprueba detalles estructurales.`, ...(r ? {moduloActual: r.modulo, referenciaHistorica: r.referencia ? {serie: r.referencia.serie, modulo: r.referencia.id, cantidadLaminas: r.referencia.laminas?.length, marcosObservados: r.referencia.marcos, cargas: r.referencia.cargas} : r.motivo, paqueteActual: ctx.memoria?.paqueteLaminas ?? null} : {})};
     },
   },
   {
@@ -105,12 +108,13 @@ export const SKILLS = [
     parameters: {type: "object", properties: {texto: {type: "string"}}, required: ["texto"]},
     async run(args, ctx) {
       const encontrados = ctx.findTexts(String(args.texto ?? ""), 15);
-      return {ok: true, total: encontrados.total, textos: encontrados.items};
+      return {ok: true, total: encontrados.total, textos: encontrados.items, mensaje: `Encontré ${encontrados.total} textos para «${args.texto ?? ''}». ${encontrados.items.map((t) => t.texto ?? t.text ?? '').filter(Boolean).join('; ')}`};
     },
   },
   // Por ahora el chat se enfoca en arquitectura → estructuras: zapatas_desde_plano
   // (que alimenta Cimentación 2.0) queda fuera de las herramientas del modelo.
   ...ESTRUCTURA_SKILLS.filter((skill) => skill.name !== "zapatas_desde_plano"),
+  ...INTERACCION_SKILLS,
 ];
 
 export const toolDefinitions = (skills = SKILLS) => skills.map(({name, description, parameters}) => ({

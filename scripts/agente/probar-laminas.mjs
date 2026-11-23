@@ -10,6 +10,11 @@
 //
 // Datos del proyecto (los del panel ▤) en AGENTE_DATOS, como JSON:
 //   AGENTE_DATOS='{"hz":"0.60","df":"2.50","zona":"2","suelo":"S3","categoria":"A2"}'
+//
+// AGENTE_BIBLIOTECA=<proyecto a excluir|todo>: pórticos adaptados desde la biblioteca privada de
+// detalles (storage/app/private/entrenamiento/biblioteca/portico); "p-xxxx" deja fuera las
+// piezas de ese proyecto (para ver lo que saldría en un proyecto nuevo); "p-xxxx/modulo-NN" solo
+// las de ese módulo.
 
 import {readFileSync, writeFileSync} from 'node:fs';
 import * as dm from '@mlightcad/data-model';
@@ -18,6 +23,7 @@ import {SKILLS} from '../../resources/js/ingenieria/agente/skills/index.js';
 import {aplanarModelo} from '../../resources/js/ingenieria/lectura/lectorPlano.js';
 import {dxfParaVisor} from '../../resources/js/etabs/composables/useDrawingRecovery.js';
 import {instalarRecorteXclip} from '../../resources/js/etabs/visor/recorteXclip.js';
+import {cargarPlantillaAdaptativa} from './plantilla.mjs';
 
 const [ruta, vista, salida, cimentacion] = process.argv.slice(2);
 if (!ruta || !vista) { console.error('Uso: node scripts/agente/probar-laminas.mjs <arquitectura.dwg> <vista> [salida.svg] [cimentacion]'); process.exit(1); }
@@ -33,11 +39,20 @@ const leer = async (archivo, tipo) => {
   return db;
 };
 const db = await leer(ruta, dm.AcDbFileType.DWG);
-const cargarPlantilla = async () => ({db: await leer('public/assets/plantillas/estructuras-laminas.dxf', dm.AcDbFileType.DXF), config: JSON.parse(readFileSync('public/assets/plantillas/estructuras-laminas.json', 'utf8'))});
+const cargarPlantilla = cargarPlantillaAdaptativa;
 
 const datos = process.env.AGENTE_DATOS ? JSON.parse(process.env.AGENTE_DATOS) : {};
 let zona = null;
 const ctx = createDrawingContext({getDatabase: () => db, dm, loadTemplate: cargarPlantilla, getProjectData: () => datos, afterDraw: (z) => { if (z) zona = z; }});
+if (process.env.AGENTE_BIBLIOTECA) {
+  const {readdirSync} = await import('node:fs');
+  const BIB = 'storage/app/private/entrenamiento/biblioteca/portico';
+  const piezas = readdirSync(BIB).filter((f) => f.endsWith('.json')).map((f) => ({...JSON.parse(readFileSync(`${BIB}/${f}`, 'utf8')), archivo: f}));
+  // "p-xxxx/modulo-03": sin las piezas de ese módulo (las del resto del proyecto sí).
+  const [proyecto, modulo] = process.env.AGENTE_BIBLIOTECA.split('/');
+  const excluir = proyecto === 'todo' ? null : {proyecto, ...(modulo ? {modulo} : {})};
+  ctx.bibliotecaPorticos = {piezas, excluir};
+}
 const antes = db.tables.blockTable.modelSpace.newIterator().toArray().length;
 const t0 = Date.now();
 const r = await SKILLS.find((s) => s.name === 'plano_estructuras').run({vista, ...(cimentacion ? {cimentacion} : {})}, ctx);

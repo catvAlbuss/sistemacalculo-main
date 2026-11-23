@@ -1,0 +1,2008 @@
+{
+ "nombre": "ilo:modulo-01",
+ "grupo": "ilo",
+ "id": "modulo-01",
+ "aprendido": "2026-11-21",
+ "etiqueta": null,
+ "rasgos": {
+  "vista": "vista-01",
+  "areaAbierta": false,
+  "niveles": 2,
+  "ejes": {
+   "x": 6,
+   "y": 3
+  },
+  "luces": {
+   "x": [
+    12.18,
+    5.4,
+    5.7,
+    5.71,
+    5.69
+   ],
+   "y": [
+    8.2,
+    5.8
+   ]
+  },
+  "largo": 34.68,
+  "ancho": 14,
+  "area": 485.49,
+  "luzLosa": 8.2,
+  "luzMax": 12.18,
+  "columnas": 17,
+  "tipos": [
+   {
+    "nombre": "C1",
+    "forma": "rectangular",
+    "b": 0.43,
+    "h": 0.43,
+    "n": 15
+   },
+   {
+    "nombre": "PL1",
+    "forma": "L",
+    "b": 2.43,
+    "h": 1.03,
+    "n": 1
+   },
+   {
+    "nombre": "PL2",
+    "forma": "L",
+    "b": 1.03,
+    "h": 1.03,
+    "n": 1
+   }
+  ],
+  "placas": true,
+  "columnetas": 70,
+  "techoLiviano": false,
+  "cubierta": true,
+  "falsoCielo": false,
+  "deportivo": false,
+  "agua": false,
+  "banos": true
+ },
+ "decisiones": {
+  "cimentacion": "zapatas",
+  "cimientoCorrido": true,
+  "hz": 0.6,
+  "df": 1.5,
+  "losa": "aligerada y maciza",
+  "espesorLosa": 0.2,
+  "plantasDeLosa": 3,
+  "vigas": [
+   "30x50",
+   "30x70"
+  ],
+  "fcColumnas": 280,
+  "fcColumnetas": 175,
+  "estribos": "3/8\": 1@.05, 10@.10",
+  "porticos": 11,
+  "mallaCimentacion": true,
+  "columnasComoArquitectura": true,
+  "losaDeTecho": true
+ },
+ "columnas": {
+  "escala": 0.67,
+  "filas": [
+   {
+    "cruce": "5/M",
+    "arq": "C1 0.43x0.43",
+    "est": "C1 0.41x0.41",
+    "igual": true
+   },
+   {
+    "cruce": "5/P",
+    "arq": "C1 0.43x0.43",
+    "est": "C1 0.41x0.41",
+    "igual": true
+   },
+   {
+    "cruce": "5/S",
+    "arq": "C1 0.43x0.43",
+    "est": "C1 0.41x0.41",
+    "igual": true
+   },
+   {
+    "cruce": "5/U",
+    "arq": "C1 0.43x0.43",
+    "est": "C1 0.41x0.41",
+    "igual": true
+   },
+   {
+    "cruce": "5/V",
+    "arq": "C1 0.43x0.43",
+    "est": "C1 0.41x0.41",
+    "igual": true
+   },
+   {
+    "cruce": "5/G",
+    "arq": "PL2 1.03x1.03",
+    "est": "PL2 1.01x1.01",
+    "igual": true
+   },
+   {
+    "cruce": "2/G",
+    "arq": "C1 0.43x0.43",
+    "est": "C1 0.41x0.41",
+    "igual": true
+   },
+   {
+    "cruce": "2/M",
+    "arq": "C1 0.43x0.43",
+    "est": "C1 0.41x0.41",
+    "igual": true
+   },
+   {
+    "cruce": "2/P",
+    "arq": "C1 0.43x0.43",
+    "est": "C1 0.41x0.41",
+    "igual": true
+   },
+   {
+    "cruce": "2/S",
+    "arq": "C1 0.43x0.43",
+    "est": "C1 0.41x0.41",
+    "igual": true
+   },
+   {
+    "cruce": "2/U",
+    "arq": "C1 0.43x0.43",
+    "est": "C1 0.41x0.41",
+    "igual": true
+   },
+   {
+    "cruce": "2/V",
+    "arq": "C1 0.43x0.43",
+    "est": "C1 0.41x0.41",
+    "igual": true
+   },
+   {
+    "cruce": "1/V",
+    "arq": "PL1 1.03x2.43",
+    "est": "PL1 1.01x2.4",
+    "igual": true
+   },
+   {
+    "cruce": "1/M",
+    "arq": "C1 0.43x0.43",
+    "est": "C1 0.41x0.41",
+    "igual": true
+   },
+   {
+    "cruce": "1/P",
+    "arq": "C1 0.43x0.43",
+    "est": "C1 0.41x0.41",
+    "igual": true
+   },
+   {
+    "cruce": "1/S",
+    "arq": "C1 0.43x0.43",
+    "est": "C1 0.41x0.41",
+    "igual": true
+   },
+   {
+    "cruce": "1/U",
+    "arq": "C1 0.43x0.43",
+    "est": "C1 0.41x0.41",
+    "igual": true
+   }
+  ],
+  "coincidencia": 1
+ },
+ "geometria": {
+  "version": 1,
+  "unidad": "m",
+  "vistas": [
+   {
+    "id": "vista-01",
+    "nivel": null,
+    "categorias": {
+     "ejes": [
+      {
+       "nombre": "J",
+       "p": {
+        "x": 5.39,
+        "y": 11.41
+       },
+       "q": {
+        "x": 5.39,
+        "y": 0.35
+       }
+      },
+      {
+       "nombre": "I´",
+       "p": {
+        "x": 5.34,
+        "y": 11.41
+       },
+       "q": {
+        "x": 5.34,
+        "y": 0.35
+       }
+      },
+      {
+       "nombre": "V",
+       "p": {
+        "x": 24.37,
+        "y": 11.73
+       },
+       "q": {
+        "x": 24.37,
+        "y": 0.02
+       }
+      },
+      {
+       "nombre": "G",
+       "p": {
+        "x": 1.27,
+        "y": 11.76
+       },
+       "q": {
+        "x": 1.27,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "M",
+       "p": {
+        "x": 9.38,
+        "y": 11.76
+       },
+       "q": {
+        "x": 9.38,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "P",
+       "p": {
+        "x": 12.98,
+        "y": 11.76
+       },
+       "q": {
+        "x": 12.98,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "S",
+       "p": {
+        "x": 16.78,
+        "y": 11.76
+       },
+       "q": {
+        "x": 16.78,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "U",
+       "p": {
+        "x": 20.59,
+        "y": 11.76
+       },
+       "q": {
+        "x": 20.59,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "1",
+       "p": {
+        "x": 0.05,
+        "y": 10.47
+       },
+       "q": {
+        "x": 25.53,
+        "y": 10.47
+       }
+      },
+      {
+       "nombre": "5",
+       "p": {
+        "x": 0,
+        "y": 1.16
+       },
+       "q": {
+        "x": 25.58,
+        "y": 1.16
+       }
+      },
+      {
+       "nombre": "2",
+       "p": {
+        "x": 0,
+        "y": 6.62
+       },
+       "q": {
+        "x": 25.58,
+        "y": 6.62
+       }
+      }
+     ],
+     "columnas": [
+      {
+       "eje": "5/G",
+       "centro": {
+        "x": 1.27,
+        "y": 1.16
+       },
+       "b": 0.67,
+       "h": 0.67,
+       "forma": "L"
+      },
+      {
+       "eje": "5/J",
+       "centro": {
+        "x": 5.33,
+        "y": 1.16
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/M",
+       "centro": {
+        "x": 9.38,
+        "y": 1.16
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/P",
+       "centro": {
+        "x": 12.98,
+        "y": 1.16
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/S",
+       "centro": {
+        "x": 16.78,
+        "y": 1.16
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/U",
+       "centro": {
+        "x": 20.59,
+        "y": 1.16
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/V",
+       "centro": {
+        "x": 24.37,
+        "y": 1.16
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/G",
+       "centro": {
+        "x": 1.27,
+        "y": 6.62
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/J",
+       "centro": {
+        "x": 5.03,
+        "y": 6.62
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/M",
+       "centro": {
+        "x": 9.38,
+        "y": 6.62
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/P",
+       "centro": {
+        "x": 12.98,
+        "y": 6.62
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/S",
+       "centro": {
+        "x": 16.78,
+        "y": 6.62
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/U",
+       "centro": {
+        "x": 20.59,
+        "y": 6.62
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/V",
+       "centro": {
+        "x": 24.37,
+        "y": 6.62
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/V",
+       "centro": {
+        "x": 24.37,
+        "y": 10.47
+       },
+       "b": 0.67,
+       "h": 1.6,
+       "forma": "L"
+      },
+      {
+       "eje": "1/J",
+       "centro": {
+        "x": 5.32,
+        "y": 10.47
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/M",
+       "centro": {
+        "x": 9.38,
+        "y": 10.47
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/P",
+       "centro": {
+        "x": 12.98,
+        "y": 10.47
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/S",
+       "centro": {
+        "x": 16.78,
+        "y": 10.47
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/U",
+       "centro": {
+        "x": 20.59,
+        "y": 10.47
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.53,
+        "y": 1.29
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      }
+     ],
+     "murosVanos": null,
+     "losas": null
+    }
+   },
+   {
+    "id": "vista-02",
+    "nivel": null,
+    "categorias": {
+     "ejes": [
+      {
+       "nombre": "V",
+       "p": {
+        "x": 24.67,
+        "y": 12.85
+       },
+       "q": {
+        "x": 24.67,
+        "y": 0.02
+       }
+      },
+      {
+       "nombre": "G",
+       "p": {
+        "x": 1.57,
+        "y": 12.87
+       },
+       "q": {
+        "x": 1.57,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "M",
+       "p": {
+        "x": 9.68,
+        "y": 12.87
+       },
+       "q": {
+        "x": 9.68,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "P",
+       "p": {
+        "x": 13.28,
+        "y": 12.87
+       },
+       "q": {
+        "x": 13.28,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "S",
+       "p": {
+        "x": 17.08,
+        "y": 12.87
+       },
+       "q": {
+        "x": 17.08,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "U",
+       "p": {
+        "x": 20.88,
+        "y": 12.87
+       },
+       "q": {
+        "x": 20.88,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "1",
+       "p": {
+        "x": 0.05,
+        "y": 10.74
+       },
+       "q": {
+        "x": 26.19,
+        "y": 10.74
+       }
+      },
+      {
+       "nombre": "5",
+       "p": {
+        "x": 0,
+        "y": 1.43
+       },
+       "q": {
+        "x": 26.24,
+        "y": 1.43
+       }
+      },
+      {
+       "nombre": "2",
+       "p": {
+        "x": 0,
+        "y": 6.88
+       },
+       "q": {
+        "x": 26.24,
+        "y": 6.88
+       }
+      }
+     ],
+     "columnas": [
+      {
+       "eje": "5/G",
+       "centro": {
+        "x": 1.57,
+        "y": 1.43
+       },
+       "b": 0.67,
+       "h": 0.67,
+       "forma": "L"
+      },
+      {
+       "eje": "5/M",
+       "centro": {
+        "x": 9.68,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/P",
+       "centro": {
+        "x": 13.28,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/S",
+       "centro": {
+        "x": 17.08,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/U",
+       "centro": {
+        "x": 20.88,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/V",
+       "centro": {
+        "x": 24.67,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/G",
+       "centro": {
+        "x": 1.57,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/M",
+       "centro": {
+        "x": 9.68,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/P",
+       "centro": {
+        "x": 13.28,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/S",
+       "centro": {
+        "x": 17.08,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/U",
+       "centro": {
+        "x": 20.88,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/V",
+       "centro": {
+        "x": 24.67,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/V",
+       "centro": {
+        "x": 24.67,
+        "y": 10.74
+       },
+       "b": 0.67,
+       "h": 1.6,
+       "forma": "L"
+      },
+      {
+       "eje": "1/M",
+       "centro": {
+        "x": 9.68,
+        "y": 10.74
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/P",
+       "centro": {
+        "x": 13.28,
+        "y": 10.74
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/S",
+       "centro": {
+        "x": 17.08,
+        "y": 10.74
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/U",
+       "centro": {
+        "x": 20.88,
+        "y": 10.74
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 22.16,
+        "y": 10.75
+       },
+       "b": 0.19,
+       "h": 0.16,
+       "forma": "columneta"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 22.7,
+        "y": 10.46
+       },
+       "b": 0.17,
+       "h": 0.12,
+       "forma": "columneta"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.82,
+        "y": 10.61
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.82,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.82,
+        "y": 1.56
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.5,
+        "y": 1.56
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      }
+     ],
+     "murosVanos": null,
+     "losas": null
+    }
+   },
+   {
+    "id": "vista-03",
+    "nivel": 2,
+    "categorias": {
+     "ejes": [
+      {
+       "nombre": "V",
+       "p": {
+        "x": 24.67,
+        "y": 12.85
+       },
+       "q": {
+        "x": 24.67,
+        "y": 0.02
+       }
+      },
+      {
+       "nombre": "G",
+       "p": {
+        "x": 1.57,
+        "y": 12.87
+       },
+       "q": {
+        "x": 1.57,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "M",
+       "p": {
+        "x": 9.68,
+        "y": 12.87
+       },
+       "q": {
+        "x": 9.68,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "P",
+       "p": {
+        "x": 13.28,
+        "y": 12.87
+       },
+       "q": {
+        "x": 13.28,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "S",
+       "p": {
+        "x": 17.08,
+        "y": 12.87
+       },
+       "q": {
+        "x": 17.08,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "U",
+       "p": {
+        "x": 20.88,
+        "y": 12.87
+       },
+       "q": {
+        "x": 20.88,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "1",
+       "p": {
+        "x": 0.05,
+        "y": 10.74
+       },
+       "q": {
+        "x": 26.19,
+        "y": 10.74
+       }
+      },
+      {
+       "nombre": "5",
+       "p": {
+        "x": 0,
+        "y": 1.43
+       },
+       "q": {
+        "x": 26.24,
+        "y": 1.43
+       }
+      },
+      {
+       "nombre": "2",
+       "p": {
+        "x": 0,
+        "y": 6.88
+       },
+       "q": {
+        "x": 26.24,
+        "y": 6.88
+       }
+      }
+     ],
+     "columnas": [
+      {
+       "eje": "5/G",
+       "centro": {
+        "x": 1.57,
+        "y": 1.43
+       },
+       "b": 0.67,
+       "h": 0.67,
+       "forma": "L"
+      },
+      {
+       "eje": "5/M",
+       "centro": {
+        "x": 9.68,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/P",
+       "centro": {
+        "x": 13.28,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/S",
+       "centro": {
+        "x": 17.08,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/U",
+       "centro": {
+        "x": 20.88,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/V",
+       "centro": {
+        "x": 24.67,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/G",
+       "centro": {
+        "x": 1.57,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/M",
+       "centro": {
+        "x": 9.68,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/P",
+       "centro": {
+        "x": 13.28,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/S",
+       "centro": {
+        "x": 17.08,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/U",
+       "centro": {
+        "x": 20.88,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/V",
+       "centro": {
+        "x": 24.67,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/V",
+       "centro": {
+        "x": 24.67,
+        "y": 10.74
+       },
+       "b": 0.67,
+       "h": 1.6,
+       "forma": "L"
+      },
+      {
+       "eje": "1/M",
+       "centro": {
+        "x": 9.68,
+        "y": 10.74
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/P",
+       "centro": {
+        "x": 13.28,
+        "y": 10.74
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/S",
+       "centro": {
+        "x": 17.08,
+        "y": 10.74
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/U",
+       "centro": {
+        "x": 20.88,
+        "y": 10.74
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.82,
+        "y": 10.61
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.82,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.82,
+        "y": 1.56
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.5,
+        "y": 1.56
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 19.44,
+        "y": 10.72
+       },
+       "b": 0.14,
+       "h": 0.18,
+       "forma": "columneta"
+      }
+     ],
+     "murosVanos": null,
+     "losas": null
+    }
+   },
+   {
+    "id": "vista-04",
+    "nivel": 3,
+    "categorias": {
+     "ejes": [
+      {
+       "nombre": "V",
+       "p": {
+        "x": 24.67,
+        "y": 12.52
+       },
+       "q": {
+        "x": 24.67,
+        "y": 0.02
+       }
+      },
+      {
+       "nombre": "G",
+       "p": {
+        "x": 1.57,
+        "y": 12.54
+       },
+       "q": {
+        "x": 1.57,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "M",
+       "p": {
+        "x": 9.68,
+        "y": 12.54
+       },
+       "q": {
+        "x": 9.68,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "P",
+       "p": {
+        "x": 13.28,
+        "y": 12.54
+       },
+       "q": {
+        "x": 13.28,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "S",
+       "p": {
+        "x": 17.08,
+        "y": 12.54
+       },
+       "q": {
+        "x": 17.08,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "U",
+       "p": {
+        "x": 20.88,
+        "y": 12.54
+       },
+       "q": {
+        "x": 20.88,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "1",
+       "p": {
+        "x": 0.05,
+        "y": 10.9
+       },
+       "q": {
+        "x": 26.19,
+        "y": 10.9
+       }
+      },
+      {
+       "nombre": "5",
+       "p": {
+        "x": 0,
+        "y": 1.59
+       },
+       "q": {
+        "x": 26.24,
+        "y": 1.59
+       }
+      },
+      {
+       "nombre": "2",
+       "p": {
+        "x": 0,
+        "y": 7.05
+       },
+       "q": {
+        "x": 26.24,
+        "y": 7.05
+       }
+      }
+     ],
+     "columnas": [
+      {
+       "eje": "5/M",
+       "centro": {
+        "x": 9.68,
+        "y": 1.59
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/M",
+       "centro": {
+        "x": 9.68,
+        "y": 7.05
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.82,
+        "y": 7.05
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.82,
+        "y": 1.72
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      }
+     ],
+     "murosVanos": null,
+     "losas": null
+    }
+   },
+   {
+    "id": "vista-05",
+    "nivel": 1,
+    "categorias": {
+     "ejes": [
+      {
+       "nombre": "V",
+       "p": {
+        "x": 24.67,
+        "y": 12.85
+       },
+       "q": {
+        "x": 24.67,
+        "y": 0.02
+       }
+      },
+      {
+       "nombre": "G",
+       "p": {
+        "x": 1.57,
+        "y": 12.87
+       },
+       "q": {
+        "x": 1.57,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "M",
+       "p": {
+        "x": 9.68,
+        "y": 12.87
+       },
+       "q": {
+        "x": 9.68,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "P",
+       "p": {
+        "x": 13.28,
+        "y": 12.87
+       },
+       "q": {
+        "x": 13.28,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "S",
+       "p": {
+        "x": 17.08,
+        "y": 12.87
+       },
+       "q": {
+        "x": 17.08,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "U",
+       "p": {
+        "x": 20.88,
+        "y": 12.87
+       },
+       "q": {
+        "x": 20.88,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "1",
+       "p": {
+        "x": 0.05,
+        "y": 10.74
+       },
+       "q": {
+        "x": 26.19,
+        "y": 10.74
+       }
+      },
+      {
+       "nombre": "5",
+       "p": {
+        "x": 0,
+        "y": 1.43
+       },
+       "q": {
+        "x": 26.24,
+        "y": 1.43
+       }
+      },
+      {
+       "nombre": "2",
+       "p": {
+        "x": 0,
+        "y": 6.88
+       },
+       "q": {
+        "x": 26.24,
+        "y": 6.88
+       }
+      }
+     ],
+     "columnas": [
+      {
+       "eje": "5/G",
+       "centro": {
+        "x": 1.57,
+        "y": 1.43
+       },
+       "b": 0.67,
+       "h": 0.67,
+       "forma": "L"
+      },
+      {
+       "eje": "5/M",
+       "centro": {
+        "x": 9.68,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/P",
+       "centro": {
+        "x": 13.28,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/S",
+       "centro": {
+        "x": 17.08,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/U",
+       "centro": {
+        "x": 20.88,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/V",
+       "centro": {
+        "x": 24.67,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/G",
+       "centro": {
+        "x": 1.57,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/M",
+       "centro": {
+        "x": 9.68,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/P",
+       "centro": {
+        "x": 13.28,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/S",
+       "centro": {
+        "x": 17.08,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/U",
+       "centro": {
+        "x": 20.88,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/V",
+       "centro": {
+        "x": 24.67,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/V",
+       "centro": {
+        "x": 24.67,
+        "y": 10.74
+       },
+       "b": 0.67,
+       "h": 1.6,
+       "forma": "L"
+      },
+      {
+       "eje": "1/M",
+       "centro": {
+        "x": 9.68,
+        "y": 10.74
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/P",
+       "centro": {
+        "x": 13.28,
+        "y": 10.74
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/S",
+       "centro": {
+        "x": 17.08,
+        "y": 10.74
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/U",
+       "centro": {
+        "x": 20.88,
+        "y": 10.74
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.82,
+        "y": 10.61
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.82,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.82,
+        "y": 1.56
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.5,
+        "y": 1.56
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      }
+     ],
+     "murosVanos": null,
+     "losas": null
+    }
+   },
+   {
+    "id": "vista-06",
+    "nivel": 2,
+    "categorias": {
+     "ejes": [
+      {
+       "nombre": "V",
+       "p": {
+        "x": 24.67,
+        "y": 12.85
+       },
+       "q": {
+        "x": 24.67,
+        "y": 0.02
+       }
+      },
+      {
+       "nombre": "G",
+       "p": {
+        "x": 1.57,
+        "y": 12.87
+       },
+       "q": {
+        "x": 1.57,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "M",
+       "p": {
+        "x": 9.68,
+        "y": 12.87
+       },
+       "q": {
+        "x": 9.68,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "P",
+       "p": {
+        "x": 13.28,
+        "y": 12.87
+       },
+       "q": {
+        "x": 13.28,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "S",
+       "p": {
+        "x": 17.08,
+        "y": 12.87
+       },
+       "q": {
+        "x": 17.08,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "U",
+       "p": {
+        "x": 20.88,
+        "y": 12.87
+       },
+       "q": {
+        "x": 20.88,
+        "y": 0
+       }
+      },
+      {
+       "nombre": "1",
+       "p": {
+        "x": 0.05,
+        "y": 10.74
+       },
+       "q": {
+        "x": 26.19,
+        "y": 10.74
+       }
+      },
+      {
+       "nombre": "5",
+       "p": {
+        "x": 0,
+        "y": 1.43
+       },
+       "q": {
+        "x": 26.24,
+        "y": 1.43
+       }
+      },
+      {
+       "nombre": "2",
+       "p": {
+        "x": 0,
+        "y": 6.88
+       },
+       "q": {
+        "x": 26.24,
+        "y": 6.88
+       }
+      }
+     ],
+     "columnas": [
+      {
+       "eje": "5/G",
+       "centro": {
+        "x": 1.57,
+        "y": 1.43
+       },
+       "b": 0.67,
+       "h": 0.67,
+       "forma": "L"
+      },
+      {
+       "eje": "5/M",
+       "centro": {
+        "x": 9.68,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/P",
+       "centro": {
+        "x": 13.28,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/S",
+       "centro": {
+        "x": 17.08,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/U",
+       "centro": {
+        "x": 20.88,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "5/V",
+       "centro": {
+        "x": 24.67,
+        "y": 1.43
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/G",
+       "centro": {
+        "x": 1.57,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/M",
+       "centro": {
+        "x": 9.68,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/P",
+       "centro": {
+        "x": 13.28,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/S",
+       "centro": {
+        "x": 17.08,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/U",
+       "centro": {
+        "x": 20.88,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "2/V",
+       "centro": {
+        "x": 24.67,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/V",
+       "centro": {
+        "x": 24.67,
+        "y": 10.74
+       },
+       "b": 0.67,
+       "h": 1.6,
+       "forma": "L"
+      },
+      {
+       "eje": "1/M",
+       "centro": {
+        "x": 9.68,
+        "y": 10.74
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/P",
+       "centro": {
+        "x": 13.28,
+        "y": 10.74
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/S",
+       "centro": {
+        "x": 17.08,
+        "y": 10.74
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": "1/U",
+       "centro": {
+        "x": 20.88,
+        "y": 10.74
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "rectangular"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.82,
+        "y": 10.61
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.82,
+        "y": 6.88
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.82,
+        "y": 1.56
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      },
+      {
+       "eje": null,
+       "centro": {
+        "x": 5.5,
+        "y": 1.56
+       },
+       "b": 0.27,
+       "h": 0.27,
+       "forma": "columneta"
+      }
+     ],
+     "murosVanos": null,
+     "losas": null
+    }
+   }
+  ]
+ }
+}

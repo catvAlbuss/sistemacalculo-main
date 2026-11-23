@@ -22,6 +22,7 @@ async function abrir(path) {
   return db;
 }
 async function cargarPlantilla() {
+  if (!existsSync('public/assets/plantillas/estructuras-laminas.dxf')) return {db: null, config: {modo: 'adaptativa', escalaPlanos: 2}};
   const db = new dm.AcDbDatabase();
   const d = readFileSync('public/assets/plantillas/estructuras-laminas.dxf');
   await db.read(d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength), {readOnly: true}, dm.AcDbFileType.DXF);

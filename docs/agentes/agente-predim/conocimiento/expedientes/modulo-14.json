@@ -1,9 +1,9 @@
 {
- "expediente": "14.VINCHOS MODULO 14 estructuras.dwg",
+ "expediente": "14.VINCHOS MODULO 14 - ESTRUCTURAS.dwg",
  "nombre": "modulo-14",
- "aprendido": "2026-11-07",
+ "aprendido": "2026-11-18",
  "tamano": {
-  "entidades": 7182,
+  "entidades": 7184,
   "cotas": 272,
   "achurados": 368
  },
@@ -355,7 +355,7 @@
     "ejemplo": "Muro de soga de ladrillo King Kong Tipo IV - 23x12.5x9cm"
    }
   ],
-  "textoCompleto": 13685
+  "textoCompleto": 13719
  },
  "planos": {
   "laminas": [
@@ -380,7 +380,7 @@
    "CORTE 1-1 ESC.: 1/25"
   ],
   "detalles": [
-   "DETALLE DE EN CASO DE ENCUENTROS EN PLANTA",
+   "DETALLE DE Ø EN CASO DE ENCUENTROS EN PLANTA",
    "DETALLE DE LA UBICACION Y LONGITUD",
    "DETALLE TIPICO ISOMÉTRICO LOSA ALIGERADA",
    "DETALLE TÍPICO DE ALIGERADO H=0.20M",

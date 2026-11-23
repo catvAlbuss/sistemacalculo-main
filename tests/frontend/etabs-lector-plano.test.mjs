@@ -121,23 +121,28 @@ test('structural sizing rules used on the sheet', () => {
   assert.equal(refuerzoMinimo(0.1375).texto, '8Ø5/8"'); // C1 L 0.40x0.40x0.25
   assert.equal(refuerzoMinimo(0.0845).texto, '6Ø5/8"'); // 0.25x0.38
   assert.equal(refuerzoMinimo(0.04).n, 4);
-  // Aligerado 0.20 m hasta 5 m de luz; vigas 0.25 x L/12 con mínimo 0.40 (V 0.25x0.40 del ingeniero).
+  // Aligerado 0.20 m hasta 5 m de luz. Vigas con las reglas del despacho (reglasDespacho.js):
+  // módulo 14, columnas L de 0.25 de espesor y luz 3.76 → V(0.25x0.40) como el ingeniero;
+  // módulo 2, luz libre 6.23 → V(0.30x0.60) y las paralelas a las viguetas V(0.30x0.40).
   assert.equal(espesorAligerado(3.0), 0.2);
   assert.equal(espesorAligerado(6), 0.25);
-  assert.deepEqual(seccionViga(3.76), {b: 0.25, h: 0.4});
-  assert.deepEqual(seccionViga(6), {b: 0.25, h: 0.5});
+  const columnaL = {b: 0.4, h: 0.4, area: 0.14, forma: 'L'};
+  assert.deepEqual(seccionViga(3.76, {apoyos: [columnaL, columnaL]}), {b: 0.25, h: 0.4});
+  assert.deepEqual(seccionViga(6.23), {b: 0.3, h: 0.6});
+  assert.deepEqual(seccionViga(6.23, {cargaLosa: false}), {b: 0.3, h: 0.4});
 });
 
 const plantillaDxf = 'public/assets/plantillas/estructuras-laminas.dxf';
 const plantillaJson = 'public/assets/plantillas/estructuras-laminas.json';
 async function cargarPlantilla() {
+  if (!existsSync(plantillaDxf)) return {db: null, config: {modo: 'adaptativa', escalaPlanos: 2}};
   const db = new dm.AcDbDatabase();
   const d = readFileSync(plantillaDxf);
   await db.read(d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength), {readOnly: true}, dm.AcDbFileType.DXF);
   return {db, config: JSON.parse(readFileSync(plantillaJson, 'utf8'))};
 }
 
-test('the sheet template keeps the standard details but none of the reference project data', () => {
+test('the sheet template keeps the standard details but none of the reference project data', {skip: !existsSync('public/assets/plantillas/estructuras-laminas.dxf') && 'plantilla fija retirada: las láminas se componen en modo adaptativo'}, () => {
   const dxf = readFileSync(plantillaDxf, 'utf8');
   for (const dato of ['ALDO BARDALES', '101402', '2166247', 'MUNICIPALIDAD DISTRITAL', 'MEJORAMIENTO DE LOS SERVICIOS']) assert.ok(!dxf.includes(dato), `template leaks "${dato}"`);
   for (const detalle of ['DETALLE TIPICO ISOM', 'DETALLE DE LA UBICACION Y LONGITUD', 'Zapatas y cimiento corrido']) assert.ok(dxf.includes(detalle), `template lost "${detalle}"`);
@@ -154,7 +159,7 @@ test('the sheet template keeps the standard details but none of the reference pr
   }
 });
 
-test('template texts are clean for the browser viewer: no ambiguous unicode escapes, paragraph codes or misspellings', () => {
+test('template texts are clean for the browser viewer: no ambiguous unicode escapes, paragraph codes or misspellings', {skip: !existsSync('public/assets/plantillas/estructuras-laminas.dxf') && 'plantilla fija retirada: las láminas se componen en modo adaptativo'}, () => {
   const dxf = readFileSync(plantillaDxf, 'latin1');
   assert.doesNotMatch(dxf, /\\U\+[0-9A-Fa-f]{4}[0-9A-Fa-f]/, '\\U+XXXX followed by a hex digit is misread ("2Ø3/8" showed "2?/8")');
   assert.doesNotMatch(dxf, /\\p[a-z]*[^;\n]*;/, 'MTEXT paragraph codes (\\pxqc;) left "ESCALA:\\P1/25" literal');
@@ -164,14 +169,15 @@ test('template texts are clean for the browser viewer: no ambiguous unicode esca
   assert.ok(!dxf.includes('@15cm SUPERIOR'), 'steel callouts of the reference platea are not template material');
 });
 
-test('with the template, plano_estructuras builds sheets E-01 and E-02 like the reference file, below the architecture frame', {skip: !existsSync(arquitectura)}, async () => {
+test('with the template, plano_estructuras builds sheets E-01 and E-02 like the reference file, below the architecture frame', {skip: (!existsSync(arquitectura) || !existsSync('public/assets/plantillas/estructuras-laminas.dxf')) && 'plantilla fija retirada o sin la arquitectura de referencia'}, async () => {
   const db = await abrir(arquitectura);
   let zoom = null;
   const ctx = createDrawingContext({getDatabase: () => db, dm, loadTemplate: cargarPlantilla, afterDraw: (z) => { zoom = z; }});
   const antes = db.tables.blockTable.modelSpace.newIterator().toArray().length;
   const r = await SKILLS.find((s) => s.name === 'plano_estructuras').run({vista: 'primer nivel'}, ctx);
   assert.deepEqual(r.laminas, ['E-01', 'E-02']);
-  assert.match(r.mensaje, /de MÓDULO XIV debajo de la arquitectura, con la plantilla del despacho: cimentación con platea/, 'small module -> platea, like the engineer');
+  assert.match(r.mensaje, /de M[ÓO]DULO XIV(?: PRIMER NIVEL)? debajo de la arquitectura/, 'the selected module remains the current project');
+  assert.match(r.mensaje, /cimentación con platea/, 'small module -> platea, like the engineer');
   assert.match(r.mensaje, /pórticos de los ejes Z´, Y´, 10, 8 \(techo a dos aguas PTE 33%, alero \+3\.58, cumbrera \+4\.10\)/, 'roof slope from the architecture; ridge like the engineer (+4.12)');
   assert.doesNotMatch(r.mensaje, /piso|Cimentación 2\.0/i);
   const nuevas = db.tables.blockTable.modelSpace.newIterator().toArray().slice(antes);
@@ -181,7 +187,8 @@ test('with the template, plano_estructuras builds sheets E-01 and E-02 like the 
   const textos = nuevas.filter((e) => e.contents).map((e) => e.contents).join(' | ');
   // Estilo del despacho: capas y colores del expediente, no capas propias del agente.
   const capaDe = (re) => nuevas.filter((e) => re.test(e.contents ?? ''));
-  assert.ok(capaDe(/^MÓDULO XIV - PLANO DE/).every((e) => e.layer === '.D1 Texto'), 'titles on the office layer .D1 Texto');
+  const titulosActuales = capaDe(/^M[ÓO]DULO XIV(?: PRIMER NIVEL)? - PLANO DE/);
+  assert.ok(titulosActuales.length > 0 && titulosActuales.every((e) => e.layer === '.D1 Texto'), 'current view titles on the office layer .D1 Texto');
   assert.ok(capaDe(/^Cimiento corrido$/).every((e) => e.layer === 'Texto'), 'strip labels on layer Texto');
   assert.ok(capaDe(/^C[123]$/).some((e) => e.layer === 'COTAS & TEXTOS'), 'column tags on COTAS & TEXTOS');
   assert.ok(nuevas.some((e) => e.layer === '49. EJES.' && e instanceof dm.AcDbCircle), 'axis bubbles on 49. EJES.');
@@ -190,11 +197,14 @@ test('with the template, plano_estructuras builds sheets E-01 and E-02 like the 
   assert.ok(nuevas.some((e) => e.dxfTypeName === 'HATCH' && e.patternName === 'AR-CONC'), 'concrete hatch in columns');
   assert.ok(nuevas.some((e) => e.dxfTypeName === 'HATCH' && e.layer === '.N1 muros bajos'), 'low walls hatched like the engineer');
   assert.ok(!nuevas.some((e) => /^E-(EJES|COLUMNAS|COTAS|LAMINA|TEXTO|VIGUETAS)$/.test(e.layer)), 'no agent-only layers on the sheets');
-  for (const t of ['ZAPATA CORRIDA', 'V(0.25x0.40)', 'SUPERIOR', 'INFERIOR']) assert.ok(textos.includes(t), `missing "${t}"`);
+  for (const t of ['PLATEA DE CIMENTACIÓN', 'V(0.25x0.40)', 'SUPERIOR', 'INFERIOR']) assert.ok(textos.includes(t), `missing "${t}"`);
   for (const t of ['MÓDULO XIV - PLANO DE CIMENTACIÓN', 'MÓDULO XIV - PLANO DE CIMIENTO CORRIDO', 'MÓDULO XIV - PLANO DE ALIGERADO', 'PLANO DE PÓRTICO EJE 8-8', 'PLANO DE PÓRTICO EJE Z´-Z´', 'ESC: 1/25', 'CUADRO DE COLUMNAS', 'ESTRUCTURAS', 'E-01', 'E-02']) {
     assert.ok(textos.includes(t), `missing "${t}"`);
   }
-  assert.ok(nuevas.some((e) => e.layer === '0' && e.color?.colorIndex === 6), 'platea mesh in magenta, like the engineer');
+  // La malla de la platea es una decisión de estilo (el ingeniero alterna malla completa y bastones).
+  const conMalla = nuevas.some((e) => e.layer === '0' && e.color?.colorIndex === 6 && e instanceof dm.AcDbLine);
+  const conBastones = nuevas.some((e) => e.layer === '.N1 Acero Long02 0.3mm');
+  assert.ok(conMalla || conBastones, 'platea steel drawn as full mesh or as bars with their callout');
   assert.equal(nuevas.filter((e) => e.layer === '.D1 cotas' && /^BASE NPN=\+0\.00m$/.test(e.contents ?? '')).length, 4, 'one level set per frame');
   // Detalles con el criterio del expediente (criteriosEstructurales.js).
   const todo = nuevas.map((e) => e.contents ?? '').join(' | ');
@@ -207,7 +217,7 @@ test('with the template, plano_estructuras builds sheets E-01 and E-02 like the 
   assert.ok(['1', '2', '3'].every((n) => nuevas.some((e) => e.layer === '.D1 Texto 01' && e.contents === n)), 'section marks 1 (exterior wall with door), 2 (exterior), 3 (interior)');
   // Cimiento corrido sobre los muros de la arquitectura; malla de platea; sin vigas de cimentación bajo platea.
   assert.ok(nuevas.filter((e) => e.layer === '0' && e instanceof dm.AcDbPolyline && e.color?.colorIndex === 7).length >= 20, 'strip footing plan follows the architecture walls');
-  assert.ok(nuevas.filter((e) => e.layer === '0' && e instanceof dm.AcDbLine && e.color?.colorIndex === 6).length >= 20, 'platea mesh');
+  assert.ok(conBastones || nuevas.filter((e) => e.layer === '0' && e instanceof dm.AcDbLine && e.color?.colorIndex === 6).length >= 20, 'platea mesh or bars');
   assert.equal(nuevas.filter((e) => /^VC /.test(e.contents ?? '')).length, 0, 'no foundation beams under a platea');
   // Acero en elevación de los pórticos (varillas y estribos con su distribución).
   assert.ok(nuevas.filter((e) => ['.N1 Acero Estribo', '2_Acero EV'].includes(e.layer) && e instanceof dm.AcDbLine).length >= 150, 'steel drawn in the frame elevations');
@@ -215,5 +225,6 @@ test('with the template, plano_estructuras builds sheets E-01 and E-02 like the 
   assert.ok(nuevas.filter((e) => e.layer === 'SGE_TEXTO-CHICOS-03').length >= 6, 'TR4 cover and gutters on the frames');
   // Todo debajo del marco de la arquitectura (y = 1170 en el módulo 14), sin pisar nada.
   assert.ok(zoom && zoom.y1 < 1170 && zoom.y0 > 1100, JSON.stringify(zoom));
-  assert.ok(JSON.stringify(r).length < 1500, 'compact tool result');
+  // Incluye las consultas al especialista (hasta 4, cada una corta): por eso 1800 y no 1500.
+  assert.ok(JSON.stringify(r).length < 1800, 'compact tool result');
 });

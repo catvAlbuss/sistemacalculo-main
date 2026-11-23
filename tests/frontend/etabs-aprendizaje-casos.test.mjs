@@ -3,12 +3,103 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync, existsSync} from 'node:fs';
+import {parse, compileTemplate} from '@vue/compiler-sfc';
 import * as dm from '@mlightcad/data-model';
-import {decisionesDeEstructura, nivelDeTitulo, escalaEntrePlanos, compararColumnas, proponer, evaluar, reglasValidas, MIN_CASOS_COSTUMBRE} from '../../resources/js/ingenieria/aprendizaje/casos.js';
+import {decisionesDeEstructura, nivelDeTitulo, escalaEntrePlanos, compararColumnas, geometriaDeLecturas, proponer, evaluar, reglasValidas, MIN_CASOS_COSTUMBRE} from '../../resources/js/ingenieria/aprendizaje/casos.js';
 import {CASOS} from '../../resources/js/ingenieria/aprendizaje/casosAprendidos.js';
 import {createDrawingContext} from '../../resources/js/ingenieria/cad/drawingContext.js';
 import {SKILLS} from '../../resources/js/ingenieria/agente/skills/index.js';
+import * as estructuraPlano from '../../resources/js/ingenieria/agente/skills/estructuraPlano.js';
 import {plano} from '../../scripts/agente/planos.mjs';
+
+test('pending team submissions are not added to in-session shared proposals', async () => {
+  const registro = await import('../../resources/js/ingenieria/aprendizaje/registro.js');
+  registro.olvidarSesion();
+  const r = await registro.registrarEvento({
+    tipo: 'correccion', clave: 'losa', valor: 'maciza', rasgos: {niveles: 2},
+  });
+  assert.equal(r.ok, false);
+  assert.deepEqual(await registro.eventosDeUso(), []);
+});
+
+test('submission reports pending status only after successful save and makes failures actionable', async () => {
+  const registro = await import('../../resources/js/ingenieria/aprendizaje/registro.js');
+  const previous = {window: globalThis.window, document: globalThis.document, fetch: globalThis.fetch};
+  globalThis.window = {};
+  globalThis.document = {querySelector: () => null};
+  try {
+    globalThis.fetch = async () => ({ok: true, json: async () => ({ok: true, estado: 'pendiente', evento_id: 'event-1'})});
+    assert.deepEqual(await registro.registrarEvento({tipo: 'correccion', clave: 'df', valor: 2, rasgos: {}}), {
+      ok: true, guardado: true, estado: 'pendiente', evento_id: 'event-1',
+    });
+
+    globalThis.fetch = async () => ({ok: false, status: 503});
+    const failed = await registro.registrarEvento({tipo: 'correccion', clave: 'df', valor: 2, rasgos: {}});
+    assert.equal(failed.ok, false);
+    assert.match(failed.error, /enviar/i);
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete globalThis[key];
+      else globalThis[key] = value;
+    }
+  }
+});
+
+test('review API reports non-OK and network errors without treating them as success', async () => {
+  const registro = await import('../../resources/js/ingenieria/aprendizaje/registro.js');
+  const previous = {window: globalThis.window, document: globalThis.document, fetch: globalThis.fetch};
+  globalThis.window = {};
+  globalThis.document = {querySelector: () => null};
+  try {
+    globalThis.fetch = async () => ({ok: false, status: 503});
+    const load = await registro.cargarEventosPendientes();
+    assert.equal(load.ok, false);
+    assert.match(load.error, /cargar/i);
+
+    globalThis.fetch = async () => ({ok: false, status: 500});
+    const failedReview = await registro.resolverEventoPendiente('event-1', 'aprobar');
+    assert.equal(failedReview.ok, false);
+    assert.match(failedReview.error, /aprobar/i);
+
+    globalThis.fetch = async () => { throw new Error('offline'); };
+    const action = await registro.resolverEventoPendiente('event-1', 'aprobar');
+    assert.equal(action.ok, false);
+    assert.match(action.error, /conexión|conectar|intentar/i);
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete globalThis[key];
+      else globalThis[key] = value;
+    }
+  }
+});
+
+test('a failed review action leaves its pending event in the queue', async () => {
+  const {eventosTrasRevision} = await import('../../resources/js/ingenieria/aprendizaje/registro.js');
+  const pendientes = [{evento_id: 'event-1', clave: 'metrado'}];
+  assert.deepEqual(eventosTrasRevision(pendientes, 'event-1', {ok: false}), pendientes);
+  assert.deepEqual(eventosTrasRevision(pendientes, 'event-1', {ok: true}), []);
+});
+
+test('review panel renders loading, errors, submission status, and sanitized event context', () => {
+  const source = readFileSync('resources/js/etabs/components/AgentePredimPanel.vue', 'utf8');
+  const parsed = parse(source, {filename: 'AgentePredimPanel.vue'});
+  assert.equal(parsed.errors.length, 0);
+  const compiled = compileTemplate({
+    source: parsed.descriptor.template.content,
+    filename: 'AgentePredimPanel.vue',
+    id: 'aprendizaje-panel-test',
+  });
+  assert.deepEqual(compiled.errors, []);
+  for (const binding of [
+    'revision.cargando', 'revision.error', 'revision.errores[e.evento_id]', 'revision.revisando[e.evento_id]',
+    'met.guardado', 'e.motivo', 'e.rasgos', 'e.partida', 'e.fila', 'e.campo', 'e.termino',
+  ]) {
+    assert.ok(compiled.code.includes(binding), `review panel renders ${binding}`);
+  }
+  assert.match(source, /Enviada y pendiente de aprobación; todavía no está compartida con el agente/);
+  assert.match(source, /ultimoEnvioAprendizaje/);
+  assert.match(source, /no se compartirá hasta que se apruebe/i);
+});
 
 const eje = (nombre, x0, y0, x1, y1) => ({nombre, p: {x: x0, y: y0}, q: {x: x1, y: y1}});
 
@@ -37,6 +128,31 @@ test('architecture and structure are aligned by their named axes, also when draw
   assert.equal(r.coincidencia, 0.5);
 });
 
+test('paired drawing geometry keeps recognized elements per view without source identifiers', () => {
+  const geometria = geometriaDeLecturas([
+    {titulo: 'CLIENTE CONFIDENCIAL - PLANTA 1ER NIVEL', lectura: {
+      ejes: [eje('1', 100, 200, 100, 800)],
+      columnas: [{eje: '1/A', x: 100, y: 200, b: 0.4, h: 0.5, forma: 'rectangular', nodo: {x: 100, y: 200}}],
+      listaColumnetas: [],
+    }},
+    {titulo: 'CLIENTE CONFIDENCIAL - PLANTA 2DO NIVEL', lectura: {
+      ejes: [eje('1', 100, 200, 100, 800)],
+      columnas: [],
+      listaColumnetas: [],
+    }},
+  ]);
+
+  assert.equal(geometria.unidad, 'm');
+  assert.equal(geometria.vistas.length, 2);
+  assert.deepEqual(geometria.vistas.map((v) => v.nivel), [1, 2]);
+  assert.deepEqual(geometria.vistas[0].categorias.columnas, [
+    {eje: '1/A', centro: {x: 0, y: 0}, b: 0.4, h: 0.5, forma: 'rectangular'},
+  ]);
+  assert.equal(geometria.vistas[0].categorias.murosVanos, null);
+  assert.equal(geometria.vistas[0].categorias.losas, null);
+  assert.doesNotMatch(JSON.stringify(geometria), /CLIENTE CONFIDENCIAL/);
+});
+
 test('the agent decides alone only what a validated rule or at least 3 matching projects back', () => {
   const caso = (nombre, luz, niveles, estribos) => ({nombre, rasgos: {niveles, luzLosa: luz, area: 60, columnas: 6, techoLiviano: true, placas: false, columnetas: 10},
     decisiones: {cimentacion: 'platea', espesorLosa: luz > 5 ? 0.25 : 0.2, cimientoCorrido: true, losaDeTecho: niveles === 1, estribos}});
@@ -51,11 +167,54 @@ test('the agent decides alone only what a validated rule or at least 3 matching 
   assert.match(p.decisiones.estribos.ingeniero, /Cambia entre proyectos/);
 });
 
+test('a thickness override that conflicts with learned cases requires engineer review', () => {
+  // 6.2 m entre ejes = 5.95 m libres: el criterio pide 0.25 aunque los casos digan 0.20.
+  const rasgos = {niveles: 2, luzLosa: 6.2, area: 100, columnas: 8, techoLiviano: false, placas: false, columnetas: 0};
+  const casos = [1, 2, 3].map((n) => ({
+    nombre: `caso-${n}`,
+    rasgos: {...rasgos},
+    decisiones: {losa: 'aligerada', espesorLosa: 0.2},
+  }));
+  const propuesta = proponer(rasgos, casos);
+
+  assert.equal(propuesta.decisiones.espesorLosa.valor, 0.25);
+  assert.match(propuesta.decisiones.espesorLosa.ingeniero, /verificar|ingenier/i);
+});
+
+test('modules from one project do not count as independent evidence for learned rules or decisions', () => {
+  const rasgos = {niveles: 2, luzLosa: 3, area: 60, columnas: 6, techoLiviano: false, placas: false, columnetas: 0};
+  const casos = [1, 2, 3].map((n) => ({
+    nombre: `vinchos:modulo-${n}`,
+    grupo: 'vinchos',
+    rasgos: {...rasgos},
+    decisiones: {espesorLosa: 0.2, losaDeTecho: false, cimientoCorrido: false, fcColumnas: 210},
+  }));
+  const propuesta = proponer(rasgos, casos);
+
+  assert.equal(reglasValidas(casos).some((regla) => regla.valida), false);
+  assert.match(propuesta.decisiones.fcColumnas.ingeniero, /independiente/i);
+});
+
+test('roof slab: several levels always carry it; one level unconfirmed keeps a review warning', () => {
+  // Los 9 edificios de varios niveles del despacho llevan losa en el último nivel.
+  assert.deepEqual(estructuraPlano.losaTechoParaGeneracion(3, {valor: false, ingeniero: 'confirmar'}, true), {losaTecho: true, aviso: null});
+  const uno = estructuraPlano.losaTechoParaGeneracion(1, {valor: false, ingeniero: 'confirmar'}, true);
+  assert.equal(uno.losaTecho, true);
+  assert.match(uno.aviso, /revisar|confirmar/i);
+  assert.equal(estructuraPlano.losaTechoParaGeneracion(1, {valor: false, confianza: 0.9}, true).losaTecho, false, 'confirmed: light cover only');
+});
+
 test('learned cases: when the agent decides alone it is right (leave one out)', () => {
   assert.ok(CASOS.length >= 3);
   for (const c of CASOS) assert.ok(!JSON.stringify(c).match(/BARDALES|101402|2166247|CIP/i), `${c.nombre} has no personal data`);
   const ev = evaluar(CASOS);
-  assert.equal(ev.aciertoAgente, 1, JSON.stringify(ev.filas));
+  const proyectos = new Set(CASOS.map((c) => String(c.grupo ?? '').trim().toLocaleLowerCase() || c.nombre));
+  if (proyectos.size < MIN_CASOS_COSTUMBRE) {
+    assert.equal(ev.aciertoAgente, null, JSON.stringify(ev.filas));
+    assert.equal(ev.parteAgente, 0);
+  } else {
+    assert.equal(ev.aciertoAgente, 1, JSON.stringify(ev.filas));
+  }
 });
 
 const m09 = plano('estructuras', 'Modulo 09 Vilcabamba arquitectura.dwg');

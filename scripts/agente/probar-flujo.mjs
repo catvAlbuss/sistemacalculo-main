@@ -15,6 +15,7 @@ import {instalarRecorteXclip} from '../../resources/js/etabs/visor/recorteXclip.
 import {createDrawingContext} from '../../resources/js/ingenieria/cad/drawingContext.js';
 import {SKILLS} from '../../resources/js/ingenieria/agente/skills/index.js';
 import {PLANOS} from './planos.mjs';
+import {cargarPlantillaAdaptativa} from './plantilla.mjs';
 
 dm.AcDbDatabaseConverterManager.instance.register(dm.AcDbFileType.DWG, new AcDbLibreDwgMainThreadConverter());
 instalarRecorteXclip({AcDbLibreDwgConverter, AcDbBlockReference: dm.AcDbBlockReference});
@@ -23,12 +24,7 @@ const listar = (dir, re) => (existsSync(dir) ? readdirSync(dir).filter((f) => re
 const planos = process.argv.slice(2).length ? process.argv.slice(2)
   : [...listar(join(PLANOS, 'estructuras'), / arquitectura\.dwg$/i), ...listar(join(PLANOS, 'casas3d'), /\.dwg$/i)];
 
-const plantilla = new URL('../../public/assets/plantillas/estructuras-laminas', import.meta.url).href;
-const cargarPlantilla = async () => {
-  const db = new dm.AcDbDatabase(); const d = readFileSync(new URL(plantilla + '.dxf'));
-  await db.read(d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength), {readOnly: true}, dm.AcDbFileType.DXF);
-  return {db, config: JSON.parse(readFileSync(new URL(plantilla + '.json'), 'utf8'))};
-};
+const cargarPlantilla = cargarPlantillaAdaptativa;
 
 const filas = [];
 for (const ruta of planos) {

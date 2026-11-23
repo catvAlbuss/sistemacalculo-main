@@ -156,7 +156,7 @@
     "type": "function",
     "function": {
       "name": "datos_proyecto",
-      "description": "Guarda o consulta los datos del proyecto que usan las láminas de estructuras: Hz y Df del estudio de suelos, zona sísmica, perfil de suelo y categoría. Úsalo cuando el usuario dé o pregunte esos datos.",
+      "description": "Guarda o consulta los datos del proyecto que usan las láminas de estructuras: Hz y Df del estudio de suelos, zona sísmica, perfil de suelo, categoría y ubicación (distrito → zona sísmica E.030). Úsalo cuando el usuario dé o pregunte esos datos (también Hz y Df: NO uses corregir_estructura para ellos).",
       "parameters": {
         "type": "object",
         "properties": {
@@ -190,6 +190,14 @@
               "C"
             ],
             "description": "Categoría: A2 esencial (colegio, hospital), B importante, C común (vivienda)"
+          },
+          "ubicacion": {
+            "type": "string",
+            "description": "Ubicación tal como la dijo el usuario (distrito, provincia, departamento, localidad)"
+          },
+          "distrito": {
+            "type": "string",
+            "description": "Solo al elegir una opción de ubicación: 'DEPARTAMENTO/PROVINCIA/DISTRITO'"
           }
         }
       }
@@ -240,6 +248,7 @@
               "losa",
               "espesorLosa",
               "losaDeTecho",
+              "mallaCimentacion",
               "fcColumnas",
               "fcColumnetas",
               "estribos",
@@ -351,6 +360,101 @@
             "description": "Categoría: A2 esencial (colegio, hospital), B importante, C común (vivienda)"
           }
         }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "construir_estructura",
+      "description": "Construcción guiada paso a paso (lectura → suelo → cimentación → losas → dibujo): en cada etapa informa lo que leyó y decidió con su respaldo y pregunta SOLO lo dudoso, una pregunta a la vez, antes de dibujar. Úsalo para 'construye la estructura', 'paso a paso', 'guíame', o para responder la pregunta pendiente de la construcción (accion 'responder' con clave y valor).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "accion": {
+            "type": "string",
+            "enum": [
+              "iniciar",
+              "responder",
+              "dibujar"
+            ],
+            "description": "iniciar (por defecto), responder la pregunta pendiente, o dibujar ya con lo recomendado"
+          },
+          "clave": {
+            "type": "string",
+            "description": "Al responder: la clave de la pregunta pendiente (está en el estado)"
+          },
+          "valor": {
+            "type": "string",
+            "description": "Al responder: el valor elegido por el ingeniero"
+          },
+          "vista": {
+            "type": "string",
+            "description": "Opcional al iniciar: vista de arquitectura"
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "preguntar_ingeniero",
+      "description": "Pregunta al ingeniero una decisión de experto con 2 a 4 opciones (se muestran como botones). Úsalo cuando falta un dato o criterio que no puedes deducir ni está en el estado (ej. tipo de cimentación sin estudio de suelos, si el techo lleva losa, qué vista usar). Recomienda una opción y di por qué en una frase.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "pregunta": {
+            "type": "string",
+            "description": "La pregunta, corta y concreta"
+          },
+          "opciones": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "2 a 4 respuestas posibles, cortas"
+          },
+          "recomendada": {
+            "type": "string",
+            "description": "La opción que recomiendas (una de las opciones)"
+          },
+          "porque": {
+            "type": "string",
+            "description": "Por qué la recomiendas, en una frase"
+          }
+        },
+        "required": [
+          "pregunta",
+          "opciones"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "ver_metrado",
+      "description": "Lista las partidas del metrado que sacó el agente (ítem, descripción, unidad y total), en corto. Úsalo para comparar con una captura de la planilla Excel del ingeniero: compara partida por partida, señala solo las que difieren más de ±5 % y pregunta antes de cambiar nada. Si aún no hay metrado, primero metrar_estructura.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "buscar": {
+            "type": "string",
+            "description": "Opcional: ítem o palabra para filtrar (ej. '02.03.06' o 'columnas')"
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "estado_proyecto",
+      "description": "Resume lo que el agente sabe del proyecto abierto: lo leído, lo propuesto, lo decidido por el ingeniero, lo pendiente y el siguiente paso. Úsalo si preguntan '¿en qué vamos?', '¿qué falta?', '¿qué decidiste?'.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
       }
     }
   }

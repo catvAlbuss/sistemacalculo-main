@@ -53,7 +53,7 @@ Este documento resume los criterios que usa el agente para pasar de una planta d
 
 ### Vigas y losa
 
-- **Vigas:** sección 0.25 × peralte; el peralte es L/12 redondeado a 5 cm, con mínimo 0.40. Estribos □ 3/8"Ø: 1@0.05, 8@0.10, Rto.@0.20 C/E. Recubrimiento de 4 cm.
+- **Vigas:** sección por la regla aprendida de las planillas del despacho (ver "Reglas de metrado aprendidas"); sin reglas, 0.25 × L/12 redondeado a 5 cm, con mínimo 0.40. Estribos □ 3/8"Ø: 1@0.05, 8@0.10, Rto.@0.20 C/E. Recubrimiento de 4 cm.
 - **Aligerado:**
   - espesor de 0.20 m hasta 5 m de luz;
   - viguetas cada 0.40 m en la dirección de la luz corta;
@@ -123,6 +123,23 @@ Se probaron con `scripts/agente/leer-arquitectura.mjs` (qué entiende el agente)
 - Hz y Df vienen del estudio de suelos: 0.60/2.50 en los módulos 3 y 09, 0.70/2.00 en el 14. Se usan en la platea o las zapatas, en su rótulo y en el NFZ de los pórticos. Si faltan, se usa 0.70/2.00 y se avisa.
 - Zona, perfil de suelo y categoría dan Z, U, S, Tp y TL (tablas de la E.030-2018). Reemplazan en la lámina los valores del expediente de referencia (Z=0.25, U=1.0 "C", S=1.40, Tp=1.00, TL=2.0). Lo que falta queda de la plantilla, con aviso. Colegio en zona 2 sobre S3: Z=0.25, U=1.5 (A2), S=1.40, Tp=1.0, TL=1.6.
 - Número de niveles: ajusta el ancho del cimiento corrido y las zapatas; con más de 1 nivel se avisa que el dibujo es de un nivel.
+
+## Reglas de metrado aprendidas de las planillas del despacho
+
+`node scripts/agente/aprender-reglas-metrado.mjs` lee las planillas Excel del ingeniero (las de `pares.json` con metrado; privadas, nunca salen de la máquina) y genera `resources/js/ingenieria/metrado/reglasDespacho.js`: solo números por módulo (clave anónima) y las reglas agregadas (mediana o moda de los módulos). Las usan `metrado.js` (`criteriosMetrado(tipo)`), el aligerado, los pórticos y `diseno/estructura.js` (`seccionVigaPorLuz`). Las reglas se agregan **por tipo de cimentación**, que separa el sistema estructural: platea con muros de albañilería (vinchos) o zapatas con pórticos (ilo). Una regla solo se usa si la enseñaron al menos 3 módulos de ese tipo; si no, queda el criterio de siempre. Con las reglas de platea aplicadas a ilo, su metrado bajaba de 25 a 20 partidas en ±5 %. Pruebas: `tests/agente/reglas-despacho.test.mjs`. Medición sin trampa: `node scripts/agente/evaluar-metrado.mjs --sin-modulo` (cada módulo se mide con reglas aprendidas sin él); `--sin-reglas` mide los criterios de antes.
+
+| Regla | Criterio | Ejemplos (planillas) |
+|---|---|---|
+| Ancho de viga | El espesor de la columna o placa donde llega (en L/T, t de A = t(b + h − t)), entre 0.25 (E.060 21.5.1.3) y 0.30 (moda del despacho) | Módulos 1–13: 0.30 · módulo 14 (columnas L de 0.25): 0.25 |
+| Peralte de viga que carga la losa | Una sección para todas las vigas perpendiculares a las viguetas: luz libre mayor / 10.8, redondeado a 0.10 | Módulo 1: 6.12 → 0.60 · módulo 2: 6.83 → 0.60 · módulo 10: 5.40 → 0.50 · módulo 14: 4.52 → 0.40 |
+| Peralte de viga paralela a las viguetas | 0.40 (moda) | Módulos 1, 2, 5: ejes de 15–17 m en 0.30x0.40 |
+| Armado de viga | 6Ø5/8" corridas con gancho 0.60 + bastones (~12 % de las corridas); el pórtico dibuja el mismo armado | Módulos 1, 2, 4, 6, 9, 10 |
+| Sobrecimiento | Alto 0.45; ancho soga 0.13 / cabeza 0.24; largo = 0.75 del cimiento corrido (descuenta columnas, placas y puertas) | Módulo 1: 0.78 · módulo 2: 0.80 · módulo 14: 0.68 |
+| Columnetas | Varilla = alto + 0.40 + gancho 0.40; ~7.4 estribos Ø1/4" por metro de varilla | Módulo 1: alto 1.00 → varilla 1.45, 10 estribos · módulo 14: alto 3.25 → 3.65 |
+| Eliminación | (Excavación − relleno propio) × 1.20 | 15 de 15 módulos |
+| Relleno con material propio | Excavación − lo que queda dentro de ella (platea: cimiento corrido y columnas; zapatas: solo las columnas, porque el cimiento corrido va en su zanja). Nunca negativo: si sale < 0 queda en 0 y se avisa | Vinchos 7, 11–13 e ilo daban −85 % a −114 % |
+
+**Datos del proyecto, no reglas:** la altura de columnas sale de Df (estudio de suelos) y del NPT del techo. El despacho la mide desde el fondo de la cimentación (módulos 1, 2, 5, 8, 9, 10: H − Df ≈ techo). Cuando el agente no conoce Df, usa 2.00 y lo avisa: esa diferencia no se corrige con una regla.
 
 ## Pendiente
 
