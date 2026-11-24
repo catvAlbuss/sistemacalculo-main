@@ -20,6 +20,9 @@ class AgenteAprendizajeController extends Controller
     private const CLAVES = [
         'cimentacion', 'cimientoCorrido', 'hz', 'df', 'losa', 'espesorLosa', 'losaDeTecho', 'techoDosAguas',
         'fcColumnas', 'fcColumnetas', 'estribos', 'columnasComoArquitectura', 'niveles',
+        // Decisiones que pregunta la construcción guiada (consultas.js): losa maciza en baños y
+        // malla completa vs. solo bastones en la cimentación. Sin ellas el POST daba 422 y no se aprendía.
+        'losaMaciza', 'mallaCimentacion',
         // Corrección de una fila del metrado en la vista previa (partida, fila y campo) y nombre que
         // el despacho le da a un tipo de elemento en la planilla (terminología).
         'metrado', 'termino',

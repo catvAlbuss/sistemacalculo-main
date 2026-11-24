@@ -127,6 +127,17 @@ class AgenteAprendizajeTest extends TestCase
         $this->assertFalse(Storage::disk('local')->exists('aprendizaje/eventos.jsonl'));
     }
 
+    public function test_guided_construction_decisions_are_accepted(): void
+    {
+        // Las decisiones que pregunta la construcción guiada (losa maciza en baños, malla o
+        // bastones) antes daban 422 y la corrección del ingeniero se perdía.
+        foreach ([['losaMaciza', true], ['mallaCimentacion', false]] as [$clave, $valor]) {
+            $this->postJson(route('software.etabs.agente.aprendizaje.guardar'), [
+                'tipo' => 'correccion', 'clave' => $clave, 'valor' => $valor, 'rasgos' => ['niveles' => 1],
+            ])->assertOk()->assertJson(['ok' => true]);
+        }
+    }
+
     public function test_the_list_is_shared_without_who_made_the_correction(): void
     {
         $response = $this->postJson(route('software.etabs.agente.aprendizaje.guardar'), ['tipo' => 'correccion', 'clave' => 'df', 'valor' => 2.0, 'propuesto' => 2.5, 'rasgos' => ['niveles' => 1]])->assertOk()->json();
