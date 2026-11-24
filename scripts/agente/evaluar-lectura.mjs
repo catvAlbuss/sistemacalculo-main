@@ -132,10 +132,21 @@ export function compararColumnasF1(arq, est) {
   const sinPrima = (k) => k.replace(/´/g, '');
   const A2 = new Map([...A].map(([k, c]) => [sinPrima(k), c]));
   const usados = new Set();
+  const pareja = new Map();
   for (const [k, e] of E) {
     let a = A.get(k);
     if (!a && !E.has([...A.keys()].find((x) => sinPrima(x) === sinPrima(k)))) a = A2.get(sinPrima(k));
-    if (a) usados.add(a);
+    if (a) { usados.add(a); pareja.set(k, a); }
+  }
+  // Una placa que cubre dos cruces cercanos (tambienEn): el ingeniero la rotula en el otro cruce.
+  const alias = (c, aCruce) => (c.tambienEn ?? []).map((x) => aCruce({eje: x}));
+  for (const [k, e] of E) {
+    if (pareja.has(k)) continue;
+    const a = [...A.values()].find((x) => !usados.has(x) && (alias(x, cruce).includes(k) || alias(e, cruceEst).includes(cruce(x))));
+    if (a) { usados.add(a); pareja.set(k, a); }
+  }
+  for (const [k, e] of E) {
+    const a = pareja.get(k);
     if (!a) { faltan.push(`${k} ${e.forma} ${e.b}x${e.h}`); continue; }
     tp++;
     if (e.rotulo) { conRotulo++; if (clase(e.rotulo) === clase(a.tipo)) nombre++; else nombresMal.push(`${k} ${a.forma} ${a.b}x${a.h}: agente ${a.tipo} / ing ${e.rotulo}`); }

@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {existsSync, readFileSync} from 'node:fs';
 import * as dm from '@mlightcad/data-model';
 import {aplanarModelo, detectarVistas, leerVista, claseDeSeccion, espesorDeSeccion} from '../../resources/js/ingenieria/lectura/lectorPlano.js';
+import {diagnosticarLectura} from '../../resources/js/ingenieria/lectura/diagnostico.js';
 import {refuerzoMinimo} from '../../resources/js/ingenieria/laminas/laminaEstructuras.js';
 import {luzEntreEjes, espesorAligerado} from '../../resources/js/ingenieria/planos/aligeradoPlano.js';
 import {plano} from '../../scripts/agente/planos.mjs';
@@ -13,6 +14,18 @@ import {medidasDeSeccion, tituloDelCuadro} from '../../resources/js/ingenieria/l
 
 const m03 = plano('estructuras', 'Modulo 3 INICIAL arquitectura.dwg');
 const m09 = plano('estructuras', 'Modulo 09 Vilcabamba arquitectura.dwg');
+
+const ilo01 = plano('estructuras', 'ilo', '1. MODULO 01 Arquitectura.dwg');
+const ilo11 = plano('estructuras', 'ilo', '11. MODULO 11 Arquitectura.dwg');
+
+async function itemsDe(path) {
+  const {AcDbLibreDwgMainThreadConverter} = await import('@mlightcad/libredwg-converter/node');
+  dm.AcDbDatabaseConverterManager.instance.register(dm.AcDbFileType.DWG, new AcDbLibreDwgMainThreadConverter());
+  const db = new dm.AcDbDatabase();
+  const b = readFileSync(path);
+  await db.read(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), {readOnly: true}, dm.AcDbFileType.DWG);
+  return {db, items: aplanarModelo(db.tables.blockTable.modelSpace.newIterator().toArray()).items};
+}
 
 async function primerNivel(path) {
   const {AcDbLibreDwgMainThreadConverter} = await import('@mlightcad/libredwg-converter/node');
@@ -116,4 +129,48 @@ test('two bubbles with the same label but very different sizes (another sheet at
   items.push({tipo: 'linea', capa: 'EJES GENERALES', puntos: [{x: 59.6, y: 4.5}, {x: 57, y: 4.5}]});
   const [vista] = detectarVistas(items);
   assert.ok(vista.caja.x1 < 20, `the plan does not reach the other sheet (x1 = ${vista.caja.x1})`);
+});
+
+test('a long placa touching two close crossings keeps one column and notes the other crossing', () => {
+  const items = grillaIlo();
+  // Eje "1´" a 0.8 m del 1 y una placa 0.30x1.20 que toca los cruces 1/M y 1´/M.
+  items.push({tipo: 'circulo', capa: 'proyeccion', centro: {x: -2, y: 7.2}, radio: 0.25}, {tipo: 'texto', capa: 'proyeccion', centro: {x: -2.1, y: 7.1}, texto: "1'", alto: 0.25});
+  items.push({tipo: 'circulo', capa: 'proyeccion', centro: {x: 8, y: 7.2}, radio: 0.25}, {tipo: 'texto', capa: 'proyeccion', centro: {x: 7.9, y: 7.1}, texto: "1'", alto: 0.25});
+  items.push({tipo: 'linea', capa: 'EJES GENERALES', puntos: [{x: -1.75, y: 7.2}, {x: 7.75, y: 7.2}]});
+  const i = items.findIndex((it) => it.tipo === 'poli' && it.puntos[0].x === 5.8 && it.puntos[0].y === 7.8);
+  items[i] = {tipo: 'poli', capa: 'A-COLS', cerrada: true, puntos: [{x: 5.85, y: 7.0}, {x: 6.15, y: 7.0}, {x: 6.15, y: 8.2}, {x: 5.85, y: 8.2}]};
+  const lectura = leerVista(items, detectarVistas(items)[0]);
+  const placa = lectura.columnas.filter((c) => c.x > 5 && c.y > 6.5);
+  assert.equal(placa.length, 1, 'one element, not two');
+  assert.deepEqual([placa[0].eje, ...(placa[0].tambienEn ?? [])].sort(), ['1/M', '1´/M']);
+});
+
+test('no concrete columns but small posts on every crossing: reported as a light structure to confirm, nothing invented', () => {
+  const items = grillaIlo().filter((it) => it.capa !== 'A-COLS');
+  const poste = (x, y) => items.push({tipo: 'poli', capa: '.', cerrada: true, puntos: [{x: x - 0.075, y: y - 0.075}, {x: x + 0.075, y: y - 0.075}, {x: x + 0.075, y: y + 0.075}, {x: x - 0.075, y: y + 0.075}]});
+  for (const [x, y] of [[0, 8], [6, 8], [0, 0], [6, 0]]) poste(x, y);
+  const vistas = detectarVistas(items);
+  const lectura = leerVista(items, vistas[0]);
+  assert.equal(lectura.columnas.length, 0);
+  assert.equal(lectura.postes.length, 4);
+  const d = diagnosticarLectura({database: null, items, vistas});
+  const p = d.problemas.find((x) => x.codigo === 'columnas');
+  assert.ok(p?.dudoso && /estructura liviana/.test(p.texto), p?.texto);
+});
+
+test('ILO module 01 (another architect): axis 5 drawn only from its right bubble still crosses G, with its L placa', {skip: !existsSync(ilo01)}, async () => {
+  const {items} = await itemsDe(ilo01);
+  const vista = detectarVistas(items).find((v) => /PRIMER NIVEL/i.test(v.titulo));
+  const lectura = leerVista(items, vista);
+  assert.ok(lectura.columnas.some((c) => c.eje === '5/G' && c.forma === 'L'), lectura.columnas.map((c) => c.eje).join(' '));
+  assert.equal(lectura.columnas.length, 17);
+});
+
+test('ILO module 11: a light structure (0.15 posts on its 24 crossings) is flagged, not structured with invented columns', {skip: !existsSync(ilo11)}, async () => {
+  const {db, items} = await itemsDe(ilo11);
+  const vistas = detectarVistas(items);
+  const lectura = leerVista(items, vistas.find((v) => /PRIMER NIVEL/i.test(v.titulo)));
+  assert.equal(lectura.columnas.length, 0);
+  assert.equal(lectura.postes.length, 24);
+  assert.ok(diagnosticarLectura({database: db, items, vistas}).problemas.some((p) => p.dudoso && /0\.15x0\.15/.test(p.texto)));
 });

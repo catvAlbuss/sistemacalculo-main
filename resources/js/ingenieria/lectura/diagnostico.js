@@ -121,7 +121,8 @@ export function diagnosticarLectura({database, items = [], vistas = null, codigo
   const lecturas = vs.map((v) => {
     try {
       const l = leerVista(items, v, escalaPorBurbuja(v.radio));
-      return {titulo: v.titulo || `Vista ${v.indice ?? ""}`.trim(), ejes: l.ejes.map((e) => e.nombre), inclinados: l.ejes.filter((e) => e.inclinado).length, columnas: l.columnas.length, tipos: l.tipos.length, columnetas: l.columnetas};
+      return {titulo: v.titulo || `Vista ${v.indice ?? ""}`.trim(), ejes: l.ejes.map((e) => e.nombre), inclinados: l.ejes.filter((e) => e.inclinado).length, columnas: l.columnas.length, tipos: l.tipos.length, columnetas: l.columnetas,
+        ...(l.postes?.length ? {postes: l.postes.length, poste: `${l.postes[0].b.toFixed(2)}x${l.postes[0].h.toFixed(2)}`} : {})};
     } catch (error) {
       return {titulo: v.titulo || "Vista", ejes: v.ejes?.map((e) => e.nombre) ?? [], columnas: 0, tipos: 0, columnetas: 0, error: error?.message ?? String(error)};
     }
@@ -142,7 +143,13 @@ export function diagnosticarLectura({database, items = [], vistas = null, codigo
   if (xrefVacias.length) problemas.push({codigo: "xref", texto: `El DWG trae ${xrefVacias.length} referencia(s) externa(s) sin su contenido (${lista(xrefVacias.slice(0, 4).map((x) => x.nombre))}): el agente no ve lo que hay en ellas.`, arreglo: "En AutoCAD: comando BIND (Enlazar) de las referencias, o eTransmit, y vuelve a subir el DWG."});
   if (nProxies) problemas.push({codigo: "proxy", texto: `Hay ${nProxies} objeto(s) de otra aplicación que el visor no puede leer (${lista(top(r.proxies, 3).map(([n, c]) => `${n} ×${c}`))}); suelen ser muros, puertas o ventanas de AutoCAD Architecture.`, arreglo: "En AutoCAD Architecture: comando -AECEXPORTTOAUTOCAD (Exportar a AutoCAD) y sube ese DWG."});
   if (!vs.length) problemas.push({codigo: "ejes", texto: "No encontré ejes con nombre (burbuja: círculo con su letra o número en una capa de ejes). Sin ejes no puedo ubicar columnas ni estructurar.", arreglo: "Revisa que los ejes estén en una capa de ejes (EJES, AXIS…) con su burbuja y rótulo, o súbelo con la planta que los tiene."});
-  else if (!conColumnas.length) problemas.push({codigo: "columnas", texto: `Leí ${vs.length} vista(s) con ejes, pero ninguna columna en sus cruces.`, arreglo: "Revisa que las columnas estén dibujadas (polilínea cerrada o sombreado con contorno) en los cruces de ejes y no en una capa de muebles o textos."});
+  else if (!conColumnas.length) {
+    // Postes chicos en los cruces (ILO 11: 0.15x0.15 en los 24 cruces): estructura liviana (metálica
+    // o de madera), no pórticos de concreto. Es dudoso: se pregunta, no se inventan columnas.
+    const conPostes = lecturas.filter((l) => l.postes);
+    if (conPostes.length) problemas.push({codigo: "columnas", dudoso: true, texto: `Leí ${vs.length} vista(s) con ejes y ninguna columna de concreto; en ${conPostes[0].postes} cruce(s) de "${conPostes[0].titulo}" hay postes de ${conPostes[0].poste} m: parece una estructura liviana (metálica o de madera).`, arreglo: "Confirma qué estructura es. Si lleva columnas de concreto, dibújalas en los cruces (polilínea cerrada) o indícame sus medidas."});
+    else problemas.push({codigo: "columnas", texto: `Leí ${vs.length} vista(s) con ejes, pero ninguna columna en sus cruces.`, arreglo: "Revisa que las columnas estén dibujadas (polilínea cerrada o sombreado con contorno) en los cruces de ejes y no en una capa de muebles o textos."});
+  }
   if (r.riesgo.get("MLINE")) avisos.push(`${r.riesgo.get("MLINE")} muro(s) en multilínea (MLINE): aún no los leo como muros; si faltan cimientos corridos, explótalos (EXPLODE) en AutoCAD.`);
   const solidos = ["3DSOLID", "REGION", "BODY", "MESH"].map((t) => r.riesgo.get(t) ? `${r.riesgo.get(t)} ${RIESGO[t]}` : "").filter(Boolean);
   if (solidos.length) avisos.push(`Hay ${lista(solidos)}: no se usan para estructurar la planta.`);

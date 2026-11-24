@@ -490,10 +490,13 @@ export function columnasEnVista(items, vista, k = 1) {
     let tocan = medidos.filter((m) => m.d <= tol);
     if (tocan.some((m) => CAPAS_ESTRUCTURA.test(m.c.capa))) tocan = tocan.filter((m) => CAPAS_ESTRUCTURA.test(m.c.capa));
     const elegido = (tocan.length ? tocan.sort((a, b) => a.c.area - b.c.area) : medidos.sort((a, b) => a.d - b.d))[0].c;
-    if (columnas.some((col) => col.contorno === elegido)) continue;
-    columnas.push({contorno: elegido, nodo});
+    // Una placa larga cubre dos cruces de ejes cercanos (VINCHOS 4: 0.30x1.90 entre C´ y D): se
+    // queda con el primero y anota los demás que toca, sin inventar otra columna.
+    const ya = columnas.find((col) => col.contorno === elegido);
+    if (ya) { if (tocan.length) ya.otros.push(nodo); continue; }
+    columnas.push({contorno: elegido, nodo, otros: []});
   }
-  return columnas.map(({contorno, nodo}) => {
+  return columnas.map(({contorno, nodo, otros}) => {
     const {caja, pts} = contorno;
     const b = (caja.x1 - caja.x0) / k, h = (caja.y1 - caja.y0) / k;
     const rect = Math.abs(contorno.area / k ** 2 - b * h) < 0.02 * b * h && pts.length === 4;
@@ -503,11 +506,30 @@ export function columnasEnVista(items, vista, k = 1) {
       area: Math.round((contorno.area / k ** 2) * 10000) / 10000,
       forma: rect ? "rectangular" : pts.length === 4 ? "trapecio" : pts.length === 6 ? "L" : pts.length === 8 ? "T" : "irregular",
       eje: nodo.ejes.slice().sort().join("/"),
+      ...(otros.length ? {tambienEn: otros.map((o) => o.ejes.slice().sort().join("/"))} : {}),
       nodo: {x: nodo.x / k, y: nodo.y / k},
       capas: [contorno.capa],
       contorno: pts.map((p) => ({x: p.x / k, y: p.y / k})),
     };
   });
+}
+
+// Postes en los cruces: contornos chicos (de 0.12 a 0.24 m) justo en cruces de ejes, en una vista
+// sin columnas de concreto (ILO 11: estructura metálica con postes de 0.15x0.15). No son columnas
+// del pórtico; se informan como dudosos para que el ingeniero diga qué estructura es.
+export function postesEnVista(items, vista, k = 1) {
+  const tol = 0.06 * k, lista = [];
+  const chicos = contornos(items, k).filter((c) => Math.max(c.caja.x1 - c.caja.x0, c.caja.y1 - c.caja.y0) < 0.245 * k
+    && c.caja.x0 <= vista.caja.x1 && c.caja.x1 >= vista.caja.x0 && c.caja.y0 <= vista.caja.y1 && c.caja.y1 >= vista.caja.y0);
+  for (const nodo of vista.intersecciones) {
+    const c = chicos.find((x) => dentro(nodo, x.pts) || distanciaAlContorno(nodo, x.pts) <= tol);
+    if (!c) continue;
+    const eje = nodo.ejes.slice().sort().join("/");
+    if (lista.some((p) => p.eje === eje)) continue;
+    lista.push({eje, x: (c.caja.x0 + c.caja.x1) / 2 / k, y: (c.caja.y0 + c.caja.y1) / 2 / k,
+      b: Math.round(((c.caja.x1 - c.caja.x0) / k) * 100) / 100, h: Math.round(((c.caja.y1 - c.caja.y0) / k) * 100) / 100, capa: c.capa});
+  }
+  return lista;
 }
 
 // Columnetas de confinamiento: contornos chicos en capas estructurales fuera de los
@@ -593,5 +615,7 @@ export function leerVista(items, vista, k = 1) {
     columnas, tipos,
     listaColumnetas: columnetasEnVista(items, vista, columnas, k),
     get columnetas() { return this.listaColumnetas.length; },
+    // Solo sin columnas: lo que hay en los cruces, dudoso (postes de una estructura liviana).
+    ...(columnas.length ? {} : {postes: postesEnVista(items, vista, k)}),
   };
 }
