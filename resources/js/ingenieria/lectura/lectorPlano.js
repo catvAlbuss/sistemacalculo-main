@@ -176,11 +176,12 @@ function burbujas(items) {
 // Las marcas de corte y elevación (A-A, 1-1) también son círculo + letra + línea: no son ejes.
 const CAPAS_NO_BURBUJA = /mobil|mueble|equip|aparato|sanit|puerta|ventana|vano|achur|hatch|textur|piso|jard|corte|secci|elevaci|detalle|nivel|indicad|simbol|cuadro|leyenda/i;
 function burbujasPorForma(items, textos) {
-  const candidatos = [];
+  const candidatos = [], rotulo = new Map();
   for (const c of items) {
     if (c.tipo !== "circulo" || !(c.radio > 0) || esDeEje(c) || CAPAS_NO_BURBUJA.test(c.capa)) continue;
-    const t = textos.find((x) => dist(x.centro, c.centro) <= c.radio * 1.3 && (!x.alto || (x.alto >= c.radio * 0.4 && x.alto <= c.radio * 1.6)));
-    if (t) candidatos.push(c);
+    const enRango = textos.filter((x) => dist(x.centro, c.centro) <= c.radio * 1.3 && (!x.alto || (x.alto >= c.radio * 0.4 && x.alto <= c.radio * 1.6)));
+    const t = enRango.sort((a, b) => dist(a.centro, c.centro) - dist(b.centro, c.centro))[0];
+    if (t) { candidatos.push(c); rotulo.set(c, nombreDeRotulo(t.texto)); }
   }
   if (!candidatos.length) return [];
   const radios = candidatos.map((c) => c.radio);
@@ -189,7 +190,7 @@ function burbujasPorForma(items, textos) {
     .map((it) => ({p: it.puntos[0], q: it.puntos.at(-1)})).filter(({p, q}) => dist(p, q) >= rMin * 3);
   // El trazo nace en la burbuja (o entra hasta su centro), se aleja ≥ 3 r y su recta pasa por el
   // centro (± 0.35 r): radial. Un eje punteado se dibuja en tramos cortos: basta el primero.
-  const conTrazo = (c) => trazos.some(({p, q}) => {
+  const trazoDe = (c) => trazos.find(({p, q}) => {
     const largo = dist(p, q);
     if (largo < c.radio * 3 || largo > c.radio * 2000) return false;
     const [cerca, lejos] = dist(p, c.centro) <= dist(q, c.centro) ? [p, q] : [q, p];
@@ -197,7 +198,22 @@ function burbujasPorForma(items, textos) {
     const perp = Math.abs((lejos.x - cerca.x) * (c.centro.y - cerca.y) - (lejos.y - cerca.y) * (c.centro.x - cerca.x)) / largo;
     return perp <= c.radio * 0.35;
   });
-  return rMax > rMin * 50 ? [] : candidatos.filter(conTrazo);
+  if (rMax > rMin * 50) return [];
+  const conTrazo = new Map(candidatos.map((c) => [c, trazoDe(c)]).filter(([, t]) => t));
+  // Burbuja del otro extremo sin trazo propio (ILO 1: el eje 5 del primer nivel solo se dibuja desde
+  // la burbuja derecha): vale si una burbuja con el mismo rótulo y radio, con trazo, apunta a ella
+  // (su recta pasa a ≤ 0.35 r del centro, del lado al que sale el trazo) en dirección horizontal o
+  // vertical (± 2°). Un círculo con rótulo suelto (marca de corte, de puerta) no tiene esa pareja.
+  const apuntada = (c) => [...conTrazo].some(([o, {p, q}]) => {
+    if (o === c || rotulo.get(o) !== rotulo.get(c) || Math.abs(o.radio - c.radio) > c.radio * 0.2) return false;
+    const [cerca, lejos] = dist(p, o.centro) <= dist(q, o.centro) ? [p, q] : [q, p];
+    const u = {x: lejos.x - cerca.x, y: lejos.y - cerca.y}, l = Math.hypot(u.x, u.y) || 1;
+    const v = {x: c.centro.x - o.centro.x, y: c.centro.y - o.centro.y};
+    const adelante = (u.x * v.x + u.y * v.y) / l, perp = Math.abs(u.x * v.y - u.y * v.x) / l;
+    const ang = Math.abs(Math.atan2(u.y, u.x)) % (Math.PI / 2);
+    return adelante > c.radio * 4 && perp <= c.radio * 0.35 && Math.min(ang, Math.PI / 2 - ang) < 0.035;
+  });
+  return candidatos.filter((c) => conTrazo.has(c) || apuntada(c));
 }
 
 // Dirección del eje que sale de una burbuja suelta: el trazo de eje más largo que nace en ella.
@@ -228,11 +244,15 @@ export function detectarEjesNombrados(items) {
     const u = {x: t.hacia.x - a.x, y: t.hacia.y - a.y}, v = {x: b.x - a.x, y: b.y - a.y};
     return (u.x * v.x + u.y * v.y) / (Math.hypot(u.x, u.y) * Math.hypot(v.x, v.y) || 1) > 0.966;
   };
+  // Las dos burbujas de un eje son de un tamaño parecido (razón < 1.5, como las de una misma grilla;
+  // un dibujante mezcla 0.19 y 0.15 en ILO 8): un "11" de r 0.40 y otro de r 0.25 a 226 m (ILO 5,
+  // estructuras: dos láminas a distinta escala) no son el mismo eje.
+  const mismoTamano = (i, j) => Math.max(lista[i].radio, lista[j].radio) < Math.min(lista[i].radio, lista[j].radio) * 1.5;
   const usados = new Set();
   const ejes = [];
   const pares = [];
   lista.forEach((a, i) => lista.forEach((b, j) => {
-    if (j > i && a.nombre === b.nombre && dist(a.centro, b.centro) > a.radio * 4 && apunta(i, j) && apunta(j, i)) pares.push({i, j, d: dist(a.centro, b.centro)});
+    if (j > i && a.nombre === b.nombre && dist(a.centro, b.centro) > a.radio * 4 && mismoTamano(i, j) && apunta(i, j) && apunta(j, i)) pares.push({i, j, d: dist(a.centro, b.centro)});
   }));
   // Sin trazo dibujado (módulos 6 y 9: solo burbujas), la burbuja derecha de una planta queda más
   // cerca de la izquierda de la planta vecina. Un eje de verdad lo cruza al menos otro eje: los
@@ -449,9 +469,14 @@ function contornos(items, k) {
 export function columnasEnVista(items, vista, k = 1) {
   const tol = 0.06 * k, alcance = 0.3 * k;
   // Una columna mide al menos 0.25 m de lado mayor: los cuadraditos menores en un cruce
-  // son columnetas o adornos (0.20x0.20 del módulo 3).
-  const candidatos = contornos(items, k).filter((c) => c.caja.x0 <= vista.caja.x1 && c.caja.x1 >= vista.caja.x0 && c.caja.y0 <= vista.caja.y1 && c.caja.y1 >= vista.caja.y0
-    && Math.max(c.caja.x1 - c.caja.x0, c.caja.y1 - c.caja.y0) >= 0.245 * k);
+  // son columnetas o adornos (0.20x0.20 del módulo 3). Y lo que no llega a 0.30 m de largo con
+  // menos de 0.20 m de espesor es una columneta de confinamiento del muro (0.13x0.25 de ILO), no
+  // una columna del pórtico (E.060 no admite columnas tan delgadas).
+  const candidatos = contornos(items, k).filter((c) => {
+    if (c.caja.x0 > vista.caja.x1 || c.caja.x1 < vista.caja.x0 || c.caja.y0 > vista.caja.y1 || c.caja.y1 < vista.caja.y0) return false;
+    const lado = Math.max(c.caja.x1 - c.caja.x0, c.caja.y1 - c.caja.y0), corto = Math.min(c.caja.x1 - c.caja.x0, c.caja.y1 - c.caja.y0);
+    return lado >= 0.245 * k && !(lado <= 0.305 * k && corto < 0.195 * k);
+  });
   const columnas = [];
   for (const nodo of vista.intersecciones) {
     // En ejes quebrados el cruce exacto es incierto: se prueban todos los puntos posibles.

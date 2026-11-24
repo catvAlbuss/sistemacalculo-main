@@ -69,3 +69,51 @@ test('module 09 (unseen plan): two floors and sections on one sheet are kept apa
   assert.deepEqual(lectura.tipos.map((t) => `${t.tipo}:${t.cantidad}`).sort(), ['C1:2', 'CT1:2', 'PL1:2']);
   assert.equal(espesorAligerado(luzEntreEjes(lectura.ejes)), 0.25);
 });
+
+// Grilla sintética de otro arquitecto: burbujas en una capa sin "eje" y un eje (5) que solo se
+// dibuja desde su burbuja derecha (ILO 1, primer nivel); en un cruce, una columneta 0.13x0.25.
+function grillaIlo() {
+  const capa = 'proyeccion', r = 0.25, items = [];
+  const burbuja = (x, y, nombre) => {
+    items.push({tipo: 'circulo', capa, centro: {x, y}, radio: r});
+    items.push({tipo: 'texto', capa, centro: {x: x - 0.1, y: y - 0.1}, texto: nombre, alto: 0.25});
+  };
+  const linea = (a, b) => items.push({tipo: 'linea', capa: 'EJES GENERALES', puntos: [a, b]});
+  for (const [n, x] of [['G', 0], ['M', 6]]) { burbuja(x, 10, n); burbuja(x, -2, n); linea({x, y: 9.75}, {x, y: -1.75}); }
+  burbuja(-2, 8, '1'); burbuja(8, 8, '1'); linea({x: -1.75, y: 8}, {x: 7.75, y: 8});
+  burbuja(-2, 0, '05'); burbuja(8, 0, '05'); linea({x: 7.75, y: 0}, {x: 3, y: 0});
+  const rect = (x, y, b, h) => items.push({tipo: 'poli', capa: 'A-COLS', cerrada: true, puntos: [{x: x - b / 2, y: y - h / 2}, {x: x + b / 2, y: y - h / 2}, {x: x + b / 2, y: y + h / 2}, {x: x - b / 2, y: y + h / 2}]});
+  rect(0, 8, 0.4, 0.4); rect(6, 8, 0.4, 0.4); rect(0, 0, 0.4, 0.4); rect(6, 0, 0.13, 0.25);
+  items.push({tipo: 'texto', capa: 'textos', centro: {x: 2, y: -3.5}, texto: 'PRIMER NIVEL MODULO I', alto: 0.4});
+  return items;
+}
+
+test('an axis drawn only from one bubble still reaches the other bubble with its label (no axis trace there)', () => {
+  const items = grillaIlo();
+  const [vista] = detectarVistas(items);
+  assert.ok(vista, 'one view');
+  assert.deepEqual(vista.ejes.map((e) => e.nombre).sort(), ['1', '5', 'G', 'M']);
+  const cruces = vista.intersecciones.map((n) => n.ejes.slice().sort().join('/'));
+  assert.ok(cruces.includes('5/G'), `crossings: ${cruces.join(' ')}`);
+  // Un círculo con rótulo y sin pareja que le apunte (marca de corte) sigue sin ser eje.
+  items.push({tipo: 'circulo', capa: 'proyeccion', centro: {x: 3, y: 4}, radio: 0.25}, {tipo: 'texto', capa: 'proyeccion', centro: {x: 2.9, y: 3.9}, texto: 'B', alto: 0.25});
+  assert.ok(!detectarVistas(items)[0].ejes.some((e) => e.nombre === 'B'));
+});
+
+test('a 0.13x0.25 confinement column at a crossing is not a frame column; a 0.40x0.40 is', () => {
+  const items = grillaIlo();
+  const lectura = leerVista(items, detectarVistas(items)[0]);
+  assert.deepEqual(lectura.columnas.map((c) => c.eje).sort(), ['1/G', '1/M', '5/G']);
+  assert.equal(lectura.columnetas, 1, 'it is kept as a columneta');
+});
+
+test('two bubbles with the same label but very different sizes (another sheet at another scale) are not one axis', () => {
+  const items = grillaIlo();
+  // Eje "3" de esta planta sin su burbuja derecha, y otro "3" de r 0.40 en una lámina a 60 m.
+  items.push({tipo: 'circulo', capa: 'proyeccion', centro: {x: -2, y: 4}, radio: 0.25}, {tipo: 'texto', capa: 'proyeccion', centro: {x: -2.1, y: 3.9}, texto: '3', alto: 0.25});
+  items.push({tipo: 'linea', capa: 'EJES GENERALES', puntos: [{x: -1.75, y: 4}, {x: 1, y: 4}]});
+  items.push({tipo: 'circulo', capa: 'proyeccion', centro: {x: 60, y: 4.5}, radio: 0.4}, {tipo: 'texto', capa: 'proyeccion', centro: {x: 59.9, y: 4.4}, texto: '3', alto: 0.35});
+  items.push({tipo: 'linea', capa: 'EJES GENERALES', puntos: [{x: 59.6, y: 4.5}, {x: 57, y: 4.5}]});
+  const [vista] = detectarVistas(items);
+  assert.ok(vista.caja.x1 < 20, `the plan does not reach the other sheet (x1 = ${vista.caja.x1})`);
+});
